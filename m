@@ -2,225 +2,207 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 729C3C282D8
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:13:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84A62C282D9
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:23:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2E5C02184D
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:13:26 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="QqkuLlvZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E5C02184D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 4CDCF20882
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:23:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4CDCF20882
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BD3308E0005; Wed, 30 Jan 2019 04:13:25 -0500 (EST)
+	id D79D88E0002; Wed, 30 Jan 2019 04:23:13 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B83968E0001; Wed, 30 Jan 2019 04:13:25 -0500 (EST)
+	id D292E8E0001; Wed, 30 Jan 2019 04:23:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A73E58E0005; Wed, 30 Jan 2019 04:13:25 -0500 (EST)
+	id C40418E0002; Wed, 30 Jan 2019 04:23:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 62A3B8E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 04:13:25 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id l9so16363319plt.7
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 01:13:25 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A3C18E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 04:23:13 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id w1so27675715qta.12
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 01:23:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=MR822vHV0tQgjB8liomI4ONZtoIfEsWxF4ZnmDy1sCQ=;
-        b=QFvqBhlMt7/IwLb6nlsv1mkt+obe08K8O14Oh9FsbsmYzWDyzzFU75GSO1Fwas8Rs9
-         dLFGYKo6Mn1uoC2m/OKyqHotrZTZjLZ3rinAb6lzDbbpLO6BvUZnhXHnqz/Jv5y9QKE9
-         qLrn0FJYxrwnYRBKDrU7Dq3UFQOlIsKWIXFF9qZxsocf5Coy5LnWj5+vSmdHOjNlhuC/
-         Rf74sQBwIgs6H+Cl4VRzRtuT93/Yy1cE+bwihHZxaY1hy4vCcvqr8kxVpPjytAaTgiyv
-         ZXNV7LN8Ce8WVieqtlpmyRUrKGa9kNOMqlcqokydOM4vOFtoG00NfFE4TVuVeq6YW318
-         PzNQ==
-X-Gm-Message-State: AJcUukf/xUOWc1ABhwvCjr1no6AXTmQi3/fPauRdkI/P1CQi812p5qAZ
-	hhPVx2Ls76UOMsZYetw939yKQw3o1Kceo48DM6Fm9ekQCNifqamcAkHilHy19v9sFyOeD+Zoreh
-	OiE7za3ecsyOtZeVc+CaEkPzFaYXDfI8i5SX0ni3vgxs1Bnu8VS5WK2gFfwor34vT8g==
-X-Received: by 2002:a17:902:bd86:: with SMTP id q6mr28662367pls.16.1548839604966;
-        Wed, 30 Jan 2019 01:13:24 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6ES3qv5jwcagBd9H5RBPmKeO4+ksYxkJKXoBCS1c32e2aa67gaupS+ZFpGJTc6aeHWTSPD
-X-Received: by 2002:a17:902:bd86:: with SMTP id q6mr28662335pls.16.1548839604219;
-        Wed, 30 Jan 2019 01:13:24 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548839604; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=VbAkpVm6aUtjplh15xW+8XFpBdphGmpE5hR4xv/5y9w=;
+        b=VfcOZf/wNKRLsC7queBLts1nzUL12huz9FWxm5uquoIIuhmr9erc6QNmKPDpAyWESt
+         l+YfA7GvDxLq9muZrZCc9ZuoREl6T1oMNoPDiOeZmDEv796LURWUo27NHC6tJl/PJp3F
+         yoYfN7hiS8tCVRjpXRoK9Q0uR1vb9EMs1AOsRPmeBejud7HMiOb16bWh/fDQUXi/eZN3
+         VeJgzZ1wDuUYGbEoEafqEtajs/wNiFP1GN60BdO8OTTjRJlqx6fLMocalfcl/i8wFwuK
+         ElLSW7lGWQKcw8w9bD1M4xi7JWFXea+X53Gg3iphDzc/BWJRbrbuOQdDVg3KHQ+oX8Dw
+         1JSA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukclau6VYV8NBmZkv9/a++7baDs0/uDh7JCm5yseWwIWihaX0rfs
+	o62pq5AigJGklsZI+O616H9JhhgQ7CYrygaQQrA9Dx68tyUP7J7orIvWOezjpfAo+zGwE3XYRua
+	kGiAzOAgTzCidDQkA+QwnXJ/z7sYFL4kvJ7RpNWtmFjBt6yNhmQICnB7/VN4a89AlJQ==
+X-Received: by 2002:a37:68a:: with SMTP id 132mr27583345qkg.89.1548840193338;
+        Wed, 30 Jan 2019 01:23:13 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4O+BZtG92PfWTaPRGWjdeYi48X17CkKQi5ihVno5HJiBdQ/BX+iLEjJl6cvHb0SrlhDljP
+X-Received: by 2002:a37:68a:: with SMTP id 132mr27583314qkg.89.1548840192690;
+        Wed, 30 Jan 2019 01:23:12 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548840192; cv=none;
         d=google.com; s=arc-20160816;
-        b=gtMFkdTaNTn0o8bggECbluWB2/h3GxbG7eu8Fhxqrm5rwWqziXQavxaz9qIyzFea+6
-         ZDEtu5LoSW38MxrxWY7t4O5Z6Pmq3WlYEMLyezpQxXbT5KdAsVrpA1e2DKm/HtlQ3St2
-         wbtWmHN+3gBey/jICGEmte6feHgpOFheuTDLloWMl3WM2+TGeq5XrsyixBTt0reyLPem
-         zOggjtrbSUra7t+UvyXhxJ/NWdnL9SioQ0Yk6bCC+DRyxYq9kqTiLzHNojorYBCiCUOs
-         sZIoqOG7rzt26wwIBSkhW1MxyGitmiriWlFZi7GSs5YQubwRtbj/sx13vXNXnmoXJV9X
-         frVw==
+        b=Jb+7VjMj1WHEVpVeEBPJ6rZMOrvTWxYHQ+3/3cPx1vXiMPEHBcGQsscoZHTs6FzZzM
+         s9/O+jWz65+UWRbktqstw5CjNlaWnsWJVis7EzGpjwbnrJsptKQmLv0Q0SiFrrEdVN7S
+         CsiDcoFitotmQbbk9AAcArH4+4FvdosaIDcFL2ZFm+OEw3+iB98UpDvpw6y+mFyAWOHg
+         XaVdLbM5cJ+hA/XrmLeNpablwcOEWv+f61pR21eOHtN8vFEfJcSimlPVi9t7Mff0afqI
+         Z9o9Npr+yz79VwY+HGaDlhtGLLvT3Qc8loQFbC09lEBUe5wEkM2dOfauIGY2bWlhF/+v
+         8+DA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=MR822vHV0tQgjB8liomI4ONZtoIfEsWxF4ZnmDy1sCQ=;
-        b=BqpIxYNHo+WfmH6kDOMjXMRxwrUQrqBdIwJ2uny7JdcMNZKgk7rdwp07riJ2P1Vuzq
-         T4ZacUjsG6OJV/jRDD80a7WhJFtWpYX804VVyQBb3q4Y+1xK4WBZVdWJWPWy2PVeEFIi
-         L426//oE5EOSBh61OFwSNswagaK8q9mv5oFjCtX17O0usuNBDeRNvOVc4Xs7o39fOozd
-         yZE6VAadOxKbW7b/+x0jivC+VuyqqGYqyd7rX/nn1TI1UVdOhSJniwlAwzfUFloptM3n
-         ireJ6p2ZGzFxd5ABiflDTIKYDwwgiqphlh0eSUo8iqoGnUUwQDc3yVlYsinXLpVwvVZa
-         LFvw==
+         :message-id:subject:cc:to:from:date;
+        bh=VbAkpVm6aUtjplh15xW+8XFpBdphGmpE5hR4xv/5y9w=;
+        b=HjGOkh7eEK9ww2GsRERKJO+2aAXyNe/qXOXTRlCzGB+GZyf1GNmL7XCIMK+ZG8dHC/
+         Ss90BHPLmrIWqhQIniv3PXEJir69VxqBxgdFjQwdZoWY5SaFbhUKkrd/m0rfqyYdlJpf
+         /3K2CFhgSmqqGVV906MAj6aO3TuaOSrENRtUbks90EtccRDxc1bHsUU5Rx1bHn/Mc8VQ
+         Tj4RHnruNomRk5MQcOC5zkF3WhDudjaBmx6A4BqsX3m5uUtW/7Yn3EgbgD4ftkj8cUg2
+         jJsa/nYaJD44SEjVp8NLVPW3CF6YjJ7ij/cgJRSoQ5uZeUGJS9wwe+Me9X/k5xIbXJKn
+         gFBg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=QqkuLlvZ;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id u3si932170pgj.300.2019.01.30.01.13.24
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b129si675914qke.179.2019.01.30.01.23.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 30 Jan 2019 01:13:24 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jan 2019 01:23:12 -0800 (PST)
+Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=QqkuLlvZ;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=MR822vHV0tQgjB8liomI4ONZtoIfEsWxF4ZnmDy1sCQ=; b=QqkuLlvZObvOlBt91xGLZoG2+
-	BJPPa3tN7GYwjdo07yWyJz7mZktgiDfg32RHTfDnXsAZWnAyEyxn0rd4FPBhHGBlMxl2r071WfIb6
-	2Y0tEFyQkc22Xchxx6RttWKXw4Mgp51a911+OfUE4/3EtceBPklVt3b39BVUNM1O57XVCoftAwbvc
-	n5G1ppGDRToXiYviwcDjiWGB7pepu9EbOf2c2q7lgtwtgEAYlAgR9tR7X62PTwdtLQJ8krtVIXxdV
-	EXzK46xB0oWNY0bMCs3aN924pcGBYTxjvfV8pNJmUVERCxKTdiF9gzwuTRpqW/U6BZgLtH/9AVYXU
-	zBLVu3a6Q==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1golvq-0001K1-VU; Wed, 30 Jan 2019 09:13:19 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id E68F920289CC5; Wed, 30 Jan 2019 10:13:16 +0100 (CET)
-Date: Wed, 30 Jan 2019 10:13:16 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: akpm@linux-foundation.org, dan.carpenter@oracle.com,
-	andrea.parri@amarulasolutions.com, shli@kernel.org,
-	ying.huang@intel.com, dave.hansen@linux.intel.com,
-	sfr@canb.auug.org.au, osandov@fb.com, tj@kernel.org,
-	ak@linux.intel.com, linux-mm@kvack.org,
-	kernel-janitors@vger.kernel.org, paulmck@linux.ibm.com,
-	stern@rowland.harvard.edu, will.deacon@arm.com
-Subject: Re: [PATCH] mm, swap: bounds check swap_info accesses to avoid NULL
- derefs
-Message-ID: <20190130091316.GC2278@hirez.programming.kicks-ass.net>
-References: <20190114222529.43zay6r242ipw5jb@ca-dmjordan1.us.oracle.com>
- <20190115002305.15402-1-daniel.m.jordan@oracle.com>
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9AEF98AE6F;
+	Wed, 30 Jan 2019 09:23:11 +0000 (UTC)
+Received: from xz-x1 (dhcp-14-116.nay.redhat.com [10.66.14.116])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 256A71A7CE;
+	Wed, 30 Jan 2019 09:23:04 +0000 (UTC)
+Date: Wed, 30 Jan 2019 17:23:02 +0800
+From: Peter Xu <peterx@redhat.com>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>,
+	lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Blake Caldwell <blake.caldwell@colorado.edu>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@suse.de>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	David Rientjes <rientjes@google.com>,
+	Andrei Vagin <avagin@gmail.com>,
+	Pavel Emelyanov <xemul@virtuozzo.com>
+Subject: Re: [LSF/MM TOPIC]: userfaultfd (was: [LSF/MM TOPIC] NUMA remote THP
+ vs NUMA local non-THP under MADV_HUGEPAGE)
+Message-ID: <20190130092302.GA25119@xz-x1>
+References: <20190129234058.GH31695@redhat.com>
+ <20190130081336.GC17937@rapoport-lnx>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190115002305.15402-1-daniel.m.jordan@oracle.com>
+In-Reply-To: <20190130081336.GC17937@rapoport-lnx>
 User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Wed, 30 Jan 2019 09:23:11 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 14, 2019 at 07:23:05PM -0500, Daniel Jordan wrote:
-> Dan Carpenter reports a potential NULL dereference in
-> get_swap_page_of_type:
+On Wed, Jan 30, 2019 at 10:13:36AM +0200, Mike Rapoport wrote:
+> Hi,
 > 
->   Smatch complains that the NULL checks on "si" aren't consistent.  This
->   seems like a real bug because we have not ensured that the type is
->   valid and so "si" can be NULL.
+> (changed the subject and added CRIU folks)
 > 
-> Add the missing check for NULL, taking care to use a read barrier to
-> ensure CPU1 observes CPU0's updates in the correct order:
-> 
->         CPU0                           CPU1
->         alloc_swap_info()              if (type >= nr_swapfiles)
->           swap_info[type] = p              /* handle invalid entry */
->           smp_wmb()                    smp_rmb()
->           ++nr_swapfiles               p = swap_info[type]
-> 
-> Without smp_rmb, CPU1 might observe CPU0's write to nr_swapfiles before
-> CPU0's write to swap_info[type] and read NULL from swap_info[type].
-> 
-> Ying Huang noticed that other places don't order these reads properly.
-> Introduce swap_type_to_swap_info to encourage correct usage.
-> 
-> Use READ_ONCE and WRITE_ONCE to follow the Linux Kernel Memory Model
-> (see tools/memory-model/Documentation/explanation.txt).
-> 
-> This ordering need not be enforced in places where swap_lock is held
-> (e.g. si_swapinfo) because swap_lock serializes updates to nr_swapfiles
-> and the swap_info array.
-> 
-> This is a theoretical problem, no actual reports of it exist.
-> 
-> Fixes: ec8acf20afb8 ("swap: add per-partition lock for swapfile")
-> Reported-by: Dan Carpenter <dan.carpenter@oracle.com>
-> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-
-A few comments below, but:
-
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-
-> +static struct swap_info_struct *swap_type_to_swap_info(int type)
-> +{
-> +	if (type >= READ_ONCE(nr_swapfiles))
-> +		return NULL;
-> +
-> +	smp_rmb();	/* Pairs with smp_wmb in alloc_swap_info. */
-> +	return READ_ONCE(swap_info[type]);
-> +}
-
-> @@ -2799,9 +2810,9 @@ static void *swap_start(struct seq_file *swap, loff_t *pos)
->  	if (!l)
->  		return SEQ_START_TOKEN;
+> On Tue, Jan 29, 2019 at 06:40:58PM -0500, Andrea Arcangeli wrote:
+> > Hello,
+> > 
+> > --
+> > 
+> > In addition to the above "NUMA remote THP vs NUMA local non-THP
+> > tradeoff" topic, there are other developments in "userfaultfd" land that
+> > are approaching merge readiness and that would be possible to provide a
+> > short overview about:
+> > 
+> > - Peter Xu made significant progress in finalizing the userfaultfd-WP
+> >   support over the last few months. That feature was planned from the
+> >   start and it will allow userland to do some new things that weren't
+> >   possible to achieve before. In addition to synchronously blocking
+> >   write faults to be resolved by an userland manager, it has also the
+> >   ability to obsolete the softdirty feature, because it can provide
+> >   the same information, but with O(1) complexity (as opposed of the
+> >   current softdirty O(N) complexity) similarly to what the Page
+> >   Modification Logging (PML) does in hardware for EPT write accesses.
 >  
-> -	for (type = 0; type < nr_swapfiles; type++) {
-> +	for (type = 0; type < READ_ONCE(nr_swapfiles); type++) {
->  		smp_rmb();	/* read nr_swapfiles before swap_info[type] */
-> -		si = swap_info[type];
-> +		si = READ_ONCE(swap_info[type]);
->  		if (!(si->flags & SWP_USED) || !si->swap_map)
->  			continue;
->  		if (!--l)
-> @@ -2821,9 +2832,9 @@ static void *swap_next(struct seq_file *swap, void *v, loff_t *pos)
->  	else
->  		type = si->type + 1;
->  
-> -	for (; type < nr_swapfiles; type++) {
-> +	for (; type < READ_ONCE(nr_swapfiles); type++) {
->  		smp_rmb();	/* read nr_swapfiles before swap_info[type] */
-> -		si = swap_info[type];
-> +		si = READ_ONCE(swap_info[type]);
->  		if (!(si->flags & SWP_USED) || !si->swap_map)
->  			continue;
->  		++*pos;
+> We (CRIU) have some concerns about obsoleting soft-dirty in favor of
+> uffd-wp. If there are other soft-dirty users these concerns would be
+> relevant to them as well.
+> 
+> With soft-dirty we collect the information about the changed memory every
+> pre-dump iteration in the following manner:
+> * freeze the tasks
+> * find entries in /proc/pid/pagemap with SOFT_DIRTY set
+> * unfreeze the tasks
+> * dump the modified pages to disk/remote host
+> 
+> While we do need to traverse the /proc/pid/pagemap to identify dirty pages,
+> in between the pre-dump iterations and during the actual memory dump the
+> tasks are running freely.
+> 
+> If we are to switch to uffd-wp, every write by the snapshotted/migrated
+> task will incur latency of uffd-wp processing by the monitor.
+> 
+> We'd need to see how this affects overall slowdown of the workload under
+> migration before moving forward with obsoleting soft-dirty.
+> 
+> > - Blake Caldwell maintained the UFFDIO_REMAP support to atomically
+> >   remove memory from a mapping with userfaultfd (which can't be done
+> >   with a copy as in UFFDIO_COPY and it requires a slow TLB flush to be
+> >   safe) as an alternative to host swapping (which of course also
+> >   requires a TLB flush for similar reasons). Notably UFFDIO_REMAP was
+> >   rightfully naked early on and quickly replaced by UFFDIO_COPY which
+> >   is more optimal to add memory to a mapping is small chunks, but we
+> >   can't remove memory with UFFDIO_COPY and UFFDIO_REMAP should be as
+> >   efficient as it gets when it comes to removing memory from a
+> >   mapping.
+> 
+> If we are to discuss userfaultfd, I'd like also to bring the subject of COW
+> mappings.
+> The pages populated with UFFDIO_COPY cannot be COW-shared between related
+> processes which unnecessarily increases memory footprint of a migrated
+> process tree.
+> I've posted a patch [1] a (real) while ago, but nobody reacted and I've put
+> this aside.
+> Maybe it's time to discuss it again :)
 
-You could write those like:
+Hi, Mike,
 
-	for (; (si = swap_type_to_swap_info(type)); type++)
+It's interesting to know such a work...
 
-> @@ -2930,14 +2941,14 @@ static struct swap_info_struct *alloc_swap_info(void)
->  	}
->  	if (type >= nr_swapfiles) {
->  		p->type = type;
-> -		swap_info[type] = p;
-> +		WRITE_ONCE(swap_info[type], p);
->  		/*
->  		 * Write swap_info[type] before nr_swapfiles, in case a
->  		 * racing procfs swap_start() or swap_next() is reading them.
->  		 * (We never shrink nr_swapfiles, we never free this entry.)
->  		 */
->  		smp_wmb();
-> -		nr_swapfiles++;
-> +		WRITE_ONCE(nr_swapfiles, nr_swapfiles + 1);
->  	} else {
->  		kvfree(p);
->  		p = swap_info[type];
+Since I really don't have much context on this, so sorry if I'm going
+to ask a silly question... but I'd say when reading this I'm thinking
+of KSM.  I think KSM does not suite in this case since when doing
+UFFDIO_COPY_COW it'll contain hinting information while KSM was only
+scanning over the pages between processes which seems to be O(N*N) if
+assuming there're two processes.  However, would it make any sense to
+provide a general interface to scan for same pages between any two
+processes within specific range and merge them if found (rather than a
+specific interface for userfaultfd only)?  Then it might even be used
+by KSM admins (just as an example) when the admin knows exactly that
+memory range (addr1, len) of process A should very probably has many
+same contents as the memory range (addr2, len) of process B?
 
-It is also possible to write this with smp_load_acquire() /
-smp_store_release(). ARM64/RISC-V might benefit from that, OTOH ARM
-won't like that much.
+Thanks,
 
-Dunno what would be better.
+-- 
+Peter Xu
 
