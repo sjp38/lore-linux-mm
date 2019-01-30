@@ -2,130 +2,144 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 44C5AC282D9
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 15:04:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D559BC282D7
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 15:16:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 109A320989
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 15:04:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 109A320989
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 9F46020989
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 15:16:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F46020989
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A2ED78E0002; Wed, 30 Jan 2019 10:04:46 -0500 (EST)
+	id 2D3648E0004; Wed, 30 Jan 2019 10:16:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9DD288E0001; Wed, 30 Jan 2019 10:04:46 -0500 (EST)
+	id 25AD48E0001; Wed, 30 Jan 2019 10:16:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8CD3B8E0002; Wed, 30 Jan 2019 10:04:46 -0500 (EST)
+	id 124CB8E0004; Wed, 30 Jan 2019 10:16:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FBC68E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 10:04:46 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id p24so29079881qtl.2
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 07:04:46 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A7CC28E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 10:16:00 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id c18so9340043edt.23
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 07:16:00 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:references:user-agent
          :mime-version;
-        bh=RFHJCwGGFjug4k/yqoI/yFl11Q86KTQkVM3Lko7swq0=;
-        b=C90YDtYUosA5nYHEth/UsZBBELcSAF0sJWuCZdUGlbPBqHrU0L3vl1AvWg9lA+sdd3
-         Q1NJpI43Wdk5Ov6jEMPawDeMG10yJx9INUvrTAx9FgBhh5R3cagSLdgm/alabjx8NOKH
-         fvNsHwaM/K+oWKOx4Y+OQEdoiEkgRz4rPJPdPKSjcs35alr94uHFFn37Hq76/kBBUSYk
-         Zge+1rU9LJSJHVTuh67lt9XDPuPT8zpvlXJXbr27ekeH4vq9f/DmQQF/+0matlPPuXd8
-         r7lnnmVruvi4DenoM0lLQg2g3LXn3SRfbrv74bSjnwAnnl229Pliw8yJdxzZu4eAU+0x
-         w34w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUuke9Yul8o3wVpQFy42Xk2JbMsU4boOMECLKHAsBfTU2MC8W4SsOG
-	lUWX4/XanBYPKGfeyqQ/x1GpUZ4Bk+QfELZlUCA9ZCIIGLVhWNLCRXjfXY+XfCkNDEr1Wft9L+V
-	jAFZEd7Z3K4O9i/pgJDkKDVej/fbYQNf2Kd1gtWKXAwTz+jO03CLgTbIFFc9RACjlmw==
-X-Received: by 2002:ae9:f212:: with SMTP id m18mr27181305qkg.5.1548860686104;
-        Wed, 30 Jan 2019 07:04:46 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN47g8uTKnKttyFrgsIgy/X7zJl3OBynk8UtgBM664ktUOq8r/WY3R++0gQ1CSK5+JAXbLJu
-X-Received: by 2002:ae9:f212:: with SMTP id m18mr27181251qkg.5.1548860685436;
-        Wed, 30 Jan 2019 07:04:45 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548860685; cv=none;
+        bh=gyb5ViqkzGKWKm4NOTLdGUR8XoaOA4hS18kma3ZyTMs=;
+        b=Qg0l1IHHQr9sy4v+rz05Roj4r7Rr+DcUD2DrUvN5pn4utvrnrkG6afO5yi8DryXSVd
+         4focKpjmDBaGEd9cCd5EhVeq0COeYf1UoIqR7C4g5EMSOa+TN7MSYoMl/5P82ZQ7DIqM
+         O1NYolts8B20InBEjxvx0M7e++wMs5b+hmjckz334XqLIkCn6eOYvSmCCchU/jg4W+xI
+         mUu9uFn+cEsQxzGW+cXU3fXXdSrTnXWNRQSu0/u0PejDDnKv1uzke7gAAitQOCsKyaf7
+         ngFBzBW2dZVjmMkYywSy4FgG5v8aFsl8+Ws7QHLb34vUzwgVJyhU2dl8YQOfZsgCr3sB
+         sJDQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAua/5ubsWokFNyDBFiYgL7L8Gcz+cr6JH/usvnGYZRkqUiERtKg+
+	gSjx2pDayU7YN3fXMl2iv3ZoJapRZQwaAJ7xdHTY9HUAY9i7qXq2uIMCHVvFnIzm6gc5TCAy8y7
+	lya2cYon+p8CLLeor7DISzrMuLsELA0uyUBURgFzYEYfUiOM0HqxCZj9ZyZCdL5s=
+X-Received: by 2002:a17:906:9493:: with SMTP id t19mr2341838ejx.63.1548861360159;
+        Wed, 30 Jan 2019 07:16:00 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbVzw5ClgEVagTgqoxamEGCEPRcOkGEjXzxRVINBAMQH7sfcY9Y/tDiop/uFjceKOE7S9Fn
+X-Received: by 2002:a17:906:9493:: with SMTP id t19mr2341793ejx.63.1548861359269;
+        Wed, 30 Jan 2019 07:15:59 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548861359; cv=none;
         d=google.com; s=arc-20160816;
-        b=zfLpDbUE6fmYjotrYWs+uEFovG2zwgGhzQ2nk9L/r8JlDkWmo2RzsfIBWaJoF87HbC
-         gHrBuGZ9qud2gwgViUQVcJSfZmrZerdrk0Ewx/LvJl2hN72UnizZJY/Goy2J99gCCCrw
-         9Q0fWTgt6Ajnz76hANMYvqf+JkAmGVI3s2zE6A1TP8fOLu3+f1jqWK+i3k6WcqiPFRgl
-         icblLGVM9BqrVrPMyfyyB9R/2KF2BCEwAakYSUJjGZd9pa5sDg1hjme64IGHVBWYYUrl
-         vMU/N7wjJP4ZxbtydAlF/FGj9cwltQY4CYltrM/MIT133rghOc5od9+Rw9P6kGQP7aZe
-         /LPg==
+        b=YQNYVNDgYDqq6BZsr7TkGKGAattujlF+3Fz84vr9kNI2J6nNMAqA4RbsTJM/Pq6apA
+         SwJW0+K9b6Yow2G/lpjjzDGCGgL4vG8ewMyP6JqpSAKdh8elJaoqsG62UHshsgiocpGh
+         Sd5YVJRgHDtW9z7W1u1561RleHsRgYmdBcXgtvx5HoMJum8lS0iggYanT+tpiOUoXyfJ
+         F5feeX7t/q2OF2Z6xchE6lebX1Ln+SQc4L2qkvhJ8swYbfTMbq2VCGj8Y92HqTTv7qDY
+         kqVv7yWXu0OqaNVHPzzpYfaK0utqDYI4keggfX1edkfDVexJgDipNMJglXQe/SsUxM66
+         9QhA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :subject:cc:to:from;
-        bh=RFHJCwGGFjug4k/yqoI/yFl11Q86KTQkVM3Lko7swq0=;
-        b=rGMHAO39otCQrEgHiwgf6M7unf0HlQq3rM+q0xy9LkEisaN4eh2//WBC+IcTdw1/kc
-         kdrvSRCqXK3XB7ViLDWQIS0p5GdPzup1ZUIFKUEy6PG4WG0/3swCjjn8IKP1unG0heIb
-         bTlT+d2ZJVys/jf2dbFD/8IcGTYzgPJtbJWCNFUGPJdJq+CMehhq77cIobYuw2IOkdRu
-         XeT6mPTYbDWKn6VX+mojynd2AzL7yTD9c0OHzRGoMeXSiBoqljV+yJvxJ62CVAFBJWBQ
-         pV0G3GeAyDa1NwO2ZtD39+BIPVNvITujqGQ1CP/5U+JlRUVvLMrdora5GyKXQLYl3jGp
-         TODQ==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=gyb5ViqkzGKWKm4NOTLdGUR8XoaOA4hS18kma3ZyTMs=;
+        b=jv1mpSDNWKV9moOfitHTKPyxXDsk3ppTcnFzZWw0/hxXR6H7IGTX0uSETSKxH3ggnp
+         9ESFpzkKeVI5LLfus8JqBbaTsYZkjXSnz4fWAlrY5hFsedzePkdjBjBxaWQsgOw5OojL
+         umhmOdMtcMp6FcGCekv7cHVoKb+gmyoKuQlGoi9bi08xx1Mjk79m+oTXwLPsRtpJWcHA
+         paAeoQqcNJNb/wXna8Uq205FaX+bklnHn8fKqtxDI7ELzcUu2KlbnQ8FFK+p8HqsYhuH
+         Sf0TIsyFtxfUQ5VNyPcwyaScrRqwnMYzuMILJ39EL6heJ5OI5EOWDwLvYaEfwFL4BAtU
+         n3AA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s21si1218636qki.43.2019.01.30.07.04.45
+       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d8-v6si968994ejy.275.2019.01.30.07.15.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 07:04:45 -0800 (PST)
-Received-SPF: pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 30 Jan 2019 07:15:59 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 1761D155E0;
-	Wed, 30 Jan 2019 15:04:43 +0000 (UTC)
-Received: from oldenburg2.str.redhat.com (dhcp-192-219.str.redhat.com [10.33.192.219])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id D198D100164E;
-	Wed, 30 Jan 2019 15:04:37 +0000 (UTC)
-From: Florian Weimer <fweimer@redhat.com>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>,  Linus Torvalds <torvalds@linux-foundation.org>,  linux-kernel@vger.kernel.org,  linux-mm@kvack.org,  linux-api@vger.kernel.org,  Peter Zijlstra <peterz@infradead.org>,  Greg KH <gregkh@linuxfoundation.org>,  Jann Horn <jannh@google.com>,  Jiri Kosina <jkosina@suse.cz>,  Dominique Martinet <asmadeus@codewreck.org>,  Andy Lutomirski <luto@amacapital.net>,  Dave Chinner <david@fromorbit.com>,  Kevin Easton <kevin@guarana.org>,  Matthew Wilcox <willy@infradead.org>,  Cyril Hrubis <chrubis@suse.cz>,  Tejun Heo <tj@kernel.org>,  "Kirill A . Shutemov" <kirill@shutemov.name>,  Daniel Gruss <daniel@gruss.cc>,  Jiri Kosina <jikos@kernel.org>
-Subject: Re: [PATCH 2/3] mm/filemap: initiate readahead even if IOCB_NOWAIT is set for the I/O
-References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
-	<20190130124420.1834-1-vbabka@suse.cz>
-	<20190130124420.1834-3-vbabka@suse.cz>
-Date: Wed, 30 Jan 2019 16:04:36 +0100
-In-Reply-To: <20190130124420.1834-3-vbabka@suse.cz> (Vlastimil Babka's message
-	of "Wed, 30 Jan 2019 13:44:19 +0100")
-Message-ID: <87munii3uj.fsf@oldenburg2.str.redhat.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
+       spf=softfail (google.com: domain of transitioning jikos@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=jikos@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 74A5AAF1C;
+	Wed, 30 Jan 2019 15:15:58 +0000 (UTC)
+Date: Wed, 30 Jan 2019 16:15:55 +0100 (CET)
+From: Jiri Kosina <jikos@kernel.org>
+To: Florian Weimer <fweimer@redhat.com>
+cc: Vlastimil Babka <vbabka@suse.cz>, 
+    Andrew Morton <akpm@linux-foundation.org>, 
+    Linus Torvalds <torvalds@linux-foundation.org>, 
+    linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+    linux-api@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, 
+    Greg KH <gregkh@linuxfoundation.org>, Jann Horn <jannh@google.com>, 
+    Dominique Martinet <asmadeus@codewreck.org>, 
+    Andy Lutomirski <luto@amacapital.net>, Dave Chinner <david@fromorbit.com>, 
+    Kevin Easton <kevin@guarana.org>, Matthew Wilcox <willy@infradead.org>, 
+    Cyril Hrubis <chrubis@suse.cz>, Tejun Heo <tj@kernel.org>, 
+    "Kirill A . Shutemov" <kirill@shutemov.name>, 
+    Daniel Gruss <daniel@gruss.cc>
+Subject: Re: [PATCH 2/3] mm/filemap: initiate readahead even if IOCB_NOWAIT
+ is set for the I/O
+In-Reply-To: <87munii3uj.fsf@oldenburg2.str.redhat.com>
+Message-ID: <nycvar.YFH.7.76.1901301614501.6626@cbobk.fhfr.pm>
+References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm> <20190130124420.1834-1-vbabka@suse.cz> <20190130124420.1834-3-vbabka@suse.cz> <87munii3uj.fsf@oldenburg2.str.redhat.com>
+User-Agent: Alpine 2.21 (LSU 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Wed, 30 Jan 2019 15:04:44 +0000 (UTC)
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Vlastimil Babka:
+On Wed, 30 Jan 2019, Florian Weimer wrote:
 
-> preadv2(RWF_NOWAIT) can be used to open a side-channel to pagecache
-> contents, as it reveals metadata about residency of pages in
-> pagecache.
->
-> If preadv2(RWF_NOWAIT) returns immediately, it provides a clear "page
-> not resident" information, and vice versa.
->
-> Close that sidechannel by always initiating readahead on the cache if
-> we encounter a cache miss for preadv2(RWF_NOWAIT); with that in place,
-> probing the pagecache residency itself will actually populate the
-> cache, making the sidechannel useless.
+> > preadv2(RWF_NOWAIT) can be used to open a side-channel to pagecache
+> > contents, as it reveals metadata about residency of pages in
+> > pagecache.
+> >
+> > If preadv2(RWF_NOWAIT) returns immediately, it provides a clear "page
+> > not resident" information, and vice versa.
+> >
+> > Close that sidechannel by always initiating readahead on the cache if
+> > we encounter a cache miss for preadv2(RWF_NOWAIT); with that in place,
+> > probing the pagecache residency itself will actually populate the
+> > cache, making the sidechannel useless.
+> 
+> I think this needs to use a different flag because the semantics are so
+> much different.  If I understand this change correctly, previously,
+> RWF_NOWAIT essentially avoided any I/O, and now it does not.
 
-I think this needs to use a different flag because the semantics are so
-much different.  If I understand this change correctly, previously,
-RWF_NOWAIT essentially avoided any I/O, and now it does not.
+It still avoid synchronous I/O, due to this code still being in place:
 
-Thanks,
-Florian
+                if (!PageUptodate(page)) {
+                        if (iocb->ki_flags & IOCB_NOWAIT) {
+                                put_page(page);
+                                goto would_block;
+                        }
+
+but goes the would_block path only after initiating asynchronous 
+readahead.
+
+-- 
+Jiri Kosina
+SUSE Labs
 
