@@ -2,192 +2,175 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BEC71C282D7
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 08:22:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CAD9CC282D5
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 08:23:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 878292184D
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 08:22:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 878292184D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id 942542087F
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 08:23:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 942542087F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=il.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A9C168E0002; Wed, 30 Jan 2019 03:22:40 -0500 (EST)
+	id 320E48E0005; Wed, 30 Jan 2019 03:23:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A4B338E0001; Wed, 30 Jan 2019 03:22:40 -0500 (EST)
+	id 2D15F8E0001; Wed, 30 Jan 2019 03:23:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 939468E0002; Wed, 30 Jan 2019 03:22:40 -0500 (EST)
+	id 1C1608E0005; Wed, 30 Jan 2019 03:23:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C5E38E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 03:22:40 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id s50so8943885edd.11
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 00:22:40 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CC7AF8E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 03:23:10 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id a2so15780519pgt.11
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 00:23:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=L5h6t+Np/isQKitfbmkgbu8YacllXiQvoo5p0GEfe08=;
-        b=VcMABWt0JwPw2yyGUbUIyADgMWfW2TtdKZKrPASUCZx8Gc/tblqR+N/xVuSMMa63Tf
-         UdqULvU+O7ViIA+Z/RiFX/RWtRxyIe8ZINXtSR4gsrY+IHJVwU2NWQ9ulTiUlWR7K0jy
-         XDpvqHk8OYJm76Y8Z3nq4tZA8zBL0S3SUxIvCJqVSLKK+xFI41uC4TNtI0BVO4w/araO
-         F3BzjHNnAb77DXIIHJzWr5jWcutqpG9QffokaEtjs39yFqt4AvJZDMJOpY8/BQDKqhWA
-         ePaAp5ZNFQTmSGzqIT6tlBFSIAcK1qiUiQRohmDqrNt+4JjgUdiTrarNOm5MxWI5GkXo
-         pMAw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-X-Gm-Message-State: AJcUukfGZO2QaO8J/kCJwB9eKqT+QInTJU2x+LqQMih78rk3Y9w+fJAX
-	a/ZVAp/vof4zRtWiE7XuI2oIOndX4+++DFc2hLp+TL6+duK6rrvNh0Ub1I+9P350M8KPoTvI2g7
-	bsCCU7fLYdfM6DX+WKKydznSFvZzvXtUDIREt0mfPnBwyVqdNNr3XdJwZowxUYyNs/Q==
-X-Received: by 2002:a50:88c1:: with SMTP id d59mr29004628edd.200.1548836559613;
-        Wed, 30 Jan 2019 00:22:39 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4WPcfz3jDYwN3z24sBMkD4zSHG1SyMa9DmB87jXC6wFeRm419InLqBnE0qB8FzPPf8Er07
-X-Received: by 2002:a50:88c1:: with SMTP id d59mr29004541edd.200.1548836558003;
-        Wed, 30 Jan 2019 00:22:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548836557; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:in-reply-to:to
+         :cc:subject:from:date:references:mime-version:message-id
+         :content-transfer-encoding;
+        bh=QWLhIdER7CjaHfw9YFQlbX7bsGUCA5ioqw0ziKDtBD4=;
+        b=XL2IwVvA5onE4z/dFnEhqGUvYSwGPEzrBBa+HksMosZqdqI2r64+OlIpV7pAk5TrWl
+         at6ooMSvbMsnvt/6jHLr48gj7RVELLs4s5rixhqllBLQcqS2YyL4xnjU7QTQvzDffgHL
+         eWDXWHKNwAqWWbzqYgr+fK0Fl4IrK6jFsJpv3hhAFclfsE90WS4/a2t/YZjGjNxWG4kx
+         izvgOGqthAik5e0vc6ko+pPrNq5FpDW+Gh7OCtDHTFxWEgBknBy79aXvQLG8iqaz/BXe
+         sZv/N8DLdjOXcKyQqEXU41yr0s17fDjbOQpLigAD+CS/4FudOoMwEJZ/g2AQLEZI1R8v
+         uA7w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of joeln@il.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=JOELN@il.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AJcUuke/DjzTcN3OneaXSY9yfv24QyiPWNLNil7nrB7+/Mnow0tTMqBj
+	v3UWq2/zTbOZgnQAhctIkNubk+/gY76ahzfh9qRTOJ9RT+fpVfI0iMvAWLxp4dIY9EBBHXFaZ2r
+	/LyWmi5iDpLZG5zayrBO2IDhzk4DsyaREx/strUjjsy7daBpLnhBW+ykuk5LRYw2v0A==
+X-Received: by 2002:a17:902:1102:: with SMTP id d2mr29535176pla.138.1548836590431;
+        Wed, 30 Jan 2019 00:23:10 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN76pjYaH4REn3Rz4Jcj6EeOU0MoDAl8Kipjehak0MF9dsdgcBbV1Jnkd08bNu4ROXylqJh7
+X-Received: by 2002:a17:902:1102:: with SMTP id d2mr29535159pla.138.1548836589807;
+        Wed, 30 Jan 2019 00:23:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548836589; cv=none;
         d=google.com; s=arc-20160816;
-        b=fhtAr36qvwEE8B4C1+ayeG+Et3hfxpni5zavZe4WoljRbGcYU/jUu1ocWWM8yzr0J1
-         dbIiJLHkvqkITEYs7m8VCrxiEbVlPMXV25/3AnONpiUETK8ttiuO8HUBsl1CFxMHlyHX
-         /GyeEcEpFhXQVlbiD2IEKe61CzdEGDbKdmSK5CYDvXOcbmtp5XPRVhxD2oySiWqx+503
-         ogE0rxgsVeXzFBY7dSX7lAdrkHCNX7oeYIYKDK6OGvJShZmME05CXROGMG9aQoUFSpZu
-         /lm6yQtuw0zND3gkg6oGD5j2rFBDdsLVpvR7iqOtbGMpkrt1/V2ATV8ZW4U0vyLar4BA
-         Hh1Q==
+        b=KfjtqR/RbZxPKGrQg9Viu+GchXG9QBTjCDX+wYvAGnYj2nogXfuxt42acyKD6P+ktN
+         9rJ1UkD9Oxa17jFh0mWGRF/LwIX2zr5AUdHyzsZsGa6fDSLaoa8SpT2sahZceZGQQKCZ
+         LX1ICTOr12svPyaT87+zRYk+HUkFcWCvAg3AWGApHnxjHlyobxUNnJTU3HosYq3SqYtU
+         XkvkJsCdoAEwwjPz02lX1VS/22S9qQ3rAfGyW/kVxgVyhswoUO/olJV299JYYsixcrSU
+         cS8hDPmbVU8X3JvBzaKWXfANC+VBpftAiXGpV3b7ZSVERQy+QqFBuk+8rC1PWGihfihM
+         +veQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=L5h6t+Np/isQKitfbmkgbu8YacllXiQvoo5p0GEfe08=;
-        b=JT8/hLqAS/EJWdcsCSl8JqUIAokPf3fKCiUG7lmyWREtFLOrJr0E8Bj0H/8MBhomdw
-         AGZ3aV8GZislr6gqxPqtB/nNz8ofjV3RKvdujfeYJewDoeSSmwwILr7xiwA2HLlSup4s
-         YErBV4qPXpxrSYpNYMjK9jUqPDvJ4lQG9JETM5pkVhsONHL0c+2o9Pq1oiLawJzvnzEX
-         oYnBSSlGB/jYJnN5sNN96T48N4A5wA/cRuudmcXyPhc6R6vRXfGl4vH6I/w156MPrcLV
-         SMIis+CMq8e0cVXhdIX63iy70rE9XOFt84VuXKJtE+CX55fy8kNA6mlNvZYO6a+OdfQA
-         JyKA==
+        h=content-transfer-encoding:message-id:mime-version:references:date
+         :from:subject:cc:to:in-reply-to;
+        bh=QWLhIdER7CjaHfw9YFQlbX7bsGUCA5ioqw0ziKDtBD4=;
+        b=TPm9OIU9GkYb3RCyN2/YmM4AbShhhdfuxV04EGtf9cG3+5tgLLOtuLBVkioF6/bQmT
+         5Z0Y/cKYk8rLWsfDgxhvSYcs1I5AftYNuYrmFQIq4z0AvQwuca6wxyrwtFDW5FbajaT7
+         Dt0rKVOWvp3+ViXCi125UBBzcowQRCOXketP8XVyO3lnKXl/uyWPjApf/4Xqq4ARyZv+
+         pldODbSbcZFdwrvfJEYTAZViN3Z5dOBsFdx1LV9nAwTXOOparNJjBEvhRGglp+Z4MLct
+         Kf+IR7x2MKrgfki4pGi6QJvVLbu4xVUmO1NT61GfqAKys1WSX3dlH/FsjubaWAEMcZ1A
+         MMHw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h35si631535ede.274.2019.01.30.00.22.37
+       spf=pass (google.com: domain of joeln@il.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=JOELN@il.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id u21si878321pgm.21.2019.01.30.00.23.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 00:22:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 30 Jan 2019 00:23:09 -0800 (PST)
+Received-SPF: pass (google.com: domain of joeln@il.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 4AD2FB0EF;
-	Wed, 30 Jan 2019 08:22:37 +0000 (UTC)
-From: Juergen Gross <jgross@suse.com>
-To: linux-kernel@vger.kernel.org,
-	xen-devel@lists.xenproject.org,
-	x86@kernel.org,
-	linux-mm@kvack.org
-Cc: boris.ostrovsky@oracle.com,
-	sstabellini@kernel.org,
-	hpa@zytor.com,
-	tglx@linutronix.de,
-	mingo@redhat.com,
-	bp@alien8.de,
-	Juergen Gross <jgross@suse.com>
-Subject: [PATCH v2 2/2] x86/xen: dont add memory above max allowed allocation
-Date: Wed, 30 Jan 2019 09:22:33 +0100
-Message-Id: <20190130082233.23840-3-jgross@suse.com>
-X-Mailer: git-send-email 2.16.4
-In-Reply-To: <20190130082233.23840-1-jgross@suse.com>
-References: <20190130082233.23840-1-jgross@suse.com>
+       spf=pass (google.com: domain of joeln@il.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=JOELN@il.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0U8Jktc144319
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 03:23:09 -0500
+Received: from smtp.notes.na.collabserv.com (smtp.notes.na.collabserv.com [192.155.248.81])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qb6h5mv7h-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 03:23:09 -0500
+Received: from localhost
+	by smtp.notes.na.collabserv.com with smtp.notes.na.collabserv.com ESMTP
+	for <linux-mm@kvack.org> from <JOELN@il.ibm.com>;
+	Wed, 30 Jan 2019 08:23:08 -0000
+Received: from us1a3-smtp02.a3.dal06.isc4sb.com (10.106.154.159)
+	by smtp.notes.na.collabserv.com (10.106.227.88) with smtp.notes.na.collabserv.com ESMTP;
+	Wed, 30 Jan 2019 08:23:00 -0000
+Received: from us1a3-mail108.a3.dal06.isc4sb.com ([10.146.45.126])
+          by us1a3-smtp02.a3.dal06.isc4sb.com
+          with ESMTP id 2019013008225964-212703 ;
+          Wed, 30 Jan 2019 08:22:59 +0000 
+In-Reply-To: <8cdb77b6-c160-81d0-62be-5bbf84a98d69@opengridcomputing.com>
+To: Steve Wise <swise@opengridcomputing.com>
+Cc: Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+        Leon
+ Romanovsky
+ <leon@kernel.org>, linux-kernel@vger.kernel.org,
+        linux-mm@kvack.org, linux-rdma@vger.kernel.org,
+        Mike
+ Rapoport <rppt@linux.ibm.com>
+Subject: Re: [PATCH 0/5] RDMA: reg_remote_mr
+From: "Joel Nider" <JOELN@il.ibm.com>
+Date: Wed, 30 Jan 2019 10:22:59 +0200
+References: <1548768386-28289-1-git-send-email-joeln@il.ibm.com>
+ <8cdb77b6-c160-81d0-62be-5bbf84a98d69@opengridcomputing.com>
+MIME-Version: 1.0
+X-KeepSent: 3A13C355:FCBF3024-C2258392:002D8AC7;
+ type=4; name=$KeepSent
+X-Mailer: IBM Notes Release 9.0.1FP7 August 18, 2016
+X-LLNOutbound: False
+X-Disclaimed: 19363
+X-TNEFEvaluated: 1
+x-cbid: 19013008-7093-0000-0000-000009FC1B6E
+X-IBM-SpamModules-Scores: BY=0; FL=0; FP=0; FZ=0; HX=0; KW=0; PH=0;
+ SC=0.425523; ST=0; TS=0; UL=0; ISC=; MB=0.235916
+X-IBM-SpamModules-Versions: BY=3.00010503; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000277; SDB=6.01153828; UDB=6.00601586; IPR=6.00934202;
+ BA=6.00006216; NDR=6.00000001; ZLA=6.00000005; ZF=6.00000009; ZB=6.00000000;
+ ZP=6.00000000; ZH=6.00000000; ZU=6.00000002; MB=3.00025352; XFM=3.00000015;
+ UTC=2019-01-30 08:23:06
+X-IBM-AV-DETECTION: SAVI=unsuspicious REMOTE=unsuspicious XFE=unused
+X-IBM-AV-VERSION: SAVI=2019-01-30 06:41:57 - 6.00009527
+x-cbparentid: 19013008-7094-0000-0000-0000706E1CC0
+Message-Id: <OF3A13C355.FCBF3024-ONC2258392.002D8AC7-C2258392.002E0D17@notes.na.collabserv.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: quoted-printable
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-01-30_07:,,
+ signatures=0
+X-Proofpoint-Spam-Reason: safe
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Don't allow memory to be added above the allowed maximum allocation
-limit set by Xen.
+Steve Wise <swise@opengridcomputing.com> wrote on 01/29/2019 06:44:48 PM:
 
-Trying to do so would result in cases like the following:
+>=20
+> On 1/29/2019 7:26 AM, Joel Nider wrote:
+> > As discussed at LPC'18, there is a need to be able to register a=20
+memory
+> > region (MR) on behalf of another process. One example is the case of
+> > post-copy container migration, in which CRIU is responsible for=20
+setting
+> > up the migration, but the contents of the memory are from the=20
+migrating
+> > process. In this case, we want all RDMA READ requests to be served by
+> > the address space of the migration process directly (not by CRIU).=20
+This
+> > patchset implements a new uverbs command which allows an application=20
+to
+> > register a memory region in the address space of another process.
+>=20
+> Hey Joel,
+>=20
+> Dumb question:
+>=20
+> Doesn't this open a security hole by allowing any process to register
+> memory in any other process?
 
-[  584.559652] ------------[ cut here ]------------
-[  584.564897] WARNING: CPU: 2 PID: 1 at ../arch/x86/xen/multicalls.c:129 xen_alloc_pte+0x1c7/0x390()
-[  584.575151] Modules linked in:
-[  584.578643] Supported: Yes
-[  584.581750] CPU: 2 PID: 1 Comm: swapper/0 Not tainted 4.4.120-92.70-default #1
-[  584.590000] Hardware name: Cisco Systems Inc UCSC-C460-M4/UCSC-C460-M4, BIOS C460M4.4.0.1b.0.0629181419 06/29/2018
-[  584.601862]  0000000000000000 ffffffff813175a0 0000000000000000 ffffffff8184777c
-[  584.610200]  ffffffff8107f4e1 ffff880487eb7000 ffff8801862b79c0 ffff88048608d290
-[  584.618537]  0000000000487eb7 ffffea0000000201 ffffffff81009de7 ffffffff81068561
-[  584.626876] Call Trace:
-[  584.629699]  [<ffffffff81019ad9>] dump_trace+0x59/0x340
-[  584.635645]  [<ffffffff81019eaa>] show_stack_log_lvl+0xea/0x170
-[  584.642391]  [<ffffffff8101ac51>] show_stack+0x21/0x40
-[  584.648238]  [<ffffffff813175a0>] dump_stack+0x5c/0x7c
-[  584.654085]  [<ffffffff8107f4e1>] warn_slowpath_common+0x81/0xb0
-[  584.660932]  [<ffffffff81009de7>] xen_alloc_pte+0x1c7/0x390
-[  584.667289]  [<ffffffff810647f0>] pmd_populate_kernel.constprop.6+0x40/0x80
-[  584.675241]  [<ffffffff815ecfe8>] phys_pmd_init+0x210/0x255
-[  584.681587]  [<ffffffff815ed207>] phys_pud_init+0x1da/0x247
-[  584.687931]  [<ffffffff815edb3b>] kernel_physical_mapping_init+0xf5/0x1d4
-[  584.695682]  [<ffffffff815e9bdd>] init_memory_mapping+0x18d/0x380
-[  584.702631]  [<ffffffff81064699>] arch_add_memory+0x59/0xf0
+Not a dumb question - there is a security problem. Jason just suggested
+I look at how ptrace solves the problem, so that's my best option at the
+moment. Still, I figured it was a good idea to let everyone take a look
+at what I have so far, and start to get feedback.
 
-Signed-off-by: Juergen Gross <jgross@suse.com>
----
- arch/x86/xen/setup.c      | 10 ++++++++++
- drivers/xen/xen-balloon.c |  6 ++++++
- 2 files changed, 16 insertions(+)
+> Steve.
+>=20
+>=20
 
-diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
-index d5f303c0e656..fdb184cadaf5 100644
---- a/arch/x86/xen/setup.c
-+++ b/arch/x86/xen/setup.c
-@@ -12,6 +12,7 @@
- #include <linux/memblock.h>
- #include <linux/cpuidle.h>
- #include <linux/cpufreq.h>
-+#include <linux/memory_hotplug.h>
- 
- #include <asm/elf.h>
- #include <asm/vdso.h>
-@@ -825,6 +826,15 @@ char * __init xen_memory_setup(void)
- 				xen_max_p2m_pfn = pfn_s + n_pfns;
- 			} else
- 				discard = true;
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+			/*
-+			 * Don't allow adding memory not in E820 map while
-+			 * booting the system. Once the balloon driver is up
-+			 * it will remove that restriction again.
-+			 */
-+			max_mem_size = xen_e820_table.entries[i].addr +
-+				       xen_e820_table.entries[i].size;
-+#endif
- 		}
- 
- 		if (!discard)
-diff --git a/drivers/xen/xen-balloon.c b/drivers/xen/xen-balloon.c
-index 2acbfe104e46..2a960fcc812e 100644
---- a/drivers/xen/xen-balloon.c
-+++ b/drivers/xen/xen-balloon.c
-@@ -37,6 +37,7 @@
- #include <linux/mm_types.h>
- #include <linux/init.h>
- #include <linux/capability.h>
-+#include <linux/memory_hotplug.h>
- 
- #include <xen/xen.h>
- #include <xen/interface/xen.h>
-@@ -63,6 +64,11 @@ static void watch_target(struct xenbus_watch *watch,
- 	static bool watch_fired;
- 	static long target_diff;
- 
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+	/* The balloon driver will take care of adding memory now. */
-+	max_mem_size = U64_MAX;
-+#endif
-+
- 	err = xenbus_scanf(XBT_NIL, "memory", "target", "%llu", &new_target);
- 	if (err != 1) {
- 		/* This is ok (for domain0 at least) - so just return */
--- 
-2.16.4
 
