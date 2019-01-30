@@ -6,70 +6,70 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 37736C282D7
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 12:45:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EB45BC282D7
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 12:45:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0147520989
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 12:45:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0147520989
+	by mail.kernel.org (Postfix) with ESMTP id B709720989
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 12:45:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B709720989
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8A1D78E0001; Wed, 30 Jan 2019 07:45:16 -0500 (EST)
+	id BD0F68E0004; Wed, 30 Jan 2019 07:45:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 84B548E0003; Wed, 30 Jan 2019 07:45:16 -0500 (EST)
+	id B7EAC8E0002; Wed, 30 Jan 2019 07:45:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6EDCA8E0005; Wed, 30 Jan 2019 07:45:16 -0500 (EST)
+	id 899538E0006; Wed, 30 Jan 2019 07:45:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 342FC8E0003
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 23EE78E0001
 	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 07:45:16 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id i55so9393483ede.14
+Received: by mail-ed1-f69.google.com with SMTP id c18so9155539edt.23
         for <linux-mm@kvack.org>; Wed, 30 Jan 2019 04:45:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=gR8hjRmommIPz3aLtYKpIHs+oBCBI/oZoS9lhEjaZDg=;
-        b=XdGsxWzM7lINEZNmTMDqg4NajmfkqxyjbqK8zJkTQn+eJaaqByV5NZRd5qFMmv3w0u
-         QrUUBCF5MB2i8L2e1Ic1UZ8JjRMCwynYv4m5QV3cfiVdMaeyesy3jXA3FR8UZnNoJa3t
-         2jqbqCUw/Xw4C4/iF3xdcxjonRBOn/5vMRpQ3HuBPgzdHm2TBxGPfonPd4tuizNuKMrB
-         kHOKXeZGF2lSlsJ98b00j2cUMLEG2NJprNw8Iy6I3PUsEWCAJ6dzvCQxh7T5dOKkxHrn
-         CmiLxGK7YnZJ9ngzdu3suAGFayZtQ8ErsAEXT+Fn7CEM42alGZVKDeb5SbhkI5eOhUmL
-         A2Fg==
+        bh=n9EewSWBpIrjWW0Ewb2hQwGri96Bkj/XJ3FPiJDZfXg=;
+        b=U4xlMvKqPTRmdp09G+FNwhZM/EJk+GqFieh51TkdmyEJJ5txY+sSMtDn49qvBc0TFk
+         xyp7oo/rXRmyoRsFkS2AMOJ2bH3DxNPkNu2II8r/bPPg/DYn8zW4BIHX1ZJ73yLOZ8pj
+         TvjVe7whtpe/NJ/gqTJp6/QLSxOosnS1ftuIF0W2Q0MKijXzLeLRmaH6qlU2AJm2Uvbq
+         GIyG7FDkffQUtp2JSbbzNlxeGO+l2mMGiTPEx2n2dHXIDyMEaqubpQsuEAYY4dJ7k9Ic
+         b1Vjz0QyCU1HpWMLISD72SoPX5oIKpf1soySufQkSOTKUxnfZka+EGtBFaQSUTlOzMII
+         w0Yw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: AJcUukdWtruSGjSwxPEP+EMNjGH+HihpqeMNb1upeOUCGqw5NgILs++5
-	lOfRqPn/NJjajDtwcRG/4wnThCcVOvEYfDLDchefnknu8Wx54bVs8J1RQha2xy9ce8FNlYXaib+
-	Fy8nwRZueous65JtjlUxioTXU0tzV+mjilRNlvbHoe1AteBEyCCZUW0qMws5Z60RvFA==
-X-Received: by 2002:a50:f61e:: with SMTP id c30mr28992175edn.197.1548852315565;
+X-Gm-Message-State: AHQUAuaYtPj9Ne345VizHid8j5Y0UEi4qw3p4r6AIN/FGRsfzudonxeB
+	H9jVcvmKh3mgsqbzMNnu79LbEvsjCg3J9n4GIlUqdqQKewdxHzJ7rdpFK0WwevcZqx1gvBtc1GR
+	b3gqfM0b5efxdPdL61nwr7sss1r9ORIKarfbGx69IB7axkkIwFztRjKrq2lddhSMMpQ==
+X-Received: by 2002:a17:906:2596:: with SMTP id m22mr5813807ejb.249.1548852315465;
         Wed, 30 Jan 2019 04:45:15 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6dgEgKO6DE47q4m2yOtTp9UWIyOFsef2yTW8ylEGHMQ2XpIVgjZ5BOCZXXXHOxuAencAkO
-X-Received: by 2002:a50:f61e:: with SMTP id c30mr28992097edn.197.1548852314169;
+X-Google-Smtp-Source: AHgI3IZl+DZxEGQyOZ7ZWVf8rEoyS6xXO83UfSaqfmQmQlFjdMtQLm70XSYJsW97scoplHNDwJb0
+X-Received: by 2002:a17:906:2596:: with SMTP id m22mr5813731ejb.249.1548852314110;
         Wed, 30 Jan 2019 04:45:14 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1548852314; cv=none;
         d=google.com; s=arc-20160816;
-        b=FOuzUrcSCtkulEuTP5zqiqIa0+PBru8S8lldvnj1V+69/6UfK/0HEtOydkBUoze8OC
-         c6ma4krd0ruMvAF6PQFPgB4RwZ5SDigtUfmm3/9Q0+//OALNgduW590zRdpP2WmRbNji
-         sDExsmuNTvzlr77UYErG3E2ZHDi4SHmpgWdyyhIKOdDVfmeCnwI7uOUuuqPq9GLxX+ew
-         tae2Y0llXwXl20yGYlD4v8QM/Dq1Ughxbs+CDOZoYCirK5QBHpqAIYDud6gEtiFtFrNZ
-         P+20A6GSJdDCRLXlRgTJvx1n6aJo1IzBW3+glB+POl4ntEzDijeA/o0Hz69qH3ae2Lo8
-         Fdmw==
+        b=QrT/LA77rnNJiZVDv+STYpmiPjFdZXP33r74s1d2RBbJ63yFyrZYJNAGtfF8bIrpoo
+         xqwYcJqZcw9tmcsQpUbYFNi7kriJGJuCwHwSUtBuPxHQJqZpnFvmLWaxYq+QExcDDFPW
+         j5R+K3ef9zF8oxu8NuBHH+n1E4nrGvX/MLaiTXAKPQFar/X2Cu1OOyXY4nr9YTkfUyYg
+         w8jQqbDEH9fsbp8gr7qNDlxkkhkj/ic5DJdWeMymXe5hoymXy0lidmCRXMwCgtrvHaN4
+         9bsI8v/n+BpWdqaKtUKZ3jSMNU1tZz8cwpLiKMwNynB8/rWWpbChsZZWBOiybcqoFZ5G
+         SthA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=gR8hjRmommIPz3aLtYKpIHs+oBCBI/oZoS9lhEjaZDg=;
-        b=phUWKu0jMsj7VuJy4V///fk7/e7nI7zBhlyDcHCwH4tcRAB/71gohzl6G56SwxCzwF
-         EHeQ2ZtwjK7ykjQZj/4/tTxxRCOG1KeAcKdkabVaGqY07MukH1LkS9ZQo69+4mRjeDxC
-         RTaMk8j3wch4cYE48rPkTeggHGAN3A4s570Kf2SmFvR0fBS4SRCNttTI+Xz1/J7Z2XR3
-         CoK7SNZDqCNNG7U/QEgzWZdw33VqBrlkHwoEit+7L8zuVOfPp3OQr5mVk9OL2T+hykss
-         Rc67ulExVDAE4RELiNNr0D/lX3vW6eu44tv2CM+m+2ifuuDhmD4n/Vpsik+FK9tPi/IT
-         Xrcg==
+        bh=n9EewSWBpIrjWW0Ewb2hQwGri96Bkj/XJ3FPiJDZfXg=;
+        b=qlTRIxZk7AsuTuP5U/FyD1JhqVUXmsgH4RRWjnsdfAx2aQIIoPGemjrWjLv3WHpQi4
+         kGtk7Bnmn9cFyX+kPkQjJZR5x1jik+kLJgC+fKBAjtqzdTgWzoqlxZjK2K42tR7F7Jrv
+         oXvlg1Wk9LE5BswhxMCGtWzRWCOGT3D6w65BXx67/ZKpOAm0HTBTa1LBxI8vxmubtzkR
+         64M2HM/cRBV+4kzYV9Wqclnp7gjq/no+PnGXat7myHPo+KZDZE0N/vnnkXHwnmbB7ba6
+         /nPTDnQun27as1eaGdAFwpfP99c2FtMxFHC5m9hRbCPuM8zFExJs/6EEOzMMdk9S8fMM
+         D5OQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z10si865234edl.131.2019.01.30.04.45.14
+        by mx.google.com with ESMTPS id g11si969510edf.155.2019.01.30.04.45.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 30 Jan 2019 04:45:14 -0800 (PST)
@@ -78,7 +78,7 @@ Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 41B7BAE88;
+	by mx1.suse.de (Postfix) with ESMTP id 4CEA0B020;
 	Wed, 30 Jan 2019 12:45:13 +0000 (UTC)
 From: Vlastimil Babka <vbabka@suse.cz>
 To: Andrew Morton <akpm@linux-foundation.org>,
@@ -101,9 +101,9 @@ Cc: linux-kernel@vger.kernel.org,
 	Daniel Gruss <daniel@gruss.cc>,
 	Vlastimil Babka <vbabka@suse.cz>,
 	Jiri Kosina <jikos@kernel.org>
-Subject: [PATCH 2/3] mm/filemap: initiate readahead even if IOCB_NOWAIT is set for the I/O
-Date: Wed, 30 Jan 2019 13:44:19 +0100
-Message-Id: <20190130124420.1834-3-vbabka@suse.cz>
+Subject: [PATCH 1/3] mm/mincore: make mincore() more conservative
+Date: Wed, 30 Jan 2019 13:44:18 +0100
+Message-Id: <20190130124420.1834-2-vbabka@suse.cz>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190130124420.1834-1-vbabka@suse.cz>
 References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
@@ -118,18 +118,21 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jiri Kosina <jkosina@suse.cz>
 
-preadv2(RWF_NOWAIT) can be used to open a side-channel to pagecache contents, as
-it reveals metadata about residency of pages in pagecache.
+The semantics of what mincore() considers to be resident is not completely
+clear, but Linux has always (since 2.3.52, which is when mincore() was
+initially done) treated it as "page is available in page cache".
 
-If preadv2(RWF_NOWAIT) returns immediately, it provides a clear "page not
-resident" information, and vice versa.
+That's potentially a problem, as that [in]directly exposes meta-information
+about pagecache / memory mapping state even about memory not strictly belonging
+to the process executing the syscall, opening possibilities for sidechannel
+attacks.
 
-Close that sidechannel by always initiating readahead on the cache if we
-encounter a cache miss for preadv2(RWF_NOWAIT); with that in place, probing
-the pagecache residency itself will actually populate the cache, making the
-sidechannel useless.
+Change the semantics of mincore() so that it only reveals pagecache information
+for non-anonymous mappings that belog to files that the calling process could
+(if it tried to) successfully open for writing.
 
 Originally-by: Linus Torvalds <torvalds@linux-foundation.org>
+Originally-by: Dominique Martinet <asmadeus@codewreck.org>
 Cc: Dominique Martinet <asmadeus@codewreck.org>
 Cc: Andy Lutomirski <luto@amacapital.net>
 Cc: Dave Chinner <david@fromorbit.com>
@@ -142,22 +145,43 @@ Cc: Daniel Gruss <daniel@gruss.cc>
 Signed-off-by: Jiri Kosina <jkosina@suse.cz>
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/filemap.c | 2 --
- 1 file changed, 2 deletions(-)
+ mm/mincore.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 9f5e323e883e..7bcdd36e629d 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2075,8 +2075,6 @@ static ssize_t generic_file_buffered_read(struct kiocb *iocb,
+diff --git a/mm/mincore.c b/mm/mincore.c
+index 218099b5ed31..747a4907a3ac 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -169,6 +169,14 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 	return 0;
+ }
  
- 		page = find_get_page(mapping, index);
- 		if (!page) {
--			if (iocb->ki_flags & IOCB_NOWAIT)
--				goto would_block;
- 			page_cache_sync_readahead(mapping,
- 					ra, filp,
- 					index, last_index - index);
++static inline bool can_do_mincore(struct vm_area_struct *vma)
++{
++	return vma_is_anonymous(vma) ||
++		(vma->vm_file &&
++			(inode_owner_or_capable(file_inode(vma->vm_file))
++			 || inode_permission(file_inode(vma->vm_file), MAY_WRITE) == 0));
++}
++
+ /*
+  * Do a chunk of "sys_mincore()". We've already checked
+  * all the arguments, we hold the mmap semaphore: we should
+@@ -189,8 +197,13 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
+ 	vma = find_vma(current->mm, addr);
+ 	if (!vma || addr < vma->vm_start)
+ 		return -ENOMEM;
+-	mincore_walk.mm = vma->vm_mm;
+ 	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
++	if (!can_do_mincore(vma)) {
++		unsigned long pages = (end - addr) >> PAGE_SHIFT;
++		memset(vec, 1, pages);
++		return pages;
++	}
++	mincore_walk.mm = vma->vm_mm;
+ 	err = walk_page_range(addr, end, &mincore_walk);
+ 	if (err < 0)
+ 		return err;
 -- 
 2.20.1
 
