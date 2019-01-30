@@ -2,217 +2,351 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4324FC282D7
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:44:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CEAEC282D7
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:47:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E8C552087F
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:44:34 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="G3cbAPVS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8C552087F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id C36B42087F
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:47:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C36B42087F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8325D8E0002; Wed, 30 Jan 2019 12:44:34 -0500 (EST)
+	id 597BC8E0002; Wed, 30 Jan 2019 12:47:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7BA558E0001; Wed, 30 Jan 2019 12:44:34 -0500 (EST)
+	id 547AA8E0001; Wed, 30 Jan 2019 12:47:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 635338E0002; Wed, 30 Jan 2019 12:44:34 -0500 (EST)
+	id 40F538E0002; Wed, 30 Jan 2019 12:47:28 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 045E08E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 12:44:34 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id c34so133896edb.8
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 09:44:33 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EA1C88E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 12:47:27 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id t72so226759pfi.21
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 09:47:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=TtabXhoOLem7y9THIY/E6ceuy5QU0QS50cnRDHjn4Tc=;
-        b=IycI/QXyyn9yuw83mzBlpQAd5ftzyvZTPym4KD8bRPydHBG4Pkjy/mQRv5yna1oa6t
-         m4ZwpIwlUR+SXGefq2R3JV6jvsPaALaPqOKlCp3RdJJuGuPcW9HPwK3m/kbzidjDACUh
-         0/Io9gdMszPfia2/J2J75AcvX4smjnFI0lhJgz+4IV9DvKw7RJPKHuwUpMlTXOJ2kzeg
-         N2ehktzySLTNxvykWd85s4luJZKrD4/OKYo0d9YQFuibq+jjiQdlZ2X5r3PH8w3uda/o
-         LDi+zUO1K2gmp/M2MvpRqddvp34XXn8gI46wAdH+PN6ArvJKrG62Bm9Ug80ZygEmozyl
-         R/bQ==
-X-Gm-Message-State: AHQUAuY44rKOKhpkbM1uTe0S9njYcYYN96pr1kczg7AAgEWQ/9npZ7XZ
-	WJIy9qLkTXDXCySNuTsTQWPtwk0w0sSij3ZHAxCrWcnp+1CzrC/qK8kzye4Vb7mjXmU/yfvif7S
-	JZ7gMjT0QxtuC8W+Z69p9I5B94pRsLbglR9RY5atLrUAIJ8ZTCT3WRWv8yQc9GFynRQ==
-X-Received: by 2002:a17:906:58f:: with SMTP id 15mr2830487ejn.224.1548870273437;
-        Wed, 30 Jan 2019 09:44:33 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZyU4x3rgHRrzs8A7s97MROZ+8p2zoE1yUEQdRzahEGESV0xCOd5xTUknXdhPVk59FBjHhu
-X-Received: by 2002:a17:906:58f:: with SMTP id 15mr2830447ejn.224.1548870272549;
-        Wed, 30 Jan 2019 09:44:32 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548870272; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=0Fw8JVJp6K6fCy+lUP6MQ0HWA2RDowGCEzx3fBC2nfw=;
+        b=n4ysSYulpLDTqVXiSg2/JzBMUYQSfTFFU1MI5y3nukeylm/3gTCcrQb83sazq+vKDf
+         cbJGG4+BwklAfI7Rvk19Vbf0A0n8oeRCyWVWs3EE0Q6vfPejDMMo+bhDyLATB9EU0ymf
+         7A2uLfG7+O1CEU6WuGYnEsCwnbGnSPGrVnIRin/p2SkNHIdyFCkQeTYczM3DRT95WZ8z
+         o7fRpA9HMaqOfAoAckhe4y7USwaLa9EarIn8mT3ZO3gGhxhg/CGLcCfZDXYR+GxMEjti
+         FXwGy0Vaku9qZaxh0EkhYyAF5lK2yyIF3Hg+5HqFEiAjeew4jWU/TlcD6MBYrfsa9hjC
+         WIPw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: AJcUukewd5Nh8dTpMSJJXKXby+SrdxeLlhZV0Ct3kSWQU6mb2NhYffZh
+	DiC8BOln2InfIjJOso/VEmPS1SwpqI/0vVeUoQI4Fdzz8w53LbXjfrsjAEg9AF4PkqST6luEBvn
+	DX0wISX7bzb3DXQo9bQU/jL+MD+cHtzrGZWy8ry535gshlLk/lpisBtHDwd7EtflIpA==
+X-Received: by 2002:a62:5b44:: with SMTP id p65mr31074824pfb.47.1548870447552;
+        Wed, 30 Jan 2019 09:47:27 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6Id9wbYyBO1qJK52deV3NBoHmmm6/1JhnahglnqXjxP19niCAPHXr2zQFVgGOKJG3Jih1x
+X-Received: by 2002:a62:5b44:: with SMTP id p65mr31074779pfb.47.1548870446642;
+        Wed, 30 Jan 2019 09:47:26 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548870446; cv=none;
         d=google.com; s=arc-20160816;
-        b=IubkRigc0LKpLDDpLlJ2cSEHErjwYsl1Lgktm7zDVqeAPzUScteQggK/ii46QiqeZj
-         rp9DDCZJWIl8WJDcnbhucBLB/Z3A1fDEf3xx3WMSBd52Y1nWuogO7DOMKC3etBAdcHG+
-         V+9rFG/CUEkihaLxfDGE1Hdv+Kj1GKJD9aXcXvUhLJryIefmonIUvqG9MQnop2DE5CkQ
-         kHU+5Shp6y/m/DTUNst5cZVBeo4WmTxeHWRkRM5q/7AQ1YoFq9ELTLXDJ+nVwAiPYZYW
-         sH7PlkaX2K1NfWTYcyqbAJ7mTqu8b3enOYNS7Y4F9PVZce4uZ4+NF9e6obvFXGxYjkhr
-         Db4Q==
+        b=RCnA+Rzg5gOpJhqBm5yv6x/2VuerqgOxKWE9dIRaKF7nK7kS0iwLFrWq6JD32u3GM+
+         QITgyqWTuK2w6Inv4bGFN+oywPT7ALJL4SNbr8g4wXITTrrffoXUH1jy96UdIdjFLj0h
+         rRaRjRHHahTPJ/Kpfwu/XTPz+AmZ2/MBS/WCjVPGoW+jpvadVzc1+SNfUbVk8JxYrM4n
+         +Pb+T6waGpgqB5TEUnSDzgDpR72O9hzxB0jTJZ2xKBSdGsx2JqlWYM5zpom10SdqVi6p
+         0GG3C5RlfneTzNkxNtu3zE3DU/9Lx3Eq9gSWfLFndHQEOup6FOrI38HKiB/HioOeu6Wg
+         1LPA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=TtabXhoOLem7y9THIY/E6ceuy5QU0QS50cnRDHjn4Tc=;
-        b=EyumuwEWYboIfjbXtgWiSzPXlyzP8Pz/ILIOmQNY14cmZk68TeqX7zUKd+ecsGP2Bn
-         t/DxWiSYqOAZuiqQNdcMTdu9NQHpuxw+JfK7hLvyhFyZx6KlHSqa0fvb5KDwxxQACp7B
-         mQOEaDeCEidWaCE0yVMaGTTRS+gR4o48bQENjqmONYEbJHWy0STo3FOtCm1+wuDs0/+W
-         sUkfYWRS+pa6+VnN9tBoFNABumnojZHshanzkMp8/HXhlYXwlho+yqiXRGGpnx7Nzhp3
-         UZrAB6lky7ukN1FR2PTtVRhek5pkusYnrKytO/827l/wVCHQEhMQcjqK1yO4U5W2wfNL
-         kIyg==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=0Fw8JVJp6K6fCy+lUP6MQ0HWA2RDowGCEzx3fBC2nfw=;
+        b=J0YKji+yvwaMFciL7fVvaZPkDw6ZF/WrG8CWjcTSB/Ro/Q/GS26nv0cgTxsOLy7hCj
+         cJXURttdTGe/95hNFNDcSqXZ1UjRDM8LrLz/zOa5HZetrrr35zyOuHPQv0IkQnPGoN7N
+         c/E0f7GDgyPN3A5SfxH7GDYD8QIxFH/keO2m4J3EUdGUAz7V1VAZ4Fe5ghiMr+r0ApLC
+         bd9fmVpayrHpJdx8Okec8NIjX77l6JglIn/kTKGdS6IJTnAev/GhOyaB9qu536Mk3sIW
+         EUBy2JbufZfyD70CS01Tbz7aT0UqH9Zy0Fhhyv2sJsbggQ3IkTvMLc5eWBdhp3jgRdDc
+         v/Jw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=G3cbAPVS;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.14.43 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-eopbgr140043.outbound.protection.outlook.com. [40.107.14.43])
-        by mx.google.com with ESMTPS id y33si1214889eda.109.2019.01.30.09.44.32
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-45.freemail.mail.aliyun.com (out30-45.freemail.mail.aliyun.com. [115.124.30.45])
+        by mx.google.com with ESMTPS id ca6si2272974plb.141.2019.01.30.09.47.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 30 Jan 2019 09:44:32 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.14.43 as permitted sender) client-ip=40.107.14.43;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jan 2019 09:47:26 -0800 (PST)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) client-ip=115.124.30.45;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=G3cbAPVS;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.14.43 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=TtabXhoOLem7y9THIY/E6ceuy5QU0QS50cnRDHjn4Tc=;
- b=G3cbAPVSEg/+8VhJdOr0SzAYWsv/0CTGhCMtEhcwbowlgf8IQ9zbWMUltK7333jlSv7sJze4JAHy3yxX5QHDbK6c7BZlQopm9H7t1hVXlgJdJfexYX7PuM5Ng2FM3NZELKLLktu2tk3/7eezZ9KYTAz5Y/81Hde4DNG7QBJJS3I=
-Received: from DBBPR05MB6426.eurprd05.prod.outlook.com (20.179.42.80) by
- DBBPR05MB6506.eurprd05.prod.outlook.com (20.179.43.84) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1558.21; Wed, 30 Jan 2019 17:44:31 +0000
-Received: from DBBPR05MB6426.eurprd05.prod.outlook.com
- ([fe80::24c2:321d:8b27:ae59]) by DBBPR05MB6426.eurprd05.prod.outlook.com
- ([fe80::24c2:321d:8b27:ae59%5]) with mapi id 15.20.1580.017; Wed, 30 Jan 2019
- 17:44:31 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Christoph Hellwig <hch@lst.de>
-CC: Logan Gunthorpe <logang@deltatee.com>, Jerome Glisse <jglisse@redhat.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, Greg Kroah-Hartman
-	<gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael@kernel.org>, Bjorn
- Helgaas <bhelgaas@google.com>, Christian Koenig <christian.koenig@amd.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>, "linux-pci@vger.kernel.org"
-	<linux-pci@vger.kernel.org>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, Marek Szyprowski
-	<m.szyprowski@samsung.com>, Robin Murphy <robin.murphy@arm.com>, Joerg Roedel
-	<jroedel@suse.de>, "iommu@lists.linux-foundation.org"
-	<iommu@lists.linux-foundation.org>
-Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
- vma
-Thread-Topic: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
- vma
-Thread-Index:
- AQHUt/rA/dLikqWEmEaIytHIBNLPlqXGkyOAgAAJwICAAAX+AIAAEreAgAAFNYCAALluAIAAoq8A
-Date: Wed, 30 Jan 2019 17:44:31 +0000
-Message-ID: <20190130174424.GA17080@mellanox.com>
-References: <20190129174728.6430-1-jglisse@redhat.com>
- <20190129174728.6430-4-jglisse@redhat.com>
- <ae928aa5-a659-74d5-9734-15dfefafd3ea@deltatee.com>
- <20190129191120.GE3176@redhat.com> <20190129193250.GK10108@mellanox.com>
- <99c228c6-ef96-7594-cb43-78931966c75d@deltatee.com>
- <20190129205827.GM10108@mellanox.com> <20190130080208.GC29665@lst.de>
-In-Reply-To: <20190130080208.GC29665@lst.de>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: MWHPR02CA0053.namprd02.prod.outlook.com
- (2603:10b6:301:60::42) To DBBPR05MB6426.eurprd05.prod.outlook.com
- (2603:10a6:10:c9::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [174.3.196.123]
-x-ms-publictraffictype: Email
-x-microsoft-exchange-diagnostics:
- 1;DBBPR05MB6506;6:7o1T+xumdAiHJJQEuNs2JyMemFiVCsGVuYgr56NrpF28me4rRo0XdTyOccDulg8NPuSCBbfTy3GCJkafyzpIfG1q076Lm8cZ2RVknjpZqdIBdw2cAacnmxOS0zJU3jFR1EQ7oCdhSBceIHyFkvYGeVM1co83nMqsCiFgnB3apvXJYL2CpoZxpMA/4VOXQO4eTVnnPf2onbzB8vgw0IHJ30xYKsw4yDm+DmUP6Aqy7xSI7P2UWjoMCDXYZLtqBasucNJvoEgz9QE5A8De4PriX6gbrU75yzGJh/dGFIN5L6JLzAhLYr5W1kNs0p0z+rhbmXY2PSj1tbtjinJoJ3/H9CNyXrgZp/uoaPg8QQ0F4t/gt+458iiMpabJEwD7DWZmi9U4XwQvXw9VmG7OpyFcmlo8axjdAdRevUd/HATWJRz6mSBbb6yzPmXrLZNzEMp1pzm6ZiN//rZB1uUj+R2xhA==;5:Rkeek+TIFaY5Ofl+W42rGmLBLhzNbfdZSi3eF3ZolGiEQm4urds8EzCF1ze1qHIagOc15Hxs3YAjMtARHYMEejAkHWdoLvq8iqphqGNVzFbwe/JH+BRTAJSgsI9pRykxc2kKheDBePS4tRYGt89fvlOqZH3BEi5NXWKVd4rsTuKj3lzdwGh9uQ5n15Z22FbfChDK3dQR7tDHIDzRfVzKwg==;7:nFs7d3ifbSKtNL8KHmz7NeJxlcv8FKKX5cK5ucxvbmBHy83P+qlz+MPkPqHXruz1wLE8OwHx7leK7kg1OxvLqaglXwbsIkwLGD/QKXBnkb0tio+3kpcnXAcXHCKFvsOqzf8vjHv744m0/v86iEao7Q==
-x-ms-office365-filtering-correlation-id: 3b15ce92-b7af-4bea-b247-08d686da96c3
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(4618075)(2017052603328)(7153060)(7193020);SRVR:DBBPR05MB6506;
-x-ms-traffictypediagnostic: DBBPR05MB6506:
-x-microsoft-antispam-prvs:
- <DBBPR05MB65063224A790229E604086CDCF900@DBBPR05MB6506.eurprd05.prod.outlook.com>
-x-forefront-prvs: 0933E9FD8D
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(979002)(366004)(346002)(136003)(39860400002)(396003)(376002)(189003)(199004)(2616005)(25786009)(7416002)(3846002)(316002)(8676002)(6116002)(81166006)(105586002)(81156014)(2906002)(93886005)(446003)(11346002)(102836004)(6916009)(4326008)(33656002)(8936002)(186003)(52116002)(305945005)(476003)(99286004)(76176011)(54906003)(7736002)(486006)(561944003)(26005)(217873002)(53936002)(66066001)(1076003)(6436002)(71200400001)(229853002)(6246003)(86362001)(97736004)(71190400001)(68736007)(6486002)(6512007)(14454004)(6506007)(106356001)(478600001)(386003)(36756003)(256004)(969003)(989001)(999001)(1009001)(1019001);DIR:OUT;SFP:1101;SCL:1;SRVR:DBBPR05MB6506;H:DBBPR05MB6426.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- ya5zZoENxkBXzzxhlK/yFwg3NzSUxoZ5vHX/bGW4YvUssmxqTYdaGXs4myCnD1rbPnkqc/RMEec8lDmVuitOJWeqHFp/0w4m6TVNLQqFpQ6GBN2OAwBkxtbA16m56WqCeKIR9uBF7d4ZvbjoOsx0Gns+lzTKzIdNnXvbvgI4KpQWh9Frh1C60dbtfinYRvM9KTkMHx/UjXek7ZrMg73aNPsa6oS1ThJj+HZ0taHF40eoJqLgL7cNjmnZGwHMFyEIqICugoSvLXW/nshUttpvK3HXPBDzmeUGqr7mc5gFaNUh0qIIwlq0TbzQM4ykj09W5BeadhPD1eaW7tDMwsqIsyyL4RCcOaF9j6tA6ZFyA1MopGdeEnBEugrSvF3cVS/VhO+r17u99+RqdfZ9iQ7lhFRaAtuwC2g7g5+aXsplPTc=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <F849EDC110592049BC19081D2ED8EABB@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R181e4;CH=green;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07417;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TJHNlRE_1548870440;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TJHNlRE_1548870440)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Thu, 31 Jan 2019 01:47:23 +0800
+Subject: Re: [v3 PATCH] mm: ksm: do not block on page lock when searching
+ stable tree
+To: John Hubbard <jhubbard@nvidia.com>, ktkhai@virtuozzo.com,
+ hughd@google.com, aarcange@redhat.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1548793753-62377-1-git-send-email-yang.shi@linux.alibaba.com>
+ <82ba1395-baab-3b95-a3f7-47e219551881@nvidia.com>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <7cf16cfb-3190-dfbd-ce72-92a94d9277f5@linux.alibaba.com>
+Date: Wed, 30 Jan 2019 09:47:19 -0800
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 3b15ce92-b7af-4bea-b247-08d686da96c3
-X-MS-Exchange-CrossTenant-originalarrivaltime: 30 Jan 2019 17:44:30.9873
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DBBPR05MB6506
+In-Reply-To: <82ba1395-baab-3b95-a3f7-47e219551881@nvidia.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 30, 2019 at 09:02:08AM +0100, Christoph Hellwig wrote:
-> On Tue, Jan 29, 2019 at 08:58:35PM +0000, Jason Gunthorpe wrote:
-> > On Tue, Jan 29, 2019 at 01:39:49PM -0700, Logan Gunthorpe wrote:
-> >=20
-> > > implement the mapping. And I don't think we should have 'special' vma=
-'s
-> > > for this (though we may need something to ensure we don't get mapping
-> > > requests mixed with different types of pages...).
-> >=20
-> > I think Jerome explained the point here is to have a 'special vma'
-> > rather than a 'special struct page' as, really, we don't need a
-> > struct page at all to make this work.
-> >=20
-> > If I recall your earlier attempts at adding struct page for BAR
-> > memory, it ran aground on issues related to O_DIRECT/sgls, etc, etc.
->=20
-> Struct page is what makes O_DIRECT work, using sgls or biovecs, etc on
-> it work.  Without struct page none of the above can work at all.  That
-> is why we use struct page for backing BARs in the existing P2P code.
-> Not that I'm a particular fan of creating struct page for this device
-> memory, but without major invasive surgery to large parts of the kernel
-> it is the only way to make it work.
 
-I don't think anyone is interested in O_DIRECT/etc for RDMA doorbell
-pages.
 
-.. and again, I recall Logan already attempted to mix non-CPU memory
-into sgls and it was a disaster. You pointed out that one cannot just
-put iomem addressed into a SGL without auditing basically the entire
-block stack to prove that nothing uses iomem without an iomem
-accessor.
+On 1/29/19 11:14 PM, John Hubbard wrote:
+> On 1/29/19 12:29 PM, Yang Shi wrote:
+>> ksmd need search stable tree to look for the suitable KSM page, but the
+>> KSM page might be locked for a while due to i.e. KSM page rmap walk.
+>> Basically it is not a big deal since commit 2c653d0ee2ae
+>> ("ksm: introduce ksm_max_page_sharing per page deduplication limit"),
+>> since max_page_sharing limits the number of shared KSM pages.
+>>
+>> But it still sounds not worth waiting for the lock, the page can be 
+>> skip,
+>> then try to merge it in the next scan to avoid potential stall if its
+>> content is still intact.
+>>
+>> Introduce trylock mode to get_ksm_page() to not block on page lock, like
+>> what try_to_merge_one_page() does.  And, define three possible
+>> operations (nolock, lock and trylock) as enum type to avoid stacking up
+>> bools and make the code more readable.
+>>
+>> Return -EBUSY if trylock fails, since NULL means not find suitable KSM
+>> page, which is a valid case.
+>>
+>> With the default max_page_sharing setting (256), there is almost no
+>> observed change comparing lock vs trylock.
+>>
+>> However, with ksm02 of LTP, the reduced ksmd full scan time can be
+>> observed, which has set max_page_sharing to 786432.  With lock version,
+>> ksmd may tak 10s - 11s to run two full scans, with trylock version ksmd
+>> may take 8s - 11s to run two full scans.  And, the number of
+>> pages_sharing and pages_to_scan keep same.  Basically, this change has
+>> no harm >
+>> Cc: Hugh Dickins <hughd@google.com>
+>> Cc: Andrea Arcangeli <aarcange@redhat.com>
+>> Suggested-by: John Hubbard <jhubbard@nvidia.com>
+>> Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+>> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+>> ---
+>> Hi folks,
+>>
+>> This patch was with "mm: vmscan: skip KSM page in direct reclaim if 
+>> priority
+>> is low" in the initial submission.  Then Hugh and Andrea pointed out 
+>> commit
+>> 2c653d0ee2ae ("ksm: introduce ksm_max_page_sharing per page 
+>> deduplication
+>> limit") is good enough for limiting the number of shared KSM page to 
+>> prevent
+>> from softlock when walking ksm page rmap.  This commit does solve the 
+>> problem.
+>> So, the series was dropped by Andrew from -mm tree.
+>>
+>> However, I thought the second patch (this one) still sounds useful.  
+>> So, I did
+>> some test and resubmit it.  The first version was reviewed by Krill 
+>> Tkhai, so
+>> I keep his Reviewed-by tag since there is no change to the patch 
+>> except the
+>> commit log.
+>>
+>> So, would you please reconsider this patch?
+>>
+>> v3: Use enum to define get_ksm_page operations (nolock, lock and 
+>> trylock) per
+>>      John Hubbard
+>> v2: Updated the commit log to reflect some test result and latest 
+>> discussion
+>>
+>>   mm/ksm.c | 46 ++++++++++++++++++++++++++++++++++++----------
+>>   1 file changed, 36 insertions(+), 10 deletions(-)
+>>
+>> diff --git a/mm/ksm.c b/mm/ksm.c
+>> index 6c48ad1..5647bc1 100644
+>> --- a/mm/ksm.c
+>> +++ b/mm/ksm.c
+>> @@ -667,6 +667,12 @@ static void remove_node_from_stable_tree(struct 
+>> stable_node *stable_node)
+>>       free_stable_node(stable_node);
+>>   }
+>>   +enum get_ksm_page_flags {
+>> +    GET_KSM_PAGE_NOLOCK,
+>> +    GET_KSM_PAGE_LOCK,
+>> +    GET_KSM_PAGE_TRYLOCK
+>> +};
+>> +
+>>   /*
+>>    * get_ksm_page: checks if the page indicated by the stable node
+>>    * is still its ksm page, despite having held no reference to it.
+>> @@ -686,7 +692,8 @@ static void remove_node_from_stable_tree(struct 
+>> stable_node *stable_node)
+>>    * a page to put something that might look like our key in 
+>> page->mapping.
+>>    * is on its way to being freed; but it is an anomaly to bear in mind.
+>>    */
+>> -static struct page *get_ksm_page(struct stable_node *stable_node, 
+>> bool lock_it)
+>> +static struct page *get_ksm_page(struct stable_node *stable_node,
+>> +                 enum get_ksm_page_flags flags)
+>>   {
+>>       struct page *page;
+>>       void *expected_mapping;
+>> @@ -728,8 +735,15 @@ static struct page *get_ksm_page(struct 
+>> stable_node *stable_node, bool lock_it)
+>>           goto stale;
+>>       }
+>>   -    if (lock_it) {
+>> +    if (flags == GET_KSM_PAGE_TRYLOCK) {
+>> +        if (!trylock_page(page)) {
+>> +            put_page(page);
+>> +            return ERR_PTR(-EBUSY);
+>> +        }
+>> +    } else if (flags == GET_KSM_PAGE_LOCK)
+>>           lock_page(page);
+>> +
+>> +    if (flags != GET_KSM_PAGE_NOLOCK) {
+>>           if (READ_ONCE(page->mapping) != expected_mapping) {
+>>               unlock_page(page);
+>>               put_page(page);
+>> @@ -763,7 +777,7 @@ static void remove_rmap_item_from_tree(struct 
+>> rmap_item *rmap_item)
+>>           struct page *page;
+>>             stable_node = rmap_item->head;
+>> -        page = get_ksm_page(stable_node, true);
+>> +        page = get_ksm_page(stable_node, GET_KSM_PAGE_LOCK);
+>>           if (!page)
+>>               goto out;
+>>   @@ -863,7 +877,7 @@ static int remove_stable_node(struct 
+>> stable_node *stable_node)
+>>       struct page *page;
+>>       int err;
+>>   -    page = get_ksm_page(stable_node, true);
+>> +    page = get_ksm_page(stable_node, GET_KSM_PAGE_LOCK);
+>>       if (!page) {
+>>           /*
+>>            * get_ksm_page did remove_node_from_stable_tree itself.
+>> @@ -1385,7 +1399,7 @@ static struct page *stable_node_dup(struct 
+>> stable_node **_stable_node_dup,
+>>            * stable_node parameter itself will be freed from
+>>            * under us if it returns NULL.
+>>            */
+>> -        _tree_page = get_ksm_page(dup, false);
+>> +        _tree_page = get_ksm_page(dup, GET_KSM_PAGE_NOLOCK);
+>>           if (!_tree_page)
+>>               continue;
+>>           nr += 1;
+>> @@ -1508,7 +1522,7 @@ static struct page *__stable_node_chain(struct 
+>> stable_node **_stable_node_dup,
+>>       if (!is_stable_node_chain(stable_node)) {
+>>           if (is_page_sharing_candidate(stable_node)) {
+>>               *_stable_node_dup = stable_node;
+>> -            return get_ksm_page(stable_node, false);
+>> +            return get_ksm_page(stable_node, GET_KSM_PAGE_NOLOCK);
+>>           }
+>>           /*
+>>            * _stable_node_dup set to NULL means the stable_node
+>> @@ -1613,7 +1627,8 @@ static struct page *stable_tree_search(struct 
+>> page *page)
+>>                * wrprotected at all times. Any will work
+>>                * fine to continue the walk.
+>>                */
+>> -            tree_page = get_ksm_page(stable_node_any, false);
+>> +            tree_page = get_ksm_page(stable_node_any,
+>> +                         GET_KSM_PAGE_NOLOCK);
+>>           }
+>>           VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
+>>           if (!tree_page) {
+>> @@ -1673,7 +1688,12 @@ static struct page *stable_tree_search(struct 
+>> page *page)
+>>                * It would be more elegant to return stable_node
+>>                * than kpage, but that involves more changes.
+>>                */
+>> -            tree_page = get_ksm_page(stable_node_dup, true);
+>> +            tree_page = get_ksm_page(stable_node_dup,
+>> +                         GET_KSM_PAGE_TRYLOCK);
+>> +
+>> +            if (PTR_ERR(tree_page) == -EBUSY)
+>> +                return ERR_PTR(-EBUSY);
+>
+> or just:
+>
+>     if (PTR_ERR(tree_page) == -EBUSY)
+>         return tree_page;
+>
+> right?
 
-I recall that proposal veered into a direction where the block layer
-would just fail very early if there was iomem in the sgl, so generally
-no O_DIRECT support anyhow.
+Either looks fine to me. Returning errno may look more explicit? Anyway 
+I really don't have preference.
 
-We already accepted the P2P stuff from Logan as essentially a giant
-special case - it only works with RDMA and only because RDMA MR was
-hacked up with a special p2p callback.
+>
+>> +
+>>               if (unlikely(!tree_page))
+>>                   /*
+>>                    * The tree may have been rebalanced,
+>> @@ -1842,7 +1862,8 @@ static struct stable_node 
+>> *stable_tree_insert(struct page *kpage)
+>>                * wrprotected at all times. Any will work
+>>                * fine to continue the walk.
+>>                */
+>> -            tree_page = get_ksm_page(stable_node_any, false);
+>> +            tree_page = get_ksm_page(stable_node_any,
+>> +                         GET_KSM_PAGE_NOLOCK);
+>>           }
+>>           VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
+>>           if (!tree_page) {
+>> @@ -2060,6 +2081,10 @@ static void cmp_and_merge_page(struct page 
+>> *page, struct rmap_item *rmap_item)
+>>         /* We first start with searching the page inside the stable 
+>> tree */
+>>       kpage = stable_tree_search(page);
+>> +
+>> +    if (PTR_ERR(kpage) == -EBUSY)
+>> +        return;
+>> +
+>>       if (kpage == page && rmap_item->head == stable_node) {
+>>           put_page(kpage);
+>>           return;
+>> @@ -2242,7 +2267,8 @@ static struct rmap_item 
+>> *scan_get_next_rmap_item(struct page **page)
+>>                 list_for_each_entry_safe(stable_node, next,
+>>                            &migrate_nodes, list) {
+>> -                page = get_ksm_page(stable_node, false);
+>> +                page = get_ksm_page(stable_node,
+>> +                            GET_KSM_PAGE_NOLOCK);
+>>                   if (page)
+>>                       put_page(page);
+>>                   cond_resched();
+>>
+>
+> Hi Yang,
+>
+> The patch looks correct as far doing what it claims to do. I'll leave it
+> to others to decide if a trylock-based approach is really what you want,
+> for KSM scans. It seems reasonable from my very limited knowledge of
+> KSM: there shouldn't be any cases where you really *need* to wait for
+> a page lock, because the whole system is really sort of an optimization
+> anyway.
 
-I don't see why a special case with a VMA is really that different.
+Thanks!
 
-If someone figures out the struct page path down the road it can
-obviously be harmonized with this VMA approach pretty easily.
+Yang
 
-Jason
+>
+>
+> thanks,
 
