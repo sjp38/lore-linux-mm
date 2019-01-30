@@ -2,261 +2,184 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AA621C282D7
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 18:36:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2A65EC282D8
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 18:38:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6CBC92087F
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 18:36:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6CBC92087F
+	by mail.kernel.org (Postfix) with ESMTP id E670520869
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 18:38:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E670520869
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0E2998E0004; Wed, 30 Jan 2019 13:36:23 -0500 (EST)
+	id 9BA498E0005; Wed, 30 Jan 2019 13:38:06 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 069158E0001; Wed, 30 Jan 2019 13:36:22 -0500 (EST)
+	id 9400E8E0001; Wed, 30 Jan 2019 13:38:06 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E4D5F8E0004; Wed, 30 Jan 2019 13:36:22 -0500 (EST)
+	id 7E17D8E0005; Wed, 30 Jan 2019 13:38:06 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B34C08E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 13:36:22 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id q33so531286qte.23
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 10:36:22 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 505078E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 13:38:06 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id f22so511295qkm.11
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 10:38:06 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=A5Hrd+dQWLwf9n9iDbhl206GnS8YT5VeBSdAfnUemIE=;
-        b=qS3szSb449sq7X4K+vfn9SCpdiVHxDuh5aPboMdoIcxId9+3KslpPENAXANPwwskHb
-         6LJaiC2XFULlvUmoX64jXWM9PuXqrtGOhtONkpAEl/oPb2cev9GgES+YEhZ8a0G8pHCD
-         VptoEvHCOIZaHF1IxN+9jLpDpjoAouLqPcPdBwJhHovGYqUdnrnjKMldKr33JiM/AJ8C
-         Wi/pr8RV+grmbHczFGQ3ytwesNE1t1Kr1JEijLsF3LSXG62pkWFvKdggQlm0r1r5f6O2
-         xVoKSoMdytFe1wNFGoKo6ZTTdA5emUYGioP1sd6iAhj1EY6U72SvyeMeQ9UBnDsgMm8v
-         cXcA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUukcRIATKINg54fxmDnmVAUs8HYoZTPMjQthB6Nk0TA5C+qM+SEIB
-	MaR2Tbcgl0rZc9HK3iAZv1izPZWOWCsFA5FNf/ylNQbby86LDqdhwZOCoYuntL/i/XJoNM8cxBl
-	kOF/6JaJ3TudwvEJEbIFKNQijnbVpXEg60LfEhD3k/rmliPC/S+a1uAE8jyH3XjMpJA==
-X-Received: by 2002:a37:8006:: with SMTP id b6mr27133941qkd.19.1548873382397;
-        Wed, 30 Jan 2019 10:36:22 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4bYhsiN4OXmyTFnlO5V/L92uEra3C/cLYHuX7xZfWc5J//g8Re9EOfFxZCfT5W5mSWNUde
-X-Received: by 2002:a37:8006:: with SMTP id b6mr27133889qkd.19.1548873381480;
-        Wed, 30 Jan 2019 10:36:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548873381; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-transfer-encoding
+         :content-language;
+        bh=vxt2UPQQc+BUT1dpQTnJ0YmPM5DoDzLEMG2Lv1yDCOU=;
+        b=Qc029qKlBCFkMVbnzC80gqMkTRhnIWjbDg9ACsztY8Z7Jcs4/Uuz9v2o7oOZRXJs+m
+         uKrPp5Hft82/g8wlixfhQtmAq2b8nKxz+dAHpiyJuaK7mALXFYhuToXgRtt9D47mjyuj
+         QOnczAMKPXEmKJnQFGnFt5XNMq+vVmiLzapif8wLpvYoqp0OLkOpu65+0V9jcuD5qZCn
+         NckmWxdPGMNB471+sczUIW+Qci95hGu0SE3X9yLee/Ez8lXLlKl0DADJMnsWI2646rt5
+         aAost+KLp6TnjDkSXXuyPqgW7JSn2a6Q3xyvNpVS2PI7oqGrQm8j9TOxCy7wKBgzKHUq
+         hkJg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukcepvaS1kZKRGhfUrHvzSILcxX415haPUVhPY+aQz3pNSAw7A1p
+	jB9/lkHQZdjhDS5QwK4qe1wYVMyP/DFHuozB5ZyJrILVUCGWGoycqlXRP5nSAB2hqvBbvzsrFvL
+	TEAy6vdVyE5YmgZukX6GLzeGY/vq2JuJC85tvxmx6ODLz//UXuCGbEO5dxebN8L4UkA==
+X-Received: by 2002:a0c:81b5:: with SMTP id 50mr29592547qvd.166.1548873486109;
+        Wed, 30 Jan 2019 10:38:06 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7dQD1ZkfCoFy+SFhV2JKwZ//t0Jcq5gR/UDn/l02oEbhIDXbVu1yyv6Pz/G3MLw5MnYeyr
+X-Received: by 2002:a0c:81b5:: with SMTP id 50mr29592527qvd.166.1548873485715;
+        Wed, 30 Jan 2019 10:38:05 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548873485; cv=none;
         d=google.com; s=arc-20160816;
-        b=WX6Vdze7TzZbpGM8tHqth1buQDIyqmTeyqC/nmAEC3ZDbKMCml4yoQDmym2toGUePy
-         dbuM4mtzbvME6fk4krt9yrKdJUgUPTewpgjLXTCJ8znMU7eoK8pzBVs6uLS/j6Qjade0
-         8COasxmmmvCirNQ64EY062sOHRUOZmKNWAdwDRf6PnpY6Xcin134zB0/4cmDQfex9c6p
-         zNbM0g1/n4fhSdC24jTZ1f4luDr5rtQxtzRawETkHVjH/kuXWksx8whB13h5byYyLsgJ
-         Vkk8Y/YLoEMtD24L6QRphF+9GzGxPIISvstJ86ji05XmfF1VA+MNXUFf3byjXrHRMTy6
-         8EjQ==
+        b=TR/i3jLJ4e/l/ZD9SmLBTQ0l0PjoDVDLoaHa4ceDhRsndSwh6SNkRXShda6vy4pBE2
+         O5sufZcDo1nYfzA/S76xNFCzpUpm0zMV+bAurQaKN2N8iznPwmUVzfHV1kDa7TxKtpTD
+         a9RkTVuwOOLENwzApLCyijOBQMcy7JrKIdbUYpmfmUDSGTrOLMWSVp6As7cYfTBxjCZy
+         2FBioAvnHC2zjdwqcW1K712pwtdQKCM0CMgtubqH/7eFg5GJF0BeXMubt9zE/79zQ5m8
+         Wl4wup41pr7cZhtFhfuqvlTo14RAhkCCU+K5UCW6twIOWy2P1H5xaKxcju4sQZyyfihY
+         vnbg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=A5Hrd+dQWLwf9n9iDbhl206GnS8YT5VeBSdAfnUemIE=;
-        b=g9u8bDGkZ+R9MSGbFCe6M8E1lSRBNx8C4VVa46+dxA23JnN69ouK3MgSOz+7rfMIsX
-         EgRWcyzZWmYuASrKcX2fUa3ENgnUHWrRwnADgO72kFOMYRvTBqr83dZ+Pm75CUo/0G+X
-         38fNFDjmMaCCOVduy+HvHlpwooA2YM91eBV5dgI4MyjChBiUyiGvynkL2gpBMsv5U6Fm
-         4C/DNx+HDO+L/Oz1817DZhv0O18EgXQ447ekhrYzyTk4lVTfgSEUqAzKUAIswjExqEwW
-         Jeo3kUbO0PXxIB5DtPRltCOriiyqBy04ECDR/P82+u9DOev9pjW8f06SUniUMQssCJhV
-         QNOw==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=vxt2UPQQc+BUT1dpQTnJ0YmPM5DoDzLEMG2Lv1yDCOU=;
+        b=FLqYODYKl7zZYyawU9GgBI5eeS3xQ3K1qe26CsWs/DjkaOG6qvzCgDF2LJHT32E2P6
+         gynKPSlGfKFRmZ6+WnmX+DrQK2ij15oC1kKIAmfns7GXckQlXMhv2aNn0UfjOcPSlJZU
+         mMrTIBFBHxAIn+PAEwu01CxUn0fTA09sSqIOsNq6iTW5uPK4ud7vXNDF6aQhM1dvC2s0
+         ky/ueMph8dJyFOGGkbUDmAp9BD1DLIC1zVsJAKjemq/i3vXWzF24M539gnwZgVenlGNU
+         w3CbgkUTSGFvkdz4jPkppsropGIe6h1XRlpQE6ntVO6NI8TnIcJkDekxDC/ozMYzgO4A
+         DCmg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l45si942931qtc.21.2019.01.30.10.36.21
+        by mx.google.com with ESMTPS id v4si96451qtq.23.2019.01.30.10.38.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 10:36:21 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 30 Jan 2019 10:38:05 -0800 (PST)
+Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 276822CD7EC;
-	Wed, 30 Jan 2019 18:36:20 +0000 (UTC)
-Received: from redhat.com (ovpn-126-0.rdu2.redhat.com [10.10.126.0])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 08B055C239;
-	Wed, 30 Jan 2019 18:36:18 +0000 (UTC)
-Date: Wed, 30 Jan 2019 13:36:17 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>
-Subject: Re: [PATCH 09/10] mm/hmm: allow to mirror vma of a file on a DAX
- backed filesystem
-Message-ID: <20190130183616.GB5061@redhat.com>
-References: <20190129165428.3931-1-jglisse@redhat.com>
- <20190129165428.3931-10-jglisse@redhat.com>
- <CAPcyv4gNtDQf0mHwhZ8g3nX6ShsjA1tx2KLU_ZzTH1Z1AeA_CA@mail.gmail.com>
- <20190129193123.GF3176@redhat.com>
- <CAPcyv4gkYTZ-_Et1ZriAcoHwhtPEftOt2LnR_kW+hQM5-0G4HA@mail.gmail.com>
- <20190129212150.GP3176@redhat.com>
- <CAPcyv4hZMcJ6r0Pw5aJsx37+YKx4qAY0rV4Ascc9LX6eFY8GJg@mail.gmail.com>
- <20190130030317.GC10462@redhat.com>
- <CAPcyv4jS7Y=DLOjRHbdRfwBEpxe_r7wpv0ixTGmL7kL_ThaQFA@mail.gmail.com>
+	by mx1.redhat.com (Postfix) with ESMTPS id A36CC89AC7;
+	Wed, 30 Jan 2019 18:38:04 +0000 (UTC)
+Received: from llong.remote.csb (dhcp-17-59.bos.redhat.com [10.18.17.59])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 2FF54261A6;
+	Wed, 30 Jan 2019 18:38:00 +0000 (UTC)
+Subject: Re: [RESEND PATCH v4 0/3] fs/dcache: Track # of negative dentries
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>,
+ Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>,
+ Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+ linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-MM
+ <linux-mm@kvack.org>, linux-doc@vger.kernel.org, mcgrof@kernel.org,
+ Kees Cook <keescook@chromium.org>, Jan Kara <jack@suse.cz>,
+ Paul McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>,
+ Miklos Szeredi <mszeredi@redhat.com>, Matthew Wilcox <willy@infradead.org>,
+ lwoodman@redhat.com, James Bottomley
+ <James.Bottomley@hansenpartnership.com>, wangkai86@huawei.com,
+ Michal Hocko <mhocko@kernel.org>
+References: <1544824384-17668-1-git-send-email-longman@redhat.com>
+ <CAHk-=wi-V7LjAAzFuxg+eLQAdp+Ay4WmVJdTNxgPjqKXaj-3Xw@mail.gmail.com>
+ <0433488a-c8ad-e31a-6144-648e45478c07@redhat.com>
+ <260e6cdb-42b7-1891-e525-54048d168b5c@redhat.com>
+ <CAHk-=wi1raFRkRH1HEe_awy7HVy7XWxFRv9aZY-cgNL5zMqW4A@mail.gmail.com>
+From: Waiman Long <longman@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=longman@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ weim8xU=
+Organization: Red Hat
+Message-ID: <70f895e7-b882-c821-a212-d1b5fe456261@redhat.com>
+Date: Wed, 30 Jan 2019 13:37:59 -0500
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPcyv4jS7Y=DLOjRHbdRfwBEpxe_r7wpv0ixTGmL7kL_ThaQFA@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Wed, 30 Jan 2019 18:36:20 +0000 (UTC)
+In-Reply-To: <CAHk-=wi1raFRkRH1HEe_awy7HVy7XWxFRv9aZY-cgNL5zMqW4A@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Wed, 30 Jan 2019 18:38:04 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 30, 2019 at 09:25:21AM -0800, Dan Williams wrote:
-> On Tue, Jan 29, 2019 at 7:03 PM Jerome Glisse <jglisse@redhat.com> wrote:
-> [..]
-> > > >     1) Convert ODP to use HMM underneath so that we share code between
-> > > >     infiniband ODP and GPU drivers. ODP do support DAX today so i can
-> > > >     not convert ODP to HMM without also supporting DAX in HMM otherwise
-> > > >     i would regress the ODP features.
-> > > >
-> > > >     2) I expect people will be running GPGPU on computer with file that
-> > > >     use DAX and they will want to use HMM there too, in fact from user-
-> > > >     space point of view wether the file is DAX or not should only change
-> > > >     one thing ie for DAX file you will never be able to use GPU memory.
-> > > >
-> > > >     3) I want to convert as many user of GUP to HMM (already posted
-> > > >     several patchset to GPU mailing list for that and i intend to post
-> > > >     a v2 of those latter on). Using HMM avoids GUP and it will avoid
-> > > >     the GUP pin as here we abide by mmu notifier hence we do not want to
-> > > >     inhibit any of the filesystem regular operation. Some of those GPU
-> > > >     driver do allow GUP on DAX file. So again i can not regress them.
-> > >
-> > > Is this really a GUP to HMM conversion, or a GUP to mmu_notifier
-> > > solution? It would be good to boil this conversion down to the base
-> > > building blocks. It seems "HMM" can mean several distinct pieces of
-> > > infrastructure. Is it possible to replace some GUP usage with an
-> > > mmu_notifier based solution without pulling in all of HMM?
-> >
-> > Kind of both, some of the GPU driver i am converting will use HMM for
-> > more than just this GUP reason. But when and for what hardware they
-> > will use HMM for is not something i can share (it is up to each vendor
-> > to announce their hardware and feature on their own timeline).
-> 
-> Typically a spec document precedes specific hardware announcement and
-> Linux enabling is gated on public spec availability.
-> 
-> > So yes you could do the mmu notifier solution without pulling HMM
-> > mirror (note that you do not need to pull all of HMM, HMM as many
-> > kernel config option and for this you only need to use HMM mirror).
-> > But if you are not using HMM then you will just be duplicating the
-> > same code as HMM mirror. So i believe it is better to share this
-> > code and if we want to change core mm then we only have to update
-> > HMM while keeping the API/contract with device driver intact.
-> 
-> No. Linux should not end up with the HMM-mm as distinct from the
-> Core-mm. For long term maintainability of Linux, the target should be
-> one mm.
+On 01/30/2019 01:35 PM, Linus Torvalds wrote:
+> On Wed, Jan 30, 2019 at 8:40 AM Waiman Long <longman@redhat.com> wrote:
+>> Ping. Will this patch be picked up?
+> Can you re-send the patch-set and I'll just apply it directly since it
+> seems to be languishing otherwise.
+>
+>                 Linus
 
-Hu ? I do not follow here. Maybe i am unclear and we are talking past
-each other.
+Sure.
 
-> 
-> > This
-> > is one of the motivation behind HMM ie have it as an impedence layer
-> > between mm and device drivers so that mm folks do not have to under-
-> > stand every single device driver but only have to understand the
-> > contract HMM has with all device driver that uses it.
-> 
-> This gets to heart of my critique of the approach taken with HMM. The
-> above statement is antithetical to
-> Documentation/process/stable-api-nonsense.rst. If HMM is trying to set
-> expectations that device-driver projects can write to a "stable" HMM
-> api then HMM is setting those device-drivers up for failure.
+Thanks for your help.
 
-So i am not expressing myself correctly. If someone want to change mm
-in anyway that would affect HMM user, it can and it is welcome too
-(assuming that those change are wanted by the community and motivated
-for good reasons). Here by understanding HMM contract and preserving it
-what i mean is that all you have to do is update the HMM API in anyway
-that deliver the same result to the device driver. So what i means is
-that instead of having to understand each device driver. For instance
-you have HMM provide X so that driver can do Y; then what can be Z a
-replacement for X that allow driver to do Y. The point here is that
-HMM define what Y is and provide X for current kernel mm code. If X
-ever need to change so that core mm can evolve than you can and are
-more than welcome to do it. With HMM Y is defined and you only need to
-figure out how to achieve the same end result for the device driver.
-
-The point is that you do not have to go read each device driver to
-figure out Y.driver_foo, Y.driver_bar, ... you only have HMM that
-define what Y means and is ie this what device driver are trying to
-do.
-
-Obviously here i assume that we do not want to regress features ie
-we want to keep device driver features intact when we modify anything.
-
-> 
-> The possibility of refactoring driver code *across* vendors is a core
-> tenet of Linux maintainability. If the refactoring requires the API
-> exported to drivers to change then so be it. The expectation that all
-> out-of-tree device-drivers should have is that the API they are using
-> in kernel version X may not be there in version X+1. Having the driver
-> upstream is the only surefire insurance against that thrash.
-> 
-> HMM seems a bold experiment in trying to violate Linux development norms.
-
-We are definitly talking past each other. HMM is _not_ a stable API or
-any kind of contract with anybody outside upstream. If you want to change
-the API HMM expose to device driver you are free to do so provided that
-the change still allow device driver to achieve their objective.
-
-HMM is not here to hinder that, quite the opposite in fact, it is here
-to help that. Helping people that want to evolve mm by not requirement
-them to understand every single device driver.
-
-
-> 
-> > Also having each driver duplicating this code increase the risk of
-> > one getting a little detail wrong. The hope is that sharing same
-> > HMM code with all the driver then everyone benefit from debugging
-> > the same code (i am hopping i do not have many bugs left :))
-> 
-> "each driver duplicating code" begs for refactoring driver code to
-> common code and this refactoring is hindered if it must adhere to an
-> "HMM" api.
-
-Again HMM API can evolve, i am happy to help with any such change, given
-it provides benefit to either mm or device driver (ie changing the HMM
-just for the sake of changing the HMM API would not make much sense to
-me).
-
-So if after converting driver A, B and C we see that it would be nicer
-to change HMM in someway then i will definitly do that and this patchset
-is a testimony of that. Converting ODP to use HMM is easier after this
-patchset and this patchset changes the HMM API. I will be updating the
-nouveau driver to the new API and use the new API for the other driver
-patchset i am working on.
-
-If i bump again into something that would be better done any differently
-i will definitly change the HMM API and update all upstream driver
-accordingly.
-
-I am a strong believer in full freedom for internal kernel API changes
-and my intention have always been to help and facilitate such process.
-I am sorry this was unclear to any body :( and i am hopping that this
-email make my intention clear.
-
-Cheers,
-Jérôme
+-Longman
 
