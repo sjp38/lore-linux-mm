@@ -2,214 +2,135 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E88FFC3E8A4
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 08:57:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B58F4C282D5
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:09:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8A02F21473
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 08:57:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A02F21473
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 7F68420989
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:09:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F68420989
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC6C18E0002; Wed, 30 Jan 2019 03:57:07 -0500 (EST)
+	id 1C68D8E0002; Wed, 30 Jan 2019 04:09:50 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E9CDD8E0001; Wed, 30 Jan 2019 03:57:07 -0500 (EST)
+	id 14E6E8E0001; Wed, 30 Jan 2019 04:09:50 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D8CD28E0002; Wed, 30 Jan 2019 03:57:07 -0500 (EST)
+	id F30A78E0002; Wed, 30 Jan 2019 04:09:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D03C8E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 03:57:07 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id c53so9213879edc.9
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 00:57:07 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 934188E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 04:09:49 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id c3so9244951eda.3
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 01:09:49 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=lCxabxsVWTynqe1k7NVN/+sCJlTo9JfxvTP0DnwspPg=;
-        b=TiD9vfSysP7/NvQcF1poPaQFOmQAaUCeFpPUdtH1ZWMAJNcyqTzWx006KRRdDYFOQy
-         GTP5sT4Ede6ZYwJOp9G6JPATPof2GNeSKdGb8ZhHL6nYKXOjfNXqEPnL0hcJBTnUKJ6X
-         pz13Fw3nDfHww7RwUM7Bj6FJ3O9rnliUx3m6PAWJO7ttQ8CcLa7f0MKYhWBGro/Yxt84
-         6AWaSxXCsG9ptk0DUijgczGWRxJM4NGFS4ZlESSjHNK4q1sRxqXdm+rHMYyozHucuC/9
-         +TvPtIu8eniMiKjtROwTyM7aLKAGv1e02H1iGYflLHH/sUGWsNLKVD8JY6axnuziMw7X
-         TjgQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of julien.thierry@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=julien.thierry@arm.com
-X-Gm-Message-State: AJcUukdZHu3E0m8e5FpGdfNEkrQn/A4KItzu+svpFYIWfCr6v0ym3N9L
-	jIPDS2x0uxkDQ00Fz386H0fzpXgTTFGDcS0H9Zgd7YP40Gw0knzNGNa1PY9Zepe6g9Q0f1tmnkd
-	TNiAqI1ZEaUxavF1mxPaOtn0M+NtnAPYPuhwY0fUjQyN6IDIegB6DOZLuVVWPuY27gQ==
-X-Received: by 2002:a17:906:7817:: with SMTP id u23-v6mr25900427ejm.145.1548838627018;
-        Wed, 30 Jan 2019 00:57:07 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6oON+LfuvFeEIe1clR0DqZBdBUmOoEfrJ2HKbC6d1roXu5sTDThU1JCN4O/JvsKlMrXhN0
-X-Received: by 2002:a17:906:7817:: with SMTP id u23-v6mr25900383ejm.145.1548838625949;
-        Wed, 30 Jan 2019 00:57:05 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548838625; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=2YT4l9j8c3qE4ESQ9uCNzQzeTA3r/3UfWiab/Pt+/FM=;
+        b=AIZ1fwE9ThMos+Y032U2rpDcLMMGRw320xMhJvt2yvcpXdX5WwascEKmvOfd6h1spV
+         OUkCV/jcC1t7QPovM4NF6hzMMw9cn6AFoz1FauxSFbwk+gcNIyeKJmQNQADUiKhcSoAC
+         Hrww9yZXocuZtdxDV9nRJftHkgLd5GJpr2/FEmdLThWW4HCBNGyAmYSBgskY4l5FoOwk
+         G+lXidv5ygftFeaka9jj2dnF4t/Ds4bhprHABC/ZPErCBQW2Q6HDIT/7538aeBrBBX/p
+         0UK7UaxSBiozIOBVlgzkffRX/vtzLXINNPG2DKdzjyXHSaYQAEmG7P7XbK4fE3fBDzg2
+         3WTg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AJcUukfbPhohMLs2bhIbvPvG1D5FK3PgP34Ho+WnReNSPfXWI2TjAIRM
+	WqD7XK7bpqq5azKthl7Z9E7gjU56e/rLINGyTbK1/R+ye1mfcr0Rr6BOB/gVwahc+gAs3r/JjJK
+	ANNEqCp937kxbc9c+pZIg3N+xEPFfnEtPS+wkq5gY9bb026bBzqZgy83EPl6uYIA=
+X-Received: by 2002:a17:906:7c42:: with SMTP id g2mr25992702ejp.212.1548839389143;
+        Wed, 30 Jan 2019 01:09:49 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6HnkuVyXNU2Ut3t8M9wUNEiIbGiwJw3q2ELTiLENbimAB4HD6JOSUxvI/GtD32Gkdi8NZj
+X-Received: by 2002:a17:906:7c42:: with SMTP id g2mr25992659ejp.212.1548839388301;
+        Wed, 30 Jan 2019 01:09:48 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548839388; cv=none;
         d=google.com; s=arc-20160816;
-        b=vxMW31KxfcNwJ8w0fCX9XNQlaAIaFgitmF0yU17Ch3uX5EnyNGCWZl5cC0j6bvaaJt
-         eJuIXBasADxrTlGZ+qB4dguBh3KbPf/DnvlE6ieR7RDc2csftFMC+DGEds09QR7pilqZ
-         hCpCdKPxAbjEP/iMK1R383mMvf9wUAmnwgIlwvuRmtDhLrM98SfqcfuVLW6vOO7L8+0S
-         ap19Y00S7II+777lE6O7XaqJqx6RVGkWn0QAL+e45FihER+U1Gn9mzvwrVPhHT4wwOmY
-         fHr1rQNOmowXH8aILEvCuHL1q/32qdYUQKGjikbB3KMQmZvoHSNzOaAVd9jK0ruXJ1k6
-         KjbA==
+        b=DGmLkIvco6k76ODTHxzMwWIrJ9YWaxDfqrtWmqlz9pJP6EpaiftfXdTB0/UVyHizWS
+         h8/R0rNqaYhl9CAvUIfGj8+5jCdueb5O30ttiLD6fMXXObmYYAb41/xorljdR0jZ1jdn
+         j/+YVCXebzfrTvV5S7WYFBzK5kwEIDsbyOivHbl2ThweokGz8QK50fnwI3J4B2Dsu+hU
+         dKNaudRp57DUIEab1U32txwspPxHQ9FzeU7E6E4Ii9Uq6pKJTXjYWXHmcp8+gWfMhE3Z
+         tR1g4E0Pyb+CH8yk5PHkNLP0UFRVIgvuPpJN+eu31IA6UIhqEDd9ppkScHJwZaeKp+bS
+         3ADg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=lCxabxsVWTynqe1k7NVN/+sCJlTo9JfxvTP0DnwspPg=;
-        b=gvW5wB0IpK8tVFhggVXArcI2hnx/+F2ropc7WmCQilr/h2XvmkqI6h5ujFd3SqxkS8
-         CRRj+/mCGpTTBRIPp+tR2ypDQ9FuSfK9iqXS4XJ8U00mHqak/Jn3RqEKWsQJ/hTYuTY0
-         79k3roDaWidW64H0dS9nDFS1KvHYEkhoCDhwuPvdYqq/EgOC8m5tcCeu/7YFtugNrfYc
-         E5B+TzkXjdGOde7/IXt9Bxm0/02pmF/8ZGKA3wVMj5jYEW4NwY4POGEGGnEWECVmqryk
-         lEoXmXl8j2S7CTS2ozYFFt+2hyqpuHWOZvtHBXBRaJha/lNDnnP95SuMlKbZho7kW0H8
-         SblA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=2YT4l9j8c3qE4ESQ9uCNzQzeTA3r/3UfWiab/Pt+/FM=;
+        b=pX7ZzhPOzv3zUdSbchqTvfuEPmVxK2fQfpIxOhQc1x30C4G07S0rzUEC4aBpyCy4dr
+         Nfnv3G2jJeEdzDy7scpE98I9d1qc+9ooKI6SOe36O+RbMPth3yvDzIg6pGmtBvw25N+W
+         4ArQImQc97dHAQEQtKGWX+jEnjIXZ+6Pn7mtaYK0s6Rkxjl/fRl8cUQ5cPtMPXbbWZRc
+         y5PiYJpO3S3yY42X8ZlEGORZqknahS9rqygZ3ivStcsq12E+a9dSNlmiAiSa6mYfN1UE
+         G/cAo7lr2/2cgYbyYa948sNv2SXfc0VcC+p2ZFfEwdSJSvloi0O7euhae92FYnh+TYat
+         xoog==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of julien.thierry@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=julien.thierry@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 34si728572edp.262.2019.01.30.00.57.05
-        for <linux-mm@kvack.org>;
-        Wed, 30 Jan 2019 00:57:05 -0800 (PST)
-Received-SPF: pass (google.com: domain of julien.thierry@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g25si653124edu.428.2019.01.30.01.09.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jan 2019 01:09:48 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of julien.thierry@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=julien.thierry@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 2D6FAA78;
-	Wed, 30 Jan 2019 00:57:04 -0800 (PST)
-Received: from [10.1.197.45] (e112298-lin.cambridge.arm.com [10.1.197.45])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E63293F557;
-	Wed, 30 Jan 2019 00:57:01 -0800 (PST)
-Subject: Re: [PATCH v8 24/26] arm64: acpi: Make apei_claim_sea() synchronise
- with APEI's irq work
-To: James Morse <james.morse@arm.com>, linux-acpi@vger.kernel.org
-Cc: Rafael Wysocki <rjw@rjwysocki.net>, Tony Luck <tony.luck@intel.com>,
- Marc Zyngier <marc.zyngier@arm.com>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Dongjiu Geng <gengdongjiu@huawei.com>,
- linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>,
- Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, kvmarm@lists.cs.columbia.edu,
- linux-arm-kernel@lists.infradead.org, Len Brown <lenb@kernel.org>
-References: <20190129184902.102850-1-james.morse@arm.com>
- <20190129184902.102850-25-james.morse@arm.com>
-From: Julien Thierry <julien.thierry@arm.com>
-Message-ID: <858ac1d3-8b21-d3a7-d7dd-3d95294a9bea@arm.com>
-Date: Wed, 30 Jan 2019 08:56:59 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.2.1
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4118FAD73;
+	Wed, 30 Jan 2019 09:09:47 +0000 (UTC)
+Date: Wed, 30 Jan 2019 10:09:45 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Jiri Kosina <jikos@kernel.org>
+Cc: Dominique Martinet <asmadeus@codewreck.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Andy Lutomirski <luto@amacapital.net>,
+	Josh Snyder <joshs@netflix.com>, Dave Chinner <david@fromorbit.com>,
+	Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Greg KH <gregkh@linuxfoundation.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Linux-MM <linux-mm@kvack.org>,
+	kernel list <linux-kernel@vger.kernel.org>,
+	Linux API <linux-api@vger.kernel.org>
+Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
+Message-ID: <20190130090945.GS18811@dhcp22.suse.cz>
+References: <nycvar.YFH.7.76.1901240009560.6626@cbobk.fhfr.pm>
+ <CAHk-=wg+C65FJHB=Jx1OvuJP4kvpWdw+5G=XOXB6X_KB2XuofA@mail.gmail.com>
+ <20190124002455.GA23181@nautica>
+ <20190124124501.GA18012@nautica>
+ <nycvar.YFH.7.76.1901241523500.6626@cbobk.fhfr.pm>
+ <nycvar.YFH.7.76.1901272335040.6626@cbobk.fhfr.pm>
+ <20190128000547.GA25155@nautica>
+ <nycvar.YFH.7.76.1901300050550.6626@cbobk.fhfr.pm>
 MIME-Version: 1.0
-In-Reply-To: <20190129184902.102850-25-james.morse@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <nycvar.YFH.7.76.1901300050550.6626@cbobk.fhfr.pm>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi James,
+On Wed 30-01-19 00:52:02, Jiri Kosina wrote:
+> On Mon, 28 Jan 2019, Dominique Martinet wrote:
+> 
+> > > So, any objections to aproaching it this way?
+> > 
+> > I'm not sure why I'm the main recipient of that mail but answering
+> > because I am -- let's get these patches in through the regular -mm tree
+> > though
+> 
+> *prod to mm maintainers* (at least for an opinion)
 
-On 29/01/2019 18:49, James Morse wrote:
-> APEI is unable to do all of its error handling work in nmi-context, so
-> it defers non-fatal work onto the irq_work queue. arch_irq_work_raise()
-> sends an IPI to the calling cpu, but this is not guaranteed to be taken
-> before returning to user-space.
-> 
-> Unless the exception interrupted a context with irqs-masked,
-> irq_work_run() can run immediately. Otherwise return -EINPROGRESS to
-> indicate ghes_notify_sea() found some work to do, but it hasn't
-> finished yet.
-> 
-> With this apei_claim_sea() returning '0' means this external-abort was
-> also notification of a firmware-first RAS error, and that APEI has
-> processed the CPER records.
-> 
-> Signed-off-by: James Morse <james.morse@arm.com>
-> Reviewed-by: Punit Agrawal <punit.agrawal@arm.com>
-> Tested-by: Tyler Baicar <tbaicar@codeaurora.org>
-> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-> CC: Xie XiuQi <xiexiuqi@huawei.com>
-> CC: gengdongjiu <gengdongjiu@huawei.com>
-> 
-> ---
-> Changes since v7:
->  * Added Catalin's ack, then:
->  * Added __irq_enter()/exit() calls so if we interrupted preemptible code, the
->    preempt count matches what other irq-work expects.
->  * Changed the 'if (!arch_irqs_disabled_flags(interrupted_flags))' test to be
->    safe before/after Julien's PMR series.
-> 
-> Changes since v6:
->  * Added pr_warn() for the EINPROGRESS case so panic-tracebacks show
->    'APEI was here'.
->  * Tinkered with the commit message
-> 
-> Changes since v2:
->  * Removed IS_ENABLED() check, done by the caller unless we have a dummy
->    definition.
-> ---
->  arch/arm64/kernel/acpi.c | 23 +++++++++++++++++++++++
->  arch/arm64/mm/fault.c    |  9 ++++-----
->  2 files changed, 27 insertions(+), 5 deletions(-)
-> 
-> diff --git a/arch/arm64/kernel/acpi.c b/arch/arm64/kernel/acpi.c
-> index 803f0494dd3e..8288ae0c8f3b 100644
-> --- a/arch/arm64/kernel/acpi.c
-> +++ b/arch/arm64/kernel/acpi.c
-> @@ -22,6 +22,7 @@
->  #include <linux/init.h>
->  #include <linux/irq.h>
->  #include <linux/irqdomain.h>
-> +#include <linux/irq_work.h>
->  #include <linux/memblock.h>
->  #include <linux/of_fdt.h>
->  #include <linux/smp.h>
-> @@ -268,12 +269,17 @@ pgprot_t __acpi_get_mem_attribute(phys_addr_t addr)
->  int apei_claim_sea(struct pt_regs *regs)
->  {
->  	int err = -ENOENT;
-> +	bool return_to_irqs_enabled;
->  	unsigned long current_flags;
->  
->  	if (!IS_ENABLED(CONFIG_ACPI_APEI_GHES))
->  		return err;
->  
->  	current_flags = arch_local_save_flags();
-> +	return_to_irqs_enabled = !irqs_disabled_flags(current_flags);
-> +
-> +	if (regs)
-> +		return_to_irqs_enabled = interrupts_enabled(regs);
->  
->  	/*
->  	 * SEA can interrupt SError, mask it and describe this as an NMI so
-> @@ -283,6 +289,23 @@ int apei_claim_sea(struct pt_regs *regs)
->  	nmi_enter();
->  	err = ghes_notify_sea();
->  	nmi_exit();
-> +
-> +	/*
-> +	 * APEI NMI-like notifications are deferred to irq_work. Unless
-> +	 * we interrupted irqs-masked code, we can do that now.
-> +	 */
-> +	if (!err) {
-> +		if (return_to_irqs_enabled) {
-> +			local_daif_restore(DAIF_PROCCTX_NOIRQ);
-> +			__irq_enter();
-> +			irq_work_run();
-> +			__irq_exit();
-> +		} else {
-> +			pr_warn("APEI work queued but not completed");
-> +			err = -EINPROGRESS;
-> +		}
-> +	}
-> +
-
-Reviewed-by: Julien Thierry <julien.thierry@arm.com>
-
-Cheers,
-
+Could you repost those patches please? The thread is long and it is not
+really clear what is the most up-to-date state of patches (at least to
+me).
 -- 
-Julien Thierry
+Michal Hocko
+SUSE Labs
 
