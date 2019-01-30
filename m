@@ -2,190 +2,201 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7A6CCC282D7
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 19:19:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B70F1C282D7
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 19:22:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 26CDF2087F
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 19:19:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="UzX6sHRR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26CDF2087F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id 855E62086C
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 19:22:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 855E62086C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BE42D8E0010; Wed, 30 Jan 2019 14:19:56 -0500 (EST)
+	id 26C958E0011; Wed, 30 Jan 2019 14:22:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B699C8E0001; Wed, 30 Jan 2019 14:19:56 -0500 (EST)
+	id 2190A8E0001; Wed, 30 Jan 2019 14:22:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9E48B8E0010; Wed, 30 Jan 2019 14:19:56 -0500 (EST)
+	id 0F03E8E0011; Wed, 30 Jan 2019 14:22:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EBA38E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 14:19:56 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id y35so237745edb.5
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 11:19:56 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D3B778E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 14:22:40 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id q3so726137qtq.15
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 11:22:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=1Gazb6Jp6B360Dq+MkPlp8a64vElOV9HlssPVSOq7PI=;
-        b=SomZOUTd4pac3O26+i5JKSBmO4WNTDMQtBf/qySdPwMiM7/8UnlxqpRbcpmP1Dd3u4
-         aS3LvtZYcc2VvSgA00sDdaJ48dTP/AWF1W79lG7Z34UZSiZW9RsfxbBq7VgxAgZsb3F1
-         itruPg3m4tqH+j9rmuaPVHqWHzhpcz1Qevhx4bp3OMwXKn9DT1kvqVWsnszQelXiiVk9
-         4IiU4viNcB/U0FEj2D6nGcUjLi3hddQSqAOqFik5p5Eh9nujQ9stfAk+bffcvfB4f/pC
-         Qyp5cIMtHhJtEVG8ttwHj3i4Ez+o6zqvQi6mApypE06e475LND29Itepxddgp37HNIX1
-         fCSg==
-X-Gm-Message-State: AJcUukfh8jgkLYSomuxdGnMfH4YQL/rv4y73eA4OoxbgjHWMPABYwdAM
-	MNnKytDGGSZsuW8bS9Lj6IBNGmELs3Z37/1kvuzJ9GycYxy3hlRa2jm5oempHrn9sAFGAInNV6e
-	w+z4Eq3yAb2IgFW5NrUk7PSEdLLq77oy7xhNK+7VCe9IrOGOXLSs6e3Bb8l1woTyiZA==
-X-Received: by 2002:a05:6402:1816:: with SMTP id g22mr31967974edy.191.1548875995805;
-        Wed, 30 Jan 2019 11:19:55 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5Yl4scerwIAlem9Y8Dipkp5L2N082vdMvdbPVbHQIHRAcC/nEtsPkvBrk/yYBOEYzJ3VqC
-X-Received: by 2002:a05:6402:1816:: with SMTP id g22mr31967947edy.191.1548875995091;
-        Wed, 30 Jan 2019 11:19:55 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548875995; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=zT8e5huoZbXjddEuC956GQ6+r8DBmDIOfeKc8YBpZW8=;
+        b=DzPqb0KT1E/FVEF/3rOXnSeZ4732l0+LDHQHZmrrcopJ58miuUn5VU2oinXh7YEC8y
+         fEODCuFfP5G7ekhsGy6SwLsc5oJrMzI+0xMkdJqIkOS/s9QCC9rlZ78RK/wcunYgSCsZ
+         n2uJvBAbpW7k9Aa/hI3SllB1lW9znqkvrdXYtgsycLd4Tt2a839Ohq4frg+baVxEa4cV
+         5IL35lfJI+m0U3tv2gn+v7nUzXD4sBAZOBjO8j7wWrjntaO2VKe27rTIpK46I1YZeFt7
+         o1dTyNw4H4N71P6BSK10ORKi/tdxn2hChrpqzcuoTcSwBx+KkRLHKeV8CaYH4uDPTH6A
+         IVtA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukf5l7LSa1SYbbzHpsZ8/17pnX4s+iTdMGbcRViX+9cfjQFXT9pB
+	kilOdWBIebHRLUifLEWWxcx2kwNdbjH+nxi3EIYelV0T9FelRnQSvMxzGaPEkgwXRx1fntJkoDD
+	oHUSsMeSBCRdFbkE04F2Jslo/f3NPIVQNKGvVeoDWgwlA4MD7laNVQ+ghM5DC6Rm9cw==
+X-Received: by 2002:a37:dd43:: with SMTP id n64mr29729727qki.7.1548876160614;
+        Wed, 30 Jan 2019 11:22:40 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5nE0S5mXsjIYGMx78LctrmQ9mm/7BjAQGg8w4lcSmcdn7gsaCgOcQNRDpb5gym8MkoFHjU
+X-Received: by 2002:a37:dd43:: with SMTP id n64mr29729694qki.7.1548876160001;
+        Wed, 30 Jan 2019 11:22:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548876159; cv=none;
         d=google.com; s=arc-20160816;
-        b=lmwZD+qFFOEHHAO8xYp/F5Ni9TpGUAujEm8mgx7gdyqFp5y482TS1Tf5n3wfbZbZrn
-         Yp+EZnu8ltHBhXO6yJx8ueeGI0mOZnEAnYbqnbyIzyv+lrtpra3jTzpUz1JEfcWMFcsd
-         pZx9sjN3S23JW4BW7DsAdcInxB683f1BTTqOeZJII+QEPGhoLdeTCjr66KEfeGpQtxHM
-         n+5qaLIFgeNRAJrL6z0Znqvd0h3ZhHKVvujmnU8zlnZItqtValUiJoiY3o0cHS9FPSbf
-         ymEFWHauf0ITCA0pl9izU/OY42NBTok0Uyc1VDn27BrKdzjUpCb/3FRYvAJ37A4KSXhr
-         nIoQ==
+        b=PKEcbGSJdblT4YA6fbY+7WnLsVtUvMJ0qczHIcMpAwhJsieNRMt5mF7qpEqukH4O3S
+         qd9gShQ2iVKg04wy7NwrpLFD8pdF1xS6U2ByxnS0KMguNiWB+YJklNnF53y9UhFqodDn
+         VaxZgS2pEZTlszM6JFgz8ATNtzX9sNAD0USoRWrrUW/QKSZYbBnwqY7mEQtWFOsLVj6J
+         IEO97ZHd1QE6l1yazpvqa3tIfjR5qTWexc97LIO8mXh9VEc5UdkutijMDqscKj2cZjjk
+         WtBy/hjS4cOepmM+7EK58CgSaMd+81/1rYgZxXKmlKiMkBfJK71Xjpr5FMsQHTmUPINx
+         mdnw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=1Gazb6Jp6B360Dq+MkPlp8a64vElOV9HlssPVSOq7PI=;
-        b=qQX3uDUuDTjB5ZxCE6utTUj1hhcJFj3ZF5TALmamNgOOfTK4j7fZ9fPFUAbAOYNurl
-         TFXJXArE2E6PRD3xDuMk6ttrfKmsFhowIDyvq8XIenwa/TPsBlK+Mo+7XSaHUueGfGL0
-         rFlDkgSMv+PkkO1evUsLph3Cz7uDDnShcpV2xwNhKNQCFZyXQJwd1BadLl3bt51GgHB9
-         GLbiwVeETYBlgm/jcJl85se+SePBZD91ToU1XdV9JfDvg2PNmGMqRchxDXnhwDPw0egj
-         fQbjd/eVNr7t6bVSu2XQRb+8Z4AoEVZ84AvOGohOOEINp0K/TBO/9FD3J7h6kaL4zwFB
-         VNHw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=zT8e5huoZbXjddEuC956GQ6+r8DBmDIOfeKc8YBpZW8=;
+        b=fH5tI4fF3jkQNqsYJQeYNXjRtomc1MtpHQV4hyW8yDzCP1U5w69YS2YbjxTeTyjcZa
+         igW85uLFYUzPkTvFK8285jgfz5RQ4VmjcbNv//7M7s0c+0hAQr7ubKUkh8Jq82sMEb8Z
+         mrxI0sPCUPHsKKn2NBdU1oLjFhfI86FSSm6ub47JDbkrGbCFDnOFnJfx4vTY5kjMRwIW
+         QDeWtzQQnpu4PRx5eCTK69T4gHTFRUZ8bmoLHDXuT1t2uYU5KjscWms9A+YAOTlWDJrR
+         VPMVrApB8QaHQGTyI/az3aEnxf78TLLksQexD+dR8hMbaelvJgZLfzD9dbOD+W6ytJWQ
+         Yt0A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=UzX6sHRR;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.13.80 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-eopbgr130080.outbound.protection.outlook.com. [40.107.13.80])
-        by mx.google.com with ESMTPS id hk20-v6si1220620ejb.104.2019.01.30.11.19.54
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m123si1560390qkc.180.2019.01.30.11.22.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 30 Jan 2019 11:19:55 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.13.80 as permitted sender) client-ip=40.107.13.80;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jan 2019 11:22:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=UzX6sHRR;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.13.80 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=1Gazb6Jp6B360Dq+MkPlp8a64vElOV9HlssPVSOq7PI=;
- b=UzX6sHRR56qy4HbKSErrFp0EcAChEVbY8N3BvrW9CePVEyW4vY+fpOg4QDe8VHDBBt5OBBuTZiGjJizPcNLUMnlotIiYO8iGAwlVBazrNyqdX9rYYOBJg4MOXFs06OsiWPWNeMApeoVn7ph52XRTWDS+ZxAgnsGIwSghnx4xzNA=
-Received: from DBBPR05MB6426.eurprd05.prod.outlook.com (20.179.42.80) by
- DBBPR05MB6395.eurprd05.prod.outlook.com (20.179.41.213) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1580.16; Wed, 30 Jan 2019 19:19:52 +0000
-Received: from DBBPR05MB6426.eurprd05.prod.outlook.com
- ([fe80::24c2:321d:8b27:ae59]) by DBBPR05MB6426.eurprd05.prod.outlook.com
- ([fe80::24c2:321d:8b27:ae59%5]) with mapi id 15.20.1580.017; Wed, 30 Jan 2019
- 19:19:52 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Logan Gunthorpe <logang@deltatee.com>
-CC: Christoph Hellwig <hch@lst.de>, Jerome Glisse <jglisse@redhat.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, Greg Kroah-Hartman
-	<gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael@kernel.org>, Bjorn
- Helgaas <bhelgaas@google.com>, Christian Koenig <christian.koenig@amd.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>, "linux-pci@vger.kernel.org"
-	<linux-pci@vger.kernel.org>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, Marek Szyprowski
-	<m.szyprowski@samsung.com>, Robin Murphy <robin.murphy@arm.com>, Joerg Roedel
-	<jroedel@suse.de>, "iommu@lists.linux-foundation.org"
-	<iommu@lists.linux-foundation.org>
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9CA64C04959F;
+	Wed, 30 Jan 2019 19:22:38 +0000 (UTC)
+Received: from redhat.com (ovpn-126-0.rdu2.redhat.com [10.10.126.0])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id A81C45D96F;
+	Wed, 30 Jan 2019 19:22:36 +0000 (UTC)
+Date: Wed, 30 Jan 2019 14:22:34 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Logan Gunthorpe <logang@deltatee.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J . Wysocki" <rafael@kernel.org>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	Christian Koenig <christian.koenig@amd.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	Christoph Hellwig <hch@lst.de>,
+	Marek Szyprowski <m.szyprowski@samsung.com>,
+	Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <jroedel@suse.de>,
+	"iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
 Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
  vma
-Thread-Topic: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
- vma
-Thread-Index:
- AQHUt/rA/dLikqWEmEaIytHIBNLPlqXGkyOAgAAJwICAAAX+AIAAEreAgAAFNYCAALluAIAAoq8AgAAIC4CAABKaAA==
-Date: Wed, 30 Jan 2019 19:19:52 +0000
-Message-ID: <20190130191946.GD17080@mellanox.com>
-References: <20190129174728.6430-1-jglisse@redhat.com>
- <20190129174728.6430-4-jglisse@redhat.com>
- <ae928aa5-a659-74d5-9734-15dfefafd3ea@deltatee.com>
- <20190129191120.GE3176@redhat.com> <20190129193250.GK10108@mellanox.com>
- <99c228c6-ef96-7594-cb43-78931966c75d@deltatee.com>
- <20190129205827.GM10108@mellanox.com> <20190130080208.GC29665@lst.de>
- <20190130174424.GA17080@mellanox.com>
- <bcbdfae6-cfc6-c34f-4ff2-7bb9a08f38af@deltatee.com>
-In-Reply-To: <bcbdfae6-cfc6-c34f-4ff2-7bb9a08f38af@deltatee.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: CO2PR04CA0185.namprd04.prod.outlook.com
- (2603:10b6:104:5::15) To DBBPR05MB6426.eurprd05.prod.outlook.com
- (2603:10a6:10:c9::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [174.3.196.123]
-x-ms-publictraffictype: Email
-x-microsoft-exchange-diagnostics:
- 1;DBBPR05MB6395;6:/EUG6rN1Pl0LhGz+YLBfOhGglyVXmjKrFuRN+IvaFnbSOe68/O6+nK72Cm6QcD7d0TSvLFJUAKBpA6bJUnI1FuDWcOvtUehF1tj+zhv0iK43AGAf0usyGG5J+PaO1uX3AFNNc3wGApQ3B6Dhy1LY9g+TjT1mH42dYeWEnXWaxyh7sqlLJdwzVQvPULfsZuWaNgXL+g255UwHb4t3feNg+Bd3l3sw2CalhRiDJvancL21/OOAJi+v8u6biUPdERh6gDySgJPOTqZboa5et7QHdyyVkjXPgllhiY9+FsXK0IKNNyHJMUunwa88Th8LAPGRtFrGBbvPrCn3Y5kbMOKgp7kfcmoTy83TPNEiLOxVo/jdmX5h+Bl+9P/kESw0GETfp3mz5S/lZFHykVMvNdHnt/vpZb7Z1y0opqIlP72tJ6T3iqQnpvSFamcI9SmIXjvBdPmSahkEEWIoc5rt3WZRFQ==;5:Crbz8a9BZD54YXFZevGAFLMvdcWZa7qezxOdj19uIrgLDz8xpGwotVj556Qa/XfI3d8rZSpzrPxQDqj25ILs8GOiyMfQumCcDMvwyarlLEpc9fHo7gPGI7XIp+2ErYoOHhWdFfq53cvB8XZ2pUmVi/KLgaGoJAuuCNUhyqtebpfDqFfExMLLrPEWtPRpVJ6z4ZohVdySHhLWERuOr8Xgqg==;7:8j6QfQXfIbjgtF1JWbSGx/TDa/PqeDpiB9Dv9g+Vyh89Ky8eMRYnssf9rBAoRHzsV4JhMUDdd7/ZetNe5SUtPVhetlPATm2m9cptMYVpfRnOsyS22InngAFQklCJLKcRiH8TaV2OBRP9A8aoSxfwVQ==
-x-ms-office365-filtering-correlation-id: 141dbce2-fcb6-438c-3fab-08d686e7e8e6
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(4618075)(2017052603328)(7153060)(7193020);SRVR:DBBPR05MB6395;
-x-ms-traffictypediagnostic: DBBPR05MB6395:
-x-microsoft-antispam-prvs:
- <DBBPR05MB6395CD70E422712DC53CC647CF900@DBBPR05MB6395.eurprd05.prod.outlook.com>
-x-forefront-prvs: 0933E9FD8D
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(39860400002)(366004)(396003)(346002)(376002)(136003)(199004)(189003)(54906003)(316002)(6246003)(68736007)(105586002)(446003)(2906002)(25786009)(53936002)(97736004)(4326008)(36756003)(76176011)(2616005)(476003)(11346002)(106356001)(33656002)(53546011)(6506007)(486006)(256004)(217873002)(52116002)(26005)(99286004)(186003)(386003)(102836004)(6116002)(6916009)(3846002)(66066001)(4744005)(1076003)(6436002)(6512007)(8676002)(81166006)(305945005)(7736002)(71190400001)(6486002)(229853002)(8936002)(478600001)(81156014)(93886005)(7416002)(14454004)(71200400001)(86362001);DIR:OUT;SFP:1101;SCL:1;SRVR:DBBPR05MB6395;H:DBBPR05MB6426.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- uZltpbhLDx/I/aSUk9bXd8dUSVjJoSxhzqz+W/18RtNysqS/wJ4mPoHP7JdgoAtsnUekdTPo/8qwYi+dogonykLMJ1Pd/2rGSRZoEf8c3xKpQ0QR+JwvdTI3+PcXk+S5aOS8flwScOXfAlrKdYdMiBiUxnhTXM5MWYKW6DCe82M34QwzLox92rry6x7I0XoIdut7dOTe7jm4L7z3TBd2gKD7/aRITwT8AEv9EMjU7t4a4wyQK+/NvqXaucg5XBshGoXZie0Fl3FJvCInwLy8i9H1ojviDjdieAytVAAz83CNLzFb1o75DuV7AaEbQQAw1tTSO//erXE20cygsJmUSWYloEDMen3fsNCzfaTMKON48DYZ/7zf3TWYIuBzBY7e3qsVAlxr/YBl4yWs17Ewht9WRm+WOIOERRsSd1gadK0=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <2608ADBADE66244CAF93015265B4523A@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Message-ID: <20190130192234.GD5061@redhat.com>
+References: <99c228c6-ef96-7594-cb43-78931966c75d@deltatee.com>
+ <20190129205749.GN3176@redhat.com>
+ <2b704e96-9c7c-3024-b87f-364b9ba22208@deltatee.com>
+ <20190129215028.GQ3176@redhat.com>
+ <deb7ba21-77f8-0513-2524-ee40a8ee35d5@deltatee.com>
+ <20190129234752.GR3176@redhat.com>
+ <655a335c-ab91-d1fc-1ed3-b5f0d37c6226@deltatee.com>
+ <20190130041841.GB30598@mellanox.com>
+ <bdf03cd5-f5b1-4b78-a40e-b24024ca8c9f@deltatee.com>
+ <20190130185652.GB17080@mellanox.com>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 141dbce2-fcb6-438c-3fab-08d686e7e8e6
-X-MS-Exchange-CrossTenant-originalarrivaltime: 30 Jan 2019 19:19:52.2454
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DBBPR05MB6395
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190130185652.GB17080@mellanox.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Wed, 30 Jan 2019 19:22:39 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 30, 2019 at 11:13:11AM -0700, Logan Gunthorpe wrote:
->=20
->=20
-> On 2019-01-30 10:44 a.m., Jason Gunthorpe wrote:
-> > I don't see why a special case with a VMA is really that different.
->=20
-> Well one *really* big difference is the VMA changes necessarily expose
-> specialized new functionality to userspace which has to be supported
-> forever and may be difficult to change.=20
+On Wed, Jan 30, 2019 at 06:56:59PM +0000, Jason Gunthorpe wrote:
+> On Wed, Jan 30, 2019 at 10:17:27AM -0700, Logan Gunthorpe wrote:
+> > 
+> > 
+> > On 2019-01-29 9:18 p.m., Jason Gunthorpe wrote:
+> > > Every attempt to give BAR memory to struct page has run into major
+> > > trouble, IMHO, so I like that this approach avoids that.
+> > > 
+> > > And if you don't have struct page then the only kernel object left to
+> > > hang meta data off is the VMA itself.
+> > > 
+> > > It seems very similar to the existing P2P work between in-kernel
+> > > consumers, just that VMA is now mediating a general user space driven
+> > > discovery process instead of being hard wired into a driver.
+> > 
+> > But the kernel now has P2P bars backed by struct pages and it works
+> > well. 
+> 
+> I don't think it works that well..
+> 
+> We ended up with a 'sgl' that is not really a sgl, and doesn't work
+> with many of the common SGL patterns. sg_copy_buffer doesn't work,
+> dma_map, doesn't work, sg_page doesn't work quite right, etc.
+> 
+> Only nvme and rdma got the special hacks to make them understand these
+> p2p-sgls, and I'm still not convinced some of the RDMA drivers that
+> want access to CPU addresses from the SGL (rxe, usnic, hfi, qib) don't
+> break in this scenario.
+> 
+> Since the SGLs become broken, it pretty much means there is no path to
+> make GUP work generically, we have to go through and make everything
+> safe to use with p2p-sgls before allowing GUP. Which, frankly, sounds
+> impossible with all the competing objections.
+> 
+> But GPU seems to have a problem unrelated to this - what Jerome wants
+> is to have two faulting domains for VMA's - visible-to-cpu and
+> visible-to-dma. The new op is essentially faulting the pages into the
+> visible-to-dma category and leaving them invisible-to-cpu.
+> 
+> So that duality would still have to exists, and I think p2p_map/unmap
+> is a much simpler implementation than trying to create some kind of
+> special PTE in the VMA..
+> 
+> At least for RDMA, struct page or not doesn't really matter. 
+> 
+> We can make struct pages for the BAR the same way NVMe does.  GPU is
+> probably the same, just with more mememory at stake?  
+> 
+> And maybe this should be the first implementation. The p2p_map VMA
+> operation should return a SGL and the caller should do the existing
+> pci_p2pdma_map_sg() flow.. 
 
-The only user change here is that more things will succeed when
-creating RDMA MRs (and vice versa to GPU). I don't think this
-restricts the kernel implementation at all, unless we intend to
-remove P2P entirely..
+For GPU it would not work, GPU might want to use main memory (because
+it is running out of BAR space) it is a lot easier if the p2p_map
+callback calls the right dma map function (for page or io) rather than
+having to define some format that would pass down the information.
 
-Jason
+> 
+> Worry about optimizing away the struct page overhead later?
+
+Struct page do not fit well for GPU as the BAR address can be reprogram
+to point to any page inside the device memory (think 256M BAR versus
+16GB device memory). Forcing struct page on GPU driver would require
+major surgery to the GPU driver inner working and there is no benefit
+to have from the struct page. So it is hard to justify this.
+
+Cheers,
+Jérôme
 
