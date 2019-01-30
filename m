@@ -2,172 +2,225 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E65AC282D6
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:12:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 729C3C282D8
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:13:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2E9612184D
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:12:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E9612184D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 2E5C02184D
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 09:13:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="QqkuLlvZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E5C02184D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 720AC8E0004; Wed, 30 Jan 2019 04:12:32 -0500 (EST)
+	id BD3308E0005; Wed, 30 Jan 2019 04:13:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 612C28E0001; Wed, 30 Jan 2019 04:12:32 -0500 (EST)
+	id B83968E0001; Wed, 30 Jan 2019 04:13:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 458948E0004; Wed, 30 Jan 2019 04:12:32 -0500 (EST)
+	id A73E58E0005; Wed, 30 Jan 2019 04:13:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E6AA78E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 04:12:31 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id g3so6819902wmf.1
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 01:12:31 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 62A3B8E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 04:13:25 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id l9so16363319plt.7
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 01:13:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=IFyaSZDvG5tAIyjheJu+7MuaC7bK/awFyWok5SF8UwQ=;
-        b=jaehZrd8nEK5GGucng0aJOAsmHy1NGCNUScii6I2UEQ7Xn8Wz3nSp0bJ6x5gjkEQmI
-         C1r4RikNsDtv4ttloDMDiVIqxPgDEHTKp3Fh2BtraeMQ108o4/RQzUtkW+AX/4uMobxq
-         /IT7yhWE9nWDfBCyG94kYnxFJcw80jt6JGkWzVipuSujRvWOZJih2m+IRYWvZwd8nURz
-         Bxv5LyzT0X0TUGueOho6YSAOJqhIUCKVxe5BvHLy6kCkU7CTsLwBMaPn2pqDbx0ww9IU
-         aXfe6T5QtE4k+u1PIKv0xe3bjxTGqH/fWhzHe00bBM9cb1Oo8UZQ90FN4u/p/tLWwnZD
-         eQ/A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukdd4Q7chBSun/UMACL0GwXN/jO4HFAI3fuEHV2PLhlBOPxdTrqN
-	+zPIfp1wJIx6moGl9auAE9h4Icmo3YDCkxUaoA1dd2POMqK4rdKDJZ0mQckLVxX9sMstiRwmxrN
-	/fSIlR2I/r3bfi0jcJpFCmMa8+BKQkwWhJ9W07E/PtR41N3qAypz7Kt6V06hj5JXEtTURv5kV9d
-	zrrGgZw8mqTAD6S9sJQWg7LlVeKbCaCQn6ZHskhuAy0bWRlUqob4/etgXn01wYEUs0823x+CA43
-	4gmmetkKGStlrIme1jwI694CFMPkOEgQJrmO9b0NibnOR9sUg6PlJXA56jglsZk32spqRsfwpU7
-	0bAtoW07HfcC04APEVvF2CahiRSX14oD/grN3ZGdon5t3TDW3kZTByHvBk3ec97UutFJp5uKFQ=
-	=
-X-Received: by 2002:adf:9061:: with SMTP id h88mr29012139wrh.65.1548839551440;
-        Wed, 30 Jan 2019 01:12:31 -0800 (PST)
-X-Received: by 2002:adf:9061:: with SMTP id h88mr29012074wrh.65.1548839550526;
-        Wed, 30 Jan 2019 01:12:30 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548839550; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=MR822vHV0tQgjB8liomI4ONZtoIfEsWxF4ZnmDy1sCQ=;
+        b=QFvqBhlMt7/IwLb6nlsv1mkt+obe08K8O14Oh9FsbsmYzWDyzzFU75GSO1Fwas8Rs9
+         dLFGYKo6Mn1uoC2m/OKyqHotrZTZjLZ3rinAb6lzDbbpLO6BvUZnhXHnqz/Jv5y9QKE9
+         qLrn0FJYxrwnYRBKDrU7Dq3UFQOlIsKWIXFF9qZxsocf5Coy5LnWj5+vSmdHOjNlhuC/
+         Rf74sQBwIgs6H+Cl4VRzRtuT93/Yy1cE+bwihHZxaY1hy4vCcvqr8kxVpPjytAaTgiyv
+         ZXNV7LN8Ce8WVieqtlpmyRUrKGa9kNOMqlcqokydOM4vOFtoG00NfFE4TVuVeq6YW318
+         PzNQ==
+X-Gm-Message-State: AJcUukf/xUOWc1ABhwvCjr1no6AXTmQi3/fPauRdkI/P1CQi812p5qAZ
+	hhPVx2Ls76UOMsZYetw939yKQw3o1Kceo48DM6Fm9ekQCNifqamcAkHilHy19v9sFyOeD+Zoreh
+	OiE7za3ecsyOtZeVc+CaEkPzFaYXDfI8i5SX0ni3vgxs1Bnu8VS5WK2gFfwor34vT8g==
+X-Received: by 2002:a17:902:bd86:: with SMTP id q6mr28662367pls.16.1548839604966;
+        Wed, 30 Jan 2019 01:13:24 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6ES3qv5jwcagBd9H5RBPmKeO4+ksYxkJKXoBCS1c32e2aa67gaupS+ZFpGJTc6aeHWTSPD
+X-Received: by 2002:a17:902:bd86:: with SMTP id q6mr28662335pls.16.1548839604219;
+        Wed, 30 Jan 2019 01:13:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548839604; cv=none;
         d=google.com; s=arc-20160816;
-        b=DuuFJfjg726+9xHa7CeyB3+YNu9CWBDkPNOprS4bUa9CT4rZUrgyo6tL3sb0W9qqn3
-         U3nOkUbm6V6Hri2FgHpquRD2D7Y7AjhjKld1Nc1kLpMlZzZcKR+KZJphZ3b6uCzaMoqu
-         bBTtBhh4SpzburDpHxJorAkpdFnbeRZ/UKYU7on4CyKFYBxJuP2QgpdgURbj9GCrLJLb
-         fOnuUr/B56YLCyG0qFYzgaRGIOLU3mV4QxEN63jOKHc+nnS6IGeySN3P9E/WHIu0QqEe
-         RO0CRYY9uBErBTSvwHNjwIOWiPOCTqtX2NCXkR1L0BjWVfLWDX4oyBMPn+K28P6y/v2L
-         aKxw==
+        b=gtMFkdTaNTn0o8bggECbluWB2/h3GxbG7eu8Fhxqrm5rwWqziXQavxaz9qIyzFea+6
+         ZDEtu5LoSW38MxrxWY7t4O5Z6Pmq3WlYEMLyezpQxXbT5KdAsVrpA1e2DKm/HtlQ3St2
+         wbtWmHN+3gBey/jICGEmte6feHgpOFheuTDLloWMl3WM2+TGeq5XrsyixBTt0reyLPem
+         zOggjtrbSUra7t+UvyXhxJ/NWdnL9SioQ0Yk6bCC+DRyxYq9kqTiLzHNojorYBCiCUOs
+         sZIoqOG7rzt26wwIBSkhW1MxyGitmiriWlFZi7GSs5YQubwRtbj/sx13vXNXnmoXJV9X
+         frVw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=IFyaSZDvG5tAIyjheJu+7MuaC7bK/awFyWok5SF8UwQ=;
-        b=JuQvkJpawRpuNNdzbrKdEsJlBZ+mmA7i4KT6O9+ZTh957UWHKcSPzxyjWvJk3LwPcl
-         UAdeKXo/WtfRcuGzsz2n8338OCv4Csvaa9NkRuP7m7OQ3QZXXGq1ymyPMvXENl/BaOt3
-         nOVc++ebIu6E0pNR5uCbwCqmRaodP0bn+zZ9DAK7B5HFdxnp9PJ05GXB24R7XLKC/pau
-         9HJ6tFFChcQh+Ygfc2uoHCC/v6wllld+IfI1s4/3JzPg21ebEq3KAerkEj2yzN0MlMZ6
-         +/0p7PzGm4IHX9Z3KMLxC8NesX+6sJlImOdFK+bI05hSMGoBvk3JtqnVxuuL3iPCC2kR
-         mkjQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=MR822vHV0tQgjB8liomI4ONZtoIfEsWxF4ZnmDy1sCQ=;
+        b=BqpIxYNHo+WfmH6kDOMjXMRxwrUQrqBdIwJ2uny7JdcMNZKgk7rdwp07riJ2P1Vuzq
+         T4ZacUjsG6OJV/jRDD80a7WhJFtWpYX804VVyQBb3q4Y+1xK4WBZVdWJWPWy2PVeEFIi
+         L426//oE5EOSBh61OFwSNswagaK8q9mv5oFjCtX17O0usuNBDeRNvOVc4Xs7o39fOozd
+         yZE6VAadOxKbW7b/+x0jivC+VuyqqGYqyd7rX/nn1TI1UVdOhSJniwlAwzfUFloptM3n
+         ireJ6p2ZGzFxd5ABiflDTIKYDwwgiqphlh0eSUo8iqoGnUUwQDc3yVlYsinXLpVwvVZa
+         LFvw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r4sor910976wmr.10.2019.01.30.01.12.30
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=QqkuLlvZ;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id u3si932170pgj.300.2019.01.30.01.13.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 30 Jan 2019 01:12:30 -0800 (PST)
-Received-SPF: pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 30 Jan 2019 01:13:24 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: AHgI3Iaq8fWIDq9I86+HaQ9zHJ55J5mjfGRbhPSWjN7j9DPfqEzANX5rnBt5mnJftfFn161SONvHRQ==
-X-Received: by 2002:a1c:c1c9:: with SMTP id r192mr13492549wmf.146.1548839550147;
-        Wed, 30 Jan 2019 01:12:30 -0800 (PST)
-Received: from tiehlicka.suse.cz (ip-37-188-142-190.eurotel.cz. [37.188.142.190])
-        by smtp.gmail.com with ESMTPSA id l19sm1491875wme.21.2019.01.30.01.12.28
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 01:12:29 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-To: Mikhail Zaslonko <zaslonko@linux.ibm.com>,
-	Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	schwidefsky@de.ibm.com,
-	heiko.carstens@de.ibm.com,
-	gerald.schaefer@de.ibm.com,
-	<linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Oscar Salvador <osalvador@suse.de>,
-	Michal Hocko <mhocko@suse.com>
-Subject: [PATCH v2 2/2] mm, memory_hotplug: test_pages_in_a_zone do not pass the end of zone
-Date: Wed, 30 Jan 2019 10:12:17 +0100
-Message-Id: <20190130091217.24467-3-mhocko@kernel.org>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190130091217.24467-1-mhocko@kernel.org>
-References: <20190130091217.24467-1-mhocko@kernel.org>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=QqkuLlvZ;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=MR822vHV0tQgjB8liomI4ONZtoIfEsWxF4ZnmDy1sCQ=; b=QqkuLlvZObvOlBt91xGLZoG2+
+	BJPPa3tN7GYwjdo07yWyJz7mZktgiDfg32RHTfDnXsAZWnAyEyxn0rd4FPBhHGBlMxl2r071WfIb6
+	2Y0tEFyQkc22Xchxx6RttWKXw4Mgp51a911+OfUE4/3EtceBPklVt3b39BVUNM1O57XVCoftAwbvc
+	n5G1ppGDRToXiYviwcDjiWGB7pepu9EbOf2c2q7lgtwtgEAYlAgR9tR7X62PTwdtLQJ8krtVIXxdV
+	EXzK46xB0oWNY0bMCs3aN924pcGBYTxjvfV8pNJmUVERCxKTdiF9gzwuTRpqW/U6BZgLtH/9AVYXU
+	zBLVu3a6Q==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1golvq-0001K1-VU; Wed, 30 Jan 2019 09:13:19 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id E68F920289CC5; Wed, 30 Jan 2019 10:13:16 +0100 (CET)
+Date: Wed, 30 Jan 2019 10:13:16 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: akpm@linux-foundation.org, dan.carpenter@oracle.com,
+	andrea.parri@amarulasolutions.com, shli@kernel.org,
+	ying.huang@intel.com, dave.hansen@linux.intel.com,
+	sfr@canb.auug.org.au, osandov@fb.com, tj@kernel.org,
+	ak@linux.intel.com, linux-mm@kvack.org,
+	kernel-janitors@vger.kernel.org, paulmck@linux.ibm.com,
+	stern@rowland.harvard.edu, will.deacon@arm.com
+Subject: Re: [PATCH] mm, swap: bounds check swap_info accesses to avoid NULL
+ derefs
+Message-ID: <20190130091316.GC2278@hirez.programming.kicks-ass.net>
+References: <20190114222529.43zay6r242ipw5jb@ca-dmjordan1.us.oracle.com>
+ <20190115002305.15402-1-daniel.m.jordan@oracle.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190115002305.15402-1-daniel.m.jordan@oracle.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+On Mon, Jan 14, 2019 at 07:23:05PM -0500, Daniel Jordan wrote:
+> Dan Carpenter reports a potential NULL dereference in
+> get_swap_page_of_type:
+> 
+>   Smatch complains that the NULL checks on "si" aren't consistent.  This
+>   seems like a real bug because we have not ensured that the type is
+>   valid and so "si" can be NULL.
+> 
+> Add the missing check for NULL, taking care to use a read barrier to
+> ensure CPU1 observes CPU0's updates in the correct order:
+> 
+>         CPU0                           CPU1
+>         alloc_swap_info()              if (type >= nr_swapfiles)
+>           swap_info[type] = p              /* handle invalid entry */
+>           smp_wmb()                    smp_rmb()
+>           ++nr_swapfiles               p = swap_info[type]
+> 
+> Without smp_rmb, CPU1 might observe CPU0's write to nr_swapfiles before
+> CPU0's write to swap_info[type] and read NULL from swap_info[type].
+> 
+> Ying Huang noticed that other places don't order these reads properly.
+> Introduce swap_type_to_swap_info to encourage correct usage.
+> 
+> Use READ_ONCE and WRITE_ONCE to follow the Linux Kernel Memory Model
+> (see tools/memory-model/Documentation/explanation.txt).
+> 
+> This ordering need not be enforced in places where swap_lock is held
+> (e.g. si_swapinfo) because swap_lock serializes updates to nr_swapfiles
+> and the swap_info array.
+> 
+> This is a theoretical problem, no actual reports of it exist.
+> 
+> Fixes: ec8acf20afb8 ("swap: add per-partition lock for swapfile")
+> Reported-by: Dan Carpenter <dan.carpenter@oracle.com>
+> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 
-If memory end is not aligned with the sparse memory section boundary, the
-mapping of such a section is only partly initialized. This may lead to
-VM_BUG_ON due to uninitialized struct pages access from test_pages_in_a_zone()
-function triggered by memory_hotplug sysfs handlers.
+A few comments below, but:
 
-Here are the the panic examples:
- CONFIG_DEBUG_VM_PGFLAGS=y
- kernel parameter mem=2050M
- --------------------------
- page:000003d082008000 is uninitialized and poisoned
- page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
- Call Trace:
- ([<0000000000385b26>] test_pages_in_a_zone+0xde/0x160)
-  [<00000000008f15c4>] show_valid_zones+0x5c/0x190
-  [<00000000008cf9c4>] dev_attr_show+0x34/0x70
-  [<0000000000463ad0>] sysfs_kf_seq_show+0xc8/0x148
-  [<00000000003e4194>] seq_read+0x204/0x480
-  [<00000000003b53ea>] __vfs_read+0x32/0x178
-  [<00000000003b55b2>] vfs_read+0x82/0x138
-  [<00000000003b5be2>] ksys_read+0x5a/0xb0
-  [<0000000000b86ba0>] system_call+0xdc/0x2d8
- Last Breaking-Event-Address:
-  [<0000000000385b26>] test_pages_in_a_zone+0xde/0x160
- Kernel panic - not syncing: Fatal exception: panic_on_oops
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 
-Fix this by checking whether the pfn to check is within the zone.
+> +static struct swap_info_struct *swap_type_to_swap_info(int type)
+> +{
+> +	if (type >= READ_ONCE(nr_swapfiles))
+> +		return NULL;
+> +
+> +	smp_rmb();	/* Pairs with smp_wmb in alloc_swap_info. */
+> +	return READ_ONCE(swap_info[type]);
+> +}
 
-[mhocko@suse.com: separated this change from
-http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com]
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
-Tested-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Tested-by: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Signed-off-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/memory_hotplug.c | 3 +++
- 1 file changed, 3 insertions(+)
+> @@ -2799,9 +2810,9 @@ static void *swap_start(struct seq_file *swap, loff_t *pos)
+>  	if (!l)
+>  		return SEQ_START_TOKEN;
+>  
+> -	for (type = 0; type < nr_swapfiles; type++) {
+> +	for (type = 0; type < READ_ONCE(nr_swapfiles); type++) {
+>  		smp_rmb();	/* read nr_swapfiles before swap_info[type] */
+> -		si = swap_info[type];
+> +		si = READ_ONCE(swap_info[type]);
+>  		if (!(si->flags & SWP_USED) || !si->swap_map)
+>  			continue;
+>  		if (!--l)
+> @@ -2821,9 +2832,9 @@ static void *swap_next(struct seq_file *swap, void *v, loff_t *pos)
+>  	else
+>  		type = si->type + 1;
+>  
+> -	for (; type < nr_swapfiles; type++) {
+> +	for (; type < READ_ONCE(nr_swapfiles); type++) {
+>  		smp_rmb();	/* read nr_swapfiles before swap_info[type] */
+> -		si = swap_info[type];
+> +		si = READ_ONCE(swap_info[type]);
+>  		if (!(si->flags & SWP_USED) || !si->swap_map)
+>  			continue;
+>  		++*pos;
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 07872789d778..7711d0e327b6 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1274,6 +1274,9 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
- 				i++;
- 			if (i == MAX_ORDER_NR_PAGES || pfn + i >= end_pfn)
- 				continue;
-+			/* Check if we got outside of the zone */
-+			if (zone && !zone_spans_pfn(zone, pfn + i))
-+				return 0;
- 			page = pfn_to_page(pfn + i);
- 			if (zone && page_zone(page) != zone)
- 				return 0;
--- 
-2.20.1
+You could write those like:
+
+	for (; (si = swap_type_to_swap_info(type)); type++)
+
+> @@ -2930,14 +2941,14 @@ static struct swap_info_struct *alloc_swap_info(void)
+>  	}
+>  	if (type >= nr_swapfiles) {
+>  		p->type = type;
+> -		swap_info[type] = p;
+> +		WRITE_ONCE(swap_info[type], p);
+>  		/*
+>  		 * Write swap_info[type] before nr_swapfiles, in case a
+>  		 * racing procfs swap_start() or swap_next() is reading them.
+>  		 * (We never shrink nr_swapfiles, we never free this entry.)
+>  		 */
+>  		smp_wmb();
+> -		nr_swapfiles++;
+> +		WRITE_ONCE(nr_swapfiles, nr_swapfiles + 1);
+>  	} else {
+>  		kvfree(p);
+>  		p = swap_info[type];
+
+It is also possible to write this with smp_load_acquire() /
+smp_store_release(). ARM64/RISC-V might benefit from that, OTOH ARM
+won't like that much.
+
+Dunno what would be better.
 
