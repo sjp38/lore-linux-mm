@@ -2,255 +2,153 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41269C282D9
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 19:11:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3543DC282D8
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 19:11:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0BBB12087F
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 19:11:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0BBB12087F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id EADDB2087F
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 19:11:57 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="azkJLUZ8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EADDB2087F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A14578E000E; Wed, 30 Jan 2019 14:11:26 -0500 (EST)
+	id 9EDCE8E000F; Wed, 30 Jan 2019 14:11:57 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 99BFB8E0001; Wed, 30 Jan 2019 14:11:26 -0500 (EST)
+	id 9746B8E0001; Wed, 30 Jan 2019 14:11:57 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 817158E000E; Wed, 30 Jan 2019 14:11:26 -0500 (EST)
+	id 8153B8E000F; Wed, 30 Jan 2019 14:11:57 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3750A8E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 14:11:26 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id o9so353129pgv.19
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 11:11:26 -0800 (PST)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D8CE8E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 14:11:57 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id x64so340468ywc.6
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 11:11:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Nzecc/+f+80h8iU/Qz6OgkLmqq+g61F1cNBzZMRjDn8=;
-        b=fh9zSwTOajgCB3/IiLO7Ef5G8dHwTkksEAo2RQ/ROzOl6Vp5b9EmGoASZBhFJ+6PTN
-         bRlNZLd2q3sLWMqOk1XUkwI27bjkTmtcu8N4WgIomRo2Em/bgBinCsX87eh8dBCUNVtO
-         pdP91L4MGf6cSlJl/cPX54RfKL2TP7ZZIy5i1QC82NPQ9Zei0vTVCClVFEJCh0traZ7g
-         4cnr9bjEyTaojnZc07yJl7C5nlyi6GkAPsyrFlnaVROurkpoAdoIAJBqFkNttOtRiMtq
-         8G4PzNfvuzE9jOUZoeJNLZyM/mISvh1+IdKupoATnLyw4CpcvjEkD1lz5P7bjDLrYcPO
-         AZfQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukdNtxsr7zZQbwJHYAtQYlYiOlegKINniogBoKKouPs1i51Mqz4D
-	X5gx/C5uK9R11+jvC5/4JvKDr6hTIxfcaaqkfoH2nK+nGW3kDPBbYVYOELBldpPCLjugmiaYyYH
-	EUSC6neP0xAEKdy/xUnCxdmlfFQaJXk07UocBNIMVkTtfc9pFXKbFU9MHSdkJXqk=
-X-Received: by 2002:a17:902:20c8:: with SMTP id v8mr32058109plg.319.1548875485841;
-        Wed, 30 Jan 2019 11:11:25 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6EZg2qCoQDM2kpwh00q7vTMKrYiq6S0n6k+/1EEVyF+/O1OcSy1WIc31P29RC3t4lzJ3AN
-X-Received: by 2002:a17:902:20c8:: with SMTP id v8mr32058066plg.319.1548875485132;
-        Wed, 30 Jan 2019 11:11:25 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548875485; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=M4j223sTiX4eMGkNGmN1WWkhqrWqcQOSV+aX1N0vGfU=;
+        b=niMMR2TKP1Jteef/oynz+EB9OUbCheb+M+M7KagF9skNInUjUm/E0Q23Destq3sR/t
+         QcVd+PRi0Qg4S65vNydB886db+KRs9HBxfmJLS2X/FNZ0NVDZ8uE4bddPCMGhz0Skv5W
+         9SMn8KRYDiEzRWSott9L+2soMeHIk8PXSymBmTSwDN02JY3qzSWZypjxrqWMOriNLGsH
+         vm/fWSUllM/mzC9/KON8mOYcmYXmvjOeWIjuFeSbC3m/v11qOhI6Gp63PYy7BVRzafHY
+         0+s8+OV6Au/Zl8GAn5dofVl8Iwsif/VDBZ5TqKtdJbkg90pklSjoO2FwAh+tKbFo1/Rg
+         OqtA==
+X-Gm-Message-State: AHQUAuY7wQqazzn6IgyGbKqpMAystxUKX9Me00/LjvyGMf5X3BkNLPS3
+	2a+Z2PQPX2lS2pflnFJoq97B8yoMInlAC5/ky/F+E9lmG+wAbo10JB4hkJHs8guEsVU0RukxGq0
+	ZvMiGL8ATUA69o5ZPI5RoqS+dX/hfqZWVM1VS0FTA5PQtr9Nk8gsa4v/Fe2OosXm5g1huonB/d1
+	Y5QGJz+Xb8k7tjXcAg8ifEt2f8rHv3f/W32hy0hG7qN4zrhHUgnDHqAnomoiaLqkQNHl4PcmwcJ
+	NLn7jOHBx/TmQ0xqiokS3r1ZrP9jCg4T9geG62nx635rsE4js1+aNaxdaiys50QT68d138k+D2p
+	ocCic12iWCqxuAVEk/RUhxg3EnKig16dhrdW4Dvanp+3VrHierXu2A7DgVQdsFzAYVcfwyZI14s
+	M
+X-Received: by 2002:a25:6d06:: with SMTP id i6mr10676528ybc.333.1548875516977;
+        Wed, 30 Jan 2019 11:11:56 -0800 (PST)
+X-Received: by 2002:a25:6d06:: with SMTP id i6mr10676491ybc.333.1548875516431;
+        Wed, 30 Jan 2019 11:11:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548875516; cv=none;
         d=google.com; s=arc-20160816;
-        b=FmCFr+IX65DQXojpDQ8FEJjwOC0CKNHhf6E/1UmLDBRw3NNoehf19bktIdKYY/0qAP
-         Cu91mxG0tD+0bpWD2/ht2jjv0oc8RaLXDIGa8RvJxx8wdLLbyUoSMc+NrZlfheqCftGA
-         MR9etwStozQa8sKDHXfbcfRaEjOJDwarqS6dZRI8t+5JvkBPw5ZOT2II81JSw9yJ8N61
-         QT3RrpR2BcpPwJKZ4RXBatZr4lrbWLWlAhWVBl4ZQRkhLWAu3yEKeE+EKTseSjm6Yk6A
-         m5t3PCzUzKWCHilKcbZvFALGHOfPp5HTMWKvvRhcpsSud1ToYu3UX5Gwd1+YV0F/7VCN
-         dGNA==
+        b=E9W0ZDW+CmQ2vA0zx/ZlzeiMWJl09Qq3aOwrQuLjGVSVJbPHM0BtSd4585nfN+bnr2
+         lbZIBVd4BJygf2JcduqMclz/nXKe/Fir9a9WBpIZJtzMeirUn0P6h5mohApSVE+RbRIB
+         A3LRO6yEXavwrVG+jiFFhM4QYmm32g7YuMmUCVGvqZFiK+V6AG3VSJ+NZrBeTkSf2ai8
+         JiqYhC6kDJ3uQ0zvKs3y1oCNzCw4fc/TqqlcAhcYFq59E5pO/OF3C3Sr3PH8JrqxA2YP
+         GoaKcv3RvjhqAdk/2nGs/25p23cFJDzIr0H5g3NyuO1bZAdU80wPX6cUE+XyxrUDiJ7o
+         J0Xg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Nzecc/+f+80h8iU/Qz6OgkLmqq+g61F1cNBzZMRjDn8=;
-        b=LKMLBykiygZHIWD5vDYj4zJLZsAeSq7qAnlKChxPQnHKXB6CINYQ8vsTOyw8PBx9uD
-         OF75aC8/oLCoxdlshnzXOOi3mLLA8Be7svWZdF86uxMzvY+M0bUUE0HveCEsi8NFRUZ5
-         pcdoTp5W6OlYS9f1XlB328VuGIglIgtpqCGcBEHBOCWeHE8IPjEEVsSUBe1joCzqGU16
-         nEhr0/IIk7sibpOa2EPvAXXxu2jwlncO3pOla1czqYXl2ef6+P7QgcTgvrVW7Jy4S7gu
-         hf7AnGtlE04JZdcg+teCSwXgv/Y3j/U6MBv+QjMagwzXAxoDDx+DDY2PCY+m48Nxgyc5
-         oNkQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=M4j223sTiX4eMGkNGmN1WWkhqrWqcQOSV+aX1N0vGfU=;
+        b=UivT2L3iekGtUy6lIzfivPSVV+uo66adp7OIwamKhg0Zyokop2wvlqG+bNPHQK7xK1
+         mfYtQHqXaXnYWPSpNyuMWIp+0YTB347ty9gxAzrxoRty3xhI7DreHQLE887roCml3Ax1
+         1xxg68BiO8Dh8D4FAZBU6mzIuL4n5oiwwf2k1Isw4V2bDKC4LXwWntBgHRjTf04xriVu
+         YmQaRUSGmSSYgtp/qJVananSrNp+btSkmjChLzylwiQQB6uKTgy/gx4VxUhKA6mYsAGD
+         vLn0ZC4p9Qm1p8xfslIQKOOnfLNkFYBi8KmzVNEQTMpGMWc9dB9PtZyGrb9JFXRCHh4b
+         /E9A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 80si2289141pfz.11.2019.01.30.11.11.24
+       dkim=pass header.i=@google.com header.s=20161025 header.b=azkJLUZ8;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 195sor989949ybc.96.2019.01.30.11.11.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 11:11:25 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 30 Jan 2019 11:11:56 -0800 (PST)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 6E8A5AD7A;
-	Wed, 30 Jan 2019 19:11:23 +0000 (UTC)
-Date: Wed, 30 Jan 2019 20:11:17 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Dave Hansen <dave.hansen@linux.intel.com>,
-	Kees Cook <keescook@chromium.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v9 3/3] mm: Maintain randomization of page free lists
-Message-ID: <20190130191117.GH18811@dhcp22.suse.cz>
-References: <154882453052.1338686.16411162273671426494.stgit@dwillia2-desk3.amr.corp.intel.com>
- <154882454628.1338686.46582179767934746.stgit@dwillia2-desk3.amr.corp.intel.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=azkJLUZ8;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=M4j223sTiX4eMGkNGmN1WWkhqrWqcQOSV+aX1N0vGfU=;
+        b=azkJLUZ8/StL/5E53v70C5unuQk4f6Ciqs5ZgN9hYqf0WgprVCpGmJfw35DSNFFigH
+         JVmOK/jHtzt8P/JqqIEwed/TX1ZFf0ud6XffSASmHI6C8ghY79KgnZYb6Isd5RNkClua
+         FQaIW69ilbPoeutkgd0gm95mrYy1COvWQrd88dpMGnxQ/PkebF5X5yUvjgS2yoSNBlUN
+         OM0upjn5ctZEGvNWDVcPkYrC2dDtFHVzqK69UsO8y+FvOF106czYSuDNEtf1vGESZlVM
+         koBSwBSPYR2tcLjlCvJxtcRP7SRjAYCkyAf0Ruy8coYoG1kClerdGq0mQntTghNaeEoZ
+         /Hsg==
+X-Google-Smtp-Source: ALg8bN7h5YVXFcOyF0zDnaKnKlQI+SKdghtxY8KdSlfgBjAb4L5Eo4ra6uGIeVkTzTMf2C553vztFJkeE8sMkZo4rY0=
+X-Received: by 2002:a25:6f8b:: with SMTP id k133mr29606576ybc.496.1548875515746;
+ Wed, 30 Jan 2019 11:11:55 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <154882454628.1338686.46582179767934746.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+References: <20190128142816.GM50184@devbig004.ftw2.facebook.com>
+ <20190128145210.GM18811@dhcp22.suse.cz> <20190128145407.GP50184@devbig004.ftw2.facebook.com>
+ <20190128151859.GO18811@dhcp22.suse.cz> <20190128154150.GQ50184@devbig004.ftw2.facebook.com>
+ <20190128170526.GQ18811@dhcp22.suse.cz> <20190128174905.GU50184@devbig004.ftw2.facebook.com>
+ <20190129144306.GO18811@dhcp22.suse.cz> <20190129145240.GX50184@devbig004.ftw2.facebook.com>
+ <20190130165058.GA18811@dhcp22.suse.cz> <20190130170658.GY50184@devbig004.ftw2.facebook.com>
+In-Reply-To: <20190130170658.GY50184@devbig004.ftw2.facebook.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Wed, 30 Jan 2019 11:11:44 -0800
+Message-ID: <CALvZod5ma62fRKqrAhMcuNT3GYT3FpRX+DCmeVr2nDg1u=9T8w@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Chris Down <chris@chrisdown.name>, Andrew Morton <akpm@linux-foundation.org>, 
+	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, kernel-team@fb.com
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000091, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 29-01-19 21:02:26, Dan Williams wrote:
-> When freeing a page with an order >= shuffle_page_order randomly select
-> the front or back of the list for insertion.
-> 
-> While the mm tries to defragment physical pages into huge pages this can
-> tend to make the page allocator more predictable over time. Inject the
-> front-back randomness to preserve the initial randomness established by
-> shuffle_free_memory() when the kernel was booted.
-> 
-> The overhead of this manipulation is constrained by only being applied
-> for MAX_ORDER sized pages by default.
+Hi Tejun,
 
-I have asked in v7 but didn't get any response. Do we really ned per
-free_area random pool? Why a global one is not sufficient?
+On Wed, Jan 30, 2019 at 9:07 AM Tejun Heo <tj@kernel.org> wrote:
+>
+> Hello, Michal.
+>
+> On Wed, Jan 30, 2019 at 05:50:58PM +0100, Michal Hocko wrote:
+> > > Yeah, cgroup.events and .stat files as some of the local stats would
+> > > be useful too, so if we don't flip memory.events we'll end up with sth
+> > > like cgroup.events.local, memory.events.tree and memory.stats.local,
+> > > which is gonna be hilarious.
+> >
+> > Why cannot we simply have memory.events_tree and be done with it? Sure
+> > the file names are not goin to be consistent which is a minus but that
+> > ship has already sailed some time ago.
+>
+> Because the overall cost of shitty interface will be way higher in the
+> longer term.  cgroup2 interface is far from perfect but is way better
+> than cgroup1 especially for the memory controller.  Why do you think
+> that is?
+>
 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Dave Hansen <dave.hansen@linux.intel.com>
-> Reviewed-by: Kees Cook <keescook@chromium.org>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  include/linux/mmzone.h  |   12 ++++++++++++
->  include/linux/shuffle.h |   12 ++++++++++++
->  mm/page_alloc.c         |   11 +++++++++--
->  mm/shuffle.c            |   16 ++++++++++++++++
->  4 files changed, 49 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 6ab8b58c6481..d42aafe23045 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -98,6 +98,10 @@ extern int page_group_by_mobility_disabled;
->  struct free_area {
->  	struct list_head	free_list[MIGRATE_TYPES];
->  	unsigned long		nr_free;
-> +#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
-> +	u64			rand;
-> +	u8			rand_bits;
-> +#endif
->  };
->  
->  /* Used for pages not on another list */
-> @@ -116,6 +120,14 @@ static inline void add_to_free_area_tail(struct page *page, struct free_area *ar
->  	area->nr_free++;
->  }
->  
-> +#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
-> +/* Used to preserve page allocation order entropy */
-> +void add_to_free_area_random(struct page *page, struct free_area *area,
-> +		int migratetype);
-> +#else
-> +#define add_to_free_area_random add_to_free_area
-> +#endif
-> +
->  /* Used for pages which are on another list */
->  static inline void move_to_free_area(struct page *page, struct free_area *area,
->  			     int migratetype)
-> diff --git a/include/linux/shuffle.h b/include/linux/shuffle.h
-> index bed2d2901d13..649498442aa0 100644
-> --- a/include/linux/shuffle.h
-> +++ b/include/linux/shuffle.h
-> @@ -29,6 +29,13 @@ static inline void shuffle_zone(struct zone *z)
->  		return;
->  	__shuffle_zone(z);
->  }
-> +
-> +static inline bool is_shuffle_order(int order)
-> +{
-> +	if (!static_branch_unlikely(&page_alloc_shuffle_key))
-> +                return false;
-> +	return order >= SHUFFLE_ORDER;
-> +}
->  #else
->  static inline void shuffle_free_memory(pg_data_t *pgdat)
->  {
-> @@ -41,5 +48,10 @@ static inline void shuffle_zone(struct zone *z)
->  static inline void page_alloc_shuffle(enum mm_shuffle_ctl ctl)
->  {
->  }
-> +
-> +static inline bool is_shuffle_order(int order)
-> +{
-> +	return false;
-> +}
->  #endif
->  #endif /* _MM_SHUFFLE_H */
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1cb9a467e451..7895f8bd1a32 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -43,6 +43,7 @@
->  #include <linux/mempolicy.h>
->  #include <linux/memremap.h>
->  #include <linux/stop_machine.h>
-> +#include <linux/random.h>
->  #include <linux/sort.h>
->  #include <linux/pfn.h>
->  #include <linux/backing-dev.h>
-> @@ -889,7 +890,8 @@ static inline void __free_one_page(struct page *page,
->  	 * so it's less likely to be used soon and more likely to be merged
->  	 * as a higher order page
->  	 */
-> -	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)) {
-> +	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)
-> +			&& !is_shuffle_order(order)) {
->  		struct page *higher_page, *higher_buddy;
->  		combined_pfn = buddy_pfn & pfn;
->  		higher_page = page + (combined_pfn - pfn);
-> @@ -903,7 +905,12 @@ static inline void __free_one_page(struct page *page,
->  		}
->  	}
->  
-> -	add_to_free_area(page, &zone->free_area[order], migratetype);
-> +	if (is_shuffle_order(order))
-> +		add_to_free_area_random(page, &zone->free_area[order],
-> +				migratetype);
-> +	else
-> +		add_to_free_area(page, &zone->free_area[order], migratetype);
-> +
->  }
->  
->  /*
-> diff --git a/mm/shuffle.c b/mm/shuffle.c
-> index db517cdbaebe..0da7d1826c6a 100644
-> --- a/mm/shuffle.c
-> +++ b/mm/shuffle.c
-> @@ -186,3 +186,19 @@ void __meminit __shuffle_free_memory(pg_data_t *pgdat)
->  	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
->  		shuffle_zone(z);
->  }
-> +
-> +void add_to_free_area_random(struct page *page, struct free_area *area,
-> +		int migratetype)
-> +{
-> +	if (area->rand_bits == 0) {
-> +		area->rand_bits = 64;
-> +		area->rand = get_random_u64();
-> +	}
-> +
-> +	if (area->rand & 1)
-> +		add_to_free_area(page, area, migratetype);
-> +	else
-> +		add_to_free_area_tail(page, area, migratetype);
-> +	area->rand_bits--;
-> +	area->rand >>= 1;
-> +}
-> 
+I thought you are fine with the separate interface for the hierarchical events.
 
--- 
-Michal Hocko
-SUSE Labs
+https://lkml.kernel.org/r/20190128161201.GS50184@devbig004.ftw2.facebook.com
+
+Is that not the case?
+
+Shakeel
 
