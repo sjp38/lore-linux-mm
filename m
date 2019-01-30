@@ -4,118 +4,118 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 632DCC282D7
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 18:57:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AC7DEC282D7
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 19:07:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1074B20989
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 18:57:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5F5D72087F
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 19:07:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="nwd/mVqG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1074B20989
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="OP2/V+KT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F5D72087F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B804F8E000B; Wed, 30 Jan 2019 13:57:03 -0500 (EST)
+	id D745B8E000C; Wed, 30 Jan 2019 14:07:00 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B2D748E0001; Wed, 30 Jan 2019 13:57:03 -0500 (EST)
+	id D21748E0001; Wed, 30 Jan 2019 14:07:00 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9CF928E000B; Wed, 30 Jan 2019 13:57:03 -0500 (EST)
+	id BC2128E000C; Wed, 30 Jan 2019 14:07:00 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 38A3A8E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 13:57:03 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id e29so199537ede.19
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 10:57:03 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 625D38E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 14:07:00 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id e17so221680edr.7
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 11:07:00 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
          :thread-index:date:message-id:references:in-reply-to:accept-language
          :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=sAsLbJvqRKAMHlESUaU/IF1CHDloyaFofQ4JdwO+j/Q=;
-        b=hK0wTQcMmKw2ay5KMdRNTE9Qs23MJz2h8TLWnYOOtw9CqZFPiU79EJa2nevWhQTiFh
-         3SPpc7hHDdeB6CD+iWYBO0VpIEBzvdhRHkJ9G5YhCQ+/6uMlKn8vL7z6FwyH3zpl13AF
-         Z/uZ/msPWri5Q4MOYtiDrSO39RJpxbJ+KJHi6l+5S6hkxFy2//f4baTLspxNw0Dm7LtO
-         pZ6Fhq9famekeaV1r63x50O9j6ifhL8uUC7wrAL8xZHPdp4uhPk6G52KtSrfmZndhRPM
-         UEO4NM26dTLqvdRKJ0pmt8YzCWEalN2Z/CkfFgbSroWS4R7+7OtWmrbePOfkzrqNvHFW
-         4XqA==
-X-Gm-Message-State: AJcUukdYb5QLtvAgdLlm1nBbU2DIwOlcneNOnRXdnaaFu6L5W7Qw1fh/
-	9Ql/BrETfaH7NoZ8N/b5kPy1LH6L4c3ScFoYiZJPsyQtZ8o/DNen2QQUD6OPR4ywUZ8glCr0d5+
-	Mk0HTbmAQ7GP5mHawjMjmdBi9Nh40huEM6Ss7yQMd7+LTQuJH4RV1T9i+2egercAtkw==
-X-Received: by 2002:a17:906:2799:: with SMTP id j25mr25410713ejc.151.1548874622748;
-        Wed, 30 Jan 2019 10:57:02 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7YctSNAgr7Pm10J4zR8t4Etu1/xEF7JpV5O3QqMI4Eyl2zNeM/CwUOJN7IUJJtG0Hx+DIa
-X-Received: by 2002:a17:906:2799:: with SMTP id j25mr25410653ejc.151.1548874621634;
-        Wed, 30 Jan 2019 10:57:01 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548874621; cv=none;
+        bh=RYn1XKm1zC9bDOzSst3l2VKeBYjL91+5rAsvqaE7EmM=;
+        b=SwlYpA5glL/gBNc4bX9mTAUCTN21rgQ7GyqYbegmSRRlWqTGE0Q5nXjn/6EcBhXm1O
+         a8t9uMzCQFdxMYRrbqr6T2n3pB9jsPs6b/9nHCepXNBoFvH3IADCflmETsTCm8JZ87LS
+         H/QteNop8hucHylO92TJIP1u/oteTwgV86NUc0exOCszfZtD8s8tED3YP8vU8hbjPS9j
+         DHvRgTtBfo4ua3esmTNDZqIu+wspOG+au+7qtTVFTYd+0URMJ0fFSoLgx9t7drWVRvMj
+         hbY1sOk/QYA9CHCL1SZk8UTAMwvbG5zTCSOwiy4bFgFvsWkB3XwrQXFnzcN0+SUJQofM
+         mzpA==
+X-Gm-Message-State: AJcUukdwvgxGtiiSV3Vpmx0hMvZJLYxNbKw+RukcaRpmbkfEw5ZWl6yp
+	wbU6iwjdSHrggYUz/hlquNL1fdqEN+fh7rqG1hu2BeEqkg/Dt4xepxbWPZ+p5RK6i4SbxmudPTy
+	sCUPCjxd0hT1t0BL7KAoYY/9W/GvhUe8va/Kz3iHap6iifFhKhSR01EUJaGr2S3uIvA==
+X-Received: by 2002:a50:9e43:: with SMTP id z61mr31476954ede.90.1548875219956;
+        Wed, 30 Jan 2019 11:06:59 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6qOKBund/ann2eEHuL2E1vNFi1Mu8NS8jcVLuvi3O308oEcoAisfsPcau/F8xYKY1KkK40
+X-Received: by 2002:a50:9e43:: with SMTP id z61mr31476912ede.90.1548875219212;
+        Wed, 30 Jan 2019 11:06:59 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548875219; cv=none;
         d=google.com; s=arc-20160816;
-        b=LlpME83Yxl/dDIlJzEgpqKDZew6aEpD7I02eBZVJ5Y0ztRK1+jUBKbLk+N25ohk/CT
-         KpXZuTihmGAxyHtlxmjOvlRB/gS+ItSWlqetaf/B1rkLhq4Yla8QP4MYCNfg5/7AY+D5
-         XkHL/vctagVNinE23356llj2r+wlOzyiVJOr/sLpXT7sPYtoqF3uclRLzcoYEDhXFcNA
-         NorCFWUh+k/b/Nz8Pl/KMIEJB0fODIfe94cmnNlwopT17/hAxDMD4RIVfIYSF5AAqFew
-         ce04VTkrt7CnFvubOHR1frF5uDXySfHCNVg3i7tMj+rwCNo3R+/DI0f8PdX8Nx4+Sys2
-         wTAQ==
+        b=Rfkjr+reFGmlFkXPsHRjVQqcTuFy2RAMEi/na5uTQmaD0q3FTiiuSJF7yJdlW2aQzK
+         Wr/EP2RPnuPXbn9EIxHvF6T+qmNE2mcU5ADle11/LPRJ9QhDuMD9ZPdQDqf94eEGnCG2
+         +fwm3kKsseQ3u557fW1PrAsvDyTjVJRk9GsplDfDjBDOy8/aaDFNpCT8OMold8sxclta
+         6rihT91kzJQ1wv40ZCgyiFMfdE6JOCWjmGY70mI67XHnuARFJKFSJ4zI7/3UR3TGNrvf
+         3v7JZculJuF8FbjzdLDcNtd1pVxuEQjGWnefQMNgeHVHA2rtGv6gVGSh98RFUhj1AJg7
+         yEoQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:content-transfer-encoding:content-id:content-language
          :accept-language:in-reply-to:references:message-id:date:thread-index
          :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=sAsLbJvqRKAMHlESUaU/IF1CHDloyaFofQ4JdwO+j/Q=;
-        b=dW38mMNpAD1q+7MU4OFJWkEMtns0d3Pj6foLkN4ieXGk4uTquNSKZLMJyNuqHkIm4C
-         EJU2s4VH8Lmqaqh4eBX0CX+IKOkQSDLvpbcunpVrBQbn7MzGkryA8us6LNnbGmKBC4tU
-         eRwELteiwdKXraA7YtT0OFYIVLD/g+9HJFCPtJBVeNQt0VxQPCxvI7CkCLp5hqNjjpMR
-         C1KwPAw/6f7uq0CMriDggi95Oj/h4swAhy1+lGbbvr3xWZ4t2h6gvMqWDDubMzzG1ah5
-         Z5OCY1XbOfe9bqQ1yyBRJuMvNqqdTCCvExBPj/5urmynIJ1Y3hCe0wrCZJRIqyIs6WZ9
-         exwQ==
+        bh=RYn1XKm1zC9bDOzSst3l2VKeBYjL91+5rAsvqaE7EmM=;
+        b=QtFatFmLWfE3BdMh3eaaHNyUeW+/VFQoUoO6x71krhIxgwoL9TpkblLTW07RxZIAwR
+         rxV2L3U6EX5pJzMFVFnEGe0V6FmbxjiosmZhB3DER6a/LPLVz41PZS/Xrmd8kwd8625F
+         +BMVB8P2oMkzR45je/0J188m2S5JN/lePPP1491AGxggC++KRrbq2Pf4mjTCXgFcYQZ0
+         C5hFTmSppT8U/D+Y7QUTqguSlskz31dHjdTEt3jLxKvf/Ee0ydAUEFNnUa5tLykjc8qv
+         Y0KA7qhiHIultSfeLFb4PUJ68JggQgqzIUmh6rsQXXhz9PyCOXX7lYrheFWRU0OFC9dw
+         Jlhg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b="nwd/mVqG";
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.2.40 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b="OP2/V+KT";
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.0.66 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20040.outbound.protection.outlook.com. [40.107.2.40])
-        by mx.google.com with ESMTPS id x12si231066edh.28.2019.01.30.10.57.01
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00066.outbound.protection.outlook.com. [40.107.0.66])
+        by mx.google.com with ESMTPS id v3-v6si401268eji.60.2019.01.30.11.06.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 30 Jan 2019 10:57:01 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.2.40 as permitted sender) client-ip=40.107.2.40;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jan 2019 11:06:59 -0800 (PST)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.0.66 as permitted sender) client-ip=40.107.0.66;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b="nwd/mVqG";
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.2.40 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b="OP2/V+KT";
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.0.66 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
  s=selector1;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=sAsLbJvqRKAMHlESUaU/IF1CHDloyaFofQ4JdwO+j/Q=;
- b=nwd/mVqGQA9Jjn46fjuEEcMgSAPxJvX53n3VdgPDMzL09QaaPEUUO6BchlmkzGauqhv9BRw18mntznyxbiUhJEIvmYVQ//COD494s5IX/6lhmv3SLCEy7JVT7q8Ym6tVid2qu2bs8fHoLwvYPaG0JwpjlFDvO6ik6yvwi1fTa4g=
+ bh=RYn1XKm1zC9bDOzSst3l2VKeBYjL91+5rAsvqaE7EmM=;
+ b=OP2/V+KTnaUOBZ0/4R+nEfJW7Nc0Ok8Z3R7GpZo14zqMhk1sO/61TATlCvz3dzIEBJ4ZF9JeZ9flWYN3hhSZnI0igWUdBiXqVnPy+C/09qw6vF0tdRqBHR+SGIIXOVFzTp4t50jfLPqNz1Vu4TbTO73rysRKa4ZTSVBEboaCLss=
 Received: from DBBPR05MB6426.eurprd05.prod.outlook.com (20.179.42.80) by
- DBBPR05MB6588.eurprd05.prod.outlook.com (20.179.44.87) with Microsoft SMTP
+ DB7SPR01MB0037.eurprd05.prod.outlook.com (20.178.85.18) with Microsoft SMTP
  Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1558.21; Wed, 30 Jan 2019 18:57:00 +0000
+ 15.20.1580.16; Wed, 30 Jan 2019 19:06:57 +0000
 Received: from DBBPR05MB6426.eurprd05.prod.outlook.com
  ([fe80::24c2:321d:8b27:ae59]) by DBBPR05MB6426.eurprd05.prod.outlook.com
  ([fe80::24c2:321d:8b27:ae59%5]) with mapi id 15.20.1580.017; Wed, 30 Jan 2019
- 18:56:59 +0000
+ 19:06:57 +0000
 From: Jason Gunthorpe <jgg@mellanox.com>
-To: Logan Gunthorpe <logang@deltatee.com>
-CC: Jerome Glisse <jglisse@redhat.com>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+To: Christoph Hellwig <hch@lst.de>
+CC: Logan Gunthorpe <logang@deltatee.com>, Jerome Glisse <jglisse@redhat.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
 	<linux-kernel@vger.kernel.org>, Greg Kroah-Hartman
 	<gregkh@linuxfoundation.org>, "Rafael J . Wysocki" <rafael@kernel.org>, Bjorn
  Helgaas <bhelgaas@google.com>, Christian Koenig <christian.koenig@amd.com>,
 	Felix Kuehling <Felix.Kuehling@amd.com>, "linux-pci@vger.kernel.org"
 	<linux-pci@vger.kernel.org>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, Christoph Hellwig <hch@lst.de>, Marek
- Szyprowski <m.szyprowski@samsung.com>, Robin Murphy <robin.murphy@arm.com>,
-	Joerg Roedel <jroedel@suse.de>, "iommu@lists.linux-foundation.org"
+	<dri-devel@lists.freedesktop.org>, Marek Szyprowski
+	<m.szyprowski@samsung.com>, Robin Murphy <robin.murphy@arm.com>, Joerg Roedel
+	<jroedel@suse.de>, "iommu@lists.linux-foundation.org"
 	<iommu@lists.linux-foundation.org>
 Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
  vma
 Thread-Topic: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
  vma
 Thread-Index:
- AQHUt/rA/dLikqWEmEaIytHIBNLPlqXGkyOAgAAJwICAAAX+AIAAEreAgAAFCQCAAAk3gIAABX0AgAATFYCAAA25AIAAGRqAgAAykICAANmWgIAAG8YA
-Date: Wed, 30 Jan 2019 18:56:59 +0000
-Message-ID: <20190130185652.GB17080@mellanox.com>
+ AQHUt/rA/dLikqWEmEaIytHIBNLPlqXGkyOAgAAJwICAAAX+AIAAEreAgAAFCQCAAAk3gIAABX0AgAATFYCAAA25AIAAGRqAgAAykICAAD3dAIAAukqA
+Date: Wed, 30 Jan 2019 19:06:57 +0000
+Message-ID: <20190130190651.GC17080@mellanox.com>
 References: <20190129193250.GK10108@mellanox.com>
  <99c228c6-ef96-7594-cb43-78931966c75d@deltatee.com>
  <20190129205749.GN3176@redhat.com>
@@ -124,15 +124,14 @@ References: <20190129193250.GK10108@mellanox.com>
  <deb7ba21-77f8-0513-2524-ee40a8ee35d5@deltatee.com>
  <20190129234752.GR3176@redhat.com>
  <655a335c-ab91-d1fc-1ed3-b5f0d37c6226@deltatee.com>
- <20190130041841.GB30598@mellanox.com>
- <bdf03cd5-f5b1-4b78-a40e-b24024ca8c9f@deltatee.com>
-In-Reply-To: <bdf03cd5-f5b1-4b78-a40e-b24024ca8c9f@deltatee.com>
+ <20190130041841.GB30598@mellanox.com> <20190130080006.GB29665@lst.de>
+In-Reply-To: <20190130080006.GB29665@lst.de>
 Accept-Language: en-US
 Content-Language: en-US
 X-MS-Has-Attach:
 X-MS-TNEF-Correlator:
-x-clientproxiedby: MWHPR0201CA0023.namprd02.prod.outlook.com
- (2603:10b6:301:74::36) To DBBPR05MB6426.eurprd05.prod.outlook.com
+x-clientproxiedby: MWHPR2201CA0069.namprd22.prod.outlook.com
+ (2603:10b6:301:5e::22) To DBBPR05MB6426.eurprd05.prod.outlook.com
  (2603:10a6:10:c9::16)
 authentication-results: spf=none (sender IP is )
  smtp.mailfrom=jgg@mellanox.com; 
@@ -140,91 +139,63 @@ x-ms-exchange-messagesentrepresentingtype: 1
 x-originating-ip: [174.3.196.123]
 x-ms-publictraffictype: Email
 x-microsoft-exchange-diagnostics:
- 1;DBBPR05MB6588;6:wIiOV3+XQykijZwlFzhpj1cxN0rawntoo8s8I71A8AEKJqkgEfFnm+BXP+9w112YlRn9AJqEDWRbm5y2EoA9D8BLyQoRvM0GOFyunv2ycQWnnVhqZ9ygA9sKvAgwWtGAvvJHCE2lq1NlvXPNSw8NLzffi6YdJRWcvkUskS73J8JcivfTZplMQFnXVpzLFXesvvGMibEXcE5u0r1K7oAZhTjBy4Q873U7+nlA0s+RnqmRN3WBEzPJNGKpuTYr1HOi6k7HA1v7T6jbiX3viXWqgWWVneSzACzZJQbQeB8XXK1TRPCY1O4BDWEeiFkhXlbB255ZvEB0s6ZKy+YMa3MiuunwYqoTkbIhxYvUKhaZh49RTDmRn2Sbsw5c2wT0jSCN0NeUGHCZT1zCC7qEGYHImOFcnWPxHRaPxEIkvYk1hP8oplQtSgLRWyRDOBCtvWn1GyTYzvZNMhLI7jvxUVgOsQ==;5:kLnoR96kojFrXkX2i7PVIa4OYm2UGndMIJ987fT/h+re/4nVh4s0II5Egg2BBIBrWP6EdnVQ71eOiGSDwuxSUpSE2l/v9ueHb4R5YY4ALbelCSJpsP1f6XE1s3L/ncDWmL/hwBMquxNp4zvzEsGSVnpnVVnyIaLLqrxdTug52pwc+FRrMiALwxRhH8NhWh9XK8iJ7cju7r/7SJhKSlnxeA==;7:81IiBmz0idVcuPFhtYyY7qaPPQvQ6Ak1oaRBFiIIQuTrAWOo3UlGiUooBKL5KR+ShximYq9oUpK/4o45Dk3Kyg2TMkUS/pwyFD7UPU3ONXiQQjYOrMIrFC8wnrolMlxjpeD9sshCvo6HV0OaduqxVA==
-x-ms-office365-filtering-correlation-id: 16ed2920-6eaa-4ab6-1122-08d686e4b6b3
+ 1;DB7SPR01MB0037;6:XJyFTbwXf5/aSNktsqWWkl19JOZ9LIUJ51o1Pbn4P2yNzU1PRRcym1sVmglvAkyZGif+2ygQEmI3SbDUH5rTgdoSZbXeq8mOaX2FKhvCJUdF+mAUDGo1wCDLcoUtFgvzm1TvYYCDjJqtCnMB5UNa3VYz9pJVl+6Xd5/SRwne3ernFm/4lPFiKwYhzPTMH3Upz3bw1pYD2eJ5KLxEcE+Ne96T3ihocdKNZf51vNjKCAEBTWjTwKe0lujw/5Zb95MGmzZQ8Dnqw+2YraoF8S1weXXxPUK8xI5eA6a3sweBXs1Ym4KrfmEz+XlApQVKPQ1hPmHEVH29KPVy+R6nCmTlseYU21u6jeKdnXDi//DNEmTVrPOmLhVW8whhQIranJSvBPPSoRBFznBnuREGn9x7GCqStSa1FBEz4vpiCWkNVIJIWx8tJeoIm+3wwoBB25V4L88z51sRH9pjlXY2FFVfOg==;5:ik+XTq9JgLZH0gjb687ix2cYWvuBQWHaLUJ+QnclzyVL0REpOwXrmsWFGSlUnofYoL0E23XAucIB37hfA+Tar3avErhFah2N4lOXwAESU6amwrFlDxan0jSRUsc9MkCdXtCmgWRDuUN3RayXIMK86PsL8fmk7zvxd9FkJgGMWgcK5HSCIU2rm19NNgqefrMxEuYe6YC/JbQD+GE+Xj2dTA==;7:uB1KVQOEaWWxyx6JTR0m0g15sYtubSoy9YbTndOS2iymYR58Qm4QiSwdZIZm/4VmFBpCNb5WDaRNSYhqGBM26J2YlFszrgbwXkqj8cSnCvLvSRaEe5sBB726IwH3JxaJiIpy/VEs691iU+Lfwx5HYw==
+x-ms-office365-filtering-correlation-id: cee10910-4fa4-4cd5-8c13-08d686e61ac7
 x-ms-office365-filtering-ht: Tenant
 x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(4618075)(2017052603328)(7153060)(7193020);SRVR:DBBPR05MB6588;
-x-ms-traffictypediagnostic: DBBPR05MB6588:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(4618075)(2017052603328)(7153060)(7193020);SRVR:DB7SPR01MB0037;
+x-ms-traffictypediagnostic: DB7SPR01MB0037:
 x-microsoft-antispam-prvs:
- <DBBPR05MB658802F63D4F24D94EFC3412CF900@DBBPR05MB6588.eurprd05.prod.outlook.com>
+ <DB7SPR01MB0037B3A588E6A84C9A15E89BCF900@DB7SPR01MB0037.eurprd05.prod.outlook.com>
 x-forefront-prvs: 0933E9FD8D
 x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(39860400002)(136003)(346002)(376002)(396003)(366004)(189003)(199004)(6436002)(7736002)(4326008)(305945005)(102836004)(7416002)(53546011)(6246003)(386003)(6506007)(53936002)(2906002)(26005)(81166006)(11346002)(2616005)(446003)(81156014)(6512007)(8936002)(486006)(8676002)(476003)(93886005)(229853002)(6486002)(6916009)(186003)(25786009)(316002)(33656002)(54906003)(71190400001)(71200400001)(36756003)(66066001)(52116002)(217873002)(14444005)(478600001)(106356001)(105586002)(68736007)(86362001)(97736004)(3846002)(99286004)(256004)(6116002)(14454004)(1076003)(76176011);DIR:OUT;SFP:1101;SCL:1;SRVR:DBBPR05MB6588;H:DBBPR05MB6426.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+ SFV:NSPM;SFS:(10009020)(366004)(39860400002)(136003)(346002)(376002)(396003)(199004)(189003)(217873002)(2616005)(186003)(486006)(68736007)(11346002)(476003)(97736004)(229853002)(2906002)(36756003)(93886005)(7416002)(4326008)(86362001)(8936002)(256004)(446003)(305945005)(7736002)(6916009)(81156014)(81166006)(26005)(99286004)(8676002)(33656002)(102836004)(6486002)(6436002)(386003)(6506007)(71200400001)(71190400001)(6512007)(52116002)(105586002)(478600001)(53936002)(14454004)(25786009)(54906003)(6116002)(76176011)(1076003)(3846002)(6246003)(66066001)(106356001)(316002);DIR:OUT;SFP:1101;SCL:1;SRVR:DB7SPR01MB0037;H:DBBPR05MB6426.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
 received-spf: None (protection.outlook.com: mellanox.com does not designate
  permitted sender hosts)
 x-ms-exchange-senderadcheck: 1
 x-microsoft-antispam-message-info:
- TovT0yk2P4qIQIbZSaqyL3mj23l7X2/W8kzyn0bmx6bPT8mY97uLGwQqYfaKtPq386CRPm85fgD+FkGZvcrxDXrOTjLP1vNz4xMilW1k07DgKvCKi+ADVlscxak3FxowpYoi8C9ZK6xNV/JZyFJruT5q69VG8fsXsNJe2H36/XUd+zErv6Ns7eJ0kJCN8aqPcgAevtDrjhmTqyPzDjSxPC/5NsjuY7p1MARtyv8q3a7xSCWO8I4meV1C620JQl+eC5HGK3A7wZxAGdmpCVo0G8dafDg3d6UVnPClvvpJJ2RGmLCFS9RPhKx9Vgv+nWvDl98KvcW0kLy/tCLF/H6g8KI+74NkvZN+7+dikrbz+NwAaV8qsWCKogMK5QLQH0wmwkXfVekgUwzfiA7v4RwspCM6QgI0ALFJlGzEplvSv3Y=
+ ebJec01bGV1042sVk3Qs2ISgeKGExakq+gjNBh3UI9Lvk4ngeZE8+LWAAowa5HKuIdWRx7rY+5ya5wyK8+d2b7KVzKD98ajh+B2pZhQmi/AfZbAsCywAylVHgG43ESjO/w9+b0pez0YrAp8K9R9twdToAiL6jARapx8pThQULDG5pgWFdz41hwc/u0UUs1F9KFq/QPKipYtzkPvoe/9pCGYpBlDK3+C1cauJBWxVu2Kfq5Rh/dCqeX7XNHRQxR98LzdR19ykGuK4zoxsOSvS6DrlLJ9WxQ05oc8YfD2sq3JIQP0RQKBduVEn9q+qhWpE3LdKcvBuB3Swl6Pbfkz5MHGnAg0cQaEeLClemKaggiOJvnNh6xl3m3giHPWjCJdTxisM6LbGlxoQH9gfrW6kO0r/F/31pJdaiHcTFUqbsUk=
 Content-Type: text/plain; charset="us-ascii"
-Content-ID: <1BE0E9896BD5F9418A483EBA3D393F33@eurprd05.prod.outlook.com>
+Content-ID: <D5475048F79FD84A8C1E7231DA08336B@eurprd05.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 16ed2920-6eaa-4ab6-1122-08d686e4b6b3
-X-MS-Exchange-CrossTenant-originalarrivaltime: 30 Jan 2019 18:56:59.5337
+X-MS-Exchange-CrossTenant-Network-Message-Id: cee10910-4fa4-4cd5-8c13-08d686e61ac7
+X-MS-Exchange-CrossTenant-originalarrivaltime: 30 Jan 2019 19:06:56.9369
  (UTC)
 X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
 X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DBBPR05MB6588
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: DB7SPR01MB0037
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 30, 2019 at 10:17:27AM -0700, Logan Gunthorpe wrote:
->=20
->=20
-> On 2019-01-29 9:18 p.m., Jason Gunthorpe wrote:
+On Wed, Jan 30, 2019 at 09:00:06AM +0100, Christoph Hellwig wrote:
+> On Wed, Jan 30, 2019 at 04:18:48AM +0000, Jason Gunthorpe wrote:
 > > Every attempt to give BAR memory to struct page has run into major
 > > trouble, IMHO, so I like that this approach avoids that.
-> >=20
-> > And if you don't have struct page then the only kernel object left to
-> > hang meta data off is the VMA itself.
-> >=20
-> > It seems very similar to the existing P2P work between in-kernel
-> > consumers, just that VMA is now mediating a general user space driven
-> > discovery process instead of being hard wired into a driver.
 >=20
-> But the kernel now has P2P bars backed by struct pages and it works
-> well.=20
+> Way less problems than not having struct page for doing anything
+> non-trivial.  If you map the BAR to userspace with remap_pfn_range
+> and friends the mapping is indeed very simple.  But any operation
+> that expects a page structure, which is at least everything using
+> get_user_pages won't work.
 
-I don't think it works that well..
+GUP doesn't work anyhow today, and won't work with BAR struct pages in
+the forseeable future (Logan has sent attempts on this before).
 
-We ended up with a 'sgl' that is not really a sgl, and doesn't work
-with many of the common SGL patterns. sg_copy_buffer doesn't work,
-dma_map, doesn't work, sg_page doesn't work quite right, etc.
+So nothing seems lost..
 
-Only nvme and rdma got the special hacks to make them understand these
-p2p-sgls, and I'm still not convinced some of the RDMA drivers that
-want access to CPU addresses from the SGL (rxe, usnic, hfi, qib) don't
-break in this scenario.
+> So you can't do direct I/O to your remapped BAR, you can't create MRs
+> on it, etc, etc.
 
-Since the SGLs become broken, it pretty much means there is no path to
-make GUP work generically, we have to go through and make everything
-safe to use with p2p-sgls before allowing GUP. Which, frankly, sounds
-impossible with all the competing objections.
-
-But GPU seems to have a problem unrelated to this - what Jerome wants
-is to have two faulting domains for VMA's - visible-to-cpu and
-visible-to-dma. The new op is essentially faulting the pages into the
-visible-to-dma category and leaving them invisible-to-cpu.
-
-So that duality would still have to exists, and I think p2p_map/unmap
-is a much simpler implementation than trying to create some kind of
-special PTE in the VMA..
-
-At least for RDMA, struct page or not doesn't really matter.=20
-
-We can make struct pages for the BAR the same way NVMe does.  GPU is
-probably the same, just with more mememory at stake? =20
-
-And maybe this should be the first implementation. The p2p_map VMA
-operation should return a SGL and the caller should do the existing
-pci_p2pdma_map_sg() flow..=20
-
-Worry about optimizing away the struct page overhead later?
+Jerome made the HMM mirror API use this flow, so afer his patch to
+switch the ODP MR to use HMM, and to switch GPU drivers, it will work
+for those cases. Which is more than the zero cases than we have today
+:)
 
 Jason
 
