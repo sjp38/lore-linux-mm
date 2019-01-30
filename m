@@ -2,97 +2,99 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 33C17C282D9
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 11:52:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 16733C282D7
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 12:01:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E4283218AC
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 11:52:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E4283218AC
+	by mail.kernel.org (Postfix) with ESMTP id BD27020869
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 12:01:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD27020869
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 827C18E0002; Wed, 30 Jan 2019 06:52:04 -0500 (EST)
+	id 18F9C8E0002; Wed, 30 Jan 2019 07:01:33 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7D8358E0001; Wed, 30 Jan 2019 06:52:04 -0500 (EST)
+	id 140A48E0001; Wed, 30 Jan 2019 07:01:33 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6EDA68E0002; Wed, 30 Jan 2019 06:52:04 -0500 (EST)
+	id 008258E0002; Wed, 30 Jan 2019 07:01:32 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 42BE68E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 06:52:04 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id 42so28077961qtr.7
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 03:52:04 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CA78D8E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 07:01:32 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id p24so28541907qtl.2
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 04:01:32 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=OQLs5dpww+MxhRQxSxsfzgajn/aLBITrFiX1+3QcXFU=;
-        b=Nxm57Yl504dlRFXDN8rLfVXTdBnuzQJBG3g9DISwm3hRX1O2VOWhI2E9ISEGg3zPAD
-         sGQ3R7WMkyS46AypCMt9zjH8f5C2euScHySjYWwDEsN4FOLAVyyJ0FGl2OZLIoR7G1pk
-         k4SXo6KXhqvFbvG03YdGYhOGdIbiCsBpILvTHLqZzY/iHCdlrXrOoHjYsIzwUMoP+WWH
-         zQWRzl6PsQlfdpQ6RUnboLdbAcCD5cjnlww9StAUxSmfJ4cYdLhUa+hH60SVQKgJ6yvc
-         CF+DvZfe+XPSjZOJ4hbxjIlexBRtvZR+4QrtGPzTBvRqTSPnogbothTe23gOHnrLfA37
-         JXEw==
+        bh=a8TZOIdBH3LkSSC8s7VbvTzlKydlbwVIsYMGHLL2p5Y=;
+        b=LbXjqs//JnUYvC87zQYkeJkcoR8/5VzdUUH186x1TcDxI5n7Az+jSYnmnnhBLSzlL2
+         Hq0NVCNJjmmGf5YJ3WeATa6cNHERjPUOup69HLp/WXPlyjCUZtvNYLoXgNYHP0KOk/jE
+         SA5enPKaUuglFKehdKhScM9dF3aCRBH30k1ESeN3f2letJynze/54TzW4F3GfyKdFeqM
+         +Nlibbo8s+BUBXR4Dt9Ib75iqELtLvcJ1rZel05TJzaqrlmXD/RiMI0skmpaYkYXqnjc
+         KpQHcn63JmpX9DaCwxYQZiHV7u0iH5yhztksvILnYrJElxkhOjDYASW/O7wfm+NuLUgg
+         WkFw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUuke9DNLvwBqw/l0Rax+K8XBPNsNg88aP+PTJ8khQzx14/6eR5Ibt
-	kU9/NUeNXcFYu7CVR5rlZhiqyHcm+Wv3U+K2p7s6ZmLZhQCaaMv/9hjfWXKPvu3xl8dEUJETosA
-	jpR/wNW+Ddp7NblsDdLxwnsivc/GK/ZfcFLfABJf5qkmrZyapS3NaFWh8MDRzyUc9hQ==
-X-Received: by 2002:a0c:878d:: with SMTP id 13mr27968066qvj.8.1548849123997;
-        Wed, 30 Jan 2019 03:52:03 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7iyP4onEOrgXSKzlJHauiitbi/uHZIiwfpF9qfg0UkqNlvoLR/mKyUdl+lmUM+MSy9V8EC
-X-Received: by 2002:a0c:878d:: with SMTP id 13mr27968022qvj.8.1548849123111;
-        Wed, 30 Jan 2019 03:52:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548849123; cv=none;
+X-Gm-Message-State: AJcUukcKxTtZV4Fa76Ik5vLE1/MiPWCH9myEpDqmDnJsuKIB2fhY/cY0
+	/fVJ+R2ptDRhfv699MCNkHT27DyMZC15hHIgcgHatPIIaurB+tpyAnKUsqbiHRX0cP/B6HP3oDv
+	8Y3WNcNZCnGCc+yp+lbabzH5yihhT6Pz7PESKqOJHZTaoTzbA90E1pLl7cb9n+lOkDA==
+X-Received: by 2002:aed:20ca:: with SMTP id 68mr29594662qtb.296.1548849692577;
+        Wed, 30 Jan 2019 04:01:32 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7MFqPh1AXQAaO6YxVmHM3PCHeuu2VxDcp/emp+AAR24sr9eoGd/1UKkQCLiS6R85efcF70
+X-Received: by 2002:aed:20ca:: with SMTP id 68mr29594622qtb.296.1548849692022;
+        Wed, 30 Jan 2019 04:01:32 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548849692; cv=none;
         d=google.com; s=arc-20160816;
-        b=z44XT0YUpUTd7MIhN82DgHmHPnvO5X2lTiqPD4VBQ8GLwdI5fjkvHr7UVBtsN1lGUS
-         bPh4Glvcp9+0KBZ+isrf3vRZkBksauZ02T+l4qj/Jak48wXD2z/yQReL92xmMyq3CP67
-         k6X1xxUdfQ0zwFTDpmyffGgbolsTk+nPg3KgEGwIYNbnoeaiQBnPG9qvpJNw0FWZg5Qi
-         TlloPFZ4HhYWSFnk86uv2e4RFKZW5MHeK1PrG+vLygfyTT1SnIwHdBK52+8dO+DOurV0
-         uzselkLf4AeXSfr7x2ouUSq51YCE3txcu13CSYHRiUHe4l8NCM8+cbsL2g8HM459ZgpD
-         pWMA==
+        b=bd3PkRVjCtwjCCZqeIkmv/VMM8OMRq7ng412vlEag8MXUFR9A39wH9Fr8+qXuAo81x
+         bmwwnqnlz2FNpIAJJQRmcUO1LrzkttRJx8Kf/jVuX/KTS53xkRw5JpDzV2YlgHOtzBPk
+         GhI0ElZWxl/uMvizTvpjC4tiiL5MH/q3w+/sQJeb2d5rjp5mrQGp0XwY7mSIW0jo4PG1
+         cwhuA0gJDT/l9m0x+zP80drYiLPlrhylmUoqrNtysKvS1xW/uYNn5hjX3uHTBfSnC7KV
+         v0YG+BP2fRp0JIzlBSBTCZsn0JzlFkzV5a1h0lvRb4PLUO2LiXO0dgl7ABULXBBXTH32
+         rk3w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=OQLs5dpww+MxhRQxSxsfzgajn/aLBITrFiX1+3QcXFU=;
-        b=Ksal7/3JHuuWXRtrl55V+Cghyymrid2bzG1Ut+IwEOrO3MQqecNDz1A+sC7lOeq81r
-         4aS+ZlCU5KtAcMZpWgMnYKbo6DuC6mni3PXsBVIlo4dyGvp4gGOMeVS+a6vw6fxX2Goq
-         Thct2wDiAL7qRRRYgmW3WhMo2bpA+yqdr6zMOPREtL2CxFxiMILYUK1luigoD86ajmoI
-         W155DOgEnm1XHgCnNSddiFn9kBOfyjx9Ao69uwQEfe9NrfCoTfzG2JF4IQNyTxXv9FYz
-         zyeeT7+5pq08b0dPVOmRySNgRTRQ8Lw4f3BUMKhQRIg+fH7+5zV2QcKQXaGIWcpnMemu
-         3RqQ==
+        bh=a8TZOIdBH3LkSSC8s7VbvTzlKydlbwVIsYMGHLL2p5Y=;
+        b=Ib5gPxz8eeWQKhSwM6wy6UZ2e22ljoIYSH+zmLl1OB2ti8dCmkJy/5h/8XItoxIeUh
+         9KIjGdKAwkGx2+hbVAmPNCB4BxwMRP3D1C5vpUkciMH2nGghRrRAM0MXQrsM5NxlxSqL
+         JRoCj5msrAnn8r5t/d0NCu6+dy4/E2uIIZGruLFLjprTSZl1H9UUGLoaUa4hZ1OYAKFQ
+         nY30Hq9va/XAnyZ8tchmEF92gudt3uMZUD7z46S3ZsL0KpCoh1oG3MPwkYDv1IXEJxlp
+         FIPKi6cb1dv+Y5q1PtOnLpD7yEaGLMb0yznHSUL+Vdg24x0PXnlDsWa9dkOQaKhBscak
+         94NQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o63si902583qka.164.2019.01.30.03.52.02
+        by mx.google.com with ESMTPS id e32si872331qvd.6.2019.01.30.04.01.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 03:52:03 -0800 (PST)
+        Wed, 30 Jan 2019 04:01:32 -0800 (PST)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0E6C0A7865;
-	Wed, 30 Jan 2019 11:52:02 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id D8A99142C03;
+	Wed, 30 Jan 2019 12:01:30 +0000 (UTC)
 Received: from [10.36.117.149] (ovpn-117-149.ams2.redhat.com [10.36.117.149])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 156CB10A3944;
-	Wed, 30 Jan 2019 11:51:57 +0000 (UTC)
-Subject: Re: [LSF/MM TOPIC] Page flags, can we free up space ?
-To: Jerome Glisse <jglisse@redhat.com>, lsf-pc@lists.linux-foundation.org
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 103125C2EE;
+	Wed, 30 Jan 2019 12:01:27 +0000 (UTC)
+Subject: Re: [PATCH] mm: Prevent mapping typed pages to userspace
+To: Matthew Wilcox <willy@infradead.org>,
+ Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Michal Hocko <mhocko@kernel.org>
-References: <20190122201744.GA3939@redhat.com>
+ kernel-hardening@lists.openwall.com, Kees Cook <keescook@chromium.org>,
+ Michael Ellerman <mpe@ellerman.id.au>, Will Deacon <will.deacon@arm.com>
+References: <20190129053830.3749-1-willy@infradead.org>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -139,82 +141,49 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <596246f1-5ebc-7088-e303-00983984e864@redhat.com>
-Date: Wed, 30 Jan 2019 12:51:57 +0100
+Message-ID: <44ea1fd9-f0ae-f031-0232-05afbd7aa7e5@redhat.com>
+Date: Wed, 30 Jan 2019 13:01:23 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.3.1
 MIME-Version: 1.0
-In-Reply-To: <20190122201744.GA3939@redhat.com>
+In-Reply-To: <20190129053830.3749-1-willy@infradead.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Wed, 30 Jan 2019 11:52:02 +0000 (UTC)
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Wed, 30 Jan 2019 12:01:31 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 22.01.19 21:17, Jerome Glisse wrote:
-> So lattely i have been looking at page flags and we are using 6 flags
-> for memory reclaim and compaction:
+On 29.01.19 06:38, Matthew Wilcox wrote:
+> Pages which use page_type must never be mapped to userspace as it would
+> destroy their page type.  Add an explicit check for this instead of
+> assuming that kernel drivers always get this right.
 > 
->     PG_referenced
->     PG_lru
->     PG_active
->     PG_workingset
->     PG_reclaim
->     PG_unevictable
+> Signed-off-by: Matthew Wilcox <willy@infradead.org>
+> ---
+>  mm/memory.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> On top of which you can add the page anonymous flag (anonymous or
-> share memory)
->     PG_anon // does not exist, lower bit of page->mapping
-> 
-> And also the movable flag (which alias with KSM)
->     PG_movable // does not exist, lower bit of page->mapping
-
-
-I would really like to see an easier way to spot if a page is movable.
-
-__PageMovable() can produce way to many false positives.
-
-movable will usually not be paired with other flags you mentioned as of now.
-
-If many of these flags are not used in combination, we could merge some
-of the flags into a number field. Valid combinations would get a number
-assigned.
-
-To keep it simple, only flags that are completely exclusive might be a
-candidate. But not sure if we really have many of these.
-
-> 
-> 
-> So i would like to explore if there is a way to express the same amount
-> of information with less bits. My methodology is to exhaustively list
-> all the possible states (valid combination of above flags) and then to
-> see how we change from one state to another (what event trigger the change
-> like mlock(), page being referenced, ...) and under which rules (ie do we
-> hold the page lock, zone lock, ...).
-> 
-> My hope is that there might be someway to use less bits to express the
-> same thing. I am doing this because for my work on generic page write
-> protection (ie KSM for file back page) which i talk about last year and
-> want to talk about again ;) I will need to unalias the movable bit from
-> KSM bit.
-> 
-> 
-> Right now this is more a temptative ie i do not know if i will succeed,
-> in any case i can report on failure or success and discuss my finding to
-> get people opinions on the matter.
-> 
-> 
-> I think everyone interested in mm will be interested in this topic :)
-> 
-> Cheers,
-> Jérôme
+> diff --git a/mm/memory.c b/mm/memory.c
+> index ce8c90b752be..db3534bbd652 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1451,7 +1451,7 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+>  	spinlock_t *ptl;
+>  
+>  	retval = -EINVAL;
+> -	if (PageAnon(page) || PageSlab(page))
+> +	if (PageAnon(page) || PageSlab(page) || page_has_type(page))
+>  		goto out;
+>  	retval = -ENOMEM;
+>  	flush_dcache_page(page);
 > 
 
+Reviewed-by: David Hildenbrand <david@redhat.com>
 
 -- 
 
