@@ -2,157 +2,121 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 34750C282D7
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 11:00:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C2850C282D7
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 11:01:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CEB2F20882
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 11:00:12 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="QG8HzlYV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CEB2F20882
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 8784420882
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 11:01:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8784420882
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3E0F88E0002; Wed, 30 Jan 2019 06:00:12 -0500 (EST)
+	id 233C18E0003; Wed, 30 Jan 2019 06:01:14 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 391D18E0001; Wed, 30 Jan 2019 06:00:12 -0500 (EST)
+	id 1E41C8E0001; Wed, 30 Jan 2019 06:01:14 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 25A7F8E0002; Wed, 30 Jan 2019 06:00:12 -0500 (EST)
+	id 0FBC48E0003; Wed, 30 Jan 2019 06:01:14 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D37C38E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 06:00:11 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id h10so16547283plk.12
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 03:00:11 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CF3C28E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 06:01:13 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id r16so16073788pgr.15
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 03:01:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=61scKswmPbnHoOk96Jf+ol3O9mYXOld0qByaXCb56ns=;
-        b=ld8EwNJRJ2nllSgiiO07CnhC3oO/J+n2CHds+hdaDeoHTXdTGw7nl/yQQlR/DrtNF0
-         4dqjctg3uqAZqMeVmCt1p6d24Yr0KyubqZqX4yln3Y+m5Sg0FQHMdvp5AHEbFGnKryP2
-         XOOTfek2nfFx9mxm/v+yvBao/F/ahsBX6jkzWVDO3dcelxcXbxMM27e5ms5To+U5Irxr
-         5QFgDcg9DE9a6PBHiO5o3yt+Dg7PXyDrCWJiUOWlHiS0hGo+gjDaGD5V2eN5myxuJRkN
-         6MFNrVL5Js0JZSh2So7ZjzmJUXrj75TmnXXoq3r27y+je+vrTkbBFCwSJLi/pbmt9udL
-         BbGg==
-X-Gm-Message-State: AJcUukcaz0q5mbyGwCNmTlUGI/bxnEBQ8/M0JhOMpBt2cXxd9EAk55At
-	zfZ6lrXpwdqrfZv5NxJ/B2z0+2//tRqnBApkQyqLVbPTRe60aKZRSsGTzGb9QXT0z4iN3UN9Wdz
-	HM0asi9dMHUCLSHGK464g4J1GPAVxuoWLxxdhR1nlW+eeQm8beM9ESVy8uPaJLn6rOg==
-X-Received: by 2002:a63:dd55:: with SMTP id g21mr26574235pgj.86.1548846011443;
-        Wed, 30 Jan 2019 03:00:11 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6N7wsipRNTuTwDEiw023S/Vxx0gxYxa7HvakLFNPJp5WTQykQNj2ZKifqjWzeWpp5gMcu+
-X-Received: by 2002:a63:dd55:: with SMTP id g21mr26574196pgj.86.1548846010705;
-        Wed, 30 Jan 2019 03:00:10 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548846010; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:message-id:mime-version;
+        bh=/YZHVnD1s4dRizvZoaDmD6mS+GN1ty0I6hP131I6+io=;
+        b=dcB+6piNSfS1u4Yo2DVJs3z5VvQkPm2KukqImDX1mX7fHhON8ZbHFtx79pvK9RX20j
+         FAtIxUVCxOeDMzdZ6WP0wZgtu8MQFelcEIenesoCHSmO33IHh/dQy1g4uc19TMGoSC7R
+         kFD/8VMwCrimgYIFTuNP1FOji978Srn0AmdOHzhlno5rx4dTt3I1YgoHz0pefmIsTmuq
+         xApX9s23EE5YhBLn0XCFpLzJnnU46hB8ogbbO6bUJkkCnaKIQ5pTf9n4H05y5p1w4D8+
+         9aAZBmZPiHfM5Sgl4p0rDETf/chwVfYYiB9FhrkBzU2ayJb8f+gxPW30zZADoou7jWtR
+         Rwsg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+X-Gm-Message-State: AJcUukc12Fs79KT9+bbXZ7j2lSCQXhO48f8L1NcnyLe+L1h1aTsBcMU1
+	XvlYgq8xADQfdyD8XBtvXgs+aHk0FyMPkKssVAcciVBrgAD9gS3VjpTzfUPAG3RxXuisBbqZtNK
+	7vwj6UHRsjdgVKNz6bRBpDxGRNpgSUpQpBU6wUKsmHxHYS099jJLOmyjP0YgX48k=
+X-Received: by 2002:a17:902:24a2:: with SMTP id w31mr29306030pla.216.1548846073520;
+        Wed, 30 Jan 2019 03:01:13 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7/JnXV3PLRoH+4ianAzStVwomtKxAYkK0/JPM2dGqz7V1DRTgfZdo+6p/bQDGC+jS5hTdh
+X-Received: by 2002:a17:902:24a2:: with SMTP id w31mr29305981pla.216.1548846072893;
+        Wed, 30 Jan 2019 03:01:12 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548846072; cv=none;
         d=google.com; s=arc-20160816;
-        b=IHm1l2Jo7LIv1akJz4GGPLCEhaQp5AAYS9X5hvjzVt/+Is91eET6HB5yt7HFRD4Fbg
-         /VkroxEZTdDoY2GWun2EX199kHb6U00s/YXuKDnGhnfCrnHDSg+8t+uobRSwP2LTCFdr
-         R842UYyqC76q9qVjJqFTkIeqi0wodc8sT/cI4vv+AgDcvWMKiWkOibGTPlL/MYq4dl8y
-         9RHY+99NlyiTURyic/80GUzvwgf2IMDgOrNaD4ipMbw3i/QLabeQ0qX0T9m1SqlXsL1C
-         arpPHIpupX1Jy3giYMSzktrwm8vNZhJZcXWuRAEBbRxPe17pLOoGpmfqfMwUjTXvBdeT
-         9YkQ==
+        b=xKp/12MuXS2UiQHDQZ4UAylyhXDHmbSCikeFw4vvx7WSGi+tG5mDK2v6hZrv8gFDXi
+         RFpcp4231UyfqNTrIFByHXqkwenxUk7FUGn/X4MxawpeTzRQUC6bSLrD2I9EAv0BBeaq
+         mUOGvAfQT1wJb40GLkYbz+RWx3O/EWw73y9nqo3yh9bMyegGtsrUIeq6p6wiSJDRQz8O
+         6h7In/1sgW0XOGgZWwTMFoX5yCV61I6cTokoTx/0Cda+tf6tm0S2JUzNCDLkt0ZPyuhq
+         cE/izxT7rRa9mJfOJ2pdFO3+SQ9a/SDI5zr7YVnwxXYzdr7f3pYE7M4zpthBJ9m8TfUA
+         NExg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=61scKswmPbnHoOk96Jf+ol3O9mYXOld0qByaXCb56ns=;
-        b=OfQuJopO+pHCkGba2v8zjOGCg28r2JPuYMJ76t/e488TZ/JVS/mhw+Ee4968207lZS
-         Sh5qtqMRP5v1FvpAAfyw5AJpJz+jAfb4cjLbBOzAeNzcX++7CLPqOyZ0ii6OHG8LFbGL
-         uiKpWFCVEN28g0ZHNJHmpJylZZaJ/j+1LFWlJhzpHyq5n6LJbygkK6DpMKWQA6GAuWNK
-         fvOVSVAmeU8LBA1QuyHf0+zJJaqhvKvHU7NVt++Y1z8JPEirpq5HvW2Bx9gFnlIRBEGT
-         dB8shvabbS6hrAQ2pg39jDb544su3ODRXvOg2HeS+Q/41TCM6WOMgfZki3FIoiZ/He8G
-         sXXQ==
+        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
+         :from;
+        bh=/YZHVnD1s4dRizvZoaDmD6mS+GN1ty0I6hP131I6+io=;
+        b=BBs8iHVGiJ9Gs6Cy6Y5so+dsRWfp36NIHXYZ7jIDFjwiKImJ005aGN4QGUtMzIfhle
+         kBA8S9x62odOGV+JIH5vsorSPSuXoKFlMsY1e2w+t2vIGnFJghNgJYiSqibcUnXciTNE
+         AmTWtHHXo3fD8L8QJ6RxWzrLPgLgMW4g35qN3ZH8uMG+eHbQwG4EnigZsilSq3mV2k4y
+         KtV9Wt/XbFdr5D4hioFN12Ftb73aEfU8iAHFg0YEtozqMbfzZ6FDPJAWrQiQE5sKhuAc
+         CL5/PfzdpOzoqo6r7BdUPYSPv+vkEBR5eS0XK6/OTnjifV5xobmdgw8aOvV9pOZS0liC
+         dmSA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=QG8HzlYV;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id c7si1232128plz.118.2019.01.30.03.00.10
+       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id ay4si1263558plb.235.2019.01.30.03.01.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 03:00:10 -0800 (PST)
-Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 30 Jan 2019 03:01:12 -0800 (PST)
+Received-SPF: neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=2401:3900:2:1::2;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=QG8HzlYV;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id x0UAx8pi116005;
-	Wed, 30 Jan 2019 11:00:00 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=61scKswmPbnHoOk96Jf+ol3O9mYXOld0qByaXCb56ns=;
- b=QG8HzlYV9F4869aLEYwiGZCj/XYcJ4bTZiDrFGX5sK44a5Zf1BdNzdsaz4JEvMET9MWv
- ikUK3ydrtqcO+K1hGtf+3zWFc9Twh++aj+8BCzAKOx1pD0rQpIxi7GyFzsdqQavxUBMN
- VZEc5HPBtR/ztMu5TqjhBQ5DnHRViYYIwUxrRbh/dsYB4+Q/PjUnfIEXMpzUxr+o72Xk
- czFgx8MdEjO75dQe7v8EnSEQG3uBIChHnipFJp/oKaVk4krpHBdsfNttLkkj0Y4ahVju
- RARxxh4ov7jkEpbHv1Bgv/cwPBpQpKNmrqG/lwN+AuhWUqjmAaEGtCcep3lecxR+GF5l Bw== 
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by userp2130.oracle.com with ESMTP id 2q8eyuhukp-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 30 Jan 2019 11:00:00 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x0UAxs9s014114
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 30 Jan 2019 10:59:54 GMT
-Received: from abhmp0012.oracle.com (abhmp0012.oracle.com [141.146.116.18])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x0UAxrmi028591;
-	Wed, 30 Jan 2019 10:59:53 GMT
-Received: from [192.168.0.110] (/73.243.10.6)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 30 Jan 2019 02:59:53 -0800
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.1\))
-Subject: Re: [PATCH v2 2/2] x86/xen: dont add memory above max allowed
- allocation
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20190130082233.23840-3-jgross@suse.com>
-Date: Wed, 30 Jan 2019 03:59:52 -0700
-Cc: kernel list <linux-kernel@vger.kernel.org>, xen-devel@lists.xenproject.org,
-        x86@kernel.org, linux-mm@kvack.org, boris.ostrovsky@oracle.com,
-        sstabellini@kernel.org, hpa@zytor.com, tglx@linutronix.de,
-        mingo@redhat.com, bp@alien8.de
-Content-Transfer-Encoding: 7bit
-Message-Id: <C4A55B5E-47A5-454A-AB90-AB52DF42CD88@oracle.com>
-References: <20190130082233.23840-1-jgross@suse.com>
- <20190130082233.23840-3-jgross@suse.com>
-To: Juergen Gross <jgross@suse.com>
-X-Mailer: Apple Mail (2.3445.104.1)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9151 signatures=668682
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=753 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1901300089
+       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits) server-digest SHA256)
+	(No client certificate requested)
+	by ozlabs.org (Postfix) with ESMTPSA id 43qL5L2Sryz9s3q;
+	Wed, 30 Jan 2019 22:01:10 +1100 (AEDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, npiggin@gmail.com, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, x86@kernel.org
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: Re: [PATCH V5 5/5] arch/powerpc/mm/hugetlb: NestMMU workaround for hugetlb mprotect RW upgrade
+In-Reply-To: <20190116085035.29729-6-aneesh.kumar@linux.ibm.com>
+References: <20190116085035.29729-1-aneesh.kumar@linux.ibm.com> <20190116085035.29729-6-aneesh.kumar@linux.ibm.com>
+Date: Wed, 30 Jan 2019 22:01:09 +1100
+Message-ID: <878sz2quiy.fsf@concordia.ellerman.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
 
+> NestMMU requires us to mark the pte invalid and flush the tlb when we do a
+> RW upgrade of pte. We fixed a variant of this in the fault path in commit
+> Fixes: bd5050e38aec ("powerpc/mm/radix: Change pte relax sequence to handle nest MMU hang")
 
-> On Jan 30, 2019, at 1:22 AM, Juergen Gross <jgross@suse.com> wrote:
-> 
-> +#ifdef CONFIG_MEMORY_HOTPLUG
-> +			/*
-> +			 * Don't allow adding memory not in E820 map while
-> +			 * booting the system. Once the balloon driver is up
-> +			 * it will remove that restriction again.
-> +			 */
-> +			max_mem_size = xen_e820_table.entries[i].addr +
-> +				       xen_e820_table.entries[i].size;
-> +#endif
-> 		}
-> 
-> 		if (!discard)
+Odd "Fixes:" again.
 
-Reviewed-by: William Kucharski <william.kucharski@oracle.com>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> ---
+>  arch/powerpc/include/asm/book3s/64/hugetlb.h | 12 ++++++++++
+>  arch/powerpc/mm/hugetlbpage-hash64.c         | 25 ++++++++++++++++++++
+>  arch/powerpc/mm/hugetlbpage-radix.c          | 17 +++++++++++++
+>  3 files changed, 54 insertions(+)
+
+Same comment about inlining.
+
+But otherwise looks good.
+
+Reviewed-by: Michael Ellerman <mpe@ellerman.id.au>
+
+cheers
 
