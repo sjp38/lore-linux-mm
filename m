@@ -2,166 +2,149 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CC06C282D7
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:07:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 66865C282D9
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:17:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 38E8520989
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:07:04 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="rQjmckmz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38E8520989
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 2A5DA218A3
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:17:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A5DA218A3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=deltatee.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C6B298E0004; Wed, 30 Jan 2019 12:07:03 -0500 (EST)
+	id B55648E0002; Wed, 30 Jan 2019 12:17:50 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C1AD28E0001; Wed, 30 Jan 2019 12:07:03 -0500 (EST)
+	id ADC718E0001; Wed, 30 Jan 2019 12:17:50 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B0BF68E0004; Wed, 30 Jan 2019 12:07:03 -0500 (EST)
+	id 97E348E0002; Wed, 30 Jan 2019 12:17:50 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 830B68E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 12:07:03 -0500 (EST)
-Received: by mail-yb1-f200.google.com with SMTP id t3so121225ybo.15
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 09:07:03 -0800 (PST)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 701A18E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 12:17:50 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id w15so257097ita.1
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 09:17:50 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=r4FvnOpw+Kp/xo1E/oIUXzj02pZKaUP0vrX/v1MVF3s=;
-        b=R8nS/FQzr/3gmRkzSH183ncXobFEaPyS6CxE7HgnYpnCfCgjbYDv70PAOyO5sGa+Ob
-         HlG9jhesL18nXRAb77jAhkWrq+LmAstBXa88RoMubfG6Ze9Q6Xao61Mis4T5FbaiyMAQ
-         yzz6qmNdRTxwr1tDFDtCZqTPoqyzYOu2tYtNQE5zXjb5tuC46MV2DKv0nvwno8p6Vv0A
-         t57YK6mD16X5wuNLVEOkjzc+aun1X0lNi6M+OPh+HqjJrVy2zBMLZZKZUwRR76GQYbaS
-         h2efuQrQcltYntT/ezLZ0Uur/2/RQRapetVWlPlKGlp1AoaDDiCJwgATl5AQ6KVlO/sz
-         +dXA==
-X-Gm-Message-State: AJcUukefEQ6MnVFnaqJ/gjwQbj6IRZWK11u6z+n/fYTram++LeF2Y652
-	zwj4m+j/u+PVuSnv9NwNQZmPlFpf+kv3YtroVmj+lh3SdbUpoSjIhXAmMhbSkOGVup2+Tc+svy5
-	QPy4Z2OFqYOTBC1SvBNSp8VYyyNu/8fqfPBeeOqRrxVwt5tJA2gcFeCslhI7PvCxKmc+uKelrI2
-	7MHQkAEFpf6InWmwaI6RW13RE5kTWqdrnclFTwLlfm/hRHyP9S+skg/DYKVv34vWx5pJh4yUgjj
-	Jr4mQ5HTssYTUWmiPVXfC7Dj9VGuUOpmEjr8wBG1eJaq+BHznTWNx5I4ROxlOXcQq4gUjmudX2o
-	R0yOgPj5Qbmr9ke+NSdkKUZ8IFHLdX6QLFvsq56HnVWgQggPpcB9NMZPsd4Xfn1mN7NRxpXsGw=
-	=
-X-Received: by 2002:a81:9ad5:: with SMTP id r204mr29599386ywg.215.1548868023191;
-        Wed, 30 Jan 2019 09:07:03 -0800 (PST)
-X-Received: by 2002:a81:9ad5:: with SMTP id r204mr29599322ywg.215.1548868022393;
-        Wed, 30 Jan 2019 09:07:02 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548868022; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:subject;
+        bh=R/2KKZrF3cW4kpTnVrJ6er6dX3A+Ko+Vtna92VCp9Qs=;
+        b=cTr7U2rApByUOUi/a5eYDAY1OjR+Pagz6odnzp7WkcJIA44INuqXfM6StwCxYlrmTS
+         20nfAsoVr0Y83EkPJFULA2GZKV1w6Zf2Wwu7H9zQyGvzlnrL+xi6UIgshhD0sdUMeje/
+         nSa7JEAA19FfLEL7aqLCandDzdH0X8zVeGsTYWi7gqJj2IQLX94dCkWK0yO615yCXAaf
+         Mv1S/aGhzmli9aVyIHvss8EF3FohTS2hSbBSDxy10vXromCH9y8PyR8ow7xDayLOoC/H
+         yGxX8NLjp7wPyX3ogVdkjg1zdoaC/naEhmG9dERroTkMmsi8Ehj6p7idhGaYO/2ipjJQ
+         cvJw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+X-Gm-Message-State: AHQUAubWKPAyMtwT5a8bY5D7f56+LyFCfexPo/3E8ZCzer54xhdIlr1V
+	zcz26fewBdph1CbE9n0HLlPpyyz1sOQ9pw11N+h+wz/g6BKRaU6GrL4Obgd42aD4S3rkX7EC4/d
+	kVXOdO39nF3F77s4QOcwkX6SrKa/+PVURxqrnwfT2ZQw1UfFtRfQEmEVNlSLmhtdTxQ==
+X-Received: by 2002:a5d:84c1:: with SMTP id z1mr17342883ior.277.1548868670241;
+        Wed, 30 Jan 2019 09:17:50 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYRSLBEjARig781RuKy/jS2bwlhZ/kvA1zrceWBT7o/K9R5RpoyF4r8rY3IuDbjrq0eJ6G6
+X-Received: by 2002:a5d:84c1:: with SMTP id z1mr17342850ior.277.1548868669524;
+        Wed, 30 Jan 2019 09:17:49 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548868669; cv=none;
         d=google.com; s=arc-20160816;
-        b=txWE4Q3ywsMsiT+0Ed3fwkstl4xSCAMheJAS6Zq/MWUnJvKgxwpGpSSEt9Rx9UUgBs
-         Ehi5RsB4+TZPSUbA59cpiu3KCX8UGeMBWmIXhVrYzKFmOdXaAgvQevG+6nneDAUCsBEB
-         1NFHhIA3SjrO0O+96kC7b7VRm/ZijP4YBUVasfa3/QlXJLkuTS+15sGd1Zzh4jTQiw/4
-         VqH2ruB2XHQDEePswOXxF7ytM+gTwrhza47P2dZ+TykDedBlaVcNvjQy9Sn0DRdzfaUf
-         /vsOh5dOx7zJU4PKPpdDB++ijJSRWsRm00pP3rKFPePgr/CzpzgoIA7/6lXy89gRZX0n
-         StIA==
+        b=gGbcymSsTLh2Jk3vHCqjq31f2BWr/GMuzm2VCVePH56tSr2Obyffx7IRnZE3n9AUCA
+         R/yWO2gEDejvUlOFdl0uplEiRUPfz6b3VsTjzfTpgxFs3V9T3v38KPKoMK1b7Sn5281C
+         OShHnU4lUX/vTwxrChHYenQbruMdpuFYpz2H4VgTkl/KG3LzrrTUtXjw9GlnKjtS7OLI
+         83IeIcgI9milhpEceHRHxfRvBkQSGT6HzQ4K9TS/TpvjctxyGXja4VStLKNrcy5naNf0
+         dxv6ZEwVBgiHJe3V495ciHQyWNRpvWywIq3mjG6Ej+UQt+p0B4NwCjqCcWizTejQUzVT
+         /ibQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=r4FvnOpw+Kp/xo1E/oIUXzj02pZKaUP0vrX/v1MVF3s=;
-        b=J9NqV40RToBxe6/Wx1bY9ba1NlGFphBJ4Ymp0G9eWDNhG/hyrVR4BNDMx9zC6JIHXf
-         lJy9UKX75sRhOFUT4B0TT/+hapuOEoVSEkXGN/7lnKnuunaIpk9C1apnldpIU0KuhoHL
-         AjqFZINZDe5LJ2tM2L+hUafmEhRrFK6YXKkfWc7sSD3U/a9gjsuXrhYBnd3uGN1IYeT7
-         ri8y4iN3wp465gkTvXU7aC8WnLs/FVU1Lq00DLsaIaMT0V7HRi255egUnBTDr7TzASDz
-         SaBeBZK7WABVAcPmWjRvAeiqB/TJ0zXm28OY9x3Swfv4N8UMTYfuUlLZoqUVHu8Zssvk
-         0Ctg==
+        h=subject:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:message-id:from:references:cc:to;
+        bh=R/2KKZrF3cW4kpTnVrJ6er6dX3A+Ko+Vtna92VCp9Qs=;
+        b=iIR9TXUconiAedmDNYp+1wgC2LLHN95TRabTjC+0R79jxz/Q9JpoDCAo7wX9XRK7iS
+         PFTvlWUAEEICaKj9PuM/FzFtvVRxH0KOdi1mdgAC3cFrq7Pts7TEsMoABpHEIn31QAVW
+         Z5Z35UnRtRYhhAWi5uTZoyw9BgRLM3zRXb8w6SibEWccJ+d6DJMEx7UhvUxBYCwsW/4A
+         QgXe1U6ISQYW7qN0+5dQ/y8bl4iKID5Fh+UFklatbjAruqeJnk0l4OsZoI9nLnmy8BSy
+         M1zUCFD68nHjG5TbFpnYDcpcvNElCIYL/tGlavaWSWWZzftxC5Ch3vxo7ZvlWoS869O8
+         onOg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rQjmckmz;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v191sor354940ywe.185.2019.01.30.09.07.02
+       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id n9si1431632itb.135.2019.01.30.09.17.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 30 Jan 2019 09:07:02 -0800 (PST)
-Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 30 Jan 2019 09:17:49 -0800 (PST)
+Received-SPF: pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) client-ip=207.54.116.67;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rQjmckmz;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=r4FvnOpw+Kp/xo1E/oIUXzj02pZKaUP0vrX/v1MVF3s=;
-        b=rQjmckmzAv1TtgaDTf+xwGnxDCZf/qt62fsajJvyFlBof5l/0CVKAG0/RQdHbYUU8Z
-         YV3pupMl9wakI8GJ2a6Q6X1czRWRbqRIrvDYdBGenYJH/AT+DrU6hAeWiAJeKafhh47f
-         jEDi7+H+xXmSLP+84wuhC/kTT1At/AlXUGMc7YbhpX92ShXurAJwHvoI1VXRc8cN2NoO
-         uMKjdB5EwWa9+9c0xWSBmyKrQBV0LdzTOgzkmuI9iU0gbxpf1N+yxqips6zJE2ehg/yz
-         2hltgR4GXOpilyhCa+c/RA4A40XOj85aph8KTQMtFbCHYe82rL28IeBb2qbM1WjpktGs
-         JPnQ==
-X-Google-Smtp-Source: ALg8bN46/CyjNniPd/uEyCmyWWAS1mahMjoWkazGoUDEhY78foz8Nqb7qCmY2P58ISnLM36C8mVYug==
-X-Received: by 2002:a81:3413:: with SMTP id b19mr29798236ywa.297.1548868021695;
-        Wed, 30 Jan 2019 09:07:01 -0800 (PST)
-Received: from localhost ([2620:10d:c091:200::7:e55d])
-        by smtp.gmail.com with ESMTPSA id g84sm2015945ywg.9.2019.01.30.09.07.00
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 09:07:00 -0800 (PST)
-Date: Wed, 30 Jan 2019 09:06:58 -0800
-From: Tejun Heo <tj@kernel.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Down <chris@chrisdown.name>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>,
-	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
-	linux-mm@kvack.org, kernel-team@fb.com
-Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
-Message-ID: <20190130170658.GY50184@devbig004.ftw2.facebook.com>
-References: <20190128142816.GM50184@devbig004.ftw2.facebook.com>
- <20190128145210.GM18811@dhcp22.suse.cz>
- <20190128145407.GP50184@devbig004.ftw2.facebook.com>
- <20190128151859.GO18811@dhcp22.suse.cz>
- <20190128154150.GQ50184@devbig004.ftw2.facebook.com>
- <20190128170526.GQ18811@dhcp22.suse.cz>
- <20190128174905.GU50184@devbig004.ftw2.facebook.com>
- <20190129144306.GO18811@dhcp22.suse.cz>
- <20190129145240.GX50184@devbig004.ftw2.facebook.com>
- <20190130165058.GA18811@dhcp22.suse.cz>
+       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
+Received: from s01061831bf6ec98c.cg.shawcable.net ([68.147.80.180] helo=[192.168.6.205])
+	by ale.deltatee.com with esmtpsa (TLS1.2:ECDHE_RSA_AES_128_GCM_SHA256:128)
+	(Exim 4.89)
+	(envelope-from <logang@deltatee.com>)
+	id 1gotUV-0006Y7-9V; Wed, 30 Jan 2019 10:17:36 -0700
+To: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Jerome Glisse <jglisse@redhat.com>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ "Rafael J . Wysocki" <rafael@kernel.org>, Bjorn Helgaas
+ <bhelgaas@google.com>, Christian Koenig <christian.koenig@amd.com>,
+ Felix Kuehling <Felix.Kuehling@amd.com>,
+ "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+ "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+ Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>,
+ Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <jroedel@suse.de>,
+ "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
+References: <ae928aa5-a659-74d5-9734-15dfefafd3ea@deltatee.com>
+ <20190129191120.GE3176@redhat.com> <20190129193250.GK10108@mellanox.com>
+ <99c228c6-ef96-7594-cb43-78931966c75d@deltatee.com>
+ <20190129205749.GN3176@redhat.com>
+ <2b704e96-9c7c-3024-b87f-364b9ba22208@deltatee.com>
+ <20190129215028.GQ3176@redhat.com>
+ <deb7ba21-77f8-0513-2524-ee40a8ee35d5@deltatee.com>
+ <20190129234752.GR3176@redhat.com>
+ <655a335c-ab91-d1fc-1ed3-b5f0d37c6226@deltatee.com>
+ <20190130041841.GB30598@mellanox.com>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <bdf03cd5-f5b1-4b78-a40e-b24024ca8c9f@deltatee.com>
+Date: Wed, 30 Jan 2019 10:17:27 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190130165058.GA18811@dhcp22.suse.cz>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+In-Reply-To: <20190130041841.GB30598@mellanox.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-SA-Exim-Connect-IP: 68.147.80.180
+X-SA-Exim-Rcpt-To: iommu@lists.linux-foundation.org, jroedel@suse.de, robin.murphy@arm.com, m.szyprowski@samsung.com, hch@lst.de, dri-devel@lists.freedesktop.org, linux-pci@vger.kernel.org, Felix.Kuehling@amd.com, christian.koenig@amd.com, bhelgaas@google.com, rafael@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, jgg@mellanox.com
+X-SA-Exim-Mail-From: logang@deltatee.com
+Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
+ vma
+X-SA-Exim-Version: 4.2.1 (built Tue, 02 Aug 2016 21:08:31 +0000)
+X-SA-Exim-Scanned: Yes (on ale.deltatee.com)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello, Michal.
 
-On Wed, Jan 30, 2019 at 05:50:58PM +0100, Michal Hocko wrote:
-> > Yeah, cgroup.events and .stat files as some of the local stats would
-> > be useful too, so if we don't flip memory.events we'll end up with sth
-> > like cgroup.events.local, memory.events.tree and memory.stats.local,
-> > which is gonna be hilarious.
+
+On 2019-01-29 9:18 p.m., Jason Gunthorpe wrote:
+> Every attempt to give BAR memory to struct page has run into major
+> trouble, IMHO, so I like that this approach avoids that.
 > 
-> Why cannot we simply have memory.events_tree and be done with it? Sure
-> the file names are not goin to be consistent which is a minus but that
-> ship has already sailed some time ago.
-
-Because the overall cost of shitty interface will be way higher in the
-longer term.  cgroup2 interface is far from perfect but is way better
-than cgroup1 especially for the memory controller.  Why do you think
-that is?
-
-> > If you aren't willing to change your mind, the only option seems to be
-> > introducing a mount option to gate the flip and additions of local
-> > files.  Most likely, userspace will enable the option by default
-> > everywhere, so the end result will be exactly the same but I guess
-> > it'll better address your concern.
+> And if you don't have struct page then the only kernel object left to
+> hang meta data off is the VMA itself.
 > 
-> How does the consumer of the API learns about the mount type?
+> It seems very similar to the existing P2P work between in-kernel
+> consumers, just that VMA is now mediating a general user space driven
+> discovery process instead of being hard wired into a driver.
 
-It's gonna be a mount flag exposed in /sys/kernel/cgroup/features.
+But the kernel now has P2P bars backed by struct pages and it works
+well. And that's what we are doing in-kernel. We even have a hacky
+out-of-tree module which exposes these pages and it also works (but
+would need Jerome's solution for denying those pages in GUP, etc). So
+why do something completely different in userspace so they can't share
+any of the DMA map infrastructure?
 
-Thanks.
-
--- 
-tejun
+Logan
 
