@@ -2,149 +2,147 @@ Return-Path: <SRS0=ywda=QG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 66865C282D9
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:17:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 35AE0C282D7
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:18:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2A5DA218A3
-	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:17:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A5DA218A3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=deltatee.com
+	by mail.kernel.org (Postfix) with ESMTP id E8BFD2087F
+	for <linux-mm@archiver.kernel.org>; Wed, 30 Jan 2019 17:18:42 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="ONOUseN5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8BFD2087F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B55648E0002; Wed, 30 Jan 2019 12:17:50 -0500 (EST)
+	id 7F7A28E0003; Wed, 30 Jan 2019 12:18:42 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ADC718E0001; Wed, 30 Jan 2019 12:17:50 -0500 (EST)
+	id 77EE38E0001; Wed, 30 Jan 2019 12:18:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 97E348E0002; Wed, 30 Jan 2019 12:17:50 -0500 (EST)
+	id 66FA48E0003; Wed, 30 Jan 2019 12:18:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 701A18E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 12:17:50 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id w15so257097ita.1
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 09:17:50 -0800 (PST)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E5D1F8E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 12:18:41 -0500 (EST)
+Received: by mail-lf1-f69.google.com with SMTP id u17so60088lfl.3
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 09:18:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding:subject;
-        bh=R/2KKZrF3cW4kpTnVrJ6er6dX3A+Ko+Vtna92VCp9Qs=;
-        b=cTr7U2rApByUOUi/a5eYDAY1OjR+Pagz6odnzp7WkcJIA44INuqXfM6StwCxYlrmTS
-         20nfAsoVr0Y83EkPJFULA2GZKV1w6Zf2Wwu7H9zQyGvzlnrL+xi6UIgshhD0sdUMeje/
-         nSa7JEAA19FfLEL7aqLCandDzdH0X8zVeGsTYWi7gqJj2IQLX94dCkWK0yO615yCXAaf
-         Mv1S/aGhzmli9aVyIHvss8EF3FohTS2hSbBSDxy10vXromCH9y8PyR8ow7xDayLOoC/H
-         yGxX8NLjp7wPyX3ogVdkjg1zdoaC/naEhmG9dERroTkMmsi8Ehj6p7idhGaYO/2ipjJQ
-         cvJw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-X-Gm-Message-State: AHQUAubWKPAyMtwT5a8bY5D7f56+LyFCfexPo/3E8ZCzer54xhdIlr1V
-	zcz26fewBdph1CbE9n0HLlPpyyz1sOQ9pw11N+h+wz/g6BKRaU6GrL4Obgd42aD4S3rkX7EC4/d
-	kVXOdO39nF3F77s4QOcwkX6SrKa/+PVURxqrnwfT2ZQw1UfFtRfQEmEVNlSLmhtdTxQ==
-X-Received: by 2002:a5d:84c1:: with SMTP id z1mr17342883ior.277.1548868670241;
-        Wed, 30 Jan 2019 09:17:50 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYRSLBEjARig781RuKy/jS2bwlhZ/kvA1zrceWBT7o/K9R5RpoyF4r8rY3IuDbjrq0eJ6G6
-X-Received: by 2002:a5d:84c1:: with SMTP id z1mr17342850ior.277.1548868669524;
-        Wed, 30 Jan 2019 09:17:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548868669; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=uLRQ1SBdctMYyjAwt+9Xhs7ky5rrWokjn3qsrqXAjVw=;
+        b=qhrDl/2TAGxhz+63OgJ8BDWjMOCsF93w3f8sWOyUPI+tQ1Ayqx57K9FaZMVtTvmY/S
+         RbUxX1VU/XDooKiZFpi4QL2r+OlKfThlpCuVVFepwU8MtkLalNWb9UzaUnFB3Parsifm
+         il9YaiXveVnxMdmtGbZ0ODAualD59mu4CIapsjlg8vx4at9b1X1PxVXyk/4z8iGpGdfr
+         3dRtmvUytHNYQ5FRuJjcuudjxaSssWSUZdH27/lSwnplpMRwECbP653sLCtADBnUl+io
+         cmqULoHlSvSwTR0ur/GMMGRxAhESpcNVyOOlvVwHcxDXio1b78cd5hRwEl8wmYzfqbxc
+         q8yQ==
+X-Gm-Message-State: AJcUukc/1SMQDzgUlPInZruPCJmZ5DSbUEe/vePS7Z0Pq/vEDeOV3lte
+	os9zEYaQ5qq30nH+OiXLkFqwqRjRnzPcfhS4uq1UwED2qd9ATQEkTnQc8bj4r862BT+3eK44umt
+	h9L1aA7kzwwv9k1Nx2VJRadNqQ/47P72bnOV0cst2QdbhsSWE2nCVvU/D6d/pgCi5IMp7e8CPBJ
+	iOktDV4tFAcDnyU3AeC6OBZEnGPLgMz5BBHNUxsIfc6fXbrJ4ZxtHJxz5EYAaMPVuVgOizguUgG
+	fk+s3sVvyCwI14k3dKaGR+ICepNq79Pojp40qKKqDDcenR4FQH+rEQH0fqbExaGpE6yk4diG1Uy
+	xGdr04w3W8O701F2AosHXsblP8S7y197XCWflpW7RJkOxl2SpLVjlSWxYYPeaoDxqStXBcM+BkX
+	Q
+X-Received: by 2002:a2e:9849:: with SMTP id e9-v6mr25020986ljj.9.1548868721072;
+        Wed, 30 Jan 2019 09:18:41 -0800 (PST)
+X-Received: by 2002:a2e:9849:: with SMTP id e9-v6mr25020947ljj.9.1548868719991;
+        Wed, 30 Jan 2019 09:18:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548868719; cv=none;
         d=google.com; s=arc-20160816;
-        b=gGbcymSsTLh2Jk3vHCqjq31f2BWr/GMuzm2VCVePH56tSr2Obyffx7IRnZE3n9AUCA
-         R/yWO2gEDejvUlOFdl0uplEiRUPfz6b3VsTjzfTpgxFs3V9T3v38KPKoMK1b7Sn5281C
-         OShHnU4lUX/vTwxrChHYenQbruMdpuFYpz2H4VgTkl/KG3LzrrTUtXjw9GlnKjtS7OLI
-         83IeIcgI9milhpEceHRHxfRvBkQSGT6HzQ4K9TS/TpvjctxyGXja4VStLKNrcy5naNf0
-         dxv6ZEwVBgiHJe3V495ciHQyWNRpvWywIq3mjG6Ej+UQt+p0B4NwCjqCcWizTejQUzVT
-         /ibQ==
+        b=H0+xMMK1uZ0VSwCDq4LIb3ikhx69KUQPXQ3iBlZsVA4jg95rhzibLff3Iu8YEnV5l5
+         8vmVjqIcCN6+jzpc8k2fTgNLWN8bbf5a5ZK1MWpU9cBJsO1o5ZaX3yVWEPmS9t7d3Ncu
+         fdwyHJp9AWNETmawGj88qPtnhBJB7MLUTER0su5oQzalGlAPwk8O+F4N+E3DN3N6+y+s
+         682fUbGPwcbR3ZlnxEkN0dTiLB72t8cf7npYN4ZCbgOQiZsQs1Cr3JlnJpxPAAK1GYXi
+         pw6P+0wnHBvdFOinGbr1ffzpZ0RPb7BFuZBJwNQf6X0oywLuN8ulBoNy4ft9FCiXUvYw
+         UyvQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=subject:content-transfer-encoding:content-language:in-reply-to
-         :mime-version:user-agent:date:message-id:from:references:cc:to;
-        bh=R/2KKZrF3cW4kpTnVrJ6er6dX3A+Ko+Vtna92VCp9Qs=;
-        b=iIR9TXUconiAedmDNYp+1wgC2LLHN95TRabTjC+0R79jxz/Q9JpoDCAo7wX9XRK7iS
-         PFTvlWUAEEICaKj9PuM/FzFtvVRxH0KOdi1mdgAC3cFrq7Pts7TEsMoABpHEIn31QAVW
-         Z5Z35UnRtRYhhAWi5uTZoyw9BgRLM3zRXb8w6SibEWccJ+d6DJMEx7UhvUxBYCwsW/4A
-         QgXe1U6ISQYW7qN0+5dQ/y8bl4iKID5Fh+UFklatbjAruqeJnk0l4OsZoI9nLnmy8BSy
-         M1zUCFD68nHjG5TbFpnYDcpcvNElCIYL/tGlavaWSWWZzftxC5Ch3vxo7ZvlWoS869O8
-         onOg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=uLRQ1SBdctMYyjAwt+9Xhs7ky5rrWokjn3qsrqXAjVw=;
+        b=N8GVqZE4SOLlxNyqXboM/WTyywv0PH+dhgm8zyTY/Y9zQNvQqgOlF+4s0rDMxN3rkE
+         uCeDBIvTMgGGyqTKO3p3HagJGmPq0BDYQ5Z0ZzLRlFnA50WsTwCJreYai96xUiFmiy1z
+         dzIpbapmRje9rXxwazCU2GdtGZJZrSmwOUsAdTPN2giGUTTAJ6EutXUx8UHAGRQVFl05
+         NmVOaW9TME1CxE9BeC2f2GuoVz6XBlfBPLb43S23NSlac9JAXxUCdRdFd1jV8q/11jBJ
+         orOiNzoOoCpL5VcFiePhz08npai8P5Ed9AV8oc8LrYEmV36E6+Ch17HU6xaXy9ZeOefG
+         xvKQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id n9si1431632itb.135.2019.01.30.09.17.49
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=ONOUseN5;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o80sor643028lff.12.2019.01.30.09.18.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 30 Jan 2019 09:17:49 -0800 (PST)
-Received-SPF: pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) client-ip=207.54.116.67;
+        (Google Transport Security);
+        Wed, 30 Jan 2019 09:18:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of logang@deltatee.com designates 207.54.116.67 as permitted sender) smtp.mailfrom=logang@deltatee.com
-Received: from s01061831bf6ec98c.cg.shawcable.net ([68.147.80.180] helo=[192.168.6.205])
-	by ale.deltatee.com with esmtpsa (TLS1.2:ECDHE_RSA_AES_128_GCM_SHA256:128)
-	(Exim 4.89)
-	(envelope-from <logang@deltatee.com>)
-	id 1gotUV-0006Y7-9V; Wed, 30 Jan 2019 10:17:36 -0700
-To: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Jerome Glisse <jglisse@redhat.com>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- "Rafael J . Wysocki" <rafael@kernel.org>, Bjorn Helgaas
- <bhelgaas@google.com>, Christian Koenig <christian.koenig@amd.com>,
- Felix Kuehling <Felix.Kuehling@amd.com>,
- "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
- "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
- Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>,
- Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <jroedel@suse.de>,
- "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
-References: <ae928aa5-a659-74d5-9734-15dfefafd3ea@deltatee.com>
- <20190129191120.GE3176@redhat.com> <20190129193250.GK10108@mellanox.com>
- <99c228c6-ef96-7594-cb43-78931966c75d@deltatee.com>
- <20190129205749.GN3176@redhat.com>
- <2b704e96-9c7c-3024-b87f-364b9ba22208@deltatee.com>
- <20190129215028.GQ3176@redhat.com>
- <deb7ba21-77f8-0513-2524-ee40a8ee35d5@deltatee.com>
- <20190129234752.GR3176@redhat.com>
- <655a335c-ab91-d1fc-1ed3-b5f0d37c6226@deltatee.com>
- <20190130041841.GB30598@mellanox.com>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <bdf03cd5-f5b1-4b78-a40e-b24024ca8c9f@deltatee.com>
-Date: Wed, 30 Jan 2019 10:17:27 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=ONOUseN5;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linux-foundation.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=uLRQ1SBdctMYyjAwt+9Xhs7ky5rrWokjn3qsrqXAjVw=;
+        b=ONOUseN5WXIiQ53JP5ZfD4g7RUpTfBgvWnBMEoC0MhXxIw9m2w4uMmFRhNatFx3WdL
+         c4E1T5QUqlEfV75Vbzbn9w8SC2ouFIV9akF9yT8denyk99Xmkf1dzsvNlk4i8kYDc1v4
+         HcRUT5BnmoHoz0D7wLFpLosUZDTu4WIR8FB4c=
+X-Google-Smtp-Source: ALg8bN52gHTt9dzo0lFGAY/fnWfGJmTKxZDq12mRcYh1CFmPQCw6/VMTabRwHOrb3Umpm6J+TJPuqA==
+X-Received: by 2002:a19:f115:: with SMTP id p21mr23741955lfh.20.1548868718839;
+        Wed, 30 Jan 2019 09:18:38 -0800 (PST)
+Received: from mail-lf1-f47.google.com (mail-lf1-f47.google.com. [209.85.167.47])
+        by smtp.gmail.com with ESMTPSA id q20sm383205lfj.20.2019.01.30.09.18.37
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jan 2019 09:18:37 -0800 (PST)
+Received: by mail-lf1-f47.google.com with SMTP id c16so207756lfj.8
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 09:18:37 -0800 (PST)
+X-Received: by 2002:a19:ef15:: with SMTP id n21mr24603026lfh.21.1548868717271;
+ Wed, 30 Jan 2019 09:18:37 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190130041841.GB30598@mellanox.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-SA-Exim-Connect-IP: 68.147.80.180
-X-SA-Exim-Rcpt-To: iommu@lists.linux-foundation.org, jroedel@suse.de, robin.murphy@arm.com, m.szyprowski@samsung.com, hch@lst.de, dri-devel@lists.freedesktop.org, linux-pci@vger.kernel.org, Felix.Kuehling@amd.com, christian.koenig@amd.com, bhelgaas@google.com, rafael@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, jgg@mellanox.com
-X-SA-Exim-Mail-From: logang@deltatee.com
-Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
- vma
-X-SA-Exim-Version: 4.2.1 (built Tue, 02 Aug 2016 21:08:31 +0000)
-X-SA-Exim-Scanned: Yes (on ale.deltatee.com)
+References: <CAHk-=widebSUzbugcLS2txfucxDNOGWFbWBWVseAmxrdypDBrg@mail.gmail.com>
+ <CAHk-=wg=gquY8DT6s1Qb46HkJn=hV2uHeX-dafdb8T4iZAmhdw@mail.gmail.com> <201901300254.x0U2sKdE090905@www262.sakura.ne.jp>
+In-Reply-To: <201901300254.x0U2sKdE090905@www262.sakura.ne.jp>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 30 Jan 2019 09:18:20 -0800
+X-Gmail-Original-Message-ID: <CAHk-=wjEHQZyen7WEG5K5gC_5gEb9gM_r+WtpkfsLkYFstN5XA@mail.gmail.com>
+Message-ID: <CAHk-=wjEHQZyen7WEG5K5gC_5gEb9gM_r+WtpkfsLkYFstN5XA@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix sleeping function warning in alloc_swap_info
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Yang Shi <shy828301@gmail.com>, 
+	Jiufei Xue <jiufei.xue@linux.alibaba.com>, Linux MM <linux-mm@kvack.org>, 
+	joseph.qi@linux.alibaba.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Jan 29, 2019 at 6:54 PM Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+>
+> Then, do we automatically defer vfree() to mm_percpu_wq context?
 
+We might do that, and say "if you call vfree with interrupts disabled,
+it gets deferred".
 
-On 2019-01-29 9:18 p.m., Jason Gunthorpe wrote:
-> Every attempt to give BAR memory to struct page has run into major
-> trouble, IMHO, so I like that this approach avoids that.
-> 
-> And if you don't have struct page then the only kernel object left to
-> hang meta data off is the VMA itself.
-> 
-> It seems very similar to the existing P2P work between in-kernel
-> consumers, just that VMA is now mediating a general user space driven
-> discovery process instead of being hard wired into a driver.
+That said, the deferred case should generally not be a common case
+either. It has real issues, one of which is simply that particularly
+on 32-bit architectures we can run out of vmalloc space even normally,
+and if there are loads that do a lot of allocation and then deferred
+frees, that problem could become really bad.
 
-But the kernel now has P2P bars backed by struct pages and it works
-well. And that's what we are doing in-kernel. We even have a hacky
-out-of-tree module which exposes these pages and it also works (but
-would need Jerome's solution for denying those pages in GUP, etc). So
-why do something completely different in userspace so they can't share
-any of the DMA map infrastructure?
+So I'd almost be happier having a warning if we end up doing the TLB
+flush and defer. At least to find *what* people do.
 
-Logan
+And I do wonder if we should just always warn, and have that
+"might_sleep()", and simply say "if you do vfree from interrupts or
+with interrupts disabled, you really should be aware of these kinds of
+issues, and you really should *show* that you are aware by using
+vfree_atomic()".
+
+                     Linus
 
