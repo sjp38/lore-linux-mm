@@ -2,141 +2,128 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA445C282DA
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 19:08:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CADDC169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 19:09:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B29B32086C
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 19:08:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B29B32086C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 3B2242084A
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 19:09:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="EcqTklMj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B2242084A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4A3B78E0003; Thu, 31 Jan 2019 14:08:01 -0500 (EST)
+	id E1A268E0004; Thu, 31 Jan 2019 14:09:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 454C28E0001; Thu, 31 Jan 2019 14:08:01 -0500 (EST)
+	id DC9508E0001; Thu, 31 Jan 2019 14:09:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3912D8E0003; Thu, 31 Jan 2019 14:08:01 -0500 (EST)
+	id CBA578E0004; Thu, 31 Jan 2019 14:09:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E39A68E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 14:08:00 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id y6so3287559pfn.11
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 11:08:00 -0800 (PST)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D07E8E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 14:09:04 -0500 (EST)
+Received: by mail-yw1-f72.google.com with SMTP id i2so2438178ywb.1
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 11:09:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=NuHG6r+UFIFQiNu07/sCbrHergi71Fuzu2f7cnyC5pE=;
-        b=MQXYVfPNELE9mrs2TCzQHZPr2wuKhGDfPPnl+mBP0PtPHhEI4pYqabnItUugVf3r7p
-         +X0UO2GHt7oF7xz/dUF8MpPPe3K2wuszIMsMjgWBZGELac5sny2X11kHksSGzKoQy5dP
-         cEgWENhHfx2RvJTe7GgHNjkbD0bZleQ2EJLWvFvdRfMc1fgpgXZXTRik2Wuo5+WBfQw2
-         VZ0g0t0SiWECX8n1IfF4k0b/Uz/8qGJMKAL6VDfEOK5F+reNS38Rm+MMTSqHbeSEEs6H
-         coP8g6CqW1ZFV3+4++1Ghh7WFmgRO79MSHZZnNWEeCBFLGjP7xShVVd8iXPuJ4BAvJn0
-         ZPHg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: AJcUukeb7euk8ubJUnik3QtM2VlszxxSEDCPH0mNxSa44rYUE3x2tV2C
-	0R8ubnK+QYCGZTbZC5OiwiL2HTfqxEsfh0DJTTO66wR0gPlXX9WlmP2r9HiY3+fa6bcgO4YSi+J
-	xgKy6Pj2qez0HYrXF4My12vBA8fQQf3I6rdUm9xwQQL6iOKcu8Ud0GonyiyNH1+f9Cg==
-X-Received: by 2002:a17:902:6f09:: with SMTP id w9mr36851663plk.309.1548961680598;
-        Thu, 31 Jan 2019 11:08:00 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4pyu7qjzx0zPn+F7Iwj5ytgjQRHR8maueyf+3qhUftJFa/lrv1oOiewTBEVjT739r9HyZu
-X-Received: by 2002:a17:902:6f09:: with SMTP id w9mr36851621plk.309.1548961679949;
-        Thu, 31 Jan 2019 11:07:59 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548961679; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=oUC4FU8/VnKdsvd1Mpd4ds8bhHaz+ycIOa4ELv9SXhU=;
+        b=KzOxPn1pUqPlLIWvSPMAu12HqiyiJHBhmG6CuCfS1vqtEqadCuCTk1l7N/gGG3uE6n
+         F8f1KPM1dO3wQFmKdFxt2UeEELhfm12+6oPf9Y38tJBFAUnVTNVxWW1+RKLsB20CZyb+
+         iELoZY96bPSDOe47P4s3Jy+o46BL2hqVPxCFKV7GfBY7oo1zGAXjohtRu9lvxEDru38m
+         eUx9gXko7qpicLqRuDuB7VMSY056Hzsl56Q42DKA1rxu9PlUmAHjN9H08YKBT3nUGHOx
+         ovy4M0YsebX1PU0kcQ1VYNoJ55zzPDsfVF634tp8FpocJdVQl+r/BeRi9r9YCyV5QbM7
+         yvrg==
+X-Gm-Message-State: AJcUukcU1szEQchqo/zhhegHCsyhJa4E75pQ8DjzgjxdJVMmHiIqDt4r
+	x5zKdcA5zwzioC7BMX3dZTEVtEtILa37UqJ/B5qZjSEZ2uBGC+jUQkG4ulH8kjTVUtYnToGqASn
+	AlXkHujqIgrgV2gLkQraX7y391dOiF4GhvPIpSiellGg2UqT5QBc8Iau4KjHkwmvPNfK/YX7lTb
+	NGYpUyz6TC5HxBGgBDp4duYovkJ2cBdAbG8IU43wt59JqAgJ80gpP17bw16FI1Y1biKsbcxtIH8
+	lHVOEB2GkBkxhaGyL/Y2pObh/1g7YYv0ZU9PL3lp+Ft9tz/nMZW/iaS8TWboXgDCRhcfLYKIJ0p
+	05KAlw3cBVMhLEUvtDzlvGUCowM5/37CQP3KdXSA1V2uwmtEPj2MGpOcdn+tOlM4szntUJg372C
+	w
+X-Received: by 2002:a81:6188:: with SMTP id v130mr34786205ywb.389.1548961744416;
+        Thu, 31 Jan 2019 11:09:04 -0800 (PST)
+X-Received: by 2002:a81:6188:: with SMTP id v130mr34786164ywb.389.1548961743882;
+        Thu, 31 Jan 2019 11:09:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548961743; cv=none;
         d=google.com; s=arc-20160816;
-        b=G/fieU9iiqGjiGBfiSumlsoQqQfKcGCCSV5KMnxiYFoTSCb8OzexSQjF0LAx7EG04T
-         6Jm7tBHapcisBobKvahdOz6JtEANyQLH+70xMonloem/KWHlFmE8eSN40PN39gE/bHY2
-         /EaGBIf8LGBWgrSMMNBAqiMkD17rcmG63sojHHLqP/99JqgKjOCWhzQqgdUFOE2I2sjf
-         LoQYBewA6lJLQpQyKLx7GRLIevbxuOyGkSZWlTqfPYapMC9CKAW5HHhKg8lUEukZ3rz2
-         w7cZcAngJmGAegpAqdOAPycleZFCnSjFQxTVSDobFTz+7XYyD9Xi1BYPxDsP5o9GVs4m
-         Br5w==
+        b=ti2jZpNF9CPfpBZrAadB2pYzrUY3mAy70T0I3G+OUlIFBHuGkLWwFbO7+d/Z5oYjzh
+         myDksFnbzZxAMP/FdlkdbSjRIdCUf2shHSp5l0Y/1nl2kjdzr6F3Dqk4lj0tRPrnCPq2
+         XRDWgREH2n89y45VcRoA+fIgTLBp/cHg63kC/AmEHZV4h0ph+qJnkH2p3Falb62gB1C7
+         clOKM7RP8KZm1c/7og2Ii30J2RMRJw74oVsc7QNL1whUcWOvpSIsRBVn4idrLmbf30sK
+         fDnkJcfFY2RMn9WyJsqgBZWr+kRE+QZC7faKE5/rFLM/pG7RFOWd049h/JtOIeR4ikSx
+         olrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=NuHG6r+UFIFQiNu07/sCbrHergi71Fuzu2f7cnyC5pE=;
-        b=KQrfaullIlhjnrQ2wVD1aWP9F7VRTBWpZdy+/gKQZnM5KQKrC5V7NFfruQDHCykiJN
-         QDRtCW8lyeiMCv9+sXlrq3y6fQ8K/fwEISO27Jn1mveqmPtQdTizjSyu+7QvoftxJbjJ
-         XbPA6PuN0p6PB6Cdx0Xb4CvDAdWuf/+rSFqH+mpI8yeYJrP/+je+IMN+COB2uK+QWmPH
-         UeLhCuLBcJ7VB7odYwRpLjcI9/b19AEOh294VHQDqpTkPobbdAJIt5y0Or8yusSUbBi5
-         in3FANtVySM/66UFREc8DiXjFjueTTuCuZ1IlFAeRHk5Swu6QiDd5d1ic9MNm+Vtc2wR
-         khGA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=oUC4FU8/VnKdsvd1Mpd4ds8bhHaz+ycIOa4ELv9SXhU=;
+        b=s3llNJOVI+uDaAzBu9sqa6kTSCSHVPlzWv8xyGncqCka4V29Xl5eQBU1IqcZ2eK5dr
+         KyapO5IBzi5sW5l78DA4I93Np05uNu0YIzjuOZWyB0GkqtHiNhAAQs01VYB3vf1jIA8E
+         pFhvOwOI/7wzrtk6YATzmURSAiCIEVJsVT5sC9StBHum627PUdbsrxbBN75BCnLqS7TO
+         zlFwuCBYi5lEf6ueNeBCWXnjAuAKlo6CU/LkLDhwvbY+9CxbZCgObNrpHVJOSCXhncy9
+         CnsxbrtlmC2BN4zi6dsWlqCmjKIaD0VYBgPvk67Whov1LAysKvqOk8aLU8LnRZtRXRqO
+         Qzxg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b30si1083645pla.285.2019.01.31.11.07.59
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=EcqTklMj;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.41 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m10sor2880836ybc.43.2019.01.31.11.09.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jan 2019 11:07:59 -0800 (PST)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        (Google Transport Security);
+        Thu, 31 Jan 2019 11:09:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 300FC4598;
-	Thu, 31 Jan 2019 19:07:59 +0000 (UTC)
-Date: Thu, 31 Jan 2019 11:07:57 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: Chris Down <chris@chrisdown.name>, kbuild-all@01.org, Johannes Weiner
- <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=EcqTklMj;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.41 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chrisdown.name; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=oUC4FU8/VnKdsvd1Mpd4ds8bhHaz+ycIOa4ELv9SXhU=;
+        b=EcqTklMjPwIuRTZ7IFzFmVGFnelzvLo0DACl8Xhfu+zaSXCEAxd7SSCyWaDvqfQXMk
+         MTdXzScp5wHUcidNEiHBqNs8ZAIm7rNRw7OVAIQN41fr7aV1MKwgkzc3sy00JlsByeY2
+         AMUngl6H06O/EYfWPaqolNcebwDn78QqO2YNA=
+X-Google-Smtp-Source: ALg8bN54A77sdRfkNvNhvDvQHa8JiqnHLCy3kg+/ebm0KyDHN2kWjJe2pxfd8XCfzuKsJbyGtk+anQ==
+X-Received: by 2002:a25:3b51:: with SMTP id i78mr29742739yba.144.1548961743241;
+        Thu, 31 Jan 2019 11:09:03 -0800 (PST)
+Received: from localhost ([2620:10d:c091:200::7:7e97])
+        by smtp.gmail.com with ESMTPSA id r20sm1923230ywa.13.2019.01.31.11.09.02
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 31 Jan 2019 11:09:02 -0800 (PST)
+Date: Thu, 31 Jan 2019 14:09:02 -0500
+From: Chris Down <chris@chrisdown.name>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Linux Memory Management List <linux-mm@kvack.org>
 Subject: Re: [mmotm:master 203/305] mm/memcontrol.c:5629:52: error:
  'THP_FAULT_ALLOC' undeclared; did you mean 'THP_FILE_ALLOC'?
-Message-Id: <20190131110757.6b975f1e787dc7adf414a162@linux-foundation.org>
-In-Reply-To: <201902010206.hcZ8gj0z%fengguang.wu@intel.com>
+Message-ID: <20190131190902.GB6743@chrisdown.name>
 References: <201902010206.hcZ8gj0z%fengguang.wu@intel.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+ <20190131110757.6b975f1e787dc7adf414a162@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20190131110757.6b975f1e787dc7adf414a162@linux-foundation.org>
+User-Agent: Mutt/1.11.2 (2019-01-07)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000300, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 1 Feb 2019 02:57:08 +0800 kbuild test robot <lkp@intel.com> wrote:
+Andrew Morton writes:
+>Thanks.    This, I assume:
 
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   a4186de8d65ec2ca6c39070ef1d6795a0b4ffe04
-> commit: 471431309f7656128a65d6df0c5c47ed112635a0 [203/305] mm: memcontrol: expose THP events on a per-memcg basis
-> config: ia64-allmodconfig (attached as .config)
-> compiler: ia64-linux-gcc (GCC) 8.2.0
-> reproduce:
->         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout 471431309f7656128a65d6df0c5c47ed112635a0
->         # save the attached .config to linux build tree
->         GCC_VERSION=8.2.0 make.cross ARCH=ia64 
-> 
-> All errors (new ones prefixed by >>):
-> 
->    mm/memcontrol.c: In function 'memory_stat_show':
-> >> mm/memcontrol.c:5629:52: error: 'THP_FAULT_ALLOC' undeclared (first use in this function); did you mean 'THP_FILE_ALLOC'?
->      seq_printf(m, "thp_fault_alloc %lu\n", acc.events[THP_FAULT_ALLOC]);
->                                                        ^~~~~~~~~~~~~~~
->                                                        THP_FILE_ALLOC
->    mm/memcontrol.c:5629:52: note: each undeclared identifier is reported only once for each function it appears in
-> >> mm/memcontrol.c:5631:17: error: 'THP_COLLAPSE_ALLOC' undeclared (first use in this function); did you mean 'THP_FILE_ALLOC'?
->          acc.events[THP_COLLAPSE_ALLOC]);
->                     ^~~~~~~~~~~~~~~~~~
->                     THP_FILE_ALLOC
-
-Thanks.    This, I assume:
-
---- a/mm/memcontrol.c~mm-memcontrol-expose-thp-events-on-a-per-memcg-basis-fix
-+++ a/mm/memcontrol.c
-@@ -39,6 +39,7 @@
- #include <linux/shmem_fs.h>
- #include <linux/hugetlb.h>
- #include <linux/pagemap.h>
-+#include <linux/vm_event_item.h>
- #include <linux/smp.h>
- #include <linux/page-flags.h>
- #include <linux/backing-dev.h>
-_
+That might be desirable as well, but it's mostly because of lack of guard on 
+CONFIG_TRANSPARENT_HUGEPAGES :-)
 
