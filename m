@@ -2,335 +2,197 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8631EC282C7
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 08:39:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CA502C169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 08:52:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4EDAC20870
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 08:39:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4EDAC20870
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 9433D2087F
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 08:52:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="YKYYufjE";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="OQYGaN8z"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9433D2087F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ABEC28E0002; Thu, 31 Jan 2019 03:39:04 -0500 (EST)
+	id 22A338E0002; Thu, 31 Jan 2019 03:52:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A6D8E8E0001; Thu, 31 Jan 2019 03:39:04 -0500 (EST)
+	id 1B19C8E0001; Thu, 31 Jan 2019 03:52:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 936BD8E0002; Thu, 31 Jan 2019 03:39:04 -0500 (EST)
+	id 0546F8E0002; Thu, 31 Jan 2019 03:52:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DB358E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 03:39:04 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id l17so453927wme.1
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 00:39:04 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CB8548E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 03:52:07 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id n95so2793818qte.16
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 00:52:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=9XVgGoExlWMi0foUCYMonQdWUrzSOZJtsDtzteW9af0=;
-        b=H8CvCbIsFfXiiF2rFRT9yonD0Xygn0cU5dJ9lJFekgGuw7RC5ZZCmhQsQ30aGnuffn
-         FDMhn1PJ8qdtwjrOzRyFVwFIZJlq1krgO+3c3XbcooDLN55zSb+cikVNVJr/jjIZjoaB
-         7lczQgmCszo3ImGzA0NvBUKLzWvD9aoD/gU/EpsecDiVbuu7yKeI5jEbVU/jmFU3O0xp
-         JT2tkxQgYjguBkcxTVnOjAuLyFgwDJs2/OtxCtsMvIPLAskLD27hooUgw68zXWV8MCzk
-         AsY0+D1YuLLNCT4sKk35IM0N6d/AdFqwVkykdYZIIY9EiF55VI7bswAmj3Jv4Grc/ti4
-         YrFg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AJcUukezAAKdL0slbT2VCyNutHPjNGqoodytzxun3f1q0edqRuadYaLj
-	XKf8HJWNH6suF471H09qgBICILSeDdQRRBjjHuT1TpViCne+UMBdGthRdyWSpLqa7gzc/kjvv5+
-	S/xKVUhNnAjMJDiJkJ6+E8On+/DBFeGKXEt5OIaOtM7Pnk34Qq9rqy48TguDwSdMcjQ==
-X-Received: by 2002:adf:ce02:: with SMTP id p2mr35973470wrn.185.1548923943679;
-        Thu, 31 Jan 2019 00:39:03 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN644a2K4YTIOGVa0BP3d1c9olkyWzmxLAcVBjlanI+vbhOqLe0Q0xTnFM0E8eZUd+rBSdxG
-X-Received: by 2002:adf:ce02:: with SMTP id p2mr35973402wrn.185.1548923942632;
-        Thu, 31 Jan 2019 00:39:02 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548923942; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
+         :subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=fVvqtshcW3aQ/fCzF3Idj5wTT7LAWXWjPWnicnLXBQU=;
+        b=m5spXg24aMv47FRkEknWIbWx1L7gflxTWu/xOgInBRZ1u7msF3LQBktxgf4hf2EPdE
+         gc19gxabS1RQqe4hNsoNCk3ECoPfJRIevDSoS/Rz58cyCMz0KQkNrNZcjgKKXcVLj/wo
+         8q8i3y0Bo0ejyqDE3+cQyHCrSH+C3CcWzEYrBrJ1PCbDanUA/yaXmskUHXE8dJLpw0DW
+         dFkr02GUUWvYL6u49WzWKikoxzLbkHwc9yVC/ydUjwJFQKNEMtw8/9VB6TvlKpBi+pjs
+         BYnahMoLbWT4k8IqcrQtsHQ169wLuAz/2eYl8o0WG/p7O2eE2ryhw+k55Tefxwo3U8/T
+         XRyg==
+X-Gm-Message-State: AJcUuke1xkeKVH1TePaXFeGOyl+lM/4kVypK9EHJ4kknx1nsoda0+cRA
+	xsMR+K0R6QmlSMRQIB0TeO13pmfil1lB1JPXTUvr0cSJsZYaQAbKpjTV5Y4269ND60ZIJNbpoOJ
+	KjqZiKvomqudXwbENMxzU7MH4SoZaZuOYhXaRsrXiE9ATuhxiY7NqFBr+jivjZWNS0A==
+X-Received: by 2002:ae9:dc47:: with SMTP id q68mr31420635qkf.111.1548924727546;
+        Thu, 31 Jan 2019 00:52:07 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4qpjLEFmi89uTygVZjftBBF4Urgn/kyEl30Fq06sNsgcBEILttSVCBxRo/80nSukkKaNue
+X-Received: by 2002:ae9:dc47:: with SMTP id q68mr31420613qkf.111.1548924727028;
+        Thu, 31 Jan 2019 00:52:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548924727; cv=none;
         d=google.com; s=arc-20160816;
-        b=z8ug0nTN9CCj4EuV8CF7PcSmtLVghR+wSzCNX0rH+vOgBQyK9ckZIJpC+rlnpzO9p8
-         iyo2jA5ziPqm30rlav8Z85qDvMfy33bnABpQ3E5IB743b3mv6646Q8waku8nTFk3Oovz
-         vC0BSOjR6L0y7gHra4U1qkKLwN7hf4im0qvRX+j2eLFYbJsCx5Y8FX4YYoJBE9GZeuSd
-         MfCqI7KP9+Eeqi/L/AzmKY2yd8B6xV5YOLsUjDJct1ze4GhyZX4nOm4eDbyBHCtVrCQ5
-         DJLOIVLfdysiJRagvWk6tXyJ2WAbFs1uDJlEBcfHNO1wyWG2voeqprNp8+6YymM85X26
-         lAwA==
+        b=vhcuNBA7ZOQImkIkvdxFySOdhGdmahIo1aFc+AVR8FM7fNXAQEuQ71KWOdxfetKOQ5
+         FzfJuKPlmaDBErb/gdhhlh3UpiQ8O9KgSMMbBNNS6FqP0VvWREpQVNWLFtHtBIqgCeeg
+         ofk41hjJ1bc/pzrY5X//nR5YV11XuoXK8xXc4Do00U3pHR9Q9kSF+zZCwad9jnO86W++
+         DhTv6T5lUccMQlAKVv2E0MxlHf2TnpjhlLevNkYCGbZw5U+hIFkLdVDzLT+UWCblCZW1
+         mW9QoKfrdu2GVzX5dVe7ADkv5dWRlBKAuhf7ijry8OgolQ+zqjVucfg2CEwNyDTqNOIy
+         tIIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=9XVgGoExlWMi0foUCYMonQdWUrzSOZJtsDtzteW9af0=;
-        b=ht2+dLcykF+nn/bfdlTS68xaNZKZ9NQiUgEevwFmUMnBg1HKPRsoHyWlIZYFhkXwKL
-         ps/UmcNtMAjGx8iIDFQ9hUsUV4TchvOoYPCk5zQXpTcct9xbGhyfzOj2d2O/kImpbdNR
-         OHjwzOhz5s58/fqGdgb+VYaAX2Ro+CLCdwFseOuaisj5fYsFmntQsHzhvU9cYYQSFd0p
-         SV0yHFMClvOFsYJ2tCXWfVZ+N47GPwG78EFCf8UZRIgukSNRsUL8plDzod5jSJfhZdq8
-         T/7QalJ0qB9uFVY+vPYLNlIy6wihRfDXFZLoh3ibpY9Pw8OiF3MZdnTlzpfPtmbNvxFZ
-         TMEQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
+        bh=fVvqtshcW3aQ/fCzF3Idj5wTT7LAWXWjPWnicnLXBQU=;
+        b=xfizEIVVbNSFmJPRFzSd2ItNP2Zoq9ASUpvBtANgRYqqmV1iK7qD4W+3nF8oZ+onOl
+         iFOUS3kBlUlXN61sZ0RXhu/dp/Dbqod3+9cokP0r8GaVYDifAFUeNVJj/aUiHREmL2al
+         ru9x2+Bml7dBv2QW60SUOd7G9AHAGupwTgqsvTFglNrU53k+4qcnoxrW21RLbaPbs5M9
+         7d4TCQShYx9B0mmUhLCi0kzGg7yunz/y6m21mVeinWLmOfgNXV1+X0CeE15MbpsBobi+
+         gt1PEBuQ8a2ULRw0nPGpLys8W0bZmC/lFTN89eSHt+bTYc8C29PzDCLiw30MW5P4wBUw
+         jfQA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id t17si2791351wrr.69.2019.01.31.00.39.02
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=YKYYufjE;
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=OQYGaN8z;
+       spf=neutral (google.com: 64.147.123.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from wout2-smtp.messagingengine.com (wout2-smtp.messagingengine.com. [64.147.123.25])
+        by mx.google.com with ESMTPS id v126si2763547qka.234.2019.01.31.00.52.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jan 2019 00:39:02 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Thu, 31 Jan 2019 00:52:06 -0800 (PST)
+Received-SPF: neutral (google.com: 64.147.123.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=64.147.123.25;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0V8VbWQ088142
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 03:39:01 -0500
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qbw8f1cjs-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 03:39:00 -0500
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 31 Jan 2019 08:38:58 -0000
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 31 Jan 2019 08:38:48 -0000
-Received: from d06av24.portsmouth.uk.ibm.com (d06av24.portsmouth.uk.ibm.com [9.149.105.60])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x0V8clRi8782276
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Thu, 31 Jan 2019 08:38:48 GMT
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id BF89342052;
-	Thu, 31 Jan 2019 08:38:46 +0000 (GMT)
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 4515642042;
-	Thu, 31 Jan 2019 08:38:44 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.84])
-	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Thu, 31 Jan 2019 08:38:44 +0000 (GMT)
-Date: Thu, 31 Jan 2019 10:38:42 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com,
-        kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com,
-        sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org,
-        linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com,
-        treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com,
-        stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de,
-        airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org,
-        pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org,
-        boris.ostrovsky@oracle.com, jgross@suse.com,
-        linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-        linux-arm-kernel@lists.infradead.org,
-        linux1394-devel@lists.sourceforge.net, dri-devel@lists.freedesktop.org,
-        linux-rockchip@lists.infradead.org, xen-devel@lists.xen.org,
-        iommu@lists.linux-foundation.org, linux-media@vger.kernel.org
-Subject: Re: [PATCHv2 1/9] mm: Introduce new vm_insert_range and
- vm_insert_range_buggy API
-References: <20190131030812.GA2174@jordon-HP-15-Notebook-PC>
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=YKYYufjE;
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=OQYGaN8z;
+       spf=neutral (google.com: 64.147.123.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
+	by mailout.west.internal (Postfix) with ESMTP id 1DEF72010;
+	Thu, 31 Jan 2019 03:52:05 -0500 (EST)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute5.internal (MEProxy); Thu, 31 Jan 2019 03:52:05 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
+	:from:to:cc:subject:message-id:references:mime-version
+	:content-type:in-reply-to; s=fm2; bh=fVvqtshcW3aQ/fCzF3Idj5wTT7L
+	AWXWjPWnicnLXBQU=; b=YKYYufjEdGtvRUN8vPDv4LMSdt0+Xym/egEtYMCpiLB
+	V5+fkvE26N+Pofy2akjpvYZxa7WUUTcPpZd7SMiDx+QVgEHVq36qfKwhQRnsToew
+	YQJFI0SR7caVBqulssTpnseQxQIJnpUAx2gtf/18/Us3OygXJaPSyWZk/iQtcdr0
+	gIAgHph10pubckWQysDfJOHXNr+s6q52j7a1penC/xABGHSt83MP50aIQTYAjLTT
+	Wues5zYYBq/RYigODJvdA9LOsafKUyHIxvar+ioHjHO575Aex1y9Xj4a97dKFEf6
+	yro4R04OHwmVXFyDtIhD+uGPOAFTktmFz+kd5oR3Hlw==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-type:date:from:in-reply-to
+	:message-id:mime-version:references:subject:to:x-me-proxy
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm1; bh=fVvqts
+	hcW3aQ/fCzF3Idj5wTT7LAWXWjPWnicnLXBQU=; b=OQYGaN8zVA74Ld/UTcwIJI
+	WP3knQxhG+KbEmjVJ3plFO8GBE39iu+dfo9ArI3ECPtU/SUUXQuIG46e62Tn7Olz
+	Ff0wVNjwj+0qgfbHCFl6VXnaTCcs5VHNSVDqi4GcbB+xGelhakWl9mPJtlIoKSEH
+	MUaEERXQADdne7PnB+zOrmPgiHF8OXnTjdZWQaJXNUNQAEdlISZnG4KEkSp64Cot
+	/FjQcvEAWc+wcATPoO3TiRD8FBDNuFLLTC7mCbjokSZRe4jxjP/VsA4lQ+Zk6dJD
+	cRHPYqEY4woPNXSMIp9wabPoHJE7LFL/lGYcsKCf9bZUdiyRGjjt1hLCFQUDDqwQ
+	==
+X-ME-Sender: <xms:MrdSXGCXafpvRCD0XQ0LAG1j3evpPI0Zbh2D1JZazdyLHOeNPm5RVA>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledrjeehgdduvdehucetufdoteggodetrfdotf
+    fvucfrrhhofhhilhgvmecuhfgrshhtofgrihhlpdfquhhtnecuuegrihhlohhuthemucef
+    tddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenfghrlhcuvffnffculdeftd
+    dmnecujfgurhepfffhvffukfhfgggtuggjofgfsehttdertdforedvnecuhfhrohhmpedf
+    vfhosghinhcuvedrucfjrghrughinhhgfdcuoehmvgesthhosghinhdrtggtqeenucfkph
+    epuddukedrvdduuddrvddufedruddvvdenucfrrghrrghmpehmrghilhhfrhhomhepmhgv
+    sehtohgsihhnrdgttgenucevlhhushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:MrdSXIQ3QDL0fzH1kICB-JFxLUROfuvRlrrcvgBDGBC04VqWT5XjFQ>
+    <xmx:MrdSXMq2SSdeIhRQymvWgxx8hpu5l-kBzRNuOsJqjx64i2NKjrG6xQ>
+    <xmx:MrdSXCzRZa0grsWLxLCnYFI8sRFnMskUbuNLF6e6tESFuVqqoAWYCg>
+    <xmx:NLdSXFQ6D4W43LDdvv_YXapYzxHHW7WZ2iZa6QHMHkrvIW7PNxzszg>
+Received: from localhost (ppp118-211-213-122.bras1.syd2.internode.on.net [118.211.213.122])
+	by mail.messagingengine.com (Postfix) with ESMTPA id 63A9FE412C;
+	Thu, 31 Jan 2019 03:52:01 -0500 (EST)
+Date: Thu, 31 Jan 2019 19:51:53 +1100
+From: "Tobin C. Harding" <me@tobin.cc>
+To: William Kucharski <william.kucharski@oracle.com>
+Cc: Christopher Lameter <cl@linux.com>,
+	"Tobin C. Harding" <tobin@kernel.org>,
+	Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 1/3] slub: Fix comment spelling mistake
+Message-ID: <20190131085153.GB23538@eros.localdomain>
+References: <20190131041003.15772-1-me@tobin.cc>
+ <20190131041003.15772-2-me@tobin.cc>
+ <9C8C1658-0418-41A9-9A74-477DB83EB6EF@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190131030812.GA2174@jordon-HP-15-Notebook-PC>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19013108-0008-0000-0000-000002B93473
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19013108-0009-0000-0000-000022253606
-Message-Id: <20190131083842.GE28876@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-01-31_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1901310068
+In-Reply-To: <9C8C1658-0418-41A9-9A74-477DB83EB6EF@oracle.com>
+X-Mailer: Mutt 1.11.2 (2019-01-07)
+User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 31, 2019 at 08:38:12AM +0530, Souptick Joarder wrote:
-> Previouly drivers have their own way of mapping range of
-> kernel pages/memory into user vma and this was done by
-> invoking vm_insert_page() within a loop.
+On Thu, Jan 31, 2019 at 01:10:21AM -0700, William Kucharski wrote:
 > 
-> As this pattern is common across different drivers, it can
-> be generalized by creating new functions and use it across
-> the drivers.
 > 
-> vm_insert_range() is the API which could be used to mapped
-> kernel memory/pages in drivers which has considered vm_pgoff
+> > On Jan 30, 2019, at 9:10 PM, Tobin C. Harding <me@tobin.cc> wrote:
+> > 
+> > Signed-off-by: Tobin C. Harding <tobin@kernel.org>
+> > ---
+> > include/linux/slub_def.h | 2 +-
+> > 1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+> > index 3a1a1dbc6f49..201a635be846 100644
+> > --- a/include/linux/slub_def.h
+> > +++ b/include/linux/slub_def.h
+> > @@ -81,7 +81,7 @@ struct kmem_cache_order_objects {
+> >  */
+> > struct kmem_cache {
+> > 	struct kmem_cache_cpu __percpu *cpu_slab;
+> > -	/* Used for retriving partial slabs etc */
+> > +	/* Used for retrieving partial slabs etc */
+> > 	slab_flags_t flags;
+> > 	unsigned long min_partial;
+> > 	unsigned int size;	/* The size of an object including meta data */
+> > -- 
 > 
-> vm_insert_range_buggy() is the API which could be used to map
-> range of kernel memory/pages in drivers which has not considered
-> vm_pgoff. vm_pgoff is passed default as 0 for those drivers.
+> If you're going to do this cleanup, make the comment in line 84 grammatical:
 > 
-> We _could_ then at a later "fix" these drivers which are using
-> vm_insert_range_buggy() to behave according to the normal vm_pgoff
-> offsetting simply by removing the _buggy suffix on the function
-> name and if that causes regressions, it gives us an easy way to revert.
-> 
-> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> Suggested-by: Russell King <linux@armlinux.org.uk>
-> Suggested-by: Matthew Wilcox <willy@infradead.org>
-> ---
->  include/linux/mm.h |  4 +++
->  mm/memory.c        | 81 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  mm/nommu.c         | 14 ++++++++++
->  3 files changed, 99 insertions(+)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 80bb640..25752b0 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2565,6 +2565,10 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
->  int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
->  			unsigned long pfn, unsigned long size, pgprot_t);
->  int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
-> +int vm_insert_range(struct vm_area_struct *vma, struct page **pages,
-> +				unsigned long num);
-> +int vm_insert_range_buggy(struct vm_area_struct *vma, struct page **pages,
-> +				unsigned long num);
->  vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->  			unsigned long pfn);
->  vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
-> diff --git a/mm/memory.c b/mm/memory.c
-> index e11ca9d..0a4bf57 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1520,6 +1520,87 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
->  }
->  EXPORT_SYMBOL(vm_insert_page);
-> 
-> +/**
-> + * __vm_insert_range - insert range of kernel pages into user vma
-> + * @vma: user vma to map to
-> + * @pages: pointer to array of source kernel pages
-> + * @num: number of pages in page array
-> + * @offset: user's requested vm_pgoff
-> + *
-> + * This allows drivers to insert range of kernel pages they've allocated
-> + * into a user vma.
-> + *
-> + * If we fail to insert any page into the vma, the function will return
-> + * immediately leaving any previously inserted pages present.  Callers
-> + * from the mmap handler may immediately return the error as their caller
-> + * will destroy the vma, removing any successfully inserted pages. Other
-> + * callers should make their own arrangements for calling unmap_region().
-> + *
-> + * Context: Process context.
-> + * Return: 0 on success and error code otherwise.
-> + */
-> +static int __vm_insert_range(struct vm_area_struct *vma, struct page **pages,
-> +				unsigned long num, unsigned long offset)
-> +{
-> +	unsigned long count = vma_pages(vma);
-> +	unsigned long uaddr = vma->vm_start;
-> +	int ret, i;
-> +
-> +	/* Fail if the user requested offset is beyond the end of the object */
-> +	if (offset > num)
-> +		return -ENXIO;
-> +
-> +	/* Fail if the user requested size exceeds available object size */
-> +	if (count > num - offset)
-> +		return -ENXIO;
-> +
-> +	for (i = 0; i < count; i++) {
-> +		ret = vm_insert_page(vma, uaddr, pages[offset + i]);
-> +		if (ret < 0)
-> +			return ret;
-> +		uaddr += PAGE_SIZE;
-> +	}
-> +
-> +	return 0;
-> +}
-> +
-> +/**
-> + * vm_insert_range - insert range of kernel pages starts with non zero offset
-> + * @vma: user vma to map to
-> + * @pages: pointer to array of source kernel pages
-> + * @num: number of pages in page array
-> + *
-> + * Maps an object consisting of `num' `pages', catering for the user's
-> + * requested vm_pgoff
-> + *
+> /* Used for retrieving partial slabs, etc. */
 
-The elaborate description you've added to __vm_insert_range() is better put
-here, as this is the "public" function.
+Nice grammar, I didn't know to put a comma there.  Will fix and re-spin.
 
-> + * Context: Process context. Called by mmap handlers.
-> + * Return: 0 on success and error code otherwise.
-> + */
-> +int vm_insert_range(struct vm_area_struct *vma, struct page **pages,
-> +				unsigned long num)
-> +{
-> +	return __vm_insert_range(vma, pages, num, vma->vm_pgoff);
-> +}
-> +EXPORT_SYMBOL(vm_insert_range);
-> +
-> +/**
-> + * vm_insert_range_buggy - insert range of kernel pages starts with zero offset
-> + * @vma: user vma to map to
-> + * @pages: pointer to array of source kernel pages
-> + * @num: number of pages in page array
-> + *
-> + * Maps a set of pages, always starting at page[0]
-
-Here I'd add something like:
-
-Similar to vm_insert_range(), except that it explicitly sets @vm_pgoff to
-0. This function is intended for the drivers that did not consider
-@vm_pgoff.
-
-> vm_insert_range_buggy() is the API which could be used to map
-> range of kernel memory/pages in drivers which has not considered
-> vm_pgoff. vm_pgoff is passed default as 0 for those drivers.
-
-> + *
-> + * Context: Process context. Called by mmap handlers.
-> + * Return: 0 on success and error code otherwise.
-> + */
-> +int vm_insert_range_buggy(struct vm_area_struct *vma, struct page **pages,
-> +				unsigned long num)
-> +{
-> +	return __vm_insert_range(vma, pages, num, 0);
-> +}
-> +EXPORT_SYMBOL(vm_insert_range_buggy);
-> +
->  static vm_fault_t insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->  			pfn_t pfn, pgprot_t prot, bool mkwrite)
->  {
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index 749276b..21d101e 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -473,6 +473,20 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
->  }
->  EXPORT_SYMBOL(vm_insert_page);
+> Then change lines 87 and 88 to remove the space between "meta" and "data" as the
+> word is "metadata" (as can be seen at line 102) and remove the period at the end
+> of the comment on line 89 ("Free pointer offset.")
 > 
-> +int vm_insert_range(struct vm_area_struct *vma, struct page **pages,
-> +			unsigned long num)
-> +{
-> +	return -EINVAL;
-> +}
-> +EXPORT_SYMBOL(vm_insert_range);
-> +
-> +int vm_insert_range_buggy(struct vm_area_struct *vma, struct page **pages,
-> +				unsigned long num)
-> +{
-> +	return -EINVAL;
-> +}
-> +EXPORT_SYMBOL(vm_insert_range_buggy);
-> +
->  /*
->   *  sys_brk() for the most part doesn't need the global kernel
->   *  lock, except when an application is doing something nasty
-> -- 
-> 1.9.1
+> You might also want to change lines 125-127 to be a single line comment:
 > 
+> /* Defragmentation by allocating from a remote node */
+> 
+> so the commenting style is consistent throughout.
 
--- 
-Sincerely yours,
-Mike.
+Will do with pleasure, thanks for the tips (and the review).
+
+thanks,
+Tobin.
 
