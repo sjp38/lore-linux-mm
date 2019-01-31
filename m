@@ -2,165 +2,174 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CB94DC169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 11:34:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 35F62C169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 12:04:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 89E1E218EA
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 11:34:51 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="AhA68lec"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 89E1E218EA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 00CE520857
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 12:04:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00CE520857
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=gruss.cc
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C56A8E0003; Thu, 31 Jan 2019 06:34:51 -0500 (EST)
+	id 719BD8E0002; Thu, 31 Jan 2019 07:04:20 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 074868E0001; Thu, 31 Jan 2019 06:34:51 -0500 (EST)
+	id 6C6638E0001; Thu, 31 Jan 2019 07:04:20 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ECD8E8E0003; Thu, 31 Jan 2019 06:34:50 -0500 (EST)
+	id 56CCC8E0002; Thu, 31 Jan 2019 07:04:20 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id ADE828E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 06:34:50 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id h10so2155926plk.12
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 03:34:50 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ED9BD8E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 07:04:19 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id b7so1241619eda.10
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 04:04:19 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=tG7iZlGAHpTabFEMX3yuBH7oDEDoZZ3WfHqqGxaohM4=;
-        b=ITU4Upyl87km5M2wztrtGDpKFJGJCmuK9XWRDMi/QOg7UrgnZH7Mbjl5pwW6aCPd3B
-         7Zo0XxBTZ5uzCB6X+mnajDi2sp/l3uaXhhKsR3Ab19H/oYJb8w/7jiijugCUiBJh886l
-         en7F3hRcWBBSQIAnuVpa1KQ6Hu8PsFflv5tJNWO+wqwKHGlLRSA3itumaEzusXd6fVh/
-         MFqu3MfYzoxZw8Lo9+Ql9swFRWIQJmcFYIsvdlZ3CkOwlU18hEYE7jfDYofFU0lYxy/m
-         IVySy0iDDR6mt5x1PnVyTl9aWHX+ABjsZNhxJjmMohtpM0olreJMgH8rLgZpEDAlgksU
-         zJXw==
-X-Gm-Message-State: AJcUukcnHyDmvGzcHaPj/RiM3FHfZhi+0eWa44RJlzz2vFh6JuEip1Au
-	LoKPZIAWDXetK4kvGGuJZGtCAI40hyhVmAL9xtgkuERG7SK/fO4iEfgcDmAguB/UNTRdF+TSCd4
-	wNBLvbpcN4ihMeyHOJQz3iABsm0LjmRrx7cP2O1OwyUya7xjY0PLU/xknTh7IFjs18Q==
-X-Received: by 2002:a63:20e:: with SMTP id 14mr31063530pgc.161.1548934490289;
-        Thu, 31 Jan 2019 03:34:50 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5Q3wxnInBSn6m30cNdjZBkw/p3nyBA07M2KWlzos2qLpAZSMGXB6CCTsG2zsrSjEOrHQuQ
-X-Received: by 2002:a63:20e:: with SMTP id 14mr31063500pgc.161.1548934489618;
-        Thu, 31 Jan 2019 03:34:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548934489; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=FvQS4YPnZ/bQ6XznWHMvr42/u5olXB9zSvFbdP2NIbE=;
+        b=OA5C/0OROe++pAESLG+NbWKeUz1sDF51RbGBKvYBpn67wn4SgRQvj4mdoLkVduAua0
+         aII5Pr1ePvE20YKP/Yax3mURyQMJ3pEYpch3IztHk+lGbXdu+rXnvpnHKO378mjX3yoS
+         OgS8grOEe4ZR3sFCG7B+HdSRLQQrHaZ7A3kMfEzNWe2SgrohXcD1cTZiv3Ce/umNlSVE
+         /3QspPtLKCI+rAk5CFAsfWJEvANKHQbbwsSgk9FvUVkm9Zba7vtEtS672/NEr7Ipt0VL
+         dmbGIjcjGaTFHfzLHWO2ntZX+r0YKi80IUHJxRoOC4V13EUMv0hwk3BWII/WpmhbqWE5
+         RBEA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of daniel@gruss.cc designates 80.82.209.135 as permitted sender) smtp.mailfrom=daniel@gruss.cc
+X-Gm-Message-State: AJcUukc9fKIJiM0z1Qg9fHLAEUJKjySt32YcB4xAr32xpQvEGf3Z3ymZ
+	J1ULdoRyj5REB4clkSxD68BSje+lyDjgspWiolpRuwFZO72T7RNGm3tctO6VdY8hjHPeyE5w7hj
+	ZLZvWhzgSITQCtXuuDujgX4rROADpenLpwow+S0fP1Cwt+o1PkaHpfrzwVU4VXwU22Q==
+X-Received: by 2002:aa7:cf88:: with SMTP id z8mr34608065edx.208.1548936259528;
+        Thu, 31 Jan 2019 04:04:19 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4yG8BJO+dhly7Og+no7lrBGsvkd5B5MT8Ax2URGlfk4ntVng5E6eqEIbYJCYcXZMj7zPPs
+X-Received: by 2002:aa7:cf88:: with SMTP id z8mr34608015edx.208.1548936258738;
+        Thu, 31 Jan 2019 04:04:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548936258; cv=none;
         d=google.com; s=arc-20160816;
-        b=DgwaeZzLCEwW1gIl7ByzaTQjj+Y2XAQFsJniP6rS30MlSMMBbr7gxvV40ET0kfn+Rv
-         nfmpWLmXThSY5mjY1nHWDbraZfyZT3k+KRRKyLa70Yj0a2rYRmDEu4HMILEV0JcnBXld
-         9Tm1Mb/ch+aAsaXJSXtLdUk5DM9ppTHKDW6xOQpaLCBAVqe9ig2bTUqYv1Zq25gEhc9v
-         kCRtzBiopT54bPyqKL4s67BfxhS/ErDx/RKZLM5iI1O9nKwwfF+cfe/8U8hi9ohFoASv
-         Nk8ym2paaKn7I1q+vCdEHbam99oOUCkRdt7ApK6bYtIsBdl+BhXAgotHTE+d4vK7nWSq
-         O1Sw==
+        b=gJO0SbO/Vj1BuSfGrFEq6QVQilU0VWnVcS1waEC5zeCyiet6Ctaftfo+83GGAv8DI5
+         xagnAiWtp2Zu1oRELW89aTTF+RTHa6PfeSLwpmsHHY4d+Q3CWwYhhCehamb8XRKMiixl
+         kTAyvs3yQix0PKgovhG6C6Rnj8JWv9hV8Dwe3hh3OhKx9XrJW0XM+x9pstOaQwrd3tAc
+         jR6PWK5/sJjnMeU5xsWW0/UNpi4eRNzwukB/WJVB2kF41HBTnR/wLcJSKKzgo99zmu9Q
+         +3RdDjW5DiW/2zd0PfztN0IHuaPU7nxarPVcVo+jx5FuL+GKmFyTupWlYySPmMKhZJQF
+         p39A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=tG7iZlGAHpTabFEMX3yuBH7oDEDoZZ3WfHqqGxaohM4=;
-        b=IJsdJlAP6O5L5Z4eTuzMFBN2WHZLkIbcGCYCLyBZ/OYXlaEi6U5r7WV78qqdxRn52v
-         fxZS2zF3TYZ6vd/d8N/V80AgojUv4V2GQ+61QxIf84ZoOMM03lkEKsKs0uMW2zaNLt14
-         cbCYbu5tI58Afy3N4xkPyFcsL6xKKe0Jx7eWVrrZK+Eg09rRtfDkYy8DLdruRNde5fTK
-         Drg4SekjUlzKva1kA1DPUpw4BUztaJfqJF6wB+EYw/PeUbVnfXOu0Gb3D1m2e46QkfnM
-         2nsFADrHi9idwokEFKYO8cn6UD3+V3lrbtphCCeP5FyY7OpODli7S8igx4pIo+E5oHCE
-         0eLA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=FvQS4YPnZ/bQ6XznWHMvr42/u5olXB9zSvFbdP2NIbE=;
+        b=afWAu+o594GEcgHljHB0qzelov5g4fcQQ1fXhX6EtdRUfWIk7yvvFUZSNS+l+CVK4m
+         S/ObJmY4HtMf3ThIaXOO8l/cZyzCCC77ScdEOT9/K2r3ICW+dhCYLT8Vrg/88rVxc4yI
+         BfKy3sZQtRMkgUhVq+VMEfbJ5fsJNXegBNX4Ga+OgK/MFlpYzP/icPenSgGZsz9e2Xi8
+         EFp+fA5UM8ucJN0fHxZoVMzZyD8Bn39g9MHx5a/4f21fbTudBTPZspQWHDW3JCzLgzMq
+         Pc4M45ayKmozP6qBeq9Iea+DADxXM0A414Kp+BHf2FA4fKf3pwH1WHNf26itIMo6rL1D
+         b1pQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=AhA68lec;
-       spf=pass (google.com: domain of jikos@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jikos@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d10si4063714pgf.136.2019.01.31.03.34.49
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jan 2019 03:34:49 -0800 (PST)
-Received-SPF: pass (google.com: domain of jikos@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+       spf=pass (google.com: domain of daniel@gruss.cc designates 80.82.209.135 as permitted sender) smtp.mailfrom=daniel@gruss.cc
+Received: from mail.gruss.cc (gruss.cc. [80.82.209.135])
+        by mx.google.com with ESMTP id z25si2141127ejr.144.2019.01.31.04.04.18
+        for <linux-mm@kvack.org>;
+        Thu, 31 Jan 2019 04:04:18 -0800 (PST)
+Received-SPF: pass (google.com: domain of daniel@gruss.cc designates 80.82.209.135 as permitted sender) client-ip=80.82.209.135;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=AhA68lec;
-       spf=pass (google.com: domain of jikos@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jikos@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from pobox.suse.cz (prg-ext-pat.suse.com [213.151.95.130])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+       spf=pass (google.com: domain of daniel@gruss.cc designates 80.82.209.135 as permitted sender) smtp.mailfrom=daniel@gruss.cc
+Received: from [10.27.152.141] (unknown [129.27.152.126])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 1859C218AF;
-	Thu, 31 Jan 2019 11:34:45 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1548934489;
-	bh=SFVfJoJ5TREELE0WD6PH6m5/w/yW7Aknfnn9AUYvQP0=;
-	h=Date:From:To:cc:Subject:In-Reply-To:References:From;
-	b=AhA68lecaRUyoHyE8td5xQh/w2blB1dTK5V42cd/a1IxY1uNaZMgLj0HIlwxbFjM+
-	 yxCss+2pzG5OI/nbVrL5M2v1rtvk3vJ/Af+jBtXP7g/zo3vwo9/ivJ3l2OqkROiAHA
-	 NLGcJFt00TOEsgplHJ4wFQmV2eQ8amQeX/+1Fpo0=
-Date: Thu, 31 Jan 2019 12:34:44 +0100 (CET)
-From: Jiri Kosina <jikos@kernel.org>
-To: Florian Weimer <fweimer@redhat.com>
-cc: Vlastimil Babka <vbabka@suse.cz>, 
-    Andrew Morton <akpm@linux-foundation.org>, 
-    Linus Torvalds <torvalds@linux-foundation.org>, 
-    linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
-    linux-api@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, 
-    Greg KH <gregkh@linuxfoundation.org>, Jann Horn <jannh@google.com>, 
-    Dominique Martinet <asmadeus@codewreck.org>, 
-    Andy Lutomirski <luto@amacapital.net>, Dave Chinner <david@fromorbit.com>, 
-    Kevin Easton <kevin@guarana.org>, Matthew Wilcox <willy@infradead.org>, 
-    Cyril Hrubis <chrubis@suse.cz>, Tejun Heo <tj@kernel.org>, 
-    "Kirill A . Shutemov" <kirill@shutemov.name>, 
-    Daniel Gruss <daniel@gruss.cc>
-Subject: Re: [PATCH 2/3] mm/filemap: initiate readahead even if IOCB_NOWAIT
- is set for the I/O
-In-Reply-To: <87imy5f6ir.fsf@oldenburg2.str.redhat.com>
-Message-ID: <nycvar.YFH.7.76.1901311223270.3281@cbobk.fhfr.pm>
-References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm> <20190130124420.1834-1-vbabka@suse.cz> <20190130124420.1834-3-vbabka@suse.cz> <87munii3uj.fsf@oldenburg2.str.redhat.com> <nycvar.YFH.7.76.1901301614501.6626@cbobk.fhfr.pm>
- <87imy5f6ir.fsf@oldenburg2.str.redhat.com>
-User-Agent: Alpine 2.21 (LSU 202 2017-01-01)
+	(Authenticated sender: lava@gruss.cc)
+	by mail.gruss.cc (Postfix) with ESMTPSA id 3AC242A008D;
+	Thu, 31 Jan 2019 12:04:17 +0000 (UTC)
+Subject: Re: [PATCH 2/3] mm/filemap: initiate readahead even if IOCB_NOWAIT is
+ set for the I/O
+To: Vlastimil Babka <vbabka@suse.cz>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-api@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>,
+ Greg KH <gregkh@linuxfoundation.org>, Jann Horn <jannh@google.com>,
+ Jiri Kosina <jkosina@suse.cz>, Dominique Martinet <asmadeus@codewreck.org>,
+ Andy Lutomirski <luto@amacapital.net>, Dave Chinner <david@fromorbit.com>,
+ Kevin Easton <kevin@guarana.org>, Matthew Wilcox <willy@infradead.org>,
+ Cyril Hrubis <chrubis@suse.cz>, Tejun Heo <tj@kernel.org>,
+ "Kirill A . Shutemov" <kirill@shutemov.name>, Jiri Kosina <jikos@kernel.org>
+References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
+ <20190130124420.1834-1-vbabka@suse.cz> <20190130124420.1834-3-vbabka@suse.cz>
+From: Daniel Gruss <daniel@gruss.cc>
+Openpgp: preference=signencrypt
+Autocrypt: addr=daniel@gruss.cc; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <aea9a09a-9d01-fd08-d210-96b94162aba6@gruss.cc>
+Date: Thu, 31 Jan 2019 13:04:16 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20190130124420.1834-3-vbabka@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 31 Jan 2019, Florian Weimer wrote:
+On 1/30/19 1:44 PM, Vlastimil Babka wrote:
+> Close that sidechannel by always initiating readahead on the cache if we
+> encounter a cache miss for preadv2(RWF_NOWAIT); with that in place, probing
+> the pagecache residency itself will actually populate the cache, making the
+> sidechannel useless.
 
-> >> I think this needs to use a different flag because the semantics are so
-> >> much different.  If I understand this change correctly, previously,
-> >> RWF_NOWAIT essentially avoided any I/O, and now it does not.
-> >
-> > It still avoid synchronous I/O, due to this code still being in place:
-> >
-> >                 if (!PageUptodate(page)) {
-> >                         if (iocb->ki_flags & IOCB_NOWAIT) {
-> >                                 put_page(page);
-> >                                 goto would_block;
-> >                         }
-> >
-> > but goes the would_block path only after initiating asynchronous 
-> > readahead.
-> 
-> But it wouldn't schedule asynchronous readahead before?
+I fear this does not really close the side channel. You can time the
+preadv2 function and infer which path it took, so you just bring it down
+to the same as using mmap and timing accesses.
+If I understood it correctly, this patch just removes the advantages of
+preadv2 over mmmap+access for the attacker.
 
-It would, that's kind of the whole point.
 
-> I'm worried that something, say PostgreSQL doing a sequential scan, 
-> would implement a two-pass approach, first using RWF_NOWAIT to process 
-> what's in the kernel page cache, and then read the rest without it.  If 
-> RWF_NOWAIT is treated as a prefetch hint, there could be much more read 
-> activity, and a lot of it would be pointless because the data might have 
-> to be evicted before userspace can use it.
-
-So are you aware of anything already existing, that'd implement this 
-semantics? I've quickly grepped https://github.com/postgres/postgres for 
-RWF_NOWAIT, and they don't seem to use it at all. RWF_NOWAIT is rather 
-new.
-
-The usecase I am aware of is to make sure that the thread doing 
-io_submit() doesn't get blocked for too long, because it has other things 
-to do quickly in order to avoid starving other sub-threads (and delegate 
-the I/O submission to asynchronous context).
-
--- 
-Jiri Kosina
-SUSE Labs
+Cheers,
+Daniel
 
