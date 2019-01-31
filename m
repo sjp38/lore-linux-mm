@@ -2,232 +2,171 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CB0BC169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 06:44:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E7CCDC169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 06:47:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ECBB320881
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 06:44:19 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="JMZ+vLjQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ECBB320881
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
+	by mail.kernel.org (Postfix) with ESMTP id B806820881
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 06:47:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B806820881
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8F1168E0002; Thu, 31 Jan 2019 01:44:19 -0500 (EST)
+	id 370DB8E0002; Thu, 31 Jan 2019 01:47:37 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8A1048E0001; Thu, 31 Jan 2019 01:44:19 -0500 (EST)
+	id 31FB38E0001; Thu, 31 Jan 2019 01:47:37 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7907B8E0002; Thu, 31 Jan 2019 01:44:19 -0500 (EST)
+	id 210158E0002; Thu, 31 Jan 2019 01:47:37 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 20F808E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 01:44:19 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id y7so679095wrr.12
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 22:44:19 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BE9088E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 01:47:36 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id e29so871468ede.19
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 22:47:36 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=cOJiyexC4RhzV3nLmw1xVDcK744oiB5d7rgry5+gXoM=;
-        b=IxIs84ykqFRBXEmDUhgNt3L5LuqO48qqxEfN7+g/0VqkHAlKdiJ+KM4r6U8racS8O6
-         X5od3MOwwF1fznw1j5mfmzz68EodqFMJpkgP366yfgcSLA2qT2R0VjEFE5p7/E1HmvJJ
-         nR0rxUS2kMxJcoOqM4Y1mLH/DIAiltIjKAagGFu3tLRSec5k6B8eXWntP/RySWtWBLO/
-         0eLvZVzS42/3mkwNoIY8nB3yI6wafMeC/mvrqwIR1Hu0++RRgxWmX6KyJVvKGmECeLBc
-         9TMdxdMv6yMMG3v+ETLGJeVmqoDml77XNnDK0SSZdenmanU1ZOH7WgDtSYEQ4kPs9Qy+
-         AS8w==
-X-Gm-Message-State: AJcUukc7rIQKc6FWu5FdhIbzalgqVij2rMyeiFLNk5zPVjYWkuDS9LeY
-	XCDJbpL9Ql2pKi+aqbcIuBTL0C+lsZND/m9Z2LMn03Sp6xpEc9VIqOURxvWtTFhTpMoalyiWO5i
-	ct7ui7dPPAyd5HtwQhxnjyVPqfVD5mpQQ1w6H7TgH0PzsXhZMwn4Qf4Hv9H4jG4u78Q==
-X-Received: by 2002:adf:ae41:: with SMTP id u1mr31686464wrd.20.1548917058641;
-        Wed, 30 Jan 2019 22:44:18 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7iSJw2iFSF3cULJGvko/D6nIzpeJHCRtmM3sJXwZaJNqY328dBOtxXE4vASilLiFkIQWu6
-X-Received: by 2002:adf:ae41:: with SMTP id u1mr31686426wrd.20.1548917057774;
-        Wed, 30 Jan 2019 22:44:17 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548917057; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=8Bl2/VI7OFywD7LEFPhh6EmryvSnC/C/hrVp2tQ+wJA=;
+        b=DcjTeJkgj3Jx2CK5iG2QLEKLpzhAO8W1iO4fcNgQ16BGirqDtRu6eBkss8Lu4of2wJ
+         Z+hMnU2mB0wwCkwcZban1oQ25sEjlx63owQl4AIWqGPhg2rRKCP0J4hWDVB1cNKiB5zO
+         ZEXIif4VY5UXaRamAqz8x2yoLqli1/y8evHQHVlrRNw710HlqDc3RlhNYMjjgKiqQElb
+         vJXxEpZegQOZDS6IRebWFXcLi9P0gfmFI6H5ZEnpVASgrNWtwviutTzsQ6gyS8R29XjF
+         1egRDxEbqrKm+seXUrX6Y2+6ucTnGhiEsQzmixd3BXanpoH5h8bJmoHQmA/nRLwbzzo/
+         NHXw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AJcUukelj2mPUtt8/2jMJk/uxR8AJSCsqcROUQEUTFQIj0SXtK5x5shY
+	bXUOTjKCTXh5v6TQ0tSYuawW8HRfzxLyyWGlfgmeU/VLmoqsQtPuD5NAw4MFHoH3afG7Lhi3p0J
+	kN/lddsGK4gt00+rMBrBb7GqIQ7BPx/vpcJcLnjSFmTyNfugBYqR606u190R3ExU=
+X-Received: by 2002:a50:9977:: with SMTP id l52mr31403513edb.277.1548917256214;
+        Wed, 30 Jan 2019 22:47:36 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6ojOkuYojOt2pICo+pQW7ia6iQczO+fhK1NM6Mm98UzQK6jEK7dDAfNtYDGod/gWwcQwXa
+X-Received: by 2002:a50:9977:: with SMTP id l52mr31403471edb.277.1548917255347;
+        Wed, 30 Jan 2019 22:47:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548917255; cv=none;
         d=google.com; s=arc-20160816;
-        b=GgZLlMH0xvQG7EnLyzDBAIGd+fUYbrqrIjuBQ0+YoOGH8FjIthg/lhzEW2jmuEsaaL
-         QwCMzrgDq/cVf9+2OzQiWY3Y3mdF/lDJ1OtLbfZEu2zxD2ZRSAuyn8T2V6SxAAD+sZ85
-         iYf5nKPqrMcrlXue5GYPxMwLKd+F+Xj+c8jxCFqr6lABflpQ6Rbr+uO+l78AWzBy8rW8
-         uAI9equIDEDdpwYo2V+CClAdx6KV9qbsy8fcCZR2ptdDQOgokFAeTOkWqjbOnB8dsva1
-         28f/ToCLV2bQjuFQd2pP4Em5KXDIfqMPrn4GVdZcyskVtIYeoGEdgnEoeNYQ8BLs6Lly
-         4JGg==
+        b=PcS9K6ULD8PZNz+mjtiwu/z/+k7xEnKsFLurrb0FyaDRLEQ+7Ff5xP8PkbNL1qs43d
+         8lQaYI42HGXMqoZy0Yl+5bY448GDJCAmVYrnLU0MryEUweCryXaNKFnccFlrXrkbxJeJ
+         VxSN1eyDfPSx2z7NKJhqtLr9wqwDSBClWOMxEVOxaKuhFV9oo5z7ljdC1dwayoI4skYE
+         8BHdr8l3ocub/A31y/znJFUn3TV6oHr9iH9fXz+/T7iB2QyeVdM3psgdwQ0nxCIQV726
+         los1sraeLjtyFOW0TBkkpbM/7z3ht+vVUE5k5dnxH30x/gPR/8xBjybO/2hftWB55kRJ
+         Ws7A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=cOJiyexC4RhzV3nLmw1xVDcK744oiB5d7rgry5+gXoM=;
-        b=ptTrNJURRW8zVvDb5a20izVtWyrZsg0KYHoYuZhvvrP3yZ69OWukRWjFrXub/cmJey
-         Mdv5kcOiDPsVPch/fnu+VMK0OdXQSt6bU6qwJ4m+pwXubHJqa/mghsCf7apEPvCNHTx/
-         /7sVLC09J5zefHqpyp4PmE/Gfef5CLpA/iSBn1BjL1jxEC/SGtPBdC5frO4+HdASocZ0
-         zX9N5xxR2iDBcmWwSeinEeZtaIfpeJQJUnNdbQ+MShsaQc9COntAmwFyMYb2UtdX6ihP
-         B/D9DDj0/LaGzCv5SQwNuZcqYVdxDYK94HaByuM1Mual/i1OSCx4Dm0nMZnHcCT1xB8i
-         JkRw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=8Bl2/VI7OFywD7LEFPhh6EmryvSnC/C/hrVp2tQ+wJA=;
+        b=aBVQRh6woEEHNlzS5D3sbwxfsbLMK5PsACV+Mxx3jdiEx63WcNJWPbhfGu9hqrwbLF
+         7Hvtj1HOc+DDUhyPe5ucU8wju06Ihk9ht3p4cfue7Hhg2F102koJQ1dbjnJvzREjAIr+
+         y381JgZpM7J8k1Rph7xrNGjtKM8/2DrA3cLJsfPPgGq8lJfz9u13dVti6O97tek6EmKK
+         S1knAQsK+6iG91XaQLbBMexYMcfvgnMlW7dBsNhx7K6ll8aWNrvVFycbEoXwociSaTjh
+         LJlT6Ip10VIodl20IQkmws1kl12JdOjMH8xLS4mBELcKotU9AI97Yt+VpENCC8EkdR/6
+         xOAw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=JMZ+vLjQ;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id i12si2610255wrw.413.2019.01.30.22.44.17
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r8si2103278edm.118.2019.01.30.22.47.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 22:44:17 -0800 (PST)
-Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
+        Wed, 30 Jan 2019 22:47:35 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=JMZ+vLjQ;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 43qrLS1Crsz9v0QW;
-	Thu, 31 Jan 2019 07:44:16 +0100 (CET)
-Authentication-Results: localhost; dkim=pass
-	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=JMZ+vLjQ; dkim-adsp=pass;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at c-s.fr
-Received: from pegase1.c-s.fr ([192.168.12.234])
-	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id GE1BryDiLvL6; Thu, 31 Jan 2019 07:44:16 +0100 (CET)
-Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 43qrLR6vTNz9v0QV;
-	Thu, 31 Jan 2019 07:44:15 +0100 (CET)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1548917056; bh=cOJiyexC4RhzV3nLmw1xVDcK744oiB5d7rgry5+gXoM=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=JMZ+vLjQ76kryo0d4/3v/CDV0aIlsMdhbsiuclC0eKE0XnqOavCGYfranMcArXvgZ
-	 dV45OC8eZ/80eWqgb+hc9/o9z1Khd3UH2cqOEZvxMsXqASyrcPNuh48OKAIU0LEGhU
-	 t5oaxwZcm23sWI0poHri1Vgox0AoX9rAx2aliPUM=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id BA4FF8B78E;
-	Thu, 31 Jan 2019 07:44:16 +0100 (CET)
-X-Virus-Scanned: amavisd-new at c-s.fr
-Received: from messagerie.si.c-s.fr ([127.0.0.1])
-	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id ETfFXp9TLqKY; Thu, 31 Jan 2019 07:44:16 +0100 (CET)
-Received: from PO15451 (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 8915D8B74C;
-	Thu, 31 Jan 2019 07:44:14 +0100 (CET)
-Subject: Re: [PATCH v2 19/21] treewide: add checks for the return value of
- memblock_alloc*()
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: linux-mm@kvack.org, Rich Felker <dalias@libc.org>,
- linux-ia64@vger.kernel.org, devicetree@vger.kernel.org,
- Catalin Marinas <catalin.marinas@arm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>, x86@kernel.org,
- linux-mips@vger.kernel.org, Max Filippov <jcmvbkbc@gmail.com>,
- Guo Ren <guoren@kernel.org>, sparclinux@vger.kernel.org,
- Christoph Hellwig <hch@lst.de>, linux-s390@vger.kernel.org,
- linux-c6x-dev@linux-c6x.org, Yoshinori Sato <ysato@users.sourceforge.jp>,
- Richard Weinberger <richard@nod.at>, linux-sh@vger.kernel.org,
- Russell King <linux@armlinux.org.uk>, kasan-dev@googlegroups.com,
- Geert Uytterhoeven <geert@linux-m68k.org>, Mark Salter <msalter@redhat.com>,
- Dennis Zhou <dennis@kernel.org>, Matt Turner <mattst88@gmail.com>,
- linux-snps-arc@lists.infradead.org, uclinux-h8-devel@lists.sourceforge.jp,
- Petr Mladek <pmladek@suse.com>, linux-xtensa@linux-xtensa.org,
- linux-alpha@vger.kernel.org, linux-um@lists.infradead.org,
- linux-m68k@lists.linux-m68k.org, Rob Herring <robh+dt@kernel.org>,
- Greentime Hu <green.hu@gmail.com>, xen-devel@lists.xenproject.org,
- Stafford Horne <shorne@gmail.com>, Guan Xuetao <gxt@pku.edu.cn>,
- linux-arm-kernel@lists.infradead.org, Michal Simek <monstr@monstr.eu>,
- Tony Luck <tony.luck@intel.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org,
- linux-kernel@vger.kernel.org, Paul Burton <paul.burton@mips.com>,
- Vineet Gupta <vgupta@synopsys.com>, Andrew Morton
- <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
- "David S. Miller" <davem@davemloft.net>, openrisc@lists.librecores.org,
- Stephen Rothwell <sfr@canb.auug.org.au>
-References: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
- <1548057848-15136-20-git-send-email-rppt@linux.ibm.com>
- <b7c12014-14ae-2a38-900c-41fd145307bc@c-s.fr>
- <20190131064139.GB28876@rapoport-lnx>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Message-ID: <8838f7ab-998b-6d78-02a8-a53f8a3619d9@c-s.fr>
-Date: Thu, 31 Jan 2019 07:44:14 +0100
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id C6088B0EF;
+	Thu, 31 Jan 2019 06:47:34 +0000 (UTC)
+Date: Thu, 31 Jan 2019 07:47:33 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [RFC v2 PATCH] mm: vmscan: do not iterate all mem cgroups for
+ global direct reclaim
+Message-ID: <20190131064733.GL18811@dhcp22.suse.cz>
+References: <1548799877-10949-1-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
-In-Reply-To: <20190131064139.GB28876@rapoport-lnx>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1548799877-10949-1-git-send-email-yang.shi@linux.alibaba.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-Le 31/01/2019 à 07:41, Mike Rapoport a écrit :
-> On Thu, Jan 31, 2019 at 07:07:46AM +0100, Christophe Leroy wrote:
->>
->>
->> Le 21/01/2019 à 09:04, Mike Rapoport a écrit :
->>> Add check for the return value of memblock_alloc*() functions and call
->>> panic() in case of error.
->>> The panic message repeats the one used by panicing memblock allocators with
->>> adjustment of parameters to include only relevant ones.
->>>
->>> The replacement was mostly automated with semantic patches like the one
->>> below with manual massaging of format strings.
->>>
->>> @@
->>> expression ptr, size, align;
->>> @@
->>> ptr = memblock_alloc(size, align);
->>> + if (!ptr)
->>> + 	panic("%s: Failed to allocate %lu bytes align=0x%lx\n", __func__,
->>> size, align);
->>>
->>> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
->>> Reviewed-by: Guo Ren <ren_guo@c-sky.com>             # c-sky
->>> Acked-by: Paul Burton <paul.burton@mips.com>	     # MIPS
->>> Acked-by: Heiko Carstens <heiko.carstens@de.ibm.com> # s390
->>> Reviewed-by: Juergen Gross <jgross@suse.com>         # Xen
->>> ---
->>
->> [...]
->>
->>> diff --git a/mm/sparse.c b/mm/sparse.c
->>> index 7ea5dc6..ad94242 100644
->>> --- a/mm/sparse.c
->>> +++ b/mm/sparse.c
->>
->> [...]
->>
->>> @@ -425,6 +436,10 @@ static void __init sparse_buffer_init(unsigned long size, int nid)
->>>   		memblock_alloc_try_nid_raw(size, PAGE_SIZE,
->>>   						__pa(MAX_DMA_ADDRESS),
->>>   						MEMBLOCK_ALLOC_ACCESSIBLE, nid);
->>> +	if (!sparsemap_buf)
->>> +		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%lx\n",
->>> +		      __func__, size, PAGE_SIZE, nid, __pa(MAX_DMA_ADDRESS));
->>> +
->>
->> memblock_alloc_try_nid_raw() does not panic (help explicitly says: Does not
->> zero allocated memory, does not panic if request cannot be satisfied.).
+On Wed 30-01-19 06:11:17, Yang Shi wrote:
+> In current implementation, both kswapd and direct reclaim has to iterate
+> all mem cgroups.  It is not a problem before offline mem cgroups could
+> be iterated.  But, currently with iterating offline mem cgroups, it
+> could be very time consuming.  In our workloads, we saw over 400K mem
+> cgroups accumulated in some cases, only a few hundred are online memcgs.
+> Although kswapd could help out to reduce the number of memcgs, direct
+> reclaim still get hit with iterating a number of offline memcgs in some
+> cases.  We experienced the responsiveness problems due to this
+> occassionally.
 > 
-> "Does not panic" does not mean it always succeeds.
-
-I agree, but at least here you are changing the behaviour by making it 
-panic explicitly. Are we sure there are not cases where the system could 
-just continue functionning ? Maybe a WARN_ON() would be enough there ?
-
-Christophe
-
->   
->> Stephen Rothwell reports a boot failure due to this change.
+> A simple test with pref shows it may take around 220ms to iterate 8K memcgs
+> in direct reclaim:
+>              dd 13873 [011]   578.542919: vmscan:mm_vmscan_direct_reclaim_begin
+>              dd 13873 [011]   578.758689: vmscan:mm_vmscan_direct_reclaim_end
+> So for 400K, it may take around 11 seconds to iterate all memcgs.
 > 
-> Please see my reply on that thread.
+> Here just break the iteration once it reclaims enough pages as what
+> memcg direct reclaim does.  This may hurt the fairness among memcgs.  But
+> the cached iterator cookie could help to achieve the fairness more or
+> less.
 > 
->> Christophe
->>
->>>   	sparsemap_buf_end = sparsemap_buf + size;
->>>   }
->>>
->>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+> v2: Added some test data in the commit log
+>     Updated commit log about iterator cookie could maintain fairness
+>     Dropped !global_reclaim() since !current_is_kswapd() is good enough
 > 
+>  mm/vmscan.c | 7 +++----
+>  1 file changed, 3 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a714c4f..5e35796 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2764,16 +2764,15 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+>  				   sc->nr_reclaimed - reclaimed);
+>  
+>  			/*
+> -			 * Direct reclaim and kswapd have to scan all memory
+> -			 * cgroups to fulfill the overall scan target for the
+> -			 * node.
+> +			 * Kswapd have to scan all memory cgroups to fulfill
+> +			 * the overall scan target for the node.
+>  			 *
+>  			 * Limit reclaim, on the other hand, only cares about
+>  			 * nr_to_reclaim pages to be reclaimed and it will
+>  			 * retry with decreasing priority if one round over the
+>  			 * whole hierarchy is not sufficient.
+>  			 */
+> -			if (!global_reclaim(sc) &&
+> +			if (!current_is_kswapd() &&
+>  					sc->nr_reclaimed >= sc->nr_to_reclaim) {
+>  				mem_cgroup_iter_break(root, memcg);
+>  				break;
+> -- 
+> 1.8.3.1
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
