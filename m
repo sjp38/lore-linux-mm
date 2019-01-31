@@ -2,183 +2,184 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 21807C282D9
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 16:11:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C127C169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 16:11:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C8CD32085B
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 16:11:04 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linaro.org header.i=@linaro.org header.b="NulEkyw7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8CD32085B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
+	by mail.kernel.org (Postfix) with ESMTP id 44BE82085B
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 16:11:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 44BE82085B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 772B88E0004; Thu, 31 Jan 2019 11:11:04 -0500 (EST)
+	id E77DD8E0006; Thu, 31 Jan 2019 11:11:06 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7206C8E0003; Thu, 31 Jan 2019 11:11:04 -0500 (EST)
+	id E25578E0003; Thu, 31 Jan 2019 11:11:06 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6106E8E0004; Thu, 31 Jan 2019 11:11:04 -0500 (EST)
+	id D19818E0006; Thu, 31 Jan 2019 11:11:06 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E9B098E0003
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 11:11:03 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id p65-v6so621422ljb.16
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 08:11:03 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 758388E0003
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 11:11:06 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id o21so1568550edq.4
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 08:11:06 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=l8ZZE/CQHJf/B+Br/+OZnPG545feQjEVeVkqxdQKkp0=;
-        b=XnOXPVVqzf6DIkpG+M1gbhwMfsJpWK2W9Wxdlpx5HYDVWk2BTXq3NIXCLzH8khlyvK
-         7qtZzO1NUTk6NVbbGY5PVkpoVAWeWRHl5vFEuu9vF60v67sfzcykQ/RswUQRQAQBy6vF
-         +b2dZ/Qu2QKSQPAAycPFHLrzn0Yv3Em9oNZTjmptC+fiW0onEHctdS2ZVU8uHk6lmHDL
-         aB0R4UXlqn/KonsyEWEbWHjGfbz3QDtMYsrRCJAff5dbhc4b/nqO8S/MPJgVWfG7D/Wc
-         NZwUPWYcAlMD97CYLrMg7FQ0Q43OpqqJ6z24gSQlJJPK9Cv56ag/M1AVq36ZXPvvVpId
-         rUgQ==
-X-Gm-Message-State: AJcUukc2m9jtTjKLkMUGdkod8Ac3FJqoP306ufz9jQaS/BTwg4CehUS5
-	V9AsnQxOIa24pSy2M8WUUJB+1iesI6kjtvMCOzgBNMRedbErPVcvmgp5PUy0CdMY0wULA4n+r+A
-	uRUPZy1Lv90YKWnPzluhy9kyjPOs4RtRlRBP9BGmfcNllw8ArLj5yeUTkcNx7FGcbe9vbg7/oZt
-	AP+PdABH1NyCf1ZR8Kflnc97Z1CZaErg6LrNLcs/B0xdhcR2P566VsgPr9FCKllAcno1H5eRQKx
-	Lb+mVEMMHcPOp1bBl3ezF9fKiaGxWIxyWgk0/TQpw7hVkB/qVggL5m9SgoJ3yQUiV4ADb7rsUnI
-	99VZfKrGtrauHZS2IS7bwWFc0D6MXR1u6EcPhy9r+dpUbjhyk2tEcuQFWZSLzJNM718TT52UyVZ
-	I
-X-Received: by 2002:a19:40cc:: with SMTP id n195mr27219801lfa.40.1548951063102;
-        Thu, 31 Jan 2019 08:11:03 -0800 (PST)
-X-Received: by 2002:a19:40cc:: with SMTP id n195mr27219751lfa.40.1548951061933;
-        Thu, 31 Jan 2019 08:11:01 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548951061; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=3A9N4rgzDXUymfSjQeAImdz+wIjmslTXXVhxRazOPf4=;
+        b=hX8j3GniNTfGuhsSVXRZ758m1tsRX1+MnURNcJ04dhyWxAUSlk1/3wskf9Yy/+ULC8
+         YQ1vbkz6Xx1PZBmvwTBUIt2C4RqA5/jVmzlak3i5pAP4IvcXUgzGGgZPiA+nepSFx8e8
+         a9mq6sBJDv+S/d/cz02jO5czynCOeIe9SvJPuSrg34vN/hukKRb2uGjJfEQRl0H05wPY
+         Vti5XeDQtuwXDAEaR5DCj2xapoOXROMas0B+NkF7HSDfpF924tgtBvjDwQJSvTmoPJUB
+         7iJu0rb3eaVOIlnDeRZIhVepC+VJ+FIKNSfBswU5PbBPciXzYpTEdQZtWDJx0LRxoSZo
+         vJCw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: AJcUukcAL4jTsP6+d7Hxde3fHZOvLcWJhdPeV6Wf1ckn9O57/Jz+jSZQ
+	ETgDfE7kJDRpdtWVqz2tD+PYn7ty2q7MG0Kx24FV2a1XUTXIBd284hrGfYeDgFjpM40WMJ/cpF1
+	L0qQ1GFDn7UVPOMs9eruIuk87Z9CdS9FXvqSfLZpmXioUpcOsXj/nRy+Xvl0X0EVx+Q==
+X-Received: by 2002:a17:906:4a0c:: with SMTP id w12mr27125761eju.240.1548951065988;
+        Thu, 31 Jan 2019 08:11:05 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5iC32Yu8a8ALvoZTIz045RsPbxLFtlzdUo06rf5f5YcRGcS2iYSUpRgZpJ6D5ySiZztE0Q
+X-Received: by 2002:a17:906:4a0c:: with SMTP id w12mr27125698eju.240.1548951065002;
+        Thu, 31 Jan 2019 08:11:05 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548951064; cv=none;
         d=google.com; s=arc-20160816;
-        b=sDkT43J02jjMsT2H8BHPNz/b0fyR7eGpdD/GWGyT2nu4UrCTnFqVoEMXRTPvH0hry2
-         pAMoptV+9m2L+qRG8wc0CKnAtwDVDuDIr2qR6YCL/a2wz/IsocbkGHkRVvjHY9KQMv+g
-         i06hOv1dPA73v3OZpjP2/Yivbd0+JZXI8q6semt8KdgxtflJAwH7WXz+JDpOoW0tl6FE
-         a31ABo/9pFAbykaM+du192wBKLmtEQcjk1KcAmD4hQrNs+qtbHw/bJHSu7uzgMHVZJj9
-         I0MbJFaEmlSjMgT1s7N/QJzAlb9Rzmp81GUzHuTWIB2fTdMUAiwlOVsO/syw1QluCcyN
-         5JlA==
+        b=ypatwnamQYsy0Vp4M+KaebfbdYmaZfM5pU7C4bHy+xy585LQVSNFAx6lq36G4FdjPg
+         9RNC+EVqRa+cXHTsuRuTSpwQL+mNb35KX3yf0ZQ7wrD/Z/NqFPKbW6KeIwVPi5ZcPNCx
+         tZJkXWABLZkkV+gthZCDlDVLABMbHGif4QT+AU/+2F8yS4l3w6H0bOrG82robm8C2c/Z
+         xudI8uMn4GJ1jnVQ8sxYvI5MEbs/Q3QRSramm7hIcRIW7evMpFkA2B79y7QSop1js8sl
+         W+MWL0Bi5H2tdmqmRc7fPnpYeKtCZEiIQedjv9F85acVKAurzKzsSSIhpVdEcg4NbfFc
+         r4Xg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=l8ZZE/CQHJf/B+Br/+OZnPG545feQjEVeVkqxdQKkp0=;
-        b=vX6OJ9l8s/EQ3fsQcKzEcPdCJfIMKG/FeEYqkoxJ77ggHyf0b11VSUhCjjCfAHVXeG
-         RhpxH3LY+wBuURdipVBQs8wCRB/TVBWiEHyiJw49q263e540xBFFvFXnlq8h7k4Ku8Qn
-         b4DQ2IJx/Q9OVJty7Hqd+X3AEgmeij/SHzW2KsuLGPjP7Wq1llp8wABLzGNcxxgzCb8O
-         MCo263MYzK8BmMwp0S0SbK9ZoZ4zaOD6AhoD+9/rXxNTqvHr4N1/hVgoAWRCqjX0IW8O
-         HDdTT0JTKiwaRJeY13kdrBb35aUUcISdKgUblnvQ668XXIkmZuIOgBF6hqt8wFaterb6
-         nj+g==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:openpgp:from:references:cc:to:subject;
+        bh=3A9N4rgzDXUymfSjQeAImdz+wIjmslTXXVhxRazOPf4=;
+        b=uXQVlFYhZep6Ep12nSNnbE3x2kBDrpP8W3KXSpRecfpQ/EHAuEzhk9RKk0DrxpfwY0
+         OZjoYRJFni6VE29hGhO9S2NcZztQY2mtP1xPtPhaO2hEjaEWyoWRjoeAasF4fgtTJxVT
+         U+/dZdARFJOh4z3Pw9ohMh+V7q8nhPbwiXkl5mYNu9QcgA3x0Im3hnu8UG27HvqsYWhC
+         Q+DUTQevWiFWC5SsNjY5fdxbcC1mTdWnNALAloBmtm73IDPv5T9KDibykZ2Cd+3BwwyH
+         gH7MTpIYS+pifCmr7PP299GJC/g/HvWA8cfu9EqDTsFu9OhH+/q+72C2o8kvHjbs7pIx
+         ZlxQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b=NulEkyw7;
-       spf=pass (google.com: domain of anders.roxell@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=anders.roxell@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u66sor1606057lff.39.2019.01.31.08.11.01
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x32si2592580edc.425.2019.01.31.08.11.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 31 Jan 2019 08:11:01 -0800 (PST)
-Received-SPF: pass (google.com: domain of anders.roxell@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Jan 2019 08:11:04 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b=NulEkyw7;
-       spf=pass (google.com: domain of anders.roxell@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=anders.roxell@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linaro.org; s=google;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=l8ZZE/CQHJf/B+Br/+OZnPG545feQjEVeVkqxdQKkp0=;
-        b=NulEkyw7WRGZfONt3e2rFzs9IFb84cAfNJcAgwD/UdiCtw/e5wReNIOU9KHl7SvheN
-         0I2NwQRGNpNE212NvAb3sBUsZi7MOhVHNSJviVZHs+BG9M6UVR3gV85ur9rCH1KMgKM/
-         f5fTxjcYk3zQnYAJC1Y/Gv+0HBQuJc+JJUGfE=
-X-Google-Smtp-Source: ALg8bN5jFb2AXccaSAAVgnX28SjZIcZYLh7UGufvd6HCHsSuZONlbB9tZPsUROf8nbxDO1s9DUimXg==
-X-Received: by 2002:a19:4345:: with SMTP id m5mr27334183lfj.142.1548951061287;
-        Thu, 31 Jan 2019 08:11:01 -0800 (PST)
-Received: from localhost (c-573670d5.07-21-73746f28.bbcust.telenor.se. [213.112.54.87])
-        by smtp.gmail.com with ESMTPSA id z17sm324322lfh.9.2019.01.31.08.11.00
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 31 Jan 2019 08:11:00 -0800 (PST)
-From: Anders Roxell <anders.roxell@linaro.org>
-To: akpm@linux-foundation.org
-Cc: rppt@linux.ibm.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Anders Roxell <anders.roxell@linaro.org>
-Subject: [PATCH] mm: sparse: Use '%pa' with 'phys_addr_t' type
-Date: Thu, 31 Jan 2019 17:10:46 +0100
-Message-Id: <20190131161046.21886-1-anders.roxell@linaro.org>
-X-Mailer: git-send-email 2.20.1
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 8D640B01C;
+	Thu, 31 Jan 2019 16:11:04 +0000 (UTC)
+Subject: Re: [PATCH 22/22] mm, compaction: Capture a page under direct
+ compaction
+To: Mel Gorman <mgorman@techsingularity.net>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>,
+ Andrea Arcangeli <aarcange@redhat.com>,
+ Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+ Linux-MM <linux-mm@kvack.org>
+References: <20190118175136.31341-1-mgorman@techsingularity.net>
+ <20190118175136.31341-23-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Message-ID: <2124d934-0678-6a4b-9991-7450b1e4e39a@suse.cz>
+Date: Thu, 31 Jan 2019 17:11:04 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190118175136.31341-23-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Fix the following build warning:
+On 1/18/19 6:51 PM, Mel Gorman wrote:
+> Compaction is inherently race-prone as a suitable page freed during
+> compaction can be allocated by any parallel task. This patch uses a
+> capture_control structure to isolate a page immediately when it is freed
+> by a direct compactor in the slow path of the page allocator. The intent
+> is to avoid redundant scanning.
+> 
+>                                      5.0.0-rc1              5.0.0-rc1
+>                                selective-v3r17          capture-v3r19
+> Amean     fault-both-1         0.00 (   0.00%)        0.00 *   0.00%*
+> Amean     fault-both-3      2582.11 (   0.00%)     2563.68 (   0.71%)
+> Amean     fault-both-5      4500.26 (   0.00%)     4233.52 (   5.93%)
+> Amean     fault-both-7      5819.53 (   0.00%)     6333.65 (  -8.83%)
+> Amean     fault-both-12     9321.18 (   0.00%)     9759.38 (  -4.70%)
+> Amean     fault-both-18     9782.76 (   0.00%)    10338.76 (  -5.68%)
+> Amean     fault-both-24    15272.81 (   0.00%)    13379.55 *  12.40%*
+> Amean     fault-both-30    15121.34 (   0.00%)    16158.25 (  -6.86%)
+> Amean     fault-both-32    18466.67 (   0.00%)    18971.21 (  -2.73%)
+> 
+> Latency is only moderately affected but the devil is in the details.
+> A closer examination indicates that base page fault latency is reduced
+> but latency of huge pages is increased as it takes creater care to
+> succeed. Part of the "problem" is that allocation success rates are close
+> to 100% even when under pressure and compaction gets harder
+> 
+>                                 5.0.0-rc1              5.0.0-rc1
+>                           selective-v3r17          capture-v3r19
+> Percentage huge-3        96.70 (   0.00%)       98.23 (   1.58%)
+> Percentage huge-5        96.99 (   0.00%)       95.30 (  -1.75%)
+> Percentage huge-7        94.19 (   0.00%)       97.24 (   3.24%)
+> Percentage huge-12       94.95 (   0.00%)       97.35 (   2.53%)
+> Percentage huge-18       96.74 (   0.00%)       97.30 (   0.58%)
+> Percentage huge-24       97.07 (   0.00%)       97.55 (   0.50%)
+> Percentage huge-30       95.69 (   0.00%)       98.50 (   2.95%)
+> Percentage huge-32       96.70 (   0.00%)       99.27 (   2.65%)
+> 
+> And scan rates are reduced as expected by 6% for the migration scanner
+> and 29% for the free scanner indicating that there is less redundant work.
+> 
+> Compaction migrate scanned    20815362    19573286
+> Compaction free scanned       16352612    11510663
+> 
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-mm/sparse.c: In function ‘sparse_buffer_init’:
-mm/sparse.c:438:69: warning: format ‘%lx’ expects argument of type ‘long
-  unsigned int’, but argument 6 has type ‘phys_addr_t’ {aka ‘long long
-  unsigned int’} [-Wformat=]
-   panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%lx\n",
-                                                                   ~~^
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Rework to use '%pa' and not '%lx'. Use a local variable of phys_addr_t
-to print the reference with '%pa'.
+Nit below:
 
-Fixes: 1c3c9328cde0 ("treewide: add checks for the return value of memblock_alloc*()")
-Signed-off-by: Anders Roxell <anders.roxell@linaro.org>
----
- mm/sparse.c | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+...
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 1471f06c6468..6a2b0a9359d7 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -409,16 +409,17 @@ struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
- {
- 	unsigned long size = section_map_size();
- 	struct page *map = sparse_buffer_alloc(size);
-+	phys_addr_t addr = __pa(MAX_DMA_ADDRESS);
- 
- 	if (map)
- 		return map;
- 
- 	map = memblock_alloc_try_nid(size,
--					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
-+					  PAGE_SIZE, addr,
- 					  MEMBLOCK_ALLOC_ACCESSIBLE, nid);
- 	if (!map)
--		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%lx\n",
--		      __func__, size, PAGE_SIZE, nid, __pa(MAX_DMA_ADDRESS));
-+		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%pa\n",
-+		      __func__, size, PAGE_SIZE, nid, &addr);
- 
- 	return map;
- }
-@@ -429,14 +430,15 @@ static void *sparsemap_buf_end __meminitdata;
- 
- static void __init sparse_buffer_init(unsigned long size, int nid)
- {
-+	phys_addr_t addr = __pa(MAX_DMA_ADDRESS);
- 	WARN_ON(sparsemap_buf);	/* forgot to call sparse_buffer_fini()? */
- 	sparsemap_buf =
- 		memblock_alloc_try_nid_raw(size, PAGE_SIZE,
--						__pa(MAX_DMA_ADDRESS),
-+						addr,
- 						MEMBLOCK_ALLOC_ACCESSIBLE, nid);
- 	if (!sparsemap_buf)
--		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%lx\n",
--		      __func__, size, PAGE_SIZE, nid, __pa(MAX_DMA_ADDRESS));
-+		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%pa\n",
-+		      __func__, size, PAGE_SIZE, nid, &addr);
- 
- 	sparsemap_buf_end = sparsemap_buf + size;
- }
--- 
-2.20.1
+> @@ -819,6 +870,7 @@ static inline void __free_one_page(struct page *page,
+>  	unsigned long uninitialized_var(buddy_pfn);
+>  	struct page *buddy;
+>  	unsigned int max_order;
+> +	struct capture_control *capc = task_capc(zone);
+>  
+>  	max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
+>  
+> @@ -834,6 +886,12 @@ static inline void __free_one_page(struct page *page,
+>  
+>  continue_merging:
+>  	while (order < max_order - 1) {
+> +		if (compaction_capture(capc, page, order, migratetype)) {
+> +			if (likely(!is_migrate_isolate(migratetype)))
+
+compaction_capture() won't act on isolated migratetype, so this check is
+unnecessary?
+
+> +				__mod_zone_freepage_state(zone, -(1 << order),
+> +								migratetype);
+> +			return;
+> +		}
+>  		buddy_pfn = __find_buddy_pfn(pfn, order);
+>  		buddy = page + (buddy_pfn - pfn);
+>  
 
