@@ -2,182 +2,147 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F8D3C169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 08:10:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BBD83C282D9
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 08:13:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EEF562087F
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 08:10:34 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="xEEBLGq1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EEF562087F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 941A620863
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 08:13:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 941A620863
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7EDBB8E0004; Thu, 31 Jan 2019 03:10:34 -0500 (EST)
+	id 1F7448E0003; Thu, 31 Jan 2019 03:13:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 79D898E0001; Thu, 31 Jan 2019 03:10:34 -0500 (EST)
+	id 1A7398E0001; Thu, 31 Jan 2019 03:13:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 68D8A8E0004; Thu, 31 Jan 2019 03:10:34 -0500 (EST)
+	id 095AB8E0003; Thu, 31 Jan 2019 03:13:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D5548E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 03:10:34 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id z6so2682953qtj.21
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 00:10:34 -0800 (PST)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A95188E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 03:13:57 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id h11so779003wrs.2
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 00:13:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=3voy6zIBkHur9+pvFM+1PirERab/y7Ul2U1rVnE912w=;
-        b=TnBOrh1Qbqv7eUfZhKCW0mktCdH5tohEVnjQBIaq36ajW3sJzhsFrYby1tMtBmKIb+
-         zH5+8PhtjWr7mC5Yeee94ISR5iHqpO2+q2negzDMLzJCImDotk0RLP4zQfp943f4D6PU
-         md72Qsw9Dst84nY8PYiua6q54WFAkU91ESH+JD8PtU5uMQmPXguyqWMA6RZ53yT9jznx
-         9kZMmjm9fiGNPWk1ErTmBMcu+HcMRsibCnmi8CuHIXbdAnnUGuAbXTWQ36M3A2KcPSMY
-         aJq6aHyhKVeMebEcXooJTa56jvBKJ4dU9v/8lYHCxcjWY7fLZyS7FPdj1o6JStAVwyzy
-         qfiA==
-X-Gm-Message-State: AJcUukc17ZlNli8owV3wxCattR1oaqQcSsSb37oLv2+6gWySTwXsIR6g
-	3aKRIT8I0BtNhHDmcmPSG7kilsVfwxkuUhgt4C1Qt8oGY3vGE4MsGNS4Nei1fhR2URwYOAMElXw
-	HW+wyYJmevhVw7HtP4x4rhb5tBc9AwsuJTxYgodlWpdOIGuLu3oPj3ycJNc6fVMYj7w==
-X-Received: by 2002:ac8:7950:: with SMTP id r16mr33341765qtt.12.1548922233895;
-        Thu, 31 Jan 2019 00:10:33 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6Xy4zUXwdGHFInrumxH5lwUlduSlmiEgcofVU1adCCJgA0EcWrXHP7DVUMktjfxODews04
-X-Received: by 2002:ac8:7950:: with SMTP id r16mr33341744qtt.12.1548922233364;
-        Thu, 31 Jan 2019 00:10:33 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548922233; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Acblo/+uJNdHMW4pb8e5e4aiH0t/0RVfvjUck2tlkTY=;
+        b=ZpUw4jjDGxo6p3JyWWICY6MGANw4Z19Rx7XSPOGcT/TXMUEIhB+XvvYqV9dntjDq5z
+         dzHy77hQU+BZCAiFQnktq1nqJ4tkUSv6zmeYrV6rGqad+u2vDg15P4X5wj1A1QZf1jLm
+         xaVFSMfYTyN6Nm1uGJYUThwj3zMtkMDFmfC3s6cINMIxnCuik/DWaWTm4DGpQkC6xNe2
+         wYBU/b9t0aYTw6Q2LKcvQqGCKHaDs5+CG3GD9r/AWsvL1EgGwR5bjqBWEFD6lxYZEKbS
+         Jl9xxb/g/I3pvsFwW32zFS12u45F9uacA8m8warMocW5i5xZRNHKCOqghZFCJdo5zXlQ
+         15QA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: AJcUukdCvSm7uLTK19ZXW7p5+ZIgapuTEVny4vXZq03t0vIL4KyCJvjM
+	Xz75fz+tf7YfI3K7Df/+RfdfO6ITDYGZsB93I3mUkn2Uqzqxcizl2VcS6mIqXWsXkyttIEGAvn1
+	42/YMFUy3JV6aoHzfvOzL24mn7fk9YAZBVmk6uEq2AWwE2GvOq5eOHEbBbqD0ikKQlw==
+X-Received: by 2002:a1c:7719:: with SMTP id t25mr30344768wmi.7.1548922437097;
+        Thu, 31 Jan 2019 00:13:57 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN60xB206mCL4VMGgLA56W6Ihm8J1/pDK05JHi96wITduQc3J7G7Wvb+zeM2oZ8a+4ZT3Sao
+X-Received: by 2002:a1c:7719:: with SMTP id t25mr30344735wmi.7.1548922436318;
+        Thu, 31 Jan 2019 00:13:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548922436; cv=none;
         d=google.com; s=arc-20160816;
-        b=Us6CfVOs3slE9wnz6gQAs5rJyTEQSiXLKepOEDN6TwsH2lwlXf8ClFYAO5EiJO1YWT
-         VFIzlUvKNz/DdG00QKPt2fhOOOFE5oUvQUejjeAuldtKSFfY8xfzyRgVRT9gVkoDp9Ut
-         V21dsra42iEN0YvLG4uxGNchaSASyDXn9hG/mL7Hhok1UWXYr3D6ORU8OzPyz8Ax91DV
-         A1lYUaKj8ZqoTLInvT0peMPWk0mPbRhgI/Ch1N37MPti08ZWGIFkc4pR6Ic9eX81D4OK
-         8tuNHsKLCfmpLeBR/AAlwVJjM459vxgJIdFlQNzYY+9zJMXGTyWiX4hUy+nUSx/P2z6x
-         gOkQ==
+        b=BLqpTla4zqtbpyi9vlao+PxteRK1P2HUxfCui3UBZwzxhKUB5zRypzWOQ2BoMRJFoA
+         x4P+dqP2ZTGYYapuG4LopooLq6RFcNpA9HGS6/rXk2Zrx7tO9DkA2D2SOqLnbgL7IrSN
+         WoycqnsT3RSGMvtbkn6wDPT/buUYNXpMhLAZdkMPPnuU7bUvW00LQ51IYH1RmwCGtBXJ
+         337I+5aCrOo0xazobZgf6T5ioBnbHgHBDCuWyxbRXkataps3H3Ryok7dWynKKp5nsU7w
+         Kq6VH4nUWJuC7LmXAN2VVSB0wbqFCjiOIAIH7C3ROr46dOHT2xnZpBKjpiQbeE7AAaUd
+         hezg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=3voy6zIBkHur9+pvFM+1PirERab/y7Ul2U1rVnE912w=;
-        b=lpIjWI5mtedbtfUldTQnPYKKgbS+IZ3VaoLQWSqAOvZ06CTEU6+pmO88kjbeCCDQcA
-         foRIqqVx1CD+2OFFx4fIXLi9UR187E5jvYxqOtV7eT3kqN5HI5kpMJ6pZz7PCMQpu/x+
-         dPyjJ03/9Wa4Gvn67cu1z0HOpVlIHSDaf4wkWkWB293k1369jyk4JaLL1ESn9RiWV0NR
-         qqztNa+1TBxiy0t0aFaUx4Wi4lmvPWu52KV5wVw04B4O/V+OaCrD0e659FZaBFft8iCF
-         PguzZdgsM/QQwnzIkR/T9tQEmAK4enVFXq2jxMh/cUqZkibT7ExFBxl9B1pdAZemQMYo
-         J36w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Acblo/+uJNdHMW4pb8e5e4aiH0t/0RVfvjUck2tlkTY=;
+        b=brJi/kfsvDBROrw7cbcChloh2KjXzRPiF7VTLMVGZo8TN3sgwtwuCd7tiJxhS0C9Wa
+         f3YH5affAdB2OLvbCVWvgd2jg3codGUECAtmY2Xdnp49eXlj+eMLzmsq72/RNAZv05Ud
+         HXjsZu1ysyZLz1of0Xk34TR+B4f3N2j6EYbNUYG65j85R5J6lrKx4s8cY3yLL8w1TJv8
+         6UjP+qyUS8G/Qal8laJCVplIcJLDArwRaIFjHZrxm8uRUTg72X1OV41E0hYEXJG0gvap
+         w9wEMx4hoJdkd8mz5oIzu/X5yga84V3R1+rNiwojWGNi/KYWegujdembV1fMvhUIc63+
+         KXfg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=xEEBLGq1;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id c48si349175qtc.275.2019.01.31.00.10.33
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id t205si3102278wmg.165.2019.01.31.00.13.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jan 2019 00:10:33 -0800 (PST)
-Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Thu, 31 Jan 2019 00:13:56 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=xEEBLGq1;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.22/8.16.0.22) with SMTP id x0V89Dax072376;
-	Thu, 31 Jan 2019 08:10:29 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=3voy6zIBkHur9+pvFM+1PirERab/y7Ul2U1rVnE912w=;
- b=xEEBLGq1w9R3WG9WKXYWXehNFcZmO86pC8b/GDyl32CYyYz3zbHoiWTWIZk5Ka0B49TC
- cDqPbqP1YL+Yr78T5gJktGgI+HN5+GV1kxxPhSJ134nGjN8ZEwkqoV1BauK/Hj9rAtUP
- 6PGQuSYb25cgpFZ/eQEccrkDY+muJCBilnsVFFK2PTwJtjAvAdk9ycaneeJ+6LI2IWBY
- ze8wqy/jtI77UfGDScsSmmhn3xTan6Wr6YPBp2QnMzy3R/dPapCrJCPfYumBTqUa6FOm
- kcza7MoZ14hGpL1WHYZJI93Ud8Y/6nRP13boZSGMTEDieGRHU9WUtRTiyJHiKM+sM37b 2Q== 
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by userp2120.oracle.com with ESMTP id 2q8g6rex3d-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 31 Jan 2019 08:10:29 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x0V8AOXR029293
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 31 Jan 2019 08:10:24 GMT
-Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x0V8AMvk013389;
-	Thu, 31 Jan 2019 08:10:23 GMT
-Received: from [192.168.0.110] (/73.243.10.6)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 31 Jan 2019 00:10:22 -0800
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.1\))
-Subject: Re: [PATCH 1/3] slub: Fix comment spelling mistake
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20190131041003.15772-2-me@tobin.cc>
-Date: Thu, 31 Jan 2019 01:10:21 -0700
-Cc: Christopher Lameter <cl@linux.com>, "Tobin C. Harding" <tobin@kernel.org>,
-        Pekka Enberg <penberg@kernel.org>,
-        David Rientjes <rientjes@google.com>,
-        Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-        Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <9C8C1658-0418-41A9-9A74-477DB83EB6EF@oracle.com>
-References: <20190131041003.15772-1-me@tobin.cc>
- <20190131041003.15772-2-me@tobin.cc>
-To: "Tobin C. Harding" <me@tobin.cc>
-X-Mailer: Apple Mail (2.3445.104.1)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9152 signatures=668682
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=470 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1901310065
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id 9A19368CEB; Thu, 31 Jan 2019 09:13:55 +0100 (CET)
+Date: Thu, 31 Jan 2019 09:13:55 +0100
+From: Christoph Hellwig <hch@lst.de>
+To: Logan Gunthorpe <logang@deltatee.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>, Christoph Hellwig <hch@lst.de>,
+	Jerome Glisse <jglisse@redhat.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J . Wysocki" <rafael@kernel.org>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	Christian Koenig <christian.koenig@amd.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	Marek Szyprowski <m.szyprowski@samsung.com>,
+	Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <jroedel@suse.de>,
+	"iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
+Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
+ vma
+Message-ID: <20190131081355.GC26495@lst.de>
+References: <20190129234752.GR3176@redhat.com> <655a335c-ab91-d1fc-1ed3-b5f0d37c6226@deltatee.com> <20190130041841.GB30598@mellanox.com> <20190130080006.GB29665@lst.de> <20190130190651.GC17080@mellanox.com> <840256f8-0714-5d7d-e5f5-c96aec5c2c05@deltatee.com> <20190130195900.GG17080@mellanox.com> <35bad6d5-c06b-f2a3-08e6-2ed0197c8691@deltatee.com> <20190130215019.GL17080@mellanox.com> <07baf401-4d63-b830-57e1-5836a5149a0c@deltatee.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <07baf401-4d63-b830-57e1-5836a5149a0c@deltatee.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Jan 30, 2019 at 03:52:13PM -0700, Logan Gunthorpe wrote:
+> > *shrug* so what if the special GUP called a VMA op instead of
+> > traversing the VMA PTEs today? Why does it really matter? It could
+> > easily change to a struct page flow tomorrow..
+> 
+> Well it's so that it's composable. We want the SGL->DMA side to work for
+> APIs from kernel space and not have to run a completely different flow
+> for kernel drivers than from userspace memory.
 
+Yes, I think that is the important point.
 
-> On Jan 30, 2019, at 9:10 PM, Tobin C. Harding <me@tobin.cc> wrote:
->=20
-> Signed-off-by: Tobin C. Harding <tobin@kernel.org>
-> ---
-> include/linux/slub_def.h | 2 +-
-> 1 file changed, 1 insertion(+), 1 deletion(-)
->=20
-> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-> index 3a1a1dbc6f49..201a635be846 100644
-> --- a/include/linux/slub_def.h
-> +++ b/include/linux/slub_def.h
-> @@ -81,7 +81,7 @@ struct kmem_cache_order_objects {
->  */
-> struct kmem_cache {
-> 	struct kmem_cache_cpu __percpu *cpu_slab;
-> -	/* Used for retriving partial slabs etc */
-> +	/* Used for retrieving partial slabs etc */
-> 	slab_flags_t flags;
-> 	unsigned long min_partial;
-> 	unsigned int size;	/* The size of an object including meta =
-data */
-> --=20
+All the other struct page discussion is not about anyone of us wanting
+struct page - heck it is a pain to deal with, but then again it is
+there for a reason.
 
-If you're going to do this cleanup, make the comment in line 84 =
-grammatical:
+In the typical GUP flows we have three uses of a struct page:
 
-/* Used for retrieving partial slabs, etc. */
+ (1) to carry a physical address.  This is mostly through
+     struct scatterlist and struct bio_vec.  We could just store
+     a magic PFN-like value that encodes the physical address
+     and allow looking up a page if it exists, and we had at least
+     two attempts at it.  In some way I think that would actually
+     make the interfaces cleaner, but Linus has NACKed it in the
+     past, so we'll have to convince him first that this is the
+     way forward
+ (2) to keep a reference to the memory so that it doesn't go away
+     under us due to swapping, process exit, unmapping, etc.
+     No idea how we want to solve this, but I guess you have
+     some smart ideas?
+ (3) to make the PTEs dirty after writing to them.  Again no sure
+     what our preferred interface here would be
 
-Then change lines 87 and 88 to remove the space between "meta" and =
-"data" as the
-word is "metadata" (as can be seen at line 102) and remove the period at =
-the end
-of the comment on line 89 ("Free pointer offset.")
-
-You might also want to change lines 125-127 to be a single line comment:
-
-/* Defragmentation by allocating from a remote node */
-
-so the commenting style is consistent throughout.=
+If we solve all of the above problems I'd be more than happy to
+go with a non-struct page based interface for BAR P2P.  But we'll
+have to solve these issues in a generic way first.
 
