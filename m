@@ -6,138 +6,189 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E448C169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 09:51:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A0E8BC169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 09:54:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D00A4218AC
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 09:51:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D00A4218AC
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=codewreck.org
+	by mail.kernel.org (Postfix) with ESMTP id 6DAAC218AC
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 09:54:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6DAAC218AC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 669588E0002; Thu, 31 Jan 2019 04:51:40 -0500 (EST)
+	id 04C018E0002; Thu, 31 Jan 2019 04:54:32 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 618BF8E0001; Thu, 31 Jan 2019 04:51:40 -0500 (EST)
+	id F3F9A8E0001; Thu, 31 Jan 2019 04:54:31 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 556FF8E0002; Thu, 31 Jan 2019 04:51:40 -0500 (EST)
+	id E2DB38E0002; Thu, 31 Jan 2019 04:54:31 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DE1468E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 04:51:39 -0500 (EST)
-Received: by mail-lf1-f72.google.com with SMTP id z10so523841lfe.21
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 01:51:39 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B74958E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 04:54:31 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id k90so3007458qte.0
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 01:54:31 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=nfV7OIObBXz32fdW+x2GE9V6v0HxaBHPSEgwCSNk0WM=;
-        b=t+XVEiyqy9y1HmBRSqDy4QrytPHnccHBrgFGtVnuZ9hQ3jXfR8NLi3MIcXxsDPiZ9Y
-         RZxuZzTHzwXNOOwM317dYcNn0BUtLXB8dmYSfU1WpQW+PBU+7Kr0JXksWIYNQMM2s71I
-         Y+7a8UsEpuJLzLdZCrC2Z5oFsvylCQwyZY0AA/pfR0TXB68gor106+0JPb7VL3KLflye
-         2mrp0/6o477HleRY7lMWUPQONRbrl4rIjn4i7pHbctTU/fdeAjkhTUcRPz5TAfNWkWhG
-         WIYWs0XNEpiQC2/lFd8ZHGW8FzGo+HYfjPdtAOZkUTFkvgThVzRf3lFAdmxbtmGAq8CT
-         jfYQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of asmadeus@notk.org designates 2001:41d0:1:7a93::1 as permitted sender) smtp.mailfrom=asmadeus@notk.org
-X-Gm-Message-State: AJcUukczNtCSypeK65VBlrjOjcXHccZBNNuKVFXJQxgh+hsuhnYGs7Uj
-	2Mn2UP8ul+vpoO4s+SiUC3yZ/raJcja9NfL8qg9eiyJWVdt0QlRJ3nNAtzf5ar4pq0wVXQtmRR8
-	qD1KnxMv271wxkzh6CJqqvG7ej2BUHA300gx4pB7urxOWIbM1k7CSjzZvoNlsGHM=
-X-Received: by 2002:a2e:9944:: with SMTP id r4-v6mr27441945ljj.185.1548928299099;
-        Thu, 31 Jan 2019 01:51:39 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5LMWQ7F0bSFm4E9eMj8QKfQaohbB+M4fR4ZoMLiPBG5cjnyhB45+zaCI2z/6RVixy5IRpj
-X-Received: by 2002:a2e:9944:: with SMTP id r4-v6mr27441898ljj.185.1548928297937;
-        Thu, 31 Jan 2019 01:51:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548928297; cv=none;
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=j29xYbLcjFenDOQcVwbD0khVjpUTE4td829ySY51iKY=;
+        b=bod8SmGG+y5PhSMsMtsnuE0kWJuhYFjQw2jpH2zjXssM2/rOSshkCGeFruwDXmhHRz
+         zI4d7VA9SsUbCHvFQ2cKBYjVlxc84Lnm1l7Mb2tsd443stqzsJXwcPcxhmdZzrI2DReM
+         gY9QeacIsTZXLJd9SnRsxb5kQRkVsZeKw2aMHbpMJFYElejp6+Lsus5EleJQC9lC7U/J
+         gUeH3m0jd3h41X/4YGetiVZaPPCpUQAWEwCx45DYDAYF2bCIUwHb4PPLSejyiIxPhVbL
+         ji1stXUuwswGQ0wFkjvgn7cd+pIvmoQyYEs/nUqsEeQWVAbJlAy4nTBJtl97QKQv95+j
+         Y7lA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AJcUukeD1tAMzn05dnrUpQCH3twLJZw2SdgAnjE2nv0FD9kijNewTVod
+	lEVpDLaQxw6oBvxNZAHl8Uu/5ZQraAMCzoORmptHNCHKGPmkEkjpx2iNj+8WOP2Yp5Ms+qfvoy4
+	wRADTOLRBfkTRAmDils6jA7Piaa1avLX8aHcxsblZqC1YWiUyIbmZmcf31LpyUKnkBg==
+X-Received: by 2002:ac8:3518:: with SMTP id y24mr33082741qtb.241.1548928471505;
+        Thu, 31 Jan 2019 01:54:31 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4WVgEP4Q7uVhEEMpQuy3I/0DzxIqW8S4FhAXdhe5q0N4nDnLAvqMoCrzdL3QHubLqFwTPL
+X-Received: by 2002:ac8:3518:: with SMTP id y24mr33082720qtb.241.1548928470983;
+        Thu, 31 Jan 2019 01:54:30 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548928470; cv=none;
         d=google.com; s=arc-20160816;
-        b=RGqlVFqFX55psziGNn93T/IPU0oWlBuwuu9D+Nk6EJbUb8PU3uG/5et3GHUwAV9W2/
-         P/SddSak9C8k+FAqSmbWEvgRlc40lFI/76oKr51IbhGXV11L61I6bePKhYmajM1tGoi3
-         hCroJPdJV6fYB3619hopgWc0Jjw+jQFww4vzxq/LiLFT8xNNoaDwoGafh1gNU83U/ceE
-         DLLtHr6iAXYPWzbuijgcuQumzMBE7kDwf14og5Y3ZXkSaIVT6CxwwO4S7AUNlUNZ454V
-         yXK3ELSNrN0MQ8QsIsf0wTaxvc8l0+ahO4KyDuNf5RZHQJ7pjfGWRH2As7lrHWY0mo6U
-         mciA==
+        b=YHQ9zS5VAOInsj1gEw97z/8o0I/bwRMPt0AHJVY+onzk5B0qZ5uYTOZ5lqO/mvScqV
+         Y3p3/Mcuu2P/rroWsE5bm6F1rJN/dmu3F3B3CbliRj07MmDqnCDnAGzkvDOHKDJtd+9q
+         xRS+xUb22yjdCtQ1LVSf25KiWQA0eWkljRAejy90JWOKXqXsJ3fEjn+1LlEWS1/wL3ky
+         Zv3FW2cP+kfsz7dw6uheJiLUrurWfPpsIWewbRJozBzH0Q5urzEK6L4zw3hjhqpD9rSq
+         kcbZ6PqlkNA0iaShKaP2PwHc4SuOlB6X1Zki+5ioXKFdFEgMtLOhJbJcyLZ1+D3dL15w
+         vnig==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=nfV7OIObBXz32fdW+x2GE9V6v0HxaBHPSEgwCSNk0WM=;
-        b=BVtKduwbiJFozhVIywC+c7LnoV5eND0rIgOFYDOF9HHDtLDxkrx4UYgtgsd1f38MVt
-         7XCUHAvGqfiPpBWkvLbFAQIEZsUFC78/RrBvQAqX9AN/j6i4bUNX/jy8ZbXGvsujgaU6
-         iumd4WsNBcXx0aVpbynXbEI/7Dm3nXvy8WBYQ/jH1pdyPVbVPwWH2voC4WlDqfmLTpvR
-         RQ+oK/vB6DIDBSXlW7VYIc2U3Nv27GJH8GDV2T0S9Bv+EaT5lmLlm3pBR3IjEOviLEmA
-         9DTrVkd/ayUUscao2AN3INmcZ+B1gi9Rn6ZTOyaV2wjFeyDfxRXKSVIvzPLWNLgagL6i
-         r5YQ==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=j29xYbLcjFenDOQcVwbD0khVjpUTE4td829ySY51iKY=;
+        b=TzqhsDwaYq80x5kJcwEm8D1OfdoGOLlh4x6V6fOU5oXdmt1ttHbv2OJuV/tc5nUUVL
+         lFLGwvjoqT4gjeFnhkYnvFRcFCJkDrK5i0MICkduIvaSlK1evoBWF7xJe7gdUtXHZVw/
+         DLgyrF+9+NxFMDgipkohkeEQ+xkkXkna9RYBDzqGhGrViJjitpM3824NwDDwe9o9uc1+
+         LbS9GVB2lB7xnX8QnC9xIyIugCXt3fwkD/JeUmLCw2MWpZ4FUPTuSC3F3Zf2u7OAEmr4
+         HrrACLeAbivNAFo50M9Qa/dCLBHwb32CUiQ37eOj2VtRJ2k0TzZXEwMhrzl6SLOmL4AJ
+         uYqg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of asmadeus@notk.org designates 2001:41d0:1:7a93::1 as permitted sender) smtp.mailfrom=asmadeus@notk.org
-Received: from nautica.notk.org (ipv6.notk.org. [2001:41d0:1:7a93::1])
-        by mx.google.com with ESMTPS id q27-v6si3449015ljc.196.2019.01.31.01.51.37
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id e2si2862271qki.231.2019.01.31.01.54.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jan 2019 01:51:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of asmadeus@notk.org designates 2001:41d0:1:7a93::1 as permitted sender) client-ip=2001:41d0:1:7a93::1;
+        Thu, 31 Jan 2019 01:54:30 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of asmadeus@notk.org designates 2001:41d0:1:7a93::1 as permitted sender) smtp.mailfrom=asmadeus@notk.org
-Received: by nautica.notk.org (Postfix, from userid 1001)
-	id DAA5DC009; Thu, 31 Jan 2019 10:51:36 +0100 (CET)
-Date: Thu, 31 Jan 2019 10:51:21 +0100
-From: Dominique Martinet <asmadeus@codewreck.org>
-To: Michal Hocko <mhocko@kernel.org>, Josh Snyder <joshs@netflix.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-api@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>,
-	Greg KH <gregkh@linuxfoundation.org>, Jann Horn <jannh@google.com>,
-	Jiri Kosina <jkosina@suse.cz>,
-	Andy Lutomirski <luto@amacapital.net>,
-	Dave Chinner <david@fromorbit.com>,
-	Kevin Easton <kevin@guarana.org>,
-	Matthew Wilcox <willy@infradead.org>,
-	Cyril Hrubis <chrubis@suse.cz>, Tejun Heo <tj@kernel.org>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	Daniel Gruss <daniel@gruss.cc>, Jiri Kosina <jikos@kernel.org>
-Subject: Re: [PATCH 1/3] mm/mincore: make mincore() more conservative
-Message-ID: <20190131095121.GA26131@nautica>
-References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
- <20190130124420.1834-1-vbabka@suse.cz>
- <20190130124420.1834-2-vbabka@suse.cz>
- <20190131094357.GQ18811@dhcp22.suse.cz>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x0V9sJcn113941
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 04:54:30 -0500
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2qbv80qjkg-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 04:54:30 -0500
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 31 Jan 2019 09:54:28 -0000
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 31 Jan 2019 09:54:24 -0000
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x0V9sNhc62914648
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Thu, 31 Jan 2019 09:54:23 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id C50DF11C058;
+	Thu, 31 Jan 2019 09:54:23 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id B9D3F11C069;
+	Thu, 31 Jan 2019 09:54:22 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.84])
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Thu, 31 Jan 2019 09:54:22 +0000 (GMT)
+Date: Thu, 31 Jan 2019 11:54:21 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Peter Xu <peterx@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, lsf-pc@lists.linux-foundation.org,
+        linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        Blake Caldwell <blake.caldwell@colorado.edu>,
+        Mike Rapoport <rppt@linux.vnet.ibm.com>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@suse.de>,
+        Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>,
+        Andrei Vagin <avagin@gmail.com>, Pavel Emelyanov <xemul@virtuozzo.com>
+Subject: Re: [LSF/MM TOPIC]: userfaultfd (was: [LSF/MM TOPIC] NUMA remote THP
+ vs NUMA local non-THP under MADV_HUGEPAGE)
+References: <20190129234058.GH31695@redhat.com>
+ <20190130081336.GC17937@rapoport-lnx>
+ <20190130092302.GA25119@xz-x1>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190131094357.GQ18811@dhcp22.suse.cz>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+In-Reply-To: <20190130092302.GA25119@xz-x1>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19013109-0008-0000-0000-000002B93D21
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19013109-0009-0000-0000-000022253F10
+Message-Id: <20190131095420.GI28876@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-01-31_04:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=984 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1901310079
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Michal Hocko wrote on Thu, Jan 31, 2019:
-> > Change the semantics of mincore() so that it only reveals pagecache information
-> > for non-anonymous mappings that belog to files that the calling process could
-> > (if it tried to) successfully open for writing.
+Hi Peter,
+
+On Wed, Jan 30, 2019 at 05:23:02PM +0800, Peter Xu wrote:
+> On Wed, Jan 30, 2019 at 10:13:36AM +0200, Mike Rapoport wrote:
+> > 
+> > If we are to discuss userfaultfd, I'd like also to bring the subject of COW
+> > mappings.
+> > The pages populated with UFFDIO_COPY cannot be COW-shared between related
+> > processes which unnecessarily increases memory footprint of a migrated
+> > process tree.
+> > I've posted a patch [1] a (real) while ago, but nobody reacted and I've put
+> > this aside.
+> > Maybe it's time to discuss it again :)
 > 
-> I agree that this is a better way than the original 574823bfab82
-> ("Change mincore() to count "mapped" pages rather than "cached" pages").
-> One thing is still not clear to me though. Is the new owner/writeable
-> check OK for the Netflix-like usecases? I mean does happycache have
-> appropriate access to the cache data? I have tried to re-read the
-> original thread but couldn't find any confirmation.
+> Hi, Mike,
+> 
+> It's interesting to know such a work...
+> 
+> Since I really don't have much context on this, so sorry if I'm going
+> to ask a silly question... but I'd say when reading this I'm thinking
+> of KSM.  I think KSM does not suite in this case since when doing
+> UFFDIO_COPY_COW it'll contain hinting information while KSM was only
+> scanning over the pages between processes which seems to be O(N*N) if
+> assuming there're two processes.  However, would it make any sense to
+> provide a general interface to scan for same pages between any two
+> processes within specific range and merge them if found (rather than a
+> specific interface for userfaultfd only)?  Then it might even be used
+> by KSM admins (just as an example) when the admin knows exactly that
+> memory range (addr1, len) of process A should very probably has many
+> same contents as the memory range (addr2, len) of process B?
 
-It's enough for my use cases and Josh didn't seem to oppose, but since
-he's not in Cc I don't think he would answer -- added him now :)
+I haven't really thought about using KSM in our case. Our goal was to make
+the VM layout of the migrated processes as close as possible to the
+original, including the COW sharing between parent process and its
+descendants. For that UFFDIO_COPY_COW seems to be more natural fit than
+KSM.
 
-FWIW happycache writes in the current directory by default so I assume
-in the way they use it it would usually have access one way or another.
-
-> If this still doesn't help happycache kind of workloads then we should
-> add a capability check IMO but this looks like a decent foundation to
-> me.
-
-the inode_owner_or_capable/inode_permission helpers already do allow
-quite a few capabilities there
-
+> Thanks,
+> 
+> -- 
+> Peter Xu
+> 
 
 -- 
-Dominique
+Sincerely yours,
+Mike.
 
