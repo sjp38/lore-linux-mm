@@ -2,203 +2,170 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5841FC169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 05:45:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 44A09C169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 06:04:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0CCE82087F
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 05:45:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0A09920881
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 06:04:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="PR2k4Xk2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CCE82087F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="K83trPq/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0A09920881
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=iki.fi
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3791A8E0002; Thu, 31 Jan 2019 00:45:00 -0500 (EST)
+	id 8E84D8E0002; Thu, 31 Jan 2019 01:04:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 327D08E0001; Thu, 31 Jan 2019 00:45:00 -0500 (EST)
+	id 897A98E0001; Thu, 31 Jan 2019 01:04:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 23F4B8E0002; Thu, 31 Jan 2019 00:45:00 -0500 (EST)
+	id 786D18E0002; Thu, 31 Jan 2019 01:04:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EAFDA8E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 00:44:59 -0500 (EST)
-Received: by mail-oi1-f199.google.com with SMTP id v184so1016706oie.6
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 21:44:59 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 521938E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 01:04:04 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id w1so2414590qta.12
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 22:04:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=aVfDndj6VBemYhBkReB2Uec5tndDqGkXjCOoMo2dZuw=;
-        b=rdBsiAD4wmSgrTTvItnxxn3XKu7IAzEZo6Wm5vavkgTGfGfJnoj1kify1afblrsFHh
-         OonGrKFQvm3fB8f9adhC/86Lpj/ODqnJ8INYBBRS1VvnNPuSsoFap7s71oMQcA3iELMo
-         RK18SznC4RGDcTqRGK3diEKnfiFrt7cEEpLd9T8ju3R/YKwfoAiIv3567sAubWERvy+X
-         kHdhCrb0lG3Q/8ZcSusUyO+6LxeIpd9V5fkfmr02/Cp1fRH1Xh3xgeUSoA+4sN0OULHk
-         pzIvrgpac2a1Q+HMLEttqEx6SlpOlnzetOhFn2jCkViQZIhNhJL4iK2dBsz1MRqlX1X6
-         /EGA==
-X-Gm-Message-State: AJcUukcdBQXmJliknSXtcHIF0WTzoN82PcZNoiB2qwfzGO1Ej5nOZ8YF
-	7X+R4MISbRbpjkiX9eWHV5InF3n3M/wYDk7jpi99XPqxX7m1FwfDT6fsuvzpk18S8zDOF1VCHhX
-	YAl6eVMRei8wi5x3cK5lvCaFTVl6p3q2DZrZeBOVHR9K0Fc2wsWoNy+2BCxOytE1KJj4Rx04C7D
-	N3cNN/L0WNq6dhJ6icrejFvtCMvhdDsr6xU5/eW38TSArErDDZZ1kg1aZX4nXXHRn4+KE6DvGUW
-	drGjzcWwl2MHwY+97onDrVJZ1e399F+uA3GZXjDe0M7o9m2yOSYs3oio5LGPFMxFot/7rkWDBUt
-	HllSFWZ/hB9bvzVrpmNa8hfbRNplw01qsZHfrkbn9GxoFxwv0Z8zyonAkvUHb/aeNr/ThaW52PW
-	x
-X-Received: by 2002:a9d:5a81:: with SMTP id w1mr25839685oth.317.1548913499556;
-        Wed, 30 Jan 2019 21:44:59 -0800 (PST)
-X-Received: by 2002:a9d:5a81:: with SMTP id w1mr25839647oth.317.1548913498603;
-        Wed, 30 Jan 2019 21:44:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548913498; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=pm74jFL5WdkgPbflaRWND5Onh5JGUH4RIyse6+DyrEA=;
+        b=uMR5LNh+9FiMRIt9p34yezyv63qLV/c4rYKf0HlFzN3xZf+6MV6saLQrtMYG/sKt5O
+         5SwQB0dtpbU42ec+XTI1bynfayp5zlubZpzko1IYUvel5TDthaJZjrP26NY7AgVCH+pt
+         Ej985zaI/01ch6W8JAyj+HnRgjpcxLKSRojWLd26BwlRQjz2suytmTIWlSIVDZfdRn8c
+         NEsyOxc5cjqCgyjpViSi6+Hiv8lbxlroBhxJrXIlIigJjwsKEDkgoY7cw0LY8oFRJnFD
+         dy7eHxG0/7PqkOel4ZJQO0p1FDbJ7cMr55tuXwV/z2kgoI7ndI+SmHsVU2a7u3nWoTYt
+         yniw==
+X-Gm-Message-State: AJcUukcRJRgmT++bV6qQR5YtAlwwLncNRnIXS9z6z81ENPdpmsgA3RQW
+	zu69NgpbIRuutuSaVmyhZCsJZPza6T4Sd0dPfBkSWEYEKYSLw9XwTuR8+ZChWBZTz0xiiWdG22W
+	cnhcN4kvl719dm6P8uz6s1q+TlR13nzNgWNhs0RSukahUx8hk6lgx9XK+r0o+qPw=
+X-Received: by 2002:ac8:2585:: with SMTP id e5mr33109054qte.233.1548914644026;
+        Wed, 30 Jan 2019 22:04:04 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6xLIAUUIRicUCtmPDvKrfyGH1pWwD4U6xMfjHgsvJ+KsNPAlYGiQDVitzm35j8ItK+Wv6t
+X-Received: by 2002:ac8:2585:: with SMTP id e5mr33109031qte.233.1548914643463;
+        Wed, 30 Jan 2019 22:04:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548914643; cv=none;
         d=google.com; s=arc-20160816;
-        b=xAakGziXkBOwooFwzPQexwbg9u6Mz/ZORc9kwbyh7LH6+Y7qGSQnB/zhk6AQka4jbr
-         JTybD9FV6p9vg/OuSjuwzXz6tjY8rEWj6mz3JmGJBKvwEhZ60LhcvKKohbHbpebHboxd
-         ECkXbsEMy2R3ZVvoif9Yb95TG6G5Qndy4kkm3wsjGY7zX7zeaXpKxVFie/k3l2B2WamC
-         KywWibzNy11rqxXDqfEveoXTOjPGwPtXWsvVDb1WEJs6pCkq6iOh2c6rGw8jBa9I2abe
-         QwStZ9kzv/uTtPuqcu+P6sdLM8Mw+v9VllnrKOX+WbwQkYj3r+0Jxl+xj6GHrDDOqVvT
-         zFrQ==
+        b=BDkH7avl1tSAn3wva/3owXMKOJgrB+bsfeRsGnNU0tN4IueWPMkJBprM0lGE4ISaaG
+         scsd5ZNQVUJkljckbzy2eqtQGnMzPwYVkrIgDQJ57SZfbbl4425dB84E8FRi6BRrU2Bt
+         bt6AnNjrRVBxATKfuUDRM1Dqjr1pdYJNTFTy14H5u/0OBdYOVe26tadYC/YPCtWVs39v
+         6ote9TY4/UthI9vvoJVk2zvcATEJmitfsNYg6ChftVNYQp8fHJ4miS/rB/+00ohgvabz
+         RFaXTMfcOLG69oeS8/7obDpfY3NSbRvgWjrCnX2pNjbkSLb9W492LIq/jgWnQodG+YpN
+         Zkiw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=aVfDndj6VBemYhBkReB2Uec5tndDqGkXjCOoMo2dZuw=;
-        b=wDtyIKJcx9+7ttrLMoRISficpS5CTGCXWUdminWoKEsPZ4kWW498YU1RiOU8ZGM4hh
-         uHI2XEKA6VPTw0fa0wecV6Ed4EEl5Gw2c5t/Fpn50SeBX9pap5zI1p2tBlBcFSKUXobQ
-         b7aM6SDUPKFR4JZWWK1JMnSKVyrFBfL81Cd1IWh9dMmRFDc582EzM1BeCPTwlPjVDbB/
-         uN7KW2tjxphom0EHubJuxhJIrWk0WH3kl1MZoOgnheW0WHuLRTuYLMUfzrYqG9FfU9D4
-         WpTEn8DiXlpbmWTKBEQO1AYTRkc8cZYJekGzOnuQBXWDNkoAwQRvarmU76q+PXKRKXXj
-         vOIw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=pm74jFL5WdkgPbflaRWND5Onh5JGUH4RIyse6+DyrEA=;
+        b=gbSwhCQv6HD8kd+ByeNaK+ooqhZUlPByoTBnWvR7MPf+IzcPnUBl+wDqNMgrYFbhLk
+         WUYyS/Bxwfc7dHx9BsQ4QslAYZ9LZBqMBEw+47YraAZluSlClBjGUcEBaT1mZtjki/in
+         zBKt+1vJKpqGGZekHob0ti/g29AdWvF9hbbYHV6sA/PJfR8pMfPQy5k6JSTqv0xuK/RG
+         QSRbRbkTZJP1DFav8qmyvvUjsR9PwqBGNxnSu2JF/K6V/EBOc0yZA5mMMG9XIIF6o9PQ
+         5DKh65/uxM34gIch+bBcgl4Kt9x/rwPGreGkDmTFYLSF4HF74k9dU91AYduFy9/cJZQz
+         1HAg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=PR2k4Xk2;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c126sor1751529oif.162.2019.01.30.21.44.58
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b="K83trPq/";
+       spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by domain of penberg@iki.fi) smtp.mailfrom=penberg@iki.fi;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=iki.fi
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id o44si2590208qtc.134.2019.01.30.22.04.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 30 Jan 2019 21:44:58 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jan 2019 22:04:03 -0800 (PST)
+Received-SPF: neutral (google.com: 66.111.4.25 is neither permitted nor denied by domain of penberg@iki.fi) client-ip=66.111.4.25;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=PR2k4Xk2;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=aVfDndj6VBemYhBkReB2Uec5tndDqGkXjCOoMo2dZuw=;
-        b=PR2k4Xk24Uu0hY9vI11raPfjPlpQR/1DbwvGdcqc9Ji235UUD02vPNRnnfbV1ewGqF
-         pfG2x7fyuQRyAG/KlFrk3UuVA7jEWPvGuLSqm94wBx5OoWlt8fmSQmVb7S5LLVt+zq+M
-         yPq+uhM4RNb25S7qyojwqQoY7ITU/TeEUiZOKtMAvz7XxaD0XXbYRa56bEdMbrxbQqug
-         6VU1aC0ec7ydUH4LONZmN+L9aXCqBYOZ32eAZEzdtmyXGm3nmGkgTZbhrsGFKwnLhT6W
-         qK9MEuI5gu1iYroCBKq/4y2slXff32YcFTpmCJNlgMeyazl+lkCTbB8E2/IVNIA81QVC
-         DouQ==
-X-Google-Smtp-Source: AHgI3IbT1tV5Ek4hn71MgwttuV/sQt+vNX3jhl11o5tP1/xzowAV9Sz3tedqeKSjtRCjW8TBufjcOWZ+uGIbDEQGz0g=
-X-Received: by 2002:aca:f4c2:: with SMTP id s185mr14845265oih.244.1548913498259;
- Wed, 30 Jan 2019 21:44:58 -0800 (PST)
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b="K83trPq/";
+       spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by domain of penberg@iki.fi) smtp.mailfrom=penberg@iki.fi;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=iki.fi
+Received: from compute4.internal (compute4.nyi.internal [10.202.2.44])
+	by mailout.nyi.internal (Postfix) with ESMTP id EE552216C5;
+	Thu, 31 Jan 2019 01:04:02 -0500 (EST)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute4.internal (MEProxy); Thu, 31 Jan 2019 01:04:02 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-transfer-encoding:content-type
+	:date:from:in-reply-to:message-id:mime-version:references
+	:subject:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender
+	:x-sasl-enc; s=fm1; bh=pm74jFL5WdkgPbflaRWND5Onh5JGUH4RIyse6+Dyr
+	EA=; b=K83trPq/lRQ5ZAEYokXtzAHdeVPm3lHZ2XLhKPZ1Zsbfke2/k8QO7KTo7
+	THpV7spAKIn45V3f0rQuImWFcFOUTIQ4jNkjgo4VJIPdyJxtp3HF8fxNEKbJjUPD
+	nXpxfqnLiHQB3k3oSQ9aPSEzwmNhi/NJy07HqBqyFZRShvRauN/0hCJ3au1UIwTG
+	+u9oDb+RzauvtUYLsFzC1Pu9PX18t7HbFyZsL8K2/3fj8ELnW00sTecQLydtKNms
+	ZgfIPB4DtqI0PBbWWkQU3GiVR0QGHxtXUpXNQ4Ryeb+N4iyTbC1YsZphigAEFEIk
+	WZpcKW281KMOD6ZxSR/xd7w0iEpBw==
+X-ME-Sender: <xms:z49SXPnAFRHox4N84sy9Ju_0Lj0jhLethXXOpyVz-6IXibBu7xD2vA>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledrjeehgdeklecutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthenuceurghilhhouhhtmecufedt
+    tdenucesvcftvggtihhpihgvnhhtshculddquddttddmnecujfgurhepuffvfhfhkffffg
+    ggjggtgfesthejredttdefjeenucfhrhhomheprfgvkhhkrgcugfhnsggvrhhguceophgv
+    nhgsvghrghesihhkihdrfhhiqeenucfkphepkeelrddvjedrfeefrddujeefnecurfgrrh
+    grmhepmhgrihhlfhhrohhmpehpvghnsggvrhhgsehikhhirdhfihenucevlhhushhtvghr
+    ufhiiigvpedt
+X-ME-Proxy: <xmx:z49SXFbA4teLOv1uCMRc_Xqar5Wsjw1P5yApBhpu1OdIsMtYqudJAg>
+    <xmx:z49SXJT9vg4SSoatl62M3_ELW6vevYPm54aCx1yfgFyCRdwPq8c5ug>
+    <xmx:z49SXHulIQlQ2D9nJdlhFTevbUaISQr3RPyNbDpmXEydkCwsPNdyqg>
+    <xmx:0o9SXFRMUqNgS-UrW9XDztpykGZ86DDkTHRiFmH2wScin1ds_k6Xug>
+Received: from Pekka-MacBook.local (89-27-33-173.bb.dnainternet.fi [89.27.33.173])
+	by mail.messagingengine.com (Postfix) with ESMTPA id DDBC0E40FF;
+	Thu, 31 Jan 2019 01:03:56 -0500 (EST)
+Subject: Re: [PATCH] mm: Prevent mapping slab pages to userspace
+To: Matthew Wilcox <willy@infradead.org>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Rik van Riel <riel@surriel.com>, Christoph Lameter <cl@linux.com>,
+ Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>, kernel-hardening@lists.openwall.com,
+ Kees Cook <keescook@chromium.org>, Michael Ellerman <mpe@ellerman.id.au>
+References: <20190125173827.2658-1-willy@infradead.org>
+From: Pekka Enberg <penberg@iki.fi>
+Message-ID: <f1cd3105-2d36-a699-ed4c-e293d26b828d@iki.fi>
+Date: Thu, 31 Jan 2019 08:03:54 +0200
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:60.0)
+ Gecko/20100101 Thunderbird/60.4.0
 MIME-Version: 1.0
-References: <20190129165428.3931-10-jglisse@redhat.com> <CAPcyv4gNtDQf0mHwhZ8g3nX6ShsjA1tx2KLU_ZzTH1Z1AeA_CA@mail.gmail.com>
- <20190129193123.GF3176@redhat.com> <CAPcyv4gkYTZ-_Et1ZriAcoHwhtPEftOt2LnR_kW+hQM5-0G4HA@mail.gmail.com>
- <20190129212150.GP3176@redhat.com> <CAPcyv4hZMcJ6r0Pw5aJsx37+YKx4qAY0rV4Ascc9LX6eFY8GJg@mail.gmail.com>
- <20190130030317.GC10462@redhat.com> <CAPcyv4jS7Y=DLOjRHbdRfwBEpxe_r7wpv0ixTGmL7kL_ThaQFA@mail.gmail.com>
- <20190130183616.GB5061@redhat.com> <CAPcyv4hB4p6po1+-hJ4Podxoan35w+T6uZJzqbw=zvj5XdeNVQ@mail.gmail.com>
- <20190131041641.GK5061@redhat.com>
-In-Reply-To: <20190131041641.GK5061@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 30 Jan 2019 21:44:46 -0800
-Message-ID: <CAPcyv4gb+r==riKFXkVZ7gGdnKe62yBmZ7xOa4uBBByhnK9Tzg@mail.gmail.com>
-Subject: Re: [PATCH 09/10] mm/hmm: allow to mirror vma of a file on a DAX
- backed filesystem
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Ralph Campbell <rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, 
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190125173827.2658-1-willy@infradead.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 30, 2019 at 8:17 PM Jerome Glisse <jglisse@redhat.com> wrote:
-> On Wed, Jan 30, 2019 at 07:28:12PM -0800, Dan Williams wrote:
-[..]
-> > > Again HMM API can evolve, i am happy to help with any such change, given
-> > > it provides benefit to either mm or device driver (ie changing the HMM
-> > > just for the sake of changing the HMM API would not make much sense to
-> > > me).
-> > >
-> > > So if after converting driver A, B and C we see that it would be nicer
-> > > to change HMM in someway then i will definitly do that and this patchset
-> > > is a testimony of that. Converting ODP to use HMM is easier after this
-> > > patchset and this patchset changes the HMM API. I will be updating the
-> > > nouveau driver to the new API and use the new API for the other driver
-> > > patchset i am working on.
-> > >
-> > > If i bump again into something that would be better done any differently
-> > > i will definitly change the HMM API and update all upstream driver
-> > > accordingly.
-> > >
-> > > I am a strong believer in full freedom for internal kernel API changes
-> > > and my intention have always been to help and facilitate such process.
-> > > I am sorry this was unclear to any body :( and i am hopping that this
-> > > email make my intention clear.''
-> >
-> > A simple way to ensure that out-of-tree consumers don't come beat us
-> > up over a backwards incompatible HMM change is to mark all the exports
-> > with _GPL. I'm not requiring that, the devm_memremap_pages() fight was
-> > hard enough, but the pace of new exports vs arrival of consumers for
-> > those exports has me worried that this arrangement will fall over at
-> > some point.
->
-> I was reluctant with the devm_memremap_pages() GPL changes because i
-> think we should not change symbol export after an initial choice have
-> been made on those.
->
-> I don't think GPL or non GPL export change one bit in respect to out
-> of tree user. They know they can not make any legitimate regression
-> claim, nor should we care. So i fail to see how GPL export would make
-> it any different.
+On 25/01/2019 19.38, Matthew Wilcox wrote:
+> It's never appropriate to map a page allocated by SLAB into userspace.
+> A buggy device driver might try this, or an attacker might be able to
+> find a way to make it happen.
+> 
+> Signed-off-by: Matthew Wilcox <willy@infradead.org>
 
-It does matter. It's a perennial fight. For a recent example see the
-discussion around: "x86/fpu: Don't export __kernel_fpu_{begin,end}()".
-If you're not sure you can keep an api trivially stable it should have
-a GPL export to minimize the exposure surface of out-of-tree users
-that might grow attached to it.
+Acked-by: Pekka Enberg <penberg@kernel.org>
 
->
-> > Another way to help allay these worries is commit to no new exports
-> > without in-tree users. In general, that should go without saying for
-> > any core changes for new or future hardware.
->
-> I always intend to have an upstream user the issue is that the device
-> driver tree and the mm tree move a different pace and there is always
-> a chicken and egg problem. I do not think Andrew wants to have to
-> merge driver patches through its tree, nor Linus want to have to merge
-> drivers and mm trees in specific order. So it is easier to introduce
-> mm change in one release and driver change in the next. This is what
-> i am doing with ODP. Adding things necessary in 5.1 and working with
-> Mellanox to have the ODP HMM patch fully tested and ready to go in
-> 5.2 (the patch is available today and Mellanox have begin testing it
-> AFAIK). So this is the guideline i will be following. Post mm bits
-> with driver patches, push to merge mm bits one release and have the
-> driver bits in the next. I do hope this sound fine to everyone.
+A WARN_ON_ONCE() would be nice here to let those buggy drivers know that 
+they will no longer work.
 
-The track record to date has not been "merge HMM patch in one release
-and merge the driver updates the next". If that is the plan going
-forward that's great, and I do appreciate that this set came with
-driver changes, and maintain hope the existing exports don't go
-user-less for too much longer.
-
-> It is also easier for the driver folks as then they do not need to
-> have a special tree just to test my changes. They can integrate it
-> in their regular workflow ie merge the new kernel release in their
-> tree and then start pilling up changes to their driver for the next
-> kernel release.
-
-Everyone agrees that coordinating cross-tree updates is hard, but it's
-managaeble. HMM as far I can see is taking an unprecedented approach
-to early merging of core infrastructure.
+> ---
+>   mm/memory.c | 2 +-
+>   1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index e11ca9dd823f..ce8c90b752be 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1451,7 +1451,7 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+>   	spinlock_t *ptl;
+>   
+>   	retval = -EINVAL;
+> -	if (PageAnon(page))
+> +	if (PageAnon(page) || PageSlab(page))
+>   		goto out;
+>   	retval = -ENOMEM;
+>   	flush_dcache_page(page);
+> 
 
