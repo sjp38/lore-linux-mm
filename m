@@ -6,130 +6,159 @@ X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
 	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 932D5C169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 13:37:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 28FCCC169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 13:38:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3716A2085B
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 13:37:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DF847218AC
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 13:38:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="F/mOMAUL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3716A2085B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
+	dkim=pass (1024-bit key) header.d=alien8.de header.i=@alien8.de header.b="fXscU4ee"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF847218AC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=alien8.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A2C0F8E0002; Thu, 31 Jan 2019 08:37:50 -0500 (EST)
+	id 8590D8E0003; Thu, 31 Jan 2019 08:38:49 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9DB388E0001; Thu, 31 Jan 2019 08:37:50 -0500 (EST)
+	id 7DEF88E0001; Thu, 31 Jan 2019 08:38:49 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8CAF08E0002; Thu, 31 Jan 2019 08:37:50 -0500 (EST)
+	id 680958E0003; Thu, 31 Jan 2019 08:38:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6605C8E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 08:37:50 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id b16so3483565qtc.22
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 05:37:50 -0800 (PST)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C3D28E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 08:38:49 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id d6so1059714wrm.19
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 05:38:49 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=+J49GTNqrH+Q1rNhdO2ofcioHRQbNfNckDiiZO62Q8E=;
-        b=oTLob1so3Wv3oZcvuRe+CrP64zs3CNAFi93AuoNz0/I+Qy6Yfr8tIOKuM2XKB8T3AJ
-         NlyMSbmeMUa6yd6lBRyEh6R8dHUfMr/qwdqctcZ/sYzIsGlAhYFBVD+T+twGmYGn883L
-         nYidKIHVsnL3jiHE5DbvHJmtT9+/p5kHwKZjaVRbALI9IIR4KrEmT3sL/hNNmchQ/7Qb
-         haVmsbNwSUAc7eksXUXoJtgsMyjrULxgrDWxYrAQl0hKvIz+Wv9BQgHva+1m72eUnZO0
-         sYBaRMKwNUdVtYxxrD2VsrN4esqY5vZbqPj2PGlK8JTfYarW+logXkbm8hWrawZgUjZO
-         m4XA==
-X-Gm-Message-State: AJcUukd1rZz7D9A7nNTn2QMVyCc9u0iQjX4/umz+tUxsGiD2ADep9N7p
-	nlm1a1U+FqCmMLZ0CZxVU/cRi0l+tMZIuy406tX7bdueGObwZQB+BitCCx/+PZ0GSNZh9meFvOh
-	WOKIW3AbgkIZ93fHI7uaS7cS5Hv2Ma4aRAPIc5dUQL/5x8yIyU8AVasc3cFpCLPPF5Sn0NnNeIp
-	O3VKe1M7nYjALc+9nLq4Y/o8m4eZ8v5nAIUkfzeut1Cfllcui4Za/rndATTGAneQpovDOB47YIt
-	uy1vpCaF3xXX2dD4ZRC5YD0G5yjdFHNlZHQzy1mq315cP+EqgR//x6ZB7Qysyn6mFkWrW/qWS+d
-	5C8tR4CCAlQEeI+wEvl5KgzeANvAZO01c7oj4+7AyT7+Hsugj5kdY2XeSeCevTKp3GIjH34kAxk
-	J
-X-Received: by 2002:a37:c51b:: with SMTP id p27mr30038890qki.86.1548941870132;
-        Thu, 31 Jan 2019 05:37:50 -0800 (PST)
-X-Received: by 2002:a37:c51b:: with SMTP id p27mr30038857qki.86.1548941869618;
-        Thu, 31 Jan 2019 05:37:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548941869; cv=none;
+        bh=N9ZfktBJAMGDaOqi63rNj6dpil8IUx1OGdlTeCh4s6w=;
+        b=kmgGBwlsRFy40cZJ0JvSmjNTzLsHK+bhD9BOUfP7NceScBPRMkdL8a9iO6wLaC7GPQ
+         +aaTZknNnMBTnUSSRZ6TydFwqnVACclZpZ//1c89F3KFMSERbShyI63PI0Cv05A8FZNR
+         Q+Sq4d1BFYOl7QT+HGh/x6vpHi1Os21dffKYBVtYAc1gNYX6jjGg5llKtjCo6UTE2Yjt
+         5Fa63InJpUpsERkpd3zNj3S+I4WeaeIb6gWHre4wZE1sdsbYTyycfg3UfJBgif17ZiAO
+         JB1Phwq0sbiXp8tyaAeD0pKjCugUzKHhDwkj4rORASfmHZ8aGODi6VdLPfcgADQ3llNy
+         +HJg==
+X-Gm-Message-State: AJcUukcItGlWPnCXamvr1TqoQ02F1/2DSBl3H7UGKnNVhGd2FZD+SYwS
+	kSJJ7Ld2A1B4G2d7CuFZaNvo1nGpaKbvzZrs3bqrszt0cjxTRU9xafIiJx7uuRLUe68hkIEO/Pj
+	XXuPAfiMil2rFGpEaD/hW5cCMyZhwn4hON5ImAqN2rBzSIeWFD6J2HDC0f7Fy/ANeZA==
+X-Received: by 2002:adf:f504:: with SMTP id q4mr35981985wro.321.1548941928662;
+        Thu, 31 Jan 2019 05:38:48 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6Y//redcYT1mLMIf8jL/sJqWndUmdzwjcrg8pA6Iq1mHdajjwfGCILMX1WveLecTsaRv41
+X-Received: by 2002:adf:f504:: with SMTP id q4mr35981939wro.321.1548941927910;
+        Thu, 31 Jan 2019 05:38:47 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548941927; cv=none;
         d=google.com; s=arc-20160816;
-        b=g0TZsTo+CQASyEJ+tpT1JOXYPWlJSJxfELMTzLlcfKPrTcZz8pGytcjZfKZwqEKrAH
-         ggaaxOZ4QCeCvhQAgtyQMvkmaN9BrV+aozpsDdTPuYCzknYwBQbuQK6jo/XCRDiy3KIr
-         RFHdCqWrCD0L9U13DhgDp5W15XlBoQfWnhYqBluMQ2FdgGMjrdn6oYy1VU/VQMRWkwRA
-         RB5Pl+BdPziloOuKRWBRPH52r+74+nRGwuHwU8MuoL3crltxDl/3UbtVA+dFK0WDCHAo
-         JF1Xuh6svQ1IUATOWCKkGKQmLbRsJJfG/AY9voHnQOrV89LAvGydzk8YSZTlwuQkvWyo
-         ftRw==
+        b=qIoWlXk600OILoqOMGby7917q7ssqaQ+cqUF7LUwBiZdXe6fhN+G2EFbbWDv8/2wcy
+         sy4u1K7aPnIfBDdnxn6i6t7lgZDbZycaLRSg3xl3mmrGA9DVbJUHWefeApRVgvUMgvHD
+         YNX7j0LXM4iqdMta6xoqh5qLpFIyTlbr7DqM5WNMZpcHKixBHbYgqi9fSPC+ZZWEHsNr
+         KRbtH0ryXaDUssW/d8LTdGqCu3SdNkym1uoyGnuuuuGTpMe7NasV9/juHsRDmTKmMsTE
+         nmfnKXm+ySMVeH22NsHYYcpZx0BLkyUjiO9+6n99o0W4vb6YLhpmHsKT/TbDZ+JjRTWO
+         K+NQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=+J49GTNqrH+Q1rNhdO2ofcioHRQbNfNckDiiZO62Q8E=;
-        b=AmBAjWzwC2GHjwYMbHflsvZI2ZD/vBhFnkqx2TsJGm5mZwx34sBOuYYVoxdpZRSjWK
-         MNf+TIyNjKWE089YEk87QtSifimio6xDQwbOUIHwIP3jly/RLdBhMuqy4s/i+Q6pVXM0
-         EdfP3i5aBsU0Tx9X3wvm2WIpvzQUxP7T38hOq9232sKoApXk25dcEBOeAM5ZhaZZah03
-         lHG3hVJ1ApnAV0w2DqcuzyPcXNL7DuqWAR/gBQgQlJDA+/onqzcMyPQ8G7p2qodIkloZ
-         N+ZiudjgAP4FwFzsVxQ05ha2xQGB0URfFQ6VMY59UOYMm013A3E7dFtjOd7BOWFsGOJj
-         iVrA==
+        bh=N9ZfktBJAMGDaOqi63rNj6dpil8IUx1OGdlTeCh4s6w=;
+        b=TbPwMaGTmec3+s3u/4boKwvhwkWBoJZRjcDAdCAHQOMnob150bp3W58iVwlrcIETIv
+         v1oh292L9S1bRbhJdExQ44OBcLQ2RImzTvaxh1p9oblg1QYhksGso8CAvIHE3UewKCwJ
+         EmOcf6s6FGi+1YFUpi1DKULWhblojp2l+FEex0Ge7GmNsJZrTDRs7P5QymbFV4J+1HzU
+         /VHaInNNltV6dtBpy0LDNb10gU+yvcikYDzCV94vXDwkqVyNKxyiF4lkNqz4bqdFNpx/
+         uBKqmXX4csy3TnHEPY5c0DTrdi2P0wNdVYIacovh00Cym8D7Du3YRbjVnt8yAoGZGnRr
+         yIOQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b="F/mOMAUL";
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.41 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j42sor710027qta.38.2019.01.31.05.37.49
+       dkim=pass header.i=@alien8.de header.s=dkim header.b=fXscU4ee;
+       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTPS id l3si3716972wru.225.2019.01.31.05.38.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 31 Jan 2019 05:37:49 -0800 (PST)
-Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Jan 2019 05:38:47 -0800 (PST)
+Received-SPF: pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) client-ip=5.9.137.197;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b="F/mOMAUL";
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.41 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chrisdown.name; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=+J49GTNqrH+Q1rNhdO2ofcioHRQbNfNckDiiZO62Q8E=;
-        b=F/mOMAULxU5LCdlH4w3ZM71drEKq8nJjpaQGkXRFOlo3AkapiiXd9fqxLaCMzfX9Po
-         3/hHsP1meFkb2Y1pvWkmcCe63xJsf1ILTnhu7Hq++A59q7pDkX9bu1yieJGMk8k7ZheE
-         ij6H9VZ0oEStmRlG1f8RPFBRId9+G0iptEn7U=
-X-Google-Smtp-Source: ALg8bN5XRVQnIvE58lv0fww2i4DLDSQ9mT1TSN7gG5Q1fdpfbc2iC8pnHzYf3OV9/dhURjjBhvWmuQ==
-X-Received: by 2002:ac8:7181:: with SMTP id w1mr34340796qto.271.1548941868971;
-        Thu, 31 Jan 2019 05:37:48 -0800 (PST)
-Received: from localhost (rrcs-108-176-24-99.nyc.biz.rr.com. [108.176.24.99])
-        by smtp.gmail.com with ESMTPSA id x41sm5671444qth.92.2019.01.31.05.37.48
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 31 Jan 2019 05:37:48 -0800 (PST)
-Date: Thu, 31 Jan 2019 08:37:48 -0500
-From: Chris Down <chris@chrisdown.name>
-To: Linux Memory Management List <linux-mm@kvack.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm:master 203/305] mm/memcontrol.c:5629:52: error:
- 'THP_FAULT_ALLOC' undeclared
-Message-ID: <20190131133748.GA28484@chrisdown.name>
-References: <201901312116.bwXU2Jyz%fengguang.wu@intel.com>
+       dkim=pass header.i=@alien8.de header.s=dkim header.b=fXscU4ee;
+       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
+Received: from zn.tnic (p200300EC2BCC5900651C63FB93E4C575.dip0.t-ipconnect.de [IPv6:2003:ec:2bcc:5900:651c:63fb:93e4:c575])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.skyhub.de (SuperMail on ZX Spectrum 128k) with ESMTPSA id 191B41EC059E;
+	Thu, 31 Jan 2019 14:38:47 +0100 (CET)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=alien8.de; s=dkim;
+	t=1548941927;
+	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
+	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
+	 content-transfer-encoding:in-reply-to:in-reply-to:  references:references;
+	bh=N9ZfktBJAMGDaOqi63rNj6dpil8IUx1OGdlTeCh4s6w=;
+	b=fXscU4eeC2ToGWv6EVxYT5WtmhOF8NW0lZM2/wfvSID9gZS0549ZoFEAJheQvCW+hl03Uj
+	wfD84p+pgqW+Tl7C0OAylMfQ5Xd9zmT8Cyt/xLrjf9jDmxW5isLfbUA6QbTK6EZ+Ywtft6
+	JzhH2T1j/SxhHenwGC/hy0GjIb2jDrs=
+Date: Thu, 31 Jan 2019 14:38:42 +0100
+From: Borislav Petkov <bp@alien8.de>
+To: James Morse <james.morse@arm.com>
+Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu,
+	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	Marc Zyngier <marc.zyngier@arm.com>,
+	Christoffer Dall <christoffer.dall@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+	Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>,
+	Tony Luck <tony.luck@intel.com>,
+	Dongjiu Geng <gengdongjiu@huawei.com>,
+	Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>
+Subject: Re: [PATCH v7 20/25] ACPI / APEI: Use separate fixmap pages for
+ arm64 NMI-like notifications
+Message-ID: <20190131133842.GK6749@zn.tnic>
+References: <20181203180613.228133-1-james.morse@arm.com>
+ <20181203180613.228133-21-james.morse@arm.com>
+ <20190121172743.GN29166@zn.tnic>
+ <bee87ef4-60ae-d4a4-2855-159543072fc5@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <201901312116.bwXU2Jyz%fengguang.wu@intel.com>
-User-Agent: Mutt/1.11.2 (2019-01-07)
+In-Reply-To: <bee87ef4-60ae-d4a4-2855-159543072fc5@arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-kbuild test robot writes:
->   mm/memcontrol.c: In function 'memory_stat_show':
->>> mm/memcontrol.c:5629:52: error: 'THP_FAULT_ALLOC' undeclared (first use in this function)
->     seq_printf(m, "thp_fault_alloc %lu\n", acc.events[THP_FAULT_ALLOC]);
->                                                       ^
->   mm/memcontrol.c:5629:52: note: each undeclared identifier is reported only once for each function it appears in
->>> mm/memcontrol.c:5631:17: error: 'THP_COLLAPSE_ALLOC' undeclared (first use in this function)
->         acc.events[THP_COLLAPSE_ALLOC]);
+On Wed, Jan 23, 2019 at 06:33:02PM +0000, James Morse wrote:
+> Was the best I had, but this trips the BUILD_BUG() too early.
+> With it, x86 BUILD_BUG()s. With just the -1 the path gets pruned out, and there
+> are no 'sdei' symbols in the object file.
+> 
+> ...at this point, I stopped caring!
 
-Oh, right. Now that we don't define these for ourselves in memcontrol.h any 
-more and just use the VM definitions, they also need to go in an #ifdef.
+Yah, you said it: __end_of_fixed_addresses will practically give you the
+BUG behavior:
 
-Apologies for the noise, I'll add a fixup to guard these in a bit.
+        if (idx >= __end_of_fixed_addresses) {
+                BUG();
+                return;
+        }
+
+and ARM64 does the same.
+
+> We already skip registering notifiers if the kconfig option wasn't selected.
+> 
+> We can't catch this at compile time, as the dead-code elimination seems to
+> happen in multiple passes.
+> 
+> I'll switch the SDEI ones to __end_of_fixed_addresses, as both architectures
+> BUG() when they see this.
+
+Right.
+
+Thx.
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
