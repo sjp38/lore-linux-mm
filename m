@@ -2,259 +2,242 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E24AC282D9
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 15:37:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F6D2C282DA
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 15:37:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 07F2220B1F
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 15:37:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 07F2220B1F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 1AD64218EA
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 15:37:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1AD64218EA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 937438E0002; Thu, 31 Jan 2019 10:37:13 -0500 (EST)
+	id AE5068E0003; Thu, 31 Jan 2019 10:37:44 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8E6988E0001; Thu, 31 Jan 2019 10:37:13 -0500 (EST)
+	id A94568E0001; Thu, 31 Jan 2019 10:37:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7FCB08E0002; Thu, 31 Jan 2019 10:37:13 -0500 (EST)
+	id 9836C8E0003; Thu, 31 Jan 2019 10:37:44 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 12B7E8E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 10:37:13 -0500 (EST)
-Received: by mail-lf1-f70.google.com with SMTP id z17so744356lfg.10
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 07:37:13 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C9A78E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 10:37:44 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id n45so4042558qta.5
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 07:37:44 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:date:message-id:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=UdCpZGLaVRXmr2hVfEcXUfzxNOf3I0owv4ecGAkgmOk=;
-        b=VnIN1fjhgEyPwv7AFb1iI0W7pPOsBDNC+qqHqkrb5iwzAkeuAFAKUHjtk3YhCSCmgC
-         /WnHtFJoQtF7/7p5F32A/EEd3Zvh+ilo/SJzBKaEStgVK/VJWvOhlIskwkadTB375sFa
-         nFww7RHoujuPEn/OYZCwvgsQMSdMkRWKPO+E+2BqkLQoQoYkH9iiPUAozWuGz/5yoUxS
-         mdJCpUWCOiU/MlyN4a5RAPxYUxHOWSZhOvwB+UfJIvzkh6B7NggEb6s+Xj7g7n8Kxl/N
-         XsxyqEQG1aKMTxEy1E1LaVdY+Km9pVtNhihD+bWKguD8cPgvQugb3UqGAbyVuZkUhT0G
-         cDiQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: AHQUAuYlJ+KaYNYQPJ1dDEWR1fLf7x+5UuPEAzA2EeGr6AUaUVZ5XXgW
-	5cHEAmCEWn5DEDUGo2Q7Xtjdq7QyjNCt6Vrbye6g6Cbm8HIRDddfmISnxgq3/j8entF98CsAwzU
-	nXLJEPcsOW17GHnuacRwOZ5QTWsf0O6sGmhguRYhkk4N1a1/3JbJAB9PSqM+2hAPgCA==
-X-Received: by 2002:a19:f013:: with SMTP id p19mr462183lfc.61.1548949031084;
-        Thu, 31 Jan 2019 07:37:11 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaE/uM3vxitoHQIbjz6Heubchgnl/TqfAL8UzAxTcot4+xMD2iC9SgRPrKYmmrSEiWXgJhW
-X-Received: by 2002:a19:f013:: with SMTP id p19mr462110lfc.61.1548949029783;
-        Thu, 31 Jan 2019 07:37:09 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548949029; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=EbWsIHwQoJ8StzhsW+ZAmsox8ZyuC/z5UiQyJukDsL8=;
+        b=SmVbBZA2lKrgutSXLJxbx3J7dsP9xdw7WLGQe6VZsAyz54CDtGi8hKH2oJUd7TSE2I
+         ZjHhWlw9Py5MDDilln97ylWXiSa/kacod7pN/u35lH5Lrp55fIShpL7rbrhbtmZf9ANC
+         aipgGzoBIdZa7reybPtdpmPwJqT+iFAoZaZKzWL/3SUQpY3Fx1h+A2OxWWLc4mpK10QI
+         998h855VqFNUNujiA1KJFqgs9dERuRSEYsglZRZA/BHp3wsCRbBfFaklSvLn4RgBIA6i
+         2g6CAeLLDq2AJlAx48pK1MFDceUYKn+BnyjI6Gty9aauyd59z69frdQSXoc9tFI6qVUm
+         6Olw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukcYaTr5xh4gwcep4PjhRE0czMiLmxmi0j88IOghsAjNyfzsQ017
+	0HTzApcCERDSHqVYx8Uni2aVQ4FB1DBwGo1iIbOqdGv2H3DXZtaw115sYxnDwVaVfEmc8GisFJR
+	K0jaSJX5QsuG3hAkgr7wJVpfEOn9TWS4bNriKxJsmFNqq+OSUs0Z6uwZ4VSjPEjQo6Q==
+X-Received: by 2002:aed:3f22:: with SMTP id p31mr35207166qtf.185.1548949064157;
+        Thu, 31 Jan 2019 07:37:44 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4y1JJ4pjCybfgwj/VTqAaL6eP4GR017JpJkurnV/1iTJ8P9U1KT5XmFFA4dbbxMn1Ku+WQ
+X-Received: by 2002:aed:3f22:: with SMTP id p31mr35207119qtf.185.1548949063404;
+        Thu, 31 Jan 2019 07:37:43 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548949063; cv=none;
         d=google.com; s=arc-20160816;
-        b=yI0Y62uOKT37iWh/aHiRY0Fx72DhxkPEX7+fR3h4aXXZpxRqYJAWDtfm77HuX64uFp
-         88U/JdxytrbQbfqUi7G89WCR66klsq5E9r2EA8Ujt/DKm7TcHDhqq5MqmSkHfLPrsmIH
-         txLfyjDncXEMOasuIJPdXLwwBW0SZzNr1t1NY3edvQeDjpjfKfVFbZixT/D3vagFVwa4
-         7hajptMKjL/h7Ts05Nlu3/cvxCUaL9dN7Pi/2cbw3WumqWF7MOU0HxQ6yINpJJPDzj7e
-         JMF8cTVvbcxGDi7MuTTt3/2C2BFiRa+Vf0Wg+PzuRf6iztFa61Lzg7lOXL2ghhdliMyb
-         67ag==
+        b=HgrIC/adf3T/MbRB0LKh61PdSjwsMh5qig9KEbHeXhwcpxockTsJ3gDsUGBRf0o5pj
+         TO2xanvfcZAiuVbhAbjCV3j/HcDy0KSrciJ7DiE7tQKhf1C5lgETX0wukpPS1rnrIeTN
+         SpxgN/KZ/MbdM2qbVLvtMbyyZpLk9WUF4WpNehsMXc4UqtQI+M1lwFvqbHaGZHBGDYHc
+         hNR7k8zTVALqgZswqB8zgw6A+g+QSnxU29FIC5sI+pyS/8Av0NxAW6d2wXGkgs5bZliT
+         MCOUt284MSEm6oFCugU5PqrpfujX5vN/U0lNI/oVTktzxIZQ4YC8OzScSQ5QdjZTffEv
+         yH3w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:message-id:date
-         :to:from:subject;
-        bh=UdCpZGLaVRXmr2hVfEcXUfzxNOf3I0owv4ecGAkgmOk=;
-        b=c/9r39UA0neCfsn4cOngqrYkS5Zmq8bQGGJCzIoaa3RZ313KSeISW42A7YA4RAjnOD
-         S2pK/EE22D2934l5/5GbKh4F5fbtydkuzelO4Uv0PuSCl8fwqF5VNWc4Fp3mvyrpg68U
-         I7Ve222JJyEpbKd5OMiHIaFl7STunwt8E4eSRVvFBa23Cs9e5W4Zai+Wh7lHnQeHQknx
-         7wLIqjkb9J2+iz2kTnhT1nlWWakA0EZXjA0TVZi5gDHaYL7c8m2W1GSTR2py4XudAHf9
-         JR0FnfBMAda2Rv8Qst17zO6es/bCpZqzlku1VXu7yPnNixsW35Qe+FBPkjQF/c/vznGv
-         nwQA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=EbWsIHwQoJ8StzhsW+ZAmsox8ZyuC/z5UiQyJukDsL8=;
+        b=f/ap4NXV8mizRgAqHG9dHH3/D4+qXVnSGhbpfBLmcRhUZGjQiDHxg+IBI3aZDMVidp
+         Bf4gEv0ZvLkzY5mkP5Ko5EvjmWxH9Crjwkchad4NnU4oRmOv7CyCmr/BHAU8A1O2ky5x
+         KZicphKlm/C/l7NcXf3i0m+ISYlf1z5FNyxnO3u8I6X0nrpt4Iq/xpownvjEG6McvB63
+         4o3Uqi2M3ZZ3aKwBXDYbwHKSKMsMtiih5dTZzgqi4UqIrsna2gso0uXhSWTiXKrY95Tu
+         MBbSRr3Cp2losha6hfbNWx3Se99Fb/BJpmUBJRvkoOsb1hRtusl9k33Mtslo6fVfvu3+
+         LXNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id d202si5300762lfe.126.2019.01.31.07.37.09
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r68si2351066qke.14.2019.01.31.07.37.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jan 2019 07:37:09 -0800 (PST)
-Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        Thu, 31 Jan 2019 07:37:43 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.169] (helo=localhost.localdomain)
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <ktkhai@virtuozzo.com>)
-	id 1gpEOl-00039g-7T; Thu, 31 Jan 2019 18:37:03 +0300
-Subject: [PATCH] mm: Do not allocate duplicate stack variables in
- shrink_page_list()
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-To: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org,
- ktkhai@virtuozzo.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Date: Thu, 31 Jan 2019 18:37:02 +0300
-Message-ID: <154894900030.5211.12104993874109647641.stgit@localhost.localdomain>
-User-Agent: StGit/0.18
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 0167786671;
+	Thu, 31 Jan 2019 15:37:42 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.236])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id C38DD5C5DE;
+	Thu, 31 Jan 2019 15:37:39 +0000 (UTC)
+Date: Thu, 31 Jan 2019 10:37:38 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Logan Gunthorpe <logang@deltatee.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J . Wysocki" <rafael@kernel.org>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	Christian Koenig <christian.koenig@amd.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	Marek Szyprowski <m.szyprowski@samsung.com>,
+	Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <jroedel@suse.de>,
+	"iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
+Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
+ vma
+Message-ID: <20190131153737.GD4619@redhat.com>
+References: <655a335c-ab91-d1fc-1ed3-b5f0d37c6226@deltatee.com>
+ <20190130041841.GB30598@mellanox.com>
+ <20190130080006.GB29665@lst.de>
+ <20190130190651.GC17080@mellanox.com>
+ <840256f8-0714-5d7d-e5f5-c96aec5c2c05@deltatee.com>
+ <20190130195900.GG17080@mellanox.com>
+ <35bad6d5-c06b-f2a3-08e6-2ed0197c8691@deltatee.com>
+ <20190130215019.GL17080@mellanox.com>
+ <07baf401-4d63-b830-57e1-5836a5149a0c@deltatee.com>
+ <20190131081355.GC26495@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190131081355.GC26495@lst.de>
+User-Agent: Mutt/1.10.0 (2018-05-17)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Thu, 31 Jan 2019 15:37:42 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On path shrink_inactive_list() ---> shrink_page_list()
-we allocate stack variables for the statistics twice.
-This is completely useless, and this just consumes stack
-much more, then we really need.
+On Thu, Jan 31, 2019 at 09:13:55AM +0100, Christoph Hellwig wrote:
+> On Wed, Jan 30, 2019 at 03:52:13PM -0700, Logan Gunthorpe wrote:
+> > > *shrug* so what if the special GUP called a VMA op instead of
+> > > traversing the VMA PTEs today? Why does it really matter? It could
+> > > easily change to a struct page flow tomorrow..
+> > 
+> > Well it's so that it's composable. We want the SGL->DMA side to work for
+> > APIs from kernel space and not have to run a completely different flow
+> > for kernel drivers than from userspace memory.
+> 
+> Yes, I think that is the important point.
+> 
+> All the other struct page discussion is not about anyone of us wanting
+> struct page - heck it is a pain to deal with, but then again it is
+> there for a reason.
+> 
+> In the typical GUP flows we have three uses of a struct page:
 
-The patch kills duplicate stack variables from shrink_page_list(),
-and this reduce stack usage and object file size significantly:
+We do not want GUP. Yes some RDMA driver and other use GUP but they
+should only use GUP on regular vma not on special vma (ie mmap of a
+device file). Allowing GUP on those is insane. It is better to special
+case the peer to peer mapping because _it is_ special, nothing inside
+those are manage by core mm and driver can deal with them in weird
+way (GPU certainly do and for very good reasons without which they
+would perform badly).
 
-Stack usage:
-Before: vmscan.c:1122:22:shrink_page_list	648	static
-After:  vmscan.c:1122:22:shrink_page_list	616	static
+> 
+>  (1) to carry a physical address.  This is mostly through
+>      struct scatterlist and struct bio_vec.  We could just store
+>      a magic PFN-like value that encodes the physical address
+>      and allow looking up a page if it exists, and we had at least
+>      two attempts at it.  In some way I think that would actually
+>      make the interfaces cleaner, but Linus has NACKed it in the
+>      past, so we'll have to convince him first that this is the
+>      way forward
 
-Size of vmscan.o:
-         text	   data	    bss	    dec	    hex	filename
-Before: 56866	   4720	    128	  61714	   f112	mm/vmscan.o
-After:  56770	   4720	    128	  61618	   f0b2	mm/vmscan.o
+Wasting 64bytes just to carry address is a waste for everyone.
 
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- mm/vmscan.c |   44 ++++++++++++++------------------------------
- 1 file changed, 14 insertions(+), 30 deletions(-)
+>  (2) to keep a reference to the memory so that it doesn't go away
+>      under us due to swapping, process exit, unmapping, etc.
+>      No idea how we want to solve this, but I guess you have
+>      some smart ideas?
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index dd9554f5d788..54a389fd91e2 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1128,16 +1128,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- {
- 	LIST_HEAD(ret_pages);
- 	LIST_HEAD(free_pages);
--	int pgactivate = 0;
--	unsigned nr_unqueued_dirty = 0;
--	unsigned nr_dirty = 0;
--	unsigned nr_congested = 0;
- 	unsigned nr_reclaimed = 0;
--	unsigned nr_writeback = 0;
--	unsigned nr_immediate = 0;
--	unsigned nr_ref_keep = 0;
--	unsigned nr_unmap_fail = 0;
- 
-+	memset(stat, 0, sizeof(*stat));
- 	cond_resched();
- 
- 	while (!list_empty(page_list)) {
-@@ -1181,10 +1174,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 */
- 		page_check_dirty_writeback(page, &dirty, &writeback);
- 		if (dirty || writeback)
--			nr_dirty++;
-+			stat->nr_dirty++;
- 
- 		if (dirty && !writeback)
--			nr_unqueued_dirty++;
-+			stat->nr_unqueued_dirty++;
- 
- 		/*
- 		 * Treat this page as congested if the underlying BDI is or if
-@@ -1196,7 +1189,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		if (((dirty || writeback) && mapping &&
- 		     inode_write_congested(mapping->host)) ||
- 		    (writeback && PageReclaim(page)))
--			nr_congested++;
-+			stat->nr_congested++;
- 
- 		/*
- 		 * If a page at the tail of the LRU is under writeback, there
-@@ -1245,7 +1238,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			if (current_is_kswapd() &&
- 			    PageReclaim(page) &&
- 			    test_bit(PGDAT_WRITEBACK, &pgdat->flags)) {
--				nr_immediate++;
-+				stat->nr_immediate++;
- 				goto activate_locked;
- 
- 			/* Case 2 above */
-@@ -1263,7 +1256,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 				 * and it's also appropriate in global reclaim.
- 				 */
- 				SetPageReclaim(page);
--				nr_writeback++;
-+				stat->nr_writeback++;
- 				goto activate_locked;
- 
- 			/* Case 3 above */
-@@ -1283,7 +1276,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		case PAGEREF_ACTIVATE:
- 			goto activate_locked;
- 		case PAGEREF_KEEP:
--			nr_ref_keep++;
-+			stat->nr_ref_keep++;
- 			goto keep_locked;
- 		case PAGEREF_RECLAIM:
- 		case PAGEREF_RECLAIM_CLEAN:
-@@ -1348,7 +1341,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			if (unlikely(PageTransHuge(page)))
- 				flags |= TTU_SPLIT_HUGE_PMD;
- 			if (!try_to_unmap(page, flags)) {
--				nr_unmap_fail++;
-+				stat->nr_unmap_fail++;
- 				goto activate_locked;
- 			}
- 		}
-@@ -1496,7 +1489,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		VM_BUG_ON_PAGE(PageActive(page), page);
- 		if (!PageMlocked(page)) {
- 			SetPageActive(page);
--			pgactivate++;
-+			stat->nr_activate++;
- 			count_memcg_page_event(page, PGACTIVATE);
- 		}
- keep_locked:
-@@ -1511,18 +1504,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 	free_unref_page_list(&free_pages);
- 
- 	list_splice(&ret_pages, page_list);
--	count_vm_events(PGACTIVATE, pgactivate);
--
--	if (stat) {
--		stat->nr_dirty = nr_dirty;
--		stat->nr_congested = nr_congested;
--		stat->nr_unqueued_dirty = nr_unqueued_dirty;
--		stat->nr_writeback = nr_writeback;
--		stat->nr_immediate = nr_immediate;
--		stat->nr_activate = pgactivate;
--		stat->nr_ref_keep = nr_ref_keep;
--		stat->nr_unmap_fail = nr_unmap_fail;
--	}
-+	count_vm_events(PGACTIVATE, stat->nr_activate);
-+
- 	return nr_reclaimed;
- }
- 
-@@ -1534,6 +1517,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
- 		.priority = DEF_PRIORITY,
- 		.may_unmap = 1,
- 	};
-+	struct reclaim_stat dummy_stat;
- 	unsigned long ret;
- 	struct page *page, *next;
- 	LIST_HEAD(clean_pages);
-@@ -1547,7 +1531,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
- 	}
- 
- 	ret = shrink_page_list(&clean_pages, zone->zone_pgdat, &sc,
--			TTU_IGNORE_ACCESS, NULL, true);
-+			TTU_IGNORE_ACCESS, &dummy_stat, true);
- 	list_splice(&clean_pages, page_list);
- 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, -ret);
- 	return ret;
-@@ -1922,7 +1906,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	unsigned long nr_scanned;
- 	unsigned long nr_reclaimed = 0;
- 	unsigned long nr_taken;
--	struct reclaim_stat stat = {};
-+	struct reclaim_stat stat;
- 	int file = is_file_lru(lru);
- 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
- 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+The DMA API has _never_ dealt with page refcount and it have always
+been up to the user of the DMA API to ascertain that it is safe for
+them to map/unmap page/resource they are providing to the DMA API.
+
+The lifetime management of page or resource provided to the DMA API
+should remain the problem of the caller and not be something the DMA
+API cares one bit about.
+
+>  (3) to make the PTEs dirty after writing to them.  Again no sure
+>      what our preferred interface here would be
+
+Again the DMA API has never dealt with that nor should he. What does
+dirty pte means for a special mapping (mmap of device file) ? There is
+no single common definition for that, most driver do not care about it
+and it get fully ignore.
+
+> 
+> If we solve all of the above problems I'd be more than happy to
+> go with a non-struct page based interface for BAR P2P.  But we'll
+> have to solve these issues in a generic way first.
+
+None of the above are problems the DMA API need to solve. The DMA API
+is about mapping some memory resource to a device. For regular main
+memory it is easy on most architecture (anything with a sane IOMMU).
+For IO resources it is not as straight forward as it was often left
+undefined in the architecture platform documentation or the inter-
+connect standard. AFAIK mapping BAR from one PCIE device to another
+through IOMMU works well on recent Intel and AMD platform. We will
+probably need to use some whitelist at i am not sure this is something
+Intel or AMD guarantee, i believe they want to start guaranteeing it.
+
+So having one DMA API for regular memory and one for IO memory aka
+resource (dma_map_resource()) sounds like the only sane approach here.
+It is fundamentally different memory and we should not try to muddle
+the water by having it go through a single common API. There is no
+benefit to that beside saving couple hundred of lines of code to some
+driver and this couple hundred lines of code can be move to a common
+helpers.
+
+So to me it is lot sane to provide an helper that would deal with
+the different vma type on behalf of device than forcing down struct
+page. Something like:
+
+vma_dma_map_range(vma, device, start, end, flags, pa[])
+vma_dma_unmap_range(vma, device, start, end, flags, pa[])
+
+VMA_DMA_MAP_FLAG_WRITE
+VMA_DMA_MAP_FLAG_PIN
+
+Which would use GUP or special vma handling on behalf of the calling
+device or use a special p2p code path for special vma. Device that
+need pinning set the flag and it is up to the exporting device to
+accept or not. Pinning when using GUP is obvious.
+
+When the vma goes away the importing device must update its device
+page table to some dummy page or do something sane, because keeping
+things map after that point does not make sense anymore. Device is
+no longer operating on a range of virtual address that make sense.
+
+So instead of pushing p2p handling within GUP to not disrupt existing
+driver workflow. It is better to provide an helper that handle all
+the gory details for the device driver. It does not change things for
+the driver and allows proper special casing.
+
+Cheers,
+Jérôme
 
