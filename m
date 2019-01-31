@@ -2,243 +2,365 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0BA33C169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 22:19:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1918EC282DA
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 23:05:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A0A792087F
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 22:19:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B0BC120B1F
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 23:05:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="GVC34rZQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0A792087F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="CIgVdd1t"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B0BC120B1F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 54A1B8E0006; Thu, 31 Jan 2019 17:19:58 -0500 (EST)
+	id 3A1958E0002; Thu, 31 Jan 2019 18:05:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4F7818E0001; Thu, 31 Jan 2019 17:19:58 -0500 (EST)
+	id 34FFF8E0001; Thu, 31 Jan 2019 18:05:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3E6A48E0006; Thu, 31 Jan 2019 17:19:58 -0500 (EST)
+	id 266DE8E0002; Thu, 31 Jan 2019 18:05:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C0818E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 17:19:58 -0500 (EST)
-Received: by mail-yw1-f72.google.com with SMTP id p20so2764114ywe.5
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 14:19:58 -0800 (PST)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ED21E8E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 18:05:11 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id o8so2119741otp.16
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 15:05:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=7xhcPDEm9XH11JFoqpScCaZIpGIBgQlesNZ/FpLq3xc=;
-        b=aTqlU6MllA8tPbGcyvNjHmM6srS+srZIbN+cDl4RnvTBeZqP7TqIFvXoncKH8BZxlw
-         +3sWuVvRGpDhhb6Oig/QYarDx9Go3tn0taLjyPD2hrQRjdiaABNNV4fb3bYaAyfeiJnn
-         btnkhLrt1CE8dJnPMM5jYse1/ghwegc7PhqVarxV+0IA2KD+Lfo6AIJHf2Bw14JdkVi5
-         nquDM2tWlbtwEl4DVaWQ5ElpbYB/l8o+dfGf2CeHtWlLKC4bDxmOsC0T8fZgIgNjDNPa
-         emGNbCPeAW1/RJH095yxNsAB4L7UUmZmBCepB1zi1UQjJ/z75lv6RQwzBa3NH2YXZdYF
-         Sngg==
-X-Gm-Message-State: AHQUAuYo06t/gloDL4XDYsfluBo3G7lDXjc8lxfvSwH6xrM8UrUQ8dQe
-	3qACwOxjx8snXTb1dDR2ivlQcSgwTvUlQV1j/gPE2xg14idgbyJTOBAwzVP6PED5ssGhv+joC9D
-	ViHKcSqBArxhgWrDhGAkuuARk/8EGA6kSua1MANS/HW7jPGOhV7rjthVmXUB4WPPleQ==
-X-Received: by 2002:a25:951:: with SMTP id u17mr16299189ybm.374.1548973197648;
-        Thu, 31 Jan 2019 14:19:57 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYR1F7pHytV0TgSvwWGLPXjO/9Pir3/bT0/moiIc1m80KtoncYey/KnYbMqAqgkxCfu1XVj
-X-Received: by 2002:a25:951:: with SMTP id u17mr16299143ybm.374.1548973196783;
-        Thu, 31 Jan 2019 14:19:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548973196; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=IdXD3uZ2L841UOk0sPP0q0UD/Q+2rpbv1w50WYHpA7Y=;
+        b=Edn6dl8LKfPvT5uz+YjagwjigP2j8Uul4VRXTPMDTdwbqZEjhWoVyCWO0YyV5j0bFg
+         qIfowD1pEXfuc9Fr8uqT5WDQl+2TWjihFGsbtSZOH15JMKrzZ/WaNhonFWzkpcRbhaE3
+         +EAM1Tgzjhs8vwsoKKT0qLsRIeBqAQmmO7Fx18hLYOw9v4GNfOBIRbvXwvmZFhSU2nkr
+         uOaO6spv2qLrA6Qz8pobCxsEOe61UbbiCHIrZIvQuL1c4ScigWXvgn6RJ0CvPzZyfzrj
+         hhe/dLyy/48NmLcvJq7B6Qd3gqAoRH7pjz0eKXL8MHoQBdifmjGnO8zFC2vVf+G+dfl0
+         9ZfQ==
+X-Gm-Message-State: AHQUAuZh8ZdvutvZfeVMX0wXdgUQJMnjwkCRe+BjV66bLFESQdx4KRBx
+	IImxo6OqFDUQ3JrpfyMSfsfKA59Nitb9kAd2zSVoC+1jRyMZBUZ3kpI5BoS6IaIecccw2ywnxqr
+	azRUWmF2bi3ugvXBQQ+uoaz2MmGVJ4bR0d0+4IAXKxxUx9XRBi7vYSPyU28KjP1ZVJbtBFJlnuy
+	uNIKUr4u9t8zDXMtH32e2O4iKM4Cn5sRs6jJYo3hj8K4u+gAsX+SxXbTcnxt2RI3qZG30W4564G
+	FQzMgIl2Mtakh5SHF2L6lFvEYsSQ8GRrvDllCPpCinPI0eEjk9pgkEkwaOxw7ZcbDz5mRlDuPig
+	u7xJKTblFBiWQb5KEZHxhvjYoT9VGlI2OrF9bm5oQ4Nz6sfRHGqezSJpcr0OPOjE7J4bnMfde5/
+	C
+X-Received: by 2002:aca:c649:: with SMTP id w70mr16936520oif.186.1548975911542;
+        Thu, 31 Jan 2019 15:05:11 -0800 (PST)
+X-Received: by 2002:aca:c649:: with SMTP id w70mr16936469oif.186.1548975910247;
+        Thu, 31 Jan 2019 15:05:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548975910; cv=none;
         d=google.com; s=arc-20160816;
-        b=AqtQYvPj9srISPEscZ9apETSv7DMTDDauczc7YzySqs70yMk6t/xteM4cPWZF2xsSV
-         kltCNyMJtY38FFY4tWyjIRl7rpe13LdE/BWlodmvPgqXybaC+zGfMVTz6kkNMSd4NqXS
-         Td7n7Kd5zIiQFc9SLICcKEtGMSouMSgOyvSiQSuzwdB31oFseZebB/aqucCzKEaHOCTr
-         siE1Spker6TXY+KemqxYClYeR08EO6u+98CjlI7++GJwzXxmrBi/9kwL6KFqrqu1O7b+
-         5fHbh9kPduJIJorT5y0mxCQGBqwFXn+iyXULwcJ2shuQxws3UwkGBBjckfTZicm+zv1U
-         p50Q==
+        b=0aqQkys8iF3pXpzEFlQOIVs5RUxLKcdub2lNXOflDwhXfTtmhuLfdqAzrra8CWljgp
+         CjZNonFK+X/6TjFC4P+N1VK7GWsCDolTl2pDvXuBQ44KmLVK1qMm5CRMX/e+XAy/3Zu5
+         1II7LiGjj4aZ+nxSETBcAojYAQmanWp1FR0u55aXixaP6+BhpSvub9FQCu99OLIM5VRZ
+         s59DoSIGmlrQjDRg090jquxmqP8KIVXuTp3i8EPlxy3qp4I6T686ee0bhSEV8kp0I2/a
+         0PGp3B70O6Dqhg47f6/8/h2302UYjcQQwfu/xddV5zlUPvKDgynVSBXqQWio6TiPA4E5
+         s9Yw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=7xhcPDEm9XH11JFoqpScCaZIpGIBgQlesNZ/FpLq3xc=;
-        b=OfxuNCUX9FYMVTrOtxx8PT8w0PQR4GAeTd3fuM4APdPzN6whWLyt8Gn3JmUPlQLLbZ
-         XnTvT9W3HVz4vGJNvR7AH9MCXTlmg6lOPs7t4CH6yTKzapfZC2VVUck+Mccuy7jrYM29
-         /oOcbclpCI06naWSmW0ZQN8Wca3sK/izgFyhhrhwyjGGyDfE+xrB0AbYJJ+30RSimIqD
-         88iug4iwgekAwgC/Os3dMytfnHaEGIwLwYksyciqYifoc1tL7Ds7lXBQUjQ4ho4q1KZN
-         RxWRcy6IfTxoVNbRp3waz3ACBS7AyOkzLpL0ExWp4gzLNIb1W86K8KVXzVnElmxwSGwJ
-         d0yg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=IdXD3uZ2L841UOk0sPP0q0UD/Q+2rpbv1w50WYHpA7Y=;
+        b=PSgXhSocyhm77JWvc1V7a1qj4F4DNZAeyDWhhWfgD8uLsqy1CHPLJ11FwjYFEy/YOK
+         vvEwKH7uZCKbZbaV4wRVcjXswYX35ig52vwYlJ/9fTshSJzkslp2vatJ+ZvY006DpK+c
+         hvJcLfEFB48192rc6oHMCSNMG6slL25Pe8VOeSSpUGVmY2cBFLoW9mgcChQd2ggcLgZQ
+         Z5QYNcU3slQ0vUsRjrn9Ab+m7mXt3QzR1YKUogvM7kK4zhQozHP/ef4twxBMzAqhkJpo
+         LDyfuRVQ+yW/WBlcHMxbjaZJY43tRx+IM1VLGnOHwAI8kvc9qjinydoTncxmvJ8srxJX
+         3ymQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector1 header.b=GVC34rZQ;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.80.51 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=vmware.com
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-eopbgr800051.outbound.protection.outlook.com. [40.107.80.51])
-        by mx.google.com with ESMTPS id f2si3711781ywh.149.2019.01.31.14.19.56
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=CIgVdd1t;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o132sor2995350oia.37.2019.01.31.15.05.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 31 Jan 2019 14:19:56 -0800 (PST)
-Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.80.51 as permitted sender) client-ip=40.107.80.51;
+        (Google Transport Security);
+        Thu, 31 Jan 2019 15:05:09 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector1 header.b=GVC34rZQ;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.80.51 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=vmware.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=7xhcPDEm9XH11JFoqpScCaZIpGIBgQlesNZ/FpLq3xc=;
- b=GVC34rZQQok7GYdSV1xF9CNAVa1Zp+vPhC/Pn/vsWG3m5394qKg+OvZ548UM/O1EHDe7jxnLcIRevZ8kcSfznA/QAdEEaQNYb+cBt8E845/u4hv6qb7Ny9uhsMDtt4WmJ/I27fWvB2bcg2ncedzw6dGTJM4k25TSsjrKwxkhC8E=
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
- BYAPR05MB5607.namprd05.prod.outlook.com (20.177.186.156) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1580.11; Thu, 31 Jan 2019 22:19:54 +0000
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::99ab:18fb:f393:df31]) by BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::99ab:18fb:f393:df31%3]) with mapi id 15.20.1601.011; Thu, 31 Jan 2019
- 22:19:54 +0000
-From: Nadav Amit <namit@vmware.com>
-To: Borislav Petkov <bp@alien8.de>
-CC: Rick Edgecombe <rick.p.edgecombe@intel.com>, Andy Lutomirski
-	<luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, LKML
-	<linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin"
-	<hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen
-	<dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Damian
- Tometzki <linux_dti@icloud.com>, linux-integrity
-	<linux-integrity@vger.kernel.org>, LSM List
-	<linux-security-module@vger.kernel.org>, Andrew Morton
-	<akpm@linux-foundation.org>, Kernel Hardening
-	<kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, Will
- Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Kristen Carlson Accardi <kristen@linux.intel.com>, "Dock, Deneen T"
-	<deneen.t.dock@intel.com>, Kees Cook <keescook@chromium.org>, Dave Hansen
-	<dave.hansen@intel.com>
-Subject: Re: [PATCH v2 03/20] x86/mm: temporary mm struct
-Thread-Topic: [PATCH v2 03/20] x86/mm: temporary mm struct
-Thread-Index: AQHUt2sRwAS+mFb6qECsCs685/9Pk6XJQbUAgAC1oAA=
-Date: Thu, 31 Jan 2019 22:19:54 +0000
-Message-ID: <C481E605-E19A-4EA6-AB9A-6FF4229789E0@vmware.com>
-References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
- <20190129003422.9328-4-rick.p.edgecombe@intel.com>
- <20190131112948.GE6749@zn.tnic>
-In-Reply-To: <20190131112948.GE6749@zn.tnic>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=namit@vmware.com; 
-x-originating-ip: [66.170.99.1]
-x-ms-publictraffictype: Email
-x-microsoft-exchange-diagnostics:
- 1;BYAPR05MB5607;20:swNDR/B2qvvRnmarNZPo+dmy9guaUeKVd6BVRJGTkAGjXBuhKCeF/IBO+2svj3i7djwXLsWa6JKy+Icf8lV88l/3vWGSTJKLo6tl8AxFYejTlzpSHhApmJL2pC2LLqlAhTGAoTMW34e8Y6qIupuPQfPzVBEDxb4vvqtCSRvvZ2s=
-x-ms-office365-filtering-correlation-id: 7a0ffed3-a076-43d3-9c9c-08d687ca39f8
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(2017052603328)(7153060)(7193020);SRVR:BYAPR05MB5607;
-x-ms-traffictypediagnostic: BYAPR05MB5607:
-x-microsoft-antispam-prvs:
- <BYAPR05MB5607390E1CD94F36C5A9B3C5D0910@BYAPR05MB5607.namprd05.prod.outlook.com>
-x-forefront-prvs: 09347618C4
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(39860400002)(366004)(396003)(346002)(136003)(376002)(199004)(189003)(2906002)(6506007)(305945005)(14444005)(186003)(106356001)(7736002)(68736007)(86362001)(6486002)(26005)(6436002)(81156014)(81166006)(76176011)(3846002)(6116002)(105586002)(83716004)(8936002)(71200400001)(256004)(33656002)(71190400001)(8676002)(66066001)(476003)(2616005)(36756003)(7416002)(4326008)(446003)(53546011)(316002)(97736004)(25786009)(14454004)(486006)(229853002)(11346002)(6512007)(6246003)(99286004)(478600001)(53936002)(54906003)(82746002)(102836004)(6916009)(39060400002);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB5607;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: vmware.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- FsYYe0WQx9UYLNBYqsAeZMsTb/0a6+eeXdMx3NCMdxdkLC1qZp8QFZhvY/hDKPXXHPDxAt7MquKQLWulRSW7Raws1mCoA8HQewwdXHXPgyrk4S5hm0+lhaizi8QNl/G+Qqlv1BTr7jnn3K0QMCKHJusSJDEEBz97Y5NzKMoVRAAKmIzlI8CN2u6HH9SwxL6Oa3AunhVmed4KWOLMgmqxuq4j8SE+U9UTZjWbUyY9ZdjbYUSZBLG/7a7aoVZc2QhGEStGlQ3mbR3Yj+0JqQFY/reWQfmnCCOOkNpadQ8Ng8E5PkYpCsLICIMkSTAffdBAol6C0vSL6N2A9QkHtNtpiMTcUhFfE+NvQgH86MasIJyzzO/YD7aT0JofJxV/Q8/JHCnND/csAJbEz310M9bcgn3Pc8dGYdmQtM538F9/Nug=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <1E36E561B8F45B4D9E79C3CB31566DB3@namprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=CIgVdd1t;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=IdXD3uZ2L841UOk0sPP0q0UD/Q+2rpbv1w50WYHpA7Y=;
+        b=CIgVdd1tvOZzE3FTNSfE9Yk4Ew3Bf9EtJCna1lL2Rhm1kKBpRZo9nDWDDuKx/yumYp
+         4vo+Ecdjpwgy7PuC3VHxnwDn++z0XBKTBQLQXhd+t8iL+DOwDeKnsfUSTvHxoYsGCgTi
+         vYRPhSKi9hUgHYdBRIoU7tji4CbwFOE99w0YQopd7Xt8nu+fPCjNe3jHkCO3b1icJ3I3
+         Fberkqa1Hk+YiWkBL5hDTc6otGMNgIvarS2fpiKMoRwHyf78BSaj4u7NiWtWZYs09lMu
+         GLbAw2u7YfL4npA0PH6oJNw9gsbWmkbBuPIZg24rc/R/YLvuCu6Q/LPJTH4PEsBj13tx
+         LZTQ==
+X-Google-Smtp-Source: AHgI3IacsTWl2N+gqmbMmrekSxGgAFl4u02GPxjzIIoSl+UjevF3llu60gUhEqgINppnRd57XIipYOddHj+cJDRYGm8=
+X-Received: by 2002:aca:d78b:: with SMTP id o133mr15867430oig.232.1548975909522;
+ Thu, 31 Jan 2019 15:05:09 -0800 (PST)
 MIME-Version: 1.0
-X-OriginatorOrg: vmware.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 7a0ffed3-a076-43d3-9c9c-08d687ca39f8
-X-MS-Exchange-CrossTenant-originalarrivaltime: 31 Jan 2019 22:19:54.1999
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB5607
+References: <154882453052.1338686.16411162273671426494.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <154882453604.1338686.15108059741397800728.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20190131141446.46fe7019378ac064dff9183e@linux-foundation.org>
+In-Reply-To: <20190131141446.46fe7019378ac064dff9183e@linux-foundation.org>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 31 Jan 2019 15:04:57 -0800
+Message-ID: <CAPcyv4ieyORm_rTXF0AACx4qX06E1xCmM-0SpsrpN5D+9W-zUQ@mail.gmail.com>
+Subject: Re: [PATCH v9 1/3] mm: Shuffle initial free memory to improve
+ memory-side-cache utilization
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
+	Mike Rapoport <rppt@linux.ibm.com>, Kees Cook <keescook@chromium.org>, 
+	Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PiBPbiBKYW4gMzEsIDIwMTksIGF0IDM6MjkgQU0sIEJvcmlzbGF2IFBldGtvdiA8YnBAYWxpZW44
-LmRlPiB3cm90ZToNCj4gDQo+PiBTdWJqZWN0OiBSZTogW1BBVENIIHYyIDAzLzIwXSB4ODYvbW06
-IHRlbXBvcmFyeSBtbSBzdHJ1Y3QNCj4gDQo+IFN1YmplY3QgbmVlZHMgYSB2ZXJiOiAiQWRkIGEg
-dGVtcG9yYXJ5Li4uICINCj4gDQo+IE9uIE1vbiwgSmFuIDI4LCAyMDE5IGF0IDA0OjM0OjA1UE0g
-LTA4MDAsIFJpY2sgRWRnZWNvbWJlIHdyb3RlOg0KPj4gRnJvbTogQW5keSBMdXRvbWlyc2tpIDxs
-dXRvQGtlcm5lbC5vcmc+DQo+PiANCj4+IFNvbWV0aW1lcyB3ZSB3YW50IHRvIHNldCBhIHRlbXBv
-cmFyeSBwYWdlLXRhYmxlIGVudHJpZXMgKFBURXMpIGluIG9uZSBvZg0KPiANCj4gcy9hIC8vDQo+
-IA0KPiBBbHNvLCBkcm9wIHRoZSAid2UiIGFuZCBtYWtlIGl0IGltcGFydGlhbCBhbmQgcGFzc2l2
-ZToNCj4gDQo+ICJEZXNjcmliZSB5b3VyIGNoYW5nZXMgaW4gaW1wZXJhdGl2ZSBtb29kLCBlLmcu
-ICJtYWtlIHh5enp5IGRvIGZyb3R6Ig0KPiAgaW5zdGVhZCBvZiAiW1RoaXMgcGF0Y2hdIG1ha2Vz
-IHh5enp5IGRvIGZyb3R6IiBvciAiW0ldIGNoYW5nZWQgeHl6enkNCj4gIHRvIGRvIGZyb3R6Iiwg
-YXMgaWYgeW91IGFyZSBnaXZpbmcgb3JkZXJzIHRvIHRoZSBjb2RlYmFzZSB0byBjaGFuZ2UNCj4g
-IGl0cyBiZWhhdmlvdXIuIg0KPiANCj4+IHRoZSBjb3Jlcywgd2l0aG91dCBhbGxvd2luZyBvdGhl
-ciBjb3JlcyB0byB1c2UgLSBldmVuIHNwZWN1bGF0aXZlbHkgLQ0KPj4gdGhlc2UgbWFwcGluZ3Mu
-IFRoZXJlIGFyZSB0d28gYmVuZWZpdHMgZm9yIGRvaW5nIHNvOg0KPj4gDQo+PiAoMSkgU2VjdXJp
-dHk6IGlmIHNlbnNpdGl2ZSBQVEVzIGFyZSBzZXQsIHRlbXBvcmFyeSBtbSBwcmV2ZW50cyB0aGVp
-ciB1c2UNCj4+IGluIG90aGVyIGNvcmVzLiBUaGlzIGhhcmRlbnMgdGhlIHNlY3VyaXR5IGFzIGl0
-IHByZXZlbnRzIGV4cGxvZGluZyBhDQo+IA0KPiBleHBsb2Rpbmcgb3IgZXhwbG9pdGluZz8gT3Ig
-ZXhwb3Npbmc/IDopDQo+IA0KPj4gZGFuZ2xpbmcgcG9pbnRlciB0byBvdmVyd3JpdGUgc2Vuc2l0
-aXZlIGRhdGEgdXNpbmcgdGhlIHNlbnNpdGl2ZSBQVEUuDQo+PiANCj4+ICgyKSBBdm9pZGluZyBU
-TEIgc2hvb3Rkb3duczogdGhlIFBURXMgZG8gbm90IG5lZWQgdG8gYmUgZmx1c2hlZCBpbg0KPj4g
-cmVtb3RlIHBhZ2UtdGFibGVzLg0KPiANCj4gVGhvc2UgYmVsb25nIGluIHRoZSBjb2RlIGNvbW1l
-bnRzIGJlbG93LCBleHBsYWluaW5nIHdoYXQgaXQgaXMgZ29pbmcgdG8NCj4gYmUgdXNlZCBmb3Iu
-DQoNCkkgd2lsbCBhZGQgaXQgdG8gdGhlIGNvZGUgYXMgd2VsbC4NCg0KPiANCj4+IFRvIGRvIHNv
-IGEgdGVtcG9yYXJ5IG1tX3N0cnVjdCBjYW4gYmUgdXNlZC4gTWFwcGluZ3Mgd2hpY2ggYXJlIHBy
-aXZhdGUNCj4+IGZvciB0aGlzIG1tIGNhbiBiZSBzZXQgaW4gdGhlIHVzZXJzcGFjZSBwYXJ0IG9m
-IHRoZSBhZGRyZXNzLXNwYWNlLg0KPj4gRHVyaW5nIHRoZSB3aG9sZSB0aW1lIGluIHdoaWNoIHRo
-ZSB0ZW1wb3JhcnkgbW0gaXMgbG9hZGVkLCBpbnRlcnJ1cHRzDQo+PiBtdXN0IGJlIGRpc2FibGVk
-Lg0KPj4gDQo+PiBUaGUgZmlyc3QgdXNlLWNhc2UgZm9yIHRlbXBvcmFyeSBQVEVzLCB3aGljaCB3
-aWxsIGZvbGxvdywgaXMgZm9yIHBva2luZw0KPj4gdGhlIGtlcm5lbCB0ZXh0Lg0KPj4gDQo+PiBb
-IENvbW1pdCBtZXNzYWdlIHdhcyB3cml0dGVuIGJ5IE5hZGF2IF0NCj4+IA0KPj4gQ2M6IEtlZXMg
-Q29vayA8a2Vlc2Nvb2tAY2hyb21pdW0ub3JnPg0KPj4gQ2M6IERhdmUgSGFuc2VuIDxkYXZlLmhh
-bnNlbkBpbnRlbC5jb20+DQo+PiBBY2tlZC1ieTogUGV0ZXIgWmlqbHN0cmEgKEludGVsKSA8cGV0
-ZXJ6QGluZnJhZGVhZC5vcmc+DQo+PiBSZXZpZXdlZC1ieTogTWFzYW1pIEhpcmFtYXRzdSA8bWhp
-cmFtYXRAa2VybmVsLm9yZz4NCj4+IFRlc3RlZC1ieTogTWFzYW1pIEhpcmFtYXRzdSA8bWhpcmFt
-YXRAa2VybmVsLm9yZz4NCj4+IFNpZ25lZC1vZmYtYnk6IEFuZHkgTHV0b21pcnNraSA8bHV0b0Br
-ZXJuZWwub3JnPg0KPj4gU2lnbmVkLW9mZi1ieTogTmFkYXYgQW1pdCA8bmFtaXRAdm13YXJlLmNv
-bT4NCj4+IFNpZ25lZC1vZmYtYnk6IFJpY2sgRWRnZWNvbWJlIDxyaWNrLnAuZWRnZWNvbWJlQGlu
-dGVsLmNvbT4NCj4+IC0tLQ0KPj4gYXJjaC94ODYvaW5jbHVkZS9hc20vbW11X2NvbnRleHQuaCB8
-IDMyICsrKysrKysrKysrKysrKysrKysrKysrKysrKysrKw0KPj4gMSBmaWxlIGNoYW5nZWQsIDMy
-IGluc2VydGlvbnMoKykNCj4+IA0KPj4gZGlmZiAtLWdpdCBhL2FyY2gveDg2L2luY2x1ZGUvYXNt
-L21tdV9jb250ZXh0LmggYi9hcmNoL3g4Ni9pbmNsdWRlL2FzbS9tbXVfY29udGV4dC5oDQo+PiBp
-bmRleCAxOWQxOGZhZTZlYzYuLmNkMGMyOWU0OTRhNiAxMDA2NDQNCj4+IC0tLSBhL2FyY2gveDg2
-L2luY2x1ZGUvYXNtL21tdV9jb250ZXh0LmgNCj4+ICsrKyBiL2FyY2gveDg2L2luY2x1ZGUvYXNt
-L21tdV9jb250ZXh0LmgNCj4+IEBAIC0zNTYsNCArMzU2LDM2IEBAIHN0YXRpYyBpbmxpbmUgdW5z
-aWduZWQgbG9uZyBfX2dldF9jdXJyZW50X2NyM19mYXN0KHZvaWQpDQo+PiAJcmV0dXJuIGNyMzsN
-Cj4+IH0NCj4+IA0KPj4gK3R5cGVkZWYgc3RydWN0IHsNCj4gDQo+IFdoeSBkb2VzIGl0IGhhdmUg
-dG8gYmUgYSB0eXBlZGVmPw0KDQpIYXZpbmcgYSBkaWZmZXJlbnQgc3RydWN0IGNhbiBwcmV2ZW50
-IHRoZSBtaXN1c2Ugb2YgdXNpbmcgbW1fc3RydWN0cyBpbg0KdW51c2VfdGVtcG9yYXJ5X21tKCkg
-dGhhdCB3ZXJlIG5vdCDigJx1c2Vk4oCdIHVzaW5nIHVzZV90ZW1wb3JhcnlfbW0uIFRoZQ0KdHlw
-ZWRlZiwgSSBwcmVzdW1lLCBjYW4gZGV0ZXIgdXNlcnMgZnJvbSBzdGFydGluZyB0byBwbGF5IHdp
-dGggdGhlIGludGVybmFsDQrigJxwcml2YXRl4oCdIGZpZWxkcy4NCg0KPiBUaGF0IHByZXYucHJl
-diBiZWxvdyBsb29rcyB1bm5lY2Vzc2FyeSwgaW5zdGVhZCBvZiBqdXN0IHVzaW5nIHByZXYuDQo+
-IA0KPj4gKwlzdHJ1Y3QgbW1fc3RydWN0ICpwcmV2Ow0KPiANCj4gV2h5ICJwcmV24oCdPw0KDQpU
-aGlzIGlzIG9idmlvdXNseSB0aGUgcHJldmlvdXMgYWN0aXZlIG1tLiBGZWVsIGZyZWUgdG8gc3Vn
-Z2VzdCBhbg0KYWx0ZXJuYXRpdmUgbmFtZS4NCg0KPj4gK30gdGVtcG9yYXJ5X21tX3N0YXRlX3Q7
-DQo+IA0KPiBUaGF0J3Mga2luZGEgbG9uZyAtIGl0IGlzIGxvbmdlciB0aGFuIHRoZSBmdW5jdGlv
-biBuYW1lIGJlbG93Lg0KPiB0ZW1wX21tX3N0YXRlX3Qgbm90IGVub3VnaD8NCg0KSSB3aWxsIGNo
-YW5nZSBpdC4NCg0KPiANCj4+ICsNCj4+ICsvKg0KPj4gKyAqIFVzaW5nIGEgdGVtcG9yYXJ5IG1t
-IGFsbG93cyB0byBzZXQgdGVtcG9yYXJ5IG1hcHBpbmdzIHRoYXQgYXJlIG5vdCBhY2Nlc3NpYmxl
-DQo+PiArICogYnkgb3RoZXIgY29yZXMuIFN1Y2ggbWFwcGluZ3MgYXJlIG5lZWRlZCB0byBwZXJm
-b3JtIHNlbnNpdGl2ZSBtZW1vcnkgd3JpdGVzDQo+PiArICogdGhhdCBvdmVycmlkZSB0aGUga2Vy
-bmVsIG1lbW9yeSBwcm90ZWN0aW9ucyAoZS5nLiwgV15YKSwgd2l0aG91dCBleHBvc2luZyB0aGUN
-Cj4+ICsgKiB0ZW1wb3JhcnkgcGFnZS10YWJsZSBtYXBwaW5ncyB0aGF0IGFyZSByZXF1aXJlZCBm
-b3IgdGhlc2Ugd3JpdGUgb3BlcmF0aW9ucyB0bw0KPj4gKyAqIG90aGVyIGNvcmVzLg0KPj4gKyAq
-DQo+PiArICogQ29udGV4dDogVGhlIHRlbXBvcmFyeSBtbSBuZWVkcyB0byBiZSB1c2VkIGV4Y2x1
-c2l2ZWx5IGJ5IGEgc2luZ2xlIGNvcmUuIFRvDQo+PiArICogICAgICAgICAgaGFyZGVuIHNlY3Vy
-aXR5IElSUXMgbXVzdCBiZSBkaXNhYmxlZCB3aGlsZSB0aGUgdGVtcG9yYXJ5IG1tIGlzDQo+IAkJ
-CSAgICAgIF4NCj4gCQkJICAgICAgLA0KPiANCj4+ICsgKiAgICAgICAgICBsb2FkZWQsIHRoZXJl
-YnkgcHJldmVudGluZyBpbnRlcnJ1cHQgaGFuZGxlciBidWdzIGZyb20gb3ZlcnJpZGUgdGhlDQo+
-IA0KPiBzL292ZXJyaWRlL292ZXJyaWRpbmcvDQoNCkkgd2lsbCBmaXggYWxsIG9mIHRoZXNlIHR5
-cG9zLCBjb21tZW50LiBUaGFuayB5b3UuDQoNCk1ldGEtcXVlc3Rpb246IGNvdWxkIHlvdSBwbGVh
-c2UgcmV2aWV3IHRoZSBlbnRpcmUgcGF0Y2gtc2V0PyBUaGlzIGlzDQphY3R1YWxseSB2OSBvZiB0
-aGlzIHBhcnRpY3VsYXIgcGF0Y2ggLSBpdCB3YXMgcGFydCBvZiBhIHNlcGFyYXRlIHBhdGNoLXNl
-dA0KYmVmb3JlLiBJIGRvbuKAmXQgdGhpbmsgdGhhdCB0aGUgcGF0Y2ggaGFzIGNoYW5nZWQgc2lu
-Y2UgKHRoZSByZWFsKSB2MS4NCg0KVGhlc2Ugc3BvcmFkaWMgY29tbWVudHMgYWZ0ZXIgZWFjaCB2
-ZXJzaW9uIHJlYWxseSBtYWtlcyBpdCBoYXJkIHRvIGdldCB0aGlzDQp3b3JrIGNvbXBsZXRlZC4N
-Cg0K
+On Thu, Jan 31, 2019 at 2:15 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Tue, 29 Jan 2019 21:02:16 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
+[..]
+> > Introduce shuffle_free_memory(), and its helper shuffle_zone(), to
+> > perform a Fisher-Yates shuffle of the page allocator 'free_area' lists
+> > when they are initially populated with free memory at boot and at
+> > hotplug time. Do this based on either the presence of a
+> > page_alloc.shuffle=Y command line parameter, or autodetection of a
+> > memory-side-cache (to be added in a follow-on patch).
+>
+> This is unfortunate from a testing and coverage point of view.  At
+> least initially it is desirable that all testers run this feature.
+>
+> Also, it's unfortunate that enableing the feature requires a reboot.
+> What happens if we do away with the boot-time (and maybe hotplug-time)
+> randomization and permit the feature to be switched on/off at runtime?
+
+Currently there's the 'shuffle' at memory online time and a random
+front-back freeing of max_order pages to the free lists at runtime.
+The random front-back freeing behavior would be trivial to toggle at
+runtime, however testing showed that the entropy it injects is only
+enough to preserve the randomization of the initial 'shuffle', but not
+enough entropy to improve cache utilization on its own.
+
+The shuffling could be done dynamically at runtime, but it only
+shuffles free memory, the effectiveness is diminished if the workload
+has already taken pages off the free list. It's also diminished if the
+free lists are polluted with sub MAX_ORDER pages.
+
+The number of caveats that need to be documented makes me skeptical
+that runtime triggered shuffling would be reliable.
+
+That said, I see your point about experimentation and validation. What
+about allowing it to be settable as a sysfs parameter for
+memory-blocks that are being hot-added? That way we know the shuffle
+will be effective and the administrator can validate shuffling with a
+hot-unplug/replug?
+
+> > The shuffling is done in terms of CONFIG_SHUFFLE_PAGE_ORDER sized free
+> > pages where the default CONFIG_SHUFFLE_PAGE_ORDER is MAX_ORDER-1 i.e.
+> > 10, 4MB this trades off randomization granularity for time spent
+> > shuffling.  MAX_ORDER-1 was chosen to be minimally invasive to the page
+> > allocator while still showing memory-side cache behavior improvements,
+> > and the expectation that the security implications of finer granularity
+> > randomization is mitigated by CONFIG_SLAB_FREELIST_RANDOM.
+> >
+> > The performance impact of the shuffling appears to be in the noise
+> > compared to other memory initialization work. Also the bulk of the work
+> > is done in the background as a part of deferred_init_memmap().
+> >
+> > This initial randomization can be undone over time so a follow-on patch
+> > is introduced to inject entropy on page free decisions. It is reasonable
+> > to ask if the page free entropy is sufficient, but it is not enough due
+> > to the in-order initial freeing of pages. At the start of that process
+> > putting page1 in front or behind page0 still keeps them close together,
+> > page2 is still near page1 and has a high chance of being adjacent. As
+> > more pages are added ordering diversity improves, but there is still
+> > high page locality for the low address pages and this leads to no
+> > significant impact to the cache conflict rate.
+> >
+> > ...
+> >
+> >  include/linux/list.h    |   17 ++++
+> >  include/linux/mmzone.h  |    4 +
+> >  include/linux/shuffle.h |   45 +++++++++++
+> >  init/Kconfig            |   23 ++++++
+> >  mm/Makefile             |    7 ++
+> >  mm/memblock.c           |    1
+> >  mm/memory_hotplug.c     |    3 +
+> >  mm/page_alloc.c         |    6 +-
+> >  mm/shuffle.c            |  188 +++++++++++++++++++++++++++++++++++++++++++++++
+>
+> Can we get a Documentation update for the new kernel parameter?
+
+Yes.
+
+>
+> >
+> > ...
+> >
+> > --- /dev/null
+> > +++ b/mm/shuffle.c
+> > @@ -0,0 +1,188 @@
+> > +// SPDX-License-Identifier: GPL-2.0
+> > +// Copyright(c) 2018 Intel Corporation. All rights reserved.
+> > +
+> > +#include <linux/mm.h>
+> > +#include <linux/init.h>
+> > +#include <linux/mmzone.h>
+> > +#include <linux/random.h>
+> > +#include <linux/shuffle.h>
+>
+> Does shuffle.h need to be available to the whole kernel or can we put
+> it in mm/?
+
+The wider kernel just needs page_alloc_shuffle() so that
+platform-firmware parsing code that detects a memory-side-cache can
+enable the shuffle. The rest can be constrained to an mm/ local
+header.
+
+>
+> > +#include <linux/moduleparam.h>
+> > +#include "internal.h"
+> > +
+> > +DEFINE_STATIC_KEY_FALSE(page_alloc_shuffle_key);
+> > +static unsigned long shuffle_state __ro_after_init;
+> > +
+> > +/*
+> > + * Depending on the architecture, module parameter parsing may run
+> > + * before, or after the cache detection. SHUFFLE_FORCE_DISABLE prevents,
+> > + * or reverts the enabling of the shuffle implementation. SHUFFLE_ENABLE
+> > + * attempts to turn on the implementation, but aborts if it finds
+> > + * SHUFFLE_FORCE_DISABLE already set.
+> > + */
+> > +void page_alloc_shuffle(enum mm_shuffle_ctl ctl)
+> > +{
+> > +     if (ctl == SHUFFLE_FORCE_DISABLE)
+> > +             set_bit(SHUFFLE_FORCE_DISABLE, &shuffle_state);
+> > +
+> > +     if (test_bit(SHUFFLE_FORCE_DISABLE, &shuffle_state)) {
+> > +             if (test_and_clear_bit(SHUFFLE_ENABLE, &shuffle_state))
+> > +                     static_branch_disable(&page_alloc_shuffle_key);
+> > +     } else if (ctl == SHUFFLE_ENABLE
+> > +                     && !test_and_set_bit(SHUFFLE_ENABLE, &shuffle_state))
+> > +             static_branch_enable(&page_alloc_shuffle_key);
+> > +}
+>
+> Can this be __meminit?
+
+Yes.
+
+>
+> > +static bool shuffle_param;
+> > +extern int shuffle_show(char *buffer, const struct kernel_param *kp)
+> > +{
+> > +     return sprintf(buffer, "%c\n", test_bit(SHUFFLE_ENABLE, &shuffle_state)
+> > +                     ? 'Y' : 'N');
+> > +}
+> > +static int shuffle_store(const char *val, const struct kernel_param *kp)
+> > +{
+> > +     int rc = param_set_bool(val, kp);
+> > +
+> > +     if (rc < 0)
+> > +             return rc;
+> > +     if (shuffle_param)
+> > +             page_alloc_shuffle(SHUFFLE_ENABLE);
+> > +     else
+> > +             page_alloc_shuffle(SHUFFLE_FORCE_DISABLE);
+> > +     return 0;
+> > +}
+> > +module_param_call(shuffle, shuffle_store, shuffle_show, &shuffle_param, 0400);
+> >
+> > ...
+> >
+> > +/*
+> > + * Fisher-Yates shuffle the freelist which prescribes iterating through
+> > + * an array, pfns in this case, and randomly swapping each entry with
+> > + * another in the span, end_pfn - start_pfn.
+> > + *
+> > + * To keep the implementation simple it does not attempt to correct for
+> > + * sources of bias in the distribution, like modulo bias or
+> > + * pseudo-random number generator bias. I.e. the expectation is that
+> > + * this shuffling raises the bar for attacks that exploit the
+> > + * predictability of page allocations, but need not be a perfect
+> > + * shuffle.
+>
+> Reflowing the comment to use all 80 cols would save a line :)
+
+WIll do.
+
+>
+> > + */
+> > +#define SHUFFLE_RETRY 10
+> > +void __meminit __shuffle_zone(struct zone *z)
+> > +{
+> > +     unsigned long i, flags;
+> > +     unsigned long start_pfn = z->zone_start_pfn;
+> > +     unsigned long end_pfn = zone_end_pfn(z);
+> > +     const int order = SHUFFLE_ORDER;
+> > +     const int order_pages = 1 << order;
+> > +
+> > +     spin_lock_irqsave(&z->lock, flags);
+> > +     start_pfn = ALIGN(start_pfn, order_pages);
+> > +     for (i = start_pfn; i < end_pfn; i += order_pages) {
+> > +             unsigned long j;
+> > +             int migratetype, retry;
+> > +             struct page *page_i, *page_j;
+> > +
+> > +             /*
+> > +              * We expect page_i, in the sub-range of a zone being
+> > +              * added (@start_pfn to @end_pfn), to more likely be
+> > +              * valid compared to page_j randomly selected in the
+> > +              * span @zone_start_pfn to @spanned_pages.
+> > +              */
+> > +             page_i = shuffle_valid_page(i, order);
+> > +             if (!page_i)
+> > +                     continue;
+> > +
+> > +             for (retry = 0; retry < SHUFFLE_RETRY; retry++) {
+> > +                     /*
+> > +                      * Pick a random order aligned page from the
+> > +                      * start of the zone. Use the *whole* zone here
+> > +                      * so that if it is freed in tiny pieces that we
+> > +                      * randomize in the whole zone, not just within
+> > +                      * those fragments.
+>
+> Second sentence is hard to parse.
+
+Earlier versions only arranged to shuffle over non-hole ranges, but
+the SHUFFLE_RETRY works around that now. I'll update the comment.
+
+>
+> > +                      *
+> > +                      * Since page_j comes from a potentially sparse
+> > +                      * address range we want to try a bit harder to
+> > +                      * find a shuffle point for page_i.
+> > +                      */
+>
+> Reflow the comment...
+
+yup.
+
+>
+> > +                     j = z->zone_start_pfn +
+> > +                             ALIGN_DOWN(get_random_long() % z->spanned_pages,
+> > +                                             order_pages);
+> > +                     page_j = shuffle_valid_page(j, order);
+> > +                     if (page_j && page_j != page_i)
+> > +                             break;
+> > +             }
+> > +             if (retry >= SHUFFLE_RETRY) {
+> > +                     pr_debug("%s: failed to swap %#lx\n", __func__, i);
+> > +                     continue;
+> > +             }
+> > +
+> > +             /*
+> > +              * Each migratetype corresponds to its own list, make
+> > +              * sure the types match otherwise we're moving pages to
+> > +              * lists where they do not belong.
+> > +              */
+>
+> Reflow.
+
+ok.
 
