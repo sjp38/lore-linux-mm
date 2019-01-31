@@ -6,72 +6,72 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BEF60C169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 04:19:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2380FC169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 04:26:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7229E20833
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 04:19:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7229E20833
+	by mail.kernel.org (Postfix) with ESMTP id D777820857
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 04:26:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D777820857
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 082F38E0002; Wed, 30 Jan 2019 23:19:21 -0500 (EST)
+	id 7F8898E0002; Wed, 30 Jan 2019 23:26:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 032A38E0001; Wed, 30 Jan 2019 23:19:20 -0500 (EST)
+	id 7A7888E0001; Wed, 30 Jan 2019 23:26:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E8B968E0002; Wed, 30 Jan 2019 23:19:20 -0500 (EST)
+	id 6BE6B8E0002; Wed, 30 Jan 2019 23:26:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A79E88E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 23:19:20 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id a2so1284215pgt.11
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 20:19:20 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 25CC68E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 23:26:08 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id x26so1307801pgc.5
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 20:26:08 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:in-reply-to:references:date:message-id:mime-version;
-        bh=JJ2Z3gWqBnZA7p6m3crqgxo41wTTJmgblkbOTQD7DW0=;
-        b=bFCL5wbJtMleo8vMVCfZbdibU3w+KUjD2s+AsX2d1LUxLL6LGjkgoHs63WXYpo8j8a
-         sty7CmuSjZf9H9xVoe29y8bdhXvo6qWS3vaPJIuE0KNVCvBgPYof4xrU/ItjE3Kwby9H
-         10xSGCDJ7WIwNFjmBCJayU7mvmJYFJYnB+pScJaDtIkHYSXKacfsTt85ZgUS9jkaP4b0
-         tdG+YVILvf1kKtA4OLm+ErvWAcH/r2FJyELoX2wAGT+5VzsAYUDa9MFNoZUTGdE2X4Ct
-         w0rVdN0ZzuCafzjMIJat2Hkhsnel+bibUpdpLDmZq/8eb08I7Gs/mPM8qrcG9UU4GjJc
-         oo2A==
+        bh=QHsp2UHGS9osXy7Vsw7jDvPjlMCIj2rnsb3EltN5wDo=;
+        b=Z//gR2mG5ZZQMJd8bAt2XfwYM2NVVxyJbYCGgsCeHSi0QY7TypuEjB58B/v7+yQyXi
+         f/K6suVbWxRu24WhqJVms63+pXWTnbHIec05HeEnd6+jZwFRBHdEW6uPTWVCoasok68q
+         c6ooXpkYG74pPJ1L7FjkHPc6PqeLMK2Ea9akSjU/WQcJc3v3/Pz3J0t7CIGnqc63B2e0
+         1Xj537ZxGnAROWKzITtwyAgoFgDmSimHdcO0kmgspW1E52cfu6s94yJYrw0jhJ8jpXXh
+         KgauXG5Axf6XeGtYYy7sacuo6+UcwTyR97/HsxOHssJZQtcxrJnLbMV+Qt8T3rhOn9dN
+         X0Nw==
 X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-X-Gm-Message-State: AJcUukfjetOmvB2y8lBiOgWAvGgJ7OahzbpbCAEq5d1d9KKcI2RHKqBj
-	oJCkRBBTt2FLymo7TFKXYPCYproiPJobHfPaZb/IVcmar91QViw88YPlQENEG45gnsPZ/nZvC6Y
-	oAB1KOWYVrNABm6cGCBMYBSDW4S1NBS28rTVzTzqq9UfM21ONdYReSd94f7FWw6o=
-X-Received: by 2002:a17:902:8d94:: with SMTP id v20mr32999336plo.194.1548908360349;
-        Wed, 30 Jan 2019 20:19:20 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6zI5H56bYsCFhgWoXCnnD0YEiSPgo0tfRFma1xcmZfJw4SqYL+RTmY7b0EL5Q8yj6zKBKQ
-X-Received: by 2002:a17:902:8d94:: with SMTP id v20mr32999313plo.194.1548908359481;
-        Wed, 30 Jan 2019 20:19:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548908359; cv=none;
+X-Gm-Message-State: AJcUukfh2Dg9HExiY83qvNcoRJRRgXGbzR226aLEgE83+EupEoUosUM7
+	yMdAOA0dyEXbbW7Sfm9CmAVhc+jmkxSZfoKEPh2zdQzSDki8HDN522b3KCKVc59h5C4HaqB12NS
+	I8PtRN2keXYOrNQkuus6hgGFMZVqvI3CZB/AiGEmGrMBFPVdzkLD3iNX264pXCzE=
+X-Received: by 2002:a17:902:887:: with SMTP id 7mr33036319pll.164.1548908767791;
+        Wed, 30 Jan 2019 20:26:07 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6Ecd1pxFBdDFLebG/peWDM13F6m6674s7YHhlqb1MW857DDFYNcFKBpqufqLGsc9RAxVyo
+X-Received: by 2002:a17:902:887:: with SMTP id 7mr33036298pll.164.1548908767062;
+        Wed, 30 Jan 2019 20:26:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548908767; cv=none;
         d=google.com; s=arc-20160816;
-        b=KMiEFilDd/KJSXJGU3k8pS1i2FD7l3tB3SEo69HV73Le5U6SZwNpBglK4OaAa6D35L
-         ZUJK8T3CqGJWu26iZ9qFEWIlSF8rqLTWxG0Eql/svgqaHdOtPK4uGkYoqAJzQwHXzuZK
-         3Bu68BZjGO7ulpDeaG/RBwuYpb6Iik8WMDTlN9fkj4fySoY+IxYdy5sdFp++CcDmvNm8
-         dpd75ZJVJPQysEvb9fy8ATFi1gX0iRyBJh0ID5GP8PPx9RlfWvOa44wDFBNfs560y1tC
-         1Z2akYpB//vtcrZX+ynowXsk/U9HjO9pWg+zRFD+05TAHtC5Q+K45PYaVN8yzZQUh9E5
-         1a2w==
+        b=uM+CDbIxqDF4zjdNggTBOfVVPK+9YpDxqcVYv+TyqtgjUchOqEJW0nUlbtw5SyGTba
+         IUsSNZ0hFvV7qgvdYubpaaVdNFJBB5Zb8HMIIRd8eRwIsIsCKbZUNq2cxtAeCneBuUxX
+         2EWT8+DiShtW3h2g/+QIFaOsBNqzapSaCzF9GHOwOJuVzJ5TgeB2t05qAOZcH9UbUS65
+         oKOfZv6jTp9LOZaepEviWVoXgX33Aeg/2Tib3AMjhVPTTi+RuV1axuFFEL1k7usLrS7s
+         Xsmxcq2VimTeTOF+eQqOlsxdhnD8a/tEB6QQmTO43uAlakQCz6Uhk6w25jQkVq0ttT8g
+         VndA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
          :from;
-        bh=JJ2Z3gWqBnZA7p6m3crqgxo41wTTJmgblkbOTQD7DW0=;
-        b=hAn0rf81b7SuyknKEbdT+N7066kb0gVlxkhK1UkjHqbPPwKg8LtQZ88T8GIq2OrugT
-         Oy57rgkCf+4lGud81WXgdY+KJweneisr3Q5j4Dxj5oYkk8TVMUgu5RV6gi3gRWlzP/DK
-         H2kqVvQle7xh1LFjxLiQ0jLWzU2oxOvkU9jDM7E+ivobErIiiBqTI0GY/xjAaMhzndDm
-         MLTp9aHPY9IFRfBk9zaJFnb9t7qD5lfa6RiwQp1X1hL1yamoweH0TB3jrJja24MDiBJR
-         BN/SXdzxSECzCbDcoI/Ty8E14PpVXSAwmAHIurtS0JYFnsTHk9keVbwHWdGxjV3DedPn
-         N39A==
+        bh=QHsp2UHGS9osXy7Vsw7jDvPjlMCIj2rnsb3EltN5wDo=;
+        b=sZDU1bHCI0MyAEBU5mwDxfHT6sHY1L5MtXU/msP+tiN+UhVEe17dLGOBzXmvRHH25W
+         6HnqV4Kz1WYrb1Uu686Od+I2xdjI0K1VWxaI9jRnV1gg6hNpOn9uD6a4snFEDluYRbQf
+         8QsTLJvKWjo8xwlGYhwK2lW6DLV+1n3H9qBzueekL4DesDT/5Q9ISoYVomotXVh9zWcD
+         ODTr1rPdkgSolpdljP/Im5BvpSln3/vCpi4ppjIqNXucnHoE1l3a6pjFzNjecqbOGNUD
+         KQYEO4vcJHMSAfrT9GjB3WHVHDEmDSCCg0XDA+7Ih/3WYtFOsHTh/9bI3CursjQqoD6N
+         Ijww==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
 Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id k186si3398391pgc.576.2019.01.30.20.19.18
+        by mx.google.com with ESMTPS id 128si1502793pfe.4.2019.01.30.20.26.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 30 Jan 2019 20:19:18 -0800 (PST)
+        Wed, 30 Jan 2019 20:26:07 -0800 (PST)
 Received-SPF: neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=203.11.71.1;
 Authentication-Results: mx.google.com;
        spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
@@ -79,16 +79,16 @@ Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
 	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
 	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits) server-digest SHA256)
 	(No client certificate requested)
-	by ozlabs.org (Postfix) with ESMTPSA id 43qn7810Tdz9sBb;
-	Thu, 31 Jan 2019 15:19:16 +1100 (AEDT)
+	by ozlabs.org (Postfix) with ESMTPSA id 43qnGz6QyHz9sBb;
+	Thu, 31 Jan 2019 15:26:03 +1100 (AEDT)
 From: Michael Ellerman <mpe@ellerman.id.au>
 To: Christophe Leroy <christophe.leroy@c-s.fr>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Mike Rapoport <rppt@linux.ibm.com>
 Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
-Subject: Re: [PATCH v3 2/2] powerpc: use probe_user_read()
-In-Reply-To: <afd95fa4747f1c1eb66677025c2c7c9055f43cce.1547652372.git.christophe.leroy@c-s.fr>
-References: <39fb6c5a191025378676492e140dc012915ecaeb.1547652372.git.christophe.leroy@c-s.fr> <afd95fa4747f1c1eb66677025c2c7c9055f43cce.1547652372.git.christophe.leroy@c-s.fr>
-Date: Thu, 31 Jan 2019 15:19:13 +1100
-Message-ID: <878sz1pigu.fsf@concordia.ellerman.id.au>
+Subject: Re: [PATCH v3 1/2] mm: add probe_user_read()
+In-Reply-To: <39fb6c5a191025378676492e140dc012915ecaeb.1547652372.git.christophe.leroy@c-s.fr>
+References: <39fb6c5a191025378676492e140dc012915ecaeb.1547652372.git.christophe.leroy@c-s.fr>
+Date: Thu, 31 Jan 2019 15:26:03 +1100
+Message-ID: <875zu5pi5g.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
 Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -99,176 +99,94 @@ List-ID: <linux-mm.kvack.org>
 
 Christophe Leroy <christophe.leroy@c-s.fr> writes:
 
-> Instead of opencoding, use probe_user_read() to failessly
-> read a user location.
+> In powerpc code, there are several places implementing safe
+> access to user data. This is sometimes implemented using
+> probe_kernel_address() with additional access_ok() verification,
+> sometimes with get_user() enclosed in a pagefault_disable()/enable()
+> pair, etc. :
+>     show_user_instructions()
+>     bad_stack_expansion()
+>     p9_hmi_special_emu()
+>     fsl_pci_mcheck_exception()
+>     read_user_stack_64()
+>     read_user_stack_32() on PPC64
+>     read_user_stack_32() on PPC32
+>     power_pmu_bhrb_to()
+>
+> In the same spirit as probe_kernel_read(), this patch adds
+> probe_user_read().
+>
+> probe_user_read() does the same as probe_kernel_read() but
+> first checks that it is really a user address.
+>
+> The patch defines this function as a static inline so the "size"
+> variable can be examined for const-ness by the check_object_size()
+> in __copy_from_user_inatomic()
 >
 > Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 > ---
->  v3: No change
+>  v3: Moved 'Returns:" comment after description.
+>      Explained in the commit log why the function is defined static inline
 >
->  v2: Using probe_user_read() instead of probe_user_address()
+>  v2: Added "Returns:" comment and removed probe_user_address()
 >
->  arch/powerpc/kernel/process.c   | 12 +-----------
->  arch/powerpc/mm/fault.c         |  6 +-----
->  arch/powerpc/perf/callchain.c   | 20 +++-----------------
->  arch/powerpc/perf/core-book3s.c |  8 +-------
->  arch/powerpc/sysdev/fsl_pci.c   | 10 ++++------
->  5 files changed, 10 insertions(+), 46 deletions(-)
+>  include/linux/uaccess.h | 34 ++++++++++++++++++++++++++++++++++
+>  1 file changed, 34 insertions(+)
+>
+> diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
+> index 37b226e8df13..ef99edd63da3 100644
+> --- a/include/linux/uaccess.h
+> +++ b/include/linux/uaccess.h
+> @@ -263,6 +263,40 @@ extern long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count);
+>  #define probe_kernel_address(addr, retval)		\
+>  	probe_kernel_read(&retval, addr, sizeof(retval))
+>  
+> +/**
+> + * probe_user_read(): safely attempt to read from a user location
+> + * @dst: pointer to the buffer that shall take the data
+> + * @src: address to read from
+> + * @size: size of the data chunk
+> + *
+> + * Safely read from address @src to the buffer at @dst.  If a kernel fault
+> + * happens, handle that and return -EFAULT.
+> + *
+> + * We ensure that the copy_from_user is executed in atomic context so that
+> + * do_page_fault() doesn't attempt to take mmap_sem.  This makes
+> + * probe_user_read() suitable for use within regions where the caller
+> + * already holds mmap_sem, or other locks which nest inside mmap_sem.
+> + *
+> + * Returns: 0 on success, -EFAULT on error.
+> + */
+> +
+> +#ifndef probe_user_read
+> +static __always_inline long probe_user_read(void *dst, const void __user *src,
+> +					    size_t size)
+> +{
+> +	long ret;
+> +
 
-Looks good.
+I wonder if we should explicitly switch to USER_DS here?
 
-Acked-by: Michael Ellerman <mpe@ellerman.id.au>
+That would be sort of unusual, but the whole reason for this helper
+existing is to make sure we safely read from user memory and not
+accidentally from kernel.
 
 cheers
 
-> diff --git a/arch/powerpc/kernel/process.c b/arch/powerpc/kernel/process.c
-> index ce393df243aa..6a4b59d574c2 100644
-> --- a/arch/powerpc/kernel/process.c
-> +++ b/arch/powerpc/kernel/process.c
-> @@ -1298,16 +1298,6 @@ void show_user_instructions(struct pt_regs *regs)
->  
->  	pc = regs->nip - (NR_INSN_TO_PRINT * 3 / 4 * sizeof(int));
->  
-> -	/*
-> -	 * Make sure the NIP points at userspace, not kernel text/data or
-> -	 * elsewhere.
-> -	 */
-> -	if (!__access_ok(pc, NR_INSN_TO_PRINT * sizeof(int), USER_DS)) {
-> -		pr_info("%s[%d]: Bad NIP, not dumping instructions.\n",
-> -			current->comm, current->pid);
-> -		return;
-> -	}
-> -
->  	seq_buf_init(&s, buf, sizeof(buf));
->  
->  	while (n) {
-> @@ -1318,7 +1308,7 @@ void show_user_instructions(struct pt_regs *regs)
->  		for (i = 0; i < 8 && n; i++, n--, pc += sizeof(int)) {
->  			int instr;
->  
-> -			if (probe_kernel_address((const void *)pc, instr)) {
-> +			if (probe_user_read(&instr, (void __user *)pc, sizeof(instr))) {
->  				seq_buf_printf(&s, "XXXXXXXX ");
->  				continue;
->  			}
-> diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
-> index 887f11bcf330..ec74305fa330 100644
-> --- a/arch/powerpc/mm/fault.c
-> +++ b/arch/powerpc/mm/fault.c
-> @@ -276,12 +276,8 @@ static bool bad_stack_expansion(struct pt_regs *regs, unsigned long address,
->  		if ((flags & FAULT_FLAG_WRITE) && (flags & FAULT_FLAG_USER) &&
->  		    access_ok(nip, sizeof(*nip))) {
->  			unsigned int inst;
-> -			int res;
->  
-> -			pagefault_disable();
-> -			res = __get_user_inatomic(inst, nip);
-> -			pagefault_enable();
-> -			if (!res)
-> +			if (!probe_user_read(&inst, nip, sizeof(inst)))
->  				return !store_updates_sp(inst);
->  			*must_retry = true;
->  		}
-> diff --git a/arch/powerpc/perf/callchain.c b/arch/powerpc/perf/callchain.c
-> index 0af051a1974e..0680efb2237b 100644
-> --- a/arch/powerpc/perf/callchain.c
-> +++ b/arch/powerpc/perf/callchain.c
-> @@ -159,12 +159,8 @@ static int read_user_stack_64(unsigned long __user *ptr, unsigned long *ret)
->  	    ((unsigned long)ptr & 7))
->  		return -EFAULT;
->  
-> -	pagefault_disable();
-> -	if (!__get_user_inatomic(*ret, ptr)) {
-> -		pagefault_enable();
-> +	if (!probe_user_read(ret, ptr, sizeof(*ret)))
->  		return 0;
-> -	}
-> -	pagefault_enable();
->  
->  	return read_user_stack_slow(ptr, ret, 8);
->  }
-> @@ -175,12 +171,8 @@ static int read_user_stack_32(unsigned int __user *ptr, unsigned int *ret)
->  	    ((unsigned long)ptr & 3))
->  		return -EFAULT;
->  
-> -	pagefault_disable();
-> -	if (!__get_user_inatomic(*ret, ptr)) {
-> -		pagefault_enable();
-> +	if (!probe_user_read(ret, ptr, sizeof(*ret)))
->  		return 0;
-> -	}
-> -	pagefault_enable();
->  
->  	return read_user_stack_slow(ptr, ret, 4);
->  }
-> @@ -307,17 +299,11 @@ static inline int current_is_64bit(void)
->   */
->  static int read_user_stack_32(unsigned int __user *ptr, unsigned int *ret)
->  {
-> -	int rc;
-> -
->  	if ((unsigned long)ptr > TASK_SIZE - sizeof(unsigned int) ||
->  	    ((unsigned long)ptr & 3))
->  		return -EFAULT;
->  
-> -	pagefault_disable();
-> -	rc = __get_user_inatomic(*ret, ptr);
-> -	pagefault_enable();
-> -
-> -	return rc;
-> +	return probe_user_read(ret, ptr, sizeof(*ret));
->  }
->  
->  static inline void perf_callchain_user_64(struct perf_callchain_entry_ctx *entry,
-> diff --git a/arch/powerpc/perf/core-book3s.c b/arch/powerpc/perf/core-book3s.c
-> index b0723002a396..4b64ddf0db68 100644
-> --- a/arch/powerpc/perf/core-book3s.c
-> +++ b/arch/powerpc/perf/core-book3s.c
-> @@ -416,7 +416,6 @@ static void power_pmu_sched_task(struct perf_event_context *ctx, bool sched_in)
->  static __u64 power_pmu_bhrb_to(u64 addr)
->  {
->  	unsigned int instr;
-> -	int ret;
->  	__u64 target;
->  
->  	if (is_kernel_addr(addr)) {
-> @@ -427,13 +426,8 @@ static __u64 power_pmu_bhrb_to(u64 addr)
->  	}
->  
->  	/* Userspace: need copy instruction here then translate it */
-> -	pagefault_disable();
-> -	ret = __get_user_inatomic(instr, (unsigned int __user *)addr);
-> -	if (ret) {
-> -		pagefault_enable();
-> +	if (probe_user_read(&instr, (unsigned int __user *)addr, sizeof(instr)))
->  		return 0;
-> -	}
-> -	pagefault_enable();
->  
->  	target = branch_target(&instr);
->  	if ((!target) || (instr & BRANCH_ABSOLUTE))
-> diff --git a/arch/powerpc/sysdev/fsl_pci.c b/arch/powerpc/sysdev/fsl_pci.c
-> index 918be816b097..c8a1b26489f5 100644
-> --- a/arch/powerpc/sysdev/fsl_pci.c
-> +++ b/arch/powerpc/sysdev/fsl_pci.c
-> @@ -1068,13 +1068,11 @@ int fsl_pci_mcheck_exception(struct pt_regs *regs)
->  	addr += mfspr(SPRN_MCAR);
->  
->  	if (is_in_pci_mem_space(addr)) {
-> -		if (user_mode(regs)) {
-> -			pagefault_disable();
-> -			ret = get_user(inst, (__u32 __user *)regs->nip);
-> -			pagefault_enable();
-> -		} else {
-> +		if (user_mode(regs))
-> +			ret = probe_user_read(&inst, (void __user *)regs->nip,
-> +					      sizeof(inst));
-> +		else
->  			ret = probe_kernel_address((void *)regs->nip, inst);
-> -		}
->  
->  		if (!ret && mcheck_handle_load(regs, inst)) {
->  			regs->nip += 4;
+> +	if (!access_ok(src, size))
+> +		return -EFAULT;
+> +
+> +	pagefault_disable();
+> +	ret = __copy_from_user_inatomic(dst, src, size);
+> +	pagefault_enable();
+> +
+> +	return ret ? -EFAULT : 0;
+> +}
+> +#endif
+> +
+>  #ifndef user_access_begin
+>  #define user_access_begin(ptr,len) access_ok(ptr, len)
+>  #define user_access_end() do { } while (0)
 > -- 
 > 2.13.3
 
