@@ -2,268 +2,280 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E2060C169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 07:07:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E94DC282D9
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 07:11:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 968BF20870
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 07:07:35 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="rCd82aqn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 968BF20870
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
+	by mail.kernel.org (Postfix) with ESMTP id 0540820870
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 07:11:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0540820870
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 008A38E0002; Thu, 31 Jan 2019 02:07:35 -0500 (EST)
+	id 896028E0002; Thu, 31 Jan 2019 02:11:37 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EF8448E0001; Thu, 31 Jan 2019 02:07:34 -0500 (EST)
+	id 817DE8E0001; Thu, 31 Jan 2019 02:11:37 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D72018E0002; Thu, 31 Jan 2019 02:07:34 -0500 (EST)
+	id 705658E0002; Thu, 31 Jan 2019 02:11:37 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CFE88E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 02:07:34 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id 144so607782wme.5
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 23:07:34 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 313CE8E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 02:11:37 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id b8so1830672pfe.10
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 23:11:37 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=MXHl21tpazUCycYGJIF5K2H108fXMrwBKp0kMfVZOHU=;
-        b=Jf+VK1X+2+PFif+Sh8WTy3ZtZkAqSzDsssqjBE4TtayhVXeGgjNT0cz0Zvw+na4cnK
-         OcV5cXWENlqQWiOyJuXj2SK4fWnpb19h8A/1gAn/uPseU9Pi6t08WbKAZcV+s/vNZSLj
-         0Pp5OY37pvBEr9JTF8hBn6OkD++GaceV4MJpIfVIGo2CN7dnlcSi5VV1SJKctgOC5gfy
-         9EiU88FBqKACZaHX7eAzCeSzWmox/YC9bgK3gywd1IimMcG15Nbv/asVmPyXooRW7T+E
-         UVpOtNxbR2C5NMA+9YJF8rmOtI3C6GNrkKswWUGlXV/TwVWbZWvj5BoH4lEVkJ/rzB+8
-         Xtgw==
-X-Gm-Message-State: AJcUukdivX4MLF0woBSRTR28nGeeibEf55S0v3DN2Wt7DyiV+o8ny5bC
-	D8RnctCCuzjkx37kUDqk1On45vJ2QJH6QCdDfPKgmkuWpqAU2XQBiXBuboCaIKr1cB4qS8+DIRw
-	p3YDynQ+d54tdpMzslDTIPRHKQmeSo/+BxcD+PnEAvWK6FAgjREAnzUHo9uX4XP2UGg==
-X-Received: by 2002:a1c:8d53:: with SMTP id p80mr29602574wmd.68.1548918454036;
-        Wed, 30 Jan 2019 23:07:34 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7E+cIJWyO4un0yOH869TYJ7wGp8nWoRuYdMrfoue3XIY2qr2QBi4IqKbMQ7xIGY7ZkDgaU
-X-Received: by 2002:a1c:8d53:: with SMTP id p80mr29602501wmd.68.1548918452933;
-        Wed, 30 Jan 2019 23:07:32 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548918452; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=DF+/eutu90+l3P0SMmtgG0++bAKxFfsKgFoDnUQD4J0=;
+        b=FYPwjXsshyVvzoff8O7lTrgKiyeKX2RtcieoF2xJhJjiGO6PysAZsIhPSSEoXtANPS
+         9ErxEeKDKuuvgzudt6vh2gpvcIA6X14G60I/pg9hD0l/tlFo25wsQUEtPGIM1XV8adKe
+         MDXwdfS4TeOYHIuWA++d42H3DKfMUX0h96Nomhk69oFRKjtL71qAib2kEChhSc8+ZiXa
+         hr745EyYA4bO+O9ccsWamQ5D1ehjZT9r8wfOQWdwav7vxwIE3wBryhtm9Ns0/TfYxVYP
+         JFosCGVsP7eqBqVY401YhEkpFYpxFjLVzxE/JAdSo/Si1HFkyVO2M6hJhRLjRoAAfio7
+         6MYQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AJcUukdwv2LDCdnOsBdhEdcSW0dcri0lXLx6LvqoQHbQGlY1xpMViCXt
+	b63fes+y2xoX2u1MDRbHiu+jHRm1kol8Z0AAT47c4ZX1sI7QuG61HI8X+6cVV+NsouBmhnkCuAW
+	QQHM+h51gTR1W1o45fhQDComibbUUCzZWJnmtDDMvxFx1ZYI6duiADEaxBX6Egt8=
+X-Received: by 2002:a63:1408:: with SMTP id u8mr30632602pgl.271.1548918696750;
+        Wed, 30 Jan 2019 23:11:36 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7Vmkhy6jVEwdp0N2bfNX30Rl5H6R6hDD2actw952o3URZ4Zi4/cQifzliu0SJMtU3Wrtls
+X-Received: by 2002:a63:1408:: with SMTP id u8mr30632571pgl.271.1548918695773;
+        Wed, 30 Jan 2019 23:11:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548918695; cv=none;
         d=google.com; s=arc-20160816;
-        b=h05Aeye+u5GHP2c3huQER1l84v+aig1UHQb5rt00iVyCrcqCLUOMgBK7xp5BMXKdE2
-         Ypp6EbHViAqxpn5ixPYuBlWhnu8D5cNr6vSi9AWOzGwpajikFXGZ5W3U3qLFInEZ67CS
-         Tt6ePnYwn5/TK/5BW2HDZWWx/SfKg7tWNrYVVxLWT2Ez5uq55c3l14U64wCl77vkHTWd
-         IUGBf9gxVqBGpcu4OlyaOKxfw7X7B37cKPmV8XfCpjnd9IxztDh1zLStMjhxPk/8pKlJ
-         D7jwOTVxZZ7L7kQNalNn5fpnjuG/fRhP2Fgi9n8IogvxzJlByajlc/r1ti9IxKF3Pyt2
-         KHpA==
+        b=jxhE59YeqTw7RbuLMnzknwgN+y3bimYoq3VcqeHiBSQ8jnq1vrCR6Gjg6FrOMXyNKD
+         LrsCGHW3iJ7DMpBPe6aM4zR8gG4e7IY6sfpxtvpo9kFztrA+YYV+3kjBmtRxk4lh3Hb6
+         t18Wek6fiCsjBff0yBSoIAHfVKUZUa3jZDDPlOnSgNbCUZSUeO7a7bIuSCIPmQK7taZz
+         fWXga8OgzO5meV4WhM0dQDI6oY8uyx27FXBceN87gIYDZhwEK55fK2h/bS+o/DfSvwkO
+         t2Hl8pNPQ2jnJRsmM3AhSTvICjRA6RHJQvlEpad575nIjhV7x+x6QiBx3AUdFxnJS3iG
+         oeiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=MXHl21tpazUCycYGJIF5K2H108fXMrwBKp0kMfVZOHU=;
-        b=aA5i88C+9xvbZ82UmlS5eRsQWqsEwZVZj+K/riSjKkFynVO0nRDa7yMyPYyvHs4+TR
-         3i0Sgkz3rNCUe3KvZiMGVy5yleOPbC5zRl+KB3mn58n2RkPRN3fPcGvTIiWkdr+U2nr8
-         GHBk9KGsRq8e79VZIabsorLyiHAmM50aTePbWMuF4GPC95bNRRihz3l74y0AYuIEQYwq
-         v5iy2d9Er9VRKsXqt4Z8yMPTgXxHE+66vxFJKQDTYSJ7/jtfxB0uPlIavGu/kVm69BHq
-         xJ1BEBN4ZlYxks3sD75l5wx2Q6AH/282k/bd5yAk0QthZ8A8oMaRMwvqA7sJXz6qyk2l
-         A7WA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=DF+/eutu90+l3P0SMmtgG0++bAKxFfsKgFoDnUQD4J0=;
+        b=GTW6gAVJNB9+ZeK7cRTGepgTyK/vIzX7OyEAs3LbgmzMm0jBXd42hMWY75ifdEnutx
+         cvwx/48S5l2P+6SXv0Mlx6c1xO0IQAic/WTRC+uYpQ8Y7ubrkV7xaaNvs/WMx7hkN7fe
+         PKjsM1KP+QicpdF6REeli369DMUrnsnbCkRVAg9Y5HvZb9EXfjvGek8fRNHFeNqjCuI7
+         /NLwK0tyIcq0sbUcmGvZJvUHpNtuaF6f2Y58tWINI8YdVtqMWVaSpGLaVKamaYp1cBX7
+         FfGlwciAtCrMrG8yggZjFkQZm4c2lcWezE1NFL2jfK4VZvHh9d4aIwFWrTpYxwVURryP
+         hKNw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=rCd82aqn;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id m65si3327315wmf.40.2019.01.30.23.07.32
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j35si3519200pgl.223.2019.01.30.23.11.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 23:07:32 -0800 (PST)
-Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
+        Wed, 30 Jan 2019 23:11:35 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=rCd82aqn;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 43qrsH3KnTz9v0Ql;
-	Thu, 31 Jan 2019 08:07:31 +0100 (CET)
-Authentication-Results: localhost; dkim=pass
-	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=rCd82aqn; dkim-adsp=pass;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at c-s.fr
-Received: from pegase1.c-s.fr ([192.168.12.234])
-	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id DAzsBnhWoB9O; Thu, 31 Jan 2019 08:07:31 +0100 (CET)
-Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 43qrsH1tsMz9v0Qj;
-	Thu, 31 Jan 2019 08:07:31 +0100 (CET)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1548918451; bh=MXHl21tpazUCycYGJIF5K2H108fXMrwBKp0kMfVZOHU=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=rCd82aqnCmgVKey8lh2qo7e2czYPgKR5K0SsqXWaaG+aPdVhNoJAHK8cvl05jNaLQ
-	 01Tbj78zc0z794OUHngjeqyEvlUQI7ONSfsFOcwtpy8Q//8zmi0Zwd5Q5S7O8IAO0Y
-	 J0iKKRNhFMGd08UKWW9aHyiQ2pzFvIMvvFhWRBCY=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 176168B78D;
-	Thu, 31 Jan 2019 08:07:32 +0100 (CET)
-X-Virus-Scanned: amavisd-new at c-s.fr
-Received: from messagerie.si.c-s.fr ([127.0.0.1])
-	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id 9D0PmJeNjYuQ; Thu, 31 Jan 2019 08:07:31 +0100 (CET)
-Received: from PO15451 (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 075218B74C;
-	Thu, 31 Jan 2019 08:07:29 +0100 (CET)
-Subject: Re: [PATCH v2 19/21] treewide: add checks for the return value of
- memblock_alloc*()
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: linux-mm@kvack.org, Rich Felker <dalias@libc.org>,
- linux-ia64@vger.kernel.org, devicetree@vger.kernel.org,
- Catalin Marinas <catalin.marinas@arm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>, x86@kernel.org,
- linux-mips@vger.kernel.org, Max Filippov <jcmvbkbc@gmail.com>,
- Guo Ren <guoren@kernel.org>, sparclinux@vger.kernel.org,
- Christoph Hellwig <hch@lst.de>, linux-s390@vger.kernel.org,
- linux-c6x-dev@linux-c6x.org, Yoshinori Sato <ysato@users.sourceforge.jp>,
- Richard Weinberger <richard@nod.at>, linux-sh@vger.kernel.org,
- Russell King <linux@armlinux.org.uk>, kasan-dev@googlegroups.com,
- Geert Uytterhoeven <geert@linux-m68k.org>, Mark Salter <msalter@redhat.com>,
- Dennis Zhou <dennis@kernel.org>, Matt Turner <mattst88@gmail.com>,
- linux-snps-arc@lists.infradead.org, uclinux-h8-devel@lists.sourceforge.jp,
- Petr Mladek <pmladek@suse.com>, linux-xtensa@linux-xtensa.org,
- linux-alpha@vger.kernel.org, linux-um@lists.infradead.org,
- linux-m68k@lists.linux-m68k.org, Rob Herring <robh+dt@kernel.org>,
- Greentime Hu <green.hu@gmail.com>, xen-devel@lists.xenproject.org,
- Stafford Horne <shorne@gmail.com>, Guan Xuetao <gxt@pku.edu.cn>,
- linux-arm-kernel@lists.infradead.org, Michal Simek <monstr@monstr.eu>,
- Tony Luck <tony.luck@intel.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org,
- linux-kernel@vger.kernel.org, Paul Burton <paul.burton@mips.com>,
- Vineet Gupta <vgupta@synopsys.com>, Andrew Morton
- <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org,
- "David S. Miller" <davem@davemloft.net>, openrisc@lists.librecores.org,
- Stephen Rothwell <sfr@canb.auug.org.au>
-References: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com>
- <1548057848-15136-20-git-send-email-rppt@linux.ibm.com>
- <b7c12014-14ae-2a38-900c-41fd145307bc@c-s.fr>
- <20190131064139.GB28876@rapoport-lnx>
- <8838f7ab-998b-6d78-02a8-a53f8a3619d9@c-s.fr>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Message-ID: <d5e4ff5b-d33a-e641-8159-d4f83bc28d0b@c-s.fr>
-Date: Thu, 31 Jan 2019 08:07:29 +0100
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id B2B03AF51;
+	Thu, 31 Jan 2019 07:11:32 +0000 (UTC)
+Date: Thu, 31 Jan 2019 08:11:30 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	David Rientjes <rientjes@google.com>, linux-mm@kvack.org,
+	Yong-Taek Lee <ytk.lee@samsung.com>,
+	Paul McKenney <paulmck@linux.vnet.ibm.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH v2] mm, oom: Tolerate processes sharing mm with different
+ view of oom_score_adj.
+Message-ID: <20190131071130.GM18811@dhcp22.suse.cz>
+References: <1547636121-9229-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20190116110937.GI24149@dhcp22.suse.cz>
+ <88e10029-f3d9-5bb5-be46-a3547c54de28@I-love.SAKURA.ne.jp>
+ <20190116121915.GJ24149@dhcp22.suse.cz>
+ <6118fa8a-7344-b4b2-36ce-d77d495fba69@i-love.sakura.ne.jp>
+ <20190116134131.GP24149@dhcp22.suse.cz>
+ <20190117155159.GA4087@dhcp22.suse.cz>
+ <edad66e0-1947-eb42-f4db-7f826d3157d7@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <8838f7ab-998b-6d78-02a8-a53f8a3619d9@c-s.fr>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <edad66e0-1947-eb42-f4db-7f826d3157d7@i-love.sakura.ne.jp>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-Le 31/01/2019 à 07:44, Christophe Leroy a écrit :
+On Thu 31-01-19 07:49:35, Tetsuo Handa wrote:
+> This patch reverts both commit 44a70adec910d692 ("mm, oom_adj: make sure
+> processes sharing mm have same view of oom_score_adj") and commit
+> 97fd49c2355ffded ("mm, oom: kill all tasks sharing the mm") in order to
+> close a race and reduce the latency at __set_oom_adj(), and reduces the
+> warning at __oom_kill_process() in order to minimize the latency.
 > 
+> Commit 36324a990cf578b5 ("oom: clear TIF_MEMDIE after oom_reaper managed
+> to unmap the address space") introduced the worst case mentioned in
+> 44a70adec910d692. But since the OOM killer skips mm with MMF_OOM_SKIP set,
+> only administrators can trigger the worst case.
 > 
-> Le 31/01/2019 à 07:41, Mike Rapoport a écrit :
->> On Thu, Jan 31, 2019 at 07:07:46AM +0100, Christophe Leroy wrote:
->>>
->>>
->>> Le 21/01/2019 à 09:04, Mike Rapoport a écrit :
->>>> Add check for the return value of memblock_alloc*() functions and call
->>>> panic() in case of error.
->>>> The panic message repeats the one used by panicing memblock 
->>>> allocators with
->>>> adjustment of parameters to include only relevant ones.
->>>>
->>>> The replacement was mostly automated with semantic patches like the one
->>>> below with manual massaging of format strings.
->>>>
->>>> @@
->>>> expression ptr, size, align;
->>>> @@
->>>> ptr = memblock_alloc(size, align);
->>>> + if (!ptr)
->>>> +     panic("%s: Failed to allocate %lu bytes align=0x%lx\n", __func__,
->>>> size, align);
->>>>
->>>> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
->>>> Reviewed-by: Guo Ren <ren_guo@c-sky.com>             # c-sky
->>>> Acked-by: Paul Burton <paul.burton@mips.com>         # MIPS
->>>> Acked-by: Heiko Carstens <heiko.carstens@de.ibm.com> # s390
->>>> Reviewed-by: Juergen Gross <jgross@suse.com>         # Xen
->>>> ---
->>>
->>> [...]
->>>
->>>> diff --git a/mm/sparse.c b/mm/sparse.c
->>>> index 7ea5dc6..ad94242 100644
->>>> --- a/mm/sparse.c
->>>> +++ b/mm/sparse.c
->>>
->>> [...]
->>>
->>>> @@ -425,6 +436,10 @@ static void __init sparse_buffer_init(unsigned 
->>>> long size, int nid)
->>>>           memblock_alloc_try_nid_raw(size, PAGE_SIZE,
->>>>                           __pa(MAX_DMA_ADDRESS),
->>>>                           MEMBLOCK_ALLOC_ACCESSIBLE, nid);
->>>> +    if (!sparsemap_buf)
->>>> +        panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d 
->>>> from=%lx\n",
->>>> +              __func__, size, PAGE_SIZE, nid, __pa(MAX_DMA_ADDRESS));
->>>> +
->>>
->>> memblock_alloc_try_nid_raw() does not panic (help explicitly says: 
->>> Does not
->>> zero allocated memory, does not panic if request cannot be satisfied.).
->>
->> "Does not panic" does not mean it always succeeds.
+> Since 44a70adec910d692 did not take latency into account, we can "hold RCU
+> for minutes and trigger RCU stall warnings" by calling printk() on many
+> thousands of thread groups. Also, current code becomes a DoS attack vector
+> which will allow "stalling for more than one month in unkillable state"
+> simply printk()ing same messages when many thousands of thread groups
+> tried to iterate __set_oom_adj() on each other.
 > 
-> I agree, but at least here you are changing the behaviour by making it 
-> panic explicitly. Are we sure there are not cases where the system could 
-> just continue functionning ? Maybe a WARN_ON() would be enough there ?
+> I also noticed that 44a70adec910d692 is racy [1], and trying to fix the
+> race will require a global lock which is too costly for rare events. And
+> Michal Hocko is thinking to change the oom_score_adj implementation to per
+> mm_struct (with shadowed score stored in per task_struct in order to
+> support vfork() => __set_oom_adj() => execve() sequence) so that we don't
+> need the global lock.
+> 
+> If the worst case in 44a70adec910d692 happened, it is an administrator's
+> request. Therefore, before changing the oom_score_adj implementation,
+> let's eliminate the DoS attack vector first.
 
-Looking more in details, it looks like everything is done to live with 
-sparsemap_buf NULL, all functions using it check it so having it NULL 
-shouldn't imply a panic I believe, see code below.
+This is really ridiculous. I have already nacked the previous version
+and provided two ways around. The simplest one is to drop the printk.
+The second one is to move oom_score_adj to the mm struct. Could you
+explain why do you still push for this?
 
-static void *sparsemap_buf __meminitdata;
-static void *sparsemap_buf_end __meminitdata;
+> [1] https://lkml.kernel.org/r/20181008011931epcms1p82dd01b7e5c067ea99946418bc97de46a@epcms1p8
+> 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Reported-by: Yong-Taek Lee <ytk.lee@samsung.com>
+> Nacked-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  fs/proc/base.c     | 46 ----------------------------------------------
+>  include/linux/mm.h |  2 --
+>  mm/oom_kill.c      | 10 ++++++----
+>  3 files changed, 6 insertions(+), 52 deletions(-)
+> 
+> diff --git a/fs/proc/base.c b/fs/proc/base.c
+> index 633a634..41ece8f 100644
+> --- a/fs/proc/base.c
+> +++ b/fs/proc/base.c
+> @@ -1020,7 +1020,6 @@ static ssize_t oom_adj_read(struct file *file, char __user *buf, size_t count,
+>  static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+>  {
+>  	static DEFINE_MUTEX(oom_adj_mutex);
+> -	struct mm_struct *mm = NULL;
+>  	struct task_struct *task;
+>  	int err = 0;
+>  
+> @@ -1050,55 +1049,10 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
+>  		}
+>  	}
+>  
+> -	/*
+> -	 * Make sure we will check other processes sharing the mm if this is
+> -	 * not vfrok which wants its own oom_score_adj.
+> -	 * pin the mm so it doesn't go away and get reused after task_unlock
+> -	 */
+> -	if (!task->vfork_done) {
+> -		struct task_struct *p = find_lock_task_mm(task);
+> -
+> -		if (p) {
+> -			if (atomic_read(&p->mm->mm_users) > 1) {
+> -				mm = p->mm;
+> -				mmgrab(mm);
+> -			}
+> -			task_unlock(p);
+> -		}
+> -	}
+> -
+>  	task->signal->oom_score_adj = oom_adj;
+>  	if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
+>  		task->signal->oom_score_adj_min = (short)oom_adj;
+>  	trace_oom_score_adj_update(task);
+> -
+> -	if (mm) {
+> -		struct task_struct *p;
+> -
+> -		rcu_read_lock();
+> -		for_each_process(p) {
+> -			if (same_thread_group(task, p))
+> -				continue;
+> -
+> -			/* do not touch kernel threads or the global init */
+> -			if (p->flags & PF_KTHREAD || is_global_init(p))
+> -				continue;
+> -
+> -			task_lock(p);
+> -			if (!p->vfork_done && process_shares_mm(p, mm)) {
+> -				pr_info("updating oom_score_adj for %d (%s) from %d to %d because it shares mm with %d (%s). Report if this is unexpected.\n",
+> -						task_pid_nr(p), p->comm,
+> -						p->signal->oom_score_adj, oom_adj,
+> -						task_pid_nr(task), task->comm);
+> -				p->signal->oom_score_adj = oom_adj;
+> -				if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
+> -					p->signal->oom_score_adj_min = (short)oom_adj;
+> -			}
+> -			task_unlock(p);
+> -		}
+> -		rcu_read_unlock();
+> -		mmdrop(mm);
+> -	}
+>  err_unlock:
+>  	mutex_unlock(&oom_adj_mutex);
+>  	put_task_struct(task);
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 80bb640..28879c1 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2690,8 +2690,6 @@ static inline int in_gate_area(struct mm_struct *mm, unsigned long addr)
+>  }
+>  #endif	/* __HAVE_ARCH_GATE_AREA */
+>  
+> -extern bool process_shares_mm(struct task_struct *p, struct mm_struct *mm);
+> -
+>  #ifdef CONFIG_SYSCTL
+>  extern int sysctl_drop_caches;
+>  int drop_caches_sysctl_handler(struct ctl_table *, int,
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index f0e8cd9..c7005b1 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -478,7 +478,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
+>   * task's threads: if one of those is using this mm then this task was also
+>   * using it.
+>   */
+> -bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
+> +static bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
+>  {
+>  	struct task_struct *t;
+>  
+> @@ -896,12 +896,14 @@ static void __oom_kill_process(struct task_struct *victim)
+>  			continue;
+>  		if (same_thread_group(p, victim))
+>  			continue;
+> -		if (is_global_init(p)) {
+> +		if (is_global_init(p) ||
+> +		    p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+>  			can_oom_reap = false;
+> -			set_bit(MMF_OOM_SKIP, &mm->flags);
+> -			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
+> +			if (!test_bit(MMF_OOM_SKIP, &mm->flags))
+> +				pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
+>  					task_pid_nr(victim), victim->comm,
+>  					task_pid_nr(p), p->comm);
+> +			set_bit(MMF_OOM_SKIP, &mm->flags);
+>  			continue;
+>  		}
+>  		/*
+> -- 
+> 1.8.3.1
 
-static void __init sparse_buffer_init(unsigned long size, int nid)
-{
-	WARN_ON(sparsemap_buf);	/* forgot to call sparse_buffer_fini()? */
-	sparsemap_buf =
-		memblock_alloc_try_nid_raw(size, PAGE_SIZE,
-						__pa(MAX_DMA_ADDRESS),
-						MEMBLOCK_ALLOC_ACCESSIBLE, nid);
-	sparsemap_buf_end = sparsemap_buf + size;
-}
-
-static void __init sparse_buffer_fini(void)
-{
-	unsigned long size = sparsemap_buf_end - sparsemap_buf;
-
-	if (sparsemap_buf && size > 0)
-		memblock_free_early(__pa(sparsemap_buf), size);
-	sparsemap_buf = NULL;
-}
-
-void * __meminit sparse_buffer_alloc(unsigned long size)
-{
-	void *ptr = NULL;
-
-	if (sparsemap_buf) {
-		ptr = PTR_ALIGN(sparsemap_buf, size);
-		if (ptr + size > sparsemap_buf_end)
-			ptr = NULL;
-		else
-			sparsemap_buf = ptr + size;
-	}
-	return ptr;
-}
-
-
-Christophe
+-- 
+Michal Hocko
+SUSE Labs
 
