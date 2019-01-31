@@ -2,260 +2,183 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4DE19C169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 16:10:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21807C282D9
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 16:11:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 062802085B
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 16:10:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 062802085B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id C8CD32085B
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 16:11:04 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=linaro.org header.i=@linaro.org header.b="NulEkyw7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8CD32085B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9E1E48E0005; Thu, 31 Jan 2019 11:10:17 -0500 (EST)
+	id 772B88E0004; Thu, 31 Jan 2019 11:11:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 991F48E0003; Thu, 31 Jan 2019 11:10:17 -0500 (EST)
+	id 7206C8E0003; Thu, 31 Jan 2019 11:11:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8809B8E0005; Thu, 31 Jan 2019 11:10:17 -0500 (EST)
+	id 6106E8E0004; Thu, 31 Jan 2019 11:11:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AB8E8E0003
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 11:10:17 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id 41so4067599qto.17
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 08:10:17 -0800 (PST)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E9B098E0003
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 11:11:03 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id p65-v6so621422ljb.16
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 08:11:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=SwY0+Y6CvG8ZDhsgFQ4o1R3WtSfZyWTlSXJTD24H1UQ=;
-        b=RVPShMEhmEbGyQytjfq2DuT6mWa3HW1g8uq7jxaDYEfZRXew8gylILBIeuHaGPDHs1
-         3YpHLYngehV9ugz1DvkONF1GsFVIAENsB6kIzJNAJfDsec3XJvVGRlpC9KEjzrN5OADt
-         xk5RYe+oUVGyBLKohHpVuykt1ZD31rQdP/7LdS2mk4Hd0oF5nhtTXi/8lB3bGY7biXRV
-         fE5+zED0jHyHv1ZD1ySjx8PLLufLyW/j8L+/8KmrIP03ki1c9SGBKa6ga5JKN1N9tUQL
-         +FXlDq6W9D9H5qBCYPsQVYccMvOU7Hl1iUsWjKhiem4zQspPNFYKgCXor5LPwNIrW1vM
-         uvNg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUukfpEwtN02B4+GPppt3QnO2RUMT25hZnUOT4gYzIIqJrLuy81FIH
-	r+gYvH+VThelAueZXzm8z0rmiHusDIdf7jxwK48CpkWJRhJrAWNawDJ0VvI84IP43W/J/5o6hk9
-	FPy0sTgkM0dPHcP0SBah5s8eYBuj2oIQn/aqLqGyfKeEEqoiyzbdWs75TGJhR7L1irw==
-X-Received: by 2002:a0c:9549:: with SMTP id m9mr33784625qvm.214.1548951017069;
-        Thu, 31 Jan 2019 08:10:17 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN77ZYduioFIc2CZOZ2ty6N/M1g9XNAxKyXhP+ssrx+DfpTUHkJiBHt6RhG7rsxQNQerNWag
-X-Received: by 2002:a0c:9549:: with SMTP id m9mr33784552qvm.214.1548951016192;
-        Thu, 31 Jan 2019 08:10:16 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548951016; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=l8ZZE/CQHJf/B+Br/+OZnPG545feQjEVeVkqxdQKkp0=;
+        b=XnOXPVVqzf6DIkpG+M1gbhwMfsJpWK2W9Wxdlpx5HYDVWk2BTXq3NIXCLzH8khlyvK
+         7qtZzO1NUTk6NVbbGY5PVkpoVAWeWRHl5vFEuu9vF60v67sfzcykQ/RswUQRQAQBy6vF
+         +b2dZ/Qu2QKSQPAAycPFHLrzn0Yv3Em9oNZTjmptC+fiW0onEHctdS2ZVU8uHk6lmHDL
+         aB0R4UXlqn/KonsyEWEbWHjGfbz3QDtMYsrRCJAff5dbhc4b/nqO8S/MPJgVWfG7D/Wc
+         NZwUPWYcAlMD97CYLrMg7FQ0Q43OpqqJ6z24gSQlJJPK9Cv56ag/M1AVq36ZXPvvVpId
+         rUgQ==
+X-Gm-Message-State: AJcUukc2m9jtTjKLkMUGdkod8Ac3FJqoP306ufz9jQaS/BTwg4CehUS5
+	V9AsnQxOIa24pSy2M8WUUJB+1iesI6kjtvMCOzgBNMRedbErPVcvmgp5PUy0CdMY0wULA4n+r+A
+	uRUPZy1Lv90YKWnPzluhy9kyjPOs4RtRlRBP9BGmfcNllw8ArLj5yeUTkcNx7FGcbe9vbg7/oZt
+	AP+PdABH1NyCf1ZR8Kflnc97Z1CZaErg6LrNLcs/B0xdhcR2P566VsgPr9FCKllAcno1H5eRQKx
+	Lb+mVEMMHcPOp1bBl3ezF9fKiaGxWIxyWgk0/TQpw7hVkB/qVggL5m9SgoJ3yQUiV4ADb7rsUnI
+	99VZfKrGtrauHZS2IS7bwWFc0D6MXR1u6EcPhy9r+dpUbjhyk2tEcuQFWZSLzJNM718TT52UyVZ
+	I
+X-Received: by 2002:a19:40cc:: with SMTP id n195mr27219801lfa.40.1548951063102;
+        Thu, 31 Jan 2019 08:11:03 -0800 (PST)
+X-Received: by 2002:a19:40cc:: with SMTP id n195mr27219751lfa.40.1548951061933;
+        Thu, 31 Jan 2019 08:11:01 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548951061; cv=none;
         d=google.com; s=arc-20160816;
-        b=r2e+eLjpVX7U3fgVPpGbf0Mhy9e/E5TJIu0pCziIXeTqxHODSiuCKFTB/U9S0Z5T5p
-         W/+/gpB32dV8D26/+b4ixkE16QQTlUNRrucBrYfk/bsNyUbhzzmMVw1I9FL3GkXvUrub
-         xuIT4xnov0AHdTd78aXKvQqlmOd573S3kPNhkD+SiZ3szK+loyDz6i+17yZH7r9gKt4k
-         ts49Osc7BE+m5OOV8XLXUTBjAUeFXd7n5uOAC/JaPlru+mcZt9xLGzAMamPD8eMd01F0
-         AAdogr609cgDOWYsu4H4MMWjMIAvkQL5dYTkCKzyTnxPETvKiS4rnKh+6eAmY9fDogKf
-         vUPA==
+        b=sDkT43J02jjMsT2H8BHPNz/b0fyR7eGpdD/GWGyT2nu4UrCTnFqVoEMXRTPvH0hry2
+         pAMoptV+9m2L+qRG8wc0CKnAtwDVDuDIr2qR6YCL/a2wz/IsocbkGHkRVvjHY9KQMv+g
+         i06hOv1dPA73v3OZpjP2/Yivbd0+JZXI8q6semt8KdgxtflJAwH7WXz+JDpOoW0tl6FE
+         a31ABo/9pFAbykaM+du192wBKLmtEQcjk1KcAmD4hQrNs+qtbHw/bJHSu7uzgMHVZJj9
+         I0MbJFaEmlSjMgT1s7N/QJzAlb9Rzmp81GUzHuTWIB2fTdMUAiwlOVsO/syw1QluCcyN
+         5JlA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=SwY0+Y6CvG8ZDhsgFQ4o1R3WtSfZyWTlSXJTD24H1UQ=;
-        b=vVEEMLhBnHncoxuYGs/DQEm1I2Re9AY8o8cfMAx5asyFZYfop9aCQwuGANW96LeQzt
-         OIcoDrytmd8r3WjaqCO28JD3qfBPzc2wV/CFh5GBq2MjQ140UuJwLuEg3CxXt2svth1p
-         CU2Uq3D/+/nYYJEc/gthiLPiizxjrWijn4ciFl7UNRQ9xkBGkfo9Z4WhZay3+B6RIMrT
-         ZrFYGlpf+yvN2/jUK967+HM/urQZlS3ik/3sbzMIdD3940Rudt9l5M7JTN6OyuPEgO3e
-         HiX7BfeoyxyFYjajLXjNtEhsuUutg8bgS7qieOpiwgHGanyU5PGOxSkHCJI5byOUK4V8
-         DRUg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=l8ZZE/CQHJf/B+Br/+OZnPG545feQjEVeVkqxdQKkp0=;
+        b=vX6OJ9l8s/EQ3fsQcKzEcPdCJfIMKG/FeEYqkoxJ77ggHyf0b11VSUhCjjCfAHVXeG
+         RhpxH3LY+wBuURdipVBQs8wCRB/TVBWiEHyiJw49q263e540xBFFvFXnlq8h7k4Ku8Qn
+         b4DQ2IJx/Q9OVJty7Hqd+X3AEgmeij/SHzW2KsuLGPjP7Wq1llp8wABLzGNcxxgzCb8O
+         MCo263MYzK8BmMwp0S0SbK9ZoZ4zaOD6AhoD+9/rXxNTqvHr4N1/hVgoAWRCqjX0IW8O
+         HDdTT0JTKiwaRJeY13kdrBb35aUUcISdKgUblnvQ668XXIkmZuIOgBF6hqt8wFaterb6
+         nj+g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h64si3443271qkd.110.2019.01.31.08.10.16
+       dkim=pass header.i=@linaro.org header.s=google header.b=NulEkyw7;
+       spf=pass (google.com: domain of anders.roxell@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=anders.roxell@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u66sor1606057lff.39.2019.01.31.08.11.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jan 2019 08:10:16 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 31 Jan 2019 08:11:01 -0800 (PST)
+Received-SPF: pass (google.com: domain of anders.roxell@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 80D073DBD2;
-	Thu, 31 Jan 2019 16:10:14 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 4530C5D717;
-	Thu, 31 Jan 2019 16:10:08 +0000 (UTC)
-Date: Thu, 31 Jan 2019 11:10:06 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
-	Jan Kara <jack@suse.cz>, Felix Kuehling <Felix.Kuehling@amd.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Matthew Wilcox <mawilcox@microsoft.com>,
-	Ross Zwisler <zwisler@kernel.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>, kvm@vger.kernel.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH v4 0/9] mmu notifier provide context informations
-Message-ID: <20190131161006.GA16593@redhat.com>
-References: <20190123222315.1122-1-jglisse@redhat.com>
+       dkim=pass header.i=@linaro.org header.s=google header.b=NulEkyw7;
+       spf=pass (google.com: domain of anders.roxell@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=anders.roxell@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linaro.org; s=google;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=l8ZZE/CQHJf/B+Br/+OZnPG545feQjEVeVkqxdQKkp0=;
+        b=NulEkyw7WRGZfONt3e2rFzs9IFb84cAfNJcAgwD/UdiCtw/e5wReNIOU9KHl7SvheN
+         0I2NwQRGNpNE212NvAb3sBUsZi7MOhVHNSJviVZHs+BG9M6UVR3gV85ur9rCH1KMgKM/
+         f5fTxjcYk3zQnYAJC1Y/Gv+0HBQuJc+JJUGfE=
+X-Google-Smtp-Source: ALg8bN5jFb2AXccaSAAVgnX28SjZIcZYLh7UGufvd6HCHsSuZONlbB9tZPsUROf8nbxDO1s9DUimXg==
+X-Received: by 2002:a19:4345:: with SMTP id m5mr27334183lfj.142.1548951061287;
+        Thu, 31 Jan 2019 08:11:01 -0800 (PST)
+Received: from localhost (c-573670d5.07-21-73746f28.bbcust.telenor.se. [213.112.54.87])
+        by smtp.gmail.com with ESMTPSA id z17sm324322lfh.9.2019.01.31.08.11.00
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 31 Jan 2019 08:11:00 -0800 (PST)
+From: Anders Roxell <anders.roxell@linaro.org>
+To: akpm@linux-foundation.org
+Cc: rppt@linux.ibm.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Anders Roxell <anders.roxell@linaro.org>
+Subject: [PATCH] mm: sparse: Use '%pa' with 'phys_addr_t' type
+Date: Thu, 31 Jan 2019 17:10:46 +0100
+Message-Id: <20190131161046.21886-1-anders.roxell@linaro.org>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190123222315.1122-1-jglisse@redhat.com>
-User-Agent: Mutt/1.10.0 (2018-05-17)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Thu, 31 Jan 2019 16:10:15 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Fix the following build warning:
 
-Andrew what is your plan for this ? I had a discussion with Peter Xu
-and Andrea about change_pte() and kvm. Today the change_pte() kvm
-optimization is effectively disabled because of invalidate_range
-calls. With a minimal couple lines patch on top of this patchset
-we can bring back the kvm change_pte optimization and we can also
-optimize some other cases like for instance when write protecting
-after fork (but i am not sure this is something qemu does often so
-it might not help for real kvm workload).
+mm/sparse.c: In function ‘sparse_buffer_init’:
+mm/sparse.c:438:69: warning: format ‘%lx’ expects argument of type ‘long
+  unsigned int’, but argument 6 has type ‘phys_addr_t’ {aka ‘long long
+  unsigned int’} [-Wformat=]
+   panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%lx\n",
+                                                                   ~~^
 
-I will be posting a the extra patch as an RFC, but in the meantime
-i wanted to know what was the status for this.
+Rework to use '%pa' and not '%lx'. Use a local variable of phys_addr_t
+to print the reference with '%pa'.
 
+Fixes: 1c3c9328cde0 ("treewide: add checks for the return value of memblock_alloc*()")
+Signed-off-by: Anders Roxell <anders.roxell@linaro.org>
+---
+ mm/sparse.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
 
-Jan, Christian does your previous ACK still holds for this ?
-
-
-On Wed, Jan 23, 2019 at 05:23:06PM -0500, jglisse@redhat.com wrote:
-> From: Jérôme Glisse <jglisse@redhat.com>
-> 
-> Hi Andrew, i see that you still have my event patch in you queue [1].
-> This patchset replace that single patch and is broken down in further
-> step so that it is easier to review and ascertain that no mistake were
-> made during mechanical changes. Here are the step:
-> 
->     Patch 1 - add the enum values
->     Patch 2 - coccinelle semantic patch to convert all call site of
->               mmu_notifier_range_init to default enum value and also
->               to passing down the vma when it is available
->     Patch 3 - update many call site to more accurate enum values
->     Patch 4 - add the information to the mmu_notifier_range struct
->     Patch 5 - helper to test if a range is updated to read only
-> 
-> All the remaining patches are update to various driver to demonstrate
-> how this new information get use by device driver. I build tested
-> with make all and make all minus everything that enable mmu notifier
-> ie building with MMU_NOTIFIER=no. Also tested with some radeon,amd
-> gpu and intel gpu.
-> 
-> If they are no objections i believe best plan would be to merge the
-> the first 5 patches (all mm changes) through your queue for 5.1 and
-> then to delay driver update to each individual driver tree for 5.2.
-> This will allow each individual device driver maintainer time to more
-> thouroughly test this more then my own testing.
-> 
-> Note that i also intend to use this feature further in nouveau and
-> HMM down the road. I also expect that other user like KVM might be
-> interested into leveraging this new information to optimize some of
-> there secondary page table invalidation.
-> 
-> Here is an explaination on the rational for this patchset:
-> 
-> 
-> CPU page table update can happens for many reasons, not only as a result
-> of a syscall (munmap(), mprotect(), mremap(), madvise(), ...) but also
-> as a result of kernel activities (memory compression, reclaim, migration,
-> ...).
-> 
-> This patch introduce a set of enums that can be associated with each of
-> the events triggering a mmu notifier. Latter patches take advantages of
-> those enum values.
-> 
-> - UNMAP: munmap() or mremap()
-> - CLEAR: page table is cleared (migration, compaction, reclaim, ...)
-> - PROTECTION_VMA: change in access protections for the range
-> - PROTECTION_PAGE: change in access protections for page in the range
-> - SOFT_DIRTY: soft dirtyness tracking
-> 
-> Being able to identify munmap() and mremap() from other reasons why the
-> page table is cleared is important to allow user of mmu notifier to
-> update their own internal tracking structure accordingly (on munmap or
-> mremap it is not longer needed to track range of virtual address as it
-> becomes invalid).
-> 
-> [1] https://www.ozlabs.org/~akpm/mmotm/broken-out/mm-mmu_notifier-contextual-information-for-event-triggering-invalidation-v2.patch
-> 
-> Cc: Christian König <christian.koenig@amd.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Felix Kuehling <Felix.Kuehling@amd.com>
-> Cc: Jason Gunthorpe <jgg@mellanox.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> Cc: Ross Zwisler <zwisler@kernel.org>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Paolo Bonzini <pbonzini@redhat.com>
-> Cc: Radim Krčmář <rkrcmar@redhat.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> Cc: kvm@vger.kernel.org
-> Cc: dri-devel@lists.freedesktop.org
-> Cc: linux-rdma@vger.kernel.org
-> Cc: linux-fsdevel@vger.kernel.org
-> Cc: Arnd Bergmann <arnd@arndb.de>
-> 
-> Jérôme Glisse (9):
->   mm/mmu_notifier: contextual information for event enums
->   mm/mmu_notifier: contextual information for event triggering
->     invalidation
->   mm/mmu_notifier: use correct mmu_notifier events for each invalidation
->   mm/mmu_notifier: pass down vma and reasons why mmu notifier is
->     happening
->   mm/mmu_notifier: mmu_notifier_range_update_to_read_only() helper
->   gpu/drm/radeon: optimize out the case when a range is updated to read
->     only
->   gpu/drm/amdgpu: optimize out the case when a range is updated to read
->     only
->   gpu/drm/i915: optimize out the case when a range is updated to read
->     only
->   RDMA/umem_odp: optimize out the case when a range is updated to read
->     only
-> 
->  drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c  | 13 ++++++++
->  drivers/gpu/drm/i915/i915_gem_userptr.c | 16 ++++++++++
->  drivers/gpu/drm/radeon/radeon_mn.c      | 13 ++++++++
->  drivers/infiniband/core/umem_odp.c      | 22 +++++++++++--
->  fs/proc/task_mmu.c                      |  3 +-
->  include/linux/mmu_notifier.h            | 42 ++++++++++++++++++++++++-
->  include/rdma/ib_umem_odp.h              |  1 +
->  kernel/events/uprobes.c                 |  3 +-
->  mm/huge_memory.c                        | 14 +++++----
->  mm/hugetlb.c                            | 11 ++++---
->  mm/khugepaged.c                         |  3 +-
->  mm/ksm.c                                |  6 ++--
->  mm/madvise.c                            |  3 +-
->  mm/memory.c                             | 25 +++++++++------
->  mm/migrate.c                            |  5 ++-
->  mm/mmu_notifier.c                       | 10 ++++++
->  mm/mprotect.c                           |  4 ++-
->  mm/mremap.c                             |  3 +-
->  mm/oom_kill.c                           |  3 +-
->  mm/rmap.c                               |  6 ++--
->  20 files changed, 171 insertions(+), 35 deletions(-)
-> 
-> -- 
-> 2.17.2
-> 
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 1471f06c6468..6a2b0a9359d7 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -409,16 +409,17 @@ struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
+ {
+ 	unsigned long size = section_map_size();
+ 	struct page *map = sparse_buffer_alloc(size);
++	phys_addr_t addr = __pa(MAX_DMA_ADDRESS);
+ 
+ 	if (map)
+ 		return map;
+ 
+ 	map = memblock_alloc_try_nid(size,
+-					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
++					  PAGE_SIZE, addr,
+ 					  MEMBLOCK_ALLOC_ACCESSIBLE, nid);
+ 	if (!map)
+-		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%lx\n",
+-		      __func__, size, PAGE_SIZE, nid, __pa(MAX_DMA_ADDRESS));
++		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%pa\n",
++		      __func__, size, PAGE_SIZE, nid, &addr);
+ 
+ 	return map;
+ }
+@@ -429,14 +430,15 @@ static void *sparsemap_buf_end __meminitdata;
+ 
+ static void __init sparse_buffer_init(unsigned long size, int nid)
+ {
++	phys_addr_t addr = __pa(MAX_DMA_ADDRESS);
+ 	WARN_ON(sparsemap_buf);	/* forgot to call sparse_buffer_fini()? */
+ 	sparsemap_buf =
+ 		memblock_alloc_try_nid_raw(size, PAGE_SIZE,
+-						__pa(MAX_DMA_ADDRESS),
++						addr,
+ 						MEMBLOCK_ALLOC_ACCESSIBLE, nid);
+ 	if (!sparsemap_buf)
+-		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%lx\n",
+-		      __func__, size, PAGE_SIZE, nid, __pa(MAX_DMA_ADDRESS));
++		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%pa\n",
++		      __func__, size, PAGE_SIZE, nid, &addr);
+ 
+ 	sparsemap_buf_end = sparsemap_buf + size;
+ }
+-- 
+2.20.1
 
