@@ -2,209 +2,170 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5199BC282D7
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 02:00:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E12E1C282D8
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 02:04:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E850620989
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 02:00:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9811E20B1F
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 02:04:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="UHZAVqrl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E850620989
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ptO0kRn4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9811E20B1F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8B62E8E0002; Wed, 30 Jan 2019 21:00:38 -0500 (EST)
+	id 160DD8E0003; Wed, 30 Jan 2019 21:04:50 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 83C6C8E0001; Wed, 30 Jan 2019 21:00:38 -0500 (EST)
+	id 10E858E0001; Wed, 30 Jan 2019 21:04:50 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 705B48E0002; Wed, 30 Jan 2019 21:00:38 -0500 (EST)
+	id F3F318E0003; Wed, 30 Jan 2019 21:04:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 43E8D8E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 21:00:38 -0500 (EST)
-Received: by mail-io1-f70.google.com with SMTP id p21so1416443iog.0
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 18:00:38 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AD11E8E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 21:04:49 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id d3so1060404pgv.23
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 18:04:49 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=5GAvjSYlUai5MvC8EReIb369vIiSklD8lXWzq4CBSR4=;
-        b=qhMJNOkQF8Kj7gbsUbYWFRmifW378Y5zwv1pggvofr9AlQKmnKAoEZyEEtKo0ax6MH
-         OsYQlFvATf09aV0aNrsvlJa3hGTtmUwnaOz67AQVb/0GIAQfw02/P/NVi2DdsAl+iZXW
-         8ZkTb8Cg3Ov+vqSwU6ELTdQUix/TeBEK3Eq7u30eEsHiZYLz7ytmr5jqQvyjrwHPnAcY
-         hqoADvzhlYmdQYv3iLviTiZMVTJYir5/0H4fYdC8R9ud1NzUpmZ2XxbRc2N36rUrcu9A
-         UBPa5OA88fPoT2tbj9fTMhydYFuhkrpld8pEvIk8ySjWRukl9tQmasGelqpYkzCGkyYg
-         rlKw==
-X-Gm-Message-State: AJcUukcHbXtMnBPzHL+hjMi6mnZP8iGogUMDxPucY1Z3gtYKst6WXPCL
-	UySm6d0lqPgu/karKguF+DCX0UO7cNAnhshqUxgzWh1ksGwdgVzbHFzclgg9COryFxUJWOt69cQ
-	X0VY5YYheT7GaayXIEJ6Tcd4cyssqQnLwxC40ae/x3IfPdpkbLnxYHATYyW5LDgCw/Q==
-X-Received: by 2002:a24:1d4a:: with SMTP id 71mr9891715itj.62.1548900038007;
-        Wed, 30 Jan 2019 18:00:38 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6R/4ZY1Nki7a53kkKxyCqaR/PhO0ytyIoZPBSE4RZyYGiiIyewivBMid8qFaq9YQneEtnl
-X-Received: by 2002:a24:1d4a:: with SMTP id 71mr9891697itj.62.1548900037306;
-        Wed, 30 Jan 2019 18:00:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548900037; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:to:to:cc:cc:cc:cc:cc
+         :cc:cc:cc:cc:cc:cc:cc:cc:cc:cc:subject:in-reply-to:references
+         :message-id;
+        bh=9u+YV5IcvYsQJ8cY1MX2zpgFq03ogjt0USJCUCHFOBI=;
+        b=PrfJWS3J2QLJ4g5U/LmMtkFWyB6vd8XV6yh73JK3XyVi7yikcuCuWglt7wRQfAGvnw
+         D0IjKBjlOpFdx23PvBbihQABvNAkVjIn79HojeQNl5fgMgoDW3oSWHcbcBWQ6x1jWWqB
+         yxPWDmRTenLnfd3AU/KKZ9U3RstZhj5tzbI+OtXHCKUwtpyNFRcXv6yvhrZSBQm9pZNT
+         VSt2GynOjl1K+nlHBpW3UNPuzRToK79e1YVJ5fHN0yMN8qaThOaHpAyjuw7lRBZCFbaB
+         xZ4RDopJg0CVQuF9m6V25tRckxEKEngZGQaDlo0Aieg9dxvspKhqyAxumV6V7+YKNGd+
+         qBVw==
+X-Gm-Message-State: AJcUukd2r3o0Jmgg0ZmIxUhXdYHv7nzUg7MhI/GOyfPidZ/K9vQdZsAb
+	WwpvEooouk4yLXpr6+v/hAHqtMp+AB+SMBciTkQqFlAQWhZIGAI+VEJmu+ImHq4F/LJf/qDdUlN
+	iVrpJsm8YvES2I58MUNnkYvaEpDnMOxqhbznfSCkOoeCSbZTJsR7vnx5wsdOoOkuu0w==
+X-Received: by 2002:a63:1013:: with SMTP id f19mr29983137pgl.38.1548900289349;
+        Wed, 30 Jan 2019 18:04:49 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5xaw6IOCooAVd32WgPU+1KJaVIYB3AjsS14wI+W2zPJbOTU22RT74FeqkL16AI+h1TdLC4
+X-Received: by 2002:a63:1013:: with SMTP id f19mr29983102pgl.38.1548900288593;
+        Wed, 30 Jan 2019 18:04:48 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548900288; cv=none;
         d=google.com; s=arc-20160816;
-        b=B7skToQ99LCija7HjoyRHMY6Xp0BDDh0pFFk0HKMPXHsJLJp5KnYsPqmpFb09nqsnJ
-         jAfPYG6FD+hNNono8gOb4UaQCJptGRzLBMbdwEXJhgHFlYI/zTKHUYXqPFIg8cFovxhG
-         uKzQK/bLg+UC5Sa+O5KZEIEIfa/eC/ZNNC/01CSK8GWfiSXeyTzZWA4xsTGQ17BLsdXF
-         KNkqzFm0A8+KoGpbWu0WWQ8qxAqTCrN8uJ60tn4d8YJlZ/D4CAiRPTYP9f7GlgmSXsvW
-         PbG5RRATOcMc5OGuw9vk6USeiOqr9DPgVa08Qy40wWy/3XYxkbCfIp4adJpQrEdW4Xav
-         W+mA==
+        b=WDueG+Uu2rHHyT9VJcxZh+lzp540f/RewjWZTz9ftqW0ytOML9LRmTw+ChquXiinqP
+         WBDP970FiJyeuxKPj/bZowjpTr7eudec9zhsDph1BLVG7S1LV1wd/vYpyy9QNNyNLbi/
+         A5mUwORrp0bG2GtrzGwezR82g4Rb3vcruO9HsjjuvWlvZLqGeLMn6DTY2p7bo/p/bq+f
+         QFw0X8VuKuHrobCuErDCCqT/yYw6JR7Gt/nER1WVQJR1skqfubFqyXlVJX4C5x5ORc7B
+         H4fReVc0SgwwuPp7ymN7m9tE6T74z1c1MkuoXT2xZggQ882l3JAnEsj4T97o6WqFyHpz
+         npBQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=5GAvjSYlUai5MvC8EReIb369vIiSklD8lXWzq4CBSR4=;
-        b=PTZA46M8cAjz5YoACmwADuyxHpAb9y46E9SfGZQvD5blsf6hARsbiF1fWoYOy3fTH/
-         vREi0vojreqlGPvlIMEc2oFhFjKXiSU/PStHAlOnu0C7hsMwbEYD70Z91UJMUAYSxgn2
-         d8upJn+GQp+8gdYGo/tr/wY3Q7P4TW74hEMTLQONhxDy2Ap9zukFt7QTQ7GW6+sG1/qI
-         mQL4hsjO6b+Sc1AXgSU+h9aCZLQADHLUOb99dW8yZZHTxHLWgjLO3slYlPl9GEVLYbMw
-         7iZmghSdbKqmF0aKHBKD65VAiGjUxW8xBQzUBV+8PWberTdma0a349hxrY1m4DftGkir
-         oHOg==
+        h=message-id:references:in-reply-to:subject:cc:cc:cc:cc:cc:cc:cc:cc
+         :cc:cc:cc:cc:cc:cc:cc:to:to:to:from:date:dkim-signature;
+        bh=9u+YV5IcvYsQJ8cY1MX2zpgFq03ogjt0USJCUCHFOBI=;
+        b=EuzK9Hm4ekXAFtKiCR6ZaCAacMPfaJXqYDASfcphMfFSDvX314Y53jMqQAGjkxQVX2
+         EHRrWHbpP4gWYn2V9J3BUy5gfAHB9bREESFFP4g73HAhphoHD34XVKf5s4Gk57kMIEWV
+         U6oGwbQPQ3OSciRxDOPXLLsX05fFT0J7k7dottbCBgRpnc+ROrXG3iCKjklYEBEHTxEw
+         dVAJ2SIFDAC7eEJ+RXicvUM/U7NM2LCtDFUzPTSKfLq0xKTqyORHP2WV8fCnOixakxet
+         lkbCKjvp0/hQ8bbtmnsLgMGkj6yum6KPiUkRi7s8hjVnWXUgETTIKS11kH2iPCC7zNPd
+         QhEw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=UHZAVqrl;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id u133si2188686ita.5.2019.01.30.18.00.37
+       dkim=pass header.i=@kernel.org header.s=default header.b=ptO0kRn4;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id h188si3136670pfg.44.2019.01.30.18.04.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 18:00:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Wed, 30 Jan 2019 18:04:48 -0800 (PST)
+Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=UHZAVqrl;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id x0V1s52k188913;
-	Thu, 31 Jan 2019 02:00:15 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=5GAvjSYlUai5MvC8EReIb369vIiSklD8lXWzq4CBSR4=;
- b=UHZAVqrl+vdwGBjXdtOZKUcwPSVGQ1JGjjaBnzDapMgO2RUSJ7b1mAxErYnl59kCZ7D0
- sgEXv0uTcEhLG9fk4HpUake7menYE7vexn2y0DK2KwAT8cRrc8JtdbGzceWvCmmj1ep+
- uFrYW03jiyxgcV8ZeG5OcSZTSR/216uwnUIv5OBfJJKZfVfc7DwK7I74rVZx/pfPMC7D
- T4YCNl4nU6XDRRIyNidnDOknK4rW1pwUylvkYEK1RXIStt8bSipZpSUfAZWZ5gaifLxq
- k2LXmTi61EkTfRH5MQLRc9ArC8JosO5vK73xQFyXEguomwt23vA6AMISxeF+SqZdPkn0 sQ== 
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by aserp2130.oracle.com with ESMTP id 2q8d2ee5k5-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 31 Jan 2019 02:00:15 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x0V20AXb003098
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 31 Jan 2019 02:00:10 GMT
-Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x0V209Oo021287;
-	Thu, 31 Jan 2019 02:00:09 GMT
-Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 30 Jan 2019 18:00:08 -0800
-Date: Wed, 30 Jan 2019 21:00:20 -0500
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, akpm@linux-foundation.org,
-        dan.carpenter@oracle.com, andrea.parri@amarulasolutions.com,
-        shli@kernel.org, ying.huang@intel.com, dave.hansen@linux.intel.com,
-        sfr@canb.auug.org.au, osandov@fb.com, tj@kernel.org,
-        ak@linux.intel.com, linux-mm@kvack.org,
-        kernel-janitors@vger.kernel.org, paulmck@linux.ibm.com,
-        stern@rowland.harvard.edu, will.deacon@arm.com
-Subject: Re: [PATCH] mm, swap: bounds check swap_info accesses to avoid NULL
- derefs
-Message-ID: <20190131020020.h25czxccz74c4b7f@ca-dmjordan1.us.oracle.com>
-References: <20190114222529.43zay6r242ipw5jb@ca-dmjordan1.us.oracle.com>
- <20190115002305.15402-1-daniel.m.jordan@oracle.com>
- <20190130091316.GC2278@hirez.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190130091316.GC2278@hirez.programming.kicks-ass.net>
-User-Agent: NeoMutt/20180323-268-5a959c
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9152 signatures=668682
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1901310013
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000005, version=1.2.4
+       dkim=pass header.i=@kernel.org header.s=default header.b=ptO0kRn4;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from localhost (unknown [23.100.24.84])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 072FE218AF;
+	Thu, 31 Jan 2019 02:04:47 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1548900288;
+	bh=RT5d2QR9t1oI07s93gTOqf0QDHmAo2ReSrHMvjAvtak=;
+	h=Date:From:To:To:To:Cc:Cc:Cc:Cc:Cc:Cc:Cc:Cc:Cc:Cc:Cc:Cc:Cc:Cc:Cc:
+	 Subject:In-Reply-To:References:From;
+	b=ptO0kRn4+7b+qtIowhlJg3MEWqi6xCUm0ZO/zRsXbmlm3PwkWAEo5TAoYNNPeFRvp
+	 lbdt8dgTXdorFAXm0xPVCHiHb1h5KhZh/sygVjl4FH/9guA0emFIhj/iDFzccT68ah
+	 rKfSIcA9GoGLiTaoKkcrKYXOxu7pbNCov3KYfOz4=
+Date: Thu, 31 Jan 2019 02:04:47 +0000
+From: Sasha Levin <sashal@kernel.org>
+To: Sasha Levin <sashal@kernel.org>
+To:   David Hildenbrand <david@redhat.com>
+To:     linux-mm@kvack.org
+Cc:     linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>,
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Dominik Brodowski <linux@dominikbrodowski.net>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Vratislav Bendel <vbendel@redhat.com>
+Cc: Rafael Aquini <aquini@redhat.com>
+Cc: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: stable@vger.kernel.org
+Subject: Re: [PATCH v2] mm: migrate: don't rely on __PageMovable() of newpage after unlocking it
+In-Reply-To: <20190129233217.10747-1-david@redhat.com>
+References: <20190129233217.10747-1-david@redhat.com>
+Message-Id: <20190131020448.072FE218AF@mail.kernel.org>
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 30, 2019 at 10:13:16AM +0100, Peter Zijlstra wrote:
-> On Mon, Jan 14, 2019 at 07:23:05PM -0500, Daniel Jordan wrote:
-> 
-> A few comments below, but:
-> 
-> Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Hi,
 
-Thanks.
+[This is an automated email]
 
-> > @@ -2799,9 +2810,9 @@ static void *swap_start(struct seq_file *swap, loff_t *pos)
-> >  	if (!l)
-> >  		return SEQ_START_TOKEN;
-> >  
-> > -	for (type = 0; type < nr_swapfiles; type++) {
-> > +	for (type = 0; type < READ_ONCE(nr_swapfiles); type++) {
-> >  		smp_rmb();	/* read nr_swapfiles before swap_info[type] */
-> > -		si = swap_info[type];
-> > +		si = READ_ONCE(swap_info[type]);
-> >  		if (!(si->flags & SWP_USED) || !si->swap_map)
-> >  			continue;
-> >  		if (!--l)
-> > @@ -2821,9 +2832,9 @@ static void *swap_next(struct seq_file *swap, void *v, loff_t *pos)
-> >  	else
-> >  		type = si->type + 1;
-> >  
-> > -	for (; type < nr_swapfiles; type++) {
-> > +	for (; type < READ_ONCE(nr_swapfiles); type++) {
-> >  		smp_rmb();	/* read nr_swapfiles before swap_info[type] */
-> > -		si = swap_info[type];
-> > +		si = READ_ONCE(swap_info[type]);
-> >  		if (!(si->flags & SWP_USED) || !si->swap_map)
-> >  			continue;
-> >  		++*pos;
-> 
-> You could write those like:
-> 
-> 	for (; (si = swap_type_to_swap_info(type)); type++)
+This commit has been processed because it contains a "Fixes:" tag,
+fixing commit: d6d86c0a7f8d mm/balloon_compaction: redesign ballooned pages management.
 
-That's clever, and way better than the ugly iterator macro I wrote and then
-deleted in disgust.
+The bot has tested the following trees: v4.20.5, v4.19.18, v4.14.96, v4.9.153, v4.4.172, v3.18.133.
 
-> > @@ -2930,14 +2941,14 @@ static struct swap_info_struct *alloc_swap_info(void)
-> >  	}
-> >  	if (type >= nr_swapfiles) {
-> >  		p->type = type;
-> > -		swap_info[type] = p;
-> > +		WRITE_ONCE(swap_info[type], p);
-> >  		/*
-> >  		 * Write swap_info[type] before nr_swapfiles, in case a
-> >  		 * racing procfs swap_start() or swap_next() is reading them.
-> >  		 * (We never shrink nr_swapfiles, we never free this entry.)
-> >  		 */
-> >  		smp_wmb();
-> > -		nr_swapfiles++;
-> > +		WRITE_ONCE(nr_swapfiles, nr_swapfiles + 1);
-> >  	} else {
-> >  		kvfree(p);
-> >  		p = swap_info[type];
-> 
-> It is also possible to write this with smp_load_acquire() /
-> smp_store_release(). ARM64/RISC-V might benefit from that, OTOH ARM
-> won't like that much.
-> 
-> Dunno what would be better.
+v4.20.5: Build OK!
+v4.19.18: Build OK!
+v4.14.96: Build OK!
+v4.9.153: Build OK!
+v4.4.172: Failed to apply! Possible dependencies:
+    1031bc589228 ("lib/vsprintf: add %*pg format specifier")
+    14e0a214d62d ("tools, perf: make gfp_compact_table up to date")
+    1f7866b4aebd ("mm, tracing: make show_gfp_flags() up to date")
+    420adbe9fc1a ("mm, tracing: unify mm flags handling in tracepoints and printk")
+    53f9263baba6 ("mm: rework mapcount accounting to enable 4k mapping of THPs")
+    7cd12b4abfd2 ("mm, page_owner: track and print last migrate reason")
+    7d2eba0557c1 ("mm: add tracepoint for scanning pages")
+    c6c919eb90e0 ("mm: use put_page() to free page instead of putback_lru_page()")
+    d435edca9288 ("mm, page_owner: copy page owner info during migration")
+    d8c1bdeb5d6b ("page-flags: trivial cleanup for PageTrans* helpers")
+    eca56ff906bd ("mm, shmem: add internal shmem resident memory accounting")
+    edf14cdbf9a0 ("mm, printk: introduce new format string for flags")
 
-I just left it as-is for now.
+v3.18.133: Failed to apply! Possible dependencies:
+    2847cf95c68f ("mm/debug-pagealloc: cleanup page guard code")
+    48c96a368579 ("mm/page_owner: keep track of page owners")
+    7cd12b4abfd2 ("mm, page_owner: track and print last migrate reason")
+    94f759d62b2c ("mm/page_owner.c: remove unnecessary stack_trace field")
+    c6c919eb90e0 ("mm: use put_page() to free page instead of putback_lru_page()")
+    d435edca9288 ("mm, page_owner: copy page owner info during migration")
+    e2cfc91120fa ("mm/page_owner: set correct gfp_mask on page_owner")
+    e30825f1869a ("mm/debug-pagealloc: prepare boottime configurable on/off")
+    eefa864b701d ("mm/page_ext: resurrect struct page extending code for debugging")
+
+
+How should we proceed with this patch?
+
+--
+Thanks,
+Sasha
 
