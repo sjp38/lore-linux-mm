@@ -7,108 +7,108 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E4BA3C169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 04:11:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0EB1DC169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 04:11:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A2E5E218D3
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 04:11:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C534C218AC
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 04:11:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="aBL9xFVh";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="l6jiDaD0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A2E5E218D3
+	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="L4Kf1drA";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="R25mjrc/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C534C218AC
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3EA6A8E0004; Wed, 30 Jan 2019 23:11:07 -0500 (EST)
+	id 431CF8E0005; Wed, 30 Jan 2019 23:11:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3473F8E0001; Wed, 30 Jan 2019 23:11:07 -0500 (EST)
+	id 408F38E0001; Wed, 30 Jan 2019 23:11:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 262CC8E0004; Wed, 30 Jan 2019 23:11:07 -0500 (EST)
+	id 2D3AB8E0005; Wed, 30 Jan 2019 23:11:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EF0FD8E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 23:11:06 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id j5so2195934qtk.11
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 20:11:06 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 065C68E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 23:11:11 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id s14so1959591qkl.16
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 20:11:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=aC7B1MclzAxY5cAw7rCoiRc+tqKP2Rf1XdmtonaI+7U=;
-        b=fk+Ouh5KaBjOTXQbiG/v7rcMw4FOuZmwo52MvdtfcgBzfw1WBzq6bR7iiiRt22mN8g
-         PoxYG6nPkY6mV0Qa2ynT0YcYhLFt9CtEdBYEtckagBiHby0yfktC1N4RiF9b8tHZ5Hfy
-         F5hV7kEEEYPgOjfUsZ0OEZ8+aCchnB57T2vQC5H1evg8mT9UgvJUEEl7rGQROA2N4uSR
-         U0QO1+DgWhO9JBbSKNzQDdy/G7VTKysdho7TAbhz5+PkAM3+CTERlEWQ0V7qZ1aV76B7
-         0jejiozAspZzNCnV2qbZDE7AJ9zuYZzfyisgdRnu5P8ypSlY6PbdiMBpTOFIwzM/DuZ7
-         kgCQ==
-X-Gm-Message-State: AJcUuke3wdOgUYYHsB2xjEVnETEIxAGzkZXEM+P9LJGkqeNRcj6IZ0pP
-	Ittp10YwpDP68n344GIPZv4TOrss205kaZRkjwfVeBZUnaNxrp7b2/a6ethqt0miF+Ul2gW+56V
-	1skn9PmGTGrC9ihqq/9DklPLR8pwyTRJsP8Zos889KfGjJbFhlgyP+2nrtXeJ4QL6pg==
-X-Received: by 2002:ac8:7416:: with SMTP id p22mr32214376qtq.318.1548907866726;
-        Wed, 30 Jan 2019 20:11:06 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6H99CzVwOSNiDBr2tOkDAdZWzVQIDCgYX5Z8oPyssaSRFsmpCRuL3VKCteIU3rI2doaJWy
-X-Received: by 2002:ac8:7416:: with SMTP id p22mr32214359qtq.318.1548907866245;
-        Wed, 30 Jan 2019 20:11:06 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548907866; cv=none;
+        bh=+qm6IAuBdYJ0KJEezxlGA4lLZCD+PJm0pFyznNM0TqM=;
+        b=alCvIkeBvrmZR1zvxOmymHAfnBcyeIG5iAG0mfE0jhZstri9v6YRUXc4SydOTrM7w4
+         LhJKbTr/k+59+MWaUFq1JFMT9YnBD5oIHAhuqiYlMytaDEzRVzRHz8wgTaMPEfZ+wqul
+         nBmKn4Ur3xUWMci/oiVXWoNeyBTI753XbbqQ4UddGULWhMW4Gr4BJAY3wOy+nUcEdahf
+         RyDFkIsbpwXlgQHmbOAYLBUy/HBLXAt8o8cyZTECRVZ/y9xs06FLaP3CSkStjYeiMjao
+         kRAbIIbfzt0SviD9yD30EsHuE7nsInNrgi+SAuSV9GjQabdXsFW/cn3NHGzI1Rft5z5E
+         u8Zg==
+X-Gm-Message-State: AJcUukd7d7qQfDBfG6ZYhKR+c1dlNJezGqk9afACfPWkpDLEqA+T73n9
+	/Ghbf+OAsga2DgufaelClaVBfJ8KxV5qijPaTJrfpxXTr8Poh09/CxxXTzNOp2MwWLfgIai47X3
+	0Oq50FQEMxCwf+Gym7MYVqVI41lo4Ix4IExb1+Pf2BJvYMh12GaqKZ1/vyFvyqUgtRA==
+X-Received: by 2002:a0c:db04:: with SMTP id d4mr30829519qvk.114.1548907870791;
+        Wed, 30 Jan 2019 20:11:10 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7ErIN4FHABSQFX/ElHWbGmfBqraadGG5F2Wvz39hZpD7cgeUZ7gMFnP3AWRVMiibodx86k
+X-Received: by 2002:a0c:db04:: with SMTP id d4mr30829486qvk.114.1548907869932;
+        Wed, 30 Jan 2019 20:11:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548907869; cv=none;
         d=google.com; s=arc-20160816;
-        b=UK5m42AbjxJ9UsZQO8tQ+Ggzmx3LaLfLTl/n5Ug23EOEicfJCwl8b67SvUPFDl0edQ
-         XVPxYM9QQDlWoYVL6PXOkirrKydrJrcx8kY4yY1iyTtVvDTtjCyH1fg+Qt/7i/5oB7y2
-         jyb4HNZuczWgSnZ7VkoaoTEoLNi7fMTtbyF9DvoeneyLboqNg0IxMfaVImscaSuA1L06
-         3IspvsAMiAW8yJN559ZUXPqzUBFXGup2zAg5nnrnbDwkRIUwObOQtmc8EgZDLNt9TQaP
-         o9zpA+wbwtlr6y2c9uebd1SuoN00NLmQgI8h1w4za87Vr3uh/k3wMYKvkEWe6fU7dJAC
-         PYuQ==
+        b=YpW3zs/pdwyKTOrn9PD9Vnly30juUmWCNE2XUKmw9h6IBziUh6786IQNpFCbXldtKS
+         7Nt6x62R0tSYZ09/fu1djI6Ted5ah754ODX4PjYnzPaNTdjMCcQX58bvEXYiO7TPj71z
+         niNsRPjVJ1MkQfflcqQ+DOy/QjVgwRu1M/f9EeuQDmxT84KmgnUHu4nL7wmOO0YCXzeU
+         1JwpfOsddZnbMsTFuRrVW4KVD60cmk0DgmD9gLHtarUlASx8VmRqgsx3X0Mb4wThzDAL
+         zrlViEXFI9aTUqC/BuLXCEBiZ3Q2+3bARPvisPBEXFVoOsGtalU4JoeR8DUi9fjNrhIl
+         XKYQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=aC7B1MclzAxY5cAw7rCoiRc+tqKP2Rf1XdmtonaI+7U=;
-        b=GpzpesdEcDwN7znDCLyUqeRTYVssAoFoTKLH25ehAE+6r7T7HqztHjBbKiaLp3fGAY
-         oZ8VT5b9hvFfk1vkxQB2F41uYuVxXVn/qYhcH4ZOnu96gAD/sq/LYG5vwZrtGH5u/buP
-         JHXs3Q9Nch/MUs1ZwV8LNCP7reoD5hpB0lfcji325wB9JeHIdIAjEBHMFF3a9wMIsSR/
-         Rk8nVuc/fhIM8fsbCYa6Hnaqm9ZivkNWTpF+tElcGFqJTzQfupz6cguk4cnpU1QNaDey
-         aNEaBQWMjkkrsgGpyllOIr+PY7NLQmfskipWV96IshGhL0G52KnWkt5NxBztLV5R3/S6
-         6krQ==
+        bh=+qm6IAuBdYJ0KJEezxlGA4lLZCD+PJm0pFyznNM0TqM=;
+        b=Mb60n6ZeJC8bGOurDaaTZ3pkUpxLIsjsNQXCRiC03hBpuW3woo6bza7zJkHiu6Tdll
+         FBX1ZKSGdAos0/8VnbPC56ajAeLzOuJ0MR6dPpsCixgwFgBFL/iE3ymh16FjXFIguzgu
+         SJxh8772YliQdjcAT3Ml9nWNOVo5LSwi3+bmsGHyy8NEfuuaUEGy2FjrruLv1D6jHbfO
+         sbS9PmYTyrsbrhpP6j0Php0dj/WM+GNWt/cXbOc/bOf1VzIlKu9IMRe7iykzkcXrt8il
+         vlXBfpzaZ/ymJ030guerUxrUoTb2E0yoW2BeQ0oNx8aE9OrIr8TysbB8B/us8jpt900D
+         LCFw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=aBL9xFVh;
-       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=l6jiDaD0;
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=L4Kf1drA;
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b="R25mjrc/";
        spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
 Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id 38si1262006qvi.108.2019.01.30.20.11.06
+        by mx.google.com with ESMTPS id c4si534621qvo.215.2019.01.30.20.11.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jan 2019 20:11:06 -0800 (PST)
+        Wed, 30 Jan 2019 20:11:09 -0800 (PST)
 Received-SPF: neutral (google.com: 66.111.4.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.25;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=aBL9xFVh;
-       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=l6jiDaD0;
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=L4Kf1drA;
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b="R25mjrc/";
        spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
 Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
-	by mailout.nyi.internal (Postfix) with ESMTP id EC38C21E8C;
-	Wed, 30 Jan 2019 23:11:05 -0500 (EST)
+	by mailout.nyi.internal (Postfix) with ESMTP id AC8262221E;
+	Wed, 30 Jan 2019 23:11:09 -0500 (EST)
 Received: from mailfrontend2 ([10.202.2.163])
-  by compute5.internal (MEProxy); Wed, 30 Jan 2019 23:11:05 -0500
+  by compute5.internal (MEProxy); Wed, 30 Jan 2019 23:11:09 -0500
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=from
 	:to:cc:subject:date:message-id:in-reply-to:references
-	:mime-version:content-transfer-encoding; s=fm2; bh=aC7B1MclzAxY5
-	cAw7rCoiRc+tqKP2Rf1XdmtonaI+7U=; b=aBL9xFVheOpszgdbPF39BdpiKaT/r
-	RQKUB3uQG12e5tDoH0yUAbt+0WN1wS8SqcQLnyiDZFqXkWQqya/nVLoG/wj0M9+q
-	O3KjGlbDeq2hw0Dg7eN2wrHYgspIzw0P62BcK68aWVqozbFwBbPpbPKjwHzAVa7Q
-	W7oL/Muc/Pl7An05zo8YWEWAWimb1wpgzQIVy+dRkBVPRSb8VHC7bnfB7PHKeiD+
-	6jZMNzwbpCVRwp/O2ZDTUF23fYuU7GaV6r8URUtUJJRRaoAnAIgBKY5nGc0TlMD2
-	p7CWEiu8vu0+3cf1/L0nXPxpyRjYIxijVb8YEDXq8UAwAvgK2us07tFxg==
+	:mime-version:content-transfer-encoding; s=fm2; bh=+qm6IAuBdYJ0K
+	JEezxlGA4lLZCD+PJm0pFyznNM0TqM=; b=L4Kf1drAhsQV9rdCZsdUaatbA2lCl
+	kGJljvJbkTAT2b2Tt9MYfnwGbOqVdw7DjKOrXfWtEIQHdBu96VGKlow56UQy/Cgu
+	gOCe6dnmYpRsmvTe4wCHweH1DQ0yb0nJv2kfcAHvNh3LqFSGRAKc/+Ob9OqlVzPP
+	t5dV7dgLy0zy8pU9ksi1r3Ka5DsLGCp/5ctjpC79d63qgymuVTQJawiNni3b6aeJ
+	O84oaOJpJ7BOoUJyjywmbK/JU3a3bhTg8fpWXw7j2VmARIDH/jh1Jj2ZhG1eqBUd
+	Ekobj4sOmRHlnV/1diYWfgd1AA+T3N8aHZzLSb8S2cmL/HuMq/RmH55nQ==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:subject:to
 	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm1; bh=aC7B1MclzAxY5cAw7rCoiRc+tqKP2Rf1XdmtonaI+7U=; b=l6jiDaD0
-	F7Y9RiiCtMZqEGMNxrKY5v0tuw9uuh+Onj7mqJPo56BLO/btAu6VHJtVVFDLyPDK
-	fMf6cJYyjwBkAWohm1tweSyc/oGmU1Tup6guD6IUTmQMCFrbNrppM3S7jy8ClIlG
-	NqIrNpWsOXh+G4W74xnp+60x4PDHT1RyBMIMoGzsdhbu+WNBBQLOVfSrhA9nLmat
-	zS9HN/pzB4VZkXB5vGVzkzdgZoymtznulSj0EEUu04srWsCwJWGcqwkfwoijYR91
-	6i0NvrWlKAfkH2I/5BnYZzB7CoaAakblXh1lggJMLQ0eNrWIFSBNeuCaNkcEQfPt
-	SnCvo2mQQVO99Q==
-X-ME-Sender: <xms:WXVSXHO-aigguOVq1LAuoWe72ShGuBDzk6S2-sOI0Hb6hurZ2UDu9Q>
+	fm1; bh=+qm6IAuBdYJ0KJEezxlGA4lLZCD+PJm0pFyznNM0TqM=; b=R25mjrc/
+	LAGhD40XbnnU9l/QhALVsTi9Tu6c7taouJNs3lmWj2JGWbjcS65Leyh+R3Dc5em+
+	DH3DD5yCow/9lRE7XBLHSg8zOgmICS+K2rXkCAhx00DH+nOLYaR0RgPqAxcFFnx9
+	iaa6TzJ50qjamNzeHtmYFwCSEiZEG8YcPrfJ83sq4QrNr7+3KcpcajvXOTItTuit
+	BRSDkrHp/FcKgA9ot5q1Jf2QiDSpG0QajojpUP8X/GMd/XJmlV0egimdP3/41pr+
+	NS23fjvGqtMFv3Tyb4oGsUPqePVhIR2yE3BvWrijXUtr908cquvOEBU9lpTmn9jF
+	y+rR2ifAqgDPww==
+X-ME-Sender: <xms:XXVSXO21kSLiHAp1m2PEN4-OVMrjgTVd3UZW-tFEPUHzOmH9MVt4qw>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledrjeehgdeijecutefuodetggdotefrodftvf
     curfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthenuceurghilhhouhhtmecufedt
     tdenucesvcftvggtihhpihgvnhhtshculddquddttddmnegfrhhlucfvnfffucdlfedtmd
@@ -116,13 +116,13 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledrjeehgdeijecutefuodetggdote
     ihhnucevrdcujfgrrhguihhnghdfuceomhgvsehtohgsihhnrdgttgeqnecukfhppeduud
     ekrddvuddurddvudefrdduvddvnecurfgrrhgrmhepmhgrihhlfhhrohhmpehmvgesthho
     sghinhdrtggtnecuvehluhhsthgvrhfuihiivgeptd
-X-ME-Proxy: <xmx:WXVSXCnZdcnMomshsaQT1fJ8s7qoUwWnbdFDxH2hqoCLyk4YF9afag>
-    <xmx:WXVSXBYcpr79GTs9V44RGHdaK8xfIxLsZltRnG1Oo3QxGrkRgBoJcQ>
-    <xmx:WXVSXATE6Hyhg-Yu_4HB52C245qZEXvbBoi3YQ_gbfLlwyM9wJVxHw>
-    <xmx:WXVSXD6jd8LqDrs1Mth-JwwhYptl3gNhtdMfWW-Ubf7bP7nrFtPmuw>
+X-ME-Proxy: <xmx:XXVSXFVZHn9vA7AK_7wbaObvp4SM6DyPBkBugSIH8aANI3CG9bAdrw>
+    <xmx:XXVSXB5UNTauek0eN9f7_PZhczRzW9Lz58c2O6HE_O7K3Rjb5BsHGA>
+    <xmx:XXVSXELO7pzSPBpkfFn7eiPJr9cJaL8VpqYlTz7hXCbU5Nvd-IF6vQ>
+    <xmx:XXVSXFNdNsuk7grXB-DrY3L2HZp-1PvyZW6fg4Enj4IW380K5mROBQ>
 Received: from eros.localdomain (ppp118-211-213-122.bras1.syd2.internode.on.net [118.211.213.122])
-	by mail.messagingengine.com (Postfix) with ESMTPA id E89C410310;
-	Wed, 30 Jan 2019 23:11:02 -0500 (EST)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 9F7B110086;
+	Wed, 30 Jan 2019 23:11:06 -0500 (EST)
 From: "Tobin C. Harding" <me@tobin.cc>
 To: Christopher Lameter <cl@linux.com>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -132,9 +132,9 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 2/3] slub: Capitialize comment string
-Date: Thu, 31 Jan 2019 15:10:02 +1100
-Message-Id: <20190131041003.15772-3-me@tobin.cc>
+Subject: [PATCH 3/3] slub: Use C89 comment style
+Date: Thu, 31 Jan 2019 15:10:03 +1100
+Message-Id: <20190131041003.15772-4-me@tobin.cc>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190131041003.15772-1-me@tobin.cc>
 References: <20190131041003.15772-1-me@tobin.cc>
@@ -148,10 +148,10 @@ List-ID: <linux-mm.kvack.org>
 
 From: "Tobin C. Harding" <tobin@kernel.org>
 
-SLUB include file has particularly clean comments, one comment string is
-holding us back.
+SLUB include file uses a c99 comment style.  In line with the rest of
+the kernel lets use c89 comment style.
 
-Capitialize comment string.
+Use C89 comment style.
 
 Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 ---
@@ -159,18 +159,18 @@ Signed-off-by: Tobin C. Harding <tobin@kernel.org>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index 201a635be846..d12d0e9300f5 100644
+index d12d0e9300f5..c8e52206a761 100644
 --- a/include/linux/slub_def.h
 +++ b/include/linux/slub_def.h
-@@ -110,7 +110,7 @@ struct kmem_cache {
- #endif
- #ifdef CONFIG_MEMCG
- 	struct memcg_cache_params memcg_params;
--	/* for propagation, maximum size of a stored attr */
-+	/* For propagation, maximum size of a stored attr */
- 	unsigned int max_attr_size;
+@@ -151,7 +151,7 @@ struct kmem_cache {
+ #else
+ #define slub_cpu_partial(s)		(0)
+ #define slub_set_cpu_partial(s, n)
+-#endif // CONFIG_SLUB_CPU_PARTIAL
++#endif /* CONFIG_SLUB_CPU_PARTIAL */
+ 
  #ifdef CONFIG_SYSFS
- 	struct kset *memcg_kset;
+ #define SLAB_SUPPORTS_SYSFS
 -- 
 2.20.1
 
