@@ -2,77 +2,78 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A3A25C282DA
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 18:37:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 80132C169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 18:37:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 69802218AC
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 18:37:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69802218AC
+	by mail.kernel.org (Postfix) with ESMTP id 4CBC3218AC
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 18:37:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4CBC3218AC
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 002588E0002; Thu, 31 Jan 2019 13:37:18 -0500 (EST)
+	id 3B08E8E0003; Thu, 31 Jan 2019 13:37:19 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ECC148E0001; Thu, 31 Jan 2019 13:37:17 -0500 (EST)
+	id 337D58E0001; Thu, 31 Jan 2019 13:37:19 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D6E028E0002; Thu, 31 Jan 2019 13:37:17 -0500 (EST)
+	id 1AD238E0003; Thu, 31 Jan 2019 13:37:19 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A5BCB8E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 13:37:17 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id u32so4733802qte.1
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 10:37:17 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E3E578E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 13:37:18 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id j125so4138926qke.12
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 10:37:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=KPWKir/sq0x95e20bcJglMpomUWDLhIE9o/JOfqXUGI=;
-        b=m/L3o7RwviU6Q1ujMuWgRZ876WPRVl2tl3C+itNq31qYk4oALxxDNsmVlvhQcd2m6/
-         V8NIQtzNQVAOYIMixB1WCLp7fXsRGtqVXXLVmKYCT2Ijm40Lc77yT3aluqD2AxcKJtly
-         Nr+qLPGVqW3WI9N9wpMDX+yzvuO/DA+8uo+gZbArp1baxedVWnAHaIiGfNaGq2RnFyMQ
-         tqYYSS7fxMkAc+oMTA3Oj3I499o9qUXUCpA4W6C8YS569rDMHuyP3l6jNDu07+CYsGeZ
-         HhLjsKoW+aLQmOcMFHEomwrEVhGf42ReI/B/RjNc6iWRn81b1HfsooWMIxI0gbdw25JS
-         rj4g==
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=c0x0Lso80FVkCqQKmxH25r61rYDEF6XogwD4uXvVoWY=;
+        b=ZQz+tYFhWXq4Lg7ii3JFL+jSTjRij1sLKyEcBs+dKVopB5851Ba8HudAhtjxJifgWB
+         +xvfAWEzHnxuHKz2/LNnD1NChdpZEc3W2CSgUdlpENYEetRR6JlPNaU5scfFW7zO7ETd
+         dmdRQ1wsBeyQW0H8xu4hwxfWSWXDhcpCd0pka3KjCST0QQrhkywRJ77Ey8w/wfq0hwjF
+         wQrdQMZzWUNWiC5dMoc2CvvfzowJyuJfQvUPN0dFiWWvICbvYzPYc2PlLHQNf0M0c/21
+         slezEqthhB79h8x6an9QGC6LyMQy38yxxbnnAxsiPhMMw/jPAKbduPA8TPP2a9Ghb8H/
+         Vj/Q==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUukedKTPjG1GOaaGMabmGq8JaGKgc9ZKXJoP77Br7JQgmxgTlaNJG
-	mZonvIqGPCG9R90Cl9lJLBmxSyCawcpK/AOwmvrfAeJzOryENCyxfUL6L/tHj+ex5yNeTMb3+ne
-	iQ+myE+x/p+afPo8cSbx3tzX+RWzb0LQLtrEwLRiTtvPJPPUMM1EQUfj2Flp2mY1WCg==
-X-Received: by 2002:ac8:760f:: with SMTP id t15mr34295991qtq.188.1548959837346;
-        Thu, 31 Jan 2019 10:37:17 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6CFGresBfDkv5qUjOTMB9LzPIm/aJ0Y/gSjt6MSDu5np36I6B6BzldfPn6VllPeC1S8MDz
-X-Received: by 2002:ac8:760f:: with SMTP id t15mr34295957qtq.188.1548959836753;
-        Thu, 31 Jan 2019 10:37:16 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548959836; cv=none;
+X-Gm-Message-State: AJcUukeIqnkQ3R64biDyXw5BGOGBmn9A6k6kOVm7e7tB7V5ia6xh9yiq
+	gVmo9sleRGeaca7ntt7oMyrD8HGAeO6ea6sMGL/B5dcjDPygDaSiN6jP73HQ2KWGeVUnyH24zIp
+	mqggKqbe+IkmwEPCn0qj3OKlmZc5QiW73CfQ4EH42YeLlOlMY7/8EOlydxDFN2tTFRQ==
+X-Received: by 2002:ac8:2bd4:: with SMTP id n20mr35066030qtn.172.1548959838702;
+        Thu, 31 Jan 2019 10:37:18 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5oWm3B4uLnjRquynyW0gQMPB2zfgI7nCeMDCLmm/xFC9no8URLwTG1z2RdFikp8OBBXypI
+X-Received: by 2002:ac8:2bd4:: with SMTP id n20mr35066007qtn.172.1548959838265;
+        Thu, 31 Jan 2019 10:37:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548959838; cv=none;
         d=google.com; s=arc-20160816;
-        b=McpfArckTLJ1Eh7FcOEcRiNHXxMeAUtinCoDva2w1ikQ1tbqSA79VEn1vboCj9PrU/
-         Tpg+0m/p0TnqqMkAb1ePPsZATZ7P1A3YrpfZhAidUMSTR+lE9RUzx+F2BkCFIf7TQMIn
-         GWnkW1hdewgZgRpYHZTYImRS51A3OtGnCiYcYYUiN42pkxZqG5Sf/zzvJ3N2micJ42DZ
-         9/2GgfYRf6n5eMfpzN98uz4+St5OpgBAhS0fWM4KM6TDrsf3m1OrdhTlLl+4Ft7xG7/V
-         +TmaSMQp6JunCKOkpZjqW/7nvg2gTQsE6jLY1/HuOoHNkjCRaamJZdGrJFx94JYOpnSn
-         Kliw==
+        b=OjfAYcp+Ss2vvJ4unq5F+r5kjylKCvqlk9JgVxHxjhHypphfjcEXi5Q5PLIlJhYTls
+         ii7dBxTvIvseEjTE473LDIx/e4fuaQPCPAk4pbkYypYLteYaOwbxTnB1Ax2mhK2fIGuX
+         HXdcC3cGmKvlDQCZnlwjcg8jiexFixzov4AlmgRRwOnraIp9vE8jx8nUcuO4K2zaBtAb
+         U+WWmcd2SU/oEKL6FUB9SL+4jFjD8WIK71MdHWZ1rrqxHOpCrb8kEVNQktepS3UBMhAc
+         ARZuh9KQO6hSgbn3oOF20xhQMMuvZphemEF9zkr17eAxmDKHHukFfjhRlZkqt/VxK9qh
+         z6Bg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=KPWKir/sq0x95e20bcJglMpomUWDLhIE9o/JOfqXUGI=;
-        b=PRAueLf0aumUSIJgTaT91aHlh/aI5FHbN+FbcaR8BsNSp9ISvCE6N9n83a6HvNExlf
-         eWH+L5F9Le1zrWSxfdiXYk/9swKJHBGT9uvvj7A+P2mGhUt/kgxfBAyvYlsXpd6ec05a
-         ronF9w9DNaIh9KXuWqr9WCPExldESenPdI0Evi8CXmdWtqYOsqJk12sklQEobnqlc26Z
-         X7JGjVqe2X67LWwnTfYg8+s3VbwHyclL7AYKHlR2O5plSUjdzYsCc33/EeR8lDw78/NO
-         ccGcXc1tYMiQQI/chvfBEiYaTkifX73e7eVnMk3IpEt1UVO3hNZw0PgAnSdE+puvIRm7
-         fsmg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=c0x0Lso80FVkCqQKmxH25r61rYDEF6XogwD4uXvVoWY=;
+        b=tfI8gxM+Fb4nt1ddYZnUykZ2KEQYLQzzZgCi50/2wjPO479kxerogjKco1qHHbtnNX
+         ptBtfq3QE3jDkDopINZni1ixET3Pvr/kRN5n8jrjrwuSjsMQ64fxEEezZICP6VOoxNX2
+         y6D6GIyGlRFycIbJAWkxozep8YjIfaHPXOeAghaMfTA4uCvDdbuGZY7LlOGp5qpS9NgD
+         o4CLEIaYsglbmrJqyw0U5VwT5nj4ymEhit1UxSDhCQxKnmMkrumgQWpnWi1LHiaClBSO
+         /BwyXEo8RiUG4/SOrTXUdeXSAIqIco1dx/f/vYE2YsuRGGkPIGnuXl8XNBw5yN4d65xn
+         VQYQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h34si3854403qtd.155.2019.01.31.10.37.16
+        by mx.google.com with ESMTPS id l7si3433153qth.251.2019.01.31.10.37.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jan 2019 10:37:16 -0800 (PST)
+        Thu, 31 Jan 2019 10:37:18 -0800 (PST)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
@@ -80,11 +81,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 8EEC4CCB60;
-	Thu, 31 Jan 2019 18:37:15 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 540FCAC613;
+	Thu, 31 Jan 2019 18:37:17 +0000 (UTC)
 Received: from localhost.localdomain.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id BBCCD19492;
-	Thu, 31 Jan 2019 18:37:13 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id A0C9F17F7D;
+	Thu, 31 Jan 2019 18:37:15 +0000 (UTC)
 From: jglisse@redhat.com
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org,
@@ -103,14 +104,16 @@ Cc: linux-kernel@vger.kernel.org,
 	=?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>,
 	Michal Hocko <mhocko@kernel.org>,
 	kvm@vger.kernel.org
-Subject: [RFC PATCH 0/4] Restore change_pte optimization to its former glory
-Date: Thu, 31 Jan 2019 13:37:02 -0500
-Message-Id: <20190131183706.20980-1-jglisse@redhat.com>
+Subject: [RFC PATCH 1/4] uprobes: use set_pte_at() not set_pte_at_notify()
+Date: Thu, 31 Jan 2019 13:37:03 -0500
+Message-Id: <20190131183706.20980-2-jglisse@redhat.com>
+In-Reply-To: <20190131183706.20980-1-jglisse@redhat.com>
+References: <20190131183706.20980-1-jglisse@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Thu, 31 Jan 2019 18:37:15 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Thu, 31 Jan 2019 18:37:17 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -119,40 +122,15 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jérôme Glisse <jglisse@redhat.com>
 
-This patchset is on top of my patchset to add context information to
-mmu notifier [1] you can find a branch with everything [2]. I have not
-tested it but i wanted to get the discussion started. I believe it is
-correct but i am not sure what kind of kvm test i can run to exercise
-this.
+Using set_pte_at_notify() trigger useless calls to change_pte() so just
+use set_pte_at() instead. The reason is that set_pte_at_notify() should
+only be use when going from either a read and write pte to read only pte
+with same pfn, or from read only to read and write with a different pfn.
 
-The idea is that since kvm will invalidate the secondary MMUs within
-invalidate_range callback then the change_pte() optimization is lost.
-With this patchset everytime core mm is using set_pte_at_notify() and
-thus change_pte() get calls then we can ignore the invalidate_range
-callback altogether and only rely on change_pte callback.
+The set_pte_at_notify() was use because __replace_page() code came from
+the mm/ksm.c code in which the above rules are valid.
 
-Note that this is only valid when either going from a read and write
-pte to a read only pte with same pfn, or from a read only pte to a
-read and write pte with different pfn. The other side of the story
-is that the primary mmu pte is clear with ptep_clear_flush_notify
-before the call to change_pte.
-
-Also with the mmu notifier context information [1] you can further
-optimize other cases like mprotect or write protect when forking. You
-can use the new context information to infer that the invalidation is
-for read only update of the primary mmu and update the secondary mmu
-accordingly instead of clearing it and forcing fault even for read
-access. I do not know if that is an optimization that would bear any
-fruit for kvm. It does help for device driver. You can also optimize
-the soft dirty update.
-
-Cheers,
-Jérôme
-
-
-[1] https://lore.kernel.org/linux-fsdevel/20190123222315.1122-1-jglisse@redhat.com/T/#m69e8f589240e18acbf196a1c8aa1d6fc97bd3565
-[2] https://cgit.freedesktop.org/~glisse/linux/log/?h=kvm-restore-change_pte
-
+Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Peter Xu <peterx@redhat.com>
 Cc: Peter Zijlstra <peterz@infradead.org>
@@ -167,21 +145,24 @@ Cc: Paolo Bonzini <pbonzini@redhat.com>
 Cc: Radim Krčmář <rkrcmar@redhat.com>
 Cc: Michal Hocko <mhocko@kernel.org>
 Cc: kvm@vger.kernel.org
+---
+ kernel/events/uprobes.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-Jérôme Glisse (4):
-  uprobes: use set_pte_at() not set_pte_at_notify()
-  mm/mmu_notifier: use unsigned for event field in range struct
-  mm/mmu_notifier: set MMU_NOTIFIER_USE_CHANGE_PTE flag where
-    appropriate
-  kvm/mmu_notifier: re-enable the change_pte() optimization.
-
- include/linux/mmu_notifier.h | 21 +++++++++++++++++++--
- kernel/events/uprobes.c      |  3 +--
- mm/ksm.c                     |  6 ++++--
- mm/memory.c                  |  3 ++-
- virt/kvm/kvm_main.c          | 16 ++++++++++++++++
- 5 files changed, 42 insertions(+), 7 deletions(-)
-
+diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+index 87e76a1dc758..a4807b1edd7f 100644
+--- a/kernel/events/uprobes.c
++++ b/kernel/events/uprobes.c
+@@ -207,8 +207,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
+ 
+ 	flush_cache_page(vma, addr, pte_pfn(*pvmw.pte));
+ 	ptep_clear_flush_notify(vma, addr, pvmw.pte);
+-	set_pte_at_notify(mm, addr, pvmw.pte,
+-			mk_pte(new_page, vma->vm_page_prot));
++	set_pte_at(mm, addr, pvmw.pte, mk_pte(new_page, vma->vm_page_prot));
+ 
+ 	page_remove_rmap(old_page, false);
+ 	if (!page_mapped(old_page))
 -- 
 2.17.1
 
