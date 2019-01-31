@@ -2,178 +2,259 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F345AC169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 15:11:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E24AC282D9
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 15:37:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C14AD218AF
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 15:11:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C14AD218AF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 07F2220B1F
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 15:37:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 07F2220B1F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4907C8E0003; Thu, 31 Jan 2019 10:11:52 -0500 (EST)
+	id 937438E0002; Thu, 31 Jan 2019 10:37:13 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 43EC28E0001; Thu, 31 Jan 2019 10:11:52 -0500 (EST)
+	id 8E6988E0001; Thu, 31 Jan 2019 10:37:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 32CEE8E0003; Thu, 31 Jan 2019 10:11:52 -0500 (EST)
+	id 7FCB08E0002; Thu, 31 Jan 2019 10:37:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 085B68E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 10:11:52 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id y83so3482493qka.7
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 07:11:52 -0800 (PST)
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 12B7E8E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 10:37:13 -0500 (EST)
+Received: by mail-lf1-f70.google.com with SMTP id z17so744356lfg.10
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 07:37:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=v1MB0ckzpQvR/8C4mV91Di5lPryfud4kqcp7DSn5uAE=;
-        b=bIhGw0vh7trYwUM4WM/DkrIa7TGg4Iz2/DL3VU9R63OGyZP7+zqndzVMxjbxM1CL+L
-         wR5Sn6UUc7wvrAJcYJFmrD51TNtrzYF3FUDxroamBNvvSywYMGu3mWUYKLSKLaW30TJh
-         6otrdkUyWbTFXcHJuTMSpjBvAaExSdjT0+9RoeVv04ulqrtGFF8DxeD7DYEYhWKlwgkj
-         /HeVzsjqFw0c8JJOZK01lqwpbo8mYOG2GJEoW0v/wM601o7Aii643TcSrsJwPuwpe9U6
-         wKAOSdECxHSet9YGS/8WioaZpMDbqGf92CBmb/oP7hUSfGtkI2Lqfd2lFbekLImc9IHp
-         +2cA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUukdFmWWdHb8RIcDuVHIDbcnwIWA8t3NOXzSSRkGrdQ5j0wLBG1xl
-	g/a2mK1w3Fo/B0FGB3bvx8TvDjxGwC+vsukKWQaJuOVMw13DdORxuomIBEjf0lrlHtrKI1YYXCJ
-	KE3lrLsHAzRkE7Xs93zblIGAQRB11UFUkk1BAsfmNmiliX/EFf9yTtgtsyPGHKjactg==
-X-Received: by 2002:aed:242e:: with SMTP id r43mr35240281qtc.128.1548947511703;
-        Thu, 31 Jan 2019 07:11:51 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4Ue47oQO81gbABy3nTbdy6grJtv1PL2kZngW3V/UhuuZ3J0gTDB0sJDatH/mit3LUiDcOv
-X-Received: by 2002:aed:242e:: with SMTP id r43mr35240210qtc.128.1548947510885;
-        Thu, 31 Jan 2019 07:11:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548947510; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:date:message-id:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=UdCpZGLaVRXmr2hVfEcXUfzxNOf3I0owv4ecGAkgmOk=;
+        b=VnIN1fjhgEyPwv7AFb1iI0W7pPOsBDNC+qqHqkrb5iwzAkeuAFAKUHjtk3YhCSCmgC
+         /WnHtFJoQtF7/7p5F32A/EEd3Zvh+ilo/SJzBKaEStgVK/VJWvOhlIskwkadTB375sFa
+         nFww7RHoujuPEn/OYZCwvgsQMSdMkRWKPO+E+2BqkLQoQoYkH9iiPUAozWuGz/5yoUxS
+         mdJCpUWCOiU/MlyN4a5RAPxYUxHOWSZhOvwB+UfJIvzkh6B7NggEb6s+Xj7g7n8Kxl/N
+         XsxyqEQG1aKMTxEy1E1LaVdY+Km9pVtNhihD+bWKguD8cPgvQugb3UqGAbyVuZkUhT0G
+         cDiQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: AHQUAuYlJ+KaYNYQPJ1dDEWR1fLf7x+5UuPEAzA2EeGr6AUaUVZ5XXgW
+	5cHEAmCEWn5DEDUGo2Q7Xtjdq7QyjNCt6Vrbye6g6Cbm8HIRDddfmISnxgq3/j8entF98CsAwzU
+	nXLJEPcsOW17GHnuacRwOZ5QTWsf0O6sGmhguRYhkk4N1a1/3JbJAB9PSqM+2hAPgCA==
+X-Received: by 2002:a19:f013:: with SMTP id p19mr462183lfc.61.1548949031084;
+        Thu, 31 Jan 2019 07:37:11 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaE/uM3vxitoHQIbjz6Heubchgnl/TqfAL8UzAxTcot4+xMD2iC9SgRPrKYmmrSEiWXgJhW
+X-Received: by 2002:a19:f013:: with SMTP id p19mr462110lfc.61.1548949029783;
+        Thu, 31 Jan 2019 07:37:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548949029; cv=none;
         d=google.com; s=arc-20160816;
-        b=AnNKohlsMSnl79Q8yPNguACdbzdgxbtG/IdhNU9JzMP/JoKtW+DbfgMPYFfH2HU9Ta
-         1pAObi4VOCjnKvLhyvW5FzBhC6xPRtrX5t7JLvCZQf+/qwq5qjqEu/Kt8Mty9keEtFIn
-         X98BY+SW4+/sBv3q4/dMwLMWbCGEuNaEBbcIBAd1s62EINWD29NVKxQhiCHia6LS2X9c
-         rTjMeB0dkyj1wL4mNg0ZvXMyBfe5j2NsLAMP2vOaubvxUW2cfAkqjGDrB/ZHVx50NZrK
-         LIavNBKXJ+AzzQGR4/TYvz0Ep1U80wg85OHWCzf0YHMlaIt6bFKXmolBKjDTESjMliYH
-         qtCQ==
+        b=yI0Y62uOKT37iWh/aHiRY0Fx72DhxkPEX7+fR3h4aXXZpxRqYJAWDtfm77HuX64uFp
+         88U/JdxytrbQbfqUi7G89WCR66klsq5E9r2EA8Ujt/DKm7TcHDhqq5MqmSkHfLPrsmIH
+         txLfyjDncXEMOasuIJPdXLwwBW0SZzNr1t1NY3edvQeDjpjfKfVFbZixT/D3vagFVwa4
+         7hajptMKjL/h7Ts05Nlu3/cvxCUaL9dN7Pi/2cbw3WumqWF7MOU0HxQ6yINpJJPDzj7e
+         JMF8cTVvbcxGDi7MuTTt3/2C2BFiRa+Vf0Wg+PzuRf6iztFa61Lzg7lOXL2ghhdliMyb
+         67ag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=v1MB0ckzpQvR/8C4mV91Di5lPryfud4kqcp7DSn5uAE=;
-        b=ezlgWN2wmMzeClyMA5ZAtcdti0uECgnEi0o/V/y+EMsqQ8WpVjpDOwG3wcyc52OuXv
-         PUCkTcxHN70LfWsPmL+gOwyIiUvG1ac2nfyV39cGL4wjpasK3k3CGqnT39HeL+lg5FgD
-         6J6b/yCJFEYf7jiUn+UkE0HRMSU5JobRh4KFgrEq8ETztQ/Bvm8TBl6Nrfi7sZ/XrsTN
-         kRA+XDTisRl1yo2mfuzzUu20/be40m5Lmocqu2ifl7L86wGqWrlVD+/4UQ3i75WOcNFS
-         rDz0PXTkDGmuC4YzgbHR7zC4ShSdSfePOYAIAPraZyLLXPVnG85vj+UBsYyQXOChlKOF
-         aO4A==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :to:from:subject;
+        bh=UdCpZGLaVRXmr2hVfEcXUfzxNOf3I0owv4ecGAkgmOk=;
+        b=c/9r39UA0neCfsn4cOngqrYkS5Zmq8bQGGJCzIoaa3RZ313KSeISW42A7YA4RAjnOD
+         S2pK/EE22D2934l5/5GbKh4F5fbtydkuzelO4Uv0PuSCl8fwqF5VNWc4Fp3mvyrpg68U
+         I7Ve222JJyEpbKd5OMiHIaFl7STunwt8E4eSRVvFBa23Cs9e5W4Zai+Wh7lHnQeHQknx
+         7wLIqjkb9J2+iz2kTnhT1nlWWakA0EZXjA0TVZi5gDHaYL7c8m2W1GSTR2py4XudAHf9
+         JR0FnfBMAda2Rv8Qst17zO6es/bCpZqzlku1VXu7yPnNixsW35Qe+FBPkjQF/c/vznGv
+         nwQA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x32si3327130qvf.31.2019.01.31.07.11.50
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id d202si5300762lfe.126.2019.01.31.07.37.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jan 2019 07:11:50 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 31 Jan 2019 07:37:09 -0800 (PST)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id B4551A08F0;
-	Thu, 31 Jan 2019 15:11:49 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 38D0660152;
-	Thu, 31 Jan 2019 15:11:47 +0000 (UTC)
-Date: Thu, 31 Jan 2019 10:11:45 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Jason Gunthorpe <jgg@mellanox.com>,
-	Logan Gunthorpe <logang@deltatee.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael J . Wysocki" <rafael@kernel.org>,
-	Bjorn Helgaas <bhelgaas@google.com>,
-	Christian Koenig <christian.koenig@amd.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	Marek Szyprowski <m.szyprowski@samsung.com>,
-	Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <jroedel@suse.de>,
-	"iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
-Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
- vma
-Message-ID: <20190131151145.GC4619@redhat.com>
-References: <20190129193250.GK10108@mellanox.com>
- <99c228c6-ef96-7594-cb43-78931966c75d@deltatee.com>
- <20190129205827.GM10108@mellanox.com>
- <20190130080208.GC29665@lst.de>
- <20190130174424.GA17080@mellanox.com>
- <bcbdfae6-cfc6-c34f-4ff2-7bb9a08f38af@deltatee.com>
- <20190130191946.GD17080@mellanox.com>
- <3793c115-2451-1479-29a9-04bed2831e4b@deltatee.com>
- <20190130204414.GH17080@mellanox.com>
- <20190131080501.GB26495@lst.de>
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169] (helo=localhost.localdomain)
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1gpEOl-00039g-7T; Thu, 31 Jan 2019 18:37:03 +0300
+Subject: [PATCH] mm: Do not allocate duplicate stack variables in
+ shrink_page_list()
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+To: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org,
+ ktkhai@virtuozzo.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Date: Thu, 31 Jan 2019 18:37:02 +0300
+Message-ID: <154894900030.5211.12104993874109647641.stgit@localhost.localdomain>
+User-Agent: StGit/0.18
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190131080501.GB26495@lst.de>
-User-Agent: Mutt/1.10.0 (2018-05-17)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Thu, 31 Jan 2019 15:11:50 +0000 (UTC)
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 31, 2019 at 09:05:01AM +0100, Christoph Hellwig wrote:
-> On Wed, Jan 30, 2019 at 08:44:20PM +0000, Jason Gunthorpe wrote:
-> > Not really, for MRs most drivers care about DMA addresses only. The
-> > only reason struct page ever gets involved is because it is part of
-> > the GUP, SGL and dma_map family of APIs.
-> 
-> And the only way you get the DMA address is through the dma mapping
-> APIs.  Which except for the little oddball dma_map_resource expect
-> a struct page in some form.  And dma_map_resource isn't really up
-> to speed for full blown P2P.
-> 
-> Now we could and maybe eventually should change all this.  But that
-> is a pre-requisitive for doing anything more fancy, and not something
-> to be hacked around.
-> 
-> > O_DIRECT seems to be the justification for struct page, but nobody is
-> > signing up to make O_DIRECT have the required special GUP/SGL/P2P flow
-> > that would be needed to *actually* make that work - so it really isn't
-> > a justification today.
-> 
-> O_DIRECT is just the messenger.  Anything using GUP will need a struct
-> page, which is all our interfaces that do I/O directly to user pages.
+On path shrink_inactive_list() ---> shrink_page_list()
+we allocate stack variables for the statistics twice.
+This is completely useless, and this just consumes stack
+much more, then we really need.
 
-I do not want to allow GUP to pin I/O space this would open a pandora
-box that we do not want to open at all. Many driver manage their IO
-space and if they get random pinning because some other kernel bits
-they never heard of starts to do GUP on their stuff it is gonna cause
-havoc.
+The patch kills duplicate stack variables from shrink_page_list(),
+and this reduce stack usage and object file size significantly:
 
-So far mmap of device file have always been special and it has been
-reflected to userspace in all the instance i know of (media and GPU).
-Pretending we can handle them like any other vma is a lie because
-they were never designed that way in the first place and it would be
-disruptive to all those driver.
+Stack usage:
+Before: vmscan.c:1122:22:shrink_page_list	648	static
+After:  vmscan.c:1122:22:shrink_page_list	616	static
 
-Minimum disruption with minimun changes is what we should aim for and
-is what i am trying to do with this patchset. Using struct page and
-allowing GUP would mean rewritting huge chunk of GPU drivers (pretty
-much rewritting their whole memory management) with no benefit at the
-end.
+Size of vmscan.o:
+         text	   data	    bss	    dec	    hex	filename
+Before: 56866	   4720	    128	  61714	   f112	mm/vmscan.o
+After:  56770	   4720	    128	  61618	   f0b2	mm/vmscan.o
 
-When something is special it is better to leave it that way.
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+---
+ mm/vmscan.c |   44 ++++++++++++++------------------------------
+ 1 file changed, 14 insertions(+), 30 deletions(-)
 
-Cheers,
-Jérôme
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index dd9554f5d788..54a389fd91e2 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1128,16 +1128,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ {
+ 	LIST_HEAD(ret_pages);
+ 	LIST_HEAD(free_pages);
+-	int pgactivate = 0;
+-	unsigned nr_unqueued_dirty = 0;
+-	unsigned nr_dirty = 0;
+-	unsigned nr_congested = 0;
+ 	unsigned nr_reclaimed = 0;
+-	unsigned nr_writeback = 0;
+-	unsigned nr_immediate = 0;
+-	unsigned nr_ref_keep = 0;
+-	unsigned nr_unmap_fail = 0;
+ 
++	memset(stat, 0, sizeof(*stat));
+ 	cond_resched();
+ 
+ 	while (!list_empty(page_list)) {
+@@ -1181,10 +1174,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		 */
+ 		page_check_dirty_writeback(page, &dirty, &writeback);
+ 		if (dirty || writeback)
+-			nr_dirty++;
++			stat->nr_dirty++;
+ 
+ 		if (dirty && !writeback)
+-			nr_unqueued_dirty++;
++			stat->nr_unqueued_dirty++;
+ 
+ 		/*
+ 		 * Treat this page as congested if the underlying BDI is or if
+@@ -1196,7 +1189,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		if (((dirty || writeback) && mapping &&
+ 		     inode_write_congested(mapping->host)) ||
+ 		    (writeback && PageReclaim(page)))
+-			nr_congested++;
++			stat->nr_congested++;
+ 
+ 		/*
+ 		 * If a page at the tail of the LRU is under writeback, there
+@@ -1245,7 +1238,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			if (current_is_kswapd() &&
+ 			    PageReclaim(page) &&
+ 			    test_bit(PGDAT_WRITEBACK, &pgdat->flags)) {
+-				nr_immediate++;
++				stat->nr_immediate++;
+ 				goto activate_locked;
+ 
+ 			/* Case 2 above */
+@@ -1263,7 +1256,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 				 * and it's also appropriate in global reclaim.
+ 				 */
+ 				SetPageReclaim(page);
+-				nr_writeback++;
++				stat->nr_writeback++;
+ 				goto activate_locked;
+ 
+ 			/* Case 3 above */
+@@ -1283,7 +1276,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		case PAGEREF_ACTIVATE:
+ 			goto activate_locked;
+ 		case PAGEREF_KEEP:
+-			nr_ref_keep++;
++			stat->nr_ref_keep++;
+ 			goto keep_locked;
+ 		case PAGEREF_RECLAIM:
+ 		case PAGEREF_RECLAIM_CLEAN:
+@@ -1348,7 +1341,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			if (unlikely(PageTransHuge(page)))
+ 				flags |= TTU_SPLIT_HUGE_PMD;
+ 			if (!try_to_unmap(page, flags)) {
+-				nr_unmap_fail++;
++				stat->nr_unmap_fail++;
+ 				goto activate_locked;
+ 			}
+ 		}
+@@ -1496,7 +1489,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		VM_BUG_ON_PAGE(PageActive(page), page);
+ 		if (!PageMlocked(page)) {
+ 			SetPageActive(page);
+-			pgactivate++;
++			stat->nr_activate++;
+ 			count_memcg_page_event(page, PGACTIVATE);
+ 		}
+ keep_locked:
+@@ -1511,18 +1504,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 	free_unref_page_list(&free_pages);
+ 
+ 	list_splice(&ret_pages, page_list);
+-	count_vm_events(PGACTIVATE, pgactivate);
+-
+-	if (stat) {
+-		stat->nr_dirty = nr_dirty;
+-		stat->nr_congested = nr_congested;
+-		stat->nr_unqueued_dirty = nr_unqueued_dirty;
+-		stat->nr_writeback = nr_writeback;
+-		stat->nr_immediate = nr_immediate;
+-		stat->nr_activate = pgactivate;
+-		stat->nr_ref_keep = nr_ref_keep;
+-		stat->nr_unmap_fail = nr_unmap_fail;
+-	}
++	count_vm_events(PGACTIVATE, stat->nr_activate);
++
+ 	return nr_reclaimed;
+ }
+ 
+@@ -1534,6 +1517,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ 		.priority = DEF_PRIORITY,
+ 		.may_unmap = 1,
+ 	};
++	struct reclaim_stat dummy_stat;
+ 	unsigned long ret;
+ 	struct page *page, *next;
+ 	LIST_HEAD(clean_pages);
+@@ -1547,7 +1531,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ 	}
+ 
+ 	ret = shrink_page_list(&clean_pages, zone->zone_pgdat, &sc,
+-			TTU_IGNORE_ACCESS, NULL, true);
++			TTU_IGNORE_ACCESS, &dummy_stat, true);
+ 	list_splice(&clean_pages, page_list);
+ 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, -ret);
+ 	return ret;
+@@ -1922,7 +1906,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	unsigned long nr_scanned;
+ 	unsigned long nr_reclaimed = 0;
+ 	unsigned long nr_taken;
+-	struct reclaim_stat stat = {};
++	struct reclaim_stat stat;
+ 	int file = is_file_lru(lru);
+ 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+ 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
 
