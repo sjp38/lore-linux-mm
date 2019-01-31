@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DA71C4151A
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 18:37:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8F85C169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 18:37:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 29E59218EA
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 18:37:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 29E59218EA
+	by mail.kernel.org (Postfix) with ESMTP id 7CC4F218EA
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 18:37:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7CC4F218EA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2E8698E0004; Thu, 31 Jan 2019 13:37:20 -0500 (EST)
+	id 70EC78E0005; Thu, 31 Jan 2019 13:37:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 24A408E0001; Thu, 31 Jan 2019 13:37:20 -0500 (EST)
+	id 66BD78E0001; Thu, 31 Jan 2019 13:37:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0EB578E0004; Thu, 31 Jan 2019 13:37:19 -0500 (EST)
+	id 50DD08E0005; Thu, 31 Jan 2019 13:37:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CF97F8E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 13:37:19 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id n50so4681948qtb.9
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 10:37:19 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2110D8E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 13:37:21 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id j5so4620858qtk.11
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 10:37:21 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=kXqLfs1BKp0kzy9udszLKBSqjJnqMxtry13bQ0e2bt8=;
-        b=VD7CPTUbQZwoe/6C6M58onbZGXw+sVwyjl869HKiRbaShnQAyF/rkEbsZZ/uAgDHFw
-         d9b0uX9WzTebh0kG19fyKc2G/17XwM3ksbu4UyEa7xRgohflPLB9MVf4xiNWWg00U/0e
-         eRJl+8r7bVzlL9uYKcKeQmiZiG3A2Tw9JDSrq27b40rUyckuzt87bS0d0fJQzefBZ7bx
-         qi9uPG74jHy+CENYHMcbWlZ1ccQPQlpShi7Y034I8ZF83dLdetaniQ5npwr78C/q8FLA
-         xnh79PHIn1VfFg0yQsLG3FiU5j6mvCEXyqR2SlIKNYFCXm8AiTpsHcigBZGnF+M06K1b
-         TWNg==
+        bh=u45twQrCqvSrmqG5PGI8ES0fpLyoiBXcBf7TRg10A3c=;
+        b=doTWko/A/1xi1iyrFgHOsjpIJKEpg+4iwX9VYOfPIxDeAl/sEKSc8zyeFAVBk61ZBw
+         veonY5CPfSfMae4mBYnd23a6lQNOyZ6BQx5XO5QpW5i6KQdySIHq8RdHlerk9IHjNZyO
+         LzhnZXwP/2wxA2KUfniFtMHzU596WtCV+GGawzt5ZtxfxN/9EDCEb/1xiLg/SkWUd/Ce
+         5le6K0nOVdKscwwoNQTCtQFTwfvO+gf04xlKzWPcr3o9ig9C4PoysamornPremezXZtI
+         icg+jiaxtolkDIjxEdSoDdjBojdjWMbxGR6u7rV6Wtp5RC/IDszHlEmOMzPa+Ktj/Uyw
+         j4ng==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AJcUukdeFRKq6tWdK+BArcvLizSCV8XHtpdigoSu5sqfp4Oz8CY3FabJ
-	7AoY6RFSCfzkAXAYXjsT2AoiYKkK+9nghU7TyZZ37ld272YAh5jZoqD+AHR0Y8B3lIPrhTTSJKH
-	J56/tmH+j5k/pEYwDNLjttOY/ow2ULpzko+b/w4L//H9nTPGVrfWlu4Taw1Fw/vpDcA==
-X-Received: by 2002:a0c:b527:: with SMTP id d39mr33813356qve.201.1548959839625;
-        Thu, 31 Jan 2019 10:37:19 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6aZV+mdzMQN6JdSlGoG0iDsn7Mq5dSJP16dNNQ7l8jI3JH1LPCmu6cSamnpjijm7CuId1i
-X-Received: by 2002:a0c:b527:: with SMTP id d39mr33813336qve.201.1548959839203;
-        Thu, 31 Jan 2019 10:37:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548959839; cv=none;
+X-Gm-Message-State: AJcUukeP4e2AbYE7h2xeA0kLACx8oE1xuaT3UrggzKlLZFd9ZYLfDFnz
+	G7dsLT1EBmbz9mamls8XNzZJuOnCn87h9lvyGRNJeHIK0EqKSNvn+jUpbM5doh+UaD+MmIsG7/U
+	GUrHD7M9w6XOO5CHEW2h6uYDA3y78/L0PUPrgM9/Apj6DZ+0QdbWRqeXYbIOMpD8VyQ==
+X-Received: by 2002:a37:aa0c:: with SMTP id t12mr32111426qke.358.1548959840902;
+        Thu, 31 Jan 2019 10:37:20 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6aqcKJI6SDstX/mlWDhUt6iXsi7DtjwZXYlNmVqLqD5Eir6odWI45tudrj4jsdj20UjUkn
+X-Received: by 2002:a37:aa0c:: with SMTP id t12mr32111407qke.358.1548959840386;
+        Thu, 31 Jan 2019 10:37:20 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548959840; cv=none;
         d=google.com; s=arc-20160816;
-        b=H2QZ2V86KTj77DC0tuZjDEaF8xu5Zn/GDiauLi3gKOJGhwEs6MewKduLXSJfX4eEVr
-         rCiRrzDyCvZKuPJzsYiJTxH6+sde92RAsOUdWFjg6ljM0Cxk58OT7Xtbsu0/jVyC/xBK
-         /LfoVXeykevxz0t7AF7jYWpv27zGbQXzD1ICvgggi4HpNM2C6WGa8N/jwysbHuP5aE9v
-         HvU8zw6uwB3rVnZ7FHV9IfyfBPfFlFSj8jxcrAtpA6DO6SU50Ax/5A542kZKUwc5uQiM
-         WOtGTPGKMmFJqLL9D6gbxXCRkKT61ccYASGPFsHHNqMcv3oSsdZYEbZtIhj1UPgXwkWi
-         jX9Q==
+        b=YrKoKZCT7V5MURQikMbjL0IXwIBH2MkJEwoQycu1o4ZkG+615twuzIevCfxM9GI09C
+         zsTfzD7aV0umZyT8J13U83do2MjZIA3tKJcyLdodowbNpnzD61pVAt3ht0JvWonTKaM1
+         0SSPHFeo4hFBv9BNOSB4oV6SesndGr7O0Uzl/jhULMACt65Oh99MjlV+WmBefH9ANmRE
+         11JL26VbScIYAL4HTDJzy5WNZb2Ji8kobVoAqmYCfrDz2Fg0okr2jRGuk+5yrNMVPZ/d
+         JS6lpYYcHTHlyqIBmJySoKA9o6gnclW8ZvC+C94Ma5OP9UAtJPRIEFUgtDzSwyYEAOau
+         NzFA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=kXqLfs1BKp0kzy9udszLKBSqjJnqMxtry13bQ0e2bt8=;
-        b=Ns/S1vOe7rXX3JVVl40wa4BRIlMsVXryLxYD756FM1HuXerFXcULvqFfxP45rAftcO
-         U0f1gc2H6DcvlfBdY/Qf2AAAzMwTh4E0h+7M20xq1as5tcbJP2KVfbnUnKsQTU+G75Vy
-         c+TzkyRd2oDswAR/eGbZ4xzW1osuLdvUDQPwYKsiWIZKsK3EwiVpsgcCOPCMeVIBnZ5X
-         39h530aCDqcJ8MbVaOmIruJyYcvCW0a9/eUv44M6i4Gqcs1F2k6nda3O11Qf+sYMFwg1
-         Kn15iCJEqvVUvEhdcD0IHuiOUMK4qbrA1ghtVF9Y8x48zTJQKp580pWEY820uHUbkORG
-         QO7g==
+        bh=u45twQrCqvSrmqG5PGI8ES0fpLyoiBXcBf7TRg10A3c=;
+        b=OVmhCXR7H7Ioaw96QgRhqCzeXCgytrtv6kk73MwUHew/ocuKkIlxLApvX76LFpBpDY
+         LP89+AETmYLSjFQfTsFdvpCM0SehJarxS3uqAdH5c5j32+Sff36cSXZ0V5RTwK4HkG82
+         0gqjySDajAl16vcJhMJwx8CN3gLI6EyMnMpbcf+IhAb+qIdgWnfp9zxrkBrI5bgbbuqZ
+         FgGc+cTLeP/pIkUI8Tq2o++GsiXl8iRmGQbdYKjMqiMoTbgnN58mRNjV3flq+OMHw2nX
+         xU9IP1iIUXPFFBt95H6wKMlCHHx4dP4ZbrcU811ZwkljrO0eVJVXQKYg1LSSkt2fiDdT
+         4dZw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e16si1800838qtr.3.2019.01.31.10.37.19
+        by mx.google.com with ESMTPS id l13si67810qvm.104.2019.01.31.10.37.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jan 2019 10:37:19 -0800 (PST)
+        Thu, 31 Jan 2019 10:37:20 -0800 (PST)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
@@ -81,11 +81,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 6B0E99090D;
-	Thu, 31 Jan 2019 18:37:18 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 8D85489AF1;
+	Thu, 31 Jan 2019 18:37:19 +0000 (UTC)
 Received: from localhost.localdomain.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 6934718506;
-	Thu, 31 Jan 2019 18:37:17 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 87A7A18506;
+	Thu, 31 Jan 2019 18:37:18 +0000 (UTC)
 From: jglisse@redhat.com
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org,
@@ -96,16 +96,16 @@ Cc: linux-kernel@vger.kernel.org,
 	Paolo Bonzini <pbonzini@redhat.com>,
 	=?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>,
 	kvm@vger.kernel.org
-Subject: [RFC PATCH 2/4] mm/mmu_notifier: use unsigned for event field in range struct
-Date: Thu, 31 Jan 2019 13:37:04 -0500
-Message-Id: <20190131183706.20980-3-jglisse@redhat.com>
+Subject: [RFC PATCH 3/4] mm/mmu_notifier: set MMU_NOTIFIER_USE_CHANGE_PTE flag where appropriate
+Date: Thu, 31 Jan 2019 13:37:05 -0500
+Message-Id: <20190131183706.20980-4-jglisse@redhat.com>
 In-Reply-To: <20190131183706.20980-1-jglisse@redhat.com>
 References: <20190131183706.20980-1-jglisse@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Thu, 31 Jan 2019 18:37:18 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Thu, 31 Jan 2019 18:37:19 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -114,9 +114,16 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jérôme Glisse <jglisse@redhat.com>
 
-Use unsigned for event field in range struct so that we can also set
-flags with the event. This patch change the field and introduce the
-helper.
+When notifying change for a range use MMU_NOTIFIER_USE_CHANGE_PTE flag
+for page table update that use set_pte_at_notify() and where the we are
+going either from read and write to read only with same pfn or read only
+to read and write with new pfn.
+
+Note that set_pte_at_notify() itself should only be use in rare cases
+ie we do not want to use it when we are updating a significant range of
+virtual addresses and thus a significant number of pte. Instead for
+those cases the event provided to mmu notifer invalidate_range_start()
+callback should be use for optimization.
 
 Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
@@ -126,51 +133,73 @@ Cc: Paolo Bonzini <pbonzini@redhat.com>
 Cc: Radim Krčmář <rkrcmar@redhat.com>
 Cc: kvm@vger.kernel.org
 ---
- include/linux/mmu_notifier.h | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ include/linux/mmu_notifier.h | 13 +++++++++++++
+ mm/ksm.c                     |  6 ++++--
+ mm/memory.c                  |  3 ++-
+ 3 files changed, 19 insertions(+), 3 deletions(-)
 
 diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index be873c431886..d7a35975c2bd 100644
+index d7a35975c2bd..0885bf33dc9c 100644
 --- a/include/linux/mmu_notifier.h
 +++ b/include/linux/mmu_notifier.h
-@@ -6,6 +6,7 @@
- #include <linux/spinlock.h>
- #include <linux/mm_types.h>
- #include <linux/srcu.h>
-+#include <linux/log2.h>
- 
- struct mmu_notifier;
- struct mmu_notifier_ops;
-@@ -38,8 +39,11 @@ enum mmu_notifier_event {
- 	MMU_NOTIFY_PROTECTION_VMA,
- 	MMU_NOTIFY_PROTECTION_PAGE,
- 	MMU_NOTIFY_SOFT_DIRTY,
-+	MMU_NOTIFY_EVENT_MAX
+@@ -43,6 +43,19 @@ enum mmu_notifier_event {
  };
  
-+#define MMU_NOTIFIER_EVENT_BITS order_base_2(MMU_NOTIFY_EVENT_MAX)
-+
+ #define MMU_NOTIFIER_EVENT_BITS order_base_2(MMU_NOTIFY_EVENT_MAX)
++/*
++ * Set MMU_NOTIFIER_USE_CHANGE_PTE only when the page table it updated with the
++ * set_pte_at_notify() and when pte is updated from read and write to read only
++ * with same pfn or from read only to read and write with different pfn. It is
++ * illegal to set in any other circumstances.
++ *
++ * Note that set_pte_at_notify() should not be use outside of the above cases.
++ * When updating a range in batch (like write protecting a range) it is better
++ * to rely on invalidate_range_start() and struct mmu_notifier_range to infer
++ * the kind of update that is happening (as an example you can look at the
++ * mmu_notifier_range_update_to_read_only() function).
++ */
++#define MMU_NOTIFIER_USE_CHANGE_PTE (1 << MMU_NOTIFIER_EVENT_BITS)
+ 
  #ifdef CONFIG_MMU_NOTIFIER
  
- /*
-@@ -60,7 +64,7 @@ struct mmu_notifier_range {
- 	struct mm_struct *mm;
- 	unsigned long start;
- 	unsigned long end;
--	enum mmu_notifier_event event;
-+	unsigned event;
- 	bool blockable;
- };
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 97757c5fa15f..b7fb7b560cc0 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1051,7 +1051,8 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
  
-@@ -352,7 +356,7 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+ 	BUG_ON(PageTransCompound(page));
  
+-	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, vma, mm,
++	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR |
++				MMU_NOTIFIER_USE_CHANGE_PTE, vma, mm,
+ 				pvmw.address,
+ 				pvmw.address + PAGE_SIZE);
+ 	mmu_notifier_invalidate_range_start(&range);
+@@ -1140,7 +1141,8 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
+ 	if (!pmd)
+ 		goto out;
  
- static inline void mmu_notifier_range_init(struct mmu_notifier_range *range,
--					   enum mmu_notifier_event event,
-+					   unsigned event,
- 					   struct vm_area_struct *vma,
- 					   struct mm_struct *mm,
- 					   unsigned long start,
+-	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, vma, mm, addr,
++	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR |
++				MMU_NOTIFIER_USE_CHANGE_PTE, vma, mm, addr,
+ 				addr + PAGE_SIZE);
+ 	mmu_notifier_invalidate_range_start(&range);
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index a8c6922526f6..daf4b0f92af8 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2275,7 +2275,8 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
+ 
+ 	__SetPageUptodate(new_page);
+ 
+-	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, vma, mm,
++	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR |
++				MMU_NOTIFIER_USE_CHANGE_PTE, vma, mm,
+ 				vmf->address & PAGE_MASK,
+ 				(vmf->address & PAGE_MASK) + PAGE_SIZE);
+ 	mmu_notifier_invalidate_range_start(&range);
 -- 
 2.17.1
 
