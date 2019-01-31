@@ -8,111 +8,112 @@ X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA1EEC282D7
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 03:04:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4282EC282D7
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 03:06:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A6FBA218AC
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 03:04:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0049C2184D
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 03:06:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="tSgjerC4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6FBA218AC
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="VJa1+zh8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0049C2184D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3F1A78E0003; Wed, 30 Jan 2019 22:04:49 -0500 (EST)
+	id 7BFF88E0002; Wed, 30 Jan 2019 22:06:29 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 39F4D8E0001; Wed, 30 Jan 2019 22:04:49 -0500 (EST)
+	id 76E7A8E0001; Wed, 30 Jan 2019 22:06:29 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 240398E0003; Wed, 30 Jan 2019 22:04:49 -0500 (EST)
+	id 65DB18E0002; Wed, 30 Jan 2019 22:06:29 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D454A8E0001
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 22:04:48 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id x7so1265717pll.23
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 19:04:48 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 25DB78E0001
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2019 22:06:29 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id 12so1279178plb.18
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2019 19:06:29 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:mime-version:content-disposition:user-agent;
-        bh=9UKheLNLSM7085+hYajJxzL+Wpldb3TOma8RXX0hjL4=;
-        b=scj8n5gtmWNJiKYB7C9ZjCcL3SGsBCs8lmuOh8hgOFZU4eo5igPH+lxGZf7u0LvYD7
-         vwdPg2iq/SQTzVr3xQK4ZCZHHJHv4c9NLezBb2OO6qmavN3oqcgT/7T2pFKPROenFqup
-         XQPQ43OyJ9CsApaJFjCGNIPHtbT48g6zUpxxa4lLUSpZnCW0mD5lq0IkJK/J1yKbTbOR
-         AY9UNe4F3jgJw7mJtHkQVAbywK16z2tzyY4/wSeUoTduumSY/O/hHm9xo9CwkOmQwVqX
-         R0/KIc1EWaGLb7mBJvoEc+U0yH1Nvl7UJcqBLsR7m7s1S5rr38GMvi+xHlCaLG4pwD0z
-         irfw==
-X-Gm-Message-State: AJcUukdH7vVHBOs/ENE13hkOY9KGExKmq4DXm04hRGj5y26yX3B3wtwo
-	WyocjkJvKDDflJ+R3R7QVfvMeZCdd1CH4HXYV2rhmZzJk6rIRlcUjI6OxWFhlOvE6R63DCdBi/i
-	sgZ52RzY2R3BV+1/KYRLK+h5/qNxngbV8b6L+/R1lotcIQZq/HEGIBcvQ4yeKxt9swJaCAaU0vv
-	COa1C74PTZYp0K+Owfa54Yr9a3GDwYKAAl4tuxSllCIdFQxDphWgqIps1wNxhtiSc+oETz0rxJD
-	YG4N4/EeUCKG3LaMGRWTZERjF3KNrHbSxd7wPcPr755wv/KUyWeFN7EjEDm7YjscSmhOTFoZ5zA
-	4WIZANWPektaHUQFy/3F9LHVhgcwbjBHIfhLoVK3msaqQGFBAPlBt6NRNiYuyVBZ1ZsrGZZm3YP
-	D
-X-Received: by 2002:a63:5621:: with SMTP id k33mr30241917pgb.395.1548903888494;
-        Wed, 30 Jan 2019 19:04:48 -0800 (PST)
-X-Received: by 2002:a63:5621:: with SMTP id k33mr30241885pgb.395.1548903887717;
-        Wed, 30 Jan 2019 19:04:47 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548903887; cv=none;
+        bh=fve/F1/lKXEnfpzre5B+d6239UbIM50sDNUC8vj1UvQ=;
+        b=UiU/vS/k/PsO2pufeDlkgKpUtwn3UKb+Um5dBviQDKD7DybJ3qA6zmXAAe4dEH1X7n
+         psXZH6iMHT4cMnS3OnRr8MTva4StCCEXUV8KN+8OeYrzSjSnWBBJ/nVbusRHbbS+lLJ7
+         WiQj1nvEYqXbHsZRFittgdfmi4C8AltwhyUHSdUj+AfmGpl6YnW/nG1gNq1cLKB6Jho6
+         C6usg1eUh6xAA9bC3U8Ia8tui6gzjb8MQam5nr7Jnqx62FgQLvUU5NDgJNrFPq1VqUs4
+         uMNTciCTWDCOjD8m/0wjmmc+tjYbRpxFnD1Sh80AY6MwYb/rcA/MHMDMJot/R2CqLtMc
+         eE8A==
+X-Gm-Message-State: AJcUukfpXcKJ/VSQw8Ev64IEmFa4DDgyV3puhwNQCnfu1D259//upVPW
+	ZyIxZNUZ+pztIU4KxXQbodrSKZIJTNXdp+oa+K+E/Sd4ZajrW7tacyRAPw2tzRj1oWJ08zVAsw8
+	u6U18aKESPcpwTi4wfmDmkyfP5GEY0VjzMfRnDEOxBQxeLTxTUAtZRL0xI0l4UdkkayoEoMYwaB
+	HnS5Xp+8rw67pdBDxJwUq/O2jh35yIkKlXZmpg6j+h0u27dfG8iWzIkaCpFPTEI0m+R0VnR3Zbp
+	QKyBhhNHRPG60wQn3r0lAOCkqSwhCmt7LCptZNG+LaQ0dwEG4QIldHE7fKQXM2R2t+1CLlVFgAU
+	1DEW/04L7LamJhrGzcLHgZSHxy9kp0IN+/6vnXbrDUWa038pFxQ8UIt2EJy0rsluTTYmPBCbrKf
+	2
+X-Received: by 2002:a17:902:5982:: with SMTP id p2mr32735660pli.39.1548903988826;
+        Wed, 30 Jan 2019 19:06:28 -0800 (PST)
+X-Received: by 2002:a17:902:5982:: with SMTP id p2mr32735621pli.39.1548903988088;
+        Wed, 30 Jan 2019 19:06:28 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548903988; cv=none;
         d=google.com; s=arc-20160816;
-        b=UP9tOiw0K+3L2fM3aS7YRdJYzHG8MFSLictEpxynqMC3gDCuU6pqPddVM48BdJA/V4
-         hWy+uQlEzSn8PRbjuLLj7MY8bZY8bfR9cHgJ4fCEj29qdLsbXACACBFeAQpG5g6viI9S
-         LydmAXCWB9NA4sqcyph96ER7vfrh/tR8Yg1nBQa0ufwE69et7cP0GE2BUJFv0jG7mGol
-         pbncmXD2bIQgOjYPn4Im6iwepKp9TvO8z8slAI3i/5z4iQpnGXsuw9Coz/N4VMkSQGy7
-         05YiwjmNsolSIhp7SETGNGSgkOIUzSG1SZ+snYRI5EUjTzMPJJ1E8rrqHe8px2Bq5FnE
-         AF1w==
+        b=KRHz4rAOak8QNMqhtd0/w/lsr8meODKYvQdBSx3+GQNJQqMXfzdnNJPoA68NrgbbIQ
+         NydtZ38Pc3An3msD1MGgW62uxSude17gNpaNgSY+KsL75x0LDbwG1H5gIrYeIaq/388J
+         iFsJ+tcmZs0KlFkehwPtxhKEidpWLQm8CRnsPWHH59dcr4JXkYI5AIFp4C85IeNCL1jj
+         /vBWto2RN4/AyCTqAxARG+Ux7dk2gH2ZLZpQEc2HrOmlVfDhTbY4iNtdPqqPFKpPEdrx
+         CJj2gvE0xBfPB53/q41PN/hk4Ma91fB4em8AyU+cB7Z4rfMR0miUnsz7k/sSaqRjbhoV
+         eKYA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:content-disposition:mime-version:message-id:subject:cc
          :to:from:date:dkim-signature;
-        bh=9UKheLNLSM7085+hYajJxzL+Wpldb3TOma8RXX0hjL4=;
-        b=UA4muo+ssqOLAGgzzATTUalc03x3Fq1Il8d7TQ6F/DAeNDTTfAszpI/kZysYRcAvIR
-         WDReJFTqufDKB9Y5XQkkoQgONBQbzBhejn7le2cb7DFctnuElP/nDP40tCY8N5GDuu47
-         G6Uw/oKv5BqwHIghUJ2hmGgfuWIQKO2dGLikmf5kBbFzEwltvnbG7pW746rEsJrjokrW
-         EISeQB5PEYQM6BAsM3niEP8MpfMC4LYEttZfMOadyx39WOcvn6NXrIsmkfqC2GLs73XR
-         mJ5dFkakFd2vsxvlL8215G6xgJzWgl493U+0oCB5Hm0NxXI7v+b2RfxQqrjU50RFIRJN
-         Xnpw==
+        bh=fve/F1/lKXEnfpzre5B+d6239UbIM50sDNUC8vj1UvQ=;
+        b=y+oU8rv4671uEB+tFHe2VN6OxmjL5Cz6A4jlLceLZmzxZc6hrvyRj/rujHzGtmdHje
+         NHZ9VjnLnTommhHFc7Atp1NPmwmM03kJQqhVu23fssRKMv/3HxWGXVZwrKmbIwx7utgw
+         PTNT9kimZCLirYd9Xy/Krh5CziYJHL+cn3sppqTwKSCXJeabG6we9kvlCmijCpNTYhCt
+         Ksiqc7ol4Sv2h4s7vF6ZSPXzaZPEcEfdNwRyd8Un/8HpWwSW3iXtX4T1ptf0XKVL3X9W
+         Zd5Vh1f425HAYoPDZgef5aqMOonCrWRudYhXVx6jy/cNRJ7TqAmPqUtCKTxOlQE9j8SG
+         g5dQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tSgjerC4;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=VJa1+zh8;
        spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w65sor4944095pgw.5.2019.01.30.19.04.47
+        by mx.google.com with SMTPS id y6sor5422501pfi.19.2019.01.30.19.06.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 30 Jan 2019 19:04:47 -0800 (PST)
+        Wed, 30 Jan 2019 19:06:28 -0800 (PST)
 Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tSgjerC4;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=VJa1+zh8;
        spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=date:from:to:cc:subject:message-id:mime-version:content-disposition
          :user-agent;
-        bh=9UKheLNLSM7085+hYajJxzL+Wpldb3TOma8RXX0hjL4=;
-        b=tSgjerC4dK44S06W0OSTr53cNg28+6cUTE4HzPUKTdkevWVpDJ97JFTp+cPosrPNEV
-         D8rphH0u8PJiDjdQsW2TNjafYIBoOsL1lTpSoOkAZyJOLs4Vo+jTdmYEwU7Jl7hXgk8u
-         bhAoeiu1BDGFLMWPAWbdszIxVsMvwVSrmn9/NbkQyumWfBx94sOwPfkrdncoz+vMpmLN
-         GvJIbeBoL5m3lTrGsdAHY7E5Ffo5FQtSCX5JwL9a+t7uCBTkj1fO/HsLuTpU2zXaDEU3
-         Ob05VCxwKCGE7QtPagY4Sd1s9LT8xNY41xJLt1okURF5K+hRbPJY9tnqbjP0VDuMbxqy
-         h/+Q==
-X-Google-Smtp-Source: ALg8bN4FchuqbyYG65Y851K8FAAMbykpYxvta9bA6d520FyHakM49c32bL40WPlrtGU5T7jPX/J4QA==
-X-Received: by 2002:a63:7c6:: with SMTP id 189mr30429168pgh.129.1548903887364;
-        Wed, 30 Jan 2019 19:04:47 -0800 (PST)
+        bh=fve/F1/lKXEnfpzre5B+d6239UbIM50sDNUC8vj1UvQ=;
+        b=VJa1+zh8xHi3tI1io1YyR1jW4Ql0L2HM/0G/TqGLCYIRuEUfaDMSQLwWgfnv/q2VCK
+         iMQgvcHSc2/MMEr41Z3VcXIJpBynXvCLMm+MCb5Ony0kLh1P+43S1EyOZ0c2VVcXfUDi
+         zyUHlPc92S25kuxJL0xxi6q5K7621sWC7v7ZPljG/f/9EmAD7+iDx7aFSG3OZ8ScP0cF
+         VzOGvcgsG44tSmhzqBnqDDYP/OTdVImNeD06R22jMcUhnzLmqtpjiveuyfIVjBd7x9Me
+         M4s/fGqqA5tbzFW8w6RcVcyXN17XcXe3Wf1t1LgEPIqHODKKlYApfWHRPjE12iaJHekM
+         stRg==
+X-Google-Smtp-Source: ALg8bN6rRzXK6nfBRBSHhIlA85333gGdTjbHnrt6wuJpi13BssALmTS8VMglE5ur30io8jYwjS7LDQ==
+X-Received: by 2002:a62:1f9d:: with SMTP id l29mr33146546pfj.14.1548903987795;
+        Wed, 30 Jan 2019 19:06:27 -0800 (PST)
 Received: from jordon-HP-15-Notebook-PC ([106.51.20.103])
-        by smtp.gmail.com with ESMTPSA id o13sm4055072pfk.57.2019.01.30.19.04.45
+        by smtp.gmail.com with ESMTPSA id v2sm4236663pgs.0.2019.01.30.19.06.26
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 30 Jan 2019 19:04:46 -0800 (PST)
-Date: Thu, 31 Jan 2019 08:39:00 +0530
+        Wed, 30 Jan 2019 19:06:27 -0800 (PST)
+Date: Thu, 31 Jan 2019 08:40:40 +0530
 From: Souptick Joarder <jrdr.linux@gmail.com>
 To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com,
-	linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com,
-	treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com
+	hjc@rock-chips.com, heiko@sntech.de, airlied@linux.ie,
+	linux@armlinux.org.uk, robin.murphy@arm.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-arm-kernel@lists.infradead.org
-Subject: [PATCHv2 2/9] arch/arm/mm/dma-mapping.c: Convert to use
+	linux-arm-kernel@lists.infradead.org,
+	dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org
+Subject: [PATCHv2 4/9] drm/rockchip/rockchip_drm_gem.c: Convert to use
  vm_insert_range
-Message-ID: <20190131030900.GA2284@jordon-HP-15-Notebook-PC>
+Message-ID: <20190131031040.GA2320@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -128,51 +129,42 @@ memory to user vma.
 
 Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
 ---
- arch/arm/mm/dma-mapping.c | 22 ++++++----------------
- 1 file changed, 6 insertions(+), 16 deletions(-)
+ drivers/gpu/drm/rockchip/rockchip_drm_gem.c | 17 ++---------------
+ 1 file changed, 2 insertions(+), 15 deletions(-)
 
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index f1e2922..915f701 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -1575,31 +1575,21 @@ static int __arm_iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma
- 		    void *cpu_addr, dma_addr_t dma_addr, size_t size,
- 		    unsigned long attrs)
+diff --git a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+index a8db758..c9e207f 100644
+--- a/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
++++ b/drivers/gpu/drm/rockchip/rockchip_drm_gem.c
+@@ -221,26 +221,13 @@ static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
+ 					      struct vm_area_struct *vma)
  {
+ 	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
+-	unsigned int i, count = obj->size >> PAGE_SHIFT;
++	unsigned int count = obj->size >> PAGE_SHIFT;
+ 	unsigned long user_count = vma_pages(vma);
 -	unsigned long uaddr = vma->vm_start;
--	unsigned long usize = vma->vm_end - vma->vm_start;
- 	struct page **pages = __iommu_get_pages(cpu_addr, attrs);
- 	unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
--	unsigned long off = vma->vm_pgoff;
-+	int err;
+-	unsigned long offset = vma->vm_pgoff;
+-	unsigned long end = user_count + offset;
+-	int ret;
  
- 	if (!pages)
+ 	if (user_count == 0)
  		return -ENXIO;
+-	if (end > count)
+-		return -ENXIO;
  
--	if (off >= nr_pages || (usize >> PAGE_SHIFT) > nr_pages - off)
-+	if (vma->vm_pgoff >= nr_pages)
- 		return -ENXIO;
- 
--	pages += off;
--
--	do {
--		int ret = vm_insert_page(vma, uaddr, *pages++);
--		if (ret) {
--			pr_err("Remapping memory failed: %d\n", ret);
+-	for (i = offset; i < end; i++) {
+-		ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
+-		if (ret)
 -			return ret;
--		}
 -		uaddr += PAGE_SIZE;
--		usize -= PAGE_SIZE;
--	} while (usize > 0);
-+	err = vm_insert_range(vma, pages, nr_pages);
-+	if (err)
-+		pr_err("Remapping memory failed: %d\n", err);
- 
+-	}
+-
 -	return 0;
-+	return err;
++	return vm_insert_range(vma, rk_obj->pages, count);
  }
- static int arm_iommu_mmap_attrs(struct device *dev,
- 		struct vm_area_struct *vma, void *cpu_addr,
+ 
+ static int rockchip_drm_gem_object_mmap_dma(struct drm_gem_object *obj,
 -- 
 1.9.1
 
