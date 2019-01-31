@@ -2,168 +2,260 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 82C85C169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 16:09:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4DE19C169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 16:10:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 274202085B
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 16:09:48 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=ieee.org header.i=@ieee.org header.b="J3oCes5O"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 274202085B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=ieee.org
+	by mail.kernel.org (Postfix) with ESMTP id 062802085B
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 16:10:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 062802085B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CCA5B8E0004; Thu, 31 Jan 2019 11:09:47 -0500 (EST)
+	id 9E1E48E0005; Thu, 31 Jan 2019 11:10:17 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C7B698E0003; Thu, 31 Jan 2019 11:09:47 -0500 (EST)
+	id 991F48E0003; Thu, 31 Jan 2019 11:10:17 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B687D8E0004; Thu, 31 Jan 2019 11:09:47 -0500 (EST)
+	id 8809B8E0005; Thu, 31 Jan 2019 11:10:17 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DAA78E0003
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 11:09:47 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id p124so2854984itd.8
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 08:09:47 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AB8E8E0003
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 11:10:17 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id 41so4067599qto.17
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 08:10:17 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=UZDhNb4sVXnlVoRkQvj1z4u9Zv5cFgKlz/b2lxRaoPI=;
-        b=H6aIupw/svx6ODkIGT6TnWKpy7KrygBbTDiNHnLJNsvaPDRTmMVt8kxP39aTELFoEj
-         TTyiOIOkUo9aA5Z2nPF0ssEdpXFWIWEdj9bTBIbo41fj/FOsEwcoLMzZOKMZXRxSfi1k
-         xprn3BITu8lWGyFV3w6I97h6zF+Je/gyAmEV3+E/6lvRhDrZJgRr6eEpLT7MhUnNwNUM
-         ed/c3zn9PHAMh/xw0WpsZNnRT7nIkJc78Uefv5VMeuymXtzl3Ag7hqxCROaojLc57NRt
-         mdxrCC6zxT4Y5Uz4ylXB7HVzlFk+iXeYyyzXITCVm6D6m/jJnVUFKzkC/oUBjX2SyAZo
-         /5kg==
-X-Gm-Message-State: AJcUukfaGnwgc4pa3kr10lUtgj3QIInJlovirqaplSrFpVKPeGvCuvZP
-	KuES6gnZoY/ZoCKTK/oFV+gfRrySRpIQSXjpUT7fpWAx3jfBA+bPDsxwmYtZ6hTfrqlDS7zxpeQ
-	R05u43P4b0uWKiDH1a0mHEuV+mJxuM3OnSfLnDCNM4uvp/jXI3c/xjjrZ6Z3xEEy7B4FipzeDkL
-	CkNXaZsz/l9kOO7mE/sDH3qQqAPW5z3nYOkrHXHYUFxWCRoCcrV3ZHKfd2wY1olCwguFOq+cLY8
-	2NuPIr5lPT4FWUa+GB9YnFKthTNKoDxDTZ4P5NArqM1Pt4sPRXfpT0QKk7nIdtz5MecTCK++rXQ
-	Svp5fXf1qrp1NtkSYJLUqwbUh18WsdBEibZNwhi9Jr7jUGV1TAEgRavGHPq2Fg1WDVDyp9G9ZG/
-	1
-X-Received: by 2002:a02:570d:: with SMTP id u13mr21568636jaa.71.1548950987330;
-        Thu, 31 Jan 2019 08:09:47 -0800 (PST)
-X-Received: by 2002:a02:570d:: with SMTP id u13mr21568597jaa.71.1548950986544;
-        Thu, 31 Jan 2019 08:09:46 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548950986; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=SwY0+Y6CvG8ZDhsgFQ4o1R3WtSfZyWTlSXJTD24H1UQ=;
+        b=RVPShMEhmEbGyQytjfq2DuT6mWa3HW1g8uq7jxaDYEfZRXew8gylILBIeuHaGPDHs1
+         3YpHLYngehV9ugz1DvkONF1GsFVIAENsB6kIzJNAJfDsec3XJvVGRlpC9KEjzrN5OADt
+         xk5RYe+oUVGyBLKohHpVuykt1ZD31rQdP/7LdS2mk4Hd0oF5nhtTXi/8lB3bGY7biXRV
+         fE5+zED0jHyHv1ZD1ySjx8PLLufLyW/j8L+/8KmrIP03ki1c9SGBKa6ga5JKN1N9tUQL
+         +FXlDq6W9D9H5qBCYPsQVYccMvOU7Hl1iUsWjKhiem4zQspPNFYKgCXor5LPwNIrW1vM
+         uvNg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukfpEwtN02B4+GPppt3QnO2RUMT25hZnUOT4gYzIIqJrLuy81FIH
+	r+gYvH+VThelAueZXzm8z0rmiHusDIdf7jxwK48CpkWJRhJrAWNawDJ0VvI84IP43W/J/5o6hk9
+	FPy0sTgkM0dPHcP0SBah5s8eYBuj2oIQn/aqLqGyfKeEEqoiyzbdWs75TGJhR7L1irw==
+X-Received: by 2002:a0c:9549:: with SMTP id m9mr33784625qvm.214.1548951017069;
+        Thu, 31 Jan 2019 08:10:17 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN77ZYduioFIc2CZOZ2ty6N/M1g9XNAxKyXhP+ssrx+DfpTUHkJiBHt6RhG7rsxQNQerNWag
+X-Received: by 2002:a0c:9549:: with SMTP id m9mr33784552qvm.214.1548951016192;
+        Thu, 31 Jan 2019 08:10:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548951016; cv=none;
         d=google.com; s=arc-20160816;
-        b=gUxd3fLYsB3qBLa7f/M+kmtMZWoiLxyDlF/7mkbXIMxuUjMUiuQAf8S8dGhT4EZ9i/
-         hzHanVu1uu7iaI8+Ueq5rMeR0KTBYrhYqwqNRjhFvf1QPgLfJ5XJJ0vZQz34IYdWb42v
-         g95DOX2zc+/RGVfBvoDPJ3b7I9HhzySxeqi/tLEKJnJL8PPKW7vWeul4v0HCy7iGMnmu
-         qiW2GWb6GzGa7O5pIgZdL7qXEe+S0L4EE9HQizAO0z3jpvcrksU4WkuhGo0I3HjjJ10u
-         FVgLPnnI8ryXZFPISuJ7JB7MKcU+GJ+fKSJtatqLfq/SLI0/5NgU42GI8mzJAGHXkaZ0
-         xp7g==
+        b=r2e+eLjpVX7U3fgVPpGbf0Mhy9e/E5TJIu0pCziIXeTqxHODSiuCKFTB/U9S0Z5T5p
+         W/+/gpB32dV8D26/+b4ixkE16QQTlUNRrucBrYfk/bsNyUbhzzmMVw1I9FL3GkXvUrub
+         xuIT4xnov0AHdTd78aXKvQqlmOd573S3kPNhkD+SiZ3szK+loyDz6i+17yZH7r9gKt4k
+         ts49Osc7BE+m5OOV8XLXUTBjAUeFXd7n5uOAC/JaPlru+mcZt9xLGzAMamPD8eMd01F0
+         AAdogr609cgDOWYsu4H4MMWjMIAvkQL5dYTkCKzyTnxPETvKiS4rnKh+6eAmY9fDogKf
+         vUPA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=UZDhNb4sVXnlVoRkQvj1z4u9Zv5cFgKlz/b2lxRaoPI=;
-        b=sgx9vqcBsgvJr9mdxODVYs1wY9jQhnutyLVbVUY93zxsxC/C80lWrPUjVdqR88V2o+
-         ENNzKULdFkN7TBIWKN2yOP/52h50J7Wx4g5IJV++NAGlnpwwE4jj3bYGpLV+QnNY6vFW
-         vjbm4dTW+ICpHS6w74a4cOFAIERSZmv4BcxeBKGaD4BtXpbEptxYGTNb+znMBu53QtM0
-         MTNES50GnwQp+iMVGCKak/U4NQrWc8c9js2qHSzYNGlChRSl/nInry5NQj8DDewe13iJ
-         aCHybZs9FlqCKHykMhYxM9BIP78TKIeGSKR218s5KXwiCM/Z1UWgNd6YsJgYNgcQ56LU
-         TMCw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=SwY0+Y6CvG8ZDhsgFQ4o1R3WtSfZyWTlSXJTD24H1UQ=;
+        b=vVEEMLhBnHncoxuYGs/DQEm1I2Re9AY8o8cfMAx5asyFZYfop9aCQwuGANW96LeQzt
+         OIcoDrytmd8r3WjaqCO28JD3qfBPzc2wV/CFh5GBq2MjQ140UuJwLuEg3CxXt2svth1p
+         CU2Uq3D/+/nYYJEc/gthiLPiizxjrWijn4ciFl7UNRQ9xkBGkfo9Z4WhZay3+B6RIMrT
+         ZrFYGlpf+yvN2/jUK967+HM/urQZlS3ik/3sbzMIdD3940Rudt9l5M7JTN6OyuPEgO3e
+         HiX7BfeoyxyFYjajLXjNtEhsuUutg8bgS7qieOpiwgHGanyU5PGOxSkHCJI5byOUK4V8
+         DRUg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ieee.org header.s=google header.b=J3oCes5O;
-       spf=pass (google.com: domain of ddstreet@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=ddstreet@gmail.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ieee.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v192sor9249937itb.17.2019.01.31.08.09.46
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h64si3443271qkd.110.2019.01.31.08.10.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 31 Jan 2019 08:09:46 -0800 (PST)
-Received-SPF: pass (google.com: domain of ddstreet@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Jan 2019 08:10:16 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ieee.org header.s=google header.b=J3oCes5O;
-       spf=pass (google.com: domain of ddstreet@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=ddstreet@gmail.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ieee.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ieee.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=UZDhNb4sVXnlVoRkQvj1z4u9Zv5cFgKlz/b2lxRaoPI=;
-        b=J3oCes5OPHB+6WC7iK+6Bv/vJAn/0GRY3kTFJiC1znYpGLb6xldzpM/uW2qPALEQpZ
-         Q6DAGAc/VWFUsGjie0B6CnvC3WdDL5Wx5yBNoAFH9G/xbGnTRudXOXlW7bwsV9BsStCz
-         y63OK+00cx80Mef8GgK7mmbwNllr75Gh/wnfo=
-X-Google-Smtp-Source: ALg8bN5qFLcdLOpTE2pGibV42YVQjE5QLQrQnNLCf+DjrvQhpaeRJgPXfQVNu1buofq1DYB/NxRhVXHBDAXeFOdf4rs=
-X-Received: by 2002:a24:9dce:: with SMTP id f197mr19131102itd.13.1548950986086;
- Thu, 31 Jan 2019 08:09:46 -0800 (PST)
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 80D073DBD2;
+	Thu, 31 Jan 2019 16:10:14 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.236])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 4530C5D717;
+	Thu, 31 Jan 2019 16:10:08 +0000 (UTC)
+Date: Thu, 31 Jan 2019 11:10:06 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	Jan Kara <jack@suse.cz>, Felix Kuehling <Felix.Kuehling@amd.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Matthew Wilcox <mawilcox@microsoft.com>,
+	Ross Zwisler <zwisler@kernel.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+	Michal Hocko <mhocko@kernel.org>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>, kvm@vger.kernel.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH v4 0/9] mmu notifier provide context informations
+Message-ID: <20190131161006.GA16593@redhat.com>
+References: <20190123222315.1122-1-jglisse@redhat.com>
 MIME-Version: 1.0
-References: <20190122152151.16139-9-gregkh@linuxfoundation.org>
- <CALZtONCjGashJkkDSxjP-E8-p67+WeAjDaYn5dQi=FomByh8Qg@mail.gmail.com> <20190129203325.GA2723@kroah.com>
-In-Reply-To: <20190129203325.GA2723@kroah.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Thu, 31 Jan 2019 11:09:09 -0500
-Message-ID: <CALZtONBSgcHMLZBAdc3FmGFbVrQhvdWKpKe+ATSuGk8_D=QP_A@mail.gmail.com>
-Subject: Re: [PATCH] zswap: ignore debugfs_create_dir() return value
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Seth Jennings <sjenning@redhat.com>, 
-	Linux-MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190123222315.1122-1-jglisse@redhat.com>
+User-Agent: Mutt/1.10.0 (2018-05-17)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Thu, 31 Jan 2019 16:10:15 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2019 at 3:33 PM Greg Kroah-Hartman
-<gregkh@linuxfoundation.org> wrote:
->
-> On Tue, Jan 29, 2019 at 02:46:30PM -0500, Dan Streetman wrote:
-> > On Tue, Jan 22, 2019 at 10:23 AM Greg Kroah-Hartman
-> > <gregkh@linuxfoundation.org> wrote:
-> > >
-> > > When calling debugfs functions, there is no need to ever check the
-> > > return value.  The function can work or not, but the code logic should
-> > > never do something different based on this.
-> > >
-> > > Cc: Seth Jennings <sjenning@redhat.com>
-> > > Cc: Dan Streetman <ddstreet@ieee.org>
-> > > Cc: linux-mm@kvack.org
-> > > Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> > > ---
-> > >  mm/zswap.c | 2 --
-> > >  1 file changed, 2 deletions(-)
-> > >
-> > > diff --git a/mm/zswap.c b/mm/zswap.c
-> > > index a4e4d36ec085..f583d08f6e24 100644
-> > > --- a/mm/zswap.c
-> > > +++ b/mm/zswap.c
-> > > @@ -1262,8 +1262,6 @@ static int __init zswap_debugfs_init(void)
-> > >                 return -ENODEV;
-> > >
-> > >         zswap_debugfs_root = debugfs_create_dir("zswap", NULL);
-> > > -       if (!zswap_debugfs_root)
-> > > -               return -ENOMEM;
-> > >
-> > >         debugfs_create_u64("pool_limit_hit", 0444,
-> > >                            zswap_debugfs_root, &zswap_pool_limit_hit);
-> >
-> > wait, so if i'm reading the code right, in the case where
-> > debugfs_create_dir() returns NULL, that will then be passed along to
-> > debugfs_create_u64() as its parent directory - and the debugfs nodes
-> > will then get created in the root debugfs directory.  That's not what
-> > we want to happen...
->
-> True, but that is such a rare thing to ever happen (hint, you have to be
-> out of memory), that it's not really a bad thing.  But, you are not the
-> first to mention this, which is why this patch is on its way to Linus
-> for 5.0-final:
->         https://lore.kernel.org/lkml/20190123102814.GB17123@kroah.com/
 
-Ah!  Great, in that case then definitely
+Andrew what is your plan for this ? I had a discussion with Peter Xu
+and Andrea about change_pte() and kvm. Today the change_pte() kvm
+optimization is effectively disabled because of invalidate_range
+calls. With a minimal couple lines patch on top of this patchset
+we can bring back the kvm change_pte optimization and we can also
+optimize some other cases like for instance when write protecting
+after fork (but i am not sure this is something qemu does often so
+it might not help for real kvm workload).
 
-Acked-by: Dan Streetman <ddstreet@ieee.org>
+I will be posting a the extra patch as an RFC, but in the meantime
+i wanted to know what was the status for this.
 
->
-> thanks,
->
-> greg k-h
+
+Jan, Christian does your previous ACK still holds for this ?
+
+
+On Wed, Jan 23, 2019 at 05:23:06PM -0500, jglisse@redhat.com wrote:
+> From: Jérôme Glisse <jglisse@redhat.com>
+> 
+> Hi Andrew, i see that you still have my event patch in you queue [1].
+> This patchset replace that single patch and is broken down in further
+> step so that it is easier to review and ascertain that no mistake were
+> made during mechanical changes. Here are the step:
+> 
+>     Patch 1 - add the enum values
+>     Patch 2 - coccinelle semantic patch to convert all call site of
+>               mmu_notifier_range_init to default enum value and also
+>               to passing down the vma when it is available
+>     Patch 3 - update many call site to more accurate enum values
+>     Patch 4 - add the information to the mmu_notifier_range struct
+>     Patch 5 - helper to test if a range is updated to read only
+> 
+> All the remaining patches are update to various driver to demonstrate
+> how this new information get use by device driver. I build tested
+> with make all and make all minus everything that enable mmu notifier
+> ie building with MMU_NOTIFIER=no. Also tested with some radeon,amd
+> gpu and intel gpu.
+> 
+> If they are no objections i believe best plan would be to merge the
+> the first 5 patches (all mm changes) through your queue for 5.1 and
+> then to delay driver update to each individual driver tree for 5.2.
+> This will allow each individual device driver maintainer time to more
+> thouroughly test this more then my own testing.
+> 
+> Note that i also intend to use this feature further in nouveau and
+> HMM down the road. I also expect that other user like KVM might be
+> interested into leveraging this new information to optimize some of
+> there secondary page table invalidation.
+> 
+> Here is an explaination on the rational for this patchset:
+> 
+> 
+> CPU page table update can happens for many reasons, not only as a result
+> of a syscall (munmap(), mprotect(), mremap(), madvise(), ...) but also
+> as a result of kernel activities (memory compression, reclaim, migration,
+> ...).
+> 
+> This patch introduce a set of enums that can be associated with each of
+> the events triggering a mmu notifier. Latter patches take advantages of
+> those enum values.
+> 
+> - UNMAP: munmap() or mremap()
+> - CLEAR: page table is cleared (migration, compaction, reclaim, ...)
+> - PROTECTION_VMA: change in access protections for the range
+> - PROTECTION_PAGE: change in access protections for page in the range
+> - SOFT_DIRTY: soft dirtyness tracking
+> 
+> Being able to identify munmap() and mremap() from other reasons why the
+> page table is cleared is important to allow user of mmu notifier to
+> update their own internal tracking structure accordingly (on munmap or
+> mremap it is not longer needed to track range of virtual address as it
+> becomes invalid).
+> 
+> [1] https://www.ozlabs.org/~akpm/mmotm/broken-out/mm-mmu_notifier-contextual-information-for-event-triggering-invalidation-v2.patch
+> 
+> Cc: Christian König <christian.koenig@amd.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Felix Kuehling <Felix.Kuehling@amd.com>
+> Cc: Jason Gunthorpe <jgg@mellanox.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Matthew Wilcox <mawilcox@microsoft.com>
+> Cc: Ross Zwisler <zwisler@kernel.org>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Paolo Bonzini <pbonzini@redhat.com>
+> Cc: Radim Krčmář <rkrcmar@redhat.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: kvm@vger.kernel.org
+> Cc: dri-devel@lists.freedesktop.org
+> Cc: linux-rdma@vger.kernel.org
+> Cc: linux-fsdevel@vger.kernel.org
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> 
+> Jérôme Glisse (9):
+>   mm/mmu_notifier: contextual information for event enums
+>   mm/mmu_notifier: contextual information for event triggering
+>     invalidation
+>   mm/mmu_notifier: use correct mmu_notifier events for each invalidation
+>   mm/mmu_notifier: pass down vma and reasons why mmu notifier is
+>     happening
+>   mm/mmu_notifier: mmu_notifier_range_update_to_read_only() helper
+>   gpu/drm/radeon: optimize out the case when a range is updated to read
+>     only
+>   gpu/drm/amdgpu: optimize out the case when a range is updated to read
+>     only
+>   gpu/drm/i915: optimize out the case when a range is updated to read
+>     only
+>   RDMA/umem_odp: optimize out the case when a range is updated to read
+>     only
+> 
+>  drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c  | 13 ++++++++
+>  drivers/gpu/drm/i915/i915_gem_userptr.c | 16 ++++++++++
+>  drivers/gpu/drm/radeon/radeon_mn.c      | 13 ++++++++
+>  drivers/infiniband/core/umem_odp.c      | 22 +++++++++++--
+>  fs/proc/task_mmu.c                      |  3 +-
+>  include/linux/mmu_notifier.h            | 42 ++++++++++++++++++++++++-
+>  include/rdma/ib_umem_odp.h              |  1 +
+>  kernel/events/uprobes.c                 |  3 +-
+>  mm/huge_memory.c                        | 14 +++++----
+>  mm/hugetlb.c                            | 11 ++++---
+>  mm/khugepaged.c                         |  3 +-
+>  mm/ksm.c                                |  6 ++--
+>  mm/madvise.c                            |  3 +-
+>  mm/memory.c                             | 25 +++++++++------
+>  mm/migrate.c                            |  5 ++-
+>  mm/mmu_notifier.c                       | 10 ++++++
+>  mm/mprotect.c                           |  4 ++-
+>  mm/mremap.c                             |  3 +-
+>  mm/oom_kill.c                           |  3 +-
+>  mm/rmap.c                               |  6 ++--
+>  20 files changed, 171 insertions(+), 35 deletions(-)
+> 
+> -- 
+> 2.17.2
+> 
 
