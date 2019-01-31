@@ -2,163 +2,265 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 28FCCC169C4
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 13:38:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F36F0C169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 13:55:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DF847218AC
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 13:38:49 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=alien8.de header.i=@alien8.de header.b="fXscU4ee"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF847218AC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=alien8.de
+	by mail.kernel.org (Postfix) with ESMTP id A97072085B
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 13:55:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A97072085B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8590D8E0003; Thu, 31 Jan 2019 08:38:49 -0500 (EST)
+	id 368228E0002; Thu, 31 Jan 2019 08:55:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7DEF88E0001; Thu, 31 Jan 2019 08:38:49 -0500 (EST)
+	id 318368E0001; Thu, 31 Jan 2019 08:55:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 680958E0003; Thu, 31 Jan 2019 08:38:49 -0500 (EST)
+	id 208FD8E0002; Thu, 31 Jan 2019 08:55:05 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C3D28E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 08:38:49 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id d6so1059714wrm.19
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 05:38:49 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BF9608E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 08:55:04 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id o21so1389225edq.4
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 05:55:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=N9ZfktBJAMGDaOqi63rNj6dpil8IUx1OGdlTeCh4s6w=;
-        b=kmgGBwlsRFy40cZJ0JvSmjNTzLsHK+bhD9BOUfP7NceScBPRMkdL8a9iO6wLaC7GPQ
-         +aaTZknNnMBTnUSSRZ6TydFwqnVACclZpZ//1c89F3KFMSERbShyI63PI0Cv05A8FZNR
-         Q+Sq4d1BFYOl7QT+HGh/x6vpHi1Os21dffKYBVtYAc1gNYX6jjGg5llKtjCo6UTE2Yjt
-         5Fa63InJpUpsERkpd3zNj3S+I4WeaeIb6gWHre4wZE1sdsbYTyycfg3UfJBgif17ZiAO
-         JB1Phwq0sbiXp8tyaAeD0pKjCugUzKHhDwkj4rORASfmHZ8aGODi6VdLPfcgADQ3llNy
-         +HJg==
-X-Gm-Message-State: AJcUukcItGlWPnCXamvr1TqoQ02F1/2DSBl3H7UGKnNVhGd2FZD+SYwS
-	kSJJ7Ld2A1B4G2d7CuFZaNvo1nGpaKbvzZrs3bqrszt0cjxTRU9xafIiJx7uuRLUe68hkIEO/Pj
-	XXuPAfiMil2rFGpEaD/hW5cCMyZhwn4hON5ImAqN2rBzSIeWFD6J2HDC0f7Fy/ANeZA==
-X-Received: by 2002:adf:f504:: with SMTP id q4mr35981985wro.321.1548941928662;
-        Thu, 31 Jan 2019 05:38:48 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6Y//redcYT1mLMIf8jL/sJqWndUmdzwjcrg8pA6Iq1mHdajjwfGCILMX1WveLecTsaRv41
-X-Received: by 2002:adf:f504:: with SMTP id q4mr35981939wro.321.1548941927910;
-        Thu, 31 Jan 2019 05:38:47 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548941927; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=CdVZlZELbWGs2k46SVPPfr5q8jt0WV54FLQmkF0cADc=;
+        b=LL805tak5GdlhdXThayMyFXvJ/Ge/dcB73XziBEewAYlv/vyQRoVgRH1ILtFJ+c5M8
+         KLQAyEqP2CVvx35hND3mZqeXmYK9ii2xx2REGuwJOj8K3eRkwk6lsohZvgFVUSb14q/u
+         DQL/abtBfXhNx3yJzePL5wYq3rjDMcvRH5h28rtBPIs7TgeIUezWVuGGN1p8byNFF44G
+         gX1l/REaKJoECaRbNe4Ceebp3VkvOBHMPdT9lzi7GMZFoBN+CL3rpY2IAI6rcWGJqgC6
+         16dX028MJdWCHoWTkCmNpGUb8ddbvgia3g/Zy8sJjxQWMrSwxYU1Kv5jxTN3aE6x+MHf
+         spmA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: AJcUukcZ3ieq8XGBr6TIhYmaVYKnJDFJVyMBwRf7O+M7XeDehgOIlqTQ
+	9Rp3dwG2mR47mTIz91+KXr9WMtTuRgV+4I9M71y148rCUP0VzBB4OVuKzdavfEIoLwcGm7udOfo
+	9UmQVXOQADxPsTM9N9fEGMSFl0c8NGiq1glLTp3sKT8zUiyfwxHmQh8Gm0MvtBDGmxA==
+X-Received: by 2002:a50:b172:: with SMTP id l47mr33922464edd.225.1548942904303;
+        Thu, 31 Jan 2019 05:55:04 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7TnPJkLFRt3Z03/YTOOrGlLnAtN6Hv55Ev+Jp/K0alf6X99wjawYesnGUX1gPiOXqMwneN
+X-Received: by 2002:a50:b172:: with SMTP id l47mr33922405edd.225.1548942903281;
+        Thu, 31 Jan 2019 05:55:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548942903; cv=none;
         d=google.com; s=arc-20160816;
-        b=qIoWlXk600OILoqOMGby7917q7ssqaQ+cqUF7LUwBiZdXe6fhN+G2EFbbWDv8/2wcy
-         sy4u1K7aPnIfBDdnxn6i6t7lgZDbZycaLRSg3xl3mmrGA9DVbJUHWefeApRVgvUMgvHD
-         YNX7j0LXM4iqdMta6xoqh5qLpFIyTlbr7DqM5WNMZpcHKixBHbYgqi9fSPC+ZZWEHsNr
-         KRbtH0ryXaDUssW/d8LTdGqCu3SdNkym1uoyGnuuuuGTpMe7NasV9/juHsRDmTKmMsTE
-         nmfnKXm+ySMVeH22NsHYYcpZx0BLkyUjiO9+6n99o0W4vb6YLhpmHsKT/TbDZ+JjRTWO
-         K+NQ==
+        b=WlIHHFnKTJ5LUYUA+gVDuJNyv9N8/krTYX/dDSl99ZKQBpx9nnGbNDUnJnetwpO3dG
+         tdI/ob1MGMBpUJWBexdGffhsA4rLG2PcD1qQVZ5lGwKnT8C8u5cNG6eRPaz0mMtomWQ5
+         mg0EtOF7+r1SAZmWfsCxqviFPFPO+2rLMKe0dVHQlizafKd409kofg+O2G3332U9u7zj
+         pHCgF+u+MdJYktTNJ6S14+MfixazTrHwd6/OXR1c6T2FihI5Vm6TaRHRNzjN7GBeyAwo
+         1Vajx3RA5hJzYlSAPnDwFOD6bmKGac4cop5glYOC3i4HaukstK+QO+yN1yATGmSPyFSf
+         XDoQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=N9ZfktBJAMGDaOqi63rNj6dpil8IUx1OGdlTeCh4s6w=;
-        b=TbPwMaGTmec3+s3u/4boKwvhwkWBoJZRjcDAdCAHQOMnob150bp3W58iVwlrcIETIv
-         v1oh292L9S1bRbhJdExQ44OBcLQ2RImzTvaxh1p9oblg1QYhksGso8CAvIHE3UewKCwJ
-         EmOcf6s6FGi+1YFUpi1DKULWhblojp2l+FEex0Ge7GmNsJZrTDRs7P5QymbFV4J+1HzU
-         /VHaInNNltV6dtBpy0LDNb10gU+yvcikYDzCV94vXDwkqVyNKxyiF4lkNqz4bqdFNpx/
-         uBKqmXX4csy3TnHEPY5c0DTrdi2P0wNdVYIacovh00Cym8D7Du3YRbjVnt8yAoGZGnRr
-         yIOQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:openpgp:from:references:cc:to:subject;
+        bh=CdVZlZELbWGs2k46SVPPfr5q8jt0WV54FLQmkF0cADc=;
+        b=yY6bQAZQoD72tUc5nSZ5n5dOLwEZ4ELtkboQmvao5ojwO5s1Q2aWMLZClx916L9sya
+         rMu+TUF3e+xudI8/b8WDYw9hiNnAgLP2qJzJzyu6BuHYiWxfsxGc7dRRHVXNVqyg8m9R
+         I31b+u+26q8+ohrwjw+Nmkz0Yg4PYTuib2agUsWFXt1CnI+jyjFKN8Qs2zQd9SmJc/9H
+         KpBdxVjbGecxYYtWngrhtwIuJUNVvIbBR5SRMEp1f7eDk6iYRZcvpYDfmaeeAwDVK3f0
+         JHCovhKnsF4HR5nb8Yqypm69g+YELV5m9IFo1FqgTrnVcGJgGfVzHGiFyFK3fOIvYt0L
+         9bkA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b=fXscU4ee;
-       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id l3si3716972wru.225.2019.01.31.05.38.47
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m26si2584120eds.250.2019.01.31.05.55.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jan 2019 05:38:47 -0800 (PST)
-Received-SPF: pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) client-ip=5.9.137.197;
+        Thu, 31 Jan 2019 05:55:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b=fXscU4ee;
-       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from zn.tnic (p200300EC2BCC5900651C63FB93E4C575.dip0.t-ipconnect.de [IPv6:2003:ec:2bcc:5900:651c:63fb:93e4:c575])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.skyhub.de (SuperMail on ZX Spectrum 128k) with ESMTPSA id 191B41EC059E;
-	Thu, 31 Jan 2019 14:38:47 +0100 (CET)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=alien8.de; s=dkim;
-	t=1548941927;
-	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
-	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
-	 content-transfer-encoding:in-reply-to:in-reply-to:  references:references;
-	bh=N9ZfktBJAMGDaOqi63rNj6dpil8IUx1OGdlTeCh4s6w=;
-	b=fXscU4eeC2ToGWv6EVxYT5WtmhOF8NW0lZM2/wfvSID9gZS0549ZoFEAJheQvCW+hl03Uj
-	wfD84p+pgqW+Tl7C0OAylMfQ5Xd9zmT8Cyt/xLrjf9jDmxW5isLfbUA6QbTK6EZ+Ywtft6
-	JzhH2T1j/SxhHenwGC/hy0GjIb2jDrs=
-Date: Thu, 31 Jan 2019 14:38:42 +0100
-From: Borislav Petkov <bp@alien8.de>
-To: James Morse <james.morse@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu,
-	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	Marc Zyngier <marc.zyngier@arm.com>,
-	Christoffer Dall <christoffer.dall@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>,
-	Tony Luck <tony.luck@intel.com>,
-	Dongjiu Geng <gengdongjiu@huawei.com>,
-	Xie XiuQi <xiexiuqi@huawei.com>, Fan Wu <wufan@codeaurora.org>
-Subject: Re: [PATCH v7 20/25] ACPI / APEI: Use separate fixmap pages for
- arm64 NMI-like notifications
-Message-ID: <20190131133842.GK6749@zn.tnic>
-References: <20181203180613.228133-1-james.morse@arm.com>
- <20181203180613.228133-21-james.morse@arm.com>
- <20190121172743.GN29166@zn.tnic>
- <bee87ef4-60ae-d4a4-2855-159543072fc5@arm.com>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 53362ABC3;
+	Thu, 31 Jan 2019 13:55:02 +0000 (UTC)
+Subject: Re: [PATCH 09/22] mm, compaction: Use free lists to quickly locate a
+ migration source
+To: Mel Gorman <mgorman@techsingularity.net>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>,
+ Andrea Arcangeli <aarcange@redhat.com>,
+ Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+ Linux-MM <linux-mm@kvack.org>
+References: <20190118175136.31341-1-mgorman@techsingularity.net>
+ <20190118175136.31341-10-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Message-ID: <4a6ae9fc-a52b-4300-0edb-a0f4169c314a@suse.cz>
+Date: Thu, 31 Jan 2019 14:55:01 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
+In-Reply-To: <20190118175136.31341-10-mgorman@techsingularity.net>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <bee87ef4-60ae-d4a4-2855-159543072fc5@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 23, 2019 at 06:33:02PM +0000, James Morse wrote:
-> Was the best I had, but this trips the BUILD_BUG() too early.
-> With it, x86 BUILD_BUG()s. With just the -1 the path gets pruned out, and there
-> are no 'sdei' symbols in the object file.
+On 1/18/19 6:51 PM, Mel Gorman wrote:
+...
+
+> +	for (order = cc->order - 1;
+> +	     order >= PAGE_ALLOC_COSTLY_ORDER && pfn == cc->migrate_pfn && nr_scanned < limit;
+> +	     order--) {
+> +		struct free_area *area = &cc->zone->free_area[order];
+> +		struct list_head *freelist;
+> +		unsigned long flags;
+> +		struct page *freepage;
+> +
+> +		if (!area->nr_free)
+> +			continue;
+> +
+> +		spin_lock_irqsave(&cc->zone->lock, flags);
+> +		freelist = &area->free_list[MIGRATE_MOVABLE];
+> +		list_for_each_entry(freepage, freelist, lru) {
+> +			unsigned long free_pfn;
+> +
+> +			nr_scanned++;
+> +			free_pfn = page_to_pfn(freepage);
+> +			if (free_pfn < high_pfn) {
+> +				update_fast_start_pfn(cc, free_pfn);
+
+Shouldn't this update go below checking pageblock skip bit? We might be
+caching pageblocks that will be skipped, and also potentially going
+backwards from the original cc->migrate_pfn, which could perhaps explain
+the reported kcompactd loops?
+
+> +
+> +				/*
+> +				 * Avoid if skipped recently. Ideally it would
+> +				 * move to the tail but even safe iteration of
+> +				 * the list assumes an entry is deleted, not
+> +				 * reordered.
+> +				 */
+> +				if (get_pageblock_skip(freepage)) {
+> +					if (list_is_last(freelist, &freepage->lru))
+> +						break;
+> +
+> +					continue;
+> +				}
+> +
+> +				/* Reorder to so a future search skips recent pages */
+> +				move_freelist_tail(freelist, freepage);
+> +
+> +				pfn = pageblock_start_pfn(free_pfn);
+> +				cc->fast_search_fail = 0;
+> +				set_pageblock_skip(freepage);
+> +				break;
+> +			}
+> +
+> +			if (nr_scanned >= limit) {
+> +				cc->fast_search_fail++;
+> +				move_freelist_tail(freelist, freepage);
+> +				break;
+> +			}
+> +		}
+> +		spin_unlock_irqrestore(&cc->zone->lock, flags);
+> +	}
+> +
+> +	cc->total_migrate_scanned += nr_scanned;
+> +
+> +	/*
+> +	 * If fast scanning failed then use a cached entry for a page block
+> +	 * that had free pages as the basis for starting a linear scan.
+> +	 */
+> +	if (pfn == cc->migrate_pfn)
+> +		reinit_migrate_pfn(cc);
+
+This will set cc->migrate_pfn to the lowest pfn encountered, yet return
+pfn initialized by original cc->migrate_pfn.
+AFAICS isolate_migratepages() will use the returned pfn for the linear
+scan and then overwrite cc->migrate_pfn with wherever it advanced from
+there. So whatever we stored here into cc->migrate_pfn will never get
+actually used, except when isolate_migratepages() returns with
+ISOLATED_ABORT.
+So maybe the infinite kcompactd loop is linked to ISOLATED_ABORT?
+
+> +
+> +	return pfn;
+> +}
+> +
+>  /*
+>   * Isolate all pages that can be migrated from the first suitable block,
+>   * starting at the block pointed to by the migrate scanner pfn within
+> @@ -1222,16 +1381,25 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  	const isolate_mode_t isolate_mode =
+>  		(sysctl_compact_unevictable_allowed ? ISOLATE_UNEVICTABLE : 0) |
+>  		(cc->mode != MIGRATE_SYNC ? ISOLATE_ASYNC_MIGRATE : 0);
+> +	bool fast_find_block;
+>  
+>  	/*
+>  	 * Start at where we last stopped, or beginning of the zone as
+> -	 * initialized by compact_zone()
+> +	 * initialized by compact_zone(). The first failure will use
+> +	 * the lowest PFN as the starting point for linear scanning.
+>  	 */
+> -	low_pfn = cc->migrate_pfn;
+> +	low_pfn = fast_find_migrateblock(cc);
+>  	block_start_pfn = pageblock_start_pfn(low_pfn);
+>  	if (block_start_pfn < zone->zone_start_pfn)
+>  		block_start_pfn = zone->zone_start_pfn;
+>  
+> +	/*
+> +	 * fast_find_migrateblock marks a pageblock skipped so to avoid
+> +	 * the isolation_suitable check below, check whether the fast
+> +	 * search was successful.
+> +	 */
+> +	fast_find_block = low_pfn != cc->migrate_pfn && !cc->fast_search_fail;
+> +
+>  	/* Only scan within a pageblock boundary */
+>  	block_end_pfn = pageblock_end_pfn(low_pfn);
+>  
+> @@ -1240,6 +1408,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  	 * Do not cross the free scanner.
+>  	 */
+>  	for (; block_end_pfn <= cc->free_pfn;
+> +			fast_find_block = false,
+>  			low_pfn = block_end_pfn,
+>  			block_start_pfn = block_end_pfn,
+>  			block_end_pfn += pageblock_nr_pages) {
+> @@ -1259,7 +1428,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  			continue;
+>  
+>  		/* If isolation recently failed, do not retry */
+> -		if (!isolation_suitable(cc, page))
+> +		if (!isolation_suitable(cc, page) && !fast_find_block)
+>  			continue;
+>  
+>  		/*
+> @@ -1550,6 +1719,7 @@ static enum compact_result compact_zone(struct compact_control *cc)
+>  	 * want to compact the whole zone), but check that it is initialised
+>  	 * by ensuring the values are within zone boundaries.
+>  	 */
+> +	cc->fast_start_pfn = 0;
+>  	if (cc->whole_zone) {
+>  		cc->migrate_pfn = start_pfn;
+>  		cc->free_pfn = pageblock_start_pfn(end_pfn - 1);
+> diff --git a/mm/internal.h b/mm/internal.h
+> index 9b32f4cab0ae..983cb975545f 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -188,9 +188,11 @@ struct compact_control {
+>  	unsigned int nr_migratepages;	/* Number of pages to migrate */
+>  	unsigned long free_pfn;		/* isolate_freepages search base */
+>  	unsigned long migrate_pfn;	/* isolate_migratepages search base */
+> +	unsigned long fast_start_pfn;	/* a pfn to start linear scan from */
+>  	struct zone *zone;
+>  	unsigned long total_migrate_scanned;
+>  	unsigned long total_free_scanned;
+> +	unsigned int fast_search_fail;	/* failures to use free list searches */
+>  	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
+>  	int order;			/* order a direct compactor needs */
+>  	int migratetype;		/* migratetype of direct compactor */
 > 
-> ...at this point, I stopped caring!
-
-Yah, you said it: __end_of_fixed_addresses will practically give you the
-BUG behavior:
-
-        if (idx >= __end_of_fixed_addresses) {
-                BUG();
-                return;
-        }
-
-and ARM64 does the same.
-
-> We already skip registering notifiers if the kconfig option wasn't selected.
-> 
-> We can't catch this at compile time, as the dead-code elimination seems to
-> happen in multiple passes.
-> 
-> I'll switch the SDEI ones to __end_of_fixed_addresses, as both architectures
-> BUG() when they see this.
-
-Right.
-
-Thx.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
 
