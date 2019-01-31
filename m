@@ -2,126 +2,133 @@ Return-Path: <SRS0=luIg=QH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0128DC4151A
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 08:03:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D70DC169C4
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 08:05:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CAB1F2087F
-	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 08:03:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CAB1F2087F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 55B73218AF
+	for <linux-mm@archiver.kernel.org>; Thu, 31 Jan 2019 08:05:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55B73218AF
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 559CC8E0003; Thu, 31 Jan 2019 03:03:17 -0500 (EST)
+	id CD60B8E0003; Thu, 31 Jan 2019 03:05:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 50AA48E0001; Thu, 31 Jan 2019 03:03:17 -0500 (EST)
+	id C830C8E0001; Thu, 31 Jan 2019 03:05:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3F97B8E0003; Thu, 31 Jan 2019 03:03:17 -0500 (EST)
+	id BA4378E0003; Thu, 31 Jan 2019 03:05:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B1548E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 03:03:17 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id e68so1792717plb.3
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 00:03:17 -0800 (PST)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 64EC78E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 03:05:03 -0500 (EST)
+Received: by mail-wm1-f71.google.com with SMTP id t21so421840wmt.3
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 00:05:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=6LEW96Msf5PX2GkuUJG3PyFf3DL5tddgkiwqzrNMTBk=;
-        b=mDI/Hbuu5Mlc+ZeiWwbdCMxvJgx2U8cYdqxso77aEerB0OQWtjZ5fgjLewYt6MN/No
-         QVI6P+ao4zGz+zJh3L4pwe11PrCmIXOQzyxzxGbAF7TpSC4ZqrTLowQU12Jwxv742tni
-         kpXUQ3mhrCBJThctVNUn2HhqKt6pc4sJ2pK7Fu76xTkacXD3Yo2lM4W38d9LzPDVWmK6
-         ixIEKIgj+32kLgarI4N32uKR3MiA599k34cJVIK6PxMqgAGzIXYh/sfVTMayu7FGQW6s
-         xPF3CdhjUrsJX/DLqvfa5ZkHPTKbjvOYmkeX0BQMM+T9/sDAfGyHlqBroLYZ8szblAfI
-         FqDg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: AJcUukf/Jc3C3RIwrTYjnV6mAjP1RIaFZqiZ4RUFIzzlXuR0WPvfQN1f
-	+mZJzr3KNa2WvIiYPEwnMoGhccSfZ2JvktivJzEHUy3VS2PUZtIKjvHWyXFWvlFLOneK9sQ4rdM
-	8qTnPwm0fbvUiWBDHSahlRR/C/CQkWgEoGug1dlw23vu3kbTLDCKgFaBUx4UlDT8A2Q==
-X-Received: by 2002:a62:a1a:: with SMTP id s26mr34105697pfi.31.1548921796730;
-        Thu, 31 Jan 2019 00:03:16 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN62FE8rbkcoZgEoGE1FZbqi0PHJd8yOkLbDC+6d77BVCteaXPaBS19If8+8vLt4p1McE86e
-X-Received: by 2002:a62:a1a:: with SMTP id s26mr34105659pfi.31.1548921795932;
-        Thu, 31 Jan 2019 00:03:15 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548921795; cv=none;
+        bh=VCHtCXBojE7lCsT4d2adOXyAe7hDTGfR8lkJrTLhB7w=;
+        b=ogcAxs/9283p9NWLhupmV/5zvz8MCY21uuqfyyGyQ8pNq0JX35mf3VeuvzgMFL5JYg
+         xwa8UXpwcP8dCvUqBzlWglCBy4+HovrAtCrxdrmC5tITtnDCpU++QARByKdDEHEQEXaM
+         dh33D+LN/LTAxDoltnr/rSKvYULxEgXnILlU6z4GDggNwY0Z3Ccp64cVImiroO7riP+W
+         bFhcAoex6/aVM60EhqllvRX62TDzGXa+K3hja2fTQ5obQBR6qYkGONfuLbRQLA/7lmYO
+         dyHor/Y0rtY6wdg8xr2n+Ucwzz1YnxDy7457aefp0l/5BETbJx0xnFu72uaP52XCH9cl
+         L5/Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: AJcUukf084qJV3Y5t908MOemea+glx8RHUeqNI3tASR07J/pcbAJ7jr2
+	b223x/oaQMS4rYlUaaRbCDobyoIyKsYDEMNrYGvcJw9wOBmoohKNIzkk4aFbg5uYq+b79Hz1EQd
+	+LzMm4M7gCe7QIwDL0IFYDCg4RcKPhNNVCObG0j7SKg20Ol26kkdcJbQ3RJc2/KGkKw==
+X-Received: by 2002:a5d:5182:: with SMTP id k2mr33339100wrv.121.1548921902970;
+        Thu, 31 Jan 2019 00:05:02 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4qpnQcNwcH/SsQ5ePnR9MGCqBQMVmtmeG3aEtTSGd4m29leGObOUveWhZy81TTmqxpGu86
+X-Received: by 2002:a5d:5182:: with SMTP id k2mr33339049wrv.121.1548921902230;
+        Thu, 31 Jan 2019 00:05:02 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548921902; cv=none;
         d=google.com; s=arc-20160816;
-        b=nB2zfDVcsj8unjn0rKLALhnEGRVyT/V3l1FJKmVCCK764Hy5dVfAYb28uR5IaaikxS
-         lChx26euoKlUu5IQKqRRVc47pMKjx2H/0deKElrUR3oqMZCGIxgsPmaTzMlQvJdm9NiK
-         zPS8O3l6/ccl1IuVTFzW6eUi7dipJ1fpDeY9l45MEt1l4rVGb7Yc4rZ/IfkEiZHHpVX1
-         5fW8vPhnaX6HkYJNziAnaVnojqf2+Ugl7HpjVYo0o47+izzsdg2RshaEcZ9r+5H5ae1v
-         DwBSIVbAUjMK4YjQLgiT1MK8Zr48UHR3nt3nE2yPg48VQ9TBphSd+4iEMQLpyTQEeL8Q
-         9KPg==
+        b=JEwcq/0w1ICEsQ2Wukg7snFOwYHPh1uR6K9PYlXyFjkSVOYf1lUgKkrNKRSMufho2Z
+         I3htJ/j5/AMmABqcOsGZwCULTsc3h1DLQTmC403RaG+iPicf67V1tbxF4osROpYullZE
+         oiLHazZ30piYgnIrTRDmdzHGzMDK12zTybldlr1rBKwmN0KP1zg5A0dQ/7vt7EnC2IXW
+         eHyYlicj9+7tWN1TlBx9EL5mnrM5dA8u0DDfBhMHjvudy+fqwYw8JZx9Lqxgy04ZpP6E
+         KCXKuUx1AMFMqE2qH4rfAvTQNOJyAgJZw8kSxN0SJtxXUFa58b7WufWIouEV4UmcAJ54
+         o78w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=6LEW96Msf5PX2GkuUJG3PyFf3DL5tddgkiwqzrNMTBk=;
-        b=BlUQgImm0cL7Zn57awl6B2lW1bnYmj7aE4RtC/tbvLgMIQmgyghpoOLiX8wTcHDCdJ
-         nR4txbkPcrWYiqY6XFXHm0bZ6P/UJiSXaIG4H7CXEu/KSCPhYUXbLvMPEOwxhivc/o3e
-         NJ3Pjft5vxz3QjnuoMJq4o9zPgQlhqnfKkfFdSGYtEZ3NBEbAudMo+TUivVtnY8Joc2E
-         XrqcyCNSD+Aowz65Us2oy+XDG7KWe57f2DhYsUf7Z/eQsMt2EyyGjiRcxCL4sqMf2HkA
-         PBwjAq/3fuy4XjVjuxrsAa6W+QKuwuJ+yYWQCegnZjSULun1yrX260dgzW6vnaUs+QvO
-         pr2g==
+        bh=VCHtCXBojE7lCsT4d2adOXyAe7hDTGfR8lkJrTLhB7w=;
+        b=jNGRLqb7DQiyfWvw4TIPnskXjRSc5vO5GoN1Gw6YiuL6IBZyEjz98eZmEA809H09PJ
+         3S6son6UUHL80jAYE64aYpGKmVosmlQS6Q2R55X1At6K/Q2oB6GK+pTdSHilIK2m56XA
+         KrAWZBYDcJtQ/U95B307CN4zokh4GltJo5zLBFCVHjyDKR0A9JcdAjjTRwGwGoIT7QBZ
+         Dh3ULjpnroyI/GYwXKJlPb+mekCL1n0Gx6YihLoTQ1+S0ddBCsO6CJfJ1ItcYrDQvuqD
+         cNoDO4tswFDKYBxnRi54ogATQGtGe2bQ3x3Ic3zy+e6FuU2Q/vkpdx7vF2fkCS1yvQPe
+         nazQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from suse.de (charybdis-ext.suse.de. [195.135.221.2])
-        by mx.google.com with ESMTP id u69si4118291pfj.219.2019.01.31.00.03.15
-        for <linux-mm@kvack.org>;
-        Thu, 31 Jan 2019 00:03:15 -0800 (PST)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id j9si2928407wro.332.2019.01.31.00.05.02
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Jan 2019 00:05:02 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: by suse.de (Postfix, from userid 1000)
-	id 9B27A40EC; Thu, 31 Jan 2019 09:03:14 +0100 (CET)
-Date: Thu, 31 Jan 2019 09:03:14 +0100
-From: Oscar Salvador <osalvador@suse.de>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, dan.j.williams@intel.com,
-	Pavel.Tatashin@microsoft.com, david@redhat.com,
-	linux-kernel@vger.kernel.org, dave.hansen@intel.com
-Subject: Re: [RFC PATCH v2 0/4] mm, memory_hotplug: allocate memmap from
- hotadded memory
-Message-ID: <20190131080311.qiqi2tj4iromzzap@d104.suse.de>
-References: <20190122103708.11043-1-osalvador@suse.de>
- <20190130215159.culyc2wcgocp5l2p@d104.suse.de>
- <20190131072319.GN18811@dhcp22.suse.cz>
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id 9019B68CEB; Thu, 31 Jan 2019 09:05:01 +0100 (CET)
+Date: Thu, 31 Jan 2019 09:05:01 +0100
+From: Christoph Hellwig <hch@lst.de>
+To: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Logan Gunthorpe <logang@deltatee.com>, Christoph Hellwig <hch@lst.de>,
+	Jerome Glisse <jglisse@redhat.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J . Wysocki" <rafael@kernel.org>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	Christian Koenig <christian.koenig@amd.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	Marek Szyprowski <m.szyprowski@samsung.com>,
+	Robin Murphy <robin.murphy@arm.com>, Joerg Roedel <jroedel@suse.de>,
+	"iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
+Subject: Re: [RFC PATCH 3/5] mm/vma: add support for peer to peer to device
+ vma
+Message-ID: <20190131080501.GB26495@lst.de>
+References: <20190129191120.GE3176@redhat.com> <20190129193250.GK10108@mellanox.com> <99c228c6-ef96-7594-cb43-78931966c75d@deltatee.com> <20190129205827.GM10108@mellanox.com> <20190130080208.GC29665@lst.de> <20190130174424.GA17080@mellanox.com> <bcbdfae6-cfc6-c34f-4ff2-7bb9a08f38af@deltatee.com> <20190130191946.GD17080@mellanox.com> <3793c115-2451-1479-29a9-04bed2831e4b@deltatee.com> <20190130204414.GH17080@mellanox.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190131072319.GN18811@dhcp22.suse.cz>
-User-Agent: NeoMutt/20170421 (1.8.2)
+In-Reply-To: <20190130204414.GH17080@mellanox.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 31, 2019 at 08:23:19AM +0100, Michal Hocko wrote:
-> On Wed 30-01-19 22:52:04, Oscar Salvador wrote:
-> > On Tue, Jan 22, 2019 at 11:37:04AM +0100, Oscar Salvador wrote:
-> > > I yet have to check a couple of things like creating an accounting item
-> > > like VMEMMAP_PAGES to show in /proc/meminfo to ease to spot the memory that
-> > > went in there, testing Hyper-V/Xen to see how they react to the fact that
-> > > we are using the beginning of the memory-range for our own purposes, and to
-> > > check the thing about gigantic pages + hotplug.
-> > > I also have to check that there is no compilation/runtime errors when
-> > > CONFIG_SPARSEMEM but !CONFIG_SPARSEMEM_VMEMMAP.
-> > > But before that, I would like to get people's feedback about the overall
-> > > design, and ideas/suggestions.
-> > 
-> > just a friendly reminder if some feedback is possible :-)
-> 
-> I will be off next week and will not get to this this week.
+On Wed, Jan 30, 2019 at 08:44:20PM +0000, Jason Gunthorpe wrote:
+> Not really, for MRs most drivers care about DMA addresses only. The
+> only reason struct page ever gets involved is because it is part of
+> the GUP, SGL and dma_map family of APIs.
 
-Sure, it can wait.
-In the meantime I will take the chance to clean up a couple of things.
+And the only way you get the DMA address is through the dma mapping
+APIs.  Which except for the little oddball dma_map_resource expect
+a struct page in some form.  And dma_map_resource isn't really up
+to speed for full blown P2P.
 
-Thanks
--- 
-Oscar Salvador
-SUSE L3
+Now we could and maybe eventually should change all this.  But that
+is a pre-requisitive for doing anything more fancy, and not something
+to be hacked around.
+
+> O_DIRECT seems to be the justification for struct page, but nobody is
+> signing up to make O_DIRECT have the required special GUP/SGL/P2P flow
+> that would be needed to *actually* make that work - so it really isn't
+> a justification today.
+
+O_DIRECT is just the messenger.  Anything using GUP will need a struct
+page, which is all our interfaces that do I/O directly to user pages.
 
