@@ -2,219 +2,293 @@ Return-Path: <SRS0=aBqT=QI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8ADB6C282D8
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 05:16:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E6A98C282D8
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 05:18:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 465A220870
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 05:16:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 465A220870
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id 9437120870
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 05:18:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="b3f8X3vk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9437120870
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CC9918E0002; Fri,  1 Feb 2019 00:16:17 -0500 (EST)
+	id 2B45D8E0002; Fri,  1 Feb 2019 00:18:14 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C77A88E0001; Fri,  1 Feb 2019 00:16:17 -0500 (EST)
+	id 262448E0001; Fri,  1 Feb 2019 00:18:14 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B3F798E0002; Fri,  1 Feb 2019 00:16:17 -0500 (EST)
+	id 153108E0002; Fri,  1 Feb 2019 00:18:14 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 71E268E0001
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 00:16:17 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id y2so4223999plr.8
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 21:16:17 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DE4DE8E0001
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 00:18:13 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id k90so6591473qte.0
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 21:18:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=1xNzf00S/LzGkQOCjoDX4XDIJZBX+cOUOINvlfibkX8=;
-        b=NX07SMspFiyLTj2B07HZSM0lrqSALk4cirePXOtCclI8tKcJqs8ik77DdNgalgkSE+
-         WbXxX5mkGkNdTPmbnQ7YL9ML5P06K0TXsDBUixzlubNbxOFjUjk2w8ff/H49gZ/GX7g/
-         LRk1byWWuWJuUHX5BT3w+6pXqkw2xzOVkr7j7lPmZiL7x4jQ8P4oivIBe1+RyFyFrZRL
-         moHfXjCRCQtOC9YiQTwWzOktZCqrcrigrG5GM22u10zzgG6gahFgY5GFBQ6NUzqh/q+S
-         KOT4GKBJHiMDf1MBP2RB/43qg2WVlK+KeoWc4RgfC7Rv0BI+tySmW0OxM049vmmRg12Z
-         D4rQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.139 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: AJcUukcPkBwDrWBOdSprvNWhWz3pF47goYXTxXaom9FXkUy0oIDhQZsT
-	nhJgMScK30XztOxq0W7UA6UhnKH2XmjEAeFvQ5iQ119dXZX2GQ+RahPGtGV1HLw2YAhs4b//qzw
-	k4KrSgSJALx2nLh5NxRXlNELYL3cOPlDsFpdJBNJVWbSt7sSOx5Gm2woucWuypuw=
-X-Received: by 2002:a17:902:7481:: with SMTP id h1mr38486339pll.341.1548998177011;
-        Thu, 31 Jan 2019 21:16:17 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN442r9Uc7+MNoDLjYyX8+VFCsLi9c/PKFgAi6k9TYCqHjOXw45lNtEgyHOOAt9LU1+cuvi1
-X-Received: by 2002:a17:902:7481:: with SMTP id h1mr38486305pll.341.1548998176120;
-        Thu, 31 Jan 2019 21:16:16 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548998176; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:mime-version:content-disposition:in-reply-to:user-agent;
+        bh=bVOuN27+dQpcYjyoBP7qcpwIAC0k6Nxrf6LI5xH+LA4=;
+        b=Iv6QUIIbAzb/+0lv+3g5LPksaVUwC741eyy3kUawlqfWuJw4cjBtdvi8KadOZ+b+JZ
+         VtPcTda3mhQxvFZi+ryMTjD9DDO6j7Z2jvwTrK+ldhgNsuBQvj7SWT3dbzlGhqGetSc8
+         eYeOsYF1Vk5VIkguUrPMZaa53lvhTuqqEP7XhJpG90stB1w9iM0k8SBWz3Pm7e06J1Zh
+         I17tVdMrHDEZyYtkbDYXdX9XBQMy/N0RnBgrGDnVpiZVbvaLI5s2mdPMQveMxy2eYnow
+         v+JzP0EZMeKNQT9fUSY4Vdjh4UH+ZVKC/PtPPTv2wNhMcxvAnZ7DEH0ajjACrfw1EpjQ
+         Y2DQ==
+X-Gm-Message-State: AJcUukf0K+aezSRz2pUk6YzhMGILxurii+wrZUzZp/vAQxS5X3m4T51B
+	O6hKEpPI3EQCcDC95DYU2Nr0zpvtjY3LHEeqWBO/8sAkXaGOFdUgiWe1DI2d3hJqKebd1z/qEhF
+	7YSeuPPETHZnjEqmJV739yTaddo4kFsqPazdPcHztXZr3XumGH61pGRLMdY86Hhzn2VbA2NQOYN
+	/fjN4qYoG1j0iXamV13MNSx5BzCHP5lL/d/P+1RWHOXkKPbS05pqK/XH7tztHp4TFOWocb7MHar
+	VKID+NQaIUqA5UwZbKlv9NzIJLkt8i6XCpXfOQtYz814spKntZJOJ7F3D48ZgJU9pIthkiyubcW
+	UMPdxZqMX7nAnwEM5kDsrRACyEaStSPyye4SEoh1I+mou0YWsK7MWtDdPG6tH8p7VEHveTGUB3J
+	/
+X-Received: by 2002:a37:ea0a:: with SMTP id t10mr33614726qkj.273.1548998293624;
+        Thu, 31 Jan 2019 21:18:13 -0800 (PST)
+X-Received: by 2002:a37:ea0a:: with SMTP id t10mr33614697qkj.273.1548998292914;
+        Thu, 31 Jan 2019 21:18:12 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548998292; cv=none;
         d=google.com; s=arc-20160816;
-        b=mQJDlEWJtKPzEYyEJjgFarRPNgTDy82Wi1YPswNej3rC9yGa5szy4ZVvxcNgHFk3gA
-         hERjDbF6stV+EA05L5BD43wItT2h+IhyK8U9AVAOsW6MK1nGcllB1j3KT6/2nX2o1P32
-         xT6LA1IQdma2Hin0E6v6zi/wLO5l6I6yqJgC+ES7GJ2KtClUJC67Hs964HpYOZwMa+8z
-         ckvKc+UghBhVSKmRHc9iFkxamyIe2fbpaXSnVXd/LaTHAEIdZDMbzpDH1Hc9R1UccHOU
-         vYxG5HNvWYv5LfWlMOXdR9m12FWJ+1iVk+pq5GDOeZhsPxwl3mQBFVlUoAyMaW5nqwqz
-         6z/Q==
+        b=dvBh9b1HhNSSITvsf0/IY4/TUmzBDDRXZZ6NI3fHZXuvysAEskKj16i4brHWmGKS2h
+         r+cMnDB5Py1p80w86fD9Fqbhgnvz636yXE6tE8ZSlrj8XnOqAAiHnQC1ElAqOnzrylrV
+         dm/mu0fqkIYKyn9ESK+LaAL0zQhXtLuZ05LX9rGm79TR1Uwt3DvhLuwxdLHX5/P1tiHF
+         zLcV71jCMzAN6iKSU0TgIFx0AchyW+DFDaDBcdg7Y1d6E47wcaHy3OKJ8Smx3rPyJpXi
+         tU3mPz5QgFVcxiVYgJM47iLXYyLH1V7rRI/em2SBpSptXY+tnXHVmpn8wB/X0/7C9TB3
+         CIJg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=1xNzf00S/LzGkQOCjoDX4XDIJZBX+cOUOINvlfibkX8=;
-        b=SoYnfJKC6AZb2LiGQ1//jKSPKKPRrhQxgUsEitHG98aH2HVkV7XTt9TM1+knD5pgQH
-         uUNu3fEny6XPuHCbbTGXhpyqkJdM0C6G45K7Run3BOzEPP/Pxq+rW7TJsmWf8iBgdTNY
-         5KVzkc4DD7hu+fk4C/gp3Er6UVxXX6MG5QPXb6fHPnrC/Fj7kbw7Cx5/rZD+u9r4R3o/
-         HwYhJr2E9ofgClNmHIQZB6oIx5MeYBi9GwDhMLeuBJn0i6K9SrmnyCOAkic6X9su1HEW
-         BONkgSd1E/wQszt9lZhEg+rcp5gVtzQQvx9nCN7C1ShTgzH4jO7x2HkGGbAqHrP2iufj
-         xjTA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:message-id
+         :subject:cc:to:from:date:dkim-signature;
+        bh=bVOuN27+dQpcYjyoBP7qcpwIAC0k6Nxrf6LI5xH+LA4=;
+        b=Vjcn9nsR1yBLq0cE+QpP2okGP7o9/sd2D+yHjeaCOGq0u/b1PqZ1/QigDVNaxA0QTB
+         15a7lvWSyyJzs52U6OL18VJTUJ/TlTm47NkUVzcqq7CN8+mNnjzMpsreOJqWPPGZtsQ/
+         MYNrE2Aoge16sz3aL+Xh2XzykCs1iBeOdyjonz1NKvvdWNv/PQYh8RM+TQK2q+dhxpcf
+         GCeRUNXnt1+5jLLoKYrXKlwdzP0YX5NcF+EZv1ohrMd9lbNZAQpFghvEWxqaHnAEPDe8
+         JOWEee1HTx11Euw5zW5xFY2S1Roi85rCez6g9K30AwTcst+wZMea1q1GPQxduIdgnkWk
+         6auA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 150.101.137.139 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ipmail02.adl2.internode.on.net (ipmail02.adl2.internode.on.net. [150.101.137.139])
-        by mx.google.com with ESMTP id 86si4420315pfl.46.2019.01.31.21.16.12
-        for <linux-mm@kvack.org>;
-        Thu, 31 Jan 2019 21:16:16 -0800 (PST)
-Received-SPF: neutral (google.com: 150.101.137.139 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.139;
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=b3f8X3vk;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q6sor8157742qtb.53.2019.01.31.21.18.12
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 31 Jan 2019 21:18:12 -0800 (PST)
+Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 150.101.137.139 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
-  by ipmail02.adl2.internode.on.net with ESMTP; 01 Feb 2019 15:43:56 +1030
-Received: from dave by dastard with local (Exim 4.80)
-	(envelope-from <david@fromorbit.com>)
-	id 1gpR9H-0003ex-Rm; Fri, 01 Feb 2019 16:13:55 +1100
-Date: Fri, 1 Feb 2019 16:13:55 +1100
-From: Dave Chinner <david@fromorbit.com>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Jiri Kosina <jikos@kernel.org>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
-	Linux-MM <linux-mm@kvack.org>,
-	Linux API <linux-api@vger.kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Greg KH <gregkh@linuxfoundation.org>, Jann Horn <jannh@google.com>,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	Andy Lutomirski <luto@amacapital.net>,
-	Kevin Easton <kevin@guarana.org>,
-	Matthew Wilcox <willy@infradead.org>,
-	Cyril Hrubis <chrubis@suse.cz>, Tejun Heo <tj@kernel.org>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	Daniel Gruss <daniel@gruss.cc>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>
-Subject: Re: [PATCH 2/3] mm/filemap: initiate readahead even if IOCB_NOWAIT
- is set for the I/O
-Message-ID: <20190201051355.GV6173@dastard>
-References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
- <20190130124420.1834-1-vbabka@suse.cz>
- <20190130124420.1834-3-vbabka@suse.cz>
- <20190131095644.GR18811@dhcp22.suse.cz>
- <nycvar.YFH.7.76.1901311114260.6626@cbobk.fhfr.pm>
- <20190131102348.GT18811@dhcp22.suse.cz>
- <CAHk-=wjkiNPWb97JXV6=J6DzscB1g7moGJ6G_nSe=AEbMugTNw@mail.gmail.com>
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=b3f8X3vk;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chrisdown.name; s=google;
+        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=bVOuN27+dQpcYjyoBP7qcpwIAC0k6Nxrf6LI5xH+LA4=;
+        b=b3f8X3vkGREfwb8cgrZL68JTIwv9yiDjla7EXDA9MgwWVXeSsFHmJHsi3G7GDankY5
+         T57lz9NGHBL4NeJ4dlqbpYJrsoEI7+Uvw2GlbxDI3rbmFQ64Yj2KIQZr7rEORjlCsHTj
+         efE4MLs4dUIptQZ4a/SYpQh36Wod7GTl8OAbk=
+X-Google-Smtp-Source: ALg8bN5ysSl/ioCr4AIRCKDjPjIJTkc87tOvKrQfy+6635gtKpl8vT/9tnbpYJcsNa/DPIYglsoRWg==
+X-Received: by 2002:ac8:4a10:: with SMTP id x16mr38505487qtq.164.1548998292366;
+        Thu, 31 Jan 2019 21:18:12 -0800 (PST)
+Received: from localhost (rrcs-108-176-24-99.nyc.biz.rr.com. [108.176.24.99])
+        by smtp.gmail.com with ESMTPSA id p8sm6253906qtk.70.2019.01.31.21.18.11
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 31 Jan 2019 21:18:11 -0800 (PST)
+Date: Fri, 1 Feb 2019 00:18:10 -0500
+From: Chris Down <chris@chrisdown.name>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
+	Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>,
+	Dennis Zhou <dennis@kernel.org>, linux-kernel@vger.kernel.org,
+	cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+Subject: [PATCH v4] mm: Make memory.emin the baseline for utilisation
+ determination
+Message-ID: <20190201051810.GA18895@chrisdown.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAHk-=wjkiNPWb97JXV6=J6DzscB1g7moGJ6G_nSe=AEbMugTNw@mail.gmail.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+In-Reply-To: <20190129191525.GB10430@chrisdown.name>
+User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 31, 2019 at 09:54:16AM -0800, Linus Torvalds wrote:
-> On Thu, Jan 31, 2019 at 2:23 AM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > OK, I guess my question was not precise. What does prevent taking fs
-> > locks down the path?
-> 
-> IOCB_NOWAIT has never meant that, and will never mean it.
+Roman points out that when when we do the low reclaim pass, we scale the
+reclaim pressure relative to position between 0 and the maximum
+protection threshold.
 
-I think you're wrong, Linus. IOCB_NOWAIT was specifically designed
-to prevent blocking on filesystem locks during AIO submission. The
-initial commits spell that out pretty clearly:
+However, if the maximum protection is based on memory.elow, and
+memory.emin is above zero, this means we still may get binary behaviour
+on second-pass low reclaim. This is because we scale starting at 0, not
+starting at memory.emin, and since we don't scan at all below emin, we
+end up with cliff behaviour.
 
-commit b745fafaf70c0a98a2e1e7ac8cb14542889ceb0e
-Author: Goldwyn Rodrigues <rgoldwyn@suse.com>
-Date:   Tue Jun 20 07:05:43 2017 -0500
+This should be a fairly uncommon case since usually we don't go into the
+second pass, but it makes sense to scale our low reclaim pressure
+starting at emin.
 
-    fs: Introduce RWF_NOWAIT and FMODE_AIO_NOWAIT
-    
-    RWF_NOWAIT informs kernel to bail out if an AIO request will block
-    for reasons such as file allocations, or a writeback triggered,
-    or would block while allocating requests while performing
-    direct I/O.
-    
-    RWF_NOWAIT is translated to IOCB_NOWAIT for iocb->ki_flags.
-    
-    FMODE_AIO_NOWAIT is a flag which identifies the file opened is capable
-    of returning -EAGAIN if the AIO call will block. This must be set by
-    supporting filesystems in the ->open() call.
-    
-    Filesystems xfs, btrfs and ext4 would be supported in the following patches.
-    
-    Reviewed-by: Christoph Hellwig <hch@lst.de>
-    Reviewed-by: Jan Kara <jack@suse.cz>
-    Signed-off-by: Goldwyn Rodrigues <rgoldwyn@suse.com>
-    Signed-off-by: Jens Axboe <axboe@kernel.dk>
+You can test this by catting two large sparse files, one in a cgroup
+with emin set to some moderate size compared to physical RAM, and
+another cgroup without any emin. In both cgroups, set an elow larger
+than 50% of physical RAM. The one with emin will have less page
+scanning, as reclaim pressure is lower.
 
-commit 29a5d29ec181ebdc98a26cedbd76ce9870248892
-Author: Goldwyn Rodrigues <rgoldwyn@suse.com>
-Date:   Tue Jun 20 07:05:48 2017 -0500
+Signed-off-by: Chris Down <chris@chrisdown.name>
+Suggested-by: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>
+Cc: Dennis Zhou <dennis@kernel.org>
+Cc: linux-kernel@vger.kernel.org
+Cc: cgroups@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: kernel-team@fb.com
+---
+ include/linux/memcontrol.h | 19 ++++++++-----
+ mm/vmscan.c                | 55 +++++++++++++++++++++++---------------
+ 2 files changed, 46 insertions(+), 28 deletions(-)
 
-    xfs: nowait aio support
-    
-    If IOCB_NOWAIT is set, bail if the i_rwsem is not lockable
-    immediately.
-    
-    IF IOMAP_NOWAIT is set, return EAGAIN in xfs_file_iomap_begin
-    if it needs allocation either due to file extension, writing to a hole,
-    or COW or waiting for other DIOs to finish.
-    
-    Return -EAGAIN if we don't have extent list in memory.
-    
-    Signed-off-by: Goldwyn Rodrigues <rgoldwyn@suse.com>
-    Reviewed-by: Christoph Hellwig <hch@lst.de>
-    Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
-    Signed-off-by: Jens Axboe <axboe@kernel.dk>
+Rebase on top of and apply the same idea as what was applied to handle 
+cgroup_memory=disable properly for the original proportional patch 
+(20190201045711.GA18302@chrisdown.name, "mm, memcg: Handle 
+cgroup_disable=memory when getting memcg protection").
 
-commit 728fbc0e10b7f3ce2ee043b32e3453fd5201c055
-Author: Goldwyn Rodrigues <rgoldwyn@suse.com>
-Date:   Tue Jun 20 07:05:47 2017 -0500
-
-    ext4: nowait aio support
-    
-    Return EAGAIN if any of the following checks fail for direct I/O:
-      + i_rwsem is lockable
-      + Writing beyond end of file (will trigger allocation)
-      + Blocks are not allocated at the write location
-    
-    Signed-off-by: Goldwyn Rodrigues <rgoldwyn@suse.com>
-    Reviewed-by: Jan Kara <jack@suse.cz>
-    Signed-off-by: Jens Axboe <axboe@kernel.dk>
-
-> We will never give user space those kinds of guarantees. We do locking
-> for various reasons.  For example, we'll do the mm lock just when
-> fetching/storing data from/to user space if there's a page fault.
-
-You are conflating "best effort non-blocking operation" with
-"atomic guarantee".  RWF_NOWAIT/IOCB_NOWAIT is the
-former, not the latter.
-
-i.e. RWF_NOWAIT addresses the "every second IO submission blocks"
-problems that AIO submission suffered from due to filesystem lock
-contention, not the rare and unusual things like  "page fault during
-get_user_pages in direct IO submission".  Maybe one day, but right
-now those rare cases are not pain points for applications that
-require nonblock AIO submission via RWF_NOWAIT.
-
-> Or -
-> more obviously - we'll also check for - and sleep on - mandatory locks
-> in rw_verify_area().
-
-Well, only if you don't use fcntl(O_NONBLOCK) on the file to tell
-mandatory locking to fail with -EAGAIN instead of sleeping.
-
--Dave.
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 49742489aa56..0fcbea7ad0c8 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -333,12 +333,17 @@ static inline bool mem_cgroup_disabled(void)
+ 	return !cgroup_subsys_enabled(memory_cgrp_subsys);
+ }
+ 
+-static inline unsigned long mem_cgroup_protection(struct mem_cgroup *memcg)
++static inline void mem_cgroup_protection(struct mem_cgroup *memcg,
++					 unsigned long *min, unsigned long *low)
+ {
+-	if (mem_cgroup_disabled())
+-		return 0;
++	if (mem_cgroup_disabled()) {
++		*min = 0;
++		*low = 0;
++		return;
++	}
+ 
+-	return max(READ_ONCE(memcg->memory.emin), READ_ONCE(memcg->memory.elow));
++	*min = READ_ONCE(memcg->memory.emin);
++	*low = READ_ONCE(memcg->memory.elow);
+ }
+ 
+ enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
+@@ -829,9 +834,11 @@ static inline void memcg_memory_event_mm(struct mm_struct *mm,
+ {
+ }
+ 
+-static inline unsigned long mem_cgroup_protection(struct mem_cgroup *memcg)
++static inline void mem_cgroup_protection(struct mem_cgroup *memcg,
++					 unsigned long *min, unsigned long *low)
+ {
+-	return 0;
++	*min = 0;
++	*low = 0;
+ }
+ 
+ static inline enum mem_cgroup_protection mem_cgroup_protected(
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 549251818605..f7c4ab39d5d0 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2447,12 +2447,12 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 		int file = is_file_lru(lru);
+ 		unsigned long lruvec_size;
+ 		unsigned long scan;
+-		unsigned long protection;
++		unsigned long min, low;
+ 
+ 		lruvec_size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
+-		protection = mem_cgroup_protection(memcg);
++		mem_cgroup_protection(memcg, &min, &low);
+ 
+-		if (protection > 0) {
++		if (min || low) {
+ 			/*
+ 			 * Scale a cgroup's reclaim pressure by proportioning
+ 			 * its current usage to its memory.low or memory.min
+@@ -2467,28 +2467,38 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 			 * set it too low, which is not ideal.
+ 			 */
+ 			unsigned long cgroup_size = mem_cgroup_size(memcg);
+-			unsigned long baseline = 0;
+ 
+ 			/*
+-			 * During the reclaim first pass, we only consider
+-			 * cgroups in excess of their protection setting, but if
+-			 * that doesn't produce free pages, we come back for a
+-			 * second pass where we reclaim from all groups.
++			 * If there is any protection in place, we adjust scan
++			 * pressure in proportion to how much a group's current
++			 * usage exceeds that, in percent.
+ 			 *
+-			 * To maintain fairness in both cases, the first pass
+-			 * targets groups in proportion to their overage, and
+-			 * the second pass targets groups in proportion to their
+-			 * protection utilization.
+-			 *
+-			 * So on the first pass, a group whose size is 130% of
+-			 * its protection will be targeted at 30% of its size.
+-			 * On the second pass, a group whose size is at 40% of
+-			 * its protection will be
+-			 * targeted at 40% of its size.
++			 * There is one special case: in the first reclaim pass,
++			 * we skip over all groups that are within their low
++			 * protection. If that fails to reclaim enough pages to
++			 * satisfy the reclaim goal, we come back and override
++			 * the best-effort low protection. However, we still
++			 * ideally want to honor how well-behaved groups are in
++			 * that case instead of simply punishing them all
++			 * equally. As such, we reclaim them based on how much
++			 * of their best-effort protection they are using. Usage
++			 * below memory.min is excluded from consideration when
++			 * calculating utilisation, as it isn't ever
++			 * reclaimable, so it might as well not exist for our
++			 * purposes.
+ 			 */
+-			if (!sc->memcg_low_reclaim)
+-				baseline = lruvec_size;
+-			scan = lruvec_size * cgroup_size / protection - baseline;
++			if (sc->memcg_low_reclaim && low > min) {
++				/*
++				 * Reclaim according to utilisation between min
++				 * and low
++				 */
++				scan = lruvec_size * (cgroup_size - min) /
++					(low - min);
++			} else {
++				/* Reclaim according to protection overage */
++				scan = lruvec_size * cgroup_size /
++					max(min, low) - lruvec_size;
++			}
+ 
+ 			/*
+ 			 * Don't allow the scan target to exceed the lruvec
+@@ -2504,7 +2514,8 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 			 * some cases in the case of large overages.
+ 			 *
+ 			 * Also, minimally target SWAP_CLUSTER_MAX pages to keep
+-			 * reclaim moving forwards.
++			 * reclaim moving forwards, avoiding decremeting
++			 * sc->priority further than desirable.
+ 			 */
+ 			scan = clamp(scan, SWAP_CLUSTER_MAX, lruvec_size);
+ 		} else {
 -- 
-Dave Chinner
-david@fromorbit.com
+2.20.1
 
