@@ -2,152 +2,164 @@ Return-Path: <SRS0=aBqT=QI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E4597C282DA
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 07:12:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4723AC282D8
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 07:28:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AC3E320857
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 07:12:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC3E320857
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 029392082F
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 07:28:57 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="Dz9K88dH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 029392082F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 47F978E0003; Fri,  1 Feb 2019 02:12:08 -0500 (EST)
+	id 81E288E0003; Fri,  1 Feb 2019 02:28:57 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 42FD38E0001; Fri,  1 Feb 2019 02:12:08 -0500 (EST)
+	id 7A4C18E0001; Fri,  1 Feb 2019 02:28:57 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 346468E0003; Fri,  1 Feb 2019 02:12:08 -0500 (EST)
+	id 695338E0003; Fri,  1 Feb 2019 02:28:57 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E1F1A8E0001
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 02:12:07 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id q62so4052668pgq.9
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 23:12:07 -0800 (PST)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E9E848E0001
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 02:28:56 -0500 (EST)
+Received: by mail-lj1-f198.google.com with SMTP id 2-v6so1175756ljs.15
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 23:28:56 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=95zZJsAHZJnIhAwehWVn26owdKuI0eAb1OmScRhF7EY=;
-        b=K5en07VM1Xyza/ygXeV4Rbe7puaN83mGjkDAlZ7PMEB+HufmLAZUvvNx9Je8Fbu0f/
-         iGorUgAA2nuPWwEHHDp3e1QTYXqg9hUNmP3PNfN25aVpYXB9dOrzBnt/zS8LXpC01y08
-         l6MpQ151EZ9InBa9Xif32PzDfEIMQI4fCaVRcbUtXFh/q3f4ag3nN89G3IPRKWY4+RBN
-         wWrlukU/tF7h6Pv5ehmJtVhHrRuFMO1XloNCh7756ufgLFCYZrsa2UgJf/3DtAgPe6xm
-         Zl4kWyOE/OqQb3EDcpTFnTQf3hAzp3I6Bvm0zOXbWzEV36gvvm/X/RK4FitKNYwB5nU/
-         IhuQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukfkRKgUVTbBDbnSuR7sOTtdKwSpj7gOlugvjhn4lt6wzHrw9NAm
-	TiugEGiidZLlK5jspVZmaKB9/weEw+jpYU/5FBYTAHM/54tA56cDcpoeJmvxUOtI0uXqBqzIjOM
-	DWY7NoGfqoiS5MPh8Aoib1FfyTVTYPE8/A7ZjyRIMdYt0uub1QPN1yuKX4wXAVmQ=
-X-Received: by 2002:aa7:8286:: with SMTP id s6mr37391872pfm.63.1549005127543;
-        Thu, 31 Jan 2019 23:12:07 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5tHyiABf3tdU6jbrhS6CQMmYER0w6uBFomywMZwjJW+8Ev/vwyXTXznaGgll7C75K7vghg
-X-Received: by 2002:aa7:8286:: with SMTP id s6mr37391853pfm.63.1549005126880;
-        Thu, 31 Jan 2019 23:12:06 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549005126; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=P18BFRM3FHB2HT0zP5dgNZMDiNjCSTJ5pMr531eoN/M=;
+        b=ksIfehysV6IZeMYhAYpwDCznFKYbDYj3nI5eNQe+su/rbjnvX9HJs2K7J/ISRfqgMV
+         UgViyowdm350mOturXeqnlXwr/A7aq5oIpZyyVIlCjCdsqq/rL5/51OTBRLzZ0OpydTT
+         8wNMr1/S3asv+7x9xMTQ2F1gVDdwITYoCre6nyn4GSSimdh9atRYMIn8OLySNnFZdAOg
+         Rppit7HchZQ/xSmkvHt0A2sGUfp0Rlr+3PI3cvIXMZ+/X8PhEkpJpEw5O9g9/qW0HDb5
+         eBAqXsqjL221BQJGhdSjZb8vVxRyIvm9xTzvJWL7plYxx3VRp35jPYIBkkdGEd8bUxmV
+         zJ9g==
+X-Gm-Message-State: AHQUAuYbCnUEIJmu7pKoeVkqt7Z64FeZ97u1A92zN4Uqphs7FAejljK1
+	kFfTPmoEZjnPFBVkrmNo5Ld3M0KMdUPPC2q9K7myUPjuF59xvRgqr1goIjjl1E2D2ENk0lsFbZA
+	zVafXBzk7Doek/kzqgrQJSs8YMicRjNpQtTjDronmGKTLvFy0fWzKuva5gM6Oj7fCnJjBdnTle8
+	g3Z6zjJuZZsUsrzMt/c2GcfgSo4U/lj6mRdIV+cxoHQoj7Fpwont2ahvX7NsBaH84v4jo9s3i+Q
+	m5QC8Lyq9DQ+QOJxI7qGa/31gNuEqjSkOguj+h4470QRJZKDEinkMx5XLbPCsGZChXN2rcFdquc
+	B7b9JPNMrPOAlkrDJ4xhqfEzSIWRbC/xNZP013ttGdfrqrh5KP596dc3MIJwPeUTP6A0cJ2ZfYG
+	z
+X-Received: by 2002:ac2:52aa:: with SMTP id r10mr3636053lfm.56.1549006135981;
+        Thu, 31 Jan 2019 23:28:55 -0800 (PST)
+X-Received: by 2002:ac2:52aa:: with SMTP id r10mr3636006lfm.56.1549006134933;
+        Thu, 31 Jan 2019 23:28:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549006134; cv=none;
         d=google.com; s=arc-20160816;
-        b=fREkkyKpfu1HNaMc9GsdZKx4lt0MTkBEsGnmoFjZLn6uM5fWeqY9CIbWSRxFOQ7UZT
-         mzvZa9FQxYaEptTjixRbY9yBh7zjCpPwsimw4f1HqMUHOguCCXDFSDWu17Ku+PobcYUL
-         rG+kibFoWm7guLrPMb7kYwMPIQ1Aqs1KLqrhAm7fzQOCsSEpJZQULE7WegeUfJ59pnYJ
-         6ZGXisVoL/0dW6rQrBc3dkegMCKGtc55qKs1tK+pQCsKyhIx6u2N44N8fSWn+II8gef6
-         2Z8ns4JA60HaGuXtISUPITYJAMxI+6UJUJ5ud7OKCte0kztECPRGNNWneyTpPSPdj7OJ
-         K/HA==
+        b=WOuLbpLjQKFnIS9nKqWYjfGa/6cyTdrZidwpus5355DDeW2QMHbKLBw+xMhgGoo5vE
+         p95m7RrDKWcwhaBH2AkvJ7VWYWgX0hYOAl+5H22+XDkwToo7k9M7KuNGcQ7d94zvkfvA
+         PVr0WZJT5SfCyHRhrp312xIL67sq8TMcAhT9cR0hK9jjfR49KN7aY1md3vK7NI89KE2d
+         tT5oZA4uqT623bNsAO/VS9FPAkmzAnz3VPTZyDRVdmg96fv/fiXULADXJjUOqOdsCkuW
+         +xsfmXPFeFY3KBcIb+hQFQvfe9KQ1W65Mqgcwj7yxFUgKYZMeDylnjzokqgxEtk0F58S
+         4jSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=95zZJsAHZJnIhAwehWVn26owdKuI0eAb1OmScRhF7EY=;
-        b=WNMRaI5hzM+4wjhF/yL2PyYUSdNx6ohLwqgeidWNjMIi0Iq5u+nr9jJohFiD1cczrU
-         oI6tJH2vmVMS45NGF3dWdz69b68JBH5W68jHmIq9NwsdBolkuKyH3eIPNhil1X8aVhtF
-         C9Ixpu/EkMR0f/7Ux8Lmpe1l8MrEth4wK9Uhk7BAnFEN2IzHTcRd8/+MSDRrSPhVAYXl
-         WMMe71lIaFnohv7aW0hzmA4wMWRLHPsZKIUL82V1giUvd1XytHBfr5hZwBXsMJelDfXI
-         /kySuBlTCl7MxRUWmds7u/Oeo1e+jC6r+NgssE4KXcyCqsv2t7rPGK/MTTiQGFHm/mkd
-         Hcaw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=P18BFRM3FHB2HT0zP5dgNZMDiNjCSTJ5pMr531eoN/M=;
+        b=RGIT8MCHTgmnkgy6d3Fih6Ag/d5mG1P/a6VFa9IM3dEe0nj4SIo6aUGw1aVX+BbIID
+         loQJrC7YbsoiuFKHMloPLtmiLu2H7XU8iTqgnh7LJipGPIx3bhdIpa2nxQWtKIQGTVDs
+         5eyJ5JJg4OV7bCaUgAEyXgKWHfB9mmAhAZ6EsU230WAxodBW7rhsj6r5ZZD4fDj4f/Pa
+         dZwsbKPjq42RD5FFaV2WQNObtwN3GSoelKB4IHqIrfE8pEhSoa6n0DSeLYFjYrfpak8B
+         eskGeEnpg07Fr0qHOl5n/fMoX/inl0NF7nNaCT9xuqyZFbOeXbu4JPdeF9x+YFj0jRk+
+         pWEg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i5si6824494pgn.243.2019.01.31.23.12.06
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Dz9K88dH;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o22-v6sor4741431lji.38.2019.01.31.23.28.54
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 31 Jan 2019 23:28:54 -0800 (PST)
+Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Dz9K88dH;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linux-foundation.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=P18BFRM3FHB2HT0zP5dgNZMDiNjCSTJ5pMr531eoN/M=;
+        b=Dz9K88dHG0MbOo5xXIKHy6zdQlsgU8yR75VOq/fcOVBfdMTH0TkY2f7OZ29Vni7G7T
+         PrPv8xbCSagWseLm8k1O37oAaGqIQshCQSPPfK6Op87yEDO24e8qkElqk+QU7F0wW8Bm
+         eG7DkoUiiW6lL19Q6f2MiV+avBrpKbTpyAAkI=
+X-Google-Smtp-Source: ALg8bN5RMF+F60bZnD1Wiv3mw7AcD9LbUE7LsYltiQpQdP5YUfDgozraEl7BxxRd46TUXmTxeqz2tg==
+X-Received: by 2002:a2e:8087:: with SMTP id i7-v6mr30008892ljg.179.1549006133967;
+        Thu, 31 Jan 2019 23:28:53 -0800 (PST)
+Received: from mail-lf1-f50.google.com (mail-lf1-f50.google.com. [209.85.167.50])
+        by smtp.gmail.com with ESMTPSA id 10sm1131748ljr.4.2019.01.31.23.28.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jan 2019 23:12:06 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
-Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 7AA71ADA9;
-	Fri,  1 Feb 2019 07:12:04 +0000 (UTC)
-Date: Fri, 1 Feb 2019 08:12:03 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Chris Down <chris@chrisdown.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
-	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH] mm, memcg: Handle cgroup_disable=memory when getting
- memcg protection
-Message-ID: <20190201071203.GD11599@dhcp22.suse.cz>
-References: <20190201045711.GA18302@chrisdown.name>
+        Thu, 31 Jan 2019 23:28:53 -0800 (PST)
+Received: by mail-lf1-f50.google.com with SMTP id p6so4330576lfc.1
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 23:28:53 -0800 (PST)
+X-Received: by 2002:a19:ef15:: with SMTP id n21mr29965253lfh.21.1549005729676;
+ Thu, 31 Jan 2019 23:22:09 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190201045711.GA18302@chrisdown.name>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
+ <20190130124420.1834-1-vbabka@suse.cz> <20190130124420.1834-3-vbabka@suse.cz>
+ <20190131095644.GR18811@dhcp22.suse.cz> <nycvar.YFH.7.76.1901311114260.6626@cbobk.fhfr.pm>
+ <20190131102348.GT18811@dhcp22.suse.cz> <CAHk-=wjkiNPWb97JXV6=J6DzscB1g7moGJ6G_nSe=AEbMugTNw@mail.gmail.com>
+ <20190201051355.GV6173@dastard> <CAHk-=wg0FXvwB09WJaZk039CfQ0hEnyES_ANE392dfsx6U8WUQ@mail.gmail.com>
+In-Reply-To: <CAHk-=wg0FXvwB09WJaZk039CfQ0hEnyES_ANE392dfsx6U8WUQ@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 31 Jan 2019 23:21:53 -0800
+X-Gmail-Original-Message-ID: <CAHk-=wibb_cXG2e81ZiapC-SJPDwG4kaQ16XgJ_1cb3jgF9X3Q@mail.gmail.com>
+Message-ID: <CAHk-=wibb_cXG2e81ZiapC-SJPDwG4kaQ16XgJ_1cb3jgF9X3Q@mail.gmail.com>
+Subject: Re: [PATCH 2/3] mm/filemap: initiate readahead even if IOCB_NOWAIT is
+ set for the I/O
+To: Dave Chinner <david@fromorbit.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Jiri Kosina <jikos@kernel.org>, 
+	Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, 
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
+	Linux API <linux-api@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, 
+	Greg KH <gregkh@linuxfoundation.org>, Jann Horn <jannh@google.com>, 
+	Dominique Martinet <asmadeus@codewreck.org>, Andy Lutomirski <luto@amacapital.net>, 
+	Kevin Easton <kevin@guarana.org>, Matthew Wilcox <willy@infradead.org>, Cyril Hrubis <chrubis@suse.cz>, 
+	Tejun Heo <tj@kernel.org>, "Kirill A . Shutemov" <kirill@shutemov.name>, Daniel Gruss <daniel@gruss.cc>, 
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 31-01-19 23:57:11, Chris Down wrote:
-> memcg is NULL if we have CONFIG_MEMCG set, but cgroup_disable=memory on
-> the kernel command line.
-> 
-> Fixes: 8a907cdf0177ab40 ("mm, memcg: proportional memory.{low,min} reclaim")
+On Thu, Jan 31, 2019 at 11:05 PM Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+>
+> And part of "best effort" is very much "not a security information leak".
 
-JFYI this is not a valid sha1. It is from linux next and it will change
-with the next linux-next release.
+Side note: it's entirely possible that the preadv2(RWF_NOWAIT)
+interface is actually already effectively too slow to be effectively
+used as much of an attack vector.
 
-Btw. I still didn't get to look at your patch and I am unlikely to do so
-today. I will be offline next week but I will try to get to it after I
-get back.
+One of the advantages of mincore() for the attack was that you could
+just get a lot of page status information in one go. With RWF_NOWAIT,
+you only really get "up to the first non-cached page", so it's already
+a weaker signal than mincore() gave.
 
-> Reported-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-> Signed-off-by: Chris Down <chris@chrisdown.name>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: linux-kernel@vger.kernel.org
-> Cc: cgroups@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> ---
->  include/linux/memcontrol.h | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 290cfbfd60cd..49742489aa56 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -335,6 +335,9 @@ static inline bool mem_cgroup_disabled(void)
->  
->  static inline unsigned long mem_cgroup_protection(struct mem_cgroup *memcg)
->  {
-> +	if (mem_cgroup_disabled())
-> +		return 0;
-> +
->  	return max(READ_ONCE(memcg->memory.emin), READ_ONCE(memcg->memory.elow));
->  }
->  
-> -- 
-> 2.20.1
+System calls aren't horrendously slow (at least not with fixed
+non-meltdown CPU's), but it might still be a somewhat noticeable
+inconvenience in an attack that is already probably not all that easy
+to do on an arbitrary target.
 
--- 
-Michal Hocko
-SUSE Labs
+So it might not be a huge deal. But I think we should at least try to
+make things less useful for these kinds of attack vectors.
+
+And no, that doesn't mean "stop all theoretical attacks". It means
+"let's try to make things less convenient as a data leak".
+
+That's why things like "oh, you can still see the signal if you can
+keep the backing device congested" is not something I'd worry about.
+It's just another (big) inconvenience, and not all that simple to do.
+At some point, it's simply not worth it as an attack vector any more.
+
+               Linus
 
