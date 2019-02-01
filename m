@@ -2,172 +2,156 @@ Return-Path: <SRS0=aBqT=QI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E9568C282D8
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 15:06:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 32B8CC282D8
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 15:14:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AFC9720855
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 15:06:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFC9720855
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id D852921872
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 15:14:57 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=kernel-dk.20150623.gappssmtp.com header.i=@kernel-dk.20150623.gappssmtp.com header.b="GR6uaQ00"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D852921872
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kernel.dk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 53FAF8E0003; Fri,  1 Feb 2019 10:06:18 -0500 (EST)
+	id 846F38E0003; Fri,  1 Feb 2019 10:14:57 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C7BA8E0001; Fri,  1 Feb 2019 10:06:18 -0500 (EST)
+	id 7CF278E0001; Fri,  1 Feb 2019 10:14:57 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 36C138E0003; Fri,  1 Feb 2019 10:06:18 -0500 (EST)
+	id 697008E0003; Fri,  1 Feb 2019 10:14:57 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CD9028E0001
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 10:06:17 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id t2so2905332edb.22
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 07:06:17 -0800 (PST)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DFC68E0001
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 10:14:57 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id w68so3681008ith.0
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 07:14:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=ejJEqGTeL0OHykvCEe/yGOAYrR6KxeUCTBncO9JamkI=;
-        b=Mh9zMYIPAJDCMVJsg1vy+m9HOA/XzSecrXsC+jg7Hf5Jza3oUofNDXwsyLAG9yUXAH
-         A7x18ZPjKqo1rp/Uqty50zWE2vS23VXHdGngyeEFzcWLVtYaFm/s0z7cMX8mTlVuRySl
-         eyfu3LJGYtmlwpDT0wk+JQjJRDz3FTRqFDz6m8RwKqn/J+8NqDjwS19ZTEwc3bP96LKO
-         RORKll90uDL7LRpROD0mplqJpFj5EG/Vw4x0gI1abk4lok7uLLPwHfzXY7QIHIVTtPo1
-         lJp5cL2kPYIPUriEVjb5eLGhJuOKSmWbp+02Szcfo+mH+UNDXO0JiLQEmbgvjpEI0xlB
-         lv1Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: AJcUukc8x/Hcv0lYTH0VQmplNAiVtMbqbfkcwgzw7GfKsQC4boIPSyre
-	2/fXIgQm6DjxWfm8wC0YWvxBGE62vAxQm2Se2s7QxrA5zblSmBfVzh/biZdHQQoxeciumGf+dYd
-	mIVKN83R6ojEygrVoPw+aldK6u+NUKooZ1VbLq8RI9FHvethtroD/QJmJNXQIQQVqow==
-X-Received: by 2002:a17:906:4b4c:: with SMTP id j12mr34718546ejv.185.1549033577371;
-        Fri, 01 Feb 2019 07:06:17 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN78xgxIFlrhxMdNuQRuDweyPycWIoi7Fk/srhKmiEeM6MIMEAzAZB+BBJTKMy5Tom3vw9aB
-X-Received: by 2002:a17:906:4b4c:: with SMTP id j12mr34718478ejv.185.1549033576112;
-        Fri, 01 Feb 2019 07:06:16 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549033576; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=0/w0VcgBYTyY12yo9kpfyfqwFxGA5uutLsI2xQpEdHs=;
+        b=ewVsobrO/OPmpnS+39xyjBs5ar3hOmvyc0H5KUGAvvS3PKb1GVPudtYocphA4oQowB
+         kwbBWfE+BJzM+56wqH4tsY8r2R6o8VD3Rk3TeNr7+3sdQ9/JUyjk0eaTacaE+OffwkQs
+         /mxfKGSa72PUNuvP0l5GzEp9mVDI/tRKBfx12D59IxobDW797ZFMn8m8FTVVLws+2Z+g
+         oRPfJ1XRfsK8crTLvACkaup4G9U1KEMQKLuc7wxTSslMab+5bh670pk9l1qpEH56KlzE
+         rlsdPDIHMvY2DaiRasYNeB6luMDHQ1+bapwGO5BC8yWnSLC4cNloEMhcubu6REvy1gid
+         DOSQ==
+X-Gm-Message-State: AHQUAuZN+yV9BnWf7HAX8vIN68X27qiSYkcrbToRHUcqMDBTi02iy0vy
+	3fP0Y4J3jwnzPTETaMsGR99T8aFsKC48vVhwzWH4/5JOU48VhdFKBknq7+nmVLhIiy3u2DH6DmL
+	EGaTNEG0nci7UsX2j7bPgPGNRb/0LzqVG7LJzZMdeMhfjdTv1HJ6Fb+xxl13roHcq2tPCkbkW7f
+	Hc/T6HrNpjitXsfz3jFfdzsuDMomt7HE9FLcTiq4pZUzK4KSEWyMPhahT8g2gCfUlrIseOBPVry
+	YIWOTFbYLtk9D8kJ42dQ1bBSiVqHOU+y1kXfsYtU543xNIH9ulRMYzUuKShpFdpAw4+olZnxN4o
+	W+ldJSxBeKZQBaPz8NevnlnO16HLXIPFLCGBHTMXPqciECgj6J8fQtKDygdxVjjRGudntkP+vTE
+	2
+X-Received: by 2002:a24:2f82:: with SMTP id j124mr1525782itj.166.1549034096942;
+        Fri, 01 Feb 2019 07:14:56 -0800 (PST)
+X-Received: by 2002:a24:2f82:: with SMTP id j124mr1525749itj.166.1549034096127;
+        Fri, 01 Feb 2019 07:14:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549034096; cv=none;
         d=google.com; s=arc-20160816;
-        b=hjrjzAvCyWIaj9T5PGhl1j8mUZAnOU8FzU9abjRpF6FhjWfhUJEsu9qwFpquA6XcXA
-         Ih2N5lwAHH2jge017TASDeJvjEYJHzu4PapAVWwZOA0icqY0i9uuxPIDpQl+GUJ+ua2F
-         wpaQfhZ8Ty8NVip+KRrzdde05FI+IkKt0S+Bj0dO3jQWDW8YH55dF2gBxsETKnMJEJOI
-         FKGrnlPrXVnT0wSWYNH/4Fy6lvKOSbUlvRrY8wl9SKjZV5htg5xLamG1/Y2sWIoL7bTu
-         Gt9hPkDLzoaj2YG6B8ScdU9Fww56qofteZwfNDVOMl7hiwbftwv5lC182SE9NVjIrrhj
-         WYCw==
+        b=kJvRrKPl2goXdXbRpRQ1k7zj10epaAEkMEAlHc5GWKF8grxXAJJAJgH++a/ZgTmXkj
+         YcRNkDxCyh/GVb2y7UsZjA6wPcWegcXSneR9NWxNw+jQxCUO+PN84kCNRQHcICyVpoMG
+         So8CYLXCESxJkVhZOrqSTwAzOjfASPbDrcxU/RxHmsuvfJBFp+GMlJ7z0fV2g7carYl8
+         hjazgbvyCvGzLwzdjieepjbKiD8tHEmmGYhrBMBuSmtlP8OXgUgixI/6Lt5w3LWuVHid
+         NQTOs/7ux6IzKeWV+zhGPKC/SxhZlR70diopukjHWHNMcu0hZc2k0e7DmlbVOs2aX7If
+         z9+g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=ejJEqGTeL0OHykvCEe/yGOAYrR6KxeUCTBncO9JamkI=;
-        b=P3jHDY4Qi0LPUHKG59ERT1+MMYPx0btli72z/TjRWyrmyXHzyCi8m2s2GAtFIcfbZw
-         bxKx2HsxqJeYfLdRCM8ecHYAtVvP/4GcqZbiV2HNe0L7yZ2iPMAn3j7lsJypnRyV1bTt
-         JAOafWOyMNL955q3i2cu93/nAShN2TdHjwetbr5E6FdAvNdT6F+WBM3luYK5Zci+NHZo
-         hr2mm15V8M4XrqD0PW5JV9wzd6KK6lEHjMxucWdRZzMCRjZ2cytp48GNK3rQm8OUWanf
-         1fsp+ihTqyEYKemKsLMhWuWTJcoZ8ALnNrzVCRFWgUWZUT5V0eSSgEvCj/sT9BxeT/HU
-         hCHQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=0/w0VcgBYTyY12yo9kpfyfqwFxGA5uutLsI2xQpEdHs=;
+        b=QagNJpx4C2XlB5Id5Ozzij+GCOLarjcJyNwW32ocJrSvD95FuKyYJ5Nac+g1wUfRB9
+         wGYPslj6PXjIGQ4Iw+pbmkLAZyTTQp8UjZ+xRMBSAroJiFMtFYRPvqCYg0M7UrMU0ZUQ
+         WIWel+KZekTpnSuTlnw6V9eUSpSbR3iBCHePf9qQTz1KK9F97i3FPnOHePRgBz4Mbv1W
+         EgnV/DS3OrCWl+vLZ3sr6t7KIm+fwrF6xuLf4P08KRdWsj6S7PfNLpv0XSsdkEyFrwaI
+         VtD2fJ6PthBP0M1XhcMecTHf+zoxwPTwCvsulqNnxj9VbmnKdktK2u4ZDENxrZSbO9Ue
+         bnaw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id h12si2993529ejd.48.2019.02.01.07.06.15
+       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=GR6uaQ00;
+       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s4sor5212048iom.6.2019.02.01.07.14.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Feb 2019 07:06:16 -0800 (PST)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) client-ip=46.22.139.17;
+        (Google Transport Security);
+        Fri, 01 Feb 2019 07:14:56 -0800 (PST)
+Received-SPF: pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id A8CD31C2247
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 15:06:15 +0000 (GMT)
-Received: (qmail 22173 invoked from network); 1 Feb 2019 15:06:15 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 1 Feb 2019 15:06:15 -0000
-Date: Fri, 1 Feb 2019 15:06:14 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	David Rientjes <rientjes@google.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
-	Linux-MM <linux-mm@kvack.org>
-Subject: Re: [PATCH 09/22] mm, compaction: Use free lists to quickly locate a
- migration source
-Message-ID: <20190201150614.GJ9565@techsingularity.net>
-References: <20190118175136.31341-1-mgorman@techsingularity.net>
- <20190118175136.31341-10-mgorman@techsingularity.net>
- <4a6ae9fc-a52b-4300-0edb-a0f4169c314a@suse.cz>
+       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=GR6uaQ00;
+       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=kernel-dk.20150623.gappssmtp.com; s=20150623;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=0/w0VcgBYTyY12yo9kpfyfqwFxGA5uutLsI2xQpEdHs=;
+        b=GR6uaQ00pYbPCLRa9KeOVp7EAIVTQLwuVTa4F0eriqXHDAVa2QA7/4h84CbVyQJUNb
+         ih1phsb6e/nK3Mjd66ZwOtyGtcm2IyFZasZ8ZHl16VqHQAN6mpba7/4P/Id5BG5qCc1z
+         bqzGO8YhoAvBoBFPKjr3dYL0v7P7BhaXzyhNLgyDpBaOTC/WC2wSlxN3l4GqwxEzEFc2
+         fnqT91Hn56EbDfmWji6vrguO8WhJh0q84ZEJ0npqldX/u8tUbB3EUKHjI6/rB93zM2R9
+         +cEsahcNDaNJKlFGRWEguOpCygiDippzvQf2vtYJ4Xv+y2IgtvSP8opWrU00sih321HJ
+         92fw==
+X-Google-Smtp-Source: AHgI3IaMUZ1ZEOXtZ9C4Vh8gQ91ZR7MwMuUf6GYs9Kd2nJddUqhf+vQWuKZQDNxSXbgxzxgq4WH8/g==
+X-Received: by 2002:a5d:85c5:: with SMTP id e5mr21663233ios.125.1549034095744;
+        Fri, 01 Feb 2019 07:14:55 -0800 (PST)
+Received: from [192.168.1.158] ([216.160.245.98])
+        by smtp.gmail.com with ESMTPSA id 193sm1427312itl.19.2019.02.01.07.14.53
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Feb 2019 07:14:54 -0800 (PST)
+Subject: Re: [PATCH] mm/filemap: pass inclusive 'end_byte' parameter to
+ filemap_range_has_page
+To: Christoph Hellwig <hch@lst.de>, Matthew Wilcox <willy@infradead.org>
+Cc: zhengbin <zhengbin13@huawei.com>, Goldwyn Rodrigues <rgoldwyn@suse.com>,
+ Jan Kara <jack@suse.cz>, akpm@linux-foundation.org, darrick.wong@oracle.com,
+ amir73il@gmail.com, david@fromorbit.com, hannes@cmpxchg.org,
+ jrdr.linux@gmail.com, hughd@google.com, linux-mm@kvack.org,
+ houtao1@huawei.com, yi.zhang@huawei.com
+References: <1548678679-18122-1-git-send-email-zhengbin13@huawei.com>
+ <20190128201805.GA31437@bombadil.infradead.org>
+ <20190201074359.GA15026@lst.de>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <5ef9e569-785f-aca8-20a5-ff08cf8823c3@kernel.dk>
+Date: Fri, 1 Feb 2019 08:14:52 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <4a6ae9fc-a52b-4300-0edb-a0f4169c314a@suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190201074359.GA15026@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 31, 2019 at 02:55:01PM +0100, Vlastimil Babka wrote:
-> > +
-> > +				/*
-> > +				 * Avoid if skipped recently. Ideally it would
-> > +				 * move to the tail but even safe iteration of
-> > +				 * the list assumes an entry is deleted, not
-> > +				 * reordered.
-> > +				 */
-> > +				if (get_pageblock_skip(freepage)) {
-> > +					if (list_is_last(freelist, &freepage->lru))
-> > +						break;
-> > +
-> > +					continue;
-> > +				}
-> > +
-> > +				/* Reorder to so a future search skips recent pages */
-> > +				move_freelist_tail(freelist, freepage);
-> > +
-> > +				pfn = pageblock_start_pfn(free_pfn);
-> > +				cc->fast_search_fail = 0;
-> > +				set_pageblock_skip(freepage);
-> > +				break;
-> > +			}
-> > +
-> > +			if (nr_scanned >= limit) {
-> > +				cc->fast_search_fail++;
-> > +				move_freelist_tail(freelist, freepage);
-> > +				break;
-> > +			}
-> > +		}
-> > +		spin_unlock_irqrestore(&cc->zone->lock, flags);
-> > +	}
-> > +
-> > +	cc->total_migrate_scanned += nr_scanned;
-> > +
-> > +	/*
-> > +	 * If fast scanning failed then use a cached entry for a page block
-> > +	 * that had free pages as the basis for starting a linear scan.
-> > +	 */
-> > +	if (pfn == cc->migrate_pfn)
-> > +		reinit_migrate_pfn(cc);
+On 2/1/19 12:43 AM, Christoph Hellwig wrote:
+> On Mon, Jan 28, 2019 at 12:18:05PM -0800, Matthew Wilcox wrote:
+>> On Mon, Jan 28, 2019 at 08:31:19PM +0800, zhengbin wrote:
+>>> The 'end_byte' parameter of filemap_range_has_page is required to be
+>>> inclusive, so follow the rule.
+>>
+>> Reviewed-by: Matthew Wilcox <willy@infradead.org>
+>> Fixes: 6be96d3ad34a ("fs: return if direct I/O will trigger writeback")
+>>
+>> Adding the people in the sign-off chain to the Cc.
 > 
-> This will set cc->migrate_pfn to the lowest pfn encountered, yet return
-> pfn initialized by original cc->migrate_pfn.
-> AFAICS isolate_migratepages() will use the returned pfn for the linear
-> scan and then overwrite cc->migrate_pfn with wherever it advanced from
-> there. So whatever we stored here into cc->migrate_pfn will never get
-> actually used, except when isolate_migratepages() returns with
-> ISOLATED_ABORT.
-> So maybe the infinite kcompactd loop is linked to ISOLATED_ABORT?
+> This looks correct to me:
 > 
+> Acked-by: Christoph Hellwig <hch@lst.de>
 
-I'm not entirely sure it would fix the infinite loop. I suspect that is
-going to be a boundary conditions where the two scanners are close but
-do not meet if it still exists after the batch of fixes. However, you're
-right that this code is problematic. I'll write a fix, test it and post
-it if it's ok.
+Ditto
 
-Well spotted!
+> I wish we'd kill these stupid range calling conventions, though - 
+> offset + len is a lot more intuitive, and we already use it very
+> widely all over the kernel.
+
+Wholeheartedly agree on that, it's a horrible interface that goes
+counter to the whole "easy to use, hard to misuse" mantra.
 
 -- 
-Mel Gorman
-SUSE Labs
+Jens Axboe
 
