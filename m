@@ -2,161 +2,119 @@ Return-Path: <SRS0=aBqT=QI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 26F64C4151A
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 00:58:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D5025C169C4
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 01:13:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D769F20869
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 00:58:49 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="iDCEb4dF";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="fibNY5iG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D769F20869
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
+	by mail.kernel.org (Postfix) with ESMTP id 81CA42085B
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 01:13:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81CA42085B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6AC5D8E0003; Thu, 31 Jan 2019 19:58:49 -0500 (EST)
+	id F073B8E0002; Thu, 31 Jan 2019 20:13:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 65B818E0001; Thu, 31 Jan 2019 19:58:49 -0500 (EST)
+	id EB5E68E0001; Thu, 31 Jan 2019 20:13:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5221E8E0003; Thu, 31 Jan 2019 19:58:49 -0500 (EST)
+	id DCCCE8E0002; Thu, 31 Jan 2019 20:13:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 26FD98E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 19:58:49 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id c71so5205806qke.18
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 16:58:49 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A90918E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 20:13:10 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id 12so3755058plb.18
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 17:13:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
-         :subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=ZT9ljo+ZXcqCXfaIqDIpaOjNxLT/0pY68f+LJGHdi4k=;
-        b=TETGGv5S1AcRogYbFbUPiVkHl/oADPA4alxaYZ1uc9tdy32dVe6RBWH+AwBVkeu+CL
-         zTpnvH/rMPotEbjqV0r1zsEURd2J7/YNHH1xS47UY7vorMm/PZXXq/z/KKLpXDpQ8Wro
-         /4TGEFaITKgaQ65S/eL8YZpE/EuHpPawvZSTa+JgvC2QPuS2MZ/PmnVDB/xEOhVk8SUq
-         UOnPtxKYeUxjpGiREYfs1BzFvnccBVC0Hcw/9PgFkFBT6YloexIG4PbIrKPDqGLTkV/f
-         4Q6I3RZXsfzyLCrjCVmnbYmtT0lcSdxLvX6AK3R22Pzn8AVkBg8f/pPBPJY77EhRoDsY
-         JAtA==
-X-Gm-Message-State: AJcUukcYxjd9WkqHlMnMWyuAnOeKWBr1iclz8GcooXnhvjRPmX7WuL/T
-	iZ8EHFy1LA0RYAtdrzXHqXR1V4HbXumAKoCU6QIRffMjAAftr0QnEhrLDVHuJdXH2FtOb2LCC9+
-	UVzpjPD7vwpjU6mWEUpc22E0h3KAGqF+ge83HQzbTbs/vHhuRRKHTEHZP532B+TJ1pA==
-X-Received: by 2002:ac8:1909:: with SMTP id t9mr35412921qtj.327.1548982728942;
-        Thu, 31 Jan 2019 16:58:48 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7NlL1LdkTW2zlChEW60Z3G0/dQQXJ0faguFzegG05AQfWqmVKtKTGFMoevkWuLW+7eRcjo
-X-Received: by 2002:ac8:1909:: with SMTP id t9mr35412901qtj.327.1548982728408;
-        Thu, 31 Jan 2019 16:58:48 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548982728; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=Mh7IzmtpzO8PQ8plIMa+H7DtF/qqOloAmU1YTRWw8j8=;
+        b=W38/xrMEUjz3fyqbQEPJBFqT4t2WnNgCUd7L1GmOD/5pV8ZMaK+D7g6TnRI0c5EcNZ
+         lHARe9HHGG34vurmUvU9wTE8xi13/UXQ6bvoHx+6cVFHDxp9u7JKthBkMbcIdnSSlo34
+         cGepqkabg+a+NJhWG5k0ZHmbjvrStKntwKi5cw2QIyJ0hCKfXw1wW6IeuiaVnNZX/3s1
+         GXfD0wj/B3Qdv/H/Zqz0cTB9vadd/LiFCtytQ0bbWN51FceC+Jk/gBHcphDL3+p3BVbA
+         j8wJ7ZBKmEpyaXQOMG3y8Y3r3eHcj+mVwQUl9CUbkX1bx5elM0o7EJ8t4EIIALoFmhs6
+         HmcQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: AJcUukeCnUSsi/moQVvoEMRuDy7+/nv3BLo9slJxiGY41lTJNtpwhwXd
+	kDjBzvXRZYn2CyujBYT1V800vYPwlwBe23XkdI+BPDnZZonMZwlgOMVGXapHe8KLjNI57dMWZd7
+	C7tlG4Y6HCCwpXnvMmo+KJn9/ldT4I2O2nS0I4Q/+t7u4QlMZeWLJ0DgnCqbKmx7+Cg==
+X-Received: by 2002:a63:d904:: with SMTP id r4mr33842409pgg.207.1548983590193;
+        Thu, 31 Jan 2019 17:13:10 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5lnVdA7clOfmA7mXkuBRBw4+SfUP1NpHiK60rlR0IC/+6D5rJQTY3tBf8qblC6KpRp/Pr3
+X-Received: by 2002:a63:d904:: with SMTP id r4mr33842375pgg.207.1548983589597;
+        Thu, 31 Jan 2019 17:13:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548983589; cv=none;
         d=google.com; s=arc-20160816;
-        b=zYAU+9c1/LMnRGn5IauW3jc079b/lc7FvUt0+LkB9a3q2ZvWXDZErKSIST622iGs18
-         f37OZoExh3mOS5rxiPpCy9XEtlTOAZDKxa4mksVjlGWj9WP7hrJH5YV+vWvukuI4lHgL
-         HNDVvXGbwK0oQuDS++qktnJM6pT/SHjupBg3zec/uGYbevooMKgalZjBbPEEub03Q5PR
-         VU4UbHu9QH7YYWT2Sruj5661KinZHUC8VPREUKdGDNSdX5QRYMxlkAEynI9KeH1JhZde
-         rFlu4escPiiR+ptAdoVAnXYCkYCem/o5wV57WZ6X8F4rV4jOOYzI0YgH7q+VJELvLbm9
-         LZtA==
+        b=OvSUuC+YTDDaeB03nnXO/sGeIU4Qw/P2y2+3nvetlwLqxdNfcK7yhZLegNFOy1GbDP
+         3qX93lhEUx9qY5az8ybPTNjfmUyrd31G2ywyNvFr9g85RTtPuwaV0Zez95L8U5s6w48Z
+         d9wxgyGSt+AzyK6LJBN7GG8anneagXrB1peb6GgfbCRHe46IcHFdBwerXEUnABonoejq
+         EGWlxmx4cjh3cdz2WCzPeCUoF/YffJ8oAr+aDPGBQ+U7agRBZ0Ij7OVgwyQZaJFn3tED
+         gFhdV/TCmcBEzDVjgm4b1xNDFcnLpYh9ZAvSFxvg6YkJkGuu41NXQptLZ/NrfZpa6SeH
+         Idsg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
-        bh=ZT9ljo+ZXcqCXfaIqDIpaOjNxLT/0pY68f+LJGHdi4k=;
-        b=avBwKiOtVI/mRE/p2/58Z8TrP0KvSPqew+3tiq4+ootE42RCuWd21xTF5vOc0/bm/n
-         wTNdkb1w1wz5rY1mY+RsNCeg03/Dtm6Maoi300S0Lf1+zMQSeewSEykce22ohH1FTURR
-         PTaEvvAWCYqYxXBwTfzB6MBIi2PTI6xrBrqO5PztnrcmHY2yHtPkySuiJH4KARW0gMSR
-         CbMfxg+9uLCBGYu/L5NSMOJsH9SWD+lZthjLxPFLvqrzG0VtrH4XY4U87g9BTs7Q7yCa
-         vvzkKS28H95zsVAhObbhbhncHT4UwNaoZ8/7Hsz52+NMMam5n+MyZg0BLph0RFDcH0JO
-         AsHQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=Mh7IzmtpzO8PQ8plIMa+H7DtF/qqOloAmU1YTRWw8j8=;
+        b=N3M3a60QjffP+1L8nlgim1Ur2O7ePimUI0U8BDd533Pn4HlENu5iSR25EiazPya4+J
+         GoN+NuH2bkczcCap4coaC/NGOot742pYUrzt3m4H/gYIYse6+mB06SO18b8JswTJFSrS
+         TfSsf3eNwqfMJ1jlXsUn6YO1b1dH+ZBGGWXNkO+SHQUVNDG6TBS+wrO804kHvR2u0Lsx
+         5uIjQJEn/3i2s9+t3xsesBgMGnXa3i4U6Y7fjSP6c5m40WoCSg6IRrqdCGzMIYiQwuwA
+         6UQJs9pc6ndezGDwEtGWSF1p/ufM1zmNbM112uDNLoFptvFVb9toLd44K3vHLHCvr8Rf
+         N5BA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=iDCEb4dF;
-       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=fibNY5iG;
-       spf=neutral (google.com: 64.147.123.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
-Received: from wout2-smtp.messagingengine.com (wout2-smtp.messagingengine.com. [64.147.123.25])
-        by mx.google.com with ESMTPS id n6si553548qkd.231.2019.01.31.16.58.48
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id n13si5258657pgp.307.2019.01.31.17.13.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jan 2019 16:58:48 -0800 (PST)
-Received-SPF: neutral (google.com: 64.147.123.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=64.147.123.25;
+        Thu, 31 Jan 2019 17:13:09 -0800 (PST)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=iDCEb4dF;
-       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=fibNY5iG;
-       spf=neutral (google.com: 64.147.123.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
-Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
-	by mailout.west.internal (Postfix) with ESMTP id BCCFB2D89;
-	Thu, 31 Jan 2019 19:58:46 -0500 (EST)
-Received: from mailfrontend2 ([10.202.2.163])
-  by compute5.internal (MEProxy); Thu, 31 Jan 2019 19:58:47 -0500
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
-	:from:to:cc:subject:message-id:references:mime-version
-	:content-type:in-reply-to; s=fm2; bh=ZT9ljo+ZXcqCXfaIqDIpaOjNxLT
-	/0pY68f+LJGHdi4k=; b=iDCEb4dFuYjMdR3BFwDxpIsj7iEA4rdl0j/fbIO0Y5L
-	35DrJX85pmr21SOxKR6GxySOe4BLEL14YQLyv4m0a/1bW7PzauyF1XthMpmMfB/E
-	j2FKOlqwHwCCN82dGYIu7woyWkCejKzPix4eiTCbgUQZ1oIMjlEfHHEUQqZFM9IG
-	fU/T0IBDuMdedE1+RikHRLLYju1nKNyiyvobmHD5VlNFFm+AjZtmABUJic/w+ChB
-	4u3Ft+OVb7qWvokQC2IyXCzzOxI/mJbucvUsvdi1M4oKbv69lnEjLgSLKr9eNidI
-	9VRG874qsh7vM3GfYTgnJPANIRDMJTC8oNtGm5RwzuA==
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-type:date:from:in-reply-to
-	:message-id:mime-version:references:subject:to:x-me-proxy
-	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm1; bh=ZT9ljo
-	+ZXcqCXfaIqDIpaOjNxLT/0pY68f+LJGHdi4k=; b=fibNY5iGO8VOO2bhZPWGPy
-	bDwNE5qDQWg5jnmBkNFSmvWLWjwXxj85cmCtJn/Oi+uOI49IrLmkTe2SqGMkRyD6
-	s389zPYAuRzA00XZDLYdBtuzFQIyASWkISLtxjBaLHjmY9klzFTjHuEEsa8P1MBu
-	Qjhf7E/r/RmcZs9QUO0y+kwt7T9xYZpfH1CkxlK00UH4sRGCTO6PMP+0yclnM8Lj
-	hSjNg9U6H8ITqXSDKToQNC2qo8EBILAOILd+yce3pilcd9htO6QgGfA7HQX830m2
-	Wbxi56V9SQFKiRABFp8RaqL/N6NtG8MYiNoN68UC6j6ljlxlbCEEs6/s9tQi8b8A
-	==
-X-ME-Sender: <xms:xJlTXHgLxnfFBkh-2exrnCdSBSqdun8dywhXZ72ipMq6Ish-TjaONQ>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledrjeejgddvlecutefuodetggdotefrodftvf
-    curfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthenuceurghilhhouhhtmecufedt
-    tdenucesvcftvggtihhpihgvnhhtshculddquddttddmnegfrhhlucfvnfffucdlfedtmd
-    enucfjughrpeffhffvuffkfhggtggujgfofgesthdtredtofervdenucfhrhhomhepfdfv
-    ohgsihhnucevrdcujfgrrhguihhnghdfuceomhgvsehtohgsihhnrdgttgeqnecukfhppe
-    duvddurdeggedrvddvjedrudehjeenucfrrghrrghmpehmrghilhhfrhhomhepmhgvseht
-    ohgsihhnrdgttgenucevlhhushhtvghrufhiiigvpedt
-X-ME-Proxy: <xmx:xZlTXISnZTH-dSVzJifEISez-n8sraP3H8sA95JoinTp6UfZ4AJhGw>
-    <xmx:xZlTXCHYIwQEVgt-UX_snwAgthTWTH7umcJ9KVkGDCJ4y0BWg9f0BA>
-    <xmx:xZlTXIm12-JnnhRbEwSbSeGRa3KVJK4UPVZ0bLSuF9dHRylViHt-WQ>
-    <xmx:xplTXFKEqjwBvTOgwxOEEPbNZpXCAPA3nAX5kux4VqRN8wUQgAAVbQ>
-Received: from localhost (ppp121-44-227-157.bras2.syd2.internode.on.net [121.44.227.157])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 414C31031B;
-	Thu, 31 Jan 2019 19:58:43 -0500 (EST)
-Date: Fri, 1 Feb 2019 11:58:38 +1100
-From: "Tobin C. Harding" <me@tobin.cc>
-To: "Tobin C. Harding" <tobin@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id AB8BE4FF5;
+	Fri,  1 Feb 2019 01:13:08 +0000 (UTC)
+Date: Thu, 31 Jan 2019 17:13:06 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+To: "Tobin C. Harding" <me@tobin.cc>
+Cc: "Tobin C. Harding" <tobin@kernel.org>, Christoph Lameter <cl@linux.com>,
+ Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
 Subject: Re: [PATCH] mm/slab: Increase width of first /proc/slabinfo column
-Message-ID: <20190201005838.GA8082@eros.localdomain>
+Message-Id: <20190131171306.55710d0820deb12282873fab@linux-foundation.org>
+In-Reply-To: <20190201005838.GA8082@eros.localdomain>
 References: <20190201004242.7659-1-tobin@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190201004242.7659-1-tobin@kernel.org>
-X-Mailer: Mutt 1.11.2 (2019-01-07)
-User-Agent: Mutt/1.11.2 (2019-01-07)
+	<20190201005838.GA8082@eros.localdomain>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 01, 2019 at 11:42:42AM +1100, Tobin C. Harding wrote:
-[snip]
+On Fri, 1 Feb 2019 11:58:38 +1100 "Tobin C. Harding" <me@tobin.cc> wrote:
 
-This applies on top of Linus' tree
+> On Fri, Feb 01, 2019 at 11:42:42AM +1100, Tobin C. Harding wrote:
+> [snip]
+> 
+> This applies on top of Linus' tree
+> 
+> 	commit e74c98ca2d6a ('gfs2: Revert "Fix loop in gfs2_rbm_find"')
+> 
+> For this patch I doubt very much that it matters but for the record I
+> can't find mention in MAINTAINERS which tree to base work on for slab
+> patches.  Are mm patches usually based of an mm tree or do you guys work
+> off linux-next?
 
-	commit e74c98ca2d6a ('gfs2: Revert "Fix loop in gfs2_rbm_find"')
-
-For this patch I doubt very much that it matters but for the record I
-can't find mention in MAINTAINERS which tree to base work on for slab
-patches.  Are mm patches usually based of an mm tree or do you guys work
-off linux-next?
-
-thanks,
-Tobin.
+It's usually best to work off current mainline and I handle the
+integration stuff.
 
