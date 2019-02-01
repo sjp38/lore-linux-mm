@@ -2,141 +2,172 @@ Return-Path: <SRS0=aBqT=QI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D250C282DB
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 14:58:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E9568C282D8
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 15:06:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3515821902
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 14:58:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3515821902
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id AFC9720855
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 15:06:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFC9720855
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C71B68E0003; Fri,  1 Feb 2019 09:58:23 -0500 (EST)
+	id 53FAF8E0003; Fri,  1 Feb 2019 10:06:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BFAB78E0001; Fri,  1 Feb 2019 09:58:23 -0500 (EST)
+	id 4C7BA8E0001; Fri,  1 Feb 2019 10:06:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A9C3D8E0003; Fri,  1 Feb 2019 09:58:23 -0500 (EST)
+	id 36C138E0003; Fri,  1 Feb 2019 10:06:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C6958E0001
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 09:58:23 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id m19so2942650edc.6
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 06:58:23 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CD9028E0001
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 10:06:17 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id t2so2905332edb.22
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 07:06:17 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=gsEtjM55k7xtDSDIybAY6hyEqYQBgSdrviFl4r9SCQM=;
-        b=J3W5gKbPB0Jaiqsqtf79iMaXxaLjZlkw8VkgpEjWtwOqYVJbzfsQLffrdIYqdHvnJT
-         TYIhh8A607M89Mefu5f8BPb0/Ndf8UJcqKOqbtWRHpcEgTMr0MQJpZ5nljWvbjN5Nf8F
-         tcnNdm8rNBG8J4pLA+Q2waMZSEyCcIflQ2iZvgE9Nmb4sRpQT8yHIGBDdClxFywP4Iet
-         oryXD6SKEsrvuNz0YzGIEacEZYU6tkDetMiQ9hCSDjdLYwmmt8Ak2nuAnkoi8cxVwh11
-         DGYOMOgzEOwORhsg/ij2+PP4RhM5/bzDdTw0KOtxB4EGBt1pb2slWrz6nk7b+TaA3raa
-         Nx7Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: AJcUukciGM9oMcewj2/BmLKXvh0jAGqJknapf7cdk8el+uROZJhrBfeL
-	EEBoBojbCJdLJLcd/AlqzxtyI7to4x1cPgjTF4+fhlpduTsHPIBbfFTaSC6Lu+8obb6LjZAXTAR
-	A8RXoHIV3RdiF3sbp+QAtieWkZB2L1HWVdkt69XjGn7GkL9RG/JDrsfWM1C2WrlBepQ==
-X-Received: by 2002:a17:906:3591:: with SMTP id o17mr33347097ejb.226.1549033102845;
-        Fri, 01 Feb 2019 06:58:22 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5iAEOTWuyHfbwgCbfr5aQGv7HhQoa5pyBKMuJuz0ZKQfX9su+uiZSSRx7hJgw4TLRQJ+mz
-X-Received: by 2002:a17:906:3591:: with SMTP id o17mr33347047ejb.226.1549033101945;
-        Fri, 01 Feb 2019 06:58:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549033101; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=ejJEqGTeL0OHykvCEe/yGOAYrR6KxeUCTBncO9JamkI=;
+        b=Mh9zMYIPAJDCMVJsg1vy+m9HOA/XzSecrXsC+jg7Hf5Jza3oUofNDXwsyLAG9yUXAH
+         A7x18ZPjKqo1rp/Uqty50zWE2vS23VXHdGngyeEFzcWLVtYaFm/s0z7cMX8mTlVuRySl
+         eyfu3LJGYtmlwpDT0wk+JQjJRDz3FTRqFDz6m8RwKqn/J+8NqDjwS19ZTEwc3bP96LKO
+         RORKll90uDL7LRpROD0mplqJpFj5EG/Vw4x0gI1abk4lok7uLLPwHfzXY7QIHIVTtPo1
+         lJp5cL2kPYIPUriEVjb5eLGhJuOKSmWbp+02Szcfo+mH+UNDXO0JiLQEmbgvjpEI0xlB
+         lv1Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: AJcUukc8x/Hcv0lYTH0VQmplNAiVtMbqbfkcwgzw7GfKsQC4boIPSyre
+	2/fXIgQm6DjxWfm8wC0YWvxBGE62vAxQm2Se2s7QxrA5zblSmBfVzh/biZdHQQoxeciumGf+dYd
+	mIVKN83R6ojEygrVoPw+aldK6u+NUKooZ1VbLq8RI9FHvethtroD/QJmJNXQIQQVqow==
+X-Received: by 2002:a17:906:4b4c:: with SMTP id j12mr34718546ejv.185.1549033577371;
+        Fri, 01 Feb 2019 07:06:17 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN78xgxIFlrhxMdNuQRuDweyPycWIoi7Fk/srhKmiEeM6MIMEAzAZB+BBJTKMy5Tom3vw9aB
+X-Received: by 2002:a17:906:4b4c:: with SMTP id j12mr34718478ejv.185.1549033576112;
+        Fri, 01 Feb 2019 07:06:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549033576; cv=none;
         d=google.com; s=arc-20160816;
-        b=yizkbCM3ydKAjSvSztZ6XaOkF8bex/EUiNxYDsb/jMZR9F0Ai8AMfG2yS3x/3lvN1Z
-         4ZhnOF64grmg+rFZjO22pAY1TeiK9LNojkyDjCcLC6sOxGxgJNyVcN8+xc+AtsVrFd5I
-         glRstJMWoJvMdkCvq4M9znHnG9GavMSONCcLSYDVEniM34g75mqzy3hLubJ5w5f07IgQ
-         DkEWgs3mib6FAvUqF0GOG2iKFiESg1oaapvs8u2svFD7FJwRfQP5yE2u6v31t+143L+b
-         zW3wv7XX1iUkFH1TB7JndjxdrvVgvaQcMKugH/0Q7cJLa2zBJ8R/bCX/tWEbasOwP564
-         uo3Q==
+        b=hjrjzAvCyWIaj9T5PGhl1j8mUZAnOU8FzU9abjRpF6FhjWfhUJEsu9qwFpquA6XcXA
+         Ih2N5lwAHH2jge017TASDeJvjEYJHzu4PapAVWwZOA0icqY0i9uuxPIDpQl+GUJ+ua2F
+         wpaQfhZ8Ty8NVip+KRrzdde05FI+IkKt0S+Bj0dO3jQWDW8YH55dF2gBxsETKnMJEJOI
+         FKGrnlPrXVnT0wSWYNH/4Fy6lvKOSbUlvRrY8wl9SKjZV5htg5xLamG1/Y2sWIoL7bTu
+         Gt9hPkDLzoaj2YG6B8ScdU9Fww56qofteZwfNDVOMl7hiwbftwv5lC182SE9NVjIrrhj
+         WYCw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:openpgp:from:references:cc:to:subject;
-        bh=gsEtjM55k7xtDSDIybAY6hyEqYQBgSdrviFl4r9SCQM=;
-        b=ui+Af9Ck0IjHgIARxPfStNY8hdG7Wm+4E44J8ZqYTKwCkndDWwStD2hD9xch4dpVO9
-         LA1jVKEgKeUjOViJrJdDN/u177roUtwh/2NeBRf3kFHzmblTs7xmteXvvtE3xwZqGjTH
-         9hwFDdAgFZHFhKEF87Sx51rd7h0S4Vp1lV0cwMY8JGdBU2WVAj0k8v3KpMJ67IjED1Qj
-         PONebPPeNeZWP9g67xm2OoQbftjzQxTavsyLbbI1roATa8FG0dFDyWsPgDtotRuPFhgP
-         Q+hY6/+CQqpZsE9i8/E+Qs7WwIIf7m//EcVsntTiRkMWT7S/BrGLRyIwGRKw4Iuz+Ndl
-         K3lw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=ejJEqGTeL0OHykvCEe/yGOAYrR6KxeUCTBncO9JamkI=;
+        b=P3jHDY4Qi0LPUHKG59ERT1+MMYPx0btli72z/TjRWyrmyXHzyCi8m2s2GAtFIcfbZw
+         bxKx2HsxqJeYfLdRCM8ecHYAtVvP/4GcqZbiV2HNe0L7yZ2iPMAn3j7lsJypnRyV1bTt
+         JAOafWOyMNL955q3i2cu93/nAShN2TdHjwetbr5E6FdAvNdT6F+WBM3luYK5Zci+NHZo
+         hr2mm15V8M4XrqD0PW5JV9wzd6KK6lEHjMxucWdRZzMCRjZ2cytp48GNK3rQm8OUWanf
+         1fsp+ihTqyEYKemKsLMhWuWTJcoZ8ALnNrzVCRFWgUWZUT5V0eSSgEvCj/sT9BxeT/HU
+         hCHQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j16si1467375ejq.208.2019.02.01.06.58.21
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
+        by mx.google.com with ESMTPS id h12si2993529ejd.48.2019.02.01.07.06.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Feb 2019 06:58:21 -0800 (PST)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 01 Feb 2019 07:06:16 -0800 (PST)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) client-ip=46.22.139.17;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E3D74AC90;
-	Fri,  1 Feb 2019 14:58:20 +0000 (UTC)
-Subject: Re: [PATCH 11/22] mm, compaction: Use free lists to quickly locate a
- migration target
-To: Mel Gorman <mgorman@techsingularity.net>
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id A8CD31C2247
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 15:06:15 +0000 (GMT)
+Received: (qmail 22173 invoked from network); 1 Feb 2019 15:06:15 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 1 Feb 2019 15:06:15 -0000
+Date: Fri, 1 Feb 2019 15:06:14 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>,
- David Rientjes <rientjes@google.com>, Andrea Arcangeli
- <aarcange@redhat.com>,
- Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
- Linux-MM <linux-mm@kvack.org>
+	David Rientjes <rientjes@google.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+	Linux-MM <linux-mm@kvack.org>
+Subject: Re: [PATCH 09/22] mm, compaction: Use free lists to quickly locate a
+ migration source
+Message-ID: <20190201150614.GJ9565@techsingularity.net>
 References: <20190118175136.31341-1-mgorman@techsingularity.net>
- <20190118175136.31341-12-mgorman@techsingularity.net>
- <81e45dc0-c107-015b-e167-19d7ca4b6374@suse.cz>
- <20190201145139.GI9565@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Message-ID: <cb0bae2e-8628-1378-68a1-9da02a94652e@suse.cz>
-Date: Fri, 1 Feb 2019 15:58:19 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+ <20190118175136.31341-10-mgorman@techsingularity.net>
+ <4a6ae9fc-a52b-4300-0edb-a0f4169c314a@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20190201145139.GI9565@techsingularity.net>
 Content-Type: text/plain; charset=iso-8859-15
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <4a6ae9fc-a52b-4300-0edb-a0f4169c314a@suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/1/19 3:51 PM, Mel Gorman wrote:
-> On Thu, Jan 31, 2019 at 03:52:10PM +0100, Vlastimil Babka wrote:
->>> -/* Reorder the free list to reduce repeated future searches */
->>> +/*
->>> + * Used when scanning for a suitable migration target which scans freelists
->>> + * in reverse. Reorders the list such as the unscanned pages are scanned
->>> + * first on the next iteration of the free scanner
->>> + */
->>> +static void
->>> +move_freelist_head(struct list_head *freelist, struct page *freepage)
->>> +{
->>> +	LIST_HEAD(sublist);
->>> +
->>> +	if (!list_is_last(freelist, &freepage->lru)) {
->>
->> Shouldn't there be list_is_first() for symmetry?
->>
+On Thu, Jan 31, 2019 at 02:55:01PM +0100, Vlastimil Babka wrote:
+> > +
+> > +				/*
+> > +				 * Avoid if skipped recently. Ideally it would
+> > +				 * move to the tail but even safe iteration of
+> > +				 * the list assumes an entry is deleted, not
+> > +				 * reordered.
+> > +				 */
+> > +				if (get_pageblock_skip(freepage)) {
+> > +					if (list_is_last(freelist, &freepage->lru))
+> > +						break;
+> > +
+> > +					continue;
+> > +				}
+> > +
+> > +				/* Reorder to so a future search skips recent pages */
+> > +				move_freelist_tail(freelist, freepage);
+> > +
+> > +				pfn = pageblock_start_pfn(free_pfn);
+> > +				cc->fast_search_fail = 0;
+> > +				set_pageblock_skip(freepage);
+> > +				break;
+> > +			}
+> > +
+> > +			if (nr_scanned >= limit) {
+> > +				cc->fast_search_fail++;
+> > +				move_freelist_tail(freelist, freepage);
+> > +				break;
+> > +			}
+> > +		}
+> > +		spin_unlock_irqrestore(&cc->zone->lock, flags);
+> > +	}
+> > +
+> > +	cc->total_migrate_scanned += nr_scanned;
+> > +
+> > +	/*
+> > +	 * If fast scanning failed then use a cached entry for a page block
+> > +	 * that had free pages as the basis for starting a linear scan.
+> > +	 */
+> > +	if (pfn == cc->migrate_pfn)
+> > +		reinit_migrate_pfn(cc);
 > 
-> I don't think it would help. We're reverse traversing the list when this is
-> called. If it's the last entry, it's moving just one page before breaking
-> off the search and a shuffle has minimal impact. If it's the first page
-> then list_cut_before moves the entire list to sublist before splicing it
-> back so it's a pointless operation.
+> This will set cc->migrate_pfn to the lowest pfn encountered, yet return
+> pfn initialized by original cc->migrate_pfn.
+> AFAICS isolate_migratepages() will use the returned pfn for the linear
+> scan and then overwrite cc->migrate_pfn with wherever it advanced from
+> there. So whatever we stored here into cc->migrate_pfn will never get
+> actually used, except when isolate_migratepages() returns with
+> ISOLATED_ABORT.
+> So maybe the infinite kcompactd loop is linked to ISOLATED_ABORT?
+> 
 
-Yeah I thought the goal was to avoid the pointless operation, which is
-why it was previously added as "if (!list_is_last())" in
-move_freelist_head(). So in move_freelist_head() it would have to be as
-"if (!list_is_first())" to achieve the same effect. Agree that it's
-marginal but if that's so then I would just remove the checks completely
-(from both functions) instead of having it subtly wrong in one of them?
+I'm not entirely sure it would fix the infinite loop. I suspect that is
+going to be a boundary conditions where the two scanners are close but
+do not meet if it still exists after the batch of fixes. However, you're
+right that this code is problematic. I'll write a fix, test it and post
+it if it's ok.
+
+Well spotted!
+
+-- 
+Mel Gorman
+SUSE Labs
 
