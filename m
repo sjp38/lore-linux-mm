@@ -2,164 +2,216 @@ Return-Path: <SRS0=aBqT=QI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 51C55C282D8
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 13:21:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A1B33C282D8
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 13:44:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E87FA20869
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 13:20:59 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=alien8.de header.i=@alien8.de header.b="P4GKAA7J"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E87FA20869
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=alien8.de
+	by mail.kernel.org (Postfix) with ESMTP id 64DF220823
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 13:44:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 64DF220823
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 392DF8E0002; Fri,  1 Feb 2019 08:20:59 -0500 (EST)
+	id 04D2F8E0002; Fri,  1 Feb 2019 08:44:02 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 31B9A8E0001; Fri,  1 Feb 2019 08:20:59 -0500 (EST)
+	id F12AB8E0001; Fri,  1 Feb 2019 08:44:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 197BB8E0002; Fri,  1 Feb 2019 08:20:59 -0500 (EST)
+	id A37898E0002; Fri,  1 Feb 2019 08:44:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ADEE98E0001
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 08:20:58 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id d6so2268776wrm.19
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 05:20:58 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 779918E0001
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 08:44:01 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id p79so7077204qki.15
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 05:44:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=7L1X6vKf/wnbcTvmjqUAGShbPUgIPy8g7a7ScRxOFMM=;
-        b=e07ECp5F+A5Ffh4HqNE15uSR+e9VMazKciS/NxA7ZfFo6FnjGOm+3uBb7YlhOHS/Io
-         2SVMtH1pUKJqfoI5Q1jWkX215StnNMoMjF81y8EghtxQGzN4VhPFEQu+Qy4cAG3H4tHi
-         F3BzZRulOZH2csLqDP7gzHt1UCYLOtLmoGs2CXKv7l57pgkJyoE9j5vHIV9aUqAJGfM3
-         y3X7+71uBelmhzibYDCyNCgqnHXJcxKJIzpr+dHl8o536LdpUgAhOsnsNpYsYIhMQlqs
-         z1YyZJNh3/mbk7cvAwwIHH5o+p0SqyQj6iR2S7mLWveHMwRYQ8y1SVnjk8guTdIG5JFn
-         plBw==
-X-Gm-Message-State: AJcUukd9+zx7PD9gAB/ODI6Kv7UkBiLLtqM2NT1iZPN4ParyC+Ml7Gw2
-	v8BifV3dGZ8ojGiseCY+7z5/7VgBTV+Xol0/+jBKsnB2jhljQCUcEaVTCMWqPyTZvHDcg4FFngv
-	fLt36DTmqamPjuMJPNop2ArO5LCMsC46EE6l8llpj/hGSv5q+uApLBYHvj0bdYL98ow==
-X-Received: by 2002:adf:bb44:: with SMTP id x4mr40214912wrg.24.1549027258092;
-        Fri, 01 Feb 2019 05:20:58 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7LnnNA+OXHPrvsfYr21Vx5O9/iGXJij0AQ724VbBUCW3Z5RqJVFKrpC4UVIU5mn/Ekwfpt
-X-Received: by 2002:adf:bb44:: with SMTP id x4mr40214865wrg.24.1549027257169;
-        Fri, 01 Feb 2019 05:20:57 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549027257; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references;
+        bh=hMp1YEI3LCD6w5s7a9qO8fX6fE+RBM6xMo77zveNexQ=;
+        b=Hup63+kx3gSTAzXD9LSKohznOK1pvWqaNYA1m9XNoB837KawJbSsMUJOqMVbkiy3Xh
+         rncIhqHN2BsBD2OtWpfomcLJIS5FQqdOjVURz+D58KFHWc1tfJJuaZjVxBSetA5w4g4t
+         Py5DObnD86o2q91xfyJcMrlTkQOaLQpHNTY4zRWBVruQg6C5geVDXMTUQwfu7JqGcHWJ
+         JzpjtylQpyGp5YgKBOKEF41T5p2xacpj/VgeIUUhfmgyOicskZK8RDmuB+2EAA7ZsT2O
+         ccAt4SYNtG+JSFkaOHAT/hUut1IL+OMiaXdj1J28UwRPVro07nBqpbRDdtzQnIJ7Z4g5
+         IOOw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukdTAmmr9A5xHJKAq7tgYa4VbG03K3hpbB12fC2M0lrtEqDIQ8DD
+	XtSKn33g4uX6R5wb8eZuOB5g1muuHeKBg2izHABLysaBsiIs0hK3jxbvw8XnBYHrvvkiu2gqLwH
+	9VKbzfwpwo6dFQxmENQxfgWfROiudqZn04tXKSgOrOsuFReCUEkqjO99C55cO/j/w7g==
+X-Received: by 2002:a37:a0c3:: with SMTP id j186mr36218222qke.18.1549028641144;
+        Fri, 01 Feb 2019 05:44:01 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4ZF4P83ljbvcg33xXq4QVjtQvKjI1WDnlxyB7OUxtctguAoXh2RMzecCwWSfFo2MIwARm6
+X-Received: by 2002:a37:a0c3:: with SMTP id j186mr36218169qke.18.1549028640269;
+        Fri, 01 Feb 2019 05:44:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549028640; cv=none;
         d=google.com; s=arc-20160816;
-        b=rl/9gXsVwh5+5NMvQYg/acHlw3kgpM/bfx0ZOk72If3yjxzuV9DkkyMW/zPMe/Csb2
-         TzKE48WwUdDJQcO5Jd2RVfKd/46VltIfHUOfD9yD289GoB+xM/cqaR7kU/OySTuiC8F9
-         gPh5DNKJWYS2ZBlKhS/eI9/oJp3tbETalZ3FhoATU9BqDRlRLPw45awOuIZCF3QdOrW9
-         TU6Z41kwm8xT1UBbNoqOqFDCoupzv7sbsFl6Z2VL04WfeRmR48YvwXelZZ7Mh/OcuBwJ
-         THKywJh39YcCekUsZBqausd/YqLq2DITnkOUuyf2vQ/RRfSK0eRxYxcQo7Uh8teSxQqk
-         ScUw==
+        b=dt157CrVeWbIhe4RHyT4N6GjlONbg8MTXV25/GoQgUsmpcUR1gDvuaZsclnzSeDgfZ
+         G3itXrSVg+EypjNRIYIkCtDRGxaOupBUUgKb55w3Secx3dcyf6/s6z2GMihvL9ob+muK
+         e4x1nojhZ4FloAqm2HEFKi2GVLchJ9vSd4oEu70vnWR3GrqqWrT/yBAVFJewStXdXA3b
+         P2sOlmuXgLMZsCRr6My7H3p023u2S5SKF2fnKP97536KbI/nSiKcOdIeEffTI2+OSGUE
+         KitU/ATRyPMJZTOAC0q33VpHVbl9Z7F18NkkqFqkuD/TpDHRwGX3tLcMy4s97cmlndYh
+         VxgQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=7L1X6vKf/wnbcTvmjqUAGShbPUgIPy8g7a7ScRxOFMM=;
-        b=oxNCD1xA0vngGWxjNlDbK/QR2ZIP+yJJqHPZiCQ2a7heQ6XyZKrXRQaLpXupodwdRh
-         6To7VL0vTr0WRobrLZgK1PsJG64Pb00JfoQyMojzadkmHK9EtcosMVlLC+yckHMA+jFb
-         nmv357JW+bgJaRVZlLNvhpmLDtzh3NieI3EJW3tNBOMJvogjB8f9ZKReCnmgfDxEDIpz
-         O2+WMVoukQJWgonxCh4xrO1JWkcHZ9BCuWxK8TdV+oWROWH+f3Xx28fvtN/+Kc0SsexV
-         yUYNgyjoXQQwdYwA7k2ZyoSi/K98vu2uwGOCwz9XTgajO1ORKkuKATYlQJgwiZCPYSIF
-         R2ww==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=hMp1YEI3LCD6w5s7a9qO8fX6fE+RBM6xMo77zveNexQ=;
+        b=A7IpxM2oaOe+CpVoA6wTDxvIzE+8uyLBgOu+UetT7fS9eooESXKwXVaeehLQ1fDZ/7
+         sIlW3nTFAAuEAaZymxabjYfa/nTHsjYvH2Cx2ozZkvUfo0xfpjcjcj2LhZ5C7niMbomn
+         6w1ThtsQSpe6dSkjkmAH04+jBQe6/KkbC9oy9b4WJWGLCdJtBgdKQzDkvcFqV5KVWWxT
+         tDSsFzXkVPrxOiAWE8qM/IeVNoin9nwcCAAWv47lzDdM1skH7T2d9xR/7jwMZ5N0kHSK
+         feNqv24hPI7gHuUsMRN67vBYNlcRFatMWL2jINTsZG+x4zCdqanrMMzFRHG4Nqs3G2qu
+         sIuw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b=P4GKAA7J;
-       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id k124si1951715wmd.157.2019.02.01.05.20.56
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b131si5427084qkg.77.2019.02.01.05.43.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Feb 2019 05:20:57 -0800 (PST)
-Received-SPF: pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) client-ip=5.9.137.197;
+        Fri, 01 Feb 2019 05:44:00 -0800 (PST)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b=P4GKAA7J;
-       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from zn.tnic (p200300EC2BCC5000206D6264C5583287.dip0.t-ipconnect.de [IPv6:2003:ec:2bcc:5000:206d:6264:c558:3287])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail.skyhub.de (SuperMail on ZX Spectrum 128k) with ESMTPSA id 456CD1EC04F3;
-	Fri,  1 Feb 2019 14:20:56 +0100 (CET)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=alien8.de; s=dkim;
-	t=1549027256;
-	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
-	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
-	 content-transfer-encoding:in-reply-to:in-reply-to:  references:references;
-	bh=7L1X6vKf/wnbcTvmjqUAGShbPUgIPy8g7a7ScRxOFMM=;
-	b=P4GKAA7JCnK8zMwSkARxItVovCaDmkYO3eSkRp4d1+WS0j+ZngXPe/Eux9wZ8zOzUVBsUJ
-	AVicI0193MpIC9IQL10Brr8pLyCcYcRVv2K8fxgQtKkFCMjrvJi3WRKo560iAY+P0xYnEb
-	vp7v7QRkio8eq24FzVGVezsW7d/Bnic=
-Date: Fri, 1 Feb 2019 14:20:46 +0100
-From: Borislav Petkov <bp@alien8.de>
-To: James Morse <james.morse@arm.com>
-Cc: linux-acpi@vger.kernel.org, kvmarm@lists.cs.columbia.edu,
-	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	Marc Zyngier <marc.zyngier@arm.com>,
-	Christoffer Dall <christoffer.dall@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
+	by mx1.redhat.com (Postfix) with ESMTPS id A4EE081F11;
+	Fri,  1 Feb 2019 13:43:58 +0000 (UTC)
+Received: from t460s.redhat.com (unknown [10.36.118.43])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id A963C1974A;
+	Fri,  1 Feb 2019 13:43:48 +0000 (UTC)
+From: David Hildenbrand <david@redhat.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+	David Hildenbrand <david@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Michal Hocko <mhocko@suse.com>,
 	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>,
-	Tony Luck <tony.luck@intel.com>,
-	Dongjiu Geng <gengdongjiu@huawei.com>,
-	Xie XiuQi <xiexiuqi@huawei.com>
-Subject: Re: [PATCH v8 04/26] ACPI / APEI: Make hest.c manage the estatus
- memory pool
-Message-ID: <20190201132046.GH31854@zn.tnic>
-References: <20190129184902.102850-1-james.morse@arm.com>
- <20190129184902.102850-5-james.morse@arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20190129184902.102850-5-james.morse@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+	Jan Kara <jack@suse.cz>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Dominik Brodowski <linux@dominikbrodowski.net>,
+	Matthew Wilcox <willy@infradead.org>,
+	Vratislav Bendel <vbendel@redhat.com>,
+	Rafael Aquini <aquini@redhat.com>,
+	Konstantin Khlebnikov <k.khlebnikov@samsung.com>,
+	Minchan Kim <minchan@kernel.org>,
+	Sasha Levin <sashal@kernel.org>,
+	stable@vger.kernel.org
+Subject: [PATCH v2 for-4.4-stable] mm: migrate: don't rely on __PageMovable() of newpage after unlocking it
+Date: Fri,  1 Feb 2019 14:43:47 +0100
+Message-Id: <20190201134347.11166-1-david@redhat.com>
+In-Reply-To: <20190131020448.072FE218AF@mail.kernel.org>
+References: <20190131020448.072FE218AF@mail.kernel.org>
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Fri, 01 Feb 2019 13:43:59 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2019 at 06:48:40PM +0000, James Morse wrote:
-> ghes.c has a memory pool it uses for the estatus cache and the estatus
-> queue. The cache is initialised when registering the platform driver.
-> For the queue, an NMI-like notification has to grow/shrink the pool
-> as it is registered and unregistered.
-> 
-> This is all pretty noisy when adding new NMI-like notifications, it
-> would be better to replace this with a static pool size based on the
-> number of users.
-> 
-> As a precursor, move the call that creates the pool from ghes_init(),
-> into hest.c. Later this will take the number of ghes entries and
-> consolidate the queue allocations.
-> Remove ghes_estatus_pool_exit() as hest.c doesn't have anywhere to put
-> this.
-> 
-> The pool is now initialised as part of ACPI's subsys_initcall():
-> (acpi_init(), acpi_scan_init(), acpi_pci_root_init(), acpi_hest_init())
-> Before this patch it happened later as a GHES specific device_initcall().
-> 
-> Signed-off-by: James Morse <james.morse@arm.com>
-> ---
-> Changes since v7:
-> * Moved the pool init later, the driver isn't probed until device_init.
-> ---
->  drivers/acpi/apei/ghes.c | 33 ++++++---------------------------
->  drivers/acpi/apei/hest.c | 10 +++++++++-
->  include/acpi/ghes.h      |  2 ++
->  3 files changed, 17 insertions(+), 28 deletions(-)
+This is the backport for 4.4-stable.
 
-Reviewed-by: Borislav Petkov <bp@suse.de>
+We had a race in the old balloon compaction code before commit b1123ea6d3b3
+("mm: balloon: use general non-lru movable page feature") refactored it
+that became visible after backporting commit 195a8c43e93d
+("virtio-balloon: deflate via a page list") without the refactoring.
 
+The bug existed from commit d6d86c0a7f8d ("mm/balloon_compaction: redesign
+ballooned pages management") till commit b1123ea6d3b3 ("mm: balloon: use
+general non-lru movable page feature"). commit d6d86c0a7f8d
+("mm/balloon_compaction: redesign ballooned pages management") was
+backported to 3.12, so the broken kernels are stable kernels [3.12 - 4.7].
+
+There was a subtle race between dropping the page lock of the newpage
+in __unmap_and_move() and checking for
+__is_movable_balloon_page(newpage).
+
+Just after dropping this page lock, virtio-balloon could go ahead and
+deflate the newpage, effectively dequeueing it and clearing PageBalloon,
+in turn making __is_movable_balloon_page(newpage) fail.
+
+This resulted in dropping the reference of the newpage via
+putback_lru_page(newpage) instead of put_page(newpage), leading to
+page->lru getting modified and a !LRU page ending up in the LRU lists.
+With commit 195a8c43e93d ("virtio-balloon: deflate via a page list")
+backported, one would suddenly get corrupted lists in
+release_pages_balloon():
+- WARNING: CPU: 13 PID: 6586 at lib/list_debug.c:59 __list_del_entry+0xa1/0xd0
+- list_del corruption. prev->next should be ffffe253961090a0, but was dead000000000100
+
+Nowadays this race is no longer possible, but it is hidden behind very
+ugly handling of __ClearPageMovable() and __PageMovable().
+
+__ClearPageMovable() will not make __PageMovable() fail, only
+PageMovable(). So the new check (__PageMovable(newpage)) will still hold
+even after newpage was dequeued by virtio-balloon.
+
+If anybody would ever change that special handling, the BUG would be
+introduced again. So instead, make it explicit and use the information
+of the original isolated page before migration.
+
+This patch can be backported fairly easy to stable kernels (in contrast
+to the refactoring).
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Dominik Brodowski <linux@dominikbrodowski.net>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Vratislav Bendel <vbendel@redhat.com>
+Cc: Rafael Aquini <aquini@redhat.com>
+Cc: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Sasha Levin <sashal@kernel.org>
+Cc: stable@vger.kernel.org # 3.12 - 4.7
+Fixes: d6d86c0a7f8d ("mm/balloon_compaction: redesign ballooned pages management")
+Reported-by: Vratislav Bendel <vbendel@redhat.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Acked-by: Rafael Aquini <aquini@redhat.com>
+Signed-off-by: David Hildenbrand <david@redhat.com>
+---
+ mm/migrate.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/mm/migrate.c b/mm/migrate.c
+index afedcfab60e2..3304c98f9a78 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -936,6 +936,7 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+ 	int rc = MIGRATEPAGE_SUCCESS;
+ 	int *result = NULL;
+ 	struct page *newpage;
++	bool is_lru = !isolated_balloon_page(page);
+ 
+ 	newpage = get_new_page(page, private, &result);
+ 	if (!newpage)
+@@ -984,10 +985,14 @@ out:
+ 	 * If migration was not successful and there's a freeing callback, use
+ 	 * it.  Otherwise, putback_lru_page() will drop the reference grabbed
+ 	 * during isolation.
++	 *
++	 * Use the old state of the isolated source page to determine if we
++	 * migrated a LRU page. newpage was already unlocked and possibly
++	 * modified by its owner - don't rely on the page state.
+ 	 */
+ 	if (put_new_page)
+ 		put_new_page(newpage, private);
+-	else if (unlikely(__is_movable_balloon_page(newpage))) {
++	else if (unlikely(!is_lru)) {
+ 		/* drop our reference, page already in the balloon */
+ 		put_page(newpage);
+ 	} else
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+2.17.2
 
