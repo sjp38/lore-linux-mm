@@ -6,102 +6,106 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B5BAC282D8
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 08:56:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F0D8C282D8
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 09:04:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 449C720815
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 08:56:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 449C720815
+	by mail.kernel.org (Postfix) with ESMTP id 5655E20855
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 09:04:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5655E20855
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D0CB08E0002; Fri,  1 Feb 2019 03:56:19 -0500 (EST)
+	id E660F8E0002; Fri,  1 Feb 2019 04:04:26 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CBC528E0001; Fri,  1 Feb 2019 03:56:19 -0500 (EST)
+	id E16E38E0001; Fri,  1 Feb 2019 04:04:26 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BAB548E0002; Fri,  1 Feb 2019 03:56:19 -0500 (EST)
+	id D04FC8E0002; Fri,  1 Feb 2019 04:04:26 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BA388E0001
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 03:56:19 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id l45so2538527edb.1
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 00:56:19 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7224E8E0001
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 04:04:26 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id f17so2528471edm.20
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 01:04:26 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:message-id:date:user-agent:mime-version
          :in-reply-to:content-language:content-transfer-encoding;
-        bh=WrXnCZ+PGX6lzv+WoXBqVgVFhevifRruGkRrCB1xf/Q=;
-        b=aUWAx9qqOcvnP6tf921uGQ89072xWqTRpD714jIk8APp1udndwN+J53auR6Udo0PoR
-         JB3KFS9RYlZXTXJXjBrM1XsfA6ubfUzYH2zlwRGvq2kk2f+UWA5exHvbahSGLzkmY5G/
-         2eaTMDqkkIv2akG2LW4ms0Iy24PDS4NII5PixBjAPNsVBq6wwc3KkhgXL2WFKL6yP1ck
-         3+5OeZajeD6LBUb+K3DuoHrf2pJAzkC+4/fHTtWgSYA/8ywFjLQqTqpyWQfr5uYpZzea
-         YLtzkI9EOtwEQM+LkJUB1wIpos/ZxlqkgA9rp6O+i1E0ylLPlMaJdgRNpEbNWdSAYn/s
-         S9oQ==
+        bh=hLcwXMz+8ZUB0n9zYz82/38boLtXumuez0AG78bRcf8=;
+        b=tpu823uS76pcrCrjebpyGLXhNP0OKnADzESNlZyLluePqxB0W2yyx5feLJ0FH8HNVm
+         ID2jR6u+jAR5DP0A0nSOPDx73DWhMkyntusUVu6NGZT8xifp0o2EDUwUL0Pl+MBQTxCk
+         qy3fB79uLtCLUvNfY1axuFH0dk0bWVOMQALPHi06eFFgkIxC4bYYzrLDqG9HL665Q9Qa
+         328CMKDdyqNLzoaKUYMo7wAdGQpq3phx/pj7fKzZ0ifBlZ3dth9mJNwd6cqMEzdu1WXv
+         MyI8XsbLfIDDcE0anQFILwljSYyTx+BWGg1Sfd+TThH6w17hwUrxH2lr5jNjn+8uqQwc
+         D7JA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: AJcUukfwBgFif7Q6ozhrJFi9SnuPuUt1pWs5S0zjb+NaXkGvyLTQkVzx
-	akbxeDhwZSTGQFYqhFJ6xlgmO9qTMHIhtXMCbM5A0rR/GEW06KXzKrPNBXIcghXdfnDBPFKQElh
-	esVnAXE8FAsx4kN3AW/67IGzM9RP5Eqx9u0oKRlEwJs1CoEC+FwAsGQWt/VOmRcU2Cw==
-X-Received: by 2002:a17:906:7c42:: with SMTP id g2mr34138424ejp.212.1549011378765;
-        Fri, 01 Feb 2019 00:56:18 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7TXplDb20AtnpD2A1wGS015J2F/qoeoyqzFSTi9Y+7yWPLkTqK6xIcwUB4aUf+5YLwhaVw
-X-Received: by 2002:a17:906:7c42:: with SMTP id g2mr34138363ejp.212.1549011377607;
-        Fri, 01 Feb 2019 00:56:17 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549011377; cv=none;
+X-Gm-Message-State: AJcUuke7pq0xhqbTR+2plMlGLWabj5pkojPd82Ac2CsNR1XAdJwoheMt
+	liJyy9gs2knSzI0nJqfHM04pLvZMnV7M8tGYdo4QCCYFPvs9NAUXkUFqEYg2wYL5Egc842ItUdr
+	vupmQAqeqfZOzKm4vDWBJATnJPjNrEIJbeeZTFt1bMxQPOI+ntCF8Yy+Cu/6P0KhCpQ==
+X-Received: by 2002:a50:ad97:: with SMTP id a23mr36358844edd.128.1549011865931;
+        Fri, 01 Feb 2019 01:04:25 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN59zzG8kYcuoPnbztHhtaZG+JNdVDPaqDCIdOppX7VoqP1XFj5qa0CejQ0R1c2cNAGPbwgD
+X-Received: by 2002:a50:ad97:: with SMTP id a23mr36358784edd.128.1549011864836;
+        Fri, 01 Feb 2019 01:04:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549011864; cv=none;
         d=google.com; s=arc-20160816;
-        b=VnfFIHR4efr72MC1MvwDODWf6Xa9VOuQggoR6bidZsxOa7A5C+O1Q61hzEsEEEtPH/
-         Bdtk5kja2qe8NNW+Kyuj7jUM5US0CD1YPNc1FO15emMXDUKB0S5sDNnyJPNDtZsNpa3x
-         Z9br6sZxYThu5OicVqvY2SmN5i/35pW4AqNng1PXkP7MaySHOk2fBzZm9P9GDNrJXHcA
-         IHcWZ4soMm8aU7nBVbwFp93Kd1v8BUhqMSbra64OldjbgqYgab9FfhSSSjukyRRaGq9n
-         12nYZERFiDh59xPNwNZ3O5GxawgDAPVD2l1q/7cSo4UbamcXOICaSQaTREmz/YF3juoP
-         Crfw==
+        b=hmlHfbAm34UgwxdeEBF0sGV8A2YQV2CxKsXgKKcdc0NOXf+EJ2R3x2XkngPw3t+KdP
+         r17KTe38OQkzrRfz1GuGNRP8Bue2oUuKwej1xZ7WY8tm9sIXA/V4uKGWXgX0DfwjEj4C
+         gznU+PQD2TncPiLkHmVAjNdJqV8BvbLygqSCrR9LJ4Nh+0+5u7Koc7LFoNRYFN1g0QV8
+         sL9lIQOF6ot8kZ4m8gaRfcGwjfR5ZRBrW73RtSYV32awEP1b2PgzXG0QsZTV1+1qh6vu
+         erAFp59tfR7GATgdX5To8KQWgN2lHX571CGtymPz4NPn3VfksfhWdU8lzXuelC3URmyP
+         LRug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:openpgp:from:references:cc:to:subject;
-        bh=WrXnCZ+PGX6lzv+WoXBqVgVFhevifRruGkRrCB1xf/Q=;
-        b=omurJvFIgPC/cxI9KXBpEfEy+6Zr9komQ3mzeTSAMGV54KYDn9WJ9emkgdgZWBzjzV
-         qB6Y5r5HzCT91jZqbHphqlFF3QOVIA98iF8DHBF448wPZcnLd0fdT6iXCz+//c92KuZH
-         tW+1Cc6GtSLTJQv/7lz/S1QCR2JHMaD2Gn8Ix/YGd/FzQEnuyUEWGvGtgJzw9b1WlBQa
-         P/yUJbCedJAKbz56TTjtfUVJG0yzCkDc+4FS3l8SDrZQ05Zcd7Hy75AQP1nGydwaVbg+
-         1Bs1y/lK5qkEO/2b8KNgPARF8tNiOQQ/QyxFG5oq/CBPymUtYgqO9cwXOJuhqGbnFR1/
-         TQDQ==
+        bh=hLcwXMz+8ZUB0n9zYz82/38boLtXumuez0AG78bRcf8=;
+        b=ga6UMp8pOuSH+xn4CEtjcBPnI7s6hBBklO4XVchOjHuAaZFjrDPa4eGM5mumGMH/4x
+         lAoAzOHXSSw9oOzISlKkoE/EXe/vLL32d8a5s6mMMmhj4Z6f6z8y4JbYjeqwtX4b+FpX
+         Y44zMfJiEtPWqw6aTr9RFg6mhTHM1tEk2+KW4LIZNjZeCyq7pA5zCNXFVM+ij9CR+gEy
+         O2SeakYWHqTBou2nATR4CSIGWIREgiP5mp/nseqBTK6y0j31UZN+2Hncgl46YID1varW
+         yJB6rfN9Fd8q4BM/evh5l1DlJ0etH0s+Yyh/JyjebhP+DYMpe2s7wQXocID+KhEHmb+k
+         3EqA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p10si795236edr.142.2019.02.01.00.56.17
+        by mx.google.com with ESMTPS id 95si3598727edq.82.2019.02.01.01.04.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Feb 2019 00:56:17 -0800 (PST)
+        Fri, 01 Feb 2019 01:04:24 -0800 (PST)
 Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 6CECAAED0;
-	Fri,  1 Feb 2019 08:56:16 +0000 (UTC)
-Subject: Re: [PATCH 1/3] mm/mincore: make mincore() more conservative
-To: Andrew Morton <akpm@linux-foundation.org>,
- Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- linux-api@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>,
- Greg KH <gregkh@linuxfoundation.org>, Jann Horn <jannh@google.com>,
- Jiri Kosina <jkosina@suse.cz>, Dominique Martinet <asmadeus@codewreck.org>,
+	by mx1.suse.de (Postfix) with ESMTP id F389EB029;
+	Fri,  1 Feb 2019 09:04:23 +0000 (UTC)
+Subject: Re: [PATCH 3/3] mm/mincore: provide mapped status when cached status
+ is not allowed
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ Linus Torvalds <torvalds@linux-foundation.org>,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org,
+ Peter Zijlstra <peterz@infradead.org>, Greg KH <gregkh@linuxfoundation.org>,
+ Jann Horn <jannh@google.com>, Jiri Kosina <jikos@kernel.org>,
+ Dominique Martinet <asmadeus@codewreck.org>,
  Andy Lutomirski <luto@amacapital.net>, Dave Chinner <david@fromorbit.com>,
  Kevin Easton <kevin@guarana.org>, Matthew Wilcox <willy@infradead.org>,
  Cyril Hrubis <chrubis@suse.cz>, Tejun Heo <tj@kernel.org>,
  "Kirill A . Shutemov" <kirill@shutemov.name>, Daniel Gruss
- <daniel@gruss.cc>, Jiri Kosina <jikos@kernel.org>
+ <daniel@gruss.cc>, Jiri Kosina <jkosina@suse.cz>,
+ Josh Snyder <joshs@netflix.com>
 References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
- <20190130124420.1834-1-vbabka@suse.cz> <20190130124420.1834-2-vbabka@suse.cz>
+ <20190130124420.1834-1-vbabka@suse.cz> <20190130124420.1834-4-vbabka@suse.cz>
+ <20190131100907.GS18811@dhcp22.suse.cz>
 From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
-Message-ID: <de52b3bd-4e39-c133-542a-0a9c5e357404@suse.cz>
-Date: Fri, 1 Feb 2019 09:56:14 +0100
+Message-ID: <99ee4d3e-aeb2-0104-22be-b028938e7f88@suse.cz>
+Date: Fri, 1 Feb 2019 10:04:23 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <20190130124420.1834-2-vbabka@suse.cz>
+In-Reply-To: <20190131100907.GS18811@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -111,86 +115,194 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Here's updated version with Michal's suggestion, and acks:
+On 1/31/19 11:09 AM, Michal Hocko wrote:
+> On Wed 30-01-19 13:44:20, Vlastimil Babka wrote:
+>> After "mm/mincore: make mincore() more conservative" we sometimes restrict the
+>> information about page cache residency, which we have to do without breaking
+>> existing userspace, if possible. We thus fake the resulting values as 1, which
+>> should be safer than faking them as 0, as there might theoretically exist code
+>> that would try to fault in the page(s) until mincore() returns 1.
+>>
+>> Faking 1 however means that such code would not fault in a page even if it was
+>> not in page cache, with unwanted performance implications. We can improve the
+>> situation by revisting the approach of 574823bfab82 ("Change mincore() to count
+>> "mapped" pages rather than "cached" pages") but only applying it to cases where
+>> page cache residency check is restricted. Thus mincore() will return 0 for an
+>> unmapped page (which may or may not be resident in a pagecache), and 1 after
+>> the process faults it in.
+>>
+>> One potential downside is that mincore() will be again able to recognize when a
+>> previously mapped page was reclaimed. While that might be useful for some
+>> attack scenarios, it's not as crucial as recognizing that somebody else faulted
+>> the page in, and there are also other ways to recognize reclaimed pages anyway.
+> 
+> Is this really worth it? Do we know about any specific usecase that
+> would benefit from this change? TBH I would rather wait for the report
+> than add a hard to evaluate side channel.
 
-I think this patch is fine to go, less sure about 2/3 and 3/3.
+Well it's not that complicated IMHO. Linus said it's worth trying, so
+let's see how he likes the result. The side channel exists anyway as
+long as process can e.g. check if its rss shrinked, and I doubt we are
+going to remove that possibility.
 
-----8<----
-From 49f17d9f6a42ecc2a508125b0c880ff0402a6f49 Mon Sep 17 00:00:00 2001
-From: Jiri Kosina <jkosina@suse.cz>
-Date: Wed, 16 Jan 2019 20:53:17 +0100
-Subject: [PATCH v2] mm/mincore: make mincore() more conservative
+Also CC Josh Snyder since I forgot originally, and keeping rest of mail
+for reference.
 
-The semantics of what mincore() considers to be resident is not completely
-clear, but Linux has always (since 2.3.52, which is when mincore() was
-initially done) treated it as "page is available in page cache".
-
-That's potentially a problem, as that [in]directly exposes meta-information
-about pagecache / memory mapping state even about memory not strictly belonging
-to the process executing the syscall, opening possibilities for sidechannel
-attacks.
-
-Change the semantics of mincore() so that it only reveals pagecache information
-for non-anonymous mappings that belog to files that the calling process could
-(if it tried to) successfully open for writing.
-
-[mhocko@suse.com: restructure can_do_mincore() conditions]
-Originally-by: Linus Torvalds <torvalds@linux-foundation.org>
-Originally-by: Dominique Martinet <asmadeus@codewreck.org>
-Cc: Dominique Martinet <asmadeus@codewreck.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: Kevin Easton <kevin@guarana.org>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Cyril Hrubis <chrubis@suse.cz>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: Daniel Gruss <daniel@gruss.cc>
-Signed-off-by: Jiri Kosina <jkosina@suse.cz>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Josh Snyder <joshs@netflix.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
- mm/mincore.c | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
-
-diff --git a/mm/mincore.c b/mm/mincore.c
-index 218099b5ed31..b8842b849604 100644
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -169,6 +169,16 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 	return 0;
- }
- 
-+static inline bool can_do_mincore(struct vm_area_struct *vma)
-+{
-+	if (vma_is_anonymous(vma))
-+		return true;
-+	if (!vma->vm_file)
-+		return false;
-+	return inode_owner_or_capable(file_inode(vma->vm_file)) ||
-+		inode_permission(file_inode(vma->vm_file), MAY_WRITE) == 0;
-+}
-+
- /*
-  * Do a chunk of "sys_mincore()". We've already checked
-  * all the arguments, we hold the mmap semaphore: we should
-@@ -189,8 +199,13 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
- 	vma = find_vma(current->mm, addr);
- 	if (!vma || addr < vma->vm_start)
- 		return -ENOMEM;
--	mincore_walk.mm = vma->vm_mm;
- 	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
-+	if (!can_do_mincore(vma)) {
-+		unsigned long pages = (end - addr) >> PAGE_SHIFT;
-+		memset(vec, 1, pages);
-+		return pages;
-+	}
-+	mincore_walk.mm = vma->vm_mm;
- 	err = walk_page_range(addr, end, &mincore_walk);
- 	if (err < 0)
- 		return err;
--- 
-2.20.1
-
+>> Cc: Jiri Kosina <jikos@kernel.org>
+>> Cc: Dominique Martinet <asmadeus@codewreck.org>
+>> Cc: Andy Lutomirski <luto@amacapital.net>
+>> Cc: Dave Chinner <david@fromorbit.com>
+>> Cc: Kevin Easton <kevin@guarana.org>
+>> Cc: Matthew Wilcox <willy@infradead.org>
+>> Cc: Cyril Hrubis <chrubis@suse.cz>
+>> Cc: Tejun Heo <tj@kernel.org>
+>> Cc: Kirill A. Shutemov <kirill@shutemov.name>
+>> Cc: Daniel Gruss <daniel@gruss.cc>
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>> ---
+>>  mm/mincore.c | 49 +++++++++++++++++++++++++++++++++----------------
+>>  1 file changed, 33 insertions(+), 16 deletions(-)
+>>
+>> diff --git a/mm/mincore.c b/mm/mincore.c
+>> index 747a4907a3ac..d6784a803ae7 100644
+>> --- a/mm/mincore.c
+>> +++ b/mm/mincore.c
+>> @@ -21,12 +21,18 @@
+>>  #include <linux/uaccess.h>
+>>  #include <asm/pgtable.h>
+>>  
+>> +struct mincore_walk_private {
+>> +	unsigned char *vec;
+>> +	bool can_check_pagecache;
+>> +};
+>> +
+>>  static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
+>>  			unsigned long end, struct mm_walk *walk)
+>>  {
+>>  #ifdef CONFIG_HUGETLB_PAGE
+>>  	unsigned char present;
+>> -	unsigned char *vec = walk->private;
+>> +	struct mincore_walk_private *walk_private = walk->private;
+>> +	unsigned char *vec = walk_private->vec;
+>>  
+>>  	/*
+>>  	 * Hugepages under user process are always in RAM and never
+>> @@ -35,7 +41,7 @@ static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
+>>  	present = pte && !huge_pte_none(huge_ptep_get(pte));
+>>  	for (; addr != end; vec++, addr += PAGE_SIZE)
+>>  		*vec = present;
+>> -	walk->private = vec;
+>> +	walk_private->vec = vec;
+>>  #else
+>>  	BUG();
+>>  #endif
+>> @@ -85,7 +91,8 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
+>>  }
+>>  
+>>  static int __mincore_unmapped_range(unsigned long addr, unsigned long end,
+>> -				struct vm_area_struct *vma, unsigned char *vec)
+>> +				struct vm_area_struct *vma, unsigned char *vec,
+>> +				bool can_check_pagecache)
+>>  {
+>>  	unsigned long nr = (end - addr) >> PAGE_SHIFT;
+>>  	int i;
+>> @@ -95,7 +102,9 @@ static int __mincore_unmapped_range(unsigned long addr, unsigned long end,
+>>  
+>>  		pgoff = linear_page_index(vma, addr);
+>>  		for (i = 0; i < nr; i++, pgoff++)
+>> -			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
+>> +			vec[i] = can_check_pagecache ?
+>> +				 mincore_page(vma->vm_file->f_mapping, pgoff)
+>> +				 : 0;
+>>  	} else {
+>>  		for (i = 0; i < nr; i++)
+>>  			vec[i] = 0;
+>> @@ -106,8 +115,11 @@ static int __mincore_unmapped_range(unsigned long addr, unsigned long end,
+>>  static int mincore_unmapped_range(unsigned long addr, unsigned long end,
+>>  				   struct mm_walk *walk)
+>>  {
+>> -	walk->private += __mincore_unmapped_range(addr, end,
+>> -						  walk->vma, walk->private);
+>> +	struct mincore_walk_private *walk_private = walk->private;
+>> +	unsigned char *vec = walk_private->vec;
+>> +
+>> +	walk_private->vec += __mincore_unmapped_range(addr, end, walk->vma,
+>> +				vec, walk_private->can_check_pagecache);
+>>  	return 0;
+>>  }
+>>  
+>> @@ -117,7 +129,8 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>>  	spinlock_t *ptl;
+>>  	struct vm_area_struct *vma = walk->vma;
+>>  	pte_t *ptep;
+>> -	unsigned char *vec = walk->private;
+>> +	struct mincore_walk_private *walk_private = walk->private;
+>> +	unsigned char *vec = walk_private->vec;
+>>  	int nr = (end - addr) >> PAGE_SHIFT;
+>>  
+>>  	ptl = pmd_trans_huge_lock(pmd, vma);
+>> @@ -128,7 +141,8 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>>  	}
+>>  
+>>  	if (pmd_trans_unstable(pmd)) {
+>> -		__mincore_unmapped_range(addr, end, vma, vec);
+>> +		__mincore_unmapped_range(addr, end, vma, vec,
+>> +					walk_private->can_check_pagecache);
+>>  		goto out;
+>>  	}
+>>  
+>> @@ -138,7 +152,7 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>>  
+>>  		if (pte_none(pte))
+>>  			__mincore_unmapped_range(addr, addr + PAGE_SIZE,
+>> -						 vma, vec);
+>> +				 vma, vec, walk_private->can_check_pagecache);
+>>  		else if (pte_present(pte))
+>>  			*vec = 1;
+>>  		else { /* pte is a swap entry */
+>> @@ -152,8 +166,12 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>>  				*vec = 1;
+>>  			} else {
+>>  #ifdef CONFIG_SWAP
+>> -				*vec = mincore_page(swap_address_space(entry),
+>> +				if (walk_private->can_check_pagecache)
+>> +					*vec = mincore_page(
+>> +						    swap_address_space(entry),
+>>  						    swp_offset(entry));
+>> +				else
+>> +					*vec = 0;
+>>  #else
+>>  				WARN_ON(1);
+>>  				*vec = 1;
+>> @@ -187,22 +205,21 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
+>>  	struct vm_area_struct *vma;
+>>  	unsigned long end;
+>>  	int err;
+>> +	struct mincore_walk_private walk_private = {
+>> +		.vec = vec
+>> +	};
+>>  	struct mm_walk mincore_walk = {
+>>  		.pmd_entry = mincore_pte_range,
+>>  		.pte_hole = mincore_unmapped_range,
+>>  		.hugetlb_entry = mincore_hugetlb,
+>> -		.private = vec,
+>> +		.private = &walk_private
+>>  	};
+>>  
+>>  	vma = find_vma(current->mm, addr);
+>>  	if (!vma || addr < vma->vm_start)
+>>  		return -ENOMEM;
+>>  	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
+>> -	if (!can_do_mincore(vma)) {
+>> -		unsigned long pages = (end - addr) >> PAGE_SHIFT;
+>> -		memset(vec, 1, pages);
+>> -		return pages;
+>> -	}
+>> +	walk_private.can_check_pagecache = can_do_mincore(vma);
+>>  	mincore_walk.mm = vma->vm_mm;
+>>  	err = walk_page_range(addr, end, &mincore_walk);
+>>  	if (err < 0)
+>> -- 
+>> 2.20.1
+> 
 
