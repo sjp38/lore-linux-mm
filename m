@@ -2,116 +2,116 @@ Return-Path: <SRS0=aBqT=QI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E12CC282D8
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 04:28:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F3F5C282D8
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 04:57:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4AFF120869
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 04:28:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 29FD220857
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 04:57:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="vEw40XIW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4AFF120869
+	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="qj05xz3W"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 29FD220857
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A2F1C8E0002; Thu, 31 Jan 2019 23:28:38 -0500 (EST)
+	id 97BDD8E0002; Thu, 31 Jan 2019 23:57:14 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9B8728E0001; Thu, 31 Jan 2019 23:28:38 -0500 (EST)
+	id 92B528E0001; Thu, 31 Jan 2019 23:57:14 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8803C8E0002; Thu, 31 Jan 2019 23:28:38 -0500 (EST)
+	id 7F2EF8E0002; Thu, 31 Jan 2019 23:57:14 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E7B08E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 23:28:38 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id w15so6413098qtk.19
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 20:28:38 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 50BF08E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 23:57:14 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id p24so6530951qtl.2
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 20:57:14 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=lSJhzX9ZcefE+FtHKWw9/SxqHKLxMMc4ebOyRuovNFY=;
-        b=T8VPpBL2H23HRvGNyzStji/iFPzJgdfm6Ihl798Wyh422djjd951q6VIqwuZJubVuU
-         JVdLHWGmkiZsKoYjh37BUnulptbzf2ewkJ1pWMuDiQGB1f1N4z4Tt4D5r+TAWeeLVXDS
-         D4S3icby9iw3R+kc0IeVnes4b1fSZhQvzROgYh4neSRexyk0aYZrxL6p7y8j1R3xHFwR
-         MPxr/lwgi5gnPDsPlnZGb//TmW48UZcDGdkChcxJn8tkTK1oS/7d8/7+lowWEt3Cl2Mq
-         g3U9v3Kc+XOG2xMKiD60ZLkoT+CEC70RZCKTDVw6ezk9OS8DHxCKGe1u/+ZS/0Fh/3Xc
-         0VWQ==
-X-Gm-Message-State: AJcUuke19mDCPou5371kGWbNRhb/cEjqd95Qtx9C4oQUriIU0E4L986a
-	9S58EsWzU/w5QgtMoRuR1Y//PQoBpUh3YWLwzyhnYz+mPN8YUMzJmyqr670d7gxk2RNdBz/y+qL
-	+mo+E9M9kyYehw4i19+Ow7vQxHPdMnF2LK+QjKcGTghdVBfghDIiNqT3ZSnVF13GH+ZMQoX2tMy
-	gNRsgtqgC+sH69NTHNloTLFohl3kYkzDJAbLFFSho00NUaP32rQzNgisJbaUP/sTcUOKYhyXYvs
-	L0HEzmFSA7Exgu914sWXry8FxRUEdRLAMdsx/5BQPy0s4+VK/Utzz9U2mMo1fXQRk3KwLmWlPRQ
-	/ItJe1YwrCNw7Lu+KlGhBLBQzWQ8YPlPIwcjHdrMwLFUOyt6qB3BUF45rfPfCGANALmDjkmu0wL
-	e
-X-Received: by 2002:ac8:1490:: with SMTP id l16mr37727493qtj.222.1548995318089;
-        Thu, 31 Jan 2019 20:28:38 -0800 (PST)
-X-Received: by 2002:ac8:1490:: with SMTP id l16mr37727476qtj.222.1548995317600;
-        Thu, 31 Jan 2019 20:28:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548995317; cv=none;
+         :message-id:mime-version:content-disposition:user-agent;
+        bh=ZyfqNSgV7sbHHKf6GgHwEJjj9JK6z7ZkNg8CfEE8r3I=;
+        b=l9yj3JOUrKuZtg31op8HGJaYw+FeJvKM36xC4cAO2CRNaoqQpi0yzTbkNa/A6lFs3s
+         LJijjrkhijkqc32+Mi0vo1eNArS+cQRY9XL6Z9WNfqBqpFJ7eFowRTjh/ki/hmDGOpa1
+         WH2YmtpQPPwC4yDGQ6mmb/DbT/n1CKw7/MHEbEgpovvzBeHsY2IsaY6NL2W6RSU2pyxj
+         SRAydV4tZlbljPgdkWp0SoIFYzV+FtXBO0iYKbQwgDAxsyj8tFrbouUwIv08GLp/Bk7o
+         BE5Gobha7xpXfJBzX2+vX2+OvYgRCTK6DLyVBnKTSfk8q4Z8g/rmj8zO9vJ/ZOU5lMD6
+         YtGQ==
+X-Gm-Message-State: AJcUukfN4Tliry1HiAJPEFYaxM3oMfKLz8bmChYtxxK39L6dnZ0bQUOg
+	7dPZCi0draStGPBmlC6eJ/G8aqmhG7RifoFYCypSqrxw4oRPc12CadkQK7lCXDzsy0LTbJfDEk7
+	IE55FkZX/ejgwxRuYPqGYgYU1ERlHpzeBBhPr1tYkwqyWtS+qNQVBCKJN7vUD2d6r9nAPvd9oG2
+	WM3MBNAsXIooo9+QUUIpo3CPJlc4ynOEZNdyfVCioPZqLi475cE6HkmxLndjOnZHQSPavPY/8uh
+	K08LqMzjp27xbYJWC3qdw7VLynypxrglmB1tUDpLx91bg/0DHqZ8cXUCda3YNiKm9q5bjTqdhM9
+	ehR80h4LJFOWYHmyeQFMR6jrPz9OJfnDcPnzkDVFU0Ah5RQBlTKQRH7O/EE68KNXOTc41PUszKg
+	3
+X-Received: by 2002:ad4:42d1:: with SMTP id f17mr35142638qvr.59.1548997034056;
+        Thu, 31 Jan 2019 20:57:14 -0800 (PST)
+X-Received: by 2002:ad4:42d1:: with SMTP id f17mr35142605qvr.59.1548997033288;
+        Thu, 31 Jan 2019 20:57:13 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548997033; cv=none;
         d=google.com; s=arc-20160816;
-        b=jqJWULLpomBxNcRo20OS1gmuEIraF/wWWoY/+tBbVwBrsmC93+4xjjA72VZUKNCIuz
-         6ihqGOXhWfyivV7KRClI42qSZ2xwR5vBkK+Xi7WVaKa/QdMiqdDurEoY8uW+KiJqQe9D
-         dqvVs1KUJIimFSw7o6vEI9hDTLBW2D5EeQM9VjLWq/uUXGeuYG0KkS72b7kF19+QqI6Z
-         2nMRcSzMYyIVkiHIaJwhrkUCmDyazNJJ5I5TYClegHzemjSxC5etQV+Ivz4o/j8hrgLY
-         Nsc4t2CEuwbFiWosIBp48sL2finBi2+Re9WFN+Bd4PGhbTDPQ25HyIFso7UAk1PAb49b
-         WRXg==
+        b=ssLy1BlQ7oZwwu/NIOJD9FHkAH/Dgz53I597OSnkd4lJ7HkuiRrxAqo9fuNCKwM+Sv
+         dcvz5Kw8hpxOL0Ez0oSKpYDpfZMzUCtEOH6BF0ZqC96+Sg4BuH4bg7EZnZtozx4axsPI
+         FPm1Dt3DtI2uTXG+mNLDY2XGzca7pQauAaP8mCb6+ijDPNoBlDjb4P8fpAV4f6BAdoZY
+         0ZEQDFN++tRqTr8XU6B3d0oz6MFj/rvlsR/OPr0abh+zi9mVLmzzTzYHLs9rY6zONdKd
+         CCB9OO9uz1dylOXDCzhy4O3aWUTMpiP5yCcp/MTXZxQjMXcVEyHgt0RF6PQlF8mbsU5u
+         +gGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=lSJhzX9ZcefE+FtHKWw9/SxqHKLxMMc4ebOyRuovNFY=;
-        b=R0h6L4EFsNOLMv0gg0vCZlr17GqDP9bRUbwyrmSR/hgvV/8FLWMqgzgP+OcCFyBWXw
-         iYfXHGyXCTVKoRT0refnT7chX/7Lyv38FUDUjClxbCIF/WbGkKiZ7OD5M66TpLiP6CvG
-         qoXXoXt1qFf2e1vxsG/6uowIGAnqFUKH+5lLqKqp0QWFJD4HACfhcMRysRCFXvxrGVbC
-         qOk/VNuzEIdfoIi1RJJFd3mBnCOor1k3S8jTpc+yIpNbqWDYa+1P0z/NK2QGjMEB6w+f
-         Rmzm/Dm8bXzs2DqRkrMrNMldgF5oQkDuFRR9EWuuRJAJgL7XVed5J46ZgLRqjUy0ndmB
-         VLCA==
+        h=user-agent:content-disposition:mime-version:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=ZyfqNSgV7sbHHKf6GgHwEJjj9JK6z7ZkNg8CfEE8r3I=;
+        b=RlEYY2bljZBg3VkdXfo5TO544pnRpnxBGlBxLeL/ILwdmKJ1Yn2iyJs3rG/zRIIVUb
+         wRSaGJa9TEgteEBf6dI7Kq4odYf9RXE/iLIqMyk641fut6S5xhhEF65VUQT9a6PpBvOK
+         lXBQlgfMTz6/Q0iKj3VlXXlvGPOljnDGxNqDheBPeIU3Ux/unCKA4+LpAKVK7ntTh85z
+         nLbHd1PXPqo2tqsEHHVJHQ0ry+jTiJSF9e7EuAAG1YvMo1BxOeuS6a/kXVopt13ZdJ5Y
+         Of+BXT7c2E1YSu7zleYswnFvN937J0M2sExP4foOyO6JR8v4PlzO9lPOO5KBdO7FZ9ej
+         MIGQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=vEw40XIW;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.41 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=qj05xz3W;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b18sor7241085qvj.55.2019.01.31.20.28.37
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g125sor3650012qke.13.2019.01.31.20.57.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 31 Jan 2019 20:28:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Thu, 31 Jan 2019 20:57:13 -0800 (PST)
+Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=vEw40XIW;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.41 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=qj05xz3W;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=chrisdown.name; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=lSJhzX9ZcefE+FtHKWw9/SxqHKLxMMc4ebOyRuovNFY=;
-        b=vEw40XIWD7uCLn+QNRWDXmerWbm1nvBuAuquUXTwt0VyD1W3Xa8ISPNIr8nBxdtnqp
-         bdPTrmZ1h7eU4MhGhk8+fXGTmncml3zzLFuDjSz2J+chKd5TCn+8nmVHA3p8P6Jcz2to
-         cSxdBtGNNYUao8Uqns6zFCmPlhR3u9zbImi4Q=
-X-Google-Smtp-Source: ALg8bN7tIg3LF4vRVk8yjLiFgnYPoQ91hY+SgNbOa4eOi3VWH30PzTJwVn/tePmXxv5YHY6T9llWrw==
-X-Received: by 2002:a0c:cc8c:: with SMTP id f12mr35463112qvl.102.1548995317084;
-        Thu, 31 Jan 2019 20:28:37 -0800 (PST)
+        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
+         :user-agent;
+        bh=ZyfqNSgV7sbHHKf6GgHwEJjj9JK6z7ZkNg8CfEE8r3I=;
+        b=qj05xz3WgtljNNSNzrUl/+5aWQIJ56oIIBdLbo95C8lC3RoRbf1Dnk3pKF0YWZakDA
+         U/gkYIWajbXocX3JIHknN2rYGqm35i1QhIVy2mnOP59QLd/OPPqeM9LKfdNK4xRxKt8l
+         X1J4VfVTn5CAdOjcS7mNBXVokP4Cb0Y2eyi8Y=
+X-Google-Smtp-Source: ALg8bN6lky0j7eyRR8l1KOMYo4dQ4KTM3ZIwK7hNi4saong4PPJYdTlx4rmfiM+LF+ZalHu/+2Xb/g==
+X-Received: by 2002:a37:34f:: with SMTP id 76mr34530117qkd.347.1548997032847;
+        Thu, 31 Jan 2019 20:57:12 -0800 (PST)
 Received: from localhost (rrcs-108-176-24-99.nyc.biz.rr.com. [108.176.24.99])
-        by smtp.gmail.com with ESMTPSA id t43sm14565667qtc.53.2019.01.31.20.28.36
+        by smtp.gmail.com with ESMTPSA id o8sm3924052qkg.60.2019.01.31.20.57.12
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 31 Jan 2019 20:28:36 -0800 (PST)
-Date: Thu, 31 Jan 2019 23:28:36 -0500
+        Thu, 31 Jan 2019 20:57:12 -0800 (PST)
+Date: Thu, 31 Jan 2019 23:57:11 -0500
 From: Chris Down <chris@chrisdown.name>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>,
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+	Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
+	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
 	linux-mm@kvack.org
-Subject: Re: [linux-next-20190131] NULL pointer dereference at
- shrink_node_memcg.
-Message-ID: <20190201042836.GA1529@chrisdown.name>
-References: <201902010337.x113b72e028186@www262.sakura.ne.jp>
+Subject: [PATCH] mm, memcg: Handle cgroup_disable=memory when getting memcg
+ protection
+Message-ID: <20190201045711.GA18302@chrisdown.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201902010337.x113b72e028186@www262.sakura.ne.jp>
 User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -119,19 +119,36 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hey Tetsuo,
+memcg is NULL if we have CONFIG_MEMCG set, but cgroup_disable=memory on
+the kernel command line.
 
-Tetsuo Handa writes:
->Commit 8a907cdf0177ab40 ("mm, memcg: proportional memory.{low,min} reclaim")
->broke global reclaim by kdump kernel due to NULL pointer dereference at
->
->   protection = mem_cgroup_protection(memcg);
->
->. Please fix.
+Fixes: 8a907cdf0177ab40 ("mm, memcg: proportional memory.{low,min} reclaim")
+Reported-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Signed-off-by: Chris Down <chris@chrisdown.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org
+Cc: cgroups@vger.kernel.org
+Cc: linux-mm@kvack.org
+---
+ include/linux/memcontrol.h | 3 +++
+ 1 file changed, 3 insertions(+)
 
-Oh yeah, memcg is null if memcg is disabled at run time but is compiled in (so 
-this works with CONFIG_MEMCG and !CONFIG_MEMCG, but not CONFIG_MEMCG + 
-cgroup_disable=memory).
-
-A fix will be out shortly, thanks.
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 290cfbfd60cd..49742489aa56 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -335,6 +335,9 @@ static inline bool mem_cgroup_disabled(void)
+ 
+ static inline unsigned long mem_cgroup_protection(struct mem_cgroup *memcg)
+ {
++	if (mem_cgroup_disabled())
++		return 0;
++
+ 	return max(READ_ONCE(memcg->memory.emin), READ_ONCE(memcg->memory.elow));
+ }
+ 
+-- 
+2.20.1
 
