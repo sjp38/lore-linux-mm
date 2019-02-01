@@ -2,293 +2,174 @@ Return-Path: <SRS0=aBqT=QI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E6A98C282D8
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 05:18:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1FB23C4151A
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 05:27:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9437120870
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 05:18:14 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="b3f8X3vk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9437120870
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
+	by mail.kernel.org (Postfix) with ESMTP id E0D7E20863
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 05:27:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E0D7E20863
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2B45D8E0002; Fri,  1 Feb 2019 00:18:14 -0500 (EST)
+	id 6F2B18E0002; Fri,  1 Feb 2019 00:27:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 262448E0001; Fri,  1 Feb 2019 00:18:14 -0500 (EST)
+	id 6A14A8E0001; Fri,  1 Feb 2019 00:27:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 153108E0002; Fri,  1 Feb 2019 00:18:14 -0500 (EST)
+	id 5B7568E0002; Fri,  1 Feb 2019 00:27:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DE4DE8E0001
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 00:18:13 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id k90so6591473qte.0
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 21:18:13 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AC6A8E0001
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 00:27:52 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id o9so3873285pgv.19
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 21:27:52 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:in-reply-to:user-agent;
-        bh=bVOuN27+dQpcYjyoBP7qcpwIAC0k6Nxrf6LI5xH+LA4=;
-        b=Iv6QUIIbAzb/+0lv+3g5LPksaVUwC741eyy3kUawlqfWuJw4cjBtdvi8KadOZ+b+JZ
-         VtPcTda3mhQxvFZi+ryMTjD9DDO6j7Z2jvwTrK+ldhgNsuBQvj7SWT3dbzlGhqGetSc8
-         eYeOsYF1Vk5VIkguUrPMZaa53lvhTuqqEP7XhJpG90stB1w9iM0k8SBWz3Pm7e06J1Zh
-         I17tVdMrHDEZyYtkbDYXdX9XBQMy/N0RnBgrGDnVpiZVbvaLI5s2mdPMQveMxy2eYnow
-         v+JzP0EZMeKNQT9fUSY4Vdjh4UH+ZVKC/PtPPTv2wNhMcxvAnZ7DEH0ajjACrfw1EpjQ
-         Y2DQ==
-X-Gm-Message-State: AJcUukf0K+aezSRz2pUk6YzhMGILxurii+wrZUzZp/vAQxS5X3m4T51B
-	O6hKEpPI3EQCcDC95DYU2Nr0zpvtjY3LHEeqWBO/8sAkXaGOFdUgiWe1DI2d3hJqKebd1z/qEhF
-	7YSeuPPETHZnjEqmJV739yTaddo4kFsqPazdPcHztXZr3XumGH61pGRLMdY86Hhzn2VbA2NQOYN
-	/fjN4qYoG1j0iXamV13MNSx5BzCHP5lL/d/P+1RWHOXkKPbS05pqK/XH7tztHp4TFOWocb7MHar
-	VKID+NQaIUqA5UwZbKlv9NzIJLkt8i6XCpXfOQtYz814spKntZJOJ7F3D48ZgJU9pIthkiyubcW
-	UMPdxZqMX7nAnwEM5kDsrRACyEaStSPyye4SEoh1I+mou0YWsK7MWtDdPG6tH8p7VEHveTGUB3J
-	/
-X-Received: by 2002:a37:ea0a:: with SMTP id t10mr33614726qkj.273.1548998293624;
-        Thu, 31 Jan 2019 21:18:13 -0800 (PST)
-X-Received: by 2002:a37:ea0a:: with SMTP id t10mr33614697qkj.273.1548998292914;
-        Thu, 31 Jan 2019 21:18:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548998292; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:date:message-id:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=PMsVRXsDJmzNONQaRNWRjzU9vOFLaKsgwjfK3oDoeN8=;
+        b=M0Zf4JCsA/mMHQpLEyeVm9iWMXv8PvonUsfoY0ux9KFP0GcvbUR/rB/FlCPDRIFU/A
+         dt73gQ3Y4/4TPF0neDbPyKtFd+UQyRzK2HYzuWs7jwwnqnuXTc2IcF5YcDtMIvibVeS8
+         x5sdIX+KHZp8b4fRoF2unIuEfAa4L4eD0RL2pi451I+HSE4G2L15C8VrC5z6fRWbMBG/
+         bQY7rN7xfg2n2wg8Xqgt6E/D0IylWzhjbx2hWkbS0pM486aK9k4tSiPVTbFktwCJD84l
+         RsC3k7uSWuDdX5V9ZOzXRPX5B84ZM056vEn/pbHKx4PUJs6E2VSdMnkfoRqvXM+ZRud3
+         wdLg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AJcUukcrJ4p3709D3i6YbpUEOECjma+G13d5jZDgKUtBF6Nv+l0SOphY
+	I6DADTh3krz1a3UCFcON5Yz9GzlDcJdgsMS7ToBiIEpnKHxhWMxrgrYKz/Z47hYmGCffhb2aien
+	jMMFpo44Se8CbPuk1hau0UUmvDWDnbwN1gkl575se7E/fCbt38XbBd45Fy7WBaNnVMg==
+X-Received: by 2002:a63:2054:: with SMTP id r20mr33936314pgm.328.1548998871637;
+        Thu, 31 Jan 2019 21:27:51 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7zyf1gCO+Bx6LgD9xhKBIH4OVSKGGhrzyrB3VozAPhfIQ/4PpMGwf2LTC2noFqwk+NazyI
+X-Received: by 2002:a63:2054:: with SMTP id r20mr33936283pgm.328.1548998870736;
+        Thu, 31 Jan 2019 21:27:50 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548998870; cv=none;
         d=google.com; s=arc-20160816;
-        b=dvBh9b1HhNSSITvsf0/IY4/TUmzBDDRXZZ6NI3fHZXuvysAEskKj16i4brHWmGKS2h
-         r+cMnDB5Py1p80w86fD9Fqbhgnvz636yXE6tE8ZSlrj8XnOqAAiHnQC1ElAqOnzrylrV
-         dm/mu0fqkIYKyn9ESK+LaAL0zQhXtLuZ05LX9rGm79TR1Uwt3DvhLuwxdLHX5/P1tiHF
-         zLcV71jCMzAN6iKSU0TgIFx0AchyW+DFDaDBcdg7Y1d6E47wcaHy3OKJ8Smx3rPyJpXi
-         tU3mPz5QgFVcxiVYgJM47iLXYyLH1V7rRI/em2SBpSptXY+tnXHVmpn8wB/X0/7C9TB3
-         CIJg==
+        b=zvhXL08PHeyyBC7uj6RVRf9Fg7c0b9p1Ie7MvvS9BAmNUxIpBHMT3fMgV+cUz3iPz2
+         6zpG3Ibp7KXU8XcLQ1Fg6fhoiyRpTEszbx0XorCEV+BZ796kOkxa5dHP+DGddvte50d7
+         3lTNZWam/iTwc/82OyXcsGHHu8tW+dxKdxeRhDJ5EKDfjtP4a3cw0hTRfZQGJfmOuD0M
+         KzzcGTC3LEbRMoTlQQN52q44m2nTAHZ0/JLHd3TFDqZUIrAlKlAlyza+VN4eHePIrxbE
+         UHa7SOl96lA8M1ucMOLgjGhjEfDUMtbk8eI3HTsmM6zGxrYsCyh6twmZcaEHjqgMy+Ps
+         X3bQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=bVOuN27+dQpcYjyoBP7qcpwIAC0k6Nxrf6LI5xH+LA4=;
-        b=Vjcn9nsR1yBLq0cE+QpP2okGP7o9/sd2D+yHjeaCOGq0u/b1PqZ1/QigDVNaxA0QTB
-         15a7lvWSyyJzs52U6OL18VJTUJ/TlTm47NkUVzcqq7CN8+mNnjzMpsreOJqWPPGZtsQ/
-         MYNrE2Aoge16sz3aL+Xh2XzykCs1iBeOdyjonz1NKvvdWNv/PQYh8RM+TQK2q+dhxpcf
-         GCeRUNXnt1+5jLLoKYrXKlwdzP0YX5NcF+EZv1ohrMd9lbNZAQpFghvEWxqaHnAEPDe8
-         JOWEee1HTx11Euw5zW5xFY2S1Roi85rCez6g9K30AwTcst+wZMea1q1GPQxduIdgnkWk
-         6auA==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :cc:to:from:subject;
+        bh=PMsVRXsDJmzNONQaRNWRjzU9vOFLaKsgwjfK3oDoeN8=;
+        b=F0UCaL7BwZ7NUyxRzwDaTg84dKm4bj5cHP8xzvGRzck7QnCbUmeQU0Zr7XCg9z89VG
+         SAP2ZPECctt5+usWKgM8BRYxx3jZVJVasM9CqxX7xvfM8vDndiSnpxyWNiuR7Tf32uin
+         sWaufNDPzdP/8vE6F9CPKokKbHaAKT1p6ETU3I8S3md0yEIEcPCnZnvSgyG13vJp76I1
+         7pWILaUZxociLbfhERgriYRz73qOQYbhD0syibh5yEUd9Sum6mwk7s5y9InuM/1/HAEH
+         UCw9D2E9dw1exKlOOiVQ9ujh943UlSInIP7R2gsn4HwxKMLmAXZch5TeqmRS7sk+xKUw
+         GnUg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=b3f8X3vk;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q6sor8157742qtb.53.2019.01.31.21.18.12
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id u11si7171094plm.8.2019.01.31.21.27.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 31 Jan 2019 21:18:12 -0800 (PST)
-Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Jan 2019 21:27:50 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=b3f8X3vk;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chrisdown.name; s=google;
-        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=bVOuN27+dQpcYjyoBP7qcpwIAC0k6Nxrf6LI5xH+LA4=;
-        b=b3f8X3vkGREfwb8cgrZL68JTIwv9yiDjla7EXDA9MgwWVXeSsFHmJHsi3G7GDankY5
-         T57lz9NGHBL4NeJ4dlqbpYJrsoEI7+Uvw2GlbxDI3rbmFQ64Yj2KIQZr7rEORjlCsHTj
-         efE4MLs4dUIptQZ4a/SYpQh36Wod7GTl8OAbk=
-X-Google-Smtp-Source: ALg8bN5ysSl/ioCr4AIRCKDjPjIJTkc87tOvKrQfy+6635gtKpl8vT/9tnbpYJcsNa/DPIYglsoRWg==
-X-Received: by 2002:ac8:4a10:: with SMTP id x16mr38505487qtq.164.1548998292366;
-        Thu, 31 Jan 2019 21:18:12 -0800 (PST)
-Received: from localhost (rrcs-108-176-24-99.nyc.biz.rr.com. [108.176.24.99])
-        by smtp.gmail.com with ESMTPSA id p8sm6253906qtk.70.2019.01.31.21.18.11
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 31 Jan 2019 21:18:11 -0800 (PST)
-Date: Fri, 1 Feb 2019 00:18:10 -0500
-From: Chris Down <chris@chrisdown.name>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
-	Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>,
-	Dennis Zhou <dennis@kernel.org>, linux-kernel@vger.kernel.org,
-	cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
-Subject: [PATCH v4] mm: Make memory.emin the baseline for utilisation
- determination
-Message-ID: <20190201051810.GA18895@chrisdown.name>
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 31 Jan 2019 21:27:49 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.56,547,1539673200"; 
+   d="scan'208";a="134968239"
+Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
+  by orsmga001.jf.intel.com with ESMTP; 31 Jan 2019 21:27:49 -0800
+Subject: [PATCH v10 0/3] mm: Randomize free memory
+From: Dan Williams <dan.j.williams@intel.com>
+To: akpm@linux-foundation.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko <mhocko@suse.com>,
+ Kees Cook <keescook@chromium.org>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, keith.busch@intel.com
+Date: Thu, 31 Jan 2019 21:15:12 -0800
+Message-ID: <154899811208.3165233.17623209031065121886.stgit@dwillia2-desk3.amr.corp.intel.com>
+User-Agent: StGit/0.18-2-gc94f
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190129191525.GB10430@chrisdown.name>
-User-Agent: Mutt/1.11.2 (2019-01-07)
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Roman points out that when when we do the low reclaim pass, we scale the
-reclaim pressure relative to position between 0 and the maximum
-protection threshold.
+Changes since v9:
+* Drop the include of "shuffle.h" in mm/memblock.c. This was a missed
+  leftover from the cleanup afforded by the move to
+  page_alloc_init_late() (Mike)
+* Drop reference to deferred_init_memmap() in the changelog, no longer
+  relevant (Michal)
+* Clarify mm_shuffle_ctl naming with a code comment (Michal)
+* Replace per-freearea rand state tracking with global state (Michal)
+* Move shuffle.h from include/linux/ to mm/. (Andrew)
+* Mark page_alloc_shuffle() __memint (Andrew)
+* Drop shuffle_store() since the module parameter is not writable.
+* Reflow and clarify comments (Andrew)
+* Make add_to_free_area_random() stub a static inline. (Andrew)
+* Fix compilation errors on trying to use pfn_valid() as a pfn_present()
+  replacement. Unfortunately this requires a #define rather than a
+  static inline due to header include dependencies (0day kbuild robot)
 
-However, if the maximum protection is based on memory.elow, and
-memory.emin is above zero, this means we still may get binary behaviour
-on second-pass low reclaim. This is because we scale starting at 0, not
-starting at memory.emin, and since we don't scan at all below emin, we
-end up with cliff behaviour.
+[1]: https://lkml.kernel.org/r/154882453052.1338686.16411162273671426494.stgit@dwillia2-desk3.amr.corp.intel.com
 
-This should be a fairly uncommon case since usually we don't go into the
-second pass, but it makes sense to scale our low reclaim pressure
-starting at emin.
-
-You can test this by catting two large sparse files, one in a cgroup
-with emin set to some moderate size compared to physical RAM, and
-another cgroup without any emin. In both cgroups, set an elow larger
-than 50% of physical RAM. The one with emin will have less page
-scanning, as reclaim pressure is lower.
-
-Signed-off-by: Chris Down <chris@chrisdown.name>
-Suggested-by: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>
-Cc: Dennis Zhou <dennis@kernel.org>
-Cc: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: kernel-team@fb.com
 ---
- include/linux/memcontrol.h | 19 ++++++++-----
- mm/vmscan.c                | 55 +++++++++++++++++++++++---------------
- 2 files changed, 46 insertions(+), 28 deletions(-)
 
-Rebase on top of and apply the same idea as what was applied to handle 
-cgroup_memory=disable properly for the original proportional patch 
-(20190201045711.GA18302@chrisdown.name, "mm, memcg: Handle 
-cgroup_disable=memory when getting memcg protection").
+Hi Andrew,
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 49742489aa56..0fcbea7ad0c8 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -333,12 +333,17 @@ static inline bool mem_cgroup_disabled(void)
- 	return !cgroup_subsys_enabled(memory_cgrp_subsys);
- }
- 
--static inline unsigned long mem_cgroup_protection(struct mem_cgroup *memcg)
-+static inline void mem_cgroup_protection(struct mem_cgroup *memcg,
-+					 unsigned long *min, unsigned long *low)
- {
--	if (mem_cgroup_disabled())
--		return 0;
-+	if (mem_cgroup_disabled()) {
-+		*min = 0;
-+		*low = 0;
-+		return;
-+	}
- 
--	return max(READ_ONCE(memcg->memory.emin), READ_ONCE(memcg->memory.elow));
-+	*min = READ_ONCE(memcg->memory.emin);
-+	*low = READ_ONCE(memcg->memory.elow);
- }
- 
- enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
-@@ -829,9 +834,11 @@ static inline void memcg_memory_event_mm(struct mm_struct *mm,
- {
- }
- 
--static inline unsigned long mem_cgroup_protection(struct mem_cgroup *memcg)
-+static inline void mem_cgroup_protection(struct mem_cgroup *memcg,
-+					 unsigned long *min, unsigned long *low)
- {
--	return 0;
-+	*min = 0;
-+	*low = 0;
- }
- 
- static inline enum mem_cgroup_protection mem_cgroup_protected(
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 549251818605..f7c4ab39d5d0 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2447,12 +2447,12 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 		int file = is_file_lru(lru);
- 		unsigned long lruvec_size;
- 		unsigned long scan;
--		unsigned long protection;
-+		unsigned long min, low;
- 
- 		lruvec_size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
--		protection = mem_cgroup_protection(memcg);
-+		mem_cgroup_protection(memcg, &min, &low);
- 
--		if (protection > 0) {
-+		if (min || low) {
- 			/*
- 			 * Scale a cgroup's reclaim pressure by proportioning
- 			 * its current usage to its memory.low or memory.min
-@@ -2467,28 +2467,38 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 			 * set it too low, which is not ideal.
- 			 */
- 			unsigned long cgroup_size = mem_cgroup_size(memcg);
--			unsigned long baseline = 0;
- 
- 			/*
--			 * During the reclaim first pass, we only consider
--			 * cgroups in excess of their protection setting, but if
--			 * that doesn't produce free pages, we come back for a
--			 * second pass where we reclaim from all groups.
-+			 * If there is any protection in place, we adjust scan
-+			 * pressure in proportion to how much a group's current
-+			 * usage exceeds that, in percent.
- 			 *
--			 * To maintain fairness in both cases, the first pass
--			 * targets groups in proportion to their overage, and
--			 * the second pass targets groups in proportion to their
--			 * protection utilization.
--			 *
--			 * So on the first pass, a group whose size is 130% of
--			 * its protection will be targeted at 30% of its size.
--			 * On the second pass, a group whose size is at 40% of
--			 * its protection will be
--			 * targeted at 40% of its size.
-+			 * There is one special case: in the first reclaim pass,
-+			 * we skip over all groups that are within their low
-+			 * protection. If that fails to reclaim enough pages to
-+			 * satisfy the reclaim goal, we come back and override
-+			 * the best-effort low protection. However, we still
-+			 * ideally want to honor how well-behaved groups are in
-+			 * that case instead of simply punishing them all
-+			 * equally. As such, we reclaim them based on how much
-+			 * of their best-effort protection they are using. Usage
-+			 * below memory.min is excluded from consideration when
-+			 * calculating utilisation, as it isn't ever
-+			 * reclaimable, so it might as well not exist for our
-+			 * purposes.
- 			 */
--			if (!sc->memcg_low_reclaim)
--				baseline = lruvec_size;
--			scan = lruvec_size * cgroup_size / protection - baseline;
-+			if (sc->memcg_low_reclaim && low > min) {
-+				/*
-+				 * Reclaim according to utilisation between min
-+				 * and low
-+				 */
-+				scan = lruvec_size * (cgroup_size - min) /
-+					(low - min);
-+			} else {
-+				/* Reclaim according to protection overage */
-+				scan = lruvec_size * cgroup_size /
-+					max(min, low) - lruvec_size;
-+			}
- 
- 			/*
- 			 * Don't allow the scan target to exceed the lruvec
-@@ -2504,7 +2514,8 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 			 * some cases in the case of large overages.
- 			 *
- 			 * Also, minimally target SWAP_CLUSTER_MAX pages to keep
--			 * reclaim moving forwards.
-+			 * reclaim moving forwards, avoiding decremeting
-+			 * sc->priority further than desirable.
- 			 */
- 			scan = clamp(scan, SWAP_CLUSTER_MAX, lruvec_size);
- 		} else {
--- 
-2.20.1
+This addresses all your comments except reworking the shuffling to be
+dynamically enabled at runtime. I do think that could be useful, but I
+think it needs to be driven via memory hot-unplug/replug to avoid
+confusion with the shuffled state of memory relative to existing
+allocations. I don't think I can turn that around in time for the v5.1
+merge window.
+
+Otherwise, if you disagree with my "shuffled state relative to active
+allocations" concern it should be simple enough to enable a best effort
+shuffle of the current free memory state. Again, though, I'm not sure
+how useful that is since it can lead to pockets of in-order allocated
+memory.
+
+I went ahead and moved shuffle.h in-tact to mm/. The declaration of
+page_alloc_shuffle() will eventually need to move to a public location.
+I expect Keith will take care of that when he hooks up this shuffling
+with his work-in-progress ACPI HMAT enabling.
+
+0day has been chewing on this version for a few hours with no reports
+so I think its clean from a build perspective.
+
+---
+
+Dan Williams (3):
+      mm: Shuffle initial free memory to improve memory-side-cache utilization
+      mm: Move buddy list manipulations into helpers
+      mm: Maintain randomization of page free lists
+
+
+ Documentation/admin-guide/kernel-parameters.txt |   10 +
+ include/linux/list.h                            |   17 ++
+ include/linux/mm.h                              |    3 
+ include/linux/mm_types.h                        |    3 
+ include/linux/mmzone.h                          |   59 +++++++
+ init/Kconfig                                    |   23 +++
+ mm/Makefile                                     |    7 +
+ mm/compaction.c                                 |    4 
+ mm/memory_hotplug.c                             |    3 
+ mm/page_alloc.c                                 |   85 +++++-----
+ mm/shuffle.c                                    |  193 +++++++++++++++++++++++
+ mm/shuffle.h                                    |   64 ++++++++
+ 12 files changed, 421 insertions(+), 50 deletions(-)
+ create mode 100644 mm/shuffle.c
+ create mode 100644 mm/shuffle.h
 
