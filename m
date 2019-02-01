@@ -2,93 +2,95 @@ Return-Path: <SRS0=aBqT=QI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E6EEEC282D8
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 21:47:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AED79C4151A
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 22:03:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ABEF320863
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 21:47:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABEF320863
+	by mail.kernel.org (Postfix) with ESMTP id 460CC2146E
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 22:03:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 460CC2146E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3EE3B8E0002; Fri,  1 Feb 2019 16:47:41 -0500 (EST)
+	id B34D38E0003; Fri,  1 Feb 2019 17:03:49 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 374F18E0001; Fri,  1 Feb 2019 16:47:41 -0500 (EST)
+	id ABBCB8E0001; Fri,  1 Feb 2019 17:03:49 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 217AB8E0002; Fri,  1 Feb 2019 16:47:41 -0500 (EST)
+	id 982518E0003; Fri,  1 Feb 2019 17:03:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DC0748E0001
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 16:47:40 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id q62so5658733pgq.9
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 13:47:40 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 650268E0001
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 17:03:49 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id 75so6717078pfq.8
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 14:03:49 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=CnZzrkFcbtXa7opbj3d92bqznUY44Kobqa47vX9wd4A=;
-        b=hlKVGpZxqWbuJ6two7m1b+Ia4FqjHlCI3+kVMGHC+1zdFKDMNmoLfz7E+bhk/YUeNO
-         xiZ1iKpMSRwzTia8BowrhWf5M+SX4z3SEX/z0XJzIT00EeTYVfFVACngZONknMdSoZk+
-         Gn8dtteJQXTpySa1QPMXs38cyHwrg0eGXtd1hZ1aGApzrIOhSIbEGc84fYUkW1bAguIx
-         3IeSveLRdHvEUT4g4fSEBCkymUCKlyGEPWPtzVzjJmSCCRX5Vh9scz35FI4VZRgcc9Pe
-         gEPl2sNADKlPFGLcce8/2Uri7cSJRhprlOHbhcNQqytWeps3bYaDClePdSFQs3h7FAA1
-         dAPw==
+        bh=2BDC8irRybwaPqrOh4vhRqpsOVNsgly5TVq7dlUUD4Q=;
+        b=I9GivB3/CxhXnvPtxMF86JvJw1XwT3qtp85DtEdT9QihGT6o/HtQSY+ncKmMHQiqSK
+         U7NKxXTmmN3Y57WE1VMpFE/L2NlFRhafK31+bWec7TuyA2e6Wvq21il8Cp6r8nc0GLOD
+         UAACvOW7DVkl73WsmdFsyeT1KNeKZ2Me7SujtlreHP9ZsYS7HkXpCAxdefse1Zhw4Toc
+         HWjDygOC0dsXoyfUfReWnTHijLEp58xSWYyq1c0J5nLplXC3Jrx9/4Kr2PfU1ck5somt
+         S/r44SCZcFHY1Ul/YUiax60A+jSrmQkx9j00riS+63z0DlWIRES9Wgl28/JPtW4o9x4E
+         Zt8Q==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: AJcUukdrqumSEwex5hYmJJVm1CY8A822eTrMnwlpiUDueT4kzhfED2G7
-	qpmSYKe1mxrFNlaZnKI1biYzAYyP68l7FdD2UtUBmFM09+IazUMhWpm/PkN8c6DlIzX3daWNQAI
-	5K6WwbpfMKC0LvxrVUC43rPbuD61gczEzPVFiRrMhBqPsjr54fqtG+wJBWICL3eypxg==
-X-Received: by 2002:a17:902:bd86:: with SMTP id q6mr40070045pls.16.1549057660430;
-        Fri, 01 Feb 2019 13:47:40 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7pBUqfk2+DdjK9snbw5eYgQtSN/hWWc1ov43KYszgn5sNMYVMdcUmk2NmXIxtN+LZgCIqw
-X-Received: by 2002:a17:902:bd86:: with SMTP id q6mr40069995pls.16.1549057659386;
-        Fri, 01 Feb 2019 13:47:39 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549057659; cv=none;
+X-Gm-Message-State: AHQUAuaZ0OxPbkog4qcg4JxcLu6N9Xt2X3/4IeLGo/iUkHweU1KVdpNQ
+	nv1j2UY+gqiAOoDF9tadTV8UoTUjqP8N0LFS5GIbWSNBic6qrP5RmV5oR6J/yEKxa7VCiuSU7tq
+	dyPNXRz5nPRZiyqKv+bpKmitBo9nnYO5GG+D4kHdV1qeln8aez4zA7Heb4es2UD8PCg==
+X-Received: by 2002:a63:4002:: with SMTP id n2mr3930389pga.137.1549058628921;
+        Fri, 01 Feb 2019 14:03:48 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZdwLixA3Spc4/WLFxz/Kl+ci5UMMslRSMS5p1kK2N2/azKp8FVhf45EW7xQ1IB52dLqpiG
+X-Received: by 2002:a63:4002:: with SMTP id n2mr3930343pga.137.1549058628307;
+        Fri, 01 Feb 2019 14:03:48 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549058628; cv=none;
         d=google.com; s=arc-20160816;
-        b=lLfRWnnv21+OLaqjUTEqJw//eBaJtxmcNu/3r413f2cA6VV8yu+c3XcMjtcFcxRS+T
-         buQBRQXW+1WXxYsJNuLTKqeek8z4zvw13U2fsveKu50D8OHzRFziE+jXtkRIxwcqLWIn
-         uQf7dFrhXTvHU4XcXiflLRj2B0q9tQ74e/sSovaciPeeAihwoYbB7mIb3O/Hod0b9/k9
-         mqtzTFvHRykWLeSwnwTh9ETPHRxcKLPrhtuxWzr+VAiVAdPGWl5YQrdKqPgoUXvMdKA4
-         GJ6KKsUjH7WqQPM2njIwpn561F/aGWXXgDUkYAmAaGlSWdjQmir3VzqojDc8z0TsEpjt
-         pgWw==
+        b=SV/0QqGdUFgvzxt5VegfKBIXLW0o0d7TyFkaMlcg/dnGLb9VLyUIwROJHTowLuBj8D
+         8Rai2lqlLQ3+6feoyBO6TsJUT5w1V2bRbFzfYF+pnrfscizgpn0t6+tbNb1nJpfOPyZQ
+         VJWpdGGdiZ3+CulM0V57nKu0If+kLp26Xb+BlqWetNA2Yu3ZwC3tPOtRvuXFUkLVjxsp
+         5luWwLJyKiMwVc9G0W9R3K4YCXWGBJCWgKeziarog1RK7Mjie5Ki8qc6zFXyw+thIHYc
+         +VcLgnebmtCQdUPNcC152oh2XA8PXG+JW7u6f91H+qTdIg8JL+ErB0mcFvTPvSJrGWCq
+         MvXg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date;
-        bh=CnZzrkFcbtXa7opbj3d92bqznUY44Kobqa47vX9wd4A=;
-        b=ptb+ZLxSmpqT4Rz0wbeJVfdFIkhrJ0X+PQk+U3vbwhmGtAlPE3jvmotpjQFMDkqgmz
-         qJ+9IFxXD5iRiFdjun2Ani3sH75NtJ+bRdPl+Q7DPRqheVVnRQO4s/Dx/ttE7Apvx2V+
-         Ohv4WhT4X2f6R8sxcWw7VZWTyt+Z8POnSdFR1VfQb9/NJfMO5Qn0NAYvxE0rB9yE9QPx
-         AjGTyGW/Fyg91fPvxsbpfgLW6KM9Oq1ilDupxO0HtIJLr/UYY9n3nlDnu0ngzId1oxGS
-         gbmwMf1ZiodzLH2b0h5riHC93uMiKXKRGFBmOB+hAHMzlwDcnSH2ZfQQPK/Sx/4LbSsk
-         34rA==
+        bh=2BDC8irRybwaPqrOh4vhRqpsOVNsgly5TVq7dlUUD4Q=;
+        b=IC1OUD4URPaZsObOOh4SMhB2yjsgLPIoBGRmuPaQwvzCsfswiH73e7r6XWluOsBBTE
+         r1FU11mSE1BIScUjfVYsfdogpE+oxZ59PeMOapKtUCLXLgicHgYScVyj6OkTpYLibe3u
+         QZZ5vb3LyLIQ3kEZ1Re36gZl+Iwi4Fm39cb2qNKb7RBRr8w+qiAhVOoyg87aKG14GezS
+         w0nGPaJh2KZTOJrX6UkMGlSOCtsskcIXIXG5MDk1acerIfXT7i2tzLeThcxGPZX4Cmj/
+         9TuiOnDiLoekt4M+g1dtrs82tefvl+B5SrgCpxlp3+wfWViJugh5FpN1w1xBjf6ssw1K
+         edXw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g124si706645pgc.568.2019.02.01.13.47.39
+        by mx.google.com with ESMTPS id r59si8014937plb.247.2019.02.01.14.03.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Feb 2019 13:47:39 -0800 (PST)
+        Fri, 01 Feb 2019 14:03:48 -0800 (PST)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id BBBF77FD0;
-	Fri,  1 Feb 2019 21:47:38 +0000 (UTC)
-Date: Fri, 1 Feb 2019 13:47:37 -0800
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 8E7CE7D25;
+	Fri,  1 Feb 2019 22:03:47 +0000 (UTC)
+Date: Fri, 1 Feb 2019 14:03:46 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>,
- kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>
-Subject: Re: [linux-next:master 5141/5361] include/linux/hmm.h:102:22:
- error: field 'mmu_notifier' has incomplete type
-Message-Id: <20190201134737.9eaf0c69dc2584d2dc4ec4cc@linux-foundation.org>
-In-Reply-To: <201902020011.aV3IBiMH%fengguang.wu@intel.com>
-References: <201902020011.aV3IBiMH%fengguang.wu@intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "Tobin C. Harding" <tobin@kernel.org>, Christoph Lameter <cl@linux.com>,
+ Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/slab: Increase width of first /proc/slabinfo column
+Message-Id: <20190201140346.fdcd6c4b663fbe3b5d93820d@linux-foundation.org>
+In-Reply-To: <20190201024310.GC26359@bombadil.infradead.org>
+References: <20190201004242.7659-1-tobin@kernel.org>
+	<20190201024310.GC26359@bombadil.infradead.org>
 X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -99,25 +101,22 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2 Feb 2019 00:14:13 +0800 kbuild test robot <lkp@intel.com> wrote:
+On Thu, 31 Jan 2019 18:43:10 -0800 Matthew Wilcox <willy@infradead.org> wrote:
 
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   9fe36dd579c794ae5f1c236293c55fb6847e9654
-> commit: a3402cb621c1b3908600d3f364e991a6c5a8c06e [5141/5361] mm/hmm: improve driver API to work and wait over a range
-> config: x86_64-randconfig-b0-02012138 (attached as .config)
-> compiler: gcc-8 (Debian 8.2.0-14) 8.2.0
-> reproduce:
->         git checkout a3402cb621c1b3908600d3f364e991a6c5a8c06e
->         # save the attached .config to linux build tree
->         make ARCH=x86_64 
+> On Fri, Feb 01, 2019 at 11:42:42AM +1100, Tobin C. Harding wrote:
+> > Currently when displaying /proc/slabinfo if any cache names are too long
+> > then the output columns are not aligned.  We could do something fancy to
+> > get the maximum length of any cache name in the system or we could just
+> > increase the hardcoded width.  Currently it is 17 characters.  Monitors
+> > are wide these days so lets just increase it to 30 characters.
 > 
-> All errors (new ones prefixed by >>):
+> I had a proposal some time ago to turn the slab name from being kmalloced
+> to being an inline 16 bytes (with some fun hacks for cgroups).  I think
+> that's a better approach than permitting such long names.  For example,
+> ext4_allocation_context could be shortened to ext4_alloc_ctx without
+> losing any expressivity.
 > 
->    In file included from kernel/memremap.c:14:
-> >> include/linux/hmm.h:102:22: error: field 'mmu_notifier' has incomplete type
->      struct mmu_notifier mmu_notifier;
 
-I can't reproduce this with that .config.
-
-hmm.h includes mmu_notifier.h so I can't eyeball why this would happen.
+There are some back-compatibility concerns here.  And truncating long
+names might result in duplicates.
 
