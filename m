@@ -2,195 +2,205 @@ Return-Path: <SRS0=aBqT=QI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 623FEC282D8
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 22:17:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A20E3C282D8
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 22:36:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1095220869
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 22:17:35 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5BB46214C6
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 22:36:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="h3XATDKP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1095220869
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="xaEwORUt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BB46214C6
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0EF328E0007; Fri,  1 Feb 2019 17:17:32 -0500 (EST)
+	id E75B28E0008; Fri,  1 Feb 2019 17:36:39 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0A0F08E0001; Fri,  1 Feb 2019 17:17:32 -0500 (EST)
+	id E252D8E0001; Fri,  1 Feb 2019 17:36:39 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E0E7F8E0007; Fri,  1 Feb 2019 17:17:31 -0500 (EST)
+	id D3AFD8E0008; Fri,  1 Feb 2019 17:36:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BC75F8E0001
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 17:17:31 -0500 (EST)
-Received: by mail-yb1-f199.google.com with SMTP id e1so4597849ybn.7
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 14:17:31 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 91B578E0001
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 17:36:39 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id q20so193111pls.4
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 14:36:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=jMv98NtOYPEft23Hv++rFkEKda7ewqGplVbaahr6EuI=;
-        b=rjVJ7OP7Ca2UNIBbsMf5eM5p3Nfn6X54sQGLqRJSTmZbS+ikBYQSvQ3De1kqaMBX6k
-         4yeFEY6IuxpWquUZYpi4ah1hfAB9kdYNDQ+DixXArRTTQPSs8U3Q7Izsnx2hCYKfY6en
-         bzT8/PYNtpnn2hvDErr9GgxSiC0Otgsqhm9nGjGZYGpp1iNygVeAGIB2oREnFt2yv5vw
-         lphU/JLC+pVXRAbFaXdPhBGFPdo70XHfTo/A6BkTGlcXFBAAJOFUTzHA8ofWDysu7oAP
-         fgZdK+v/YC9fLBQlzYcnVQG9PYp/t/THV9ZVtw6jzXcKsDd/rg2oKGHpsrjxAtxY1rpz
-         DAuw==
-X-Gm-Message-State: AHQUAuaL3+65mSIFcSlyMAc7Twm8SJu+FZ6dA/BWLJe+39JoHqUR+OKG
-	I2mukNmBk2FJU1uKIRpV5/f/xyuTRUqgyQ4KrlIlATt06T3dGN/oQbrJuoPkheAgpGf47E90Umm
-	4a4CPhDq/UERCvoapVFhnlHIwRZKyXkQ+z2Xx5oT9vJXpFr550/cPtQ5gotCuAqg96Q==
-X-Received: by 2002:a25:2402:: with SMTP id k2mr7781208ybk.515.1549059451455;
-        Fri, 01 Feb 2019 14:17:31 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYaf8GF6xyKjgPFXwLeudYfpY3IUcEa1NI6P328pLcVwOjPRm3z5ZtFAjL7qnRQUg461mn5
-X-Received: by 2002:a25:2402:: with SMTP id k2mr7781176ybk.515.1549059450631;
-        Fri, 01 Feb 2019 14:17:30 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549059450; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=CsyhCuppqVUAVoFQMCJMMMABqMa2RyFMhSVg4Pg/oDU=;
+        b=LA1czXBvOw7ILNspdH3jcLy+VyW3YYEwOGYovHd5V51le6KVFmf0Gpcm23Bq+IBE84
+         cTAZiLGq0ohIritDdDDi9JYrptxd+VSoAD1xbSa0l2mjbxaZgMhonSdk3eTwtTvair9C
+         DCInVR0lvINvLyKIvjgaflzO0A8u+YQO5NAfWJwwXbeUUPm2WFM06N9so4v8l5dpgwZQ
+         eAPl/Ys3FrtQaPp3paw1QYIXc7/lRz1pgZgg9TugngBVTpVM53vpcVPeSFK+n7q8aGIs
+         +ubvj02UIVEnYJyuFEYUYXJSM+AoVmjKjbXoTwVAP227O4U+YTobH+cquTtv7R7ThGHM
+         DAVw==
+X-Gm-Message-State: AJcUukeTpH9hXTcY2DYBJuggGZYMEl3MIigYfpZhO644eGH6PGkdsRE7
+	0I6x/PlWCbAqdvODXdcuJR4k6Pwg+xUeLt1vzRJ3DzMq8Rh6065TSENiAnT2t7t6Zug0f9OSqI0
+	vLDq3BjOKU3/mI0D+1t0IxZYVA15fWTmWMVaMyL4nkZGVy8y86DoymCouSojkqGm8qQ==
+X-Received: by 2002:a17:902:9a02:: with SMTP id v2mr42369705plp.180.1549060599242;
+        Fri, 01 Feb 2019 14:36:39 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN79n4GS4Ew+ajFqR8Z1SfSIvwBWCYjPvCkMZYRdcA2tdwAfRgdONUfZwv6LssFq/CAcmo2f
+X-Received: by 2002:a17:902:9a02:: with SMTP id v2mr42369668plp.180.1549060598512;
+        Fri, 01 Feb 2019 14:36:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549060598; cv=none;
         d=google.com; s=arc-20160816;
-        b=S1VHXn0AfZFcEtlEcWuPS4EzkHcs/oNVuLtywwLb8KmXkGsiVq/fsqWPfOPzwH7/yE
-         333OpX4sL1mm6YESN+8SCwRV06aeiD4JtI+DOadW+NUd3gSPjqPfnUyFTBgui0XtvEYM
-         eVUzASAg1YcDOlW1hJ/vDK4nY2vNXiopl8zTfdIJjc4QjBPReLu05yGejbDLajXpw58x
-         1y8L4rMJYpc1Lex3POEGZoMrfWj2Y8K3SWKRooP02GqV52uGWvCPvWbcZqUi1wcm/5Jf
-         fV0xlvunfc84tcseSv0+eYop1oEGH8sgkl3Gt1oWCEntUkA+oavOTcP7ZuL7CZWOa7Vr
-         5ZnA==
+        b=Q8unrZevWyrkzt1EV8pliLyTRktAbzDeCUbYDs0FSJ9k1LVhz7o05knuvo9mjeL3RJ
+         erkwCJJjwaAI9Vs+fnfmdyEtFnxmolwti+oXnU+Ony/WzaIRQgPeebUQOcjMYX0l0Izy
+         4oST+baJQuCnyjzz5/VjzWNi/d+T9hprczUNwFkYVfofT4BcX86ya1F4FcjHKWpzYMpv
+         lRZzDkPs00y89adSx1Lri8P5HB3Ozvs4J55m4j8tA5TLPeaOT0HF7Ek4SJfu07FRZ1wO
+         X/1CXLxIBezLf7WQC0f+cc3GJA31c+x53qYl65JXsctiwu6B7w556ylzlItgBNawXPjE
+         V/tw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=jMv98NtOYPEft23Hv++rFkEKda7ewqGplVbaahr6EuI=;
-        b=RaBbuzOCZp68Ra2vtY2PVO69tAS06oPquX7C1HcUbcLgS8wtDnAMX7ltl4Il8tXlmx
-         bhAZBIRqUwCrKvHYgWvMkOjPRBn9u9UAIiYoffstNtYJz9XT8IKbf3DUgiZ0zuW7Ng26
-         NYa0C7KR4lxD592bpixNUdwyC0wvasj/S1467kZ4My+/MTGz4+HXFk17LgMCI4XB1Dx/
-         BcKTuC9lStUAnPhq1xW/b6+H1R7zJVUK5b9pKNQtHrIksJJDVpS4hBJsSG/xRLqdxhcb
-         o9Wy5xP7R8RHuXEuAzWT5p0xs6UbvyKa3jxnv3NHJW0t4YUJBiPKXeA2qQAJ08oSFixC
-         xhSQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=CsyhCuppqVUAVoFQMCJMMMABqMa2RyFMhSVg4Pg/oDU=;
+        b=fgOQf+PasJ4etTBoy/xKikv8TuzGPu+XNdI5bgxR7DpMohbzDblMoCvzCefmBVpMov
+         ExtgodJGPuKPPVZHuz/3QTQ05WGgPv1Uws6S5PhntWUVgoAQgERLaRpEeTBrB5Z/8Qcr
+         xJfVIrnwy9doSkPsRmnjc5oSEMexfmH1AjyWLmKc/+/8V786PiLopObdVK7sqkcx2iOC
+         3KcE7UBo1o7mLlLOatg6i8HdTQlVjH8HORofI9atsB7U61xavwSAHS6g4VhSWp7WMeKJ
+         itbEJGKv652EHYI0qSTrB+DMI98qDFPDMDCP333hr//qTpNKKg7QUWwNqB1C1lF1kPzb
+         3Q4Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=h3XATDKP;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=xaEwORUt;
        spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id k3si5251894ywe.195.2019.02.01.14.17.30
+        by mx.google.com with ESMTPS id u9si5532665pge.48.2019.02.01.14.36.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Feb 2019 14:17:30 -0800 (PST)
+        Fri, 01 Feb 2019 14:36:38 -0800 (PST)
 Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=h3XATDKP;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=xaEwORUt;
        spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id x11MDrUN177372;
-	Fri, 1 Feb 2019 22:17:23 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
- subject : date : message-id; s=corp-2018-07-02;
- bh=jMv98NtOYPEft23Hv++rFkEKda7ewqGplVbaahr6EuI=;
- b=h3XATDKPLT1tkgZrH/AJaY55sw856YfCWPYaTA+yX+RjN/RIA2NlVYXc11pRiU5JGMv6
- 3BYHGEGYTsTm3YPmalZxmUnmNdegWAZVP41gTWU0sHZDZGTVKWC9j6ElSArGYyaAUIjL
- yS8ABXQayzPbzQ+MDnSVvf2DgKHGs3BPt0MURPbyQkf0qzMO5lFIZhPjIe/ZrHbQdU30
- to0EDTnPwZE7qAhF6tM9VuPOvD2JAYTch2TIOZhN7elwXEEPutv89vvxaZGgIipKFOcm
- Rlpb/RmeLZjt0QyC1Fq4nGkm4jn6W7afMWSOCba2PtVlUiame6iVLaliPFHEzJekJIRL tA== 
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by userp2130.oracle.com with ESMTP id 2q8eyv140y-1
+	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id x11MXdNe190903;
+	Fri, 1 Feb 2019 22:36:36 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=CsyhCuppqVUAVoFQMCJMMMABqMa2RyFMhSVg4Pg/oDU=;
+ b=xaEwORUtZtq/8CUuuE+gH7iqPqSwrqRroTcT9GlGhpEL52xoRdOfgkN9NISuoScIyteN
+ mPBtXlWeqph0KN5JRG8cNGVy6DHMQxvAO37dbbiH1AjJ2lF3Bgz5pdNYzQ1WviKal5nP
+ srQTzdR1uqETGtP6Nb0RyMQQibuhCfyR4CnlvzdXzkJaoWoX79hHg/oqZPOsTRAsjXdd
+ V7XALnKtTso8I+K4omvihfE01kOVHBBY1ZBlVD16kyxWD0X7XDBFecojvzm27UYrWHUw
+ ra3my/R6eol/DPXcbATJdftQR0jMr7nby0TOBDaD2PKXAbSDi8q4AYTWpfTO5DqRynew wg== 
+Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
+	by userp2130.oracle.com with ESMTP id 2q8eyv15p3-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 01 Feb 2019 22:17:23 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x11MHHUa013811
+	Fri, 01 Feb 2019 22:36:36 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x11MaZoJ000620
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 1 Feb 2019 22:17:17 GMT
-Received: from abhmp0004.oracle.com (abhmp0004.oracle.com [141.146.116.10])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x11MHG7F017221;
-	Fri, 1 Feb 2019 22:17:16 GMT
-Received: from monkey.oracle.com (/50.38.38.67)
+	Fri, 1 Feb 2019 22:36:35 GMT
+Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x11MaYsi027073;
+	Fri, 1 Feb 2019 22:36:34 GMT
+Received: from [192.168.1.164] (/50.38.38.67)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 01 Feb 2019 14:17:15 -0800
+	with ESMTP ; Fri, 01 Feb 2019 14:36:34 -0800
+Subject: Re: [PATCH] huegtlbfs: fix page leak during migration of file pages
+To: Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@kernel.org>, stable@vger.kernel.org
+References: <20190130211443.16678-1-mike.kravetz@oracle.com>
+ <20190131141238.6D6C220881@mail.kernel.org>
 From: Mike Kravetz <mike.kravetz@oracle.com>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>,
-        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-        "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
-        Andrea Arcangeli <aarcange@redhat.com>,
-        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-        Davidlohr Bueso <dave@stgolabs.net>,
-        Prakash Sangappa <prakash.sangappa@oracle.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH RFC v3 0/2] hugetlbfs: use i_mmap_rwsem for more synchronization
-Date: Fri,  1 Feb 2019 14:17:03 -0800
-Message-Id: <20190201221705.15622-1-mike.kravetz@oracle.com>
-X-Mailer: git-send-email 2.17.2
+Message-ID: <205f9878-837d-8203-58ae-2ebd7a063567@oracle.com>
+Date: Fri, 1 Feb 2019 14:36:33 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
+MIME-Version: 1.0
+In-Reply-To: <20190131141238.6D6C220881@mail.kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9154 signatures=668682
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=504 adultscore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902010157
+ definitions=main-1902010160
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I'm kicking this back to RFC status as there may be a couple other
-options we want to explore.  This expanded use of i_mmap_rwsem in
-hugetlbfs was recently pushed upstream and reverted due to locking
-issues.
-http://lkml.kernel.org/r/20181218223557.5202-3-mike.kravetz@oracle.com
-http://lkml.kernel.org/r/20181222223013.22193-3-mike.kravetz@oracle.com
+On 1/31/19 6:12 AM, Sasha Levin wrote:
+> Hi,
+> 
+> [This is an automated email]
+> 
+> This commit has been processed because it contains a "Fixes:" tag,
+> fixing commit: 290408d4a250 hugetlb: hugepage migration core.
+> 
+> The bot has tested the following trees: v4.20.5, v4.19.18, v4.14.96, v4.9.153, v4.4.172, v3.18.133.
+> 
+> v4.20.5: Build OK!
+> v4.19.18: Build OK!
+> v4.14.96: Build OK!
+> v4.9.153: Failed to apply! Possible dependencies:
+>     2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
+> 
+> v4.4.172: Failed to apply! Possible dependencies:
+>     09cbfeaf1a5a ("mm, fs: get rid of PAGE_CACHE_* and page_cache_{get,release} macros")
+>     0e749e54244e ("dax: increase granularity of dax_clear_blocks() operations")
+>     2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
+>     2a28900be206 ("udf: Export superblock magic to userspace")
+>     4420cfd3f51c ("staging: lustre: format properly all comment blocks for LNet core")
+>     48b4800a1c6a ("zsmalloc: page migration support")
+>     5057dcd0f1aa ("virtio_balloon: export 'available' memory to balloon statistics")
+>     52db400fcd50 ("pmem, dax: clean up clear_pmem()")
+>     5b7a487cf32d ("f2fs: add customized migrate_page callback")
+>     5fd88337d209 ("staging: lustre: fix all conditional comparison to zero in LNet layer")
+>     a188222b6ed2 ("net: Rename NETIF_F_ALL_CSUM to NETIF_F_CSUM_MASK")
+>     b1123ea6d3b3 ("mm: balloon: use general non-lru movable page feature")
+>     b2e0d1625e19 ("dax: fix lifetime of in-kernel dax mappings with dax_map_atomic()")
+>     bda807d44454 ("mm: migrate: support non-lru movable page migration")
+>     c8b8e32d700f ("direct-io: eliminate the offset argument to ->direct_IO")
+>     d1a5f2b4d8a1 ("block: use DAX for partition table reads")
+>     e10624f8c097 ("pmem: fail io-requests to known bad blocks")
+> 
+> v3.18.133: Failed to apply! Possible dependencies:
+>     0722b1011a5f ("f2fs: set page private for inmemory pages for truncation")
+>     1601839e9e5b ("f2fs: fix to release count of meta page in ->invalidatepage")
+>     2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
+>     31a3268839c1 ("f2fs: cleanup if-statement of phase in gc_data_segment")
+>     34ba94bac938 ("f2fs: do not make dirty any inmemory pages")
+>     34d67debe02b ("f2fs: add infra struct and helper for inline dir")
+>     4634d71ed190 ("f2fs: fix missing kmem_cache_free")
+>     487261f39bcd ("f2fs: merge {invalidate,release}page for meta/node/data pages")
+>     5b7a487cf32d ("f2fs: add customized migrate_page callback")
+>     67298804f344 ("f2fs: introduce struct inode_management to wrap inner fields")
+>     769ec6e5b7d4 ("f2fs: call radix_tree_preload before radix_tree_insert")
+>     7dda2af83b2b ("f2fs: more fast lookup for gc_inode list")
+>     8b26ef98da33 ("f2fs: use rw_semaphore for nat entry lock")
+>     8c402946f074 ("f2fs: introduce the number of inode entries")
+>     9be32d72becc ("f2fs: do retry operations with cond_resched")
+>     9e4ded3f309e ("f2fs: activate f2fs_trace_pid")
+>     d5053a34a9cc ("f2fs: introduce -o fastboot for reducing booting time only")
+>     e5e7ea3c86e5 ("f2fs: control the memory footprint used by ino entries")
+>     f68daeebba5a ("f2fs: keep PagePrivate during releasepage")
+> 
+> 
+> How should we proceed with this patch?
 
-The biggest problem with those patches was lock ordering.  Recall, the
-two issues we are trying to address:
+Hello automated Sasha,
 
-1) For shared pmds, huge PTE pointers returned by huge_pte_alloc can become
-   invalid via a call to huge_pmd_unshare by another thread.
-2) hugetlbfs page faults can race with truncation causing invalid global
-   reserve counts and state.
-
-To effectively use i_mmap_rwsem to address these issues it needs to
-be held (in read mode) during page fault processing.  However, during
-fault processing we need to lock the page we will be adding.  Lock
-ordering requires we take page lock before i_mmap_rwsem.  Waiting until
-after taking the page lock is too late in the fault process for the
-synchronization we want to do.
-
-To address this lock ordering issue, the following patches change the
-lock ordering for hugetlb pages.  This is not difficult as hugetlbfs
-processing is done separate from core mm in many places.  However, I
-don't really like this idea.  Much ugliness is contained in the new
-routine hugetlb_page_mapping_lock_write() of patch 1.
-
-If this approach of extending the usage of i_mmap_rwsem is not acceptable,
-there are two other options I can think of.
-- Add a new rw-semaphore that lives in the hugetlbfs specific inode
-  extension.  The good thing is that this semaphore would be hugetlbfs
-  specific and not directly exposed to the rest of the mm code.  Therefore,
-  interaction with other locking schemes is minimized.
-- Don't really add any new synchronization, but notice and catch all the
-  races.  After catching the race, cleanup, backout, retry ... etc, as
-  needed.  This can get really ugly, especially for huge page reservations.
-  At one time, I started writing some of the reservation backout code for
-  page faults and it got so ugly and complicated I went down the path of
-  adding synchronization to avoid the races.
-
-Suggestions on how to proceed would be appreciated.  If you think the
-following patches are not too ugly, comments on those would also be
-welcome.
-
-Mike Kravetz (2):
-  hugetlbfs: use i_mmap_rwsem for more pmd sharing synchronization
-  hugetlbfs: Use i_mmap_rwsem to fix page fault/truncate race
-
- fs/hugetlbfs/inode.c    |  34 +++++---
- include/linux/fs.h      |   5 ++
- include/linux/hugetlb.h |   8 ++
- mm/hugetlb.c            | 186 ++++++++++++++++++++++++++++++++++------
- mm/memory-failure.c     |  29 ++++++-
- mm/migrate.c            |  24 +++++-
- mm/rmap.c               |  17 +++-
- mm/userfaultfd.c        |  11 ++-
- 8 files changed, 270 insertions(+), 44 deletions(-)
+First, let's wait for review/ack.  However, the patch does not strictly
+'depend' on the functionality of the commits in the lists above.  If/when
+this goes upstream I can provide backports for 4.9, 4.4 and 3.18.
 
 -- 
-2.17.2
+Mike Kravetz
 
