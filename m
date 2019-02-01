@@ -2,183 +2,242 @@ Return-Path: <SRS0=aBqT=QI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C94DC282D9
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 00:25:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 14986C4151A
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 00:43:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4C7B42086C
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 00:25:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B900720B1F
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 00:43:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="jY+94VHz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C7B42086C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="x0xly+Tr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B900720B1F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C439F8E0003; Thu, 31 Jan 2019 19:25:47 -0500 (EST)
+	id 508CC8E0002; Thu, 31 Jan 2019 19:43:17 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BF11B8E0001; Thu, 31 Jan 2019 19:25:47 -0500 (EST)
+	id 4927D8E0001; Thu, 31 Jan 2019 19:43:17 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A92978E0003; Thu, 31 Jan 2019 19:25:47 -0500 (EST)
+	id 35A308E0002; Thu, 31 Jan 2019 19:43:17 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 614B78E0001
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 19:25:47 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id 89so3659931ple.19
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 16:25:47 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 088EA8E0001
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2019 19:43:17 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id 41so5784709qto.17
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2019 16:43:17 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=Eoesr+avZHybWqYak19mzfk9DSZQ/hxKNgKYvR+XcKI=;
-        b=qxNlcEsBTa/kfKCGWzECkjfmlrakgVoJmuHWFaSMNmjekLqM7y9qSeu4ChxRJh181b
-         wjZzzwQihqzlvb6j63WFoxoQcwokMNaVNjZs2MPEB1DNggcAjHKoFToVN38NGA8KzMDs
-         JKzYqBfM0/VCaJy5D7Hq/l8Vc9K5MDf5F1Ho3a757U8gJkip4E8lFuQFMHimf0pT+/Er
-         6hmskqf/BB6TKC6CTifza3ivN6iTHWNLRQ9GBqqZ777hcessNAzvQ+poJsmtsb4azC8J
-         3iBnAvypKNkBCZ2pw5TOrXLjpxXpaKx4uwwYfXiITNqDfpm/tLQV6cvENgRMHEDtmBM1
-         lNwA==
-X-Gm-Message-State: AJcUukfpg8PuV7Dca6n/n56jtlhwuyo5VyQ+1FGBFJbP6cEZwGsKLgfL
-	ojJY2WRpmqWaQVpxtFd5thnvH0YJuzIF06fPBDrPa4jkjr/cO/zsQ6AfRtFzTZ8lVFuAEPPuPJg
-	IiAJFmecHhO25/sNrCQp+s+1sl973yHp3tfy7f/mjOxo6KB+VKYuHTZWPI0kOq54lfg==
-X-Received: by 2002:a62:de06:: with SMTP id h6mr38008718pfg.158.1548980746985;
-        Thu, 31 Jan 2019 16:25:46 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5ovlAdWO5G3IYUeUTFGaF/haNJfHB8TQji/31T2SbPA0Js/cVEX5HEcoheGPpfVFEqtHpX
-X-Received: by 2002:a62:de06:: with SMTP id h6mr38008673pfg.158.1548980746013;
-        Thu, 31 Jan 2019 16:25:46 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1548980745; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=Q4BkwvE66zdnu5FCXZwIH13O5GixEIcvPvJXakdd38A=;
+        b=VvtIRx0U09gRTKEoQOXa8pcil8gS5DqEMAx0XNMVWLpbdyydxmDPPJk16kCv404AGW
+         hYNkKGPuwakM3/5TSTsN7EUoYBJ1PUVnXvdWBUIusDGbPvazcrJsmRSn7Wata0TXZEcO
+         24zArJKpLH+0FLtP6He7A0N/4Rnh4kdS7/4N2iGLWwvJ4t4HEDcYMc0CUGL8aABN7HnD
+         hJhdYoUN2BheO9PKh8J3BCqEaS5C269l6ZTz8luql7K49fFeTqfZ8JzRibBPdXx+YArL
+         i6elMi0ACvhHfmXkZ7ZVnB+OXbY5Yj9rjnnbdGB6ZBoz6geZWDbOk67D3VwVyxMxzx9B
+         9NnQ==
+X-Gm-Message-State: AJcUukdyk7y2AcBm8PnuwmWKKpOPw6UO6HT09xQktXm3Ir/GnJNn2eeL
+	b9Ccs70nj3e6KBAz13drTTI34hCjZVhAhJ+RXZb+uESp+L19SP3U5fyrCi0774M01+EHkouc2+T
+	ZTSv/K8f3vzVr0eGQ9wfzSfPWY6Jk38yZi/NtK5IozclEFmzZRrDwV1vQM11x9+A=
+X-Received: by 2002:a0c:b3c2:: with SMTP id b2mr34560086qvf.138.1548981796705;
+        Thu, 31 Jan 2019 16:43:16 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7YUOXU0d+dtPr5QDTNDQDCrAVTWgs9cTy32mLEYU0ZI5alCfMn40PQu7sMIf0FnFagSOpf
+X-Received: by 2002:a0c:b3c2:: with SMTP id b2mr34560023qvf.138.1548981795278;
+        Thu, 31 Jan 2019 16:43:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1548981795; cv=none;
         d=google.com; s=arc-20160816;
-        b=KzeR8vv5SSSWnGA97X4T8Kho2/L9DQchGO4EHQxL7vTQ7/vN5/g2+JFFOOrGA0MpKE
-         dClF3vgjo3j6Uy6J05rRSTEd5Vj/ATk24Z8Pw2Fw0RQxPQhZ0vrZsM/LKbYPfwPzi5Mg
-         /kgtLj6SepLkR9Uvtq6C3cqfwsYjrUoeON7eRFaHgWPawkFYbla8M/qqQ4eVgbHpUD+H
-         h0SXSaCRJrqViZ7L5e1UE5u1pFvNCmKO3uHXc4pMfIazDWKulKrZCWLKSyNKBzE0h6tU
-         htSexkzA8vCmliu6epL/ORqFgZkzzevlt96zfzv2asR35j6H85gcDHiq2Rfr6vv6vrDE
-         S/ZQ==
+        b=QDIXXILfP62ijNbqUwgNZfzuInU9YmgW/6p0IWrfaXrO7AuoNhXz7crtlnq49YRVJM
+         xAGSGSk1WUAHUY/PNZDO7/wjyZwllluNnIS9MeVyy/lTYQHL0HKI+EYx1XH1RKQVLCWu
+         bRwdi3ySGeuKGzqH919ZdLIR7PwxSgtnVQt1rc86ZheA3oQZaSPpchoyi35A1+8fMg2e
+         g3Z8VUGHQ8gub0pmF6ry0vzsfSe/DwQIo2G4Shka2ecnkp/8Dtvf160W4/Cig4E9iiDS
+         zHsdv4kkfEXIqOwtJAAVhsZxev0Wgp5ggRR9vi51tekPvqUQi30nR8KC0wDuXhtzRhws
+         hUCA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=Eoesr+avZHybWqYak19mzfk9DSZQ/hxKNgKYvR+XcKI=;
-        b=QjnmAVPEQ99c+b727x01IQ24fKZtdIkuTVHLBcykD4JCIJLBa14ghGxcJ6WjFzWqL+
-         AlpK6GiHoRMq/FAXZs1RIgARCiGnFvWu5pewplYhEoTP5PaKhbwG4IQzsyV/BcbPMo84
-         7NQalso44eq13S+v0+QprY4t+JBqksPwJ4UkY8kd63eGpYK6VzVeTQuJ1edbH/Uepqjq
-         vKhCg+m98h8jpPmuxDThU7D/6D3vmSV2k36o523hI6/J1XUi3MssXliMeHbywHjrV6fV
-         TaIf9BBLjEd6z6FezsjdllCKclocP32lBzQC4CmARSjR2JOGu5EQ2C6d2kH+P7QccA+9
-         saHg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=Q4BkwvE66zdnu5FCXZwIH13O5GixEIcvPvJXakdd38A=;
+        b=quCAlXi5CDEyBNBInu0fpurCn92iK5mr/s1H1RftmKQrFJeso5f7FU4wgOqIMeyMxp
+         DMLpqMOJ/qSsik43/Y4mYHIED7HPUPAS/SM3GhP5twqwu8ltX+iodWFHGaaak5S4SjqD
+         bmLo7FFeJvGeczsGFJ+028QPaIfbRCIJM0kmOXNpW79POEYx31mG0HZJltHCf6pSl15l
+         UHGreKitfN4Q4DAndNsCqi+7S990GpqC8deAZES7tr3iUNIwUquSl/3qJp4r59uVTb+I
+         7kJ1ihCp59y6fZ9ew9coarjeY9MSIKLZXBjfLQkgUIww7KPSD1e73xvkG7c6z+0uA4yd
+         iikA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector1 header.b=jY+94VHz;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.80.55 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=vmware.com
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-eopbgr800055.outbound.protection.outlook.com. [40.107.80.55])
-        by mx.google.com with ESMTPS id a3si6273183pld.252.2019.01.31.16.25.45
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=x0xly+Tr;
+       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) smtp.mailfrom=tobin@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from wout2-smtp.messagingengine.com (wout2-smtp.messagingengine.com. [64.147.123.25])
+        by mx.google.com with ESMTPS id e18si4307542qvl.65.2019.01.31.16.43.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 31 Jan 2019 16:25:45 -0800 (PST)
-Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.80.55 as permitted sender) client-ip=40.107.80.55;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Jan 2019 16:43:15 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) client-ip=64.147.123.25;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector1 header.b=jY+94VHz;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.80.55 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=vmware.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=Eoesr+avZHybWqYak19mzfk9DSZQ/hxKNgKYvR+XcKI=;
- b=jY+94VHz679uGbEghPRaqWHsdKes5YOgpzHpe7w0HZVu0FBHRrl1RlivJBR93TWIcjlAMo4+pF/W+7rUQvvA73q7Im1SOsAE8SyPqKUDTs3c/aWuVtnPXzWURU9lvF48PEdsqHsTdfOwHuz5nLsIxg1UiNSwQavusvdCVyr+HAM=
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
- BYAPR05MB6087.namprd05.prod.outlook.com (20.178.54.140) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1580.10; Fri, 1 Feb 2019 00:25:43 +0000
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::99ab:18fb:f393:df31]) by BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::99ab:18fb:f393:df31%3]) with mapi id 15.20.1601.011; Fri, 1 Feb 2019
- 00:25:43 +0000
-From: Nadav Amit <namit@vmware.com>
-To: Borislav Petkov <bp@alien8.de>
-CC: Rick Edgecombe <rick.p.edgecombe@intel.com>, Andy Lutomirski
-	<luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, LKML
-	<linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin"
-	<hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen
-	<dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Damian
- Tometzki <linux_dti@icloud.com>, linux-integrity
-	<linux-integrity@vger.kernel.org>, LSM List
-	<linux-security-module@vger.kernel.org>, Andrew Morton
-	<akpm@linux-foundation.org>, Kernel Hardening
-	<kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, Will
- Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Kristen Carlson Accardi <kristen@linux.intel.com>, "Dock, Deneen T"
-	<deneen.t.dock@intel.com>, Kees Cook <keescook@chromium.org>, Dave Hansen
-	<dave.hansen@intel.com>
-Subject: Re: [PATCH v2 03/20] x86/mm: temporary mm struct
-Thread-Topic: [PATCH v2 03/20] x86/mm: temporary mm struct
-Thread-Index: AQHUt2sRwAS+mFb6qECsCs685/9Pk6XJQbUAgAC1oACAAB5FAIAABOQA
-Date: Fri, 1 Feb 2019 00:25:43 +0000
-Message-ID: <D0AE47D2-F4B7-4938-A002-BBEEA3A5AB49@vmware.com>
-References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
- <20190129003422.9328-4-rick.p.edgecombe@intel.com>
- <20190131112948.GE6749@zn.tnic>
- <C481E605-E19A-4EA6-AB9A-6FF4229789E0@vmware.com>
- <20190201000812.GP6749@zn.tnic>
-In-Reply-To: <20190201000812.GP6749@zn.tnic>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=namit@vmware.com; 
-x-originating-ip: [66.170.99.1]
-x-ms-publictraffictype: Email
-x-microsoft-exchange-diagnostics:
- 1;BYAPR05MB6087;20:czt+c0sCKtRZufioavLX9l3Oj7F5inRxRK/ASyBzM2VTQ+Y/TOfoDmKMRzSGSE54lLUlL4cRW8XQWXpp9Ap2DfwCjzM4KgTuR+oxwFiu+vl8yHX8gXzAuX9rJK77WxoNeLXj8SsUMWcrvkeC8Lgy7l1RrIXxa7X6aFZUuotZONA=
-x-ms-office365-filtering-correlation-id: ffef8a9a-4892-4e44-9dd8-08d687dbcdae
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(2017052603328)(7153060)(7193020);SRVR:BYAPR05MB6087;
-x-ms-traffictypediagnostic: BYAPR05MB6087:
-x-microsoft-antispam-prvs:
- <BYAPR05MB608706B4F78AF80641F2C998D0920@BYAPR05MB6087.namprd05.prod.outlook.com>
-x-forefront-prvs: 09352FD734
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(346002)(396003)(39860400002)(366004)(136003)(376002)(199004)(189003)(36756003)(106356001)(53546011)(11346002)(446003)(81156014)(8676002)(316002)(66066001)(81166006)(82746002)(6512007)(53936002)(4326008)(478600001)(6916009)(54906003)(102836004)(2616005)(14454004)(25786009)(33656002)(39060400002)(105586002)(476003)(26005)(6506007)(186003)(6246003)(76176011)(256004)(99286004)(71200400001)(7416002)(2906002)(7736002)(97736004)(486006)(8936002)(6116002)(6436002)(6486002)(3846002)(305945005)(229853002)(83716004)(68736007)(86362001)(93886005)(71190400001);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB6087;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: vmware.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- YStyBkvhgtyMGntAbK+aaaMc3Cd5fwBEbQqTfx6lNynrwAJ2svHEMzB5CPATVeVKf7K18X+f6XQW5BsfAecVkt2ZVVrTP58SjqLIBhok6/xWzb0gS4q9V3V+WRPh8NcFzadWVfOMJ4Va326lA6/QzfzxzY5Pb3c3l6ltBKCVvcgjDnwRP88frp1TD1eyl7aT5k7reLvQFjMoh+GsYp9H9TwVfUOsDdtxJnbzTQUVD0AuB2sy4wekc/zWbW2Ijml/DjPYrbQRNzAkxghxnY66zPJIevNa2aqKwKoJ+zcyq6nE6h15eQtiyeOlxxvoPbNiTdms5b9vmp7SIaxBEQCrx+rODTf3Ca1c3Wk023jLYB3UquE7dT7HP0YwnfFRq9RYD6M0uaKgJt3VSrlNiHctNdLJuO46oh2LyJduAJraShA=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <A873F991F428B14CAEEB63AA4CB8EBCD@namprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=x0xly+Tr;
+       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 64.147.123.25 as permitted sender) smtp.mailfrom=tobin@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
+	by mailout.west.internal (Postfix) with ESMTP id AB0BC2E00;
+	Thu, 31 Jan 2019 19:43:13 -0500 (EST)
+Received: from mailfrontend2 ([10.202.2.163])
+  by compute3.internal (MEProxy); Thu, 31 Jan 2019 19:43:14 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-transfer-encoding:date:from
+	:message-id:mime-version:subject:to:x-me-proxy:x-me-proxy
+	:x-me-sender:x-me-sender:x-sasl-enc; s=fm1; bh=Q4BkwvE66zdnu5FCX
+	ZwIH13O5GixEIcvPvJXakdd38A=; b=x0xly+Trd1ygC3ICqRMBDE4UOu33Dr5zZ
+	cidjBmZ80/5OHYBK9YnTkEWwKQTXznOZ6S0Em70fBp613Jh4HDslnV4o+3bdbTHX
+	QPeBCGJOKSZ1ze9k6WNrTmjya158MLMSfc5WXy/TPaxqpL/4bxLTiqzvO14Goqbd
+	LWYnNlG63aCh2rTOKhIPjRS20maACDUS8kxgrjZI2PpK/yw6ujqSTCMb9/cPAMP6
+	X+ltboUnX5vUs+m2adFW+A3+03f7sCTEn4sXtwOAo80U48e2Cwuf4vncQs8mgyzi
+	fUp/dKvU1o1p7Gt4BRJJbigSMzSAp3gnEPEaUuEeww4eJKMdAYqFw==
+X-ME-Sender: <xms:H5ZTXMRW6UI7tpOTO79zDwTXQB-B-PjKJ8FpOg0388F5ZzR29cdbpw>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledrjeejgddviecutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthenuceurghilhhouhhtmecufedt
+    tdenucesvcftvggtihhpihgvnhhtshculddquddttddmnecujfgurhephffvufffkffogg
+    fgsedtkeertdertddtnecuhfhrohhmpedfvfhosghinhcuvedrucfjrghrughinhhgfdcu
+    oehtohgsihhnsehkvghrnhgvlhdrohhrgheqnecukfhppeduvddurdeggedrvddvjedrud
+    ehjeenucfrrghrrghmpehmrghilhhfrhhomhepthhosghinheskhgvrhhnvghlrdhorhhg
+    necuvehluhhsthgvrhfuihiivgeptd
+X-ME-Proxy: <xmx:H5ZTXOD-IreE36fQLIUncAxKq-L6EPYUxLj6zqfGTtgdHoIx11_uAw>
+    <xmx:H5ZTXE2yDmOzxnHnKH4NOl9r1XVjoaRpH6Eq_I9wXBhMMm43osTbZA>
+    <xmx:H5ZTXEUibpXPw9-_PvrT89UlmE3D5RoNxBahzEdBRQsKjkWRJ5uKgA>
+    <xmx:IZZTXM-bixUjVdSFOdeFXQ6KCtNTZqbDI-e2_whZ8MvG1XJTL28Kbg>
+Received: from eros.localdomain (ppp121-44-227-157.bras2.syd2.internode.on.net [121.44.227.157])
+	by mail.messagingengine.com (Postfix) with ESMTPA id CE2EE10320;
+	Thu, 31 Jan 2019 19:43:07 -0500 (EST)
+From: "Tobin C. Harding" <tobin@kernel.org>
+To: Christoph Lameter <cl@linux.com>,
+	Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Cc: "Tobin C. Harding" <tobin@kernel.org>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH] mm/slab: Increase width of first /proc/slabinfo column
+Date: Fri,  1 Feb 2019 11:42:42 +1100
+Message-Id: <20190201004242.7659-1-tobin@kernel.org>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-X-OriginatorOrg: vmware.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: ffef8a9a-4892-4e44-9dd8-08d687dbcdae
-X-MS-Exchange-CrossTenant-originalarrivaltime: 01 Feb 2019 00:25:43.5652
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB6087
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PiBPbiBKYW4gMzEsIDIwMTksIGF0IDQ6MDggUE0sIEJvcmlzbGF2IFBldGtvdiA8YnBAYWxpZW44
-LmRlPiB3cm90ZToNCj4gDQo+IE9uIFRodSwgSmFuIDMxLCAyMDE5IGF0IDEwOjE5OjU0UE0gKzAw
-MDAsIE5hZGF2IEFtaXQgd3JvdGU6DQo+PiBNZXRhLXF1ZXN0aW9uOiBjb3VsZCB5b3UgcGxlYXNl
-IHJldmlldyB0aGUgZW50aXJlIHBhdGNoLXNldD8gVGhpcyBpcw0KPj4gYWN0dWFsbHkgdjkgb2Yg
-dGhpcyBwYXJ0aWN1bGFyIHBhdGNoIC0gaXQgd2FzIHBhcnQgb2YgYSBzZXBhcmF0ZSBwYXRjaC1z
-ZXQNCj4+IGJlZm9yZS4gSSBkb27igJl0IHRoaW5rIHRoYXQgdGhlIHBhdGNoIGhhcyBjaGFuZ2Vk
-IHNpbmNlICh0aGUgcmVhbCkgdjEuDQo+PiANCj4+IFRoZXNlIHNwb3JhZGljIGNvbW1lbnRzIGFm
-dGVyIGVhY2ggdmVyc2lvbiByZWFsbHkgbWFrZXMgaXQgaGFyZCB0byBnZXQgdGhpcw0KPj4gd29y
-ayBjb21wbGV0ZWQuDQo+IA0KPiBTb3JyeSBidXQgd2hlcmUgSSBhbSB0aGUgZGF5IGhhcyBvbmx5
-IDI0IGhvdXJzIGFuZCB0aGlzIHBhdGNoc2V0IGlzIG5vdA0KPiB0aGUgb25seSBvbmUgaW4gbXkg
-b3ZlcmZsb3dpbmcgbWJveC4gSWYgbXkgc3BvcmFkaWMgY29tbWVudHMgYXJlIG1ha2luZw0KPiBp
-dCBoYXJkIHRvIGZpbmlzaCB5b3VyIHdvcmssIEkgYmV0dGVyIG5vdCBpbnRlcmZlcmUgdGhlbi4N
-Cg0KSSBjZXJ0YWlubHkgZGlkIG5vdCBpbnRlbmQgZm9yIGl0IHRvIHNvdW5kIHRoaXMgd2F5LCBh
-bmQgeW91ciBmZWVkYmFjayBpcw0Kb2J2aW91c2x5IHZhbHVhYmxlLg0KDQpKdXN0IGxldCBtZSBr
-bm93IHdoZW4geW91IGFyZSBkb25lIHJldmlld2luZyB0aGUgcGF0Y2gtc2V0LCBzbyBJIHdpbGwg
-bm90DQpvdmVyZmxvdyB5b3VyIG1haWxib3ggd2l0aCBldmVuIHVubmVjZXNzYXJ5IHZlcnNpb25z
-IG9mIHRoZXNlIHBhdGNoZXMuIDopDQoNCg==
+Currently when displaying /proc/slabinfo if any cache names are too long
+then the output columns are not aligned.  We could do something fancy to
+get the maximum length of any cache name in the system or we could just
+increase the hardcoded width.  Currently it is 17 characters.  Monitors
+are wide these days so lets just increase it to 30 characters.
+
+On one running kernel, with this choice of width, the increase is
+sufficient to align the columns and total line width is increased from
+112 to 119 characters (excluding the heading row).  Admittedly there may
+be cache names in the wild which are longer than the cache names on this
+machine, in which case the columns would still be unaligned.
+
+Increase the width of the first column (cache name) in the output of
+/proc/slabinfo from 17 to 30 characters.
+
+Signed-off-by: Tobin C. Harding <tobin@kernel.org>
+---
+
+This patch does not touch the heading row, and discussion of column
+width excludes this row.  Please note that the second column labeled by
+the heading row is now *not* above the second column.
+
+### Before patch is applied sample output of `cat /proc/slabinfo` (max column width == 112):
+
+slabinfo - version: 2.1
+# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail>
+kcopyd_job             0      0   3312    9    8 : tunables    0    0    0 : slabdata      0      0      0
+dm_uevent              0      0   2632   12    8 : tunables    0    0    0 : slabdata      0      0      0
+fuse_request          60     60    392   20    2 : tunables    0    0    0 : slabdata      3      3      0
+fuse_inode            21     21    768   21    4 : tunables    0    0    0 : slabdata      1      1      0
+kvm_async_pf          90     90    136   30    1 : tunables    0    0    0 : slabdata      3      3      0
+kvm_vcpu               4      4  24192    1    8 : tunables    0    0    0 : slabdata      4      4      0
+kvm_mmu_page_header    100    150    160   25    1 : tunables    0    0    0 : slabdata      6      6      0
+i915_request         100    100    640   25    4 : tunables    0    0    0 : slabdata      4      4      0
+i915_vma             316    336    576   28    4 : tunables    0    0    0 : slabdata     12     12      0
+fat_inode_cache       22     22    728   22    4 : tunables    0    0    0 : slabdata      1      1      0
+fat_cache              0      0     40  102    1 : tunables    0    0    0 : slabdata      0      0      0
+ext4_groupinfo_4k   3780   3780    144   28    1 : tunables    0    0    0 : slabdata    135    135      0
+ext4_inode_cache  255633 258480   1080   30    8 : tunables    0    0    0 : slabdata   8616   8616      0
+ext4_allocation_context    128    128    128   32    1 : tunables    0    0    0 : slabdata      4      4      0
+ext4_io_end          256    256     64   64    1 : tunables    0    0    0 : slabdata      4      4      0
+ext4_extent_status 197111 197778     40  102    1 : tunables    0    0    0 : slabdata   1939   1939      0
+mbcache              294    584     56   73    1 : tunables    0    0    0 : slabdata      8      8      0
+jbd2_journal_head    364    476    120   34    1 : tunables    0    0    0 : slabdata     14     14      0
+jbd2_revoke_table_s    512    512     16  256    1 : tunables    0    0    0 : slabdata      2      2      0
+fscrypt_info         512   1024     32  128    1 : tunables    0    0    0 : slabdata      8      8      0
+...
+
+
+### With patch applied output of `cat /proc/slabinfo` (max column width == 119):
+
+slabinfo - version: 2.1
+# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <share>
+PINGv6                              0      0   1152   14    4 : tunables    0    0    0 : slabdata      0      0      0
+RAWv6                              14     14   1152   14    4 : tunables    0    0    0 : slabdata      1      1      0
+UDPv6                               0      0   1280   12    4 : tunables    0    0    0 : slabdata      0      0      0
+tw_sock_TCPv6                       0      0    240   17    1 : tunables    0    0    0 : slabdata      0      0      0
+request_sock_TCPv6                  0      0    304   13    1 : tunables    0    0    0 : slabdata      0      0      0
+TCPv6                               0      0   2304   14    8 : tunables    0    0    0 : slabdata      0      0      0
+sgpool-128                          8      8   4096    8    8 : tunables    0    0    0 : slabdata      1      1      0
+bfq_io_cq                           0      0    160   25    1 : tunables    0    0    0 : slabdata      0      0      0
+bfq_queue                           0      0    464   17    2 : tunables    0    0    0 : slabdata      0      0      0
+mqueue_inode_cache                  9      9    896    9    2 : tunables    0    0    0 : slabdata      1      1      0
+dnotify_struct                      0      0     32  128    1 : tunables    0    0    0 : slabdata      0      0      0
+posix_timers_cache                  0      0    240   17    1 : tunables    0    0    0 : slabdata      0      0      0
+UNIX                                0      0   1024    8    2 : tunables    0    0    0 : slabdata      0      0      0
+ip4-frags                           0      0    208   19    1 : tunables    0    0    0 : slabdata      0      0      0
+tcp_bind_bucket                     0      0    128   32    1 : tunables    0    0    0 : slabdata      0      0      0
+PING                                0      0    960    8    2 : tunables    0    0    0 : slabdata      0      0      0
+RAW                                 8      8    960    8    2 : tunables    0    0    0 : slabdata      1      1      0
+tw_sock_TCP                         0      0    240   17    1 : tunables    0    0    0 : slabdata      0      0      0
+request_sock_TCP                    0      0    304   13    1 : tunables    0    0    0 : slabdata      0      0      0
+TCP                                 0      0   2176   15    8 : tunables    0    0    0 : slabdata      0      0      0
+hugetlbfs_inode_cache              13     13    616   13    2 : tunables    0    0    0 : slabdata      1      1      0
+dquot                               0      0    256   16    1 : tunables    0    0    0 : slabdata      0      0      0
+eventpoll_pwq                       0      0     72   56    1 : tunables    0    0    0 : slabdata      0      0      0
+dax_cache                          10     10    768   10    2 : tunables    0    0    0 : slabdata      1      1      0
+request_queue                       0      0   2056   15    8 : tunables    0    0    0 : slabdata      0      0      0
+biovec-max                          8      8   8192    4    8 : tunables    0    0    0 : slabdata      2      2      0
+biovec-128                          8      8   2048    8    4 : tunables    0    0    0 : slabdata      1      1      0
+biovec-64                           8      8   1024    8    2 : tunables    0    0    0 : slabdata      1      1      0
+user_namespace                      8      8    512    8    1 : tunables    0    0    0 : slabdata      1      1      0
+uid_cache                          21     21    192   21    1 : tunables    0    0    0 : slabdata      1      1      0
+dmaengine-unmap-2                  64     64     64   64    1 : tunables    0    0    0 : slabdata      1      1      0
+sock_inode_cache                   24     24    640   12    2 : tunables    0    0    0 : slabdata      2      2      0
+skbuff_fclone_cache                 0      0    448    9    1 : tunables    0    0    0 : slabdata      0      0      0
+skbuff_head_cache                  16     16    256   16    1 : tunables    0    0    0 : slabdata      1      1      0
+file_lock_cache                     0      0    216   18    1 : tunables    0    0    0 : slabdata      0      0      0
+net_namespace                       0      0   3392    9    8 : tunables    0    0    0 : slabdata      0      0      0
+
+
+ mm/slab_common.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 81732d05e74a..a339f1361164 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1365,7 +1365,7 @@ static void cache_show(struct kmem_cache *s, struct seq_file *m)
+ 
+ 	memcg_accumulate_slabinfo(s, &sinfo);
+ 
+-	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
++	seq_printf(m, "%-30s %6lu %6lu %6u %4u %4d",
+ 		   cache_name(s), sinfo.active_objs, sinfo.num_objs, s->size,
+ 		   sinfo.objects_per_slab, (1 << sinfo.cache_order));
+ 
+-- 
+2.20.1
 
