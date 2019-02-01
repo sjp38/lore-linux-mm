@@ -2,109 +2,99 @@ Return-Path: <SRS0=aBqT=QI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48BB8C282D8
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 10:27:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 46A49C282D8
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 11:26:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CB3CE218AF
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 10:27:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CB3CE218AF
+	by mail.kernel.org (Postfix) with ESMTP id 0189E21908
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 11:26:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0189E21908
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 466668E0002; Fri,  1 Feb 2019 05:27:46 -0500 (EST)
+	id 8086C8E0002; Fri,  1 Feb 2019 06:26:48 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3EF198E0001; Fri,  1 Feb 2019 05:27:46 -0500 (EST)
+	id 790668E0001; Fri,  1 Feb 2019 06:26:48 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2B6CD8E0002; Fri,  1 Feb 2019 05:27:46 -0500 (EST)
+	id 6CF5E8E0002; Fri,  1 Feb 2019 06:26:48 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BAABD8E0001
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 05:27:45 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id l45so2640664edb.1
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 02:27:45 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 0E8EA8E0001
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 06:26:48 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id e17so2676452edr.7
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 03:26:47 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=W36k/e0+t7BGahkx2DT8AiFhgGtUjIl2TSrXCltWW5g=;
-        b=CayU/VAZ1kPPOAEsb4yIKkUl6uSvzilN8SVY1OiBOgVYDLq0tqcxGsGZRNIxBjKeMY
-         kBiYhVkARiNWwU3mL6EIhL7ldFk80FPhclq8EiGU48kH8br3DcoLP2p6VRYhN0O3S7Kg
-         Crnp4qvX49H982sXgWdrbxHwLx9927GvZvLqDu6X7ILi+zYaaZVxoYZFtann9KSUah5c
-         CBdtmmwoW+5mDWFcV8GByjJR6Nb0apCNUwByO52IZDp4daje6/a+qn09jsgVSolmlNW2
-         29Z6NhgLLAN8BSksdS/EUjcc8mte8ir4ZMI2//OswmBwdQ5Qzy4ZWR3wdTL3S4iUvxkI
-         H5ZQ==
+        bh=vOPeSVKYZjPEfWn1mRDOug45s6vioBWQMcMg8bsghSo=;
+        b=BjTNpTu8ZNm/X6c0BIU6KQ+CFwhfI0zHYijeDJsftcgWYuUuJAi1M0V6PhRekICZQ/
+         NeKzF9AS7O9J07XlLIgmCZ2lMkv5PGRUaCb6+vqXvJw2mCX1a30X0GzyRx6yQo2DefbC
+         iuhgHgpjCG+KAMhBx7DHc+MSowdj6W0WoHn1AbAakY7/ijEQQCsV0uh2PF5lf8Iodehh
+         0Vk0lPSoxE7q650is09CAtWNZ8seHQbCZ//BvN9kxB3LRYOpZQovLImMLz85jJcAdnbn
+         7z7Eq6jzzDSTMHgJmXShbB+FYh3NNcZatBTRJLokC7aQioKkVRwjuD76eS2LpVabM3sv
+         xatA==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AJcUukcnvl8fxzo043FL3lxKeBfWjelZxO/euQDCd0FVVHHsc4HdyraC
-	xWpwO8YZneNJ9AU3J71d/wsLYhSa6ync7j+HrkLfUN7FBCtWedPCthVf7rEeZ5VRfANZXThKsxv
-	IGZP/se4zcUzaJAHXBxkZ2GQfhEnL5NEQ8K4z3r3Kuns/cBk8YBjj/5dHdWvYVUQ=
-X-Received: by 2002:aa7:d602:: with SMTP id c2mr37782214edr.203.1549016865218;
-        Fri, 01 Feb 2019 02:27:45 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN6LUBC6/w0tcijHUdWgWUaK+os9lZGDbMhfWZJIhBTJQP+wVpssHsTbk/NTtOTC64S+7GoM
-X-Received: by 2002:aa7:d602:: with SMTP id c2mr37782134edr.203.1549016863766;
-        Fri, 01 Feb 2019 02:27:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549016863; cv=none;
+X-Gm-Message-State: AJcUukd077kJH3DQ05/tHUsdWIhyYmUd+HtLTMxjzqh3QxXdYJKOfnd0
+	ECMYNRU85xzGNz/yJzsugPi4pk/CFTV67gZsxJRKuUSPNfYIqy7XYsI6fHPfYeXqlPncJnuJO+K
+	8WqO42jqUfLsgBmmqKWKxJw+txbiSdf8xhjxas67lGGSuMIgenFKlDVJjXN/GZ6c=
+X-Received: by 2002:a17:906:23f1:: with SMTP id j17mr21775599ejg.188.1549020407404;
+        Fri, 01 Feb 2019 03:26:47 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6fkenI3XOoeIjLbSGgZtIxgljLrI8VnIZMj5zb2ErMlzbygniqHRsDGV1i4asjG5hdzqaZ
+X-Received: by 2002:a17:906:23f1:: with SMTP id j17mr21775542ejg.188.1549020406243;
+        Fri, 01 Feb 2019 03:26:46 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549020406; cv=none;
         d=google.com; s=arc-20160816;
-        b=UpcgfwpbltNprRZFVCXwQ4FEvP/JaPcZMW35NQ9q4N9xRqGu04MklQRrQ14v2irIHC
-         o5RRD+kRvTnk6GrOEiIqTlu+REa39r3EPNfHzoxDyB38qDgRm+1JitjDHxolemU3WLXx
-         RYyi76yWaxW2hREFeYW6wSk1eucCdVeRok2k5bQ6Q03YcsqKbLkYdph2SsfbarzVMvmE
-         o3LpnmtQ5kXAhYNynpgad2semwrWHgVHimGR6Hk3nHRZYacPMVbmOnosZA6ADyImNuhg
-         gV4PJ1sVJaMdsu7+j7NF2M7VIVfM4BJOip6I/glqDs9cyZKM8LRBKxXW8g9mYQ55J178
-         8XpA==
+        b=Rc80lFC//CrVUdN48e3OCwdWxGhRirl8DDd8sJwXwXUpfsYqVvFBBqpDT7n/uGniVD
+         Chk0IsxQ/l3d8mQNRka35aN9s6gZZ3kaWHSzzLWuz1ES/ERCkbE88xvL3w7g2Ko009y7
+         Q5MoiIQBQnXhUwMIzZAUdl3mh0/DfJKdDwWKGBDQJ3nJcIWeuxDQWh8Ntu/snFBkiODJ
+         E6RG7PrK9RKquJ42ymE1P/qHw/VrTE5TErb7ajHuXOviPQcLScycMwGZVVzKiQLlHyR6
+         s7cgbXQ+Y9Hc2xWfzhYBzEIeLr63WyimFzwD6UeJpDVeCVxIlI5TrgeyLRemMB2NzjZR
+         Djtg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=W36k/e0+t7BGahkx2DT8AiFhgGtUjIl2TSrXCltWW5g=;
-        b=QHPQUOQMIe0h6dBmD+ka0ivgG/m2/zgErrXGKZcYpS7PungtfndeWIq1e6zSoyHHn7
-         02fgW6dOXQM57Bp+dK7s9CmvMIdeXvI3Dh7tJiTlivhuHkFMGYc7o2+Vw2IqE53Nolv3
-         rNkQ8EbemW/HZfJxr9bbVRKy1rsoozwlMgyRW5DEo0PieXUIL26RzQTSIhpKZ4GGKCJP
-         2jZWTbrh0i60RRwSRbh12ichgYa4eNLI7Bu2oHybZgmh3ZaVy07eCgmC7INTsPIitq44
-         ZYzY7Zocl14Ml6J7RPSpnv9u3VNGnF52e0Kth+/kssHQCr5J3ZgJttumviLJlUIbHBBm
-         AKfQ==
+        bh=vOPeSVKYZjPEfWn1mRDOug45s6vioBWQMcMg8bsghSo=;
+        b=p2tYKriLen9jQ99GcIMBIyjsjuTiLqvKTHJMCxS8pcNJMJCUNj3IMF6NoNtRHA5Svw
+         7m0V3qI/MxSCRRpVvMSb72hdr1NL2s1l/rOUbxVkoHXGpfyr8OoFNAAlFoFFDiaYxzYN
+         RxQlLxiitKq9XfrIObF9wlZEDpxk6pRk0XMJ9arFEppljMyo9dzzWcHft3xqIOx1qXxi
+         uWva4ulCnixJama/nR389Pgl8lH4EktEvXlAsJlAPo5jA4CDkLk3qll+t7XrYVuOIiLr
+         /t4MWgbm2wIF8UKjU+fN8/A/S5DTms8iIQHMoXE6JulzWvjeS85P7+mLwlteWlc8a2OU
+         Tfbg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g4si54522ejj.148.2019.02.01.02.27.43
+        by mx.google.com with ESMTPS id z49si278282edz.233.2019.02.01.03.26.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Feb 2019 02:27:43 -0800 (PST)
+        Fri, 01 Feb 2019 03:26:46 -0800 (PST)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 08A2BAD4A;
-	Fri,  1 Feb 2019 10:27:43 +0000 (UTC)
-Date: Fri, 1 Feb 2019 11:27:41 +0100
+	by mx1.suse.de (Postfix) with ESMTP id C361DAEEA;
+	Fri,  1 Feb 2019 11:26:45 +0000 (UTC)
+Date: Fri, 1 Feb 2019 12:26:44 +0100
 From: Michal Hocko <mhocko@kernel.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tejun Heo <tj@kernel.org>, Chris Down <chris@chrisdown.name>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>,
-	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
-	linux-mm@kvack.org, kernel-team@fb.com
-Subject: Re: [PATCH 2/2] mm: Consider subtrees in memory.events
-Message-ID: <20190201102515.GK11599@dhcp22.suse.cz>
-References: <20190125074824.GD3560@dhcp22.suse.cz>
- <20190125165152.GK50184@devbig004.ftw2.facebook.com>
- <20190125173713.GD20411@dhcp22.suse.cz>
- <20190125182808.GL50184@devbig004.ftw2.facebook.com>
- <20190128125151.GI18811@dhcp22.suse.cz>
- <20190130192345.GA20957@cmpxchg.org>
- <20190130200559.GI18811@dhcp22.suse.cz>
- <20190130213131.GA13142@cmpxchg.org>
- <20190131085808.GO18811@dhcp22.suse.cz>
- <20190131162248.GA17354@cmpxchg.org>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: Do not allocate duplicate stack variables in
+ shrink_page_list()
+Message-ID: <20190201112644.GM11599@dhcp22.suse.cz>
+References: <154894900030.5211.12104993874109647641.stgit@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190131162248.GA17354@cmpxchg.org>
+In-Reply-To: <154894900030.5211.12104993874109647641.stgit@localhost.localdomain>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -112,139 +102,172 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 31-01-19 11:22:48, Johannes Weiner wrote:
-> On Thu, Jan 31, 2019 at 09:58:08AM +0100, Michal Hocko wrote:
-> > On Wed 30-01-19 16:31:31, Johannes Weiner wrote:
-> > > On Wed, Jan 30, 2019 at 09:05:59PM +0100, Michal Hocko wrote:
-> > [...]
-> > > > I thought I have already mentioned an example. Say you have an observer
-> > > > on the top of a delegated cgroup hierarchy and you setup limits (e.g. hard
-> > > > limit) on the root of it. If you get an OOM event then you know that the
-> > > > whole hierarchy might be underprovisioned and perform some rebalancing.
-> > > > Now you really do not care that somewhere down the delegated tree there
-> > > > was an oom. Such a spurious event would just confuse the monitoring and
-> > > > lead to wrong decisions.
-> > > 
-> > > You can construct a usecase like this, as per above with OOM, but it's
-> > > incredibly unlikely for something like this to exist. There is plenty
-> > > of evidence on adoption rate that supports this: we know where the big
-> > > names in containerization are; we see the things we run into that have
-> > > not been reported yet etc.
-> > > 
-> > > Compare this to real problems this has already caused for
-> > > us. Multi-level control and monitoring is a fundamental concept of the
-> > > cgroup design, so naturally our infrastructure doesn't monitor and log
-> > > at the individual job level (too much data, and also kind of pointless
-> > > when the jobs are identical) but at aggregate parental levels.
-> > > 
-> > > Because of this wart, we have missed problematic configurations when
-> > > the low, high, max events were not propagated as expected (we log oom
-> > > separately, so we still noticed those). Even once we knew about it, we
-> > > had trouble tracking these configurations down for the same reason -
-> > > the data isn't logged, and won't be logged, at this level.
-> > 
-> > Yes, I do understand that you might be interested in the hierarchical
-> > accounting.
-> > 
-> > > Adding a separate, hierarchical file would solve this one particular
-> > > problem for us, but it wouldn't fix this pitfall for all future users
-> > > of cgroup2 (which by all available evidence is still most of them) and
-> > > would be a wart on the interface that we'd carry forever.
-> > 
-> > I understand even this reasoning but if I have to chose between a risk
-> > of user breakage that would require to reimplement the monitoring or an
-> > API incosistency I vote for the first option. It is unfortunate but this
-> > is the way we deal with APIs and compatibility.
+On Thu 31-01-19 18:37:02, Kirill Tkhai wrote:
+> On path shrink_inactive_list() ---> shrink_page_list()
+> we allocate stack variables for the statistics twice.
+> This is completely useless, and this just consumes stack
+> much more, then we really need.
 > 
-> I don't know why you keep repeating this, it's simply not how Linux
-> API is maintained in practice.
-> 
-> In cgroup2, we fixed io.stat to not conflate discard IO and write IO:
-> 636620b66d5d4012c4a9c86206013964d3986c4f
-> 
-> Linus changed the Vmalloc field semantics in /proc/meminfo after over
-> a decade, without a knob to restore it in production:
-> 
->     If this breaks anything, we'll obviously have to re-introduce the code
->     to compute this all and add the caching patches on top.  But if given
->     the option, I'd really prefer to just remove this bad idea entirely
->     rather than add even more code to work around our historical mistake
->     that likely nobody really cares about.
->     a5ad88ce8c7fae7ddc72ee49a11a75aa837788e0
-> 
-> Mel changed the zone_reclaim_mode default behavior after over a
-> decade:
-> 
->     Those that require zone_reclaim_mode are likely to be able to
->     detect when it needs to be enabled and tune appropriately so lets
->     have a sensible default for the bulk of users.
->     4f9b16a64753d0bb607454347036dc997fd03b82
->     Acked-by: Michal Hocko <mhocko@suse.cz>
-> 
-> And then Mel changed the default zonelist ordering to pick saner
-> behavior for most users, followed by a complete removal of the zone
-> list ordering, after again, decades of existence of these things:
-> 
->     commit c9bff3eebc09be23fbc868f5e6731666d23cbea3
->     Author: Michal Hocko <mhocko@suse.com>
->     Date:   Wed Sep 6 16:20:13 2017 -0700
-> 
->         mm, page_alloc: rip out ZONELIST_ORDER_ZONE
-> 
-> And why did we do any of those things and risk user disruption every
-> single time? Because the existing behavior was not a good default, a
-> burden on people, and the risk of breakage was sufficiently low.
-> 
-> I don't see how this case is different, and you haven't provided any
-> arguments that would explain that.
+> The patch kills duplicate stack variables from shrink_page_list(),
+> and this reduce stack usage and object file size significantly:
 
-Because there is no simple way to revert in _this_ particular case. Once
-you change the semantic of the file you cannot simply make it
-non-hierarchical after somebody complains. You do not want to break both
-worlds. See the difference?
+significantly is a bit of an overstatement for 32B saved...
 
-[...]
-> > Those users requiring the hierarchical beahvior can use the new file
-> > without any risk of breakages so I really do not see why we should
-> > undertake the risk and do it the other way around.
+> Stack usage:
+> Before: vmscan.c:1122:22:shrink_page_list	648	static
+> After:  vmscan.c:1122:22:shrink_page_list	616	static
 > 
-> Okay, so let's find a way forward here.
+> Size of vmscan.o:
+>          text	   data	    bss	    dec	    hex	filename
+> Before: 56866	   4720	    128	  61714	   f112	mm/vmscan.o
+> After:  56770	   4720	    128	  61618	   f0b2	mm/vmscan.o
 > 
-> 1. A new memory.events_tree file or similar. This would give us a way
-> to get the desired hierarchical behavior. The downside is that it's
-> suggesting that ${x} and ${x}_tree are the local and hierarchical
-> versions of a cgroup file, and that's false everywhere else. Saying we
-> would document it is a cop-out and doesn't actually make the interface
-> less confusing (most people don't look at errata documentation until
-> they've been burned by unexpected behavior).
-> 
-> 2. A runtime switch (cgroup mount option, sysctl, what have you) that
-> lets you switch between the local and the tree behavior. This would be
-> able to provide the desired semantics in a clean interface, while
-> still having the ability to support legacy users.
+> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 
-With an obvious downside that one or the other usecase has to learn that
-the current semantic is different than expected which is again something
-that has to be documented so we are in the same "people don't look at
-errata documentation...". Another obvious problem is that you might have
-two workloads with different semantic expectations and then this option
-simply falls flat.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-> 2a. A runtime switch that defaults to the local behavior.
+> ---
+>  mm/vmscan.c |   44 ++++++++++++++------------------------------
+>  1 file changed, 14 insertions(+), 30 deletions(-)
 > 
-> 2b. A runtime switch that defaults to the tree behavior.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index dd9554f5d788..54a389fd91e2 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1128,16 +1128,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  {
+>  	LIST_HEAD(ret_pages);
+>  	LIST_HEAD(free_pages);
+> -	int pgactivate = 0;
+> -	unsigned nr_unqueued_dirty = 0;
+> -	unsigned nr_dirty = 0;
+> -	unsigned nr_congested = 0;
+>  	unsigned nr_reclaimed = 0;
+> -	unsigned nr_writeback = 0;
+> -	unsigned nr_immediate = 0;
+> -	unsigned nr_ref_keep = 0;
+> -	unsigned nr_unmap_fail = 0;
+>  
+> +	memset(stat, 0, sizeof(*stat));
+>  	cond_resched();
+>  
+>  	while (!list_empty(page_list)) {
+> @@ -1181,10 +1174,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		 */
+>  		page_check_dirty_writeback(page, &dirty, &writeback);
+>  		if (dirty || writeback)
+> -			nr_dirty++;
+> +			stat->nr_dirty++;
+>  
+>  		if (dirty && !writeback)
+> -			nr_unqueued_dirty++;
+> +			stat->nr_unqueued_dirty++;
+>  
+>  		/*
+>  		 * Treat this page as congested if the underlying BDI is or if
+> @@ -1196,7 +1189,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		if (((dirty || writeback) && mapping &&
+>  		     inode_write_congested(mapping->host)) ||
+>  		    (writeback && PageReclaim(page)))
+> -			nr_congested++;
+> +			stat->nr_congested++;
+>  
+>  		/*
+>  		 * If a page at the tail of the LRU is under writeback, there
+> @@ -1245,7 +1238,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  			if (current_is_kswapd() &&
+>  			    PageReclaim(page) &&
+>  			    test_bit(PGDAT_WRITEBACK, &pgdat->flags)) {
+> -				nr_immediate++;
+> +				stat->nr_immediate++;
+>  				goto activate_locked;
+>  
+>  			/* Case 2 above */
+> @@ -1263,7 +1256,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  				 * and it's also appropriate in global reclaim.
+>  				 */
+>  				SetPageReclaim(page);
+> -				nr_writeback++;
+> +				stat->nr_writeback++;
+>  				goto activate_locked;
+>  
+>  			/* Case 3 above */
+> @@ -1283,7 +1276,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		case PAGEREF_ACTIVATE:
+>  			goto activate_locked;
+>  		case PAGEREF_KEEP:
+> -			nr_ref_keep++;
+> +			stat->nr_ref_keep++;
+>  			goto keep_locked;
+>  		case PAGEREF_RECLAIM:
+>  		case PAGEREF_RECLAIM_CLEAN:
+> @@ -1348,7 +1341,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  			if (unlikely(PageTransHuge(page)))
+>  				flags |= TTU_SPLIT_HUGE_PMD;
+>  			if (!try_to_unmap(page, flags)) {
+> -				nr_unmap_fail++;
+> +				stat->nr_unmap_fail++;
+>  				goto activate_locked;
+>  			}
+>  		}
+> @@ -1496,7 +1489,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		VM_BUG_ON_PAGE(PageActive(page), page);
+>  		if (!PageMlocked(page)) {
+>  			SetPageActive(page);
+> -			pgactivate++;
+> +			stat->nr_activate++;
+>  			count_memcg_page_event(page, PGACTIVATE);
+>  		}
+>  keep_locked:
+> @@ -1511,18 +1504,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  	free_unref_page_list(&free_pages);
+>  
+>  	list_splice(&ret_pages, page_list);
+> -	count_vm_events(PGACTIVATE, pgactivate);
+> -
+> -	if (stat) {
+> -		stat->nr_dirty = nr_dirty;
+> -		stat->nr_congested = nr_congested;
+> -		stat->nr_unqueued_dirty = nr_unqueued_dirty;
+> -		stat->nr_writeback = nr_writeback;
+> -		stat->nr_immediate = nr_immediate;
+> -		stat->nr_activate = pgactivate;
+> -		stat->nr_ref_keep = nr_ref_keep;
+> -		stat->nr_unmap_fail = nr_unmap_fail;
+> -	}
+> +	count_vm_events(PGACTIVATE, stat->nr_activate);
+> +
+>  	return nr_reclaimed;
+>  }
+>  
+> @@ -1534,6 +1517,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+>  		.priority = DEF_PRIORITY,
+>  		.may_unmap = 1,
+>  	};
+> +	struct reclaim_stat dummy_stat;
+>  	unsigned long ret;
+>  	struct page *page, *next;
+>  	LIST_HEAD(clean_pages);
+> @@ -1547,7 +1531,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+>  	}
+>  
+>  	ret = shrink_page_list(&clean_pages, zone->zone_pgdat, &sc,
+> -			TTU_IGNORE_ACCESS, NULL, true);
+> +			TTU_IGNORE_ACCESS, &dummy_stat, true);
+>  	list_splice(&clean_pages, page_list);
+>  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, -ret);
+>  	return ret;
+> @@ -1922,7 +1906,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  	unsigned long nr_scanned;
+>  	unsigned long nr_reclaimed = 0;
+>  	unsigned long nr_taken;
+> -	struct reclaim_stat stat = {};
+> +	struct reclaim_stat stat;
+>  	int file = is_file_lru(lru);
+>  	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+>  	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
 > 
-> The choice between 2a and 2b comes down to how big we evaluate the
-> risk that somebody has an existing dependency on the local behavior.
-> 
-> Given what we know about cgroup2 usage, and considering our previous
-> behavior in such matters, I'd say 2b is reasonable and in line with
-> how we tend to handle these things. On the tiny chance that somebody
-> is using the current behavior, they can flick the switch (until we add
-> the .local files, or simply use the switch forever).
 
-My preference is 1 but if there is a _larger_ consensus of different
-cgroup v2  users that 2 is more preferred then I can live with that.
 -- 
 Michal Hocko
 SUSE Labs
