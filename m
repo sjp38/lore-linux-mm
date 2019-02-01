@@ -2,205 +2,174 @@ Return-Path: <SRS0=aBqT=QI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A20E3C282D8
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 22:36:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4115BC282D8
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 22:48:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5BB46214C6
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 22:36:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F20752146E
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 22:48:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="xaEwORUt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BB46214C6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="CbxmDTo/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F20752146E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E75B28E0008; Fri,  1 Feb 2019 17:36:39 -0500 (EST)
+	id 8CA438E0009; Fri,  1 Feb 2019 17:48:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E252D8E0001; Fri,  1 Feb 2019 17:36:39 -0500 (EST)
+	id 850998E0001; Fri,  1 Feb 2019 17:48:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D3AFD8E0008; Fri,  1 Feb 2019 17:36:39 -0500 (EST)
+	id 6CB528E0009; Fri,  1 Feb 2019 17:48:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 91B578E0001
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 17:36:39 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id q20so193111pls.4
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 14:36:39 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 225D58E0001
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 17:48:16 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id l76so6854033pfg.1
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 14:48:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=CsyhCuppqVUAVoFQMCJMMMABqMa2RyFMhSVg4Pg/oDU=;
-        b=LA1czXBvOw7ILNspdH3jcLy+VyW3YYEwOGYovHd5V51le6KVFmf0Gpcm23Bq+IBE84
-         cTAZiLGq0ohIritDdDDi9JYrptxd+VSoAD1xbSa0l2mjbxaZgMhonSdk3eTwtTvair9C
-         DCInVR0lvINvLyKIvjgaflzO0A8u+YQO5NAfWJwwXbeUUPm2WFM06N9so4v8l5dpgwZQ
-         eAPl/Ys3FrtQaPp3paw1QYIXc7/lRz1pgZgg9TugngBVTpVM53vpcVPeSFK+n7q8aGIs
-         +ubvj02UIVEnYJyuFEYUYXJSM+AoVmjKjbXoTwVAP227O4U+YTobH+cquTtv7R7ThGHM
-         DAVw==
-X-Gm-Message-State: AJcUukeTpH9hXTcY2DYBJuggGZYMEl3MIigYfpZhO644eGH6PGkdsRE7
-	0I6x/PlWCbAqdvODXdcuJR4k6Pwg+xUeLt1vzRJ3DzMq8Rh6065TSENiAnT2t7t6Zug0f9OSqI0
-	vLDq3BjOKU3/mI0D+1t0IxZYVA15fWTmWMVaMyL4nkZGVy8y86DoymCouSojkqGm8qQ==
-X-Received: by 2002:a17:902:9a02:: with SMTP id v2mr42369705plp.180.1549060599242;
-        Fri, 01 Feb 2019 14:36:39 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN79n4GS4Ew+ajFqR8Z1SfSIvwBWCYjPvCkMZYRdcA2tdwAfRgdONUfZwv6LssFq/CAcmo2f
-X-Received: by 2002:a17:902:9a02:: with SMTP id v2mr42369668plp.180.1549060598512;
-        Fri, 01 Feb 2019 14:36:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549060598; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=URMAPqFQyyslJ0IeDQ0Bnp5duEOnoAiucGaK8+JCWxg=;
+        b=jdZuN/FVOgThJ6h3b345wARutFfR20ILUfn1EGPnWOSQl/eReyonJuLXsWF8BBA44u
+         VP3qsywZxqLq9wV9NUT+XWg2yB8JS5XxLHADBDq3cuRlybIHOzdcztit9GR+7kg3CCxG
+         eUKa4vHMgGe0Jz6cISgpJ6JHwmDxea+PNijeOfxGZA7KYZv/Y4QAw9F/YfQ5CWt8fQGS
+         iqbh1Lu7LogAZmCXfAUiWfVx+xULWfKnjHghHHbYPqNoZktcKD7tWUmGIFDJSaqhswVp
+         omr8SjPLBfWvfzxFNTifQkWoJxNhFF3lYV/k+bZ3/VU5gPr2a5w+4XV12cPcNMfIzkZH
+         bH8A==
+X-Gm-Message-State: AJcUukea4iSsT+oHbbq4cgeZdOahx6rrDNFoXxv4HsbOYZ7W54ZlLtgX
+	MoEgpWgKJWKnCt0DEFlV2w1Xlurl5AD8sK6WoJDa6fHkrTv9qpoCSiPteCHONmCbvqiCw1DDTe4
+	jZrwNRXCLe40lcsSWcaq/e1VF1SU2L4nP08Nph6jsCqWt/LbPy6flWdw6iXhC3M9vy6jiwW+lYm
+	W6f+QQ4ptliI4N9exTQX9GPUnppsNlvgNAGpgBzg21dYG1UEzHDI8opK1BhQxb/JRfMxLZzP/A1
+	zrF+EaJRemcaqrkjMmLCu9lV0i446p33+ihM6P1wGOLGQSn8fMAEv5R7qTXwWKWrTY07voodqBQ
+	q68eIVvsj9U0qAAGp44AIuJfEWNmj+jY5tBSF+J1FOQSlHIyLttU/1ekZnqopUE/3lcyxY1Iuqu
+	l
+X-Received: by 2002:a17:902:1126:: with SMTP id d35mr39093606pla.1.1549061295665;
+        Fri, 01 Feb 2019 14:48:15 -0800 (PST)
+X-Received: by 2002:a17:902:1126:: with SMTP id d35mr39093571pla.1.1549061295001;
+        Fri, 01 Feb 2019 14:48:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549061294; cv=none;
         d=google.com; s=arc-20160816;
-        b=Q8unrZevWyrkzt1EV8pliLyTRktAbzDeCUbYDs0FSJ9k1LVhz7o05knuvo9mjeL3RJ
-         erkwCJJjwaAI9Vs+fnfmdyEtFnxmolwti+oXnU+Ony/WzaIRQgPeebUQOcjMYX0l0Izy
-         4oST+baJQuCnyjzz5/VjzWNi/d+T9hprczUNwFkYVfofT4BcX86ya1F4FcjHKWpzYMpv
-         lRZzDkPs00y89adSx1Lri8P5HB3Ozvs4J55m4j8tA5TLPeaOT0HF7Ek4SJfu07FRZ1wO
-         X/1CXLxIBezLf7WQC0f+cc3GJA31c+x53qYl65JXsctiwu6B7w556ylzlItgBNawXPjE
-         V/tw==
+        b=rv1Akt9elASfsXgG4Fxfjo27cxXegddob0QCqwplZnBIys1KY5nSzr2GW4sVl8wxWu
+         zQrEa3BHpRTyEp+0g0cn2abqicrawKJE7erWOq4gHYyQd/pfBBbv8lscd6Abuo+Z/QJm
+         uhyIgUGcSRnoWNnWZI310Q//T4+EMt842lJHQ1sUtwGq5js1fz8HFUM1zNP0nHItb4NP
+         6+ZE211hSUwY+zyl8kmgHXx5EK8SxqI7xwmXcQEIfsRIfwjDr18eXq96Pzyim/lJda9q
+         mH2W/P+f+TSRpCtuc3HA55YoiRFe5yFk7zIVMdSX+0PVnItAzalLIwmpgGzuX7CBlL1h
+         WZGw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=CsyhCuppqVUAVoFQMCJMMMABqMa2RyFMhSVg4Pg/oDU=;
-        b=fgOQf+PasJ4etTBoy/xKikv8TuzGPu+XNdI5bgxR7DpMohbzDblMoCvzCefmBVpMov
-         ExtgodJGPuKPPVZHuz/3QTQ05WGgPv1Uws6S5PhntWUVgoAQgERLaRpEeTBrB5Z/8Qcr
-         xJfVIrnwy9doSkPsRmnjc5oSEMexfmH1AjyWLmKc/+/8V786PiLopObdVK7sqkcx2iOC
-         3KcE7UBo1o7mLlLOatg6i8HdTQlVjH8HORofI9atsB7U61xavwSAHS6g4VhSWp7WMeKJ
-         itbEJGKv652EHYI0qSTrB+DMI98qDFPDMDCP333hr//qTpNKKg7QUWwNqB1C1lF1kPzb
-         3Q4Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=URMAPqFQyyslJ0IeDQ0Bnp5duEOnoAiucGaK8+JCWxg=;
+        b=Discrom4eUmX51WGLAeX5PIkgoWFI4mOx6i/ZRhb/ffI8hAJ4VrLo5r1+Df5K56IXc
+         gti4MZ3XbUseYdjCbiK/sliVtjU7mIpq+cNCCYVh/Fn7hFRUEAtjdVNKS882RUu5fvxw
+         m7YJv5MgvHMIk/NVQwvBimkbwq4gLTfW/Q+EibSn9+TGLNLkdLRpUh3HTPvMlogqr6Jv
+         Wz3RS/VzAxg31gx776pZ09otd/UGR6KXeE1xz/jkQH3FeM+kKEgzenlyjFRtBTNI3xDc
+         67rSxoiwRqSXUuwd4n61NgkSmdJoxv/isC6Utzj4HsnVWa6u+2pbo2wW0mVKpCz3KYxX
+         wKvA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=xaEwORUt;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id u9si5532665pge.48.2019.02.01.14.36.38
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="CbxmDTo/";
+       spf=pass (google.com: domain of bsingharora@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bsingharora@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q2sor13963760plh.10.2019.02.01.14.48.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Feb 2019 14:36:38 -0800 (PST)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        (Google Transport Security);
+        Fri, 01 Feb 2019 14:48:14 -0800 (PST)
+Received-SPF: pass (google.com: domain of bsingharora@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=xaEwORUt;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id x11MXdNe190903;
-	Fri, 1 Feb 2019 22:36:36 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=CsyhCuppqVUAVoFQMCJMMMABqMa2RyFMhSVg4Pg/oDU=;
- b=xaEwORUtZtq/8CUuuE+gH7iqPqSwrqRroTcT9GlGhpEL52xoRdOfgkN9NISuoScIyteN
- mPBtXlWeqph0KN5JRG8cNGVy6DHMQxvAO37dbbiH1AjJ2lF3Bgz5pdNYzQ1WviKal5nP
- srQTzdR1uqETGtP6Nb0RyMQQibuhCfyR4CnlvzdXzkJaoWoX79hHg/oqZPOsTRAsjXdd
- V7XALnKtTso8I+K4omvihfE01kOVHBBY1ZBlVD16kyxWD0X7XDBFecojvzm27UYrWHUw
- ra3my/R6eol/DPXcbATJdftQR0jMr7nby0TOBDaD2PKXAbSDi8q4AYTWpfTO5DqRynew wg== 
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2130.oracle.com with ESMTP id 2q8eyv15p3-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 01 Feb 2019 22:36:36 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x11MaZoJ000620
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 1 Feb 2019 22:36:35 GMT
-Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x11MaYsi027073;
-	Fri, 1 Feb 2019 22:36:34 GMT
-Received: from [192.168.1.164] (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 01 Feb 2019 14:36:34 -0800
-Subject: Re: [PATCH] huegtlbfs: fix page leak during migration of file pages
-To: Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org
-Cc: Michal Hocko <mhocko@kernel.org>, stable@vger.kernel.org
-References: <20190130211443.16678-1-mike.kravetz@oracle.com>
- <20190131141238.6D6C220881@mail.kernel.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <205f9878-837d-8203-58ae-2ebd7a063567@oracle.com>
-Date: Fri, 1 Feb 2019 14:36:33 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="CbxmDTo/";
+       spf=pass (google.com: domain of bsingharora@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bsingharora@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=URMAPqFQyyslJ0IeDQ0Bnp5duEOnoAiucGaK8+JCWxg=;
+        b=CbxmDTo/8rDjmVQ+Bcjl3YLfE+0f6KmR9G2hcDKaPyrzzBvrS58yYVretEqOIuJBDI
+         Ye9kqjuEZGAYIBzrCqwBdaLKbTQiWHPrWYSXwVVmybrBw9oeoQN8hKe/ePJS/DUpZoHA
+         u+dSLjno/lBYnYZJ36O83INJ40suVf92Nz4GR4Lkwx2pubEfudhiDSzUsQV5EvvZsDrA
+         FHILw4e5aZRbxJEMEB7lCrmcdDRSTwQSKG9ecVlPdtXbtXBx4v6yGKfnXhfJJS5RpLRY
+         3zxhIEOrP+OOX03JICevSnJubGDP8UxtcMUyNJC6WuLjdBLd6QdbvHEs8/YFg7kyRRub
+         q7VQ==
+X-Google-Smtp-Source: ALg8bN6VXHFBWGU3dis7ET91Cl+ArcYT0LKU23YQaxNvXPQUwnUCWa9aM6/jwUV4v8PUgmx5X724+A==
+X-Received: by 2002:a17:902:112c:: with SMTP id d41mr40181978pla.144.1549061293937;
+        Fri, 01 Feb 2019 14:48:13 -0800 (PST)
+Received: from localhost (14-202-194-140.static.tpgi.com.au. [14.202.194.140])
+        by smtp.gmail.com with ESMTPSA id 62sm9180955pgc.61.2019.02.01.14.48.12
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 01 Feb 2019 14:48:13 -0800 (PST)
+Date: Sat, 2 Feb 2019 09:48:09 +1100
+From: Balbir Singh <bsingharora@gmail.com>
+To: kbuild test robot <lkp@intel.com>
+Cc: =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>,
+	Linux Memory Management List <linux-mm@kvack.org>
+Subject: Re: [linux-next:master 5141/5361] include/linux/hmm.h:102:22: error:
+ field 'mmu_notifier' has incomplete type
+Message-ID: <20190201224809.GK26056@350D>
+References: <201902020011.aV3IBiMH%fengguang.wu@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20190131141238.6D6C220881@mail.kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9154 signatures=668682
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902010160
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201902020011.aV3IBiMH%fengguang.wu@intel.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 1/31/19 6:12 AM, Sasha Levin wrote:
-> Hi,
+On Sat, Feb 02, 2019 at 12:14:13AM +0800, kbuild test robot wrote:
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   9fe36dd579c794ae5f1c236293c55fb6847e9654
+> commit: a3402cb621c1b3908600d3f364e991a6c5a8c06e [5141/5361] mm/hmm: improve driver API to work and wait over a range
+> config: x86_64-randconfig-b0-02012138 (attached as .config)
+> compiler: gcc-8 (Debian 8.2.0-14) 8.2.0
+> reproduce:
+>         git checkout a3402cb621c1b3908600d3f364e991a6c5a8c06e
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
 > 
-> [This is an automated email]
+> All errors (new ones prefixed by >>):
 > 
-> This commit has been processed because it contains a "Fixes:" tag,
-> fixing commit: 290408d4a250 hugetlb: hugepage migration core.
+>    In file included from kernel/memremap.c:14:
+> >> include/linux/hmm.h:102:22: error: field 'mmu_notifier' has incomplete type
+>      struct mmu_notifier mmu_notifier;
+>                          ^~~~~~~~~~~~
 > 
-> The bot has tested the following trees: v4.20.5, v4.19.18, v4.14.96, v4.9.153, v4.4.172, v3.18.133.
+> vim +/mmu_notifier +102 include/linux/hmm.h
 > 
-> v4.20.5: Build OK!
-> v4.19.18: Build OK!
-> v4.14.96: Build OK!
-> v4.9.153: Failed to apply! Possible dependencies:
->     2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
-> 
-> v4.4.172: Failed to apply! Possible dependencies:
->     09cbfeaf1a5a ("mm, fs: get rid of PAGE_CACHE_* and page_cache_{get,release} macros")
->     0e749e54244e ("dax: increase granularity of dax_clear_blocks() operations")
->     2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
->     2a28900be206 ("udf: Export superblock magic to userspace")
->     4420cfd3f51c ("staging: lustre: format properly all comment blocks for LNet core")
->     48b4800a1c6a ("zsmalloc: page migration support")
->     5057dcd0f1aa ("virtio_balloon: export 'available' memory to balloon statistics")
->     52db400fcd50 ("pmem, dax: clean up clear_pmem()")
->     5b7a487cf32d ("f2fs: add customized migrate_page callback")
->     5fd88337d209 ("staging: lustre: fix all conditional comparison to zero in LNet layer")
->     a188222b6ed2 ("net: Rename NETIF_F_ALL_CSUM to NETIF_F_CSUM_MASK")
->     b1123ea6d3b3 ("mm: balloon: use general non-lru movable page feature")
->     b2e0d1625e19 ("dax: fix lifetime of in-kernel dax mappings with dax_map_atomic()")
->     bda807d44454 ("mm: migrate: support non-lru movable page migration")
->     c8b8e32d700f ("direct-io: eliminate the offset argument to ->direct_IO")
->     d1a5f2b4d8a1 ("block: use DAX for partition table reads")
->     e10624f8c097 ("pmem: fail io-requests to known bad blocks")
-> 
-> v3.18.133: Failed to apply! Possible dependencies:
->     0722b1011a5f ("f2fs: set page private for inmemory pages for truncation")
->     1601839e9e5b ("f2fs: fix to release count of meta page in ->invalidatepage")
->     2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
->     31a3268839c1 ("f2fs: cleanup if-statement of phase in gc_data_segment")
->     34ba94bac938 ("f2fs: do not make dirty any inmemory pages")
->     34d67debe02b ("f2fs: add infra struct and helper for inline dir")
->     4634d71ed190 ("f2fs: fix missing kmem_cache_free")
->     487261f39bcd ("f2fs: merge {invalidate,release}page for meta/node/data pages")
->     5b7a487cf32d ("f2fs: add customized migrate_page callback")
->     67298804f344 ("f2fs: introduce struct inode_management to wrap inner fields")
->     769ec6e5b7d4 ("f2fs: call radix_tree_preload before radix_tree_insert")
->     7dda2af83b2b ("f2fs: more fast lookup for gc_inode list")
->     8b26ef98da33 ("f2fs: use rw_semaphore for nat entry lock")
->     8c402946f074 ("f2fs: introduce the number of inode entries")
->     9be32d72becc ("f2fs: do retry operations with cond_resched")
->     9e4ded3f309e ("f2fs: activate f2fs_trace_pid")
->     d5053a34a9cc ("f2fs: introduce -o fastboot for reducing booting time only")
->     e5e7ea3c86e5 ("f2fs: control the memory footprint used by ino entries")
->     f68daeebba5a ("f2fs: keep PagePrivate during releasepage")
-> 
-> 
-> How should we proceed with this patch?
+>     81	
+>     82	
+>     83	/*
+>     84	 * struct hmm - HMM per mm struct
+>     85	 *
+>     86	 * @mm: mm struct this HMM struct is bound to
+>     87	 * @lock: lock protecting ranges list
+>     88	 * @ranges: list of range being snapshotted
+>     89	 * @mirrors: list of mirrors for this mm
+>     90	 * @mmu_notifier: mmu notifier to track updates to CPU page table
+>     91	 * @mirrors_sem: read/write semaphore protecting the mirrors list
+>     92	 * @wq: wait queue for user waiting on a range invalidation
+>     93	 * @notifiers: count of active mmu notifiers
+>     94	 * @dead: is the mm dead ?
+>     95	 */
+>     96	struct hmm {
+>     97		struct mm_struct	*mm;
+>     98		struct kref		kref;
+>     99		struct mutex		lock;
+>    100		struct list_head	ranges;
+>    101		struct list_head	mirrors;
+>  > 102		struct mmu_notifier	mmu_notifier;
 
-Hello automated Sasha,
+Only HMM_MIRROR depends on MMU_NOTIFIER, but mmu_notifier in
+the hmm struct is not conditionally dependent HMM_MIRROR.
+The shared config has HMM_MIRROR disabled
 
-First, let's wait for review/ack.  However, the patch does not strictly
-'depend' on the functionality of the commits in the lists above.  If/when
-this goes upstream I can provide backports for 4.9, 4.4 and 3.18.
-
--- 
-Mike Kravetz
+Balbir
 
