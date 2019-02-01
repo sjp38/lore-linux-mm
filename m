@@ -6,163 +6,194 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0CF25C282D8
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 23:39:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B363C282D8
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 23:57:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C8A9621872
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 23:39:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8A9621872
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id 3C35D21479
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Feb 2019 23:57:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C35D21479
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4AB628E000C; Fri,  1 Feb 2019 18:39:10 -0500 (EST)
+	id CB1BE8E000D; Fri,  1 Feb 2019 18:57:43 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 459848E0001; Fri,  1 Feb 2019 18:39:10 -0500 (EST)
+	id C61958E0001; Fri,  1 Feb 2019 18:57:43 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 36FE58E000C; Fri,  1 Feb 2019 18:39:10 -0500 (EST)
+	id B505A8E000D; Fri,  1 Feb 2019 18:57:43 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ECF0F8E0001
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 18:39:09 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id f125so5831772pgc.20
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 15:39:09 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E8D88E0001
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 18:57:43 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id d35so10239654qtd.20
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 15:57:43 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=yJL58k6j9CfudRSOwvutkIcAOqj7ljyp9/qO12DG5jg=;
-        b=t5RDyyw2P6cFNzniH4sAT+29KsXvJYPN90dJL9oJdGJsxDx2c3cS3xLeg/Io494sZb
-         /cbz9x3+S43rmaU9TsBISETAcQzFAsc8KvJMDw3gj+AhIZIzgBtssvTut4sT74kcBdEv
-         G+MekAG8EYbujZ0uhe9QTxYTGdGDpgpPLiogf/Jpd70uB2F3CFxjgvYyJsB/vtpwh5uu
-         BvkSWi9jnTwOsnWHZH3MnMO54zLuMeY4y8TDcpakYJA1VZLIY9NUA4cL/oAHT+QI4o1E
-         lLgzPgSE1GXO6H+RM73XgfLAh2+u+filwLJ3IGfkmr/2oyQ+9m3Fuu63PyZrf/QY+r+C
-         I32A==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.141 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: AJcUukeX2cVVDU445AbIufwCvoJJBNC+WlittLfjx1dcnYkycT7R5PSI
-	e/2nnT0xRfGVBC1IRuGJMPPxLUKZVt2a7nO9cMsl2ncoVDNDUDB3pXaWLtx9SdJupUZE8A3DtCB
-	HVrATy7nSsiZpt4vhem1aIk1hIIs5fg1KE8PItJBOKBUdkaNws4KQLI73egt9Zv4=
-X-Received: by 2002:a63:e84c:: with SMTP id a12mr37126115pgk.241.1549064349591;
-        Fri, 01 Feb 2019 15:39:09 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5Dg0tcuByUJ/DFuZlGDrruYlPQWcwPHIcOEvKOrFdp+iILkFzZUdcWj/3k84otvyE2/aeS
-X-Received: by 2002:a63:e84c:: with SMTP id a12mr37126064pgk.241.1549064348769;
-        Fri, 01 Feb 2019 15:39:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549064348; cv=none;
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=1zfsjj5vBTBRHLFdxT+IiSqHEDo+xAlvYjfsHTgjjfw=;
+        b=uPlUExXr3F9HJjoMMvp+fNZNIKHjuLuOzMcR9IlTEBsRG/SwiEaKprz2ydDn9DstTA
+         8F40whdcDOZ671ZIqBOQ0DaA1BeOfSIlUxqliai2lPTTHhCIj3ws2Q6lQyRr9HQDm1JQ
+         M+gfIlnNgWK84aaEfUJOGtjBVQ7kXngrysM0dyg4hQAq06DCKIoY0CMIhTUzFbs9eB9X
+         jy+7cibIQDKBHsFUDtbB6dFLkcjg+9d30DDvUbx00v648CZj331103v4wbL9g5SfEG5X
+         AAsFMfGknAbJrbrr3G38uWqFXu61YRbbkX3p7EbV4IhN/7emIaROH2KWtgLf6wbgN7Hj
+         FwFg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukd7mKP/iwORVhnKZHWW8Kc0I6+bfOrcw0tdrsZ1mJiN+/n43Utg
+	G/09wuv7FcRS+/uXLmYexbW8fn7znUqI0DMK2H0gJvKBZxYf+dmQOho7sKnCYsiiJydtDCMAA0y
+	x83RH3lmhBBqiJr2wrd6P+HvFgrDh0/SWE0MfHRB5o62A90zdtn8xLrFh5RCpPHR28w==
+X-Received: by 2002:a37:ccc2:: with SMTP id n63mr36891113qkl.82.1549065463309;
+        Fri, 01 Feb 2019 15:57:43 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN5iQkPHvpLCkCViOTbFmOBBela1iv6k0aO32mLqPgchdmVvZMsRRnbE3MKErk8MJjjB663Z
+X-Received: by 2002:a37:ccc2:: with SMTP id n63mr36891094qkl.82.1549065462643;
+        Fri, 01 Feb 2019 15:57:42 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549065462; cv=none;
         d=google.com; s=arc-20160816;
-        b=hsk50UeeJf0vXefM+O9BQ0g0vvzZfs3SmNj+iRzL7+A5ebPC6Cyj7liHkKRYwrWVdq
-         jFs9TosBq15oMZfd8Lh6wskHONasoOxxzz+KcrEKIOhMsTLVIW0+6MiIEse1T29tKcAa
-         SDCsyPwA7Ha7HgUYVrnE3/KOUzdMZkPxY8rlyYj5Jc8DIms6vJA7Q7P4T3nT1TbvY95f
-         svx+/8Xh8yBlnWE3yZ0TTPz9KgOJFYuERSUfLaoasPi2ILChcJt4B3XEQtBRkUi+5AyI
-         578JtYcX8apkhL1WgnmquzKKz/1SBbs4Qtowdic3gV4i4kRIiDvYuLMGpsnrt3TDEAdQ
-         a0HA==
+        b=01rML2ObEgpTZa50SJ5quFGIPRiWd+rvkmDRCPOgR5yEbyieeAtHvAjAzf337fMppH
+         /P+2HrLH7LXWYxmwJDDcbtdYLdPA6G/GHswJxNQ3r4O84rcAI8hfAH+pgY4Wn0wkvDL5
+         wBvEKfLJSuqWMa5FDhwbZwnXYKau4gwg05x11T7aNLhgFWG2Yz7zEtW+UTjcXJJOeLBa
+         BJFfYSp0gsu7TD+oDGhz3urJs8I6dd65GZbwNpdfMf265tvSwDwenL7l4IOxoJkOPU2B
+         r2VkVhKgTchOXD34K0QEoWtp/CCK36TyJlDEwEkfMWhRYGKedFyhjbuqMDnlzDLqGXeG
+         5GSA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=yJL58k6j9CfudRSOwvutkIcAOqj7ljyp9/qO12DG5jg=;
-        b=DXaz8ufu7W02Rw3MKZBxzkyntP+nB8tBSqAeK0VF7zzaMyaF3cqn2hxn8N5VWd6RS+
-         khNLwnbAmVUZXpbdLfE7Lxdit+aTmdY1WQnPkJ4qKFVvwp88nuTztHUE9lxL4SdS4iI3
-         S7uswZEKTtxeYEduaZ97dlBSZjs3WT9pxu4WXj+o7UQKbYeLxGnlY2ZIrrhfTtyIaOan
-         VSkKqkjYd/9L0/g+WdLLoW2A+q9/N0fTC+NGc6SOmP3GjdqNz5nep2vEdHA2EbPuTQvX
-         3Bm9hHk1CSIttH9L7eMoBQRSHs6VXvp+26SpHbMxq18uwQZzbmj59XO4U8PjCrCIH44Z
-         8h6A==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=1zfsjj5vBTBRHLFdxT+IiSqHEDo+xAlvYjfsHTgjjfw=;
+        b=xMAL9omlsHd50B2UQ6+13N0pf2qHXUtG22SnoRGRD45teBOOrzdOd/IOwBNf7zx5S7
+         zTebO8LCiSLdOmXdPTLp5ZZClFK0tTPNwSf2W8IiWe8XSDvExxQdlpEwzaFJjTj3xGU1
+         QLQxnLWDDjab0B1oRQLEa5tlJ44VRGVAtqMsjMf7a50u1IC4qalc7FlRi3r1kr4Kmpqk
+         eMx4i5+9ouxuDRARz/vHoSX+b5xF0vc0Oo32SRCA9l0piiILaYs6Is9X1Sm+CBIKOVJh
+         LBvCFf6McQgV/fOlUjQ0BYIEMkz691mYUA7iX+vgG1Y9sS7wmDV3tBwgoON64j+/xMIo
+         sVng==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 150.101.137.141 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ipmail03.adl2.internode.on.net (ipmail03.adl2.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id l66si8592453pfi.5.2019.02.01.15.39.07
-        for <linux-mm@kvack.org>;
-        Fri, 01 Feb 2019 15:39:08 -0800 (PST)
-Received-SPF: neutral (google.com: 150.101.137.141 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.141;
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k22si92100qtm.144.2019.02.01.15.57.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Feb 2019 15:57:42 -0800 (PST)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 150.101.137.141 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
-  by ipmail03.adl2.internode.on.net with ESMTP; 02 Feb 2019 10:09:06 +1030
-Received: from dave by dastard with local (Exim 4.80)
-	(envelope-from <david@fromorbit.com>)
-	id 1gpiOn-0004mk-3p; Sat, 02 Feb 2019 10:39:05 +1100
-Date: Sat, 2 Feb 2019 10:39:05 +1100
-From: Dave Chinner <david@fromorbit.com>
-To: Chris Mason <clm@fb.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-	"linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>,
-	Roman Gushchin <guro@fb.com>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"mhocko@kernel.org" <mhocko@kernel.org>,
-	"vdavydov.dev@gmail.com" <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH 1/2] Revert "mm: don't reclaim inodes with many attached
- pages"
-Message-ID: <20190201233905.GW6173@dastard>
-References: <20190130041707.27750-1-david@fromorbit.com>
- <20190130041707.27750-2-david@fromorbit.com>
- <25EAF93D-BC63-4409-AF21-F45B2DDF5D66@fb.com>
- <20190131013403.GI4205@dastard>
- <E8895615-9DDA-4FC5-A3AB-1BE593138A89@fb.com>
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 72FE914404D;
+	Fri,  1 Feb 2019 23:57:41 +0000 (UTC)
+Received: from sky.random (ovpn-121-14.rdu2.redhat.com [10.10.121.14])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id EC8236013F;
+	Fri,  1 Feb 2019 23:57:38 +0000 (UTC)
+Date: Fri, 1 Feb 2019 18:57:38 -0500
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: jglisse@redhat.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Peter Xu <peterx@redhat.com>, Peter Zijlstra <peterz@infradead.org>,
+	Ingo Molnar <mingo@redhat.com>,
+	Arnaldo Carvalho de Melo <acme@kernel.org>,
+	Alexander Shishkin <alexander.shishkin@linux.intel.com>,
+	Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Matthew Wilcox <mawilcox@microsoft.com>,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+	Michal Hocko <mhocko@kernel.org>, kvm@vger.kernel.org
+Subject: Re: [RFC PATCH 0/4] Restore change_pte optimization to its former
+ glory
+Message-ID: <20190201235738.GA12463@redhat.com>
+References: <20190131183706.20980-1-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <E8895615-9DDA-4FC5-A3AB-1BE593138A89@fb.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190131183706.20980-1-jglisse@redhat.com>
+User-Agent: Mutt/1.11.2 (2019-01-07)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Fri, 01 Feb 2019 23:57:41 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 31, 2019 at 03:48:11PM +0000, Chris Mason wrote:
-> On 30 Jan 2019, at 20:34, Dave Chinner wrote:
+Hello everyone,
+
+On Thu, Jan 31, 2019 at 01:37:02PM -0500, Jerome Glisse wrote:
+> From: Jérôme Glisse <jglisse@redhat.com>
 > 
-> > On Wed, Jan 30, 2019 at 12:21:07PM +0000, Chris Mason wrote:
-> >>
-> >>
-> >> On 29 Jan 2019, at 23:17, Dave Chinner wrote:
-> >>
-> >>> From: Dave Chinner <dchinner@redhat.com>
-> >>>
-> >>> This reverts commit a76cf1a474d7dbcd9336b5f5afb0162baa142cf0.
-> >>>
-> >>> This change causes serious changes to page cache and inode cache
-> >>> behaviour and balance, resulting in major performance regressions
-> >>> when combining worklaods such as large file copies and kernel
-> >>> compiles.
-> >>>
-> >>> https://bugzilla.kernel.org/show_bug.cgi?id=202441
-> >>
-> >> I'm a little confused by the latest comment in the bz:
-> >>
-> >> https://bugzilla.kernel.org/show_bug.cgi?id=202441#c24
-> >
-> > Which says the first patch that changed the shrinker behaviour is
-> > the underlying cause of the regression.
-> >
-> >> Are these reverts sufficient?
-> >
-> > I think so.
+> This patchset is on top of my patchset to add context information to
+> mmu notifier [1] you can find a branch with everything [2]. I have not
+> tested it but i wanted to get the discussion started. I believe it is
+> correct but i am not sure what kind of kvm test i can run to exercise
+> this.
 > 
-> Based on the latest comment:
+> The idea is that since kvm will invalidate the secondary MMUs within
+> invalidate_range callback then the change_pte() optimization is lost.
+> With this patchset everytime core mm is using set_pte_at_notify() and
+> thus change_pte() get calls then we can ignore the invalidate_range
+> callback altogether and only rely on change_pte callback.
 > 
-> "If I had been less strict in my testing I probably would have 
-> discovered that the problem was present earlier than 4.19.3. Mr Gushins 
-> commit made it more visible.
-> I'm going back to work after two days off, so I might not be able to 
-> respond inside your working hours, but I'll keep checking in on this as 
-> I get a chance."
-> 
-> I don't think the reverts are sufficient.
+> Note that this is only valid when either going from a read and write
+> pte to a read only pte with same pfn, or from a read only pte to a
+> read and write pte with different pfn. The other side of the story
+> is that the primary mmu pte is clear with ptep_clear_flush_notify
+> before the call to change_pte.
 
-Roger has tested the two reverts more heavily against 5.0.0-rc3.
-Without the reverts, the machine locks up hard. With the two reverts
-applied, it runs along smoothly under extremely heavy load.
+If it's cleared with ptep_clear_flush_notify, change_pte still won't
+work. The above text needs updating with
+"ptep_clear_flush". set_pte_at_notify is all about having
+ptep_clear_flush only before it or it's the same as having a range
+invalidate preceding it.
 
-https://bugzilla.kernel.org/show_bug.cgi?id=202441#c26
+With regard to the code, wp_page_copy() needs
+s/ptep_clear_flush_notify/ptep_clear_flush/ before set_pte_at_notify.
 
-So, yes, these changes need to be reverted.
+change_pte relies on the ptep_clear_flush preceding the
+set_pte_at_notify that will make sure if the secondary MMU mapping
+randomly disappears between ptep_clear_flush and set_pte_at_notify,
+gup_fast will wait and block on the PT lock until after
+set_pte_at_notify is completed before trying to re-establish a
+secondary MMU mapping.
 
-Cheers,
+So then we've only to worry about what happens because we left the
+secondary MMU mapping potentially intact despite we flushed the
+primary MMU mapping with ptep_clear_flush (as opposed to
+ptep_clear_flush_notify which would teardown the secondary MMU mapping
+too).
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+In you wording above at least the "with a different pfn" is
+superflous. I think it's ok if the protection changes from read-only
+to read-write and the pfn remains the same. Like when we takeover a
+page because it's not shared anymore (fork child quit).
+
+It's also ok to change pfn if the mapping is read-only and remains
+read-only, this is what KSM does in replace_page.
+
+The read-write to read-only case must not change pfn to avoid losing
+coherency from the secondary MMU point of view. This isn't so much
+about change_pte itself, but the fact that the page-copy generally
+happens well before the pte mangling starts. This case never presents
+itself in the code because KSM is first write protecting the page and
+only later merging it, regardless of change_pte or not.
+
+The important thing is that the secondary MMU must be updated first
+(unlike the invalidates) to be sure the secondary MMU already points
+to the new page when the pfn changes and the protection changes from
+read-only to read-write (COW fault). The primary MMU cannot read/write
+to the page anyway while we update the secondary MMU because we did
+ptep_clear_flush() before calling set_pte_at_notify(). So this
+ordering of "ptep_clear_flush; change_pte; set_pte_at" ensures
+whenever the CPU can access the memory, the access is synchronous
+with the secondary MMUs because they've all been updated already.
+
+If (in set_pte_at_notify) we were to call change_pte() after
+set_pte_at() what would happen is that the CPU could write to the page
+through a TLB fill without page fault while the secondary MMUs still
+read the old memory in the old readonly page.
+
+Thanks,
+Andrea
 
