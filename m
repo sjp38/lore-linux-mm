@@ -2,206 +2,147 @@ Return-Path: <SRS0=HJeg=QJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 38D17C282D8
-	for <linux-mm@archiver.kernel.org>; Sat,  2 Feb 2019 00:16:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 49E90C282D8
+	for <linux-mm@archiver.kernel.org>; Sat,  2 Feb 2019 00:50:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ED4BD20863
-	for <linux-mm@archiver.kernel.org>; Sat,  2 Feb 2019 00:16:50 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="aF9v2W/i"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED4BD20863
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id E963A21479
+	for <linux-mm@archiver.kernel.org>; Sat,  2 Feb 2019 00:50:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E963A21479
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8D2DC8E000F; Fri,  1 Feb 2019 19:16:50 -0500 (EST)
+	id 6BF618E0010; Fri,  1 Feb 2019 19:50:27 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 85CDD8E0001; Fri,  1 Feb 2019 19:16:50 -0500 (EST)
+	id 6482C8E0001; Fri,  1 Feb 2019 19:50:27 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6FDCB8E000F; Fri,  1 Feb 2019 19:16:50 -0500 (EST)
+	id 50F488E0010; Fri,  1 Feb 2019 19:50:27 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 297498E0001
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 19:16:50 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id m16so5927065pgd.0
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 16:16:50 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 205B88E0001
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2019 19:50:27 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id j125so9154935qke.12
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2019 16:50:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=ipSlJW+1g6r30pdiTxD0nrISKpvL6eDJqYpduy1rAGs=;
-        b=MYJuiFCHSb9rE8kaLvu/a03m5yrrmC5eruWs3QqqfXYoAQO3ZluhZIxZbRpemK38//
-         R5wa1XvffzcCocAG0GwXf6TWdJAFtQ6anVygQBpl13rBYF2mt/WFpUkDV+3ra2PNKXxX
-         zWJnW9vcyQvRbj7PqDZMevRhrZj7j1JW52MfjaHnELAcdcKmi79j4LBFvsFCC6IJ79e1
-         F8j87FiWHUeybGTyrbEyRlmBEwJb4i1BF+WsImffd1rir+5SzYTwYIbKErqQ+7DYVqtq
-         ZYZpzOzErh9C/yh1TSq5yewH2Ogx9dMyAq0vMjsHEKLEZrmI881j3KImW/JPWLnZ+hGF
-         lW+w==
-X-Gm-Message-State: AJcUukeVhC/ERJzQAtBvghGterQvIflPTcJKFq4NgaCwK2oAhwAPMCj/
-	vChBTCWWefpU7J8F5rARDDR1lEU7WChYTZE2ui2zStjTh07UN5BsgQUOjVB7d9hCF2O/PvKBMB4
-	P2GaljmaTdKAM1bWKTQRgIUuXmbtat9GwYJw9HRVflaDAui9flsfbBdiJk4BE0oNBAiI2rFjWVO
-	BvhjTsOUhaJJTdqx9hPLkum5sbA1wNt6SPAw43nKxC8ePh60UjR1kG+iFOmI832W4MKUvNInxSw
-	DISWHwzLwF7YZ0ExOWuyOGX9/etdUf+s+f/GeJyLpBEAaJlRmKlOqhOCubhk3ctDY1uEiEKgswn
-	Le/6YV0qBvqcWOZQyh0DFJ+5vAezhrKrSs/WnM5LvF7lfEIMnMcaUwtFi6jPrJUvEUISe5Q3XAc
-	l
-X-Received: by 2002:a62:8a51:: with SMTP id y78mr41203345pfd.35.1549066609669;
-        Fri, 01 Feb 2019 16:16:49 -0800 (PST)
-X-Received: by 2002:a62:8a51:: with SMTP id y78mr41203310pfd.35.1549066609004;
-        Fri, 01 Feb 2019 16:16:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549066608; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=B8Qw9O7dySqpKIga9yf6UI2bdKwmugZYXHOvSM/4LIQ=;
+        b=Q58CEm4iTYlCh//SvUJRlVMpU9bMpAwiG4pG4hwigFYz4158oGRqcalie+/TT4T7I4
+         hoXFdmmKciB5Y9UP4bu8wPKEhhrnFZDHDT1FgLBc8evMzGM8lYW8wRt0swZ70otGn7mV
+         rCAp2/lh1o+NbETkVKetajCZeQ5SsgYpocXQJg+wRKJyAqHuLzqeKodkcS26J8Pljgal
+         FmuR5Iz3ZgYCoJ2QVhvZMpEDJXZk1tKbl3Qk5ELt1qmVVHBYGbPTonE+iJilMpilRZWT
+         +wp7MTdro8G/NHMZG6ucivscXeb9WCTxDcSd0+eVIBmjNFlMqcljtQMnPudVJcZKLs2P
+         N00A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AJcUukccs2YfwoQqPYf4t/JQ5fFCD6me93ggbu2zkhiipVNXNPIyEYn/
+	k3rZqy6r41Apl04cF5VwbfYd0QPutnA06jA/E1qjmck/0kvuwqhWiRmuawP5nJTRahfvgI6NUfq
+	UM6X3AEkK0R705U+mmRqjr9k31Su6YssCouZKQVJUii5PS/MoX2LpUBsvSrZmbhN3WQ==
+X-Received: by 2002:a37:52d6:: with SMTP id g205mr38604792qkb.335.1549068626883;
+        Fri, 01 Feb 2019 16:50:26 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6Q/0xXyhErcrgKXOYNbw0BDn0yHD0uDcWIZnHfFzeuEFmhxGNQZ4958RJGhSCp3xY8kL9V
+X-Received: by 2002:a37:52d6:: with SMTP id g205mr38604777qkb.335.1549068626351;
+        Fri, 01 Feb 2019 16:50:26 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549068626; cv=none;
         d=google.com; s=arc-20160816;
-        b=h8wDA3hr2aoqvhJZtJJYEzYxaquNsH7GD9To6WgXMA+MSf9T/i8Ao6jh9mSRiEX3YZ
-         voylHe9TVvZXSajWqXEItUaXenhnQmokt3N//hSERZgvo8Ma/Co1ozAGgmcNnuVLH3ep
-         srHvm9sKMEvI+uH3/Mntpf92HhuPDhCITc4vjSd7vTqAPj5Dyc+c6l4VT8VJ4WxIO6eu
-         a+lppwBG1kU//8RMIInijD90r4Pkm47TxZF7HOpKxVhDsjGEDGY40OqMD6iG7nUcHP7B
-         7MflV8gflTcXs8aK8/pUWKHFHivDNwK10R03Z56OC/8QsT3jPTTa9crfUMrggKsWZc5d
-         OA8A==
+        b=VLrYTEgWO2ZmjSkW1aSHzsKZhRmWIAIpNz6kJRt0+1boun5LDP/4pXQQoXmZfsVINr
+         dD4x9xDf/oHGuXQ9/YKw9FmXvpC2vsAnpq91UIP+qLxU97GIZvk6SUJPRIIp0JCFyPsh
+         EsYAKsxSPzkATVAdZUAfFD9++BW1TadmPQjnAy+vlfA99ZJiRDB2cBnFKeNyBiQRWE0z
+         2MDBQReVX7ZeShz29cHnSJoM+JVkgFTZ9UGPXFfayzWICZlad5XzbzvbsWVlpzcnTsqH
+         jEroyXZEr9ehUnPt5IT9DTIKU4VQRjyGiIP+3bsydcs20FCFPK0q+YWMptUBQEL+alie
+         e/AQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=ipSlJW+1g6r30pdiTxD0nrISKpvL6eDJqYpduy1rAGs=;
-        b=KY/HS3A1MAo9kDBItSA/w8nKRrgiVgiAdTIblKM0npTBP2FpHpRjRFSWvnVXo9/urK
-         ov58fuUD5zcLxPCtt+gbIDG/b1DRutfZnz+hVoDdJfWFGi36X3Sfo0qq3qBMqUIa3tSN
-         Nyng0xC7aRnN7NzO0BaDsMIHb4PIw/xAIgXkM76OUuKkYmd3gcx8tGdQAfg/S9eaLfJE
-         b5N1gzi1vDEeaRG+bvFCQOqGfZSD63/B5wtq7QfN397NQWIKPG899/bEz2C9GBS297R/
-         Ewsp6ctKXosaDUgon0i6YTQo6p7GE/HfTzki8Z02lfJYssjV4Gqg/CHucTXKfpvGs+Rx
-         I2zg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=B8Qw9O7dySqpKIga9yf6UI2bdKwmugZYXHOvSM/4LIQ=;
+        b=Ye1YpxXGAEvpayPoUeM0y7aSJXzvosDRFnJXbNBbASG56Qf+6ZRjUFsSwUv2Tj+Mze
+         LExiMqi6jLMwCjGAJ8WES5ONA+6Y693CW+Nxiz3khcIgBMBjS+WFJ7hsusf69ygdfc+3
+         DgJtgqINB4sjrhkwAYqEb8lupCZ9p6Yv6Pf0Cvn1Eb3JIlxfRsGKtpIW4fMw9TFXJwcC
+         1tGb8Nyb9zmiyBT65PDCp4GOW1szCCNT5bihYvcFsolDy3uFrt93+3rcfxrb/H+NLWED
+         lSc7YDtWYj77B1J/CJQs6TY3uzSPemoryY0mnbTxbS9kLRZoOFRQnMXm4QKBRoFLeQuU
+         2e+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="aF9v2W/i";
-       spf=pass (google.com: domain of bsingharora@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bsingharora@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t1sor14626426plr.61.2019.02.01.16.16.48
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l45si4517701qtk.229.2019.02.01.16.50.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 01 Feb 2019 16:16:48 -0800 (PST)
-Received-SPF: pass (google.com: domain of bsingharora@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Feb 2019 16:50:26 -0800 (PST)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="aF9v2W/i";
-       spf=pass (google.com: domain of bsingharora@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bsingharora@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=ipSlJW+1g6r30pdiTxD0nrISKpvL6eDJqYpduy1rAGs=;
-        b=aF9v2W/i5HOZrzIPQtqorTK7qotlx5s6j9lCA9ex9evRf53ziXKSxzU4wDqixu5NHZ
-         Fr+JIfkf1y80RX1OnHZXX3wkRyjpWEOtKLDxOCvmTzCEw4caHXrsdT45QsBmfWSd18BT
-         iaxcQ4pOvPoDPhkURPK1DVysGb1v0uphtreYOvT9fkXn368ZGMCsgw9J/uw9atzPf1SA
-         /HUBvkbK7fq0bX2wdw7+f3FKSMT/QYpSAxpIWuU6HMUbsQV6d5SnlXKOVdPXBOtNfXPv
-         Z+d8wxpoQeSJ0HToPAVlv/qYXPfLujd+D7UXuYbMJ5eiGZsCLef2zi1UvO/8aZPEKhrJ
-         0RPQ==
-X-Google-Smtp-Source: ALg8bN5ZoMwT9Myn+X+jdHsidHb67I9ULzIejPJr+69X3Id32jk/EewNAuG6gHLjx7K7gkbSC1BczQ==
-X-Received: by 2002:a17:902:1105:: with SMTP id d5mr40488097pla.47.1549066608278;
-        Fri, 01 Feb 2019 16:16:48 -0800 (PST)
-Received: from localhost (14-202-194-140.static.tpgi.com.au. [14.202.194.140])
-        by smtp.gmail.com with ESMTPSA id 62sm9301989pgc.61.2019.02.01.16.16.46
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 01 Feb 2019 16:16:47 -0800 (PST)
-Date: Sat, 2 Feb 2019 11:16:44 +1100
-From: Balbir Singh <bsingharora@gmail.com>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org,
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 5D6C4C0495BB;
+	Sat,  2 Feb 2019 00:50:25 +0000 (UTC)
+Received: from sky.random (ovpn-121-14.rdu2.redhat.com [10.10.121.14])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 0296E608DA;
+	Sat,  2 Feb 2019 00:50:23 +0000 (UTC)
+Date: Fri, 1 Feb 2019 19:50:22 -0500
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: jglisse@redhat.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Peter Xu <peterx@redhat.com>, Peter Zijlstra <peterz@infradead.org>,
+	Ingo Molnar <mingo@redhat.com>,
+	Arnaldo Carvalho de Melo <acme@kernel.org>,
+	Alexander Shishkin <alexander.shishkin@linux.intel.com>,
+	Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Linux Memory Management List <linux-mm@kvack.org>
-Subject: Re: [linux-next:master 5141/5361] include/linux/hmm.h:102:22: error:
- field 'mmu_notifier' has incomplete type
-Message-ID: <20190202001644.GL26056@350D>
-References: <201902020011.aV3IBiMH%fengguang.wu@intel.com>
- <20190201224809.GK26056@350D>
- <626576501.100359304.1549062486006.JavaMail.zimbra@redhat.com>
+	Matthew Wilcox <mawilcox@microsoft.com>,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+	Michal Hocko <mhocko@kernel.org>, kvm@vger.kernel.org
+Subject: Re: [RFC PATCH 1/4] uprobes: use set_pte_at() not set_pte_at_notify()
+Message-ID: <20190202005022.GC12463@redhat.com>
+References: <20190131183706.20980-1-jglisse@redhat.com>
+ <20190131183706.20980-2-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <626576501.100359304.1549062486006.JavaMail.zimbra@redhat.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190131183706.20980-2-jglisse@redhat.com>
+User-Agent: Mutt/1.11.2 (2019-01-07)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Sat, 02 Feb 2019 00:50:25 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 01, 2019 at 06:08:06PM -0500, Jerome Glisse wrote:
-> 
-> 
-> ----- Original Message -----
-> > On Sat, Feb 02, 2019 at 12:14:13AM +0800, kbuild test robot wrote:
-> > > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-> > > master
-> > > head:   9fe36dd579c794ae5f1c236293c55fb6847e9654
-> > > commit: a3402cb621c1b3908600d3f364e991a6c5a8c06e [5141/5361] mm/hmm:
-> > > improve driver API to work and wait over a range
-> > > config: x86_64-randconfig-b0-02012138 (attached as .config)
-> > > compiler: gcc-8 (Debian 8.2.0-14) 8.2.0
-> > > reproduce:
-> > >         git checkout a3402cb621c1b3908600d3f364e991a6c5a8c06e
-> > >         # save the attached .config to linux build tree
-> > >         make ARCH=x86_64
-> > > 
-> > > All errors (new ones prefixed by >>):
-> > > 
-> > >    In file included from kernel/memremap.c:14:
-> > > >> include/linux/hmm.h:102:22: error: field 'mmu_notifier' has incomplete
-> > > >> type
-> > >      struct mmu_notifier mmu_notifier;
-> > >                          ^~~~~~~~~~~~
-> > > 
-> > > vim +/mmu_notifier +102 include/linux/hmm.h
-> > > 
-> > >     81
-> > >     82
-> > >     83	/*
-> > >     84	 * struct hmm - HMM per mm struct
-> > >     85	 *
-> > >     86	 * @mm: mm struct this HMM struct is bound to
-> > >     87	 * @lock: lock protecting ranges list
-> > >     88	 * @ranges: list of range being snapshotted
-> > >     89	 * @mirrors: list of mirrors for this mm
-> > >     90	 * @mmu_notifier: mmu notifier to track updates to CPU page table
-> > >     91	 * @mirrors_sem: read/write semaphore protecting the mirrors list
-> > >     92	 * @wq: wait queue for user waiting on a range invalidation
-> > >     93	 * @notifiers: count of active mmu notifiers
-> > >     94	 * @dead: is the mm dead ?
-> > >     95	 */
-> > >     96	struct hmm {
-> > >     97		struct mm_struct	*mm;
-> > >     98		struct kref		kref;
-> > >     99		struct mutex		lock;
-> > >    100		struct list_head	ranges;
-> > >    101		struct list_head	mirrors;
-> > >  > 102		struct mmu_notifier	mmu_notifier;
-> > 
-> > Only HMM_MIRROR depends on MMU_NOTIFIER, but mmu_notifier in
-> > the hmm struct is not conditionally dependent HMM_MIRROR.
-> > The shared config has HMM_MIRROR disabled
-> > 
-> > Balbir
-> > 
-> > 
-> 
-> I am bad with kconfig simplest fix from my pov is adding
-> select MMU_NOTIFIER to HMM config as anyway anything that
-> will have HMM will need notifier.
-> 
-> config HMM
->   bool
-> + select MMU_NOTIFIER
->   select MIGRATE_VMA_HELPER
->
+On Thu, Jan 31, 2019 at 01:37:03PM -0500, Jerome Glisse wrote:
+> @@ -207,8 +207,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
+>  
+>  	flush_cache_page(vma, addr, pte_pfn(*pvmw.pte));
+>  	ptep_clear_flush_notify(vma, addr, pvmw.pte);
+> -	set_pte_at_notify(mm, addr, pvmw.pte,
+> -			mk_pte(new_page, vma->vm_page_prot));
+> +	set_pte_at(mm, addr, pvmw.pte, mk_pte(new_page, vma->vm_page_prot));
+>  
+>  	page_remove_rmap(old_page, false);
+>  	if (!page_mapped(old_page))
 
-Yes
+This seems racy by design in the way it copies the page, if the vma
+mapping isn't readonly to begin with (in which case it'd be ok to
+change the pfn with change_pte too, it'd be a from read-only to
+read-only change which is ok).
 
-Acked-by: Balbir Singh <bsingharora@gmail.com>
- 
-> 
-> Cheers,
-> Jérôme
+If the code copies a writable page there's no much issue if coherency
+is lost by other means too.
+
+Said that this isn't a worthwhile optimization for uprobes so because
+of the lack of explicit read-only enforcement, I agree it's simpler to
+skip change_pte above.
+
+It's orthogonal, but in this function the
+mmu_notifier_invalidate_range_end(&range); can be optimized to
+mmu_notifier_invalidate_range_only_end(&range); otherwise there's no
+point to retain the _notify in ptep_clear_flush_notify.
 
