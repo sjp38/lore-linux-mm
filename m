@@ -6,73 +6,73 @@ X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BD2F1C169C4
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 13:49:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 878E4C282DA
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 13:49:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 772BD218D8
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 13:49:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 772BD218D8
+	by mail.kernel.org (Postfix) with ESMTP id 4CAC1218D8
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 13:49:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4CAC1218D8
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=decadent.org.uk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 08B108E0024; Sun,  3 Feb 2019 08:49:48 -0500 (EST)
+	id DD0628E0025; Sun,  3 Feb 2019 08:49:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 03B308E001C; Sun,  3 Feb 2019 08:49:47 -0500 (EST)
+	id D59E58E001C; Sun,  3 Feb 2019 08:49:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E6BED8E0024; Sun,  3 Feb 2019 08:49:47 -0500 (EST)
+	id BFEF58E0025; Sun,  3 Feb 2019 08:49:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A73768E001C
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2019 08:49:47 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id t10so9536769plo.13
-        for <linux-mm@kvack.org>; Sun, 03 Feb 2019 05:49:47 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 715CB8E001C
+	for <linux-mm@kvack.org>; Sun,  3 Feb 2019 08:49:52 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id e89so10110253pfb.17
+        for <linux-mm@kvack.org>; Sun, 03 Feb 2019 05:49:52 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state
          :content-disposition:content-transfer-encoding:mime-version:from:to
          :cc:date:message-id:subject:in-reply-to;
-        bh=OkEXknWwHjp+WPixZIhf8SrXXlLE8Zv6mWHK2+7oCWY=;
-        b=HoHIAdhgIEeOV+Snpm1baC80AkELlJeB7khxBBVpHvnAT4NWS2XGpsEO5v6WtAt2/x
-         FqRhCsdNdWy11z7uI6TpOQT2ROlAPGgiKaAmbFO74VOgk0XMhlJ0KnkUp3u4IrgwqfSa
-         Dyq2XobR8eqsbjjzwpOeN0hFyzWA99gNUV//X5le//oQ5pY9nLPlf4kehGcy+SpsZUep
-         7bVwky6Ht5/8z5wDcbYL50MrMs/l/zxMhc/2ZOfIDf+iDKOP0hQixKZZdXNvo6gzEc0J
-         hYCbI9TcAaWDAagr2/yYQSXRfmFHLv09lLGcy0sbZJV3U160JjySOf+QbfT7TLrvNH+p
-         /hPA==
+        bh=slUlUfGgvOCkeNTagrRALE+2USqyLZsF0bNhFR31KhU=;
+        b=ZQWkNMSiqZ+V/G8d0pFfYju/fyHWuUaiaw0ESZcD1XD3YDszVh3Ox4eauBGFKhPbI3
+         +Hv4Q/7EGPgVRwhzeADRHQ+9Nsu5WUCz2fLsYIcXsiPUnE5sdmdB7D1WeaDXW3mR2qEB
+         JV/PjW9TxxytpeZXiE00DNJT1W+U2Mfr+Ty1hQ6jzcy8yE1z8jFCNKUIJxKK5TcD7vSD
+         Jk3RGONJWeVjC077wDb6+OMNu0okIGS9EjQrevvH8SwmN+d0Vd7VzEQwBKJ6nOt2YFBm
+         abD5j0usMd798DaItpX3WbfVtkpcsY2xUA/MiNcO9Pz85AeCailjNSbqfo+o88bB03F8
+         67DA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ben@decadent.org.uk designates 88.96.1.126 as permitted sender) smtp.mailfrom=ben@decadent.org.uk
-X-Gm-Message-State: AJcUukenV1dobO6ob14b4hX9hGyFpbs9QyfuiWjEFT0VF1IbbaIVcUpH
-	8Skx8+jy66pkpZSup1xCIn9/Oniank1h7nqaG9YFHDuD1436h4IaVM9fow6m7EfYalFzcvD8ygD
-	aWY6JHJFoZfTFMP3jD1vSD3VxvxH0Y/X9UcYRHoUZZ4D8Fn46sPDy5Mz703i9IAIQ3w==
-X-Received: by 2002:a17:902:f81:: with SMTP id 1mr46146760plz.174.1549201787258;
-        Sun, 03 Feb 2019 05:49:47 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7dRjpdbgnV+EpK35mOBWdyRXvPrSGnJvxQ/szWcwvBpkkQD8/PA3AUpZ9LfbOfc2PaVvSH
-X-Received: by 2002:a17:902:f81:: with SMTP id 1mr46146724plz.174.1549201786383;
-        Sun, 03 Feb 2019 05:49:46 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549201786; cv=none;
+X-Gm-Message-State: AJcUukfhsX72cWwuO3Xg3WqAJYGbg9JBmtbt5jcdENS/sYOhNR9f6CQf
+	0B3BWfFgv4Q2+drFFlR5W+2MWarPbSFZdPQG8Tl9M2BCFO4vJx1qGyjw4JljCs9yAnTRlLDJxcC
+	5mPWHVWbKX0qaOS1lWeLslpjgfelcy51z475BAeoXcktRkfIkPdITi51fcrqu3GrAbQ==
+X-Received: by 2002:a17:902:1005:: with SMTP id b5mr47907283pla.310.1549201792110;
+        Sun, 03 Feb 2019 05:49:52 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6lIR13yxFwm5bim+EuBtinr1DkyciuwduetTSSQgPIaJh6ddtzmGe+rIlHXzOfLvdQQDv4
+X-Received: by 2002:a17:902:1005:: with SMTP id b5mr47907250pla.310.1549201791174;
+        Sun, 03 Feb 2019 05:49:51 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549201791; cv=none;
         d=google.com; s=arc-20160816;
-        b=ec6Zbw1ZaLLJz4jgzrhNqMM50XSMUEH0gtNLhkJt/sxRIsbY7iMUdxj0bwEP+BiYoE
-         RIV6cVvmBHpTNDRr7/pd7xuM8LIKXEwaoy5rGKVtgq64rOnpE7cHhFhvUb3k/Uq+jvDQ
-         QohDqlE8uD37Rjg9Uzx/8ZheOuJKkhSor2rG8aQcZg3PlEUX7Jd+2peKKA0Ovylef2Vw
-         OIwvoFhuCXYVo50Bz4Qp4kfKl2DIi1yRbgA+SxhdCcUzKZ1FyhKBlAHfUFqZV7j4C1Xd
-         0KZcDRptDVhTVfvzwukUkJCTFA6Vye/aLnsXP6868D+A8z0B/35OAQciaAEiPU6fyj/2
-         Jr4w==
+        b=Fl/dxDU7F/Ce2B0r61e+gb/v5f8uXrnG0+/6YGh9d7QqroGcBy760eH75UDvk8CGFV
+         IITJhVMGiMrNU78EHm1kuX3RBmNbL5w+BbDKSAekUnnRVHI98cDd8K4l5gJExsg/WsSs
+         xenAbSVbEJHY6ASM5mEEZZ+3ilQxJwGJRhaEywrFjkTprD9OEnmQPZvgZP4Omw9ShT8n
+         u3we6vABX2njTFh3wD+wvazaEXxETNjAD4e0vL5vvCB54ZkWSpcwsRiHiyQSIZV0LDp5
+         zdPy+jMzcx0BvgepyPavo6MOdNIn9kKRNzZKYtZOAVjcG5hROvjSM2BgvNgf+n2e7zmR
+         GK8Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=in-reply-to:subject:message-id:date:cc:to:from:mime-version
          :content-transfer-encoding:content-disposition;
-        bh=OkEXknWwHjp+WPixZIhf8SrXXlLE8Zv6mWHK2+7oCWY=;
-        b=Fv5NsabAPRV1oJdLU7DGR64odIRtFOso4Lb+SxKYCuAt4Ear8rCeWJZu7bJqVXd78S
-         RavDVzdGIXHsZeactNiUAPlPNPNEY8vLqeYA4KzyWuhNZkRU7MFh2DLX8pwQ90GbWWCt
-         YzaSnuQb6Qe6BBU2rdmqeSc7gFMnRnU+10xEUjr/qbHXXI9PU2BXf4H2NVBdc1R/BFiS
-         WishEAHcJ4z2qLA3Jt1BF5fo7qzUpX2bwCIc3m6UZP0NzFODyn48IraNshF+gENACLFt
-         jiMflzHU/kAZbQKQQCCKYsJKeXr6gJnfr4YdUIwOP0bzvbXvUHyzhyY25ALEKqG6f7cH
-         TUtw==
+        bh=slUlUfGgvOCkeNTagrRALE+2USqyLZsF0bNhFR31KhU=;
+        b=dFcQawUZmDEnA45BYrYJmljq2M2ih9lg6x8masPsTsc0vTnAE8jSEZixv7LWO39U3e
+         3voVqGJRzI2cQA1LUjEU/WCHkuB+8MPKUuIxd0oIg+ysmK81nAWUS7SbRdnfXrzaRfKO
+         JizvXOUWMFnet6fGuoK9H7y38XxRlDFaQFN0k7a8X6/Bag8hoFCNzLwaIzrjcDMLoZaI
+         fXgWEvTbVdnHogviGhbUhFtJeL3y9xRYv/8wWWF3piOd2P3obCFL9g4BglDmOzF+vJTY
+         bMJmwrhNEVfTIzI//f2/Q75+4NyS9QR8T+NShsXCldU8/LUOw51G3Mh3LoB4rdPwXR79
+         zG7w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of ben@decadent.org.uk designates 88.96.1.126 as permitted sender) smtp.mailfrom=ben@decadent.org.uk
 Received: from shadbolt.e.decadent.org.uk (shadbolt.e.decadent.org.uk. [88.96.1.126])
-        by mx.google.com with ESMTPS id 21si873075pgx.488.2019.02.03.05.49.45
+        by mx.google.com with ESMTPS id x186si7750231pfx.269.2019.02.03.05.49.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 03 Feb 2019 05:49:46 -0800 (PST)
+        Sun, 03 Feb 2019 05:49:50 -0800 (PST)
 Received-SPF: pass (google.com: domain of ben@decadent.org.uk designates 88.96.1.126 as permitted sender) client-ip=88.96.1.126;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of ben@decadent.org.uk designates 88.96.1.126 as permitted sender) smtp.mailfrom=ben@decadent.org.uk
@@ -80,10 +80,10 @@ Received: from cable-78.29.236.164.coditel.net ([78.29.236.164] helo=deadeye)
 	by shadbolt.decadent.org.uk with esmtps (TLS1.2:ECDHE_RSA_AES_256_GCM_SHA384:256)
 	(Exim 4.89)
 	(envelope-from <ben@decadent.org.uk>)
-	id 1gqI9T-0003th-4t; Sun, 03 Feb 2019 13:49:39 +0000
+	id 1gqI9T-0003to-Dn; Sun, 03 Feb 2019 13:49:39 +0000
 Received: from ben by deadeye with local (Exim 4.92-RC4)
 	(envelope-from <ben@decadent.org.uk>)
-	id 1gqI9T-0006nE-Db; Sun, 03 Feb 2019 14:49:39 +0100
+	id 1gqI9T-0006nI-ES; Sun, 03 Feb 2019 14:49:39 +0100
 Content-Type: text/plain; charset="UTF-8"
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
@@ -91,22 +91,42 @@ MIME-Version: 1.0
 From: Ben Hutchings <ben@decadent.org.uk>
 To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
 CC: akpm@linux-foundation.org, Denis Kirjanov <kda@linux-powerpc.org>,
- "Konrad Wilk" <konrad.wilk@oracle.com>,
- "Thomas Gleixner" <tglx@linutronix.de>,
- "Robert Elliot" <elliott@hpe.com>,
- "Wenkuan Wang" <Wenkuan.Wang@windriver.com>,
- "H. Peter Anvin" <hpa@zytor.com>,
- "Toshi Kani" <toshi.kani@hpe.com>,
+ kasan-dev@googlegroups.com,
+ "Dave Young" <dyoung@redhat.com>,
+ "Andy Lutomirski" <luto@kernel.org>,
+ "Arnd Bergmann" <arnd@arndb.de>,
+ "Andrey Ryabinin" <aryabinin@virtuozzo.com>,
+ "Dmitry Vyukov" <dvyukov@google.com>,
+ "Alexander Potapenko" <glider@google.com>,
+ "Konrad Rzeszutek Wilk" <konrad.wilk@oracle.com>,
+ linux-efi@vger.kernel.org,
+ "Jonathan Corbet" <corbet@lwn.net>,
+ "Brijesh Singh" <brijesh.singh@amd.com>,
+ "Peter Zijlstra" <peterz@infradead.org>,
+ "Paolo Bonzini" <pbonzini@redhat.com>,
+ "Toshimitsu Kani" <toshi.kani@hpe.com>,
+ linux-doc@vger.kernel.org,
  "Borislav Petkov" <bp@alien8.de>,
- linux-mm@kvack.org,
- "Juergen Gross" <jgross@suse.com>,
- "Ingo Molnar" <mingo@redhat.com>
+ "Thomas Gleixner" <tglx@linutronix.de>,
+ "Wenkuan Wang" <Wenkuan.Wang@windriver.com>,
+ "Tom Lendacky" <thomas.lendacky@amd.com>,
+ linux-arch@vger.kernel.org,
+ "Rik van Riel" <riel@redhat.com>,
+ "Matt Fleming" <matt@codeblueprint.co.uk>,
+ "Larry Woodman" <lwoodman@redhat.com>,
+ kvm@vger.kernel.org, linux-mm@kvack.org,
+ "Ingo Molnar" <mingo@kernel.org>,
+ "Linus Torvalds" <torvalds@linux-foundation.org>,
+ "Andi Kleen" <ak@linux.intel.com>,
+ "Greg Kroah-Hartman" <gregkh@linuxfoundation.org>,
+ "Borislav Petkov" <bp@suse.de>,
+ "Michael S. Tsirkin" <mst@redhat.com>,
+ "Radim =?UTF-8?Q?Kr=C4=8Dm=C3=A1=C5=99?=" <rkrcmar@redhat.com>
 Date: Sun, 03 Feb 2019 14:45:08 +0100
-Message-ID: <lsq.1549201508.370199741@decadent.org.uk>
+Message-ID: <lsq.1549201508.3242952@decadent.org.uk>
 X-Mailer: LinuxStableQueue (scripts by bwh)
 X-Patchwork-Hint: ignore
-Subject: [PATCH 3.16 003/305] x86/asm: Fix pud/pmd interfaces to handle
- large PAT bit
+Subject: [PATCH 3.16 004/305] x86/mm: Simplify p[g4um]d_page() macros
 In-Reply-To: <lsq.1549201507.384106140@decadent.org.uk>
 X-SA-Exim-Connect-IP: 78.29.236.164
 X-SA-Exim-Mail-From: ben@decadent.org.uk
@@ -121,108 +141,94 @@ List-ID: <linux-mm.kvack.org>
 
 ------------------
 
-From: Toshi Kani <toshi.kani@hpe.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
 
-commit f70abb0fc3da1b2945c92751ccda2744081bf2b7 upstream.
+commit fd7e315988b784509ba3f1b42f539bd0b1fca9bb upstream.
 
-Now that we have pud/pmd mask interfaces, which handle pfn & flags
-mask properly for the large PAT bit.
+Create a pgd_pfn() macro similar to the p[4um]d_pfn() macros and then
+use the p[g4um]d_pfn() macros in the p[g4um]d_page() macros instead of
+duplicating the code.
 
-Fix pud/pmd pfn & flags interfaces by replacing PTE_PFN_MASK and
-PTE_FLAGS_MASK with the pud/pmd mask interfaces.
-
-Suggested-by: Juergen Gross <jgross@suse.com>
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@redhat.com>
+Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Borislav Petkov <bp@suse.de>
+Cc: Alexander Potapenko <glider@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Arnd Bergmann <arnd@arndb.de>
 Cc: Borislav Petkov <bp@alien8.de>
-Cc: Konrad Wilk <konrad.wilk@oracle.com>
-Cc: Robert Elliot <elliott@hpe.com>
+Cc: Brijesh Singh <brijesh.singh@amd.com>
+Cc: Dave Young <dyoung@redhat.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Larry Woodman <lwoodman@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Matt Fleming <matt@codeblueprint.co.uk>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Radim Krčmář <rkrcmar@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Toshimitsu Kani <toshi.kani@hpe.com>
+Cc: kasan-dev@googlegroups.com
+Cc: kvm@vger.kernel.org
+Cc: linux-arch@vger.kernel.org
+Cc: linux-doc@vger.kernel.org
+Cc: linux-efi@vger.kernel.org
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/1442514264-12475-5-git-send-email-toshi.kani@hpe.com
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Link: http://lkml.kernel.org/r/e61eb533a6d0aac941db2723d8aa63ef6b882dee.1500319216.git.thomas.lendacky@amd.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+[Backported to 4.9 stable by AK, suggested by Michael Hocko]
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Signed-off-by: Wenkuan Wang <Wenkuan.Wang@windriver.com>
 Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
 ---
- arch/x86/include/asm/pgtable.h       | 14 ++++++++------
- arch/x86/include/asm/pgtable_types.h |  4 ++--
- 2 files changed, 10 insertions(+), 8 deletions(-)
+ arch/x86/include/asm/pgtable.h | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
 
 --- a/arch/x86/include/asm/pgtable.h
 +++ b/arch/x86/include/asm/pgtable.h
-@@ -156,14 +156,14 @@ static inline unsigned long pmd_pfn(pmd_
- {
- 	phys_addr_t pfn = pmd_val(pmd);
- 	pfn ^= protnone_mask(pfn);
--	return (pfn & PTE_PFN_MASK) >> PAGE_SHIFT;
-+	return (pfn & pmd_pfn_mask(pmd)) >> PAGE_SHIFT;
+@@ -166,6 +166,11 @@ static inline unsigned long pud_pfn(pud_
+ 	return (pfn & pud_pfn_mask(pud)) >> PAGE_SHIFT;
  }
  
- static inline unsigned long pud_pfn(pud_t pud)
- {
- 	phys_addr_t pfn = pud_val(pud);
- 	pfn ^= protnone_mask(pfn);
--	return (pfn & PTE_PFN_MASK) >> PAGE_SHIFT;
-+	return (pfn & pud_pfn_mask(pud)) >> PAGE_SHIFT;
- }
- 
++static inline unsigned long pgd_pfn(pgd_t pgd)
++{
++	return (pgd_val(pgd) & PTE_PFN_MASK) >> PAGE_SHIFT;
++}
++
  #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
-@@ -584,14 +584,15 @@ static inline int pmd_none(pmd_t pmd)
  
- static inline unsigned long pmd_page_vaddr(pmd_t pmd)
- {
--	return (unsigned long)__va(pmd_val(pmd) & PTE_PFN_MASK);
-+	return (unsigned long)__va(pmd_val(pmd) & pmd_pfn_mask(pmd));
- }
- 
- /*
+ static inline int pmd_large(pmd_t pte)
+@@ -591,8 +596,7 @@ static inline unsigned long pmd_page_vad
   * Currently stuck as a macro due to indirect forward reference to
   * linux/mmzone.h's __section_mem_map_addr() definition:
   */
--#define pmd_page(pmd)	pfn_to_page((pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT)
-+#define pmd_page(pmd)		\
-+	pfn_to_page((pmd_val(pmd) & pmd_pfn_mask(pmd)) >> PAGE_SHIFT)
+-#define pmd_page(pmd)		\
+-	pfn_to_page((pmd_val(pmd) & pmd_pfn_mask(pmd)) >> PAGE_SHIFT)
++#define pmd_page(pmd)	pfn_to_page(pmd_pfn(pmd))
  
  /*
   * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
-@@ -657,14 +658,15 @@ static inline int pud_present(pud_t pud)
- 
- static inline unsigned long pud_page_vaddr(pud_t pud)
- {
--	return (unsigned long)__va((unsigned long)pud_val(pud) & PTE_PFN_MASK);
-+	return (unsigned long)__va(pud_val(pud) & pud_pfn_mask(pud));
- }
- 
- /*
+@@ -665,8 +669,7 @@ static inline unsigned long pud_page_vad
   * Currently stuck as a macro due to indirect forward reference to
   * linux/mmzone.h's __section_mem_map_addr() definition:
   */
--#define pud_page(pud)		pfn_to_page(pud_val(pud) >> PAGE_SHIFT)
-+#define pud_page(pud)		\
-+	pfn_to_page((pud_val(pud) & pud_pfn_mask(pud)) >> PAGE_SHIFT)
+-#define pud_page(pud)		\
+-	pfn_to_page((pud_val(pud) & pud_pfn_mask(pud)) >> PAGE_SHIFT)
++#define pud_page(pud)	pfn_to_page(pud_pfn(pud))
  
  /* Find an entry in the second-level page table.. */
  static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -347,7 +347,7 @@ static inline pudval_t pud_flags_mask(pu
+@@ -706,7 +709,7 @@ static inline unsigned long pgd_page_vad
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define pgd_page(pgd)		pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT)
++#define pgd_page(pgd)		pfn_to_page(pgd_pfn(pgd))
  
- static inline pudval_t pud_flags(pud_t pud)
- {
--	return native_pud_val(pud) & PTE_FLAGS_MASK;
-+	return native_pud_val(pud) & pud_flags_mask(pud);
- }
- 
- static inline pmdval_t pmd_pfn_mask(pmd_t pmd)
-@@ -368,7 +368,7 @@ static inline pmdval_t pmd_flags_mask(pm
- 
- static inline pmdval_t pmd_flags(pmd_t pmd)
- {
--	return native_pmd_val(pmd) & PTE_FLAGS_MASK;
-+	return native_pmd_val(pmd) & pmd_flags_mask(pmd);
- }
- 
- static inline pte_t native_make_pte(pteval_t val)
+ /* to find an entry in a page-table-directory. */
+ static inline unsigned long pud_index(unsigned long address)
 
