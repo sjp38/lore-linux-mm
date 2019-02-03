@@ -2,205 +2,178 @@ Return-Path: <SRS0=zbpI=QK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6425EC282D7
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 01:21:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F951C169C4
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 06:21:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 083D42084A
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 01:21:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 083D42084A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
+	by mail.kernel.org (Postfix) with ESMTP id BB7952083B
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 06:21:22 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=android.com header.i=@android.com header.b="fG0rb3LA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BB7952083B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=android.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5F11B8E0019; Sat,  2 Feb 2019 20:21:23 -0500 (EST)
+	id 33CE88E001A; Sun,  3 Feb 2019 01:21:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5A2D38E0001; Sat,  2 Feb 2019 20:21:23 -0500 (EST)
+	id 2EB5B8E0001; Sun,  3 Feb 2019 01:21:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 491558E0019; Sat,  2 Feb 2019 20:21:23 -0500 (EST)
+	id 1DCDD8E001A; Sun,  3 Feb 2019 01:21:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 05F158E0001
-	for <linux-mm@kvack.org>; Sat,  2 Feb 2019 20:21:23 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id c14so8625242pls.21
-        for <linux-mm@kvack.org>; Sat, 02 Feb 2019 17:21:22 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CB95F8E0001
+	for <linux-mm@kvack.org>; Sun,  3 Feb 2019 01:21:20 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id t26so7920083pgu.18
+        for <linux-mm@kvack.org>; Sat, 02 Feb 2019 22:21:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:cc:from:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=gAwv3i0e4yQUBJreKEsStXgXdvSEn8ZW8ySEkygsCO0=;
-        b=AQuBdyG63hVP3GSWeL9y4zy72Pk4590UE7t55R0fjLZ/V9vKlxSPVW01Moj8BTrMp1
-         GJdSGpQKhhnFMCwCT+azDKy//qQIyBYXrtcJ4eRaA/B8vqzL28XHGLThsVAZGrJ/kV+o
-         UZ/+4m4zZ6wCWdZTgYmOrmhNpqOFcru04brgRlDv9ENxhD9AEOTscsCOIxePcBD92zr8
-         tjIOBdXuG+6B0wjMezGgJ0J/4tzg6otDUMF5/HlkbseDd6k/foI4cinte8swLZTgnS7G
-         dvCo9FiO0WxDPF6LdRS/Hgj5caARNB//U0bVjPp45u8c+MODhB1/bTtVOgjCG9aMHiwU
-         J0SQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: AHQUAuYC6u3+wtsAnea6lIoAFWicNFrzkYrK5VXxWHEggZnEhE+44F0T
-	PBpafgq/DajNbc7BsSxottEUiPQ2lEhy3w7++vtbAEGmbcZwYgq3JPECWbKCVg6mgOyUc03l1xI
-	0l+i5Tbo19MrjYVhE+n5iWqwpr07DZCmx47XIzDpYDNAK9qgsejdXrX7sx2unBLTx1Q==
-X-Received: by 2002:a62:22c9:: with SMTP id p70mr17248130pfj.114.1549156882634;
-        Sat, 02 Feb 2019 17:21:22 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib04y8s4K4m0e8TnXh0C6/UYIdM4+JRiWykHCycssMiXjH0ppU9wQYAwxB4W/32etazKWPm
-X-Received: by 2002:a62:22c9:: with SMTP id p70mr17248081pfj.114.1549156881029;
-        Sat, 02 Feb 2019 17:21:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549156881; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=zxEjaYy+JsHVGX0Na5H2IIsv1IZR8sj0qq1XGIVMrvc=;
+        b=NIF8Gyo87/EGAoONkpFQW+RBgWL/xjtCAiSUllrhWWwGdVxz8G5QPYifr9rTCRCfQo
+         z+eOMpxXU1X+DC8PbQbqRz/ablYPYmKin/IazxssE0fXkJamiBAWnHQoRY1oAB7oaD/Q
+         8oVs9wEYoHvaT2eXj4KEZeZzz7d7TavuU+t+cmo0aKcdh1BRwrIrN5GJ1xT/1BIzFZBB
+         pr6gxnPUfmjnX3T7bu2WTGBIMSWI98BitgVQkPOnYLxU5I9vM28SyHvJ6asiDGrXyD+x
+         zmVDOn6CDw+B89w103azbtVlCCE/YqZv30wxuFkCtP9kA4aYQbn0DzdAwq+PcuwMrPo7
+         sdcQ==
+X-Gm-Message-State: AJcUukeXGPCGw1VRlid8Y9dBS4Z8kRlpCyVkFLksGLwgsUHYCisUpW9c
+	AWBLTY/RGGxPwkdyNC1I++TuhfRFj8mmxlFggMmf89/eQXe11yl8fUWlsjI0+F0BdcGLdb8SaQX
+	tFS2arYYoFU+VwvUDsV6FiiCke5+/9a+PL0GRoC9jvmCMoa8Elex02ybBepobmnXFuF3f3015/d
+	hrjUwSWfXaX3eoJS2mewTDWXyN6qRRBqfVQ6RNry7PUExPRiK7f7w4lU6PKTcgVDqpfIVhscJEU
+	a+6iGJbl5rImlka2bQabkaZoUeIjnC+o64pCwY9vuicrzl6Wl7lNoC+JLdH5QTYdbghN73kdUHT
+	AvTXIG/GpYS24n3//HA4TcTlrPR33gO+y9cZ/3eS4Py8YMUtiSeWX15as+A6FtaVH0pY8NGd98M
+	s
+X-Received: by 2002:a17:902:b112:: with SMTP id q18mr46752880plr.255.1549174880022;
+        Sat, 02 Feb 2019 22:21:20 -0800 (PST)
+X-Received: by 2002:a17:902:b112:: with SMTP id q18mr46752849plr.255.1549174879167;
+        Sat, 02 Feb 2019 22:21:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549174879; cv=none;
         d=google.com; s=arc-20160816;
-        b=yhPOrPTR/lX27S4ZqsM9ZJJCCRU5s8InNq+blicR7ULiPZupNHFm5HKWcIBCO3Erca
-         EFjI+WLDJZ89GMDcMY2WReSgnmVE6pQ/1CMIzM6tEZPx4bsisnczvbPwtToWGDJnOh/+
-         dxFkzPwIXGpkNTq7+T4ijAgxnTZIBKHyh69A51tuNBUbCafs0AW+18vWnPLwNmjqXZdD
-         G1qOb33VyolX5FuT9SaIloDmmprZROFDNp3jsXsWlIALUKAs8jNICNXN/dz50iUayOtj
-         y00Bf7IxKMEAg5LGhES4yb1KXkehmpAL2TgjWfmIu0xLXgpRIdrWmPWW2hZgy/s5YlEP
-         VDpg==
+        b=w1FJ1TsLmJ8/ELXWsw5ngrCUd5ezBUSjxbbjD6gCYEZfj/xK0YTPGwxxBiP3i2nzs0
+         9V5PdInzQMgkmw+8En3u6/fDVV/mJq0ZOJgz0o4fjXIoWR7o2i31YJgsRC9AwqrqfBXI
+         yIA2e0vEKXofM+VZVePCfXYxgpO76OuaMS7eoW7FO8X2Yf7ilW5wiPCFwFX5d30APCtX
+         debsH2+HROKxdSkFUQ5iafRBoAOSnKZ9txyEBXEiHlVHwaUacOD/LxvN7NflJ/WjYM8p
+         W+kBZE8yiFRKhhs7GjsR+Mfg8SfohPGoLiq+BkNib95bmApECZXG7qkfs8lwgvnRG1gK
+         sPrg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:cc:references:to:subject;
-        bh=gAwv3i0e4yQUBJreKEsStXgXdvSEn8ZW8ySEkygsCO0=;
-        b=MKJKMgcFnPqNYKGV1+QCQjIuom5ydzE5ep7KFsiiqDnpAvQmLUU0gX1wRzF45wDY4f
-         6CoPP/cDumAjWU1xf3qbHFZfd9zpVgjAkVGqlcweOohKt4IK3B4kR866VhadJ5v/mgL6
-         tGr/7ZmzZQW8Noks3XVAIbWILqajxl83zo2SqdQckYKQ+XEZQL3fCfs0Mwkd1+IwmHSf
-         eJLeZD/eBg+UhlbGaZV/3HisMvsLoTLFWNau9pGFMU0oL2rXWr+3Litu0MKWdU76qTpT
-         EjX24wkzgvesIvy5ahtrAJhQARjJYitqu1a0SnwKyUgE3DJs0pzvXOXYIaQye1pguMY4
-         /83g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=zxEjaYy+JsHVGX0Na5H2IIsv1IZR8sj0qq1XGIVMrvc=;
+        b=EzLqEVO945LpoxYJNAf4L/uvfJfYN+DVFIpkqUHlyvpR6ttQ///cebMA3e2XLOacyL
+         AR01gmtdmZ5yKyERoDntnVYIPHeuci2UNelZ8qWu2plair/YtmpENAsEE6RMDyrqpVDM
+         gsrAaGHTAnMs/gx8fPCzvmGzpndAD6Yl1xsRdE3gNBucVlZHEKT9RZ5epWwqXpaAwt9c
+         8dcnWxVhiUCxTxz4pHxNm399vwrF0N83t9sUZWuzQ2jkFrk1EjycKgNmYP5N4Dyn/MQ4
+         aLf8YLtJVa6NudegcsHGv+1N4Y6/AsadZBvFW5FodxHx6uqMN4/Bx1hYS/xO28HDJSTO
+         JVbw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id w67si6892797pgw.84.2019.02.02.17.21.20
+       dkim=pass header.i=@android.com header.s=20161025 header.b=fG0rb3LA;
+       spf=pass (google.com: domain of sspatil@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sspatil@android.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=android.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j6sor20225461pgq.46.2019.02.02.22.21.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 02 Feb 2019 17:21:20 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+        (Google Transport Security);
+        Sat, 02 Feb 2019 22:21:19 -0800 (PST)
+Received-SPF: pass (google.com: domain of sspatil@android.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav102.sakura.ne.jp (fsav102.sakura.ne.jp [27.133.134.229])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x131LEju064592;
-	Sun, 3 Feb 2019 10:21:14 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav102.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav102.sakura.ne.jp);
- Sun, 03 Feb 2019 10:21:14 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav102.sakura.ne.jp)
-Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
-	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x131L8dA064535
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
-	Sun, 3 Feb 2019 10:21:13 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Subject: Re: linux-next: tracebacks in workqueue.c/__flush_work()
-To: Guenter Roeck <linux@roeck-us.net>,
-        Chris Metcalf <chris.d.metcalf@gmail.com>,
-        Rusty Russell <rusty@rustcorp.com.au>
-References: <18a30387-6aa5-6123-e67c-57579ecc3f38@roeck-us.net>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-        Tejun Heo <tj@kernel.org>, linux-mm <linux-mm@kvack.org>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <72e7d782-85f2-b499-8614-9e3498106569@i-love.sakura.ne.jp>
-Date: Sun, 3 Feb 2019 10:21:06 +0900
-User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       dkim=pass header.i=@android.com header.s=20161025 header.b=fG0rb3LA;
+       spf=pass (google.com: domain of sspatil@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sspatil@android.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=android.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=android.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=zxEjaYy+JsHVGX0Na5H2IIsv1IZR8sj0qq1XGIVMrvc=;
+        b=fG0rb3LAqiMpw7kMFwZ2BqmN+BqjEcdKYjEwk+719BDaGX2DDF+Ly5rzNkp3AqyhKn
+         UJM5r/O0RYpLzy126uMJFnu8UwXBcCWc0Y8cMCrywuAhOH2V+K7epx1tX+HJHZkbgQki
+         QdZoDwDErh7q9JtPlJVEwkawEhLWhCJtOFaGQu6maez7E0WLOaqwE1RuUq7/GmLLL2Lq
+         Mhcg0zty16Xbe0JfAYrZXt6wMjt/vT1Mh5+t88nK4tE+tKnY8+pPdm2AHV+8F+R5iYoL
+         SJ87J5Z61dYAPfFoxLu3Z6HxkKut4q//qDX8IVL/JYLBXW468qmOg3nIAlKLd68g8kvB
+         U8sg==
+X-Google-Smtp-Source: AHgI3IZOb1aucWJvwRr4/Z8hFCdTydsb5pBrcyfqrHvEkfsKKkIxmY54b19zR7PSqeLyrCvPB3v7Xg==
+X-Received: by 2002:a65:448a:: with SMTP id l10mr8595082pgq.387.1549174878794;
+        Sat, 02 Feb 2019 22:21:18 -0800 (PST)
+Received: from localhost (c-73-170-36-70.hsd1.ca.comcast.net. [73.170.36.70])
+        by smtp.gmail.com with ESMTPSA id y12sm18425995pfk.70.2019.02.02.22.21.17
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sat, 02 Feb 2019 22:21:18 -0800 (PST)
+Date: Sat, 2 Feb 2019 22:21:14 -0800
+From: Sandeep Patil <sspatil@android.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, adobriyan@gmail.com,
+	avagin@openvz.org, linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	stable@vger.kernel.org, kernel-team@android.com, dancol@google.com
+Subject: Re: [PATCH] mm: proc: smaps_rollup: Fix pss_locked calculation
+Message-ID: <20190203062114.GC235465@google.com>
+References: <20190121011049.160505-1-sspatil@android.com>
+ <20190128161509.5085cacf939463f1c22e0550@linux-foundation.org>
+ <b15205cd-33e3-6cac-b6a4-65266be7a9c8@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <18a30387-6aa5-6123-e67c-57579ecc3f38@roeck-us.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b15205cd-33e3-6cac-b6a4-65266be7a9c8@suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-(Adding Chris Metcalf and Rusty Russell.)
+On Tue, Jan 29, 2019 at 04:52:21PM +0100, Vlastimil Babka wrote:
+> On 1/29/19 1:15 AM, Andrew Morton wrote:
+> > On Sun, 20 Jan 2019 17:10:49 -0800 Sandeep Patil <sspatil@android.com> wrote:
+> > 
+> >> The 'pss_locked' field of smaps_rollup was being calculated incorrectly
+> >> as it accumulated the current pss everytime a locked VMA was found.
+> >> 
+> >> Fix that by making sure we record the current pss value before each VMA
+> >> is walked. So, we can only add the delta if the VMA was found to be
+> >> VM_LOCKED.
+> >> 
+> >> ...
+> >>
+> >> --- a/fs/proc/task_mmu.c
+> >> +++ b/fs/proc/task_mmu.c
+> >> @@ -709,6 +709,7 @@ static void smap_gather_stats(struct vm_area_struct *vma,
+> >>  #endif
+> >>  		.mm = vma->vm_mm,
+> >>  	};
+> >> +	unsigned long pss;
+> >>  
+> >>  	smaps_walk.private = mss;
+> >>  
+> >> @@ -737,11 +738,12 @@ static void smap_gather_stats(struct vm_area_struct *vma,
+> >>  		}
+> >>  	}
+> >>  #endif
+> >> -
+> >> +	/* record current pss so we can calculate the delta after page walk */
+> >> +	pss = mss->pss;
+> >>  	/* mmap_sem is held in m_start */
+> >>  	walk_page_vma(vma, &smaps_walk);
+> >>  	if (vma->vm_flags & VM_LOCKED)
+> >> -		mss->pss_locked += mss->pss;
+> >> +		mss->pss_locked += mss->pss - pss;
+> >>  }
+> > 
+> > This seems to be a rather obscure way of accumulating
+> > mem_size_stats.pss_locked.  Wouldn't it make more sense to do this in
+> > smaps_account(), wherever we increment mem_size_stats.pss?
+> > 
+> > It would be a tiny bit less efficient but I think that the code cleanup
+> > justifies such a cost?
+> 
+> Yeah, Sandeep could you add 'bool locked' param to smaps_account() and check it
+> there? We probably don't need the whole vma param yet.
 
-If NR_CPUS == 1 due to CONFIG_SMP=n, for_each_cpu(cpu, &has_work) loop does not
-evaluate "struct cpumask has_work" modified by cpumask_set_cpu(cpu, &has_work) at
-previous for_each_online_cpu() loop. Guenter Roeck found a problem among three
-commits listed below.
+Agree, I will send -v2 shortly.
 
-  Commit 5fbc461636c32efd ("mm: make lru_add_drain_all() selective")
-  expects that has_work is evaluated by for_each_cpu().
-
-  Commit 2d3854a37e8b767a ("cpumask: introduce new API, without changing anything")
-  assumes that for_each_cpu() does not need to evaluate has_work.
-
-  Commit 4d43d395fed12463 ("workqueue: Try to catch flush_work() without INIT_WORK().")
-  expects that has_work is evaluated by for_each_cpu().
-
-What should we do? Do we explicitly evaluate has_mask if NR_CPUS == 1 ?
-
- mm/swap.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/mm/swap.c b/mm/swap.c
-index 4929bc1..5f07734 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -698,7 +698,8 @@ void lru_add_drain_all(void)
- 	}
- 
- 	for_each_cpu(cpu, &has_work)
--		flush_work(&per_cpu(lru_add_drain_work, cpu));
-+		if (NR_CPUS > 1 || cpumask_test_cpu(cpu, &has_work))
-+			flush_work(&per_cpu(lru_add_drain_work, cpu));
- 
- 	mutex_unlock(&lock);
- }
-
-On 2019/02/03 7:20, Guenter Roeck wrote:
-> Commit "workqueue: Try to catch flush_work() without INIT_WORK()" added
-> a warning if flush_work() is called without worker function.
-> 
-> This results in the following tracebacks, typically observed during
-> system shutdown.
-> 
-> ------------[ cut here ]------------
-> WARNING: CPU: 0 PID: 101 at kernel/workqueue.c:3018 __flush_work+0x2a4/0x2e0
-> Modules linked in:
-> CPU: 0 PID: 101 Comm: umount Not tainted 5.0.0-rc4-next-20190201 #1
->        fffffc0007dcbd18 0000000000000000 fffffc00003338a0 fffffc00003517d4
->        fffffc00003517d4 fffffc0000e56c98 fffffc0000e56c98 fffffc0000ebc1d8
->        fffffc0000ec0bd8 ffffffffa8024010 0000000000000bca 0000000000000000
->        fffffc00003d3ea4 fffffc0000e56c98 fffffc0000e56c60 fffffc0000ebc1d8
->        fffffc0000ec0bd8 0000000000000000 0000000000000001 0000000000000000
->        fffffc000782d520 0000000000000000 fffffc000044ef50 fffffc0007c4b540
-> Trace:
-> [<fffffc00003338a0>] __warn+0x160/0x190
-> [<fffffc00003517d4>] __flush_work+0x2a4/0x2e0
-> [<fffffc00003517d4>] __flush_work+0x2a4/0x2e0
-> [<fffffc00003d3ea4>] lru_add_drain_all+0xe4/0x190
-> [<fffffc000044ef50>] shrink_dcache_sb+0x70/0xb0
-> [<fffffc0000478dc4>] invalidate_bh_lru+0x44/0x80
-> [<fffffc00003a94fc>] on_each_cpu_cond+0x5c/0x90
-> [<fffffc0000478d80>] invalidate_bh_lru+0x0/0x80
-> [<fffffc000047fe7c>] invalidate_bdev+0x3c/0x70
-> [<fffffc0000432ca8>] reconfigure_super+0x178/0x2c0
-> [<fffffc000045ee64>] ksys_umount+0x664/0x680
-> [<fffffc000045ee9c>] sys_umount+0x1c/0x30
-> [<fffffc00003115d4>] entSys+0xa4/0xc0
-> [<fffffc00003115d4>] entSys+0xa4/0xc0
-> 
-> ---[ end trace 613cea34708701f1 ]---
-> 
-> The problem is seen with several (but not all) architectures. Affected
-> architectures/platforms are:
->     alpha
->     arm:versatilepb
->     m68k
->     mips, mips64 (boot from IDE drive or MMC, SMP disabled)
->     parisc (nosmp builds)
->     sparc, sparc64 (nosmp builds)
-> 
-> There may be others; several of my tests fail with build failures.
-> 
-> If/when it is seen, the problem is persistent.
-> 
-> Common denominator seems to be that SMP is disabled. It does appear that
-> for_each_cpu() ignores the mask for nosmp builds, but I don't really
-> understand why.
-> 
-> Guenter
-> 
+- ssp
 
