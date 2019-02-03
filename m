@@ -1,184 +1,206 @@
-Return-Path: <SRS0=HJeg=QJ=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=zbpI=QK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,PLING_QUERY,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 55C44C282DB
-	for <linux-mm@archiver.kernel.org>; Sat,  2 Feb 2019 11:52:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6425EC282D7
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 01:21:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E415820818
-	for <linux-mm@archiver.kernel.org>; Sat,  2 Feb 2019 11:52:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="RD7FJlwk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E415820818
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 083D42084A
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 01:21:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 083D42084A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4CE0C8E0018; Sat,  2 Feb 2019 06:52:40 -0500 (EST)
+	id 5F11B8E0019; Sat,  2 Feb 2019 20:21:23 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 47CCF8E0001; Sat,  2 Feb 2019 06:52:40 -0500 (EST)
+	id 5A2D38E0001; Sat,  2 Feb 2019 20:21:23 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 36C5C8E0018; Sat,  2 Feb 2019 06:52:40 -0500 (EST)
+	id 491558E0019; Sat,  2 Feb 2019 20:21:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D3E2B8E0001
-	for <linux-mm@kvack.org>; Sat,  2 Feb 2019 06:52:39 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id x3so3325545wru.22
-        for <linux-mm@kvack.org>; Sat, 02 Feb 2019 03:52:39 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 05F158E0001
+	for <linux-mm@kvack.org>; Sat,  2 Feb 2019 20:21:23 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id c14so8625242pls.21
+        for <linux-mm@kvack.org>; Sat, 02 Feb 2019 17:21:22 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Ksj9lR9aCRIAxKlY5wuozGKeWj7FX+QSVWoU3V6r49Y=;
-        b=pXGtB2UVYOW93XOnP9WT3CWrArKeyU3K8Ln9Et+HPs+2O6i/T6IoeyEN+onEG5jxTa
-         JTAroHnp0vYSp9VVlUzxPXEXe/RCWD+4NFSz+S2PaJNEHnkkrDV6Cd02Mr7b9pTapVIJ
-         eR9BpCtttayOJDKLXrT8+oVtNNOEhsdVHe3PL7PagpvfHnVokCbbyRuMHMeK5ea3em0V
-         vzKMlbQkjt9aczY1hbAp95Mh0CnK8wgGjWG2rIBTH8B8i4a/M1DR+/uS17Ih1+nkKUpY
-         y3jH4dYjzF9jZ37i7sLi0UPDmxmtSSMDzMvLx5KS3R5TSBefc83eD2AHCzHsdKTWK3ae
-         y/1g==
-X-Gm-Message-State: AHQUAuY3zoXByPfNIGB5milFBPfCoC9AXGcWcWLCDVyWtUjpxd7Ico1c
-	oeklT9RW6cPobNRg/cMwpz1DmW/X7PLZLiu6MitiQvUsU9OeTtJDh9MOld5RGLjt9hMfSdxqQ3t
-	YbJioYIMmtf0kR9ev+tDwcUD1U8YpbuXyyLrB+EsApuKNfn1fQ5yso4xebdB2139/aWm3fzxifP
-	q44QrVKaBcCJoqJn8YWkjTI/MzMs8zmckre0M37YPu+2WNhuLwpu6PVm2jctiEdIpiKojeSYUgw
-	JttTYmxphUHVbLPsClYkzXG/etOmXP7pAhy43r60Xx5+Bwu4L5nk5I6MY/zTicCVoUmVSvSLJ1W
-	X5LjhuAfm+rSSsyEm6PVSJIt1F26mux4oiXeWncnXb5ajAmV5+Nbc5/QapGGTvVLUmVTw5+8tSZ
-	8
-X-Received: by 2002:a1c:cec1:: with SMTP id e184mr6371121wmg.75.1549108359138;
-        Sat, 02 Feb 2019 03:52:39 -0800 (PST)
-X-Received: by 2002:a1c:cec1:: with SMTP id e184mr6371079wmg.75.1549108358069;
-        Sat, 02 Feb 2019 03:52:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549108358; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:cc:from:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=gAwv3i0e4yQUBJreKEsStXgXdvSEn8ZW8ySEkygsCO0=;
+        b=AQuBdyG63hVP3GSWeL9y4zy72Pk4590UE7t55R0fjLZ/V9vKlxSPVW01Moj8BTrMp1
+         GJdSGpQKhhnFMCwCT+azDKy//qQIyBYXrtcJ4eRaA/B8vqzL28XHGLThsVAZGrJ/kV+o
+         UZ/+4m4zZ6wCWdZTgYmOrmhNpqOFcru04brgRlDv9ENxhD9AEOTscsCOIxePcBD92zr8
+         tjIOBdXuG+6B0wjMezGgJ0J/4tzg6otDUMF5/HlkbseDd6k/foI4cinte8swLZTgnS7G
+         dvCo9FiO0WxDPF6LdRS/Hgj5caARNB//U0bVjPp45u8c+MODhB1/bTtVOgjCG9aMHiwU
+         J0SQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: AHQUAuYC6u3+wtsAnea6lIoAFWicNFrzkYrK5VXxWHEggZnEhE+44F0T
+	PBpafgq/DajNbc7BsSxottEUiPQ2lEhy3w7++vtbAEGmbcZwYgq3JPECWbKCVg6mgOyUc03l1xI
+	0l+i5Tbo19MrjYVhE+n5iWqwpr07DZCmx47XIzDpYDNAK9qgsejdXrX7sx2unBLTx1Q==
+X-Received: by 2002:a62:22c9:: with SMTP id p70mr17248130pfj.114.1549156882634;
+        Sat, 02 Feb 2019 17:21:22 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib04y8s4K4m0e8TnXh0C6/UYIdM4+JRiWykHCycssMiXjH0ppU9wQYAwxB4W/32etazKWPm
+X-Received: by 2002:a62:22c9:: with SMTP id p70mr17248081pfj.114.1549156881029;
+        Sat, 02 Feb 2019 17:21:21 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549156881; cv=none;
         d=google.com; s=arc-20160816;
-        b=SkmeZZ+izBd7prNIEfT7FWPPDiCtTxnscGPItshK+KBds9SIbp6z2elZS3q4GEpxCh
-         jEq9Lh+YVMGvyjQDF6TGiey895BsYOhda4QOM63XhqwnnYKUzhHu0nSS9ONWmqbANHsV
-         DwQs/WhWjaJc2rF82XB1CnGHA5lgl03od/p1EZweNs7cWpUoGnit7yhf/fSMeaqcrxuT
-         Zmb8v+4iBTv30xIDWT4cbBIp59M9l0c8MjMTPeDMjERm8H4ojNJOKpNxu2fxXlXCu4uW
-         NeVHRpQZOPAJyx4m9Ur89GP6SUrgEbVLk5fvD2MKsH0+xVQ+EFKmT4WDBQssp/xbAXhi
-         s8pA==
+        b=yhPOrPTR/lX27S4ZqsM9ZJJCCRU5s8InNq+blicR7ULiPZupNHFm5HKWcIBCO3Erca
+         EFjI+WLDJZ89GMDcMY2WReSgnmVE6pQ/1CMIzM6tEZPx4bsisnczvbPwtToWGDJnOh/+
+         dxFkzPwIXGpkNTq7+T4ijAgxnTZIBKHyh69A51tuNBUbCafs0AW+18vWnPLwNmjqXZdD
+         G1qOb33VyolX5FuT9SaIloDmmprZROFDNp3jsXsWlIALUKAs8jNICNXN/dz50iUayOtj
+         y00Bf7IxKMEAg5LGhES4yb1KXkehmpAL2TgjWfmIu0xLXgpRIdrWmPWW2hZgy/s5YlEP
+         VDpg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=Ksj9lR9aCRIAxKlY5wuozGKeWj7FX+QSVWoU3V6r49Y=;
-        b=gyi5KYacaoJY0MwxxWGnt7jii5fun1g2o/K50MrjV9AgI86+tYSbIxr5btnW5Mltkj
-         QCKz5fkVnXfaGwHPaEopCtgf6lhnw+D/GQqM8b7ppHRIlujHwPIQNllUhRiMtK6BgmdB
-         ipzcEEo/KWEK0KYtnvaq43nFcssrFi8a0EHEDcxdVyTYxB9Sl/Fm1/dkn9Y2L17Y0ZsN
-         kjN1ZQ3ytMNnAZic3nhMzslPK2QgcKfYizqb7eaV9c1AEZqLNHorRTfDlCNVY6X+pkpd
-         Np09smOkvvMoU6djUXNaw51KCh/SuJK07O0/HkeaZop6xjDdLVScWyNSFxHNxB3i1h6z
-         0r7A==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:cc:references:to:subject;
+        bh=gAwv3i0e4yQUBJreKEsStXgXdvSEn8ZW8ySEkygsCO0=;
+        b=MKJKMgcFnPqNYKGV1+QCQjIuom5ydzE5ep7KFsiiqDnpAvQmLUU0gX1wRzF45wDY4f
+         6CoPP/cDumAjWU1xf3qbHFZfd9zpVgjAkVGqlcweOohKt4IK3B4kR866VhadJ5v/mgL6
+         tGr/7ZmzZQW8Noks3XVAIbWILqajxl83zo2SqdQckYKQ+XEZQL3fCfs0Mwkd1+IwmHSf
+         eJLeZD/eBg+UhlbGaZV/3HisMvsLoTLFWNau9pGFMU0oL2rXWr+3Litu0MKWdU76qTpT
+         EjX24wkzgvesIvy5ahtrAJhQARjJYitqu1a0SnwKyUgE3DJs0pzvXOXYIaQye1pguMY4
+         /83g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RD7FJlwk;
-       spf=pass (google.com: domain of zenghuiyu96@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=zenghuiyu96@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p9sor2750615wrq.21.2019.02.02.03.52.37
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id w67si6892797pgw.84.2019.02.02.17.21.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 02 Feb 2019 03:52:38 -0800 (PST)
-Received-SPF: pass (google.com: domain of zenghuiyu96@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 02 Feb 2019 17:21:20 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RD7FJlwk;
-       spf=pass (google.com: domain of zenghuiyu96@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=zenghuiyu96@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=Ksj9lR9aCRIAxKlY5wuozGKeWj7FX+QSVWoU3V6r49Y=;
-        b=RD7FJlwk6dyu39zhTyejr6x+hkwOVQLzObRwjw3svckwdOAWEs5qlUrGI1WrTULLt9
-         aYRPIC5yuOm9OVhGUV3GkbFTHfBe+WzgJQxlF4MK+cEDAUPasp1IL6qKY9E56GIu3eIE
-         t9I/XWdoXItZ7PBhvjf6IPMpO/qZFYqgO0/zIUKSjtDuL3B10U3mNz+xRye/+5arTWbp
-         cvx8anxgNUhV+E/vVV3tMVYS65UdgjkkrR1oPDjCZK/GFg9SB+zsrVzFWwMJaxvBKJfW
-         1t4IWaM3PMJu0rPTRPkk/ndWEdwRa17+80zxyXshudN1aCwoEO3tTJqMVhuvTXcL420G
-         DeVg==
-X-Google-Smtp-Source: ALg8bN7Q+G/hi+qkocjZsl7fVgDev5XTi14ZjGY4GY5hfNitqwJGIst7JcbcD7FPrgU4cCmgN2pXACrXWp4EDOH1iak=
-X-Received: by 2002:adf:ae1a:: with SMTP id x26mr41120668wrc.0.1549108357587;
- Sat, 02 Feb 2019 03:52:37 -0800 (PST)
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav102.sakura.ne.jp (fsav102.sakura.ne.jp [27.133.134.229])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x131LEju064592;
+	Sun, 3 Feb 2019 10:21:14 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav102.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav102.sakura.ne.jp);
+ Sun, 03 Feb 2019 10:21:14 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav102.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x131L8dA064535
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
+	Sun, 3 Feb 2019 10:21:13 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Subject: Re: linux-next: tracebacks in workqueue.c/__flush_work()
+To: Guenter Roeck <linux@roeck-us.net>,
+        Chris Metcalf <chris.d.metcalf@gmail.com>,
+        Rusty Russell <rusty@rustcorp.com.au>
+References: <18a30387-6aa5-6123-e67c-57579ecc3f38@roeck-us.net>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+        Tejun Heo <tj@kernel.org>, linux-mm <linux-mm@kvack.org>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <72e7d782-85f2-b499-8614-9e3498106569@i-love.sakura.ne.jp>
+Date: Sun, 3 Feb 2019 10:21:06 +0900
+User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-References: <CAKcZhuW-ozJp-MVU3gw=uhuSc9+HTMVJza8QRUL3TaRrbqjJew@mail.gmail.com>
- <CACT4Y+aJADsj37Y8jPAV7PASqKm_L-iJ=MDv68yPUO0TFvhdRg@mail.gmail.com>
- <CACT4Y+ZxgzdbCeFquYmKThfiTGg3pZhn90X_Fk3yRXGYfepU4Q@mail.gmail.com>
- <CAKcZhuWE_2+D_AP_U0XZP-bjb=8Eec1Ku3KD8qO8K0zDGo98Ow@mail.gmail.com>
- <CACT4Y+Ye+0bBV5sB1F3wVbCC1guyA=RdsRnYHgrar=AhftGtQA@mail.gmail.com>
- <20190121175842.0f526757@vmware.local.home> <CACT4Y+Y7PJ1=dv6wzDTVRkFJCnrtDYyksmYp6UibW9a8_ob0Nw@mail.gmail.com>
-In-Reply-To: <CACT4Y+Y7PJ1=dv6wzDTVRkFJCnrtDYyksmYp6UibW9a8_ob0Nw@mail.gmail.com>
-From: Zenghui Yu <zenghuiyu96@gmail.com>
-Date: Sat, 2 Feb 2019 19:52:24 +0800
-Message-ID: <CAKcZhuXfgXvpb2YNVanA_TZHzHWj59_sB2YYwyTsoXKeW2bG2g@mail.gmail.com>
-Subject: Re: [RESEND BUG REPORT] System hung! Due to ftrace or KASAN?
-To: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, 
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
-	"H. Peter Anvin" <hpa@zytor.com>, "the arch/x86 maintainers" <x86@kernel.org>, linux-trace-devel@vger.kernel.org, 
-	kasan-dev <kasan-dev@googlegroups.com>, 
-	"open list:KERNEL BUILD + fi..." <linux-kbuild@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Andrey Konovalov <andreyknvl@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
-	Linus Torvalds <torvalds@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Will Deacon <will.deacon@arm.com>, 
-	Steven Rostedt <rostedt@goodmis.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <18a30387-6aa5-6123-e67c-57579ecc3f38@roeck-us.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 29, 2019 at 9:16 PM Dmitry Vyukov <dvyukov@google.com> wrote:
->
-> On Tue, Jan 29, 2019 at 1:27 AM Andrew Morton <akpm@linux-foundation.org> wrote:
-> >
-> > On Mon, 21 Jan 2019 10:36:25 +0100 Dmitry Vyukov <dvyukov@google.com> wrote:
-> >
-> > > > Thanks Dmitry! I'll try to test this commit tomorrow.
-> > > >
-> > > > BTW, I have bisect-ed and tested for this issue today. Finally it turned out
-> > > > that
-> > > >         bffa986c6f80e39d9903015fc7d0d99a66bbf559 is the first bad commit.
-> > > > So I'm wondering if anywhere need to be fixed in commit bffa986c6f80 ("kasan:
-> > > > move common generic and tag-based code to common.c").
-> > >
-> > > Thanks for bisecting. I think we have understanding of what happens
-> > > here and it's exactly this that needs to be fixed:
-> > > https://groups.google.com/d/msg/kasan-dev/g8A8PLKCyoE/vXnirYEnCAAJ
-> > > And this commit already fixes it.
-> >
-> > Has that been sent in my direction?  I can't find it.
-> >
-> > If sending it please add
-> >
-> > Tested-by: Dmitry Vyukov <dvyukov@google.com>
-> > Acked-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
->
+(Adding Chris Metcalf and Rusty Russell.)
 
-Also,
+If NR_CPUS == 1 due to CONFIG_SMP=n, for_each_cpu(cpu, &has_work) loop does not
+evaluate "struct cpumask has_work" modified by cpumask_set_cpu(cpu, &has_work) at
+previous for_each_online_cpu() loop. Guenter Roeck found a problem among three
+commits listed below.
 
-Tested-by: Zenghui Yu <zenghuiyu96@gmail.com>
+  Commit 5fbc461636c32efd ("mm: make lru_add_drain_all() selective")
+  expects that has_work is evaluated by for_each_cpu().
 
-on x86 machines, if need :)
+  Commit 2d3854a37e8b767a ("cpumask: introduce new API, without changing anything")
+  assumes that for_each_cpu() does not need to evaluate has_work.
 
+  Commit 4d43d395fed12463 ("workqueue: Try to catch flush_work() without INIT_WORK().")
+  expects that has_work is evaluated by for_each_cpu().
 
-Thanks!
+What should we do? Do we explicitly evaluate has_mask if NR_CPUS == 1 ?
 
->
-> Yes, it's here (State: New):
-> https://lore.kernel.org/patchwork/patch/1024393/
->
-> This page says it was mailed to linux-mm mailing list too:
-> https://groups.google.com/forum/#!topic/kasan-dev/g8A8PLKCyoE
->
-> But I can't find linux-mm archives here:
-> http://vger.kernel.org/vger-lists.html
->
-> How can I add a tag to an existing change under review? Patchwork does
-> not show something like "add Tested-by: me tag" to me on the patch
-> page.
->
-> Patchwork shows Todo list on the main page with "Your todo list
-> contains patches that have been delegated to you". But I don't see an
-> option to delegate this patch to you either...
+ mm/swap.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/swap.c b/mm/swap.c
+index 4929bc1..5f07734 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -698,7 +698,8 @@ void lru_add_drain_all(void)
+ 	}
+ 
+ 	for_each_cpu(cpu, &has_work)
+-		flush_work(&per_cpu(lru_add_drain_work, cpu));
++		if (NR_CPUS > 1 || cpumask_test_cpu(cpu, &has_work))
++			flush_work(&per_cpu(lru_add_drain_work, cpu));
+ 
+ 	mutex_unlock(&lock);
+ }
+
+On 2019/02/03 7:20, Guenter Roeck wrote:
+> Commit "workqueue: Try to catch flush_work() without INIT_WORK()" added
+> a warning if flush_work() is called without worker function.
+> 
+> This results in the following tracebacks, typically observed during
+> system shutdown.
+> 
+> ------------[ cut here ]------------
+> WARNING: CPU: 0 PID: 101 at kernel/workqueue.c:3018 __flush_work+0x2a4/0x2e0
+> Modules linked in:
+> CPU: 0 PID: 101 Comm: umount Not tainted 5.0.0-rc4-next-20190201 #1
+>        fffffc0007dcbd18 0000000000000000 fffffc00003338a0 fffffc00003517d4
+>        fffffc00003517d4 fffffc0000e56c98 fffffc0000e56c98 fffffc0000ebc1d8
+>        fffffc0000ec0bd8 ffffffffa8024010 0000000000000bca 0000000000000000
+>        fffffc00003d3ea4 fffffc0000e56c98 fffffc0000e56c60 fffffc0000ebc1d8
+>        fffffc0000ec0bd8 0000000000000000 0000000000000001 0000000000000000
+>        fffffc000782d520 0000000000000000 fffffc000044ef50 fffffc0007c4b540
+> Trace:
+> [<fffffc00003338a0>] __warn+0x160/0x190
+> [<fffffc00003517d4>] __flush_work+0x2a4/0x2e0
+> [<fffffc00003517d4>] __flush_work+0x2a4/0x2e0
+> [<fffffc00003d3ea4>] lru_add_drain_all+0xe4/0x190
+> [<fffffc000044ef50>] shrink_dcache_sb+0x70/0xb0
+> [<fffffc0000478dc4>] invalidate_bh_lru+0x44/0x80
+> [<fffffc00003a94fc>] on_each_cpu_cond+0x5c/0x90
+> [<fffffc0000478d80>] invalidate_bh_lru+0x0/0x80
+> [<fffffc000047fe7c>] invalidate_bdev+0x3c/0x70
+> [<fffffc0000432ca8>] reconfigure_super+0x178/0x2c0
+> [<fffffc000045ee64>] ksys_umount+0x664/0x680
+> [<fffffc000045ee9c>] sys_umount+0x1c/0x30
+> [<fffffc00003115d4>] entSys+0xa4/0xc0
+> [<fffffc00003115d4>] entSys+0xa4/0xc0
+> 
+> ---[ end trace 613cea34708701f1 ]---
+> 
+> The problem is seen with several (but not all) architectures. Affected
+> architectures/platforms are:
+>     alpha
+>     arm:versatilepb
+>     m68k
+>     mips, mips64 (boot from IDE drive or MMC, SMP disabled)
+>     parisc (nosmp builds)
+>     sparc, sparc64 (nosmp builds)
+> 
+> There may be others; several of my tests fail with build failures.
+> 
+> If/when it is seen, the problem is persistent.
+> 
+> Common denominator seems to be that SMP is disabled. It does appear that
+> for_each_cpu() ignores the mask for nosmp builds, but I don't really
+> understand why.
+> 
+> Guenter
+> 
 
