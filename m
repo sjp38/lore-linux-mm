@@ -3,139 +3,119 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EDE27C282CB
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 00:58:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C66E7C282CB
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 01:17:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B2AB82175B
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 00:58:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B2AB82175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 713BE2183E
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 01:17:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 713BE2183E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=rustcorp.com.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4550B8E00A4; Tue,  5 Feb 2019 19:58:47 -0500 (EST)
+	id B6F5F8E009B; Tue,  5 Feb 2019 20:17:44 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3DAA08E009C; Tue,  5 Feb 2019 19:58:47 -0500 (EST)
+	id B1F018E001C; Tue,  5 Feb 2019 20:17:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 27E108E00A4; Tue,  5 Feb 2019 19:58:47 -0500 (EST)
+	id A0D568E009B; Tue,  5 Feb 2019 20:17:44 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D16488E009C
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 19:58:46 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id o187so3477392pgo.2
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 16:58:46 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 689718E001C
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 20:17:44 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id 74so3980314pfk.12
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 17:17:44 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
-         :mime-version;
-        bh=iufs91SqQAu/I5/RzUTK+ChUmoS2efNaynlacgmQ2s0=;
-        b=SIP9RZSFfKRqRZ7F/hZ94wlJpQfk9vrI23p1QpXJK4PwjXe67EHO+zmb1/hxcDdUjh
-         fzujsODtj5McRBexLDVcujxH0ZPOC8iFGjDQINPrNV9KRrHPY41o6S45qrKB9/bdTTI2
-         rJEB7lwLyOH9Ju+5rQWGumQXvnKgvof6f39VtN7R0PoWDZGrP75Tt0VixX4Ozz3d+UFr
-         MSxAcqOJndRJPiuJ15pBOSQA1T2hkrC0tTbz2qDaVCVRmCqmBK5BRid/NXhrw5bdQ7Ql
-         8XcMIBW2C63JgiOYNW+fd1BUyUiLeG/A3qAkXsPOq6HcppdAvuOtUQ0wmASaYjxVIRgq
-         cTPg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAubBOD2w21iuAFkuWH5nQ9pA8u43Lvsvxz4VIJppkIrO2I1zT7Gy
-	EtkwHl2tZ/wpMatdlU7W7rPAVJfgSKRcHmOLApadNNCSpQN+GAbQjKOotC/un6+l2ZbCGYae0ed
-	iTnIW078R7rQ92nlV1WdXJpzE8lRW42e4+j5qBZK5ryBYkyNnAeOGIa1ITGZta3PXhg==
-X-Received: by 2002:a65:4c0f:: with SMTP id u15mr6827727pgq.225.1549414726430;
-        Tue, 05 Feb 2019 16:58:46 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYJRkK8WqaAbOs4mFPySq7pafKTcv5p5WG9hXHn+lD5rLFELBTqrVhhMJb+hENK+q0C6VWw
-X-Received: by 2002:a65:4c0f:: with SMTP id u15mr6827699pgq.225.1549414725748;
-        Tue, 05 Feb 2019 16:58:45 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549414725; cv=none;
+         :subject:in-reply-to:references:date:message-id:mime-version;
+        bh=6npO0/DTcwgy3uDM0b70llZh5hUhZ1HHmCQHbbkyEfA=;
+        b=cvaM5B+FWy1jlfQlPkPPC/dCPmsdKHb91tPPSJePb+hrim2eJEYC1dePuLJ2s/rhqK
+         SVV11p2m/AJFU8ESdle920rHGZs6mbjL5LHEFFgtRQTC3VUbuCZ9dBkipd57PQlc6ETE
+         G/iXfkZXIdqBbTiLc9vLiJITOIprlIzVjLgJcseYLk6XcqqWrzgn+OWIFMVKR+/pZEUM
+         CxVCjioV0QzYsCAusPiTFOf01P/MV4zoyJ9F8oQ17iglIGm5Iv6Q+0kzJO3mWFQmiO1L
+         5LQYYavAa71O1fCQjioWZ14vL6t5SNAtdonzM7jTwxlSrt1NbwFL9FOw7jMXiYBTldw3
+         wmaA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rusty@ozlabs.org designates 203.11.71.1 as permitted sender) smtp.mailfrom=rusty@ozlabs.org
+X-Gm-Message-State: AHQUAuZ2IsG90MUeMhRkhFY6TX3PeV3PVfGSNGX6Z8MQF2ixBY5ct32V
+	z4NTaDqqtH/h06ou4bnanovRUE98d8lSh5e7LLrybeHlG+vnsrhZ6wPPFTeozzu2VAMRX+drGm1
+	xteAD4IoXt4LCk019L6nzJtADZD0ksU3Gw2DmjbXXz5e40icPumZW5EGQaSADXno=
+X-Received: by 2002:a62:5486:: with SMTP id i128mr7716921pfb.215.1549415864074;
+        Tue, 05 Feb 2019 17:17:44 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZ6aOgTYkMxiNF7kSstJHFuQiPH+CNXyfWzjMno4rmyU8+OcyF8qNr6fgbj3KKROsvBN2jC
+X-Received: by 2002:a62:5486:: with SMTP id i128mr7716882pfb.215.1549415863406;
+        Tue, 05 Feb 2019 17:17:43 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549415863; cv=none;
         d=google.com; s=arc-20160816;
-        b=du7Hkx1B36pFdHsvTusXRbIAuik/iNXiDcCVPo2i0XlnesYWF4KoyEtY026Pq6Ychl
-         mmXBpYwqnd+qA/pybrXrZ1YXP5iaH5G4k/JJXtT+1mP8z01LoZW6n9SMz59akc3b+o69
-         33cNBtL16Ex5Y71sBIhzX33SiHwSq+myIuaeZJgOuO5Pr/Y33afbXW1peim1G0afcQji
-         NOz3s4pS1ERhKxcjgstiDGDhUyrLwTyBR9wotiZuv1fcx3UCHI7U33xDGIKPlJlSZABn
-         Z/+Pc9zxYYdFiivrhdcUJibiiAa4+FezioTJx5a2999slnYkIjP1lu/3eksjY6yOjvhI
-         UxIg==
+        b=Mc1m1cOoojCF5iDqaM61RW7uThf+uOkqvQSpT3K95KllFg1G53l2dwriEpdUUCBEgQ
+         FZoCb7Bxnxp+jJ+xH4AIv0OkMs3Af24Wgx+msk25obyPrZKlSz7kAUl7EcCvKy6u9rmp
+         CQzRF+STWGf2aa2q8ysdQb2WlcSSD/fYg0eGtkW5FMmEgemmXORF809hmOUdXXFMHByb
+         0Jbozr9pCecNgdbQ1bKtRgKcWjZNCHu5r9cg7kTlighcquD82gEJpIBYE0DL88sx8h28
+         8RC5bilsSzbwUWg1jXEWpkZzUr4+BpjELUeRJxD3sQe47vozQwQBleCuKCibFTpJA3qZ
+         MuiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :subject:cc:to:from;
-        bh=iufs91SqQAu/I5/RzUTK+ChUmoS2efNaynlacgmQ2s0=;
-        b=Lzmr9/qdoz7MxnvIr5zeOeWnEAUoF5UOSv+nZLGUCb29z3Qq9/GTkKzlbueDClDjZ5
-         o/lZ6+91xqD0nU0oOXxVu/VO8cggIeSbHuMD/y9ERKardj8DVOJUHmqpuqrivuil39Bs
-         4VmxPioorjOdx354fTnPxlMCdD1E1b1uOVyaQjZV2A+mcXdiedXse8TzSpVVO/YJtnDP
-         MSTH16z+PgFT0AY4ui676/vVRJ3fSedmT1P5yWzo1RVhYg+Xu9aoOohO1acALaBM9+N/
-         tFPVHWuuH3O7ANbpFJcqdHDWZx6na7Ud+j+3JoO1CvMSZNgU34vnjtUi51YQO66yDwaW
-         Z86Q==
+        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
+         :from;
+        bh=6npO0/DTcwgy3uDM0b70llZh5hUhZ1HHmCQHbbkyEfA=;
+        b=Kh5L++MxZgjqRXE5X+bCfZZQahoDwe/kuRu9kMKXCVWv70mQDDbhZ+GOdoBDdq2q0o
+         gh7Lon9qdRrK7uEsfzWh+7NM9TopdTu0GknSj8kGvC9h7INxUovhgjuXgQlzzH0lF8sL
+         2FWIR/BOShB+XRdm7ssv7Bjp5XmTWpVYtI5Cbh3X89fF43GP3JPiWfXrjOfgZOVXuZAH
+         t+ImRQ75LwkQxqX6dSs3lmgcyy0YIcr+CMBOZSOdk/pJQdTwRJ7nDqezAeulK14uz/qP
+         0cZOvwoPIs6VfLOisLBa6I1zTlVFtfV2Sy0Fr9kk3VxnppxBgaUq39woWpqlre8SSzha
+         9+9w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id n5si4307549pgl.485.2019.02.05.16.58.45
+       spf=pass (google.com: domain of rusty@ozlabs.org designates 203.11.71.1 as permitted sender) smtp.mailfrom=rusty@ozlabs.org
+Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
+        by mx.google.com with ESMTPS id j5si4277911pgq.82.2019.02.05.17.17.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Feb 2019 16:58:45 -0800 (PST)
-Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 05 Feb 2019 17:17:43 -0800 (PST)
+Received-SPF: pass (google.com: domain of rusty@ozlabs.org designates 203.11.71.1 as permitted sender) client-ip=203.11.71.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Feb 2019 16:58:44 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,337,1544515200"; 
-   d="scan'208";a="141895210"
-Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.151])
-  by fmsmga004.fm.intel.com with ESMTP; 05 Feb 2019 16:58:41 -0800
-From: "Huang\, Ying" <ying.huang@intel.com>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,  Daniel Jordan <daniel.m.jordan@oracle.com>,  <dan.carpenter@oracle.com>,  <andrea.parri@amarulasolutions.com>,  <dave.hansen@linux.intel.com>,  <sfr@canb.auug.org.au>,  <osandov@fb.com>,  <tj@kernel.org>,  <ak@linux.intel.com>,  <linux-mm@kvack.org>,  <kernel-janitors@vger.kernel.org>,  <paulmck@linux.ibm.com>,  <stern@rowland.harvard.edu>,  <peterz@infradead.org>,  <willy@infradead.org>,  <will.deacon@arm.com>
-Subject: Re: About swapoff race patch  (was Re: [PATCH] mm, swap: bounds check swap_info accesses to avoid NULL derefs)
-References: <20190114222529.43zay6r242ipw5jb@ca-dmjordan1.us.oracle.com>
-	<20190115002305.15402-1-daniel.m.jordan@oracle.com>
-	<20190129222622.440a6c3af63c57f0aa5c09ca@linux-foundation.org>
-	<87tvhpy22q.fsf_-_@yhuang-dev.intel.com>
-	<20190131124655.96af1eb7e2f7bb0905527872@linux-foundation.org>
-	<alpine.LSU.2.11.1902041257390.4682@eggly.anvils>
-	<878sytsrh0.fsf@yhuang-dev.intel.com>
-	<alpine.LSU.2.11.1902051618320.10986@eggly.anvils>
-Date: Wed, 06 Feb 2019 08:58:41 +0800
-In-Reply-To: <alpine.LSU.2.11.1902051618320.10986@eggly.anvils> (Hugh
-	Dickins's message of "Tue, 5 Feb 2019 16:36:35 -0800")
-Message-ID: <874l9hspfi.fsf@yhuang-dev.intel.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
+       spf=pass (google.com: domain of rusty@ozlabs.org designates 203.11.71.1 as permitted sender) smtp.mailfrom=rusty@ozlabs.org
+Received: by ozlabs.org (Postfix, from userid 1011)
+	id 43vNpr2SQQz9s3x; Wed,  6 Feb 2019 12:17:40 +1100 (AEDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Guenter Roeck <linux@roeck-us.net>, Chris Metcalf <chris.d.metcalf@gmail.com>
+Cc: "linux-kernel\@vger.kernel.org" <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm <linux-mm@kvack.org>
+Subject: Re: linux-next: tracebacks in workqueue.c/__flush_work()
+In-Reply-To: <72e7d782-85f2-b499-8614-9e3498106569@i-love.sakura.ne.jp>
+References: <18a30387-6aa5-6123-e67c-57579ecc3f38@roeck-us.net> <72e7d782-85f2-b499-8614-9e3498106569@i-love.sakura.ne.jp>
+Date: Mon, 04 Feb 2019 10:16:12 +1030
+Message-ID: <87munc306z.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins <hughd@google.com> writes:
+Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> writes:
+> (Adding Chris Metcalf and Rusty Russell.)
+>
+> If NR_CPUS == 1 due to CONFIG_SMP=n, for_each_cpu(cpu, &has_work) loop does not
+> evaluate "struct cpumask has_work" modified by cpumask_set_cpu(cpu, &has_work) at
+> previous for_each_online_cpu() loop. Guenter Roeck found a problem among three
+> commits listed below.
+>
+>   Commit 5fbc461636c32efd ("mm: make lru_add_drain_all() selective")
+>   expects that has_work is evaluated by for_each_cpu().
+>
+>   Commit 2d3854a37e8b767a ("cpumask: introduce new API, without changing anything")
+>   assumes that for_each_cpu() does not need to evaluate has_work.
+>
+>   Commit 4d43d395fed12463 ("workqueue: Try to catch flush_work() without INIT_WORK().")
+>   expects that has_work is evaluated by for_each_cpu().
+>
+> What should we do? Do we explicitly evaluate has_mask if NR_CPUS == 1 ?
 
-> On Wed, 6 Feb 2019, Huang, Ying wrote:
->> 
->> Thanks a lot for your review and comments!
->> 
->> It appears that you have no strong objection for this patch?
->
-> That much is correct.
->
->> Could I have your "Acked-by"?
->
-> Sorry to be so begrudging, but I have to save my Acks for when I feel
-> more confident in my opinion.  Here I don't think I can get beyond
->
-> Not-Nacked-by: Hugh Dickins <hughd@google.com>
->
-> I imagine Daniel would ask for some barriers in there: maybe you can
-> get a more generous response from him when he looks over the result.
+No, fix the API to be least-surprise.  Fix 2d3854a37e8b767a too.
 
-Thanks a lot for your help!  Will ask him help too.
+Doing anything else would be horrible, IMHO.
 
-Best Regards,
-Huang, Ying
-
-> Warmly but meanly,
-> Hugh
+Cheers,
+Rusty.
 
