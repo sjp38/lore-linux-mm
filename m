@@ -5,111 +5,112 @@ X-Spam-Level:
 X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 09CA8C169C4
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 12:12:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 95CBCC169C4
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 12:16:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B6977217D6
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 12:12:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 45263217D6
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 12:16:14 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="nFfWeqvC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6977217D6
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="DEFZB7m2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45263217D6
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 566428E0021; Sun,  3 Feb 2019 07:12:20 -0500 (EST)
+	id C3FAD8E0022; Sun,  3 Feb 2019 07:16:13 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4EF6A8E001C; Sun,  3 Feb 2019 07:12:20 -0500 (EST)
+	id BF0128E001C; Sun,  3 Feb 2019 07:16:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 38FDC8E0021; Sun,  3 Feb 2019 07:12:20 -0500 (EST)
+	id B04F68E0022; Sun,  3 Feb 2019 07:16:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BF1AE8E001C
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2019 07:12:19 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id t22-v6so2532167lji.14
-        for <linux-mm@kvack.org>; Sun, 03 Feb 2019 04:12:19 -0800 (PST)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 464C88E001C
+	for <linux-mm@kvack.org>; Sun,  3 Feb 2019 07:16:13 -0500 (EST)
+Received: by mail-lf1-f69.google.com with SMTP id d6so1842492lfk.1
+        for <linux-mm@kvack.org>; Sun, 03 Feb 2019 04:16:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=10Q4A8cRCVZ62JEp8/wkwk+13xjXhUiGKYrwNjDciL8=;
-        b=bdH5zVG5Fg91RcXFTy6GF1GrLug5WXCbqfh2NioGQCNYVb7asRSBbMB1mkMJan900b
-         W5ACStE9+Cw5UroQQROQul+aBi9sWH4rK1a0/nmNIB+6GGpzk9oQtLtp8S7mp8tDOrPG
-         3Q6AeERgjqFMC8O19yB1DrEzjahU6p0UtR1hx8DCq6PCtE56U2WB+i/DYGTrAV5c+iSj
-         tIX2tIrruW6PqmYERZh4VCer5ZvZ9QvaE/2XTlzmea0xjGncRJpgtoah6phwscEMLkmz
-         JCPPdQ+/Pfck/L1IqGz7Mkd6Zu9ZPB1HoC6rSDVRZtv8oqm4rp4x6yUCGV+oaOx/j9nf
-         +hNg==
-X-Gm-Message-State: AJcUukeyPfLYb96Nqq9/SMZ+IjQS6rAKKf1k1ck7jLoQchoShIKIdW9y
-	euqssGfwaQ22X/iwaYucckNED/0oBNUPUtsKqH1lOdEZBwRLhSow5knXsBEOlf3GDAsnNbL2A2W
-	wgwnLcZvxllyJkuQ2nchWkUvLWUHtV15NW9uBqZPphkdBgeMccW5ZvkUYoICYPjC17fBypho3t5
-	334XXZ3XKOYnC1BGqW0OxAJaUlQnXSy5WVEOJNh1MY2gTCAAJx6MiaUONkgJnBjxwSsKFb2wGB/
-	ui+jypBkMtoJoiw966pRq1IUJPoq6tBw0uc3UsmLSXDUgixnDvwD4UbGxIRIRGa85pDtdIFdZg6
-	N/663f1NiTEokFbmjK6LufRcDTTjhx5bZQ8DtqxY8OlOqjymMTMb80vJ7XCmAkA7WKaXDCx+TNe
-	7
-X-Received: by 2002:a2e:7e04:: with SMTP id z4-v6mr38430571ljc.97.1549195939114;
-        Sun, 03 Feb 2019 04:12:19 -0800 (PST)
-X-Received: by 2002:a2e:7e04:: with SMTP id z4-v6mr38430541ljc.97.1549195938133;
-        Sun, 03 Feb 2019 04:12:18 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549195938; cv=none;
+        bh=bsr2lcuUZ78duCduOrjEIhzTac5FkzmhdngvDyze87g=;
+        b=doBeFRPjxPJUFRFW9Sv2DxZZtrDRwfVcQAasiaMB0Cp7obgUlfnXQaccv1qGKqOaA4
+         zHvdhamqmVq6YWA/eawOMIwlBxVG6rOBUX9igTnkQMYHPvC018l2kaKCt9BPUAsKwLBH
+         CKNy3HDE3BLPEZVmaF3+nGdc3byVAC/Y5gNMxuxo4D3hbNsO9qd5Kh8uwrksJsXxk8P+
+         UMe6j9EDqg3UhK0WiZG6OrhDGZpjqGr+q994hbKM7erwWDsNBiFmas0j6TNGDEpwxlEK
+         OqsJSSzyHqV44ogC0dy2nvuJ0s065j7N6tmVnWs6IamIDI+WhVGrGzwnqIPi/j/DQuKS
+         /1Xg==
+X-Gm-Message-State: AHQUAuYGwV3CoqTTJE8zZm7UUzXdik5talN3VhVS5+GRPMzm93vd3ZGJ
+	7GSHRb7FYXwDVvedzipD/BjAEtBuUkWtmnUqegxVQP9RciNzbEVDBz2CMZiaGuV1T6yqppuRTwe
+	LZfZ/cOcSxCwAQNoudZ64It3TMpuugEiEHwpPp88DisMj8Aaj/CBnARo3JCRMV2NkI5dTuZIaJu
+	T/r+M8f7X3NEUcLwIJi2ofFgEh76qUAJ4qBWEotBBRbXQXrFJeRVbs9+GxwZySA6x2LN+B2MNPi
+	5kYFrqD1fEGU/jKtRZYfHYjqWnl9X60fJpqzuGbXYTRFMRsCprTo8z2mtSzO8bN6GcIrL6rWMk/
+	jQwubwscLjmLEQlwSCUNPydgUrf5+NLDpYokYwlwoKN194c7dCkq0chzAJu9i6/1modQUaTDwbI
+	i
+X-Received: by 2002:a2e:9ad0:: with SMTP id p16-v6mr12180474ljj.102.1549196172588;
+        Sun, 03 Feb 2019 04:16:12 -0800 (PST)
+X-Received: by 2002:a2e:9ad0:: with SMTP id p16-v6mr12180437ljj.102.1549196171510;
+        Sun, 03 Feb 2019 04:16:11 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549196171; cv=none;
         d=google.com; s=arc-20160816;
-        b=R9iuly4aaSNy1qudkXPn2hM+sLqd1hr/MUHn1Ux/kQAvrqciwqTT0qHVhpdZCPVN5G
-         C/AT+GUN/xj8CFycyGw48B+szNiMGWzMoSQilUpdesejWl3Om25bmhAdHYuk91+DOq4J
-         jaTw7IUtZ32c5HXOVxvBJ7Mo6vh4qa6kkQupywZUHh1JF/BRYF63EufsWo8vkpGAzFaG
-         2HggX10I8WemvpAJAaOLfXCQGtvuC9G0FmhGSkE8eLvyFfvEthgZrFc6Sr5tNvDLJd7/
-         JsMOAb+vKRP7mw8XZ41UqZLOshAd2wI0UJN9hAGOOEDULgsEVQNW09+/Z/A9tmZubiln
-         0fDQ==
+        b=06sV0YgDNbY6PprbcXbsMLq9Au6SaBCqxAWbTtA6Y2t5g6Jv/IS72h4wtxtMB0N6dA
+         pVPJP5vs6qIA9zzGSDiM+imzcA3CHt4lKVKiErtNDdtOELGYfyyzROMaPE8vvcRfwJYX
+         yPHw1zJhqyCvTvHnQA/8Lzqe3OojWpYkFuzWaXQnPAoyDBZTnCRGzz/+dV0mIM72JGzc
+         4W+esqk9++rvuHsqtGhsl9vv7+6zLNJWRp0z9Vg2uDqM2486KI1C91diXG4Cmxx0qwxV
+         TRGn+Y2O3cgyeE/j++jv9n+vsTRuSlUkH4XUbXItDOkBloa/FEaXM4ZvLOJvFv24D31t
+         NA/w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=10Q4A8cRCVZ62JEp8/wkwk+13xjXhUiGKYrwNjDciL8=;
-        b=XMgasF9/6WvT/RzXHzyzxjpI4xI9SPK3Rynlw/m5omyEvfpyj+vFETe7rE0n/auzOp
-         rDiBkoxd8+o31oq9qrm3II13lhlEaCAYRV3pontkjqe83CXRI1ARve8wv4HFArw7aJ1z
-         PHurQ3zOGEhOYUKnok7fU0Joq+gDEeHBlf0gViRFrmWl8Yke6hFiqgDzLqDH5goD9x4o
-         NXYWEhs+0RHrXbItzdRFQItxx89awdPjbV0U6fzkjcph0m8CoFq6GEUJ0XbXQ5znSLD1
-         muZPa1jd7fP1lXid4n0FOTmKnx/pDAGzijFI75UBy+Sej7EswjTWkd+VyvugBb4U5JXs
-         WELg==
+        bh=bsr2lcuUZ78duCduOrjEIhzTac5FkzmhdngvDyze87g=;
+        b=ZjGpgDPV139Utg1aBmhK3lLSJImihMeXoqZ96VuxAkSd6HOlRT/EPyVoy3U6JJ24uK
+         qVQGH6D3wIoDgBuvNCAnyQMiGllpCE7+8Fw81IruF4vuLc01q15zHkr0Bcbh9aSiVtMn
+         pkJwM8ppVDebC6CwHPr8JQT5Y4hEMGp33h6n/ykXVKJtcQn2HLZUNAvb1SiGporRj+Ir
+         +YQkBqV/ploO8NCnKru8yfZ+IRtoSJRbvyDrAWpx6cSd+pF8goyPlQSuCu00wEJfFdIJ
+         MD2uEUfjRCruXkZhGA1sWk+aToa73Hah5R49t3kvjehG/r8q1x54rX4/VAu7MUyCrCm3
+         7qWg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nFfWeqvC;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DEFZB7m2;
        spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f8-v6sor7734292ljg.0.2019.02.03.04.12.17
+        by mx.google.com with SMTPS id s141sor3584782lfe.45.2019.02.03.04.16.11
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 03 Feb 2019 04:12:18 -0800 (PST)
+        Sun, 03 Feb 2019 04:16:11 -0800 (PST)
 Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nFfWeqvC;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DEFZB7m2;
        spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=10Q4A8cRCVZ62JEp8/wkwk+13xjXhUiGKYrwNjDciL8=;
-        b=nFfWeqvCAFPf7SyAF02GxnT6T0aeeFZK6SDzSFPnAFHXCMXkqhXP7WaR//u0/QIFBo
-         /krDPpuTpTU25c9htE+FY6UCucyRl3ngWDnoPEEmSNY+EMfNZi1gCS4HCK47bBIZPjLv
-         H8IGi9gskuDoZz5cDX8mxEJeyeekYVEBnCIkRlyOrU67eqkuRY49O7Cc+JBbj+Bt9IDY
-         v2MIw2+a2Bquf7hsXOZRor6Uzyaut/+b7elxyDnGP3FG6DeUPTmhuAq4eaXbeyiVR90j
-         EHy1JWUSAH/6YHsTI0u4a9jeu/oM2RgBidKqsATvR2UgYsR+RR0Z9iQdSVoclpV3U0p1
-         P0AQ==
-X-Google-Smtp-Source: ALg8bN7afLT02AkCWiIGrjJWd2raxmzBBviphe+sD/WPR2mbwBp3XwWNgngc6PGN+CjVjnQIWU1Bpfwx9bsgBTYtJlE=
-X-Received: by 2002:a2e:9849:: with SMTP id e9-v6mr36673565ljj.9.1549195937638;
- Sun, 03 Feb 2019 04:12:17 -0800 (PST)
+        bh=bsr2lcuUZ78duCduOrjEIhzTac5FkzmhdngvDyze87g=;
+        b=DEFZB7m2x3lEjsSr4Vebj+gVVt7RLH0LzvwCLxLo87w5byYcx/eb6nkp/k5rPLuF39
+         mmpb1Mq5bkecyhhJJlhVeKWccLyDB6pbFTcG0XIJojHQ1bHDN6mtm+KoI8VXXSqh4yl8
+         ipfUr4T2tWkt0zjGXzc9GQDjaIzV49m5XBPq5fafnpOPUlJkiK438F1eBMpOp9WOD031
+         rS4TLTf9kl1YBlwKdOL4uPVoF0bqQVtg2TbM4tLaPL2XM6xJkhQmwMfCYyZNuUDWKGnu
+         yXDuK0R70C2y4wvmF0CXFDycc+8qwbZhCbA6fzZGslHQA2fZUVEj6ZEW4WTc5BAZ/kpz
+         u8UQ==
+X-Google-Smtp-Source: AHgI3IaQ2Z3KDC+FnOhj++jsrTaCbQdTU8++guI2WhAsqUj3GwbfmgS1POV51VcyVAyZUuz4VlciqPBClODpIE97UkE=
+X-Received: by 2002:a19:5004:: with SMTP id e4mr3804044lfb.75.1549196171078;
+ Sun, 03 Feb 2019 04:16:11 -0800 (PST)
 MIME-Version: 1.0
-References: <20190131031222.GA2356@jordon-HP-15-Notebook-PC>
-In-Reply-To: <20190131031222.GA2356@jordon-HP-15-Notebook-PC>
+References: <20190131030900.GA2284@jordon-HP-15-Notebook-PC>
+In-Reply-To: <20190131030900.GA2284@jordon-HP-15-Notebook-PC>
 From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Sun, 3 Feb 2019 17:42:09 +0530
-Message-ID: <CAFqt6zbw4wbjMYjRs_Sy6BegzqOSq_YK27rhjHw_dr_jR8neAw@mail.gmail.com>
-Subject: Re: [PATCHv2 6/9] iommu/dma-iommu.c: Convert to use vm_insert_range
+Date: Sun, 3 Feb 2019 17:46:02 +0530
+Message-ID: <CAFqt6zZCmUTf1Pj+i0eYeQJ1x8A5u+26cM0v00TRpiNYDHky8Q@mail.gmail.com>
+Subject: Re: [PATCHv2 2/9] arch/arm/mm/dma-mapping.c: Convert to use vm_insert_range
 To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
-	Michal Hocko <mhocko@suse.com>, joro@8bytes.org, 
-	Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com
-Cc: iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, 
-	Linux-MM <linux-mm@kvack.org>
+	Michal Hocko <mhocko@suse.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, 
+	iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, 
+	Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, 
+	linux-arm-kernel@lists.infradead.org
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -117,44 +118,63 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Joerg,
+Hi Russell,
 
-On Thu, Jan 31, 2019 at 8:38 AM Souptick Joarder <jrdr.linux@gmail.com> wrote:
+On Thu, Jan 31, 2019 at 8:34 AM Souptick Joarder <jrdr.linux@gmail.com> wrote:
 >
 > Convert to use vm_insert_range() to map range of kernel
 > memory to user vma.
 >
 > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
 
-Can you please help to review this patch ?
+Does it looks good ?
 
 > ---
->  drivers/iommu/dma-iommu.c | 12 +-----------
->  1 file changed, 1 insertion(+), 11 deletions(-)
+>  arch/arm/mm/dma-mapping.c | 22 ++++++----------------
+>  1 file changed, 6 insertions(+), 16 deletions(-)
 >
-> diff --git a/drivers/iommu/dma-iommu.c b/drivers/iommu/dma-iommu.c
-> index d19f3d6..bdf14b87 100644
-> --- a/drivers/iommu/dma-iommu.c
-> +++ b/drivers/iommu/dma-iommu.c
-> @@ -620,17 +620,7 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
->
->  int iommu_dma_mmap(struct page **pages, size_t size, struct vm_area_struct *vma)
+> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> index f1e2922..915f701 100644
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -1575,31 +1575,21 @@ static int __arm_iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma
+>                     void *cpu_addr, dma_addr_t dma_addr, size_t size,
+>                     unsigned long attrs)
 >  {
 > -       unsigned long uaddr = vma->vm_start;
-> -       unsigned int i, count = PAGE_ALIGN(size) >> PAGE_SHIFT;
-> -       int ret = -ENXIO;
-> -
-> -       for (i = vma->vm_pgoff; i < count && uaddr < vma->vm_end; i++) {
-> -               ret = vm_insert_page(vma, uaddr, pages[i]);
-> -               if (ret)
-> -                       break;
-> -               uaddr += PAGE_SIZE;
-> -       }
-> -       return ret;
-> +       return vm_insert_range(vma, pages, PAGE_ALIGN(size) >> PAGE_SHIFT);
->  }
+> -       unsigned long usize = vma->vm_end - vma->vm_start;
+>         struct page **pages = __iommu_get_pages(cpu_addr, attrs);
+>         unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+> -       unsigned long off = vma->vm_pgoff;
+> +       int err;
 >
->  static dma_addr_t __iommu_dma_map(struct device *dev, phys_addr_t phys,
+>         if (!pages)
+>                 return -ENXIO;
+>
+> -       if (off >= nr_pages || (usize >> PAGE_SHIFT) > nr_pages - off)
+> +       if (vma->vm_pgoff >= nr_pages)
+>                 return -ENXIO;
+>
+> -       pages += off;
+> -
+> -       do {
+> -               int ret = vm_insert_page(vma, uaddr, *pages++);
+> -               if (ret) {
+> -                       pr_err("Remapping memory failed: %d\n", ret);
+> -                       return ret;
+> -               }
+> -               uaddr += PAGE_SIZE;
+> -               usize -= PAGE_SIZE;
+> -       } while (usize > 0);
+> +       err = vm_insert_range(vma, pages, nr_pages);
+> +       if (err)
+> +               pr_err("Remapping memory failed: %d\n", err);
+>
+> -       return 0;
+> +       return err;
+>  }
+>  static int arm_iommu_mmap_attrs(struct device *dev,
+>                 struct vm_area_struct *vma, void *cpu_addr,
 > --
 > 1.9.1
 >
