@@ -6,73 +6,73 @@ X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 50B47C169C4
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 13:49:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BD2F1C169C4
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 13:49:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F0BF4218D8
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 13:49:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0BF4218D8
+	by mail.kernel.org (Postfix) with ESMTP id 772BD218D8
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Feb 2019 13:49:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 772BD218D8
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=decadent.org.uk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 56F018E0023; Sun,  3 Feb 2019 08:49:45 -0500 (EST)
+	id 08B108E0024; Sun,  3 Feb 2019 08:49:48 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 51BC18E001C; Sun,  3 Feb 2019 08:49:45 -0500 (EST)
+	id 03B308E001C; Sun,  3 Feb 2019 08:49:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 40C3D8E0023; Sun,  3 Feb 2019 08:49:45 -0500 (EST)
+	id E6BED8E0024; Sun,  3 Feb 2019 08:49:47 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DD8DA8E001C
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2019 08:49:44 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id w12so3804750wru.20
-        for <linux-mm@kvack.org>; Sun, 03 Feb 2019 05:49:44 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A73768E001C
+	for <linux-mm@kvack.org>; Sun,  3 Feb 2019 08:49:47 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id t10so9536769plo.13
+        for <linux-mm@kvack.org>; Sun, 03 Feb 2019 05:49:47 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state
          :content-disposition:content-transfer-encoding:mime-version:from:to
          :cc:date:message-id:subject:in-reply-to;
-        bh=OKgnfPZs1x522YtA1gVvrOy6dGcXxHe300kvm90O9Vs=;
-        b=TM+MFu4g2b2k/EKo1iXZ0DDYrnmCAndTif4Rs5krOU0nNUh9OCceBmcJKJi19UYDL0
-         JbzMEMJcs20u8U26NZs+ABC8CVu6kBI33BayYWUoJS5lC4zANArODtRa4LRiIyiWI0Z2
-         M3/MQCUNlfug4acbkBZw/pmGn6TP0F8KFBCBg967gGF6Wy/qCsAlDn1FKZhcoBifi6XY
-         CGK3QCnNTAtiQhLOjDdE445zV8T1dx4j8tPxbxFyNk8cr3nG8nWbj6WvmL76QA9A/UMd
-         s14nrUm3U/XCjoUjqkOK2v9OYWBhyRcmubYCiekMcR6gjk7DaLOJB38eAmbUMpmtHePG
-         W3TQ==
+        bh=OkEXknWwHjp+WPixZIhf8SrXXlLE8Zv6mWHK2+7oCWY=;
+        b=HoHIAdhgIEeOV+Snpm1baC80AkELlJeB7khxBBVpHvnAT4NWS2XGpsEO5v6WtAt2/x
+         FqRhCsdNdWy11z7uI6TpOQT2ROlAPGgiKaAmbFO74VOgk0XMhlJ0KnkUp3u4IrgwqfSa
+         Dyq2XobR8eqsbjjzwpOeN0hFyzWA99gNUV//X5le//oQ5pY9nLPlf4kehGcy+SpsZUep
+         7bVwky6Ht5/8z5wDcbYL50MrMs/l/zxMhc/2ZOfIDf+iDKOP0hQixKZZdXNvo6gzEc0J
+         hYCbI9TcAaWDAagr2/yYQSXRfmFHLv09lLGcy0sbZJV3U160JjySOf+QbfT7TLrvNH+p
+         /hPA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ben@decadent.org.uk designates 88.96.1.126 as permitted sender) smtp.mailfrom=ben@decadent.org.uk
-X-Gm-Message-State: AHQUAubyra+xKqLQvAY2G2qyQE2Ff9I4oQxc7awaQVhKm8HJfQaLBo5s
-	/eZ9ORlb+Xno3CBef2Sa/Xp5LuaCXtTMsKkFhAE+pT0LAER3atPXkM2ROjLkzA0BIWVL5D+1/2l
-	I/8PLgBb+jpd6EkUBJ8NDVHFuzln1p6UDubeVlSuM6m9h/KQRDmuG9A5ShBgedQsdUw==
-X-Received: by 2002:a1c:a895:: with SMTP id r143mr9308954wme.95.1549201784333;
-        Sun, 03 Feb 2019 05:49:44 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ3tZ3w835v9WzIl2PXaX5iy8JLHaL3PgUsx/SOjlyzEN/t/QyNfO43Gsq6Jp4uttSmjd9J
-X-Received: by 2002:a1c:a895:: with SMTP id r143mr9308907wme.95.1549201783206;
-        Sun, 03 Feb 2019 05:49:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549201783; cv=none;
+X-Gm-Message-State: AJcUukenV1dobO6ob14b4hX9hGyFpbs9QyfuiWjEFT0VF1IbbaIVcUpH
+	8Skx8+jy66pkpZSup1xCIn9/Oniank1h7nqaG9YFHDuD1436h4IaVM9fow6m7EfYalFzcvD8ygD
+	aWY6JHJFoZfTFMP3jD1vSD3VxvxH0Y/X9UcYRHoUZZ4D8Fn46sPDy5Mz703i9IAIQ3w==
+X-Received: by 2002:a17:902:f81:: with SMTP id 1mr46146760plz.174.1549201787258;
+        Sun, 03 Feb 2019 05:49:47 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN7dRjpdbgnV+EpK35mOBWdyRXvPrSGnJvxQ/szWcwvBpkkQD8/PA3AUpZ9LfbOfc2PaVvSH
+X-Received: by 2002:a17:902:f81:: with SMTP id 1mr46146724plz.174.1549201786383;
+        Sun, 03 Feb 2019 05:49:46 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549201786; cv=none;
         d=google.com; s=arc-20160816;
-        b=FThILP2hpgZcNQaxzhkPfqNJHfiTS3haA24mh/ctXNlZoV5aPpMJHF0GxbtO3uBvw8
-         rOt5m1ACivJHvu4GG3y26SC9MO9qzmKmP17/no5U2gsfMio9pUWZWwhTqKxnkoRo1usD
-         ms72WTssu4jjQ2aKbOolDV15CQi0inHzTfmF979su7nnXVle0dbHryhS40fo9QuwU9z0
-         bs+HCz7A9awwAo2hlcKUI8jQJqS53qwTCiUF6tiptuFSKW6sKmBLXN0Fmr420bQ+HgLA
-         GLp7x1+KOW0LvE9Af4IYPTpPX/cli8XYKB8y9rI8sD8SD6jY6BQPBgL85oArWzr7smbl
-         2ofg==
+        b=ec6Zbw1ZaLLJz4jgzrhNqMM50XSMUEH0gtNLhkJt/sxRIsbY7iMUdxj0bwEP+BiYoE
+         RIV6cVvmBHpTNDRr7/pd7xuM8LIKXEwaoy5rGKVtgq64rOnpE7cHhFhvUb3k/Uq+jvDQ
+         QohDqlE8uD37Rjg9Uzx/8ZheOuJKkhSor2rG8aQcZg3PlEUX7Jd+2peKKA0Ovylef2Vw
+         OIwvoFhuCXYVo50Bz4Qp4kfKl2DIi1yRbgA+SxhdCcUzKZ1FyhKBlAHfUFqZV7j4C1Xd
+         0KZcDRptDVhTVfvzwukUkJCTFA6Vye/aLnsXP6868D+A8z0B/35OAQciaAEiPU6fyj/2
+         Jr4w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=in-reply-to:subject:message-id:date:cc:to:from:mime-version
          :content-transfer-encoding:content-disposition;
-        bh=OKgnfPZs1x522YtA1gVvrOy6dGcXxHe300kvm90O9Vs=;
-        b=ZBhBcPQFJJOZmllKJW0eE6Jbet8YnPMjHCnA51erZ34FBacLdhruwEtyJEDvofxpt9
-         BKKujbIEroU8AlO6UDZuHac/2FAhbMpOnj+5/TzKWoM66xxJGfztpAjgpGMHHyxHXz1p
-         lEoQDX8olcPFWbxvIZ1XPSbfls1IDP0t5dZXU+zYxkF152yaEXseYTiKIEL498ccYM0e
-         CLe52aDaLaKeV77XOnGcmib0fNVJ5mT/uaBFGNSLNfO+NuVTmkEvbsjAvM5DwsWe3+bn
-         Uy040uB58u1Cx4Xfb/zFsi7tSk/OxErl/bETAnoLX82lhaFg7uzx243DgwUspT1Ucxat
-         NHxg==
+        bh=OkEXknWwHjp+WPixZIhf8SrXXlLE8Zv6mWHK2+7oCWY=;
+        b=Fv5NsabAPRV1oJdLU7DGR64odIRtFOso4Lb+SxKYCuAt4Ear8rCeWJZu7bJqVXd78S
+         RavDVzdGIXHsZeactNiUAPlPNPNEY8vLqeYA4KzyWuhNZkRU7MFh2DLX8pwQ90GbWWCt
+         YzaSnuQb6Qe6BBU2rdmqeSc7gFMnRnU+10xEUjr/qbHXXI9PU2BXf4H2NVBdc1R/BFiS
+         WishEAHcJ4z2qLA3Jt1BF5fo7qzUpX2bwCIc3m6UZP0NzFODyn48IraNshF+gENACLFt
+         jiMflzHU/kAZbQKQQCCKYsJKeXr6gJnfr4YdUIwOP0bzvbXvUHyzhyY25ALEKqG6f7cH
+         TUtw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of ben@decadent.org.uk designates 88.96.1.126 as permitted sender) smtp.mailfrom=ben@decadent.org.uk
 Received: from shadbolt.e.decadent.org.uk (shadbolt.e.decadent.org.uk. [88.96.1.126])
-        by mx.google.com with ESMTPS id n5si9529417wrh.320.2019.02.03.05.49.42
+        by mx.google.com with ESMTPS id 21si873075pgx.488.2019.02.03.05.49.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 03 Feb 2019 05:49:43 -0800 (PST)
+        Sun, 03 Feb 2019 05:49:46 -0800 (PST)
 Received-SPF: pass (google.com: domain of ben@decadent.org.uk designates 88.96.1.126 as permitted sender) client-ip=88.96.1.126;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of ben@decadent.org.uk designates 88.96.1.126 as permitted sender) smtp.mailfrom=ben@decadent.org.uk
@@ -80,10 +80,10 @@ Received: from cable-78.29.236.164.coditel.net ([78.29.236.164] helo=deadeye)
 	by shadbolt.decadent.org.uk with esmtps (TLS1.2:ECDHE_RSA_AES_256_GCM_SHA384:256)
 	(Exim 4.89)
 	(envelope-from <ben@decadent.org.uk>)
-	id 1gqI9T-0003ti-3t; Sun, 03 Feb 2019 13:49:39 +0000
+	id 1gqI9T-0003th-4t; Sun, 03 Feb 2019 13:49:39 +0000
 Received: from ben by deadeye with local (Exim 4.92-RC4)
 	(envelope-from <ben@decadent.org.uk>)
-	id 1gqI9T-0006nA-CG; Sun, 03 Feb 2019 14:49:39 +0100
+	id 1gqI9T-0006nE-Db; Sun, 03 Feb 2019 14:49:39 +0100
 Content-Type: text/plain; charset="UTF-8"
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
@@ -91,21 +91,22 @@ MIME-Version: 1.0
 From: Ben Hutchings <ben@decadent.org.uk>
 To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
 CC: akpm@linux-foundation.org, Denis Kirjanov <kda@linux-powerpc.org>,
- linux-mm@kvack.org,
- "Ingo Molnar" <mingo@redhat.com>,
- "Juergen Gross" <jgross@suse.com>,
  "Konrad Wilk" <konrad.wilk@oracle.com>,
- "H. Peter Anvin" <hpa@zytor.com>,
  "Thomas Gleixner" <tglx@linutronix.de>,
- "Wenkuan Wang" <Wenkuan.Wang@windriver.com>,
  "Robert Elliot" <elliott@hpe.com>,
+ "Wenkuan Wang" <Wenkuan.Wang@windriver.com>,
+ "H. Peter Anvin" <hpa@zytor.com>,
+ "Toshi Kani" <toshi.kani@hpe.com>,
  "Borislav Petkov" <bp@alien8.de>,
- "Toshi Kani" <toshi.kani@hpe.com>
+ linux-mm@kvack.org,
+ "Juergen Gross" <jgross@suse.com>,
+ "Ingo Molnar" <mingo@redhat.com>
 Date: Sun, 03 Feb 2019 14:45:08 +0100
-Message-ID: <lsq.1549201508.355567159@decadent.org.uk>
+Message-ID: <lsq.1549201508.370199741@decadent.org.uk>
 X-Mailer: LinuxStableQueue (scripts by bwh)
 X-Patchwork-Hint: ignore
-Subject: [PATCH 3.16 002/305] x86/asm: Move PUD_PAGE macros to page_types.h
+Subject: [PATCH 3.16 003/305] x86/asm: Fix pud/pmd interfaces to handle
+ large PAT bit
 In-Reply-To: <lsq.1549201507.384106140@decadent.org.uk>
 X-SA-Exim-Connect-IP: 78.29.236.164
 X-SA-Exim-Mail-From: ben@decadent.org.uk
@@ -122,16 +123,15 @@ List-ID: <linux-mm.kvack.org>
 
 From: Toshi Kani <toshi.kani@hpe.com>
 
-commit 832102671855f73962e7a04fdafd48b9385ea5c6 upstream.
+commit f70abb0fc3da1b2945c92751ccda2744081bf2b7 upstream.
 
-PUD_SHIFT is defined according to a given kernel configuration, which
-allows it be commonly used by any x86 kernels.  However, PUD_PAGE_SIZE
-and PUD_PAGE_MASK, which are set from PUD_SHIFT, are defined in
-page_64_types.h, which can be used by 64-bit kernel only.
+Now that we have pud/pmd mask interfaces, which handle pfn & flags
+mask properly for the large PAT bit.
 
-Move PUD_PAGE_SIZE and PUD_PAGE_MASK to page_types.h so that they can
-be used by any x86 kernels as well.
+Fix pud/pmd pfn & flags interfaces by replacing PTE_PFN_MASK and
+PTE_FLAGS_MASK with the pud/pmd mask interfaces.
 
+Suggested-by: Juergen Gross <jgross@suse.com>
 Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Juergen Gross <jgross@suse.com>
@@ -141,37 +141,88 @@ Cc: Borislav Petkov <bp@alien8.de>
 Cc: Konrad Wilk <konrad.wilk@oracle.com>
 Cc: Robert Elliot <elliott@hpe.com>
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/1442514264-12475-3-git-send-email-toshi.kani@hpe.com
+Link: http://lkml.kernel.org/r/1442514264-12475-5-git-send-email-toshi.kani@hpe.com
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 Signed-off-by: Wenkuan Wang <Wenkuan.Wang@windriver.com>
 Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
 ---
- arch/x86/include/asm/page_64_types.h | 3 ---
- arch/x86/include/asm/page_types.h    | 3 +++
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ arch/x86/include/asm/pgtable.h       | 14 ++++++++------
+ arch/x86/include/asm/pgtable_types.h |  4 ++--
+ 2 files changed, 10 insertions(+), 8 deletions(-)
 
---- a/arch/x86/include/asm/page_64_types.h
-+++ b/arch/x86/include/asm/page_64_types.h
-@@ -20,9 +20,6 @@
- #define MCE_STACK 4
- #define N_EXCEPTION_STACKS 4  /* hw limit: 7 */
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -156,14 +156,14 @@ static inline unsigned long pmd_pfn(pmd_
+ {
+ 	phys_addr_t pfn = pmd_val(pmd);
+ 	pfn ^= protnone_mask(pfn);
+-	return (pfn & PTE_PFN_MASK) >> PAGE_SHIFT;
++	return (pfn & pmd_pfn_mask(pmd)) >> PAGE_SHIFT;
+ }
  
--#define PUD_PAGE_SIZE		(_AC(1, UL) << PUD_SHIFT)
--#define PUD_PAGE_MASK		(~(PUD_PAGE_SIZE-1))
--
+ static inline unsigned long pud_pfn(pud_t pud)
+ {
+ 	phys_addr_t pfn = pud_val(pud);
+ 	pfn ^= protnone_mask(pfn);
+-	return (pfn & PTE_PFN_MASK) >> PAGE_SHIFT;
++	return (pfn & pud_pfn_mask(pud)) >> PAGE_SHIFT;
+ }
+ 
+ #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
+@@ -584,14 +584,15 @@ static inline int pmd_none(pmd_t pmd)
+ 
+ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
+ {
+-	return (unsigned long)__va(pmd_val(pmd) & PTE_PFN_MASK);
++	return (unsigned long)__va(pmd_val(pmd) & pmd_pfn_mask(pmd));
+ }
+ 
  /*
-  * Set __PAGE_OFFSET to the most negative possible address +
-  * PGDIR_SIZE*16 (pgd slot 272).  The gap is to allow a space for a
---- a/arch/x86/include/asm/page_types.h
-+++ b/arch/x86/include/asm/page_types.h
-@@ -20,6 +20,9 @@
- #define PMD_PAGE_SIZE		(_AC(1, UL) << PMD_SHIFT)
- #define PMD_PAGE_MASK		(~(PMD_PAGE_SIZE-1))
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define pmd_page(pmd)	pfn_to_page((pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT)
++#define pmd_page(pmd)		\
++	pfn_to_page((pmd_val(pmd) & pmd_pfn_mask(pmd)) >> PAGE_SHIFT)
  
-+#define PUD_PAGE_SIZE		(_AC(1, UL) << PUD_SHIFT)
-+#define PUD_PAGE_MASK		(~(PUD_PAGE_SIZE-1))
-+
- #define HPAGE_SHIFT		PMD_SHIFT
- #define HPAGE_SIZE		(_AC(1,UL) << HPAGE_SHIFT)
- #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
+ /*
+  * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
+@@ -657,14 +658,15 @@ static inline int pud_present(pud_t pud)
+ 
+ static inline unsigned long pud_page_vaddr(pud_t pud)
+ {
+-	return (unsigned long)__va((unsigned long)pud_val(pud) & PTE_PFN_MASK);
++	return (unsigned long)__va(pud_val(pud) & pud_pfn_mask(pud));
+ }
+ 
+ /*
+  * Currently stuck as a macro due to indirect forward reference to
+  * linux/mmzone.h's __section_mem_map_addr() definition:
+  */
+-#define pud_page(pud)		pfn_to_page(pud_val(pud) >> PAGE_SHIFT)
++#define pud_page(pud)		\
++	pfn_to_page((pud_val(pud) & pud_pfn_mask(pud)) >> PAGE_SHIFT)
+ 
+ /* Find an entry in the second-level page table.. */
+ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -347,7 +347,7 @@ static inline pudval_t pud_flags_mask(pu
+ 
+ static inline pudval_t pud_flags(pud_t pud)
+ {
+-	return native_pud_val(pud) & PTE_FLAGS_MASK;
++	return native_pud_val(pud) & pud_flags_mask(pud);
+ }
+ 
+ static inline pmdval_t pmd_pfn_mask(pmd_t pmd)
+@@ -368,7 +368,7 @@ static inline pmdval_t pmd_flags_mask(pm
+ 
+ static inline pmdval_t pmd_flags(pmd_t pmd)
+ {
+-	return native_pmd_val(pmd) & PTE_FLAGS_MASK;
++	return native_pmd_val(pmd) & pmd_flags_mask(pmd);
+ }
+ 
+ static inline pte_t native_make_pte(pteval_t val)
 
