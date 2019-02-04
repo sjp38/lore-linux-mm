@@ -2,195 +2,141 @@ Return-Path: <SRS0=bR/Z=QL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-12.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C9B0BC4151A
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 14:38:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C0EC5C282C4
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 16:08:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7DD032083B
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 14:38:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 54EC72082F
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 16:08:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=bofh-nu.20150623.gappssmtp.com header.i=@bofh-nu.20150623.gappssmtp.com header.b="gR/zZavk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DD032083B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bofh.nu
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="QUHV/hav"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 54EC72082F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ECBDD8E0047; Mon,  4 Feb 2019 09:38:29 -0500 (EST)
+	id A6C0D8E0048; Mon,  4 Feb 2019 11:08:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E7AAB8E001C; Mon,  4 Feb 2019 09:38:29 -0500 (EST)
+	id 9F2C98E001C; Mon,  4 Feb 2019 11:08:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D91F08E0047; Mon,  4 Feb 2019 09:38:29 -0500 (EST)
+	id 8952B8E0048; Mon,  4 Feb 2019 11:08:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B0B548E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 09:38:29 -0500 (EST)
-Received: by mail-ot1-f71.google.com with SMTP id m52so39654otc.13
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 06:38:29 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BD208E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 11:08:04 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id i6so384189qtp.9
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 08:08:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=hE4P+KtbkIDEo8Lq8LirA+lBCYJX0HyoYvS1ea+soVo=;
-        b=c3XG0RDFylV3rksudbq0TI6oGOFufIKTNFc/+eCTKm7lWrU8y8K2Wff22U8o6RVabn
-         BFSIHgSb5+n2/clqPOdZNvJOnmmV5I0nqXtaKaN8CTUZjwPfS6FDwGR5RzHCjUSqS3EZ
-         jtrNnC+8+YUMKPyBZr9b2x6dk4co0/DC5HqZWGPMSm7VhIVZPWYbnCuCJQZ1/puoqOIl
-         OwIsk1JR8pHI9jlXufPNRQlH/EF6Bjfnnwk9kL2VChkhBw5SMEnEw+ZewOMgrumlezVP
-         R/RimYda9lMD3bdwR2/FOTHvO37iHda5p1wLtygawHDt7JLPVpln0OXBkVFXC99odUZg
-         nbdg==
-X-Gm-Message-State: AHQUAuaf5068mSf28ifycF+gH5jXnE5YhcrGxFDM+I+7NPgyEmhf8LbI
-	S8gLZJVa8LkrHD3ENLIFDZMrgsQEinkNWAoNqwfxc3XCWN5bY8XsYTAbVwyZRBT6mXP9AyGCl+G
-	KNBh2KT+E6n6phQY7F4W6ZF6AT5Z0Aaz0gmNPRSbvIp9Kpr0ec8eTi+WVC9BE7ZE+comtcKoW4q
-	C1O/AdkknFl0PzFDHq0H4QUmFM1yu1PCpcUrmMzkKLVF/PjP0GWda6u/eOxr/ItIKx7o3i2uTyj
-	uZJgWZqA/liz5hb35LtoKdYCWofpMhdwBgb4kvkNI45vDMRVUTaVLUO1nnQnQJXKaqeVwJaVinu
-	k8vSy6PcMJ9s30wbpnzYo+U9M0ULi+I2D10UWOuZfwyEcLlVil0FosPmoC5CMfrJcMM/+QcveKV
-	e
-X-Received: by 2002:a54:4393:: with SMTP id u19mr24926657oiv.99.1549291109294;
-        Mon, 04 Feb 2019 06:38:29 -0800 (PST)
-X-Received: by 2002:a54:4393:: with SMTP id u19mr24926608oiv.99.1549291107960;
-        Mon, 04 Feb 2019 06:38:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549291107; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=Li4m9VgzDn107uj2skKg4pEfVvnsw/uPImCizgtRdaU=;
+        b=paZK7EFbZgyFmIkOYcMd5vAxzQtFZzilwI5rOsrZWimBCQTpA1SypMc/yVrn4BocPi
+         K6B9f4FjfOdeO+Jr6yhttcDNESHvqsr4K485gImNMCVVokJZJM4/pAnqNXBw4PtkdhWk
+         uFc/BTcRBjSrzhcXBhA0vw/Vm4pO89G4XWYi1Hv8g6r9gEA6in9DsbjyjqC81M5pASS2
+         A9GWiDuNdjp/YrE1p+SgCqTz5hTcNcH/NuaSaY7+Ka0RbVrt8toWELxNkdgtKdtVv95b
+         cbZpCoIchW84HtEYPN8rUufFGzrHHOZ7xMhQzxecP8FbaFAyviikPl49477vTgpyaF59
+         UaQw==
+X-Gm-Message-State: AHQUAuaFEuYYfOfxEC2NcuZyDsCNU2xqVLLxRlvpTK0Yo1mgssTQeZia
+	Ws/wZZH5RnrezgOfRpnLlWjCnTOfzi2s3sSiNlh54d2A5eeLGZwRLNlSWXCEAl+BjEDBXd9bJ1/
+	r4WCwv7CX6J7LMBfn5tOGduwlftJqMWx5RyGfbgz6eEiISAkxUHF8H7j5D/GxjSU=
+X-Received: by 2002:a0c:9471:: with SMTP id i46mr106878qvi.120.1549296484047;
+        Mon, 04 Feb 2019 08:08:04 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYAIgB27++8iDVcDv2mreZoP5TrzZn9inecmrFKtc4TJNwbO+Lo+Bd9Kog83ZDkHpv7w3nj
+X-Received: by 2002:a0c:9471:: with SMTP id i46mr106838qvi.120.1549296483403;
+        Mon, 04 Feb 2019 08:08:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549296483; cv=none;
         d=google.com; s=arc-20160816;
-        b=xiNWIT5BDl5xrv67A2YBQ7VhFvRjOKLxo3RDFmeLuTRZd+R5vTHH6ghVJDZVUhj7cw
-         TuKdWQ/CLTF0AQgkjFFo7gKvNnITrd6Qbh1F8vda8QolaYnmSmtTkQVM1lU4cAtti4Nh
-         JGytBGN7APgS2NbE+iux1zmhjJ3AGy25k3FPltYqAt+G382GuOk6RlMt+2+gmgM8VNlu
-         K3TeCcBCJnvLa4F0L8MVwV/vsXN53kU1gg9vKQn5pDuiVbirpgB3G1WTmzBp7HJLDrVd
-         q6R8hhQcvjNzPsaIaFt+9ygoja+4PraH6PGxCz+64wU+yeB8ToTNTHauCQnIygglFaXr
-         WjOg==
+        b=MXMghauHCIFoOUszgmwpIZXL0cO5xF+gGVyqrHC3fJ8ng+ggUMeCVXqOSVmtE+4ca/
+         D4qN4LndTJ5dqYSOjT/p4IRKuEfBDFTqBbm2Z3ewPguXjcuhSFMmVDuJwpnnGKrs6deO
+         HFbcYq3ACiB+FG91wMaReEevKkSkKnusdB5KLlDdIRAf0+Ipets8Gg3d5ACWqvNka8ao
+         o7F5RfRozBOS5zhhl3KxMM031Rt/n8FzQx6TF94vRMsklIEEZtIaovYaoZfnZO54LB68
+         ggbgf/sTqIg1RjAhW6/OVQ6GyS4TOqXEhGl73Ddrsikfq9nUa0/vEx+ngVaUWP1d+GyL
+         5EYA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=hE4P+KtbkIDEo8Lq8LirA+lBCYJX0HyoYvS1ea+soVo=;
-        b=IHDj0GDhAe2R4H2tcbYiZRc0f4zOh9D0U4HC7tlSSHD4CedHGq+O3I10DV6wMhQaHa
-         srHT9Jr7DgqJkFpK9NEjLdjO/FyRJxa3gXgXm62CQ2eaxtaRnXsBvzKZfKCj05LcAHtu
-         IDJpoaHrc6/16fEvwN6xuRwhYjTu5RAks2NQzvCFLhcWQDfxkgWeOpuodLqk3WGOx73M
-         nghea6PqQ6Bn9wnrfnFil1soqZ2OhkNeoGy6+Ffq/1yWe5EcutcuHOQMoms2g96Jmj08
-         C+QUpTxBv6yW+wNgeb3IcSAQ+RYRKK9p9KHZde8qQ41Pmpy0Ac+eWHq+84vdRttwlv1C
-         018A==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=Li4m9VgzDn107uj2skKg4pEfVvnsw/uPImCizgtRdaU=;
+        b=mtPVfjWo5jyfeVNRiXiU+/BgEgdSGEPof35pIYSu6JGNdw6O45WkCxccFUhZln55Sy
+         E2TAafGPImkl6IEoAQQ2LZhvP85mQ/VHwj9RIx3GBHb+1F2rsorJFJATs+qT1RkQFvfO
+         8cKuIMOyrW9Z51UQCILSsVdeGSAO4lgM0w2IGiYGsEJUbJ0rNgH3fL+Z7WTe5gLGLErv
+         Scvx2Fs8wERnnSYZRy6De/McDVo4q1NF3Bdm5TPacxflnwwG7U/UJHnMWcS/xt6AxF3O
+         8YK1qJdcVc3MiALAUybggRETHBM98sEVXula5dpngn4Yljg5+CtEiMLg89hzCEL6FAro
+         8j7g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@bofh-nu.20150623.gappssmtp.com header.s=20150623 header.b="gR/zZavk";
-       spf=pass (google.com: domain of lists@bofh.nu designates 209.85.220.65 as permitted sender) smtp.mailfrom=lists@bofh.nu
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v16sor11623425oth.145.2019.02.04.06.38.27
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b="QUHV/hav";
+       spf=pass (google.com: domain of 01000168b94439c0-28d5e096-718d-4e39-a7af-20d0a6d7b768-000000@amazonses.com designates 54.240.9.54 as permitted sender) smtp.mailfrom=01000168b94439c0-28d5e096-718d-4e39-a7af-20d0a6d7b768-000000@amazonses.com
+Received: from a9-54.smtp-out.amazonses.com (a9-54.smtp-out.amazonses.com. [54.240.9.54])
+        by mx.google.com with ESMTPS id g89si5567310qtd.118.2019.02.04.08.08.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 04 Feb 2019 06:38:27 -0800 (PST)
-Received-SPF: pass (google.com: domain of lists@bofh.nu designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 04 Feb 2019 08:08:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of 01000168b94439c0-28d5e096-718d-4e39-a7af-20d0a6d7b768-000000@amazonses.com designates 54.240.9.54 as permitted sender) client-ip=54.240.9.54;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@bofh-nu.20150623.gappssmtp.com header.s=20150623 header.b="gR/zZavk";
-       spf=pass (google.com: domain of lists@bofh.nu designates 209.85.220.65 as permitted sender) smtp.mailfrom=lists@bofh.nu
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=bofh-nu.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=hE4P+KtbkIDEo8Lq8LirA+lBCYJX0HyoYvS1ea+soVo=;
-        b=gR/zZavk3CYa4DG+Ph3OjsiOWR7TLgXCMFT4CmXfn2xyMbzSDl01rXjLTDmotJVr3Y
-         jLQECb2aQLuL5PEvld4Khkq/T9BmZjbqCTpHIH+sajbTZXjc9vO06gVdAFbyL9YbzEV2
-         OKXD98b7dmLfmW7/W6moS1XkS8RkcWEU30akRoZqggEkFMd1HIHNxKfyMOMq4tDuInjr
-         TK3G4vXUkuWCL7ajhGQphRXXbAkrsi9C/hHPd7nqnsXKOQ3dE75MdpUiXp/6jBO1ohBM
-         IxJXbiYW6iqt8df6Gi/+7/N0J+gzbiqhFdMcloI8pLeiVspBHeIosJYf9hXv78lQKUgK
-         O9HQ==
-X-Google-Smtp-Source: ALg8bN5KquqFlYTgdJC/ellz83ijzDv/em8YEw1FVNV8LvRiqMW03VSTlb5X+p+9a2MOdkcGENiQmXRdq1ATZTpccH0=
-X-Received: by 2002:a9d:2186:: with SMTP id s6mr39476545otb.346.1549291107471;
- Mon, 04 Feb 2019 06:38:27 -0800 (PST)
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b="QUHV/hav";
+       spf=pass (google.com: domain of 01000168b94439c0-28d5e096-718d-4e39-a7af-20d0a6d7b768-000000@amazonses.com designates 54.240.9.54 as permitted sender) smtp.mailfrom=01000168b94439c0-28d5e096-718d-4e39-a7af-20d0a6d7b768-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1549296482;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=Li4m9VgzDn107uj2skKg4pEfVvnsw/uPImCizgtRdaU=;
+	b=QUHV/hav0zNxHS+Wl87A0BoUBsD74FYkkpUunFx1l6GFEgByPtSLcygI9/Pk2syi
+	C6bDLjL1Pdfq52boznJ/KtH8hLI32bTAvzHqB85YGHmpczLAcFacjAUZoDP3w0btUvN
+	y/IW6A2TwMWHYVnMkaimoIdQsZdq3gV6plhPWU+k=
+Date: Mon, 4 Feb 2019 16:08:02 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: john.hubbard@gmail.com
+cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, 
+    Al Viro <viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>, 
+    Christoph Hellwig <hch@infradead.org>, 
+    Dan Williams <dan.j.williams@intel.com>, 
+    Dave Chinner <david@fromorbit.com>, 
+    Dennis Dalessandro <dennis.dalessandro@intel.com>, 
+    Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>, 
+    Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>, 
+    Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, 
+    Mike Rapoport <rppt@linux.ibm.com>, 
+    Mike Marciniszyn <mike.marciniszyn@intel.com>, 
+    Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>, 
+    LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, 
+    John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [PATCH 0/6] RFC v2: mm: gup/dma tracking
+In-Reply-To: <20190204052135.25784-1-jhubbard@nvidia.com>
+Message-ID: <01000168b94439c0-28d5e096-718d-4e39-a7af-20d0a6d7b768-000000@email.amazonses.com>
+References: <20190204052135.25784-1-jhubbard@nvidia.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-References: <eabca57aa14f4df723173b24891f4a2d9c501f21.1543526537.git.jstancek@redhat.com>
- <c440d69879e34209feba21e12d236d06bc0a25db.1543577156.git.jstancek@redhat.com>
-In-Reply-To: <c440d69879e34209feba21e12d236d06bc0a25db.1543577156.git.jstancek@redhat.com>
-From: Lars Persson <lists@bofh.nu>
-Date: Mon, 4 Feb 2019 15:38:16 +0100
-Message-ID: <CADnJP=vsum7_YYWBpknpahTQFAzm7G40_E2dLMB_poFEhPKEfw@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: page_mapped: don't assume compound page is huge or THP
-To: Jan Stancek <jstancek@redhat.com>
-Cc: linux-mm@kvack.org, lersek@redhat.com, alex.williamson@redhat.com, 
-	aarcange@redhat.com, rientjes@google.com, kirill@shutemov.name, 
-	mgorman@techsingularity.net, mhocko@suse.com, linux-kernel@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.02.04-54.240.9.54
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 30, 2018 at 1:07 PM Jan Stancek <jstancek@redhat.com> wrote:
->
-> LTP proc01 testcase has been observed to rarely trigger crashes
-> on arm64:
->     page_mapped+0x78/0xb4
->     stable_page_flags+0x27c/0x338
->     kpageflags_read+0xfc/0x164
->     proc_reg_read+0x7c/0xb8
->     __vfs_read+0x58/0x178
->     vfs_read+0x90/0x14c
->     SyS_read+0x60/0xc0
->
-> Issue is that page_mapped() assumes that if compound page is not
-> huge, then it must be THP. But if this is 'normal' compound page
-> (COMPOUND_PAGE_DTOR), then following loop can keep running
-> (for HPAGE_PMD_NR iterations) until it tries to read from memory
-> that isn't mapped and triggers a panic:
->         for (i = 0; i < hpage_nr_pages(page); i++) {
->                 if (atomic_read(&page[i]._mapcount) >= 0)
->                         return true;
->         }
->
-> I could replicate this on x86 (v4.20-rc4-98-g60b548237fed) only
-> with a custom kernel module [1] which:
-> - allocates compound page (PAGEC) of order 1
-> - allocates 2 normal pages (COPY), which are initialized to 0xff
->   (to satisfy _mapcount >= 0)
-> - 2 PAGEC page structs are copied to address of first COPY page
-> - second page of COPY is marked as not present
-> - call to page_mapped(COPY) now triggers fault on access to 2nd
->   COPY page at offset 0x30 (_mapcount)
->
-> [1] https://github.com/jstancek/reproducers/blob/master/kernel/page_mapped_crash/repro.c
->
-> Fix the loop to iterate for "1 << compound_order" pages.
->
-> Debugged-by: Laszlo Ersek <lersek@redhat.com>
-> Suggested-by: "Kirill A. Shutemov" <kirill@shutemov.name>
-> Signed-off-by: Jan Stancek <jstancek@redhat.com>
-> ---
->  mm/util.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> Changes in v2:
-> - change the loop instead so we check also mapcount of subpages
->
-> diff --git a/mm/util.c b/mm/util.c
-> index 8bf08b5b5760..5c9c7359ee8a 100644
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -478,7 +478,7 @@ bool page_mapped(struct page *page)
->                 return true;
->         if (PageHuge(page))
->                 return false;
-> -       for (i = 0; i < hpage_nr_pages(page); i++) {
-> +       for (i = 0; i < (1 << compound_order(page)); i++) {
->                 if (atomic_read(&page[i]._mapcount) >= 0)
->                         return true;
->         }
-> --
-> 1.8.3.1
+On Sun, 3 Feb 2019, john.hubbard@gmail.com wrote:
 
-Hi all
+> Some kernel components (file systems, device drivers) need to access
+> memory that is specified via process virtual address. For a long time, the
+> API to achieve that was get_user_pages ("GUP") and its variations. However,
+> GUP has critical limitations that have been overlooked; in particular, GUP
+> does not interact correctly with filesystems in all situations. That means
+> that file-backed memory + GUP is a recipe for potential problems, some of
+> which have already occurred in the field.
 
-This patch landed in the 4.9-stable tree starting from 4.9.151 and it
-broke our MIPS1004kc system with CONFIG_HIGHMEM=y.
+It may be worth noting a couple of times in this text that this was
+designed for anonymous memory and that such use is/was ok. We are talking
+about a use case here using mmapped access with a regular filesystem that
+was not initially intended. The mmapping of from the hugepages filesystem
+is special in that it is not a device that is actually writing things
+back.
 
-The breakage consists of random processes dying with SIGILL or SIGSEGV
-when we stress test the system with high memory pressure and explicit
-memory compaction requested through /proc/sys/vm/compact_memory.
-Reverting this patch fixes the crashes.
+Any use with a filesystem that actually writes data back to a medium
+is something that is broken.
 
-We can put some effort on debugging if there are no obvious
-explanations for this. Keep in mind that this is 32-bit system with
-HIGHMEM.
-
-BR,
- Lars
 
