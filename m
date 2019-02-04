@@ -2,173 +2,174 @@ Return-Path: <SRS0=bR/Z=QL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC82CC282CC
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 23:37:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 176CAC282C4
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 23:46:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9DA4720844
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 23:37:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9DA4720844
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id C49552082E
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 23:46:13 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="ixXygCg2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C49552082E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 39CAD8E0069; Mon,  4 Feb 2019 18:37:36 -0500 (EST)
+	id 51DF08E006A; Mon,  4 Feb 2019 18:46:13 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 34B1A8E001C; Mon,  4 Feb 2019 18:37:36 -0500 (EST)
+	id 4CAFB8E001C; Mon,  4 Feb 2019 18:46:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 23A508E0069; Mon,  4 Feb 2019 18:37:36 -0500 (EST)
+	id 3BB1C8E006A; Mon,  4 Feb 2019 18:46:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D7A468E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 18:37:35 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id q14so1023145pll.15
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 15:37:35 -0800 (PST)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FC728E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 18:46:13 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id x64so1393900ywc.6
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 15:46:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=0V5IXxV+W236PsOjKsy3nzd0cOeYKjHat+p/e5219Io=;
-        b=oKt6WcOju/ygU6xW+EIuTkdxZNBRUoeAIrrnSAyphSDa5meDGsXj56VIK//cWWbLgK
-         ZKudILvMsAfal9jqrSF+Ndqk0d56/Bd3mZO+uoGjIDkv5EvPJFReM4OqSlLaOOKUnYXe
-         jirBhXHilYqZXZK2a95BklsqEgunYp3y7/URefJiskVtlfzp2sbQk6Hhm3kRbX9e7BOG
-         HqmdWVSKtq3Xzc9SHrHxTzNUlXu3uCBFsO6ho3W1mBKGHCW0NnCE+SE/65lF7TdzfHtY
-         MKUiGwTZ1SdRXzsB2Zv9UGqPl0WONoNVFGeXZcTBFY35WqjfBP3ugRJCkH0T1f5ckSqV
-         CFYw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuaTFNnotmBrvQuLyEBGcOb2/UrgVhWpUCgwQwHreY6xtJd2UYIB
-	QbtfIbY8zB9qt5mDVXSuygsG2cRK+GVI7Z07RkIl6otANd6aAO84zQh9WLpePNCQ9k0OKUxMvLA
-	CJY7w+sYoGJJ243+Jdo0vXykBFTBkbPLmctn7wjN+EqJu2Rteg+UpiouqwWfou7ScwQ==
-X-Received: by 2002:a63:5b1f:: with SMTP id p31mr1796496pgb.56.1549323455528;
-        Mon, 04 Feb 2019 15:37:35 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ58gieF4J90PF5qSvgx5DkSGgKPMDAWK0/XGe4uJyYTg+q2OwdJn5oRWOHnpUvpGtMM7cE
-X-Received: by 2002:a63:5b1f:: with SMTP id p31mr1796473pgb.56.1549323454746;
-        Mon, 04 Feb 2019 15:37:34 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549323454; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=5NsYQ/4HOoDcTzNeNFjJpj3wF25bDpqGw7ZVtFfjPqo=;
+        b=dC7/41tGtM0776rM52Zp8apwkr9pEXIzD1mxmZBLofEIZJhnKtqDcW9PXHvjc3RGNj
+         LkMcwWucQRa2MBCd4XOl5p8Uqr0Tzy7WvuxX4T0fIddkeASfno6MW9MrK6/mK9VpfoU9
+         Px3I1nKP+pcK5+yrHKQOLdVD80DX5mwsyhk45Lncy9jKJEGDIzNVJk1sogPrd1mmoiCD
+         JI2hFIzGg9p4BZyEZXwFrF09B2Rz/0dKbOXFLPmqs8Yy059BuBQ6s3nwT8mimCzSL1cb
+         F/SAh2cKIrL0RwO4lXd5NllpRg9pX3Q68qUFkq2YfhBmBJae0/SceV0DTrFzAjpSnFhm
+         +REw==
+X-Gm-Message-State: AHQUAubW8qKMGhJ4QjJvYvUfsyZvN1JubqGMROKglhKvU3Em3F3iSqfS
+	GoKxz9IxEnYupRFogTENQYL+EGzWir3GrGt6pfj8HR0N7db+ylwCxxCVEIeR/OwPjYSRJp6Vx0t
+	LRAQvKn9P8rxH44LR1posStXjuIwJxbDiQuITj36/xJwosmCMjpk+3nU7B/eJ4pkDzQ==
+X-Received: by 2002:a5b:712:: with SMTP id g18mr1593712ybq.171.1549323972745;
+        Mon, 04 Feb 2019 15:46:12 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYqYWLFYWPqfXrYOeOg2HCE7uiVUzsnfl87E5EUcyW8NiXfPLZWfbyk36ptdOan4IJnYUCz
+X-Received: by 2002:a5b:712:: with SMTP id g18mr1593685ybq.171.1549323972037;
+        Mon, 04 Feb 2019 15:46:12 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549323972; cv=none;
         d=google.com; s=arc-20160816;
-        b=0P88D5jNvSi0UZlZ7wDvh0EzD+UfxseM2vGqe8safT036QlZkRdPTM5Rp+MXZdhIaY
-         8pQ7BKje+q2B0hGIZw0O5xWMhIPCR4b8I+zYIhS6+g0I1UKLTe86YwLUDvM0w6CYooCO
-         Y8TUTK06IohE8UztnASmzQfevQG5oIMMUaHRXKwvVCqcQlx/MCswgu91Jk4FXXRlfxQS
-         vGFKdy++g0n9FTS4XUtqKg5MqfgLMX0WrEdUC/5boxRvzBiq1FVBFKsZ3GTMgYXhosNt
-         Rr6cc4WMM6FszhS8CpI8GuYDi4O+aoEbJNv4leyupnyXvBlcG3vi5f9c3IRDF8CdVrd2
-         JUMw==
+        b=qW4ecPOXVUfMxL4hRrqVQRD8EM+xt13D9Pe/BF4WzcthhFhYP2zS4/DBAJ5vNzYbtw
+         /Uo86OYkzGX+L7Jz7/OBEV/sUzj1qciqQWUVvqk9JzJrrzSectdgKHZq6AVX2umz1Sct
+         FPz6E2w2Y1a1CzplroMczFqBuh1SFvDEAbPcjRjWbS2nkhuEgf3JXB4Wttw5SyNLycQX
+         zmwLriivbmKqrFQmfelYgBAOGIVWzUJZODNGI8CFcJ+GCc7tcs5gByX7uAh+QI01iCtk
+         fgz/mX1ZJPtHYlhc0QG+4DCNHGoFZLxOoz0MaFRBXCYWDrd1wbQSYDvq9o3fIc5SMDo5
+         2BYQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=0V5IXxV+W236PsOjKsy3nzd0cOeYKjHat+p/e5219Io=;
-        b=S9SxhtNIG1auCbhtZ9jzUsbGVIjjdVkT53xrg2OKKk6wKEEPzTrSJgPLsgd1aPgGe4
-         bHNlqgv2QQmi4bP3Kydt3/rHE4rwteG32JgUAjjriScg0l6jYj0aXhVveDkYEeco98AO
-         nXDGUtBBkCE2bIpWuBDGJfw57w4C+rYpwvkbjJKaTYFI/awlJ5Mr7mh0gWN9PPkv7DWC
-         +2ru/ZA6oeVY3L7elZoBdOVmLguWErZKD82j8HjsifExXO7tfR41Qsk6KaaQD/0lNsi5
-         WEURo+nVp1lUNnw1tpwcdTMBH7y41Cw/5XZcW/ZJioo2zzHts5Lq++f2jnSYmiqZVHHN
-         9BQA==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=5NsYQ/4HOoDcTzNeNFjJpj3wF25bDpqGw7ZVtFfjPqo=;
+        b=KCV0GF3BP2IxVWWIJCIf9nFUB/kO8P2teg+Zx/qS26duz50zgKhiI+6krke4UTcSH+
+         TzSg2Wc6qjr+iDgDU5dYxvjuPyiEj8s3eoEXemH0YjC9Pxfy/qaHo8XXsMl+Tb2vC6/Z
+         DFnMhlGtJ6YPWSlB7MJKqNeMZAR/oPy18A8u/v+Hl6lxq15j782KFFqmF4Jr3gWtiZ61
+         ipiUMlrcka4xmWQd286QgSm3OUwG4UmiCPRUL88uAKKPF9zxvgaHmLZtQPSVi64YTqx5
+         RwHFsHJBFRR/9/gNhO6Y0vD6qzjW4D5DzDjVKx5RLnQBASaiRLvKalf+TE4gP6JIsRMJ
+         yxkA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id h32si1358409pgh.276.2019.02.04.15.37.34
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=ixXygCg2;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id 81si961876ybb.155.2019.02.04.15.46.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Feb 2019 15:37:34 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        Mon, 04 Feb 2019 15:46:12 -0800 (PST)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga003.jf.intel.com ([10.7.209.27])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Feb 2019 15:37:34 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.56,560,1539673200"; 
-   d="scan'208";a="123953782"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga003.jf.intel.com with ESMTP; 04 Feb 2019 15:37:33 -0800
-Message-ID: <c24dc2351f3dc2f0e0bdf552c6504851e6fa6c06.camel@linux.intel.com>
-Subject: Re: [RFC PATCH 3/4] kvm: Add guest side support for free memory
- hints
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: Nadav Amit <nadav.amit@gmail.com>, Alexander Duyck
-	 <alexander.duyck@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kvm
- list <kvm@vger.kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, X86 ML
- <x86@kernel.org>,  Ingo Molnar <mingo@redhat.com>, bp@alien8.de,
- hpa@zytor.com, pbonzini@redhat.com, tglx@linutronix.de, 
- akpm@linux-foundation.org
-Date: Mon, 04 Feb 2019 15:37:33 -0800
-In-Reply-To: <4E64E8CA-6741-47DF-87DE-88D01B01B15D@gmail.com>
-References: <20190204181118.12095.38300.stgit@localhost.localdomain>
-	 <20190204181552.12095.46287.stgit@localhost.localdomain>
-	 <4E64E8CA-6741-47DF-87DE-88D01B01B15D@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=ixXygCg2;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c58cec60000>; Mon, 04 Feb 2019 15:46:14 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Mon, 04 Feb 2019 15:46:11 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Mon, 04 Feb 2019 15:46:11 -0800
+Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Mon, 4 Feb
+ 2019 23:46:10 +0000
+Subject: Re: [LSF/MM TOPIC] get_user_pages() pins in file mappings
+To: Jan Kara <jack@suse.cz>, <lsf-pc@lists.linux-foundation.org>
+CC: <linux-fsdevel@vger.kernel.org>, <linux-mm@kvack.org>, Dan Williams
+	<dan.j.williams@intel.com>, Jerome Glisse <jglisse@redhat.com>
+References: <20190124090400.GE12184@quack2.suse.cz>
+From: John Hubbard <jhubbard@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <a0d37cc9-2d44-ac58-0dc0-c245a55082c3@nvidia.com>
+Date: Mon, 4 Feb 2019 15:46:10 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
+MIME-Version: 1.0
+In-Reply-To: <20190124090400.GE12184@quack2.suse.cz>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1549323974; bh=5NsYQ/4HOoDcTzNeNFjJpj3wF25bDpqGw7ZVtFfjPqo=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=ixXygCg275qslNPJcHrav0jWtEpSE8OarAdaOFR5GZ239yRNLw1/3gPVP4h7rsUw8
+	 Yd8ivw8A6E/n6ncupG4PdenV62MOKNmyWaPnQ5KCrePFLA4JzOs9usNP49fTToymTY
+	 FlrbG1vfsMRk88TROKw+p4+l8xw2AltyIbCqLT4wM7k1jG4y34DOe5/4e5vC9BaKW5
+	 ZsdMUxPJefxvEZB1gWDLShOsRE2QzsSNzcFFcWIvonCRJBABk2rTD6tLiwPTkw/xHz
+	 d2iUqRoYXszNhSRLDXeD+Lh8tbUQLYLQ9mvECKKF969TBAYfoiEE10DR249RQzTLtH
+	 L6NQ6ONzriVJQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-02-04 at 15:00 -0800, Nadav Amit wrote:
-> > On Feb 4, 2019, at 10:15 AM, Alexander Duyck <alexander.duyck@gmail.com> wrote:
-> > 
-> > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> > 
-> > Add guest support for providing free memory hints to the KVM hypervisor for
-> > freed pages huge TLB size or larger. I am restricting the size to
-> > huge TLB order and larger because the hypercalls are too expensive to be
-> > performing one per 4K page. Using the huge TLB order became the obvious
-> > choice for the order to use as it allows us to avoid fragmentation of higher
-> > order memory on the host.
-> > 
-> > I have limited the functionality so that it doesn't work when page
-> > poisoning is enabled. I did this because a write to the page after doing an
-> > MADV_DONTNEED would effectively negate the hint, so it would be wasting
-> > cycles to do so.
-> > 
-> > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> > ---
-> > arch/x86/include/asm/page.h |   13 +++++++++++++
-> > arch/x86/kernel/kvm.c       |   23 +++++++++++++++++++++++
-> > 2 files changed, 36 insertions(+)
-> > 
-> > diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
-> > index 7555b48803a8..4487ad7a3385 100644
-> > --- a/arch/x86/include/asm/page.h
-> > +++ b/arch/x86/include/asm/page.h
-> > @@ -18,6 +18,19 @@
-> > 
-> > struct page;
-> > 
-> > +#ifdef CONFIG_KVM_GUEST
-> > +#include <linux/jump_label.h>
-> > +extern struct static_key_false pv_free_page_hint_enabled;
-> > +
-> > +#define HAVE_ARCH_FREE_PAGE
-> > +void __arch_free_page(struct page *page, unsigned int order);
-> > +static inline void arch_free_page(struct page *page, unsigned int order)
-> > +{
-> > +	if (static_branch_unlikely(&pv_free_page_hint_enabled))
-> > +		__arch_free_page(page, order);
-> > +}
-> > +#endif
-> 
-> This patch and the following one assume that only KVM should be able to hook
-> to these events. I do not think it is appropriate for __arch_free_page() to
-> effectively mean “kvm_guest_free_page()”.
-> 
-> Is it possible to use the paravirt infrastructure for this feature,
-> similarly to other PV features? It is not the best infrastructure, but at least
-> it is hypervisor-neutral.
+On 1/24/19 1:04 AM, Jan Kara wrote:
 
-I could probably tie this into the paravirt infrastructure, but if I
-did so I would probably want to pull the checks for the page order out
-of the KVM specific bits and make it something we handle in the inline.
-Doing that I would probably make it a paravirtual hint that only
-operates at the PMD level. That way we wouldn't incur the cost of the
-paravirt infrastructure at the per 4K page level.
+> In particular we hope to have reasonably robust mechanism of identifying
+> pages pinned by GUP (patches will be posted soon) - I'd like to run that by
+> MM folks (unless discussion happens on mailing lists before LSF/MM). We
+> also have ideas how filesystems should react to pinned page in their
+> writepages methods - there will be some changes needed in some filesystems
+> to bounce the page if they need stable page contents. So I'd like to
+> explain why we chose to do bouncing to fs people (i.e., why we cannot just
+> wait, skip the page, do something else etc.) to save us from the same
+> discussion with each fs separately and also hash out what the API for
+> filesystems to do this should look like. Finally we plan to keep pinned
+> page permanently dirty - again something I'd like to explain why we do this
+> and gather input from other people.
+
+Hi Jan,
+
+Say, I was just talking through this point with someone on our driver team, 
+and suddenly realized that I'm now slightly confused on one point. If we end
+up keeping the gup-pinned pages effectively permanently dirty while pinned,
+then maybe the call sites no longer need to specify "dirty" (or not) when
+they call put_user_page*()?
+
+In other words, the RFC [1] has this API:
+
+    void put_user_page(struct page *page);
+    void put_user_pages_dirty(struct page **pages, unsigned long npages);
+    void put_user_pages_dirty_lock(struct page **pages, unsigned long npages);
+    void put_user_pages(struct page **pages, unsigned long npages);
+
+But maybe we only really need this:
+
+    void put_user_page(struct page *page);
+    void put_user_pages(struct page **pages, unsigned long npages);
+
+?
+
+[1] https://lkml.kernel.org/r/20190204052135.25784-1-jhubbard@nvidia.com
+
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
