@@ -2,183 +2,150 @@ Return-Path: <SRS0=bR/Z=QL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B45C9C282D7
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 08:45:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 32BBAC282C4
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 08:55:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 77CAF20820
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 08:45:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77CAF20820
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
+	by mail.kernel.org (Postfix) with ESMTP id D5445214DA
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 08:55:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D5445214DA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E51058E003A; Mon,  4 Feb 2019 03:45:22 -0500 (EST)
+	id 6F4438E003B; Mon,  4 Feb 2019 03:55:17 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E00608E001C; Mon,  4 Feb 2019 03:45:22 -0500 (EST)
+	id 6A5848E001C; Mon,  4 Feb 2019 03:55:17 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D15708E003A; Mon,  4 Feb 2019 03:45:22 -0500 (EST)
+	id 595FF8E003B; Mon,  4 Feb 2019 03:55:17 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DFD18E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 03:45:22 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id e68so11241159plb.3
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 00:45:22 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 00D4D8E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 03:55:16 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id e17so5572998edr.7
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 00:55:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:message-id:mime-version;
-        bh=S9sgKyAfuf9sT095sqV9OP+nfR8i9qRr5YQ+UXN6KEc=;
-        b=jV6RxGAliqAV8Du2+XIZWM/90Qp/3KFadGdodB3nhXq9KPnHhIe+nQexfrDfThQWg6
-         K/Am7l0Ad7mAeLM/+qCLhp+CTlc6RUNjIZ9ZZ4TRZSyWP0ECRl4lithR/sZvTAra89/a
-         b+dpWvBTzpboYcpjuBQdhlbvdoz0AuYk4ossudIEOa5GSbw2EZeqcqc4o9zNUAa2pHgR
-         HSnms/q1IBsTglHEwIq39Bf+lH6yc1Yh3i742YIF0aOZgWjWmUsVRW3chqQDfppWYQkP
-         rFTOCDunjlWF7Z2QTNve6jefIVREyb5vxjty/zhfkE3PvTmTcaHH0toudy47GXhLzhV8
-         jc1A==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-X-Gm-Message-State: AJcUukeMvtE5XVLTagiKJ1f6MlkNa+pjLsk6tU3JWuxYCodNsqcY7cC+
-	/M6ZK0iuYq6wn1rOPjL/O/ex6hhbhT2msIRBl8sA7ey5KIAdSNR5KmlpALI6dSPJrlmkIQ2M88j
-	Icv4+2Udk1qaXslzqltM+qH5yjqxuPr8AXqrBkqg5IRO2ULxgg8y4QQG4OGUmnJE=
-X-Received: by 2002:a62:a510:: with SMTP id v16mr49872701pfm.18.1549269922232;
-        Mon, 04 Feb 2019 00:45:22 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN5Y018M/Qd5m49PQx2jnMqV3JR8/ke0HtkP4q0YdS5tkU1WoED1W8xpRMHBjQ5DvlKIAc0+
-X-Received: by 2002:a62:a510:: with SMTP id v16mr49872672pfm.18.1549269921316;
-        Mon, 04 Feb 2019 00:45:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549269921; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=LZuVEIh5iPG9fPzOuRrWUdtrl0NnUvQQYHBYDYgN95M=;
+        b=MLseQAk1R6dgGdQtJrVe4Ob3raTP7U4wah1d0iR2x5ZeG0IaALJEfu8xlFHv9E5pnB
+         ia2KFoTisJ0c670sbT4kxROPHnc1lH9/r58FooC2RwsILmKT9qIirCxQqmO7vaWR/4fJ
+         o1QNZ0pJNI50M0M+soSKT94Xi6NQwqC4ztjrOWOZkIjVDDymCO9RNViM/MEuJEMMMHZ9
+         X/CG2T+DqglDZpEPvtprHW3IuEb77uxDuvgLh40h+SAittHplgH/47FRfF2F9Nl1SWyh
+         329GkQvkRohLmXtmxUsPjBwpwT2I9LZjM+4A0GyX231vR8LnuTA8soRQF+g9uXHm652/
+         IKkg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.194 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: AJcUukeYfw6/YIxVFKhEyV1oJP4cxZfUgrccpprwn3eRSqFtRH5/dvxl
+	pl/PHLUOZSjwd+mlptLaK120IzVunNeu73KjAvN3jKiLg6YcGkyaSO82tB2kIBWM7Yb7J7hBLXo
+	KFdlILRZr9an/BftUIOVi9wYCc4ZLeZ3+KPkRWS8h+Q7zMSZtX57/r9OXm0VZtNPscA==
+X-Received: by 2002:a17:906:2e50:: with SMTP id r16mr26401972eji.44.1549270516450;
+        Mon, 04 Feb 2019 00:55:16 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN578cl0j70KJf4iOCWSTiQ2nAweg9gBMgVHpg27i2Dm3vnUSUfuiymeSfRenGJ3WNcMoRsG
+X-Received: by 2002:a17:906:2e50:: with SMTP id r16mr26401927eji.44.1549270515440;
+        Mon, 04 Feb 2019 00:55:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549270515; cv=none;
         d=google.com; s=arc-20160816;
-        b=x/SIrO2Wh3PIR1N8EojvyZBhmQ5FajFk0XmtoEqiACJZlUC5dVL+839HwDNnALTjH9
-         GZ/w7pxhuvenVWK5bAEhKKlWcSCSNnko2X8/VxPMAKgBo5Iv0kqS1JyNwLm1JMUUDnAy
-         /iBMZ9E/udYkjUtLsxTv/LtGVT1A+K27VJroeA+D7+YgK7Xh8rrLVJCqnoNVWvPT/RIp
-         CWhSuw5HwCNNupQvVjrx2IW8nKG8AiQYhsjz+H/rxxhyf+RQQx21mV8QkOsNjxJ9bBf1
-         qG4k2RN4Xlw78oUwWj8tDL96DW6c0SgeA4rcgTXfWbUyZVGKuT04tTnSSH+1JsJdwcnO
-         MCTw==
+        b=X9SYtDti7m5sNYYtpPNLhG5GTIuEriNdaam2oovs/Eq0FRLvwdQ0iu+tb4CHzWARuG
+         XFvUFONxvuvNAmUIyo+D6jVY6UgGJ89kH/0mfzD3Xqr8MStxHVH4Id/dhFEdoN3YZrYP
+         INGgr+YB92dxaXMxmrHJsNSZ7Uxa67OLx9jvpejpW1Poa9BtM/haqz9OSTfYZqC8trEY
+         DnHCfhQsTo+ts6FIn3DYqGYU81sdcEmFlrYaif5pkwmYPDkFNYI6cs3vxxyhXXd5sVds
+         GEvBdT+w5IiP2b0KrAzckgJSLT1N/AqTC1BZYjtUEUZVwau85drjIDSI9JFarbKi+4g5
+         4elA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=S9sgKyAfuf9sT095sqV9OP+nfR8i9qRr5YQ+UXN6KEc=;
-        b=FCEVPMlJAxrb2IWJ9+b9wGt6jpFa0zz9daEUIY4q5T+OoFWmvTv57+4Mye45sRseG2
-         ssH3RGCSfZxa1LsMIUUGYipfY4xpFwNEp9XhYcwcJqsVlEkEOXOzSpTFfuE63lZsaE6A
-         kReN9EV1tdJATGHtX3U5LG/pU4SwfTiJuc4x/C3Hw5yy5EW7HIYrLJwLnnNXpMKbkrwg
-         beQ2HR1c6a8z1ooKZIsvgBY86IgMN5rBUZknDr5h36aA49lwWdvmJaBtczHz162vH0kp
-         g/MOy5CLzDC5HiyazpCBS+b10mIKgzkzvQAL8gQYkEvFlWJrYXttCt+vcmfEMLHRpcbe
-         WsBw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=LZuVEIh5iPG9fPzOuRrWUdtrl0NnUvQQYHBYDYgN95M=;
+        b=HAPKD0auUfyF+yBJIicd44pbuksXyKeI5SLz1YomcK3p+KVD1fYz3AmkdWvAt0tokQ
+         6JlENbeTcJtGNK+CgLHsitiYiWw8HcdR2FoMHIHvyjhwj7mN2dv7HsFH4o5tJN1W8URk
+         oh4fQtuu3+ReIRlxhh51O+UFmGH2s8Q/uyhcDen0F8IdwAe9hnMGeD6cAzmkrFsMCROj
+         H8MfS7K3BWwJIV0qBTQ9P0XVi5+IPZbiCJwr8i24jv9eftvt9hKw5GvILu/4fwGoilOz
+         831Qd7hOlGIFfS3LexEvNyAmf4g91bvPzHyk1eSq3E5znGLfOxNpDaEDEDwXWYKtaib0
+         +1xQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id x12si15139439plo.164.2019.02.04.00.45.20
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.194 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp26.blacknight.com (outbound-smtp26.blacknight.com. [81.17.249.194])
+        by mx.google.com with ESMTPS id u9si1636014ejk.263.2019.02.04.00.55.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 04 Feb 2019 00:45:20 -0800 (PST)
-Received-SPF: neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=203.11.71.1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Feb 2019 00:55:15 -0800 (PST)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.194 as permitted sender) client-ip=81.17.249.194;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits) server-digest SHA256)
-	(No client certificate requested)
-	by ozlabs.org (Postfix) with ESMTPSA id 43tLrG3rCyz9s4Z;
-	Mon,  4 Feb 2019 19:45:18 +1100 (AEDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
-Subject: Re: [PATCH v2 10/21] memblock: refactor internal allocation functions
-In-Reply-To: <20190203113915.GC8620@rapoport-lnx>
-References: <1548057848-15136-1-git-send-email-rppt@linux.ibm.com> <1548057848-15136-11-git-send-email-rppt@linux.ibm.com> <87ftt5nrcn.fsf@concordia.ellerman.id.au> <20190203113915.GC8620@rapoport-lnx>
-Date: Mon, 04 Feb 2019 19:45:17 +1100
-Message-ID: <878sywndr6.fsf@concordia.ellerman.id.au>
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.194 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp26.blacknight.com (Postfix) with ESMTPS id 14463B8714
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 08:55:15 +0000 (GMT)
+Received: (qmail 18787 invoked from network); 4 Feb 2019 08:55:15 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 4 Feb 2019 08:55:14 -0000
+Date: Mon, 4 Feb 2019 08:55:13 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+	Linux-MM <linux-mm@kvack.org>
+Subject: [PATCH] mm, compaction: Use free lists to quickly locate a migration
+ source -fix
+Message-ID: <20190204085513.GK9565@techsingularity.net>
+References: <20190118175136.31341-1-mgorman@techsingularity.net>
+ <20190118175136.31341-10-mgorman@techsingularity.net>
+ <4a6ae9fc-a52b-4300-0edb-a0f4169c314a@suse.cz>
+ <20190201150614.GJ9565@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20190201150614.GJ9565@techsingularity.net>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mike Rapoport <rppt@linux.ibm.com> writes:
-> On Sun, Feb 03, 2019 at 08:39:20PM +1100, Michael Ellerman wrote:
->> Mike Rapoport <rppt@linux.ibm.com> writes:
->> > Currently, memblock has several internal functions with overlapping
->> > functionality. They all call memblock_find_in_range_node() to find free
->> > memory and then reserve the allocated range and mark it with kmemleak.
->> > However, there is difference in the allocation constraints and in fallback
->> > strategies.
-...
->> 
->> This is causing problems on some of my machines.
-...
->> 
->> On some of my other systems it does that, and then panics because it
->> can't allocate anything at all:
->> 
->> [    0.000000] numa:   NODE_DATA [mem 0x7ffcaee80-0x7ffcb3fff]
->> [    0.000000] numa:   NODE_DATA [mem 0x7ffc99d00-0x7ffc9ee7f]
->> [    0.000000] numa:     NODE_DATA(1) on node 0
->> [    0.000000] Kernel panic - not syncing: Cannot allocate 20864 bytes for node 16 data
->> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 5.0.0-rc4-gccN-next-20190201-gdc4c899 #1
->> [    0.000000] Call Trace:
->> [    0.000000] [c0000000011cfca0] [c000000000c11044] dump_stack+0xe8/0x164 (unreliable)
->> [    0.000000] [c0000000011cfcf0] [c0000000000fdd6c] panic+0x17c/0x3e0
->> [    0.000000] [c0000000011cfd90] [c000000000f61bc8] initmem_init+0x128/0x260
->> [    0.000000] [c0000000011cfe60] [c000000000f57940] setup_arch+0x398/0x418
->> [    0.000000] [c0000000011cfee0] [c000000000f50a94] start_kernel+0xa0/0x684
->> [    0.000000] [c0000000011cff90] [c00000000000af70] start_here_common+0x1c/0x52c
->> [    0.000000] Rebooting in 180 seconds..
->> 
->> 
->> So there's something going wrong there, I haven't had time to dig into
->> it though (Sunday night here).
->
-> Yeah, I've misplaced 'nid' and 'MEMBLOCK_ALLOC_ACCESSIBLE' in
-> memblock_phys_alloc_try_nid() :(
->
-> Can you please check if the below patch fixes the issue on your systems?
+Vlastimil correctly pointed out that when a fast search fails and cc->migrate_pfn
+is reinitialised to the lowest PFN found that the caller does not use the updated
+PFN.
 
-Yes it does, thanks.
+This is a fix for the mmotm patch
+mm-compaction-use-free-lists-to-quickly-locate-a-migration-source.patch
 
-Tested-by: Michael Ellerman <mpe@ellerman.id.au>
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-cheers
-
-
-> From 5875b7440e985ce551e6da3cb28aa8e9af697e10 Mon Sep 17 00:00:00 2001
-> From: Mike Rapoport <rppt@linux.ibm.com>
-> Date: Sun, 3 Feb 2019 13:35:42 +0200
-> Subject: [PATCH] memblock: fix parameter order in
->  memblock_phys_alloc_try_nid()
->
-> The refactoring of internal memblock allocation functions used wrong order
-> of parameters in memblock_alloc_range_nid() call from
-> memblock_phys_alloc_try_nid().
-> Fix it.
->
-> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-> ---
->  mm/memblock.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index e047933..0151a5b 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1402,8 +1402,8 @@ phys_addr_t __init memblock_phys_alloc_range(phys_addr_t size,
->  
->  phys_addr_t __init memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid)
->  {
-> -	return memblock_alloc_range_nid(size, align, 0, nid,
-> -					MEMBLOCK_ALLOC_ACCESSIBLE);
-> +	return memblock_alloc_range_nid(size, align, 0,
-> +					MEMBLOCK_ALLOC_ACCESSIBLE, nid);
->  }
->  
->  /**
-> -- 
-> 2.7.4
->
->
-> -- 
-> Sincerely yours,
-> Mike.
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 92d10eb3d1c7..d249f257da7e 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1238,14 +1238,16 @@ update_fast_start_pfn(struct compact_control *cc, unsigned long pfn)
+ 	cc->fast_start_pfn = min(cc->fast_start_pfn, pfn);
+ }
+ 
+-static inline void
++static inline unsigned long
+ reinit_migrate_pfn(struct compact_control *cc)
+ {
+ 	if (!cc->fast_start_pfn || cc->fast_start_pfn == ULONG_MAX)
+-		return;
++		return cc->migrate_pfn;
+ 
+ 	cc->migrate_pfn = cc->fast_start_pfn;
+ 	cc->fast_start_pfn = ULONG_MAX;
++
++	return cc->migrate_pfn;
+ }
+ 
+ /*
+@@ -1361,7 +1363,7 @@ static unsigned long fast_find_migrateblock(struct compact_control *cc)
+ 	 * that had free pages as the basis for starting a linear scan.
+ 	 */
+ 	if (pfn == cc->migrate_pfn)
+-		reinit_migrate_pfn(cc);
++		pfn = reinit_migrate_pfn(cc);
+ 
+ 	return pfn;
+ }
 
