@@ -3,98 +3,99 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C9E3C282CC
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 19:40:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72EF0C282C4
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 19:44:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AD1DF2087C
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 19:40:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD1DF2087C
+	by mail.kernel.org (Postfix) with ESMTP id 362A42087C
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 19:44:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 362A42087C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0CDD98E0059; Mon,  4 Feb 2019 14:40:35 -0500 (EST)
+	id CB0EE8E005A; Mon,  4 Feb 2019 14:44:31 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 07EDA8E001C; Mon,  4 Feb 2019 14:40:35 -0500 (EST)
+	id C3BC78E001C; Mon,  4 Feb 2019 14:44:31 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E897D8E0059; Mon,  4 Feb 2019 14:40:34 -0500 (EST)
+	id ADC088E005A; Mon,  4 Feb 2019 14:44:31 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A90838E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 14:40:34 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id b7so543423pge.17
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 11:40:34 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 66F4A8E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 14:44:31 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id 3so644750pfn.16
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 11:44:31 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=T+XnHt9phSVYV4D22R7vO+07OjDgFPVFIRINvGMhBOc=;
-        b=r8KyDFoIDgf8mLTiGY7IYJXiZjo/minbTOGm7yubzXAXgE5pCKzWRQGRmHP/Fl35Jw
-         hNSQ7GXlvwjvgOJ5Teax1xMGLcua++XPMrks+0kqKyA+FDNMtO5cz42dJqraS3q1HLOG
-         xng5WjbxqI8oi9JB4EbO0z9JByZXPojdz+L+rS90eB3HArjkSNM0s4czKGMETNpJbzi4
-         fJxNanx2A++qOwOoNdpNC2ZVsGSjUywRnfKua5Zktc7fGZSC4Vj/ZcrC6Fg4mdJY4GKO
-         D7/OMvDhbWHs4inPctJpJHW8ZzFaR4d5wrCqp0w/jRivBtbU6Q+XqL2ODhIJ1M2G6dYw
-         bO4w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuaUOtiY7gk6PgKTnlWlsR0PYJdLg3YTRQYco/R7Cke9qUE/vPGy
-	61+cAglP6zrT3C4UV3HySOXaA9RLLrNEWb5Yxbo28XcXRUSnIqkdknJSOyuLwfeUG63FsERecUI
-	QaN7mlJQalDPe8WwP7G+lzw4pMcMD/7x0n1JDZnOmufAm9RlxKYfQ5Fc5dS25t8sOCg==
-X-Received: by 2002:a63:a452:: with SMTP id c18mr974018pgp.204.1549309234288;
-        Mon, 04 Feb 2019 11:40:34 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaVUvFba569myfPh82lK1ZSo1ls16yeZHd9NJxCnjr6b7Z/nJwwCpNl8qIOA7N7BFuZTPCC
-X-Received: by 2002:a63:a452:: with SMTP id c18mr973978pgp.204.1549309233416;
-        Mon, 04 Feb 2019 11:40:33 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549309233; cv=none;
+        bh=ROdzO7wrarIK/x0WbX4/VW6PLz3LefBEweqj4uDvt5U=;
+        b=J/FJoBBNdrSw/wszssrbgqUZT32+WqJcivm7NqVX5672ra0dsszrCosd/IFfODj7sN
+         0EUAhuzsVwg8fmRQw4edJqSOfM3qKbus7MeWcODTtyIR79ywj5VyAT0o+1FI125g733P
+         1eK9pqPaPTQPi63y6puBhj/dCoROtYumYRQHDML6o7VD54mvUbiUb+Vg4lVT+Pe9G5f7
+         cqSU/y74My3XvH1o50c4P0obXGn7QfQwtLRBHShdPgqkbfJ78RgZIjoZf3RVLxgXmfW/
+         CDCbggDMpR1tXQKxIHcMTPZZuE9Dep1YzwSNvWzUeW343c4Aov+o3B/DDdrDT1Et1vHO
+         yObg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuZMG9wA6AYJz2VYYVR9TrIIW13exT3rrtqREyIubW3p9HgrJlN7
+	Ie1hnMSvgd9wWAx2dYloiGtnrNOnjB9zBs5PCd7tLRGuDK2PaQSR+ra11ZupizMS9sxz37R1XeQ
+	E46W9F6O/3onx3KQULvtAbtwj8H2xdzkb5f3ruwiQK7wsN+f+M15t/p9+4qGdkshNjw==
+X-Received: by 2002:a17:902:e78e:: with SMTP id cp14mr1107146plb.4.1549309471077;
+        Mon, 04 Feb 2019 11:44:31 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZ3MyWumhxxol304VeDfBnTl1xFQJxNLq/K/HXUT3LXwTB1r8h9hEDQXG3GyGvkbcJdUwNv
+X-Received: by 2002:a17:902:e78e:: with SMTP id cp14mr1107114plb.4.1549309470435;
+        Mon, 04 Feb 2019 11:44:30 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549309470; cv=none;
         d=google.com; s=arc-20160816;
-        b=B4kVR2+2IQyoSxcZrotuqjc0W6Z46Y+89MsBJobAvdho9Dkp3GaOY98WnpAQPZFule
-         8QkH0nNksr7m9Iry2QKxnEkItKasGLA1b+eldQB2JKCEiEx+5eSZyPESEkZuoBoqlrBu
-         8vMrjnat4/oW6aS6r0C+9yxVXekwUPZ7S3fDkrT27bdSOFWccJsAta6EvTLDM5DQgd5x
-         E/9vR8sNhGDlbzyiLwd3BbJBKQJVjfNYoe8bARdohku7/ABZkFiYS/w3zhakN+ZGZocL
-         Csx0GmvDWPiCTrOi87abVzcNmclHDHOt91rpbUk2v0ABL34iLPeKV/UrfXHfDWqOTt1N
-         SdHw==
+        b=Q2g0G8LAjlKo3RzCqCLmOVVHMq0YpoB0uVY53df00zt4Gu4iwwSIQp09XpyehZ2qza
+         iVHSay7H3QvSO2LteRIGYlHNSB59QjfbXFqXfUjf2Y5yfr60bIbcCnpWQ8pASFMxLIO1
+         P7qCJuMFdAEojes2kJ07DG4G5cHprR2q/enc7q7+NAcMsqQpUjb/h7tJ1VcMVEvNFC9I
+         zp1NpfpwStpWBkFGhikfkYDeN2cX6XpHpGngWglaEiJ+brw9StdZBSiVW2tHn4QBOewV
+         emNZxbnRsjHeANXB/kcGEKsXxgh/GYTEqr+GjZTue8mG/K8fDk5C7bPsoxK/BwUX9wrz
+         YtwA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=T+XnHt9phSVYV4D22R7vO+07OjDgFPVFIRINvGMhBOc=;
-        b=LO4j+TzRkTPgBV7vCm17rFw0rj+3JafP6O3kWfAK/uG01OpxFRxP/5alju4DwcI8r0
-         6ebQ49TbDVwQyShSjS7c/CsoQUolqjgz7EnnFcUody7Qb5dCZVeMeoORhB5jvLP5jXNX
-         DHBp1rs5x5/67fCU0ANb+ueIroAFjyBPOfK1yOiZ7jdyBbWu1xRencVA0hctuA3a6Ka6
-         +D94boruLBjOialUBN5P/rbozDvnvqE2q21ePipTJY1N4Z2TItnxP+hA7LAzgGj/9pIj
-         H53ftE78I6OUrGTKt2oZgPu2GzEJ1OGgiFWgQLGv+j6Rp8LKBvY3nEUtPyQtQrKb+ZqK
-         Qd+A==
+        bh=ROdzO7wrarIK/x0WbX4/VW6PLz3LefBEweqj4uDvt5U=;
+        b=PeWThhKSRiKvKgTlvavATaHyr8qkTvEni10fdHitAzkWfgcWMcWnAeEJ0SJNAJPQyO
+         Wwo0Irdjw8Q3arHqzU1AfQU45xiqsyfBTMXix4iCGcBWM9YGeVLlZVXcyA+uOKcBZJ31
+         +OL78s5V+outrPisQj4Ka7oZVb8Kqj8xiLVmaPZ7o0ocjAQ57eWQmq+Scd1ammbsI7Z3
+         fmY2r6MnlHAS/ylQf/Ccix31ssp60S6186xpUfYugI0cGWE3l5lD0newsGjAWz219MTa
+         slJtn/Lqu73snZUEydf0PKc3vwAFcRdGFMMAhIc30Gl72q79ME7jmFixc2fd5kR6eCGW
+         bkuQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id d8si814143pgl.386.2019.02.04.11.40.33
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id x186si837039pfx.269.2019.02.04.11.44.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Feb 2019 11:40:33 -0800 (PST)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
+        Mon, 04 Feb 2019 11:44:30 -0800 (PST)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Feb 2019 11:40:32 -0800
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 04 Feb 2019 11:44:29 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.56,560,1539673200"; 
-   d="scan'208";a="131487035"
+   d="scan'208";a="131487746"
 Received: from ray.jf.intel.com (HELO [10.7.201.17]) ([10.7.201.17])
-  by orsmga002.jf.intel.com with ESMTP; 04 Feb 2019 11:40:32 -0800
-Subject: Re: [RFC PATCH 4/4] mm: Add merge page notifier
+  by orsmga002.jf.intel.com with ESMTP; 04 Feb 2019 11:44:29 -0800
+Subject: Re: [RFC PATCH 3/4] kvm: Add guest side support for free memory hints
 To: Alexander Duyck <alexander.duyck@gmail.com>, linux-mm@kvack.org,
  linux-kernel@vger.kernel.org, kvm@vger.kernel.org
 Cc: rkrcmar@redhat.com, alexander.h.duyck@linux.intel.com, x86@kernel.org,
  mingo@redhat.com, bp@alien8.de, hpa@zytor.com, pbonzini@redhat.com,
  tglx@linutronix.de, akpm@linux-foundation.org
 References: <20190204181118.12095.38300.stgit@localhost.localdomain>
- <20190204181558.12095.83484.stgit@localhost.localdomain>
+ <20190204181552.12095.46287.stgit@localhost.localdomain>
 From: Dave Hansen <dave.hansen@intel.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=dave.hansen@intel.com; keydata=
@@ -140,12 +141,12 @@ Autocrypt: addr=dave.hansen@intel.com; keydata=
  MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
  hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
  vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
-Message-ID: <33d14370-b47d-5ceb-09c4-41f0d6b33af8@intel.com>
-Date: Mon, 4 Feb 2019 11:40:32 -0800
+Message-ID: <24277842-c920-4a12-57d1-2ebcdf3c1534@intel.com>
+Date: Mon, 4 Feb 2019 11:44:29 -0800
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <20190204181558.12095.83484.stgit@localhost.localdomain>
+In-Reply-To: <20190204181552.12095.46287.stgit@localhost.localdomain>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -155,49 +156,24 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> +void __arch_merge_page(struct zone *zone, struct page *page,
-> +		       unsigned int order)
+On 2/4/19 10:15 AM, Alexander Duyck wrote:
+> +#ifdef CONFIG_KVM_GUEST
+> +#include <linux/jump_label.h>
+> +extern struct static_key_false pv_free_page_hint_enabled;
+> +
+> +#define HAVE_ARCH_FREE_PAGE
+> +void __arch_free_page(struct page *page, unsigned int order);
+> +static inline void arch_free_page(struct page *page, unsigned int order)
 > +{
-> +	/*
-> +	 * The merging logic has merged a set of buddies up to the
-> +	 * KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER. Since that is the case, take
-> +	 * advantage of this moment to notify the hypervisor of the free
-> +	 * memory.
-> +	 */
-> +	if (order != KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER)
-> +		return;
-> +
-> +	/*
-> +	 * Drop zone lock while processing the hypercall. This
-> +	 * should be safe as the page has not yet been added
-> +	 * to the buddy list as of yet and all the pages that
-> +	 * were merged have had their buddy/guard flags cleared
-> +	 * and their order reset to 0.
-> +	 */
-> +	spin_unlock(&zone->lock);
-> +
-> +	kvm_hypercall2(KVM_HC_UNUSED_PAGE_HINT, page_to_phys(page),
-> +		       PAGE_SIZE << order);
-> +
-> +	/* reacquire lock and resume freeing memory */
-> +	spin_lock(&zone->lock);
+> +	if (static_branch_unlikely(&pv_free_page_hint_enabled))
+> +		__arch_free_page(page, order);
 > +}
+> +#endif
 
-Why do the lock-dropping on merge but not free?  What's the difference?
+So, this ends up with at least a call, a branch and a ret added to the
+order-0 paths, including freeing pages to the per-cpu-pageset lists.
+That seems worrisome.
 
-This makes me really nervous.  You at *least* want to document this at
-the arch_merge_page() call-site, and perhaps even the __free_one_page()
-call-sites because they're near where the zone lock is taken.
-
-The place you are calling arch_merge_page() looks OK to me, today.  But,
-it can't get moved around without careful consideration.  That also
-needs to be documented to warn off folks who might move code around.
-
-The interaction between the free and merge hooks is also really
-implementation-specific.  If an architecture is getting order-0
-arch_free_page() notifications, it's probably worth at least documenting
-that they'll *also* get arch_merge_page() notifications.
-
-The reason x86 doesn't double-hypercall on those is not broached in the
-descriptions.  That seems to be problematic.
+What performance testing has been performed to look into the overhead
+added to those paths?
 
