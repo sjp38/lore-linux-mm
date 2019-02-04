@@ -2,163 +2,153 @@ Return-Path: <SRS0=bR/Z=QL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C52E9C282C4
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 18:19:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 33226C282C4
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 18:19:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 804D82082E
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 18:19:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E660B2082E
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 18:19:52 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="uSWLen75"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 804D82082E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="iwdoEbbn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E660B2082E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1CAB48E0053; Mon,  4 Feb 2019 13:19:48 -0500 (EST)
+	id 6D7368E0054; Mon,  4 Feb 2019 13:19:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 17C988E001C; Mon,  4 Feb 2019 13:19:48 -0500 (EST)
+	id 685828E001C; Mon,  4 Feb 2019 13:19:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 046678E0053; Mon,  4 Feb 2019 13:19:47 -0500 (EST)
+	id 527478E0054; Mon,  4 Feb 2019 13:19:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A8BBA8E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 13:19:47 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id x12so431306pgq.8
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 10:19:47 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0531A8E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 13:19:52 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id y6so495311pfn.11
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 10:19:51 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=NG9nYwCAVqEpP+paq6QtboUvwEo6x8RZXfTYGpZRrLw=;
-        b=NMCAYJw3XYdwuTr5idvEbpuzT9kdGYsk7LanW0s/HSVfoV5hmX46Er5Vj57cOkyus4
-         flNBSfMDGLPnSCxSylTuxGriNHhAOV2S/F+AV9z2vb3zkXAwXk7hE4uAN3JgzAXo1hXg
-         h7SeweD1d/Eqx45+L/klMiaY6IHxtI3+zC+Z94C0dtG0fxrW1qHmGxiAG+g9+FcLNmVV
-         Rj2jcJKdy3z+zTqJvNRS9sJSecRgbpuxzVSH1BFuiI7HDIbNCgcOPde9SJmC2IivcKWU
-         Z9mS81FJrlOpCbnD4xDDfo/hYyJ+tVPwvfnDLsKjoLB7Y1ei8YTqavqX4VGIYdixcbzc
-         IXpg==
-X-Gm-Message-State: AHQUAubWq38yG0zEPJy9RJ/ku6Nip1JxqQsepILJiVyx3OUMAR3Jsrip
-	UVxBSzp0cZck9vJJ68qeIf+nFsP3uf02mp08cBXib36goPwskLWdhJPN51hpuakHTYfmxk9LnAU
-	XBSGNWIkaiQzcSSsaBr/xcsZ6o9fNNdU2PTLyvCwroLqvhrqjnJGILcwG/oGsiSilcA==
-X-Received: by 2002:a63:e715:: with SMTP id b21mr593908pgi.305.1549304387308;
-        Mon, 04 Feb 2019 10:19:47 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaOngkHlIkY5cV2gYpSiSfSI4yrjRfy+lO1TIuHEmdxhaOrqXf+wDSbMquRvfwwAs+OI3Li
-X-Received: by 2002:a63:e715:: with SMTP id b21mr593851pgi.305.1549304386494;
-        Mon, 04 Feb 2019 10:19:46 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549304386; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
+         :message-id:in-reply-to:references:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=Y7C467UHY1ApxkxNkde5pS9++k5K00rvSuCeNYW/XeQ=;
+        b=HsAZdHa0xwUuBBXTO4Qs2gArY8D5wYecoWba2wjkRMGA5XzXRv3v1rDldmWIPKrle+
+         GR1FguUG0pa9XkcFLC5rQLEm9JS3IQkrxcvsr1Coq7KC0lqNKzkvHyGYETxwbxyvnGWf
+         LH0vhuOlUfl0fajPqBvSXMwdu89PUkvx/HET4VqIdbp//NiXEd8CZoZg7akVRrihUZIW
+         lTVpHPXqNaS11OIy0mGXU0A/nC7eqajd6OaDRa8/EzziFZOR3pa+o8T5/ketYbAkq50S
+         tiFYMkpQbbRnyDJgQqkaMJG+u/MdSbjYdoZyPnPmPwL7fbyMRKJ7UxxHAnGhe4LDZ38c
+         aHvA==
+X-Gm-Message-State: AHQUAuYA1CvALa0+v4dsxCal3VD7U/rMswjhGoAp1bhLPXNDMdvAGWSR
+	Lhru9guv84PjIDS4nQ8e9FN8wZlJr6hKuQnkhPQjk4yJY+L5dAL0kR1ngk1h5EfLHCEgNqqhrHL
+	+fpY/wVFHJJkaIaStXnqL+93RxrjvYfKUCOfpdwR0PE0vGH+G+krcDxFsunYeY9V6lX15XCmT2n
+	FaMYb9vT6dwZpe6YUpxgJJb9QUGOPJ8Oqr22aYVW5/bujCOudgTdlT4QZOGhe9sbec284c9wFNI
+	fSdljftUFRyowb6hc6jSkNjdmMGmc1rstndknjBmraKa79cYd0ycWtHsgJpDIcoXQTkt/t4srvK
+	s8t5enSx/435ktLD/qv4balUF91Ki+oWojsW5YSEObIyC4EcDBbkXb/l1cXUBt5h0mwB+tmbNKH
+	2
+X-Received: by 2002:a65:43c5:: with SMTP id n5mr653959pgp.250.1549304391651;
+        Mon, 04 Feb 2019 10:19:51 -0800 (PST)
+X-Received: by 2002:a65:43c5:: with SMTP id n5mr653923pgp.250.1549304390996;
+        Mon, 04 Feb 2019 10:19:50 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549304390; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZbDQawnXVLbsOMFs1L1n1g9VK1ia12lgKPf5o69O2pWOCgPq+j+y2J7pAiX664psgK
-         MDf1RZXPm8Oa9viL3w5Q4V3tB6Y7HILbjkPFCvxqUUYK3TKU0nQx49O51y5jdVOxd51H
-         lNSNRJlPWQ3yvnt3ca7HomNDV3IZ+nj9uVuatuCBy3G9N++CQphvb6uxMBag9APul3mh
-         9lXdy9B1T9cNzyLJSmwBHGKxFpAafa95GXD+JZPYM1jUq6IDFYF0S4Ny1tS8Wd+OKnQ3
-         t4EqI3rsLYy9XZK+o8wyE/epNyMIo7aurgySv6pCUeom7wsDhBar+U12jSsCRd2RwlRS
-         d2JQ==
+        b=RZJry8HzVrBwVW4RnSWtTF+Qe/+ho8J+qhszBG1sWeIX+sdqZnONCBL3wsroIgfhNi
+         lgCjBKFLfMeRxJwpqGFJ4Bj5xGV/dhzUONOsQ+PgDonb/iAjsjS2DbNCb1hNGbdgWLL8
+         dGrQG0qfwhmDIm+SMCBeVJvwbTV3Hz0eaTmeBg84Rl9ZDBe/YC3Vmjrfad8Jy4NW+02V
+         /p/R4XBfVtXZ1idkOB4V9JUQyv2O/IyCiHa8xgIpgtLpIQoilp065WOW8e7iOv0Sv5zw
+         zasGGmb1qGIr41jzzYOQLcuQL/sMDcn79GRPTMzQ88K+s1qA35dJgecFqdAX2l8m1kO5
+         n7uQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=NG9nYwCAVqEpP+paq6QtboUvwEo6x8RZXfTYGpZRrLw=;
-        b=l98GQlBbqx7bPYq2AwyGU04KHNOl9UsaF+UZSioWHJtO5j42wMlUaafAUMeEQ0Q+Kh
-         2mrNMJ9M/bHTGMR74wOUGPtILwBu6dEqk+U0yOUIb7mvj6IzMxuJILsfj5G+S3Z43gKy
-         u2oKfwWMfbYslrSoCjdqQ1qCFHOj7Qo6wddgfZgHfXxGCrcZSDnyvDyBOa4O2PMyWPLL
-         KDEGXcSsQfUog2JPxDdi0v01+8FkbYRudYXSGBcIoNQp70GZcaYHpr+swrUVpUPd3EX9
-         NMt8lDw13NprVS1BMax6Fiv4lLvwuVK/ySUOsSV1Swi1R8UEwMwfez10MnuQo7c6aCcn
-         PVbQ==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
+        bh=Y7C467UHY1ApxkxNkde5pS9++k5K00rvSuCeNYW/XeQ=;
+        b=kF+P1MPG1R6DT3d0YvCEtmXzzCrrKnZv5NRWVUILFb2CPAl8Xc4NmJ65Qc3X43f+Fv
+         mhKkLQCpLz6/GVqf3aW+mqNTddMMu3u+P4Ndt12Xi6XMXUcyP6ak3Q/STw3iiKtg1gAR
+         AwljP4aTKWVNvWISB9x+A4PP23G86LLnDRyJMJX8gNNl9weeNORLYgaTx7xcjPWoMV11
+         AQdK8C55PfDjV01s/ENVTGCTSXItNihjq61IRi0ZfoEzRWek74pZNza3qVfqMeoco6S8
+         X7lWHu5b7NdmGcesYggOWTGzCy4wOIH6WCtjII1qcepYyDMBfPWyaZtSWDmTQqJEoSDx
+         IfvQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=uSWLen75;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w7si619265ply.421.2019.02.04.10.19.46
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iwdoEbbn;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a13sor1285518pgb.56.2019.02.04.10.19.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 04 Feb 2019 10:19:46 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Mon, 04 Feb 2019 10:19:50 -0800 (PST)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=uSWLen75;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=NG9nYwCAVqEpP+paq6QtboUvwEo6x8RZXfTYGpZRrLw=; b=uSWLen75JY5fHulYjRaAYf7ZF
-	orEmz+rVxtEBYySX3aXWEHZNE8GGDpaOyjliOuetbgrq6TE1rZFD84nW1a0hMIZn2lY1AG/MaJKQE
-	zjHxU9V24NeXnWehVH6ERlDMA+3KPiVoVnqP9CN5PktQZO1tJ1pnXcPpTd+Fu2gkE4zUoBmbqDjxS
-	pymF1/FC3OB9FI0huuIN/4BvggTAQwoX/AZtZWyH+JM51h9B4jn9SKk5gbieg7enClnK4lulAZvs5
-	Q9Ww4bnNOYB8c0p92SUB2QlERAMduCa8FI5FYdZJYvapWjhOi86zepu3UfI9KAF05ZVXfOgYwVcQp
-	+pEFALSSg==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gqiqO-0004T7-La; Mon, 04 Feb 2019 18:19:44 +0000
-Date: Mon, 4 Feb 2019 10:19:44 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: john.hubbard@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Al Viro <viro@zeniv.linux.org.uk>,
-	Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Christopher Lameter <cl@linux.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH 4/6] mm/gup: track gup-pinned pages
-Message-ID: <20190204181944.GD21860@bombadil.infradead.org>
-References: <20190204052135.25784-1-jhubbard@nvidia.com>
- <20190204052135.25784-5-jhubbard@nvidia.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iwdoEbbn;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:from:to:cc:date:message-id:in-reply-to:references
+         :user-agent:mime-version:content-transfer-encoding;
+        bh=Y7C467UHY1ApxkxNkde5pS9++k5K00rvSuCeNYW/XeQ=;
+        b=iwdoEbbnl4vZrbishwBQADfm0EjzsEvtHQeQ6GN0r++6qhZmzJ4ra5tLQ/peaafWbw
+         GVn04HzCjogTvmqOQVez+ktoUNo643bJP+Voe3yD2BNf9GGKcUiuhld+hFM99JLyyuTy
+         Yfz+Ft0DJiABsRnpy8YvYeISWquaVnSpYfsfr9te6EaUtjikDvw7UUfjGd56lzJLLwUf
+         UV2OAV5ORXguYBBzpKG2kFVB0EB0xq4Vf7tQTZmqIoFZypIHOX1vmeJh7cCZkmMmUx3j
+         UsBBFie+qczkJY7HzLQgkDB6dyJPnGBJ9UsDEHwX3DIS1/Cw/wbIEYGaAxVDoqrkJw9V
+         wlWw==
+X-Google-Smtp-Source: AHgI3IaZ5KYOLTDHY5ylXp1cXQI1eFxJVc/+W8nm45glPPlIfvBa3WiT3NNRTVLf89Oqk2rOV4wjQQ==
+X-Received: by 2002:a63:3206:: with SMTP id y6mr627427pgy.338.1549304390629;
+        Mon, 04 Feb 2019 10:19:50 -0800 (PST)
+Received: from localhost.localdomain ([2001:470:b:9c3:9e5c:8eff:fe4f:f2d0])
+        by smtp.gmail.com with ESMTPSA id d21sm811265pgv.37.2019.02.04.10.19.49
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Feb 2019 10:19:50 -0800 (PST)
+Subject: [RFC PATCH QEMU] i386/kvm: Enable paravirtual unused page hint
+ mechanism
+From: Alexander Duyck <alexander.duyck@gmail.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org
+Cc: rkrcmar@redhat.com, alexander.h.duyck@linux.intel.com, x86@kernel.org,
+ mingo@redhat.com, bp@alien8.de, hpa@zytor.com, pbonzini@redhat.com,
+ tglx@linutronix.de, akpm@linux-foundation.org
+Date: Mon, 04 Feb 2019 10:19:49 -0800
+Message-ID: <20190204181825.12252.81443.stgit@localhost.localdomain>
+In-Reply-To: <20190204181118.12095.38300.stgit@localhost.localdomain>
+References: <20190204181118.12095.38300.stgit@localhost.localdomain>
+User-Agent: StGit/0.17.1-dirty
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190204052135.25784-5-jhubbard@nvidia.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Feb 03, 2019 at 09:21:33PM -0800, john.hubbard@gmail.com wrote:
-> +/*
-> + * GUP_PIN_COUNTING_BIAS, and the associated functions that use it, overload
-> + * the page's refcount so that two separate items are tracked: the original page
-> + * reference count, and also a new count of how many get_user_pages() calls were
-> + * made against the page. ("gup-pinned" is another term for the latter).
-> + *
-> + * With this scheme, get_user_pages() becomes special: such pages are marked
-> + * as distinct from normal pages. As such, the new put_user_page() call (and
-> + * its variants) must be used in order to release gup-pinned pages.
-> + *
-> + * Choice of value:
-> + *
-> + * By making GUP_PIN_COUNTING_BIAS a power of two, debugging of page reference
-> + * counts with respect to get_user_pages() and put_user_page() becomes simpler,
-> + * due to the fact that adding an even power of two to the page refcount has
-> + * the effect of using only the upper N bits, for the code that counts up using
-> + * the bias value. This means that the lower bits are left for the exclusive
-> + * use of the original code that increments and decrements by one (or at least,
-> + * by much smaller values than the bias value).
-> + *
-> + * Of course, once the lower bits overflow into the upper bits (and this is
-> + * OK, because subtraction recovers the original values), then visual inspection
-> + * no longer suffices to directly view the separate counts. However, for normal
-> + * applications that don't have huge page reference counts, this won't be an
-> + * issue.
-> + *
-> + * This has to work on 32-bit as well as 64-bit systems. In the more constrained
-> + * 32-bit systems, the 10 bit value of the bias value leaves 22 bits for the
-> + * upper bits. Therefore, only about 4M calls to get_user_page() may occur for
-> + * a page.
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-The refcount is 32-bit on both 64 and 32 bit systems.  This limit
-exists on both sizes of system.
+This patch adds the flag named kvm-pv-unused-page-hint. This functionality
+is enabled by kvm for x86 and provides a mechanism by which the guest can
+indicate to the host which pages it is no longer using. By providing these
+hints the guest can help to reduce the memory pressure on the host as
+dirtied pages will be cleared and not written out to swap if they are
+marked as being unused.
+
+Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+---
+ target/i386/cpu.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/target/i386/cpu.c b/target/i386/cpu.c
+index 2f5412592d30..0d19a9dc64f1 100644
+--- a/target/i386/cpu.c
++++ b/target/i386/cpu.c
+@@ -900,7 +900,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
+             "kvmclock", "kvm-nopiodelay", "kvm-mmu", "kvmclock",
+             "kvm-asyncpf", "kvm-steal-time", "kvm-pv-eoi", "kvm-pv-unhalt",
+             NULL, "kvm-pv-tlb-flush", NULL, "kvm-pv-ipi",
+-            NULL, NULL, NULL, NULL,
++            "kvm-pv-unused-page-hint", NULL, NULL, NULL,
+             NULL, NULL, NULL, NULL,
+             NULL, NULL, NULL, NULL,
+             "kvmclock-stable-bit", NULL, NULL, NULL,
 
