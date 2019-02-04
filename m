@@ -2,133 +2,181 @@ Return-Path: <SRS0=bR/Z=QL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C30D0C282C4
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 12:38:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C074AC282C4
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 13:21:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 84A29205C9
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 12:38:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 84A29205C9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 5A2062082F
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 13:20:59 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="0qLtqDFY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A2062082F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 192B68E0041; Mon,  4 Feb 2019 07:38:55 -0500 (EST)
+	id CBED08E0042; Mon,  4 Feb 2019 08:20:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 11BE48E001C; Mon,  4 Feb 2019 07:38:55 -0500 (EST)
+	id C44F58E001C; Mon,  4 Feb 2019 08:20:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F25D08E0041; Mon,  4 Feb 2019 07:38:54 -0500 (EST)
+	id AE7398E0042; Mon,  4 Feb 2019 08:20:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 990FC8E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 07:38:54 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id h11so4581565wrs.2
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 04:38:54 -0800 (PST)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 83C8F8E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 08:20:58 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id w15so14418629ita.1
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 05:20:58 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Hk9Yqi/v8tadcsmQgJMrDRiyrSRSUZPX8uc0xnZJkrs=;
-        b=jESPq7aa4hvjmKTanOssZ9ojjUt93KAuga5Kp/rKRgQX/3GAKCLgI20uOsCFNPWTKs
-         7Q8Meq2sD+yWOeACkk0Uposa+HaAOXOvWj2MrVjwLrizcsR7Y+Fsmxh28DxGQk4ZehRv
-         kYRNbNdPVDnOhcokK7WXdwCr6i0jqz2km2BjVpK00kLEw+v4oq4/ZqtJ9YQ5HrODeMQr
-         8kMxrttiTysykWOtofYhT4kFxtmJxMZTAhKapoPFyBeBdPklwNPHWuHfEQ2jlDYjud5Q
-         5094zLOWFGQNaqzrjLOO+Y4JmsmbgDtVE2FTbgSnY6AUIzqfgRSLZzcHRF4W0pB+SpqU
-         dnsw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: AJcUukdcp7G8gSurah02Gzn51PKMuO6C5SVjc/5tNrapCkujQHn1T0ob
-	F/55aTTgkKzvtNu0qHLVuLmlILGHbTdtmTOciyvHxERbIf1CaM52Nbn3x0eeviPdv6i/Icgpn03
-	EsXdP+FqFOvxF6P9HrVU7IMVlrbyuHauG/tmXjT8lETUj4ZItFxoNqFQFPJqGEEumVA==
-X-Received: by 2002:adf:84e4:: with SMTP id 91mr48751693wrg.237.1549283934146;
-        Mon, 04 Feb 2019 04:38:54 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN4fMcw3eJU13559gjuzEIGhz5TVlq1A3t71+Lt8V27Zkh4uMgk/oG1ZotYijX4N0QCP3eJD
-X-Received: by 2002:adf:84e4:: with SMTP id 91mr48751646wrg.237.1549283933208;
-        Mon, 04 Feb 2019 04:38:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549283933; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:mime-version:content-disposition:user-agent;
+        bh=oI1D2Vjp2HDNRnEFcc6hBhLZ9/+qDh9DJypTZhoEbJE=;
+        b=pLSLSMMwBduU6KhiuQuZYVLm2Bv2Qxci1DnTsm4bXUfCFXJlHxREcDHvvfHbSxd+KX
+         qgQzMzey9coJPT4a/XF9LD0oFsGG77Px3KKx3vmwADcGv49ls9eNShoEehkzWP13Z6Wp
+         YRqX826rLy42trSLI0Ah66u4VizBz/i6Q8dXuTZawZbE+1uGgBfa0unJJek+sUctIjq5
+         Zf9C1BlYYYEqYu9nWnUt6OT5M+rUbmZL7dty+nV8gFjzFP6fvR2xzbrws8IIqy+yAf28
+         cjiv/MOIN9t4+bR+BGNrW0cOZBZBwN4XBmxX2Z6aSuK1cPq/wdTGrpfFOkS8YMVF6szS
+         vLlQ==
+X-Gm-Message-State: AHQUAuYacUFqbBqZq93NzTjtDhAE3avu1Ed4qq83jGfTr2xORXZ2gh+y
+	IY/D42XOstTX1M3YEwqOFDi1VadyoObsMZtEpFhRHFqmBRIVyAdoaKmE9BlcmZJ/mrqII2izTV9
+	ZbddCI0C4C4shfOxfRHqnThRhcWpWh1UnW9AwQGuyAbq73KtcWRgs4qspWE/QDetYSQ==
+X-Received: by 2002:a02:a992:: with SMTP id q18mr139453jam.70.1549286458192;
+        Mon, 04 Feb 2019 05:20:58 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZ9N17AO8UJZH13B5QT76kwDGIJBXzHCCHW0tY9HsaZUk64X8cFY51Gh0U20ynci5s62UJj
+X-Received: by 2002:a02:a992:: with SMTP id q18mr139410jam.70.1549286457391;
+        Mon, 04 Feb 2019 05:20:57 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549286457; cv=none;
         d=google.com; s=arc-20160816;
-        b=BKMyyW2nN6MVcFEDR1oFTEAkT/XKtZSzaIGWBKXcUCKSPpY7RXYxx8X9+HVfOv+dq1
-         s4a/07aakoxBJoXDny8YsHsrLGx+MJhQ9vGPJ1/Mv4K+9TCe8VvPKRFLlpvmSqvF/tGw
-         iCiGIHqbMFHfD8bGpasAKKvws7JBcn152AvU5T6ibmbYLx69iFHWVJBVNP5YdBjYabvJ
-         aIiAcx0knlUqRvtRyRnDb2KRw0KplZ8I6MplK/ZGuxJPvDGuPioGEIRFxB6NAEtv4hgw
-         E6exE8YM7xe5AJ1XPc7j/Ro5vIxlE4n1yzkQxsNfUasHQDlZvj6wJEZlb91gIe0wWo4l
-         vEVQ==
+        b=zUwC6LX/V3DXJUgK2AUFNOq/cxpvkBqKZ2ZvnZujwhn6RaOAxP2whiduXO8N1HoudG
+         MdorKbzGQePwjXqlFdmNmzpweEy/ibrQFpmZFosPNeorA1yloPps2PbefkZYd5LpIfY6
+         3HbE7d+MYXvR/buYy/wE/pKUvqlMrzeUqtjGcpezYVuxx6UzrAEu7l6Flk3V/I9YkCgU
+         +4KDdKWpCct7XnenDTkt0m/aXY4QznFOHjzDrs3/XShPsrYlVdn5b81YiATLBQAwUX7R
+         SVhHI6wpfEZPoOFOOhg32zo3iPr7YfwrURW6o1gb7uS752XRjUX+ZSL63/0jvCsAfTnm
+         N6ag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Hk9Yqi/v8tadcsmQgJMrDRiyrSRSUZPX8uc0xnZJkrs=;
-        b=bx5lXGCrEl22NV/PejOSZWlPQHOQROe7pdFRapL2mXgQefpA2SqcvWDzHBmaLtUxct
-         CUvl7Vlrb241Tz2qc8Tz2ua+eTt9NjL6M+sdJROJXng79GgVE7H35stbfFYTdT1R6Ixi
-         wyAJL2qj+EtGWWPPhMVBIqewdvKq+5h+BwUVHnHNZ/WC4q6YoYbKkpZ9Be6ZVAwgl+Pe
-         RzKh9gEbFr5urrTbPVhVjihKkdqdGsGelFp7U6504VN2LUoYG0Cg+Lz6qKC1hAFpGCwY
-         3rooYJgDaEBBIIjewqqIe/lQKTls7O7qrtLtJlcuYl33KlRag7J3mZCqK8Pv5lGmUCnd
-         XWgA==
+        h=user-agent:content-disposition:mime-version:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=oI1D2Vjp2HDNRnEFcc6hBhLZ9/+qDh9DJypTZhoEbJE=;
+        b=QozFFb05Oyy08cJewbF0LC06rPEg7kK8mtCDXJSMOQsqzgmUg4Fmnb+h8MeD/F8vpw
+         bVPujlxsxYpSKcoHz80lhXFNISI+dmFqIrfCgEnnl2qKePT19kdwpVaBYFk8Qn4zy7s5
+         qwxvjKMau9Kel32inSkSAzt6Fl7tW3r5/it7Ac46teOGX4zdXguvHu3zJeYvIbpz4sIx
+         uJWfDxlz4ASVyuryNQBuRCvvJugX4I/UQgvEQRVzQOUCVWOmBL9Ft3YfQy78MsxoudS8
+         BB38s9BbRAPx7eKqcoBK4HO3Et3tmzUhbFhZ6xEva6hS62sSXAaGiljWZ9Bu2i9bLh4J
+         emNg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id d69si7755459wmd.74.2019.02.04.04.38.52
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=0qLtqDFY;
+       spf=pass (google.com: domain of dan.carpenter@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=dan.carpenter@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id 133si5408ity.52.2019.02.04.05.20.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Feb 2019 04:38:53 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Mon, 04 Feb 2019 05:20:57 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.carpenter@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by newverein.lst.de (Postfix, from userid 2407)
-	id 839C668D93; Mon,  4 Feb 2019 13:38:52 +0100 (CET)
-Date: Mon, 4 Feb 2019 13:38:52 +0100
-From: Christoph Hellwig <hch@lst.de>
-To: Christian Zigotzky <chzigotzky@xenosoft.de>,
-	Olof Johansson <olof@lixom.net>
-Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>,
-	linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>,
-	linux-mm@kvack.org, iommu@lists.linux-foundation.org,
-	Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org
-Subject: Re: use generic DMA mapping code in powerpc V4
-Message-ID: <20190204123852.GA10428@lst.de>
-References: <6f2d6bc9-696b-2cb1-8a4e-df3da2bd6c0a@xenosoft.de> <20190129161411.GA14022@lst.de> <20190129163415.GA14529@lst.de> <F4AB3D9A-97EC-45D7-9061-A750D0934C3C@xenosoft.de> <96762cd2-65fc-bce5-8c5b-c03bc3baf0a1@xenosoft.de> <20190201080456.GA15456@lst.de> <9632DCDF-B9D9-416C-95FC-006B6005E2EC@xenosoft.de> <594beaae-9681-03de-9f42-191cc7d2f8e3@xenosoft.de> <20190204075616.GA5408@lst.de> <ffbf56ae-c259-47b5-9deb-7fb21fead254@xenosoft.de>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=0qLtqDFY;
+       spf=pass (google.com: domain of dan.carpenter@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=dan.carpenter@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x14DJX5Z179032;
+	Mon, 4 Feb 2019 13:20:49 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : mime-version : content-type; s=corp-2018-07-02;
+ bh=oI1D2Vjp2HDNRnEFcc6hBhLZ9/+qDh9DJypTZhoEbJE=;
+ b=0qLtqDFYgaEWLXUgfkLyLriCN8rQtKbVq4l4is1pQNlsmD9sdVVXSbC5bmYvFgI2iPbc
+ TjzvNfhsTFpjR8hSrD6UdQUgdXQUiT/ub81FD/rKsxOi7fu12d+Btc04p8VHLXC2Y5dP
+ IEr0eiyZKuIiVO4LJDasTzzavzDFiqQk6+6gd/PMR9lih1HyF9TWSSTbdxIYoeJyJoqW
+ kvVxrgnnlB2MESyc1RUN+Ce7bSfZNyXOxVFgJvUEZ1n6JK45kFLeU3NlYGh7xu2enGag
+ SK/8b8eELxd9KPc66dlZIm0o6NJWpiLi4XCRE4GrrwQ3zrbIWEcIluII43XCHpnFrTJy tQ== 
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by userp2120.oracle.com with ESMTP id 2qd98mw283-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 04 Feb 2019 13:20:49 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x14DKmks012763
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 4 Feb 2019 13:20:49 GMT
+Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x14DKlHg024899;
+	Mon, 4 Feb 2019 13:20:48 GMT
+Received: from kadam (/197.157.0.20)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 04 Feb 2019 13:20:47 +0000
+Date: Mon, 4 Feb 2019 16:20:44 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+To: =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+Cc: linux-mm@kvack.org, kernel-janitors@vger.kernel.org,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: [PATCH] mm/hmm: potential deadlock in nonblocking code
+Message-ID: <20190204132043.GA16485@kadam>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ffbf56ae-c259-47b5-9deb-7fb21fead254@xenosoft.de>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+X-Mailer: git-send-email haha only kidding
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9156 signatures=668682
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1902040106
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 04, 2019 at 01:13:54PM +0100, Christian Zigotzky wrote:
->>> Results: The X1000 and X5000 boot but unfortunately the P.A. Semi Ethernet
->>> doesn't work.
->> Are there any interesting messages in the boot log?  Can you send me
->> the dmesg?
->>
-> Here you are: http://www.xenosoft.de/dmesg_X1000_with_DMA_updates.txt
+There is a deadlock bug when these functions are used in nonblocking
+mode.  The else side is only meant to be taken in when the code is
+used in blocking mode.  But the way it's written now, if we manage to
+take the lock without blocking then we try to take it a second time in
+the else statement which leads to a deadlock.
 
-It seems like the pasemi driver fails to set a DMA mask, but seems
-otherwise 64-bit DMA capable.  The old PPC code didn't verify the
-dma mask during the map operations, but the x86-derived generic
-code does.
+Fixes: a3402cb621c1 ("mm/hmm: improve driver API to work and wait over a range")
+Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
+---
+ mm/hmm.c | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
 
-This patch just sets the DMA mask.
-
-Olof: does this look ok?  The DMA device seems to not directly
-bound by the net driver, but not really used by anything else in tree
-either..
-
-diff --git a/drivers/net/ethernet/pasemi/pasemi_mac.c b/drivers/net/ethernet/pasemi/pasemi_mac.c
-index d21041554507..d98bd447c536 100644
---- a/drivers/net/ethernet/pasemi/pasemi_mac.c
-+++ b/drivers/net/ethernet/pasemi/pasemi_mac.c
-@@ -1716,6 +1716,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
- 		err = -ENODEV;
- 		goto out;
- 	}
-+	dma_set_mask(&mac->dma_pdev->dev, DMA_BIT_MASK(32));
+diff --git a/mm/hmm.c b/mm/hmm.c
+index e14e0aa4d2cb..3b97bb087b28 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -207,9 +207,11 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+ 	update.event = HMM_UPDATE_INVALIDATE;
+ 	update.blockable = nrange->blockable;
  
- 	mac->iob_pdev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa001, NULL);
- 	if (!mac->iob_pdev) {
+-	if (!nrange->blockable && !mutex_trylock(&hmm->lock)) {
+-		ret = -EAGAIN;
+-		goto out;
++	if (!nrange->blockable) {
++		if (!mutex_trylock(&hmm->lock)) {
++			ret = -EAGAIN;
++			goto out;
++		}
+ 	} else
+ 		mutex_lock(&hmm->lock);
+ 	hmm->notifiers++;
+@@ -222,9 +224,11 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+ 	mutex_unlock(&hmm->lock);
+ 
+ 
+-	if (!nrange->blockable && !down_read_trylock(&hmm->mirrors_sem)) {
+-		ret = -EAGAIN;
+-		goto out;
++	if (!nrange->blockable) {
++		if (!down_read_trylock(&hmm->mirrors_sem)) {
++			ret = -EAGAIN;
++			goto out;
++		}
+ 	} else
+ 		down_read(&hmm->mirrors_sem);
+ 	list_for_each_entry(mirror, &hmm->mirrors, list) {
+-- 
+2.17.1
 
