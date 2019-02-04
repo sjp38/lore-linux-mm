@@ -2,401 +2,186 @@ Return-Path: <SRS0=bR/Z=QL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DB5DBC282D7
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 05:22:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 376C2C282D8
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 05:55:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 82A6921773
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 05:22:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EA3E52083B
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 05:55:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="fcAAdWDc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 82A6921773
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="RevxtlRi";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="KCqVuHJV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA3E52083B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 304A98E0037; Mon,  4 Feb 2019 00:21:52 -0500 (EST)
+	id 5F7F38E0038; Mon,  4 Feb 2019 00:55:38 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 28F348E001C; Mon,  4 Feb 2019 00:21:52 -0500 (EST)
+	id 57F578E001C; Mon,  4 Feb 2019 00:55:38 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 10B938E0037; Mon,  4 Feb 2019 00:21:52 -0500 (EST)
+	id 41F4E8E0038; Mon,  4 Feb 2019 00:55:38 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B55758E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 00:21:51 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id x14so2986206pln.5
-        for <linux-mm@kvack.org>; Sun, 03 Feb 2019 21:21:51 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 10EF08E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 00:55:38 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id 207so620654qkl.2
+        for <linux-mm@kvack.org>; Sun, 03 Feb 2019 21:55:38 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=+NGzTTJYka4kEPYhIjO26w8qWqAMcgcRWgdS5H6mxCk=;
-        b=Gl8YIt59nC3abDtMORTYjaybWqWTwade3cQXJPGmRAwsN8glM2xjDP/qhGT5VGh/d7
-         cbc1/PeStvtFQ2tlMLbJg5g+l1Fwts2R3vRtPfXYDB2+wG/nizwdKddtSB5f6o/SrMjM
-         ++LyV9VbBEb0dgBUPbUf4FdwY1IRCBzKBG1h5Qhxbkt4m4nj43Z4ZB3YRN8wlwIRDOuy
-         tYKjhBllJlLdn5eNDSUwSMK68luqWarIV4CY9hsG70Sqb2GgjYAVdyT3oMwneSjoIODU
-         +HvXMb3olvjWF4vZF0ehyg5DRvifKYDQgYPMc/3gRagag92nraPddILIGKYADw4C2jQW
-         rU9w==
-X-Gm-Message-State: AJcUukdf0i5DRxQw1sF/TYBVSfwdDu/4b/+Ze7rJdAzsYH7BWnk/QS8f
-	9gBYm4/53VZARnQJtTcbWnkg4qbHmPe6LGp4oj7QM+RZD1+TS/eCr3o/D6UAjEnKtd0mLfXXPM3
-	g13+SPojzEIRTXq0L9QXfXleCB7y58oEKi1hWp+pMTPJQOUumcn8YLP2LxNMfpEzqsc2L8XwkVP
-	IhqpcW2zxKO3MaiLztxZcS3h0KvtyvpT/SN+P9rLz53NmIbZ5aCae5BHkUXJasCWrRs8M3Z9m0/
-	gKtsa7pujEm7KL+wGk4r37UDuOftomyt1f/VeFFzzxdLCpH3LIZ8n4f39JqZGarNkuxBGAWB8pk
-	oAPO7cqODYX9r5IxPulowECdNccs/A+WeizlEXU+VJv7DxOH06gH8E1HDQqY8JoX+88n/urtgUI
-	g
-X-Received: by 2002:a62:39cb:: with SMTP id u72mr49567457pfj.223.1549257711356;
-        Sun, 03 Feb 2019 21:21:51 -0800 (PST)
-X-Received: by 2002:a62:39cb:: with SMTP id u72mr49567403pfj.223.1549257710124;
-        Sun, 03 Feb 2019 21:21:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549257710; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
+         :subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Cnv3ii0vTX6c//dFrqytCvGGSFfVQGMLpdqPG0BQ0I8=;
+        b=IqA7uGjrsbwP/Qg3jASYRqE+C7VCLoCbNOq2oflsxg7Vmzhvhe2lf5s+Kbgsz4+RpG
+         sePprQz3RPPUKj5IudPeWEPCKf1JeIXYg4r/7tXsCHEXyczxAk9FkIqm2coN/nTGtloH
+         rmKuLkRUvS1F6BByMraVc/nbnu27vYCOyXKwjMtDNGSXZ39v0l0jUYrP2xNFTiof1RNE
+         1VAOgl6ZvGuHDqvbE+sakd5j/JHKcoZj4TTHuPzB+hK75HLUW7yjfW32vgbseSI8e1ym
+         d/r5EDHH4+6WF7YafPSEwcBU8GUC8fs4cH03Oyx+M1zx94ceoi5BgO0JRSQYuv1Lev6M
+         v8Kg==
+X-Gm-Message-State: AJcUukfNoUghZkZqqTxipEMh0ZOXx8tzWF/FccV78pHlO52qTl1tB4k/
+	Im4dc/Pme2FhdRtPv5p7vz4r454fPDJU028UKJAXjAErF3XiEhgt6SibYSY8QEEXIx5RidJqBG8
+	JQ9FGXZyoIjnoCUcHRKLcV7TY57qWgdkUznenWzjIvcPZ7eJYDK4w+Tq9NDHRpzXFkg==
+X-Received: by 2002:ac8:3d51:: with SMTP id u17mr48984274qtf.127.1549259737824;
+        Sun, 03 Feb 2019 21:55:37 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN4zXgOXolVlYsnigdQebNWBzMMGCvtRjARcGTXAG9yooccbshF2uPzg/TejjUcPCfSig1Lt
+X-Received: by 2002:ac8:3d51:: with SMTP id u17mr48984253qtf.127.1549259737154;
+        Sun, 03 Feb 2019 21:55:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549259737; cv=none;
         d=google.com; s=arc-20160816;
-        b=Tqw+eRI06dnQHdhZvqEotUbnw/BNnLsD8d3poY/VRF8M5e6BYDHVFBdrKHHNHw+Bf4
-         /uc+65vMLPgqLOD83r2lPVTzAuaSnjBlYocGwPv2NmFwkO0jeE6v6+LZHVeWTlRVghRE
-         zvY56WpuBeud4j/ATXMetCJCEc2fpjVwTw4Oks3XAG11AkXNAVkcNBVjTslh+KE6b4n3
-         OQDcLOsVXf57qwPThq/lcyZvBAWxQAWA8++zzYea4lK6T6MGYhyfAr0n7J3VO98f3Gyz
-         JJJyCIX6aQ8Z4mtyNOp1r8JKShpm7Vj6V8F/m9nHVAUfdpGoaGPGG5TwODePE4KeygOS
-         kM7w==
+        b=chHLWUmga6ErtPn6yDlXs1s5iATNvBcbMpIl7DiQzEz+tSfBEf4f9mdXu0YP7GC4r0
+         ZXb63vIKNe+F8q3aV7S4b6GfQ6Mq08emwaFuISrOvpBAjj4nBp7slsTTAOLNgyya7TYf
+         Q4V0n4gL4zS1su9v49XkmAUs/rNFkP2pJXg7bM0BnroDQk6em56hAusBuf1eElsjGevW
+         yBXT1rmrrBFBCGoZh+QriQBbJN9Podcs8x0eCdFrAI5/NJyOxfHHRUnoYoTULFpej6xe
+         mlQUxzxuHvuWvmr13zah/D7xtkOC79QVXruna/pW8zhDQJJ4WmWr9Ze33Wdc3OlBff7s
+         7bVw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=+NGzTTJYka4kEPYhIjO26w8qWqAMcgcRWgdS5H6mxCk=;
-        b=Lv3yAXZmGiEr7XvWd+TkKJfydKS9wgx2Fe1iIHCXE+dfjSnDRHmhJK+AVkLcVvHKyq
-         FYJSsrvC/KYOqOx0sNQZtz8x5vZ6pooeMfMed10crT+n9YiwufMzqBfQr7wxNDZ1+DcW
-         UF+IrWV33Zu9YoxBy66visoxcnhOp++lGn/e5Nr+k8cQTEQdUvKUmU2jgamsKAF/+Cid
-         tF0bjMfU3rtUp7ox+wGTnqC6JHwLHNrPU+MqrEbmD8WLX9WkgkjInA9wxV51hDIFXcxZ
-         Oc3+duHzW1CVVdiugTDN7P/jv2bdN4lXqUvyBxJ5YiOmWipvUTc52SnjCKrV97Dgy7PD
-         ebnA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
+        bh=Cnv3ii0vTX6c//dFrqytCvGGSFfVQGMLpdqPG0BQ0I8=;
+        b=LkQvTBFfiSjllZvVNOhBrHW49W9Y8J/nd5z4uqSWnYe9z6Zy7OpXWmHPvDBtmdLmdw
+         fW6YVNVeeED0OkI2yyeDh8NwoTFZESsc6LA/Tsy92kpXM4kxZHFEByWWyGmPkZ9rZPAX
+         lLujVYzlzNEh/Oe202sbIbYC+OWNgnl+nIMelfLfmzWLv3p+3I49A67ald6rarXy7FGE
+         K5UhxZej0WeRKJON5EoQEz5e5TdCWolC2EpU4iZweOmFvZC0BTUz71xVYAkIwGS1Xr2n
+         GyaybP60ESH39uu9eolgmtTfw4VqI7UQ+32BzKqySV2Cu7m/27JV0Cj28M7wx/jJjyn6
+         xXBg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fcAAdWDc;
-       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g16sor24059475plo.1.2019.02.03.21.21.50
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=RevxtlRi;
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=KCqVuHJV;
+       spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id l19si254978qtn.352.2019.02.03.21.55.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 03 Feb 2019 21:21:50 -0800 (PST)
-Received-SPF: pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fcAAdWDc;
-       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=+NGzTTJYka4kEPYhIjO26w8qWqAMcgcRWgdS5H6mxCk=;
-        b=fcAAdWDcvho+hxPsmITn/Nb/O2jFmC5G9jBshXx/d4cmPZpXX8zVU6RBWKB/FUQiEv
-         Ly52aF3VgHyCzKz8tQN5kKT7vCrK8BhXOueH3iwxQytzrWLCeywVWIf4H+WM6HIqIf2r
-         e0B8KAwTxJtqz0QV6daWE/dqoD6r4xeEMEg+KtcS/IUWnkgImgtz5zVZVxdYa3pbHCS0
-         fWPbhjoA1NMEZNO4O1oCsLvp9DrjwjmUUhqN9T56ii1ImI5q0DAPGJErKMzVQQjb6WcG
-         Tvbi+Of+/pEhJhj5iXbGHfDxjnfT96xQC+oJyO6NRqlA4L4tZsYRPmB5avEh9JcGXFs9
-         c4Ag==
-X-Google-Smtp-Source: AHgI3IZDrRMmcnIrdv5spY2BD9+EltnV+6cGIH9w4YsUW5ZGKfbTzAkcx/Xx7fnrBITQ2+J5R2mYmg==
-X-Received: by 2002:a17:902:6949:: with SMTP id k9mr7253249plt.85.1549257709692;
-        Sun, 03 Feb 2019 21:21:49 -0800 (PST)
-Received: from blueforge.nvidia.com (searspoint.nvidia.com. [216.228.112.21])
-        by smtp.gmail.com with ESMTPSA id m9sm33428844pgd.32.2019.02.03.21.21.47
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Feb 2019 21:21:48 -0800 (PST)
-From: john.hubbard@gmail.com
-X-Google-Original-From: jhubbard@nvidia.com
-To: Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org
-Cc: Al Viro <viro@zeniv.linux.org.uk>,
-	Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	Christopher Lameter <cl@linux.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>,
-	Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	Tom Talpey <tom@talpey.com>,
-	LKML <linux-kernel@vger.kernel.org>,
-	linux-fsdevel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: [PATCH 6/6] mm/gup: Documentation/vm/get_user_pages.rst, MAINTAINERS
-Date: Sun,  3 Feb 2019 21:21:35 -0800
-Message-Id: <20190204052135.25784-7-jhubbard@nvidia.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190204052135.25784-1-jhubbard@nvidia.com>
-References: <20190204052135.25784-1-jhubbard@nvidia.com>
+        Sun, 03 Feb 2019 21:55:36 -0800 (PST)
+Received-SPF: neutral (google.com: 66.111.4.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.25;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=RevxtlRi;
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=KCqVuHJV;
+       spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
+	by mailout.nyi.internal (Postfix) with ESMTP id A28B521AB8;
+	Mon,  4 Feb 2019 00:55:36 -0500 (EST)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute5.internal (MEProxy); Mon, 04 Feb 2019 00:55:36 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
+	:from:to:cc:subject:message-id:references:mime-version
+	:content-type:in-reply-to; s=fm2; bh=Cnv3ii0vTX6c//dFrqytCvGGSFf
+	VQGMLpdqPG0BQ0I8=; b=RevxtlRi+0lFihLOIh9TssVLxk6EOb+KRrleA+y4H/m
+	DSlQlOy8U730z2ydsvU6zAxKwN5fx9wPTKPVcQjOj+8XcMeeSCu3vg182C2ZoVbB
+	Dt400bkItxzpZUfoKGnf+A/QNworbQA9xyqkkBqM12s7MkT1wGgHIorQX3aQ/+YV
+	FxOWr/5dwG3xvJzpLt+dO25OO/5PXsfyy+bMgRgQDnmIGLEdVmrqzG4cZTlupPiZ
+	G9TEo2mKoavIx8G0MVuZM2eFt5b28YXkk+bxtKzj0jp5qpeVVARO9kYsDaAB9N5h
+	jA5k7aVU8+/u6LqZVl7jjkmWvbCdemV7gHve84BoAbQ==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-type:date:from:in-reply-to
+	:message-id:mime-version:references:subject:to:x-me-proxy
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm1; bh=Cnv3ii
+	0vTX6c//dFrqytCvGGSFfVQGMLpdqPG0BQ0I8=; b=KCqVuHJVaIhmIuKIpb5RYm
+	+uyMTTrHzKrarBqn0lw61zbBe/knvFOq+k2eBZwge+fSc9SxoEymXKvQqpgtzwXn
+	6gEu3e8J6lEcjwB9eVa/DUErE5XqxmKQuCQWjz9pSEfm6usEi6TJYjz+b9vX4gZh
+	En8gOEC/+B64IjsWRE8T1NVb8rIC6GEt6gHnXHYHl7VakMhfTNzAm1HgbGbN4iSy
+	55B8zdBaem+o4UeOPnD8RbNiiIso+Awcu8tvg9Tdd7Jce1fyr1vuiqTYL5QSfEGx
+	sOVbZBE0exAfojCsNhBNlSolCmx3FJKS72J4hBa/aj/EGQ69AoctS/sC3fafqTLA
+	==
+X-ME-Sender: <xms:1tNXXFAGUviouBUVA1T7fOkXugaMjfsWK6WlCOoHqBW0D_Q4ZFACmA>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledrkeefgdeklecutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthenuceurghilhhouhhtmecufedt
+    tdenucesvcftvggtihhpihgvnhhtshculddquddttddmnegfrhhlucfvnfffucdlfedtmd
+    enucfjughrpeffhffvuffkfhggtggujgfofgesthdtredtofervdenucfhrhhomhepfdfv
+    ohgsihhnucevrdcujfgrrhguihhnghdfuceomhgvsehtohgsihhnrdgttgeqnecukfhppe
+    duvddurdeggedrvddvjedrudehjeenucfrrghrrghmpehmrghilhhfrhhomhepmhgvseht
+    ohgsihhnrdgttgenucevlhhushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:1tNXXJgv7Hbhx1jO8holvgIVYG5DoAJ8qeflgDR-d8ynU2H1KOxE4w>
+    <xmx:1tNXXOPJu7nwsa3nNmqD2I06-_wWE_m9qWjK-kyqJ3x2RMwvunai8g>
+    <xmx:1tNXXK4wdesBM13bOCGa7vYtkw7ld_cZya7mNiD_mY04_ECapeJM4Q>
+    <xmx:2NNXXOI6LWHp3eo1nJjtZwrE8yDwJzEF5TLV2pzditwb45JJAMbwbg>
+Received: from localhost (ppp121-44-227-157.bras2.syd2.internode.on.net [121.44.227.157])
+	by mail.messagingengine.com (Postfix) with ESMTPA id E7021E4543;
+	Mon,  4 Feb 2019 00:55:33 -0500 (EST)
+Date: Mon, 4 Feb 2019 16:55:26 +1100
+From: "Tobin C. Harding" <me@tobin.cc>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <willy@infradead.org>,
+	"Tobin C. Harding" <tobin@kernel.org>,
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/slab: Increase width of first /proc/slabinfo column
+Message-ID: <20190204055526.GA14242@eros.localdomain>
+References: <20190201004242.7659-1-tobin@kernel.org>
+ <20190201024310.GC26359@bombadil.infradead.org>
+ <20190201140346.fdcd6c4b663fbe3b5d93820d@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-X-NVConfidentiality: public
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190201140346.fdcd6c4b663fbe3b5d93820d@linux-foundation.org>
+X-Mailer: Mutt 1.11.3 (2019-02-01)
+User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: John Hubbard <jhubbard@nvidia.com>
+On Fri, Feb 01, 2019 at 02:03:46PM -0800, Andrew Morton wrote:
+> On Thu, 31 Jan 2019 18:43:10 -0800 Matthew Wilcox <willy@infradead.org> wrote:
+> 
+> > On Fri, Feb 01, 2019 at 11:42:42AM +1100, Tobin C. Harding wrote:
+> > > Currently when displaying /proc/slabinfo if any cache names are too long
+> > > then the output columns are not aligned.  We could do something fancy to
+> > > get the maximum length of any cache name in the system or we could just
+> > > increase the hardcoded width.  Currently it is 17 characters.  Monitors
+> > > are wide these days so lets just increase it to 30 characters.
+> > 
+> > I had a proposal some time ago to turn the slab name from being kmalloced
+> > to being an inline 16 bytes (with some fun hacks for cgroups).  I think
+> > that's a better approach than permitting such long names.  For example,
+> > ext4_allocation_context could be shortened to ext4_alloc_ctx without
+> > losing any expressivity.
+> > 
+> 
+> There are some back-compatibility concerns here.
 
-1. Added Documentation/vm/get_user_pages.rst
+I'm don't understand sorry what back-compatibility concerns (please see
+sentiment at end of email :)
 
-2. Added a GET_USER_PAGES entry in MAINTAINERS
+> And truncating long names might result in duplicates.
 
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Jan Kara <jack@suse.cz>
-Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
----
- Documentation/vm/get_user_pages.rst | 197 ++++++++++++++++++++++++++++
- Documentation/vm/index.rst          |   1 +
- MAINTAINERS                         |  10 ++
- 3 files changed, 208 insertions(+)
- create mode 100644 Documentation/vm/get_user_pages.rst
+So I thought I had a good idea - add a pr_warn() if cache name > 16 and
+patch all current intree calls to kmem_cache_create() called as such.
 
-diff --git a/Documentation/vm/get_user_pages.rst b/Documentation/vm/get_user_pages.rst
-new file mode 100644
-index 000000000000..8598f20afb09
---- /dev/null
-+++ b/Documentation/vm/get_user_pages.rst
-@@ -0,0 +1,197 @@
-+.. _get_user_pages:
-+
-+==============
-+get_user_pages
-+==============
-+
-+.. contents:: :local:
-+
-+Overview
-+========
-+
-+Some kernel components (file systems, device drivers) need to access
-+memory that is specified via process virtual address. For a long time, the
-+API to achieve that was get_user_pages ("GUP") and its variations. However,
-+GUP has critical limitations that have been overlooked; in particular, GUP
-+does not interact correctly with filesystems in all situations. That means
-+that file-backed memory + GUP is a recipe for potential problems, some of
-+which have already occurred in the field.
-+
-+GUP was first introduced for Direct IO (O_DIRECT), allowing filesystem code
-+to get the struct page behind a virtual address and to let storage hardware
-+perform a direct copy to or from that page. This is a short-lived access
-+pattern, and as such, the window for a concurrent writeback of GUP'd page
-+was small enough that there were not (we think) any reported problems.
-+Also, userspace was expected to understand and accept that Direct IO was
-+not synchronized with memory-mapped access to that data, nor with any
-+process address space changes such as munmap(), mremap(), etc.
-+
-+Over the years, more GUP uses have appeared (virtualization, device
-+drivers, RDMA) that can keep the pages they get via GUP for a long period
-+of time (seconds, minutes, hours, days, ...). This long-term pinning makes
-+an underlying design problem more obvious.
-+
-+In fact, there are a number of key problems inherent to GUP:
-+
-+Interactions with file systems
-+==============================
-+
-+File systems expect to be able to write back data, both to reclaim pages,
-+and for data integrity. Allowing other hardware (NICs, GPUs, etc) to gain
-+write access to the file memory pages means that such hardware can dirty the
-+pages, without the filesystem being aware. This can, in some cases
-+(depending on filesystem, filesystem options, block device, block device
-+options, and other variables), lead to data corruption, and also to kernel
-+bugs of the form:
-+
-+::
-+
-+    kernel BUG at /build/linux-fQ94TU/linux-4.4.0/fs/ext4/inode.c:1899!
-+    backtrace:
-+
-+	ext4_writepage
-+	__writepage
-+	write_cache_pages
-+	ext4_writepages
-+	do_writepages
-+	__writeback_single_inode
-+	writeback_sb_inodes
-+	__writeback_inodes_wb
-+	wb_writeback
-+	wb_workfn
-+	process_one_work
-+	worker_thread
-+	kthread
-+	ret_from_fork
-+
-+...which is due to the file system asserting that there are still buffer
-+heads attached:
-+
-+::
-+
-+ /* If we *know* page->private refers to buffer_heads */
-+ #define page_buffers(page)                                      \
-+        ({                                                      \
-+                BUG_ON(!PagePrivate(page));                     \
-+                ((struct buffer_head *)page_private(page));     \
-+        })
-+ #define page_has_buffers(page)  PagePrivate(page)
-+
-+Dave Chinner's description of this is very clear:
-+
-+    "The fundamental issue is that ->page_mkwrite must be called on every
-+    write access to a clean file backed page, not just the first one.
-+    How long the GUP reference lasts is irrelevant, if the page is clean
-+    and you need to dirty it, you must call ->page_mkwrite before it is
-+    marked writeable and dirtied. Every. Time."
-+
-+This is just one symptom of the larger design problem: filesystems do not
-+actually support get_user_pages() being called on their pages, and letting
-+hardware write directly to those pages--even though that pattern has been
-+going on since about 2005 or so.
-+
-+Long term GUP
-+=============
-+
-+Long term GUP is an issue when FOLL_WRITE is specified to GUP (so, a
-+writeable mapping is created), and the pages are file-backed. That can lead
-+to filesystem corruption. What happens is that when a file-backed page is
-+being written back, it is first mapped read-only in all of the CPU page
-+tables; the file system then assumes that nobody can write to the page, and
-+that the page content is therefore stable. Unfortunately, the GUP callers
-+generally do not monitor changes to the CPU pages tables; they instead
-+assume that the following pattern is safe (it's not):
-+
-+::
-+
-+    get_user_pages()
-+
-+    Hardware then keeps a reference to those pages for some potentially
-+    long time. During this time, hardware may write to the pages. Because
-+    "hardware" here means "devices that are not a CPU", this activity
-+    occurs without any interaction with the kernel's file system code.
-+
-+    for each page:
-+	set_page_dirty()
-+	put_page()
-+
-+In fact, the GUP documentation even recommends that pattern.
-+
-+Anyway, the file system assumes that the page is stable (nothing is writing
-+to the page), and that is a problem: stable page content is necessary for
-+many filesystem actions during writeback, such as checksum, encryption,
-+RAID striping, etc. Furthermore, filesystem features like COW (copy on
-+write) or snapshot also rely on being able to use a new page for as memory
-+for that memory range inside the file.
-+
-+Corruption during write back is clearly possible here. To solve that, one
-+idea is to identify pages that have active GUP, so that we can use a bounce
-+page to write stable data to the filesystem. The filesystem would work
-+on the bounce page, while any of the active GUP might write to the
-+original page. This would avoid the stable page violation problem, but note
-+that it is only part of the overall solution, because other problems
-+remain.
-+
-+Other filesystem features that need to replace the page with a new one can
-+be inhibited for pages that are GUP-pinned. This will, however, alter and
-+limit some of those filesystem features. The only fix for that would be to
-+require GUP users monitor and respond to CPU page table updates. Subsystems
-+such as ODP and HMM do this, for example. This aspect of the problem is
-+still under discussion.
-+
-+Direct IO
-+=========
-+
-+Direct IO can cause corruption, if userspace does Direct-IO that writes to
-+a range of virtual addresses that are mmap'd to a file.  The pages written
-+to are file-backed pages that can be under write back, while the Direct IO
-+is taking place.  Here, Direct IO need races with a write back: it calls
-+GUP before page_mkclean() has replaced the CPU pte with a read-only entry.
-+The race window is pretty small, which is probably why years have gone by
-+before we noticed this problem: Direct IO is generally very quick, and
-+tends to finish up before the filesystem gets around to do anything with
-+the page contents.  However, it's still a real problem.  The solution is
-+to never let GUP return pages that are under write back, but instead,
-+force GUP to take a write fault on those pages.  That way, GUP will
-+properly synchronize with the active write back.  This does not change the
-+required GUP behavior, it just avoids that race.
-+
-+Measurement and visibility
-+==========================
-+
-+There are several /proc/vmstat items, in order to provide some visibility
-+into what get_user_pages() and put_user_page() are doing.
-+
-+After booting and running fio (https://github.com/axboe/fio)
-+a few times on an NVMe device, as a way to get lots of
-+get_user_pages_fast() calls, the counters look like this:
-+
-+::
-+
-+ $ cat /proc/vmstat | grep gup
-+ nr_gup_slow_pages_requested 21319
-+ nr_gup_fast_pages_requested 11533792
-+ nr_gup_fast_page_backoffs 0
-+ nr_gup_page_count_overflows 0
-+ nr_gup_pages_returned 11555104
-+
-+Interpretation of the above:
-+
-+::
-+
-+ Total gup requests (slow + fast): 11555111
-+ Total put_user_page calls:        11555104
-+
-+This shows 7 more calls to get_user_pages(), than to put_user_page().
-+That may, or may not, represent a problem worth investigating.
-+
-+Normally, those last two numbers should be equal, but a couple of things
-+may cause them to differ:
-+
-+1. Inherent race condition in reading /proc/vmstat values.
-+
-+2. Bugs at any of the get_user_pages*() call sites. Those
-+sites need to match get_user_pages() and put_user_page() calls.
-+
-+
-+
-diff --git a/Documentation/vm/index.rst b/Documentation/vm/index.rst
-index 2b3ab3a1ccf3..433aaf1996e6 100644
---- a/Documentation/vm/index.rst
-+++ b/Documentation/vm/index.rst
-@@ -32,6 +32,7 @@ descriptions of data structures and algorithms.
-    balance
-    cleancache
-    frontswap
-+   get_user_pages
-    highmem
-    hmm
-    hwpoison
-diff --git a/MAINTAINERS b/MAINTAINERS
-index 8c68de3cfd80..1e8f91b8ce4f 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -6384,6 +6384,16 @@ M:	Frank Haverkamp <haver@linux.ibm.com>
- S:	Supported
- F:	drivers/misc/genwqe/
- 
-+GET_USER_PAGES
-+M:	Dan Williams <dan.j.williams@intel.com>
-+M:	Jan Kara <jack@suse.cz>
-+M:	Jérôme Glisse <jglisse@redhat.com>
-+M:	John Hubbard <jhubbard@nvidia.com>
-+L:	linux-mm@kvack.org
-+S:	Maintained
-+F:	mm/gup.c
-+F:	Documentation/vm/get_user_pages.rst
-+
- GET_MAINTAINER SCRIPT
- M:	Joe Perches <joe@perches.com>
- S:	Maintained
--- 
-2.20.1
+This process very kindly lead me to the fact that this does *not* work
+because of the macro KMEM_CACHE (which uses the struct name as the cache
+name).
+
+So, back to the drawing board.  I'm concerned that this may be a waste
+of peoples time, if so please say so and I'll move on to something else.
+
+thanks,
+Tobin.
 
