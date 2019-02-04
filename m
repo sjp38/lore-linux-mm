@@ -2,133 +2,154 @@ Return-Path: <SRS0=bR/Z=QL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 58C91C282C4
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 17:14:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 23787C4151A
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 17:51:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EBF882087C
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 17:14:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D4C602176F
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 17:51:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="fNHfgZqQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EBF882087C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="A7FU0101"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4C602176F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4BBE78E004B; Mon,  4 Feb 2019 12:14:21 -0500 (EST)
+	id 69CFC8E004C; Mon,  4 Feb 2019 12:51:17 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 46BA88E001C; Mon,  4 Feb 2019 12:14:21 -0500 (EST)
+	id 625B58E001C; Mon,  4 Feb 2019 12:51:17 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 359D58E004B; Mon,  4 Feb 2019 12:14:21 -0500 (EST)
+	id 49FB18E004C; Mon,  4 Feb 2019 12:51:17 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D82F8E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 12:14:21 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id b6so565280qkg.4
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 09:14:21 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0108C8E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 12:51:17 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id e68so423400plb.3
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 09:51:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=rRIYgpkoOU9OXyNN7jqzPWMWewZIFQicQrnhsy101kA=;
-        b=tzxP1XTlR4D60g/wUNrbpyRtgHrjArFP8m9mTQBolzrXKKZxoxdcpT8GljrZD/SJqD
-         YD1b9w3yJH1cTycVCKBkajWL6H7sMTTxFQNROhkR40XzLpqcQQlrrTIcdRPGBmDBnlYn
-         ucQ6m7rWiCitCFUonia9g4Ggyb49QOdN9Hhno5unrXf45+A7ZWDvf2S0yZPaoj2EP8/8
-         LYLg6xqu/WT/2qvKam3oJ5o6ikxo4WLwLJEIwNL3BB+ZqfV8fmD79LU2ym8llsX1JjDF
-         v8h/ikROhFeBAojEdYFms5qg5oSDWOW6pg6KMriKELOMUifJnlo5KnsfjTwX3GJmRepC
-         GC5w==
-X-Gm-Message-State: AHQUAubHhsHDnN0E2A7sa758ehf+bO0OoFkVdnPa3AifCdBA0ob3H1ei
-	+6LXWTruwnX8sgl0M8EOYhipZgmORtq/ZkaGdfklbfjx99cuvCB+JRLEtIZijckS6FMxx30yVdt
-	QQ50j/vW77Wf/Gbhudo0aWg+XfGT6NWLLwn0/goMRd2YItTT4bSQyHtO9whiSADA=
-X-Received: by 2002:a0c:cb85:: with SMTP id p5mr354475qvk.162.1549300460825;
-        Mon, 04 Feb 2019 09:14:20 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ia431TyxHhA7sHJthN6XBhD64zeaqsz6olHYhBuNZaQTE68XRm8+PVsCRGKhQAz2yXLIRbS
-X-Received: by 2002:a0c:cb85:: with SMTP id p5mr354430qvk.162.1549300460191;
-        Mon, 04 Feb 2019 09:14:20 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549300460; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=gxZcmyrTQ7o98rYEkVwMPBb43wOs0dpxU//wAZw+xbw=;
+        b=T6IXhz1DYaQ3FbptGnpyfLoaI1VW2EdJPhhG9MhKIm17pWX4FH1mH0kX4/8qMFaCcw
+         t7B4D1oUfvrx//Xb3Vc0Fh5SUrO8lnk4nu0B8L+E/hvIAhZ9AvIZOGZSH2OkfWqQntOf
+         ix3sCvtPuP+RlkGKH+MSynafwRLCDf0wSY1n9+h4jyG7r457e4ijd6gYsn9x62Xz1YXB
+         FcQ/yYPirFBxepZsV5+2pVyl0zhwRXIhF/BO7cyQyoxDzoNtsdQhSfCPosIFQ+DCjeGV
+         seZ4s2Ixoy6pUtXx4YbAZM6Gd1ESU3/kNF431qk9yfNVjlaPkAnulL5ClieEjE6SC2/g
+         nm9A==
+X-Gm-Message-State: AHQUAuZ9J6GOI41z4uQQwpcKBeA7u71Zn6JgH187JRy/gQ9Ukx3iFjPw
+	9Ba2AaaZ2CZ5CMq/EPK9Agj/QzibqtsE0klhOoVzQbw8w8hPQ7d2wQkEpYpdQo20JQ+zgrjJI4K
+	YSW1HGB47tpjpnOkb+rH952UtLriEm3JxStnvPoniD16rGyJ3aNTH7zfivY5uEDif0LFCzBwNEM
+	c2PoKVVKcCTruzk+E3QaEANBCn6KKcRLoYeU2icRJe8Ho8cf14yWLKbJPFOJR768PeslgA9l75S
+	KEOuXYhzOsxs5NXSBQxMzGlICTiYdxnbfBTaASBEos9Q47uf6lMb3r7CEvneKvnSvkKi6MMc+Vz
+	bsc1g/TggA1FZbdjgjCYDr8o1E0HoGVtrPRZaCbLh3eWdDbNVeXIdRenHjUWnZkqpxVLJiXiCBm
+	K
+X-Received: by 2002:a17:902:b214:: with SMTP id t20mr572546plr.248.1549302676659;
+        Mon, 04 Feb 2019 09:51:16 -0800 (PST)
+X-Received: by 2002:a17:902:b214:: with SMTP id t20mr572501plr.248.1549302675890;
+        Mon, 04 Feb 2019 09:51:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549302675; cv=none;
         d=google.com; s=arc-20160816;
-        b=XCNf06f4DPdtiGcc8Vvhdl/JieHz56mHLW7ZqFCgS38j3wi5PTVmg0nDEgjLTpDoqr
-         bvDwagTqxGqhtA/4U+hWfzJRBt8q+MoBg9eLOw5E5upxypMVSA+6N2THOqWoU7P9DGnp
-         ex/Z0FcdCJSGsfKn8SOYIg2LSyU+5Bn5M6Hac9Qr1Lu0lk7JjoWEcc3BcPX8kWDWa7Jm
-         h/jghzXfek5tiEVB1sr2JaBY2Ji06hczJ3oHgAr82oHEBsziCfmPPiQ0pp9oSVKOKFc3
-         o11n3orBHK55srfkQ+o9sBPKu0+YhlXD0+1HUfs+nhsb4OYD8yRQTuVTPrdHPQ+jBkY2
-         5P8g==
+        b=Xu4ij5A/f0w9kisEAKHVlVji6CWL0ebEeG8pn9OgAoQe03y89OdMt6raiF/mR3Z5B6
+         1/sWUVAmJHAznC2R8f0R6ksHmJs5mr/umUlXFOePJQ1K9C96fNoUhIyrdSjq+fqMdTdd
+         fdJjF5NBWdvH4h//vmBezzj5usMg2YrBKmIv6w+68Q2g+3Q2JVDgzksDrV1KKPo6JpYq
+         hfyz4VLESRdz7TLTfYbZEf8jTumLt1sLUlha78OvogfE1Go80FiaBJQcFc3VT6TK2Wp3
+         LDwUh468dmNQfATfZYCYSjOEOUTWJRVVYLpFl+Jm5u8UKKT24gNfh1YKfwv2u3Gy3qXr
+         tI6Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=rRIYgpkoOU9OXyNN7jqzPWMWewZIFQicQrnhsy101kA=;
-        b=aaIzUea8hP8CxE+Id5YrB9owyP1CFWd49ITyl2qAueAb4t0M6EeY0gnMw23qCZ+zq4
-         Fh7KJZqZqiPeXNQmUuF7XF1LPx5y2+SA1ixFsvowMLLqCUc0ciXKD2qi2Ogd9z+vXhY6
-         oHQVtrwJ3ScsSW9rip/hR6dnNlerKYu5MW5Vrc0BHuiDYpZmh7xooxvYBnOBrwcWvs8y
-         3kdWRKa8TswcvVv4hyuGl+kCx+FCHo7MZq3p4qfcDelbX97YF85p9NtUaq15BNDU8M5p
-         tjyPmHn42GaVYdehJW80TrfN8VKzFxsgSFlEwq4iFnym48Mj91mBD2Axq9W2S2JwIyei
-         nrSA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=gxZcmyrTQ7o98rYEkVwMPBb43wOs0dpxU//wAZw+xbw=;
+        b=wTMNJPAC5j4Oc0zRVTs760i2Ui9bryBW3Q1EPiEcKZfhYt6wqyHZPCCcO7DziM+n4n
+         XEhKThLZtKUXShWKUw4ZEpiYJVoIy0os6IXwbsVc5rob+hrhYdyvN5kHQW763W2oZmSj
+         +KIUHMieso0j5zdUqKqk//fKPL9NKwkTPV6ka4DcezEKhyJ4hLWILr7uMYs/t/kO+xH/
+         QBcV5g0E8MoPZuWP2miRWCN0ClQSA9iocDdntOdRpBbJk6qnO5wHkpE3iAMxSGnQjCj0
+         vqg5wyQcy9feahXjqzckK5e1PhLABo0FloJQRNnYqHyo7W6Gl0Ifk3jABkRzDKDy5OV5
+         nu3w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=fNHfgZqQ;
-       spf=pass (google.com: domain of 01000168b980e880-a7d8e0db-84fb-4398-8269-149c66b701b4-000000@amazonses.com designates 54.240.9.33 as permitted sender) smtp.mailfrom=01000168b980e880-a7d8e0db-84fb-4398-8269-149c66b701b4-000000@amazonses.com
-Received: from a9-33.smtp-out.amazonses.com (a9-33.smtp-out.amazonses.com. [54.240.9.33])
-        by mx.google.com with ESMTPS id 40si4482322qvu.207.2019.02.04.09.14.20
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=A7FU0101;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y21sor1152146plp.22.2019.02.04.09.51.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 04 Feb 2019 09:14:20 -0800 (PST)
-Received-SPF: pass (google.com: domain of 01000168b980e880-a7d8e0db-84fb-4398-8269-149c66b701b4-000000@amazonses.com designates 54.240.9.33 as permitted sender) client-ip=54.240.9.33;
+        (Google Transport Security);
+        Mon, 04 Feb 2019 09:51:15 -0800 (PST)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=fNHfgZqQ;
-       spf=pass (google.com: domain of 01000168b980e880-a7d8e0db-84fb-4398-8269-149c66b701b4-000000@amazonses.com designates 54.240.9.33 as permitted sender) smtp.mailfrom=01000168b980e880-a7d8e0db-84fb-4398-8269-149c66b701b4-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1549300459;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=rRIYgpkoOU9OXyNN7jqzPWMWewZIFQicQrnhsy101kA=;
-	b=fNHfgZqQCAIPedvEn9/V09tGYqNz+41uFUDzEvPKPtLzF+oYs+UPyt9aF1iKxinD
-	bh8DOvBrneM8djIV8FXwYLhmyfi1OX1or69dkUp1EME8XHHZE50Sl5/y2eNyzaDG0p9
-	sgutHg/yTiJ/yAYnzb5sp8+EcpQzIQIv6gS10zzU=
-Date: Mon, 4 Feb 2019 17:14:19 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: john.hubbard@gmail.com
-cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, 
-    Al Viro <viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>, 
-    Christoph Hellwig <hch@infradead.org>, 
-    Dan Williams <dan.j.williams@intel.com>, 
-    Dave Chinner <david@fromorbit.com>, 
-    Dennis Dalessandro <dennis.dalessandro@intel.com>, 
-    Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>, 
-    Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>, 
-    Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, 
-    Mike Rapoport <rppt@linux.ibm.com>, 
-    Mike Marciniszyn <mike.marciniszyn@intel.com>, 
-    Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>, 
-    LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, 
-    John Hubbard <jhubbard@nvidia.com>
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=A7FU0101;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=gxZcmyrTQ7o98rYEkVwMPBb43wOs0dpxU//wAZw+xbw=;
+        b=A7FU0101Au69fdbvimqEQXAxTxm4eQHcMqr/DHY+0Xd35XfeXkYU3X3Dj0t4aPpV2+
+         rx31+wKEKVo0388YnAAFzU36OpBWu2TfXTwzoMF8wlup8kGSsehMHugVJ/bW1pb2SpAD
+         G6J85D8wIIdCalmI7cGyRIsRg/L1uCRkAznDmHsXMHwiaveQq8PC5xE2W5+ZrzpaIcQ+
+         W1S32XGZJuuP/+zEuY4rAvZgR8yo3NDxaRMloUtG9zyws78xLr/NPZQvJth5pXJiG6s3
+         zHOChaldNMZHgmeF10T17McWCH5NTWmx81B3Q7dDTUsugo+xUB5BCkNM3iqhgMUhBsoM
+         CTPw==
+X-Google-Smtp-Source: AHgI3IYqNbWmq8UYZLwTkZ1W2v6TF+N3keX9gC9JaVu9p6Jyvue8K0UtB8kV2A8jzdpNeHMjlFO+qg==
+X-Received: by 2002:a17:902:2c83:: with SMTP id n3mr609436plb.104.1549302675060;
+        Mon, 04 Feb 2019 09:51:15 -0800 (PST)
+Received: from ziepe.ca (S010614cc2056d97f.ed.shawcable.net. [174.3.196.123])
+        by smtp.gmail.com with ESMTPSA id 6sm1139978pfv.30.2019.02.04.09.51.11
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 04 Feb 2019 09:51:11 -0800 (PST)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1gqiOk-0003oc-Or; Mon, 04 Feb 2019 10:51:10 -0700
+Date: Mon, 4 Feb 2019 10:51:10 -0700
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Christopher Lameter <cl@linux.com>
+Cc: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>,
+	Christian Benvenuti <benve@cisco.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Ralph Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>
 Subject: Re: [PATCH 0/6] RFC v2: mm: gup/dma tracking
-In-Reply-To: <20190204052135.25784-1-jhubbard@nvidia.com>
-Message-ID: <01000168b980e880-a7d8e0db-84fb-4398-8269-149c66b701b4-000000@email.amazonses.com>
+Message-ID: <20190204175110.GA10237@ziepe.ca>
 References: <20190204052135.25784-1-jhubbard@nvidia.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+ <01000168b980e880-a7d8e0db-84fb-4398-8269-149c66b701b4-000000@email.amazonses.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.02.04-54.240.9.33
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <01000168b980e880-a7d8e0db-84fb-4398-8269-149c66b701b4-000000@email.amazonses.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Frankly I still think this does not solve anything.
+On Mon, Feb 04, 2019 at 05:14:19PM +0000, Christopher Lameter wrote:
+> Frankly I still think this does not solve anything.
+> 
+> Concurrent write access from two sources to a single page is simply wrong.
+> You cannot make this right by allowing long term RDMA pins in a filesystem
+> and thus the filesystem can never update part of its files on disk.
 
-Concurrent write access from two sources to a single page is simply wrong.
-You cannot make this right by allowing long term RDMA pins in a filesystem
-and thus the filesystem can never update part of its files on disk.
+Fundamentally this patch series is fixing O_DIRECT to not crash the
+kernel in extreme cases.. RDMA has the same problem, but it is much
+easier to hit.
 
-Can we just disable RDMA to regular filesystems? Regular filesystems
-should have full control of the write back and dirty status of their
-pages.
+I think questions related to RDMA are somewhat separate, and maybe it
+should be blocked, or not, but either way O_DIRECT has to be fixed.
 
-Special filesystems that do not actually do write back (like hugetlbfs),
-mmaped raw device files and anonymous allocations are fine.
+Jason
 
