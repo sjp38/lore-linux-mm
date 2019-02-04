@@ -7,110 +7,110 @@ X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 684B4C282C4
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 18:15:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BB9F0C282CB
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 18:16:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 280552176F
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 18:15:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7A8A52175B
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 18:16:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="IQrmXhYJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 280552176F
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="HBVmbsGO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A8A52175B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BE23A8E0051; Mon,  4 Feb 2019 13:15:55 -0500 (EST)
+	id DDCE78E0052; Mon,  4 Feb 2019 13:16:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B91BF8E001C; Mon,  4 Feb 2019 13:15:55 -0500 (EST)
+	id D8C6D8E001C; Mon,  4 Feb 2019 13:16:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AA8B78E0051; Mon,  4 Feb 2019 13:15:55 -0500 (EST)
+	id CA3828E0052; Mon,  4 Feb 2019 13:16:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 65B428E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 13:15:55 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id a23so510252pfo.2
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 10:15:55 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 86D3A8E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 13:16:01 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id f69so505702pff.5
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 10:16:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
          :message-id:in-reply-to:references:user-agent:mime-version
          :content-transfer-encoding;
-        bh=YZe004olxwKUVDNhwEwrZ8AUV4iVt97unB7E5kh6nQ4=;
-        b=gIrXvE+myVSPKimzttDGcwbTP+1AWYsE4s83/x5VgqA+S+s0doSW6w0lcnLQ33E0Lz
-         PDOd07TQhn8m2ikOj70IirtiJlneD+bJtLA9DKJ82KV8RH0CB+Dv2rsqW+OOjo8aHkoM
-         EOeY5QKvc40dpn+keL6XAJJlMTs0vBjUMKA7FWJeAKn0nkYFy5k4H7w0LqD42KvoXXbF
-         87GiJYUOIVh/kn9tzK0tF23WWrnjsCl5GHlfW40R/HrpLWO8dNS/BdirHm1O2sezxDbe
-         Ut/f+Kg+DPgBV/rNGo/w8t0TZFJY0gduWUHBZLggLmQlfmt+pKejO/0HyoYLBssc3mXm
-         3NsQ==
-X-Gm-Message-State: AHQUAuaUSEzqwevSrcbR1G4Opt1DEVvOEdwJz8I8y8LnoskKmcKKALaS
-	uzy4eUsLVxpWASfdE5ZtPe2OgPrj/xMiKUdOUqBT35THzPr6DVmGZjrSnVjaoYZayolCAJuttwV
-	5CR5rwh0w4A3DXCWLF1TSG49qkYiLcGZwBYO8+PbABerwRpxmOz08PFUg8FliftKcsylBk0xg/b
-	z6znCXww85fW/cKiP1WZU35zPWcQiou3K7eFxHoM8en21yq8iTtp7tz8j6iXbWvX4BcDifefavo
-	go//ZZadav8ZpQSA3am62s3I1datAlf6qwZTvEOwKb5VC1/0sRmI7cIDYkcYhifs2cosWf/spOg
-	0ShEB1QhPij08mHEKXcZ8nhbFf95iTItBsnfwSUvIBgBuzYWN4hebEJI56Q/S1CYIteXTA5+uGC
-	w
-X-Received: by 2002:a17:902:15a8:: with SMTP id m37mr679178pla.129.1549304155047;
-        Mon, 04 Feb 2019 10:15:55 -0800 (PST)
-X-Received: by 2002:a17:902:15a8:: with SMTP id m37mr679122pla.129.1549304154269;
-        Mon, 04 Feb 2019 10:15:54 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549304154; cv=none;
+        bh=BH3kUGOLH4rXiV4UZ/yFSk8Kv2EdG9WZAShG2rqLHTM=;
+        b=LQh9yU4//BZr9AVCcEDPO6wBBstLYo7YQivfNeZe214fIJo4pmTFr7YnQ68E0XWpwE
+         S4uY3g4DYPzpU/ITRsbVs5ek/XzFR7CvtmFtMzBm4W3EgfZ4YSsZu47qxPvnCKJa4D6R
+         lU1oBhyDGMk+NIIYPRTWq/XAf7l/mU6tbBzcew/YPyQQfKWx7TflIV2Bd2LL1fvBT5g/
+         uNeZXXL7D43VAMEEZ/t+CbKZiMz+CbQDEP6e5+lnB7+Hw3f+OiQK3vG30Qfdm4NYZP7l
+         o9BtchhuZg0KmQwzqyvDrpprLfhRjG7ITIfL5vYuQnv4tVDrfryLtoHjbv2z8N1bs78W
+         G59g==
+X-Gm-Message-State: AHQUAuYbecBhJRYSlc0EoIqNBvr/yW3ysf4LyNhAkSKllEVrGuFGtE+i
+	gw97FBibNDWWA7i6vdqTlLJXl4YFZkHVAMmQer3+boiJr0vs188+4a+ROJ2rw6vCOfk1QlPAc/l
+	DRlzICFZpqUtdDlrDcPUSottFwDRuuKjYgJOkXeS/mv9LGGfOlt3AvUNai7QsjuylyjFhmO72Lg
+	l/A+lquxmpDcluvIixy0xskgaFfOZrQB5USIWFzXh2Y8eLYqFy3rOsxTryEemmyxBWQjoCLlLuT
+	wVgNqqkwpNJRe+swz58qDNgSWp76KfBhdtDUgcNTsIDUVQx/WhCHq5STIaFyRrxAA4XmVGQIFET
+	qLv5z7N+c95cRc/1bCTVyXZ18bTbBwNV+zgae0hKE+aHNurGTOlUnHxMMrwl+zEU/CM2hA8kx55
+	1
+X-Received: by 2002:a65:4904:: with SMTP id p4mr618141pgs.384.1549304161153;
+        Mon, 04 Feb 2019 10:16:01 -0800 (PST)
+X-Received: by 2002:a65:4904:: with SMTP id p4mr618085pgs.384.1549304160377;
+        Mon, 04 Feb 2019 10:16:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549304160; cv=none;
         d=google.com; s=arc-20160816;
-        b=JhNaB0ak9BDwcP/dYrPd3McLJmobc94NDLvaoweqOvM70CoduO5avvNLoNILJ18NuJ
-         TVRSKw0Fjh2pidg9rK2M/PdqeqZuRIVCPtH2GErUZlD/CXcahIbP7+PhfAZkyzOCez9j
-         7b2ZI1WUghA07Gq+E+6okdPwxRs5TC5c9BEB/1B1GMuVH565xAiV8PTfdGQQ5Oj9N/lH
-         Brn2tS2XYmp3moC1d0p292tbomtTrapRDZkcxODlwYdvIDjBbBm0MZGloGxBx6fivSQr
-         Z5efyCdNT5WRzy5qSkwbTqHq4SgsC+j992Cux2k+Uy4F8+OJWRIiooVUtz51U67ksqwE
-         nxjg==
+        b=wYAeOhW00YO05OfQjYZw1XCPpniXjqzeEnv2LtHxsjkef6uM+6WG/zTWHa0CLGT8ei
+         YRm8xFdkLyk/nXSXHQn1GZZ4xBc9rKkv4mhAAXSUOaj+5qdo/xKeXFr8QzfmhS9qyz94
+         twA39oGC342ETzraN08ElV1msNZ4eo0KyeUn7E/Um+Ias1tg/6dEN4cfyfoAExV+Q0AU
+         PUlmzwCCDuDpHxdvt+FP4/J7gfYBJLAWy1acG9vrDoU+qdSqqFVcxTBK6VN/fryt6O+5
+         nsbLbbHCDdOfVRszYuUmV86SYmeN2bMuShO1BSJpmQBeoaiXTmmlJd8Ag8nifBBPlxW2
+         njRQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
-        bh=YZe004olxwKUVDNhwEwrZ8AUV4iVt97unB7E5kh6nQ4=;
-        b=rGxWDVp7P+PzAx02QxZMD1IiVRcDj8+BYtvyHdL5dceIxLNrNrYZ7K/kcLk+hRLuO3
-         AkNZLZKzNrrI9qEkGoBk6df+U4DCq83ytClJi33b+QUkOO5SC3OLYTBW/w/vY4jtD92c
-         idU+KYWfLyhdakS5iMSlChRJmwj6ACgNZy/cXfkimIsIYL45hyw1IOSvqb/tHJb2nGok
-         0VJInQCG5lyjbwXHIy/p5rIeO7sX7lWD7ySdEWmk3FYsRmusW2tr4XlL7lg3ExUI4pTI
-         uAAfVCqFnWKCS0b5ICLMcNGoJ2z2t/BtB/f32G0nB8CS2zxifp4QfNHbvG1GPS3VTqMA
-         u6ZQ==
+        bh=BH3kUGOLH4rXiV4UZ/yFSk8Kv2EdG9WZAShG2rqLHTM=;
+        b=XmZDpC2zd9DofX4XVr+jUuHiHdJVnhjGl3gj+1uBz0fshZcTswXUgnoCNbA4io34/9
+         yYT18niLx1ybEU8NDAkHc2cC6OrmXi2/6ycozjy9D++TOc6ux+q2F2KLhlOGL0WuPubh
+         uwphpwPt31hu8L0CyYDe5sX+VSZJaOcJDG50+vr2hgrS9GOYK1SQOxVSXTK9u9dogjVy
+         L/IDh8X1uBRaZxbe4jwlr17sXBwF6Y0jWawRAm2egQzZG1MXJ9nSfvvE5EqeaINLwF78
+         ybr4ZhHEy559mAG86f5282LAPWGcXXJOU/c1nTUJwz9Ou0IBeWH+Ce9E5doIZCCyT2an
+         IFKA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IQrmXhYJ;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HBVmbsGO;
        spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x5sor1317104pgp.80.2019.02.04.10.15.54
+        by mx.google.com with SMTPS id z1sor1476409pfl.9.2019.02.04.10.16.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 04 Feb 2019 10:15:54 -0800 (PST)
+        Mon, 04 Feb 2019 10:16:00 -0800 (PST)
 Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IQrmXhYJ;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HBVmbsGO;
        spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=subject:from:to:cc:date:message-id:in-reply-to:references
          :user-agent:mime-version:content-transfer-encoding;
-        bh=YZe004olxwKUVDNhwEwrZ8AUV4iVt97unB7E5kh6nQ4=;
-        b=IQrmXhYJn+hqxmnp2CKgxQtlZ/Plcxr3XKvJAlVd5LVl4ehyQEQyTW3i6g9aDkFdWB
-         BlSQvYrHO04cqFRXHDFceoyzCyJjkEUYcdv8SMX3X8kEcAFyGnZZnQy3YTjYAAoKzZzL
-         37CyqRl4Xz3IG9WZGdn/ub1I0CoSEBtCocL0KPfAtM/Pq8+/TphetVo8ZCIOKRkSMe/e
-         6zdTFFr4eBZmo16fnkCw3kEFRC29XwHCOtqP8uxcfKFLPIb9OtClIu6+Ed1cZ6kCaIqz
-         YrpTH1YSNpQoSXSdmT38pszxTEWgFqbZ+qx5I7iUCxMXnWy77QKrrIdOErtX/PYZ/ZRv
-         s1xg==
-X-Google-Smtp-Source: AHgI3IYghO9Gyc5CdVnnZDhQJpFkPxKmWnw3rcVOoUNENx3bnkpWEbZ8P5nJPUmckNTyGdk2ogPr6Q==
-X-Received: by 2002:a63:1f64:: with SMTP id q36mr580276pgm.230.1549304153874;
-        Mon, 04 Feb 2019 10:15:53 -0800 (PST)
+        bh=BH3kUGOLH4rXiV4UZ/yFSk8Kv2EdG9WZAShG2rqLHTM=;
+        b=HBVmbsGODWcw1Zzq6loJb9qa/nqzCqIjc1caWDwzjyVMZ0cmFJhvTchZVI2WOq0SGD
+         K4mHhjv+oZT7Dk4YHXIh0FzSfuUvWLrG1BGCDIpuHv+axbdWqQYThhkdY5vAh6CubTRI
+         6G4HgTpmqZTTI1aEb1ZK3zYjOIvHQ9+xhErmeERXv3lpM/Hbv04CdXW8ILjza6RN2IJa
+         q+7M7+iRHnlW3ZY88/DcYz7Uy5sz23/8oKf6rqSooCtg8X23HxZJlCOC3paGvl4fG0eN
+         amSuhIznkGkG7AuuxMuc46cqDxIP0uc2r4qUVRoHCp5Qyz4dV046yyikJ4zcIEwnzJH3
+         XWKA==
+X-Google-Smtp-Source: AHgI3IatDmHCVIQvkPjf403DPZXddCGM1dtT3pI76p0hmmxOMfvPU6zQrFp/JIlwwbmQbdyNZzEbOA==
+X-Received: by 2002:a62:37c3:: with SMTP id e186mr635900pfa.251.1549304159979;
+        Mon, 04 Feb 2019 10:15:59 -0800 (PST)
 Received: from localhost.localdomain ([2001:470:b:9c3:9e5c:8eff:fe4f:f2d0])
-        by smtp.gmail.com with ESMTPSA id q5sm2033090pfi.165.2019.02.04.10.15.53
+        by smtp.gmail.com with ESMTPSA id d129sm991541pfc.31.2019.02.04.10.15.59
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Feb 2019 10:15:53 -0800 (PST)
-Subject: [RFC PATCH 3/4] kvm: Add guest side support for free memory hints
+        Mon, 04 Feb 2019 10:15:59 -0800 (PST)
+Subject: [RFC PATCH 4/4] mm: Add merge page notifier
 From: Alexander Duyck <alexander.duyck@gmail.com>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org
 Cc: rkrcmar@redhat.com, alexander.h.duyck@linux.intel.com, x86@kernel.org,
  mingo@redhat.com, bp@alien8.de, hpa@zytor.com, pbonzini@redhat.com,
  tglx@linutronix.de, akpm@linux-foundation.org
-Date: Mon, 04 Feb 2019 10:15:52 -0800
-Message-ID: <20190204181552.12095.46287.stgit@localhost.localdomain>
+Date: Mon, 04 Feb 2019 10:15:58 -0800
+Message-ID: <20190204181558.12095.83484.stgit@localhost.localdomain>
 In-Reply-To: <20190204181118.12095.38300.stgit@localhost.localdomain>
 References: <20190204181118.12095.38300.stgit@localhost.localdomain>
 User-Agent: StGit/0.17.1-dirty
@@ -125,94 +125,112 @@ List-ID: <linux-mm.kvack.org>
 
 From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-Add guest support for providing free memory hints to the KVM hypervisor for
-freed pages huge TLB size or larger. I am restricting the size to
-huge TLB order and larger because the hypercalls are too expensive to be
-performing one per 4K page. Using the huge TLB order became the obvious
-choice for the order to use as it allows us to avoid fragmentation of higher
-order memory on the host.
+Because the implementation was limiting itself to only providing hints on
+pages huge TLB order sized or larger we introduced the possibility for free
+pages to slip past us because they are freed as something less then
+huge TLB in size and aggregated with buddies later.
 
-I have limited the functionality so that it doesn't work when page
-poisoning is enabled. I did this because a write to the page after doing an
-MADV_DONTNEED would effectively negate the hint, so it would be wasting
-cycles to do so.
+To address that I am adding a new call arch_merge_page which is called
+after __free_one_page has merged a pair of pages to create a higher order
+page. By doing this I am able to fill the gap and provide full coverage for
+all of the pages huge TLB order or larger.
 
 Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 ---
- arch/x86/include/asm/page.h |   13 +++++++++++++
- arch/x86/kernel/kvm.c       |   23 +++++++++++++++++++++++
- 2 files changed, 36 insertions(+)
+ arch/x86/include/asm/page.h |   12 ++++++++++++
+ arch/x86/kernel/kvm.c       |   28 ++++++++++++++++++++++++++++
+ include/linux/gfp.h         |    4 ++++
+ mm/page_alloc.c             |    2 ++
+ 4 files changed, 46 insertions(+)
 
 diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
-index 7555b48803a8..4487ad7a3385 100644
+index 4487ad7a3385..9540a97c9997 100644
 --- a/arch/x86/include/asm/page.h
 +++ b/arch/x86/include/asm/page.h
-@@ -18,6 +18,19 @@
- 
- struct page;
- 
-+#ifdef CONFIG_KVM_GUEST
-+#include <linux/jump_label.h>
-+extern struct static_key_false pv_free_page_hint_enabled;
+@@ -29,6 +29,18 @@ static inline void arch_free_page(struct page *page, unsigned int order)
+ 	if (static_branch_unlikely(&pv_free_page_hint_enabled))
+ 		__arch_free_page(page, order);
+ }
 +
-+#define HAVE_ARCH_FREE_PAGE
-+void __arch_free_page(struct page *page, unsigned int order);
-+static inline void arch_free_page(struct page *page, unsigned int order)
++struct zone;
++
++#define HAVE_ARCH_MERGE_PAGE
++void __arch_merge_page(struct zone *zone, struct page *page,
++		       unsigned int order);
++static inline void arch_merge_page(struct zone *zone, struct page *page,
++				   unsigned int order)
 +{
 +	if (static_branch_unlikely(&pv_free_page_hint_enabled))
-+		__arch_free_page(page, order);
++		__arch_merge_page(zone, page, order);
 +}
-+#endif
-+
+ #endif
+ 
  #include <linux/range.h>
- extern struct range pfn_mapped[];
- extern int nr_pfn_mapped;
 diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
-index 5c93a65ee1e5..09c91641c36c 100644
+index 09c91641c36c..957bb4f427bb 100644
 --- a/arch/x86/kernel/kvm.c
 +++ b/arch/x86/kernel/kvm.c
-@@ -48,6 +48,7 @@
- #include <asm/tlb.h>
- 
- static int kvmapf = 1;
-+DEFINE_STATIC_KEY_FALSE(pv_free_page_hint_enabled);
- 
- static int __init parse_no_kvmapf(char *arg)
- {
-@@ -648,6 +649,15 @@ static void __init kvm_guest_init(void)
- 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
- 		apic_set_eoi_write(kvm_guest_apic_eoi_write);
- 
-+	/*
-+	 * The free page hinting doesn't add much value if page poisoning
-+	 * is enabled. So we only enable the feature if page poisoning is
-+	 * no present.
-+	 */
-+	if (!page_poisoning_enabled() &&
-+	    kvm_para_has_feature(KVM_FEATURE_PV_UNUSED_PAGE_HINT))
-+		static_branch_enable(&pv_free_page_hint_enabled);
-+
- #ifdef CONFIG_SMP
- 	smp_ops.smp_prepare_cpus = kvm_smp_prepare_cpus;
- 	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
-@@ -762,6 +772,19 @@ static __init int kvm_setup_pv_tlb_flush(void)
+@@ -785,6 +785,34 @@ void __arch_free_page(struct page *page, unsigned int order)
+ 		       PAGE_SIZE << order);
  }
- arch_initcall(kvm_setup_pv_tlb_flush);
  
-+void __arch_free_page(struct page *page, unsigned int order)
++void __arch_merge_page(struct zone *zone, struct page *page,
++		       unsigned int order)
 +{
 +	/*
-+	 * Limit hints to blocks no smaller than pageblock in
-+	 * size to limit the cost for the hypercalls.
++	 * The merging logic has merged a set of buddies up to the
++	 * KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER. Since that is the case, take
++	 * advantage of this moment to notify the hypervisor of the free
++	 * memory.
 +	 */
-+	if (order < KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER)
++	if (order != KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER)
 +		return;
++
++	/*
++	 * Drop zone lock while processing the hypercall. This
++	 * should be safe as the page has not yet been added
++	 * to the buddy list as of yet and all the pages that
++	 * were merged have had their buddy/guard flags cleared
++	 * and their order reset to 0.
++	 */
++	spin_unlock(&zone->lock);
 +
 +	kvm_hypercall2(KVM_HC_UNUSED_PAGE_HINT, page_to_phys(page),
 +		       PAGE_SIZE << order);
++
++	/* reacquire lock and resume freeing memory */
++	spin_lock(&zone->lock);
 +}
 +
  #ifdef CONFIG_PARAVIRT_SPINLOCKS
  
  /* Kick a cpu by its apicid. Used to wake up a halted vcpu */
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index fdab7de7490d..4746d5560193 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -459,6 +459,10 @@ static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
+ #ifndef HAVE_ARCH_FREE_PAGE
+ static inline void arch_free_page(struct page *page, int order) { }
+ #endif
++#ifndef HAVE_ARCH_MERGE_PAGE
++static inline void
++arch_merge_page(struct zone *zone, struct page *page, int order) { }
++#endif
+ #ifndef HAVE_ARCH_ALLOC_PAGE
+ static inline void arch_alloc_page(struct page *page, int order) { }
+ #endif
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c954f8c1fbc4..7a1309b0b7c5 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -913,6 +913,8 @@ static inline void __free_one_page(struct page *page,
+ 		page = page + (combined_pfn - pfn);
+ 		pfn = combined_pfn;
+ 		order++;
++
++		arch_merge_page(zone, page, order);
+ 	}
+ 	if (max_order < MAX_ORDER) {
+ 		/* If we are here, it means order is >= pageblock_order.
 
