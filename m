@@ -2,257 +2,214 @@ Return-Path: <SRS0=bR/Z=QL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7EF59C282C4
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 10:50:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E4A10C282C4
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 12:01:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2F404217D6
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 10:50:10 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="XeCtv/mU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F404217D6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 749662176F
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 12:01:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 749662176F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CE28E8E003E; Mon,  4 Feb 2019 05:50:09 -0500 (EST)
+	id CD0658E003F; Mon,  4 Feb 2019 07:01:15 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C694E8E001C; Mon,  4 Feb 2019 05:50:09 -0500 (EST)
+	id C81778E001C; Mon,  4 Feb 2019 07:01:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B33098E003E; Mon,  4 Feb 2019 05:50:09 -0500 (EST)
+	id B98208E003F; Mon,  4 Feb 2019 07:01:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 45E8E8E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 05:50:09 -0500 (EST)
-Received: by mail-lf1-f69.google.com with SMTP id c5so2414426lfi.7
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 02:50:09 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 664A08E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 07:01:15 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id c53so5915738edc.9
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 04:01:15 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=dY3R/Ow+sIeuZQPXwSYWif9PqrB6TJOohx4Dod2DIvA=;
-        b=UH84S+LviWxgDe0HB2X5ZALhJrV6W9Er4Cpabub0Th5EILSMeSvWN1D5/J6esM3mhk
-         r5N7At/l54t41ZmP1IB/PHD/X0JIEStqECn8sQ/29QReJ2NSYcppPB+zZYgb3XKB5YnJ
-         U5QzK0IHVl5RvDqbz6QIo5x8ZyIfDjnHIZKyWWRMLVQ+gtBYbsNa/dyxesThkK0bTP+u
-         MMklLqWvV0RXT9eszagnBZsVm59JGCmqeojm66nOzaacsykrC5KDQ89fTtxlhj+P86ya
-         01FaRtPK5cW6uHAJua6JTMiG9LvGzjexRIuBhQuYCQF+Ll15JAU4iqOmvrBabg+pqtEl
-         GsqA==
-X-Gm-Message-State: AJcUukcDNcB6qRhbYmDDKd0xlPAQdOfDiV5bkhwjo+zaXTYuEYiBMqMb
-	T/rd09ATmz2l9ybcjUymYnnri3NVRSpZW7Q2UXHreTfYhOp7qiMPk+yBZ+S6KSW8fpLOVLGII4w
-	RnsHQmS9B+9kCaBzf1sXGPIZtc0hGD+8x9iJur8vXCqa1frkDWWWEmMHZR1sqi5Q8THYsAZUppk
-	sxNeBhBu23rvulZPhl8k1g1avC4LEE/vghNwStaHQcnnk01vuYRLgdvufXwYNUzC7VG/g0bhP0v
-	z88xbTUkEPXIgn67POQJ58jJ6NOmU6MFT/PStOWwx63WOytFhylIfyR+wHyycJiNtpqYwMJRHkY
-	4NPjfEFkWGc7hkip2jI2L0VbuZUeJrdqLqkoyhuWBL6oMqLU5+m0OsE9UTAu5hTu2cESb50NTFV
-	l
-X-Received: by 2002:a2e:7615:: with SMTP id r21-v6mr39597201ljc.131.1549277408208;
-        Mon, 04 Feb 2019 02:50:08 -0800 (PST)
-X-Received: by 2002:a2e:7615:: with SMTP id r21-v6mr39597137ljc.131.1549277407045;
-        Mon, 04 Feb 2019 02:50:07 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549277407; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=DUDeaUultJTCbcVNFgMhm03+XXMrysryOdcNTXsIPJ4=;
+        b=jpX3eCGU9ZhVhRyWNxtcsfoyZmAGbQKHBZPuPfUw9CtB+OzhWCWxyMPbVruSxNXWt9
+         ZN1va2rE9pMIiaaUyb9pA9r0NbN39gad4KGB3ooQddmVUT2Uhuw9uB+NMptGGzu5YUOl
+         ns32fIkkJrJTSdXN2LtOAcy+zsmHhiRhjWLLd5pbkgunH4LF4I51ViW7XQTp7+Ah4P8u
+         HW0Ohc/YSibWXLwHM/ySiCRLfCQ8v7Z/LU+61Cf8NX3teLAhhUgX8d84pGln0A1s6CVJ
+         YMVSSYJiYfweUsiRKQFFlsLc9MxaYGfaRDskjtLkRBSI/Ofeti11ck0ssho+BSs2KFRv
+         hxiQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.13 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: AJcUukfq2sOD/5cNuUdBBJ001JzcBCMJ2gIPdMvvetVkEDJ5IxjG2Eg9
+	k0Qqp++0osHT2ABQFxfuIRx6TQaXbqhsM13KVSUmQRAJaEzxyxxNq/lGx5z0Qa5yHpO6DY/BKi8
+	dSmpo6pDnuxppNCv9GIcl/XXBsDBGnJ83hrCm6etELQCdrqPPAiuXUWBXkwYjLRkpqw==
+X-Received: by 2002:a17:906:f146:: with SMTP id gw6mr45267904ejb.176.1549281674822;
+        Mon, 04 Feb 2019 04:01:14 -0800 (PST)
+X-Google-Smtp-Source: ALg8bN6Onc8mo1CdUIDgekit/l7f/eSfE/hPGUD0QUNp4Kf5a52ySaNzqIXtuCsQZbMF0LFw5QK6
+X-Received: by 2002:a17:906:f146:: with SMTP id gw6mr45267816ejb.176.1549281673353;
+        Mon, 04 Feb 2019 04:01:13 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549281673; cv=none;
         d=google.com; s=arc-20160816;
-        b=h/hz5ff046glceH6vZ7LdFmErQfsM0JzrN7oH54wjBYcHMwnEmv7qennEPt/k+YebY
-         XtorNLpTxbgMuFzADfO5G/Lzz++vWLgRADXueRFlkHIM+cXcukfIgEFx/PviHSG5Bk50
-         OjLNh0Pk1EZlc9Rpvdtjjwp/K5vzo+sFkplgnhockLjj1FkOtaVYl2oJvCBY4vPgSzSG
-         pmQjB+XNSKkLcpDFu6+sn9t3wvmGwhVC+t+wtlNl1E3+CbTRc4KToCHhtsnAJx2Xlk84
-         9VUsPDprENzlBjexVrmqxCMtEq/E2eCSzG+tsnVtL3gBqx8ev3LPA/88M9cV5P/B76Tp
-         cNnA==
+        b=shda0cnb0JSuJFH1KrkhZdFT7s0JZf7/PtGYymTrZGFFgbGYu0PjZsKVJCKbFwehDq
+         hoaxWOmr5TzsrniglzcHTQIrV3nfJDoI4QMhTsLKCjqWpJRurl+vqBTCIoFycMaIVokI
+         InlPeg+OEtAFniZorT2cH7hqUrLh+yu8SCReVFVqJ+SV7coqu3v2zPlsdi9J3omGK37K
+         tffdBQ18U0wBPZSr8o3LSP4UfvIcFx6NOdQXK+6IxDoFcuftD0yqCynGDEJ9kmTnrLpT
+         sw4mkJbPTpLRbXeXmykmuyIRGjT3xtIKK7dr7fqnQPTuwnBuPtezGkm9ZWUFmuyffKqi
+         dmkA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:date:from:dkim-signature;
-        bh=dY3R/Ow+sIeuZQPXwSYWif9PqrB6TJOohx4Dod2DIvA=;
-        b=OYajTEr4n9U7jkZ2t2pjNGrVy5RZWWXjzoyNtcN9eTCd3+TyS5S3/Gl0ZALV6ERnFG
-         dF+ERWw40f5mflGHqHS8TNgRn/AvZXjMmY3/2tT5RX91tR9XnnEQRbhykGYMclAyVgf6
-         plbfNZg6n6nAT/hV1GLkwa0+wNZZQDkNVXDTFO8vE/+VJJ1/fe7eds5e0aBBI9I+318a
-         5D8RAsIsrMylJwaOVN5e6y2w5SeSzKA/x45maX/trO+u6rZRTfDjEXgkuzi4AYwwsgaU
-         MZ5/menzORx6cXCo7d/sq8GmcvwHYDPYsFQKaKgJNbF9FQNzTArDVZJ1PQRyy3gpm9bE
-         hB7w==
+         :message-id:subject:cc:to:from:date;
+        bh=DUDeaUultJTCbcVNFgMhm03+XXMrysryOdcNTXsIPJ4=;
+        b=N1FpQqzEy51ieriyTX5tirMC3/VTWq5EcP2J6/ICNOTialOKT/dEJ2teuPKB4IyxxX
+         Xb+tAL5C9pgq1yNDOCY0NUi2uK6g5oFe4jZXOYTEulpGigrfpS7cZ85gT1cS7LqdapAQ
+         dN8ncPKncAumV9Wiya+PkPyxAl9Ob5aHZ/5IqKwCc+/SjoxQ//87Dwbtc7J3/eV2OmNP
+         y4VNOtguWQf9WzqZvOK+Snlutahqz95g5HYm/JjjyKyWXzzMB/hyqTNxp4TobG+tsefn
+         BhK8+rMSUzoKrLf8kSxRbvyRQqJJvOzQsZr2DKxca44rQjocRQlOyfWvyIC3uCDLsekh
+         BglQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="XeCtv/mU";
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i11sor845463lfc.38.2019.02.04.02.50.06
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.13 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id h17si1490542ejj.234.2019.02.04.04.01.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 04 Feb 2019 02:50:07 -0800 (PST)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Feb 2019 04:01:13 -0800 (PST)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.13 as permitted sender) client-ip=46.22.139.13;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="XeCtv/mU";
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=dY3R/Ow+sIeuZQPXwSYWif9PqrB6TJOohx4Dod2DIvA=;
-        b=XeCtv/mUeqzkTh01QL+ztLqKkSGxZSSHaolQOQgZBJyRDLdpRq/wncEv1xCU+8CTPM
-         2G6/i84SrLKFQx14BMMEdXqb08cdjmhG3qY81sS8SJ8Q6iz1sum4nrmm9TOolTvUrz/h
-         2BheaPoj+yEhAlS2Bgv/mXtEC22AL/0gPGE3YnbMMJj7mOpKug9rbrTGzxXJGfRE+eEF
-         GZBPExq32YEeNGTFJRluLRe+g0PujL7oStTCi/5jZEdngDw192gzOGiy34/bOgb6RBwA
-         on38OJkUdt59LOuA4tVCUq4IVRB0RCu65m/GiodOMqa+yLoegPJdhjvouGHRMnt157z2
-         8gaA==
-X-Google-Smtp-Source: AHgI3IZvNEuGctW3VgPzvNS4djJz9FWP3UoGaXwEspLnSmHhO0+hIYAbeglQFF5KtdamJr8dL0sjfA==
-X-Received: by 2002:a19:df41:: with SMTP id q1mr19208298lfj.25.1549277406384;
-        Mon, 04 Feb 2019 02:50:06 -0800 (PST)
-Received: from pc636 ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id v9sm3010048lfg.15.2019.02.04.02.50.04
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 04 Feb 2019 02:50:05 -0800 (PST)
-From: Uladzislau Rezki <urezki@gmail.com>
-X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
-Date: Mon, 4 Feb 2019 11:49:56 +0100
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Matthew Wilcox <willy@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Thomas Garnier <thgarnie@google.com>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Joel Fernandes <joelaf@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
-	Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 1/1] mm/vmalloc: convert vmap_lazy_nr to atomic_long_t
-Message-ID: <20190204104956.vg3u4jlwsjd2k7jn@pc636>
-References: <20190131162452.25879-1-urezki@gmail.com>
- <20190201124528.GN11599@dhcp22.suse.cz>
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.13 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id D19D71C25EA
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 12:01:12 +0000 (GMT)
+Received: (qmail 3119 invoked from network); 4 Feb 2019 12:01:12 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 4 Feb 2019 12:01:12 -0000
+Date: Mon, 4 Feb 2019 12:01:11 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+	Linux-MM <linux-mm@kvack.org>
+Subject: [PATCH] mm, compaction: Use free lists to quickly locate a migration
+ source -fix
+Message-ID: <20190204120111.GL9565@techsingularity.net>
+References: <20190118175136.31341-1-mgorman@techsingularity.net>
+ <20190118175136.31341-12-mgorman@techsingularity.net>
+ <81e45dc0-c107-015b-e167-19d7ca4b6374@suse.cz>
+ <20190201145139.GI9565@techsingularity.net>
+ <cb0bae2e-8628-1378-68a1-9da02a94652e@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20190201124528.GN11599@dhcp22.suse.cz>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <cb0bae2e-8628-1378-68a1-9da02a94652e@suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello, Michal.
+Vlastimil correctly pointed out that when a fast search fails and cc->migrate_pfn
+is reinitialised to the lowest PFN found that the caller does not use the updated
+PFN.
 
-On Fri, Feb 01, 2019 at 01:45:28PM +0100, Michal Hocko wrote:
-> On Thu 31-01-19 17:24:52, Uladzislau Rezki (Sony) wrote:
-> > vmap_lazy_nr variable has atomic_t type that is 4 bytes integer
-> > value on both 32 and 64 bit systems. lazy_max_pages() deals with
-> > "unsigned long" that is 8 bytes on 64 bit system, thus vmap_lazy_nr
-> > should be 8 bytes on 64 bit as well.
-> 
-> But do we really need 64b number of _pages_? I have hard time imagine
-> that we would have that many lazy pages to accumulate.
-> 
-That is more about of using the same type of variables thus the same size
-in 32/64 bit address space.
+He also pointed out that there is an inconsistency between
+move_freelist_head and move_freelist_tail. This patch adds a new helper
+and uses it in move_freelist_tail so that list manipulations are avoided
+if the first list item traversed is a suitable migration source. The
+end result will be that the helpers should be symmetrical and it's been
+confirmed that the scan rates are slightly improved as a result of the
+fix but not enough to rewrite the changelogs.
 
-<snip>
-static void free_vmap_area_noflush(struct vmap_area *va)
-{
-    int nr_lazy;
+This is a fix for the mmotm patch
+mm-compaction-use-free-lists-to-quickly-locate-a-migration-source.patch . It's
+been provided as a combined patch as the first patch is not picked up at the
+time of writing and a rolled up patch is less likely to fall through the cracks.
+
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ drivers/gpu/drm/i915/i915_utils.h |  6 ------
+ include/linux/list.h              | 11 +++++++++++
+ mm/compaction.c                   | 10 ++++++----
+ 3 files changed, 17 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/gpu/drm/i915/i915_utils.h b/drivers/gpu/drm/i915/i915_utils.h
+index 9726df37c4c4..540e20eb032c 100644
+--- a/drivers/gpu/drm/i915/i915_utils.h
++++ b/drivers/gpu/drm/i915/i915_utils.h
+@@ -123,12 +123,6 @@ static inline u64 ptr_to_u64(const void *ptr)
  
-    nr_lazy = atomic_add_return((va->va_end - va->va_start) >> PAGE_SHIFT,
-                                &vmap_lazy_nr);
-...
-    if (unlikely(nr_lazy > lazy_max_pages()))
-        try_purge_vmap_area_lazy();
-<snip>
-
-va_end/va_start are "unsigned long" whereas atomit_t(vmap_lazy_nr) is "int". 
-The same with lazy_max_pages(), it returns "unsigned long" value.
-
-Answering your question, in 64bit, the "vmalloc" address space is ~8589719406
-pages if PAGE_SIZE is 4096, i.e. a regular 4 byte integer is not enough to hold
-it. I agree it is hard to imagine, but it also depends on physical memory a
-system has, it has to be terabytes. I am not sure if such systems exists.
-
-Thank you.
-
---
-Vlad Rezki
-
-> > 
-> > Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
-> > ---
-> >  mm/vmalloc.c | 20 ++++++++++----------
-> >  1 file changed, 10 insertions(+), 10 deletions(-)
-> > 
-> > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> > index abe83f885069..755b02983d8d 100644
-> > --- a/mm/vmalloc.c
-> > +++ b/mm/vmalloc.c
-> > @@ -632,7 +632,7 @@ static unsigned long lazy_max_pages(void)
-> >  	return log * (32UL * 1024 * 1024 / PAGE_SIZE);
-> >  }
-> >  
-> > -static atomic_t vmap_lazy_nr = ATOMIC_INIT(0);
-> > +static atomic_long_t vmap_lazy_nr = ATOMIC_LONG_INIT(0);
-> >  
-> >  /*
-> >   * Serialize vmap purging.  There is no actual criticial section protected
-> > @@ -650,7 +650,7 @@ static void purge_fragmented_blocks_allcpus(void);
-> >   */
-> >  void set_iounmap_nonlazy(void)
-> >  {
-> > -	atomic_set(&vmap_lazy_nr, lazy_max_pages()+1);
-> > +	atomic_long_set(&vmap_lazy_nr, lazy_max_pages()+1);
-> >  }
-> >  
-> >  /*
-> > @@ -658,10 +658,10 @@ void set_iounmap_nonlazy(void)
-> >   */
-> >  static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
-> >  {
-> > +	unsigned long resched_threshold;
-> >  	struct llist_node *valist;
-> >  	struct vmap_area *va;
-> >  	struct vmap_area *n_va;
-> > -	int resched_threshold;
-> >  
-> >  	lockdep_assert_held(&vmap_purge_lock);
-> >  
-> > @@ -681,16 +681,16 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
-> >  	}
-> >  
-> >  	flush_tlb_kernel_range(start, end);
-> > -	resched_threshold = (int) lazy_max_pages() << 1;
-> > +	resched_threshold = lazy_max_pages() << 1;
-> >  
-> >  	spin_lock(&vmap_area_lock);
-> >  	llist_for_each_entry_safe(va, n_va, valist, purge_list) {
-> > -		int nr = (va->va_end - va->va_start) >> PAGE_SHIFT;
-> > +		unsigned long nr = (va->va_end - va->va_start) >> PAGE_SHIFT;
-> >  
-> >  		__free_vmap_area(va);
-> > -		atomic_sub(nr, &vmap_lazy_nr);
-> > +		atomic_long_sub(nr, &vmap_lazy_nr);
-> >  
-> > -		if (atomic_read(&vmap_lazy_nr) < resched_threshold)
-> > +		if (atomic_long_read(&vmap_lazy_nr) < resched_threshold)
-> >  			cond_resched_lock(&vmap_area_lock);
-> >  	}
-> >  	spin_unlock(&vmap_area_lock);
-> > @@ -727,10 +727,10 @@ static void purge_vmap_area_lazy(void)
-> >   */
-> >  static void free_vmap_area_noflush(struct vmap_area *va)
-> >  {
-> > -	int nr_lazy;
-> > +	unsigned long nr_lazy;
-> >  
-> > -	nr_lazy = atomic_add_return((va->va_end - va->va_start) >> PAGE_SHIFT,
-> > -				    &vmap_lazy_nr);
-> > +	nr_lazy = atomic_long_add_return((va->va_end - va->va_start) >>
-> > +				PAGE_SHIFT, &vmap_lazy_nr);
-> >  
-> >  	/* After this point, we may free va at any time */
-> >  	llist_add(&va->purge_list, &vmap_purge_list);
-> > -- 
-> > 2.11.0
-> > 
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+ #include <linux/list.h>
+ 
+-static inline int list_is_first(const struct list_head *list,
+-				const struct list_head *head)
+-{
+-	return head->next == list;
+-}
+-
+ static inline void __list_del_many(struct list_head *head,
+ 				   struct list_head *first)
+ {
+diff --git a/include/linux/list.h b/include/linux/list.h
+index edb7628e46ed..79626b5ab36c 100644
+--- a/include/linux/list.h
++++ b/include/linux/list.h
+@@ -206,6 +206,17 @@ static inline void list_bulk_move_tail(struct list_head *head,
+ 	head->prev = last;
+ }
+ 
++/**
++ * list_is_first -- tests whether @ list is the first entry in list @head
++ * @list: the entry to test
++ * @head: the head of the list
++ */
++static inline int list_is_first(const struct list_head *list,
++					const struct list_head *head)
++{
++	return list->prev == head;
++}
++
+ /**
+  * list_is_last - tests whether @list is the last entry in list @head
+  * @list: the entry to test
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 92d10eb3d1c7..55f7ab142af2 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1062,7 +1062,7 @@ move_freelist_tail(struct list_head *freelist, struct page *freepage)
+ {
+ 	LIST_HEAD(sublist);
+ 
+-	if (!list_is_last(freelist, &freepage->lru)) {
++	if (!list_is_first(freelist, &freepage->lru)) {
+ 		list_cut_position(&sublist, freelist, &freepage->lru);
+ 		if (!list_empty(&sublist))
+ 			list_splice_tail(&sublist, freelist);
+@@ -1238,14 +1238,16 @@ update_fast_start_pfn(struct compact_control *cc, unsigned long pfn)
+ 	cc->fast_start_pfn = min(cc->fast_start_pfn, pfn);
+ }
+ 
+-static inline void
++static inline unsigned long
+ reinit_migrate_pfn(struct compact_control *cc)
+ {
+ 	if (!cc->fast_start_pfn || cc->fast_start_pfn == ULONG_MAX)
+-		return;
++		return cc->migrate_pfn;
+ 
+ 	cc->migrate_pfn = cc->fast_start_pfn;
+ 	cc->fast_start_pfn = ULONG_MAX;
++
++	return cc->migrate_pfn;
+ }
+ 
+ /*
+@@ -1361,7 +1363,7 @@ static unsigned long fast_find_migrateblock(struct compact_control *cc)
+ 	 * that had free pages as the basis for starting a linear scan.
+ 	 */
+ 	if (pfn == cc->migrate_pfn)
+-		reinit_migrate_pfn(cc);
++		pfn = reinit_migrate_pfn(cc);
+ 
+ 	return pfn;
+ }
 
