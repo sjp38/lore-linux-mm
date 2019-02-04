@@ -2,148 +2,197 @@ Return-Path: <SRS0=bR/Z=QL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 68BE0C282C4
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 22:31:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0D56CC282C4
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 23:00:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2CE8D2081B
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 22:31:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CE8D2081B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 9656F2082E
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 23:00:24 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="GnZmV+ME"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9656F2082E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BE3488E0063; Mon,  4 Feb 2019 17:31:34 -0500 (EST)
+	id 0FBCD8E0064; Mon,  4 Feb 2019 18:00:24 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B9C3C8E001C; Mon,  4 Feb 2019 17:31:34 -0500 (EST)
+	id 0D0ED8E001C; Mon,  4 Feb 2019 18:00:24 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A5B5D8E0063; Mon,  4 Feb 2019 17:31:34 -0500 (EST)
+	id F02A28E0064; Mon,  4 Feb 2019 18:00:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 71E948E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 17:31:34 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id x64so1291861ywc.6
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 14:31:34 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AF2E18E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 18:00:23 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id l76so1063321pfg.1
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 15:00:23 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=XgmVIz2EDz4KH+I2dNa7InV3AIXUsuAuDfIa1Ztp+LU=;
-        b=GOPwKbaKkemu7jbn/vGvHqkLBmmXsdyzUUw5YV8u8hNc/9Utc9iY5jiBtWmEgvpUDB
-         eFgy/aWBn4F00zAmZKoYZOvF8/7tLMtYaNhhwBPzuIbBSUwGaMfbwpgu2ZV/OeeBvxfb
-         8N0pJRaxfvFiLK089UaxuU6kWzT3mI6fQbYJBn7bc0xFpGdK/VizOyg8obkR7rTJ6XFB
-         8NCLsLLnQZgmupTfwoxA2F65ml6rkt5sjrgyAFHWB5MnvJ/3Up3XdJsrCarRZnkw6tn8
-         dY2/KBWzWji+vO0XUZZBrk9lKJC+kFGPzi47UbTHvRv1sC8TSr6txZ019NA5pmdUIyTr
-         oE3w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mcgrof@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mcgrof@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAuZyUnEqwjZg6L29ax1uKFkFnoAx0LBQZoqwePPchmW14pSqITrB
-	qI1XZvg4feLWhDoCamXB1Uve3st0MEAwNqqasksmurwOJ/7G5cdvDCyLoK5WoxoqXMXgPqIPmvZ
-	FMe9HQ8rdYJq7HlYXL3DPfqggpAs47M5/U/ysQy8XnGwccG0nddznQvI76z/9PMG7LdfHBDcXOX
-	DvTzSxRtERjnlMAiICsMIpM2+7KU9YooHvkrFw3cAI2t5POyA+Zqyhvai3d0aWkybX/eAQYimO3
-	8J+J3CUC3gMbT3LJ3NcqeJwpiBQC8JYgMqeQim5gFXKwiGO2K24CRDtJfUcxUoBhW7bRmq6L4wl
-	zusA/gfDk6sdPCtF2Bc/rNyq57+bBTBiP4K3DOUsR1915k0X4DpZNOrNJ54IPx/1Ijb+baEbqw=
-	=
-X-Received: by 2002:a0d:f7c1:: with SMTP id h184mr1469107ywf.473.1549319494208;
-        Mon, 04 Feb 2019 14:31:34 -0800 (PST)
-X-Received: by 2002:a0d:f7c1:: with SMTP id h184mr1469083ywf.473.1549319493750;
-        Mon, 04 Feb 2019 14:31:33 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549319493; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=kH0IHrJSoQFyAx4iofM5iGBNHAzEokQMp3CgcnSLWMU=;
+        b=iN0QEMJiixOFdrQ+zW/1Q1GP4/frarKDapVATQFjU0pYSnwK/UnSjvEBlBZan7lhiH
+         gS8wi9DLRBqA/w5zsgcqVk097xFuU9bVjSdI85KuPpBBtVzehDz8G1hjfpo9HlMmEDfZ
+         C0AxLdJ1Yjk51lle1W8AVSuh6FT8SfLu1I3SpfUfZI0V+kMtBmL4/qXKfjfyVyUmXrSG
+         JhGn/bNgak57pGgsw5CfLWIIM7TCpe4MihBYWcs9ihpYz8MfhTTuaLsu4bVx9NdSD6Ka
+         VCWAbRnipv+P9hBrLoag/ak/R5h/aI9q8crrrCZuOvcXtOZ5n+tu+G2/bHAfuqVTO1is
+         omTw==
+X-Gm-Message-State: AHQUAuZAcUKFytJTdg4xFPSs0dGn39xgtwKGrYFM0tVPxulnFMmfSmSD
+	tT7bJbB8HFlFOzwcMKOT3+24Nep3OqQbLpiffK+U4uVt4ZrnAFaC3fviJcY4Yv/41hGoXJS0hQ+
+	5JHPncFP62FOEA/8HxFJheyvAtFiSUyzcG6AyHAaEDuXBRbyt46iTGVGo5XA3IyDwaO01bWUdEG
+	yIETUWcWq/mRB1g5M6s/AielJuuYl6yxV0MN0x7ImIWBLfUew0jEenazkf4QffOBNsI6aXSfcrs
+	E/rG394bVnO+9+qNPQaulWALl7OFzr1CTe+VRVZJyRXEnQgwDacLBMJHXEdvehM1IZHqoqc9MTx
+	MLFHFBfX7F2adkaFHpIDZareHC7i9Moty79Bnm0LOAcKw1+MG4HIvRRLbzu0b/0J247va4E1UZ3
+	G
+X-Received: by 2002:a62:1d8f:: with SMTP id d137mr1767480pfd.11.1549321223261;
+        Mon, 04 Feb 2019 15:00:23 -0800 (PST)
+X-Received: by 2002:a62:1d8f:: with SMTP id d137mr1767397pfd.11.1549321222333;
+        Mon, 04 Feb 2019 15:00:22 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549321222; cv=none;
         d=google.com; s=arc-20160816;
-        b=QPfAKJ4dNCXN2vr8qmFoP0KK63BLPCVp7TBpwtMAC6J8AwkPYBRF0JRZ7e4LOFlG05
-         2xtfuNjaRw5YZ21eakYtUmg3EipEU/Qd2U+XPFsn28fHhtx8yfd8CpfPyNyRrC+VUGzc
-         4OhfK3kDdTaRajA9sBv6nZSLMXq1DWK8iU5/01WIv4fbM9IIWUObN2ottF6J/yyeoZSB
-         9e382E5uOsIQwccTYnA836IkxZ+J5e44909UPzOW2lMGDVNRSKiTeqw7dG6Eh3QcRGCt
-         CuOi+w127P/1UhRRvH5JVf1zDwOhvtvXUB5eFoj0lkcaQWFs4Ec71uJJBNXHBcpfROlQ
-         /qOw==
+        b=zGaqZwQCkJn92CHGMTXdyiFxsgr3h3tFPJc88YNIwJsgQdoCVYfkuKBAPo6aKEY3uY
+         q0LsfCPTQSKbZIWWxlEF5hNZEwmBn+ITMx3RMVOd0vPMsu0nYFTxYTp4zIs1CLLz0c1O
+         nOFFDfQ2O3fN76NlS0M8rY53XPqk4SyTBEUO8/ZYTH/4sqav0BTz5Z7lH+cKDvaGDdKU
+         MqM4ZC7mmFWG59j8PoiwOGPPyMv5BJVG83j7HNMrOkWx7BiqTdDFDmPqhNMftMYLKmm0
+         R1VenUFSX01siIvIwbzEku1Jbd+d+/03sFMyApVHRMfdFm9sRMHoMxwz4FFpeMy66Kul
+         7K2Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=XgmVIz2EDz4KH+I2dNa7InV3AIXUsuAuDfIa1Ztp+LU=;
-        b=HrEP8qXlSnLS1TEBiInQoa+BM1gusuxnVFP4K9fYJ/7Qjz/kfU8VrgzBBajGtlnZpO
-         2BbpaylTGaBWeSlLtAGiKCb0/eZh8QHvpKT7Z6J/QZIYahHN8ST7qGlKI4efOBzxoggC
-         Eh2mr30+u4dnG/47kqP/T6eiiHvflYPNlRHXnyKPldh8eyWm9UDFbHF2DQSPvHrS5ynj
-         qBViVO7y9pe1Lnxd37UDm93bcyU8rlUKKRTl14Ifef2tv6uBXP5u3m3DPODP9SV39kbZ
-         yx/KeefMIFJ4u0jI1+stwUej3HxgEk/7prRUwZbXm7ryiqUAfFBSRzYH4Deu97N1KIS1
-         rwjA==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=kH0IHrJSoQFyAx4iofM5iGBNHAzEokQMp3CgcnSLWMU=;
+        b=NA3trYwRk1ABrZsnnJxLdp/GLEdh0YO7J03iuY23plmIYpR9ZhFn905uUJUQHhg8TY
+         oerIlu78qK4i8KzUhE8yqdKQuLQEn8TwXEnnO8B3axgtn12uZ2pdB72G75X6L1AOrJQX
+         kYuy4MqGFJ0SEhuaUXg/+xXt5jgOKeCuZHKwbR3vAQNDhqrfGj47MpPt4mwF6Drwe3Ca
+         J7Y7rHG2t56tZAWteYQ48CXESZPq/D9kqdR5+55wliF1LiDO0i3fX+HhyUsX82i5Px1F
+         aKKVj1d/h2Udjzy9DNaI755QZ8OvYgJnnJRdg+JCj7ry90wA67+pwK+wythJ1+5l1k2a
+         rutw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mcgrof@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mcgrof@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GnZmV+ME;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o17sor640490ybj.198.2019.02.04.14.31.33
+        by mx.google.com with SMTPS id s68sor2400856pfk.40.2019.02.04.15.00.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 04 Feb 2019 14:31:33 -0800 (PST)
-Received-SPF: pass (google.com: domain of mcgrof@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 04 Feb 2019 15:00:22 -0800 (PST)
+Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mcgrof@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mcgrof@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: AHgI3IaGtjxjCx24VN1GfDKJS3LM3t0K8xjiEXGakYlCt/nHmX1FEb2AZ6giwBbuKR8d1ABddMjVRA==
-X-Received: by 2002:a25:b1a6:: with SMTP id h38mr1470469ybj.58.1549319493408;
-        Mon, 04 Feb 2019 14:31:33 -0800 (PST)
-Received: from garbanzo.do-not-panic.com (c-73-71-40-85.hsd1.ca.comcast.net. [73.71.40.85])
-        by smtp.gmail.com with ESMTPSA id y2sm1837098ywy.107.2019.02.04.14.31.29
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 04 Feb 2019 14:31:32 -0800 (PST)
-Received: by garbanzo.do-not-panic.com (sSMTP sendmail emulation); Mon, 04 Feb 2019 14:31:27 -0800
-Date: Mon, 4 Feb 2019 14:31:27 -0800
-From: Luis Chamberlain <mcgrof@kernel.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>,
-	Jonathan Corbet <corbet@lwn.net>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-mm@kvack.org, linux-doc@vger.kernel.org,
-	Kees Cook <keescook@chromium.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Jan Kara <jack@suse.cz>,
-	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>,
-	Ingo Molnar <mingo@kernel.org>,
-	Miklos Szeredi <mszeredi@redhat.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Larry Woodman <lwoodman@redhat.com>,
-	James Bottomley <James.Bottomley@HansenPartnership.com>,
-	"Wangkai (Kevin C)" <wangkai86@huawei.com>,
-	Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RESEND PATCH v4 3/3] fs/dcache: Track & report number of
- negative dentries
-Message-ID: <20190204223127.GS11489@garbanzo.do-not-panic.com>
-References: <1548874358-6189-1-git-send-email-longman@redhat.com>
- <1548874358-6189-4-git-send-email-longman@redhat.com>
- <20190204222339.GQ11489@garbanzo.do-not-panic.com>
- <cef8c6ab-6aaf-cca2-1e94-e90c2278afaa@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cef8c6ab-6aaf-cca2-1e94-e90c2278afaa@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GnZmV+ME;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=kH0IHrJSoQFyAx4iofM5iGBNHAzEokQMp3CgcnSLWMU=;
+        b=GnZmV+MEm33hkAkY9eB1nN1X3/jXo/QLCfEDhSJHU8vzSX1HEogQumQfMPy7HPxobt
+         T+aXfqW8AFccomMTEPS6w8U7z/QcF3pLVNJ5o18VlhjMLaxIW4hh67KUXdGfX2hld2uA
+         YbgK+lOK7MkPlmhe9On64hl1wtmvQgt0A0xOrTP/WOPA6U9ShU++WofSNfFfldPvhRGp
+         GkI4vrJ3suckIBPSHSiBgWqfUVn5DMulWpeEuhs/SwVOx2HF8HkjtrCBKyZ3CFLyZBoJ
+         PjDVle8X6etbJLIULNived/+VwIgGz9z/NiXGw8mInO8NvfUxIlnbP5tdVMg0ZnSPW76
+         /cvA==
+X-Google-Smtp-Source: AHgI3IbxieJuU8CAP3+p4ZFwdqqvo1bB729g6OoR3vk4fJ4zW7+3UdY/IEHwMwKmNkmuVu4fxAp8ZA==
+X-Received: by 2002:a62:cf02:: with SMTP id b2mr1802977pfg.183.1549321221419;
+        Mon, 04 Feb 2019 15:00:21 -0800 (PST)
+Received: from [10.33.115.182] ([66.170.99.1])
+        by smtp.gmail.com with ESMTPSA id u70sm1579632pfa.176.2019.02.04.15.00.19
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Feb 2019 15:00:20 -0800 (PST)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+Subject: Re: [RFC PATCH 3/4] kvm: Add guest side support for free memory hints
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <20190204181552.12095.46287.stgit@localhost.localdomain>
+Date: Mon, 4 Feb 2019 15:00:18 -0800
+Cc: Linux-MM <linux-mm@kvack.org>,
+ LKML <linux-kernel@vger.kernel.org>,
+ kvm list <kvm@vger.kernel.org>,
+ Radim Krcmar <rkrcmar@redhat.com>,
+ Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ X86 ML <x86@kernel.org>,
+ Ingo Molnar <mingo@redhat.com>,
+ bp@alien8.de,
+ hpa@zytor.com,
+ pbonzini@redhat.com,
+ tglx@linutronix.de,
+ akpm@linux-foundation.org
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <4E64E8CA-6741-47DF-87DE-88D01B01B15D@gmail.com>
+References: <20190204181118.12095.38300.stgit@localhost.localdomain>
+ <20190204181552.12095.46287.stgit@localhost.localdomain>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+X-Mailer: Apple Mail (2.3445.102.3)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 04, 2019 at 05:28:00PM -0500, Waiman Long wrote:
-> On 02/04/2019 05:23 PM, Luis Chamberlain wrote:
-> > Small nit below.
-> >
-> > On Wed, Jan 30, 2019 at 01:52:38PM -0500, Waiman Long wrote:
-> >> diff --git a/Documentation/sysctl/fs.txt b/Documentation/sysctl/fs.txt
-> >>  
-> >> +nr_negative shows the number of unused dentries that are also
-> >> +negative dentries which do not mapped to actual files.
-> >                      which are not mapped to actual files
-> >
-> > Is that what you meant?
-> >
-> >   Luis
-> 
-> Sorry for the grammatical error. Maybe I should send a patch to fix that.
+> On Feb 4, 2019, at 10:15 AM, Alexander Duyck =
+<alexander.duyck@gmail.com> wrote:
+>=20
+> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+>=20
+> Add guest support for providing free memory hints to the KVM =
+hypervisor for
+> freed pages huge TLB size or larger. I am restricting the size to
+> huge TLB order and larger because the hypercalls are too expensive to =
+be
+> performing one per 4K page. Using the huge TLB order became the =
+obvious
+> choice for the order to use as it allows us to avoid fragmentation of =
+higher
+> order memory on the host.
+>=20
+> I have limited the functionality so that it doesn't work when page
+> poisoning is enabled. I did this because a write to the page after =
+doing an
+> MADV_DONTNEED would effectively negate the hint, so it would be =
+wasting
+> cycles to do so.
+>=20
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> ---
+> arch/x86/include/asm/page.h |   13 +++++++++++++
+> arch/x86/kernel/kvm.c       |   23 +++++++++++++++++++++++
+> 2 files changed, 36 insertions(+)
+>=20
+> diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
+> index 7555b48803a8..4487ad7a3385 100644
+> --- a/arch/x86/include/asm/page.h
+> +++ b/arch/x86/include/asm/page.h
+> @@ -18,6 +18,19 @@
+>=20
+> struct page;
+>=20
+> +#ifdef CONFIG_KVM_GUEST
+> +#include <linux/jump_label.h>
+> +extern struct static_key_false pv_free_page_hint_enabled;
+> +
+> +#define HAVE_ARCH_FREE_PAGE
+> +void __arch_free_page(struct page *page, unsigned int order);
+> +static inline void arch_free_page(struct page *page, unsigned int =
+order)
+> +{
+> +	if (static_branch_unlikely(&pv_free_page_hint_enabled))
+> +		__arch_free_page(page, order);
+> +}
+> +#endif
 
-If its already merged sure. Otherwise I don't care.
+This patch and the following one assume that only KVM should be able to =
+hook
+to these events. I do not think it is appropriate for __arch_free_page() =
+to
+effectively mean =E2=80=9Ckvm_guest_free_page()=E2=80=9D.
 
-  Luis
+Is it possible to use the paravirt infrastructure for this feature,
+similarly to other PV features? It is not the best infrastructure, but =
+at least
+it is hypervisor-neutral.
 
