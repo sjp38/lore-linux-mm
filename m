@@ -2,164 +2,166 @@ Return-Path: <SRS0=bR/Z=QL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BC331C282C4
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 13:50:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BAC8C282C4
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 14:28:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 79EB82081B
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 13:50:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D5C042083B
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Feb 2019 14:28:43 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="qnIlm5zo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79EB82081B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (1024-bit key) header.d=alien8.de header.i=@alien8.de header.b="AtSkMjV3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D5C042083B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=alien8.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 134388E0045; Mon,  4 Feb 2019 08:50:15 -0500 (EST)
+	id 3D76C8E0046; Mon,  4 Feb 2019 09:28:43 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0E4CA8E001C; Mon,  4 Feb 2019 08:50:15 -0500 (EST)
+	id 388458E001C; Mon,  4 Feb 2019 09:28:43 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EEF228E0045; Mon,  4 Feb 2019 08:50:14 -0500 (EST)
+	id 29F198E0046; Mon,  4 Feb 2019 09:28:43 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 93B728E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 08:50:14 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id c34so5877991edb.8
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 05:50:14 -0800 (PST)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CAFDD8E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 09:28:42 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id q18so19546wrx.0
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 06:28:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=sbpVy8mtwOFf+cy5P2CTmoiOEqIRp2+fSCpbVLdtP50=;
-        b=Xm6oyAcdA79qyQQ743t8+1wtXRWJ56nbAltRbKr6sICmgmxNlqZeNNOGrTUUeCBkXS
-         CXcEGRZ1C+A0BqZM60E22GqnLqyTTq7+4GzVgbM8zobv8IAuSkzyyoCj1IAk8r0dCj4e
-         5u4fGN1onMJadBnBNcJiaWW2+CrZY6BXvYRVZF1P/okVXf/l849Iw9HY39bfkk1F+5K5
-         NdmwxQamIGDYBl4VgcdhhJlaJqM6BNw/Xe+dzCbLOmg3zETd/Cak9JHgnUOtCf4rxVno
-         YG7nXsOGxdfWhbd/VRiWJd9kq4Wolv1rGbwmiDf8lSVGB8b/gr1NE9A4gfkVCOHggPLx
-         vuiQ==
-X-Gm-Message-State: AJcUukfRrahPARfUo9K8Vvflmu1sGcUGAWqwA+1JSUibSfDfSXtULO8+
-	WjKdQzNWdl7+TX2WvlQhEZCBh+yIcpLMwquCZnXinzAl3RWeDRudHsOXSZcDmRQCBRbi9YBdd5l
-	G05s1xqucKxY3hgx3a9mEMPkGSuK3wZkhL/Z317h+CX0qk5n7F58HgljaeA1tNBAPiQ==
-X-Received: by 2002:a50:aa9b:: with SMTP id q27mr50829739edc.93.1549288214189;
-        Mon, 04 Feb 2019 05:50:14 -0800 (PST)
-X-Google-Smtp-Source: ALg8bN7SLKC+QAQvMG+yMIIaBRkLrPYcwlcWheWyBhop0cI/PYiSqpBrbVeWU6EZlzfq1yajYv34
-X-Received: by 2002:a50:aa9b:: with SMTP id q27mr50829680edc.93.1549288213316;
-        Mon, 04 Feb 2019 05:50:13 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549288213; cv=none;
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=7QWaSI9Kzgqtb8SEtCk6Q1g3OhoIUSGko6l3DVOvT7k=;
+        b=qPSfoIqSmGT5TqGYcaeUm8kw3Uhw81/8QCZoW8Lp/HqYk13Nupt+VPtEEIF0Gwlefl
+         zKilVFoo4inADqqfzz5gBpVK9WfUeoU14X7Z0DO/A33yzRQjkFtPq4lJqGRdTsNol9ob
+         I6rZcQIz/FB0SsIPMENqWPIe4OlwOtPZA+kcXY1sSJhL55in0wEKRKJ3emxwPon6+0YE
+         MhLssFR1KaqIGZ01y0Hy4sl0QZPZr3BVg7lG1dX8ja5NOwe+/TDXD7ZU80BcD8RdDNgy
+         gY9a6lMDebG7tAXGuKZGVaq1lA4A8hSviptlVzqzB8ZPRzNboiqOLIGOZ0mDvXckrliZ
+         +Lkg==
+X-Gm-Message-State: AHQUAuZ1h1h4TezkckmVuPMW2ISC9J2rLztMwiL3VNvmBIAR9ZO7lAOv
+	jACgFDCVx2uiPIdtBov2jrWFQ35NLBpZHDcb2SYi+8PFqZaa98rBXTW1dN+V7kT2EzdD/t89hlU
+	c01KJFzbs1dmk3VlPUbpGYCPRe7jrPYQh1NsWNjRFTc+b21iejLQYADgi1x7J96GcVw==
+X-Received: by 2002:a7b:cf0f:: with SMTP id l15mr14459969wmg.30.1549290522208;
+        Mon, 04 Feb 2019 06:28:42 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYFPG3785SlySY6leN4w6RGkoPSCkN6ATGFj/ZVPptEKo91ByjAxPdnwIOtVlvaWKyhwKEX
+X-Received: by 2002:a7b:cf0f:: with SMTP id l15mr14459904wmg.30.1549290521243;
+        Mon, 04 Feb 2019 06:28:41 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549290521; cv=none;
         d=google.com; s=arc-20160816;
-        b=EO5J9dqBHIwwswx9Aby30gsCiC2k5kTCqjw5p2N0vg2QA+VrUwGNYa8QDWfUXAeUyF
-         jY+2I2LbjDH5aTLK4GxHwXX6xhVH1nJMukkEp47jdH927f7JfoMhYa5HC1cZXLnxauxJ
-         0OM5paBkpN1cgBYm5vNEpFc8dUCgIg6+hwkS0TmjA1TpJzCPRadpVA3kVa0eIWGCuDAs
-         DNWeRxcffhCrAiJnH13b37s/x+bqWPOSuaURRHA8AijKtMN7Pey8p7rS2Bk3YvAuI0wh
-         zk+LOC08oZpEXDmuZN3Ou4vXH9DO0JdGJYP37KOl3AXrKdYS9jzWQhYLqKXlsPue6LNw
-         Ny3g==
+        b=MroedohY1UY1kNz39ed8Z3FECLlg8g0qIIXA6ACif4sLQh3V/tLRLsb6iNDjDabmWx
+         nVeyQ15YzNA1erQmLQv6Uq5y0UBRCqPNFhzfdQV7Xe1G1LTC7R8LvCbQT4Hzb4LvMOgO
+         4DCLhDhEfYyk+eOKFpPHH2ROnZUlGMwOfAsm5i5NhHVxj/f18QPl96O4BGcy4gWh+uv4
+         tvDQKlylWBaqK7bSfpHoGfCro9Gh+ykMmiCtJF4RB4m3GIBa4zggnRsqkorD+wtgNwDx
+         MX1x1/UQSP8gd0uZW9RoL9oNJ40SYE/Z2vazoVXWv3mqV3mFC7nkfwJd1lCOOMWVEHng
+         SsJw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=sbpVy8mtwOFf+cy5P2CTmoiOEqIRp2+fSCpbVLdtP50=;
-        b=ki6+95tG6sReUJQ13eMo62xHn1P+F2hLuyjec73MjFi8OEUGMd5dojWQWgdt/t7lt2
-         hK2L0+iUb60jyDr/9zf87eFbFicv4NyZ6nK4zFsdQY2PszJekn3xb9H8ymnAfD8wel+V
-         6KwGORJjehur8K61P53keyVmT0cpDBC1sMGuqPdArlyWzlJ670FobWDbnnXkbPZmJ3ZE
-         7Uw7CEq9o2a6pJ4mzbPB176FYpPbk5GvsQTtZAfHI4QSpX9xRAQUMdpcwgfnt5uFprMi
-         eZ46cYYQu1dyb+qRhWsxwx1GcrgFfSoDIERRdFXPMvdzJEofOe5vrSCX7yiBqrJBUxac
-         k5NQ==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=7QWaSI9Kzgqtb8SEtCk6Q1g3OhoIUSGko6l3DVOvT7k=;
+        b=IMLj+OTsuQP5eUkIeh8a2KAOK1Sa3J5vsqWiM4EZuBx9brRNC05/S+bRzhCbmyi/bM
+         zQd5Cyk3YyejiuV2Lj+nYq6LSbK7VTaICR8bYyhd1d9f4qJNq4/LnE8MZFEWMdG+o6QZ
+         o8dPszqKBZzJpMaQZ2LSSEcgR4tP178EjCFZglCfLyDCFM8GhKHO8aMKqWl2v++o2Prq
+         cDpMELC3MvvSW4CqetuNwf1VXVZLaZW/98uYoUvfwD1sj6MdA0FsWoc3c7zR3UEwYsE0
+         PINdmABxB8Q4rK/ZWIQh+V0e1EXIOog1zYEug2aUibKQe6eH77jGSdv1jZ3nLE5kM2wX
+         3fjA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qnIlm5zo;
-       spf=pass (google.com: domain of dan.carpenter@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=dan.carpenter@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id k25si1876055edk.323.2019.02.04.05.50.12
+       dkim=pass header.i=@alien8.de header.s=dkim header.b=AtSkMjV3;
+       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTPS id u133si7565061wmb.182.2019.02.04.06.28.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Feb 2019 05:50:13 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.carpenter@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Mon, 04 Feb 2019 06:28:41 -0800 (PST)
+Received-SPF: pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) client-ip=5.9.137.197;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qnIlm5zo;
-       spf=pass (google.com: domain of dan.carpenter@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=dan.carpenter@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x14Dhrgu006094;
-	Mon, 4 Feb 2019 13:49:57 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=sbpVy8mtwOFf+cy5P2CTmoiOEqIRp2+fSCpbVLdtP50=;
- b=qnIlm5zoHjA1skAqrU8gfxZZXrGGZCMlOw3vlhh+RqmxjCTZtrnvWUq4jq1Lgf82LxEw
- D1nFfm2pdh04TMg18cUry3E1y/kaFi8gWMtooRbm+Aa8qZTOaHEezvY30W9nnCokCMgt
- n2nIegUOZAYZZcd6ReS8Jd/n1fvB4g+DG5VJVIQ8YURstP5dOeGJt2oZ2KINASSxDdg/
- NyN4lfOr5ojH12ttvNbnQ2vudkOdO6OgiBTwElWOpBh78K7sInF9e/FYuyMPOf3mNXON
- HIHla9FhMSX+R2H6Uj41MFc1cWtQ2n+02t0KqkVzo/rb0eWJecazBUDh3puRgSyXOyaP Iw== 
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by aserp2130.oracle.com with ESMTP id 2qd97en70a-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 04 Feb 2019 13:49:57 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x14Dntoe022482
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 4 Feb 2019 13:49:56 GMT
-Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x14Dntre025648;
-	Mon, 4 Feb 2019 13:49:55 GMT
-Received: from kadam (/197.157.0.20)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 04 Feb 2019 13:49:54 +0000
-Date: Mon, 4 Feb 2019 16:49:55 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, linux-mm@kvack.org,
-        kernel-janitors@vger.kernel.org,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [PATCH] mm/hmm: potential deadlock in nonblocking code
-Message-ID: <20190204134955.GE2581@kadam>
-References: <20190204132043.GA16485@kadam>
- <20190204134203.GB21860@bombadil.infradead.org>
+       dkim=pass header.i=@alien8.de header.s=dkim header.b=AtSkMjV3;
+       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
+Received: from zn.tnic (p200300EC2BC6E200586F742EFBEF042E.dip0.t-ipconnect.de [IPv6:2003:ec:2bc6:e200:586f:742e:fbef:42e])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.skyhub.de (SuperMail on ZX Spectrum 128k) with ESMTPSA id 196921EC014B;
+	Mon,  4 Feb 2019 15:28:40 +0100 (CET)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=alien8.de; s=dkim;
+	t=1549290520;
+	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
+	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
+	 content-transfer-encoding:content-transfer-encoding:
+	 in-reply-to:in-reply-to:references:references;
+	bh=7QWaSI9Kzgqtb8SEtCk6Q1g3OhoIUSGko6l3DVOvT7k=;
+	b=AtSkMjV3V26u12tYepdjk6o9U9Pk4aRuwarM6f5IGq/OIK+z2V5XsIvRa2phDllI9Zpd8B
+	uuiWlDwk5b69HGShQwpAEW34F3RmpjU/s2F8unqxcQyun4nUQo17fsPzOF7AfXDbkRf0qc
+	sHuQzSqsCV3rWSo/aGkNjUr+0YORPEg=
+Date: Mon, 4 Feb 2019 15:28:29 +0100
+From: Borislav Petkov <bp@alien8.de>
+To: Nadav Amit <namit@vmware.com>
+Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>,
+	Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>,
+	LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Damian Tometzki <linux_dti@icloud.com>,
+	linux-integrity <linux-integrity@vger.kernel.org>,
+	LSM List <linux-security-module@vger.kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Kernel Hardening <kernel-hardening@lists.openwall.com>,
+	Linux-MM <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Kristen Carlson Accardi <kristen@linux.intel.com>,
+	"Dock, Deneen T" <deneen.t.dock@intel.com>,
+	Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>
+Subject: Re: [PATCH v2 03/20] x86/mm: temporary mm struct
+Message-ID: <20190204142829.GD29639@zn.tnic>
+References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
+ <20190129003422.9328-4-rick.p.edgecombe@intel.com>
+ <20190131112948.GE6749@zn.tnic>
+ <C481E605-E19A-4EA6-AB9A-6FF4229789E0@vmware.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190204134203.GB21860@bombadil.infradead.org>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9156 signatures=668682
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=759 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902040110
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <C481E605-E19A-4EA6-AB9A-6FF4229789E0@vmware.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 04, 2019 at 05:42:03AM -0800, Matthew Wilcox wrote:
-> On Mon, Feb 04, 2019 at 04:20:44PM +0300, Dan Carpenter wrote:
-> >  
-> > -	if (!nrange->blockable && !mutex_trylock(&hmm->lock)) {
-> > -		ret = -EAGAIN;
-> > -		goto out;
-> > +	if (!nrange->blockable) {
-> > +		if (!mutex_trylock(&hmm->lock)) {
-> > +			ret = -EAGAIN;
-> > +			goto out;
-> > +		}
-> >  	} else
-> >  		mutex_lock(&hmm->lock);
-> 
-> I think this would be more readable written as:
-> 
-> 	ret = -EAGAIN;
-> 	if (nrange->blockable)
-> 		mutex_lock(&hmm->lock);
-> 	else if (!mutex_trylock(&hmm->lock))
-> 		goto out;
+On Thu, Jan 31, 2019 at 10:19:54PM +0000, Nadav Amit wrote:
+> Having a different struct can prevent the misuse of using mm_structs in
+> unuse_temporary_mm() that were not “used” using use_temporary_mm. The
+> typedef, I presume, can deter users from starting to play with the internal
+> “private” fields.
 
-I agree, that does look nicer.  I will resend.
+Ok, makes sense.
 
-regards,
-dan carpenter
+> > That prev.prev below looks unnecessary, instead of just using prev.
+> > 
+> >> +	struct mm_struct *prev;
+> > 
+> > Why "prev”?
+> 
+> This is obviously the previous active mm. Feel free to suggest an
+> alternative name.
+
+Well, when I look at the typedef I'm wondering why is it called "prev"
+but I guess this is to mean that it will be saving the previously used
+mm, so ack.
+
+Thx.
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
