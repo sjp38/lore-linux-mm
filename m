@@ -2,158 +2,117 @@ Return-Path: <SRS0=TNGr=QM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C5442C282CC
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 21:56:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 90AAFC282CB
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 22:04:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7F3842077B
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 21:56:02 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="OO0ZZE3q"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F3842077B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 5141520823
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 22:04:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5141520823
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1FC798E00A0; Tue,  5 Feb 2019 16:56:02 -0500 (EST)
+	id E01068E00A1; Tue,  5 Feb 2019 17:04:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 183328E009C; Tue,  5 Feb 2019 16:56:02 -0500 (EST)
+	id D89268E009C; Tue,  5 Feb 2019 17:04:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0249E8E00A0; Tue,  5 Feb 2019 16:56:01 -0500 (EST)
+	id C53BA8E00A1; Tue,  5 Feb 2019 17:04:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C2D618E009C
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 16:56:01 -0500 (EST)
-Received: by mail-yw1-f72.google.com with SMTP id p20so3314298ywe.5
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 13:56:01 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 831F58E009C
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 17:04:18 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id j8so3401655plb.1
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 14:04:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=wMhcdXCHqf6V6KTLtjLRAAlffUFv2sOj48RQqhjWWzg=;
-        b=p5MQX9xAzIMun65LnMEUSoo6uWX6OGP8wxuXqT0C7LFUmUFtOlF4hkMirfDzzxZElS
-         r6La/Iw8p4w3HViyS+4cHOWFx9CYPiyB4U0j+qdDIXWMVXSUXPbn+c9OTiU2XDPkfEj2
-         cbHG0Dow4urhDV5IkV3k4pbJ6Jfgo/faT2eUj27UWm5Rn05qSBPZ9RYDVLpTYyXAS4A2
-         IHa+bXwZw3xGEgz0w7HVkV+A4ac+9fqggohG8Salxs8cQmY0b0pMkKKDrVAI72hTNMp1
-         Jvd6veLf+WMR8aMukE8+6C+PpgGs0ENhTOKTbBtgxTP9l8bbRtWWDvcbsGzpzb+FpCYq
-         EDDg==
-X-Gm-Message-State: AHQUAuYaCZQNb2PQNRaErVYAf4IsT4suDMw3wglE/OVaAu9pHUIpYDVH
-	WJ3NicU0tQTSNJ6WdM1NWYCt7ZlXIktRLmJbc7utcKFvWDy2bVRp7fDBOTzew/1uOHNzAFjiMKI
-	KZd7DpD9Bb8GyO7qDev+6O5IoNPT2dKW56XdpLL2w0LEGBQ6QDe0vEe+mAupQpT/gDw==
-X-Received: by 2002:a81:f00c:: with SMTP id p12mr2867214ywm.242.1549403761520;
-        Tue, 05 Feb 2019 13:56:01 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZe5SK+XSfS0D2+HtvHapUafaNl/BxWzjC2MoRqqRLNLYV+B598ScfZImP8ykGxjfCeLXjb
-X-Received: by 2002:a81:f00c:: with SMTP id p12mr2867185ywm.242.1549403760913;
-        Tue, 05 Feb 2019 13:56:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549403760; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=/v1pskoyWlIgJsKIS1qrr0fFi5+DWz4ORWHdmM26shA=;
+        b=jjirQs11YzRm9fbHX4SJoVPO0IvaAcXFQB2JBlvDmKeweaKvC7cSz7gYKscNjU+ODg
+         3nm8ujUweiaLQcsavJsB+kwRCoHGCUSuoLg+w29kEYJ2Ng0s2UDrmDUa5swOxGcKDH5s
+         aaTZEERwPhpEqpdD0zz0VQO0N+wULpCRebwWOv8N+TJClLXVL9BB5/3Y/Gp7j7g8v55e
+         53xc2IQNww8GXkpD8dJiKMSAnpE38QNkwTdeWd0VY3yTP1/oY2qrV3t3xF8o6tNfpjTA
+         qE9X+WH6KGZk3yGYEt1sEd0pIFlyv0eUEdQG748MnD5PPZdxCiU2HFkqERKrPmfD17HO
+         ceew==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: AHQUAuZCIbu/4g1HqpxNuZKINdbMEKRUlWCDqBMkyAh1OgJfRKW3MmHG
+	a6rFZwn5Sj7GO1wAsb/W8pW+BLv79ap3IZvBH9strlgrLGtdwCr9Euqc5mjVvCBcbCo+ka6qeaf
+	SItUYE8Wav599jKuj6FmH609L0z2NDi56J2A2+uqs3QZ2hwSW/CAzkqRspSUwafWalw==
+X-Received: by 2002:a17:902:e08b:: with SMTP id cb11mr7388421plb.263.1549404258109;
+        Tue, 05 Feb 2019 14:04:18 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZNExIZUiP60AsW+AcNKbGsYaF6w1J9ZcQN4yc62e7E0+wPL3cTNCYUq8DyC5A+bVHQ/DMe
+X-Received: by 2002:a17:902:e08b:: with SMTP id cb11mr7388365plb.263.1549404257425;
+        Tue, 05 Feb 2019 14:04:17 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549404257; cv=none;
         d=google.com; s=arc-20160816;
-        b=oaVzrri6YrtO7u2HA7Y+B/swUTbrFihnV2WZHw9Ly7JI4tOoAh91Le8+g9VvZfFu04
-         d1l3/MSETeoNiJojU2MCuamRHwzy5JQ0B/7LRC5sMy/U0W6eeHC23vp/4UYFlmlOL/Xq
-         w7zxkY46cWLczWUzd8fUOo7tgbJnpxgwfWMvum3Xa6lWmC7N3KR1iHm7gqLqjpLKsPzG
-         vvXOYjHI1ExEquzYmv19dv+i1/sdAmA2t3MRC/LFDDwK0/uwEmTJMarcLoxrmhGq6mzz
-         xoGRGOTECx9B3eOvGqjcHQOsYJ+8w1BH0+z0iz/8bibVy2cBnKb3eK7Wz+cAbwrLkyK1
-         XpDA==
+        b=PbiqGSF6zd2Ab6+jPA5WMeykC542F7w31jw5jgocmbc6CgKMD4YlfcZwfdDj9/KTj+
+         EP7CJ9Hsv3ctghuOO9OcEg9+Tbzm7KVC6klGnewFd9FNi3LC94bjVDvRGKw6QL+R4S6M
+         9dyI/TNLCibVo5d96r84lEUMOcZsBXnODPMqxl4fdEZK6Pi1fqdXIX9/STik/fIdj3LZ
+         eppkwkXg5/15dp/9LdQEP+HgVwzJzYZwFrf1C2KBMM2walMkf0A4/QcjAORl4mQdIyqZ
+         8ETaRU0Fta1IGaVK/7vyVuhnQ4HuAH1oJeElGFPtCYZola0AVuHbMH9fIpvNnLpEy3ca
+         h7ow==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=wMhcdXCHqf6V6KTLtjLRAAlffUFv2sOj48RQqhjWWzg=;
-        b=L+jYThUGtTj+FZ6/1/ZlN5fvlz904wxhgTKio0l/pqZ312PAoX3Q2UN/ZnuWa3XJyU
-         1Tn8A2zJnyT0kg/zeuTzbZGm3ZvdKiGSFbwBEy3PkFGYV4hgapzjQVyuGLn/hM9mhJ65
-         57jLSRFFlD3D0edGnPio5XazdvcaBTlS8KGTh4xT3YlhYK2QbICOch7eolBvtfmzbip4
-         N5/oCkD6/KzS58GA+2iY6PyaEAaT+G+8qYlA0YGV5MrvR/TdxX+WqzPHQN7HLrl/gQyO
-         9ESsPA/cmdk/slzb66HSkXAAajSAQK/WFH29Y0pg9cf2vfDvcqCH1MvyM6QrEInfs+TD
-         ++MQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=/v1pskoyWlIgJsKIS1qrr0fFi5+DWz4ORWHdmM26shA=;
+        b=XjTYaoqKgK3AKMVWVrxv+FiFOwhzJcl4tFEyRFS/1P6tlyVVBS6SSnQuSAvoVuvRlQ
+         SbEiuxQxK1H+OMIvqURozslm02i8UXbVapkvqMVebABxpCm83uhfcQOoyk/EPKh7FKms
+         E01qd1jltQ4AI+mEHQFE3JwLFvcSk2/vYChr+BiRMq7dGhk2e0VyURwk+CaRLWPa45Fa
+         EBMvv4LHx8f6QSzHD1LRiR/ECZtQKOJMF2b6NxO7kewJjHTmnIg6bw07ucJUHZ/uijj4
+         ZD9y2k6FZ5sRJn+s5mkymMk7+n5Dl5RCs1pcpSuGngq75Nx//U0pCvQiNpSruTulkjwP
+         Wqow==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=OO0ZZE3q;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id s4si2690111ywf.128.2019.02.05.13.56.00
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id c32si4354786plj.38.2019.02.05.14.04.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Feb 2019 13:56:00 -0800 (PST)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Tue, 05 Feb 2019 14:04:17 -0800 (PST)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=OO0ZZE3q;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c5a06500000>; Tue, 05 Feb 2019 13:55:28 -0800
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Tue, 05 Feb 2019 13:56:00 -0800
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Tue, 05 Feb 2019 13:56:00 -0800
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Tue, 5 Feb
- 2019 21:55:59 +0000
-Subject: Re: [PATCH 0/6] RFC v2: mm: gup/dma tracking
-To: Tom Talpey <tom@talpey.com>, <john.hubbard@gmail.com>, Andrew Morton
-	<akpm@linux-foundation.org>, <linux-mm@kvack.org>
-CC: Al Viro <viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>,
-	Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>, Doug Ledford
-	<dledford@redhat.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
-	<jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>, Matthew Wilcox
-	<willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Mike Rapoport
-	<rppt@linux.ibm.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Ralph
- Campbell <rcampbell@nvidia.com>, LKML <linux-kernel@vger.kernel.org>,
-	<linux-fsdevel@vger.kernel.org>
-References: <20190204052135.25784-1-jhubbard@nvidia.com>
- <dbca5400-b0c0-0958-c3ba-ff672f301799@talpey.com>
- <80d503f5-038b-7f0b-90d5-e5b9537ae1df@nvidia.com>
- <303ab506-62b7-ee6d-27a0-a818c7ff6473@talpey.com>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <e2bac0b5-f81f-c2f1-95eb-214c64e89ee0@nvidia.com>
-Date: Tue, 5 Feb 2019 13:55:59 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
-MIME-Version: 1.0
-In-Reply-To: <303ab506-62b7-ee6d-27a0-a818c7ff6473@talpey.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US-large
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id D0F2CA840;
+	Tue,  5 Feb 2019 22:04:16 +0000 (UTC)
+Date: Tue, 5 Feb 2019 14:04:15 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko
+ <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, keith.busch@intel.com
+Subject: Re: [PATCH v10 1/3] mm: Shuffle initial free memory to improve
+ memory-side-cache utilization
+Message-Id: <20190205140415.544ae2876ee44e6edb8ca743@linux-foundation.org>
+In-Reply-To: <154899811738.3165233.12325692939590944259.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <154899811208.3165233.17623209031065121886.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<154899811738.3165233.12325692939590944259.stgit@dwillia2-desk3.amr.corp.intel.com>
+X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1549403729; bh=wMhcdXCHqf6V6KTLtjLRAAlffUFv2sOj48RQqhjWWzg=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=OO0ZZE3qlHVf7SLdzkvxMWo8XPxxiTP0f0GbZjWPp4EwFzG8T3wH/G90QrC6UY+cr
-	 JCi0vR8kO1CQ3Zdhp4G2h1lQf45kXjhbwe5mTO4TNxbZE0we2A/YGY3MMqhK/nrdEE
-	 eyAjKEEabxwN341c/4qSWtvue/sbKfSrwdWIgLYquHT71qrxziTp4K0ntquXnOw2ZM
-	 5eWdd0BVHj9lyakmUVr4gl3zoIcsDVAX62yvqMpjjBJaMPrL1mTJCPZD9NwZ1X3Tbq
-	 yEDowBywN1BKTGq6Ewl5ClbhZ+Scn8ItHzjdc4m6fYhwAqBSq171mOvpyyauKHBgmU
-	 ohRJzyuCO5GNg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/5/19 5:38 AM, Tom Talpey wrote:
-> 
-> Ok, I'm satisfied the four-9's latency spike is in not your code. :-)
-> Results look good relative to baseline. Thanks for doublechecking!
-> 
-> Tom.
+On Thu, 31 Jan 2019 21:15:17 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
 
+> +config SHUFFLE_PAGE_ALLOCATOR
+> +	bool "Page allocator randomization"
+> +	default SLAB_FREELIST_RANDOM && ACPI_NUMA
+> +	help
 
-Great, in that case, I'll put the new before-and-after results in the next 
-version. Appreciate your help here, as always!
+SLAB_FREELIST_RANDOM is default n, so this patchset won't get much
+runtime testing.
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+How about you cook up a (-mm only) patch which makes the kernel default
+to SLAB_FREELIST_RANDOM=y, SHUFFLE_PAGE_ALLOCATOR=y (or whatever) to
+ensure we get a decent amount of runtime testing?  Then I can hold that
+in -mm (and -next) until we get bored of it?
 
