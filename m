@@ -2,233 +2,150 @@ Return-Path: <SRS0=TNGr=QM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F233C282CB
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 12:33:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 41175C282CC
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 12:35:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AEA312083B
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 12:33:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AEA312083B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id F400B20844
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 12:35:41 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=alien8.de header.i=@alien8.de header.b="DRBpNRi/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F400B20844
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=alien8.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 28E4A8E0086; Tue,  5 Feb 2019 07:33:41 -0500 (EST)
+	id 96A768E0087; Tue,  5 Feb 2019 07:35:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 23CC98E0083; Tue,  5 Feb 2019 07:33:41 -0500 (EST)
+	id 919008E0083; Tue,  5 Feb 2019 07:35:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 153208E0086; Tue,  5 Feb 2019 07:33:41 -0500 (EST)
+	id 8303B8E0087; Tue,  5 Feb 2019 07:35:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DB2138E0083
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 07:33:40 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id d5so2781183otl.21
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 04:33:40 -0800 (PST)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CDB08E0083
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 07:35:41 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id z18so1079466wrh.19
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 04:35:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=eVrCyOOX4Q8m/xrzM46I1JOcym+IuQeWWMfSDki7Qig=;
-        b=srHYgbX/PpkHO7Lqcu3gxreHAnz3ObZobALPZj+Z8aevMXfDkb+9J8tMw1DmiJsaXi
-         BAjSHeoTqhb9rRxImLw/ZSn2sbyzRB5u5mzql1yUpFN56RyyXwTrrJ2Z4GA3Juvej9jc
-         oaNbRt54F/+T9bkPfRmHjfjTsghwnYVGhkbnsrsZ36w4hGdMihLH5+WQJ3072/zSQ4JI
-         j4PkQSooswhaXFAYiSV38pebQR96dklcnT4ZQJla2Cj7vO+iht8uqFHmZ4Ue7ziUzn44
-         t9mr6f8HP5gWCXk2/9RHxjAHMUA6QN8zZnKsrZgtIKz3x4zb5D2cUGERb/On2BMeUw1i
-         m6Ew==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAuZgqYSh+zv5OSb6rz0NbamKBFcZ2Mqh2rHFP3nGQT29j3wJLnd+
-	Kq6hfAFDM+mjAVxFErUJCpQsrAiGxB5kMMdCidZUIt3FXkmfMSqqH4ooV5b3eldTLcZAEAjrLy6
-	BwqceVCAePkPEEet9LnqI8pc6sjjFM3ZgujO/X0VnlRf8uwOgD6xFDLMg9376AvTknWTccflwgz
-	glFrEKfuaizxhmlBrn8a1E0kXqMahG0MO5YvSaY+NF6NZ+ImXdwKwQSnCBXfIsIC6sbkvbjqiWu
-	RtYXfoaK0kerilaIsvPt+bk14b7+iWYmtgqxKCPaeDytPzpkr+sjALMyyJ2KQC4BOWzVMbxxSWC
-	oE6FTZANOrvAuODgXhT8TrlKwbA/p5Ir1Z53opKh/uOCX0f2mUmYCA0hSQsAjMjG2bcet2WRfQ=
-	=
-X-Received: by 2002:a9d:282:: with SMTP id 2mr2442282otl.287.1549370020451;
-        Tue, 05 Feb 2019 04:33:40 -0800 (PST)
-X-Received: by 2002:a9d:282:: with SMTP id 2mr2442258otl.287.1549370019650;
-        Tue, 05 Feb 2019 04:33:39 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549370019; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=qy0tAhFBRu2LNdPFTbVIGZuXfaj4t8RKzaRmpgJF9M0=;
+        b=VhZ+0NaXBMi6NIeTBwGu3pbpFMwREVoaStlAVw/0sD5Ye4YCGFX6QH6GyvMWBM3iz4
+         dOTGzv8XtjnUw5SDba3P4T3VCiZ7c15EoTphsPck8VRSHnLKVssfsX3HI6Y3si+0ylfE
+         B/GZR2eBYa18g3zklqZfd0cq0/oSMDlJAwH5ygby3UUrbzLd6yvDz+qwiZ2EvqzGbMiW
+         slOFQC1hnIqwXSh7MCUbivxmMWhmkxPlF7Ogis1Acmex723eRFHOUewAdzNoPYoHG7UR
+         ifst3vuIzU2iZfRtyXBQQy5PryQIGb7lqjVGezgjTqPh9PFF7DmRmR8oNPNg3PU1Brwp
+         2wQQ==
+X-Gm-Message-State: AHQUAuZY9m5nOkQZKv3AXtDcE7NLjX3hvXVIrpZdedwrK99BC0p0JYtJ
+	BpHZtJH9WXlDmB2kzbifcj8A9RVOx7mVN2OeS97TB0l6d+aogkcDw/5E9ASAR+hf9XNK5nk5Xsu
+	SbOSR/2fxvtEBc37WnPVKfzfqExKU3xY/2rAhkfUOQzCY0SdZw7dNsKFCsMuD/9Dstg==
+X-Received: by 2002:a1c:35ca:: with SMTP id c193mr3531015wma.146.1549370140735;
+        Tue, 05 Feb 2019 04:35:40 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYj2CiBUasBZlgj2Tq1DQdieD1PTQtLlPKqlUXfJY2Pk4iyBdQIveb7IGoA5sgpfegNkHCU
+X-Received: by 2002:a1c:35ca:: with SMTP id c193mr3530965wma.146.1549370139874;
+        Tue, 05 Feb 2019 04:35:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549370139; cv=none;
         d=google.com; s=arc-20160816;
-        b=VH8F+eitC8UrAECwl9GC75ucp7SrV4AmXati7OBP7CR7rZeZDZS/OR++PxHQ0PS87C
-         ruEyGfyNAH4wkvFHtqyXGw1/4NSIgZo+40wZBMxyhAGwSTrfDtxRvqoCfMQwxLB3VxNz
-         UPrXhmBXL5BawyJCoqMaXukIu5QFmahNrskJeORXs8f1/+VZq9+RH3OfCzXFeLWDF6Zo
-         KhRHp0qBmetUukjvZeJsJzL8ZMhhhaCwWXKoGNubT3t8RTrJZsB21Ln3ff6Z3bMyQWJo
-         wRINKQ0R9l4QT+V66ialvdRNvFl827GkoC+W1EGTHAMHncHvIvncbTODJWq5yjUR8iFS
-         I43w==
+        b=CeYsjLy6dyyG+1x2hPqAJZTawVB1fmBIWYWgJQ8hTHTfevlHIoC1FfkFOBualDEudx
+         OIoj7r8q3kqFh+ksb0HKUwKn404D4QyHFV/9F1v2h2p8KSHFjab9tAyjRxGSj1gc2BRN
+         idklg5E/eC4UBjFStpjaU4QM9YLWZ/RhERjCY7VpE3vuaLtuHLJ9d+le73VcZmU7hSrP
+         o9VgCK9J/YAeGGpZLu1C79zSDSk42F0tnL5YDcltMGgz16fOB7vss0XfMdjApqSRSSe4
+         jDQ9+YID6AocP/Ul1aGtf8If0g8X8CVXxCQt0Su1IyYVkZ6w+N4KRcwsa53VZbvhP2+9
+         vOGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version;
-        bh=eVrCyOOX4Q8m/xrzM46I1JOcym+IuQeWWMfSDki7Qig=;
-        b=ukyinrA9lE9PoCcmZJc3JJjubw+1uiMWx5CYZ5q/ftGAb3GQ+OYEr2KYjNzOVlMPcR
-         DzU7lJxYn8VxKCTWX0CjlZBpx08sLlX6wHhW5f+t8w8uCPoHDRJvw2qauDBhCy8p+LTK
-         Kh2JyFwIy/lCAWzk7M1jk/SYsrDasrC9RJKOve9KpG9NTh12OPuxgqRbqBM/qAQnQgMs
-         Op7kiT7rS2wrVYZVUjgJ75PiMmD2ITafbsEgXOHMCopK/FHlv1GA5q8VRAqF/GiIjITH
-         a14Kk0/qx3KC1L7DfTxdOPgG+4oK1HQCsJGCPV8b96e7fEE6fZ9MuJkjtNVeorlUAdX+
-         nu9w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=qy0tAhFBRu2LNdPFTbVIGZuXfaj4t8RKzaRmpgJF9M0=;
+        b=HUW+mqlfpz665nRushs2Cruk/ZdU6fyMG+ww8wl0NCDXhdWTP8tOGpkhPTyq91zsnx
+         L1p3fvnN0MUiTwMIiuOS5q/00aeDLL6hGoHj0CT7Ydz/Kt7A88DXqYSlMZ2bBEG5IUBz
+         6xdAaIvTi9Ld2ZaDj4d3CtmJ43/c/nk13pT6dbc8STsDhSS5e0DsIA+0ukzDCSPzwEwE
+         v6uoaXMnzVY9GIfdzaKBfX7fV0Y6d+3aKjsQ3w35n1pDR0SD2zUfw3cYyU2nYZvxB3rQ
+         I371mreOknu6W1Z8mUrVbEIOFi12X7SrG2+5xpSlppL0ygw5CJXDp46wqz0dfjk03HLZ
+         svxw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w23sor12030991otm.189.2019.02.05.04.33.39
+       dkim=pass header.i=@alien8.de header.s=dkim header.b="DRBpNRi/";
+       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTPS id l14si13623068wrm.131.2019.02.05.04.35.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 05 Feb 2019 04:33:39 -0800 (PST)
-Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Feb 2019 04:35:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) client-ip=5.9.137.197;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: AHgI3IYCwcYKxGHdjA4ZbtdNSvSA3Rhy71UX5Xe+VSg/3jqY88xImlg7ycMF6LOpcL7FrZWbhKUYevjf/Ey6eW7qoGI=
-X-Received: by 2002:a9d:63c1:: with SMTP id e1mr2334981otl.119.1549370019045;
- Tue, 05 Feb 2019 04:33:39 -0800 (PST)
+       dkim=pass header.i=@alien8.de header.s=dkim header.b="DRBpNRi/";
+       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
+Received: from zn.tnic (p200300EC2BCB6B00551F5C4602011D50.dip0.t-ipconnect.de [IPv6:2003:ec:2bcb:6b00:551f:5c46:201:1d50])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.skyhub.de (SuperMail on ZX Spectrum 128k) with ESMTPSA id F06221EC02AE;
+	Tue,  5 Feb 2019 13:35:38 +0100 (CET)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=alien8.de; s=dkim;
+	t=1549370139;
+	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
+	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
+	 content-transfer-encoding:in-reply-to:in-reply-to:  references:references;
+	bh=qy0tAhFBRu2LNdPFTbVIGZuXfaj4t8RKzaRmpgJF9M0=;
+	b=DRBpNRi/AE/ddp/N7PrPG+UELrdIUTt+dE0vNyWk0LmyVCMEV87pZqiHROizDHuJ+chxOY
+	wbn2bNksDewsX0nnPJonclKBTBPDLlbqaAPJQfBgIqfugNE/JGPoeg3HX/yPwElmarfcka
+	AkZNyj+mTvYwgUo4/GGLwq7WnhR/PHo=
+Date: Tue, 5 Feb 2019 13:35:33 +0100
+From: Borislav Petkov <bp@alien8.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>,
+	Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>,
+	linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Nadav Amit <nadav.amit@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>, linux_dti@icloud.com,
+	linux-integrity@vger.kernel.org,
+	linux-security-module@vger.kernel.org, akpm@linux-foundation.org,
+	kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
+	will.deacon@arm.com, ard.biesheuvel@linaro.org,
+	kristen@linux.intel.com, deneen.t.dock@intel.com,
+	Nadav Amit <namit@vmware.com>, Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Masami Hiramatsu <mhiramat@kernel.org>
+Subject: Re: [PATCH v2 06/20] x86/alternative: use temporary mm for text
+ poking
+Message-ID: <20190205123533.GN21801@zn.tnic>
+References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
+ <20190129003422.9328-7-rick.p.edgecombe@intel.com>
+ <20190205095853.GJ21801@zn.tnic>
+ <20190205113146.GP17528@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-References: <20190124230724.10022-1-keith.busch@intel.com> <20190124230724.10022-5-keith.busch@intel.com>
-In-Reply-To: <20190124230724.10022-5-keith.busch@intel.com>
-From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Tue, 5 Feb 2019 13:33:27 +0100
-Message-ID: <CAJZ5v0jE_gRT5WgpQYwZQmx6N5G+axymbSySb2Nk8Q0OGeNt9A@mail.gmail.com>
-Subject: Re: [PATCHv5 04/10] node: Link memory nodes to their compute nodes
-To: Keith Busch <keith.busch@intel.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
-	Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, 
-	Dan Williams <dan.j.williams@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20190205113146.GP17528@hirez.programming.kicks-ass.net>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.004625, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 25, 2019 at 12:08 AM Keith Busch <keith.busch@intel.com> wrote:
+On Tue, Feb 05, 2019 at 12:31:46PM +0100, Peter Zijlstra wrote:
+> ...
 >
-> Systems may be constructed with various specialized nodes. Some nodes
-> may provide memory, some provide compute devices that access and use
-> that memory, and others may provide both. Nodes that provide memory are
-> referred to as memory targets, and nodes that can initiate memory access
-> are referred to as memory initiators.
->
-> Memory targets will often have varying access characteristics from
-> different initiators, and platforms may have ways to express those
-> relationships. In preparation for these systems, provide interfaces for
-> the kernel to export the memory relationship among different nodes memory
-> targets and their initiators with symlinks to each other.
->
-> If a system provides access locality for each initiator-target pair, nodes
-> may be grouped into ranked access classes relative to other nodes. The
-> new interface allows a subsystem to register relationships of varying
-> classes if available and desired to be exported.
->
-> A memory initiator may have multiple memory targets in the same access
-> class. The target memory's initiators in a given class indicate the
-> nodes access characteristics share the same performance relative to other
-> linked initiator nodes. Each target within an initiator's access class,
-> though, do not necessarily perform the same as each other.
->
-> A memory target node may have multiple memory initiators. All linked
-> initiators in a target's class have the same access characteristics to
-> that target.
->
-> The following example show the nodes' new sysfs hierarchy for a memory
-> target node 'Y' with access class 0 from initiator node 'X':
->
->   # symlinks -v /sys/devices/system/node/nodeX/access0/
->   relative: /sys/devices/system/node/nodeX/access0/targets/nodeY -> ../../nodeY
->
->   # symlinks -v /sys/devices/system/node/nodeY/access0/
->   relative: /sys/devices/system/node/nodeY/access0/initiators/nodeX -> ../../nodeX
->
-> The new attributes are added to the sysfs stable documentation.
->
-> Signed-off-by: Keith Busch <keith.busch@intel.com>
-> ---
->  Documentation/ABI/stable/sysfs-devices-node |  25 ++++-
->  drivers/base/node.c                         | 142 +++++++++++++++++++++++++++-
->  include/linux/node.h                        |   7 +-
->  3 files changed, 171 insertions(+), 3 deletions(-)
->
-> diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
-> index 3e90e1f3bf0a..fb843222a281 100644
-> --- a/Documentation/ABI/stable/sysfs-devices-node
-> +++ b/Documentation/ABI/stable/sysfs-devices-node
-> @@ -90,4 +90,27 @@ Date:                December 2009
->  Contact:       Lee Schermerhorn <lee.schermerhorn@hp.com>
->  Description:
->                 The node's huge page size control/query attributes.
-> -               See Documentation/admin-guide/mm/hugetlbpage.rst
-> \ No newline at end of file
-> +               See Documentation/admin-guide/mm/hugetlbpage.rst
-> +
-> +What:          /sys/devices/system/node/nodeX/accessY/
-> +Date:          December 2018
-> +Contact:       Keith Busch <keith.busch@intel.com>
-> +Description:
-> +               The node's relationship to other nodes for access class "Y".
-> +
-> +What:          /sys/devices/system/node/nodeX/accessY/initiators/
-> +Date:          December 2018
-> +Contact:       Keith Busch <keith.busch@intel.com>
-> +Description:
-> +               The directory containing symlinks to memory initiator
-> +               nodes that have class "Y" access to this target node's
-> +               memory. CPUs and other memory initiators in nodes not in
-> +               the list accessing this node's memory may have different
-> +               performance.
-> +
-> +What:          /sys/devices/system/node/nodeX/classY/targets/
-> +Date:          December 2018
-> +Contact:       Keith Busch <keith.busch@intel.com>
-> +Description:
-> +               The directory containing symlinks to memory targets that
-> +               this initiator node has class "Y" access.
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index 86d6cd92ce3d..6f4097680580 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -17,6 +17,7 @@
->  #include <linux/nodemask.h>
->  #include <linux/cpu.h>
->  #include <linux/device.h>
-> +#include <linux/pm_runtime.h>
->  #include <linux/swap.h>
->  #include <linux/slab.h>
->
-> @@ -59,6 +60,94 @@ static inline ssize_t node_read_cpulist(struct device *dev,
->  static DEVICE_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
->  static DEVICE_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
->
-> +/**
-> + * struct node_access_nodes - Access class device to hold user visible
-> + *                           relationships to other nodes.
-> + * @dev:       Device for this memory access class
-> + * @list_node: List element in the node's access list
-> + * @access:    The access class rank
-> + */
-> +struct node_access_nodes {
-> +       struct device           dev;
+> So while in general I agree with BUG_ON() being undesirable, I think
+> liberal sprinking in text_poke() is fine; you really _REALLY_ want this
+> to work or fail loudly. Text corruption is just painful.
 
-I'm not sure if the entire struct device is needed here.
+Ok. It would be good to have the gist of this sentiment in a comment
+above it so that it is absolutely clear why we're doing it.
 
-It looks like what you need is the kobject part of it only and you can
-use a kobject directly here:
+And since text_poke() can't fail, then it doesn't need a retval too.
+AFAICT, nothing is actually using it.
 
-struct kobject        kobj;
+-- 
+Regards/Gruss,
+    Boris.
 
-Then, you can register that under the node's kobject using
-kobject_init_and_add() and you can create attr groups under a kobject
-using sysfs_create_groups(), which is exactly what device_add_groups()
-does.
-
-That would allow you to avoid allocating extra memory to hold the
-entire device structure and the extra empty "power" subdirectory added
-by device registration would not be there.
-
-> +       struct list_head        list_node;
-> +       unsigned                access;
-> +};
-
-Apart from the above, the patch looks good to me.
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
