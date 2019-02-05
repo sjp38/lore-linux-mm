@@ -2,201 +2,158 @@ Return-Path: <SRS0=TNGr=QM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5C389C282CB
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 03:32:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9A006C282CB
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 04:05:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D6C082081B
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 03:32:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4F1E520818
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 04:05:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="0YHZ2hC0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D6C082081B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="LugmjNOo";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="aj5iM51Y"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4F1E520818
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 29E598E0071; Mon,  4 Feb 2019 22:32:39 -0500 (EST)
+	id DF6C58E0072; Mon,  4 Feb 2019 23:05:31 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 24F378E001C; Mon,  4 Feb 2019 22:32:39 -0500 (EST)
+	id DA6858E001C; Mon,  4 Feb 2019 23:05:31 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 13F028E0071; Mon,  4 Feb 2019 22:32:39 -0500 (EST)
+	id C94D58E0072; Mon,  4 Feb 2019 23:05:31 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DAA238E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 22:32:38 -0500 (EST)
-Received: by mail-yw1-f70.google.com with SMTP id l69so1659450ywb.7
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 19:32:38 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D2078E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 23:05:31 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id m37so2365812qte.10
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 20:05:31 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=y85zs9UGaDCwwFujUVF8P4zph5S0V/iR+3TmStl4CvE=;
-        b=e5jwGNndENztMbbFAJn5QBHLLzH6N90nhEGA0i79Hi84xudkD5knUpTskbGdHIzLK5
-         YSZft2XkEqRrrzkGGxmoFF18VNBQljmY6lzLA1Nym+KthltO7jkbOX21CDOPDVpsOgAD
-         BPtjpZyUxJEOzJGaSQCfdV/fhDaTbXN25jGZ1vM2mRgWDEpq5Ck9rDwI7DDFVmVlUG7E
-         BCua80dzLgK94bAhQKSNItBIRDTC9Ho7DYCiNH0AVwJDtTSvHdZQhNrRVD3QJL//7MCw
-         RidSGJHVi8BszCWGLalgBVPMjIPIqSPmFAdVgcF0SefR/Ec/lKcEeEFEnHys9BPDhpw1
-         l8bw==
-X-Gm-Message-State: AHQUAuZgRpgLV43T9uczhi0/wOcGNfrdAJa+j05VUsZxszP0YeFxECRD
-	ceEx6xpK6HXhndWHejM+L1OLJRfWpNEWMUYQ24sGvy+YZ2b7nrbv5kGjKq0soyo1weh7hGajMWX
-	ctGdoUhpxJbpw+4eYe6iUZR90q3y9jQXVe181JpDewxtYAfK4op7dWLEql6gudAQYuA==
-X-Received: by 2002:a81:3e05:: with SMTP id l5mr2247371ywa.508.1549337558519;
-        Mon, 04 Feb 2019 19:32:38 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYUMA4Ir92rC2c23pLfsnMhzlJkjOoTlvtqJen/m5q7YyNKw51z+92JHgoOP7cdAL6Y20GC
-X-Received: by 2002:a81:3e05:: with SMTP id l5mr2247343ywa.508.1549337557758;
-        Mon, 04 Feb 2019 19:32:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549337557; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
+         :subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=zjdfF6fptfX7K6A8RaIXFGiKuRzQA5sSSQPwlsRUNkI=;
+        b=ZXVzb5kys6TFNZDfAxixA5umBcM2SZh6KoF6WqRkT4rEqDV3keQ2h6lDVHijErU6X1
+         7xq1X6jWeGdccN5fdFNi+fLvzGie4Zw/R85BM4hcq0Xhiqmvy+nC3dkgAhLpGWQZjVOI
+         6z3OnDOq7p8/SH/YELTxxItEPvRzy+TiCvjFStNn9ZC2DrZAMStDCSupfoi8igu9xi2l
+         x4FNqFfDCut9fZ/L+eaX2szM1D2rpI8H+7MCzKxbpK3kbzO/rxQ0yJDk8gKe2JooSQwV
+         O0jdUzHh0l1L/GHWtl0+I0LkuFeKs62leyB5ve3/6eSDijN2vrvvFeqCY1QjkQFUvrgG
+         kjZQ==
+X-Gm-Message-State: AHQUAubi8LAwW4DbgiQWQqLMB0e6FlSInFdHEumZf6r+jaURxXOAgXJU
+	qji29/VG07cWsljYb9QlPHJQf7EI10j51NXFqI2d0/mU4xEgcU6Bt9wYSPFQkeS5KqMyVj2u3tt
+	oO9wboExQCy3QkfB3etCU+QFGeSs/7q6wul4F4d+dqTMAbVZpomfAHy1BXPmGOy6GwQ==
+X-Received: by 2002:a37:8882:: with SMTP id k124mr1997854qkd.1.1549339531386;
+        Mon, 04 Feb 2019 20:05:31 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbBIpC14/SElZ7Ec48e6wjrk/AOj9J4l8pXfXtxG9awRqDOz//N53npbpBulgWhlW/+p4HQ
+X-Received: by 2002:a37:8882:: with SMTP id k124mr1997833qkd.1.1549339530797;
+        Mon, 04 Feb 2019 20:05:30 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549339530; cv=none;
         d=google.com; s=arc-20160816;
-        b=wmoU+EEe4d1gx6vSVVhSt8fecEmx4ZDQwu7DEOw43OAfdb1YpFGc303g3na2gTMhJD
-         U3VCwkEI186NCvNK/QQ3TglSuCZsc9LhsJlcBreJaXfdVSKi2AhgZFPRQa9IJckbLnZM
-         ddlyaVnY4BOZZ/fDKIkdvQKekg6pJ0HNmQlwzdH1BNYPR6p50mDq12JRyT4CUHQjX1FK
-         IidK6jWN4kAUFzYxwb/rBH0VDILtz9l/GpkK3iUsL8ZjVDpQRrYcX2b2HCymtVVIziSc
-         u7FpB2qMxP/ocxdJECumoII8X/ATzhRGvWvgkujZpeFGetvabEhIz61gihkl4Covzujq
-         Tt1w==
+        b=1AD8dut6P3eLg65OaVj/C/5hm+K0a0ABj7PdSywaC5r40S846eA5xF6KpaMGQ2Wg/o
+         L0uMYla9b/gkghrh+ZhVTytYWu+M84TcAdwVOTQkNFRYyT3kJo2ozW9gwxj8F5Fa0eLU
+         c1gEXpR6uABog61PLpLMEk+YhpLJJ3CG2vd0JQ1X1N4SynYYuUIFG289L6ez/0FVXBac
+         c2bbV/5opNoeTZn2si4n6+QcUPPP/YZ+KoccHCV5YXrR8/qGbU7aQf6dMIqqkcD1nU4z
+         neYGcebLV89cBOxEWOkaDCrEhl074CgKt7cTMJwB/VnbKsOg+1Uzu6eFHXDyxnwHVqSE
+         Saaw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=y85zs9UGaDCwwFujUVF8P4zph5S0V/iR+3TmStl4CvE=;
-        b=otNEKHTwPp1CAsm7GIHLEUOCbuiB6Gf2EHFp1KCIAX+Z+qe23jEdf0n00+GyiX6h+P
-         iPC0Vc1bR8Lfu5rka2sC3/82/3Xgda6gl+PAXRi5JeoXqn3BKuN9+SRMbXRbNA/xgIG9
-         jIHALWFVqYid6AMgfeqLdEir1Duvi9FDkJfTlRVkaCApIv/FrNruUVGYhaE5IqyhQ/0F
-         wf0lgHrbMeKc4QLd8ORMtuw3iBdot3/IuV5vdXwVhGwX7wNyiQXq8H6YaZFgKa/ijaWN
-         B3OF2am523aT8HHTGTdzpkHj3aXUn9AqVDL+UwmcRLi0dab85mBNK6uDvuwkIlJR5cai
-         xuNQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
+        bh=zjdfF6fptfX7K6A8RaIXFGiKuRzQA5sSSQPwlsRUNkI=;
+        b=raN2yarRXhX8by23wYDNndKwIZu67Cj8HeodMoG9wgt8wu49yNBLvSZPVBqnQXZD3w
+         Fev15QKOKG8WQ+Jz5Ulhs3wCelEb0BjNLS+iJ6S3FE9kGxeWxIIVgCk0br4CKd7JHYox
+         jWOifSJFF5usuDBfgQEc7elBBy2U++WVnFjuqjGkZReYaY+UtoGV04/H0D3XahnmjuYL
+         u57Rvzomr72l2Qqj9e88zZzfCzTZdEF9xoDeC8p/keq1UcgirN0WmvqcmTX5VsH4rT0l
+         mfOJZCuWWXRKqqmOGGpPt6px8SNhvA9a82+zQexBoULXWkfLZwjEK+k5qmMB1Y3Z7+im
+         TSuQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=0YHZ2hC0;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id i11si1185198ybq.378.2019.02.04.19.32.37
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=LugmjNOo;
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=aj5iM51Y;
+       spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id q128si2778774qka.151.2019.02.04.20.05.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Feb 2019 19:32:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Mon, 04 Feb 2019 20:05:30 -0800 (PST)
+Received-SPF: neutral (google.com: 66.111.4.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.25;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=0YHZ2hC0;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x153STN3084138;
-	Tue, 5 Feb 2019 03:32:35 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=y85zs9UGaDCwwFujUVF8P4zph5S0V/iR+3TmStl4CvE=;
- b=0YHZ2hC0P2YndbBnJu4LdDavIcqssytST9ziURfDZoVQtM79pAWPudRr6YIeuqP31Znb
- 0b8IdGiDWSB3CqruZsSCV3H3gcYGwbKDM5c7SBwg3vMbSxZeG9us8ZcP8vsjnGBlJj2D
- SQ3w7HwScOsb3HCPzG5OYbchO9XLMKiTOfWidbocwliDLrgKg/imC2bdvfebvXDRINak
- qb1lV1xshPJ7XYfDfyEemEt5bUjfigkcVQCB6HPmg2nf5V4vEx8+e/JvQMOtYJOHoRyf
- l16ABx9HE/NLsJYQcTEeDFYWuPar/0uaBJZc/9SFrr6RP/e8jdHQq/hQBrANNk6fSkNX zA== 
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by userp2120.oracle.com with ESMTP id 2qd98n0q5b-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 05 Feb 2019 03:32:35 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x153WZUA028028
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 5 Feb 2019 03:32:35 GMT
-Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x153WX8r009311;
-	Tue, 5 Feb 2019 03:32:34 GMT
-Received: from [192.168.1.164] (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 05 Feb 2019 03:32:33 +0000
-Subject: Re: [PATCH -next] hugetlbfs: a terminator for hugetlb_param_specs[]
-To: Qian Cai <cai@lca.pw>
-Cc: dhowells@redhat.com, viro@zeniv.linux.org.uk, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org
-References: <20190205012224.65672-1-cai@lca.pw>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <ce8d60c2-5166-6c40-011f-4dff8dc25ebe@oracle.com>
-Date: Mon, 4 Feb 2019 19:32:32 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=LugmjNOo;
+       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=aj5iM51Y;
+       spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
+	by mailout.nyi.internal (Postfix) with ESMTP id 35D0021E49;
+	Mon,  4 Feb 2019 23:05:30 -0500 (EST)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute5.internal (MEProxy); Mon, 04 Feb 2019 23:05:30 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
+	:from:to:cc:subject:message-id:references:mime-version
+	:content-type:in-reply-to; s=fm2; bh=zjdfF6fptfX7K6A8RaIXFGiKuRz
+	QA5sSSQPwlsRUNkI=; b=LugmjNOo8xPlcZpoJSrbsH4HqYVvyMsgfdkS39bI2mP
+	0Rj2GLsP30vReN2b/TI7L73VqJ9Gt47reLRcEvREwkAhLv89+hZuTDpsbz48dcs5
+	UdfaBt85rUYM3fJEyeFkjbbXCwETRh1LXOjkxBpIP0me3cfTGrZdjaeQFjR40CNS
+	bVavL6Qh62AzVn6vc932Gp/3yQvw/Skp3B71u0zTfR5MjxEcfJJrdwb4nmja/LHg
+	d2oNS/0qE2SLe+uciJKuoWsLgdQ3Ndx9RtWNA++t41oBmUbVdjdEJ/eAws4SRcLx
+	xQi0Oksh4DQZQQghsfdjIxMBdRctiLVOKhixuS2Pb/A==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-type:date:from:in-reply-to
+	:message-id:mime-version:references:subject:to:x-me-proxy
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm1; bh=zjdfF6
+	fptfX7K6A8RaIXFGiKuRzQA5sSSQPwlsRUNkI=; b=aj5iM51YIuEY22ew+Ns4P+
+	Kdw1r07aVzPWKMdzYUUBj6hHiTLCIXvj0N3QlKtgi1FSN9SInDwgf/3ZjSikFrsO
+	zp4l88etf6QOhFtLO0S/45pgMJGcjCw4MWk0b8TqYIX7bU6eUY1A2Wp/lWZAX2XH
+	MIpGkEiGJwSym3edafz3ipNGDvB9wUh544iTogSswc98/+UtlVopH78hlAnkKJZl
+	m8g4uL6BlmGud4iw+++l/+Ixg3BFBwhgcyZ0YeLX5r2NnOF7zgMu4KHGlKhBT/to
+	TaONxCw5bD6Z9XnoM5O77MoHAr5oNMyPJPUK3P19Yr62mYw1/aEswvQKbiEAXzqQ
+	==
+X-ME-Sender: <xms:iAtZXHJ8W9ASse7Tb6dFvhzK7O_Jbw0lqgYZ64njkkZi0uVOuu2eMw>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledrkeehgdeikecutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthenuceurghilhhouhhtmecufedt
+    tdenucesvcftvggtihhpihgvnhhtshculddquddttddmnegfrhhlucfvnfffucdlfedtmd
+    enucfjughrpeffhffvuffkfhggtggujgfofgesthdtredtofervdenucfhrhhomhepfdfv
+    ohgsihhnucevrdcujfgrrhguihhnghdfuceomhgvsehtohgsihhnrdgttgeqnecukfhppe
+    duvddurdeggedrvddukedrvddtudenucfrrghrrghmpehmrghilhhfrhhomhepmhgvseht
+    ohgsihhnrdgttgenucevlhhushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:iAtZXEtgqNo3ELnQBPlOUbIgbPPRimLbKMnOItGk_zmDNAptXRbBYw>
+    <xmx:iAtZXLJE5QxF0p4TyFRSl_QoaJaZiVlcEl7FFLg-A03llUA6axjqoQ>
+    <xmx:iAtZXPFszyjgAftuTROa7heIlLRs36ts1reOnhnfkR8rZXjheJtoqQ>
+    <xmx:igtZXFX3_5YGDM7jJ83l51edoII50ubWESP8DgX5TvFUtz3caC83uA>
+Received: from localhost (ppp121-44-218-201.bras1.syd2.internode.on.net [121.44.218.201])
+	by mail.messagingengine.com (Postfix) with ESMTPA id A5106E4046;
+	Mon,  4 Feb 2019 23:05:27 -0500 (EST)
+Date: Tue, 5 Feb 2019 15:05:21 +1100
+From: "Tobin C. Harding" <me@tobin.cc>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Tobin C. Harding" <tobin@kernel.org>,
+	Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Christopher Lameter <cl@linux.com>,
+	William Kucharski <william.kucharski@oracle.com>,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v2 0/3] slub: Do trivial comments fixes
+Message-ID: <20190205040521.GB30744@eros.localdomain>
+References: <20190204005713.9463-1-tobin@kernel.org>
+ <20190204150410.f6975adaddfeb638c9f21580@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20190205012224.65672-1-cai@lca.pw>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9157 signatures=668682
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=27 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902050025
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190204150410.f6975adaddfeb638c9f21580@linux-foundation.org>
+X-Mailer: Mutt 1.11.3 (2019-02-01)
+User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/4/19 5:22 PM, Qian Cai wrote:
-> Booting up an arm64 server with CONFIG_VALIDATE_FS_PARSER=n triggers a
-> out-of-bounds error below, due to the commit 2284cf59cbce ("hugetlbfs:
-> Convert to fs_context") missed a terminator for hugetlb_param_specs[],
-> and causes this loop in fs_lookup_key(),
+On Mon, Feb 04, 2019 at 03:04:10PM -0800, Andrew Morton wrote:
+> On Mon,  4 Feb 2019 11:57:10 +1100 "Tobin C. Harding" <tobin@kernel.org> wrote:
 > 
-> for (p = desc->specs; p->name; p++)
+> > Here is v2 of the comments fixes [to single SLUB header file]
 > 
-> could not exit properly due to p->name is never be NULL.
-> 
-> [   91.575203] BUG: KASAN: global-out-of-bounds in fs_lookup_key+0x60/0x94
-> [   91.581810] Read of size 8 at addr ffff200010deeb10 by task mount/2461
-> [   91.597350] Call trace:
-> [   91.597357]  dump_backtrace+0x0/0x2b0
-> [   91.597361]  show_stack+0x24/0x30
-> [   91.597373]  dump_stack+0xc0/0xf8
-> [   91.623263]  print_address_description+0x64/0x2b0
-> [   91.627965]  kasan_report+0x150/0x1a4
-> [   91.627970]  __asan_report_load8_noabort+0x30/0x3c
-> [   91.627974]  fs_lookup_key+0x60/0x94
-> [   91.627977]  fs_parse+0x104/0x990
-> [   91.627986]  hugetlbfs_parse_param+0xc4/0x5e8
-> [   91.651081]  vfs_parse_fs_param+0x2e4/0x378
-> [   91.658118]  vfs_parse_fs_string+0xbc/0x12c
-> [   91.658122]  do_mount+0x11f0/0x1640
-> [   91.658125]  ksys_mount+0xc0/0xd0
-> [   91.658129]  __arm64_sys_mount+0xcc/0xe4
-> [   91.658137]  el0_svc_handler+0x28c/0x338
-> [   91.681740]  el0_svc+0x8/0xc
-> 
-> Fixes: 2284cf59cbce ("hugetlbfs: Convert to fs_context")
-> Signed-off-by: Qian Cai <cai@lca.pw>
+> Thanks. I think I'll put these into a single patch.
 
-Thanks for fixing this.  Looks like a simple oversight when 2284cf59cbce
-was added.
-
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
-
-I just started looking at the new mount API now.  It would be good if
-David also took a look to make sure everything else is OK.
-
-FYI David, the fs_parameter_spec example in the documentation (mount_api.txt)
-is also missing a terminator.
--- 
-Mike Kravetz
-
-> ---
->  fs/hugetlbfs/inode.c | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index abf0c2eb834e..4f352743930f 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -81,6 +81,7 @@ static const struct fs_parameter_spec hugetlb_param_specs[] = {
->  	fsparam_string("pagesize",	Opt_pagesize),
->  	fsparam_string("size",		Opt_size),
->  	fsparam_u32   ("uid",		Opt_uid),
-> +	{}
->  };
->  
->  static const struct fs_parameter_description hugetlb_fs_parameters = {
-> 
+Awesome, thank you.
 
