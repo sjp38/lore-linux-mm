@@ -2,349 +2,185 @@ Return-Path: <SRS0=TNGr=QM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D88C6C282CB
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 08:22:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2BFDFC282CC
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 08:53:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 79FD020818
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 08:22:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DC7A72080F
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 08:53:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="Nrt1rsnB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79FD020818
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (1024-bit key) header.d=alien8.de header.i=@alien8.de header.b="dFRXAToX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC7A72080F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=alien8.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 176DD8E007A; Tue,  5 Feb 2019 03:22:33 -0500 (EST)
+	id 690998E007B; Tue,  5 Feb 2019 03:53:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 125F18E001C; Tue,  5 Feb 2019 03:22:33 -0500 (EST)
+	id 63EB98E001C; Tue,  5 Feb 2019 03:53:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 014DE8E007A; Tue,  5 Feb 2019 03:22:32 -0500 (EST)
+	id 52E0E8E007B; Tue,  5 Feb 2019 03:53:28 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D19808E001C
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 03:22:32 -0500 (EST)
-Received: by mail-yb1-f200.google.com with SMTP id k186so1036940ybk.21
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 00:22:32 -0800 (PST)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ECED68E001C
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 03:53:27 -0500 (EST)
+Received: by mail-wm1-f71.google.com with SMTP id o5so702486wmf.9
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 00:53:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=kz3zeho6EvhbxURvMG/rWdNbC10QZyVhAT8x1eGGXPw=;
-        b=JUjXxHK6KVYjyQN510Toe8LcOUmMMmWDcDrnI73bAwg9fJ9JQon4nzC+MDa24WD+yC
-         Gg9s6FJjdcDC4NmKxF6EseTZZ1E//TrWXAlAoBOL943ha1rlEwDtL4f9GOAypObcyy5R
-         wce+U91qVHS6q2KxtJq8i4aWNhFQyk4EUuxmz0w2R7P6tDVHBO+YbHbfMru4kH6AMPgg
-         CnGgdyecH1b3wHYO+ZyGtdFvk8l5r1zZLqots7guccw6oH1uo0VvP6Yam6ZDnBXEmflL
-         Ic0U8WGlz2i7SQ73htnxOzFR1FoTpGq6tXb7nwzKZ7nAX6R2VxfMGqhzsaKGF5ljtXp/
-         xWIg==
-X-Gm-Message-State: AHQUAuanQHslSkjcZiR0TseDrcfJMCMUSyIhrH4ACQ7/xy9WlgVI2NMh
-	O9KHht+tHJnrGlgFxCQFLuQs07t8Q3GEwbHxAdN+WOzceFCQXMuRUxU8MT+H406f0rBcrw9emWl
-	I4VZkzrYZHx9hrA+e6kkX7SJlklxRlrPt2GAJmb5VNUNMw036g/cGHVyC5Gdp67qlfw==
-X-Received: by 2002:a25:4292:: with SMTP id p140mr2894175yba.240.1549354952445;
-        Tue, 05 Feb 2019 00:22:32 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaXTBVG2mBSDRJ0CRBX5+mlEkUau0NeY7hBImMxIm5LCBiynTJsPwetzPJzT0MAhBHC0+8H
-X-Received: by 2002:a25:4292:: with SMTP id p140mr2894137yba.240.1549354951500;
-        Tue, 05 Feb 2019 00:22:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549354951; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=9NPvfNG+JFpDM7sjiNkdW+XpScH5VeiM2qlV0JoY6ZA=;
+        b=fX7ETKRxvxJtE4d5S2+ZqKm3M2cC+DrmiVRZiXkuKYVrc9OBGNeBcIWCm1X+3tr4m+
+         OYk2XykXVFZmfic9iran3LaB5rS4cIq6r0aQ6gaLqyP2FS1egeZvSh2yp9tk9vM+dvjj
+         UQpnwFgl26FVEEC6yBAp5GIfkOUhFBreMtRmnkG5Y8gwGvhBSNp2liMuYTeZ+aY3jqwz
+         lMPj00vk3RUur6dr9W/Ahp+OvmvnkKvAARsVASkrnE1zv+4ql72LmCQmwkvn12LDvuw6
+         uRhMTlcpDJ8511CtUKD0IJP9eoptGCHZsupC1lDFENrO8peZmgKFo3odE6397gH9A0FW
+         XLag==
+X-Gm-Message-State: AHQUAubFtpVzYFwStsE4XqggEKKgM4ieam1MmtBop03x18MnfudywlSx
+	SRkVVRZGqwcoWE2/CNape6ah42JKSefpySOf4Pie3buwwWKNomyyeRwxuHHPtOJRQ7b4rHVSym/
+	D99Dt0LmXJ0dSEw+UR8r/fh9BY4RXonTBhjrMz6iKrYHBKKpBMvwBM0ZGq9z+KlVvkA==
+X-Received: by 2002:adf:fd03:: with SMTP id e3mr2566151wrr.280.1549356807410;
+        Tue, 05 Feb 2019 00:53:27 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib/V5JkkUW87pyYRNMP3fsxjLQcuLoxt5B3D2tnev9I7b1pXcOpn1LgVyWdgpsyUAXp3Auy
+X-Received: by 2002:adf:fd03:: with SMTP id e3mr2566105wrr.280.1549356806523;
+        Tue, 05 Feb 2019 00:53:26 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549356806; cv=none;
         d=google.com; s=arc-20160816;
-        b=Z7p8ATw8gqBuGVPPS7jArwvtEDJdphCN9DOhKHz2z+14+AmRFcb/hsmAjqUCag1tQt
-         oPZGRMrT5OnIybDWOHXw2DULkalskk3te5LMF35bpgE7+7RLM5rQrNhClLpGsM+JfGHE
-         6WBzRFztq/dVBeNUW7kGggbNZLk0hqFJk0Fd6/v5RpK+r+H4ghGkU9fkXk93ryV3+1B9
-         U6BRgQZ8w+B3fX6+p49lp/WuKhVm0nO6rcCbEfgxKZeSXCl9P7GG2MMmydTbequTlu9O
-         vdDCYTtTiiyAF7Y+0wvQEiqEFp2JpiemAYxMQUtr38npGtKzPi5djObQbTwouWCCBr9v
-         xhjA==
+        b=u3kfFrvCS52PLnDQWx+2OrPWcttlkR0heAz1pmAGHJKpspHOWHc75oGyFZJt8i4PTD
+         pAZgmFK5Q8cS2hA5rPc/BWr28KtsayuB8f2wWqjV5uWW31wVJ0KLnsbs/UFZiP4P/+Y0
+         WlfvQtY4HkMl/4EKgLm5Qk8XKe3n0wVh98OUGeCHyPJq7TCxVvYPvJVmjZnxDlZjLvLg
+         XrEccnSVf2ogq3B/MZ9qtVL2FjNMzIhVUyrfVULTVMXmf9F41GbmPgGkG+qSxLybg9dY
+         47mvKVONjJPDDt51uyNUYFF7aFsb1/warvDR2GWiCWVgaj7uho9jemr5JY9F/HJxdJjs
+         hq/g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=kz3zeho6EvhbxURvMG/rWdNbC10QZyVhAT8x1eGGXPw=;
-        b=D2ww+iX6wDCWmhnaPQI4kngdW/byWamuvvRveksyyGGkW32mpSvx4sHkJQDDUCJy7G
-         7zJKj8IABJo/a9wfVJHp0lEhFP1l9uy0V57CzLiuEPWBaDvXUWvpaSYcvCu45Ig25LUO
-         PLqM7+AcZE+Wm4W49n/Bo+HmoZT0GWlvBJC0Rv2chVUyrFacR5dspOxlq7a0WuLNVrPG
-         V1dPFiWtGyYIAWc9k6A6pf+RNlxhWUNe/F8wuyUH7ch8UfZDONGf31Gy6nvGepI+lf39
-         Xz9gyfZVsxcPNBi6wcu5JFTd3dbnmoigBmeMq6n2KCaiOKMBBvvmOAMDCJlEUoQuToeZ
-         Pynw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=9NPvfNG+JFpDM7sjiNkdW+XpScH5VeiM2qlV0JoY6ZA=;
+        b=vuR1D4aJCHh8Y3Mj8XjuCz+xzrdYezx/COhqx8GbgMFCvKddYAPJ/q6XY6YVpuOx/1
+         yvt+AS5p8viNhXM/65ZWUMF65zaHNN6uSEMO6T8PUkgbaS53wc/yD7azSw+CNPCdlyAp
+         WLPy/PXcSSihybTc3CgFPhWKtFhDKhdcmWLlGC/cm1pMeS0gB682uu0SVOnI3/EHkaGL
+         BSA2dOM4zCfdqDNkCO3oM3X7uPRF6X30Z8BoOpJnUFyDhZ7MVsxIqJPpuWqzcox/ojDv
+         zJXC9+h7O253At1JSKl2EmEul1Xzl3TAVARNE2oIhIrtZj65+KAsVxLDaHGL3fKvFOxO
+         wSQg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Nrt1rsnB;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id i194si1568865ywg.151.2019.02.05.00.22.31
+       dkim=pass header.i=@alien8.de header.s=dkim header.b=dFRXAToX;
+       spf=pass (google.com: domain of bp@alien8.de designates 2a01:4f8:190:11c2::b:1457 as permitted sender) smtp.mailfrom=bp@alien8.de;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTPS id a126si10619654wmc.150.2019.02.05.00.53.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Feb 2019 00:22:31 -0800 (PST)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+        Tue, 05 Feb 2019 00:53:26 -0800 (PST)
+Received-SPF: pass (google.com: domain of bp@alien8.de designates 2a01:4f8:190:11c2::b:1457 as permitted sender) client-ip=2a01:4f8:190:11c2::b:1457;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Nrt1rsnB;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c5947c80000>; Tue, 05 Feb 2019 00:22:32 -0800
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Tue, 05 Feb 2019 00:22:29 -0800
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Tue, 05 Feb 2019 00:22:29 -0800
-Received: from [10.2.164.51] (10.124.1.5) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Tue, 5 Feb
- 2019 08:22:28 +0000
-Subject: Re: [PATCH 0/6] RFC v2: mm: gup/dma tracking
-To: Tom Talpey <tom@talpey.com>, <john.hubbard@gmail.com>, Andrew Morton
-	<akpm@linux-foundation.org>, <linux-mm@kvack.org>
-CC: Al Viro <viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>,
-	Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>,
-	Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>, Doug Ledford
-	<dledford@redhat.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
-	<jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>, Matthew Wilcox
-	<willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Mike Rapoport
-	<rppt@linux.ibm.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Ralph
- Campbell <rcampbell@nvidia.com>, LKML <linux-kernel@vger.kernel.org>,
-	<linux-fsdevel@vger.kernel.org>
-References: <20190204052135.25784-1-jhubbard@nvidia.com>
- <dbca5400-b0c0-0958-c3ba-ff672f301799@talpey.com>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <80d503f5-038b-7f0b-90d5-e5b9537ae1df@nvidia.com>
-Date: Tue, 5 Feb 2019 00:22:40 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@alien8.de header.s=dkim header.b=dFRXAToX;
+       spf=pass (google.com: domain of bp@alien8.de designates 2a01:4f8:190:11c2::b:1457 as permitted sender) smtp.mailfrom=bp@alien8.de;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
+Received: from zn.tnic (p200300EC2BCB6B008896F3D5E1C66173.dip0.t-ipconnect.de [IPv6:2003:ec:2bcb:6b00:8896:f3d5:e1c6:6173])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.skyhub.de (SuperMail on ZX Spectrum 128k) with ESMTPSA id 955EB1EC02AE;
+	Tue,  5 Feb 2019 09:53:25 +0100 (CET)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=alien8.de; s=dkim;
+	t=1549356805;
+	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
+	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
+	 content-transfer-encoding:in-reply-to:in-reply-to:  references:references;
+	bh=9NPvfNG+JFpDM7sjiNkdW+XpScH5VeiM2qlV0JoY6ZA=;
+	b=dFRXAToX5/08SPN0allQ11aILUZsmqf1gG1hG+VKNk9k/KbmUKs/QtkUV1Dckk8k5WEBri
+	SbcwLdA6zuqezXnk0dN5d6IYdQlJsKW0k1gguU0W6REBUNatrwKiZt6E8IsZhciVrJH0CU
+	WTpRddr5zmzLbrlGnkZkBIBx+ZjWfJ4=
+Date: Tue, 5 Feb 2019 09:53:11 +0100
+From: Borislav Petkov <bp@alien8.de>
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>,
+	linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Nadav Amit <nadav.amit@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com,
+	linux-integrity@vger.kernel.org,
+	linux-security-module@vger.kernel.org, akpm@linux-foundation.org,
+	kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
+	will.deacon@arm.com, ard.biesheuvel@linaro.org,
+	kristen@linux.intel.com, deneen.t.dock@intel.com,
+	Nadav Amit <namit@vmware.com>, Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>
+Subject: Re: [PATCH v2 04/20] fork: provide a function for copying init_mm
+Message-ID: <20190205085311.GH21801@zn.tnic>
+References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
+ <20190129003422.9328-5-rick.p.edgecombe@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <dbca5400-b0c0-0958-c3ba-ff672f301799@talpey.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1549354952; bh=kz3zeho6EvhbxURvMG/rWdNbC10QZyVhAT8x1eGGXPw=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
-	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
-	 X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=Nrt1rsnB6BTAVLqc91OHTHPHw+X7x1BJN4vWnLsTnMEnQSL/2lSGsuMY+nbmWvhoU
-	 9mHnBGTlESe+DwV6zjuz08qt4LHgs8jzxXkY/IjmSwBbX48Unx54wLUmrgk9+gx3zj
-	 hKsUTkwtc7bu3tlgpiGrur/i2FfZEFGljStLOID+EfOMymW/1ZtrAsmibkgGpi9wVA
-	 nsLIdPjKrWgSqHx8celGrc8W6BFZhxDPHTBdZJthg0oXXxU6c9kgGhCjhl4o0dD2wl
-	 qjuVSoCIi6DgsT58bGFh689S18EHHuCQ2TkKCYj2PNGgWlueBhjfnrTYaWfmJ0kJK6
-	 X6ZV2Wsn6RWmQ==
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20190129003422.9328-5-rick.p.edgecombe@intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/4/19 5:41 PM, Tom Talpey wrote:
-> On 2/4/2019 12:21 AM, john.hubbard@gmail.com wrote:
->> From: John Hubbard <jhubbard@nvidia.com>
->>
->>
->> Performance: here is an fio run on an NVMe drive, using this for the fio
->> configuration file:
->>
->> =C2=A0=C2=A0=C2=A0=C2=A0 [reader]
->> =C2=A0=C2=A0=C2=A0=C2=A0 direct=3D1
->> =C2=A0=C2=A0=C2=A0=C2=A0 ioengine=3Dlibaio
->> =C2=A0=C2=A0=C2=A0=C2=A0 blocksize=3D4096
->> =C2=A0=C2=A0=C2=A0=C2=A0 size=3D1g
->> =C2=A0=C2=A0=C2=A0=C2=A0 numjobs=3D1
->> =C2=A0=C2=A0=C2=A0=C2=A0 rw=3Dread
->> =C2=A0=C2=A0=C2=A0=C2=A0 iodepth=3D64
->>
->> reader: (g=3D0): rw=3Dread, bs=3D(R) 4096B-4096B, (W) 4096B-4096B, (T)=20
->> 4096B-4096B, ioengine=3Dlibaio, iodepth=3D64
->> fio-3.3
->> Starting 1 process
->> Jobs: 1 (f=3D1)
->> reader: (groupid=3D0, jobs=3D1): err=3D 0: pid=3D7011: Sun Feb=C2=A0 3 2=
-0:36:51 2019
->> =C2=A0=C2=A0=C2=A0 read: IOPS=3D190k, BW=3D741MiB/s (778MB/s)(1024MiB/13=
-81msec)
->> =C2=A0=C2=A0=C2=A0=C2=A0 slat (nsec): min=3D2716, max=3D57255, avg=3D404=
-8.14, stdev=3D1084.10
->> =C2=A0=C2=A0=C2=A0=C2=A0 clat (usec): min=3D20, max=3D12485, avg=3D332.6=
-3, stdev=3D191.77
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 lat (usec): min=3D22, max=3D12498, avg=3D=
-336.72, stdev=3D192.07
->> =C2=A0=C2=A0=C2=A0=C2=A0 clat percentiles (usec):
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 |=C2=A0 1.00th=3D[=C2=A0 322],=C2=A0 5.00=
-th=3D[=C2=A0 322], 10.00th=3D[=C2=A0 322], 20.00th=3D[ =20
->> 326],
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 | 30.00th=3D[=C2=A0 326], 40.00th=3D[=C2=
-=A0 326], 50.00th=3D[=C2=A0 326], 60.00th=3D[ =20
->> 326],
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 | 70.00th=3D[=C2=A0 326], 80.00th=3D[=C2=
-=A0 330], 90.00th=3D[=C2=A0 330], 95.00th=3D[ =20
->> 330],
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 | 99.00th=3D[=C2=A0 478], 99.50th=3D[=C2=
-=A0 717], 99.90th=3D[ 1074], 99.95th=3D[=20
->> 1090],
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 | 99.99th=3D[12256]
->=20
-> These latencies are concerning. The best results we saw at the end of
-> November (previous approach) were MUCH flatter. These really start
-> spiking at three 9's, and are sky-high at four 9's. The "stdev" values
-> for clat and lat are about 10 times the previous. There's some kind
-> of serious queuing contention here, that wasn't there in November.
+On Mon, Jan 28, 2019 at 04:34:06PM -0800, Rick Edgecombe wrote:
+> From: Nadav Amit <namit@vmware.com>
+> 
+> Provide a function for copying init_mm. This function will be later used
+> for setting a temporary mm.
+> 
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+> Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
+> Tested-by: Masami Hiramatsu <mhiramat@kernel.org>
+> Signed-off-by: Nadav Amit <namit@vmware.com>
+> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
+> ---
+>  include/linux/sched/task.h |  1 +
+>  kernel/fork.c              | 24 ++++++++++++++++++------
+>  2 files changed, 19 insertions(+), 6 deletions(-)
+> 
+> diff --git a/include/linux/sched/task.h b/include/linux/sched/task.h
+> index 44c6f15800ff..c5a00a7b3beb 100644
+> --- a/include/linux/sched/task.h
+> +++ b/include/linux/sched/task.h
+> @@ -76,6 +76,7 @@ extern void exit_itimers(struct signal_struct *);
+>  extern long _do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *, unsigned long);
+>  extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
+>  struct task_struct *fork_idle(int);
+> +struct mm_struct *copy_init_mm(void);
+>  extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
+>  extern long kernel_wait4(pid_t, int __user *, int, struct rusage *);
+>  
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index b69248e6f0e0..d7b156c49f29 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -1299,13 +1299,20 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
+>  		complete_vfork_done(tsk);
+>  }
+>  
+> -/*
+> - * Allocate a new mm structure and copy contents from the
+> - * mm structure of the passed in task structure.
+> +/**
+> + * dup_mm() - duplicates an existing mm structure
+> + * @tsk: the task_struct with which the new mm will be associated.
+> + * @oldmm: the mm to duplicate.
+> + *
+> + * Allocates a new mm structure and copy contents from the provided
 
-Hi Tom,
+s/copy/copies/
 
-I think this latency problem is also there in the baseline kernel, but...
+-- 
+Regards/Gruss,
+    Boris.
 
->=20
->> =C2=A0=C2=A0=C2=A0 bw (=C2=A0 KiB/s): min=3D730152, max=3D776512, per=3D=
-99.22%, avg=3D753332.00,=20
->> stdev=3D32781.47, samples=3D2
->> =C2=A0=C2=A0=C2=A0 iops=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 : min=
-=3D182538, max=3D194128, avg=3D188333.00,=20
->> stdev=3D8195.37, samples=3D2
->> =C2=A0=C2=A0 lat (usec)=C2=A0=C2=A0 : 50=3D0.01%, 100=3D0.01%, 250=3D0.0=
-7%, 500=3D99.26%, 750=3D0.38%
->> =C2=A0=C2=A0 lat (usec)=C2=A0=C2=A0 : 1000=3D0.02%
->> =C2=A0=C2=A0 lat (msec)=C2=A0=C2=A0 : 2=3D0.24%, 20=3D0.02%
->> =C2=A0=C2=A0 cpu=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 :=
- usr=3D15.07%, sys=3D84.13%, ctx=3D10, majf=3D0, minf=3D74
->=20
-> System CPU 84% is roughly double the November results of 45%. Ouch.
-
-That's my fault. First of all, I had a few extra, supposedly minor debug
-settings in the .config, which I'm removing now--I'm doing a proper run
-with the original .config file from November, below. Second, I'm not
-sure I controlled the run carefully enough.
-
->=20
-> Did you re-run the baseline on the new unpatched base kernel and can
-> we see the before/after?
-
-Doing that now, I see:
-
--- No significant perf difference between before and after, but
--- Still high clat in the 99.99th
-
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-Before: using commit 8834f5600cf3 ("Linux 5.0-rc5")
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D
-reader: (g=3D0): rw=3Dread, bs=3D(R) 4096B-4096B, (W) 4096B-4096B, (T)=20
-4096B-4096B, ioengine=3Dlibaio, iodepth=3D64
-fio-3.3
-Starting 1 process
-Jobs: 1 (f=3D1)
-reader: (groupid=3D0, jobs=3D1): err=3D 0: pid=3D1829: Tue Feb  5 00:08:08 =
-2019
-    read: IOPS=3D193k, BW=3D753MiB/s (790MB/s)(1024MiB/1359msec)
-     slat (nsec): min=3D1269, max=3D40309, avg=3D1493.66, stdev=3D534.83
-     clat (usec): min=3D127, max=3D12249, avg=3D329.83, stdev=3D184.92
-      lat (usec): min=3D129, max=3D12256, avg=3D331.35, stdev=3D185.06
-     clat percentiles (usec):
-      |  1.00th=3D[  326],  5.00th=3D[  326], 10.00th=3D[  326], 20.00th=3D=
-[  326],
-      | 30.00th=3D[  326], 40.00th=3D[  326], 50.00th=3D[  326], 60.00th=3D=
-[  326],
-      | 70.00th=3D[  326], 80.00th=3D[  326], 90.00th=3D[  326], 95.00th=3D=
-[  326],
-      | 99.00th=3D[  347], 99.50th=3D[  519], 99.90th=3D[  529], 99.95th=3D=
-[  537],
-      | 99.99th=3D[12125]
-    bw (  KiB/s): min=3D755032, max=3D781472, per=3D99.57%, avg=3D768252.00=
-,=20
-stdev=3D18695.90, samples=3D2
-    iops        : min=3D188758, max=3D195368, avg=3D192063.00, stdev=3D4673=
-.98,=20
-samples=3D2
-   lat (usec)   : 250=3D0.08%, 500=3D99.18%, 750=3D0.72%
-   lat (msec)   : 20=3D0.02%
-   cpu          : usr=3D12.30%, sys=3D46.83%, ctx=3D253554, majf=3D0, minf=
-=3D74
-   IO depths    : 1=3D0.1%, 2=3D0.1%, 4=3D0.1%, 8=3D0.1%, 16=3D0.1%, 32=3D0=
-.1%,=20
- >=3D64=3D100.0%
-      submit    : 0=3D0.0%, 4=3D100.0%, 8=3D0.0%, 16=3D0.0%, 32=3D0.0%, 64=
-=3D0.0%,=20
- >=3D64=3D0.0%
-      complete  : 0=3D0.0%, 4=3D100.0%, 8=3D0.0%, 16=3D0.0%, 32=3D0.0%, 64=
-=3D0.1%,=20
- >=3D64=3D0.0%
-      issued rwts: total=3D262144,0,0,0 short=3D0,0,0,0 dropped=3D0,0,0,0
-      latency   : target=3D0, window=3D0, percentile=3D100.00%, depth=3D64
-
-Run status group 0 (all jobs):
-    READ: bw=3D753MiB/s (790MB/s), 753MiB/s-753MiB/s (790MB/s-790MB/s),=20
-io=3D1024MiB (1074MB), run=3D1359-1359msec
-
-Disk stats (read/write):
-   nvme0n1: ios=3D221246/0, merge=3D0/0, ticks=3D71556/0, in_queue=3D704,=20
-util=3D91.35%
-
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-After:
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-reader: (g=3D0): rw=3Dread, bs=3D(R) 4096B-4096B, (W) 4096B-4096B, (T)=20
-4096B-4096B, ioengine=3Dlibaio, iodepth=3D64
-fio-3.3
-Starting 1 process
-Jobs: 1 (f=3D1)
-reader: (groupid=3D0, jobs=3D1): err=3D 0: pid=3D1803: Mon Feb  4 23:58:07 =
-2019
-    read: IOPS=3D193k, BW=3D753MiB/s (790MB/s)(1024MiB/1359msec)
-     slat (nsec): min=3D1276, max=3D41900, avg=3D1505.36, stdev=3D565.26
-     clat (usec): min=3D177, max=3D12186, avg=3D329.88, stdev=3D184.03
-      lat (usec): min=3D178, max=3D12192, avg=3D331.42, stdev=3D184.16
-     clat percentiles (usec):
-      |  1.00th=3D[  326],  5.00th=3D[  326], 10.00th=3D[  326], 20.00th=3D=
-[  326],
-      | 30.00th=3D[  326], 40.00th=3D[  326], 50.00th=3D[  326], 60.00th=3D=
-[  326],
-      | 70.00th=3D[  326], 80.00th=3D[  326], 90.00th=3D[  326], 95.00th=3D=
-[  326],
-      | 99.00th=3D[  359], 99.50th=3D[  498], 99.90th=3D[  537], 99.95th=3D=
-[  627],
-      | 99.99th=3D[12125]
-    bw (  KiB/s): min=3D754656, max=3D781504, per=3D99.55%, avg=3D768080.00=
-,=20
-stdev=3D18984.40, samples=3D2
-    iops        : min=3D188664, max=3D195378, avg=3D192021.00, stdev=3D4747=
-.51,=20
-samples=3D2
-   lat (usec)   : 250=3D0.12%, 500=3D99.40%, 750=3D0.46%
-   lat (msec)   : 20=3D0.02%
-   cpu          : usr=3D12.44%, sys=3D47.05%, ctx=3D252127, majf=3D0, minf=
-=3D73
-   IO depths    : 1=3D0.1%, 2=3D0.1%, 4=3D0.1%, 8=3D0.1%, 16=3D0.1%, 32=3D0=
-.1%,=20
- >=3D64=3D100.0%
-      submit    : 0=3D0.0%, 4=3D100.0%, 8=3D0.0%, 16=3D0.0%, 32=3D0.0%, 64=
-=3D0.0%,=20
- >=3D64=3D0.0%
-      complete  : 0=3D0.0%, 4=3D100.0%, 8=3D0.0%, 16=3D0.0%, 32=3D0.0%, 64=
-=3D0.1%,=20
- >=3D64=3D0.0%
-      issued rwts: total=3D262144,0,0,0 short=3D0,0,0,0 dropped=3D0,0,0,0
-      latency   : target=3D0, window=3D0, percentile=3D100.00%, depth=3D64
-
-Run status group 0 (all jobs):
-    READ: bw=3D753MiB/s (790MB/s), 753MiB/s-753MiB/s (790MB/s-790MB/s),=20
-io=3D1024MiB (1074MB), run=3D1359-1359msec
-
-Disk stats (read/write):
-   nvme0n1: ios=3D221203/0, merge=3D0/0, ticks=3D71291/0, in_queue=3D704,=20
-util=3D91.19%
-
-How's this look to you?
-
-thanks,
---=20
-John Hubbard
-NVIDIA
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
