@@ -2,185 +2,163 @@ Return-Path: <SRS0=TNGr=QM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2BFDFC282CC
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 08:53:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1DC7DC282D7
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 09:03:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DC7A72080F
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 08:53:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B3B3A2075B
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 09:03:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=alien8.de header.i=@alien8.de header.b="dFRXAToX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC7A72080F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=alien8.de
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="M7TCpRGF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3B3A2075B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 690998E007B; Tue,  5 Feb 2019 03:53:28 -0500 (EST)
+	id 130C78E007C; Tue,  5 Feb 2019 04:03:51 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 63EB98E001C; Tue,  5 Feb 2019 03:53:28 -0500 (EST)
+	id 0ED6F8E001C; Tue,  5 Feb 2019 04:03:51 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 52E0E8E007B; Tue,  5 Feb 2019 03:53:28 -0500 (EST)
+	id EE98F8E007C; Tue,  5 Feb 2019 04:03:50 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ECED68E001C
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 03:53:27 -0500 (EST)
-Received: by mail-wm1-f71.google.com with SMTP id o5so702486wmf.9
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 00:53:27 -0800 (PST)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C41F18E001C
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 04:03:50 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id y3so1072134ybf.12
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 01:03:50 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=9NPvfNG+JFpDM7sjiNkdW+XpScH5VeiM2qlV0JoY6ZA=;
-        b=fX7ETKRxvxJtE4d5S2+ZqKm3M2cC+DrmiVRZiXkuKYVrc9OBGNeBcIWCm1X+3tr4m+
-         OYk2XykXVFZmfic9iran3LaB5rS4cIq6r0aQ6gaLqyP2FS1egeZvSh2yp9tk9vM+dvjj
-         UQpnwFgl26FVEEC6yBAp5GIfkOUhFBreMtRmnkG5Y8gwGvhBSNp2liMuYTeZ+aY3jqwz
-         lMPj00vk3RUur6dr9W/Ahp+OvmvnkKvAARsVASkrnE1zv+4ql72LmCQmwkvn12LDvuw6
-         uRhMTlcpDJ8511CtUKD0IJP9eoptGCHZsupC1lDFENrO8peZmgKFo3odE6397gH9A0FW
-         XLag==
-X-Gm-Message-State: AHQUAubFtpVzYFwStsE4XqggEKKgM4ieam1MmtBop03x18MnfudywlSx
-	SRkVVRZGqwcoWE2/CNape6ah42JKSefpySOf4Pie3buwwWKNomyyeRwxuHHPtOJRQ7b4rHVSym/
-	D99Dt0LmXJ0dSEw+UR8r/fh9BY4RXonTBhjrMz6iKrYHBKKpBMvwBM0ZGq9z+KlVvkA==
-X-Received: by 2002:adf:fd03:: with SMTP id e3mr2566151wrr.280.1549356807410;
-        Tue, 05 Feb 2019 00:53:27 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib/V5JkkUW87pyYRNMP3fsxjLQcuLoxt5B3D2tnev9I7b1pXcOpn1LgVyWdgpsyUAXp3Auy
-X-Received: by 2002:adf:fd03:: with SMTP id e3mr2566105wrr.280.1549356806523;
-        Tue, 05 Feb 2019 00:53:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549356806; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=iiLzaNANibauf4WDgP9oQJ7qsEJ7GeQ8Co2yEFUHTIY=;
+        b=Ij/R+QC5x9sljfPcjYSBfW9G5VpWIjZSv6Omc+hbldg4l3FeYcZbQW1fus55x8nW1x
+         Vhsl+9ZtKLtfrNVwYMowqtHZWQvSVt1WcIrSQZHgVHVNvREsK8N7jY2DOuFeVRlpTGqq
+         LrzU3KEAyVkrFvQJw2ou1uaa4B03pSWkmJN13q4ZZ2EVNXEKU/gvMtk6Kf7WtPNFaI2h
+         8zkHXvuO1P+iUpceCDCBxtqih5C0eTOwZ3g3Ot7KEogpxAMBJENqMG5rs5ogI8D4E5nB
+         efz71il8Uv1Vb5LX1zD1RK9FoS7omXktDdUUrupdJUITDrKE2j6ayqF2XfkVJPDM+5gC
+         FCNg==
+X-Gm-Message-State: AHQUAubMpDvE0VL6vDrx9WfHR2MXkFuzMYdoyYsiqgTZWzYVTy8tyo8p
+	AYXbEjTQ3t5TvD2tCHXdiEY7gi8cjk2A1tAs134V/HqUsBSGWlfLvuVavQs3c3aenccgcxmwRBK
+	qxfuwaGe8IdNM/4q3o9keOgrSFrO1h2yXlkghmjWi35kKjtIeGtZShMvkiQF22pso3HCA5Z7fjZ
+	1E8eLQVzVmBPiiOya8zNad+UCJbf7o5da+WwF2t98rE4hlbqFy97dLV1GLknlkzrCWbZ8FQVby/
+	GQoCm/tf/H8SZPjzuKIXDDzafsfCcs/DtF+liHZXfbowmwke9Ti00X9rgU0FcWXcqKHwB/iTdLA
+	nEq4u/n47QpTryusE4r4TwBQ3sqrOLKsMVRM5l5aY/ENaKTu2mpOMpJ+KlYA2WTZN1uG9D4dRIu
+	N
+X-Received: by 2002:a25:4506:: with SMTP id s6mr2869679yba.387.1549357430521;
+        Tue, 05 Feb 2019 01:03:50 -0800 (PST)
+X-Received: by 2002:a25:4506:: with SMTP id s6mr2869647yba.387.1549357430014;
+        Tue, 05 Feb 2019 01:03:50 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549357430; cv=none;
         d=google.com; s=arc-20160816;
-        b=u3kfFrvCS52PLnDQWx+2OrPWcttlkR0heAz1pmAGHJKpspHOWHc75oGyFZJt8i4PTD
-         pAZgmFK5Q8cS2hA5rPc/BWr28KtsayuB8f2wWqjV5uWW31wVJ0KLnsbs/UFZiP4P/+Y0
-         WlfvQtY4HkMl/4EKgLm5Qk8XKe3n0wVh98OUGeCHyPJq7TCxVvYPvJVmjZnxDlZjLvLg
-         XrEccnSVf2ogq3B/MZ9qtVL2FjNMzIhVUyrfVULTVMXmf9F41GbmPgGkG+qSxLybg9dY
-         47mvKVONjJPDDt51uyNUYFF7aFsb1/warvDR2GWiCWVgaj7uho9jemr5JY9F/HJxdJjs
-         hq/g==
+        b=zc1A3WME4/aCIJquGhEWC2EUmqg3e8eP6pvMvbarMcUMe1f6d1ujcRpjNBjR9r0Rk7
+         rc/4eibpn9gUv8iN5fnCnPCQlc6mIFbfUOEfxBRjeezUrq87I+/SGvPHWO9hYkPTsWc9
+         xl16nfKr3/CPGpoQmMMJtCS7FydksMsZb7qaxbi0Qs0CAQYS67P5ydCx4Xmm5I95dEgD
+         SHrrC8eRKLWJK+JxtPnFdBhKzkjK10sY1FEyLyrWgHhpiAyUbbpLh4nVx35j/YRifZRR
+         IJ0D3HDDVj1of9UMv3h97dqwQEzaP7LAZee+Us/RU6tZelsyy0TnX6osPTxxEd4ZfFF9
+         pJ/w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=9NPvfNG+JFpDM7sjiNkdW+XpScH5VeiM2qlV0JoY6ZA=;
-        b=vuR1D4aJCHh8Y3Mj8XjuCz+xzrdYezx/COhqx8GbgMFCvKddYAPJ/q6XY6YVpuOx/1
-         yvt+AS5p8viNhXM/65ZWUMF65zaHNN6uSEMO6T8PUkgbaS53wc/yD7azSw+CNPCdlyAp
-         WLPy/PXcSSihybTc3CgFPhWKtFhDKhdcmWLlGC/cm1pMeS0gB682uu0SVOnI3/EHkaGL
-         BSA2dOM4zCfdqDNkCO3oM3X7uPRF6X30Z8BoOpJnUFyDhZ7MVsxIqJPpuWqzcox/ojDv
-         zJXC9+h7O253At1JSKl2EmEul1Xzl3TAVARNE2oIhIrtZj65+KAsVxLDaHGL3fKvFOxO
-         wSQg==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=iiLzaNANibauf4WDgP9oQJ7qsEJ7GeQ8Co2yEFUHTIY=;
+        b=VETph3hU+sWpqttIFThbWMTgbKQ8OahQcVijpC80+ga/oM+5RtrWkcXa4kQwbzDQb6
+         bveNhzDqoioYUb4lZUudtEnJvEWcF5DVT5GR0MAEtWuuqUVzwoKLGlg+8HtCq3FM5QTi
+         3hI0HZ5yOjWoXIAU3mBI5A1qx2/tEv8nJX8VbHAmvhW4dWRu0LfmAaVDQqg/7kufk9V+
+         78H0XHRbms3XN8TJWNhQNlPwITmWCGpeQ2DmHZcTAiYCehmFP46BqWQVst6a2fzGEY+L
+         s6y8AGAYdQobjns7izp3c6ULpW1ebw/Cr3RwOjJh4uheV3zWVCzcTnHLmCqfFgrEn4Qo
+         /VFQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b=dFRXAToX;
-       spf=pass (google.com: domain of bp@alien8.de designates 2a01:4f8:190:11c2::b:1457 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id a126si10619654wmc.150.2019.02.05.00.53.26
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=M7TCpRGF;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r65sor473590ywf.199.2019.02.05.01.03.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Feb 2019 00:53:26 -0800 (PST)
-Received-SPF: pass (google.com: domain of bp@alien8.de designates 2a01:4f8:190:11c2::b:1457 as permitted sender) client-ip=2a01:4f8:190:11c2::b:1457;
+        (Google Transport Security);
+        Tue, 05 Feb 2019 01:03:50 -0800 (PST)
+Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b=dFRXAToX;
-       spf=pass (google.com: domain of bp@alien8.de designates 2a01:4f8:190:11c2::b:1457 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from zn.tnic (p200300EC2BCB6B008896F3D5E1C66173.dip0.t-ipconnect.de [IPv6:2003:ec:2bcb:6b00:8896:f3d5:e1c6:6173])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.skyhub.de (SuperMail on ZX Spectrum 128k) with ESMTPSA id 955EB1EC02AE;
-	Tue,  5 Feb 2019 09:53:25 +0100 (CET)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=alien8.de; s=dkim;
-	t=1549356805;
-	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
-	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
-	 content-transfer-encoding:in-reply-to:in-reply-to:  references:references;
-	bh=9NPvfNG+JFpDM7sjiNkdW+XpScH5VeiM2qlV0JoY6ZA=;
-	b=dFRXAToX5/08SPN0allQ11aILUZsmqf1gG1hG+VKNk9k/KbmUKs/QtkUV1Dckk8k5WEBri
-	SbcwLdA6zuqezXnk0dN5d6IYdQlJsKW0k1gguU0W6REBUNatrwKiZt6E8IsZhciVrJH0CU
-	WTpRddr5zmzLbrlGnkZkBIBx+ZjWfJ4=
-Date: Tue, 5 Feb 2019 09:53:11 +0100
-From: Borislav Petkov <bp@alien8.de>
-To: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>,
-	linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Nadav Amit <nadav.amit@gmail.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com,
-	linux-integrity@vger.kernel.org,
-	linux-security-module@vger.kernel.org, akpm@linux-foundation.org,
-	kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
-	will.deacon@arm.com, ard.biesheuvel@linaro.org,
-	kristen@linux.intel.com, deneen.t.dock@intel.com,
-	Nadav Amit <namit@vmware.com>, Kees Cook <keescook@chromium.org>,
-	Dave Hansen <dave.hansen@intel.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=M7TCpRGF;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=iiLzaNANibauf4WDgP9oQJ7qsEJ7GeQ8Co2yEFUHTIY=;
+        b=M7TCpRGFwBPB1IAhENhKs1QF/a46qPSjmqeRs3zKzekzh4em/YGC8RsQGRf/UyJKhY
+         M94T3ExmxV8td1HycDiMeIYWJATjymIjspEGi36ns4QHwEVT1ByPbgTpZHEozl/kDshd
+         z9/0F32EdKPdrmk21msVPKSr51OP7upVQ/He+j0aepxVNFGGPBFOQa18TFhD7pi9x+2w
+         sb4i6d2T27RRBgBih0cxgcGruO4O2fegbHI1XGGWJt2nY79W/26GUrrE5In0FtHtLbP5
+         poZZ5brFGjXxsTiqb+hwwNvtkfwQ/1E/9dGP3+pnftHhkB1+i/joqbXE1xn6/zVPODEG
+         Mm9g==
+X-Google-Smtp-Source: AHgI3IYEVOw5QrKXj8H8lemNUvI0jmUElJMn+NPfl6e6MupMXqPWylkV9RxkZ0L0f9/SikFyHUah9w==
+X-Received: by 2002:a81:2514:: with SMTP id l20mr3002708ywl.3.1549357429310;
+        Tue, 05 Feb 2019 01:03:49 -0800 (PST)
+Received: from [10.33.115.182] ([66.170.99.1])
+        by smtp.gmail.com with ESMTPSA id e9sm1047040ywb.45.2019.02.05.01.03.46
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Feb 2019 01:03:48 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
 Subject: Re: [PATCH v2 04/20] fork: provide a function for copying init_mm
-Message-ID: <20190205085311.GH21801@zn.tnic>
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <20190205085311.GH21801@zn.tnic>
+Date: Tue, 5 Feb 2019 01:03:45 -0800
+Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>,
+ Andy Lutomirski <luto@kernel.org>,
+ Ingo Molnar <mingo@redhat.com>,
+ LKML <linux-kernel@vger.kernel.org>,
+ X86 ML <x86@kernel.org>,
+ "H. Peter Anvin" <hpa@zytor.com>,
+ Thomas Gleixner <tglx@linutronix.de>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Damian Tometzki <linux_dti@icloud.com>,
+ linux-integrity <linux-integrity@vger.kernel.org>,
+ LSM List <linux-security-module@vger.kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Kernel Hardening <kernel-hardening@lists.openwall.com>,
+ Linux-MM <linux-mm@kvack.org>,
+ Will Deacon <will.deacon@arm.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Kristen Carlson Accardi <kristen@linux.intel.com>,
+ "Dock, Deneen T" <deneen.t.dock@intel.com>,
+ Kees Cook <keescook@chromium.org>,
+ Dave Hansen <dave.hansen@intel.com>
+Content-Transfer-Encoding: 7bit
+Message-Id: <BF9D1501-5EFF-46FB-8DAB-8C7A2088DB42@gmail.com>
 References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
  <20190129003422.9328-5-rick.p.edgecombe@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20190129003422.9328-5-rick.p.edgecombe@intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+ <20190205085311.GH21801@zn.tnic>
+To: Borislav Petkov <bp@alien8.de>
+X-Mailer: Apple Mail (2.3445.102.3)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 28, 2019 at 04:34:06PM -0800, Rick Edgecombe wrote:
-> From: Nadav Amit <namit@vmware.com>
+> On Feb 5, 2019, at 12:53 AM, Borislav Petkov <bp@alien8.de> wrote:
 > 
-> Provide a function for copying init_mm. This function will be later used
-> for setting a temporary mm.
+> On Mon, Jan 28, 2019 at 04:34:06PM -0800, Rick Edgecombe wrote:
+>> From: Nadav Amit <namit@vmware.com>
+>> 
+>> - * Allocate a new mm structure and copy contents from the
+>> - * mm structure of the passed in task structure.
+>> +/**
+>> + * dup_mm() - duplicates an existing mm structure
+>> + * @tsk: the task_struct with which the new mm will be associated.
+>> + * @oldmm: the mm to duplicate.
+>> + *
+>> + * Allocates a new mm structure and copy contents from the provided
 > 
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Kees Cook <keescook@chromium.org>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-> Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
-> Tested-by: Masami Hiramatsu <mhiramat@kernel.org>
-> Signed-off-by: Nadav Amit <namit@vmware.com>
-> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
-> ---
->  include/linux/sched/task.h |  1 +
->  kernel/fork.c              | 24 ++++++++++++++++++------
->  2 files changed, 19 insertions(+), 6 deletions(-)
-> 
-> diff --git a/include/linux/sched/task.h b/include/linux/sched/task.h
-> index 44c6f15800ff..c5a00a7b3beb 100644
-> --- a/include/linux/sched/task.h
-> +++ b/include/linux/sched/task.h
-> @@ -76,6 +76,7 @@ extern void exit_itimers(struct signal_struct *);
->  extern long _do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *, unsigned long);
->  extern long do_fork(unsigned long, unsigned long, unsigned long, int __user *, int __user *);
->  struct task_struct *fork_idle(int);
-> +struct mm_struct *copy_init_mm(void);
->  extern pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
->  extern long kernel_wait4(pid_t, int __user *, int, struct rusage *);
->  
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index b69248e6f0e0..d7b156c49f29 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -1299,13 +1299,20 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
->  		complete_vfork_done(tsk);
->  }
->  
-> -/*
-> - * Allocate a new mm structure and copy contents from the
-> - * mm structure of the passed in task structure.
-> +/**
-> + * dup_mm() - duplicates an existing mm structure
-> + * @tsk: the task_struct with which the new mm will be associated.
-> + * @oldmm: the mm to duplicate.
-> + *
-> + * Allocates a new mm structure and copy contents from the provided
+> s/copy/copies/
 
-s/copy/copies/
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Thanks, applied (I revised this sentence a bit).
 
