@@ -2,158 +2,149 @@ Return-Path: <SRS0=TNGr=QM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9A006C282CB
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 04:05:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 974A8C282D7
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 04:27:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4F1E520818
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 04:05:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 49FF32145D
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 04:27:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="LugmjNOo";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="aj5iM51Y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4F1E520818
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="xHNBcEmw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49FF32145D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DF6C58E0072; Mon,  4 Feb 2019 23:05:31 -0500 (EST)
+	id D9A618E0073; Mon,  4 Feb 2019 23:27:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DA6858E001C; Mon,  4 Feb 2019 23:05:31 -0500 (EST)
+	id D489B8E001C; Mon,  4 Feb 2019 23:27:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C94D58E0072; Mon,  4 Feb 2019 23:05:31 -0500 (EST)
+	id C0FD18E0073; Mon,  4 Feb 2019 23:27:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D2078E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 23:05:31 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id m37so2365812qte.10
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 20:05:31 -0800 (PST)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DEE88E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 23:27:01 -0500 (EST)
+Received: by mail-wm1-f71.google.com with SMTP id f6so754083wmj.5
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 20:27:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
-         :subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=zjdfF6fptfX7K6A8RaIXFGiKuRzQA5sSSQPwlsRUNkI=;
-        b=ZXVzb5kys6TFNZDfAxixA5umBcM2SZh6KoF6WqRkT4rEqDV3keQ2h6lDVHijErU6X1
-         7xq1X6jWeGdccN5fdFNi+fLvzGie4Zw/R85BM4hcq0Xhiqmvy+nC3dkgAhLpGWQZjVOI
-         6z3OnDOq7p8/SH/YELTxxItEPvRzy+TiCvjFStNn9ZC2DrZAMStDCSupfoi8igu9xi2l
-         x4FNqFfDCut9fZ/L+eaX2szM1D2rpI8H+7MCzKxbpK3kbzO/rxQ0yJDk8gKe2JooSQwV
-         O0jdUzHh0l1L/GHWtl0+I0LkuFeKs62leyB5ve3/6eSDijN2vrvvFeqCY1QjkQFUvrgG
-         kjZQ==
-X-Gm-Message-State: AHQUAubi8LAwW4DbgiQWQqLMB0e6FlSInFdHEumZf6r+jaURxXOAgXJU
-	qji29/VG07cWsljYb9QlPHJQf7EI10j51NXFqI2d0/mU4xEgcU6Bt9wYSPFQkeS5KqMyVj2u3tt
-	oO9wboExQCy3QkfB3etCU+QFGeSs/7q6wul4F4d+dqTMAbVZpomfAHy1BXPmGOy6GwQ==
-X-Received: by 2002:a37:8882:: with SMTP id k124mr1997854qkd.1.1549339531386;
-        Mon, 04 Feb 2019 20:05:31 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbBIpC14/SElZ7Ec48e6wjrk/AOj9J4l8pXfXtxG9awRqDOz//N53npbpBulgWhlW/+p4HQ
-X-Received: by 2002:a37:8882:: with SMTP id k124mr1997833qkd.1.1549339530797;
-        Mon, 04 Feb 2019 20:05:30 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549339530; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=513oF+ATFNhhmUeGw8GvAD+0D2t0iAj0G4FjhtwBt3k=;
+        b=ALSWONgs+DHqyrmUnTQzv3G7J2QeJkMdhbfo5r44bJScIHLf5rvnOXDoxx+0/+qCT1
+         R7w7iOGfLaROIwSiOTQ9LogwNUH9aqXC4zZQh+fFSs8q+oCiCtGjRlBjeEcVhK5S3JNl
+         g2WpTNfPlK7qnaZjSURJcnvPgWcLc3eLAEy33bPNZT545Dvl2L4ABfgAE/BDaRHNjFui
+         wUMi/N9czJG7z3IlOL82oT96NPOuMDAVnK45rZw8WuR2mSAblGIXNef9e6307eOoeCf4
+         vZkZlcTyP753IaEPhBX/qkpxSt1xH6tLfRRYH/7QtAvt+k7PN/Mblx2xRXb2zsaGPN1S
+         9W3g==
+X-Gm-Message-State: AHQUAuYBqry/ranivOktZQk1q1x/lzYBA6iSOq5t86sjoP6pX/S27qHT
+	zlSin2y6SqlZv85tOZ0dY+US7g1hN60q3E0OBosbRAch6z0w8SKvg+bw2u8J0mJLgZOWLxcCpi0
+	djfngp0WjgmXENPRBOrcn6YAz7UGO7g8LFoIJPIBBBmZhAzShZSg2NuAfeVvUMET27w==
+X-Received: by 2002:a5d:488f:: with SMTP id g15mr1862605wrq.15.1549340820806;
+        Mon, 04 Feb 2019 20:27:00 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYGW3TAatmRXCxjjxykOrGA1TSoHjiYuWD20nxU9Q7XLZTnkAQAwKKvjAYcQa3m02bbKFgd
+X-Received: by 2002:a5d:488f:: with SMTP id g15mr1862576wrq.15.1549340819613;
+        Mon, 04 Feb 2019 20:26:59 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549340819; cv=none;
         d=google.com; s=arc-20160816;
-        b=1AD8dut6P3eLg65OaVj/C/5hm+K0a0ABj7PdSywaC5r40S846eA5xF6KpaMGQ2Wg/o
-         L0uMYla9b/gkghrh+ZhVTytYWu+M84TcAdwVOTQkNFRYyT3kJo2ozW9gwxj8F5Fa0eLU
-         c1gEXpR6uABog61PLpLMEk+YhpLJJ3CG2vd0JQ1X1N4SynYYuUIFG289L6ez/0FVXBac
-         c2bbV/5opNoeTZn2si4n6+QcUPPP/YZ+KoccHCV5YXrR8/qGbU7aQf6dMIqqkcD1nU4z
-         neYGcebLV89cBOxEWOkaDCrEhl074CgKt7cTMJwB/VnbKsOg+1Uzu6eFHXDyxnwHVqSE
-         Saaw==
+        b=unadnjPtLOsw/nDNzO9GOrBbOKVuB8G9IsRyPPMpNEfTBkhUcp2m2+BQ1kRrp1yumG
+         cQj7v+2GnkUIW/P+99Az6uXwFJaR/j4Nqmr5P0e8WKdvbHjEL5fD5KdEyQnfmniwkk+Y
+         z/7X+QepIu0aKBdBTO8HDtXfbTN4w7rmU2D60EvI3kFN9Jo/QO2iyNqvHiVAc1FRQm7A
+         88bYGDE98E5K6AlhgFnKPP5zsusxOGMRoj4IjjBW9sagyeWl9tLdS8HEZdiXiXJAuFSN
+         E9OABOktr5LLpBzd6hTT6RwfWNpzcmj7GUr4IxyAgj6g6ev+ACxI0L98QSznUT0aMYsD
+         /HIA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
-        bh=zjdfF6fptfX7K6A8RaIXFGiKuRzQA5sSSQPwlsRUNkI=;
-        b=raN2yarRXhX8by23wYDNndKwIZu67Cj8HeodMoG9wgt8wu49yNBLvSZPVBqnQXZD3w
-         Fev15QKOKG8WQ+Jz5Ulhs3wCelEb0BjNLS+iJ6S3FE9kGxeWxIIVgCk0br4CKd7JHYox
-         jWOifSJFF5usuDBfgQEc7elBBy2U++WVnFjuqjGkZReYaY+UtoGV04/H0D3XahnmjuYL
-         u57Rvzomr72l2Qqj9e88zZzfCzTZdEF9xoDeC8p/keq1UcgirN0WmvqcmTX5VsH4rT0l
-         mfOJZCuWWXRKqqmOGGpPt6px8SNhvA9a82+zQexBoULXWkfLZwjEK+k5qmMB1Y3Z7+im
-         TSuQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:to:subject
+         :dkim-signature;
+        bh=513oF+ATFNhhmUeGw8GvAD+0D2t0iAj0G4FjhtwBt3k=;
+        b=i1Ee2EvGlpF91Cedqhz5XWMVcpegkMaB55eKMvzOmjA/FHwiUuK60K97tXzFlteU4V
+         3V5jTsW1JV1birHOPhcQmnzoLyTvf0Jg3E/6mwI6QqS1wau5ttwf0tq66QBfpc+niVMD
+         LSEdHOe38F5Jxq4hMLeKhuNJ22y3Mh0DCHbHACDw35Y7HO5Dkp2Uf2Q2rjSS8K73TAm1
+         YFNH6r7eU/mQny4R+Ahllb7GQX6GiXL7ONvIyj984Ua7UMpItPSY3nNHIHNBzU74mFH+
+         FAL9SW2Q4pB5D1UwTfR09TgvQvmhSzH0RjzM9/Z6pr156zbwpyCL0fbhiA+02llrw67b
+         KJHw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=LugmjNOo;
-       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=aj5iM51Y;
-       spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id q128si2778774qka.151.2019.02.04.20.05.30
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=xHNBcEmw;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id p17si3204500wmc.93.2019.02.04.20.26.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Feb 2019 20:05:30 -0800 (PST)
-Received-SPF: neutral (google.com: 66.111.4.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.25;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 04 Feb 2019 20:26:58 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm2 header.b=LugmjNOo;
-       dkim=pass header.i=@messagingengine.com header.s=fm1 header.b=aj5iM51Y;
-       spf=neutral (google.com: 66.111.4.25 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
-Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
-	by mailout.nyi.internal (Postfix) with ESMTP id 35D0021E49;
-	Mon,  4 Feb 2019 23:05:30 -0500 (EST)
-Received: from mailfrontend1 ([10.202.2.162])
-  by compute5.internal (MEProxy); Mon, 04 Feb 2019 23:05:30 -0500
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
-	:from:to:cc:subject:message-id:references:mime-version
-	:content-type:in-reply-to; s=fm2; bh=zjdfF6fptfX7K6A8RaIXFGiKuRz
-	QA5sSSQPwlsRUNkI=; b=LugmjNOo8xPlcZpoJSrbsH4HqYVvyMsgfdkS39bI2mP
-	0Rj2GLsP30vReN2b/TI7L73VqJ9Gt47reLRcEvREwkAhLv89+hZuTDpsbz48dcs5
-	UdfaBt85rUYM3fJEyeFkjbbXCwETRh1LXOjkxBpIP0me3cfTGrZdjaeQFjR40CNS
-	bVavL6Qh62AzVn6vc932Gp/3yQvw/Skp3B71u0zTfR5MjxEcfJJrdwb4nmja/LHg
-	d2oNS/0qE2SLe+uciJKuoWsLgdQ3Ndx9RtWNA++t41oBmUbVdjdEJ/eAws4SRcLx
-	xQi0Oksh4DQZQQghsfdjIxMBdRctiLVOKhixuS2Pb/A==
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-type:date:from:in-reply-to
-	:message-id:mime-version:references:subject:to:x-me-proxy
-	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm1; bh=zjdfF6
-	fptfX7K6A8RaIXFGiKuRzQA5sSSQPwlsRUNkI=; b=aj5iM51YIuEY22ew+Ns4P+
-	Kdw1r07aVzPWKMdzYUUBj6hHiTLCIXvj0N3QlKtgi1FSN9SInDwgf/3ZjSikFrsO
-	zp4l88etf6QOhFtLO0S/45pgMJGcjCw4MWk0b8TqYIX7bU6eUY1A2Wp/lWZAX2XH
-	MIpGkEiGJwSym3edafz3ipNGDvB9wUh544iTogSswc98/+UtlVopH78hlAnkKJZl
-	m8g4uL6BlmGud4iw+++l/+Ixg3BFBwhgcyZ0YeLX5r2NnOF7zgMu4KHGlKhBT/to
-	TaONxCw5bD6Z9XnoM5O77MoHAr5oNMyPJPUK3P19Yr62mYw1/aEswvQKbiEAXzqQ
-	==
-X-ME-Sender: <xms:iAtZXHJ8W9ASse7Tb6dFvhzK7O_Jbw0lqgYZ64njkkZi0uVOuu2eMw>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledrkeehgdeikecutefuodetggdotefrodftvf
-    curfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthenuceurghilhhouhhtmecufedt
-    tdenucesvcftvggtihhpihgvnhhtshculddquddttddmnegfrhhlucfvnfffucdlfedtmd
-    enucfjughrpeffhffvuffkfhggtggujgfofgesthdtredtofervdenucfhrhhomhepfdfv
-    ohgsihhnucevrdcujfgrrhguihhnghdfuceomhgvsehtohgsihhnrdgttgeqnecukfhppe
-    duvddurdeggedrvddukedrvddtudenucfrrghrrghmpehmrghilhhfrhhomhepmhgvseht
-    ohgsihhnrdgttgenucevlhhushhtvghrufhiiigvpedt
-X-ME-Proxy: <xmx:iAtZXEtgqNo3ELnQBPlOUbIgbPPRimLbKMnOItGk_zmDNAptXRbBYw>
-    <xmx:iAtZXLJE5QxF0p4TyFRSl_QoaJaZiVlcEl7FFLg-A03llUA6axjqoQ>
-    <xmx:iAtZXPFszyjgAftuTROa7heIlLRs36ts1reOnhnfkR8rZXjheJtoqQ>
-    <xmx:igtZXFX3_5YGDM7jJ83l51edoII50ubWESP8DgX5TvFUtz3caC83uA>
-Received: from localhost (ppp121-44-218-201.bras1.syd2.internode.on.net [121.44.218.201])
-	by mail.messagingengine.com (Postfix) with ESMTPA id A5106E4046;
-	Mon,  4 Feb 2019 23:05:27 -0500 (EST)
-Date: Tue, 5 Feb 2019 15:05:21 +1100
-From: "Tobin C. Harding" <me@tobin.cc>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Tobin C. Harding" <tobin@kernel.org>,
-	Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Christopher Lameter <cl@linux.com>,
-	William Kucharski <william.kucharski@oracle.com>,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v2 0/3] slub: Do trivial comments fixes
-Message-ID: <20190205040521.GB30744@eros.localdomain>
-References: <20190204005713.9463-1-tobin@kernel.org>
- <20190204150410.f6975adaddfeb638c9f21580@linux-foundation.org>
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=xHNBcEmw;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=Content-Transfer-Encoding:Content-Type:
+	In-Reply-To:MIME-Version:Date:Message-ID:From:References:To:Subject:Sender:
+	Reply-To:Cc:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=513oF+ATFNhhmUeGw8GvAD+0D2t0iAj0G4FjhtwBt3k=; b=xHNBcEmwlJkahQnUTsbH73Vw0/
+	HRol+3uUGAq5VaSZJ66oeXJ2IfZqpuMtUZz2VdbmfvOcAVQD9zixI/lGTTZu2f23mzJvI8xRe82Gp
+	ogHugBZF2W7Mgg8FyAYlmwDpBUZNTLxgBOB2ay6Hw8cjJtrv4YNoRpLHfpFjcvlFgXR7mgXyHYps+
+	9Ypzg/KXnIOYE74MggAmPPuceiv1KuxDgBA/I4/Zyk8vk7wbcgS6aa2kL+IxtZfrCZtjKkG2odpCU
+	Oi0Cle8Bk1jzZk5TNoEajpEbeW5I/xdb2doR6kEnnMkAJWkRRJWb6F3QN56f7Io+CWd0wsMYMEGcm
+	SR35IgBQ==;
+Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=midway.dunlab)
+	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gqsJr-0007gu-QH; Tue, 05 Feb 2019 04:26:48 +0000
+Subject: Re: mmotm 2019-02-04-17-47 uploaded (fs/binfmt_elf.c)
+To: akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz,
+ sfr@canb.auug.org.au, linux-next@vger.kernel.org,
+ linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org,
+ Richard Weinberger <richard@nod.at>, Alexey Dobriyan <adobriyan@gmail.com>
+References: <20190205014806.rQcAx%akpm@linux-foundation.org>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <08a894b1-66f6-19bf-67be-c9b7b1b01126@infradead.org>
+Date: Mon, 4 Feb 2019 20:26:43 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.3.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190204150410.f6975adaddfeb638c9f21580@linux-foundation.org>
-X-Mailer: Mutt 1.11.3 (2019-02-01)
-User-Agent: Mutt/1.11.3 (2019-02-01)
+In-Reply-To: <20190205014806.rQcAx%akpm@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 04, 2019 at 03:04:10PM -0800, Andrew Morton wrote:
-> On Mon,  4 Feb 2019 11:57:10 +1100 "Tobin C. Harding" <tobin@kernel.org> wrote:
+On 2/4/19 5:48 PM, akpm@linux-foundation.org wrote:
+> The mm-of-the-moment snapshot 2019-02-04-17-47 has been uploaded to
 > 
-> > Here is v2 of the comments fixes [to single SLUB header file]
+>    http://www.ozlabs.org/~akpm/mmotm/
 > 
-> Thanks. I think I'll put these into a single patch.
+> mmotm-readme.txt says
+> 
+> README for mm-of-the-moment:
+> 
+> http://www.ozlabs.org/~akpm/mmotm/
+> 
+> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> more than once a week.
+> 
+> You will need quilt to apply these patches to the latest Linus release (4.x
+> or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> http://ozlabs.org/~akpm/mmotm/series
 
-Awesome, thank you.
+on x86_64 UML: (although should be many places)
+
+../fs/binfmt_elf.c: In function ‘write_note_info’:
+../fs/binfmt_elf.c:2122:19: error: ‘tmp’ undeclared (first use in this function)
+   for (i = 0; i < tmp->num_notes; i++)
+                   ^
+
+
+
+-- 
+~Randy
 
