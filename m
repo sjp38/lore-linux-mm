@@ -4,168 +4,156 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E75DAC282CB
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 07:16:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EAF6C282D7
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 07:59:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9965F2081B
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 07:16:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CDE25217D9
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 07:59:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="ROWLTkl6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9965F2081B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="Dzy75dMP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDE25217D9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3F3668E0078; Tue,  5 Feb 2019 02:16:27 -0500 (EST)
+	id 756538E0079; Tue,  5 Feb 2019 02:59:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3A1078E001C; Tue,  5 Feb 2019 02:16:27 -0500 (EST)
+	id 6DC0A8E001C; Tue,  5 Feb 2019 02:59:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2429A8E0078; Tue,  5 Feb 2019 02:16:27 -0500 (EST)
+	id 5A5008E0079; Tue,  5 Feb 2019 02:59:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A4BC88E001C
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 02:16:26 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id j24-v6so417455lji.20
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 23:16:26 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FFDA8E001C
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 02:59:03 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id y8so1706357pgq.12
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 23:59:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=FgdDrEwRt2DcpNMQgDQ7LK+wdPfSmuc4/VBeDOvNh8s=;
-        b=co9NhiodJirZ6U3C4VPMsNPmvHg+pzW4XFXR6GbDyw2gg2CD97Lr9XKpDZcaa/EgE1
-         Xsf+GEdyVkfZxfQoMFzUgZ5KLWZhZwcZeHuW7ZS330ifLafamnBazwftXR5nSgQKGj2Q
-         oiVLb80xN18F07Fzuadlo+/r6HYKjomG+6KGdlJIGff7tm/JzR8h7GHb/A+woBmVTfHy
-         F2v+2M71OLRBtzTIycwwG3I0+i4cYdfbC16JwsKmDwldCP7Hk3erLPBt7ytMSEmT4XKH
-         o2/EqW576ojT71Szy3wnEcw7PcNSpeywB90KJJQMTofWDzNNF7Eb54qVrNMFRYrRj2jH
-         +grw==
-X-Gm-Message-State: AHQUAuZ+AZ07018+Rrcox4aoLciYXKtFf5AFV7hCsikahKl9XgK2GHd1
-	pdI9vAJGVmvTx8mVpfw+6BsN2QOUvs+ZcGJnW7fA7S7g/VG94QDIp7pUUWt9DXrORy3uQzmKWWS
-	t8aGvzVKPneRuXI70wvLGgq7MmZ8xvoNGeywrx0OSJ7VrmHrUrYHp1NQ8uN+p0Qpbn/Yf9ZGF3d
-	iWnlCzA8ZOPnFJE3ZHpK0rRPQkGcrHsPbKp/FttHJ40CRDaAg68v+Wf3nm91Vi+fqNXSEJT7But
-	IIbcB4xRM7MIdRPz3vxaWkr+Y3iHW4TZKE3jbH0DTbE1iOA4izfE+ozUWXXalQuybJ2Z7/wQ8ZC
-	DuKU7UIfxP06Qu/tZUqQmY75ORpgEcQTplJ+K7Bp/UmZ6kF/1rS5qJGKZnsNdDw49fnb2bfK0iu
-	L
-X-Received: by 2002:a2e:2e1a:: with SMTP id u26-v6mr2034643lju.8.1549350985783;
-        Mon, 04 Feb 2019 23:16:25 -0800 (PST)
-X-Received: by 2002:a2e:2e1a:: with SMTP id u26-v6mr2034614lju.8.1549350984863;
-        Mon, 04 Feb 2019 23:16:24 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549350984; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version;
+        bh=9cgS1uUqrpWCB0j2qXQ6JKbKhRXfXbSZdv/fTiax/V8=;
+        b=B134uJ1yiN0ZRdpyjcgZzMHpFuWpVIWQyddYBi1587yu3B2x5vyJmNBym6FLm/SpT8
+         xsTZylNDizGClz9XggN2tfrquo0hBr5qdRqozHdh/4OQDHYN9CzL01rjGUVYyNJERjti
+         uu9/GkYhJwWswZL99y1/w4LVpugGGxhyjIiUlSz2rXXyCNjuGU/1LHKiTUlOlWnIBgeK
+         QeR+f/3DMUHKOirMaJcch6MhgaPmk/I4dMI9vS38n02I/nJHdAUVlMluYLpqqXaPvkxp
+         8v6/H9iOLusP8JNX0QdRMPJFMVu7Ph4dafdQjwDSN6vmcHtmXGulIeFjSGGaix8gRO1e
+         BPIQ==
+X-Gm-Message-State: AHQUAuZEczf1ZEACk/GKxNOCOmYyN/OOXeXeusLWBr1lbrYg4vY4Dwhq
+	Uy2XASTsHyQe55DC34mmDzfjOpTnuLwKTItcp2oQ5MMyKX5zOXVN+T6xgb8jbAF9DQToKnpTwxL
+	DGAiAgawq9yB2v5AcbY4c4NYKT+AwYmresyDO2eLrGBtYEbs4orBKvuy8CnYxHr5N5Q==
+X-Received: by 2002:a62:1484:: with SMTP id 126mr3582684pfu.257.1549353542590;
+        Mon, 04 Feb 2019 23:59:02 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaDHSywpoPvBZATDM8UnYiiG2IqQ1/we20MBEUAZV5mNKL47S1JdGlKHEdsdQSn06Ql7EkK
+X-Received: by 2002:a62:1484:: with SMTP id 126mr3582648pfu.257.1549353541893;
+        Mon, 04 Feb 2019 23:59:01 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549353541; cv=none;
         d=google.com; s=arc-20160816;
-        b=DG84ySLHM5DXi8XQg+oFD91CM3B9neivxzyIsRMwpyOPsr1yZ6C2nUnBEsvEAKoYbB
-         ZYmw0N5JlJ+1Yzg9+0YLhdlRacGs+0eliVNDtjffQ0+FT+vvQhtc5QlSVcQAZB/ysp3J
-         XoYrKL1iPAmJauzWplpbgKS4p6TIJ60uyLGTUduJr7NKpYf3D/D335DVb0UxyFuE6YpP
-         VWFVnfjnG06UZTFtarQNL6Zo7lL++0xqGIhz4bix93I96FIaC/0Qt2Mwl2r0MBVAjjoN
-         x0L+uns1vRNBhh4xbee3ln3HExMoKt4UABQjlYytkhexrBY50mRKVX4L5OQkdI4CK0YJ
-         HQSw==
+        b=ihUjae93zu39t7jPNKuOkV1iSaIliTg8hDiyPxuIK6Nu+cbVmWrAmiBT9q0Inp+0gq
+         fH/SMFdvYE1ILwd9ORKfQTOvGFOjrD9xAm/oZBua6fAyagIZHnCaIh1PcbNLFUP/YOk5
+         qblhGCbkMWFk/KUrK9onZuNoeBg52bIhn7NxZ05tQUPOECEbm/NMo8aZn3GBfWtPtAMl
+         YptGPQ2w8mvYxH5V9EKkiOgFfeF6aQQg/9hiYy9VugSkgSSBGroINe+OWT1XQMsrgoYt
+         rfcna04ppTsYkUU7y/7rLo4gBGP4traFeoolaPJ8y0rmIU8ePxBbKFnhiv1Iwa2Ti80z
+         2AXg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=FgdDrEwRt2DcpNMQgDQ7LK+wdPfSmuc4/VBeDOvNh8s=;
-        b=T/wy5evNWARx0j542aA6pZfL3n3V1c9J20gl2X2ta0UxQky+FoQEGktHEHnMP75ndD
-         nTFMjj/Z2KKi9bySToP7bmV3OttRdE4YryAA/y1QsSxPFWkqmAt4dHmP0CH/DBanvqsH
-         Ik1PXBUmZ6i3asnpm+5uTQ5ZkZT94AHZxuIeV1dR2Us0banZHlZiV7DhkQjc/RVPGBMd
-         fIEnYJf2eje/huIn7xRtjyn2cbzZNEzdnKBsy1jwl3yfbwVrUNf/lBXjCfKAtvcLOhKV
-         91yIN6LoLMdv5ETi4X8GvvbpuFtHGfV1mWUduxWI+wSLgoBaLuXEnhWxvJdTS3qEZJ6i
-         PTdQ==
+        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
+         :date:dkim-signature;
+        bh=9cgS1uUqrpWCB0j2qXQ6JKbKhRXfXbSZdv/fTiax/V8=;
+        b=sT6LSB+hMO1fpAHTR7SLL27BMkolWYD4dMQ3exdyyVUdDIzEV/Olatnn779lMMt1th
+         hFN6x+fbxQMo3/yBGvsNTUuEoR81zIZFApfqfZy8eQCCd7WZcifDFk/+FTNkf4Mx3gSA
+         OFjS9EHmzEQB4ZzE5gcxJC1BNfpmiKpa7esEidP/PTNbseraNPC7qog7Pc6NIP8YTZKf
+         hP3glvDk2qes5rLeKcb/gG9mhdJWcAXIjHINpkBGpTCxNOPGkuPtvdtaCD8iLgUBXcJP
+         KRVTrdy6bc3zCiMIFHl3PuMuCVlCmRMj2W9oIOMyM5M9b87LmvB8ZA4oArPX2jXOiZN+
+         qIKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=ROWLTkl6;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m72sor5055726lfe.8.2019.02.04.23.16.24
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=Dzy75dMP;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
+        by mx.google.com with ESMTPS id c4si2411767pfi.110.2019.02.04.23.59.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 04 Feb 2019 23:16:24 -0800 (PST)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 04 Feb 2019 23:59:01 -0800 (PST)
+Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) client-ip=203.11.71.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=ROWLTkl6;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=FgdDrEwRt2DcpNMQgDQ7LK+wdPfSmuc4/VBeDOvNh8s=;
-        b=ROWLTkl6aQWh6v4hDyodVTmi62aCjx3oJ3nOE4h/bRrNbt5gz5CQAJHmOnqGnqBKLS
-         E3v5lJDRWBRGLKXHpkKHL36TLgLdbBIaI5qMC++5W8vI36p8DuGFSJvPkC/ZfkTb/tvi
-         n3XYFHHlTj2tGSBRrlxH7DCv5Ayw7V47zImQo=
-X-Google-Smtp-Source: AHgI3IZD1oUvZVidg6Kj7mJO48TtG1pUonqM1ERyWo/x842Jdlr1MZjcKzf6kNUABNGiBoaSqmQEKQ==
-X-Received: by 2002:a19:920a:: with SMTP id u10mr2226958lfd.122.1549350983710;
-        Mon, 04 Feb 2019 23:16:23 -0800 (PST)
-Received: from mail-lf1-f46.google.com (mail-lf1-f46.google.com. [209.85.167.46])
-        by smtp.gmail.com with ESMTPSA id s9-v6sm3102239lja.12.2019.02.04.23.16.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Feb 2019 23:16:22 -0800 (PST)
-Received: by mail-lf1-f46.google.com with SMTP id i26so1875912lfc.0
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 23:16:21 -0800 (PST)
-X-Received: by 2002:a19:ab09:: with SMTP id u9mr2059854lfe.149.1549350981411;
- Mon, 04 Feb 2019 23:16:21 -0800 (PST)
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=Dzy75dMP;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits) server-digest SHA256)
+	(No client certificate requested)
+	by ozlabs.org (Postfix) with ESMTPSA id 43txmJ59Znz9sMl;
+	Tue,  5 Feb 2019 18:58:56 +1100 (AEDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
+	s=201702; t=1549353538;
+	bh=ghOAZ/F6trDoGLk30/T2NZNm8VxGZcg+V9sKElMNopA=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=Dzy75dMP1yW2knnb95S/OGQpVLTupqgn1sOpMelyGhVykjxnGOaX4XbZctgq0Q0CA
+	 N24GIkdcM1k2WPv52N8mWI32rykwA5GsDsfL4xogXDGfz4ASt+7tcebmW/IzCok7Za
+	 thtrQgVAo//vgb9kTiwsf47QqxGHtzvDPt18C1NEyNiIoCAV2zWOsCdr6Hr4dE/YML
+	 GPgsHUKBT14jEuas0GlB96UPEA8xFiz0KmEFkyphWDH3gI+Et88jK0wu+tnnZinpJc
+	 WBtZoxnGMC+h7OdiuwrvTvBN3vdk5unFcXZQqGWS7Bmco6nWxNEKVs28hxmdnkNrYM
+	 TgbzxSwU6Bv+w==
+Date: Tue, 5 Feb 2019 18:58:29 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz,
+ linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ mm-commits@vger.kernel.org, Richard Weinberger <richard@nod.at>, Alexey
+ Dobriyan <adobriyan@gmail.com>
+Subject: Re: mmotm 2019-02-04-17-47 uploaded (fs/binfmt_elf.c)
+Message-ID: <20190205185829.113a8812@canb.auug.org.au>
+In-Reply-To: <08a894b1-66f6-19bf-67be-c9b7b1b01126@infradead.org>
+References: <20190205014806.rQcAx%akpm@linux-foundation.org>
+	<08a894b1-66f6-19bf-67be-c9b7b1b01126@infradead.org>
 MIME-Version: 1.0
-References: <20190204091300.GB13536@shodan.usersys.redhat.com> <alpine.LSU.2.11.1902041201280.4441@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1902041201280.4441@eggly.anvils>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 5 Feb 2019 07:16:05 +0000
-X-Gmail-Original-Message-ID: <CAHk-=wjXP6dnbdeLryqrMCG8+-yk1G7gcSKiopDKDEj0AdzdAA@mail.gmail.com>
-Message-ID: <CAHk-=wjXP6dnbdeLryqrMCG8+-yk1G7gcSKiopDKDEj0AdzdAA@mail.gmail.com>
-Subject: Re: mm: race in put_and_wait_on_page_locked()
-To: Hugh Dickins <hughd@google.com>
-Cc: Artem Savkov <asavkov@redhat.com>, Baoquan He <bhe@redhat.com>, Qian Cai <cai@lca.pw>, 
-	Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, 
-	Andrew Morton <akpm@linux-foundation.org>, 
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/+HD3eexliaqabC4pbA07JGT"; protocol="application/pgp-signature"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 4, 2019 at 8:43 PM Hugh Dickins <hughd@google.com> wrote:
+--Sig_/+HD3eexliaqabC4pbA07JGT
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+Hi Randy,
+
+On Mon, 4 Feb 2019 20:26:43 -0800 Randy Dunlap <rdunlap@infradead.org> wrot=
+e:
 >
-> Something I shall not be doing, is verifying the correctness of the
-> low-level get_page_unless_zero() versus page_ref_freeze() protocol
-> on arm64 and power - nobody has reported on x86, and I do wonder if
-> there's a barrier missing somewhere, that could manifest in this way -
-> but I'm unlikely to be the one to find that (and also think that any
-> weakness there should have shown up long before now).
+> on x86_64 UML: (although should be many places)
+>=20
+> ../fs/binfmt_elf.c: In function =E2=80=98write_note_info=E2=80=99:
+> ../fs/binfmt_elf.c:2122:19: error: =E2=80=98tmp=E2=80=99 undeclared (firs=
+t use in this function)
+>    for (i =3D 0; i < tmp->num_notes; i++)
 
-Remind me what the page_ref_freeze() rules even _are_?
+This only a problem for !defined(CORE_DUMP_USE_REGSET) architectures,
+but a problem none the less.
 
-It's a very special thing, setting the page count down to zero if it
-matches the "expected" count.
+--=20
+Cheers,
+Stephen Rothwell
 
-Now, if another CPU does a put_page() at that point, that certainly
-will hit the "oops, we dropped the ref to something that was zero".
+--Sig_/+HD3eexliaqabC4pbA07JGT
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
 
-So the "expected" count had better be only references we have and own
-100%, but some of those references aren't really necessarily private
-to our thread.
+-----BEGIN PGP SIGNATURE-----
 
-For example, what happens if
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAlxZQiUACgkQAVBC80lX
+0GxwRgf+P5QlePLLQEgqvTRa0Shz+SodC89zAUfN8U46W7XmYSmMjbfH4en9aAS5
+LRZFLYwLDb0pTF1BKACQtmjcpSB981/iXf4+S3lGDdqL12eY22UCb9TkYArOGXhD
+WJSnzABFZULOpnqbVwG7tLDSo0sOpoPEaaYPg1T++tLRDuryfgU0sdBtZ6kmUGjf
+ktmuUnHfg+L0YEhPEOOemnb3/GV2m/R7ei2YpCB5J8I+WuBVc0exO14N6A09x3Qc
+vDKgDkk9LTUzfzcBo+jlUjI+RoOOzE3dAEX5u1Wx3BIcSREWlUi4AWjaxatefXdY
+qMw62ST26RJbtBiewhhTSIbCEpts7A==
+=QLXe
+-----END PGP SIGNATURE-----
 
- (a) one CPU is doing migration_entry_wait() (counting expected page
-refs etc, before doing page_ref_freeze)
-
- (b) another CPU is dirtying a page that was in the swap cache and
-takes a reference to it, but drops it from the swap cache
-
-Note how (b) does not change the refcount on the page at all, because
-it just moves the ref-count from "swap cache entry" to "I own the page
-in my page tables". Which means that when (a) does the "count expected
-count, and match it", it happily matches, and the page_ref_freeze()
-succeeds and makes the page count be zero.
-
-But now (b) has a private reference to that page, and can drop it, so
-the "freeze" isn't a freeze at all.
-
-Ok, so clearly the above cannot happen, and there's something I'm
-missing with the freezing. I think we hold the page lock while this is
-going on, which means those two things cannot happen at the same time.
-But maybe there is something else that does the above kind of "move
-page ref from one owner to another"?
-
-The page_ref_freeze() rules don't seem to be documented anywhere.
-
-             Linus
+--Sig_/+HD3eexliaqabC4pbA07JGT--
 
