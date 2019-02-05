@@ -2,183 +2,239 @@ Return-Path: <SRS0=TNGr=QM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BBD8C282C4
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 01:41:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 78A97C282C4
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 01:46:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EE7662083B
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 01:41:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EE7662083B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=talpey.com
+	by mail.kernel.org (Postfix) with ESMTP id 2F4B820821
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 01:46:27 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="nxLyhbOS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F4B820821
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8BC3F8E006E; Mon,  4 Feb 2019 20:41:55 -0500 (EST)
+	id C14B18E006F; Mon,  4 Feb 2019 20:46:26 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 86C498E001C; Mon,  4 Feb 2019 20:41:55 -0500 (EST)
+	id BC3C48E001C; Mon,  4 Feb 2019 20:46:26 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7814E8E006E; Mon,  4 Feb 2019 20:41:55 -0500 (EST)
+	id ADA608E006F; Mon,  4 Feb 2019 20:46:26 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 50A368E001C
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 20:41:55 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id w15so3118180ita.1
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 17:41:55 -0800 (PST)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C46C8E001C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2019 20:46:26 -0500 (EST)
+Received: by mail-yw1-f71.google.com with SMTP id l7so1518612ywh.16
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2019 17:46:26 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=kNkTL7z+wqvENJ3eYUdg+I7hY+uCSmZqtJTUTTVpVqQ=;
-        b=Jt1rGYUiPSNn0Yc2/Idb7EWD6klk+054hJkFiqnKl6/feX5XhTbK6rr4POqeZ5I+qZ
-         nk4W6oG7kplfY5xKOJfEJu6OzHt1hUGWzGhjIlgglgnV3GM6ZEfl4l6GTq4lww6kSW75
-         HnJt5oPXyNlq5yycSMfmZi5zsGaqon1qexb8CJAqHYcm7nO6fHq+eGw13PvYCZS1LhLm
-         hMvyQYkpqZAlNBXNpnuBe3NF9eqaCuPqqss/UV1Bc8qbKbXVHrjiWAt42hBMy7XGxRBJ
-         z5v0GeMfPtI0gs2GL4SHAq9+g3OC6ZgTCRPt1FHFE1QdYcW7JrSgp9q5DnHPI1BuRaFe
-         bdsg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 68.178.252.235 is neither permitted nor denied by best guess record for domain of tom@talpey.com) smtp.mailfrom=tom@talpey.com
-X-Gm-Message-State: AHQUAuZQEwG+KfcdRGwSqXFySP45gU/6ghvwLf0eDKWcZwlyXg/ggGOX
-	W4uf3Tmz3jrXa9jfNnyxsKVCfbOKMv3Fx1ksBomIvuh6f2IWHb/uNHIAOwjzwJYe93fGq1qLIyj
-	sMcrEo+gx2/oFDqs8sKzOoY6Zes7cm5uxdQCzjH3HNFijUJph5rjVMD5iQaFAMZA=
-X-Received: by 2002:a6b:fd13:: with SMTP id c19mr1378864ioi.249.1549330914941;
-        Mon, 04 Feb 2019 17:41:54 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaiC5D9LLRhaX4uK6oXO/nmgYnHuI8jBmk26d4ZQuE3KZLYPwUx312jwQtitlwUjFMTLW7w
-X-Received: by 2002:a6b:fd13:: with SMTP id c19mr1378844ioi.249.1549330914251;
-        Mon, 04 Feb 2019 17:41:54 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549330914; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=oLat4kKsYAs9f6tSiRP1Q2vmCfy3SQU/QqVTyJwEWuE=;
+        b=qyTCjP/DTDcbyF/jh/z1JITjoXYjHhnMdm6vf6NPLKuYFFSMPI8IxZiru1H5hBJEiq
+         DpiA5a1AYMonItt6I1yb1NoHIHBphonNyAQJWeJ9h6o4HzuySZbZz+IQVVZHMeoZPB/0
+         /oj85Y9flFY9O8t0U+ZxX+jWTyK6lH21d0DhDYLCeGutoF2CFjAS/Z7q4zlL0JlaXAAz
+         o4YojekyloSebkhSDCcuP/eBRGoLgjyzY3Er1BV704EfRZ7AgCdlQTcIg5YlYvRpCQvz
+         2BVZxmC+Bt/4OTGq1qDC3vAiJ912di+QIK6lYemsGXEIm+eUoWJJbhTtAZ9FFPBWmAzt
+         h/3g==
+X-Gm-Message-State: AHQUAuamfZMQJI8c0n8puNUOnb0OVDHgMDHG/b9DA0zY9rXLFdXh9FhI
+	ZQyNaFQ4zGQyVrcMi6OFzdKQGelkvddUQvzVD7kuA2TiOXtRypH5R1lFY+euzsebxuH0MEhctLC
+	r25rXw1Mxt2XWgY3gn0eEFwKFxGySZWSc33FeCQcw+x3YlDXKlVR9/PXTqjW2pTMNRIF1JvzBEW
+	irTVestJm2OGXon7GybrxilPifStBa6iBM95ukt32ukzJBbxSc8ZI2MRCU9A1Z4/9ix4ODTyZAE
+	kA8Kr6L7hvG4ynL/64ReHnnj0zKloE56NBQEFEQwjufm6WXVBmgNch4MyzrPkl7jZqybN/IBOEn
+	b2HQzpZ8DaWhuGiZYuhoYByIcVXD2Ekpvq0lMePCPQmjVyRPHi4g5M1BRPd2D4xiloSAOjC+hnd
+	A
+X-Received: by 2002:a0d:e741:: with SMTP id q62mr1982236ywe.34.1549331186163;
+        Mon, 04 Feb 2019 17:46:26 -0800 (PST)
+X-Received: by 2002:a0d:e741:: with SMTP id q62mr1982218ywe.34.1549331185526;
+        Mon, 04 Feb 2019 17:46:25 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549331185; cv=none;
         d=google.com; s=arc-20160816;
-        b=uH2GjB0PAnn2dT39W8UN1mwPsmBScTHhzKd1yGL36u90Bjihl+ZTud68Vg9TzA00dh
-         lkcQaPy/8bSpIbNmugCpSZOQA65bIdHiXaNtcJoHEGUANGimJo3J0dFdFe6nvHp6bEYX
-         1Qu9hJu2QyaUSjdp81LD1ZZC56GdZ0TXA6lI9Dp59dSpAJUAgepyDx4myfK7RbTEfQdP
-         Xt/yGGyCd2cma/zayzMRwUl15WbOaEwbBVDla3nk67Id4OAPchqv5fVvDfuSmX5BiWwb
-         WkLHcngUvWowPmKKcax2545/Scv/GptaulHyuGQ5kSvqoYeKgfxJIuq0Rex3XM3J9Brf
-         2oJw==
+        b=MuAQrYscsWAqu7Yfq0Y/spbZ7K5knBovaUN4TMv+n4k5WqJof/GI+AOuiovooNpCCS
+         j5ffSjEyfEeDypKrqDTV9TabiiAB9UwYb1JRpYdnPnh9w+cqQv/wDveyPl+Yd7YYSMz6
+         CzvDf1IQOhEqSCZAEhjNZW9D3Fgy1OldzkN43eDPdW6VxJl8A9mE8u3VVgjw7UzQf2ir
+         kYS0CcWaSMuE0IM41bra+OkpjFz0xE+u5QdZ6MJljI8iEplO1KQaPkFkgAwEnTnAyk6i
+         0BlZcAEzEiR3McgaZgH+6maMzySM8QK0USH4zSIqU5BYXTTzgcGBLrUKoX40auBE2LWq
+         Mggw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=kNkTL7z+wqvENJ3eYUdg+I7hY+uCSmZqtJTUTTVpVqQ=;
-        b=jvNHzNsbZ/+jfW032oUTZ8qKoW1QJKWNzEfhkSd7hlArQzTsQogpigBlNhYiqbQjjL
-         h8C0WdlqcHhQyQsjhWBTHm0YrfzI1Fk9eW2yXckDVNmgaTw5XAUolYnVTKPr72DdPOVa
-         iVQ1YNk5puu3CTVJh2MY9tjznjYW5Afx/S62YM+vpd9PDuQ0kREgMafMMZolSdaIvem5
-         nVLiilA2Wp3teF0p2LqIxg+TuwkC3hLV0xQrgGcx4kvjRtYcj92WwhSyAhB4VfNSanNt
-         P4Qjti+/LsMxyJsQ77XQxVZBKI9+onoH6LFnmE+WYuxfoXJrx7fqcNGMCs6ulyh+wnJj
-         ioeA==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=oLat4kKsYAs9f6tSiRP1Q2vmCfy3SQU/QqVTyJwEWuE=;
+        b=ZHbgwWzBY6siPxS13W25FE30vZjvBc/TDqy7i1aoeZ5bZMXT4+CQJVfIjCplfupNH1
+         StDxtvblh0lfye3vOYBfd5KCugOlE1s3QIWvitkhUXhz+G0cBH4Eo5upTm19nSLvR3Ho
+         tnYKZkMBurhaufIyj/2nkn4rcqBDrtuEm1gNW0dQq5WoMvGw3OlUrqozYolFYEg7VCQY
+         KU5ZjrSlrD8nTXIaCOGxh8IkgNeZpjfxMr7kNa8OP4Gevj/6KPsNrbrKOXVEA5+dck3E
+         odBWsWvmQIBloFXfizQSSZ3mAqQgG32aDBxWimPyzWDqWivSr4pbkmuHORzUEZSRyuJo
+         dPRg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 68.178.252.235 is neither permitted nor denied by best guess record for domain of tom@talpey.com) smtp.mailfrom=tom@talpey.com
-Received: from p3plsmtpa12-06.prod.phx3.secureserver.net (p3plsmtpa12-06.prod.phx3.secureserver.net. [68.178.252.235])
-        by mx.google.com with ESMTPS id v62si927377itc.132.2019.02.04.17.41.54
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nxLyhbOS;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r65sor342387ywf.199.2019.02.04.17.46.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Feb 2019 17:41:54 -0800 (PST)
-Received-SPF: neutral (google.com: 68.178.252.235 is neither permitted nor denied by best guess record for domain of tom@talpey.com) client-ip=68.178.252.235;
+        (Google Transport Security);
+        Mon, 04 Feb 2019 17:46:25 -0800 (PST)
+Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 68.178.252.235 is neither permitted nor denied by best guess record for domain of tom@talpey.com) smtp.mailfrom=tom@talpey.com
-Received: from [192.168.0.55] ([24.218.182.144])
-	by :SMTPAUTH: with ESMTPSA
-	id qpkFgyHefs48lqpkFghzeQ; Mon, 04 Feb 2019 18:41:53 -0700
-Subject: Re: [PATCH 0/6] RFC v2: mm: gup/dma tracking
-To: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>,
- linux-mm@kvack.org
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>,
- Christoph Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>,
- Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>,
- Dennis Dalessandro <dennis.dalessandro@intel.com>,
- Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>,
- Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>,
- Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>,
- Mike Rapoport <rppt@linux.ibm.com>,
- Mike Marciniszyn <mike.marciniszyn@intel.com>,
- Ralph Campbell <rcampbell@nvidia.com>, LKML <linux-kernel@vger.kernel.org>,
- linux-fsdevel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>
-References: <20190204052135.25784-1-jhubbard@nvidia.com>
-From: Tom Talpey <tom@talpey.com>
-Message-ID: <dbca5400-b0c0-0958-c3ba-ff672f301799@talpey.com>
-Date: Mon, 4 Feb 2019 20:41:50 -0500
-User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
-MIME-Version: 1.0
-In-Reply-To: <20190204052135.25784-1-jhubbard@nvidia.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-CMAE-Envelope: MS4wfNUg+qMlTkf0uFRGudLlEZusZQUmU+jiO/UVEFdSjTu/T3lErFEFCWDThr6SzjAte4nUHQWYgQCvRtuxtmInO/ubP3oVFwfxFS84y4AOiYWScjutG1WO
- 0XPn7TMPBcPLC6895u7rSttk7XkIKaZp9V+YvraWwjns7fqZ8BXOFhYC7Z/CtKX8HLZI/XylwSbn6rIqHYvXq5HlcUieBX9vT8qqD6drFP5/nSkIjuWDdIUf
- hYR0z1PSw5bHLEKrToMCDP4UX8fXgLOStbpsr4dHzCTMlSj24R8gUWrPgGjuAVwclp/oDha68rEqNL68tHY3KdELSSJvfAJ8/ew44ut5IxfUUidiLWQgwNAX
- Ty0fuHznLoH8GxEjwSWPe4Y9Y45ZHBNGOjjKqpw6+IfYIs2Nz0flwVdoFf3YlZ1rjZtwjx7uaz/SkiOreqQpj965AqF0J4vKk8FbbzvF6xOYcrk+foMgGEBz
- CEdvgw29NmgfN24yEV0DgfQ8lJwfsRtIff6J9H/fYdp3PZpBph/UT1hf6XNi/FO9hbVln90u8p5TGMHo2rDIzM6KBUDD2bHAszwMGPOwEZln8q7Jkj7a0FCH
- ZmT6ocEVqc/JhtWYOMT+38oWyZjYqwlRybdAVL96ejnuaybNiP8mJpyycwsxMz+XlDNr3OqVBtbo+OoLgYoC1BgozVTmUuhHnTKioJp2ZO4I2EgTvDMwRUgF
- tnxuNyyGyU0Zj2vwF6HqymGIDCYJUWvogr2XyV3HsC/vyAqXdHGlEBRoaTmTLG+FIiXXbCt3CXBT2AZCzoFdm02jSmjSfv5G6revOPlHLuy1+0Q2AgFDBeYL
- bX2bMpszPGOfscXcI2c=
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nxLyhbOS;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=oLat4kKsYAs9f6tSiRP1Q2vmCfy3SQU/QqVTyJwEWuE=;
+        b=nxLyhbOSMNesI5jxMBXmsm3OwtoSF+Q6zWpzt1aa6tB4yZK8a6quRQKhZ2db7oH2tz
+         p1t9AuG2XWLLwksHknEjR4nqKq1kZUlKwwKhFwUlqKJchdUNcnDcGhcpiB60NbxY+Ogw
+         xpPaAgmqt+tzs3OIFzJaCAJ+5bYKMeUJS26mZ1udAs3L3StxDkObLaQAVWdJVVaHsxsg
+         R5qASgdZBfHnsZ0uL++jgrrH3KmSsN+K2CoiVpFMpbg4vg3skxmshA2jqTcef8BLHPEo
+         TlN6fnIXQU7d3Sp5NF57UJIbXxP3y9yvY34jdj23U+QWLkhdWRwR+IbIWaR8q0D9Buh7
+         8pnQ==
+X-Google-Smtp-Source: AHgI3IayqcTMnrSQae8Hm8QfaM6nFKNXmkxCxrk1ujq7ltGY1oGtpvVPL9P8yYZp04LAppWVqZxT8w==
+X-Received: by 2002:a81:77c2:: with SMTP id s185mr1925067ywc.399.1549331184937;
+        Mon, 04 Feb 2019 17:46:24 -0800 (PST)
+Received: from [10.33.115.182] ([66.170.99.1])
+        by smtp.gmail.com with ESMTPSA id k142sm587599ywa.67.2019.02.04.17.46.23
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Feb 2019 17:46:24 -0800 (PST)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+Subject: Re: [RFC PATCH 3/4] kvm: Add guest side support for free memory hints
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <CAKgT0UevPXAG7xGzEur731-EJ0tOSGeg+AwugnRt6ugmfEKeLw@mail.gmail.com>
+Date: Mon, 4 Feb 2019 17:46:22 -0800
+Cc: Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ Linux-MM <linux-mm@kvack.org>,
+ LKML <linux-kernel@vger.kernel.org>,
+ kvm list <kvm@vger.kernel.org>,
+ Radim Krcmar <rkrcmar@redhat.com>,
+ X86 ML <x86@kernel.org>,
+ Ingo Molnar <mingo@redhat.com>,
+ Borislav Petkov <bp@alien8.de>,
+ Peter Anvin <hpa@zytor.com>,
+ Paolo Bonzini <pbonzini@redhat.com>,
+ Thomas Gleixner <tglx@linutronix.de>,
+ Andrew Morton <akpm@linux-foundation.org>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <D108194F-DEBE-43B7-BE61-7D5C52BDAAD3@gmail.com>
+References: <20190204181118.12095.38300.stgit@localhost.localdomain>
+ <20190204181552.12095.46287.stgit@localhost.localdomain>
+ <4E64E8CA-6741-47DF-87DE-88D01B01B15D@gmail.com>
+ <c24dc2351f3dc2f0e0bdf552c6504851e6fa6c06.camel@linux.intel.com>
+ <4DFBB378-8E7A-4905-A94D-D56B5FF6D42B@gmail.com>
+ <CAKgT0UevPXAG7xGzEur731-EJ0tOSGeg+AwugnRt6ugmfEKeLw@mail.gmail.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+X-Mailer: Apple Mail (2.3445.102.3)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/4/2019 12:21 AM, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
-> 
-> 
-> Performance: here is an fio run on an NVMe drive, using this for the fio
-> configuration file:
-> 
->      [reader]
->      direct=1
->      ioengine=libaio
->      blocksize=4096
->      size=1g
->      numjobs=1
->      rw=read
->      iodepth=64
-> 
-> reader: (g=0): rw=read, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
-> fio-3.3
-> Starting 1 process
-> Jobs: 1 (f=1)
-> reader: (groupid=0, jobs=1): err= 0: pid=7011: Sun Feb  3 20:36:51 2019
->     read: IOPS=190k, BW=741MiB/s (778MB/s)(1024MiB/1381msec)
->      slat (nsec): min=2716, max=57255, avg=4048.14, stdev=1084.10
->      clat (usec): min=20, max=12485, avg=332.63, stdev=191.77
->       lat (usec): min=22, max=12498, avg=336.72, stdev=192.07
->      clat percentiles (usec):
->       |  1.00th=[  322],  5.00th=[  322], 10.00th=[  322], 20.00th=[  326],
->       | 30.00th=[  326], 40.00th=[  326], 50.00th=[  326], 60.00th=[  326],
->       | 70.00th=[  326], 80.00th=[  330], 90.00th=[  330], 95.00th=[  330],
->       | 99.00th=[  478], 99.50th=[  717], 99.90th=[ 1074], 99.95th=[ 1090],
->       | 99.99th=[12256]
+> On Feb 4, 2019, at 4:16 PM, Alexander Duyck =
+<alexander.duyck@gmail.com> wrote:
+>=20
+> On Mon, Feb 4, 2019 at 4:03 PM Nadav Amit <nadav.amit@gmail.com> =
+wrote:
+>>> On Feb 4, 2019, at 3:37 PM, Alexander Duyck =
+<alexander.h.duyck@linux.intel.com> wrote:
+>>>=20
+>>> On Mon, 2019-02-04 at 15:00 -0800, Nadav Amit wrote:
+>>>>> On Feb 4, 2019, at 10:15 AM, Alexander Duyck =
+<alexander.duyck@gmail.com> wrote:
+>>>>>=20
+>>>>> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+>>>>>=20
+>>>>> Add guest support for providing free memory hints to the KVM =
+hypervisor for
+>>>>> freed pages huge TLB size or larger. I am restricting the size to
+>>>>> huge TLB order and larger because the hypercalls are too expensive =
+to be
+>>>>> performing one per 4K page. Using the huge TLB order became the =
+obvious
+>>>>> choice for the order to use as it allows us to avoid fragmentation =
+of higher
+>>>>> order memory on the host.
+>>>>>=20
+>>>>> I have limited the functionality so that it doesn't work when page
+>>>>> poisoning is enabled. I did this because a write to the page after =
+doing an
+>>>>> MADV_DONTNEED would effectively negate the hint, so it would be =
+wasting
+>>>>> cycles to do so.
+>>>>>=20
+>>>>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+>>>>> ---
+>>>>> arch/x86/include/asm/page.h |   13 +++++++++++++
+>>>>> arch/x86/kernel/kvm.c       |   23 +++++++++++++++++++++++
+>>>>> 2 files changed, 36 insertions(+)
+>>>>>=20
+>>>>> diff --git a/arch/x86/include/asm/page.h =
+b/arch/x86/include/asm/page.h
+>>>>> index 7555b48803a8..4487ad7a3385 100644
+>>>>> --- a/arch/x86/include/asm/page.h
+>>>>> +++ b/arch/x86/include/asm/page.h
+>>>>> @@ -18,6 +18,19 @@
+>>>>>=20
+>>>>> struct page;
+>>>>>=20
+>>>>> +#ifdef CONFIG_KVM_GUEST
+>>>>> +#include <linux/jump_label.h>
+>>>>> +extern struct static_key_false pv_free_page_hint_enabled;
+>>>>> +
+>>>>> +#define HAVE_ARCH_FREE_PAGE
+>>>>> +void __arch_free_page(struct page *page, unsigned int order);
+>>>>> +static inline void arch_free_page(struct page *page, unsigned int =
+order)
+>>>>> +{
+>>>>> +   if (static_branch_unlikely(&pv_free_page_hint_enabled))
+>>>>> +           __arch_free_page(page, order);
+>>>>> +}
+>>>>> +#endif
+>>>>=20
+>>>> This patch and the following one assume that only KVM should be =
+able to hook
+>>>> to these events. I do not think it is appropriate for =
+__arch_free_page() to
+>>>> effectively mean =E2=80=9Ckvm_guest_free_page()=E2=80=9D.
+>>>>=20
+>>>> Is it possible to use the paravirt infrastructure for this feature,
+>>>> similarly to other PV features? It is not the best infrastructure, =
+but at least
+>>>> it is hypervisor-neutral.
+>>>=20
+>>> I could probably tie this into the paravirt infrastructure, but if I
+>>> did so I would probably want to pull the checks for the page order =
+out
+>>> of the KVM specific bits and make it something we handle in the =
+inline.
+>>> Doing that I would probably make it a paravirtual hint that only
+>>> operates at the PMD level. That way we wouldn't incur the cost of =
+the
+>>> paravirt infrastructure at the per 4K page level.
+>>=20
+>> If I understand you correctly, you =E2=80=9Ccomplain=E2=80=9D that =
+this would affect
+>> performance.
+>=20
+> It wasn't so much a "complaint" as an "observation". What I was
+> getting at is that if I am going to make it a PV operation I might set
+> a hard limit on it so that it will specifically only apply to huge
+> pages and larger. By doing that I can justify performing the screening
+> based on page order in the inline path and avoid any PV infrastructure
+> overhead unless I have to incur it.
 
-These latencies are concerning. The best results we saw at the end of
-November (previous approach) were MUCH flatter. These really start
-spiking at three 9's, and are sky-high at four 9's. The "stdev" values
-for clat and lat are about 10 times the previous. There's some kind
-of serious queuing contention here, that wasn't there in November.
+I understood. I guess my use of =E2=80=9Cdouble quotes=E2=80=9D was lost =
+in translation. ;-)
 
->     bw (  KiB/s): min=730152, max=776512, per=99.22%, avg=753332.00, stdev=32781.47, samples=2
->     iops        : min=182538, max=194128, avg=188333.00, stdev=8195.37, samples=2
->    lat (usec)   : 50=0.01%, 100=0.01%, 250=0.07%, 500=99.26%, 750=0.38%
->    lat (usec)   : 1000=0.02%
->    lat (msec)   : 2=0.24%, 20=0.02%
->    cpu          : usr=15.07%, sys=84.13%, ctx=10, majf=0, minf=74
-
-System CPU 84% is roughly double the November results of 45%. Ouch.
-
-Did you re-run the baseline on the new unpatched base kernel and can
-we see the before/after?
-
-Tom.
-
->    IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
->       submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
->       complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
->       issued rwts: total=262144,0,0,0 short=0,0,0,0 dropped=0,0,0,0
->       latency   : target=0, window=0, percentile=100.00%, depth=64
-> 
-> Run status group 0 (all jobs):
->     READ: bw=741MiB/s (778MB/s), 741MiB/s-741MiB/s (778MB/s-778MB/s), io=1024MiB (1074MB), run=1381-1381msec
-> 
-> Disk stats (read/write):
->    nvme0n1: ios=216966/0, merge=0/0, ticks=6112/0, in_queue=704, util=91.34%
+One more point regarding [2/4] - you may want to consider using =
+madvise_free
+instead of madvise_dontneed to avoid unnecessary EPT violations.
 
