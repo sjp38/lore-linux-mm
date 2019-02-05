@@ -2,230 +2,362 @@ Return-Path: <SRS0=TNGr=QM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-7.0 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D8ACC282D7
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 12:10:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E81D1C282CB
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 12:12:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 17BC02080F
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 12:10:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17BC02080F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id A06D020821
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 12:12:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A06D020821
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 92F018E0084; Tue,  5 Feb 2019 07:10:07 -0500 (EST)
+	id 3D8C28E0085; Tue,  5 Feb 2019 07:12:24 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 90FA38E0083; Tue,  5 Feb 2019 07:10:07 -0500 (EST)
+	id 385518E0083; Tue,  5 Feb 2019 07:12:24 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7F68D8E0084; Tue,  5 Feb 2019 07:10:07 -0500 (EST)
+	id 2291F8E0085; Tue,  5 Feb 2019 07:12:24 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 585E38E0083
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 07:10:07 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id b187so3046065qkf.3
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 04:10:07 -0800 (PST)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E17D08E0083
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 07:12:23 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id r24so2735588otk.7
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 04:12:23 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=oiy6JzHwzSQ83120zG1UPME/oeByW6/N2NFusvCjbhM=;
-        b=dK/7ozabKqUrzVb1YaNaBj8Rj2WGyIi6h/HcgGr6aa/RJs1OUDOiffHuaaBGqnOcLY
-         ZF93veAEAcaL881wHeZQFG+PB2Z+b5ppVAEfd9yLAUwhmyVS74uYeDSKzxsMEl3NLhjU
-         nMdxH/jUzTrZ479wVyB7NMk2uZUzVPFTRHjRGmVUBvyLwTOqfq+5CZ1Gp6eby1Qp63q2
-         3rGNZGvC8NpyJTeq/2UE15+C9U+LCMt2+hQ/Ipz+cnvP0DFeMKu9kfRIWUt+wfmHeVZw
-         68Z4i3au/hjw9bEzaf1OeNBfDW6SgVOisFrAfn62KOSdowTdCdtrUXrQsZcmRh9xousl
-         FCdA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of asavkov@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=asavkov@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZyWzOv04jkesLCnoL5HgLlDy1rXilXoUcu/yE6NY8PAzNTQXmy
-	EEVS9JpT3bUZgy+2Gynevvf8W50HOUwEacYN7e/lNxNLIs0E/fksTDVMT3r0cy4EoW2bEABf6Q2
-	5tIFxKussVJe/hpwYfgC2rgSUML8NoEHdMQjAYLwbfAHW/kCVL8UzE8TjsxXnxcLesA==
-X-Received: by 2002:aed:2558:: with SMTP id w24mr3244069qtc.183.1549368607041;
-        Tue, 05 Feb 2019 04:10:07 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZLglHHOSv445mnUTpko+baQiS/rgSpMakp97ttK29ZH2vMy8EH37/dqqf5ZZVGhQiM2iWT
-X-Received: by 2002:aed:2558:: with SMTP id w24mr3244008qtc.183.1549368605938;
-        Tue, 05 Feb 2019 04:10:05 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549368605; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :references:in-reply-to:from:date:message-id:subject:to:cc;
+        bh=TqwDRd3S+vQTQKMSBao5/XjRBpR/yrOFiU9e8EKfsRU=;
+        b=TFwL6Mu1Cfp5oOAakjfLIXKEr2C9vE1+VBNq3PmumS71YnyMCStA62X9l9k4c57EOg
+         K+RJ52tF7UrM5zJKKGHGmO73u1UZ1mhewwbDOla0DeDCNjJrS1zzNaB92YLdIryKBXDm
+         +ec/XBqa2b2OKBwZO5tvmZZYVGzDOAXAVUxz23hZu/1XVEIwSHRcvaBRXKudna4fyr57
+         e43x0UHavfhz0HYLGdsMErmElNTZGRYOujbn2hFgU74CPfwwc0Z0cjYcVjw5grT6/ola
+         MLHYOAAcCkpAzccCj9ul+XKLH/p6KCzKwRFctxzH5cfP/shL6hp8fHzLyTDEguEoghNg
+         vWmQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuaBdyILBSQFcqBxtObB7hmWH64wenBIvmUh7i9WH2Rg6pkxBrl3
+	OgFntEg53+2/5TkjAgvwqSSNTlqH7HKgDPA8iTsiVm7lUPT9K6fgT5NO8o7BDVDrtcpov767Pu7
+	KZ2EKD70dlrSV+82rV8L9D0Hg4YdYGunKH28W46AFJD9SuMGwj6BY0X/J9wFHDBtyYXvF4ddiYD
+	TjMXoJnY5pPk+rL/hOUPHA4vsMu8IlssskJTX7Yzv5V23LSktP+Vv/u804rBmiBtasNYBxA6ZY3
+	o7DNZsFlduPnKcY+i1kLeh1b69Cm6EIxP0MdOuNfnjFNoOgmzOLMd5bIsjvF4fhXNrrK95e7V9r
+	gxeBlKDA1nL88sYR+KTFLqIXn+FzekR4JU7dEktYwWknw10nybA22JJf/SaS94iiYyTUQnXCuQ=
+	=
+X-Received: by 2002:a9d:1ee2:: with SMTP id n89mr2504140otn.262.1549368743536;
+        Tue, 05 Feb 2019 04:12:23 -0800 (PST)
+X-Received: by 2002:a9d:1ee2:: with SMTP id n89mr2504068otn.262.1549368741997;
+        Tue, 05 Feb 2019 04:12:21 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549368741; cv=none;
         d=google.com; s=arc-20160816;
-        b=zOEGraQT1PJ97Ssh4AEeBkhuxjDEWwvbnFpyFnfmsrWVJNRuKrZWpJ2ipkj4WMaWNC
-         JKNPU959u+ZKltphaGTp9I2EfTbIAXqHmkF8bVentGYl5ZWwpY+iEXSmsuYZyd5ejQDQ
-         wpBKnT0bGM+/yUbB2vceSCkD/nIqm4P923f1eP2PMypO93G6VqxKq6GGOlDabAL0lHIG
-         eflQMXidG4kXvs8x3UXnimZiToQFyuqyS86Q81agMDkcbbxVSunn4VC5+AJRgjaIHxXn
-         bLip/cAqYKYr8BaJq950Xu5JTs3PPGnuTgZnGedy0yyuvAXcmULO3xYTOZOLVWVRb+HV
-         v/BQ==
+        b=za3eX6NbObmiq6ToNcS0mOF9vtHFmNmmu/vUxDnIUxNpX+z3KSbN53hCHL9pFWzhfc
+         kLtrwy8MUy0Vsk8gil4R6Je1nUXjrKwrPUypBAtQoP8aEjcaB05g/ZbbtjDp4CT80UTo
+         3/pdFJCXz3szYfAq6uC0Ele3ivQew14KRvMmwHihjDspcBly/GDCmPh76X3gXZSWL/j4
+         yUe1dZ9UIAHRGqq/tST9CX4V24Wpw+2U7/VtT+hNcw6HfD7gve6xKajlBo/BQ2YSJZMe
+         rTlACGc7/U7Zx/Sz/OfQhtzG2ewGuL/zL6DrVROGyLjze7SkoCybuCZ2n9KsQKrVp9pO
+         mmjw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=oiy6JzHwzSQ83120zG1UPME/oeByW6/N2NFusvCjbhM=;
-        b=ixC4pBgVdIme2qstIt2sqcrI3YDmA+KDnBLK+5FyRojTICNZ9MUWOFfMDAE0AJOlGn
-         FdqD714xrtfz6xCTdeJ3JMdzFR3RDPCIKUWe0QFW10gpZq8f55oOADPWPiXfuR8AquOo
-         wp92r/+raZ1QRynz93Mil4k2m+93+akYRoPsVpe2Nml0q+tTzu400lzPTJNcTUoG70/7
-         GThhajxlb2vxaaNCPSXvSGtmNm00iHcqqmsFNFWwhh1Gn0X9D/ev9EHeHwdKvHkn0bUi
-         nL/Hrd7OrvK93y4Uf3iIgM9cxE7W+XMR+KP//3p34lgkb2m/yjwt8Q2SuQs/Sdzq8GpK
-         9kGA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version;
+        bh=TqwDRd3S+vQTQKMSBao5/XjRBpR/yrOFiU9e8EKfsRU=;
+        b=aJHpzgS+8+EvtTc02lVD8LISCy+GME2Ne78LHYA51kmK4JlokUSyiZ5ksjTdUSfc6i
+         Aj8dz7pVMJwSjBBiPIEulaZ2UfvJ+9QA8yqMAV7AdD+mGMqNNHKyA2RP9EnFhOpNtuAu
+         Q+cJrVn8zkdjwfRV2gM1bvmjxRqQ9BQRetOObf27EvqQo31kiIHbYLliV5NZY7rcdFD4
+         rn29TztS7oawU6YCYKASqw+tzoH/zujFjL501elnxLVByoApVODV38OVhFYYyKcpYE+6
+         UStwBtva9MTqStp2ro2C6N+Z599GXC2xqQQ62OIb3+FEGRvb3E+P+UWeRnLTpNoKt85z
+         lnYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of asavkov@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=asavkov@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j23si1809356qkk.232.2019.02.05.04.10.05
+       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i20sor12260287otc.68.2019.02.05.04.12.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Feb 2019 04:10:05 -0800 (PST)
-Received-SPF: pass (google.com: domain of asavkov@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 05 Feb 2019 04:12:21 -0800 (PST)
+Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of asavkov@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=asavkov@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 654EF87620;
-	Tue,  5 Feb 2019 12:10:04 +0000 (UTC)
-Received: from shodan.usersys.redhat.com (unknown [10.43.17.28])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id B00151048116;
-	Tue,  5 Feb 2019 12:10:03 +0000 (UTC)
-Received: by shodan.usersys.redhat.com (Postfix, from userid 1000)
-	id C782F2C0AD2; Tue,  5 Feb 2019 13:10:02 +0100 (CET)
-Date: Tue, 5 Feb 2019 13:10:02 +0100
-From: Artem Savkov <asavkov@redhat.com>
-To: Hugh Dickins <hughd@google.com>
-Cc: Baoquan He <bhe@redhat.com>, Qian Cai <cai@lca.pw>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: mm: race in put_and_wait_on_page_locked()
-Message-ID: <20190205121002.GA32424@shodan.usersys.redhat.com>
-References: <20190204091300.GB13536@shodan.usersys.redhat.com>
- <alpine.LSU.2.11.1902041201280.4441@eggly.anvils>
+       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: AHgI3Iaq6TfcWn6v8MYhvMCHHXi+TfZu0sx4kGro/cmBTrZhFpl8fBz9XcCWHaGxmVd6BUXxq2ufjsP+qVIUdLKGH0w=
+X-Received: by 2002:a9d:588c:: with SMTP id x12mr2502594otg.139.1549368741499;
+ Tue, 05 Feb 2019 04:12:21 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1902041201280.4441@eggly.anvils>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Tue, 05 Feb 2019 12:10:04 +0000 (UTC)
+References: <20190124230724.10022-1-keith.busch@intel.com> <20190124230724.10022-4-keith.busch@intel.com>
+In-Reply-To: <20190124230724.10022-4-keith.busch@intel.com>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Tue, 5 Feb 2019 13:12:09 +0100
+Message-ID: <CAJZ5v0iOESR+51j03FkqANKiNujQu-en8+D2L1F5LTJD0Owjuw@mail.gmail.com>
+Subject: Re: [PATCHv5 03/10] acpi/hmat: Parse and report heterogeneous memory
+To: Keith Busch <keith.busch@intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>, 
+	Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 04, 2019 at 12:42:50PM -0800, Hugh Dickins wrote:
-> On Mon, 4 Feb 2019, Artem Savkov wrote:
-> 
-> > Hi Hugh,
-> > 
-> > Your recent patch 9a1ea439b16b "mm: put_and_wait_on_page_locked() while
-> > page is migrated" seems to have introduced a race into page migration
-> > process. I have a host that eagerly reproduces the following BUG under
-> > stress:
-> > 
-> > [  302.847402] page:f000000000021700 count:0 mapcount:0 mapping:c0000000b2710bb0 index:0x19
-> > [  302.848096] xfs_address_space_operations [xfs] 
-> > [  302.848100] name:"libc-2.28.so" 
-> > [  302.848244] flags: 0x3ffff800000006(referenced|uptodate)
-> > [  302.848521] raw: 003ffff800000006 5deadbeef0000100 5deadbeef0000200 0000000000000000
-> > [  302.848724] raw: 0000000000000019 0000000000000000 00000001ffffffff c0000000bc0b1000
-> > [  302.848919] page dumped because: VM_BUG_ON_PAGE(page_ref_count(page) == 0)
-> > [  302.849076] page->mem_cgroup:c0000000bc0b1000
-> > [  302.849269] ------------[ cut here ]------------
-> > [  302.849397] kernel BUG at include/linux/mm.h:546!
-> > [  302.849586] Oops: Exception in kernel mode, sig: 5 [#1]
-> > [  302.849711] LE SMP NR_CPUS=2048 NUMA pSeries
-> > [  302.849839] Modules linked in: pseries_rng sunrpc xts vmx_crypto virtio_balloon xfs libcrc32c virtio_net net_failover virtio_console failover virtio_blk
-> > [  302.850400] CPU: 3 PID: 8759 Comm: cc1 Not tainted 5.0.0-rc4+ #36
-> > [  302.850571] NIP:  c00000000039c8b8 LR: c00000000039c8b4 CTR: c00000000080a0e0
-> > [  302.850758] REGS: c0000000b0d7f7e0 TRAP: 0700   Not tainted  (5.0.0-rc4+)
-> > [  302.850952] MSR:  8000000000029033 <SF,EE,ME,IR,DR,RI,LE>  CR: 48024422  XER: 00000000
-> > [  302.851150] CFAR: c0000000003ff584 IRQMASK: 0 
-> > [  302.851150] GPR00: c00000000039c8b4 c0000000b0d7fa70 c000000001bcca00 0000000000000021 
-> > [  302.851150] GPR04: c0000000b044c628 0000000000000007 55555555555555a0 c000000001fc3760 
-> > [  302.851150] GPR08: 0000000000000007 0000000000000000 c0000000b0d7c000 c0000000b0d7f5ff 
-> > [  302.851150] GPR12: 0000000000004400 c00000003fffae80 0000000000000000 0000000000000000 
-> > [  302.851150] GPR16: 0000000000000000 0000000000000000 0000000000000000 0000000000000000 
-> > [  302.851150] GPR20: c0000000689f5aa8 c00000002a13ee48 0000000000000000 c000000001da29b0 
-> > [  302.851150] GPR24: c000000001bf7d80 c0000000689f5a00 0000000000000000 0000000000000000 
-> > [  302.851150] GPR28: c000000001bf9e80 c0000000b0d7fab8 0000000000000001 f000000000021700 
-> > [  302.852914] NIP [c00000000039c8b8] put_and_wait_on_page_locked+0x398/0x3d0
-> > [  302.853080] LR [c00000000039c8b4] put_and_wait_on_page_locked+0x394/0x3d0
-> > [  302.853235] Call Trace:
-> > [  302.853305] [c0000000b0d7fa70] [c00000000039c8b4] put_and_wait_on_page_locked+0x394/0x3d0 (unreliable)
-> > [  302.853540] [c0000000b0d7fb10] [c00000000047b838] __migration_entry_wait+0x178/0x250
-> > [  302.853738] [c0000000b0d7fb50] [c00000000040c928] do_swap_page+0xd78/0xf60
-> > [  302.853997] [c0000000b0d7fbd0] [c000000000411078] __handle_mm_fault+0xbf8/0xe80
-> > [  302.854187] [c0000000b0d7fcb0] [c000000000411548] handle_mm_fault+0x248/0x450
-> > [  302.854379] [c0000000b0d7fd00] [c000000000078ca4] __do_page_fault+0x2d4/0xdf0
-> > [  302.854877] [c0000000b0d7fde0] [c0000000000797f8] do_page_fault+0x38/0xf0
-> > [  302.855057] [c0000000b0d7fe20] [c00000000000a7c4] handle_page_fault+0x18/0x38
-> > [  302.855300] Instruction dump:
-> > [  302.855432] 4bfffcf0 60000000 3948ffff 4bfffd20 60000000 60000000 3c82ff36 7fe3fb78 
-> > [  302.855689] fb210068 38843b78 48062f09 60000000 <0fe00000> 60000000 3b400001 3b600001 
-> > [  302.855950] ---[ end trace a52140e0f9751ae0 ]---
-> > 
-> > What seems to be happening is migrate_page_move_mapping() calling
-> > page_ref_freeze() on another cpu somewhere between __migration_entry_wait()
-> > taking a reference and wait_on_page_bit_common() calling page_put().
-> 
-> Thank you for reporting, Artem.
-> 
-> And see the mm thread https://marc.info/?l=linux-mm&m=154821775401218&w=2
+On Fri, Jan 25, 2019 at 12:08 AM Keith Busch <keith.busch@intel.com> wrote:
+>
+> Systems may provide different memory types and export this information
+> in the ACPI Heterogeneous Memory Attribute Table (HMAT). Parse these
+> tables provided by the platform and report the memory access and caching
+> attributes to the kernel messages.
+>
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
 
-Ah, thank you. Should have searched through linux-mm, not just lkml.
+Reviewed-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
-> That was on arm64, you are on power I think: both point towards xfs
-> (Cai could not reproduce it on ext4), but that should not be taken too
-> seriously - it could just be easier to reproduce on one than the other.
-> 
-> Your description in your last paragraph is what I imagined happening too.
-> And nothing wrong with that, except that the page_ref_freeze() should
-> have failed, but succeeded.  We believe that something has done an
-> improper put_page(), on a libc-2.28.so page that's normally always
-> in use, and the put_and_wait_on_page_locked() commit has exposed that
-> by making its migration possible when it was almost impossible before
-> (Cai has reproduced it without the put_and_wait_on_page_locked commit).
-
-This is what I saw as well, only reproduces on xfs and page_ref_count == 0
-BUG through generic_file_buffered_read() when your patch is reverted.
-Wasn't sure that's the same issue though.
-
-> I don't think any of us have made progress on this since the 25th.
-> I'll wrap up what I'm working on in the next hour or two, and switch
-> my attention to this. Even if put_and_wait_on_page_locked() happens to
-> be correct, and just makes a pre-existing bug much easier to hit, we
-> shall have to revert it from 5.0 if we cannot find the right answer
-> in the next week or so.  Which would be sad: I'll try to rescue it,
-> but don't have great confidence that I'll be successful.
-> 
-> I'll be looking through the source, thinking around it, and trying
-> to find a surplus put_page(). I don't have any experiments in mind
-> to try at this stage.
-> 
-> Something I shall not be doing, is verifying the correctness of the
-> low-level get_page_unless_zero() versus page_ref_freeze() protocol
-> on arm64 and power - nobody has reported on x86, and I do wonder if
-> there's a barrier missing somewhere, that could manifest in this way -
-> but I'm unlikely to be the one to find that (and also think that any
-> weakness there should have shown up long before now).
-
-I tried reproducing it with 5.0-rc5 and failed. There is one patch that
-seems to be fixing an xfs page reference issue which to me sounds a lot
-like what you describe.  The patch is 8e47a457321c "iomap: get/put the
-page in iomap_page_create/release()". That would explain why
-page_ref_freeze() and all the expected_page_refs() checks succeed when
-they shouldn't.
-
-Apart from no longer reproducing the bug I also see a drastic reduce in
-pgmigrate_fails in /proc/vmstat (from tens of thousands and
-being >pgmigrate_success, to just tens) so I assume it is possible for it
-to be just masking the problem by performing less retries. What do you think?
-
-Cai, can you please check if you can reproduce this issue in your
-environment with 5.0-rc5?
-
--- 
- Artem
+> ---
+>  drivers/acpi/Kconfig       |   1 +
+>  drivers/acpi/Makefile      |   1 +
+>  drivers/acpi/hmat/Kconfig  |   8 ++
+>  drivers/acpi/hmat/Makefile |   1 +
+>  drivers/acpi/hmat/hmat.c   | 181 +++++++++++++++++++++++++++++++++++++++++++++
+>  5 files changed, 192 insertions(+)
+>  create mode 100644 drivers/acpi/hmat/Kconfig
+>  create mode 100644 drivers/acpi/hmat/Makefile
+>  create mode 100644 drivers/acpi/hmat/hmat.c
+>
+> diff --git a/drivers/acpi/Kconfig b/drivers/acpi/Kconfig
+> index 90ff0a47c12e..b377f970adfd 100644
+> --- a/drivers/acpi/Kconfig
+> +++ b/drivers/acpi/Kconfig
+> @@ -465,6 +465,7 @@ config ACPI_REDUCED_HARDWARE_ONLY
+>           If you are unsure what to do, do not enable this option.
+>
+>  source "drivers/acpi/nfit/Kconfig"
+> +source "drivers/acpi/hmat/Kconfig"
+>
+>  source "drivers/acpi/apei/Kconfig"
+>  source "drivers/acpi/dptf/Kconfig"
+> diff --git a/drivers/acpi/Makefile b/drivers/acpi/Makefile
+> index bb857421c2e8..5d361e4e3405 100644
+> --- a/drivers/acpi/Makefile
+> +++ b/drivers/acpi/Makefile
+> @@ -80,6 +80,7 @@ obj-$(CONFIG_ACPI_PROCESSOR)  += processor.o
+>  obj-$(CONFIG_ACPI)             += container.o
+>  obj-$(CONFIG_ACPI_THERMAL)     += thermal.o
+>  obj-$(CONFIG_ACPI_NFIT)                += nfit/
+> +obj-$(CONFIG_ACPI_HMAT)                += hmat/
+>  obj-$(CONFIG_ACPI)             += acpi_memhotplug.o
+>  obj-$(CONFIG_ACPI_HOTPLUG_IOAPIC) += ioapic.o
+>  obj-$(CONFIG_ACPI_BATTERY)     += battery.o
+> diff --git a/drivers/acpi/hmat/Kconfig b/drivers/acpi/hmat/Kconfig
+> new file mode 100644
+> index 000000000000..c9637e2e7514
+> --- /dev/null
+> +++ b/drivers/acpi/hmat/Kconfig
+> @@ -0,0 +1,8 @@
+> +# SPDX-License-Identifier: GPL-2.0
+> +config ACPI_HMAT
+> +       bool "ACPI Heterogeneous Memory Attribute Table Support"
+> +       depends on ACPI_NUMA
+> +       help
+> +        If set, this option causes the kernel to set the memory NUMA node
+> +        relationships and access attributes in accordance with ACPI HMAT
+> +        (Heterogeneous Memory Attributes Table).
+> diff --git a/drivers/acpi/hmat/Makefile b/drivers/acpi/hmat/Makefile
+> new file mode 100644
+> index 000000000000..e909051d3d00
+> --- /dev/null
+> +++ b/drivers/acpi/hmat/Makefile
+> @@ -0,0 +1 @@
+> +obj-$(CONFIG_ACPI_HMAT) := hmat.o
+> diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
+> new file mode 100644
+> index 000000000000..1741bf30d87f
+> --- /dev/null
+> +++ b/drivers/acpi/hmat/hmat.c
+> @@ -0,0 +1,181 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +/*
+> + * Copyright (c) 2019, Intel Corporation.
+> + *
+> + * Heterogeneous Memory Attributes Table (HMAT) representation
+> + *
+> + * This program parses and reports the platform's HMAT tables, and registers
+> + * the applicable attributes with the node's interfaces.
+> + */
+> +
+> +#include <linux/acpi.h>
+> +#include <linux/bitops.h>
+> +#include <linux/device.h>
+> +#include <linux/init.h>
+> +#include <linux/list.h>
+> +#include <linux/node.h>
+> +#include <linux/sysfs.h>
+> +
+> +static __init const char *hmat_data_type(u8 type)
+> +{
+> +       switch (type) {
+> +       case ACPI_HMAT_ACCESS_LATENCY:
+> +               return "Access Latency";
+> +       case ACPI_HMAT_READ_LATENCY:
+> +               return "Read Latency";
+> +       case ACPI_HMAT_WRITE_LATENCY:
+> +               return "Write Latency";
+> +       case ACPI_HMAT_ACCESS_BANDWIDTH:
+> +               return "Access Bandwidth";
+> +       case ACPI_HMAT_READ_BANDWIDTH:
+> +               return "Read Bandwidth";
+> +       case ACPI_HMAT_WRITE_BANDWIDTH:
+> +               return "Write Bandwidth";
+> +       default:
+> +               return "Reserved";
+> +       };
+> +}
+> +
+> +static __init const char *hmat_data_type_suffix(u8 type)
+> +{
+> +       switch (type) {
+> +       case ACPI_HMAT_ACCESS_LATENCY:
+> +       case ACPI_HMAT_READ_LATENCY:
+> +       case ACPI_HMAT_WRITE_LATENCY:
+> +               return " nsec";
+> +       case ACPI_HMAT_ACCESS_BANDWIDTH:
+> +       case ACPI_HMAT_READ_BANDWIDTH:
+> +       case ACPI_HMAT_WRITE_BANDWIDTH:
+> +               return " MB/s";
+> +       default:
+> +               return "";
+> +       };
+> +}
+> +
+> +static __init int hmat_parse_locality(union acpi_subtable_headers *header,
+> +                                     const unsigned long end)
+> +{
+> +       struct acpi_hmat_locality *hmat_loc = (void *)header;
+> +       unsigned int init, targ, total_size, ipds, tpds;
+> +       u32 *inits, *targs, value;
+> +       u16 *entries;
+> +       u8 type;
+> +
+> +       if (hmat_loc->header.length < sizeof(*hmat_loc)) {
+> +               pr_debug("HMAT: Unexpected locality header length: %d\n",
+> +                        hmat_loc->header.length);
+> +               return -EINVAL;
+> +       }
+> +
+> +       type = hmat_loc->data_type;
+> +       ipds = hmat_loc->number_of_initiator_Pds;
+> +       tpds = hmat_loc->number_of_target_Pds;
+> +       total_size = sizeof(*hmat_loc) + sizeof(*entries) * ipds * tpds +
+> +                    sizeof(*inits) * ipds + sizeof(*targs) * tpds;
+> +       if (hmat_loc->header.length < total_size) {
+> +               pr_debug("HMAT: Unexpected locality header length:%d, minimum required:%d\n",
+> +                        hmat_loc->header.length, total_size);
+> +               return -EINVAL;
+> +       }
+> +
+> +       pr_info("HMAT: Locality: Flags:%02x Type:%s Initiator Domains:%d Target Domains:%d Base:%lld\n",
+> +               hmat_loc->flags, hmat_data_type(type), ipds, tpds,
+> +               hmat_loc->entry_base_unit);
+> +
+> +       inits = (u32 *)(hmat_loc + 1);
+> +       targs = &inits[ipds];
+> +       entries = (u16 *)(&targs[tpds]);
+> +       for (init = 0; init < ipds; init++) {
+> +               for (targ = 0; targ < tpds; targ++) {
+> +                       value = entries[init * tpds + targ];
+> +                       value = (value * hmat_loc->entry_base_unit) / 10;
+> +                       pr_info("  Initiator-Target[%d-%d]:%d%s\n",
+> +                               inits[init], targs[targ], value,
+> +                               hmat_data_type_suffix(type));
+> +               }
+> +       }
+> +
+> +       return 0;
+> +}
+> +
+> +static __init int hmat_parse_cache(union acpi_subtable_headers *header,
+> +                                  const unsigned long end)
+> +{
+> +       struct acpi_hmat_cache *cache = (void *)header;
+> +       u32 attrs;
+> +
+> +       if (cache->header.length < sizeof(*cache)) {
+> +               pr_debug("HMAT: Unexpected cache header length: %d\n",
+> +                        cache->header.length);
+> +               return -EINVAL;
+> +       }
+> +
+> +       attrs = cache->cache_attributes;
+> +       pr_info("HMAT: Cache: Domain:%d Size:%llu Attrs:%08x SMBIOS Handles:%d\n",
+> +               cache->memory_PD, cache->cache_size, attrs,
+> +               cache->number_of_SMBIOShandles);
+> +
+> +       return 0;
+> +}
+> +
+> +static int __init hmat_parse_address_range(union acpi_subtable_headers *header,
+> +                                          const unsigned long end)
+> +{
+> +       struct acpi_hmat_address_range *spa = (void *)header;
+> +
+> +       if (spa->header.length != sizeof(*spa)) {
+> +               pr_debug("HMAT: Unexpected address range header length: %d\n",
+> +                        spa->header.length);
+> +               return -EINVAL;
+> +       }
+> +       pr_info("HMAT: Memory (%#llx length %#llx) Flags:%04x Processor Domain:%d Memory Domain:%d\n",
+> +               spa->physical_address_base, spa->physical_address_length,
+> +               spa->flags, spa->processor_PD, spa->memory_PD);
+> +
+> +       return 0;
+> +}
+> +
+> +static int __init hmat_parse_subtable(union acpi_subtable_headers *header,
+> +                                     const unsigned long end)
+> +{
+> +       struct acpi_hmat_structure *hdr = (void *)header;
+> +
+> +       if (!hdr)
+> +               return -EINVAL;
+> +
+> +       switch (hdr->type) {
+> +       case ACPI_HMAT_TYPE_ADDRESS_RANGE:
+> +               return hmat_parse_address_range(header, end);
+> +       case ACPI_HMAT_TYPE_LOCALITY:
+> +               return hmat_parse_locality(header, end);
+> +       case ACPI_HMAT_TYPE_CACHE:
+> +               return hmat_parse_cache(header, end);
+> +       default:
+> +               return -EINVAL;
+> +       }
+> +}
+> +
+> +static __init int hmat_init(void)
+> +{
+> +       struct acpi_table_header *tbl;
+> +       enum acpi_hmat_type i;
+> +       acpi_status status;
+> +
+> +       if (srat_disabled())
+> +               return 0;
+> +
+> +       status = acpi_get_table(ACPI_SIG_HMAT, 0, &tbl);
+> +       if (ACPI_FAILURE(status))
+> +               return 0;
+> +
+> +       for (i = ACPI_HMAT_TYPE_ADDRESS_RANGE; i < ACPI_HMAT_TYPE_RESERVED; i++) {
+> +               if (acpi_table_parse_entries(ACPI_SIG_HMAT,
+> +                                            sizeof(struct acpi_table_hmat), i,
+> +                                            hmat_parse_subtable, 0) < 0)
+> +                       goto out_put;
+> +       }
+> +out_put:
+> +       acpi_put_table(tbl);
+> +       return 0;
+> +}
+> +subsys_initcall(hmat_init);
+> --
+> 2.14.4
+>
 
