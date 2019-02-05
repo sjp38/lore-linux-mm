@@ -2,187 +2,174 @@ Return-Path: <SRS0=TNGr=QM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 496EBC282D7
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 17:55:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C5DEC282CB
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 18:01:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F09F2217D6
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 17:55:03 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="OpAGewTa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F09F2217D6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
+	by mail.kernel.org (Postfix) with ESMTP id ED6ED217F9
+	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 18:01:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED6ED217F9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8F18F8E0096; Tue,  5 Feb 2019 12:55:03 -0500 (EST)
+	id 851148E0097; Tue,  5 Feb 2019 13:01:42 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8A1568E0093; Tue,  5 Feb 2019 12:55:03 -0500 (EST)
+	id 7FFE78E0093; Tue,  5 Feb 2019 13:01:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 78F268E0096; Tue,  5 Feb 2019 12:55:03 -0500 (EST)
+	id 6A2168E0097; Tue,  5 Feb 2019 13:01:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 465F98E0093
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 12:55:03 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id a19so3690938otq.1
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 09:55:03 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2729A8E0093
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 13:01:42 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id q14so2915263pll.15
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 10:01:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=DvX0SvjzS9cg6KCABhOsPWSCOuOybvRlHZr0Cemjf4M=;
-        b=m9o8Zm0ktcAzBWqapHbPbIwYZZBPUp+fyJerV1I1H1r8mk6SVE5QtTsBqkkNTru9Y5
-         otR9z5XvPCedIbiAw1JWwCIJVfLVFH1k6HcWWIjPQWzE7KmkBxBXt8kqT81WQlWSyHDx
-         ICIHiBcQFloL7dpqmuaBUJBwA6BALMCwR35rnOzMAmynGM35pxgJ6E/OFVoBR7fLF3p7
-         PPO7bxwz944uD+yvgDiHOuR1lszl1HjdQDPcH6FPECYwsCJ+KLRlNXnYrWlobP20oa+Z
-         D2IoeEElUbo7IPw+A6YRkW4RY2OKO3hvQea0psCN4WjE4z8rTPkQ3pRR0QsO+TZC/qUl
-         JppA==
-X-Gm-Message-State: AHQUAuYaa5wm3c3/gvRx993G1Z7wrKLaOCfzIeMckL/myXJDkgQ7s+ot
-	S5uMdBnu0k8qzTZFecDa0zQRnUc/InxYIUcpXdVLutRYUZ0uTitnc2wxIoMzYC/xOUUn7bvX162
-	BKrJJEOwEPWtNTIfVVoIiQJzxiyUCWtWt6KOvx+GLx8XGoeSWqTDACtWTdyelqiFXDg==
-X-Received: by 2002:a05:6830:14ca:: with SMTP id t10mr3500481otq.112.1549389302790;
-        Tue, 05 Feb 2019 09:55:02 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ibcya0U0iLvjkfzZmMI0yFgZJ/kgTURAEnG/xe8hYmfdBs266KJvxv3pV4JMsFomIkVzYZ6
-X-Received: by 2002:a05:6830:14ca:: with SMTP id t10mr3500449otq.112.1549389302213;
-        Tue, 05 Feb 2019 09:55:02 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549389302; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=9HbjEquHvPYjk7nKOstiyRPeIIsYizVw4ZLmj6EN9DA=;
+        b=AyGaY87PztzcdxIrJix8hsoKl8LKzt3zCrgZsAgmOgJ++fPe9RqlgeDkLpuDPQpQXB
+         u/Z0OBvGx8q0ZukLpFoF2zEz+8fw5Ls9Ch3t1UIYWn0B7TUmQYsJwncW21TvCuexghta
+         ISxW0JiofSuqkusDSvRpPw9be0jWPcjZDQdyIFbfrT9WU8yx0x/XyxqhnvhGkDlVURnq
+         GTr7qbjYUxQxo9OIy7fVtuyVHmMrlvapa23pFQ8VBUC7gnazzPTirbVsJuQGkg3NWw6E
+         hn1gUdnhQO7VarqvOVelHALMYQsYLTRRzQ/TPYyFRSR3kh0ugh0Xg0yDGjmQ6XWvfwxG
+         aQEA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuYa9J/X36bHYJXaecOym/PLT1Nm5MlHumA9kELbZ9uKCylnJ7xX
+	8z1/4a9O6K8BQop2L9bJnRflmFOcx8t7pBGjBNK6H1KW9fufXlg+3V2FFhnMevEDRL52FjMKNrD
+	pXyJt0X53NkN1iG7v41/9Hx9/A8V9YSM8F3W3K8wcIH6ON6L2p5C0XzS8b4xI8LHImA==
+X-Received: by 2002:a62:ca9c:: with SMTP id y28mr6195055pfk.236.1549389701797;
+        Tue, 05 Feb 2019 10:01:41 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaJFF5PDVAAEpIpvZWMdCnLsNMGsn2WY+fl/vQu8TaCB9b1VsAAnEgX8632Hf8HEKg/waso
+X-Received: by 2002:a62:ca9c:: with SMTP id y28mr6194992pfk.236.1549389700929;
+        Tue, 05 Feb 2019 10:01:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549389700; cv=none;
         d=google.com; s=arc-20160816;
-        b=X9OToAY/f0F/E6i+NhE/nmRA46tfAw5NaQ9FG1hY6rZ/L80yxuHtKVYZhns/n4HVte
-         WBzH2w1sSBgUn8YRExePhQWQ4oFthokNOUzY9Sw/rzdVfIIF/1lbaqREwHyg/Xu/DlQX
-         VrsqIahhuOav4bnsBsr8IVgnRXuexEKDxhbsn7YowPIpJkhaETJD+UDuwlplRsTyNo1W
-         mPoTk7tYMa0Gg55vWlm3mWzTMBAhvraMKX7K7WEskbK5Zip/w4aJ4Iaf6poSo6Su6sL3
-         +GSor+RdhQ05fVQR3Cjv69o8Lgj7vXSMKVCJbmHBk8kd/M2YLnaFl+8kSLSWKWyEVf0V
-         p5SA==
+        b=HWcrI6ZFKU+7k7lKw/J8WkHKiTFbDeNe/WCiJl3okBTtBjrO0Wvy9SDWTD1+keOMVe
+         vOrNmYFWKIlT/vmgEJjCoTcIaIEgvaI+TPs1w7ConWg9q0QRYE91R93g7rJxoJ+/sUvP
+         9CUYjCxtmGF8gZ0GRaNLCzVVmnLxD2tt6r2D9h7LhpyXoQr4l1Sp8SZAon5mA2SM3eNJ
+         VBmDZ72Z7z+i+sogfb+JYnHpSsci6fBKrTKP1yfC1WsKlKYxtOKbwb+tjJW6V8BdPXF2
+         X6wn5kQDYg6B4y2mBAyQ/l+QREFhfLtWo9pOnjdbp60cHztkAW9NoEdsFXshGliK85/C
+         VCxw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=DvX0SvjzS9cg6KCABhOsPWSCOuOybvRlHZr0Cemjf4M=;
-        b=GhTApHFeNNO+PmRTjVQNIMsaPWAqMjDMoOmUhUfUGf/KBxT38oHxRV81jFb5r1bqWL
-         pqEol0RIgSsPjczhVCNf6sZqUFQ5BGo+A/VhMtrCDeoeX5s+PsLxX5P6lv2RXe036Oo4
-         GqY/eoviSr4FPZrN/9S3OYzZVCxvRaEuGK2eqZmhS9Lp9LicbJ7W4vEyv4Jis8oDcrIc
-         YqI3L3J/lfwXXPwgCf2zmjx0hGIH9TRBw/kKqYC5WfYOgCuY42dOTiMFMNimLyzgv85/
-         i2j9kD2vWaY4uQf47cbOTCU3CHCGwSmkcrlkiYX3pXrGXTznJ1VXS69sWgwC3fWv4+qt
-         uS8A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=9HbjEquHvPYjk7nKOstiyRPeIIsYizVw4ZLmj6EN9DA=;
+        b=px+WU43jbev+xp03XnfUZO4HC4xC/VhZgmW4JfHPsLa+3NP8I5BlwVDElB77RD+Z6+
+         9IXpCkZeLVDAHQdMle+YLC6rvstDJBo5URN6YV+eilqmNXCYPPmq6/6St+rIUSrmiyjq
+         zDH2skKDVk01y4o+IjvyIolwgLSeSutQm3jji2BssAuhoxFbpTlLPp1DYqGOwdnWi4Dq
+         +t/hBsmCdcTRbrpBb8QhPVw+MwFGsOkMyiH1zT8eiBiOsxB2XwukfnQlTO0TyjcF7lWm
+         tilxxM0M4KBzYBSPDCmwyokYqczUyZSvyXBWTkRFqW4jpIyAa+XApLJLN8s/8fv9aMZi
+         MInA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector1 header.b=OpAGewTa;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.78.58 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=vmware.com
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-eopbgr780058.outbound.protection.outlook.com. [40.107.78.58])
-        by mx.google.com with ESMTPS id 48si8508521otg.161.2019.02.05.09.55.02
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id x23si3789173pln.100.2019.02.05.10.01.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 05 Feb 2019 09:55:02 -0800 (PST)
-Received-SPF: pass (google.com: domain of namit@vmware.com designates 40.107.78.58 as permitted sender) client-ip=40.107.78.58;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Feb 2019 10:01:40 -0800 (PST)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@vmware.com header.s=selector1 header.b=OpAGewTa;
-       spf=pass (google.com: domain of namit@vmware.com designates 40.107.78.58 as permitted sender) smtp.mailfrom=namit@vmware.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=vmware.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=DvX0SvjzS9cg6KCABhOsPWSCOuOybvRlHZr0Cemjf4M=;
- b=OpAGewTadxIiu2tMElin5owl7CWsCVVrijVMnRG6Pthy8Zdi1OfGb8jRXisJK8MdhqZFGho3dHnHLTlJBmPRrn8ZxrZhf3Ol53iQFg0sFuknEJUGQRj+E27JmJYsrepyunMK+Dkti5KARvgxwX65eZuQYgRlzJpxYwnGf5wNiR8=
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com (52.135.233.146) by
- BYAPR05MB6296.namprd05.prod.outlook.com (20.178.51.81) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1601.15; Tue, 5 Feb 2019 17:54:57 +0000
-Received: from BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::99ab:18fb:f393:df31]) by BYAPR05MB4776.namprd05.prod.outlook.com
- ([fe80::99ab:18fb:f393:df31%3]) with mapi id 15.20.1601.016; Tue, 5 Feb 2019
- 17:54:57 +0000
-From: Nadav Amit <namit@vmware.com>
-To: Borislav Petkov <bp@alien8.de>
-CC: Peter Zijlstra <peterz@infradead.org>, Rick Edgecombe
-	<rick.p.edgecombe@intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar
-	<mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, X86 ML
-	<x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner
-	<tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>, Damian
- Tometzki <linux_dti@icloud.com>, linux-integrity
-	<linux-integrity@vger.kernel.org>, LSM List
-	<linux-security-module@vger.kernel.org>, Andrew Morton
-	<akpm@linux-foundation.org>, Kernel Hardening
-	<kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, Will
- Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Kristen Carlson Accardi <kristen@linux.intel.com>, "Dock, Deneen T"
-	<deneen.t.dock@intel.com>, Kees Cook <keescook@chromium.org>, Dave Hansen
-	<dave.hansen@intel.com>, Masami Hiramatsu <mhiramat@kernel.org>
-Subject: Re: [PATCH v2 06/20] x86/alternative: use temporary mm for text
- poking
-Thread-Topic: [PATCH v2 06/20] x86/alternative: use temporary mm for text
- poking
-Thread-Index: AQHUt2sRlZaCHhQDiEGNmzE5nFIfqqXRA/aAgAAZ9ACAABHSgIAAWTuA
-Date: Tue, 5 Feb 2019 17:54:56 +0000
-Message-ID: <6D321F51-6B19-46F6-91AC-74248A542BA0@vmware.com>
-References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
- <20190129003422.9328-7-rick.p.edgecombe@intel.com>
- <20190205095853.GJ21801@zn.tnic>
- <20190205113146.GP17528@hirez.programming.kicks-ass.net>
- <20190205123533.GN21801@zn.tnic>
-In-Reply-To: <20190205123533.GN21801@zn.tnic>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=namit@vmware.com; 
-x-originating-ip: [66.170.99.1]
-x-ms-publictraffictype: Email
-x-microsoft-exchange-diagnostics:
- 1;BYAPR05MB6296;20:QxqDJfbj9XKfepbpbqVmkv5766jXl1JorpcDc6xl1KJTVSUXIhn8Yppt06+640zAjKe19ZUYjxzlT4M0m9fIzrT19NXajABrJO1ZdDj+E2tBtRdgF4MdWJDksNZuGxoMluWmebwHQGTI/5LvMPDyWX2bkhPN5tJcnu8luW5HTyM=
-x-ms-office365-filtering-correlation-id: 233f17a2-c471-4c41-7414-08d68b930a6a
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(2017052603328)(7153060)(7193020);SRVR:BYAPR05MB6296;
-x-ms-traffictypediagnostic: BYAPR05MB6296:
-x-microsoft-antispam-prvs:
- <BYAPR05MB629637D5EFD114B23FBDE163D06E0@BYAPR05MB6296.namprd05.prod.outlook.com>
-x-forefront-prvs: 0939529DE2
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(136003)(376002)(366004)(346002)(396003)(39860400002)(189003)(199004)(81156014)(105586002)(81166006)(93886005)(8936002)(106356001)(2906002)(83716004)(7736002)(86362001)(305945005)(66066001)(14454004)(76176011)(33656002)(71190400001)(97736004)(7416002)(8676002)(316002)(186003)(4744005)(54906003)(26005)(71200400001)(6436002)(36756003)(102836004)(446003)(478600001)(6916009)(99286004)(82746002)(476003)(256004)(68736007)(4326008)(6512007)(2616005)(11346002)(6506007)(53546011)(229853002)(6116002)(3846002)(6486002)(53936002)(6246003)(486006)(25786009);DIR:OUT;SFP:1101;SCL:1;SRVR:BYAPR05MB6296;H:BYAPR05MB4776.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: vmware.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- Ul9qel0S4EZTHba0GgO2eznZQaY624VlPUugjgCH3NFi1b4exP8NOmkXrIxJZBzWQ/9PO790babvf+zx0YTNmHw23UGyw+mITeq8dcEnV5+WT1i9k92R332oCrqA6Z8JAnwzltUXeqkJcatAvWsRexKqhuZHdeCsagmB0PBY7TzMef7OAIl8fLzvwsHHguiU5yeqHfAa2iELj+whTRRM1Q8CXeQbWt8QFB9a2cHOmgTFxjVn3xkqKtGVfQMrXAMNpVAtDbObNsQZnoK2nHGtGARUrWZoGqMzAKQbFIxf5JIb1ZR7/HV7NgpPJ9EEmbA7y7Zd4I/poK/y8+sK/8alNNmUlobAlWEwuYz4Sx5l8KKbdDUXjG84E1cep7hBpaKFiBrw/Bwevt7zMPU34CU4iPzUYAUAlTWAJLxE753GYJY=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <F6D00271B554CB47B00297C100C54604@namprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga003.jf.intel.com ([10.7.209.27])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Feb 2019 10:01:40 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,336,1544515200"; 
+   d="scan'208";a="124180424"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga003.jf.intel.com with ESMTP; 05 Feb 2019 10:01:39 -0800
+Date: Tue, 5 Feb 2019 10:01:20 -0800
+From: Ira Weiny <ira.weiny@intel.com>
+To: lsf-pc@lists.linux-foundation.org, linux-rdma@vger.kernel.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Dave Chinner <david@fromorbit.com>,
+	Doug Ledford <dledford@redhat.com>,
+	Michal Hocko <mhocko@kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>
+Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
+ longterm-GUP usage by RDMA
+Message-ID: <20190205180120.GC21617@iweiny-DESK2.sc.intel.com>
+References: <20190205175059.GB21617@iweiny-DESK2.sc.intel.com>
 MIME-Version: 1.0
-X-OriginatorOrg: vmware.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 233f17a2-c471-4c41-7414-08d68b930a6a
-X-MS-Exchange-CrossTenant-originalarrivaltime: 05 Feb 2019 17:54:56.8334
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR05MB6296
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190205175059.GB21617@iweiny-DESK2.sc.intel.com>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Feb 5, 2019, at 4:35 AM, Borislav Petkov <bp@alien8.de> wrote:
->=20
-> On Tue, Feb 05, 2019 at 12:31:46PM +0100, Peter Zijlstra wrote:
->> ...
->>=20
->> So while in general I agree with BUG_ON() being undesirable, I think
->> liberal sprinking in text_poke() is fine; you really _REALLY_ want this
->> to work or fail loudly. Text corruption is just painful.
->=20
-> Ok. It would be good to have the gist of this sentiment in a comment
-> above it so that it is absolutely clear why we're doing it.
+I had an old invalid address for Jason Gunthorpe in my address book...  
 
-I added a short comment for v3 above each BUG_ON().
+Correcting his email in the thread.
 
-> And since text_poke() can't fail, then it doesn't need a retval too.
-> AFAICT, nothing is actually using it.
-
-As Peter said, this is addressed in a separate patch (one patch per logical
-change).
+On Tue, Feb 05, 2019 at 09:50:59AM -0800, 'Ira Weiny' wrote:
+> 
+> The problem: Once we have pages marked as GUP-pinned how should various
+> subsystems work with those markings.
+> 
+> The current work for John Hubbards proposed solutions (part 1 and 2) is
+> progressing.[1]  But the final part (3) of his solution is also going to take
+> some work.
+> 
+> In Johns presentation he lists 3 alternatives for gup-pinned pages:
+> 
+> 1) Hold off try_to_unmap
+> 2) Allow writeback while pinned (via bounce buffers)
+> 	[Note this will not work for DAX]
+> 3) Use a "revocable reservation" (or lease) on those pages
+> 4) Pin the blocks as busy in the FS allocator
+> 
+> The problem with lease's on pages used by RDMA is that the references to
+> these pages is not local to the machine.  Once the user has been given access
+> to the page they, through the use of a remote tokens, give a reference to that
+> page to remote nodes.  This is the core essence of RDMA, and like it or not,
+> something which is increasingly used by major Linux users.
+> 
+> Therefore we need to discuss the extent by which leases are appropriate and
+> what happens should a lease be revoked which a user does not respond to.
+> 
+> As John Hubbard put it:
+> 
+> "Other filesystem features that need to replace the page with a new one can
+> be inhibited for pages that are GUP-pinned. This will, however, alter and
+> limit some of those filesystem features. The only fix for that would be to
+> require GUP users monitor and respond to CPU page table updates. Subsystems
+> such as ODP and HMM do this, for example. This aspect of the problem is
+> still under discussion."
+> 
+> 	-- John Hubbard[2]
+> 
+> The following people have been involved in previous conversations and would be key to
+> the face to face discussion.
+> 
+> John Hubbard
+> Jan Kara
+> Dave Chinner
+> Michal Hocko
+> Dan Williams
+> Matthew Wilcox
+> Jason Gunthorpe
+> 
+> Thank you,
+> Ira Weiny
+> 
+> [1] https://linuxplumbersconf.org/event/2/contributions/126/attachments/136/168/LPC_2018_gup_dma.pdf
+> [2] https://lkml.org/lkml/2019/2/4/7
+> 
 
