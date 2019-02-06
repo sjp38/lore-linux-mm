@@ -2,155 +2,159 @@ Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1FF38C282CC
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:52:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A75AC4151A
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:52:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DDF61217F9
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:52:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DDF61217F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 07A152075C
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:52:38 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Mirs8uEt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 07A152075C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 86A208E00D9; Wed,  6 Feb 2019 12:52:05 -0500 (EST)
+	id 9A25B8E00DE; Wed,  6 Feb 2019 12:52:38 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7F1C38E00D1; Wed,  6 Feb 2019 12:52:05 -0500 (EST)
+	id 950DF8E00D1; Wed,  6 Feb 2019 12:52:38 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 694408E00D9; Wed,  6 Feb 2019 12:52:05 -0500 (EST)
+	id 7F36E8E00DE; Wed,  6 Feb 2019 12:52:38 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 396FB8E00D1
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 12:52:05 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id b187so7147845qkf.3
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 09:52:05 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 371388E00D1
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 12:52:38 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id q20so5432275pls.4
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 09:52:38 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to;
-        bh=7/P7mL00Gsglud9/osHxxnh+h3PbbceXpT84a+hjR8M=;
-        b=tDUUxaqZsPlZe6eajAXbYv5B8F9iGikOL8wUOfIgaMpxgiMR+tsWPpbzEfeA9osBIx
-         35sQF7gVssGuaWsbT2ynaWHIpAeKWncTd4tlKAVOXY/lijbLmESy3LV42co0G+3HCwpa
-         YYqurkFPzouTrAw1UFV6/xTU6C08WHYXM/qtATeuTyhkwkqahOGyc+C7UvSZLTZ3wCZX
-         gdoLd4irbNorpc7NVoNUUuuIptoxAKH7h6ShrX5MR1sEFCLLMxQbeAIV7JX4efwIPzn8
-         fJVjTyb4kIAYpR2lyxZvIOcNcvWMo3mDCxB84drQW68BbQsviB1eN9PGdQiEHRlnOcMn
-         43tg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZDGqBJ68TA9YUl1PzjPLFYFj5D5r6r6j29gTwgAn1y9wMmlRdR
-	AAy+2imFOf+CutdIuNAWtIML4oxRwXYVjW07a7ulKsD3d0NDbO5InrO4bG0iVD5v7WaMP6pPbWf
-	K+gXVIWgfMztRw+sXgAoBXcAhTtxJwV6eRpdbZmSSA1H8gp+cok9HcLKnPHcbH3B7yA==
-X-Received: by 2002:ac8:6053:: with SMTP id k19mr4786750qtm.339.1549475524848;
-        Wed, 06 Feb 2019 09:52:04 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ibxf+CHnfMqWz23R+kc7V/UuoZiUEShlusuJvesFZWlnFb8/6vvsFqCIZacN69R0W22oIC5
-X-Received: by 2002:ac8:6053:: with SMTP id k19mr4786725qtm.339.1549475524269;
-        Wed, 06 Feb 2019 09:52:04 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549475524; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=/JM8xhN7e4ll6dIOfHOJWjqFYstXE/mHbTZT2vaTgc4=;
+        b=mzQzB72tobAvth66qJ4fI902R5A8cQwJEo0f6PKrGipGNjIKChzliMDTwtSlZED+/t
+         SNrifC9l/5G9B6066tidKKFUgFlLPVx5VI3jUE3i8k52Fc4qNJYQWAfsSap9PQ2Ve6YB
+         mbBYipmJHAynyqsA81y4K6/8aihI9t7pYsoHgcAvGLuzRB4DiRDaCIA4JRmzdVUilTY2
+         S1FSFpMvN+GKGJdwQwnfr+c5i1UEwmWbV6pIW8lceMC3DV5bj7LHYdFcDlyFfZxNkZL7
+         x5QSVgF5ce1BW6u+eb1ucbPdUh2Nxf/cCz+iV3fRO+pFisn/GDngwDRaYPscjTYS9A5L
+         r62Q==
+X-Gm-Message-State: AHQUAubtZVfI3iyGZJZvDL8FPegApn/N/VgywBHaKokq/VBYhiK3yTp+
+	D3sgEvknQTSCYdOOAXPpnnBKnYA0VZRvFX5sDo9S4tIJzPrutfBpeJaTsj5qvulk8YUwTd9yLQI
+	NqqJkJrHDifPI+u7/EObFPVOqiTsa8OyNU9rgy8Wq1Mmh0Ats3A5QSU0n1uxEmIpiYw==
+X-Received: by 2002:a17:902:9305:: with SMTP id bc5mr11842869plb.86.1549475557888;
+        Wed, 06 Feb 2019 09:52:37 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYVmfzCgZ+pKm4oUgBUIcv/XsJUcrBVTCheFjYPs4ksEIv/UbelhC0yQBZ2XpoPrZSJgL4w
+X-Received: by 2002:a17:902:9305:: with SMTP id bc5mr11842799plb.86.1549475557003;
+        Wed, 06 Feb 2019 09:52:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549475557; cv=none;
         d=google.com; s=arc-20160816;
-        b=vPs3lcK3RHZrqYIDiPgUKDauHLoUlUoW5f/wQZxJd0MYS+ELnu1DWPb6bUoAYrkHK8
-         TqGohLhbAycJ9bqOYxk7oBUklr/2MqfJ37bTxlfiUtsoSYxxe7XKTB8jkOCP8VvvIlMA
-         FbzI46kvT5RPSFpnDgk67UbgqMTbt1zmIh/8hjkuZQ717oQnsfVSVSRakrf0WLmGLq5I
-         u7mYUOKzQ2YqNQBFJcsMV66NHSE9mmA5XkUCnvDD1tX4bUL+LGSHl9vo+t4Y5eygVItD
-         4XciKgeq1FWxvK2v8fSWNRw6vyekJblQUKIzf5HkdppdGLxl78r3qTqNLNLdQyzhs4Nl
-         Pf4Q==
+        b=Ace99sEYUF2Qr7N05TIvEkTwqw6EHTY7JX6rjftKBwB+Wo4Ya1osGWk1LrFIdF+0I9
+         qtsY7PHqjnEdAxwJvOF/DxQkij8X21Sz/Ox7UlcshgFFQmZse6i2BXgWZ4Q+OcloEPpX
+         m9f+7P92KCdAuP2A6E2uzg60+2XlFdwCeC7+ldXrFWXIznBxju1IZzZS4JFpQT0t/pJE
+         aDti5kToZl9cdBL2leND5hwBAfdb6szehdLNzL+Pvn5ftIXYqYcMVlNfeBSk+2VIPO/N
+         9WVz2kcmNYBISrCWAhX9Vfe0HwsHKb1OgCUyEuJYYhU+u60NicsgAYmIYrfwhYMIwt+t
+         hxdA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date;
-        bh=7/P7mL00Gsglud9/osHxxnh+h3PbbceXpT84a+hjR8M=;
-        b=dxEooiaK4UwRUtJmtFGmEuZTZEaNerSeyrAkJoBR+3xMNIfb5nqYEThSxwdCynY9fq
-         fi+ZUy9cL4F4vCh/u8H0QzwpQplRTWte6nj98NbdAkyu1JnXt+Y41IliggliLe+gFb1q
-         bC5++zRr5aljZ62kOqnuBLwTirh5/lgCWqcZhl1keoZ1DVIyUYX17iBsgIm23s78lkIq
-         FFEV9Wo4EmJ7tTLG8f189n5tOyii6pOnqfWdpKtVBy/vyLr7lx9oyhTwlG096jOduhi8
-         Aao6kPIj26q0cZWHmv9jPbLmgjKI2O2bSvUVzZffDu+x9WSM8k5q8xHqpZmJs+EQ+xdt
-         tzjw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=/JM8xhN7e4ll6dIOfHOJWjqFYstXE/mHbTZT2vaTgc4=;
+        b=mWHwsDFbPKPkoD2asztteetWGG8v+4+gwtkemrFT7/d52xBXgyLhO+S4lPYrfhFsHe
+         E7A3ud+zbOuyeud/qt1S9qMii5sjpobylc2ZOLpqe9bGfPyMcPbmmd/bjyAlngHCa5oz
+         xOnbAw/BcYc3tO0t/FwtLoZWhJwmOWbPuI7kpsLLmIHlMucKCw3j88N+vgzBejPQFZ3b
+         +dXxQLuULsfv9XjjrnBdJl5l+2dzJWZg19RGi8gMrpxkK1wl74c9+K5ZntdBd/D/+HUP
+         A3GuYg/gBSzEj8FQKeZYkQPmEB6rbX0rghA60sfj/ip4AWYjCJWBs7TguSGIqY/lAsri
+         2TOg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z54si84443qth.152.2019.02.06.09.52.04
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Mirs8uEt;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id a3si6333766pga.297.2019.02.06.09.52.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Feb 2019 09:52:04 -0800 (PST)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 06 Feb 2019 09:52:36 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5D6C1C01DE1B;
-	Wed,  6 Feb 2019 17:52:03 +0000 (UTC)
-Received: from redhat.com (ovpn-122-237.rdu2.redhat.com [10.10.122.237])
-	by smtp.corp.redhat.com (Postfix) with SMTP id A4D0D1048128;
-	Wed,  6 Feb 2019 17:52:00 +0000 (UTC)
-Date: Wed, 6 Feb 2019 12:52:00 -0500
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Nadav Amit <namit@vmware.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Arnd Bergmann <arnd@arndb.de>, linux-kernel@vger.kernel.org,
-	Julien Freche <jfreche@vmware.com>,
-	Jason Wang <jasowang@redhat.com>, linux-mm@kvack.org,
-	virtualization@lists.linux-foundation.org
-Subject: Re: [PATCH 0/6] vmw_balloon: 64-bit limit support, compaction,
- shrinker
-Message-ID: <20190206124926-mutt-send-email-mst@kernel.org>
-References: <20190206051336.2425-1-namit@vmware.com>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Mirs8uEt;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=/JM8xhN7e4ll6dIOfHOJWjqFYstXE/mHbTZT2vaTgc4=; b=Mirs8uEthgr5XYNVmirKwundg
+	sWy+gu+BS7j+QeM5lRkc2WA/dD5BCWVfh/p5kxzdlLmzzwS+7cmvM0HiMcRgjjlRrPa7gjloa5ZDy
+	+6575c/+leWN4hTJAWmMWr5L6+0hOtK0imZ0eTSUttMbVwEFR982PjYdZvNh2irh8Igamks3vDvTS
+	Mx/qNCr4b7lmzCj2TNsPQOtUzHuny1h98nsDxCTYZo0T43f9aap7x6O/bmoAshx7/RgHzhxNlDwdv
+	isiTF3tSnXWK9uCBLzt4D5ilHRcg+7+W230mHja0ns4B4BQ08k34gVaC5n+e7ik6sYqNIto+SNBA0
+	yBmS7qivQ==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1grRNB-00028m-9j; Wed, 06 Feb 2019 17:52:33 +0000
+Date: Wed, 6 Feb 2019 09:52:33 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Jan Kara <jack@suse.cz>, Ira Weiny <ira.weiny@intel.com>,
+	lsf-pc@lists.linux-foundation.org, linux-rdma@vger.kernel.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>,
+	Doug Ledford <dledford@redhat.com>,
+	Michal Hocko <mhocko@kernel.org>
+Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
+ longterm-GUP usage by RDMA
+Message-ID: <20190206175233.GN21860@bombadil.infradead.org>
+References: <20190205175059.GB21617@iweiny-DESK2.sc.intel.com>
+ <20190206095000.GA12006@quack2.suse.cz>
+ <20190206173114.GB12227@ziepe.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190206051336.2425-1-namit@vmware.com>
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Wed, 06 Feb 2019 17:52:03 +0000 (UTC)
+In-Reply-To: <20190206173114.GB12227@ziepe.ca>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 05, 2019 at 09:13:30PM -0800, Nadav Amit wrote:
-> Various enhancements for VMware balloon, some of which are remainder
-> from a previous patch-set.
+On Wed, Feb 06, 2019 at 10:31:14AM -0700, Jason Gunthorpe wrote:
+> On Wed, Feb 06, 2019 at 10:50:00AM +0100, Jan Kara wrote:
 > 
-> Patch 1: Aumps the version number, following recent changes
-> Patch 2: Adds support for 64-bit memory limit
-> Patches 3-4: Support for compaction
-> Patch 5: Support for memory shrinker - disabled by default
-> Patch 6: Split refused pages to improve performance
+> > MM/FS asks for lease to be revoked. The revoke handler agrees with the
+> > other side on cancelling RDMA or whatever and drops the page pins. 
 > 
-> Since the 3rd patch requires Michael Tsirkin ack, which has not arrived
-> in the last couple of times the patch was sent, please consider applying
-> patches 1-2 for 5.1.
+> This takes a trip through userspace since the communication protocol
+> is entirely managed in userspace.
 > 
-> Cc: "Michael S. Tsirkin" <mst@redhat.com>
-> Cc: Jason Wang <jasowang@redhat.com>
-> Cc: linux-mm@kvack.org
-> Cc: virtualization@lists.linux-foundation.org
+> Most existing communication protocols don't have a 'cancel operation'.
+> 
+> > Now I understand there can be HW / communication failures etc. in
+> > which case the driver could either block waiting or make sure future
+> > IO will fail and drop the pins. 
+> 
+> We can always rip things away from the userspace.. However..
+> 
+> > But under normal conditions there should be a way to revoke the
+> > access. And if the HW/driver cannot support this, then don't let it
+> > anywhere near DAX filesystem.
+> 
+> I think the general observation is that people who want to do DAX &
+> RDMA want it to actually work, without data corruption, random process
+> kills or random communication failures.
+> 
+> Really, few users would actually want to run in a system where revoke
+> can be triggered.
+> 
+> So.. how can the FS/MM side provide a guarantee to the user that
+> revoke won't happen under a certain system design?
 
-
-I don't seem to have got anything except patch 0 either directly
-or through virtualization@lists.linux-foundation.org
-Could you bounce the relevant patches there?
-
-Thanks!
-
-> Nadav Amit (5):
->   vmw_balloon: bump version number
->   mm/balloon_compaction: list interfaces
->   vmw_balloon: compaction support
->   vmw_balloon: add memory shrinker
->   vmw_balloon: split refused pages
-> 
-> Xavier Deguillard (1):
->   vmw_balloon: support 64-bit memory limit
-> 
->  drivers/misc/Kconfig               |   1 +
->  drivers/misc/vmw_balloon.c         | 511 ++++++++++++++++++++++++++---
->  include/linux/balloon_compaction.h |   4 +
->  mm/balloon_compaction.c            | 139 +++++---
->  4 files changed, 566 insertions(+), 89 deletions(-)
-> 
-> -- 
-> 2.17.1
+Most of the cases we want revoke for are things like truncate().
+Shouldn't happen with a sane system, but we're trying to avoid users
+doing awful things like being able to DMA to pages that are now part of
+a different file.
 
