@@ -2,194 +2,150 @@ Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F1D2BC169C4
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:31:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1FD61C282CC
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 13:00:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B3FAB20B1F
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:31:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3FAB20B1F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id D1CA42073D
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 13:00:49 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="key not found in DNS" (0-bit key) header.d=szeredi.hu header.i=@szeredi.hu header.b="ECTFOsBk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1CA42073D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=szeredi.hu
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 66F6E8E00BF; Wed,  6 Feb 2019 07:31:49 -0500 (EST)
+	id 6A6DA8E00C0; Wed,  6 Feb 2019 08:00:49 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 61DCC8E00AA; Wed,  6 Feb 2019 07:31:49 -0500 (EST)
+	id 67C648E00AA; Wed,  6 Feb 2019 08:00:49 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 535808E00BF; Wed,  6 Feb 2019 07:31:49 -0500 (EST)
+	id 592CA8E00C0; Wed,  6 Feb 2019 08:00:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BE418E00AA
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 07:31:49 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id l76so5125337pfg.1
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 04:31:49 -0800 (PST)
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 31D1D8E00AA
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 08:00:49 -0500 (EST)
+Received: by mail-it1-f197.google.com with SMTP id m128so4422655itd.3
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 05:00:49 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:in-reply-to:references:message-id;
-        bh=872hdIH0CF7nnCJLjAht/7TwxzUt8oTUKDdda0W887o=;
-        b=k6Gqz5M1aCdjQIY7cje11fS39iv+3j95j/S0hC8HplIp3MkzWh6JxyFcN7XcPfl1c6
-         fPDNsDT7eefAA9JeVdEB7G026cisCJfpaZ4hvdSfQIZwSlYgkolBTD33oI+mFRflKiIF
-         7l1Q5xTFcRXIdf7+Z4N42fgXWxN3oMB1zVHgyF3vlBxHMpaSRDu156c89wM5YzXqfnjq
-         q0Bi00DzIHE8olggRXzdQCrT3tNYislLUgrCYllftGqHFWlo0UYfuhVoc336QpB4WA7E
-         evYTMEVAeODfMumEr6O4q72Z4Y/wlCKfl1VD2U/fJ35y2nBbzzIwYI2wgZG73ABOtZcd
-         3SoA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAub1XLsytgD1p4b/4VR1wucB62L3zDjLUBaXuAWkFqYKHRpDbp17
-	gubD7jOsywrg2HKPc2ntmGjS3pigptayEu3X2gkbI63OLUiJJwOjDlYVF8MPkEaE/eMl6JLpIRu
-	NEvORHf+iih67+JO6VZyCC32lhyxYlj9pqU2LimSaZQETcXdGa7xPMuM+fCXnMKf4jA==
-X-Received: by 2002:a63:30c8:: with SMTP id w191mr9620351pgw.120.1549456308638;
-        Wed, 06 Feb 2019 04:31:48 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IanmJ6N6FTweMSFZA76VzU1lr205SFF9qMJcpS1yAvo318sD091bInhUJ8DBWDgC3yrHA3Q
-X-Received: by 2002:a63:30c8:: with SMTP id w191mr9620291pgw.120.1549456307705;
-        Wed, 06 Feb 2019 04:31:47 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549456307; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:from:date:message-id
+         :subject:to:cc:content-transfer-encoding;
+        bh=fOIQJZI5ixQwS/lmnoBCYM2uMl/vkq4KxqXJU++gt3U=;
+        b=ZKbVdq/IOALwj8AaSTKKa14pFxWh/rXXzbO/1EBP9tdGfzpCRQS14AV3l54WtnFDh9
+         VzquVdlSqygSPGHhf6YSvpxrC4tFRDrWJ3MgzRDWPsWVLh0uIorZ53Q0gLrUmKi5xUW1
+         RuahborPCFVaE/OS0QWAiCsiFX20N9b8rZWCfDFeuTmZkFOGpWFInjFfb4BOTtXI8hnX
+         7Z31QYv3OGeQ3/nvJzRKBeBBB8uARbmkzVqMhcfPml9+5KjNv90NzSCXzDus+aTuzOZi
+         jgnWZaFFPKeyjW0sjOKUITYCQqdMrbgqoz0uaUbpw6LfUvXVObTl7+gKtDHH+S09mUHK
+         ZvMQ==
+X-Gm-Message-State: AHQUAuZBVEdKmfvCsKVn/WXBvpkvz0YgGVjMd2G15BA2N5+fGefeFBoZ
+	xrarqhohuOfisvNEUNWFgxcSkjHA1fRI/+/OhJ7sV/GZ64L9gjmWneDNlDNlK4rEWjYaFo747i8
+	wQ9Li30GyqsY/TT5JLttCMA1NkDLNDq1ZHUzDb1Tre2UQKvx0HqrIDSCeu+IjSIsh7BWKwb8Uof
+	H8Us5pJ4TExICy1RrCTQVWnr8jSf8q8nSyiAbA5peBl6Uf/cJDiao8KzHv6kqdNidbkHkNw4q0z
+	2ZCAgLtQcMkTsBIcrBEl2YWZz4elC5mWItzD1npVO3aBialVrSvHQ5Gs9/2RNNyWmm6v6qpNE9u
+	cYrXNyhDIa733DHxH5Bx8OlKuunH//4J7g+/0NywrM1tOSyRtESPLie8tYkpwr0otPeX6UGjfKm
+	u
+X-Received: by 2002:a24:298f:: with SMTP id p137mr1940226itp.4.1549458048894;
+        Wed, 06 Feb 2019 05:00:48 -0800 (PST)
+X-Received: by 2002:a24:298f:: with SMTP id p137mr1940184itp.4.1549458047987;
+        Wed, 06 Feb 2019 05:00:47 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549458047; cv=none;
         d=google.com; s=arc-20160816;
-        b=SiTeIRjLZc9K+1KSxN5etTgHlBCHLFFTtqyoWSPcUOMaJ+zDEqKDOciRnoIbEdm1O+
-         MZJ1bUe3wsVB+0PjOML5deKbVYSkTLXUau4gn/NrE02xCkN+1CbguxqijP9XdbOF6Nkt
-         ojsGXwt22613zZAMZIje3+AMDERGsKmib+ojodEGldeWPqs8GNrknrb/M2Zcr3bBkWCC
-         wUt6u7kIGma+A44ooGU//Ko7JxsGW7FHXlR45NDIorFK3rlGJ8VsNFjYbMr9wvCO5Eib
-         ps3bD7t/nmLGJTqlG2+OfJY/3ey/4uR+8Ba4lL/NKnS552iPm1ALZtLj1kTMFA4UL9LX
-         Z9eQ==
+        b=RBQ05whKt7QOcR7ZjDb74IzQ2IvAugv9eFdPbVDlITDEdudYtFcBG/0sM7RACVzgKs
+         nzxyFlaajImhUTHIqE9i5tBeo54UpI93itoQSXrXbsNlkeTnR+TNkL0ilNtQi2/ClvSK
+         bNcow9+ETi14pZhlkoUVP4Prg+6iH37Xb2u1w8P3bi3Ckl1R8RG65XW8GHo6sZeqABEQ
+         F64wlGVzSy91FFdVN2pQBsvLm5Xr4dKe8tA5RkocFHNBOh0RjHsmEsPN6BmAZsYk1H+D
+         8B55hPdnjBWVd9qmPj+YZ1bHNs4L/QZw/5F3HBKRviq8qXp4IjPZVTwl6YrlqJUpgS57
+         BPwg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:references:in-reply-to:date:subject:cc:to:from;
-        bh=872hdIH0CF7nnCJLjAht/7TwxzUt8oTUKDdda0W887o=;
-        b=NnsT6Yc5dRSNDWgMqmYmzN1RwGWGPfR7HufIZaF3lms4yL3BK0NYDWCtpFFGjyWGQp
-         Vzu6LHD+v7eOOhK69LJqk3O9mXaJRIySrW/4gsfkC33PBuJ8pzKB+i2pcPqR3fkwur7M
-         s4cmE+XFOiU/e8HSw1F0HXe3CxClEqU762DIjyLgZH/QUr/MTslbB6cztNeENJrobvxc
-         pVzSb0RQpSbTTomzJb0ymLBh2K7I/3Rv2nDQ3jX+s4/u7dK2VhMo7tZbncOTIeNGdYx0
-         LKkcMD3oN6+gfYAJS+lSIouImKJx8NtvuYG7ZsobdiYt7fjv5JIfmwAK/OfFJMcRGfaP
-         RLEA==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :mime-version:dkim-signature;
+        bh=fOIQJZI5ixQwS/lmnoBCYM2uMl/vkq4KxqXJU++gt3U=;
+        b=A+hK0cuNZF9zNqmzTkiWZolXhRl4iBTGnRdXY2mZF3rYJDljbD2LHOO1jtpmzg+98+
+         5sVA7x+iDboOOx2ZWrC2se6zydY+vmjarm82fq32rjZ2j4NCom5YlXTHlcQte74NV0L7
+         3wVVqwYs5X7gypmfwyIy4ridkoF3xjQD9L8O6ic3VxsUoREsBKhfueHUxFdUIsbm2Q0v
+         4GxinvUWpVn+YMhYu/yG8trBzlGDqNBKWQbUBaBRjJ8h6OOwV9UCi/rJPb14oLf6s6hE
+         G25AgcZDkTsIYjmE1AL7OXqxjRiEwHtLr/PPfb3QrOt+pCvNnonRpwnkTrFNmbp6mK+A
+         CrWw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id m1si5993473pfi.286.2019.02.06.04.31.47
+       dkim=temperror (no key for signature) header.i=@szeredi.hu header.s=google header.b=ECTFOsBk;
+       spf=pass (google.com: domain of miklos@szeredi.hu designates 209.85.220.65 as permitted sender) smtp.mailfrom=miklos@szeredi.hu
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f24sor3514526iog.48.2019.02.06.05.00.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Feb 2019 04:31:47 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        (Google Transport Security);
+        Wed, 06 Feb 2019 05:00:47 -0800 (PST)
+Received-SPF: pass (google.com: domain of miklos@szeredi.hu designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x16CUpTo062808
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2019 07:31:47 -0500
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qfxsm37yb-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 06 Feb 2019 07:31:46 -0500
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 6 Feb 2019 12:31:44 -0000
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 6 Feb 2019 12:31:42 -0000
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x16CVfxs9306546
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Wed, 6 Feb 2019 12:31:41 GMT
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id D6325A48B3;
-	Wed,  6 Feb 2019 12:10:30 +0000 (GMT)
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 70F68A48AE;
-	Wed,  6 Feb 2019 12:10:29 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.84])
-	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Wed,  6 Feb 2019 12:10:29 +0000 (GMT)
-Received: by rapoport-lnx (sSMTP sendmail emulation); Wed, 06 Feb 2019 14:10:28 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH 1/2] memblock: remove memblock_{set,clear}_region_flags
-Date: Wed,  6 Feb 2019 14:10:24 +0200
-X-Mailer: git-send-email 2.7.4
-In-Reply-To: <1549455025-17706-1-git-send-email-rppt@linux.ibm.com>
-References: <1549455025-17706-1-git-send-email-rppt@linux.ibm.com>
-X-TM-AS-GCONF: 00
-x-cbid: 19020612-4275-0000-0000-0000030C2305
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19020612-4276-0000-0000-0000381A283D
-Message-Id: <1549455025-17706-2-git-send-email-rppt@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-06_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=884 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902060099
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+       dkim=temperror (no key for signature) header.i=@szeredi.hu header.s=google header.b=ECTFOsBk;
+       spf=pass (google.com: domain of miklos@szeredi.hu designates 209.85.220.65 as permitted sender) smtp.mailfrom=miklos@szeredi.hu
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=szeredi.hu; s=google;
+        h=mime-version:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=fOIQJZI5ixQwS/lmnoBCYM2uMl/vkq4KxqXJU++gt3U=;
+        b=ECTFOsBkpy73B8UftN2IbIv75uXdlaVeKOnc3zYw/tqRhDaD7/O8CAREku75naTBRa
+         0C+V7FyVxsXlT2mTIhkIYIwK7+jLaRIc2LBxIL5fWAVnIl+GV0r8gtyL0JRt0f0rrQC0
+         +NS0IbKnAeGKpn59wi5a6cHaHgT7yeOGRz+hc=
+X-Google-Smtp-Source: AHgI3Iavku+34l9vp8gYIesHqSALvNmE/GBbVmEjNjRvFj+8QeGoS/qkh4yFScCgAMrZ6N5iOxOiRXQJY8pcO75c9Dw=
+X-Received: by 2002:a6b:e506:: with SMTP id y6mr176263ioc.246.1549458046738;
+ Wed, 06 Feb 2019 05:00:46 -0800 (PST)
+MIME-Version: 1.0
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Wed, 6 Feb 2019 14:00:35 +0100
+Message-ID: <CAJfpeguq60X745NnYDAKZhodLEvFRha2QTpAu6g63vJxq8SvaQ@mail.gmail.com>
+Subject: [LSF/MM TOPIC] filesystem virtualization
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, 
+	Vivek Goyal <vgoyal@redhat.com>, Stefan Hajnoczi <stefanha@redhat.com>, 
+	"Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.045813, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The memblock API provides dedicated helpers to set or clear a flag on a
-memory region, e.g. memblock_{mark,clear}_hotplug().
+This is a joint topic proposal with Vivek Goyal.
 
-The memblock_{set,clear}_region_flags() functions are used only by the
-memblock internal function that adjusts the region flags.
-Drop these functions and use open-coded implementation instead.
+Discuss remaining issues related to exporting a filesystem from host to
+guest (see virtio-fs prototype posting[1] for more background):
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- include/linux/memblock.h | 12 ------------
- mm/memblock.c            |  9 ++++++---
- 2 files changed, 6 insertions(+), 15 deletions(-)
+* How to provide strong coherency guarantees?
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 71c9e32..32a9a6b 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -317,18 +317,6 @@ void __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
- 	for_each_mem_range_rev(i, &memblock.memory, &memblock.reserved,	\
- 			       nid, flags, p_start, p_end, p_nid)
- 
--static inline void memblock_set_region_flags(struct memblock_region *r,
--					     enum memblock_flags flags)
--{
--	r->flags |= flags;
--}
--
--static inline void memblock_clear_region_flags(struct memblock_region *r,
--					       enum memblock_flags flags)
--{
--	r->flags &= ~flags;
--}
--
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- int memblock_set_node(phys_addr_t base, phys_addr_t size,
- 		      struct memblock_type *type, int nid);
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 0151a5b..af5fe8e 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -851,11 +851,14 @@ static int __init_memblock memblock_setclr_flag(phys_addr_t base,
- 	if (ret)
- 		return ret;
- 
--	for (i = start_rgn; i < end_rgn; i++)
-+	for (i = start_rgn; i < end_rgn; i++) {
-+		struct memblock_region *r = &type->regions[i];
-+
- 		if (set)
--			memblock_set_region_flags(&type->regions[i], flag);
-+			r->flags |= flag;
- 		else
--			memblock_clear_region_flags(&type->regions[i], flag);
-+			r->flags &= ~flag;
-+	}
- 
- 	memblock_merge_regions(type);
- 	return 0;
--- 
-2.7.4
+   - Fsnotify synchronous post op notification
+   - Extend lease (delegation) API to userspace
+   - Multi-component path revalidation
+
+* Issues related to c/m/atime handling:
+
+   - Clock synchronization between host and guest (not an fs issue, but fs
+     has to deal with lack of it)
+
+   - Could we have O_NOCMTIME open flag?
+
+* Shared access to file data:
+
+   - Use DAX in guest to access host page cache (mmap/munmap sections of
+     file in guest address space; happens dynamically on a need basis); is
+     this design reasonable?
+
+   - Avoids memory copies and cache duplication, but host page table setup
+     may have high cost.  Can that be improved?  (E.g. fault-ahead)
+
+   - Too many VMA=E2=80=99s on host per qemu instance?
+
+* File locking:
+
+   - Host API for POSIX lock sharing?
+
+* Ideas for the future:
+
+   - Buffering directory operations (e.g. "tar xfz ..." with as few
+     synchronous ops as possible)
+
+[1] https://lore.kernel.org/lkml/20181210171318.16998-1-vgoyal@redhat.com/
 
