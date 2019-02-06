@@ -2,178 +2,173 @@ Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4DA15C282CC
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 16:13:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DA453C169C4
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 16:22:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1836E20821
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 16:13:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1836E20821
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 9960B2186A
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 16:22:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9960B2186A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=goodmis.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DE1278E00C9; Wed,  6 Feb 2019 11:13:00 -0500 (EST)
+	id 43DB58E00CA; Wed,  6 Feb 2019 11:22:19 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D90DB8E00B1; Wed,  6 Feb 2019 11:13:00 -0500 (EST)
+	id 3EC328E00B1; Wed,  6 Feb 2019 11:22:19 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CA64A8E00C9; Wed,  6 Feb 2019 11:13:00 -0500 (EST)
+	id 303FC8E00CA; Wed,  6 Feb 2019 11:22:19 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8846F8E00B1
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 11:13:00 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id 74so5532903pfk.12
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 08:13:00 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E46278E00B1
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 11:22:18 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id y88so5571784pfi.9
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 08:22:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=lWM47uwISVHEamCMEt3fdL/KOztFOsFIvYxVV2PdMt4=;
-        b=jzRBHmSNFaH7+fQ9ffpDZBBVafAcamclq3bU9OMA175UVUsr2U4sLITzfJofWInS8U
-         0BnQjgxdc5IKtegygJjdtj1PsEIH0U9PyiHETNEx8Ns2YbifXFsExR4xzhhjl4FPWGyG
-         5KdT005pqxzvfD7vUmgvdoXVWEqnjj1v77iXNCNcG/rRaeW8ks6oQMWXoYvJuI5CAj0U
-         mbf52MR+KmFnAHi4WCQHchgZlaHts4VbN5j210a5kfTMEYTeYTiIMsFWDys6THaFurfB
-         2B8yOzdBj1hCznjGA741jdgJuuOg2S5iOOLj51C7VLCWHM87Rh72YLcfZkRSYYGKYVq7
-         5gfA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAubgcSXdeJa8r5uQSQd5Tes8FFckO8RfpW3VANob3F8CnkNHjc/p
-	VC95mznk2xk3W3lXKwollKV2AA89Ry4p5PDUMAPKvJNrlUsqkz6MGgefjC3UHlEjbGsYEf3wmfx
-	/exKshjtqs0KUOfOVfKcPanYCKSvFsGLdCfKVxd/NP70RJYLOQW6ToAFJQuBo232U8g==
-X-Received: by 2002:a62:2cf:: with SMTP id 198mr11239012pfc.67.1549469580195;
-        Wed, 06 Feb 2019 08:13:00 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYHpqIcm5kLxE/mljvMAdPc4kamsY5DShPP2YTn0Uy2loHZzY52ICBejSH0+P3XyZ6ViBWM
-X-Received: by 2002:a62:2cf:: with SMTP id 198mr11238948pfc.67.1549469579394;
-        Wed, 06 Feb 2019 08:12:59 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549469579; cv=none;
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=xs3UjPefeREr0pIXPymWQO9VhhZxWz0HOr7sMdXb3aY=;
+        b=ZLKAXbPKZMDcWykY7dM4NwnG5h59x5Twr0qFNV7iz1/DzH31TY/eDgIDU2l/LZ5Ca5
+         LduSq4ktG1x4RlEGoWH20BTEKB6BHXo3BNLJvcF5FeYvOd/FII6OYItcC+mWw2+KAfPR
+         7yl1RJDcXu1vWnpCn53jZ4KWwwO8/yr5gQoLh32P6G1dzkfqtX+C8SswKlZqQEAvUzIV
+         HxQC+Wr8GaR+m8/ADV4G7mz5UR3Y15p0yN/yntQmKmlSSeMBCgZcNflLtl6BpilDaZyC
+         VR9n5NN1e96Rf4mKffLz6dW1Yagt2TaS5T+jG131IXtDy2/Jo2MbVZtapeggEGk54hvG
+         ZPRg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of srs0=f26y=qn=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=f26Y=QN=goodmis.org=rostedt@kernel.org"
+X-Gm-Message-State: AHQUAua4aEJG8Ve1n8IvdYPr4U1SN086E+Mw9Q1Vr8cKxdYb2BfeP7R1
+	qX/c53oH7xsrKYHPZZmdbAYGsSiLb+jNQQoRcmpdW9hEOBHZfXuB/32cay/Kg/alLUvNlSAcpPX
+	4kjfllIcy81lQHjfwYb6IFZQJFPQfqUEr2eTJdwohqVmQEyIimm+ntKMi9TnmVLI=
+X-Received: by 2002:a65:6491:: with SMTP id e17mr10196063pgv.418.1549470138550;
+        Wed, 06 Feb 2019 08:22:18 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZSJQu9NqB2WrQC5V1UIJTY2L3l88iZ2aYDnkfeocrAQxAMFGZE9NTby9XtzOp+sAknUp1u
+X-Received: by 2002:a65:6491:: with SMTP id e17mr10195974pgv.418.1549470137206;
+        Wed, 06 Feb 2019 08:22:17 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549470137; cv=none;
         d=google.com; s=arc-20160816;
-        b=HLfUI/yV/VzyyQnUtTqSiW8WTDg7Y4T3psffC79LqA+WfvCotmJyHNjug7TdyQ8EBc
-         WdNbMRr88Pjllbu9/9mbE3WbXvuoofdoD+wznMahOAHGkFP5kEtgIANxUwq+xTT6s/Lr
-         udS/5JNzxegeObMJX0FZci13C2XLlWP35Rx9r+dol9mAChiE72CvIKQGjkVBR1s2/t9o
-         KuFOTZ74E0Qqvfwtgh0wpVDnIghUg0Ki/OuwJfyhbeZaZ9xtz+XdnEKa8gDTnmEpX9Cl
-         XW+Rvn7wN11SGHnnnz5U3sFwOx6A/9EMQ0U88XEsCWOUTgFAtzq07p5qMYu69C8vQrMI
-         WjfQ==
+        b=Ykp52LkwcgFUS1txnhxhFhZLSDGSl9sfsF/P6/F+XCvugNSvJTQ7R2Z7HFTFB8Kg6L
+         KqvNtJXNQIsudsHaXcDOu5GfM9NFoI9c6lLLkLcFOitetm39WdirFdrH7RqOKwSQhrvz
+         HH52XB2HH9sUxCu4XZrGdBpIkv1WKdZF1ujh15nvAy4s3NGU7K6ir4C4n2Djd8YbqSix
+         dZZA+APmcXFKZuWEtcowV0Ae7GLF+4aKyv4i63McNkhnggMHt6h0jv8ChEvSLVhnonJZ
+         y2I+kbQGoQMPseX+FCCNZvHh1hgkjD0lS5wd8s3CqV5m8DVsqV04Nle9l4aALL8yE6mh
+         sVVA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
+        h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date;
-        bh=lWM47uwISVHEamCMEt3fdL/KOztFOsFIvYxVV2PdMt4=;
-        b=GPQ5p08yA6tT5qhz8kAyAyrODPP5xdSyBxmwSZoFOpldtyB0KvvZBB5m0bgEs/0xXa
-         p0DUgDfYr+cEc9T1XkUtGFPx2SLqBjkwYvXbBNJzcqH+svhLrXqcKsMx/Gld95vP+P23
-         +GcPC/1HP90oi2TrApLeZNuixRQ50XJEF0/PYZefHLFiEwCnwAMXDhgKTS/UYaNqG3iy
-         UG5YIGvNXgIKv/+WmWAF+9gGcf5rc1gC6KeWBkF/QcAmAplMdxTDKpskA6G0qD6Mpozu
-         Jqay2sJhmhTGVZC9azbWblJhZEaWHYF9kmII0HFA3pKJJ/ubQt/XdX7PjFeFpdsuQdew
-         3Gvw==
+        bh=xs3UjPefeREr0pIXPymWQO9VhhZxWz0HOr7sMdXb3aY=;
+        b=tS9TEtc+CqAZ1ItSstZ4lyNjTUublsdEkjQe715lMlbB51GLQZocU9MkAh5i0IVS3k
+         GmwaSIyk0hORuYjCCjOwvFoGs432fOjAMnbNqx/mpY3afGeuYixBdsJyWArFqv/mbw5i
+         xHsMUmjqChxM/SDudYkTGwFr+SOj86NAy/zeI+6uBp0wa7qMjQWWhxk3GX9j2lMeKenO
+         4dWluiPCwTzzzyrSYtez3Da2q7VDZ9EdnzbuMV2WGAd9Ka9NotrtMOmS3sbmx6rUzMGh
+         IKDHV1emZs4TrB3qEZF1aleTtghz9z6ANFZGsyfp+nV4xPGydRQyIpdDRwV9BH5vdXe/
+         eTrA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id o9si6432424pfe.63.2019.02.06.08.12.59
+       spf=pass (google.com: domain of srs0=f26y=qn=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=f26Y=QN=goodmis.org=rostedt@kernel.org"
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id d31si6273902pld.161.2019.02.06.08.22.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Feb 2019 08:12:59 -0800 (PST)
-Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
+        Wed, 06 Feb 2019 08:22:17 -0800 (PST)
+Received-SPF: pass (google.com: domain of srs0=f26y=qn=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from fmsmga002.fm.intel.com ([10.253.24.26])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Feb 2019 08:12:58 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,340,1544515200"; 
-   d="scan'208";a="141188798"
-Received: from unknown (HELO localhost.localdomain) ([10.232.112.69])
-  by fmsmga002.fm.intel.com with ESMTP; 06 Feb 2019 08:12:58 -0800
-Date: Wed, 6 Feb 2019 09:12:27 -0700
-From: Keith Busch <keith.busch@intel.com>
-To: Jonathan Cameron <jonathan.cameron@huawei.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Rafael Wysocki <rafael@kernel.org>,
-	"Hansen, Dave" <dave.hansen@intel.com>,
-	"Williams, Dan J" <dan.j.williams@intel.com>
-Subject: Re: [PATCHv5 04/10] node: Link memory nodes to their compute nodes
-Message-ID: <20190206161227.GH28064@localhost.localdomain>
-References: <20190124230724.10022-1-keith.busch@intel.com>
- <20190124230724.10022-5-keith.busch@intel.com>
- <20190206122635.00005d37@huawei.com>
+       spf=pass (google.com: domain of srs0=f26y=qn=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=f26Y=QN=goodmis.org=rostedt@kernel.org"
+Received: from gandalf.local.home (cpe-66-24-58-225.stny.res.rr.com [66.24.58.225])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 295922175B;
+	Wed,  6 Feb 2019 16:22:15 +0000 (UTC)
+Date: Wed, 6 Feb 2019 11:22:13 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>,
+ linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com, Thomas
+ Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Nadav Amit
+ <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Peter
+ Zijlstra <peterz@infradead.org>, linux_dti@icloud.com,
+ linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org,
+ akpm@linux-foundation.org, kernel-hardening@lists.openwall.com,
+ linux-mm@kvack.org, will.deacon@arm.com, ard.biesheuvel@linaro.org,
+ kristen@linux.intel.com, deneen.t.dock@intel.com, Nadav Amit
+ <namit@vmware.com>
+Subject: Re: [PATCH 08/17] x86/ftrace: set trampoline pages as executable
+Message-ID: <20190206112213.2ec9dd5c@gandalf.local.home>
+In-Reply-To: <20190117003259.23141-9-rick.p.edgecombe@intel.com>
+References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
+	<20190117003259.23141-9-rick.p.edgecombe@intel.com>
+X-Mailer: Claws Mail 3.16.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190206122635.00005d37@huawei.com>
-User-Agent: Mutt/1.9.1 (2017-09-22)
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 06, 2019 at 04:26:35AM -0800, Jonathan Cameron wrote:
-> On Thu, 24 Jan 2019 16:07:18 -0700
-> Keith Busch <keith.busch@intel.com> wrote:
-> > +What:		/sys/devices/system/node/nodeX/accessY/initiators/
-> > +Date:		December 2018
-> > +Contact:	Keith Busch <keith.busch@intel.com>
-> > +Description:
-> > +		The directory containing symlinks to memory initiator
-> > +		nodes that have class "Y" access to this target node's
-> > +		memory. CPUs and other memory initiators in nodes not in
-> > +		the list accessing this node's memory may have different
-> > +		performance.
-> 
-> Also seems to contain the characteristics of those accesses.
+On Wed, 16 Jan 2019 16:32:50 -0800
+Rick Edgecombe <rick.p.edgecombe@intel.com> wrote:
 
-Right, but not in this patch. I will append the description for access
-characterisitics in the patch that adds those attributes.
- 
-> > + * 	This function will export node relationships linking which memory
-> > + * 	initiator nodes can access memory targets at a given ranked access
-> > + * 	class.
-> > + */
-> > +int register_memory_node_under_compute_node(unsigned int mem_nid,
-> > +					    unsigned int cpu_nid,
-> > +					    unsigned access)
-> > +{
-> > +	struct node *init_node, *targ_node;
-> > +	struct node_access_nodes *initiator, *target;
-> > +	int ret;
-> > +
-> > +	if (!node_online(cpu_nid) || !node_online(mem_nid))
-> > +		return -ENODEV;
+> From: Nadav Amit <namit@vmware.com>
 > 
-> What do we do under memory/node hotplug?  More than likely that will
-> apply in such systems (it does in mine for starters).
-> Clearly to do the full story we would need _HMT support etc but
-> we can do the prebaked version by having hmat entries for nodes
-> that aren't online yet (like we do for SRAT).
+> Since alloc_module() will not set the pages as executable soon, we need
+> to do so for ftrace trampoline pages after they are allocated.
 > 
-> Perhaps one for a follow up patch set.  However, I'd like an
-> pr_info to indicate that the node is listed but not online currently.
-
-Yes, hot plug is planned to follow on to this series.
-
-> > +
-> > +	init_node = node_devices[cpu_nid];
-> > +	targ_node = node_devices[mem_nid];
-> > +	initiator = node_init_node_access(init_node, access);
-> > +	target = node_init_node_access(targ_node, access);
-> > +	if (!initiator || !target)
-> > +		return -ENOMEM;
->
-> If one of these fails and the other doesn't + the one that succeeded
-> did an init, don't we end up leaking a device here?  I'd expect this
-> function to not leave things hanging if it has an error. It should
-> unwind anything it has done.  It has been added to the list so
-> could be cleaned up later, but I'm not seeing that code. 
+> For the time being, we do not change ftrace to use the text_poke()
+> interface. As a result, ftrace breaks still breaks W^X.
 > 
-> These only get cleaned up when the node is removed.
+> Cc: Steven Rostedt <rostedt@goodmis.org>
+> Signed-off-by: Nadav Amit <namit@vmware.com>
+> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
+> ---
+>  arch/x86/kernel/ftrace.c | 9 +++++++++
+>  1 file changed, 9 insertions(+)
+> 
+> diff --git a/arch/x86/kernel/ftrace.c b/arch/x86/kernel/ftrace.c
+> index 8257a59704ae..eb4a1937e72c 100644
+> --- a/arch/x86/kernel/ftrace.c
+> +++ b/arch/x86/kernel/ftrace.c
+> @@ -742,6 +742,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
+>  	unsigned long end_offset;
+>  	unsigned long op_offset;
+>  	unsigned long offset;
+> +	unsigned long npages;
+>  	unsigned long size;
+>  	unsigned long retq;
+>  	unsigned long *ptr;
+> @@ -774,6 +775,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
+>  		return 0;
+>  
+>  	*tramp_size = size + RET_SIZE + sizeof(void *);
+> +	npages = DIV_ROUND_UP(*tramp_size, PAGE_SIZE);
+>  
+>  	/* Copy ftrace_caller onto the trampoline memory */
+>  	ret = probe_kernel_read(trampoline, (void *)start_offset, size);
+> @@ -818,6 +820,13 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
+>  	/* ALLOC_TRAMP flags lets us know we created it */
+>  	ops->flags |= FTRACE_OPS_FL_ALLOC_TRAMP;
+>  
+> +	/*
+> +	 * Module allocation needs to be completed by making the page
+> +	 * executable. The page is still writable, which is a security hazard,
+> +	 * but anyhow ftrace breaks W^X completely.
+> +	 */
 
-The intiator-target relationship is many-to-many, so we don't want to
-free it just because we couldn't allocate its pairing node. The
-exisiting one may still be paired to others we were able to allocate.
+Perhaps we should set the page to non writable after the page is
+updated? And set it to writable only when we need to update it.
+
+As for this patch:
+
+Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+
+-- Steve
+
+> +	set_memory_x((unsigned long)trampoline, npages);
+> +
+>  	return (unsigned long)trampoline;
+>  fail:
+>  	tramp_free(trampoline, *tramp_size);
 
