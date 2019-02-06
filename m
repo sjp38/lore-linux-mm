@@ -2,153 +2,159 @@ Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 81912C169C4
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:17:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A32FC169C4
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:20:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2406E2175B
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:17:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2406E2175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id C30C9217F9
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:20:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C30C9217F9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 798618E00D7; Wed,  6 Feb 2019 12:17:45 -0500 (EST)
+	id 65EB28E00D8; Wed,  6 Feb 2019 12:20:15 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 747BA8E00D1; Wed,  6 Feb 2019 12:17:45 -0500 (EST)
+	id 60CF68E00D1; Wed,  6 Feb 2019 12:20:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5E94A8E00D7; Wed,  6 Feb 2019 12:17:45 -0500 (EST)
+	id 4FD108E00D8; Wed,  6 Feb 2019 12:20:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 30C5F8E00D1
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 12:17:45 -0500 (EST)
-Received: by mail-yb1-f200.google.com with SMTP id 124so3902665ybl.10
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 09:17:45 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 093A88E00D1
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 12:20:15 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id d18so5728361pfe.0
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 09:20:15 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=ji4OoP4gZb0UHEOnXg3A/jf29KxDb933tTdUBJ4XTb8=;
-        b=stCzz1sWpwCBq3RLciZPfjbSS6N/9yvxMA/AyyJ2cmOyvdnZqTyhl6EFa9heOw7wno
-         vGK+0nKD5xLBOtkTLqg2Hmy2X1LrNtic9h/a5oJCZxWk8rTJzB4s/7mR+XwQEx4CVIMZ
-         aY2bYnNwntAB4Tmf+FgKjBuBlvYeLY3O4k+aYI7d1nJbJcU/+M4Ri7hQlHUQLgMONeni
-         lv+4/IN1kQJO/tmy4lx8rWaf+d96cpvfRDdDPdjnzlSTvPoIqavTaU7X7fFxCj/GewJ6
-         0L4C457YriPablQQSJsbXPPyLk6hautVL6sUpb7Ap0PC4XJQitf5VIgxhcycrGVS3tMc
-         LuGw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAuaPmX+Xzbmm5hxjdZYoYs95ypiwg5Iir8EPPkl3RFG85iXBPFGj
-	wNij6AMb/ozM3cS2txZ3oJ0dYz8BxBas1ZL0hw9S57IJ2pL8fBsc6Oft7gQjxRMOr0ph8dCHHer
-	RKtIQxDbUu4hes7tWhrkvpINfFEfRLcElAauFBxulzPhpUmp1SOccdU1HL8T0u1CMHgQSdySxMR
-	bxgDTdgVtyWVjhy/8AdKl9/oDW1b+gGG/S3grWudTmT6LCLmNVUYE5C6xLh2zWNY2m4fn1Mpnpq
-	joRbeAvyP1vF5+/aM4lbZv/VBhq4e4JlMQUgvS//QAPl1b3TlB+dat2mc6aSz7Aq7Nk4V5a1TN4
-	V2vH6Y8+mWjRWdWIKe5+eyBojckFwVN8hIFruWMHWVj+am/vf3OIkDUbwTm1q9prXZTw5qiSKw=
-	=
-X-Received: by 2002:a81:de09:: with SMTP id k9mr9451606ywj.384.1549473464787;
-        Wed, 06 Feb 2019 09:17:44 -0800 (PST)
-X-Received: by 2002:a81:de09:: with SMTP id k9mr9451546ywj.384.1549473464156;
-        Wed, 06 Feb 2019 09:17:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549473464; cv=none;
+        bh=4Y0Ol9cUuCeTtR/iHjcDPt3ULycXGBufi5ZEeL6CPm8=;
+        b=efj3rZDWNcz/g5YihNLNdN2SUzwL4vKxSjwibtftBDp6r1qzjWSClhiXxvYrve4krh
+         KXxEZWbieCHW8FNemenaaVdReVNVXatM7wE5VfRFdqXAm0uSxR0bZHDjItWuZxQ8EpEy
+         aZoNBzLC6KuP/Zb9djF+D+9bWpH1o3Ydyh03MmkMh4fegh3gV++SlgAPu2pMlYKp9Xtd
+         Q9APtyBW/CJUJcT1770omdqk6piW+8i52zQtLQCOzmOR+4AghBS1528awOB10aLyJndt
+         3tkg3JhjUmcNw6Miv8vH6A9EG6BjRrPfXkrAhBGKRyW9lxzRwpbLzZJ53i5jr9lU9Q++
+         5gUQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAubmU70gw7YL9bAHoqpuq2TfQ5nX0ijnfAri4YfhyCfJjuy6MFbO
+	WXxlyCv4rQ+GpTh5r+1mJc8KIDIB58MidkWCx03pwGGVAnYIsZkoptHQH81ANNyLWahSzi+dpxA
+	eu9Oaf2o5BrlripRvPeYHetdhj5paf9TOB5uAnfHYtC6syuwTcmfeZ3K03fq5CAw7DQ==
+X-Received: by 2002:a63:2c0e:: with SMTP id s14mr10750814pgs.132.1549473614587;
+        Wed, 06 Feb 2019 09:20:14 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IagcOjEjyk2nRFpjFo6/9hy3KfDWQlCBMYLCRHuVSL8dZDHygoVv/xjWBmhMctYCJVq+KRT
+X-Received: by 2002:a63:2c0e:: with SMTP id s14mr10750735pgs.132.1549473613760;
+        Wed, 06 Feb 2019 09:20:13 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549473613; cv=none;
         d=google.com; s=arc-20160816;
-        b=Vb319Xs0TvW+qaYatRbNdSHS5EH40SrR91Ez/PJD5q6vSFMs+3/bx8QS4b8p8dxDcm
-         H9lv+qT2BVAeNzRJNBd6+PMCV/WQcG9hGaRMPpH3syeIf+NE4ipBlLl4J9/+668ktTdg
-         oC9nZ3fDhMqc3UqnTA3a7Tm+NyEIwXnKAGXst+GCe1pLYgx/HDpBYHpAwj4bjVzERZCl
-         zZCnLZZCz862WAj8FAwycHx35TBAakCozOhCotmXTn15pST1CLFMHEVdStqTiJIQkjZ3
-         62OEjx140EvEUWz2YefLcBDQb8ERJWXGfTZPu6YqclZGyQATpD0qVbN9eUqcH9fd0taU
-         h+Bg==
+        b=CZ0BsDNRwyoIJBZe/ixzMFYIC2gG+wZ0ABLg50AqOpwMWOgvAAv/QYalBltzZGjub1
+         qjwgwL1ZQYyWY1abb09Bn3QD17IWdAwGzHM276GbDZ6eWn4ilJEKbJ2LvmW06UfrkI2O
+         PkcGosqy4lS7DJnjnvwaESXWpHM6AgaLNpvzXk3dqgauLofDGg+ukxE2ue8u8X4gYtQE
+         lXF/xzwX3SiuV0RO18E8HXw91qsFY3JqRqyeEfWp5F6LklfW1F11dZiGK+1GKSvJyNat
+         9ttkgQHcPeobwsWpgmGyAnzUwqG0qljRI7bnw82roSR6gES/X25pZPeDnd7H+ud0CsSh
+         9HUQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=ji4OoP4gZb0UHEOnXg3A/jf29KxDb933tTdUBJ4XTb8=;
-        b=nJRlPe6YD67/D44jgxe1AYPramNBlFNU7bLigrwvl+YzfMVkZwaz6oqSHTCUUQf9K1
-         +JN9rjmKXXxH7mIjf5sX0U/ioh4z9AVK0bMHzaOiHbjCJC7utYJ0NQwDDwve/cGqZNud
-         7mAV+aNP4be8IEHQjK7DxCV6QTNpyv0x46UWVflcRSERy5bALcrPBUXo3sFtxsihzqLM
-         PdApi6GaubjxIj9usjIYG32cQxdqwdMik+W6QcZRztRzEIU9R6LiKCcRqOOLgdoyPuUF
-         eUV6S7y1NmNQf3MIu9AKYpcTGWZbWGBTw2tsUeV3ghbzVJA8DpwCbs6RC/Tf/sA9FYCW
-         2G6w==
+        bh=4Y0Ol9cUuCeTtR/iHjcDPt3ULycXGBufi5ZEeL6CPm8=;
+        b=Ic16lUTPtu5EcA70UGANFtPPbZrX94OvfTZcES18vfb+Va5lGFnYNJbnQfp5w2l306
+         xNyAFJYAtfpPY1qbsQIPw9UYYPMmr1Yx6AJO1+zfVn5g45KszwUfWlY/xQPOnfpLhJXs
+         58o4+xk4a54ERG/RSANKzZUeoNIub3bQKe366JJaWKQdQcBKPWeafQ8yKcS5Uq7ivyng
+         1WRUnwBT0VPOX6CXmdJySd4qktPLcnab48uj5vVGopKgvHPuUpCXbu8Bqj/7af9n+zD1
+         S+6Q/yX0CynHeBVbnERkjqqmPpjImwDST9rE+y6NmJNqVLWSvN7VvaMUcxZgcxasFMyL
+         FacA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l67sor2666149ybl.204.2019.02.06.09.17.44
+       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id j123si6148879pgc.16.2019.02.06.09.20.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 06 Feb 2019 09:17:44 -0800 (PST)
-Received-SPF: pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: AHgI3IZO9T7Bd/cFH3OwnLQYXkyAn0cAcxj3WTyYyZnGXp3FiezPA4csefBRbReutDprdGua+1zahQ==
-X-Received: by 2002:a25:ac2:: with SMTP id 185mr9334157ybk.349.1549473463791;
-        Wed, 06 Feb 2019 09:17:43 -0800 (PST)
-Received: from dennisz-mbp.dhcp.thefacebook.com ([2620:10d:c091:200::6:c448])
-        by smtp.gmail.com with ESMTPSA id k142sm2525624ywa.67.2019.02.06.09.17.42
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Feb 2019 09:17:42 -0800 (PST)
-Date: Wed, 6 Feb 2019 12:17:40 -0500
-From: Dennis Zhou <dennis@kernel.org>
-To: Peng Fan <peng.fan@nxp.com>
-Cc: "dennis@kernel.org" <dennis@kernel.org>,
-	"tj@kernel.org" <tj@kernel.org>, "cl@linux.com" <cl@linux.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: pcpu_create_chunk in percpu-km
-Message-ID: <20190206171740.GA76990@dennisz-mbp.dhcp.thefacebook.com>
-References: <AM0PR04MB44813C69CCAE720A47164EA8886F0@AM0PR04MB4481.eurprd04.prod.outlook.com>
+        Wed, 06 Feb 2019 09:20:13 -0800 (PST)
+Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from orsmga006.jf.intel.com ([10.7.209.51])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Feb 2019 09:20:08 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,340,1544515200"; 
+   d="scan'208";a="114187766"
+Received: from unknown (HELO localhost.localdomain) ([10.232.112.69])
+  by orsmga006.jf.intel.com with ESMTP; 06 Feb 2019 09:20:07 -0800
+Date: Wed, 6 Feb 2019 10:19:37 -0700
+From: Keith Busch <keith.busch@intel.com>
+To: Jonathan Cameron <jonathan.cameron@huawei.com>
+Cc: linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org,
+	linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Rafael Wysocki <rafael@kernel.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Dan Williams <dan.j.williams@intel.com>, linuxarm@huawei.com
+Subject: Re: [PATCHv5 00/10] Heterogeneuos memory node attributes
+Message-ID: <20190206171935.GJ28064@localhost.localdomain>
+References: <20190124230724.10022-1-keith.busch@intel.com>
+ <20190206123100.0000094a@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <AM0PR04MB44813C69CCAE720A47164EA8886F0@AM0PR04MB4481.eurprd04.prod.outlook.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190206123100.0000094a@huawei.com>
+User-Agent: Mutt/1.9.1 (2017-09-22)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Peng,
+On Wed, Feb 06, 2019 at 12:31:00PM +0000, Jonathan Cameron wrote:
+> On Thu, 24 Jan 2019 16:07:14 -0700
+> Keith Busch <keith.busch@intel.com> wrote:
+> 
+> 1) It seems this version added a hard dependence on having the memory node
+>    listed in the Memory Proximity Domain attribute structures.  I'm not 100%
+>    sure there is actually any requirement to have those structures. If you aren't
+>    using the hint bit, they don't convey any information.  It could be argued
+>    that they provide info on what is found in the other hmat entries, but there
+>    is little purpose as those entries are explicit in what the provide.
+>    (Given I didn't have any of these structures and things  worked fine with
+>     v4 it seems this is a new check).
 
-On Wed, Feb 06, 2019 at 12:23:44PM +0000, Peng Fan wrote:
-> Hi,
-> 
-> I am reading the percpu-km source code and found that in
-> pcpu_create_chunk, only pcpu_group_sizes[0] is taken into
-> consideration, I am wondering why other pcpu_group_sizes[x]
-> are not used?
-> 
-> Is the following piece code the correct logic?
-> 
-> @@ -47,12 +47,15 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
-> 
->  static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
->  {
-> -       const int nr_pages = pcpu_group_sizes[0] >> PAGE_SHIFT;
-> +       int nr_pages = 0;
->         struct pcpu_chunk *chunk;
->         struct page *pages;
->         unsigned long flags;
->         int i;
-> 
-> +       for (i = 0; i < pcpu_nr_groups; i++)
-> +               nr_pages += pcpu_group_sizes[i] >> PAGE_SHIFT;
-> +
->         chunk = pcpu_alloc_chunk(gfp);
->         if (!chunk)
->                 return NULL;
-> 
-> Thanks,
-> Peng.
-> 
+Right, v4 just used the node(s) with the highest performance. You mentioned
+systems having nodes with different performance, but no winner across all
+attributes, so there's no clear way to rank these for access class linkage.
+Requiring an initiator PXM present clears that up.
 
-The include for percpu-km.c vs percpu-vm.c is based on
-CONFIG_NEED_PER_CPU_KM. This is set in mm/Kconfig which is dependent on
-!SMP. Given that, it will only be called with the UP (uniprocessor)
-version of setup_per_cpu_areas() which inits based on
-pcpu_alloc_alloc_info(1, 1).  So, because of this, we know there will
-not be other groups. In the UP case, percpu just identity maps percpu
-variables.
+Maybe we can fallback to performance if the initiator pxm isn't provided,
+but the ranking is going to require an arbitrary decision, like prioritize
+latency over bandwidth.
+ 
+>    This is also somewhat inconsistent.
+>    a) If a given entry isn't there, we still get for example
+>       node4/access0/initiators/[read|write]_* but all values are 0.
+>       If we want to do the check you have it needs to not create the files in
+>       this case.  Whilst they have no meaning as there are no initiators, it
+>       is inconsistent to my mind.
+> 
+>    b) Having one "Memory Proximity Domain attribute structure" for node 4 linking
+>       it to node0 is sufficient to allow
+>       node4/access0/initiators/node0
+>       node4/access0/initiators/node1
+>       node4/access0/initiators/node2
+>       node4/access0/initiators/node3
+>       I think if we are going to enforce the presence of that structure then only
+>       the node0 link should exist.
 
-Thanks,
-Dennis
+We'd link the initiator pxm in the Address Range Structure, and also any
+other nodes with identical performance access. I think that makes sense.
+ 
+> 2) Error handling could perhaps do to spit out some nasty warnings.
+>    If we have an entry for nodes that don't exist we shouldn't just fail silently,
+>    that's just one example I managed to trigger with minor table tweaking.
+> 
+> Personally I would just get rid of enforcing anything based on the presence of
+> that structure.
 
