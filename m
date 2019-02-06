@@ -6,95 +6,94 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 32F6EC282CC
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:26:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A350FC282C2
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:26:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D13DD2073D
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:26:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D13DD2073D
+	by mail.kernel.org (Postfix) with ESMTP id 4C7CA2175B
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:26:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C7CA2175B
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 821DE8E00BB; Wed,  6 Feb 2019 07:26:19 -0500 (EST)
+	id E62B38E00BC; Wed,  6 Feb 2019 07:26:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7F74A8E00AA; Wed,  6 Feb 2019 07:26:19 -0500 (EST)
+	id E383C8E00AA; Wed,  6 Feb 2019 07:26:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 70F2D8E00BB; Wed,  6 Feb 2019 07:26:19 -0500 (EST)
+	id D4FDD8E00BC; Wed,  6 Feb 2019 07:26:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4746B8E00AA
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 07:26:19 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id g4so5938258otl.14
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 04:26:19 -0800 (PST)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A49278E00AA
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 07:26:52 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id d93so5836777otb.12
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 04:26:52 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:in-reply-to:references:organization
          :mime-version:content-transfer-encoding;
-        bh=dII07c4W0htzdVtth7I+TCEXJkcVOeWjLDqvsRI8Z8Y=;
-        b=cf7HfoYOW6OYXDH22P+/zheyNO7oShpk11VeZjvWeF56Qv4TXp0BWnDmHxTP/68o9W
-         yz80jG+1V8hkjL+L+bwKQaZv6uplS1IU5gDlfUxe3QxpW0gQKx9wN3XAThwoNNm8Xe1w
-         oTcjfXaJ/Qhs4ewTqTzak+enH3ezIE0EtDikJpwdF7jRmDXwL49coLJ5tVPaJ4Tt7GL4
-         0MyjTwFxCgp/PUJP99Qy25Po0qtbwWVjFh042twVfYU7srONIYBdastXCxXynUONnRqW
-         kpAsoq2OztQf9TB5slKuMdI5k2u4p6MWDVX+8M/PNKtpDA13VUXCp/CfmX+5Yxvm3CCW
-         AfJw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-X-Gm-Message-State: AHQUAuaDhPoKoBZ+gnwY6SmU1/BNJ3SIH3gKwq4PxDcXpMG8OkP/GOG1
-	uFhlsZdke6SCU4UwER3ea6P4OEzCo8cwwUxuaxapAETnm6d9I+F/fH13/3KJ+p7g8MkQe+U0pta
-	ESWpOqfUKrz0+m94VbWX/wzfOC4iAJB7a+W2Sa6aQooEoZYOnBMm8bFDGyAyFXzW4jg==
-X-Received: by 2002:aca:554b:: with SMTP id j72mr1404028oib.282.1549455979029;
-        Wed, 06 Feb 2019 04:26:19 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbEAABaUZrtFDMnkdXhs/dgx3BQcsQ3e0AvrVStRM1fvxeFkY+/wahvjs7rRkF6/774iNRI
-X-Received: by 2002:aca:554b:: with SMTP id j72mr1403997oib.282.1549455978098;
-        Wed, 06 Feb 2019 04:26:18 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549455978; cv=none;
+        bh=5DWGmZ7AUVselKZP5jzTuPiXxXwGlq9P4Lik+hpgk5s=;
+        b=TR3q4HInyo82bGwfpnms0laroorYSPumXvKAlv9bENG0+IADO/ILpK6sZPLzVh9QNf
+         bpBAftrn3QjW7Jl2tpmy4pEPcJmauul/yQ4yUniugAcrtdbNNY2N5eYTo3mvCMaYYI0U
+         r1VdeBMTZfF2VA1kA21SaUrpTW0XIFtP6H3DHlf9vAke/nSmd20AoNpg3eMzt5FsL1H3
+         g+T23rXrBzrJKJQf7ER1IMigvpki/bnMhPyeU4UAOz4zCF63YzC6s+iVHV8YkdxA/UfI
+         nWtPJbDLL7QHJ7r9aj2NXKHlhoced/r9hIovz3UQjuMyXEKV8Focflu/Y1FUdVAc5wa1
+         UWKg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+X-Gm-Message-State: AHQUAuac3jY/T/Ll8EJw3JbudbjTnLI1rEbYjXJNFY8tk+U3xlfvahYF
+	bMmL31kev4hEK8MCBX2Rb3NWM9Mnr13Fza5hYrykaRRuGA6RlgIQyf40d3niljjnuqBXmpTXdTG
+	tiVKONX8uQo04qiNqQlQE+wa1iY0EdB2r2E355xGv6iRGeArdrgQ1/HFcvt9PYTlnoA==
+X-Received: by 2002:aca:31cb:: with SMTP id x194mr5099241oix.213.1549456012380;
+        Wed, 06 Feb 2019 04:26:52 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbAp2U7BlPFaVML6oc+vooFZo9hqFJKxEV95F7qXUCYjZTZ1+Uvsge/YA6y7t1A9izlKiGO
+X-Received: by 2002:aca:31cb:: with SMTP id x194mr5099215oix.213.1549456011477;
+        Wed, 06 Feb 2019 04:26:51 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549456011; cv=none;
         d=google.com; s=arc-20160816;
-        b=eNoY3krvm8pS/zhE9+dgeC2Vor18o3UfI1EefF5i1PoZVXP86gqSNF2I2kyKRq6x8I
-         J22If8g1IBpduVEgVtFyXS5/yyYKSoHvOpHhvNxb8S7eE5meiKsvr3VTN8nMzPD7zWsI
-         Ao5GRrjbFI9hgKsJE/YMmIOIcJVNR22d64+152XiwekxI3Df/nTwqp7M7lA7DDSbpkm4
-         Z4icfOZ2XML9C9IWFhv0fqOe7KGYMK7o4/8GuD3d0ZFdDgNVOgeB8ujX41XyRcafgJH8
-         MMq9ep5/GtMFaIF+9EXkIMzTX03wPJrigU5ZSzRma/CinrxW/x4ZamYVrx2Z8FkNIUp5
-         525g==
+        b=R1vTfS0Kady44LJBQJzx6UkG7dLu5+j0Bx7F0v4CxgvhKw53WXmDfERnUj0elTLur5
+         UIwJ3Xho9W6nyeHXdTmaUCix0RsfpNJG86mnbVV6OBOOuEPoV4ixxMZk7EvAp+h0ynLv
+         cx2RyiRJOF841WrEPhCZGpEzno/RapNJpZTcibzN6eO8fDWwvXW1jQ6kcK1RAb9b0cuP
+         mZmmvwtEaRrrLHH+gcYQUguE9tCgx49cwhNM3ytxub7awN19XtAjiqNKkaKWRPox8+MW
+         8ER/Rcro11kMg64om6u0wqWJxSmjxnNpYhSA1u2wHks6lwXe6aqDLUWnZCbYV/9yr2zk
+         0nzQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:organization:references
          :in-reply-to:message-id:subject:cc:to:from:date;
-        bh=dII07c4W0htzdVtth7I+TCEXJkcVOeWjLDqvsRI8Z8Y=;
-        b=cvZOVoa6S55uNW1aAgPawFVk2SzEif3j8rrk9g3EZCVpZ2kyMl/6iJ45l95msOq6zL
-         Zv70Vea3jwMbH7egGFSnKCzOypiDn1qZZ15RNpNFr+zFttgFd+he58YkuG+gKvmGQp0U
-         VcI95maHzVgrO9HKju/F8drMSeUw0NS1s4WDeJz+Ge7XZY4ezgWPCkpoqUkLcQtg3i7z
-         GK5oFkPluI78Kvgi0iTQF74n1QQwGxkm1bbukG6IpUc1VKdG7XAYHF1EQc1+/SYDxXWV
-         seAzzoSZgmbtFxit6MvsqH2JV3DW8LzuVBuV9tI87MhwYh99Y+HxVU+grtdIyFcC9PTZ
-         4b6A==
+        bh=5DWGmZ7AUVselKZP5jzTuPiXxXwGlq9P4Lik+hpgk5s=;
+        b=INKdJ2L4hqSs1Rsuci/oJuK+ch+np7kKzvFVRS2sg6M7K3SdsVHqOnOlRr8k9LB//P
+         kQwehQtOqPf6rja2i0iHEk+/EY2a/N8+F/m3aoAUgKkMv+xBevFovoNC2onJ8ZolsY5M
+         S0ya50ckhxYDbWqJOCqULShql6DMSe31d8/JkKToZPfBEVSs8hVPOew4qU3/nIg2OkpC
+         vM3DXlImKclBrgnVi4/BKLNCSPNwxwD1tJhl/pyPZZw8IHot54+bhQAzuzi8gHCYeopv
+         7WOy8CQeXKKS21p1CtcOau5t1jGrB0VLrM7k8R8N57RyHx3xbEJXGl0fCRUwEPaKu9bu
+         b2JQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id v134si9229993oie.236.2019.02.06.04.26.17
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id l135si9435081oih.146.2019.02.06.04.26.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Feb 2019 04:26:18 -0800 (PST)
-Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
+        Wed, 06 Feb 2019 04:26:51 -0800 (PST)
+Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from DGGEMS410-HUB.china.huawei.com (unknown [172.30.72.59])
-	by Forcepoint Email with ESMTP id E5041BF2ED58E3A20B87;
-	Wed,  6 Feb 2019 20:26:12 +0800 (CST)
-Received: from localhost (10.202.226.61) by DGGEMS410-HUB.china.huawei.com
- (10.3.19.210) with Microsoft SMTP Server id 14.3.408.0; Wed, 6 Feb 2019
- 20:26:11 +0800
-Date: Wed, 6 Feb 2019 12:26:00 +0000
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from DGGEMS409-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id 50FD01F3BD5ADB504451;
+	Wed,  6 Feb 2019 20:26:46 +0800 (CST)
+Received: from localhost (10.202.226.61) by DGGEMS409-HUB.china.huawei.com
+ (10.3.19.209) with Microsoft SMTP Server id 14.3.408.0; Wed, 6 Feb 2019
+ 20:26:44 +0800
+Date: Wed, 6 Feb 2019 12:26:35 +0000
 From: Jonathan Cameron <jonathan.cameron@huawei.com>
 To: Keith Busch <keith.busch@intel.com>
 CC: <linux-kernel@vger.kernel.org>, <linux-acpi@vger.kernel.org>,
 	<linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
 	"Rafael Wysocki" <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>,
 	"Dan Williams" <dan.j.williams@intel.com>
-Subject: Re: [PATCHv5 05/10] acpi/hmat: Register processor domain to its
- memory
-Message-ID: <20190206122600.00006585@huawei.com>
-In-Reply-To: <20190124230724.10022-6-keith.busch@intel.com>
+Subject: Re: [PATCHv5 04/10] node: Link memory nodes to their compute nodes
+Message-ID: <20190206122635.00005d37@huawei.com>
+In-Reply-To: <20190124230724.10022-5-keith.busch@intel.com>
 References: <20190124230724.10022-1-keith.busch@intel.com>
-	<20190124230724.10022-6-keith.busch@intel.com>
+	<20190124230724.10022-5-keith.busch@intel.com>
 Organization: Huawei
 X-Mailer: Claws Mail 3.16.0 (GTK+ 2.24.32; i686-w64-mingw32)
 MIME-Version: 1.0
@@ -108,444 +107,324 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 Jan 2019 16:07:19 -0700
+On Thu, 24 Jan 2019 16:07:18 -0700
 Keith Busch <keith.busch@intel.com> wrote:
 
-> If the HMAT Subsystem Address Range provides a valid processor proximity
-> domain for a memory domain, or a processor domain matches the performance
-> access of the valid processor proximity domain, register the memory
-> target with that initiator so this relationship will be visible under
-> the node's sysfs directory.
+> Systems may be constructed with various specialized nodes. Some nodes
+> may provide memory, some provide compute devices that access and use
+> that memory, and others may provide both. Nodes that provide memory are
+> referred to as memory targets, and nodes that can initiate memory access
+> are referred to as memory initiators.
 > 
-> Since HMAT requires valid address ranges have an equivalent SRAT entry,
-> verify each memory target satisfies this requirement.
+> Memory targets will often have varying access characteristics from
+> different initiators, and platforms may have ways to express those
+> relationships. In preparation for these systems, provide interfaces for
+> the kernel to export the memory relationship among different nodes memory
+> targets and their initiators with symlinks to each other.
+> 
+> If a system provides access locality for each initiator-target pair, nodes
+> may be grouped into ranked access classes relative to other nodes. The
+> new interface allows a subsystem to register relationships of varying
+> classes if available and desired to be exported.
+> 
+> A memory initiator may have multiple memory targets in the same access
+> class. The target memory's initiators in a given class indicate the
+> nodes access characteristics share the same performance relative to other
+> linked initiator nodes. Each target within an initiator's access class,
+> though, do not necessarily perform the same as each other.
+> 
+> A memory target node may have multiple memory initiators. All linked
+> initiators in a target's class have the same access characteristics to
+> that target.
+> 
+> The following example show the nodes' new sysfs hierarchy for a memory
+> target node 'Y' with access class 0 from initiator node 'X':
+> 
+>   # symlinks -v /sys/devices/system/node/nodeX/access0/
+>   relative: /sys/devices/system/node/nodeX/access0/targets/nodeY -> ../../nodeY
+> 
+>   # symlinks -v /sys/devices/system/node/nodeY/access0/
+>   relative: /sys/devices/system/node/nodeY/access0/initiators/nodeX -> ../../nodeX
+> 
+> The new attributes are added to the sysfs stable documentation.
 > 
 > Signed-off-by: Keith Busch <keith.busch@intel.com>
-A few comments inilne.
 
-Thanks,
-
-Jonathan
+A few comments inline.
 
 > ---
->  drivers/acpi/hmat/hmat.c | 310 +++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 310 insertions(+)
+>  Documentation/ABI/stable/sysfs-devices-node |  25 ++++-
+>  drivers/base/node.c                         | 142 +++++++++++++++++++++++++++-
+>  include/linux/node.h                        |   7 +-
+>  3 files changed, 171 insertions(+), 3 deletions(-)
 > 
-> diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
-> index 1741bf30d87f..85fd835c2e23 100644
-> --- a/drivers/acpi/hmat/hmat.c
-> +++ b/drivers/acpi/hmat/hmat.c
-> @@ -16,6 +16,91 @@
->  #include <linux/node.h>
->  #include <linux/sysfs.h>
+> diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
+> index 3e90e1f3bf0a..fb843222a281 100644
+> --- a/Documentation/ABI/stable/sysfs-devices-node
+> +++ b/Documentation/ABI/stable/sysfs-devices-node
+> @@ -90,4 +90,27 @@ Date:		December 2009
+>  Contact:	Lee Schermerhorn <lee.schermerhorn@hp.com>
+>  Description:
+>  		The node's huge page size control/query attributes.
+> -		See Documentation/admin-guide/mm/hugetlbpage.rst
+> \ No newline at end of file
+> +		See Documentation/admin-guide/mm/hugetlbpage.rst
+> +
+> +What:		/sys/devices/system/node/nodeX/accessY/
+> +Date:		December 2018
+> +Contact:	Keith Busch <keith.busch@intel.com>
+> +Description:
+> +		The node's relationship to other nodes for access class "Y".
+> +
+> +What:		/sys/devices/system/node/nodeX/accessY/initiators/
+> +Date:		December 2018
+> +Contact:	Keith Busch <keith.busch@intel.com>
+> +Description:
+> +		The directory containing symlinks to memory initiator
+> +		nodes that have class "Y" access to this target node's
+> +		memory. CPUs and other memory initiators in nodes not in
+> +		the list accessing this node's memory may have different
+> +		performance.
+
+Also seems to contain the characteristics of those accesses.
+
+> +
+> +What:		/sys/devices/system/node/nodeX/classY/targets/
+> +Date:		December 2018
+> +Contact:	Keith Busch <keith.busch@intel.com>
+> +Description:
+> +		The directory containing symlinks to memory targets that
+> +		this initiator node has class "Y" access.
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 86d6cd92ce3d..6f4097680580 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -17,6 +17,7 @@
+>  #include <linux/nodemask.h>
+>  #include <linux/cpu.h>
+>  #include <linux/device.h>
+> +#include <linux/pm_runtime.h>
+>  #include <linux/swap.h>
+>  #include <linux/slab.h>
 >  
-> +static __initdata LIST_HEAD(targets);
-> +static __initdata LIST_HEAD(initiators);
-> +static __initdata LIST_HEAD(localities);
+> @@ -59,6 +60,94 @@ static inline ssize_t node_read_cpulist(struct device *dev,
+>  static DEVICE_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
+>  static DEVICE_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
+>  
+> +/**
+> + * struct node_access_nodes - Access class device to hold user visible
+> + * 			      relationships to other nodes.
+> + * @dev:	Device for this memory access class
+> + * @list_node:	List element in the node's access list
+> + * @access:	The access class rank
+> + */
+> +struct node_access_nodes {
+> +	struct device		dev;
+> +	struct list_head	list_node;
+> +	unsigned		access;
+> +};
+> +#define to_access_nodes(dev) container_of(dev, struct node_access_nodes, dev)
 > +
-> +struct memory_target {
-> +	struct list_head node;
-> +	unsigned int memory_pxm;
-> +	unsigned int processor_pxm;
-> +	unsigned int read_bandwidth;
-> +	unsigned int write_bandwidth;
-> +	unsigned int read_latency;
-> +	unsigned int write_latency;
+> +static struct attribute *node_init_access_node_attrs[] = {
+> +	NULL,
 > +};
 > +
-> +struct memory_initiator {
-> +	struct list_head node;
-> +	unsigned int processor_pxm;
+> +static struct attribute *node_targ_access_node_attrs[] = {
+> +	NULL,
 > +};
 > +
-> +struct memory_locality {
-> +	struct list_head node;
-> +	struct acpi_hmat_locality *hmat_loc;
+> +static const struct attribute_group initiators = {
+> +	.name	= "initiators",
+> +	.attrs	= node_init_access_node_attrs,
 > +};
 > +
-> +static __init struct memory_initiator *find_mem_initiator(unsigned int cpu_pxm)
+> +static const struct attribute_group targets = {
+> +	.name	= "targets",
+> +	.attrs	= node_targ_access_node_attrs,
+> +};
+> +
+> +static const struct attribute_group *node_access_node_groups[] = {
+> +	&initiators,
+> +	&targets,
+> +	NULL,
+> +};
+> +
+> +static void node_remove_accesses(struct node *node)
 > +{
-> +	struct memory_initiator *intitator;
+> +	struct node_access_nodes *c, *cnext;
 > +
-> +	list_for_each_entry(intitator, &initiators, node)
-> +		if (intitator->processor_pxm == cpu_pxm)
-> +			return intitator;
+> +	list_for_each_entry_safe(c, cnext, &node->access_list, list_node) {
+> +		list_del(&c->list_node);
+> +		device_unregister(&c->dev);
+> +	}
+> +}
+> +
+> +static void node_access_release(struct device *dev)
+> +{
+> +	kfree(to_access_nodes(dev));
+> +}
+> +
+> +static struct node_access_nodes *node_init_node_access(struct node *node,
+> +						       unsigned access)
+> +{
+> +	struct node_access_nodes *access_node;
+> +	struct device *dev;
+> +
+> +	list_for_each_entry(access_node, &node->access_list, list_node)
+> +		if (access_node->access == access)
+> +			return access_node;
+> +
+> +	access_node = kzalloc(sizeof(*access_node), GFP_KERNEL);
+> +	if (!access_node)
+> +		return NULL;
+> +
+> +	access_node->access = access;
+> +	dev = &access_node->dev;
+> +	dev->parent = &node->dev;
+> +	dev->release = node_access_release;
+> +	dev->groups = node_access_node_groups;
+> +	if (dev_set_name(dev, "access%u", access))
+> +		goto free;
+> +
+> +	if (device_register(dev))
+> +		goto free_name;
+> +
+> +	pm_runtime_no_callbacks(dev);
+> +	list_add_tail(&access_node->list_node, &node->access_list);
+> +	return access_node;
+> +free_name:
+> +	kfree_const(dev->kobj.name);
+> +free:
+> +	kfree(access_node);
 > +	return NULL;
 > +}
 > +
-> +static __init struct memory_target *find_mem_target(unsigned int mem_pxm)
-> +{
-> +	struct memory_target *target;
-> +
-> +	list_for_each_entry(target, &targets, node)
-> +		if (target->memory_pxm == mem_pxm)
-> +			return target;
-> +	return NULL;
-> +}
-> +
-> +static __init struct memory_initiator *alloc_memory_initiator(
-> +							unsigned int cpu_pxm)
-> +{
-> +	struct memory_initiator *intitator;
-> +
-> +	if (pxm_to_node(cpu_pxm) == NUMA_NO_NODE)
-> +		return NULL;
-> +
-> +	intitator = find_mem_initiator(cpu_pxm);
-> +	if (intitator)
-> +		return intitator;
-> +
-> +	intitator = kzalloc(sizeof(*intitator), GFP_KERNEL);
-> +	if (!intitator)
-> +		return NULL;
-> +
-> +	intitator->processor_pxm = cpu_pxm;
-> +	list_add_tail(&intitator->node, &initiators);
-> +	return intitator;
-> +}
-> +
-> +static __init void alloc_memory_target(unsigned int mem_pxm)
-> +{
-> +	struct memory_target *target;
-> +
-> +	if (pxm_to_node(mem_pxm) == NUMA_NO_NODE)
-> +		return;
-> +
-> +	target = find_mem_target(mem_pxm);
-> +	if (target)
-> +		return;
-> +
-> +	target = kzalloc(sizeof(*target), GFP_KERNEL);
-> +	if (!target)
-> +		return;
-> +
-> +	target->memory_pxm = mem_pxm;
-> +	target->processor_pxm = PXM_INVAL;
-> +	list_add_tail(&target->node, &targets);
-> +}
-> +
->  static __init const char *hmat_data_type(u8 type)
+>  #define K(x) ((x) << (PAGE_SHIFT - 10))
+>  static ssize_t node_read_meminfo(struct device *dev,
+>  			struct device_attribute *attr, char *buf)
+> @@ -340,7 +429,7 @@ static int register_node(struct node *node, int num)
+>  void unregister_node(struct node *node)
 >  {
->  	switch (type) {
-> @@ -52,13 +137,45 @@ static __init const char *hmat_data_type_suffix(u8 type)
->  	};
+>  	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
+> -
+> +	node_remove_accesses(node);
+>  	device_unregister(&node->dev);
 >  }
 >  
-> +static __init void hmat_update_target_access(struct memory_target *target,
-> +                                             u8 type, u32 value)
-> +{
-> +	switch (type) {
-> +	case ACPI_HMAT_ACCESS_LATENCY:
-> +		target->read_latency = value;
-> +		target->write_latency = value;
-> +		break;
-> +	case ACPI_HMAT_READ_LATENCY:
-> +		target->read_latency = value;
-> +		break;
-> +	case ACPI_HMAT_WRITE_LATENCY:
-> +		target->write_latency = value;
-> +		break;
-> +	case ACPI_HMAT_ACCESS_BANDWIDTH:
-> +		target->read_bandwidth = value;
-> +		target->write_bandwidth = value;
-> +		break;
-> +	case ACPI_HMAT_READ_BANDWIDTH:
-> +		target->read_bandwidth = value;
-> +		break;
-> +	case ACPI_HMAT_WRITE_BANDWIDTH:
-> +		target->write_bandwidth = value;
-> +		break;
-> +	default:
-> +		break;
-> +	};
-> +}
-> +
->  static __init int hmat_parse_locality(union acpi_subtable_headers *header,
->  				      const unsigned long end)
->  {
->  	struct acpi_hmat_locality *hmat_loc = (void *)header;
-> +	struct memory_target *target;
-> +	struct memory_initiator *initiator;
->  	unsigned int init, targ, total_size, ipds, tpds;
->  	u32 *inits, *targs, value;
->  	u16 *entries;
-> +	bool report = false;
->  	u8 type;
->  
->  	if (hmat_loc->header.length < sizeof(*hmat_loc)) {
-> @@ -82,16 +199,42 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
->  		hmat_loc->flags, hmat_data_type(type), ipds, tpds,
->  		hmat_loc->entry_base_unit);
->  
-> +	/* Don't report performance of memory side caches */
-> +	switch (hmat_loc->flags & ACPI_HMAT_MEMORY_HIERARCHY) {
-> +	case ACPI_HMAT_MEMORY:
-> +	case ACPI_HMAT_LAST_LEVEL_CACHE:
-
-Both can be true under ACPI 6.2 do we actually want to report them both if
-they are both there?
-
-> +		report = true;
-> +		break;
-> +	default:
-> +		break;
-> +	}
-> +
->  	inits = (u32 *)(hmat_loc + 1);
->  	targs = &inits[ipds];
->  	entries = (u16 *)(&targs[tpds]);
->  	for (init = 0; init < ipds; init++) {
-> +		initiator = alloc_memory_initiator(inits[init]);
-Error handling?
-
->  		for (targ = 0; targ < tpds; targ++) {
->  			value = entries[init * tpds + targ];
->  			value = (value * hmat_loc->entry_base_unit) / 10;
->  			pr_info("  Initiator-Target[%d-%d]:%d%s\n",
->  				inits[init], targs[targ], value,
->  				hmat_data_type_suffix(type));
-> +
-> +			target = find_mem_target(targs[targ]);
-> +			if (target && report &&
-> +			    target->processor_pxm == initiator->processor_pxm)
-> +				hmat_update_target_access(target, type, value);
-> +		}
-> +	}
-> +
-> +	if (report) {
-> +		struct memory_locality *loc;
-> +
-> +		loc = kzalloc(sizeof(*loc), GFP_KERNEL);
-> +		if (loc) {
-> +			loc->hmat_loc = hmat_loc;
-> +			list_add_tail(&loc->node, &localities);
->  		}
-
-Error handling for that memory alloc failing?  Obviously it's unlikely
-to happen, but nice to handle it anyway.
-
->  	}
->  
-> @@ -122,16 +265,35 @@ static int __init hmat_parse_address_range(union acpi_subtable_headers *header,
->  					   const unsigned long end)
->  {
->  	struct acpi_hmat_address_range *spa = (void *)header;
-> +	struct memory_target *target = NULL;
->  
->  	if (spa->header.length != sizeof(*spa)) {
->  		pr_debug("HMAT: Unexpected address range header length: %d\n",
->  			 spa->header.length);
->  		return -EINVAL;
->  	}
-> +
-
-Might as well tidy that to the right patch.
-
->  	pr_info("HMAT: Memory (%#llx length %#llx) Flags:%04x Processor Domain:%d Memory Domain:%d\n",
->  		spa->physical_address_base, spa->physical_address_length,
->  		spa->flags, spa->processor_PD, spa->memory_PD);
->  
-> +	if (spa->flags & ACPI_HMAT_MEMORY_PD_VALID) {
-> +		target = find_mem_target(spa->memory_PD);
-> +		if (!target) {
-> +			pr_debug("HMAT: Memory Domain missing from SRAT\n");
-> +			return -EINVAL;
-> +		}
-> +	}
-> +	if (target && spa->flags & ACPI_HMAT_PROCESSOR_PD_VALID) {
-> +		int p_node = pxm_to_node(spa->processor_PD);
-> +
-> +		if (p_node == NUMA_NO_NODE) {
-> +			pr_debug("HMAT: Invalid Processor Domain\n");
-> +			return -EINVAL;
-> +		}
-> +		target->processor_pxm = p_node;
-> +	}
-> +
->  	return 0;
+> @@ -372,6 +461,56 @@ int register_cpu_under_node(unsigned int cpu, unsigned int nid)
+>  				 kobject_name(&node_devices[nid]->dev.kobj));
 >  }
 >  
-> @@ -155,6 +317,142 @@ static int __init hmat_parse_subtable(union acpi_subtable_headers *header,
->  	}
->  }
->  
-> +static __init int srat_parse_mem_affinity(union acpi_subtable_headers *header,
-> +					  const unsigned long end)
+> +/**
+> + * register_memory_node_under_compute_node - link memory node to its compute
+> + *					     node for a given access class.
+> + * @mem_node:	Memory node number
+> + * @cpu_node:	Cpu  node number
+> + * @access:	Access class to register
+> + *
+> + * Description:
+> + * 	For use with platforms that may have separate memory and compute nodes.
+I would drop that first line as it also applies on systems where this isn't
+true and will be there if we want hmat simply for the better stats.
+
+> + * 	This function will export node relationships linking which memory
+> + * 	initiator nodes can access memory targets at a given ranked access
+> + * 	class.
+> + */
+> +int register_memory_node_under_compute_node(unsigned int mem_nid,
+> +					    unsigned int cpu_nid,
+> +					    unsigned access)
 > +{
-> +	struct acpi_srat_mem_affinity *ma = (void *)header;
+> +	struct node *init_node, *targ_node;
+> +	struct node_access_nodes *initiator, *target;
+> +	int ret;
 > +
-> +	if (!ma)
-> +		return -EINVAL;
-> +	if (!(ma->flags & ACPI_SRAT_MEM_ENABLED))
-> +		return 0;
-> +	alloc_memory_target(ma->proximity_domain);
+> +	if (!node_online(cpu_nid) || !node_online(mem_nid))
+> +		return -ENODEV;
+
+What do we do under memory/node hotplug?  More than likely that will
+apply in such systems (it does in mine for starters).
+Clearly to do the full story we would need _HMT support etc but
+we can do the prebaked version by having hmat entries for nodes
+that aren't online yet (like we do for SRAT).
+
+Perhaps one for a follow up patch set.  However, I'd like an
+pr_info to indicate that the node is listed but not online currently.
+
+> +
+> +	init_node = node_devices[cpu_nid];
+> +	targ_node = node_devices[mem_nid];
+> +	initiator = node_init_node_access(init_node, access);
+> +	target = node_init_node_access(targ_node, access);
+> +	if (!initiator || !target)
+> +		return -ENOMEM;
+If one of these fails and the other doesn't + the one that succeeded
+did an init, don't we end up leaking a device here?  I'd expect this
+function to not leave things hanging if it has an error. It should
+unwind anything it has done.  It has been added to the list so
+could be cleaned up later, but I'm not seeing that code. 
+
+These only get cleaned up when the node is removed.
+
+> +
+> +	ret = sysfs_add_link_to_group(&initiator->dev.kobj, "targets",
+> +				      &targ_node->dev.kobj,
+> +				      dev_name(&targ_node->dev));
+> +	if (ret)
+> +		return ret;
+> +
+> +	ret = sysfs_add_link_to_group(&target->dev.kobj, "initiators",
+> +				      &init_node->dev.kobj,
+> +				      dev_name(&init_node->dev));
+> +	if (ret)
+> +		goto err;
+> +
 > +	return 0;
+> + err:
+> +	sysfs_remove_link_from_group(&initiator->dev.kobj, "targets",
+> +				     dev_name(&targ_node->dev));
+> +	return ret;
 > +}
 > +
-> +static __init bool hmat_is_local(struct memory_target *target,
-> +                                 u8 type, u32 value)
-> +{
-> +	switch (type) {
-> +	case ACPI_HMAT_ACCESS_LATENCY:
-> +		return value == target->read_latency &&
-> +		       value == target->write_latency;
-> +	case ACPI_HMAT_READ_LATENCY:
-> +		return value == target->read_latency;
-> +	case ACPI_HMAT_WRITE_LATENCY:
-> +		return value == target->write_latency;
-> +	case ACPI_HMAT_ACCESS_BANDWIDTH:
-> +		return value == target->read_bandwidth &&
-> +		       value == target->write_bandwidth;
-> +	case ACPI_HMAT_READ_BANDWIDTH:
-> +		return value == target->read_bandwidth;
-> +	case ACPI_HMAT_WRITE_BANDWIDTH:
-> +		return value == target->write_bandwidth;
-> +	default:
-> +		return true;
-> +	};
-> +}
-> +
-> +static bool hmat_is_local_initiator(struct memory_target *target,
-> +				    struct memory_initiator *initiator,
-> +				    struct acpi_hmat_locality *hmat_loc)
-> +{
-> +	unsigned int ipds, tpds, i, idx = 0, tdx = 0;
-> +	u32 *inits, *targs, value;
-> +	u16 *entries;
-> +
-> +	ipds = hmat_loc->number_of_initiator_Pds;
-> +	tpds = hmat_loc->number_of_target_Pds;
-> +	inits = (u32 *)(hmat_loc + 1);
-> +	targs = &inits[ipds];
-> +	entries = (u16 *)(&targs[tpds]);
-As earlier, I'd prefer not having indexes off the end of arrays.
-Clearer to my eye to just have explicit pointer maths.
-
-> +
-> +	for (i = 0; i < ipds; i++) {
-> +		if (inits[i] == initiator->processor_pxm) {
-> +			idx = i;
-> +			break;
-> +		}
-> +	}
-> +
-> +	if (i == ipds)
-> +		return false;
-> +
-> +	for (i = 0; i < tpds; i++) {
-> +		if (targs[i] == target->memory_pxm) {
-> +			tdx = i;
-> +			break;
-> +		}
-> +	}
-> +	if (i == tpds)
-> +		return false;
-> +
-> +	value = entries[idx * tpds + tdx];
-> +	value = (value * hmat_loc->entry_base_unit) / 10;
-Just noticed, this might well overflow.  entry_base_unit is 8 bytes long.
-
-> +
-> +	return hmat_is_local(target, hmat_loc->data_type, value);
-> +}
-> +
-> +static __init void hmat_register_if_local(struct memory_target *target,
-> +					  struct memory_initiator *initiator)
-> +{
-> +	unsigned int mem_nid, cpu_nid;
-> +	struct memory_locality *loc;
-> +
-> +	if (initiator->processor_pxm == target->processor_pxm)
-> +		return;
-> +
-> +	list_for_each_entry(loc, &localities, node)
-> +		if (!hmat_is_local_initiator(target, initiator, loc->hmat_loc))
-> +			return;
-> +
-> +	mem_nid = pxm_to_node(target->memory_pxm);
-> +	cpu_nid = pxm_to_node(initiator->processor_pxm);
-> +	register_memory_node_under_compute_node(mem_nid, cpu_nid, 0);
-> +}
-> +
-> +static __init void hmat_register_target_initiators(struct memory_target *target)
-> +{
-> +	struct memory_initiator *initiator;
-> +	unsigned int mem_nid, cpu_nid;
-> +
-> +	if (target->processor_pxm == PXM_INVAL)
-> +		return;
-> +
-> +	mem_nid = pxm_to_node(target->memory_pxm);
-> +	cpu_nid = pxm_to_node(target->processor_pxm);
-> +	if (register_memory_node_under_compute_node(mem_nid, cpu_nid, 0))
-
-As mentioned in previous patch, I think this can register devices
-that aren't freed in the error path... 
-
-In general I think the error handling needs another look.
-In particular making sure we get helpful error messages for likely
-table errors.
-
-> +		return;
-> +
-> +	if (list_empty(&localities))
-> +		return;
-> +
-> +	list_for_each_entry(initiator, &initiators, node)
-> +		hmat_register_if_local(target, initiator);
-> +}
-> +
-> +static __init void hmat_register_targets(void)
-> +{
-> +	struct memory_target *target, *tnext;
-> +	struct memory_locality *loc, *lnext;
-> +	struct memory_initiator *intitator, *inext;
-> +
-> +	list_for_each_entry_safe(target, tnext, &targets, node) {
-> +		list_del(&target->node);
-> +		hmat_register_target_initiators(target);
-> +		kfree(target);
-> +	}
-> +
-> +	list_for_each_entry_safe(intitator, inext, &initiators, node) {
-> +		list_del(&intitator->node);
-> +		kfree(intitator);
-> +	}
-> +
-> +	list_for_each_entry_safe(loc, lnext, &localities, node) {
-> +		list_del(&loc->node);
-> +		kfree(loc);
-> +	}
-> +}
-> +
->  static __init int hmat_init(void)
+>  int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
 >  {
->  	struct acpi_table_header *tbl;
-> @@ -164,6 +462,17 @@ static __init int hmat_init(void)
->  	if (srat_disabled())
->  		return 0;
->  
-> +	status = acpi_get_table(ACPI_SIG_SRAT, 0, &tbl);
-> +	if (ACPI_FAILURE(status))
-> +		return 0;
-> +
-> +	if (acpi_table_parse_entries(ACPI_SIG_SRAT,
-> +				sizeof(struct acpi_table_srat),
-> +				ACPI_SRAT_TYPE_MEMORY_AFFINITY,
-> +				srat_parse_mem_affinity, 0) < 0)
-> +		goto out_put;
-> +	acpi_put_table(tbl);
-> +
->  	status = acpi_get_table(ACPI_SIG_HMAT, 0, &tbl);
->  	if (ACPI_FAILURE(status))
->  		return 0;
-> @@ -174,6 +483,7 @@ static __init int hmat_init(void)
->  					     hmat_parse_subtable, 0) < 0)
->  			goto out_put;
+>  	struct device *obj;
+> @@ -580,6 +719,7 @@ int __register_one_node(int nid)
+>  			register_cpu_under_node(cpu, nid);
 >  	}
-> +	hmat_register_targets();
->  out_put:
->  	acpi_put_table(tbl);
->  	return 0;
+>  
+> +	INIT_LIST_HEAD(&node_devices[nid]->access_list);
+>  	/* initialize work queue for memory hot plug */
+>  	init_node_hugetlb_work(nid);
+>  
+> diff --git a/include/linux/node.h b/include/linux/node.h
+> index 257bb3d6d014..f34688a203c1 100644
+> --- a/include/linux/node.h
+> +++ b/include/linux/node.h
+> @@ -17,11 +17,12 @@
+>  
+>  #include <linux/device.h>
+>  #include <linux/cpumask.h>
+> +#include <linux/list.h>
+>  #include <linux/workqueue.h>
+>  
+>  struct node {
+>  	struct device	dev;
+> -
+> +	struct list_head access_list;
+>  #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
+>  	struct work_struct	node_work;
+>  #endif
+> @@ -75,6 +76,10 @@ extern int register_mem_sect_under_node(struct memory_block *mem_blk,
+>  extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+>  					   unsigned long phys_index);
+>  
+> +extern int register_memory_node_under_compute_node(unsigned int mem_nid,
+> +						   unsigned int cpu_nid,
+> +						   unsigned access);
+> +
+>  #ifdef CONFIG_HUGETLBFS
+>  extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
+>  					 node_registration_func_t unregister);
 
 
