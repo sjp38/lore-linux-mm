@@ -2,225 +2,176 @@ Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C6A28C282CC
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:10:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 18368C169C4
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:17:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8D7372184E
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:10:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D7372184E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id D19E42175B
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:17:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D19E42175B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2FF508E00B8; Wed,  6 Feb 2019 07:10:42 -0500 (EST)
+	id 73C238E00B4; Wed,  6 Feb 2019 07:17:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 285688E00B6; Wed,  6 Feb 2019 07:10:42 -0500 (EST)
+	id 6ECAA8E00AA; Wed,  6 Feb 2019 07:17:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 14D898E00B8; Wed,  6 Feb 2019 07:10:42 -0500 (EST)
+	id 5DB898E00B4; Wed,  6 Feb 2019 07:17:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C341B8E00B6
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 07:10:41 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id a9so4778663pla.2
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 04:10:41 -0800 (PST)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FE268E00AA
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 07:17:25 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id q11so5792885otl.23
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 04:17:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:in-reply-to:references:message-id;
-        bh=ejrM/R9eeplk9uFxz2XWIrvDnzfU1UrbJSgB2j/O9l0=;
-        b=kxxina+P0EQ1yH1D7SesBg8OWnMJhauh1IqQLCNulr1/UvgrVxuxnAtomg0ikVGzcG
-         xTX9xe5XjJnQ21UXXjkpDL1VHuGNLD+y4J43z4vuKQVwasJpGK2G3hr64N7a58IVP+Ap
-         Q7RokaN+uatYJWvdRKq5W8whWTbFffapSW+URXOWfBGwYZ637MR0hmHA0MDE/RDs7WMt
-         Fm79ks0gCiKgxbVFiprMT+I88aWzX1JX6J2HSRe64Iihru8YYeiow4risCBCxgbxI1uB
-         lYQc4HLK60HNMb/SqtWPYI7btR2aj2VRdfWm9mdgPAWufR3kyBRSLtC/RVhzKIPBRyhg
-         SZHw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuYsND16CfqfpGvN6Y+wIwzUsA/9M7CMLlIPQJV47gXqmNRhR+K6
-	eZvk03ahUdlNg/CFIXou7H+zFbOuU65AHHnZD5dp3pir3FKi6gWiC9cl9fTd+rSNDlgDuKH9gZm
-	i5ul9qRqKjwIKjsP97sO3W5NYoTkvSBgLdVcZiKw8GtKjwjWKAnKlZybavKhjITEjEQ==
-X-Received: by 2002:a17:902:bcc7:: with SMTP id o7mr10522690pls.281.1549455041386;
-        Wed, 06 Feb 2019 04:10:41 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ibdam0y14M1ERNMvnscEomxEbZCaZv6J1V4/8CdzUdLsd2BMYT2DjtoxMTGpVrQIhglJWFB
-X-Received: by 2002:a17:902:bcc7:: with SMTP id o7mr10522609pls.281.1549455040445;
-        Wed, 06 Feb 2019 04:10:40 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549455040; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=II8OMufhG/IDudGVaJTEeoLvmhvMsANdXN5ZKG00Km8=;
+        b=oUBmGZr4dR0AfdYKL1XtoNzlDJSVN1lEE4X/ZqExWAyBKSGt6nrMCREt5UVvHCPcuK
+         yYBYXKAGXjnJchG0FSYoY8khw8J0H7Wm+hK6b79hXPUYqzfRhBDjQUQnyqr4kcfV66QQ
+         6g42EFt+WUh/kKJG9lRmzwYqtOpT3OEAKRzsHbFDqN7gb6AW2kDZuGqJfSyzy2RKgRV8
+         mhYAzUipl8mF6SBhvoPLn8OFcBb0ryoSbaBjh6OCVJAF7xNwBtLFPj+We01P4ro5zyAQ
+         Bg91JYKw2/m9FYu4u6oArslx5li1LRJXcB08Ggm9nR9wn+RzGNveIx7C8FxwBsw22VEX
+         a0XQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+X-Gm-Message-State: AHQUAuZrI6w5tIuVKk47YAMhmm8spFeVn8ShT2/OTwJiyiQATiH+H5mW
+	JR8H0BmNKEkoPO1R3Aq4XKRxnECPzfP37tzWetQRcZ5XQntAfH9u5YKrYmkPSQOpwjVnLgxtQIp
+	8BO1SQlqGi9LX6HSHew7VP5bizmMH2v8wEAUu9Xvj/eLjosdfLvlWrOcJFiGYY45n8A==
+X-Received: by 2002:a9d:3ecb:: with SMTP id b69mr5175816otc.329.1549455444838;
+        Wed, 06 Feb 2019 04:17:24 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia/fGIdePywrFW8mXFrVnRxYtukHKwSsk8Xuwiphy0sI0FEnayf1agR71QPSfbl9ozX1z61
+X-Received: by 2002:a9d:3ecb:: with SMTP id b69mr5175767otc.329.1549455443387;
+        Wed, 06 Feb 2019 04:17:23 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549455443; cv=none;
         d=google.com; s=arc-20160816;
-        b=z2Ht8CMGIbQGBBE/L9RjB1lwYSlRb8ZzGE3jltCqMxmskfbda7fJI8AuGrQNauYtGt
-         RfYSkU+9/RUkVNVx5eA1EG/zQ1oLMBZ5YTibKD4RhZDqmraKg9Ffv3LIDMPPu1FyYP7x
-         asuFBn32d+sq3h3lMKfB9KaCxN2KqIQU1RawcfvyTUbNxMbU9LI+UnFYFL7V480jXKJh
-         69OmRvUY8rBHGfhMTLe1dBC4q0pToorLWaqCqag5cNWQW0fGB4oIF1tTjV11iUdKW3c0
-         Waf1VGIHu1oRhqQYu3MPgXPZ6aIxsS1qjdycCc2K26KoKxP2DJdxfvEiq9Jqhi7z8y4E
-         WqDA==
+        b=bcbTC77Uxm16+YoV2gtaHog1aKb4wOQ0/2oFwmGeBlqPMwq7nO6LhEFB5fluWUwSTs
+         Eglrm09B4nqdsi+nowVoKCeT3AsO7SoWIkxSkhQw9np53zme8sZZkkCcyMgEc7dqE2tc
+         yJBDN7L6NQiTRGeGF4BkVboIa87QVslw+9i0hIl4pbmFKYhG/CZZHXtk4ZtQIgNjDjQa
+         iGHOe3A9MOmBuxagPP2wwTWu7cOE1HXMFSZsPMXAqY/Nmdg5AEMmPJ/uv6k0EtQUUGsK
+         DLTqudMFQqVQXjlZ1AanHYQ9ydleC62M5NL9ZWoTN7ZMPfKWXc/4kPvu0uzAyInKPvRw
+         AItg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:references:in-reply-to:date:subject:cc:to:from;
-        bh=ejrM/R9eeplk9uFxz2XWIrvDnzfU1UrbJSgB2j/O9l0=;
-        b=PwETZaCXOYwPDO+eIc7jVwzHx5P1wNXZsmjVEHvCvykTKAbK4iVVmL/z6A2we/KcVh
-         QJk+nmZO22drJz/Jk7SpKhnSomMf7u3Q1DXTdqRYjWfpFHjz4GIiXGykFpKbIUUc63qt
-         G3jG4LVs9daNbFrXc5tksJVjaDroE2MPG0FnOp5O6o6JMVZx6wFBGcAmF4dnW+tZcuLP
-         xYFMp2GLvU6t8tqhAOl8BDJKJ8hDAleAVm7BeMqlOB9GEzEtG9g/uQzCkn/nqumrYc5y
-         9zqGmykuPBqi3zI0Ohi23Nct6Qf1CP1L67o19hHHYLbu2yaMWIUF647HNKpeaYqzEfbs
-         8KUg==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=II8OMufhG/IDudGVaJTEeoLvmhvMsANdXN5ZKG00Km8=;
+        b=LjyY5qTPMlJO1AWCy3gNbjRvMbtObHR8ZA5DOU/1lumVkVLTupmNBLBqh411Y33+7M
+         3cXQDjRaXCR8pNr2VxS9D1mYPSu1mE5rK5kcv+IKxqDMCg0aH0QuGJuAVEGo8JrGyud/
+         /nf5r9RSvBLetocegbMD5W60w0yR/2+xopGt/Pc1YyRoVXZNhv+HGdErgYXhliV/8H7X
+         lD+m8G7kFBotJAW3LB5VpZuuEtN7OatPnERC3dq9z5RiEZQxg8hqez01HFLLpFGxBdAL
+         ygiVkjWpjYT5esH78PIT14iJgq0RdbhEi0cY0t3BJgz9sBFhKhQzYxzPV3rpIdOhNQRf
+         FQRA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f5si5665551plo.422.2019.02.06.04.10.40
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
+        by mx.google.com with ESMTPS id f203si9039091oig.29.2019.02.06.04.17.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Feb 2019 04:10:40 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Wed, 06 Feb 2019 04:17:23 -0800 (PST)
+Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x16C5MJR132272
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2019 07:10:39 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qfxsm245x-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 06 Feb 2019 07:10:39 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 6 Feb 2019 12:10:36 -0000
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 6 Feb 2019 12:10:34 -0000
-Received: from d06av24.portsmouth.uk.ibm.com (d06av24.portsmouth.uk.ibm.com [9.149.105.60])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x16CAX7C8913254
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Wed, 6 Feb 2019 12:10:33 GMT
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id E72A44204F;
-	Wed,  6 Feb 2019 12:10:32 +0000 (GMT)
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 80CD042070;
-	Wed,  6 Feb 2019 12:10:31 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.84])
-	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Wed,  6 Feb 2019 12:10:31 +0000 (GMT)
-Received: by rapoport-lnx (sSMTP sendmail emulation); Wed, 06 Feb 2019 14:10:30 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH 2/2] memblock: split checks whether a region should be skipped to a helper function
-Date: Wed,  6 Feb 2019 14:10:25 +0200
-X-Mailer: git-send-email 2.7.4
-In-Reply-To: <1549455025-17706-1-git-send-email-rppt@linux.ibm.com>
-References: <1549455025-17706-1-git-send-email-rppt@linux.ibm.com>
-X-TM-AS-GCONF: 00
-x-cbid: 19020612-0016-0000-0000-000002531D6C
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19020612-0017-0000-0000-000032AD2650
-Message-Id: <1549455025-17706-3-git-send-email-rppt@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-06_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902060096
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from DGGEMS412-HUB.china.huawei.com (unknown [172.30.72.60])
+	by Forcepoint Email with ESMTP id 16D01AC5852869D1A110;
+	Wed,  6 Feb 2019 20:17:19 +0800 (CST)
+Received: from localhost (10.202.226.61) by DGGEMS412-HUB.china.huawei.com
+ (10.3.19.212) with Microsoft SMTP Server id 14.3.408.0; Wed, 6 Feb 2019
+ 20:17:17 +0800
+Date: Wed, 6 Feb 2019 12:17:06 +0000
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+To: Keith Busch <keith.busch@intel.com>
+CC: <linux-kernel@vger.kernel.org>, <linux-acpi@vger.kernel.org>,
+	<linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael Wysocki" <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>,
+	"Dan Williams" <dan.j.williams@intel.com>
+Subject: Re: [PATCHv5 09/10] acpi/hmat: Register memory side cache
+ attributes
+Message-ID: <20190206121706.00005246@huawei.com>
+In-Reply-To: <20190124230724.10022-10-keith.busch@intel.com>
+References: <20190124230724.10022-1-keith.busch@intel.com>
+	<20190124230724.10022-10-keith.busch@intel.com>
+Organization: Huawei
+X-Mailer: Claws Mail 3.16.0 (GTK+ 2.24.32; i686-w64-mingw32)
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.202.226.61]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The __next_mem_range() and __next_mem_range_rev() duplucate the code that
-checks whether a region should be skipped because of node or flags
-incompatibility.
+On Thu, 24 Jan 2019 16:07:23 -0700
+Keith Busch <keith.busch@intel.com> wrote:
 
-Split this code into a helper function.
+> Register memory side cache attributes with the memory's node if HMAT
+> provides the side cache iniformation table.
+> 
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
+Trivial suggestion inline.
+> ---
+>  drivers/acpi/hmat/hmat.c | 32 ++++++++++++++++++++++++++++++++
+>  1 file changed, 32 insertions(+)
+> 
+> diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
+> index 917e6122b3f0..11f65b38e9f9 100644
+> --- a/drivers/acpi/hmat/hmat.c
+> +++ b/drivers/acpi/hmat/hmat.c
+> @@ -245,6 +245,7 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
+>  				   const unsigned long end)
+>  {
+>  	struct acpi_hmat_cache *cache = (void *)header;
+> +	struct node_cache_attrs cache_attrs;
+>  	u32 attrs;
+>  
+>  	if (cache->header.length < sizeof(*cache)) {
+> @@ -258,6 +259,37 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
+>  		cache->memory_PD, cache->cache_size, attrs,
+>  		cache->number_of_SMBIOShandles);
+>  
+> +	cache_attrs.size = cache->cache_size;
+> +	cache_attrs.level = (attrs & ACPI_HMAT_CACHE_LEVEL) >> 4;
+> +	cache_attrs.line_size = (attrs & ACPI_HMAT_CACHE_LINE_SIZE) >> 16;
+> +
+> +	switch ((attrs & ACPI_HMAT_CACHE_ASSOCIATIVITY) >> 8) {
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- mm/memblock.c | 53 +++++++++++++++++++++++++----------------------------
- 1 file changed, 25 insertions(+), 28 deletions(-)
+FIELD_GET might be nice for these to avoid having the shifts and the mask.
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index af5fe8e..f87d3ae 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -958,6 +958,29 @@ void __init_memblock __next_reserved_mem_region(u64 *idx,
- 	*idx = ULLONG_MAX;
- }
- 
-+static bool should_skip_region(struct memblock_region *m, int nid, int flags)
-+{
-+	int m_nid = memblock_get_region_node(m);
-+
-+	/* only memory regions are associated with nodes, check it */
-+	if (nid != NUMA_NO_NODE && nid != m_nid)
-+		return true;
-+
-+	/* skip hotpluggable memory regions if needed */
-+	if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
-+		return true;
-+
-+	/* if we want mirror memory skip non-mirror memory regions */
-+	if ((flags & MEMBLOCK_MIRROR) && !memblock_is_mirror(m))
-+		return true;
-+
-+	/* skip nomap memory unless we were asked for it explicitly */
-+	if (!(flags & MEMBLOCK_NOMAP) && memblock_is_nomap(m))
-+		return true;
-+
-+	return false;
-+}
-+
- /**
-  * __next__mem_range - next function for for_each_free_mem_range() etc.
-  * @idx: pointer to u64 loop variable
-@@ -1005,20 +1028,7 @@ void __init_memblock __next_mem_range(u64 *idx, int nid,
- 		phys_addr_t m_end = m->base + m->size;
- 		int	    m_nid = memblock_get_region_node(m);
- 
--		/* only memory regions are associated with nodes, check it */
--		if (nid != NUMA_NO_NODE && nid != m_nid)
--			continue;
--
--		/* skip hotpluggable memory regions if needed */
--		if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
--			continue;
--
--		/* if we want mirror memory skip non-mirror memory regions */
--		if ((flags & MEMBLOCK_MIRROR) && !memblock_is_mirror(m))
--			continue;
--
--		/* skip nomap memory unless we were asked for it explicitly */
--		if (!(flags & MEMBLOCK_NOMAP) && memblock_is_nomap(m))
-+		if (should_skip_region(m, nid, flags))
- 			continue;
- 
- 		if (!type_b) {
-@@ -1122,20 +1132,7 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
- 		phys_addr_t m_end = m->base + m->size;
- 		int m_nid = memblock_get_region_node(m);
- 
--		/* only memory regions are associated with nodes, check it */
--		if (nid != NUMA_NO_NODE && nid != m_nid)
--			continue;
--
--		/* skip hotpluggable memory regions if needed */
--		if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
--			continue;
--
--		/* if we want mirror memory skip non-mirror memory regions */
--		if ((flags & MEMBLOCK_MIRROR) && !memblock_is_mirror(m))
--			continue;
--
--		/* skip nomap memory unless we were asked for it explicitly */
--		if (!(flags & MEMBLOCK_NOMAP) && memblock_is_nomap(m))
-+		if (should_skip_region(m, nid, flags))
- 			continue;
- 
- 		if (!type_b) {
--- 
-2.7.4
+> +	case ACPI_HMAT_CA_DIRECT_MAPPED:
+> +		cache_attrs.associativity = NODE_CACHE_DIRECT_MAP;
+> +		break;
+> +	case ACPI_HMAT_CA_COMPLEX_CACHE_INDEXING:
+> +		cache_attrs.associativity = NODE_CACHE_INDEXED;
+> +		break;
+> +	case ACPI_HMAT_CA_NONE:
+> +	default:
+> +		cache_attrs.associativity = NODE_CACHE_OTHER;
+> +		break;
+> +	}
+> +
+> +	switch ((attrs & ACPI_HMAT_WRITE_POLICY) >> 12) {
+> +	case ACPI_HMAT_CP_WB:
+> +		cache_attrs.write_policy = NODE_CACHE_WRITE_BACK;
+> +		break;
+> +	case ACPI_HMAT_CP_WT:
+> +		cache_attrs.write_policy = NODE_CACHE_WRITE_THROUGH;
+> +		break;
+> +	case ACPI_HMAT_CP_NONE:
+> +	default:
+> +		cache_attrs.write_policy = NODE_CACHE_WRITE_OTHER;
+> +		break;
+> +	}
+> +
+> +	node_add_cache(pxm_to_node(cache->memory_PD), &cache_attrs);
+>  	return 0;
+>  }
+>  
+
 
