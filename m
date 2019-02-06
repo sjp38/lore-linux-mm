@@ -2,199 +2,180 @@ Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 07018C282C2
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 21:12:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06F4FC169C4
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 21:32:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B3FD7218D9
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 21:12:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3FD7218D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id BE57F218E0
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 21:32:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE57F218E0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 50A5E8E0100; Wed,  6 Feb 2019 16:12:13 -0500 (EST)
+	id 4D4A48E0101; Wed,  6 Feb 2019 16:32:17 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4938F8E00E6; Wed,  6 Feb 2019 16:12:13 -0500 (EST)
+	id 4838F8E00EE; Wed,  6 Feb 2019 16:32:17 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3354C8E0100; Wed,  6 Feb 2019 16:12:13 -0500 (EST)
+	id 373FC8E0101; Wed,  6 Feb 2019 16:32:17 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0373C8E00E6
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 16:12:13 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id b6so7685098qkg.4
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 13:12:12 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E735C8E00EE
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 16:32:16 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id f69so6244846pff.5
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 13:32:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:organization
-         :user-agent:mime-version;
-        bh=xZM6e+VSayeYWTgWLolKfXjX+/IhzGAEmt/xLMzNUug=;
-        b=houYMaO07P/PU/ThCg8kcuXKp30MhOlDb0gXzuzSaXF9pFIUm4SrJGm4n2TZEJiiDr
-         kHGg4ADtxOqv+jZNf7qdxDccb048WC7F26I/1+KHUYyDdjncI3yL+x5ZbZ+1yyYs5rx5
-         GqrHiJWU+RqvHHQU96abzon/yUX2TdMUu2dTJo680J6lKHAAwXF216lIF+Hg1ty9RM+q
-         h/jznr9RkD9Rzv1aa0+1TUxCUjbZIjR3jNfPOHfTnh//UiU/+tAnf2Bt1OcgLdfCVT5m
-         wpdpPmGSytRbxtQXQBrA1hmGab/5pKVGv372ke2eZdmSQgibFSTR+/EbNPYrLzF7m8ZK
-         QImw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dledford@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dledford@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuYzRdBFPnTLBdbneFeb6+PPshTgsmqfKXu3tP32iecPIeDbx9jy
-	jlrnAweT6PvP1tzo5cmdBI1uFgSDZhDpxC7v0JG7O2wDub1he0o6DvECelyOJ4T8PU1zA8uPd9J
-	MRD9LdPFj0RYhGwYIiFMY2spqtGrYekyRWS84WG04nUc6ff1Pycyz2tez/8lpr0NUvg==
-X-Received: by 2002:ac8:2ccc:: with SMTP id 12mr9092021qtx.277.1549487532776;
-        Wed, 06 Feb 2019 13:12:12 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZoaySQxVKuoy/N3sqj5PndZmLbsECWwJvIcv+2WW8QwverRaJKBSL8w2tTzL1BbKNmYOoD
-X-Received: by 2002:ac8:2ccc:: with SMTP id 12mr9091989qtx.277.1549487532370;
-        Wed, 06 Feb 2019 13:12:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549487532; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=NcyN0yHV1Ys9MIRPSBDNu4WzDmgXwJtP8q9wZrDgVXM=;
+        b=tw+xKmd0fIn3gDLXJCSLXTqcuO3pdUbZkKjGgH8PhLm6lDqjOncuK/J1EItQ7BYEcB
+         n25YPlZMoBLO/0/NSduY0Yav+rYsNAO9Mv8c++FqEuy8LVM2RBotb/IV2eIuUcWNzeRD
+         JoK25IPlYDu19V9uRjfw6ODaRes3UBXSGs3jbBvzKN5upzOjU5IsXoCRSzpj/6Smoorv
+         lelvNV9nB65xILxfnpWjPU4MGVxQm+0V236F51xcMhMYtEznNpNvqcyrC2RsZ+mPtNol
+         tqWnd2yZMWko2D94qr/m04RSxmhwaGQxnYBSEg1D5eZB6YN7H6L6qXmcX28iznglVJ/o
+         BXQg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.129 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: AHQUAubhTlFdthXAVbAgrUSoytcP/MfI8VWp23V0O6NZbWS3nFC7IlQF
+	OMn2DHFmHD37+hxdwx3DFRWOx65qw+glUapZ0Ksj/aPbBNzMC9h8VOkZagW+NTzADkgABbIKSPI
+	lqDUDp2MIj7tWgGWZo9yIdiCJhKughXLSEItf+pj4Joly4wv2TKSSMNoApOzkPg8=
+X-Received: by 2002:a62:3141:: with SMTP id x62mr12550344pfx.12.1549488736589;
+        Wed, 06 Feb 2019 13:32:16 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbyWLNkwDFdi3gdHF2/K/a6uGWu8vSvb2LRBpOHhEtJxbwBgI2coWRdF9qkOzzNXloQbj6Y
+X-Received: by 2002:a62:3141:: with SMTP id x62mr12550290pfx.12.1549488735739;
+        Wed, 06 Feb 2019 13:32:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549488735; cv=none;
         d=google.com; s=arc-20160816;
-        b=d1+5HlSFdxVLeVi+lTVah+rQuCQ7Ltghh2BS4cUSXcQtL3GGWkdp62OkoFxM6kjLfu
-         OF47COu31Z6O8tweriMebWDadvI4UzcwdfqcgNP8eM3s7QaVntt5743zB1RTv72pa8zR
-         gk12gKEs5z6Q7O+P0gzioKBS+IE5YFYp7htTvq7khBeC/F93hrtcNOvaBMxt94kI3GW4
-         QDjOD+JB72spv45FILfMqx0Mda6h828gBd02X/YS+HL6HnVELlKHYLZVZ45MfyEmwP6u
-         3EyhQMvoFOsUu5z3WZcan53r55H0UmzSi4dm3RieEZT0u69FDQR32r5MKmDNhygMeB5q
-         Fe3g==
+        b=yHjR8fmFN0kp2790j5pxA6f7i/AGyfUiNt1FUIF+4SaJmv04vBut6axPLeNA4QDomN
+         IYcIHauYQKkFQZpuVPVue4GfScVewoDL0DT3fOoICcNiXsbGDu+D94IFSTR4e/okPwGi
+         HWfVT2S3aBolthA70eEcLz78iEGSJ1+UfAFLmMvGsaXuyzNdVKfo0GQt5Or9+8f8PKLs
+         VrRnqAosrvVENQ/3ckdaP4uEwIav9PTVsyZmoqlZJAUY6+g0X1UKLx8lgKcJ7p3w0NtO
+         aNTjgB8/ShdWcHlu2wmcKp573OJIA7QWn7SgNijYJO+L/pqzjju3dBDmI6fQdZbdRFFf
+         u+AQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:organization:references:in-reply-to:date:cc
-         :to:from:subject:message-id;
-        bh=xZM6e+VSayeYWTgWLolKfXjX+/IhzGAEmt/xLMzNUug=;
-        b=Bz7OJpMa5yoGCjM8IDuxGah7g0IcR7ucn+bJ9S2fK+Op1k6ufrJBWahZzjNnwyMNdh
-         6Byd6Kp6evQTEEi22n0ca4UzAg8JC0T7saAZrdmJyvMihy1fRmxFPI5sumWX3KV2qNDO
-         CxK6x4DNF5bzDFn5PmDgK+0dhYz4UueMmzn2GxwaqpoL0FpfTt84iU8+fp1tQBWa4JVB
-         d0XtEDWcgss8UPlOgqb8yoqbCXYelhNHb5mYH1T+0dfDVvNOHzWD6/8/x5+i5H2LD6Fj
-         /2vmBESB3FSgN8qF/kHsVT5tjASrH4zb4dUA/PakuBZUVIxGHAiSP4vpIZug/ADXJ+jV
-         0WbQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=NcyN0yHV1Ys9MIRPSBDNu4WzDmgXwJtP8q9wZrDgVXM=;
+        b=WLORtfAkNL6sRi28pmSICX9s7q0veiqQ3SnGVLzawnt8d/DbIQKCC6Skek8vgiuwkX
+         liNvVDNK/xUj8x/RMmkdkpSQVUOllOQyQc1XMnxe2RZTEKDkcaEhWApKlGW2U6YxGPA3
+         a3M7cGwZDoYiThv1c4IjPDLX8cOC6lpNdj2QaPzQS+ldChfQHRGHAqJbmACyaaXz+KgC
+         ZQu57TbBWOAKW7RpZscGDbV5NKNGUqnZ18hP1YTxSg0325I8XWDEKaoazBI/VcU7mIjP
+         BiZ4XXhEGh8rvBzjZaxXdzo/tuoKDexkaFWjSOIXhtL0TgKkO02jm2FKG6I7yv+npUxi
+         Gv/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dledford@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dledford@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z8si3284135qvn.117.2019.02.06.13.12.12
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Feb 2019 13:12:12 -0800 (PST)
-Received-SPF: pass (google.com: domain of dledford@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+       spf=neutral (google.com: 150.101.137.129 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id t11si6027936pgv.251.2019.02.06.13.32.14
+        for <linux-mm@kvack.org>;
+        Wed, 06 Feb 2019 13:32:15 -0800 (PST)
+Received-SPF: neutral (google.com: 150.101.137.129 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.129;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dledford@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dledford@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 618988AE72;
-	Wed,  6 Feb 2019 21:12:11 +0000 (UTC)
-Received: from haswell-e.nc.xsintricity.com (ovpn-112-17.rdu2.redhat.com [10.10.112.17])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 03F9B84F3;
-	Wed,  6 Feb 2019 21:12:08 +0000 (UTC)
-Message-ID: <b3a0702baa3477748c3c243fa9d1c94f7b1954d6.camel@redhat.com>
+       spf=neutral (google.com: 150.101.137.129 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
+  by ipmail06.adl2.internode.on.net with ESMTP; 07 Feb 2019 08:01:49 +1030
+Received: from dave by dastard with local (Exim 4.80)
+	(envelope-from <david@fromorbit.com>)
+	id 1grUnL-0003Lg-7s; Thu, 07 Feb 2019 08:31:47 +1100
+Date: Thu, 7 Feb 2019 08:31:47 +1100
+From: Dave Chinner <david@fromorbit.com>
+To: Ira Weiny <ira.weiny@intel.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-rdma@vger.kernel.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Doug Ledford <dledford@redhat.com>,
+	Michal Hocko <mhocko@kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>
 Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
  longterm-GUP usage by RDMA
-From: Doug Ledford <dledford@redhat.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, Matthew Wilcox <willy@infradead.org>, 
- Jan Kara <jack@suse.cz>, Ira Weiny <ira.weiny@intel.com>,
- lsf-pc@lists.linux-foundation.org,  linux-rdma
- <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel
- Mailing List <linux-kernel@vger.kernel.org>, John Hubbard
- <jhubbard@nvidia.com>, Jerome Glisse <jglisse@redhat.com>, Dave Chinner
- <david@fromorbit.com>, Michal Hocko <mhocko@kernel.org>
-Date: Wed, 06 Feb 2019 16:12:06 -0500
-In-Reply-To: <CAPcyv4id2rzJVUZw98PfJ-k05BvD-opwj0XhOWPKZQicmhXJ=g@mail.gmail.com>
+Message-ID: <20190206213147.GA6173@dastard>
 References: <20190205175059.GB21617@iweiny-DESK2.sc.intel.com>
-	 <20190206095000.GA12006@quack2.suse.cz> <20190206173114.GB12227@ziepe.ca>
-	 <20190206175233.GN21860@bombadil.infradead.org>
-	 <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
-	 <20190206183503.GO21860@bombadil.infradead.org>
-	 <20190206185233.GE12227@ziepe.ca>
-	 <CAPcyv4j4gDNHu836N4RfgQsE+eZU9Wt0N9Y09KQ43zV+4mK-eg@mail.gmail.com>
-	 <671e7ebc8e125d1ebd71de9943868183e27f052b.camel@redhat.com>
-	 <CAPcyv4id2rzJVUZw98PfJ-k05BvD-opwj0XhOWPKZQicmhXJ=g@mail.gmail.com>
-Organization: Red Hat, Inc.
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-Wt2EcFKp3kDyEr43gL+b"
-User-Agent: Evolution 3.30.4 (3.30.4-1.fc29) 
-Mime-Version: 1.0
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Wed, 06 Feb 2019 21:12:11 +0000 (UTC)
+ <20190205180120.GC21617@iweiny-DESK2.sc.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190205180120.GC21617@iweiny-DESK2.sc.intel.com>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Feb 05, 2019 at 10:01:20AM -0800, Ira Weiny wrote:
+> I had an old invalid address for Jason Gunthorpe in my address book...  
+> 
+> Correcting his email in the thread.
 
---=-Wt2EcFKp3kDyEr43gL+b
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Probably should have cc'd linux-fsdevel, too, but it's too late for
+that now....
 
-On Wed, 2019-02-06 at 13:04 -0800, Dan Williams wrote:
-> On Wed, Feb 6, 2019 at 12:14 PM Doug Ledford <dledford@redhat.com> wrote:
-> > On Wed, 2019-02-06 at 11:45 -0800, Dan Williams wrote:
-> > > On Wed, Feb 6, 2019 at 10:52 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
-> > > > On Wed, Feb 06, 2019 at 10:35:04AM -0800, Matthew Wilcox wrote:
-> > > >=20
-> > > > > > Admittedly, I'm coming in late to this conversation, but did I =
-miss the
-> > > > > > portion where that alternative was ruled out?
-> > > > >=20
-> > > > > That's my preferred option too, but the preponderance of opinion =
-leans
-> > > > > towards "We can't give people a way to make files un-truncatable"=
-.
-> > > >=20
-> > > > I haven't heard an explanation why blocking ftruncate is worse than
-> > > > giving people a way to break RDMA using process by calling ftruncat=
-e??
-> > > >=20
-> > > > Isn't it exactly the same argument the other way?
-> > >=20
-> > > If the
-> > > RDMA application doesn't want it to happen, arrange for it by
-> > > permissions or other coordination to prevent truncation,
-> >=20
-> > I just argued the *exact* same thing, except from the other side: if yo=
-u
-> > want a guaranteed ability to truncate, then arrange the perms so the
-> > RDMA or DAX capable things can't use the file.
->=20
-> That doesn't make sense. All we have to work with is rwx bits. It's
-> possible to prevents writes / truncates. There's no permission bit for
-> mmap, O_DIRECT and RDMA mappings, hence leases.
+> On Tue, Feb 05, 2019 at 09:50:59AM -0800, 'Ira Weiny' wrote:
+> > 
+> > The problem: Once we have pages marked as GUP-pinned how should various
+> > subsystems work with those markings.
+> > 
+> > The current work for John Hubbards proposed solutions (part 1 and 2) is
+> > progressing.[1]  But the final part (3) of his solution is also going to take
+> > some work.
+> > 
+> > In Johns presentation he lists 3 alternatives for gup-pinned pages:
+> > 
+> > 1) Hold off try_to_unmap
+> > 2) Allow writeback while pinned (via bounce buffers)
+> > 	[Note this will not work for DAX]
+> > 3) Use a "revocable reservation" (or lease) on those pages
+> > 4) Pin the blocks as busy in the FS allocator
+> > 
+> > The problem with lease's on pages used by RDMA is that the references to
+> > these pages is not local to the machine.  Once the user has been given access
+> > to the page they, through the use of a remote tokens, give a reference to that
+> > page to remote nodes.  This is the core essence of RDMA, and like it or not,
+> > something which is increasingly used by major Linux users.
+> > 
+> > Therefore we need to discuss the extent by which leases are appropriate and
+> > what happens should a lease be revoked which a user does not respond to.
+> > 
+> > As John Hubbard put it:
+> > 
+> > "Other filesystem features that need to replace the page with a new one can
+> > be inhibited for pages that are GUP-pinned. This will, however, alter and
+> > limit some of those filesystem features. The only fix for that would be to
+> > require GUP users monitor and respond to CPU page table updates. Subsystems
+> > such as ODP and HMM do this, for example. This aspect of the problem is
+> > still under discussion."
+> > 
+> > 	-- John Hubbard[2]
+> > 
+> > The following people have been involved in previous conversations and would be key to
+> > the face to face discussion.
+> > 
+> > John Hubbard
+> > Jan Kara
+> > Dave Chinner
 
-There's ownership.  What you can't open, you can't mmap or O_DIRECT or
-whatever...
+Just FYI, I won't be at LSFMM.
 
-Regardless though, this is mostly moot as Dave's email makes it clear
-the underlying issue that is the problem is not ftruncate, but other
-things.
-> >=20
+Puerto Rico is about as physically far away from me as you can get
+on this planet. There's 40 hours in transit from airport to airport,
+and that doesn't include the 5 hours of travel the day before (and
+hence overnight stay) to be able to get to the first airport in time
+for the first flight. I'm looking at a transit time - if all goes
+well - of over 60 hours just to get to the conference.
 
---=20
-Doug Ledford <dledford@redhat.com>
-    GPG KeyID: B826A3330E572FDD
-    Key fingerprint =3D AE6B 1BDA 122B 23B4 265B  1274 B826 A333 0E57 2FDD
+And it's looks like it will be just as bad on the way back.
 
---=-Wt2EcFKp3kDyEr43gL+b
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
+6 days travel for a 2 day conference makes no sense at all.
 
------BEGIN PGP SIGNATURE-----
+Cheers,
 
-iQIzBAABCAAdFiEErmsb2hIrI7QmWxJ0uCajMw5XL90FAlxbTaYACgkQuCajMw5X
-L91UVRAAxQypVAaB7i52h2wDJpx5+mYhH6IiQWrtqd8xa0l2UZ2VHrRkdsn4wzGt
-BQFhIJZKPh3b7yzsYKzhe9HicMCXRIXPKw/KmgJLDcDmi1hU1QCMHKohniWUbJ6G
-g0IfJrLoPmMhNKn0Cm7J4s5jsP2QW6/CUn6/CGOQhWG1GtcuyFL6fCl5Bn0FFn9s
-cfKDGgJ9Wy4wiguackEO+W6XUN9YFz9P4K9HMqVwXfHXXiZR2Z9H6xHQOZkafylA
-KhjP2h8o0Jip4HDKOMJoP9AbmFFXK3ualefeiDoginb6D7tVs0/sbyImBTfTLzbt
-7GBSNa/9Ue8qi7ZU6/ppjQILfn0mbnxV0JRV/nBOXfLeZeO1mbD2EDuPSOL+kXX4
-Z4uvFWA7UxIkBTh4lwQY8g9uan3578jtdF4SNe//GBAA+pPTV9oXzzbTX+UXYE/U
-MmmQjk2S+ax7PINhTZhBbkGWqVLG95Pb3UtmxPSG1uFlxdkv/DSJqkm9qeNuHZu5
-Tf1Zxl648P1g7Jk6c+1hlqpe/Rt7vsjU/1gQKYMyR4ViBrvlyiwkEokrqHdN2wnK
-YaJ8HcFQazJK8BwNFYmbMgWpvBN107gSh3yd3jnRm0PyxcWXNW+OfQ4X6xrgaLTQ
-m6lMl9vg0O/rHaf7P53MHmweNKEOLTcH7jp1/BQ1AM5zHMN5QOA=
-=Ct0f
------END PGP SIGNATURE-----
-
---=-Wt2EcFKp3kDyEr43gL+b--
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
