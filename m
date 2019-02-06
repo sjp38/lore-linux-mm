@@ -2,150 +2,190 @@ Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CDDFEC282CC
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 16:24:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7F2FCC169C4
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 16:24:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 821372186A
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 16:24:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 821372186A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=goodmis.org
+	by mail.kernel.org (Postfix) with ESMTP id 03D022186A
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 16:24:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="TOs44IFx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03D022186A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=roeck-us.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 132498E00CB; Wed,  6 Feb 2019 11:24:02 -0500 (EST)
+	id A62448E00CC; Wed,  6 Feb 2019 11:24:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0B86D8E00B1; Wed,  6 Feb 2019 11:24:02 -0500 (EST)
+	id 9E3C88E00B1; Wed,  6 Feb 2019 11:24:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E9BCE8E00CB; Wed,  6 Feb 2019 11:24:01 -0500 (EST)
+	id 83B658E00CC; Wed,  6 Feb 2019 11:24:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A348F8E00B1
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 11:24:01 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id t72so5540234pfi.21
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 08:24:01 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DD248E00B1
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 11:24:04 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id v12so5215797plp.16
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 08:24:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=8sR35CaedI4Qs66cpbyN62oC46EcvLGVfVMLRJrerx0=;
-        b=c4KwTgFgRWNOHjuM3USLEKvXCbps1X4PDr1hioaDbLumlJO1EyaKAENED44F2dQKRn
-         EpMabEBOCdDAhw5pU8hw93j9B9pBLDb9qJcQ5G3afjrmRRea+eeE5lZQfdv+Fdbgn/f4
-         qzZ5WwXacpjxknt6cPBt4g5pUJ4sFlNkNxHTZsWO2bf0bMKdt+OMrZ1UeNwmqv/qvg/a
-         fo7qi9qYcb/5xdYErhp18Rtgn7qke4hI3AYwBh75eKKF3bwkETKn/6yF2soG1Rrgtoy7
-         iZfDSjXDcAkmHBsbB1Hcmeh1fXzvOjCtyemkCcAAHCYJZwFiC3rBwReFz816ShhAfpbe
-         T+Og==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of srs0=f26y=qn=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=f26Y=QN=goodmis.org=rostedt@kernel.org"
-X-Gm-Message-State: AHQUAubzLdUCmS8NQ4tqyEWItQyMX5uCBuZvG5qc82CQmfrzg+CxpNrC
-	/T47jchtL1EUfyjtEI2BKBsqH9EDRlk5lwjSDdp2FF/o/C9dUT4YfU9fqZRJIquoqOe5s6Rl3wr
-	4SKq2BoRQH57Mhd+ul1ZAkxSOvWvfFX8/xib7545c7BxSwjrH3eQ0O3e3PqQacOU=
-X-Received: by 2002:a63:1d1d:: with SMTP id d29mr10395025pgd.49.1549470241302;
-        Wed, 06 Feb 2019 08:24:01 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbiEqylFyr0XmmDg8hlYXQmMQti8py/dr/AZ+qK2ye5TFIMljARYG5gng0IXqNVC3DXr8PQ
-X-Received: by 2002:a63:1d1d:: with SMTP id d29mr10394957pgd.49.1549470240313;
-        Wed, 06 Feb 2019 08:24:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549470240; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=z3kxfnmBJF9JEeLTh2Qv9UfiGWUm5fMi+IhLoPJOxnc=;
+        b=olN4Mz7RJX+8C1xJlDAYDBqzQOqA9AOXUNamELTd2qSyiiwTl2597CrdTP9TuIPKxY
+         QREvD/ATc9kY6lWz0M94D1zIhQaAYsKdlQ5tulGR6pOe9eBX1jKLDuC9iPpeE1SrwmEU
+         ipcrxbFbyUnzdSNODp92nHF5T07SJT9S1ukiFm8HSi4VtaTqLqxVb8Bh8Y1kP+fkF/4h
+         RRdGt9eJzzQVFfFDKSufKIMZaR6Q7ynxL+IITVhxxBErSSDdnBnBm7J9mwWCusaZNyl6
+         Xte01xNzQU/gBQ6gxAO+o2ikcJBGITTfGujerJSHYP02houP1t+IDX5oyhhWj/fUcWQo
+         Uk0w==
+X-Gm-Message-State: AHQUAuZfsSuPrzZGgXflyqz2FxVH/ccaZSLB+FTqaNFEqRX1OI5PZEWI
+	naO1OLS9oH6Sc8PkwyMYNV1eQq+BwR62c6DMMNy8oqNjCvLZmIpGw/o9SMoW/9K4Kn66+WcR09y
+	+UE4CqIW7NfBAkKGld+jlZsYPUnCz5oVySarLlO0fezL5VaeMqxkBLbi2Ol0IjgiTh/CcvHRHvQ
+	zTnrz11AVgRJel+2OlPIZ8tr52tQ+AaE5QJyJPM/zYcEz8502XcvRIwpZz3LfxJ8Urfur6jR0vO
+	82vJfN5u7sbKqgwwFKXfr+N9e08uZIrWUmDzGJofxdaG9EQBmBYuWq+8Jp1Mc00dz5sbt0vNEx2
+	DWXbRfErT1H3EcgaJI1eSObH3PrnXWygvdLiW64QmFsbB4QFLvO9VZSVmWij/7NbGo4arWW2WA=
+	=
+X-Received: by 2002:a17:902:b494:: with SMTP id y20mr11745595plr.178.1549470243856;
+        Wed, 06 Feb 2019 08:24:03 -0800 (PST)
+X-Received: by 2002:a17:902:b494:: with SMTP id y20mr11745526plr.178.1549470243025;
+        Wed, 06 Feb 2019 08:24:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549470243; cv=none;
         d=google.com; s=arc-20160816;
-        b=wh3GLFQSZAGmrBIHkfE/5oxVU6bDsXB831Q4oCERDKVTeHuvnQYoJYClG03sK/7MmJ
-         L5lHFfIg155ozBE3gIMW9yS3z77Aq92lseNmcDdv4iy0gzr7DMIFmxyPMtBJx1wNTcZ5
-         FgeqcUqf8mXouPLGqogj3QBf7OlUp3JlnnhuvAyvPXd9zR37xQckFuW0n5XJGGKCSYbj
-         BwM0+MGx7UO37pU32hIYcosMDp+PhxCWmBTkjiKaa0Yqb247ISj8GDU8gAixN/4pQk8X
-         jg/YuBoFzRFqBz1G8DRe4GinhucjoWTV6+0A6TJ+pKjtoBpjcQGDlRClC9d3Q+0G8hkb
-         ESeA==
+        b=Co+FDDq4CvkVz6ANpb2nmkgWHMmR0nphdZwrPnFi0I92H+ILzR8HdCKCJJqCNrSTa2
+         iDDRNi+SxofPqPh8nxS5ItzASoIyJjLeHqFUXLHGr4tqfp/AvleozY9fVtX3kNM1zser
+         BkNlyqY4cE8rTty544Whlr2oSIBccozpA0liMLSzjpQifsSC6KrhYA4e3M50nFLiIndh
+         XFTo7hyj0PBEHcV28c8aIN4D58Z1vmJqoX+beHSt7S9iNDqcT90JPU8wFQ9VvuEQI/bU
+         OsUjWixLCj9Le3kVF8S0Vgk7FYRNFqhTrLHPNr9fU3ZhKXFFhJL4NijBdI8V7I0OapO0
+         8mvw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=8sR35CaedI4Qs66cpbyN62oC46EcvLGVfVMLRJrerx0=;
-        b=btmGSshxIjZjJUC6WG2Pscy4EBVNRS+MhToU+226qYLnanpUVB2P9EFO1eOtV4w4c2
-         byRX3GKv3YZpnB+JfVXKAZdrBC10yzBN/v3SWiUC8sOAyV1QvSu2m6d1Us0HvO3xXSis
-         0Gsln+8FijNPmtTzEhkuhUO7RcfvS34pNFHieR5ec3sgENOtaipNhiVPhry9HL6wh9rk
-         DDI8qCKnvy4KZzp8m6dyTAcXyWXD34S+A57q45cjjcMJzGLjdagtVXZ94Mt8es1jHjgm
-         2zj0xRLF6IqOAjJeiLS25x4sR5zYYHkQrxh6YzzE5d1s+55W3Gv0EMLNKfLMV3nXiVrV
-         YduA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=z3kxfnmBJF9JEeLTh2Qv9UfiGWUm5fMi+IhLoPJOxnc=;
+        b=gqNh4VzwvLsIV3XySdiwH0SzPmjdbKODNnjhzBYA06YmDmWWoGxDgHlLfHlyN79/Kg
+         2w6qxvjwQhZVcwy0x68LkqyDTNmDljtX6KQsYoPTDIhz4iFM2X7pw6CMOQrzAP1nGpbO
+         6JCIG03ygbVcz3NYDJbD/GnrBzMOX36IgTriPd9efAuEJYDHzi5tVsCzeb3Iz6MZqbDa
+         1ejbPionRKpOodao/v5jy4lol65CqtkAr4nbFvHCKi+81fXAc4m8PSgpBCnUSzO3QQh/
+         nj5W1stjcTaPPGl7I/9+Z1u6HYiObNxmih6DnXlVsUkjgutbeXZ4p7TdIcypGXzd8hhr
+         7g+A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of srs0=f26y=qn=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=f26Y=QN=goodmis.org=rostedt@kernel.org"
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id q4si2521199pfq.56.2019.02.06.08.24.00
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TOs44IFx;
+       spf=pass (google.com: domain of groeck7@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck7@gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u10sor9927205pgr.25.2019.02.06.08.24.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Feb 2019 08:24:00 -0800 (PST)
-Received-SPF: pass (google.com: domain of srs0=f26y=qn=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Wed, 06 Feb 2019 08:24:02 -0800 (PST)
+Received-SPF: pass (google.com: domain of groeck7@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of srs0=f26y=qn=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=f26Y=QN=goodmis.org=rostedt@kernel.org"
-Received: from gandalf.local.home (cpe-66-24-58-225.stny.res.rr.com [66.24.58.225])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id C72892175B;
-	Wed,  6 Feb 2019 16:23:57 +0000 (UTC)
-Date: Wed, 6 Feb 2019 11:23:56 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-To: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>,
- linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com, Thomas
- Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Nadav Amit
- <nadav.amit@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Peter
- Zijlstra <peterz@infradead.org>, linux_dti@icloud.com,
- linux-integrity@vger.kernel.org, linux-security-module@vger.kernel.org,
- akpm@linux-foundation.org, kernel-hardening@lists.openwall.com,
- linux-mm@kvack.org, will.deacon@arm.com, ard.biesheuvel@linaro.org,
- kristen@linux.intel.com, deneen.t.dock@intel.com, Rusty Russell
- <rusty@rustcorp.com.au>, Masami Hiramatsu <mhiramat@kernel.org>, Daniel
- Borkmann <daniel@iogearbox.net>, Alexei Starovoitov <ast@kernel.org>,
- Jessica Yu <jeyu@kernel.org>, "Paul E . McKenney" <paulmck@linux.ibm.com>
-Subject: Re: [PATCH 16/17] Plug in new special vfree flag
-Message-ID: <20190206112356.64cc5f0d@gandalf.local.home>
-In-Reply-To: <20190117003259.23141-17-rick.p.edgecombe@intel.com>
-References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
-	<20190117003259.23141-17-rick.p.edgecombe@intel.com>
-X-Mailer: Claws Mail 3.16.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TOs44IFx;
+       spf=pass (google.com: domain of groeck7@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck7@gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=z3kxfnmBJF9JEeLTh2Qv9UfiGWUm5fMi+IhLoPJOxnc=;
+        b=TOs44IFxpDo8l3wywTdA3/xWWnWhN6UatDpaS2Q6+Ctt6VczwdlhJvcDxfNfoU4Qe+
+         fPN7h4BtM3N/nwFPwhtz7RX+vJjiarfjv3srCVD1ioPk54nTxrIviR2d0WYwZ2UbZzns
+         8RHkSe3jVDJuf5jKDl5EVK/cSt+c2onn65qGVwYnHUVWjTOVeIh/gmzSRw/8asjhx+qh
+         Wtm9DcqopbqECAQKKjz2FMkQQcabxRugpgJvZsQuSjyoQ5RchXF+0XjrNqLB54qFu5TW
+         FQAoQHT3WngGSERXsY5Xl2xUGuhnQPXOS/bs7r7dZzI382rEoCwlE/cpHOcINQKxSVXS
+         frlg==
+X-Google-Smtp-Source: AHgI3IYhw9WZpm+mywwAL0qVkE0TRXuKGYMLgGTiDU4KbP9bWqvXaHtCSLxeFym4VOZ2w2twoVYlCg==
+X-Received: by 2002:a63:1766:: with SMTP id 38mr5413529pgx.299.1549470242559;
+        Wed, 06 Feb 2019 08:24:02 -0800 (PST)
+Received: from localhost ([2600:1700:e321:62f0:329c:23ff:fee3:9d7c])
+        by smtp.gmail.com with ESMTPSA id y9sm9374626pfi.74.2019.02.06.08.24.00
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Feb 2019 08:24:01 -0800 (PST)
+Date: Wed, 6 Feb 2019 08:23:59 -0800
+From: Guenter Roeck <linux@roeck-us.net>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Rusty Russell <rusty@rustcorp.com.au>,
+	Chris Metcalf <chris.d.metcalf@gmail.com>,
+	linux-kernel <linux-kernel@vger.kernel.org>,
+	Tejun Heo <tj@kernel.org>, linux-mm <linux-mm@kvack.org>,
+	linux-arch <linux-arch@vger.kernel.org>
+Subject: Re: linux-next: tracebacks in workqueue.c/__flush_work()
+Message-ID: <20190206162359.GA30699@roeck-us.net>
+References: <72e7d782-85f2-b499-8614-9e3498106569@i-love.sakura.ne.jp>
+ <87munc306z.fsf@rustcorp.com.au>
+ <201902060631.x166V9J8014750@www262.sakura.ne.jp>
+ <20190206143625.GA25998@roeck-us.net>
+ <e4dd7464-a787-c54f-24f9-9caaeb759cfc@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e4dd7464-a787-c54f-24f9-9caaeb759cfc@i-love.sakura.ne.jp>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Jan 2019 16:32:58 -0800
-Rick Edgecombe <rick.p.edgecombe@intel.com> wrote:
-
-> Add new flag for handling freeing of special permissioned memory in vmalloc
-> and remove places where memory was set RW before freeing which is no longer
-> needed.
+On Wed, Feb 06, 2019 at 11:57:45PM +0900, Tetsuo Handa wrote:
+> On 2019/02/06 23:36, Guenter Roeck wrote:
+> > On Wed, Feb 06, 2019 at 03:31:09PM +0900, Tetsuo Handa wrote:
+> >> (Adding linux-arch ML.)
+> >>
+> >> Rusty Russell wrote:
+> >>> Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp> writes:
+> >>>> (Adding Chris Metcalf and Rusty Russell.)
+> >>>>
+> >>>> If NR_CPUS == 1 due to CONFIG_SMP=n, for_each_cpu(cpu, &has_work) loop does not
+> >>>> evaluate "struct cpumask has_work" modified by cpumask_set_cpu(cpu, &has_work) at
+> >>>> previous for_each_online_cpu() loop. Guenter Roeck found a problem among three
+> >>>> commits listed below.
+> >>>>
+> >>>>   Commit 5fbc461636c32efd ("mm: make lru_add_drain_all() selective")
+> >>>>   expects that has_work is evaluated by for_each_cpu().
+> >>>>
+> >>>>   Commit 2d3854a37e8b767a ("cpumask: introduce new API, without changing anything")
+> >>>>   assumes that for_each_cpu() does not need to evaluate has_work.
+> >>>>
+> >>>>   Commit 4d43d395fed12463 ("workqueue: Try to catch flush_work() without INIT_WORK().")
+> >>>>   expects that has_work is evaluated by for_each_cpu().
+> >>>>
+> >>>> What should we do? Do we explicitly evaluate has_work if NR_CPUS == 1 ?
+> >>>
+> >>> No, fix the API to be least-surprise.  Fix 2d3854a37e8b767a too.
+> >>>
+> >>> Doing anything else would be horrible, IMHO.
+> >>>
+> >>
+> >> Fixing 2d3854a37e8b767a might involve subtle changes. If we do
+> >>
+> > 
+> > Why not fix the macros ?
+> > 
+> > #define for_each_cpu(cpu, mask)                 \
+> >         for ((cpu) = 0; (cpu) < 1; (cpu)++, (void)mask)
+> > 
+> > does not really make sense since it does not evaluate mask.
+> > 
+> > #define for_each_cpu(cpu, mask)                 \
+> >         for ((cpu) = 0; (cpu) < 1 && cpumask_test_cpu((cpu), (mask)); (cpu)++)
+> > 
+> > or something similar might do it.
 > 
-> In kprobes, bpf and ftrace this just adds the flag, and removes the now
-> unneeded set_memory_ calls before calling vfree.
-> 
-> In modules, the freeing of init sections is moved to a work queue, since
-> freeing of RO memory is not supported in an interrupt by vmalloc.
-> Instead of call_rcu, it now uses synchronize_rcu() in the work queue.
-> 
-> Cc: Rusty Russell <rusty@rustcorp.com.au>
-> Cc: Masami Hiramatsu <mhiramat@kernel.org>
-> Cc: Daniel Borkmann <daniel@iogearbox.net>
-> Cc: Alexei Starovoitov <ast@kernel.org>
-> Cc: Jessica Yu <jeyu@kernel.org>
-> Cc: Steven Rostedt <rostedt@goodmis.org>
-> Cc: Paul E. McKenney <paulmck@linux.ibm.com>
-> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
-> ---
->  arch/x86/kernel/ftrace.c       |  6 +--
+> Fixing macros is fine, The problem is that "mask" becomes evaluated
+> which might be currently undefined or unassigned if CONFIG_SMP=n.
+> Evaluating "mask" generates expected behavior for lru_add_drain_all()
+> case. But there might be cases where evaluating "mask" generate
+> unexpected behavior/results.
 
-For the ftrace code.
+Interesting notion. I would have assumed that passing a parameter
+to a function or macro implies that this parameter may be used.
 
-Acked-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+This makes me wonder - what is the point of ", (mask)" in the current
+macros ? It doesn't make sense to me.
 
--- Steve
+Anyway, I agree that fixing the macro might result in some failures.
+However, I would argue that those failures would actually be bugs,
+hidden by the buggy macros. But of course that it just my opinion.
 
->  arch/x86/kernel/kprobes/core.c |  7 +---
->  include/linux/filter.h         | 16 ++-----
->  kernel/bpf/core.c              |  1 -
->  kernel/module.c                | 77 +++++++++++++++++-----------------
->  5 files changed, 45 insertions(+), 62 deletions(-)
->
+Guenter
 
