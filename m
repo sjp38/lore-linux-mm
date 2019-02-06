@@ -6,93 +6,93 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E5A53C282C2
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 07:24:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6807CC169C4
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 07:24:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AC1742175B
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 07:24:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC1742175B
+	by mail.kernel.org (Postfix) with ESMTP id 2B6C52175B
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 07:24:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B6C52175B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 35CEF8E00AF; Wed,  6 Feb 2019 02:24:51 -0500 (EST)
+	id C36B68E00B0; Wed,  6 Feb 2019 02:24:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 30D478E00AB; Wed,  6 Feb 2019 02:24:51 -0500 (EST)
+	id C0D458E00AB; Wed,  6 Feb 2019 02:24:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1D5528E00AF; Wed,  6 Feb 2019 02:24:51 -0500 (EST)
+	id AFD058E00B0; Wed,  6 Feb 2019 02:24:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C55938E00AB
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 02:24:50 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id d3so4010981pgv.23
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 23:24:50 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 64DCA8E00AB
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 02:24:55 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id w16so653070pll.15
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 23:24:55 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:cc:date:message-id:in-reply-to:references:user-agent
          :mime-version:content-transfer-encoding;
-        bh=Wxh8f3s6UwQEJGcy/EOXTQw99b5N4/nV0hHaHZTvNgo=;
-        b=Rn5Frb+Qf9K/wudhCL+pt0S0cjp3BrZqy5cqKQt7N2OeMaFSVvX58/JOFTNeU7lVxm
-         hQrBfAQoczPwrvZlDeAxF547bR8PUh6n3sXUUudKnKyYL3qTZmjXCY2+RB9v2qJqUGwJ
-         akJBkOOrb8wn7yBunEP39bPqZB+6nnjO9m91bUv51Bi5LY2HXg0Cnx7J9USrA065r1i2
-         9LuGHzZFfqrxr7uQ9uNdFnkwPExfXeR57hdUiR+Hc586zGXr2WZbOd0LspQP4jLV1ygM
-         23IhBG9N2DHFFd0mW1+uQoG6AJpy/VSnr+GNUAeNwl45ufjcEVx3X/9/B/Yuthx+06B/
-         RcaQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuZKh2jXKR7BXB9jgF8R+MLjWzyInxmLsXo6e4e0wSN66taQGDQk
-	2a6jy+sVJKKvN+qYFv5c5fKZSZAyds2WeOBHFgMUkVFWIZXp4QETz4PxjQ252WPM0s1/D6fZvR0
-	jA7igUTQNWNFzTQCMuD+lf2PQ66MYxNANPeublPoRKErZt4thaS7UjO1UesdQzkPhkQ==
-X-Received: by 2002:a62:68c5:: with SMTP id d188mr9430376pfc.194.1549437890429;
-        Tue, 05 Feb 2019 23:24:50 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IY7DCyZSfcRAmQr5anom2OpTO4N6O5LvqlBh2K6L9mUihV4DKSwOZCCqvrivgiO8OYO6jyT
-X-Received: by 2002:a62:68c5:: with SMTP id d188mr9430323pfc.194.1549437889570;
-        Tue, 05 Feb 2019 23:24:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549437889; cv=none;
+        bh=EpAZipn8pPOg3lpg3mM/IxKKK2I8dRMDZZW6xMWJOhM=;
+        b=GMWmP2ZEmlN+5YBls+wgRGFdenk7vgnwTCE5ogWv4PG47WxFq5LXqX21pt1H0I6kTL
+         7f6PM1b6sWYGvaE6gq70h6pHaEGIn8bBJkvGokr5pees4ShvXCAk/8gHrT2emfl5w0nb
+         7G9/J30FCAgcZ7mP7tJzGbz8DX4IBypMcOrZjroDDB8umOblnzqe0ARO3MG1yVT//lMf
+         5JxcZU867ONyjIvYBdbKCCaSVHIR4NxVmbhr7zQQqRnJC1RgiolMJzMWX4vto0BP3BzW
+         fAkPzRTI35qEoIiiABclxzvTcS+sXeUx9bWFLgcIoJK3R2Y/tVTsmMHnxZfv0UlMa1zK
+         xOqQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuaBnSzNMjTHDlKSACoLyUfzk+vj5PP/N/kzusprlIG3eixXe9yO
+	GB5x95q5yBOWPl2CinXzOADErar4/KmNpffA9i444ulO+bVp8iYa0qd7XfyY81j1T5o7xp41MZ3
+	Wq0xJ9Q0PmAw3JR42HETXiXB7+q5Na3GWQNBkENJk1FZkUjDnbbIuN2X1Hao5j1Dq8A==
+X-Received: by 2002:a17:902:14e:: with SMTP id 72mr9369646plb.287.1549437895068;
+        Tue, 05 Feb 2019 23:24:55 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZNlfsaHQFdJpwpmdCElqbYmwO4imc5VslhsHCo9Scw8CUALUndEMOtFqmupy3zRb46rrig
+X-Received: by 2002:a17:902:14e:: with SMTP id 72mr9369608plb.287.1549437894341;
+        Tue, 05 Feb 2019 23:24:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549437894; cv=none;
         d=google.com; s=arc-20160816;
-        b=bOL4hQZD13ejSBPBu5T3QYYGPHUsM8tmZggcP4v9P9x0unwuJAn4dtHKUMKF807mBf
-         7JSgn4N62Amc50mPqhWBn03mVbf3UoJAZyIYwsxV0s372HPlDgzk0DPOsikOqdwPvXWU
-         VHov28S+oVFwDEGQChAmmYOu1l1Cj41Hcjy+eIsxu7MaQuppZOps6do+Us3jEC09P4YK
-         WV9h75EGAPd51QGg0kGOw3AAtb9a8khH4ioe96sYWC7OZ909Xw3ak0u+Wlf+6qOqY039
-         8bDTKuKGJ77XDAMNsss8KyGGchL7oVwb2K7IiJgZonAq8Koewk5UeoBrxqBrsTDixjl4
-         3dNQ==
+        b=gXoJa7cvWJo/kFs0uPM/b6rUPHpg77sKFsG5xVbDZdcBFk+ruFZTkmI1uya6/zOIRE
+         lEFTv3hbZYDxJEe65NzzPOXrhz/0SKtU4VC8vIrJC5H9Vz6I0Xkw4XvtxQSHDrIQWjTc
+         jIHHe/LwXtFfTZsvR79Q2un8PEBGbPZdgVxTkLLXXDmd/WWS1hvDo+/EO7nWQ46dq7xj
+         +5Zx9HgAC8g995my0bchvIJXbBXDu2QPSmRwGQmRYqabRyFc5qYRu8ScRQIN7gk9ieOf
+         x34ndcnXMGmMt2lt7EWh1zYLZJvcyy7yx5SJ6VlTTe39BPVW+8rwa4tp04G3mOVVrIpB
+         agug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=Wxh8f3s6UwQEJGcy/EOXTQw99b5N4/nV0hHaHZTvNgo=;
-        b=G7In0Z3UmkhMAV24I/jxV6H27Umr5iJ+IubZ11dd+MdL/C2rVqeYRxNT0nEdS142hJ
-         U0J1cp9y3esov6gzfDnrOCOjiPrm+83pjSL01HHr48gFk2d3jCPOppRXqGtZcr8LWQFU
-         LLuF7Opk8Vwkuvzv5hlPAmr64E0iqIQeXNrbRS1wzlbynpYyuRl6Fa6TGZN2whDRaxNY
-         fwfSPCIApjxYcQy3f2OkY2XGETWHK9d4ilMhAnNgmLC8Zu62pYdaiPQ0eLnr3IWb5sn/
-         QZzj9j0Di3J5GQQk3QB4lMoGD3Z198ZkY59NPCjpf4Xy5YxAsjxWMpxmWmkyVK6EWYu7
-         YRUw==
+        bh=EpAZipn8pPOg3lpg3mM/IxKKK2I8dRMDZZW6xMWJOhM=;
+        b=SqWlS/07klg+BGkJd3R/KkkH3rQoxR2e4Zr6zd15OiFMArkwGEn7doiwkOx6u9H6f3
+         3h79o0KkchnGuGRr+uqiang4XAooczI8FIMeBpjGgoLBAxf7PAOwk5UvrAUd2z6Stcq4
+         1Xr+U9kYAG2MDLzaFFO5KbfMLStO2w+Z31WRDW6n359W6OB/WNN+d59DG/WezsWsGvwp
+         wr9fgPg7YFiy27teSi9yjmy996ii/oUwNLdCp/4KQvJQVpm0Gspqm+T4vWpqgcjLV8C/
+         5lWH7EZRz85naFd+ylVrI7+7is7Muz/rp/Usw0f5w9J90A98V7LKnklbGX2/pFoNMRmj
+         Iyzg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id b9si1355530plr.66.2019.02.05.23.24.49
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id 61si1891588plz.117.2019.02.05.23.24.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Feb 2019 23:24:49 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
+        Tue, 05 Feb 2019 23:24:54 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Feb 2019 23:24:48 -0800
+Received: from fmsmga001.fm.intel.com ([10.253.24.23])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Feb 2019 23:24:53 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,339,1544515200"; 
-   d="scan'208";a="141953069"
+   d="scan'208";a="144567009"
 Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by fmsmga004.fm.intel.com with ESMTP; 05 Feb 2019 23:24:47 -0800
-Subject: [PATCH 1/2] mm/shuffle: Fix shuffle enable
+  by fmsmga001.fm.intel.com with ESMTP; 05 Feb 2019 23:24:53 -0800
+Subject: [PATCH 2/2] [-mm only] mm/shuffle: Default enable all shuffling
 From: Dan Williams <dan.j.williams@intel.com>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, keescook@chromium.org, linux-kernel@vger.kernel.org
-Date: Tue, 05 Feb 2019 23:12:10 -0800
-Message-ID: <154943713038.3858443.4125180191382062871.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 05 Feb 2019 23:12:15 -0800
+Message-ID: <154943713572.3858443.11206307988382889377.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <154943712485.3858443.4491117952728936852.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <154943712485.3858443.4491117952728936852.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: StGit/0.18-2-gc94f
@@ -105,68 +105,68 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The removal of shuffle_store() in v10 of the patch series was prompted
-by the review feedback to convert page_alloc_shuffle() to __memint. I
-obviously booted a stale kernel build in my tests because
-shuffle_store() is indeed required:
+Per Andrew's request arrange for all memory allocation shuffling code to
+be enabled by default.
 
- BUG: unable to handle kernel NULL pointer dereference at 0000000000000000
- #PF error: [INSTR]
- PGD 0 P4D 0
- Oops: 0010 [#1] SMP PTI
- CPU: 0 PID: 0 Comm: swapper Not tainted 5.0.0-rc1+ #2867
- Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS ?-20180531_142017-buildhw-08.phx2.fedoraproject.org-1.fc28 04/01/2014
- RIP: 0010:          (null)
- Code: Bad RIP value.
- RSP: 0000:ffffffff82603e78 EFLAGS: 00010046
- RAX: 0000000000000000 RBX: 0000000000000000 RCX: cccccccccccccccd
- RDX: ffffffff8261d7c0 RSI: ffffffff8244c010 RDI: ffff88843ffe1aaa
- RBP: ffff88843ffe1aac R08: ffffffff83486978 R09: 0000000000000000
- R10: ffffffff82603e80 R11: 0000000000000048 R12: ffff88843ffe1a97
- R13: ffff88843ffe1aaa R14: ffffffff8244c010 R15: 000000000000016d
- FS:  0000000000000000(0000) GS:ffff88811be00000(0000) knlGS:0000000000000000
- CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
- CR2: ffffffffffffffd6 CR3: 0000000002614000 CR4: 00000000000606b0
- Call Trace:
-  ? parse_args+0x170/0x360
-  ? set_init_arg+0x55/0x55
-  ? start_kernel+0x1d8/0x4c4
-  ? set_init_arg+0x55/0x55
-  ? secondary_startup_64+0xa4/0xb0
-
-Reintroduce it and mark it __meminit. Given the sysfs attribute is not
-writable it will never be called after init.
+The page_alloc.shuffle command line parameter can still be used to
+disable shuffling at boot, but the kernel will default enable the
+shuffling if the command line option is not specified.
 
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- mm/shuffle.c |   16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ init/Kconfig |    4 ++--
+ mm/shuffle.c |    4 ++--
+ mm/shuffle.h |    2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)
 
+diff --git a/init/Kconfig b/init/Kconfig
+index cfa199f3e9be..12557e12be4c 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1697,7 +1697,7 @@ config SLAB_MERGE_DEFAULT
+ 	  command line.
+ 
+ config SLAB_FREELIST_RANDOM
+-	default n
++	default y
+ 	depends on SLAB || SLUB
+ 	bool "SLAB freelist randomization"
+ 	help
+@@ -1716,7 +1716,7 @@ config SLAB_FREELIST_HARDENED
+ 
+ config SHUFFLE_PAGE_ALLOCATOR
+ 	bool "Page allocator randomization"
+-	default SLAB_FREELIST_RANDOM && ACPI_NUMA
++	default y
+ 	help
+ 	  Randomization of the page allocator improves the average
+ 	  utilization of a direct-mapped memory-side-cache. See section
 diff --git a/mm/shuffle.c b/mm/shuffle.c
-index 19bbf3e37fb6..3ce12481b1dc 100644
+index 3ce12481b1dc..a979b48be469 100644
 --- a/mm/shuffle.c
 +++ b/mm/shuffle.c
-@@ -38,7 +38,21 @@ extern int shuffle_show(char *buffer, const struct kernel_param *kp)
- 	return sprintf(buffer, "%c\n", test_bit(SHUFFLE_ENABLE, &shuffle_state)
- 			? 'Y' : 'N');
- }
--module_param_call(shuffle, NULL, shuffle_show, &shuffle_param, 0400);
-+
-+static __meminit int shuffle_store(const char *val,
-+		const struct kernel_param *kp)
-+{
-+	int rc = param_set_bool(val, kp);
-+
-+	if (rc < 0)
-+		return rc;
-+	if (shuffle_param)
-+		page_alloc_shuffle(SHUFFLE_ENABLE);
-+	else
-+		page_alloc_shuffle(SHUFFLE_FORCE_DISABLE);
-+	return 0;
-+}
-+module_param_call(shuffle, shuffle_store, shuffle_show, &shuffle_param, 0400);
+@@ -9,8 +9,8 @@
+ #include "internal.h"
+ #include "shuffle.h"
+ 
+-DEFINE_STATIC_KEY_FALSE(page_alloc_shuffle_key);
+-static unsigned long shuffle_state __ro_after_init;
++DEFINE_STATIC_KEY_TRUE(page_alloc_shuffle_key);
++static unsigned long shuffle_state __ro_after_init = 1 << SHUFFLE_ENABLE;
  
  /*
-  * For two pages to be swapped in the shuffle, they must be free (on a
+  * Depending on the architecture, module parameter parsing may run
+diff --git a/mm/shuffle.h b/mm/shuffle.h
+index fc1e327ae22d..466a5620e0aa 100644
+--- a/mm/shuffle.h
++++ b/mm/shuffle.h
+@@ -19,7 +19,7 @@ enum mm_shuffle_ctl {
+ #define SHUFFLE_ORDER (MAX_ORDER-1)
+ 
+ #ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
+-DECLARE_STATIC_KEY_FALSE(page_alloc_shuffle_key);
++DECLARE_STATIC_KEY_TRUE(page_alloc_shuffle_key);
+ extern void page_alloc_shuffle(enum mm_shuffle_ctl ctl);
+ extern void __shuffle_free_memory(pg_data_t *pgdat);
+ static inline void shuffle_free_memory(pg_data_t *pgdat)
 
