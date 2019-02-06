@@ -1,139 +1,167 @@
-Return-Path: <SRS0=TNGr=QM=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7244C282CB
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 23:29:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B422C282CB
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 00:14:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 88F922175B
-	for <linux-mm@archiver.kernel.org>; Tue,  5 Feb 2019 23:29:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Cs1ROxeH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 88F922175B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 0F7132175B
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 00:14:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F7132175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 275C18E00A2; Tue,  5 Feb 2019 18:29:40 -0500 (EST)
+	id 4EDD88E00A3; Tue,  5 Feb 2019 19:14:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 224238E009C; Tue,  5 Feb 2019 18:29:40 -0500 (EST)
+	id 4268F8E009C; Tue,  5 Feb 2019 19:14:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 114058E00A2; Tue,  5 Feb 2019 18:29:40 -0500 (EST)
+	id 2F04E8E00A3; Tue,  5 Feb 2019 19:14:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BDDF48E009C
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 18:29:39 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id a18so3299139pga.16
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 15:29:39 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id D89998E009C
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2019 19:14:40 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id o17so3382496pgi.14
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2019 16:14:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=I0VnCRP5jiFduQj8D/MbOP8ep/SRYuZGku4WskzpxtU=;
-        b=dCZaKP+G54fLSFli9lBTqbvN8ZPy4EdL8a2gy6dxOCe/QTUZ3TS246Hv9Lhh0zGyy0
-         m5JsMY5e4YwbFfq4U6WIXw2TAk11vEkF0f2xrX3dV7GfpDRvKLqoofi/ZzbXytOmAzUU
-         ZT/thQ/21f90BIWaxK3NRkeLcti6HGXSsOvRNSxbXoSQbatdgfMCcmrR++idmOe4m1XP
-         F/1Q6E/kOKK5KD8oPmDQ/GN+LaHdbvaBerKEG7qGuzMb7QOY7NmijuBA/SFhsAM32/ZM
-         +QSx7TTelU0fGgtN8dh+pJCHFCYXjfbg3T2i1bGJoOfEuSGkWYhFoQGQDPpg/BlLFq7w
-         c+7w==
-X-Gm-Message-State: AHQUAuYIB1tEHtL4kSxj8d5Rp03FSnYZQcLwDHcInw8I2Eh8mKnaFCLU
-	zgdJ+OQS2h3K1JNm0DVA7hgR53G8uX1K7B6IE71J+/BJ3gs/cByguWA0HEmD9IMFMCd2gOOMy0A
-	GV/f4SXlEA9Pug5/O91nev457YZmSpJLC8q6hrHrmH598yu639rxDSmTFd0NHKOFw9A==
-X-Received: by 2002:a17:902:b489:: with SMTP id y9mr7749078plr.193.1549409379395;
-        Tue, 05 Feb 2019 15:29:39 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZY3rz3AA7Dr9FJAao4sM9+OC8mIcCBZG/0pun7RKayFPmHB/Nrk7VpsChmc803RkQOL5Zj
-X-Received: by 2002:a17:902:b489:: with SMTP id y9mr7749030plr.193.1549409378585;
-        Tue, 05 Feb 2019 15:29:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549409378; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=D1N4wxjTxwToc5FsuonoiSOiWLtAEKD+xNG2RxKDvqA=;
+        b=uoSxJtJtG/cXsetDZsU+NgZn1ZdZjJDe3FVb9OEcTJxeh5EGC0icqQ4IOS+oWhPI3e
+         z//PsqAqQJA9HlXVdb6miGb77IQzqosPNv+lFrH1T+uhKlyEFoqBUx1pvuJQuKaPPzdT
+         8sVs8Q4gs0GqleJDh9VAFKYbxALwITM3/QNavzkqCYVRIA9h26av4JAdaLTYfdtoFc71
+         r34Gg9Ieh1Dk15vudJaNTJbXnio7psu8F0m8N8NncYFVIU0EDC5uZoc0+i5DBLOQJgpP
+         M/5zJXv4goYIu5xFSNNMQdvf52Mtm2dNCgcA1M0EiZUL0jEfMfJWb8kYjQw+5r9v8X0e
+         6cVA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuYt1gd6+UdgRhZnx4SLn8g0gbMthzEt13g3hPs4tOGFP1hN6hQ5
+	b+gCMNmTqUyQ5QSl6FvMbyi1C3JaYtkzFtW0P+Bsv4iKFkSujceHWnBalPfGXipKUg1+5QdSRGP
+	v+rnmDRGhehGvnU67DHb8IqXvZimfVzCoXG6M24UwiDDyk1W+yo/gGi7new5jslzR1w==
+X-Received: by 2002:a17:902:380c:: with SMTP id l12mr7637648plc.326.1549412080517;
+        Tue, 05 Feb 2019 16:14:40 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia3pxu+5lJ2I64av/JFS8CuJXjdHKEtbviBe72CXw0hXKWvMakk3iwcHmy13q7RocTswuiz
+X-Received: by 2002:a17:902:380c:: with SMTP id l12mr7637593plc.326.1549412079535;
+        Tue, 05 Feb 2019 16:14:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549412079; cv=none;
         d=google.com; s=arc-20160816;
-        b=OeJFlsAnKmTcd6rRSKYty7M1f6fqUOoMSZO10vEJfuVCu+pqZopsjH0UKxCC5+ZtLr
-         rzqZjunC3DZMFplP71F0FKRtyYJtpZxonh55kslPl/MDQwmgToF2H7baa1W7i8/b+I2g
-         7w0UZ1Zw5ymsfb1kOw7UCVF8wqZk6AArGXnzijmLnAaEcB7qagZvworPG0kAHJNMplMI
-         GIc+ttwX1rB/lKwHNPFb/e186VoP4XY0DiZp6X8p60/afc2GtUnrGs03tobg0wCGZYAS
-         kxr8jF4Bn8rnJ3deiBZQv2pIhat97h9PkGejT74WxkWrvadFibpEdnGNxvg5hjBVKyPH
-         t7VQ==
+        b=Rhh4WimOrIHuIWQI1tD4eCWDML5+Xly8l+0gbEnAhVHNhZIsSy8c7zwiXFmnHRtqqa
+         xyPwrOjG39upULyljcrRtrKnIwBGacKt3e+0apob5L3qJlOe8YSEobh43tYDde1jPEdW
+         25wgaowjEfDeRiIeACqCEIFbehSWH+BF2LpCmkBuwtKmrczR1bwy3LJOPPqUA8KUt4mB
+         bjGnYylbSCUD8EIGuQE+VncZCMVVqijj6q/UJWPVaQ0uaOAggZmJHpEl+iPlpKOE/lMs
+         RHc/4eS1u6RlPRpr1j3H+9cJ5LBfAVQ+ZvGPV/M/4VW46WuC3+26kFOPW2PkDc683Vlu
+         0D+g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=I0VnCRP5jiFduQj8D/MbOP8ep/SRYuZGku4WskzpxtU=;
-        b=zEiM/YP7TlvJFy34WtpRc6IHzzhfRYHbdiFr5q/Ji3RY6RsHMfN1gjl9/b+ti5XET7
-         GNrbk0/KIX7bixZBpDVTqNBQpNaHwzs483h/hfDbqV3AVr+5qBfQQ/nXvuQtmn/cFZgM
-         ZLk1ZWOEHLijaW2+z3P2SzJbe5+/+qynlWMmrqyfdebfmojY0OFjYfRhaBtSNOpPB6Lx
-         +3VXx105xebiNg3c0i+KIoIQsO98sc2v8p/0wc0jwWAmAhWRvNYuLIzqlKYctEz2h9Yf
-         b2J741tgvvcbBu98Rav3b9IbY/yJTt4ugmpsr36SKnFfpN04STavXFFSLLI1I95kTBDk
-         UjTA==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=D1N4wxjTxwToc5FsuonoiSOiWLtAEKD+xNG2RxKDvqA=;
+        b=yy110sd/+6nDln8+m6KN34TQ+D8PpFN8xuUCvkb8XaWFPZwMg+CgrDkWB7XNMuAdPE
+         abGs8mKvpLpT5mOJl4NE0nT/IO/nLx6YyGpwNw4pynomXfoQ/tRE/dHqmsrljKjAxTRf
+         M0zif+b8u+HvVIDz/uqReZvRadrxTjq9OSd+k5z32uI4uVFPAhoPcwyrhcBC21dzGQyk
+         lz0h9sSysxbR2kVWZpEt4mCyrTNT5bOZSUKvC1g9Woid8mX83AFeeLRlSRGCD3BfqpOd
+         GbW5EpiGs25xtpCa07JjFNn7PUJuyQMzcqKcKHUzMW95HWssFJeKWgYCjVjtIgszCq6N
+         Z6+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Cs1ROxeH;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w189si1458311pfb.151.2019.02.05.15.29.38
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id b5si4574937pfg.121.2019.02.05.16.14.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 05 Feb 2019 15:29:38 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Feb 2019 16:14:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Cs1ROxeH;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=I0VnCRP5jiFduQj8D/MbOP8ep/SRYuZGku4WskzpxtU=; b=Cs1ROxeHj8syb2GDBPqv2AqBm
-	vdYd8KDnYJz4OG56cfEVrS0VyITza77z/M1M+zZvB1u1WEKK4mVXlkN0R+XjJ464gAc7GvkKrBy3X
-	7ZVWo3o2nZo7TjDe3F8suUnOA++rjceXEZvAeFnlkmUJHea61fRaDb565cFxQzSoVO0o+FAViHAkk
-	9RSHaEGpqJAMtNG13hmqmja6KPnpZhzKgyM0JE3KdS7BB11ASZ8VScDYkrJep04hN5NEvcnAg1MYu
-	jxj74FaU3Xw4A9Bj5S2spfP8icKMbKtYyT7zZEhZw00+DOBJDk21Fiwd1gGXQm7oTvRwUwM0wQZFz
-	nqP7DhgGg==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1grA9o-0002Yd-22; Tue, 05 Feb 2019 23:29:36 +0000
-Date: Tue, 5 Feb 2019 15:29:35 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Keith Busch <keith.busch@intel.com>
-Subject: Re: [PATCH v10 1/3] mm: Shuffle initial free memory to improve
- memory-side-cache utilization
-Message-ID: <20190205232935.GL21860@bombadil.infradead.org>
-References: <154899811208.3165233.17623209031065121886.stgit@dwillia2-desk3.amr.corp.intel.com>
- <154899811738.3165233.12325692939590944259.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20190205140415.544ae2876ee44e6edb8ca743@linux-foundation.org>
- <CAGXu5jJJQq358_H=xAcf=17WixnFx-P6HqTuv8uQn2zGgNg3Fw@mail.gmail.com>
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga008.fm.intel.com ([10.253.24.58])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Feb 2019 16:14:38 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,337,1544515200"; 
+   d="scan'208";a="122288007"
+Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.151])
+  by fmsmga008.fm.intel.com with ESMTP; 05 Feb 2019 16:14:36 -0800
+From: "Huang\, Ying" <ying.huang@intel.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,  Daniel Jordan <daniel.m.jordan@oracle.com>,  <dan.carpenter@oracle.com>,  <andrea.parri@amarulasolutions.com>,  <dave.hansen@linux.intel.com>,  <sfr@canb.auug.org.au>,  <osandov@fb.com>,  <tj@kernel.org>,  <ak@linux.intel.com>,  <linux-mm@kvack.org>,  <kernel-janitors@vger.kernel.org>,  <paulmck@linux.ibm.com>,  <stern@rowland.harvard.edu>,  <peterz@infradead.org>,  <willy@infradead.org>,  <will.deacon@arm.com>
+Subject: Re: About swapoff race patch  (was Re: [PATCH] mm, swap: bounds check swap_info accesses to avoid NULL derefs)
+References: <20190114222529.43zay6r242ipw5jb@ca-dmjordan1.us.oracle.com>
+	<20190115002305.15402-1-daniel.m.jordan@oracle.com>
+	<20190129222622.440a6c3af63c57f0aa5c09ca@linux-foundation.org>
+	<87tvhpy22q.fsf_-_@yhuang-dev.intel.com>
+	<20190131124655.96af1eb7e2f7bb0905527872@linux-foundation.org>
+	<alpine.LSU.2.11.1902041257390.4682@eggly.anvils>
+Date: Wed, 06 Feb 2019 08:14:35 +0800
+In-Reply-To: <alpine.LSU.2.11.1902041257390.4682@eggly.anvils> (Hugh Dickins's
+	message of "Mon, 4 Feb 2019 13:37:00 -0800")
+Message-ID: <878sytsrh0.fsf@yhuang-dev.intel.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGXu5jJJQq358_H=xAcf=17WixnFx-P6HqTuv8uQn2zGgNg3Fw@mail.gmail.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+Content-Type: text/plain; charset=ascii
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 05, 2019 at 11:11:06PM +0000, Kees Cook wrote:
-> FWIW, distros have enabled it by default for a while. Here's Ubuntu,
-> for example:
-> 
-> and Fedora too:
+Hi, Hugh,
 
-Also Debian:
+Hugh Dickins <hughd@google.com> writes:
 
-$ grep SLAB_FREELIST /boot/config-4.19.0-1-amd64
-CONFIG_SLAB_FREELIST_RANDOM=y
-CONFIG_SLAB_FREELIST_HARDENED=y
+> On Thu, 31 Jan 2019, Andrew Morton wrote:
+>> On Thu, 31 Jan 2019 10:48:29 +0800 "Huang\, Ying" <ying.huang@intel.com> wrote:
+>> > Andrew Morton <akpm@linux-foundation.org> writes:
+>> > > mm-swap-fix-race-between-swapoff-and-some-swap-operations.patch is very
+>> > > stuck so can you please redo this against mainline?
+>> > 
+>> > Allow me to be off topic, this patch has been in mm tree for quite some
+>> > time, what can I do to help this be merged upstream?
+>
+> Wow, yes, it's about a year old.
+>
+>> 
+>> I have no evidence that it has been reviewed, for a start.  I've asked
+>> Hugh to look at it.
+>
+> I tried at the weekend.  Usual story: I don't like it at all, the
+> ever-increasing complexity there, but certainly understand the need
+> for that fix, and have not managed to think up anything better -
+> and now I need to switch away, sorry.
+>
+> The multiple dynamically allocated and freed swapper address spaces
+> have indeed broken what used to make it safe.  If those imaginary
+> address spaces did not have to be virtually contiguous, I'd say
+> cache them and reuse them, instead of freeing.  But I don't see
+> how to do that as it stands.
+>
+> find_get_page(swapper_address_space(entry), swp_offset(entry)) has
+> become an unsafe construct, where it used to be safe against corrupted
+> page tables.  Maybe we don't care so much about crashing on corrupted
+> page tables nowadays (I haven't heard recent complaints), and I think
+> Huang is correct that lookup_swap_cache() and __read_swap_cache_async()
+> happen to be the only instances that need to be guarded against swapoff
+> (the others are working with page table locked).
+>
+> The array of arrays of swapper spaces is all just to get a separate
+> lock for separate extents of the swapfile: I wonder whether Matthew has
+> anything in mind for that in XArray (I think Peter once got it working
+> in radix-tree, but the overhead not so good).
+>
+> (I was originally horrified by the stop_machine() added in swapon and
+> swapoff, but perhaps I'm remembering a distant past of really stopping
+> the machine: stop_machine() today looked reasonable, something to avoid
+> generally like lru_add_drain_all(), but not as shameful as I thought.)
 
-linux (4.15.4-1) unstable; urgency=medium
-  * Switch to SLUB as kernel allocator. (Closes: #862718)
-    - Enable SLUB_DEBUG, SLAB_FREELIST_HARDENED except on armel/marvell.
-      (Closes: #883069)
+Thanks a lot for your review and comments!
+
+It appears that you have no strong objection for this patch?  Could I
+have your "Acked-by"?
+
+Best Regards,
+Huang, Ying
 
