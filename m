@@ -2,159 +2,119 @@ Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06A8AC4151A
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 15:05:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21FDAC282C2
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 15:15:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B4C0F218A4
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 15:05:32 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="WeX1RBp/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B4C0F218A4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id DE1B42080D
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 15:15:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DE1B42080D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 424228E00C1; Wed,  6 Feb 2019 10:05:32 -0500 (EST)
+	id 7C8528E00C2; Wed,  6 Feb 2019 10:15:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3AD358E00B1; Wed,  6 Feb 2019 10:05:32 -0500 (EST)
+	id 751018E00B1; Wed,  6 Feb 2019 10:15:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 24ED58E00C1; Wed,  6 Feb 2019 10:05:32 -0500 (EST)
+	id 640A48E00C2; Wed,  6 Feb 2019 10:15:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BD5448E00B1
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 10:05:31 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id t21so1053571wmt.3
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 07:05:31 -0800 (PST)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 20F148E00B1
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 10:15:08 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id h16so1569634wrp.12
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 07:15:08 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=9IBLfaavppi758OCjdB947t6koYFqHTGyhMEeJMJjcA=;
-        b=ZkyRsNztLDF2vz0m6gk85+8sRTjexo/iVMXeWQ8UFjlvquZ1IMVrq8I+dB2iTWiQNV
-         Y51WEfSiMEdUj4KxAnGCqp5IF3PstYJDW5NioaGhOFwhh3mo6ArG37vG+fQMRDvwtMvB
-         4jxWsMuO20Ores50mTjJ6+GZcP62EESJfQR+h7YcgzIDWOUPkHdibI6qi1Ux3i4OF3pH
-         BDT2vyLII/RvxiIeklQkLb9sF/khj8oAxJ16NxoEfkQebdHcvXlubI3ZXlKlMKKbr0t+
-         gQD6gSLuZcW+MnlhFCXePVbag3M3DZHdVjJM35f6V/O0K7fP8TjD0SZ6YtRglM5oqteS
-         nXww==
-X-Gm-Message-State: AHQUAua6sR9ya/zuzrkZVzpVYl8xzFLyz8zHsG6UbvNLvbBbfGIa/Yfy
-	pV4uYm0J+nGU5S/kG1gpj0DFLzCgmyj+dBbuyPT5V3kvnU4o8DbpdJF5h82brmbwBzMXrf6UWLp
-	YVhN0DDI5muSXFzheLygiNw4Ex7DFsJDSv7OQFsE1mXV/8Sbezh/RBorNXf5vl/2fw8H2xUlc7A
-	x8Q6LXko7w38mn0ByNQ1c1qPiQL/XEm5PbadqIJqGfo6au49AwNPCL/7c/RUHgN2jf5jCsRadkK
-	lnw7p2VugDeOOK3hujL/KHkjHVPKDrPQEIjvrBAogKtjiLGyofcWQdKVUFlP49y9LDTZo75+uRU
-	v7O+j8p/qrt41pt5KGfwug+ccKZvyVBPMRol+mxIamtUu9SNvoJb5Wq7sLgtnYO18Q1fZD0lAVJ
-	3
-X-Received: by 2002:a5d:620d:: with SMTP id y13mr2398282wru.119.1549465531166;
-        Wed, 06 Feb 2019 07:05:31 -0800 (PST)
-X-Received: by 2002:a5d:620d:: with SMTP id y13mr2398216wru.119.1549465530218;
-        Wed, 06 Feb 2019 07:05:30 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549465530; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=xNi3wYWX3XQ135uT0Lkj2vOo3RcKb73cHHue4rq298A=;
+        b=MzZDrGmGmv2DZYrQW9QTnq70JnHfYYzEfg63OGt10GtEq73hG1FJkTcqciRCd2esAm
+         hAKih421VWVAcOdOEI0Fw7/xMu3bAuUvRxdI3U2YSdDGoEsAYzFOBAuH/81yLInXi025
+         OQ6DvAFY72L1KzVM45WhlRapO13Fddb/MKchMPROszDSxUmGK15ns7wqIQ4ZPPFxL5kp
+         57nv8C+xyjZ2PYRFaI/28FhIAdVdKhqRmYHDB/yKPutj/tFomxVemC5jeGS1SE/igUw8
+         Jh3SH9EG///wh9gOUwhjYH7Loc5Dq3zRSzI+vNvMIi9uNxK7ZtDFvaLoTKgQunC50o2y
+         yNQg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: AHQUAuaxuCvS0pNsD9SZLyunH7Zv3wWPXFiC0bH7oJlErs7CPdHH/TWw
+	Gb7eXUr6NhBfM2DeADjWMu7UoDCrqCboSQ2JcdE7N3ihYomFmXHoejQqZaOXL3/aQWcgB6/5V95
+	qF2xFyjmfcEv2K+xgIdAstg61OaP6MXpcqLIkrhMotIUhsVxL7r5DRhvf4T1zcMOCnQ==
+X-Received: by 2002:a1c:4d12:: with SMTP id o18mr3693413wmh.71.1549466107651;
+        Wed, 06 Feb 2019 07:15:07 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia0frQcJbNZApaMMnr/WTA80HHs0/YHuLpVbPb4x0YZxUw9KTd7oiGExjYlWKeHiJz0DLby
+X-Received: by 2002:a1c:4d12:: with SMTP id o18mr3693357wmh.71.1549466106786;
+        Wed, 06 Feb 2019 07:15:06 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549466106; cv=none;
         d=google.com; s=arc-20160816;
-        b=x2a7B2TNNFK8/PdqEgw9nWWnc7VCDhAOTjwkRgoos8wjYaFf8D5Nt68oOe6C1ZXnP2
-         PKct+uRwevM0smBqINsNFiNLTHsDBz9I+wIY/nKF4/2OcL5taKXgDtIbN9F574e3VKhy
-         md/Cgs8niRD2QzFv0smC7MFOedby8nNZjk4qZtysy8k5GNeT1d8a5FqafmPBKbapA5lk
-         RWaPWM0Niq4CODSakWy6V/NueezsgdWWhGihniL71EB+zcBovWAwsD5iut7zP5spwHuq
-         Q6gSEBWn2zarteHwCc5PYuRxshkKKMJtSzrfbEZdTK4+cv1Oc/Q9yk4zQYUkrqV6tMUr
-         tDyw==
+        b=koTN7F7wsgESlNMMpizB0bIGYFrAqv5iAecVA6gxdO6FRopGmPzlroWCEE8yDxy1d5
+         k0r38zw9gwbGAKemSvUUPIabuaBOMoc5+NRShMfPGl0A1a1+1Z0dVtU9YrVyhRieVGiH
+         LFjyKreP+58K3FBkm+akLFfQx7LqWbKtEwsqQccxv3AaTKhywJTOJw5HZlNueWwNQXg5
+         o2YVuFYnZFmfOuGpVFVffeJ5jfOfNRLZVz/29zjumO6Z+/XCAZdY43dJ6/lMAQYqRWPW
+         QxJOAd6K9akClhGJ/aV1XfZPxwGaO2xWHy6lxjxf1gptWAupJSqBwSqYbgkEZhBPy1VQ
+         vdPQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=9IBLfaavppi758OCjdB947t6koYFqHTGyhMEeJMJjcA=;
-        b=qRHJrXys2FNpo4TJFszViPXJfN2VAxrNQixGsX94DfhdoK1LqVeifh6W9FnQEhgybQ
-         2tTD60tHJdmTemvBY4kY3lZNB3dzO2ZpMQTUkU1vE7Y2s0ofUEkjYt1N2ZYnAHDYz1nH
-         DnVi/2Gco/b3FAaitxqq7qPbXfkjN9iKMTgWfOFCcfG6Btdyk8veEUKeqIThQNN3BHWa
-         3dbWwHv5bREIS0O7APmwhCa/TjVLG7Vun7LTlQ/y14fBdES61dnE6bPirS3gyI+VQLO6
-         uAF2XWxXRmZC65YRcodBFRIQolLk5JSkrPIou3N1/Vfqhu4eHgORpUyEROx4sLsPAA/g
-         dorQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=xNi3wYWX3XQ135uT0Lkj2vOo3RcKb73cHHue4rq298A=;
+        b=nItdNIBaQgJXg9z/pCu+2XtXTmPWY1QoZoH9uLN2xcwAU+JHXW58hTCEp+IoXZtNLA
+         gtLsLAP5kexoyYO7lJ4crDPo8VkbJxGAPDtQlrJf2F8Xnqr0tRpJp3oAa5tMZgaqAG4d
+         whHs5v6/vPo9wy0M84xdDOHh+6pcTSMKsR3rckJ5J+ASHSuB4v+uY18hc21F5BrpGiny
+         2owsLltiqPFYK9INaAf4wzYh99ay7mALanMjnRMLVxoz7YIb6EaDGB9yLOZyjcOkEMxQ
+         XpnjnTyrBPzDBEgOoj/gr1HxhSid3lGU13MJc8H6ZSRIkI+Lgh/tLOT7xqt4q0b5e8LJ
+         4bDw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="WeX1RBp/";
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y64sor7400754wmc.26.2019.02.06.07.05.30
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id r16si17990458wrp.189.2019.02.06.07.15.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 06 Feb 2019 07:05:30 -0800 (PST)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Feb 2019 07:15:06 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="WeX1RBp/";
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=9IBLfaavppi758OCjdB947t6koYFqHTGyhMEeJMJjcA=;
-        b=WeX1RBp/CcBQkfXjggkfmEjTC8/LsW/ZK4tTOwMymJy0sFUXTlU5DhRI0QK3AQj7FA
-         dL48Gs73dLPoVlEb5+tPZkqdYCShxowjg4MMz7qz+tGDKZ6VR5GcKMYuSuodqDPXM52B
-         mIKcjGjjxjbyq4BmGlQQogkGUPeOvpiJWf8oW/CGP56Be8GFxhSXuvmCyfY+Ivyuc+Ih
-         RjGvktUGafPHuD/GO2SBHflO3psKkTPDKH1oIOxSP+BTUAorx8US4ShzIo8sEChOuBXF
-         kL51yLqy3ayPh+WOM2mFmxthMmVDr1rBbaZwBe2r2q1pDJYVhBq/wrOlfFUgCuJMuqvf
-         GcBQ==
-X-Google-Smtp-Source: AHgI3IZv8Dc/NO0zwMnknC1uQ9e87UXxRgqhftEL5QcOBvvK2AZ4r+f++qTEdbDPzlQTI1nlLhX7hw==
-X-Received: by 2002:a1c:7406:: with SMTP id p6mr3571209wmc.141.1549465529711;
-        Wed, 06 Feb 2019 07:05:29 -0800 (PST)
-Received: from localhost (p200300C44723CCF50E7AC8E3657171F5.dip0.t-ipconnect.de. [2003:c4:4723:ccf5:e7a:c8e3:6571:71f5])
-        by smtp.gmail.com with ESMTPSA id v132sm18924789wme.20.2019.02.06.07.05.28
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 06 Feb 2019 07:05:29 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	kernel-team@fb.com
-Subject: [PATCH] kernel: workqueue: clarify wq_worker_last_func() caller requirements
-Date: Wed,  6 Feb 2019 16:05:28 +0100
-Message-Id: <20190206150528.31198-1-hannes@cmpxchg.org>
-X-Mailer: git-send-email 2.20.1
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id 111A568D93; Wed,  6 Feb 2019 16:15:06 +0100 (CET)
+Date: Wed, 6 Feb 2019 16:15:05 +0100
+From: Christoph Hellwig <hch@lst.de>
+To: Christian Zigotzky <chzigotzky@xenosoft.de>
+Cc: Christoph Hellwig <hch@lst.de>, Olof Johansson <olof@lixom.net>,
+	linux-arch@vger.kernel.org,
+	Darren Stevens <darren@stevens-zone.net>,
+	linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>,
+	linux-mm@kvack.org, iommu@lists.linux-foundation.org,
+	Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org
+Subject: Re: use generic DMA mapping code in powerpc V4
+Message-ID: <20190206151505.GA31065@lst.de>
+References: <20190129163415.GA14529@lst.de> <F4AB3D9A-97EC-45D7-9061-A750D0934C3C@xenosoft.de> <96762cd2-65fc-bce5-8c5b-c03bc3baf0a1@xenosoft.de> <20190201080456.GA15456@lst.de> <9632DCDF-B9D9-416C-95FC-006B6005E2EC@xenosoft.de> <594beaae-9681-03de-9f42-191cc7d2f8e3@xenosoft.de> <20190204075616.GA5408@lst.de> <ffbf56ae-c259-47b5-9deb-7fb21fead254@xenosoft.de> <20190204123852.GA10428@lst.de> <b1c0161f-4211-03af-022d-0db7237516e9@xenosoft.de>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b1c0161f-4211-03af-022d-0db7237516e9@xenosoft.de>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This function can only be called safely from very specific scheduler
-contexts. Document those.
+On Wed, Feb 06, 2019 at 02:45:34PM +0100, Christian Zigotzky wrote:
+> I patched the source code from the Git 'powerpc-dma.6' with your patch 
+> today. Unfortunately the P.A. Semi Ethernet doesn't work with the patched 
+> Git kernel.
+>
+> After that I tried it with the patch applied over the working setup again 
+> (powerpc/dma: use the dma_direct mapping routines). Unfortunately after 
+> compiling
+> and booting, the P.A. Semi Ethernet doesn't work either.
 
-Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- kernel/workqueue.c | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+The last good one was 29e7e2287e196f48fe5d2a6e017617723ea979bf
+("dma-direct: we might need GFP_DMA for 32-bit dma masks"), if I
+remember correctly.  powerpc/dma: use the dma_direct mapping routines
+was the one that you said makes the pasemi ethernet stop working.
 
-Andrew suggested including the explanations that came up during the
-code review in the function doc. As the function has since been
-merged, sending as follow-up for 5.1. Thanks!
-
-diff --git a/kernel/workqueue.c b/kernel/workqueue.c
-index fc5d23d752a5..23a67b9430da 100644
---- a/kernel/workqueue.c
-+++ b/kernel/workqueue.c
-@@ -918,6 +918,16 @@ struct task_struct *wq_worker_sleeping(struct task_struct *task)
-  * CONTEXT:
-  * spin_lock_irq(rq->lock)
-  *
-+ * This function is called during schedule() when a kworker is going
-+ * to sleep. It's used by psi to identify aggregation workers during
-+ * dequeuing, to allow periodic aggregation to shut-off when that
-+ * worker is the last task in the system or cgroup to go to sleep.
-+ *
-+ * As this function doesn't involve any workqueue-related locking, it
-+ * only returns stable values when called from inside the scheduler's
-+ * queuing and dequeuing paths, when @task, which must be a kworker,
-+ * is guaranteed to not be processing any works.
-+ *
-  * Return:
-  * The last work function %current executed as a worker, NULL if it
-  * hasn't executed any work yet.
--- 
-2.20.1
+Can you post the dmesg from the failing runs?
 
