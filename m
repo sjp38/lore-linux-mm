@@ -2,185 +2,155 @@ Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A9831C169C4
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 23:41:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6EDF4C169C4
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 23:48:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5D284218AF
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 23:41:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="N2Tbyi0N"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5D284218AF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 21533218AF
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 23:48:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 21533218AF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F01C18E0004; Wed,  6 Feb 2019 18:41:35 -0500 (EST)
+	id B05078E0005; Wed,  6 Feb 2019 18:48:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EAE968E0002; Wed,  6 Feb 2019 18:41:35 -0500 (EST)
+	id A8C518E0002; Wed,  6 Feb 2019 18:48:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D4FC28E0004; Wed,  6 Feb 2019 18:41:35 -0500 (EST)
+	id 979938E0005; Wed,  6 Feb 2019 18:48:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D8268E0002
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 18:41:35 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id o23so6092684pll.0
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 15:41:35 -0800 (PST)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 629738E0002
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 18:48:25 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id n22so7622225otq.8
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 15:48:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=wtlvdaQ2RfnmKMMXLaG2vLlY5kmAjKB9ewwZ6+Q/zrE=;
-        b=itsgvAScSmX9jAMaSLbahvovK9ihsghdbicz6V0c2piEgRPyV5wrkfIb1pM1Y6s89O
-         N8wHmcOv5U11a2mgv8ieNx6xD3enOWyAJmyVbpgJqVu/PQSwDz3YY+M3HNsvHyPPptlZ
-         g437OjkcbdQNrGt+Sr+oyT6T8dd0DlWw+9UPhP7ufkCxbc8++K9qt6qLwZ9OhAelOnmH
-         vVupgTtP7CcMMQ1G4dPQbaGPUgRCRsVm6jM3JGgkCxSGKHOt7CwVrzJ5tIQ/zWDarbRK
-         CjzvQN11N2GxlTFPfx+v7D39Yc5KvNhVj0rDnoCwn/T/oxZJhVkwrIMH5Ve81IyR9XP4
-         kETw==
-X-Gm-Message-State: AHQUAuYRs6Etq7SmVBFoKVj1/FFpDVfpWTefK2GoXwCOBhvPavHbTYIE
-	EOifsz+krFonE5z9/YDwSNBWPrD1BJFUsnx3Z395gGB/Whz7kiNCUxqbfG6d3FjgY8eghmeAAke
-	KADKnpJVFR05tzqPrryFfo4dtsmAjCCry38ehWJljZJM+W92CTcF7Y4I4BCnmAMWlEZGK4Quu6K
-	pKHOpjzXk6rNFeMv+BOyI1kSnR0OTfpMbXbRpCULqW7OvtU68/Euk70qrOEwDqmnRbQfWgOEddJ
-	6NkKlxSQITexK8Idf7+jaORxDMx96shtVhbK8eZIkzgioneVeezYv7N3CbXAlraCHNQ05xpnS98
-	CHkBiI0hZER8kHqgTIQqGXPAle4vCo9KE4cCP2oMAmjZqDjzaRR8bzHMEc5qjwrZb1CeVn+AaAd
-	8
-X-Received: by 2002:a62:8893:: with SMTP id l141mr13031845pfd.1.1549496495141;
-        Wed, 06 Feb 2019 15:41:35 -0800 (PST)
-X-Received: by 2002:a62:8893:: with SMTP id l141mr13031812pfd.1.1549496494414;
-        Wed, 06 Feb 2019 15:41:34 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549496494; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :references:in-reply-to:from:date:message-id:subject:to:cc;
+        bh=2km3dMyZpRUU5hnOZjk3ra+UsEl0QjP4uRCEE8dLVpA=;
+        b=Q728MAMtzobNRbyLxgWmJZpIjaPUjZZscOW/1ZcXoQUSlHA4eqpp0x5HzqEtyAhFsU
+         DgmD7NXZ8eW2/TOUkn38Whr1Gz0nHK1kERpoMY7kFdlCPHviKo7b5ADwMKNN3u0OvZsT
+         6yv3e3ReetQN5SeMxPhlCe0jicZ/E3uzv8Rd7wldLMK8v/9wYR1xBbgsY7po8fq1xd2m
+         BAAiTgxKNOs4PjIiJJZLknH+qWZPkERIjvzV/GbL/r+pAjLtikU30u+c4BGft7MJ4UGQ
+         /twGIFtDUNHv81Ax5bcRJWO8zDCLWEj7Bp7uORbChQ/V5FW93UdyQ5M566JHu2R2lef1
+         NhDQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuay3k0WzN4GFs9PuEM/kTORp4j5TSdobIGi6HgQZxWCausHw+aA
+	E8ociMcI0JUZITLDRX+rSqoKEfcguj3DvMdfoOBVSFh6dBfmGmQYh7EX72lWeLMlq7i2R78UyOp
+	ShsIu/yuVOOum6da3BlxgG91T3Xzf6FPoy8gzwiZcKvkJ67rcCSTmGTnHJikwPR7xmbWrGtrO0c
+	gPRWSNbvNZhMnjYG6kEQnQjsGAtKfmPi0dtYCVKvNxihyeFib24s3Njq/wo0E24J0dUNyhgzNTZ
+	CoIZFMEJurUaRboQ/O7J5HjnCNkBHkwOIUZlPHwKw/4nm4gUCI1TWw2mzJ2tHuJRklhcUQypwRg
+	FzXy8RHPPi4c62xt1eqf4MEMGz2oM7G714kVbyMb9l+a/ckFd5dS3O4KNSraY/EOuOfHkjVa5Q=
+	=
+X-Received: by 2002:a9d:2aa5:: with SMTP id e34mr6687877otb.67.1549496905128;
+        Wed, 06 Feb 2019 15:48:25 -0800 (PST)
+X-Received: by 2002:a9d:2aa5:: with SMTP id e34mr6687847otb.67.1549496904405;
+        Wed, 06 Feb 2019 15:48:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549496904; cv=none;
         d=google.com; s=arc-20160816;
-        b=eoIcZsEG7JbvD988xYZJFYthwy56wGBWNhnwuc+rShQZWsv8jPqdXWaHRv49HGUt+/
-         un+Dogc8uQ1MAfhpJ4Y69nig/8j/YSfDM0lpFN3YUZtInVsSpfJfbyy/zvKoISPCzQnr
-         JLhw+aMLjfCXxyn9MjWAzYjQcBejOrw2vkEqursURUbt+ka1EluCXfJxa2RaAQgZmNm1
-         5z+hnYgMjD+s2pL0ypgtM4XyPCJBHaly0kxFnSrod2+xVWngl4+5Q1/L2jd+S5CAjDIF
-         qvjRc5dpb0OstyYRAfx4YMvk4Mp6TuXpOs8sisjokBxHWOw/Y26KTkNRG0hb22R+Hwx4
-         xIJA==
+        b=tSO4Vi9yZezKJ3Hn0ejIpCpoT2ypUS6G03BnQNr5KVxMSqfJbqzbzs+XrvnGdiwf5U
+         coHYZO0v04muLm0sIAScgPPVCVgpno2KS0GgS8A4eGeormgl3auQhcFCv+cXnDv/Cr5V
+         GeaEvF9tH+SEuCHBvbWF1UCi4Dq2cNzXlqeHMZmtttrb8Gefodbe6sZ1EbUnRCtDib4s
+         3J/1ovm4w9htvH0Xc+bfQuJfbEVuZI6IMmKHlniyG9++o6UpwFhbExp47J5NPKxUicXL
+         FuOYxJufrJlg26NQCC31ZC2UhBFI5jZ3J0B1cFXsNbOHcCKYKk6tu5wYe4kqC29QZHPL
+         uljA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=wtlvdaQ2RfnmKMMXLaG2vLlY5kmAjKB9ewwZ6+Q/zrE=;
-        b=lk0ieUC3B3Zjs2jLf/vDNzpmsiEtxFJLqlWS6LQJQeACiav1EeHLOKUaGJzEGzmwmd
-         eDqKwEbIuPudOL6uoyhHn9gDJ+CWVu+3kcjVelVc+4Kb1kNYvh7HW4m+qQMlpsQA1G8M
-         beUUjBU5abps+ZJDEXFOV0IidGBJ0IIjoOzt6T9jH9hZMJkATnDmG8SfFP/vnXEzHuFg
-         xyQ6ZhPqhj4dxMwWJQ4LISUVSmtGqQAjSNZyDsX9W9xfiQzYbak8P0bMsHD8BL0DIcpO
-         dr5MHNvNmbnqVsuahqLalag4NEyDvAkWrrTrTxfSIR+k6tYCbdNIRWc17RvUh8MqAu9H
-         hAjQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version;
+        bh=2km3dMyZpRUU5hnOZjk3ra+UsEl0QjP4uRCEE8dLVpA=;
+        b=HQQL48t113u3baJHhlEBNlfkZhJkkawHy+1JoMFW6nSWNRk8SRZr/i0zhSI4FTKr6Q
+         OnI0wjCNiCyExsqdEdqrzeZG12lhBP3yoXjaIc/w0rzJiW39EkzgY+lao2bGDFJ1cglY
+         YiIXqf3v5ncNyWfmynX4/XzFupjZq03meDevshC56C3rCz8f2pCRoPHZqjIeyykTpIZ1
+         YMEggDyI5Ym1ugXYrcoh1aW1N2aCYeL6XCMqEmBra3xeQIaDWf3S+3klV/JMci78ueMz
+         D9YfCx4mut9ohVlRitH6WG03iIuoF61BQuYwM9hmRlr7WAyEZv7tvBjAflbwcZwe933J
+         pqew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=N2Tbyi0N;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n87sor12118871pfh.64.2019.02.06.15.41.34
+        by mx.google.com with SMTPS id 78sor12271211oii.101.2019.02.06.15.48.24
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 06 Feb 2019 15:41:34 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 06 Feb 2019 15:48:24 -0800 (PST)
+Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=N2Tbyi0N;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=wtlvdaQ2RfnmKMMXLaG2vLlY5kmAjKB9ewwZ6+Q/zrE=;
-        b=N2Tbyi0NYtdj8kT2fMOgphDLJEkRu8Ve7ZbN85OU/bQbcY2ohxaRJxVu7xpTbHlXaz
-         r6FrDdc/NGokzSrOKPsEKte53jDC2z3GLhsH5X9tBP4JVBYg1jZ6Dgr8uP28kwHMgXNw
-         3I7uhRUVtBRYFLBAyOx+9VlYyWwzL18DlMjooUqe82Wc6lsJIDWYXqqY1twhdcd/jpR0
-         s+Ieocxx4JcXuueUFPNDNBXSo/9RN+165tVmt+tNrC37G8fgRpEXqB9X/w9ZGkgBpFMC
-         1S1KAtTAWGotwZ3Tw8vdQorheqAg3TpQm22oB6kKfD1QPYDsaDOO2aMfn+BYMgjnYfSj
-         qrXA==
-X-Google-Smtp-Source: AHgI3IZOZlROKcj7vcS2xqLMIe3x5syV5VU7DSATGgwTxc0rzKS1U6azoHkiMfw1/uA8lDCseSvfzA==
-X-Received: by 2002:a62:1d4c:: with SMTP id d73mr13262967pfd.90.1549496493841;
-        Wed, 06 Feb 2019 15:41:33 -0800 (PST)
-Received: from ziepe.ca (S010614cc2056d97f.ed.shawcable.net. [174.3.196.123])
-        by smtp.gmail.com with ESMTPSA id u186sm10338671pfu.51.2019.02.06.15.41.33
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 06 Feb 2019 15:41:33 -0800 (PST)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1grWou-0004D9-Hy; Wed, 06 Feb 2019 16:41:32 -0700
-Date: Wed, 6 Feb 2019 16:41:32 -0700
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Doug Ledford <dledford@redhat.com>, Dave Chinner <david@fromorbit.com>,
-	Christopher Lameter <cl@linux.com>,
-	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
-	Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org,
-	linux-rdma <linux-rdma@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-Message-ID: <20190206234132.GB15234@ziepe.ca>
-References: <20190206173114.GB12227@ziepe.ca>
- <20190206175233.GN21860@bombadil.infradead.org>
- <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
- <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
- <20190206210356.GZ6173@dastard>
- <20190206220828.GJ12227@ziepe.ca>
- <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
- <CAPcyv4hqya1iKCfHJRXQJRD4qXZa3VjkoKGw6tEvtWNkKVbP+A@mail.gmail.com>
- <20190206232130.GK12227@ziepe.ca>
- <CAPcyv4g2r=L3jfSDoRPt4VG7D_2CxCgv3s+JLu4FQRUSRWg+4Q@mail.gmail.com>
+       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: AHgI3IZpEk2CWNtYPQQ7KqZEikUauiX+EFdFnS71/6BMSENFy4IR4l4ddI99XqMvH80bYuTgwAvnu48+7Fk1yZ21Y3Q=
+X-Received: by 2002:aca:f08b:: with SMTP id o133mr988016oih.32.1549496904026;
+ Wed, 06 Feb 2019 15:48:24 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4g2r=L3jfSDoRPt4VG7D_2CxCgv3s+JLu4FQRUSRWg+4Q@mail.gmail.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+References: <20190124230724.10022-1-keith.busch@intel.com> <20190124230724.10022-5-keith.busch@intel.com>
+ <CAJZ5v0jE_gRT5WgpQYwZQmx6N5G+axymbSySb2Nk8Q0OGeNt9A@mail.gmail.com>
+ <20190205145227.GG17950@kroah.com> <CAJZ5v0g4ouD+9YYPSkoN7CRLTXYymeCaVkYNzm6Q6gGdNgJbuQ@mail.gmail.com>
+ <20190206230953.GB30221@localhost.localdomain>
+In-Reply-To: <20190206230953.GB30221@localhost.localdomain>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Thu, 7 Feb 2019 00:48:12 +0100
+Message-ID: <CAJZ5v0hHCVTui70g0Dcn8GEWOBTW1HCTi=3RXLPRHL_p2U62Dg@mail.gmail.com>
+Subject: Re: [PATCHv5 04/10] node: Link memory nodes to their compute nodes
+To: Keith Busch <keith.busch@intel.com>
+Cc: "Rafael J. Wysocki" <rafael@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, 
+	Dan Williams <dan.j.williams@intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 06, 2019 at 03:30:27PM -0800, Dan Williams wrote:
-> On Wed, Feb 6, 2019 at 3:21 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
-> >
-> > On Wed, Feb 06, 2019 at 02:44:45PM -0800, Dan Williams wrote:
-> >
-> > > > Do they need to stick with xfs?
+On Thu, Feb 7, 2019 at 12:10 AM Keith Busch <keith.busch@intel.com> wrote:
+>
+> On Tue, Feb 05, 2019 at 04:17:09PM +0100, Rafael J. Wysocki wrote:
+> > <gregkh@linuxfoundation.org> wrote:
 > > >
-> > > Can you clarify the motivation for that question? This problem exists
-> > > for any filesystem that implements an mmap that where the physical
-> > > page backing the mapping is identical to the physical storage location
-> > > for the file data.
+> > > When you use a "raw" kobject then userspace tools do not see the devices
+> > > and attributes in libraries like udev.
 > >
-> > .. and needs to dynamicaly change that mapping. Which is not really
-> > something inherent to the general idea of a filesystem. A file system
-> > that had *strictly static* block assignments would work fine.
+> > And why would they need it in this particular case?
 > >
-> > Not all filesystem even implement hole punch.
+> > > So unless userspace does not care about this at all,
 > >
-> > Not all filesystem implement reflink.
+> > Which I think is the case here, isn't it?
 > >
-> > ftruncate doesn't *have* to instantly return the free blocks to
-> > allocation pool.
+> > > you should use a 'struct device' where ever
+> > > possible.  The memory "savings" usually just isn't worth it unless you
+> > > have a _lot_ of objects being created here.
+> > >
+> > > Who is going to use all of this new information?
 > >
-> > ie this is not a DAX & RDMA issue but a XFS & RDMA issue.
-> >
-> > Replacing XFS is probably not be reasonable, but I wonder if a XFS--
-> > operating mode could exist that had enough features removed to be
-> > safe?
-> 
-> You're describing the current situation, i.e. Linux already implements
-> this, it's called Device-DAX and some users of RDMA find it
-> insufficient. The choices are to continue to tell them "no", or say
-> "yes, but you need to submit to lease coordination".
+> > Somebody who wants to know how the memory in the system is laid out AFAICS.
+>
+> Yes, this is for user space to make informed decisions about where it
+> wants to allocate/relocate hot and cold data with respect to particular
+> compute domains. So user space should care about these attributes,
+> and they won't always be static when memory hotplug support for these
+> attributes is added.
+>
+> Does that change anything, or still recommending kobject? I don't have a
+> strong opinion either way and have both options coded and ready to
+> submit new version once I know which direction is most acceptable.
 
-Device-DAX is not what I'm imagining when I say XFS--.
+If you want to make dynamic changes to the sysfs directories under
+this object, uevents generated by device registration and
+unregstration may be useful.  However, they only trigger automatically
+when you register and unregister, so presumably you'd need to do that
+every time for the changes to trigger an update in user space.  Also,
+whoever is interested in this data would need to listen to the uevents
+to get notified.
 
-I mean more like XFS with all features that require rellocation of
-blocks disabled.
+OTOH, you can call kobject_uevent() for the "raw" kobjects too.
 
-Forbidding hold punch, reflink, cow, etc, doesn't devolve back to
-device-dax.
+Anyway, if Greg really prefers struct device to be used here, that's
+fine by me, but since the uevents in question are going to be part of
+your user space I/F then, it may be good to take that into
+consideration. :-)
 
-Jason
+After all, you need to know how you want the I/F to work.
 
