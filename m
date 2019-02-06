@@ -6,113 +6,112 @@ X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48E6AC169C4
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 20:14:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B4824C169C4
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 20:16:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0DD1A20823
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 20:14:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0DD1A20823
+	by mail.kernel.org (Postfix) with ESMTP id 747AC20823
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 20:16:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 747AC20823
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9F2A78E00F6; Wed,  6 Feb 2019 15:14:39 -0500 (EST)
+	id 0EFFC8E00F7; Wed,  6 Feb 2019 15:16:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9A2938E00F3; Wed,  6 Feb 2019 15:14:39 -0500 (EST)
+	id 0A24B8E00F3; Wed,  6 Feb 2019 15:16:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 894138E00F6; Wed,  6 Feb 2019 15:14:39 -0500 (EST)
+	id EFA798E00F7; Wed,  6 Feb 2019 15:16:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B0258E00F3
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 15:14:39 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id m37so7987042qte.10
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 12:14:39 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C38D98E00F3
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 15:16:10 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id n39so7880029qtn.18
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 12:16:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
          :subject:from:to:cc:date:in-reply-to:references:organization
          :user-agent:mime-version;
-        bh=fiN7wvJu+Tu9z4ZgL/u9sPqhKO8WCC0ydDe0C7E+dO4=;
-        b=Vtq8YjKBrYhJol8HmkZudj9wCbiWR9swLGqghdo45kHfxSEvFGTd4TcE73sWvBzuP1
-         9weV3Ozauw5lrQAiGlk38cPlHoADDdcjzHxrc0iFWjghKng2SUx0eJM7c0ltYytXbI/W
-         MMKIiYe2jizi+3ztxDpNiVUGy7HDbsHDhGfF+xDD7ZKSsL0gkTbP6QuvWFtoIjcvyDhS
-         KoqQshRcCMP22bOpir6wLIuvK7lbamc4ypc3CaUg8Gb+q95pzh6nn3QsQGF+WaKCuieq
-         e5ldmuctoMEtxIMuMClthXnu5YgJkXtqQU5T8fJVUg153rDAxR6JRluziZ0Wlly2Hc0h
-         76gQ==
+        bh=hLkOpA+BTt8I9+MQ5clK7NA9/A7ghD9xV6awSsgOXDU=;
+        b=WVGyWNPBYCis+WMk/Pnj0PWQfV+7AK3ruUNZ98Gqtn/DT5HN678qiQMex2GIGsmCgI
+         biej1NobMYpEPGlU6o0vXDzKfihn7Z/oD2H3oTEUAHorjOPgXihLWoj8dE9yIYkplkCV
+         kQFBZd4q+XKp/elBy4nEd4jvP45ty+QwOYVTRceOMwBirZEfWKiVbENVPEoYHbYWIHLK
+         3/GcQx0hXAS4J4s86IE5/aDw+oAJN7aRMa7X24nIO5E9EZ/+u0Igmty9IBAoixcan8kY
+         7Itwnvn62CTEUuGw+55ySSqlR5+I4n5ewlxmU2vjoZEDMuP9Awu/b6NxfeVdbV+dAbTl
+         yxug==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dledford@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dledford@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuYe/TVZqcfDl+mij7yBYmeFPv0Ik+qd8n4TafgVdBqfFMfCcs6f
-	L7ByBTGwN/6HVrxloDBz3CIL6zEKHFWMIDfFDBmujkgBm+RlKiCpdNnvzexo3aAvrN4dl0PkIA/
-	XLKicIZagbXjJeWsxZbdBVWvBF04hSz3kTWqwSxiRKYtKVCEO1tbjEuj6gYn0mXXQ7Q==
-X-Received: by 2002:ac8:e43:: with SMTP id j3mr5092408qti.239.1549484079127;
-        Wed, 06 Feb 2019 12:14:39 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYtFhDh6jZB3hz/s10yzHxNYBum2kr6aBvUlaKSLkL5ram0orKR9xJpDyUIrAUTxCrD4M7N
-X-Received: by 2002:ac8:e43:: with SMTP id j3mr5092387qti.239.1549484078769;
-        Wed, 06 Feb 2019 12:14:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549484078; cv=none;
+X-Gm-Message-State: AHQUAubcuwm3BkyPwPokUZfa31aICkzIEAT0Ix6Zs9G2oe+K0w+a7Kgl
+	jsU/B2pZWIguyaFZBLAL0zwLz7Qfh5DQ7zWhGl9aoUXurrnSzZQEsB/Eeyv/BfyM88QPqIGZOJe
+	F1xFU0uAmx0LFsGuyRYoP6XT7/n5K0AIbK7XyaEtOtylFQ/ThvhjTiI0LtZyvV9Zz6w==
+X-Received: by 2002:a37:884:: with SMTP id 126mr9103631qki.56.1549484170565;
+        Wed, 06 Feb 2019 12:16:10 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZ9q7fsBgrnjKb85DkGVUXD+f8WaBsvYJnX23zEsz0B696K7TrmrVvAqzgLZB9hoapCrI9E
+X-Received: by 2002:a37:884:: with SMTP id 126mr9103610qki.56.1549484170230;
+        Wed, 06 Feb 2019 12:16:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549484170; cv=none;
         d=google.com; s=arc-20160816;
-        b=TCyBbEJ6Z1HqhdQiT+i5p18fq3RF+W1V3xIeZcEEe4WPLULrTHiCmLe1hjsMXzgrSR
-         JzquIDywLYQotVVqRHplxG2mp1sXZpWcBZbg0kxV1cttIDH0DijFzN+yBkrwH/tSuoUn
-         BcCTu9TVQ9J322owuPDLLRSGg/4ZO1gY8MczWJsHlnplfbx3JGNALkRwzlMPOocrOCkB
-         ekXC+JIt5FtPvR9RYHRElQbL1z3q1aDjbLoWF01HvgoyfTCUK26X5l4TT4l/n//ciy7u
-         swCyG/l7V1c3hoiIzS84VX6QfO9z2n0Znq6DSy7eJ4YRxWn87be+TYKQ+gSPkqRyRohp
-         RdIQ==
+        b=sjqJRJxUyYL4RRDNMe9N6f2nXcAy9iTiJOh6tdja+MGmq1G7c0jTSWNCuc+0T1WHmi
+         uw3RJAHh6Pe0o3W/3Y28bjEofDK/DejajlHVoMEKEZjHxMHY4aFU04CmPO2AfNFW8GLM
+         obWfc5e+r+fewMunyJXcIgRJb21mRZtJSFz8lkdmb7JIfBIbby7aV8CGy4GZLXJTgULm
+         D8g9fs0unjhQKxe3U6qSqxgoicnd4r8iX2FIBOe7rRoS+8Tx0ArTr30UKdQPm/Hy4Dde
+         Ik/I/4aUblGCVrjVHbK8tkX39CtTaJm/WsneMvQYCK+SyMpC7hCJ5nWp/brTsFv8SjsU
+         BdXg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:user-agent:organization:references:in-reply-to:date:cc
          :to:from:subject:message-id;
-        bh=fiN7wvJu+Tu9z4ZgL/u9sPqhKO8WCC0ydDe0C7E+dO4=;
-        b=g7hxqEqiKhC9I3ZoOv8OfKSAW3FpHqk1IWaj0XGs8IwZ59ZlTms421SppWnoDywNzV
-         luj4jG6/hkSEzNnXVNCVkgDqYgRcO2hBRHwhpk17Lmc8EMfYT2Ne/X53TtK7sp2rEcnS
-         uLV9278htVbsADf20ziZIZhkcM7k9FFuLi4Kt87oWDrDP9VKSVm2bG89YEuMEcU6ybet
-         GcN1ys3k/ErRrjVUbdinTiilxBY+bj/Ty/ggMjbImc5P1ZHc3wkouV21U1LZr/fdPas+
-         pcIBc2dqBqJToLPPkR+0A+gUl0p4+AzDVZgPvIemUzRvRwz2JZynRrO3RossYeL7YYNi
-         INRQ==
+        bh=hLkOpA+BTt8I9+MQ5clK7NA9/A7ghD9xV6awSsgOXDU=;
+        b=kgnXirsKn6FssEHu12lQ4pTxRRNfQBcgQ22yPLsjT5AGUcm+mL+XecTUxAkr/2KYQD
+         tpLMLdwzPZkKd5GSKZpDjlY11JvDuCKBJVAsSnZ8UbmJD1+5nI7EA8L2iIkz/tjnOQyw
+         9/5nbF/fZdMc0ikNu8Zzvsk1cLZb5lsPGsHl1gi0Kc0Pkac01yXTbeNBGPglPpS0bQZ8
+         gCwwml58vzThl45Ftlxk4cTxYWfNavFtudesfJvM7oY2rIEjbeSyrPhwj2DX8Z6bz2li
+         IERabfefd69vTRLu2EIuCNefQBJ0AsLMZ2nauqZYK+b57mYzucjIbv7feFmNAQiDjjpa
+         Km1g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of dledford@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dledford@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f4si5246040qtk.237.2019.02.06.12.14.38
+        by mx.google.com with ESMTPS id s1si822085qvc.125.2019.02.06.12.16.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Feb 2019 12:14:38 -0800 (PST)
+        Wed, 06 Feb 2019 12:16:10 -0800 (PST)
 Received-SPF: pass (google.com: domain of dledford@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of dledford@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dledford@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 986D67E9D3;
-	Wed,  6 Feb 2019 20:14:37 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id D6A933DBFE;
+	Wed,  6 Feb 2019 20:16:08 +0000 (UTC)
 Received: from haswell-e.nc.xsintricity.com (ovpn-112-17.rdu2.redhat.com [10.10.112.17])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 7174C63BAF;
-	Wed,  6 Feb 2019 20:14:35 +0000 (UTC)
-Message-ID: <671e7ebc8e125d1ebd71de9943868183e27f052b.camel@redhat.com>
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 6D26D6247B;
+	Wed,  6 Feb 2019 20:16:05 +0000 (UTC)
+Message-ID: <a9df9be75966f34f55f843a3cd7e1ee7d497c7fa.camel@redhat.com>
 Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
  longterm-GUP usage by RDMA
 From: Doug Ledford <dledford@redhat.com>
-To: Dan Williams <dan.j.williams@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>, Ira Weiny
- <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, linux-rdma
- <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel
- Mailing List <linux-kernel@vger.kernel.org>, John Hubbard
- <jhubbard@nvidia.com>, Jerome Glisse <jglisse@redhat.com>, Dave Chinner
- <david@fromorbit.com>, Michal Hocko <mhocko@kernel.org>
-Date: Wed, 06 Feb 2019 15:14:33 -0500
-In-Reply-To: <CAPcyv4j4gDNHu836N4RfgQsE+eZU9Wt0N9Y09KQ43zV+4mK-eg@mail.gmail.com>
+To: Matthew Wilcox <willy@infradead.org>, Christopher Lameter <cl@linux.com>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>, Jan Kara <jack@suse.cz>, Ira Weiny
+ <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, 
+ linux-rdma@vger.kernel.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org,  John Hubbard <jhubbard@nvidia.com>, Jerome
+ Glisse <jglisse@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Dave
+ Chinner <david@fromorbit.com>, Michal Hocko <mhocko@kernel.org>
+Date: Wed, 06 Feb 2019 15:16:02 -0500
+In-Reply-To: <20190206194055.GP21860@bombadil.infradead.org>
 References: <20190205175059.GB21617@iweiny-DESK2.sc.intel.com>
 	 <20190206095000.GA12006@quack2.suse.cz> <20190206173114.GB12227@ziepe.ca>
 	 <20190206175233.GN21860@bombadil.infradead.org>
 	 <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
-	 <20190206183503.GO21860@bombadil.infradead.org>
-	 <20190206185233.GE12227@ziepe.ca>
-	 <CAPcyv4j4gDNHu836N4RfgQsE+eZU9Wt0N9Y09KQ43zV+4mK-eg@mail.gmail.com>
+	 <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
+	 <20190206194055.GP21860@bombadil.infradead.org>
 Organization: Red Hat, Inc.
 Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-iM5a0EW7HkLiEIH1y20B"
+	protocol="application/pgp-signature"; boundary="=-1dGH+hKU+Z7r3DIuLEHD"
 User-Agent: Evolution 3.30.4 (3.30.4-1.fc29) 
 Mime-Version: 1.0
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Wed, 06 Feb 2019 20:14:38 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Wed, 06 Feb 2019 20:16:09 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -120,80 +119,52 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
---=-iM5a0EW7HkLiEIH1y20B
+--=-1dGH+hKU+Z7r3DIuLEHD
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
-On Wed, 2019-02-06 at 11:45 -0800, Dan Williams wrote:
-> On Wed, Feb 6, 2019 at 10:52 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
-> > On Wed, Feb 06, 2019 at 10:35:04AM -0800, Matthew Wilcox wrote:
+On Wed, 2019-02-06 at 11:40 -0800, Matthew Wilcox wrote:
+> On Wed, Feb 06, 2019 at 07:16:21PM +0000, Christopher Lameter wrote:
 > >=20
-> > > > Admittedly, I'm coming in late to this conversation, but did I miss=
- the
-> > > > portion where that alternative was ruled out?
-> > >=20
-> > > That's my preferred option too, but the preponderance of opinion lean=
-s
-> > > towards "We can't give people a way to make files un-truncatable".
-> >=20
-> > I haven't heard an explanation why blocking ftruncate is worse than
-> > giving people a way to break RDMA using process by calling ftruncate??
-> >=20
-> > Isn't it exactly the same argument the other way?
+> > though? If we only allow this use case then we may not have to worry ab=
+out
+> > long term GUP because DAX mapped files will stay in the physical locati=
+on
+> > regardless.
 >=20
->=20
-> If the
-> RDMA application doesn't want it to happen, arrange for it by
-> permissions or other coordination to prevent truncation,
+> ... except for truncate.  And now that I think about it, there was a
+> desire to support hot-unplug which also needed revoke.
 
-I just argued the *exact* same thing, except from the other side: if you
-want a guaranteed ability to truncate, then arrange the perms so the
-RDMA or DAX capable things can't use the file.
-
->  but once the
-> two conflicting / valid requests have arrived at the filesystem try to
-> move the result forward to the user requested state not block and fail
-> indefinitely.
-
-Except this is wrong.  We already have ETXTBSY, and arguably it is much
-easier for ETXTBSY to simply kill all of the running processes with
-extreme prejudice.  But we don't do that.  We block indefinitely.  So,
-no, there is no expectation that things will "move forward to the user
-requested state".  Not when pages are in use by the kernel, and very
-arguably pages being used for direct I/O are absolutely in use by the
-kernel, then truncate blocks.
-
-There is a major case of dissonant cognitive behavior here if the
-syscall supports ETXTBSY, even though the ability to kill apps using the
-text pages is trivial, but thinks supporting EBUSY is out of the
-question.
+We already support hot unplug of RDMA devices.  But it is extreme.  How
+does hot unplug deal with a program running from the device (something
+that would have returned ETXTBSY)?
 
 --=20
 Doug Ledford <dledford@redhat.com>
     GPG KeyID: B826A3330E572FDD
     Key fingerprint =3D AE6B 1BDA 122B 23B4 265B  1274 B826 A333 0E57 2FDD
 
---=-iM5a0EW7HkLiEIH1y20B
+--=-1dGH+hKU+Z7r3DIuLEHD
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: This is a digitally signed message part
 Content-Transfer-Encoding: 7bit
 
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAABCAAdFiEErmsb2hIrI7QmWxJ0uCajMw5XL90FAlxbQCkACgkQuCajMw5X
-L90c/A/+ORaYm+JkAbD9YzCrqjaXuhjfRvV3aIYRdbQQBw6u5vGkXkwa6ewT3pnQ
-AVpOAQbs9+tagP1vO3wpEP7cczuX8X+U61Apq7Hsx7mYw2LbiSzao0V5vRwdtpVW
-VJvZqWEEpangAVaFedNY/pvYpZeL9jCeJ2WGynJEqcrIAOETnXCt7EQA0+m3kQkT
-olCDbfcgQnpmzz3VhSe5ePVdMsAnEZp7182n11kBC9n1+MiRd+OEw6+jZ1b2Xor7
-Ouf4A+8ZGCC/PWggLNGLeqXZYCjGLjXLrygnygCjUvbuQLF174Zs6Dchpk4QOIVL
-+97WuqChjAoef4zhF3fp3LGa+XIXMtrzESG/G6hikUptNYHn4xvwnirxqoIBaK24
-gEyksTqPkwYMEwz4t7ZF7+Ged3AeXAMl1mUYkbPIyuKHI0v5bncjkjtxsPCfvFel
-rVuCXxuAUIG6p3T1RZhBCfeWnQeVrAIPp5vRDlheUc6JWxTDUn5XPJbsSVbCG8/K
-wjIAadfJlGiYxvYdPRkAoNuFyMugRKQ2UiXD1bahPVoDYy9USkGlMO5+KxhUcP6k
-pfat3AOPOA7aspZGgBYdVFMk0xAeL+qyarXPG/OcHPX/aGA4PdB5baxCpb//fuKe
-6YJuhcW3xLXHDk/y6J+PQ060h4RY9bIDK5oozPIx84BYEEaWVzA=
-=li/D
+iQIzBAABCAAdFiEErmsb2hIrI7QmWxJ0uCajMw5XL90FAlxbQIIACgkQuCajMw5X
+L90bChAAgL7lcxfXKSmYLGA1OFdVg5chnIDS93XRvqgpb+yb4Tpb+DhVqhoT3bHY
+gUpE9yFtWmLsUVrtn0xquWw8VG5Ciqm3T+EA1l2yfD0deu7WchyEG6Ezg90IefFl
+BSl6rXHScee62dUztlmRPuj9Tu9x8zQlWzeYQ+HXWbXKbY1L47bYLaFgaHdYnDUX
+NdI+Dw84LQTpBxPjiQV+mBWPFaGSX1dxC6RKKxPHNMFLpEq9qt1Z2Z3NkceEc39v
+jCUmCkvDdYhLgk2Mb7rHIl8IrTrt3q2ASte9Qane1B/AQoKDvf+icpqggzrljbA4
+gFnNLeIphEsj4RdxS8Jj4oAf80I57Od236KprxjfHNxWv6tpmuMpVuO8+2Wve9YF
+rskQFW76KIViYuvQpb8FHhmVQDZ+4fAsAoKlucf0lMbUaIyIbsR13qlyrsHViOfv
+fx7RPeVPNC+uct0qWeHkAJuivBZym/dqTHVuNVXkNOFAoiOXRpfIXA26XJlnT1aX
+CpRspY8yFawWEZonppyKyjbt3fMs3rZIFmxSh6vTEV8oXSlFYsIRG2Cu9bInZC1N
+B7ZuDVLvjCyizywq0VobCgEf3mlpG056WLSu9vXqO1BPT6ASI/GcI+JEG+NcitIX
+nz9Q1Dewt67LDUWm61KTkkiMEON8ljYxRgSkREIm6ksW3G35M48=
+=WK6h
 -----END PGP SIGNATURE-----
 
---=-iM5a0EW7HkLiEIH1y20B--
+--=-1dGH+hKU+Z7r3DIuLEHD--
 
