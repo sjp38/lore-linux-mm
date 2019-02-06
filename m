@@ -2,146 +2,230 @@ Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 098AEC169C4
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 22:48:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A056EC169C4
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 23:10:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B7AE3218D9
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 22:48:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 39CEC218D3
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 23:10:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Z6Q+q2TG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7AE3218D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BJmCqB+F"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39CEC218D3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 563C68E0107; Wed,  6 Feb 2019 17:48:25 -0500 (EST)
+	id 9970F8E0008; Wed,  6 Feb 2019 18:10:23 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4EA2A8E0103; Wed,  6 Feb 2019 17:48:25 -0500 (EST)
+	id 946E08E0007; Wed,  6 Feb 2019 18:10:23 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3B4088E0107; Wed,  6 Feb 2019 17:48:25 -0500 (EST)
+	id 835DF8E0008; Wed,  6 Feb 2019 18:10:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E54B38E0103
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 17:48:24 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id v16so3038127plo.17
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 14:48:24 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 422088E0007
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 18:10:23 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id b7so5700085pge.17
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 15:10:23 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=6oeYaHpL97KRHrw/SUIRK15B/EH29MQg6WqKzUHlWuw=;
-        b=bDXqmwwbM7fm5xfEi3Rip8YEQUIye0OOHcekr2fM53UEWBxug6AyJlJCism/xZIWH4
-         uObKTCvO04Dk86oK9woMFJKuTVL8NDMC0FS1XkwsoxvP5VvCyojYO5lp6vXGw08XKqjY
-         l29QP4aV6lmTIjKRqYYKn36uoMzAo/aKCQw/+rUW8kDsjqUaRvlDgX/KYa7imjLBnG77
-         4zH2OFFkSOfEoN/pv0A/7Ih/apqBSi5H7F/bK7dMmINITSJQkmjhQbOSNLH+7ZuIpngT
-         wtV5156atHek982bnDAfOMeZt0xPyXW8kaE+2oZRiw4y45s90+xrPOY3TLgfc9pvMTsZ
-         ARbA==
-X-Gm-Message-State: AHQUAuYIjfhBPvExvqFJgKxx72oAA2+E7ZuRIwZBYGdRwTeCrwY3sWkD
-	qdXuN+Qo0JZhs9sy0PqgLa9Jv/oVaAZBTJLiX0jifIH8dgx3J6sugv6cFtpOU3pzfjrqr5RcIr0
-	IcbUjASCOyK26+/JwMedUR26grYcgQ/EdcpprCLDJufuKpnK9DHUo78SPDGmP5x16YA==
-X-Received: by 2002:aa7:808a:: with SMTP id v10mr754731pff.8.1549493304563;
-        Wed, 06 Feb 2019 14:48:24 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IafeWxJCDGDV5cppBOwFV49SghtSTYU91MS7GC/OaDdgRtIcdJpX5VMYz2UjtJ+ItJNW1DX
-X-Received: by 2002:aa7:808a:: with SMTP id v10mr754704pff.8.1549493303973;
-        Wed, 06 Feb 2019 14:48:23 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549493303; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=IW5+9eoUK0l9YrjE71fI7riUMWj4UeJsluIuFcwuFT0=;
+        b=pKMAF9VaIEBgMysdCY1Hfg4o7pNYEHZIpcmdpkXeDyxd7Ep8/ZNroOV4i0qE3MCMTZ
+         qjNMKqpc+ksoKhOHWXMGyP6e80VQrJPd7GlmwiCuiD5yBpL+JaTfU2grdyHgziHewBlA
+         aDHtagt7ZrqJ/GVP606VZR851xi1LUQRFmc73ZseBNzzTtKVAricipD3/cWo4V7EI2Fa
+         f3mxko4iRDn8Lt308JxCb6aCvjKHNSSYcFpI4ccZVKwD7Si1fY+wpQMTibxVIoeEa9n2
+         zQmXvhLJRb4ohy+MSYpepe/ENXYgYmmLcxAh/7+YfezvkiaO3KZdVeBsfw+PnF0I6YKv
+         O3Vg==
+X-Gm-Message-State: AHQUAua+FDhCMPOUzRByE7z5RMlIu+I9uc55x5k5gJ2dr7dW+1Zk8vTZ
+	69fwr44GYHifzJyc6HhvtfJZTnMzGs2ycCHgsrkEa24WkjGauWj+rCtylaA4tjJIhyZwa9YXeDD
+	a0YkEeatwg1+UXyUC/TuZHa0cntUTt8mn/jJyse4e4hT41bBYZ1rppAUwVSDENHbxQXiCEeDMR4
+	/BzoI+Fk6SNyyFj9CGmfVlzp7nOX+nJmJJv+eMGXZx4SrQpE5WTqgTFFhZDzC16hZqB/Vl0nBvj
+	Gp12YvNRoTGRh9Mw6XplNk5G5VyamJvUo02o0ArQ3YPVCM6P7G59G73bEDBm7boCpfeIkKSknE7
+	oWDPxVCyGiGTeaJhj6NuFOQgoSHTbjU3bjAYmjFbY50Dg1gftd2ahzx7D13GqAU5VLXy+zGHqrT
+	O
+X-Received: by 2002:aa7:8608:: with SMTP id p8mr13187228pfn.125.1549494622804;
+        Wed, 06 Feb 2019 15:10:22 -0800 (PST)
+X-Received: by 2002:aa7:8608:: with SMTP id p8mr13187166pfn.125.1549494621945;
+        Wed, 06 Feb 2019 15:10:21 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549494621; cv=none;
         d=google.com; s=arc-20160816;
-        b=jgT7KlU1nk2E0iRFU/FmChlDYWS0wMCkxUZHczUuRwFS1p32kbDE/4yrYm3YVRsPIi
-         dZR7a/YeYVeTfpWKq4chGRtzAIG7MmoqYCskSzzmpZGfVD81T8YdcFLe/8vG6mc1qjMu
-         DfeAIYXi/9Krws0AKXz52aB6cwR5RRvIRUy4qU6jLJ+DZn0cDNqpG/IhhBsbSjebTg7+
-         rFD+7JAPwgNWSh6yrcdTnaT2Mrkq47nKXw5lV/TEIA4Gzq/x2CaRixyh3Ng5n/ie136i
-         Zn5xwyTyHe2MkS+Ctz708bP8aG6yV3EG2zUjvaPPxf1lcSVxH1T0oJCG93JXWD2laRFR
-         vlbw==
+        b=WwDeJTDj+UMRZeixzbjP5RT7Pnm9/a29XI6piv5Fu6cqNdRuyJqTjJvMlGX+ak9Kdm
+         2E6SO0dI6AMHIEPyH1Hyk3rhRq1jzJ1+0wFGZd6hhmPWUZuj8oftK1nQaZ/rVw6rogFr
+         kTSVlbU2SH3hPc7bF7db13X6/aTgJB9kItCBMfvUmXJ6wkYHCus4lJNtXUsqVc2PBtMh
+         xSdDr9BdpNPr0az3lYSU78Jajm7zVHz5mEs8Fe0GUC+1h/BB//uAhMhgf7WenhOvKy94
+         ULCcnRMxmFTyCfB2DkBOry3cc+QdenHrf1r4n4L8cpmCo444vHoIBR0mqerqOl2Kyc1F
+         xY3g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=6oeYaHpL97KRHrw/SUIRK15B/EH29MQg6WqKzUHlWuw=;
-        b=Kysl5jtGicchP1+ObWn8Hq0KNvMAh5dlQXjagJVfmJlN6ARevmUh1IxatvJz7mqPz+
-         CoRVH88kSYY7YcohRJUwm2a+yuuh++tJuQMrwtuZ5pcEg67hcekz+hqTYPJINozEXvVU
-         1Ue1hLGJA+YWaxbKycx8uSJvaS3DwT/1sM0RlW+qGM3nurYdfp48jzjtudcU1Cx7I814
-         Ni3/HVfZ17FncVDi9hRHNTysFhMcWDwVFFPwq1mV8TPp7hq223H1SHou6yxTn+OMAC3m
-         e9V5eOc4UI3HWo7vhs3vANunx4YiCiHI6ef3t6w3Gf3k1Gjm8K0iYyUt4zVxik9UXxsA
-         dwGg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=IW5+9eoUK0l9YrjE71fI7riUMWj4UeJsluIuFcwuFT0=;
+        b=QvVgqxy3HRiXiKiBprIQr3ucPsru1Qo+xMR8ikOoQpTxQWXDJmUZFisi1uyu2Igc3n
+         CfHxl+a7tRrsmqDk+E7vbzErQbQMjW6ihqN/Tm4ZznscV1vKjSU4qHDgFv6jsyjboHYT
+         y8CX9NxhZnqihzi49d8WK68ZuChi6QNqCIvjwZdWYSH2Yiws+yLVfL5XY86WDvyFWqS6
+         +h1Ahc986MulI0ka5XYf9Jdwq7pPvGkIepe2YJROBudm5sZFonukP5crIzdClW//5tJA
+         4E7hf79UMRf/OO/RsEQVAxO6Dm1dXtgovgsOi7rpNJsOpFJjs9UJ4b90Z8NoE7NkJ/ow
+         btwQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Z6Q+q2TG;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id z69si6386293pgz.152.2019.02.06.14.48.23
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BJmCqB+F;
+       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n11sor11337168pgp.31.2019.02.06.15.10.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Feb 2019 14:48:23 -0800 (PST)
-Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        (Google Transport Security);
+        Wed, 06 Feb 2019 15:10:21 -0800 (PST)
+Received-SPF: pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Z6Q+q2TG;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x16Mi9CI051603;
-	Wed, 6 Feb 2019 22:48:19 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=6oeYaHpL97KRHrw/SUIRK15B/EH29MQg6WqKzUHlWuw=;
- b=Z6Q+q2TG9uLsn4fm3bdpD2BJ0wxKL25DCd6F9R8YnZfsv9r8XvUHjOsaDu/de1jJ/810
- xUDlzTfXc2sOMfXb68i5VMjIVzd+lbX0QXDq/sHdyuQ2neP6nWc1EaYrK+O5mCgse4wF
- r20FKNGRqQgc60l2mAaIsg6dDCVtGI2ruR5YuHoLyaD1wI8Ooh3iSf+VTPVU4gseVzU8
- R+3Yp9OYFS/ma+blxT6y6mBE2Ntqh6GK8+fmOCIzeW5nUoRax3Z50NfssDoIWZ54zfK8
- 8S+2IvWi2XwCxs/5vl7Tps9ICRRbUmOcnEe4zZZYUYssdWfeFSlzevC7ejapvmqpIsZj pQ== 
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2130.oracle.com with ESMTP id 2qd9arkwbx-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 06 Feb 2019 22:48:19 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x16MmCFC013237
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 6 Feb 2019 22:48:12 GMT
-Received: from abhmp0007.oracle.com (abhmp0007.oracle.com [141.146.116.13])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x16MmAMu019058;
-	Wed, 6 Feb 2019 22:48:11 GMT
-Received: from [192.168.0.110] (/73.243.10.6)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 06 Feb 2019 14:48:10 -0800
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.2\))
-Subject: Re: [PATCH v2 0/3] slub: Do trivial comments fixes
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20190205040521.GB30744@eros.localdomain>
-Date: Wed, 6 Feb 2019 15:48:09 -0700
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BJmCqB+F;
+       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=IW5+9eoUK0l9YrjE71fI7riUMWj4UeJsluIuFcwuFT0=;
+        b=BJmCqB+FYNHvoRex8qr4dbAfs5Mf0252hHcfg/OZAboQRNYqmaW7kfkPRwO3dDHRUy
+         qF6oEwFeZ5N4GqAKAdY/AmJgMORRj7G4fqYt0V8lAdcOoVofv7Etr+kcHEJmI5Z6p+wD
+         0/YTA9ALzW1uaQJQoqUrWR613rH1V+AAV0tadVlh0pz866EFwtAVuI8AwCPuWsRodRdf
+         jqkKffwVfPkbN2isTC3ogHDmF8vXsFIRIf8x8oLd4N25YGEalo/7eya4R8/LjPcIVSjC
+         lcUL4HitdvQHD9cLYhQfBX5gMyFUIlGwDRPdWY4+6x1lUx5uKJw/Txt2i0FY2k5zwupa
+         vYsw==
+X-Google-Smtp-Source: AHgI3IYugb1cc5BuZx8B30vi/3nzgkFWUW7+hff/o66VImrH+fVFZjDNajITNe9J1IRLJe54p7x8CQ==
+X-Received: by 2002:a63:7c41:: with SMTP id l1mr11843148pgn.45.1549494621594;
+        Wed, 06 Feb 2019 15:10:21 -0800 (PST)
+Received: from blueforge.nvidia.com (searspoint.nvidia.com. [216.228.112.21])
+        by smtp.gmail.com with ESMTPSA id 4sm10254880pfq.10.2019.02.06.15.10.20
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Feb 2019 15:10:20 -0800 (PST)
+From: john.hubbard@gmail.com
+X-Google-Original-From: jhubbard@nvidia.com
+To: Nick Piggin <npiggin@suse.de>,
+	linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>,
-        "Tobin C. Harding" <tobin@kernel.org>,
-        Pekka Enberg <penberg@kernel.org>,
-        David Rientjes <rientjes@google.com>,
-        Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-        Christopher Lameter <cl@linux.com>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org
-Content-Transfer-Encoding: 7bit
-Message-Id: <70B0A145-EAED-40A1-9C3C-2792EC3A5C24@oracle.com>
-References: <20190204005713.9463-1-tobin@kernel.org>
- <20190204150410.f6975adaddfeb638c9f21580@linux-foundation.org>
- <20190205040521.GB30744@eros.localdomain>
-To: "Tobin C. Harding" <me@tobin.cc>
-X-Mailer: Apple Mail (2.3445.104.2)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9159 signatures=668682
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=632 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902060170
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Dave Kleikamp <shaggy@linux.vnet.ibm.com>,
+	Hugh Dickins <hughd@google.com>,
+	Jeff Layton <jlayton@kernel.org>,
+	Matthew Wilcox <willy@infradead.org>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	LKML <linux-kernel@vger.kernel.org>,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: [PATCH 1/1] mm: page_cache_add_speculative(): refactor out some code duplication
+Date: Wed,  6 Feb 2019 15:10:16 -0800
+Message-Id: <20190206231016.22734-2-jhubbard@nvidia.com>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190206231016.22734-1-jhubbard@nvidia.com>
+References: <20190206231016.22734-1-jhubbard@nvidia.com>
+MIME-Version: 1.0
+X-NVConfidentiality: public
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+From: John Hubbard <jhubbard@nvidia.com>
 
-If you need it:
+This combines the common elements of these routines:
 
-Reviewed-by: William Kucharski <william.kucharski@oracle.com>
+    page_cache_get_speculative()
+    page_cache_add_speculative()
+
+This was anticipated by the original author, as shown by the comment
+in commit ce0ad7f095258 ("powerpc/mm: Lockless get_user_pages_fast()
+for 64-bit (v3)"):
+
+    "Same as above, but add instead of inc (could just be merged)"
+
+There is no intention to introduce any behavioral change, but there is a
+small risk of that, due to slightly differing ways of expressing the
+TINY_RCU and related configurations.
+
+This also removes the VM_BUG_ON(in_interrupt()) that was in
+page_cache_add_speculative(), but not in page_cache_get_speculative(). This
+provides slightly less detection of such bugs, but it given that it was
+only there on the "add" path anyway, we can likely do without it just fine.
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Dave Kleikamp <shaggy@linux.vnet.ibm.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Jeff Layton <jlayton@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Nick Piggin <npiggin@suse.de>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+---
+ include/linux/pagemap.h | 31 +++++++++----------------------
+ 1 file changed, 9 insertions(+), 22 deletions(-)
+
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index e2d7039af6a3..b477a70cc2e4 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -164,7 +164,7 @@ void release_pages(struct page **pages, int nr);
+  * will find the page or it will not. Likewise, the old find_get_page could run
+  * either before the insertion or afterwards, depending on timing.
+  */
+-static inline int page_cache_get_speculative(struct page *page)
++static inline int __page_cache_add_speculative(struct page *page, int count)
+ {
+ #ifdef CONFIG_TINY_RCU
+ # ifdef CONFIG_PREEMPT_COUNT
+@@ -180,10 +180,10 @@ static inline int page_cache_get_speculative(struct page *page)
+ 	 * SMP requires.
+ 	 */
+ 	VM_BUG_ON_PAGE(page_count(page) == 0, page);
+-	page_ref_inc(page);
++	page_ref_add(page, count);
+ 
+ #else
+-	if (unlikely(!get_page_unless_zero(page))) {
++	if (unlikely(!page_ref_add_unless(page, count, 0))) {
+ 		/*
+ 		 * Either the page has been freed, or will be freed.
+ 		 * In either case, retry here and the caller should
+@@ -197,27 +197,14 @@ static inline int page_cache_get_speculative(struct page *page)
+ 	return 1;
+ }
+ 
+-/*
+- * Same as above, but add instead of inc (could just be merged)
+- */
+-static inline int page_cache_add_speculative(struct page *page, int count)
++static inline int page_cache_get_speculative(struct page *page)
+ {
+-	VM_BUG_ON(in_interrupt());
+-
+-#if !defined(CONFIG_SMP) && defined(CONFIG_TREE_RCU)
+-# ifdef CONFIG_PREEMPT_COUNT
+-	VM_BUG_ON(!in_atomic() && !irqs_disabled());
+-# endif
+-	VM_BUG_ON_PAGE(page_count(page) == 0, page);
+-	page_ref_add(page, count);
+-
+-#else
+-	if (unlikely(!page_ref_add_unless(page, count, 0)))
+-		return 0;
+-#endif
+-	VM_BUG_ON_PAGE(PageCompound(page) && page != compound_head(page), page);
++	return __page_cache_add_speculative(page, 1);
++}
+ 
+-	return 1;
++static inline int page_cache_add_speculative(struct page *page, int count)
++{
++	return __page_cache_add_speculative(page, count);
+ }
+ 
+ #ifdef CONFIG_NUMA
+-- 
+2.20.1
 
