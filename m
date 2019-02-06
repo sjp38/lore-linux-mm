@@ -5,137 +5,152 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F759C169C4
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:41:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1FF38C282CC
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:52:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 173CC218C3
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:41:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 173CC218C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=goodmis.org
+	by mail.kernel.org (Postfix) with ESMTP id DDF61217F9
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:52:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DDF61217F9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BCC8B8E00DD; Wed,  6 Feb 2019 12:41:14 -0500 (EST)
+	id 86A208E00D9; Wed,  6 Feb 2019 12:52:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B7C218E00D9; Wed,  6 Feb 2019 12:41:14 -0500 (EST)
+	id 7F1C38E00D1; Wed,  6 Feb 2019 12:52:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A92388E00DD; Wed,  6 Feb 2019 12:41:14 -0500 (EST)
+	id 694408E00D9; Wed,  6 Feb 2019 12:52:05 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6879D8E00D9
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 12:41:14 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id o7so5709341pfi.23
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 09:41:14 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 396FB8E00D1
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 12:52:05 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id b187so7147845qkf.3
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 09:52:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=z9XFeucax8xYFihnspCDvcXkCu2137EDgTjxZuGxip8=;
-        b=naXaawaJwaOG5aiA+oUcxDxTN09JMz7bbRT6EzkEQJ8aoaR0OGH0deSxAFgz5oavxa
-         qODY6pnxdeYL2W54PQFqJlUSbZUMjQGCNV5yjLS4x2DPclLlCSejQmy7jJSDyHYfQOAX
-         u7OUdsr1ofw5RRAGD3UyLUk2baBfznAwejPBti9AdhSg01PnVR0/ZMfrE19yXGf4ayQU
-         RkL71QErblTBf7DAlT4vbxmrdn0pbeuEUgoUdNbpCv+tJjhcd3AXl/zmv2uei2LVWFjW
-         gslmVRLq8ZjOUE6z8IsmCW0vtTcZug5+ZsgBn0irN+NXWj5Xih64Fa2xFr3B1u6pmhat
-         sArQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of srs0=f26y=qn=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=f26Y=QN=goodmis.org=rostedt@kernel.org"
-X-Gm-Message-State: AHQUAuYnx2+LQSeG/rBdM0UxaOMGsBJhEoUGW7Em7qYxgzTj4iZnGzi1
-	xzccAMOsnSfGe16mmZhkkonUbALkEzuIdYH1DHsvl4qc5Zh1X+aZDseeyGQAgEq9P0VkEFhaghx
-	w1x4n8o/wA/C9mSKw4XUo0NDBxpms0ZIlx0SgW90ehLyVG3ZFlJMdhjLmgeVrJLo=
-X-Received: by 2002:a63:e74b:: with SMTP id j11mr10645047pgk.397.1549474874077;
-        Wed, 06 Feb 2019 09:41:14 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IazNhQGGeqA4hy/KbHOgkw/ujZoAuogylz3tq/FCuUMLqA4T2BA8d/lh43LZKqQSRFwiVaD
-X-Received: by 2002:a63:e74b:: with SMTP id j11mr10645000pgk.397.1549474873396;
-        Wed, 06 Feb 2019 09:41:13 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549474873; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=7/P7mL00Gsglud9/osHxxnh+h3PbbceXpT84a+hjR8M=;
+        b=tDUUxaqZsPlZe6eajAXbYv5B8F9iGikOL8wUOfIgaMpxgiMR+tsWPpbzEfeA9osBIx
+         35sQF7gVssGuaWsbT2ynaWHIpAeKWncTd4tlKAVOXY/lijbLmESy3LV42co0G+3HCwpa
+         YYqurkFPzouTrAw1UFV6/xTU6C08WHYXM/qtATeuTyhkwkqahOGyc+C7UvSZLTZ3wCZX
+         gdoLd4irbNorpc7NVoNUUuuIptoxAKH7h6ShrX5MR1sEFCLLMxQbeAIV7JX4efwIPzn8
+         fJVjTyb4kIAYpR2lyxZvIOcNcvWMo3mDCxB84drQW68BbQsviB1eN9PGdQiEHRlnOcMn
+         43tg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAuZDGqBJ68TA9YUl1PzjPLFYFj5D5r6r6j29gTwgAn1y9wMmlRdR
+	AAy+2imFOf+CutdIuNAWtIML4oxRwXYVjW07a7ulKsD3d0NDbO5InrO4bG0iVD5v7WaMP6pPbWf
+	K+gXVIWgfMztRw+sXgAoBXcAhTtxJwV6eRpdbZmSSA1H8gp+cok9HcLKnPHcbH3B7yA==
+X-Received: by 2002:ac8:6053:: with SMTP id k19mr4786750qtm.339.1549475524848;
+        Wed, 06 Feb 2019 09:52:04 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ibxf+CHnfMqWz23R+kc7V/UuoZiUEShlusuJvesFZWlnFb8/6vvsFqCIZacN69R0W22oIC5
+X-Received: by 2002:ac8:6053:: with SMTP id k19mr4786725qtm.339.1549475524269;
+        Wed, 06 Feb 2019 09:52:04 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549475524; cv=none;
         d=google.com; s=arc-20160816;
-        b=pr51sxblQj/kC7mQHxxs4huZFUaPzZMEwtB16USZqZZbuIAHtqCtE/RLVJCzWAcliD
-         l71VDLzoW10r2LWaXlALdFt7xNkvvumlr5hLM6Dhh67dY62qx1+a+qopF7wxBScCloVu
-         nQ7xvTs5BWdwe0D6vw/pwaxvJS8F4/vpE7qZQdrzdeFActQZLgrEBL27zrwJCmI8RV0d
-         yD4S3C6OWdBjHKts8v3yPKJ+exzsvwUwS7rgrbaOl7wPIKCBfesigEBHohOHYQAIpXxv
-         ObEAe9J6VyyE60U2m4ZBYqJi8vUaAHe2BIseGpa8kPOP5w7TdR35FJDUvjvZQYJwNiUD
-         2h2Q==
+        b=vPs3lcK3RHZrqYIDiPgUKDauHLoUlUoW5f/wQZxJd0MYS+ELnu1DWPb6bUoAYrkHK8
+         TqGohLhbAycJ9bqOYxk7oBUklr/2MqfJ37bTxlfiUtsoSYxxe7XKTB8jkOCP8VvvIlMA
+         FbzI46kvT5RPSFpnDgk67UbgqMTbt1zmIh/8hjkuZQ717oQnsfVSVSRakrf0WLmGLq5I
+         u7mYUOKzQ2YqNQBFJcsMV66NHSE9mmA5XkUCnvDD1tX4bUL+LGSHl9vo+t4Y5eygVItD
+         4XciKgeq1FWxvK2v8fSWNRw6vyekJblQUKIzf5HkdppdGLxl78r3qTqNLNLdQyzhs4Nl
+         Pf4Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=z9XFeucax8xYFihnspCDvcXkCu2137EDgTjxZuGxip8=;
-        b=T1etrHdbE2pjilogc/kycYEhtjwgi7OO7kZe3CtxYDNKcZNBKpr9g9pGTQR0cOqGO5
-         bZoKovNZiaMU3mI3WPuAmNAU8uaC3dx8xYoy8k+QoCKqL7OFQkZiGuVNVFO+ObQ5zefm
-         WJeJKWWW5DeZygPpSs16vj5Jv2Jw42R38JfOH+2txP/j46SnJoNxprMSZwbo/pNcvtpf
-         UNNZSvLKokE5g6MO/XGvqRSiDx+CPPdhl8XrjOoRN2UXscQypHxJlB+hsd3wY0dkhP8m
-         RVz+MbEIibZ8YqEwwq4PIN8kq2sVdtm/Z09c9AOaER7ZqylsT75gjNL2v4AYVB0Y31is
-         HIGA==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=7/P7mL00Gsglud9/osHxxnh+h3PbbceXpT84a+hjR8M=;
+        b=dxEooiaK4UwRUtJmtFGmEuZTZEaNerSeyrAkJoBR+3xMNIfb5nqYEThSxwdCynY9fq
+         fi+ZUy9cL4F4vCh/u8H0QzwpQplRTWte6nj98NbdAkyu1JnXt+Y41IliggliLe+gFb1q
+         bC5++zRr5aljZ62kOqnuBLwTirh5/lgCWqcZhl1keoZ1DVIyUYX17iBsgIm23s78lkIq
+         FFEV9Wo4EmJ7tTLG8f189n5tOyii6pOnqfWdpKtVBy/vyLr7lx9oyhTwlG096jOduhi8
+         Aao6kPIj26q0cZWHmv9jPbLmgjKI2O2bSvUVzZffDu+x9WSM8k5q8xHqpZmJs+EQ+xdt
+         tzjw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of srs0=f26y=qn=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=f26Y=QN=goodmis.org=rostedt@kernel.org"
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id w83si6592015pfk.125.2019.02.06.09.41.13
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z54si84443qth.152.2019.02.06.09.52.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Feb 2019 09:41:13 -0800 (PST)
-Received-SPF: pass (google.com: domain of srs0=f26y=qn=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Wed, 06 Feb 2019 09:52:04 -0800 (PST)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of srs0=f26y=qn=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=f26Y=QN=goodmis.org=rostedt@kernel.org"
-Received: from gandalf.local.home (cpe-66-24-58-225.stny.res.rr.com [66.24.58.225])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 4175C20B1F;
-	Wed,  6 Feb 2019 17:41:11 +0000 (UTC)
-Date: Wed, 6 Feb 2019 12:41:08 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-To: Nadav Amit <nadav.amit@gmail.com>
-Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>, Andy Lutomirski
- <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, LKML
- <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "H. Peter Anvin"
- <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov
- <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra
- <peterz@infradead.org>, Damian Tometzki <linux_dti@icloud.com>,
- linux-integrity <linux-integrity@vger.kernel.org>, LSM List
- <linux-security-module@vger.kernel.org>, Andrew Morton
- <akpm@linux-foundation.org>, Kernel Hardening
- <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, Will
- Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Kristen Carlson Accardi <kristen@linux.intel.com>, deneen.t.dock@intel.com
-Subject: Re: [PATCH 08/17] x86/ftrace: set trampoline pages as executable
-Message-ID: <20190206124108.07eef568@gandalf.local.home>
-In-Reply-To: <5DFA1E3C-A335-4C4B-A86F-904A6CF6D871@gmail.com>
-References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
-	<20190117003259.23141-9-rick.p.edgecombe@intel.com>
-	<20190206112213.2ec9dd5c@gandalf.local.home>
-	<5DFA1E3C-A335-4C4B-A86F-904A6CF6D871@gmail.com>
-X-Mailer: Claws Mail 3.16.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+	by mx1.redhat.com (Postfix) with ESMTPS id 5D6C1C01DE1B;
+	Wed,  6 Feb 2019 17:52:03 +0000 (UTC)
+Received: from redhat.com (ovpn-122-237.rdu2.redhat.com [10.10.122.237])
+	by smtp.corp.redhat.com (Postfix) with SMTP id A4D0D1048128;
+	Wed,  6 Feb 2019 17:52:00 +0000 (UTC)
+Date: Wed, 6 Feb 2019 12:52:00 -0500
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Nadav Amit <namit@vmware.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Arnd Bergmann <arnd@arndb.de>, linux-kernel@vger.kernel.org,
+	Julien Freche <jfreche@vmware.com>,
+	Jason Wang <jasowang@redhat.com>, linux-mm@kvack.org,
+	virtualization@lists.linux-foundation.org
+Subject: Re: [PATCH 0/6] vmw_balloon: 64-bit limit support, compaction,
+ shrinker
+Message-ID: <20190206124926-mutt-send-email-mst@kernel.org>
+References: <20190206051336.2425-1-namit@vmware.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190206051336.2425-1-namit@vmware.com>
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Wed, 06 Feb 2019 17:52:03 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Feb 2019 09:33:35 -0800
-Nadav Amit <nadav.amit@gmail.com> wrote:
-
-
-> >> 	/* Copy ftrace_caller onto the trampoline memory */
-> >> 	ret = probe_kernel_read(trampoline, (void *)start_offset, size);
-> >> @@ -818,6 +820,13 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
-> >> 	/* ALLOC_TRAMP flags lets us know we created it */
-> >> 	ops->flags |= FTRACE_OPS_FL_ALLOC_TRAMP;
-> >> 
-> >> +	/*
-> >> +	 * Module allocation needs to be completed by making the page
-> >> +	 * executable. The page is still writable, which is a security hazard,
-> >> +	 * but anyhow ftrace breaks W^X completely.
-> >> +	 */  
-> > 
-> > Perhaps we should set the page to non writable after the page is
-> > updated? And set it to writable only when we need to update it.  
+On Tue, Feb 05, 2019 at 09:13:30PM -0800, Nadav Amit wrote:
+> Various enhancements for VMware balloon, some of which are remainder
+> from a previous patch-set.
 > 
-> You remember that I sent you a patch that changed all these writes into
-> text_poke() and you said that I should defer it until this series is merged?
+> Patch 1: Aumps the version number, following recent changes
+> Patch 2: Adds support for 64-bit memory limit
+> Patches 3-4: Support for compaction
+> Patch 5: Support for memory shrinker - disabled by default
+> Patch 6: Split refused pages to improve performance
 > 
+> Since the 3rd patch requires Michael Tsirkin ack, which has not arrived
+> in the last couple of times the patch was sent, please consider applying
+> patches 1-2 for 5.1.
+> 
+> Cc: "Michael S. Tsirkin" <mst@redhat.com>
+> Cc: Jason Wang <jasowang@redhat.com>
+> Cc: linux-mm@kvack.org
+> Cc: virtualization@lists.linux-foundation.org
 
-And I notice that it is set to RO after this call anyway.
 
--- Steve
+I don't seem to have got anything except patch 0 either directly
+or through virtualization@lists.linux-foundation.org
+Could you bounce the relevant patches there?
+
+Thanks!
+
+> Nadav Amit (5):
+>   vmw_balloon: bump version number
+>   mm/balloon_compaction: list interfaces
+>   vmw_balloon: compaction support
+>   vmw_balloon: add memory shrinker
+>   vmw_balloon: split refused pages
+> 
+> Xavier Deguillard (1):
+>   vmw_balloon: support 64-bit memory limit
+> 
+>  drivers/misc/Kconfig               |   1 +
+>  drivers/misc/vmw_balloon.c         | 511 ++++++++++++++++++++++++++---
+>  include/linux/balloon_compaction.h |   4 +
+>  mm/balloon_compaction.c            | 139 +++++---
+>  4 files changed, 566 insertions(+), 89 deletions(-)
+> 
+> -- 
+> 2.17.1
 
