@@ -2,177 +2,432 @@ Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3F3B1C169C4
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:23:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 55038C282C2
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:24:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D1AB72175B
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:23:48 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=nxp.com header.i=@nxp.com header.b="OAYpjFnO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1AB72175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nxp.com
+	by mail.kernel.org (Postfix) with ESMTP id 0D53C2073D
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 12:24:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D53C2073D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6C41C8E00B6; Wed,  6 Feb 2019 07:23:48 -0500 (EST)
+	id B30468E00B9; Wed,  6 Feb 2019 07:24:56 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 699578E00AA; Wed,  6 Feb 2019 07:23:48 -0500 (EST)
+	id B073E8E00AA; Wed,  6 Feb 2019 07:24:56 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 589B18E00B6; Wed,  6 Feb 2019 07:23:48 -0500 (EST)
+	id 9F4FB8E00B9; Wed,  6 Feb 2019 07:24:56 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 010A98E00AA
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 07:23:47 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id v4so2682731edm.18
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 04:23:47 -0800 (PST)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E2698E00AA
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 07:24:56 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id z22so5831594oto.11
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 04:24:56 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:subject:thread-topic
-         :thread-index:date:message-id:accept-language:content-language
-         :content-transfer-encoding:mime-version;
-        bh=faxl/KezfUlP0iYen5kcYslR6D1Jt/hhhdjyT20wRzU=;
-        b=Qqd18itMlLlCxD1lw6cszvb6gA3ZdPcK5Ko8f4a15/3XXJ9zkMq2xTpq2SBzRWTtEw
-         bws43zbIFIoeh9hj+tRaOWINIAanx0nPNgOEwZixvLGjMQcF9/jCCqBsOs2tEBPK7y49
-         yhr4w7zVmKCokhEFKdv2xCZdhrpzkjh9hMH6IUS8XWdvphPDxqCwGUioLeGCP0ULppgL
-         JoIcgIOG7Kd3QG7JM+wArwcfRKu547vcZu3UHZwP9S/fVLjHMFii5/Qny/VZu0OGOGMI
-         SypnLAglexcEdewPpjdN7H+WLqSAMcp7wGLiBjyXMMtXARwzE6gEA2H6cYRpwPGg7Jw3
-         v8MA==
-X-Gm-Message-State: AHQUAuZ/Q7xAEn9/ANFR0HFCH+8tVM1iIdCovCBJf1GiXNOurAT3IHJZ
-	3y47CtAQqFELcdGeh3eGDFkWltuu0LF7gISa/dK9Zz+SrgN7pm3mv4yW+gPKRDn05NGyDF9lQIn
-	eJAb/tjkvCK09jlEr7alnmszT/AQvVMb+j3IQhDDTQWn3zKn28BYjLzutbYg0IpqIVg==
-X-Received: by 2002:a17:906:1d16:: with SMTP id n22mr7377053ejh.195.1549455827342;
-        Wed, 06 Feb 2019 04:23:47 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IY314+BWMwaseiBscHKP3wmV13SLNrOvRl3Wscu46r1b4+P0KWd53hJEftCw8szXg2Kc/Ew
-X-Received: by 2002:a17:906:1d16:: with SMTP id n22mr7376973ejh.195.1549455825980;
-        Wed, 06 Feb 2019 04:23:45 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549455825; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=Ojj961/53Bcfzm76vFJhYKHHstUcsi9q5IQAvgnDjkw=;
+        b=Wy2kOVOvZKzjHOU6ZDGlPQ0JU3aJ5b16SChCKyJAHS40HBaMyUYPWp9/Lzs421izXW
+         /6n1NUbelbluoqIXwgarKH7opNmxtcj+QhjHTjhxa/NH08Wk1+gbRLwhQ7qX4mBtOfin
+         f3bVELj3NFL8n82e6o74PpNvJiN5IqV2P1eIpd468amAH2JyoPby0rA9oZEBXbROeNJ9
+         RaU8zS/bw+ErzEkfABzX+/gFW0iX0SKrHA1J2uuTlHHdYJXt2h5ALWVncTiXAnvbUgJ4
+         FZCeK4dc7tHnLKGkQgDAo3cLQYbAoNqIt5/5tN7dCmV/rLWgK38Gtw1F21jMfG/YQL9B
+         n1Mg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+X-Gm-Message-State: AHQUAuaB+XryP4QN551cvHe+UR+rVIeU6DBkxLP0moqPlxeAxUxQ/KEK
+	srKgfgA9H67iZakr9aK6WXgmL1OHAZ1tNuJZUNj+rpa+pKDzIj3i/2R+llcY+Nd3I9UulPcOl5A
+	MelbTb60cEi0g+2k5hoNS40l3CrqosXKABa4b0chFQ5bhdU8HpzraEUJoIT7lcyBorQ==
+X-Received: by 2002:a9d:6b11:: with SMTP id g17mr5426611otp.70.1549455896183;
+        Wed, 06 Feb 2019 04:24:56 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZESwi6CwaIMETgL8XPRAFqe+Ns66bbT+ANtgGe+IFyuzeuH+2JOQOH+OA5a6HJU/pXpgGf
+X-Received: by 2002:a9d:6b11:: with SMTP id g17mr5426562otp.70.1549455894862;
+        Wed, 06 Feb 2019 04:24:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549455894; cv=none;
         d=google.com; s=arc-20160816;
-        b=IOkNXhV1PqcXUzvKwLHTY6f0bCywqfY1WBxrcgUoEcV6bnmtV4GpYlNJ8Xd+VqBHXA
-         M2Ns9ajxbLKpF6kfeW34bzCcrvhhOV2w14Sj1jcbwoqLa5eZsyxW6YJhJhjAPSYIrkw0
-         U4TGSi3ilkPmz1eEiAaJfAjLmri//J/F7ZMJQOKIG1ur26jI9Ukf9EHm5edV2C5lerMo
-         FplprsjPmr6mRrj0eoCIlw+ax3LCykQ1xUgzzX7j3d8XQxCJVVLlxGbef8ODt/QApdj2
-         iG7RjIek2aWDx/6nHTlRS80BVpw3PJgZkgibaybEPB5VPpZwXKcHiFGLPihNhnW/1nZC
-         jQMw==
+        b=Tec2xCV4stL721ipVpPjsEXkkjYP8pCJHBga8ZOI1bvWygAuVWwkApOYfhsO4ha5C/
+         KxspuBXpuNHCyydFMTF3muax7NX046qbzxA9bUnhXxg1qyxQDwOWOYJYzQdRjbQ5alKF
+         0OemfY1ph9+vUghb12leJ4r4PfOmn57S2BHNEVdEz15XcMRoz9lKm8K8HCcA1FhJLWbQ
+         rzW7ravRZBKDAgjrQ3Ueh32TjUqX5CMqiQwHPac1ghgecTHWFrTG6D/k+xdrgw9yZNzE
+         8be84l5a4XP9MzYSm0RlLxyq39/kSDPFZnQlJi3kAc+dmb7J6deSZiW0Ip8euggwjaVR
+         Z+hw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:message-id:date:thread-index:thread-topic:subject
-         :to:from:dkim-signature;
-        bh=faxl/KezfUlP0iYen5kcYslR6D1Jt/hhhdjyT20wRzU=;
-        b=YtG0ce6zprttrh4LMcgKYB5EEb2uEUfRnG4M33h6/S9n1cXQteAR1kVBbI110FwLlY
-         7ys3rIhs+bxjVOX+TCbZ0LEXX4A80zEomrbrH1Chx5bETS5ycDwrCE4OXymAsLsUDJwR
-         vw+/xzLKEWOl6UFu5ixEbp7uyuU29vurg/1YwhZGskk9z3d9oLJtXxJPMybXYunxM0sQ
-         5c04Cb3hfrc4jqZi0YsnzMziKhO8gmx+pM5y7LWD9G7rKqcTqlBRo/eEgzg+W1+07Sbh
-         g+88JfdLvhi1XK17KO7FVahhZ5j3wCuKI36RcdMkqtusqXlWlOtGf+uAgx4w9ywbSl4v
-         AHow==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=Ojj961/53Bcfzm76vFJhYKHHstUcsi9q5IQAvgnDjkw=;
+        b=lT9UZU11U3y0rPU7kAZtUDiwcJx12M3jgEto4fHtRAnrHZw0CrdYrhCFU4lP9f3AkU
+         kx/ADuVgIpgA8GZYQxzhhwHDnhtthHTBXtgj2HSi1ryPA5n1gp6uueAygKh5DT9vdmIM
+         GAUIfkdibEDbjVukr8zz7Dq9z7hvTjpIH9QlF2V1rpskM7b2xSI0zP2v0rNSE7FyVrcL
+         STLbEH0MnDHPlKAtRT2F4R7/a3RHQhY4S5frMUJL8d9Cs7Tg/sRmcd7dfxbA1CT3uc2h
+         99mgKhBXm+mW7DJZi2lwpQ8k09DZbh1eO6yCLf1dsmHZx1jqbS4Dfur+CR7Gdp2MPlp5
+         gwfw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nxp.com header.s=selector1 header.b=OAYpjFnO;
-       spf=pass (google.com: domain of peng.fan@nxp.com designates 40.107.2.79 as permitted sender) smtp.mailfrom=peng.fan@nxp.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20079.outbound.protection.outlook.com. [40.107.2.79])
-        by mx.google.com with ESMTPS id ck12si671048ejb.122.2019.02.06.04.23.45
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id a110si10539679otc.124.2019.02.06.04.24.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 06 Feb 2019 04:23:45 -0800 (PST)
-Received-SPF: pass (google.com: domain of peng.fan@nxp.com designates 40.107.2.79 as permitted sender) client-ip=40.107.2.79;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Feb 2019 04:24:54 -0800 (PST)
+Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nxp.com header.s=selector1 header.b=OAYpjFnO;
-       spf=pass (google.com: domain of peng.fan@nxp.com designates 40.107.2.79 as permitted sender) smtp.mailfrom=peng.fan@nxp.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nxp.com; s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=faxl/KezfUlP0iYen5kcYslR6D1Jt/hhhdjyT20wRzU=;
- b=OAYpjFnOOgbRhjTn0726RyRjdSiJTQxW9xxc40v62+csTQR7QMYX41CtGWun0qmfjhGjkYg7GS984uX9FXM5hqW+OPMORFs+PP1eOV6eQiPd3anTMBG+Z0ETJ8XmpXjp6rawAmKxXjKDWda7xCIg5k/m+KNBdv180lWBzu7Dy34=
-Received: from AM0PR04MB4481.eurprd04.prod.outlook.com (52.135.148.143) by
- AM0PR04MB5939.eurprd04.prod.outlook.com (20.178.112.13) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1580.22; Wed, 6 Feb 2019 12:23:44 +0000
-Received: from AM0PR04MB4481.eurprd04.prod.outlook.com
- ([fe80::69ce:7da3:3bcf:d903]) by AM0PR04MB4481.eurprd04.prod.outlook.com
- ([fe80::69ce:7da3:3bcf:d903%3]) with mapi id 15.20.1580.019; Wed, 6 Feb 2019
- 12:23:44 +0000
-From: Peng Fan <peng.fan@nxp.com>
-To: "dennis@kernel.org" <dennis@kernel.org>, "tj@kernel.org" <tj@kernel.org>,
-	"cl@linux.com" <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: pcpu_create_chunk in percpu-km
-Thread-Topic: pcpu_create_chunk in percpu-km
-Thread-Index: AdS+Flase9I8QatNRpiWvSscyNdChg==
-Date: Wed, 6 Feb 2019 12:23:44 +0000
-Message-ID:
- <AM0PR04MB44813C69CCAE720A47164EA8886F0@AM0PR04MB4481.eurprd04.prod.outlook.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=peng.fan@nxp.com; 
-x-originating-ip: [119.31.174.68]
-x-ms-publictraffictype: Email
-x-microsoft-exchange-diagnostics:
- 1;AM0PR04MB5939;6:XmGDrhWk3oMh4PzsiqxLDihWuIopmrY6fHVPfvtMkrxXKep6e0RqaXfgAn/uZ3iSeI89ZvYx7yLck7mJucOTfwmli3w2Z4JRW7fcUwP/8zqXGpXruxqR4cJnpNKDOAjKEFJvLYUj37McZnpyJZV/oqXdzrWdWq8ADBh/SaLG2v/bGm+iGOoaVj6Yn9jQQ+8Zyi7DeE2IiECp9o40/3GiZ7Uva3W5ZNHUz7FASDANjty5RIt53VqCKFMMFznDpKKjzHxylYHcHaagWIVPKZjosmok5JnQ6iEffSVfjdwcPEOdNKjtS+kBbu8lAzsB8Tu0DnpVc8i50TeLsRNg/yE9Zi2iRNVVZWuUQQw/bvIjWDUo5vo51kZil4ZLPLenBOl4kRACpBGpWkkrF6yFATGfpR/8YZ/P//mf1S6IenTbS30NjooatFukkHxzGsbwo+MjLipZPS6ZmA1r68FPbx6bpQ==;5:N7nZmb9WveBrZ8zCOFldb/X3SBrzs18MssZN2hgSS7N+maFV2nmKl6eJmPzDpET02qoK/2CJxdeo24mHJkNBWXzxmPhwJ8YxkpTakbV2mgYBDsnTz6X23Fugb/Fi9KnFPQRPTbMp8akDHH0BKmRvSCyfhZ/Z6gtm+Ql1hC6U22uYBC0tybpCKY1QBivNrU9IB+ABzNKzuliWn+YciYfcIg==;7:HEdV17zleMZxxEWoOqTLY0zumBMswX6tKOGjuOEFM8J9/tOK0vhhcl23BDLrzH1rL5i61Eqvkx8dkkPpmfGctKl4d5Tgcxz9mB7Mo2d1jdhyg8mWecdO7ziK0dKTJky8EStVjMeforCNnCVJYsDzow==
-x-ms-office365-filtering-correlation-id: ec42cc83-6c56-478a-764d-08d68c2df01c
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(4618075)(2017052603328)(7153060)(7193020);SRVR:AM0PR04MB5939;
-x-ms-traffictypediagnostic: AM0PR04MB5939:
-x-microsoft-antispam-prvs:
- <AM0PR04MB59397A9AA15E55E071B4F882886F0@AM0PR04MB5939.eurprd04.prod.outlook.com>
-x-forefront-prvs: 0940A19703
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(396003)(346002)(136003)(366004)(376002)(39860400002)(199004)(189003)(71200400001)(71190400001)(44832011)(66066001)(486006)(4744005)(476003)(99286004)(478600001)(97736004)(81166006)(8676002)(74316002)(81156014)(106356001)(305945005)(2906002)(316002)(33656002)(2201001)(25786009)(110136005)(86362001)(6116002)(3846002)(9686003)(256004)(26005)(55016002)(6506007)(8936002)(68736007)(7736002)(186003)(2501003)(53936002)(14454004)(7696005)(102836004)(105586002)(6436002);DIR:OUT;SFP:1101;SCL:1;SRVR:AM0PR04MB5939;H:AM0PR04MB4481.eurprd04.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: nxp.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- xsGuIUw3RaWHKKPAmAemLTHeUuwe//EEr/dvzXPkP0G1G8HhVAYf+nneJSvM5n/WbzVskjAWZvTCcVerN1pchy4ZL2joTOW5q5RvooqxtOG4Ty54I3h3yOzJCL3UwsFC8GGaTQAgHO0/vV1mVeSFdBpA/FFfZMDy4+reGbX7VjjEaNs6oD5WQUB934pLUBC8c/jTa7miQPeCgJRQ698yDjk3pVH/8xKDXzNbtcCDBJBxc+EMvgfi0Te2uIRTPEl0I0PGTz9sUTdgo/OGl+LOkJLvTDYwrvPZ5J2RAgq9Lt/h6Wom6T2XYa8CNVf7df7G0oxRI8esfPdB4Xst9SdDgGtrUM8ZG8ZXsJFyMg/MJK+f90syB4u73OQMvuo+zbkLJW6ks2H/a9oxhjlXna6VQARsnMa1AR82vnpbUaS/2CQ=
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from DGGEMS404-HUB.china.huawei.com (unknown [172.30.72.59])
+	by Forcepoint Email with ESMTP id C9EFFDC6DAE8CF0E7C38;
+	Wed,  6 Feb 2019 20:24:49 +0800 (CST)
+Received: from localhost (10.202.226.61) by DGGEMS404-HUB.china.huawei.com
+ (10.3.19.204) with Microsoft SMTP Server id 14.3.408.0; Wed, 6 Feb 2019
+ 20:24:46 +0800
+Date: Wed, 6 Feb 2019 12:24:35 +0000
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+To: Keith Busch <keith.busch@intel.com>
+CC: <linux-kernel@vger.kernel.org>, <linux-acpi@vger.kernel.org>,
+	<linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael Wysocki" <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>,
+	"Dan Williams" <dan.j.williams@intel.com>
+Subject: Re: [PATCHv5 08/10] node: Add memory caching attributes
+Message-ID: <20190206122435.00001f95@huawei.com>
+In-Reply-To: <20190124230724.10022-9-keith.busch@intel.com>
+References: <20190124230724.10022-1-keith.busch@intel.com>
+	<20190124230724.10022-9-keith.busch@intel.com>
+Organization: Huawei
+X-Mailer: Claws Mail 3.16.0 (GTK+ 2.24.32; i686-w64-mingw32)
 MIME-Version: 1.0
-X-OriginatorOrg: nxp.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: ec42cc83-6c56-478a-764d-08d68c2df01c
-X-MS-Exchange-CrossTenant-originalarrivaltime: 06 Feb 2019 12:23:44.8277
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 686ea1d3-bc2b-4c6f-a92c-d99c5c301635
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: AM0PR04MB5939
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.005812, version=1.2.4
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.202.226.61]
+X-CFilter-Loop: Reflected
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, 24 Jan 2019 16:07:22 -0700
+Keith Busch <keith.busch@intel.com> wrote:
 
-I am reading the percpu-km source code and found that in
-pcpu_create_chunk, only pcpu_group_sizes[0] is taken into
-consideration, I am wondering why other pcpu_group_sizes[x]
-are not used?
+> System memory may have side caches to help improve access speed to
+> frequently requested address ranges. While the system provided cache is
+> transparent to the software accessing these memory ranges, applications
+> can optimize their own access based on cache attributes.
+> 
+> Provide a new API for the kernel to register these memory side caches
+> under the memory node that provides it.
+> 
+> The new sysfs representation is modeled from the existing cpu cacheinfo
+> attributes, as seen from /sys/devices/system/cpu/<cpu>/side_cache/.
+<cpu>/cache/?
 
-Is the following piece code the correct logic?
+> Unlike CPU cacheinfo though, the node cache level is reported from
+> the view of the memory. A higher number is nearer to the CPU, while
+> lower levels are closer to the backing memory. Also unlike CPU cache,
+> it is assumed the system will handle flushing any dirty cached memory
+> to the last level on a power failure if the range is persistent memory.
+That's a design choice.  A sensible one perhaps, but not a requirement of
+this infrastructure.  Not that it really matters as who reads patch
+descriptions after they are applied? :)
 
-@@ -47,12 +47,15 @@ static void pcpu_depopulate_chunk(struct pcpu_chunk *ch=
-unk,
+> 
+> The attributes we export are the cache size, the line size, associativity,
+> and write back policy.
+> 
+> Add the attributes for the system memory side caches to sysfs stable
+> documentation.
+> 
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
+A few minor points inline.
 
- static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)
- {
--       const int nr_pages =3D pcpu_group_sizes[0] >> PAGE_SHIFT;
-+       int nr_pages =3D 0;
-        struct pcpu_chunk *chunk;
-        struct page *pages;
-        unsigned long flags;
-        int i;
+> ---
+>  Documentation/ABI/stable/sysfs-devices-node |  34 +++++++
+>  drivers/base/node.c                         | 153 ++++++++++++++++++++++++++++
+>  include/linux/node.h                        |  34 +++++++
+>  3 files changed, 221 insertions(+)
+> 
+> diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
+> index 41cb9345e1e0..26327279b6b6 100644
+> --- a/Documentation/ABI/stable/sysfs-devices-node
+> +++ b/Documentation/ABI/stable/sysfs-devices-node
+> @@ -142,3 +142,37 @@ Contact:	Keith Busch <keith.busch@intel.com>
+>  Description:
+>  		This node's write latency in nanoseconds when access
+>  		from nodes found in this class's linked initiators.
+> +
+> +What:		/sys/devices/system/node/nodeX/side_cache/indexY/associativity
+> +Date:		December 2018
+> +Contact:	Keith Busch <keith.busch@intel.com>
+> +Description:
+> +		The caches associativity: 0 for direct mapped, non-zero if
+> +		indexed.
+> +
+> +What:		/sys/devices/system/node/nodeX/side_cache/indexY/level
+> +Date:		December 2018
+> +Contact:	Keith Busch <keith.busch@intel.com>
+> +Description:
+> +		This cache's level in the memory hierarchy. Matches 'Y' in the
+> +		directory name.
 
-+       for (i =3D 0; i < pcpu_nr_groups; i++)
-+               nr_pages +=3D pcpu_group_sizes[i] >> PAGE_SHIFT;
-+
-        chunk =3D pcpu_alloc_chunk(gfp);
-        if (!chunk)
-                return NULL;
+Mentioned in the docs, but I'm not sure why we need this given it matches the
+directory name in which it is found...  For the cpu caches they aren't the
+same (data vs instruction) for example.
 
-Thanks,
-Peng.
+> +
+> +What:		/sys/devices/system/node/nodeX/side_cache/indexY/line_size
+> +Date:		December 2018
+> +Contact:	Keith Busch <keith.busch@intel.com>
+> +Description:
+> +		The number of bytes accessed from the next cache level on a
+> +		cache miss.
+> +
+> +What:		/sys/devices/system/node/nodeX/side_cache/indexY/size
+> +Date:		December 2018
+> +Contact:	Keith Busch <keith.busch@intel.com>
+> +Description:
+> +		The size of this memory side cache in bytes.
+> +
+> +What:		/sys/devices/system/node/nodeX/side_cache/indexY/write_policy
+> +Date:		December 2018
+> +Contact:	Keith Busch <keith.busch@intel.com>
+> +Description:
+> +		The cache write policy: 0 for write-back, 1 for write-through,
+> +		other or unknown.
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 2de546a040a5..9b4cb29863ff 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -205,6 +205,157 @@ void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+>  		}
+>  	}
+>  }
+> +
+> +/**
+> + * struct node_cache_info - Internal tracking for memory node caches
+> + * @dev:	Device represeting the cache level
+> + * @node:	List element for tracking in the node
+> + * @cache_attrs:Attributes for this cache level
+> + */
+> +struct node_cache_info {
+> +	struct device dev;
+> +	struct list_head node;
+> +	struct node_cache_attrs cache_attrs;
+> +};
+> +#define to_cache_info(device) container_of(device, struct node_cache_info, dev)
+> +
+> +#define CACHE_ATTR(name, fmt) 						\
+> +static ssize_t name##_show(struct device *dev,				\
+> +			   struct device_attribute *attr,		\
+> +			   char *buf)					\
+> +{									\
+> +	return sprintf(buf, fmt "\n", to_cache_info(dev)->cache_attrs.name);\
+> +}									\
+> +DEVICE_ATTR_RO(name);
+> +
+> +CACHE_ATTR(size, "%llu")
+> +CACHE_ATTR(level, "%u")
+> +CACHE_ATTR(line_size, "%u")
+> +CACHE_ATTR(associativity, "%u")
+> +CACHE_ATTR(write_policy, "%u")
+> +
+> +static struct attribute *cache_attrs[] = {
+> +	&dev_attr_level.attr,
+> +	&dev_attr_associativity.attr,
+> +	&dev_attr_size.attr,
+> +	&dev_attr_line_size.attr,
+> +	&dev_attr_write_policy.attr,
+> +	NULL,
+> +};
+> +ATTRIBUTE_GROUPS(cache);
+> +
+> +static void node_cache_release(struct device *dev)
+> +{
+> +	kfree(dev);
+> +}
+> +
+> +static void node_cacheinfo_release(struct device *dev)
+> +{
+> +	struct node_cache_info *info = to_cache_info(dev);
+> +	kfree(info);
+> +}
+> +
+> +static void node_init_cache_dev(struct node *node)
+> +{
+> +	struct device *dev;
+> +
+> +	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+> +	if (!dev)
+> +		return;
+> +
+> +	dev->parent = &node->dev;
+> +	dev->release = node_cache_release;
+> +	if (dev_set_name(dev, "side_cache"))
+> +		goto free_dev;
+> +
+> +	if (device_register(dev))
+> +		goto free_name;
+> +
+> +	pm_runtime_no_callbacks(dev);
+> +	node->cache_dev = dev;
+> +	return;
+> +free_name:
+> +	kfree_const(dev->kobj.name);
+> +free_dev:
+> +	kfree(dev);
+> +}
+> +
+> +/**
+> + * node_add_cache - add cache attribute to a memory node
+This is almost but not quite in kernel-doc.
+node_add_cache() - add 
+
+IIRC.
+
+> + * @nid: Node identifier that has new cache attributes
+> + * @cache_attrs: Attributes for the cache being added
+> + */
+> +void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs)
+> +{
+> +	struct node_cache_info *info;
+> +	struct device *dev;
+> +	struct node *node;
+> +
+> +	if (!node_online(nid) || !node_devices[nid])
+> +		return;
+> +
+> +	node = node_devices[nid];
+> +	list_for_each_entry(info, &node->cache_attrs, node) {
+> +		if (info->cache_attrs.level == cache_attrs->level) {
+> +			dev_warn(&node->dev,
+> +				"attempt to add duplicate cache level:%d\n",
+> +				cache_attrs->level);
+> +			return;
+> +		}
+> +	}
+> +
+> +	if (!node->cache_dev)
+> +		node_init_cache_dev(node);
+> +	if (!node->cache_dev)
+> +		return;
+> +
+> +	info = kzalloc(sizeof(*info), GFP_KERNEL);
+> +	if (!info)
+> +		return;
+> +
+> +	dev = &info->dev;
+> +	dev->parent = node->cache_dev;
+> +	dev->release = node_cacheinfo_release;
+> +	dev->groups = cache_groups;
+> +	if (dev_set_name(dev, "index%d", cache_attrs->level))
+> +		goto free_cache;
+> +
+> +	info->cache_attrs = *cache_attrs;
+> +	if (device_register(dev)) {
+> +		dev_warn(&node->dev, "failed to add cache level:%d\n",
+> +			 cache_attrs->level);
+> +		goto free_name;
+> +	}
+> +	pm_runtime_no_callbacks(dev);
+> +	list_add_tail(&info->node, &node->cache_attrs);
+> +	return;
+> +free_name:
+> +	kfree_const(dev->kobj.name);
+> +free_cache:
+> +	kfree(info);
+> +}
+> +
+> +static void node_remove_caches(struct node *node)
+> +{
+> +	struct node_cache_info *info, *next;
+> +
+> +	if (!node->cache_dev)
+> +		return;
+> +
+> +	list_for_each_entry_safe(info, next, &node->cache_attrs, node) {
+> +		list_del(&info->node);
+> +		device_unregister(&info->dev);
+> +	}
+> +	device_unregister(node->cache_dev);
+> +}
+> +
+> +static void node_init_caches(unsigned int nid)
+> +{
+> +	INIT_LIST_HEAD(&node_devices[nid]->cache_attrs);
+> +}
+> +#else
+> +static void node_init_caches(unsigned int nid) { }
+> +static void node_remove_caches(struct node *node) { }
+>  #endif
+>  
+>  #define K(x) ((x) << (PAGE_SHIFT - 10))
+> @@ -489,6 +640,7 @@ void unregister_node(struct node *node)
+>  {
+>  	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
+>  	node_remove_accesses(node);
+> +	node_remove_caches(node);
+>  	device_unregister(&node->dev);
+>  }
+>  
+> @@ -781,6 +933,7 @@ int __register_one_node(int nid)
+>  	INIT_LIST_HEAD(&node_devices[nid]->access_list);
+>  	/* initialize work queue for memory hot plug */
+>  	init_node_hugetlb_work(nid);
+> +	node_init_caches(nid);
+>  
+>  	return error;
+>  }
+> diff --git a/include/linux/node.h b/include/linux/node.h
+> index 2db077363d9c..842e4ab2ae6d 100644
+> --- a/include/linux/node.h
+> +++ b/include/linux/node.h
+> @@ -37,6 +37,36 @@ struct node_hmem_attrs {
+>  };
+>  void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+>  			 unsigned access);
+> +
+> +enum cache_associativity {
+> +	NODE_CACHE_DIRECT_MAP,
+> +	NODE_CACHE_INDEXED,
+> +	NODE_CACHE_OTHER,
+> +};
+> +
+> +enum cache_write_policy {
+> +	NODE_CACHE_WRITE_BACK,
+> +	NODE_CACHE_WRITE_THROUGH,
+> +	NODE_CACHE_WRITE_OTHER,
+> +};
+> +
+> +/**
+> + * struct node_cache_attrs - system memory caching attributes
+> + *
+> + * @associativity:	The ways memory blocks may be placed in cache
+> + * @write_policy:	Write back or write through policy
+> + * @size:		Total size of cache in bytes
+> + * @line_size:		Number of bytes fetched on a cache miss
+> + * @level:		Represents the cache hierarchy level
+> + */
+> +struct node_cache_attrs {
+> +	enum cache_associativity associativity;
+> +	enum cache_write_policy write_policy;
+> +	u64 size;
+> +	u16 line_size;
+> +	u8  level;
+> +};
+> +void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs);
+>  #endif
+>  
+>  struct node {
+> @@ -45,6 +75,10 @@ struct node {
+>  #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
+>  	struct work_struct	node_work;
+>  #endif
+> +#ifdef CONFIG_HMEM_REPORTING
+> +	struct list_head cache_attrs;
+> +	struct device *cache_dev;
+> +#endif
+>  };
+>  
+>  struct memory_block;
+
 
