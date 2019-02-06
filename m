@@ -2,168 +2,147 @@ Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9254CC282CC
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 19:41:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C1B9C169C4
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 19:46:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 31DE62080D
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 19:41:03 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 064AD2080D
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 19:46:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="IR+FJ01H"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 31DE62080D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="D+opncBv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 064AD2080D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 811B88E00F0; Wed,  6 Feb 2019 14:41:02 -0500 (EST)
+	id ACF968E00F1; Wed,  6 Feb 2019 14:46:09 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7C3A98E00EE; Wed,  6 Feb 2019 14:41:02 -0500 (EST)
+	id A56BE8E00EE; Wed,  6 Feb 2019 14:46:09 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6B2B08E00F0; Wed,  6 Feb 2019 14:41:02 -0500 (EST)
+	id 945838E00F1; Wed,  6 Feb 2019 14:46:09 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A7468E00EE
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 14:41:02 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id s71so5947779pfi.22
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 11:41:02 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 65A7E8E00EE
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 14:46:09 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id q16so7147164otf.5
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 11:46:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=BA5++3mOup44EpHAKD9LlVzSGzF+bJ0yAEAwHsLicYk=;
-        b=qPva8h8UXZfM26onwFldETy64nrjs1y6rWVGB0DthNqtC8f9vwqNAcLs1wIv6kE4Cb
-         HSQzqFZR7eQdPE1gcKteqF9ECDZUY+Dv6fupbEb1kQqBSHONaKnF4peU9G26PHxz6njB
-         Q1Vbpae7QgVU1vxdXxdigWpbUEfIHCQX0MdNEIYM/eAugMuqDb2HzAa91BllVx4zAGjU
-         ConIW9pxNq+YJlrupX11crFNzjAkWn24LDQWUKX1MDTRRt8qt5nLGZXE9XZ0eDxS83+O
-         YbPU5bxdiUXQRUVBMudZEhkaabellCNOSDb/ggRM+KO2dwoJNnDtmkpAyVyAsnYeLvfc
-         dzIA==
-X-Gm-Message-State: AHQUAubWwdgIh45qaSffcBI76XZjTyuolNYV+d0+9XIlYrseDCvLVlQ4
-	HIk/ynGRXcsDyjy/MW4A3KfkGQECbKGmKSFwLGsShYHlJEiZiuUeoBUhQWvqOkD6YH32c8xUZK1
-	Vxn/UmysOnqjDXR6u016b5+t7SBCNRn5k6AHcHVPTY9nQbSCJvptPrYlad1JNT1kg/g==
-X-Received: by 2002:a62:8add:: with SMTP id o90mr12041516pfk.210.1549482061830;
-        Wed, 06 Feb 2019 11:41:01 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZIZ4aBPoBRpr301bE4IF0zdNdARSx2y2EoE/ZGzGR39HCSQ/2dNUOKk5+f/rzTTYOiu1Jj
-X-Received: by 2002:a62:8add:: with SMTP id o90mr12041460pfk.210.1549482060876;
-        Wed, 06 Feb 2019 11:41:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549482060; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=DPRk2YeA0ENLaCELegsjd2/mMdISAWmeKeSJ7XCFV30=;
+        b=S1LmAMbrx9Bt5x3BCzEtBNKAnz90PS+AcwgAnfigFgxPJ3yJSpVDKa0y5RqnE4Usn0
+         zJTiuRFX/ZauERLl1wQuOZTPb2la28/hseTaeva3DIawnr4WqeNuthdSqrTBY7qUvgIy
+         IDiQkY3GTtPEAkdHa7DA3RmKauYZ1IRuqljL1EVSOUbyb/6fc9muXVnswAclZO17U8nF
+         erLO9L5PhhtNIAZmKi0nX5N6GQSQuE/qyfRqGnKe8WI9WmgwT3Kh5PdmD03JAo/7gJWI
+         DvONNTLO3Ig6hAOMC5LxrTPsCVVEpSO+7dyroqAkCrxtEl4gpkWaL/KQY/SwRdUqowKs
+         odCQ==
+X-Gm-Message-State: AHQUAuaaEBdsiTj3VJuZN+BmoIfxiKiLb2RxlSJdKRiB/OwWJ8KV4ui+
+	KCJzQBRsIn0tpWPz1ACksRFaYNilOtsd1N7H6OwGJ7VHhdufIk0o7FXmdlgskixilD5mZ5SCDE8
+	GCHZDZY2zP3QVhWdofTedireUbgNtuKYK9QUoKfpFem48NZxqZvhxMeZcN/AxcI8aq7TU7O1sQ0
+	Vg6D8kyCe20tGxF0PudwNkUoyIXBfu8msybAikmRaeQSM8BV1wvF6ZyxJCOSFoQeYSD/1tVrNQ4
+	3J+GrIwiuQFuKai92kVgSqkKrjJEejNTfwjgSB/GeLJ3MB3bmJGBanaayFjH8xpgbOWnvQ1YD9Q
+	b/WZRUX4g22kqFFd3CYKl/khT5C6pV2pEijfSAiqlorRd5v6ou3HS+IPdVaohxfRHg87wbMAgw2
+	I
+X-Received: by 2002:aca:6288:: with SMTP id w130mr486880oib.29.1549482368978;
+        Wed, 06 Feb 2019 11:46:08 -0800 (PST)
+X-Received: by 2002:aca:6288:: with SMTP id w130mr486854oib.29.1549482368210;
+        Wed, 06 Feb 2019 11:46:08 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549482368; cv=none;
         d=google.com; s=arc-20160816;
-        b=sjYeoOP5hpMcCSiI3cxPn6uOQB2XPatgZuNJmVGH9edHqtVKujJya8sqp4bO3gCZfD
-         qBaeCNBOt04csCcwyfOufxegI5V9J61kORVVvGolr7adxDbaQkLQMU0aYZkmJydPVryy
-         PdP+xvPe+oaDpfhx2Kh3CIOkSuiqMBvT+tgi7IWx5XBr53e7srrdmCQ7vqPwsDtSscMm
-         3LYysMAkGoGL6YYu8sUn7UazIzmasOZfw61wScBLruRSiS8W7Q+8nFX3NeSikAWS+tBs
-         KKl7UdP5WfYvY5clQfG3SesnsXeYj2OvPdVnxSNLJgPQxMsI1GTlv+4lL0vzFpjaqZ4B
-         AcGQ==
+        b=ktQntO2lFf7KKfaC553cpOT53LYznmTKfjQC5pRkJ3bsrGxeQk4aon+EmU6uSNqaJ9
+         eGC0XHfPyfdYYlmOOSUgeS1fqnJR9cWU3IexN4hGPNPfFaaG/WVqZ2+0U6GxhifKjHlH
+         1ZBIikIN/4rMc1Qd+1T+OEpb8PezYsgaxYhgmtafdp5luoQK6UklzeG7b3yyFLpyEJFX
+         5LEqA61PJzzOGgJ1mvetFvpS0xTLdZNbmcrUY1Xv7lcgcJmwCSP9YRGAli+xNj23nF86
+         7eZUz80SEhFaN/ZZb6YuX+nEHlOiDq2NDdNHafO7XV9PlTHLmQzmXiL2uaQ/1Ad5P21z
+         BaNA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=BA5++3mOup44EpHAKD9LlVzSGzF+bJ0yAEAwHsLicYk=;
-        b=Dp3PN5NvEUKb6HcVVyCZoBtUCfMaFf/Yq40zruDmsF5m2LRnJ7iMfQDVU1g+v20K3n
-         kavLaNAuQdSKle39TIyFjUg/he2BNPEUlxok2n5iijpDMZ7+hSzFCwyezGay8OGRMC6t
-         Ao0t1WHh+ro9vQMfxpPFROWJLDyDSB4lPUii8Zv0rcLChxcwDWglnBZkl860M4BYK/uq
-         TBaU/M9k3CsD5Emvp3VCZOb0jaygYn7aHNTuFcaoYq2B+2AxX5YCn79rVVJLenEy1tcr
-         jp/6rrt15aEp7hlTd2GLS7LqGdGCL4yb6w/+e5NXbNZ46k9CDqsp68mf8sz2WUPsaW8D
-         pOew==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=DPRk2YeA0ENLaCELegsjd2/mMdISAWmeKeSJ7XCFV30=;
+        b=Qbgg2fqG63XM99x7dfrthnisFwfQjVKeiofc+dMSLqB57PnazikLAP02wrq409bnLG
+         WL+WAQciqb036UnJoIOLRdhE3xMeGFKUDZHBnQcfCpC7sNr/CgCxpnqY3L1LtITifc3P
+         hqPStRZvv+XqADmu3YkTJA1bnOpRh2Yv0MhPpmPeabI3/YDqKtWZ8aBQTrfQWmGFuNWa
+         zcYj/3K9mm2sJeKnGf9+xGFunZniPZIvgO7Oewk913j4nQyXhxJoR2muxu3ByIITJxSk
+         uOqG1p7uBUGSONSL9uoW9c7GVYVkxSYY6l7tyWUWzwsUpraLq0WdPo+SMp98bsurnYya
+         nrkg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=IR+FJ01H;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c7si2752477plr.157.2019.02.06.11.41.00
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=D+opncBv;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n31sor14625508otn.41.2019.02.06.11.46.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 06 Feb 2019 11:41:00 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Wed, 06 Feb 2019 11:46:08 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=IR+FJ01H;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=BA5++3mOup44EpHAKD9LlVzSGzF+bJ0yAEAwHsLicYk=; b=IR+FJ01HHpgI1v1qYcrRIcwSq
-	p+PzmPljmi8oQ98xngZngx9W35YyiG8qjpKyhMfZnksx3r8yquFY0trX527LSLDvjZ7S58x3Zfj5N
-	qLEubpDEEv3qwOVpQf0a/KECbvV0Ta0FTKcuLXQfviNZRrozFNalIZnd24z0/9SOkjGE8+VIC9BO7
-	L/IV2dwCJGR2MPCJrlw80XyYeW5kctr2H4MZo9QA1OCaUnIdnUvxbwoliwcSYhdZaLIxytgWBkQXM
-	+KPe4kGqFIq/rQXVElXdJROrj+JobFt1k00IQ7K0WSTCNq8HT3nIzxpysqmpDnOTZvzStVh4CpNBv
-	QCCiUnYDA==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1grT43-00032j-M5; Wed, 06 Feb 2019 19:40:55 +0000
-Date: Wed, 6 Feb 2019 11:40:55 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Jan Kara <jack@suse.cz>, Ira Weiny <ira.weiny@intel.com>,
-	lsf-pc@lists.linux-foundation.org, linux-rdma@vger.kernel.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>,
-	Michal Hocko <mhocko@kernel.org>
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=D+opncBv;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=DPRk2YeA0ENLaCELegsjd2/mMdISAWmeKeSJ7XCFV30=;
+        b=D+opncBvF6bDRVFj2WCKwHoO6oV/Y3U6I7oyuFwqVTqLo57o4BCg4re51jm57NgtA6
+         ZVbb1nNsmHaoiADxy9d0RYV5RCd0kophHtPirdWFjW3lcbih/CSNYHfEwIMp5gASIcop
+         JyRI4Q/7bnNjz3EJSq87ynSThUyRwZVxhJ5g6GugqC+WYedS12P9ULseURTpQ1pvMw3P
+         7IHFTZ4kMiDI5wCJ2cFDbDjY7nKGNrNrfXeNSPcCt6gVVwx9safARDLh6EYsN2yatBil
+         943mbvlBkI8D7mzjvKttwI/evQmMOzaYVvLF/HwkxQ4kmHgO9cPYa+yUbb9eqOKF93b0
+         Vd3Q==
+X-Google-Smtp-Source: AHgI3IbfowQ6doWzN8plMe6p/eR9jKuKihJMQsfeoWqHAFPTBKwxHJ+qAJPMxS3Qqf/ayEhmLl8IwOaQSZV7zgzp2PE=
+X-Received: by 2002:a9d:3a0a:: with SMTP id j10mr6481150otc.229.1549482367913;
+ Wed, 06 Feb 2019 11:46:07 -0800 (PST)
+MIME-Version: 1.0
+References: <20190205175059.GB21617@iweiny-DESK2.sc.intel.com>
+ <20190206095000.GA12006@quack2.suse.cz> <20190206173114.GB12227@ziepe.ca>
+ <20190206175233.GN21860@bombadil.infradead.org> <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
+ <20190206183503.GO21860@bombadil.infradead.org> <20190206185233.GE12227@ziepe.ca>
+In-Reply-To: <20190206185233.GE12227@ziepe.ca>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 6 Feb 2019 11:45:56 -0800
+Message-ID: <CAPcyv4j4gDNHu836N4RfgQsE+eZU9Wt0N9Y09KQ43zV+4mK-eg@mail.gmail.com>
 Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
  longterm-GUP usage by RDMA
-Message-ID: <20190206194055.GP21860@bombadil.infradead.org>
-References: <20190205175059.GB21617@iweiny-DESK2.sc.intel.com>
- <20190206095000.GA12006@quack2.suse.cz>
- <20190206173114.GB12227@ziepe.ca>
- <20190206175233.GN21860@bombadil.infradead.org>
- <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
- <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Matthew Wilcox <willy@infradead.org>, Doug Ledford <dledford@redhat.com>, Jan Kara <jack@suse.cz>, 
+	Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, 
+	linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, 
+	Jerome Glisse <jglisse@redhat.com>, Dave Chinner <david@fromorbit.com>, 
+	Michal Hocko <mhocko@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 06, 2019 at 07:16:21PM +0000, Christopher Lameter wrote:
-> On Wed, 6 Feb 2019, Doug Ledford wrote:
-> > > Most of the cases we want revoke for are things like truncate().
-> > > Shouldn't happen with a sane system, but we're trying to avoid users
-> > > doing awful things like being able to DMA to pages that are now part of
-> > > a different file.
+On Wed, Feb 6, 2019 at 10:52 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+>
+> On Wed, Feb 06, 2019 at 10:35:04AM -0800, Matthew Wilcox wrote:
+>
+> > > Admittedly, I'm coming in late to this conversation, but did I miss the
+> > > portion where that alternative was ruled out?
 > >
-> > Why is the solution revoke then?  Is there something besides truncate
-> > that we have to worry about?  I ask because EBUSY is not currently
-> > listed as a return value of truncate, so extending the API to include
-> > EBUSY to mean "this file has pinned pages that can not be freed" is not
-> > (or should not be) totally out of the question.
-> >
-> > Admittedly, I'm coming in late to this conversation, but did I miss the
-> > portion where that alternative was ruled out?
-> 
-> Coming in late here too but isnt the only DAX case that we are concerned
-> about where there was an mmap with the O_DAX option to do direct write
+> > That's my preferred option too, but the preponderance of opinion leans
+> > towards "We can't give people a way to make files un-truncatable".
+>
+> I haven't heard an explanation why blocking ftruncate is worse than
+> giving people a way to break RDMA using process by calling ftruncate??
+>
+> Isn't it exactly the same argument the other way?
 
-There is no O_DAX option.  There's mount -o dax, but there's nothing that
-a program does to say "Use DAX".
-
-> though? If we only allow this use case then we may not have to worry about
-> long term GUP because DAX mapped files will stay in the physical location
-> regardless.
-
-... except for truncate.  And now that I think about it, there was a
-desire to support hot-unplug which also needed revoke.
-
-> Maybe we can solve the long term GUP problem through the requirement that
-> user space acquires some sort of means to pin the pages? In the DAX case
-> this is given by the filesystem and the hardware will basically take care
-> of writeback.
-
-It's not given by the filesystem.
-
-> In case of anonymous memory this can be guaranteed otherwise and is less
-> critical since these pages are not part of the pagecache and are not
-> subject to writeback.
-
-but are subject to being swapped out?
+No, I don't think it is. The lease is there to set the expectation of
+getting out of the way, it's not a silent un-coordinated failure. The
+user asked for it, the kernel is just honoring a valid request. If the
+RDMA application doesn't want it to happen, arrange for it by
+permissions or other coordination to prevent truncation, but once the
+two conflicting / valid requests have arrived at the filesystem try to
+move the result forward to the user requested state not block and fail
+indefinitely.
 
