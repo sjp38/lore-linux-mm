@@ -2,164 +2,214 @@ Return-Path: <SRS0=Gu5B=QN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48448C169C4
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:31:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 91BF3C282CC
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:33:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0538B2186A
-	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:31:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4D0D92186A
+	for <linux-mm@archiver.kernel.org>; Wed,  6 Feb 2019 17:33:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="giZRZAzk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0538B2186A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="jxBVSrqh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D0D92186A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9FE718E00DB; Wed,  6 Feb 2019 12:31:19 -0500 (EST)
+	id D841B8E00DC; Wed,  6 Feb 2019 12:33:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9AE0D8E00D9; Wed,  6 Feb 2019 12:31:19 -0500 (EST)
+	id CE4608E00D9; Wed,  6 Feb 2019 12:33:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 89E1F8E00DB; Wed,  6 Feb 2019 12:31:19 -0500 (EST)
+	id AC1048E00DC; Wed,  6 Feb 2019 12:33:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 456EC8E00D9
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 12:31:19 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id 74so5711061pfk.12
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 09:31:19 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 625F78E00D9
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 12:33:41 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id o62so1348786pga.16
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 09:33:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=M7ZESgA117Kl6LnfeqS2MCqLt1s/mI0gTcjYckq38ug=;
-        b=OnPGe9wyazRU356q+G0/jx5Yyd5HL+Gm6hNCXcZ+ioqT6Z7mJjICSaEfeha+Ymrsrz
-         ipkrzGAC1DCrm5IsXfpsz30H+YeHtIJ+G4N7Lbhl1wxdXO6ML9ZkWT1wmQn5uupHb+hB
-         nbkJzCAPIo5YOqFS3CWJYWTVdxc2gLGiqBpiPlt18Dddp9Ovq/8vqcYuPlhowxIsbCp6
-         NwvQlP/fkKdQb8b/+yjO5nEnORfrpWq4lazfPPmKAGru9EeveJFjAJq2IngkT0hK3hob
-         n7mkRRUWOVlx0P24eThESA2d3HF8bkgWi3fVtNhSW+DXmITqvtAMUlTG+oyfC8IeADon
-         lHFw==
-X-Gm-Message-State: AHQUAuYnShCsbqe1jQZWKqb/QPT4NKH49NJUDiXjjXQEit1YzNqKQ7Gk
-	A81mY9ik4Bvi8eS2R30w0ErAkh7uX043TTi2iKUZpaLzKdkjkPc7l5Ey07K0lsMQuGaxjmzJJtf
-	5GuupfVHOBTNTUQ9FMZZZPDzfaKPKzoDAvZ6zIztrnxKm/1KQ1tgCoKnaurFH435IJTG6Hvsk+K
-	K5uBPlHW8iH3XO7HAQicAvFwZgcPRfBqNn2Zc+BLdKiVbQnztgmzxMPvFPOekmLW+3o/WKnaMAN
-	rGA2sQi+MUljnkplN/usa5KntVYp4iXi+l0EgeL38KKK+dpqNihNXS6jV6CiZK+9hPVbZ39mrfS
-	4gKsm9hXv/1Cc12yoPE9m61l6adL75Ajyh5CFu+8YfXr97yBzGVHlmRrZwVJdUIJVwhAxHUnFhp
-	k
-X-Received: by 2002:a17:902:d83:: with SMTP id 3mr11618276plv.43.1549474278900;
-        Wed, 06 Feb 2019 09:31:18 -0800 (PST)
-X-Received: by 2002:a17:902:d83:: with SMTP id 3mr11618216plv.43.1549474278212;
-        Wed, 06 Feb 2019 09:31:18 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549474278; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=rYbgX2FNZSLFQiDq0Ih+9oGqomi8Dxzpd7WK0+FcTcQ=;
+        b=ZIaWcr7iRpMT1nWDeLDch/C2WunYjvmtNfiHIlrsGGCr9zoqyKopJMsULBWBzBRfpL
+         LWbvHkLbm6OJ7dksseo2b4dXXt5RpC9U+A6OmMxtSAb4UZaacokjFvichktLKeToQpHW
+         nSqn4QwkzNy59YvPt+K1e5c/cgROt6/WSRi2OM0qVdb+YzdKyc1Ip4HxhdbunjvSmm4B
+         Aa31QxuYaIODzo8FDH3A0Fve0esar4e/z3m+2xzYno1C8fTW1QuVd+kamK+l60KmUXcP
+         h2yo2x4v447qKMLfXu6lQ85Tx5cDgciJwoUW8CF9cI777BEBsR/ijPNhHLMwCmxC18oH
+         ertg==
+X-Gm-Message-State: AHQUAub67+Y9RbS+DUT0W+4boAaZbHm/EeR47QJ2o7JXClD78Dn10DzL
+	wGDZehxaqPkGR2BVwLYwv62Hgn7C392ON7Phnxf64Y1GnQg3ZkbWvGAjtNBwQqUD8RTmQ4L7EOz
+	paTJnSLuG+j9GkXgzYoHiPi8bFPxDxHv/aItEopYlYeC9T+USIqtqrwLGtVtXRTw9DBgdOtuzhl
+	tR9LvnitJIDCRjfiP8yygxkxHb281MSegW+PDFPqu9mgygAHSpfjvEeaHPEXvzl9WISbW917lDo
+	AfRlZDDlU6dAUC29enIZTuqLKoWf96VVVroJFNWWgfaHEJFlyT5TIfWQYHWXN6RyBVGUKigAw7s
+	5Zf0OIq7hit6ZTXC8l5Jxkpl2ExvITAH8Sff1RBQJCxLPymr7OQNmK+XA3SccR9eEm9WNN5Fhbp
+	M
+X-Received: by 2002:a17:902:1105:: with SMTP id d5mr11473084pla.47.1549474421059;
+        Wed, 06 Feb 2019 09:33:41 -0800 (PST)
+X-Received: by 2002:a17:902:1105:: with SMTP id d5mr11473019pla.47.1549474420335;
+        Wed, 06 Feb 2019 09:33:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549474420; cv=none;
         d=google.com; s=arc-20160816;
-        b=dN6bUNgSoNYznisGt1wmRFUx67m5zCR9Cw7k0VbwUVxBk3/g5DjLA8h/3HtysDF4a4
-         y4Od04EWlN6cM18+ecYBtWS4y8r0TpPnCjcs42vw7+Wo0YIjU9wXqWVoFaG8gS2Gki0M
-         olMU63CnJeF5aCEaT8O1Qiorm5vmAbaM3o2nzgewvIb6D7yg8lDKFucwivCLQBQF1XX5
-         MLz7qihDjALsyMAbsFF+UU6qGcu1iMsyFmzQ6LE+2qZqWjx+jjor82Sc5DS1zoNQtccl
-         QRGHvfFYHKZFAEUKS5wocJ6wB/V7/i5eVSkvDXYYHDaJFq8q/G8MeRmNVqvSk822e3fF
-         7Kgw==
+        b=TjlAs8y88Ywj6akxS6LgpHcv/VAdwrzfi3wVoCZx3vcO9AUP07j8Q6givd5GrA1u80
+         BrLr6spms5I7oeBIbH1VG+Vg6HbN7ClO3711fdh2Q8kRjzHd39txZ7ETbnOjImyN/zkw
+         l+WFCYfH+RydMRRt9w7R2rBQgwc6M+PGmUib0GK8mcKHbWOp5iexctOnreAOjIoI8/Sf
+         D1+QQkcgfENEmo+gG8QuD5hPrjDhn8SwRCeMoJon0kYH9dsvVqc469J/k5Z/NjQwQSaM
+         1aaDKnkBX/lBSTNlagtasqd/g/s2EaZOLgF5wXb3Mk2kLmcrLl/KaF2ALlJz3PUqOefJ
+         2Fkw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=M7ZESgA117Kl6LnfeqS2MCqLt1s/mI0gTcjYckq38ug=;
-        b=ue89GueRJ1yXAWtLGiTQxtutCnTfw74fD3lNvMA3evuia714YIgDtUseDkb5p4nxRh
-         yK9phzjf2s8gUqy48UMfuTR2fouHfBB5UTBuzYmE2TKui8fd1iBD4n3t/RmAingcYYxn
-         at0eZpYUZJ2wYMwkF0gkeRi0/MS9pbTp4kZLiwa95zAdzV7ucKgSsD9NhVxCICsa0NjE
-         ZARN+FMyfleJGztW+324djGkOUWJFc+q2zT6b2KSMPQ/x8bbkzEi7Pp0x4mzMrg7FOh+
-         AAm5uO5D6NZ2FT8wUAv272Y23puX5huGzvH8ivAXwvDSp+M9k0x+p/OckBCkCQ/s4lKW
-         a5Tw==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=rYbgX2FNZSLFQiDq0Ih+9oGqomi8Dxzpd7WK0+FcTcQ=;
+        b=wTj7w7UEoS8KoL0nVbhmxADXzvAICq0kdYscQ/qjhHdtzelvvC6yM4n1BC9tqEpUen
+         PTUag33jQeiwmxJtGbVrGCqjUso2lSUUkVrEIx/A0YISZybVc498CXOxdTh2vFnnKXvg
+         uzq/OIumQh8TKiqfZzxfdil+xGl+/TQQWsQoE3O5GMFBdEDgJc2YMNXk3QGDNq8efWl1
+         mSt4S+wd30JOr1+El+/lbDoauVODKWQxduXG6M7nqAQhSN3bvfMYiUB/EMy2UIR+KfWo
+         fEtvhL2CTROF9piONvK4R6Qo99e9Kp5T4glrHRrnCqk1G3AMmFmTYuIYIX8ZGXHxRKQN
+         lw9A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=giZRZAzk;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.41 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y17sor10132276pll.68.2019.02.06.09.31.17
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jxBVSrqh;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k196sor9969442pga.61.2019.02.06.09.33.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 06 Feb 2019 09:31:17 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Wed, 06 Feb 2019 09:33:40 -0800 (PST)
+Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=giZRZAzk;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.41 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jxBVSrqh;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=M7ZESgA117Kl6LnfeqS2MCqLt1s/mI0gTcjYckq38ug=;
-        b=giZRZAzkmkBVhWAM/uex9MysvKvmQpTztwKM934OeE1o/Q7yWdaLaCT6lguXWRg+ZU
-         dghk+jIylKwaKSON158y74S80W1v/+3yT8yJ+nwSPDTVqkR/AysyVUc60XyNcsDkIWhb
-         nCq7NLI6EkXzNIXqLz7LxxgLg6pA/r+Zho4Wv0N3jN/mGs4Yf4OgiTDkBamT9bGzonup
-         F01e85T0DM+FsQPHGLZ97HGEDnXEQeox4Z0txw11pAy0qwEJ75FT+q+C3znRJgfmBq1S
-         7JWd+Myu3MSWS2UbuYGZ6rA4sHQQhZeKWkWONJoLxl0zmjiGnd+BnuD4ApXWZQ5Qm/CE
-         z2CQ==
-X-Google-Smtp-Source: AHgI3IZ124Xx0Cv7NJbPpRtVN9SOU/LG8DcJ+7oWMiz0MTcLVc/s2Ua3HZpgbB4LTQuLG6XqjooUwA==
-X-Received: by 2002:a17:902:7882:: with SMTP id q2mr12090872pll.305.1549474277444;
-        Wed, 06 Feb 2019 09:31:17 -0800 (PST)
-Received: from ziepe.ca (S010614cc2056d97f.ed.shawcable.net. [174.3.196.123])
-        by smtp.gmail.com with ESMTPSA id d11sm8242868pgi.25.2019.02.06.09.31.16
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 06 Feb 2019 09:31:16 -0800 (PST)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1grR2Y-0003x0-U1; Wed, 06 Feb 2019 10:31:14 -0700
-Date: Wed, 6 Feb 2019 10:31:14 -0700
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Jan Kara <jack@suse.cz>
-Cc: Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org,
-	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Dave Chinner <david@fromorbit.com>,
-	Doug Ledford <dledford@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-Message-ID: <20190206173114.GB12227@ziepe.ca>
-References: <20190205175059.GB21617@iweiny-DESK2.sc.intel.com>
- <20190206095000.GA12006@quack2.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190206095000.GA12006@quack2.suse.cz>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+        d=gmail.com; s=20161025;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=rYbgX2FNZSLFQiDq0Ih+9oGqomi8Dxzpd7WK0+FcTcQ=;
+        b=jxBVSrqhK2+6jA9mgt1ZG2E6Yi97wIPX6W+CP4vKddME0zOC5E6Nq1muZXBqDq66Ye
+         VVAsjSUD9dScTXpLAZBgRw1MBsrpIoTC5JQhT21UolL971aHLI6k3RCW7jONQsJbBlzP
+         t9jtC1tCPW113d7khRQ4pUr9iK6z6+Jl2znriGGF6Tc3h8tJm7WgEkq29wzTlX5g7Mg9
+         7qQk6+j5bVvHFcSvP+fLT9HshRbtp0RQyolyO61o12w+C/C+MMWVvqfybCZv/UsMV/AI
+         BKEhQZUPTuOaO1k+dtte1NfawOt3RDQ2LvtZ9jMask9lAZN5wdlfaI5HXjrthV8o5cSn
+         2XNA==
+X-Google-Smtp-Source: AHgI3IZO/nBxjBj7hWYe6SBT7x8lwLWKo0SvM/vK6C31+42XzDoMO/FAAmIlRnhVDYWo38sCKnYxiQ==
+X-Received: by 2002:a65:62da:: with SMTP id m26mr10648561pgv.278.1549474419293;
+        Wed, 06 Feb 2019 09:33:39 -0800 (PST)
+Received: from [10.33.115.182] ([66.170.99.1])
+        by smtp.gmail.com with ESMTPSA id a13sm436912pgw.34.2019.02.06.09.33.37
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Feb 2019 09:33:38 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+Subject: Re: [PATCH 08/17] x86/ftrace: set trampoline pages as executable
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <20190206112213.2ec9dd5c@gandalf.local.home>
+Date: Wed, 6 Feb 2019 09:33:35 -0800
+Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>,
+ Andy Lutomirski <luto@kernel.org>,
+ Ingo Molnar <mingo@redhat.com>,
+ LKML <linux-kernel@vger.kernel.org>,
+ X86 ML <x86@kernel.org>,
+ "H. Peter Anvin" <hpa@zytor.com>,
+ Thomas Gleixner <tglx@linutronix.de>,
+ Borislav Petkov <bp@alien8.de>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Damian Tometzki <linux_dti@icloud.com>,
+ linux-integrity <linux-integrity@vger.kernel.org>,
+ LSM List <linux-security-module@vger.kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Kernel Hardening <kernel-hardening@lists.openwall.com>,
+ Linux-MM <linux-mm@kvack.org>,
+ Will Deacon <will.deacon@arm.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Kristen Carlson Accardi <kristen@linux.intel.com>,
+ deneen.t.dock@intel.com
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <5DFA1E3C-A335-4C4B-A86F-904A6CF6D871@gmail.com>
+References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
+ <20190117003259.23141-9-rick.p.edgecombe@intel.com>
+ <20190206112213.2ec9dd5c@gandalf.local.home>
+To: Steven Rostedt <rostedt@goodmis.org>
+X-Mailer: Apple Mail (2.3445.102.3)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 06, 2019 at 10:50:00AM +0100, Jan Kara wrote:
+> On Feb 6, 2019, at 8:22 AM, Steven Rostedt <rostedt@goodmis.org> =
+wrote:
+>=20
+> On Wed, 16 Jan 2019 16:32:50 -0800
+> Rick Edgecombe <rick.p.edgecombe@intel.com> wrote:
+>=20
+>> From: Nadav Amit <namit@vmware.com>
+>>=20
+>> Since alloc_module() will not set the pages as executable soon, we =
+need
+>> to do so for ftrace trampoline pages after they are allocated.
+>>=20
+>> For the time being, we do not change ftrace to use the text_poke()
+>> interface. As a result, ftrace breaks still breaks W^X.
+>>=20
+>> Cc: Steven Rostedt <rostedt@goodmis.org>
+>> Signed-off-by: Nadav Amit <namit@vmware.com>
+>> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
+>> ---
+>> arch/x86/kernel/ftrace.c | 9 +++++++++
+>> 1 file changed, 9 insertions(+)
+>>=20
+>> diff --git a/arch/x86/kernel/ftrace.c b/arch/x86/kernel/ftrace.c
+>> index 8257a59704ae..eb4a1937e72c 100644
+>> --- a/arch/x86/kernel/ftrace.c
+>> +++ b/arch/x86/kernel/ftrace.c
+>> @@ -742,6 +742,7 @@ create_trampoline(struct ftrace_ops *ops, =
+unsigned int *tramp_size)
+>> 	unsigned long end_offset;
+>> 	unsigned long op_offset;
+>> 	unsigned long offset;
+>> +	unsigned long npages;
+>> 	unsigned long size;
+>> 	unsigned long retq;
+>> 	unsigned long *ptr;
+>> @@ -774,6 +775,7 @@ create_trampoline(struct ftrace_ops *ops, =
+unsigned int *tramp_size)
+>> 		return 0;
+>>=20
+>> 	*tramp_size =3D size + RET_SIZE + sizeof(void *);
+>> +	npages =3D DIV_ROUND_UP(*tramp_size, PAGE_SIZE);
+>>=20
+>> 	/* Copy ftrace_caller onto the trampoline memory */
+>> 	ret =3D probe_kernel_read(trampoline, (void *)start_offset, =
+size);
+>> @@ -818,6 +820,13 @@ create_trampoline(struct ftrace_ops *ops, =
+unsigned int *tramp_size)
+>> 	/* ALLOC_TRAMP flags lets us know we created it */
+>> 	ops->flags |=3D FTRACE_OPS_FL_ALLOC_TRAMP;
+>>=20
+>> +	/*
+>> +	 * Module allocation needs to be completed by making the page
+>> +	 * executable. The page is still writable, which is a security =
+hazard,
+>> +	 * but anyhow ftrace breaks W^X completely.
+>> +	 */
+>=20
+> Perhaps we should set the page to non writable after the page is
+> updated? And set it to writable only when we need to update it.
 
-> MM/FS asks for lease to be revoked. The revoke handler agrees with the
-> other side on cancelling RDMA or whatever and drops the page pins. 
+You remember that I sent you a patch that changed all these writes into
+text_poke() and you said that I should defer it until this series is =
+merged?
 
-This takes a trip through userspace since the communication protocol
-is entirely managed in userspace.
+> As for this patch:
+>=20
+> Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
 
-Most existing communication protocols don't have a 'cancel operation'.
-
-> Now I understand there can be HW / communication failures etc. in
-> which case the driver could either block waiting or make sure future
-> IO will fail and drop the pins. 
-
-We can always rip things away from the userspace.. However..
-
-> But under normal conditions there should be a way to revoke the
-> access. And if the HW/driver cannot support this, then don't let it
-> anywhere near DAX filesystem.
-
-I think the general observation is that people who want to do DAX &
-RDMA want it to actually work, without data corruption, random process
-kills or random communication failures.
-
-Really, few users would actually want to run in a system where revoke
-can be triggered.
-
-So.. how can the FS/MM side provide a guarantee to the user that
-revoke won't happen under a certain system design?
-
-Jason
+Thanks!
 
