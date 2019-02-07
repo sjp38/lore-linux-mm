@@ -2,132 +2,183 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D6F9FC282C2
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 13:54:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AB435C282C2
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 14:07:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9513721907
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 13:54:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 314C72175B
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 14:07:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="dTixeQLV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9513721907
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="gQqOxS/4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 314C72175B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=roeck-us.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3328D8E002D; Thu,  7 Feb 2019 08:54:43 -0500 (EST)
+	id 6D2528E002E; Thu,  7 Feb 2019 09:07:35 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2E3B98E0002; Thu,  7 Feb 2019 08:54:43 -0500 (EST)
+	id 682A78E0002; Thu,  7 Feb 2019 09:07:35 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 185438E002D; Thu,  7 Feb 2019 08:54:43 -0500 (EST)
+	id 548F28E002E; Thu,  7 Feb 2019 09:07:35 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C8C4D8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 08:54:42 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id y2so7501702plr.8
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 05:54:42 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 14B038E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 09:07:35 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id w17so6471781plp.23
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 06:07:35 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=MslmhBf6sHBX+lTIZiGv5oF8ktq/q6NsQm5zdWGHpTQ=;
-        b=OqZNzNoFBc1q0R20rZWxsq6/P6DUFZJHqG+nev/EKUxlv84LhM7UBmGXmBKU2tY/Y/
-         MIDqVc10i7ElrpC2w5Ui1Y+8CpD/dtAf8cSuDQsg4j7rVR7jPyUeAVF2ngn2rWs+t00K
-         agjJ265BFj9f4WKXFlHPP8a2VuMWGPgugfRfyjujsur8w8bJ+tgqgeKPTjXd5jZURJp+
-         M9n2LMRwcoHPoGRmX4iff9LsOMnpurfcYdzHtVppQqm7e2WJu/txdTtXNSGoNT0aNFC9
-         saua+s0wDyIO8MbIoAUqvr1ZO50zqoVZuzW+RzZ6FZ5d/jYIHvqHP66fPLU4OONSCtnu
-         AURQ==
-X-Gm-Message-State: AHQUAuZpfqJOQs1NH6me4AqYieKEaGblfDUc7G7r19AkY+bzJv3NID3b
-	aOHAIknlqoOcL6qyviW1pctMyCJBpfKtZ0cZH8ZGyOfzkqn6nqod2v8kUMbVYYqQlBEXLs382qh
-	pVsHPjipE8m2U8DjAjy7BpL7UVLCFqGiwpDv76Uy2fKHhPzHBiVZZ/it/FdZC9WXj+A==
-X-Received: by 2002:a62:f5da:: with SMTP id b87mr16505121pfm.253.1549547682458;
-        Thu, 07 Feb 2019 05:54:42 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IavnqPXH90MgpcdVYE/HqcSNVb557BAGAiImooUcjiztjL2CTmbUfu0aCohKG2HGBznKMsT
-X-Received: by 2002:a62:f5da:: with SMTP id b87mr16505081pfm.253.1549547681814;
-        Thu, 07 Feb 2019 05:54:41 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549547681; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:subject:to:cc:references
+         :from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=KbX6XmglqS34HBQmaEvNBhlf/+2fvBOoS5l5WH2o2d0=;
+        b=Co9Lb+FnUjCsGfXtKuVPhE+A+SKWpDvIOCRVWvjB5GnkH06xX1oZ70oC9DvDWIgu/E
+         kOc4QHWNdcfSTOYzbrnP6Btc6yEViQpNheEPNNeHO/Z3pwG8F+BrM8TzllQqbVfbHlCE
+         CP9uhhe01dlU05C+XQmQi2MVI5LYDtZ01u2N0uebOQYM8iOi2gvNQGkykz6oHQmQsaLv
+         KPXHLaIzJL/gEPuRvFP4lzvcI3hzpAYbcaA2d7aJzsfFbz15/Dt3+GUoVfF4qM/G95NS
+         s1XS2UDpkkS+Pw+/8lQoRT6JLsBykoqrAiIWHFNVNVGsKUg5pyg106OApv66pAXWTrOm
+         +NUw==
+X-Gm-Message-State: AHQUAubt2h51y3bRfXBprnU6oVrINfzEKb1YhS+fDoYhtF3IzvWhrkpj
+	jIk6i2elq3e7fY2QL6tOBBTtVTojtn3SfG5duXJpWxHixocHRCcTiKbK8QmH6Kl0AgIT9bblPFc
+	nnjS8hQ5OdaS8ykXmiKdrv+ZEZjd9dTdgeJDOeElBxwErEQ+x6touCvg6GJkhBG7Oojyf+HtHZy
+	qltLyi6o6RWaDXLf+HxAzI30f33S0by80CAypVJMrvKHQCpLVRZ3RfHLSgovAgA8+mjHmkWl0Xa
+	i3onkOMOKzOELa7bPynAjb6/WYBoqYAEZtCLvEYf8ZK//nbM2RuYKop9Iw4BKDxH+PUkA5wpD4i
+	SWTJcE0aR2N+dMumm/Ct9WpfxdWYgaYl4JsjB98P/nIZWbLUcVofrXNEbJwY+hKwDHfIdn0HfQ=
+	=
+X-Received: by 2002:a17:902:5a8d:: with SMTP id r13mr9123819pli.190.1549548454724;
+        Thu, 07 Feb 2019 06:07:34 -0800 (PST)
+X-Received: by 2002:a17:902:5a8d:: with SMTP id r13mr9123699pli.190.1549548453446;
+        Thu, 07 Feb 2019 06:07:33 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549548453; cv=none;
         d=google.com; s=arc-20160816;
-        b=R+IL9a0mSYlhvUUW9gzkrY4jDqKKXX1PfFRnNDCn2YSIykmRF0+2oevvZY33tosYlF
-         JPrHG/KwZACCyZVM8Ei0chIO7he7h3uFHTsc8XpjKAHffHE33rJ7CNgBpQSUZX+MUKfb
-         UGGYa/j0FBAJ6L+xkryo9KLwQtkObniQxjz2smDhgQHPrhICi4FUsmoEOSPLkAwZf6wj
-         w3wmszKs7X2mqG8ji7OF2l0GCd8j/XzIGFHgAO3gfBMbzok6+MCduDkNLbhpHctML5Wx
-         GU/zmHnKNtwMw8O1hi9enBrA9JE7Ii5FyfOwXix3CKr4St5OXRHRr3r4+V7bF7JZjY+r
-         bJlw==
+        b=J8UWpvlbh9wPpQSS2H7+iIUJWjlY43OOgHNXR3SoWDwhsu7SPQNTDZ4wwN9BeToH6x
+         HmEKOc0VGq6XSn2hyASuL6eBbTpzipfQXNvh+SWTAgPf/dJAeyuCcVRUBY2JG3T9RUZx
+         q2IETrGtJi4ZKsuuR1rTLzT/SpwvNmSAbjz428PXJubBbq6PV6Zi4Wkda69jV32UHQf1
+         giVIwe7ahsfdflVq/H6ZmYb8/Mb1AbscEolJDy1w72iH+QJls0qqtgOht5K+Wvg11J3U
+         Y3My5gf6nbHOWdhyVGAz4ZN0MVDMyZS1ANLO5eBKLXQlgjbPqDU4qA6DK5U1uQBdA1Mg
+         WSUw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=MslmhBf6sHBX+lTIZiGv5oF8ktq/q6NsQm5zdWGHpTQ=;
-        b=AiBBnSfsIoqg/ENwpRXTquHUoo2d5IkCAN/9RWUpLD0lB8KOHpSwgXqvfHux3qP+ON
-         21LzQ+qLM+CQJkCnfDTLsoEAhcLtRcNF1xsHvUZQH5dhRsgAlDp9wJMazcLBVPq7S9Vk
-         Fazh2D530+DYD15O0E+ELPLtsT03VFb0hfrMvy4iHvXG/XeqgBS/3+FjK9mNamiQNxTk
-         6oOaoaz0rYimSPoh9HwoRDQ09s2Ep3r+moAQ4BzNA0WPmKiCsaCayiO1tmHRRl/I96Xe
-         yosnzki/ZVjRsMumUQg/Gy8gS2CAUFM5FLxrHLAmkND2CoE4v7ae6sI4baQMCAxecUfR
-         er9w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject:sender
+         :dkim-signature;
+        bh=KbX6XmglqS34HBQmaEvNBhlf/+2fvBOoS5l5WH2o2d0=;
+        b=TonKGscG2/2GHm59+HBm2U8oYdvXOwpNNR3CuD2z2HM4/vwfnxo9Joxc0mEYeHPlrt
+         x3jr0PwzCnNaqS7c2LuqJXUVFNndH5XGwqqLPfFXw3T1Ez2LdBMnqY9wKsS1JE92gZsv
+         stOraIxBWSog8sygrXQesgUePBqRToRy+xPi1mz2g8SE228oJAOqQHNqG5rEzU02zOGl
+         qEs3/6XcgpNpC2CbaJw3VItsbXbqhhXDsvHDgq8PCoParGpgmiCkTh1MBqlyiY8qvsEX
+         U2Tb1i7OjWmsgGR8Mxi1dHAsv4C0f2b/PEziuuqFZn6uZ/5A6M5DygwxIHKc6AoiQkLm
+         0i6A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=dTixeQLV;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id l8si8534604pgm.250.2019.02.07.05.54.41
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="gQqOxS/4";
+       spf=pass (google.com: domain of groeck7@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck7@gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p186sor13768366pgp.79.2019.02.07.06.07.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 07 Feb 2019 05:54:41 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Thu, 07 Feb 2019 06:07:33 -0800 (PST)
+Received-SPF: pass (google.com: domain of groeck7@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=dTixeQLV;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=MslmhBf6sHBX+lTIZiGv5oF8ktq/q6NsQm5zdWGHpTQ=; b=dTixeQLVu7KVSglvTuT6y6NrB
-	rYgagcrHhJjihyiiIkRYAiB55rstLOlgOmT/ytB6+MR4UHv2vN/3TX71ojKEKepM8SM2PM6G+vVRM
-	SSi1Bqwl0MYMHTVCwd25Tkg7CkQwvFOQ1e5S8dLp8+Mo2W2npAnkDWxmP00Jx0CmqZmL7ayCGsO5k
-	bopYRxg/SUtKwzZ3xaha6RLVrjXS93Tq3k7TytGPy6iLX1acucpccOyvne5HPEFRbNf5FPihb2+bX
-	W4dPTweVdsHFZUub8DYpjK75j3A37u79TwYV91pIW4rBFkGuleAtWDlckD64Rgal0bkx4q9IA739A
-	2OqF0klUA==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1grk7n-0003OL-U6; Thu, 07 Feb 2019 13:53:55 +0000
-Date: Thu, 7 Feb 2019 05:53:55 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: Kees Cook <keescook@chromium.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Mike Rapoport <rppt@linux.ibm.com>, linux-kernel@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
-Subject: Re: [PATCH v3 1/2] mm: add probe_user_read()
-Message-ID: <20190207135355.GU21860@bombadil.infradead.org>
-References: <39fb6c5a191025378676492e140dc012915ecaeb.1547652372.git.christophe.leroy@c-s.fr>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="gQqOxS/4";
+       spf=pass (google.com: domain of groeck7@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=groeck7@gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=KbX6XmglqS34HBQmaEvNBhlf/+2fvBOoS5l5WH2o2d0=;
+        b=gQqOxS/4tuEI9GIBDfGk68GsQV8FS8aDvwGEj89CoF7oqN5x18d9PKtZg3/Gdarj8u
+         UrNaaNyIIIgx5eTVAR/ZdIcen42/3zlCrdJd/rMna9u9pAbgD36P1TULc4FmMyFA76nU
+         0P2m15Rxh9puSQuB9TAlRupnhQvjO+B14qd0atpeK/rKwSPMJ4n1hcXS1DqrxQ327etD
+         VQlHi4Y1ragLgBKUtXafCorh0yjvEiylR2xRGG9I4HVRse3RvDDqfqKiPenZZELbl4SJ
+         hKmCpqfVNPWMRN0KkQclsaLjYJa3EtJ6m2QrrIujhtXbtBynXJ6bfXzBo2udH1JpWY6O
+         JRdg==
+X-Google-Smtp-Source: AHgI3IYO6mzGpGwEPrXnnp1P8FWF+2hbsbrcsM4aEN+03xBjKG9pmu8Fotj5oATo1lQ9ZjZFMBGvrQ==
+X-Received: by 2002:a63:698a:: with SMTP id e132mr1617385pgc.136.1549548452718;
+        Thu, 07 Feb 2019 06:07:32 -0800 (PST)
+Received: from server.roeck-us.net ([2600:1700:e321:62f0:329c:23ff:fee3:9d7c])
+        by smtp.gmail.com with ESMTPSA id a70sm8372646pfj.7.2019.02.07.06.07.30
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Feb 2019 06:07:31 -0800 (PST)
+Subject: Re: [PATCH] mm/swap.c: workaround for_each_cpu() bug on UP kernel.
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: Chris Metcalf <chris.d.metcalf@gmail.com>,
+ Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org
+References: <1549533189-9177-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+From: Guenter Roeck <linux@roeck-us.net>
+Message-ID: <344b9779-2866-5c0c-6155-f03fff38f8c9@roeck-us.net>
+Date: Thu, 7 Feb 2019 06:07:29 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.2.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <39fb6c5a191025378676492e140dc012915ecaeb.1547652372.git.christophe.leroy@c-s.fr>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <1549533189-9177-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 16, 2019 at 04:59:27PM +0000, Christophe Leroy wrote:
->  v3: Moved 'Returns:" comment after description.
->      Explained in the commit log why the function is defined static inline
+On 2/7/19 1:53 AM, Tetsuo Handa wrote:
+> Since for_each_cpu(cpu, mask) added by commit 2d3854a37e8b767a ("cpumask:
+> introduce new API, without changing anything") did not evaluate the mask
+> argument if NR_CPUS == 1 due to CONFIG_SMP=n, lru_add_drain_all() is
+> hitting WARN_ON() at __flush_work() added by commit 4d43d395fed12463
+> ("workqueue: Try to catch flush_work() without INIT_WORK().")
+> by unconditionally calling flush_work() [1].
 > 
->  v2: Added "Returns:" comment and removed probe_user_address()
+> We should fix for_each_cpu() etc. but we need enough grace period for
+> allowing people to test and fix unexpected behaviors including build
+> failures. Therefore, this patch temporarily duplicates flush_work() for
+> NR_CPUS == 1 case. This patch will be reverted after for_each_cpu() etc.
+> are fixed.
+> 
+> [1] https://lkml.kernel.org/r/18a30387-6aa5-6123-e67c-57579ecc3f38@roeck-us.net
+> 
+> Reported-by: Guenter Roeck <linux@roeck-us.net>
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-The correct spelling is 'Return:', not 'Returns:':
+I agree with the fix/workaround. I tried a complete build with fixed macros,
+but that doesn't work because (at least) x86 assumes that the "mask" parameter
+is _not_ evaluated for non-SMP builds - arch/x86/kernel/cpu/cacheinfo.c
+passes cpu_llc_shared_mask(cpu) as parameter, and that is only defined
+for SMP builds.
 
-Return values
-~~~~~~~~~~~~
+On the plus side, I did not find any other issues, but that doesn't mean
+much since various build and boot tests in -next fail for other reasons.
 
-The return value, if any, should be described in a dedicated section
-named ``Return``.
+Acked-by: Guenter Roeck <linux@roeck-us.net>
+
+Guenter
+
+> ---
+>   mm/swap.c | 5 +++++
+>   1 file changed, 5 insertions(+)
+> 
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 4929bc1..e5e8e15 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -694,11 +694,16 @@ void lru_add_drain_all(void)
+>   			INIT_WORK(work, lru_add_drain_per_cpu);
+>   			queue_work_on(cpu, mm_percpu_wq, work);
+>   			cpumask_set_cpu(cpu, &has_work);
+> +#if NR_CPUS == 1
+> +			flush_work(work);
+> +#endif
+>   		}
+>   	}
+>   
+> +#if NR_CPUS != 1
+>   	for_each_cpu(cpu, &has_work)
+>   		flush_work(&per_cpu(lru_add_drain_work, cpu));
+> +#endif
+>   
+>   	mutex_unlock(&lock);
+>   }
+> 
 
