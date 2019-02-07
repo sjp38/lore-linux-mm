@@ -2,155 +2,132 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_NEOMUTT
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 04ED8C282C4
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 13:36:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D6F9FC282C2
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 13:54:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BF22B206DD
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 13:36:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF22B206DD
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 9513721907
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 13:54:43 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="dTixeQLV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9513721907
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 406D48E002C; Thu,  7 Feb 2019 08:36:27 -0500 (EST)
+	id 3328D8E002D; Thu,  7 Feb 2019 08:54:43 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3B6FD8E0002; Thu,  7 Feb 2019 08:36:27 -0500 (EST)
+	id 2E3B98E0002; Thu,  7 Feb 2019 08:54:43 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2A6458E002C; Thu,  7 Feb 2019 08:36:27 -0500 (EST)
+	id 185438E002D; Thu,  7 Feb 2019 08:54:43 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C4D1E8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 08:36:26 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id x15so4421246edd.2
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 05:36:26 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C8C4D8E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 08:54:42 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id y2so7501702plr.8
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 05:54:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=/Z1iSj7n4eE2MJ/9xe6rCBS/CDY1VH3vB2iW9S3+laA=;
-        b=RSyEUyCuSEaUPHCMTQvsMAOq9aJu2/xDpJ/g8Z6OT5Sgq9VMOjMEjPhmpuIRLGMx/A
-         nkbMbXfszrrcXEP45l4sIhxvVlOtEdX2P3feDjE0ZD8bgZmdQ5OUDhevJkj1z2FoEE9y
-         ChIBrin0wZyRPYcC5jC7XByKrXEzvqHETVqRuzFp7bVcdo53WHLl7yY1LhN6+4Q8Tr5/
-         bJFe9iDg53RV7qyE/OZ+sGcovb9EDUDM+ikjBC9sI7738N9vRMxDmDZDqX0tf9OWHK8X
-         4Fa3JWqXZTMPONymitk6DXEEMoNb20/rRJCfGHY6Rp7imNo/B3HHuSZFTkJaZgF/o3HL
-         zzdA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: AHQUAuZI7HeGCFqHGpQFuDbY9g2JOrfT9nUqCJApOPxUZKkSufFru5aE
-	Q7HgdLqBQ1xy91n1Uokr5KvY4p4J1rbn+QYDieIG2ef18Q4h5wTJs7YPgUih1zqU1tV8nfq9+ZQ
-	XJRYmnnTZeIP9VinIAFBb2IXTDYsUnYP4bApXPF7SNflrKyhsKlrNlfHgfMBnvXzrhw==
-X-Received: by 2002:aa7:d5c8:: with SMTP id d8mr9961249eds.275.1549546586265;
-        Thu, 07 Feb 2019 05:36:26 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYjuFjrA2M9o6lD9fmrhtM5fVo/ykRxZz/I0HjCbzaMd4bNVaGFbFPonIdBkpcjHMS66iFa
-X-Received: by 2002:aa7:d5c8:: with SMTP id d8mr9961191eds.275.1549546585370;
-        Thu, 07 Feb 2019 05:36:25 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549546585; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=MslmhBf6sHBX+lTIZiGv5oF8ktq/q6NsQm5zdWGHpTQ=;
+        b=OqZNzNoFBc1q0R20rZWxsq6/P6DUFZJHqG+nev/EKUxlv84LhM7UBmGXmBKU2tY/Y/
+         MIDqVc10i7ElrpC2w5Ui1Y+8CpD/dtAf8cSuDQsg4j7rVR7jPyUeAVF2ngn2rWs+t00K
+         agjJ265BFj9f4WKXFlHPP8a2VuMWGPgugfRfyjujsur8w8bJ+tgqgeKPTjXd5jZURJp+
+         M9n2LMRwcoHPoGRmX4iff9LsOMnpurfcYdzHtVppQqm7e2WJu/txdTtXNSGoNT0aNFC9
+         saua+s0wDyIO8MbIoAUqvr1ZO50zqoVZuzW+RzZ6FZ5d/jYIHvqHP66fPLU4OONSCtnu
+         AURQ==
+X-Gm-Message-State: AHQUAuZpfqJOQs1NH6me4AqYieKEaGblfDUc7G7r19AkY+bzJv3NID3b
+	aOHAIknlqoOcL6qyviW1pctMyCJBpfKtZ0cZH8ZGyOfzkqn6nqod2v8kUMbVYYqQlBEXLs382qh
+	pVsHPjipE8m2U8DjAjy7BpL7UVLCFqGiwpDv76Uy2fKHhPzHBiVZZ/it/FdZC9WXj+A==
+X-Received: by 2002:a62:f5da:: with SMTP id b87mr16505121pfm.253.1549547682458;
+        Thu, 07 Feb 2019 05:54:42 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IavnqPXH90MgpcdVYE/HqcSNVb557BAGAiImooUcjiztjL2CTmbUfu0aCohKG2HGBznKMsT
+X-Received: by 2002:a62:f5da:: with SMTP id b87mr16505081pfm.253.1549547681814;
+        Thu, 07 Feb 2019 05:54:41 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549547681; cv=none;
         d=google.com; s=arc-20160816;
-        b=HqTQ9SUChJwdR0GTNyFQhD8/ksR7RPshUDKxtdtgvsapMKKj0n9nl+L9UYrVR9mFjt
-         EYzUQeV+BaOCCsyLHRE0g4jYpdfUJ8Wo6++ZF4WB5cpQ+SWvJyjBupy2Sot/275uqp9y
-         lBGfaAeJs07RfhTI+7zke6JsENUkS+a5QaZuCMBTVFaJzJ9J0SKCuCkBQK6XWDATkCRG
-         Y0IcbAjdECIs7WKX+v2Pe/rA7uw20w3eLs/W+rVB51WhlHqE2oOGCOO/RvqwXsm83sUz
-         U6Oxz+NpjR6WkQ3cRTPaC1IsTQ0MqR4xncH4kNuQcadxAg2OmkC0G2FFB4dhE1J1Ot71
-         mvvw==
+        b=R+IL9a0mSYlhvUUW9gzkrY4jDqKKXX1PfFRnNDCn2YSIykmRF0+2oevvZY33tosYlF
+         JPrHG/KwZACCyZVM8Ei0chIO7he7h3uFHTsc8XpjKAHffHE33rJ7CNgBpQSUZX+MUKfb
+         UGGYa/j0FBAJ6L+xkryo9KLwQtkObniQxjz2smDhgQHPrhICi4FUsmoEOSPLkAwZf6wj
+         w3wmszKs7X2mqG8ji7OF2l0GCd8j/XzIGFHgAO3gfBMbzok6+MCduDkNLbhpHctML5Wx
+         GU/zmHnKNtwMw8O1hi9enBrA9JE7Ii5FyfOwXix3CKr4St5OXRHRr3r4+V7bF7JZjY+r
+         bJlw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=/Z1iSj7n4eE2MJ/9xe6rCBS/CDY1VH3vB2iW9S3+laA=;
-        b=Y8Q0/2Ifg5kjLIpw135wUp/3cEI+Vv4ufZH0f96I6tdorCTx46o0cesMQTUSOHWsga
-         CofxnCKPTBfxYPbqhDkEmwdM4n3SYrfE1KQVRDT8uLLpVXRp5YUIM89NnVHS3agQ8+WP
-         juiaW07GIjZBfGqCbuEW2cHx8Yo4/24GkhWlKGH/SZ86k91ikDUdhy3mHzdAwQ2s90rb
-         bqv4O8iiCNKxeCUVwtTtsqt6JbYrHLSYy370JKXqotMEjFS7nBCSwtcVPcncwhAx/Ei+
-         IXtmjKUJHLcRbV0GFVukchduVvlRZliPEVXoWTkSzaz7hjXn5o4U9XO1U5MjwEfJ5LFk
-         26RA==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=MslmhBf6sHBX+lTIZiGv5oF8ktq/q6NsQm5zdWGHpTQ=;
+        b=AiBBnSfsIoqg/ENwpRXTquHUoo2d5IkCAN/9RWUpLD0lB8KOHpSwgXqvfHux3qP+ON
+         21LzQ+qLM+CQJkCnfDTLsoEAhcLtRcNF1xsHvUZQH5dhRsgAlDp9wJMazcLBVPq7S9Vk
+         Fazh2D530+DYD15O0E+ELPLtsT03VFb0hfrMvy4iHvXG/XeqgBS/3+FjK9mNamiQNxTk
+         6oOaoaz0rYimSPoh9HwoRDQ09s2Ep3r+moAQ4BzNA0WPmKiCsaCayiO1tmHRRl/I96Xe
+         yosnzki/ZVjRsMumUQg/Gy8gS2CAUFM5FLxrHLAmkND2CoE4v7ae6sI4baQMCAxecUfR
+         er9w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from suse.de (charybdis-ext.suse.de. [195.135.221.2])
-        by mx.google.com with ESMTP id z7si1037481edl.231.2019.02.07.05.36.25
-        for <linux-mm@kvack.org>;
-        Thu, 07 Feb 2019 05:36:25 -0800 (PST)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=dTixeQLV;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id l8si8534604pgm.250.2019.02.07.05.54.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 07 Feb 2019 05:54:41 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: by suse.de (Postfix, from userid 1000)
-	id 8B21B41A4; Thu,  7 Feb 2019 14:36:24 +0100 (CET)
-Date: Thu, 7 Feb 2019 14:36:24 +0100
-From: Oscar Salvador <osalvador@suse.de>
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	gregkh@linuxfoundation.org, rafael@kernel.org, mhocko@kernel.org,
-	akpm@linux-foundation.org
-Subject: Re: [PATCH] mm/memory-hotplug: Add sysfs hot-remove trigger
-Message-ID: <20190207133620.a4vg2xqphsloke6i@d104.suse.de>
-References: <29ed519902512319bcc62e071d52b712fa97e306.1549469965.git.robin.murphy@arm.com>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=dTixeQLV;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=MslmhBf6sHBX+lTIZiGv5oF8ktq/q6NsQm5zdWGHpTQ=; b=dTixeQLVu7KVSglvTuT6y6NrB
+	rYgagcrHhJjihyiiIkRYAiB55rstLOlgOmT/ytB6+MR4UHv2vN/3TX71ojKEKepM8SM2PM6G+vVRM
+	SSi1Bqwl0MYMHTVCwd25Tkg7CkQwvFOQ1e5S8dLp8+Mo2W2npAnkDWxmP00Jx0CmqZmL7ayCGsO5k
+	bopYRxg/SUtKwzZ3xaha6RLVrjXS93Tq3k7TytGPy6iLX1acucpccOyvne5HPEFRbNf5FPihb2+bX
+	W4dPTweVdsHFZUub8DYpjK75j3A37u79TwYV91pIW4rBFkGuleAtWDlckD64Rgal0bkx4q9IA739A
+	2OqF0klUA==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1grk7n-0003OL-U6; Thu, 07 Feb 2019 13:53:55 +0000
+Date: Thu, 7 Feb 2019 05:53:55 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: Kees Cook <keescook@chromium.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Mike Rapoport <rppt@linux.ibm.com>, linux-kernel@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+Subject: Re: [PATCH v3 1/2] mm: add probe_user_read()
+Message-ID: <20190207135355.GU21860@bombadil.infradead.org>
+References: <39fb6c5a191025378676492e140dc012915ecaeb.1547652372.git.christophe.leroy@c-s.fr>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <29ed519902512319bcc62e071d52b712fa97e306.1549469965.git.robin.murphy@arm.com>
-User-Agent: NeoMutt/20170421 (1.8.2)
+In-Reply-To: <39fb6c5a191025378676492e140dc012915ecaeb.1547652372.git.christophe.leroy@c-s.fr>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 06, 2019 at 05:03:53PM +0000, Robin Murphy wrote:
-> ARCH_MEMORY_PROBE is a useful thing for testing and debugging hotplug,
-> but being able to exercise the (arguably trickier) hot-remove path would
-> be even more useful. Extend the feature to allow removal of offline
-> sections to be triggered manually to aid development.
+On Wed, Jan 16, 2019 at 04:59:27PM +0000, Christophe Leroy wrote:
+>  v3: Moved 'Returns:" comment after description.
+>      Explained in the commit log why the function is defined static inline
 > 
-> Signed-off-by: Robin Murphy <robin.murphy@arm.com>
-> ---
-> 
-> This is inspired by a previous proposal[1], but in coming up with a
-> more robust interface I ended up rewriting the whole thing from
-> scratch. The lack of documentation is semi-deliberate, since I don't
-> like the idea of anyone actually relying on this interface as ABI, but
-> as a handy tool it felt useful enough to be worth sharing :)
+>  v2: Added "Returns:" comment and removed probe_user_address()
 
-Hi Robin,
+The correct spelling is 'Return:', not 'Returns:':
 
-I think this might come in handy, especially when trying to test hot-remove
-on arch's that do not have any means to hot-remove memory, or even on virtual
-platforms that do not have yet support for hot-remove depending on the platform,
-like qemu/arm64.
+Return values
+~~~~~~~~~~~~
 
-
-I could have used this while testing hot-remove on other archs for [1]
-
-> 
-> Robin.
-> 
-> [1] https://lore.kernel.org/lkml/22d34fe30df0fbacbfceeb47e20cb1184af73585.1511433386.git.ar@linux.vnet.ibm.com/
-> 
-
-> +	if (mem->state != MEM_OFFLINE)
-> +		return -EBUSY;
-
-We do have the helper "is_memblock_offlined()", although it is only used in one place now.
-So, I would rather use it here as well.
-
-> +
-> +	ret = lock_device_hotplug_sysfs();
-> +	if (ret)
-> +		return ret;
-> +
-> +	if (device_remove_file_self(dev, attr)) {
-> +		__remove_memory(pfn_to_nid(start_pfn), PFN_PHYS(start_pfn),
-> +				MIN_MEMORY_BLOCK_SIZE * sections_per_block);
-
-Sorry, I am not into sysfs inners, but I thought that:
-device_del::device_remove_attrs::device_remove_groups::sysfs_remove_groups
-would be enough to remove the dev attributes.
-I guess in this case that is not enough, could you explain why?
-
-
-[1] https://patchwork.kernel.org/patch/10775339/
--- 
-Oscar Salvador
-SUSE L3
+The return value, if any, should be described in a dedicated section
+named ``Return``.
 
