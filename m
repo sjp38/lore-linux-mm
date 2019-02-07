@@ -2,222 +2,242 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B6360C282C4
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 18:44:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 595D3C282C2
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 18:51:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7C2F82175B
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 18:44:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C2F82175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 052F62175B
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 18:51:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="mPP6alBT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 052F62175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EDB808E005E; Thu,  7 Feb 2019 13:44:13 -0500 (EST)
+	id 81E478E005F; Thu,  7 Feb 2019 13:51:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E63C08E0002; Thu,  7 Feb 2019 13:44:13 -0500 (EST)
+	id 7CE9F8E0002; Thu,  7 Feb 2019 13:51:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D2C608E005E; Thu,  7 Feb 2019 13:44:13 -0500 (EST)
+	id 6E3B68E005F; Thu,  7 Feb 2019 13:51:05 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EBAB8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 13:44:13 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id i3so567187pfj.4
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 10:44:13 -0800 (PST)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 486238E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 13:51:05 -0500 (EST)
+Received: by mail-yb1-f199.google.com with SMTP id j7so525315ybj.4
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 10:51:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=nGEeQeLjRiRY1STvbkur3v/OXCqBcTyoZO/FNA/l88w=;
-        b=r4gXA4mfDWRv405Z1Q87rGU8d/ffBici926U1kYFkt6BnJ3KvEWoMPTneoXJAam1GW
-         lsLCdAR+Yb3jLxd6Bd85SXhN8FZQ01sPVZHYmF3LQx9lCUT6dG9v7sbad6w54sBbyZxq
-         fR65AJiB7ZWIp6LtKQxdILlMCZjF594rat6f2pkEy7a/c0PeE5ewmnhh5bQO/9vKSvSv
-         A2LUykcs5XPYGC9lPefx4iKbRJT5C5MeBaNsvnc6lUDONVXVUMJWH3ZWmsucC7xnc6fF
-         CEDTUI71xdIeybcIQE5KN65aiHvtak89xAUaNmG+X2rkSaidcR+wUXS8RTQst+XpWXt5
-         hKjQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuaRJ7X6GU9sSZgd6DC+2gKtcmJQICyUA2kbAb4H9HBWlbo6aNU4
-	U1Nwr9n1BrUVefKMlTFO03XC1JPDy9j3matxs7+UCSZqlasL3L5Z6vueDM40tWCCCUZJsv9VO24
-	4ZRZDv3nkmzEvz0pkySq+i+NvoXpyAMk6P3HZFJMIiX3oiw8lLOiy8jY0FvQjt+00jg==
-X-Received: by 2002:a63:d20f:: with SMTP id a15mr16108365pgg.171.1549565053188;
-        Thu, 07 Feb 2019 10:44:13 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IabRwA0Xc2rxPnjxDXjYV5R1i3wBKyQdQztUHpzYpPYCZw3W0RSjUQ6u6AH9WXFkTfKuY1b
-X-Received: by 2002:a63:d20f:: with SMTP id a15mr16108293pgg.171.1549565052269;
-        Thu, 07 Feb 2019 10:44:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549565052; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=CY1qIemIcU7S4oq51xk5yyrbeVt0hXCjaaqLCg3A9io=;
+        b=Rw8EXEsVp7LACvOLaYENFsJGpQtYKkbjGbipLawhl9gH9x5lrzlLEAQB558BnIUMWB
+         QcomkWEHPsrtvbmXRLet7mi2Akef10t7Y8LNzuQQpVQdYM0RN5cmTfJh7f3XeLgg3iFv
+         4jdj6RKh4Kvs4Uvp4BZAEJpolbUNFabhg64P7QGq2LfNjrNfBtAN/Hbh7uP0zDhXc3YT
+         7NyIiJKIpIXEMdmkGML8w9P7un2OJ/IFmMolMYF1Idx0dpt3EcjTMk1XpQQuyVScHct1
+         F0XPnaK+ELDEzfAnGxmAoHsk4OK86YmGS11LaQN2F2MXE2wG6+CUEzK2o1qHSZREq2p9
+         p9WA==
+X-Gm-Message-State: AHQUAubrEaosgrD6/gzFb/OnHG9t9gZfEf2aetS5PdTtvndU+VM4fGuV
+	s6eiiqZoyPxKV9xMY0JgokNCSxGlRIGMn6YfM6mjFfsA0gMU/HuRpwIOB+C0HmpClQ8jInQZKjH
+	vgaKhwQ0xJtO4K3K6l0nCkzhYtgjRhjish5qb92vzkCaxU02ErdPUGfW4NZ9YdnFoHw==
+X-Received: by 2002:a81:3149:: with SMTP id x70mr14291616ywx.420.1549565464904;
+        Thu, 07 Feb 2019 10:51:04 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZ/8xY09P1TaFORn5Zxh2nQulvSebwnmGiK41itebJekVd82daZq8UBSwkMXwnjVx8paLyP
+X-Received: by 2002:a81:3149:: with SMTP id x70mr14291568ywx.420.1549565464020;
+        Thu, 07 Feb 2019 10:51:04 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549565464; cv=none;
         d=google.com; s=arc-20160816;
-        b=YeE2e/yitGDu1d8BfjiQZiGjpt7v3YfYi+RSUJW0F+5Mo1a+3EHL1X9GI6qbeYXZQo
-         6J2aBDIo7Euxf95LvAIg9Cr9O4Qh97GPQPIA8ZabL9BUg5oAoGm6wAKyF9jIuwcjFGbI
-         +izAfufTuwoYY1oCmFMfDYYBDHgsWf+CNbWknp0/7z7i3732ZVITI7Vj+QXsk3Vt5gR3
-         xxhLsPNjQDuPKOAdJc3e89afdnKKPL4WFrlSOlYXdf3dYJ6QLZGHeq0rrCBC7p2nFhiB
-         uGodcCTtQeU6Ka2+AIuIhKlHCXMs0bG/R4JrHwlutW6oWiUDeY2h8OO4kBTpTZWAKYNK
-         5D8g==
+        b=Og8of6UXEN6JirRGwm1Vgvl42aJEtdyQidiQdCCMD8iSmBZm2Rzpuo1+dEuMUE/4YH
+         Y6MUvW3//hPDbIR/ZMrHZUyLoOJuM80QmbHmZ7LM5PvzrX+O5qCH0aAywnkFawlj0KIp
+         j2vf7ZJv8YB2Kw38rjCh8364pUi+WMbgezKofTls3oxYnedTXASr7XwtGDpYc5yw6Rvm
+         /ZWt6fgdY05U9k4kZMRvriaYUsltQcQoRjz7twXPyKpOryWBb8vm9iTOy2ojdcs8R+Fs
+         +2gkKTONpaGECF31pvIIA7MRjd8+9okjunvj5LFp4eOz4rJy9MVR6hjBt/vF3APCMhm6
+         qICQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=nGEeQeLjRiRY1STvbkur3v/OXCqBcTyoZO/FNA/l88w=;
-        b=05jcJu8pWgYeOVAuxlXYe2O9XszmAkyetb97fILXZvNM5Lhm7ciEVUwsLL4/JUeXgb
-         ZYWSbLiIx5y5tpNvsixwgsQpKxkvovqrsS2/nheC/y5hL8DvjdvS119eipahj+jJ58Uc
-         IgMYNj3G9jNysRKXY7t0frFCT0ikco2vidz0KPW+o4qY5UogfKUE3BJqwXdMgkjVfrUe
-         u9NH2rknA3NF9FqtFzFFBw1s5OSdYmN5OGQKoLLWxRswuBYSEDlYyqIjUK241IHgRqki
-         3hVy6gdPf4rvG7XJkfjoSwnd23SioK3GtxR8MGwzrrIssuqbWownvcGZ2HlGMIFl7ep5
-         9ldg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=CY1qIemIcU7S4oq51xk5yyrbeVt0hXCjaaqLCg3A9io=;
+        b=mBGWKBU8zHunR47L0To+bFlw3FhCHc/WlpP6jG2fJspuK5e78qvk4FVN4+kVdMXJIn
+         W8lIG92yOAGghmEv6I9Co2Hz/fpqQaR6c2ood3fkpItiQXv5bBmQ/1jV2xXsq8jaM14c
+         uuxO5MqLFsVFMKMhfw+/Nm6gAOnMg7qdqE0Ey+HdM4rvLfurKcj8HZLbuJLOh/tPrh/Y
+         B/Upz19p/uowMK/1TGt8gAQz61b/T0ATPFhv9e6eIQpoZzazKKJU1iR4M3Qg0MeoZumn
+         GHZI6CfLryfakpWaA2Hw37NmIkD+amRAPbSzP0fzLddEqLfKiiNVA90V6kDWSQbBBuzx
+         EbSw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id w61si9889562plb.309.2019.02.07.10.44.11
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=mPP6alBT;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id c2si4723578ywe.154.2019.02.07.10.51.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Feb 2019 10:44:12 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        Thu, 07 Feb 2019 10:51:04 -0800 (PST)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Feb 2019 10:44:09 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,345,1544515200"; 
-   d="scan'208";a="298032527"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga005.jf.intel.com with ESMTP; 07 Feb 2019 10:44:11 -0800
-Message-ID: <34c93e5a05a7dc93e38364733f8832f2e1b2dcb3.camel@linux.intel.com>
-Subject: Re: [RFC PATCH 3/4] kvm: Add guest side support for free memory
- hints
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: Luiz Capitulino <lcapitulino@redhat.com>, Alexander Duyck
-	 <alexander.duyck@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, 
- rkrcmar@redhat.com, x86@kernel.org, mingo@redhat.com, bp@alien8.de,
- hpa@zytor.com,  pbonzini@redhat.com, tglx@linutronix.de,
- akpm@linux-foundation.org
-Date: Thu, 07 Feb 2019 10:44:11 -0800
-In-Reply-To: <20190207132104.17a296da@doriath>
-References: <20190204181118.12095.38300.stgit@localhost.localdomain>
-	 <20190204181552.12095.46287.stgit@localhost.localdomain>
-	 <20190207132104.17a296da@doriath>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
-Mime-Version: 1.0
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=mPP6alBT;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x17InAek026056;
+	Thu, 7 Feb 2019 18:50:59 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=CY1qIemIcU7S4oq51xk5yyrbeVt0hXCjaaqLCg3A9io=;
+ b=mPP6alBTXMCwd2BrszA7sBmzRFHYaRPYGw5M42IKT4hhPIdJe7SCqJ27GLLDjJjmZPGS
+ x+BqiKSLpSgDIF3fkHykBThDcwlEe7aBM8C2eOlxAvHZzqS0pjEkoJJKmXn2q5SCnmee
+ UIDI21L5mLJ+ioUmfULPaYUfS8TD5PphKzujjhOvaYFu+mmCWJOE2fyv00yUGRiu0+Bk
+ C1TprmXik7XvQP+ZkCUUCj97xn6kpxASs0yjukibItTZW6GXOmoX9XypaWfvCSJKbZOe
+ C/L/D3jWJyvi7KxuYGEL1dZcX9IJYLAtwSGo3yXx/laFhD7TVa7xaksUFld1mHLTpGmh yQ== 
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by userp2130.oracle.com with ESMTP id 2qd9arrrqg-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 07 Feb 2019 18:50:59 +0000
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x17IowKf014618
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 7 Feb 2019 18:50:59 GMT
+Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x17Iovuj023593;
+	Thu, 7 Feb 2019 18:50:57 GMT
+Received: from [192.168.1.164] (/50.38.38.67)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 07 Feb 2019 18:50:56 +0000
+Subject: Re: [PATCH] huegtlbfs: fix page leak during migration of file pages
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@kernel.org>,
+        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+        Andrea Arcangeli <aarcange@redhat.com>,
+        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+        Mel Gorman <mgorman@techsingularity.net>,
+        Davidlohr Bueso
+ <dave@stgolabs.net>,
+        Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
+References: <20190130211443.16678-1-mike.kravetz@oracle.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <917e7673-051b-e475-8711-ed012cff4c44@oracle.com>
+Date: Thu, 7 Feb 2019 10:50:55 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
+MIME-Version: 1.0
+In-Reply-To: <20190130211443.16678-1-mike.kravetz@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9160 signatures=668682
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=807 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1902070141
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2019-02-07 at 13:21 -0500, Luiz Capitulino wrote:
-> On Mon, 04 Feb 2019 10:15:52 -0800
-> Alexander Duyck <alexander.duyck@gmail.com> wrote:
-> 
-> > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> > 
-> > Add guest support for providing free memory hints to the KVM hypervisor for
-> > freed pages huge TLB size or larger. I am restricting the size to
-> > huge TLB order and larger because the hypercalls are too expensive to be
-> > performing one per 4K page. Using the huge TLB order became the obvious
-> > choice for the order to use as it allows us to avoid fragmentation of higher
-> > order memory on the host.
-> > 
-> > I have limited the functionality so that it doesn't work when page
-> > poisoning is enabled. I did this because a write to the page after doing an
-> > MADV_DONTNEED would effectively negate the hint, so it would be wasting
-> > cycles to do so.
-> > 
-> > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> > ---
-> >  arch/x86/include/asm/page.h |   13 +++++++++++++
-> >  arch/x86/kernel/kvm.c       |   23 +++++++++++++++++++++++
-> >  2 files changed, 36 insertions(+)
-> > 
-> > diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
-> > index 7555b48803a8..4487ad7a3385 100644
-> > --- a/arch/x86/include/asm/page.h
-> > +++ b/arch/x86/include/asm/page.h
-> > @@ -18,6 +18,19 @@
-> >  
-> >  struct page;
-> >  
-> > +#ifdef CONFIG_KVM_GUEST
-> > +#include <linux/jump_label.h>
-> > +extern struct static_key_false pv_free_page_hint_enabled;
-> > +
-> > +#define HAVE_ARCH_FREE_PAGE
-> > +void __arch_free_page(struct page *page, unsigned int order);
-> > +static inline void arch_free_page(struct page *page, unsigned int order)
-> > +{
-> > +	if (static_branch_unlikely(&pv_free_page_hint_enabled))
-> > +		__arch_free_page(page, order);
-> > +}
-> > +#endif
-> > +
-> >  #include <linux/range.h>
-> >  extern struct range pfn_mapped[];
-> >  extern int nr_pfn_mapped;
-> > diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
-> > index 5c93a65ee1e5..09c91641c36c 100644
-> > --- a/arch/x86/kernel/kvm.c
-> > +++ b/arch/x86/kernel/kvm.c
-> > @@ -48,6 +48,7 @@
-> >  #include <asm/tlb.h>
-> >  
-> >  static int kvmapf = 1;
-> > +DEFINE_STATIC_KEY_FALSE(pv_free_page_hint_enabled);
-> >  
-> >  static int __init parse_no_kvmapf(char *arg)
-> >  {
-> > @@ -648,6 +649,15 @@ static void __init kvm_guest_init(void)
-> >  	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
-> >  		apic_set_eoi_write(kvm_guest_apic_eoi_write);
-> >  
-> > +	/*
-> > +	 * The free page hinting doesn't add much value if page poisoning
-> > +	 * is enabled. So we only enable the feature if page poisoning is
-> > +	 * no present.
-> > +	 */
-> > +	if (!page_poisoning_enabled() &&
-> > +	    kvm_para_has_feature(KVM_FEATURE_PV_UNUSED_PAGE_HINT))
-> > +		static_branch_enable(&pv_free_page_hint_enabled);
-> > +
-> >  #ifdef CONFIG_SMP
-> >  	smp_ops.smp_prepare_cpus = kvm_smp_prepare_cpus;
-> >  	smp_ops.smp_prepare_boot_cpu = kvm_smp_prepare_boot_cpu;
-> > @@ -762,6 +772,19 @@ static __init int kvm_setup_pv_tlb_flush(void)
-> >  }
-> >  arch_initcall(kvm_setup_pv_tlb_flush);
-> >  
-> > +void __arch_free_page(struct page *page, unsigned int order)
-> > +{
-> > +	/*
-> > +	 * Limit hints to blocks no smaller than pageblock in
-> > +	 * size to limit the cost for the hypercalls.
-> > +	 */
-> > +	if (order < KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER)
-> > +		return;
-> > +
-> > +	kvm_hypercall2(KVM_HC_UNUSED_PAGE_HINT, page_to_phys(page),
-> > +		       PAGE_SIZE << order);
-> 
-> Does this mean that the vCPU executing this will get stuck
-> here for the duration of the hypercall? Isn't that too long,
-> considering that the zone lock is taken and madvise in the
-> host block on semaphores?
+On 1/30/19 1:14 PM, Mike Kravetz wrote:
+> Files can be created and mapped in an explicitly mounted hugetlbfs
+> filesystem.  If pages in such files are migrated, the filesystem
+> usage will not be decremented for the associated pages.  This can
+> result in mmap or page allocation failures as it appears there are
+> fewer pages in the filesystem than there should be.
 
-I'm pretty sure the zone lock isn't held when this is called. The lock
-isn't acquired until later in the path. This gets executed just before
-the page poisoning call which would take time as well since it would
-have to memset an entire page. This function is called as a part of
-free_pages_prepare, the zone locks aren't acquired until we are calling
-into either free_one_page and a few spots before calling
-__free_one_page.
+Does anyone have a little time to take a look at this?
 
-My other function in patch 4 which does this from inside of
-__free_one_page does have to release the zone lock since it is taken
-there.
+While migration of hugetlb pages 'should' not be a common issue, we
+have seen it happen via soft memory errors/page poisoning in production
+environments.  Didn't see a leak in that case as it was with pages in a
+Sys V shared mem segment.  However, our DB code is starting to make use
+of files in explicitly mounted hugetlbfs filesystems.  Therefore, we are
+more likely to hit this bug in the field.
+-- 
+Mike Kravetz
+
+> 
+> For example, a test program which hole punches, faults and migrates
+> pages in such a file (1G in size) will eventually fail because it
+> can not allocate a page.  Reported counts and usage at time of failure:
+> 
+> node0
+> 537	free_hugepages
+> 1024	nr_hugepages
+> 0	surplus_hugepages
+> node1
+> 1000	free_hugepages
+> 1024	nr_hugepages
+> 0	surplus_hugepages
+> 
+> Filesystem                         Size  Used Avail Use% Mounted on
+> nodev                              4.0G  4.0G     0 100% /var/opt/hugepool
+> 
+> Note that the filesystem shows 4G of pages used, while actual usage is
+> 511 pages (just under 1G).  Failed trying to allocate page 512.
+> 
+> If a hugetlb page is associated with an explicitly mounted filesystem,
+> this information in contained in the page_private field.  At migration
+> time, this information is not preserved.  To fix, simply transfer
+> page_private from old to new page at migration time if necessary. Also,
+> migrate_page_states() unconditionally clears page_private and PagePrivate
+> of the old page.  It is unlikely, but possible that these fields could
+> be non-NULL and are needed at hugetlb free page time.  So, do not touch
+> these fields for hugetlb pages.
+> 
+> Cc: <stable@vger.kernel.org>
+> Fixes: 290408d4a250 ("hugetlb: hugepage migration core")
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+>  fs/hugetlbfs/inode.c | 10 ++++++++++
+>  mm/migrate.c         | 10 ++++++++--
+>  2 files changed, 18 insertions(+), 2 deletions(-)
+> 
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 32920a10100e..fb6de1db8806 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -859,6 +859,16 @@ static int hugetlbfs_migrate_page(struct address_space *mapping,
+>  	rc = migrate_huge_page_move_mapping(mapping, newpage, page);
+>  	if (rc != MIGRATEPAGE_SUCCESS)
+>  		return rc;
+> +
+> +	/*
+> +	 * page_private is subpool pointer in hugetlb pages, transfer
+> +	 * if needed.
+> +	 */
+> +	if (page_private(page) && !page_private(newpage)) {
+> +		set_page_private(newpage, page_private(page));
+> +		set_page_private(page, 0);
+> +	}
+> +
+>  	if (mode != MIGRATE_SYNC_NO_COPY)
+>  		migrate_page_copy(newpage, page);
+>  	else
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index f7e4bfdc13b7..0d9708803553 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -703,8 +703,14 @@ void migrate_page_states(struct page *newpage, struct page *page)
+>  	 */
+>  	if (PageSwapCache(page))
+>  		ClearPageSwapCache(page);
+> -	ClearPagePrivate(page);
+> -	set_page_private(page, 0);
+> +	/*
+> +	 * Unlikely, but PagePrivate and page_private could potentially
+> +	 * contain information needed at hugetlb free page time.
+> +	 */
+> +	if (!PageHuge(page)) {
+> +		ClearPagePrivate(page);
+> +		set_page_private(page, 0);
+> +	}
+>  
+>  	/*
+>  	 * If any waiters have accumulated on the new page then
+> 
 
