@@ -2,150 +2,158 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 467E3C282C2
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 18:17:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 114E5C4151A
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 18:20:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CD6A02086C
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 18:17:48 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="B47/aMZw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD6A02086C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	by mail.kernel.org (Postfix) with ESMTP id C9FE32086C
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 18:20:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C9FE32086C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 37DE98E0059; Thu,  7 Feb 2019 13:17:48 -0500 (EST)
+	id 662B18E005A; Thu,  7 Feb 2019 13:20:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 307B18E0002; Thu,  7 Feb 2019 13:17:48 -0500 (EST)
+	id 612DE8E0002; Thu,  7 Feb 2019 13:20:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1CEB08E0059; Thu,  7 Feb 2019 13:17:48 -0500 (EST)
+	id 5026D8E005A; Thu,  7 Feb 2019 13:20:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E737B8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 13:17:47 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id c84so650274qkb.13
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 10:17:47 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 106DC8E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 13:20:52 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id m16so488320pgd.0
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 10:20:52 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=DxakVmrk+rxFQSFA39vWF6fSPdcTuwBUfQ7c7/5uFy0=;
-        b=mfgWRn9z+PxJvkq7nMZLOHiI0TzoWmjODDkYPUOWZTSxh+iJ5TJPRhuzU0fMor6EHr
-         MCvupbOIZlhIUN2kbGByVDh9ZaAfo/ctf1iSmB50/xbitN2vgBGmFHPTVrNlksEPZ6AU
-         +T8h3oEosnqWOCdmGeLwRp4XOclN3O4f52s5ZK+OPxORWbK4OIi1CLuJqZOanLwX64md
-         g4vh79IPLUzq062L4TJib/88D0CeWOUm2vpqTNvyQxtrNbcnZDOcyRJwN4GPWqSaXzFn
-         EP0dy5TAIXxN2ZxoiBpqmbiQWiA+DeJkmxYSvRt+v6yxIfV5WXDwNRhTh1XiFn8brPV2
-         unRQ==
-X-Gm-Message-State: AHQUAuYsrMRElbkQHVDvgrnUujPBqBl5Zx9O+BpDs6EPPpsbKYm0em4f
-	c/v4jwfg/i3i0rAD1EbuVwQXNoUvBLhaYW8G6GmMJeEkQr0GdNmjSYGqbHMoT/QQUuMB3LjSgpZ
-	YCxvqqigI/vmeYoqqJRY3TXUDHb7LRgJOI4v1WE440T0QQ7uf6VuGto+BJnR3BNo=
-X-Received: by 2002:a0c:d6c2:: with SMTP id l2mr12670987qvi.97.1549563467644;
-        Thu, 07 Feb 2019 10:17:47 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYrsFrAAYjFJz2W+JXbqdRsYcp9WJEEV5PFAfQwIMaJaQHVoNJ4GvGf4zhceeOyLF5ZYIba
-X-Received: by 2002:a0c:d6c2:: with SMTP id l2mr12670948qvi.97.1549563466926;
-        Thu, 07 Feb 2019 10:17:46 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549563466; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=eu6XjxkXbhwpTILA5yewfHz1XgcU2AEUeuWXjdae8SI=;
+        b=auKBiyF8COwKpZWcx7GQWeRXjaMQO18NzE6p//K5s33aeswkNfhb8MXa4lktAZQCpa
+         DQwsBCBOnblurYaj6tJWPlIs0C2hA2erhDQwxLPVOVEDbs+TGEBvEQkvkaAL3H4km4Vg
+         /RUAqxV7WYZcBrLnX8d0rtnAI/B/z4NCr+EQjSvgPw6omL/4QraVuUqXjb3yXBTBxjLE
+         HY9qRoH2ZAfKAFe5GiKkMKtfB28TDhAFeds6a03wAxxj8EuMFE7mcLWCi3zSyrzMgDHo
+         AsNyNx8sDR3M5B+r9OAWaTuzaB6oUUD3qRB5itubH+dsOHiCB5IgTQh8hrUDh6S0QbGy
+         w0NA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuY/TJlqWLosUqlnzOYMZN1xqdJ7qcx+xX/OVAaj12A4l3AKGHJo
+	9p7FDT0X5Sd1XoEIMRQJzDmPbsMi9Mv97LxGFsKcG5vV0xerlo/kwIqLeZmMhkEYbq5rY7sFqpi
+	zTjzR46Tc0s9I6pdVqMUxkcKWKDzP2ZnUSc3yyvFECy/IqcOdVh3xCz6PcZF+0xIr4Q==
+X-Received: by 2002:a62:8d4f:: with SMTP id z76mr17970770pfd.2.1549563651735;
+        Thu, 07 Feb 2019 10:20:51 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZG8zzZdfuW0AiWP8tfdBNiYMxnY24u3zLMf9TJwv3P7m0XYVLal9tYfJ18a9u5uprXQ2+s
+X-Received: by 2002:a62:8d4f:: with SMTP id z76mr17970715pfd.2.1549563650954;
+        Thu, 07 Feb 2019 10:20:50 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549563650; cv=none;
         d=google.com; s=arc-20160816;
-        b=SMITXvEj4rk0fT507wRf30GO/3HnorZE1j/JMmzci9H76+uwYvClpQCFU/HTkJkVZo
-         uKFChBUq4m0BVt1qzmMltlDaflWSmMg/KB5dCjxCDREzPbj5qQ7UA6VNwQIKmzOygDW4
-         U7HAqC9kS/UdWNYF5ySStpGhFCBFOuZDVyH5uQJNtEyZh0UPgyMJ35mR3oGPvwe641I9
-         lbqNtalygrbeeMgb5djwa0L/VBL0M2u27Zw/dsfPj9PG1qoDEmaMn2L6ouQeAGb3yGmB
-         zVVJaZ9G6tjXJER4WxflZaFefJpB4Z6pyOs+nOuRWWJL09QB4piJ+XiYask3p17/yH5W
-         hGmw==
+        b=ynv0Em6ClJDJwcBgAtpA72i8KEE3A8q6sBsgwrvXYWS6HZLZcxyKBPxNZwmPmtNCyk
+         eP+FMMXGLGXWGsJ/pbiSA1Gcqn8eb+X7i6RE40SauAnFoYgMR5YixLV9B8BNGFayukRx
+         ticn2I8HaBWbXYmcr8Yc/qOAmTtF+XvzDVSZVWeWt0Kgho0vLBkJ+cD+3YmkxWR32xJT
+         iEnj8klP7PXKNTL02cbC31J8h005/tU7Ctx4ok/5U/F242rjR8KeUzys4wcigvqAi7mJ
+         TjB49iUXHTFNv5jDcgU+5o2lJcI+HN0h1l8fxNlL5Zf49NzX6O77+lVmNGOqDbyNU3l3
+         b8DQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=DxakVmrk+rxFQSFA39vWF6fSPdcTuwBUfQ7c7/5uFy0=;
-        b=CyUYODRJ7qUKDni5Ro4fZi42dCubpQBqLNfSb7HDfViLQtoLNYW7krUHTn/rDr3DYt
-         AnnWrW1MbWBpukPSdKv0NfyfolyDPfNi4Y/LXtOMihAwNB/G9lU8l2f7dYOeFbs6ky6Z
-         vjQA7VwzlifIvnAOoq5818yrE84+X2yNMci7ehuZmSVFXHp0u0bkCHceu4gc/fcGv5Lj
-         KMTfiUsTrI4kxbhTSGlBaxDbKYhVt3DNHpET2QMHN82ISO20laSvBoiVi7PAqCf8SrM6
-         FEg5muh6sCyB+oviChjdcrGJd0rWULPtSoxBzLkL04zIKBNGK7YZ/ygDNbZ36MFhdr2O
-         N1Cw==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from;
+        bh=eu6XjxkXbhwpTILA5yewfHz1XgcU2AEUeuWXjdae8SI=;
+        b=WCFOv/2zkMNtubeSUEmDG2GTljfiW7cQnpeG5r/EiudSRGpgP06FgfesVgUUdYsySb
+         mrcVvCSDTdBQnduKSU1HK/iBT7J/wnMF4aGKCZWGTwCbUcCTiMnj9VpkKXGBg8Iakf43
+         P8sInvHufkvGiGufPeQKaZi8T9dMqyTZ/GZUBKvUc1MC7WAER2mv62geKmQYcaJ2MLz2
+         49PvV6GWd3v0003WPuCO68n4c8I+W5zvj76nveFZvJreU/vCJ/6y2UPlkLVDuO18fk+m
+         ngmmRdkjJnJESx4Mtiky3hlElcztyotyBFZ/sP4OXGND7qPiYCsyizwa0SJN+LQsqfdj
+         iqaQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b="B47/aMZw";
-       spf=pass (google.com: domain of 01000168c92e1220-36386b5d-66f7-4ba5-ba0e-d314b1d26cf8-000000@amazonses.com designates 54.240.9.31 as permitted sender) smtp.mailfrom=01000168c92e1220-36386b5d-66f7-4ba5-ba0e-d314b1d26cf8-000000@amazonses.com
-Received: from a9-31.smtp-out.amazonses.com (a9-31.smtp-out.amazonses.com. [54.240.9.31])
-        by mx.google.com with ESMTPS id g124si2784515qkc.76.2019.02.07.10.17.46
+       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id d14si9873087pll.30.2019.02.07.10.20.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 07 Feb 2019 10:17:46 -0800 (PST)
-Received-SPF: pass (google.com: domain of 01000168c92e1220-36386b5d-66f7-4ba5-ba0e-d314b1d26cf8-000000@amazonses.com designates 54.240.9.31 as permitted sender) client-ip=54.240.9.31;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Feb 2019 10:20:50 -0800 (PST)
+Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b="B47/aMZw";
-       spf=pass (google.com: domain of 01000168c92e1220-36386b5d-66f7-4ba5-ba0e-d314b1d26cf8-000000@amazonses.com designates 54.240.9.31 as permitted sender) smtp.mailfrom=01000168c92e1220-36386b5d-66f7-4ba5-ba0e-d314b1d26cf8-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1549563466;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=0VffAsrUHZUiZ63MsIfnIIlVBW7/RgvsuDezdKupRM8=;
-	b=B47/aMZwpGCuvge66yAeFJ1YIM+i7xuALx1AU+6y+BctQkRsA7s32uTkotT6ixxR
-	vRbR+yOqW3PfCcHyIw/t1tgS5858WaLW0Xvd8Cy13zvdjhKQdEvTXRV4aC+QXAUOURh
-	MjDzJiPT3clgimtKm27lFmPphToHGq2F8d0JBoLA=
-Date: Thu, 7 Feb 2019 18:17:46 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Ira Weiny <ira.weiny@intel.com>
-cc: Doug Ledford <dledford@redhat.com>, 
-    Dan Williams <dan.j.williams@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>, 
-    Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, 
-    Jan Kara <jack@suse.cz>, lsf-pc@lists.linux-foundation.org, 
-    linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-    Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-    John Hubbard <jhubbard@nvidia.com>, Jerome Glisse <jglisse@redhat.com>, 
-    Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving longterm-GUP
- usage by RDMA
-In-Reply-To: <20190207173504.GD29531@iweiny-DESK2.sc.intel.com>
-Message-ID: <01000168c92e1220-36386b5d-66f7-4ba5-ba0e-d314b1d26cf8-000000@email.amazonses.com>
-References: <20190206173114.GB12227@ziepe.ca> <20190206175233.GN21860@bombadil.infradead.org> <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com> <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com> <20190206210356.GZ6173@dastard>
- <20190206220828.GJ12227@ziepe.ca> <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com> <CAPcyv4hqya1iKCfHJRXQJRD4qXZa3VjkoKGw6tEvtWNkKVbP+A@mail.gmail.com> <bfe0fdd5400d41d223d8d30142f56a9c8efc033d.camel@redhat.com>
- <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com> <20190207173504.GD29531@iweiny-DESK2.sc.intel.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Feb 2019 10:20:50 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,345,1544515200"; 
+   d="scan'208";a="120751908"
+Received: from orsmsx106.amr.corp.intel.com ([10.22.225.133])
+  by fmsmga007.fm.intel.com with ESMTP; 07 Feb 2019 10:20:49 -0800
+Received: from orsmsx156.amr.corp.intel.com (10.22.240.22) by
+ ORSMSX106.amr.corp.intel.com (10.22.225.133) with Microsoft SMTP Server (TLS)
+ id 14.3.408.0; Thu, 7 Feb 2019 10:20:47 -0800
+Received: from orsmsx112.amr.corp.intel.com ([169.254.3.62]) by
+ ORSMSX156.amr.corp.intel.com ([169.254.8.107]) with mapi id 14.03.0415.000;
+ Thu, 7 Feb 2019 10:20:46 -0800
+From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
+To: "rostedt@goodmis.org" <rostedt@goodmis.org>
+CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"daniel@iogearbox.net" <daniel@iogearbox.net>, "peterz@infradead.org"
+	<peterz@infradead.org>, "ard.biesheuvel@linaro.org"
+	<ard.biesheuvel@linaro.org>, "linux-integrity@vger.kernel.org"
+	<linux-integrity@vger.kernel.org>, "jeyu@kernel.org" <jeyu@kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, "tglx@linutronix.de"
+	<tglx@linutronix.de>, "nadav.amit@gmail.com" <nadav.amit@gmail.com>,
+	"dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "Dock, Deneen T"
+	<deneen.t.dock@intel.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>,
+	"linux-security-module@vger.kernel.org"
+	<linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>,
+	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com"
+	<hpa@zytor.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>,
+	"mingo@redhat.com" <mingo@redhat.com>, "linux_dti@icloud.com"
+	<linux_dti@icloud.com>, "luto@kernel.org" <luto@kernel.org>,
+	"will.deacon@arm.com" <will.deacon@arm.com>, "bp@alien8.de" <bp@alien8.de>,
+	"kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>,
+	"mhiramat@kernel.org" <mhiramat@kernel.org>, "ast@kernel.org"
+	<ast@kernel.org>, "paulmck@linux.ibm.com" <paulmck@linux.ibm.com>
+Subject: Re: [PATCH 16/17] Plug in new special vfree flag
+Thread-Topic: [PATCH 16/17] Plug in new special vfree flag
+Thread-Index: AQHUrfxTN/9E5iQS/ECuiIskA2n60aXTmtoAgAGlzACAAASHgIAACKWA
+Date: Thu, 7 Feb 2019 18:20:45 +0000
+Message-ID: <e71683c86dbe1b32fcec5cc708e8773e72242519.camel@intel.com>
+References: <20190117003259.23141-1-rick.p.edgecombe@intel.com>
+	 <20190117003259.23141-17-rick.p.edgecombe@intel.com>
+	 <20190206112356.64cc5f0d@gandalf.local.home>
+	 <16a2ac45ceef5b6f310f816d696ad2ea8df3b45c.camel@intel.com>
+	 <20190207124949.0ea219a7@gandalf.local.home>
+In-Reply-To: <20190207124949.0ea219a7@gandalf.local.home>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [10.54.75.11]
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <04CF8A361999FE4C8001D62D362CA687@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.02.07-54.240.9.31
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Feb 2019, Ira Weiny wrote:
-
-> On Thu, Feb 07, 2019 at 04:55:37PM +0000, Christopher Lameter wrote:
-> > One approach that may be a clean way to solve this:
-> >
-> > 1. Long term GUP usage requires the virtual mapping to the pages be fixed
-> >    for the duration of the GUP Map. There never has been a way to break
-> >    the pinnning and thus this needs to be preserved.
->
-> How does this fit in with the changes John is making?
->
-> >
-> > 2. Page Cache Long term pins are not allowed since regular filesystems
-> >    depend on COW and other tricks which are incompatible with a long term
-> >    pin.
->
-> Unless the hardware supports ODP or equivalent functionality.  Right?
-
-Ok we could make an exception there. But that is not required as a first
-step and only some hardware would support it.
-
-> > 3. Filesystems that allow bypass of the page cache (like XFS / DAX) will
-> >    provide the virtual mapping when the PIN is done and DO NO OPERATIONS
-> >    on the longterm pinned range until the long term pin is removed.
-> >    Hardware may do its job (like for persistent memory) but no data
-> >    consistency on the NVDIMM medium is guaranteed until the long term pin
-> >    is removed  and the filesystems regains control over the area.
->
-> I believe Dan attempted something like this and it became pretty difficult.
-
-What is difficult about leaving things alone that are pinned? We already
-have to do that currently because the refcount is elevated.
+T24gVGh1LCAyMDE5LTAyLTA3IGF0IDEyOjQ5IC0wNTAwLCBTdGV2ZW4gUm9zdGVkdCB3cm90ZToN
+Cj4gT24gVGh1LCA3IEZlYiAyMDE5IDE3OjMzOjM3ICswMDAwDQo+ICJFZGdlY29tYmUsIFJpY2sg
+UCIgPHJpY2sucC5lZGdlY29tYmVAaW50ZWwuY29tPiB3cm90ZToNCj4gDQo+IA0KPiA+ID4gPiAt
+LS0NCj4gPiA+ID4gIGFyY2gveDg2L2tlcm5lbC9mdHJhY2UuYyAgICAgICB8ICA2ICstLSAgDQo+
+ID4gPiANCj4gPiA+IEZvciB0aGUgZnRyYWNlIGNvZGUuDQo+ID4gPiANCj4gPiA+IEFja2VkLWJ5
+OiBTdGV2ZW4gUm9zdGVkdCAoVk13YXJlKSA8cm9zdGVkdEBnb29kbWlzLm9yZz4NCj4gPiA+IA0K
+PiA+ID4gLS0gU3RldmUNCj4gPiA+ICAgDQo+ID4gDQo+ID4gVGhhbmtzIQ0KPiANCj4gSSBqdXN0
+IG5vdGljZWQgdGhhdCB0aGUgc3ViamVjdCBpcyBpbmNvcnJlY3Q7IEl0IGlzIG1pc3NpbmcgdGhl
+DQo+ICJzdWJzeXN0ZW06IiBwYXJ0LiBTZWUgRG9jdW1lbnRhdGlvbi9wcm9jZXNzL3N1Ym1pdHRp
+bmctcGF0Y2hlcy5yc3QNCj4gDQo+IC0tIFN0ZXZlDQpTb3JyeSBhYm91dCB0aGF0LiBUaGVyZSBp
+cyBhY3R1YWxseSB2MiBvZiB0aGlzIHBhdGNoc2V0IG91dCB0aGVyZSwgd2hlcmUgdGhlcmUNCmFy
+ZSBubyBjb2RlIGNoYW5nZXMgZm9yIHRoaXMgcGF0Y2gsIGJ1dCBpdCBpcyBzcGxpdCBpbnRvIHNl
+cGFyYXRlIHBhdGNoZXMgZm9yDQplYWNoIHN1YnN5c3RlbS4gSXQgaGFzICJ4ODYvZnRyYWNlOiAi
+IGZvciB0aGUgZnRyYWNlIHBhdGNoLg0KDQpSaWNrDQo=
 
