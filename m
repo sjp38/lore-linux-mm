@@ -2,165 +2,218 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AAED9C4151A
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 15:34:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06FA2C282C2
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 15:35:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 654382077B
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 15:34:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B567C21872
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 15:35:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="LqyOFZTg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 654382077B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=kernel-dk.20150623.gappssmtp.com header.i=@kernel-dk.20150623.gappssmtp.com header.b="v7wRl+42"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B567C21872
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kernel.dk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 024828E003D; Thu,  7 Feb 2019 10:34:21 -0500 (EST)
+	id 5558E8E003E; Thu,  7 Feb 2019 10:35:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F16EA8E0002; Thu,  7 Feb 2019 10:34:20 -0500 (EST)
+	id 503888E0002; Thu,  7 Feb 2019 10:35:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E07618E003D; Thu,  7 Feb 2019 10:34:20 -0500 (EST)
+	id 3F6888E003E; Thu,  7 Feb 2019 10:35:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B8858E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 10:34:20 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id f69so175280pff.5
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 07:34:20 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EC61A8E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 10:35:11 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id b15so174623pfi.6
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 07:35:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=8zLBuc0sBo52O4bloIqQvrcyfDP4dPfYY5yzFr1WIjY=;
-        b=XT69dG0QXYaf0nua3Ce9/hrsg0wx/j3q3nSRfVNoW4VQJO0AwoHRT4SGJMEDltgH40
-         J065rWeU2nSwgR5A2gUQj1bu8uYcn8938Fd+yDAItQxd8GuojjDB1G4zDDsvVaAeqoFE
-         uqDrgT5D0DcduRicyLA8MwAIqLRhFaLkoYZCQpBZfcCpJLUOgu2I/kL2P53h4KIgZ1IS
-         YODEu9fmNLv8UgzGzWWI3JnwzxLUe81/JlOfSvPpHWEvQsmomWlEsJsL/a6d5TyLZvGF
-         i8+pC+JKzulk3bmTJpyEcqshVk4Im35AgesWXA1NS92nmNIuHYKLQM7FdbnXL4kat9gC
-         z8mQ==
-X-Gm-Message-State: AHQUAuZRp29mswmNf05WKfM9GwN9g8iH39m6b47w6WPPw32TcgzU1xNI
-	wV+FuUQCzFDDnsqSPI5/tNCu2r9A+nqDUq5NYVGq6Fsh6pw3Rc/+RTWBsiylGcgNZ7DE/xOAs+H
-	v+h5f0YIyUdxVK37zAUzHYxLyeMd7aqOxEDOmot/rMfwpNFBUIf2eGMjqTBQosv3RmXnTydItSR
-	1guTQIQvkJ6LHn2a8Gay2RiN/V/7gn7SetNnfpfhpbnuCq73PD1J2ES4Dl+2PlEVoXPd+BvMLst
-	P26pH8nDpLt581u2c/Rb+OKvjLPQe3To3Rc2VD1jCUmI/muqQ27gYN3AOETyZPM/7tEeuLZP53c
-	mk02MTR51WgKGL49FbaSmBnBN2sL+eUOF+scOi1PSPdTp6f61x9vzx4uv2jb+7PIM7HYATgz6HY
-	u
-X-Received: by 2002:a63:c503:: with SMTP id f3mr15044254pgd.431.1549553660250;
-        Thu, 07 Feb 2019 07:34:20 -0800 (PST)
-X-Received: by 2002:a63:c503:: with SMTP id f3mr15044211pgd.431.1549553659619;
-        Thu, 07 Feb 2019 07:34:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549553659; cv=none;
+        h=x-gm-message-state:dkim-signature:from:subject:to:cc:message-id
+         :date:user-agent:mime-version:content-language
+         :content-transfer-encoding;
+        bh=vfrucWasRxu8wXy8I+OWsttiphZ78Pxa89vVhirKE38=;
+        b=BjSitMKBUg/iKvu/MjHhZNmM383B/Z48rBlR2fRGXHxCBlXhF/kwoLYcwRvu+z/5aN
+         yLYYhcboSn/zJ4ibRinWN8LsY1Pd4g0IQYzQcly6oP0IBtsDlKG5/+JXnKTaB2+WMbSz
+         OTLF0406v2bFhPVdeUvpecyzqxqopybDqzhnTDxP2rON4ISn82HkudA8O3h97KEBTeOp
+         C8tV0oYDYo/uBxmj1YCyWM+zHdhfyYeNwOSgueEGjcyWau3c4K/umIa8q/CwdHpPiFxN
+         U7kpqW3AWCDB7/yN5mMrf1av7SvTJWHCzi1Z/DAMU3YmJQ4I7kfEBHZNF4TWE0GaXZvS
+         1WcA==
+X-Gm-Message-State: AHQUAuYjiLLOCy0TXPDbcwnUjFbQ+MIU2PKSbKbTZrsi6xIVm+gFM2VA
+	AgPIHeg7/RAhu+E/ZgwFhxbqSrafX+0WipKadcVfgIM/Nt1EdNIMsBAImGPgg972i35YxXd++PT
+	DoPJEG5hVK12HiLutyxWe9AGxrIjs1iV675+6oyxrNbW3FBBo3kzONbLW3GvYGfvbh/liRYn1M3
+	s6LnvT2GPwN+E9MdLTtPAgSELy6OSebipVhghQKPmrltJWdtXJYij/FCTTdOwuT34Yg1E+oXBCv
+	GA7p61fPX2Kc/Enwvk5OQX3qSbgsqYZ6JglhD79WcdEWtw/7zHSIQnA32ea9BJReAE4ZaBzzb/Q
+	2UA/AWuJTchVnQ5YccBunma1/CmrXNcPAfJDv+sdssQDURWbCEY5X3YJApU9eknCvThQOHh9C9B
+	N
+X-Received: by 2002:a17:902:7590:: with SMTP id j16mr16400996pll.231.1549553711558;
+        Thu, 07 Feb 2019 07:35:11 -0800 (PST)
+X-Received: by 2002:a17:902:7590:: with SMTP id j16mr16400916pll.231.1549553710610;
+        Thu, 07 Feb 2019 07:35:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549553710; cv=none;
         d=google.com; s=arc-20160816;
-        b=MfcjuNRnzJnhWGx7IgBJjBcwtm+BSAio6kuvGBlLAJmKL+cVAWhEk4MISL1uqXCARB
-         SKT4bFRrpUJwfFlQeMUa3IEtnY75Toc82+ygrifK80rfL5qi8ypH88I8l8q0bVGKwZP0
-         9jOPiKnpYj2MJ33jQWMGvcC1e1J/WkODP8ebAJF1n1RudhbninfediQrUFPl4eq+FGtw
-         ZKZ7QAV0/k1VWtmPtXyjpCNPE7g0AkWrgGTi/HZL9vRtCPKkbBflsfVXub5YYJe1Scy+
-         Iuifh0eKmHyKB0s4OC4cY72EUQNcIt79PvvLEXkcIAB3kQu0gRnnIeojobbxtYKdNc7+
-         6ZWQ==
+        b=J5rPScHJ5W/nCLRVWIRLZQPQz9FqhYQeyee7bIEiAnBZXWFg04Bm8eXo2wbp2AgEkG
+         jOH7V8qtFBpCfm3TjdmBL/KfMPwWk6Kday8PXaTphoj1yhpK8URjZ4pxJVlJ1rtYR05Z
+         1eGZB/rMTZ2NBROTKLV8DE5lc9k70DAKlseNuPTRjvvgQ7GF7nXLHAflPjjG6L9v3tXi
+         LMHDxx20AC2FXvtKVfBZxHrjvgcpJivbHWSGN3fF5gI81Mqhk8Qd5yJrDVeV9RX3XLSv
+         Zo/uIFnplHCSlvQnCXvMMn04HQ9m1ocvogZGpn+/8etAe5hQaPdMH4ZglIWO1gaeGigl
+         vmoA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=8zLBuc0sBo52O4bloIqQvrcyfDP4dPfYY5yzFr1WIjY=;
-        b=PDQeJ3PUKuUTvsLFkOxLiork0mMcWuPqs1WI0jgzCblhT9aFJ93+lQVLS4Rc6nhnlr
-         vzhLw9woBNUm0MhqNDrCq4QY03RgX1JdipO7Hh3/fCx95y1nt6n5nt33XVZckhLDu00w
-         lfUM1TwRb6v703tXmr6KrHws311YmVW3ZbiQhS4HLfZcEXJQQKDHREl/1emnalvEoIVb
-         Wjhk9N+GMAtQPREcPmj9FIYZpkxXDL9yVODCZEhI9cH69DpMsTLJpFLVI0lzfzbIr1SU
-         CPRL/w2YTJM0+H0ryIlhOyTaahJ5hBGzRZdvQ1jCM6TJcmHlCw/tsw1umtG/BBDfbDA6
-         j4mQ==
+        h=content-transfer-encoding:content-language:mime-version:user-agent
+         :date:message-id:cc:to:subject:from:dkim-signature;
+        bh=vfrucWasRxu8wXy8I+OWsttiphZ78Pxa89vVhirKE38=;
+        b=ESTuXrfcExyM0Vpr1TI/7bdDJm3qTsc98SwYGdd4B9lwmILltrA6Yv4Qf1srJB7VQ7
+         5TdW2uTfsLQ+2+jTOfLK2dkDxfoEYctVOl9CWlqC1RA/T9RCw9oGZajsM716tcntZP7U
+         WsWrFhjguLmz4HCS7L4Miry0IicZ0VQm80mJquTeOIAuFhPPORJ5C59IWsI5k+ar3fsw
+         awjvuAGAumyFvooghoaE9+/bhWazRYbnyMn8GSPiPtRNy3Ijlhk5WmB8oIQNY8cqNG3K
+         VyKVEhFx5mEqPG7Cp6IVHCJJQf0LS3lp/54vS9oTxS21iS1GS3zPvrsRbGDLyCW3nq78
+         NvAA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=LqyOFZTg;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=v7wRl+42;
+       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 73sor13921031plf.73.2019.02.07.07.34.19
+        by mx.google.com with SMTPS id r12sor14373234plo.58.2019.02.07.07.35.10
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 07 Feb 2019 07:34:19 -0800 (PST)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 07 Feb 2019 07:35:10 -0800 (PST)
+Received-SPF: pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=LqyOFZTg;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=v7wRl+42;
+       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=8zLBuc0sBo52O4bloIqQvrcyfDP4dPfYY5yzFr1WIjY=;
-        b=LqyOFZTgpwimtcg6h/ifQ1jy7jMNg8xS54lUMHN7OO8i2ohbAmeK8nOG++3dGbHUih
-         cEurY7rJCDqAhQWAPQ63GToV8NK+KhKPEY50YNZOeqRDVZILlwdorLPv+WrxIK406uwa
-         cRgP2cpu4+NCeOxdYKeXESNmumtxrSxsy+Yo/ucpmHz2xEIXN1hHkuBfqKGCbozJmTca
-         ujQW5p+PQNeWO+tKk07FLT9zc4fSLR7LfvKBtmjt7Hecd8OX3vzz9bMzcPQLziS1XB9E
-         lgKaPET3teay1WoaYU9CMZP+PVsboqyv6H7cRVbhRrk8Y6MwP1zPAW89crO3RM0psxi+
-         bh+Q==
-X-Google-Smtp-Source: AHgI3IZdDWszJGx7zQzLD8P5tmlbNuB2twIL3Lxhj+0O61Ipu9AXNAoqooq6906pDqScfxcNWeTRRnzsnSOCjIn2ank=
-X-Received: by 2002:a17:902:8303:: with SMTP id bd3mr9087825plb.10.1549553659042;
- Thu, 07 Feb 2019 07:34:19 -0800 (PST)
+        d=kernel-dk.20150623.gappssmtp.com; s=20150623;
+        h=from:subject:to:cc:message-id:date:user-agent:mime-version
+         :content-language:content-transfer-encoding;
+        bh=vfrucWasRxu8wXy8I+OWsttiphZ78Pxa89vVhirKE38=;
+        b=v7wRl+42sRdc90Xr3bwo4dY+lG2m08Os2TWzjMUluAmfAXx53mYWdZk9xDGg4xBjPe
+         phtFtdx9z2YZiuseCKwB6wNwa2/fqva9NyZ/nXkNtJdZkrPOwVxZqDxmIo7EDYTmH3Qq
+         EfZciWgD188NKkDlMzfjm1CPZHfI3m7W3YENaMgUJ9FH2VmtbKk6zehcK6lMjIi8mU50
+         03SS12dLlPCftTfVBHVWEfc7hYSNgDG9nxXsw24l4ylQkYFKvZ7/qiNoOuwpy+z58d7u
+         U51cvcKmneEnevbHXoLNmee3w5yw8/Cv/Yx5uRByM2pPq3Omm2b0gH8pr4GItIQ84SfK
+         aySg==
+X-Google-Smtp-Source: AHgI3IaVoMYYKhs8M27q2ZqhI+OfSw6Mv04jJk+GiXW7+JfxddzpCbSEEmMoiRDT4kfCHGPvz5JH/Q==
+X-Received: by 2002:a17:902:7c8a:: with SMTP id y10mr16635068pll.71.1549553710158;
+        Thu, 07 Feb 2019 07:35:10 -0800 (PST)
+Received: from ?IPv6:2600:380:7712:367d:9d7:f8fb:d4f4:2531? ([2600:380:7712:367d:9d7:f8fb:d4f4:2531])
+        by smtp.gmail.com with ESMTPSA id s2sm12302582pfa.167.2019.02.07.07.35.07
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Feb 2019 07:35:09 -0800 (PST)
+From: Jens Axboe <axboe@kernel.dk>
+Subject: LSF/MM 2019: Call for Proposals (UPDATED!)
+To: linux-fsdevel <linux-fsdevel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>,
+ "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+ IDE/ATA development list <linux-ide@vger.kernel.org>,
+ linux-scsi <linux-scsi@vger.kernel.org>,
+ "linux-nvme@lists.infradead.org" <linux-nvme@lists.infradead.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
+ bpf@vger.kernel.org, ast@kernel.org
+Message-ID: <4f5a15c1-4f9e-acae-5094-2f38c8eebd96@kernel.dk>
+Date: Thu, 7 Feb 2019 08:35:06 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-References: <b1d210ae-3fc9-c77a-4010-40fb74a61727@lca.pw> <CAAeHK+yzHbLbFe7mtruEG-br9V-LZRC-n6dkq5+mmvLux0gSbg@mail.gmail.com>
- <89b343eb-16ff-1020-2efc-55ca58fafae7@lca.pw>
-In-Reply-To: <89b343eb-16ff-1020-2efc-55ca58fafae7@lca.pw>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 7 Feb 2019 16:34:06 +0100
-Message-ID: <CAAeHK+zxxk8K3WjGYutmPZr_mX=u7KUcCUYXHi+OgRYMfcvLTg@mail.gmail.com>
-Subject: Re: CONFIG_KASAN_SW_TAGS=y NULL pointer dereference at freelist_dereference()
-To: Qian Cai <cai@lca.pw>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
-	Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, 
-	Linux ARM <linux-arm-kernel@lists.infradead.org>, Linux-MM <linux-mm@kvack.org>
-Content-Type: multipart/mixed; boundary="00000000000068e02505814f9370"
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---00000000000068e02505814f9370
-Content-Type: text/plain; charset="UTF-8"
+Hi,
 
-On Thu, Feb 7, 2019 at 2:27 PM Qian Cai <cai@lca.pw> wrote:
->
->
->
-> On 2/7/19 7:58 AM, Andrey Konovalov wrote:
-> > On Thu, Feb 7, 2019 at 5:04 AM Qian Cai <cai@lca.pw> wrote:
-> >>
-> >> The kernel was compiled by clang-7.0.1 on a ThunderX2 server, and it fails to
-> >> boot. CONFIG_KASAN_GENERIC=y works fine.
-> >
-> > Hi Qian,
-> >
-> > Could you share the kernel commit id and .config that you use?
->
-> v5.0-rc5
->
-> https://git.sr.ht/~cai/linux-debug/tree/master/config
->
-> # cat /proc/cmdline
-> page_poison=on crashkernel=768M earlycon page_owner=on numa_balancing=enable
-> slub_debug=-
+This is an important UPDATE to the previous LSF/MM announcement:
 
-Reproduced, looks like a conflict with CONFIG_SLAB_FREELIST_HARDENED.
-Could you try the attached patch?
+https://lore.kernel.org/linux-block/51b4b263-a0f2-113d-7bdc-f7960b540929@kernel.dk/
 
---00000000000068e02505814f9370
-Content-Type: text/x-patch; charset="US-ASCII"; name="kasan-hardened-freelist-fix.patch"
-Content-Disposition: attachment; 
-	filename="kasan-hardened-freelist-fix.patch"
-Content-Transfer-Encoding: base64
-Content-ID: <f_jrus7qij0>
-X-Attachment-Id: f_jrus7qij0
+A BPF track will join the annual LSF/MM Summit this year! Please read
+the updated description and CFP information below.
 
-ZGlmZiAtLWdpdCBhL21tL3NsdWIuYyBiL21tL3NsdWIuYwppbmRleCAxZTNkMGVjNGUyMDAuLjVm
-Yjc1MDdlYjhkMSAxMDA2NDQKLS0tIGEvbW0vc2x1Yi5jCisrKyBiL21tL3NsdWIuYwpAQCAtMjQ5
-LDcgKzI0OSw4IEBAIHN0YXRpYyBpbmxpbmUgdm9pZCAqZnJlZWxpc3RfcHRyKGNvbnN0IHN0cnVj
-dCBrbWVtX2NhY2hlICpzLCB2b2lkICpwdHIsCiAJCQkJIHVuc2lnbmVkIGxvbmcgcHRyX2FkZHIp
-CiB7CiAjaWZkZWYgQ09ORklHX1NMQUJfRlJFRUxJU1RfSEFSREVORUQKLQlyZXR1cm4gKHZvaWQg
-KikoKHVuc2lnbmVkIGxvbmcpcHRyIF4gcy0+cmFuZG9tIF4gcHRyX2FkZHIpOworCXJldHVybiAo
-dm9pZCAqKSgodW5zaWduZWQgbG9uZylwdHIgXiBzLT5yYW5kb20gXgorCQkJKHVuc2lnbmVkIGxv
-bmcpa2FzYW5fcmVzZXRfdGFnKCh2b2lkICopcHRyX2FkZHIpKTsKICNlbHNlCiAJcmV0dXJuIHB0
-cjsKICNlbmRpZgo=
---00000000000068e02505814f9370--
+It will be held from April 30 - May 2 at the Sheraton Puerto Rico Hotel &
+Casino Lodges in San Juan, Puerto Rico.
+LSF/MM is an invitation-only technical workshop to map out improvements to
+the Linux storage, filesystem, memory management, and bpf subsystems that
+will make their way into the mainline kernel within the coming years.
+
+https://events.linuxfoundation.org/events/linux-storage-filesystem-mm-summit-2019/
+
+LSF/MM 2019 will be a three day, stand-alone conference with three
+subsystem-specific tracks, cross-track discussions, as well as BoF and
+hacking sessions.
+
+On behalf of the committee I am issuing a call for agenda proposals
+that are suitable for cross-track discussion as well as technical
+subjects for the breakout sessions.
+
+If advance notice is required for visa applications then please point
+that out in your proposal or request to attend, and submit the topic
+as soon as possible.
+
+1) Proposals for agenda topics should be sent before February 22th,
+2019 to:
+
+	lsf-pc@lists.linux-foundation.org
+
+and CC the mailing lists that are relevant for the topic in question:
+
+	FS:	linux-fsdevel@vger.kernel.org
+	MM:	linux-mm@kvack.org
+	Block:	linux-block@vger.kernel.org
+	ATA:	linux-ide@vger.kernel.org
+	SCSI:	linux-scsi@vger.kernel.org
+	NVMe:	linux-nvme@lists.infradead.org
+        BPF:    bpf@vger.kernel.org
+
+Note that we have extended the original deadline by a week, to
+accommodate the late arrival of the BPF track.
+
+Please tag your proposal with [LSF/MM TOPIC] to make it easier to
+track. In addition, please make sure to start a new thread for each
+topic rather than following up to an existing one. Agenda topics and
+attendees will be selected by the program committee, but the final
+agenda will be formed by consensus of the attendees on the day.
+
+2) Requests to attend the summit for those that are not proposing a
+topic should be sent to:
+
+	lsf-pc@lists.linux-foundation.org
+
+Please summarize what expertise you will bring to the meeting, and
+what you would like to discuss. Please also tag your email with
+[LSF/MM ATTEND] and send it as a new thread so there is less chance of
+it getting lost.
+
+We will try to cap attendance at around 25-30 per track to facilitate
+discussions although the final numbers will depend on the room sizes
+at the venue. Note that BPF track will be limited to 10-15 attendees.
+
+For discussion leaders, slides and visualizations are encouraged to
+outline the subject matter and focus the discussions. Please refrain
+from lengthy presentations and talks; the sessions are supposed to be
+interactive, inclusive discussions.
+
+In particular BPF topics are encouraged to be storage, fs, mm, tracing,
+security related or advancing the state of the art of BPF core.
+BPF and networking related topics are recommended to be submitted for
+Linux Plumbers Conference and corresponding Networking and BPF microconf
+later this year.
+
+Thank you on behalf of the program committee:
+
+	Anna Schumaker (Filesystems)
+	Josef Bacik (Filesystems)
+	Martin K. Petersen (Storage)
+	Jens Axboe (Storage)
+	Michal Hocko (MM)
+	Rik van Riel (MM)
+	Johannes Weiner (MM)
+        Alexei Starovoitov (BPF)
+
+-- 
+Jens Axboe
 
