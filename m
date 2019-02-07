@@ -2,141 +2,161 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 684B7C282C2
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 16:55:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D7FAC282C2
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 16:56:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 11A3D218D3
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 16:55:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="O9v0AIQ6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11A3D218D3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	by mail.kernel.org (Postfix) with ESMTP id 3F253218D3
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 16:56:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F253218D3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7FF198E004C; Thu,  7 Feb 2019 11:55:39 -0500 (EST)
+	id D30748E004D; Thu,  7 Feb 2019 11:56:02 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7AE6C8E0002; Thu,  7 Feb 2019 11:55:39 -0500 (EST)
+	id CDE328E0002; Thu,  7 Feb 2019 11:56:02 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6C4618E004C; Thu,  7 Feb 2019 11:55:39 -0500 (EST)
+	id BF4588E004D; Thu,  7 Feb 2019 11:56:02 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FE7B8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 11:55:39 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id 42so467012qtr.7
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 08:55:39 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 80AA58E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 11:56:02 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id g188so268786pgc.22
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 08:56:02 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=pWuOLMJMd2P+LB/b9Jo96S2QvIOE6IuAuX3pjQ4/Tb0=;
-        b=MCyK0xc3sUAQsZvVwWWkFk38hvfQKnSUmin3tZoG7pBJGMeentOIQzy+KYzYvB1u9w
-         9w/A+XwQt/unGB0qv62llnlnQAvlHqUibYDOSVLPF2jFZhI8f8e4L9FNSQ8FFMLSVyj4
-         ThwYb+Bqn4oYnBJnnwIfwVyQuVZRQWsbh0ungcwPHSBIMWj6dfBZReaepANfB5n32woI
-         CqPdCxrZLLWsAkOeRoMmHAsaqW3zt1H5+8YVr5wSIDH9rs+UdrWi682Qnd13KCtDXoYT
-         e5SaxtSOxG6wap7aHDePlVWq29PBl+g3H5qn3p1WjfALbZkdmtD1AMZJ8rll8L9Xhj9c
-         u30A==
-X-Gm-Message-State: AHQUAuaByTjdaEBMDItYqgZFHwbWQPtpMjCSzzAesLH31uzOo7nOXg4i
-	2EbEZu71TGxsUx+M7bbSm9ZA5uNpxgQwvDlLqwQrALD1fjAC9pbGnjOEAHVRn/SbWg/RlMcUmCH
-	AWXXzXemUzS36jtucUr6+JdDbUlbYre6Xn2Xihp59WEcXDlxDYIy/n2cEj9SPxa8=
-X-Received: by 2002:a05:620a:109b:: with SMTP id g27mr12140326qkk.128.1549558538968;
-        Thu, 07 Feb 2019 08:55:38 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IakSSfKAI0c+7Z0sIxSpGI64vrurxsCKGuIuAcbhEcBAayK0lHUq1GyChEebpvFPa10qAMp
-X-Received: by 2002:a05:620a:109b:: with SMTP id g27mr12140287qkk.128.1549558538347;
-        Thu, 07 Feb 2019 08:55:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549558538; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=afgelWKDK/Y3MYKADfO1KqpKnCn2JdCVpNj6jq8rS0I=;
+        b=d/WE0Z9OH55EwGO6FCNSWdpugqYp7iIn8Ki1W0j8pCRUu97wv+smK5Y0EZqxJ57QR+
+         OsxtjAqmy/41pUzxerU8+YUbwYNdNqmvkvNAsV0/V6ZpzLm1UMMmrnCfRUPqTOWNiMsJ
+         8dLoccphwnpVUl2WP6TWM39K19aNjySZbJf0DGWYWp27WA+3qW1yhJ6eD/4yin+/PePu
+         nK8LM+oZwDkFR5NztKtEo4t8OePQIxAwgwLKcBTsmBF0VS6muabA1nyunUvRIZJ8jGrO
+         LD/9/lxanCF/ZwI2cDOmbHNvnGOPa03mjPwEv2Rrd0+tnciALNuy9e7c653Rx7cpi/fy
+         YznA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuZxQRAQs9vp6Xyfe8ALbnZR1tDbdmZU96YGmNluSrKA8vT7dJ6F
+	AN00qQIpvREPTfsVVg2Cy8MNzjAqETUNQOD+rokWtZ5hJq5+PKmf62b4EiBi6n8dtM/d2+4SHHR
+	rrqGDNEmfKT2/Vo1FrM/ixC65iYJZlZJzufJ8j+nTYt56NMWGM0yekQXwSt4Fd23dMQ==
+X-Received: by 2002:a63:484c:: with SMTP id x12mr15604976pgk.375.1549558562189;
+        Thu, 07 Feb 2019 08:56:02 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaRT1NTq621DiBOMrPYqhmsNhlhKBpyi+OzMqBP3uhsLvnqdSn4cA58TeMwaVYerwyCbG70
+X-Received: by 2002:a63:484c:: with SMTP id x12mr15604916pgk.375.1549558561357;
+        Thu, 07 Feb 2019 08:56:01 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549558561; cv=none;
         d=google.com; s=arc-20160816;
-        b=y74+u3UwfTrYk8pJyjvj1BIoQjPhaMz+ab1aJMlNyyjZiyT7wN2Wqrp6L4SKJaJmyM
-         Ppnn7GNps1YGlEl5Lz3GWw8XE4YeioW2BSaNgPvp7VdfELP2BLWCFeBApfIdjIgfYgZ0
-         vuA3zKx54bLUW6k9burPXpV9eApb2bt+LbPdUTpFTj+4uhMSWhEzHcc8NvH23GXfc/Hx
-         dcz92hPlqkv4Ngr5XICkTJuQhVa1clY75nRQsKhZaE/485Gc6ChUsDdqOqbPFooQ4Qo1
-         AQ6HtJ1ZJpxD/KuDqzdyerI1vEQZKUpO+UMU41DDL5qrnTuR4ugknZiFdoW0mJmCv93m
-         kyGg==
+        b=y9ca31PYqJVkV0M4yeqZ4zjSpgPqVAG6Uq64CUpRm9RVCYbCBCawxqg851xf0XvKeg
+         pWAbQOobEDcrKbyFm/n5E1OZc8423k0FrqGhDpf7OvXyuCLip5OhmtGgFheKXQsyx/7D
+         dBVhsJ88zWXV1wZHA3lbIB+SYaWxKDtUC/5lulT7N0CJkjuPqMMflwLQ1D3rjzKfRvhR
+         S14LstF2VewChs7TiBTerTC8tVvXnmdbdgyRkwGfCaP3BFj5dB5riE9o5ROS20O8DwzZ
+         V6HMPldnyD1DtlIhiGtIMde3TANhEjnAzFlvGvV/ePqcbZtw0+zgUzsdhSgOlj7NYp4l
+         Fhzw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=pWuOLMJMd2P+LB/b9Jo96S2QvIOE6IuAuX3pjQ4/Tb0=;
-        b=cfaMrV49XIkj16D9pq0uAmFmFxyLwO4wT8reZ0gYu0UnD+3mTaJgZqH2odImGm7DfA
-         poUpgUfI/Hjmy9l/DO2Oq96EM9Xdn/tJSEGt51u5fxngvYQW/PyOz7MI/41zozEjLfEe
-         dmmvNvEctM74VnAsh8VZRJEGfPYg5fehJEvRjgPcwAwKQBNC1P5T72pb9hVPUTG3VdoM
-         phKLJLT5cxMmkd6hpYz75ywV7mrZw4mPvrgSsc9sqmvtWuTDSHW2hwi+hzQoYRYfwkF9
-         SrM0RLi2WipKnE5WQM6O2iFQf1obaU3rlck1vv/p81F7Z3Fe5YjqQwdLoV4fDtg5c8TW
-         rTDQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=afgelWKDK/Y3MYKADfO1KqpKnCn2JdCVpNj6jq8rS0I=;
+        b=LAQhfVUAlGABjXXTji4ImIFVtQkdjrwtGllVXayejLCeXKT/2BrA73Xtrn8BmSeIgs
+         hBUW2KpoQZ1ecL7tRb+niN8o5wTk7UhPSZ0Vn2VMp/eou9QzpBQFfbEJisrb526a/USy
+         631R7Q1p2lW4u8x8socxPmmQ19T6IrGjNNYeznx51s2VV+EQ/vwJ2B90+Gar67VrX9S3
+         88BPoX7VwBKTMbVYdKkNySvqtO7WuKmkLJbF9E+/IvCZPFJxrooeruuh1AtymXAdfNKk
+         ZurMnG5hujQMaGpezJy2AEMom65WNRRBqrkRlFiRYSrHwaVSznLwOi8vRJRprnjXNJj4
+         N9bw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=O9v0AIQ6;
-       spf=pass (google.com: domain of 01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@amazonses.com designates 54.240.9.35 as permitted sender) smtp.mailfrom=01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@amazonses.com
-Received: from a9-35.smtp-out.amazonses.com (a9-35.smtp-out.amazonses.com. [54.240.9.35])
-        by mx.google.com with ESMTPS id b20si2321834qvd.185.2019.02.07.08.55.38
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id o9si9593638pfe.63.2019.02.07.08.56.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 07 Feb 2019 08:55:38 -0800 (PST)
-Received-SPF: pass (google.com: domain of 01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@amazonses.com designates 54.240.9.35 as permitted sender) client-ip=54.240.9.35;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Feb 2019 08:56:01 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=O9v0AIQ6;
-       spf=pass (google.com: domain of 01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@amazonses.com designates 54.240.9.35 as permitted sender) smtp.mailfrom=01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1549558538;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=kTxXE70S20OVI1msr1Fuki8Y508efNovX08aCTnuo4Q=;
-	b=O9v0AIQ6CIgIh23VoHXzL1RwD9Rigp93j1vESMl+1EUEU4wW1lR8Htb1VtTJnyCr
-	EwILSG3k/nilE5hLcJN278L0gbkYG6rzQ5DXODrl+PasyFAUKhv+m/9hi/6gPzS/w5P
-	dMVACULsdkGGxCU0Z++c9rvYHJzQGsPQQZBxqqNA=
-Date: Thu, 7 Feb 2019 16:55:37 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Doug Ledford <dledford@redhat.com>
-cc: Dan Williams <dan.j.williams@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>, 
-    Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, 
-    Jan Kara <jack@suse.cz>, Ira Weiny <ira.weiny@intel.com>, 
-    lsf-pc@lists.linux-foundation.org, linux-rdma <linux-rdma@vger.kernel.org>, 
-    Linux MM <linux-mm@kvack.org>, 
-    Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-    John Hubbard <jhubbard@nvidia.com>, Jerome Glisse <jglisse@redhat.com>, 
-    Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving longterm-GUP
- usage by RDMA
-In-Reply-To: <bfe0fdd5400d41d223d8d30142f56a9c8efc033d.camel@redhat.com>
-Message-ID: <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com>
-References: <20190205175059.GB21617@iweiny-DESK2.sc.intel.com> <20190206095000.GA12006@quack2.suse.cz> <20190206173114.GB12227@ziepe.ca> <20190206175233.GN21860@bombadil.infradead.org> <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
- <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com> <20190206210356.GZ6173@dastard> <20190206220828.GJ12227@ziepe.ca> <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com> <CAPcyv4hqya1iKCfHJRXQJRD4qXZa3VjkoKGw6tEvtWNkKVbP+A@mail.gmail.com>
- <bfe0fdd5400d41d223d8d30142f56a9c8efc033d.camel@redhat.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.02.07-54.240.9.35
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Feb 2019 08:56:00 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,344,1544515200"; 
+   d="scan'208";a="113169778"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga007.jf.intel.com with ESMTP; 07 Feb 2019 08:56:00 -0800
+Message-ID: <d28e5bc95cfc18ca8c97e28459692fdd967d52d3.camel@linux.intel.com>
+Subject: Re: [RFC PATCH 0/4] kvm: Report unused guest pages to host
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: Nitesh Narayan Lal <nitesh@redhat.com>, Alexander Duyck
+ <alexander.duyck@gmail.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org,  kvm@vger.kernel.org
+Cc: rkrcmar@redhat.com, x86@kernel.org, mingo@redhat.com, bp@alien8.de, 
+ hpa@zytor.com, pbonzini@redhat.com, tglx@linutronix.de,
+ akpm@linux-foundation.org,  Luiz Capitulino <lcapitulino@redhat.com>, David
+ Hildenbrand <david@redhat.com>
+Date: Thu, 07 Feb 2019 08:56:00 -0800
+In-Reply-To: <e0bf61d2-c315-ae4f-6ddb-93b7882fd13f@redhat.com>
+References: <20190204181118.12095.38300.stgit@localhost.localdomain>
+	 <e0bf61d2-c315-ae4f-6ddb-93b7882fd13f@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-One approach that may be a clean way to solve this:
+On Thu, 2019-02-07 at 09:48 -0500, Nitesh Narayan Lal wrote:
+> On 2/4/19 1:15 PM, Alexander Duyck wrote:
+> > This patch set provides a mechanism by which guests can notify the host of
+> > pages that are not currently in use. Using this data a KVM host can more
+> > easily balance memory workloads between guests and improve overall system
+> > performance by avoiding unnecessary writing of unused pages to swap.
+> > 
+> > In order to support this I have added a new hypercall to provided unused
+> > page hints and made use of mechanisms currently used by PowerPC and s390
+> > architectures to provide those hints. To reduce the overhead of this call
+> > I am only using it per huge page instead of of doing a notification per 4K
+> > page. By doing this we can avoid the expense of fragmenting higher order
+> > pages, and reduce overall cost for the hypercall as it will only be
+> > performed once per huge page.
+> > 
+> > Because we are limiting this to huge pages it was necessary to add a
+> > secondary location where we make the call as the buddy allocator can merge
+> > smaller pages into a higher order huge page.
+> > 
+> > This approach is not usable in all cases. Specifically, when KVM direct
+> > device assignment is used, the memory for a guest is permanently assigned
+> > to physical pages in order to support DMA from the assigned device. In
+> > this case we cannot give the pages back, so the hypercall is disabled by
+> > the host.
+> > 
+> > Another situation that can lead to issues is if the page were accessed
+> > immediately after free. For example, if page poisoning is enabled the
+> > guest will populate the page *after* freeing it. In this case it does not
+> > make sense to provide a hint about the page being freed so we do not
+> > perform the hypercalls from the guest if this functionality is enabled.
+> 
+> Hi Alexander,
+> 
+> Did you get a chance to look at my v8 posting of Guest Free Page Hinting
+> [1]?
+> Considering both the solutions are trying to solve the same problem. It
+> will be great if we can collaborate and come up with a unified solution.
+> 
+> [1] https://lkml.org/lkml/2019/2/4/993
 
-1. Long term GUP usage requires the virtual mapping to the pages be fixed
-   for the duration of the GUP Map. There never has been a way to break
-   the pinnning and thus this needs to be preserved.
+I haven't had a chance to review these yet.
 
-2. Page Cache Long term pins are not allowed since regular filesystems
-   depend on COW and other tricks which are incompatible with a long term
-   pin.
+I'll try to take a look later today and provide review notes based on
+what I find.
 
-3. Filesystems that allow bypass of the page cache (like XFS / DAX) will
-   provide the virtual mapping when the PIN is done and DO NO OPERATIONS
-   on the longterm pinned range until the long term pin is removed.
-   Hardware may do its job (like for persistent memory) but no data
-   consistency on the NVDIMM medium is guaranteed until the long term pin
-   is removed  and the filesystems regains control over the area.
+Thanks.
 
-4. Long term pin means that the mapped sections are an actively used part
-   of the file (like a filesystem write) and it cannot be truncated for
-   the duration of the pin. It can be thought of as if the truncate is
-   immediate followed by a write extending the file again. The mapping
-   by RDMA implies after all that remote writes can occur at anytime
-   within the area pinned long term.
+- Alex
 
