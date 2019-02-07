@@ -2,151 +2,337 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ACDB6C169C4
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 00:27:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0D66EC282CC
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 00:32:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 59AD92084D
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 00:27:51 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qcVNBNfz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 59AD92084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id BA0AD218D3
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 00:32:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA0AD218D3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B5AF98E000A; Wed,  6 Feb 2019 19:27:50 -0500 (EST)
+	id 517498E000B; Wed,  6 Feb 2019 19:32:15 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B0A988E0002; Wed,  6 Feb 2019 19:27:50 -0500 (EST)
+	id 49F4F8E0002; Wed,  6 Feb 2019 19:32:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9FABA8E000A; Wed,  6 Feb 2019 19:27:50 -0500 (EST)
+	id 3409D8E000B; Wed,  6 Feb 2019 19:32:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 764018E0002
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 19:27:50 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id 135so7858021itb.6
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 16:27:50 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 033A18E0002
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 19:32:15 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id q3so8697274qtq.15
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 16:32:14 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=QjmxfddQuTfnUk2Jf9d94uGA03f2Ji4tV+lPx6DhrcU=;
-        b=D+zbp+oPO1tuzJwL4Qp4cka9KWYUfgVaHy/MwZ6g3ouLvyDuCCqX5pDtIYhQ8e6M8M
-         r/a2E1ylxo+C6uUIgX+BHFGWiRvIPTM0yMRSZfdTqvTLkBgFddNs5DxgGXMnGqaMsOCT
-         kg9NajpRVDTsE6u958e0+9zt6fvSkIR/LvC2CRXiYrPt8ZBEjYddKxTvqz1x7c4cRCD7
-         +Zb16j3oMypJHwMnz1Dni8TDQJgJvFzGqF8UgOYRy5QDP8kvX4wQ36DoQLwSnI36Rn8s
-         7GHWyedtjD4UQ7Mb7w+ThHwFE6m8X4Xqp7JOGQLDGf/Og8MO4BETEsrwWW1A0Rjo2j/O
-         k7iQ==
-X-Gm-Message-State: AHQUAuaiZuv5idHiEef5zTnSdOBzlCnJeytTw1staLZl3PZzEiM3xgXr
-	xyuqrpDQBUq75ijg6Smtwpu58XHwg8sW3fsfR8tDRixDrWMo57OTEqst75T6TswW3ma0tOMmrPx
-	lXOBZ9fl+gN7LcAbQH5cfvJe2/rGKnNTF/i6YTURKv95RC5yhj7Th6Z7BsUrKBMVxFqbX4guNSp
-	eVFgsc9yB9wIRQF9LluyrwnwmWpNtFDPuHvVAwDWAnDOfrQ9Pw1XezCI7caeOJBp1qQAdpzhs6P
-	sLtBhVe+bc49/Kb+NcGMDouM/MidwLRskIKEEgaQFL++fBVathKiOUawM1yPDYr6h2DW2CvWVCq
-	hrALjW2ZGfewvhTACj7qANvD49mhXsvnPpb1/JS7JhjNEPDn3lYTwSsSqQd8ZLTu7B9pbytGQKc
-	P
-X-Received: by 2002:a24:10cc:: with SMTP id 195mr3461218ity.178.1549499270224;
-        Wed, 06 Feb 2019 16:27:50 -0800 (PST)
-X-Received: by 2002:a24:10cc:: with SMTP id 195mr3461201ity.178.1549499269399;
-        Wed, 06 Feb 2019 16:27:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549499269; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=mJiAmqKLP+LsOgdhOiSYPaIcGciOfiP0fbVs2zwov5I=;
+        b=PPXLV/+egQ7WlRPlzgC7X/5REcqmyqejXzn7sVgWMyY9f+AXpknF7igAworQN6/M/B
+         NxUR0+ZXblkajkyIkI/A2dgm1+OXprB4seuOoRUO2SucN4XCvSb+CF53ATDDmm4qtHWb
+         p7A/UNnyIwa7vO9f8a6SWV3CUtA5Iai7bU7FBzWWPEWN4bRXsFMZJPpQcv4+z1uiM6aW
+         0Sn0aCGTv34x5YpgJvySXRVkTz5JCDZeyGlh1JljpdGh0QIWYngl1iMDu2gWmB/scv+/
+         31P8KaHyAUXtyzwpJJ/dZG3+xPrOuYCOVnv4irvW52tPfa0fvhRd7mSwnn1YH8pCBUAs
+         EHCQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAubzuSoPOGc3G5rYLsIwIGc85+wujFrGGoISF6UX388sXz+yKB9i
+	jHVQ7guioXgG5Ji757IxribNpQzECFidwyU565Rpx8vADvBtlO34ZEkyw8pOhxqwfKs9RaWzQbT
+	Q4mgDo2XYruVRqqx5uO3hCW0QNMueJA0+mt6Peh4Mf7uiMeL7aAMd5fBxtk3dBLXB4Q==
+X-Received: by 2002:a0c:ef88:: with SMTP id w8mr9948212qvr.25.1549499534764;
+        Wed, 06 Feb 2019 16:32:14 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib6W+hPGSmEwr/BfRhTMwNGrJq6nSGKpkm2xTG9JApMVXE0Ev0YcCbBrBoxzXICNuBrI98l
+X-Received: by 2002:a0c:ef88:: with SMTP id w8mr9948162qvr.25.1549499533919;
+        Wed, 06 Feb 2019 16:32:13 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549499533; cv=none;
         d=google.com; s=arc-20160816;
-        b=pQSOwBUEjoDBubXcwpRuPJ4YGP8X9pjUwWa+jX8cOz8nqGsuhRsNW2+iptXhTcoI44
-         VkGNZ83WV6O6FA7z+vD0EJwh3kYkbuDY1cBEjLZsH6/KfWeReWSx7ktYjZpTmKEZSBhf
-         jg1hxFhJztpAgUnj6O4uX6CVCj2pK0IyC8s02g3nR1WmbOrME1VE13pImYvYLw5wCbya
-         zh4KTWu7szyC6Y/b5rq3jPxBZ2Aqc7si+KjyCSxXQ+jodY2+SvLQ3SDP2M4Fd6pNITSx
-         CIzIE66NQPr/rE2Le8UOhEpcEkE56201SjAww//Q7iaC++mj9f328uNUUGnn5hx+BAOW
-         9nEw==
+        b=F5uCP6utmq9Dhs2MTEj9C58+8g5zS/Hc0u7iXIMQJVE709r4tbXhTqqSIZxhztRse2
+         5L+3wQOh/eHKRnr/CT0VxSbhA1gEYBJzSbSMhnDzIfUTcqtOEHPL/e8CWrCAUZf48nit
+         aAkqgw8kEUs/hWxTZKnifNc83ja2Etdl81Q+5sLQZU59fHdYoG+x4skDSj+MwEp2P14d
+         vnvBWcjcNSTXnPOCXIFOutIodaUAkBkuUaU3qRVavIXo4WPTH5WcohBQBWN36ToAI5eR
+         bNUNoVTDbZ1CNfB16v40G6gDZUwUCcf00PPKcOlcRgxcwqY7Gww+B+Z0H+7usfRs0euM
+         52Lw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=QjmxfddQuTfnUk2Jf9d94uGA03f2Ji4tV+lPx6DhrcU=;
-        b=tK3yApWcG4v5LFKP5OSW8e2Yz0t5c6smoH8Pau5SYHYWc04B3xywvLxB121ZbaT7ul
-         Vu3GIiDWdYT80u6PI11+D8ZVbQLYNp9AH/6IIz4VGTvO/zvvt4tVF6HDRZIwPG0dQP2B
-         exV9mKLoOHSko+y0sPSCNMgIKtfJTIS6HHso8Xp52WPPAS0N30S3ohImjwNNUo2Xe+GL
-         ih8/2Z5raDTmv6zHZAEX5mmrhszyO7SK4ozdYEd+vReXrtpyqn6pKZ+EFBx6B+OdGPe3
-         VTGjipkMs1Lz99JWfff2KXmhph4gzptxpTAw+3ZAO6xoK3/WQ8QOoPzHO2tyH1Bf8D1T
-         TVRw==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=mJiAmqKLP+LsOgdhOiSYPaIcGciOfiP0fbVs2zwov5I=;
+        b=S5bGW6aDwUPANv5FhHwXGWw1qC3tXBnbo9jyUhtQyELhcURdBEFW77LqDOzfZUAMEP
+         DqG1mySdeTs6MpyMmrjEJehyc/jWu6pYV/aJ9uo1kJzgicGIj/BNOpUIfurP9oxUiBF+
+         nxitfnkVRpEb9cLj8yFL9G41rkAC6R8fkWMEpWNukw4Zfp6pEvVhj9Zqj0E8pcVpp90J
+         lXnjl3BmagAvhNGcU9tdneMGD0ZugGxwVpx6W9j+kZDV3l3Bk/b18x3xNyzZuLcumMup
+         Zwz3Whob1Z5mWN7SqZ0ZKIIsAISMEYFkS8Aubw/JQ4gvugGLBw/tcwEy1XsplTOAbJ4+
+         5nKg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qcVNBNfz;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n11sor3866907ioc.126.2019.02.06.16.27.49
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r26si2718866qtf.323.2019.02.06.16.32.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 06 Feb 2019 16:27:49 -0800 (PST)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Feb 2019 16:32:13 -0800 (PST)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qcVNBNfz;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=QjmxfddQuTfnUk2Jf9d94uGA03f2Ji4tV+lPx6DhrcU=;
-        b=qcVNBNfzzoJH0+ab83ciTUxscvQptzm2bXho4/JSv+R7y4fY0GS7aOhx1OzaBRgXRz
-         OTSgH6jquOw3sXi7lnso4XQOXACb7ifqnPcI9cz6+41PQyBRIVWLp9uSl2uVWn8mjf6E
-         lhCQMe2Xe6LubrCv79nWnF6OiyL2wHi1ZeRSPkTDfbLXOXzdTvFXxFLODOmwXMMzDZIl
-         uqyW/c0jUVR2Mtfme1RPUbm+aX+fz65Yx40t4MEj/eZq+p+M/ZqKYclAy9wNYzz+C0iV
-         NeQhXfhog91yOksshxUK8ux53laiMA+U0+4x9C2PNqKskoFYeWI1XPcExREmyrVgoMVQ
-         rsMA==
-X-Google-Smtp-Source: AHgI3IaeNTEkecukVcsQkUXZ1P+6ZkWqh2UWOKyZYicc+FHZha7sf+tg8hCR2dnCfM3UZu3Mibirrday1lovm+NSCww=
-X-Received: by 2002:a5e:8f0b:: with SMTP id c11mr1058613iok.116.1549499268955;
- Wed, 06 Feb 2019 16:27:48 -0800 (PST)
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id EBA1E2551;
+	Thu,  7 Feb 2019 00:32:12 +0000 (UTC)
+Received: from redhat.com (ovpn-120-253.rdu2.redhat.com [10.10.120.253])
+	by smtp.corp.redhat.com (Postfix) with SMTP id C7EB21001F54;
+	Thu,  7 Feb 2019 00:32:11 +0000 (UTC)
+Date: Wed, 6 Feb 2019 19:32:11 -0500
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Nadav Amit <namit@vmware.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Arnd Bergmann <arnd@arndb.de>, linux-kernel@vger.kernel.org,
+	Julien Freche <jfreche@vmware.com>,
+	Jason Wang <jasowang@redhat.com>, linux-mm@kvack.org,
+	virtualization@lists.linux-foundation.org
+Subject: Re: [PATCH 3/6] mm/balloon_compaction: list interfaces
+Message-ID: <20190206191936-mutt-send-email-mst@kernel.org>
+References: <20190206235706.4851-1-namit@vmware.com>
+ <20190206235706.4851-4-namit@vmware.com>
 MIME-Version: 1.0
-References: <631c44cc-df2d-40d4-a537-d24864df0679@nvidia.com>
-In-Reply-To: <631c44cc-df2d-40d4-a537-d24864df0679@nvidia.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Wed, 6 Feb 2019 16:27:37 -0800
-Message-ID: <CAKgT0UewZP7AE8o__+6TYeKxERBdbnLP9DSzRApZQjzj9Jpeww@mail.gmail.com>
-Subject: Re: No system call to determine MAX_NUMNODES?
-To: Ralph Campbell <rcampbell@nvidia.com>
-Cc: Linux MM <linux-mm@kvack.org>, longman@redhat.com
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190206235706.4851-4-namit@vmware.com>
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Thu, 07 Feb 2019 00:32:13 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 6, 2019 at 3:13 PM Ralph Campbell <rcampbell@nvidia.com> wrote:
->
-> I was using the latest git://git.cmpxchg.org/linux-mmotm.git and noticed
-> a new issue compared to 5.0.0-rc5.
->
-> It looks like there is no convenient way to query the kernel's value for
-> MAX_NUMNODES yet this is used in kernel_get_mempolicy() to validate the
-> 'maxnode' parameter to the GET_MEMPOLICY(2) system call.
-> Otherwise, EINVAL is returned.
->
-> Searching the internet for get_mempolicy yields some references that
-> recommend reading /proc/<pid>/status and parsing the line "Mems_allowed:".
->
-> Running "cat /proc/self/status | grep Mems_allowed:" I get:
-> With 5.0.0-rc5:
-> Mems_allowed:   00000000,00000001
-> With 5.0.0-rc5-mm1:
-> Mems_allowed:   1
-> (both kernels were config'ed with CONFIG_NODES_SHIFT=6)
->
-> Clearly, there should be a better way to query MAX_NUMNODES like
-> sysconf(), sysctl(), or libnuma.
+On Wed, Feb 06, 2019 at 03:57:03PM -0800, Nadav Amit wrote:
+> Introduce interfaces for ballooning enqueueing and dequeueing of a list
+> of pages. These interfaces reduce the overhead of storing and restoring
+> IRQs by batching the operations. In addition they do not panic if the
+> list of pages is empty.
+> 
+> Cc: "Michael S. Tsirkin" <mst@redhat.com>
+> Cc: Jason Wang <jasowang@redhat.com>
+> Cc: linux-mm@kvack.org
+> Cc: virtualization@lists.linux-foundation.org
+> Reviewed-by: Xavier Deguillard <xdeguillard@vmware.com>
+> Signed-off-by: Nadav Amit <namit@vmware.com>
+> ---
+>  include/linux/balloon_compaction.h |   4 +
+>  mm/balloon_compaction.c            | 139 +++++++++++++++++++++--------
+>  2 files changed, 105 insertions(+), 38 deletions(-)
+> 
+> diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+> index 53051f3d8f25..2c5a8e09e413 100644
+> --- a/include/linux/balloon_compaction.h
+> +++ b/include/linux/balloon_compaction.h
+> @@ -72,6 +72,10 @@ extern struct page *balloon_page_alloc(void);
+>  extern void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
+>  				 struct page *page);
+>  extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
+> +extern void balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
+> +				      struct list_head *pages);
+> +extern int balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
+> +				     struct list_head *pages, int n_req_pages);
+>  
+>  static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
+>  {
+> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+> index ef858d547e2d..b8e82864f82c 100644
+> --- a/mm/balloon_compaction.c
+> +++ b/mm/balloon_compaction.c
+> @@ -10,6 +10,100 @@
+>  #include <linux/export.h>
+>  #include <linux/balloon_compaction.h>
+>  
+> +static int balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
+> +				     struct page *page)
+> +{
+> +	/*
+> +	 * Block others from accessing the 'page' when we get around to
+> +	 * establishing additional references. We should be the only one
+> +	 * holding a reference to the 'page' at this point.
+> +	 */
+> +	if (!trylock_page(page)) {
+> +		WARN_ONCE(1, "balloon inflation failed to enqueue page\n");
+> +		return -EFAULT;
+> +	}
+> +	list_del(&page->lru);
+> +	balloon_page_insert(b_dev_info, page);
+> +	unlock_page(page);
+> +	__count_vm_event(BALLOON_INFLATE);
+> +	return 0;
+> +}
+> +
+> +/**
+> + * balloon_page_list_enqueue() - inserts a list of pages into the balloon page
+> + *				 list.
+> + * @b_dev_info: balloon device descriptor where we will insert a new page to
+> + * @pages: pages to enqueue - allocated using balloon_page_alloc.
+> + *
+> + * Driver must call it to properly enqueue a balloon pages before definitively
+> + * removing it from the guest system.
+> + */
+> +void balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
+> +			       struct list_head *pages)
+> +{
+> +	struct page *page, *tmp;
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+> +	list_for_each_entry_safe(page, tmp, pages, lru)
+> +		balloon_page_enqueue_one(b_dev_info, page);
+> +	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
 
-Really we shouldn't need to know that. That just tells us about how
-the kernel was built, it doesn't really provide any information about
-the layout of the system.
+As this is scanning pages one by one anyway, it will be useful
+to have this return the # of pages enqueued.
 
-> I searched for the patch that changed /proc/self/status but didn't find it.
+> +}
+> +EXPORT_SYMBOL_GPL(balloon_page_list_enqueue);
+> +
+> +/**
+> + * balloon_page_list_dequeue() - removes pages from balloon's page list and
+> + *				 returns a list of the pages.
+> + * @b_dev_info: balloon device decriptor where we will grab a page from.
+> + * @pages: pointer to the list of pages that would be returned to the caller.
+> + * @n_req_pages: number of requested pages.
+> + *
+> + * Driver must call it to properly de-allocate a previous enlisted balloon pages
+> + * before definetively releasing it back to the guest system. This function
+> + * tries to remove @n_req_pages from the ballooned pages and return it to the
+> + * caller in the @pages list.
+> + *
+> + * Note that this function may fail to dequeue some pages temporarily empty due
+> + * to compaction isolated pages.
+> + *
+> + * Return: number of pages that were added to the @pages list.
+> + */
+> +int balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
+> +			       struct list_head *pages, int n_req_pages)
 
-The patch you are looking for is located at:
-http://lkml.kernel.org/r/1545405631-6808-1-git-send-email-longman@redhat.com
+Are we sure this int never overflows? Why not just use u64
+or size_t straight away?
 
-I wonder if we shouldn't look at modifying kernel_get_mempolicy and
-the compat call to test for nr_node_ids instead of MAX_NUMNODES since
-the rest of the data would be useless anyway.
+> +{
+> +	struct page *page, *tmp;
+> +	unsigned long flags;
+> +	int n_pages = 0;
+> +
+> +	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+> +	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
+> +		/*
+> +		 * Block others from accessing the 'page' while we get around
+> +		 * establishing additional references and preparing the 'page'
+> +		 * to be released by the balloon driver.
+> +		 */
+> +		if (!trylock_page(page))
+> +			continue;
+> +
+> +		if (IS_ENABLED(CONFIG_BALLOON_COMPACTION) &&
+> +		    PageIsolated(page)) {
+> +			/* raced with isolation */
+> +			unlock_page(page);
+> +			continue;
+> +		}
+> +		balloon_page_delete(page);
+> +		__count_vm_event(BALLOON_DEFLATE);
+> +		unlock_page(page);
+> +		list_add(&page->lru, pages);
+> +		if (++n_pages >= n_req_pages)
+> +			break;
+> +	}
+> +	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+> +
+> +	return n_pages;
+> +}
+> +EXPORT_SYMBOL_GPL(balloon_page_list_dequeue);
+> +
+
+This looks quite reasonable. In fact virtio can be reworked to use
+this too and then the original one can be dropped.
+
+Have the time?
+
+>  /*
+>   * balloon_page_alloc - allocates a new page for insertion into the balloon
+>   *			  page list.
+> @@ -43,17 +137,9 @@ void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
+>  {
+>  	unsigned long flags;
+>  
+> -	/*
+> -	 * Block others from accessing the 'page' when we get around to
+> -	 * establishing additional references. We should be the only one
+> -	 * holding a reference to the 'page' at this point.
+> -	 */
+> -	BUG_ON(!trylock_page(page));
+>  	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+> -	balloon_page_insert(b_dev_info, page);
+> -	__count_vm_event(BALLOON_INFLATE);
+> +	balloon_page_enqueue_one(b_dev_info, page);
+>  	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+> -	unlock_page(page);
+>  }
+>  EXPORT_SYMBOL_GPL(balloon_page_enqueue);
+>  
+> @@ -70,36 +156,13 @@ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
+>   */
+>  struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
+>  {
+> -	struct page *page, *tmp;
+>  	unsigned long flags;
+> -	bool dequeued_page;
+> +	LIST_HEAD(pages);
+> +	int n_pages;
+>  
+> -	dequeued_page = false;
+> -	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+> -	list_for_each_entry_safe(page, tmp, &b_dev_info->pages, lru) {
+> -		/*
+> -		 * Block others from accessing the 'page' while we get around
+> -		 * establishing additional references and preparing the 'page'
+> -		 * to be released by the balloon driver.
+> -		 */
+> -		if (trylock_page(page)) {
+> -#ifdef CONFIG_BALLOON_COMPACTION
+> -			if (PageIsolated(page)) {
+> -				/* raced with isolation */
+> -				unlock_page(page);
+> -				continue;
+> -			}
+> -#endif
+> -			balloon_page_delete(page);
+> -			__count_vm_event(BALLOON_DEFLATE);
+> -			unlock_page(page);
+> -			dequeued_page = true;
+> -			break;
+> -		}
+> -	}
+> -	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+> +	n_pages = balloon_page_list_dequeue(b_dev_info, &pages, 1);
+>  
+> -	if (!dequeued_page) {
+> +	if (n_pages != 1) {
+>  		/*
+>  		 * If we are unable to dequeue a balloon page because the page
+>  		 * list is empty and there is no isolated pages, then something
+> @@ -112,9 +175,9 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
+>  			     !b_dev_info->isolated_pages))
+>  			BUG();
+>  		spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+> -		page = NULL;
+> +		return NULL;
+>  	}
+> -	return page;
+> +	return list_first_entry(&pages, struct page, lru);
+>  }
+>  EXPORT_SYMBOL_GPL(balloon_page_dequeue);
+>  
+> -- 
+> 2.17.1
 
