@@ -2,190 +2,236 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C404C282C2
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 17:12:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EB089C282CC
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 17:17:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CE08921904
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 17:12:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8011F21916
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 17:17:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=raithlin.onmicrosoft.com header.i=@raithlin.onmicrosoft.com header.b="cLJKbULx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE08921904
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=raithlin.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="bF6lvl3O"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8011F21916
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 61FC68E0050; Thu,  7 Feb 2019 12:12:56 -0500 (EST)
+	id EA70A8E0051; Thu,  7 Feb 2019 12:17:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 602358E0002; Thu,  7 Feb 2019 12:12:56 -0500 (EST)
+	id E2F998E0002; Thu,  7 Feb 2019 12:17:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4E2078E0050; Thu,  7 Feb 2019 12:12:56 -0500 (EST)
+	id CD1608E0051; Thu,  7 Feb 2019 12:17:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2761C8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 12:12:56 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id b192so6025593itb.0
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 09:12:56 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 89C4C8E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 12:17:41 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id q64so359198pfa.18
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 09:17:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:accept-language:content-language
-         :user-agent:content-id:content-transfer-encoding:mime-version;
-        bh=xhkX4kyquyhfAPut4hwfVsgQ6KPYouVvKuAcCGy6uVc=;
-        b=BUumNwXt7hjAEQSiwwwBmk75ueHvp02FSYo75RQKTznoKbW2AXeiaAXiqFGHi5Tv7Z
-         LusuKnn3lSoNLGYxCKc7r/2g9TeVXR4buRfiCve5PE6Fzvn+sUfCTYH94goO4g68jALw
-         rcH0FcCi8A+SHP1wJ7pnpX9b6RYu3iGSvrW5hLF6H1ZIRyeoSeld3/KZ5WPYEtuO0Yjg
-         d0xWmVOu78NVeZyoIV067ldK/oG5BX+rQGdKPtG/DGsoQMYIefrUW3epQQ7KwYj9SoMK
-         ItYxmdXDqvoBDydtM79YjvPIzSry1b9EPvj+dKTMotLyTHGhF0wGapevIIX6CpIY83+L
-         dWkQ==
-X-Gm-Message-State: AHQUAuZvJ/iPTyYcoN3Lz/bXggKa6ozGRIlBjBNsjaIFt4qGMumS7FAf
-	UUFBQIauSxdR5K+0HsQrCfZ/vRxdIEp03Op2Nmcq1LP2abvok6A9IilPx545AumKBDCniato3Eb
-	R9tgSRdhCelnEujX3shlYvywi0iLqKIG/ft4kUtU7E8gNdsyK7GTJjlQ7Zn1vCJbbuQ==
-X-Received: by 2002:a02:41c7:: with SMTP id n68mr9605570jad.61.1549559575834;
-        Thu, 07 Feb 2019 09:12:55 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbCUOoDULK/MD4SyvkI2Q7DWNBBYBPpq9uMuGyzBparimIy9YzLWcZRzlO/zagZb2hdIpIs
-X-Received: by 2002:a02:41c7:: with SMTP id n68mr9605499jad.61.1549559574813;
-        Thu, 07 Feb 2019 09:12:54 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549559574; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=PqlMHd6xLDlAcNc8B30K9u3FyPa4y27/C9zdAZrVqEA=;
+        b=Ui92sZPErxExr7TlJUZFsj8D3TtE+TMJU34RTgKnMAeRbuJ3jHcl6y8R9hnaC+Z09t
+         h98UhNijxNScRpLlfIQmbODsCT7aqnNq1/bT7/7R7PMZHQqxSgv75foTjQ5rF9LsutDA
+         6L3ymQa0RdwcZy+KwxSlDi+9nctEEAliJCH306L9VudcfOvsVMikL8dtgyu76j1j+QwH
+         y5EGJ31EyWomt5rdBoM6CFYoOaSKdVLC6Gr2X9oJRc8D2BzcRqhE3cLx4PkoNXeUbSN7
+         X28OwUYAohTtHmzDXBTbHH3QkkeM/xxTL31HJN9rS3jBvmyWGIpsqrIj/hcsUYv3hQep
+         LvDw==
+X-Gm-Message-State: AHQUAuYZpJcJ8ipaxEonan2a7WIMMhUVR5hAadlr/FfZ5zVsr4oBqxwR
+	neY9M8H6CuGh3Zixmg+HJ2rhO19YbSvm8uOPxv8c/55DAkrCgWYDxPgFU48wU0otoRhzzGDLzS7
+	l3H/20TUjU0EhHZ8JJyBbvGc8pn9fn4eAabsoP5555clfObzJRkIXBIsAoaHJ2OrZ+fTYZdpIM+
+	cvXSCwdNRm8sN2OybNUUAcVihlQvIMrIAD7s7w5pM4WaJYG51TeZ0HmL0elPR5I/o5NWuaVAZWF
+	yioyxm25QUNiKTQ8Bbq/0khWWUpiSv7MfH/EuAuoCq8tZf3zU7yrhzCAIebBSqeT8fAqh0GYMAe
+	BRSC/teJkkwqOft/+xB6FE70l2hP3CUJ7ff7jhILwY3y2pVGmsmAP+DJz6WIwXdcgueFoVJXe85
+	s
+X-Received: by 2002:a63:5962:: with SMTP id j34mr740977pgm.297.1549559861043;
+        Thu, 07 Feb 2019 09:17:41 -0800 (PST)
+X-Received: by 2002:a63:5962:: with SMTP id j34mr740855pgm.297.1549559859495;
+        Thu, 07 Feb 2019 09:17:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549559859; cv=none;
         d=google.com; s=arc-20160816;
-        b=n68KTeWIBorx780hj+MDgmbQPabIALRxkfck1PdmdJWbi9clE8aXnyot+pGmpfj5xw
-         hGeWBtU6oqLNaGc43HUksiFkpwYGZngjyDkkHCm7iPZTQAIJPY/p4LArx3GdThsEOBEU
-         JfrXNw453W1JOuP+ArDZxz30QgjEThePTOY0B1nMXIu1jjLyaMfpHoniCgzinglBTjqy
-         aqB2NrNHH1J/3uapDS8vLYKVORQLl/o1WkgLgYMZEsB+4XhKXiTXmVEl/gVj1/Gvjr6U
-         8o3ZFrvHb6kXqkZNLBTTX/9X8FRqBuyQSIJYn3qVLcWbqkaP8j3NKshnEtxKcXn2ou1m
-         vCZQ==
+        b=xt0ah0Yc3oqKLBVoWTLYiANrpwBWfD0XKn//bTnwP0U3LWEXTLiW8kJA0mptHFb4Zf
+         9G+slFdpJgy+KabydEo+CsdS13nJ+8YaTyqLfsk4Jlo2OJEWgmm3lfgw4o09Ir7sKbmh
+         2hNSYhGHnPz4iwvGREldM7zcg6Ryba45UYUJPXuEHIA/NrtwtpjnXak++XRq7ozwrFnu
+         1Ijcv4enOtc6WtE70xB34xgo6ff1eM53Azb6Pjq7fjG+rYP0E2Qgh3kledkA0gMcCfMI
+         UkQCLLbxKmyv66nkJ+M9ya9xhK5Fg/00VlPZlpOF8KxUQp22KWW8jQIgKm1pN+YroL73
+         +A2w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=xhkX4kyquyhfAPut4hwfVsgQ6KPYouVvKuAcCGy6uVc=;
-        b=pX7h8ra2evqf3Wo4fNGeGbDjNM5C/tz0V+9pJGk6G1XT4FKBmLBaBgVojl9/qzRiti
-         /m7f6idVNOiuz+znXm+9H6nZQ8bbrV9LhOsML8yI4g/8lBL83t4L0eKQCZ5UoYfjgJDt
-         3rE1ereuN8OCpNbnQ/y7IWe8VWgaikP0DLfyHBfHoKMhyKY7Ie/5+0fuhstLs1s6dj4w
-         oFHo3OiOG9xpwGqlEmKdUzLnzkPFH8QhQrcba8fhrmzSW6gUzLzpxb22wh/TcKukU2XS
-         zmyztOsxoRhvrb/AZQ5d06EjKDdNarMIwFSyAgrTrndY80bv2URidt0onO9JQsqwNL4x
-         dNiQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=PqlMHd6xLDlAcNc8B30K9u3FyPa4y27/C9zdAZrVqEA=;
+        b=SnJ9L/ax8Y/JFjc/alHgSMCHOo2+MbN5amqFrn/hPW85ZamN5xAihcX/4l+Y/quGhH
+         A1GmzY8LQmDWcWMoTPU9TZgGqfJAapvwkcvxRTxlP8oIZiDyMCGo0u3TFNN8/weCBGxe
+         r+cYLWIfYha+m+sausH3dQq/C2+XJWuqkaQ8vz5moh0rh0wpqP+33+X24kzDwyux1jRV
+         CpEYu0wSl9WKUVRouATw4jkqzPiMkcJOwQCJRIdMKNzpEd5/OG8Nz5Nk7TmJ/ieesi+y
+         Yk9d9zv0WykKj+nblT7HsixLwolQUXIzhmqn9DOgwaw9g1vH4hgsf3+bDe7G+/S3MEMB
+         XICw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@raithlin.onmicrosoft.com header.s=selector1-raithlin-com header.b=cLJKbULx;
-       spf=pass (google.com: domain of sbates@raithlin.com designates 40.107.66.106 as permitted sender) smtp.mailfrom=sbates@raithlin.com
-Received: from CAN01-QB1-obe.outbound.protection.outlook.com (mail-eopbgr660106.outbound.protection.outlook.com. [40.107.66.106])
-        by mx.google.com with ESMTPS id k12si792794ioq.139.2019.02.07.09.12.54
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=bF6lvl3O;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a16sor12323905pgw.48.2019.02.07.09.17.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 07 Feb 2019 09:12:54 -0800 (PST)
-Received-SPF: pass (google.com: domain of sbates@raithlin.com designates 40.107.66.106 as permitted sender) client-ip=40.107.66.106;
+        (Google Transport Security);
+        Thu, 07 Feb 2019 09:17:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@raithlin.onmicrosoft.com header.s=selector1-raithlin-com header.b=cLJKbULx;
-       spf=pass (google.com: domain of sbates@raithlin.com designates 40.107.66.106 as permitted sender) smtp.mailfrom=sbates@raithlin.com
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=bF6lvl3O;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=raithlin.onmicrosoft.com; s=selector1-raithlin-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=xhkX4kyquyhfAPut4hwfVsgQ6KPYouVvKuAcCGy6uVc=;
- b=cLJKbULxmNaB2tSbn5gukDIHvXEQ6PAgBmuOAnlFxzMsxOyaLXlcclnIbLR37ZtMuFL61M7HHqLXs0UjMy0Wz3RGdOl3Q0H0UNJ+pWkcKDqvo6C/uATzDxId/naL41uTqVqdotGPsyW6hZnUhB7OlwSjKYBjnqoWMHidJhU4dzI=
-Received: from YQXPR0101MB0728.CANPRD01.PROD.OUTLOOK.COM (52.132.75.145) by
- YQXPR0101MB1096.CANPRD01.PROD.OUTLOOK.COM (52.132.78.150) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1601.19; Thu, 7 Feb 2019 17:12:52 +0000
-Received: from YQXPR0101MB0728.CANPRD01.PROD.OUTLOOK.COM
- ([fe80::3984:214:c472:b3d7]) by YQXPR0101MB0728.CANPRD01.PROD.OUTLOOK.COM
- ([fe80::3984:214:c472:b3d7%2]) with mapi id 15.20.1601.016; Thu, 7 Feb 2019
- 17:12:52 +0000
-From: "Stephen  Bates" <sbates@raithlin.com>
-To: Jens Axboe <axboe@kernel.dk>, linux-fsdevel
-	<linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, IDE/ATA
- development list <linux-ide@vger.kernel.org>, linux-scsi
-	<linux-scsi@vger.kernel.org>, "linux-nvme@lists.infradead.org"
-	<linux-nvme@lists.infradead.org>, Logan Gunthorpe <logang@deltatee.com>
-CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
-	"bpf@vger.kernel.org" <bpf@vger.kernel.org>, "ast@kernel.org"
-	<ast@kernel.org>
-Subject: [LSF/MM TOPIC] BPF for Block Devices
-Thread-Topic: [LSF/MM TOPIC] BPF for Block Devices
-Thread-Index: AQHUvwhboOvoMzJnxEqbA/z88fpLtw==
-Date: Thu, 7 Feb 2019 17:12:52 +0000
-Message-ID: <40D2EB06-6BF2-4233-9196-7A26AC43C64E@raithlin.com>
-Accept-Language: en-CA, en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-user-agent: Microsoft-MacOutlook/10.16.0.190203
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=sbates@raithlin.com; 
-x-originating-ip: [70.65.250.31]
-x-ms-publictraffictype: Email
-x-microsoft-exchange-diagnostics:
- 1;YQXPR0101MB1096;6:ob6azazJQUOEsRZD3gVCXkxJoaGEQ4oaRr29iFRgd6B4ZOSU36ZYy2D9SXgqQwxYRKcPdbO0P2tlm7MsB0A4Mu8OA2tzZxRFlVJnURmhAVM2Mg00q5hHHe75te2PRbmsdEtS44fBXBQ89TuOaW9oAYrC6tz17sNMggQ5U3yVQ5Tdcto2xwp8sM8iiauN7R3hfMq2TFA5mPCAgpYULUv+AZNIlAwm8OdbbOEu9ftQ/GBOgDUIk0vycXxydXXEA8CzpBWwNmawFQ3ZVtc54gbMJ+Uprbe5MY6i9OLaAjcenoPoLkUlqBsb6h5+sPHiRSDl/LdMafRMe27pOuY7bN2B1n3dt3zgRrc6IHpXVM/bqng4q3CYFu0mr5Gzxfz5P0mXIVMYpHEoN6Cdr2gpWBXk8RejtQI97PtWKB+uAzs7YsNFZNUR3NvS3e7bGXwhMHY8oUF8xC5KJ7cQSRw1g036Uw==;5:fBzSAnsB9JER0Ld1ad0Jx85+NrMF1y415qL7qHvyNrbHbPngSB5/T/SmCH2N0I4vPIuDWtr629xsEm6V+NwShrLViYYXhcORRiuFRm6Ze1hJKZc0wYZ4uX2usWhtIGoOP5JGoQXVXm6WRyVVySRGmeE6kcKOaATi5YdHc+YwTXlgKX26x65GiuNLr9TwhvocVM7HmgFnCMv0LPuN/IUd7Q==;7:vwtk3Hf5BLBrleCgmILXEE0McusnAynS3HfL78URuvS9XeKJj5Ik0rmKSxAylIQYUcUqeXQHxFm5P+LPFx4qoYBr87Eqp/gN9QkvtM2rQl8B9NGVMzd8jlEyng2D/GvfAmlYTjM69MAGjXB0eBAhyA==
-x-ms-office365-filtering-correlation-id: e627a5eb-b078-428f-a380-08d68d1f7e5b
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(7021145)(8989299)(4534185)(7022145)(4603075)(4627221)(201702281549075)(8990200)(7048125)(7024125)(7027125)(7023125)(5600110)(711020)(4605077)(2017052603328)(7153060)(7193020);SRVR:YQXPR0101MB1096;
-x-ms-traffictypediagnostic: YQXPR0101MB1096:
-x-microsoft-antispam-prvs:
- <YQXPR0101MB109684F0B1A4A96A46C95C29AA680@YQXPR0101MB1096.CANPRD01.PROD.OUTLOOK.COM>
-x-forefront-prvs: 0941B96580
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(366004)(346002)(136003)(376002)(39830400003)(396003)(199004)(189003)(53754006)(8676002)(476003)(186003)(486006)(7416002)(6506007)(102836004)(110136005)(54906003)(81166006)(81156014)(2616005)(58126008)(26005)(7736002)(86362001)(6306002)(36756003)(99286004)(105586002)(316002)(305945005)(106356001)(256004)(14444005)(68736007)(14454004)(4326008)(3846002)(966005)(6116002)(25786009)(2906002)(83716004)(71200400001)(71190400001)(2501003)(33656002)(6512007)(82746002)(508600001)(66066001)(97736004)(8936002)(53936002)(6436002)(6486002);DIR:OUT;SFP:1102;SCL:1;SRVR:YQXPR0101MB1096;H:YQXPR0101MB0728.CANPRD01.PROD.OUTLOOK.COM;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: raithlin.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- MxvFc1fOz11+eyBeylzZK2apkhk30AJza2Zu79KJh2GEgyZW4/iJloqAQDFkETtEVbLol4H3uoyd9/lhTkHqFzA95Hd24vK8wkZgbx4OoSvwQUpns6Id3a/uLRpY5ZbF7yK+cnOUcAH7ZlTS8Q99t8h9uXsrwnCYInkd9jrpmDBmAMvv6cB2ZS/iyRrQVC5tU4Do4lcIawimvQdpw1skcRqzVuuqCxg6dN1QYKrPdoklnnOU8aVzRDDzEWWd7JKm93/Uz8JzdJdgeNUW8L5j+jyy/jaNwpUU6yWRLoOfFgALU/xBfkjFYB9gUT2tTUQUYH23mz37dgJ3sXEBGiV7lf9TRAkNwIclArS/x5mAe2cORSE8F+FVgBgNZZ9BP94VtmhJ7uoup2gNKAj2tvGSb1i9C5i8chGCCel+AKSfk8s=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <80AE72F32E8C7642AD78708C57CA9358@CANPRD01.PROD.OUTLOOK.COM>
-Content-Transfer-Encoding: base64
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=PqlMHd6xLDlAcNc8B30K9u3FyPa4y27/C9zdAZrVqEA=;
+        b=bF6lvl3OIEJ4mNLeHShgdKndstBHIdZ+678WDi7EJO7vLsb/hKdw7Ja0/uy1/lHSDk
+         qDpWQH/ReJvGv7F6Vdt0JqCz+89mzCy37JNqoCOYJmMOKZYtGaba6kfrZZw62kadSlf8
+         vGO4eYUG5o8fsb0QQCAThBbFzdTjhFeRzRKBfHxpgeptKev92+187E03kgKzrFQJvNxQ
+         RyUF0akf8yOM9IinzYaUQmqTAAXHiI50T3P5aGMwG5eQT2qZqoQdlm02Pg0D2GR5AKZP
+         KKDNrvdkJr+bwk57YsYtJ/tm+0IfhklIEhX6oXXoKva7a/dOUbc6RX+WUNkA9X/OgQUb
+         coeA==
+X-Google-Smtp-Source: AHgI3IYr+OpwrNiUTeYSdY/v8ElKyIb+GxbENEW6Q/NCm5CooT4Qqmf9VKbCvH+1cb7V0xRsxI466g==
+X-Received: by 2002:a63:6ac5:: with SMTP id f188mr15925675pgc.165.1549559858718;
+        Thu, 07 Feb 2019 09:17:38 -0800 (PST)
+Received: from ziepe.ca (S010614cc2056d97f.ed.shawcable.net. [174.3.196.123])
+        by smtp.gmail.com with ESMTPSA id k15sm16852694pfb.147.2019.02.07.09.17.37
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 07 Feb 2019 09:17:37 -0800 (PST)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1grnIu-0001lq-SV; Thu, 07 Feb 2019 10:17:36 -0700
+Date: Thu, 7 Feb 2019 10:17:36 -0700
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Chinner <david@fromorbit.com>, Doug Ledford <dledford@redhat.com>,
+	Christopher Lameter <cl@linux.com>,
+	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
+	Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org,
+	linux-rdma <linux-rdma@vger.kernel.org>,
+	Linux MM <linux-mm@kvack.org>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Michal Hocko <mhocko@kernel.org>
+Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
+ longterm-GUP usage by RDMA
+Message-ID: <20190207171736.GD22726@ziepe.ca>
+References: <20190206173114.GB12227@ziepe.ca>
+ <20190206175233.GN21860@bombadil.infradead.org>
+ <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
+ <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
+ <20190206210356.GZ6173@dastard>
+ <20190206220828.GJ12227@ziepe.ca>
+ <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
+ <20190207035258.GD6173@dastard>
+ <20190207052310.GA22726@ziepe.ca>
+ <CAPcyv4jd4gxvt3faYYRbv5gkc6NGOKjY_Z-P0Ph=ss=gWZw7sA@mail.gmail.com>
 MIME-Version: 1.0
-X-OriginatorOrg: raithlin.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: e627a5eb-b078-428f-a380-08d68d1f7e5b
-X-MS-Exchange-CrossTenant-originalarrivaltime: 07 Feb 2019 17:12:52.1490
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 18519031-7ff4-4cbb-bbcb-c3252d330f4b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: YQXPR0101MB1096
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4jd4gxvt3faYYRbv5gkc6NGOKjY_Z-P0Ph=ss=gWZw7sA@mail.gmail.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-SGkgQWxsDQoNCj4gQSBCUEYgdHJhY2sgd2lsbCBqb2luIHRoZSBhbm51YWwgTFNGL01NIFN1bW1p
-dCB0aGlzIHllYXIhIFBsZWFzZSByZWFkIHRoZSB1cGRhdGVkIGRlc2NyaXB0aW9uIGFuZCBDRlAg
-aW5mb3JtYXRpb24gYmVsb3cuDQoNCldlbGwgaWYgd2UgYXJlIGFkZGluZyBCUEYgdG8gTFNGL01N
-IEkgaGF2ZSB0byBzdWJtaXQgYSByZXF1ZXN0IHRvIGRpc2N1c3MgQlBGIGZvciBibG9jayBkZXZp
-Y2VzIHBsZWFzZSENCg0KVGhlcmUgaGFzIGJlZW4gcXVpdGUgYSBiaXQgb2YgYWN0aXZpdHkgYXJv
-dW5kIHRoZSBjb25jZXB0IG9mIENvbXB1dGF0aW9uYWwgU3RvcmFnZSBpbiB0aGUgcGFzdCAxMiBt
-b250aHMuIFNOSUEgcmVjZW50bHkgZm9ybWVkIGEgVGVjaG5pY2FsIFdvcmtpbmcgR3JvdXAgKFRX
-RykgYW5kIGl0IGlzIGV4cGVjdGVkIHRoYXQgdGhpcyBUV0cgd2lsbCBiZSBtYWtpbmcgcHJvcG9z
-YWxzIHRvIHN0YW5kYXJkcyBsaWtlIE5WTSBFeHByZXNzIHRvIGFkZCBBUElzIGZvciBjb21wdXRh
-dGlvbiBlbGVtZW50cyB0aGF0IHJlc2lkZSBvbiBvciBuZWFyIGJsb2NrIGRldmljZXMuDQoNCldo
-aWxlIHNvbWUgb2YgdGhlc2UgQ29tcHV0YXRpb25hbCBTdG9yYWdlIGFjY2VsZXJhdG9ycyB3aWxs
-IHByb3ZpZGUgZml4ZWQgZnVuY3Rpb25zIChlLmcuIGEgUkFJRCwgZW5jcnlwdGlvbiBvciBjb21w
-cmVzc2lvbiksIG90aGVycyB3aWxsIGJlIG1vcmUgZmxleGlibGUuIFNvbWUgb2YgdGhlc2UgZmxl
-eGlibGUgYWNjZWxlcmF0b3JzIHdpbGwgYmUgY2FwYWJsZSBvZiBydW5uaW5nIEJQRiBjb2RlIG9u
-IHRoZW0gKHNvbWV0aGluZyB0aGF0IGNlcnRhaW4gTGludXggZHJpdmVycyBmb3IgU21hcnROSUNz
-IHN1cHBvcnQgdG9kYXkgWzFdKS4gSSB3b3VsZCBsaWtlIHRvIGRpc2N1c3Mgd2hhdCBzdWNoIGEg
-ZnJhbWV3b3JrIGNvdWxkIGxvb2sgbGlrZSBmb3IgdGhlIHN0b3JhZ2UgbGF5ZXIgYW5kIHRoZSBm
-aWxlLXN5c3RlbSBsYXllci4gSSdkIGxpa2UgdG8gZGlzY3VzcyBob3cgZGV2aWNlcyBjb3VsZCBh
-ZHZlcnRpc2UgdGhpcyBjYXBhYmlsaXR5IChhIHNwZWNpYWwgdHlwZSBvZiBOVk1lIG5hbWVzcGFj
-ZSBvciBTQ1NJIExVTiBwZXJoYXBzPykgYW5kIGhvdyB0aGUgQlBGIGVuZ2luZSBjb3VsZCBiZSBw
-cm9ncmFtbWVkIGFuZCB0aGVuIHVzZWQgYWdhaW5zdCBibG9jayBJTy4gSWRlYWxseSBJJ2QgbGlr
-ZSB0byBkaXNjdXNzIGRvaW5nIHRoaXMgaW4gYSB2ZW5kb3ItbmV1dHJhbCB3YXkgYW5kIGRldmVs
-b3AgaWRlYXMgSSBjYW4gdGFrZSBiYWNrIHRvIE5WTWUgYW5kIHRoZSBTTklBIFRXRyB0byBoZWxw
-IHNoYXBlIGhvdyB0aGVzZSBzdGFuZGFyZCBldm9sdmUuDQoNClRvIHByb3ZpZGUgYW4gZXhhbXBs
-ZSB1c2UtY2FzZSBvbmUgY291bGQgY29uc2lkZXIgYSBCUEYgY2FwYWJsZSBhY2NlbGVyYXRvciBi
-ZWluZyB1c2VkIHRvIHBlcmZvcm0gYSBmaWx0ZXJpbmcgZnVuY3Rpb24gYW5kIHRoZW4gdXNpbmcg
-cDJwZG1hIHRvIHNjYW4gZGF0YSBvbiBhIG51bWJlciBvZiBhZGphY2VudCBOVk1lIFNTRHMsIGZp
-bHRlcmluZyBzYWlkIGRhdGEgYW5kIHRoZW4gb25seSBwcm92aWRpbmcgZmlsdGVyLW1hdGNoZWQg
-TEJBcyB0byB0aGUgaG9zdC4gTWFueSBvdGhlciBwb3RlbnRpYWwgYXBwbGljYXRpb25zIGFwcGx5
-LiANCg0KQWxzbywgSSBhbSBpbnRlcmVzdGVkIGluIHRoZSAiVGhlIGVuZCBvZiB0aGUgREFYIEV4
-cGVyaW1lbnQiIHRvcGljIHByb3Bvc2VkIGJ5IERhbiBhbmQgdGhlICIgWm9uZWQgQmxvY2sgRGV2
-aWNlcyIgZnJvbSBNYXRpYXMgYW5kIERhbWllbi4NCg0KQ2hlZXJzDQogDQpTdGVwaGVuDQoNClsx
-XSBodHRwczovL2dpdC5rZXJuZWwub3JnL3B1Yi9zY20vbGludXgva2VybmVsL2dpdC90b3J2YWxk
-cy9saW51eC5naXQvdHJlZS9kcml2ZXJzL25ldC9ldGhlcm5ldC9uZXRyb25vbWUvbmZwL2JwZi9v
-ZmZsb2FkLmM/aD12NS4wLXJjNQ0KIA0KICAgIA0KDQo=
+On Wed, Feb 06, 2019 at 10:00:28PM -0800, Dan Williams wrote:
+
+> > > If your argument is that "existing RDMA apps don't have a recall
+> > > mechanism" then that's what they are going to need to implement to
+> > > work with DAX+RDMA. Reliable remote access arbitration is required
+> > > for DAX+RDMA, regardless of what filesysetm the data is hosted on.
+> >
+> > My argument is that is a toy configuration that no production user
+> > would use. It either has the ability to wait for the lease to revoke
+> > 'forever' without consequence or the application will be critically
+> > de-stablized by the kernel's escalation to time bound the response.
+> > (or production systems never get revoke)
+> 
+> I think we're off track on the need for leases for anything other than
+> non-ODP hardware.
+> 
+> Otherwise this argument seems to be saying there is absolutely no safe
+> way to recall a memory registration from hardware, which does not make
+> sense because SIGKILL needs to work as a last resort.
+
+SIGKILL destroys all the process's resources. This is supported.
+
+You are asking for some way to do a targeted *disablement* (we can't
+do destroy) of a single resource.
+
+There is an optional operation that could do what you want
+'rereg_user_mr'- however only 3 out of 17 drivers implement it, one of
+those drivers supports ODP, and one is supporting old hardware nearing
+its end of life.
+
+Of the two that are left, it looks like you might be able to use
+IB_MR_REREG_PD to basically disable the MR. Maybe. The spec for this
+API is not as a fence - the application is supposed to quiet traffic
+before invoking it. So even if it did work, it may not be synchronous
+enough to be safe for DAX.
+
+But lets imagine the one driver where this is relavents gets updated
+FW that makes this into a fence..
+
+Then the application's communication would more or less explode in a
+very strange and unexpected way, but perhaps it could learn to put the
+pieces back together, reconnect and restart from scratch.
+
+So, we could imagine doing something here, but it requires things we
+don't have, more standardization, and drivers to implement new
+functionality. This is not likely to happen.
+
+Thus any lease mechanism is essentially stuck with SIGKILL as the
+escalation.
+
+> > The arguing here is that there is certainly a subset of people that
+> > don't want to use ODP. If we tell them a hard 'no' then the
+> > conversation is done.
+> 
+> Again, SIGKILL must work the RDMA target can't survive that, so it's
+> not impossible, or are you saying not even SIGKILL can guarantee an
+> RDMA registration goes idle? Then I can see that "hard no" having real
+> teeth otherwise it's a matter of software.
+
+Resorting to SIGKILL makes this into a toy, no real production user
+would operate in that world.
+
+> > I don't like the idea of building toy leases just for this one,
+> > arguably baroque, case.
+> 
+> What makes it a toy and baroque? Outside of RDMA registrations being
+> irretrievable I have a gap in my understanding of what makes this
+> pointless to even attempt?
+
+Insisting to run RDMA & DAX without ODP and building an elaborate
+revoke mechanism to support non-ODP HW is inherently baroque. 
+
+Use the HW that supports ODP.
+
+Since no HW can do disable of a MR, the escalation path is SIGKILL
+which makes it a non-production toy.
+
+What you keep missing is that for people doing this - the RDMA is a
+critical compoment of the system, you can't just say the kernel will
+randomly degrade/kill RDMA processes - that is a 'toy' configuration
+that is not production worthy.
+
+Especially since this revoke idea is basically a DOS engine for the
+RDMA protocol if another process can do actions to trigger revoke. Now
+we have a new class of security problems. (again, screams non
+production toy)
+
+The only production worthy way is to have the FS be a partner in
+making this work without requiring revoke, so the critical RDMA
+traffic can operate safely.
+
+Otherwise we need to stick to ODP.
+
+Jason
 
