@@ -2,183 +2,173 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,UNPARSEABLE_RELAY autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CB3FCC282CC
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 16:28:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E925C282C2
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 16:36:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 846CB2175B
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 16:28:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EF15021916
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 16:36:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="sdsIfMHX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 846CB2175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="OumiwyWk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF15021916
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 183DA8E0047; Thu,  7 Feb 2019 11:28:21 -0500 (EST)
+	id A30F48E0048; Thu,  7 Feb 2019 11:36:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 133448E0002; Thu,  7 Feb 2019 11:28:21 -0500 (EST)
+	id 9D8078E0002; Thu,  7 Feb 2019 11:36:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 049618E0047; Thu,  7 Feb 2019 11:28:21 -0500 (EST)
+	id 8AA0F8E0048; Thu,  7 Feb 2019 11:36:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E4998E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 11:28:20 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id e12-v6so97538ljb.18
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 08:28:20 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BE538E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 11:36:12 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id a23so311651pfo.2
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 08:36:12 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=NqcbSbVgDZtdgzYO2knt/tKwP8VpBZkOZlHZOIDOo1c=;
-        b=TTM5ezFwNMaPY1UfS6xbzfzlsyqVn4mgeKh2x4uuKKNgGXBM0xRDsATbUcJi2G3rIq
-         drnLwsmqX3JNCCfAkFlelsJPwTB9cbqA4t77FuZGcoYaEUKiFxzEhGDUBXaVTMhMwJm7
-         HlLbqqzIrMjlDxBCUSqay5UA1eZcAb4agl6KTSHDGjbbTMFBNu+jd+KWS1gfTTt8iDp8
-         Hko2ec5G6Fu/C1khAWw0EiyvGxW6934MSbsoC4C1AioerassrmsENZhpNQCJYvv7cBcg
-         XTIqxI57MYRHy9tuQlkRBlxftZrKHXykiIRFUn+LY5m5zmJeajfJmplUGqOPkH0OWOTk
-         KVRw==
-X-Gm-Message-State: AHQUAub591JZHGwGC3ZsM6GJfec4jK4ZJmuNwHpdBqm5FljxGEiWxEL+
-	a8UbBna9moq+mXTqrDx4FELr2nV7PKVcOXXKLpW0fGt4ZOtY/H6VVUR0ofU5z0Agtf8KFnCD4cv
-	3gkZAdef6sZHuK1sRbXI7fEFmeLJRa7j2LMb4ItwKzOIWhrzWfLi0jmhZyiHI/v9AJQIUv6chc8
-	JK44nD3bhPkzYv5562r/Zn5wz9TMPY18MVQxTD5ajv9iH/pUu2dA3l1tPN4wCREm1tTmlCSZNu8
-	BSaDWM37ZoALTKlGBD5VuSnM7nvo2JSNi7OJ4W9dTqGS3n3M10P6KtGBYGquBMFZ1t9gG0aWkBA
-	cVOnY6tLbU4mPuhvgylU77OLPU2A3AgPoV+zv4Vwkx5UL/EWGO7ydJGktBcFW0YsLHr4LbjOX52
-	w
-X-Received: by 2002:a2e:81da:: with SMTP id s26-v6mr10544923ljg.183.1549556899927;
-        Thu, 07 Feb 2019 08:28:19 -0800 (PST)
-X-Received: by 2002:a2e:81da:: with SMTP id s26-v6mr10544763ljg.183.1549556896975;
-        Thu, 07 Feb 2019 08:28:16 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549556896; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=aZ+aUDdPQcdjQqam9OtBRXqMLRv7aniMvESPb0JxeRE=;
+        b=dYxmRN+zOpIWi/l9bSUI4bED94c5J2clUknc9MRsfHo8WFHE5KC4L2PguumsNc26sT
+         SYhLgadZgRI6NFB+z/MYSaJoilyK5QQW876FlOTmm7SUayVDabtoJAzBuNzpja92CtkH
+         w8DgRbl97v8LeOOxTZb44Md9d9eujWbeixRHQpJK5x/6JPTcvPVHpi9vdVctq0nKctsc
+         C0gXXwow7qWx2DSODZFeMXUHtiJ+1tGh4SUjcffudp14JLOMNTJLDWI/m3LPkUSm7Qkc
+         GMfnhtsi30aJSpBCk8b3/HN4nt6VZzqsFpxUk/nKeqZ4qAYUpqqYAuSU8lqinIUPSAqG
+         jyjQ==
+X-Gm-Message-State: AHQUAualYC7Ofsv8vkC/mqpamFDVZ575DsD+SsLuF2BMsXvQUH+g+kqC
+	dmHn+wuEslBXoKP7XROL35dSZSkAMsI0Sncna4+4KIvhe2Uco7VoS7HznfhFMTtYj4o82pfEzf4
+	H4Fot1yLkRwf9vo5uF46q44BbcEdbE/CsSweVJebXckc9XBsRMMEWnW7qfVCvov2ccA==
+X-Received: by 2002:a63:fd07:: with SMTP id d7mr335205pgh.163.1549557371810;
+        Thu, 07 Feb 2019 08:36:11 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZp6/R4nCdWhhyugynpFbYYJTqmtgakVSWmHU//nDE/JGohQAtrBPMmqIaZ++pGYOQkKWWL
+X-Received: by 2002:a63:fd07:: with SMTP id d7mr4862052pgh.163.1549551913253;
+        Thu, 07 Feb 2019 07:05:13 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549551913; cv=none;
         d=google.com; s=arc-20160816;
-        b=dE82UvEciFAZ98cwqObWxR7Q3HBz1BIYhHfvPi7YAZkZj315y1D4AWvGhKe8fCHfkN
-         iqQHL6JLzCxPv7oRgYRwCXQKGlb/9ZfrT0Zs6oIn56PR0fIVwRS/41h5cE87xwDgl5LT
-         cFOBlmNA8bBHKHtZTuu3XMjzIkxFG5ldxVHfdeGCxxfKT6safytzqeI+2PdtXAOmnAkF
-         ajbj7gV+9NlHE+wZvxj89m1PUX8tRz8iz9Qm3DTZzzhhkJAP3lrM5OC3dsOOmNFXUmsL
-         U/7tDz21/B12JZfyfwpcoJCdOCc2zYb3y/ugn3un8PsRWLM/xdQrxmQG9AbFaAHYbs/M
-         0MBA==
+        b=aVIsrPjyNRFSnsQqzFNMjvrjdWsu8nHMIrgblVUj8YpaOg41NEoylPLxvnfTXRvh7t
+         FS2F5I9NCRpMHiJUuDgW0o1yvCMsD0BVW+VgLbQ8bezigSqXPVIwSSnZ4ZfmmWzU/ArO
+         kLSGY0Fzk0lWKzEcxB7opC95SuHyUjG6QfEGRWz0qGWGmTV5DuMseubDM/UtyAW5zrNQ
+         b73QJ9mXN90DKZjG/a61D0ZtffuFcsPHenk2ANnGeeIueIWlWA6ui9nMJsrvhGDT8vil
+         mGCBoxG0rzyqCbMoPDY5pzUMXwl3c5fQxGFfrXIoR2yw0R21ixOSse4ObD/Z+xijhcKk
+         ij5w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=NqcbSbVgDZtdgzYO2knt/tKwP8VpBZkOZlHZOIDOo1c=;
-        b=ldqWToNoHVZXQGNg8DJeKR/FUs6b49C5L7BPrkyOXV+WQ4cAQMSu/leUF/tzFaH1Uz
-         3eIfc09K4CXh8jVIOnKwBy+YZ4kz6yaKaq1PSYNEqWayhM/Kqc9eSqnf9adi8ZwuPTde
-         Dx8oY6A8W4l3qQUTak43c8XcJd9EYqKjwdaJkQtfWAj1EOs38O6yC0+JmPW6UMxAzCYp
-         ZxLZi3wh7ImxKLeg+ki8yxOoTiwW5IaqEAwL0WAOin0rmSfzSBAc1nDeHVpX0JkukBgQ
-         dfvbPvRyvqsr6q+6MGVdb0HOhXd3HXHUVp1YWjZRv4WydXJ/4edKef3+zyKqjV1cjuM9
-         4g7w==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=aZ+aUDdPQcdjQqam9OtBRXqMLRv7aniMvESPb0JxeRE=;
+        b=Gs5tr9nOlXGSAwkU5r7/Zsc7lHbDY/0+9M05i6BGXPnHWJ7H6y0PIJH3arhEOPf2NC
+         in145XesBVbJhXWVph/tNnloWVRWGXG5ScDyF2yMMPJUfuXfDdYW2egNjkoTGE/gtTgM
+         WFbUT2yuAhen64Iyl2LexUoAzeM10jyxe8fIVjpkK2Bh2cSD8MsgyNPIG7yji+8Xaxhc
+         OKiOSNjXVEIA16SGLIJpFB4jvQiqDEf4Qq9aEwbWsJsAufBlPblbHe9w4QIVgHdp00c1
+         iRdVtBdrL+Ut66hN5Yuz0vX6VgSJIkWGtyLowariykw6Wvw1+VkH5Tl/GyQVr0KFN2aA
+         LMww==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sdsIfMHX;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a27sor4992751lfl.7.2019.02.07.08.28.16
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=OumiwyWk;
+       spf=pass (google.com: domain of chuck.lever@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=chuck.lever@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id d30si9362409pla.74.2019.02.07.07.05.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 07 Feb 2019 08:28:16 -0800 (PST)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Feb 2019 07:05:13 -0800 (PST)
+Received-SPF: pass (google.com: domain of chuck.lever@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sdsIfMHX;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=NqcbSbVgDZtdgzYO2knt/tKwP8VpBZkOZlHZOIDOo1c=;
-        b=sdsIfMHX6Hcka/qDE5Of4d5cYBnxOvraEFktqyRV/YqTIWmQsIImsZno3PQ3QXvChB
-         Ih/lmi/xTQFFrMYlVw+S5XdPaTbtcdmJaI8T0TFfT7FjDEziF0CZBWusxURwBejpR0jo
-         m17dh++ITWi1D5YnoDzkhxCwirtKtc6fisRf2hCqOBX+sgVz9neLdgyiHyHI4CQTE13q
-         PuM67m2S0tSrsluLr/a5PN8VAlpJogm75t4FDAnhA8rZWD74jixsMvIjJLbLh3g6E3h8
-         K6Eit5WubNjI0TfJ2ZFvGFVh5O2GekVAEB39bM78hq6gAe2q7LM58untWC3Km79KRHm5
-         2PIw==
-X-Google-Smtp-Source: AHgI3IacQaPz5X8pueH3UK+eZmUBIcx0wh/8ncR+XUULfqXQ5hVdvW3OYiNZZDwhd/JYuf3FmyVwgiVBSknCrkSOsQE=
-X-Received: by 2002:a19:6514:: with SMTP id z20mr10885979lfb.31.1549556896462;
- Thu, 07 Feb 2019 08:28:16 -0800 (PST)
-MIME-Version: 1.0
-References: <1549455025-17706-1-git-send-email-rppt@linux.ibm.com> <1549455025-17706-2-git-send-email-rppt@linux.ibm.com>
-In-Reply-To: <1549455025-17706-2-git-send-email-rppt@linux.ibm.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Thu, 7 Feb 2019 22:02:24 +0530
-Message-ID: <CAFqt6zbvYKQS0NO3x9d45ubwf_MdEf67x1=xUHLb+ippCFmeQg@mail.gmail.com>
-Subject: Re: [PATCH 1/2] memblock: remove memblock_{set,clear}_region_flags
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
-	Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=OumiwyWk;
+       spf=pass (google.com: domain of chuck.lever@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=chuck.lever@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x17ExTYL013909;
+	Thu, 7 Feb 2019 15:05:01 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
+ mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to;
+ s=corp-2018-07-02; bh=aZ+aUDdPQcdjQqam9OtBRXqMLRv7aniMvESPb0JxeRE=;
+ b=OumiwyWkEOjkb9CQUVsK7I6JwGePiZ3pZsasA8CSeXuSMSNdaURbNEflNhFfKtEWlNbo
+ MXcs//uc0lS3k0ZRZCOANJESSIyBzDG0yRfblq9VmXtPBXu5ZgSeqP8ZMJUdrOtPNYbg
+ 6I8uUEwWcyAvAqmVHvpFje2v/fQoJjQ0ADD4IGUabGU6wQXTRz6py0jFFi9Rrhus56H2
+ m5SYluTjj4BqVT7lEDg3TDxI+ekZlx3nYVtOJNK/bkoTWxnjBWlx4KG+4y92fjax56X2
+ nfAh5PplqNjsRmwNBYd3MnMv16Khvdvwql+KkCb8dxN403r8cSNisXxIT4v4YeHNQZJr TA== 
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by userp2120.oracle.com with ESMTP id 2qd98nfe0w-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 07 Feb 2019 15:05:01 +0000
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x17F4xCX006779
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 7 Feb 2019 15:05:00 GMT
+Received: from abhmp0001.oracle.com (abhmp0001.oracle.com [141.146.116.7])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x17F4wSl007837;
+	Thu, 7 Feb 2019 15:04:58 GMT
+Received: from anon-dhcp-171.1015granger.net (/68.61.232.219)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 07 Feb 2019 15:04:58 +0000
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
+ longterm-GUP usage by RDMA
+From: Chuck Lever <chuck.lever@oracle.com>
+In-Reply-To: <20190207052310.GA22726@ziepe.ca>
+Date: Thu, 7 Feb 2019 10:04:55 -0500
+Cc: Dave Chinner <david@fromorbit.com>, Doug Ledford <dledford@redhat.com>,
+        Christopher Lameter <cl@linux.com>,
+        Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
+        Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org,
+        linux-rdma <linux-rdma@vger.kernel.org>, linux-mm@kvack.org,
+        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+        John Hubbard <jhubbard@nvidia.com>, Jerome Glisse <jglisse@redhat.com>,
+        Dan Williams <dan.j.williams@intel.com>,
+        Michal Hocko <mhocko@kernel.org>
+Content-Transfer-Encoding: 7bit
+Message-Id: <CC414509-F046-49E3-9D0C-F66FD488AC64@oracle.com>
+References: <20190205175059.GB21617@iweiny-DESK2.sc.intel.com>
+ <20190206095000.GA12006@quack2.suse.cz> <20190206173114.GB12227@ziepe.ca>
+ <20190206175233.GN21860@bombadil.infradead.org>
+ <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
+ <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
+ <20190206210356.GZ6173@dastard> <20190206220828.GJ12227@ziepe.ca>
+ <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
+ <20190207035258.GD6173@dastard> <20190207052310.GA22726@ziepe.ca>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+X-Mailer: Apple Mail (2.3445.102.3)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9159 signatures=668682
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=774 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1902070116
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 6, 2019 at 6:01 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
->
-> The memblock API provides dedicated helpers to set or clear a flag on a
-> memory region, e.g. memblock_{mark,clear}_hotplug().
->
-> The memblock_{set,clear}_region_flags() functions are used only by the
-> memblock internal function that adjusts the region flags.
-> Drop these functions and use open-coded implementation instead.
->
-> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-> ---
->  include/linux/memblock.h | 12 ------------
->  mm/memblock.c            |  9 ++++++---
->  2 files changed, 6 insertions(+), 15 deletions(-)
->
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index 71c9e32..32a9a6b 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -317,18 +317,6 @@ void __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
->         for_each_mem_range_rev(i, &memblock.memory, &memblock.reserved, \
->                                nid, flags, p_start, p_end, p_nid)
->
-> -static inline void memblock_set_region_flags(struct memblock_region *r,
-> -                                            enum memblock_flags flags)
-> -{
-> -       r->flags |= flags;
-> -}
-> -
-> -static inline void memblock_clear_region_flags(struct memblock_region *r,
-> -                                              enum memblock_flags flags)
-> -{
-> -       r->flags &= ~flags;
-> -}
-> -
->  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->  int memblock_set_node(phys_addr_t base, phys_addr_t size,
->                       struct memblock_type *type, int nid);
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 0151a5b..af5fe8e 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -851,11 +851,14 @@ static int __init_memblock memblock_setclr_flag(phys_addr_t base,
->         if (ret)
->                 return ret;
->
-> -       for (i = start_rgn; i < end_rgn; i++)
-> +       for (i = start_rgn; i < end_rgn; i++) {
-> +               struct memblock_region *r = &type->regions[i];
 
-Is it fine if we drop this memblock_region *r altogether ?
 
-> +
->                 if (set)
-> -                       memblock_set_region_flags(&type->regions[i], flag);
-> +                       r->flags |= flag;
->                 else
-> -                       memblock_clear_region_flags(&type->regions[i], flag);
-> +                       r->flags &= ~flag;
-> +       }
->
->         memblock_merge_regions(type);
->         return 0;
-> --
-> 2.7.4
->
+> On Feb 7, 2019, at 12:23 AM, Jason Gunthorpe <jgg@ziepe.ca> wrote:
+> 
+> On Thu, Feb 07, 2019 at 02:52:58PM +1100, Dave Chinner wrote:
+> 
+>> Requiring ODP capable hardware and applications that control RDMA
+>> access to use file leases and be able to cancel/recall client side
+>> delegations (like NFS is already able to do!) seems like a pretty
+> 
+> So, what happens on NFS if the revoke takes too long?
+
+NFS distinguishes between "recall" and "revoke". Dave used "recall"
+here, it means that the server recalls the client's delegation. If
+the client doesn't respond, the server revokes the delegation
+unilaterally and other users are allowed to proceed.
+
+
+--
+Chuck Lever
+
+
 
