@@ -2,198 +2,148 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 83152C282C2
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 12:58:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9631AC282C2
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 13:27:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1DF2321904
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 12:58:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 41AEA21902
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 13:27:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="SJqJXjIB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1DF2321904
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="U7zyFCgl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 41AEA21902
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4C1E38E002A; Thu,  7 Feb 2019 07:58:46 -0500 (EST)
+	id D358D8E002B; Thu,  7 Feb 2019 08:27:50 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 470E28E0002; Thu,  7 Feb 2019 07:58:46 -0500 (EST)
+	id CE53A8E0002; Thu,  7 Feb 2019 08:27:50 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 389BA8E002A; Thu,  7 Feb 2019 07:58:46 -0500 (EST)
+	id BFA698E002B; Thu,  7 Feb 2019 08:27:50 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E5EF68E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 07:58:45 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id o23so7431440pll.0
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 04:58:45 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 97CB38E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 08:27:50 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id q3so10107905qtq.15
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 05:27:50 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=rRWwt4URCRXcwIZxbYDkHZAEZxjPcHH4qziRDx6ay7I=;
-        b=rdIC2bgdO1wqic3s8xAB2pob3GoQfr5UJ1ENmX1cNOUBCbCNPq3fIhBa85qV5rNDSK
-         URaiI14Bve9Mc4ddNPLvbnOMnTsOzZ0iDvfxgaFoI4mrmhAClwtCNw0FEBIQaA+zlwF0
-         Em2dJL+F6NjIeTZjb61T5mqCTrVStx35yw0gcF/48nGnp/bd9WwBL6uvwO2LHmd4fg1B
-         yL3O2JmVJCWgxbKg0TQzouQnbbuLPpETa10SYU4sEornslsMsi4xn0Uex+hyDDHFZ3D/
-         inyyRxKvyAiU+ugel0Kb+T/TmbbuJmax/9qyQEAy5z0dbft1puHJrWIwTQYFqrQ5/28k
-         eFcw==
-X-Gm-Message-State: AHQUAuYAFE/ra5uncduO+LdPlQfRXnXCgnfBKeO8VnHwu6pm/Y1v5CQm
-	eYJCFL8ZwH3ZHaSusAyyAi2bAfhDgUwBzXMPOHDcDBJXAIfMklAV9CuCEYEcF+unpRAfx5PpvCH
-	jDDnDDpYKbj32V9giix6jdFzgJihYkHLpjZJwZn2JcPOYxY0UgY5tdFjPI2vb2UAl5IZFySt1nk
-	1k8rwaTyHIvj4AUSav6iK3Pxr7N6m8NqgsjKTQhtYjAAzcclLXCTB9PuCcpgTcCKaSt55E6G3DD
-	kT87XhLNcL6fbbKJZoaETuTZlerKxmkWbfZO16aoVIoQE6W1H6RVlREGLEFd5oV/OSfFxE9nk8z
-	tnd/oI6FrvKkWz+QC+vf6YvJr0e/VuJwTyZrbSfOg/i4cunZV7RaWMv5vAsTZtw7xd2clqET7xM
-	q
-X-Received: by 2002:a65:5301:: with SMTP id m1mr14212386pgq.90.1549544325373;
-        Thu, 07 Feb 2019 04:58:45 -0800 (PST)
-X-Received: by 2002:a65:5301:: with SMTP id m1mr14212341pgq.90.1549544324274;
-        Thu, 07 Feb 2019 04:58:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549544324; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=gVGRQAP8fycR5glSl7rC3QviX2H8rDZ6sJcRguQ7SeA=;
+        b=jo9DyssTKfo8hG1LJyG343sZp4++HOp0Xneemyd0d8cf9ys4sOTaL9RDvRgch2cVAd
+         Pi7ivi6IgOgWh2i7wHkUUMxPsOQCHDfRxet/3Ja9GooxxDi0avYoeOJN5RkBjW9tQdA+
+         9RZ2nHMVfvJVR0PsVA0hTzYT52+LVM2YUTzJwwQeKKf/ca0GlpoYwIrJQNe089EtDRG0
+         wI6GoNgGUFAPrkdz1TBBj1uNu07j1mRa/aCrEb60OKcfN1mjh9UyM72w9HhPX8KSyntb
+         lYrMYheEI2GXE5ioeQh8loAwCy5n4i+fEk4scsP0w+guyBdkm37xciv8QuSzQZxTMCSK
+         uUgw==
+X-Gm-Message-State: AHQUAuaXOMluFZGN7B2/isoAKyf5rxQF8PctULBi9746dkwRSwyjt8fR
+	hE/GL+VVeuXaknXKQ2pa1hRNMAKaux2fz5p38apiva8xpYveZ4UmihU9JBEjYrXzNQaKa2QmGCR
+	uZZj2NyLGTB3uzgKv4RMHovp3thRqtWrAjLDWDUqFx3vgvpsdy/RO0JaV/8wff7erxcyRWYhxnP
+	Ze3iMaxQDXGc9MsG+oDy0y08TVhd8IHLzBhtzIF0oA+VHtingH+F/AhLkyeg+iWhPcdyfiSArc0
+	b1wvzHCEJVMjmKHqvOqjrpGkYU4GYc9ELAjI2GVIO8e1S10SVglPsH9W7QXt1Y7D3vJCAQ+fr1W
+	OzJTs6Gkm5/9cc/BqIZ9UPyJMDZoepRk7zTAV+SgK1J/6EaDxLSJP4/Je1bwQjt3GnjftLLYu8b
+	Y
+X-Received: by 2002:ac8:2a06:: with SMTP id k6mr11974249qtk.245.1549546070331;
+        Thu, 07 Feb 2019 05:27:50 -0800 (PST)
+X-Received: by 2002:ac8:2a06:: with SMTP id k6mr11974211qtk.245.1549546069748;
+        Thu, 07 Feb 2019 05:27:49 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549546069; cv=none;
         d=google.com; s=arc-20160816;
-        b=AHa7sQ2lffZtIQaum5g160FQg3ldvptZF1FnZBRSn2fyWDnH/3u3q7tJFnIao8m5c5
-         ltANoSgKonAt6jOSG5Du0sdJsW/iHzLWhGAHE/8Rm/78cvLYbpPk+l++9Jgctbef1FvC
-         yWax9NlarjY2iPaJrF067jN+QbFMsEul7Q5nIEVmLlkcAHv8qs391hxQQNNNIaw1iy84
-         NE74lR0XrNb3mb5gEakB17ae3o3w05JdxrlUF0C75e+oDCPRVCS38CRahMLFRJtpTD1E
-         j80M4pRDH3iW1wBbi455PSiZcsnTMhXBid30XdlLEYIrnHHABWY7e7PpKYVi1R4sQF86
-         QtNg==
+        b=FJERRfkv0RgWx5NxA/QP5FiOsBpfOo0MlD5y6OpzPsldgMeZUuzxXUBPkPHyxe3Jcm
+         Xx/gBYLaSRE4xsOLGDKMkWiWR5DbgD8BuifsEY7tLsES63UZ0Kw32fiSgoh0X0cAdTFn
+         Sged2+0u5V7+317CLnfpdUq1nDyYpe9UFlLt27JMR1RKXdrDS0Bc1vacit/nVrDkhr+k
+         owiYMhRkq5E+RR98u7wTE4bzIhl/3rCIUA9K0C7GItaI1FF7OILQRgCJo9Dzj3Gu2FIe
+         vYLD8Ej+9wLBDej156eCj8zntx2U9gQ33L5Xd5JSLabwHjZwnG0TS8D7rfavbncA+syd
+         lRDg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=rRWwt4URCRXcwIZxbYDkHZAEZxjPcHH4qziRDx6ay7I=;
-        b=L89w9QGpc555cg1px+pXe7JSigrS21WZpg91cX1PyREv1nZ5+fPy0fmL6AaGV/S+D5
-         3R365N5iUtJcGnb8k0Fj5SREugMTcxtcOwac0MxUkbTDZsn2LG6GsYXTs2AlXtVnPT+2
-         B0KhP3JPWk8qMXGFEbVdcrB0f9Vf7JEXj1zy5JnCwW1qrjMUvIC469NJ+f3etdCYhU3H
-         RwArw8EJY/33n/MERfofw6vNswB6cIJEGf9gwxd9qwQH8bF7nIYzmtSGGrWJzdMKnYlY
-         VEZZ2/eoKj6goucJTTw6RGmfXaqhB23JUNQWgdEKmI8cmDqBFE97HZQU7E47OyWkprFz
-         rBiA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=gVGRQAP8fycR5glSl7rC3QviX2H8rDZ6sJcRguQ7SeA=;
+        b=j4cDumsU3cg9+A230rGrtuWIcgF5upSbXHPuCziPfN3n2lxzl+tOeG/q9Q8oK9IVt4
+         +GdVbPMDoq2qdJsNx4S7H3rKG0ayN8e6XodmEEifWOjwBRYS3LmVyXlq6WmY/QJ3pu0M
+         D1KnQb1kzy3isBkMvjF7a5MblJ/mo0SoX1lyUbWE/M3xQtTleDC8esySSe8SLSobZiSd
+         60xHOlc3EnBGDmmO44v6I8aNrSKgcbr82HfyBPJsZib8P/iUdzN90AUms9zxk8CkycI+
+         eIb7oiyFhfw7YN14t99GDRqs6BgmM3kbmJin7ZTdAsXLhAOpY1c1cMfMHvF9NAu+VjUC
+         41+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=SJqJXjIB;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=U7zyFCgl;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y22sor6846260pfn.9.2019.02.07.04.58.43
+        by mx.google.com with SMTPS id u56sor32403447qvc.58.2019.02.07.05.27.49
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 07 Feb 2019 04:58:44 -0800 (PST)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 07 Feb 2019 05:27:49 -0800 (PST)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=SJqJXjIB;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=U7zyFCgl;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=rRWwt4URCRXcwIZxbYDkHZAEZxjPcHH4qziRDx6ay7I=;
-        b=SJqJXjIBwzbuiMMx3cdyzQxG2h+pkW8Nqnxt/dW6chSPurhZN+GxpGd2H01aKvryWX
-         /7o/c649L3gMxZ/4X+1jK0bprBzSouam0GMBRDQ5skeMM+Tr26A57RLVPiS8+HibBdv5
-         DUlwUrgLG1VjrxiPhxli+/qDqdDDvZh9jLQWVY8ZYzhenoJl1LWIeXbPaHv6X13u1MZr
-         bMiLBO+p3eQDTjD/M48KQtxZkNpZttRLLWcZ5YZJTWT410noBnrxDJUlIhpdPz+kv+Vp
-         R1/uGQ3E/9kAdTtvo29gBWLFW9Ljte4ORSfdyYVq11iUJhJy70WQw3hfEMeq1iMlwOEu
-         SsYw==
-X-Google-Smtp-Source: AHgI3IYq/RozyymCMYCqwKU17RYvcd7MFhkheCrs+eM9ALWLG/mli/pClahJ31igwZ5DN5iPyTD95MOutF5xsXHzPSU=
-X-Received: by 2002:a62:5c1:: with SMTP id 184mr15885896pff.165.1549544323426;
- Thu, 07 Feb 2019 04:58:43 -0800 (PST)
-MIME-Version: 1.0
+        d=lca.pw; s=google;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=gVGRQAP8fycR5glSl7rC3QviX2H8rDZ6sJcRguQ7SeA=;
+        b=U7zyFCgl8UsthAyJ6GJETaK6VjYO9R6hnAUbwum19EDn+UZ6JBvdfgXFYEo39DSMMt
+         OCWrfeJgTO1AtlMsrjMplzGLIycHt/f9PV12yfmSy7kbh/IIpis694rqvKerN4Hc6BBb
+         Ffb7P6FqZL+Ycy3JOclu/bQ6UT8dxNqnzynsNXZap9tJjZ+TXChEHDbYSjYQ3f+Y3sZ3
+         J32i3W7pJedqxpJ/l2xGER3sO8xqAbdEoA9wOubbD/kJMsl98xHlip3vaYQbPztt90DS
+         t71nhmXcqJViXU6tlKBzZbCZZQUqFSykuuuPATpq7SnH1zHPrhTE5YlzZKBo59p+wz36
+         2ORw==
+X-Google-Smtp-Source: AHgI3IZR2HVv+LZzBwlj0ZZiVIyTcwCHtDmzwE7pmqMazDqxl7fzx8CrNp0p9bykmTGq3BJqrR0cxg==
+X-Received: by 2002:a0c:eaca:: with SMTP id y10mr11754387qvp.176.1549546069278;
+        Thu, 07 Feb 2019 05:27:49 -0800 (PST)
+Received: from ovpn-120-150.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id d67sm8223865qkf.76.2019.02.07.05.27.48
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Feb 2019 05:27:48 -0800 (PST)
+Subject: Re: CONFIG_KASAN_SW_TAGS=y NULL pointer dereference at
+ freelist_dereference()
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
+ Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>,
+ kasan-dev <kasan-dev@googlegroups.com>,
+ Linux ARM <linux-arm-kernel@lists.infradead.org>,
+ Linux-MM <linux-mm@kvack.org>
 References: <b1d210ae-3fc9-c77a-4010-40fb74a61727@lca.pw>
-In-Reply-To: <b1d210ae-3fc9-c77a-4010-40fb74a61727@lca.pw>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Thu, 7 Feb 2019 13:58:32 +0100
-Message-ID: <CAAeHK+yzHbLbFe7mtruEG-br9V-LZRC-n6dkq5+mmvLux0gSbg@mail.gmail.com>
-Subject: Re: CONFIG_KASAN_SW_TAGS=y NULL pointer dereference at freelist_dereference()
-To: Qian Cai <cai@lca.pw>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
-	Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, 
-	Linux ARM <linux-arm-kernel@lists.infradead.org>, Linux-MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+ <CAAeHK+yzHbLbFe7mtruEG-br9V-LZRC-n6dkq5+mmvLux0gSbg@mail.gmail.com>
+From: Qian Cai <cai@lca.pw>
+Message-ID: <89b343eb-16ff-1020-2efc-55ca58fafae7@lca.pw>
+Date: Thu, 7 Feb 2019 08:27:47 -0500
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
+ Gecko/20100101 Thunderbird/60.3.3
+MIME-Version: 1.0
+In-Reply-To: <CAAeHK+yzHbLbFe7mtruEG-br9V-LZRC-n6dkq5+mmvLux0gSbg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000110, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 7, 2019 at 5:04 AM Qian Cai <cai@lca.pw> wrote:
->
-> The kernel was compiled by clang-7.0.1 on a ThunderX2 server, and it fails to
-> boot. CONFIG_KASAN_GENERIC=y works fine.
 
-Hi Qian,
 
-Could you share the kernel commit id and .config that you use?
+On 2/7/19 7:58 AM, Andrey Konovalov wrote:
+> On Thu, Feb 7, 2019 at 5:04 AM Qian Cai <cai@lca.pw> wrote:
+>>
+>> The kernel was compiled by clang-7.0.1 on a ThunderX2 server, and it fails to
+>> boot. CONFIG_KASAN_GENERIC=y works fine.
+> 
+> Hi Qian,
+> 
+> Could you share the kernel commit id and .config that you use?
 
-Thanks!
+v5.0-rc5
 
->
-> deactivate_slab+0x84/0x6ac:
-> freelist_dereference at mm/slub.c:262
-> (inlined by) get_freepointer at mm/slub.c:268
-> (inlined by) deactivate_slab at mm/slub.c:2056
->
-> /* Returns the freelist pointer recorded at location ptr_addr. */
-> static inline void *freelist_dereference(const struct kmem_cache *s,
->                                          void *ptr_addr)
-> {
->         return freelist_ptr(s, (void *)*(unsigned long *)(ptr_addr),
->                             (unsigned long)ptr_addr);
-> }
->
-> [    0.000000] Memory: 3259968K/100594752K available (15548K kernel code, 12360K
-> rwdata, 4096K rodata, 25536K init, 27244K bss, 7444672K reserved, 0K cma-reserved)
-> [    0.000000] Unable to handle kernel NULL pointer dereference at virtual
-> address 0000000000000078
-> [    0.000000] Mem abort info:
-> [    0.000000]   ESR = 0x96000005
-> [    0.000000]   Exception class = DABT (current EL), IL = 32 bits
-> [    0.000000]   SET = 0, FnV = 0
-> [    0.000000]   EA = 0, S1PTW = 0
-> [    0.000000] Data abort info:
-> [    0.000000]   ISV = 0, ISS = 0x00000005
-> [    0.000000]   CM = 0, WnR = 0
-> [    0.000000] [0000000000000078] user address but active_mm is swapper
-> [    0.000000] Internal error: Oops: 96000005 [#1] SMP
-> [    0.000000] Modules linked in:
-> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 5.0.0-rc5+ #6
-> [    0.000000] pstate: 60000089 (nZCv daIf -PAN -UAO)
-> [    0.000000] pc : deactivate_slab+0x84/0x6ac
-> [    0.000000] lr : deactivate_slab+0x1cc/0x6ac
-> [    0.000000] sp : ffff100012cf7be0
-> [    0.000000] x29: ffff100012cf7cc0 x28: ffff1000114e4f00
-> [    0.000000] x27: ffff1000114e4f20 x26: ffff1000114e4f08
-> [    0.000000] x25: ffff1000114e5078 x24: fb00000000000000
-> [    0.000000] x23: ffff7fe002080008 x22: ffff808abb5b72d0
-> [    0.000000] x21: ffff7fe002080020 x20: ffff7fe002080028
-> [    0.000000] x19: ffff7fe002080000 x18: ffff1000148a5538
-> [    0.000000] x17: 000000000000001b x16: 0000000000000000
-> [    0.000000] x15: 007ffffffc000201 x14: 04ff80082000fa80
-> [    0.000000] x13: 0000000080660002 x12: 0000000080660003
-> [    0.000000] x11: 4582a03bdc147ab9 x10: ffff100012d31c90
-> [    0.000000] x9 : fb00000000000078 x8 : ffff100012d31c80
-> [    0.000000] x7 : cccccccccccccccc x6 : ffff1000105d8db8
-> [    0.000000] x5 : 0000000000000000 x4 : 0000000000000000
-> [    0.000000] x3 : ffff808abb5b72d0 x2 : 04ff800820000580
-> [    0.000000] x1 : ffff7fe002080000 x0 : ffff1000114e4f00
-> [    0.000000] Process swapper (pid: 0, stack limit = 0x(____ptrval____))
-> [    0.000000] Call trace:
-> [    0.000000]  deactivate_slab+0x84/0x6ac
-> [    0.000000]  ___slab_alloc+0x648/0x6fc
-> [    0.000000]  kmem_cache_alloc_node+0x408/0x538
-> [    0.000000]  __kmem_cache_create+0x20c/0x6a8
-> [    0.000000]  create_boot_cache+0x68/0xac
-> [    0.000000]  kmem_cache_init+0xb0/0x19c
-> [    0.000000]  start_kernel+0x4b4/0xac4
-> [    0.000000] Code: 14000057 b9400369 f940032b 8b090309 (f940012a)
-> [    0.000000] ---[ end trace 54ad7e55e4749a96 ]---
-> [    0.000000] Kernel panic - not syncing: Fatal exception
-> [    0.000000] ---[ end Kernel panic - not syncing: Fatal exception ]---
->
-> --
-> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
-> To post to this group, send email to kasan-dev@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/b1d210ae-3fc9-c77a-4010-40fb74a61727%40lca.pw.
-> For more options, visit https://groups.google.com/d/optout.
+https://git.sr.ht/~cai/linux-debug/tree/master/config
+
+# cat /proc/cmdline
+page_poison=on crashkernel=768M earlycon page_owner=on numa_balancing=enable
+slub_debug=-
 
