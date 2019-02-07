@@ -2,188 +2,168 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A6EA8C282C2
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 04:04:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C064DC282C2
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 04:34:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4D1F82084D
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 04:04:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B7DFF2175B
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 04:34:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="nK9wO4n9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D1F82084D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=xenosoft.de header.i=@xenosoft.de header.b="Hc+skVA+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7DFF2175B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=xenosoft.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CDA6F8E0014; Wed,  6 Feb 2019 23:04:52 -0500 (EST)
+	id 4D5428E0015; Wed,  6 Feb 2019 23:34:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C89748E0002; Wed,  6 Feb 2019 23:04:52 -0500 (EST)
+	id 4836F8E0002; Wed,  6 Feb 2019 23:34:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BA0EF8E0014; Wed,  6 Feb 2019 23:04:52 -0500 (EST)
+	id 372FA8E0015; Wed,  6 Feb 2019 23:34:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6D98E0002
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 23:04:52 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id q193so8322271qke.12
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 20:04:52 -0800 (PST)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D8ACA8E0002
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 23:34:57 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id d11so3199363wrq.18
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 20:34:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:subject:to:cc:message-id
-         :date:user-agent:mime-version:content-language
-         :content-transfer-encoding;
-        bh=uqDFmLu9eRIl2FkZ8iL2rbGAF9xtpoxPtooDYLXchCs=;
-        b=GBKyUkmKvQehAr/rHjpGmlzSuhoK+m9rIjLrHXJyFwLM5SKJ4id/R0XFeVyWOgj0UM
-         319putn0Ty6TmGSDzI0/SspQS7QB6Nkpb6Be8DXmDKF6wVUNUX0+Uc68boJ+4lm19Ayd
-         F0IIIDZlKN9FRS7ntu1I4CQGdDKIf7WAofuI+gLKl2FKdCCDOpo3dkzCYvxrkVs9nr0D
-         8297p3+SwknzzELAr3BeiGmZ/Glwe+oQTIttBHNN303NkE5MqyZgjcIg65sIPxt0qZaO
-         T/Z89W5k5ZjXS93zT3zo3HHCKSXi5jOB+ms2HIG41CvWtgt2HIDINA1xCZlyg6ueAzOb
-         R4hQ==
-X-Gm-Message-State: AHQUAuYyzgZnHuexT50y16KEX/3e/gIxAd19OG5eOBZQN67wNURlZKAz
-	CfA66d3yhNz5ikGRs6xW5YTKClXjl9RkeHsy3icYGk48Bc4DMM/bL3eova+N2R8zhox399rkkz5
-	EjSPWjpOGRi7SmMuUrUm09NEt8GP3jk7VJL6LHP3VffdVLf+kRzfjNlS3qz3gU9PGrHgv2YVqSs
-	zVICfzWM2QrKYmXnGhBz6K0dH7JxR8uCy5BwJg7as3rom2Lml+iTtXJwa4Z5rkS1ZaoHcYEMtFX
-	2ITR/dEMp000yn6Y4zAR0eQugUpfa9p2bt9xRZfad7j/1vM9waeVMGIIJqgBnNrzriualOaOAh8
-	OSyv4oVR949duCN1CiI6QXMqlHlSxXzk3/5L7ocvXDxBKfvYleT/pl2s80aGJ4g1kbKXpF/+i9j
-	N
-X-Received: by 2002:a37:7e83:: with SMTP id z125mr5572437qkc.140.1549512292204;
-        Wed, 06 Feb 2019 20:04:52 -0800 (PST)
-X-Received: by 2002:a37:7e83:: with SMTP id z125mr5572406qkc.140.1549512291393;
-        Wed, 06 Feb 2019 20:04:51 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549512291; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=4RCZJtim6FzAWTAE5STy48t7VfnqZ8YM7yrGj0CnzHY=;
+        b=HOGE89+6wgOJBQohoihq3jjvAoAJdjDENVVIdOepP0wKwhJsGIJAcnWIytGAotxs85
+         TMjGARDDlHEJKSxweU0jptPfG4lKR14waQE++dRhWNDmlj9RNbfrmzFjwJ3bmbvZuH30
+         TotNZzrz8WGNPVjNMwm90Q3st1nVxkHUCAkOcnJfQ1Z8+QY+GG7TwPBe2sb6cwPFc685
+         25VGFJETYd8Kd7luea2ezO1Lm8Qn2qPjIuDa/FK3NnnX/tdp02+JjRfcCSJnlt7gSq9Z
+         6v9GR147VxqJuEeRz4ISVu8CE2r8yt9+KWB2Q9QuUsJQJIqoBLTcAcuXg8fz8JMDLVH7
+         QfuQ==
+X-Gm-Message-State: AHQUAubi186o4DgBCMO0Izzc3UPE0EPGpSm6+BxSs+iVlv2sVddI0238
+	fDSAR21FEZiXXo2nmAMgz1M63tqRl96y70q6PZaZbDo+eaKfj5w/MfvOj0WUVm6VBKiKazT1JIQ
+	WdVV1W94nd6XOHR3pQ35kEQpIGEASzNl8horKp/yTk/roLUeuKFyjRzpu7naC0JsKaQ==
+X-Received: by 2002:a1c:5dce:: with SMTP id r197mr5206370wmb.130.1549514097292;
+        Wed, 06 Feb 2019 20:34:57 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib/fB9eamGpHL8MeBO/VPydf/bqOT0gBGCN/fATTy0sg421bUjNap8pK6EBakhARRkOBLjW
+X-Received: by 2002:a1c:5dce:: with SMTP id r197mr5206343wmb.130.1549514096131;
+        Wed, 06 Feb 2019 20:34:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549514096; cv=none;
         d=google.com; s=arc-20160816;
-        b=pda9TWoY4O/KAmZ837cwOxm0muvcnIdDGIVzrYzE2jvKM2CV5yShFn8vFnL+jbgoI8
-         u48Y4G2F0yy0x8bCqsEA2tN/g7GnHRD5B9iq1RntJvk674PuGYXr9Mh1r0iSnU/Y06NL
-         rLfEM/cIJ19snpXx49i7TV+WJDNEjDIsaa/Qi0FFQjlsuDpfmXO+tXr5bCZDgxK16F9J
-         PRPfDIhHnin2YPeOiIETcSItXCirJ98rrpzgZXl2U6dznZ8MMBN+Tf56pt8W5uY+akA3
-         fTcHKUAcxgP4qqm/6WQHuBao0rMA6dyxjup3JoCM80GhJV8C6goGP27lgyMXDOFdpqKU
-         34/g==
+        b=Cz7AcayE8pJBhQlZ1f6g30o99jdSmbM+msRzydJhkZbsFYJ1dWdBzAmo4FxY2oBsoe
+         2KFDfks2VvHhiIlDkvz1H2+Je5ysTT30nFjQQkb7bQOnZOgsOG7S4jklejxBZN6XaEUj
+         9YaF6XcNKS7y2xFowICgP3wteXScZGF7XYCuLtrMoycnE8/IQfghmk/qWon8nhrFj2W7
+         30KNbAIOpcNpQNSJaV3IJvRZHIcYv8MEjLauSmDhgesaGW8B18dfLiKG4oVy3fsiiJu/
+         rdZsYgal0P9ozkOibhfI6IyEUkjqs2udT7U3vFYaD11aVEmBuye0U0vRfgtA1F12XMjB
+         9CMg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:mime-version:user-agent
-         :date:message-id:cc:to:subject:from:dkim-signature;
-        bh=uqDFmLu9eRIl2FkZ8iL2rbGAF9xtpoxPtooDYLXchCs=;
-        b=ByDMUdxLmkEN2fvqkAQmtqf+UrITNSxBlLvYJ/J9E1QcTbuFMld+XqIhU5pKMOHZJB
-         xEwhQlTJ+OynBw6F5LpVLX9oVmN+Eerfbgx58Ovnhgky53WYNa+gDQXqmxwXN/tUBPLl
-         JKDznQr14nsK+Y4LYfN/Vm3xAxZQgQcpFvaRDOp9NyvqZjYZW05hftaLNsG7bit/y60g
-         lpGY2kvyYB7XpJCcsp5FmCzs86vN1FOfCNm5yfE7gadSsljY086UEzFAx9imqC8MCfI3
-         ElVxMmlTZ4HQJjxuMcfFBkcTWeIjuAEB/1H4iIhXkjuRep1gtqZyU9KRD56NEwa+38Pw
-         HhrQ==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=4RCZJtim6FzAWTAE5STy48t7VfnqZ8YM7yrGj0CnzHY=;
+        b=jWz0TkB6j+xvTEQjbodODqSGgVGlpVwQfW0WDNuEABO8R/X7C18BMjUnaSxTxGa71Y
+         UX7DvxBGpjRA8tnhEpu6QjDhz3hIQf8hxS/WrtrTxm47r3QrmKebIYBQSjhLrpZ+l+LD
+         RvWW98O1720QPj4otmpR1OgLDO0ysiWXBOS5yFOC1GpwbKoJ6YLoNCkzsO9TzhCsuJna
+         BuW9UqoMJFlacTDEgfAlJEB21Td26aFrGTCfKUWPACe5rrm/6z3/JNNsa21glXeCanO/
+         LKfonXqQ4eHZLpT1A0dTCaO/GpHvMYV9al/xtHpEO4bW2LdV0z343ouNYFN40OHMgWdW
+         awjg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=nK9wO4n9;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e10sor15571767qkg.11.2019.02.06.20.04.51
+       dkim=pass header.i=@xenosoft.de header.s=strato-dkim-0002 header.b=Hc+skVA+;
+       spf=neutral (google.com: 2a01:238:20a:202:5301::9 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) smtp.mailfrom=chzigotzky@xenosoft.de
+Received: from mo6-p01-ob.smtp.rzone.de (mo6-p01-ob.smtp.rzone.de. [2a01:238:20a:202:5301::9])
+        by mx.google.com with ESMTPS id r6si18829762wrg.298.2019.02.06.20.34.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 06 Feb 2019 20:04:51 -0800 (PST)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=nK9wO4n9;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:subject:to:cc:message-id:date:user-agent:mime-version
-         :content-language:content-transfer-encoding;
-        bh=uqDFmLu9eRIl2FkZ8iL2rbGAF9xtpoxPtooDYLXchCs=;
-        b=nK9wO4n9hul5JU8GgFYVhCNibSqu8CPms8VeFjFWNeQqvNTmfXf9JESFrxG59YupEe
-         K0l2jH2cTExPDh0+4gWTP4L9ZJqpzeKA06RLmYDiRvkzM0/Hd3KP7yRyIlnjWNEUdEse
-         OY55oZgBQFn0if+EfbRQ0p8GVLZgGgN2TBsHGdwexzvxz+vIjXgxP0lYdb4bBeCKUwKS
-         oDtnCNWlHM1S+M+KAsYzoiVlbVPa8i4DV6zkrlv2RsnCeQE/58LpyOvgh4cnst6jgNA9
-         UdQ8iljhl8Rs30CbX3TseIxW7A3782V/YrLusStdCKXKNtER4ao0fyFq767lpmG5wVcg
-         NmGA==
-X-Google-Smtp-Source: AHgI3IaCyqeuRDN8q9M2toLl+/2h6YXJ0F4f/uX5cv8rQLS/UtG939rlqX0VEtLEXDfeNC0vYo4x1Q==
-X-Received: by 2002:a37:498a:: with SMTP id w132mr10349837qka.92.1549512290900;
-        Wed, 06 Feb 2019 20:04:50 -0800 (PST)
-Received: from ovpn-120-150.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id b6sm14515948qtq.29.2019.02.06.20.04.50
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Feb 2019 20:04:50 -0800 (PST)
-From: Qian Cai <cai@lca.pw>
-Subject: CONFIG_KASAN_SW_TAGS=y NULL pointer dereference at
- freelist_dereference()
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>,
- Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
-Cc: kasan-dev@googlegroups.com,
- Linux ARM <linux-arm-kernel@lists.infradead.org>,
- Linux-MM <linux-mm@kvack.org>
-Message-ID: <b1d210ae-3fc9-c77a-4010-40fb74a61727@lca.pw>
-Date: Wed, 6 Feb 2019 23:04:49 -0500
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.3.3
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Wed, 06 Feb 2019 20:34:55 -0800 (PST)
+Received-SPF: neutral (google.com: 2a01:238:20a:202:5301::9 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) client-ip=2a01:238:20a:202:5301::9;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@xenosoft.de header.s=strato-dkim-0002 header.b=Hc+skVA+;
+       spf=neutral (google.com: 2a01:238:20a:202:5301::9 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) smtp.mailfrom=chzigotzky@xenosoft.de
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; t=1549514095;
+	s=strato-dkim-0002; d=xenosoft.de;
+	h=To:References:Message-Id:Cc:Date:In-Reply-To:From:Subject:
+	X-RZG-CLASS-ID:X-RZG-AUTH:From:Subject:Sender;
+	bh=4RCZJtim6FzAWTAE5STy48t7VfnqZ8YM7yrGj0CnzHY=;
+	b=Hc+skVA+3x8L6OOSGUSsKlrmPCbV70Ad0veY2OmlpiApiHoVtiZM8TiKDBTDcn5TJB
+	E8bXMcLKt8+o9itPh9uPtgG6Ba3vHw1XKXgM8uNXmRSsluphk/kvt97V6ek8UO45qbzE
+	8WU5MSKFvKCFLVBZ7Jnyb78SNZy+/ULcYgjR0C+ndJiH4Cmn0uQv/iAFolFqa49uvJMx
+	QkWd9Jxdnh4tiY1sA8FBvBxpvI90dgh6B1pQc1QPBdbcCicMIuya9hqcFIMDP1Vciqr/
+	BPM8h0UHpmfzz2jphD/frC+Ly9YFihLfghE6TzcP4e1m7Ri3X3D5PIUEmghdLvrGMJ3U
+	PPCg==
+X-RZG-AUTH: ":L2QefEenb+UdBJSdRCXu93KJ1bmSGnhMdmOod1DhGN0rBVhd9dFr6KxrfO5Oh7R7NWZ5irpilnQb0empL4BoZuMumiBlihp1rlLmzaQ="
+X-RZG-CLASS-ID: mo00
+Received: from [IPv6:2a01:598:8181:7b2f:5890:9cb6:8e8:3292]
+	by smtp.strato.de (RZmta 44.9 AUTH)
+	with ESMTPSA id t0203dv174Yrxds
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (curve secp521r1 with 521 ECDH bits, eq. 15360 bits RSA))
+	(Client did not present a certificate);
+	Thu, 7 Feb 2019 05:34:53 +0100 (CET)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (1.0)
+Subject: Re: use generic DMA mapping code in powerpc V4
+From: Christian Zigotzky <chzigotzky@xenosoft.de>
+X-Mailer: iPhone Mail (16C101)
+In-Reply-To: <20190206151655.GA31172@lst.de>
+Date: Thu, 7 Feb 2019 05:34:52 +0100
+Cc: Olof Johansson <olof@lixom.net>, linux-arch@vger.kernel.org,
+ Darren Stevens <darren@stevens-zone.net>, linux-kernel@vger.kernel.org,
+ Julian Margetson <runaway@candw.ms>, linux-mm@kvack.org,
+ iommu@lists.linux-foundation.org, Paul Mackerras <paulus@samba.org>,
+ linuxppc-dev@lists.ozlabs.org
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <61EC67B1-12EF-42B6-B69B-B59F9E4FC474@xenosoft.de>
+References: <F4AB3D9A-97EC-45D7-9061-A750D0934C3C@xenosoft.de> <96762cd2-65fc-bce5-8c5b-c03bc3baf0a1@xenosoft.de> <20190201080456.GA15456@lst.de> <9632DCDF-B9D9-416C-95FC-006B6005E2EC@xenosoft.de> <594beaae-9681-03de-9f42-191cc7d2f8e3@xenosoft.de> <20190204075616.GA5408@lst.de> <ffbf56ae-c259-47b5-9deb-7fb21fead254@xenosoft.de> <20190204123852.GA10428@lst.de> <b1c0161f-4211-03af-022d-0db7237516e9@xenosoft.de> <20190206151505.GA31065@lst.de> <20190206151655.GA31172@lst.de>
+To: Christoph Hellwig <hch@lst.de>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The kernel was compiled by clang-7.0.1 on a ThunderX2 server, and it fails to
-boot. CONFIG_KASAN_GENERIC=y works fine.
+Hi Christoph,
 
-deactivate_slab+0x84/0x6ac:
-freelist_dereference at mm/slub.c:262
-(inlined by) get_freepointer at mm/slub.c:268
-(inlined by) deactivate_slab at mm/slub.c:2056
+I also didn=E2=80=99t notice the 32-bit DMA mask in your patch. I have to re=
+ad your patches and descriptions carefully in the future. I will test your n=
+ew patch at the weekend.
 
-/* Returns the freelist pointer recorded at location ptr_addr. */
-static inline void *freelist_dereference(const struct kmem_cache *s,
-                                         void *ptr_addr)
-{
-        return freelist_ptr(s, (void *)*(unsigned long *)(ptr_addr),
-                            (unsigned long)ptr_addr);
-}
+Thanks,
+Christian
 
-[    0.000000] Memory: 3259968K/100594752K available (15548K kernel code, 12360K
-rwdata, 4096K rodata, 25536K init, 27244K bss, 7444672K reserved, 0K cma-reserved)
-[    0.000000] Unable to handle kernel NULL pointer dereference at virtual
-address 0000000000000078
-[    0.000000] Mem abort info:
-[    0.000000]   ESR = 0x96000005
-[    0.000000]   Exception class = DABT (current EL), IL = 32 bits
-[    0.000000]   SET = 0, FnV = 0
-[    0.000000]   EA = 0, S1PTW = 0
-[    0.000000] Data abort info:
-[    0.000000]   ISV = 0, ISS = 0x00000005
-[    0.000000]   CM = 0, WnR = 0
-[    0.000000] [0000000000000078] user address but active_mm is swapper
-[    0.000000] Internal error: Oops: 96000005 [#1] SMP
-[    0.000000] Modules linked in:
-[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 5.0.0-rc5+ #6
-[    0.000000] pstate: 60000089 (nZCv daIf -PAN -UAO)
-[    0.000000] pc : deactivate_slab+0x84/0x6ac
-[    0.000000] lr : deactivate_slab+0x1cc/0x6ac
-[    0.000000] sp : ffff100012cf7be0
-[    0.000000] x29: ffff100012cf7cc0 x28: ffff1000114e4f00
-[    0.000000] x27: ffff1000114e4f20 x26: ffff1000114e4f08
-[    0.000000] x25: ffff1000114e5078 x24: fb00000000000000
-[    0.000000] x23: ffff7fe002080008 x22: ffff808abb5b72d0
-[    0.000000] x21: ffff7fe002080020 x20: ffff7fe002080028
-[    0.000000] x19: ffff7fe002080000 x18: ffff1000148a5538
-[    0.000000] x17: 000000000000001b x16: 0000000000000000
-[    0.000000] x15: 007ffffffc000201 x14: 04ff80082000fa80
-[    0.000000] x13: 0000000080660002 x12: 0000000080660003
-[    0.000000] x11: 4582a03bdc147ab9 x10: ffff100012d31c90
-[    0.000000] x9 : fb00000000000078 x8 : ffff100012d31c80
-[    0.000000] x7 : cccccccccccccccc x6 : ffff1000105d8db8
-[    0.000000] x5 : 0000000000000000 x4 : 0000000000000000
-[    0.000000] x3 : ffff808abb5b72d0 x2 : 04ff800820000580
-[    0.000000] x1 : ffff7fe002080000 x0 : ffff1000114e4f00
-[    0.000000] Process swapper (pid: 0, stack limit = 0x(____ptrval____))
-[    0.000000] Call trace:
-[    0.000000]  deactivate_slab+0x84/0x6ac
-[    0.000000]  ___slab_alloc+0x648/0x6fc
-[    0.000000]  kmem_cache_alloc_node+0x408/0x538
-[    0.000000]  __kmem_cache_create+0x20c/0x6a8
-[    0.000000]  create_boot_cache+0x68/0xac
-[    0.000000]  kmem_cache_init+0xb0/0x19c
-[    0.000000]  start_kernel+0x4b4/0xac4
-[    0.000000] Code: 14000057 b9400369 f940032b 8b090309 (f940012a)
-[    0.000000] ---[ end trace 54ad7e55e4749a96 ]---
-[    0.000000] Kernel panic - not syncing: Fatal exception
-[    0.000000] ---[ end Kernel panic - not syncing: Fatal exception ]---
+Sent from my iPhone
+
+> On 6. Feb 2019, at 16:16, Christoph Hellwig <hch@lst.de> wrote:
+>=20
+>> On Wed, Feb 06, 2019 at 04:15:05PM +0100, Christoph Hellwig wrote:
+>> The last good one was 29e7e2287e196f48fe5d2a6e017617723ea979bf
+>> ("dma-direct: we might need GFP_DMA for 32-bit dma masks"), if I
+>> remember correctly.  powerpc/dma: use the dma_direct mapping routines
+>> was the one that you said makes the pasemi ethernet stop working.
+>>=20
+>> Can you post the dmesg from the failing runs?
+>=20
+> But I just noticed I sent you a wrong patch - the pasemi ethernet
+> should set a 64-bit DMA mask, not 32-bit.  Updated version below,
+> 32-bit would just keep the previous status quo.
+>=20
+> commit 6c8f88045dee35933337b9ce2ea5371eee37073a
+> Author: Christoph Hellwig <hch@lst.de>
+> Date:   Mon Feb 4 13:38:22 2019 +0100
+>=20
+>    pasemi WIP
+>=20
+> diff --git a/drivers/net/ethernet/pasemi/pasemi_mac.c b/drivers/net/ethern=
+et/pasemi/pasemi_mac.c
+> index 8a31a02c9f47..2d7d1589490a 100644
+> --- a/drivers/net/ethernet/pasemi/pasemi_mac.c
+> +++ b/drivers/net/ethernet/pasemi/pasemi_mac.c
+> @@ -1716,6 +1716,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct p=
+ci_device_id *ent)
+>        err =3D -ENODEV;
+>        goto out;
+>    }
+> +    dma_set_mask(&mac->dma_pdev->dev, DMA_BIT_MASK(64));
+>=20
+>    mac->iob_pdev =3D pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa001, NULL);
+>    if (!mac->iob_pdev) {
 
