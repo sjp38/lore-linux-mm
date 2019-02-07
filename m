@@ -2,269 +2,219 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 389F9C282C2
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 10:13:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4B8A6C282C2
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 10:27:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E06282084D
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 10:13:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E06282084D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id DEA3E218FE
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 10:27:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="iiC3rd9a"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DEA3E218FE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7F9338E0024; Thu,  7 Feb 2019 05:13:23 -0500 (EST)
+	id 2E7808E0025; Thu,  7 Feb 2019 05:27:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A7368E0002; Thu,  7 Feb 2019 05:13:23 -0500 (EST)
+	id 26D508E0002; Thu,  7 Feb 2019 05:27:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 66F048E0024; Thu,  7 Feb 2019 05:13:23 -0500 (EST)
+	id 10D6B8E0025; Thu,  7 Feb 2019 05:27:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 348188E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 05:13:23 -0500 (EST)
-Received: by mail-ot1-f71.google.com with SMTP id z22so1241830otq.2
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 02:13:23 -0800 (PST)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D2B418E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 05:27:07 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id z22so1263865otq.2
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 02:27:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:organization
-         :mime-version:content-transfer-encoding;
-        bh=nG1KGIo9uh3kdC8RIECJHcX3q/33j+ST7kht/w4F0Mk=;
-        b=MqsFHngdTd1Aioiu/1U1DdjgPNQ0oCNhKgdOvYl+lJWpTumOl7xjsLeALnJHnd/tBz
-         4QVo6LsFKJdGp8fKPEwfaQo3hDq5N8TNCcPto51beLUde9Buve/XmCmaqD/K4yA91kmj
-         1FjRvrOcAOqXNgmz4n9gpyE4tTbIgi/7V2nY+/CNisOFhA7lYqsoqezZyiaeqm19OGKl
-         8rZyf1QURelnglgXhIWUGCbV6+QqAPk3+lx8QBI8tlDTJownIYHau53jyFp9x7FpP3U9
-         bRMrQT8WANe8nshq9ps2c99IeL0ALd46Z5vz+xSlRbhCcsk9hAtGlaYpS9xzd2ckebZe
-         M7RA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-X-Gm-Message-State: AHQUAuYYD1U+m8nAnaqE4YbPtuIjq3DmlB9nQojKqIo0vtYtCMli0bQI
-	5poyBNs3I9pBtJfQqhXiGwb9NcdyYlxk6MirjGJdxtBayuD++QxPwt1lbEBAWvNd7yTpTu96Z6R
-	+HkWmGkgk/JHeCtF4H+n/SbTkU/GahipKl5uG0l9MSj/YEOQLil9MIS9GoQ8jPK3RlQ==
-X-Received: by 2002:a9d:67cf:: with SMTP id c15mr7830915otn.38.1549534402913;
-        Thu, 07 Feb 2019 02:13:22 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZKJ2XYZrlUF2336WRFa/gjuE2zSMOQNvyrSTSnRXDH/YjcaZO8C9x7lXA25ipu84f/Smxe
-X-Received: by 2002:a9d:67cf:: with SMTP id c15mr7830826otn.38.1549534399864;
-        Thu, 07 Feb 2019 02:13:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549534399; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=KQVJ0Qx0jz4OgVw+39LjkotjVwynNqSsNpBV0A3AeRE=;
+        b=ibT1eZ5d+lC1PCICCELbqvz78zpZfXt+WR6Ur1sDgLDlqUAHLU5WrvszQ9hMN3sbNI
+         /+0o6mZAAzL3PccvZjqmThpuQTev1P4vm+E0b+3G8qT8PTybUHgMO/1ORd7Rt+TM04JU
+         QhMREMhO5llnXMIcbFIfOxZ/ENOCT/i1UUrNgcOP2OZhRvT+6DuO0qhceSz9DvIIv3ZW
+         n6ETR53KkyQ4VUBvUpppdvJSDEJbSTQ1EMUEI3bopcZvRvYuLQ+Iq/DTzTm2CWPBXzUm
+         nPUH5zyqf/ODN8JQMf5ued5u/fbDMFT7XVex8RFF69ySezDZLSH5r22e12+Gh6GfvzF9
+         AfQw==
+X-Gm-Message-State: AHQUAuatIaw9FOYsN4eXzl8O7fFZc7cjyzpLDWKxkL27rRNDHoukzaRB
+	hFf6cXpbSsUPUVE9YaLNwH0GQZ7/qSV2RJhGURzuLbBMClhWSAkJ50AnK2z2zRegVxI+UwidUve
+	8WWhv3bhRNkOJN+iaLLlkTZ12jLC17zYblm6YIIf3cULLm4cDSFbv7tX1EfjCMRFL3lbXMZBYl3
+	cw3IvmM90KD5vsbXQtcf2t35zXlmCFw1zLuqziiCuS5poQKEGk2PR/b9r5mGPyUxbOeE8hCNchF
+	sRaVasq4PA8XE7kUvC5H7K6ej+AES2vj8EK0go90c/xjt4cCc9OpID578Y2Oq+0NohD0ebdsr35
+	bIMFa/+huA4jjwI84NpnPx6MDcupaOEHH0xcGVdNkP0ju4PjPHi0+DWU2dP/SXP7T+Zyb6s83Q4
+	8
+X-Received: by 2002:a05:6808:249:: with SMTP id m9mr2217036oie.65.1549535227571;
+        Thu, 07 Feb 2019 02:27:07 -0800 (PST)
+X-Received: by 2002:a05:6808:249:: with SMTP id m9mr2217001oie.65.1549535226701;
+        Thu, 07 Feb 2019 02:27:06 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549535226; cv=none;
         d=google.com; s=arc-20160816;
-        b=MlJSdJKB3YWYFiUXEOtrZO59YJztpCIJCf7DcfrAOwN44ni+UnmzJCM6ikwr7jQq/l
-         4Xu6cDPlz/Dzk5tJK260ZYQj9FMZMZKJDFCeEzHTQ1p+vENMiY+FY2/oHxcm6N40RXYY
-         pbTrQHkjaDzoDd4iUisbM5HX6GyTZc7eoMB72ZLI4XMZdf1s9nMaPhEBTf/WuUpo3fF7
-         568uFeGyP+73C5RYk1wky39EgKJaF0XFgCxV7xlG3mTtJn9VizGlQ2AqAW6/DJ8WWB0M
-         qsZIDRxLrQF/jmMOv6xDAf+NWx7m5ysTYZ5c3UPX5NZNrA38bmrL+THRNfqyjYXZP6RU
-         p2Uw==
+        b=NtwroO38lGPr455b/E872mJRgHdt2I4f8Hwak1q9pfmcCJQW0bho5CaHNstenB9caJ
+         J41NxrU83vSMcb9WCRSb96p11X9QgzXT9qmBSi3EdJdSTBTXhHULQye2g3NzC+3Il62G
+         Thab5Qk9721QneNOMfKJblrRFO65+fgwse7eYD2q+8qJukb4OarWTHc/96UpH5IsqViT
+         huj4FWk0P+/E2Ki9IwfIDI2JamPTEiqjbtfoSxOuhR1AEBWmXaCEy8hKB1T8wFKjyYbr
+         pdK1AJdsv4fzMmA8s3cu6UDsCxGWEQqMnLToFVhVruQYZlL8jhLkC/MfqWf30cJakxZc
+         dhqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:organization:references
-         :in-reply-to:message-id:subject:cc:to:from:date;
-        bh=nG1KGIo9uh3kdC8RIECJHcX3q/33j+ST7kht/w4F0Mk=;
-        b=OVsPXXF8EaKiKyr1tvBQjyaJaGEB0jO/OjurTPhujfi+jbronkmxDBHv3DwKMQjdkd
-         /KBHdT1PJC1D6JKT+r/I25PxvjjHPCicuZq23U0O9xBqVdeE1XEm7J6WKN6btAnBQuRg
-         9UeHyIvVJFSFX0lW9f7ZJSh5k4JjLx8BToRQH7PkChEAoLqWRiLz9uCRs/Ovj+Scnc+Z
-         pARrc1Wr7S95XM+DDdLVGLjBFPlv+Va6n+qXFukaPZKe0fH75cIWJ7Q5PDCGFcLK5Axl
-         ZeGVThzUSD9z21WtsXxID6E+6K0BXhBtzANzIk31mxGdIVYhcAEzhhPsRARbC69fLvJd
-         ZsPw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=KQVJ0Qx0jz4OgVw+39LjkotjVwynNqSsNpBV0A3AeRE=;
+        b=dyFdAI/KQOg1YcMiOnOFMNUywBns+li3H60Rr3D5KG+7i9DBVU15jFXlvWN9o+EYB4
+         hM1BrRtyATvTAgFN07ZYPrEko9OBAq1gBI92o9JyuOdjKflT0n0l75ccbKQFBUYPAkmH
+         q1NBUTnEG8Q1w2WhN05MWr8/peftAis5KM662uByOdv1XITIyOlzm7y1HOflsode6NQJ
+         y7ML2quQ49JpW/R23joIzXtx9+2PWvcz9+uI+9KH7MfuBc2mLbbIRfyax+dJyVw0ultq
+         ZM/QXrl3kmZIXSOAwbWGXtsHGlqspaeMnRo1JI8JL96AV2aSfHoZ0Iz2ULoWHBwk8ElC
+         A0YQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id o4si763270otp.137.2019.02.07.02.13.19
+       dkim=pass header.i=@google.com header.s=20161025 header.b=iiC3rd9a;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m186sor14715642oif.18.2019.02.07.02.27.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Feb 2019 02:13:19 -0800 (PST)
-Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
+        (Google Transport Security);
+        Thu, 07 Feb 2019 02:27:06 -0800 (PST)
+Received-SPF: pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from DGGEMS404-HUB.china.huawei.com (unknown [172.30.72.59])
-	by Forcepoint Email with ESMTP id F026AB9E59C0BB8AFECE;
-	Thu,  7 Feb 2019 18:13:15 +0800 (CST)
-Received: from localhost (10.202.226.61) by DGGEMS404-HUB.china.huawei.com
- (10.3.19.204) with Microsoft SMTP Server id 14.3.408.0; Thu, 7 Feb 2019
- 18:13:08 +0800
-Date: Thu, 7 Feb 2019 10:12:57 +0000
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-To: Bjorn Helgaas <helgaas@kernel.org>
-CC: Dave Hansen <dave.hansen@intel.com>, <linux-pci@vger.kernel.org>,
-	<x86@kernel.org>, <linuxarm@huawei.com>, Ingo Molnar <mingo@kernel.org>,
-	"Dave Hansen" <dave.hansen@linux.intel.com>, Andy Lutomirski
-	<luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Martin
- =?ISO-8859-1?Q?Hundeb=F8ll?= <martin@geanix.com>, Linux Memory Management
- List <linux-mm@kvack.org>, ACPI Devel Mailing List
-	<linux-acpi@vger.kernel.org>
-Subject: Re: [PATCH V2] x86: Fix an issue with invalid ACPI NUMA config
-Message-ID: <20190207101257.00000a98@huawei.com>
-In-Reply-To: <20190129190556.GB91506@google.com>
-References: <20181211094737.71554-1-Jonathan.Cameron@huawei.com>
-	<a5a938d3-ecc9-028a-3b28-610feda8f3f8@intel.com>
-	<20181212093914.00002aed@huawei.com>
-	<20181220151225.GB183878@google.com>
-	<65f5bb93-b6be-d6dd-6976-e2761f6f2a7b@intel.com>
-	<20181220195714.GE183878@google.com>
-	<20190128112904.0000461a@huawei.com>
-	<20190128231322.GA91506@google.com>
-	<20190129095105.00000374@huawei.com>
-	<20190129190556.GB91506@google.com>
-Organization: Huawei
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; i686-w64-mingw32)
+       dkim=pass header.i=@google.com header.s=20161025 header.b=iiC3rd9a;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=KQVJ0Qx0jz4OgVw+39LjkotjVwynNqSsNpBV0A3AeRE=;
+        b=iiC3rd9agn3fFWTEACayeEOzX/qIU3OUfTULp016nf/Pt9wZ13bomD4YfSTmmB6CfE
+         V/y2oKetpYWIw1Ok/H6Tie+qdiJgS+Jmh8vLMJ8/GJpsV0EfhUOnAxBC1Bh9tPEKk5dj
+         aHQQeBcHuYDjv+Pg0mnbbmHKZjlkauMBuAIqORuxyYvcdpMTrsB0UuuygbgANOb4EJpj
+         Cz5Gyy3s6wEJsKWsy9/wjcUf5sy1hn3fqkv1FhiHmH97lUeAZSy7Sqk99afWYoY1qWkq
+         axUzREfdptBlzxELLkk9VXDLa0A0vq6BqqzI9+xQc9h/UoaEPlgr83H7GznZszMTdixI
+         CvEw==
+X-Google-Smtp-Source: AHgI3IbAjKvQxulqhIkAuOqdf95N7/LHxBrA5Kg81BCJVsQ4ajeb4xF6iL//RLLe9VbzWYskUcY5fo6qcLiAtEr0Kkg=
+X-Received: by 2002:aca:e003:: with SMTP id x3mr2231660oig.39.1549535226052;
+ Thu, 07 Feb 2019 02:27:06 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.202.226.61]
-X-CFilter-Loop: Reflected
+References: <39fb6c5a191025378676492e140dc012915ecaeb.1547652372.git.christophe.leroy@c-s.fr>
+In-Reply-To: <39fb6c5a191025378676492e140dc012915ecaeb.1547652372.git.christophe.leroy@c-s.fr>
+From: Jann Horn <jannh@google.com>
+Date: Thu, 7 Feb 2019 11:26:39 +0100
+Message-ID: <CAG48ez1gXgsBG6bYGG5+B4Dqkhk_iVaYLqt63RaxURxE0yt9eA@mail.gmail.com>
+Subject: Re: [PATCH v3 1/2] mm: add probe_user_read()
+To: Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, 
+	Michael Ellerman <mpe@ellerman.id.au>, Mike Rapoport <rppt@linux.ibm.com>, 
+	kernel list <linux-kernel@vger.kernel.org>, linuxppc-dev@lists.ozlabs.org, 
+	Linux-MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 29 Jan 2019 13:05:56 -0600
-Bjorn Helgaas <helgaas@kernel.org> wrote:
+On Thu, Feb 7, 2019 at 10:22 AM Christophe Leroy
+<christophe.leroy@c-s.fr> wrote:
+> In powerpc code, there are several places implementing safe
+> access to user data. This is sometimes implemented using
+> probe_kernel_address() with additional access_ok() verification,
+> sometimes with get_user() enclosed in a pagefault_disable()/enable()
+> pair, etc. :
+>     show_user_instructions()
+>     bad_stack_expansion()
+>     p9_hmi_special_emu()
+>     fsl_pci_mcheck_exception()
+>     read_user_stack_64()
+>     read_user_stack_32() on PPC64
+>     read_user_stack_32() on PPC32
+>     power_pmu_bhrb_to()
+>
+> In the same spirit as probe_kernel_read(), this patch adds
+> probe_user_read().
+>
+> probe_user_read() does the same as probe_kernel_read() but
+> first checks that it is really a user address.
+>
+> The patch defines this function as a static inline so the "size"
+> variable can be examined for const-ness by the check_object_size()
+> in __copy_from_user_inatomic()
+>
+> Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 
-> On Tue, Jan 29, 2019 at 09:51:05AM +0000, Jonathan Cameron wrote:
-> > On Mon, 28 Jan 2019 17:13:22 -0600
-> > Bjorn Helgaas <helgaas@kernel.org> wrote:  
-> > > On Mon, Jan 28, 2019 at 11:31:08AM +0000, Jonathan Cameron wrote:  
-> > > > On Thu, 20 Dec 2018 13:57:14 -0600
-> > > > Bjorn Helgaas <helgaas@kernel.org> wrote:    
-> > > > > On Thu, Dec 20, 2018 at 09:13:12AM -0800, Dave Hansen wrote:    
-> > > > > > On 12/20/18 7:12 AM, Bjorn Helgaas wrote:      
-> 
-> > > The current patch proposes setting "numa_off=1" in the x86 version of
-> > > dummy_numa_init(), on the assumption (from the changelog) that:
-> > > 
-> > >   It is invalid under the ACPI spec to specify new NUMA nodes using
-> > >   _PXM if they have no presence in SRAT.
-> > > 
-> > > Do you have a reference for this?  I looked and couldn't find a clear
-> > > statement in the spec to that effect.  The _PXM description (ACPI
-> > > v6.2, sec 6.1.14) says that two devices with the same _PXM value are
-> > > in the same proximity domain, but it doesn't seem to require an SRAT.  
-> > 
-> > No comment (feel free to guess why). *sigh*  
-> 
-> Secret interpretations of the spec are out of bounds.  But I think
-> it's a waste of time to argue about whether _PXM without SRAT is
-> valid.  Systems like that exist, and I think it's possible to do
-> something sensible with them.
 
-Now less secret :)
 
-https://uefi.org/sites/default/files/resources/ACPI_6_3_final_Jan30.pdf
+> ---
+>  v3: Moved 'Returns:" comment after description.
+>      Explained in the commit log why the function is defined static inline
+>
+>  v2: Added "Returns:" comment and removed probe_user_address()
+>
+>  include/linux/uaccess.h | 34 ++++++++++++++++++++++++++++++++++
+>  1 file changed, 34 insertions(+)
+>
+> diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
+> index 37b226e8df13..ef99edd63da3 100644
+> --- a/include/linux/uaccess.h
+> +++ b/include/linux/uaccess.h
+> @@ -263,6 +263,40 @@ extern long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count);
+>  #define probe_kernel_address(addr, retval)             \
+>         probe_kernel_read(&retval, addr, sizeof(retval))
+>
+> +/**
+> + * probe_user_read(): safely attempt to read from a user location
+> + * @dst: pointer to the buffer that shall take the data
+> + * @src: address to read from
+> + * @size: size of the data chunk
+> + *
+> + * Safely read from address @src to the buffer at @dst.  If a kernel fault
+> + * happens, handle that and return -EFAULT.
+> + *
+> + * We ensure that the copy_from_user is executed in atomic context so that
+> + * do_page_fault() doesn't attempt to take mmap_sem.  This makes
+> + * probe_user_read() suitable for use within regions where the caller
+> + * already holds mmap_sem, or other locks which nest inside mmap_sem.
+> + *
+> + * Returns: 0 on success, -EFAULT on error.
+> + */
+> +
+> +#ifndef probe_user_read
+> +static __always_inline long probe_user_read(void *dst, const void __user *src,
+> +                                           size_t size)
+> +{
+> +       long ret;
+> +
+> +       if (!access_ok(src, size))
+> +               return -EFAULT;
 
-Specifically 
-6.2B Errata 1951 _PXM Clarifications
+If this happens in code that's running with KERNEL_DS, the access_ok()
+is a no-op. If this helper is only intended for accessing real
+userspace memory, it would be more robust to add
+set_fs(USER_DS)/set_fs(oldfs) around this thing. Looking at the
+functions you're referring to in the commit message, e.g.
+show_user_instructions() does an explicit `__access_ok(pc,
+NR_INSN_TO_PRINT * sizeof(int), USER_DS)` to get the same effect.
+(However, __access_ok() looks like it's horribly broken on x86 from
+what I can tell, because it's going to use the generic version that
+always returns 1...)
 
-Adds lots of statements including:
-
-(5.2.16)
-Note: SRAT is the place where proximity domains are defined, and _PXM provides
-a mechanism to associate a device object (and its children) to an SRAT-defined
-proximity domain. 
-
-6.2.14 _PXM (Proximity)
-This optional object is used to describe proximity domain associations within a
-machine. _PXM evaluates to an integer that identifies a device as belonging
-to a Proximity Domain defined in the System Resource Affinity Table (SRAT).
-
-Obviously this doesn't necessarily change the fact there 'might' be
-a platform out there with tables written against earlier ACPI specs that
-does 'deliberately' provide _PXM entries that don't match entries in SRAT.
-What is does mean is that going forwards we "shouldn't" see any new ones.
-
-Note that the usecase that was conjectured below is now accounted for with
-the new Generic Initiator Domains (5.2.16.6).  There is some juggling done via
-an OSC bit to ensure that firmware can 'adjust' it's _PXM entries to account
-for whether or not these Generic Initiator domains are supported by the OS.
-I'll clean up my patches for that and post soon (if no one beats me to it!)
-
-One thing I will note though, is I'm not going to propose we drop the
-numa_off = true line in the arm code, given there aren't any arm platforms
-known to have _PXMs not matching entries in SRAT and now we have a spec
-that says it isn't right to do it anyway.
-
-Jonathan
-
-> 
-> > > Maybe it results in an issue when we call kmalloc_node() using this
-> > > _PXM value that SRAT didn't tell us about?  If so, that's reminiscent
-> > > of these earlier discussions about kmalloc_node() returning something
-> > > useless if the requested node is not online:
-> > > 
-> > >   https://lkml.kernel.org/r/1527768879-88161-2-git-send-email-xiexiuqi@huawei.com
-> > >   https://lore.kernel.org/linux-arm-kernel/20180801173132.19739-1-punit.agrawal@arm.com/
-> > > 
-> > > As far as I know, that was never really resolved.  The immediate
-> > > problem of using passing an invalid node number to kmalloc_node() was
-> > > avoided by using kmalloc() instead.  
-> > 
-> > Yes, that's definitely still a problem (or was last time I checked)
-> >   
-> > > > Dave's response was that we needed to fix the underlying issue of
-> > > > trying to allocate from non existent NUMA nodes.    
-> 
-> > > Bottom line, I totally agree that it would be better to fix the
-> > > underlying issue without trying to avoid it by disabling NUMA.  
-> > 
-> > I don't agree on this point.  I think two layers make sense.
-> > 
-> > If there is no NUMA description in DT or ACPI, why not just stop anything
-> > from using it at all?  The firmware has basically declared there is no
-> > point, why not save a bit of complexity (and use an existing tested code
-> > path) but setting numa_off?  
-> 
-> Firmware with a _PXM does have a NUMA description.
-> 
-> > However, if there is NUMA description, but with bugs then we should
-> > protect in depth.  A simple example being that we declare 2 nodes, but
-> > then use _PXM for a third. I've done that by accident and blows up
-> > in a nasty fashion (not done it for a while, but probably still true).
-> > 
-> > Given DSDT is only parsed long after SRAT we can just check on _PXM
-> > queries.  Or I suppose we could do a verification parse for all _PXM
-> > entries and put out some warnings if they don't match SRAT entries?  
-> 
-> I'm assuming the crash happens when we call kmalloc_node() with a node
-> not mentioned in SRAT.  I think that's just sub-optimal implementation
-> in kmalloc_node().
-> 
-> We *could* fail the allocation and return a NULL pointer, but I think
-> even that is excessive.  I think we should simply fall back to
-> kmalloc().  We could print a one-time warning if that's useful.
-> 
-> If kmalloc_node() for an unknown node fell back to kmalloc(), would
-> anything else be required?
-> 
-> > > > Whilst I agree with that in principle (having managed to provide
-> > > > tables doing exactly that during development a few times!), I'm not
-> > > > sure the path to doing so is clear and so this has been stalled for
-> > > > a few months.  There is to my mind still a strong argument, even
-> > > > with such protection in place, that we should still be short cutting
-> > > > it so that you get the same paths if you deliberately disable numa,
-> > > > and if you have no SRAT and hence can't have NUMA.    
-> > > 
-> > > I guess we need to resolve the question of whether NUMA without SRAT
-> > > is possible.  
-> > 
-> > It's certainly unclear of whether it has any meaning.  If we allow for
-> > the fact that the intent of ACPI was never to allow this (and a bit
-> > of history checking verified this as best as anyone can remember),
-> > then what do we do with the few platforms that do use _PXM to nodes that
-> > haven't been defined?  
-> 
-> We *could* ignore any _PXM that mentions a proximity domain not
-> mentioned by an SRAT.  That seems a little heavy-handed because it
-> means every possible proximity domain must be described up front in
-> the SRAT, which limits the flexibility of hot-adding entire nodes
-> (CPU/memory/IO).
-> 
-> But I think it's possible to make sense of a _PXM that adds a
-> proximity domain not mentioned in an SRAT, e.g., if a new memory
-> device and a new I/O device supply the same _PXM value, we can assume
-> they're close together.  If a new I/O device has a previously unknown
-> _PXM, we may not be able to allocate memory near it, but we should at
-> least be able to allocate from a default zone.
-> 
-> Bjorn
-
+> +       pagefault_disable();
+> +       ret = __copy_from_user_inatomic(dst, src, size);
+> +       pagefault_enable();
+> +
+> +       return ret ? -EFAULT : 0;
+> +}
+> +#endif
+> +
+>  #ifndef user_access_begin
+>  #define user_access_begin(ptr,len) access_ok(ptr, len)
+>  #define user_access_end() do { } while (0)
+> --
+> 2.13.3
+>
+>
 
