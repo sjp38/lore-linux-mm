@@ -2,177 +2,274 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 44EC8C282CC
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 17:35:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 86F17C282C4
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 17:49:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0DAC721721
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 17:35:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0DAC721721
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 3321621872
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 17:49:03 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=javigon-com.20150623.gappssmtp.com header.i=@javigon-com.20150623.gappssmtp.com header.b="vpcmb6Fk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3321621872
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=javigon.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 990BC8E0056; Thu,  7 Feb 2019 12:35:23 -0500 (EST)
+	id BA9378E0057; Thu,  7 Feb 2019 12:49:02 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 919AB8E0002; Thu,  7 Feb 2019 12:35:23 -0500 (EST)
+	id B59AA8E0002; Thu,  7 Feb 2019 12:49:02 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7BC578E0056; Thu,  7 Feb 2019 12:35:23 -0500 (EST)
+	id 69E568E0057; Thu,  7 Feb 2019 12:49:02 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AF958E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 12:35:23 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id h26so394300pfn.20
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 09:35:23 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 107008E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 12:49:02 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id t7so241705edr.21
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 09:49:02 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=wJETO+Ta/zADySOqP6xlMu9L04nwUVuKDpERbQR6imo=;
-        b=s7vfwWKMZY0YdnIWfjHt0oK+fuG+nSB8qAnXNq7ECpSwBmjvBtiJ2MEUXKUcL3htj6
-         PMblGaEmJ9qqUL8CGSFrQjXVM4JWdfTLkk4KauxNdYSQetnOsxMEOlWUfEO5QiO+tEkz
-         rbiBodi6Bd/fFylyoNRFCQWl/Jgj3vmQv/8gHf49AKI3HN2VdCIgNReTiNXqViLcSZcY
-         idvAp5zyi93mZmJcLriAaxmrfgY4C5hdQuw4kWPuyBgaxqMHSHJB+Ihq6ORQFlWrhY9p
-         vXHBQjtFabHcLOTTCF8J8E0XxpxrAzFFF9oWiU+XEkNvkdSVhTtXbNcGiQ9DUnDveXB6
-         fXdw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAub1WkpSQXX4eyBMPoCgy0W+9JAEISF/A013SX+KNO4hvD5XO3Cy
-	LnES6Xuse+PDiSUWYdmY4OIY3PDfoiNTYwgFJNbyVzv1A/z8KVQmuUkNah/UNfKqp7s1ushDbJ/
-	sthL7uj1rRwNAQDhUJV/hTqvQYOqF0Uxhb7WsWYxzInr29LChJtR5A28xFUiesiVOmg==
-X-Received: by 2002:a63:1824:: with SMTP id y36mr16060734pgl.68.1549560922870;
-        Thu, 07 Feb 2019 09:35:22 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbSsdRqJ3prNZ9UiDPRFxjcTYClh1fBKEnXrCATdSPlSZNIZ3JRTO1CJKlfvfgvyT6Z4MW7
-X-Received: by 2002:a63:1824:: with SMTP id y36mr16060676pgl.68.1549560922154;
-        Thu, 07 Feb 2019 09:35:22 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549560922; cv=none;
+        h=x-gm-message-state:dkim-signature:from:message-id:mime-version
+         :subject:date:in-reply-to:cc:to:references;
+        bh=ocu5g2rTb/Tzi1s34Q0T/jBgeZO/Q/AzE2x6fj/vZYE=;
+        b=fDCVQdlE114Q/AaLi79gpSbuQ2SlENZx+b8Qxhc3Mkm7fxV8jd2w5EJgukXkpy54W+
+         5menJJllTsVUa3ZFSEh0jM1NLigDRrbdjdhAcHYCcDL1xPNnf/sz4iQzq7TcznahZRxq
+         ChPwGVhC4Bdj4A4+jiB38jjCNf4HJzIAY1anljhVvYLOItM/CO4iqqBSljHtjfEBbCOf
+         GwhjJ/PYfI9/j+3TgY2RWsWx+tijBFnwEhvj6DHDBTkIiceIddt4zx4tZea38Fyc/9BF
+         vGccjOLYrXC0XBkpOc3jTdbAJ/BUhdb9wrMkxe+J33ndcE/VuEqxZ+Vj9pwKINQWwobJ
+         Xxjw==
+X-Gm-Message-State: AHQUAuaBnB0KPhBJYSnyXuMDlVWtIeRBQcImHEI2sa4YyiA543r4OQ8H
+	ZnshotELu9R4ht3nTxbgGWUDpVYdKWs6fvViSEBSi7oAeA1JFdgKA3OXuN1dC99STTW9KVsYQJt
+	iAouRZ9RLhyft7vjb2Pw4QCqQjTeL/ZskDTiP7aUpvhrtO5rrs1ETHsQjCvjr633fd+W+GSFrEe
+	jgKesVcUHy51mfwn1SBpOoMAHibyk7KDCijAUDU+xp0EIst0QouNlO8afnBAyGe7NlTHVv+MAtZ
+	CLdaz79lEhwgSDUjZbYZq4exhFVvuArBXu80ZhRA0x+LhjentQSqWA6l+g6M9Vv7XkyweZ3eLDL
+	r8Be7Hs+5YJ7E/qMQSOMkGxnHe/aA8KoxzNXQe38JGYHZ6V3neVZ6JiY6VKR0C0lYw4/I/GCAo+
+	e
+X-Received: by 2002:a17:906:ee2:: with SMTP id x2mr12689162eji.202.1549561741585;
+        Thu, 07 Feb 2019 09:49:01 -0800 (PST)
+X-Received: by 2002:a17:906:ee2:: with SMTP id x2mr12689110eji.202.1549561740649;
+        Thu, 07 Feb 2019 09:49:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549561740; cv=none;
         d=google.com; s=arc-20160816;
-        b=o1dDCtftcNW/r5h62StK6SYsEP78+mMsAeCJE1/UnoZzC2De7TDPTFhT01mAHVaUou
-         PpvTZU9GQ0anzVa3rVxwzcGYSXCyyDCfmzpg45C/03AE/YsJHGfRxfG6mKiSuqYdlxbS
-         N1+cjmLA+/GXJY5K1a3jTdDXs1SfWD6OpHJvG84n5QShqWQwlgsdb9O2hhJji3QMEojY
-         uwx39vaXtZqjxmz7BCh2HDb6FKi+BpPBVBkNpdgVm5VwT+gSa/sB6Uq3RK+9YZiSleXx
-         fWBWVUW2mDUvGGZclZ00TW8xpCwHrJye5AjWRDVmYtaYvR629JdH66lYFoU5xdj7qtgo
-         3FhA==
+        b=pYTox9FN9MkTqWWsAPTnmJGvPO3FshCjihO89u1AurlVkqPJ3ti1m2OLxZivLoeHhh
+         Vp4O0zbm1V+w1z141KP8gferwtLYrfeuWy53ru/vbw8FzDwlFeJSGQKfGegosCxpt/+n
+         4avjpz4bOqtKjE2uUmVxl1PB/+JTXHEZNlfVwf36jCoJ5pfvjSogQcZUboauS6kM0EoJ
+         NHqhm3MDIQHk/9T5KGdAoslK+rcRMClkcfARC9gcm1FgVhRKLL6YQNSYc+Sw4Cxj0/wF
+         X0vukjJbAnr/7HqgvJ8jCAVZ2fj/QlwRG5rmi3GDUyj7tsCglwgz+BzO9gdVD8E5Hgj0
+         Wgdw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=wJETO+Ta/zADySOqP6xlMu9L04nwUVuKDpERbQR6imo=;
-        b=edzr3r3kSluVbJUc+6hU76rAcVs8qh7m+j1dkbh6cq/xm9/kt6ACvHGc8KweiXSMXO
-         DfEWZtqhv6qD478+RGU1ngFOm+cVZtQsC29KLdmpgsVDxHEKhTfjVLXSPicpw55gBwPx
-         HbZVfgSlKxv6YyvveO2+zvSISDI+U0+R2lErdiNcjXpqtwpHvzUgfGCao4QaUiL7xbyq
-         +EDo6dacZuprhzpL29aqZaelo0/4oO86Yr9Q8wjIYkyUJENmV3F0Kj1T4NYS+S4xwabI
-         yxsjhWauEwpDmlln4kKE6s0VAlLjlwg9TQMLyom60LufJn2ca2toKt3cdbSge2OkMCc9
-         VlZQ==
+        h=references:to:cc:in-reply-to:date:subject:mime-version:message-id
+         :from:dkim-signature;
+        bh=ocu5g2rTb/Tzi1s34Q0T/jBgeZO/Q/AzE2x6fj/vZYE=;
+        b=zid/CofqzlfR0cZCXZV0DmNKz0qiy4JOnWFYoyGuZ+g9FjZ+jTuWsI/cQN2tPiEGiX
+         LUouC15zStVnPXr0ou5k//XpAZgAqrl/X43gCLitN2VzJR4l4VzmhtGZjHVUiQJpy1FJ
+         nagijGq9EZkCFVQAvVKUjt/gVCa/QOh04fkAvmXbWe5cckVHdmnJqB8Soqxn7U868f+J
+         PO1cK0R67XCF7V1FX+d3j9aEAkrFJSwP7ZddMeVntJ+3Pk5iSCmfpJ3FE7Lcns83S/jN
+         eU9WXljbOiSJpeHsbjXJ2AEweOehcOLmoeDgEgAT6e1N+PR9CQYQkfgJ7Li6MyUg5B7x
+         DK+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id q15si8844683pgm.420.2019.02.07.09.35.21
+       dkim=pass header.i=@javigon-com.20150623.gappssmtp.com header.s=20150623 header.b=vpcmb6Fk;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of javier@javigon.com) smtp.mailfrom=javier@javigon.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m21sor1741974ejz.46.2019.02.07.09.49.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Feb 2019 09:35:22 -0800 (PST)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+        (Google Transport Security);
+        Thu, 07 Feb 2019 09:49:00 -0800 (PST)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of javier@javigon.com) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Feb 2019 09:35:21 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,344,1544515200"; 
-   d="scan'208";a="136687393"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga001.jf.intel.com with ESMTP; 07 Feb 2019 09:35:20 -0800
-Date: Thu, 7 Feb 2019 09:35:04 -0800
-From: Ira Weiny <ira.weiny@intel.com>
-To: Christopher Lameter <cl@linux.com>
-Cc: Doug Ledford <dledford@redhat.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Dave Chinner <david@fromorbit.com>,
-	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
-	lsf-pc@lists.linux-foundation.org,
-	linux-rdma <linux-rdma@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-Message-ID: <20190207173504.GD29531@iweiny-DESK2.sc.intel.com>
-References: <20190206173114.GB12227@ziepe.ca>
- <20190206175233.GN21860@bombadil.infradead.org>
- <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
- <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
- <20190206210356.GZ6173@dastard>
- <20190206220828.GJ12227@ziepe.ca>
- <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
- <CAPcyv4hqya1iKCfHJRXQJRD4qXZa3VjkoKGw6tEvtWNkKVbP+A@mail.gmail.com>
- <bfe0fdd5400d41d223d8d30142f56a9c8efc033d.camel@redhat.com>
- <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+       dkim=pass header.i=@javigon-com.20150623.gappssmtp.com header.s=20150623 header.b=vpcmb6Fk;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of javier@javigon.com) smtp.mailfrom=javier@javigon.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=javigon-com.20150623.gappssmtp.com; s=20150623;
+        h=from:message-id:mime-version:subject:date:in-reply-to:cc:to
+         :references;
+        bh=ocu5g2rTb/Tzi1s34Q0T/jBgeZO/Q/AzE2x6fj/vZYE=;
+        b=vpcmb6FkY1IAmYBkfPHuOMsqIYID60knYjXCjuteox2RS/xRTeSiZCnJfVstY/7EJc
+         +BQCWZrrbZdwcyfAcaZsF7j1NHzJ2icgzQ72SrKNyxBf80ECZFsMhuMVAVeXpiF/a2gc
+         aEamBhBaXfh/odCATbwbXpZUWJBkDuqKlA2b48+jAoxjak5Z3mDPVkyHTxZLXDeLMte/
+         kkExm/hgbEIdb4RmZaiiF+XLkcoQv0OQu85IZZw8HhxlqNgMzAmhrtkrjDAkA3ELpfCM
+         IxZGekfVuyFI+wzHY8E+8iQSbBvfALHEDU6HapnfrINSz5KYq+MwbgSAmv/wmexHayI9
+         Ed2Q==
+X-Google-Smtp-Source: AHgI3IbDvVGxaIt+a2/vDBNYOeYqBN1U46VqohxgxeQd6gWMAppUgHlvpThdKO8S1t432FaOh0dHXw==
+X-Received: by 2002:a17:906:2d51:: with SMTP id e17-v6mr12092615eji.143.1549561740009;
+        Thu, 07 Feb 2019 09:49:00 -0800 (PST)
+Received: from [192.168.1.143] (ip-5-186-122-168.cgn.fibianet.dk. [5.186.122.168])
+        by smtp.gmail.com with ESMTPSA id c30sm7011214edc.70.2019.02.07.09.48.58
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Feb 2019 09:48:59 -0800 (PST)
+From: =?utf-8?Q?Javier_Gonz=C3=A1lez?= <javier@javigon.com>
+Message-Id: <04952865-6EEE-4D78-8CC9-00484CFBD13E@javigon.com>
+Content-Type: multipart/alternative;
+	boundary="Apple-Mail=_A250CE3E-57B8-4B39-BA06-72130E79B090"
+Mime-Version: 1.0 (Mac OS X Mail 12.1 \(3445.101.1\))
+Subject: Re: [LSF/MM TOPIC] BPF for Block Devices
+Date: Thu, 7 Feb 2019 18:48:58 +0100
+In-Reply-To: <40D2EB06-6BF2-4233-9196-7A26AC43C64E@raithlin.com>
+Cc: Jens Axboe <axboe@kernel.dk>,
+ linux-fsdevel <linux-fsdevel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>,
+ "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+ IDE/ATA development list <linux-ide@vger.kernel.org>,
+ linux-scsi <linux-scsi@vger.kernel.org>,
+ "linux-nvme@lists.infradead.org" <linux-nvme@lists.infradead.org>,
+ Logan Gunthorpe <logang@deltatee.com>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
+ "bpf@vger.kernel.org" <bpf@vger.kernel.org>,
+ "ast@kernel.org" <ast@kernel.org>
+To: Stephen Bates <sbates@raithlin.com>
+References: <40D2EB06-6BF2-4233-9196-7A26AC43C64E@raithlin.com>
+X-Mailer: Apple Mail (2.3445.101.1)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 07, 2019 at 04:55:37PM +0000, Christopher Lameter wrote:
-> One approach that may be a clean way to solve this:
-> 
-> 1. Long term GUP usage requires the virtual mapping to the pages be fixed
->    for the duration of the GUP Map. There never has been a way to break
->    the pinnning and thus this needs to be preserved.
 
-How does this fit in with the changes John is making?
+--Apple-Mail=_A250CE3E-57B8-4B39-BA06-72130E79B090
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=utf-8
 
-> 
-> 2. Page Cache Long term pins are not allowed since regular filesystems
->    depend on COW and other tricks which are incompatible with a long term
->    pin.
 
-Unless the hardware supports ODP or equivalent functionality.  Right?
 
-> 
-> 3. Filesystems that allow bypass of the page cache (like XFS / DAX) will
->    provide the virtual mapping when the PIN is done and DO NO OPERATIONS
->    on the longterm pinned range until the long term pin is removed.
->    Hardware may do its job (like for persistent memory) but no data
->    consistency on the NVDIMM medium is guaranteed until the long term pin
->    is removed  and the filesystems regains control over the area.
+> On 7 Feb 2019, at 18.12, Stephen Bates <sbates@raithlin.com> wrote:
+>=20
+> Hi All
+>=20
+>> A BPF track will join the annual LSF/MM Summit this year! Please read =
+the updated description and CFP information below.
+>=20
+> Well if we are adding BPF to LSF/MM I have to submit a request to =
+discuss BPF for block devices please!
+>=20
+> There has been quite a bit of activity around the concept of =
+Computational Storage in the past 12 months. SNIA recently formed a =
+Technical Working Group (TWG) and it is expected that this TWG will be =
+making proposals to standards like NVM Express to add APIs for =
+computation elements that reside on or near block devices.
+>=20
+> While some of these Computational Storage accelerators will provide =
+fixed functions (e.g. a RAID, encryption or compression), others will be =
+more flexible. Some of these flexible accelerators will be capable of =
+running BPF code on them (something that certain Linux drivers for =
+SmartNICs support today [1]). I would like to discuss what such a =
+framework could look like for the storage layer and the file-system =
+layer. I'd like to discuss how devices could advertise this capability =
+(a special type of NVMe namespace or SCSI LUN perhaps?) and how the BPF =
+engine could be programmed and then used against block IO. Ideally I'd =
+like to discuss doing this in a vendor-neutral way and develop ideas I =
+can take back to NVMe and the SNIA TWG to help shape how these standard =
+evolve.
+>=20
+> To provide an example use-case one could consider a BPF capable =
+accelerator being used to perform a filtering function and then using =
+p2pdma to scan data on a number of adjacent NVMe SSDs, filtering said =
+data and then only providing filter-matched LBAs to the host. Many other =
+potential applications apply.=20
+>=20
+> Also, I am interested in the "The end of the DAX Experiment" topic =
+proposed by Dan and the " Zoned Block Devices" from Matias and Damien.
+>=20
+> Cheers
+>=20
+> Stephen
+>=20
+> [1] =
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/dr=
+ivers/net/ethernet/netronome/nfp/bpf/offload.c?h=3Dv5.0-rc5 =
+<https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/d=
+rivers/net/ethernet/netronome/nfp/bpf/offload.c?h=3Dv5.0-rc5>
 
-I believe Dan attempted something like this and it became pretty difficult.
+Definitely interested on this too - and pleasantly surprised to see a =
+BPF track!
 
-> 
-> 4. Long term pin means that the mapped sections are an actively used part
->    of the file (like a filesystem write) and it cannot be truncated for
->    the duration of the pin. It can be thought of as if the truncate is
->    immediate followed by a write extending the file again. The mapping
->    by RDMA implies after all that remote writes can occur at anytime
->    within the area pinned long term.
->
+I would like to extend Stephen=E2=80=99s discussion to eBPF running in =
+the block layer directly - both on the kernel VM and offloaded to the =
+accelerator of choice. This would be like XDP on the storage stack, =
+possibly with different entry points. I have been doing some experiments =
+building a dedup engine for pblk in the last couple of weeks and a =
+number of interesting questions have arisen.
 
-This is a very interesting idea.  I've never quite thought of it that way.
+Also, if there is a discussion on offloading the eBPF to an accelerator, =
+I would like to discuss how we can efficiently support data =
+modifications without having double transfers over either the PCIe bus =
+(or worse, over the network): one for the data computation + =
+modification and another for the actual data transfer. Something like =
+p2pmem comes to mind here, but for this to integrate nicely, we would =
+need to overcome the current limitations on PCIe and talk about p2pmem =
+over fabrics.
 
-That would be essentially like failing the truncate but without actually
-failing it...  sneaky.  ;-)
+Javier=
 
-What if user space then writes to the end of the file?  Does that write end
-up at the point they truncated to or off the end of the mmaped area (old
-length)?
+--Apple-Mail=_A250CE3E-57B8-4B39-BA06-72130E79B090
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html;
+	charset=utf-8
 
-I can see the behavior being defined either way.  But one interferes with the
-RDMA data and the other does not.  Not sure which is easier for the FS to
-handle either.
+<html><head><meta http-equiv=3D"Content-Type" content=3D"text/html; =
+charset=3Dutf-8"></head><body style=3D"word-wrap: break-word; =
+-webkit-nbsp-mode: space; line-break: after-white-space;" class=3D""><br =
+class=3D""><div><br class=3D""><blockquote type=3D"cite" class=3D""><div =
+class=3D"">On 7 Feb 2019, at 18.12, Stephen Bates &lt;<a =
+href=3D"mailto:sbates@raithlin.com" class=3D"">sbates@raithlin.com</a>&gt;=
+ wrote:</div><br class=3D"Apple-interchange-newline"><div class=3D""><div =
+class=3D"">Hi All<br class=3D""><br class=3D""><blockquote type=3D"cite" =
+class=3D"">A BPF track will join the annual LSF/MM Summit this year! =
+Please read the updated description and CFP information below.<br =
+class=3D""></blockquote><br class=3D"">Well if we are adding BPF to =
+LSF/MM I have to submit a request to discuss BPF for block devices =
+please!<br class=3D""><br class=3D"">There has been quite a bit of =
+activity around the concept of Computational Storage in the past 12 =
+months. SNIA recently formed a Technical Working Group (TWG) and it is =
+expected that this TWG will be making proposals to standards like NVM =
+Express to add APIs for computation elements that reside on or near =
+block devices.<br class=3D""><br class=3D"">While some of these =
+Computational Storage accelerators will provide fixed functions (e.g. a =
+RAID, encryption or compression), others will be more flexible. Some of =
+these flexible accelerators will be capable of running BPF code on them =
+(something that certain Linux drivers for SmartNICs support today [1]). =
+I would like to discuss what such a framework could look like for the =
+storage layer and the file-system layer. I'd like to discuss how devices =
+could advertise this capability (a special type of NVMe namespace or =
+SCSI LUN perhaps?) and how the BPF engine could be programmed and then =
+used against block IO. Ideally I'd like to discuss doing this in a =
+vendor-neutral way and develop ideas I can take back to NVMe and the =
+SNIA TWG to help shape how these standard evolve.<br class=3D""><br =
+class=3D"">To provide an example use-case one could consider a BPF =
+capable accelerator being used to perform a filtering function and then =
+using p2pdma to scan data on a number of adjacent NVMe SSDs, filtering =
+said data and then only providing filter-matched LBAs to the host. Many =
+other potential applications apply. <br class=3D""><br class=3D"">Also, =
+I am interested in the "The end of the DAX Experiment" topic proposed by =
+Dan and the " Zoned Block Devices" from Matias and Damien.<br =
+class=3D""><br class=3D"">Cheers<br class=3D""><br class=3D"">Stephen<br =
+class=3D""><br class=3D"">[1] <a =
+href=3D"https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git=
+/tree/drivers/net/ethernet/netronome/nfp/bpf/offload.c?h=3Dv5.0-rc5" =
+class=3D"">https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.=
+git/tree/drivers/net/ethernet/netronome/nfp/bpf/offload.c?h=3Dv5.0-rc5</a>=
+<br class=3D""></div></div></blockquote><div><br =
+class=3D""></div>Definitely interested on this too - and pleasantly =
+surprised to see a BPF track!</div><div><br class=3D""></div><div>I =
+would like to extend Stephen=E2=80=99s discussion to eBPF running in the =
+block layer directly - both on the kernel VM and offloaded to the =
+accelerator of choice. This would be like XDP on the storage stack, =
+possibly with different entry points. I have been doing some experiments =
+building a dedup engine for pblk in the last couple of weeks and a =
+number of interesting questions have arisen.</div><div><br =
+class=3D""></div><div>Also, if there is a discussion on offloading the =
+eBPF to an accelerator, I would like to discuss how we can efficiently =
+support data modifications without having double transfers over either =
+the PCIe bus (or worse, over the network): one for the data computation =
++ modification and another for the actual data transfer. Something like =
+p2pmem comes to mind here, but for this to integrate nicely, we would =
+need to overcome the current limitations on PCIe and talk about p2pmem =
+over fabrics.</div><div><br =
+class=3D""></div><div>Javier</div></body></html>=
 
-Ira
+--Apple-Mail=_A250CE3E-57B8-4B39-BA06-72130E79B090--
 
