@@ -2,218 +2,200 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06FA2C282C2
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 15:35:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 75161C282C2
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 15:37:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B567C21872
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 15:35:12 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=kernel-dk.20150623.gappssmtp.com header.i=@kernel-dk.20150623.gappssmtp.com header.b="v7wRl+42"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B567C21872
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kernel.dk
+	by mail.kernel.org (Postfix) with ESMTP id 3B7B52077B
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 15:37:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B7B52077B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5558E8E003E; Thu,  7 Feb 2019 10:35:12 -0500 (EST)
+	id C59A18E003F; Thu,  7 Feb 2019 10:37:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 503888E0002; Thu,  7 Feb 2019 10:35:12 -0500 (EST)
+	id C08428E0002; Thu,  7 Feb 2019 10:37:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3F6888E003E; Thu,  7 Feb 2019 10:35:12 -0500 (EST)
+	id B1CFE8E003F; Thu,  7 Feb 2019 10:37:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EC61A8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 10:35:11 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id b15so174623pfi.6
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 07:35:11 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C2C28E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 10:37:16 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id 207so233200qkl.2
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 07:37:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:subject:to:cc:message-id
-         :date:user-agent:mime-version:content-language
-         :content-transfer-encoding;
-        bh=vfrucWasRxu8wXy8I+OWsttiphZ78Pxa89vVhirKE38=;
-        b=BjSitMKBUg/iKvu/MjHhZNmM383B/Z48rBlR2fRGXHxCBlXhF/kwoLYcwRvu+z/5aN
-         yLYYhcboSn/zJ4ibRinWN8LsY1Pd4g0IQYzQcly6oP0IBtsDlKG5/+JXnKTaB2+WMbSz
-         OTLF0406v2bFhPVdeUvpecyzqxqopybDqzhnTDxP2rON4ISn82HkudA8O3h97KEBTeOp
-         C8tV0oYDYo/uBxmj1YCyWM+zHdhfyYeNwOSgueEGjcyWau3c4K/umIa8q/CwdHpPiFxN
-         U7kpqW3AWCDB7/yN5mMrf1av7SvTJWHCzi1Z/DAMU3YmJQ4I7kfEBHZNF4TWE0GaXZvS
-         1WcA==
-X-Gm-Message-State: AHQUAuYjiLLOCy0TXPDbcwnUjFbQ+MIU2PKSbKbTZrsi6xIVm+gFM2VA
-	AgPIHeg7/RAhu+E/ZgwFhxbqSrafX+0WipKadcVfgIM/Nt1EdNIMsBAImGPgg972i35YxXd++PT
-	DoPJEG5hVK12HiLutyxWe9AGxrIjs1iV675+6oyxrNbW3FBBo3kzONbLW3GvYGfvbh/liRYn1M3
-	s6LnvT2GPwN+E9MdLTtPAgSELy6OSebipVhghQKPmrltJWdtXJYij/FCTTdOwuT34Yg1E+oXBCv
-	GA7p61fPX2Kc/Enwvk5OQX3qSbgsqYZ6JglhD79WcdEWtw/7zHSIQnA32ea9BJReAE4ZaBzzb/Q
-	2UA/AWuJTchVnQ5YccBunma1/CmrXNcPAfJDv+sdssQDURWbCEY5X3YJApU9eknCvThQOHh9C9B
-	N
-X-Received: by 2002:a17:902:7590:: with SMTP id j16mr16400996pll.231.1549553711558;
-        Thu, 07 Feb 2019 07:35:11 -0800 (PST)
-X-Received: by 2002:a17:902:7590:: with SMTP id j16mr16400916pll.231.1549553710610;
-        Thu, 07 Feb 2019 07:35:10 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549553710; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:organization
+         :user-agent:mime-version;
+        bh=7E9sd04Cd0zsc0/+h0fMakLRJlKtPQpm4zu1VBeBaXE=;
+        b=j+sGIBzsQXNbxdLPu1bnof/ZxRDXjfY9AOCm+f8+gWf/thpooI1E6Riz/o2+ydSGXf
+         ccBEGi/LYUVPtJSzEwoVmeTGkok4SnbRpMTXZBNbJqCUTQhgsV6YuibVevGkQ4N/zE6U
+         aWIMe7FBL1BARNvPK7BZrJ6CI6V8gyRqfG3O0frxq2LuSfCSMS17bk8KhLGxtwq0JqvA
+         mENkb2oxZXooBKKLTTS428ovmZOXkVaAUzy1WfWKfzY/5euGb/Frx3yXNm4xwhg6DAcH
+         7Ve/VOgFAmm2sTjJ1uJTlYx1faR76N8L20+ktK4k/fp6fBqA2v+5IzE+8QofPmWuUMMu
+         pkMA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dledford@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dledford@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAubagMS2p8Esqm+aNs16qVEoOvwxigfGTlPPpH8zMg9trdLimBdB
+	bu8ACTkAw4glLPIsA7krkpA2mmlphzYWVEq3MlZEo1dkp836y5f1FKZr4TjhnTK4mtaSwdEooMN
+	qOBQC2HNX0U8e2MxBFcI2y6fKzLIwnN/oyHHl2Y6bFPF1CQqoXAc9Ii1d1Dsp4LpmmA==
+X-Received: by 2002:ac8:4792:: with SMTP id k18mr12495877qtq.294.1549553836223;
+        Thu, 07 Feb 2019 07:37:16 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia0vAEDZ7rFPqzZgB0N9xvMRExZZ3ku3QgFm2IwtzPE5GDZrc+al9jWjIiieW6gcTQ3B9s4
+X-Received: by 2002:ac8:4792:: with SMTP id k18mr12495840qtq.294.1549553835749;
+        Thu, 07 Feb 2019 07:37:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549553835; cv=none;
         d=google.com; s=arc-20160816;
-        b=J5rPScHJ5W/nCLRVWIRLZQPQz9FqhYQeyee7bIEiAnBZXWFg04Bm8eXo2wbp2AgEkG
-         jOH7V8qtFBpCfm3TjdmBL/KfMPwWk6Kday8PXaTphoj1yhpK8URjZ4pxJVlJ1rtYR05Z
-         1eGZB/rMTZ2NBROTKLV8DE5lc9k70DAKlseNuPTRjvvgQ7GF7nXLHAflPjjG6L9v3tXi
-         LMHDxx20AC2FXvtKVfBZxHrjvgcpJivbHWSGN3fF5gI81Mqhk8Qd5yJrDVeV9RX3XLSv
-         Zo/uIFnplHCSlvQnCXvMMn04HQ9m1ocvogZGpn+/8etAe5hQaPdMH4ZglIWO1gaeGigl
-         vmoA==
+        b=IzU1/sf/Gtwik/BS7nI3GEWwlcj2m3LCWqtLiMuixi9f/novnz/wOfQE9Tm/2yntaW
+         Sy5niS47mTUeXJ3kdLGQqQcZ9Mzi+uqljBheRQsj3ARclD4OMkDXvcvSQaA840xftHmO
+         sWFmlAcybdXx+pk9VYlrm29BsdfnDj2cjzxtUouAztOx/Nl9qQNJC4y3DsB6vEvFx+Nb
+         M3F23ISF3M4DLO1F7KT5Dv8gGeZLiLp67tAOLaw0WGlSKLiTo07MiJz0I1mDYfcEb7sO
+         9WEq51UHInVsw5qv2YQypUaCNA1xHIail88f/BhjKJaFQazPOThreBVy5e0/4VevFjh+
+         U2ZA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:mime-version:user-agent
-         :date:message-id:cc:to:subject:from:dkim-signature;
-        bh=vfrucWasRxu8wXy8I+OWsttiphZ78Pxa89vVhirKE38=;
-        b=ESTuXrfcExyM0Vpr1TI/7bdDJm3qTsc98SwYGdd4B9lwmILltrA6Yv4Qf1srJB7VQ7
-         5TdW2uTfsLQ+2+jTOfLK2dkDxfoEYctVOl9CWlqC1RA/T9RCw9oGZajsM716tcntZP7U
-         WsWrFhjguLmz4HCS7L4Miry0IicZ0VQm80mJquTeOIAuFhPPORJ5C59IWsI5k+ar3fsw
-         awjvuAGAumyFvooghoaE9+/bhWazRYbnyMn8GSPiPtRNy3Ijlhk5WmB8oIQNY8cqNG3K
-         VyKVEhFx5mEqPG7Cp6IVHCJJQf0LS3lp/54vS9oTxS21iS1GS3zPvrsRbGDLyCW3nq78
-         NvAA==
+        h=mime-version:user-agent:organization:references:in-reply-to:date:cc
+         :to:from:subject:message-id;
+        bh=7E9sd04Cd0zsc0/+h0fMakLRJlKtPQpm4zu1VBeBaXE=;
+        b=efAu9T0GdFWU7X32Lj3P0ayaVaSKnIVzQr03+DqjFgEVvM7m1ibAF5bcb4EjProJ9V
+         agQqoJDXyKSoAxRT/W2jhrkosXnot/RNK0ywCGjEMyWHp2uIvnb+fHYuH9hE3tbf29t+
+         XAAHkvM0aUC31ynuD4p+A1W6nALHEyd6IM4I99ldpQUy/Nkgvf/vVvCQ9Lwg2IHpttrE
+         UaZcuKyVSZmUposRlFQlrmUp6cTJDq0oac+YIOMANlJP2uAeRGKj2U1w1fgrdI+LFhH+
+         HpJLkTel8qCnE4m+FF4uApI8jSSLYIosh2fGOu4ehBm5BK5M2PtVRq0cD11wDsonYcRS
+         Akqg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=v7wRl+42;
-       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r12sor14373234plo.58.2019.02.07.07.35.10
+       spf=pass (google.com: domain of dledford@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dledford@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g1si1495831qvl.29.2019.02.07.07.37.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 07 Feb 2019 07:35:10 -0800 (PST)
-Received-SPF: pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=v7wRl+42;
-       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=kernel-dk.20150623.gappssmtp.com; s=20150623;
-        h=from:subject:to:cc:message-id:date:user-agent:mime-version
-         :content-language:content-transfer-encoding;
-        bh=vfrucWasRxu8wXy8I+OWsttiphZ78Pxa89vVhirKE38=;
-        b=v7wRl+42sRdc90Xr3bwo4dY+lG2m08Os2TWzjMUluAmfAXx53mYWdZk9xDGg4xBjPe
-         phtFtdx9z2YZiuseCKwB6wNwa2/fqva9NyZ/nXkNtJdZkrPOwVxZqDxmIo7EDYTmH3Qq
-         EfZciWgD188NKkDlMzfjm1CPZHfI3m7W3YENaMgUJ9FH2VmtbKk6zehcK6lMjIi8mU50
-         03SS12dLlPCftTfVBHVWEfc7hYSNgDG9nxXsw24l4ylQkYFKvZ7/qiNoOuwpy+z58d7u
-         U51cvcKmneEnevbHXoLNmee3w5yw8/Cv/Yx5uRByM2pPq3Omm2b0gH8pr4GItIQ84SfK
-         aySg==
-X-Google-Smtp-Source: AHgI3IaVoMYYKhs8M27q2ZqhI+OfSw6Mv04jJk+GiXW7+JfxddzpCbSEEmMoiRDT4kfCHGPvz5JH/Q==
-X-Received: by 2002:a17:902:7c8a:: with SMTP id y10mr16635068pll.71.1549553710158;
-        Thu, 07 Feb 2019 07:35:10 -0800 (PST)
-Received: from ?IPv6:2600:380:7712:367d:9d7:f8fb:d4f4:2531? ([2600:380:7712:367d:9d7:f8fb:d4f4:2531])
-        by smtp.gmail.com with ESMTPSA id s2sm12302582pfa.167.2019.02.07.07.35.07
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Feb 2019 07:35:09 -0800 (PST)
-From: Jens Axboe <axboe@kernel.dk>
-Subject: LSF/MM 2019: Call for Proposals (UPDATED!)
-To: linux-fsdevel <linux-fsdevel@vger.kernel.org>,
- linux-mm <linux-mm@kvack.org>,
- "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
- IDE/ATA development list <linux-ide@vger.kernel.org>,
- linux-scsi <linux-scsi@vger.kernel.org>,
- "linux-nvme@lists.infradead.org" <linux-nvme@lists.infradead.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
- bpf@vger.kernel.org, ast@kernel.org
-Message-ID: <4f5a15c1-4f9e-acae-5094-2f38c8eebd96@kernel.dk>
-Date: Thu, 7 Feb 2019 08:35:06 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Thu, 07 Feb 2019 07:37:15 -0800 (PST)
+Received-SPF: pass (google.com: domain of dledford@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of dledford@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dledford@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id E86AF87648;
+	Thu,  7 Feb 2019 15:37:13 +0000 (UTC)
+Received: from haswell-e.nc.xsintricity.com (ovpn-112-17.rdu2.redhat.com [10.10.112.17])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id BACD762985;
+	Thu,  7 Feb 2019 15:37:08 +0000 (UTC)
+Message-ID: <f000f699219a8f636dccfbe1fde3e17acdc674a4.camel@redhat.com>
+Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
+ longterm-GUP usage by RDMA
+From: Doug Ledford <dledford@redhat.com>
+To: Tom Talpey <tom@talpey.com>, Chuck Lever <chuck.lever@oracle.com>, Jason
+	Gunthorpe <jgg@ziepe.ca>
+Cc: Dave Chinner <david@fromorbit.com>, Christopher Lameter <cl@linux.com>, 
+ Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>, Ira Weiny
+ <ira.weiny@intel.com>,  lsf-pc@lists.linux-foundation.org, linux-rdma
+ <linux-rdma@vger.kernel.org>,  linux-mm@kvack.org, Linux Kernel Mailing
+ List <linux-kernel@vger.kernel.org>,  John Hubbard <jhubbard@nvidia.com>,
+ Jerome Glisse <jglisse@redhat.com>, Dan Williams
+ <dan.j.williams@intel.com>, Michal Hocko <mhocko@kernel.org>
+Date: Thu, 07 Feb 2019 10:37:06 -0500
+In-Reply-To: <6b260348-966a-bc95-162b-44ae8265cf03@talpey.com>
+References: <20190205175059.GB21617@iweiny-DESK2.sc.intel.com>
+	 <20190206095000.GA12006@quack2.suse.cz> <20190206173114.GB12227@ziepe.ca>
+	 <20190206175233.GN21860@bombadil.infradead.org>
+	 <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
+	 <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
+	 <20190206210356.GZ6173@dastard> <20190206220828.GJ12227@ziepe.ca>
+	 <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
+	 <20190207035258.GD6173@dastard> <20190207052310.GA22726@ziepe.ca>
+	 <CC414509-F046-49E3-9D0C-F66FD488AC64@oracle.com>
+	 <6b260348-966a-bc95-162b-44ae8265cf03@talpey.com>
+Organization: Red Hat, Inc.
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-XOocD0Ij7qGOcZ0BPp21"
+User-Agent: Evolution 3.30.4 (3.30.4-1.fc29) 
+Mime-Version: 1.0
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Thu, 07 Feb 2019 15:37:14 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-This is an important UPDATE to the previous LSF/MM announcement:
+--=-XOocD0Ij7qGOcZ0BPp21
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-https://lore.kernel.org/linux-block/51b4b263-a0f2-113d-7bdc-f7960b540929@kernel.dk/
+On Thu, 2019-02-07 at 10:28 -0500, Tom Talpey wrote:
+> On 2/7/2019 10:04 AM, Chuck Lever wrote:
+> >=20
+> > > On Feb 7, 2019, at 12:23 AM, Jason Gunthorpe <jgg@ziepe.ca> wrote:
+> > >=20
+> > > On Thu, Feb 07, 2019 at 02:52:58PM +1100, Dave Chinner wrote:
+> > >=20
+> > > > Requiring ODP capable hardware and applications that control RDMA
+> > > > access to use file leases and be able to cancel/recall client side
+> > > > delegations (like NFS is already able to do!) seems like a pretty
+> > >=20
+> > > So, what happens on NFS if the revoke takes too long?
+> >=20
+> > NFS distinguishes between "recall" and "revoke". Dave used "recall"
+> > here, it means that the server recalls the client's delegation. If
+> > the client doesn't respond, the server revokes the delegation
+> > unilaterally and other users are allowed to proceed.
+>=20
+> The SMB3 protocol has a similar "lease break" mechanism, btw.
+>=20
+> SMB3 "push mode" has long-expected to allow DAX mapping of files
+> only when an exclusive lease is held by the requesting client.
+> The server may recall the lease if the DAX mapping needs to change.
+>=20
+> Once local (MMU) and remote (RDMA) mappings are dropped, the
+> client may re-request that the server reestablish them. No
+> connection or process is terminated, and no data is silently lost.
 
-A BPF track will join the annual LSF/MM Summit this year! Please read
-the updated description and CFP information below.
+Yeah, but you're referring to a situation where the communication agent
+and the filesystem agent are one and the same and they work
+cooperatively to resolve the issue.  With DAX under Linux, the
+filesystem agent and the communication agent are separate, and right
+now, to my knowledge, the filesystem agent doesn't tell the
+communication agent about a broken lease, it want's to be able to do
+things 100% transparently without any work on the communication agent's
+part.  That works for ODP, but not for anything else.  If the filesystem
+notified the communication agent of the need to drop the MMU region and
+rebuild it, the communication agent could communicate that to the remote
+host, and things would work.  But there's no POSIX message for "your
+file is moving on media, redo your mmap".
 
-It will be held from April 30 - May 2 at the Sheraton Puerto Rico Hotel &
-Casino Lodges in San Juan, Puerto Rico.
-LSF/MM is an invitation-only technical workshop to map out improvements to
-the Linux storage, filesystem, memory management, and bpf subsystems that
-will make their way into the mainline kernel within the coming years.
+--=20
+Doug Ledford <dledford@redhat.com>
+    GPG KeyID: B826A3330E572FDD
+    Key fingerprint =3D AE6B 1BDA 122B 23B4 265B  1274 B826 A333 0E57 2FDD
 
-https://events.linuxfoundation.org/events/linux-storage-filesystem-mm-summit-2019/
+--=-XOocD0Ij7qGOcZ0BPp21
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
 
-LSF/MM 2019 will be a three day, stand-alone conference with three
-subsystem-specific tracks, cross-track discussions, as well as BoF and
-hacking sessions.
+-----BEGIN PGP SIGNATURE-----
 
-On behalf of the committee I am issuing a call for agenda proposals
-that are suitable for cross-track discussion as well as technical
-subjects for the breakout sessions.
+iQIzBAABCAAdFiEErmsb2hIrI7QmWxJ0uCajMw5XL90FAlxcUKIACgkQuCajMw5X
+L93NEg//eMt75ctTlSXXoDLfaCwYwi4aGY2XckUguecMYpDn5pZp8VJ36sAwQm+U
+MismCekqTGqKzBnxvy465XuQKqCq+D6u1oVZX/Hbc+SAxsobzc3fCFu0hxjt3sOq
+zrlOq/4rpT+ScSPvmfPRxpKUDjKXXkfVbGo/Qc4UYzuTzw2g6+UwWiKP32IavHCs
+Kckw408KjH/Fh5S+oXLbt/q/p59Z7RXvLhVTbSx3L6CePi88G+YyZKr39tFLTbQq
+OT7H/I4VD7sZ3fP7dXrEBVr2E7a81Tfmppg/Q/geNzfthsDTFn1JNuPYTgxIBSQR
+luScrVT05YS3hN2MspTsYWQ3h9PbH9XycdNCAppzl/tPct8IwrKdJShDVpIsucLN
+xbYQcdyf3UFjHmtBNvy1DfG8IDfAbyvOyU0WACjMenIi2Hzf5C2qkl5gCkYz1C7b
+QHUYZTwW++zfTNB2azaxi8JC9kcKn4OckvAYi3psHwD24j3jXF1EC54TS+VKE5mS
+AbbJMq5oGo6ntvR4XBSuIkssZl5ARfSjFb9ws8jzyd/FrAxgskTmm6hxRXxx1ekR
+OfKAHdeCqA87l4QC55jpCzxMph3dL7CQJSC/7De4WzlVteEG0RPl9PJhyhro83la
+3Oe6FQLTlv6b0FtKTT3iu6TXAGq9l3kKLyr028iv8Z7ftGC9XRk=
+=VBGR
+-----END PGP SIGNATURE-----
 
-If advance notice is required for visa applications then please point
-that out in your proposal or request to attend, and submit the topic
-as soon as possible.
-
-1) Proposals for agenda topics should be sent before February 22th,
-2019 to:
-
-	lsf-pc@lists.linux-foundation.org
-
-and CC the mailing lists that are relevant for the topic in question:
-
-	FS:	linux-fsdevel@vger.kernel.org
-	MM:	linux-mm@kvack.org
-	Block:	linux-block@vger.kernel.org
-	ATA:	linux-ide@vger.kernel.org
-	SCSI:	linux-scsi@vger.kernel.org
-	NVMe:	linux-nvme@lists.infradead.org
-        BPF:    bpf@vger.kernel.org
-
-Note that we have extended the original deadline by a week, to
-accommodate the late arrival of the BPF track.
-
-Please tag your proposal with [LSF/MM TOPIC] to make it easier to
-track. In addition, please make sure to start a new thread for each
-topic rather than following up to an existing one. Agenda topics and
-attendees will be selected by the program committee, but the final
-agenda will be formed by consensus of the attendees on the day.
-
-2) Requests to attend the summit for those that are not proposing a
-topic should be sent to:
-
-	lsf-pc@lists.linux-foundation.org
-
-Please summarize what expertise you will bring to the meeting, and
-what you would like to discuss. Please also tag your email with
-[LSF/MM ATTEND] and send it as a new thread so there is less chance of
-it getting lost.
-
-We will try to cap attendance at around 25-30 per track to facilitate
-discussions although the final numbers will depend on the room sizes
-at the venue. Note that BPF track will be limited to 10-15 attendees.
-
-For discussion leaders, slides and visualizations are encouraged to
-outline the subject matter and focus the discussions. Please refrain
-from lengthy presentations and talks; the sessions are supposed to be
-interactive, inclusive discussions.
-
-In particular BPF topics are encouraged to be storage, fs, mm, tracing,
-security related or advancing the state of the art of BPF core.
-BPF and networking related topics are recommended to be submitted for
-Linux Plumbers Conference and corresponding Networking and BPF microconf
-later this year.
-
-Thank you on behalf of the program committee:
-
-	Anna Schumaker (Filesystems)
-	Josef Bacik (Filesystems)
-	Martin K. Petersen (Storage)
-	Jens Axboe (Storage)
-	Michal Hocko (MM)
-	Rik van Riel (MM)
-	Johannes Weiner (MM)
-        Alexei Starovoitov (BPF)
-
--- 
-Jens Axboe
+--=-XOocD0Ij7qGOcZ0BPp21--
 
