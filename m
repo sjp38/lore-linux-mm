@@ -2,277 +2,236 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7C24C282C2
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 06:00:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 852D8C282C2
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 06:32:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 836A72175B
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 06:00:42 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="oQHOz0Tn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 836A72175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 1C2D72147C
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 06:32:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C2D72147C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1AC1B8E001E; Thu,  7 Feb 2019 01:00:42 -0500 (EST)
+	id 7157E8E001F; Thu,  7 Feb 2019 01:32:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 15EC98E0002; Thu,  7 Feb 2019 01:00:42 -0500 (EST)
+	id 6C4118E0002; Thu,  7 Feb 2019 01:32:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 025648E001E; Thu,  7 Feb 2019 01:00:41 -0500 (EST)
+	id 565608E001F; Thu,  7 Feb 2019 01:32:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C3C6B8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 01:00:41 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id c26so8416045otl.19
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 22:00:41 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EB7C28E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 01:32:07 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id x15so3936513edd.2
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 22:32:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=t9UI+A00WyCBHTuJak4tgcvwsNu71LzDt60tTRTPY0A=;
-        b=ZXehqLuWqYJwrGNevaHc8cWvDTjGHP3YNBItrg7hTwqUaDx9wLbfJfER6Bbn0TFyZX
-         cMZnZEb9bNKNaNsPl1Se0EAC7rpx1Wxv1aLgscktXgr0fMiBYwEzIGfovLmt3Y4Jdtmh
-         sghrjbMK5KghxoOh0sbRtwaEsUWtYyfe6B1k7yY4/ozHwgJnED1rlBy0tnGJGIZI1Hwu
-         QIIBFqReTvctVO8LWmeYAgFWmaIDeCMYeBqLPwyeSbPk6hLkLLXPFfhnv4uAUQgLCGJY
-         h1xDX++50v3Z0nvob0VIKTDDcIePOLlH7Nz06qq0Gi7nAOJbdu70ga1ve6Gz8vwDVCBh
-         ar6g==
-X-Gm-Message-State: AHQUAuaC04Ti8aXjyIjVhj5uZzl81V8I8+ch1wsh5dNlejK/JRa04xQl
-	wioM5sZJJ0Mam5mJR5Pexhd1X9SGU7OaOq8mh3/UcGFrrbXfnwv8dOsDOHinjE4sJJy9OogT0ft
-	AajvCNpgz6chY67YtHK6q1ex6/Bpc0340sojyfRTG/p+piGpJtEJHwpSW8lgE2r+LjcOaI5rSeM
-	tFksYmwv6v4+HB4E8qnypEjUfbKXlbxhM+aPsfgkx335NkBCUy/AkBan8t4JA4Ekr/L7ZWS0oN1
-	j+El7G95Px1x7q582fDdx33Wjca4kVgXtD8eehuxr5GKZeHkhmxv8Qa8YQZpP0VphUDJa8+wzhS
-	jriNXsJNE/BrfGQKQHN+3qfkzTL4gvTsckr1qGKZah4jsdZXy7frgSL6HClR5y4wyRAOGX13yn+
-	8
-X-Received: by 2002:a05:6830:2101:: with SMTP id i1mr4061143otc.289.1549519241294;
-        Wed, 06 Feb 2019 22:00:41 -0800 (PST)
-X-Received: by 2002:a05:6830:2101:: with SMTP id i1mr4061092otc.289.1549519240198;
-        Wed, 06 Feb 2019 22:00:40 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549519240; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=vJ0M1dbSIaUrgNQ0T9Yn4uC98NPfXql0i2YAxDyqBW0=;
+        b=Nj1gLB56/X9ZSH38Mjnrte2UYrmDoqY/xSs6eFRz6zuIEyySdU2D6QV/4d4jGgAZLj
+         QWSor0fkPXRIRmqPXcEkCvjK/mRqGxooI08k3eiyvekfqKIDbLEXNd/2dugN/GrE+ntS
+         1LWSDJVMLHB6+FmP71nSoYqNE6mdgf7zxvh/32DbtK2KEYiBy0KAxVpWA0dZaGqtIHzs
+         FTZtSTJ3Nb5OBoHK8vdQOe8mKlp0Sr9C71K7Bj0viJF6OdOqZbWt84c6zFlc5SwkdVSg
+         OQXtpsQxgwY+1GM3eva4znz88xtn5RmpXgTxweCACcGriuYMs9GbcBw19lYUi5VK3kIh
+         /rLQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Gm-Message-State: AHQUAuYNCeajRUS2R2WREdkcoy1V19hpafyAzQgY3ag8mvRBxkSEGpby
+	tydBERFnRkeS5QbzOuLIqkvEOUeWlMH55HdaYF/W2luh4J4NF+OfaQkmK0ZwvM2O2incqlAtWz0
+	r/hBw9ir7sCX1VZaPddBVwQYEKqzjdP8l2KofVvR3JeYbRFjvx+G0n1eh8/rdlBL89A==
+X-Received: by 2002:a05:6402:185a:: with SMTP id v26mr11133663edy.163.1549521127486;
+        Wed, 06 Feb 2019 22:32:07 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaXgQvzC2zl8UGIkljjixgVMnqe58EC5lPzd9513V3LMK2XqOzNU3WDz6/QVMcDBT4tM/Lx
+X-Received: by 2002:a05:6402:185a:: with SMTP id v26mr11133619edy.163.1549521126541;
+        Wed, 06 Feb 2019 22:32:06 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549521126; cv=none;
         d=google.com; s=arc-20160816;
-        b=RdXUuCU9AlG2womzPCdaVs2GJ3yjH6qvi4s0QpZl3Nsj7RdkMNi0gFxqCvkPZVgpCA
-         R3LbsZLFS0DGpjXeNgUGJdrQOZmU/sZ50L+tdJOo+kBnmxmonh42ccAoTRWMwe/3BAtE
-         aYshLHa/42xQKHFHDgHa730fXBQIbPQCVEU/evOBg5ututL5stthB4A7ab+Qi4CiBLxe
-         tKrc0V0GzBfMKJttsP4mfN9QZXRUcXHFjhlhM5a3qHKfsGcLZOZEhFoFzvIqF9m+8lzS
-         c4YUB/Ik9Mztt5W1Zyzxw4WbVdq85JUW61FdUuktt7D0t6wE9gb5USCn6Bxc7yC75FY9
-         WeWg==
+        b=ke4JXJcMP1o4KCYPEMDC8gjLFTzof4abNd009v2fc5JVQWdQBGBqsksLY8JI32/rxH
+         PxxOdUTZX9UHDDKkkmvBqu4zSEDYj84lxly2fLKhe91MiW0zt+INkfru0vVkVFDqTyM4
+         39zZIfSR9WrYKzaRgn2b7Sa3mJfmgZfFj1uStE4UsCophLd9pLDrdL+znnBNt9Kkpnrq
+         9wBJOk9JTBmTgmNRandWrXKKNXZp48WuaXZE76yOnVhMTXW17pnb8FdjgIuJPKcFUaCG
+         f8QF4VhvONYvGDGAcF2jGTCSNEZOfU/QZB1cmiz90zVXrfhrGztJt4mHvOPKcWmhzaSD
+         AuCw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=t9UI+A00WyCBHTuJak4tgcvwsNu71LzDt60tTRTPY0A=;
-        b=okmHi5xDwHBULj/8mgb7kAmJjRS/IVElOGdkEiQZyZ7pmC8KeolOsYSrBYg/7v2L8U
-         vlXeD3Jdghk6OZdsp/vrhP9s0Z0wI23MwTKXkP2tN8QF7733GRXCXTaY2S3tlsdKgAAw
-         goWURbuKTLwK55SHKdu8U3UlU/9WI56Wt59natsIw4EtMeXrRSDcTFpbzDYKjXGE4QW3
-         OduUm+2TCXaG1M2vxerWiqP+dUbj4986ep/YY6yk9kd28kQQEvzkUe5BCnsxQmRejN/k
-         ioUWWOvxu0R7IrEOn28NJVgvUczdS3twAEJLWGsDBEaP4GzVBUJyrtp/cV/Q7J4naMMy
-         fzOA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=vJ0M1dbSIaUrgNQ0T9Yn4uC98NPfXql0i2YAxDyqBW0=;
+        b=nPX8JlnlT+4Zed0p26FweX3bKFs6YXEDe9cic2C8ejSGhdNsRa1dtpmTHORYZCZuMs
+         1Q5fz0PYkhr4/woDWmEabigFVEtbdaQMU8wZCrhD8yVXK9aD7xkowDF23+DaOBVP/JwH
+         rmKZs3yiCziqg0A0d/8NR0u+iG/7ieRRsvVu0SPC+yo/5qBNjIJdQzd0tC7sZ/DSXs47
+         u2JdKO2XHp05becaYCwMCyQVg8WCrIiOBHWysLEq5fZMnJLtfbbaWPzT/H67/wArDcdS
+         3v/ou9RMJFGZ6CWhweqMfiV/QQmDQfCyXmBmQWRX5NP0Ty6dB2upAkeVlXxEdCh10R8e
+         BebA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=oQHOz0Tn;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 8sor13612045ots.158.2019.02.06.22.00.40
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v16si2017850ejq.113.2019.02.06.22.32.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 06 Feb 2019 22:00:40 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Feb 2019 22:32:06 -0800 (PST)
+Received-SPF: pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=oQHOz0Tn;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=t9UI+A00WyCBHTuJak4tgcvwsNu71LzDt60tTRTPY0A=;
-        b=oQHOz0Tnlril3AwK5Unqi0VM6aPU9bTLvHWpWghCYBwK/OJrCtGFj1Wvim7OFpDg+e
-         bV8KSViCCSqTSTstJPAI1X2yucKNMhPKWwMqM9fCFdC6pP7lf7+Lqk9TRX3G4fq1eaxX
-         FlP0n5eOElFNVno82wUYgzzyZCiatHllVlcAjAg34ITBSwkhc6+5M6MSVmlpFWPFTFNj
-         ezoUQ+TwcUmcnzO/zOLfV4XAjhHpbeVt5H00sabPDgLrdcLHDF8NtVgdhr015eSU1Y1K
-         41DodgHK68xC6QMboiqvxuXYRvAa8ND3ZbwTu0I7SJjCndqMHYdq95JqOMM5gy3lEpgx
-         QmqQ==
-X-Google-Smtp-Source: AHgI3Ibz0usX0602tfRkv65vvYAyNDRgDuO1huqythSJRGlFE4EHhd5l9sJPZMNUtcteuZQRKCt93W27liyqGJ+I8cc=
-X-Received: by 2002:a9d:7493:: with SMTP id t19mr3917392otk.98.1549519239700;
- Wed, 06 Feb 2019 22:00:39 -0800 (PST)
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4B289AED8;
+	Thu,  7 Feb 2019 06:32:05 +0000 (UTC)
+Subject: Re: [PATCH v2 2/2] x86/xen: dont add memory above max allowed
+ allocation
+To: Boris Ostrovsky <boris.ostrovsky@oracle.com>,
+ linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org,
+ x86@kernel.org, linux-mm@kvack.org
+Cc: sstabellini@kernel.org, hpa@zytor.com, tglx@linutronix.de,
+ mingo@redhat.com, bp@alien8.de
+References: <20190130082233.23840-1-jgross@suse.com>
+ <20190130082233.23840-3-jgross@suse.com>
+ <8d4f7604-cc47-9cd7-2cca-b00b3667d2fa@oracle.com>
+From: Juergen Gross <jgross@suse.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=jgross@suse.com; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <dc681ef2-8437-8614-87ef-72762eff81ce@suse.com>
+Date: Thu, 7 Feb 2019 07:32:04 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.3.0
 MIME-Version: 1.0
-References: <20190205175059.GB21617@iweiny-DESK2.sc.intel.com>
- <20190206095000.GA12006@quack2.suse.cz> <20190206173114.GB12227@ziepe.ca>
- <20190206175233.GN21860@bombadil.infradead.org> <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
- <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
- <20190206210356.GZ6173@dastard> <20190206220828.GJ12227@ziepe.ca>
- <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
- <20190207035258.GD6173@dastard> <20190207052310.GA22726@ziepe.ca>
-In-Reply-To: <20190207052310.GA22726@ziepe.ca>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 6 Feb 2019 22:00:28 -0800
-Message-ID: <CAPcyv4jd4gxvt3faYYRbv5gkc6NGOKjY_Z-P0Ph=ss=gWZw7sA@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Dave Chinner <david@fromorbit.com>, Doug Ledford <dledford@redhat.com>, 
-	Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>, 
-	Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, 
-	linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, 
-	Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <8d4f7604-cc47-9cd7-2cca-b00b3667d2fa@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 6, 2019 at 9:23 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
->
-> On Thu, Feb 07, 2019 at 02:52:58PM +1100, Dave Chinner wrote:
-> > On Wed, Feb 06, 2019 at 05:24:50PM -0500, Doug Ledford wrote:
-> > > On Wed, 2019-02-06 at 15:08 -0700, Jason Gunthorpe wrote:
-> > > > On Thu, Feb 07, 2019 at 08:03:56AM +1100, Dave Chinner wrote:
-> > > > > On Wed, Feb 06, 2019 at 07:16:21PM +0000, Christopher Lameter wrote:
-> > > > > > On Wed, 6 Feb 2019, Doug Ledford wrote:
-> > > > > >
-> > > > > > > > Most of the cases we want revoke for are things like truncate().
-> > > > > > > > Shouldn't happen with a sane system, but we're trying to avoid users
-> > > > > > > > doing awful things like being able to DMA to pages that are now part of
-> > > > > > > > a different file.
-> > > > > > >
-> > > > > > > Why is the solution revoke then?  Is there something besides truncate
-> > > > > > > that we have to worry about?  I ask because EBUSY is not currently
-> > > > > > > listed as a return value of truncate, so extending the API to include
-> > > > > > > EBUSY to mean "this file has pinned pages that can not be freed" is not
-> > > > > > > (or should not be) totally out of the question.
-> > > > > > >
-> > > > > > > Admittedly, I'm coming in late to this conversation, but did I miss the
-> > > > > > > portion where that alternative was ruled out?
-> > > > > >
-> > > > > > Coming in late here too but isnt the only DAX case that we are concerned
-> > > > > > about where there was an mmap with the O_DAX option to do direct write
-> > > > > > though? If we only allow this use case then we may not have to worry about
-> > > > > > long term GUP because DAX mapped files will stay in the physical location
-> > > > > > regardless.
-> > > > >
-> > > > > No, that is not guaranteed. Soon as we have reflink support on XFS,
-> > > > > writes will physically move the data to a new physical location.
-> > > > > This is non-negotiatiable, and cannot be blocked forever by a gup
-> > > > > pin.
-> > > > >
-> > > > > IOWs, DAX on RDMA requires a) page fault capable hardware so that
-> > > > > the filesystem can move data physically on write access, and b)
-> > > > > revokable file leases so that the filesystem can kick userspace out
-> > > > > of the way when it needs to.
-> > > >
-> > > > Why do we need both? You want to have leases for normal CPU mmaps too?
-> >
-> > We don't need them for normal CPU mmaps because that's locally
-> > addressable page fault capable hardware. i.e. if we need to
-> > serialise something, we just use kernel locks, etc. When it's a
-> > remote entity (such as RDMA) we have to get that remote entity to
-> > release it's reference/access so the kernel has exclusive access
-> > to the resource it needs to act on.
->
-> Why can't DAX follow the path of GPU? Jerome has been working on
-> patches that let GPU do page migrations and other activities and
-> maintain full sync with ODP MRs.
->
-> I don't know of a reason why DAX migration would be different from GPU
-> migration.
+On 01/02/2019 19:46, Boris Ostrovsky wrote:
+> On 1/30/19 3:22 AM, Juergen Gross wrote:
+>> Don't allow memory to be added above the allowed maximum allocation
+>> limit set by Xen.
+>>
+>> Trying to do so would result in cases like the following:
+>>
+>> [  584.559652] ------------[ cut here ]------------
+>> [  584.564897] WARNING: CPU: 2 PID: 1 at ../arch/x86/xen/multicalls.c:129 xen_alloc_pte+0x1c7/0x390()
+>> [  584.575151] Modules linked in:
+>> [  584.578643] Supported: Yes
+>> [  584.581750] CPU: 2 PID: 1 Comm: swapper/0 Not tainted 4.4.120-92.70-default #1
+>> [  584.590000] Hardware name: Cisco Systems Inc UCSC-C460-M4/UCSC-C460-M4, BIOS C460M4.4.0.1b.0.0629181419 06/29/2018
+>> [  584.601862]  0000000000000000 ffffffff813175a0 0000000000000000 ffffffff8184777c
+>> [  584.610200]  ffffffff8107f4e1 ffff880487eb7000 ffff8801862b79c0 ffff88048608d290
+>> [  584.618537]  0000000000487eb7 ffffea0000000201 ffffffff81009de7 ffffffff81068561
+>> [  584.626876] Call Trace:
+>> [  584.629699]  [<ffffffff81019ad9>] dump_trace+0x59/0x340
+>> [  584.635645]  [<ffffffff81019eaa>] show_stack_log_lvl+0xea/0x170
+>> [  584.642391]  [<ffffffff8101ac51>] show_stack+0x21/0x40
+>> [  584.648238]  [<ffffffff813175a0>] dump_stack+0x5c/0x7c
+>> [  584.654085]  [<ffffffff8107f4e1>] warn_slowpath_common+0x81/0xb0
+>> [  584.660932]  [<ffffffff81009de7>] xen_alloc_pte+0x1c7/0x390
+>> [  584.667289]  [<ffffffff810647f0>] pmd_populate_kernel.constprop.6+0x40/0x80
+>> [  584.675241]  [<ffffffff815ecfe8>] phys_pmd_init+0x210/0x255
+>> [  584.681587]  [<ffffffff815ed207>] phys_pud_init+0x1da/0x247
+>> [  584.687931]  [<ffffffff815edb3b>] kernel_physical_mapping_init+0xf5/0x1d4
+>> [  584.695682]  [<ffffffff815e9bdd>] init_memory_mapping+0x18d/0x380
+>> [  584.702631]  [<ffffffff81064699>] arch_add_memory+0x59/0xf0
+>>
+>> Signed-off-by: Juergen Gross <jgross@suse.com>
+>> ---
+>>  arch/x86/xen/setup.c      | 10 ++++++++++
+>>  drivers/xen/xen-balloon.c |  6 ++++++
+>>  2 files changed, 16 insertions(+)
+>>
+>> diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
+>> index d5f303c0e656..fdb184cadaf5 100644
+>> --- a/arch/x86/xen/setup.c
+>> +++ b/arch/x86/xen/setup.c
+>> @@ -12,6 +12,7 @@
+>>  #include <linux/memblock.h>
+>>  #include <linux/cpuidle.h>
+>>  #include <linux/cpufreq.h>
+>> +#include <linux/memory_hotplug.h>
+>>  
+>>  #include <asm/elf.h>
+>>  #include <asm/vdso.h>
+>> @@ -825,6 +826,15 @@ char * __init xen_memory_setup(void)
+>>  				xen_max_p2m_pfn = pfn_s + n_pfns;
+>>  			} else
+>>  				discard = true;
+>> +#ifdef CONFIG_MEMORY_HOTPLUG
+>> +			/*
+>> +			 * Don't allow adding memory not in E820 map while
+>> +			 * booting the system. Once the balloon driver is up
+>> +			 * it will remove that restriction again.
+>> +			 */
+>> +			max_mem_size = xen_e820_table.entries[i].addr +
+>> +				       xen_e820_table.entries[i].size;
+>> +#endif
+>>  		}
+>>  
+>>  		if (!discard)
+>> diff --git a/drivers/xen/xen-balloon.c b/drivers/xen/xen-balloon.c
+>> index 2acbfe104e46..2a960fcc812e 100644
+>> --- a/drivers/xen/xen-balloon.c
+>> +++ b/drivers/xen/xen-balloon.c
+>> @@ -37,6 +37,7 @@
+>>  #include <linux/mm_types.h>
+>>  #include <linux/init.h>
+>>  #include <linux/capability.h>
+>> +#include <linux/memory_hotplug.h>
+>>  
+>>  #include <xen/xen.h>
+>>  #include <xen/interface/xen.h>
+>> @@ -63,6 +64,11 @@ static void watch_target(struct xenbus_watch *watch,
+>>  	static bool watch_fired;
+>>  	static long target_diff;
+>>  
+>> +#ifdef CONFIG_MEMORY_HOTPLUG
+>> +	/* The balloon driver will take care of adding memory now. */
+>> +	max_mem_size = U64_MAX;
+>> +#endif
+> 
+> 
+> I don't think I understand this. Are you saying the guest should ignore
+> 'mem' boot option?
 
-I don't think we need leases in the ODP case.
+No, I just managed to forget thinking about that possibility.
 
-> The ODP RDMA HW does support halting RDMA access and interrupting the
-> CPU to re-establish access, so you can get your locks/etc as. With
-> today's implemetnation DAX has to trigger all the needed MM notifier
-> call backs to make this work. Tomorrow it will have to interact with
-> the HMM mirror API.
->
-> Jerome is already demoing this for the GPU case, so the RDMA ODP HW is
-> fine.
->
-> Is DAX migration different in some way from GPU's migration that it
-> can't use this flow and needs a lease to??? This would be a big
-> surprise to me.
+I need to save the old max_mem_size setting in setup.c and restore it here.
 
-Agree, I see no need for leases in the ODP case the mmu_notifier is
-already fulfilling the same role as a lease notification.
 
-> > If your argument is that "existing RDMA apps don't have a recall
-> > mechanism" then that's what they are going to need to implement to
-> > work with DAX+RDMA. Reliable remote access arbitration is required
-> > for DAX+RDMA, regardless of what filesysetm the data is hosted on.
->
-> My argument is that is a toy configuration that no production user
-> would use. It either has the ability to wait for the lease to revoke
-> 'forever' without consequence or the application will be critically
-> de-stablized by the kernel's escalation to time bound the response.
-> (or production systems never get revoke)
-
-I think we're off track on the need for leases for anything other than
-non-ODP hardware.
-
-Otherwise this argument seems to be saying there is absolutely no safe
-way to recall a memory registration from hardware, which does not make
-sense because SIGKILL needs to work as a last resort.
-
-> > Anything less is a potential security hole.
->
-> How does it get to a security hole? Obviously the pages under DMA
-> can't be re-used for anything..
-
-Writes to storage outside the security domain they were intended due
-to the filesystem reallocating the physical blocks.
-
-> > Once we have reflink on DAX, somebody is going to ask for
-> > no-compromise RDMA support on these filesystems (e.g. NFSv4 file
-> > server on pmem/FS-DAX that allows server side clones and clients use
-> > RDMA access) and we're going to have to work out how to support it.
-> > Rather than shouting at the messenger (XFS) that reports the hard
-> > problems we have to solve, how about we work out exactly what we
-> > need to do to support this functionality because it is coming and
-> > people want it.
->
-> I've thought this was basically solved - use ODP and you get full
-> functionality.  Until you just now brought up the idea that ODP is
-> not enough..
-
-I think that was a misunderstanding, I struggle to see how a driver
-that agrees to be bound by mmu notifications (ODP) has any problems
-with anything the filesystem wants to do with the mapping. My
-assumption is that ODP == filesystem can invalidate mappings at will
-and all is good.
-
-> The arguing here is that there is certainly a subset of people that
-> don't want to use ODP. If we tell them a hard 'no' then the
-> conversation is done.
-
-Again, SIGKILL must work the RDMA target can't survive that, so it's
-not impossible, or are you saying not even SIGKILL can guarantee an
-RDMA registration goes idle? Then I can see that "hard no" having real
-teeth otherwise it's a matter of software.
-
-> Otherwise, I like the idea of telling them to use a less featureful
-> XFS configuration that is 'safe' for non-ODP cases. The kernel has a
-> long history of catering to certain configurations by limiting
-> functionality or performance.
-
-That's an unsustainable maintenance burden for the filesystem, just
-keep the status quo of failing the registration at that point or
-requiring a filesystem to not be used.
-
-> I don't like the idea of building toy leases just for this one,
-> arguably baroque, case.
-
-What makes it a toy and baroque? Outside of RDMA registrations being
-irretrievable I have a gap in my understanding of what makes this
-pointless to even attempt?
-
-> > Requiring ODP capable hardware and applications that control RDMA
-> > access to use file leases and be able to cancel/recall client side
-> > delegations (like NFS is already able to do!) seems like a pretty
->
-> So, what happens on NFS if the revoke takes too long?
->
-> Jason
+Juergen
 
