@@ -2,124 +2,111 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 498FFC169C4
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 00:22:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ACDB6C169C4
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 00:27:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E10CD2075D
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 00:22:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 59AD92084D
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 00:27:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="k8tnarCT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E10CD2075D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qcVNBNfz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 59AD92084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 607A88E0009; Wed,  6 Feb 2019 19:22:30 -0500 (EST)
+	id B5AF98E000A; Wed,  6 Feb 2019 19:27:50 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5B70A8E0002; Wed,  6 Feb 2019 19:22:30 -0500 (EST)
+	id B0A988E0002; Wed,  6 Feb 2019 19:27:50 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4CC898E0009; Wed,  6 Feb 2019 19:22:30 -0500 (EST)
+	id 9FABA8E000A; Wed,  6 Feb 2019 19:27:50 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 26CEA8E0002
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 19:22:30 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id z22so7671757oto.11
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 16:22:30 -0800 (PST)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 764018E0002
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2019 19:27:50 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id 135so7858021itb.6
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2019 16:27:50 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=N9lRRqnsHDT7GDO+v7XW7/VJ5v3X9tiPM2p9vi+qGY8=;
-        b=lmGmfAo3CsWd/3ZPTu4pEXyY86TJNrD0c2a3RqYqlfCuyx0admTnE1JwEQyDWlS4Xg
-         fuEmjONP7jN08iwDfK87pfxpm25/Ms5kx1askj7c4nPCj+75dBALcH7kppN+SefhbADu
-         UMEPitkpsLJwtevL6jXQqwG7QtwTwraTpI5gKV1hBIVsZ1cEXz/clR22cMSDv9KUkm5U
-         fvAw2rSed1xfOEZjYj2Q+QnNrM53maRcEoMyB6rl3pv7aAKsDAa4y13UzjZ2foYb+4Z1
-         FiZ2kyn3s4o0VxPWrqYpu6X2jTdkoE2pzAv2JMDLrgC9CpukBTvYIOGBvP6PYq15OWk9
-         QyxA==
-X-Gm-Message-State: AHQUAuahIawcZbZgX0fnGLYzi3sXYv6rND18OCMtxdILfCLzOiKuE7dL
-	rlqGumVqjXCFFayCAXfBiuitVSB63FVk22dj769VMJFACGtkwMSA8NlUPfzjIGYjQGMFOZrz8e/
-	pGUhYor/9j4P5oEilX6mlWimQwlZGaF3EUBia+IhdJaHr+kU73GWh0gCxHeP35F42bINQOrVd+7
-	2GZU5c+ULCVfAbTCIqulMK+bIyyc5OclOlSx7d5dsnH6FnJt5dKGJ9aGlEOu+Es1OG6k5IQqYbH
-	gLhuNYoaSr7mEi7cvcna+qdxiJ36dZki2UUnC194ZKxuJsZ0T9d5/+pwhfdJ00f9Y8Mgpoziyyk
-	Z8s2FeMrqy69QsZEvOwIebzjBbHga/Mbu8dzIR9dCp0ZYUzbjnyWYAQ5C1Qr9Vg/76lnhxBmYUo
-	4
-X-Received: by 2002:a9d:734e:: with SMTP id l14mr6852620otk.270.1549498949848;
-        Wed, 06 Feb 2019 16:22:29 -0800 (PST)
-X-Received: by 2002:a9d:734e:: with SMTP id l14mr6852594otk.270.1549498948968;
-        Wed, 06 Feb 2019 16:22:28 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549498948; cv=none;
+        bh=QjmxfddQuTfnUk2Jf9d94uGA03f2Ji4tV+lPx6DhrcU=;
+        b=D+zbp+oPO1tuzJwL4Qp4cka9KWYUfgVaHy/MwZ6g3ouLvyDuCCqX5pDtIYhQ8e6M8M
+         r/a2E1ylxo+C6uUIgX+BHFGWiRvIPTM0yMRSZfdTqvTLkBgFddNs5DxgGXMnGqaMsOCT
+         kg9NajpRVDTsE6u958e0+9zt6fvSkIR/LvC2CRXiYrPt8ZBEjYddKxTvqz1x7c4cRCD7
+         +Zb16j3oMypJHwMnz1Dni8TDQJgJvFzGqF8UgOYRy5QDP8kvX4wQ36DoQLwSnI36Rn8s
+         7GHWyedtjD4UQ7Mb7w+ThHwFE6m8X4Xqp7JOGQLDGf/Og8MO4BETEsrwWW1A0Rjo2j/O
+         k7iQ==
+X-Gm-Message-State: AHQUAuaiZuv5idHiEef5zTnSdOBzlCnJeytTw1staLZl3PZzEiM3xgXr
+	xyuqrpDQBUq75ijg6Smtwpu58XHwg8sW3fsfR8tDRixDrWMo57OTEqst75T6TswW3ma0tOMmrPx
+	lXOBZ9fl+gN7LcAbQH5cfvJe2/rGKnNTF/i6YTURKv95RC5yhj7Th6Z7BsUrKBMVxFqbX4guNSp
+	eVFgsc9yB9wIRQF9LluyrwnwmWpNtFDPuHvVAwDWAnDOfrQ9Pw1XezCI7caeOJBp1qQAdpzhs6P
+	sLtBhVe+bc49/Kb+NcGMDouM/MidwLRskIKEEgaQFL++fBVathKiOUawM1yPDYr6h2DW2CvWVCq
+	hrALjW2ZGfewvhTACj7qANvD49mhXsvnPpb1/JS7JhjNEPDn3lYTwSsSqQd8ZLTu7B9pbytGQKc
+	P
+X-Received: by 2002:a24:10cc:: with SMTP id 195mr3461218ity.178.1549499270224;
+        Wed, 06 Feb 2019 16:27:50 -0800 (PST)
+X-Received: by 2002:a24:10cc:: with SMTP id 195mr3461201ity.178.1549499269399;
+        Wed, 06 Feb 2019 16:27:49 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549499269; cv=none;
         d=google.com; s=arc-20160816;
-        b=1KbonH0EOseb49ZH0X8MJzC+iv0M21v0p2csRqpzKhjPsxeUwg2ATIz0iwOsVwzKG0
-         8OKKE96392iRPKhs+RoPtYHTcNxTBNVh07KYHszG+vFUihqTQ+hANdcdK123UW0W3Y8h
-         312NQx/J9p6g47DiNAcIaLRDYaRd0qF57Mvo9TX+NJbv6+yVcyPJX1UEl/N9DTNWesw2
-         lj69yfuBtNFh/FDF7+dd6kOvSvZcz3+Jpz0VcWae9/VbwZ7NLYSPS1SNAytZlYp93BJ/
-         QfcuO7L/LqBddM/BYMkAA4VgMuqneX9p+Z1t6DzvmVwIb8C699A2ceGGJsHrC5ium0x8
-         rlPw==
+        b=pQSOwBUEjoDBubXcwpRuPJ4YGP8X9pjUwWa+jX8cOz8nqGsuhRsNW2+iptXhTcoI44
+         VkGNZ83WV6O6FA7z+vD0EJwh3kYkbuDY1cBEjLZsH6/KfWeReWSx7ktYjZpTmKEZSBhf
+         jg1hxFhJztpAgUnj6O4uX6CVCj2pK0IyC8s02g3nR1WmbOrME1VE13pImYvYLw5wCbya
+         zh4KTWu7szyC6Y/b5rq3jPxBZ2Aqc7si+KjyCSxXQ+jodY2+SvLQ3SDP2M4Fd6pNITSx
+         CIzIE66NQPr/rE2Le8UOhEpcEkE56201SjAww//Q7iaC++mj9f328uNUUGnn5hx+BAOW
+         9nEw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=N9lRRqnsHDT7GDO+v7XW7/VJ5v3X9tiPM2p9vi+qGY8=;
-        b=gpqdd37IEB4pgYDlF6JS8Yl6k1vwXWrA2SH2QoOnw7YnUveavGtn1QbEd3hFl73Ilr
-         /KZnNImnY27ESTQQzmIUJELsoGFioVndwmLibG61G4jMZQm2kPD68EdPntSUPPHdN8i0
-         PO+v9sAAeBE8BruZKItAoxn7KJneqrKfvDfv7jrAvYslvf0qjTv+3tq4ajT4WlNB8Y/p
-         P9I+q3YhOFM0S+PGPjx6/7fJF4Dso+tjW5QHk9rVPeIc4o6I/32CK4BAJ9S0V0NveAyt
-         ZKCiJD9sW1H8E9+vX0jlk/F/aY/n59CwHPE2vY3mpEvQI144Sa9k69fW487dBFtzlkkA
-         oe9Q==
+        bh=QjmxfddQuTfnUk2Jf9d94uGA03f2Ji4tV+lPx6DhrcU=;
+        b=tK3yApWcG4v5LFKP5OSW8e2Yz0t5c6smoH8Pau5SYHYWc04B3xywvLxB121ZbaT7ul
+         Vu3GIiDWdYT80u6PI11+D8ZVbQLYNp9AH/6IIz4VGTvO/zvvt4tVF6HDRZIwPG0dQP2B
+         exV9mKLoOHSko+y0sPSCNMgIKtfJTIS6HHso8Xp52WPPAS0N30S3ohImjwNNUo2Xe+GL
+         ih8/2Z5raDTmv6zHZAEX5mmrhszyO7SK4ozdYEd+vReXrtpyqn6pKZ+EFBx6B+OdGPe3
+         VTGjipkMs1Lz99JWfff2KXmhph4gzptxpTAw+3ZAO6xoK3/WQ8QOoPzHO2tyH1Bf8D1T
+         TVRw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=k8tnarCT;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y9sor12528377oig.53.2019.02.06.16.22.28
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qcVNBNfz;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n11sor3866907ioc.126.2019.02.06.16.27.49
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 06 Feb 2019 16:22:28 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Wed, 06 Feb 2019 16:27:49 -0800 (PST)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=k8tnarCT;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qcVNBNfz;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=N9lRRqnsHDT7GDO+v7XW7/VJ5v3X9tiPM2p9vi+qGY8=;
-        b=k8tnarCT7do6m4YClkIf2+OB/cSXl05ZHqWyDLOAoSSB9nAV6GR7IOivzKXDJizJie
-         p+38ESxiMKxx8gLcOsFJUqbLhF88jqW94mz6D55BGtR9Uj7xdHLNf1XxqvgLkYl/9M8A
-         TPIzwWGe56Pi0cx6OdmhIAzJqLRWF/6icRk+DuBoGPG5UjFlitPyQYJbSL3g0aZYoSoO
-         vOgQrVay97ebCs4OHx3tcX1mxEaaYMljmc2PyA3njJmuo6TP1JJH7qsXkEaa487WK+qP
-         rEwesohUJbI4NidP95LSmAQ0iNbB5lrGzrY5kEqLLhWOb7KpJBtjqL6aFn2O36hh2qUR
-         WQ2Q==
-X-Google-Smtp-Source: AHgI3Ibqjhw/vsUKHyjILXNjBnifndhwYQTmHR5DdOu3tq7tqHjwpj5Yu5rjPWEExLu7zymchHLui7jCBzPdS3wEE4s=
-X-Received: by 2002:a05:6808:344:: with SMTP id j4mr1089747oie.149.1549498948442;
- Wed, 06 Feb 2019 16:22:28 -0800 (PST)
+        bh=QjmxfddQuTfnUk2Jf9d94uGA03f2Ji4tV+lPx6DhrcU=;
+        b=qcVNBNfzzoJH0+ab83ciTUxscvQptzm2bXho4/JSv+R7y4fY0GS7aOhx1OzaBRgXRz
+         OTSgH6jquOw3sXi7lnso4XQOXACb7ifqnPcI9cz6+41PQyBRIVWLp9uSl2uVWn8mjf6E
+         lhCQMe2Xe6LubrCv79nWnF6OiyL2wHi1ZeRSPkTDfbLXOXzdTvFXxFLODOmwXMMzDZIl
+         uqyW/c0jUVR2Mtfme1RPUbm+aX+fz65Yx40t4MEj/eZq+p+M/ZqKYclAy9wNYzz+C0iV
+         NeQhXfhog91yOksshxUK8ux53laiMA+U0+4x9C2PNqKskoFYeWI1XPcExREmyrVgoMVQ
+         rsMA==
+X-Google-Smtp-Source: AHgI3IaeNTEkecukVcsQkUXZ1P+6ZkWqh2UWOKyZYicc+FHZha7sf+tg8hCR2dnCfM3UZu3Mibirrday1lovm+NSCww=
+X-Received: by 2002:a5e:8f0b:: with SMTP id c11mr1058613iok.116.1549499268955;
+ Wed, 06 Feb 2019 16:27:48 -0800 (PST)
 MIME-Version: 1.0
-References: <20190206173114.GB12227@ziepe.ca> <20190206175233.GN21860@bombadil.infradead.org>
- <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
- <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
- <20190206210356.GZ6173@dastard> <20190206220828.GJ12227@ziepe.ca>
- <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
- <CAPcyv4hqya1iKCfHJRXQJRD4qXZa3VjkoKGw6tEvtWNkKVbP+A@mail.gmail.com>
- <20190206232130.GK12227@ziepe.ca> <CAPcyv4g2r=L3jfSDoRPt4VG7D_2CxCgv3s+JLu4FQRUSRWg+4Q@mail.gmail.com>
- <20190206234132.GB15234@ziepe.ca>
-In-Reply-To: <20190206234132.GB15234@ziepe.ca>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 6 Feb 2019 16:22:16 -0800
-Message-ID: <CAPcyv4h1=GTAqHBw+Zsp9eNYR3HFbB_qjmhntwnO-jyGun4QNA@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Doug Ledford <dledford@redhat.com>, Dave Chinner <david@fromorbit.com>, 
-	Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>, 
-	Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, 
-	linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, 
-	Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>, 
-	linux-nvdimm <linux-nvdimm@lists.01.org>
+References: <631c44cc-df2d-40d4-a537-d24864df0679@nvidia.com>
+In-Reply-To: <631c44cc-df2d-40d4-a537-d24864df0679@nvidia.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Wed, 6 Feb 2019 16:27:37 -0800
+Message-ID: <CAKgT0UewZP7AE8o__+6TYeKxERBdbnLP9DSzRApZQjzj9Jpeww@mail.gmail.com>
+Subject: Re: No system call to determine MAX_NUMNODES?
+To: Ralph Campbell <rcampbell@nvidia.com>
+Cc: Linux MM <linux-mm@kvack.org>, longman@redhat.com
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -127,38 +114,39 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 6, 2019 at 3:41 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
-[..]
-> > You're describing the current situation, i.e. Linux already implements
-> > this, it's called Device-DAX and some users of RDMA find it
-> > insufficient. The choices are to continue to tell them "no", or say
-> > "yes, but you need to submit to lease coordination".
+On Wed, Feb 6, 2019 at 3:13 PM Ralph Campbell <rcampbell@nvidia.com> wrote:
 >
-> Device-DAX is not what I'm imagining when I say XFS--.
+> I was using the latest git://git.cmpxchg.org/linux-mmotm.git and noticed
+> a new issue compared to 5.0.0-rc5.
 >
-> I mean more like XFS with all features that require rellocation of
-> blocks disabled.
+> It looks like there is no convenient way to query the kernel's value for
+> MAX_NUMNODES yet this is used in kernel_get_mempolicy() to validate the
+> 'maxnode' parameter to the GET_MEMPOLICY(2) system call.
+> Otherwise, EINVAL is returned.
 >
-> Forbidding hold punch, reflink, cow, etc, doesn't devolve back to
-> device-dax.
+> Searching the internet for get_mempolicy yields some references that
+> recommend reading /proc/<pid>/status and parsing the line "Mems_allowed:".
+>
+> Running "cat /proc/self/status | grep Mems_allowed:" I get:
+> With 5.0.0-rc5:
+> Mems_allowed:   00000000,00000001
+> With 5.0.0-rc5-mm1:
+> Mems_allowed:   1
+> (both kernels were config'ed with CONFIG_NODES_SHIFT=6)
+>
+> Clearly, there should be a better way to query MAX_NUMNODES like
+> sysconf(), sysctl(), or libnuma.
 
-True, not all the way, but the distinction loses significance as you
-lose fs features.
+Really we shouldn't need to know that. That just tells us about how
+the kernel was built, it doesn't really provide any information about
+the layout of the system.
 
-Filesystems mark DAX functionality experimental [1] precisely because
-it forbids otherwise typical operations that work in the nominal page
-cache case. An approach that says "lets cement the list of things a
-filesystem or a core-memory-mangement facility can't do because RDMA
-finds it awkward" is bad precedent. It's bad precedent because it
-abdicates core kernel functionality to userspace and weakens the api
-contract in surprising ways.
+> I searched for the patch that changed /proc/self/status but didn't find it.
 
-EBUSY is a horrible status code especially if an administrator is
-presented with an emergency situation that a filesystem needs to free
-up storage capacity and get established memory registrations out of
-the way. The motivation for the current status quo of failing memory
-registration for DAX mappings is to help ensure the system does not
-get into this situation where forward progress cannot be guaranteed.
+The patch you are looking for is located at:
+http://lkml.kernel.org/r/1545405631-6808-1-git-send-email-longman@redhat.com
 
-[1]: https://lists.01.org/pipermail/linux-nvdimm/2019-February/019884.html
+I wonder if we shouldn't look at modifying kernel_get_mempolicy and
+the compat call to test for nr_node_ids instead of MAX_NUMNODES since
+the rest of the data would be useless anyway.
 
