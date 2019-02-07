@@ -2,144 +2,141 @@ Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 671ABC282CC
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 16:54:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 684B7C282C2
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 16:55:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2D3B821908
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 16:54:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D3B821908
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 11A3D218D3
+	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 16:55:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="O9v0AIQ6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11A3D218D3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BFB348E004B; Thu,  7 Feb 2019 11:54:27 -0500 (EST)
+	id 7FF198E004C; Thu,  7 Feb 2019 11:55:39 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA8498E0002; Thu,  7 Feb 2019 11:54:27 -0500 (EST)
+	id 7AE6C8E0002; Thu,  7 Feb 2019 11:55:39 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A96228E004B; Thu,  7 Feb 2019 11:54:27 -0500 (EST)
+	id 6C4618E004C; Thu,  7 Feb 2019 11:55:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AE7C8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 11:54:27 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id l76so347137pfg.1
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 08:54:27 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FE7B8E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 11:55:39 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id 42so467012qtr.7
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 08:55:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=3u7JlvCen7uMA/t/vWJeEiw410szcBl0z8J2T7dsiPo=;
-        b=hV3NRIAJi54K8KrRYrCqMNxcU9TClHDJFpfVJArTQAvTo+XyZZuZxeWu1RPeUmJkP2
-         vOnfwzETLNJTty5d92o87C4xSPxQB6mu4zqV3u9HkV1+jmfMwfjc92YnP5dpaOA4uckw
-         8TFQsClEwtwBzvJKn2iUrPCrd1UPlT1E7xdfwq+hAn7aCJgNv76sm3dM73vBq3zIEQxa
-         7IZUozh7SdcgYUJKMp6uGr8XOomfslFh8qiqoPGusIU+aK1pqPzrlI7Mz5Z7Y2VpHoyv
-         X8xCiq4yDwGL6orNqHZW9e4pX0eH5WzHi0rjZF1/RaRgidrZ351rxFuoZt7ng5Qmy9KA
-         Uk1A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuYy3JyIx+rXaKhBsyzoRY6qJrmI1BxlTQulJ+WnAAfxt5w0HNAI
-	7Bq5RXLLThFCsvlviseIJpXqE0ldpDT/9OMeGi2O9wbZr/RXgUfYpgSFxrfIZp9u5rApMypZmgU
-	SuXJD9YaoMt/umzrStf9AfJGy+2M/uxwlg1g49Qe2c7sJsnO36C6l3Nl5WGycRNOIxA==
-X-Received: by 2002:a62:2c4d:: with SMTP id s74mr16968264pfs.6.1549558467129;
-        Thu, 07 Feb 2019 08:54:27 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ibg4vYnPV+o4CyoVF41wZjvqLD/nXzDZ3WkdRkryMkHPMal98j9ecGm9+FoHzRl79ser4r7
-X-Received: by 2002:a62:2c4d:: with SMTP id s74mr16968216pfs.6.1549558466465;
-        Thu, 07 Feb 2019 08:54:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549558466; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=pWuOLMJMd2P+LB/b9Jo96S2QvIOE6IuAuX3pjQ4/Tb0=;
+        b=MCyK0xc3sUAQsZvVwWWkFk38hvfQKnSUmin3tZoG7pBJGMeentOIQzy+KYzYvB1u9w
+         9w/A+XwQt/unGB0qv62llnlnQAvlHqUibYDOSVLPF2jFZhI8f8e4L9FNSQ8FFMLSVyj4
+         ThwYb+Bqn4oYnBJnnwIfwVyQuVZRQWsbh0ungcwPHSBIMWj6dfBZReaepANfB5n32woI
+         CqPdCxrZLLWsAkOeRoMmHAsaqW3zt1H5+8YVr5wSIDH9rs+UdrWi682Qnd13KCtDXoYT
+         e5SaxtSOxG6wap7aHDePlVWq29PBl+g3H5qn3p1WjfALbZkdmtD1AMZJ8rll8L9Xhj9c
+         u30A==
+X-Gm-Message-State: AHQUAuaByTjdaEBMDItYqgZFHwbWQPtpMjCSzzAesLH31uzOo7nOXg4i
+	2EbEZu71TGxsUx+M7bbSm9ZA5uNpxgQwvDlLqwQrALD1fjAC9pbGnjOEAHVRn/SbWg/RlMcUmCH
+	AWXXzXemUzS36jtucUr6+JdDbUlbYre6Xn2Xihp59WEcXDlxDYIy/n2cEj9SPxa8=
+X-Received: by 2002:a05:620a:109b:: with SMTP id g27mr12140326qkk.128.1549558538968;
+        Thu, 07 Feb 2019 08:55:38 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IakSSfKAI0c+7Z0sIxSpGI64vrurxsCKGuIuAcbhEcBAayK0lHUq1GyChEebpvFPa10qAMp
+X-Received: by 2002:a05:620a:109b:: with SMTP id g27mr12140287qkk.128.1549558538347;
+        Thu, 07 Feb 2019 08:55:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549558538; cv=none;
         d=google.com; s=arc-20160816;
-        b=DrvjOuphfl9Xy1rNNBqJOySnt7+GXVsfkG3L+WvltjyG9soSv+bD7iiLDqKKgVipd+
-         8woIwGNsMrvkBa2sYkIvLv8OBi8nDxNpQe8eciDME8p4RmQcFSDMuR1yWRmN+1UnTANL
-         vIQFpG3AMM17TT8rp72sYBM5yXID8qNOc0ytcdf5jqvpTwjsPSInV2UwhvzEir+IF03u
-         OtDuGflCxeYZ5yWx+haTPqLQNgaSqFf9h/M/TnHYkSjQX2GawrxYrG7+lzwzkJGgT5Lc
-         0Fci6jxSM9BYxB5MpdefBwIrws2EUl4I9hq2SX0R7suDSYkwala4pWrw7icz+T5/5t+o
-         M2ig==
+        b=y74+u3UwfTrYk8pJyjvj1BIoQjPhaMz+ab1aJMlNyyjZiyT7wN2Wqrp6L4SKJaJmyM
+         Ppnn7GNps1YGlEl5Lz3GWw8XE4YeioW2BSaNgPvp7VdfELP2BLWCFeBApfIdjIgfYgZ0
+         vuA3zKx54bLUW6k9burPXpV9eApb2bt+LbPdUTpFTj+4uhMSWhEzHcc8NvH23GXfc/Hx
+         dcz92hPlqkv4Ngr5XICkTJuQhVa1clY75nRQsKhZaE/485Gc6ChUsDdqOqbPFooQ4Qo1
+         AQ6HtJ1ZJpxD/KuDqzdyerI1vEQZKUpO+UMU41DDL5qrnTuR4ugknZiFdoW0mJmCv93m
+         kyGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=3u7JlvCen7uMA/t/vWJeEiw410szcBl0z8J2T7dsiPo=;
-        b=Olf004Wm12skmVn+6px4lo1XpA46YHJ1WgN26Nle+8Q1d6zwhImqMbe7VW3Cu+YrrR
-         za/iOdi5MkgPl0WGwS+urjYCjSpPxfEZpat4ZjSeIOxp/uGQytHn4YafqJkw+56ak8Go
-         l78GQGra1gkFpXcgq8muXrKOeQbm4sfEU89gVO5VRebaMl5iynvtMfjNkTjlvkjjRmSZ
-         Z4tigHxeU2sQYb0wlUwtuyhnm+YF2ZwBTranPwVFMaIYdV+2fOCrGT25iBfN5ufg5Drj
-         43MNUW1Ze8FXlrPYLxhVFNX0UkVQ4Afx7YBTtIIyjf1aeXO+te7e/DYqhlR12UyEEgHI
-         yQHg==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=pWuOLMJMd2P+LB/b9Jo96S2QvIOE6IuAuX3pjQ4/Tb0=;
+        b=cfaMrV49XIkj16D9pq0uAmFmFxyLwO4wT8reZ0gYu0UnD+3mTaJgZqH2odImGm7DfA
+         poUpgUfI/Hjmy9l/DO2Oq96EM9Xdn/tJSEGt51u5fxngvYQW/PyOz7MI/41zozEjLfEe
+         dmmvNvEctM74VnAsh8VZRJEGfPYg5fehJEvRjgPcwAwKQBNC1P5T72pb9hVPUTG3VdoM
+         phKLJLT5cxMmkd6hpYz75ywV7mrZw4mPvrgSsc9sqmvtWuTDSHW2hwi+hzQoYRYfwkF9
+         SrM0RLi2WipKnE5WQM6O2iFQf1obaU3rlck1vv/p81F7Z3Fe5YjqQwdLoV4fDtg5c8TW
+         rTDQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id i13si8941555pgj.199.2019.02.07.08.54.26
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=O9v0AIQ6;
+       spf=pass (google.com: domain of 01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@amazonses.com designates 54.240.9.35 as permitted sender) smtp.mailfrom=01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@amazonses.com
+Received: from a9-35.smtp-out.amazonses.com (a9-35.smtp-out.amazonses.com. [54.240.9.35])
+        by mx.google.com with ESMTPS id b20si2321834qvd.185.2019.02.07.08.55.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Feb 2019 08:54:26 -0800 (PST)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 07 Feb 2019 08:55:38 -0800 (PST)
+Received-SPF: pass (google.com: domain of 01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@amazonses.com designates 54.240.9.35 as permitted sender) client-ip=54.240.9.35;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Feb 2019 08:54:25 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,344,1544515200"; 
-   d="scan'208";a="142417351"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga004.fm.intel.com with ESMTP; 07 Feb 2019 08:54:24 -0800
-Date: Thu, 7 Feb 2019 08:54:08 -0800
-From: Ira Weiny <ira.weiny@intel.com>
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Dave Chinner <david@fromorbit.com>, Doug Ledford <dledford@redhat.com>,
-	Christopher Lameter <cl@linux.com>,
-	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
-	lsf-pc@lists.linux-foundation.org, linux-rdma@vger.kernel.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-Message-ID: <20190207165407.GA29531@iweiny-DESK2.sc.intel.com>
-References: <20190206095000.GA12006@quack2.suse.cz>
- <20190206173114.GB12227@ziepe.ca>
- <20190206175233.GN21860@bombadil.infradead.org>
- <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
- <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
- <20190206210356.GZ6173@dastard>
- <20190206220828.GJ12227@ziepe.ca>
- <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
- <20190207035258.GD6173@dastard>
- <20190207052310.GA22726@ziepe.ca>
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=O9v0AIQ6;
+       spf=pass (google.com: domain of 01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@amazonses.com designates 54.240.9.35 as permitted sender) smtp.mailfrom=01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1549558538;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=kTxXE70S20OVI1msr1Fuki8Y508efNovX08aCTnuo4Q=;
+	b=O9v0AIQ6CIgIh23VoHXzL1RwD9Rigp93j1vESMl+1EUEU4wW1lR8Htb1VtTJnyCr
+	EwILSG3k/nilE5hLcJN278L0gbkYG6rzQ5DXODrl+PasyFAUKhv+m/9hi/6gPzS/w5P
+	dMVACULsdkGGxCU0Z++c9rvYHJzQGsPQQZBxqqNA=
+Date: Thu, 7 Feb 2019 16:55:37 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Doug Ledford <dledford@redhat.com>
+cc: Dan Williams <dan.j.williams@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>, 
+    Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, 
+    Jan Kara <jack@suse.cz>, Ira Weiny <ira.weiny@intel.com>, 
+    lsf-pc@lists.linux-foundation.org, linux-rdma <linux-rdma@vger.kernel.org>, 
+    Linux MM <linux-mm@kvack.org>, 
+    Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
+    John Hubbard <jhubbard@nvidia.com>, Jerome Glisse <jglisse@redhat.com>, 
+    Michal Hocko <mhocko@kernel.org>
+Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving longterm-GUP
+ usage by RDMA
+In-Reply-To: <bfe0fdd5400d41d223d8d30142f56a9c8efc033d.camel@redhat.com>
+Message-ID: <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com>
+References: <20190205175059.GB21617@iweiny-DESK2.sc.intel.com> <20190206095000.GA12006@quack2.suse.cz> <20190206173114.GB12227@ziepe.ca> <20190206175233.GN21860@bombadil.infradead.org> <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
+ <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com> <20190206210356.GZ6173@dastard> <20190206220828.GJ12227@ziepe.ca> <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com> <CAPcyv4hqya1iKCfHJRXQJRD4qXZa3VjkoKGw6tEvtWNkKVbP+A@mail.gmail.com>
+ <bfe0fdd5400d41d223d8d30142f56a9c8efc033d.camel@redhat.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190207052310.GA22726@ziepe.ca>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.02.07-54.240.9.35
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 06, 2019 at 10:23:10PM -0700, Jason Gunthorpe wrote:
-> On Thu, Feb 07, 2019 at 02:52:58PM +1100, Dave Chinner wrote:
-> 
-> > Requiring ODP capable hardware and applications that control RDMA
-> > access to use file leases and be able to cancel/recall client side
-> > delegations (like NFS is already able to do!) seems like a pretty
-> 
-> So, what happens on NFS if the revoke takes too long?
+One approach that may be a clean way to solve this:
 
-This is the fundamental issue with RDMA revoke.  With RDMA and some hardware
-you are going to end up killing processes.  If the decision is that only
-processes on non-ODP hardware get killed and the user basically "should not
-have done that" then I'm ok with that.  However, then we really need to
-prevented them from registering the memory in the first place.  Which means we
-leave in the "longterm" GUP registration and fail those registrations can't be
-supported.
+1. Long term GUP usage requires the virtual mapping to the pages be fixed
+   for the duration of the GUP Map. There never has been a way to break
+   the pinnning and thus this needs to be preserved.
 
-Ira
+2. Page Cache Long term pins are not allowed since regular filesystems
+   depend on COW and other tricks which are incompatible with a long term
+   pin.
+
+3. Filesystems that allow bypass of the page cache (like XFS / DAX) will
+   provide the virtual mapping when the PIN is done and DO NO OPERATIONS
+   on the longterm pinned range until the long term pin is removed.
+   Hardware may do its job (like for persistent memory) but no data
+   consistency on the NVDIMM medium is guaranteed until the long term pin
+   is removed  and the filesystems regains control over the area.
+
+4. Long term pin means that the mapped sections are an actively used part
+   of the file (like a filesystem write) and it cannot be truncated for
+   the duration of the pin. It can be thought of as if the truncate is
+   immediate followed by a write extending the file again. The mapping
+   by RDMA implies after all that remote writes can occur at anytime
+   within the area pinned long term.
 
