@@ -2,126 +2,124 @@ Return-Path: <SRS0=ikTF=QP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D9963C282CC
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 16:31:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D29AC169C4
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 17:04:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A15172086C
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 16:31:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A15172086C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2E29120863
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 17:04:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E29120863
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 402818E0095; Fri,  8 Feb 2019 11:31:45 -0500 (EST)
+	id A03B68E0096; Fri,  8 Feb 2019 12:04:27 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 389078E0002; Fri,  8 Feb 2019 11:31:45 -0500 (EST)
+	id 9B2878E0002; Fri,  8 Feb 2019 12:04:27 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2293C8E0095; Fri,  8 Feb 2019 11:31:45 -0500 (EST)
+	id 8CACD8E0096; Fri,  8 Feb 2019 12:04:27 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E5F5F8E0002
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 11:31:44 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id q193so3824267qke.12
-        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 08:31:44 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BE408E0002
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 12:04:27 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id y35so2348674edb.5
+        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 09:04:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:organization
-         :from:in-reply-to:references:to:cc:subject:mime-version:content-id
-         :content-transfer-encoding:date:message-id;
-        bh=ijc4OkdlwhLQ+vLw/tDEWlSCidAYerorD00INU0H/GA=;
-        b=poz6qD3cFzDxmhnesJSey1siG4DfuIjsTTrouCySGYAuFwoJOFpnSqbWg0yDHWS1+T
-         hh6cBhtF3yDvRumAEO4nK6ufQU/UPFcUoBIfACBfqEiT9xnk1biYy5pZHmt4bK2oJh/m
-         Fdyhw7UE/37ZQ9IGV/jLV8IIk8MGgTXsuHQLkNvdADUNagSAD/dwqHMyC3jAnBmlS6Pt
-         fl6iwhyRGvOgs1cGISUFx039YYF45PRLFrBQAIoHGaNvoz2m5TBwX3kGW5pgDCpHEwsS
-         mFeAeS1WRBhE2iu6G036rS17aIbfUvKXsytbez2iTpmflcbzYZphU/1Kpt6P+mvbeXIA
-         aZMg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuaFs34i6NLvDZ82snAflVHy6ckGBCcJZfqHXLd5wAt99cL+O2V2
-	C7mhZJcMxUABBHgFItPEzdeWv+96w10hBPuIe82em9LUjKwOnGB3OtK09YGzyfVqjZSjqYcSt0Z
-	4DzI6joix/debdjBlmjGrKJEko/dMwOlop5+n9AYov6okEy7YQzXZ2nOJPlKvl7RARA==
-X-Received: by 2002:ac8:5411:: with SMTP id b17mr16659999qtq.259.1549643504608;
-        Fri, 08 Feb 2019 08:31:44 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbKFIsiDn0DluOHDbjyGeBxC64Bd+bti40Fo/q8/g1HjVl4WJ/uujPhw1mgDdniYo1cbw4O
-X-Received: by 2002:ac8:5411:: with SMTP id b17mr16659961qtq.259.1549643503972;
-        Fri, 08 Feb 2019 08:31:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549643503; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=cdlU+VZhcn4Q/Ev8l2zZBv/5sMkw4rptlGoQdChN/0A=;
+        b=Ctsa1Sv4DtoqMeWIMourOe4SXCHdXZk1/WjOV26Qw5cpVlP2COxxgU3PW7l14c2Iez
+         YiqMz1BB2eHoSTSP62wEz4L5xxPlCQhodUN0woJvkDTjjYBoNFu7ojsIlqq7aUoxOXG8
+         xUEDqRjOpZTPh9KjKbB8EvconWY9PFSvswDDCVCXudyaHU2bGDHzPi4XyQSECiHit6av
+         YdiuzI7ZMNllnF4NDJBJHx4gZap5B/2eAfomzEfLlhpE+6n0LpF/z8+4GSX7kSqEvO6L
+         ldGrx0mZ9FjYXK2QH6UzkwVRej9lFSrv9NNlqPJ6B8lU/XNjMA/wsjdTmk2OB6FKaPVc
+         RUeQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: AHQUAuYciHaZiQy3fVIZ50Avg4GwqTD9TKyVCk9G90jmTdWulyGRAGad
+	I7wvPAq12tQB1d49IgO27DwtX/giYX4Y4GPceGI29ErgGuEWPzDy7TMVf3h/hnXnrZ3h6Jx9ycu
+	olQGUx37KryIhNCLb7JrURLrI7hm9EYp+Pd9Qz0J9EGIJnpRGpkHXNIDEABSZmA2yrA==
+X-Received: by 2002:a17:906:442:: with SMTP id e2mr4693774eja.234.1549645466884;
+        Fri, 08 Feb 2019 09:04:26 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZGYRpHJb/jgbSE0e7trQae9wGMHxdqPhbRP8zcDvfUrMPWIusBDa0ipyM9dIWJfsbyI1CN
+X-Received: by 2002:a17:906:442:: with SMTP id e2mr4693719eja.234.1549645465934;
+        Fri, 08 Feb 2019 09:04:25 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549645465; cv=none;
         d=google.com; s=arc-20160816;
-        b=RweOavte1HQ8dAGD1qujPZr1gEC/R5HAvkw3qmvIqsbluD2IhX3/5zTdlm0DeLTKeM
-         lmqP571WNJCkh3vsPNuIGx8Ibr4Y0BDqUoO8ff0uzD+g6BzbNehV9CcwCZ+9Y9zsEXFO
-         GLqTFvnV5F/cKzgzykiqI0/zkNk1dXAY8O1qP65SJYuX6v3cbbVAAHRcE+p10uq8RfEm
-         vwiUMv0IslVZ2z3hwYugRrOnHA8AHK4poI3BVMWkYI2gdFZE0oNLJ/qf/57S8SP5RpPc
-         zEv4oGDq8FsCNwbix5oaJHIAQSmZFjDMPNfGzQRBbMgjXI1nGinyUlz9dsEq5fLq3T+3
-         4CKg==
+        b=GRp3A9WrxaH5l6la+w0vSpYt4Kt00TDnP2bLyNEwWPjQkmh6+sOnnFTlKpdrNH0QGz
+         uvXlGNwyw1OLl/2Z1uzR9hSRLkHY86OY0k33t6oXLhq6FEglf2DgZyXBYKfoolN8FCK1
+         RB6MlgAy4vZGdVu1CnzLq/GZF1M2rgg/U/+YoQJH9sBnpPYP0jSXENkVAiAlpduRPP8q
+         +/y9pZy/fYrWRKHzaFYB71f/0G0OLlM++B/uHKvxNuE5pY4a5I57RZG4VDqE8V5+Sp+b
+         DP/WwOyfv6hhbUaq8xz4kNbV1FMjSMsTCpz5At74zY23qrR4bs5w2TVBQQO/D+fBiLqJ
+         gEXA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:content-transfer-encoding:content-id:mime-version
-         :subject:cc:to:references:in-reply-to:from:organization;
-        bh=ijc4OkdlwhLQ+vLw/tDEWlSCidAYerorD00INU0H/GA=;
-        b=L1OLB77qL9A/ckFtjwUO63jBETilWEjNsDNVNVGEN9aDAfAi7eqVnbb0PCXI00trwU
-         jyPbDdi4OF7zbL0eC7cGvuZx1Mg8Fh28xna/0haXG26OLzo/LGdHrs7lO5oHjq5h/uA6
-         h4WQ5CUBlFmRkf0uB2gNYEDMgkgQhbLTROJ0qChBKagWpyHsIfrXp4+fyRtzx2k2DIKy
-         fKTIe8HyH3CF7lagScDgEW4tvlcJakwqu6kwu1lAllKKQdhpNYtO0kjeqLbF7W6wvSyi
-         aHAMfvZgSI95/Evf14+f/5ipNuceISypGDXNyIfIrwh5c+CI6iXjNnsiL8KnzfWzT0+S
-         MHGA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=cdlU+VZhcn4Q/Ev8l2zZBv/5sMkw4rptlGoQdChN/0A=;
+        b=mELlIcuokTtAYZAr3tsDeeuT+J/x4koYe+kjtBw01JqlL2siGHJefcbY4BMJGguOQb
+         An5J7Hsasa4P4R1LfpqzzcKh5hVhOSslUv4Pdu2vx+2Wbz8/NYlsj76UoKKmT4Qf6sjK
+         PPxa6HbfpczgWxQ920IxvIaRLDWDwuuqA45XhpV/pA9ZM1UBo3hBiAtLNhG9Yw1In4xD
+         yRI8qsWHvwV9AzXy8+7BCnvEtl/rLkEtevnSUtuAaL5QAD9/JsLtdRatRpF6DPEDoukr
+         HGrlY+VzhkHiXd0DL6bYntT6nyjJQDmn8p1WRhZf5X42D3kYMtk/6Q4KvD4w0/RHhZNp
+         rdIQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i31si1742182qtb.238.2019.02.08.08.31.43
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b2si35287edf.294.2019.02.08.09.04.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Feb 2019 08:31:43 -0800 (PST)
-Received-SPF: pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Fri, 08 Feb 2019 09:04:25 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id E15E088E52;
-	Fri,  8 Feb 2019 16:31:42 +0000 (UTC)
-Received: from warthog.procyon.org.uk (ovpn-121-129.rdu2.redhat.com [10.10.121.129])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 88AEB10002B9;
-	Fri,  8 Feb 2019 16:31:40 +0000 (UTC)
-Organization: Red Hat UK Ltd. Registered Address: Red Hat UK Ltd, Amberley
-	Place, 107-111 Peascod Street, Windsor, Berkshire, SI4 1TE, United
-	Kingdom.
-	Registered in England and Wales under Company Registration No. 3798903
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <ce8d60c2-5166-6c40-011f-4dff8dc25ebe@oracle.com>
-References: <ce8d60c2-5166-6c40-011f-4dff8dc25ebe@oracle.com> <20190205012224.65672-1-cai@lca.pw>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: dhowells@redhat.com, Qian Cai <cai@lca.pw>, viro@zeniv.linux.org.uk,
-    linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH -next] hugetlbfs: a terminator for hugetlb_param_specs[]
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 222A1AF1B;
+	Fri,  8 Feb 2019 17:04:25 +0000 (UTC)
+Subject: Re: [PATCH v2] mm: proc: smaps_rollup: Fix pss_locked calculation
+To: Sandeep Patil <sspatil@android.com>, adobriyan@gmail.com,
+ akpm@linux-foundation.org, avagin@openvz.org
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, stable@vger.kernel.org,
+ kernel-team@android.com, dancol@google.com
+References: <20190203065425.14650-1-sspatil@android.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5b8e236d-7c43-6c2b-cb3f-cbb0b8923fe2@suse.cz>
+Date: Fri, 8 Feb 2019 18:04:24 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <16206.1549643499.1@warthog.procyon.org.uk>
-Content-Transfer-Encoding: quoted-printable
-Date: Fri, 08 Feb 2019 16:31:39 +0000
-Message-ID: <16207.1549643499@warthog.procyon.org.uk>
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Fri, 08 Feb 2019 16:31:43 +0000 (UTC)
+In-Reply-To: <20190203065425.14650-1-sspatil@android.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On 2/3/19 7:54 AM, Sandeep Patil wrote:
+> The 'pss_locked' field of smaps_rollup was being calculated incorrectly.
+> It accumulated the current pss everytime a locked VMA was found.  Fix
+> that by adding to 'pss_locked' the same time as that of 'pss' if the vma
+> being walked is locked.
+> 
+> Fixes: 493b0e9d945f ("mm: add /proc/pid/smaps_rollup")
+> Cc: stable@vger.kernel.org # 4.14.y 4.19.y
+> Signed-off-by: Sandeep Patil <sspatil@android.com>
 
-> Thanks for fixing this.  Looks like a simple oversight when 2284cf59cbce
-> was added.
-
-I've already pushed a fix for this which Al should have folded in already.
-
-> FYI David, the fs_parameter_spec example in the documentation (mount_api=
-.txt)
-> is also missing a terminator.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 Thanks.
 
-David
+> ---
+> 
+> v1->v2
+> ------
+> - Move pss_locked accounting into smaps_account() inline with pss
 
