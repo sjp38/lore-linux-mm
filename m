@@ -2,154 +2,113 @@ Return-Path: <SRS0=ikTF=QP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 07732C169C4
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 04:43:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 212C8C169C4
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 05:01:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B861721908
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 04:43:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B861721908
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id D78E62147C
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 05:01:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D78E62147C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 57C638E0075; Thu,  7 Feb 2019 23:43:07 -0500 (EST)
+	id 6CE378E0076; Fri,  8 Feb 2019 00:01:44 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 52B7C8E0002; Thu,  7 Feb 2019 23:43:07 -0500 (EST)
+	id 67CC38E0002; Fri,  8 Feb 2019 00:01:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4416C8E0075; Thu,  7 Feb 2019 23:43:07 -0500 (EST)
+	id 56DBB8E0076; Fri,  8 Feb 2019 00:01:44 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 076B88E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 23:43:07 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id 202so1517689pgb.6
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 20:43:06 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 240378E0002
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 00:01:44 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id p20so1576428plr.22
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 21:01:44 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=NGfF3SjXSF+XsniPipOZHVwea5S9QedD9GnnN2j2F5Y=;
-        b=dKa0KKNBNASEHtgnPilAaGKY+UsAM9Gwyw8jtc/ijb5S/jWt0QkPvLhKYfBxQ5Bccv
-         dEZ5k/LS1FyrMXCKrOrty/Tqs83crGXDdAhILlmHE9/ssuZWXsUeIAgli68eCAwIEgeU
-         Hp1ACgENXUDx7c+a9aijMWf1o14o1cuelPzHv7HKVttI6z1nUFUZSkpejPWQCl4ZoCvE
-         vtaeMOwt5sEkzcKmPPbtqek+8Mzg3Opx+33w+anorSB2EGsrIi1EyN9ALIgRi5ktxknq
-         p3H5yua8iCeoN96Hu9HbldfPpCieXR1sfvmEOcoSCQj6YVaG5XoXH7o95xUQSkYkdDro
-         UD+A==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.145 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: AHQUAuZVKLb47ppH8l1OmKJfNsxQ+c3sL9K7nCovfGwKf8LmVGX9WXXt
-	P/zlETZKUulcKVZ7zYq7RPbld9zgBqNTOwQ1JoCcnmDqtsIzslG2xWYqkIYVEexEUFn4UQb8lgC
-	+jpcjTSovMJibcXzmf9M6B7P27ereYhtjWs6YVYfNbQHnVYdSU5J421r3tPwRewQ=
-X-Received: by 2002:a62:c505:: with SMTP id j5mr20103584pfg.149.1549600986649;
-        Thu, 07 Feb 2019 20:43:06 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYiHWmChRkWV7XdR3zu44AZOUOPKh4pjR+hQJSGxnJEgeXNCPwBAJwMbZ2Rgm0yvij62W9N
-X-Received: by 2002:a62:c505:: with SMTP id j5mr20103533pfg.149.1549600985766;
-        Thu, 07 Feb 2019 20:43:05 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549600985; cv=none;
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=6DtH5GzDa/BORUyi58vTNIMeMmvu8TwrEq0LEl2CNX8=;
+        b=egXX0on/Xi4dBOhUNCYICNhlnVwIMtL0nyYXB3wWQpFK7YS0faqNgd8aWkDbbm3EyQ
+         Dr1qyESFB7X9kUOtlHxptWhddrdj7fxAZI5tr/jbFbbvgMEp2gnpi76c5x+CjWz+TcNr
+         Tsrgs7qerUllXL/X3V5PVvjzXfUwwqb0fnz8ybYzMMp8ONB7MxK7sOzci/A9pK3uaw9z
+         sVtW5wQijczTMShXObsxFY36UuFGouQWxX9p+jp4WU75O6uMI3FqLbYgs5E7wO7cMS62
+         4ySoUsiTNEMaGSVH8cicQZ1//z8Ji00wCiyGXq6MLAV7t18vUDlDVC2g1w3C1oRayZ07
+         crcQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: AHQUAuagZ3td1NErQNZTJ8eYM1XINL00EE0+f4j/5vK3x2z4qo1ZRF23
+	CxsHeqYDURSTKReGzuGLHFAE/+ue7v7WNON/FA3Ymeea79T8qAH1niagb0sr9AP66tHlD24laLY
+	uvPf+v1Lnp/o/2fKZ2vbDH6WknXQ1wiKNH9/Sj+rHfrgYP+oG7muzVM7MNkoinKh8QA==
+X-Received: by 2002:a17:902:684:: with SMTP id 4mr20500744plh.3.1549602103763;
+        Thu, 07 Feb 2019 21:01:43 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaQEQi5gczHcmDw7fYVAXV21XrfnG0jkfIzMtOgd64ylPYjli7DAkDlD6IIRuM75BAZfKMt
+X-Received: by 2002:a17:902:684:: with SMTP id 4mr20500680plh.3.1549602103063;
+        Thu, 07 Feb 2019 21:01:43 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549602103; cv=none;
         d=google.com; s=arc-20160816;
-        b=VLI/v9Gjj40g1nkRF638Z5MunlljdddRjrKXEVOtSRvRYBUT40wLaLivQMO8LN4wJY
-         cBk8fuu+6TKYyQHw03U5ge7FOplAwsnD0mJSpPfSE19aW96Llulu5pa1lHyMF8YHsXSU
-         AMnADEvuJmjjmusnXkvU7zY0KqWnO4f7QKM1u+TckXibs39aB9rsXGNfFl2nYMe4Qy71
-         1zMQhIoDo9JXcFZZUV8icxAVgPTTuL//aURKHUTQ6l1vcPu5lv0GMQ9fnTFk/c2lZGi9
-         qzXGflIX2Qvw+norh/6T95YSl1TNBW4SoPxHB810DdLyFvtAm7UOhMPtfyVcLWfsezI8
-         fcRQ==
+        b=b28DdIuojOWn1G9FBMFoFikpqISEqFmTZaGnOg+RBlGq8tnwlxzBWze5PqvsElyLY+
+         VUn7/nRAxmpUVWkw4aD8CI6DYb/M1BUUJW3kUVVDJPZjJBFvNJGD6Tw05+JcUxClvl1n
+         DOig39Yq1Gfc8XyI/QB5j4xZV3twhttdFM6TgLADHqUVOLlFZN89hfIy2+N3YueIzgdB
+         hl0Pb9r4W1DxJuKkm1/Yu45EsnDtQVybyy7C1biE7htSh7I+2oy+fhUYSmWB/LQUSpcX
+         +eLcd+qvS+XEOwFKeD98u3NfZEhtq4epxaqYTTcL5In4qMvvFZlQflQ/prWHRReMt1Y2
+         tpGw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
+        h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date;
-        bh=NGfF3SjXSF+XsniPipOZHVwea5S9QedD9GnnN2j2F5Y=;
-        b=RSvzj34qzgkggu2c6eW92eySSL4QYRyAJJvrspjUilzdLoUQL9/ZzYwYbINTwVxvNu
-         pXuBeme6u9c51cpxhlg0kkFl2F9MFX+0XcXQ7E0xhdULnL4MM1dkovcWLlSiVw7NpiDl
-         p9NSN6H63jIPOO7T/magPlH9lFZR68ZAlNtojzyCD1odiikU/HFca/yDawVfsmodr5ZC
-         6m6TUH9CnkBOdYhaU7jbpliuef8aXOMlcxIFup58COQhSp2vFt4TiHgOGoMdjdE4FiA6
-         zxs5drWI+i9R9YMBYvKx3yEA6MVIwIy9fnOZS5RCm8bGg3XAzZgHYKzMWYWs+zcdoWcK
-         0yfg==
+        bh=6DtH5GzDa/BORUyi58vTNIMeMmvu8TwrEq0LEl2CNX8=;
+        b=fNuvx/PQ4Rs/fUcAagHS2w31asfEM3hB7Een8Lasgwy28mbnM8A+R6W9tXkrwEsMQa
+         cBSeKu8J/KLRmuiNtdf2BFNw7y9M4yV0hsyMUyE0fKri3OoX2KXhPgAbflsyVUOZ/C+M
+         9OMY21DEf+oP+rUbCEdmK5R4i3nAggSF/D1eyFTwe6cgn7HgZVppy20JYLH07V37uUXf
+         PBWYEE8NaEpO9aA9w+k+aT6ENqEUPatMtmiyjkuV4LZ5b5/9PjdW7+AiairLKqGg00Os
+         cMMyjdl20WuWlix+ok9Oy4lKwtrEy7DvTymSKiEs8Y5yJi+W9j+dtJGpzXgM69RNDZe4
+         8Y4A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 150.101.137.145 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id t61si1193209plb.339.2019.02.07.20.43.04
-        for <linux-mm@kvack.org>;
-        Thu, 07 Feb 2019 20:43:05 -0800 (PST)
-Received-SPF: neutral (google.com: 150.101.137.145 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.145;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 33si1239843plh.245.2019.02.07.21.01.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Feb 2019 21:01:43 -0800 (PST)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 150.101.137.145 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
-  by ipmail06.adl6.internode.on.net with ESMTP; 08 Feb 2019 15:13:03 +1030
-Received: from dave by dastard with local (Exim 4.80)
-	(envelope-from <david@fromorbit.com>)
-	id 1gry0E-0005Lj-8g; Fri, 08 Feb 2019 15:43:02 +1100
-Date: Fri, 8 Feb 2019 15:43:02 +1100
-From: Dave Chinner <david@fromorbit.com>
-To: Christopher Lameter <cl@linux.com>
-Cc: Doug Ledford <dledford@redhat.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
-	Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org,
-	linux-rdma <linux-rdma@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-Message-ID: <20190208044302.GA20493@dastard>
-References: <20190206173114.GB12227@ziepe.ca>
- <20190206175233.GN21860@bombadil.infradead.org>
- <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
- <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
- <20190206210356.GZ6173@dastard>
- <20190206220828.GJ12227@ziepe.ca>
- <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
- <CAPcyv4hqya1iKCfHJRXQJRD4qXZa3VjkoKGw6tEvtWNkKVbP+A@mail.gmail.com>
- <bfe0fdd5400d41d223d8d30142f56a9c8efc033d.camel@redhat.com>
- <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 79C49BD47;
+	Fri,  8 Feb 2019 05:01:42 +0000 (UTC)
+Date: Thu, 7 Feb 2019 21:01:41 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: linux-kernel@vger.kernel.org, trivial@kernel.org, linux-mm@kvack.org,
+ Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH] mm/page_poison: update comment after code moved
+Message-Id: <20190207210141.f0c0b08841f53ba4ee668440@linux-foundation.org>
+In-Reply-To: <20190207191113.14039-1-mst@redhat.com>
+References: <20190207191113.14039-1-mst@redhat.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 07, 2019 at 04:55:37PM +0000, Christopher Lameter wrote:
-> One approach that may be a clean way to solve this:
-> 3. Filesystems that allow bypass of the page cache (like XFS / DAX) will
->    provide the virtual mapping when the PIN is done and DO NO OPERATIONS
->    on the longterm pinned range until the long term pin is removed.
+On Thu, 7 Feb 2019 14:11:16 -0500 "Michael S. Tsirkin" <mst@redhat.com> wrote:
 
-So, ummm, how do we do block allocation then, which is done on
-demand during writes?
+> mm/debug-pagealloc.c is no more, so of course header now needs to be
+> updated. This seems like something checkpatch should be
+> able to catch - worth looking into?
+> 
+> Cc: trivial@kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: akpm@linux-foundation.org
+> Fixes: 8823b1dbc05f ("mm/page_poison.c: enable PAGE_POISONING as a separate option")
 
-IOWs, this requires the application to set up the file in the
-correct state for the filesystem to lock it down so somebody else
-can write to it.  That means the file can't be sparse, it can't be
-preallocated (i.e. can't contain unwritten extents), it must have zeroes
-written to it's full size before being shared because otherwise it
-exposes stale data to the remote client (secure sites are going to
-love that!), they can't be extended, etc.
-
-IOWs, once the file is prepped and leased out for RDMA, it becomes
-an immutable for the purposes of local access.
-
-Which, essentially we can already do. Prep the file, map it
-read/write, mark it immutable, then pin it via the longterm gup
-interface which can do the necessary checks.
-
-Simple to implement, the reasons for errors trying to modify the
-file are already documented and queriable, and it's hard for
-applications to get wrong.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Please send along a signed-off-by: for this.
 
