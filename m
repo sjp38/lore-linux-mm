@@ -2,258 +2,257 @@ Return-Path: <SRS0=ikTF=QP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 479F9C169C4
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 11:46:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 31316C282CB
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 12:50:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D761820823
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 11:45:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D761820823
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id EC49820857
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 12:50:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC49820857
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 746BD8E008E; Fri,  8 Feb 2019 06:45:59 -0500 (EST)
+	id 7FF448E008F; Fri,  8 Feb 2019 07:50:53 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6F7868E008A; Fri,  8 Feb 2019 06:45:59 -0500 (EST)
+	id 7AEE08E008A; Fri,  8 Feb 2019 07:50:53 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5E6028E008E; Fri,  8 Feb 2019 06:45:59 -0500 (EST)
+	id 69E728E008F; Fri,  8 Feb 2019 07:50:53 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 31B1B8E008A
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 06:45:59 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id i4so3244080qtq.5
-        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 03:45:59 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 101218E008A
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 07:50:53 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id m11so1707082edq.3
+        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 04:50:53 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=/sPNyBEkC6KaqUZCXG79A154GznWwCvFfxwiXDILsKQ=;
-        b=XThO2PYL7iR9ZAwI4L45PxAaLFD9YQKkGp9oFlGmX0jAVDcc6YfA5KmPcHK5YGvMdA
-         +f8bhuvLBtTraMosgY2NAtxYS1JvybyZeJ2OhK4kcH0KxjLW1przRr6mDJI7NNuQZTm4
-         y7WSPCuW5v/dz1YZkQXnT3zKRteuccIRCk3kuHBZijtQzNeLx1f13CuAjjSE64pWfdNE
-         lXlGfQ+B01HdEtVKd4yjw8dPE2hxkElXyEBhbShSBJ57Imrors6Z05dQHVF5u0NrbMOY
-         TT0HMYCRJ3rKsrn4CUgQKxUTuC0ZoUSmoxC64k5dBaHsZLHaIl/pBVlLKc99MfV4fNaW
-         4MXg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAubkvtJ2lOY1qSNoCLYc/vZWK927Y0rUOHq4ND7mZrStxarRkuWc
-	H0dVj9QjJ6/fknyJyfCyyBFcoxnoztgDJTQPBD7g+AiW3nXKymetC+rpx7yM8hRpKo6FNB3rbZQ
-	eOCYTrFeTV1eip28hp3c1Gd2p0t2cIm+bV8K6kB4Z+i+5AYgT/eyrdUaegPR7vq0QWw==
-X-Received: by 2002:aed:306c:: with SMTP id 99mr15487342qte.61.1549626358875;
-        Fri, 08 Feb 2019 03:45:58 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYrx3vyCNeSQIg/ef2oZoecvtwWWX/db5y6j2GRsq6jACxlfVWOoyJge9H13QGBE9wX5hGy
-X-Received: by 2002:aed:306c:: with SMTP id 99mr15487306qte.61.1549626358061;
-        Fri, 08 Feb 2019 03:45:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549626358; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=R8hS8+mMftxhZwpCJUl77FxqL/iQPgGnGgXMVTYNvLo=;
+        b=At3V4Dyk1AINIP+SmN12ADNNWyYtUrfbdDWMn05HKM+uF/ZNxd/YfrIa9VpJwgot/X
+         q1cE+2nckOt7xwD/VwRYPoWZMFstpjZzarKepHILklOHZlI+ULygHFndwgmUTxSNn1sd
+         usEQGJVowdArLMidmXS4v1+x5a8eZQlLVy7eDgRygQibb9XOCNvjHYpSOQFB39uHrdgi
+         Tt5HClVV5eAb+KjrJ3U4yz/nR/97H1c2yb4BQjf+i0cL+94DMITNwlL9vePKNJorJET0
+         M5qSjp3ACCUFGQUgLufaDiiBLbbAcOfrCUBCGhwPVuOEPA2eCfLY35IgGKtr9FbyjOsb
+         RZVg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: AHQUAuYYgGURpZwk+6RebLkKWd/2sdcx6Ims/3wU5MjzpQHB/pxRZTFn
+	uKMQh3JhkUsw0F6Ib+eejR7g81brtrxl6/JHeXReG92CXT8n4fndS7CYT5q9hE+bNbR5/zxmwQP
+	ZpTbTuDHvb/3GHuSYIqDnaa+MYdjM0CYikJDzMxutW1SYUMPVuGTtC8TeUEEoWfZgiQ==
+X-Received: by 2002:a50:a642:: with SMTP id d60mr17103792edc.290.1549630252544;
+        Fri, 08 Feb 2019 04:50:52 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYek68LYKkuzGg1xZhkzsGzEq4nRhmzBuKH3I4McrOH2mGG1JkjOle4ERzMNxjw+7Dz+58Q
+X-Received: by 2002:a50:a642:: with SMTP id d60mr17103717edc.290.1549630251251;
+        Fri, 08 Feb 2019 04:50:51 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549630251; cv=none;
         d=google.com; s=arc-20160816;
-        b=XHuuMYZsnSMZB06QVxD6C5LWE3oP5FDAbf+KjWPTmh/2s2KOZwEYrU0wlU2+rUQb+R
-         jB1cWBSiN8o0JYxN+r9opoFNuRCeG4E0gqd6fNALACaeQQ5hZEhx8jMefurEKXJCLtIr
-         shNqhxW2BOfFx+ajTJAghHMHi4+yC5aJYQASY+BR4aA8H+Xih7nWcD9NxCXDVzXkjTWD
-         NSjhSrtnABqzrLPuO78bhV9zHyODv+y32YlqdLpYql00LzxWUcPvrQUcV4NJq/M2qq2O
-         xBlrfHmceq5aseFKUHd4o3BICqElIFuZgCbWDvfq8hAmXYoComfBE8pMAiKaloj9mkD5
-         WhmQ==
+        b=AKP0o6JGqESkryZIqI5L6vvIbBsOaK0Vgu43yBV5PwU6svKl8UKHmsJCcBk0II0OeY
+         3TJjEvRD/fVIkB7YEuewVyfC7mARKBILeWQMekuTVjocIZI3HSfIf/SX5hfY5ASBTL3p
+         9p4Xx3mihdaYNCzk42oNZETayzvS9ECQLwIlNmTQJKt29H4PUfTBCPRQZX5tpyVYz9vu
+         lr/rt0pcYAXpd0PlC5R67BB1Qa+TOmta2psmgU4RrpirFsPa7F/FZyRdIF0lSmARHL9w
+         aOPyl5t9/qq+LcMasDp2g/s6qgqHNdLbDBqNXjtfMA0HH/iHrVGCmdoi9gre4Fl5PqAt
+         Qexw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=/sPNyBEkC6KaqUZCXG79A154GznWwCvFfxwiXDILsKQ=;
-        b=jl8/6u+lGQ7Z38CRbqAZsqR3iMRVBcsRblExNSTpB581lLd3uZXwUvZo8Iswi8fbBt
-         7bWq1/3siPFotMS9Pnerfwjb96iSLvG837pBHlbFv+XNb9rLWTvoKDcRQRexGJgt/C+U
-         /xapetLS9kPZb8O7ipFENXmifEceucncSsYsyzwWlaN43Aw3hh8adTnYI/G1773uUIzL
-         azM1upLOrH7Yscz63UJqU0U5DSkBGkDu1lXD4ZzZDsx2f0qkcp2+dr5VakWGI6AhUPu6
-         zwzp8iZ08G9MV3HgeIdXxfY0tz612ZYLA6m/TYbXOgcfpmbQWE6uYFO5kQ9oFRpcHEtq
-         /EDg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=R8hS8+mMftxhZwpCJUl77FxqL/iQPgGnGgXMVTYNvLo=;
+        b=kY4gugW1ErUbXnjOoWPpUF7seLvE7IXYBja+vJcyiZYbbZYgHRs24aBbL23Idv2/gx
+         8BZdg2K6k/Qoy6JOUdYaRydxqS+REo9lpK4M7/FQxH2LM+e/sWXX4V7YVTxTgAJnbpea
+         XyZBGQV4iqFYzIntWrSgmSMg141jc2Pah2Utq8eluKxYyrRquwUDafUIFHohqY+SsnJ/
+         8gsPV228ImMkEIWDyRWPs5FV7yI/o5Ln9Grtc0pl83O4m/N1/02eIuYHFyJLZZo3jll5
+         2Ok0WuU+QUQ+cnYd1Mmw5zoHwULXCeWKhnhbZ5dSs3mvQ/t+xqWwzE0qXdZX7tM9qEfl
+         a65g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id j25si1227821qtn.303.2019.02.08.03.45.57
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x16si1038107eje.39.2019.02.08.04.50.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Feb 2019 03:45:58 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Fri, 08 Feb 2019 04:50:51 -0800 (PST)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x18BhwsK082781
-	for <linux-mm@kvack.org>; Fri, 8 Feb 2019 06:45:57 -0500
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2qh854b1rr-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 08 Feb 2019 06:45:57 -0500
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Fri, 8 Feb 2019 11:45:55 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Fri, 8 Feb 2019 11:45:53 -0000
-Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x18BjqlN9109728
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Fri, 8 Feb 2019 11:45:52 GMT
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 973F9A4040;
-	Fri,  8 Feb 2019 11:45:52 +0000 (GMT)
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 05412A404D;
-	Fri,  8 Feb 2019 11:45:51 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.205.183])
-	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Fri,  8 Feb 2019 11:45:50 +0000 (GMT)
-Received: by rapoport-lnx (sSMTP sendmail emulation); Fri, 08 Feb 2019 13:45:50 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 9B245B66E;
+	Fri,  8 Feb 2019 12:50:50 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id 78B751E3DB8; Fri,  8 Feb 2019 13:50:49 +0100 (CET)
+Date: Fri, 8 Feb 2019 13:50:49 +0100
+From: Jan Kara <jack@suse.cz>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jonathan Corbet <corbet@lwn.net>, linux-mm@kvack.org,
-        linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org,
-        Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH] memblock: update comments and kernel-doc
-Date: Fri,  8 Feb 2019 13:45:47 +0200
-X-Mailer: git-send-email 2.7.4
-X-TM-AS-GCONF: 00
-x-cbid: 19020811-0028-0000-0000-000003462BE3
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19020811-0029-0000-0000-00002404400E
-Message-Id: <1549626347-25461-1-git-send-email-rppt@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-08_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902080086
+Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>,
+	Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>,
+	Chris Mason <clm@fb.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
+	"linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>,
+	"vdavydov.dev@gmail.com" <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH 1/2] Revert "mm: don't reclaim inodes with many attached
+ pages"
+Message-ID: <20190208125049.GA11587@quack2.suse.cz>
+References: <20190130041707.27750-1-david@fromorbit.com>
+ <20190130041707.27750-2-david@fromorbit.com>
+ <25EAF93D-BC63-4409-AF21-F45B2DDF5D66@fb.com>
+ <20190131013403.GI4205@dastard>
+ <20190131091011.GP18811@dhcp22.suse.cz>
+ <20190131185704.GA8755@castle.DHCP.thefacebook.com>
+ <20190131221904.GL4205@dastard>
+ <20190207102750.GA4570@quack2.suse.cz>
+ <20190207213727.a791db810341cec2c013ba93@linux-foundation.org>
+ <20190208095507.GB6353@quack2.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190208095507.GB6353@quack2.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Remove comments mentioning bootmem
-* Extend "DOC: memblock overview"
-* Add kernel-doc comments for several more functions
+On Fri 08-02-19 10:55:07, Jan Kara wrote:
+> On Thu 07-02-19 21:37:27, Andrew Morton wrote:
+> > On Thu, 7 Feb 2019 11:27:50 +0100 Jan Kara <jack@suse.cz> wrote:
+> > 
+> > > On Fri 01-02-19 09:19:04, Dave Chinner wrote:
+> > > > Maybe for memcgs, but that's exactly the oppose of what we want to
+> > > > do for global caches (e.g. filesystem metadata caches). We need to
+> > > > make sure that a single, heavily pressured cache doesn't evict small
+> > > > caches that lower pressure but are equally important for
+> > > > performance.
+> > > > 
+> > > > e.g. I've noticed recently a significant increase in RMW cycles in
+> > > > XFS inode cache writeback during various benchmarks. It hasn't
+> > > > affected performance because the machine has IO and CPU to burn, but
+> > > > on slower machines and storage, it will have a major impact.
+> > > 
+> > > Just as a data point, our performance testing infrastructure has bisected
+> > > down to the commits discussed in this thread as the cause of about 40%
+> > > regression in XFS file delete performance in bonnie++ benchmark.
+> > > 
+> > 
+> > Has anyone done significant testing with Rik's maybe-fix?
+> 
+> I will give it a spin with bonnie++ today. We'll see what comes out.
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
+OK, I did a bonnie++ run with Rik's patch (on top of 4.20 to rule out other
+differences). This machine does not show so big differences in bonnie++
+numbers but the difference is still clearly visible. The results are
+(averages of 5 runs):
 
-The patch is against the current -mm tree which seems the best route for it
-as well :)
+		 Revert			Base			Rik
+SeqCreate del    78.04 (   0.00%)	98.18 ( -25.81%)	90.90 ( -16.48%)
+RandCreate del   87.68 (   0.00%)	95.01 (  -8.36%)	87.66 (   0.03%)
 
- mm/memblock.c | 60 ++++++++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 43 insertions(+), 17 deletions(-)
+'Revert' is 4.20 with "mm: don't reclaim inodes with many attached pages"
+and "mm: slowly shrink slabs with a relatively small number of objects"
+reverted. 'Base' is the kernel without any reverts. 'Rik' is a 4.20 with
+Rik's patch applied.
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index f87d3ae..900c95b 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -69,8 +69,19 @@
-  * :c:func:`memblock_set_node`. The :c:func:`memblock_add_node`
-  * performs such an assignment directly.
-  *
-- * Once memblock is setup the memory can be allocated using either
-- * memblock or bootmem APIs.
-+ * Once memblock is setup the memory can be allocated using one of the
-+ * API variants:
-+ *
-+ * * :c:func:`memblock_phys_alloc*` - these functions return the
-+ *   **physical** address of the allocated memory
-+ * * :c:func:`memblock_alloc*` - these functions return the **virtual**
-+ *   address of the allocated memory.
-+ *
-+ * Note, that both API variants use implict assumptions about allowed
-+ * memory ranges and the fallback methods. Consult the documentation
-+ * of :c:func:`memblock_alloc_internal` and
-+ * :c:func:`memblock_alloc_range_nid` functions for more elaboarte
-+ * description.
-  *
-  * As the system boot progresses, the architecture specific
-  * :c:func:`mem_init` function frees all the memory to the buddy page
-@@ -428,17 +439,7 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
- 	else
- 		in_slab = &memblock_reserved_in_slab;
- 
--	/* Try to find some space for it.
--	 *
--	 * WARNING: We assume that either slab_is_available() and we use it or
--	 * we use MEMBLOCK for allocations. That means that this is unsafe to
--	 * use when bootmem is currently active (unless bootmem itself is
--	 * implemented on top of MEMBLOCK which isn't the case yet)
--	 *
--	 * This should however not be an issue for now, as we currently only
--	 * call into MEMBLOCK while it's still active, or much later when slab
--	 * is active for memory hotplug operations
--	 */
-+	/* Try to find some space for it */
- 	if (use_slab) {
- 		new_array = kmalloc(new_size, GFP_KERNEL);
- 		addr = new_array ? __pa(new_array) : 0;
-@@ -982,7 +983,7 @@ static bool should_skip_region(struct memblock_region *m, int nid, int flags)
- }
- 
- /**
-- * __next__mem_range - next function for for_each_free_mem_range() etc.
-+ * __next_mem_range - next function for for_each_free_mem_range() etc.
-  * @idx: pointer to u64 loop variable
-  * @nid: node selector, %NUMA_NO_NODE for all nodes
-  * @flags: pick from blocks based on memory attributes
-@@ -1392,6 +1393,18 @@ static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
- 	return found;
- }
- 
-+/**
-+ * memblock_phys_alloc_range - allocate a memory block inside specified range
-+ * @size: size of memory block to be allocated in bytes
-+ * @align: alignment of the region and block's size
-+ * @start: the lower bound of the memory region to allocate (physical address)
-+ * @end: the upper bound of the memory region to allocate (physical address)
-+ *
-+ * Allocate @size bytes in the between @start and @end.
-+ *
-+ * Return: physical address of the allocated memory block on success,
-+ * %0 on failure.
-+ */
- phys_addr_t __init memblock_phys_alloc_range(phys_addr_t size,
- 					     phys_addr_t align,
- 					     phys_addr_t start,
-@@ -1400,6 +1413,19 @@ phys_addr_t __init memblock_phys_alloc_range(phys_addr_t size,
- 	return memblock_alloc_range_nid(size, align, start, end, NUMA_NO_NODE);
- }
- 
-+/**
-+ * memblock_phys_alloc_range - allocate a memory block from specified MUMA node
-+ * @size: size of memory block to be allocated in bytes
-+ * @align: alignment of the region and block's size
-+ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
-+ *
-+ * Allocates memory block from the specified NUMA node. If the node
-+ * has no available memory, attempts to allocated from any node in the
-+ * system.
-+ *
-+ * Return: physical address of the allocated memory block on success,
-+ * %0 on failure.
-+ */
- phys_addr_t __init memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid)
- {
- 	return memblock_alloc_range_nid(size, align, 0,
-@@ -1526,13 +1552,13 @@ void * __init memblock_alloc_try_nid(
- }
- 
- /**
-- * __memblock_free_late - free bootmem block pages directly to buddy allocator
-+ * __memblock_free_late - free pages directly to buddy allocator
-  * @base: phys starting address of the  boot memory block
-  * @size: size of the boot memory block in bytes
-  *
-- * This is only useful when the bootmem allocator has already been torn
-+ * This is only useful when the memblock allocator has already been torn
-  * down, but we are still initializing the system.  Pages are released directly
-- * to the buddy allocator, no bootmem metadata is updated because it is gone.
-+ * to the buddy allocator.
-  */
- void __init __memblock_free_late(phys_addr_t base, phys_addr_t size)
- {
+The numbers are time to do a batch of deletes so lower is better. You can see
+that the patch did help somewhat but it was not enough to close the gap
+when files are deleted in 'readdir' order.
+
+								Honza
+
+> > From: Rik van Riel <riel@surriel.com>
+> > Subject: mm, slab, vmscan: accumulate gradual pressure on small slabs
+> > 
+> > There are a few issues with the way the number of slab objects to scan is
+> > calculated in do_shrink_slab.  First, for zero-seek slabs, we could leave
+> > the last object around forever.  That could result in pinning a dying
+> > cgroup into memory, instead of reclaiming it.  The fix for that is
+> > trivial.
+> > 
+> > Secondly, small slabs receive much more pressure, relative to their size,
+> > than larger slabs, due to "rounding up" the minimum number of scanned
+> > objects to batch_size.
+> > 
+> > We can keep the pressure on all slabs equal relative to their size by
+> > accumulating the scan pressure on small slabs over time, resulting in
+> > sometimes scanning an object, instead of always scanning several.
+> > 
+> > This results in lower system CPU use, and a lower major fault rate, as
+> > actively used entries from smaller caches get reclaimed less aggressively,
+> > and need to be reloaded/recreated less often.
+> > 
+> > [akpm@linux-foundation.org: whitespace fixes, per Roman]
+> > [riel@surriel.com: couple of fixes]
+> >   Link: http://lkml.kernel.org/r/20190129142831.6a373403@imladris.surriel.com
+> > Link: http://lkml.kernel.org/r/20190128143535.7767c397@imladris.surriel.com
+> > Fixes: 4b85afbdacd2 ("mm: zero-seek shrinkers")
+> > Fixes: 172b06c32b94 ("mm: slowly shrink slabs with a relatively small number of objects")
+> > Signed-off-by: Rik van Riel <riel@surriel.com>
+> > Tested-by: Chris Mason <clm@fb.com>
+> > Acked-by: Roman Gushchin <guro@fb.com>
+> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Dave Chinner <dchinner@redhat.com>
+> > Cc: Jonathan Lemon <bsd@fb.com>
+> > Cc: Jan Kara <jack@suse.cz>
+> > Cc: <stable@vger.kernel.org>
+> > 
+> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> > ---
+> > 
+> > 
+> > --- a/include/linux/shrinker.h~mmslabvmscan-accumulate-gradual-pressure-on-small-slabs
+> > +++ a/include/linux/shrinker.h
+> > @@ -65,6 +65,7 @@ struct shrinker {
+> >  
+> >  	long batch;	/* reclaim batch size, 0 = default */
+> >  	int seeks;	/* seeks to recreate an obj */
+> > +	int small_scan;	/* accumulate pressure on slabs with few objects */
+> >  	unsigned flags;
+> >  
+> >  	/* These are for internal use */
+> > --- a/mm/vmscan.c~mmslabvmscan-accumulate-gradual-pressure-on-small-slabs
+> > +++ a/mm/vmscan.c
+> > @@ -488,18 +488,30 @@ static unsigned long do_shrink_slab(stru
+> >  		 * them aggressively under memory pressure to keep
+> >  		 * them from causing refetches in the IO caches.
+> >  		 */
+> > -		delta = freeable / 2;
+> > +		delta = (freeable + 1) / 2;
+> >  	}
+> >  
+> >  	/*
+> >  	 * Make sure we apply some minimal pressure on default priority
+> > -	 * even on small cgroups. Stale objects are not only consuming memory
+> > +	 * even on small cgroups, by accumulating pressure across multiple
+> > +	 * slab shrinker runs. Stale objects are not only consuming memory
+> >  	 * by themselves, but can also hold a reference to a dying cgroup,
+> >  	 * preventing it from being reclaimed. A dying cgroup with all
+> >  	 * corresponding structures like per-cpu stats and kmem caches
+> >  	 * can be really big, so it may lead to a significant waste of memory.
+> >  	 */
+> > -	delta = max_t(unsigned long long, delta, min(freeable, batch_size));
+> > +	if (!delta && shrinker->seeks) {
+> > +		unsigned long nr_considered;
+> > +
+> > +		shrinker->small_scan += freeable;
+> > +		nr_considered = shrinker->small_scan >> priority;
+> > +
+> > +		delta = 4 * nr_considered;
+> > +		do_div(delta, shrinker->seeks);
+> > +
+> > +		if (delta)
+> > +			shrinker->small_scan -= nr_considered << priority;
+> > +	}
+> >  
+> >  	total_scan += delta;
+> >  	if (total_scan < 0) {
+> > _
+> > 
+> -- 
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
 -- 
-2.7.4
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
