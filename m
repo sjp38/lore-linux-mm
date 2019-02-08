@@ -2,253 +2,350 @@ Return-Path: <SRS0=ikTF=QP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2964AC169C4
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 07:34:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D687C169C4
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 07:56:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D8DA021924
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 07:34:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D8DA021924
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
+	by mail.kernel.org (Postfix) with ESMTP id F140C21917
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 07:56:55 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="T/wV6iRQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F140C21917
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5E45F8E007F; Fri,  8 Feb 2019 02:34:23 -0500 (EST)
+	id 81D558E0080; Fri,  8 Feb 2019 02:56:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 593778E0002; Fri,  8 Feb 2019 02:34:23 -0500 (EST)
+	id 7A50B8E0002; Fri,  8 Feb 2019 02:56:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4813A8E007F; Fri,  8 Feb 2019 02:34:23 -0500 (EST)
+	id 61F2F8E0080; Fri,  8 Feb 2019 02:56:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CA698E0002
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 02:34:23 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id i12so4660041ita.3
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 23:34:23 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 199998E0002
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 02:56:55 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id t72so1932106pfi.21
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 23:56:55 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=TP/ZdWLV3uHTpeHGe8L0Vs/n5Fc4dXBmETwsOGZFyeI=;
-        b=dnt4EqJpu65/uEOi12AFm59u0kEkixZqrqqe78r3VAZffXwKqKVCHGhJeK4fGOKGKc
-         ZjDGwp6fq+/lMXrA/+FERTFOh9C7BIPcQHsD79Rrw9sMcj6T5xNj6Xo6xJxyioqyOScp
-         B0XAoCFXJC45vLiE9Rm8RZtsXOok/VP818HDuOuMcYztQe4zmPKnBZCTpKiQJo6kpOut
-         W6qtrP1LLWhP0IJVgfoS4IJEqQKQpAhT/WI1E2VsCYTvhDVPoSxkUq+A2Kz8LnxyY16Z
-         FM+sXrU0lXIEOq89fJYMC+oWQAUP8DElRto7jxp5ILFHpjQh+sMsbrHF8yApysFckyoj
-         czcQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
-X-Gm-Message-State: AHQUAubExhbzjpGcmVzNx9yGFyE1LmSY0Gdz3rYdTkAFgLAySsBFIbGH
-	1dXb81YnMs6tc+YqOSeqmUx7ajVv1fO8JHmklGjZnbtnRTk740f2dQAMz0vO5dAeJ1lap0INOWc
-	og+oA8bvN15NfNBy6HLJmGuN/Bw24pFISSCXdYKIfQOJpjS6m6/W0bVs2G7v5Del6/A==
-X-Received: by 2002:a24:3dca:: with SMTP id n193mr8433598itn.48.1549611262830;
-        Thu, 07 Feb 2019 23:34:22 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYdkJWGudLWP+6PBSQ9dtcjdqrpX2StXbDQgl4nDowhnYN6bdvjqnw0PgKxoixVU0FHSveX
-X-Received: by 2002:a24:3dca:: with SMTP id n193mr8433575itn.48.1549611262003;
-        Thu, 07 Feb 2019 23:34:22 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549611261; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=pT1WR/BNCsrn3s1zGOcHcZxDWiKW2nJcicbtRI33DmE=;
+        b=M3u8TJNyqbUNs4wyjYRQKS0fqn1LpFPauWFHajy1vewk2s5Kybx1vFf8RcVa94Ehz/
+         v/PvKSBzrXichYCRl1jD55usqx9ZGPiyD1b4L2P1QicAPtbEDZHa3w+vCEX1UkqtfsBS
+         rqe+ydysi3wvkCe0QSTt5XbzkFA7dVcdElDrVsdYi5UMxm44+I8LGVXHEpJicoNOGLk3
+         lJzvgw0oelUOgUb6l2XD3wwspnb/xvdnym7Uc8uf2PtTNQXKhR2EenwqQ5rPLHwh5AGX
+         M2J6Bbcr6d2gartx4vwriaSCkQnhEhKmCrWAcy4nrnLKCuhicXLCeKwOPjxTZsp1jKaz
+         157Q==
+X-Gm-Message-State: AHQUAuYy0i8+pl/PzL6OFTWZ2EI0+CFI4RM5iVz4nz8pt5u0mpPnomAp
+	Qn52yd99ENw7RoitBF+ueM8Gb2HQKNIOcqPM98kdSTdR3ACE95OsnZ65bFHpPEFgyCWEztD63I5
+	kDkfu/iAKzvRHNP0Pgvwph97SKvYJP42GuYbTafGCTXDuxR60BBKgVSyRFFm2k+OtYPdM9a+oPE
+	iU8T3iFnNmJMqnslSJO3i9PpcAVNNswuQEGnQIdxIzY23lNac8PFavl8/DHQakco22SVGTMCv45
+	mCY/aGYplwcI6pEUZ1WyOWmwxcRRr+HV1heihCZXeGC+yf3k9sOGzaWXGfN3puqXOsGpLuAZiNc
+	DrVIkDkBK9omBsKEbTw8eivanDACntdM+WlqE8HFjUETGwOAoPTAhhW05jODcLvFm757FzRxZwv
+	V
+X-Received: by 2002:a17:902:f20a:: with SMTP id gn10mr5589308plb.105.1549612614631;
+        Thu, 07 Feb 2019 23:56:54 -0800 (PST)
+X-Received: by 2002:a17:902:f20a:: with SMTP id gn10mr5589239plb.105.1549612613430;
+        Thu, 07 Feb 2019 23:56:53 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549612613; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZOMPDWfZaTlmim7m1UjxMo5RxM1UDus/DxNHpCaIMI/Cn/lV58/o6ypprb49FY2zv3
-         RLWv5PC9X4YJDH7zYDJKPG39v40pU2akCrgn5orz0WB6bR/O+FnBtENxVvAo39M+uUU8
-         q94+ZDNhxihLXgpOTEPzAdtFgL3HxioONfzGDh695jAxZZaM4s3PHV+hPpLj0N5h7wHn
-         oTOQZXL3+YJ7iDd7stdxe/tG1Y714vl+NYLwiRZv7N/MOTfkzQoPYWAnUJDjecCH7+Vd
-         9FxpbmSdmksjLcn8hdI5f8CBKCMSBW2aVMXUcw3qhCq2m1B6+BqOgHkC0kOCs23WGLq1
-         OozA==
+        b=hH6NMr5do5/jO5r6EWUESRqqqEFNCzHR2uLGj7XpwCL0HJWSMQLo4RoCQphvZEdEmg
+         9HlMZjQ1hw6peAn9OEO8KNs/IYOKviG488OCeH0DCBEOhyMALWHJCGQlEUXW+z9S4K3A
+         9JmNsyh95JPKSDsrd6MtWxx50qZe8JodU+w7Z6KUb25IchBThdZB9meUu+F+H/DGmy/L
+         w5DAlsXgo4CuIrUiZQstpzoaV5+ZvEWj1UfGCRt6hnA3aFijO3RLDgUgejikUiBASNRn
+         84efgxwP7kZYHEFbCcog81wG9lWPWiZV5ZQAR3//zlWpzYow1vW44Gqk7tlueFJv9LqX
+         4FiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from;
-        bh=TP/ZdWLV3uHTpeHGe8L0Vs/n5Fc4dXBmETwsOGZFyeI=;
-        b=f5HarbbhqylNG1SsbO5C5lmOOWG2/iuQCv9dv7RdHQKkviJHc59NutEbvVWcAqAZSK
-         zCWyhx/TEamnGVR91mG0m/uEEONoHVMoKQOF5LtJ6hFyb4Jq/mDI+3Lc66Y8/keyvCIZ
-         wi8+y374vxMuEdjg8wSFEDyH0BQ1obzSWY7oVvihGTlXSvISKqaJmVJ2FZFE32LNgsmK
-         vsN6lMsdZ3xpYy0hJomwfuNvabLpu4IJrNc8YHTby2epTVqOllPKqqjv3kNGqrhcLDt8
-         jfA2UyZqGZUUYJUjJXjNGeHmNXZWIFVLcoudmd1cSk85xe3wVeBAgV4cQK4Nu/aWo9mv
-         BcOQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=pT1WR/BNCsrn3s1zGOcHcZxDWiKW2nJcicbtRI33DmE=;
+        b=mxsg2D3Cj7uG/WYpNcKy8m/vFkFfv3fSZSrJ+mYlno2tJd08mqIW+I5mHO9DeHnMoc
+         LJmEkz56BL/NTRlPMKI2DydP+20Tzadz15TeTr2DClegh083yNAgXkpk4MeMsub2h9n7
+         vi8UcDv6kuaE1Xlw4xJhlg5fXZr1RuQv5MKn2MHBhNoPMiPCBT4JjlYAsu3F1BQmIYHm
+         Wy4wDVAEd5JL5a8fU9N8tMwM8bi4wu1f93k3EXZO0nDg/pLPywnOpcjwhRUiC6mxwwwq
+         t3Iazff1l+JxlrbHb0E3B0TJbsexBDBMUNt3cHMsabn8sJC5U2w9aI37r6DeiJMcZKfP
+         8Csg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id l62si1102991itl.108.2019.02.07.23.34.21
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="T/wV6iRQ";
+       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 24sor1662460pgq.13.2019.02.07.23.56.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Feb 2019 23:34:21 -0800 (PST)
-Received-SPF: pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) client-ip=114.179.232.161;
+        (Google Transport Security);
+        Thu, 07 Feb 2019 23:56:53 -0800 (PST)
+Received-SPF: pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
-Received: from mailgate01.nec.co.jp ([114.179.233.122])
-	by tyo161.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x187YEIQ004889
-	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
-	Fri, 8 Feb 2019 16:34:14 +0900
-Received: from mailsv01.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
-	by mailgate01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x187YEHs004312;
-	Fri, 8 Feb 2019 16:34:14 +0900
-Received: from mail01b.kamome.nec.co.jp (mail01b.kamome.nec.co.jp [10.25.43.2])
-	by mailsv01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x187Wdv1024689;
-	Fri, 8 Feb 2019 16:34:14 +0900
-Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.148] [10.38.151.148]) by mail03.kamome.nec.co.jp with ESMTP id BT-MMP-2250485; Fri, 8 Feb 2019 16:31:51 +0900
-Received: from BPXM23GP.gisp.nec.co.jp ([10.38.151.215]) by
- BPXC20GP.gisp.nec.co.jp ([10.38.151.148]) with mapi id 14.03.0319.002; Fri, 8
- Feb 2019 16:31:50 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-        Michal Hocko <mhocko@kernel.org>,
-        "Andrea Arcangeli" <aarcange@redhat.com>,
-        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-        Mel Gorman <mgorman@techsingularity.net>,
-        Davidlohr Bueso <dave@stgolabs.net>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        "stable@vger.kernel.org" <stable@vger.kernel.org>
-Subject: Re: [PATCH] huegtlbfs: fix page leak during migration of file pages
-Thread-Topic: [PATCH] huegtlbfs: fix page leak during migration of file pages
-Thread-Index: AQHUuODePgsnC0Y0+kCvHMlE24frN6XUI3qAgACAsgCAADeYAIAAHE6A
-Date: Fri, 8 Feb 2019 07:31:49 +0000
-Message-ID: <20190208073149.GA14423@hori1.linux.bs1.fc.nec.co.jp>
-References: <20190130211443.16678-1-mike.kravetz@oracle.com>
- <917e7673-051b-e475-8711-ed012cff4c44@oracle.com>
- <20190208023132.GA25778@hori1.linux.bs1.fc.nec.co.jp>
- <07ce373a-d9ea-f3d3-35cc-5bc181901caf@oracle.com>
-In-Reply-To: <07ce373a-d9ea-f3d3-35cc-5bc181901caf@oracle.com>
-Accept-Language: en-US, ja-JP
-Content-Language: ja-JP
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [10.51.8.80]
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <B452139787547842A7CC02450396F598@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="T/wV6iRQ";
+       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=pT1WR/BNCsrn3s1zGOcHcZxDWiKW2nJcicbtRI33DmE=;
+        b=T/wV6iRQr7x7NIcIDG0RCKUaxAf2cgP0IrBpw4EJvYfPGjQ/z4v70BwgC6cZqt2Vsm
+         PTMZ3iNCtuqPOv97h0qSrBTe6dPczibIOtGH3aH9J+LFt0796K+5BY3MIwxqiClXUrtG
+         zfEZ8UpZoj0GK53dVXEPVSCj3t80zjVu96b78fkI5/5zMzcg+g0f96nSe8F4Qr7v9m0c
+         PfYcLgUT7HU2NsCbdySHhXlNgpONEbnKWD1M6Vx+WcEJDSePG/ra/5ZIqfeRgYJ+gF/d
+         5WpZwicQgyAhIzy+hBSKR2UozlhLwkumeLjYKCu9ghA9xUcB7rM9vfP74a8tR8iRbKeK
+         K7xQ==
+X-Google-Smtp-Source: AHgI3IZz4fuyZl6IUy2+nVC8BROChMdiWSpD48h7UNHTUAFkBcmyi1gcJkeIVce5Yg1cAekMTPJpgw==
+X-Received: by 2002:a63:ce0e:: with SMTP id y14mr19350314pgf.145.1549612612922;
+        Thu, 07 Feb 2019 23:56:52 -0800 (PST)
+Received: from blueforge.nvidia.com (searspoint.nvidia.com. [216.228.112.21])
+        by smtp.gmail.com with ESMTPSA id h64sm2642610pfc.142.2019.02.07.23.56.50
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Feb 2019 23:56:52 -0800 (PST)
+From: john.hubbard@gmail.com
+X-Google-Original-From: jhubbard@nvidia.com
+To: Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm@kvack.org
+Cc: Al Viro <viro@zeniv.linux.org.uk>,
+	Christian Benvenuti <benve@cisco.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Christopher Lameter <cl@linux.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>,
+	Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	Tom Talpey <tom@talpey.com>,
+	LKML <linux-kernel@vger.kernel.org>,
+	linux-fsdevel@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: [PATCH 0/2] mm: put_user_page() call site conversion first
+Date: Thu,  7 Feb 2019 23:56:47 -0800
+Message-Id: <20190208075649.3025-1-jhubbard@nvidia.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-X-TM-AS-MML: disable
+X-NVConfidentiality: public
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 07, 2019 at 09:50:30PM -0800, Mike Kravetz wrote:
-> On 2/7/19 6:31 PM, Naoya Horiguchi wrote:
-> > On Thu, Feb 07, 2019 at 10:50:55AM -0800, Mike Kravetz wrote:
-> >> On 1/30/19 1:14 PM, Mike Kravetz wrote:
-> >>> +++ b/fs/hugetlbfs/inode.c
-> >>> @@ -859,6 +859,16 @@ static int hugetlbfs_migrate_page(struct address=
-_space *mapping,
-> >>>  	rc =3D migrate_huge_page_move_mapping(mapping, newpage, page);
-> >>>  	if (rc !=3D MIGRATEPAGE_SUCCESS)
-> >>>  		return rc;
-> >>> +
-> >>> +	/*
-> >>> +	 * page_private is subpool pointer in hugetlb pages, transfer
-> >>> +	 * if needed.
-> >>> +	 */
-> >>> +	if (page_private(page) && !page_private(newpage)) {
-> >>> +		set_page_private(newpage, page_private(page));
-> >>> +		set_page_private(page, 0);
-> >=20
-> > You don't have to copy PagePrivate flag?
-> >=20
->=20
-> Well my original thought was no.  For hugetlb pages, PagePrivate is not
-> associated with page_private.  It indicates a reservation was consumed.
-> It is set  when a hugetlb page is newly allocated and the allocation is
-> associated with a reservation and the global reservation count is
-> decremented.  When the page is added to the page cache or rmap,
-> PagePrivate is cleared.  If the page is free'ed before being added to pag=
-e
-> cache or rmap, PagePrivate tells free_huge_page to restore (increment) th=
-e
-> reserve count as we did not 'instantiate' the page.
->=20
-> So, PagePrivate is only set from the time a huge page is allocated until
-> it is added to page cache or rmap.  My original thought was that the page
-> could not be migrated during this time.  However, I am not sure if that
-> reasoning is correct.  The page is not locked, so it would appear that it
-> could be migrated?  But, if it can be migrated at this time then perhaps
-> there are bigger issues for the (hugetlb) page fault code?
+From: John Hubbard <jhubbard@nvidia.com>
 
-In my understanding, free hugetlb pages are not expected to be passed to
-migrate_pages(), and currently that's ensured by each migration caller
-which checks and avoids free hugetlb pages on its own.
-migrate_pages() and its internal code are probably not aware of handling
-free hugetlb pages, so if they are accidentally passed to migration code,
-that's a big problem as you are concerned.
-So the above reasoning should work at least this assumption is correct.
+Hi,
 
-Most of migration callers are not intersted in moving free hugepages.
-The one I'm not sure of is the code path from alloc_contig_range().
-If someone think it's worthwhile to migrate free hugepage to get bigger
-contiguous memory, he/she tries to enable that code path and the assumption
-will be broken.
+It seems about time to post these initial patches: I think we have pretty
+good consensus on the concept and details of the put_user_pages() approach.
+Therefore, here are the first two patches, to get started on converting the
+get_user_pages() call sites to use put_user_page(), instead of put_page().
+This is in order to implement tracking of get_user_page() pages.
 
-Thanks,
-Naoya Horiguchi
+A discussion of the overall problem is below.
 
->=20
-> >>> +
-> >>> +	}
-> >>> +
-> >>>  	if (mode !=3D MIGRATE_SYNC_NO_COPY)
-> >>>  		migrate_page_copy(newpage, page);
-> >>>  	else
-> >>> diff --git a/mm/migrate.c b/mm/migrate.c
-> >>> index f7e4bfdc13b7..0d9708803553 100644
-> >>> --- a/mm/migrate.c
-> >>> +++ b/mm/migrate.c
-> >>> @@ -703,8 +703,14 @@ void migrate_page_states(struct page *newpage, s=
-truct page *page)
-> >>>  	 */
-> >>>  	if (PageSwapCache(page))
-> >>>  		ClearPageSwapCache(page);
-> >>> -	ClearPagePrivate(page);
-> >>> -	set_page_private(page, 0);
-> >>> +	/*
-> >>> +	 * Unlikely, but PagePrivate and page_private could potentially
-> >>> +	 * contain information needed at hugetlb free page time.
-> >>> +	 */
-> >>> +	if (!PageHuge(page)) {
-> >>> +		ClearPagePrivate(page);
-> >>> +		set_page_private(page, 0);
-> >>> +	}
-> >=20
-> > # This argument is mainly for existing code...
-> >=20
-> > According to the comment on migrate_page():
-> >=20
-> >     /*
-> >      * Common logic to directly migrate a single LRU page suitable for
-> >      * pages that do not use PagePrivate/PagePrivate2.
-> >      *
-> >      * Pages are locked upon entry and exit.
-> >      */
-> >     int migrate_page(struct address_space *mapping, ...
-> >=20
-> > So this common logic assumes that page_private is not used, so why do
-> > we explicitly clear page_private in migrate_page_states()?
->=20
-> Perhaps someone else knows.  If not, I can do some git research and
-> try to find out why.
->=20
-> > buffer_migrate_page(), which is commonly used for the case when
-> > page_private is used, does that clearing outside migrate_page_states().
-> > So I thought that hugetlbfs_migrate_page() could do in the similar mann=
-er.
-> > IOW, migrate_page_states() should not do anything on PagePrivate.
-> > But there're a few other .migratepage callbacks, and I'm not sure all o=
-f
-> > them are safe for the change, so this approach might not fit for a smal=
-l fix.
->=20
-> I will look at those as well unless someone knows without researching.
->=20
-> >=20
-> > # BTW, there seems a typo in $SUBJECT.
->=20
-> Thanks!
->=20
-> --=20
-> Mike Kravetz
-> =
+As mentioned in patch 0001, the steps are to fix the problem are:
+
+1) Provide put_user_page*() routines, intended to be used
+   for releasing pages that were pinned via get_user_pages*().
+
+2) Convert all of the call sites for get_user_pages*(), to
+   invoke put_user_page*(), instead of put_page(). This involves dozens of
+   call sites, and will take some time.
+
+3) After (2) is complete, use get_user_pages*() and put_user_page*() to
+   implement tracking of these pages. This tracking will be separate from
+   the existing struct page refcounting.
+
+4) Use the tracking and identification of these pages, to implement
+   special handling (especially in writeback paths) when the pages are
+   backed by a filesystem.
+
+This write up is lifted from the RFC v2 patchset cover letter [1]:
+
+Overview
+========
+
+Some kernel components (file systems, device drivers) need to access
+memory that is specified via process virtual address. For a long time, the
+API to achieve that was get_user_pages ("GUP") and its variations. However,
+GUP has critical limitations that have been overlooked; in particular, GUP
+does not interact correctly with filesystems in all situations. That means
+that file-backed memory + GUP is a recipe for potential problems, some of
+which have already occurred in the field.
+
+GUP was first introduced for Direct IO (O_DIRECT), allowing filesystem code
+to get the struct page behind a virtual address and to let storage hardware
+perform a direct copy to or from that page. This is a short-lived access
+pattern, and as such, the window for a concurrent writeback of GUP'd page
+was small enough that there were not (we think) any reported problems.
+Also, userspace was expected to understand and accept that Direct IO was
+not synchronized with memory-mapped access to that data, nor with any
+process address space changes such as munmap(), mremap(), etc.
+
+Over the years, more GUP uses have appeared (virtualization, device
+drivers, RDMA) that can keep the pages they get via GUP for a long period
+of time (seconds, minutes, hours, days, ...). This long-term pinning makes
+an underlying design problem more obvious.
+
+In fact, there are a number of key problems inherent to GUP:
+
+Interactions with file systems
+==============================
+
+File systems expect to be able to write back data, both to reclaim pages,
+and for data integrity. Allowing other hardware (NICs, GPUs, etc) to gain
+write access to the file memory pages means that such hardware can dirty
+the pages, without the filesystem being aware. This can, in some cases
+(depending on filesystem, filesystem options, block device, block device
+options, and other variables), lead to data corruption, and also to kernel
+bugs of the form:
+
+    kernel BUG at /build/linux-fQ94TU/linux-4.4.0/fs/ext4/inode.c:1899!
+    backtrace:
+        ext4_writepage
+        __writepage
+        write_cache_pages
+        ext4_writepages
+        do_writepages
+        __writeback_single_inode
+        writeback_sb_inodes
+        __writeback_inodes_wb
+        wb_writeback
+        wb_workfn
+        process_one_work
+        worker_thread
+        kthread
+        ret_from_fork
+
+...which is due to the file system asserting that there are still buffer
+heads attached:
+
+        ({                                                      \
+                BUG_ON(!PagePrivate(page));                     \
+                ((struct buffer_head *)page_private(page));     \
+        })
+
+Dave Chinner's description of this is very clear:
+
+    "The fundamental issue is that ->page_mkwrite must be called on every
+    write access to a clean file backed page, not just the first one.
+    How long the GUP reference lasts is irrelevant, if the page is clean
+    and you need to dirty it, you must call ->page_mkwrite before it is
+    marked writeable and dirtied. Every. Time."
+
+This is just one symptom of the larger design problem: filesystems do not
+actually support get_user_pages() being called on their pages, and letting
+hardware write directly to those pages--even though that pattern has been
+going on since about 2005 or so.
+
+Long term GUP
+=============
+
+Long term GUP is an issue when FOLL_WRITE is specified to GUP (so, a
+writeable mapping is created), and the pages are file-backed. That can lead
+to filesystem corruption. What happens is that when a file-backed page is
+being written back, it is first mapped read-only in all of the CPU page
+tables; the file system then assumes that nobody can write to the page, and
+that the page content is therefore stable. Unfortunately, the GUP callers
+generally do not monitor changes to the CPU pages tables; they instead
+assume that the following pattern is safe (it's not):
+
+    get_user_pages()
+
+    Hardware can keep a reference to those pages for a very long time,
+    and write to it at any time. Because "hardware" here means "devices
+    that are not a CPU", this activity occurs without any interaction
+    with the kernel's file system code.
+
+    for each page
+        set_page_dirty
+        put_page()
+
+In fact, the GUP documentation even recommends that pattern.
+
+Anyway, the file system assumes that the page is stable (nothing is writing
+to the page), and that is a problem: stable page content is necessary for
+many filesystem actions during writeback, such as checksum, encryption,
+RAID striping, etc. Furthermore, filesystem features like COW (copy on
+write) or snapshot also rely on being able to use a new page for as memory
+for that memory range inside the file.
+
+Corruption during write back is clearly possible here. To solve that, one
+idea is to identify pages that have active GUP, so that we can use a bounce
+page to write stable data to the filesystem. The filesystem would work
+on the bounce page, while any of the active GUP might write to the
+original page. This would avoid the stable page violation problem, but note
+that it is only part of the overall solution, because other problems
+remain.
+
+Other filesystem features that need to replace the page with a new one can
+be inhibited for pages that are GUP-pinned. This will, however, alter and
+limit some of those filesystem features. The only fix for that would be to
+require GUP users to monitor and respond to CPU page table updates.
+Subsystems such as ODP and HMM do this, for example. This aspect of the
+problem is still under discussion.
+
+Direct IO
+=========
+
+Direct IO can cause corruption, if userspace does Direct-IO that writes to
+a range of virtual addresses that are mmap'd to a file.  The pages written
+to are file-backed pages that can be under write back, while the Direct IO
+is taking place.  Here, Direct IO races with a write back: it calls
+GUP before page_mkclean() has replaced the CPU pte with a read-only entry.
+The race window is pretty small, which is probably why years have gone by
+before we noticed this problem: Direct IO is generally very quick, and
+tends to finish up before the filesystem gets around to do anything with
+the page contents.  However, it's still a real problem.  The solution is
+to never let GUP return pages that are under write back, but instead,
+force GUP to take a write fault on those pages.  That way, GUP will
+properly synchronize with the active write back.  This does not change the
+required GUP behavior, it just avoids that race.
+
+
+[1] https://lkml.kernel.org/r/20190204052135.25784-1-jhubbard@nvidia.com
+
+Cc: Christian Benvenuti <benve@cisco.com>
+Cc: Christoph Hellwig <hch@infradead.org>
+Cc: Christopher Lameter <cl@linux.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: Dennis Dalessandro <dennis.dalessandro@intel.com>
+Cc: Doug Ledford <dledford@redhat.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Jérôme Glisse <jglisse@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Mike Marciniszyn <mike.marciniszyn@intel.com>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: Tom Talpey <tom@talpey.com>
+
+John Hubbard (2):
+  mm: introduce put_user_page*(), placeholder versions
+  infiniband/mm: convert put_page() to put_user_page*()
+
+ drivers/infiniband/core/umem.c              |  7 +-
+ drivers/infiniband/core/umem_odp.c          |  2 +-
+ drivers/infiniband/hw/hfi1/user_pages.c     | 11 +--
+ drivers/infiniband/hw/mthca/mthca_memfree.c |  6 +-
+ drivers/infiniband/hw/qib/qib_user_pages.c  | 11 +--
+ drivers/infiniband/hw/qib/qib_user_sdma.c   |  6 +-
+ drivers/infiniband/hw/usnic/usnic_uiom.c    |  7 +-
+ include/linux/mm.h                          | 24 ++++++
+ mm/swap.c                                   | 82 +++++++++++++++++++++
+ 9 files changed, 129 insertions(+), 27 deletions(-)
+
+-- 
+2.20.1
 
