@@ -2,192 +2,172 @@ Return-Path: <SRS0=ikTF=QP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A080CC282C2
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 03:01:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 74757C282C4
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 03:03:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 48E5A21907
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 03:01:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 48E5A21907
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
+	by mail.kernel.org (Postfix) with ESMTP id 3C73B21916
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 03:03:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C73B21916
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A35378E0071; Thu,  7 Feb 2019 22:01:31 -0500 (EST)
+	id CA4B08E0072; Thu,  7 Feb 2019 22:03:42 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9BE998E0002; Thu,  7 Feb 2019 22:01:31 -0500 (EST)
+	id C53EE8E0002; Thu,  7 Feb 2019 22:03:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 85FB18E0071; Thu,  7 Feb 2019 22:01:31 -0500 (EST)
+	id B42458E0072; Thu,  7 Feb 2019 22:03:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 40B978E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 22:01:31 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id q20so1443452pls.4
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 19:01:31 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 581728E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 22:03:42 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id l45so796278edb.1
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 19:03:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:message-id:mime-version;
-        bh=/3G1iEeHPynSPWKKIWjHp/QqgvUgbG7rN1g7bLfoxU8=;
-        b=LhdTNGW7IvSIyv25GAk48aZIwrtJrMhe+wIlgMfgT6zdKjcX6kxRFAoBaKwvgBzKBq
-         lN8IqSMlCu6viTBUAHoW0yMyl22dpdK8i+hfEGdvxt09GE5i/Y3XE3UMAy2CXOl1X+qF
-         WHOKcTYeiADpSawaq2ytknAPc9g5ayUrUDaVM8+7nDahy+RI+Tti+TcK7kkEKFu3eLLo
-         LrW/GRbC4FsuH0JRIHstjusq0ChSfXMmYfxt+UFGrgHSjiFKg4o/7E3SFYH5hHm1J0aJ
-         Yr29Oivl5w1JOs6vXApfM4b1cns7skK3g/gMnEo1OJEg9Aszod7XCali3MxT/XtKop2X
-         hcxQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-X-Gm-Message-State: AHQUAuZip0PBoXgcle139sshFo3qxxss5Q/jvkTI5RY9jHYU5HVQUMkf
-	EbayS9UkQdCidZW0BsbYnZhXwILqfCulcwZybh92Wh6fDp4U2SVDh1P5QfHXUrQyescT1uiG2NF
-	VYh/QKL1WCQ4M1Ah4GfeBO340ddrupPJMEzw7/QwfffekEC4Kyetnq8DjHDVdqEI=
-X-Received: by 2002:a62:520b:: with SMTP id g11mr20017564pfb.53.1549594890142;
-        Thu, 07 Feb 2019 19:01:30 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaNU/8yNgJLW19r4ElCHBR0y7IRFdijaU5yoP6P1vYOWLhbHqnAe/o2EBB/tpGweKP+iJHl
-X-Received: by 2002:a62:520b:: with SMTP id g11mr20017370pfb.53.1549594887948;
-        Thu, 07 Feb 2019 19:01:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549594887; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=3uNAgE82wvAut5qWwJouSpZaMQTwpoo6SOiZaqFUhEg=;
+        b=pqKVPN865V5vhYd/tm1ABdfotFLSUop/54vIOjmxtW/QgBvsWxQ/7wipC7No/URadt
+         c22uT5sE1qHBLnO3SW9m4ZpBK9EuTx8T/NRRSdJ6ckH8e52TyE/ayvF8HPk+6AE+ZK3c
+         avMUiogCOi/JMSYBB1dCySBpMegH+y2d+MV1plH1783TBr5PdMGw5Lm5Mqep7CvVIbSi
+         PFFSLI1OiG41J1lsQmzqOsTKAbR6fzgZ618Q8DnztrmFRX19/PlAwW++FfLbyCdswxJ1
+         /4n+/UB+dmOeBZifw1G3Fk4w6ItwbzQpYygvnFBLHiXcWcA2LRFLEP0MLfcer8CO0Syh
+         8Liw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: AHQUAubkTHhTRhxDqNfC/M8Ut7oogTRaUgKqNOLUUK8fOHyS9Klillh5
+	q9li6km+BoIi+lLCGi8BteWSRLM2EHUhx5kQfYbNcPnJO+DVEmva5SbRVkmv0sbVsm292KfzFiD
+	X3saZ0fq82EYh4wKstLWWY9n5yXROLGkUBBG+rcpns192xp9zm5jHlhmZ312+f6pOfw==
+X-Received: by 2002:a50:8a45:: with SMTP id i63mr15211714edi.262.1549595021809;
+        Thu, 07 Feb 2019 19:03:41 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbSINaV0ebVb4giCOM2mttbP0/b2/tCZ09hfKwld+HalUNaZKW+kTuhDvN/Jvy2HHd5hTRe
+X-Received: by 2002:a50:8a45:: with SMTP id i63mr15211667edi.262.1549595020864;
+        Thu, 07 Feb 2019 19:03:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549595020; cv=none;
         d=google.com; s=arc-20160816;
-        b=XbwGEtoSadtZyVf9CEeL3MqWCOegdzU8KkR+U2sKXmejkUyE5nqI78kf6rHpbenClY
-         g+YFJSNhEm2J6auqwNp5ieJRUaI1yGWtJqPXMS5pnuG4JWy/G3h55rsgt/2I5JKjH9jA
-         o6U+4OCDOAqXANWe9P+sqsRRB7oJiIgt8qi6TK6/yYNrmtd/omyWZaK+KsQzd7UnV7Jh
-         B0bUJp1duEytdeW51ZH9yiT6wYwOYNj5gCQX0keEpZfVtqXDcJKg6gPsnYDiujX5S6Jo
-         1YhRizOIQ6OAeWO6JEXdNgkOlQLU6H5VLV7XbzMK2YxLCVh/GLI70ZSu6r5zZwiFODzi
-         sC3A==
+        b=tSoyT+JBy7CLoYFBxrpDkcKEFizNiuxp+FDEtuqWUJu48HV5dJauYiNJYTE0K4MnQo
+         fkvN+st6tMfKoBdgj5oIg+pIIbZrPvgL729L2qLSu/FPEtDTrOzYWFzYMGvb/QtK/0JD
+         pwPOY6a9RS2oFOveaHtYyYZO21kKA48perfaWj5yxXH5RfSIwHNtzmdG6Q3LqZVD8lxc
+         jF+hQJaTL5ZMC472WDsBU13q8U0PuMocGUUIQggHnsMyFCXqy/PAeewleFUpTQvfeMAj
+         Xnzoc+im12H+oxkffsDc6BxwF+hty/8++8I3SWsxmkl83ScV4pagPzzuLD/JqloxixEW
+         zODg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=/3G1iEeHPynSPWKKIWjHp/QqgvUgbG7rN1g7bLfoxU8=;
-        b=xuvMm2dWN4NhHNBA3+PSYy9gwqegdGr/IPwilWeqT06v3MPuW7zCb85NseQKUjM+Sq
-         GY+Ws3ACzHVWN6EwhlhBzPcXQ0bvRCNvn4fcDb9GwS3ofgPIy7GG3Qn4NBNmsxreyyko
-         yXZLDgRATOJjydFKouO+M3nRkxr+Z6nD3IOMwQIIdUz7/olqXIXGzk3GLNAL9StL2fTH
-         Q1uH/17sCcC/eDWinEw6LQ0ESn2l2hVdMrGet0N3afngAt93/AvsMNzO2TQlDFLsJWt2
-         fcuiP5n+YjcDYt9RpxL4f6u6zm4FBIAUmM5JyzCkpIlQTN7pliVlpjNFwa/IxpwFwLmS
-         PSAA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=3uNAgE82wvAut5qWwJouSpZaMQTwpoo6SOiZaqFUhEg=;
+        b=FRMbKlsal0+71C5uF12VIUmyH8c2Q8MXHIQInJldWucCR6dBSssBKz7RbHuxFV7lAv
+         py3cC0VpGZLhQjI/5beHa0fY8NkYoyXHRMmm2k+RB0RvZCol7Cyzh9/0MWUUsBQysBQ/
+         7/zZ8DY8Ro6WLvqwCL0553QNnE6O+z9vhy5qDM1eNn4fqZ+5zCaMRvRUL7OOhd8C6y5h
+         cEct/P201lXlcNF14zVqmPL+BqeYVdtTFPjCLI4NjEKLggGbrE/72zM9P0W7twK6P7AS
+         eYmBFxd1NfaeANILQKD8J1rlD+1AXTKMs4g2Yr+R/E3XQN36onTwsvpsByNHSHoj0eJf
+         Lnxw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id 6si926439plc.241.2019.02.07.19.01.27
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 07 Feb 2019 19:01:27 -0800 (PST)
-Received-SPF: neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=2401:3900:2:1::2;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 4si521196edh.154.2019.02.07.19.03.40
+        for <linux-mm@kvack.org>;
+        Thu, 07 Feb 2019 19:03:40 -0800 (PST)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits) server-digest SHA256)
-	(No client certificate requested)
-	by ozlabs.org (Postfix) with ESMTPSA id 43wg1b29qsz9sBZ;
-	Fri,  8 Feb 2019 14:01:23 +1100 (AEDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-To: Jann Horn <jannh@google.com>, Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Mike Rapoport <rppt@linux.ibm.com>, kernel list <linux-kernel@vger.kernel.org>, linuxppc-dev@lists.ozlabs.org, Linux-MM <linux-mm@kvack.org>
-Subject: Re: [PATCH v3 1/2] mm: add probe_user_read()
-In-Reply-To: <CAG48ez1gXgsBG6bYGG5+B4Dqkhk_iVaYLqt63RaxURxE0yt9eA@mail.gmail.com>
-References: <39fb6c5a191025378676492e140dc012915ecaeb.1547652372.git.christophe.leroy@c-s.fr> <CAG48ez1gXgsBG6bYGG5+B4Dqkhk_iVaYLqt63RaxURxE0yt9eA@mail.gmail.com>
-Date: Fri, 08 Feb 2019 14:01:22 +1100
-Message-ID: <87imxvj859.fsf@concordia.ellerman.id.au>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9701BEBD;
+	Thu,  7 Feb 2019 19:03:39 -0800 (PST)
+Received: from [10.162.40.126] (p8cg001049571a15.blr.arm.com [10.162.40.126])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id BF7733F557;
+	Thu,  7 Feb 2019 19:03:36 -0800 (PST)
+Subject: Re: [PATCH] mm/memory-hotplug: Add sysfs hot-remove trigger
+To: Robin Murphy <robin.murphy@arm.com>, Oscar Salvador <osalvador@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ gregkh@linuxfoundation.org, rafael@kernel.org, mhocko@kernel.org,
+ akpm@linux-foundation.org
+References: <29ed519902512319bcc62e071d52b712fa97e306.1549469965.git.robin.murphy@arm.com>
+ <20190207133620.a4vg2xqphsloke6i@d104.suse.de>
+ <7bf25a0f-766e-7924-9a54-64cef9f53b57@arm.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <bde72792-9116-f28d-f252-084345631f15@arm.com>
+Date: Fri, 8 Feb 2019 08:33:34 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <7bf25a0f-766e-7924-9a54-64cef9f53b57@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jann Horn <jannh@google.com> writes:
-> On Thu, Feb 7, 2019 at 10:22 AM Christophe Leroy
-> <christophe.leroy@c-s.fr> wrote:
->> In powerpc code, there are several places implementing safe
->> access to user data. This is sometimes implemented using
->> probe_kernel_address() with additional access_ok() verification,
->> sometimes with get_user() enclosed in a pagefault_disable()/enable()
->> pair, etc. :
->>     show_user_instructions()
->>     bad_stack_expansion()
->>     p9_hmi_special_emu()
->>     fsl_pci_mcheck_exception()
->>     read_user_stack_64()
->>     read_user_stack_32() on PPC64
->>     read_user_stack_32() on PPC32
->>     power_pmu_bhrb_to()
->>
->> In the same spirit as probe_kernel_read(), this patch adds
->> probe_user_read().
->>
->> probe_user_read() does the same as probe_kernel_read() but
->> first checks that it is really a user address.
->>
->> The patch defines this function as a static inline so the "size"
->> variable can be examined for const-ness by the check_object_size()
->> in __copy_from_user_inatomic()
->>
->> Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
->
->
->
->> ---
->>  v3: Moved 'Returns:" comment after description.
->>      Explained in the commit log why the function is defined static inline
->>
->>  v2: Added "Returns:" comment and removed probe_user_address()
->>
->>  include/linux/uaccess.h | 34 ++++++++++++++++++++++++++++++++++
->>  1 file changed, 34 insertions(+)
->>
->> diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
->> index 37b226e8df13..ef99edd63da3 100644
->> --- a/include/linux/uaccess.h
->> +++ b/include/linux/uaccess.h
->> @@ -263,6 +263,40 @@ extern long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count);
->>  #define probe_kernel_address(addr, retval)             \
->>         probe_kernel_read(&retval, addr, sizeof(retval))
->>
->> +/**
->> + * probe_user_read(): safely attempt to read from a user location
->> + * @dst: pointer to the buffer that shall take the data
->> + * @src: address to read from
->> + * @size: size of the data chunk
->> + *
->> + * Safely read from address @src to the buffer at @dst.  If a kernel fault
->> + * happens, handle that and return -EFAULT.
->> + *
->> + * We ensure that the copy_from_user is executed in atomic context so that
->> + * do_page_fault() doesn't attempt to take mmap_sem.  This makes
->> + * probe_user_read() suitable for use within regions where the caller
->> + * already holds mmap_sem, or other locks which nest inside mmap_sem.
->> + *
->> + * Returns: 0 on success, -EFAULT on error.
->> + */
->> +
->> +#ifndef probe_user_read
->> +static __always_inline long probe_user_read(void *dst, const void __user *src,
->> +                                           size_t size)
->> +{
->> +       long ret;
->> +
->> +       if (!access_ok(src, size))
->> +               return -EFAULT;
->
-> If this happens in code that's running with KERNEL_DS, the access_ok()
-> is a no-op. If this helper is only intended for accessing real
-> userspace memory, it would be more robust to add
-> set_fs(USER_DS)/set_fs(oldfs) around this thing. Looking at the
-> functions you're referring to in the commit message, e.g.
-> show_user_instructions() does an explicit `__access_ok(pc,
-> NR_INSN_TO_PRINT * sizeof(int), USER_DS)` to get the same effect.
-
-Yeah I raised the same question up thread.
-
-I think we're both right :) - it should explicitly set USER_DS.
-
-There's precedent for that in the code you mentioned and also in the
-perf code, eg:
-
-  88b0193d9418 ("perf/callchain: Force USER_DS when invoking perf_callchain_user()")
 
 
-cheers
+On 02/07/2019 09:02 PM, Robin Murphy wrote:
+> On 07/02/2019 13:36, Oscar Salvador wrote:
+>> On Wed, Feb 06, 2019 at 05:03:53PM +0000, Robin Murphy wrote:
+>>> ARCH_MEMORY_PROBE is a useful thing for testing and debugging hotplug,
+>>> but being able to exercise the (arguably trickier) hot-remove path would
+>>> be even more useful. Extend the feature to allow removal of offline
+>>> sections to be triggered manually to aid development.
+>>>
+>>> Signed-off-by: Robin Murphy <robin.murphy@arm.com>
+>>> ---
+>>>
+>>> This is inspired by a previous proposal[1], but in coming up with a
+>>> more robust interface I ended up rewriting the whole thing from
+>>> scratch. The lack of documentation is semi-deliberate, since I don't
+>>> like the idea of anyone actually relying on this interface as ABI, but
+>>> as a handy tool it felt useful enough to be worth sharing :)
+>>
+>> Hi Robin,
+>>
+>> I think this might come in handy, especially when trying to test hot-remove
+>> on arch's that do not have any means to hot-remove memory, or even on virtual
+>> platforms that do not have yet support for hot-remove depending on the platform,
+>> like qemu/arm64.
+>>
+>>
+>> I could have used this while testing hot-remove on other archs for [1]
+>>
+>>>
+>>> Robin.
+>>>
+>>> [1] https://lore.kernel.org/lkml/22d34fe30df0fbacbfceeb47e20cb1184af73585.1511433386.git.ar@linux.vnet.ibm.com/
+>>>
+>>
+>>> +    if (mem->state != MEM_OFFLINE)
+>>> +        return -EBUSY;
+>>
+>> We do have the helper "is_memblock_offlined()", although it is only used in one place now.
+>> So, I would rather use it here as well.
+> 
+> Ooh, if I'd actually noticed that that helper existed, I would indeed have used it - fixed.
+> 
+>>> +
+>>> +    ret = lock_device_hotplug_sysfs();
+>>> +    if (ret)
+>>> +        return ret;
+>>> +
+>>> +    if (device_remove_file_self(dev, attr)) {
+>>> +        __remove_memory(pfn_to_nid(start_pfn), PFN_PHYS(start_pfn),
+>>> +                MIN_MEMORY_BLOCK_SIZE * sections_per_block);
+>>
+>> Sorry, I am not into sysfs inners, but I thought that:
+>> device_del::device_remove_attrs::device_remove_groups::sysfs_remove_groups
+>> would be enough to remove the dev attributes.
+>> I guess in this case that is not enough, could you explain why?
+> 
+> As I found out the hard way, since the "remove" attribute itself belongs to the device being removed, the standard device teardown callchain would end up trying to remove the file from its own method, which results in deadlock. Fortunately, the PCI sysfs code has a similar "remove" attribute which showed me how it should be handled - following the kerneldoc breadcrumb trail to kernfs_remove_self() hopefully explains it more completely.
+Instead we could have an interface like /sys/devices/system/memory/[unprobe|remove]
+which would take a memory block start address looking into the existing ones and
+attempt to remove [addr, addr + memory_block_size] provided its already offlined.
+This will be exact opposite for /sys/devices/system/memory/probe except the fact
+that it can trigger onlining of the memory automatically (even this new one could
+trigger offlining automatically as well). But I dont have a preference between the
+proposed one or this one. Either of them should be okay.
 
