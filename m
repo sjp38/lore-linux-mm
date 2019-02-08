@@ -2,105 +2,98 @@ Return-Path: <SRS0=ikTF=QP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D948FC169C4
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 05:37:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC479C169C4
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 05:49:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 829D92086C
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 05:37:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 829D92086C
+	by mail.kernel.org (Postfix) with ESMTP id 8AB2B2147C
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 05:49:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8AB2B2147C
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 10CD68E007A; Fri,  8 Feb 2019 00:37:32 -0500 (EST)
+	id 2B1D58E007B; Fri,  8 Feb 2019 00:49:22 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 094868E0079; Fri,  8 Feb 2019 00:37:32 -0500 (EST)
+	id 25F4F8E0079; Fri,  8 Feb 2019 00:49:22 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E9F1E8E007A; Fri,  8 Feb 2019 00:37:31 -0500 (EST)
+	id 103A58E007B; Fri,  8 Feb 2019 00:49:22 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A415A8E0079
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 00:37:31 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id o187so1608472pgo.2
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 21:37:31 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BF8268E0079
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 00:49:21 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id y2so1682829plr.8
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 21:49:21 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=bFjOGnF+pZkR+DeKYwsVwatycoayMcbcJOpIKZgNxb4=;
-        b=Rja+1AVbmIUWUl6aR69bwkmqez/f9rxz9xmx6OlhGgyNqMGIjnDp5NOV94sKvaemG/
-         ZNfh8+DwKV5zDFy+sd88HwEmw5Mf4yTLEyQomlGbQH75an5vVRsO3W8YY84Yba/v9J6E
-         BJkm3ZAGgawQ/zbzmVDu/nnTFRdMt0rKMub6SSCRCEBfePRr06sU3OVsRfazFgQzVQ1S
-         OpK/uzcA3Q5/JsJ9zhwiO3sYCYnKWqAcZB/MTorZmV4pDTZJTpBcHCwyyTejUPjPyRfx
-         IGYZl0fF8B22dO5envBfATRSqpnWIzIRmCxB3qZXZQpyJzqoD/KonAkfIqb6xk+Qu52H
-         LNIg==
+        bh=ks/eFtZMf2z0pCGMP0uadMDNQm+vNSqdslkJnl/9wRk=;
+        b=IR9jLjgXE8SWHuPqzKJKOiQg/IzSANImEjMQqXqKSTvipdGmK77BI+94h9ZzwAFQJ5
+         OKJq3cMn0QSiLwL/mCzxXfY6MQlm6f/Pc/q7OSHQcWOFGXQ2NBNgeY1/WK0YEp+LRRw5
+         HYr5jkx1nS3rIR2YVU8rBZn31Ef6q/OT96+MGohfoDCmrP9Ic1ddAOnq4Zb/apfvWiU2
+         HHrXl4YRgSuQf6D40L+OAM7oF+pK9p41Y+2lzuqD9zbBV4ybw1Fw8ou6M12G1vfX3uXw
+         nw6LN2GSdYjYjY3wlNrWGnUJbTmbJXm9D1RHWPoJ2Iwd2MMITI7YPQtIYrYm2MpLqrWx
+         amgw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: AHQUAuYz1JoYdKTAdo9/oB+aHgeDy2/HRggBuho2ysNrJZ9AB1nR+XZI
-	MSYhWOY2YAtRbVl8BZRXPVbqezmNfO8QJvV6VzfTxrovKapRTq2szy+TT0IvFGF3+bzXQpCskVL
-	WogWuinWGOgN4QNuzG4FHOrKO71AzVwlFX89ScJZQ+SWzYKyzg1jkTojOgUOA4hRQ2Q==
-X-Received: by 2002:a62:ca48:: with SMTP id n69mr14116805pfg.162.1549604251302;
-        Thu, 07 Feb 2019 21:37:31 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IafnZVvpc6VjtC4O6ZsHYspVz/Ltu51JQTuK86FmT3fggadi3hzl+XgVSgSDWram5C4+ZXB
-X-Received: by 2002:a62:ca48:: with SMTP id n69mr14116749pfg.162.1549604250380;
-        Thu, 07 Feb 2019 21:37:30 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549604250; cv=none;
+X-Gm-Message-State: AHQUAuZn2jtwgS6Bbjdfu1q0g0QhFxRYGPuiPeWdmyQznPgJT8GaVQCj
+	SqvGoS5U/mB1z1bQyCQD3H+aBf4zKj0m3AlHW8sT/npwYrDBA3bR/tiusJCDcqu+5Wh9lm2NL0O
+	QWWW6EzcJWRCnY3dhbWCs5hDfGnG6hM/bz5Y3jA0Il4GAeM8m7Z7YFMFtW6qv8Vx+PQ==
+X-Received: by 2002:a17:902:6686:: with SMTP id e6mr2024135plk.208.1549604961363;
+        Thu, 07 Feb 2019 21:49:21 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib1jPYvZ6r4+Y/da6aWgJ8n4VP9x2BUncenhe6Jywsxl69cD+7R5+/kkKpbQPAJRyBIXo2H
+X-Received: by 2002:a17:902:6686:: with SMTP id e6mr2024100plk.208.1549604960702;
+        Thu, 07 Feb 2019 21:49:20 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549604960; cv=none;
         d=google.com; s=arc-20160816;
-        b=FM+MXiJdsmt22D03QdGVhbNZoTqYPhruz/RB6NwkYoSlU4r4j1P8EmHKc0olLO368H
-         tx9DQ9I/H2yaSF+LcCJbOTsKQ7tNxvQFSTfj1IPoi5qddCTJwn9VOf5eRCUutclzUSoU
-         Pthbqa5cpl5NCpSpKK0sfTWwhh5VB4eq+IQrLPUZtIetq1Hdk0Vdq7xNTKuyRCU3q+7s
-         427iq2ggNly1e5hfL8bmRL1fs+7ZQIxV0S1rmOVzcUm2b/DcRDfskSI6LluhgFKs8N+U
-         lmaJcjZHEs0BMH8Ok1F5bY85cHXnz2n0cLE9Et7j2WnvuA9j73N4bmjw/ExgblCC8AfM
-         kXQQ==
+        b=nKB2NLhQltHvHh+aYf/nAQIFROaadiOkyV82JVRaiPDJy/n4UNSwsMHR4pY6p/tyeE
+         qVEZXa9bGsZ2hCSU0HhPfqD+aUkqna2TqIqYziU76M45W3ORsAQofy1PASYB61zknF8O
+         GD03MmLmCtBMxJ+Nfi+QA6xXAScFrknbJ7oD++ffdhbmGKRo6efuPd9iM26IZ9eLwkCq
+         o39XyYbFvJnjQwSBrvVOiH471bcqPvwWcV1IHbkzeFApFk6mr8YqTSwL4dP76zQowwpO
+         QysSLzZxLclth2PPHj9P1jF53rElqQhprSjWxhAcwa3uS8p5BCN7SqpxZFel3sR2W/v8
+         V/CA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date;
-        bh=bFjOGnF+pZkR+DeKYwsVwatycoayMcbcJOpIKZgNxb4=;
-        b=ONykeTiVwY3WR7JGagRuGp8pOlARqapXIbrS6bMvtP6yzgn8szc0M3IAAtrSoRESld
-         EvrXBw2fi7N0sDra4oHq95OhWZdYx3WyrCVbAW+okbWIZ8PzOwfVvJJ0viphvibTXfyT
-         qGX4BUu+nif+al8WEojcqkqkq2ZgIRqZ08YKu6lKWbfeLYXSAAjDrQ3X4tMs0Wx0eUOG
-         ZmJCb9SKkhA79gGtCt89arzk0/Q8P39G5Fpc2g38QD+RJ6Xmh4Etf+BcEndNCWEGHQ9e
-         WVpgcjdMSdrdLn67iRtCVqLLaR7poduBExbBaEvC5KH2+HDFeaab07on1i0aVWZ0vTBx
-         qOYA==
+        bh=ks/eFtZMf2z0pCGMP0uadMDNQm+vNSqdslkJnl/9wRk=;
+        b=k9LFOEeYXTVrJ4t2i8OJyPz08QPKbX0zvSR7EjLOMsjYxNwwnCiQdLQlTxkIKQEYvd
+         zjt9JHpxYJ6ffI/bvZ/0VQlVKFgYy4WOf/hzRGQCTGbycRNXuoyix0Oon742xyeR/ORa
+         zAYJtRstYyQ4F7l3+7cVlzedAbktKNqWCG0zk1Or5lEZmpIqiuuOKNJhfTcEgc0+gdt0
+         UD9MVm5nWTOWemyHydxBqF7ZT7QtN6ZgXMhudRvjA2/5Wsl+C59BLvyRc8dV/k1HOoSf
+         /duVM6v3eimag6JTnMhVfvi0/ZFq9P+MrqC8nS2bqP6oSx6x6UsJ3832Jkw2D9b0k60Y
+         Y8XA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id e15si1285117pgg.281.2019.02.07.21.37.30
+        by mx.google.com with ESMTPS id p3si1363329plb.101.2019.02.07.21.49.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Feb 2019 21:37:30 -0800 (PST)
+        Thu, 07 Feb 2019 21:49:20 -0800 (PST)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 73A48BF6A;
-	Fri,  8 Feb 2019 05:37:29 +0000 (UTC)
-Date: Thu, 7 Feb 2019 21:37:27 -0800
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id E469FBF56;
+	Fri,  8 Feb 2019 05:49:18 +0000 (UTC)
+Date: Thu, 7 Feb 2019 21:49:17 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Dave Chinner <david@fromorbit.com>, Roman Gushchin <guro@fb.com>, Michal
- Hocko <mhocko@kernel.org>, Chris Mason <clm@fb.com>, "linux-mm@kvack.org"
- <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
- <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org"
- <linux-fsdevel@vger.kernel.org>, "linux-xfs@vger.kernel.org"
- <linux-xfs@vger.kernel.org>, "vdavydov.dev@gmail.com"
- <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH 1/2] Revert
- "mm: don't reclaim inodes with many attached pages"
-Message-Id: <20190207213727.a791db810341cec2c013ba93@linux-foundation.org>
-In-Reply-To: <20190207102750.GA4570@quack2.suse.cz>
-References: <20190130041707.27750-1-david@fromorbit.com>
-	<20190130041707.27750-2-david@fromorbit.com>
-	<25EAF93D-BC63-4409-AF21-F45B2DDF5D66@fb.com>
-	<20190131013403.GI4205@dastard>
-	<20190131091011.GP18811@dhcp22.suse.cz>
-	<20190131185704.GA8755@castle.DHCP.thefacebook.com>
-	<20190131221904.GL4205@dastard>
-	<20190207102750.GA4570@quack2.suse.cz>
+To: john.hubbard@gmail.com
+Cc: Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, Benjamin
+ Herrenschmidt <benh@kernel.crashing.org>, Dave Kleikamp
+ <shaggy@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Jeff Layton
+ <jlayton@kernel.org>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka
+ <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, John Hubbard
+ <jhubbard@nvidia.com>
+Subject: Re: [PATCH 1/1] mm: page_cache_add_speculative(): refactor out some
+ code duplication
+Message-Id: <20190207214917.9d07ca3fc52d3df0cde018bd@linux-foundation.org>
+In-Reply-To: <20190206231016.22734-2-jhubbard@nvidia.com>
+References: <20190206231016.22734-1-jhubbard@nvidia.com>
+	<20190206231016.22734-2-jhubbard@nvidia.com>
 X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -111,114 +104,34 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Feb 2019 11:27:50 +0100 Jan Kara <jack@suse.cz> wrote:
+On Wed,  6 Feb 2019 15:10:16 -0800 john.hubbard@gmail.com wrote:
 
-> On Fri 01-02-19 09:19:04, Dave Chinner wrote:
-> > Maybe for memcgs, but that's exactly the oppose of what we want to
-> > do for global caches (e.g. filesystem metadata caches). We need to
-> > make sure that a single, heavily pressured cache doesn't evict small
-> > caches that lower pressure but are equally important for
-> > performance.
-> > 
-> > e.g. I've noticed recently a significant increase in RMW cycles in
-> > XFS inode cache writeback during various benchmarks. It hasn't
-> > affected performance because the machine has IO and CPU to burn, but
-> > on slower machines and storage, it will have a major impact.
+> From: John Hubbard <jhubbard@nvidia.com>
 > 
-> Just as a data point, our performance testing infrastructure has bisected
-> down to the commits discussed in this thread as the cause of about 40%
-> regression in XFS file delete performance in bonnie++ benchmark.
+> This combines the common elements of these routines:
 > 
+>     page_cache_get_speculative()
+>     page_cache_add_speculative()
+> 
+> This was anticipated by the original author, as shown by the comment
+> in commit ce0ad7f095258 ("powerpc/mm: Lockless get_user_pages_fast()
+> for 64-bit (v3)"):
+> 
+>     "Same as above, but add instead of inc (could just be merged)"
+> 
+> There is no intention to introduce any behavioral change, but there is a
+> small risk of that, due to slightly differing ways of expressing the
+> TINY_RCU and related configurations.
+> 
+> This also removes the VM_BUG_ON(in_interrupt()) that was in
+> page_cache_add_speculative(), but not in page_cache_get_speculative(). This
+> provides slightly less detection of such bugs, but it given that it was
+> only there on the "add" path anyway, we can likely do without it just fine.
 
-Has anyone done significant testing with Rik's maybe-fix?
+It removes the 
+VM_BUG_ON_PAGE(PageCompound(page) && page != compound_head(page), page);
+also.
 
+We'll live ;)
 
-
-From: Rik van Riel <riel@surriel.com>
-Subject: mm, slab, vmscan: accumulate gradual pressure on small slabs
-
-There are a few issues with the way the number of slab objects to scan is
-calculated in do_shrink_slab.  First, for zero-seek slabs, we could leave
-the last object around forever.  That could result in pinning a dying
-cgroup into memory, instead of reclaiming it.  The fix for that is
-trivial.
-
-Secondly, small slabs receive much more pressure, relative to their size,
-than larger slabs, due to "rounding up" the minimum number of scanned
-objects to batch_size.
-
-We can keep the pressure on all slabs equal relative to their size by
-accumulating the scan pressure on small slabs over time, resulting in
-sometimes scanning an object, instead of always scanning several.
-
-This results in lower system CPU use, and a lower major fault rate, as
-actively used entries from smaller caches get reclaimed less aggressively,
-and need to be reloaded/recreated less often.
-
-[akpm@linux-foundation.org: whitespace fixes, per Roman]
-[riel@surriel.com: couple of fixes]
-  Link: http://lkml.kernel.org/r/20190129142831.6a373403@imladris.surriel.com
-Link: http://lkml.kernel.org/r/20190128143535.7767c397@imladris.surriel.com
-Fixes: 4b85afbdacd2 ("mm: zero-seek shrinkers")
-Fixes: 172b06c32b94 ("mm: slowly shrink slabs with a relatively small number of objects")
-Signed-off-by: Rik van Riel <riel@surriel.com>
-Tested-by: Chris Mason <clm@fb.com>
-Acked-by: Roman Gushchin <guro@fb.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Jonathan Lemon <bsd@fb.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: <stable@vger.kernel.org>
-
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
-
---- a/include/linux/shrinker.h~mmslabvmscan-accumulate-gradual-pressure-on-small-slabs
-+++ a/include/linux/shrinker.h
-@@ -65,6 +65,7 @@ struct shrinker {
- 
- 	long batch;	/* reclaim batch size, 0 = default */
- 	int seeks;	/* seeks to recreate an obj */
-+	int small_scan;	/* accumulate pressure on slabs with few objects */
- 	unsigned flags;
- 
- 	/* These are for internal use */
---- a/mm/vmscan.c~mmslabvmscan-accumulate-gradual-pressure-on-small-slabs
-+++ a/mm/vmscan.c
-@@ -488,18 +488,30 @@ static unsigned long do_shrink_slab(stru
- 		 * them aggressively under memory pressure to keep
- 		 * them from causing refetches in the IO caches.
- 		 */
--		delta = freeable / 2;
-+		delta = (freeable + 1) / 2;
- 	}
- 
- 	/*
- 	 * Make sure we apply some minimal pressure on default priority
--	 * even on small cgroups. Stale objects are not only consuming memory
-+	 * even on small cgroups, by accumulating pressure across multiple
-+	 * slab shrinker runs. Stale objects are not only consuming memory
- 	 * by themselves, but can also hold a reference to a dying cgroup,
- 	 * preventing it from being reclaimed. A dying cgroup with all
- 	 * corresponding structures like per-cpu stats and kmem caches
- 	 * can be really big, so it may lead to a significant waste of memory.
- 	 */
--	delta = max_t(unsigned long long, delta, min(freeable, batch_size));
-+	if (!delta && shrinker->seeks) {
-+		unsigned long nr_considered;
-+
-+		shrinker->small_scan += freeable;
-+		nr_considered = shrinker->small_scan >> priority;
-+
-+		delta = 4 * nr_considered;
-+		do_div(delta, shrinker->seeks);
-+
-+		if (delta)
-+			shrinker->small_scan -= nr_considered << priority;
-+	}
- 
- 	total_scan += delta;
- 	if (total_scan < 0) {
-_
 
