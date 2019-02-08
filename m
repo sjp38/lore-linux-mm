@@ -2,237 +2,216 @@ Return-Path: <SRS0=ikTF=QP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E9F24C282CB
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 09:55:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CAA16C169C4
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 10:04:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8AD4221924
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 09:55:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8AD4221924
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 918F42080A
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 10:04:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 918F42080A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E7B108E0083; Fri,  8 Feb 2019 04:55:10 -0500 (EST)
+	id 290748E0088; Fri,  8 Feb 2019 05:04:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E2BA08E0002; Fri,  8 Feb 2019 04:55:10 -0500 (EST)
+	id 23CE48E0002; Fri,  8 Feb 2019 05:04:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CF4A38E0083; Fri,  8 Feb 2019 04:55:10 -0500 (EST)
+	id 106428E0088; Fri,  8 Feb 2019 05:04:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 75BFC8E0002
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 04:55:10 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id b3so1216935edi.0
-        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 01:55:10 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D65918E0002
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 05:04:11 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id k37so2920868qtb.20
+        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 02:04:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=sqesVHtJeqtci5xZ/dIaJNgH88dDm6/P+QpsFjQgTC8=;
-        b=NXQlkxs64/cOxhKlzUDXm3gQ7fEDDowwJBmHslNTxowFgpTzhIfodQbj6IEQmPeA5o
-         aBmw3lldGkbL9aYmNgY4JWpcqEe3bkUsYpQk/PhSB+NHLjvAWA9VdYThRk0EjSKXEdNj
-         r4/lln3qaXMIskITW5D+dGN0eeHrefOym9x1Ni/wojrVzC8cKTltSr2KOOWjA9+0fQQF
-         1sPplRupFZThB9Tr0AeIPBOhy8y5T2aga2Eupyar6x4nMv15fqXEKuAoEzmMzKJSzR3a
-         ykOGF5HMywrfJRk+b0M8Hz9Xy90AMxTponexnE7hnn+sfJODDynI+94pz+0N4XuYcipm
-         0CIQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: AHQUAubG2zgpc0rybLFYJuurQY3NUrfAnZnt+GbuleXJycc13/cy0wcY
-	4xMSGLReVFvhbDo54RuQuAEntZPDc3tI/9uaOnIeuEbxzC7bh/oe8MA+cYuqICKcwc110K1mUn/
-	iL5eqcS+++F0atgmaDo+xqo8BMxyDAbzPrh3ILHFLVdIVUnbSODtrHnaTAMbRsqyY6Q==
-X-Received: by 2002:a17:906:8249:: with SMTP id f9mr15476224ejx.134.1549619709916;
-        Fri, 08 Feb 2019 01:55:09 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IadglitC9PX8O3kM14lWRXuCRESl79bOCI0PjQyfBQmiHOk/RPceC0aMq+9AmMxlbj5VJbS
-X-Received: by 2002:a17:906:8249:: with SMTP id f9mr15476166ejx.134.1549619708775;
-        Fri, 08 Feb 2019 01:55:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549619708; cv=none;
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=utW2vT3KaOmdeS27LLnNSqfihtVuCTya6Q/qp+pT83M=;
+        b=EO2ZRoZShBJ0+Ay5DB+Imvzt4vwHZVHW0DIgay6j1YKuEvu9j1KB/2Qk/ayTk6Ejmi
+         yyuWNBJN6NtxHAMDqrYVdYEbxrba47yD63n7Ak/wAqCT6Up0L0QPa9kpeMa2sJf8gAjU
+         uuo93esjcK5ORdpHaFtpImca7VuQSvqkrnpaWj/sljS4fhI2M9IY6Ctnh3C7rROsmQ1v
+         Bza/RVYHikW9L0ZhkPLJulzGakrstlyfjVQJX7SV8rgfRQZM9wAp8w0u5IjQfS5x3X/y
+         EdwK5LBZcH9sDaNPCy41rtsVwKdXwAQKrdnjg4OqwsShyQEj4MMwEVgV/33vZSGDoUie
+         KJnA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuZ7YRwGFNM4wszFdp18PSSqgruZwbpFuMyQ8ICGoP3+EFxdSUoa
+	rNHnb01hdeVeUedaBx94ItIilQdr6zv4bGOeE9pFLtoOpC5qTMyD+CaZews9qfgJ9mmBOSYF98e
+	Fs1Ko7ag0HMkAtZzNsXx0hHTg07MXZov4gMpsv7Q3GbMzqIYC2itdtBzk9eI1uafhnQ==
+X-Received: by 2002:ae9:f218:: with SMTP id m24mr6551652qkg.136.1549620251572;
+        Fri, 08 Feb 2019 02:04:11 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZDMqtysVw8oK0jAxNu/slrncGvVFSlh1tNGEjry0XKzKnono5psF1HTbuiRgU30p4llvqW
+X-Received: by 2002:ae9:f218:: with SMTP id m24mr6551611qkg.136.1549620250784;
+        Fri, 08 Feb 2019 02:04:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549620250; cv=none;
         d=google.com; s=arc-20160816;
-        b=L9ZhzdjW7RvGTSz1QDkY06OmYeWm2h12c9GCFfpphCp7OQYH79uJ/D2KYxpxm8pJAf
-         e3ZqmebhP4xllc6I6wta2vYxS/vCVf3xKp8ZPZLGAYmHzrCzG5L1YSFrx2KWQDf0Gbei
-         o2gkNjXQVI8/QnbeLiPf7DEk0nLjgQaRapDtkO9X4yOXWguNeE7g4aJ+fwI/TXJAEhtL
-         Nn+H6+gO1av38onXI6WguFx24tfu5bngsBOp5Ur3l+t3VoCl2bUZItbqTR35ghzXw07i
-         Ipwsh9t3aPokidPLfRFBwFn18em7iT+l6csQLXLxl5MYpvTfrtZzG3AlgcErRGMKIUvx
-         N5yw==
+        b=ozIXGcPPpLqhQRMpT7+9woyBNfz4AGttkMMXOdBxhK1VxZ69869clI+VN2M7umA6cm
+         ln+41U0CfXkTlcn8SlqY/Hq24LKqAZMdBsd2D9/w7BSExEy3MHygjJ7XcHyXMeMBr2MN
+         mCuxpFbUZ1dgX4W96KXqyWB4D2rLMewnxkTaIxLOwKDO+1TjH3xJSzE1gqAxCbZxRxIT
+         0+kvAhM6KfhdTgGnzJCH4LAXqFuyc2lXHTj7ec6m6A658vVsGkrcRraqHlgDDJkwHia+
+         o5Kab/kUlls8z0qAOrXR6cwXDsTbyyzAtg9WobFtl7hJn1FwiamM2Xlb+F2GOBnncQ4j
+         i/pw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=sqesVHtJeqtci5xZ/dIaJNgH88dDm6/P+QpsFjQgTC8=;
-        b=R+iCh0TvxR+9dktF/ZblT/TC79Ay40nEwJj4uSOPycVzIMDCXJMGupBESWfCeTh8fa
-         Qmcp4AatQpXaqq0m+gmhlU7aPl5adqkPt71PXC1BpbcXR6r/Kn/7VRsxbXVoiG9PXfCF
-         +qKB5go1nAWjrktK4QwFVxXDejOEn4CpPbabno67U68RwJ1OM1tfQFWrHrf7NOj4mk9u
-         Wp7sbV16ygrfleCpY2GCV4hTrLvLpVGLt+WXJCF5oEUzuV3aZPHmhf6ZvrLFD6jYCWr9
-         9+qHdp4QGbZ7NiAXMq6cRuoOCjWnlBtQHJmnAleRcqadNuzXrpNETRPvaIVnSyZAkPXG
-         N1Hg==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=utW2vT3KaOmdeS27LLnNSqfihtVuCTya6Q/qp+pT83M=;
+        b=jIotkc3StMgdSCsHIJAEacpfWYp6K8GnVQbxH2d67/fS/rcHisM8ON2sO4y9QhutO7
+         cdxGFOx3gfbVHQIO8Ie8JMNJJGJlZ6gx69QiYRb+hwipG7VbNkqyEZ8hOPlYOGiU+4Hq
+         EZhhlC4zjHR1O7cTkNt2WYGPYkQlJkQgZEEEG3m1YTUJ38igaoU1GzszMb9aF0LU2jy9
+         oUFM+8DF97nL9WdTkosF5yO6eYBYEqCooWGNBcJcmETpnB06xiXwM90BmPnAqBIgXVp1
+         20cfZsKlcx3yIQcD7oIk91j0OQ/9iQ0zK83616lVNR0NDnV9J5/2+/YjBeeBAT5D/xDT
+         QmxA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c73si888719edf.450.2019.02.08.01.55.08
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id i37si57142qvd.196.2019.02.08.02.04.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Feb 2019 01:55:08 -0800 (PST)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 08 Feb 2019 02:04:10 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 11216ABEC;
-	Fri,  8 Feb 2019 09:55:08 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 672FA1E3DB5; Fri,  8 Feb 2019 10:55:07 +0100 (CET)
-Date: Fri, 8 Feb 2019 10:55:07 +0100
-From: Jan Kara <jack@suse.cz>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>,
-	Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>,
-	Chris Mason <clm@fb.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-	"linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>,
-	"vdavydov.dev@gmail.com" <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH 1/2] Revert "mm: don't reclaim inodes with many attached
- pages"
-Message-ID: <20190208095507.GB6353@quack2.suse.cz>
-References: <20190130041707.27750-1-david@fromorbit.com>
- <20190130041707.27750-2-david@fromorbit.com>
- <25EAF93D-BC63-4409-AF21-F45B2DDF5D66@fb.com>
- <20190131013403.GI4205@dastard>
- <20190131091011.GP18811@dhcp22.suse.cz>
- <20190131185704.GA8755@castle.DHCP.thefacebook.com>
- <20190131221904.GL4205@dastard>
- <20190207102750.GA4570@quack2.suse.cz>
- <20190207213727.a791db810341cec2c013ba93@linux-foundation.org>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x189wa7r019322
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2019 05:04:10 -0500
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2qh4mh0078-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 08 Feb 2019 05:04:09 -0500
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Fri, 8 Feb 2019 10:04:08 -0000
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Fri, 8 Feb 2019 10:04:04 -0000
+Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x18A44L361604062
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Fri, 8 Feb 2019 10:04:04 GMT
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id F0F64A405D;
+	Fri,  8 Feb 2019 10:04:03 +0000 (GMT)
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 5F448A4055;
+	Fri,  8 Feb 2019 10:04:03 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.205.183])
+	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Fri,  8 Feb 2019 10:04:03 +0000 (GMT)
+Date: Fri, 8 Feb 2019 12:04:01 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
+        Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 1/2] memblock: remove memblock_{set,clear}_region_flags
+References: <1549455025-17706-1-git-send-email-rppt@linux.ibm.com>
+ <1549455025-17706-2-git-send-email-rppt@linux.ibm.com>
+ <CAFqt6zbvYKQS0NO3x9d45ubwf_MdEf67x1=xUHLb+ippCFmeQg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190207213727.a791db810341cec2c013ba93@linux-foundation.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <CAFqt6zbvYKQS0NO3x9d45ubwf_MdEf67x1=xUHLb+ippCFmeQg@mail.gmail.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19020810-0008-0000-0000-000002BE009E
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19020810-0009-0000-0000-0000222A0E13
+Message-Id: <20190208100401.GB11096@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-08_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902080072
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 07-02-19 21:37:27, Andrew Morton wrote:
-> On Thu, 7 Feb 2019 11:27:50 +0100 Jan Kara <jack@suse.cz> wrote:
+On Thu, Feb 07, 2019 at 10:02:24PM +0530, Souptick Joarder wrote:
+> On Wed, Feb 6, 2019 at 6:01 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
+> >
+> > The memblock API provides dedicated helpers to set or clear a flag on a
+> > memory region, e.g. memblock_{mark,clear}_hotplug().
+> >
+> > The memblock_{set,clear}_region_flags() functions are used only by the
+> > memblock internal function that adjusts the region flags.
+> > Drop these functions and use open-coded implementation instead.
+> >
+> > Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> > ---
+> >  include/linux/memblock.h | 12 ------------
+> >  mm/memblock.c            |  9 ++++++---
+> >  2 files changed, 6 insertions(+), 15 deletions(-)
+> >
+> > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> > index 71c9e32..32a9a6b 100644
+> > --- a/include/linux/memblock.h
+> > +++ b/include/linux/memblock.h
+> > @@ -317,18 +317,6 @@ void __next_mem_pfn_range_in_zone(u64 *idx, struct zone *zone,
+> >         for_each_mem_range_rev(i, &memblock.memory, &memblock.reserved, \
+> >                                nid, flags, p_start, p_end, p_nid)
+> >
+> > -static inline void memblock_set_region_flags(struct memblock_region *r,
+> > -                                            enum memblock_flags flags)
+> > -{
+> > -       r->flags |= flags;
+> > -}
+> > -
+> > -static inline void memblock_clear_region_flags(struct memblock_region *r,
+> > -                                              enum memblock_flags flags)
+> > -{
+> > -       r->flags &= ~flags;
+> > -}
+> > -
+> >  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> >  int memblock_set_node(phys_addr_t base, phys_addr_t size,
+> >                       struct memblock_type *type, int nid);
+> > diff --git a/mm/memblock.c b/mm/memblock.c
+> > index 0151a5b..af5fe8e 100644
+> > --- a/mm/memblock.c
+> > +++ b/mm/memblock.c
+> > @@ -851,11 +851,14 @@ static int __init_memblock memblock_setclr_flag(phys_addr_t base,
+> >         if (ret)
+> >                 return ret;
+> >
+> > -       for (i = start_rgn; i < end_rgn; i++)
+> > +       for (i = start_rgn; i < end_rgn; i++) {
+> > +               struct memblock_region *r = &type->regions[i];
 > 
-> > On Fri 01-02-19 09:19:04, Dave Chinner wrote:
-> > > Maybe for memcgs, but that's exactly the oppose of what we want to
-> > > do for global caches (e.g. filesystem metadata caches). We need to
-> > > make sure that a single, heavily pressured cache doesn't evict small
-> > > caches that lower pressure but are equally important for
-> > > performance.
-> > > 
-> > > e.g. I've noticed recently a significant increase in RMW cycles in
-> > > XFS inode cache writeback during various benchmarks. It hasn't
-> > > affected performance because the machine has IO and CPU to burn, but
-> > > on slower machines and storage, it will have a major impact.
-> > 
-> > Just as a data point, our performance testing infrastructure has bisected
-> > down to the commits discussed in this thread as the cause of about 40%
-> > regression in XFS file delete performance in bonnie++ benchmark.
-> > 
-> 
-> Has anyone done significant testing with Rik's maybe-fix?
+> Is it fine if we drop this memblock_region *r altogether ?
 
-I will give it a spin with bonnie++ today. We'll see what comes out.
+I prefer using a local variable to
 
-								Honza
+	type->regions[i].flags
+ 
+> > +
+> >                 if (set)
+> > -                       memblock_set_region_flags(&type->regions[i], flag);
+> > +                       r->flags |= flag;
+> >                 else
+> > -                       memblock_clear_region_flags(&type->regions[i], flag);
+> > +                       r->flags &= ~flag;
+> > +       }
+> >
+> >         memblock_merge_regions(type);
+> >         return 0;
+> > --
+> > 2.7.4
+> >
+> 
 
-> 
-> 
-> 
-> From: Rik van Riel <riel@surriel.com>
-> Subject: mm, slab, vmscan: accumulate gradual pressure on small slabs
-> 
-> There are a few issues with the way the number of slab objects to scan is
-> calculated in do_shrink_slab.  First, for zero-seek slabs, we could leave
-> the last object around forever.  That could result in pinning a dying
-> cgroup into memory, instead of reclaiming it.  The fix for that is
-> trivial.
-> 
-> Secondly, small slabs receive much more pressure, relative to their size,
-> than larger slabs, due to "rounding up" the minimum number of scanned
-> objects to batch_size.
-> 
-> We can keep the pressure on all slabs equal relative to their size by
-> accumulating the scan pressure on small slabs over time, resulting in
-> sometimes scanning an object, instead of always scanning several.
-> 
-> This results in lower system CPU use, and a lower major fault rate, as
-> actively used entries from smaller caches get reclaimed less aggressively,
-> and need to be reloaded/recreated less often.
-> 
-> [akpm@linux-foundation.org: whitespace fixes, per Roman]
-> [riel@surriel.com: couple of fixes]
->   Link: http://lkml.kernel.org/r/20190129142831.6a373403@imladris.surriel.com
-> Link: http://lkml.kernel.org/r/20190128143535.7767c397@imladris.surriel.com
-> Fixes: 4b85afbdacd2 ("mm: zero-seek shrinkers")
-> Fixes: 172b06c32b94 ("mm: slowly shrink slabs with a relatively small number of objects")
-> Signed-off-by: Rik van Riel <riel@surriel.com>
-> Tested-by: Chris Mason <clm@fb.com>
-> Acked-by: Roman Gushchin <guro@fb.com>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Dave Chinner <dchinner@redhat.com>
-> Cc: Jonathan Lemon <bsd@fb.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: <stable@vger.kernel.org>
-> 
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
-> 
-> --- a/include/linux/shrinker.h~mmslabvmscan-accumulate-gradual-pressure-on-small-slabs
-> +++ a/include/linux/shrinker.h
-> @@ -65,6 +65,7 @@ struct shrinker {
->  
->  	long batch;	/* reclaim batch size, 0 = default */
->  	int seeks;	/* seeks to recreate an obj */
-> +	int small_scan;	/* accumulate pressure on slabs with few objects */
->  	unsigned flags;
->  
->  	/* These are for internal use */
-> --- a/mm/vmscan.c~mmslabvmscan-accumulate-gradual-pressure-on-small-slabs
-> +++ a/mm/vmscan.c
-> @@ -488,18 +488,30 @@ static unsigned long do_shrink_slab(stru
->  		 * them aggressively under memory pressure to keep
->  		 * them from causing refetches in the IO caches.
->  		 */
-> -		delta = freeable / 2;
-> +		delta = (freeable + 1) / 2;
->  	}
->  
->  	/*
->  	 * Make sure we apply some minimal pressure on default priority
-> -	 * even on small cgroups. Stale objects are not only consuming memory
-> +	 * even on small cgroups, by accumulating pressure across multiple
-> +	 * slab shrinker runs. Stale objects are not only consuming memory
->  	 * by themselves, but can also hold a reference to a dying cgroup,
->  	 * preventing it from being reclaimed. A dying cgroup with all
->  	 * corresponding structures like per-cpu stats and kmem caches
->  	 * can be really big, so it may lead to a significant waste of memory.
->  	 */
-> -	delta = max_t(unsigned long long, delta, min(freeable, batch_size));
-> +	if (!delta && shrinker->seeks) {
-> +		unsigned long nr_considered;
-> +
-> +		shrinker->small_scan += freeable;
-> +		nr_considered = shrinker->small_scan >> priority;
-> +
-> +		delta = 4 * nr_considered;
-> +		do_div(delta, shrinker->seeks);
-> +
-> +		if (delta)
-> +			shrinker->small_scan -= nr_considered << priority;
-> +	}
->  
->  	total_scan += delta;
->  	if (total_scan < 0) {
-> _
-> 
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Sincerely yours,
+Mike.
 
