@@ -2,185 +2,139 @@ Return-Path: <SRS0=ikTF=QP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B6FFFC282C2
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 00:28:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CFEF2C282CC
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 00:30:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 61BA421916
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 00:28:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7BEDC2080D
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 00:30:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amarulasolutions.com header.i=@amarulasolutions.com header.b="D67VAcZg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 61BA421916
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amarulasolutions.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="kF+DA96O"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7BEDC2080D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DFF128E006C; Thu,  7 Feb 2019 19:28:39 -0500 (EST)
+	id 1C7928E006D; Thu,  7 Feb 2019 19:30:13 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DAD058E0002; Thu,  7 Feb 2019 19:28:39 -0500 (EST)
+	id 177778E0002; Thu,  7 Feb 2019 19:30:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C9C4E8E006C; Thu,  7 Feb 2019 19:28:39 -0500 (EST)
+	id 090E28E006D; Thu,  7 Feb 2019 19:30:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7325A8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 19:28:39 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id y129so2583042wmd.1
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 16:28:39 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CFB478E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 19:30:12 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id q33so1789997qte.23
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 16:30:12 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=TFpCruOEkYxlPOvEEM4WFb5ey4gGwCCM6JNzhOMWsYE=;
-        b=mND0hnwvWUPpUyOAdfOXcWKwbBJcuEq+MEz6QHuxBBcc2qthV0NiX0XywjdX+hzwuB
-         aFmhcBXE0yzgfw6ezuP335wlWYmxZvh6ec7+uZ9pXhanot+fTTbt4mLaRIjMfdUeiFaU
-         TEn1jcilxO93uZ9/aPMF+aKepIjx7EXWL3H7t/PXGcegAXJinqcRkey+SfUSI+ohh9Rz
-         LakELdk2yMHnJPJiSuYAdke3wBIwAAMeXmRezd5VoODgtdOul85XkB4rxxL3V2n9hn0M
-         pjYY4BO3eC9yw5J6kNN2cXZBfoEqd065ZQJ6Vmd0UVLvKRnWKhcVA/CDKNDxXwZMV7lL
-         lP4w==
-X-Gm-Message-State: AHQUAubjVDlx1ViSXyv3OkglK7yAeRo4HLM5xTnHA7qAtIWK35h4vsQl
-	iEUtxFatBTJuOognKNK8ZsbAspXmHXv/9uYcX53siJ276UfBhMXtxhpPvSA2lbOXQRXGPdUT4e9
-	ywGaUGxrDv6MfKD5LNgALocke+daRzqFklQW6TQiAGf7LYR6E4PN6y5qccL5N0ilLFK5uZDEEUR
-	/SR8FexBzog2We6l9y1/notGqr3ieoY9zpGNSNEoK0UOc5o/lLTXIdk5cXMIHZy/cMYIi81VKtr
-	ARkSPpzjdJjFUpghsStlM7T4IW5Zw34Niwdkb/fMf4MN69NEWPUww4h/sUFwKSgvoJaspmV3Geq
-	//bpVA7E4aQiGSK2LDvO8k5mrnCa7Xz+o+t309/U0y3S64pOWFlPVymhRk/o0NoW3nBnUL/beY1
-	O
-X-Received: by 2002:adf:8b83:: with SMTP id o3mr14762466wra.81.1549585718791;
-        Thu, 07 Feb 2019 16:28:38 -0800 (PST)
-X-Received: by 2002:adf:8b83:: with SMTP id o3mr14762434wra.81.1549585717829;
-        Thu, 07 Feb 2019 16:28:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549585717; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=RMe7AVsMjh+VkK1x7GiCCnejt907H2ljXbmC15yNzuI=;
+        b=RUDnNemJWYQEuP89scY3HSu1Qs4RRNuR7ZHHK3+qIRoLGnQUtX+OuVrRQ4grxU842T
+         iskwUkWCeb+JHt7PkwpV890jz0onN7S/bxv3maejP9wHXy+NRU4ReMN0HB6iqIq0ihSK
+         c/Os9V9ZoJee1Vt4RXDFbycF+XYkJUfaAAfQhBqnqJ2rLk8X4neLkyGDyrQJRxVkPDB9
+         9C2TGMRE54eTk7TRhx8TeGXqlfooqGqT7Lz86kMNTaxeAxNt4ybYXT7t83J+7F0yDLq1
+         8KIqVXjBYBCjXbdlcthh1dL1VlOmG79rdUG4guxI4Y63xf9clzw1awMYMzOMR4NOe+nX
+         f2aw==
+X-Gm-Message-State: AHQUAuaw7gUWAZmqE6suy8YwUbzcDgD+MbnG+S1G5oMGCNjPTSVInK7G
+	CNQYPtWjpuL6YSiHAIbJOXZ+taEhEtzegfiSRmpCvMAo2GLV6mbP0jBWWHysgkcSaVny6knB9rk
+	v7YdRkaNQ0KB5S2YghmQk1M91TGCAA000bBKVstW7YHBicLvxKrUnRgbnZpjd0Y92FmnIsd/duj
+	sn2f/sXrwYLZ8FW9JW6gsNrwdyxWIJxKm0T18+hxY0Mv/1iC6dr8wq82KGGSTFHF0sfz2mgtTbG
+	FoVmvoNPIp1mS6y949kMyfHQ6vMYGxttHL+TyuaGJHFHD6hu/9KjiZnxNafrQWBjcdQlpGd3zcs
+	TvvMpkTBf43FN/fXXy3VLTl5ggOtphC2EQd0hAHYGn1wgMa8VZaBKtnXPMW6l2HeAqc99m1D52Y
+	U
+X-Received: by 2002:ac8:32ef:: with SMTP id a44mr12029020qtb.334.1549585812621;
+        Thu, 07 Feb 2019 16:30:12 -0800 (PST)
+X-Received: by 2002:ac8:32ef:: with SMTP id a44mr12028989qtb.334.1549585812200;
+        Thu, 07 Feb 2019 16:30:12 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549585812; cv=none;
         d=google.com; s=arc-20160816;
-        b=brdLKAO9kfRm2LNCic9ZI08pfMZX1UQMJEKEmqejcgWqF6HDI/H19ESkhCBvfakUmv
-         wjBW0NxKzpWmYeM3mVszXsyXEJLqA7vPpiy94CqOiRN9sykN/8C1sI0Ais6QMj5gtExX
-         /i8T3hjxnglmXSyvnbohRpTiUYHaXO+s34Gw+PwNT1XF6w29vc4ZxBarFvHHAiZ3tsgg
-         NdlmXucRUA4mw3gmdtAaqE4VXNCcpzOWd7vuF+6wHrU3uaOs6mbPm/MFE2kVhX5GJzSj
-         15wnkpLjxkizNab1GFzcogjGcD5kxxnWDVkZ9jdNXGvq47U7cXxbZuK0k77DyG8lLicc
-         ta4w==
+        b=fb3qDShjjtSaZ2SnvLAt6ALgmVINvldOZcPX8bga1OSUuuHmuwHcDNEL1VS43AjiG3
+         Z1AVhV/swHE5DsxSwl9KJqfXdQ4NL1O2aT0Zq1eVh+hggZsCrUDgruO2DjZe0Mc6Wswy
+         nm/FWgWrPqBAdxDyhiK7Dkq2LQgXCZK3ertTUzwApt7wMRSDdvV01tYQixKSqpmVslNi
+         NaF/jp4bAgLGEzK+/08ObpNZo0Aizde2fB5OhKnZXO/4nQYrB0xgXeo6kO7++nS5hTNK
+         jDUfFMmFYVipnEnDaMVBf97m9WsA8uz6fvUcs3J5GcpLAkzO5q0AvQVucARWjJlt2nye
+         6DMQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=TFpCruOEkYxlPOvEEM4WFb5ey4gGwCCM6JNzhOMWsYE=;
-        b=ba7uQwl1icpXmKg2RVn6uyBBocwG6xVj4GrfYcdmLZWspzEtBzMJxVAXhK4XNgLb3m
-         em9snzabVRozaETvNl6eIfogOqOfTFODdDyEdQQGUJLjQkxVx0dDVdsjL2kN3f/i2pJB
-         Aj8qNH5e3CIpr9hpk11p3d7AXlC2vtfgWcdc22emY1PgqXCuXNGkD8MKZ+thNcmtBPmb
-         Yy7w3XNeR3Dkhxl0qfE9/JlWNtFarBkuxxp9GFIkCDvZd8UCJpFQBKoLisT9fezgLoXt
-         8pPe9MW3didvI45CFc4N17Hb6UGh0TEIWWzqXYbR4aO5esOm2CpH0hp1Od5L+Diu3zza
-         BzeQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=RMe7AVsMjh+VkK1x7GiCCnejt907H2ljXbmC15yNzuI=;
+        b=ItBIYqciFMMmV2AyD7KLbmU0kI4N8saLfAC/R5++70hXc3qZEa5SFkfmiEcz97i6Rw
+         mr0gD3R3Y0+QRfzprD7AcoIlL9HSXQqEJ8O2WqLh2qjwc2erbypwFee7XgehWITlt9Uz
+         MsqBf4L5IopTBE7DRmJRxc9+/b/eiN0xJG26eByhBB9nedIlYmhvDYbktQMLOlIFXC+k
+         V/mcfO72yNANIL9F2hHYe19vpE6eDjpILn9tZ81tA4KpbZjjpDL8klNIg4HcPmGBAKEA
+         Ywla7C4zFax/MrsTX7LtOLnvLLVOVHCS/7nhUxr0uTIoldNbeXaNdKnV+TJaKI+2C0j+
+         r/vA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amarulasolutions.com header.s=google header.b=D67VAcZg;
-       spf=pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andrea.parri@amarulasolutions.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i1sor538160wmb.11.2019.02.07.16.28.37
+       dkim=pass header.i=@lca.pw header.s=google header.b=kF+DA96O;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id u10sor572017qtg.72.2019.02.07.16.30.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 07 Feb 2019 16:28:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 07 Feb 2019 16:30:12 -0800 (PST)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amarulasolutions.com header.s=google header.b=D67VAcZg;
-       spf=pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andrea.parri@amarulasolutions.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=kF+DA96O;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=amarulasolutions.com; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=TFpCruOEkYxlPOvEEM4WFb5ey4gGwCCM6JNzhOMWsYE=;
-        b=D67VAcZg3uDP0lt9Sqg3MIsMeyXF/IH/FyGFwTyCK9FBdMzZcUZ/IEInD3OWp8WxIC
-         WEVgcce2X8YCEDWht3MGxN0hhnRiDp/ybXUoyenVwtWaQ8Ej36yQNGKDNTmUnP3XLmo5
-         Pf2D+6vx6zZug8M9Bnfd8AMx+hd9KrPLV1IY0=
-X-Google-Smtp-Source: AHgI3Ib1IgqbTuJHNdOcNnbDtuMtaOd+O86FOmXBYiUksPi/GJs8dD1XdmK4O4yj6ekfRFBRqwpfDA==
-X-Received: by 2002:a1c:6c14:: with SMTP id h20mr521880wmc.78.1549585717124;
-        Thu, 07 Feb 2019 16:28:37 -0800 (PST)
-Received: from andrea ([89.22.71.151])
-        by smtp.gmail.com with ESMTPSA id w16sm464450wrp.1.2019.02.07.16.28.35
+        d=lca.pw; s=google;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=RMe7AVsMjh+VkK1x7GiCCnejt907H2ljXbmC15yNzuI=;
+        b=kF+DA96OlADNN+EubsYiqoqNkvnBYeSDHZSDiaQmqWpMfp9KPsvdGqSGMnUB7lMdCh
+         XyaFyJyor0TFQbZkgK/5f1zdFNoM8UEt1S33/p/VQ3OiXhWgIqB73WbDxf0jXVm5f2BN
+         RZ4op8XWlwKd88q+odancnWkE4zrt1Dc0XdkT3x+dY+W7B4n/QWBT8bhqkQXDOYDtrfl
+         QhePtXjQ++Wpm4rOzswQCvnsssrQJgQjZdSQDXNIFQzYfKM7gO2gsYQMocWRKv39S/Aa
+         WuJyHXfH+6RzFLfZpBJVfnuFEkmztOzWbNWadgbeZOgeYGhFHcgZ3NWtZkAYRIlsDTyg
+         ZYcA==
+X-Google-Smtp-Source: AHgI3IYzwOR0xRYy4WWnLHqFOwTXXHOpIy9YHGqmQ6MRjp23/KzxqwEu0PZxYDtVkcajAuwqw8B/kQ==
+X-Received: by 2002:ac8:2783:: with SMTP id w3mr14328224qtw.221.1549585811735;
+        Thu, 07 Feb 2019 16:30:11 -0800 (PST)
+Received: from ovpn-120-150.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id g3sm457393qkc.54.2019.02.07.16.30.11
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Feb 2019 16:28:36 -0800 (PST)
-Date: Fri, 8 Feb 2019 01:28:29 +0100
-From: Andrea Parri <andrea.parri@amarulasolutions.com>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	"Huang, Ying" <ying.huang@intel.com>,
-	Daniel Jordan <daniel.m.jordan@oracle.com>,
-	dan.carpenter@oracle.com, dave.hansen@linux.intel.com,
-	sfr@canb.auug.org.au, osandov@fb.com, tj@kernel.org,
-	ak@linux.intel.com, linux-mm@kvack.org,
-	kernel-janitors@vger.kernel.org, paulmck@linux.ibm.com,
-	stern@rowland.harvard.edu, peterz@infradead.org,
-	willy@infradead.org, will.deacon@arm.com
-Subject: Re: About swapoff race patch  (was Re: [PATCH] mm, swap: bounds
- check swap_info accesses to avoid NULL derefs)
-Message-ID: <20190207234244.GA6429@andrea>
-References: <20190114222529.43zay6r242ipw5jb@ca-dmjordan1.us.oracle.com>
- <20190115002305.15402-1-daniel.m.jordan@oracle.com>
- <20190129222622.440a6c3af63c57f0aa5c09ca@linux-foundation.org>
- <87tvhpy22q.fsf_-_@yhuang-dev.intel.com>
- <20190131124655.96af1eb7e2f7bb0905527872@linux-foundation.org>
- <alpine.LSU.2.11.1902041257390.4682@eggly.anvils>
+        Thu, 07 Feb 2019 16:30:11 -0800 (PST)
+Subject: Re: CONFIG_KASAN_SW_TAGS=y NULL pointer dereference at
+ freelist_dereference()
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
+ Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>,
+ kasan-dev <kasan-dev@googlegroups.com>,
+ Linux ARM <linux-arm-kernel@lists.infradead.org>,
+ Linux-MM <linux-mm@kvack.org>
+References: <b1d210ae-3fc9-c77a-4010-40fb74a61727@lca.pw>
+ <CAAeHK+yzHbLbFe7mtruEG-br9V-LZRC-n6dkq5+mmvLux0gSbg@mail.gmail.com>
+ <89b343eb-16ff-1020-2efc-55ca58fafae7@lca.pw>
+ <CAAeHK+zxxk8K3WjGYutmPZr_mX=u7KUcCUYXHi+OgRYMfcvLTg@mail.gmail.com>
+From: Qian Cai <cai@lca.pw>
+Message-ID: <d8cdc634-0f7d-446e-805a-c5d54e84323a@lca.pw>
+Date: Thu, 7 Feb 2019 19:30:10 -0500
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
+ Gecko/20100101 Thunderbird/60.3.3
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1902041257390.4682@eggly.anvils>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <CAAeHK+zxxk8K3WjGYutmPZr_mX=u7KUcCUYXHi+OgRYMfcvLTg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Huang, Ying,
-
-On Mon, Feb 04, 2019 at 01:37:00PM -0800, Hugh Dickins wrote:
-> On Thu, 31 Jan 2019, Andrew Morton wrote:
-> > On Thu, 31 Jan 2019 10:48:29 +0800 "Huang\, Ying" <ying.huang@intel.com> wrote:
-> > > Andrew Morton <akpm@linux-foundation.org> writes:
-> > > > mm-swap-fix-race-between-swapoff-and-some-swap-operations.patch is very
-> > > > stuck so can you please redo this against mainline?
-> > > 
-> > > Allow me to be off topic, this patch has been in mm tree for quite some
-> > > time, what can I do to help this be merged upstream?
-
-[...]
 
 
+On 2/7/19 10:34 AM, Andrey Konovalov wrote:
+> Reproduced, looks like a conflict with CONFIG_SLAB_FREELIST_HARDENED.
+> Could you try the attached patch?
 > 
-> Wow, yes, it's about a year old.
-> 
-> > 
-> > I have no evidence that it has been reviewed, for a start.  I've asked
-> > Hugh to look at it.
-> 
-> I tried at the weekend.  Usual story: I don't like it at all, the
-> ever-increasing complexity there, but certainly understand the need
-> for that fix, and have not managed to think up anything better -
-> and now I need to switch away, sorry.
 
-FWIW, I do agree with Hugh about "the need for that fix": AFAIU, that
-(mainline) code is naively buggy _and_ "this patch":
-
-  http://lkml.kernel.org/r/20180223060010.954-1-ying.huang@intel.com
-
-"redone on top of mainline" seems both correct and appropriate to me.
-
-
-> (I was originally horrified by the stop_machine() added in swapon and
-> swapoff, but perhaps I'm remembering a distant past of really stopping
-> the machine: stop_machine() today looked reasonable, something to avoid
-> generally like lru_add_drain_all(), but not as shameful as I thought.)
-
-AFAIC_find_on_LKML, we have three different fixes (at least!): resp.,
-
-  1. refcount(-based),
-  2. RCU,
-  3. stop_machine();
-
-(3) appears to be the less documented/relied-upon/tested among these;
-I'm not aware of definitive reasons forcing us to reject (1) and (2).
-
-  Andrea
-
-
-> 
-> Hugh
+You nailed it!
 
