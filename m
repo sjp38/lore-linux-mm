@@ -1,244 +1,186 @@
-Return-Path: <SRS0=jH+M=QO=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=ikTF=QP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2EE51C282C2
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 23:55:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B6FFFC282C2
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 00:28:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A22872073F
-	for <linux-mm@archiver.kernel.org>; Thu,  7 Feb 2019 23:55:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 61BA421916
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 00:28:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="MBKpvprF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A22872073F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (1024-bit key) header.d=amarulasolutions.com header.i=@amarulasolutions.com header.b="D67VAcZg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 61BA421916
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amarulasolutions.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 05B808E0065; Thu,  7 Feb 2019 18:55:13 -0500 (EST)
+	id DFF128E006C; Thu,  7 Feb 2019 19:28:39 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0312B8E0002; Thu,  7 Feb 2019 18:55:12 -0500 (EST)
+	id DAD058E0002; Thu,  7 Feb 2019 19:28:39 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E890A8E0065; Thu,  7 Feb 2019 18:55:12 -0500 (EST)
+	id C9C4E8E006C; Thu,  7 Feb 2019 19:28:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B9FF38E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 18:55:12 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id d5so1455356otl.21
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 15:55:12 -0800 (PST)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7325A8E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 19:28:39 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id y129so2583042wmd.1
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 16:28:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=wuu6aq9mmWRYWmAEazq1JML050O5p2LjZKSNRxmlZ5g=;
-        b=SdAUHYVKK8TFOHMu2z7QKjEtjFX7bhQFsmDM8WKhuh6Bq70mKFmIdxuHJs5PWgKhJp
-         3HFAUvYLiSA1pPPHl4BE7p6wAEhfM2Cw3knZmaJ+kCIe0pDlWEGWQEnbThMqrg4bqBYP
-         JAxWn7p2lc9VXKAC51hzbVlfjYkQnylhiUApkzbrjlpMLTRiVfD1uQEwWQCCsvmQgK/V
-         UGNlxH1MLi7hKRwWjOY7qLBdf14po0zrCu47f5HTTTtlhdjyOHHDNkTavf1TBbLdhTek
-         FIDHkRcnS5me1Az4rxbZ+pXBZjEmCDfUOGNMXyqpmepAz6CDgUMeArG+/8z5hOaE6IyM
-         sMXA==
-X-Gm-Message-State: AHQUAuZsUthRR52ZrS6pBZ729DRqbCT0gyFWD5U2Chb9jvxEPqzAvYaR
-	471LGXCGkyNQz8yiTkzXg9fVAB1PfYaLoW9FPUMZbpFcCAQSIz8AC2WbgqAyxBEdzVzzv5FD6KX
-	9HCnFHv64anLfGO8IFGMbu+tKlOfc7IEUWzzfd5bLUk6ZiFl9PL5YIAo6yh/hZvUN4tcLFZGH4F
-	WF4ofu1by3YAKmdsiKJXcRhDBe0Irmego3DhrJR58/wZW63wMddPK7uKFKRw72IFoZjEDgsNqDs
-	n47+WvNsyqUeCTLe9gR1WZ2S6nVu73jZYDo8hb4XhWXrFzCbk0qPhdGV9X5WeISlWa1bH6Mlc5u
-	5ecdnjb+1QU+uE3Dg6QFLLc35C1Reahl+mpzXq+7I4RY6giU8wsFQ6dyi2+A8/U/jwXQyjw9E7M
-	Z
-X-Received: by 2002:a9d:3426:: with SMTP id v35mr11103506otb.71.1549583712348;
-        Thu, 07 Feb 2019 15:55:12 -0800 (PST)
-X-Received: by 2002:a9d:3426:: with SMTP id v35mr11103475otb.71.1549583711277;
-        Thu, 07 Feb 2019 15:55:11 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549583711; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=TFpCruOEkYxlPOvEEM4WFb5ey4gGwCCM6JNzhOMWsYE=;
+        b=mND0hnwvWUPpUyOAdfOXcWKwbBJcuEq+MEz6QHuxBBcc2qthV0NiX0XywjdX+hzwuB
+         aFmhcBXE0yzgfw6ezuP335wlWYmxZvh6ec7+uZ9pXhanot+fTTbt4mLaRIjMfdUeiFaU
+         TEn1jcilxO93uZ9/aPMF+aKepIjx7EXWL3H7t/PXGcegAXJinqcRkey+SfUSI+ohh9Rz
+         LakELdk2yMHnJPJiSuYAdke3wBIwAAMeXmRezd5VoODgtdOul85XkB4rxxL3V2n9hn0M
+         pjYY4BO3eC9yw5J6kNN2cXZBfoEqd065ZQJ6Vmd0UVLvKRnWKhcVA/CDKNDxXwZMV7lL
+         lP4w==
+X-Gm-Message-State: AHQUAubjVDlx1ViSXyv3OkglK7yAeRo4HLM5xTnHA7qAtIWK35h4vsQl
+	iEUtxFatBTJuOognKNK8ZsbAspXmHXv/9uYcX53siJ276UfBhMXtxhpPvSA2lbOXQRXGPdUT4e9
+	ywGaUGxrDv6MfKD5LNgALocke+daRzqFklQW6TQiAGf7LYR6E4PN6y5qccL5N0ilLFK5uZDEEUR
+	/SR8FexBzog2We6l9y1/notGqr3ieoY9zpGNSNEoK0UOc5o/lLTXIdk5cXMIHZy/cMYIi81VKtr
+	ARkSPpzjdJjFUpghsStlM7T4IW5Zw34Niwdkb/fMf4MN69NEWPUww4h/sUFwKSgvoJaspmV3Geq
+	//bpVA7E4aQiGSK2LDvO8k5mrnCa7Xz+o+t309/U0y3S64pOWFlPVymhRk/o0NoW3nBnUL/beY1
+	O
+X-Received: by 2002:adf:8b83:: with SMTP id o3mr14762466wra.81.1549585718791;
+        Thu, 07 Feb 2019 16:28:38 -0800 (PST)
+X-Received: by 2002:adf:8b83:: with SMTP id o3mr14762434wra.81.1549585717829;
+        Thu, 07 Feb 2019 16:28:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549585717; cv=none;
         d=google.com; s=arc-20160816;
-        b=GzZkDx8lQIt3E8DLrL5rsbe2PGQrISprG1xys2PmevKCoC6g00bQkZeqZ869lYUj6u
-         BwSyIqI9rHTbU5eCBZOpM4HtsCla5U4zcsMKGoPSmubUXHxCFfRn4ZPyyDCXjfC4Iljg
-         bFcqGzMnPbnx1asH69C2V07IbgdYQZVNOHauP7AATnCn4ocNi26av5XF3xLvchORe6WR
-         Ko2ria/NgXoCHXOZTI6iqBYGq7LdeT4LY2degaCNj4LgdTJWDJUYxlNiY/BipuB9HUpx
-         +c6JgES621/tY9nhCgRdAGq72rzF+7yf29ofcA0UCxa8DJgLnBUfuMV/b+9HXlrUMZMq
-         cROw==
+        b=brdLKAO9kfRm2LNCic9ZI08pfMZX1UQMJEKEmqejcgWqF6HDI/H19ESkhCBvfakUmv
+         wjBW0NxKzpWmYeM3mVszXsyXEJLqA7vPpiy94CqOiRN9sykN/8C1sI0Ais6QMj5gtExX
+         /i8T3hjxnglmXSyvnbohRpTiUYHaXO+s34Gw+PwNT1XF6w29vc4ZxBarFvHHAiZ3tsgg
+         NdlmXucRUA4mw3gmdtAaqE4VXNCcpzOWd7vuF+6wHrU3uaOs6mbPm/MFE2kVhX5GJzSj
+         15wnkpLjxkizNab1GFzcogjGcD5kxxnWDVkZ9jdNXGvq47U7cXxbZuK0k77DyG8lLicc
+         ta4w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=wuu6aq9mmWRYWmAEazq1JML050O5p2LjZKSNRxmlZ5g=;
-        b=QW5UJqVtbTwGEJbGHDAeKqPMYu4cIQajojiCzDMhdrd3Ai5K/xi0wSQkuuxSuMZRAb
-         LGBVI8SiWl/dcKTn8hYF5AzswUCKeN/q6k0hXJYBSrj8pCjiCdZWFroCI3e6jVCNJymB
-         CIJSWB+XGYy7npIRAlbNqBfQkrMDSgBZnc1luqK+tFT3LslVO57dL91ahHhvThnTGvzE
-         WbfyQg/kXHfVU25a4RRZaJ7x7JPejsn/vcihXfseL+q2iFxhU8/FDAcYipgJcWnHybfm
-         DZ2GDdSuOJzSxU2YnWWffP/gr6WrDlqclN7D+lDAGKLSDczbAVz7X9aRsf1JQ8xlJlg5
-         7eRQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=TFpCruOEkYxlPOvEEM4WFb5ey4gGwCCM6JNzhOMWsYE=;
+        b=ba7uQwl1icpXmKg2RVn6uyBBocwG6xVj4GrfYcdmLZWspzEtBzMJxVAXhK4XNgLb3m
+         em9snzabVRozaETvNl6eIfogOqOfTFODdDyEdQQGUJLjQkxVx0dDVdsjL2kN3f/i2pJB
+         Aj8qNH5e3CIpr9hpk11p3d7AXlC2vtfgWcdc22emY1PgqXCuXNGkD8MKZ+thNcmtBPmb
+         Yy7w3XNeR3Dkhxl0qfE9/JlWNtFarBkuxxp9GFIkCDvZd8UCJpFQBKoLisT9fezgLoXt
+         8pPe9MW3didvI45CFc4N17Hb6UGh0TEIWWzqXYbR4aO5esOm2CpH0hp1Od5L+Diu3zza
+         BzeQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=MBKpvprF;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@amarulasolutions.com header.s=google header.b=D67VAcZg;
+       spf=pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andrea.parri@amarulasolutions.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m186sor236643oif.18.2019.02.07.15.55.10
+        by mx.google.com with SMTPS id i1sor538160wmb.11.2019.02.07.16.28.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 07 Feb 2019 15:55:10 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 07 Feb 2019 16:28:37 -0800 (PST)
+Received-SPF: pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=MBKpvprF;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@amarulasolutions.com header.s=google header.b=D67VAcZg;
+       spf=pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andrea.parri@amarulasolutions.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=wuu6aq9mmWRYWmAEazq1JML050O5p2LjZKSNRxmlZ5g=;
-        b=MBKpvprFNpUeQahrEAvcOhuvzE9JE1qn2cKGX+VcKhcGtTobMfAmsZHUqRosEFLgcs
-         mUqGl2rU8gYhn58O9a908me5vTVjFFGAfQi7TJBEt1u5hthVkL/IBwBYkG8QGHavMv8v
-         ZrM6I2Q60JVT2472qVlfoyUN2Cl+F0oNcqv40BYzXTZ1aPQ0yJ4Dx9Mrq5snGjsLeRJv
-         oTchGkY7jc1FbVrvqWXby6kjlGBLq++/dOIKprajKwmudG/Ui/megC5gKXO7eoQdI3N4
-         i5K9KVEKGofchk7sR1CxW6njled2+6eTYcpKR4WTWK/hPnW7phTQzJOnyC6L+tr7mzwz
-         puGQ==
-X-Google-Smtp-Source: AHgI3IZ8oLiizk9A/wsiEDpzUAkAIj/Y5hRLuqUsFLgj6eBrY8gxGnGq1NPBw/Sw9Tz5Pq4ry68pvu7qyEBchCDRBPc=
-X-Received: by 2002:a05:6808:344:: with SMTP id j4mr397968oie.149.1549583710509;
- Thu, 07 Feb 2019 15:55:10 -0800 (PST)
+        d=amarulasolutions.com; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=TFpCruOEkYxlPOvEEM4WFb5ey4gGwCCM6JNzhOMWsYE=;
+        b=D67VAcZg3uDP0lt9Sqg3MIsMeyXF/IH/FyGFwTyCK9FBdMzZcUZ/IEInD3OWp8WxIC
+         WEVgcce2X8YCEDWht3MGxN0hhnRiDp/ybXUoyenVwtWaQ8Ej36yQNGKDNTmUnP3XLmo5
+         Pf2D+6vx6zZug8M9Bnfd8AMx+hd9KrPLV1IY0=
+X-Google-Smtp-Source: AHgI3Ib1IgqbTuJHNdOcNnbDtuMtaOd+O86FOmXBYiUksPi/GJs8dD1XdmK4O4yj6ekfRFBRqwpfDA==
+X-Received: by 2002:a1c:6c14:: with SMTP id h20mr521880wmc.78.1549585717124;
+        Thu, 07 Feb 2019 16:28:37 -0800 (PST)
+Received: from andrea ([89.22.71.151])
+        by smtp.gmail.com with ESMTPSA id w16sm464450wrp.1.2019.02.07.16.28.35
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Feb 2019 16:28:36 -0800 (PST)
+Date: Fri, 8 Feb 2019 01:28:29 +0100
+From: Andrea Parri <andrea.parri@amarulasolutions.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	"Huang, Ying" <ying.huang@intel.com>,
+	Daniel Jordan <daniel.m.jordan@oracle.com>,
+	dan.carpenter@oracle.com, dave.hansen@linux.intel.com,
+	sfr@canb.auug.org.au, osandov@fb.com, tj@kernel.org,
+	ak@linux.intel.com, linux-mm@kvack.org,
+	kernel-janitors@vger.kernel.org, paulmck@linux.ibm.com,
+	stern@rowland.harvard.edu, peterz@infradead.org,
+	willy@infradead.org, will.deacon@arm.com
+Subject: Re: About swapoff race patch  (was Re: [PATCH] mm, swap: bounds
+ check swap_info accesses to avoid NULL derefs)
+Message-ID: <20190207234244.GA6429@andrea>
+References: <20190114222529.43zay6r242ipw5jb@ca-dmjordan1.us.oracle.com>
+ <20190115002305.15402-1-daniel.m.jordan@oracle.com>
+ <20190129222622.440a6c3af63c57f0aa5c09ca@linux-foundation.org>
+ <87tvhpy22q.fsf_-_@yhuang-dev.intel.com>
+ <20190131124655.96af1eb7e2f7bb0905527872@linux-foundation.org>
+ <alpine.LSU.2.11.1902041257390.4682@eggly.anvils>
 MIME-Version: 1.0
-References: <20190206173114.GB12227@ziepe.ca> <20190206175233.GN21860@bombadil.infradead.org>
- <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
- <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
- <20190206210356.GZ6173@dastard> <20190206220828.GJ12227@ziepe.ca>
- <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
- <20190207035258.GD6173@dastard> <20190207052310.GA22726@ziepe.ca>
- <CAPcyv4jd4gxvt3faYYRbv5gkc6NGOKjY_Z-P0Ph=ss=gWZw7sA@mail.gmail.com> <20190207171736.GD22726@ziepe.ca>
-In-Reply-To: <20190207171736.GD22726@ziepe.ca>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 7 Feb 2019 15:54:58 -0800
-Message-ID: <CAPcyv4hsHeCGjcJNEmMg_6FYEsQ_8Z=bvx+WmO1v_LmoXbJrxA@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Dave Chinner <david@fromorbit.com>, Doug Ledford <dledford@redhat.com>, 
-	Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>, 
-	Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, 
-	linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, 
-	Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1902041257390.4682@eggly.anvils>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 7, 2019 at 9:17 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
->
-> On Wed, Feb 06, 2019 at 10:00:28PM -0800, Dan Williams wrote:
->
-> > > > If your argument is that "existing RDMA apps don't have a recall
-> > > > mechanism" then that's what they are going to need to implement to
-> > > > work with DAX+RDMA. Reliable remote access arbitration is required
-> > > > for DAX+RDMA, regardless of what filesysetm the data is hosted on.
-> > >
-> > > My argument is that is a toy configuration that no production user
-> > > would use. It either has the ability to wait for the lease to revoke
-> > > 'forever' without consequence or the application will be critically
-> > > de-stablized by the kernel's escalation to time bound the response.
-> > > (or production systems never get revoke)
-> >
-> > I think we're off track on the need for leases for anything other than
-> > non-ODP hardware.
-> >
-> > Otherwise this argument seems to be saying there is absolutely no safe
-> > way to recall a memory registration from hardware, which does not make
-> > sense because SIGKILL needs to work as a last resort.
->
-> SIGKILL destroys all the process's resources. This is supported.
->
-> You are asking for some way to do a targeted *disablement* (we can't
-> do destroy) of a single resource.
->
-> There is an optional operation that could do what you want
-> 'rereg_user_mr'- however only 3 out of 17 drivers implement it, one of
-> those drivers supports ODP, and one is supporting old hardware nearing
-> its end of life.
->
-> Of the two that are left, it looks like you might be able to use
-> IB_MR_REREG_PD to basically disable the MR. Maybe. The spec for this
-> API is not as a fence - the application is supposed to quiet traffic
-> before invoking it. So even if it did work, it may not be synchronous
-> enough to be safe for DAX.
->
-> But lets imagine the one driver where this is relavents gets updated
-> FW that makes this into a fence..
->
-> Then the application's communication would more or less explode in a
-> very strange and unexpected way, but perhaps it could learn to put the
-> pieces back together, reconnect and restart from scratch.
->
-> So, we could imagine doing something here, but it requires things we
-> don't have, more standardization, and drivers to implement new
-> functionality. This is not likely to happen.
->
-> Thus any lease mechanism is essentially stuck with SIGKILL as the
-> escalation.
->
-> > > The arguing here is that there is certainly a subset of people that
-> > > don't want to use ODP. If we tell them a hard 'no' then the
-> > > conversation is done.
-> >
-> > Again, SIGKILL must work the RDMA target can't survive that, so it's
-> > not impossible, or are you saying not even SIGKILL can guarantee an
-> > RDMA registration goes idle? Then I can see that "hard no" having real
-> > teeth otherwise it's a matter of software.
->
-> Resorting to SIGKILL makes this into a toy, no real production user
-> would operate in that world.
->
-> > > I don't like the idea of building toy leases just for this one,
-> > > arguably baroque, case.
-> >
-> > What makes it a toy and baroque? Outside of RDMA registrations being
-> > irretrievable I have a gap in my understanding of what makes this
-> > pointless to even attempt?
->
-> Insisting to run RDMA & DAX without ODP and building an elaborate
-> revoke mechanism to support non-ODP HW is inherently baroque.
->
-> Use the HW that supports ODP.
->
-> Since no HW can do disable of a MR, the escalation path is SIGKILL
-> which makes it a non-production toy.
->
-> What you keep missing is that for people doing this - the RDMA is a
-> critical compoment of the system, you can't just say the kernel will
-> randomly degrade/kill RDMA processes - that is a 'toy' configuration
-> that is not production worthy.
->
-> Especially since this revoke idea is basically a DOS engine for the
-> RDMA protocol if another process can do actions to trigger revoke. Now
-> we have a new class of security problems. (again, screams non
-> production toy)
->
-> The only production worthy way is to have the FS be a partner in
-> making this work without requiring revoke, so the critical RDMA
-> traffic can operate safely.
->
-> Otherwise we need to stick to ODP.
+Hi Huang, Ying,
 
-Thanks for this it clears a lot of things up for me...
+On Mon, Feb 04, 2019 at 01:37:00PM -0800, Hugh Dickins wrote:
+> On Thu, 31 Jan 2019, Andrew Morton wrote:
+> > On Thu, 31 Jan 2019 10:48:29 +0800 "Huang\, Ying" <ying.huang@intel.com> wrote:
+> > > Andrew Morton <akpm@linux-foundation.org> writes:
+> > > > mm-swap-fix-race-between-swapoff-and-some-swap-operations.patch is very
+> > > > stuck so can you please redo this against mainline?
+> > > 
+> > > Allow me to be off topic, this patch has been in mm tree for quite some
+> > > time, what can I do to help this be merged upstream?
 
-...but this statement:
+[...]
 
-> The only production worthy way is to have the FS be a partner in
-> making this work without requiring revoke, so the critical RDMA
-> traffic can operate safely.
 
-...belies a path forward. Just swap out "FS be a partner" with "system
-administrator be a partner". In other words, If the RDMA stack can't
-tolerate an MR being disabled then the administrator needs to actively
-disable the paths that would trigger it. Turn off reflink, don't
-truncate, avoid any future FS feature that might generate unwanted
-lease breaks. We would need to make sure that lease notifications
-include the information to identify the lease breaker to debug escapes
-that might happen, but it is a solution that can be qualified to not
-lease break. In any event, this lets end users pick their filesystem
-(modulo RDMA incompatible features), provides an enumeration of lease
-break sources in the kernel, and opens up FS-DAX to a wider array of
-RDMA adapters. In general this is what Linux has historically done,
-give end users technology freedom.
+> 
+> Wow, yes, it's about a year old.
+> 
+> > 
+> > I have no evidence that it has been reviewed, for a start.  I've asked
+> > Hugh to look at it.
+> 
+> I tried at the weekend.  Usual story: I don't like it at all, the
+> ever-increasing complexity there, but certainly understand the need
+> for that fix, and have not managed to think up anything better -
+> and now I need to switch away, sorry.
+
+FWIW, I do agree with Hugh about "the need for that fix": AFAIU, that
+(mainline) code is naively buggy _and_ "this patch":
+
+  http://lkml.kernel.org/r/20180223060010.954-1-ying.huang@intel.com
+
+"redone on top of mainline" seems both correct and appropriate to me.
+
+
+> (I was originally horrified by the stop_machine() added in swapon and
+> swapoff, but perhaps I'm remembering a distant past of really stopping
+> the machine: stop_machine() today looked reasonable, something to avoid
+> generally like lru_add_drain_all(), but not as shameful as I thought.)
+
+AFAIC_find_on_LKML, we have three different fixes (at least!): resp.,
+
+  1. refcount(-based),
+  2. RCU,
+  3. stop_machine();
+
+(3) appears to be the less documented/relied-upon/tested among these;
+I'm not aware of definitive reasons forcing us to reject (1) and (2).
+
+  Andrea
+
+
+> 
+> Hugh
 
