@@ -2,181 +2,230 @@ Return-Path: <SRS0=ikTF=QP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DF14CC169C4
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 06:31:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EABA5C169C4
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 07:20:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A60802147C
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 06:31:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A60802147C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 75FD62147C
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 07:20:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="RqdT+3F7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75FD62147C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 304B58E0079; Fri,  8 Feb 2019 01:31:37 -0500 (EST)
+	id D8E048E007E; Fri,  8 Feb 2019 02:20:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 28D978E0002; Fri,  8 Feb 2019 01:31:37 -0500 (EST)
+	id D3DC08E0002; Fri,  8 Feb 2019 02:20:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1564F8E0079; Fri,  8 Feb 2019 01:31:37 -0500 (EST)
+	id C2C268E007E; Fri,  8 Feb 2019 02:20:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AAEEB8E0002
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 01:31:36 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id i55so944491ede.14
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 22:31:36 -0800 (PST)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 92DE28E0002
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 02:20:52 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id d5so2175718otl.21
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 23:20:52 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=6y72N6yu8xcyYnLmWUF++44VZg30GVJNFnTIzoKI/es=;
-        b=DJOfvmHj3K6L1I9o7nKiOdp65m6OwOtVf2iivqmioyO3LiyWWgXD0MN5KNSwYfQGL1
-         oRhZ/UgQDU854Zw3pyw+xSLAlQEKtOWV+2qCYr+W9Sd7KRaTA5qK7GxNgbwO1OCmCnKN
-         TdGV4Y7N4tdbx7IfPs5HJvFXifWJtsfMlbiFc6z0RMyU+TDLACR0WqfTV5hKCSvsggAl
-         TDPeGcpbzCozPu9/0WQPh6Mue01cSQ3KoPrRUyDcjj7EvpImp7wk6rLkXBDKYFyUPAll
-         GDfnYYk3cZn87EebLvA/q9PPDZE3n+WiRRpaR8WE8f74rd6eEDEW59d42BLtO407v/lO
-         K7ug==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: AHQUAubywca8ahJmWb8bx4riMYEQuVfO3MVyQgb3cHuFk80Eq9a4oECH
-	BiL4zhiyBT0HeBQnr4goec9LKTyoB6uWwI5UMfHGJJzbUR/xAO8/5X1VcAILH5ds6WXc06/D0W6
-	3ed+B+YHpcZ5IiSKjl6VCYySg6UzRggEHMtLcDl3UNMTDcinbtUr/i1N/wuG/KIkLZQ==
-X-Received: by 2002:a05:6402:1295:: with SMTP id w21mr9354530edv.293.1549607496141;
-        Thu, 07 Feb 2019 22:31:36 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZa6kfaJflRaRpsdRWyjq0TGa0xduWXrU6YLDzAK86lubpKjLdXM2FXmcq7GB9SqJKAANyw
-X-Received: by 2002:a05:6402:1295:: with SMTP id w21mr9354475edv.293.1549607494969;
-        Thu, 07 Feb 2019 22:31:34 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549607494; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=EalRzoWbflT2aUthpO0bEhvXjIl1xZCE1RoISoW/U9Y=;
+        b=hAEvqh7xkknp1Vbgacp8uRBMM0+Wm1DWbtEyIVc1gqwLiNS7IBUVUMDOC28D2DH7l+
+         JZbWIIOC9ub7/TU5/mOaco7ICJZ6RDDBp1o6WH+VHmIHRfgvZskQ0w0sXKUKgpd7BDi8
+         ZYwT/V7XZg7ylQp5Uxq+M+1Itmb/heDwtMKTZMvNsBJ7IpWrTylC0/YCBgmVB9vC2NT4
+         ggcJP986N1EI6DMsSFg5hIP/b5KG76GOZ6Y8ZMwknf/6cWI15y9DAY2rLys7W7eSokYn
+         ADQZuSIC+fs6ORzW4uhyoSPj0cqKTJlGJZAy7hchC1omrJ8dBf8iPE5a9suhxnYcFZld
+         +HPw==
+X-Gm-Message-State: AHQUAuY8EWxB0h6PkTFy27FFc3zAvW71asZYu5nyMgcpSWY9TVkHt/Y5
+	FpdRxdoKM6JI5l8ba7jL8ct5qbSMqC+BFsPXlExwi8uWfTqpqfiFD+aa0bKRwi7SFBcVEFxKgxg
+	8165syD8C/NoN+rrx9Wgm6HGGwfhYpqBEyhbuWqDh/aQ4VgcC2v80tyHzB6/vG/5T2Pj73xmQE8
+	6hJHDgztqoP7LZPJIsys19LYpivbesNSGtPoVbYej7dVketjRx7M5f0DTBcDmZDCKBUQU5bEn/4
+	ckD3/PM4ELQzIqmN7ona9Okh2flEVxOndGpN9sfAizzHNaIceaXH2SgfNHgsZH06DuAZp8fGvv2
+	9gE09O2VQZc4E5qL5HLPbMr3Qtj48Fk4zrMJ6o/JwjRQloQCQDxizb/Ue8fboBqXuK9b+J2pXA9
+	W
+X-Received: by 2002:a9d:5d0e:: with SMTP id b14mr7661086oti.263.1549610452167;
+        Thu, 07 Feb 2019 23:20:52 -0800 (PST)
+X-Received: by 2002:a9d:5d0e:: with SMTP id b14mr7661033oti.263.1549610451257;
+        Thu, 07 Feb 2019 23:20:51 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549610451; cv=none;
         d=google.com; s=arc-20160816;
-        b=K/hJiVbFfXZgWlQZ+MItbG5XsjJLZnNkSTGE+k2SNgPP5U6nmZ6cCe1ZbzGwkMfjrE
-         QCQQTlPGlFPa65Mz6WpBtQF712I/Jr+DqxMy1ldl2Qj4bgONT42l/ZPd/oAAxv8iY11m
-         xH/QRBWEMixgzQQN+lkzwcbg0Pfw0yTrNoYfRQjxzo6EJIGykIfUaepDRsLxE8Z91PzR
-         RehNanhfS7PI4vGMbIbx0wSyKPgC5GpciXJd5DFwVajeuKuujV6dHZy8HIWkuRPJ5wMH
-         MgUmGxiiu2fNE7OFaSs1Lgf2zL9JZLMCiJ2G4gvTZC5CzIRVuqMnKcBhgrrgxRAl9f9D
-         PU+Q==
+        b=YnptTVOJNqzlNFqsQcEIn3ukgSOetcaWVWD2qjn6SXtnX+RNwL6B7wOdYGtRSPPmWf
+         tbDz/A/46AyvPOqn7DZWT/KXCqPtMQYy/RqYS2hDOqe2susM7RawcWuPFNd79xI2Ifoo
+         oyh7aPcYW1MEKHFFATrgo9/4D4yBGPz8mwNUAJXYrYOWAkpnBPK1VwulYkA4bIsrARKe
+         kbYAN54aPWyybfUnIwjHd6BADV+KZ9wzpHy5bPrEQ5euEoI7/Ckp/+y1NaHukibDDTCO
+         yFc2CJTfZEgPthvMUdpDtTKiY+rgGrRonrbhjy2AdBqy8vxfGzQjzFRR4hhxcAJFBYYj
+         HmTQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=6y72N6yu8xcyYnLmWUF++44VZg30GVJNFnTIzoKI/es=;
-        b=JZRarGV22gOIDl1eeI6GikyoySd//eTzNiwHeN2ohue2plZhYDpEU8+8465t3SQz1S
-         Yv0gel6gno5sI3wp6YoS5MdEuFmNLgx/+tJomQHlKRcJznvi29fN6iauL33G5tAxhvcr
-         Q4jk1ei36Ilo27+/mj+7XCYxcfZnQnnpwnMFm+8ZTqer9WiDDQUVGJddvluBzWDx9zwN
-         GmXCuqcJHQsCgKCxkFZaL8LrBZQZMZ9kfzy2FwcFZEm8/s+5uoFM7QJdVxDRiJEUZHko
-         Bioxxkj8jedivrnBe4zF1zZaA9vqblDrzGWlY5cVOqleZW9d4um7Ph6xyN34ZSZjSEge
-         HCHw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=EalRzoWbflT2aUthpO0bEhvXjIl1xZCE1RoISoW/U9Y=;
+        b=EZrA5WSPsjskdePA1gj4Q7AxWaRrivSSTjASl3D6jg5XyPTDvmG/nbj8r4ebLeiXF2
+         syPCKBeAX34K0+CkZKUsltSpsfKaoXnh9jcMNb0/Oxvru++Si8J8NjpzQKrhbcO7PSr2
+         Hzph77ifqXaAE2vV9kKTYErh/PSFQmsZ4tiUC2M+mIyZydM8Xqo1U8A7GqfUgRTzse70
+         F1Tdk3kjtW/X2L05SQBQhNMXJfTm480MJAIeVxUQyBZQuM73wdvC7/Ffpr0RT96fDX6n
+         lJJ0+7JLYnVwZC8MPl7il3woqvf2KbdiOSurNmJOYuXAmAQs+GFxQ0o9IeB7fS+SRYqO
+         R5kw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id o21si758370edc.54.2019.02.07.22.31.34
-        for <linux-mm@kvack.org>;
-        Thu, 07 Feb 2019 22:31:34 -0800 (PST)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=RqdT+3F7;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q4sor671755otn.150.2019.02.07.23.20.50
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 07 Feb 2019 23:20:50 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 69734EBD;
-	Thu,  7 Feb 2019 22:31:33 -0800 (PST)
-Received: from [10.162.40.126] (p8cg001049571a15.blr.arm.com [10.162.40.126])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C2D753F719;
-	Thu,  7 Feb 2019 22:31:30 -0800 (PST)
-Subject: Re: [LSF/MM TOPIC] Non standard size THP
-To: Matthew Wilcox <willy@infradead.org>
-Cc: lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org"
- <linux-mm@kvack.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>,
- "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
- Vlastimil Babka <vbabka@suse.cz>, linux-fsdevel@vger.kernel.org
-References: <dcb0b2cf-ba5c-e6ef-0b05-c6006227b6a9@arm.com>
- <20190208042448.GB21860@bombadil.infradead.org>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <a563592f-c01c-8dee-d743-6a1eb0b3f9d9@arm.com>
-Date: Fri, 8 Feb 2019 12:01:28 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=RqdT+3F7;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=EalRzoWbflT2aUthpO0bEhvXjIl1xZCE1RoISoW/U9Y=;
+        b=RqdT+3F72R/XTbxkQVYqEPxLju2bMe5GObiCn7fONaAWZovYmEhemig/3V41W8s0bq
+         avOpQIP2tDET1eQ8G5YrUaSYErm7Ut26GfFEgnMQFAAienKbiP1eBbnAVPQYEF9MLsEZ
+         /f8WjcEg/F/fpfBJUPjzgrELyxY7Z92C7fF3JOsOOuQPIS2qltuHKPCHUprp8mbL96Ze
+         Hsz+FK+QgdMfpoF7ufDl4hUiHaOaUyiN7VR8zWb7nf17YP5MurLGfMBOlmg7vqcnOwAt
+         IiqitN7VTf8qNrSIwQZeLCnR4PqcktvSj+pUKWoVS51xR9HHF/KboRwvQr9uJQ9Um2fW
+         bHxw==
+X-Google-Smtp-Source: AHgI3IZXcUnnQaJW7YsANVhPGTSt2w31gaQbk9tULfIlXaNf0UZe4rmwULn4ckSvOVDerW//0ny6kxOaPLKqk45/OSM=
+X-Received: by 2002:a9d:7d18:: with SMTP id v24mr3691452otn.352.1549610450102;
+ Thu, 07 Feb 2019 23:20:50 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190208042448.GB21860@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
+ <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
+ <20190206210356.GZ6173@dastard> <20190206220828.GJ12227@ziepe.ca>
+ <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
+ <20190207035258.GD6173@dastard> <20190207052310.GA22726@ziepe.ca>
+ <CAPcyv4jd4gxvt3faYYRbv5gkc6NGOKjY_Z-P0Ph=ss=gWZw7sA@mail.gmail.com>
+ <20190207171736.GD22726@ziepe.ca> <CAPcyv4hsHeCGjcJNEmMg_6FYEsQ_8Z=bvx+WmO1v_LmoXbJrxA@mail.gmail.com>
+ <20190208051950.GA4283@ziepe.ca>
+In-Reply-To: <20190208051950.GA4283@ziepe.ca>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 7 Feb 2019 23:20:37 -0800
+Message-ID: <CAPcyv4jWnkHxBcU2_Pz99wM02RYab4y25hu_qUE8KCVArYxCeg@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
+ longterm-GUP usage by RDMA
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Dave Chinner <david@fromorbit.com>, Doug Ledford <dledford@redhat.com>, 
+	Christopher Lameter <cl@linux.com>, Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>, 
+	Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, 
+	linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, 
+	Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Feb 7, 2019 at 9:19 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+>
+> On Thu, Feb 07, 2019 at 03:54:58PM -0800, Dan Williams wrote:
+>
+> > > The only production worthy way is to have the FS be a partner in
+> > > making this work without requiring revoke, so the critical RDMA
+> > > traffic can operate safely.
+> >
+> > ...belies a path forward. Just swap out "FS be a partner" with "system
+> > administrator be a partner". In other words, If the RDMA stack can't
+> > tolerate an MR being disabled then the administrator needs to actively
+> > disable the paths that would trigger it. Turn off reflink, don't
+> > truncate, avoid any future FS feature that might generate unwanted
+> > lease breaks.
+>
+> This is what I suggested already, except with explicit kernel aid, not
+> left as some gordian riddle for the administrator to unravel.
 
+It's a riddle either way. "Why is my truncate failing?"
 
-On 02/08/2019 09:54 AM, Matthew Wilcox wrote:
-> On Fri, Feb 08, 2019 at 07:43:57AM +0530, Anshuman Khandual wrote:
->> How non-standard huge pages can be supported for THP
->>
->> 	- THP starts recognizing non standard huge page (exported by arch) like HPAGE_CONT_(PMD|PTE)_SIZE
->> 	- THP starts operating for either on HPAGE_PMD_SIZE or HPAGE_CONT_PMD_SIZE or HPAGE_CONT_PTE_SIZE
->> 	- set_pmd_at() only recognizes HPAGE_PMD_SIZE hence replace set_pmd_at() with set_huge_pmd_at()
->> 	- set_huge_pmd_at() could differentiate between HPAGE_PMD_SIZE or HPAGE_CONT_PMD_SIZE
->> 	- In case for HPAGE_CONT_PTE_SIZE extend page table walker till PTE level
->> 	- Use set_huge_pte_at() which can operate on multiple contiguous PTE bits
-> 
-> I think your proposed solution reflects thinking like a hardware person
-> rather than like a software person.  Or maybe like an MM person rather
-> than a FS person.  I see the same problem with Kirill's solutions ;-)
+The lease path allows the riddle to be solved in a way that moves the
+ecosystem forwards. It provides a mechanism to notify (effectively mmu
+notifers plumbed to userspace), an opportunity for capable RDMA apps /
+drivers to do better than SIGKILL, and a path for filesystems to
+continue to innovate and not make users choose filesystems just on the
+chance they might need to do RDMA.
 
-You might be right on this :) I was trying to derive a solution based on
-all existing semantics with limited code addition rather than inventing
-something completely different.
+> You already said it is too hard for expert FS developers to maintain a
+> mode switch
 
-> 
-> Perhaps you don't realise that using larger pages when appropriate
-> would also benefit filesystems as well as CPUs.  You didn't include
-> linux-fsdevel on this submission, so that's a plausible explanation.
+I do disagree with a truncate behavior switch, but reflink already has
+a mkfs switch so it's obviously possible for any future feature that
+might run afoul of the RDMA restrictions to have fs-feature control.
 
-Yes that was an omission. Thanks for adding linux-fsdevel to the thread.
+> , it seems like a really big stretch to think application
+> and systems architects will have any hope to do better.
 
-> 
-> The XArray currently supports arbitrary power-of-two-naturally-aligned
-> page sizes, and conveniently so does the page allocator [1].  The problem
-> is that various bits of the MM have a very fixed mindset that pages are
-> PTE, PMD or PUD in size.
+Certainly they can, it's just a matter of documenting options. It can
+be made easier if we can get commonly named options across filesystems
+to disable lease dependent functionality.
 
-I agree. But in general it works as allocated page with required order do
-reside in one of these levels in the page table.
+> It makes much more sense for the admin to flip some kind of bit and
+> the FS guarentees the safety that you are asking the admin to create.
 
-> 
-> We should enhance routines like vmf_insert_page() to handle
-> arbitrary sized pages rather than having separate vmf_insert_pfn()
-> and vmf_insert_pfn_pmd().  We probably need to enhance the set_pxx_at()
-> API to pass in an order, rather than explicitly naming pte/pmd/pud/...
+Flipping the bit changes the ABI contract in backwards incompatible
+ways. I'm saying go the other way, audit the configuration for legacy
+RDMA safety.
 
-I agree. set_huge_pte_at() actually does that to some extent on ARM64.
-But thats just for HugeTLB.
+> > We would need to make sure that lease notifications include the
+> > information to identify the lease breaker to debug escapes that
+> > might happen, but it is a solution that can be qualified to not
+> > lease break.
+>
+> I think building a complicated lease framework and then telling
+> everyone in user space to design around it so it never gets used would
+> be very hard to explain and justify.
 
-> 
-> First, though, we need to actually get arbitrary sized pages handled
-> correctly in the page cache.  So if anyone's interested in talking about
-> this, but hasn't been reviewing or commenting on the patches I've been
-> sending to make this happen, I'm going to seriously question their actual
-> commitment to wanting this to happen, rather than wanting a nice holiday
-> in Puerto Rico.
-> 
-> Sorry to be so blunt about this, but I've only had review from Kirill,
-> which makes me think that nobody else actually cares about getting
-> this fixed.
+There is no requirement to design around it. If an RDMA-implementation
+doesn't use it the longterm-GUPs are already blocked. If the
+implementation does use it, but fails to service lease breaks it gets
+SIGKILL with information of what lead to the SIGKILL so the
+configuration can be fixed. Implementations that want to do better
+have an opportunity to be a partner to the filesytem and repair the
+MR.
 
-To be honest I have not been following your work in this regard. I started
-looking into this problem late last year and my goal has been more focused 
-towards a THP solution for intermediate page table level sized huge pages.
+> Never mind the security implications if some seemingly harmless future
+> filesystem change causes unexpected lease revokes across something
+> like a tenant boundary.
 
-But I agree to your point that there should be an wider solution which can
-make generic MM deal with page sizes of any order rather than page table
-level ones like PTE/PMD/PUD etc.
+Fileystems innovate quickly, but not that quickly. Ongoing
+communication between FS and RDMA developers is not insurmountable.
 
-> 
-> [1] Support for arbitrary sized and aligned entries is in progress for
-> the XArray, but I don't think there's any appetite for changing the buddy
-> allocator to let us allocate "pages" that are an arbitrary extent in size.
-> 
-> 
+> > In any event, this lets end users pick their filesystem
+> > (modulo RDMA incompatible features), provides an enumeration of
+> > lease break sources in the kernel, and opens up FS-DAX to a wider
+> > array of RDMA adapters. In general this is what Linux has
+> > historically done, give end users technology freedom.
+>
+> I think this is not the Linux model. The kernel should not allow
+> unpriv user space to do an operation that could be unsafe.
+
+There's permission to block unprivileged writes/truncates to a file,
+otherwise I'm missing what hole is being opened? That said, the horse
+already left the barn. Linux has already shipped in the page-cache
+case "punch hole in the middle of a MR succeeds and leaves the state
+of the file relative to ongoing RDMA inconsistent". Now that we know
+about the bug the question is how do we do better than the current
+status quo of taking all of the functionality away.
+
+> I continue to think this is is the best idea that has come up - but
+> only if the filesystem is involved and expressly tells the kernel
+> layers that this combination of DAX & filesystem is safe.
+
+I think we're getting into "need to discuss at LSF/MM territory",
+because the concept of "DAX safety", or even DAX as an explicit FS
+capability has been a point of contention since day one. We're trying
+change DAX to be defined by mmap API flags like MAP_SYNC and maybe
+MAP_DIRECT in the future.
+
+For example, if the MR was not established to a MAP_SYNC vma then the
+kernel should be free to indirect the RDMA through the page-cache like
+the typical non-DAX case. DAX as a global setting is too coarse.
 
