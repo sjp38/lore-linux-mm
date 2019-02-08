@@ -2,183 +2,172 @@ Return-Path: <SRS0=ikTF=QP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7AD00C282C2
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 01:44:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C864CC282C2
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 02:14:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1D5C520869
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 01:44:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D5C520869
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 8854821907
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 02:14:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8854821907
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 711D38E006E; Thu,  7 Feb 2019 20:44:23 -0500 (EST)
+	id 218948E006F; Thu,  7 Feb 2019 21:14:07 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6C08D8E0002; Thu,  7 Feb 2019 20:44:23 -0500 (EST)
+	id 1CABB8E0002; Thu,  7 Feb 2019 21:14:07 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 562E48E006E; Thu,  7 Feb 2019 20:44:23 -0500 (EST)
+	id 0DF0A8E006F; Thu,  7 Feb 2019 21:14:07 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 120DE8E0002
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 20:44:23 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id o7so1328110pfi.23
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 17:44:23 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ADE858E0002
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2019 21:14:06 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id f17so728199edm.20
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2019 18:14:06 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=NREgLueQYiNpeDvopa6HKK4WeC+DDbVHKpVnYRgFxAA=;
-        b=EMmErPBIZstzLSewgKT5E3uaKLulI6wEhMAvWdzAlJ+0AhMdtlWkuUzB8Is85qGGgp
-         J42tEhG3PVsgI0KIJ0TECGSCul6O4Q0bws5Lj5pGvSzd0PZDM/GFOVptzXD63tuxt6fL
-         7kRQU2N58oi4xT39pvWXB1H8iHLU26ETq40LLeGKF0O93mVcVIbAT/W8NyL5HJE06WS3
-         1x7V+lHa3C3WuH3fG7fY26JcpaewzNiyj//GjhZhd5dzp2/Qq71c1mA57sFohIZ0vqQ3
-         MWyD/FEIOVmk5aod7G4fnZjnVjIvFTec7GKC5byn8ykzw9WGE3sSfrpXaGx0DWj7LQVM
-         P9LA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuYkoLlT5LViiHTpL0I8VDE4DXJiuNwAjz5UAHDXhJ1OEFdoSbXp
-	1l0IjmxF1oyrx2NnMesKqTGwPGy49v44PBG4vEVuVSHN3eediOFlmWAHEmCV6EEy0fIWXspxaXg
-	kj5kIBgjVBXWzxnCAOnqnBd5oJRKY6ytk5Iwl5M7VCCiABC9Jlzi/DAs6O5V5bkoICA==
-X-Received: by 2002:a62:5444:: with SMTP id i65mr19885510pfb.193.1549590262672;
-        Thu, 07 Feb 2019 17:44:22 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ4yZ2fIIrtmv1wvr3guVw6OEp0TaVGaDqY3pKDvkuSzbiwrx1epdW72n/InAuZ0VVJMn+j
-X-Received: by 2002:a62:5444:: with SMTP id i65mr19885438pfb.193.1549590261623;
-        Thu, 07 Feb 2019 17:44:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549590261; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:subject
+         :to:cc:message-id:date:user-agent:mime-version:content-language
+         :content-transfer-encoding;
+        bh=RkIJ4uJk2W1n2+qQpIPDMgBEfhdLzOI7pFy9JujSTWY=;
+        b=Y/SqoelJhX1yTQZVrIOpiTi2FZR9fY4t2R2K49gBRB0lAcfpA4Yg9w8uC3qBvmpE23
+         cVH2XctVO+CfkItZhbsWvg5hcP005oHpBoV4WmRwHF3Bir+SyKRb/ray3JT7m+LBr78D
+         mltcE3vTRgP7MIq5ImkSmvssVISVO8Q0zyYifBK61/OLVG9XIN9HEt5RbfXJWXB0Wsvi
+         dZNSzn43Ab6LQpu2S1h3GFj1eP9MgRvKt9yiVbIaLaESxpYRzLHpwObZ3oqhgqcihQbf
+         Ic9Dd0EaUlxyBwvwoe0w3ar0WA1CLqDCeHRYUE/4BXwHzxsi1yKaQXLy5aSu0zKZH3Lz
+         5WRQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: AHQUAuZhjqX1mHN9UzLgLxoAsrbsIifLb4IncYm+WeT77p0Sxw8KDFzs
+	KNfPo4net3fHZJZbNLktIUCipEVmU+moEV71IAoCyCLDFJ2Llk3EeGuyhZcRLNbiyrb3KBs4LvL
+	SZ6q5i9AKxavwB166qnStdK2cMCmrNQZWX2ZJgE7WyYQkKZpLpNe1e/SL/3HLfOc+1A==
+X-Received: by 2002:a17:906:3ed0:: with SMTP id d16mr3736114ejj.138.1549592046087;
+        Thu, 07 Feb 2019 18:14:06 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYC/5sgLYmS0SFoIkxXel6KarMfaRIomqP63h5fyu9QAP11U4WqOy05ZipsetyYi1Zxip1U
+X-Received: by 2002:a17:906:3ed0:: with SMTP id d16mr3736062ejj.138.1549592044884;
+        Thu, 07 Feb 2019 18:14:04 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549592044; cv=none;
         d=google.com; s=arc-20160816;
-        b=WqW/eFISpToDsvjwMaR+ynz1cu47B5XhTk8WrYAbxgTBNOBoGv5rAsZRokpbEQ5GNg
-         v/luYrbS01ZmOhzhVqo+d/MOhPqOHQEbRh8eWxobx0GkVQrh40VG3Mfw6HOefqLyABDj
-         XkkOc09WZgHjpRGDpy/6e5CRJUqtHlUwXeXAKDrDKBsXj9J6H+Y2RvTHH7B3OE/YNXH5
-         tY4XZly5mSJyxV9+vFc40oZFAcl6gD8hjrIWR14914+mp4skK0eNFHeuB4IgqNxub8WM
-         jt/BxiZy0H4nOeW9KsMaoEEMK9PCFlWojHWf78XSlJdQTnLddSUZId8sx60uyawA9LIL
-         fJjA==
+        b=Xa5D7i3SpPxu86Fi7NLl7m4hws5cQ1Hn4VC/X+kIEEV70AeyLHKlU4E+pgXte1CGRf
+         f3k0HXcsI8Hr3qXtq0txo5WTxYhz/j0Ah/mOeIPUOaX8THC+vpIKPMD+PbNmvj/N9oy2
+         uEwMCMEkUJwqv2BChh5MeSO67kcEEg1RA8RRvK2soIGZH+AOYeIWFSx5pB//hxv7OIOY
+         aEVTowy2o78xPql6Zv1n/4RGrdmyis5NMk/aD2mOBMjJQoEyFXQPnTepIFI/8yAr/NdB
+         +IkQh6x9ILn+OABSuycrM4tfHeCxOdwRadlOEhLBc0Q78XmF0IPtMWCsW4Y+1Ej35r9D
+         g15A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=NREgLueQYiNpeDvopa6HKK4WeC+DDbVHKpVnYRgFxAA=;
-        b=bNoVg268Zo3DGo3zKwrj88G6JzNqq86vqZ6SXv6e9lSjN8+358i/Z+OsWAsw6DZkkn
-         o8qQvrQLAgYxyr7EwrQ6tGCK58GdmNYOKCAiPqRXkC8bVyrO4n+Gy6pTz20UMv5CXp6y
-         3n+1pe+Jp3mPQZugLrnf245JD1QnndvHoFw/k5ir0g34q7xgv/xBpirnZZzFAFUrWuNZ
-         4pBrKUC0oY7v4giNUQ+ED96Ap0yrh1sMxqWY/Qt8ER0UTSzkKyFQZIUvawa0y/M3aDqh
-         JFTYekOxzIL70Pp7Wd089dPk1R4xz/p1sVR/QezTShQRaMK8rXktMr9rel9MRnvxEe0+
-         boDQ==
+        h=content-transfer-encoding:content-language:mime-version:user-agent
+         :date:message-id:cc:to:subject:from;
+        bh=RkIJ4uJk2W1n2+qQpIPDMgBEfhdLzOI7pFy9JujSTWY=;
+        b=JhgtntfNhwWFDD2l+ahVlCiNqB94Bi07R2UI/OlF2SXUkYZKblOInRh2VAPYJG2U0M
+         jdhn9nX6EC+y7QqKg53FemZ9uMF3n/T7xK9uPuHCV/yxjjvx7G9ryJF3j+tNn/lHuvPg
+         EiSCd7IWbxg7N4byW5q8FL4y5uG+KWwzyT80QWnJ9sOK6d+deFWtJ0H2MesPi+O3DWkz
+         sQTsAndk16UTD6C0ks4Ih1CngASLdOWLMGOXrqVmbndy7sgXUoz6E66SZC4ZW4oe0dYC
+         Ije+ZM0eQPH7l+AEGQU3F/TewnNC/4LiuN9ge/ZPsriCuLG5MvnNYi1f8L03tfRhqKT/
+         Xd3g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id p80si706729pfi.124.2019.02.07.17.44.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Feb 2019 17:44:21 -0800 (PST)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id v13si422289edq.180.2019.02.07.18.14.04
+        for <linux-mm@kvack.org>;
+        Thu, 07 Feb 2019 18:14:04 -0800 (PST)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Feb 2019 17:44:20 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,346,1544515200"; 
-   d="scan'208";a="298118289"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga005.jf.intel.com with ESMTP; 07 Feb 2019 17:44:20 -0800
-Date: Thu, 7 Feb 2019 17:44:04 -0800
-From: Ira Weiny <ira.weiny@intel.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, Dave Chinner <david@fromorbit.com>,
-	Doug Ledford <dledford@redhat.com>,
-	Christopher Lameter <cl@linux.com>,
-	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
-	lsf-pc@lists.linux-foundation.org,
-	linux-rdma <linux-rdma@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-Message-ID: <20190208014403.GA32701@iweiny-DESK2.sc.intel.com>
-References: <47820c4d696aee41225854071ec73373a273fd4a.camel@redhat.com>
- <01000168c43d594c-7979fcf8-b9c1-4bda-b29a-500efe001d66-000000@email.amazonses.com>
- <20190206210356.GZ6173@dastard>
- <20190206220828.GJ12227@ziepe.ca>
- <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
- <20190207035258.GD6173@dastard>
- <20190207052310.GA22726@ziepe.ca>
- <CAPcyv4jd4gxvt3faYYRbv5gkc6NGOKjY_Z-P0Ph=ss=gWZw7sA@mail.gmail.com>
- <20190207171736.GD22726@ziepe.ca>
- <CAPcyv4hsHeCGjcJNEmMg_6FYEsQ_8Z=bvx+WmO1v_LmoXbJrxA@mail.gmail.com>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 53A53EBD;
+	Thu,  7 Feb 2019 18:14:03 -0800 (PST)
+Received: from [10.162.40.126] (p8cg001049571a15.blr.arm.com [10.162.40.126])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C899D3F675;
+	Thu,  7 Feb 2019 18:14:00 -0800 (PST)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: [LSF/MM TOPIC] Non standard size THP
+To: lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org"
+ <linux-mm@kvack.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ Michal Hocko <mhocko@kernel.org>,
+ "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+ Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <dcb0b2cf-ba5c-e6ef-0b05-c6006227b6a9@arm.com>
+Date: Fri, 8 Feb 2019 07:43:57 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4hsHeCGjcJNEmMg_6FYEsQ_8Z=bvx+WmO1v_LmoXbJrxA@mail.gmail.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 07, 2019 at 03:54:58PM -0800, Dan Williams wrote:
-> On Thu, Feb 7, 2019 at 9:17 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
-> >
-> > Insisting to run RDMA & DAX without ODP and building an elaborate
-> > revoke mechanism to support non-ODP HW is inherently baroque.
-> >
-> > Use the HW that supports ODP.
-> >
-> > Since no HW can do disable of a MR, the escalation path is SIGKILL
-> > which makes it a non-production toy.
-> >
-> > What you keep missing is that for people doing this - the RDMA is a
-> > critical compoment of the system, you can't just say the kernel will
-> > randomly degrade/kill RDMA processes - that is a 'toy' configuration
-> > that is not production worthy.
-> >
-> > Especially since this revoke idea is basically a DOS engine for the
-> > RDMA protocol if another process can do actions to trigger revoke. Now
-> > we have a new class of security problems. (again, screams non
-> > production toy)
-> >
-> > The only production worthy way is to have the FS be a partner in
-> > making this work without requiring revoke, so the critical RDMA
-> > traffic can operate safely.
-> >
-> > Otherwise we need to stick to ODP.
-> 
-> Thanks for this it clears a lot of things up for me...
-> 
-> ...but this statement:
-> 
-> > The only production worthy way is to have the FS be a partner in
-> > making this work without requiring revoke, so the critical RDMA
-> > traffic can operate safely.
-> 
-> ...belies a path forward. Just swap out "FS be a partner" with "system
-> administrator be a partner". In other words, If the RDMA stack can't
-> tolerate an MR being disabled then the administrator needs to actively
-> disable the paths that would trigger it. Turn off reflink, don't
-> truncate, avoid any future FS feature that might generate unwanted
-> lease breaks. We would need to make sure that lease notifications
-> include the information to identify the lease breaker to debug escapes
-> that might happen, but it is a solution that can be qualified to not
-> lease break. In any event, this lets end users pick their filesystem
-> (modulo RDMA incompatible features), provides an enumeration of lease
-> break sources in the kernel, and opens up FS-DAX to a wider array of
-> RDMA adapters. In general this is what Linux has historically done,
-> give end users technology freedom.
+Hello,
 
-To back off the details of this thread a bit...
+THP is currently supported for
 
-The details of limitations imposed and how they would be tracked within the
-kernel would be a great thing to discuss face to face.  Hence the reason for my
-proposal as a topic.
+- PMD level pages (anon and file)
+- PUD level pages (file - DAX file system)
 
-Ira
+THP is a single entry mapping at standard page table levels (either PMD or PUD)
+
+But architectures like ARM64 supports non-standard page table level huge pages
+with contiguous bits.
+
+- These are created as multiple entries at either PTE or PMD level
+- These multiple entries carry pages which are physically contiguous
+- A special PTE bit (PTE_CONT) is set indicating single entry to be contiguous
+
+These multiple contiguous entries create a huge page size which is different
+than standard PMD/PUD level but they provide benefits of huge memory like
+less number of faults, bigger TLB coverage, less TLB miss etc.
+
+Currently they are used as HugeTLB pages because
+
+	- HugeTLB page sizes is carried in the VMA
+	- Page table walker can operate on multiple PTE or PMD entries given its size in VMA
+	- Irrespective of HugeTLB page size its operated with set_huge_pte_at() at any level
+	- set_huge_pte_at() is arch specific which knows how to encode multiple consecutive entries
+	
+But not as THP huge pages because
+
+	- THP size is not encoded any where like VMA
+	- Page table walker expects it to be either at PUD (HPAGE_PUD_SIZE) or at PMD (HPAGE_PMD_SIZE)
+	- Page table operates directly with set_pmd_at() or set_pud_at()
+	- Direct faulted or promoted huge pages is verified with [pmd|pud]_trans_huge()
+
+How non-standard huge pages can be supported for THP
+
+	- THP starts recognizing non standard huge page (exported by arch) like HPAGE_CONT_(PMD|PTE)_SIZE
+	- THP starts operating for either on HPAGE_PMD_SIZE or HPAGE_CONT_PMD_SIZE or HPAGE_CONT_PTE_SIZE
+	- set_pmd_at() only recognizes HPAGE_PMD_SIZE hence replace set_pmd_at() with set_huge_pmd_at()
+	- set_huge_pmd_at() could differentiate between HPAGE_PMD_SIZE or HPAGE_CONT_PMD_SIZE
+	- In case for HPAGE_CONT_PTE_SIZE extend page table walker till PTE level
+	- Use set_huge_pte_at() which can operate on multiple contiguous PTE bits
+
+Kirill Shutemov proposed re-working the page table traversal during last year's
+LSFMM. A recursive page table walk just with level information would allow us to
+introduce artificial or non-standard page table levels for contiguous bit huge
+page support.
+
+https://lwn.net/Articles/753267/
+
+Here is the matrix for contiguous PTE and PMD sizes for various base page size
+configurations on ARM64. Promoting or faulting pages at contiguous PTE level is
+much more likely than PMD level which are more difficult to allocate at run time.
+    
+            CONT PTE    PMD    CONT PMD
+            --------    ---    --------
+    4K:        64K      2M        32M
+    16K:        2M     32M         1G
+    64K:        2M    512M        16G
+
+Having support for contiguous PTE size based THP size will help many workloads utilize
+THP benefits. I understand there would be much more fine grained details which need to
+be sorted out and difficulties to be overcome but its worth starting a discussion on this
+front which can really benefit workloads.
+
+- Anshuman
 
