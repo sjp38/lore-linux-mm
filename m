@@ -2,176 +2,185 @@ Return-Path: <SRS0=ikTF=QP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BB73AC282CB
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 08:31:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E6AD1C169C4
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 09:01:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5AB3221917
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 08:31:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A342321916
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 09:01:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lightnvm-io.20150623.gappssmtp.com header.i=@lightnvm-io.20150623.gappssmtp.com header.b="d4jlx/3n"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AB3221917
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lightnvm.io
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=xenosoft.de header.i=@xenosoft.de header.b="JyxKUrN5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A342321916
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=xenosoft.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B87758E0084; Fri,  8 Feb 2019 03:31:26 -0500 (EST)
+	id 4448D8E0085; Fri,  8 Feb 2019 04:01:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B36178E0083; Fri,  8 Feb 2019 03:31:26 -0500 (EST)
+	id 3F23F8E0083; Fri,  8 Feb 2019 04:01:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A4A488E0084; Fri,  8 Feb 2019 03:31:26 -0500 (EST)
+	id 2BB4E8E0085; Fri,  8 Feb 2019 04:01:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 372818E0083
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 03:31:26 -0500 (EST)
-Received: by mail-lj1-f199.google.com with SMTP id t22-v6so765101lji.14
-        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 00:31:26 -0800 (PST)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C700B8E0083
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 04:01:57 -0500 (EST)
+Received: by mail-wm1-f71.google.com with SMTP id f193so834830wme.8
+        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 01:01:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+        h=x-gm-message-state:dkim-signature:subject:from:to:cc:references
          :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=e9o0xEZeVxGkGRYq+FrqLeZRYKbVYwBBNVU1Vhi1O7c=;
-        b=ke6c+tnZjLY5bhf5apx0SX0Mfa+YuqfeJWmQ9b0teUEl0I5d0zsxWGID89b2VnnBHY
-         hUnf1lplDIR/pSPqX7ddnZ9cdIpevXUarEn7l5P3LdQvSGFhIUvMVaAwcYp82GbmwsIH
-         HHUU7c9SF4duCEsGDtkpWEGhXXSIy7TZtweR4/eNsMLFdJ1GolcIBor5ZbENdcq12JL8
-         hRRur4vJn4cENexhIMEUM+LDeTqwCCzLCTo8T09HsDuGfZZRTuTR7dwHeLTwoNPNWYGU
-         frEiZ/hKNNYFzhFo6r6Jb/0pnkkHsKXEyi6+BosTVBmrEGk/0xkIGtkfOIesoJvhDqnL
-         pvOQ==
-X-Gm-Message-State: AHQUAuYwCb4CG/HmfpUQtmPQWONVtdBQsack1j6Qjr52fczh9JdQ+RYo
-	eOjCGjznHcU5zixDSsPIEo+hH2hcSXDpNKaObWrkL0s3pqv38c9EL5qaVHTr3goWoc/Jg771RxY
-	QXdMV6xglBsThHlXAjWN3xOkP0svQPwjRknq4rSHGmeW70888fw6by+GOizuqnt2nQdG2yktWc9
-	JwjxsEUUBO/q5tytTKCLZNMA+0KCjELK3xz4SHA5TVBMO4Y/88B/MEGS8Z3TCNAgbvcwBaQkSQd
-	hisjppjWQm7JBv6oAuGdo4/Vgp4yR+chseV1xx73j490dGeGTCrlsXnicRky5MRVuimStIUf1D/
-	DOaCeFgs9jGEgif1kfUP8fPIMdxkWhrQOFtLMmw4l5aS66pUzTJG2vO/6f1A44TTfrzDZXAhu/a
-	V
-X-Received: by 2002:a19:f244:: with SMTP id d4mr297390lfk.0.1549614685454;
-        Fri, 08 Feb 2019 00:31:25 -0800 (PST)
-X-Received: by 2002:a19:f244:: with SMTP id d4mr297320lfk.0.1549614684047;
-        Fri, 08 Feb 2019 00:31:24 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549614684; cv=none;
+         :content-transfer-encoding:content-language;
+        bh=fooRh1gZ6IpLFzGD2jk4xEF8/2O5k1pY3XR60x9luIk=;
+        b=XNVkWzMrMGRwQU9aW4N3N+9BRsLRtMv4mNOqv/EWCmtO7KlZ+8145LlqgcR4NEBku6
+         V+oktQ585l5VZOTGuPpRYwm0TcHTmFQC+40WH06QdUWRFmm0ZdyJsc2khhFc2+R+KX0i
+         7K1XeLsh05MRI8SCI2xZiuRalGznkhrSCRCmZHYkMU2bC2FHGstEHx7w9RRC6VXLQUtC
+         7W/hbGk5bTRDsebEIC0nXvcIELhGvifldqOGtwS//UIRS390K91JNWF4zbi+YyhpptxX
+         52rJPo18e0jlusKIxywA6zpMZfBfq0c9uXc6vrVLIhfe/pFbzQ0UBF5UPJ5b+AL4rLmc
+         CS9Q==
+X-Gm-Message-State: AHQUAua1H09eo1pEOuuLQ+yoDeM3t6pzNFzSWJleEC9W3WxelcLky5n1
+	St1M601i4FLHRDzyszidq0bVrjvnlEMsg23CYoiFh72o6qIic105MVOlOIXYcl4kS+YXIrsQctm
+	cuYO8R7CtZzTTBcAxrU4RgUo/zI3h36zQIJPWcUofGq1XLbqyjkqKWkyRuuq4lQYLuw==
+X-Received: by 2002:adf:c5cc:: with SMTP id v12mr15104049wrg.176.1549616517070;
+        Fri, 08 Feb 2019 01:01:57 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZUFmZn00BrXWaSf69qB/wudfFUT3SFC51pxgiYfl52AyyhicMs3rlYiywGbFcpkKpgPCb2
+X-Received: by 2002:adf:c5cc:: with SMTP id v12mr15103986wrg.176.1549616516025;
+        Fri, 08 Feb 2019 01:01:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549616516; cv=none;
         d=google.com; s=arc-20160816;
-        b=vfyWfD4SGEL5dDpYhCMd2YLhsGhbV/bvVHREF+EvkpoZ7FlqYtK5ks1J4sKAiy7GbX
-         REbJmQBN1pCM4yil8VSJ0Lu8+Bd4tw7bzCjkBP1YsgZN49lF7Yyqq9CyVMEb3fjpLRfI
-         6mXeb/qxzpUEqRN7Ufjsv9Ozo4iEbp4J/EcqZKaWDJLu2wU0gm1du9b525niEGHRAKed
-         OFBVGurBA7qpuqmUT6dBRnKPwdF1kWupXyX4I/hPbe/iwRUcHuPB2cqvLFe2WJm+llmj
-         ZPM2VTwK86MSVHHGTjsClOHOtB4hzjueoElyAy6+iuDT3+PMxzpx+QANoAd7mHKNNpJN
-         qXkg==
+        b=ZfAFcSnEiRw8jlFjyGaey+9dJ97tRVrxJhELb4SNj3Uv8pHZs/GXhTfWQZcGXJyQP0
+         0QntD/SiyMHVJFjP/Njp+omg3ZG5SpxB40Lb76yprdjO04rsiA/ifRjMn4Q60YvvIJgD
+         OB+VInWMMCxgoQfDbFa+prEdR/jnxfWjgCL5N2b/fXNyj65BVzO+W/UZNyErlwSnIxwc
+         p0lv+LrPxlWGpBuzjSzs8fdyAHdGWjGCx4mg3YYKais2YIfWTsehdS8AwPWN4lUG56i5
+         xHWA2+kRKz4pluNr8unseqJoiGD3EN70P6D46HV9vx2c5C9hMoC6qKZOVEkC+c6CWCZj
+         kdbQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:from:subject
          :dkim-signature;
-        bh=e9o0xEZeVxGkGRYq+FrqLeZRYKbVYwBBNVU1Vhi1O7c=;
-        b=H+ROLrZydfqMZ9D24Qe+lyN6kmtyi7tphP00pktPjg/++q+Gzr35bqN02J+A8Wskhg
-         sfNfbE/7l8SHPZFlgI3MZo30/wlMSFVa1cIrBAjOpaC1UpaeJAi1fpYjlJvvUKA2TC9l
-         iCmgVnFFP2eMDDX5+8dIsNs0cHgxZylvyoZT0nSG816HWVbJzzc+Aan5mR3YqrND1hsQ
-         36YTV+hSKLbFnLoPbuPPGFwPo+n3EGy/ZhQQTQLetMDXUsY6N8vAYjoVn4jf37jWoU+z
-         lN0u6CNlruLVtgAVSX3Fy35A2ESEIVSmJJPXhoWvz9Qujb6ROeXJl9ZKKgrnL1uDM7C5
-         2KCA==
+        bh=fooRh1gZ6IpLFzGD2jk4xEF8/2O5k1pY3XR60x9luIk=;
+        b=t4Am2OIlHgbVP/pvq5WExoOfYttV637CbyUX4loabPOQYts5h9KAhkdLAYrTBt6HJ+
+         R+LsNz1uEQa686N4Hyb8cwgpVEkB1iiUnOAzTInr2YrVUj/QJPkBvahE6AxmeC1F8pho
+         /IrFf8IXG5mOjm0LNDLYcRNFL1oER1HiVbhkcLMdKWmGWD/6sth84JtvgfHKTeeNmx0z
+         L5eVHQk/aJV9icah/P1yqsGbUtociJPDY7g/yCuhou+JndKMR5dm5rbvqlRTeq1rWZEL
+         +0HPjk9uNgOItMd3UbFPMfRgZBzZxGAAKVfaHF0UpNQDE2GTvS616764RL4hv4fqVVU0
+         qVcg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lightnvm-io.20150623.gappssmtp.com header.s=20150623 header.b="d4jlx/3n";
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of mb@lightnvm.io) smtp.mailfrom=mb@lightnvm.io
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u20sor347418lfl.64.2019.02.08.00.31.23
+       dkim=pass header.i=@xenosoft.de header.s=strato-dkim-0002 header.b=JyxKUrN5;
+       spf=neutral (google.com: 2a01:238:20a:202:5301::4 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) smtp.mailfrom=chzigotzky@xenosoft.de
+Received: from mo6-p01-ob.smtp.rzone.de (mo6-p01-ob.smtp.rzone.de. [2a01:238:20a:202:5301::4])
+        by mx.google.com with ESMTPS id p1si1017248wro.173.2019.02.08.01.01.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 08 Feb 2019 00:31:23 -0800 (PST)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of mb@lightnvm.io) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lightnvm-io.20150623.gappssmtp.com header.s=20150623 header.b="d4jlx/3n";
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of mb@lightnvm.io) smtp.mailfrom=mb@lightnvm.io
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lightnvm-io.20150623.gappssmtp.com; s=20150623;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=e9o0xEZeVxGkGRYq+FrqLeZRYKbVYwBBNVU1Vhi1O7c=;
-        b=d4jlx/3nA/a5G7syHqg2prvdxFpGgbBoY21yMrmJkBeBq03jK/tjjyC3ad2yAifFhc
-         cPqTUdPHzxs6WThF95eB9FAe9zclG3k1aJ6TbaJQfqbbDhbOwpGG9CT08esoy9vCiZLE
-         +/mPVCXFiYcAHBKiBrj+1FxDmKNJkHjCJJejVnz5i4b7PkKqVIrfU+pinba2vLJTbN6g
-         SETyheeaOhPNNm5rbtFCOdNTVLQvlzpQ/iuWf2nvSRt6SB04KW/OwluWcPTRQTXlpzsw
-         JuhdbPvzy9BLv5fNtao3neUBWc3QWFsTFa7+e7xQpCTB9dvD7ykGqkh6EfBwWGQr+WE5
-         jYAA==
-X-Google-Smtp-Source: AHgI3IbZa/PxvTalxyrFemw0ERdwLiKEJ13PYlnSQyzLL5Wel6ke7icNnqLupvzfVXuGjkiT0Rh4+A==
-X-Received: by 2002:a19:9508:: with SMTP id x8mr12577498lfd.112.1549614683327;
-        Fri, 08 Feb 2019 00:31:23 -0800 (PST)
-Received: from [192.168.0.36] (2-111-91-225-cable.dk.customer.tdc.net. [2.111.91.225])
-        by smtp.googlemail.com with ESMTPSA id q10-v6sm239573ljj.3.2019.02.08.00.31.21
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Feb 2019 00:31:22 -0800 (PST)
-Subject: Re: [LSF/MM TOPIC] BPF for Block Devices
-To: Stephen Bates <sbates@raithlin.com>, Jens Axboe <axboe@kernel.dk>,
- linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm
- <linux-mm@kvack.org>,
- "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
- IDE/ATA development list <linux-ide@vger.kernel.org>,
- linux-scsi <linux-scsi@vger.kernel.org>,
- "linux-nvme@lists.infradead.org" <linux-nvme@lists.infradead.org>,
- Logan Gunthorpe <logang@deltatee.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
- "bpf@vger.kernel.org" <bpf@vger.kernel.org>, "ast@kernel.org"
- <ast@kernel.org>
-References: <40D2EB06-6BF2-4233-9196-7A26AC43C64E@raithlin.com>
-From: =?UTF-8?Q?Matias_Bj=c3=b8rling?= <mb@lightnvm.io>
-Message-ID: <f1f00282-11be-1682-3802-c8bd0e6fec4b@lightnvm.io>
-Date: Fri, 8 Feb 2019 09:31:20 +0100
+        Fri, 08 Feb 2019 01:01:55 -0800 (PST)
+Received-SPF: neutral (google.com: 2a01:238:20a:202:5301::4 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) client-ip=2a01:238:20a:202:5301::4;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@xenosoft.de header.s=strato-dkim-0002 header.b=JyxKUrN5;
+       spf=neutral (google.com: 2a01:238:20a:202:5301::4 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) smtp.mailfrom=chzigotzky@xenosoft.de
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; t=1549616515;
+	s=strato-dkim-0002; d=xenosoft.de;
+	h=In-Reply-To:Date:Message-ID:References:Cc:To:From:Subject:
+	X-RZG-CLASS-ID:X-RZG-AUTH:From:Subject:Sender;
+	bh=fooRh1gZ6IpLFzGD2jk4xEF8/2O5k1pY3XR60x9luIk=;
+	b=JyxKUrN570XeFlERGNOGx09arnzdpkrnNk5PGyrw02Wmu2m5nzmdZ1EBY1qZ0wrFkC
+	090mKWJMCXDIbs7l7wh0yJ3tGPBmPp3lGrw3YkiVVInYhLbMGog1xRTI7Oo/+vdgIraZ
+	DcBdKgtUUo1ANhigDKp06wfNQIQeowH9fjGbfToxbHrvsYPc4AvdW7iW5NH2HfO36Ywy
+	XC5474fpBeUSS/Hq/93CHlzrWXfTQH0VrQjrh0II6l0AbD9azONsTOReKh81Bf9FzJPi
+	XEV+VoqzrefS/a4TB64JwurDUyrE2xA3v018NqZ3FteCjRZuYf+/kGw//d6QdNSui38g
+	vVLA==
+X-RZG-AUTH: ":L2QefEenb+UdBJSdRCXu93KJ1bmSGnhMdmOod1DhGM4l4Hio94KKxRySfLxnHfJ+Dkjp5G5MdirQj0WG7CkGj+Y7E+ydJaUNFx8xLfqBQFoUyw=="
+X-RZG-CLASS-ID: mo00
+Received: from [IPv6:2a02:8109:a400:162c:914e:ec0c:daf0:5a2a]
+	by smtp.strato.de (RZmta 44.9 AUTH)
+	with ESMTPSA id t0203dv1891k4iY
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (curve secp521r1 with 521 ECDH bits, eq. 15360 bits RSA))
+	(Client did not present a certificate);
+	Fri, 8 Feb 2019 10:01:46 +0100 (CET)
+Subject: Re: use generic DMA mapping code in powerpc V4
+From: Christian Zigotzky <chzigotzky@xenosoft.de>
+To: Christoph Hellwig <hch@lst.de>
+Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>,
+ linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>,
+ linux-mm@kvack.org, iommu@lists.linux-foundation.org,
+ Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>,
+ linuxppc-dev@lists.ozlabs.org
+References: <F4AB3D9A-97EC-45D7-9061-A750D0934C3C@xenosoft.de>
+ <96762cd2-65fc-bce5-8c5b-c03bc3baf0a1@xenosoft.de>
+ <20190201080456.GA15456@lst.de>
+ <9632DCDF-B9D9-416C-95FC-006B6005E2EC@xenosoft.de>
+ <594beaae-9681-03de-9f42-191cc7d2f8e3@xenosoft.de>
+ <20190204075616.GA5408@lst.de>
+ <ffbf56ae-c259-47b5-9deb-7fb21fead254@xenosoft.de>
+ <20190204123852.GA10428@lst.de>
+ <b1c0161f-4211-03af-022d-0db7237516e9@xenosoft.de>
+ <20190206151505.GA31065@lst.de> <20190206151655.GA31172@lst.de>
+ <61EC67B1-12EF-42B6-B69B-B59F9E4FC474@xenosoft.de>
+Message-ID: <7c1f208b-6909-3b0a-f9f9-38ff1ac3d617@xenosoft.de>
+Date: Fri, 8 Feb 2019 10:01:46 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.2.1
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-In-Reply-To: <40D2EB06-6BF2-4233-9196-7A26AC43C64E@raithlin.com>
+In-Reply-To: <61EC67B1-12EF-42B6-B69B-B59F9E4FC474@xenosoft.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-GB
 Content-Transfer-Encoding: 8bit
+Content-Language: de-DE
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/7/19 6:12 PM, Stephen  Bates wrote:
-> Hi All
-> 
->> A BPF track will join the annual LSF/MM Summit this year! Please read the updated description and CFP information below.
-> 
-> Well if we are adding BPF to LSF/MM I have to submit a request to discuss BPF for block devices please!
-> 
-> There has been quite a bit of activity around the concept of Computational Storage in the past 12 months. SNIA recently formed a Technical Working Group (TWG) and it is expected that this TWG will be making proposals to standards like NVM Express to add APIs for computation elements that reside on or near block devices.
-> 
-> While some of these Computational Storage accelerators will provide fixed functions (e.g. a RAID, encryption or compression), others will be more flexible. Some of these flexible accelerators will be capable of running BPF code on them (something that certain Linux drivers for SmartNICs support today [1]). I would like to discuss what such a framework could look like for the storage layer and the file-system layer. I'd like to discuss how devices could advertise this capability (a special type of NVMe namespace or SCSI LUN perhaps?) and how the BPF engine could be programmed and then used against block IO. Ideally I'd like to discuss doing this in a vendor-neutral way and develop ideas I can take back to NVMe and the SNIA TWG to help shape how these standard evolve.
-> 
-> To provide an example use-case one could consider a BPF capable accelerator being used to perform a filtering function and then using p2pdma to scan data on a number of adjacent NVMe SSDs, filtering said data and then only providing filter-matched LBAs to the host. Many other potential applications apply.
-> 
-> Also, I am interested in the "The end of the DAX Experiment" topic proposed by Dan and the " Zoned Block Devices" from Matias and Damien.
-> 
-> Cheers
->   
-> Stephen
-> 
-> [1] https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/net/ethernet/netronome/nfp/bpf/offload.c?h=v5.0-rc5
->   
->      
-> 
+Hi Christoph,
 
-If we're going down that road, we can also look at the block I/O path 
-itself.
+Your new patch fixes the problems with the P.A. Semi Ethernet! :-)
 
-Now that Jens' has shown that io_uring can beat SPDK. Let's take it a 
-step further, and create an API, such that we can bypass the boilerplate 
-checking in kernel block I/O path, and go straight to issuing the I/O in 
-the block layer.
+Thanks,
+Christian
 
-For example, we could provide an API that allows applications to 
-register a fast path through the kernel — one where checks, such as 
-generic_make_request_checks(), already has been validated.
 
-The user-space application registers a BFP program with the kernel, the 
-kernel prechecks the possible I/O patterns and then green-lights all 
-I/Os that goes through that unit. In that way, the checks only have to 
-be done once, instead of every I/O. This approach could work beautifully 
-with direct io and raw devices, and with a bit more work, we can do more 
-complex use-cases as well.
+On 07 February 2019 at 05:34AM, Christian Zigotzky wrote:
+> Hi Christoph,
+>
+> I also didn’t notice the 32-bit DMA mask in your patch. I have to read your patches and descriptions carefully in the future. I will test your new patch at the weekend.
+>
+> Thanks,
+> Christian
+>
+> Sent from my iPhone
+>
+>> On 6. Feb 2019, at 16:16, Christoph Hellwig <hch@lst.de> wrote:
+>>
+>>> On Wed, Feb 06, 2019 at 04:15:05PM +0100, Christoph Hellwig wrote:
+>>> The last good one was 29e7e2287e196f48fe5d2a6e017617723ea979bf
+>>> ("dma-direct: we might need GFP_DMA for 32-bit dma masks"), if I
+>>> remember correctly.  powerpc/dma: use the dma_direct mapping routines
+>>> was the one that you said makes the pasemi ethernet stop working.
+>>>
+>>> Can you post the dmesg from the failing runs?
+>> But I just noticed I sent you a wrong patch - the pasemi ethernet
+>> should set a 64-bit DMA mask, not 32-bit.  Updated version below,
+>> 32-bit would just keep the previous status quo.
+>>
+>> commit 6c8f88045dee35933337b9ce2ea5371eee37073a
+>> Author: Christoph Hellwig <hch@lst.de>
+>> Date:   Mon Feb 4 13:38:22 2019 +0100
+>>
+>>     pasemi WIP
+>>
+>> diff --git a/drivers/net/ethernet/pasemi/pasemi_mac.c b/drivers/net/ethernet/pasemi/pasemi_mac.c
+>> index 8a31a02c9f47..2d7d1589490a 100644
+>> --- a/drivers/net/ethernet/pasemi/pasemi_mac.c
+>> +++ b/drivers/net/ethernet/pasemi/pasemi_mac.c
+>> @@ -1716,6 +1716,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+>>         err = -ENODEV;
+>>         goto out;
+>>     }
+>> +    dma_set_mask(&mac->dma_pdev->dev, DMA_BIT_MASK(64));
+>>
+>>     mac->iob_pdev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa001, NULL);
+>>     if (!mac->iob_pdev) {
+
 
