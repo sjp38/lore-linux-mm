@@ -2,113 +2,237 @@ Return-Path: <SRS0=ikTF=QP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C5B8C169C4
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 09:18:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E9F24C282CB
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 09:55:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 002BE21917
-	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 09:18:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 002BE21917
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 8AD4221924
+	for <linux-mm@archiver.kernel.org>; Fri,  8 Feb 2019 09:55:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8AD4221924
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8A4618E0087; Fri,  8 Feb 2019 04:18:21 -0500 (EST)
+	id E7B108E0083; Fri,  8 Feb 2019 04:55:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 87A488E0083; Fri,  8 Feb 2019 04:18:21 -0500 (EST)
+	id E2BA08E0002; Fri,  8 Feb 2019 04:55:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 744C18E0087; Fri,  8 Feb 2019 04:18:21 -0500 (EST)
+	id CF4A38E0083; Fri,  8 Feb 2019 04:55:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DC168E0083
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 04:18:21 -0500 (EST)
-Received: by mail-wm1-f71.google.com with SMTP id b186so560221wmc.8
-        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 01:18:21 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 75BFC8E0002
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 04:55:10 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id b3so1216935edi.0
+        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 01:55:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=NKkYaLqxEHTYYJVteG3GvyOs8/0LVYeHC4bV8ajl1ak=;
-        b=DVwxbf3NRdm8wN1XWVcUTyK3Zvy8HA4ieebEo2ZuZXTLDDULL9OvhpauxOmf4XoMVf
-         1IVdBM8ScN4T0+9B3cLgItW7rc9n8BUKP/vi/MxC2f3J2D/7Gwgwdd2tthnpJ8eKpOIl
-         B/G3PuDxCqyp642GtfqS58w9D3jZxsyiZGvcXJt/huOd62GPKUgy5/6Fke1zSrlwrulv
-         vmyMPlweUjXopddC1PmmCIKprlmU4eTLUA6ywpczukh0oJY8S7F8hj9m60+q6wC75oLA
-         fP1KuP9MCk0AdDO5bVAiclL2KKkNiBBQNrDgaBOYT8tJtMEg0VGbwiRzPGXAirx7NXPZ
-         YDDg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: AHQUAuYVU1holCA49jc3XbazPHhPT8OL1ciC4XTRqYoq4ZouUMn66hC5
-	QSs1zeOf9O9JLEaVyC5qbu2VkeBdlDIirheTvqsqRZ0palgYGKqwSM6ThZa8CtU3MEEKPQ2sjK3
-	ryODXoXIm27SP3Nkc7YJ8vlvZ5AISXuoecVTeeTASIM6jOJbMaGgWSbUCy6gz7ooKnA==
-X-Received: by 2002:a1c:7ec4:: with SMTP id z187mr10544273wmc.43.1549617500746;
-        Fri, 08 Feb 2019 01:18:20 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZEWApCiK1vL9LKFyT9K84k7Z5B3Qt5z4owLoz6GgbQm5Hbd4/Oxk+MkjZgPSS2OuZNnFVU
-X-Received: by 2002:a1c:7ec4:: with SMTP id z187mr10544199wmc.43.1549617499473;
-        Fri, 08 Feb 2019 01:18:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549617499; cv=none;
+        bh=sqesVHtJeqtci5xZ/dIaJNgH88dDm6/P+QpsFjQgTC8=;
+        b=NXQlkxs64/cOxhKlzUDXm3gQ7fEDDowwJBmHslNTxowFgpTzhIfodQbj6IEQmPeA5o
+         aBmw3lldGkbL9aYmNgY4JWpcqEe3bkUsYpQk/PhSB+NHLjvAWA9VdYThRk0EjSKXEdNj
+         r4/lln3qaXMIskITW5D+dGN0eeHrefOym9x1Ni/wojrVzC8cKTltSr2KOOWjA9+0fQQF
+         1sPplRupFZThB9Tr0AeIPBOhy8y5T2aga2Eupyar6x4nMv15fqXEKuAoEzmMzKJSzR3a
+         ykOGF5HMywrfJRk+b0M8Hz9Xy90AMxTponexnE7hnn+sfJODDynI+94pz+0N4XuYcipm
+         0CIQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: AHQUAubG2zgpc0rybLFYJuurQY3NUrfAnZnt+GbuleXJycc13/cy0wcY
+	4xMSGLReVFvhbDo54RuQuAEntZPDc3tI/9uaOnIeuEbxzC7bh/oe8MA+cYuqICKcwc110K1mUn/
+	iL5eqcS+++F0atgmaDo+xqo8BMxyDAbzPrh3ILHFLVdIVUnbSODtrHnaTAMbRsqyY6Q==
+X-Received: by 2002:a17:906:8249:: with SMTP id f9mr15476224ejx.134.1549619709916;
+        Fri, 08 Feb 2019 01:55:09 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IadglitC9PX8O3kM14lWRXuCRESl79bOCI0PjQyfBQmiHOk/RPceC0aMq+9AmMxlbj5VJbS
+X-Received: by 2002:a17:906:8249:: with SMTP id f9mr15476166ejx.134.1549619708775;
+        Fri, 08 Feb 2019 01:55:08 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549619708; cv=none;
         d=google.com; s=arc-20160816;
-        b=s5YgQ5jOGQW4DogO8Ufx+0iZRyN++8UObU6Hg+/gldyTdlFh/caD59Ohoqi5RF4oeX
-         TY0UKf4R1IiRhhJYDNxtZhIWHD/A3WOzL4i0R/c+C8bifvGUq55Py76RudkEtHEmHPGe
-         bq9LfS7QyLWwC3kH7bk6bvpGbG2PkGxy1zEDZRw7kKsYW8XbY599kRUdQJwoKnkhHVWt
-         mCnfX66+g/VxzMu3QrOw7uQFQ7w/ygo70ebDYNWLz+Ofw22p+FaQ5mfJs34VbvGPs6ku
-         jPsyBWuHfcTgplEFWF41A3PtEBBew7/6ynf4Jt7WPU1FfWeOMs74zqN1aEi304L6oh6w
-         dTeA==
+        b=L9ZhzdjW7RvGTSz1QDkY06OmYeWm2h12c9GCFfpphCp7OQYH79uJ/D2KYxpxm8pJAf
+         e3ZqmebhP4xllc6I6wta2vYxS/vCVf3xKp8ZPZLGAYmHzrCzG5L1YSFrx2KWQDf0Gbei
+         o2gkNjXQVI8/QnbeLiPf7DEk0nLjgQaRapDtkO9X4yOXWguNeE7g4aJ+fwI/TXJAEhtL
+         Nn+H6+gO1av38onXI6WguFx24tfu5bngsBOp5Ur3l+t3VoCl2bUZItbqTR35ghzXw07i
+         Ipwsh9t3aPokidPLfRFBwFn18em7iT+l6csQLXLxl5MYpvTfrtZzG3AlgcErRGMKIUvx
+         N5yw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=NKkYaLqxEHTYYJVteG3GvyOs8/0LVYeHC4bV8ajl1ak=;
-        b=qSoFLnK8KQjk48h/y/y+bc3tzRb3Xg0HNZeTC+sTRykJH/TAsIrMhagzSjlHPoUG9Y
-         xA9VHRCgH38vq/e3ee7hZYBX3e2/kOuHeKCNhK7TfUJcJ5+1B1pmL0ATCiYHMh+1xH7U
-         RLIhm86hE33h20N3lDUqxhqF55RexhSlRePKH0s7vBOFWNj2VsfV4fSGxpU8nb5fUXr1
-         uti6O2EQSQQPSYpCjaCddJBZxz5MHnxHHtUSOzSgbF1ZLuSF2IB4kIvZXUO3Psf9uXAo
-         WlkDhWSEUuXT4ijUfHEaO7vAMkL7EzgM5gd8aG0lEYu45GNqFXyJkyizGwF6n39ggHod
-         hCNw==
+        bh=sqesVHtJeqtci5xZ/dIaJNgH88dDm6/P+QpsFjQgTC8=;
+        b=R+iCh0TvxR+9dktF/ZblT/TC79Ay40nEwJj4uSOPycVzIMDCXJMGupBESWfCeTh8fa
+         Qmcp4AatQpXaqq0m+gmhlU7aPl5adqkPt71PXC1BpbcXR6r/Kn/7VRsxbXVoiG9PXfCF
+         +qKB5go1nAWjrktK4QwFVxXDejOEn4CpPbabno67U68RwJ1OM1tfQFWrHrf7NOj4mk9u
+         Wp7sbV16ygrfleCpY2GCV4hTrLvLpVGLt+WXJCF5oEUzuV3aZPHmhf6ZvrLFD6jYCWr9
+         9+qHdp4QGbZ7NiAXMq6cRuoOCjWnlBtQHJmnAleRcqadNuzXrpNETRPvaIVnSyZAkPXG
+         N1Hg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id c1si1525333wrv.117.2019.02.08.01.18.19
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c73si888719edf.450.2019.02.08.01.55.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Feb 2019 01:18:19 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Fri, 08 Feb 2019 01:55:08 -0800 (PST)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by newverein.lst.de (Postfix, from userid 2407)
-	id B126568D93; Fri,  8 Feb 2019 10:18:18 +0100 (CET)
-Date: Fri, 8 Feb 2019 10:18:18 +0100
-From: Christoph Hellwig <hch@lst.de>
-To: Christian Zigotzky <chzigotzky@xenosoft.de>
-Cc: Christoph Hellwig <hch@lst.de>, linux-arch@vger.kernel.org,
-	Darren Stevens <darren@stevens-zone.net>,
-	linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>,
-	linux-mm@kvack.org, iommu@lists.linux-foundation.org,
-	Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>,
-	linuxppc-dev@lists.ozlabs.org
-Subject: Re: use generic DMA mapping code in powerpc V4
-Message-ID: <20190208091818.GA23491@lst.de>
-References: <9632DCDF-B9D9-416C-95FC-006B6005E2EC@xenosoft.de> <594beaae-9681-03de-9f42-191cc7d2f8e3@xenosoft.de> <20190204075616.GA5408@lst.de> <ffbf56ae-c259-47b5-9deb-7fb21fead254@xenosoft.de> <20190204123852.GA10428@lst.de> <b1c0161f-4211-03af-022d-0db7237516e9@xenosoft.de> <20190206151505.GA31065@lst.de> <20190206151655.GA31172@lst.de> <61EC67B1-12EF-42B6-B69B-B59F9E4FC474@xenosoft.de> <7c1f208b-6909-3b0a-f9f9-38ff1ac3d617@xenosoft.de>
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 11216ABEC;
+	Fri,  8 Feb 2019 09:55:08 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id 672FA1E3DB5; Fri,  8 Feb 2019 10:55:07 +0100 (CET)
+Date: Fri, 8 Feb 2019 10:55:07 +0100
+From: Jan Kara <jack@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>,
+	Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>,
+	Chris Mason <clm@fb.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
+	"linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>,
+	"vdavydov.dev@gmail.com" <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH 1/2] Revert "mm: don't reclaim inodes with many attached
+ pages"
+Message-ID: <20190208095507.GB6353@quack2.suse.cz>
+References: <20190130041707.27750-1-david@fromorbit.com>
+ <20190130041707.27750-2-david@fromorbit.com>
+ <25EAF93D-BC63-4409-AF21-F45B2DDF5D66@fb.com>
+ <20190131013403.GI4205@dastard>
+ <20190131091011.GP18811@dhcp22.suse.cz>
+ <20190131185704.GA8755@castle.DHCP.thefacebook.com>
+ <20190131221904.GL4205@dastard>
+ <20190207102750.GA4570@quack2.suse.cz>
+ <20190207213727.a791db810341cec2c013ba93@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7c1f208b-6909-3b0a-f9f9-38ff1ac3d617@xenosoft.de>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+In-Reply-To: <20190207213727.a791db810341cec2c013ba93@linux-foundation.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 08, 2019 at 10:01:46AM +0100, Christian Zigotzky wrote:
-> Hi Christoph,
->
-> Your new patch fixes the problems with the P.A. Semi Ethernet! :-)
+On Thu 07-02-19 21:37:27, Andrew Morton wrote:
+> On Thu, 7 Feb 2019 11:27:50 +0100 Jan Kara <jack@suse.cz> wrote:
+> 
+> > On Fri 01-02-19 09:19:04, Dave Chinner wrote:
+> > > Maybe for memcgs, but that's exactly the oppose of what we want to
+> > > do for global caches (e.g. filesystem metadata caches). We need to
+> > > make sure that a single, heavily pressured cache doesn't evict small
+> > > caches that lower pressure but are equally important for
+> > > performance.
+> > > 
+> > > e.g. I've noticed recently a significant increase in RMW cycles in
+> > > XFS inode cache writeback during various benchmarks. It hasn't
+> > > affected performance because the machine has IO and CPU to burn, but
+> > > on slower machines and storage, it will have a major impact.
+> > 
+> > Just as a data point, our performance testing infrastructure has bisected
+> > down to the commits discussed in this thread as the cause of about 40%
+> > regression in XFS file delete performance in bonnie++ benchmark.
+> > 
+> 
+> Has anyone done significant testing with Rik's maybe-fix?
 
-Thanks a lot once again for testing!
+I will give it a spin with bonnie++ today. We'll see what comes out.
 
-Now can you test with this patch and the whole series?
+								Honza
 
-I've updated the powerpc-dma.6 branch to include this fix.
+> 
+> 
+> 
+> From: Rik van Riel <riel@surriel.com>
+> Subject: mm, slab, vmscan: accumulate gradual pressure on small slabs
+> 
+> There are a few issues with the way the number of slab objects to scan is
+> calculated in do_shrink_slab.  First, for zero-seek slabs, we could leave
+> the last object around forever.  That could result in pinning a dying
+> cgroup into memory, instead of reclaiming it.  The fix for that is
+> trivial.
+> 
+> Secondly, small slabs receive much more pressure, relative to their size,
+> than larger slabs, due to "rounding up" the minimum number of scanned
+> objects to batch_size.
+> 
+> We can keep the pressure on all slabs equal relative to their size by
+> accumulating the scan pressure on small slabs over time, resulting in
+> sometimes scanning an object, instead of always scanning several.
+> 
+> This results in lower system CPU use, and a lower major fault rate, as
+> actively used entries from smaller caches get reclaimed less aggressively,
+> and need to be reloaded/recreated less often.
+> 
+> [akpm@linux-foundation.org: whitespace fixes, per Roman]
+> [riel@surriel.com: couple of fixes]
+>   Link: http://lkml.kernel.org/r/20190129142831.6a373403@imladris.surriel.com
+> Link: http://lkml.kernel.org/r/20190128143535.7767c397@imladris.surriel.com
+> Fixes: 4b85afbdacd2 ("mm: zero-seek shrinkers")
+> Fixes: 172b06c32b94 ("mm: slowly shrink slabs with a relatively small number of objects")
+> Signed-off-by: Rik van Riel <riel@surriel.com>
+> Tested-by: Chris Mason <clm@fb.com>
+> Acked-by: Roman Gushchin <guro@fb.com>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Dave Chinner <dchinner@redhat.com>
+> Cc: Jonathan Lemon <bsd@fb.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: <stable@vger.kernel.org>
+> 
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+> 
+> --- a/include/linux/shrinker.h~mmslabvmscan-accumulate-gradual-pressure-on-small-slabs
+> +++ a/include/linux/shrinker.h
+> @@ -65,6 +65,7 @@ struct shrinker {
+>  
+>  	long batch;	/* reclaim batch size, 0 = default */
+>  	int seeks;	/* seeks to recreate an obj */
+> +	int small_scan;	/* accumulate pressure on slabs with few objects */
+>  	unsigned flags;
+>  
+>  	/* These are for internal use */
+> --- a/mm/vmscan.c~mmslabvmscan-accumulate-gradual-pressure-on-small-slabs
+> +++ a/mm/vmscan.c
+> @@ -488,18 +488,30 @@ static unsigned long do_shrink_slab(stru
+>  		 * them aggressively under memory pressure to keep
+>  		 * them from causing refetches in the IO caches.
+>  		 */
+> -		delta = freeable / 2;
+> +		delta = (freeable + 1) / 2;
+>  	}
+>  
+>  	/*
+>  	 * Make sure we apply some minimal pressure on default priority
+> -	 * even on small cgroups. Stale objects are not only consuming memory
+> +	 * even on small cgroups, by accumulating pressure across multiple
+> +	 * slab shrinker runs. Stale objects are not only consuming memory
+>  	 * by themselves, but can also hold a reference to a dying cgroup,
+>  	 * preventing it from being reclaimed. A dying cgroup with all
+>  	 * corresponding structures like per-cpu stats and kmem caches
+>  	 * can be really big, so it may lead to a significant waste of memory.
+>  	 */
+> -	delta = max_t(unsigned long long, delta, min(freeable, batch_size));
+> +	if (!delta && shrinker->seeks) {
+> +		unsigned long nr_considered;
+> +
+> +		shrinker->small_scan += freeable;
+> +		nr_considered = shrinker->small_scan >> priority;
+> +
+> +		delta = 4 * nr_considered;
+> +		do_div(delta, shrinker->seeks);
+> +
+> +		if (delta)
+> +			shrinker->small_scan -= nr_considered << priority;
+> +	}
+>  
+>  	total_scan += delta;
+>  	if (total_scan < 0) {
+> _
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
