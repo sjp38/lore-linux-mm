@@ -6,85 +6,85 @@ X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C76BC282CC
-	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 00:18:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D6F6C169C4
+	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 00:34:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BB9242192D
-	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 00:18:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BB9242192D
+	by mail.kernel.org (Postfix) with ESMTP id E1BEB20821
+	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 00:34:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1BEB20821
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5147A8E009B; Fri,  8 Feb 2019 19:18:35 -0500 (EST)
+	id 6670E8E009D; Fri,  8 Feb 2019 19:34:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C3A58E0002; Fri,  8 Feb 2019 19:18:35 -0500 (EST)
+	id 617F28E0002; Fri,  8 Feb 2019 19:34:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 38E7B8E009B; Fri,  8 Feb 2019 19:18:35 -0500 (EST)
+	id 4DFC38E009D; Fri,  8 Feb 2019 19:34:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D93A68E0002
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 19:18:34 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id a2so3737680pgt.11
-        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 16:18:34 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F0A6E8E0002
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 19:34:24 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id c17so3759043pgb.10
+        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 16:34:24 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :subject:message-id:user-agent;
-        bh=t/+jgLh/IuvEF5k3XEl5TgLqO4bgkX+/DYJW5FBVv34=;
-        b=unlr1HjybbtsGenpCNFXrLpOW+64AN9p49JnzWOiSbY3GSVE8H2BeHO7H5vrVfdWuz
-         ngL7rBrUxIu+RmhKrK6GfyqyRavtFCEybceDjy2iFIqxG5tymLg8v3F6yDMeGx1hLUej
-         4zmymMu+5OBrGHyfeoQBsPJPyALaSbWUUkof1GVbuG/aNBIOU/rCJuDYVMUmsZMY8ZFJ
-         1hjnyV6Fzqeilk3yN2OXXh7TwSirZgCgtmWinCaQ0UbA564q2Ajs4DU7w4B6ldIhkRei
-         /41nVWry4tv8xOs/6tKeNRhtjCkyx7WY2zP8NSSbaBFpmri2QHamQaOEVp9uAePXYlHR
-         QLDQ==
+        bh=AiBewUmy60bVdUh4NEYsVNoRCH0MgSSQ8JjnkzK4sds=;
+        b=UkqNezZrGfIAxfLxGQ8I2lAaqJeV8KTSdOYUVSQAlRF5N5+/PiG9/JCb8d9wjdUe95
+         bf4K+vcJCQC4hsBIu4ZbzUUnHe0JrWS9j8ygslpHnn1ZtzqivVwejMIHcclZ+gTEz0Al
+         4hbj9fm5HAFFUjwZRkWvmlQfRoeMt1qIb/jKc7xsw9g0Jpivchmp+OHAp9JjuZ14Dv0a
+         WpohHh/glCAvDjguBVdtendt55/CWpq7mX2qFbhanBGBmAVhFPij7vDOrRVDgBs+7OLa
+         T5vqbWS9CjJHf8ZmDMcQY9N40Oe7GTIx524RQj9QI7VKM/L8X2bwGB6+u7t21wC+JxrP
+         acAg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: AHQUAuZ2bHP/YDTyeN/gVZ97z9I8MLcKKrTREC4h0L6O6Xr6q+weIdbT
-	qNSgk+YIAq2olpUINDKuzKmhyPTjbUefHE9moRj4Ax5nHRS1gDcX2JE2Fvaw07s5ZLa/f0jgAN6
-	DWS1Euj7WDlOwBt3NaOdeV3DBV+RKj3DbaAApmLld9aM9GDPyz6aCKbd/oAwCtUyyIw==
-X-Received: by 2002:a63:ce45:: with SMTP id r5mr23276539pgi.112.1549671514333;
-        Fri, 08 Feb 2019 16:18:34 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaRgF0FPQXN56JR2c5O4bS8bzCkCwf7Bmd4EghVgfmr+qccQYHp4g0LZqFfI5/NGKWSoSSz
-X-Received: by 2002:a63:ce45:: with SMTP id r5mr23276401pgi.112.1549671512268;
-        Fri, 08 Feb 2019 16:18:32 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549671512; cv=none;
+X-Gm-Message-State: AHQUAuYnDG9HqWXOBorOqYenUuzsDqNM+yCgZgTycMB83Rzq3hRHl8f7
+	WLTl28b2Qb4bSwDqLUAZepWXx5Wc4VwauMrND8mv3E+2WCk4x7J1zBtf9X6XLpeCtgHOOip74dF
+	Lg6Edf99nitbfoFQEhbm0D9fbVfkdVmkF0UXaEnwTbtWxbjThDcJ8lGxu0E6eM3fhWA==
+X-Received: by 2002:a17:902:4025:: with SMTP id b34mr25977133pld.181.1549672464547;
+        Fri, 08 Feb 2019 16:34:24 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia/6Ouo4AEteeZfoxmAwdnTZvS74vFyDG+1w7FyOB7U5H6pTjZwtmVmkinN8sJdHaqez+4D
+X-Received: by 2002:a17:902:4025:: with SMTP id b34mr25976998pld.181.1549672462792;
+        Fri, 08 Feb 2019 16:34:22 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549672462; cv=none;
         d=google.com; s=arc-20160816;
-        b=I9mj1Uz7l23G/Mc6Ydd7hQ8/e7EdqUOaHrS+RuCZE3m3lNNds2MxP4kfASzQYrQhbd
-         43akkCuB/YQpU80ikrcHpEgOECpX+Ooyr44iH0g+4JsKxwrXi1GkavSdP9Vxz8qmux/4
-         XzqA7MnxzyiIpLAyaQOPLdJb1PcoDMXRMOwIXY5+E+QdGI9YuGvmDxfej8J14eyNHuEO
-         zMtZ5SduacOMm7yEBL1g7U2tR+jmZcq18zSVSJPjDqAhojOS3psB3tUEUt75geU33fBM
-         0lMOh219Plx9d27pmk2I70XaOR+SYCWj20fSqJqq4+DalFJ88EgbdEPpDr5TqP2KT5i/
-         e9Dg==
+        b=RSTyaNtPo9bVWcZfPBYrUhc1oUul6aJFbFja79NdjkmdPiGIfs+DVKac6CCIcx0LxL
+         AFQ15ev/mwizrMwgLjpBMF70ezg5Z7HdvDPG/cHAH64HXSIE3LHRfiQCtb12PqVyV6eS
+         7Fi1DMSx9c1/r+yqtQeOi2GcixhOR2fG5bzIvBNz/oTafuuDgLOR2l3s+UKemDDFo3UD
+         CQC1/xls+X2s0GVxsDJAtcpMMc2OtySjPJ4hO/mAfuX6Gjph8EhYhJ4yFuELxX3yYPba
+         fiiwVLDVpwVOzVKr2i8vrmqY9Hflds5hjoOqY+17GOj/FDhrDrmpN8b4JHFvZqQww0gz
+         rPqQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:message-id:subject:to:from:date;
-        bh=t/+jgLh/IuvEF5k3XEl5TgLqO4bgkX+/DYJW5FBVv34=;
-        b=NH9HVjW9WJvMZ5TTnuH1LLuMxuWNAf/WOZAgFPKXeOpD/iXtBxQOepj0LR6yx4usTv
-         SA34qcYmkwXPtyGDndgYU06M5ww9smOCZqQzs+2ELyEYI1LjW0AJCiwOVHudXXys4mRf
-         XJkADyLoZEUjUrTOr17wr0I5rYds2RJkh0CBjJNCzFp+efBqN8ghke/6G5r77JKTJkFo
-         87Jdt4zSnTq3ap7dwGLog2cwdrlGzqaHfoL+3YHKOMjzOcbGTN9V4QP7QXh/1PdVEyod
-         oTjXQFvu8lzk0SsytVZMyebdpr73I7NFjgRZzRf7qX0ReSjETVO1VaCS5+u4q6t/la4L
-         UcSw==
+        bh=AiBewUmy60bVdUh4NEYsVNoRCH0MgSSQ8JjnkzK4sds=;
+        b=TTU+8VQkNbVHI/mfoIyRkjNV3HyQVDwwLt5uK3xrObT7Rnyp0LKkn85TV54KlGjyMo
+         oK+BpXT0QKFKBjEHR6rfn0AoNwW3asapG8Gvw3qfCY76V4+oH1QbixEkiSGHDdqGULU0
+         kKon14aOcUCPduU36HSuQxFgax5Hfwk0WnkJF/ROZuSISwSkp3FQxQ3JonH0jMHjkkSy
+         WuQquE4aU9UPwhzdLTZ3Cq4iYI2SVZYATyl/yQZVo+6VDrCzaoMyU/D+azKiH4KCQrW5
+         RVNm6QzRjXB4I7ZnG7XvzdkAGHRvr3jiXvywgSWlivkHy5xdJhVr6PpZz8qPkREFZcJJ
+         j/qg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id c4si232217plr.430.2019.02.08.16.18.31
+        by mx.google.com with ESMTPS id f61si3908741plb.51.2019.02.08.16.34.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Feb 2019 16:18:32 -0800 (PST)
+        Fri, 08 Feb 2019 16:34:22 -0800 (PST)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 76D21C46D;
-	Sat,  9 Feb 2019 00:18:31 +0000 (UTC)
-Date: Fri, 08 Feb 2019 16:18:30 -0800
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 0D205C4B7;
+	Sat,  9 Feb 2019 00:34:22 +0000 (UTC)
+Date: Fri, 08 Feb 2019 16:34:21 -0800
 From: akpm@linux-foundation.org
 To: broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au,
  linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org,
  linux-mm@kvack.org, linux-kernel@vger.kernel.org,
  mm-commits@vger.kernel.org
-Subject:  mmotm 2019-02-08-16-17 uploaded
-Message-ID: <20190209001830.RL4dw%akpm@linux-foundation.org>
+Subject:  mmotm 2019-02-08-16-33 uploaded
+Message-ID: <20190209003421.YYe8C%akpm@linux-foundation.org>
 User-Agent: s-nail v14.9.6
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -92,7 +92,7 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The mm-of-the-moment snapshot 2019-02-08-16-17 has been uploaded to
+The mm-of-the-moment snapshot 2019-02-08-16-33 has been uploaded to
 
    http://www.ozlabs.org/~akpm/mmotm/
 
