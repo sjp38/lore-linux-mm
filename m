@@ -2,275 +2,418 @@ Return-Path: <SRS0=K2Kt=QQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41E17C282C4
-	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 07:44:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0544FC282C4
+	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 08:21:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CDEE120857
-	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 07:44:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDEE120857
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 9D42F20844
+	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 08:21:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D42F20844
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=inria.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1A5AF8E00AB; Sat,  9 Feb 2019 02:44:16 -0500 (EST)
+	id 30FBC8E00B0; Sat,  9 Feb 2019 03:21:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1844E8E00A9; Sat,  9 Feb 2019 02:44:16 -0500 (EST)
+	id 2BD308E00AA; Sat,  9 Feb 2019 03:21:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 069948E00AB; Sat,  9 Feb 2019 02:44:16 -0500 (EST)
+	id 186ED8E00B0; Sat,  9 Feb 2019 03:21:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BB6F88E00A9
-	for <linux-mm@kvack.org>; Sat,  9 Feb 2019 02:44:15 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id o7so4555167pfi.23
-        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 23:44:15 -0800 (PST)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B11838E00AA
+	for <linux-mm@kvack.org>; Sat,  9 Feb 2019 03:21:11 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id y85so2613197wmc.7
+        for <linux-mm@kvack.org>; Sat, 09 Feb 2019 00:21:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:reply-to:references:mime-version:content-disposition
-         :in-reply-to:user-agent:message-id;
-        bh=rFFtFbHA2bUBfC4GGV168dp5tfJ2NyImgCF0m/C/A7A=;
-        b=Om1NquRkWo9XL5Zs8liGgo0gh0mEow8bcQBNi2bRvyWfkYi8pHh8egTYKNuPcEfS6d
-         RptL+mm4Wd6/T7Etnb0+kEj6SjObZzPtNM3XvVzXYpvR83zEaDTTcGpkisiEkX3E8VQy
-         xpF/J4t5YXGQdSGb16nzvgtJezYFqd2gNVbXfh38/Lu/n3y7/RTVDy7MqLBaxGJpfYYI
-         MT2Te07EKA1f2eOLcEflZiXxych1GQDor2XJF+9NafqAv+AyXg82Iu+1IP7WSDH+8a1X
-         SMuM6bMI5stgwlaUG9Oz7OXvdJu7CSiRilO3iw1BdXN+nHCBOIAgm8D/4ngmmWxZARfS
-         3l2w==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 148.163.156.1 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) smtp.mailfrom=paulmck@linux.vnet.ibm.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuZ2fOynoEeyMdIRqCfR/sBZBvkJRuMIUK7tK5PuVlnw8vkdFXhC
-	EN0CsAt+HZUlrsUiKX+IitFV/te0zknwLTa45N/1lHOGE99y7blhyJJFDzJAVZ6Ufu59NawDclc
-	UPEvosp9UAo9teqc6YmDTCECUYiesLlgT4nf/tP/rhW4IWCMGpAyQkB7/WEISV8s=
-X-Received: by 2002:a63:a80c:: with SMTP id o12mr6890879pgf.185.1549698255205;
-        Fri, 08 Feb 2019 23:44:15 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbDPrewRRXWxx2ly3YEhG5v031H1HqtuuEC0pqL+cQ+VTBFTFDsNwnAeHwPmfrzhsxeaGQB
-X-Received: by 2002:a63:a80c:: with SMTP id o12mr6890834pgf.185.1549698254210;
-        Fri, 08 Feb 2019 23:44:14 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549698254; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-transfer-encoding:content-language;
+        bh=p5iKeazvptNSIFUjGidqsQWP3E+EarnekfFF9xmzTao=;
+        b=INgAP2oyPtfLMS7HcEER2N2PAdyv5mZ+yphXXdtMiYSSu73zk5gdSWmfa9KtH+dQSE
+         TVhU4JpK3m/ZWVmhHbqsefdU1vZ2edEYuLt6UOuEsA9MmfcUHik2f4fD4mv7oZIm3bTK
+         TNikclSKvwobtg4mvdArqAmN3R3b42vHeAnihzt5Gov9VMvLWmBYyWHqUBxANAdi4Usi
+         Tq/WuYH9L+/p4BjCuGdegzRGXRzx1207vYArZSuQ82XjEPJYe1GNrqg2cboTscd4L9sJ
+         aCxFgOCCZG9ejceBSAZ3BprBxE+K++K6kQbNkGvCzboqx985Cs26wdJuYh2xTCktk+TX
+         nJqA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of brice.goglin@inria.fr designates 192.134.164.104 as permitted sender) smtp.mailfrom=Brice.Goglin@inria.fr
+X-Gm-Message-State: AHQUAubrEDtSO4SNwBEbnYLyQzjDHDfunw1A9cu9pCyeHULsm/G8tZNt
+	e1/wsMS14onF6BEucsUxOE525kQDyYgXrVNx5/zRz2AvL4Ip4ENjYUE9YfxbERk1KlKpOr97qoz
+	dtT5ZFYYx6iqncyRPT8d6hDMBKQLh81/44BOdB8so72XZTK2cgeU7Wglk3VFUX4JW0w==
+X-Received: by 2002:a1c:b10a:: with SMTP id a10mr1963847wmf.148.1549700471183;
+        Sat, 09 Feb 2019 00:21:11 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbcIhjnUEg9oIsnasJ85sRTTVXE27xnGUgslh5AaMXFQEscKUUnGkdkZu3aAYeCS3s9tcOz
+X-Received: by 2002:a1c:b10a:: with SMTP id a10mr1963777wmf.148.1549700469963;
+        Sat, 09 Feb 2019 00:21:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549700469; cv=none;
         d=google.com; s=arc-20160816;
-        b=n/9tRMPOBx2qY9Ynm+ZPB+yg9o5eIFTsjVeBWou9DWqplTTsQf78wTR9pxuDD/impY
-         oGj36Q3Hij7Z5JmJUhje6L7eq/v2DIaw9grbprHHIZ05u/cIj+3aahS4VxblI8dqtKyC
-         rxKH3Ty99xpnJLA7IW8JvLvtCKDO6Z3sd22/QcOBC1TQTrO063S/UrdX/y9fY0+6ftyP
-         yfh0UyStrBxQT6jyVb7Dwf0AS7hbAco9nEs6Su4BSycKQw5TlAz3i9VPchMh+dKi5c0q
-         eA9N6qAikiqPR68vxOM0vW+hveED1q57NoODsPAjiIfotd3RuMM56QjHuMnTpHBznsNm
-         yYYw==
+        b=nY/P8vL+wlmca4rzf8nK3iV/iSNPCDC8mXMxi2y1FPAmuwb/0aFHtIaEN0CnH7074J
+         vGhpWqlNdguX2aYOmVEiFW8cltoTJnjHz/D3IMrhZ9HAn96905eSMvOCX5IVwWHwegSk
+         nIJVEeoDQ0zRKbAna3KuTD+xWDzrWiLTuPVWXW0iVRQ+e7dXUehpnxpBPPlKcbqxASrH
+         OPvajK9W8rjQhqlTCc+xJSrxrgle/AmRSWJ4kNkJ/ZMFq/sWTCn+0dBItO/F8Np1XzXU
+         69FnF7XJ34I5FrejYY7PAMdhUwIDw7HsddgOIXogH/ADMO277gVkbEIcmoytKHoacEAA
+         3Zwg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:reply-to:subject:cc:to:from:date;
-        bh=rFFtFbHA2bUBfC4GGV168dp5tfJ2NyImgCF0m/C/A7A=;
-        b=u9BN/6UGS/pR9TFW63BeDzUQTjm8r95ohOuUUgWjztu/b6ubmcdlHRzP1xD7HySN7U
-         Syuf4gC+UE1YCPDkN3WhdZs9S2twz6C9hx/F1MWR9HfX9Ky9Z3XLZDvmCM4Lq6CjJi/H
-         mvuvE+/wzK884G3Xb8vsu4X6tWvwjSb/DPrnaubcQ7LDUa7/o1BSD2yuy3dNOLPR8Yq8
-         jKzO+a7If2aiK9AoznSb8A6H0vBy4/WEfd3zM3ZQgFDXp17YVzBKUBtdLxMDVbnkMPE/
-         3QDn8Fe1SNqouEJ7lNejH49kcGI3R/z1neuCoDxSCZEhJMAE6SLTVIs/LFzrWhSUqZ9y
-         Iy6Q==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=p5iKeazvptNSIFUjGidqsQWP3E+EarnekfFF9xmzTao=;
+        b=vfqw2pgMJOhm1wMckENftITh4hUu3rEfpWqDUhTAX9tGXZEwLq04hdgeszn5cT0SQ6
+         zyLSj3zTIm0429VafcZyb8voOm4t/KsgbdqKIQd+wd0M+vFri9/Kxfupu6E9d8PXQYlq
+         ZpW6URAV+yLjsYc+T50KgDS9IayhQezGDD+nVM1Sq/mHTQGNVRujRDYEeVkCcg9NDFgz
+         Lx5wVog3cYQ4ixACxsQCOI0uK19ee7f5MB7tj8BkQyeDWWon3VDXL5dk6CBezFhiWGT8
+         iLqJLHMMmujfKDv7+Dwh5rFXfP/HfbrW9PsNDawQUwzK6FFElfoNMaksVfiNXG9HxR5r
+         U5bw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 148.163.156.1 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) smtp.mailfrom=paulmck@linux.vnet.ibm.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id o3si2360207pls.265.2019.02.08.23.44.13
+       spf=pass (google.com: domain of brice.goglin@inria.fr designates 192.134.164.104 as permitted sender) smtp.mailfrom=Brice.Goglin@inria.fr
+Received: from mail3-relais-sop.national.inria.fr (mail3-relais-sop.national.inria.fr. [192.134.164.104])
+        by mx.google.com with ESMTPS id o8si3297851wmf.127.2019.02.09.00.21.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Feb 2019 23:44:14 -0800 (PST)
-Received-SPF: neutral (google.com: 148.163.156.1 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) client-ip=148.163.156.1;
+        Sat, 09 Feb 2019 00:21:09 -0800 (PST)
+Received-SPF: pass (google.com: domain of brice.goglin@inria.fr designates 192.134.164.104 as permitted sender) client-ip=192.134.164.104;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 148.163.156.1 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) smtp.mailfrom=paulmck@linux.vnet.ibm.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x197hl70035477
-	for <linux-mm@kvack.org>; Sat, 9 Feb 2019 02:44:13 -0500
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qhsg6ay5y-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 09 Feb 2019 02:44:13 -0500
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Sat, 9 Feb 2019 07:44:12 -0000
-Received: from b01cxnp22033.gho.pok.ibm.com (9.57.198.23)
-	by e17.ny.us.ibm.com (146.89.104.204) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Sat, 9 Feb 2019 07:44:08 -0000
-Received: from b01ledav003.gho.pok.ibm.com (b01ledav003.gho.pok.ibm.com [9.57.199.108])
-	by b01cxnp22033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x197i7Mr25362556
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sat, 9 Feb 2019 07:44:07 GMT
-Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 83646B2064;
-	Sat,  9 Feb 2019 07:44:07 +0000 (GMT)
-Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 2E2C8B2065;
-	Sat,  9 Feb 2019 07:44:07 +0000 (GMT)
-Received: from paulmck-ThinkPad-W541 (unknown [9.80.232.171])
-	by b01ledav003.gho.pok.ibm.com (Postfix) with ESMTP;
-	Sat,  9 Feb 2019 07:44:07 +0000 (GMT)
-Received: by paulmck-ThinkPad-W541 (Postfix, from userid 1000)
-	id 4BEDB16C379A; Fri,  8 Feb 2019 23:44:07 -0800 (PST)
-Date: Fri, 8 Feb 2019 23:44:07 -0800
-From: "Paul E. McKenney" <paulmck@linux.ibm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <lkp@intel.com>, Suren Baghdasaryan <surenb@google.com>,
-        kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>,
-        Linux Memory Management List <linux-mm@kvack.org>
-Subject: Re: [linux-next:master 6618/6917] kernel/sched/psi.c:1230:13:
- sparse: error: incompatible types in comparison expression (different
- address spaces)
-Reply-To: paulmck@linux.ibm.com
-References: <201902080231.RZbiWtQ6%fengguang.wu@intel.com>
- <20190208151441.4048e6968579dd178b259609@linux-foundation.org>
+       spf=pass (google.com: domain of brice.goglin@inria.fr designates 192.134.164.104 as permitted sender) smtp.mailfrom=Brice.Goglin@inria.fr
+X-IronPort-AV: E=Sophos;i="5.58,350,1544482800"; 
+   d="scan'208";a="295600747"
+Received: from 91-160-5-165.subs.proxad.net (HELO [192.168.44.23]) ([91.160.5.165])
+  by mail3-relais-sop.national.inria.fr with ESMTP/TLS/AES128-SHA; 09 Feb 2019 09:20:53 +0100
+Subject: Re: [PATCHv4 10/13] node: Add memory caching attributes
+To: Keith Busch <keith.busch@intel.com>, linux-kernel@vger.kernel.org,
+ linux-acpi@vger.kernel.org, linux-mm@kvack.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Rafael Wysocki <rafael@kernel.org>, Dave Hansen <dave.hansen@intel.com>,
+ Dan Williams <dan.j.williams@intel.com>
+References: <20190116175804.30196-1-keith.busch@intel.com>
+ <20190116175804.30196-11-keith.busch@intel.com>
+From: Brice Goglin <Brice.Goglin@inria.fr>
+Openpgp: preference=signencrypt
+Autocrypt: addr=Brice.Goglin@inria.fr; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <4a7d1c0c-c269-d7b2-11cb-88ad62b70a06@inria.fr>
+Date: Sat, 9 Feb 2019 09:20:53 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190208151441.4048e6968579dd178b259609@linux-foundation.org>
-User-Agent: Mutt/1.5.21 (2010-09-15)
-X-TM-AS-GCONF: 00
-x-cbid: 19020907-0040-0000-0000-000004BF0FD4
-X-IBM-SpamModules-Scores: 
-X-IBM-SpamModules-Versions: BY=3.00010563; HX=3.00000242; KW=3.00000007;
- PH=3.00000004; SC=3.00000279; SDB=6.01158450; UDB=6.00604226; IPR=6.00938985;
- MB=3.00025502; MTD=3.00000008; XFM=3.00000015; UTC=2019-02-09 07:44:10
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19020907-0041-0000-0000-000008CA2CB8
-Message-Id: <20190209074407.GE4240@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-09_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902090057
+In-Reply-To: <20190116175804.30196-11-keith.busch@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 08, 2019 at 03:14:41PM -0800, Andrew Morton wrote:
-> On Fri, 8 Feb 2019 02:29:33 +0800 kbuild test robot <lkp@intel.com> wrote:
-> 
-> > tree:   https://urldefense.proofpoint.com/v2/url?u=https-3A__git.kernel.org_pub_scm_linux_kernel_git_next_linux-2Dnext.git&d=DwICAg&c=jf_iaSHvJObTbx-siA1ZOg&r=q4hkQkeaNH3IlTsPvEwkaUALMqf7y6jCMwT5b6lVQbQ&m=myIJaLgovNwHx7SqCW_p1sQx2YvRlmVbShFnuZEFqxY&s=0Y32d-tVCGOq6Vu_VAGgVgbEplhfvOSJ5evHbXTtyBI&e= master
-> > head:   1bd831d68d5521c01d783af0275439ac645f5027
-> > commit: e7acbba0d6f7a24c8d24280089030eb9a0eb7522 [6618/6917] psi: introduce psi monitor
-> > reproduce:
-> >         # apt-get install sparse
-> >         git checkout e7acbba0d6f7a24c8d24280089030eb9a0eb7522
-> >         make ARCH=x86_64 allmodconfig
-> >         make C=1 CF='-fdiagnostic-prefix -D__CHECK_ENDIAN__'
-> > 
-> > All errors (new ones prefixed by >>):
-> > 
-> >    kernel/sched/psi.c:151:6: sparse: warning: symbol 'psi_enable' was not declared. Should it be static?
-> > >> kernel/sched/psi.c:1230:13: sparse: error: incompatible types in comparison expression (different address spaces)
-> >    kernel/sched/psi.c:774:30: sparse: warning: dereference of noderef expression
-> > 
-> > vim +1230 kernel/sched/psi.c
-> > 
-> >   1222	
-> >   1223	static __poll_t psi_fop_poll(struct file *file, poll_table *wait)
-> >   1224	{
-> >   1225		struct seq_file *seq = file->private_data;
-> >   1226		struct psi_trigger *t;
-> >   1227		__poll_t ret;
-> >   1228	
-> >   1229		rcu_read_lock();
-> > > 1230		t = rcu_dereference(seq->private);
-> >   1231		if (t)
-> >   1232			ret = psi_trigger_poll(t, file, wait);
-> >   1233		else
-> >   1234			ret = DEFAULT_POLLMASK | EPOLLERR | EPOLLPRI;
-> >   1235		rcu_read_unlock();
-> >   1236	
-> >   1237		return ret;
-> >   1238	
-> 
-> Well a bit of googling led me to this fix:
-> 
-> --- a/kernel/sched/psi.c~psi-introduce-psi-monitor-fix-fix
-> +++ a/kernel/sched/psi.c
-> @@ -1227,7 +1227,7 @@ static __poll_t psi_fop_poll(struct file
->  	__poll_t ret;
+Hello Keith
+
+Could we ever have a single side cache in front of two NUMA nodes ? I
+don't see a way to find that out in the current implementation. Would we
+have an "id" and/or "nodemap" bitmask in the sidecache structure ?
+
+Thanks
+
+Brice
+
+
+
+Le 16/01/2019 à 18:58, Keith Busch a écrit :
+> System memory may have side caches to help improve access speed to
+> frequently requested address ranges. While the system provided cache is
+> transparent to the software accessing these memory ranges, applications
+> can optimize their own access based on cache attributes.
+>
+> Provide a new API for the kernel to register these memory side caches
+> under the memory node that provides it.
+>
+> The new sysfs representation is modeled from the existing cpu cacheinfo
+> attributes, as seen from /sys/devices/system/cpu/cpuX/side_cache/.
+> Unlike CPU cacheinfo, though, the node cache level is reported from
+> the view of the memory. A higher number is nearer to the CPU, while
+> lower levels are closer to the backing memory. Also unlike CPU cache,
+> it is assumed the system will handle flushing any dirty cached memory
+> to the last level on a power failure if the range is persistent memory.
+>
+> The attributes we export are the cache size, the line size, associativity,
+> and write back policy.
+>
+> Signed-off-by: Keith Busch <keith.busch@intel.com>
+> ---
+>  drivers/base/node.c  | 142 +++++++++++++++++++++++++++++++++++++++++++++++++++
+>  include/linux/node.h |  39 ++++++++++++++
+>  2 files changed, 181 insertions(+)
+>
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 1e909f61e8b1..7ff3ed566d7d 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -191,6 +191,146 @@ void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+>  		pr_info("failed to add performance attribute group to node %d\n",
+>  			nid);
+>  }
+> +
+> +struct node_cache_info {
+> +	struct device dev;
+> +	struct list_head node;
+> +	struct node_cache_attrs cache_attrs;
+> +};
+> +#define to_cache_info(device) container_of(device, struct node_cache_info, dev)
+> +
+> +#define CACHE_ATTR(name, fmt) 						\
+> +static ssize_t name##_show(struct device *dev,				\
+> +			   struct device_attribute *attr,		\
+> +			   char *buf)					\
+> +{									\
+> +	return sprintf(buf, fmt "\n", to_cache_info(dev)->cache_attrs.name);\
+> +}									\
+> +DEVICE_ATTR_RO(name);
+> +
+> +CACHE_ATTR(size, "%llu")
+> +CACHE_ATTR(level, "%u")
+> +CACHE_ATTR(line_size, "%u")
+> +CACHE_ATTR(associativity, "%u")
+> +CACHE_ATTR(write_policy, "%u")
+> +
+> +static struct attribute *cache_attrs[] = {
+> +	&dev_attr_level.attr,
+> +	&dev_attr_associativity.attr,
+> +	&dev_attr_size.attr,
+> +	&dev_attr_line_size.attr,
+> +	&dev_attr_write_policy.attr,
+> +	NULL,
+> +};
+> +ATTRIBUTE_GROUPS(cache);
+> +
+> +static void node_cache_release(struct device *dev)
+> +{
+> +	kfree(dev);
+> +}
+> +
+> +static void node_cacheinfo_release(struct device *dev)
+> +{
+> +	struct node_cache_info *info = to_cache_info(dev);
+> +	kfree(info);
+> +}
+> +
+> +static void node_init_cache_dev(struct node *node)
+> +{
+> +	struct device *dev;
+> +
+> +	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+> +	if (!dev)
+> +		return;
+> +
+> +	dev->parent = &node->dev;
+> +	dev->release = node_cache_release;
+> +	if (dev_set_name(dev, "side_cache"))
+> +		goto free_dev;
+> +
+> +	if (device_register(dev))
+> +		goto free_name;
+> +
+> +	pm_runtime_no_callbacks(dev);
+> +	node->cache_dev = dev;
+> +	return;
+> +free_name:
+> +	kfree_const(dev->kobj.name);
+> +free_dev:
+> +	kfree(dev);
+> +}
+> +
+> +void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs)
+> +{
+> +	struct node_cache_info *info;
+> +	struct device *dev;
+> +	struct node *node;
+> +
+> +	if (!node_online(nid) || !node_devices[nid])
+> +		return;
+> +
+> +	node = node_devices[nid];
+> +	list_for_each_entry(info, &node->cache_attrs, node) {
+> +		if (info->cache_attrs.level == cache_attrs->level) {
+> +			dev_warn(&node->dev,
+> +				"attempt to add duplicate cache level:%d\n",
+> +				cache_attrs->level);
+> +			return;
+> +		}
+> +	}
+> +
+> +	if (!node->cache_dev)
+> +		node_init_cache_dev(node);
+> +	if (!node->cache_dev)
+> +		return;
+> +
+> +	info = kzalloc(sizeof(*info), GFP_KERNEL);
+> +	if (!info)
+> +		return;
+> +
+> +	dev = &info->dev;
+> +	dev->parent = node->cache_dev;
+> +	dev->release = node_cacheinfo_release;
+> +	dev->groups = cache_groups;
+> +	if (dev_set_name(dev, "index%d", cache_attrs->level))
+> +		goto free_cache;
+> +
+> +	info->cache_attrs = *cache_attrs;
+> +	if (device_register(dev)) {
+> +		dev_warn(&node->dev, "failed to add cache level:%d\n",
+> +			 cache_attrs->level);
+> +		goto free_name;
+> +	}
+> +	pm_runtime_no_callbacks(dev);
+> +	list_add_tail(&info->node, &node->cache_attrs);
+> +	return;
+> +free_name:
+> +	kfree_const(dev->kobj.name);
+> +free_cache:
+> +	kfree(info);
+> +}
+> +
+> +static void node_remove_caches(struct node *node)
+> +{
+> +	struct node_cache_info *info, *next;
+> +
+> +	if (!node->cache_dev)
+> +		return;
+> +
+> +	list_for_each_entry_safe(info, next, &node->cache_attrs, node) {
+> +		list_del(&info->node);
+> +		device_unregister(&info->dev);
+> +	}
+> +	device_unregister(node->cache_dev);
+> +}
+> +
+> +static void node_init_caches(unsigned int nid)
+> +{
+> +	INIT_LIST_HEAD(&node_devices[nid]->cache_attrs);
+> +}
+> +#else
+> +static void node_init_caches(unsigned int nid) { }
+> +static void node_remove_caches(struct node *node) { }
+>  #endif
 >  
->  	rcu_read_lock();
-> -	t = rcu_dereference(seq->private);
-> +	t = rcu_dereference_raw(seq->private);
->  	if (t)
->  		ret = psi_trigger_poll(t, file, wait);
->  	else
-> 
-> But I have no idea why this works, nor what's going on in there. 
-> rcu_dereference_raw() documentation is scant.
-> 
-> Paul, can you please shed light?
-
-First, please avoid using rcu_dereference_raw() where possible.  It is
-intended for situations where the developer cannot easily state what
-is to be protecting access to an RCU-protected data structure.  So...
-
-1.	If the access needs to be within an RCU read-side critical
-	section, use rcu_dereference().  With the new consolidated
-	RCU flavors, an RCU read-side critical section is entered
-	using rcu_read_lock(), anything that disables bottom halves,
-	anything that disables interrupts, or anything that disables
-	preemption.
-
-2.	If the access might be within an RCU read-side critical section
-	on the one hand, or protected by (say) my_lock on the other,
-	use rcu_dereference_check(), for example:
-	
-		p1 = rcu_dereference_check(p->rcu_protected_pointer,
-					   lockdep_is_held(&my_lock));
-
-
-3.	If the access might be within an RCU read-side critical section
-	on the one hand, or protected by either my_lock or your_lock on
-	the other, again use rcu_dereference_check(), for example:
-
-		p1 = rcu_dereference_check(p->rcu_protected_pointer,
-					   lockdep_is_held(&my_lock) ||
-					   lockdep_is_held(&your_lock));
-
-4.	If the access is on the update side, so that it is always protected
-	by my_lock, use rcu_dereference_protected():
-
-		p1 = rcu_dereference_protected(p->rcu_protected_pointer,
-					       lockdep_is_held(&my_lock));
-
-	This can be extended to handle multiple locks as in #3 above,
-	and both can be extended to check other conditions as well.
-
-5.	If the protection is supplied by the caller, and is thus unknown
-	to this code, that is when you use rcu_dereference_raw().  Or
-	I suppose you could use it when the lockdep expression would be
-	excessively complex, except that a better approach in that case
-	might be to take a long hard look at your synchronization design.
-	Still, there are data-locking cases where any one of a very
-	large number of locks or reference counters suffices to protect the
-	pointer, so rcu_derefernce_raw() does have its place.
-
-	However, its place is probably quite a bit smaller than one
-	might expect given the number of uses in the current kernel.
-	Ditto for its synonym, rcu_dereference_protected( ... , 1).  :-/
-
-Now on to this sparse checking and what the point of it is.  This sparse
-checking is opt-in.  Its purpose is to catch cases where someone
-mistakenly does something like:
-
-	p = q->rcu_protected_pointer;
-
-When they should have done this instead:
-
-	p = rcu_dereference(q->rcu_protected_pointer);
-
-If you wish to opt into this checking, you need to mark the pointer
-definitions (in this case ->private) with __rcu.  It may also
-be necessary to mark function parameters as well, as is done for
-radix_tree_iter_resume().  If you do not wish to use this checking,
-you should ignore these sparse warnings.
-
-Unfortunately, I don't know of a way to inform 0-day test robot of
-the various maintainers' opt-in/out choices.
-
-							Thanx, Paul
+>  #define K(x) ((x) << (PAGE_SHIFT - 10))
+> @@ -475,6 +615,7 @@ void unregister_node(struct node *node)
+>  {
+>  	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
+>  	node_remove_classes(node);
+> +	node_remove_caches(node);
+>  	device_unregister(&node->dev);
+>  }
+>  
+> @@ -755,6 +896,7 @@ int __register_one_node(int nid)
+>  	INIT_LIST_HEAD(&node_devices[nid]->class_list);
+>  	/* initialize work queue for memory hot plug */
+>  	init_node_hugetlb_work(nid);
+> +	node_init_caches(nid);
+>  
+>  	return error;
+>  }
+> diff --git a/include/linux/node.h b/include/linux/node.h
+> index e22940a593c2..8cdf2b2808e4 100644
+> --- a/include/linux/node.h
+> +++ b/include/linux/node.h
+> @@ -37,12 +37,47 @@ struct node_hmem_attrs {
+>  };
+>  void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+>  			 unsigned class);
+> +
+> +enum cache_associativity {
+> +	NODE_CACHE_DIRECT_MAP,
+> +	NODE_CACHE_INDEXED,
+> +	NODE_CACHE_OTHER,
+> +};
+> +
+> +enum cache_write_policy {
+> +	NODE_CACHE_WRITE_BACK,
+> +	NODE_CACHE_WRITE_THROUGH,
+> +	NODE_CACHE_WRITE_OTHER,
+> +};
+> +
+> +/**
+> + * struct node_cache_attrs - system memory caching attributes
+> + *
+> + * @associativity:	The ways memory blocks may be placed in cache
+> + * @write_policy:	Write back or write through policy
+> + * @size:		Total size of cache in bytes
+> + * @line_size:		Number of bytes fetched on a cache miss
+> + * @level:		Represents the cache hierarchy level
+> + */
+> +struct node_cache_attrs {
+> +	enum cache_associativity associativity;
+> +	enum cache_write_policy write_policy;
+> +	u64 size;
+> +	u16 line_size;
+> +	u8  level;
+> +};
+> +void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs);
+>  #else
+>  static inline void node_set_perf_attrs(unsigned int nid,
+>  				       struct node_hmem_attrs *hmem_attrs,
+>  				       unsigned class)
+>  {
+>  }
+> +
+> +static inline void node_add_cache(unsigned int nid,
+> +				  struct node_cache_attrs *cache_attrs)
+> +{
+> +}
+>  #endif
+>  
+>  struct node {
+> @@ -51,6 +86,10 @@ struct node {
+>  #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
+>  	struct work_struct	node_work;
+>  #endif
+> +#ifdef CONFIG_HMEM_REPORTING
+> +	struct list_head cache_attrs;
+> +	struct device *cache_dev;
+> +#endif
+>  };
+>  
+>  struct memory_block;
 
