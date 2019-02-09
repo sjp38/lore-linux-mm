@@ -2,210 +2,123 @@ Return-Path: <SRS0=K2Kt=QQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3608AC282C4
-	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 04:41:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1CFDFC282C4
+	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 05:51:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C69AC20869
-	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 04:41:52 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="Uyx8KnH0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C69AC20869
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id B79EB20863
+	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 05:51:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B79EB20863
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=acm.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 476EF8E00AF; Fri,  8 Feb 2019 23:41:52 -0500 (EST)
+	id 0C18B8E00AD; Sat,  9 Feb 2019 00:51:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 44CC78E00AD; Fri,  8 Feb 2019 23:41:52 -0500 (EST)
+	id 06FA48E00AB; Sat,  9 Feb 2019 00:51:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 33D088E00AF; Fri,  8 Feb 2019 23:41:52 -0500 (EST)
+	id E9F9F8E00AD; Sat,  9 Feb 2019 00:51:57 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 085978E00AD
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2019 23:41:52 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id m37so5931937qte.10
-        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 20:41:52 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B80F38E00AB
+	for <linux-mm@kvack.org>; Sat,  9 Feb 2019 00:51:57 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id w20so4362017ply.16
+        for <linux-mm@kvack.org>; Fri, 08 Feb 2019 21:51:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=USeCh6j0FsmLopx2MZxpLbxv8BeR2zl+0L2tQUmFxuY=;
-        b=f5p9l1f5jjaTcCTQIHw90BJSbjDttfmTB8OhqdekX5h0MnLr2xsXaZ0/s2I7ls1RdP
-         C0QSoHvWtlu4eyHdC8h7FtkqwMXT9YYu9iRhlvsY0PsujxKp0QgTW8W3RomVB8teIubx
-         KbWW2QTvblEG/V3dlk7kkrbkRZDRKJq/FNsfHYC59486Q/EPky+Yvf0ZPhjXuleEAiBa
-         ZQQmSDBDPKhpNlOnajbiOnjzB5waqf0nETAi2wpRRdwmxPDgR8MVl/08RXiu6HFUBt2n
-         IDutQXmqw1UPnFqUFmz9EGu0Y0GEfsvLvJkyy7kg+LkV9/ZF/wMFyK40IHdHvUOTFztf
-         IlLw==
-X-Gm-Message-State: AHQUAub6uHqA57BanGEgeAxGkhGQSDoFbp2tHO+6Bird110Til7DvLs9
-	zshiBJM0GlzZFPwXhE5dT0D4YtfyuC/sFKrjUPrZvgmMmM5hqtSD6Wfv63dHKjELgcYViSeAjUq
-	hLHKg2GvFjRycLe/snl/h4tamhJuOiWwpJShvrU5volRQ48ETox8FQ2PhXzB60SZAQOj61FA7K5
-	sOXOWViIDiTsuEX6EaGxpEklVF5LiaRL1No7tOoldYDVWe3rgMz8mF04UErJ/eotJhSf9KdelY/
-	nWqdmpKzJu9BII7hguBTvfeLbvW1C5/4F3QxGg/WFjvoqxDivge5ExYFFUwbKeF/Z4I0ORyu2QV
-	d73zUdPHMfl8tUuxO6waRm4MWtaGems1s6PTUVlUa/JYUmoo14b2SBW4u0L0hkkFjOhtoSH80Os
-	s
-X-Received: by 2002:ac8:3f0f:: with SMTP id c15mr8714218qtk.142.1549687311725;
-        Fri, 08 Feb 2019 20:41:51 -0800 (PST)
-X-Received: by 2002:ac8:3f0f:: with SMTP id c15mr8714176qtk.142.1549687310428;
-        Fri, 08 Feb 2019 20:41:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549687310; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=WyG8srNHcbEVwuVZDQSoQ3GcdjgBKLcULSbZaFzfyuI=;
+        b=mt/YPwFOZ+9lIU4q50NFBFnnn78jPgWg1L9Bp4NiFiXMFQ3uzviAkFFSopZLnxiKy9
+         7PwAUQq4PoUd/fOciD3jWHnNjEDYyzYvQGkgWJ1+mhYH10oB74SJRwIL1VpqOp9xDKPN
+         zmNMitzE3CrzOMF2Mp+oMYH/pCrUR9fy7psExQ+IT9jHKTXJtnobfyWpz9XI4IT3nC37
+         1i99cFJO95jcDqJf7GTwu4vkp2ot5X6zWoBY3WpcrEysfJMtfGDobEQfgsBWmRXiYoL7
+         Bb/lUO0W8CRF9kqttZd3Kpvbb7ucT422mbvxEPbgI7ei1crQQpBjcPrVaJvwXtWSA3oW
+         1UcQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bart.vanassche@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bart.vanassche@gmail.com
+X-Gm-Message-State: AHQUAuZzKFpEJrDbSv67frHYCh6kIZZ0y3n0UZsEYNeblkDiztnInOrd
+	qYaFXVjnnWy7jlUSZDM6+zw3ADbp/xeGLwroQGzuqkcraR7dgMMXSy25BqZYC4AGmcSeVwtZ7tL
+	cxhPHVUp5SN4JG9M8EIEjHhHjEswmCN9VvpIzA+B6VAbWz9KhzDGsbuVy2tWsPe1OIulOvmkTZt
+	EL2XuSA/PJzqD8kc1yZqeAeqPBMtZSH9LWbdszpcFICfWXTr/rSt29Jb62/OIpWOHUXGZA+nvAk
+	ri4F/1Cnxla2EJE8NWFCDa74LokFNhPoUBc2ij64JavRShl2JQ2NWFC4tDCVdZx/xBSKe/rgF5u
+	fnzEdHER7uiy714RG5YJLttTdWm9gNj1K08JwZrOX/fH/BxzjpM8W7ilFo9xuusH7WKfnn6sVA=
+	=
+X-Received: by 2002:a17:902:2e01:: with SMTP id q1mr26298789plb.97.1549691517329;
+        Fri, 08 Feb 2019 21:51:57 -0800 (PST)
+X-Received: by 2002:a17:902:2e01:: with SMTP id q1mr26298748plb.97.1549691516360;
+        Fri, 08 Feb 2019 21:51:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549691516; cv=none;
         d=google.com; s=arc-20160816;
-        b=tKlSECEJE5amwMDy1tT2C+ZBzyg35XxzzFhbVGfAP+1fmehDVeUnlkC5b4cZmWa/L3
-         lYd97XQeN7MLIi6Novq9xXLqHESTGpuYtUXYk1/9nN1oNcRX3Mw1RUgv4nBQi7zFIRSL
-         NCeJoSMp8RdrION09Or3LTLABhsTmT5SZNDh/L1Kky83xIIq544/xnC1qUk65VkQvqdT
-         H8uu7o+bx/ZV/6WONF5oV6S+oPYCx6f1w/YhOdbUDXJwQWwg78aFsOiVYmJDI6WaUkPK
-         XHbkmunvbmWGCyt0Pzcc1dNV6LRttP1XYYbNwIbrpuZfg9ijK1JFHtxwm5+2/Z656PY5
-         E6YQ==
+        b=1Bp5d7QeBFCYgVXxmjhb/IZ9cLOxuuaUpAyKAx3lM2DIkSfKQzJznqIg/ZD4z/Y6pL
+         WV0mvOoKFiZHslJJoKH/CJ9W4XtM1mGZuP8R4wS12mMCmhVjbYd8D9Rba/2MeuRc0IrN
+         vgl0NRwGvQM4eg6otk2SAsxDwl2OKVXnPuRPBvgj0+RJ5M5G41rnWi97n1GNaHE9wQ/P
+         3RvITN3VejY+IXypx+fzCJLvAbR9UPNqeq+HsFKi0taVXKuNEZ8AUwvFM6DZrr+iUpJ9
+         4Q5oE9o+S8wLAQLQwGGZQMMyZPEkRxNefFjAp2LXSVwccQvR2eIV6s6CJq5gK+tT7crs
+         h7iw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=USeCh6j0FsmLopx2MZxpLbxv8BeR2zl+0L2tQUmFxuY=;
-        b=MSCkY8f4NQFE1UJa+b3Qi7iUrSPJBz9/IngnJiWx3w3rTaUc4ejMLWikAx5ZnXJuc8
-         NItXAuTqM5iScyZXRVQXDZeLU8cio8Zq4auAwejlZbeDPbr1njZg/PVE1WHZjqgDTb0J
-         YyYcVU2VxeKMcT70wuf8q+cCX9iQh80bWvNSpz+5XKj1IbGDJjs0tl0NKSlySWJQf4fc
-         LuA7O5Qa5hw1p/D5mgAXP1BoyFhezg12+I1slthI7MoTNbr/UYXbwD9uoUYfcWyV0Hco
-         g6WIK6mJSi5wvwpERGtwFrGm+D69J1h8jWHTT4IWIcTOokUHpcimvTPjjbNQ6RoNvVDP
-         oDKg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=WyG8srNHcbEVwuVZDQSoQ3GcdjgBKLcULSbZaFzfyuI=;
+        b=HueWQ50HzDDe3I7CwWUvtugQvR0WTOKd71TplgiGvHVPLwYHS0cBqtuU7FlD8Ze5ab
+         R9ZYtkXH7jxlMLh2znYWjQFjvaPlEgv32i2zge4R33PAWH2cgCu3J78nxJB+3n94X0Dp
+         F0osFi4Hvpu3a6yJ6A0ZjzzQT4CvKUF/k0fvtP8V1EcsXwP+s3lXEC2XasKouZvH7tnX
+         uXh25npwjEN5r0dFMO54UCr4UtTr2CoMIze871tOcG8TWNlgim/DAvyftdCMHXuU+X+q
+         UvijNyXQXSF2L0In9ZkkaQlmfQz+m2Lgj5KEEErAfrILXSLuyoulhwVXEasm0KGwJD52
+         YeWg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=Uyx8KnH0;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+       spf=pass (google.com: domain of bart.vanassche@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bart.vanassche@gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p32sor4430106qvf.2.2019.02.08.20.41.50
+        by mx.google.com with SMTPS id d2sor5870110pla.7.2019.02.08.21.51.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 08 Feb 2019 20:41:50 -0800 (PST)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 08 Feb 2019 21:51:56 -0800 (PST)
+Received-SPF: pass (google.com: domain of bart.vanassche@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=Uyx8KnH0;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:to:cc:subject:date:message-id;
-        bh=USeCh6j0FsmLopx2MZxpLbxv8BeR2zl+0L2tQUmFxuY=;
-        b=Uyx8KnH013ecHNcSjOImmFRrRi/e+kAFqBooYZeje3twAyxLmL8LfEDM1IT4kSf8u2
-         /YVdKthWzIS7yxtK5i10pc3c+/5W1oZREDNFnJzz3qHwnAAuzQ/9Fn7R+AzJ7DsKELoB
-         m4thanJUTuMXhg/zzwfh7v1TvnaXJ4c1Fp/JJtfTdJTCNutO/mb7n+M8hXaIOgIjE7EO
-         hO8lI6qO3hRrBRh66iNwU764tW7W6d+To7SFZP8aSSmy53Ae1AwsoxDSwgr4z3nAxAsI
-         bnQ90YffdslRz0Ljzh+QhPXYf3GAWNOtcjAAQG3FWLkTpejmlb837JdmpRdwvGoGv0BR
-         8y1w==
-X-Google-Smtp-Source: AHgI3IYzSMi38GNhzPEP+51nPuIlZiOKRKouOQIjBm3cBD5rK5Ii5RCR2yrpxd835hPI04jUPpyrtA==
-X-Received: by 2002:a0c:8aa1:: with SMTP id 30mr3182502qvv.1.1549687309536;
-        Fri, 08 Feb 2019 20:41:49 -0800 (PST)
-Received: from ovpn-120-150.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id r24sm5147743qtr.2.2019.02.08.20.41.48
+       spf=pass (google.com: domain of bart.vanassche@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bart.vanassche@gmail.com
+X-Google-Smtp-Source: AHgI3IYUPm+kG7/kjLgc/FEYfvgGlG7AplPXYkEWUwQ70XXWjTkhs+DUwWRij/hBCZDGYIB5a4MiDw==
+X-Received: by 2002:a17:902:bd97:: with SMTP id q23mr12566160pls.284.1549691515739;
+        Fri, 08 Feb 2019 21:51:55 -0800 (PST)
+Received: from asus.site ([2601:647:4000:5dd1:a41e:80b4:deb3:fb66])
+        by smtp.gmail.com with ESMTPSA id 15sm6553635pfs.113.2019.02.08.21.51.54
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Feb 2019 20:41:48 -0800 (PST)
-From: Qian Cai <cai@lca.pw>
-To: akpm@linux-foundation.org,
-	cl@linux.com,
-	penberg@kernel.org,
-	rientjes@google.com,
-	iamjoonsoo.kim@lge.com
-Cc: andreyknvl@google.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Qian Cai <cai@lca.pw>
-Subject: [PATCH] slub: fix SLAB_CONSISTENCY_CHECKS + KASAN_SW_TAGS
-Date: Fri,  8 Feb 2019 23:41:28 -0500
-Message-Id: <20190209044128.3290-1-cai@lca.pw>
-X-Mailer: git-send-email 2.17.2 (Apple Git-113)
+        Fri, 08 Feb 2019 21:51:54 -0800 (PST)
+Subject: Re: [PATCH] fs/userfaultd: Fix a recently introduced lockdep
+ complaint
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>,
+ Andrea Arcangeli <aarcange@redhat.com>
+References: <20190209010308.115292-1-bvanassche@acm.org>
+From: Bart Van Assche <bvanassche@acm.org>
+Message-ID: <204b2c05-c074-4da5-48ad-e610fae3324d@acm.org>
+Date: Fri, 8 Feb 2019 21:51:53 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
+MIME-Version: 1.0
+In-Reply-To: <20190209010308.115292-1-bvanassche@acm.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Enabling SLUB_DEBUG's SLAB_CONSISTENCY_CHECKS with KASAN_SW_TAGS
-triggers endless false positives during boot below due to
-check_valid_pointer() checks tagged pointers which have no addresses
-that is valid within slab pages.
+On 2/8/19 5:03 PM, Bart Van Assche wrote:
+> Avoid that lockdep reports the following: [ ... ]
 
-[    0.000000] BUG radix_tree_node (Tainted: G    B            ): Freelist Pointer check fails
-[    0.000000] -----------------------------------------------------------------------------
-[    0.000000]
-[    0.000000] INFO: Slab 0x(____ptrval____) objects=69 used=69 fp=0x          (null) flags=0x7ffffffc000200
-[    0.000000] INFO: Object 0x(____ptrval____) @offset=15060037153926966016 fp=0x(____ptrval____)
-[    0.000000]
-[    0.000000] Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 18 6b 06 00 08 80 ff d0  .........k......
-[    0.000000] Object (____ptrval____): 18 6b 06 00 08 80 ff d0 00 00 00 00 00 00 00 00  .k..............
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Object (____ptrval____): 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-[    0.000000] Redzone (____ptrval____): bb bb bb bb bb bb bb bb                          ........
-[    0.000000] Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-[    0.000000] CPU: 0 PID: 0 Comm: swapper/0 Tainted: G    B             5.0.0-rc5+ #18
-[    0.000000] Call trace:
-[    0.000000]  dump_backtrace+0x0/0x450
-[    0.000000]  show_stack+0x20/0x2c
-[    0.000000]  __dump_stack+0x20/0x28
-[    0.000000]  dump_stack+0xa0/0xfc
-[    0.000000]  print_trailer+0x1bc/0x1d0
-[    0.000000]  object_err+0x40/0x50
-[    0.000000]  alloc_debug_processing+0xf0/0x19c
-[    0.000000]  ___slab_alloc+0x554/0x704
-[    0.000000]  kmem_cache_alloc+0x2f8/0x440
-[    0.000000]  radix_tree_node_alloc+0x90/0x2fc
-[    0.000000]  idr_get_free+0x1e8/0x6d0
-[    0.000000]  idr_alloc_u32+0x11c/0x2a4
-[    0.000000]  idr_alloc+0x74/0xe0
-[    0.000000]  worker_pool_assign_id+0x5c/0xbc
-[    0.000000]  workqueue_init_early+0x49c/0xd50
-[    0.000000]  start_kernel+0x52c/0xac4
-[    0.000000] FIX radix_tree_node: Marking all objects used
-[    0.000000]
+Hi Christoph,
 
-Signed-off-by: Qian Cai <cai@lca.pw>
----
- mm/slub.c | 1 +
- 1 file changed, 1 insertion(+)
+If patch "aio: Fix locking in aio_poll()" 
+(https://marc.info/?l=linux-fsdevel&m=154967401921791) would be 
+accepted, would that allow to revert commit ae62c16e105a ("userfaultfd: 
+disable irqs when taking the waitqueue lock") instead of applying this 
+patch?
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 1e3d0ec4e200..075ebc529788 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -507,6 +507,7 @@ static inline int check_valid_pointer(struct kmem_cache *s,
- 		return 1;
- 
- 	base = page_address(page);
-+	object = kasan_reset_tag(object);
- 	object = restore_red_left(s, object);
- 	if (object < base || object >= base + page->objects * s->size ||
- 		(object - base) % s->size) {
--- 
-2.17.2 (Apple Git-113)
+Thanks,
+
+Bart.
 
