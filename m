@@ -2,238 +2,413 @@ Return-Path: <SRS0=NdlI=QR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE809C282C2
-	for <linux-mm@archiver.kernel.org>; Sun, 10 Feb 2019 12:00:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A4E0C282C2
+	for <linux-mm@archiver.kernel.org>; Sun, 10 Feb 2019 17:20:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4F79121841
-	for <linux-mm@archiver.kernel.org>; Sun, 10 Feb 2019 12:00:34 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=xenosoft.de header.i=@xenosoft.de header.b="nwwPd9dj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4F79121841
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=xenosoft.de
+	by mail.kernel.org (Postfix) with ESMTP id E2C5621736
+	for <linux-mm@archiver.kernel.org>; Sun, 10 Feb 2019 17:20:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E2C5621736
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D98688E00BB; Sun, 10 Feb 2019 07:00:33 -0500 (EST)
+	id 3CF5F8E00B5; Sun, 10 Feb 2019 12:20:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D48868E00B5; Sun, 10 Feb 2019 07:00:33 -0500 (EST)
+	id 37F6D8E00B4; Sun, 10 Feb 2019 12:20:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C36928E00BB; Sun, 10 Feb 2019 07:00:33 -0500 (EST)
+	id 296B08E00B5; Sun, 10 Feb 2019 12:20:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E87E8E00B5
-	for <linux-mm@kvack.org>; Sun, 10 Feb 2019 07:00:33 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id o16so4710979wmh.6
-        for <linux-mm@kvack.org>; Sun, 10 Feb 2019 04:00:33 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F393B8E00B4
+	for <linux-mm@kvack.org>; Sun, 10 Feb 2019 12:20:24 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id z6so8710167otm.10
+        for <linux-mm@kvack.org>; Sun, 10 Feb 2019 09:20:24 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=n33DcogtNyDZz6kzk6IjadlOjeDlmA/nSiofmi/mng4=;
-        b=DM3Z3FJys4H5qdr7GmlXOGx5teQcmnu67gq1Yim+yH46YOJi7j5bVGfJn83ro7p/j9
-         3BPYKNKoQGiGbA7e5chAKLg0ZyNChuEapWI6YqvM/9+ZkJMRtIpEtolNYajIRGG7BrfD
-         ALYwmk0QaebTvNkRzoZEFnkcW4Gz8hjQ29AtUDikaXY2XXsDGCb4nWw/RxtA18wV8gGQ
-         qiZM3DLBqA/P7WJM8vDCu+3SD+jNgUlHSVJ1gqUSuBxpS2couVTucwBsEj5EeNXYX6H1
-         xTxJDDFFm5K/5mc60MIXGEs78wyI4Fdi0QyVAGcOd9xoG/nsSoo6O3vQolC+/iA1ld0d
-         JKKw==
-X-Gm-Message-State: AHQUAuar6Pkq0Uc4bzQjppobSRgDeQPIiMP6PMycyx86uXC1pHFBNBCF
-	ByVXvLQB5EhHP6WnYw93Qr8svgA9d5OweVd0drtiglBDS0H3lhuYcRBGfofDR5EFWIxM5IutOKE
-	LwKET3COOuMM9H4VIYZlsoS5dkgNE1Bn4S7jkMnixt1hqOI1bD/UHNyVGmalX8h+aeA==
-X-Received: by 2002:a1c:7dd7:: with SMTP id y206mr636712wmc.123.1549800032807;
-        Sun, 10 Feb 2019 04:00:32 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ia+yoTCgTXI53dykf9z/qHxuGeweJmvIuINNv6aIjGOYXhGrVgDrVNuZ9if7yAPevDIzEpS
-X-Received: by 2002:a1c:7dd7:: with SMTP id y206mr636661wmc.123.1549800031439;
-        Sun, 10 Feb 2019 04:00:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549800031; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=HqZvJM6+JPY85EPCm9RfM3Qu5HtHf+6QAOeu6OlM79Q=;
+        b=JE3xWlJLmzXFZQFEjgRUnRO+MajSVB9qoe9RA15uPrHZCKjQ9CDGiFU2w0AtR0VEI1
+         SHsR/K1nI7Qmt0u1YOhUIBAXGIDg7FxP5FUfJIzPSLxIN3emjq0J7XuTSTK0KlJvbIq9
+         tWBcjtB33Sz3czI4DvUoNTxhAVJwVm3eZ5B4wqvMvKUxDF1NH6+b0TT+yK+aUkJvyhJc
+         Zv+yLNlJ8kgv2BvH3SoV2HFwfNyv8SXO9TtJsJOgEG0na5s/NHH8NEGbd3I4l1EBZ3Qu
+         +2xEJGBRZJGLTo3aePvUtHsC4MUR5m0ElJjbvaJNtKhdmRYTZGTWRX0++Km+L0hSuKHy
+         f7ag==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+X-Gm-Message-State: AHQUAuZ3YGnEmYsXnITr7t8g5GRymQeDsXwU3QB94IDX06B2RrP0XDkF
+	2EDs35x3qwC6n1iAXLupIueCdxAzrrFLCSOL87GsYr7rWLuG4XxSmZPS/gd2Be5ayvYThdGPpm0
+	3vmjoC6aDP2jFUItVEeL5Co18mtD/WLk7aTdG25ywhF38FzTWLY6swR5UdVfnulmsYA==
+X-Received: by 2002:a9d:7a8c:: with SMTP id l12mr24178622otn.335.1549819224660;
+        Sun, 10 Feb 2019 09:20:24 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IayCrcpBwf5s6kJd5ZAQPy6RLlyvR+aoQbME2YPsGzPSRxdfPcOElxKRn8mCUHTr5S0aSZ8
+X-Received: by 2002:a9d:7a8c:: with SMTP id l12mr24178556otn.335.1549819223607;
+        Sun, 10 Feb 2019 09:20:23 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549819223; cv=none;
         d=google.com; s=arc-20160816;
-        b=q8/+5jv35qs7TBd8v5T+duHy4O9K7FLEwzrE5VUkWgtfq6AZ+pOTF7fmLFNSSsuFWB
-         Fmi5afkWMyKZOptBP+Nuo2+9IafwojCsk3rZ8u22w1nK0rnagDyaXVeHX8MOMmM/JytO
-         faWt/0sotAz5dUyPB5Fc1FVzb2xHPBI+31uaI4HESR172Ntmp9twDTm4SFiChGfs91pt
-         +kZNBHvYDeVwhcak+87sWhbtWmSAWYiV0Z+y3Oltwz4e0qx8OmZ1Ifdgy3yM/oPedS58
-         EwT2fnC9sqF0pOEm9+WCILB/+cMPnqIaKHJBW6bgTpFCDzjDs5drCK6CTMc6ugG9Gqps
-         YDGQ==
+        b=XFLVyFV7zmKkMmZnLNuJCnixXAXJcnrSQtCTDRU62mGbDE0mybaFiFzl7RQ6MyfTZo
+         kRtbjOQXsBcZuyay4y+v4DZhwnPPz6uNoPY0+IEoLLeAKy+BHaKs6EElxRUSDol3exb6
+         ePR+IHVlz2cBmPCFLa7nKK1U7Oyf0Tmv4NGSUi8ZlvA8vZRREgquxAPL0whL5GcoxPIb
+         gIgSWg+i4ks/WYcOyixOlAt3OkytxU9xAHCMS6pdw6LJGfoce+wbHhTzOiERZ2goomdt
+         740CXZuxvd8Yt5yn10Ungel5bbPUK+heCj6zEei2AXZENBZfENtUTwiBCyqg24BVUOCW
+         a2DQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=n33DcogtNyDZz6kzk6IjadlOjeDlmA/nSiofmi/mng4=;
-        b=HlXrL12RSaBFt+5N74zAwklpZQFQm4ybrmJZYPqJWp9v2c4dSlRtH7rd9Ddusu0WME
-         Yi/Ccts1O+Uo1cCRMfAYBr/urFKHUvtJkoU7r++DnPE1hP9uv9il0pa26JMSLO7a2+fz
-         3FDkbh2JR2qbBxeXeHD6rcvF1bfsc2SnaLpaz82RKRpMsbWj63CDdjEJeDpppyezmdUo
-         8Gr89/WZFcnxM4OOczLuGpWVydaXUUWv7G4JrHVxl96dOMVloEM6sj6pfNdKaK0w5xLc
-         geiCASSdrBmtqNCAKI2sRALOmrv9K99CqPFya+aG0zn/taT+Jp6sYstMuS7g1Vws+Vl3
-         VTHA==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=HqZvJM6+JPY85EPCm9RfM3Qu5HtHf+6QAOeu6OlM79Q=;
+        b=0AZf1yhH1LHMkbzl9ZEoUY2sV2E1G6SH6U2uNNOoPXg6mg/50B5R1f2uiJ54tOjNUA
+         1ZDKjf+eQX4Oa6fb0J2QJBKUQKJSyr979AQ9wmSoYLM3uZ1FBBxJrGY8frnVagvPhFJd
+         6qz7K65vifQFFDRbYOIYst8R8J0l+lb8Yryacb3mStuZFeZ4e93jIOoKc9Cryhr8/Q+g
+         RHTQdxLHsrw3NMQJ6/qWyc4AM6f1lkotsrZx89LIkhbbN2w4yN2BO928+I8+uuM+CP/y
+         agBq9ytnVdG/yepW8+tlj+Vhsd3XKE0fp7u+EHBBXkYBdiTa1/XOyZptS2Slk1/LCPf8
+         D1/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@xenosoft.de header.s=strato-dkim-0002 header.b=nwwPd9dj;
-       spf=neutral (google.com: 2a01:238:20a:202:5301::9 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) smtp.mailfrom=chzigotzky@xenosoft.de
-Received: from mo6-p01-ob.smtp.rzone.de (mo6-p01-ob.smtp.rzone.de. [2a01:238:20a:202:5301::9])
-        by mx.google.com with ESMTPS id 60si7171514wrm.369.2019.02.10.04.00.31
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id v71si3452102oia.154.2019.02.10.09.20.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Feb 2019 04:00:31 -0800 (PST)
-Received-SPF: neutral (google.com: 2a01:238:20a:202:5301::9 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) client-ip=2a01:238:20a:202:5301::9;
+        Sun, 10 Feb 2019 09:20:23 -0800 (PST)
+Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@xenosoft.de header.s=strato-dkim-0002 header.b=nwwPd9dj;
-       spf=neutral (google.com: 2a01:238:20a:202:5301::9 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) smtp.mailfrom=chzigotzky@xenosoft.de
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; t=1549800030;
-	s=strato-dkim-0002; d=xenosoft.de;
-	h=In-Reply-To:Date:Message-ID:From:References:Cc:To:Subject:
-	X-RZG-CLASS-ID:X-RZG-AUTH:From:Subject:Sender;
-	bh=n33DcogtNyDZz6kzk6IjadlOjeDlmA/nSiofmi/mng4=;
-	b=nwwPd9djCh0JHac4ITTNeLU2Rf7fZWIx17bsB1SFptHaYpSWN0oS/mncg9gNRqYr2g
-	j5bNIc7zUBaOvsPgZADvpxBndKI3hJ4LEQXP4nnUxG38KGFfIlyiedaugTuiFk6QbwoZ
-	s6ZRBYOV0ULw8z4R+QKUs6pJBWfxBzjMS6UGCm9NAojb74HNaRmiTFsA+K4oTRVJ3BUg
-	3oECpx1imZaXscpm8fNRsRF6SFQyebBW531TnjYON1hk4adN526jdzqOWWtw8/7qIi0X
-	kvO+bx7iSSXTa1V1QouoHWzoVAzJkZrq8HDPNi+7z9r03gIWkBOm3jIAy2lbxu+lEF6/
-	t4iw==
-X-RZG-AUTH: ":L2QefEenb+UdBJSdRCXu93KJ1bmSGnhMdmOod1DhGM4l4Hio94KKxRySfLxnHfJ+Dkjp5G5MdirQj0WG7CleiqvAq6ZQABFXwQhWphfFlPh+VA=="
-X-RZG-CLASS-ID: mo00
-Received: from [IPv6:2a02:8109:a400:162c:a4a8:a1be:d22f:cc48]
-	by smtp.strato.de (RZmta 44.9 AUTH)
-	with ESMTPSA id t0203dv1AC0KDeL
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (curve secp521r1 with 521 ECDH bits, eq. 15360 bits RSA))
-	(Client did not present a certificate);
-	Sun, 10 Feb 2019 13:00:20 +0100 (CET)
-Subject: Re: use generic DMA mapping code in powerpc V4
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>,
- linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>,
- linux-mm@kvack.org, iommu@lists.linux-foundation.org,
- Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>,
- linuxppc-dev@lists.ozlabs.org
-References: <9632DCDF-B9D9-416C-95FC-006B6005E2EC@xenosoft.de>
- <594beaae-9681-03de-9f42-191cc7d2f8e3@xenosoft.de>
- <20190204075616.GA5408@lst.de>
- <ffbf56ae-c259-47b5-9deb-7fb21fead254@xenosoft.de>
- <20190204123852.GA10428@lst.de>
- <b1c0161f-4211-03af-022d-0db7237516e9@xenosoft.de>
- <20190206151505.GA31065@lst.de> <20190206151655.GA31172@lst.de>
- <61EC67B1-12EF-42B6-B69B-B59F9E4FC474@xenosoft.de>
- <7c1f208b-6909-3b0a-f9f9-38ff1ac3d617@xenosoft.de>
- <20190208091818.GA23491@lst.de>
-From: Christian Zigotzky <chzigotzky@xenosoft.de>
-Message-ID: <4e7137db-e600-0d20-6fb2-6d0f9739aca3@xenosoft.de>
-Date: Sun, 10 Feb 2019 13:00:20 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from DGGEMS410-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id 646346BB552E6B6B1F0;
+	Mon, 11 Feb 2019 01:20:18 +0800 (CST)
+Received: from localhost (10.47.91.52) by DGGEMS410-HUB.china.huawei.com
+ (10.3.19.210) with Microsoft SMTP Server id 14.3.408.0; Mon, 11 Feb 2019
+ 01:20:12 +0800
+Date: Sun, 10 Feb 2019 17:19:58 +0000
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+To: Brice Goglin <Brice.Goglin@inria.fr>
+CC: Keith Busch <keith.busch@intel.com>, <linux-kernel@vger.kernel.org>,
+	<linux-acpi@vger.kernel.org>, <linux-mm@kvack.org>, Greg Kroah-Hartman
+	<gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, "Dave
+ Hansen" <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>
+Subject: Re: [PATCHv4 10/13] node: Add memory caching attributes
+Message-ID: <20190210171958.00003ab2@huawei.com>
+In-Reply-To: <4a7d1c0c-c269-d7b2-11cb-88ad62b70a06@inria.fr>
+References: <20190116175804.30196-1-keith.busch@intel.com>
+	<20190116175804.30196-11-keith.busch@intel.com>
+	<4a7d1c0c-c269-d7b2-11cb-88ad62b70a06@inria.fr>
+Organization: Huawei
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; i686-w64-mingw32)
 MIME-Version: 1.0
-In-Reply-To: <20190208091818.GA23491@lst.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: de-DE
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: quoted-printable
+X-Originating-IP: [10.47.91.52]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+On Sat, 9 Feb 2019 09:20:53 +0100
+Brice Goglin <Brice.Goglin@inria.fr> wrote:
 
-On 08 February 2019 at 10:18AM, Christoph Hellwig wrote:
-> On Fri, Feb 08, 2019 at 10:01:46AM +0100, Christian Zigotzky wrote:
->> Hi Christoph,
->>
->> Your new patch fixes the problems with the P.A. Semi Ethernet! :-)
-> Thanks a lot once again for testing!
->
-> Now can you test with this patch and the whole series?
->
-> I've updated the powerpc-dma.6 branch to include this fix.
->
-I tested the whole series today. The kernels boot and the P.A. Semi 
-Ethernet works! :-) Thanks a lot!
+> Hello Keith
+>=20
+> Could we ever have a single side cache in front of two NUMA nodes ? I
+> don't see a way to find that out in the current implementation. Would we
+> have an "id" and/or "nodemap" bitmask in the sidecache structure ?
 
-I also tested it in a virtual e5500 QEMU machine today. Unfortunately 
-the kernel crashes.
+This is certainly a possible thing for hardware to do.
 
-Log:
+ACPI IIRC doesn't provide any means of representing that - your best
+option is to represent it as two different entries, one for each of the
+memory nodes.  Interesting question of whether you would then claim
+they were half as big each, or the full size.  Of course, there are
+other possible ways to get this info beyond HMAT, so perhaps the interface
+should allow it to be exposed if available?
 
-[   54.624330] BUG: Unable to handle kernel data access at 
-0xc06c008a0013014a
-[   54.625640] Faulting instruction address: 0xc000000000027e7c
-[   54.626140] Oops: Kernel access of bad area, sig: 11 [#1]
-[   54.626456] BE SMP NR_CPUS=4 QEMU e500
-[   54.626876] Modules linked in:
-[   54.627284] CPU: 1 PID: 1876 Comm: systemd-journal Not tainted 
-5.0.0-rc5-DMA_A1-X5000-54581-gda1d065-dirty #1
-[   54.627819] NIP:  c000000000027e7c LR: c0000000000b5264 CTR: 
-0000000000000000
-[   54.628173] REGS: c00000007ffeb700 TRAP: 0300   Not tainted 
-(5.0.0-rc5-DMA_A1-X5000-54581-gda1d065-dirty)
-[   54.628607] MSR:  0000000080009000 <EE,ME>  CR: 44008486 XER: 00000000
-[   54.629023] DEAR: c06c008a0013014a ESR: 0000000000800000 IRQMASK: 0
-[   54.629023] GPR00: 0000000000005254 c00000007ffeb990 c0000000016b2000 
-c06c008a0013014a
-[   54.629023] GPR04: c00000007c54f8c0 0000000000000058 0000000000000006 
-0000000000000000
-[   54.629023] GPR08: 0000000000000000 000000007c54f8c0 006c008a0013014a 
-c00000007c86c000
-[   54.629023] GPR12: 0000000028002482 c00000003ffff8c0 0000000000000000 
-c000000078dfaa70
-[   54.629023] GPR16: c000000078366c00 0000000000000000 000000000000005e 
-0000000000000000
-[   54.629023] GPR20: 0000000000000000 c00000007c54f8c0 0000000000000007 
-c000000078dfa000
-[   54.629023] GPR24: 0000000000000000 0000000000000047 0000000000000000 
-80000000003f6470
-[   54.629023] GPR28: c00000007928d470 c000000078801dc0 000000000000005e 
-c000000078dfa7c0
-[   54.632572] NIP [c000000000027e7c] .memcpy+0x1fc/0x288
-[   54.632886] LR [c0000000000b5264] .swiotlb_tbl_sync_single+0xb0/0xe4
-[   54.633221] Call Trace:
-[   54.633513] [c00000007ffeb990] [c00000007ffeba70] 0xc00000007ffeba70 
-(unreliable)
-[   54.633988] [c00000007ffeba00] [c0000000000b41e4] 
-.dma_direct_sync_single_for_cpu+0x58/0x6c
-[   54.634436] [c00000007ffeba70] [c000000000788da4] 
-.e1000_clean_rx_irq+0x1bc/0x4c8
-[   54.634857] [c00000007ffebb90] [c00000000078667c] 
-.e1000_clean+0x714/0x8d4
-[   54.635263] [c00000007ffebcc0] [c000000000a3f15c] 
-.net_rx_action+0x11c/0x2a4
-[   54.635712] [c00000007ffebdb0] [c000000000c48c20] 
-.__do_softirq+0x150/0x2a8
-[   54.636211] [c00000007ffebeb0] [c000000000064184] .irq_exit+0x6c/0xc4
-[   54.636533] [c00000007ffebf20] [c000000000004124] .__do_irq+0x80/0x94
-[   54.636985] [c00000007ffebf90] [c00000000000eca0] .call_do_irq+0x14/0x24
-[   54.637371] [c00000007c86fd80] [c0000000000041c0] .do_IRQ+0x88/0xc4
-[   54.637737] [c00000007c86fe20] [c000000000012920] 
-exc_0x500_common+0xd8/0xdc
-[   54.638104] Instruction dump:
-[   54.638451] e861fff8 4e800020 7cd01120 7ca62850 38e00000 28a50010 
-409f0010 88040000
-[   54.638887] 98030000 38e70001 409e0010 7c07222e <7c071b2e> 38e70002 
-409d000c 7c07202e
-[   54.639594] ---[ end trace a4861de7e4c199f7 ]---
-[   54.639873]
-[   55.640484] Kernel panic - not syncing: Aiee, killing interrupt handler!
-[   55.641556] Rebooting in 180 seconds..
+Also, don't know if it's just me, but calling these sidecaches is
+downright confusing.  In ACPI at least they are always
+specifically referred to as Memory Side Caches.
+I'd argue there should even by a hyphen Memory-Side Caches, the point
+being that that they are on the memory side of the interconnected
+rather than the processor side.  Of course an implementation
+choice might be to put them off to the side (as implied by sidecaches)
+in some sense, but it's not the only one.
 
------
+</terminology rant> :)
 
-I tested with the following QEMU commands:
+Jonathan
 
-./qemu-system-ppc64 -M ppce500 -cpu e5500 -m 2048  -nographic -kernel 
-/home/christian/Downloads/vmlinux-5.0-rc5-2-AmigaOne_X1000_X5000/X5000_and_QEMU_e5500/uImage-5.0 
--nic user,model=e1000 -drive 
-format=raw,file=/home/christian/Downloads/MATE_PowerPC_Remix_2017_0.9.img,index=0,if=virtio 
--append "rw root=/dev/vda" -smp 4
+>=20
+> Thanks
+>=20
+> Brice
+>=20
+>=20
+>=20
+> Le 16/01/2019 =E0 18:58, Keith Busch a =E9crit=A0:
+> > System memory may have side caches to help improve access speed to
+> > frequently requested address ranges. While the system provided cache is
+> > transparent to the software accessing these memory ranges, applications
+> > can optimize their own access based on cache attributes.
+> >
+> > Provide a new API for the kernel to register these memory side caches
+> > under the memory node that provides it.
+> >
+> > The new sysfs representation is modeled from the existing cpu cacheinfo
+> > attributes, as seen from /sys/devices/system/cpu/cpuX/side_cache/.
+> > Unlike CPU cacheinfo, though, the node cache level is reported from
+> > the view of the memory. A higher number is nearer to the CPU, while
+> > lower levels are closer to the backing memory. Also unlike CPU cache,
+> > it is assumed the system will handle flushing any dirty cached memory
+> > to the last level on a power failure if the range is persistent memory.
+> >
+> > The attributes we export are the cache size, the line size, associativi=
+ty,
+> > and write back policy.
+> >
+> > Signed-off-by: Keith Busch <keith.busch@intel.com>
+> > ---
+> >  drivers/base/node.c  | 142 +++++++++++++++++++++++++++++++++++++++++++=
+++++++++
+> >  include/linux/node.h |  39 ++++++++++++++
+> >  2 files changed, 181 insertions(+)
+> >
+> > diff --git a/drivers/base/node.c b/drivers/base/node.c
+> > index 1e909f61e8b1..7ff3ed566d7d 100644
+> > --- a/drivers/base/node.c
+> > +++ b/drivers/base/node.c
+> > @@ -191,6 +191,146 @@ void node_set_perf_attrs(unsigned int nid, struct=
+ node_hmem_attrs *hmem_attrs,
+> >  		pr_info("failed to add performance attribute group to node %d\n",
+> >  			nid);
+> >  }
+> > +
+> > +struct node_cache_info {
+> > +	struct device dev;
+> > +	struct list_head node;
+> > +	struct node_cache_attrs cache_attrs;
+> > +};
+> > +#define to_cache_info(device) container_of(device, struct node_cache_i=
+nfo, dev)
+> > +
+> > +#define CACHE_ATTR(name, fmt) 						\
+> > +static ssize_t name##_show(struct device *dev,				\
+> > +			   struct device_attribute *attr,		\
+> > +			   char *buf)					\
+> > +{									\
+> > +	return sprintf(buf, fmt "\n", to_cache_info(dev)->cache_attrs.name);\
+> > +}									\
+> > +DEVICE_ATTR_RO(name);
+> > +
+> > +CACHE_ATTR(size, "%llu")
+> > +CACHE_ATTR(level, "%u")
+> > +CACHE_ATTR(line_size, "%u")
+> > +CACHE_ATTR(associativity, "%u")
+> > +CACHE_ATTR(write_policy, "%u")
+> > +
+> > +static struct attribute *cache_attrs[] =3D {
+> > +	&dev_attr_level.attr,
+> > +	&dev_attr_associativity.attr,
+> > +	&dev_attr_size.attr,
+> > +	&dev_attr_line_size.attr,
+> > +	&dev_attr_write_policy.attr,
+> > +	NULL,
+> > +};
+> > +ATTRIBUTE_GROUPS(cache);
+> > +
+> > +static void node_cache_release(struct device *dev)
+> > +{
+> > +	kfree(dev);
+> > +}
+> > +
+> > +static void node_cacheinfo_release(struct device *dev)
+> > +{
+> > +	struct node_cache_info *info =3D to_cache_info(dev);
+> > +	kfree(info);
+> > +}
+> > +
+> > +static void node_init_cache_dev(struct node *node)
+> > +{
+> > +	struct device *dev;
+> > +
+> > +	dev =3D kzalloc(sizeof(*dev), GFP_KERNEL);
+> > +	if (!dev)
+> > +		return;
+> > +
+> > +	dev->parent =3D &node->dev;
+> > +	dev->release =3D node_cache_release;
+> > +	if (dev_set_name(dev, "side_cache"))
+> > +		goto free_dev;
+> > +
+> > +	if (device_register(dev))
+> > +		goto free_name;
+> > +
+> > +	pm_runtime_no_callbacks(dev);
+> > +	node->cache_dev =3D dev;
+> > +	return;
+> > +free_name:
+> > +	kfree_const(dev->kobj.name);
+> > +free_dev:
+> > +	kfree(dev);
+> > +}
+> > +
+> > +void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_a=
+ttrs)
+> > +{
+> > +	struct node_cache_info *info;
+> > +	struct device *dev;
+> > +	struct node *node;
+> > +
+> > +	if (!node_online(nid) || !node_devices[nid])
+> > +		return;
+> > +
+> > +	node =3D node_devices[nid];
+> > +	list_for_each_entry(info, &node->cache_attrs, node) {
+> > +		if (info->cache_attrs.level =3D=3D cache_attrs->level) {
+> > +			dev_warn(&node->dev,
+> > +				"attempt to add duplicate cache level:%d\n",
+> > +				cache_attrs->level);
+> > +			return;
+> > +		}
+> > +	}
+> > +
+> > +	if (!node->cache_dev)
+> > +		node_init_cache_dev(node);
+> > +	if (!node->cache_dev)
+> > +		return;
+> > +
+> > +	info =3D kzalloc(sizeof(*info), GFP_KERNEL);
+> > +	if (!info)
+> > +		return;
+> > +
+> > +	dev =3D &info->dev;
+> > +	dev->parent =3D node->cache_dev;
+> > +	dev->release =3D node_cacheinfo_release;
+> > +	dev->groups =3D cache_groups;
+> > +	if (dev_set_name(dev, "index%d", cache_attrs->level))
+> > +		goto free_cache;
+> > +
+> > +	info->cache_attrs =3D *cache_attrs;
+> > +	if (device_register(dev)) {
+> > +		dev_warn(&node->dev, "failed to add cache level:%d\n",
+> > +			 cache_attrs->level);
+> > +		goto free_name;
+> > +	}
+> > +	pm_runtime_no_callbacks(dev);
+> > +	list_add_tail(&info->node, &node->cache_attrs);
+> > +	return;
+> > +free_name:
+> > +	kfree_const(dev->kobj.name);
+> > +free_cache:
+> > +	kfree(info);
+> > +}
+> > +
+> > +static void node_remove_caches(struct node *node)
+> > +{
+> > +	struct node_cache_info *info, *next;
+> > +
+> > +	if (!node->cache_dev)
+> > +		return;
+> > +
+> > +	list_for_each_entry_safe(info, next, &node->cache_attrs, node) {
+> > +		list_del(&info->node);
+> > +		device_unregister(&info->dev);
+> > +	}
+> > +	device_unregister(node->cache_dev);
+> > +}
+> > +
+> > +static void node_init_caches(unsigned int nid)
+> > +{
+> > +	INIT_LIST_HEAD(&node_devices[nid]->cache_attrs);
+> > +}
+> > +#else
+> > +static void node_init_caches(unsigned int nid) { }
+> > +static void node_remove_caches(struct node *node) { }
+> >  #endif
+> > =20
+> >  #define K(x) ((x) << (PAGE_SHIFT - 10))
+> > @@ -475,6 +615,7 @@ void unregister_node(struct node *node)
+> >  {
+> >  	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
+> >  	node_remove_classes(node);
+> > +	node_remove_caches(node);
+> >  	device_unregister(&node->dev);
+> >  }
+> > =20
+> > @@ -755,6 +896,7 @@ int __register_one_node(int nid)
+> >  	INIT_LIST_HEAD(&node_devices[nid]->class_list);
+> >  	/* initialize work queue for memory hot plug */
+> >  	init_node_hugetlb_work(nid);
+> > +	node_init_caches(nid);
+> > =20
+> >  	return error;
+> >  }
+> > diff --git a/include/linux/node.h b/include/linux/node.h
+> > index e22940a593c2..8cdf2b2808e4 100644
+> > --- a/include/linux/node.h
+> > +++ b/include/linux/node.h
+> > @@ -37,12 +37,47 @@ struct node_hmem_attrs {
+> >  };
+> >  void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hme=
+m_attrs,
+> >  			 unsigned class);
+> > +
+> > +enum cache_associativity {
+> > +	NODE_CACHE_DIRECT_MAP,
+> > +	NODE_CACHE_INDEXED,
+> > +	NODE_CACHE_OTHER,
+> > +};
+> > +
+> > +enum cache_write_policy {
+> > +	NODE_CACHE_WRITE_BACK,
+> > +	NODE_CACHE_WRITE_THROUGH,
+> > +	NODE_CACHE_WRITE_OTHER,
+> > +};
+> > +
+> > +/**
+> > + * struct node_cache_attrs - system memory caching attributes
+> > + *
+> > + * @associativity:	The ways memory blocks may be placed in cache
+> > + * @write_policy:	Write back or write through policy
+> > + * @size:		Total size of cache in bytes
+> > + * @line_size:		Number of bytes fetched on a cache miss
+> > + * @level:		Represents the cache hierarchy level
+> > + */
+> > +struct node_cache_attrs {
+> > +	enum cache_associativity associativity;
+> > +	enum cache_write_policy write_policy;
+> > +	u64 size;
+> > +	u16 line_size;
+> > +	u8  level;
+> > +};
+> > +void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_a=
+ttrs);
+> >  #else
+> >  static inline void node_set_perf_attrs(unsigned int nid,
+> >  				       struct node_hmem_attrs *hmem_attrs,
+> >  				       unsigned class)
+> >  {
+> >  }
+> > +
+> > +static inline void node_add_cache(unsigned int nid,
+> > +				  struct node_cache_attrs *cache_attrs)
+> > +{
+> > +}
+> >  #endif
+> > =20
+> >  struct node {
+> > @@ -51,6 +86,10 @@ struct node {
+> >  #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
+> >  	struct work_struct	node_work;
+> >  #endif
+> > +#ifdef CONFIG_HMEM_REPORTING
+> > +	struct list_head cache_attrs;
+> > +	struct device *cache_dev;
+> > +#endif
+> >  };
+> > =20
+> >  struct memory_block; =20
+>=20
 
-./qemu-system-ppc64 -M ppce500 -cpu e5500 -m 2048 -kernel 
-/home/christian/Downloads/vmlinux-5.0-rc5-2-AmigaOne_X1000_X5000/X5000_and_QEMU_e5500/uImage-5.0 
--drive 
-format=raw,file=/home/christian/Downloads/MATE_PowerPC_Remix_2017_0.9.img,index=0,if=virtio 
--nic user,model=e1000 -append "rw root=/dev/vda" -device virtio-vga 
--device virtio-mouse-pci -device virtio-keyboard-pci -usb -soundhw 
-es1370 -smp 4
-
-The RC5 of kernel 5.0 boots without any problems in this virtual machine.
-
-Cheers,
-Christian
 
