@@ -1,171 +1,303 @@
-Return-Path: <SRS0=K2Kt=QQ=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=NdlI=QR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 77B5FC282CC
-	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 17:31:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 62272C282C4
+	for <linux-mm@archiver.kernel.org>; Sun, 10 Feb 2019 00:44:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2B3E12192B
-	for <linux-mm@archiver.kernel.org>; Sat,  9 Feb 2019 17:31:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B3E12192B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 1338C21929
+	for <linux-mm@archiver.kernel.org>; Sun, 10 Feb 2019 00:44:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1338C21929
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A96C58E00CD; Sat,  9 Feb 2019 12:31:32 -0500 (EST)
+	id 81B878E00B6; Sat,  9 Feb 2019 19:44:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A46348E00CC; Sat,  9 Feb 2019 12:31:32 -0500 (EST)
+	id 7CC038E00B5; Sat,  9 Feb 2019 19:44:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 935AB8E00CD; Sat,  9 Feb 2019 12:31:32 -0500 (EST)
+	id 6E06F8E00B6; Sat,  9 Feb 2019 19:44:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 529628E00CC
-	for <linux-mm@kvack.org>; Sat,  9 Feb 2019 12:31:32 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id j32so4721101pgm.5
-        for <linux-mm@kvack.org>; Sat, 09 Feb 2019 09:31:32 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 412898E00B5
+	for <linux-mm@kvack.org>; Sat,  9 Feb 2019 19:44:25 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id g7so7782879qkf.15
+        for <linux-mm@kvack.org>; Sat, 09 Feb 2019 16:44:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=nvj+7reFMkFLvbKZaeDSxZMOo553VBlZHr9t/sOOozc=;
-        b=BP5LL/WZiaeyrtY6iGVXhGw5qdg3C8wEbgo3IIC9hIrQh9mqqdb9QXqDtj2PZQbeq+
-         mrMklM35Ags8JNthcLQXMzXJhyZKBckpdDzM8kZV+XKpE62xqLfUTRzZ6aNW87ijQ+K+
-         s3PxHrx0zowSeWXdnT4mnGPv/ETQFrRGmZkNL/Wtth9Ju/U73b4yhLCKTy714djCMMMv
-         UCZAg9PaSHfSNDIyVumRQmS+yc5jmdkVrnWhaeCQsECedMDdGep+DgnXU1ywcoGwGQHn
-         255Jnb/0GLqr4V2OO9K64AbOFvvDezSP84UYP/zRoNPZRiJA7RdLii1QX5wQDWSg5gRn
-         eagQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAubRuiho64Nr5Sc4NTCCJYCK/BF22vW2Od0eoFtLC2WTnXlkE+J9
-	j5Ki1CENCu75Xtrn2dw6k5DpT6Udkrkd5H2Tb549R2ezYDCmc7XiK8BgXNH29QnKRPMjLfZyTbK
-	rg2SQzL8g1CXyVWeUnUcSpjSfaAz9SlgRklfcWaiNshteS1k5y+rAn9oSWCOOTuM3mA==
-X-Received: by 2002:a62:1d8f:: with SMTP id d137mr28339472pfd.11.1549733491720;
-        Sat, 09 Feb 2019 09:31:31 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZXle2e09BQPa6uWEeEiy8VEVcoJ3+k8x2f4dQZTvd8ueTGSTLFM5ehm12jSHMitjsPB0S9
-X-Received: by 2002:a62:1d8f:: with SMTP id d137mr28339418pfd.11.1549733490925;
-        Sat, 09 Feb 2019 09:31:30 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549733490; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=YoYRl/AhV7C+npaWPlXHne12fMkTW4n2DT/zVpjkRfc=;
+        b=SUKAXv4gSrIK+KH30Zk7zq/ce1w7/3DKN4bHaQ14LAl7zJ71+ycQx0STG02PCmLGbO
+         gRvYBhEDXdWvE0IlxqFiCXzjW7g3KyRS6JLNjPQhgbHiyYnNxRp8VJiHQU7usvw4TzJJ
+         HGcYU31Q42Qd67vpgiUc3i8HEnHsO0E9OvgHp6nAOsyw95NXr9uv1tm86wGkDoI7sSpn
+         5sthrQm7qd7FIki+gfrACdlOwkDzSxTECOlsdcv73IN0QeQZ+ik1AOQ9jlkYep2QQ4OW
+         UCQ4jy4hpR6RtMYjgicGm/VZNEFqIBiJHgB+1+VY5sU6r83j/Kfp5zDnl3VvXj1pvaRD
+         piiw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAuZNn31FUXcdHLD7UGqEafC9qcRXf/NaHOcxOcM50EsCvogUR9Bt
+	46fCcfEXXbVEbFAiRj0Kk0D2KHFeqLucJ/eaghs0IMFs28VPiaiZsbdDWRYCOehDlZU5rpKZ7PH
+	RnLds7vgaPX7CfogGYw6RfBrW/YFRg84t1j/xwLBTZ7uUmAmKFLbLPK8vhZO/srrktLAScOd1bV
+	4iqFMjBFO4DWjiSObOdtA1UIyBjzT3DmuISfPW2KynaPc1kiah9sHX32CMpVh89esbT4o12FLLo
+	xjheUMpKQf74Zsb9Tv3u1rofm9hTS4YTOtdQI1RMv4H0fQZvULhWDkvh6xFibGKmtO2+ncz5Hz1
+	4aPMeWOUSzUSMNQSNFUNL9YtPcW2ew0kB6eEjeafQDbi9JsrKr60Zpx+7Zo2MPNwHDHVFDh9BVY
+	q
+X-Received: by 2002:ac8:18fa:: with SMTP id o55mr12449938qtk.272.1549759464934;
+        Sat, 09 Feb 2019 16:44:24 -0800 (PST)
+X-Received: by 2002:ac8:18fa:: with SMTP id o55mr12449906qtk.272.1549759464075;
+        Sat, 09 Feb 2019 16:44:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549759464; cv=none;
         d=google.com; s=arc-20160816;
-        b=GWJ0Ps7ZnRbgtVyn/94S2wGF55xqq5sitHwdVXKpVFapvfgHoQlBY1wyX4WD9wSIWe
-         2Q2VEKi1BzHaYCH3htAQRPTUqoIP37BgyO0f6xJHREuWAE7lOPJDNqXvIsOuqJiaHPEA
-         7iZMZW6x60eNL9JvmB3jmB+kOpjKn1QxKNma4RuVGnATUDXSaaVvUizXt0NRh6vDqndo
-         dNpCMixRYqDn5p5XI4rbmlwKSsxxIt2uurfiEDWhofJJTtKLSu7l/f6SCuJqASsomSHP
-         /NEr3XAydUNs9KuBU66G9GKUPy4eTTgrHbLt0Bbxx/7xpAc3ht3WAvoUiMbZScMtyS3d
-         BaTA==
+        b=rS2fj1NgBVGOWRp5X83JnEIJESH54pifolYNqFY9fKiXbAOKKA+YMZmllAdRNULq3P
+         kdcsmjvvBFOZYEW2iQUyfPXkZTzNWIup6m+uMZf8p35FtpRfqjGBb06V0I+U9uHpSIcD
+         S2MaexeBOKQb2HnQIl5sJsMAZtE6wdvA1pE6XQ+OAFACWrzkQ/T0ChK5k86ehXjdsiv3
+         OdbWu1jwzLOjqm5ULInBmaZ/UUpEOzTXp1EYpS+U3ZlB8RJ3+BK4O6c5L3uGP22nVCZa
+         z2uOZxJXU4baPg4OboKdWvWv6uJghYj0asxFVJfbkJGzblmQi986fEDZZv1FIchOrod+
+         KKrA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=nvj+7reFMkFLvbKZaeDSxZMOo553VBlZHr9t/sOOozc=;
-        b=xdnVRn3w6NHGnQCJLx/f/8Ih5cMiGlfBwe3BSxljz8DHjgoqKadPTFlQ2VKCUAiyOb
-         l8mz7R3ndcZ3OpC2jIxuyCix8PvQoj3YTRiVGrWtiNMOJumKuIeQnEP5RoYzis0aXhFH
-         rZ46wSRE6IZZCw/bWpBErOPPxbRNMoGuvEDEUTJvxhPH09X17wfa+dxd8Wi99pYDF47O
-         EPi8Y9apUy5C8pvN/i6fqBbIPip/B03iiL/y6/yqOTv1Leyt31Szzk6+rvvGFlzcxd9/
-         AndPRm7f3eQ0NmZN/pNSfvRy3nK7KnZTKfjqCmEXh1LWjp74a7yRoFfVKlXy8KH9Z9sd
-         2tyw==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=YoYRl/AhV7C+npaWPlXHne12fMkTW4n2DT/zVpjkRfc=;
+        b=anubKzQGnFKPij4M4x9rSmxw6ulu1zFBv5KsznHZeOgrvesBiOumC3EvPhSvxlbBhw
+         6a4IWhJSlnB/5ETBDLJ0yfWpZgn7TxuyvPPYKw2yIWvzPRSHP/EZ0+s5nHuNWCB8+wJP
+         //ApBm2YvKuUsOPsww5gDc+0iEBr+uwTXtHbupQoq2rGqHraZ90LmkwT6USP6qBTs5Rr
+         qwgGNfc2tTiWv9d5fOIipg0UlF7ueBRYeFUTLD8QpiSwIJQYvYC1i7MXJrljGdqm++B/
+         4+CsO5jDobqirouzoijsUU0fwDCeZ25QrMAghMWEkApSOeKmPOBkTc6vp6A9+sYrIPUk
+         J6vw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id g8si5958960pgo.166.2019.02.09.09.31.30
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r8sor918702qvp.50.2019.02.09.16.44.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 09 Feb 2019 09:31:30 -0800 (PST)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
+        (Google Transport Security);
+        Sat, 09 Feb 2019 16:44:24 -0800 (PST)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Feb 2019 09:31:30 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,352,1544515200"; 
-   d="scan'208";a="132330281"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by FMSMGA003.fm.intel.com with ESMTP; 09 Feb 2019 09:31:29 -0800
-From: ira.weiny@intel.com
-To: Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>,
-	Borislav Petkov <bp@alien8.de>,
-	x86@kernel.org,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Ira Weiny <ira.weiny@intel.com>
-Subject: [PATCH] mm/gup.c: Remove unused write variable
-Date: Sat,  9 Feb 2019 09:31:09 -0800
-Message-Id: <20190209173109.9361-1-ira.weiny@intel.com>
-X-Mailer: git-send-email 2.20.1
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: AHgI3IZ+s0hzGp191IBmEXdNyU23QmNMuiYtQQCJGBncjK5j77WzlkK+ayK7GBT4Sd5UVP9BjCCFlQ==
+X-Received: by 2002:a0c:b068:: with SMTP id l37mr12414984qvc.21.1549759463499;
+        Sat, 09 Feb 2019 16:44:23 -0800 (PST)
+Received: from redhat.com (pool-173-76-246-42.bstnma.fios.verizon.net. [173.76.246.42])
+        by smtp.gmail.com with ESMTPSA id t40sm7971638qth.46.2019.02.09.16.44.22
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sat, 09 Feb 2019 16:44:22 -0800 (PST)
+Date: Sat, 9 Feb 2019 19:44:20 -0500
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org,
+	rkrcmar@redhat.com, alexander.h.duyck@linux.intel.com,
+	x86@kernel.org, mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
+	pbonzini@redhat.com, tglx@linutronix.de, akpm@linux-foundation.org
+Subject: Re: [RFC PATCH 2/4] kvm: Add host side support for free memory hints
+Message-ID: <20190209194108-mutt-send-email-mst@kernel.org>
+References: <20190204181118.12095.38300.stgit@localhost.localdomain>
+ <20190204181546.12095.81356.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190204181546.12095.81356.stgit@localhost.localdomain>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Ira Weiny <ira.weiny@intel.com>
+On Mon, Feb 04, 2019 at 10:15:46AM -0800, Alexander Duyck wrote:
+> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> 
+> Add the host side of the KVM memory hinting support. With this we expose a
+> feature bit indicating that the host will pass the messages along to the
+> new madvise function.
+> 
+> This functionality is mutually exclusive with device assignment. If a
+> device is assigned we will disable the functionality as it could lead to a
+> potential memory corruption if a device writes to a page after KVM has
+> flagged it as not being used.
 
-write is unused in gup_fast_permitted so remove it.
+I really dislike this kind of tie-in.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Signed-off-by: Ira Weiny <ira.weiny@intel.com>
----
- arch/x86/include/asm/pgtable_64.h | 3 +--
- mm/gup.c                          | 6 +++---
- 2 files changed, 4 insertions(+), 5 deletions(-)
+Yes right now assignment is not smart enough but generally
+you can protect the unused page in the IOMMU and that's it,
+it's safe.
 
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 9c85b54bf03c..0bb566315621 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -259,8 +259,7 @@ extern void init_extra_mapping_uc(unsigned long phys, unsigned long size);
- extern void init_extra_mapping_wb(unsigned long phys, unsigned long size);
- 
- #define gup_fast_permitted gup_fast_permitted
--static inline bool gup_fast_permitted(unsigned long start, int nr_pages,
--		int write)
-+static inline bool gup_fast_permitted(unsigned long start, int nr_pages)
- {
- 	unsigned long len, end;
- 
-diff --git a/mm/gup.c b/mm/gup.c
-index 05acd7e2eb22..b63e88eca31b 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1786,7 +1786,7 @@ static void gup_pgd_range(unsigned long addr, unsigned long end,
-  * Check if it's allowed to use __get_user_pages_fast() for the range, or
-  * we need to fall back to the slow version:
-  */
--bool gup_fast_permitted(unsigned long start, int nr_pages, int write)
-+bool gup_fast_permitted(unsigned long start, int nr_pages)
- {
- 	unsigned long len, end;
- 
-@@ -1828,7 +1828,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	 * block IPIs that come from THPs splitting.
- 	 */
- 
--	if (gup_fast_permitted(start, nr_pages, write)) {
-+	if (gup_fast_permitted(start, nr_pages)) {
- 		local_irq_save(flags);
- 		gup_pgd_range(start, end, write, pages, &nr);
- 		local_irq_restore(flags);
-@@ -1870,7 +1870,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	if (unlikely(!access_ok((void __user *)start, len)))
- 		return -EFAULT;
- 
--	if (gup_fast_permitted(start, nr_pages, write)) {
-+	if (gup_fast_permitted(start, nr_pages)) {
- 		local_irq_disable();
- 		gup_pgd_range(addr, end, write, pages, &nr);
- 		local_irq_enable();
--- 
-2.20.1
+So the policy should not leak into host/guest interface.
+Instead it is better to just keep the pages pinned and
+ignore the hint for now.
+
+
+
+> The logic as it is currently defined limits the hint to only supporting a
+> hugepage or larger notifications. This is meant to help prevent us from
+> potentially breaking up huge pages by hinting that only a portion of the
+> page is not needed.
+> 
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> ---
+>  Documentation/virtual/kvm/cpuid.txt      |    4 +++
+>  Documentation/virtual/kvm/hypercalls.txt |   14 ++++++++++++
+>  arch/x86/include/uapi/asm/kvm_para.h     |    3 +++
+>  arch/x86/kvm/cpuid.c                     |    6 ++++-
+>  arch/x86/kvm/x86.c                       |   35 ++++++++++++++++++++++++++++++
+>  include/uapi/linux/kvm_para.h            |    1 +
+>  6 files changed, 62 insertions(+), 1 deletion(-)
+> 
+> diff --git a/Documentation/virtual/kvm/cpuid.txt b/Documentation/virtual/kvm/cpuid.txt
+> index 97ca1940a0dc..fe3395a58b7e 100644
+> --- a/Documentation/virtual/kvm/cpuid.txt
+> +++ b/Documentation/virtual/kvm/cpuid.txt
+> @@ -66,6 +66,10 @@ KVM_FEATURE_PV_SEND_IPI            ||    11 || guest checks this feature bit
+>                                     ||       || before using paravirtualized
+>                                     ||       || send IPIs.
+>  ------------------------------------------------------------------------------
+> +KVM_FEATURE_PV_UNUSED_PAGE_HINT    ||    12 || guest checks this feature bit
+> +                                   ||       || before using paravirtualized
+> +                                   ||       || unused page hints.
+> +------------------------------------------------------------------------------
+>  KVM_FEATURE_CLOCKSOURCE_STABLE_BIT ||    24 || host will warn if no guest-side
+>                                     ||       || per-cpu warps are expected in
+>                                     ||       || kvmclock.
+> diff --git a/Documentation/virtual/kvm/hypercalls.txt b/Documentation/virtual/kvm/hypercalls.txt
+> index da24c138c8d1..b374678ac1f9 100644
+> --- a/Documentation/virtual/kvm/hypercalls.txt
+> +++ b/Documentation/virtual/kvm/hypercalls.txt
+> @@ -141,3 +141,17 @@ a0 corresponds to the APIC ID in the third argument (a2), bit 1
+>  corresponds to the APIC ID a2+1, and so on.
+>  
+>  Returns the number of CPUs to which the IPIs were delivered successfully.
+> +
+> +7. KVM_HC_UNUSED_PAGE_HINT
+> +------------------------
+> +Architecture: x86
+> +Status: active
+> +Purpose: Send unused page hint to host
+> +
+> +a0: physical address of region unused, page aligned
+> +a1: size of unused region, page aligned
+> +
+> +The hypercall lets a guest send notifications to the host that it will no
+> +longer be using a given page in memory. Multiple pages can be hinted at by
+> +using the size field to hint that a higher order page is available by
+> +specifying the higher order page size.
+> diff --git a/arch/x86/include/uapi/asm/kvm_para.h b/arch/x86/include/uapi/asm/kvm_para.h
+> index 19980ec1a316..f066c23060df 100644
+> --- a/arch/x86/include/uapi/asm/kvm_para.h
+> +++ b/arch/x86/include/uapi/asm/kvm_para.h
+> @@ -29,6 +29,7 @@
+>  #define KVM_FEATURE_PV_TLB_FLUSH	9
+>  #define KVM_FEATURE_ASYNC_PF_VMEXIT	10
+>  #define KVM_FEATURE_PV_SEND_IPI	11
+> +#define KVM_FEATURE_PV_UNUSED_PAGE_HINT	12
+>  
+>  #define KVM_HINTS_REALTIME      0
+>  
+> @@ -119,4 +120,6 @@ struct kvm_vcpu_pv_apf_data {
+>  #define KVM_PV_EOI_ENABLED KVM_PV_EOI_MASK
+>  #define KVM_PV_EOI_DISABLED 0x0
+>  
+> +#define KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER	HUGETLB_PAGE_ORDER
+> +
+>  #endif /* _UAPI_ASM_X86_KVM_PARA_H */
+> diff --git a/arch/x86/kvm/cpuid.c b/arch/x86/kvm/cpuid.c
+> index bbffa6c54697..b82bcbfbc420 100644
+> --- a/arch/x86/kvm/cpuid.c
+> +++ b/arch/x86/kvm/cpuid.c
+> @@ -136,6 +136,9 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
+>  	if (kvm_hlt_in_guest(vcpu->kvm) && best &&
+>  		(best->eax & (1 << KVM_FEATURE_PV_UNHALT)))
+>  		best->eax &= ~(1 << KVM_FEATURE_PV_UNHALT);
+> +	if (kvm_arch_has_assigned_device(vcpu->kvm) && best &&
+> +		(best->eax & KVM_FEATURE_PV_UNUSED_PAGE_HINT))
+> +		best->eax &= ~(1 << KVM_FEATURE_PV_UNUSED_PAGE_HINT);
+>  
+>  	/* Update physical-address width */
+>  	vcpu->arch.maxphyaddr = cpuid_query_maxphyaddr(vcpu);
+> @@ -637,7 +640,8 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
+>  			     (1 << KVM_FEATURE_PV_UNHALT) |
+>  			     (1 << KVM_FEATURE_PV_TLB_FLUSH) |
+>  			     (1 << KVM_FEATURE_ASYNC_PF_VMEXIT) |
+> -			     (1 << KVM_FEATURE_PV_SEND_IPI);
+> +			     (1 << KVM_FEATURE_PV_SEND_IPI) |
+> +			     (1 << KVM_FEATURE_PV_UNUSED_PAGE_HINT);
+>  
+>  		if (sched_info_on())
+>  			entry->eax |= (1 << KVM_FEATURE_STEAL_TIME);
+> diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+> index 3d27206f6c01..3ec75ab849e2 100644
+> --- a/arch/x86/kvm/x86.c
+> +++ b/arch/x86/kvm/x86.c
+> @@ -55,6 +55,7 @@
+>  #include <linux/irqbypass.h>
+>  #include <linux/sched/stat.h>
+>  #include <linux/mem_encrypt.h>
+> +#include <linux/mm.h>
+>  
+>  #include <trace/events/kvm.h>
+>  
+> @@ -7052,6 +7053,37 @@ void kvm_vcpu_deactivate_apicv(struct kvm_vcpu *vcpu)
+>  	kvm_x86_ops->refresh_apicv_exec_ctrl(vcpu);
+>  }
+>  
+> +static int kvm_pv_unused_page_hint_op(struct kvm *kvm, gpa_t gpa, size_t len)
+> +{
+> +	unsigned long start;
+> +
+> +	/*
+> +	 * Guarantee the following:
+> +	 *	len meets minimum size
+> +	 *	len is a power of 2
+> +	 *	gpa is aligned to len
+> +	 */
+> +	if (len < (PAGE_SIZE << KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER))
+> +		return -KVM_EINVAL;
+> +	if (!is_power_of_2(len) || !IS_ALIGNED(gpa, len))
+> +		return -KVM_EINVAL;
+> +
+> +	/*
+> +	 * If a device is assigned we cannot use use madvise as memory
+> +	 * is shared with the device and could lead to memory corruption
+> +	 * if the device writes to it after free.
+> +	 */
+> +	if (kvm_arch_has_assigned_device(kvm))
+> +		return -KVM_EOPNOTSUPP;
+> +
+> +	start = gfn_to_hva(kvm, gpa_to_gfn(gpa));
+> +
+> +	if (kvm_is_error_hva(start + len))
+> +		return -KVM_EFAULT;
+> +
+> +	return do_madvise_dontneed(start, len);
+> +}
+> +
+>  int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
+>  {
+>  	unsigned long nr, a0, a1, a2, a3, ret;
+> @@ -7098,6 +7130,9 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
+>  	case KVM_HC_SEND_IPI:
+>  		ret = kvm_pv_send_ipi(vcpu->kvm, a0, a1, a2, a3, op_64_bit);
+>  		break;
+> +	case KVM_HC_UNUSED_PAGE_HINT:
+> +		ret = kvm_pv_unused_page_hint_op(vcpu->kvm, a0, a1);
+> +		break;
+>  	default:
+>  		ret = -KVM_ENOSYS;
+>  		break;
+> diff --git a/include/uapi/linux/kvm_para.h b/include/uapi/linux/kvm_para.h
+> index 6c0ce49931e5..75643b862a4e 100644
+> --- a/include/uapi/linux/kvm_para.h
+> +++ b/include/uapi/linux/kvm_para.h
+> @@ -28,6 +28,7 @@
+>  #define KVM_HC_MIPS_CONSOLE_OUTPUT	8
+>  #define KVM_HC_CLOCK_PAIRING		9
+>  #define KVM_HC_SEND_IPI		10
+> +#define KVM_HC_UNUSED_PAGE_HINT		11
+>  
+>  /*
+>   * hypercalls use architecture specific
 
