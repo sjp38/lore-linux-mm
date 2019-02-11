@@ -7,102 +7,102 @@ X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A7E1DC282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:00:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3883DC169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:00:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 576AA218A1
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:00:03 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EB48A218A1
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:00:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="KNkhOp+F"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 576AA218A1
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="LvDpk8rP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB48A218A1
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C0DA98E0171; Mon, 11 Feb 2019 17:00:02 -0500 (EST)
+	id F405B8E0172; Mon, 11 Feb 2019 17:00:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B95AB8E0165; Mon, 11 Feb 2019 17:00:02 -0500 (EST)
+	id EF1618E0165; Mon, 11 Feb 2019 17:00:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A5B658E0171; Mon, 11 Feb 2019 17:00:02 -0500 (EST)
+	id D1BEA8E0172; Mon, 11 Feb 2019 17:00:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D4DC8E0165
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 17:00:02 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id e2so158187wrv.16
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 14:00:02 -0800 (PST)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 782978E0165
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 17:00:04 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id e14so161314wrt.12
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 14:00:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=9CMPZjRzPxA9yWJGkQniQIkHzZh/Nj3CjJ78bKTFu6c=;
-        b=qX+/EvH9bEGba0pvWNaioabU0s3Noy+dGhRemS3tqNgTQwNgImV392gxADA5V1rIJB
-         dwltw73UBBUbzx38QLIjfTUsv7Ju7DEuQh4pqyhdQcNZqnyJmqYjaVIZP7UOk2GVRR3i
-         Fz7EWxHd1Sulip6rEf9jXhLEhiUMDBgkAp8AiXiLlMOOp3afgvNQDadnFYiaSIKq/zQD
-         kBf+jyyL+uO5reHwnA2sM0jnhqj9xZ3m9AU1qDjCt/xy3tegzIz27K4wL7m4Ty0DSVku
-         Y8wmNbKVPahPkA1h6Clpz5wVMO1thblBYYlzFMaDPoLEFmNQQkpQ42Nz/NB+LTGJfmhV
-         PRAg==
-X-Gm-Message-State: AHQUAubdmvx9/iJ/SiOqmQdZ2Tkoyxxz2nUxf0RadU6YwRghPHRj/qxl
-	paz+bWThoswY08gTva1mCQpMCqK826eTlVcWxSNBGTT5BL4peFK2ckLH/sG0EEeDytzo769rgd8
-	u9TQ0ZDfmIvBR4WRiaFBncm8O4wORLQrb+EmsEjbag++7APpni/lo9T46nTgi5NT56D51Km0viw
-	SfjJNGO7IU11LnSGRyDymdZcOMNHsZ3mv0/B9v8CnoJxZf731tURrjEfYaxOI3jGJuhKMi0LY1n
-	UOAD5fEQAgIIIccWAVdHfk2aKMPgGm4DQH+iHgZmiJiufrwEcq4peKqehehoxkk0Bj5X55L8vdb
-	JYUqPp1R128xjaJHhO0RxgUD1v/ZPZqSRgBCuPk0ZAUVTuvWrj/kCusr2b+jaaVAt8f2SIY+xHF
-	S
-X-Received: by 2002:adf:f28d:: with SMTP id k13mr312982wro.78.1549922401828;
-        Mon, 11 Feb 2019 14:00:01 -0800 (PST)
-X-Received: by 2002:adf:f28d:: with SMTP id k13mr312950wro.78.1549922401054;
-        Mon, 11 Feb 2019 14:00:01 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549922401; cv=none;
+        bh=xu9/37gH7GsD7XGP+9mY66oknw0IDCzNaIitxBdfe0s=;
+        b=hQWfECosfNueu3+jPMOijqgTyAIXA1rlDOGz2r8pgiPuDBL72s62y+NLgnwNQfaBqU
+         ENMnL30Cg/yOaGLWuroDVMr1Sf6NfblKP6b2megPfIsGK9aLNPIIkfQY9dZjP99rY1eM
+         +tEvcnaT6VknBDgvlu4tzJLsGt+nNo1XgW64GR+wzsSUeeJ2C9xl+idMuA/yyZv6R8Ps
+         pZ/N737jw9EdIYKu+IvRC/29X1aUzZv+1UYzmRVaFzGHVDrx5uc3BnD/qafkyqEHqZPG
+         iK8ujUY4Lf65/y2OVgpvmOy3gSWkpQICeIhSotYAkHfveGFDM9+Pu3GS5UEqkadVNWEl
+         QOtg==
+X-Gm-Message-State: AHQUAuZwpsmGWCj+fJS9efR5UeK/D5zW3peWsXggN8Pf8WfKUagJQvtw
+	L3hwPg5d0wCU7toqXJ18Ieu/17VgJFdmbQPZrqZciX58QlXDqcpQXi9wTTyLQuMgQkC+p5OO41s
+	L9coAZYYT5AtDgZ38tSPe4fa0P1ujA1gQuosnbpUPU+Krr7RmhVTgstryP5f+s1jnyiKA/kjvrk
+	SEj4g+sJfLRxu7EqxT5n9SsHnle5Fnin8fLOImRWJ/jZLmcOCnvFZHUkOVMXfvbMQJwiPO/hSST
+	8HX8iABF10OjW4jTF62DqCxLSgaPL0PkjM89x8o7wPo6PYzb1WHZPOfNr0GoTRSnTwCG1WXGb1K
+	ZEdkP6KZYSxToT8+JgYb0LG0ic0E7+boGZwWnCfybyonQlPooTRlTvWGBAxGKYH0IZ95bM8b2lM
+	e
+X-Received: by 2002:adf:ed0f:: with SMTP id a15mr252353wro.249.1549922403892;
+        Mon, 11 Feb 2019 14:00:03 -0800 (PST)
+X-Received: by 2002:adf:ed0f:: with SMTP id a15mr252307wro.249.1549922403022;
+        Mon, 11 Feb 2019 14:00:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549922403; cv=none;
         d=google.com; s=arc-20160816;
-        b=EQj/9NaG45JJ3mS0/3dgHZP0L7C3dh9jMk11PoM2/zAnry7uL9jZwQBHmEBwjt4kLQ
-         KMNAI3PAGwxmeR680Ct4mrMmxujI6Gz/OVVuoVWvjGQ5HuJgKSLF5bKxnMHcdfyEdYB+
-         Vt26nfQyrHIWPOui5oKbcii+aJWt0kYX1tZqQYjQquRihwvI4mBhL6+HAuN1cW8SPd3s
-         7WuwTOrMJ/TMReSrDGesW6CpSBTMzSL+D73v307idGxxDutcVkLfLgk35Lc0XtNEdne1
-         Kqg9WJ+KhmmZWKHAdVm2cI1aXQeV4P0Qr30JjJqP0hX5CNrQ+qz/6ixgDpso16FVA4O5
-         3HHA==
+        b=cjaabVuGKxZHouMijshGN8rOdKMoJ6D7+WezXuWatquvO51N1zdivExdJ8PNUXmhdp
+         xv6TKKhmDsTzsTdVKDUeW9zkhXUHepFi/CDGasimqBnBslnbjDK2SDZxCGRQoZU7l+V1
+         uM+oNYg4yC2Pujb9NEfIf+9TB3Y9OHMNipBk8QjxaPFxbf7IknUCb2rNc93BajiRGLjC
+         rjtagS8LvFSKYLVKwliqANaGnNE42w7qB4aKYQufkOV1L20eW0pItVzkuOODfG5gPqYI
+         iff2hnBz8xuTf5TPhOOjcRhtzkThxqo8Kdfoo5U69bnRoeaRKnyiAcUJh+ushqeiaFUa
+         /REw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=9CMPZjRzPxA9yWJGkQniQIkHzZh/Nj3CjJ78bKTFu6c=;
-        b=0vKOlm4VG4XjbSccAEmhtDuyoRuNnbFr4Ic4P0Ch0iKSlZfrZo40vF8r+41JkZigU4
-         Z2F3PYtyb8nsA8qXoffyh3nkGOHY4dEtCmTE/OmrtkmdVuZ+gTEhjsou84ngAXXbiHHY
-         iZd2vsD5CAHg4VfqwtFOq6I/Rh93BQIXl64MyCoHJjmbixGHkFuYu1kJaeZBx13QOp7Q
-         anjcbb27M/GvTGtn46AVFjuj/C1edHQevT6DhZuMYv2b2igXooQrFxQTXH9a3H7VWBf/
-         TG+S7nvGxxvG1eX/vjTj2O/qyIIDvgCNuhZYZGoCIfcy5VcOB9rHiS1DYeJoc0O2u2rx
-         AEXw==
+        bh=xu9/37gH7GsD7XGP+9mY66oknw0IDCzNaIitxBdfe0s=;
+        b=rne7YWL8ILPKvT9829f0R0P2E3JoQnGlcYTOduo9MHc3CkfZqhSNt+C2FpS2J9/Dkn
+         tOgXBQjwoijZDQbtPB8DkzWMR5eRxNDdk+S4rXN3aGlt+WjNC1mGvNG/7znT534DeVI6
+         XIs8jlUqCYMmyxNpuAILyV6oycYRr3H0CAeRWq4LnHaa+Ml90U/QYi1UaqYI6i+Lab3D
+         G5naIzhP195GG3J2Fdip6HSldOykAJUKM61/1zqltRHVsYp44tOU+11H2fl9/ROxNsO4
+         /9ZJfblNPqSeb1Own6YDn+sx0p2bf+v6kvC36SZiOZNGzBNGtuZBHAOU+q7jMXtUX+tb
+         yD5w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=KNkhOp+F;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=LvDpk8rP;
        spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m10sor2669105wro.1.2019.02.11.14.00.00
+        by mx.google.com with SMTPS id d10sor3685006wre.27.2019.02.11.14.00.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Feb 2019 14:00:01 -0800 (PST)
+        Mon, 11 Feb 2019 14:00:03 -0800 (PST)
 Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=KNkhOp+F;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=LvDpk8rP;
        spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=9CMPZjRzPxA9yWJGkQniQIkHzZh/Nj3CjJ78bKTFu6c=;
-        b=KNkhOp+FwwqqWNp0rVoktr8lfQk/kt4OYWfZh0XzvAGg0XcRsG1vZ9foQ6V5/GjZQS
-         ZtJd4pn78QAAV9XHc7Hx7Po325azOyAcAntab5T7pxquIxMo4L5vhod2HvO4oM0JS1sJ
-         5wW/NCzntc/d2udqR3ieGxAD/HSjnEhECEe9Jtfv+F4yBFFMKB35cnTfuEvhVsSWOeVu
-         +GBkc+Dm/3w7rbgZQAzXnDfuP3Nz8Rm1s91ixQQMVwwZfyBKL+2PEnZWizwZGxiicisf
-         k+fqqLG5MgEygXacHs7JJeAcrMzplL/EfvnKRModlnR+xpLr0M1favDp3jNGs1v8W9MD
-         FtMQ==
-X-Google-Smtp-Source: AHgI3Ia32u1Rwu6dEWF9OS009TTKjKG2ZLzjUiuLH7ytuQiqzKENoj77khlFOGtz0NDNmqx4HNgfdg==
-X-Received: by 2002:adf:dfca:: with SMTP id q10mr284447wrn.45.1549922400500;
-        Mon, 11 Feb 2019 14:00:00 -0800 (PST)
+        bh=xu9/37gH7GsD7XGP+9mY66oknw0IDCzNaIitxBdfe0s=;
+        b=LvDpk8rPB3n4BLRV+GWRak4fy4PQK/nUyEZdQO8ek2m2qmtOvn9x9BaisqKXQk6TIz
+         kI0YBJ3nAdG50wT9X9SbBsBC6H+lZyC9ZV201ioFawASZWLGJ9ZF+JPMsO3kjK/P2lra
+         SqXZnv1ATyfvt0QOyPl/Y6z1F3tocJYTZfc6Eh7eeli7zJ3RKCZRtC2r0YMrVKxi15S9
+         BfIeI5BrOB0Sje8/M66uiaWc+Hy6gQbTgIL7xNVqIvtvPlFYO6wlxPqYcQA8jXC/UbWW
+         xzqt8ab59GILV1YPmno+TCjFrlvUlQe1Y50UYnqEKlrgFrbPy77O/FZSbtd+zXVPxuuF
+         a4mw==
+X-Google-Smtp-Source: AHgI3IakbUaIb3vF6wxwPHL9o50hSBKxqinOgDtxfHR6KU/+RnrMyAuJM28Z+cs9oXYm/Eh5PEOx7A==
+X-Received: by 2002:adf:e747:: with SMTP id c7mr283433wrn.176.1549922402509;
+        Mon, 11 Feb 2019 14:00:02 -0800 (PST)
 Received: from andreyknvl0.muc.corp.google.com ([2a00:79e0:15:13:8ce:d7fa:9f4c:492])
-        by smtp.gmail.com with ESMTPSA id c186sm762685wmf.34.2019.02.11.13.59.58
+        by smtp.gmail.com with ESMTPSA id c186sm762685wmf.34.2019.02.11.14.00.00
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 13:59:59 -0800 (PST)
+        Mon, 11 Feb 2019 14:00:01 -0800 (PST)
 From: Andrey Konovalov <andreyknvl@google.com>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>,
 	Alexander Potapenko <glider@google.com>,
@@ -121,9 +121,9 @@ Cc: Qian Cai <cai@lca.pw>,
 	Kostya Serebryany <kcc@google.com>,
 	Evgeniy Stepanov <eugenis@google.com>,
 	Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH 1/5] kasan: fix assigning tags twice
-Date: Mon, 11 Feb 2019 22:59:50 +0100
-Message-Id: <ce8c6431da735aa7ec051fd6497153df690eb021.1549921721.git.andreyknvl@google.com>
+Subject: [PATCH 2/5] kasan, kmemleak: pass tagged pointers to kmemleak
+Date: Mon, 11 Feb 2019 22:59:51 +0100
+Message-Id: <cd825aa4897b0fc37d3316838993881daccbe9f5.1549921721.git.andreyknvl@google.com>
 X-Mailer: git-send-email 2.20.1.791.gb4d0f1c61a-goog
 In-Reply-To: <cover.1549921721.git.andreyknvl@google.com>
 References: <cover.1549921721.git.andreyknvl@google.com>
@@ -135,87 +135,66 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When an object is kmalloc()'ed, two hooks are called: kasan_slab_alloc()
-and kasan_kmalloc(). Right now we assign a tag twice, once in each of
-the hooks. Fix it by assigning a tag only in the former hook.
+Right now we call kmemleak hooks before assigning tags to pointers in
+KASAN hooks. As a result, when an objects gets allocated, kmemleak sees
+a differently tagged pointer, compared to the one it sees when the object
+gets freed. Fix it by calling KASAN hooks before kmemleak's ones.
 
+Reported-by: Qian Cai <cai@lca.pw>
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- mm/kasan/common.c | 29 +++++++++++++++++------------
- 1 file changed, 17 insertions(+), 12 deletions(-)
+ mm/slab.h        | 6 ++----
+ mm/slab_common.c | 2 +-
+ mm/slub.c        | 3 ++-
+ 3 files changed, 5 insertions(+), 6 deletions(-)
 
-diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-index 73c9cbfdedf4..09b534fbba17 100644
---- a/mm/kasan/common.c
-+++ b/mm/kasan/common.c
-@@ -361,10 +361,15 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object)
-  *    get different tags.
-  */
- static u8 assign_tag(struct kmem_cache *cache, const void *object,
--			bool init, bool krealloc)
-+			bool init, bool keep_tag)
- {
--	/* Reuse the same tag for krealloc'ed objects. */
--	if (krealloc)
-+	/*
-+	 * 1. When an object is kmalloc()'ed, two hooks are called:
-+	 *    kasan_slab_alloc() and kasan_kmalloc(). We assign the
-+	 *    tag only in the first one.
-+	 * 2. We reuse the same tag for krealloc'ed objects.
-+	 */
-+	if (keep_tag)
- 		return get_tag(object);
+diff --git a/mm/slab.h b/mm/slab.h
+index 4190c24ef0e9..638ea1b25d39 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -437,11 +437,9 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
  
- 	/*
-@@ -405,12 +410,6 @@ void * __must_check kasan_init_slab_obj(struct kmem_cache *cache,
- 	return (void *)object;
- }
- 
--void * __must_check kasan_slab_alloc(struct kmem_cache *cache, void *object,
--					gfp_t flags)
--{
--	return kasan_kmalloc(cache, object, cache->object_size, flags);
--}
+ 	flags &= gfp_allowed_mask;
+ 	for (i = 0; i < size; i++) {
+-		void *object = p[i];
 -
- static inline bool shadow_invalid(u8 tag, s8 shadow_byte)
+-		kmemleak_alloc_recursive(object, s->object_size, 1,
++		p[i] = kasan_slab_alloc(s, p[i], flags);
++		kmemleak_alloc_recursive(p[i], s->object_size, 1,
+ 					 s->flags, flags);
+-		p[i] = kasan_slab_alloc(s, object, flags);
+ 	}
+ 
+ 	if (memcg_kmem_enabled())
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 81732d05e74a..fe524c8d0246 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1228,8 +1228,8 @@ void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
+ 	flags |= __GFP_COMP;
+ 	page = alloc_pages(flags, order);
+ 	ret = page ? page_address(page) : NULL;
+-	kmemleak_alloc(ret, size, 1, flags);
+ 	ret = kasan_kmalloc_large(ret, size, flags);
++	kmemleak_alloc(ret, size, 1, flags);
+ 	return ret;
+ }
+ EXPORT_SYMBOL(kmalloc_order);
+diff --git a/mm/slub.c b/mm/slub.c
+index 1e3d0ec4e200..4a3d7686902f 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1374,8 +1374,9 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node,
+  */
+ static inline void *kmalloc_large_node_hook(void *ptr, size_t size, gfp_t flags)
  {
- 	if (IS_ENABLED(CONFIG_KASAN_GENERIC))
-@@ -467,7 +466,7 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object, unsigned long ip)
++	ptr = kasan_kmalloc_large(ptr, size, flags);
+ 	kmemleak_alloc(ptr, size, 1, flags);
+-	return kasan_kmalloc_large(ptr, size, flags);
++	return ptr;
  }
  
- static void *__kasan_kmalloc(struct kmem_cache *cache, const void *object,
--				size_t size, gfp_t flags, bool krealloc)
-+				size_t size, gfp_t flags, bool keep_tag)
- {
- 	unsigned long redzone_start;
- 	unsigned long redzone_end;
-@@ -485,7 +484,7 @@ static void *__kasan_kmalloc(struct kmem_cache *cache, const void *object,
- 				KASAN_SHADOW_SCALE_SIZE);
- 
- 	if (IS_ENABLED(CONFIG_KASAN_SW_TAGS))
--		tag = assign_tag(cache, object, false, krealloc);
-+		tag = assign_tag(cache, object, false, keep_tag);
- 
- 	/* Tag is ignored in set_tag without CONFIG_KASAN_SW_TAGS */
- 	kasan_unpoison_shadow(set_tag(object, tag), size);
-@@ -498,10 +497,16 @@ static void *__kasan_kmalloc(struct kmem_cache *cache, const void *object,
- 	return set_tag(object, tag);
- }
- 
-+void * __must_check kasan_slab_alloc(struct kmem_cache *cache, void *object,
-+					gfp_t flags)
-+{
-+	return __kasan_kmalloc(cache, object, cache->object_size, flags, false);
-+}
-+
- void * __must_check kasan_kmalloc(struct kmem_cache *cache, const void *object,
- 				size_t size, gfp_t flags)
- {
--	return __kasan_kmalloc(cache, object, size, flags, false);
-+	return __kasan_kmalloc(cache, object, size, flags, true);
- }
- EXPORT_SYMBOL(kasan_kmalloc);
- 
+ static __always_inline void kfree_hook(void *x)
 -- 
 2.20.1.791.gb4d0f1c61a-goog
 
