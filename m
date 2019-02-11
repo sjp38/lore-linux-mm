@@ -2,143 +2,130 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+X-Spam-Status: No, score=-5.8 required=3.0 tests=DEAR_SOMETHING,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E1A3C282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 19:56:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 223F9C169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 19:57:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 44B86218AD
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 19:56:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 44B86218AD
+	by mail.kernel.org (Postfix) with ESMTP id DC3BC222A0
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 19:57:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC3BC222A0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D04C18E014D; Mon, 11 Feb 2019 14:56:44 -0500 (EST)
+	id 711258E014E; Mon, 11 Feb 2019 14:57:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CB3348E0125; Mon, 11 Feb 2019 14:56:44 -0500 (EST)
+	id 6BF448E0125; Mon, 11 Feb 2019 14:57:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BA1D58E014D; Mon, 11 Feb 2019 14:56:44 -0500 (EST)
+	id 5B2298E014E; Mon, 11 Feb 2019 14:57:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EA478E0125
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 14:56:44 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id k1so184313qta.2
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 11:56:44 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A3CE8E0125
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 14:57:12 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id p5so188062qtp.3
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 11:57:12 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to;
-        bh=dxIH/eelx8NvcTuXb7rX+FMWAP5tUyEeW4raaT3XX7s=;
-        b=mGeIfjhgB9aPPbbnG3LnMh76lf3HPSjqZPt+VJitIJOCjRAIaP9tg+5LthiZJmXk4B
-         4RHL6+ocWw0cwYXF2bt8ccrcsQGh3nQ7X2wav+9el3vwqeou5J2ZIbwsjxO2D7a5npNg
-         LZDsGve76xuebThFlS2bm9ZnwJ/Hv4S0VM6trYepOXlKS5vhLpricnI8BCDcVd0jEJND
-         64nENoEuFKleKEa+28i38Ka6ZZFHE+NiwQh49qKq6w1dqfm67roxAo61l2fcZfjc+pmw
-         1CjDN4EpPDDgVTBlw66P+6a7YPtKb4GWBNTMHv1O/5q3lEkg5OCEnBerwKo+ixfGtrjb
-         cNQA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAua8WzQugr6x16tlu9L7KJ2ivlGUopwbuHIdFtQJBCcEemq/AAo6
-	rEFm6QANfXj/pRxdY2Z4JFf+h/nkdbpq50wOOzW3HMl+R4aN7PeGfnOxfqyuq1Q574qfSc8/W3T
-	URHxBh6L0A0evd3FWcGuf4KJyfP5zdVy+39Y0cYYJCVNAJEWSVf/L36RJCO6z8+VaEQ==
-X-Received: by 2002:ac8:3fd4:: with SMTP id v20mr8823917qtk.188.1549915004282;
-        Mon, 11 Feb 2019 11:56:44 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZQBFEYUdNjhOM7n4yrm8F4QTGaj0mLDtXqu82EpsuberxEzUb1jQ7eg+3wrj/xUa9b3VR2
-X-Received: by 2002:ac8:3fd4:: with SMTP id v20mr8823874qtk.188.1549915003467;
-        Mon, 11 Feb 2019 11:56:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549915003; cv=none;
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=Qohar+o4qQy6gY+kKJxq3zNhWX5Agwk79jDZi8L+b/c=;
+        b=a1XezGk/oJhAsg39QIIZ7b+hRacisw8m6nMoirTY8/mttK29edKGz8281pn0FWwL0F
+         OWtE5GRD6rq+v6ybcNooWV22wRLVRYgWDjYXHuptsyDeHe3bxy/eincKQ/W/Pf8COD1V
+         9WAbzXbIb1cZb++2CD81obIDbqf4ERDXQh+ZMOzCRPeZZsbvRHRIM1F3OgF3Z8FEmWFO
+         5JW2R3c3t8HRP7Bx/RA31I+JJMXpr7BXA69QUV0SbOIXlYY7jDGlDeo2344nPWogJdye
+         DMdJS0QUHbnJY8ESeKFjmtjyiWtlIZdYBvzSE7uxAtc12oCUMjsECmV4CknLe/VhFT8R
+         PIiw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAuZByB0ARUF8zzN3GNsEYYbyKrAsnopms7cCBn05pnk3uAVur8u4
+	K2VrB1WH660f79lXoqWQvXegbllh/99xitbTJtgkN/wEAXfa2IEDxY3OPNh0aV7+bKLpMeSGoHR
+	HPHozdFwN4KA169Hpt2017bKX+Mdzl1k8qoaF5RjZnjOsOTYvp32jbXaAjabiUPSYwQ==
+X-Received: by 2002:a37:390:: with SMTP id 138mr4681987qkd.292.1549915031934;
+        Mon, 11 Feb 2019 11:57:11 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaYJLsqnV8qNN0JKmVcfVIjl8dsHiSgdoJy8uAO7xzBjDjgA2xQjWtE8g2fr8VxTiudIwnz
+X-Received: by 2002:a37:390:: with SMTP id 138mr4681965qkd.292.1549915031428;
+        Mon, 11 Feb 2019 11:57:11 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549915031; cv=none;
         d=google.com; s=arc-20160816;
-        b=vdkNsrZs6RcgzAwhaEFTP75w5+lNMm+Khxdqew4MBngHBm0NCs4pb5JRaEI1jmXjFM
-         hVSrdkYB1gFr+/VKVv3e+ndWf8NSpxGfV/mm+P5cD2We75512PXuAfJL73g0b1fIFymj
-         x0B9eaNkbFNq+Y4c/ehXH8YQMM2SEDUj85EQ1o7W4i4f32AlxwIGhmoRn8AeQfsREb5K
-         XaBZXRgiNliJEPMnTOk2GEncw6KqyFlM/kbDFERC0yeiwRJ3YAHAp2op/pvAz63fyy5X
-         IDSFhp6pyijXMygvZeSzFfGH7MWCvs/MHZrg5l3qrCMmty0RoKBSxm0TsrXFfWHKadet
-         yz3g==
+        b=QNoqx+mCwwc/G5Xvlg7YbIn5it5eiGC6tTBEcU/rqw1v+w3G6U+yJC4pMx/38wrrPi
+         taXnKPkN3xxxc8Ej33hLpjsBm1qxJkRJX2fIbnd7mpIJJ7DLbHy3M/k8qzZBU2a5sqaV
+         0w/3XvOrRi3QbL0gFUigWSbfmi3QnmS7dcj4zpEPCuwBks8ZjWDlNWB01EpmkymUtmFH
+         gIrbOxaMa3e13842sR037kcIOQ2UaK7rcnHzcDFh03NdztWSsatIcJmKBifGImUY0rBQ
+         xWwwlCdyQnti81Ki/Bk50CxPz4TAdVlbyJTgwTXRbRpf19YfYSyTlMq8RjMP0/8uhXNy
+         3ltg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date;
-        bh=dxIH/eelx8NvcTuXb7rX+FMWAP5tUyEeW4raaT3XX7s=;
-        b=uJT/nr+85LaK6Mg7mzl5eXMaD9qF29GBmR8P4Jqxx0uEOAK1kIv2HklWVhtZJ9xsQr
-         gcW8VDqZuQnmogJXuT14Cc9kJfSMT1Z6fAkV0HGpSEXIFoOEDo7MUPA3frgBhM7l4jyG
-         qm2mMFkiFxdeu14Kl9f2Szj+DTRVsJFSisS/ktxYaQTQyOlRBzeK7IEFcPXc6+WVpWaL
-         665bTQF4BB0TUO6+3XWRVHDPabkyjrovgLTZrY/iTq0CvQCSkuhBbVk4QoJtMEHUwNE7
-         T6ePoNfDRMH1uOyRI3BHWrPaVEslwOjz6ivS5S9dUa5KgMCQxj5aOcfFAuKOiMColgoZ
-         zKUg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=Qohar+o4qQy6gY+kKJxq3zNhWX5Agwk79jDZi8L+b/c=;
+        b=FKwSVi/wSqrj7tHbTeHs62NQLHptqHaFx+c8ZLsJyDvUuAuTMtokT5RTXpWY4G6ezZ
+         xQDAS1KqgoL2rjdujq2V1GrZ+a+mbsycRcaEHzH6bmzyO1xeGrFTUrMw4M6tAiXjuyP5
+         4thr9TjhwYB3luOYf8VB3TZ4GWJQFzmnQpY23RknyfWY25dhJ7VQH5+4V/85VbE60J68
+         iX/kEqlUIUtZdXLkGzrh/COQtzTyvrnyw7MuR/xGdMcK1zmc2K9ERbK+I9Q/7oocWkHP
+         5a5rFcpFbndloNaGP9445sMufk7FnxR7lBMNu89AdaJCBGUnITRWeK2qCkYzqG2jsP84
+         53kw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l23si7018970qkg.227.2019.02.11.11.56.43
+        by mx.google.com with ESMTPS id k7si1985705qtk.40.2019.02.11.11.57.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 11:56:43 -0800 (PST)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 11 Feb 2019 11:57:11 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id BBDB980F81;
-	Mon, 11 Feb 2019 19:56:41 +0000 (UTC)
-Received: from redhat.com (ovpn-120-40.rdu2.redhat.com [10.10.120.40])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 04D2C6091C;
-	Mon, 11 Feb 2019 19:56:39 +0000 (UTC)
-Date: Mon, 11 Feb 2019 14:56:39 -0500
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, kvm@vger.kernel.org,
-	rkrcmar@redhat.com, alexander.h.duyck@linux.intel.com,
-	x86@kernel.org, mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
-	pbonzini@redhat.com, tglx@linutronix.de, akpm@linux-foundation.org
-Subject: Re: [RFC PATCH 3/4] kvm: Add guest side support for free memory hints
-Message-ID: <20190211145531-mutt-send-email-mst@kernel.org>
-References: <20190204181118.12095.38300.stgit@localhost.localdomain>
- <20190204181552.12095.46287.stgit@localhost.localdomain>
- <20190209194437-mutt-send-email-mst@kernel.org>
- <0d12ccec-d05f-80b8-9498-710d521c81d2@intel.com>
- <20190211124925-mutt-send-email-mst@kernel.org>
- <d0610465-1655-1fd0-4847-7a6ba233df85@intel.com>
+	by mx1.redhat.com (Postfix) with ESMTPS id 90A54A7878;
+	Mon, 11 Feb 2019 19:57:10 +0000 (UTC)
+Received: from redhat.com (ovpn-123-21.rdu2.redhat.com [10.10.123.21])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 613048517;
+	Mon, 11 Feb 2019 19:57:09 +0000 (UTC)
+Date: Mon, 11 Feb 2019 14:57:07 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: Krzysztof Grygiencz <kfgz@interia.pl>
+Cc: dan.j.williams@intel.com, akpm@linux-foundation.org,
+	dri-devel@lists.freedesktop.org, hch@lst.de,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	logang@deltatee.com, stable@vger.kernel.org,
+	torvalds@linux-foundation.org
+Subject: Re: [PATCH v8 3/7] mm, devm_memremap_pages: Fix shutdown handling
+Message-ID: <20190211195706.GE3908@redhat.com>
+References: <30d86b36-8421-f899-205e-4b9c6a5fcc9d@interia.pl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <d0610465-1655-1fd0-4847-7a6ba233df85@intel.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Mon, 11 Feb 2019 19:56:42 +0000 (UTC)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <30d86b36-8421-f899-205e-4b9c6a5fcc9d@interia.pl>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Mon, 11 Feb 2019 19:57:10 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2019 at 10:19:17AM -0800, Dave Hansen wrote:
-> On 2/11/19 9:58 AM, Michael S. Tsirkin wrote:
-> >>> Really it seems we want a virtio ring so we can pass a batch of these.
-> >>> E.g. 256 entries, 2M each - that's more like it.
-> >> That only makes sense for a system that's doing high-frequency,
-> >> discontiguous frees of 2M pages.  Right now, a 2M free/realloc cycle
-> >> (THP or hugetlb) is *not* super-high frequency just because of the
-> >> latency for zeroing the page.
-> > Heh but with a ton of free memory, and a thread zeroing some of
-> > it out in the background, will this still be the case?
-> > It could be that we'll be able to find clean pages
-> > at all times.
+On Sun, Feb 10, 2019 at 12:09:08PM +0100, Krzysztof Grygiencz wrote:
+> Dear Sir,
 > 
-> In a systems where we have some asynchrounous zeroing of memory where
-> freed, non-zeroed memory is sequestered out of the allocator, yeah, that
-> could make sense.
+> I'm using ArchLinux distribution. After kernel upgrade form 4.19.14 to
+> 4.19.15 my X environment stopped working. I have AMD HD3300 (RS780D)
+> graphics card. I have bisected kernel and found a failing commit:
 > 
-> But, that's not what we have today.
+> https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit/?h=v4.19.20&id=ec5471c92fb29ad848c81875840478be201eeb3f
 
-Right. I wonder whether it's smart to build this assumption
-into a host/guest interface though.
+This is a false positive, you should skip that commit. It will not impact
+the GPU driver for your specific GPUs. My advice is to first bisect on
+drivers/gpu/drm/radeon only.
 
-> >> A virtio ring seems like an overblown solution to a non-existent problem.
-> > It would be nice to see some traces to help us decide one way or the other.
-> 
-> Yeah, agreed.  Sounds like we need some more testing to see if these
-> approaches hit bottlenecks anywhere.
+Cheers,
+Jérôme
 
