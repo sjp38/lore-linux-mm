@@ -2,144 +2,164 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_NEOMUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,FROM_EXCESS_BASE64,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C20DC169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 16:15:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EFF80C169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 16:22:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 540BA21B1C
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 16:15:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 540BA21B1C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=stgolabs.net
+	by mail.kernel.org (Postfix) with ESMTP id A40B2218F0
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 16:22:03 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="jkXD9mqf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A40B2218F0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E4A118E00F8; Mon, 11 Feb 2019 11:15:42 -0500 (EST)
+	id 40CCF8E00F9; Mon, 11 Feb 2019 11:22:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DD3098E00F6; Mon, 11 Feb 2019 11:15:42 -0500 (EST)
+	id 3BC648E00F6; Mon, 11 Feb 2019 11:22:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CC2D38E00F8; Mon, 11 Feb 2019 11:15:42 -0500 (EST)
+	id 2AA638E00F9; Mon, 11 Feb 2019 11:22:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A1568E00F6
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 11:15:42 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id u19so9797744eds.12
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 08:15:42 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 02C108E00F6
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 11:22:03 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id h6so12481852qke.18
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 08:22:02 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mail-followup-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=fC1fZt+IZT11l29dIaesmc+ItFE/dY5U8P2pwMDCNrs=;
-        b=Nf/WaDgMWKNJDhZSiHMqdKZ2WMDbYJKmV/BK5OdMULs/oZaJeEAdvopyZiiPAt3Le0
-         o0Xt+aBCHQgQBZErRc2YaROqC/YawrZ4YnqpcsmrmyGXL44rcuKaWI5FtKhi1GdGforu
-         wP8AZF7InPOI/imFfzp4oT7p50/nx+0kL07m44eeHu53zDTaWLjiLQI0N/GNOOEHNwyw
-         XxDlmU/viaIIj2cdFyNVFqY9R5221Ayu9HesrQYWLXs6LoaG/dxSZ7VS2gKl+InMoBqm
-         RaOLDRsODmM23kQuedsu1JVgMj8IxED65j0VlzZReCkKkENVS9IuwiXqieNkKgFibAXR
-         IhWw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
-X-Gm-Message-State: AHQUAubk27qEM/p7uJwtF5fZswVDUh35NMXjzNfoGzu/4rTT3+NSl9Hc
-	vhSYBHJEsQWbqIqRnitvBkgQwRm2Xx48xW1xQD+wUbR6T5ShUR6T7iA8H6WggJJ5MvK2zmyh9qO
-	ULfM1VaPTRMzOPCgv4as2gmjqYuZhOsbp0+6XpND8R+I6RLahmv9NO1dIIFwrDao=
-X-Received: by 2002:a50:d4d2:: with SMTP id e18mr29442350edj.127.1549901741936;
-        Mon, 11 Feb 2019 08:15:41 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ4vx+goMLrV+cEHKRK2jkoOezncHVv8oaKl3qs6Ah1O1JZlvuwQQwVvKiLkN/YQ082+wa7
-X-Received: by 2002:a50:d4d2:: with SMTP id e18mr29442298edj.127.1549901741048;
-        Mon, 11 Feb 2019 08:15:41 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549901741; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to
+         :content-transfer-encoding;
+        bh=cW7tWR8jGU6zZ9qwHpZvVc4mElp1JZn1A2mPsX4Px5E=;
+        b=qNmKjYhck3OO9JEdxQxxU5uLquZY5Dc+MXtwOGi83cKY9TOW4DYQ91kLxgnwjoAOja
+         xP53C2ZiNwpkeuft+E8EC2p9xKrNimhGRjGtwjs1tko7rmxBI6tD0wqqv40eHghTgqdY
+         swxlbCtOl8mlYcUSJacoTLWz2+9ctHpvHRsYpS5HuUX0eO1qbJK0IRc5Lw10oZO/DWcQ
+         uzAu2W2SGjQ3SyYYoRUTjoYDEyDLsqlPNjL1HBKjZ6HN7ASUB2CpTiqHCwRUIlAEGI66
+         LOQGH4MPJrWLJyrXSPmWexLJkkoHXUpL6JNf9qsuSmRX5OGj526qnnxCK8l4he9EW+y0
+         MbEA==
+X-Gm-Message-State: AHQUAuZyQudSxq9Bj5E9zZm1PSZZzq5J0HB3zv3bB7VwU7hj91eT/Adg
+	l+ypHZIUuz1G635OnWBjwKllVCSFdjvFzh3Ma4SScVhRqaBv08nVxuY219JlYnvyNMRqVVKOH+m
+	pIJe5b383H/0ugEn3YIqV93s904prq47a4F5ISlHEiHgq+yQKpHpg4mwKKFyx34dSDtA+57eFxd
+	TnZVz6256QLfbSJb73jcPjD24xJfYKwj1NrvlUBtOQr41RU1QATsLyuSXvLd5TycMGHDW+sy/Oj
+	6kMwbaO556cjcTuhBD0k5Y3+77Z22QPZBT2slsaXRHr0H6tMUrwsFMgpWBeBwtIizXtHOZ4j+oV
+	4vBc+kJSXFKLd4bKKdnk2TjzLSxi+95sLf11Wc5MLHtGwXOqaMTvHA/cSpXcOvsRASfb2+35vK6
+	7
+X-Received: by 2002:ac8:2782:: with SMTP id w2mr5488103qtw.8.1549902122622;
+        Mon, 11 Feb 2019 08:22:02 -0800 (PST)
+X-Received: by 2002:ac8:2782:: with SMTP id w2mr5488053qtw.8.1549902121839;
+        Mon, 11 Feb 2019 08:22:01 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549902121; cv=none;
         d=google.com; s=arc-20160816;
-        b=s9xNR9gsc56bwiFzkRTsb60nBBZNLignPZisiVk1cN+7LcmI+653GvMvVCeZ5ntdIK
-         hZifmZf0omjyxGNIuuAptcfBLPD0yl9Nql/H2y2kmNqPs7ohgq0yebuAAsfFwPnV6p2K
-         ddG2FQDlmd0nTY2RULKnqJim2kI6PE3Cdzpb62x/E31XNQovu9HvLWOGxfisXh4PL47X
-         hWxm5GdYsoGOFt5P7fy3Y4AI/f7HPmkGOXuMSmRznoFQ+T6Lgj9g1XCmnUyGMZcSGHb+
-         1YXVFFHdcI7Swu1UwZzNnU/JxZmrv2JDE6x2zfh00nF0YnpA14oAYT8QN21Fmp/PCMkW
-         k3ZA==
+        b=gYFWWu/Ev1vpTbuAApTKttEpybqp+MgSAwuqKrC8BTqO/mZf3IBmP/aNEswZYJttWV
+         jG+pba3ZzmF2PBe2azFpVSc6g7sJjD7UL+VEbdBx8TOa6FgTWekQCv3iiZHjqpxgUGEx
+         DSG2PqcEAc5WY5APO+UI44w41ef+PHApA712oD8tlH/kI2idyjvdYRxNHwAn7X38xg+F
+         2lU6SJhX1Kxw/0ipOWGPP2N3S2McWoklMg3dHPHFXiF9my53UFa3HaIrPinC4Hix9spW
+         PW+qTzweygnD3A8uFxm63i3jN++8oqA1ymjT9jWJAX+X/g7BL0z6qsGWZoL8Q8r2gKN8
+         brYA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :mail-followup-to:message-id:subject:cc:to:from:date;
-        bh=fC1fZt+IZT11l29dIaesmc+ItFE/dY5U8P2pwMDCNrs=;
-        b=clq/pVvSrKcKlmcx5oPlBcrcY1k+xi5JZ+1paCxpkJ/0ezrx1aCj4HO+0byb+884f+
-         vYrDp1z4Cb8z8HerUc1MD4o/Lry1KlgKmmB8ir+YbpLi/LGoYHKsGVBfgs2ftl+wzd5u
-         rkd+9n6L5ogetYGzCTIkgsZOUa2dOQfxOeZpvVnwRvtVslxmVAymgov4LtThaRiljCfC
-         p3uHYl8nTGWZQIc5jILWkKQoDbaYHingybEGDT/LlIayPUfz34rlQhRXkyf0Ctr/Udsn
-         85wqIUvKw4XXPngzM/9glbaYY0MjDZK0WSG6DIqBZQhtgDdmCz08989tcb5y/Sm8muTB
-         17Rw==
+        h=content-transfer-encoding:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=cW7tWR8jGU6zZ9qwHpZvVc4mElp1JZn1A2mPsX4Px5E=;
+        b=uahYG7I6ey/crheY2odztRRd2ARYEyz+9zOa04Zy2lTys7pPOrCEKJSvk+6r6qoBo5
+         vxPhjZj3ezQhTkVudGUJGGUqk7nhNMqMkdmUlkS/PpNqFSjhhM5cE0nfK3r3N81x1wYx
+         0QApb1XlY47mbu6/AdYFggeIveOFONalQyMvqdfX21Ull/QptGu4IeClnMvHQH7sxsyv
+         Otoke49HQAmHzJdz1xg8XtPPQh8aXbUIBMnDscPI08KagowZNqFHFQGej11FM+oLqBST
+         um7rTZ46/scDJylLLC8Iz+H6Birnh8wjP0Gw5X2sNQHRRjemtGIdSuNsIf9foo2yBP7V
+         w6pQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h35si240000ede.274.2019.02.11.08.15.40
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jkXD9mqf;
+       spf=pass (google.com: domain of bjorn.topel@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bjorn.topel@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w191sor5285071qka.50.2019.02.11.08.22.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 08:15:40 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Mon, 11 Feb 2019 08:22:01 -0800 (PST)
+Received-SPF: pass (google.com: domain of bjorn.topel@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=dave@stgolabs.net
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 6684CAC8D;
-	Mon, 11 Feb 2019 16:15:40 +0000 (UTC)
-Date: Mon, 11 Feb 2019 08:15:29 -0800
-From: Davidlohr Bueso <dave@stgolabs.net>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	"David S . Miller" <davem@davemloft.net>,
-	Bjorn Topel <bjorn.topel@intel.com>,
-	Magnus Karlsson <magnus.karlsson@intel.com>, netdev@vger.kernel.org,
-	Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH v2] xsk: share the mmap_sem for page pinning
-Message-ID: <20190211161529.uskq5ca7y3j5522i@linux-r8p5>
-Mail-Followup-To: akpm@linux-foundation.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	"David S . Miller" <davem@davemloft.net>,
-	Bjorn Topel <bjorn.topel@intel.com>,
-	Magnus Karlsson <magnus.karlsson@intel.com>, netdev@vger.kernel.org,
-	Davidlohr Bueso <dbueso@suse.de>
-References: <20190207053740.26915-1-dave@stgolabs.net>
- <20190207053740.26915-2-dave@stgolabs.net>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jkXD9mqf;
+       spf=pass (google.com: domain of bjorn.topel@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bjorn.topel@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :content-transfer-encoding;
+        bh=cW7tWR8jGU6zZ9qwHpZvVc4mElp1JZn1A2mPsX4Px5E=;
+        b=jkXD9mqfWW3yXbG8w0LZFxPfA2yQmsA507fb3oPSKudLwSr06rY7lKpkWsvp8gyDJn
+         mje9T/31t+keyaV3PDToa5jAAqyUX0WsaHAXW8uu5aNkYlsraE48lbYzzv6U9yDLV4DE
+         D1bba6Y9KgNsImsmZRm+vMjRY41YyAa9YO9js9RqBukfHHYtFTWkW98IqIoxCMaMN/Jy
+         vVWRtyqmN6jy+0UPJTNdAW1oupFbp1TsG5ZjpU0A2TY+Fxr9Qs3klWX3R0VgbUdMWgAz
+         CME4zS9naGnbE6twvA7xihqe1qIy1F+npUtRSk0Xs6lBYc9TlTuXH6bKsmQ7IHT+f8z0
+         ppVA==
+X-Google-Smtp-Source: AHgI3IbCQXC33QsGEJonTzW4/yy3yyPzPYZR6ATkgkmltAkIDqUglEFH2FjqqLfUZUyNdEMGxCHBmpiXk0ANAVD3Izs=
+X-Received: by 2002:a37:5807:: with SMTP id m7mr26465615qkb.141.1549902121590;
+ Mon, 11 Feb 2019 08:22:01 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20190207053740.26915-2-dave@stgolabs.net>
-User-Agent: NeoMutt/20180323
+References: <20190207053740.26915-1-dave@stgolabs.net> <20190207053740.26915-2-dave@stgolabs.net>
+ <20190211161529.uskq5ca7y3j5522i@linux-r8p5>
+In-Reply-To: <20190211161529.uskq5ca7y3j5522i@linux-r8p5>
+From: =?UTF-8?B?QmrDtnJuIFTDtnBlbA==?= <bjorn.topel@gmail.com>
+Date: Mon, 11 Feb 2019 17:21:49 +0100
+Message-ID: <CAJ+HfNj3jwqT7980grynDp7sPj6XL8_JFgs5AK6Zhhj7spRpTg@mail.gmail.com>
+Subject: Re: [PATCH v2] xsk: share the mmap_sem for page pinning
+To: akpm@linux-foundation.org, linux-mm@kvack.org, 
+	LKML <linux-kernel@vger.kernel.org>, "David S . Miller" <davem@davemloft.net>, 
+	Bjorn Topel <bjorn.topel@intel.com>, Magnus Karlsson <magnus.karlsson@intel.com>, 
+	Netdev <netdev@vger.kernel.org>, Davidlohr Bueso <dbueso@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Holding mmap_sem exclusively for a gup() is an overkill.
-Lets share the lock and replace the gup call for gup_longterm(),
-as it is better suited for the lifetime of the pinning.
+Den m=C3=A5n 11 feb. 2019 kl 17:15 skrev Davidlohr Bueso <dave@stgolabs.net=
+>:
+>
+> Holding mmap_sem exclusively for a gup() is an overkill.
+> Lets share the lock and replace the gup call for gup_longterm(),
+> as it is better suited for the lifetime of the pinning.
+>
 
-Cc: David S. Miller <davem@davemloft.net>
-Cc: Bjorn Topel <bjorn.topel@intel.com>
-Cc: Magnus Karlsson <magnus.karlsson@intel.com>
-CC: netdev@vger.kernel.org
-Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
----
- net/xdp/xdp_umem.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+Thanks for the cleanup!
 
-diff --git a/net/xdp/xdp_umem.c b/net/xdp/xdp_umem.c
-index 5ab236c5c9a5..e7fa8d0d7090 100644
---- a/net/xdp/xdp_umem.c
-+++ b/net/xdp/xdp_umem.c
-@@ -265,10 +265,10 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem)
- 	if (!umem->pgs)
- 		return -ENOMEM;
- 
--	down_write(&current->mm->mmap_sem);
--	npgs = get_user_pages(umem->address, umem->npgs,
-+	down_read(&current->mm->mmap_sem);
-+	npgs = get_user_pages_longterm(umem->address, umem->npgs,
- 			      gup_flags, &umem->pgs[0], NULL);
--	up_write(&current->mm->mmap_sem);
-+	up_read(&current->mm->mmap_sem);
- 
- 	if (npgs != umem->npgs) {
- 		if (npgs >= 0) {
--- 
-2.16.4
+Acked-by: Bj=C3=B6rn T=C3=B6pel <bjorn.topel@intel.com>
+
+> Cc: David S. Miller <davem@davemloft.net>
+> Cc: Bjorn Topel <bjorn.topel@intel.com>
+> Cc: Magnus Karlsson <magnus.karlsson@intel.com>
+> CC: netdev@vger.kernel.org
+> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+> ---
+>  net/xdp/xdp_umem.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
+>
+> diff --git a/net/xdp/xdp_umem.c b/net/xdp/xdp_umem.c
+> index 5ab236c5c9a5..e7fa8d0d7090 100644
+> --- a/net/xdp/xdp_umem.c
+> +++ b/net/xdp/xdp_umem.c
+> @@ -265,10 +265,10 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem=
+)
+>         if (!umem->pgs)
+>                 return -ENOMEM;
+>
+> -       down_write(&current->mm->mmap_sem);
+> -       npgs =3D get_user_pages(umem->address, umem->npgs,
+> +       down_read(&current->mm->mmap_sem);
+> +       npgs =3D get_user_pages_longterm(umem->address, umem->npgs,
+>                               gup_flags, &umem->pgs[0], NULL);
+> -       up_write(&current->mm->mmap_sem);
+> +       up_read(&current->mm->mmap_sem);
+>
+>         if (npgs !=3D umem->npgs) {
+>                 if (npgs >=3D 0) {
+> --
+> 2.16.4
+>
 
