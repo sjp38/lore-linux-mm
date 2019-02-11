@@ -2,145 +2,175 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C61F6C169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 07:21:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8945C169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 07:35:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0A45A20844
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 07:21:15 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=xenosoft.de header.i=@xenosoft.de header.b="Yl3XVBBW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0A45A20844
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=xenosoft.de
+	by mail.kernel.org (Postfix) with ESMTP id 58C8E2084D
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 07:35:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 58C8E2084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 972228E00C5; Mon, 11 Feb 2019 02:21:15 -0500 (EST)
+	id BB0FC8E00CC; Mon, 11 Feb 2019 02:35:49 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9485E8E00C4; Mon, 11 Feb 2019 02:21:15 -0500 (EST)
+	id B605F8E00C4; Mon, 11 Feb 2019 02:35:49 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 838278E00C5; Mon, 11 Feb 2019 02:21:15 -0500 (EST)
+	id A28158E00CC; Mon, 11 Feb 2019 02:35:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 28A7B8E00C4
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 02:21:15 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id f202so5707343wme.2
-        for <linux-mm@kvack.org>; Sun, 10 Feb 2019 23:21:15 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 624528E00C4
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 02:35:49 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id t65so4798020pfj.19
+        for <linux-mm@kvack.org>; Sun, 10 Feb 2019 23:35:49 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=2+Wj7m7ySIuMfGlN7asIXsR+ghoPH8tIEa6cdB4icBU=;
-        b=mQZr6dOTPwdI4BWe/kkZzDXkYD1M4Z9ErgEiq2mcZLpJXg+BAU5tGU7rsgYJoyiKXU
-         VMx1+VLZXEs2NsleNX6i2ojRWIZNdxl+KD5Fo02C64cfQdKF6G4KO4uafqFm4nkNtQ76
-         odmiWF9W9iUPdCJdKwfBXx5VRYkMIDf9j1hnfHBAne/jFhIGckuLnHDm8lfIvn3Ccbi8
-         JISje69Jq/AjjymiOz/7hdFviMDBVm49TVIWUclvTcTULmPZfqFl4sdvWXkH5MPN0R8u
-         /bMp3Dfu4r/cG87mR0rtf8jVPvbTTcyijJWDS1LWZF/44F3s0OUHOqhl1GlFPEs4hxtu
-         XH+g==
-X-Gm-Message-State: AHQUAuYVXyTNot6tVGhwXES3P4tqAQKE6ETBRWkdtiLBkHfSWDL4htnt
-	2RzIViYg6Zs7Wo8jicA7EjykVy7uyLy3uMYqwZD9ZzuZngFXjQtnn66XNVbAq7Ey2aLjblwkJJn
-	ObZHS4RXjj75EWJZ1pEEy0fNtL74bYUDugQWh6V/bQ8ln9h65oXao0DaSQLx96U3/jA==
-X-Received: by 2002:a7b:c1c5:: with SMTP id a5mr8428054wmj.51.1549869674682;
-        Sun, 10 Feb 2019 23:21:14 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib18gRC+/APdcNOQNwKwSwkychynR5xSGQhh44RYWa1I+sLMYzswf1QUUddvhqX0qeq3/kp
-X-Received: by 2002:a7b:c1c5:: with SMTP id a5mr8428012wmj.51.1549869673884;
-        Sun, 10 Feb 2019 23:21:13 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549869673; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=xmYYhT/NunsdPiHabn6Y/TtAP5zptX6cTxluQ+QGMek=;
+        b=Y6ANvrAKZYRNvVwtHXn05miDeQanxUni7hwztcXG4rWU76A3GbBH43uH9JxvGHlBEW
+         MkHSAS7v97J7oGpl1Lw6uM7x6/mUbdSDn8+nUQcnM4nPGbSbAEd0SQgk1F8la8FMX7wA
+         3c5jbG8mYWw+zlMe1QVUkVAoT/qbWTfsTNlVFJx7qdsq9/sxoxu4FNfa1eVuJyRxe9fq
+         DjI/588p6EyXoS8yJQHZv+PpacjRw999Ro0iYeHqX+/GJFEJdi0QjNfgfgx421fNFLrQ
+         YzDi5h47rgydPv4rUldVztaypk4aRwuNmIICIAj6Y9OOgJTH/M1J0Av4dJL1Lj/qZ6P9
+         eODQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAubGFk1T6QrdlVvvNxYgj5gRFmyY6ovjvOEBDN6CH6ROmQy1L8XR
+	Dg3NpUiEnShkyEuuz+0V5bCvvfbzRpsRyDSEGJ83KgOZhnmaHWoagzwQtLjcDbVwstSU/dHbvFP
+	KoGISHpqXhYEsfHDFawFOvGyK2MfK2198BM1Io3lA/pvC0vuts/6GGrgLylb9aB2p2A==
+X-Received: by 2002:a62:6e07:: with SMTP id j7mr36272059pfc.135.1549870549001;
+        Sun, 10 Feb 2019 23:35:49 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbXsNAsXmUYB4ixZkCJmOhNXj6jBjOhBI1K1H7Jnl5NNoHZeWUFICUDC34wdtPTLLC/bVT1
+X-Received: by 2002:a62:6e07:: with SMTP id j7mr36272010pfc.135.1549870548343;
+        Sun, 10 Feb 2019 23:35:48 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549870548; cv=none;
         d=google.com; s=arc-20160816;
-        b=mv8Rz7dKzv2tSSFT4su0XiNWhs2yR8T3VAGY26uk0J5YKznlyVfoX/+Wmxi7NuWJXy
-         YmHmI8+Q9zc+LDQXV503gIzv0UAIEUMdvTNig7iZxptk0L3xUzE4PfENlYIYeLYJQA8n
-         IJoRud1rIjLvpe7MOpSbrdFE4EuPmRnGp33JEzZgbZeRpVj/D8NYqFh1cY7n7cG7SaGI
-         DEIZ51/jfAnPuuzhPn2CVd+I71SgkQJP2N4IKJGftxCwOa8G8uEWC8qFDCpaO29lWTJL
-         ZefOMqz88gXC+kKFD3qK1Hj3fr3RqUKqN1bGzL6UKfbIJ5WWSXfe+1i3uqGjfi2LTifw
-         XjOg==
+        b=lSlEJz2dZAGWKrK3Y/mN3nQJCN8cV3b6OFXVRD8uN4cZaAxQLcK55LZtrUYYlA1xP9
+         O68ce+I7p6uwqGfJo2rDMfF4Uju1WFM21//sUN3YY/hfoonRgOAtQeKFqy5JVqrw/JMe
+         IY5M0I8S3VdV63Lsjq4EoFZWHHmmZNSxlWehYqlZvIWq0QU62QD8WExZCsDNxJO/dbn3
+         lOY29s/OPzIf4aHEzLaVDUDCN8S8lHme0WYlw3aQhWQ+H5rScFEpWAUapLrvewcc8WCJ
+         05Shd+gMMS0C+xk0hEaBkwB2RNyTOcfTHz1ALBwGiMFdhCFkpIj/vN9hIzFPvVcr0H+s
+         0R2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=2+Wj7m7ySIuMfGlN7asIXsR+ghoPH8tIEa6cdB4icBU=;
-        b=TFnuC4FGjtrBYtu35zmAcvyVswHberNioXRVyJs0Mw5/Ki1b2Gcg4orbHQ5jYkazB1
-         qxDI7+mwcXxRyLNOBdwawkNBPnZx9Ydf7aWRJW1qbyWdan/9dsKTtnveh7jL4g8h7N7n
-         7vw2hncm60kBmBm+noJbmgVRJqp72pIBWBNK//OGTKVX3TjkTdNqCsPo/oPXbrNIc4fy
-         zRj/WvCDZHWOgKeRqayaaVNs/HMh/BY9OUhhpGExOLCy5/I+HsmUgv72EZdzZQ0nDQoz
-         vFCmuAcWaxSYJDay1tfht7TIie5NPoWexwxRY63zk0UMziCCbx4S/pYt5oFHmijpFOK/
-         WczA==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=xmYYhT/NunsdPiHabn6Y/TtAP5zptX6cTxluQ+QGMek=;
+        b=sxkRen8jGSK3wCV2Zvu8EdFe/gQUoMWvufgORFZGi0oz3P6WikIL1ikrBquv0Lu8mT
+         nWECfKpxWFYkpa5ezwCo3vN6n/h2l2bK8LM152L6ynE/ImghDV+TNV0WqmNtG7dHVIpn
+         69UKF00qwJtlLNfroN+7yN6ejfV5PbJfBc68I/p2fkeKnruKusBO4muUYaaP86Y0jTtT
+         IwyHq3R2q97A8+TNJbOhl1FV79p6UTMWaOJo85Yy96I1XLaUhnXYPp2zQni0apZqJOzI
+         /8vnODAolkVLkVo1ai6E4MB0b9s0NxcM5n1OxU71jXKO8WdxOeKsRx2Nn17Jkww4ZCJ4
+         7QAw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@xenosoft.de header.s=strato-dkim-0002 header.b=Yl3XVBBW;
-       spf=neutral (google.com: 2a01:238:20a:202:5302::10 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) smtp.mailfrom=chzigotzky@xenosoft.de
-Received: from mo6-p02-ob.smtp.rzone.de (mo6-p02-ob.smtp.rzone.de. [2a01:238:20a:202:5302::10])
-        by mx.google.com with ESMTPS id v4si6128822wmj.80.2019.02.10.23.21.13
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id b74si9068466pfe.47.2019.02.10.23.35.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Feb 2019 23:21:13 -0800 (PST)
-Received-SPF: neutral (google.com: 2a01:238:20a:202:5302::10 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) client-ip=2a01:238:20a:202:5302::10;
+        Sun, 10 Feb 2019 23:35:48 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@xenosoft.de header.s=strato-dkim-0002 header.b=Yl3XVBBW;
-       spf=neutral (google.com: 2a01:238:20a:202:5302::10 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) smtp.mailfrom=chzigotzky@xenosoft.de
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; t=1549869673;
-	s=strato-dkim-0002; d=xenosoft.de;
-	h=To:References:Message-Id:Cc:Date:In-Reply-To:From:Subject:
-	X-RZG-CLASS-ID:X-RZG-AUTH:From:Subject:Sender;
-	bh=2+Wj7m7ySIuMfGlN7asIXsR+ghoPH8tIEa6cdB4icBU=;
-	b=Yl3XVBBWTUUZf5cLFRUp6pw8MMGlX6gv03BMGA/ScOQe2YHiWAl5A8knbwL6Si9LFo
-	pXZgywqxLpTEfmy9nLEJfrfRCplCaK7pykbwBEz+SqnOQNwufhPBiVLFAJctLRjq7kNy
-	jMoAah0LcnBLJPglQmMyAFKbaiDJfgwqqt4mmaBadLN5pA4IfILVT3jwcXroZcbWAyCi
-	1CuqemFLksBBlNuznZFA1R/EvNsnwPeebz2gaLT76/Vwd9OqvLJPhw9lk+FyhDxsnW7W
-	P82sX3HRh3PbPkNrfGwvMSC7rgyjD/y7mnLAP/ISIoaqmPrilroLe3aA0YghCzFcMDpp
-	O3Nw==
-X-RZG-AUTH: ":L2QefEenb+UdBJSdRCXu93KJ1bmSGnhMdmOod1DhGN0rBVhd9dFr6KxrfO5Oh7R7NWZ5grpnxnRrZcnSnXxCNGtcwUruZsoM1Hh3rrCw"
-X-RZG-CLASS-ID: mo00
-Received: from [IPv6:2a01:598:8189:222c:8934:2abd:8ff5:5de2]
-	by smtp.strato.de (RZmta 44.9 AUTH)
-	with ESMTPSA id t0203dv1B7LBGUZ
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (curve secp521r1 with 521 ECDH bits, eq. 15360 bits RSA))
-	(Client did not present a certificate);
-	Mon, 11 Feb 2019 08:21:11 +0100 (CET)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: use generic DMA mapping code in powerpc V4
-From: Christian Zigotzky <chzigotzky@xenosoft.de>
-X-Mailer: iPhone Mail (16C101)
-In-Reply-To: <0042290A-2939-4EBA-A638-D404FA2055ED@xenosoft.de>
-Date: Mon, 11 Feb 2019 08:21:11 +0100
-Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>,
- linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>,
- linux-mm@kvack.org, iommu@lists.linux-foundation.org,
- Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>,
- linuxppc-dev@lists.ozlabs.org
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <0807B9CE-69E6-45A6-A029-1AAE5615CC8E@xenosoft.de>
-References: <9632DCDF-B9D9-416C-95FC-006B6005E2EC@xenosoft.de> <594beaae-9681-03de-9f42-191cc7d2f8e3@xenosoft.de> <20190204075616.GA5408@lst.de> <ffbf56ae-c259-47b5-9deb-7fb21fead254@xenosoft.de> <20190204123852.GA10428@lst.de> <b1c0161f-4211-03af-022d-0db7237516e9@xenosoft.de> <20190206151505.GA31065@lst.de> <20190206151655.GA31172@lst.de> <61EC67B1-12EF-42B6-B69B-B59F9E4FC474@xenosoft.de> <7c1f208b-6909-3b0a-f9f9-38ff1ac3d617@xenosoft.de> <20190208091818.GA23491@lst.de> <4e7137db-e600-0d20-6fb2-6d0f9739aca3@xenosoft.de> <0042290A-2939-4EBA-A638-D404FA2055ED@xenosoft.de>
-To: Christoph Hellwig <hch@lst.de>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1B7YjV4119047
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 02:35:47 -0500
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qk4ftrs30-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 02:35:47 -0500
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 11 Feb 2019 07:35:45 -0000
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 11 Feb 2019 07:35:41 -0000
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1B7Zegn15270082
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Mon, 11 Feb 2019 07:35:40 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 6337911C050;
+	Mon, 11 Feb 2019 07:35:40 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 8C03811C05C;
+	Mon, 11 Feb 2019 07:35:39 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.207.104])
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Mon, 11 Feb 2019 07:35:39 +0000 (GMT)
+Date: Mon, 11 Feb 2019 09:35:37 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Jonathan Corbet <corbet@lwn.net>,
+        "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>,
+        Christoph Lameter <cl@linux.com>,
+        Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] Documentation: fix vm/slub.rst warning
+References: <1e992162-c4ac-fe4e-f1b0-d8a16a51d5e7@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1e992162-c4ac-fe4e-f1b0-d8a16a51d5e7@infradead.org>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19021107-0008-0000-0000-000002BEE963
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19021107-0009-0000-0000-0000222AFCCA
+Message-Id: <20190211073537.GA25868@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-11_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=912 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902110058
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Christoph,
+On Sun, Feb 10, 2019 at 10:34:11PM -0800, Randy Dunlap wrote:
+> From: Randy Dunlap <rdunlap@infradead.org>
+> 
+> Fix markup warning by quoting the '*' character with a backslash.
+> 
+> Documentation/vm/slub.rst:71: WARNING: Inline emphasis start-string without end-string.
+> 
+> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-Mario successfully tested a kernel from your Git [1] on his T2080rdb today.
+Acked-by: Mike Rapoport <rppt@linux.ibm.com>
+> ---
+>  Documentation/vm/slub.rst |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> --- lnx-50-rc6.orig/Documentation/vm/slub.rst
+> +++ lnx-50-rc6/Documentation/vm/slub.rst
+> @@ -68,7 +68,7 @@ end of the slab name, in order to cover
+>  example, here's how you can poison the dentry cache as well as all kmalloc
+>  slabs:
+> 
+> -	slub_debug=P,kmalloc-*,dentry
+> +	slub_debug=P,kmalloc-\*,dentry
+> 
+>  Red zoning and tracking may realign the slab.  We can just apply sanity checks
+>  to the dentry cache with::
+> 
+> 
 
-Link to the log:=20
-https://gitlab.com/oshw-powerpc-notebook/T2080customizations/blob/master/ker=
-nel/dma_fix/kernel_dma_fix_log.txt
-
-He wrote:
-
-Please, note that all of the above kernel runs just fine with the T2080rdb, h=
-owever did not had the time to test extensively (tested: login into MATE gra=
-phical desktop environment, used ArctiFox for opening couple of websites, th=
-en played Neverball).
-
-=E2=80=94=E2=80=94
-
-Cheers,
-Christian
-
-[1] http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-=
-dma.6=
+-- 
+Sincerely yours,
+Mike.
 
