@@ -2,258 +2,176 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,MIME_QP_LONG_LINE,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 456E5C282CC
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 06:41:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DEB4BC169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 07:16:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EA53520836
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 06:40:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DC8B020836
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 07:16:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="dURxC2L4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA53520836
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=xenosoft.de header.i=@xenosoft.de header.b="QjLiy+ie"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC8B020836
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=xenosoft.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8A6D98E00BE; Mon, 11 Feb 2019 01:40:59 -0500 (EST)
+	id 57DD18E00C2; Mon, 11 Feb 2019 02:16:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 861128E00B4; Mon, 11 Feb 2019 01:40:59 -0500 (EST)
+	id 52E2D8E00B4; Mon, 11 Feb 2019 02:16:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 71D848E00BE; Mon, 11 Feb 2019 01:40:59 -0500 (EST)
+	id 41C1B8E00C2; Mon, 11 Feb 2019 02:16:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 429A08E00B4
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 01:40:59 -0500 (EST)
-Received: by mail-ot1-f70.google.com with SMTP id r13so706492otn.10
-        for <linux-mm@kvack.org>; Sun, 10 Feb 2019 22:40:59 -0800 (PST)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DD4688E00B4
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 02:16:24 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id f6so5690856wmj.5
+        for <linux-mm@kvack.org>; Sun, 10 Feb 2019 23:16:24 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=0eTX9Tow9IPWyzaN5D0UVBuXHwWZHi+w6BDkGT9TxSI=;
-        b=IbuBcK725HgxMIjWHsSzw8Y61jCoGy5J0PVnXtCGntplfjbEne1iJOGhKjq0y0Qyt7
-         cffteivQPprDZQW315wA1/2sOEue5XlawvzlDd/bj4VTRt6S/ii0FJklciI7XVJUHMr/
-         2nHtch0yla5MhGC8GeBUxNaMXcpwHTtYFknqTGsmlkb25ZsTtWLHGIXv8mYqhGlC8xzH
-         qtwwzvyCl+RsHCMIbyjDW3iefMp72+uY9Xg8vPlxVVTZBRhf/BFbdfXOqxsb35rf7OoH
-         ecc2Dz1EbOSIaRyTcPimniJU4jLsbXUoXj+/KEvMMiBfZNSGSWWWFtiFnoX1C3BdKPeF
-         GMAQ==
-X-Gm-Message-State: AHQUAuYvrSEZQlzktYTjEkqaaDx261xVueFBwCe87I70cfh2+76R516P
-	MKS8Pdz27i7W2qbpdsLslwH5AaJEgXTeLjRmq4codjdNu+aYDlOcGqXJgSZeaKMaKKGKYWBLWP/
-	nLJvYANkrIgrthRj2LhW8Ew1jKkgwKxykXpJv3b/cCAv9x2og2amRtD22tT6j2ca636wJ+usXnV
-	ZCjh34a9uRCqayD/PsnfSTBzDGXO2KZjKEUXVFrbw8IvN5yNfoJThb14HzfiRyhcRdiB6OBbzM8
-	6yp90yzLBbDIGYo7w7TlAdRVFwjvAxKB7cHklJ0L7/dEOTBa0G+L3X47mDxXBgeS+evsOLewRP0
-	HUHr1NL6fnMX7lAiVClPG0iF5VdZu68Lq5MYoXRFEXFHGYNMV3v1Z/i7LVkyhV6TYHPN4+HFQyr
-	l
-X-Received: by 2002:a05:6830:138e:: with SMTP id d14mr8217360otq.172.1549867258895;
-        Sun, 10 Feb 2019 22:40:58 -0800 (PST)
-X-Received: by 2002:a05:6830:138e:: with SMTP id d14mr8217317otq.172.1549867258095;
-        Sun, 10 Feb 2019 22:40:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549867258; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=vDXOLUAx0OHR/x2jv9EfaBnmWwt0+Ml8+li9KyTOj44=;
+        b=hRgaYjAn9/wglL56qnvht7InTJe4dj7FAbuoWnkTJK50BXABMakhKam49Wkz3m1G8y
+         kWc8M9OrVF5NlS/Dv4rxtsSGr+0bkCVwv10VwwI36kA0QiHIp6SpZw6KI9q6ig4aB63N
+         ECBBzi9FC+1eRAOqYZlkDAGQSQ7QoJJJMiWe1V0+r9SXvBDijf2zofBeHJTvwfGyxYw6
+         Sxo9Ukl+HrlhLkJ6E5EJOZzvG7YOihPjw5gm/NVMan8XpSWrlemINyP7yXO3ZVRh2Mcu
+         ac8WcHgx+qneZKdx6iMf6FvT+sFKgrOkZarUjtnvmjhooDb4PHbeVoeSKkonVgyhURpy
+         NO/A==
+X-Gm-Message-State: AHQUAuZHJct7s8xYMmFUl14zYv1N0vmVHNLYZgmo7ksw9WhoLt3tNTUE
+	MAJU9BI0cP3/Csc/h4Adps07pevGYGnNzT+FME8esb1Tf6ZudgUDPR1LQpSR3qILY2gM3DPlw1/
+	o6EAyf9lG9TJKRq0iVC9syRzkPUPv73qhXPto9BF9F2D6Kxx15HzlC+OwnsDJVnomng==
+X-Received: by 2002:a1c:6a16:: with SMTP id f22mr8280945wmc.25.1549869384345;
+        Sun, 10 Feb 2019 23:16:24 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYnT0drZtGRQmkP+3Ne2BsWI2tAqBmVwYCmip0KCaqIjZBGy3CsO94wo30AGHm3nukHATu7
+X-Received: by 2002:a1c:6a16:: with SMTP id f22mr8280877wmc.25.1549869383154;
+        Sun, 10 Feb 2019 23:16:23 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549869383; cv=none;
         d=google.com; s=arc-20160816;
-        b=h8GNQeBFQKMvW00qWnQBSgkQga5syAwK5xRiI1yKduVZ/jWZEADDZrP6Y+uIyBUzuf
-         ZH+IBRaLyiM9inZ4JecdM9jRsjNx0pD8GUfP3Wj5tn/F5p9Xpow9fMhxCBx4nYw3/hVE
-         FG4NnoHwOgt8E97J4k6kpWizpFF/mEEfLTmwyIqnBJU6xnz3B98B9Whja/GpP1D3VngC
-         IWOsq1EoV7yHkn/GwirmkyPTHOsOEVf/Rsk14l8lbQ50ogcD6pKfJQlhC6+VBbFZJfrm
-         gGyHX2kzIadlXVtNNtaDnh2QM+yugTqe9/0cw9IUJ6zQrP9o8muPEumAIQcfNlqSeZ8o
-         QRPA==
+        b=VelDh1QtX/aeNrrwsTyJP2pYEPvJnPd520h92yipFe177bqnar/JrrtE0mq4X9xFiS
+         icyDCT6VTlRhPgmUwYy/pbnHVIu+XwnoZtJJTo2W6zs7dJRlnvASzPZGGnd4P0J4XDkx
+         WM95bzbzt8S9+JPhJykf/2qmAKm2ahe9ga9KnLYJGtpfIXD4ur/z0OkJREZGIxL3xckj
+         6NGsVGgZC848cJ8lycS5A0t0xm/IEkzxiHjGhHOLb/92JgD9sCbB1Nnn1q44ctWYOrbO
+         yRTxSLAE6BLxMk/+lDA8Vg5eguWO2/D0yUU0stqGSTQhErDbnhB7FDbyM/LNxIz+4XLv
+         6Nqw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=0eTX9Tow9IPWyzaN5D0UVBuXHwWZHi+w6BDkGT9TxSI=;
-        b=O+fuvbrV4wtEqBgNVm9KNNHXljP4qsCGVlo7WbLGXEztKNy4jVZ0s+xHBkimVaokha
-         Rc+bjZk/8SQK8lEFGpKHmKuq7khY5kqjLmMEPJFyyJ/HkJrIfPXxhcxuIjLhodVYpVBh
-         H/8saUZBB5R70W04a/uEKZMmoE+qzF/PLwPRpU7oD781lVhr0fiEMeWzLzz+vgU5Ge8p
-         zWJfaloIFKQ/DoHcMAZq1qfjBtKTfcbEtZMOhVtrRwtjKbmxJopAYKuQlztQ91Rc16jK
-         rULaUCBalhcHKGxAnU2UGUs1i3l3xNh7q0oUOmi+8rKpAj7qUxi4RKOKYY45BaRG9twD
-         HWVA==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=vDXOLUAx0OHR/x2jv9EfaBnmWwt0+Ml8+li9KyTOj44=;
+        b=WGfQGkcZ2m8M/woVAXIYUmagKBYZMt8I3JOcHvH/uonSIxQo864T7MayB6cB8qFsr1
+         H51lq3zy0my0unWQU6eLnUyuq9qElSxGsWPgxif6S4cWsUAb4f4W2k5gKNnHofGrB+i3
+         Jt68A8oPK0bApcJCVDNDeuwRv7zTQDZ964fXVFJDPlr8PRY2SJXz4nLA5gEboEtrtXln
+         qm2PLQ736pL5fpV4O9TZkXVALIqMQCyq+OVF9mtL5EnTHrJMZVg04SmpKjj0fkESLbQF
+         tLAJ8UR8QjPkVK53DszkKH8QD0GXeEqe+ELe5nfEiaRskxudbGU4+j2J07+iWrBlX+b6
+         DDEg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dURxC2L4;
-       spf=pass (google.com: domain of aaron.lwe@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=aaron.lwe@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l25sor1572845otk.190.2019.02.10.22.40.58
+       dkim=pass header.i=@xenosoft.de header.s=strato-dkim-0002 header.b=QjLiy+ie;
+       spf=neutral (google.com: 2a01:238:20a:202:5301::6 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) smtp.mailfrom=chzigotzky@xenosoft.de
+Received: from mo6-p01-ob.smtp.rzone.de (mo6-p01-ob.smtp.rzone.de. [2a01:238:20a:202:5301::6])
+        by mx.google.com with ESMTPS id i5si7636423wml.171.2019.02.10.23.16.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 10 Feb 2019 22:40:58 -0800 (PST)
-Received-SPF: pass (google.com: domain of aaron.lwe@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dURxC2L4;
-       spf=pass (google.com: domain of aaron.lwe@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=aaron.lwe@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=0eTX9Tow9IPWyzaN5D0UVBuXHwWZHi+w6BDkGT9TxSI=;
-        b=dURxC2L4T+BPLBNuH8R8jT8DZqN2StbusX7Uq9xo/Tx0Mxze49xx8O+VFFb+BLaI7b
-         Gy+kZnlqwVjh7QRfVLac9AW9MHgwp++x6X7ZdDzEtj1hjzvlvj/lS4KT8kePl0x/OE0G
-         r2ilyuSWC+AOVgmfzL1STM62SUATZzdII1hqiaft74dXZ0+ax0XHGn0M/4xl05U6chbN
-         y/bwGafpVrtjltX/X9VWb96RQDhXPzUgPMCiSFedFkjyzoJ2wbONSGuT5HEJvsvYw2/F
-         R0rd99D/zCyh911+wxbnuyYGUg0PNN21Rw+S+ODTgnTEHHRZSxQLveq0zkhJTua4X6mG
-         kvyg==
-X-Google-Smtp-Source: AHgI3IZnXnUzG4tnsQCjhbTyw8K1t9ImfH93nYEos0f6Ec4+/E3h75ghWblateJazVqf9JUI8QZecQ==
-X-Received: by 2002:a9d:2c5:: with SMTP id 63mr26320540otl.271.1549867257781;
-        Sun, 10 Feb 2019 22:40:57 -0800 (PST)
-Received: from [10.15.232.100] ([205.204.117.38])
-        by smtp.gmail.com with ESMTPSA id r16sm1687575oie.25.2019.02.10.22.40.52
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Feb 2019 22:40:57 -0800 (PST)
-Subject: Re: [RFC PATCH 4/4] mm: Add merge page notifier
-To: Alexander Duyck <alexander.duyck@gmail.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, kvm@vger.kernel.org
-Cc: rkrcmar@redhat.com, alexander.h.duyck@linux.intel.com, x86@kernel.org,
- mingo@redhat.com, bp@alien8.de, hpa@zytor.com, pbonzini@redhat.com,
- tglx@linutronix.de, akpm@linux-foundation.org
-References: <20190204181118.12095.38300.stgit@localhost.localdomain>
- <20190204181558.12095.83484.stgit@localhost.localdomain>
-From: Aaron Lu <aaron.lwe@gmail.com>
-Message-ID: <5e6d22b2-0f14-43eb-846b-a940e629c02b@gmail.com>
-Date: Mon, 11 Feb 2019 14:40:50 +0800
-User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
-MIME-Version: 1.0
-In-Reply-To: <20190204181558.12095.83484.stgit@localhost.localdomain>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        Sun, 10 Feb 2019 23:16:23 -0800 (PST)
+Received-SPF: neutral (google.com: 2a01:238:20a:202:5301::6 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) client-ip=2a01:238:20a:202:5301::6;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@xenosoft.de header.s=strato-dkim-0002 header.b=QjLiy+ie;
+       spf=neutral (google.com: 2a01:238:20a:202:5301::6 is neither permitted nor denied by best guess record for domain of chzigotzky@xenosoft.de) smtp.mailfrom=chzigotzky@xenosoft.de
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; t=1549869382;
+	s=strato-dkim-0002; d=xenosoft.de;
+	h=To:References:Message-Id:Cc:Date:In-Reply-To:From:Subject:
+	X-RZG-CLASS-ID:X-RZG-AUTH:From:Subject:Sender;
+	bh=vDXOLUAx0OHR/x2jv9EfaBnmWwt0+Ml8+li9KyTOj44=;
+	b=QjLiy+ie5QbHH0nUdA+DkXEBmSvKS2gvdnJTnZJ4DayjFY9z/ou6fc98S+lmNEqJTP
+	ATY0c3AoxveQMceBMa8+71drAP8XkkpiADwVvu6KJpUxhJN3LHucDbgv3Obk5MozSzPv
+	4C9YrtycFwqBpyneHPQ4aWAr6I0wDcUP5hmBDJoUt+N+q/di0zlI2VdRVc4bHzW58EH9
+	2gq0hS/tktSMkaAD+Rhx6dfkRjk5FkEk2Jcqb6wFHHFOW+7Mz6AzGgZb8CIqcSBHwNo4
+	bT0OeRegJWdRtZsBP3/vXxuHF+XPxfGTkI7BLAInSo45LPaMOSXjPLKhafnIeXcUSE3w
+	yRfg==
+X-RZG-AUTH: ":L2QefEenb+UdBJSdRCXu93KJ1bmSGnhMdmOod1DhGN0rBVhd9dFr6KxrfO5Oh7R7NWZ5grpnxnRrZcnSnXxCNGtcwUruZsoM1Hh3rrCw"
+X-RZG-CLASS-ID: mo00
+Received: from [IPv6:2a01:598:8189:222c:8934:2abd:8ff5:5de2]
+	by smtp.strato.de (RZmta 44.9 AUTH)
+	with ESMTPSA id t0203dv1B7GJGSk
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (curve secp521r1 with 521 ECDH bits, eq. 15360 bits RSA))
+	(Client did not present a certificate);
+	Mon, 11 Feb 2019 08:16:19 +0100 (CET)
+Content-Type: multipart/alternative;
+	boundary=Apple-Mail-AB54F82F-011B-4A2E-BF51-3599C977EE35
+Mime-Version: 1.0 (1.0)
+Subject: Re: use generic DMA mapping code in powerpc V4
+From: Christian Zigotzky <chzigotzky@xenosoft.de>
+X-Mailer: iPhone Mail (16C101)
+In-Reply-To: <4e7137db-e600-0d20-6fb2-6d0f9739aca3@xenosoft.de>
+Date: Mon, 11 Feb 2019 08:16:18 +0100
+Cc: linux-arch@vger.kernel.org, Darren Stevens <darren@stevens-zone.net>,
+ linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>,
+ linux-mm@kvack.org, iommu@lists.linux-foundation.org,
+ Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>,
+ linuxppc-dev@lists.ozlabs.org
 Content-Transfer-Encoding: 7bit
+Message-Id: <0042290A-2939-4EBA-A638-D404FA2055ED@xenosoft.de>
+References: <9632DCDF-B9D9-416C-95FC-006B6005E2EC@xenosoft.de> <594beaae-9681-03de-9f42-191cc7d2f8e3@xenosoft.de> <20190204075616.GA5408@lst.de> <ffbf56ae-c259-47b5-9deb-7fb21fead254@xenosoft.de> <20190204123852.GA10428@lst.de> <b1c0161f-4211-03af-022d-0db7237516e9@xenosoft.de> <20190206151505.GA31065@lst.de> <20190206151655.GA31172@lst.de> <61EC67B1-12EF-42B6-B69B-B59F9E4FC474@xenosoft.de> <7c1f208b-6909-3b0a-f9f9-38ff1ac3d617@xenosoft.de> <20190208091818.GA23491@lst.de> <4e7137db-e600-0d20-6fb2-6d0f9739aca3@xenosoft.de>
+To: Christoph Hellwig <hch@lst.de>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/2/5 2:15, Alexander Duyck wrote:
-> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> 
-> Because the implementation was limiting itself to only providing hints on
-> pages huge TLB order sized or larger we introduced the possibility for free
-> pages to slip past us because they are freed as something less then
-> huge TLB in size and aggregated with buddies later.
-> 
-> To address that I am adding a new call arch_merge_page which is called
-> after __free_one_page has merged a pair of pages to create a higher order
-> page. By doing this I am able to fill the gap and provide full coverage for
-> all of the pages huge TLB order or larger.
-> 
-> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> ---
->  arch/x86/include/asm/page.h |   12 ++++++++++++
->  arch/x86/kernel/kvm.c       |   28 ++++++++++++++++++++++++++++
->  include/linux/gfp.h         |    4 ++++
->  mm/page_alloc.c             |    2 ++
->  4 files changed, 46 insertions(+)
-> 
-> diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
-> index 4487ad7a3385..9540a97c9997 100644
-> --- a/arch/x86/include/asm/page.h
-> +++ b/arch/x86/include/asm/page.h
-> @@ -29,6 +29,18 @@ static inline void arch_free_page(struct page *page, unsigned int order)
->  	if (static_branch_unlikely(&pv_free_page_hint_enabled))
->  		__arch_free_page(page, order);
->  }
-> +
-> +struct zone;
-> +
-> +#define HAVE_ARCH_MERGE_PAGE
-> +void __arch_merge_page(struct zone *zone, struct page *page,
-> +		       unsigned int order);
-> +static inline void arch_merge_page(struct zone *zone, struct page *page,
-> +				   unsigned int order)
-> +{
-> +	if (static_branch_unlikely(&pv_free_page_hint_enabled))
-> +		__arch_merge_page(zone, page, order);
-> +}
->  #endif
->  
->  #include <linux/range.h>
-> diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
-> index 09c91641c36c..957bb4f427bb 100644
-> --- a/arch/x86/kernel/kvm.c
-> +++ b/arch/x86/kernel/kvm.c
-> @@ -785,6 +785,34 @@ void __arch_free_page(struct page *page, unsigned int order)
->  		       PAGE_SIZE << order);
->  }
->  
-> +void __arch_merge_page(struct zone *zone, struct page *page,
-> +		       unsigned int order)
-> +{
-> +	/*
-> +	 * The merging logic has merged a set of buddies up to the
-> +	 * KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER. Since that is the case, take
-> +	 * advantage of this moment to notify the hypervisor of the free
-> +	 * memory.
-> +	 */
-> +	if (order != KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER)
-> +		return;
-> +
-> +	/*
-> +	 * Drop zone lock while processing the hypercall. This
-> +	 * should be safe as the page has not yet been added
-> +	 * to the buddy list as of yet and all the pages that
-> +	 * were merged have had their buddy/guard flags cleared
-> +	 * and their order reset to 0.
-> +	 */
-> +	spin_unlock(&zone->lock);
-> +
-> +	kvm_hypercall2(KVM_HC_UNUSED_PAGE_HINT, page_to_phys(page),
-> +		       PAGE_SIZE << order);
-> +
-> +	/* reacquire lock and resume freeing memory */
-> +	spin_lock(&zone->lock);
-> +}
-> +
->  #ifdef CONFIG_PARAVIRT_SPINLOCKS
->  
->  /* Kick a cpu by its apicid. Used to wake up a halted vcpu */
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index fdab7de7490d..4746d5560193 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -459,6 +459,10 @@ static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
->  #ifndef HAVE_ARCH_FREE_PAGE
->  static inline void arch_free_page(struct page *page, int order) { }
->  #endif
-> +#ifndef HAVE_ARCH_MERGE_PAGE
-> +static inline void
-> +arch_merge_page(struct zone *zone, struct page *page, int order) { }
-> +#endif
->  #ifndef HAVE_ARCH_ALLOC_PAGE
->  static inline void arch_alloc_page(struct page *page, int order) { }
->  #endif
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index c954f8c1fbc4..7a1309b0b7c5 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -913,6 +913,8 @@ static inline void __free_one_page(struct page *page,
->  		page = page + (combined_pfn - pfn);
->  		pfn = combined_pfn;
->  		order++;
-> +
-> +		arch_merge_page(zone, page, order);
 
-Not a proper place AFAICS.
+--Apple-Mail-AB54F82F-011B-4A2E-BF51-3599C977EE35
+Content-Type: text/plain;
+	charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-Assume we have an order-8 page being sent here for merge and its order-8
-buddy is also free, then order++ became 9 and arch_merge_page() will do
-the hint to host on this page as an order-9 page, no problem so far.
-Then the next round, assume the now order-9 page's buddy is also free,
-order++ will become 10 and arch_merge_page() will again hint to host on
-this page as an order-10 page. The first hint to host became redundant.
+Hi Christoph,
 
-I think the proper place is after the done_merging tag.
+Mario successfully tested a kernel from your Git [1] on his T2080rdb today.
 
-BTW, with arch_merge_page() at the proper place, I don't think patch3/4
-is necessary - any freed page will go through merge anyway, we won't
-lose any hint opportunity. Or do I miss anything?
+Link to the log:=20
+https://gitlab.com/oshw-powerpc-notebook/T2080customizations/blob/master/ker=
+nel/dma_fix/kernel_dma_fix_log.txt
 
->  	}
->  	if (max_order < MAX_ORDER) {
->  		/* If we are here, it means order is >= pageblock_order.
-> 
+He wrote:
+
+Please, note that all of the above kernel runs just fine with the T2080rdb, h=
+owever did not had the time to test extensively (tested: login into MATE gra=
+phical desktop environment, used ArctiFox for opening couple of websites, th=
+en played Neverball).
+
+=E2=80=94=E2=80=94
+
+Cheers,
+Christian
+
+[1] http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/powerpc-=
+dma.6=
+
+--Apple-Mail-AB54F82F-011B-4A2E-BF51-3599C977EE35
+Content-Type: text/html;
+	charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<html><head><meta http-equiv=3D"content-type" content=3D"text/html; charset=3D=
+utf-8"></head><body dir=3D"auto">Hi Christoph,<div><br></div><div>Mario succ=
+essfully tested a kernel from your Git [1] on his T2080rdb today.</div><div>=
+<br></div><div>Link to the log:&nbsp;</div><div><a href=3D"https://gitlab.co=
+m/oshw-powerpc-notebook/T2080customizations/blob/master/kernel/dma_fix/kerne=
+l_dma_fix_log.txt">https://gitlab.com/oshw-powerpc-notebook/T2080customizati=
+ons/blob/master/kernel/dma_fix/kernel_dma_fix_log.txt</a></div><div><br></di=
+v><div>He wrote:</div><div><br></div><div>Please, note that all of the above=
+ kernel runs just fine with the T2080rdb, however did not had the time to te=
+st extensively (tested: login into MATE graphical desktop environment, used A=
+rctiFox for opening couple of websites, then played Neverball).</div><div><b=
+r></div><div>=E2=80=94=E2=80=94</div><div><br></div><div>Cheers,</div><div>C=
+hristian</div><div><br></div><div>[1]&nbsp;<a href=3D"http://git.infradead.o=
+rg/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6">http://git.infradea=
+d.org/users/hch/misc.git/shortlog/refs/heads/powerpc-dma.6</a></div></body><=
+/html>=
+
+--Apple-Mail-AB54F82F-011B-4A2E-BF51-3599C977EE35--
 
