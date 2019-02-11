@@ -2,180 +2,176 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8609C282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 15:38:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3055AC282CE
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 15:39:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5A3B6222A5
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 15:38:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E198E222A7
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 15:39:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="cCn0QqaM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A3B6222A5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=pass (2048-bit key) header.d=toxicpanda-com.20150623.gappssmtp.com header.i=@toxicpanda-com.20150623.gappssmtp.com header.b="Cz7C/op5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E198E222A7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=toxicpanda.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E3F0D8E00EA; Mon, 11 Feb 2019 10:38:26 -0500 (EST)
+	id 95A908E00EB; Mon, 11 Feb 2019 10:39:20 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DECFB8E00E9; Mon, 11 Feb 2019 10:38:26 -0500 (EST)
+	id 8E39A8E00E9; Mon, 11 Feb 2019 10:39:20 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CB4AE8E00EA; Mon, 11 Feb 2019 10:38:26 -0500 (EST)
+	id 7858F8E00EB; Mon, 11 Feb 2019 10:39:20 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 702768E00E9
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:38:26 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id i55so9865377ede.14
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 07:38:26 -0800 (PST)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4417E8E00E9
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:39:20 -0500 (EST)
+Received: by mail-yw1-f69.google.com with SMTP id c67so8063063ywe.5
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 07:39:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=18PH/99sFHWsSpYwGpdGsmG9xhKLAlU+L49Bl16JviY=;
-        b=aCS2YjhovOe4HYz8T+6Qv6c7LfhvuwceYSmpNhMI3wGBWgtGYjEvLRLOjqjzFGbKim
-         6dRai1+AhNwT4oO++6l8A4rNAOEvNdXEmPT5hA+oHq3pdsUxCiB+mdxNgmWwiDBtgBUd
-         0SEu28yERt/LAEmA/+tTjO8lCwGfs+dpVOfNQyvcA8pJK6/WTKxKpw7m34XGB/AFUI9d
-         4iritDjR/C+cqHCsWxGbKMMpcY874djaDw9RX/qS2CLu495XkWQ3zMDixbHcViv+uW9C
-         4zgMFBTTil2+yV5cT8EegPiAScP5wBHrpq34xtd6WgB9XHX3cnXqsigsrxPJgIfnN1Kk
-         UeJA==
-X-Gm-Message-State: AHQUAuaatnBuWLJrlwahWNMCug0yddyeId5nWfYUPJ3lZi+It9kPJYTw
-	wKSNQMqzTIUrShh4wzukywvtP1nJBMGiACkr/IAuAhchkqaGXUPTixm5A9fgxe1B13jXYBbJH9b
-	Es3DUPb5RloE/muRDgLbPpFJl9+D13qjWGvsYfyJBZRoEzJlSLzVRn+H6fMQCBNLb5A==
-X-Received: by 2002:a50:c089:: with SMTP id k9mr28575899edf.89.1549899505914;
-        Mon, 11 Feb 2019 07:38:25 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaLuqSzDlD01q5TNqYVwkZhHuF5hm8xUZ4btfXo+CRtAqNRl726mjriaTFZi+paRxwDhbda
-X-Received: by 2002:a50:c089:: with SMTP id k9mr28575838edf.89.1549899505089;
-        Mon, 11 Feb 2019 07:38:25 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549899505; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=boQyFNiX0XoZWerTpTg2C8lpdchzW9CQNXvCXi3hMik=;
+        b=pzdTrhSYHrhzqI41uph6bGd8GY848FRdHkQMC8qdFbgpvCcKoBrEP7KjqKIV0Y1Wgj
+         Tv6OHcC8BiaLgM6edM57NHplM/SrFAoqsBkwSW7OtXmozJ/r6ACkAkKgJH0jP5/5OvtO
+         jjBRCEu+EdWACNRSM5s34Fx6qnjHpJq/V16LxvN6RxFLrPTa56Mizufq0eLmZ13rbybK
+         Y+JOQu6/ZGYEp+T1Osp0649sFKJYLqoUsez2TrIiaOzEbkFgRTVtvGEsA6oCzTDMQ0rK
+         TP13Zj4fr3X8/HXil77MVrY1/VjS7iPFNKaXxEE/T8Qz5sxE0IH5ZRYlNMaEEw10wukL
+         8w7g==
+X-Gm-Message-State: AHQUAubW2hIf/PFtT2B7i/BEC9p4nh7zGC6NcPtqnnAd4ePvsaWkm4ei
+	dTnuEfyBCNiJuCsHcKVURJBlDH1YwJhT00X0ztz860Omzzm/AOyVr890YHGVKvIuJHP5UeYCxEq
+	1irm04E/2It8DAeM4Ub3c/pEDl33eaGnSte7I8WX5JKGOn2XG7O+I9KUw30TbcXYEJ01KB9kPtp
+	AHjF1Z+Vz5val4uQjhhLsKv6JyFopE2yH60QgNw40cNVUYJHVTkpOM6G+p5mp2akX5m5toNG30k
+	j+ZwhLYQxLqUAGUY3jCmSlKwAyBvPLyivrhd4Eh6oV9x/w5yd/Saul1zRFq58Nb/D/9qjeQy9Gz
+	CCwIu3pREF3AFgg9dcOmWKwYqhMMnlj7g5Ae1hvJJE/0G1wIwr2eUYuIMLKW+wSGjUvW5bTEf0G
+	o
+X-Received: by 2002:a81:8384:: with SMTP id t126mr26865726ywf.200.1549899559922;
+        Mon, 11 Feb 2019 07:39:19 -0800 (PST)
+X-Received: by 2002:a81:8384:: with SMTP id t126mr26865686ywf.200.1549899559280;
+        Mon, 11 Feb 2019 07:39:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549899559; cv=none;
         d=google.com; s=arc-20160816;
-        b=SvQ3ybJXRe/KyUgdDbaeV5b3mBoCSmalRBHofon+3Mgkk86CzsAWbdvrbhhlIXSSlr
-         Hnc9X2NP1+YvlHIbY+K0n8NUY7TKXGc7uIuwiwH5d4etbxbxLylzmZpmpCHggjWo7Aei
-         YkBpnk6g9vCYaZbHULWepZ8Sk1H/xypYXFQ+NoUNsUq8RIWUnekYNwWh7ZO8XZHXEV8I
-         sI867Wkwh9sVPw3r3x6poOA+rfEMRMx3OIZkRMYM/MjfTUcaGKKQ00xeifPktgkp0oCv
-         n8pDVnqdFmjo4AZgeNWZsHVcgioY6TZfjOdmgBTCDL32zuIdQxneeVhxHCKgba8mjNl0
-         PZAw==
+        b=XqYgdKHEpRPH8TV0I7H2GGUv+2CIKxYjIW8dBbGS1EaePqdbvHqy5TNxkBwW8lrFDM
+         5rfG4Vzrk2/otfJzn5BxgGphkv6lWDW/Uni7nwuZxO7UdWvH0vMnpHkaRseNC8ZDFluI
+         TlrSIIvSw3WQF2X8f2a7IgN+4KhWSX32vNYi85ClkKuhGva0vnyj3AAPD00vrRQ5TFEy
+         zzzA391gp1eAeqNmyt/dKe8Z0C0rZCVF4koS/GI8CSX7GKWyvcC3b+ZLRmpqzmYOqOMQ
+         8OZs73lqlFCq173wxp8nofitiKrvMlLSuD6T973/bTIVObIaO39RLGAMbJnM1En/GWqp
+         BIBQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=18PH/99sFHWsSpYwGpdGsmG9xhKLAlU+L49Bl16JviY=;
-        b=Ise6s30CNI0Jkp2T3iG1FdbH5BKvohZduzICh6qMn3Gzxqq+9h4Qe96S81P5xhxKUE
-         E9rLXDQgxWdx+9AlUtHlZUgXh3U5f+vc2NxqhzYTuJoPZVTW1FUiG+07JruaWaOPGOSD
-         BMqzAyqcMpdbIJ6TGYAomHyfGVrjgZ+oGb7ZEa7Jo1aKUkx9MUz8eu9bwKManvbaBpPz
-         9gmafEiJqGPNjkSJw9pev5zHWcJLxZRnwr0UBz5ABdzEQbC76upf5uJZYHx3OMgDQnuM
-         63Cc8d7jK4/zXkekLNAqPjO1Wi8G95VRxPsE7hFNU2+mux537DVgz6CNFiaa6Gj3iQuJ
-         z0zg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=boQyFNiX0XoZWerTpTg2C8lpdchzW9CQNXvCXi3hMik=;
+        b=XGEX9rsnfzpgjGuX0cetcRiSox5KgybbVGHPO40cxb3ZdHJB9k/HyiMBjOb+ZURBEy
+         dkc2X+RcGxfZOiTJV9cc4teWz3aQ09p0baJSxVHJAzWlplBAF437Bo+P3Kc0wiZGWUpK
+         8Oq4uArOOIKVkxo3sdsFAg6hXutf5hxorMaRHRRvmfsuXJN4UJqn9VAj+blY8UyDmOVN
+         taPzG9vy1vt9eiRVmTwR68KNsqlFTW42NAEHMZwWm5YYuugUUHEi126/7NXuf79xcwZw
+         UBEnJNyfBINRGQ2MOMS9qewRFoRStvQefgzS6iOS/IqjDsuVrfW1tOurEWoXYm0gU5sd
+         HArw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=cCn0QqaM;
-       spf=pass (google.com: domain of tariqt@mellanox.com designates 40.107.3.82 as permitted sender) smtp.mailfrom=tariqt@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30082.outbound.protection.outlook.com. [40.107.3.82])
-        by mx.google.com with ESMTPS id r30si968997edd.123.2019.02.11.07.38.24
+       dkim=pass header.i=@toxicpanda-com.20150623.gappssmtp.com header.s=20150623 header.b="Cz7C/op5";
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) smtp.mailfrom=josef@toxicpanda.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r7sor5027260ybg.36.2019.02.11.07.39.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 07:38:25 -0800 (PST)
-Received-SPF: pass (google.com: domain of tariqt@mellanox.com designates 40.107.3.82 as permitted sender) client-ip=40.107.3.82;
+        (Google Transport Security);
+        Mon, 11 Feb 2019 07:39:19 -0800 (PST)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=cCn0QqaM;
-       spf=pass (google.com: domain of tariqt@mellanox.com designates 40.107.3.82 as permitted sender) smtp.mailfrom=tariqt@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=18PH/99sFHWsSpYwGpdGsmG9xhKLAlU+L49Bl16JviY=;
- b=cCn0QqaMgBBmGZIAymbzlNQYi0MuaCTsqBT+aaHD9GTDtE50e0JYjlJovofwQsXQpYvpHuOS6kaDudwQKhBgs4hn+PgarZ+Fm1Zhw0t+h+q/sHNTkoBiuMRyIHcNFegrOFG4heHkjPVaCVyEyTizYdtRuhRiD134H7L0uJuPph0=
-Received: from HE1PR05MB3257.eurprd05.prod.outlook.com (10.170.243.19) by
- HE1PR05MB1209.eurprd05.prod.outlook.com (10.161.119.19) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1601.19; Mon, 11 Feb 2019 15:38:22 +0000
-Received: from HE1PR05MB3257.eurprd05.prod.outlook.com
- ([fe80::550a:a35e:2062:792a]) by HE1PR05MB3257.eurprd05.prod.outlook.com
- ([fe80::550a:a35e:2062:792a%7]) with mapi id 15.20.1601.023; Mon, 11 Feb 2019
- 15:38:22 +0000
-From: Tariq Toukan <tariqt@mellanox.com>
-To: Matthew Wilcox <willy@infradead.org>, Tariq Toukan <tariqt@mellanox.com>
-CC: Ilias Apalodimas <ilias.apalodimas@linaro.org>, David Miller
-	<davem@davemloft.net>, "brouer@redhat.com" <brouer@redhat.com>,
-	"toke@redhat.com" <toke@redhat.com>, "netdev@vger.kernel.org"
-	<netdev@vger.kernel.org>, "mgorman@techsingularity.net"
-	<mgorman@techsingularity.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: [RFC, PATCH] net: page_pool: Don't use page->private to store
- dma_addr_t
-Thread-Topic: [RFC, PATCH] net: page_pool: Don't use page->private to store
- dma_addr_t
-Thread-Index:
- AQHUvvKPEpTQQqXqi0+ZzMx9yc3kKaXUb92AgAADlACAAGXpgIAAAm4AgAACaICABZPkAIAAFgsAgAA5mgA=
-Date: Mon, 11 Feb 2019 15:38:22 +0000
-Message-ID: <d3aae1c0-a9ac-b79d-fed9-0f57230167de@mellanox.com>
-References: <1549550196-25581-1-git-send-email-ilias.apalodimas@linaro.org>
- <20190207150745.GW21860@bombadil.infradead.org>
- <20190207152034.GA3295@apalos>
- <20190207.132519.1698007650891404763.davem@davemloft.net>
- <20190207213400.GA21860@bombadil.infradead.org>
- <20190207214237.GA10676@Iliass-MBP.lan>
- <bfd83487-7073-18c8-6d89-e50fe9a83313@mellanox.com>
- <20190211121208.GB12668@bombadil.infradead.org>
-In-Reply-To: <20190211121208.GB12668@bombadil.infradead.org>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: LO2P265CA0275.GBRP265.PROD.OUTLOOK.COM
- (2603:10a6:600:a1::23) To HE1PR05MB3257.eurprd05.prod.outlook.com
- (2603:10a6:7:35::19)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=tariqt@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [193.47.165.251]
-x-ms-publictraffictype: Email
-x-microsoft-exchange-diagnostics:
- 1;HE1PR05MB1209;6:Y/S5qlIvcqtsfqCnYnM12ItI/z2i3aJdaZTyiM0xHPf8W9TnaE/PUtohBZ2Zd1roZ/zisLzZ/hVogkRoi89n+64Tl1obviZv9iYZYf681WXx470Q5Qmn7cb5lKuVhpu+fmyGuIrrpjUWO8OeBHlso552liA2P5tHvB+DpfZC8Kg7zLiS9D5I2BxlrGQO4h8kvfGw2wdO4goljbUfjTu/iio6JLwSqRKYl6zgIVxddPPcImTYdCeL3HxcWiCNZI9C3jEoyAwkZTig0scO6khuiwbWb+wkbd2jYCJtJe5s/hvmASyC0U9oDi85TN0jIr75Aoj473dDbmqJgN2Ylwo2Mfu5WEupY1kX86IHL3bnQ/8apYIgww+KiaoFkNfq6X0YJ8hs2Y95soZZ/0Ev5yxNFqQmQVObuSglj0MOd/NKGVyQo8mUb+Wj5zOg6j5LEf32UyxbT7iyMd4hFnlI3WBzhw==;5:Xr6SFGIAAApV+4DnkM0v8m1OYlbCoDARhCYD1bOu60aJqSNUaUJkCtPOhMlcBeTVHEyD1Mrpc/QRp2zVXjcmHYuM+Tq+Z9/6Cbak+g2fwGpYEYwONTrWQSaTrJdJialWUYHqmA4uZnEBUpqUBYBer8gbKYG7+xFeaxlySG3e1OdY6Ihi91BgxNAGKrZXWfablGO69TAqmeThAJsGkCviBQ==;7:W3aTL1YLTKqVWW5oVQQWMMKA2oHi62Vt6aOFL3cBWkSgmfZ03SbA+0dKf4byT/f1EFJ0/Ekqnr3Uhh2t0E48Bs6fayeWSll+xW23RQsAE64ASUaSbkn6+z2QsZO7w6g4847KKiHnIQl2/hY72ORgnA==
-x-ms-office365-filtering-correlation-id: ce95b8b7-8876-4e5b-fe81-08d69036f46b
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(4618075)(2017052603328)(7153060)(7193020);SRVR:HE1PR05MB1209;
-x-ms-traffictypediagnostic: HE1PR05MB1209:
-x-microsoft-antispam-prvs:
- <HE1PR05MB1209412AF88BDC4844A6BE07AE640@HE1PR05MB1209.eurprd05.prod.outlook.com>
-x-forefront-prvs: 0945B0CC72
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(376002)(346002)(366004)(136003)(396003)(39860400002)(189003)(199004)(476003)(110136005)(2616005)(486006)(25786009)(446003)(316002)(11346002)(4326008)(54906003)(256004)(8676002)(99286004)(93886005)(97736004)(52116002)(81166006)(8936002)(81156014)(76176011)(31686004)(106356001)(105586002)(6436002)(6512007)(305945005)(53936002)(229853002)(6246003)(68736007)(386003)(6506007)(53546011)(31696002)(102836004)(26005)(6486002)(186003)(66066001)(3846002)(4744005)(478600001)(14454004)(6116002)(86362001)(36756003)(71190400001)(71200400001)(2906002)(7736002);DIR:OUT;SFP:1101;SCL:1;SRVR:HE1PR05MB1209;H:HE1PR05MB3257.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- 8t0iSwFco9upVk8poR6PhUyp+YuiLqGWhy4cAaj/Zc54PdDh34tmIUgsWbPqrwOdkGxTFOLAdwBAnalKJir8XKIjoAbMi9H00Kubeh+ggMCJRECgu4YbV7mzBIX8dmz+5bWFIJT+KWtlkklW7E+r8gAno4gSMTEJ6gkLEXeosj6qVju6/1FMS1oivvpDDfPf+iIpJ2d16Nc3TERJSkJeihM0MmDLwBzcOl8MdNxcLggjL6vXbpZisL0t+A0uDFsPZ6WssXNd+4LVOQDA+2ypTgFTSh1K8SQLRUG5ub8WAbi4cWkeMQv/TenBDxuGm0rWpuECIy8x55FpsjAkojILP7XKYCA43453a2Uk9wD+HShFAPH5uCujGAe5Jmvw0awo4RBJwGAMbCM1UVkBud5hj/Q+Nh3RiGrvfBRldT+vZKs=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <B2BE6C2559379842B85AE14F15E36D87@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       dkim=pass header.i=@toxicpanda-com.20150623.gappssmtp.com header.s=20150623 header.b="Cz7C/op5";
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) smtp.mailfrom=josef@toxicpanda.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=toxicpanda-com.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=boQyFNiX0XoZWerTpTg2C8lpdchzW9CQNXvCXi3hMik=;
+        b=Cz7C/op581GUNxTLcUjtjsQTNCi0Y3Bp+qn6dcjHeM04i+snxFdxl2Q5t8K3x6nuMG
+         MLWGeA7SWY3SxAdEypKir9AeURyWSTDOW0hzPET0xaW0nbw59ZZNfyWG74PGMNHbh/Qi
+         XlD9pOhblu5UvvQ1oQ7QNkcpgK5jBb4HzC6FsArd/SoyQKTXh+rxfgitkYrFKaDLelP3
+         eCw9ucw79AY/LwZBpNsRSvCvedq6YIo56HtK9c1LOuOiojgeC8VFCbd71JC70o3GU1bI
+         qjOcMd7JZACS8h0JahatSh38wSHCIMJT29nry+7AakeP/Qm2uiSMtdZMUTdGQseSWZR+
+         RDDA==
+X-Google-Smtp-Source: AHgI3IapaQTByQPsAP6IpFkNLAC+n/as07YS8DHCyk5phOCcjXPZW/eoi+XLXwlBlRYx1kQf798QLQ==
+X-Received: by 2002:a25:3291:: with SMTP id y139mr26204187yby.79.1549899558746;
+        Mon, 11 Feb 2019 07:39:18 -0800 (PST)
+Received: from localhost ([2620:10d:c091:200::7:9135])
+        by smtp.gmail.com with ESMTPSA id 11sm4318587ywv.109.2019.02.11.07.39.17
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Feb 2019 07:39:17 -0800 (PST)
+Date: Mon, 11 Feb 2019 10:39:34 -0500
+From: Josef Bacik <josef@toxicpanda.com>
+To: Andrea Righi <righi.andrea@gmail.com>
+Cc: Josef Bacik <josef@toxicpanda.com>,
+	Paolo Valente <paolo.valente@linaro.org>, Tejun Heo <tj@kernel.org>,
+	Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>,
+	Jens Axboe <axboe@kernel.dk>, Vivek Goyal <vgoyal@redhat.com>,
+	Dennis Zhou <dennis@kernel.org>, cgroups@vger.kernel.org,
+	linux-block@vger.kernel.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [RFC PATCH v2] blkcg: prevent priority inversion problem during
+ sync()
+Message-ID: <20190211153933.p26pu5jmbmisbkos@macbook-pro-91.dhcp.thefacebook.com>
+References: <20190209140749.GB1910@xps-13>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: ce95b8b7-8876-4e5b-fe81-08d69036f46b
-X-MS-Exchange-CrossTenant-originalarrivaltime: 11 Feb 2019 15:38:21.1567
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: HE1PR05MB1209
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190209140749.GB1910@xps-13>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-DQoNCk9uIDIvMTEvMjAxOSAyOjEyIFBNLCBNYXR0aGV3IFdpbGNveCB3cm90ZToNCj4gT24gTW9u
-LCBGZWIgMTEsIDIwMTkgYXQgMDg6NTM6MTlBTSArMDAwMCwgVGFyaXEgVG91a2FuIHdyb3RlOg0K
-Pj4gSXQncyBncmVhdCB0byB1c2UgdGhlIHN0cnVjdCBwYWdlIHRvIHN0b3JlIGl0cyBkbWEgbWFw
-cGluZywgYnV0IEkgYW0NCj4+IHdvcnJpZWQgYWJvdXQgZXh0ZW5zaWJpbGl0eS4NCj4+IHBhZ2Vf
-cG9vbCBpcyBldm9sdmluZywgYW5kIGl0IHdvdWxkIG5lZWQgc2V2ZXJhbCBtb3JlIHBlci1wYWdl
-IGZpZWxkcy4NCj4+IE9uZSBvZiB0aGVtIHdvdWxkIGJlIHBhZ2VyZWZfYmlhcywgYSBwbGFubmVk
-IG9wdGltaXphdGlvbiB0byByZWR1Y2UgdGhlDQo+PiBudW1iZXIgb2YgdGhlIGNvc3RseSBhdG9t
-aWMgcGFnZXJlZiBvcGVyYXRpb25zIChhbmQgcmVwbGFjZSBleGlzdGluZw0KPj4gY29kZSBpbiBz
-ZXZlcmFsIGRyaXZlcnMpLg0KPiANCj4gVGhlcmUncyBzcGFjZSBmb3IgZml2ZSB3b3JkcyAoMjAg
-b3IgNDAgYnl0ZXMgb24gMzIvNjQgYml0KS4NCj4gDQoNCk9LIHNvIHRoaXMgaXMgZ29vZCBmb3Ig
-bm93LCBhbmQgZm9yIHRoZSBuZWFyIGZ1dHVyZS4NCkZpbmUgYnkgbWUuDQoNClJlZ2FyZHMsDQpU
-YXJpcQ0K
+On Sat, Feb 09, 2019 at 03:07:49PM +0100, Andrea Righi wrote:
+> This is an attempt to mitigate the priority inversion problem of a
+> high-priority blkcg issuing a sync() and being forced to wait the
+> completion of all the writeback I/O generated by any other low-priority
+> blkcg, causing massive latencies to processes that shouldn't be
+> I/O-throttled at all.
+> 
+> The idea is to save a list of blkcg's that are waiting for writeback:
+> every time a sync() is executed the current blkcg is added to the list.
+> 
+> Then, when I/O is throttled, if there's a blkcg waiting for writeback
+> different than the current blkcg, no throttling is applied (we can
+> probably refine this logic later, i.e., a better policy could be to
+> adjust the throttling I/O rate using the blkcg with the highest speed
+> from the list of waiters - priority inheritance, kinda).
+> 
+> This topic has been discussed here:
+> https://lwn.net/ml/cgroups/20190118103127.325-1-righi.andrea@gmail.com/
+> 
+> But we didn't come up with any definitive solution.
+> 
+> This patch is not a definitive solution either, but it's an attempt to
+> continue addressing this issue and handling the priority inversion
+> problem with sync() in a better way.
+> 
+> Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
+
+Talked with Tejun about this some and we agreed the following is probably the
+best way forward
+
+1) Track the submitter of the wb work to the writeback code.
+2) Sync() defaults to the root cg, and and it writes all the things as the root
+   cg.
+3) Add a flag to the cgroups that would make sync()'ers in that group only be
+   allowed to write out things that belong to its group.
+
+This way we avoid the priority inversion of having things like systemd or random
+logged in user doing sync() and having to wait, and we keep low prio cgroups
+from causing big IO storms by syncing out stuff and getting upgraded to root
+priority just to avoid the inversion.
+
+Obviously by default we want this flag to be off since its such a big change,
+but people/setups really worried about this behavior (Facebook for instance
+would likely use this flag) can go ahead and set it and be sure we're getting
+good isolation and still avoiding the priority inversion associated with running
+sync from a high priority context.  Thanks,
+
+Josef
 
