@@ -2,166 +2,157 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AD154C282D7
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:37:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 048FFC282D7
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:40:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6A41221B18
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:37:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B56DD21B1C
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:40:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=alien8.de header.i=@alien8.de header.b="r2L6NSU+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A41221B18
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=alien8.de
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="fVw7r3Mq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B56DD21B1C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E335B8E012B; Mon, 11 Feb 2019 13:37:53 -0500 (EST)
+	id 6B5378E012C; Mon, 11 Feb 2019 13:40:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DE0A38E0126; Mon, 11 Feb 2019 13:37:53 -0500 (EST)
+	id 664D88E0126; Mon, 11 Feb 2019 13:40:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CA98C8E012B; Mon, 11 Feb 2019 13:37:53 -0500 (EST)
+	id 57B018E012C; Mon, 11 Feb 2019 13:40:47 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 757348E0126
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:37:53 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id w4so1946190wrt.21
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:37:53 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A4EB8E0126
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:40:47 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id n7so2522035pfa.16
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:40:47 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=MfO9iraTHgQ5nRXoFHrsSYSHTedG1aQEDckVc6y+oB0=;
-        b=g4jf6obAHuaWp+Roe5h7ZJgsan/I9F9rL9jILoKhyqUVp0HU5ww5+AgLjVkCbunXtW
-         yBnF3ZZoSAFmGAqFntZTBdQ0aLGZOiGK+/6Ss4DPowLD3wIkUEqh6VN6Dusv326U8RNI
-         VKPBzscre6Ua6C8WaCXuXV7hxx3UgqJUApfNuyBtqDxOevGfErlxOhPjerQ7lJTTDThA
-         oEimU7lMDb7c2HVVtAbhli2DwwItk32Ay8Aw4Nwx9fBDjAzI/bMRUZvGX+A+sV/ZStiL
-         OJ3xrqfDDvlDWS4dBUDmCQcS1xnpMYhubb3A0CRbkE6cQS5qmhj0HfUV7v/s8Tr5cgnx
-         Bmgw==
-X-Gm-Message-State: AHQUAuZ8RwHDj1t/HM8odoZASaeaxxNv2Va8LT/vmi9T0miYdtS2orAh
-	2/j5pPAqSArtfmgUEBSmIY9MvgC+0Wt+imM0kG5PQpGWDHoUkwmRMRJgni5hyH4AC1Z8wVSpDYb
-	83ri4uYsqEP2EW0fdc9YOVsMu3OSTCzkAr6SdJYKXIBym42vbfRqEKlhYQ5vxTjMpsg==
-X-Received: by 2002:a1c:4d06:: with SMTP id o6mr714568wmh.6.1549910272907;
-        Mon, 11 Feb 2019 10:37:52 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaO7Dihl3rEp4YAkftMJc4pS0tbzH2uSNnt92uC4o0Mkme8zS7ds7okmLu4ju2Uryj0/QLV
-X-Received: by 2002:a1c:4d06:: with SMTP id o6mr714523wmh.6.1549910272107;
-        Mon, 11 Feb 2019 10:37:52 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549910272; cv=none;
+        bh=Ai5ng9siExeClUBgwfnBsfOAh7Ww0UnChKfm7GQwqy8=;
+        b=ovf9w+v/w3LF4EBI7sjBYkH/vHdlyA7LMWi7a8nEW/7It2Fx4yLAcbQoyxL9THk4VO
+         EyLdHiQ1KLMh7+ivuvk0mQDcDMhl7gSf3Hvp7H3EWkWcMwU8SwgVFPllIie8bX30Lt2A
+         S9LfBWGHsDH94ayJdQKN6Ywxcomw7IV7yxVv41ADQxk3yb5AzVPnF/c8YdqK0wc7ENQi
+         XBMhd0jgnzeULrhQC30mUcT9HX9TYJDo+KOul0Hen4J+BlHOk3XuGBwSXCqd+Px/yhv8
+         eI2zF/5lBSltGGSLlwx3pSbmSe/O++Uf12RXBa3/OPf9XFB3WbYETMI5VngC47+t98Pw
+         nIfA==
+X-Gm-Message-State: AHQUAuZf5DtQm2fadhU/MAWXF2u08LRwYpgWKGcjOsEF+LeQB9sB8AFi
+	F1yRqdW1RFPWUd2nIK6ktOkWdU6mMPpOu3vG1dJkQhOven58ijOJRIz5kemRzjSB9JS6CeztMPv
+	dWH5BBHHWS4yp8aAfjoa/X9xoff56MkB1rCIY+Vt1fVnc1GJCUQKIrqBFfh2mgcqOIA==
+X-Received: by 2002:a17:902:b203:: with SMTP id t3mr10327133plr.243.1549910446788;
+        Mon, 11 Feb 2019 10:40:46 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia02grMeWFeQr7pSFgfVE8WpEmhlWH2L61/U9J+wQCzpHHqhJmckg+LCqhbFV4iU04hxPd+
+X-Received: by 2002:a17:902:b203:: with SMTP id t3mr10327061plr.243.1549910446077;
+        Mon, 11 Feb 2019 10:40:46 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549910446; cv=none;
         d=google.com; s=arc-20160816;
-        b=a1aidg8n82B2sScRuM3gKaxFMzP0tdAUum+/Qpu3Ezd0k6uQt9oyQFjSykHFYnV7Km
-         f5UmhHTQAPPHmxVlu/sZs8SRSRO29zcaRQ8+W1lYgYcFd1rjIIsM/Ghk97EsUamYmWfb
-         Dv3IljNaJ+XiYP/CpbmdB3pI8ztItPOKCYnjRKE6zw8qKxtKofrQyuuxk84pv113MwjI
-         aKiBkvEOl/qpxAnBPngXReYh4ChtulrMVppRuT3eWFrvf1MEYddw9o44q4kxGYwabVF7
-         HFb974wioHq+PdKSKg2ABgYlVlQ/x7IkcRZ7lIdiX0msh4/MYjTJF0vjAYCvor5xfZw5
-         Sf4g==
+        b=kOdJ7iaFEmJyscwydghf3dLfL3VbpFGPPhHwfze7v9UX6gkhv7CyaOULja5E8iO+8G
+         wnsU20p/ClGtvurmIkli0m9x0IUOJYSj1bylwehpHN14gDZoISMqdrml6zzxL2ZiJAdf
+         yGbBMkDEOyIO7Eo2CvxUonhVDQoybcD/Ae4McFI8N0xb/P89snwvHbtyFEN9UlZwSyPw
+         xR2lyQGFfe6UMRLwwkgb587EjJOp5zTd/ABmmhtdQ7LekKXddoHcIeWJ0vmHMXhyc0Er
+         kfAgB/nDmSOZpl9SPvMJEXlphtwCOPs1K3rWOyUlFRPDO34fbS3+B0eW8Wg9Up2lUC7J
+         LcEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=MfO9iraTHgQ5nRXoFHrsSYSHTedG1aQEDckVc6y+oB0=;
-        b=s39Lp7NfGZmUYwQFoPSlJ3lqq+VwcEHq0WvE5ilcq0wJ+zC+GJzkaAdJlVpAjeNGhF
-         e7wrkmA3Iz1u/paGf55zyRVaPtsg1fyhXVF6waI4662aSGejyqgUGXo3DffMhwMfpbHZ
-         1jBpR65xMN9meiCTFoCEZpOyRBs6XCJt34Y7mZzUr87TmgFIlnHWfYuYXcdAJ/tg/kga
-         b8E8d7diaM5ulSKahinCzsaeo5w+nr6LtB2xppHtxoYsk7x9MnNGF3Dz7I5W+HCVzyDD
-         vahY3OXz8F/ZTc6+JYI/UrQ4DKzKs8d4Kw88GxoLaHnkMPXqRD/u19BwOap5PNRt6fYm
-         M9ug==
+        bh=Ai5ng9siExeClUBgwfnBsfOAh7Ww0UnChKfm7GQwqy8=;
+        b=AibJC34oC12vQ7v2+MC4ibXE877fd/oAs/qWOVdWT/8Swy3e9ZJIZ8Xo3VTMK8vn5W
+         0YFI93KMGECh3IaK8+DZ+77TY6jPZrDp1doXqYcMtS0OkLffu6Y51niLevYedfnY61Uk
+         5V+XF+l2+5l8yXcINK18YSYi+5F+rUb/Z9ocUKY4fDvw/YpMD2U3Vl7ClrMikY+hTx6E
+         RfzEAZMwLnvOgeMHujlo8vNrJLCshVb/EzVvLiig0F6SLIBnKMW3Pi5hGE3NVXRhOjEe
+         iq7u+WNgs8PyanZzg8T37FpoL3UUXQaDPLToJNMsck6P0bCJczr1rNpRWBNNKjEL+XTy
+         PK9Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b=r2L6NSU+;
-       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id a145si52132wmd.142.2019.02.11.10.37.51
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=fVw7r3Mq;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id p65si626386pfp.140.2019.02.11.10.40.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 10:37:52 -0800 (PST)
-Received-SPF: pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) client-ip=5.9.137.197;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 11 Feb 2019 10:40:45 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b=r2L6NSU+;
-       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from zn.tnic (p200300EC2BC7A10074DEFDFE3AD6CF32.dip0.t-ipconnect.de [IPv6:2003:ec:2bc7:a100:74de:fdfe:3ad6:cf32])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.skyhub.de (SuperMail on ZX Spectrum 128k) with ESMTPSA id 21C861EC01B6;
-	Mon, 11 Feb 2019 19:37:51 +0100 (CET)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=alien8.de; s=dkim;
-	t=1549910271;
-	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
-	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
-	 content-transfer-encoding:in-reply-to:in-reply-to:  references:references;
-	bh=MfO9iraTHgQ5nRXoFHrsSYSHTedG1aQEDckVc6y+oB0=;
-	b=r2L6NSU+gQRc9eP6vhleihhYe7ChDGrNf8u5AA7D2wpuQbAZ9Bm0Fz5kkiiOWDABu5rgBs
-	As+h0/3tG84bT+jrIjuMOOYQO8XGlUjnVh44QvtfpZ1OITxv8f66lXFCe/4GWyL1/RzF2I
-	qLvosFPyppk1t5t1d/CoLxnOtlB6MAQ=
-Date: Mon, 11 Feb 2019 19:37:50 +0100
-From: Borislav Petkov <bp@alien8.de>
-To: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>,
-	linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Nadav Amit <nadav.amit@gmail.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com,
-	linux-integrity@vger.kernel.org,
-	linux-security-module@vger.kernel.org, akpm@linux-foundation.org,
-	kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
-	will.deacon@arm.com, ard.biesheuvel@linaro.org,
-	kristen@linux.intel.com, deneen.t.dock@intel.com,
-	Nadav Amit <namit@vmware.com>, Kees Cook <keescook@chromium.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Masami Hiramatsu <mhiramat@kernel.org>
-Subject: Re: [PATCH v2 11/20] x86/jump-label: remove support for custom poker
-Message-ID: <20190211183749.GO19618@zn.tnic>
-References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
- <20190129003422.9328-12-rick.p.edgecombe@intel.com>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=fVw7r3Mq;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=Ai5ng9siExeClUBgwfnBsfOAh7Ww0UnChKfm7GQwqy8=; b=fVw7r3MqWnUJtTl6mhVkXjfp6
+	vM9c0a6AHbh6U4flVQBofzZmFJ7tWik+X7J/bOVW6acd8XxcqJUdUOFxACuHBcP2Xb03joVjDwJup
+	yKI/y1HOhLWLkZeMt2EWaoAmg8w6l4Iy3pJpNi6iMlLw1JzPbw2sRi1bZh9vXkw/IH/CFJw+C+Dnh
+	X5n1D5T13dh60kkz0g07H3phR8qFcQ8S5TEHS69AJPdUdJ3D1LeyRrw3GwIo+vNXFDGwWYPW4Nmdo
+	jYQNctPjbwqrwZpGiOxpmaSQ30wm/1PC8CYlFMU0Sq6ilUE+vxNcAKdN7rd+uKFhyF7Wfe6iibTJd
+	rhjUqcf9g==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gtGVU-0004zX-H5; Mon, 11 Feb 2019 18:40:40 +0000
+Date: Mon, 11 Feb 2019 10:40:40 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Ira Weiny <ira.weiny@intel.com>,
+	Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>,
+	Dave Chinner <david@fromorbit.com>,
+	Christopher Lameter <cl@linux.com>,
+	Doug Ledford <dledford@redhat.com>,
+	lsf-pc@lists.linux-foundation.org,
+	linux-rdma <linux-rdma@vger.kernel.org>,
+	Linux MM <linux-mm@kvack.org>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Michal Hocko <mhocko@kernel.org>
+Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
+ longterm-GUP usage by RDMA
+Message-ID: <20190211184040.GF12668@bombadil.infradead.org>
+References: <bfe0fdd5400d41d223d8d30142f56a9c8efc033d.camel@redhat.com>
+ <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com>
+ <20190208044302.GA20493@dastard>
+ <20190208111028.GD6353@quack2.suse.cz>
+ <CAPcyv4iVtBfO8zWZU3LZXLqv-dha1NSG+2+7MvgNy9TibCy4Cw@mail.gmail.com>
+ <20190211102402.GF19029@quack2.suse.cz>
+ <CAPcyv4iHso+PqAm-4NfF0svoK4mELJMSWNp+vsG43UaW1S2eew@mail.gmail.com>
+ <20190211180654.GB24692@ziepe.ca>
+ <20190211181921.GA5526@iweiny-DESK2.sc.intel.com>
+ <20190211182649.GD24692@ziepe.ca>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190129003422.9328-12-rick.p.edgecombe@intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190211182649.GD24692@ziepe.ca>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 28, 2019 at 04:34:13PM -0800, Rick Edgecombe wrote:
-> From: Nadav Amit <namit@vmware.com>
+On Mon, Feb 11, 2019 at 11:26:49AM -0700, Jason Gunthorpe wrote:
+> On Mon, Feb 11, 2019 at 10:19:22AM -0800, Ira Weiny wrote:
+> > What if user space then writes to the end of the file with a regular write?
+> > Does that write end up at the point they truncated to or off the end of the
+> > mmaped area (old length)?
 > 
-> There are only two types of poking: early and breakpoint based. The use
-> of a function pointer to perform poking complicates the code and is
-> probably inefficient due to the use of indirect branches.
+> IIRC it depends how the user does the write..
 > 
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Kees Cook <keescook@chromium.org>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Masami Hiramatsu <mhiramat@kernel.org>
-> Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-> Signed-off-by: Nadav Amit <namit@vmware.com>
-> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
-> ---
->  arch/x86/kernel/jump_label.c | 24 ++++++++----------------
->  1 file changed, 8 insertions(+), 16 deletions(-)
+> pwrite() with a given offset will write to that offset, re-extending
+> the file if needed
+> 
+> A file opened with O_APPEND and a write done with write() should
+> append to the new end
+> 
+> A normal file with a normal write should write to the FD's current
+> seek pointer.
+> 
+> I'm not sure what happens if you write via mmap/msync.
+> 
+> RDMA is similar to pwrite() and mmap.
 
-...
-
-> @@ -80,16 +71,17 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
->  		bug_at((void *)jump_entry_code(entry), line);
->  
->  	/*
-> -	 * Make text_poke_bp() a default fallback poker.
-> +	 * As long as we're UP and not yet marked RO, we can use
-> +	 * text_poke_early; SYSTEM_BOOTING guarantees both, as we switch to
-> +	 * SYSTEM_SCHEDULING before going either.
-
-s/going/doing/ ?
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+A pertinent point that you didn't mention is that ftruncate() does not change
+the file offset.  So there's no user-visible change in behaviour.
 
