@@ -2,139 +2,196 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 96F50C169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 21:29:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D15EEC282D7
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 21:33:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5546A2184A
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 21:29:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5546A2184A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 8D95021773
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 21:33:56 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=toxicpanda-com.20150623.gappssmtp.com header.i=@toxicpanda-com.20150623.gappssmtp.com header.b="n4kLctD7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D95021773
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=toxicpanda.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E48B78E016A; Mon, 11 Feb 2019 16:29:27 -0500 (EST)
+	id 25ACD8E016B; Mon, 11 Feb 2019 16:33:56 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E01DB8E0165; Mon, 11 Feb 2019 16:29:27 -0500 (EST)
+	id 209248E0165; Mon, 11 Feb 2019 16:33:56 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C96458E016A; Mon, 11 Feb 2019 16:29:27 -0500 (EST)
+	id 0F8FE8E016B; Mon, 11 Feb 2019 16:33:56 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8523D8E0165
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 16:29:27 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id q21so324747pfi.17
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:29:27 -0800 (PST)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D14468E0165
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 16:33:55 -0500 (EST)
+Received: by mail-yw1-f71.google.com with SMTP id i2so296619ywb.1
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:33:55 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=T/I45QOkNi6A1+UrvU1QchWKr3K3JR6njWVUPbAU3vs=;
-        b=I1t8KAEiQqG+tOW1G9965eW7eHhjf50ztFB6bDLHg2ufynhWKregiQ9Dm8U9DiKM0W
-         HIuYtP2d/1MS1cvP7i2G2WzzDs0QeoNkSja0RKMoO1Cv/8owh4TpEWhc2svk2Y4X9cA5
-         l69e/WOihYV/UCItYm3539x88WJ9Ku7XfC0bzvmUDmX7lf9p3+2fjbMQkvo9avIWuEKA
-         jQfVlknz3FavF5xMSNKxeBHFjNf3QrKqxcdWAPa40ikwO7WyGYFpm5mXr++GrsU5coJE
-         kivC3ArkZ572is9brxONjkInd87M+lwX3K3UAAx5KEJmnQGdYY4QtQo8KX2N1wZogEC7
-         VEzg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuY6tCx7bv5HxnDt79MWeqKHpTZqNA1dqUiRXXdX1sb1nqwG0fw6
-	KkcYVn3U+7RjYbf9BVCF9InrmsMSeqIEHJJ0ay7xSqnY5s7wiUtktFRzrg3X1K1N90wopsReL/r
-	CuWhEwSHOGhCKLMpZi3VXjGqVYLRooIewBro1QRtA7bRKnnxZc282DtKmicgDRqeMzA==
-X-Received: by 2002:a63:20e:: with SMTP id 14mr275639pgc.161.1549920567216;
-        Mon, 11 Feb 2019 13:29:27 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbB96y5b2QaP4fLVbziDUwyrWnZpbJaHwOoMcpOqvnDc2w0adAaQXc/BeCEL8NXZLOLSzth
-X-Received: by 2002:a63:20e:: with SMTP id 14mr275612pgc.161.1549920566655;
-        Mon, 11 Feb 2019 13:29:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549920566; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=hVKwAqoHVFgMa2AWbKba1qi0i0vrDDmcwy0nd3S4ZKE=;
+        b=m6H+DDO4tFIHMoJN0/p64H8J1VAV7LgoVx7fCDDEOji8ISYJ0T0itqSgdhOWZ1/n9u
+         NuT87p4C+42mi+x5dOPObgPfRbXsk3qwpOM9fjQG72JQLHxTDoWrndPc5sbPfwM+/hvX
+         YrLNna7/d+IP37Swm2vpoCf6FJyWrlQDPmbH5K60ri+5nbkwT3nSfQ2ir69As/zd/6tV
+         p6xYqAnHA/aZ+7+l0SQNlcviF1Dr8RIIFcIFj4L4pXooM5/2Kp8eZiV1aIOLga+FGuRu
+         MOLRmanrVZuCNKrrHHWiMvXVz0S4v+F1ioQu+3CQV/AlnHsfZB8ZCtimkfQtY8xpjfNs
+         0Pyg==
+X-Gm-Message-State: AHQUAuYCz8L8bOmcm6xBSdT9v/GW4y//CSIWDFqcDJxGLIOxUG3s2Y3T
+	J6OFKAOwOvU8RigrG7pCIS63V/XmUfwxSDkY8SvaAuAZj6J2yxTzVZXiPHUDDnS8PyhYnr6YkYQ
+	nxa/OjzVStA6ZhLCvvuhZ6QXvJQKp+wtpZ2rxgtTCZGvGs+EsxwuKmzbWDs1VPggPd6RvA8AB2K
+	JYsk9iQN+M8uC3IbByjfb607Gwpm0CkoYii7q+OZ275poQXj+D2LXqfINXIQnRdO01CCdYj6/+7
+	7K+nYD+r4plIH2NdO1SIiddFD3FDWRsQau6/x6to/mmFOJUk60XeFIq/F3UWLhjPJ1KsN0m2+li
+	M8ipXLT/60n/yXm2Sf8geJM+aFi1k42SPNVCEQ/jCMlthNMVkuUbQbYbxqBuoZI6ssVpCZG4/6w
+	u
+X-Received: by 2002:a25:f301:: with SMTP id c1mr240180ybs.137.1549920835442;
+        Mon, 11 Feb 2019 13:33:55 -0800 (PST)
+X-Received: by 2002:a25:f301:: with SMTP id c1mr240138ybs.137.1549920834754;
+        Mon, 11 Feb 2019 13:33:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549920834; cv=none;
         d=google.com; s=arc-20160816;
-        b=BN6WEiXxLFm9Je2ATW/Gmk0gyNqscl7L5LlrraqDCNJU91GtvO5Gar3v/50kVn4btq
-         XEyfwnDhnkc8OfoG2U4dRx5z0QGznmxM9iVhLoNbiPwR2tmphuzNstPSkPEe7n7dyPGC
-         qCB+hhwQvYjyG0guUjw3bkb8zwOd9gbZtOHC3awCxDQu5xmm6IriupqBIqnjNgv8+4b4
-         G7wN1BluRw2v1FCCr8Qdf0QCkTdbXXiYKYiK0jiy8VvLVpXWDph1dHgk0BoB7/UD7T6h
-         DmA+HljxuehT3gRYYg/ZxeThYR50GmTVV77M22T0hLMwcwaYqduG5ASgj24HQucLifiY
-         NO2A==
+        b=rDoYfg9QwEmRLeJ15AE8QJKATPB8sbbH6kdZkgw5nv589FiNrU1HdnpJVRKukXiXkU
+         o6sG1iomTs+c5AVZaaGgRCNTnY7Y/fL+iTAnt4x7mTrzO9dsgn6KM/jltBtKNdXwptBR
+         MjCh5g3d+/rhjBnyQs+YJEbGy/MQtaOdZLXYufiOhJTRJ6F6o7I3X5UgYtam8cXbYYl5
+         EuspXDZinr6e3Y+V97tBzvlNIgJ69QkXf+2YxDiwvyT+nJ5zzhjGKwuG/z/uikfmn/GH
+         8WF1b9H4R3EJZKBjsDrR94hqsyXyY5KT4w8lmR0lSI6ilaYWQU9xTolycJpcCn+RCGoq
+         VYeg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:to:from:date;
-        bh=T/I45QOkNi6A1+UrvU1QchWKr3K3JR6njWVUPbAU3vs=;
-        b=ORKDbNbficydHRiWBWcL75iWMF/G1VVOfhlsfV2t2eb7/PAzIj3fas2hXw+F+98vIU
-         +k/VMfzAtGBkpKbVjjms8baRdSd0+/fXEUpX5m1YZcXRK8QagpCyWyibFyZADm0U7aSC
-         3boq8ksPfXqn8PaM6BccVaMUpeLJopN7olYkklSEf2nvqcdmX49en6D2p3XVXbmcsSGm
-         uk8ejQ6zCsAElE6OCo2P96Rtspv2Dvrj7bHzYz0kQxUtT1N5DHKRDmmf7UNUE8foALJx
-         fLXpKljuV3d7mHPA/xERL+k3H5QaDBWm+oLnrJ491Zi++imUhs2yXhVU2orlJItAFyZF
-         mQQw==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=hVKwAqoHVFgMa2AWbKba1qi0i0vrDDmcwy0nd3S4ZKE=;
+        b=PDX1RhIPBAbQOEXSeQG14Ch9WdWzK5jT5xp0eSk1eORRWymcx39jcaeu17wylRghPK
+         sg6Oh6qXf9YJeDw7my8QzW09uIpuAjLHZjOFvxo7gdwOE/HK3sLY4+KY0BEDOdsaxgI2
+         wtCgrsPZq5eBPBZoK8CRznf2ZAjpCPFjRWmayIcyDHRfKNiBVqrzOmpofP+T+fgAyMx5
+         qV5ewuCLHqPa0p7MC0aiYGkUGBekF3cBgbX6L2+fLyBIGa8SIHMyBtKI+1LprSbSKduJ
+         q7n5CeckL1S1TMxC1bxyZtV9rsw0sXy5E4PkEJzaAjyFFuiEttyzRfUHeKWllZDRGk/d
+         Tetw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id s16si1569830pgi.23.2019.02.11.13.29.26
+       dkim=pass header.i=@toxicpanda-com.20150623.gappssmtp.com header.s=20150623 header.b=n4kLctD7;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) smtp.mailfrom=josef@toxicpanda.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l17sor1244985ywh.82.2019.02.11.13.33.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 13:29:26 -0800 (PST)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+        (Google Transport Security);
+        Mon, 11 Feb 2019 13:33:54 -0800 (PST)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Feb 2019 13:29:26 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,360,1544515200"; 
-   d="scan'208";a="133483233"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga002.jf.intel.com with ESMTP; 11 Feb 2019 13:29:25 -0800
-Date: Mon, 11 Feb 2019 13:29:14 -0800
-From: Ira Weiny <ira.weiny@intel.com>
-To: linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, Daniel Borkmann <daniel@iogearbox.net>,
-	netdev@vger.kernel.org,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCH 0/3] Add gup fast + longterm and use it in HFI1
-Message-ID: <20190211212914.GB7790@iweiny-DESK2.sc.intel.com>
-References: <20190211201643.7599-1-ira.weiny@intel.com>
- <20190211203417.a2c2kbmjai43flyz@linux-r8p5>
+       dkim=pass header.i=@toxicpanda-com.20150623.gappssmtp.com header.s=20150623 header.b=n4kLctD7;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of josef@toxicpanda.com) smtp.mailfrom=josef@toxicpanda.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=toxicpanda-com.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=hVKwAqoHVFgMa2AWbKba1qi0i0vrDDmcwy0nd3S4ZKE=;
+        b=n4kLctD7UE5F10ODXcqZ39+kzrDLdbwMD/i67pe02a+359+Umq6pnwTJxeC682tS0I
+         DMwKL3L153uyB0BH8cvIlBADZ3lTY7S1EQfotC+bLPGgmtetWYD+UumpJZSpgLQhqSo2
+         8nYsYOJQ41/OkZSt4eRCegqlBeGQWMA4PW+FYjDueMH/uRS853aNPooWC57pxrU/2RBm
+         R1pHvY+LRehia/wmB9yRGoXGDUq1Nr1TxgSsHro9uaYwenJ/P5pjqiDiVWHtCrhJ6DF0
+         +OKywYzSNvOJIeLEXL8HofmqrDSBmWrcFd+3M9exT9kFuM30WqqtjPEZDNLrq4k6K274
+         SaAA==
+X-Google-Smtp-Source: AHgI3IZkTOaPIPYvC/IjGg93vPO/9Q0dSZWzvla0ANEDBJAYR5//2lx61kELPsB6crIwDeBWDynCqA==
+X-Received: by 2002:a0d:d58d:: with SMTP id x135mr248358ywd.488.1549920834359;
+        Mon, 11 Feb 2019 13:33:54 -0800 (PST)
+Received: from localhost ([2620:10d:c091:200::5:67a5])
+        by smtp.gmail.com with ESMTPSA id o4sm1571505ywe.102.2019.02.11.13.33.53
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Feb 2019 13:33:53 -0800 (PST)
+Date: Mon, 11 Feb 2019 16:34:19 -0500
+From: Josef Bacik <josef@toxicpanda.com>
+To: Andrea Righi <righi.andrea@gmail.com>
+Cc: Josef Bacik <josef@toxicpanda.com>,
+	Paolo Valente <paolo.valente@linaro.org>, Tejun Heo <tj@kernel.org>,
+	Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>,
+	Jens Axboe <axboe@kernel.dk>, Vivek Goyal <vgoyal@redhat.com>,
+	Dennis Zhou <dennis@kernel.org>, cgroups@vger.kernel.org,
+	linux-block@vger.kernel.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [RFC PATCH v2] blkcg: prevent priority inversion problem during
+ sync()
+Message-ID: <20190211213417.uhfiz5iqwkfrvk25@macbook-pro-91.dhcp.thefacebook.com>
+References: <20190209140749.GB1910@xps-13>
+ <20190211153933.p26pu5jmbmisbkos@macbook-pro-91.dhcp.thefacebook.com>
+ <20190211204029.GB1520@xps-13>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190211203417.a2c2kbmjai43flyz@linux-r8p5>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+In-Reply-To: <20190211204029.GB1520@xps-13>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2019 at 12:34:17PM -0800, Davidlohr Bueso wrote:
-> On Mon, 11 Feb 2019, ira.weiny@intel.com wrote:
-> > Ira Weiny (3):
-> >  mm/gup: Change "write" parameter to flags
-> >  mm/gup: Introduce get_user_pages_fast_longterm()
-> >  IB/HFI1: Use new get_user_pages_fast_longterm()
+On Mon, Feb 11, 2019 at 09:40:29PM +0100, Andrea Righi wrote:
+> On Mon, Feb 11, 2019 at 10:39:34AM -0500, Josef Bacik wrote:
+> > On Sat, Feb 09, 2019 at 03:07:49PM +0100, Andrea Righi wrote:
+> > > This is an attempt to mitigate the priority inversion problem of a
+> > > high-priority blkcg issuing a sync() and being forced to wait the
+> > > completion of all the writeback I/O generated by any other low-priority
+> > > blkcg, causing massive latencies to processes that shouldn't be
+> > > I/O-throttled at all.
+> > > 
+> > > The idea is to save a list of blkcg's that are waiting for writeback:
+> > > every time a sync() is executed the current blkcg is added to the list.
+> > > 
+> > > Then, when I/O is throttled, if there's a blkcg waiting for writeback
+> > > different than the current blkcg, no throttling is applied (we can
+> > > probably refine this logic later, i.e., a better policy could be to
+> > > adjust the throttling I/O rate using the blkcg with the highest speed
+> > > from the list of waiters - priority inheritance, kinda).
+> > > 
+> > > This topic has been discussed here:
+> > > https://lwn.net/ml/cgroups/20190118103127.325-1-righi.andrea@gmail.com/
+> > > 
+> > > But we didn't come up with any definitive solution.
+> > > 
+> > > This patch is not a definitive solution either, but it's an attempt to
+> > > continue addressing this issue and handling the priority inversion
+> > > problem with sync() in a better way.
+> > > 
+> > > Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
+> > 
+> > Talked with Tejun about this some and we agreed the following is probably the
+> > best way forward
 > 
-> Out of curiosity, are you planning on having all rdma drivers
-> use get_user_pages_fast_longterm()? Ie:
+> First of all thanks for the update!
 > 
-> hw/mthca/mthca_memfree.c:       ret = get_user_pages_fast(uaddr & PAGE_MASK, 1, FOLL_WRITE, pages);
-> hw/qib/qib_user_sdma.c:         ret = get_user_pages_fast(addr, j, 0, pages);
-
-I missed that when I change the other qib call to longterm...  :-(
-
-Yes both of these should be changed.  Although I need to look into Jasons
-comment WRT the mthca call.
-
-Ira
-
+> > 
+> > 1) Track the submitter of the wb work to the writeback code.
 > 
-> Thanks,
-> Davidlohr
+> Are we going to track the cgroup that originated the dirty pages (or
+> maybe dirty inodes) or do you have any idea in particular?
+> 
+
+The guy doing the sync(), so that way we can accomplish #3.  But really this is
+an implementation detail, however you want to accomplish it is fine by me.
+
+> > 2) Sync() defaults to the root cg, and and it writes all the things as the root
+> >    cg.
+> 
+> OK.
+> 
+> > 3) Add a flag to the cgroups that would make sync()'ers in that group only be
+> >    allowed to write out things that belong to its group.
+> 
+> So, IIUC, when this flag is enabled a cgroup that is doing sync() would
+> trigger the writeback of the pages that belong to that cgroup only and
+> it waits only for these pages to be sync-ed, right? In this case
+> writeback can still go at cgroup's speed.
+> 
+> Instead when the flag is disabled, sync() would trigger writeback I/O
+> globally, as usual, and it goes at full speed (root cgroup's speed).
+> 
+> Am I understanding correctly?
+> 
+
+Yup that's exactly it.  Thanks,
+
+Josef
 
