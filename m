@@ -2,188 +2,157 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C0B9C169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:56:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 360AEC4151A
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 23:00:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 49F972186A
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:56:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E59D92083B
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 23:00:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="C4tTREA7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49F972186A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="1U/t75gP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E59D92083B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CCC0C8E018A; Mon, 11 Feb 2019 17:56:22 -0500 (EST)
+	id 91EFC8E018B; Mon, 11 Feb 2019 18:00:15 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C55058E0189; Mon, 11 Feb 2019 17:56:22 -0500 (EST)
+	id 8CF538E0189; Mon, 11 Feb 2019 18:00:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AF7038E018A; Mon, 11 Feb 2019 17:56:22 -0500 (EST)
+	id 7971C8E018B; Mon, 11 Feb 2019 18:00:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6947D8E0189
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 17:56:22 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id a23so569146pfo.2
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 14:56:22 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 37EF88E0189
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 18:00:15 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id t6so470823pgp.10
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 15:00:15 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=HpEhd1hjAxTw2MvV1T4BxjxIfyr9u34ZDCNveDCt9pw=;
-        b=Wi9pwbQODVUa7nJ8C66LHidDXcHDnOjDxfY6kYNfQgp0udHBQD9m3dKUsM43ETfcI2
-         arPidafFnWIeX2XD7JCftgLPe9Kd4cWf3EyUK0YX3DEhMrb3LP8tGX3Fr+0I2asxYdVT
-         UAH2+z4IO6nvEsCpuxtvcdclPAJSxRzJ7/uYYwH6pZgEG0bl1K0oqVd+eZcEaC+46QG7
-         iePnDyu/r5cEMhitrr0jc2gv6v4vYDoBZKIYfvSZmW1vESj25Pv+PiGCob1Q9IY/RrXd
-         vyPhGxRvXCg8RFL3g3xGwL+zTfCpQD/oXz1FyhLjEV2OJFm2So4MiesCrIkc6MoWCNwG
-         n8tA==
-X-Gm-Message-State: AHQUAuYEPPE9Znh8ySJDIP2eTR2EULPGjzB+xT6gB4wzrY5TZ5CxkRdp
-	9PMsW8yzoRpydPXktzOe7F3U3AUzJrykV4qx2+GzkcQez0ycd3S9RckLgukHL/8GCI/8X1npjOs
-	Axx0qiPJW6/OgmMoh5H3d255xkWLisUJnaApHKuRrbVumzC0VdH7e+MGGnN17LDSUdxRIsex0So
-	BatxEI0lLfoSWH2SV6AZ1OlCCLHJpJd91Q8v+JmgulUQEaNk05fkBuK9ieOTchBx6T5Yrm++rIU
-	qUA3x8aHSo3UUpIT6eOWP37VDJK40iI0HOvxlp+FY2wIYtq5uHpcp0b77vrxzvmnzzaDra51O1H
-	UtciKcjXfQFeZAKmtr9r6XiWJoEfc7fSmDtGuxRItNficFnbltNTi+0yf6DQT8WipIV8YL9d6zT
-	3
-X-Received: by 2002:a65:4bcd:: with SMTP id p13mr621462pgr.422.1549925782110;
-        Mon, 11 Feb 2019 14:56:22 -0800 (PST)
-X-Received: by 2002:a65:4bcd:: with SMTP id p13mr621429pgr.422.1549925781509;
-        Mon, 11 Feb 2019 14:56:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549925781; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=wYva7BRCTD4pLVk0ePeliF8AvH48fT/H37gCYYyrEKk=;
+        b=ok5eBn7xkja6C45YwY5WAX8BEl5s9AOgEbbhIuyvZW8aZUnjWjtII2bixwMaYr/RAk
+         eG61IbFzkCHNmg19FozxwfwGjQqbl3UDvMy1Ibd96Th+AAPHGiwMQeHPFF94ZYdFE1DA
+         3U5KdM3roW5E8RdamQVbDkIR100t4Sd7lf4WKv6N5fB2GHWh9khm3d48iUkZ3thKmV68
+         CY+S/UqCM0oW6ILwpEu0HPUVULisNQmOBv9IX+3x6pZBtxqljAAGMGcE6mtdhjlib3lK
+         JcKX4Axroh97IIG/Ii/paNxIRHJ+zbEHVBsRAU0/hAG00aekcoHx4u8EUOwNgg6I/mNC
+         iflA==
+X-Gm-Message-State: AHQUAuZPxFqJHC2JiO4FbgQ8+tf64az0RYNS6/z13ggVouAp2mzaFyZb
+	gt27qJ4y2th9gFJSX6pageqxHNTZCyQgf5quFCFmpOejf8e3WV2Jr1v6PhXxm5n5qsEtgZj16Tm
+	5q2BEiL3mROtd3gn27XTYXjzVWPhKp4pQya5QYHVnvk7kkr8R8qdADETHbJyuKOkMZA==
+X-Received: by 2002:a63:100c:: with SMTP id f12mr642871pgl.324.1549926014866;
+        Mon, 11 Feb 2019 15:00:14 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYLg5TKh6F9LkzECM9oN+ju5tMO7W+Xc1dyIE/S3M8Hynw6lCd/ZRnXOs8/lG1Xis4kBD9d
+X-Received: by 2002:a63:100c:: with SMTP id f12mr642803pgl.324.1549926013956;
+        Mon, 11 Feb 2019 15:00:13 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549926013; cv=none;
         d=google.com; s=arc-20160816;
-        b=aJ5IbQ0kRsI6nCw1sL+vyOmHlFWlBGEWicOevU6Pd9Jf0oUstkNl1nDDXfzzK9/EXh
-         AaGv8NXGimZ2YHr4/qh3mx7TLHcfSyV8W+obBs166smfWv3UDsgKF6K/NIuW2FBIJZzH
-         JfDHv6wEu15727lYPuYjpEQQiUe8wL5I1ykJTnldrT3d0RP7bnjc1MyAGkC5Hs8yJyaq
-         FTwsGoJgdm0k760FWVwoJCiwqg4LBI4h4qGwYOH0KOTBCjNJ8zepDIOy+164YARMo/3e
-         d2hvXUCr23/p4VzQr/hnFdzJsbyt0MAxRRrcRdMYxA2KOL+pjpke3vWOSRznmmmEvmIi
-         6l+g==
+        b=cNdl5NPWjIg3gcRQed1M8Yg3iKhJWxUGTuiebyqJ/XOtxjJ/MjjnM6gdUkqAc1wtg6
+         h9f+suyw4gOUkD5xFT8CwHP7M3eXkYX1e7kuS3Xmv3JU7ICVrQaccK6dAzi0wvroyDGK
+         6RSkGBTU7qWDosALp8bgbTmr9ffqQnfPhAX+7KY3gctX5YVWi6/f4SkgBV6SRBG4/lLM
+         za9FhKu2AfPzfkg68Yb/T8Vl4mKOTgY0zRhT+EC65w5WDMbWbesXYxjglQj4TeT1bz0i
+         9WhQQDJbpdQSEquyrhf2ea3ZR8b5P3ZDn4g++wuRYW2c/6GoA7C77gfJc3zZYvsCzIAL
+         iHOw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=HpEhd1hjAxTw2MvV1T4BxjxIfyr9u34ZDCNveDCt9pw=;
-        b=TI2Vyc9GZkKE8uj7ZuA3hPVv1vgwiqcf943nIj3eDurf+vf0xbeQqaCs5eLmnlYj/p
-         qUuZqjuugyNTX7Drxd2GrXsf0mwF4WEEflbxc7oNp0PVVUAqw6DwOomQcPo2Jnwxe9YR
-         ivZZvPsRx4pSn7zNVejLpjyV99E73WfSPkr4uckMeMtsOkVx0egrg5u89zKuf+S9BEF2
-         A71KbOOv5w9/q8mgH6ICBqPEoKP0FEX5/zsowaTP9joaTCzp6i2n1Pv61cgskOR4y2kB
-         eDsC/uRuIkPqrjkcRdEpqfBL6kGba8Ivns7XNpmzMkPqS5z/GUsZSLcuDJMTYxyomOCI
-         PY+w==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=wYva7BRCTD4pLVk0ePeliF8AvH48fT/H37gCYYyrEKk=;
+        b=vt/HrNAq/nuTiTiTewXlvdxqkQSPLaDVPFtQVJANTNQZ9aALC1iHajcmqoX9OqKNtT
+         cL80Sdsgb0Wwq2Tvse1DxeLw2x9eBV1yik7zoDNKmuxxvuKh8sfny/o3u4t5lWZYo7Rf
+         wZu8kBBUv+SZ91/gcCiiRSF/34HE/pg4x3krl0lgVIqYL9qvunQQerTj2yc1uhQ8L+1B
+         NUfVHYexK1lMC9Xnq5x/fniw6e+KrssK1nUfs54pkevnxLg9IOoRSzKlxy867+AnO/ZX
+         r4EkB0m9tlU9x9OugRqX3NwSr3pGbWyanDNfnJ+B44iF2J7dSDCT1KvPztnsnmg1UbT7
+         le9A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=C4tTREA7;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m5sor16504703pls.2.2019.02.11.14.56.21
+       dkim=pass header.i=@kernel.org header.s=default header.b="1U/t75gP";
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id y13si5799592pgf.524.2019.02.11.15.00.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Feb 2019 14:56:21 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Feb 2019 15:00:12 -0800 (PST)
+Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=C4tTREA7;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=HpEhd1hjAxTw2MvV1T4BxjxIfyr9u34ZDCNveDCt9pw=;
-        b=C4tTREA7HJPtDyU1uVPrhGE+tenWueSaGN0k0ef/Kh8wHOc+eeRjHW4eNci/W1sNVZ
-         nYdNIvPBh0jkuMGegVaVI7ZknSEEmTYjVQ9lkUqwq808jxLyjhyYKUS7PTcL9UCxtB/s
-         it+yq0CUlai76H0E960zYXqbQR8MnnrS6MK8skX1EzEWnStU+4GlmKuGyXCUjmhBbpIA
-         ESTHk+JdGDgc7/Ph4KMGJJYmCHTvk5TWeSG1yrZVMPtAk3pw1nN/51xgX4GuqGMCDsdQ
-         v3NegYxwcxTIMySPBLYjq6QADfr8Cbj0sw8JmSoiCEdCAL1NAbCqVFX55zltezDUhzh9
-         STEQ==
-X-Google-Smtp-Source: AHgI3IZZHskA3za69Xpd8+FHO3LEV/xrV2vOJSA9kBqr3FxTMFSCZDXTbx2Vmep3HV1eRHv9cAoOVw==
-X-Received: by 2002:a17:902:fa2:: with SMTP id 31mr677704plz.75.1549925781226;
-        Mon, 11 Feb 2019 14:56:21 -0800 (PST)
-Received: from ziepe.ca (S010614cc2056d97f.ed.shawcable.net. [174.3.196.123])
-        by smtp.gmail.com with ESMTPSA id e65sm16713492pfc.184.2019.02.11.14.56.20
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Feb 2019 14:56:20 -0800 (PST)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1gtKUu-0003Rw-6N; Mon, 11 Feb 2019 15:56:20 -0700
-Date: Mon, 11 Feb 2019 15:56:20 -0700
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: akpm@linux-foundation.org, dave@stgolabs.net, jack@suse.cz,
-	cl@linux.com, linux-mm@kvack.org, kvm@vger.kernel.org,
-	kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
-	linux-fpga@vger.kernel.org, linux-kernel@vger.kernel.org,
-	alex.williamson@redhat.com, paulus@ozlabs.org,
-	benh@kernel.crashing.org, mpe@ellerman.id.au, hao.wu@intel.com,
-	atull@kernel.org, mdf@kernel.org, aik@ozlabs.ru
-Subject: Re: [PATCH 1/5] vfio/type1: use pinned_vm instead of locked_vm to
- account pinned pages
-Message-ID: <20190211225620.GO24692@ziepe.ca>
-References: <20190211224437.25267-1-daniel.m.jordan@oracle.com>
- <20190211224437.25267-2-daniel.m.jordan@oracle.com>
+       dkim=pass header.i=@kernel.org header.s=default header.b="1U/t75gP";
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-wm1-f46.google.com (mail-wm1-f46.google.com [209.85.128.46])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 604B6218AD
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 23:00:11 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1549926011;
+	bh=RdARy0D2d2IImaaPeK+pm12Sk+zLe4PWvJ4Rp1UMq8o=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=1U/t75gPlPzV0GunWAAj580UQ0M8IQO7b/0ocVXPNelID0RVlkdhMj4hsKGasjksD
+	 EVjIa8/xD1Gua910hLYZzaNPVVqqmjn0XIr7KSRz+zjA74djGWCRG2PhI6a6hymlpQ
+	 09sU7CdhUpL1YU0IzM5ExJ2bmf1i/5n92jcXqhYA=
+Received: by mail-wm1-f46.google.com with SMTP id d15so956794wmb.3
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 15:00:11 -0800 (PST)
+X-Received: by 2002:a7b:cc13:: with SMTP id f19mr377508wmh.83.1549926009812;
+ Mon, 11 Feb 2019 15:00:09 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190211224437.25267-2-daniel.m.jordan@oracle.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
+ <20190129003422.9328-14-rick.p.edgecombe@intel.com> <20190211190925.GQ19618@zn.tnic>
+In-Reply-To: <20190211190925.GQ19618@zn.tnic>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Mon, 11 Feb 2019 14:59:55 -0800
+X-Gmail-Original-Message-ID: <CALCETrX2AOTTZOQafZgOFxiQsFgdYHVaLonXTqTa3RUs5MPVUQ@mail.gmail.com>
+Message-ID: <CALCETrX2AOTTZOQafZgOFxiQsFgdYHVaLonXTqTa3RUs5MPVUQ@mail.gmail.com>
+Subject: Re: [PATCH v2 13/20] Add set_alias_ function and x86 implementation
+To: Borislav Petkov <bp@alien8.de>
+Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>, Andy Lutomirski <luto@kernel.org>, 
+	Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, 
+	"H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Nadav Amit <nadav.amit@gmail.com>, 
+	Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com, 
+	linux-integrity <linux-integrity@vger.kernel.org>, 
+	LSM List <linux-security-module@vger.kernel.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, 
+	Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, 
+	Kristen Carlson Accardi <kristen@linux.intel.com>, "Dock, Deneen T" <deneen.t.dock@intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2019 at 05:44:33PM -0500, Daniel Jordan wrote:
-> Beginning with bc3e53f682d9 ("mm: distinguish between mlocked and pinned
-> pages"), locked and pinned pages are accounted separately.  Type1
-> accounts pinned pages to locked_vm; use pinned_vm instead.
-> 
-> pinned_vm recently became atomic and so no longer relies on mmap_sem
-> held as writer: delete.
-> 
-> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
->  drivers/vfio/vfio_iommu_type1.c | 31 ++++++++++++-------------------
->  1 file changed, 12 insertions(+), 19 deletions(-)
-> 
-> diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
-> index 73652e21efec..a56cc341813f 100644
-> +++ b/drivers/vfio/vfio_iommu_type1.c
-> @@ -257,7 +257,8 @@ static int vfio_iova_put_vfio_pfn(struct vfio_dma *dma, struct vfio_pfn *vpfn)
->  static int vfio_lock_acct(struct vfio_dma *dma, long npage, bool async)
->  {
->  	struct mm_struct *mm;
-> -	int ret;
-> +	s64 pinned_vm;
-> +	int ret = 0;
->  
->  	if (!npage)
->  		return 0;
-> @@ -266,24 +267,15 @@ static int vfio_lock_acct(struct vfio_dma *dma, long npage, bool async)
->  	if (!mm)
->  		return -ESRCH; /* process exited */
->  
-> -	ret = down_write_killable(&mm->mmap_sem);
-> -	if (!ret) {
-> -		if (npage > 0) {
-> -			if (!dma->lock_cap) {
-> -				unsigned long limit;
-> -
-> -				limit = task_rlimit(dma->task,
-> -						RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-> +	pinned_vm = atomic64_add_return(npage, &mm->pinned_vm);
->  
-> -				if (mm->locked_vm + npage > limit)
-> -					ret = -ENOMEM;
-> -			}
-> +	if (npage > 0 && !dma->lock_cap) {
-> +		unsigned long limit = task_rlimit(dma->task, RLIMIT_MEMLOCK) >>
-> +
-> -					PAGE_SHIFT;
+On Mon, Feb 11, 2019 at 11:09 AM Borislav Petkov <bp@alien8.de> wrote:
+>
+> On Mon, Jan 28, 2019 at 04:34:15PM -0800, Rick Edgecombe wrote:
+> > This adds two new functions set_alias_default_noflush and
+>
+> s/This adds/Add/
+>
+> > set_alias_nv_noflush for setting the alias mapping for the page to its
+>
+> Please end function names with parentheses, below too.
+>
+> > default valid permissions and to an invalid state that cannot be cached in
+> > a TLB, respectively. These functions to not flush the TLB.
+>
+> s/to/do/
+>
+> Also, pls put that description as comments over the functions in the
+> code. Otherwise that "nv" as part of the name doesn't really explain
+> what it does.
+>
+> Actually, you could just as well call the function
+>
+> set_alias_invalid_noflush()
+>
+> All the other words are written in full, no need to have "nv" there.
 
-I haven't looked at this super closely, but how does this stuff work?
+Why are you calling this an "alias"?  You're modifying the direct map.
+Your patches are thinking of the direct map as an alias of the vmap
+mapping, but that does seem a bit backwards.  How about
+set_direct_map_invalid_noflush(), etc?
 
-do_mlock doesn't touch pinned_vm, and this doesn't touch locked_vm...
-
-Shouldn't all this be 'if (locked_vm + pinned_vm < RLIMIT_MEMLOCK)' ?
-
-Otherwise MEMLOCK is really doubled..
-
-Jason
+--Andy
 
