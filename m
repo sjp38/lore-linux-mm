@@ -2,140 +2,162 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E2AAC282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 15:27:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05D2DC169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 15:33:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DC24B21B1A
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 15:27:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC24B21B1A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lwn.net
+	by mail.kernel.org (Postfix) with ESMTP id C34EA222A7
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 15:33:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C34EA222A7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=iogearbox.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 78EFA8E00F0; Mon, 11 Feb 2019 10:27:09 -0500 (EST)
+	id 53FFF8E00F1; Mon, 11 Feb 2019 10:33:34 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 73E378E00EB; Mon, 11 Feb 2019 10:27:09 -0500 (EST)
+	id 4F0018E00EB; Mon, 11 Feb 2019 10:33:34 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6539D8E00F0; Mon, 11 Feb 2019 10:27:09 -0500 (EST)
+	id 3DF158E00F1; Mon, 11 Feb 2019 10:33:34 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 252AF8E00EB
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:27:09 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id q20so9652025pls.4
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 07:27:09 -0800 (PST)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D77A28E00EB
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:33:33 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id l17so6430135wme.1
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 07:33:33 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:organization
-         :mime-version:content-transfer-encoding;
-        bh=zxiIqPClnfzOEwg6Wf33Q/G0gp/wDI+8Xi54LZDMXX0=;
-        b=U+bjP6CXzPbMVJUvhgNppN66Xf3HUGfr31et/yEjAIXBO3CH7/EVFb6/j7vzGF+hVY
-         11UgzMWaVGycpImmm4QSoAOWG0bqqe4ZAygZAyoItTOxRoKhqS+Y67NB5sPOJqr1CBT8
-         L2KlKpV3Zxmq3NesFt4VbY9hRAXWa7vss1U0eM29ViOMukBMSgTpdlZ8AK3nVWk4Fw5z
-         vV8UKdOUN+tL7QYZRhpbeWoFmkDS8nYZQQ3HiLFlcIh60UZVUC9M990E6XiRcg0yTLpb
-         Ws/QmokPqwT0i63Dif8Z0NUl/YrD2ehNb5cjQ+A6aoRkjpb/SWvOtVZMkY2+qBAW6szf
-         NW/Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
-X-Gm-Message-State: AHQUAuaobM0rcvr1lm7Ag5G5PuLi2E3Abl0C4RFd+Dol/z5m0bEWGR2r
-	AoY7cHFlQgWmHD06R15Z69ehH8bgQvqaa4nx+dxQpSU03R4He8KN8W8H1OqHq7cNUeVCAixpe+y
-	AXiP5Bb8TD9qN8BzoSxTSnpSH0aHB6rBeJUvD0mGnA5JQyHHKIuOjfLiKXzvQdu3yNg==
-X-Received: by 2002:a63:d450:: with SMTP id i16mr33582215pgj.246.1549898828821;
-        Mon, 11 Feb 2019 07:27:08 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYjyD2rzigV0Z8HhUQCTIna5tmlcFJFb9X5FkKm2aj7pby3XLTzun5bUg/Td/WT4eMTzmoT
-X-Received: by 2002:a63:d450:: with SMTP id i16mr33582168pgj.246.1549898828122;
-        Mon, 11 Feb 2019 07:27:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549898828; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=6AsydycaEfknojHFFUgxjTMXgbgmE80KrPuR78p7KI0=;
+        b=Y3XftCI9uTt1pfIBOgZymTHfFjj+jj2rtxrKFj2QKiKJCKhbysxLW4Deh2rhdK0S1m
+         pbCW7t/g+mI0tuH4ouoHAGcxKbYpQst9trergvMBKJ4f+YUMYuo096fDhhFasDiy8Npc
+         XqpZi5O0vnGTIXfVLbwGyPsvMOjm+ivZWPhFs0LXYtsWKOBvr6NxfZEEh3qY4fwQZ1Ul
+         OiEXcMlMLN+XEOc5M327v/RxGUYtdn3QnltkfdaslNftT9R8he9aSZuJt7kwGWCZyJ0z
+         GL4kHsrHQaZPlrW0PKzdfNmOCvyVtz9fPC8oPz50pXcFtJtobipw/RFa8fAeAB8CeEv/
+         wpmA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of daniel@iogearbox.net designates 213.133.104.62 as permitted sender) smtp.mailfrom=daniel@iogearbox.net
+X-Gm-Message-State: AHQUAuZNm9+gF18H4tvOnhj0JAh4tYms0b7RKw5/JqhQnz4Mh5enEwFz
+	nrh+GM0b0x8KxDFP3wuRaBmWu2d+WeyZuDu8/2eWPHR4n02Y0wTN5UbkAIYDAdAVWc4MoZLofa+
+	7JHUPh4x+6aF1/dqO47+Dyj2N0B8mzNBPLh8q0lzy+k5DqJywiOvq6OePlCOC5LeA4A==
+X-Received: by 2002:a5d:6b09:: with SMTP id v9mr29139407wrw.304.1549899213436;
+        Mon, 11 Feb 2019 07:33:33 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYpeLIaFVKNuJEOQufz3oLCbqOjA+vXD1cxMOHtUIkW6q1M0v1ylq2fzuUphfiM6y0Auz89
+X-Received: by 2002:a5d:6b09:: with SMTP id v9mr29139339wrw.304.1549899212398;
+        Mon, 11 Feb 2019 07:33:32 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549899212; cv=none;
         d=google.com; s=arc-20160816;
-        b=LZhkp8gM8IwulzQLwVu+XOaQWnPE/l0mpUgnMvikxcJJWB3V+NNocPSjKdu4AQ1nFB
-         J80IDQdJ0iv85nPWUYOY0T/XAVimvo2ozQkuqG2afqaYhy9EeM25aFMHo8VZpCpblUOs
-         8q1qiAmjb+cresNZUkLf1DD+23VytS48M8C9Q65q1CDIwqmadw55ccK3i6vaNdzqKUxx
-         B0ZEUNp0X0eAc1oL4Fhb7Ro6ZfjHO9xq8rU2+qbOuDTAzAHq1KTV+t7ZeU7F/Q+7QpSS
-         DlefnbFpf6Vsaw2W8E6G32eAbnlwr91suQVmF3weuWi8iQNt58ke1+Djnv4w1xBlk28N
-         wF2Q==
+        b=jUzsidEpG/tAvJwoP49K2/Y9+q7qCQtD4Q2q3z8+RGxGwbRFpC1PTLhWK9U5Gs8o4/
+         daQp7w/I5a+4mlNURd/nMllZZaFnyyXk7vn2lE5f2anTTUxuGZnWr1gqoCFZq92kPTJD
+         ForwLGlwN7Q9C6dU6FbmP0Gth1lgK6oT77jvD+SsqKwD9G/3oba65NtsccTmlO6RWoMa
+         HyMXsIVy3QbDAfh3u4WIlTlcfu+Tmjz2AennYBaky9tppGNFp+MJaYJK428hOJp0+x8m
+         /MJQAIcoOlKN9k5LpNfV4P8HnQdFYu0sg9CZJwmQtPG6mDmP9ybnDdhBfGTQWXi5BP5B
+         njZw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:organization:references
-         :in-reply-to:message-id:subject:cc:to:from:date;
-        bh=zxiIqPClnfzOEwg6Wf33Q/G0gp/wDI+8Xi54LZDMXX0=;
-        b=IqMkCAkDH4A/O4ACoSfL+uor4KoA38SIG8LpE5VSB8J22j5pHK3mc/4S8jnq94x20r
-         hZM/gwagJLWhN+52vQNv//WzyTSSxuusUvDtJl/Qggb9VbWRzdkcBdy6jzIa/z/dAum7
-         CbUawi0QVIvKKe1socv0aJb8ZJh//WjrDKfREOF3mBH0tRQoJyPLifu2yx4WBdfLmjjE
-         lBd0U3RxYO+ntTbPreGJ9hNP97QqAxNS4XJ0A0AYfvHHaCfJKZ4GSzJC2JppaKxOc2SN
-         vP+sMbP5zWk0MV0i/0QeoEFKLY5lfcUViDsb9d4qAIiIO+U8JqQULOvTRuyEIyh6BIPy
-         cjFA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=6AsydycaEfknojHFFUgxjTMXgbgmE80KrPuR78p7KI0=;
+        b=0hXMvie1sDdVon06/1hDu7xxC6YXOjKX45771ayVai1dxhTadfti4tNC0b8C1hV08p
+         jM8XzVnChq3q0OHDogoCB6hrcu6xQI1xd5jMYZw80ng0nLRvD16jsvpnVm3BAvdFHLzi
+         q0QHX7qU2J9lAzvY1XkPjkyts8P3KXMY6rzMGtbPYcOJWl9DffobU1PCiu5Ls/21nKKG
+         T/S3owq4tCpz9Yt8+X0085jX2oomtJErFZP9Dytt3wyHAHyzB13u1GZSC8Sqsn/8ovhy
+         89BYrDBJ/vCmhiyXL6qzr+ZNxsDCE6If/FdtUeScwGE8kDlJ8jiWeskRrW8LwfCSXVc8
+         9XvQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
-Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
-        by mx.google.com with ESMTPS id n1si9275269pgq.36.2019.02.11.07.27.07
+       spf=pass (google.com: domain of daniel@iogearbox.net designates 213.133.104.62 as permitted sender) smtp.mailfrom=daniel@iogearbox.net
+Received: from www62.your-server.de (www62.your-server.de. [213.133.104.62])
+        by mx.google.com with ESMTPS id x126si25476519wmx.2.2019.02.11.07.33.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 07:27:08 -0800 (PST)
-Received-SPF: pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) client-ip=45.79.88.28;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 11 Feb 2019 07:33:32 -0800 (PST)
+Received-SPF: pass (google.com: domain of daniel@iogearbox.net designates 213.133.104.62 as permitted sender) client-ip=213.133.104.62;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
-Received: from localhost.localdomain (localhost [127.0.0.1])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by ms.lwn.net (Postfix) with ESMTPSA id E98502F3;
-	Mon, 11 Feb 2019 15:27:06 +0000 (UTC)
-Date: Mon, 11 Feb 2019 08:27:05 -0700
-From: Jonathan Corbet <corbet@lwn.net>
-To: Randy Dunlap <rdunlap@infradead.org>, Linux MM <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton
- <akpm@linux-foundation.org>, "linux-doc@vger.kernel.org"
- <linux-doc@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Sergey
- Senozhatsky <sergey.senozhatsky.work@gmail.com>, "Tobin C. Harding"
- <tobin@kernel.org>
-Subject: Re: [PATCH] Documentation: fix vm/slub.rst warning
-Message-ID: <20190211082705.0ff3d86b@lwn.net>
-In-Reply-To: <1e992162-c4ac-fe4e-f1b0-d8a16a51d5e7@infradead.org>
-References: <1e992162-c4ac-fe4e-f1b0-d8a16a51d5e7@infradead.org>
-Organization: LWN.net
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-redhat-linux-gnu)
+       spf=pass (google.com: domain of daniel@iogearbox.net designates 213.133.104.62 as permitted sender) smtp.mailfrom=daniel@iogearbox.net
+Received: from [78.46.172.3] (helo=sslproxy06.your-server.de)
+	by www62.your-server.de with esmtpsa (TLSv1.2:DHE-RSA-AES256-GCM-SHA384:256)
+	(Exim 4.89_1)
+	(envelope-from <daniel@iogearbox.net>)
+	id 1gtDaM-0007KE-6j; Mon, 11 Feb 2019 16:33:30 +0100
+Received: from [2a02:1203:ecb1:b710:c81f:d2d6:50a9:c2d] (helo=linux.home)
+	by sslproxy06.your-server.de with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
+	(Exim 4.89)
+	(envelope-from <daniel@iogearbox.net>)
+	id 1gtDaL-000Ow1-WC; Mon, 11 Feb 2019 16:33:30 +0100
+Subject: Re: [PATCH 1/2] xsk: do not use mmap_sem
+To: =?UTF-8?B?QmrDtnJuIFTDtnBlbA==?= <bjorn.topel@gmail.com>,
+ Davidlohr Bueso <dave@stgolabs.net>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org,
+ LKML <linux-kernel@vger.kernel.org>, "David S . Miller"
+ <davem@davemloft.net>, Bjorn Topel <bjorn.topel@intel.com>,
+ Magnus Karlsson <magnus.karlsson@intel.com>, Netdev
+ <netdev@vger.kernel.org>, Davidlohr Bueso <dbueso@suse.de>,
+ dan.j.williams@intel.com
+References: <20190207053740.26915-1-dave@stgolabs.net>
+ <20190207053740.26915-2-dave@stgolabs.net>
+ <CAJ+HfNg=Wikc_uY9W1QiVCONq3c1GyS44-xbrq-J4gqfth2kwQ@mail.gmail.com>
+From: Daniel Borkmann <daniel@iogearbox.net>
+Message-ID: <d92b7b49-81e6-1ac5-4ae4-4909f87bbea8@iogearbox.net>
+Date: Mon, 11 Feb 2019 16:33:29 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.3.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <CAJ+HfNg=Wikc_uY9W1QiVCONq3c1GyS44-xbrq-J4gqfth2kwQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
+X-Authenticated-Sender: daniel@iogearbox.net
+X-Virus-Scanned: Clear (ClamAV 0.100.2/25357/Mon Feb 11 11:38:50 2019)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 10 Feb 2019 22:34:11 -0800
-Randy Dunlap <rdunlap@infradead.org> wrote:
+[ +Dan ]
 
-> From: Randy Dunlap <rdunlap@infradead.org>
+On 02/07/2019 08:43 AM, Björn Töpel wrote:
+> Den tors 7 feb. 2019 kl 06:38 skrev Davidlohr Bueso <dave@stgolabs.net>:
+>>
+>> Holding mmap_sem exclusively for a gup() is an overkill.
+>> Lets replace the call for gup_fast() and let the mm take
+>> it if necessary.
+>>
+>> Cc: David S. Miller <davem@davemloft.net>
+>> Cc: Bjorn Topel <bjorn.topel@intel.com>
+>> Cc: Magnus Karlsson <magnus.karlsson@intel.com>
+>> CC: netdev@vger.kernel.org
+>> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
+>> ---
+>>  net/xdp/xdp_umem.c | 6 ++----
+>>  1 file changed, 2 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/net/xdp/xdp_umem.c b/net/xdp/xdp_umem.c
+>> index 5ab236c5c9a5..25e1e76654a8 100644
+>> --- a/net/xdp/xdp_umem.c
+>> +++ b/net/xdp/xdp_umem.c
+>> @@ -265,10 +265,8 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem)
+>>         if (!umem->pgs)
+>>                 return -ENOMEM;
+>>
+>> -       down_write(&current->mm->mmap_sem);
+>> -       npgs = get_user_pages(umem->address, umem->npgs,
+>> -                             gup_flags, &umem->pgs[0], NULL);
+>> -       up_write(&current->mm->mmap_sem);
+>> +       npgs = get_user_pages_fast(umem->address, umem->npgs,
+>> +                                  gup_flags, &umem->pgs[0]);
+>>
 > 
-> Fix markup warning by quoting the '*' character with a backslash.
+> Thanks for the patch!
 > 
-> Documentation/vm/slub.rst:71: WARNING: Inline emphasis start-string without end-string.
-> 
-> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-> ---
->  Documentation/vm/slub.rst |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- lnx-50-rc6.orig/Documentation/vm/slub.rst
-> +++ lnx-50-rc6/Documentation/vm/slub.rst
-> @@ -68,7 +68,7 @@ end of the slab name, in order to cover
->  example, here's how you can poison the dentry cache as well as all kmalloc
->  slabs:
->  
-> -	slub_debug=P,kmalloc-*,dentry
-> +	slub_debug=P,kmalloc-\*,dentry
->  
->  Red zoning and tracking may realign the slab.  We can just apply sanity checks
->  to the dentry cache with::
+> The lifetime of the pinning is similar to RDMA umem mapping, so isn't
+> gup_longterm preferred?
 
-The better fix here is to make that a literal block ("slabs::").  Happily
-for all of us, Tobin already did that in 11ede50059d0.
+Seems reasonable from reading what gup_longterm seems to do. Davidlohr
+or Dan, any thoughts on the above?
 
 Thanks,
-
-jon
+Daniel
 
