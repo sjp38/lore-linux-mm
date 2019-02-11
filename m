@@ -2,160 +2,140 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 00D8EC282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 15:23:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E2AAC282CE
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 15:27:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BFFB421B1A
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 15:23:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFFB421B1A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id DC24B21B1A
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 15:27:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC24B21B1A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lwn.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 594DC8E00EF; Mon, 11 Feb 2019 10:23:27 -0500 (EST)
+	id 78EFA8E00F0; Mon, 11 Feb 2019 10:27:09 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 544D18E00EB; Mon, 11 Feb 2019 10:23:27 -0500 (EST)
+	id 73E378E00EB; Mon, 11 Feb 2019 10:27:09 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 40EE68E00EF; Mon, 11 Feb 2019 10:23:27 -0500 (EST)
+	id 6539D8E00F0; Mon, 11 Feb 2019 10:27:09 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EDDC28E00EB
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:23:26 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id y8so8551819pgq.12
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 07:23:26 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 252AF8E00EB
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:27:09 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id q20so9652025pls.4
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 07:27:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=/zgghYOUI+qKDydm+9UQMOAMh5ccTjkEFBniIeQNL7E=;
-        b=daXIDZnXf+aefaBU48KLhqbri8m5FeZGVQNUM96W/7NxSL1sclT82TfU1CXokNGZMQ
-         EX9dLv2lJQ5dGeR6OeioHyS8QM5lT1si2wZqYaurP4NqCiMO+VlLmf2Imc6Sq84W46wp
-         TOLJNJ3yooyymfQt49iMuG/h7elJhaF1dPkHVqFBBd0rpvzYa1aMCApoPD5Wn0GCQtdH
-         EEjqgH3Dnlj8LMe2TdAYakQGKqwne3D2mCc7T6aHzwkvLKwv1EiIlt5zU3EcG02GCHME
-         ETuKh5CVYzjxxCUkYgRlXMmP3NI/Qbye5zydJq+dIWm9EWOcgv08eqra7sQ8QVAay+55
-         tCDw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAubP4H6TXYcsWLkDjoF+QtHZQ7ntQvFttSLR+9yXSYrjOEgDN7FR
-	nh6KWsOy4VgsufQWFkv9iBEgwnlDX66aE1pjQdezrdIvtdOMo/5CGtYq0NAXpT9Cs2O7Rqp/0EO
-	DZnDoU4dlLrBLcOMgV4qvz03dU0jwVCTZH9h2/I0em4BQT+LBsMWxDSdlGHRr65VGrQ==
-X-Received: by 2002:a62:5b44:: with SMTP id p65mr36705303pfb.47.1549898606495;
-        Mon, 11 Feb 2019 07:23:26 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IafOGrGi9d7oGxveMxPWV4ryjiXLZCohd2gpzexfBcqrcjmLtXgTY+SjX+udT9Sp+pgv52s
-X-Received: by 2002:a62:5b44:: with SMTP id p65mr36705252pfb.47.1549898605649;
-        Mon, 11 Feb 2019 07:23:25 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549898605; cv=none;
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=zxiIqPClnfzOEwg6Wf33Q/G0gp/wDI+8Xi54LZDMXX0=;
+        b=U+bjP6CXzPbMVJUvhgNppN66Xf3HUGfr31et/yEjAIXBO3CH7/EVFb6/j7vzGF+hVY
+         11UgzMWaVGycpImmm4QSoAOWG0bqqe4ZAygZAyoItTOxRoKhqS+Y67NB5sPOJqr1CBT8
+         L2KlKpV3Zxmq3NesFt4VbY9hRAXWa7vss1U0eM29ViOMukBMSgTpdlZ8AK3nVWk4Fw5z
+         vV8UKdOUN+tL7QYZRhpbeWoFmkDS8nYZQQ3HiLFlcIh60UZVUC9M990E6XiRcg0yTLpb
+         Ws/QmokPqwT0i63Dif8Z0NUl/YrD2ehNb5cjQ+A6aoRkjpb/SWvOtVZMkY2+qBAW6szf
+         NW/Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
+X-Gm-Message-State: AHQUAuaobM0rcvr1lm7Ag5G5PuLi2E3Abl0C4RFd+Dol/z5m0bEWGR2r
+	AoY7cHFlQgWmHD06R15Z69ehH8bgQvqaa4nx+dxQpSU03R4He8KN8W8H1OqHq7cNUeVCAixpe+y
+	AXiP5Bb8TD9qN8BzoSxTSnpSH0aHB6rBeJUvD0mGnA5JQyHHKIuOjfLiKXzvQdu3yNg==
+X-Received: by 2002:a63:d450:: with SMTP id i16mr33582215pgj.246.1549898828821;
+        Mon, 11 Feb 2019 07:27:08 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYjyD2rzigV0Z8HhUQCTIna5tmlcFJFb9X5FkKm2aj7pby3XLTzun5bUg/Td/WT4eMTzmoT
+X-Received: by 2002:a63:d450:: with SMTP id i16mr33582168pgj.246.1549898828122;
+        Mon, 11 Feb 2019 07:27:08 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549898828; cv=none;
         d=google.com; s=arc-20160816;
-        b=DGHenOszKKdTzp17gI4BVTwFrzVfyrpOWhveW/7hZsDzL/mL+pkmu0PQszv7CsLfr3
-         LXSbSGgeJmsAcl53OIKxCtEAohWlp+uZL8Gpo/1ZTSwqZvlK6bWHfq+ODLssdz9s+VuU
-         CS1nlNiXT0kj1SuuyuVw/cRVvHAh8ioHp7P2OtvujYEBy5g345d8dqCmVuQeseeWe0+h
-         2Ru4hQHTheAFH+raqQBtFZA4EqdobcXMDzhVPglGAfX3FPTB2zMQpdSXUA7VOg3t/XS4
-         uztZhIV4BdKLws9YdxGncZJ81SMD56R1wixWUTqz1lr5lTlE8nD0On2nXST226NSXQv/
-         uxWQ==
+        b=LZhkp8gM8IwulzQLwVu+XOaQWnPE/l0mpUgnMvikxcJJWB3V+NNocPSjKdu4AQ1nFB
+         J80IDQdJ0iv85nPWUYOY0T/XAVimvo2ozQkuqG2afqaYhy9EeM25aFMHo8VZpCpblUOs
+         8q1qiAmjb+cresNZUkLf1DD+23VytS48M8C9Q65q1CDIwqmadw55ccK3i6vaNdzqKUxx
+         B0ZEUNp0X0eAc1oL4Fhb7Ro6ZfjHO9xq8rU2+qbOuDTAzAHq1KTV+t7ZeU7F/Q+7QpSS
+         DlefnbFpf6Vsaw2W8E6G32eAbnlwr91suQVmF3weuWi8iQNt58ke1+Djnv4w1xBlk28N
+         wF2Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=/zgghYOUI+qKDydm+9UQMOAMh5ccTjkEFBniIeQNL7E=;
-        b=cU+LOwW2GOEicbxWtotm5BtH1t2wKMEPRfbP4TzXfSbVbvHy44bECcIba+rn2JsXe2
-         aZOdWHV+zzdZqCWTqHcRIDkiu4V2ek1gmyFMJCcpe8cafyfavu2ncHG3cHcUPkSrHtDz
-         iBf/RdmVvIDYVx4XS0XQuJEizWP1WJUsvFiXGU7iRyghOkEStvcLS5Jy9oPaAR3PhTwi
-         Pt4RGUVvlkpcG7x5cpT+9+wMtyygE2wn4ipgD6uDX/5+8v57bNsZM0YUk7vnQ0mX19bO
-         uwyHDil0UyE/wb9Cb+4RiJhFXygSquscvX7Hc2VguL5fkVj850K/cifrtmg/UF/+Zs8F
-         ArMA==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=zxiIqPClnfzOEwg6Wf33Q/G0gp/wDI+8Xi54LZDMXX0=;
+        b=IqMkCAkDH4A/O4ACoSfL+uor4KoA38SIG8LpE5VSB8J22j5pHK3mc/4S8jnq94x20r
+         hZM/gwagJLWhN+52vQNv//WzyTSSxuusUvDtJl/Qggb9VbWRzdkcBdy6jzIa/z/dAum7
+         CbUawi0QVIvKKe1socv0aJb8ZJh//WjrDKfREOF3mBH0tRQoJyPLifu2yx4WBdfLmjjE
+         lBd0U3RxYO+ntTbPreGJ9hNP97QqAxNS4XJ0A0AYfvHHaCfJKZ4GSzJC2JppaKxOc2SN
+         vP+sMbP5zWk0MV0i/0QeoEFKLY5lfcUViDsb9d4qAIiIO+U8JqQULOvTRuyEIyh6BIPy
+         cjFA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id n20si292453plp.294.2019.02.11.07.23.25
+       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
+Received: from ms.lwn.net (ms.lwn.net. [45.79.88.28])
+        by mx.google.com with ESMTPS id n1si9275269pgq.36.2019.02.11.07.27.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 07:23:25 -0800 (PST)
-Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+        Mon, 11 Feb 2019 07:27:08 -0800 (PST)
+Received-SPF: pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) client-ip=45.79.88.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga004.jf.intel.com ([10.7.209.38])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Feb 2019 07:23:24 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,359,1544515200"; 
-   d="scan'208";a="274157759"
-Received: from unknown (HELO localhost.localdomain) ([10.232.112.69])
-  by orsmga004.jf.intel.com with ESMTP; 11 Feb 2019 07:23:24 -0800
-Date: Mon, 11 Feb 2019 08:23:04 -0700
-From: Keith Busch <keith.busch@intel.com>
-To: Jonathan Cameron <jonathan.cameron@huawei.com>
-Cc: Brice Goglin <Brice.Goglin@inria.fr>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Rafael Wysocki <rafael@kernel.org>,
-	"Hansen, Dave" <dave.hansen@intel.com>,
-	"Williams, Dan J" <dan.j.williams@intel.com>
-Subject: Re: [PATCHv4 10/13] node: Add memory caching attributes
-Message-ID: <20190211152303.GA4525@localhost.localdomain>
-References: <20190116175804.30196-1-keith.busch@intel.com>
- <20190116175804.30196-11-keith.busch@intel.com>
- <4a7d1c0c-c269-d7b2-11cb-88ad62b70a06@inria.fr>
- <20190210171958.00003ab2@huawei.com>
+       spf=pass (google.com: domain of corbet@lwn.net designates 45.79.88.28 as permitted sender) smtp.mailfrom=corbet@lwn.net
+Received: from localhost.localdomain (localhost [127.0.0.1])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by ms.lwn.net (Postfix) with ESMTPSA id E98502F3;
+	Mon, 11 Feb 2019 15:27:06 +0000 (UTC)
+Date: Mon, 11 Feb 2019 08:27:05 -0700
+From: Jonathan Corbet <corbet@lwn.net>
+To: Randy Dunlap <rdunlap@infradead.org>, Linux MM <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton
+ <akpm@linux-foundation.org>, "linux-doc@vger.kernel.org"
+ <linux-doc@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Sergey
+ Senozhatsky <sergey.senozhatsky.work@gmail.com>, "Tobin C. Harding"
+ <tobin@kernel.org>
+Subject: Re: [PATCH] Documentation: fix vm/slub.rst warning
+Message-ID: <20190211082705.0ff3d86b@lwn.net>
+In-Reply-To: <1e992162-c4ac-fe4e-f1b0-d8a16a51d5e7@infradead.org>
+References: <1e992162-c4ac-fe4e-f1b0-d8a16a51d5e7@infradead.org>
+Organization: LWN.net
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-redhat-linux-gnu)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190210171958.00003ab2@huawei.com>
-User-Agent: Mutt/1.9.1 (2017-09-22)
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Feb 10, 2019 at 09:19:58AM -0800, Jonathan Cameron wrote:
-> On Sat, 9 Feb 2019 09:20:53 +0100
-> Brice Goglin <Brice.Goglin@inria.fr> wrote:
+On Sun, 10 Feb 2019 22:34:11 -0800
+Randy Dunlap <rdunlap@infradead.org> wrote:
+
+> From: Randy Dunlap <rdunlap@infradead.org>
 > 
-> > Hello Keith
-> > 
-> > Could we ever have a single side cache in front of two NUMA nodes ? I
-> > don't see a way to find that out in the current implementation. Would we
-> > have an "id" and/or "nodemap" bitmask in the sidecache structure ?
+> Fix markup warning by quoting the '*' character with a backslash.
 > 
-> This is certainly a possible thing for hardware to do.
->
-> ACPI IIRC doesn't provide any means of representing that - your best
-> option is to represent it as two different entries, one for each of the
-> memory nodes.  Interesting question of whether you would then claim
-> they were half as big each, or the full size.  Of course, there are
-> other possible ways to get this info beyond HMAT, so perhaps the interface
-> should allow it to be exposed if available?
-
-HMAT doesn't do this, but I want this interface abstracted enough from
-HMAT to express whatever is necessary.
-
-The CPU cache is the closest existing exported attributes to this,
-and they provide "shared_cpu_list". To that end, I can export a
-"shared_node_list", though previous reviews strongly disliked multi-value
-sysfs entries. :(
-
-Would shared-node symlinks capture the need, and more acceptable?
- 
-> Also, don't know if it's just me, but calling these sidecaches is
-> downright confusing.  In ACPI at least they are always
-> specifically referred to as Memory Side Caches.
-> I'd argue there should even by a hyphen Memory-Side Caches, the point
-> being that that they are on the memory side of the interconnected
-> rather than the processor side.  Of course an implementation
-> choice might be to put them off to the side (as implied by sidecaches)
-> in some sense, but it's not the only one.
+> Documentation/vm/slub.rst:71: WARNING: Inline emphasis start-string without end-string.
 > 
-> </terminology rant> :)
+> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+> ---
+>  Documentation/vm/slub.rst |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> --- lnx-50-rc6.orig/Documentation/vm/slub.rst
+> +++ lnx-50-rc6/Documentation/vm/slub.rst
+> @@ -68,7 +68,7 @@ end of the slab name, in order to cover
+>  example, here's how you can poison the dentry cache as well as all kmalloc
+>  slabs:
+>  
+> -	slub_debug=P,kmalloc-*,dentry
+> +	slub_debug=P,kmalloc-\*,dentry
+>  
+>  Red zoning and tracking may realign the slab.  We can just apply sanity checks
+>  to the dentry cache with::
 
-Now that you mention it, I agree "side" is ambiguous.  Maybe call it
-"numa_cache" or "node_cache"?
+The better fix here is to make that a literal block ("slabs::").  Happily
+for all of us, Tobin already did that in 11ede50059d0.
+
+Thanks,
+
+jon
 
