@@ -2,117 +2,148 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 35580C169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 07:38:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 12E28C169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 07:43:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C947D2084D
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 07:38:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C947D2084D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id C03A920811
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 07:43:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="vQXX5IB2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C03A920811
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5E5908E00CE; Mon, 11 Feb 2019 02:38:06 -0500 (EST)
+	id 2F9518E00CF; Mon, 11 Feb 2019 02:43:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 592498E00C4; Mon, 11 Feb 2019 02:38:06 -0500 (EST)
+	id 2A8178E00C4; Mon, 11 Feb 2019 02:43:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 45A4E8E00CE; Mon, 11 Feb 2019 02:38:06 -0500 (EST)
+	id 170808E00CF; Mon, 11 Feb 2019 02:43:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 07BB98E00C4
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 02:38:06 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id o16so6316783wmh.6
-        for <linux-mm@kvack.org>; Sun, 10 Feb 2019 23:38:05 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C60778E00C4
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 02:43:17 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id w20so8731775ply.16
+        for <linux-mm@kvack.org>; Sun, 10 Feb 2019 23:43:17 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=u7X1iKW9jgsiowRxH0qwFhP2repuv3qYvA0695SjbEE=;
-        b=t26sMs2kv0PfeIz/PnyJTMtu5rSBce2uANjJkR3wO4j4eevH2n0ZacfZe6xI3iIu06
-         ESQ/nlfZxcbVWXlLBUb7ic4xO9WmZMAeXEj0rFVmA2ojlpkUj9iteNpNNOCaWiULRPvr
-         XfQDm5PHOkLtFjS4QnMgvhel+OBfiMKSJZyud5LCDxJYsJyIOwPM4RX1XmsYRAy5Mf0R
-         fOSgx9sDBneGTeyKJIZwqTP+V7Uf18jLfGcJd8gxN4QuZiTRpu/LaQYV/2XVC4tZgFKM
-         lTx8nRLnfKLdSh2EVhWnVuFXSxSblR+04xbkUl0SHVpJiq+sXkz33JY2o5CZTzUtp9C3
-         WHXg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: AHQUAuYvl/gHjyWSmmQle/OWLYkKlSWXI3fx8e/Q7lpUVIbhLpYqRnfa
-	YwPr7OMydEjb6bc++5ew/6o4LjSmw5T8qQ5nXY9WCO4iT+MtJWHqZa4+VQdhxzn80O3RjKnW5RC
-	ZUktoX+s+0YzLnro6t5RADncSxYgVEX0o2M89I7G0brH/cV98t2i/uXpHdeX49eGe3A==
-X-Received: by 2002:adf:fb0d:: with SMTP id c13mr10026126wrr.285.1549870685608;
-        Sun, 10 Feb 2019 23:38:05 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYNMK16HFZE5oVh1PfLXmLhGAWkTy8X0+soNG216n9B/0hBwbHDaGeci4C77BZ07WwO9nWG
-X-Received: by 2002:adf:fb0d:: with SMTP id c13mr10026075wrr.285.1549870684842;
-        Sun, 10 Feb 2019 23:38:04 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549870684; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=LzdxB19zhApMwZH0H6vEn1LPmCbo2CeSOy3HttPM3Rk=;
+        b=RqN+BDCxtIKavFqf133vhnwqMgibU4j0PwXE9sKEwumOFoIkxHrtDdNYPjw4tZr9cz
+         M0Vq0xm928eaZetpdsnIqfJoQ86GGDdLViJN9I/TCkAxQd0cmgBDSt0ntUqhgbxDy90n
+         Ida/mO9ckObLTZR77jgN62fiDkUWMoj25blroTG0KlfUSjbaj0PionY7NF83n0d/94uo
+         digM2mhvyXiUK3S4e9H5tFmsTP19rWbX67dAeXIVioQaBxuyiAD2rlDJHBfSxlrDQHw1
+         Ya9SCZgsC4+Kc90KxLatbR29TquIFEwmdBfmfc8iRp88Vxkxej8KwmQh989uEo/BLzMp
+         q7xg==
+X-Gm-Message-State: AHQUAua851xBBbS8Z+WHENi0QliE4DcW/yAyDs/zeNNuFae3DqiaySax
+	Cd2jgXHg1LsulTxyoguvcoxOnLX2cStt9Tv0YfeDlkmb8f53jHh0ZgN1x4t5x5UQaem/k9sfWQO
+	nCs+97kbyIiHrUycVZidvntHPdpFzSYjZI995ksaJjeEq+xWuf8hg40S11iOqF9BOoG5ki/1sVS
+	0BAjaAqsMNn8VMX4wbcRlAwpujxZ0lJhm5sUHzH1z6RfdtcsanuJDjCocs6WZYAgKCYMaYTzzcL
+	HN1oyW3vAXsiSkx8rx916Wm7HK1actjq6qFtUUX0erUBbt4sVtVI/mVsLfZ3IgaDfTBhCmTzC9u
+	+Y++NYYN5Sdltw1gIoSmkgrAgU6+veFr7CYyBYaNiNDGNndfveT0sHlJKtKg9ert6kPTDY1afdL
+	c
+X-Received: by 2002:a65:6215:: with SMTP id d21mr32526630pgv.289.1549870997416;
+        Sun, 10 Feb 2019 23:43:17 -0800 (PST)
+X-Received: by 2002:a65:6215:: with SMTP id d21mr32526614pgv.289.1549870996799;
+        Sun, 10 Feb 2019 23:43:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549870996; cv=none;
         d=google.com; s=arc-20160816;
-        b=u9GGztIOSXlpZoPsit/WLcvLwOxN7V4HLCNWzzg0w8ZzW25rWvaGe5nyI3D6wkNXve
-         RMz/HfrRniblnyWkxMal2Buepe6vEARwZFbVrEdkwm4W1MNGT5mUzd2UOH+XeWKQPSMy
-         vkeq5zieXA2GgI8zcVIEGLGHcyR6RqD6HDeuQccIS90ktx58KRjXAWZ0hGKFFJeqlgx4
-         7Jj4Xjru0R7ShsCet+Sotb6V1m2YCYFthMToG0775ze8bKTEMRZMFirv18rCkMsATUjT
-         SlcVdX9s2S1S95sXIgOH2iTUhYf8wlrEU1M2jjkGDjgHSEP1Cmn98ZX3thcuH9b+UZiZ
-         IefA==
+        b=lT5iQQL6Lb10Uc3t9lVf+XHvvuq8pzmCvb2+zpujDWRRrqrlogVzjzKHQ1+r4cvWdf
+         VKa8u4281uHM3RDzHOFIaHSkPric1XaUPNWLovIOPN9nx2ppihc3BAFSxEBjIfEZGLa7
+         UFxUesUNtnYtap6ooDNZdy9fdoJGbnDqXPd1uSPej0KhcNPys5UmZnfmNM1ccPaz3dQ/
+         AIqS0sbarQ12WKdf4nRyziMLKDUNNAavvt6Auu7oep39pHLjOEKrFx5A9R5+MC4j3Cgk
+         UBXWigApf4C1O9fYkLJqQ7YSczBnOb1jyPvqME1nzpGS3wekmGuctiAOe/eBcICtJTDl
+         1lCA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=u7X1iKW9jgsiowRxH0qwFhP2repuv3qYvA0695SjbEE=;
-        b=BGTm4tirlf8KhTLIt/RuVV2iARNTMlbQx7iCK0WlYe4egUM1q4t4/v19ONe1Wa0Knm
-         uC4DYfcSWkTUlWBsELMN5dUf7VdTqVoWle/9wkLGIrtdyDmWNBhJsGElsfNsR0ZoLtLf
-         EEgedLhpfZRb4BPtiPpWeG5i0mmWSHKo/KAzmwGIqjPScPD078NVV2xtAhEHfXAVFusI
-         9PhZfwpiKE7xhdltLpfPzqmf8vEZq9eZmXOcV+nFhnCnL1Ulc952a2B/EeTeITajAlg7
-         G2xwiMQZDvvx5HTUVT9KdQD/mXW+GjqV03h37mV0VqAY1E/pm4LXt8vIm4PW+8DXPPbz
-         Gvwg==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=LzdxB19zhApMwZH0H6vEn1LPmCbo2CeSOy3HttPM3Rk=;
+        b=YXjdBfft4Z7JdFVoQy5CZ70zK1PMd5B713S7awOjdWpOTjN2LxPnnzwaJaQ3RI+V1N
+         zthBQCA83rG2tul0E1r8745gcZiQSj+JJfF1SIwIZ1rGlpl+2O0CKlsINU6B9Bh2HzFq
+         R05y0MmB11XnApNbtg2c+rx/DkXla9fNmLp8C6mZ4xrmUO8CI/kqMUgEjmbRE80ULvXS
+         MQE5CYwrfTAWVSrJGLtwzNIpQt0XiTQeBHPnfgb+nNDP7+bJLb2xgSaDj6Y2AVK6FRSA
+         72pbRZFHH9jqOyWFXXCmPDPiPXJB0lqfJ6BlZYQeOynMaWaNur2124pgKjM0AYhRBYk5
+         ZqYg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id m16si6590720wrv.419.2019.02.10.23.38.04
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=vQXX5IB2;
+       spf=pass (google.com: domain of sergey.senozhatsky.work@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sergey.senozhatsky.work@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w6sor13235376plq.70.2019.02.10.23.43.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Feb 2019 23:38:04 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        (Google Transport Security);
+        Sun, 10 Feb 2019 23:43:16 -0800 (PST)
+Received-SPF: pass (google.com: domain of sergey.senozhatsky.work@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by newverein.lst.de (Postfix, from userid 2407)
-	id 4E7517F11E; Mon, 11 Feb 2019 08:38:04 +0100 (CET)
-Date: Mon, 11 Feb 2019 08:38:04 +0100
-From: Christoph Hellwig <hch@lst.de>
-To: Christian Zigotzky <chzigotzky@xenosoft.de>
-Cc: Christoph Hellwig <hch@lst.de>, linux-arch@vger.kernel.org,
-	Darren Stevens <darren@stevens-zone.net>,
-	linux-kernel@vger.kernel.org, Julian Margetson <runaway@candw.ms>,
-	linux-mm@kvack.org, iommu@lists.linux-foundation.org,
-	Paul Mackerras <paulus@samba.org>, Olof Johansson <olof@lixom.net>,
-	linuxppc-dev@lists.ozlabs.org
-Subject: Re: use generic DMA mapping code in powerpc V4
-Message-ID: <20190211073804.GA15841@lst.de>
-References: <20190204075616.GA5408@lst.de> <ffbf56ae-c259-47b5-9deb-7fb21fead254@xenosoft.de> <20190204123852.GA10428@lst.de> <b1c0161f-4211-03af-022d-0db7237516e9@xenosoft.de> <20190206151505.GA31065@lst.de> <20190206151655.GA31172@lst.de> <61EC67B1-12EF-42B6-B69B-B59F9E4FC474@xenosoft.de> <7c1f208b-6909-3b0a-f9f9-38ff1ac3d617@xenosoft.de> <20190208091818.GA23491@lst.de> <4e7137db-e600-0d20-6fb2-6d0f9739aca3@xenosoft.de>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=vQXX5IB2;
+       spf=pass (google.com: domain of sergey.senozhatsky.work@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sergey.senozhatsky.work@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=LzdxB19zhApMwZH0H6vEn1LPmCbo2CeSOy3HttPM3Rk=;
+        b=vQXX5IB20a2Re4fUEbSuRpgaZX4KGwVOHSTJWplqnNZf+8Y7r/l1ONh6IHkDNA/Hdk
+         z4jy8vmTkP0N8GPyswCSk7dZkh4GpRNyvSP+7GFwGQ3NB1CwAUCKztvNaS37l+aTRjE9
+         XGRKCtF/TDhLHml8qClvXaoORE2FZvSgzDJ+RB/xyyo53aT24zEsbPs3i/bBcVqpouO5
+         mHRXz8GLZfJSYshQLLWnsIob2pZSHLkbzbpPlPUXA0yg2OITeDEpXfInkfKtTcnZxDs4
+         vVBOpFe+QLlo5RH60Dae8kxggrxrtJ7c/qrPDyvObgEkLDnc5bAGcXiogTGN8FR7mzNz
+         l30w==
+X-Google-Smtp-Source: AHgI3Iaf1MpBbJJ8uTMAYdhLdQxO4kI5hHbwP4MylJcKIuOLER1MTDBVTSxWgqEvQA/FP/c65uS2YA==
+X-Received: by 2002:a17:902:2bc9:: with SMTP id l67mr1863808plb.241.1549870996468;
+        Sun, 10 Feb 2019 23:43:16 -0800 (PST)
+Received: from localhost ([175.223.48.87])
+        by smtp.gmail.com with ESMTPSA id a90sm17164079pfj.109.2019.02.10.23.43.15
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 10 Feb 2019 23:43:15 -0800 (PST)
+Date: Mon, 11 Feb 2019 16:43:12 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Jonathan Corbet <corbet@lwn.net>,
+	"linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>,
+	Christoph Lameter <cl@linux.com>,
+	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] Documentation: fix vm/slub.rst warning
+Message-ID: <20190211074312.GA26364@jagdpanzerIV>
+References: <1e992162-c4ac-fe4e-f1b0-d8a16a51d5e7@infradead.org>
+ <20190211073537.GA25868@rapoport-lnx>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4e7137db-e600-0d20-6fb2-6d0f9739aca3@xenosoft.de>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+In-Reply-To: <20190211073537.GA25868@rapoport-lnx>
+User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Feb 10, 2019 at 01:00:20PM +0100, Christian Zigotzky wrote:
-> I tested the whole series today. The kernels boot and the P.A. Semi 
-> Ethernet works! :-) Thanks a lot!
->
-> I also tested it in a virtual e5500 QEMU machine today. Unfortunately the 
-> kernel crashes.
+On (02/11/19 09:35), Mike Rapoport wrote:
+> On Sun, Feb 10, 2019 at 10:34:11PM -0800, Randy Dunlap wrote:
+> > From: Randy Dunlap <rdunlap@infradead.org>
+> > 
+> > Fix markup warning by quoting the '*' character with a backslash.
+> > 
+> > Documentation/vm/slub.rst:71: WARNING: Inline emphasis start-string without end-string.
+> > 
+> > Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+> > Cc: Christoph Lameter <cl@linux.com>
+> > Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+> 
+> Acked-by: Mike Rapoport <rppt@linux.ibm.com>
 
-This looks like a patch I fixed in mainline a while ago, but which
-the powerpc tree didn't have yet.
+FWIW,
+Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-I've cherry picked this commit
-("swiotlb: clear io_tlb_start and io_tlb_end in swiotlb_exit")
-
-and added it to the powerpc-dma.6 tree, please retry with that one.
+	-ss
 
