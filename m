@@ -1,178 +1,290 @@
-Return-Path: <SRS0=NdlI=QR=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8153AC282C2
-	for <linux-mm@archiver.kernel.org>; Sun, 10 Feb 2019 22:34:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 98375C282D7
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 00:39:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3C82A213F2
-	for <linux-mm@archiver.kernel.org>; Sun, 10 Feb 2019 22:34:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C82A213F2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 2D18A2083B
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 00:39:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="UQvVKtfi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D18A2083B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CF8538E00AA; Sun, 10 Feb 2019 17:34:40 -0500 (EST)
+	id 76B368E00C0; Sun, 10 Feb 2019 19:39:26 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CA84B8E0002; Sun, 10 Feb 2019 17:34:40 -0500 (EST)
+	id 719598E00BF; Sun, 10 Feb 2019 19:39:26 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BBF7A8E00AA; Sun, 10 Feb 2019 17:34:40 -0500 (EST)
+	id 608CB8E00C0; Sun, 10 Feb 2019 19:39:26 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B2BB8E0002
-	for <linux-mm@kvack.org>; Sun, 10 Feb 2019 17:34:40 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id h15so438408pfj.22
-        for <linux-mm@kvack.org>; Sun, 10 Feb 2019 14:34:40 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 2133D8E00BF
+	for <linux-mm@kvack.org>; Sun, 10 Feb 2019 19:39:26 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id v82so3520563pfj.9
+        for <linux-mm@kvack.org>; Sun, 10 Feb 2019 16:39:26 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=C3JT8DoB1yulYYIE3Nc8T8CrrkCjzwNPFcDNpNG9Oyo=;
-        b=PUrcGU6pW+kzvswzAIQNwMcTjeUe9OUMS+Vx/t5XwVZ1lORC+XzMQX2XzDkX6s6Rup
-         Eqm3K6dXO1/HjWkEMV+LIPaepTTgK7ffytdC0ePwlp3KCMXCDCxcP6ssRAgDCX6EuO6y
-         NIltRJMwKJTERjHYf22HIPaq9sZj1lt20vJwiBhyHAWBiSxlmXCdJ8hFhBsM+ofn9Y9P
-         +KVtF/e+wnCEluZh3A0oxZjFWSSJZxkpDnsmYWa9S81By0+Tj8yRHcEJPpi8nabM/lkP
-         9/G5TtbAHLuoW4nivlO+YPJlKHjF7fN0b0LNF8u3FcBrDogRXjnD8QqZKk16PriLX4Dj
-         dtLg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuY79bLMj2a7uBOITYAkaN8t07VY1681LrGywKiUEkFxDGaWKMUb
-	bZm8LrcdgoxKA7CcPMM1ICrCQhUVqZatvAYJnq1ptffUSo6YwtAOy5rl4kkTUFNZcDrychp4syE
-	3Vc+sMvJ1cI28oE+FQIw9k75DwkRY7DQi1POn2jiE+ucwxwzjSpHaus4pcYszXqrS6g==
-X-Received: by 2002:a65:5003:: with SMTP id f3mr5440491pgo.39.1549838080151;
-        Sun, 10 Feb 2019 14:34:40 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaJS5QRygWsd8NdBwdDzWGY078uM3vmbI6zmrwypFv6Pc3Dj1SnC7fwPMn07ReC7mnr5xXX
-X-Received: by 2002:a65:5003:: with SMTP id f3mr5440468pgo.39.1549838079460;
-        Sun, 10 Feb 2019 14:34:39 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549838079; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=vlsxxAOCWdf1tlqbQayeYqdEQq3U0CPDi/Q8SjZG81o=;
+        b=G8NkclQHvIbc8emQ5oSxMuEkCy1Lz5h3pCn1NPgpZe0O0i+rRiYyOaRHvb1Iqr5mtR
+         t6yHytgr4RGHxkuDBapFfD4dMAqtTfG0ZwyMUogDF7URP9Ezg6DGAOHTLbZIFYF7IuF2
+         aDcdJLzSQo6Dd4hNIos9BJDgRvItR+baYv3uA+4MGno/nGw5E0IY4MBS1UX6DCRoFNSR
+         kpxYdEOLykgYS5xp+y7D0JQbTeOO7wBKt3lZvBFXX4mJGw7Jdja4nPyV4g3TpB8rMivw
+         9YqbI0C/cDjCzEppEI1ncM+YNjOXXZ1mgh7/JWHTIhn8Ikn+4MqL+9azKKkqihH0dnzg
+         Ezsw==
+X-Gm-Message-State: AHQUAubzpwf2RAL2RTi3lzzv4kdDz3xlLVkSJn34QE66v2pX18KIhIuP
+	5sdoS43wekDwQ0D8DEKc/eSJtoMdxy7cWcwHVmuBuftDOODCTnYpv6gUI/goSBYkyO4AbiK0anE
+	MQsa3EZFlcvbubB6mt1nJWIP/lUBOhxPgY8bbaJn9VPmxO1H6ozvdO38jBxtdhRJsCsAHSsxAbN
+	LyMViKq+unwxTb7c4SblmdHAWRHe4YVAfmPXX091ReSvMC+xxj/FIqnbIOOjbYMz5RW7rMx48tW
+	D/XQNrnWqGL+H871aki+vRjmdkfArcE7dzo0xsEz6Zdyeloz9XTbLgtzNmf0rpiRdtVb9D0sbfL
+	TFM1RIsQwOpX1V6mkBqS3veDj+RNl+L7SVPLbvpk4m0NENB5OzJh76mC6xVIK8UtV+glER77IR8
+	w
+X-Received: by 2002:a17:902:8303:: with SMTP id bd3mr27329019plb.10.1549845565578;
+        Sun, 10 Feb 2019 16:39:25 -0800 (PST)
+X-Received: by 2002:a17:902:8303:: with SMTP id bd3mr27328992plb.10.1549845564730;
+        Sun, 10 Feb 2019 16:39:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549845564; cv=none;
         d=google.com; s=arc-20160816;
-        b=inI+dXtv11Prff7lgFmuVsdjb0rtPrcR4l2sC/mFJ+QEM5WKJjdrvA4pWx0zOC1TmJ
-         jYkPVkQWwpEoLcqlXjpDpU31+6pgwcW2ExNV+WfCOqenm5lX7tVA8JcAFxIFnzulfJz8
-         5fQXHvgDW0T8y/S9QecCDccbeK4ZtdgTDE4UtiAasGz3OJ99pgMdaTApHNW+Q/4KyNra
-         vim6YXfP8hgc2LCD2LR/VMjdjMdmxoeG32KBhHMuxC+dUms/C4JwgCFbM9nK6jC9edJ4
-         qq8IO0BMzpWUYpXNxOt3+Lc4P6br1vGytnzu8xrGbW1CkoQ1TPec4Obmp24DGBBk/O0L
-         4B2g==
+        b=D5sEBxnb5XvafH6G0U27XZVDoa4PMSpRY+GjRCNa2GtylxPiDvoHmze/EQD8KuW1Bi
+         4puyBCEJ4veTefLdbrc5Fz6S8ErxBW06LapFkw5yld7lO+MAN0DzWKNDtI5yydalzfn1
+         wKvCB/3ASYJxmt2qMCiCqVkkuss6V5ZRD6y26XkDTo5TY2DhVdoBDrKvGVz8w9/u3wiV
+         KVB2jhtxndQfRSex2KJ2iOcOx9V53PTIpzukXA1NC360H/P5HA/UAWyOYHldeQd8M4uZ
+         fk64tOO5B3udDRZFAebFiGFFf11fM+W4elZBSgDxWJOdnGJMgxTuGy54AH7v7tUQGGXA
+         o9kw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=C3JT8DoB1yulYYIE3Nc8T8CrrkCjzwNPFcDNpNG9Oyo=;
-        b=pxnkojREnA9uB6acNmONXffz7KND5sSXwhTqcD7tdI9AgcOjSnXblJfG6jhSdDtn+S
-         kY755aEHri77h7GcoxSC6HaRJZTDr80yMrTpNusFYUO9P3AKY9E7rnwrpdngeNL6Fzc8
-         fSzk0UaJ0YqWC1I/YYMa2vSMmaowXZmjxhR3tdzScgVqcmzELWpsuIUS8uplCgCH33Ay
-         rgWzL+9S0+14Dmu3pHahVOCXokUjPG8lFkChKBuDRWzS3NEHUsZanPRywSx1uzr03OSD
-         aqvzFT3QHrfOmQ8u4ZehUo4vePzuQCRX6cUVLmfKPqL4CJSOV3WqvqePoI6JxKq/Hm5u
-         TfUw==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=vlsxxAOCWdf1tlqbQayeYqdEQq3U0CPDi/Q8SjZG81o=;
+        b=JauBEIURavuu6/25MQB2wRFnBvhIwD6Xs19yjk3Mj3eY5EZ77HIHZ4f6yreFdc3QPP
+         xppNmxOCDptPIHQ+vjynXyJWOT/kYmNIdll5/qK45pKqlFKsWC0PE7NLwqZV8yjUuuuw
+         m4boRGruDzW8L7kqrFKiublNxYMjMLvzCr5/4z3waI/SFGJnsnWPWPxcto+rPEPNemLB
+         DUlbgatUycl34zQh5znUjgcAcVcDDap5U3DSZvTLk/IXKEJVRwcEx5mI9zoCi7xC3AtQ
+         KgRNUvspEv1rqouUARjlCJAnoQYtWfP9blldRRL3hKZ8r7PVgNnc7QR5Mn9qkFF74WSO
+         Nlow==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id c65si8934998pfe.202.2019.02.10.14.34.39
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UQvVKtfi;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d10sor11811147pgp.21.2019.02.10.16.39.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Feb 2019 14:34:39 -0800 (PST)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        (Google Transport Security);
+        Sun, 10 Feb 2019 16:39:24 -0800 (PST)
+Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Feb 2019 14:34:38 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,356,1544515200"; 
-   d="scan'208";a="143135415"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga004.fm.intel.com with ESMTP; 10 Feb 2019 14:34:38 -0800
-From: ira.weiny@intel.com
-To: Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>,
-	Borislav Petkov <bp@alien8.de>,
-	x86@kernel.org,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Ira Weiny <ira.weiny@intel.com>
-Subject: [PATCH V2] mm/gup: Remove write argument in gup_fast_permitted()
-Date: Sun, 10 Feb 2019 14:34:24 -0800
-Message-Id: <20190210223424.13934-1-ira.weiny@intel.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190209173109.9361-1-ira.weiny@intel.com>
-References: <20190209173109.9361-1-ira.weiny@intel.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UQvVKtfi;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=vlsxxAOCWdf1tlqbQayeYqdEQq3U0CPDi/Q8SjZG81o=;
+        b=UQvVKtfiCr2EL7+vDHwobTr3K/ATiEL/6IaQ02QiiMOUdtOTSwVzMksz6CS8ZV0yRJ
+         +ba/xxOchi8VyXAnM7fVo60oRNFj2udtb1MmjepZeHgrxDVhybrDVbj5WnMxeBHOoSbd
+         0Z4ougOyd3gTbL/2dtgAdkuVZoPi7UgLUoLhCdvNzCWYP7JyWQGoErFnT2bIT8jpwJmW
+         nl39hGFURBJeHi1zjBdzVmWXygssw8dBEZN8YX3pDj+23Sy5XTbd9Z4jeitLC9T6yCR+
+         E1iLowwEvYjOZ49Ev4OpC1K+CVW6/aZvC6taNcnStgVkXC3RxCvWyjQ73aHhhLIXT7n4
+         svbw==
+X-Google-Smtp-Source: AHgI3Ia6ifDLiDziehHa+LGRKtMr/aFcCrLoukw/oRH9ekCRaSYyb/4JRm26BQzyIcR0N6IRbjlQYw==
+X-Received: by 2002:a63:5d20:: with SMTP id r32mr15872762pgb.329.1549845563697;
+        Sun, 10 Feb 2019 16:39:23 -0800 (PST)
+Received: from [10.50.121.96] (c-73-202-78-81.hsd1.ca.comcast.net. [73.202.78.81])
+        by smtp.gmail.com with ESMTPSA id x2sm13973798pfx.78.2019.02.10.16.39.20
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 10 Feb 2019 16:39:22 -0800 (PST)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 12.2 \(3445.102.3\))
+Subject: Re: [PATCH v2 05/20] x86/alternative: initializing temporary mm for
+ patching
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <20190129003422.9328-6-rick.p.edgecombe@intel.com>
+Date: Sun, 10 Feb 2019 16:39:19 -0800
+Cc: Ingo Molnar <mingo@redhat.com>,
+ LKML <linux-kernel@vger.kernel.org>,
+ X86 ML <x86@kernel.org>,
+ "H. Peter Anvin" <hpa@zytor.com>,
+ Thomas Gleixner <tglx@linutronix.de>,
+ Borislav Petkov <bp@alien8.de>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Damian Tometzki <linux_dti@icloud.com>,
+ linux-integrity <linux-integrity@vger.kernel.org>,
+ LSM List <linux-security-module@vger.kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Kernel Hardening <kernel-hardening@lists.openwall.com>,
+ Linux-MM <linux-mm@kvack.org>,
+ Will Deacon <will.deacon@arm.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Kristen Carlson Accardi <kristen@linux.intel.com>,
+ "Dock, Deneen T" <deneen.t.dock@intel.com>,
+ Kees Cook <keescook@chromium.org>,
+ Dave Hansen <dave.hansen@intel.com>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <162C6C29-CD81-46FE-9A54-6ED05A93A9CB@gmail.com>
+References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
+ <20190129003422.9328-6-rick.p.edgecombe@intel.com>
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>,
+ Andy Lutomirski <luto@kernel.org>
+X-Mailer: Apple Mail (2.3445.102.3)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Ira Weiny <ira.weiny@intel.com>
+> On Jan 28, 2019, at 4:34 PM, Rick Edgecombe =
+<rick.p.edgecombe@intel.com> wrote:
+>=20
+> From: Nadav Amit <namit@vmware.com>
+>=20
+> To prevent improper use of the PTEs that are used for text patching, =
+we
+> want to use a temporary mm struct. We initailize it by copying the =
+init
+> mm.
+>=20
+> The address that will be used for patching is taken from the lower =
+area
+> that is usually used for the task memory. Doing so prevents the need =
+to
+> frequently synchronize the temporary-mm (e.g., when BPF programs are
+> installed), since different PGDs are used for the task memory.
+>=20
+> Finally, we randomize the address of the PTEs to harden against =
+exploits
+> that use these PTEs.
+>=20
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+> Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
+> Tested-by: Masami Hiramatsu <mhiramat@kernel.org>
+> Suggested-by: Andy Lutomirski <luto@kernel.org>
+> Signed-off-by: Nadav Amit <namit@vmware.com>
+> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
+> ---
+> arch/x86/include/asm/pgtable.h       |  3 +++
+> arch/x86/include/asm/text-patching.h |  2 ++
+> arch/x86/kernel/alternative.c        |  3 +++
+> arch/x86/mm/init_64.c                | 36 ++++++++++++++++++++++++++++
+> init/main.c                          |  3 +++
+> 5 files changed, 47 insertions(+)
+>=20
+> diff --git a/arch/x86/include/asm/pgtable.h =
+b/arch/x86/include/asm/pgtable.h
+> index 40616e805292..e8f630d9a2ed 100644
+> --- a/arch/x86/include/asm/pgtable.h
+> +++ b/arch/x86/include/asm/pgtable.h
+> @@ -1021,6 +1021,9 @@ static inline void __meminit =
+init_trampoline_default(void)
+> 	/* Default trampoline pgd value */
+> 	trampoline_pgd_entry =3D init_top_pgt[pgd_index(__PAGE_OFFSET)];
+> }
+> +
+> +void __init poking_init(void);
+> +
+> # ifdef CONFIG_RANDOMIZE_MEMORY
+> void __meminit init_trampoline(void);
+> # else
+> diff --git a/arch/x86/include/asm/text-patching.h =
+b/arch/x86/include/asm/text-patching.h
+> index f8fc8e86cf01..a75eed841eed 100644
+> --- a/arch/x86/include/asm/text-patching.h
+> +++ b/arch/x86/include/asm/text-patching.h
+> @@ -39,5 +39,7 @@ extern void *text_poke_kgdb(void *addr, const void =
+*opcode, size_t len);
+> extern int poke_int3_handler(struct pt_regs *regs);
+> extern void *text_poke_bp(void *addr, const void *opcode, size_t len, =
+void *handler);
+> extern int after_bootmem;
+> +extern __ro_after_init struct mm_struct *poking_mm;
+> +extern __ro_after_init unsigned long poking_addr;
+>=20
+> #endif /* _ASM_X86_TEXT_PATCHING_H */
+> diff --git a/arch/x86/kernel/alternative.c =
+b/arch/x86/kernel/alternative.c
+> index 12fddbc8c55b..ae05fbb50171 100644
+> --- a/arch/x86/kernel/alternative.c
+> +++ b/arch/x86/kernel/alternative.c
+> @@ -678,6 +678,9 @@ void *__init_or_module text_poke_early(void *addr, =
+const void *opcode,
+> 	return addr;
+> }
+>=20
+> +__ro_after_init struct mm_struct *poking_mm;
+> +__ro_after_init unsigned long poking_addr;
+> +
+> static void *__text_poke(void *addr, const void *opcode, size_t len)
+> {
+> 	unsigned long flags;
+> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> index bccff68e3267..125c8c48aa24 100644
+> --- a/arch/x86/mm/init_64.c
+> +++ b/arch/x86/mm/init_64.c
+> @@ -53,6 +53,7 @@
+> #include <asm/init.h>
+> #include <asm/uv/uv.h>
+> #include <asm/setup.h>
+> +#include <asm/text-patching.h>
+>=20
+> #include "mm_internal.h"
+>=20
+> @@ -1383,6 +1384,41 @@ unsigned long memory_block_size_bytes(void)
+> 	return memory_block_size_probed;
+> }
+>=20
+> +/*
+> + * Initialize an mm_struct to be used during poking and a pointer to =
+be used
+> + * during patching.
+> + */
+> +void __init poking_init(void)
+> +{
+> +	spinlock_t *ptl;
+> +	pte_t *ptep;
+> +
+> +	poking_mm =3D copy_init_mm();
+> +	BUG_ON(!poking_mm);
+> +
+> +	/*
+> +	 * Randomize the poking address, but make sure that the =
+following page
+> +	 * will be mapped at the same PMD. We need 2 pages, so find =
+space for 3,
+> +	 * and adjust the address if the PMD ends after the first one.
+> +	 */
+> +	poking_addr =3D TASK_UNMAPPED_BASE;
+> +	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE))
+> +		poking_addr +=3D (kaslr_get_random_long("Poking") & =
+PAGE_MASK) %
+> +			(TASK_SIZE - TASK_UNMAPPED_BASE - 3 * =
+PAGE_SIZE);
+> +
+> +	if (((poking_addr + PAGE_SIZE) & ~PMD_MASK) =3D=3D 0)
+> +		poking_addr +=3D PAGE_SIZE;
 
-The write argument is unused in gup_fast_permitted() so remove it.
+Further thinking about it, I think that allocating the virtual address =
+for
+poking from user address-range is problematic. The user can set =
+watchpoints
+on different addresses, cause some static-keys to be enabled/disabled, =
+and
+monitor the signals to derandomize the poking address.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-
----
-Changes since V1
-	Clean up commit message
-
- arch/x86/include/asm/pgtable_64.h | 3 +--
- mm/gup.c                          | 6 +++---
- 2 files changed, 4 insertions(+), 5 deletions(-)
-
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 9c85b54bf03c..0bb566315621 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -259,8 +259,7 @@ extern void init_extra_mapping_uc(unsigned long phys, unsigned long size);
- extern void init_extra_mapping_wb(unsigned long phys, unsigned long size);
- 
- #define gup_fast_permitted gup_fast_permitted
--static inline bool gup_fast_permitted(unsigned long start, int nr_pages,
--		int write)
-+static inline bool gup_fast_permitted(unsigned long start, int nr_pages)
- {
- 	unsigned long len, end;
- 
-diff --git a/mm/gup.c b/mm/gup.c
-index 05acd7e2eb22..b63e88eca31b 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1786,7 +1786,7 @@ static void gup_pgd_range(unsigned long addr, unsigned long end,
-  * Check if it's allowed to use __get_user_pages_fast() for the range, or
-  * we need to fall back to the slow version:
-  */
--bool gup_fast_permitted(unsigned long start, int nr_pages, int write)
-+bool gup_fast_permitted(unsigned long start, int nr_pages)
- {
- 	unsigned long len, end;
- 
-@@ -1828,7 +1828,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	 * block IPIs that come from THPs splitting.
- 	 */
- 
--	if (gup_fast_permitted(start, nr_pages, write)) {
-+	if (gup_fast_permitted(start, nr_pages)) {
- 		local_irq_save(flags);
- 		gup_pgd_range(start, end, write, pages, &nr);
- 		local_irq_restore(flags);
-@@ -1870,7 +1870,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	if (unlikely(!access_ok((void __user *)start, len)))
- 		return -EFAULT;
- 
--	if (gup_fast_permitted(start, nr_pages, write)) {
-+	if (gup_fast_permitted(start, nr_pages)) {
- 		local_irq_disable();
- 		gup_pgd_range(addr, end, write, pages, &nr);
- 		local_irq_enable();
--- 
-2.20.1
+Andy, I think you were pushing this change. Can I go back to use a =
+vmalloc=E2=80=99d
+address instead, or do you have a better solution? I prefer not to
+save/restore DR7, of course.
 
