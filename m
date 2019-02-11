@@ -2,204 +2,207 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F0107C169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 08:53:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1CB49C169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 08:59:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 934B020823
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 08:53:27 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="L96LTLLh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 934B020823
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id D509520818
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 08:59:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D509520818
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2500A8E00D1; Mon, 11 Feb 2019 03:53:27 -0500 (EST)
+	id 6B8D68E00D3; Mon, 11 Feb 2019 03:59:00 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1FF178E00D2; Mon, 11 Feb 2019 03:53:27 -0500 (EST)
+	id 640FD8E00D2; Mon, 11 Feb 2019 03:59:00 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0F8C68E00D1; Mon, 11 Feb 2019 03:53:27 -0500 (EST)
+	id 4BB0C8E00D3; Mon, 11 Feb 2019 03:59:00 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BD8968E00D1
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 03:53:26 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id v2so8866079plg.6
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 00:53:26 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CF398E00D2
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 03:59:00 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id w124so11529808qkc.14
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 00:59:00 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=KDBkDFLLWB84ftWBeJQUI9kj5iWAbuBF0V0vEEqxeTM=;
-        b=YGNSuQ66MpUXsN/PrVzDVaf+ppMF1ksViWqtJB7hWuGPKzj70pccEIoSwy3fXJXfqB
-         ceLaciGn/b4fbsaSx/0RWRJsveJWJhyXA6nX0wBlbTSHpRkq3RQRdexIT9NHIXQumima
-         2KuHU9iVZPH+j4O63FV+EgHWxweEzqs0VWC13oE/+/066IAz5f/Aps96lAnd4Fd3a2WI
-         6HkYVdcB8sl5PjZ1JaxEEgeV6s4ipVgvKipN2TNM6V48rzZmKZMoF36SKtTUmruZ91Ea
-         +1ufxZpx7GmA4wLg9dfGsu8H8fRHHj6pdBFw6TVkra2vExcePaX/MScXM4Yq7HkvkGgu
-         jK4A==
-X-Gm-Message-State: AHQUAubGax3YUS/ZUrtvULDkZG7bPzmo8LZyODjHtp0yJVpYUDCK5/5c
-	UcPUoe3tWgsKY8rLg4OlIRcuJjJfOvZktOgVr6Tg+YWxbr0DjgFYywnZevZBDPlDUTRef3e3V+s
-	RyYuLtnn1rTIYFXiJPjy66uUvL6wld8wwhizPLDSrMlOCKCY3MveARs5/ezf/saHozA==
-X-Received: by 2002:a62:2c81:: with SMTP id s123mr35296254pfs.174.1549875206430;
-        Mon, 11 Feb 2019 00:53:26 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZs+V0g8FS1fltrI8jQwNpoGUIB8TRQ9TtrS0+bVoVrv1kqOLg7iGErPKWqlI91fPWLi4RB
-X-Received: by 2002:a62:2c81:: with SMTP id s123mr35296217pfs.174.1549875205652;
-        Mon, 11 Feb 2019 00:53:25 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549875205; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=cZG8pweEg3COGd4FzuuyCBJqqeJZ9BxmaZwLjWtYDrk=;
+        b=q7L72obUFzOgPK/bFX1IsrSNf2afdKfV3R0N6nCXiWMfrX8mDBmZTVBKuGVdrxU5pf
+         8s5unUIxU40BUAECp17Pzu+Az7jeLpCEgsGoms9u4z6fZt0c8GzEVo/gErU0XGpFf3D/
+         rTKglO2s+WY8KQCidV/lel2GS/XvsvdkEM6lmU/kvQOHKFXuO2UM0soD3IF/oes+3CjC
+         ojgLa+D9xBupg3tnNWl+rT7Pqa6xTXHXohior1iS16kd8odMPi+yWJBDoMogVmsnbakt
+         cFVBMUsnZl+MZ2IB9oAYVzh7wiC2gM0+wYhXrPg71/e3/v4Xmv2PBLZIXZtlIhtVKoRo
+         pnIQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAuYDY+drxl2jYZwPj/gWwoOilKS2tImlJIX8qTNwleiJ0b6F8qaE
+	2X1hJD/6FSpgOTQJDbnZFkgBjQfKTW0XZoDLx1RobyRtNh4xzQakyvHz0hIzqgKIq4NTUf2pcen
+	syIcuZCEQT2Y3jSuoOpTkC4wA8KvGS0E/q8bNsB76+yPnf5JYWwSzur6DrrL0WvPuzw==
+X-Received: by 2002:ac8:2ca9:: with SMTP id 38mr26812448qtw.338.1549875539759;
+        Mon, 11 Feb 2019 00:58:59 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZYgLJFf28n/S4TQKwdElZ7RaQSosZ68f/DXwZqqJqvDut2ptpZBqItZEnMTUuV3FOMpU8M
+X-Received: by 2002:ac8:2ca9:: with SMTP id 38mr26812431qtw.338.1549875539352;
+        Mon, 11 Feb 2019 00:58:59 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549875539; cv=none;
         d=google.com; s=arc-20160816;
-        b=MZHSTOuN+479XDUt1K7ticdXKr9Mh8zsLHUTvLnBUwiQ/Q4Ldhu3St/m0BCXxpuQlD
-         bRalkqYN9pTb+oMSRTCk+LkqJtO/Oet6UuhjvVfFaUPm7xnO2QjaRr5/o1EGx5rVpmhI
-         qPEWKb+yXfg05ED/b//Zu7lwypYdi24eqvvBggjc3bDX9DamEmvHNOlScee94CVApRf9
-         B6Mdjqyg1gnXVe+M17g3qdXen8h3ny/Fzmq/gtJs8BAVpqEYqFafp5jPZa7uJ0v6n3C4
-         16ZdOcRjtQOtezMoYPwva9q3zJ+GDYhHTtxboosQ8ThOhSNmF5eShtlr9ip21RSwjqKR
-         XhJg==
+        b=ieNEXeYoBF99xJA6c6JmHo2stw+pw3pvZQE8GL3uRAfqQRCY1y2J4iN4vkjqUDXnto
+         +V9khh5hiRKP1M+zczOjKv3I/LWF4hAngaYCdegGJVuB2NMSpOKvYfwIyjWi7D8iDOW/
+         tQrF2HjAB+Px1uqd1q8DRVghgYeVG7giVyZHkXI3GGUqgitEs1gfCtQhLehAXTWKDTaG
+         gpR9KJF8S6hnzVt9y82FUih6A9egtzvgD8idjlBmm/rwax8tAxHXVhTvz+qKU6MnZpi5
+         6g76cOopdhA24GEthgBV8EmfyiG6ELKqngXgHEmoXQkBjbnn4Ke6k//MOCsnS3XsTLs7
+         /JbA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=KDBkDFLLWB84ftWBeJQUI9kj5iWAbuBF0V0vEEqxeTM=;
-        b=cF8MDIm1GVnA9TETvLFt9TBqkM3IYdqIOP8c2w6555PHF7apnl5SxJ9zlLcd7P71SP
-         9lQBsM2v7dHS3vUN10uxkGkML4Q0l/vZqWowCf3ai2ELKGIObaHy+tU5GB+VajNWc9u0
-         FA7lGpmv9u70vPZUEqCmaWHR7afaV04xGdx0wWSqfknK93g6c97SFbjfcx7JB6HqFm9O
-         NIuW+XHQ5hrlRfEcB6mGu4dAWHerPRDHxgJC9lFlY1VNe+o0c/mXnkOUhKK4Gv1DPHcg
-         BW2qVEzv/ew0WkDvSkciXV7lBgJn6NBhp6KkHeIcSvLa7OPAG2Oj91jbFVwcJBW4PawL
-         Gk3w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=cZG8pweEg3COGd4FzuuyCBJqqeJZ9BxmaZwLjWtYDrk=;
+        b=RJWUWPAo1nqCLzxKRMLvvpwD24m95AI1Y1c0THinpJDNWe3K5UPN4apWQnnaqB0XKe
+         msV+qMrjY14r0Oyd6tYdQdhagBCfcgCYxaodPfdt9umxMxFvqc2cL4VYe5pOZWXZSK4X
+         ZXso/aT8X4Rb7ZTvGQ8E0UUpA4HksGayWC5lFNwBV4vb2oVvS1K0G3Miakk/xOxo4bk1
+         3S0sRkiyI6mNIy1Gfyfrosqmf6WO1UB4TM7sEdSqi0OG91uGalAbVJuLVz5KNrJ+hRO7
+         b6g0q8eUjjNdw4dt4ZTS1Y1Apg7bhRu5Tp3rV8b5hV9JyjD/Ol/+tvRJ8Hfn53QozQsi
+         3qwQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=L96LTLLh;
-       spf=pass (google.com: domain of tariqt@mellanox.com designates 40.107.15.40 as permitted sender) smtp.mailfrom=tariqt@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-eopbgr150040.outbound.protection.outlook.com. [40.107.15.40])
-        by mx.google.com with ESMTPS id f10si9256102plo.53.2019.02.11.00.53.24
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z2si1764084qvj.66.2019.02.11.00.58.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 11 Feb 2019 00:53:25 -0800 (PST)
-Received-SPF: pass (google.com: domain of tariqt@mellanox.com designates 40.107.15.40 as permitted sender) client-ip=40.107.15.40;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Feb 2019 00:58:59 -0800 (PST)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector1 header.b=L96LTLLh;
-       spf=pass (google.com: domain of tariqt@mellanox.com designates 40.107.15.40 as permitted sender) smtp.mailfrom=tariqt@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=KDBkDFLLWB84ftWBeJQUI9kj5iWAbuBF0V0vEEqxeTM=;
- b=L96LTLLh9f2T/M6wn9ECPja7bAvLFt9M9XR6/0Ry/bIfRkr/ZPZYxyDZG8SJcnuxL0m/1ZQxkOD4fUEv2xIsoC3z9GmN3xNrOj4mavPTMd3K9+hGAQizakCC+fFYSws+/7S5lGgh/uP/qZtt+9z7NgH0OqmXqtaPpjrVMm4UCZI=
-Received: from HE1PR05MB3257.eurprd05.prod.outlook.com (10.170.243.19) by
- HE1PR05MB3465.eurprd05.prod.outlook.com (10.170.244.31) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1601.22; Mon, 11 Feb 2019 08:53:19 +0000
-Received: from HE1PR05MB3257.eurprd05.prod.outlook.com
- ([fe80::550a:a35e:2062:792a]) by HE1PR05MB3257.eurprd05.prod.outlook.com
- ([fe80::550a:a35e:2062:792a%7]) with mapi id 15.20.1601.023; Mon, 11 Feb 2019
- 08:53:19 +0000
-From: Tariq Toukan <tariqt@mellanox.com>
-To: Ilias Apalodimas <ilias.apalodimas@linaro.org>, Matthew Wilcox
-	<willy@infradead.org>
-CC: David Miller <davem@davemloft.net>, "brouer@redhat.com"
-	<brouer@redhat.com>, "toke@redhat.com" <toke@redhat.com>,
-	"netdev@vger.kernel.org" <netdev@vger.kernel.org>,
-	"mgorman@techsingularity.net" <mgorman@techsingularity.net>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: [RFC, PATCH] net: page_pool: Don't use page->private to store
- dma_addr_t
-Thread-Topic: [RFC, PATCH] net: page_pool: Don't use page->private to store
- dma_addr_t
-Thread-Index:
- AQHUvvKPEpTQQqXqi0+ZzMx9yc3kKaXUb92AgAADlACAAGXpgIAAAm4AgAACaICABXJdAA==
-Date: Mon, 11 Feb 2019 08:53:19 +0000
-Message-ID: <bfd83487-7073-18c8-6d89-e50fe9a83313@mellanox.com>
-References: <1549550196-25581-1-git-send-email-ilias.apalodimas@linaro.org>
- <20190207150745.GW21860@bombadil.infradead.org>
- <20190207152034.GA3295@apalos>
- <20190207.132519.1698007650891404763.davem@davemloft.net>
- <20190207213400.GA21860@bombadil.infradead.org>
- <20190207214237.GA10676@Iliass-MBP.lan>
-In-Reply-To: <20190207214237.GA10676@Iliass-MBP.lan>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: LNXP265CA0087.GBRP265.PROD.OUTLOOK.COM
- (2603:10a6:600:76::27) To HE1PR05MB3257.eurprd05.prod.outlook.com
- (2603:10a6:7:35::19)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=tariqt@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [193.47.165.251]
-x-ms-publictraffictype: Email
-x-microsoft-exchange-diagnostics:
- 1;HE1PR05MB3465;6:aldZn9mPZnrW52/XpgXSfiHiL5ry3g4RdQmU8BeNi81hUlXEnqX09enVdYhCzZapzQ9yfY7VjdbnZ9DIX/UM96ak15jzWUy873HX4D4fGI1Ypq/18TP0cCR6y3A1YYCA5+oYBr6JTCpEFAe5QYvq87BEkBbQPo+nbvAgB/nmHWdKhpIRR5qVcKeck3yJ+OYf5jT5lCQa3FLbtd4QBgxBRPBunWXAaDOR2dWPfnyHzg8/3hCTTb8AaZ8NgHCZ29L5kfLLe5R6J9TscT5QMcGTP6egY/kA20xJsGJDWAGW9DnsgWL1mUOgAc8YzwGGNHbx/8qS34ORcIUmmX/AvJnMsOFK7WLs0QMqry4Uvv2qFOHXPZaLkiwya1TXnGcXd5PlLvEyK9Q1oYBLWUa0mIphwq8kQ6tFR2Hr8Unjt2ZTHfW/EDNRC6VCAXDWJXMhiXexlbDaR3PV91tzhVWzLsEMUQ==;5:Bd9yQuPCCZVqA5rBYy1ywRbCUk2CImq4S90h8b9PlXOHhyUm7/mGeU8i/R+24QXT0EdKWQIi2S1K/bAfcBsSjg4+5NzpGgICmCPEgbukgmWhXzmxS5cLIEHJknKyIIPSEWTlVfg1TxJU/tsAgyw+xWHoS7GFO4jXc1NxXAy2O2gQw5hTE20fs1JUDK9ToUdVZkyD6rODudK/XlNKp9VcTw==;7:ERJhu1TWjSTY457l6uARmVOo7KB5bhJcT2tHqA5HifuaZtNVdqRxjWMH8l5FSgNEEb1fnwk/LW43sVtULIqlHkw6Gnm9eVDCTkmkpkoq1ArklmM2XW4In2zgoDShHDPAl8PMmSEvRjun0il9tqM//w==
-x-ms-office365-filtering-correlation-id: e6ef6687-3ef4-4868-b6a0-08d68ffe5e7c
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(4618075)(2017052603328)(7153060)(7193020);SRVR:HE1PR05MB3465;
-x-ms-traffictypediagnostic: HE1PR05MB3465:
-x-microsoft-antispam-prvs:
- <HE1PR05MB3465CFE235962AE34417CB15AE640@HE1PR05MB3465.eurprd05.prod.outlook.com>
-x-forefront-prvs: 0945B0CC72
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(366004)(39860400002)(136003)(396003)(346002)(376002)(199004)(189003)(316002)(106356001)(7736002)(66066001)(305945005)(105586002)(71190400001)(71200400001)(68736007)(2906002)(14454004)(54906003)(476003)(26005)(6512007)(93886005)(31696002)(6486002)(3846002)(256004)(86362001)(6436002)(99286004)(4326008)(6116002)(81166006)(186003)(8936002)(6246003)(11346002)(31686004)(52116002)(446003)(561944003)(8676002)(76176011)(229853002)(2616005)(81156014)(478600001)(102836004)(110136005)(25786009)(386003)(6506007)(53546011)(36756003)(486006)(53936002)(97736004);DIR:OUT;SFP:1101;SCL:1;SRVR:HE1PR05MB3465;H:HE1PR05MB3257.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- F2fX7HIOOmGoOYbZ5avf102tnS0X0ufiCqrf0MhZTKaM4mnf06kjVGlrFGF9rJPuy/a3kzHlzgvRiTSdKjZy+OapCOVUkxpzAeLRF0f9afpxLguCHOtSRlsv+/wy5c5oxy2hUf1O8WHEOo4chzYt2Wf+M6T7EBR4Chd97HuytHO3hDbdVksFeWsBVAkrrCtD5FXqVu+QYjEDO25guSqLwPTGlJgQ8C1gN/pdGZHigPRHupEHirGii7Vy3LdjDONIrxYXCz+NKuPGPS/A50cf6S3e+Z4petIWNI+yeZ5dmYXEyQzWIuvp7NUoVMByZ6OYaMhFoP2H/mWWo46bePSsvOan1mj+IaJX/7cxfhHVNMUhMxnT5MOJ0o+sDwe/MBJwLgDgb/eUp4RmSoPotmxCV2ahYpa76WhMAzNEY7LfRX0=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <1DA2B51E92115147B7DCFDECE7A60F1F@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 85290356C4;
+	Mon, 11 Feb 2019 08:58:58 +0000 (UTC)
+Received: from [10.36.116.241] (ovpn-116-241.ams2.redhat.com [10.36.116.241])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 1975C10E81C0;
+	Mon, 11 Feb 2019 08:58:56 +0000 (UTC)
+Subject: Re: [PATCH] mm,memory_hotplug: Explicitly pass the head to
+ isolate_huge_page
+To: Oscar Salvador <osalvador@suse.de>, akpm@linux-foundation.org
+Cc: mhocko@suse.com, anthony.yznaga@oracle.com, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+References: <20190208090604.975-1-osalvador@suse.de>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
+ dBrn+lhhOYjjNefFQou6478faXE6o2AhmebqT4KiQoUQFV4R7y1KMEKoSyy8hQaK1umALTdL
+ QZLQMzNE74ap+GDK0wnacPQFpcG1AE9RMq3aeErY5tujekBS32jfC/7AnH7I0v1v1TbbK3Gp
+ XNeiN4QroO+5qaSr0ID2sz5jtBLRb15RMre27E1ImpaIv2Jw8NJgW0k/D1RyKCwaTsgRdwuK
+ Kx/Y91XuSBdz0uOyU/S8kM1+ag0wvsGlpBVxRR/xw/E8M7TEwuCZQArqqTCmkG6HGcXFT0V9
+ PXFNNgV5jXMQRwU0O/ztJIQqsE5LsUomE//bLwzj9IVsaQpKDqW6TAPjcdBDPLHvriq7kGjt
+ WhVhdl0qEYB8lkBEU7V2Yb+SYhmhpDrti9Fq1EsmhiHSkxJcGREoMK/63r9WLZYI3+4W2rAc
+ UucZa4OT27U5ZISjNg3Ev0rxU5UH2/pT4wJCfxwocmqaRr6UYmrtZmND89X0KigoFD/XSeVv
+ jwBRNjPAubK9/k5NoRrYqztM9W6sJqrH8+UWZ1Idd/DdmogJh0gNC0+N42Za9yBRURfIdKSb
+ B3JfpUqcWwE7vUaYrHG1nw54pLUoPG6sAA7Mehl3nd4pZUALHwARAQABzSREYXZpZCBIaWxk
+ ZW5icmFuZCA8ZGF2aWRAcmVkaGF0LmNvbT7CwX4EEwECACgFAljj9eoCGwMFCQlmAYAGCwkI
+ BwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEE3eEPcA/4Na5IIP/3T/FIQMxIfNzZshIq687qgG
+ 8UbspuE/YSUDdv7r5szYTK6KPTlqN8NAcSfheywbuYD9A4ZeSBWD3/NAVUdrCaRP2IvFyELj
+ xoMvfJccbq45BxzgEspg/bVahNbyuBpLBVjVWwRtFCUEXkyazksSv8pdTMAs9IucChvFmmq3
+ jJ2vlaz9lYt/lxN246fIVceckPMiUveimngvXZw21VOAhfQ+/sofXF8JCFv2mFcBDoa7eYob
+ s0FLpmqFaeNRHAlzMWgSsP80qx5nWWEvRLdKWi533N2vC/EyunN3HcBwVrXH4hxRBMco3jvM
+ m8VKLKao9wKj82qSivUnkPIwsAGNPdFoPbgghCQiBjBe6A75Z2xHFrzo7t1jg7nQfIyNC7ez
+ MZBJ59sqA9EDMEJPlLNIeJmqslXPjmMFnE7Mby/+335WJYDulsRybN+W5rLT5aMvhC6x6POK
+ z55fMNKrMASCzBJum2Fwjf/VnuGRYkhKCqqZ8gJ3OvmR50tInDV2jZ1DQgc3i550T5JDpToh
+ dPBxZocIhzg+MBSRDXcJmHOx/7nQm3iQ6iLuwmXsRC6f5FbFefk9EjuTKcLMvBsEx+2DEx0E
+ UnmJ4hVg7u1PQ+2Oy+Lh/opK/BDiqlQ8Pz2jiXv5xkECvr/3Sv59hlOCZMOaiLTTjtOIU7Tq
+ 7ut6OL64oAq+zsFNBFXLn5EBEADn1959INH2cwYJv0tsxf5MUCghCj/CA/lc/LMthqQ773ga
+ uB9mN+F1rE9cyyXb6jyOGn+GUjMbnq1o121Vm0+neKHUCBtHyseBfDXHA6m4B3mUTWo13nid
+ 0e4AM71r0DS8+KYh6zvweLX/LL5kQS9GQeT+QNroXcC1NzWbitts6TZ+IrPOwT1hfB4WNC+X
+ 2n4AzDqp3+ILiVST2DT4VBc11Gz6jijpC/KI5Al8ZDhRwG47LUiuQmt3yqrmN63V9wzaPhC+
+ xbwIsNZlLUvuRnmBPkTJwwrFRZvwu5GPHNndBjVpAfaSTOfppyKBTccu2AXJXWAE1Xjh6GOC
+ 8mlFjZwLxWFqdPHR1n2aPVgoiTLk34LR/bXO+e0GpzFXT7enwyvFFFyAS0Nk1q/7EChPcbRb
+ hJqEBpRNZemxmg55zC3GLvgLKd5A09MOM2BrMea+l0FUR+PuTenh2YmnmLRTro6eZ/qYwWkC
+ u8FFIw4pT0OUDMyLgi+GI1aMpVogTZJ70FgV0pUAlpmrzk/bLbRkF3TwgucpyPtcpmQtTkWS
+ gDS50QG9DR/1As3LLLcNkwJBZzBG6PWbvcOyrwMQUF1nl4SSPV0LLH63+BrrHasfJzxKXzqg
+ rW28CTAE2x8qi7e/6M/+XXhrsMYG+uaViM7n2je3qKe7ofum3s4vq7oFCPsOgwARAQABwsFl
+ BBgBAgAPBQJVy5+RAhsMBQkJZgGAAAoJEE3eEPcA/4NagOsP/jPoIBb/iXVbM+fmSHOjEshl
+ KMwEl/m5iLj3iHnHPVLBUWrXPdS7iQijJA/VLxjnFknhaS60hkUNWexDMxVVP/6lbOrs4bDZ
+ NEWDMktAeqJaFtxackPszlcpRVkAs6Msn9tu8hlvB517pyUgvuD7ZS9gGOMmYwFQDyytpepo
+ YApVV00P0u3AaE0Cj/o71STqGJKZxcVhPaZ+LR+UCBZOyKfEyq+ZN311VpOJZ1IvTExf+S/5
+ lqnciDtbO3I4Wq0ArLX1gs1q1XlXLaVaA3yVqeC8E7kOchDNinD3hJS4OX0e1gdsx/e6COvy
+ qNg5aL5n0Kl4fcVqM0LdIhsubVs4eiNCa5XMSYpXmVi3HAuFyg9dN+x8thSwI836FoMASwOl
+ C7tHsTjnSGufB+D7F7ZBT61BffNBBIm1KdMxcxqLUVXpBQHHlGkbwI+3Ye+nE6HmZH7IwLwV
+ W+Ajl7oYF+jeKaH4DZFtgLYGLtZ1LDwKPjX7VAsa4Yx7S5+EBAaZGxK510MjIx6SGrZWBrrV
+ TEvdV00F2MnQoeXKzD7O4WFbL55hhyGgfWTHwZ457iN9SgYi1JLPqWkZB0JRXIEtjd4JEQcx
+ +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <1b36e2a9-daf4-ed39-88da-f95fb0d25171@redhat.com>
+Date: Mon, 11 Feb 2019 09:58:56 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: e6ef6687-3ef4-4868-b6a0-08d68ffe5e7c
-X-MS-Exchange-CrossTenant-originalarrivaltime: 11 Feb 2019 08:53:17.5761
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: HE1PR05MB3465
+In-Reply-To: <20190208090604.975-1-osalvador@suse.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Mon, 11 Feb 2019 08:58:58 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-DQoNCk9uIDIvNy8yMDE5IDExOjQyIFBNLCBJbGlhcyBBcGFsb2RpbWFzIHdyb3RlOg0KPiBIaSBN
-YXR0aGV3LA0KPiANCj4gT24gVGh1LCBGZWIgMDcsIDIwMTkgYXQgMDE6MzQ6MDBQTSAtMDgwMCwg
-TWF0dGhldyBXaWxjb3ggd3JvdGU6DQo+PiBPbiBUaHUsIEZlYiAwNywgMjAxOSBhdCAwMToyNTox
-OVBNIC0wODAwLCBEYXZpZCBNaWxsZXIgd3JvdGU6DQo+Pj4gRnJvbTogSWxpYXMgQXBhbG9kaW1h
-cyA8aWxpYXMuYXBhbG9kaW1hc0BsaW5hcm8ub3JnPg0KPj4+IERhdGU6IFRodSwgNyBGZWIgMjAx
-OSAxNzoyMDozNCArMDIwMA0KPj4+DQo+Pj4+IFdlbGwgdXBkYXRpbmcgc3RydWN0IHBhZ2UgaXMg
-dGhlIGZpbmFsIGdvYWwsIGhlbmNlIHRoZSBjb21tZW50LiBJIGFtIG1vc3RseQ0KPj4+PiBsb29r
-aW5nIGZvciBvcGluaW9ucyBoZXJlIHNpbmNlIHdlIGFyZSB0cnlpbmcgdG8gc3RvcmUgZG1hIGFk
-ZHJlc3NlcyB3aGljaCBhcmUNCj4+Pj4gaXJyZWxldmFudCB0byBwYWdlcy4gSGF2aW5nIGRtYV9h
-ZGRyX3QgZGVmaW5pdGlvbnMgaW4gbW0tcmVsYXRlZCBoZWFkZXJzIGlzIGENCj4+Pj4gYml0IGNv
-bnRyb3ZlcnNpYWwgaXNuJ3QgaXQgPyBJZiB3ZSBjYW4gYWRkIHRoYXQsIHRoZW4geWVzIHRoZSBj
-b2RlIHdvdWxkIGxvb2sNCj4+Pj4gYmV0dGVyDQo+Pj4NCj4+PiBJIGZ1bmRhbWVudGFsbHkgZGlz
-YWdyZWUuDQo+Pj4NCj4+PiBPbmUgb2YgdGhlIGNvcmUgb3BlcmF0aW9ucyBwZXJmb3JtZWQgb24g
-YSBwYWdlIGlzIG1hcHBpbmcgaXQgc28gdGhhdCBhIGRldmljZQ0KPj4+IGFuZCB1c2UgaXQuDQo+
-Pj4NCj4+PiBXaHkgaGF2ZSBhbmNpbGxhcnkgZGF0YSBzdHJ1Y3R1cmUgc3VwcG9ydCBmb3IgdGhp
-cyBhbGwgb3ZlciB0aGUgcGxhY2UsIHJhdGhlcg0KPj4+IHRoYW4gaW4gdGhlIGNvbW1vbiBzcG90
-IHdoaWNoIGlzIHRoZSBwYWdlLg0KPj4+DQo+Pj4gQSBwYWdlIHJlYWxseSBpcyBub3QganVzdCBh
-ICdtbScgc3RydWN0dXJlLCBpdCBpcyBhIHN5c3RlbSBzdHJ1Y3R1cmUuDQo+Pg0KPj4gKzENCj4+
-DQo+PiBUaGUgZnVuZGFtZW50YWwgcG9pbnQgb2YgY29tcHV0aW5nIGlzIHRvIGRvIEkvTy4NCj4g
-T2ssIGdyZWF0IHRoYXQgc2hvdWxkIHNvcnQgaXQgb3V0IHRoZW4uDQo+IEknbGwgdXNlIHlvdXIg
-cHJvcG9zYWwgYW5kIGJhc2UgdGhlIHBhdGNoIG9uIHRoYXQuDQo+IA0KPiBUaGFua3MgZm9yIHRh
-a2luZyB0aGUgdGltZSB3aXRoIHRoaXMNCj4gDQo+IC9JbGlhcw0KPiANCg0KSGksDQoNCkl0J3Mg
-Z3JlYXQgdG8gdXNlIHRoZSBzdHJ1Y3QgcGFnZSB0byBzdG9yZSBpdHMgZG1hIG1hcHBpbmcsIGJ1
-dCBJIGFtIA0Kd29ycmllZCBhYm91dCBleHRlbnNpYmlsaXR5Lg0KcGFnZV9wb29sIGlzIGV2b2x2
-aW5nLCBhbmQgaXQgd291bGQgbmVlZCBzZXZlcmFsIG1vcmUgcGVyLXBhZ2UgZmllbGRzLiANCk9u
-ZSBvZiB0aGVtIHdvdWxkIGJlIHBhZ2VyZWZfYmlhcywgYSBwbGFubmVkIG9wdGltaXphdGlvbiB0
-byByZWR1Y2UgdGhlIA0KbnVtYmVyIG9mIHRoZSBjb3N0bHkgYXRvbWljIHBhZ2VyZWYgb3BlcmF0
-aW9ucyAoYW5kIHJlcGxhY2UgZXhpc3RpbmcgDQpjb2RlIGluIHNldmVyYWwgZHJpdmVycykuDQoN
-Ckkgd291bGQgcmVwbGFjZSB0aGlzIGRtYSBmaWVsZCB3aXRoIGEgcG9pbnRlciB0byBhbiBleHRl
-bnNpYmxlIHN0cnVjdCwgDQp0aGF0IHdvdWxkIGNvbnRhaW4gdGhlIGRtYSBtYXBwaW5nIChhbmQg
-b3RoZXIgc3R1ZmYgaW4gdGhlIG5lYXIgZnV0dXJlKS4NClRoaXMgcG9pbnRlciBmaXRzIHBlcmZl
-Y3RseSB3aXRoIHRoZSBleGlzdGluZyB1bnNpZ25lZCBsb25nIHByaXZhdGU7IA0KdGhleSBjYW4g
-c2hhcmUgdGhlIG1lbW9yeSwgZm9yIGJvdGggMzItIGFuZCA2NC1iaXRzIHN5c3RlbXMuDQoNClRo
-ZSBvbmx5IGRvd25zaWRlIGlzIG9uZSBtb3JlIHBvaW50ZXIgZGUtcmVmZXJlbmNlLiBUaGlzIHNo
-b3VsZCBiZSBwZXJmIA0KdGVzdGVkLg0KSG93ZXZlciwgd2hlbiBpbnRyb2R1Y2luZyB0aGUgcGFn
-ZSByZWZjbnQgYmlhcyBvcHRpbWl6YXRpb24gaW50byANCnBhZ2VfcG9vbCwgSSBiZWxpZXZlIHRo
-ZSBwZXJmIGdhaW4gd291bGQgYmUgZ3VhcmFudGVlZC4NCg0KUmVnYXJkcywNClRhcmlxDQo=
+On 08.02.19 10:06, Oscar Salvador wrote:
+> isolate_huge_page() expects we pass the head of hugetlb page to it:
+> 
+> bool isolate_huge_page(...)
+> {
+> 	...
+> 	VM_BUG_ON_PAGE(!PageHead(page), page);
+> 	...
+> }
+> 
+> While I really cannot think of any situation where we end up with a
+> non-head page between hands in do_migrate_range(), let us make sure
+> the code is as sane as possible by explicitly passing the Head.
+> Since we already got the pointer, it does not take us extra effort.
+> 
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> ---
+>  mm/memory_hotplug.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 656ff386ac15..d5f7afda67db 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1378,12 +1378,12 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+>  
+>  		if (PageHuge(page)) {
+>  			struct page *head = compound_head(page);
+> -			pfn = page_to_pfn(head) + (1<<compound_order(head)) - 1;
+>  			if (compound_order(head) > PFN_SECTION_SHIFT) {
+>  				ret = -EBUSY;
+>  				break;
+>  			}
+> -			isolate_huge_page(page, &source);
+> +			pfn = page_to_pfn(head) + (1<<compound_order(head)) - 1;
+> +			isolate_huge_page(head, &source);
+>  			continue;
+>  		} else if (PageTransHuge(page))
+>  			pfn = page_to_pfn(compound_head(page))
+> 
+
+Reviewed-by: David Hildenbrand <david@redhat.com>
+
+-- 
+
+Thanks,
+
+David / dhildenb
 
