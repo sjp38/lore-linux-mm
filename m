@@ -2,347 +2,236 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 23295C169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:09:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B1608C282D7
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:10:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D04B421B24
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:09:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D04B421B24
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 6BA2321B24
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:10:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6BA2321B24
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8094B8E011F; Mon, 11 Feb 2019 13:09:50 -0500 (EST)
+	id 2143E8E0120; Mon, 11 Feb 2019 13:10:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7B6BB8E0115; Mon, 11 Feb 2019 13:09:50 -0500 (EST)
+	id 1C31D8E0115; Mon, 11 Feb 2019 13:10:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 631848E011F; Mon, 11 Feb 2019 13:09:50 -0500 (EST)
+	id 08BB98E0120; Mon, 11 Feb 2019 13:10:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 346BA8E0115
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:09:50 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id y31so512132qty.9
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:09:50 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B680D8E0115
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:10:11 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id f3so8923046pgq.13
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:10:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:organization:message-id:date:user-agent
-         :mime-version:in-reply-to;
-        bh=BsB2XW0tUJl9MZB9fu+15jcrkYz6qOBb/22TfuymnQ4=;
-        b=pusOYzzAjyLCFr4FlQDF87x46eIQ5E0o8VziFMLv/8AIyWbS0djZqEH8yudG2Hkwv7
-         /RyGtUfOWrcellceDPGn9ext/aycxUaytu0PJtmamNpMZFvw4qzECDfjSA8l1tQ3cGKc
-         gLT7IJ/9OzVGdaekqwZX3fqMttIxZFJjNsDhvVM1BereTlzm6apRupyIAODLxWfymshm
-         W7rPs9BsJsEftW440ZUWW02My/Sar6bJK5GEzLd+xwy+GtBQl1N22YHG1Ijx494mK4wn
-         q5olFlOyiI9Bz8ODlgRCdNjSuDsoaIrqqkd/lyp7/JEipqySXFgq7pOQr3wwifxdxoBx
-         E54A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZedz1mrLvJiTEUzxbZslb8XC9XH5OV4T7nv7YXXASGNS5k3KcI
-	6OtTDT0/11i+jqQEGT1d3LlT6ieK77NeqF7/JgSqkTqaMACP5xVDbgNJpsXgk8F9msiOu27kQH6
-	XNodGGi+rVjlIjnMhvqM/K70A65LfeiA2AP5aySoc3x/3t9w6BOabsIEhoLb/1OV53Q==
-X-Received: by 2002:ac8:7553:: with SMTP id b19mr24152772qtr.238.1549908589941;
-        Mon, 11 Feb 2019 10:09:49 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaXoh75FjGC8MEErSKi6yZcssDOP28DlXXkWVzu3HirP02iOg/qdfMn8irVirPlj5k5x6jH
-X-Received: by 2002:ac8:7553:: with SMTP id b19mr24152737qtr.238.1549908589390;
-        Mon, 11 Feb 2019 10:09:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549908589; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=rLHPW8/CEDBrTRMQdcQdUEqjbPUOTmPZPivfj71OSVg=;
+        b=YAtGdAuK9V9IsgcLme5kvH24dYcZ2CNfLvALrpqeSu1rRzq+R7wYx91kfdAwYIlvOv
+         V8Mkl6wxIv0eoTw/Y2cJhXNIynEXkO2pHJjmZHhGxsoKV+nJ8jZ6ZLJmJ3PXWO1p7HKx
+         FOwMFcC7jJZ8wuY8o8Mcy/fRS1dDkQdg9qfDNG8t3ziVIgOv/Mpf6NRvnFRJJN2CdxCl
+         LGUeCwn/5J55K9fentb0ZFr0VyvD2rkMP5+OFJfNO9bmMyYVQiKg7x5Cgel9HX+4Iqmv
+         h7MsK56yaSjuqfCEiXHQ2GDLms4YZghdWsgppZYlLY3Kzpn8UzAVg/imGe0H1Y8qXZEq
+         u1Tg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuYB87AAVfm0B4XbUmEWfm0FK6V1MUf4rAccbMXLGRQWDu6rg/y1
+	lW+izsUFzm5vzVIkWuqhxiYP7J8DhiGo1/kSBZquJg9+AEMltwwzS2kmcMoTdcMe0fXmT3tcQem
+	X/hqlWQKRbkyfxioD8E3FDB+ue5LbBIveUbO5feyvPY8iXTpxdYkLF9ErNXyAXldi6w==
+X-Received: by 2002:a63:9c1a:: with SMTP id f26mr34841008pge.381.1549908611354;
+        Mon, 11 Feb 2019 10:10:11 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbGoSBWxpcsaWaYCwj+/kpqwUpp84AGvCK8ohsQMYPaZLUE0ujvlgTaJBKtKi6XccgkBy2G
+X-Received: by 2002:a63:9c1a:: with SMTP id f26mr34840944pge.381.1549908610367;
+        Mon, 11 Feb 2019 10:10:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549908610; cv=none;
         d=google.com; s=arc-20160816;
-        b=b5Mt7evje5UMCUCiAmkDfn12Kg0IuTl45v+nIsx1LFK/hzt7MhGQrUyoKQ6z7PUtGu
-         MCXJwgPdcmOxFDhttsuLeaWqhiNWkJ93ReoREYfvIuy2nybNY3koSmr/xnZm/XhjxxkX
-         z7XhtUAilfxtnehURs0HyvCuKbN68kFHdK1qwC/0XQ/zSLZ3kOATn9yc2gKsOJktc+d8
-         5htdFLjyuXIW/CQ9Z71ktZHoU1p4sHkA+lu93bv+degwVNBQnIfPoD30TPYCU00oaYdK
-         jtx8shIOcw5DC2o4f4m/Gpu0CynJbv/9DQ0eikgsLzXkNS6uwNlDP7z+A1J15zWJ8IcM
-         OFSQ==
+        b=O6KFxw6has5jwZQs3bXgmq/RAUmStmPN91dwoMpOqVYQMA8qpmt8wV1Lwfjk7fzhIm
+         Um4+laJrsX/A5U2V9SdiUNhPuk+FT76W7/Fanm84W+MNxVUOwZ4gid+NgxXMHhORn+Qz
+         MKiiwZdm8sqUpoERlKuL/rZuDfznX2v29YTO77fSp6TI5JsC3iGbvKz6rP4VAQm6v7vp
+         Kjz3eBFIEkSYRnzLszwo7et6HzFPjTMGgmCu3x6pOMnJGL0aJ7tG6J7edpnYW+wAoHQ3
+         xlqxuEtH4YbHJ/Gkz9Mi9OqpACruuNQOvxhN1gbx9uNHAs54leGG9Trk32U7u4vRi8Ao
+         8fOQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:mime-version:user-agent:date:message-id:organization
-         :references:subject:cc:to:from;
-        bh=BsB2XW0tUJl9MZB9fu+15jcrkYz6qOBb/22TfuymnQ4=;
-        b=y+vpgoy1NoS9yhoSn8rwwKFDHfxuPAoZu48DcNHMDtQ6xE0Kum3RGbLsfXydD9QE8c
-         NmjVbohw7A4QTLtydT52iru9znBXSdSEQkD9ZJc5Av5e6iTJe7io+p6JhTbwtI1o84vK
-         qe7PKicZwKh5kqbb8DyBeVGBmIpNPPHtAYUyrX2y2tMKAfeLAPSPq0zPst6bSnxxvVUD
-         rXplzHrFdU7+5Rs7e+2ezsvlmADgEPMxaX1U6JZbhD41Fv1NtewZaMG8HLseLC/JVJzV
-         JOdHnAveuXXWUr9P/bDV7vFqXI5eaYN8KAROv/ynhuFLtUgRjFtpUXKUiM4Rwy9wny76
-         eadQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=rLHPW8/CEDBrTRMQdcQdUEqjbPUOTmPZPivfj71OSVg=;
+        b=H/CVEjVqaMyDkmyzsC7qfTG0lqvnttFhuNb4nsWW6uOiPPFyv3AX80B/ozCNPDAISp
+         pblRsj5h+QYp+M/YqRmDIEJQZtE2jyMPr9zFJbXeyIrMKTgTL2yxNprX8sJf56o1BMfq
+         oT74aXyECb/TOBqGfVvl3UPgcmOZ6qMh5+cKlO2epPtLYeWiBTUyRFqyaf7sejuqhcXQ
+         LpqohlDt39vOxjwcG9c+fVHtiQAG6+EvGqY3TmROViJgRtMp47yuPyjvHvlSdIg4SF5b
+         1I/xoHwzwwwlhc5ah2OxXNtz8j8s3euuagTvFDk54Qe6PwiP6lcIM2PaUgbbDn7d0V7A
+         Wt6Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q12si205322qvd.64.2019.02.11.10.09.49
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id x22si9871232pgf.570.2019.02.11.10.10.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 10:09:49 -0800 (PST)
-Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 11 Feb 2019 10:10:10 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 74A21A82C;
-	Mon, 11 Feb 2019 18:09:48 +0000 (UTC)
-Received: from [10.18.17.32] (dhcp-17-32.bos.redhat.com [10.18.17.32])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id CF3D560C6B;
-	Mon, 11 Feb 2019 18:09:42 +0000 (UTC)
-From: Nitesh Narayan Lal <nitesh@redhat.com>
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Feb 2019 10:10:07 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,359,1544515200"; 
+   d="scan'208";a="137744035"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga001.jf.intel.com with ESMTP; 11 Feb 2019 10:10:06 -0800
+Message-ID: <44d0848e62f6d5237b60d209265dbcdf58ade1b9.camel@linux.intel.com>
+Subject: Re: [RFC PATCH 3/4] kvm: Add guest side support for free memory
+ hints
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com,
- alexander.h.duyck@linux.intel.com, x86@kernel.org, mingo@redhat.com,
- bp@alien8.de, hpa@zytor.com, pbonzini@redhat.com, tglx@linutronix.de,
- akpm@linux-foundation.org
-Subject: Re: [RFC PATCH 4/4] mm: Add merge page notifier
+Cc: Alexander Duyck <alexander.duyck@gmail.com>, linux-mm@kvack.org, 
+ linux-kernel@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, 
+ x86@kernel.org, mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
+ pbonzini@redhat.com,  tglx@linutronix.de, akpm@linux-foundation.org
+Date: Mon, 11 Feb 2019 10:10:06 -0800
+In-Reply-To: <20190211122321-mutt-send-email-mst@kernel.org>
 References: <20190204181118.12095.38300.stgit@localhost.localdomain>
- <20190204181558.12095.83484.stgit@localhost.localdomain>
- <20190209195325-mutt-send-email-mst@kernel.org>
- <7fcb61d6-64f0-f3ae-5e32-0e9f587fdd49@redhat.com>
- <20190211091623-mutt-send-email-mst@kernel.org>
- <ac61d035-7c7b-bfec-c78b-b9387c40d3ea@redhat.com>
- <20190211123815-mutt-send-email-mst@kernel.org>
-Organization: Red Hat Inc,
-Message-ID: <ea3ab38d-36e7-d2fa-6ebf-df6c048e17e0@redhat.com>
-Date: Mon, 11 Feb 2019 13:09:40 -0500
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
-MIME-Version: 1.0
-In-Reply-To: <20190211123815-mutt-send-email-mst@kernel.org>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="c5ocnaYNnPDVZBKYZaAjEHZbi4GrRb2Dg"
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Mon, 11 Feb 2019 18:09:48 +0000 (UTC)
+	 <20190204181552.12095.46287.stgit@localhost.localdomain>
+	 <20190209194437-mutt-send-email-mst@kernel.org>
+	 <869a170e9232ffbc8ddbcf3d15535e8c6daedbde.camel@linux.intel.com>
+	 <20190211122321-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---c5ocnaYNnPDVZBKYZaAjEHZbi4GrRb2Dg
-Content-Type: multipart/mixed; boundary="d7qNngcBe97AVwp8UkiKrXYgbgVRREpbY";
- protected-headers="v1"
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com,
- alexander.h.duyck@linux.intel.com, x86@kernel.org, mingo@redhat.com,
- bp@alien8.de, hpa@zytor.com, pbonzini@redhat.com, tglx@linutronix.de,
- akpm@linux-foundation.org
-Message-ID: <ea3ab38d-36e7-d2fa-6ebf-df6c048e17e0@redhat.com>
-Subject: Re: [RFC PATCH 4/4] mm: Add merge page notifier
+On Mon, 2019-02-11 at 12:36 -0500, Michael S. Tsirkin wrote:
+> On Mon, Feb 11, 2019 at 08:31:34AM -0800, Alexander Duyck wrote:
+> > On Sat, 2019-02-09 at 19:49 -0500, Michael S. Tsirkin wrote:
+> > > On Mon, Feb 04, 2019 at 10:15:52AM -0800, Alexander Duyck wrote:
+> > > > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > > > 
+> > > > Add guest support for providing free memory hints to the KVM hypervisor for
+> > > > freed pages huge TLB size or larger. I am restricting the size to
+> > > > huge TLB order and larger because the hypercalls are too expensive to be
+> > > > performing one per 4K page.
+> > > 
+> > > Even 2M pages start to get expensive with a TB guest.
+> > 
+> > Agreed.
+> > 
+> > > Really it seems we want a virtio ring so we can pass a batch of these.
+> > > E.g. 256 entries, 2M each - that's more like it.
+> > 
+> > The only issue I see with doing that is that we then have to defer the
+> > freeing. Doing that is going to introduce issues in the guest as we are
+> > going to have pages going unused for some period of time while we wait
+> > for the hint to complete, and we cannot just pull said pages back. I'm
+> > not really a fan of the asynchronous nature of Nitesh's patches for
+> > this reason.
+> 
+> Well nothing prevents us from doing an extra exit to the hypervisor if
+> we want. The asynchronous nature is there as an optimization
+> to allow hypervisor to do its thing on a separate CPU.
+> Why not proceed doing other things meanwhile?
+> And if the reason is that we are short on memory, then
+> maybe we should be less aggressive in hinting?
+> 
+> E.g. if we just have 2 pages:
+> 
+> hint page 1
+> page 1 hint processed?
+> 	yes - proceed to page 2
+> 	no - wait for interrupt
+> 
+> get interrupt that page 1 hint is processed
+> hint page 2
+> 
+> 
+> If hypervisor happens to be running on same CPU it
+> can process things synchronously and we never enter
+> the no branch.
+> 
 
---d7qNngcBe97AVwp8UkiKrXYgbgVRREpbY
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Another concern I would have about processing this asynchronously is
+that we have the potential for multiple guest CPUs to become
+bottlenecked by a single host CPU. I am not sure if that is something
+that would be desirable.
 
-On 2/11/19 12:41 PM, Michael S. Tsirkin wrote:
-> On Mon, Feb 11, 2019 at 11:24:02AM -0500, Nitesh Narayan Lal wrote:
->> On 2/11/19 9:17 AM, Michael S. Tsirkin wrote:
->>> On Mon, Feb 11, 2019 at 08:30:03AM -0500, Nitesh Narayan Lal wrote:
->>>> On 2/9/19 7:57 PM, Michael S. Tsirkin wrote:
->>>>> On Mon, Feb 04, 2019 at 10:15:58AM -0800, Alexander Duyck wrote:
->>>>>> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
->>>>>>
->>>>>> Because the implementation was limiting itself to only providing h=
-ints on
->>>>>> pages huge TLB order sized or larger we introduced the possibility=
- for free
->>>>>> pages to slip past us because they are freed as something less the=
-n
->>>>>> huge TLB in size and aggregated with buddies later.
->>>>>>
->>>>>> To address that I am adding a new call arch_merge_page which is ca=
-lled
->>>>>> after __free_one_page has merged a pair of pages to create a highe=
-r order
->>>>>> page. By doing this I am able to fill the gap and provide full cov=
-erage for
->>>>>> all of the pages huge TLB order or larger.
->>>>>>
->>>>>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>=
+> > > > Using the huge TLB order became the obvious
+> > > > choice for the order to use as it allows us to avoid fragmentation of higher
+> > > > order memory on the host.
+> > > > 
+> > > > I have limited the functionality so that it doesn't work when page
+> > > > poisoning is enabled. I did this because a write to the page after doing an
+> > > > MADV_DONTNEED would effectively negate the hint, so it would be wasting
+> > > > cycles to do so.
+> > > 
+> > > Again that's leaking host implementation detail into guest interface.
+> > > 
+> > > We are giving guest page hints to host that makes sense,
+> > > weird interactions with other features due to host
+> > > implementation details should be handled by host.
+> > 
+> > I don't view this as a host implementation detail, this is guest
+> > feature making use of all pages for debugging. If we are placing poison
+> > values in the page then I wouldn't consider them an unused page, it is
+> > being actively used to store the poison value.
+> 
+> Well I guess it's a valid point of view for a kernel hacker, but they are
+> unused from application's point of view.
+> However poisoning is transparent to users and most distro users
+> are not aware of it going on. They just know that debug kernels
+> are slower.
+> User loading a debug kernel and immediately breaking overcommit
+> is an unpleasant experience.
 
->>>>> Looks like this will be helpful whenever active free page
->>>>> hints are added. So I think it's a good idea to
->>>>> add a hook.
->>>>>
->>>>> However, could you split adding the hook to a separate
->>>>> patch from the KVM hypercall based implementation?
->>>>>
->>>>> Then e.g. Nilal's patches could reuse it too.
->>>> With the current design of my patch-set, if I use this hook to repor=
-t
->>>> free pages. I will end up making redundant hints for the same pfns.
->>>>
->>>> This is because the pages once freed by the host, are returned back =
-to
->>>> the buddy.
->>> Suggestions on how you'd like to fix this? You do need this if
->>> you introduce a size cut-off right?
->> I do, there are two ways to go about it.
->>
->> One is to=C2=A0 use this and have a flag in the page structure indicat=
-ing
->> whether that page has been freed/used or not.
-> Not sure what do you mean. The refcount does this right?
-I meant a flag using which I could determine whether a PFN has been
-already freed by the host or not. This is to avoid repetitive free.
->
->> Though I am not sure if
->> this will be acceptable upstream.
->> Second is to find another place to invoke guest_free_page() post buddy=
+How would that be any different then a user loading an older kernel
+that doesn't have this feature and breaking overcommit as a result?
 
->> merging.
-> Might be easier.
->
->>>>>> ---
->>>>>>  arch/x86/include/asm/page.h |   12 ++++++++++++
->>>>>>  arch/x86/kernel/kvm.c       |   28 ++++++++++++++++++++++++++++
->>>>>>  include/linux/gfp.h         |    4 ++++
->>>>>>  mm/page_alloc.c             |    2 ++
->>>>>>  4 files changed, 46 insertions(+)
->>>>>>
->>>>>> diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/pa=
-ge.h
->>>>>> index 4487ad7a3385..9540a97c9997 100644
->>>>>> --- a/arch/x86/include/asm/page.h
->>>>>> +++ b/arch/x86/include/asm/page.h
->>>>>> @@ -29,6 +29,18 @@ static inline void arch_free_page(struct page *=
-page, unsigned int order)
->>>>>>  	if (static_branch_unlikely(&pv_free_page_hint_enabled))
->>>>>>  		__arch_free_page(page, order);
->>>>>>  }
->>>>>> +
->>>>>> +struct zone;
->>>>>> +
->>>>>> +#define HAVE_ARCH_MERGE_PAGE
->>>>>> +void __arch_merge_page(struct zone *zone, struct page *page,
->>>>>> +		       unsigned int order);
->>>>>> +static inline void arch_merge_page(struct zone *zone, struct page=
- *page,
->>>>>> +				   unsigned int order)
->>>>>> +{
->>>>>> +	if (static_branch_unlikely(&pv_free_page_hint_enabled))
->>>>>> +		__arch_merge_page(zone, page, order);
->>>>>> +}
->>>>>>  #endif
->>>>>> =20
->>>>>>  #include <linux/range.h>
->>>>>> diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
->>>>>> index 09c91641c36c..957bb4f427bb 100644
->>>>>> --- a/arch/x86/kernel/kvm.c
->>>>>> +++ b/arch/x86/kernel/kvm.c
->>>>>> @@ -785,6 +785,34 @@ void __arch_free_page(struct page *page, unsi=
-gned int order)
->>>>>>  		       PAGE_SIZE << order);
->>>>>>  }
->>>>>> =20
->>>>>> +void __arch_merge_page(struct zone *zone, struct page *page,
->>>>>> +		       unsigned int order)
->>>>>> +{
->>>>>> +	/*
->>>>>> +	 * The merging logic has merged a set of buddies up to the
->>>>>> +	 * KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER. Since that is the case, ta=
-ke
->>>>>> +	 * advantage of this moment to notify the hypervisor of the free=
+I still think it would be better if we left the poisoning enabled in
+such a case and just displayed a warning message if nothing else that
+hinting is disabled because of page poisoning.
 
->>>>>> +	 * memory.
->>>>>> +	 */
->>>>>> +	if (order !=3D KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER)
->>>>>> +		return;
->>>>>> +
->>>>>> +	/*
->>>>>> +	 * Drop zone lock while processing the hypercall. This
->>>>>> +	 * should be safe as the page has not yet been added
->>>>>> +	 * to the buddy list as of yet and all the pages that
->>>>>> +	 * were merged have had their buddy/guard flags cleared
->>>>>> +	 * and their order reset to 0.
->>>>>> +	 */
->>>>>> +	spin_unlock(&zone->lock);
->>>>>> +
->>>>>> +	kvm_hypercall2(KVM_HC_UNUSED_PAGE_HINT, page_to_phys(page),
->>>>>> +		       PAGE_SIZE << order);
->>>>>> +
->>>>>> +	/* reacquire lock and resume freeing memory */
->>>>>> +	spin_lock(&zone->lock);
->>>>>> +}
->>>>>> +
->>>>>>  #ifdef CONFIG_PARAVIRT_SPINLOCKS
->>>>>> =20
->>>>>>  /* Kick a cpu by its apicid. Used to wake up a halted vcpu */
->>>>>> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
->>>>>> index fdab7de7490d..4746d5560193 100644
->>>>>> --- a/include/linux/gfp.h
->>>>>> +++ b/include/linux/gfp.h
->>>>>> @@ -459,6 +459,10 @@ static inline struct zonelist *node_zonelist(=
-int nid, gfp_t flags)
->>>>>>  #ifndef HAVE_ARCH_FREE_PAGE
->>>>>>  static inline void arch_free_page(struct page *page, int order) {=
- }
->>>>>>  #endif
->>>>>> +#ifndef HAVE_ARCH_MERGE_PAGE
->>>>>> +static inline void
->>>>>> +arch_merge_page(struct zone *zone, struct page *page, int order) =
-{ }
->>>>>> +#endif
->>>>>>  #ifndef HAVE_ARCH_ALLOC_PAGE
->>>>>>  static inline void arch_alloc_page(struct page *page, int order) =
-{ }
->>>>>>  #endif
->>>>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>>>>> index c954f8c1fbc4..7a1309b0b7c5 100644
->>>>>> --- a/mm/page_alloc.c
->>>>>> +++ b/mm/page_alloc.c
->>>>>> @@ -913,6 +913,8 @@ static inline void __free_one_page(struct page=
- *page,
->>>>>>  		page =3D page + (combined_pfn - pfn);
->>>>>>  		pfn =3D combined_pfn;
->>>>>>  		order++;
->>>>>> +
->>>>>> +		arch_merge_page(zone, page, order);
->>>>>>  	}
->>>>>>  	if (max_order < MAX_ORDER) {
->>>>>>  		/* If we are here, it means order is >=3D pageblock_order.
->>>> --=20
->>>> Regards
->>>> Nitesh
->>>>
->>>
->> --=20
->> Regards
->> Nitesh
->>
->
->
---=20
-Regards
-Nitesh
+One other thought I had on this is that one side effect of page
+poisoning is probably that KSM would be able to merge all of the poison
+pages together into a single page since they are all set to the same
+values. So even with the poisoned pages it would be possible to reduce
+total memory overhead.
 
+> > If we can achieve this
+> > and free the page back to the host then even better, but until the
+> > features can coexist we should not use the page hinting while page
+> > poisoning is enabled.
+> 
+> Existing hinting in balloon allows them to coexist so I think we
+> need to set the bar just as high for any new variant.
 
---d7qNngcBe97AVwp8UkiKrXYgbgVRREpbY--
+That is what I heard. I will have to look into this.
 
---c5ocnaYNnPDVZBKYZaAjEHZbi4GrRb2Dg
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+> > This is one of the reasons why I was opposed to just disabling page
+> > poisoning when this feature was enabled in Nitesh's patches. If the
+> > guest has page poisoning enabled it is doing something with the page.
+> > It shouldn't be prevented from doing that because the host wants to
+> > have the option to free the pages.
+> 
+> I agree but I think the decision belongs on the host. I.e.
+> hint the page but tell the host it needs to be careful
+> about the poison value. It might also mean we
+> need to make sure poisoning happens after the hinting, not before.
 
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEkXcoRVGaqvbHPuAGo4ZA3AYyozkFAlxhumQACgkQo4ZA3AYy
-oznUwQ/+Kqi1R0b3vCG91aTEPof4m7+/hWZAKTAtsmxfAFcIF51vEft0suA8xKZZ
-qBfrn4KmUlCDMEEdkwuY1G2HwuKvo4KMxXVnmIWfl6PicT3S3Hi3sjItPB08a4ou
-bINoBIjG3tawHsuEhKGWcLr0wc6uD3gcZhJWTwqLktFRbxLW95uUGe8pJTJibLIF
-zFZcRczMONVkhScgJZ5oUnmvUr8nRPlCVPlRJPNu3rkzP8ks55Af5jQdhxWvhFeS
-xf6DdsOzLcqjUAX7FMt5sUeiSv7pdl+8+8z91qDfYjAC3B/xLuQ6Q8SoMO2CR2AY
-hiE31mJMq0WLnsJqPHPhT6hBSYd/EuyhMGu0NYFjjGTuvI/CgfJ2wOYkQpb/dBX6
-wsY/O/OnRb6fPt3rNW3KhT4ASV/+TPVIu70UK1EAVJER72e7pIZAcyg6R5BiMOqH
-T+X8d4WJBpN9Kp5KQBpo3I4iTdSSGqpwWxhOMpmGveZpb7cpZXVykECYHpDKQdAE
-PCnJfBi/q53LV4emdQOWeGZcjJwp8SE6ZfkSw7T1cnVZ1HcfDwxMHVgGeE5085ZT
-JbDgkJI82pGJ778gOKryt0vraR07xgXdgtJv9jJDCPfOVm7oyT5Oh8iWwSWVeHPI
-Li7uZYIYRIDpdUrIVQ8vitiq0YYNAmPBpU/1uinRE+gm2jLhogQ=
-=3dJa
------END PGP SIGNATURE-----
-
---c5ocnaYNnPDVZBKYZaAjEHZbi4GrRb2Dg--
+The only issue with poisoning after instead of before is that the hint
+is ignored and we end up triggering a page fault and zero as a result.
+It might make more sense to have an architecture specific call that can
+be paravirtualized to handle the case of poisoning the page for us if
+we have the unused page hint enabled. Otherwise the write to the page
+is a given to invalidate the hint.
 
