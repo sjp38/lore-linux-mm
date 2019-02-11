@@ -2,154 +2,215 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D1003C169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 17:48:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 39620C169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 17:50:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 72402218A4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 17:48:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72402218A4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 0294B218A4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 17:50:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0294B218A4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 24A528E0118; Mon, 11 Feb 2019 12:48:50 -0500 (EST)
+	id A87CB8E0119; Mon, 11 Feb 2019 12:50:54 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1F9C18E0115; Mon, 11 Feb 2019 12:48:50 -0500 (EST)
+	id A0E238E0115; Mon, 11 Feb 2019 12:50:54 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 10F978E0118; Mon, 11 Feb 2019 12:48:50 -0500 (EST)
+	id 8B0098E0119; Mon, 11 Feb 2019 12:50:54 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AEDFE8E0115
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 12:48:49 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id o21so10206268edq.4
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 09:48:49 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 2F90A8E0115
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 12:50:54 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id o21so10211817edq.4
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 09:50:54 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Woj98bsgbfFSB87xdJTDCcNJHU+2ziEKRxQaytTRy2Q=;
-        b=KNhrwXiqbFFnKVnoNMmd/2TAHbW6ufmADkJlN/mi397tc2qeHQTEtMUrREfltjZAOA
-         7fl7ZQFEm3kOgh5Vo/OkdDBou4pePhnho4u0RGSjNeqs7iinUOWIIPEZaOzZsiiPHiRI
-         UPsjLEeMQjmGYAmm3qm3a+EzJZcHPUuhXnYg/36A80yJ83eJapwSlfv5DdKMJ8jcVqIL
-         FssJtc2RBovA8S+NP0YyuicaC8zmdlsxYXidNfD26tCqC2yaoJoRHqjUbC+fZUsP7Al0
-         JiFTiwu2zjiPZPB1GSoz0OewMiKOSiVLkPKu+103xtz4XECVYCWPVBrqtOyWfMoqvpz5
-         2bsw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: AHQUAuaya+q60lwMl1jFVzPbOTx8Y140l3J3TGcDc0fYATsT6SYB15v2
-	kWxBSbEkPRMUU4DDLT0sHNMCszkax7Ke2LLLEswP5c4d5sw1gnn0qbKX+eknfB3JyjbLcxgH+eY
-	vWsfdi/Fh8mahjv8hbJekT2HlSkN1PyHoFgzs+rm8gw5KZfHku7GxOth7Pc46lpnFEQ==
-X-Received: by 2002:a17:906:1553:: with SMTP id c19mr26380814ejd.233.1549907329208;
-        Mon, 11 Feb 2019 09:48:49 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ3GScpPnylKPia5OFCCEfDf5pPKsJDPgKGAXQtVL450oajbehfHCSfhMpH+Yu41eWpzaLb
-X-Received: by 2002:a17:906:1553:: with SMTP id c19mr26380768ejd.233.1549907328408;
-        Mon, 11 Feb 2019 09:48:48 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549907328; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=veawUBnl7JE/3ERhcQmuKCHTaYi8q6QzreDQa3Uf5PE=;
+        b=eenir7Vb44ntLosokipBuHU4e0ZBWRryee639t8FJM+okud4EgHB88872VMd0oV8Rf
+         b9vXYBUs+pic8iygqoNTtv5mRP2NmlVsbaiQcy2t6hGgkQgYArOOH2lkAdnUmKFlpat5
+         ca70aBjPD7AXQetdRqOxosyPEhs+Sq7ctVmqsJHJ4H5xNf6O4kfjPn6e04RucjACCdT1
+         +eu+Aj6h+j9NejcX6N55tC7QMLg+6YOeTo4ptrvMxXkNtvPcO0FumhG1gv6hF/A11N/z
+         9sSx6+erFpqwmP0sJJOtNPO4i+F8rlVtAgMJMVLCjqyY/FcxiziVpu0gOqIyZxI6Yh2g
+         0nEQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+X-Gm-Message-State: AHQUAua/su3rN5X5B4xZzZrA0U/PYQ5SbxA7lEvbtHcV9uOy5WRcH80e
+	oks7JZyK1iRNwQpshz6GZ4dC6R9X9hT8tcqhB9fgzPc3aDmVatRgKd95JUv45H7zVnWa32hQ/xR
+	8wNANCKTp736iNrXG2tbZHCMynrb5BARQ6g/c6YYwxU8M9s5/1Hhs/6ohOjXXoheWCg==
+X-Received: by 2002:a50:f141:: with SMTP id z1mr29947421edl.44.1549907453649;
+        Mon, 11 Feb 2019 09:50:53 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZQtAVw87WP7DV25KIlHS9lwU5AEYFbCH7p+bV/pbUxG06DJKk2McDgUU0KTsTcqxXQMlXr
+X-Received: by 2002:a50:f141:: with SMTP id z1mr29947358edl.44.1549907452521;
+        Mon, 11 Feb 2019 09:50:52 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549907452; cv=none;
         d=google.com; s=arc-20160816;
-        b=Al+TrGZTWyq2oOliW4KfRj+7T8KWc201I+tTQmWB48a6X58+DoCpSRZoq7T8Fei6Dy
-         mskEe/H2dvB4rjji0flzfazSopbh+4UVmNmihuha/zpIwvgHxOhJ9Y4U+u5/FvrscDb0
-         ZLbSHYi/p7EPwAW729ePWZQnj7vhnCJ+KS8qVU6NvUSgDceDRQfadUm2oNO8tTxNmek9
-         ZTH7HY1td05G4Ag4LgzbrqcGIdcaH+kr+J1+qzwNG34/TDW8i5F0cBK3BY+/3WvCMC6o
-         tvjg5WA5wBUMAsnj2uEP9jfJXfqOSNP779OPhrSqF+zNEuMpSHtw9+o3yJ+ZVN7FuJTY
-         n44Q==
+        b=RZQ13ROAvIxSMzpGJDxwNu+36E+AO4ZTwYmJ36x7fUN4kI4ss2qIJhQ8lT/BCKbJ3b
+         Czn/RKg2dogaWzA9gPHMb4WdRQb3lcoCcZDz0xij1lkvJ1K7kR6p3Jm4VF5xPIbZTNCg
+         5GzA5ENRohKchlsFHkDQrY4xSTGM0FTrsNHkOe3cB3Ss5d5eNSfy4uegmUtIXqicZbpD
+         Ev922rUCSWMvBgVSDLiedIEm4aus7By8w/qWDdAi3/jyPQjjV4JYAhtLGlECyARRczgx
+         v+LaVTFwh2AEw7W4ywG1GmuXKAcsKlgNNBGheYTmGghK+ZKdZa+/z2okRoJ6+q0Xg4QT
+         W47g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Woj98bsgbfFSB87xdJTDCcNJHU+2ziEKRxQaytTRy2Q=;
-        b=HU0PqDwa3IX2xnBnobIBxlrp/O0fMevL6TtvAy9TP1JXGNrZRM3KGsV/wRy1G1MOMi
-         wse6bBupGJMyGH2a3FlHu/HIYAwdDE6l0PZoGC8iagOtGJBZerxCE8HxQ0rAXgTg0cGm
-         nBlSuwS4Y/VQEFAxce5WglEL/Mvg7oVMYZwO8CbdlYEmoUof1iAwvAkh7hDf6CRFeAH1
-         17kPQ+Ag18gp8+KbaHtWPohrTfWopK9Le+LSwFXiypAv/sTMN4jnMFxBFaUGPYxNQ2zM
-         IQkSUe8MEfCZNWNLDzm7RjEXBxxLpZYaKisd0bWO1sBjFwz8P+AEDXu8Q+pzKGACunUP
-         GcNw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=veawUBnl7JE/3ERhcQmuKCHTaYi8q6QzreDQa3Uf5PE=;
+        b=pnFuY7hGZuUqi9S6QdSsdRjjaSrs8yGQHhhSWbi4vTA6wRXNm5OCg+kAUYt+IuljvG
+         rKeGZmw9bjgX7sJL/mq4j+lcaWg8whKOXQ9j/NKURzvkdDxJtSMZ3RfF6rguauxiTiNU
+         bTZgmUTQoB3EyQfYdxTTzFoWPr/60JqLF61L83bx16jiikPE0OaW52GuUXY+HLx/meAH
+         nnhMyreUnk3+yyxyjGTHvfAhGPRq0iMqmU8CZD1bAVALmK5ZXAET5I8LjlJsboAP6E4j
+         lwkrZ6YIByM5nTfwuBUvjUXykX4Ilzwk5bim1qvr2P6cKqnBhZX9O2x3EU7IYG5Ic/68
+         9h2Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l89si41847edl.64.2019.02.11.09.48.48
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 09:48:48 -0800 (PST)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id m2si134349edm.389.2019.02.11.09.50.52
+        for <linux-mm@kvack.org>;
+        Mon, 11 Feb 2019 09:50:52 -0800 (PST)
+Received-SPF: pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 83649B11E;
-	Mon, 11 Feb 2019 17:48:47 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 857B41E09A8; Mon, 11 Feb 2019 18:48:46 +0100 (CET)
-Date: Mon, 11 Feb 2019 18:48:46 +0100
-From: Jan Kara <jack@suse.cz>
-To: Linux Upstream <linux.upstream@oneplus.com>
-Cc: Peter Zijlstra <peterz@infradead.org>,
-	Chintan Pandya <chintan.pandya@oneplus.com>,
-	"hughd@google.com" <hughd@google.com>,
-	"jack@suse.cz" <jack@suse.cz>,
-	"mawilcox@microsoft.com" <mawilcox@microsoft.com>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: [RFC 1/2] page-flags: Make page lock operation atomic
-Message-ID: <20190211174846.GM19029@quack2.suse.cz>
-References: <20190211125337.16099-1-chintan.pandya@oneplus.com>
- <20190211125337.16099-2-chintan.pandya@oneplus.com>
- <20190211134607.GA32511@hirez.programming.kicks-ass.net>
- <364c7595-14f5-7160-d076-35a14c90375a@oneplus.com>
+       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4CBD7EBD;
+	Mon, 11 Feb 2019 09:50:51 -0800 (PST)
+Received: from e110467-lin.cambridge.arm.com (e110467-lin.cambridge.arm.com [10.1.196.75])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id EA2C33F675;
+	Mon, 11 Feb 2019 09:50:49 -0800 (PST)
+From: Robin Murphy <robin.murphy@arm.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+	gregkh@linuxfoundation.org,
+	rafael@kernel.org,
+	mhocko@kernel.org,
+	akpm@linux-foundation.org,
+	osalvador@suse.de
+Subject: [PATCH v2] mm/memory-hotplug: Add sysfs hot-remove trigger
+Date: Mon, 11 Feb 2019 17:50:46 +0000
+Message-Id: <49ef5e6c12f5ede189419d4dcced5dc04957c34d.1549906631.git.robin.murphy@arm.com>
+X-Mailer: git-send-email 2.20.1.dirty
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <364c7595-14f5-7160-d076-35a14c90375a@oneplus.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 11-02-19 13:59:24, Linux Upstream wrote:
-> > 
-> >> Signed-off-by: Chintan Pandya <chintan.pandya@oneplus.com>
-> > 
-> > NAK.
-> > 
-> > This is bound to regress some stuff. Now agreed that using non-atomic
-> > ops is tricky, but many are in places where we 'know' there can't be
-> > concurrency.
-> > 
-> > If you can show any single one is wrong, we can fix that one, but we're
-> > not going to blanket remove all this just because.
-> 
-> Not quite familiar with below stack but from crash dump, found that this
-> was another stack running on some other CPU at the same time which also
-> updates page cache lru and manipulate locks.
-> 
-> [84415.344577] [20190123_21:27:50.786264]@1 preempt_count_add+0xdc/0x184
-> [84415.344588] [20190123_21:27:50.786276]@1 workingset_refault+0xdc/0x268
-> [84415.344600] [20190123_21:27:50.786288]@1 add_to_page_cache_lru+0x84/0x11c
-> [84415.344612] [20190123_21:27:50.786301]@1 ext4_mpage_readpages+0x178/0x714
-> [84415.344625] [20190123_21:27:50.786313]@1 ext4_readpages+0x50/0x60
-> [84415.344636] [20190123_21:27:50.786324]@1 
-> __do_page_cache_readahead+0x16c/0x280
-> [84415.344646] [20190123_21:27:50.786334]@1 filemap_fault+0x41c/0x588
-> [84415.344655] [20190123_21:27:50.786343]@1 ext4_filemap_fault+0x34/0x50
-> [84415.344664] [20190123_21:27:50.786353]@1 __do_fault+0x28/0x88
-> 
-> Not entirely sure if it's racing with the crashing stack or it's simply
-> overrides the the bit set by case 2 (mentioned in 0/2).
+ARCH_MEMORY_PROBE is a useful thing for testing and debugging hotplug,
+but being able to exercise the (arguably trickier) hot-remove path would
+be even more useful. Extend the feature to allow removal of offline
+sections to be triggered manually to aid development.
 
-So this is interesting. Looking at __add_to_page_cache_locked() nothing
-seems to prevent __SetPageLocked(page) in add_to_page_cache_lru() to get
-reordered into __add_to_page_cache_locked() after page is actually added to
-the xarray. So that one particular instance might benefit from atomic
-SetPageLocked or a barrier somewhere between __SetPageLocked() and the
-actual addition of entry into the xarray.
+Since process dictates the new sysfs entry be documented, let's also
+document the existing probe entry to match - better 13-and-a-half years
+late than never, as they say...
 
-								Honza
+Signed-off-by: Robin Murphy <robin.murphy@arm.com>
+---
+
+v2: Use is_memblock_offlined() helper, write up documentation
+
+ .../ABI/testing/sysfs-devices-memory          | 25 +++++++++++
+ drivers/base/memory.c                         | 42 ++++++++++++++++++-
+ 2 files changed, 66 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/ABI/testing/sysfs-devices-memory b/Documentation/ABI/testing/sysfs-devices-memory
+index deef3b5723cf..02a4250964e0 100644
+--- a/Documentation/ABI/testing/sysfs-devices-memory
++++ b/Documentation/ABI/testing/sysfs-devices-memory
+@@ -91,3 +91,28 @@ Description:
+ 		memory section directory.  For example, the following symbolic
+ 		link is created for memory section 9 on node0.
+ 		/sys/devices/system/node/node0/memory9 -> ../../memory/memory9
++
++What:		/sys/devices/system/memory/probe
++Date:		October 2005
++Contact:	Linux Memory Management list <linux-mm@kvack.org>
++Description:
++		The file /sys/devices/system/memory/probe is write-only, and
++		when written will simulate a physical hot-add of a memory
++		section at the given address. For example, assuming a section
++		of unused memory exists at physical address 0x80000000, it can
++		be introduced to the kernel with the following command:
++		# echo 0x80000000 > /sys/devices/system/memory/probe
++Users:		Memory hotplug testing and development
++
++What:		/sys/devices/system/memory/memoryX/remove
++Date:		February 2019
++Contact:	Linux Memory Management list <linux-mm@kvack.org>
++Description:
++		The file /sys/devices/system/memory/memoryX/remove is
++		write-only, and when written with a boolean 'true' value will
++		simulate a physical hot-remove of that memory section. For
++		example, assuming a 1GB section size, the section added by the
++		above "probe" example could be removed again with the following
++		command:
++		# echo 1 > /sys/devices/system/memory/memory2/remove
++Users:		Memory hotplug testing and development
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 048cbf7d5233..1ba9d1a6ba5e 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -521,7 +521,44 @@ static ssize_t probe_store(struct device *dev, struct device_attribute *attr,
+ }
+ 
+ static DEVICE_ATTR_WO(probe);
+-#endif
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++static ssize_t remove_store(struct device *dev, struct device_attribute *attr,
++			    const char *buf, size_t count)
++{
++	struct memory_block *mem = to_memory_block(dev);
++	unsigned long start_pfn = section_nr_to_pfn(mem->start_section_nr);
++	bool remove;
++	int ret;
++
++	ret = kstrtobool(buf, &remove);
++	if (ret)
++		return ret;
++	if (!remove)
++		return count;
++
++	if (!is_memblock_offlined(mem))
++		return -EBUSY;
++
++	ret = lock_device_hotplug_sysfs();
++	if (ret)
++		return ret;
++
++	if (device_remove_file_self(dev, attr)) {
++		__remove_memory(pfn_to_nid(start_pfn), PFN_PHYS(start_pfn),
++				MIN_MEMORY_BLOCK_SIZE * sections_per_block);
++		ret = count;
++	} else {
++		ret = -EBUSY;
++	}
++
++	unlock_device_hotplug();
++	return ret;
++}
++
++static DEVICE_ATTR_WO(remove);
++#endif /* CONFIG_MEMORY_HOTREMOVE */
++#endif /* CONFIG_ARCH_MEMORY_PROBE */
+ 
+ #ifdef CONFIG_MEMORY_FAILURE
+ /*
+@@ -615,6 +652,9 @@ static struct attribute *memory_memblk_attrs[] = {
+ 	&dev_attr_removable.attr,
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ 	&dev_attr_valid_zones.attr,
++#ifdef CONFIG_ARCH_MEMORY_PROBE
++	&dev_attr_remove.attr,
++#endif
+ #endif
+ 	NULL
+ };
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.20.1.dirty
 
