@@ -2,135 +2,169 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AC416C282D7
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:12:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 82E93C169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:15:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6B198218D8
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:12:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="knF1plx4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B198218D8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 42188218D8
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:15:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 42188218D8
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F29FE8E00DA; Mon, 11 Feb 2019 07:12:12 -0500 (EST)
+	id ADF4E8E00DB; Mon, 11 Feb 2019 07:15:02 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ED7578E00C3; Mon, 11 Feb 2019 07:12:12 -0500 (EST)
+	id A8EDB8E00C3; Mon, 11 Feb 2019 07:15:02 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DC71D8E00DA; Mon, 11 Feb 2019 07:12:12 -0500 (EST)
+	id 9A6D98E00DB; Mon, 11 Feb 2019 07:15:02 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B5188E00C3
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 07:12:12 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id e68so9233303plb.3
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 04:12:12 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B20A8E00C3
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 07:15:02 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id z10so9317565edz.15
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 04:15:02 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=BPtXQOxeYch/V0X+MBJp9wTl973Cc6vheZfDDJ3vJ1M=;
-        b=ljcUzoyolR+Ty7EPx2+po3noajTjLL7e6YMsc60k/hqAsIzLWw42wpi7PF5gQeEyKN
-         J3UGiRVnkygSSD+2RaveToispiJjJEL9dAUQpoKOvTsEMo2CyW18rnrCyhY12Uk9JVVh
-         T7HYIlLkIQckDnXPMJi16W340FdRRvjUn1M91ZWIwM82gQfuYz455kSOSwUeR3gqHeN8
-         fV8iJSq9/JF9BhsMyXl+2IB3vmAzP/jOU1gI6iDaGTPWuwBnIN0wgqc0Uwp7dBojrwpv
-         ROVKIOLr5AwD9Uf6yj2fL8VA6DQXXixIvGVuCPeWHb+XdM9V0SOFe1UVQSMEYN32I6Le
-         g13w==
-X-Gm-Message-State: AHQUAuYvSsfiQWMg8aHqZ5KmPdfp5NKpPw8oujO6wz3+S74petutD2Dr
-	AUbmGjoMcREe2kKdyfu2emUrR2NuAPtIjXNthXD6jPx+orY1mhfzt4IPPKDc4Yn52wxJQhITZpx
-	PdIph4YsksHHF8cFsdexLVIJCaQeGgAvfUz6OsYrh1wsCzZPrY20ps916dKzAiwskWg==
-X-Received: by 2002:a63:730c:: with SMTP id o12mr23696046pgc.270.1549887132183;
-        Mon, 11 Feb 2019 04:12:12 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbYarkp7O1EqTDnXdmirigPqX4uepTdWTM8JW5DyrDtGSuKBoq6qaGU8twPYEGTYkwdVnh1
-X-Received: by 2002:a63:730c:: with SMTP id o12mr23696013pgc.270.1549887131463;
-        Mon, 11 Feb 2019 04:12:11 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549887131; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=DVUAjR2LASXTwq5oldq4BzzwCjL4kz0Giez4U70nZmo=;
+        b=qS0o5g5+poah8Iyg6jXc1sfnUOM8D110x/Ce+glBabBOt1XprtB8en1Xo0XX5v8wpR
+         mhycJ7AD2uNgiOFWZiuA9JJMhTTbJDE/1WOOPhWev9S5lbb3Q/CwazLU0yYaKKaEz797
+         jOHYbjNQL7EJMnzz/veukfo6xmgo/52uld6USnXiwHecqpLvhzlYwy6sDhJJANBs3Rcv
+         xdNOg+mvEHGujGR9b7uBY5rKhgSSYtSjKwlBdL02KmYnhh/gSSjnpdtP0b5ScmYuqc/+
+         TdkmTq1yA6t7IHwRI+rXEj9z2vxtROanGjVfcJpfaf8G0N3Bb3h8eHPUVZCuGyd74r7O
+         I26g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Gm-Message-State: AHQUAuYyFU08jxxzTigi6TTUa6nAzRrehtcbyXmh0j8mTG9PSu+Wdc54
+	0BGsrbKkjhhFG4lhFJiUpVTNlKMEUk/TJHZIE3+TLWanxw7iqqt+LM9kzUDnUu6HpU3C+jMEJwm
+	n8z8pJgFhRQUuKYuGZYLHbOfNbXbUxEtuQJ4Sl4IkltTRJhRwsP3Yefud69ohNRGZbQ==
+X-Received: by 2002:a17:906:545:: with SMTP id k5-v6mr17576550eja.110.1549887301737;
+        Mon, 11 Feb 2019 04:15:01 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaNAVduK2TzNrM8cwDCd7Dp3YECgmUpL7Tygioe+Ft7p8KVsYwOK6IBuJPsODzeDWIb69rq
+X-Received: by 2002:a17:906:545:: with SMTP id k5-v6mr17576508eja.110.1549887300843;
+        Mon, 11 Feb 2019 04:15:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549887300; cv=none;
         d=google.com; s=arc-20160816;
-        b=BHOUya4UcnGITRdQ1y8h4+lJTN8IKvoXgAYJ9Xrtbj7uHYgzk113RToqPVYzaV7Jml
-         YYmQy+W/LtEXcn9TqslDBu88q5vTE8hPhQLqhVYBCSQrfQKkgx4vcGSmYJFGyTHSh26y
-         17XfNWAr6FN9uVZWNnN2xhIR1WoAJ0x0jm1zNnYHKBrR6UX7BCDTYBCj58qp4wr5gxKB
-         2m6VRJ3SgnLkbCgDt6W6NfG6fPVRNPylXFwPMnjToyd/HWPdPcsiFQQLYcf+9JkgyEmM
-         dDF1kMEpt6foUXEKVjM0lhTYt7f1FwiP1pwTZN4gJLzu3T0HrlyGq7vaGbN38rIgaDZN
-         mHHg==
+        b=kYlLdKFIqI/vCBUIKPNCACRezlhSPt/DAJeJItJWA8ydylz3uppaLm8lMy70iwUV5n
+         B9ELPtlEo053KpzeqobbLxv5X/JYOm9fq9N/yqt7AA97K7wiS98CXjB/gC10ZuVAL6iW
+         91QiAFMw3rrgr11emdpHvUgaXAUg06NEjGTVXWuTYdECUx19edqOAWa9AAoTv3WhGzW7
+         iun/nZGtgJzCwzrNYKiOCIbWc4x/EQ8FX7ZBj7HzToEmBJeiHY9PxaT+D+hWDxxju4he
+         TwNxPmjwosZuXS438UH4KFYXA5tjpWGdFEB6Fz22TKTKsEDseMa097R4rctX+3yRXyeV
+         rEOQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=BPtXQOxeYch/V0X+MBJp9wTl973Cc6vheZfDDJ3vJ1M=;
-        b=qR8BGJD+6h1yvXNaSI5E31d+c3jTdDWlg2nrWtjUt+kvvy/ih7KU5f9BH4qFPR+1on
-         EuV+zPAvlGTPlNvzmkd8rXur+mhcfk5LgNmXIWmmeDt/tEC1umaoIEL230zO318Oqkpf
-         V9DCr+Kw9AbzXEjRa3NrDyamdtQ/rQjKVd9mg4W5va/+dCZhXYNXgB7OwiEyuKhxvqPO
-         5jd6IGZXy3w1TDokpwvyQ9xcQ7XkbwRP1A4vSfhSrwEB+2Q0YCYg/ykHCHdPXvZm8k05
-         LTfl+o8mIDjGiNhcwT7ARkYlPBNnko2nNQpsqrN3VAAM0gwK9LvxM7l84gOnUvJzHQl0
-         GvNA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=DVUAjR2LASXTwq5oldq4BzzwCjL4kz0Giez4U70nZmo=;
+        b=XCgcEVtwgIdhN3rD7hHOQkR55GOTKmf0VlZKONasj74CJxYBYvizU2ujmO4YULvEbd
+         bMYx9wkjjpM3Kr7Zxb1Y3P8Opn78oORjFxQEPlq19SYcIRdy4Vbz8h/Or869hn1g8Ezu
+         MHICJRFS6MO471yNU1czja2Felcw/el/0Lnv2i2bmi1Nt01LdP0VeQbmwGQ5zgyWn7l1
+         kb/zSIyvGYwYAKzJoB76LvM5/ZVohUXNiqLqW/AuWYNDz8HROMPUm6hLoN8mYYAngLeo
+         nAn9NRM2Sb2MUHYU/dD0YDksN4kaOvS2a09WqIBR8/NaDceym78hOIkGbKVdfgtxC8et
+         th5A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=knF1plx4;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id m6si9472356pll.86.2019.02.11.04.12.11
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 21-v6si298602ejn.160.2019.02.11.04.15.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Feb 2019 04:12:11 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Feb 2019 04:15:00 -0800 (PST)
+Received-SPF: pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=knF1plx4;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=BPtXQOxeYch/V0X+MBJp9wTl973Cc6vheZfDDJ3vJ1M=; b=knF1plx4j7WuqTz9tOcA7myib
-	6p3FyKk+tbMpsSd/mVBx2nyHUziOgR2nxHufUUq8xgF+i23LnegLWIDZBDw1yID6TccRsHBgX098r
-	wpvnaFbVc5Jx54K+xqAypmZG4OhLOuK8oESV01holg8Wu3tNMT9x/bkFZAdkNo9d9rj3TjoYx99ad
-	bdmsboI8goqhAoKeAS4SiMw4oY0phQ/PE0ewAYxD92Jpub+1VDkRidQfYis9w8vdBuaSVSIqez5Iu
-	PjV5o4hOtyDvZ9lFXKTqXdSyc8CDfuqmMc3OuNi0yZYqrwTEOR+TRvedM96Hx+8JavPwlOe10bzwa
-	V9vQRBwBQ==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gtARU-00075I-CL; Mon, 11 Feb 2019 12:12:08 +0000
-Date: Mon, 11 Feb 2019 04:12:08 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: Tariq Toukan <tariqt@mellanox.com>
-Cc: Ilias Apalodimas <ilias.apalodimas@linaro.org>,
-	David Miller <davem@davemloft.net>,
-	"brouer@redhat.com" <brouer@redhat.com>,
-	"toke@redhat.com" <toke@redhat.com>,
-	"netdev@vger.kernel.org" <netdev@vger.kernel.org>,
-	"mgorman@techsingularity.net" <mgorman@techsingularity.net>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: [RFC, PATCH] net: page_pool: Don't use page->private to store
- dma_addr_t
-Message-ID: <20190211121208.GB12668@bombadil.infradead.org>
-References: <1549550196-25581-1-git-send-email-ilias.apalodimas@linaro.org>
- <20190207150745.GW21860@bombadil.infradead.org>
- <20190207152034.GA3295@apalos>
- <20190207.132519.1698007650891404763.davem@davemloft.net>
- <20190207213400.GA21860@bombadil.infradead.org>
- <20190207214237.GA10676@Iliass-MBP.lan>
- <bfd83487-7073-18c8-6d89-e50fe9a83313@mellanox.com>
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 43179AFFC;
+	Mon, 11 Feb 2019 12:15:00 +0000 (UTC)
+Subject: Re: [Xen-devel] [PATCH v2 1/2] x86: respect memory size limiting via
+ mem= parameter
+To: Ingo Molnar <mingo@kernel.org>
+Cc: sstabellini@kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
+ xen-devel@lists.xenproject.org, boris.ostrovsky@oracle.com,
+ tglx@linutronix.de
+References: <20190130082233.23840-1-jgross@suse.com>
+ <20190130082233.23840-2-jgross@suse.com> <20190211120650.GA74879@gmail.com>
+From: Juergen Gross <jgross@suse.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=jgross@suse.com; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <bd5863a2-291a-43e5-7633-c84c1026a31b@suse.com>
+Date: Mon, 11 Feb 2019 13:14:59 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.3.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <bfd83487-7073-18c8-6d89-e50fe9a83313@mellanox.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <20190211120650.GA74879@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2019 at 08:53:19AM +0000, Tariq Toukan wrote:
-> It's great to use the struct page to store its dma mapping, but I am 
-> worried about extensibility.
-> page_pool is evolving, and it would need several more per-page fields. 
-> One of them would be pageref_bias, a planned optimization to reduce the 
-> number of the costly atomic pageref operations (and replace existing 
-> code in several drivers).
+On 11/02/2019 13:06, Ingo Molnar wrote:
+> 
+> * Juergen Gross <jgross@suse.com> wrote:
+> 
+>> When limiting memory size via kernel parameter "mem=" this should be
+>> respected even in case of memory made accessible via a PCI card.
+>>
+>> Today this kind of memory won't be made usable in initial memory
+>> setup as the memory won't be visible in E820 map, but it might be
+>> added when adding PCI devices due to corresponding ACPI table entries.
+>>
+>> Not respecting "mem=" can be corrected by adding a global max_mem_size
+>> variable set by parse_memopt() which will result in rejecting adding
+>> memory areas resulting in a memory size above the allowed limit.
+> 
+> So historically 'mem=xxxM' was a way to quickly limit RAM.
 
-There's space for five words (20 or 40 bytes on 32/64 bit).
+Right.
+
+> If PCI devices had physical mmio memory areas above this range, we'd 
+> still expect them to work - the option was really only meant to limit 
+> RAM.
+
+No, in this case it seems to be real RAM added via PCI. The RAM is
+initially present in the E820 map, but the "mem=" will remove it from
+there again. During ACPI scan it is found (again) and will be added
+via hotplug mechanism, so "mem=" has no effect for that memory.
+
+
+Juergen
 
