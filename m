@@ -2,236 +2,149 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B1608C282D7
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:10:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B70ECC169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:15:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6BA2321B24
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:10:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6BA2321B24
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 7131321B24
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:15:47 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="EtoIsmNk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7131321B24
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2143E8E0120; Mon, 11 Feb 2019 13:10:12 -0500 (EST)
+	id 1C23F8E0121; Mon, 11 Feb 2019 13:15:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1C31D8E0115; Mon, 11 Feb 2019 13:10:12 -0500 (EST)
+	id 14A398E0115; Mon, 11 Feb 2019 13:15:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 08BB98E0120; Mon, 11 Feb 2019 13:10:12 -0500 (EST)
+	id F2B9B8E0121; Mon, 11 Feb 2019 13:15:46 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B680D8E0115
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:10:11 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id f3so8923046pgq.13
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:10:11 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C78A58E0115
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:15:46 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id q11so11720081otl.23
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:15:46 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=rLHPW8/CEDBrTRMQdcQdUEqjbPUOTmPZPivfj71OSVg=;
-        b=YAtGdAuK9V9IsgcLme5kvH24dYcZ2CNfLvALrpqeSu1rRzq+R7wYx91kfdAwYIlvOv
-         V8Mkl6wxIv0eoTw/Y2cJhXNIynEXkO2pHJjmZHhGxsoKV+nJ8jZ6ZLJmJ3PXWO1p7HKx
-         FOwMFcC7jJZ8wuY8o8Mcy/fRS1dDkQdg9qfDNG8t3ziVIgOv/Mpf6NRvnFRJJN2CdxCl
-         LGUeCwn/5J55K9fentb0ZFr0VyvD2rkMP5+OFJfNO9bmMyYVQiKg7x5Cgel9HX+4Iqmv
-         h7MsK56yaSjuqfCEiXHQ2GDLms4YZghdWsgppZYlLY3Kzpn8UzAVg/imGe0H1Y8qXZEq
-         u1Tg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuYB87AAVfm0B4XbUmEWfm0FK6V1MUf4rAccbMXLGRQWDu6rg/y1
-	lW+izsUFzm5vzVIkWuqhxiYP7J8DhiGo1/kSBZquJg9+AEMltwwzS2kmcMoTdcMe0fXmT3tcQem
-	X/hqlWQKRbkyfxioD8E3FDB+ue5LbBIveUbO5feyvPY8iXTpxdYkLF9ErNXyAXldi6w==
-X-Received: by 2002:a63:9c1a:: with SMTP id f26mr34841008pge.381.1549908611354;
-        Mon, 11 Feb 2019 10:10:11 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbGoSBWxpcsaWaYCwj+/kpqwUpp84AGvCK8ohsQMYPaZLUE0ujvlgTaJBKtKi6XccgkBy2G
-X-Received: by 2002:a63:9c1a:: with SMTP id f26mr34840944pge.381.1549908610367;
-        Mon, 11 Feb 2019 10:10:10 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549908610; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=ul5thXc6++/JQFU35y5jSqKTerpNjS/zr14LWC0b/Yo=;
+        b=SV7NCXTbYMwg1yuqyCHWo2NZNtoYqXbW+RMgOxK/l5bLzXUeKfnsCUZPE07XZcUggN
+         h4eBU9BUaUK+BD9ZY4Ns0CCNaf0f1vdEYrWvTxgOCV0ju9vZA3rlJUbnAlXiNmitIDqd
+         gDixk3ZRWfDnF1ofXfVQH8Gn1BwKmRDPyUrq9jm5/1pYFxJNo9gCknvrcVGyQvEjakig
+         ELIABqZXQnZUi1eYBVwU+oEpa4tyWw6IVxpsd3J+sSHXMx1QPaLaXs2hntpuDVfRu8jZ
+         lnWhssI0U49cAfWDv5dB5kObF46CPgVohDL6mtq7IMEIQMikBVSSLtOhdoBHtXbqA1/U
+         u7MQ==
+X-Gm-Message-State: AHQUAuZwnN7Xtn1ucoJa25W46TOzdrFU1PaqSLEIcSEplm6CHHdhDV7s
+	C5ODp3T8KO2sdPA6h4XF8LJg2qdVtOwLmqYnF6Q1cDvCOF7brfrQzwH5AeoCjZd/49Mk3XaD72p
+	CNJety6LEXkz3HKj7HYalXLy5atrc8j6hjbLcvlk2/BvJXhEB4dg255aWHfbsfJJV4cG5tf60GC
+	ONt5Rrc+ozuCMQ5CHU3YxwOxGqIPMiGwXPh9j5Jxx2DftLhg6z/g83dC26zxdz1I6OvBXFxLb8q
+	Nj+T04HDkEFQoqBSJc6w8dN1KfBE9BeQz2qqmNOgPwObdxCDoEhB3FSToJJmonsB3VZUbCR1uwN
+	cC7CmG3dVTIhCgzjff+hOf86G9aeoV6rJRBCzr56Oq4kVnrP/HonHThkDWgJbch/GP16au7t/6q
+	q
+X-Received: by 2002:a05:6830:1408:: with SMTP id v8mr11024754otp.211.1549908946364;
+        Mon, 11 Feb 2019 10:15:46 -0800 (PST)
+X-Received: by 2002:a05:6830:1408:: with SMTP id v8mr11024663otp.211.1549908945303;
+        Mon, 11 Feb 2019 10:15:45 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549908945; cv=none;
         d=google.com; s=arc-20160816;
-        b=O6KFxw6has5jwZQs3bXgmq/RAUmStmPN91dwoMpOqVYQMA8qpmt8wV1Lwfjk7fzhIm
-         Um4+laJrsX/A5U2V9SdiUNhPuk+FT76W7/Fanm84W+MNxVUOwZ4gid+NgxXMHhORn+Qz
-         MKiiwZdm8sqUpoERlKuL/rZuDfznX2v29YTO77fSp6TI5JsC3iGbvKz6rP4VAQm6v7vp
-         Kjz3eBFIEkSYRnzLszwo7et6HzFPjTMGgmCu3x6pOMnJGL0aJ7tG6J7edpnYW+wAoHQ3
-         xlqxuEtH4YbHJ/Gkz9Mi9OqpACruuNQOvxhN1gbx9uNHAs54leGG9Trk32U7u4vRi8Ao
-         8fOQ==
+        b=LNqAZp6f3D/JcChv7zii+qZPUwOr8ONM3f0UGcjxh2dHVK2Ndh0WDqCaIAv15ZYKwK
+         dnXo1WxMJ/v92mOrPP8jdYaxaEMGaM08xSp44j0aUYq2CcyqcwyUoIveTUw89vNYWO22
+         m4MmAeeL0WB9chZxncwW0pcxM5iZk3gq9Yc4nPv/2AXZIr2PP8cEvfAJMDjDpSHpf41K
+         8AWNUzy5b07i+nJiuqQ9nWFbn+8nkmXviK9xTDLAr3df1g0VGh+feXJva+i0AR0maqDp
+         bZWuJPnD8jX7NjYsMHCehU95t4TXMpGI5G0lyORYmHsgOofYICr/EycQLVCV0Jl10d7d
+         NreA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=rLHPW8/CEDBrTRMQdcQdUEqjbPUOTmPZPivfj71OSVg=;
-        b=H/CVEjVqaMyDkmyzsC7qfTG0lqvnttFhuNb4nsWW6uOiPPFyv3AX80B/ozCNPDAISp
-         pblRsj5h+QYp+M/YqRmDIEJQZtE2jyMPr9zFJbXeyIrMKTgTL2yxNprX8sJf56o1BMfq
-         oT74aXyECb/TOBqGfVvl3UPgcmOZ6qMh5+cKlO2epPtLYeWiBTUyRFqyaf7sejuqhcXQ
-         LpqohlDt39vOxjwcG9c+fVHtiQAG6+EvGqY3TmROViJgRtMp47yuPyjvHvlSdIg4SF5b
-         1I/xoHwzwwwlhc5ah2OxXNtz8j8s3euuagTvFDk54Qe6PwiP6lcIM2PaUgbbDn7d0V7A
-         Wt6Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=ul5thXc6++/JQFU35y5jSqKTerpNjS/zr14LWC0b/Yo=;
+        b=kVK0jTB6o8PMRT4ohTZfvDB0oVIIg61cVNspRtp7SXafhsoPxSs3YuvBaM9c8hg+3M
+         EFn9WzpEgcEGfN6gYT8jeI31eKa/S91XzWq+aSSRZdR3NgEnaEWBJbhBTJHOfRtkKgaz
+         NLM+D4SIb2ShGxMvNo3tXxqfGZc5zD+OlW0JMQzv2YnAm8z8sXJ5j03OcsNGciOCGFfI
+         tKS0g2srcu+QK5SfdGxw8YGQZ0/5ouApfOIbyLp8xxA6RctrJOtBtaJE3RrPEEZrXAaL
+         S0Gn0b2N50jrSEmX1xuvB49xhLv/D62XQ5k2FzeGbjV/7oD6bJbfpS2grWDRAJ25heSJ
+         nPgQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id x22si9871232pgf.570.2019.02.11.10.10.10
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=EtoIsmNk;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z5sor7440761otm.164.2019.02.11.10.15.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 10:10:10 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        (Google Transport Security);
+        Mon, 11 Feb 2019 10:15:45 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Feb 2019 10:10:07 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,359,1544515200"; 
-   d="scan'208";a="137744035"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga001.jf.intel.com with ESMTP; 11 Feb 2019 10:10:06 -0800
-Message-ID: <44d0848e62f6d5237b60d209265dbcdf58ade1b9.camel@linux.intel.com>
-Subject: Re: [RFC PATCH 3/4] kvm: Add guest side support for free memory
- hints
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>, linux-mm@kvack.org, 
- linux-kernel@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, 
- x86@kernel.org, mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
- pbonzini@redhat.com,  tglx@linutronix.de, akpm@linux-foundation.org
-Date: Mon, 11 Feb 2019 10:10:06 -0800
-In-Reply-To: <20190211122321-mutt-send-email-mst@kernel.org>
-References: <20190204181118.12095.38300.stgit@localhost.localdomain>
-	 <20190204181552.12095.46287.stgit@localhost.localdomain>
-	 <20190209194437-mutt-send-email-mst@kernel.org>
-	 <869a170e9232ffbc8ddbcf3d15535e8c6daedbde.camel@linux.intel.com>
-	 <20190211122321-mutt-send-email-mst@kernel.org>
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=EtoIsmNk;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=ul5thXc6++/JQFU35y5jSqKTerpNjS/zr14LWC0b/Yo=;
+        b=EtoIsmNkDKQpRH9ypOI5wOHAdlLYheZn+QoXMnH9j3ESgJ+H9ofHEeQ2+z0WgQiKEr
+         x9nF4ZYK4if03fgMSHrIocO7JgQkq8nUlENbhQkgchPEbtsIq8nWqKuoL+Jovt6l77PC
+         N7xGDCZnhMddxom8jz7HGzV8UCnt66iV8NXbA1KODSySGADwC0E5Y6CoZ4HYts0xJDyd
+         4crFfr0dStfGbzratLctbDnEN4KBjQvGMpQEabs0lF0hrPbIYi4QZy7IEaBYhZer3x73
+         HknObt5JsH4ENZsCqWCBSk5ZIQ9H6iR5krsJEj/meW/V3iGfAGNFHjvjw7Qs3eii4g1d
+         XMYg==
+X-Google-Smtp-Source: AHgI3Ib8Tv/GTd/LyyhnRUStQh32TJGMr1mf9h0L5JluLyTEcL0lx7jgHtIyGdtYh7vMLGodX085tmaC6phK3LYN9V4=
+X-Received: by 2002:a9d:6a50:: with SMTP id h16mr14708887otn.95.1549908944982;
+ Mon, 11 Feb 2019 10:15:44 -0800 (PST)
+MIME-Version: 1.0
+References: <20190206220828.GJ12227@ziepe.ca> <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
+ <CAPcyv4hqya1iKCfHJRXQJRD4qXZa3VjkoKGw6tEvtWNkKVbP+A@mail.gmail.com>
+ <bfe0fdd5400d41d223d8d30142f56a9c8efc033d.camel@redhat.com>
+ <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com>
+ <20190208044302.GA20493@dastard> <20190208111028.GD6353@quack2.suse.cz>
+ <CAPcyv4iVtBfO8zWZU3LZXLqv-dha1NSG+2+7MvgNy9TibCy4Cw@mail.gmail.com>
+ <20190211102402.GF19029@quack2.suse.cz> <CAPcyv4iHso+PqAm-4NfF0svoK4mELJMSWNp+vsG43UaW1S2eew@mail.gmail.com>
+ <20190211180654.GB24692@ziepe.ca>
+In-Reply-To: <20190211180654.GB24692@ziepe.ca>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 11 Feb 2019 10:15:33 -0800
+Message-ID: <CAPcyv4hdVwn0L8060_wxqDV0XBOwiUojSYjF+u+ugzLoQpcHzw@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
+ longterm-GUP usage by RDMA
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, 
+	Christopher Lameter <cl@linux.com>, Doug Ledford <dledford@redhat.com>, Matthew Wilcox <willy@infradead.org>, 
+	Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, 
+	linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, 
+	Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>
 Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-02-11 at 12:36 -0500, Michael S. Tsirkin wrote:
-> On Mon, Feb 11, 2019 at 08:31:34AM -0800, Alexander Duyck wrote:
-> > On Sat, 2019-02-09 at 19:49 -0500, Michael S. Tsirkin wrote:
-> > > On Mon, Feb 04, 2019 at 10:15:52AM -0800, Alexander Duyck wrote:
-> > > > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> > > > 
-> > > > Add guest support for providing free memory hints to the KVM hypervisor for
-> > > > freed pages huge TLB size or larger. I am restricting the size to
-> > > > huge TLB order and larger because the hypercalls are too expensive to be
-> > > > performing one per 4K page.
-> > > 
-> > > Even 2M pages start to get expensive with a TB guest.
-> > 
-> > Agreed.
-> > 
-> > > Really it seems we want a virtio ring so we can pass a batch of these.
-> > > E.g. 256 entries, 2M each - that's more like it.
-> > 
-> > The only issue I see with doing that is that we then have to defer the
-> > freeing. Doing that is going to introduce issues in the guest as we are
-> > going to have pages going unused for some period of time while we wait
-> > for the hint to complete, and we cannot just pull said pages back. I'm
-> > not really a fan of the asynchronous nature of Nitesh's patches for
-> > this reason.
-> 
-> Well nothing prevents us from doing an extra exit to the hypervisor if
-> we want. The asynchronous nature is there as an optimization
-> to allow hypervisor to do its thing on a separate CPU.
-> Why not proceed doing other things meanwhile?
-> And if the reason is that we are short on memory, then
-> maybe we should be less aggressive in hinting?
-> 
-> E.g. if we just have 2 pages:
-> 
-> hint page 1
-> page 1 hint processed?
-> 	yes - proceed to page 2
-> 	no - wait for interrupt
-> 
-> get interrupt that page 1 hint is processed
-> hint page 2
-> 
-> 
-> If hypervisor happens to be running on same CPU it
-> can process things synchronously and we never enter
-> the no branch.
-> 
+On Mon, Feb 11, 2019 at 10:07 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+>
+> On Mon, Feb 11, 2019 at 09:22:58AM -0800, Dan Williams wrote:
+>
+> > I honestly don't like the idea that random subsystems can pin down
+> > file blocks as a side effect of gup on the result of mmap. Recall that
+> > it's not just RDMA that wants this guarantee. It seems safer to have
+> > the file be in an explicit block-allocation-immutable-mode so that the
+> > fallocate man page can describe this error case. Otherwise how would
+> > you describe the scenarios under which FALLOC_FL_PUNCH_HOLE fails?
+>
+> I rather liked CL's version of this - ftruncate/etc is simply racing
+> with a parallel pwrite - and it doesn't fail.
+>
+> But it also doesnt' trucate/create a hole. Another thread wrote to it
+> right away and the 'hole' was essentially instantly reallocated. This
+> is an inherent, pre-existing, race in the ftrucate/etc APIs.
 
-Another concern I would have about processing this asynchronously is
-that we have the potential for multiple guest CPUs to become
-bottlenecked by a single host CPU. I am not sure if that is something
-that would be desirable.
-
-> > > > Using the huge TLB order became the obvious
-> > > > choice for the order to use as it allows us to avoid fragmentation of higher
-> > > > order memory on the host.
-> > > > 
-> > > > I have limited the functionality so that it doesn't work when page
-> > > > poisoning is enabled. I did this because a write to the page after doing an
-> > > > MADV_DONTNEED would effectively negate the hint, so it would be wasting
-> > > > cycles to do so.
-> > > 
-> > > Again that's leaking host implementation detail into guest interface.
-> > > 
-> > > We are giving guest page hints to host that makes sense,
-> > > weird interactions with other features due to host
-> > > implementation details should be handled by host.
-> > 
-> > I don't view this as a host implementation detail, this is guest
-> > feature making use of all pages for debugging. If we are placing poison
-> > values in the page then I wouldn't consider them an unused page, it is
-> > being actively used to store the poison value.
-> 
-> Well I guess it's a valid point of view for a kernel hacker, but they are
-> unused from application's point of view.
-> However poisoning is transparent to users and most distro users
-> are not aware of it going on. They just know that debug kernels
-> are slower.
-> User loading a debug kernel and immediately breaking overcommit
-> is an unpleasant experience.
-
-How would that be any different then a user loading an older kernel
-that doesn't have this feature and breaking overcommit as a result?
-
-I still think it would be better if we left the poisoning enabled in
-such a case and just displayed a warning message if nothing else that
-hinting is disabled because of page poisoning.
-
-One other thought I had on this is that one side effect of page
-poisoning is probably that KSM would be able to merge all of the poison
-pages together into a single page since they are all set to the same
-values. So even with the poisoned pages it would be possible to reduce
-total memory overhead.
-
-> > If we can achieve this
-> > and free the page back to the host then even better, but until the
-> > features can coexist we should not use the page hinting while page
-> > poisoning is enabled.
-> 
-> Existing hinting in balloon allows them to coexist so I think we
-> need to set the bar just as high for any new variant.
-
-That is what I heard. I will have to look into this.
-
-> > This is one of the reasons why I was opposed to just disabling page
-> > poisoning when this feature was enabled in Nitesh's patches. If the
-> > guest has page poisoning enabled it is doing something with the page.
-> > It shouldn't be prevented from doing that because the host wants to
-> > have the option to free the pages.
-> 
-> I agree but I think the decision belongs on the host. I.e.
-> hint the page but tell the host it needs to be careful
-> about the poison value. It might also mean we
-> need to make sure poisoning happens after the hinting, not before.
-
-The only issue with poisoning after instead of before is that the hint
-is ignored and we end up triggering a page fault and zero as a result.
-It might make more sense to have an architecture specific call that can
-be paravirtualized to handle the case of poisoning the page for us if
-we have the unused page hint enabled. Otherwise the write to the page
-is a given to invalidate the hint.
+If options are telling the truth with a potentially unexpected error,
+or lying that operation succeeded when it will be immediately undone,
+I'd choose the former.
 
