@@ -2,146 +2,141 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30BE5C282D7
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 20:02:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A192DC169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 20:16:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CC39020836
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 20:02:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC39020836
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 6AA8A2184A
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 20:16:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6AA8A2184A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0A2DE8E0150; Mon, 11 Feb 2019 15:02:10 -0500 (EST)
+	id EF0048E0151; Mon, 11 Feb 2019 15:16:27 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 02BB28E0125; Mon, 11 Feb 2019 15:02:09 -0500 (EST)
+	id E9F4E8E0134; Mon, 11 Feb 2019 15:16:27 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E37168E0150; Mon, 11 Feb 2019 15:02:09 -0500 (EST)
+	id D90E38E0151; Mon, 11 Feb 2019 15:16:27 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B71B78E0125
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 15:02:09 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id h6so13160710qke.18
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 12:02:09 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 94BDD8E0134
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 15:16:27 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id o62so110438pga.16
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 12:16:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=bJ92XFGdXoI66IabC1B27UhUDJuwdv8r8xTw01NIqEw=;
-        b=Xm0NZi5oiIb2ewmMzCaTcc1T03UHpkCemi20DoHL7gqpoKi8LNgBdqPRKumG/b6a9l
-         QuD0VU+xDAZ08M77bzYoDybftbTNlURlnR+LieXJmC5NisKp4If+BA1zfQ+f1/fa97PJ
-         tui2xBvboyD40taDIasS7BZVUkeIBuBTwxlPmO6XF7Y3GEcotrzWf0Ohl6+DtMO4Wavi
-         ykZ2PWe0rGzVzwquKn0dIFS/YOUri25bB0TYw+Pxeigi/E9pmutNisTGB7xqJwrBNQvb
-         b/NEThoLmIT0JYVxv39foWKG3XWNFfteP8ICSfG7Y+qhuMOt2yJaZJlMz5/tTxwWybMJ
-         PtAw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZOovjehUFIXHKGpyrMvmrNTIcQcPcFbaMy80ROSPb1JuxZmObK
-	NjPYUxhj50Na5s869IVMJo1mHuluh80/veVMwFaMV2Lzih/iNwBwbiikFA8P5EBSgLPb2/Ddy9b
-	+/9rQrcat+v9g1CPQxAlw+FrlWEzosZUrnl+EIg8qL0GFSluKTG40eCZ4hRd7m+w7KQ==
-X-Received: by 2002:a0c:b068:: with SMTP id l37mr18638946qvc.21.1549915329515;
-        Mon, 11 Feb 2019 12:02:09 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYlvdprs/+6BEOUO9K7Kk5hmJMIJzhAVCulfq292o5Y/71BXepB55NKeeiMa9DeITyVvzZA
-X-Received: by 2002:a0c:b068:: with SMTP id l37mr18638909qvc.21.1549915328959;
-        Mon, 11 Feb 2019 12:02:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549915328; cv=none;
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=tfFi7wDcaR1MxxYBxMQyksHkX1H1zCyW+07mUExMn1M=;
+        b=egvwiMi3ytyUEnfM5aJDoaXJ1EYsTAF++eQh5qqOcxHmQTWji2kLtUFDgU02Qy75yb
+         Pw8h3GQBI4FFDiF7W7nKmvysBIB0xBRLbkGOD1OfQDDJEnKuBi9BFELxVTiQgDv5gQ6+
+         zT4jkgC6GJYnDS6eVLB2imwJCNzppSuy1MJss4Ao/XGX1M0BRBn2wDQk43/CHGnara8q
+         /A9JPioEXAY3cWf4k4zGvhYa5Z8VEDuiljH84LcD8I1gmWwHs6P0uDwxEZrfj3LZqdZG
+         GEON3tngfh9E8oCi3fP60S7ff58z89qzN2UFZewJflpUUUnukLT7cAUIjbqOvaO/z6JZ
+         8qUg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: AHQUAuaP4Zcxgl3tdcYywlXVhrJL/KY3FqfoOku+RsGzx09TXcHYsVbm
+	P+H/FeWf6kaFb6q2auw1ArLVoshe5E8lg4VrQrCbY07+HokfYtpO+wim/KQOrjPxN9EpXsNJQ2V
+	Jo60f9dEXPwu2gPTI2dZsu5A6QzNmbizB+4Wi+w//xK8YXeC3KnIGkTke6y5lj/jsYA==
+X-Received: by 2002:a63:20e:: with SMTP id 14mr20059730pgc.161.1549916187283;
+        Mon, 11 Feb 2019 12:16:27 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZaBYSydZ2GhjY+674bgOKZ79Fa7dY+iipt5JhDRjSCBg6/y6g14CtuEufnr3lw4gV1SDW6
+X-Received: by 2002:a63:20e:: with SMTP id 14mr20059666pgc.161.1549916186432;
+        Mon, 11 Feb 2019 12:16:26 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549916186; cv=none;
         d=google.com; s=arc-20160816;
-        b=QB1QPYPKcqp6PS66mUM1rcq5wUnOKg/RLwbbo5VMBJw/86Wd2uHgm3IoBTynKzOOjW
-         o66UZMhCbW/jct9uEgfi7nP5LnBNznHHDizNeJAb17xjPHFzAduwviobj4DW3vN4bjvm
-         tO6HdJ08B4Rvd6GIXvDNBtp7xp4l4J1Vo+aGJZ4ownT+j57PjbZyKnASonIR5CkaBrbs
-         iufNzzgsE2LqLMi+cmIFTR+MDRVC3M9cpgZ5O8Y7dNuazA97SrH+aRYaps87s8000Ex2
-         fgBxCB+xSZ2nRLAEjT9i3LOZhkV4qPBMh//ptqaEyQSUqOxGyi0JKJrji0kOX5ljeBZT
-         jiiQ==
+        b=xNGQsMXnm3oO6NditJwWKBSDtipUuXBH5qPDT2JNJfFNf5rOrpJxc/tfs7wUfLyQb6
+         0bsbByltNrr0JkM9uEQmgiAmDh/lu2s0R6lXaYM//NXe/7BkVd/pSTg6B4cQmg3/bhQ/
+         6i8eICs8NLDpUlnt+XTM9vCDA2SsVcz/Qw5LwG05J3+fAGlzHCOLpFid+3WN9zsxbk5R
+         9u8ShXcM9UoJX9YFhkkkBuuk6W0XuFk+VGt1tMHwKKZDWDBhtKY5WebjvFgPmyylX1v3
+         rIZByALS8XaFfnRyL4RRzPpf66J1ANNJZlq8L6bYbXgusOCppLpQYuY7aWvKHSqeYokn
+         zEVg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
+        h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date;
-        bh=bJ92XFGdXoI66IabC1B27UhUDJuwdv8r8xTw01NIqEw=;
-        b=W0PA9ItU+DmQZYP/aWGLH4tovtvii5Slwt2ZBtMxYYgRVh7auS8uqOYH5SXOpAvDb2
-         YoFnxWh+3qcwK5UnMsi3fAtI/R7w11NO3kVn5kg/0q2cFni5KKgLbf0M92BOivTOqOCp
-         2iAD70qIgROA7HrRDfmWD14aOAjXUfrAAFp6M1GW5V9xs/VNNF8nLW5CkJHXm7l10NXy
-         eFQTh5L/GMoEAva72HxKm8AGST50rQ3xqrDgQMsUyO+pJE138n0MEMg3WCO9tYFzLUux
-         PT1RzHmJs7CzTYjei7y0eHoGjb1eoU682cfFvh7fClHQdVhPGQv+N0iEH2ZuOXVSyNIw
-         fpjQ==
+        bh=tfFi7wDcaR1MxxYBxMQyksHkX1H1zCyW+07mUExMn1M=;
+        b=FOdK+H3kSrW1E+8aHko40ZEhwH3lOnLtEulj15SyQ+55r0mDpxHfodnQbrBwVhJ+ji
+         +zhCzHkV1+v2G0xgOvsp+RVpqAvl//KgOUhK7w8GWYdGIaWKrKtI2Pvtup3HwraEIyLx
+         a5HKaqeTBul7GF+YSQL+pftAfTNDItV6tZ3CEwCcAMJWYocmGiGSUV0lgcLq5hXiH1mk
+         eNjEMtrOb8OQpZobummTCXuPmZbmV1pDpetQs7u7EFamFwoxgZAzTqVTKM/QgDUStnsj
+         5dkC+5PprqU+eHwfAOi7QEV79dE/qwILQCTAcxlEXp6cjF1Mx6HrN44PTi8pzntD8/dI
+         g6SQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c18si6529444qvb.181.2019.02.11.12.02.08
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d10si11218642pgf.136.2019.02.11.12.16.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 12:02:08 -0800 (PST)
-Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 11 Feb 2019 12:16:26 -0800 (PST)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id AF3B358E22;
-	Mon, 11 Feb 2019 20:02:07 +0000 (UTC)
-Received: from sky.random (ovpn-120-178.rdu2.redhat.com [10.10.120.178])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 714BD5C21A;
-	Mon, 11 Feb 2019 20:02:01 +0000 (UTC)
-Date: Mon, 11 Feb 2019 15:02:00 -0500
-From: Andrea Arcangeli <aarcange@redhat.com>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Peter Xu <peterx@redhat.com>, Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	Arnaldo Carvalho de Melo <acme@kernel.org>,
-	Alexander Shishkin <alexander.shishkin@linux.intel.com>,
-	Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Matthew Wilcox <mawilcox@microsoft.com>,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>, kvm@vger.kernel.org
-Subject: Re: [RFC PATCH 0/4] Restore change_pte optimization to its former
- glory
-Message-ID: <20190211200200.GA30128@redhat.com>
-References: <20190131183706.20980-1-jglisse@redhat.com>
- <20190201235738.GA12463@redhat.com>
- <20190211190931.GA3908@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190211190931.GA3908@redhat.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Mon, 11 Feb 2019 20:02:08 +0000 (UTC)
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 989A2D810;
+	Mon, 11 Feb 2019 20:16:25 +0000 (UTC)
+Date: Mon, 11 Feb 2019 12:16:24 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Jesper Dangaard Brouer <brouer@redhat.com>
+Cc: netdev@vger.kernel.org, linux-mm@kvack.org, Toke =?ISO-8859-1?Q?H=F8il?=
+ =?ISO-8859-1?Q?and-J=F8rgensen?= <toke@toke.dk>, Ilias Apalodimas
+ <ilias.apalodimas@linaro.org>, willy@infradead.org, Saeed Mahameed
+ <saeedm@mellanox.com>, mgorman@techsingularity.net, "David S. Miller"
+ <davem@davemloft.net>, Tariq Toukan <tariqt@mellanox.com>
+Subject: Re: [net-next PATCH 1/2] mm: add dma_addr_t to struct page
+Message-Id: <20190211121624.30c601d0fa4c0f972eeaf1c6@linux-foundation.org>
+In-Reply-To: <154990120685.24530.15350136329514629029.stgit@firesoul>
+References: <154990116432.24530.10541030990995303432.stgit@firesoul>
+	<154990120685.24530.15350136329514629029.stgit@firesoul>
+X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2019 at 02:09:31PM -0500, Jerome Glisse wrote:
-> Yeah, between do you have any good workload for me to test this ? I
-> was thinking of running few same VM and having KSM work on them. Is
-> there some way to trigger KVM to fork ? As the other case is breaking
-> COW after fork.
+On Mon, 11 Feb 2019 17:06:46 +0100 Jesper Dangaard Brouer <brouer@redhat.com> wrote:
 
-KVM can fork on guest pci-hotplug events or network init to run host
-scripts and re-init the signals before doing the exec, but it won't
-move the needle because all guest memory registered in the MMU
-notifier is set as MADV_DONTFORK... so fork() is a noop unless qemu is
-also modified not to call MADV_DONTFORK.
+> The page_pool API is using page->private to store DMA addresses.
+> As pointed out by David Miller we can't use that on 32-bit architectures
+> with 64-bit DMA
+> 
+> This patch adds a new dma_addr_t struct to allow storing DMA addresses
+> 
+> ..
+>
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -95,6 +95,14 @@ struct page {
+>  			 */
+>  			unsigned long private;
+>  		};
+> +		struct {	/* page_pool used by netstack */
+> +			/**
+> +			 * @dma_addr: Page_pool need to store DMA-addr, and
+> +			 * cannot use @private, as DMA-mappings can be 64-bit
+> +			 * even on 32-bit Architectures.
+> +			 */
 
-Calling if (!fork()) exit(0) from a timer at regular intervals during
-qemu runtime after turning off MADV_DONTFORK in qemu would allow to
-exercise fork against the KVM MMU Notifier methods.
+This comment is a bit awkward.  The discussion about why it doesn't use
+->private is uninteresting going forward and is more material for a
+changelog.
 
-The optimized change_pte code in copy-on-write code is the same
-post-fork or post-KSM merge and fork() itself doesn't use change_pte
-while KSM does, so with regard to change_pte it should already provide
-a good test coverage to test with only KSM without fork(). It'll cover
-the read-write -> readonly transition with same PFN
-(write_protect_page), the read-only to read-only changing PFN
-(replace_page) as well as the readonly -> read-write transition
-changing PFN (wp_page_copy) all three optimized with change_pte. Fork
-would not leverage change_pte for the first two cases.
+How about
+
+			/**
+			 * @dma_addr: page_pool requires a 64-bit value even on
+			 * 32-bit architectures.
+			 */
+
+Otherwise,
+
+Acked-by: Andrew Morton <akpm@linux-foundation.org>
 
