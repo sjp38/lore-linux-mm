@@ -6,219 +6,161 @@ X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8EF5BC282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 16:28:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 92FB9C282D7
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 16:31:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 32FFC218F0
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 16:28:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 32FFC218F0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 5923B222A2
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 16:31:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5923B222A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BF6F28E00FB; Mon, 11 Feb 2019 11:28:20 -0500 (EST)
+	id 039388E00FC; Mon, 11 Feb 2019 11:31:37 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA75E8E00F6; Mon, 11 Feb 2019 11:28:20 -0500 (EST)
+	id F00BE8E00F6; Mon, 11 Feb 2019 11:31:36 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A95C28E00FB; Mon, 11 Feb 2019 11:28:20 -0500 (EST)
+	id DA18A8E00FC; Mon, 11 Feb 2019 11:31:36 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FC0B8E00F6
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 11:28:20 -0500 (EST)
-Received: by mail-lj1-f200.google.com with SMTP id t22-v6so2960138lji.14
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 08:28:20 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B2128E00F6
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 11:31:36 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id 74so10144905pfk.12
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 08:31:36 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=CXabaxyjDT3D6OWec+4Nlzm7+oYSKaftIBCUycXZI2o=;
-        b=tJw78CPAUY2T2LZkSsxksUKZEMDz2dKwuALRIJJPC56hQMh2eoOBDxNS7s0NCsyoSh
-         DJbHnAaMY2T8YYxZnw3oEBuhOodpoHEVd2h1/8P49AQ+MPwQUakBbMIGiD43Qwp1hvoL
-         rEnQ3rcEBiIK/jxKbvu8yAS6t4VlD/yK0PlVOI9vxq7++3Eghw35XrOySplaetAp8rGW
-         RgQAi3F0wQ+Tn71+n1JfIT6GYNzi+OfxqVmIEhbCBhQKkUiuzwHQw9GKqJ4en/JIiBX8
-         VGbGTGP2wb1e6rb+e06aTciLQ46r9I5oLjSkLkI09RHtf7Z+S8ZCIilhU5PuSG4RgHhG
-         3NlQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: AHQUAubuAAOg6AlJrFVyxHwp0SXpDabP8mXuOSvEjkyeU8+qSgIPOD7U
-	lz25cQe0xtriffWfAXCl1LFEJQyrKgZOgC7Rym8lHWM/SS5mhT3BEaBtqjJEIjlsCW6FOrtmSoy
-	AJUVQ7cbnbH3oDYocBimacj2ikUuLwGd2GLvXsbia0eUt7rQjjS70t62anT7V4DYVIQ==
-X-Received: by 2002:a2e:4503:: with SMTP id s3-v6mr21635945lja.44.1549902499487;
-        Mon, 11 Feb 2019 08:28:19 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbVNlOG89VoCS+eFHUydvLDfN/1cmpjQnmQSkvSPLL68bCjKerI52EgZi2RMjBXbAvAaQSx
-X-Received: by 2002:a2e:4503:: with SMTP id s3-v6mr21635885lja.44.1549902498091;
-        Mon, 11 Feb 2019 08:28:18 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549902498; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=4cy7grFDYUyFfHY/W3+2vAqDBT61YVM1UOU4OP3+q1Q=;
+        b=k/l9Z0W+hyoYZa3lCy/1aMcZTQ3JSPODLeftie4cfM9X5rPz1KQ6G5gPPddb3kARoU
+         OI0s+TRS2ttD+GDX7G9ADuOBpCAJJHA2x7fnglx6CqmjQMr3fr9eFQ6hW8siHPHVcTsY
+         x+45E8uJnqCT76wzX1E/EPUdWMfCRbYSY3eeLcsXWkI/9Up+GgNUG6k4rW+Wu9HIIJXu
+         /t4QJuQ1S4+3Ve+XaCYLzZLU+vc9nK5Glx8/isC0/SGV9AUTCzbksEke836J1FJpvfht
+         iBEEqnStObNcYl81eJt1fLbxMGimNaCt+Pq0kLP6Gtp7b4L5xIQyNlhyUH+Fw3XfPOiI
+         3B9A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuZb8fam1W50hzMq8kOpV7FGYMLh02GYhmDHvX2vWEtiFsdlNQqk
+	eKVCniCzyrtRF/UH0sYsDIcdKpEpaPj4o1va8r3D2UmOAqZHghi2XvUtc0VknsB6eVKuMlvMCg8
+	B9/W9taoQ8zt+H/oZk0XQW3IFL0Fl7gC3yN7ckZVJsRctFkMgeijBN6PbyCsxPiVyHA==
+X-Received: by 2002:a17:902:8e8b:: with SMTP id bg11mr38828498plb.332.1549902696183;
+        Mon, 11 Feb 2019 08:31:36 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYehhnc3gu9pM6joV4moNmy8okUSZCrGBIDTuWxO1L7nMS7F9uzsNTwux0NPwZr/nIts9YZ
+X-Received: by 2002:a17:902:8e8b:: with SMTP id bg11mr38828430plb.332.1549902695371;
+        Mon, 11 Feb 2019 08:31:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549902695; cv=none;
         d=google.com; s=arc-20160816;
-        b=UmTNSaM4qEzn+bXm1AGMIiPslzCQxM3x4CN7moM2HITXiVomqnLY7MXs2Uw2s+5AZ2
-         nxWUEraCKMJBX/roH9CTcjzkMuoerdjsEYQstlbvHVJ1awEeSfJ3Wbt7PRgM3JZsxO06
-         HCZ3BTI0PDr3C0zgVK652pj3+/kwvPr+4VZ4Ni/s4lWLy6Cc7ZxNJ8MbiuHh5ZjU4xbU
-         ZReYp6zUzSHXniCNTx7bkEvyoEQqAAcyHT7g4oZu6B7pkcvh5lccm0W7AQzwSx0r6s8W
-         flptkzAoVmioNbVEbtr2quboM0ByDMF8dTqG/FprFC45qOoeXdPv+zo3mnvv1fFWf6Z+
-         IDIw==
+        b=ChMHwBZ4Ijt1+ZOQlsgV80/E6S5rVQQuoNkRaN5Pkb4Rng8l6PIJ4e/rCd+spBQP1N
+         y7FFXeGLXK3FmewHyeY+lV+tNwIuZkeHtO8aNWoW1+ZyfigUrU7a26sJc7DHvRXPxDQm
+         CRm7HvTdYNkrB0fRn4spEsnCO8eTkutbsOxkzzwUsFkfUfYib3Wl2EG2F554dnaJdP4L
+         puAvOQJt7w8EhLrQdI0MZ3i51GrG2kbaImmfe+VAAwgcK88BNEXIxGCpOwbCGyxKF64N
+         RwzW4C/4Z159iotBGN99vas5i2Y8stlbUPiuvx0HTKDehAOR98YSk4VEXwvcibrhisEP
+         +XhQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=CXabaxyjDT3D6OWec+4Nlzm7+oYSKaftIBCUycXZI2o=;
-        b=JWCULkmC6xXGvM8Y8ui1ntbV4PArWPoQCCcSzWdbe6ZjJQ4UrtOpt+eIFKc+PXVw9X
-         Awx+Z03G8y8UJ0QM7rY9KtXgoazYmRT98X0e7fkCBFK6IIM2xMo/iyFEfTXlxPQ33nGd
-         ObT6ghBWpP1S76MY+GI+b0Hgr1/KMVKz+Tyv5hCJMVb6MFZNCb4JGs20zJc+37ovfhzc
-         GflgXxQ3XSP6bSr88nLoYgsqN6HJz64UXfj+Z3jdxW9NorOTrSqgx7eKnm8z/JftI4hM
-         toS28NFBeUrJ1R4J04us5mzc0mgJD8jj7ZD6cTJ1izNa+miMb3cjvrQs+iR2MPy9x0gs
-         U5fQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=4cy7grFDYUyFfHY/W3+2vAqDBT61YVM1UOU4OP3+q1Q=;
+        b=TMxbBSftmcmGCxdBWF9c0iRziuemhLjnOQME8ieEkytQnupS2+sO7eKfjCh9/o1QIP
+         Vyjr7J65xCCuR82wA5/71nOFQ4PmgA35t/RTSXhHHgMmahJk5i6W2pRC/ov6aO1HTYDo
+         OYo2kvtr4QXm3mkov6sqXIdlGex+ZHhHbYXXN8SQUbUTC+Ohygahl8e5pNFARN65y2Qa
+         58ckGOBf2WKsovJDSF0J47bjR0xmHSXhuTyGRvZJjT/nA9AbinYfFVcSAKrGfsYMb6iw
+         QB61zsmtMr+y5Oj+TuedOuW2tWlQJAZLlgvPCLLMejYNVK/nbl74dsOXlRnJvi2t6Nrq
+         x4gw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id i13si9479318lfc.125.2019.02.11.08.28.17
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id p12si10213752plk.77.2019.02.11.08.31.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 08:28:18 -0800 (PST)
-Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        Mon, 11 Feb 2019 08:31:35 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.12]
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1gtERF-0001Xi-Kx; Mon, 11 Feb 2019 19:28:09 +0300
-Subject: Re: [PATCH v4 3/3] powerpc/32: Add KASAN support
-To: Andrey Konovalov <andreyknvl@google.com>,
- christophe leroy <christophe.leroy@c-s.fr>
-Cc: Daniel Axtens <dja@axtens.net>,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
- Nicholas Piggin <npiggin@gmail.com>,
- "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
- Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>,
- Linux Memory Management List <linux-mm@kvack.org>,
- PowerPC <linuxppc-dev@lists.ozlabs.org>, LKML
- <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>
-References: <cover.1548166824.git.christophe.leroy@c-s.fr>
- <1f5629e03181d0e30efc603f00dad78912991a45.1548166824.git.christophe.leroy@c-s.fr>
- <87ef8i45km.fsf@dja-thinkpad.axtens.net>
- <69720148-fd19-0810-5a1d-96c45e2ec00c@c-s.fr>
- <CAAeHK+wcUwLiSQffUkcyiH2fuox=VihJadEqQqRG1YfU3Y2gDA@mail.gmail.com>
- <f8b9e9ec-991b-6824-46c2-f7fc0aaa7fb8@c-s.fr>
- <CAAeHK+zop5ajOJQ4KEYbuxMRegk2GM1LvuGcSbCU1O5EZxB0MA@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <805fbf9d-a10f-03e0-aa52-6f6bd16059b9@virtuozzo.com>
-Date: Mon, 11 Feb 2019 19:28:31 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
-MIME-Version: 1.0
-In-Reply-To: <CAAeHK+zop5ajOJQ4KEYbuxMRegk2GM1LvuGcSbCU1O5EZxB0MA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Feb 2019 08:31:34 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,359,1544515200"; 
+   d="scan'208";a="117019570"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga008.jf.intel.com with ESMTP; 11 Feb 2019 08:31:34 -0800
+Message-ID: <869a170e9232ffbc8ddbcf3d15535e8c6daedbde.camel@linux.intel.com>
+Subject: Re: [RFC PATCH 3/4] kvm: Add guest side support for free memory
+ hints
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>, Alexander Duyck
+	 <alexander.duyck@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, 
+ rkrcmar@redhat.com, x86@kernel.org, mingo@redhat.com, bp@alien8.de,
+ hpa@zytor.com,  pbonzini@redhat.com, tglx@linutronix.de,
+ akpm@linux-foundation.org
+Date: Mon, 11 Feb 2019 08:31:34 -0800
+In-Reply-To: <20190209194437-mutt-send-email-mst@kernel.org>
+References: <20190204181118.12095.38300.stgit@localhost.localdomain>
+	 <20190204181552.12095.46287.stgit@localhost.localdomain>
+	 <20190209194437-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 2/11/19 3:25 PM, Andrey Konovalov wrote:
-> On Sat, Feb 9, 2019 at 12:55 PM christophe leroy
-> <christophe.leroy@c-s.fr> wrote:
->>
->> Hi Andrey,
->>
->> Le 08/02/2019 à 18:40, Andrey Konovalov a écrit :
->>> On Fri, Feb 8, 2019 at 6:17 PM Christophe Leroy <christophe.leroy@c-s.fr> wrote:
->>>>
->>>> Hi Daniel,
->>>>
->>>> Le 08/02/2019 à 17:18, Daniel Axtens a écrit :
->>>>> Hi Christophe,
->>>>>
->>>>> I've been attempting to port this to 64-bit Book3e nohash (e6500),
->>>>> although I think I've ended up with an approach more similar to Aneesh's
->>>>> much earlier (2015) series for book3s.
->>>>>
->>>>> Part of this is just due to the changes between 32 and 64 bits - we need
->>>>> to hack around the discontiguous mappings - but one thing that I'm
->>>>> particularly puzzled by is what the kasan_early_init is supposed to do.
->>>>
->>>> It should be a problem as my patch uses a 'for_each_memblock(memory,
->>>> reg)' loop.
->>>>
->>>>>
->>>>>> +void __init kasan_early_init(void)
->>>>>> +{
->>>>>> +    unsigned long addr = KASAN_SHADOW_START;
->>>>>> +    unsigned long end = KASAN_SHADOW_END;
->>>>>> +    unsigned long next;
->>>>>> +    pmd_t *pmd = pmd_offset(pud_offset(pgd_offset_k(addr), addr), addr);
->>>>>> +    int i;
->>>>>> +    phys_addr_t pa = __pa(kasan_early_shadow_page);
->>>>>> +
->>>>>> +    BUILD_BUG_ON(KASAN_SHADOW_START & ~PGDIR_MASK);
->>>>>> +
->>>>>> +    if (early_mmu_has_feature(MMU_FTR_HPTE_TABLE))
->>>>>> +            panic("KASAN not supported with Hash MMU\n");
->>>>>> +
->>>>>> +    for (i = 0; i < PTRS_PER_PTE; i++)
->>>>>> +            __set_pte_at(&init_mm, (unsigned long)kasan_early_shadow_page,
->>>>>> +                         kasan_early_shadow_pte + i,
->>>>>> +                         pfn_pte(PHYS_PFN(pa), PAGE_KERNEL_RO), 0);
->>>>>> +
->>>>>> +    do {
->>>>>> +            next = pgd_addr_end(addr, end);
->>>>>> +            pmd_populate_kernel(&init_mm, pmd, kasan_early_shadow_pte);
->>>>>> +    } while (pmd++, addr = next, addr != end);
->>>>>> +}
->>>>>
->>>>> As far as I can tell it's mapping the early shadow page, read-only, over
->>>>> the KASAN_SHADOW_START->KASAN_SHADOW_END range, and it's using the early
->>>>> shadow PTE array from the generic code.
->>>>>
->>>>> I haven't been able to find an answer to why this is in the docs, so I
->>>>> was wondering if you or anyone else could explain the early part of
->>>>> kasan init a bit better.
->>>>
->>>> See https://www.kernel.org/doc/html/latest/dev-tools/kasan.html for an
->>>> explanation of the shadow.
->>>>
->>>> When shadow is 0, it means the memory area is entirely accessible.
->>>>
->>>> It is necessary to setup a shadow area as soon as possible because all
->>>> data accesses check the shadow area, from the begining (except for a few
->>>> files where sanitizing has been disabled in Makefiles).
->>>>
->>>> Until the real shadow area is set, all access are granted thanks to the
->>>> zero shadow area beeing for of zeros.
->>>
->>> Not entirely correct. kasan_early_init() indeed maps the whole shadow
->>> memory range to the same kasan_early_shadow_page. However as kernel
->>> loads and memory gets allocated this shadow page gets rewritten with
->>> non-zero values by different KASAN allocator hooks. Since these values
->>> come from completely different parts of the kernel, but all land on
->>> the same page, kasan_early_shadow_page's content can be considered
->>> garbage. When KASAN checks memory accesses for validity it detects
->>> these garbage shadow values, but doesn't print any reports, as the
->>> reporting routine bails out on the current->kasan_depth check (which
->>> has the value of 1 initially). Only after kasan_init() completes, when
->>> the proper shadow memory is mapped, current->kasan_depth gets set to 0
->>> and we start reporting bad accesses.
->>
->> That's surprising, because in the early phase I map the shadow area
->> read-only, so I do not expect it to get modified unless RO protection is
->> failing for some reason.
+On Sat, 2019-02-09 at 19:49 -0500, Michael S. Tsirkin wrote:
+> On Mon, Feb 04, 2019 at 10:15:52AM -0800, Alexander Duyck wrote:
+> > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > 
+> > Add guest support for providing free memory hints to the KVM hypervisor for
+> > freed pages huge TLB size or larger. I am restricting the size to
+> > huge TLB order and larger because the hypercalls are too expensive to be
+> > performing one per 4K page.
 > 
-> Actually it might be that the allocator hooks don't modify shadow at
-> this point, as the allocator is not yet initialized. However stack
-> should be getting poisoned and unpoisoned from the very start. But the
-> generic statement that early shadow gets dirtied should be correct.
-> Might it be that you don't use stack instrumentation?
+> Even 2M pages start to get expensive with a TB guest.
+
+Agreed.
+
+> Really it seems we want a virtio ring so we can pass a batch of these.
+> E.g. 256 entries, 2M each - that's more like it.
+
+The only issue I see with doing that is that we then have to defer the
+freeing. Doing that is going to introduce issues in the guest as we are
+going to have pages going unused for some period of time while we wait
+for the hint to complete, and we cannot just pull said pages back. I'm
+not really a fan of the asynchronous nature of Nitesh's patches for
+this reason.
+
+> > Using the huge TLB order became the obvious
+> > choice for the order to use as it allows us to avoid fragmentation of higher
+> > order memory on the host.
+> > 
+> > I have limited the functionality so that it doesn't work when page
+> > poisoning is enabled. I did this because a write to the page after doing an
+> > MADV_DONTNEED would effectively negate the hint, so it would be wasting
+> > cycles to do so.
 > 
+> Again that's leaking host implementation detail into guest interface.
+> 
+> We are giving guest page hints to host that makes sense,
+> weird interactions with other features due to host
+> implementation details should be handled by host.
 
-Yes, stack instrumentation is not used here, because shadow offset which we pass to
-the -fasan-shadow-offset= cflag is not specified here. So the logic in scrpits/Makefile.kasan
-just fallbacks to CFLAGS_KASAN_MINIMAL, which is outline and without stack instrumentation.
+I don't view this as a host implementation detail, this is guest
+feature making use of all pages for debugging. If we are placing poison
+values in the page then I wouldn't consider them an unused page, it is
+being actively used to store the poison value. If we can achieve this
+and free the page back to the host then even better, but until the
+features can coexist we should not use the page hinting while page
+poisoning is enabled.
 
-Christophe, you can specify KASAN_SHADOW_OFFSET either in Kconfig (e.g. x86_64) or
-in Makefile (e.g. arm64). And make early mapping writable, because compiler generated code will write
-to shadow memory in function prologue/epilogue.
+This is one of the reasons why I was opposed to just disabling page
+poisoning when this feature was enabled in Nitesh's patches. If the
+guest has page poisoning enabled it is doing something with the page.
+It shouldn't be prevented from doing that because the host wants to
+have the option to free the pages.
 
