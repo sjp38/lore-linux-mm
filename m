@@ -2,197 +2,173 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.5 required=3.0 tests=DATE_IN_PAST_24_48,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 21DC2C282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 18:20:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B385CC4151A
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 18:22:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D3C1B222BB
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 18:20:37 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=linaro.org header.i=@linaro.org header.b="Bwg4eIV/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3C1B222BB
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
+	by mail.kernel.org (Postfix) with ESMTP id 7D931222CC
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 18:22:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D931222CC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6F44B8E0002; Tue, 12 Feb 2019 13:20:37 -0500 (EST)
+	id 175038E0002; Tue, 12 Feb 2019 13:22:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6A44C8E0001; Tue, 12 Feb 2019 13:20:37 -0500 (EST)
+	id 1262B8E0001; Tue, 12 Feb 2019 13:22:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5BB918E0002; Tue, 12 Feb 2019 13:20:37 -0500 (EST)
+	id F2F308E0002; Tue, 12 Feb 2019 13:22:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 07B768E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 13:20:37 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id f5so1333293wrt.13
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 10:20:36 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B46678E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 13:22:40 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id h15so3020756pfj.22
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 10:22:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=bUE+CRybLrXIaYOIjcJlj0+EDkY0lhfvzRxWOTDT9hU=;
-        b=jYkFFWMnk/bvQuLGFR0hnz6ZaQJ67tIMk2IRtVzdwx+Gn6RGB0hmfs2HCOgool99Yk
-         Ctpmdoid6PIJ+GYKd3QbyzxL0Hbr0P4d57onFUVDBchH5x17fs95+MKI4qwSFt9MjKf1
-         wr4h8hzwTkUGXpTmSPgSZ8WfMm7WYPGZQpzN9iLZQ9FGQnjBiDUSDMYURlQeyKm4M73e
-         F33P3/is4nBMXxmEAbdFDbb/b/qWHoXe9Z6jkvX/Aise4GggMlB6cYoCj7tW699Qf9Tp
-         zRyowpILF5G67lSs12PkLq16HgDD3LNkJ3JXeSWc9VC9w/30tRcRmck+LKlI8WtyvGDV
-         zQRA==
-X-Gm-Message-State: AHQUAuboctVdhjE93auqhxuO8j0K/3ZXiGpssvG74hXilT0oU/vsNwGW
-	ypTuk23MNh1YnlB2lRyaBVWOQUEhOB0a/20V0ERIb7NJDex+hTPbAIf0Vr28oUFVn0+Y1Hz2pZx
-	d6CCAvHuQY8YddzJNjCu78rE0xjDdrjzsFsTMAnlwizTQFZTBgHAIo4g6knr1VnsRNFn6tjqTaK
-	osXpRmH3gmlgq5uFjUsUabrftV6khSZI/cL31qhfI4OGArCDMKBaBiPaB4I6kj6+DHclgAzLXXw
-	cknZBMz59p5yVstZqpE+Q9zDtUKf/fRC63OO7QoO5FWsDGik5iT+TakA3ERawrEXey/qBZCuT+a
-	RUW75IoGe+OpHnPNcMaGrbbHV8dE+8AECIs6AeNANq0CVkuIjdrWoRH9yXZyuwCJ4m/hoiXwiCM
-	o
-X-Received: by 2002:a5d:6086:: with SMTP id w6mr3771146wrt.308.1549995636526;
-        Tue, 12 Feb 2019 10:20:36 -0800 (PST)
-X-Received: by 2002:a5d:6086:: with SMTP id w6mr3771098wrt.308.1549995635695;
-        Tue, 12 Feb 2019 10:20:35 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549995635; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=jImWSWSzvk0BYFosk8nq2RqkOLgHcmKoR4Zy5d6aQj4=;
+        b=LnxoCLpN3DFNJG4e8LCux7KPUYLCEL+xaF7J+jS/nwxADpiSUn1XZTZDlPLwhzbzUq
+         WWQ8yuTfrgdyylVDUdOvWAnC+slpQ2FvENtGI4K/6azkiqJx/QFB4cl8zn9lsz4pnb5o
+         /ju4p+phNmKXfpWbq+DVQQxXmpjMLkZMQ6A3i0JH5xwCbDOjv4YUSeNieAJaqpxX2vdY
+         n5mE/0dOcf1oo4RHIQanpm4TXjv5I8KpN7k3rLUlUYIaG3Gg0CVp2PCyQT4SGI24WdZQ
+         SXnJ5pCX0XAiCRSWksViI62Gqy+TrLi8a+QOdJcUmFJMoC9C5PMwBiMDeWhbsTLjj5uf
+         EzJw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuYLsJ85bmh9W614F9cUzPR7Z+jTTaWSyjAUHTeaC+WF6urOW5Xq
+	0f4s05SxukcD7ZjEgOWfAfIFQ8wBRkdb+oIpyHtCs5cmNMIdcoGUPTkgsdo9KB6L8sRGMcuc47Z
+	CtV8Uey+SHItldwhN9BAuIJsSQrzC2jkh+iY5JwCBkTKTAvVdRxhuT4N7H43vPmA1UA==
+X-Received: by 2002:a17:902:7588:: with SMTP id j8mr360877pll.22.1549995760367;
+        Tue, 12 Feb 2019 10:22:40 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaxnPv9JnhkqBx15aNxIPyBcjXNAPAWOflg6JYcBkAG73+sB96+1QJ6YEZT2r3m92DLrR9O
+X-Received: by 2002:a17:902:7588:: with SMTP id j8mr360832pll.22.1549995759719;
+        Tue, 12 Feb 2019 10:22:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549995759; cv=none;
         d=google.com; s=arc-20160816;
-        b=hQNl/QFcAyCx5UklXGSFh+H50smbGNNtm8ssk+W4PXRYZtt0zEd88mk3d8CrwkT9ch
-         VtrxvEv3rnmKIwGb0cdjItUHPC68OURgQM7I1g383d8Z3MAq8u44OQfBb0wznwHITBJi
-         E8f2kJx/ZXci2fTMCEdD/a147bIma9iRekhlMWDSpEbJLdDqZFjpL2pLFOAFq41TMfqE
-         A32OtDyCZ3Rm3Qqw78k07uD8NRu3oCRbgLvsMUw4D9Zl7Tb+6jMqiYpInS1SdH4apqye
-         b+h1LNuBAfJSGXzwNSyjWMlsOQ7/k0c8t/bnUzaQoA5k/e8iOhFMSdYKQkOQSORO3wb+
-         Uc0A==
+        b=1I25MCJazEZCmOSsZ7FpTmZ+PMhfI+Y6hHcegbZ201wXmGj4DVt0KOv5ajTnBAvxDt
+         XR4/IK8T77z2saXNpRUXKcvHDdeCBHK3OpjG74Qn3O8LQGjYu9jz6Drnq6QE2nQb9pcL
+         xwB+jSUDivt553mR7RUCr0Q1M9cLbdFJdVnGfLoGu9dXrqMuLxh1dvslXUfo3ZNZhe/B
+         Mr5uCS8JsSyKwzyReO3bwNVEdMTdhu6jCV0dNqbJHdLpJ1BiTyd5zrLKiSVo0mk7kUE8
+         DMOIK70OlJfjf5MEMDGlbR4QiX9qCEk9zMcsn0j94/paeYm3zyatBuKDPUO/W2usoP+V
+         FSFQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=bUE+CRybLrXIaYOIjcJlj0+EDkY0lhfvzRxWOTDT9hU=;
-        b=kl66BDe/ZtpMPptJ6DP4tbjeyi7TzVlwVtmAN70i/lpE9XvZSomn8Cw7uxPXaDvzGO
-         tQRtdAPTVb9Ld82/vgXdnoOKqk2X4qzU1SOtC6nLyHybDrUnyCf6f4YATWBOVyr31STC
-         Tm9nDwu8yNOnUlz7c4wmYwRaD+qOr86tz0c+0w2eSkCBN6iMJFXNxcm9VfgF9emKboEd
-         yXeY1djAnV1s+iM/2XG9JNF7zlie6oN+9kIRf776v8JXiT2pB+7oZ4lOnUxwcQFfsN+A
-         GkAF3I0bMkKP3l18L23Xu1p5J2CAmjzMhbI4Zfc1YDsQd1noQQc3RkpcMR2IPK2flohD
-         v7Ug==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=jImWSWSzvk0BYFosk8nq2RqkOLgHcmKoR4Zy5d6aQj4=;
+        b=KcNunovSD4pgBRm8qXdwomxAssAL2x/W2wfhssu8+4UiMuY450/O1Qoci+UejQihsT
+         5LO7O1vakx9TLxBS8k6NtAhATfefSz3i0tyo3UJiauGqxial5kP51RYIbKbLsJrC8shs
+         AENTNaJ4bKCPZuIz1oZL1nx1txX/tnNAf0JtQyPsFshAU+gsDCzBim9RwYE/40HYaywg
+         TjciWETAiFjQoXP+QPCJ+HLxR+/540kPQuzDBwqoNLIuGrFe8Nn6P+YVpCtAJhz4Yccm
+         480cEHTnGyMAQ6YnIdykLz7BQe65LCzFQBnMgOfLJtm9z2/HjRG1Up3TROmcxTF+Vl0n
+         NAdw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b="Bwg4eIV/";
-       spf=pass (google.com: domain of ilias.apalodimas@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ilias.apalodimas@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a3sor2297655wmb.24.2019.02.12.10.20.35
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id 82si13306378pga.270.2019.02.12.10.22.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Feb 2019 10:20:35 -0800 (PST)
-Received-SPF: pass (google.com: domain of ilias.apalodimas@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b="Bwg4eIV/";
-       spf=pass (google.com: domain of ilias.apalodimas@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ilias.apalodimas@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linaro.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=bUE+CRybLrXIaYOIjcJlj0+EDkY0lhfvzRxWOTDT9hU=;
-        b=Bwg4eIV/uk5JnpxvEDZ7aYV3p09wJgMLUuo7zVplKIugygptVP3tmWzBexfR7U9AX2
-         m31g4Bt+jDYkbUTpfyG2UFQORs5AdHxempNNY349LCkrYWEUaj2rHhjytDhHWNtU+Apv
-         DAVMon85Be1HZFCYvEIveRqJ0ixVf7QFQv9k7iUJEuhI3jwcMTGXQHDrDQxHqJfSjsT8
-         zb/GdOAcv9oWbqmTrJlu+UaJ4D0Rq4kU3P6XLZ7uXyWvk0P6DUCCoxarCgFPK04EK2D6
-         QdHVYrlCi9PARKmFkwXHqG2Zrp6ANfZIDG63bz/mjeCx+FUi88fm4AyKg3VTrLbjIooW
-         6ffQ==
-X-Google-Smtp-Source: AHgI3IahLHucSGj2w0o3CQgw8Qtdao3WBGaSLsyOEh9sRpTljzdv+xhS90TJhKJxiQUKaRQxPdYMHw==
-X-Received: by 2002:a1c:f00a:: with SMTP id a10mr138351wmb.148.1549995635073;
-        Tue, 12 Feb 2019 10:20:35 -0800 (PST)
-Received: from apalos (ppp-94-65-225-153.home.otenet.gr. [94.65.225.153])
-        by smtp.gmail.com with ESMTPSA id z1sm8274672wrw.28.2019.02.12.10.20.33
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 10:20:34 -0800 (PST)
-Date: Tue, 12 Feb 2019 20:20:31 +0200
-From: Ilias Apalodimas <ilias.apalodimas@linaro.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>,
-	Tariq Toukan <tariqt@mellanox.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	"brouer@redhat.com" <brouer@redhat.com>,
-	David Miller <davem@davemloft.net>,
-	"toke@redhat.com" <toke@redhat.com>,
-	"netdev@vger.kernel.org" <netdev@vger.kernel.org>,
-	"mgorman@techsingularity.net" <mgorman@techsingularity.net>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: [RFC, PATCH] net: page_pool: Don't use page->private to store
- dma_addr_t
-Message-ID: <20190212182031.GA23057@apalos>
-References: <20190207150745.GW21860@bombadil.infradead.org>
- <20190207152034.GA3295@apalos>
- <20190207.132519.1698007650891404763.davem@davemloft.net>
- <20190207213400.GA21860@bombadil.infradead.org>
- <20190207214237.GA10676@Iliass-MBP.lan>
- <bfd83487-7073-18c8-6d89-e50fe9a83313@mellanox.com>
- <64f7af75-e6df-7abc-c4ce-82e6ca51fafe@gmail.com>
- <27e97aac-f25b-d46c-3e70-7d0d44f784b5@mellanox.com>
- <d8fa6786-c252-6bb0-409f-42ce18127cb3@gmail.com>
- <CAKgT0UfG08aYoN=zO_aVyx+OgNPmN9pVkBNeZMPTF2KL7XqoBQ@mail.gmail.com>
+        Tue, 12 Feb 2019 10:22:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga006.jf.intel.com ([10.7.209.51])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Feb 2019 10:22:38 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,362,1544515200"; 
+   d="scan'208";a="115652316"
+Received: from sikkaiax-mobl1.amr.corp.intel.com (HELO [10.7.201.139]) ([10.7.201.139])
+  by orsmga006.jf.intel.com with ESMTP; 12 Feb 2019 10:22:36 -0800
+Subject: Re: [PATCH 5/5] dax: "Hotplug" persistent memory for use like normal
+ RAM
+To: Brice Goglin <Brice.Goglin@inria.fr>,
+ Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org
+Cc: thomas.lendacky@amd.com, mhocko@suse.com, linux-nvdimm@lists.01.org,
+ tiwai@suse.de, ying.huang@intel.com, linux-mm@kvack.org, jglisse@redhat.com,
+ bp@suse.de, baiyaowei@cmss.chinamobile.com, zwisler@kernel.org,
+ bhelgaas@google.com, fengguang.wu@intel.com, akpm@linux-foundation.org
+References: <20190124231441.37A4A305@viggo.jf.intel.com>
+ <20190124231448.E102D18E@viggo.jf.intel.com>
+ <c4c6aca8-6ee8-be10-65ae-4cbe0aa03bfb@inria.fr>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ mQINBE6HMP0BEADIMA3XYkQfF3dwHlj58Yjsc4E5y5G67cfbt8dvaUq2fx1lR0K9h1bOI6fC
+ oAiUXvGAOxPDsB/P6UEOISPpLl5IuYsSwAeZGkdQ5g6m1xq7AlDJQZddhr/1DC/nMVa/2BoY
+ 2UnKuZuSBu7lgOE193+7Uks3416N2hTkyKUSNkduyoZ9F5twiBhxPJwPtn/wnch6n5RsoXsb
+ ygOEDxLEsSk/7eyFycjE+btUtAWZtx+HseyaGfqkZK0Z9bT1lsaHecmB203xShwCPT49Blxz
+ VOab8668QpaEOdLGhtvrVYVK7x4skyT3nGWcgDCl5/Vp3TWA4K+IofwvXzX2ON/Mj7aQwf5W
+ iC+3nWC7q0uxKwwsddJ0Nu+dpA/UORQWa1NiAftEoSpk5+nUUi0WE+5DRm0H+TXKBWMGNCFn
+ c6+EKg5zQaa8KqymHcOrSXNPmzJuXvDQ8uj2J8XuzCZfK4uy1+YdIr0yyEMI7mdh4KX50LO1
+ pmowEqDh7dLShTOif/7UtQYrzYq9cPnjU2ZW4qd5Qz2joSGTG9eCXLz5PRe5SqHxv6ljk8mb
+ ApNuY7bOXO/A7T2j5RwXIlcmssqIjBcxsRRoIbpCwWWGjkYjzYCjgsNFL6rt4OL11OUF37wL
+ QcTl7fbCGv53KfKPdYD5hcbguLKi/aCccJK18ZwNjFhqr4MliQARAQABtEVEYXZpZCBDaHJp
+ c3RvcGhlciBIYW5zZW4gKEludGVsIFdvcmsgQWRkcmVzcykgPGRhdmUuaGFuc2VuQGludGVs
+ LmNvbT6JAjgEEwECACIFAlQ+9J0CGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEGg1
+ lTBwyZKwLZUP/0dnbhDc229u2u6WtK1s1cSd9WsflGXGagkR6liJ4um3XCfYWDHvIdkHYC1t
+ MNcVHFBwmQkawxsYvgO8kXT3SaFZe4ISfB4K4CL2qp4JO+nJdlFUbZI7cz/Td9z8nHjMcWYF
+ IQuTsWOLs/LBMTs+ANumibtw6UkiGVD3dfHJAOPNApjVr+M0P/lVmTeP8w0uVcd2syiaU5jB
+ aht9CYATn+ytFGWZnBEEQFnqcibIaOrmoBLu2b3fKJEd8Jp7NHDSIdrvrMjYynmc6sZKUqH2
+ I1qOevaa8jUg7wlLJAWGfIqnu85kkqrVOkbNbk4TPub7VOqA6qG5GCNEIv6ZY7HLYd/vAkVY
+ E8Plzq/NwLAuOWxvGrOl7OPuwVeR4hBDfcrNb990MFPpjGgACzAZyjdmYoMu8j3/MAEW4P0z
+ F5+EYJAOZ+z212y1pchNNauehORXgjrNKsZwxwKpPY9qb84E3O9KYpwfATsqOoQ6tTgr+1BR
+ CCwP712H+E9U5HJ0iibN/CDZFVPL1bRerHziuwuQuvE0qWg0+0SChFe9oq0KAwEkVs6ZDMB2
+ P16MieEEQ6StQRlvy2YBv80L1TMl3T90Bo1UUn6ARXEpcbFE0/aORH/jEXcRteb+vuik5UGY
+ 5TsyLYdPur3TXm7XDBdmmyQVJjnJKYK9AQxj95KlXLVO38lcuQINBFRjzmoBEACyAxbvUEhd
+ GDGNg0JhDdezyTdN8C9BFsdxyTLnSH31NRiyp1QtuxvcqGZjb2trDVuCbIzRrgMZLVgo3upr
+ MIOx1CXEgmn23Zhh0EpdVHM8IKx9Z7V0r+rrpRWFE8/wQZngKYVi49PGoZj50ZEifEJ5qn/H
+ Nsp2+Y+bTUjDdgWMATg9DiFMyv8fvoqgNsNyrrZTnSgoLzdxr89FGHZCoSoAK8gfgFHuO54B
+ lI8QOfPDG9WDPJ66HCodjTlBEr/Cwq6GruxS5i2Y33YVqxvFvDa1tUtl+iJ2SWKS9kCai2DR
+ 3BwVONJEYSDQaven/EHMlY1q8Vln3lGPsS11vSUK3QcNJjmrgYxH5KsVsf6PNRj9mp8Z1kIG
+ qjRx08+nnyStWC0gZH6NrYyS9rpqH3j+hA2WcI7De51L4Rv9pFwzp161mvtc6eC/GxaiUGuH
+ BNAVP0PY0fqvIC68p3rLIAW3f97uv4ce2RSQ7LbsPsimOeCo/5vgS6YQsj83E+AipPr09Caj
+ 0hloj+hFoqiticNpmsxdWKoOsV0PftcQvBCCYuhKbZV9s5hjt9qn8CE86A5g5KqDf83Fxqm/
+ vXKgHNFHE5zgXGZnrmaf6resQzbvJHO0Fb0CcIohzrpPaL3YepcLDoCCgElGMGQjdCcSQ+Ci
+ FCRl0Bvyj1YZUql+ZkptgGjikQARAQABiQIfBBgBAgAJBQJUY85qAhsMAAoJEGg1lTBwyZKw
+ l4IQAIKHs/9po4spZDFyfDjunimEhVHqlUt7ggR1Hsl/tkvTSze8pI1P6dGp2XW6AnH1iayn
+ yRcoyT0ZJ+Zmm4xAH1zqKjWplzqdb/dO28qk0bPso8+1oPO8oDhLm1+tY+cOvufXkBTm+whm
+ +AyNTjaCRt6aSMnA/QHVGSJ8grrTJCoACVNhnXg/R0g90g8iV8Q+IBZyDkG0tBThaDdw1B2l
+ asInUTeb9EiVfL/Zjdg5VWiF9LL7iS+9hTeVdR09vThQ/DhVbCNxVk+DtyBHsjOKifrVsYep
+ WpRGBIAu3bK8eXtyvrw1igWTNs2wazJ71+0z2jMzbclKAyRHKU9JdN6Hkkgr2nPb561yjcB8
+ sIq1pFXKyO+nKy6SZYxOvHxCcjk2fkw6UmPU6/j/nQlj2lfOAgNVKuDLothIxzi8pndB8Jju
+ KktE5HJqUUMXePkAYIxEQ0mMc8Po7tuXdejgPMwgP7x65xtfEqI0RuzbUioFltsp1jUaRwQZ
+ MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
+ hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
+ vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
+Message-ID: <26ac36f4-7391-5321-217b-50d67e2119d7@intel.com>
+Date: Mon, 11 Feb 2019 08:22:20 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKgT0UfG08aYoN=zO_aVyx+OgNPmN9pVkBNeZMPTF2KL7XqoBQ@mail.gmail.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <c4c6aca8-6ee8-be10-65ae-4cbe0aa03bfb@inria.fr>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Alexander, 
+On 2/9/19 3:00 AM, Brice Goglin wrote:
+> I've used your patches on fake hardware (memmap=xx!yy) with an older
+> nvdimm-pending branch (without Keith's patches). It worked fine. This
+> time I am running on real Intel hardware. Any idea where to look ?
 
-On Tue, Feb 12, 2019 at 10:13:30AM -0800, Alexander Duyck wrote:
-> On Tue, Feb 12, 2019 at 7:16 AM Eric Dumazet <eric.dumazet@gmail.com> wrote:
-> >
-> >
-> >
-> > On 02/12/2019 04:39 AM, Tariq Toukan wrote:
-> > >
-> > >
-> > > On 2/11/2019 7:14 PM, Eric Dumazet wrote:
-> > >>
-> > >>
-> > >> On 02/11/2019 12:53 AM, Tariq Toukan wrote:
-> > >>>
-> > >>
-> > >>> Hi,
-> > >>>
-> > >>> It's great to use the struct page to store its dma mapping, but I am
-> > >>> worried about extensibility.
-> > >>> page_pool is evolving, and it would need several more per-page fields.
-> > >>> One of them would be pageref_bias, a planned optimization to reduce the
-> > >>> number of the costly atomic pageref operations (and replace existing
-> > >>> code in several drivers).
-> > >>>
-> > >>
-> > >> But the point about pageref_bias is to place it in a different cache line than "struct page"
-> > >>
-> > >> The major cost is having a cache line bouncing between producer and consumer.
-> > >>
-> > >
-> > > pageref_bias is meant to be dirtied only by the page requester, i.e. the
-> > > NIC driver / page_pool.
-> > > All other components (basically, SKB release flow / put_page) should
-> > > continue working with the atomic page_refcnt, and not dirty the
-> > > pageref_bias.
-> >
-> > This is exactly my point.
-> >
-> > You suggested to put pageref_bias in struct page, which breaks this completely.
-> >
-> > pageref_bias is better kept in a driver structure, with appropriate prefetching
-> > since most NIC use a ring buffer for their queues.
-> >
-> > The dma address _can_ be put in the struct page, since the driver does not dirty it
-> > and does not even read it when page can be recycled.
-> 
-> Instead of maintaining the pageref_bias in the page itself it could be
-> maintained in some sort of separate structure. You could just maintain
-> a pointer to a slot in an array somewhere. Then you can still access
-> it if needed, the pointer would be static for as long as it is in the
-> page pool, and you could invalidate the pointer prior to removing the
-> bias from the page.
+I've run them on real Intel hardware too.
 
-I think that's what Tariq was suggesting in the first place.
+Could you share the exact sequence of commands you're issuing to
+reproduce the hang?  My guess would be that there's some odd interaction
+between Dan's latest branch and my now (slightly) stale patches.
 
-/Ilias
+I'll refresh them this week and see if I can reproduce what you're seeing.
 
