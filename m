@@ -2,183 +2,194 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C6165C169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 21:22:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61DD0C282D7
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 21:27:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7F4C7214DA
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 21:22:15 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="N+9Ixzzi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F4C7214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 286AE217D9
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 21:27:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 286AE217D9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F0D148E0168; Mon, 11 Feb 2019 16:22:14 -0500 (EST)
+	id AC56F8E0169; Mon, 11 Feb 2019 16:27:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EBCD38E0165; Mon, 11 Feb 2019 16:22:14 -0500 (EST)
+	id A74068E0165; Mon, 11 Feb 2019 16:27:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D84948E0168; Mon, 11 Feb 2019 16:22:14 -0500 (EST)
+	id 93B8B8E0169; Mon, 11 Feb 2019 16:27:05 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A54F68E0165
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 16:22:14 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id x64so257707ywc.6
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:22:14 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 53B438E0165
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 16:27:05 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id i11so288727pgb.8
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:27:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=DjZRhIk6nj+66m80d2y4KoL4uboyuqGSUxmbuZ6C5i8=;
-        b=d8O8y+gb3cupe2r7FnSxiQbkPb/kytcOcQmv+kWZ4HYP6cOt0TFwmaUGsHkqKmWhNN
-         DdvcgIdhLa6itfT2Ihg+OfrdXh9JVAHTZDAbfrDOkpJCukGmjh5mZpXSpfCaFCEyZ/tx
-         iAPRxrbX7KfRRYHezh0/gXFr4VjaDTr+qD/mjptAlUpcNwwws4V7jYUJdJ7DlnLfJmYG
-         aX4G9tVIrlv5Usf8AZeyCUapDFS6O2Jb2vR+3Iiid4VKVXYLKQ49Ag4TOnpI+h+35gqP
-         90NwsU5tLifHz7y1eMDW8CFoIt7IstsTVievmI1W0j3/1gGxeG/sHTq6igVcCf0s8fvg
-         ursg==
-X-Gm-Message-State: AHQUAubsAMEAexU+r3nq520dN9fL6yfgBHynXsYwHgvAULJrNnAu69Pr
-	NqwmCbyYMwtStI2xIBjAQboGH907UtAaT7ARwq+rNVL43aEgCi8ijqHP9czTSD6BbI9dPDX43wD
-	lDDqA4U32mWEJdiZwXFbZ6rprrksdir0tlOYhBZEoHIsEe+t3ovuwsKBpHPhoe0kXGg==
-X-Received: by 2002:a81:2f03:: with SMTP id v3mr234712ywv.136.1549920134382;
-        Mon, 11 Feb 2019 13:22:14 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbgUSfAFaZdEjOQSJU+dVY8R0Q3GlUktCU9K2nZhjD7NSJEJg2C2WskOEW9zCZPdb7B78jL
-X-Received: by 2002:a81:2f03:: with SMTP id v3mr234683ywv.136.1549920133839;
-        Mon, 11 Feb 2019 13:22:13 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549920133; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=uohh7hM0Bw5kEa3jfEtUyhxC1zxgnaJFyh7a3jj4pSc=;
+        b=Y1qVKiy+ZVteTF9uC4Or/OUyDnvAppNtMSii++hNRZMmqW1mf4MLe+XnpgznEAoWwR
+         r55ZioDuJBbauyv7bgETBsthPK0rYVceK7mJoPjxgkeSDkCJgfBkUrdtpaf/F28y9MpG
+         gVTEWptM/aLGIVoUiGkTLDnrl51SJ+tJaLKsizurg7e8n3MT18MpSXk9nasD8enwS2zK
+         iwv23xRHwhFVyPEpVLsTaymIWnzOlVy8DnAj4oueQ7uO+cU7aUcKW5CU8nVWOPStC732
+         BkbUDTASCpiDLVed+bYd30PHT5RYc6CVZPLz06x2jIotxAsjU7UxIITeguZNQXg1uwwG
+         3wbw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuaeFbanOqQvPXB6E6plE/B/w5y5df89Oe/3LwKJs0jGBW0ZP+dZ
+	gLC+kn27oe3xyS0XejrUd0Bp8p31cx4qt09zfK4tvE0LkjBDLtmxpREW04o7xUbumDZZoOAzjmo
+	04wSg2L8t+2ctNbnjIwGU03zcqMKao/wqnK0mzQQqfDOiBq4OoVoyzN32JBjxsotDXg==
+X-Received: by 2002:a63:d5f:: with SMTP id 31mr292510pgn.274.1549920424985;
+        Mon, 11 Feb 2019 13:27:04 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia6r9BaKvL641DvgyjY6cOc//JYLBkn9yehKYXvLg8v5tXWWSSbDLWrKyaSPy6X2meyxdPe
+X-Received: by 2002:a63:d5f:: with SMTP id 31mr292465pgn.274.1549920424198;
+        Mon, 11 Feb 2019 13:27:04 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549920424; cv=none;
         d=google.com; s=arc-20160816;
-        b=LsjFd1CCkl8VZoxYWo6ZuQ9lzdiODoFaPnUTxXOpVa1eqQFG1uPkxl5lsY8MXsXwm3
-         mPMeSDwZwoyyzaD4btCAkeqH3Rf9OVIEbSVvTHNDrLcsktvRGWpDKAWN8/myu7w8baw/
-         nYyUHM7Y5w12kum9q1AlFPjnRd217KoYneDdHmkhdtR10Tsvv1P/Dndm74M50SvVmQ3p
-         8x814ZGi+Q7VPRHIjdEDxzD4djqtdVSQDc1NncQ5r0zafhHb3FH6ddTuTgNZBwXuRU+O
-         7Kxn79ugJ7S8CjSLVcKZzR6p3Wv5Y26v2PLh3BlwscDoqypikrDiLhZ9sgA+RpsByDfh
-         s21Q==
+        b=Ry0EaLJkGg4/pm6tTe4A/vopTjTQ5B1EeMi2zyUkKslJFfpO2rzfTWwqrfFzIPVrKv
+         79FLjSc0SBnzu/Oxg9PYFR3tq6L9XyBvn1uiuaeZibFjm/SXMj6qngdYYXRuefOiLWjY
+         x1tqpC4DXtVgDoL3ihF6XxbSGSQlmK77IgXxAXkHRsZk4tZzEdt8kdAh4xou9h9MiUzT
+         hBylFSyMSTsYJfD6oshO5Bkg0y7Ep63SQLcdGF7WRMofcS64bbdtkS5MCzMtsrQ4Iezq
+         b4NXPQaZDF0tCrv3GHgFHCx6dnqflNygnF/p9ZqnA56FtznnMzYLjDhF+wnXOKqILGrg
+         VGEQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=DjZRhIk6nj+66m80d2y4KoL4uboyuqGSUxmbuZ6C5i8=;
-        b=0gN6N9TxLf6NQFERagZ6l1CMzQnQ+IzkSb/DG4RrmoNp0ywlFbbTHx7BdPQR03OdTw
-         xyWXuo1fHsVtq2sR/85oInlnK+8/obkXF9aqCRT9msFkzyra3R8DIQjWMVqPJ6ua5S6Z
-         /Qqoymh9PmIuOzfyDtdVT7fdirIWnFEbRhHLkO8JLm/PjYcC0sJEmacl2ngxNpNcBoKq
-         BkHWLY+QbMVQTQkFd0qayId32pCHH0RwG72ZtGtiL5VkEXlVSAeQQ3fcO19zXne6XaY/
-         FKID2uOHOoXpTRvhqKVFoN1x2dsEDLudPeSkR/AmiFAmMvgQ6JDxkDtXFfg10nmeWVOm
-         n8Cg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=uohh7hM0Bw5kEa3jfEtUyhxC1zxgnaJFyh7a3jj4pSc=;
+        b=R/mGX15MGDlFnGD50MN4pbOI5/8AXMGt9wvbgT3J1+u3hOEMV+A/3AX/AnWLW5daf2
+         64YFRcubnjPxjZmDZLobsyL9NySjnqgzO4kw2OKnslpJRjeW2FTZFEjU9SeGKYhtPxNA
+         pJdyikDvA0hnOgSbMLDNqEtVZs9leT5jvskA734CKwYI4ZOQm5F/5XmsQdwM1AU9T+Dk
+         aWgG2k7jc6r6lTEdNiIb9lFtbROnu7nEvUlHElfRGYpVa4cWgMDIdiAR9VoIb9tNUjR+
+         fRqsi/643wt1tIrsy9a/m9gNW+jToFBbphQGyeQeUkGqBNjFNPz//WlvbefDPR/yQrr9
+         4H5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=N+9Ixzzi;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id 134si6262665ybc.79.2019.02.11.13.22.13
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id u188si9282165pfb.232.2019.02.11.13.27.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 13:22:13 -0800 (PST)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Mon, 11 Feb 2019 13:27:04 -0800 (PST)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=N+9Ixzzi;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c61e7620000>; Mon, 11 Feb 2019 13:21:38 -0800
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Mon, 11 Feb 2019 13:22:12 -0800
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Mon, 11 Feb 2019 13:22:12 -0800
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Mon, 11 Feb
- 2019 21:22:12 +0000
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-To: Ira Weiny <ira.weiny@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>
-CC: Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Dave
- Chinner <david@fromorbit.com>, Christopher Lameter <cl@linux.com>, Doug
- Ledford <dledford@redhat.com>, Matthew Wilcox <willy@infradead.org>,
-	<lsf-pc@lists.linux-foundation.org>, linux-rdma <linux-rdma@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List
-	<linux-kernel@vger.kernel.org>, Jerome Glisse <jglisse@redhat.com>, Michal
- Hocko <mhocko@kernel.org>
-References: <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
- <CAPcyv4hqya1iKCfHJRXQJRD4qXZa3VjkoKGw6tEvtWNkKVbP+A@mail.gmail.com>
- <bfe0fdd5400d41d223d8d30142f56a9c8efc033d.camel@redhat.com>
- <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com>
- <20190208044302.GA20493@dastard> <20190208111028.GD6353@quack2.suse.cz>
- <CAPcyv4iVtBfO8zWZU3LZXLqv-dha1NSG+2+7MvgNy9TibCy4Cw@mail.gmail.com>
- <20190211102402.GF19029@quack2.suse.cz>
- <CAPcyv4iHso+PqAm-4NfF0svoK4mELJMSWNp+vsG43UaW1S2eew@mail.gmail.com>
- <20190211180654.GB24692@ziepe.ca>
- <20190211181921.GA5526@iweiny-DESK2.sc.intel.com>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <fb507b56-7f8f-cf2c-285c-bae3b2d72c4f@nvidia.com>
-Date: Mon, 11 Feb 2019 13:22:11 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Feb 2019 13:27:03 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,360,1544515200"; 
+   d="scan'208";a="121657772"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga007.fm.intel.com with ESMTP; 11 Feb 2019 13:27:03 -0800
+Date: Mon, 11 Feb 2019 13:26:52 -0800
+From: Ira Weiny <ira.weiny@intel.com>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>, linux-rdma@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	Daniel Borkmann <daniel@iogearbox.net>,
+	Davidlohr Bueso <dave@stgolabs.net>, netdev@vger.kernel.org,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Doug Ledford <dledford@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Dan Williams <dan.j.williams@intel.com>
+Subject: Re: [PATCH 2/3] mm/gup: Introduce get_user_pages_fast_longterm()
+Message-ID: <20190211212652.GA7790@iweiny-DESK2.sc.intel.com>
+References: <20190211201643.7599-1-ira.weiny@intel.com>
+ <20190211201643.7599-3-ira.weiny@intel.com>
+ <20190211203916.GA2771@ziepe.ca>
+ <bcc03ee1-4c42-48c3-bc67-942c0f04875e@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <20190211181921.GA5526@iweiny-DESK2.sc.intel.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL108.nvidia.com (172.18.146.13) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US-large
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1549920098; bh=DjZRhIk6nj+66m80d2y4KoL4uboyuqGSUxmbuZ6C5i8=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=N+9IxzziTXqH/Fz777iPdO26xuw8ZbKxPM7kRnNSRVXNsIaFbmKoZMzMEpboec7Re
-	 ljo6HMwO8Y/66jKpjoOzBjlG+8bJ4sZ1YCHUYdZDEvpQZhKbUIDSUZ42zfweoclQJL
-	 XbP/TIVO642z/clG3ILn8hZwLlC/hjT/tXOaKiomlGbhpPbci1Mp/68A6pKpTZACeJ
-	 Tuj94uUpRl3BLr0QmejPoETKhVMg5B/ojN5UwwUvE2jSV2kzMZoraIiPobHIdalr/A
-	 SiLVhoepPUfMnPcdz/xQhlmXYrTYUVcB8GaSUXUijPb+o2kGWiuiGpFMPs35QJ6OG0
-	 oazuwFxQPOUMw==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <bcc03ee1-4c42-48c3-bc67-942c0f04875e@nvidia.com>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/11/19 10:19 AM, Ira Weiny wrote:
-> On Mon, Feb 11, 2019 at 11:06:54AM -0700, Jason Gunthorpe wrote:
->> On Mon, Feb 11, 2019 at 09:22:58AM -0800, Dan Williams wrote:
-[...]
-> John's patches will indicate to the FS that the page is gup pinned.  But they
-> will not indicate longterm vs not "shorterm".  A shortterm pin could be handled
-> as a "real truncate".  So, are we back to needing a longterm "bit" in struct
-> page to indicate a longterm pin and allow the FS to perform this "virtual
-> write" after truncate?
+On Mon, Feb 11, 2019 at 01:13:56PM -0800, John Hubbard wrote:
+> On 2/11/19 12:39 PM, Jason Gunthorpe wrote:
+> > On Mon, Feb 11, 2019 at 12:16:42PM -0800, ira.weiny@intel.com wrote:
+> >> From: Ira Weiny <ira.weiny@intel.com>
+> [...]
+> >> +static inline int get_user_pages_fast_longterm(unsigned long start, int nr_pages,
+> >> +					       bool write, struct page **pages)
+> >> +{
+> >> +	return get_user_pages_fast(start, nr_pages, write, pages);
+> >> +}
+> >>  #endif /* CONFIG_FS_DAX */
+> >>  
+> >>  int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+> >> @@ -2615,6 +2622,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+> >>  #define FOLL_REMOTE	0x2000	/* we are working on non-current tsk/mm */
+> >>  #define FOLL_COW	0x4000	/* internal GUP flag */
+> >>  #define FOLL_ANON	0x8000	/* don't do file mappings */
+> >> +#define FOLL_LONGTERM	0x10000	/* mapping is intended for a long term pin */
+> > 
+> > If we are adding a new flag, maybe we should get rid of the 'longterm'
+> > entry points and just rely on the callers to pass the flag?
+> > 
+> > Jason
+> > 
 > 
-> Or is it safe to consider all gup pinned pages this way?
+> +1, I agree that the overall get_user_pages*() API family will be cleaner
+> *without* get_user_pages_longterm*() calls. And this new flag makes that possible.
+> So I'd like to see the "longerm" call replaced with just passing this flag. Maybe
+> even as part of this patchset, but either way.
+
+Yes I've thought about this as well.  I have a couple of different versions of
+this series which I've been mulling over and this was one of the other
+variations.  But see below...
+
 > 
-> Ira
+> Taking a moment to reflect on where I think this might go eventually (the notes
+> below do not need to affect your patchset here, but this seems like a good place
+> to mention this):
 > 
+> It seems to me that the longterm vs. short-term is of questionable value.
 
-I mentioned this in another thread, but I'm not great at email threading. :)
-Anyway, it seems better to just drop the entire "longterm" concept from the 
-internal APIs, and just deal in "it's either gup-pinned *at the moment*, or 
-it's not". And let the filesystem respond appropriately. So for a pinned page 
-that hits clear_page_dirty_for_io or whatever else care about pinned pages:
+This is exactly why I did not post this before.  I've been waiting our other
+discussions on how GUP pins are going to be handled to play out.  But with the
+netdev thread today[1] it seems like we need to make sure we have a "safe" fast
+variant for a while.  Introducing FOLL_LONGTERM seemed like the cleanest way to
+do that even if we will not need the distinction in the future...  :-(
 
--- fire mmu notifiers, revoke leases, generally do everything as if it were a
-long term gup pin
+> It's actually better to just call get_user_pages(), and then if it really is
+> long-term enough to matter internally, we'll see the pages marked as gup-pinned.
+> If the gup pages are released before anyone (filesystem, that is) notices, then
+> it must have been short term.
+> 
+> Doing it that way is self-maintaining. Of course, this assumes that we end up with
+> a design that doesn't require being told, by the call sites, that a given gup
+> call is intended for "long term" use. So I could be wrong about this direction, but
+> let's please consider the possibility.
 
--- if it's long term, then you've taken the right actions.
+This is why I've been holding these patches.  I'm also not 100% sure if we will
+need the longterm flag in the future.
 
--- if the pin really is short term, everything works great anyway.
+This is also why I did not change the get_user_pages_longterm because we could
+be ripping this all out by the end of the year...  (I hope. :-)
 
+So while this does "pollute" the GUP family of calls I'm hoping it is not
+forever.
 
-The only way that breaks is if longterm pins imply an irreversible action, such
-as blocking and waiting in a way that you can't back out of or get interrupted
-out of. And the design doesn't seem to be going in that direction, right?
+Ira
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+[1] https://lkml.org/lkml/2019/2/11/1789
+
+> 
+> thanks,
+> -- 
+> John Hubbard
+> NVIDIA
 
