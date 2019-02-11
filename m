@@ -2,149 +2,181 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 42384C282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 19:01:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 35481C282D7
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 19:01:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 00A1920863
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 19:01:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E4D2221B25
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 19:01:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=alien8.de header.i=@alien8.de header.b="AF/C1MIM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00A1920863
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=alien8.de
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="fR9XwG2I"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E4D2221B25
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 89D718E0135; Mon, 11 Feb 2019 14:01:17 -0500 (EST)
+	id AC29B8E0138; Mon, 11 Feb 2019 14:01:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 827568E0138; Mon, 11 Feb 2019 14:01:17 -0500 (EST)
+	id A4A9A8E0136; Mon, 11 Feb 2019 14:01:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6F0528E0135; Mon, 11 Feb 2019 14:01:17 -0500 (EST)
+	id 914988E0138; Mon, 11 Feb 2019 14:01:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 134EA8E012D
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 14:01:17 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id f5so440136wrt.13
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 11:01:17 -0800 (PST)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D4DE8E0136
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 14:01:21 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id l14so8312131ybq.7
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 11:01:21 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=qWpDfY9hdZigS4Dtjg1dc7Cbm4tCe4w1qekSQJB7WTQ=;
-        b=SFyxuuHQvuHNx6x++M1ON0DKiv4T/bOX4rpmXwQlYFyHR4FrXIErYhKBDt5hJ2K0Ye
-         aTPXXNH23p9i250+22ZESp5MmoT6+rvAx5i5PG7vs9iGgAgcwgwfwuNFbTktV1uqqaM4
-         Umh06lQBeSKUwonqwYgehRy8gL790uK77UhQfxHlLxbW9tq6lXDCU0ZEE6l6lKgLo8Bp
-         c2ZtatJdw92t6LZWeJlNVpbnrG0374xzbpVVHn9YC3DHAWEqOWKMP2wqURhmS8wKg540
-         4mLUUyUEjtwrtlxsk5AqDe2cAhmbSqbKtqCR6YMvJaSkDfgl0zjq1RB9w80AsQ+l5E0a
-         rc2g==
-X-Gm-Message-State: AHQUAuZkDq520INguWnpJuirFDKpLFSIz8JT5qFFu48yNJQkEQfjw1Mn
-	cKpTTkBHmQfPSoKGhkCrQtRS+bqA0gaZPrntXPcl1UZgVcKBZNIX709NzuAhRu1N/pAS20lxs6c
-	rpxz7ZF0MpRUm3Po4TSvuB4xX7zKZZ/o5PX4uxYkPQIz45o+P+np61t3tVeMTc4VngA==
-X-Received: by 2002:a05:6000:10cf:: with SMTP id b15mr28345100wrx.301.1549911676638;
-        Mon, 11 Feb 2019 11:01:16 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYDJYTri+4kAMwwLaGJav88SYOLM11fvzmWpv+hIwJK1Nl6W5odcaJRjC2QLbt4YSaxZUzT
-X-Received: by 2002:a05:6000:10cf:: with SMTP id b15mr28345042wrx.301.1549911675596;
-        Mon, 11 Feb 2019 11:01:15 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549911675; cv=none;
+        bh=s09oajM8sRG6VR42JLX9NXyJV4gfvXuCrn6cD3FbZqw=;
+        b=VjfwkQtYa0SibVqEeGdsCGx/krHMTQLQRK4UlgY3zguu7Cru2gggEngKfCAgCX73lg
+         poXyxEoJN0JBi/2Qo0ksMltG/hlw5VwjNScaNbT3KlU1z5xe/1WB14DoiuMM5evnimy/
+         kUxj5M4OwRwfWhVj/AKZHZY5dAfLTD4XUBrCOczuHsMX1s4HkGPKJZkPmykMBpFKvSD5
+         V4c2WZUXPA8z8BDkUHBQdpN1I3uDTvhEBQVDx0gK2BV1xbN++sUKgyoO+d1MJ1R6hAKV
+         IGpPXus6Y4gq7lG2dByKV9I+XNSy4GcN4INwAdZa+cE+Yp1ipwNKsDSHbZIOCDqH4YpW
+         6H3g==
+X-Gm-Message-State: AHQUAubRfFdWJBJ0P5FPIWjiPBINxjhepgt1E346cNcKcEU8C/AVOAP7
+	+NVXQ8hukJBgM4eSl6Ytt/WNXUlM5bo0BBs70A0AilTT0gM1nA5DJ0ZTJNa7mxKd/BwcKvu999x
+	IbqBbY3dZiXSy7ovcG1JpzJj14F2HHHU1xOU0p44jgOUROqHLcwtRn+f+DLX9c5ykqO9BntYIqk
+	Jpd3OMcbpXoqW6IuPM9dhxo1gZMacZWhzVd4PyqxTM4ZSOjBxJAzmvEiF5UomUOsQpvBgS72SN2
+	BavVIvaXTwfstucZiQCEQrnEAaNIdL5EQs0Sl7hXlgC68yX01le0QZwNDuPXggCE8JUVm8JWykh
+	eSzEMto4MsQTfW8ERUOlw6KuaEZPrh5jc+LF3qV82LKvyH7CYz+rnROgYZJjKCS+XsF6BX5xiG1
+	j
+X-Received: by 2002:a25:a0ca:: with SMTP id i10mr30319185ybm.54.1549911681141;
+        Mon, 11 Feb 2019 11:01:21 -0800 (PST)
+X-Received: by 2002:a25:a0ca:: with SMTP id i10mr30319107ybm.54.1549911680367;
+        Mon, 11 Feb 2019 11:01:20 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549911680; cv=none;
         d=google.com; s=arc-20160816;
-        b=tCQ2FT2pdPAh7f3M0qf5SwtsyhZJziLIdYDI0l1b5slo0JPZkxPtqceqcpP/nRM4J/
-         iGeUSCiU6c6Ah6KWnXn9uwAueQ7d/1jMXg9STg3vSOMvqiXlKt++nixsffpAqRoFE1VL
-         2giH/lrZCyAfcp839GByHAQpu3hSSDSTsgqjVVGXzNOCXpLH8/SgGJo/Ihx8xK564MTy
-         GQp9AEOMA9eRlWmTnYtcAyXFS4MqgZI3K4RhVJUi5VPSndx5RniEfDD59qANLR0ld4MV
-         GlRnPLZ5WnMvZfWwx/dAqlGExWDRRZMuH8cWVMXt//rJ6RDz5YceaM9hrDq8cTnIZh0m
-         7kBg==
+        b=UtDYhbnek8IsC7AL4a+MfwJ0pW99Zj9onETQHfrmvm2eV9qPlmGwxO16zo4rgxnTw6
+         Sh7Nnqrq+PJ0nYrmHE+0zaWVtGs5n+abEbJEoeSIkn7IIAIuplKiPyn6a4YMwh06s1ko
+         NyZtqhM4HPYip+FwiZAk1Q98UbO4KdjInWl462iSGr064w5qn4SNixATC91qlPfkfVQs
+         3vvi7+EYCZUuTOdXD9D5/1YoyBEWiISgXIptZaJPEyUV97IDZuiRWg5Dqoqcy1Jnn2yl
+         XtrnnTHzIO9f3nXyC9xWw2BRdDI8HUvyUmSxG1z19+KuI3Xwy3EZSINobyCM6SF1mf8I
+         wfOA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=qWpDfY9hdZigS4Dtjg1dc7Cbm4tCe4w1qekSQJB7WTQ=;
-        b=HoS7g+W+rT0d9aXQg6LkyVZ6jc3u/j/sW/diN+LDAxEixnbSfaAcFlj2NTTOvNdjIn
-         2MX4qz2Ss4iQOER2n5fQ0hP/HtSlxuDGrm1r/gBHTqFrMysWjeGI+bK+NDyxq3Lbj7Mm
-         oNRIIOvcmTMD+gzpYnrR3/kwP+66rZt/y1gFmLPMAQq501Gi+kQ+e8TEp57l+DAs1JNY
-         IlKWBAlcAfZxgZ7te/d4liFrkoWTCiogeIGQIJ6iQdKQEB+NonXw4agAI8h8mxkUzfbo
-         +6vl4XLXdCE64+38q7crMYhaNR5hufGpDN0qiodk36cX/moXN+pYdbY3n8zEWKvk/RF/
-         5NWA==
+        bh=s09oajM8sRG6VR42JLX9NXyJV4gfvXuCrn6cD3FbZqw=;
+        b=bU2XQlawBqSr7iRc/dUQY5ZGMQmSTBWiWiNVMUp1giOvth2W1z85zLgMczf6yl8/bZ
+         fyCAnthOPwP+X3tE6/AG3FNIKMS+WZwflUQ7Hdc/NmIDlYhuO/rSnuorg1SmYdhxhUiT
+         BR4zvg1Ms5pfN2/OziA/VgbYpOxzgihUCbAeEIs13DIz+Dh7+xhYcg2/U0hXK5ZmXtfV
+         z1hedrayVIXt8IUn92AUEnfiggPe0W94bxxwYsGTEPZMww76uCxmzOT0+KOGQnSndaVq
+         WNvQYcMwkZmmr5azLH2jKUKKXgnwgyccgBi+dwwSdmom2yt6mTEfGxY67UKUs7ymo+wm
+         jmmQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b="AF/C1MIM";
-       spf=pass (google.com: domain of bp@alien8.de designates 2a01:4f8:190:11c2::b:1457 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTPS id a16si105272wmd.137.2019.02.11.11.01.15
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=fR9XwG2I;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l144sor1973481ywb.99.2019.02.11.11.01.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 11:01:15 -0800 (PST)
-Received-SPF: pass (google.com: domain of bp@alien8.de designates 2a01:4f8:190:11c2::b:1457 as permitted sender) client-ip=2a01:4f8:190:11c2::b:1457;
+        (Google Transport Security);
+        Mon, 11 Feb 2019 11:01:17 -0800 (PST)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b="AF/C1MIM";
-       spf=pass (google.com: domain of bp@alien8.de designates 2a01:4f8:190:11c2::b:1457 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from zn.tnic (p200300EC2BC7A10074DEFDFE3AD6CF32.dip0.t-ipconnect.de [IPv6:2003:ec:2bc7:a100:74de:fdfe:3ad6:cf32])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.skyhub.de (SuperMail on ZX Spectrum 128k) with ESMTPSA id 99AB21EC01AF;
-	Mon, 11 Feb 2019 20:01:14 +0100 (CET)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=alien8.de; s=dkim;
-	t=1549911674;
-	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
-	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
-	 content-transfer-encoding:in-reply-to:in-reply-to:  references:references;
-	bh=qWpDfY9hdZigS4Dtjg1dc7Cbm4tCe4w1qekSQJB7WTQ=;
-	b=AF/C1MIM5X+09YOUt8D3qKn3HVAOfhn+qR7SVoJP7VlW/9RiKKb8XDrl7Zd3X4x34F3OWA
-	itb3pR9IU1oePmeRJRAkXZ9WkBzL2B8pr0SohcMKAN8/JjHenMUuFOgfVr3peRm/Rlddxu
-	SFxivBRbCkhNC48c5HPHOLAKykBGhLw=
-Date: Mon, 11 Feb 2019 20:01:08 +0100
-From: Borislav Petkov <bp@alien8.de>
-To: Nadav Amit <nadav.amit@gmail.com>
-Cc: Rick Edgecombe <rick.p.edgecombe@intel.com>,
-	Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>,
-	LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Damian Tometzki <linux_dti@icloud.com>,
-	linux-integrity <linux-integrity@vger.kernel.org>,
-	LSM List <linux-security-module@vger.kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Kernel Hardening <kernel-hardening@lists.openwall.com>,
-	Linux-MM <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Kristen Carlson Accardi <kristen@linux.intel.com>,
-	"Dock, Deneen T" <deneen.t.dock@intel.com>,
-	Kees Cook <keescook@chromium.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Masami Hiramatsu <mhiramat@kernel.org>
-Subject: Re: [PATCH v2 10/20] x86: avoid W^X being broken during modules
- loading
-Message-ID: <20190211190108.GP19618@zn.tnic>
-References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
- <20190129003422.9328-11-rick.p.edgecombe@intel.com>
- <20190211182956.GN19618@zn.tnic>
- <1533F2BB-2284-499B-9912-6D74D0B87BC1@gmail.com>
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=fR9XwG2I;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=s09oajM8sRG6VR42JLX9NXyJV4gfvXuCrn6cD3FbZqw=;
+        b=fR9XwG2IpAJnHWw0MPBfz0HAX7xH++BkHbFzdYsjyY2FzzSQFnOya2QKZoELQ/IC5O
+         8Dk/hBPxZ0V9ikPopvPDe6YxClqHJSPNu1lZ87Q2cVLMHwm3C8kKQ6WVmLFZXPEsz3HR
+         nk0JyG9P2MV9qyR1u2B3Xw3gJO/S9XhKwPznBWi+552PjkO8ma2qfoEUpctr7+xltiHq
+         U0S6AsRR2MhGChi8V+igCAz55oV0a1ftWgNSfONzCoxSz9AXXndTZ37wJ/dMBqvXEFXY
+         +XOiZ81yTVgf8Ej4uzhR7/jhIkE2VBZSgSaFyAlZwRqoU0RCaJewWGnOx0Db/jxAlBs3
+         WMrg==
+X-Google-Smtp-Source: AHgI3IZLVsFOrLYBm0wpfHBVnBwYPYDxF1jVhbzc5rUhM1jl1nqzmd8gWWaX9ycIHhhicOSxmCRd/w==
+X-Received: by 2002:a81:a9ca:: with SMTP id g193mr30060659ywh.52.1549911677658;
+        Mon, 11 Feb 2019 11:01:17 -0800 (PST)
+Received: from localhost ([2620:10d:c091:200::5:6e5])
+        by smtp.gmail.com with ESMTPSA id h62sm4103600ywe.100.2019.02.11.11.01.16
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 11 Feb 2019 11:01:16 -0800 (PST)
+Date: Mon, 11 Feb 2019 14:01:15 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Chris Down <chris@chrisdown.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>,
+	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>,
+	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
+	linux-mm@kvack.org, kernel-team@fb.com
+Subject: Re: [PATCH v2 2/2] mm: Consider subtrees in memory.events
+Message-ID: <20190211190115.GC13953@cmpxchg.org>
+References: <20190208224319.GA23801@chrisdown.name>
+ <20190208224419.GA24772@chrisdown.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1533F2BB-2284-499B-9912-6D74D0B87BC1@gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190208224419.GA24772@chrisdown.name>
+User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2019 at 10:45:26AM -0800, Nadav Amit wrote:
-> Are you sure about that? This path is still used when modules are loaded.
+On Fri, Feb 08, 2019 at 10:44:19PM +0000, Chris Down wrote:
+> memory.stat and other files already consider subtrees in their output,
+> and we should too in order to not present an inconsistent interface.
+> 
+> The current situation is fairly confusing, because people interacting
+> with cgroups expect hierarchical behaviour in the vein of memory.stat,
+> cgroup.events, and other files. For example, this causes confusion when
+> debugging reclaim events under low, as currently these always read "0"
+> at non-leaf memcg nodes, which frequently causes people to misdiagnose
+> breach behaviour. The same confusion applies to other counters in this
+> file when debugging issues.
+> 
+> Aggregation is done at write time instead of at read-time since these
+> counters aren't hot (unlike memory.stat which is per-page, so it does it
+> at read time), and it makes sense to bundle this with the file
+> notifications.
+> 
+> After this patch, events are propagated up the hierarchy:
+> 
+>     [root@ktst ~]# cat /sys/fs/cgroup/system.slice/memory.events
+>     low 0
+>     high 0
+>     max 0
+>     oom 0
+>     oom_kill 0
+>     [root@ktst ~]# systemd-run -p MemoryMax=1 true
+>     Running as unit: run-r251162a189fb4562b9dabfdc9b0422f5.service
+>     [root@ktst ~]# cat /sys/fs/cgroup/system.slice/memory.events
+>     low 0
+>     high 0
+>     max 7
+>     oom 1
+>     oom_kill 1
+> 
+> As this is a change in behaviour, this can be reverted to the old
+> behaviour by mounting with the `memory_localevents` flag set. However,
+> we use the new behaviour by default as there's a lack of evidence that
+> there are any current users of memory.events that would find this change
+> undesirable.
+> 
+> Signed-off-by: Chris Down <chris@chrisdown.name>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Roman Gushchin <guro@fb.com>
+> Cc: Dennis Zhou <dennis@kernel.org>
+> Cc: linux-kernel@vger.kernel.org
+> Cc: cgroups@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: kernel-team@fb.com
 
-Yes, I'm sure. Loading a module does a gazillion things so saving a
-couple of insns - yes, boot_cpu_has() is usually a RIP-relative MOV and a
-TEST - doesn't show even as a blip on any radar.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
