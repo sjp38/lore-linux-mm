@@ -7,102 +7,102 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8A9C6C282D7
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 23:28:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 129C7C282CE
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 23:28:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 426BF21874
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 23:28:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B4FFE214DA
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 23:28:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="RiIwOk4Y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 426BF21874
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="h0Rzbxd5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B4FFE214DA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DECB98E0198; Mon, 11 Feb 2019 18:28:29 -0500 (EST)
+	id 5D7048E0199; Mon, 11 Feb 2019 18:28:33 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D9EB48E0189; Mon, 11 Feb 2019 18:28:29 -0500 (EST)
+	id 5AC7C8E0189; Mon, 11 Feb 2019 18:28:33 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CB3358E0198; Mon, 11 Feb 2019 18:28:29 -0500 (EST)
+	id 477F08E0199; Mon, 11 Feb 2019 18:28:33 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 77BEE8E0189
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 18:28:29 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id m7so233014wrn.15
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 15:28:29 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id DFAE68E0189
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 18:28:32 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id x3so221371wru.22
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 15:28:32 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=y4zotDQYnZoXB9lfg1fC2W7czb+qE54ZRjKDYZQbGrM=;
-        b=dhDMM6VMi/JmH3+o0e+dDwzD3nPwjiM12Anzrk+e4C0NP8amX6LckJtujTNbtbXDfQ
-         iH92sKATezcuVHmb0E8lGrH5nNdkZYM3zq8C8RKKF3r9h2D4dMuNv3mxiowoj6LRjqrL
-         OFR4FyS/vt+ukGyv+LiI5IxLRaBm5TWRslLH0Fuyk49jGoHJLR1ZJ7P58wbjaMdLELqp
-         peD8qLzQx3oP65NL2VbWaQn0cwY5FZCbhlelD04h/YF9z6drjPLrGaE/z/90w/Zb0ikb
-         2ThhNEo+tRZu+a0v//xnAuC1ElbOiJnJbjM6mh6gpCzbe8krhQgp8TophFDsoaEVDOHw
-         mXGA==
-X-Gm-Message-State: AHQUAuYDXHKGnpWE6Kw5W0TaUJGLNr/Z5XheXEjZuEZwlEQbkiGgEayr
-	VjG0KS+JA0wWlcB+BejB31cKRFxuojfXIOas2v2c0nMItPfdfzJrYDbp2xQBpCowcYxOlCU5OCX
-	GMYPY1xGMN7oNJ57WXPmCvNuC7/37nLysYDhW/mzgsFDTkrw5SaHs3yyuQKtu7Z0HOu3XdahVU0
-	Jws36ToZGnxeQBPOUH6g0xzhhhFq2CX34HPs7kavIgsB+6uQwVHrSvAk7XWd3iCHpTHV13PVN7A
-	KE3RkqqddKbRlz2r6c2uDC4PQyf60HK9GzWsRBHC+zLBzNRnKldGLQ75p1r/0pNJa+/svJMGyJr
-	5rqpdW5RLpzu1B/hUeJoldESLRBp9irldP9Tvr1/UV0Y0QX58XdYKpd9e8dweLbyGRqPH9qgorb
-	o
-X-Received: by 2002:a5d:4ccb:: with SMTP id c11mr486702wrt.241.1549927709010;
-        Mon, 11 Feb 2019 15:28:29 -0800 (PST)
-X-Received: by 2002:a5d:4ccb:: with SMTP id c11mr486664wrt.241.1549927707876;
-        Mon, 11 Feb 2019 15:28:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549927707; cv=none;
+        bh=FDryqu5ur4j9ePg/wc9MnpTPYVkBg8AjJFLLJs3gfA8=;
+        b=CimRDiFCjEFO38H/4J2qQiQYg9D3vKNrjjQCT3sKzEnPSQhGO0E3Fjs67iq4L2yXkP
+         TlLsJK71Ecbn66xKsLm+cgrewoa7bWuCsObBiuu++TB+8YUbS1jBJCuEPwaKthAmhzgl
+         C+QgJWyfcAcgk8nCrAFkXa707TBDdbiCZRJvEoX009cXaSh68q4s6TB1NapjGoHw/wj7
+         fFbj1gUEWkDWikEMYUBavHKZNlLiKqfIf5Xlm8HgFScUS4Cbwcw5POWro5XNYEr6MLVE
+         5ojE+MPZJ8t18Q2Khl7NnqTsS8dN3j98gm2EBLYJgClR/GJwOyDQjLHrd4qsRdzDuCa1
+         gJdg==
+X-Gm-Message-State: AHQUAuYgCOi9faKWp6O4kNG1kGvwXnYcIV9D97zFQt5FOJEGY+nhugLN
+	E3T0xs4wEznQf+1hbgdluhWvVLOGre46rNnb+/WXiVdbcxrkwVpjmIn7XBK6qhyiRlSZtR2LT7y
+	DMIFmHZqIjLIeJGJzCyltg0XHMyX0z420A8pBUYN1oKvW9/0mBteL19rfMH3JsX1cXPbFTj1tf1
+	iOTuEV16/3fpMPuXMpvErmCiCSZMugp1KUB/Zrz+r2KkXaVaQufI4cZL2HvYxrs2Fwc1xyL8LDb
+	3s9GDu72TBaHGqIucBSJzuxby6vh2xjheEMZkxOm2QWOWvxrtkk9Jk0kTBM+BhJ/hXcgOLGmAKd
+	v//dJYuR0msFPJjylac0Z+6KvfKyVsc+oP8KPhXyraDTIvCmariYpJGADUWumeJmFXctomgky1G
+	8
+X-Received: by 2002:a5d:4486:: with SMTP id j6mr456269wrq.41.1549927712438;
+        Mon, 11 Feb 2019 15:28:32 -0800 (PST)
+X-Received: by 2002:a5d:4486:: with SMTP id j6mr456220wrq.41.1549927711129;
+        Mon, 11 Feb 2019 15:28:31 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549927711; cv=none;
         d=google.com; s=arc-20160816;
-        b=GR1Cfpk9dEjDgxm6FJYi2ZJmfSN4k6wsy8nnpqf2St+7Kqur9ibgZrWm66G56OLmHo
-         7oIH3mIdvp+hxnishR1UlYVW1koO3LW1IkYzKZYKz14vzuQZhccg5Zxh0ft+jhSgzW+/
-         4cAU4TpmFj58P3cp1hRQMt5MH7V5wApvDI0P3g1J+3QKwWYYBojsl792MeVcWi4bEtYN
-         2IGeRHqqTvBKZK9/85wd1kRelnhfN2Rezv30Hqf3sVsz63AOufLrvSRrvRBJ9n6ZFjTC
-         IpGhV9orAuxMTaS0KySLbtNmiqB63WrmQ7bRh6Fy750Q6suAysznMqg3QAGmDfp3KCHX
-         PZyQ==
+        b=us5uFo8j7PAvA+lhVOBL1u4fVxBnREuKx2V7/p3CQJRfTpYTb+SzlYNTbI7IdTTWUG
+         eb8pk+eEKZ1kmsSknbjtRer7QQxfM3Pmg5+3sCnCi/cPTwD1mbM1vONj86Oj9rktlUW5
+         1sTdaWr1cNKeiBbQ6jLAA4+Fv60snZDVnRg7kL7ByCSpXJEIXflU0rah0MwaqZjn7Y4Q
+         Sj9PMfeGQEwMxEE8YmlUdeY29/vGPav1CJpi0aXGoAEdpumIIoz8jXts2XhzkR60cdaY
+         l3y6oV0YY1Hvun60LJ2RsLoOyppRo2s9QowIKPfDXcJluZNthpT5ColBvA93yoyl+UAp
+         uMFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature;
-        bh=y4zotDQYnZoXB9lfg1fC2W7czb+qE54ZRjKDYZQbGrM=;
-        b=nMiBLVLZ2rXmUc3XQiVczGECK9nQA1lz7kFFvOOvHkP3k21q5oWbpiUSnT87gVA02B
-         1844VzJVZk/BUplS5l0KxXUOtAzfRKvMTxJ1aPzA6khRSIRyQvfKJ+yDAg+lPef5MjEo
-         ADZyrACvxwBGZCGVX7gZKRUOuHN8CQBKYl4DdTdBMO0aJ7tiFIevjjWGLNajoibXeyO5
-         Eb72hLMNbaBIL0tleY3gHGCfayhuPjQPQyIZ+y6EuunQXnGzQsOYUpgQwzoEFShhOr+r
-         P6e+gvT7VDPVCZ2ST+ClU8AD/W8Pmo/0Fg2g6UoRePXvXdVgox6veLuV9htq53CKuX6l
-         +ZdQ==
+        bh=FDryqu5ur4j9ePg/wc9MnpTPYVkBg8AjJFLLJs3gfA8=;
+        b=Mtw8mnRsCvFbU0ATmo+xEzE//jRpM15teOMZjpWjuThT5PhVryKHHnqE8xSRGqDHJE
+         xEBdKqGTYsnd32OfUyPOPgYQ2e2NxduXPZaeSUEcWDwKf3Q7cN6Wmc/j0wDhHSSTO67g
+         /BdeRnG+tK9Fswu2Sm+broI0dJN8HWJY9w/nMCQG7mjxukWx5zyPUIZInDXCD3n1R7J9
+         XExKfFauYjyUSxPBsH7GGOmUnFf/BXxjSMSrWom0xYKphIfN0Ai4UfYlh3RMd3Y8y7Ne
+         XxfiQo2mlrE1U88SA/WaLRUNw4ZLzfrWsexFDlHJVa/wk65QwYvJu/Qi/jcsjTvHnpIL
+         BHBQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RiIwOk4Y;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=h0Rzbxd5;
        spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x5sor468988wmb.27.2019.02.11.15.28.27
+        by mx.google.com with SMTPS id f193sor503703wme.9.2019.02.11.15.28.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Feb 2019 15:28:27 -0800 (PST)
+        Mon, 11 Feb 2019 15:28:31 -0800 (PST)
 Received-SPF: pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RiIwOk4Y;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=h0Rzbxd5;
        spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references:reply-to
          :mime-version:content-transfer-encoding;
-        bh=y4zotDQYnZoXB9lfg1fC2W7czb+qE54ZRjKDYZQbGrM=;
-        b=RiIwOk4Yh3oZElR1xL4cASyYj7D6BXihLz4aCG/v4xszt7i6uSqsxIV7ytYwftyfcc
-         uTuXGibwTiA/aj+YnMYCpkiM2z6kfso+3dbhiW9YSOHBl6nP1RszYI63KB8K2NsBpdrq
-         0O12+xpEmBDUqkUXAPxb8OuavppC4Jr2y/PKJY27TEuHaKKz0cs5qLr1lY41XPnz7Zxl
-         sA5IfuG6fAjiZmtxt25Ed0yZ2F0YDSgON1s7dC59J6yvzTcBnm5YPJLSt9XplPkdVRWQ
-         K3g6xJSwVQiZphYA66q/CfA/tFG9bpv0/xDVALdXoiSGfJj+EbFGKE64OBFZr0dgUItK
-         w5sw==
-X-Google-Smtp-Source: AHgI3IYPC5M3Lyg22y71g2LtAl1fvg/0Ej4pQcQ/hIiBIm9wNMef0twZh8pcHX4//0/AZscOz8ApJw==
-X-Received: by 2002:a1c:2804:: with SMTP id o4mr502017wmo.150.1549927707535;
-        Mon, 11 Feb 2019 15:28:27 -0800 (PST)
+        bh=FDryqu5ur4j9ePg/wc9MnpTPYVkBg8AjJFLLJs3gfA8=;
+        b=h0Rzbxd5vn6TVM2F2wuqMENuqEgutSdwfh3qz1lUYLLEMfzzzFr+9FKaWiM0SL7W/l
+         PMFr/LndNJVr8UlZOHtY8hVVLm1ymPo6bBVirh1KqTOo1QuyQ10b8dyw6Up5cQgDaCI1
+         MqMBnExiZM6pKTNfcEJSMM6f+AP7TnRUhahb1YCl/NAT19yR8i9SdJIdijWHiJAsJHOH
+         rA/m0TBUELlebS6i3BK6rYJIqveTENGDdz52jo5px/scN6ruwhzpSOrXXFX86fD/rg/U
+         DWtGaSmXDyNtXRrLF30Q6TRcElVr7wnfYYgwhiq9Pjo/v/ZbTPeSEW/poumVo6sQ/JpM
+         tlNw==
+X-Google-Smtp-Source: AHgI3IbtlJdoliv99+hxRUZolITpfcILFWmzZayl1QjTtb4jAfcYq8ZcflEbQCEsF264j4rFm1ARKw==
+X-Received: by 2002:a1c:4044:: with SMTP id n65mr477987wma.85.1549927710788;
+        Mon, 11 Feb 2019 15:28:30 -0800 (PST)
 Received: from localhost.localdomain (bba134232.alshamil.net.ae. [217.165.113.120])
-        by smtp.gmail.com with ESMTPSA id e67sm1470295wmg.1.2019.02.11.15.28.24
+        by smtp.gmail.com with ESMTPSA id e67sm1470295wmg.1.2019.02.11.15.28.27
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 15:28:26 -0800 (PST)
+        Mon, 11 Feb 2019 15:28:30 -0800 (PST)
 From: Igor Stoppa <igor.stoppa@gmail.com>
 X-Google-Original-From: Igor Stoppa <igor.stoppa@huawei.com>
 To: 
@@ -120,9 +120,9 @@ Cc: Igor Stoppa <igor.stoppa@huawei.com>,
 	kernel-hardening@lists.openwall.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC PATCH v4 07/12] __wr_after_init: Documentation: self-protection
-Date: Tue, 12 Feb 2019 01:27:44 +0200
-Message-Id: <cb930b9825a374126b62b897569cc722d3032161.1549927666.git.igor.stoppa@huawei.com>
+Subject: [RFC PATCH v4 08/12] __wr_after_init: lkdtm test
+Date: Tue, 12 Feb 2019 01:27:45 +0200
+Message-Id: <8708f8d2c541ce803072acec153f38011b271e90.1549927666.git.igor.stoppa@huawei.com>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <cover.1549927666.git.igor.stoppa@huawei.com>
 References: <cover.1549927666.git.igor.stoppa@huawei.com>
@@ -135,8 +135,8 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Update the self-protection documentation, to mention also the use of the
-__wr_after_init attribute.
+Verify that trying to modify a variable with the __wr_after_init
+attribute will cause a crash.
 
 Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 
@@ -154,34 +154,98 @@ CC: kernel-hardening@lists.openwall.com
 CC: linux-mm@kvack.org
 CC: linux-kernel@vger.kernel.org
 ---
- Documentation/security/self-protection.rst | 14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ drivers/misc/lkdtm/core.c  |  3 +++
+ drivers/misc/lkdtm/lkdtm.h |  3 +++
+ drivers/misc/lkdtm/perms.c | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 35 insertions(+)
 
-diff --git a/Documentation/security/self-protection.rst b/Documentation/security/self-protection.rst
-index f584fb74b4ff..df2614bc25b9 100644
---- a/Documentation/security/self-protection.rst
-+++ b/Documentation/security/self-protection.rst
-@@ -84,12 +84,14 @@ For variables that are initialized once at ``__init`` time, these can
- be marked with the (new and under development) ``__ro_after_init``
- attribute.
+diff --git a/drivers/misc/lkdtm/core.c b/drivers/misc/lkdtm/core.c
+index 2837dc77478e..73c34b17c433 100644
+--- a/drivers/misc/lkdtm/core.c
++++ b/drivers/misc/lkdtm/core.c
+@@ -155,6 +155,9 @@ static const struct crashtype crashtypes[] = {
+ 	CRASHTYPE(ACCESS_USERSPACE),
+ 	CRASHTYPE(WRITE_RO),
+ 	CRASHTYPE(WRITE_RO_AFTER_INIT),
++#ifdef CONFIG_PRMEM
++	CRASHTYPE(WRITE_WR_AFTER_INIT),
++#endif
+ 	CRASHTYPE(WRITE_KERN),
+ 	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
+ 	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
+diff --git a/drivers/misc/lkdtm/lkdtm.h b/drivers/misc/lkdtm/lkdtm.h
+index 3c6fd327e166..abba2f52ffa6 100644
+--- a/drivers/misc/lkdtm/lkdtm.h
++++ b/drivers/misc/lkdtm/lkdtm.h
+@@ -38,6 +38,9 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void);
+ void __init lkdtm_perms_init(void);
+ void lkdtm_WRITE_RO(void);
+ void lkdtm_WRITE_RO_AFTER_INIT(void);
++#ifdef CONFIG_PRMEM
++void lkdtm_WRITE_WR_AFTER_INIT(void);
++#endif
+ void lkdtm_WRITE_KERN(void);
+ void lkdtm_EXEC_DATA(void);
+ void lkdtm_EXEC_STACK(void);
+diff --git a/drivers/misc/lkdtm/perms.c b/drivers/misc/lkdtm/perms.c
+index 53b85c9d16b8..f681730aa652 100644
+--- a/drivers/misc/lkdtm/perms.c
++++ b/drivers/misc/lkdtm/perms.c
+@@ -9,6 +9,7 @@
+ #include <linux/vmalloc.h>
+ #include <linux/mman.h>
+ #include <linux/uaccess.h>
++#include <linux/prmem.h>
+ #include <asm/cacheflush.h>
  
--What remains are variables that are updated rarely (e.g. GDT). These
--will need another infrastructure (similar to the temporary exceptions
--made to kernel code mentioned above) that allow them to spend the rest
--of their lifetime read-only. (For example, when being updated, only the
--CPU thread performing the update would be given uninterruptible write
--access to the memory.)
-+Others, which are statically allocated, but still need to be updated
-+rarely, can be marked with the ``__wr_after_init`` attribute.
-+
-+The update mechanism must avoid exposing the data to rogue alterations
-+during the update. For example, only the CPU thread performing the update
-+would be given uninterruptible write access to the memory.
-+
-+Currently there is no protection available for data allocated dynamically.
+ /* Whether or not to fill the target memory area with do_nothing(). */
+@@ -27,6 +28,10 @@ static const unsigned long rodata = 0xAA55AA55;
+ /* This is marked __ro_after_init, so it should ultimately be .rodata. */
+ static unsigned long ro_after_init __ro_after_init = 0x55AA5500;
  
- Segregation of kernel memory from userspace memory
- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++/* This is marked __wr_after_init, so it should be in .rodata. */
++static
++unsigned long wr_after_init __wr_after_init = 0x55AA5500;
++
+ /*
+  * This just returns to the caller. It is designed to be copied into
+  * non-executable memory regions.
+@@ -104,6 +109,28 @@ void lkdtm_WRITE_RO_AFTER_INIT(void)
+ 	*ptr ^= 0xabcd1234;
+ }
+ 
++#ifdef CONFIG_PRMEM
++
++void lkdtm_WRITE_WR_AFTER_INIT(void)
++{
++	unsigned long *ptr = &wr_after_init;
++
++	/*
++	 * Verify we were written to during init. Since an Oops
++	 * is considered a "success", a failure is to just skip the
++	 * real test.
++	 */
++	if ((*ptr & 0xAA) != 0xAA) {
++		pr_info("%p was NOT written during init!?\n", ptr);
++		return;
++	}
++
++	pr_info("attempting bad wr_after_init write at %p\n", ptr);
++	*ptr ^= 0xabcd1234;
++}
++
++#endif
++
+ void lkdtm_WRITE_KERN(void)
+ {
+ 	size_t size;
+@@ -200,4 +227,6 @@ void __init lkdtm_perms_init(void)
+ 	/* Make sure we can write to __ro_after_init values during __init */
+ 	ro_after_init |= 0xAA;
+ 
++	/* Make sure we can write to __wr_after_init during __init */
++	wr_after_init |= 0xAA;
+ }
 -- 
 2.19.1
 
