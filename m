@@ -2,118 +2,110 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E84F0C282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 17:02:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2618DC169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 17:07:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9F4612075C
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 17:02:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F4612075C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id C76302075D
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 17:07:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C76302075D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 21B758E0104; Mon, 11 Feb 2019 12:02:26 -0500 (EST)
+	id 464E18E0105; Mon, 11 Feb 2019 12:07:56 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1CBB18E0103; Mon, 11 Feb 2019 12:02:26 -0500 (EST)
+	id 3EAAE8E0103; Mon, 11 Feb 2019 12:07:56 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0BB478E0104; Mon, 11 Feb 2019 12:02:26 -0500 (EST)
+	id 28F218E0105; Mon, 11 Feb 2019 12:07:56 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A49948E0103
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 12:02:25 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id u19so9918169eds.12
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 09:02:25 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D08708E0103
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 12:07:55 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id h15so2453924pfj.22
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 09:07:55 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=AM03LDIyAdxwlP9/6+UbJNq5rNe1LbVWVH16xUNI2hg=;
-        b=f/B+f0MW89N4d/F3b5gEB05d47FKE7OmmbQ1M7j1Iv7fvnceJQBWNuUhDMQbkRSCGn
-         g4o1jp9Mu9JEEJ0PU9+ugzs6QiJiCrD+d48NF5Au+9o6UAjnKELRhifBlyA/G6vxjPBu
-         7vfv/Kv5vMHDfVnaGHkHVS4GdWCw0s01QTAEgdC6ttfyaKIQxLpzOfrzzwz0US2ftD9z
-         +OJfTGiT3Hy1oRaowJBGPeAL5j2HUqahWXhMrZFn1kiKDYHcp9pLmeXyW4srkCXYphRt
-         ogCbthxpzv4/P5nXHkx5mFIxzKRGshfbtbXCcrTARV+cOR7R/Q86PlCIKKGYIFif86uj
-         sfTg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-X-Gm-Message-State: AHQUAua6hAsibc+VDVzwFFCOw72JZTxXpshl3SVKFze6kf+fpm8kH2RE
-	NznIQy2s/kZqnAQD7Qg/Lqd/pLrnuzEhWaQfuawbTDMcMlvHuHloiyNJQ6FRBpQDRMJUCG+vPmI
-	3+hzgWAnAT9XMx5EDfc5DPzED6DFcZnpSXV5x3zRMaBaoI9IXVEflZaUgOVPApakHlw==
-X-Received: by 2002:a50:97b3:: with SMTP id e48mr3864768edb.159.1549904545195;
-        Mon, 11 Feb 2019 09:02:25 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IY+faLZ34x3/zfFE39+qmhCETpxxxUPDKJMPuuUkhtLWgj1z6J3UVC/Yc3VnLlV6Spz4cMj
-X-Received: by 2002:a50:97b3:: with SMTP id e48mr3864686edb.159.1549904544143;
-        Mon, 11 Feb 2019 09:02:24 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549904544; cv=none;
+        bh=JTMBFgRu6uGMMO208jhBVwozYJbTNBfQ3MoLz2kkktQ=;
+        b=NxCBZsY2/7nlXACVX7y845OGK0MxlllbokjmcTHR4jZmD554MYT0w6q6nZodvJfAC2
+         xa7LtgIsM7mbRNbX/Xc17pXDnvMdegX5d/o/nbdllgasgSN6vrXI5LINhZ4EOQhg6Stn
+         Z55JkGSpIw6XzFvCBKfL+0ibjz3W+sZofeZzR51/vp1rI8i5T4wEiztkV7A6/0FXCJ81
+         MZ5pErvI3tbS9PFZkx3R2OM3ura2zJqjajqVmAQAuLw6kxGkgHoAjPL2JP1XLKtVfoR9
+         hrrlfNjy+kkqEuICSIVhUCMIyW0LAlQvy7X248KRZ0Sr3wj6iqE3W79XSXLdFJTRI7If
+         w/2A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of lkp@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=lkp@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuZ22RiBr2clEA8lLPjh1N0f7Z4KTQHNjl/lem2XKixu86t7l3GT
+	Yh5CpJSlAhVyi7GyezlKUc9WA39NxOd8EtXyyhLqzBNsFLmFx6kdLsiwizw2TvETDbL0n6uNxrB
+	dgYLt7Y/gCshsiSLGt0Hmzr3K6oG3HW8O6KbhZ29Xw6VUy3Rn9whJsAtNBvIT1pkAQw==
+X-Received: by 2002:a17:902:ba85:: with SMTP id k5mr11676271pls.130.1549904875247;
+        Mon, 11 Feb 2019 09:07:55 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZr6piwWSPdt9mZnJSYmFzpBvKGA+ZcwSc3ByEutyAC2OEAwCc9yHT8+7CPjILLkQBFMoyt
+X-Received: by 2002:a17:902:ba85:: with SMTP id k5mr11676201pls.130.1549904874339;
+        Mon, 11 Feb 2019 09:07:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549904874; cv=none;
         d=google.com; s=arc-20160816;
-        b=dogJgf7aqJmY2/2ZXdC7cjDgFwLwRTIIw0X+f3oswFYhg9s4dlz4V/aPav1zWb+LfS
-         R49bb/hfp7/Z8nxhGqcSVRP7HU0X2qbrFjfL8GvJOLeKFzZDJwI/PNutxjqc7NQNeKlm
-         eWGpRSpc24KitCEeymjAYFoArkvGo/MayzooePdSkSQxnMTLBqN1pfrQWTG+8eqT3Kdl
-         TA5kHwNrgfAaFkTC3liIdMwpV1ZF0McZyhiS+2/fE/QERC8OdMWjfqbfEshbFgu7DS/J
-         Dh4ngDmFL2M752DtPPuCDhFnLMH+wOxi2tb5Rg9qxrwJdOZAcE1T+/RHzSNu5siQmwAD
-         f/wg==
+        b=XJqYlvzGX2a6V6KLFiXz27c8PgS08eKCC+e9FiimeU+sYpeFyND+YM/KWUgzrww63P
+         GljAfZYsYXmFSy/otmklw5O0NavkhvL4Gaf7iFTAGuKRirYJa828zlLgzWXv7R9wtwe0
+         casXqsmk9FmGFerJHIL6ILCaK7F9E9Yx+hYVe9J9h/iETKTe0Po82ZD5iSTOg0J2Y8Iz
+         P7mSmIlDEzjDs5hpuWsg0WaY+a0wVs+mXT8uxDUH6sjVNetuWXwRhKwhDczkbq6gSVwk
+         WRwaVagsPVkvi6Mbllfvuz7T+jQSJmv4LkcmtcgED49swbOURluvIMgsN197PfnDPEXT
+         CB/Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=AM03LDIyAdxwlP9/6+UbJNq5rNe1LbVWVH16xUNI2hg=;
-        b=Yk98mELBxykeOXSDUzT4c5O+l/9fSO57h5B5BOjzlUCm19F2MZDUyLLmmz4+vV8bpn
-         2iC4ppzPoPiDpgOXhrRRSj9cAYHsr1YZdm29DYt+LH5fgWFmmSIAKskU5+Gx9BOa0Kit
-         KHBv8d18EU/w08/eSHTcl+0ud3qCb4GbFgK+auMgKMe/2CwZgdIXpDvCv7d1nP3dOdOF
-         N55o6iWND90tHBkfUJCKHuE19nnWsn5ZkAy8VeXI6/IsOLJ6y47F3/Vs1MVXPkmy9EhY
-         Bat9IrqWE180/nGrPNv8OhZrIHKv17AQhbLmuga/Lc5x+AlxK26TdslL3S7RzHSGf4YM
-         M9pg==
+        bh=JTMBFgRu6uGMMO208jhBVwozYJbTNBfQ3MoLz2kkktQ=;
+        b=DDwUdqyKdf8+2dWL93Gjwn+PnJ2HbRMDIZHT8cSF2QLMgRCu+mOklhDAQk5F38UgKx
+         B/e7HPTnfaarDteVf6Ab3zaZuVoN82H/q8R8KUoEukabjqWBeEiw/pNhOa5L6AxoNLN5
+         wfO84Vk3m+rkY1aCqeFY3J8vebNM552el31lCV9/o4btiKBsupRBeFlOC2Mj98eM38oh
+         7pRq+svVFfg+Gt/9H81QOSAwThMlGck/fBZfjDtTcGh14LuU4Dpwwh4MJCRBCB4qY+mM
+         8vbY64UQaRVIYAN3iTnTP51HTdgQOTRQNT0FStFAotXRMr4n7g2fwruhJVxSZYRxlQ4S
+         V4Fg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l40si3816936edc.447.2019.02.11.09.02.23
-        for <linux-mm@kvack.org>;
-        Mon, 11 Feb 2019 09:02:24 -0800 (PST)
-Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of lkp@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=lkp@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id d37si11222741plb.140.2019.02.11.09.07.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Feb 2019 09:07:54 -0800 (PST)
+Received-SPF: pass (google.com: domain of lkp@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id EBEC780D;
-	Mon, 11 Feb 2019 09:02:22 -0800 (PST)
-Received: from e103592.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id ABF053F675;
-	Mon, 11 Feb 2019 09:02:18 -0800 (PST)
-Date: Mon, 11 Feb 2019 17:02:16 +0000
-From: Dave Martin <Dave.Martin@arm.com>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Mark Rutland <mark.rutland@arm.com>,
-	Kate Stewart <kstewart@linuxfoundation.org>,
-	linux-doc@vger.kernel.org, Will Deacon <will.deacon@arm.com>,
-	linux-mm@kvack.org, linux-kselftest@vger.kernel.org,
-	Chintan Pandya <cpandya@codeaurora.org>,
-	Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>,
-	linux-arch@vger.kernel.org, Jacob Bramley <Jacob.Bramley@arm.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Kees Cook <keescook@chromium.org>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Lee Smith <Lee.Smith@arm.com>, linux-arm-kernel@lists.infradead.org,
-	Kostya Serebryany <kcc@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	linux-kernel@vger.kernel.org,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+       spf=pass (google.com: domain of lkp@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=lkp@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga006.fm.intel.com ([10.253.24.20])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Feb 2019 09:07:53 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,359,1544515200"; 
+   d="gz'50?scan'50,208,50";a="318086429"
+Received: from lkp-server01.sh.intel.com (HELO lkp-server01) ([10.239.97.150])
+  by fmsmga006.fm.intel.com with ESMTP; 11 Feb 2019 09:07:52 -0800
+Received: from kbuild by lkp-server01 with local (Exim 4.89)
+	(envelope-from <lkp@intel.com>)
+	id 1gtF3f-000GYu-Lk; Tue, 12 Feb 2019 01:07:51 +0800
+Date: Tue, 12 Feb 2019 01:07:37 +0800
+From: kbuild test robot <lkp@intel.com>
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: kbuild-all@01.org, linux-mm@kvack.org,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Peter Zijlstra <peterz@infradead.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH v9 0/8] arm64: untag user pointers passed to the kernel
-Message-ID: <20190211170212.GH3567@e103592.cambridge.arm.com>
-References: <cover.1544445454.git.andreyknvl@google.com>
- <20181212170108.GZ3505@e103592.cambridge.arm.com>
- <20190211113511.GA165128@arrakis.emea.arm.com>
+	Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH] mm: workingset: replace IRQ-off check with a lockdep
+ assert.
+Message-ID: <201902120126.o9SedEMP%fengguang.wu@intel.com>
+References: <20190211095724.nmflaigqlcipbxtk@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="gBBFr7Ir9EOA20Yy"
 Content-Disposition: inline
-In-Reply-To: <20190211113511.GA165128@arrakis.emea.arm.com>
+In-Reply-To: <20190211095724.nmflaigqlcipbxtk@linutronix.de>
 User-Agent: Mutt/1.5.23 (2014-03-12)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -121,120 +113,225 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2019 at 11:35:12AM +0000, Catalin Marinas wrote:
-> Hi Dave,
-> 
-> On Wed, Dec 12, 2018 at 05:01:12PM +0000, Dave P Martin wrote:
-> > On Mon, Dec 10, 2018 at 01:50:57PM +0100, Andrey Konovalov wrote:
-> > > arm64 has a feature called Top Byte Ignore, which allows to embed pointer
-> > > tags into the top byte of each pointer. Userspace programs (such as
-> > > HWASan, a memory debugging tool [1]) might use this feature and pass
-> > > tagged user pointers to the kernel through syscalls or other interfaces.
-> [...]
-> > It looks like there's been a lot of progress made here towards smoking
-> > out most of the sites in the kernel where pointers need to be untagged.
-> 
-> In summary, based on last summer's analysis, there are two main (and
-> rather broad) scenarios of __user pointers use in the kernel: (a)
-> uaccess macros, together with access_ok() checks and (b) identifying
-> of user address ranges (find_vma() and related, some ioctls). The
-> patches here handle the former by allowing sign-extension in access_ok()
-> and subsequent uaccess routines work fine with tagged pointers.
-> Identifying the latter is a bit more problematic and the approach we
-> took was tracking down pointer to long conversion which seems to cover
-> the majority of cases. However, this approach doesn't scale as, for
-> example, we'd rather change get_user_pages() to sign-extend the address
-> rather than all the callers. In lots of other cases we don't even need
-> untagging as we don't expect user space to tag such pointers (i.e.
-> mmap() of device memory).
-> 
-> We might be able to improve the static analysis by introducing a
-> virt_addr_t but that's significant effort and we still won't cover all
-> cases (e.g. it doesn't necessarily catch tcp_zerocopy_receive() which
-> wouldn't use a pointer, just a u64 for address).
-> 
-> > However, I do think that we need a clear policy for how existing kernel
-> > interfaces are to be interpreted in the presence of tagged pointers.
-> > Unless we have that nailed down, we are likely to be able to make only
-> > vague guarantees to userspace about what works, and the ongoing risk
-> > of ABI regressions and inconsistencies seems high.
-> 
-> I agree.
-> 
-> > Can we define an opt-in for tagged-pointer userspace, that rejects all
-> > syscalls that we haven't checked and whitelisted (or that are
-> > uncheckable like ioctl)? 
-> 
-> Defining an opt-in is not a problem, however, rejecting all syscalls
-> that we haven't whitelisted is not feasible. We can have an opt-in per
-> process (that's what we were going to do with MTE) but the only thing
-> we can reasonably do is change the behaviour of access_ok(). That's too
-> big a knob and a new syscall that we haven't got around to whitelist may
-> just work. This eventually leads to de-facto ABI and our whitelist would
-> simply be ignored.
-> 
-> I'm not really keen on a big syscall shim in the arm64 kernel which
-> checks syscall arguments, including in-struct values. If we are to do
-> this, I'd rather keep it in user space as part of the C library.
-> 
-> > In the meantime, I think we really need to nail down the kernel's
-> > policies on
-> > 
-> >  * in the default configuration (without opt-in), is the presence of
-> > non-address bits in pointers exchanged with the kernel simply
-> > considered broken?  (Even with this series, the de factor answer
-> > generally seems to be "yes", although many specific things will now
-> > work fine)
-> 
-> Without these patches, passing non-address bits in pointers is
-> considered broken. I couldn't find a case where it would still work with
-> non-zero tag but maybe I haven't looked hard enough.
-> 
-> >  * if not, how do we tighten syscall / interface specifications to
-> > describe what happens with pointers containing non-address bits, while
-> > keeping the existing behaviour for untagged pointers?
-> > 
-> > We would want a general recipe that gives clear guidance on what
-> > userspace should expect an arbitrarily chosen syscall to do with its
-> > pointers, without having to enumerate each and every case.
-> 
-> That's what we are aiming with the pointer origins, to move away from a
-> syscall whitelist to a generic definition. That said, the two approaches
-> are orthogonal, we can use the pointer origins as the base rule for
-> which syscalls can be whitelisted.
-> 
-> If we step back a bit to look at the use-case for TBI (and MTE), the
-> normal application programmer shouldn't really care about this ABI
-> (well, most of the time). The app gets a tagged pointer from the C
-> library as a result of a malloc()/realloc() (possibly alloca()) call and
-> it expects to be able to pass it back into the kernel (usually via the C
-> library) without any awareness of the non-address bits. Now, we can't
-> define a user/kernel ABI based on the provenance of the pointer in user
-> space (i.e. we only support tags for heap and stack), so we are trying
-> to generalise this based where the pointer originated from in the kernel
-> (e.g. anonymous mmap()).
 
-This sounds generally reasonable.
+--gBBFr7Ir9EOA20Yy
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-It is not adequate for describing changing the tag on already-tagged
-memory (which a memory allocator will definitely do), but we may be able
-to come up with some weasel words to cover that.
+Hi Sebastian,
 
-It is also not adequete for describing tagging (and retagging) regions
-of the stack -- but as you say, we can rule that use-case out for now
-in the interest of simplicity, since we know we wouldn't be able to
-deploy it widely for now anyway due to the incompability with non-MTE-
-capable hardware.
+Thank you for the patch! Yet something to improve:
 
+[auto build test ERROR on linus/master]
+[also build test ERROR on v5.0-rc4 next-20190211]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
-Ideally we would clarify user/kernel interface semantics in terms of
-object and pointer lifetimes and accessibility, but that's a larger
-project that should be pursued separately (if at all).
+url:    https://github.com/0day-ci/linux/commits/Sebastian-Andrzej-Siewior/mm-workingset-replace-IRQ-off-check-with-a-lockdep-assert/20190212-001418
+config: openrisc-or1ksim_defconfig (attached as .config)
+compiler: or1k-linux-gcc (GCC) 6.0.0 20160327 (experimental)
+reproduce:
+        wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        # save the attached .config to linux build tree
+        make.cross ARCH=openrisc 
 
-I could also quibble about whether "anonymous mmap" is the right thing
-here -- we should still give specific examples of things that do / don't
-qualify, to make it clear what we mean.
+All errors (new ones prefixed by >>):
 
-Cheers
----Dave
+   mm/workingset.c: In function 'workingset_update_node':
+>> mm/workingset.c:382:2: error: implicit declaration of function 'lockdep_is_held' [-Werror=implicit-function-declaration]
+     lockdep_is_held(&mapping->i_pages.xa_lock);
+     ^~~~~~~~~~~~~~~
+   cc1: some warnings being treated as errors
+
+vim +/lockdep_is_held +382 mm/workingset.c
+
+   368	
+   369	void workingset_update_node(struct xa_node *node)
+   370	{
+   371		struct address_space *mapping;
+   372	
+   373		/*
+   374		 * Track non-empty nodes that contain only shadow entries;
+   375		 * unlink those that contain pages or are being freed.
+   376		 *
+   377		 * Avoid acquiring the list_lru lock when the nodes are
+   378		 * already where they should be. The list_empty() test is safe
+   379		 * as node->private_list is protected by the i_pages lock.
+   380		 */
+   381		mapping = container_of(node->array, struct address_space, i_pages);
+ > 382		lockdep_is_held(&mapping->i_pages.xa_lock);
+   383	
+   384		if (node->count && node->count == node->nr_values) {
+   385			if (list_empty(&node->private_list)) {
+   386				list_lru_add(&shadow_nodes, &node->private_list);
+   387				__inc_lruvec_page_state(virt_to_page(node),
+   388							WORKINGSET_NODES);
+   389			}
+   390		} else {
+   391			if (!list_empty(&node->private_list)) {
+   392				list_lru_del(&shadow_nodes, &node->private_list);
+   393				__dec_lruvec_page_state(virt_to_page(node),
+   394							WORKINGSET_NODES);
+   395			}
+   396		}
+   397	}
+   398	
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+--gBBFr7Ir9EOA20Yy
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+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
+
+--gBBFr7Ir9EOA20Yy--
 
