@@ -2,165 +2,152 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 92FB9C282D7
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 16:31:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 832CFC169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 16:32:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5923B222A2
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 16:31:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5923B222A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 3184A21773
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 16:32:11 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="resTFMXs"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3184A21773
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 039388E00FC; Mon, 11 Feb 2019 11:31:37 -0500 (EST)
+	id D558C8E00FD; Mon, 11 Feb 2019 11:32:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F00BE8E00F6; Mon, 11 Feb 2019 11:31:36 -0500 (EST)
+	id CDDE08E00F6; Mon, 11 Feb 2019 11:32:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DA18A8E00FC; Mon, 11 Feb 2019 11:31:36 -0500 (EST)
+	id B7F9C8E00FD; Mon, 11 Feb 2019 11:32:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B2128E00F6
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 11:31:36 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id 74so10144905pfk.12
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 08:31:36 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 853E58E00F6
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 11:32:10 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id 43so7115639qtz.8
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 08:32:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=4cy7grFDYUyFfHY/W3+2vAqDBT61YVM1UOU4OP3+q1Q=;
-        b=k/l9Z0W+hyoYZa3lCy/1aMcZTQ3JSPODLeftie4cfM9X5rPz1KQ6G5gPPddb3kARoU
-         OI0s+TRS2ttD+GDX7G9ADuOBpCAJJHA2x7fnglx6CqmjQMr3fr9eFQ6hW8siHPHVcTsY
-         x+45E8uJnqCT76wzX1E/EPUdWMfCRbYSY3eeLcsXWkI/9Up+GgNUG6k4rW+Wu9HIIJXu
-         /t4QJuQ1S4+3Ve+XaCYLzZLU+vc9nK5Glx8/isC0/SGV9AUTCzbksEke836J1FJpvfht
-         iBEEqnStObNcYl81eJt1fLbxMGimNaCt+Pq0kLP6Gtp7b4L5xIQyNlhyUH+Fw3XfPOiI
-         3B9A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuZb8fam1W50hzMq8kOpV7FGYMLh02GYhmDHvX2vWEtiFsdlNQqk
-	eKVCniCzyrtRF/UH0sYsDIcdKpEpaPj4o1va8r3D2UmOAqZHghi2XvUtc0VknsB6eVKuMlvMCg8
-	B9/W9taoQ8zt+H/oZk0XQW3IFL0Fl7gC3yN7ckZVJsRctFkMgeijBN6PbyCsxPiVyHA==
-X-Received: by 2002:a17:902:8e8b:: with SMTP id bg11mr38828498plb.332.1549902696183;
-        Mon, 11 Feb 2019 08:31:36 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYehhnc3gu9pM6joV4moNmy8okUSZCrGBIDTuWxO1L7nMS7F9uzsNTwux0NPwZr/nIts9YZ
-X-Received: by 2002:a17:902:8e8b:: with SMTP id bg11mr38828430plb.332.1549902695371;
-        Mon, 11 Feb 2019 08:31:35 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549902695; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=g8j9Hq6BgrsLF5iTVvtuSKrF1yqV6cwx6ZevVFumJ1k=;
+        b=VJr3LNbSzNguo5xOAdw33MkjarKc4f+1eaw/un/KuOP/N7/+BvL5U4c51LTAMxIxFl
+         DYFTwYw4bbMg8aRfNV10fiv2Q6Q14VzHHWVT0FvoruSgp1fFMd2YS9en0DdeQSYgvQrY
+         0CL8+hVOUjlKBEemDcLrWWT9BW2S4kX412FsbLszoNaCGAJv037SWkWny6RiV1lRGu2c
+         Q+/jx71fu5PYpTd7krmORv4A1pOHACTi+oEsp1VA7UqmJovw8q1PkkfUPth5JYBYiy6j
+         ex7LZ8/fK9UIJBDlYJepm+fw5BuvNULyJmgb0SmIzszmNHzSsAjsfI59GrnQRI1fWiAC
+         d5Hw==
+X-Gm-Message-State: AHQUAuaS58tpgjh02wBED+ucHdcra+oqLq/VfnAZy6GdY/7dFaj/Wj8K
+	u2tPzmZQi3yxrG7gCegrd2Pxnt+mTNDxfDOl9mSB+7zAHKUNfQ5f6vtKIHR6BzEOgr8HF+FK3Y7
+	B6uk52N/VEbff29hSCL3Rn2brs/hl72G+iT5TxkBgVCaAU7VQYdQ6fAmaPLG151feuzeBvjTm+z
+	PbETmdPo1B2cQ/W+c7RLgsJJ9H2xgEv70FA0D2x3eLkoIz+ZCmhyhkNgwW51DIQg7fyBRAMoLiD
+	uHboD+YT2E5hNtND2ODJ0SanaOVk2XNrM3skq2cJAfOFCFKWIHO6+vbMmWmGKzxomR9PDr9Zn4e
+	v4Bb6B4saTKC3lmymYUaG1xhPx8oXtz6jOVlHzzwc87aKyVfLEbUPhtwy3jyzpigBpR07NQTY8X
+	L
+X-Received: by 2002:aed:23a3:: with SMTP id j32mr27376107qtc.205.1549902730264;
+        Mon, 11 Feb 2019 08:32:10 -0800 (PST)
+X-Received: by 2002:aed:23a3:: with SMTP id j32mr27376071qtc.205.1549902729717;
+        Mon, 11 Feb 2019 08:32:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549902729; cv=none;
         d=google.com; s=arc-20160816;
-        b=ChMHwBZ4Ijt1+ZOQlsgV80/E6S5rVQQuoNkRaN5Pkb4Rng8l6PIJ4e/rCd+spBQP1N
-         y7FFXeGLXK3FmewHyeY+lV+tNwIuZkeHtO8aNWoW1+ZyfigUrU7a26sJc7DHvRXPxDQm
-         CRm7HvTdYNkrB0fRn4spEsnCO8eTkutbsOxkzzwUsFkfUfYib3Wl2EG2F554dnaJdP4L
-         puAvOQJt7w8EhLrQdI0MZ3i51GrG2kbaImmfe+VAAwgcK88BNEXIxGCpOwbCGyxKF64N
-         RwzW4C/4Z159iotBGN99vas5i2Y8stlbUPiuvx0HTKDehAOR98YSk4VEXwvcibrhisEP
-         +XhQ==
+        b=x1hH+fPj+vni+GYts2B7UNHZN4UbH8qnW62jXV8CLpvxXV1LtiiMzQa/VfbmVyWHPF
+         /S+UH0riwyUPH31bHLncvbaPXsuyhiDS81l8Y5Y1Sqiqk3aIxhDFeApZKvt00IwpK2P9
+         IVatfVaW/sj4Q9SLeMjJdkOKmKDg27KPN35DmRgil5rTuAGjCdP+4eYv8LvA0DBhaCnJ
+         LI23jUq6FHbyHJ1APQ3wdPxdyh0ylNefQD2QAT3XdXumO9ovaOOLy2y2qb8r8Gp5AxZN
+         gwjKb8jmesQVWxtd+Je7Uj0Dg5yrVPVVnQXjSL0jPsQQHzK/t42j6cBgISBN8qq5IRJQ
+         2LNg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=4cy7grFDYUyFfHY/W3+2vAqDBT61YVM1UOU4OP3+q1Q=;
-        b=TMxbBSftmcmGCxdBWF9c0iRziuemhLjnOQME8ieEkytQnupS2+sO7eKfjCh9/o1QIP
-         Vyjr7J65xCCuR82wA5/71nOFQ4PmgA35t/RTSXhHHgMmahJk5i6W2pRC/ov6aO1HTYDo
-         OYo2kvtr4QXm3mkov6sqXIdlGex+ZHhHbYXXN8SQUbUTC+Ohygahl8e5pNFARN65y2Qa
-         58ckGOBf2WKsovJDSF0J47bjR0xmHSXhuTyGRvZJjT/nA9AbinYfFVcSAKrGfsYMb6iw
-         QB61zsmtMr+y5Oj+TuedOuW2tWlQJAZLlgvPCLLMejYNVK/nbl74dsOXlRnJvi2t6Nrq
-         x4gw==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=g8j9Hq6BgrsLF5iTVvtuSKrF1yqV6cwx6ZevVFumJ1k=;
+        b=f1gWIQZcrcS7udW68s//JYnYgmhqeEOkm8uf5z5PWZg8wRiiU55I02vDT11v+1a+w6
+         O1iNmRpXDGjpNZJJ68o06DFsD+oRaD2KKrWAalZTp83sdsJupaDhDCglrOP+3Jwy+9VM
+         xLWJNToasYI2ONQvZ3wKkysfwd5DycpYgKEyds7Kj3+umdYZ0rFbV9uyBdbfJPVdcmCt
+         K5mSRKELUQ0W4bmCb25ViGHM7Ed9Gix0uDe4gQuxXw7Ub0GdB+dgD+PvlnRGWYSpUWm5
+         uzheVZ1bX742ME2ez2wGvVRk49SHPhoUUajhL3/aXnOZbkx4BxFzmeFaq5scSncAJl/p
+         iYow==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id p12si10213752plk.77.2019.02.11.08.31.35
+       dkim=pass header.i=@google.com header.s=20161025 header.b=resTFMXs;
+       spf=pass (google.com: domain of 3ianhxaukcealcppjiqqing.eqonkpwz-oomxcem.qti@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3iaNhXAUKCEAlcppjiqqing.eqonkpwz-oomxcem.qti@flex--jannh.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id l6sor12673956qte.24.2019.02.11.08.32.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 08:31:35 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
+        (Google Transport Security);
+        Mon, 11 Feb 2019 08:32:09 -0800 (PST)
+Received-SPF: pass (google.com: domain of 3ianhxaukcealcppjiqqing.eqonkpwz-oomxcem.qti@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Feb 2019 08:31:34 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,359,1544515200"; 
-   d="scan'208";a="117019570"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga008.jf.intel.com with ESMTP; 11 Feb 2019 08:31:34 -0800
-Message-ID: <869a170e9232ffbc8ddbcf3d15535e8c6daedbde.camel@linux.intel.com>
-Subject: Re: [RFC PATCH 3/4] kvm: Add guest side support for free memory
- hints
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: "Michael S. Tsirkin" <mst@redhat.com>, Alexander Duyck
-	 <alexander.duyck@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, 
- rkrcmar@redhat.com, x86@kernel.org, mingo@redhat.com, bp@alien8.de,
- hpa@zytor.com,  pbonzini@redhat.com, tglx@linutronix.de,
- akpm@linux-foundation.org
-Date: Mon, 11 Feb 2019 08:31:34 -0800
-In-Reply-To: <20190209194437-mutt-send-email-mst@kernel.org>
-References: <20190204181118.12095.38300.stgit@localhost.localdomain>
-	 <20190204181552.12095.46287.stgit@localhost.localdomain>
-	 <20190209194437-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
+       dkim=pass header.i=@google.com header.s=20161025 header.b=resTFMXs;
+       spf=pass (google.com: domain of 3ianhxaukcealcppjiqqing.eqonkpwz-oomxcem.qti@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3iaNhXAUKCEAlcppjiqqing.eqonkpwz-oomxcem.qti@flex--jannh.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=g8j9Hq6BgrsLF5iTVvtuSKrF1yqV6cwx6ZevVFumJ1k=;
+        b=resTFMXsv362eCHTHAhm5Pol1eeM3yr3nRd3wz29koaQbZo6yLCKX/5Iz9fnDy0/iM
+         W5Abf2BqNvyPOiEYtn1TKiH/Y+79hUfjuYembRmNRQLa9uMj5rK9z+Nm6zo0AgmEKzyb
+         ygJf284PlgcabSBZA4heIXW+UluHeJLvN0N0naYgRVZFp06laMAqzY93A+h3kKSt9n/Z
+         4HO5rQkeR73XBwOGSL3J0LrRLVtRNWFFRKsVIjIPTbiNCiI5qNSfT8bVL78/p3TLHI7H
+         7Jk+cR/7eB2951vuDVYip7w/yx+iV9Y3oKC5rpadIoRVThjxF94wI8Oh/eEBUxjBenu/
+         HLhQ==
+X-Google-Smtp-Source: AHgI3IZMONOPzWkMyGMVEbG8/au4SeEZWoLdpHNKemt6FuIiFFZh84ZC0chVudOiLVo7JAWl0PGhIF8vIA==
+X-Received: by 2002:ac8:1bf2:: with SMTP id m47mr10477070qtk.27.1549902729411;
+ Mon, 11 Feb 2019 08:32:09 -0800 (PST)
+Date: Mon, 11 Feb 2019 17:32:03 +0100
+Message-Id: <20190211163203.33477-1-jannh@google.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-Mailer: git-send-email 2.20.1.791.gb4d0f1c61a-goog
+Subject: [PATCH] mmap.2: fix description of treatment of the hint
+From: Jann Horn <jannh@google.com>
+To: mtk.manpages@gmail.com, jannh@google.com
+Cc: linux-man@vger.kernel.org, linux-mm@kvack.org
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.033510, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2019-02-09 at 19:49 -0500, Michael S. Tsirkin wrote:
-> On Mon, Feb 04, 2019 at 10:15:52AM -0800, Alexander Duyck wrote:
-> > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> > 
-> > Add guest support for providing free memory hints to the KVM hypervisor for
-> > freed pages huge TLB size or larger. I am restricting the size to
-> > huge TLB order and larger because the hypercalls are too expensive to be
-> > performing one per 4K page.
-> 
-> Even 2M pages start to get expensive with a TB guest.
+The current manpage reads to me as if the kernel will always pick a free
+space close to the requested address, but that's not the case:
 
-Agreed.
+mmap(0x600000000000, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS,
+-1, 0) = 0x600000000000
+mmap(0x600000000000, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS,
+-1, 0) = 0x7f5042859000
 
-> Really it seems we want a virtio ring so we can pass a batch of these.
-> E.g. 256 entries, 2M each - that's more like it.
+You can also see this in the various implementations of
+->get_unmapped_area() - if the specified address isn't available, the
+kernel basically ignores the hint (apart from the 5level paging hack).
 
-The only issue I see with doing that is that we then have to defer the
-freeing. Doing that is going to introduce issues in the guest as we are
-going to have pages going unused for some period of time while we wait
-for the hint to complete, and we cannot just pull said pages back. I'm
-not really a fan of the asynchronous nature of Nitesh's patches for
-this reason.
+Clarify how this works a bit.
 
-> > Using the huge TLB order became the obvious
-> > choice for the order to use as it allows us to avoid fragmentation of higher
-> > order memory on the host.
-> > 
-> > I have limited the functionality so that it doesn't work when page
-> > poisoning is enabled. I did this because a write to the page after doing an
-> > MADV_DONTNEED would effectively negate the hint, so it would be wasting
-> > cycles to do so.
-> 
-> Again that's leaking host implementation detail into guest interface.
-> 
-> We are giving guest page hints to host that makes sense,
-> weird interactions with other features due to host
-> implementation details should be handled by host.
+Signed-off-by: Jann Horn <jannh@google.com>
+---
+ man2/mmap.2 | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
 
-I don't view this as a host implementation detail, this is guest
-feature making use of all pages for debugging. If we are placing poison
-values in the page then I wouldn't consider them an unused page, it is
-being actively used to store the poison value. If we can achieve this
-and free the page back to the host then even better, but until the
-features can coexist we should not use the page hinting while page
-poisoning is enabled.
-
-This is one of the reasons why I was opposed to just disabling page
-poisoning when this feature was enabled in Nitesh's patches. If the
-guest has page poisoning enabled it is doing something with the page.
-It shouldn't be prevented from doing that because the host wants to
-have the option to free the pages.
+diff --git a/man2/mmap.2 b/man2/mmap.2
+index fccfb9b3e..8556bbfeb 100644
+--- a/man2/mmap.2
++++ b/man2/mmap.2
+@@ -71,7 +71,12 @@ If
+ .I addr
+ is not NULL,
+ then the kernel takes it as a hint about where to place the mapping;
+-on Linux, the mapping will be created at a nearby page boundary.
++on Linux, the kernel will pick a nearby page boundary (but always above
++or equal to the value specified by
++.IR /proc/sys/vm/mmap_min_addr )
++and attempt to create the mapping there.
++If another mapping already exists there, the kernel picks a new
++address, independent of the hint.
+ .\" Before Linux 2.6.24, the address was rounded up to the next page
+ .\" boundary; since 2.6.24, it is rounded down!
+ The address of the new mapping is returned as the result of the call.
+-- 
+2.20.1.791.gb4d0f1c61a-goog
 
