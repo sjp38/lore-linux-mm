@@ -2,192 +2,188 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2864EC169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:55:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C0B9C169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:56:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B8A462083B
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:55:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 49F972186A
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:56:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="ePp8uOPB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B8A462083B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="C4tTREA7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49F972186A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 68CBF8E0188; Mon, 11 Feb 2019 17:55:24 -0500 (EST)
+	id CCC0C8E018A; Mon, 11 Feb 2019 17:56:22 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6153F8E0186; Mon, 11 Feb 2019 17:55:24 -0500 (EST)
+	id C55058E0189; Mon, 11 Feb 2019 17:56:22 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4DF998E0188; Mon, 11 Feb 2019 17:55:24 -0500 (EST)
+	id AF7038E018A; Mon, 11 Feb 2019 17:56:22 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B5DB8E0186
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 17:55:24 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id n22so658311otq.8
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 14:55:24 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6947D8E0189
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 17:56:22 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id a23so569146pfo.2
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 14:56:22 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=PipVbT9feF+A/+kcKPeIiPlxJtq1FDRuiYejP4/jlTM=;
-        b=LVcYHfiS3q+X8MLtQz6+JWkdvtMg4RF/n/RTin+F5D9YXEHEUyByZntUpULGeyI+ze
-         rEuvtxT/Un/vShgO5iSj98fjWaFmUBlKHc9in7bhxJydq8FL+ZonrmTZ3Jvlwb7aTux+
-         JuO52J0UJf0Z7Sjqn/i2d5y3JmvEXOG2/beyZveKiUHFgc/22O7L9N9cwCzM2HvTm8YW
-         M5U/DdEno7kVvCCtr7UNN81f5GyVtG6/G3b70CHwBPobQK3R+v/r03oG7qh4YCXxg3oF
-         G0pODTPBk9+ylaQavl3FkHEH1D5J8VhOFMMDXj788CvQEtoWUDHEu3klyiVco3rYseg0
-         6X1Q==
-X-Gm-Message-State: AHQUAuZWuPA7k680Q9fEPUPJhe0eXat48uGzeFTA5E87iSWlm8/vpSun
-	dm04j5/4L1nhTgk/w3V6dGuUbsHa6DIEvYVCgCITe2Y6lSG3ix4bjGfn+J0GnD/vy7C75HEAjqX
-	agYzA+zcVkp5ngAzJe8oqAqHCGBbMFt8wS/3uqdEkFQhywi6mvUZsu/vdxTAxaxcVEf/ymnXq8m
-	ASJOmXKYpdJ4pFAB7/MBEvtvL1csQqE7YhApFo5GRbqdURBMHeNA9Wm/iROB9cHnHkof2FPlfaN
-	TqfFS3/BYG0buXMIZtCQOxOqo6YrD+HlJyw93ygOAVnbe64BSdDp4XRHUDZco+E2XTf8QntHEi5
-	CPaZfaUyPuhHMLkMjnJIU78dAhjZ4IX4Agco8C7HsTZdvEUsJzFotl2zfZHWPvdg5JcrzT7F12e
-	1
-X-Received: by 2002:a9d:3e41:: with SMTP id h1mr658586otg.170.1549925723848;
-        Mon, 11 Feb 2019 14:55:23 -0800 (PST)
-X-Received: by 2002:a9d:3e41:: with SMTP id h1mr658546otg.170.1549925723117;
-        Mon, 11 Feb 2019 14:55:23 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549925723; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=HpEhd1hjAxTw2MvV1T4BxjxIfyr9u34ZDCNveDCt9pw=;
+        b=Wi9pwbQODVUa7nJ8C66LHidDXcHDnOjDxfY6kYNfQgp0udHBQD9m3dKUsM43ETfcI2
+         arPidafFnWIeX2XD7JCftgLPe9Kd4cWf3EyUK0YX3DEhMrb3LP8tGX3Fr+0I2asxYdVT
+         UAH2+z4IO6nvEsCpuxtvcdclPAJSxRzJ7/uYYwH6pZgEG0bl1K0oqVd+eZcEaC+46QG7
+         iePnDyu/r5cEMhitrr0jc2gv6v4vYDoBZKIYfvSZmW1vESj25Pv+PiGCob1Q9IY/RrXd
+         vyPhGxRvXCg8RFL3g3xGwL+zTfCpQD/oXz1FyhLjEV2OJFm2So4MiesCrIkc6MoWCNwG
+         n8tA==
+X-Gm-Message-State: AHQUAuYEPPE9Znh8ySJDIP2eTR2EULPGjzB+xT6gB4wzrY5TZ5CxkRdp
+	9PMsW8yzoRpydPXktzOe7F3U3AUzJrykV4qx2+GzkcQez0ycd3S9RckLgukHL/8GCI/8X1npjOs
+	Axx0qiPJW6/OgmMoh5H3d255xkWLisUJnaApHKuRrbVumzC0VdH7e+MGGnN17LDSUdxRIsex0So
+	BatxEI0lLfoSWH2SV6AZ1OlCCLHJpJd91Q8v+JmgulUQEaNk05fkBuK9ieOTchBx6T5Yrm++rIU
+	qUA3x8aHSo3UUpIT6eOWP37VDJK40iI0HOvxlp+FY2wIYtq5uHpcp0b77vrxzvmnzzaDra51O1H
+	UtciKcjXfQFeZAKmtr9r6XiWJoEfc7fSmDtGuxRItNficFnbltNTi+0yf6DQT8WipIV8YL9d6zT
+	3
+X-Received: by 2002:a65:4bcd:: with SMTP id p13mr621462pgr.422.1549925782110;
+        Mon, 11 Feb 2019 14:56:22 -0800 (PST)
+X-Received: by 2002:a65:4bcd:: with SMTP id p13mr621429pgr.422.1549925781509;
+        Mon, 11 Feb 2019 14:56:21 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549925781; cv=none;
         d=google.com; s=arc-20160816;
-        b=shnukNWz6DvsvMbvyL4BzH/xe3Xd6VE0rPl2KJicz5lQPt4UzZxQnN2VTMzTNNywte
-         lYMz1Cs03GQV9bYSrrhqC81TfOesb9D2lMc4w/yFW23u1ZdZ3rnXuXp+E9TdLcvatRuo
-         H49tPNHlcHwQDG19vkeoS5/SC6iORb79MFdhroriL7yu1AmA5GEbVn7oFdZGGV3/Ha/c
-         T2eii1PB6GTKohwNV7IykavRzwdxRmHn0uSfdwaTQN8FIj6Jc3Lv2gvLCsp0JmwqGtF+
-         gkD9ZFqeSJ9EiUcA+Z6yTgw0Kng3Vsjnf6qjFNk8squBsMV9EDi594J97H+aaB0s+AIG
-         IdMA==
+        b=aJ5IbQ0kRsI6nCw1sL+vyOmHlFWlBGEWicOevU6Pd9Jf0oUstkNl1nDDXfzzK9/EXh
+         AaGv8NXGimZ2YHr4/qh3mx7TLHcfSyV8W+obBs166smfWv3UDsgKF6K/NIuW2FBIJZzH
+         JfDHv6wEu15727lYPuYjpEQQiUe8wL5I1ykJTnldrT3d0RP7bnjc1MyAGkC5Hs8yJyaq
+         FTwsGoJgdm0k760FWVwoJCiwqg4LBI4h4qGwYOH0KOTBCjNJ8zepDIOy+164YARMo/3e
+         d2hvXUCr23/p4VzQr/hnFdzJsbyt0MAxRRrcRdMYxA2KOL+pjpke3vWOSRznmmmEvmIi
+         6l+g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=PipVbT9feF+A/+kcKPeIiPlxJtq1FDRuiYejP4/jlTM=;
-        b=P6piEGdBqaYwe3Wwh4hheheYMpJ8S6g2+1iB5XQ8oziV3y1FADZLryYg82x0kjHj7d
-         Cny3hJ1MgTAglK0kkA1hMb9/2TaAJvqs1gaUonziuCjF+2HNIhrfvfKy4QJzrna94qqA
-         vJANKnoNrZxM7dhQDOs7+N7h8kzRvZwPGIw+D+KhJ6ZgbxIqTS61o1EFxWcAa7H4+K7u
-         0mc+ylFxEu0KORHtYyBTjRnUxREwW6uhZDe5Q3POVDgX+j7ffKLVfihC3MBhDAZAZAXO
-         4y+OD6c25q0vNfo37geXi0cLfSw6gn7Yc85fj1VxsgSDe0TvjRWaV+Op/dFsBVIJ0DSE
-         ZdsQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=HpEhd1hjAxTw2MvV1T4BxjxIfyr9u34ZDCNveDCt9pw=;
+        b=TI2Vyc9GZkKE8uj7ZuA3hPVv1vgwiqcf943nIj3eDurf+vf0xbeQqaCs5eLmnlYj/p
+         qUuZqjuugyNTX7Drxd2GrXsf0mwF4WEEflbxc7oNp0PVVUAqw6DwOomQcPo2Jnwxe9YR
+         ivZZvPsRx4pSn7zNVejLpjyV99E73WfSPkr4uckMeMtsOkVx0egrg5u89zKuf+S9BEF2
+         A71KbOOv5w9/q8mgH6ICBqPEoKP0FEX5/zsowaTP9joaTCzp6i2n1Pv61cgskOR4y2kB
+         eDsC/uRuIkPqrjkcRdEpqfBL6kGba8Ivns7XNpmzMkPqS5z/GUsZSLcuDJMTYxyomOCI
+         PY+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=ePp8uOPB;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=C4tTREA7;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t16sor7207924oth.4.2019.02.11.14.55.22
+        by mx.google.com with SMTPS id m5sor16504703pls.2.2019.02.11.14.56.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Feb 2019 14:55:22 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 11 Feb 2019 14:56:21 -0800 (PST)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=ePp8uOPB;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=C4tTREA7;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=PipVbT9feF+A/+kcKPeIiPlxJtq1FDRuiYejP4/jlTM=;
-        b=ePp8uOPBs0N6VpZBCYMwGPAoIqlDaY2gC7lJUFZR/emNWOFMvtmbPs6f040V04VIGC
-         2vRJz4SREJwH25cT7NuHossKvHgNe1HVHIe4RYI/rASiNarU1LckLx4eEfDZvjb0thx5
-         95FeQMZoZJwdy8Fz6vfMEsazvyaO8uwnV0OomuH0G93F+yXCodj1y+8dNhbFMc3xcHjj
-         OENj/rh1qIdkhkrjf9fweC7gDSPKiOjSlixCFT7GE5XpgEAOYi7gVmGdy3sFw/3Jid76
-         9N7K4Ti/pNGy7OV0X2wloFXKpVeG9i7EijmNrr5HU6fF6bXCxsauJi5TVlMZi/82WpPV
-         Lm7A==
-X-Google-Smtp-Source: AHgI3IYGo/qsdTLuha3YNsAwQUDrumeNrBs1vI6bpgPeNvmzCn7YXX3I4hUjf+8RHy+iEYulENdHYtDfW2xsnfGRu4c=
-X-Received: by 2002:a05:6830:1c1:: with SMTP id r1mr584180ota.229.1549925722592;
- Mon, 11 Feb 2019 14:55:22 -0800 (PST)
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=HpEhd1hjAxTw2MvV1T4BxjxIfyr9u34ZDCNveDCt9pw=;
+        b=C4tTREA7HJPtDyU1uVPrhGE+tenWueSaGN0k0ef/Kh8wHOc+eeRjHW4eNci/W1sNVZ
+         nYdNIvPBh0jkuMGegVaVI7ZknSEEmTYjVQ9lkUqwq808jxLyjhyYKUS7PTcL9UCxtB/s
+         it+yq0CUlai76H0E960zYXqbQR8MnnrS6MK8skX1EzEWnStU+4GlmKuGyXCUjmhBbpIA
+         ESTHk+JdGDgc7/Ph4KMGJJYmCHTvk5TWeSG1yrZVMPtAk3pw1nN/51xgX4GuqGMCDsdQ
+         v3NegYxwcxTIMySPBLYjq6QADfr8Cbj0sw8JmSoiCEdCAL1NAbCqVFX55zltezDUhzh9
+         STEQ==
+X-Google-Smtp-Source: AHgI3IZZHskA3za69Xpd8+FHO3LEV/xrV2vOJSA9kBqr3FxTMFSCZDXTbx2Vmep3HV1eRHv9cAoOVw==
+X-Received: by 2002:a17:902:fa2:: with SMTP id 31mr677704plz.75.1549925781226;
+        Mon, 11 Feb 2019 14:56:21 -0800 (PST)
+Received: from ziepe.ca (S010614cc2056d97f.ed.shawcable.net. [174.3.196.123])
+        by smtp.gmail.com with ESMTPSA id e65sm16713492pfc.184.2019.02.11.14.56.20
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 11 Feb 2019 14:56:20 -0800 (PST)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1gtKUu-0003Rw-6N; Mon, 11 Feb 2019 15:56:20 -0700
+Date: Mon, 11 Feb 2019 15:56:20 -0700
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: akpm@linux-foundation.org, dave@stgolabs.net, jack@suse.cz,
+	cl@linux.com, linux-mm@kvack.org, kvm@vger.kernel.org,
+	kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+	linux-fpga@vger.kernel.org, linux-kernel@vger.kernel.org,
+	alex.williamson@redhat.com, paulus@ozlabs.org,
+	benh@kernel.crashing.org, mpe@ellerman.id.au, hao.wu@intel.com,
+	atull@kernel.org, mdf@kernel.org, aik@ozlabs.ru
+Subject: Re: [PATCH 1/5] vfio/type1: use pinned_vm instead of locked_vm to
+ account pinned pages
+Message-ID: <20190211225620.GO24692@ziepe.ca>
+References: <20190211224437.25267-1-daniel.m.jordan@oracle.com>
+ <20190211224437.25267-2-daniel.m.jordan@oracle.com>
 MIME-Version: 1.0
-References: <20190211201643.7599-1-ira.weiny@intel.com> <20190211201643.7599-3-ira.weiny@intel.com>
- <20190211203916.GA2771@ziepe.ca> <bcc03ee1-4c42-48c3-bc67-942c0f04875e@nvidia.com>
- <20190211212652.GA7790@iweiny-DESK2.sc.intel.com> <fc9c880b-24f8-7063-6094-00175bc27f7d@nvidia.com>
- <20190211215238.GA23825@iweiny-DESK2.sc.intel.com> <20190211220658.GH24692@ziepe.ca>
-In-Reply-To: <20190211220658.GH24692@ziepe.ca>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 11 Feb 2019 14:55:10 -0800
-Message-ID: <CAPcyv4htDHmH7PVm_=HOWwRKtpcKTPSjrHPLqhwp2vhBUWL4-w@mail.gmail.com>
-Subject: Re: [PATCH 2/3] mm/gup: Introduce get_user_pages_fast_longterm()
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Ira Weiny <ira.weiny@intel.com>, John Hubbard <jhubbard@nvidia.com>, 
-	linux-rdma <linux-rdma@vger.kernel.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	Daniel Borkmann <daniel@iogearbox.net>, Davidlohr Bueso <dave@stgolabs.net>, 
-	Netdev <netdev@vger.kernel.org>, Mike Marciniszyn <mike.marciniszyn@intel.com>, 
-	Dennis Dalessandro <dennis.dalessandro@intel.com>, Doug Ledford <dledford@redhat.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, 
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190211224437.25267-2-daniel.m.jordan@oracle.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2019 at 2:07 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
->
-> On Mon, Feb 11, 2019 at 01:52:38PM -0800, Ira Weiny wrote:
-> > On Mon, Feb 11, 2019 at 01:39:12PM -0800, John Hubbard wrote:
-> > > On 2/11/19 1:26 PM, Ira Weiny wrote:
-> > > > On Mon, Feb 11, 2019 at 01:13:56PM -0800, John Hubbard wrote:
-> > > >> On 2/11/19 12:39 PM, Jason Gunthorpe wrote:
-> > > >>> On Mon, Feb 11, 2019 at 12:16:42PM -0800, ira.weiny@intel.com wrote:
-> > > >>>> From: Ira Weiny <ira.weiny@intel.com>
-> > > >> [...]
-> > > >> It seems to me that the longterm vs. short-term is of questionable value.
-> > > >
-> > > > This is exactly why I did not post this before.  I've been waiting our other
-> > > > discussions on how GUP pins are going to be handled to play out.  But with the
-> > > > netdev thread today[1] it seems like we need to make sure we have a "safe" fast
-> > > > variant for a while.  Introducing FOLL_LONGTERM seemed like the cleanest way to
-> > > > do that even if we will not need the distinction in the future...  :-(
-> > >
-> > > Yes, I agree. Below...
-> > >
-> > > > [...]
-> > > > This is also why I did not change the get_user_pages_longterm because we could
-> > > > be ripping this all out by the end of the year...  (I hope. :-)
-> > > >
-> > > > So while this does "pollute" the GUP family of calls I'm hoping it is not
-> > > > forever.
-> > > >
-> > > > Ira
-> > > >
-> > > > [1] https://lkml.org/lkml/2019/2/11/1789
-> > > >
-> > >
-> > > Yes, and to be clear, I think your patchset here is fine. It is easy to find
-> > > the FOLL_LONGTERM callers if and when we want to change anything. I just think
-> > > also it's appopriate to go a bit further, and use FOLL_LONGTERM all by itself.
-> > >
-> > > That's because in either design outcome, it's better that way:
-> > >
-> > > is just right. The gup API already has _fast and non-fast variants, and once
-> > > you get past a couple, you end up with a multiplication of names that really
-> > > work better as flags. We're there.
-> > >
-> > > the _longterm API variants.
-> >
-> > Fair enough.   But to do that correctly I think we will need to convert
-> > get_user_pages_fast() to use flags as well.  I have a version of this series
-> > which includes a patch does this, but the patch touched a lot of subsystems and
-> > a couple of different architectures...[1]
->
-> I think this should be done anyhow, it is trouble the two basically
-> identical interfaces have different signatures. This already caused a
-> bug in vfio..
->
-> I also wonder if someone should think about making fast into a flag
-> too..
->
-> But I'm not sure when fast should be used vs when it shouldn't :(
+On Mon, Feb 11, 2019 at 05:44:33PM -0500, Daniel Jordan wrote:
+> Beginning with bc3e53f682d9 ("mm: distinguish between mlocked and pinned
+> pages"), locked and pinned pages are accounted separately.  Type1
+> accounts pinned pages to locked_vm; use pinned_vm instead.
+> 
+> pinned_vm recently became atomic and so no longer relies on mmap_sem
+> held as writer: delete.
+> 
+> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+>  drivers/vfio/vfio_iommu_type1.c | 31 ++++++++++++-------------------
+>  1 file changed, 12 insertions(+), 19 deletions(-)
+> 
+> diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
+> index 73652e21efec..a56cc341813f 100644
+> +++ b/drivers/vfio/vfio_iommu_type1.c
+> @@ -257,7 +257,8 @@ static int vfio_iova_put_vfio_pfn(struct vfio_dma *dma, struct vfio_pfn *vpfn)
+>  static int vfio_lock_acct(struct vfio_dma *dma, long npage, bool async)
+>  {
+>  	struct mm_struct *mm;
+> -	int ret;
+> +	s64 pinned_vm;
+> +	int ret = 0;
+>  
+>  	if (!npage)
+>  		return 0;
+> @@ -266,24 +267,15 @@ static int vfio_lock_acct(struct vfio_dma *dma, long npage, bool async)
+>  	if (!mm)
+>  		return -ESRCH; /* process exited */
+>  
+> -	ret = down_write_killable(&mm->mmap_sem);
+> -	if (!ret) {
+> -		if (npage > 0) {
+> -			if (!dma->lock_cap) {
+> -				unsigned long limit;
+> -
+> -				limit = task_rlimit(dma->task,
+> -						RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+> +	pinned_vm = atomic64_add_return(npage, &mm->pinned_vm);
+>  
+> -				if (mm->locked_vm + npage > limit)
+> -					ret = -ENOMEM;
+> -			}
+> +	if (npage > 0 && !dma->lock_cap) {
+> +		unsigned long limit = task_rlimit(dma->task, RLIMIT_MEMLOCK) >>
+> +
+> -					PAGE_SHIFT;
 
-Effectively fast should always be used just in case the user cares
-about performance. It's just that it may fail and need to fall back to
-requiring the vma.
+I haven't looked at this super closely, but how does this stuff work?
 
-Personally I thought RDMA memory registration is a one-time / upfront
-slow path so that non-fast-GUP is tolerable.
+do_mlock doesn't touch pinned_vm, and this doesn't touch locked_vm...
 
-The workloads that *need* it are O_DIRECT users that can't tolerate a
-vma lookup on every I/O.
+Shouldn't all this be 'if (locked_vm + pinned_vm < RLIMIT_MEMLOCK)' ?
+
+Otherwise MEMLOCK is really doubled..
+
+Jason
 
