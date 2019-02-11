@@ -7,102 +7,102 @@ X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9E8FBC282D7
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:00:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AC466C169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:00:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4FCFD218E2
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:00:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5F068218A4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 22:00:14 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ecNB/AWi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4FCFD218E2
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="AXw7e0VU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F068218A4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9271E8E0174; Mon, 11 Feb 2019 17:00:08 -0500 (EST)
+	id 66A0A8E0175; Mon, 11 Feb 2019 17:00:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8B0C08E0165; Mon, 11 Feb 2019 17:00:08 -0500 (EST)
+	id 57B418E0165; Mon, 11 Feb 2019 17:00:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7754A8E0174; Mon, 11 Feb 2019 17:00:08 -0500 (EST)
+	id 41A4D8E0175; Mon, 11 Feb 2019 17:00:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 254208E0165
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 17:00:08 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id w12so155853wru.20
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 14:00:08 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id DB3C38E0165
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 17:00:09 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id t13so175042wrv.3
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 14:00:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=btZJYBzt9vwgeXYpITL7uF1uBvgohSdy08HPUQnLqO0=;
-        b=YQN7qKDvv7DIz3ry5aoI+24b+Nqpm585ai/IWTLjjm+bC/JgY7tLM726RKrD3aZymP
-         qSSKeSuZ066ietO4t8xkbUWlFWETYjS+qL47sVK5QnBvb6vMpw0JFDdiGJbJh9thFe+s
-         xJabLmvWtzMLDQFxms8SxqWyLGy7CqL/MdcvmJk/FvEq6cjW/nIP1kXnwhJRvdI19O4p
-         T1L8G8iRGD2n6oPFB7p5RG4ph202yaWO1sNoOv0val9AbAwOtlw6NrfpVHXNxvxPA+zp
-         3pM+TyDMa63TdnnPPKvdmXOyAhwp4KWdh3rAvXbDFfs2WnvEYvsgMBL0KA6Y/3rtuRno
-         l+PQ==
-X-Gm-Message-State: AHQUAuYBRoxtQoV2wjS05kP5j8LKxnqV3yJ72DOIqn+JSiO1WB3Ap+wj
-	cfFmtPT3XLlVs4PMStxvc3ADtmBJkFKFcYuu7+HELruF5uPpy7xV0CawgDAXOG2GZ4dxl4A3psW
-	8+gYBdjTWdQHExWaFKWEQ/N5SmOdTYFAPAknuPMV7C/nkajxfkOH215g9PoUYVbmZOe/bs5SE+2
-	Mdx+ItEoNeXQg7i4/Hws1wANfqPy1YjHMPwfqjbuOZwbqoumj6vnhDm+/KKsi7hV2pWW3jqWPR6
-	v6gwHVVICRA5FOGyzOf3F7BRnK3e8eJbqQwl+reWKQDnt8Bb60hSZGZTWbf4OwsS6FIdiDIToD2
-	PHxaX5pfl6giFIHIgdWgHROV3TiUEoX904GCR9q53p1a5R6NRTqzSiV2++UT8c0lNrqluI9W1H/
-	R
-X-Received: by 2002:a1c:f901:: with SMTP id x1mr291400wmh.84.1549922407654;
-        Mon, 11 Feb 2019 14:00:07 -0800 (PST)
-X-Received: by 2002:a1c:f901:: with SMTP id x1mr291363wmh.84.1549922406794;
-        Mon, 11 Feb 2019 14:00:06 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549922406; cv=none;
+        bh=/+CAbD8bU+nyd3L0sYTP0WbxN9sT6g9T2UAB46YxuA8=;
+        b=hAoZMg+0MLM8FWykbK3feB+xOzEvsvyqbZ5cZrNMBfenoBVMVhRhln/8opRXRdcqC6
+         w4qpgE2L+BBBTwhvY9AhlsajgsjkD95p4ZL9DGCpctuVg2nuefBI/55Ki0oP5BJghmHA
+         uD8f/n+konEDT0R+aIaYQ64AbEce5P4BVsAwXAdimJMkGGeS4AJ/tGbC37IuqRAFHekr
+         rBmqejmvfmLR8MDnQDjmE5ypRgjo4Bav+Z5bqpAzc6SMx02GJ0Z2Iv9sKj0A6DNrM4ZU
+         vUEq8pdPR+Td2eZwNLrnQ1VTy3b9daF+ub0TSwdKFQQm6212lgkM3u58BsyeGOm9ApcI
+         mHnw==
+X-Gm-Message-State: AHQUAubM/K8ynFsHVcWMYxUOZvNq39UIgcV0Ak4xN5mVHhgzcX3vOY3+
+	K7afkMHc5V5AlzKReMIlCX5X9ic1xN5qt3izkMi9LVp6FR/17/u0DDKShTlYzPDIv/lvX2RWiFy
+	XqXhBZnMzcFgYTyyGOes2g9jIYOyc3XnnVJRLPlF7Tb+OKlF3LhsfsyEB8KHTSjjhP/UxiAyZaa
+	F3IeYXoW7WoX6X8QakO6as57pclba+cd0Es2Lz2asiZpz5pkFc+s0MzgjZ3HVenLENb2wcTVEQd
+	QS4ATgLAqbhVfPRZAhLhdmj/s6ugW1vzou48Vr+Au/xh04MT2kQe1J5QEYiGjEpseXJQrXoKhEI
+	+CNDdtCw4GZ2AidBhFTiSQ/N87/stud5z/nqJsQg+siFHcip1/uFlS21X+khpnv4EOrIADIFx4v
+	P
+X-Received: by 2002:a1c:7016:: with SMTP id l22mr307688wmc.70.1549922409410;
+        Mon, 11 Feb 2019 14:00:09 -0800 (PST)
+X-Received: by 2002:a1c:7016:: with SMTP id l22mr307643wmc.70.1549922408565;
+        Mon, 11 Feb 2019 14:00:08 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549922408; cv=none;
         d=google.com; s=arc-20160816;
-        b=javh8aszhqXsWKu30pNVq/rYx25F6SWQS2gPg6oerJ2AiKl+IR3wT1yIXgqBpAUjLz
-         8SzhaDjV5Z8KCwx5Bx/KiHMTRFnAwLlkZYL2ubiMpwXuNJpKyfSJr25N9PMprY4zTmS8
-         xEYRLoydAxXcHr7rgw31Wx/exMNk/0Q8Orh6IgRstFiTTa4hszEpGCuv9q7f2kiHSRNr
-         UuWU+TYO0dTra1uRKW0y2obMBfX3Tq+SIVZsFcluR37GhqSjxCUV743rxzLM9P+9NgmF
-         WlPVSFj0tw06b4myhtv3Y2DibjituRTsgAQvb1UMmXEORayCsmuvZUbpj7sfc+hLvpVj
-         Qenw==
+        b=meqXvfdZt5maPMYB5LQLOX3ckyVp5zr/ANjdQ5oPohCwjuALTyoKOA+LDmUjN9wDkR
+         QiZbBAkb06/Hk6bmfUi98svVULiOQOPiBVdTfGgU3yzrfcvAqGylM0ugl3Zp6b/A5QbN
+         2D2Ea7tif2bdJR4uskID5jYKNPpK8Nh+j7smFpQjybCQjevyw4A2348u5z0HE7knE8Nf
+         KJU12g6QW7ka6UaspCvaLTxxIuD6yCeOeKrHfn/aGmDBLwcJjibsQcR+IE36OjX/5bGZ
+         EXfEp3MXzUCQlGqurD01CgjeSvUZpvh0P8dRZSwOrW50j1Yft9GwK2Aw9gXj46iFiDLi
+         lobw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=btZJYBzt9vwgeXYpITL7uF1uBvgohSdy08HPUQnLqO0=;
-        b=YYep6rtb40rDVECY9vtrhsPeUfnwUAK3NIyGgpBs8QBMp39i8di8UE7fqwcL4U85sL
-         bSQA37TufRGyF/SILUGKC3Sqp3witcnTGwRF8IdD8O8Pibf4YjFJjkOoKcY0LfGdOtCc
-         FVunbpQUdJ3h9oWz0QDvRao7Mr4DigAc1zSKxqlVOXeRs2/Z1EfcO62uM62w61F5GSEo
-         zKLvniIMLoqHu0Yvx/uu7Hm339LnrdOhNFqBikucd1ZoiLkgQ8zHBxymAZOnYo76NXJ5
-         eekEGz8C3YEDhlyA+PuTGq+pYRKPzf30BLtP6ZfM77UvOat241Cg6hPTDikOanDLOYWS
-         SITQ==
+        bh=/+CAbD8bU+nyd3L0sYTP0WbxN9sT6g9T2UAB46YxuA8=;
+        b=eJJNPMKctI1DV3jvxm9wXDJ+JBak7XmzNuYturO3O2hugHck96MqWDNVQA4yZ5oxnB
+         iawZB/Cxrw8Wj6ij6E32toCHlpCxd5DvwQ8dbyMoK3lGVbqLyr/OaxF3wN5luRLJrEbP
+         ONmjLXvmBkPQje0xus4Bn8dTOm2SVEUgDzGjpeUqkkXgmoodwNM5jpaEWHszPTGMXTqg
+         1c5DWJQB3SKgKL/t6SdDsvCmTps42+MSAlcKAEoNqne4mdLmT73VXgL2lcl82pNWBbOZ
+         8mByJA0XrBkYVioRzi+WXm5DOasOMxwXVEY9LRLf/8V9u/hPmWNlJgexdSHwp5/kXfub
+         Zl3g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="ecNB/AWi";
+       dkim=pass header.i=@google.com header.s=20161025 header.b=AXw7e0VU;
        spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c190sor361966wma.21.2019.02.11.14.00.06
+        by mx.google.com with SMTPS id c1sor7017124wrx.39.2019.02.11.14.00.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Feb 2019 14:00:06 -0800 (PST)
+        Mon, 11 Feb 2019 14:00:08 -0800 (PST)
 Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="ecNB/AWi";
+       dkim=pass header.i=@google.com header.s=20161025 header.b=AXw7e0VU;
        spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=btZJYBzt9vwgeXYpITL7uF1uBvgohSdy08HPUQnLqO0=;
-        b=ecNB/AWi4z4l8AQ/we8wnm6SjWCcMGvpTpyc2v3pJeyC298tLkxxD+qZ+Dc4FG3rj9
-         Is7o1YdjBZrw6wO7CC7sUPKmkF79J3SHPlM3cJuQIw3hapgPTfRqb3QmGNoHjpGNjd2a
-         E5VB0Rr0IZCVZaefBRWqvksJUlJXSXnPTRrusgyT3iE0cM+0VImSK8Lo0JsnRB3OamDC
-         DDWqXeWHiRXE+x+w+BJtw0Q7swK1uB+cQ0Z7KgYBnMNv8POPkCjGRZ7w+YzkfIllkThW
-         hppiMFeEeGWSNvgHGToS/XafOlG4jTCytop5hi0mhlxw4WfxKE/YotFjBPiUY7IJJiXe
-         2DlQ==
-X-Google-Smtp-Source: AHgI3Ibt/OjbLqwefA76DBGGG/kA1FhuGgmWovyjKZmYdbeOvuJB1FGXQZ8bX9M3I7w4XDLhekXwKw==
-X-Received: by 2002:a1c:ce8a:: with SMTP id e132mr302513wmg.12.1549922406276;
-        Mon, 11 Feb 2019 14:00:06 -0800 (PST)
+        bh=/+CAbD8bU+nyd3L0sYTP0WbxN9sT6g9T2UAB46YxuA8=;
+        b=AXw7e0VUVwpxGIBaconhcN6hqrC4WQR4zPt8o0rYjlgynPJ6dGhpuRpD7+aAnAGkqn
+         dKfMliiAoNqHNajceLpH3nZ/VwnE9iP8MwkrBmswHsu7N60/z3wXikIVui2Hf/L3bjVU
+         rmkXHSaBgSZX+zs0yMP1i3+QHzOtBbNKruR1isCq1cYSSGdDyVjYXn4WRlBTvY6W+eIq
+         xKGTI49OWsqkTTjeeWo2X/2xCbVq7p/jp8qnMO0aBqEWhAmXoWNEqSp9t6nbdJC+h9Pt
+         +FTBq6sEkiVZ+9tpWtj5WBaTDMnEMuayhPLfyLBnWLIcikTGHPe4mqcefLqMxHmDkgzS
+         CAtA==
+X-Google-Smtp-Source: AHgI3Ibr24Su8y7sxS10natSgYZC4T4Yaa/HmavywUcKbRoFeE8GXeKiZeBTQW0K67qDQuE3IdbBbA==
+X-Received: by 2002:adf:dd43:: with SMTP id u3mr240892wrm.259.1549922408030;
+        Mon, 11 Feb 2019 14:00:08 -0800 (PST)
 Received: from andreyknvl0.muc.corp.google.com ([2a00:79e0:15:13:8ce:d7fa:9f4c:492])
-        by smtp.gmail.com with ESMTPSA id c186sm762685wmf.34.2019.02.11.14.00.04
+        by smtp.gmail.com with ESMTPSA id c186sm762685wmf.34.2019.02.11.14.00.06
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 14:00:05 -0800 (PST)
+        Mon, 11 Feb 2019 14:00:06 -0800 (PST)
 From: Andrey Konovalov <andreyknvl@google.com>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>,
 	Alexander Potapenko <glider@google.com>,
@@ -121,9 +121,9 @@ Cc: Qian Cai <cai@lca.pw>,
 	Kostya Serebryany <kcc@google.com>,
 	Evgeniy Stepanov <eugenis@google.com>,
 	Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH 4/5] kasan, slub: move kasan_poison_slab hook before page_address
-Date: Mon, 11 Feb 2019 22:59:53 +0100
-Message-Id: <cd895d627465a3f1c712647072d17f10883be2a1.1549921721.git.andreyknvl@google.com>
+Subject: [PATCH 5/5] kasan, slub: fix conflicts with CONFIG_SLAB_FREELIST_HARDENED
+Date: Mon, 11 Feb 2019 22:59:54 +0100
+Message-Id: <3df171559c52201376f246bf7ce3184fe21c1dc7.1549921721.git.andreyknvl@google.com>
 X-Mailer: git-send-email 2.20.1.791.gb4d0f1c61a-goog
 In-Reply-To: <cover.1549921721.git.andreyknvl@google.com>
 References: <cover.1549921721.git.andreyknvl@google.com>
@@ -135,41 +135,59 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-With tag based KASAN page_address() looks at the page flags to see
-whether the resulting pointer needs to have a tag set. Since we don't
-want to set a tag when page_address() is called on SLAB pages, we call
-page_kasan_tag_reset() in kasan_poison_slab(). However in allocate_slab()
-page_address() is called before kasan_poison_slab(). Fix it by changing
-the order.
+CONFIG_SLAB_FREELIST_HARDENED hashes freelist pointer with the address
+of the object where the pointer gets stored. With tag based KASAN we don't
+account for that when building freelist, as we call set_freepointer() with
+the first argument untagged. This patch changes the code to properly
+propagate tags throughout the loop.
 
+Reported-by: Qian Cai <cai@lca.pw>
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- mm/slub.c | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ mm/slub.c | 20 +++++++-------------
+ 1 file changed, 7 insertions(+), 13 deletions(-)
 
 diff --git a/mm/slub.c b/mm/slub.c
-index 4a3d7686902f..ce874a5c9ee7 100644
+index ce874a5c9ee7..0d32f8d30752 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -1642,12 +1642,15 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	if (page_is_pfmemalloc(page))
- 		SetPageSlabPfmemalloc(page);
+@@ -303,11 +303,6 @@ static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
+ 		__p < (__addr) + (__objects) * (__s)->size; \
+ 		__p += (__s)->size)
  
-+	kasan_poison_slab(page);
-+
- 	start = page_address(page);
- 
--	if (unlikely(s->flags & SLAB_POISON))
-+	if (unlikely(s->flags & SLAB_POISON)) {
-+		metadata_access_enable();
- 		memset(start, POISON_INUSE, PAGE_SIZE << order);
+-#define for_each_object_idx(__p, __idx, __s, __addr, __objects) \
+-	for (__p = fixup_red_left(__s, __addr), __idx = 1; \
+-		__idx <= __objects; \
+-		__p += (__s)->size, __idx++)
 -
--	kasan_poison_slab(page);
-+		metadata_access_disable();
-+	}
- 
+ /* Determine object index from a given position */
+ static inline unsigned int slab_index(void *p, struct kmem_cache *s, void *addr)
+ {
+@@ -1655,17 +1650,16 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
  	shuffle = shuffle_freelist(s, page);
  
+ 	if (!shuffle) {
+-		for_each_object_idx(p, idx, s, start, page->objects) {
+-			if (likely(idx < page->objects)) {
+-				next = p + s->size;
+-				next = setup_object(s, page, next);
+-				set_freepointer(s, p, next);
+-			} else
+-				set_freepointer(s, p, NULL);
+-		}
+ 		start = fixup_red_left(s, start);
+ 		start = setup_object(s, page, start);
+ 		page->freelist = start;
++		for (idx = 0, p = start; idx < page->objects - 1; idx++) {
++			next = p + s->size;
++			next = setup_object(s, page, next);
++			set_freepointer(s, p, next);
++			p = next;
++		}
++		set_freepointer(s, p, NULL);
+ 	}
+ 
+ 	page->inuse = page->objects;
 -- 
 2.20.1.791.gb4d0f1c61a-goog
 
