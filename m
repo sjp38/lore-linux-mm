@@ -2,135 +2,152 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8CC98C169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:52:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21A50C169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:53:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 36C4D21B25
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:52:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7454921B25
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:53:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ncBVT9ty"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 36C4D21B25
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="qSa3z0GI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7454921B25
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B8F9E8E012F; Mon, 11 Feb 2019 13:52:14 -0500 (EST)
+	id 1CAE48E0130; Mon, 11 Feb 2019 13:53:24 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B15778E012D; Mon, 11 Feb 2019 13:52:14 -0500 (EST)
+	id 178BF8E012D; Mon, 11 Feb 2019 13:53:24 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9B8338E012F; Mon, 11 Feb 2019 13:52:14 -0500 (EST)
+	id 041118E0130; Mon, 11 Feb 2019 13:53:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 555608E012D
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:52:14 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id f3so9008367pgq.13
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:52:14 -0800 (PST)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CB1958E012D
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:53:23 -0500 (EST)
+Received: by mail-yb1-f198.google.com with SMTP id y63so8331044yby.8
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:53:23 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=onajfLzjwMOVtd+is/9izGJShjdIldm5SizvaLUaHmo=;
-        b=AlTxo3kDmIq0wA8gZuz6mtVaTjYxvPLMiIHdam49vdf1LlXSRni1UN1OObW1JAGvTs
-         3PDCqXQSzVf1DyXgHwbiy3CaPxR6Zylv+VqNEy7cSchrfwWZHNgUpCmqVJrlGgx7/2TB
-         81qBdaNnHAkUjYEEGY2Fn0kbzjOiWnkrXUtgeWKVsdKsZ0+Zc519zu2DkjWw/8h4OcZ1
-         bLq6JYSiSuldj/b1UQTsnhoGqQL/qFBeWEWoBY+9ICQA0fhEHKr3qrqhYiRgd+nmovJj
-         FsXMrc99tg0qnqdwsYDJQn1zXm+LR1oRnSZGmYz2DP8XxZoEyLHNb0ht2UvS5rPC+1Px
-         1FYg==
-X-Gm-Message-State: AHQUAuZ8yFvSUSd4SsQeYYBxCM7EueJwUd0rHt5gkD/yP1gT/DF3GfLd
-	SCwckk3Urzwg8krKhjHEwMPG/Sofotfy2lhfTfJsc7TPRsqj5ETBzG8LywlVm+cPE/HUN3q01z5
-	ESBXOUvWZ/jSFi5vWl7SIbhckA2RLvwItYjRAsfaIfcVkI1nJsC8u+mciUHEItScgpEUHhH/CYr
-	C2gM5nNsEz026CsCHSOjNwGGZLpjpHTKlc15YP1Orjyxf7NFPGdQ+5ZH58XrI4V6kw2K3I0v+TY
-	59shV2cc90/U2tNp42s4LiMzkcY2KjCjtjxhgMTd/kTDC3v8yJpt7X7l0MDm8LuSpqSCjgRMBY3
-	C41XbdwWSK/ZskXtj5TZeTfRDY7gEcMWRtwSmOBvoJ0d4QP9UfuFd+hqqQnU9TQrWRIzulLZbEh
-	X
-X-Received: by 2002:aa7:854d:: with SMTP id y13mr8415875pfn.175.1549911134018;
-        Mon, 11 Feb 2019 10:52:14 -0800 (PST)
-X-Received: by 2002:aa7:854d:: with SMTP id y13mr8415815pfn.175.1549911133343;
-        Mon, 11 Feb 2019 10:52:13 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549911133; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Py05Zd5WRf99APZb89NwZR67zhDUZEH9vW9/0MbuiHY=;
+        b=qo7xkCS4VA+Eb/dfoGzg3V7oJVpbVLmTCkbEFGlK3OC1kyo7aXfctYwox0iS4O16Wd
+         IDL3azDDpou+Fpu1TtAH3TfLwreqV4xgJYc7BNjRvozvuxLD6/1OGjkk1doXCK2PhyYF
+         /Ag3jwFXquMmbkNkCD2xWIHUdYnBOsIbIbSsmaF9XPnkI9HKi6zXagsp1BXwAZ0N5kOs
+         iufnW6FLAQQKkuVZ0Dyxg/HFokHg0Es4whuZw1mdEhHehVunp2ls/DKho8FYQWQrCpq+
+         CTLGX3AFIFRW5j8SQ7asbCt9EF+0qwsJ64k4Fq55FCryfmybJ2GPnFcNV40zGSL06bmZ
+         UP2Q==
+X-Gm-Message-State: AHQUAuZerIpg661j1ymJbmU6Taovwtacfi2LQcsO4GNk91jQ+pdISXLf
+	h4/BfSpDLH8YrJ3FNxkBHQkNOpdNJQZuiXo6wR2V2b0k1m8PKWLeG6nPz379ifKH2wvJCcG300l
+	o+dnWpzrHnVnyPYaf6UsYDV1jFcKiqqDmw8S48sU3/MWOdiqq9hOa58iD03CM4IRpNXLpj0uVAz
+	6i9BHavB/yF2lrDEaJGgVw/70iTymTMcO5lau37czCG0nB2WRIIsWT7FiBx68ZVO6JoWyEYzAQa
+	U5Q5F1sAa2BNEYTIR9ko5+fsW7U73wV/PlvC73KmldsOiBxNPAv2V+dJHcZNASSZHSu6XH/wpQr
+	mdQ1e3oFzd8yqI7XLLkWpLeesxk0uXNAxlSnCbNkUoeUG/odcI1mLJ19EbDsBBpu8VKDxkeE3RM
+	z
+X-Received: by 2002:a25:3445:: with SMTP id b66mr13108345yba.515.1549911203490;
+        Mon, 11 Feb 2019 10:53:23 -0800 (PST)
+X-Received: by 2002:a25:3445:: with SMTP id b66mr13108310yba.515.1549911202902;
+        Mon, 11 Feb 2019 10:53:22 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549911202; cv=none;
         d=google.com; s=arc-20160816;
-        b=KvPlB3m49rpoGQ1YIdTeNrqS0UhIH+ifh0llam6p7MVK/BlPPG3Jswck+Sn2UZBbVo
-         8b8+pZK7t6WQvA/1i7sVUleDO3xV1hgIkqJbsyrGxIQlzNsbCaxx+YBcRYSuz9OEYCI2
-         6D7OeuCFYalQ/Uyx/gsDguqGem39BfopG0mpWpjDuvP3LYJftpqJRl14gPoCOKFnQm18
-         E7S3elhFalQ/I/Q0ZrOfBXpelE2r9of547NzEJczZgyzxriDOCizC6/WweA9jMaF8gn9
-         3zX+G5gIHotBwFKjajNQlW0HEWWG8JWhLbOer6bGiiH1xN2mhDy4JzA4V2ag5GU1fQLP
-         dAHg==
+        b=XA+0bc6iEf9oXnQx2t5BG91QtCbsqiNwLcQKAByK1yLWtyALmPXh2QaMd2hyTeqbYG
+         zU8i5GKjODhSqpJ7WerCUCmpL+F4aX+itRva/SBVLXA9DmKrRQidqT6y5rHGQsjB6vCT
+         kXJnpgZuCvQZTyJ1nR83hPIHrIj0JPWzWWG08k+OrPIDNLLQuz1O3FnkXbCrMMsp7Y0Z
+         bNjW6AGy53Ry+Lp7rqxvihIOA03DDkV8MK6h7KOPtoeOmYfuYgQI85IBavgQsCcGMgqT
+         1g1DOCvCxJ0UXVz9ynV7BziA2rjP+xufPvr3ubOvDC3q7VSzjeTvduphZ19a8Dm44/6o
+         /5QQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=onajfLzjwMOVtd+is/9izGJShjdIldm5SizvaLUaHmo=;
-        b=vR4Bw3GVZmWaddEDFZPw/42bBWLMWtgSJa4q9Xui8R4BOYZSuNSEp3Pu6ZKsqzV+Ru
-         95kppbEPW0WqJ/QxnTFOGPkz4WigwqyHDD6luS8PlkOV/ra8BzYMJI/vOKRolfzSvQ/n
-         SJ99Ys0cgvedraOZikt+bRbUE5VpsUM4GQL4KIawneVKxfzp1jy/kDRrZUpOxDS7MjN7
-         G8ozMHDwONesEy6eMexzjFpxZMAtwlpOM4MX8TxP0L+SzwWxIaq7TOzTOD+MOuqaIe7Z
-         uXW9hw+Cg5drd2bTRVD5+RN+LvuFlh16XwfU1xL8Baf39/7cgNkJk8Sf04g7DQwBvJSF
-         X/AQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=Py05Zd5WRf99APZb89NwZR67zhDUZEH9vW9/0MbuiHY=;
+        b=rABoCFBzdG9Z2q2yB+64fO1NCSI4K2HM61HuDebUGVUpw6/AETOOUpjJ69viRwvJBs
+         r0VpePIFtfXTgPpEVB4Y70PQEy5q82kw3lM4YIkSeJMBMVE2lcTSpNETzZMlR6QF31ti
+         CeQ/Fh0fYqLQYJiNJypTuUkrq8/tRK51+mGM8GPpenwK6vwCJhD7zqJWegXUI/GO41fw
+         qj9e69iElCKsalA11ak7iSdwlmPW4qNJnvZzENGV2GQ+AkDPVCOr5RbbkcjTZQVvW7kf
+         17gUwvKqPissuX5U+07JmsduzbDRPVXLMcA8xy2pnWpydtKXhf7wdwegIxk42N5nXa5z
+         lBOw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ncBVT9ty;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d82sor16017301pfm.4.2019.02.11.10.52.13
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=qSa3z0GI;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s18sor1962589ywg.182.2019.02.11.10.53.20
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Feb 2019 10:52:13 -0800 (PST)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Mon, 11 Feb 2019 10:53:20 -0800 (PST)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ncBVT9ty;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=qSa3z0GI;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=onajfLzjwMOVtd+is/9izGJShjdIldm5SizvaLUaHmo=;
-        b=ncBVT9tyNIxZ8aiOn7dnre8Goggom0TvQuIANUcxYHYcAfeeDAW/pJ1tXT7OKgQueF
-         MwVqVQuXrOqAtT08VYAKSwE++I0VmP13ZxXyhW0aHCvpPht7QPP8DsjyNB1q9UiS9QQl
-         9nis0PU6XVMI930sTgtUCXc+fAmTp6gsgaaqqrv2IrcDnHYa8QQ6hciHJK6+lgRilZhN
-         KdqVMLYVj7G0Grzr3UxJ2Dq0ijc+Xx3ACM1wwRK1oFZm7gwjlXdLXp02XnnVh4GoMf0t
-         Uhm7OacraCe04mXWaJ3y/+i8oWGZKM8zgc/nBhN60h1PI8Pp5idnG3RIVGXQVzve/sCh
-         iKDA==
-X-Google-Smtp-Source: AHgI3IZQFoZrbycn++mXjdTEjZaF9ayC32KEiKRH0Wc/WBMk/e+oR/Sql4ixUe/6CE8nd6+lelEMoUAztsut/G+K/Ak=
-X-Received: by 2002:a62:6047:: with SMTP id u68mr37586266pfb.239.1549911132174;
- Mon, 11 Feb 2019 10:52:12 -0800 (PST)
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=Py05Zd5WRf99APZb89NwZR67zhDUZEH9vW9/0MbuiHY=;
+        b=qSa3z0GIZnsgj32mJi2Ca7wOnqCbzwnm5RT8DySZ6pWh1WOgpp45wlmjIiZmkIxpXK
+         OUHRmZnVAQNjI+GEzk+4wDOGWOoCLiaJSVPshy/8m6N+5ZP6qPJzOllpPEU+cJOsxOe5
+         NwXqtqYV2pr5soO7WF9+pblCA8G92HZG+b2KHjlxO8KIiRLAgYmgQVQkijqn9kAicSmn
+         7cIdEQly0paG5QgbfsSJSkdV5HUQhowt7XOVfGw0ikvmHTRwqxsB3x+bnVb+eE49lc3j
+         EIqGyspVRWlaPWDoKU7NZnpeWz+iEivKbpwAM9Wg4zrdML8eA1hWjmCWZHOZzb7MPiqF
+         3toA==
+X-Google-Smtp-Source: AHgI3IbtLUi3lvGZJNJ4o01pGavyO3l5XXe+wSMIfjTHUZdZj2M8pLAyy/MtZS6vUABiI3tI2IF4NQ==
+X-Received: by 2002:a81:2f03:: with SMTP id v3mr114708ywv.136.1549911200143;
+        Mon, 11 Feb 2019 10:53:20 -0800 (PST)
+Received: from localhost ([2620:10d:c091:200::5:6e5])
+        by smtp.gmail.com with ESMTPSA id k64sm2670628ywe.66.2019.02.11.10.53.18
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 11 Feb 2019 10:53:19 -0800 (PST)
+Date: Mon, 11 Feb 2019 13:53:18 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v2] mm: workingset: replace IRQ-off check with a lockdep
+ assert.
+Message-ID: <20190211185318.GA13953@cmpxchg.org>
+References: <20190211095724.nmflaigqlcipbxtk@linutronix.de>
+ <20190211113829.sqf6bdi4c4cdd3rp@linutronix.de>
 MIME-Version: 1.0
-References: <b1d210ae-3fc9-c77a-4010-40fb74a61727@lca.pw> <CAAeHK+yzHbLbFe7mtruEG-br9V-LZRC-n6dkq5+mmvLux0gSbg@mail.gmail.com>
- <89b343eb-16ff-1020-2efc-55ca58fafae7@lca.pw> <CAAeHK+zxxk8K3WjGYutmPZr_mX=u7KUcCUYXHi+OgRYMfcvLTg@mail.gmail.com>
- <d8cdc634-0f7d-446e-805a-c5d54e84323a@lca.pw> <59db8d6b-4224-2ec9-09de-909c4338b67a@lca.pw>
- <CAAeHK+wsULxYXnGJnQXx9HjZMiU-5jb5ZKC+TuGQihc9L386Xg@mail.gmail.com> <20190211121554.GB165128@arrakis.emea.arm.com>
-In-Reply-To: <20190211121554.GB165128@arrakis.emea.arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 11 Feb 2019 19:52:01 +0100
-Message-ID: <CAAeHK+x5J_eYm+3qupptBK5gWLqkz8OM=UCgRdrKb=u0s4yxxg@mail.gmail.com>
-Subject: Re: CONFIG_KASAN_SW_TAGS=y not play well with kmemleak
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Qian Cai <cai@lca.pw>, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
-	Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, 
-	kasan-dev <kasan-dev@googlegroups.com>, 
-	Linux ARM <linux-arm-kernel@lists.infradead.org>, Linux-MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190211113829.sqf6bdi4c4cdd3rp@linutronix.de>
+User-Agent: Mutt/1.11.2 (2019-01-07)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2019 at 1:16 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
->
-> On Fri, Feb 08, 2019 at 06:15:02PM +0100, Andrey Konovalov wrote:
-> > On Fri, Feb 8, 2019 at 5:16 AM Qian Cai <cai@lca.pw> wrote:
-> > > Kmemleak is totally busted with CONFIG_KASAN_SW_TAGS=y because most of tracking
-> > > object pointers passed to create_object() have the upper bits set by KASAN.
-> >
-> > Yeah, the issue is that kmemleak performs a bunch of pointer
-> > comparisons that break when pointers are tagged.
->
-> Does it mean that the kmemleak API receives pointer aliases (i.e. same
-> object tagged with different values or tagged/untagged)?
+On Mon, Feb 11, 2019 at 12:38:29PM +0100, Sebastian Andrzej Siewior wrote:
+> Commit
+> 
+>   68d48e6a2df57 ("mm: workingset: add vmstat counter for shadow nodes")
+> 
+> introduced an IRQ-off check to ensure that a lock is held which also
+> disabled interrupts. This does not work the same way on -RT because none
+> of the locks, that are held, disable interrupts.
+> Replace this check with a lockdep assert which ensures that the lock is
+> held.
+> 
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-Please disregard that comment. This is a bug in KASAN, will send a fix soon.
+I'm not against checking for the lock, but if IRQs aren't disabled,
+what ensures __mod_lruvec_state() is safe? I'm guessing it's because
+preemption is disabled and irq handlers are punted to process context.
+
+That said, it seems weird to me that
+
+	spin_lock_irqsave();
+	BUG_ON(!irqs_disabled());
+	spin_unlock_irqrestore();
+
+would trigger. Wouldn't it make sense to have a raw_irqs_disabled() or
+something and keep the irqs_disabled() abstraction layer intact?
 
