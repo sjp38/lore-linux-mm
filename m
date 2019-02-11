@@ -2,165 +2,146 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 95826C282D7
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 17:57:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FBC2C169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 17:58:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 32DC421B68
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 17:57:01 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="O9Z8ZFPK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 32DC421B68
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 36B8521B68
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 17:58:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 36B8521B68
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8FC238E011A; Mon, 11 Feb 2019 12:57:01 -0500 (EST)
+	id DB5C58E011B; Mon, 11 Feb 2019 12:58:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8A9DA8E0115; Mon, 11 Feb 2019 12:57:01 -0500 (EST)
+	id D164E8E0115; Mon, 11 Feb 2019 12:58:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 798668E011A; Mon, 11 Feb 2019 12:57:01 -0500 (EST)
+	id BB8188E011B; Mon, 11 Feb 2019 12:58:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 38F988E0115
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 12:57:01 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id 202so8902099pgb.6
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 09:57:01 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8664F8E0115
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 12:58:18 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id v4so13520033qtp.12
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 09:58:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=kI0sdjrum5jiu2PQ9Dll1y9K5Hr4fyaJQ95yFl7qdOI=;
-        b=CgrFShx+zpjpaDEq9hQ9qHJtYnh1+u2O4tBN6tULFAwbKimkiXX+RyjYuseq5rWtL3
-         oNuYirAxcsVWLN1dWgcWPaejrtqMCwZnkXG4lM/g+lkwL9ezf9zEfmbndQmu+V2OGTSG
-         abH1q3+n2AOlUbTiCY8+WsSza97Dxa824tRaIUe76J5DVSQsFtwX93o3NRlXBrgPS/cZ
-         8tdaDjtUhihWyK2ib3f/h6Z2KhF1d0QtXJsAN+W88FzGtEngkWnmAk2l2Q/fGfVHZpxs
-         /JTc78a/mtn+5ihv1sVr2i3V3cuULbmaTegiwCeXJdaUam2AJhgC8aiO4iJh4MlJzfU+
-         s4DA==
-X-Gm-Message-State: AHQUAuYj4NNdtJVRhmhcbhtSS7AZpk+0oExrhAMu+SjogxDTrys9cm0V
-	gyiHeexP619xztDwroIPBNcr8w2LWfJO1bEVyakd78BMebIuoPXZ57i/Nu+xbOPsF6TmKe1rDhC
-	VXe7lQqX05/wchlPTHm+YOeyjlTO5tm8h4U0yw8jDXSWWj7eaid6m/kl2uf7QNJaGfQ==
-X-Received: by 2002:a63:20e:: with SMTP id 14mr19503170pgc.161.1549907820831;
-        Mon, 11 Feb 2019 09:57:00 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaZxIgwxZq1wM0DFJGqTX9L5vQ1P8YoUMR9oZsKuMS9ZkA/ULAv+o4Gg+f4MRdr0yczsufX
-X-Received: by 2002:a63:20e:: with SMTP id 14mr19503124pgc.161.1549907820139;
-        Mon, 11 Feb 2019 09:57:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549907820; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=2s0fwScnnU0B2HePDKiiQeuMAXgskFElOd16Txu1Wc8=;
+        b=DJnthst2TRDOuFGyWPocYRdIzZmA0gNObsEsHrVMEGvsQqCp+XLI7giaLmrMTVQbQR
+         9kti54q3edbi+UqjLC5Ln22KkuMqJhHLAJlVOn50isHi1EAAfe/Lfrk4CG2wgvfICfkK
+         V27bJgWgQNTJvVwZMjv6nZOYQqn8E9x2/Rx/kDAv3IdofPh1w4x6EJuuK5xYxPUVQnwN
+         ScqKiW9MK/rU+76beIE92SQn+/POKjF91xtNOcnuPyXICg3rUwst3+LIbHyMpxB3rS1z
+         BMFeMst0VJA8zup85rEFbS8Lpair2kL4TDgSLiToToLrWiuflNFIgYkuw+4c8nOzbqnH
+         D/Eg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAubNSa+PQ8hiLcRpF1e0kH1CGxQx6S9II8A2TRl239+SwKVRQRZl
+	ZLzGMrWz2Tj1fCBucT46sXA2FeQh2CshC8P0LaNDRsSlA4zMSE/Hd0QyuIBPGV8L4yBkRScWnB7
+	Z/l5r3JnLuPDHCo3m058NrH7Tuq8ZeY6jSGiS+sQXC08QsDt4HdsqxdU6BiqKaDGlHg==
+X-Received: by 2002:aed:3722:: with SMTP id i31mr28898996qtb.289.1549907898323;
+        Mon, 11 Feb 2019 09:58:18 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYVMxfex6jEqmZzlGqUpzd0vIiab8icTOgDXDBsOG+vvtgueak/6rQS8U7BKfJUzPHvcbPx
+X-Received: by 2002:aed:3722:: with SMTP id i31mr28898977qtb.289.1549907897875;
+        Mon, 11 Feb 2019 09:58:17 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549907897; cv=none;
         d=google.com; s=arc-20160816;
-        b=jggU1+ZsUchssXzu97vTXL0nWUbRRTjdrbVZO8cfWaifps8UJ4uWhpQOBpB4Wu4mcA
-         uJHCox4nySRDmUw0N60bbeaQNYnk/yJ/uIKKfjp6pxAEI1nUxgdOoUejJurI8pmdl3nL
-         F7UVMlWIDMCmuO4jr7Rq70wTi9W5un1V+5FBqyQJbzbSj9knxYyxyEp0KLmXG9shzdGv
-         zVh75Z2IZTmqfX8gVVbhuT43WsuZOnf7zD6BqIYmkeLHAv45w4nr7JogdWH4FIMH+56v
-         n0JcO/qbByqwdhBv+CxGFSYhF/fT1Tm6Pl78ClNBnetW7t7FWx8Tsummm/asqzL/teYf
-         vQew==
+        b=k4RrfMjRJ0fJsH3vaQLg0E1Bo35G0E8NaITMjuLEvMRJDApTz4mBCLajvmW96M1uia
+         2vrWipDwaSeMGdFxJYDcrgjzgCv8yeXRWYwfnvC27vZe5PZ9R7ADlsqFPdCX1LZJguLI
+         iOF6TADCYGy9K7/Co4+hE0eMTFDY74Sog0QhLkzQr7ARuTUpBBG3WPWNhpmsIwQrGKTa
+         Eeg27D4plTqfgvRfez8LSNf0V3+4wkw0+eECd3eLKffu5mPsXj6VTd/nTtLgfiGM4xBF
+         pEMlIkESduWKXLegM4I76Vzuw03VaWwHiYh+PWjLfpcVeZwwXHQfLs6PgxvmOBzXY930
+         40cQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=kI0sdjrum5jiu2PQ9Dll1y9K5Hr4fyaJQ95yFl7qdOI=;
-        b=GGBmVJ9IyrpXB3plvr5kSKB1iWa6e7iW2pflKsraFWt3t5XUL+bl4CJd/bjzOQDQ01
-         frgeifxm8V0lIy0ZsaSFXPZeecUZHd8oYnkGNbP2IrHFUO2Il7o8SNLNp0whEwyE2rpG
-         YzW01Ci0OaRivQ8HS/g+iD6Ac3vzPV9921rUlo5/kwD1cP67FJU0O7aRIgbzDgcmKcgh
-         umggkK83ED3x9Y+fTE6nmWSEcYWfeX6p3hOTwAsClKNDma8+6YhMXPcB8Hgf2nYUBVQ3
-         E76Uoy0cf8K+C+PPp77KBLWhJoECWGOyFXPq+gwEesbvHeVcwu4FMRayFbETPyC4kbrA
-         KVsg==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=2s0fwScnnU0B2HePDKiiQeuMAXgskFElOd16Txu1Wc8=;
+        b=fgoalnxklANZYsesLvAIC939nOIJK9EmTdi/qdaWxJzrQvHnZbHA3QSwB7wgxD+Z17
+         iSZoJfNR1j8UIpsSgo0xtr1lxUUK3sUJYFoW4lb1e9qZsU3eQbRhdlCYvN4b4kh3iiXr
+         FORb2ExViGsWwpIIGWf616eRDl9GVcv/nPKqJj1ufz02HUxVOL6pm8TIxFMw1Lz+vmDA
+         F/HilZYYx8jvfr693TljF89oWNMfLenwHoqc4jMdaZFDIDIr7POLu4iKfnv4Kfg53mOx
+         FTj4TC9RpbSeUS+TZ9Fhh0IgU0ikU/rOA3FahplV17RkMQNzsTI1MBunenGEd/PP6ELt
+         //Ag==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=O9Z8ZFPK;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id j66si10762301pfc.251.2019.02.11.09.56.59
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c20si1084519qtp.401.2019.02.11.09.58.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Feb 2019 09:57:00 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Feb 2019 09:58:17 -0800 (PST)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=O9Z8ZFPK;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=kI0sdjrum5jiu2PQ9Dll1y9K5Hr4fyaJQ95yFl7qdOI=; b=O9Z8ZFPKkq/iHXeziHspJFmWG
-	qVV4bCOqDdmhhIFhQMuGKu+TYyI2ZfgdNo2CMjMBd5jLYMfe5rwQqcjArn2/K8Tlakm+Wxrz7Z7G5
-	b9F7x1olYOK5jEA1n9cFgOIAfMabSJJjZ0EnCUdEdIeaM9WskzFQ53wmm/AEC9XhWoedYw9bF18dr
-	q3kUicBGQ7+IbKIsfLpf9YIGNk1Nw4lizSkDUAdSu9BzU1qZaZqAHRkYtT2p7X75aDxj1374KFmgH
-	PUgTOT0dDKrZXGbsz8Zpq7qkSVSM0dW9UxcCc41xcULeBKfgHudvyWBfE4Qze7taKyuhbBZ4OIWuQ
-	FuDvIX6lQ==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gtFp7-0000VJ-Hg; Mon, 11 Feb 2019 17:56:53 +0000
-Date: Mon, 11 Feb 2019 09:56:53 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Linux Upstream <linux.upstream@oneplus.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Chintan Pandya <chintan.pandya@oneplus.com>,
-	"hughd@google.com" <hughd@google.com>,
-	"mawilcox@microsoft.com" <mawilcox@microsoft.com>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: [RFC 1/2] page-flags: Make page lock operation atomic
-Message-ID: <20190211175653.GE12668@bombadil.infradead.org>
-References: <20190211125337.16099-1-chintan.pandya@oneplus.com>
- <20190211125337.16099-2-chintan.pandya@oneplus.com>
- <20190211134607.GA32511@hirez.programming.kicks-ass.net>
- <364c7595-14f5-7160-d076-35a14c90375a@oneplus.com>
- <20190211174846.GM19029@quack2.suse.cz>
+       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 01238369A0;
+	Mon, 11 Feb 2019 17:58:17 +0000 (UTC)
+Received: from redhat.com (ovpn-120-40.rdu2.redhat.com [10.10.120.40])
+	by smtp.corp.redhat.com (Postfix) with SMTP id 64A9E5C21A;
+	Mon, 11 Feb 2019 17:58:15 +0000 (UTC)
+Date: Mon, 11 Feb 2019 12:58:14 -0500
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, kvm@vger.kernel.org,
+	rkrcmar@redhat.com, alexander.h.duyck@linux.intel.com,
+	x86@kernel.org, mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
+	pbonzini@redhat.com, tglx@linutronix.de, akpm@linux-foundation.org
+Subject: Re: [RFC PATCH 3/4] kvm: Add guest side support for free memory hints
+Message-ID: <20190211124925-mutt-send-email-mst@kernel.org>
+References: <20190204181118.12095.38300.stgit@localhost.localdomain>
+ <20190204181552.12095.46287.stgit@localhost.localdomain>
+ <20190209194437-mutt-send-email-mst@kernel.org>
+ <0d12ccec-d05f-80b8-9498-710d521c81d2@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190211174846.GM19029@quack2.suse.cz>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <0d12ccec-d05f-80b8-9498-710d521c81d2@intel.com>
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Mon, 11 Feb 2019 17:58:17 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2019 at 06:48:46PM +0100, Jan Kara wrote:
-> On Mon 11-02-19 13:59:24, Linux Upstream wrote:
-> > > 
-> > >> Signed-off-by: Chintan Pandya <chintan.pandya@oneplus.com>
-> > > 
-> > > NAK.
-> > > 
-> > > This is bound to regress some stuff. Now agreed that using non-atomic
-> > > ops is tricky, but many are in places where we 'know' there can't be
-> > > concurrency.
-> > > 
-> > > If you can show any single one is wrong, we can fix that one, but we're
-> > > not going to blanket remove all this just because.
-> > 
-> > Not quite familiar with below stack but from crash dump, found that this
-> > was another stack running on some other CPU at the same time which also
-> > updates page cache lru and manipulate locks.
-> > 
-> > [84415.344577] [20190123_21:27:50.786264]@1 preempt_count_add+0xdc/0x184
-> > [84415.344588] [20190123_21:27:50.786276]@1 workingset_refault+0xdc/0x268
-> > [84415.344600] [20190123_21:27:50.786288]@1 add_to_page_cache_lru+0x84/0x11c
-> > [84415.344612] [20190123_21:27:50.786301]@1 ext4_mpage_readpages+0x178/0x714
-> > [84415.344625] [20190123_21:27:50.786313]@1 ext4_readpages+0x50/0x60
-> > [84415.344636] [20190123_21:27:50.786324]@1 
-> > __do_page_cache_readahead+0x16c/0x280
-> > [84415.344646] [20190123_21:27:50.786334]@1 filemap_fault+0x41c/0x588
-> > [84415.344655] [20190123_21:27:50.786343]@1 ext4_filemap_fault+0x34/0x50
-> > [84415.344664] [20190123_21:27:50.786353]@1 __do_fault+0x28/0x88
-> > 
-> > Not entirely sure if it's racing with the crashing stack or it's simply
-> > overrides the the bit set by case 2 (mentioned in 0/2).
+On Mon, Feb 11, 2019 at 09:48:11AM -0800, Dave Hansen wrote:
+> On 2/9/19 4:49 PM, Michael S. Tsirkin wrote:
+> > On Mon, Feb 04, 2019 at 10:15:52AM -0800, Alexander Duyck wrote:
+> >> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> >>
+> >> Add guest support for providing free memory hints to the KVM hypervisor for
+> >> freed pages huge TLB size or larger. I am restricting the size to
+> >> huge TLB order and larger because the hypercalls are too expensive to be
+> >> performing one per 4K page.
+> > Even 2M pages start to get expensive with a TB guest.
 > 
-> So this is interesting. Looking at __add_to_page_cache_locked() nothing
-> seems to prevent __SetPageLocked(page) in add_to_page_cache_lru() to get
-> reordered into __add_to_page_cache_locked() after page is actually added to
-> the xarray. So that one particular instance might benefit from atomic
-> SetPageLocked or a barrier somewhere between __SetPageLocked() and the
-> actual addition of entry into the xarray.
+> Yeah, but we don't allocate and free TB's of memory at a high frequency.
+> 
+> > Really it seems we want a virtio ring so we can pass a batch of these.
+> > E.g. 256 entries, 2M each - that's more like it.
+> 
+> That only makes sense for a system that's doing high-frequency,
+> discontiguous frees of 2M pages.  Right now, a 2M free/realloc cycle
+> (THP or hugetlb) is *not* super-high frequency just because of the
+> latency for zeroing the page.
 
-There's a write barrier when you add something to the XArray, by virtue
-of the call to rcu_assign_pointer().
+Heh but with a ton of free memory, and a thread zeroing some of
+it out in the background, will this still be the case?
+It could be that we'll be able to find clean pages
+at all times.
+
+
+> A virtio ring seems like an overblown solution to a non-existent problem.
+
+It would be nice to see some traces to help us decide one way or the other.
+
+-- 
+MST
 
