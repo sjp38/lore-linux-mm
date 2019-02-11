@@ -2,154 +2,165 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 68FBAC169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:32:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 341B6C169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:35:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 25B7520818
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:32:45 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="DOaXH4tV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25B7520818
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id EC98120818
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:35:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC98120818
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B6ECA8E00E0; Mon, 11 Feb 2019 07:32:44 -0500 (EST)
+	id 79B898E00E1; Mon, 11 Feb 2019 07:35:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B1E188E00DD; Mon, 11 Feb 2019 07:32:44 -0500 (EST)
+	id 74B5F8E00DD; Mon, 11 Feb 2019 07:35:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A34168E00E0; Mon, 11 Feb 2019 07:32:44 -0500 (EST)
+	id 63A3B8E00E1; Mon, 11 Feb 2019 07:35:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 76E1C8E00DD
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 07:32:44 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id m37so12597308qte.10
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 04:32:44 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ECE58E00DD
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 07:35:21 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id c18so9229374edt.23
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 04:35:21 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=B2ouR+Ang/LItZ96PM06UJ1jkDO7ifCmte1uKNl4m9I=;
-        b=sLZiarbuHGBi/KmMs4zgvpKr8JO/iInO4ZZMngTJuwvYuvI++Nspe9Xup6r331mKDx
-         SIohmf6LtamgSBDQNH7Yi2pdyn4zmcTSlNrryzWeJn/MXia9KtEduDAJrmN65YBQNe7g
-         g+KIPkPYoCq5C86RQC8i/QHsf0tXzX7RKQsLuxtMHlo6WvPlaSuyyB/reeTCNDimKNHy
-         eGV3BSJMWj5/15VGoY7w6Pm1MUEIK49vH5hGvANsTZ5Mup2mBJkdk0hrvwO12ui4CZFb
-         jFgPiTEIJGOZlJa6UzUSASpRraWoCNzISZnY5eRDm8kH5P090ogsMWX9e+JgPO54V+4O
-         YJYQ==
-X-Gm-Message-State: AHQUAuacMTGt1hPRC5JDJl7gla3Z/9ogszSSNoNkRvu1FCdDrkdqNCTi
-	tOFUsPywjNZKjsgKiMfTotexZz2eLhBuFU6D7y99CnB/m9ZxC7lNQaFLCo3haPqNqrzRtJRVVL9
-	m1MDCusoqTbDYeTD3RM02vMwHFi1gXE1QMPTA0vWHl1YVMvI8JH/RCR5n+f43C7K7BwrG1piU+4
-	SrpJOmQyrVwpVyrGVn5R/suQO+aeFJJ6jyGW2Jbv5X4GcIta5mFMDJkg+M/u4DZXLzydmqeBS9G
-	wLvwWTdR7GN3++CuO9x8+jG4poi9xVFN6Ewyq5UvXnDMbU/urDgB8srSksvpwGiwmEgnL7uwy+5
-	mQmcnsBr3uF7T5vjLWvJUXCWj1jE7SRvsoRhaIklXb0kNB8I9uwD+HEoFeJFwN4JZLSROe/hXsn
-	b
-X-Received: by 2002:a37:4d47:: with SMTP id a68mr24875734qkb.349.1549888364150;
-        Mon, 11 Feb 2019 04:32:44 -0800 (PST)
-X-Received: by 2002:a37:4d47:: with SMTP id a68mr24875705qkb.349.1549888363618;
-        Mon, 11 Feb 2019 04:32:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549888363; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=+wxmfskF7vbLdDz7xTSS2N4psaEXRFRPGps36I3gfDI=;
+        b=GPOs0SoN4E7Wl+EDHP7hyhd3rxpgkYTXSFipjSWzpx2qeHp4N2z8EenZCecTYHxCC7
+         MP4ZgdeGkj+EaYf5dT7gw/ob1IDwR4+FDbhTGWSopVIypVBT1M6z+nrnl8P75YNSMnMo
+         YJB8aFmrWQQ+lU9POvZTunW31t7tymkIRpAl8YXekz986qnQB8UQXDpqnLZAANiKPmHe
+         ssKXx04owfVQG/07bq4pqbSRvaJaq79GR3WUbzLpraDyng50afk0tB5fGdGFvYumgo44
+         KpYyDtBv7Twvqf2AB3nN0NVv/EVQXXRcrksGoYXbG99MuKRR9k9XBTvPoTJzvXf96EGt
+         mn+w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Gm-Message-State: AHQUAuZrtGmw334hgn1iFTHdQRF+3103G1GcBSeiMBt0ekTHDoDh1Ju0
+	k+RBpG9/KV5Gdqg5Z7yc6BcUafcAoqEbgK+OO/HqCmZyDpf9ni0F3RXpUEooRtEmHOgeOn9IdWm
+	p0+hSCpJcg9OrlIbhVtU84T8DBDq/9QQ1JupjgjOwDk3OIcz3PCzUCanyUTFmXt6rXQ==
+X-Received: by 2002:a17:906:580b:: with SMTP id m11mr9500211ejq.137.1549888520616;
+        Mon, 11 Feb 2019 04:35:20 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaCfCrrPJXQ/mQx8XGWz4V/fE5/so7BIKLOha/Wuj+La5Z2POAWkjVClu5m5N3xymXkzS1u
+X-Received: by 2002:a17:906:580b:: with SMTP id m11mr9500165ejq.137.1549888519752;
+        Mon, 11 Feb 2019 04:35:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549888519; cv=none;
         d=google.com; s=arc-20160816;
-        b=EC4ao+toD+kuhvcwkTtFA7TOyvVp9ROY95AeLfa5VbYBBAjJGl1nNQ641b7HA8DTI/
-         zI87C75hQowz34R7B3BFuSnFnaHL7qrPfid/wmGlyTZBwneXfctp/57leHDTusyGH+bV
-         AWZUX7AScJQEARg8/gZzUc35k7nacxEATf9xa382lvRwB9hm7u6Cg2w85hLzqJ5cvJuW
-         6Zf45RDf7L0RZaKeGkRdRNKI5XB7to1gUSiraQYgNpFRB6O8Qnf7D41GA3F2zBrmaZdg
-         wK+Vgi3qE7ZXFLqMNn+5murOc+BVf2ge+7Ih+eH+nmOjZAzOsI4h6xaJH6WOrUvdLlTu
-         ltuw==
+        b=arniRMpRdPzn99dLbKQjrsxO8t7VOCFiCCg7TsnGsavqaP8QE8dq4G+HzkLkeInEkO
+         O8LA5ZCfL93YIEYDEOmD4Kt1vvqL6ApVOHkiroIBKtfD3l1XhdM2q07gEMEzsy9EYxN2
+         yJi0zcoVdXc6Kv9JaCP2LUMypFrRsvRg0ZXIH/xO2ZRZJysjDck0At2QWfzVX3dqrS9L
+         I11skgJB/15O/JD1VihmRQxoUMgDVRqw+R8TwIIrBUTziBe6hEM8gIPk+y3ty/2N0RYB
+         I7vpiATA6lt293xBcQ5e/R3pWfgkttlOofC0F2BHAefJWvUBi70am6eVyw4kgRKIwohC
+         KuWQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=B2ouR+Ang/LItZ96PM06UJ1jkDO7ifCmte1uKNl4m9I=;
-        b=gfrAAr0rNdZ2FrE7VAq3ZUZIldrpPevzTt4y8yeGehBzJl6iw65OF3Ge//SZMsUAND
-         0RBclqbC88ab4CVEkJvlSNpG1t1IKT2pdrP75ILLEzdPXfGUWttjLcfgZktOOABSqEPn
-         Z85nuRUe/NORFmVSGvhr2CTVKp7OrSn+2+uUGkc3/rPyX/uDu3fflir94C1Tr9apbRZv
-         BgmwXgJ+Ph8Qf3gLh2uIa2ZwRMDlkXKxq5xwBNb2lF+I8vB3fGD/G5Ugvaa6bTiXigl4
-         r6x1s015fYAHfohLIG6k8Blri3twvPSjtkgwIqi8YXwhxJ1qPFh6rIlmPnhPdldl+Bzu
-         sbew==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=+wxmfskF7vbLdDz7xTSS2N4psaEXRFRPGps36I3gfDI=;
+        b=k1s/cp87jqjOO1lgSYtmn8wZW9PVoi6xGQdjROw+x7jEeSNH2EB6FHm5AhOZLuajN6
+         pC0CuOZQ1tRjIbJfteVftqnc7IUIQnR6LNNtSGUabQLKYKSH10jBAg33Cd5bk3MAkxBt
+         27XK1kgI1rVH77qJV0y1w/IcbDiQd8rEj4ABbNvkoZVuoiXu8q35Vmfc5CUBTHuXQ/2r
+         /eWJU4el0v+zRDiqV92i68ZBlDtaxPLuWn0Io5T7as+vOxTHJC2s7PTEDbq3NygPOvR2
+         ww6yBagKKJpTuAhOtTdT5p+aIvtZZOh/Mto0q8AP/pZTaYUWXwCPhqJz3Cw8SebUCvCQ
+         kOlg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=DOaXH4tV;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r17sor11312703qve.9.2019.02.11.04.32.43
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i14si2227952ede.434.2019.02.11.04.35.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Feb 2019 04:32:43 -0800 (PST)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=DOaXH4tV;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:to:cc:subject:date:message-id;
-        bh=B2ouR+Ang/LItZ96PM06UJ1jkDO7ifCmte1uKNl4m9I=;
-        b=DOaXH4tV21cFMhS2mNjs93TTzRjlPcp6GZc1CMQpstAl5juxcg/1cjuESUfksfEHgn
-         G4S9Bt5bOsfRdiABthYNSGVPYfsN/boEz1HhcDHYnY5PvIyvfvouH7XxSO4z+xUzVQmd
-         J7RGbKOKuwCfRAHs72OaP/kGWwixvPuOPl+10olToEi8hLtH3Trjj83pEdhDJ2X7XJfd
-         loq8Js20flsGzcr+x0tlRpyIK+4HzBmLNtOrb/heJ3tAl2FUJvXSXNAmiqqiIana0YHw
-         wr8QAn+4etl5LYRdb57khbJhfYReZ9//WzlWCh9vR68Joz3Wsrhf+d262NcEd/EQOUaL
-         NLbg==
-X-Google-Smtp-Source: AHgI3IbvcpJ8B5DrC2p58gNY0AExMmGTOFsI9dp4XE+ccMuoyiaUgF3QtJJ0xmiuI3Bf9otjzRsTsg==
-X-Received: by 2002:a0c:8425:: with SMTP id l34mr26545005qva.101.1549888362886;
-        Mon, 11 Feb 2019 04:32:42 -0800 (PST)
-Received: from ovpn-120-150.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id i33sm6236445qti.74.2019.02.11.04.32.42
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 04:32:42 -0800 (PST)
-From: Qian Cai <cai@lca.pw>
-To: akpm@linux-foundation.org,
-	cl@linux.com,
-	penberg@kernel.org,
-	rientjes@google.com,
-	iamjoonsoo.kim@lge.com
-Cc: labbott@fedoraproject.org,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Qian Cai <cai@lca.pw>
-Subject: [PATCH] slub: remove an unused addr argument
-Date: Mon, 11 Feb 2019 07:32:14 -0500
-Message-Id: <20190211123214.35592-1-cai@lca.pw>
-X-Mailer: git-send-email 2.17.2 (Apple Git-113)
+        Mon, 11 Feb 2019 04:35:19 -0800 (PST)
+Received-SPF: pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 9DEAAAD38;
+	Mon, 11 Feb 2019 12:35:17 +0000 (UTC)
+Subject: Re: [Xen-devel] [PATCH v2 1/2] x86: respect memory size limiting via
+ mem= parameter
+To: Ingo Molnar <mingo@kernel.org>
+Cc: sstabellini@kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
+ xen-devel@lists.xenproject.org, boris.ostrovsky@oracle.com,
+ tglx@linutronix.de
+References: <20190130082233.23840-1-jgross@suse.com>
+ <20190130082233.23840-2-jgross@suse.com> <20190211120650.GA74879@gmail.com>
+ <bd5863a2-291a-43e5-7633-c84c1026a31b@suse.com>
+ <20190211122308.GA119972@gmail.com>
+From: Juergen Gross <jgross@suse.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=jgross@suse.com; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <39e8f05b-868b-8ab7-a310-b4ea7ef92bcc@suse.com>
+Date: Mon, 11 Feb 2019 13:35:16 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.3.0
+MIME-Version: 1.0
+In-Reply-To: <20190211122308.GA119972@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"addr" function argument is not used in alloc_consistency_checks() at
-all, so remove it.
+On 11/02/2019 13:23, Ingo Molnar wrote:
+> 
+> * Juergen Gross <jgross@suse.com> wrote:
+> 
+>>> If PCI devices had physical mmio memory areas above this range, we'd 
+>>> still expect them to work - the option was really only meant to limit 
+>>> RAM.
+>>
+>> No, in this case it seems to be real RAM added via PCI. The RAM is 
+>> initially present in the E820 map, but the "mem=" will remove it from 
+>> there again. During ACPI scan it is found (again) and will be added via 
+>> hotplug mechanism, so "mem=" has no effect for that memory.
+> 
+> OK. With that background:
+> 
+> Acked-by: Ingo Molnar <mingo@kernel.org>
+> 
+> I suppose you want this to go upstream via the Xen tree, which is the 
+> main testcase for the bug to begin with?
 
-Fixes: becfda68abca ("slub: convert SLAB_DEBUG_FREE to SLAB_CONSISTENCY_CHECKS")
-Signed-off-by: Qian Cai <cai@lca.pw>
----
- mm/slub.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+Yes, I'd prefer that.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 075ebc529788..4a61959e1887 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1077,8 +1077,7 @@ static void setup_object_debug(struct kmem_cache *s, struct page *page,
- }
- 
- static inline int alloc_consistency_checks(struct kmem_cache *s,
--					struct page *page,
--					void *object, unsigned long addr)
-+					struct page *page, void *object)
- {
- 	if (!check_slab(s, page))
- 		return 0;
-@@ -1099,7 +1098,7 @@ static noinline int alloc_debug_processing(struct kmem_cache *s,
- 					void *object, unsigned long addr)
- {
- 	if (s->flags & SLAB_CONSISTENCY_CHECKS) {
--		if (!alloc_consistency_checks(s, page, object, addr))
-+		if (!alloc_consistency_checks(s, page, object))
- 			goto bad;
- 	}
- 
--- 
-2.17.2 (Apple Git-113)
+
+Juergen
 
