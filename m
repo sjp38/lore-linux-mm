@@ -7,102 +7,102 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BB930C282D7
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 23:28:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C3ABCC169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 23:28:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 783E1214DA
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 23:28:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 77034214DA
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 23:28:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Tt9djI+4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 783E1214DA
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ERfk6YwV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77034214DA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1DE878E0194; Mon, 11 Feb 2019 18:28:17 -0500 (EST)
+	id 1DF728E0195; Mon, 11 Feb 2019 18:28:20 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1B6D88E0189; Mon, 11 Feb 2019 18:28:17 -0500 (EST)
+	id 1B7BB8E0189; Mon, 11 Feb 2019 18:28:20 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 08C038E0194; Mon, 11 Feb 2019 18:28:17 -0500 (EST)
+	id 0A4718E0195; Mon, 11 Feb 2019 18:28:20 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A786B8E0189
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 18:28:16 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id f5so238662wrt.13
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 15:28:16 -0800 (PST)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A9AF58E0189
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 18:28:19 -0500 (EST)
+Received: by mail-wm1-f71.google.com with SMTP id y85so235736wmc.7
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 15:28:19 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=ziJEcxmH0HELRYpJ/Cx0XBIGaICt7y2RQVCxbSTmAUA=;
-        b=byrPgjpwB8PEtG1zLcWq3arkivBhBCu5urTtzfD/T6C7lSAVkWPIiWDAc+tnChtggm
-         1bkCC7qcLPiOOLhDOYHy0/m+R9GOvwlz6n7SoWO+z3KG9jDY5Dhh3QvAgzrwE7D3gQ1Q
-         xRSJHLLpIDEb10/wQkcMP7wxPMJRT1vHexDa6HpcWugqvmbjBPqgm6qwwWjM8eNuMOZ9
-         8e8v52d7XvjVtmwF3EkYyiiCKCX3787m76M3F0yaPWrWCMMWRW1/SBeLPE3a1bplCPHi
-         imlIEvMTt0p1LM8cI99dNELDWMrCe/JPqsZzj9LO5mAmXQJAZCFptkYknWoV9y2jAeil
-         Z1Yg==
-X-Gm-Message-State: AHQUAuacg20G0KuDEvUnRpAuoflMCxiUsoXBsyCwLXzUZIf+z3fnZNAI
-	ewBM4Y7tsDhxsCLAuwWFVzTLfG67rWsvhM4cQdWG9GN8XJsbEmtbJauovzB1197SfKcfE+cMbkw
-	JF5fzqanyqMM4BSd0wH2lUZw0oqNJFRwD7qRPAfWKFLbMQbFDv7ktPKZspc/0miZ+wag2gmiuHq
-	dBx4yAj3ZjlYLHtUd3qLanrRBtBQVN0Klm+rZaVX5JeWO4y6o/0yqM7aSq+UhV8nillZv+X2ovW
-	t39l9n+YxVWnPv3NtMKiDs05ETQPi+SrfqSyhR5UUq1cth7v/XreViWjg/tLjiTAn10IC0HLq+v
-	t9j9Xk3uAv6Tux1QgisWK3j6LvY6KdWELjZulNZa9oOnIkjsdN1GJ+JIbYFaC0kYZgYM2YZlLct
-	P
-X-Received: by 2002:a1c:7ec4:: with SMTP id z187mr462099wmc.43.1549927696200;
-        Mon, 11 Feb 2019 15:28:16 -0800 (PST)
-X-Received: by 2002:a1c:7ec4:: with SMTP id z187mr462035wmc.43.1549927694940;
-        Mon, 11 Feb 2019 15:28:14 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549927694; cv=none;
+        bh=ktrl99/4+i4VLz6USppssXo49kPq9nmcbGTF0KLoSBQ=;
+        b=Fp6rWSipIfHmPYLRs5To0nlNMw3yzTAGWUxfazkqdPXOXhmuZfPm88zwkcawTgAeRm
+         hmEMSZ4iBRCSFWgyHwPFdUqkiaIIHrp9hIRMlnZ81QgLjUoy4RmrsbwtGJzt74rKZU3O
+         gTasceeAckEsBIRpYncpz+W4vQ9ibZs6+KvKeokWQE9Sfn5pCYcxHd1KoN/aw4trzwBy
+         WOGZdHw/myX+FBJRcxlcPgS0OgMDU6K4FCunoZmx6jG4Vyk3dwbyJUzaHjl8kDT8+oJ/
+         avJ/qKnlRUjyFhIAwA1bnAig3onkw87NE0KkSP/bG5e6X2Zhux/ZRChAykLEWZ5Zmafn
+         t9Ig==
+X-Gm-Message-State: AHQUAuYquMYZHML44pFseyToMbY8fKjhhsQs5ecAxYRROLH/gfCpjVpY
+	btN0Em2f7UyRW4P992ol+SziJyUdkgewNMMZBnYj2w5FJgtE6GZiwKL9qh0EmCJpByj3tKeXeHp
+	yno9aWzplVXBYitQNDClwL61YP0nDBbQgBIuI3KzngKa0IEenLW8juUawBEKFW2U8x/X7SbjeIx
+	6PVDWMsyo7ZkBc4yNnfLUcpIOL3JAxHJujOnE6A9YXM4d3nel540nZu5Aw7ZsWwDbt1B5fbEcuq
+	98CWlBbNiXJfpS9HRm+x9Kj3xDAEUPL2BAl5Z/F4axO3SFap+OB2EkxruJ3m54s5rJqiOnec3Ap
+	TZbqtZBKCkKpUszGTzjO1C9fL6icDmspQKpbQ45Cu5ahU6ywQ4R1aR6HqHmsusV8ygwTaZvQwJa
+	N
+X-Received: by 2002:a7b:c315:: with SMTP id k21mr442168wmj.145.1549927699136;
+        Mon, 11 Feb 2019 15:28:19 -0800 (PST)
+X-Received: by 2002:a7b:c315:: with SMTP id k21mr442121wmj.145.1549927698144;
+        Mon, 11 Feb 2019 15:28:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549927698; cv=none;
         d=google.com; s=arc-20160816;
-        b=zozMLa8k5haKexxfISqKKXTMoKmqZRYt+9vI7ammM7EEgLo1ZwW6EUSd3BoxAhXqp8
-         71gTbxUyejuMFguj3uRve7ma+BqNcoW2nQSkAgULqyn6hvn4noUx/eze3vN4XTetVhST
-         scFV6lqwJyeLPeqW9hF+I5uq3rQ6St0zfy1bmetqXuwsOxr7oWWvXDq0SHxHwZsE7Iy6
-         3zsKp897mM55wynlRIWDKZ+BGWrLjbWtxaE6KkQ+w9FtFPl1mTyhYRwNPWh+UU2qeBnI
-         FLuHekO4YYWKXKe3dDpYUNsAeC2W7rTCctFYvvL+j5LCk6cCPRZ2SuoX/llMyxbbA7Yj
-         55+A==
+        b=eGz+xJUR+f5+Y5sffnzQwFO1tc6eeyUgtiZHxg8AlPVVsv3rYetoxdHZ9bZR/IYDI+
+         RRycdz+jJnawtZr2UcYrIuDCJ6KZ59Vc51ar0Xp8Ba6qPDlfKkoCusJjKRywTTfMr/Ia
+         cwmQKFdYzipgzwUd29oxzS/D8tfSdPw4WSvFMTlVrt0kM4lIgXPclzxKDmTQOAt3l+Ik
+         HpA1vi/FHYyoVidsyGxAtnxGbTAvzCLj++G9tgxwtp4aP3jbJKrrQVHf5xhPfoIMHOKT
+         f+KwwX6HTne10PDmxq2y6fRkI4/mybhYfLk2sDjO4WnegLuj2vnxEa5lZYjBTphRFR+S
+         Xeyw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature;
-        bh=ziJEcxmH0HELRYpJ/Cx0XBIGaICt7y2RQVCxbSTmAUA=;
-        b=kJrycb+ku0UwT8WhqTp4jpcND4Bz/pBge0plb8fo0WIOZ8OV3ZUctjXrwonebYeZGC
-         mLyDAj994obh6G224RflyXo3+1rF0nlQViGoKqmq78Ria8s3Dg2nYnJbentdJdiP+UbU
-         9ZPwDq/J172qhKzWZTH3B/b5wJJYxF9e9KKDRrZ7PhJu7UtuQ27YZcwASKRZkiODcQvt
-         eJM/A5wK4phdS8VK89/cACLoCBlOJmEi27jJL8/wk1UCJhqccP3ROuGc8yszMIfGRYlm
-         hB71km6EwAJjkfeAcz+n+OpCrbyPh/fVXj6dODCra7aUeuP4VYaE6oPgjex/EBNiW6Tt
-         6N0w==
+        bh=ktrl99/4+i4VLz6USppssXo49kPq9nmcbGTF0KLoSBQ=;
+        b=KtukHwt/tmrRwAWiyY1i0krFWTl3fLWh1iNoCGzt8RWu6wwWUwZRx6Eh9rGFj31Hzi
+         Sp4huVKhlzt+cqFWaGb3p6RqajsdGTV8ww7gZvtYLtlgxNQGwcecE+bbfZ2z4cCoqMN8
+         UySHOJiXl5+V2a1Rj6h/gvUVL6698rETt7CWnMlbOvIAlAAMOeplGz5VKiHFEIWB0hOI
+         4Q6iAA7Pq6uZsG7HaqsKGqoY879Mvn4pV0CmivnVzNKDvi/NaIVfLmSbSW3FZ7bFSjzw
+         z3dyOcbDJSe3cKETw62pNp5PBApdt9pj3lfvWwxPfnMzl3O5s1FDZ/SeURzrag4yy5Gb
+         lrlg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Tt9djI+4;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ERfk6YwV;
        spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f193sor503445wme.9.2019.02.11.15.28.14
+        by mx.google.com with SMTPS id v16sor487960wmc.26.2019.02.11.15.28.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Feb 2019 15:28:14 -0800 (PST)
+        Mon, 11 Feb 2019 15:28:18 -0800 (PST)
 Received-SPF: pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Tt9djI+4;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ERfk6YwV;
        spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references:reply-to
          :mime-version:content-transfer-encoding;
-        bh=ziJEcxmH0HELRYpJ/Cx0XBIGaICt7y2RQVCxbSTmAUA=;
-        b=Tt9djI+4tIxxQ5z9XBIXZPNsKwfr142LlXK+hQ65M9C24x2lFzeG66B1tVAsCYEHD5
-         lxkyRPZQ0d7NehS988SjU2aK0I7kZPVft7Vc+W/HY8bQPsWnifAgKghB7n90aodLDrnl
-         lVPXX7q9YjeS2ulbNmlLXl6NtFYB5XvJEEgxMNocbquz7/szDVHN5yBdzXWilnSUIWV6
-         5lZKYRyJD3C9KP0rHanJWixPBBH9nGwy+o8iMGvBhmhP+XMzEYm2EF0bhpt1taB4s4z5
-         8y1TXoBB0V0MwKaVVuakzCSGEEpvjN4D1GunNHN9QYNv1W875CyqAi3osNxWduqQBsDv
-         RurA==
-X-Google-Smtp-Source: AHgI3IYd7Ah0YVUADfwQ9vu0EMe24Nxeh6S4B8+ipAqvagFO0quTn9x8ysqtHCmL+w/wBQ5gyDPMFA==
-X-Received: by 2002:a1c:f50a:: with SMTP id t10mr493561wmh.126.1549927694511;
-        Mon, 11 Feb 2019 15:28:14 -0800 (PST)
+        bh=ktrl99/4+i4VLz6USppssXo49kPq9nmcbGTF0KLoSBQ=;
+        b=ERfk6YwVVFsD4gpa86J3tNvUf/jRxA7negb6JBcQ5PSR0xZZvMMbnqTZ+wRrS2Husj
+         Ggd8+h/Q6iGpIBl92FmkpdpssV2xt9w6MiuQS2cXjMtk96NDjzsy/uEnc/s7yXVpuL6c
+         mpoDNWR+cp0zbAXtobA5UoCkq+orGEc1HmBwrLmgLHRuHzaFQ/+tRBnFd/U7BP3qfbPV
+         ln/K1BHTqeaHXoV9cT0aGU+M7Xa55XRzuBeoCYotqmiST1osgENBFvz37ywgrYEko+pv
+         OnWJ8Rdek3QLL7gzQPr7kKm7jyZ28jH2jgCwj74BAERzhEIIn+YrVvRGcUeyx16kqW+P
+         hxEQ==
+X-Google-Smtp-Source: AHgI3IaPnxVvWxLjhqm0PsH5iF2NiueH7C1Z1h4hq25QVvV24PnbiOHB8xirGOEnJlaL7jk97tS8SA==
+X-Received: by 2002:a1c:7719:: with SMTP id t25mr513964wmi.7.1549927697736;
+        Mon, 11 Feb 2019 15:28:17 -0800 (PST)
 Received: from localhost.localdomain (bba134232.alshamil.net.ae. [217.165.113.120])
-        by smtp.gmail.com with ESMTPSA id e67sm1470295wmg.1.2019.02.11.15.28.11
+        by smtp.gmail.com with ESMTPSA id e67sm1470295wmg.1.2019.02.11.15.28.14
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 15:28:13 -0800 (PST)
+        Mon, 11 Feb 2019 15:28:17 -0800 (PST)
 From: Igor Stoppa <igor.stoppa@gmail.com>
 X-Google-Original-From: Igor Stoppa <igor.stoppa@huawei.com>
 To: 
@@ -120,9 +120,9 @@ Cc: Igor Stoppa <igor.stoppa@huawei.com>,
 	kernel-hardening@lists.openwall.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC PATCH v4 03/12] __wr_after_init: x86_64: randomize mapping offset
-Date: Tue, 12 Feb 2019 01:27:40 +0200
-Message-Id: <378ee1e7e4c17e3bf6e49e1fb6c7cd9abd18ccfe.1549927666.git.igor.stoppa@huawei.com>
+Subject: [RFC PATCH v4 04/12] __wr_after_init: x86_64: enable
+Date: Tue, 12 Feb 2019 01:27:41 +0200
+Message-Id: <38307f2c7ae982478d33f55f7a7b827de489cdf3.1549927666.git.igor.stoppa@huawei.com>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <cover.1549927666.git.igor.stoppa@huawei.com>
 References: <cover.1549927666.git.igor.stoppa@huawei.com>
@@ -135,15 +135,7 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-x86_64 specialized way of defining the base address for the alternate
-mapping used by write-rare.
-
-Since the kernel address space spans across 64TB and it is mapped into a
-used address space of 128TB, the kernel address space can be shifted by a
-random offset that is up to 64TB and page aligned.
-
-This is accomplished by providing arch-specific version of the function
-__init_wr_base()
+Set ARCH_HAS_PRMEM to Y for x86_64
 
 Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 
@@ -161,46 +153,21 @@ CC: kernel-hardening@lists.openwall.com
 CC: linux-mm@kvack.org
 CC: linux-kernel@vger.kernel.org
 ---
- arch/x86/mm/Makefile      |  2 ++
- arch/x86/mm/prmem.c (new) | 20 ++++++++++++++++++++
- 2 files changed, 22 insertions(+)
+ arch/x86/Kconfig | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/arch/x86/mm/Makefile b/arch/x86/mm/Makefile
-index 4b101dd6e52f..66652de1e2c7 100644
---- a/arch/x86/mm/Makefile
-+++ b/arch/x86/mm/Makefile
-@@ -53,3 +53,5 @@ obj-$(CONFIG_PAGE_TABLE_ISOLATION)		+= pti.o
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt.o
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_identity.o
- obj-$(CONFIG_AMD_MEM_ENCRYPT)	+= mem_encrypt_boot.o
-+
-+obj-$(CONFIG_PRMEM)		+= prmem.o
-diff --git a/arch/x86/mm/prmem.c b/arch/x86/mm/prmem.c
-new file mode 100644
-index 000000000000..b04fc03f92fb
---- /dev/null
-+++ b/arch/x86/mm/prmem.c
-@@ -0,0 +1,20 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * prmem.c: Memory Protection Library - x86_64 backend
-+ *
-+ * (C) Copyright 2018-2019 Huawei Technologies Co. Ltd.
-+ * Author: Igor Stoppa <igor.stoppa@huawei.com>
-+ */
-+
-+#include <linux/mm.h>
-+#include <linux/mmu_context.h>
-+
-+unsigned long __init __init_wr_base(void)
-+{
-+	/*
-+	 * Place 64TB of kernel address space within 128TB of user address
-+	 * space, at a random page aligned offset.
-+	 */
-+	return (((unsigned long)kaslr_get_random_long("WR Poke")) &
-+		PAGE_MASK) % (64 * _BITUL(40));
-+}
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 68261430fe6e..7392b53b12c2 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -32,6 +32,7 @@ config X86_64
+ 	select SWIOTLB
+ 	select X86_DEV_DMA_OPS
+ 	select ARCH_HAS_SYSCALL_WRAPPER
++	select ARCH_HAS_PRMEM
+ 
+ #
+ # Arch settings
 -- 
 2.19.1
 
