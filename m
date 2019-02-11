@@ -2,152 +2,156 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 21A50C169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:53:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 11040C282CE
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:54:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7454921B25
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:53:24 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="qSa3z0GI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7454921B25
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id CE57521B25
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 18:54:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE57521B25
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1CAE48E0130; Mon, 11 Feb 2019 13:53:24 -0500 (EST)
+	id 7E23A8E0131; Mon, 11 Feb 2019 13:54:51 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 178BF8E012D; Mon, 11 Feb 2019 13:53:24 -0500 (EST)
+	id 7B89F8E012D; Mon, 11 Feb 2019 13:54:51 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 041118E0130; Mon, 11 Feb 2019 13:53:23 -0500 (EST)
+	id 6CF6E8E0131; Mon, 11 Feb 2019 13:54:51 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CB1958E012D
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:53:23 -0500 (EST)
-Received: by mail-yb1-f198.google.com with SMTP id y63so8331044yby.8
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:53:23 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FAA58E012D
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 13:54:51 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id b6so13212799qkg.4
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 10:54:51 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=Py05Zd5WRf99APZb89NwZR67zhDUZEH9vW9/0MbuiHY=;
-        b=qo7xkCS4VA+Eb/dfoGzg3V7oJVpbVLmTCkbEFGlK3OC1kyo7aXfctYwox0iS4O16Wd
-         IDL3azDDpou+Fpu1TtAH3TfLwreqV4xgJYc7BNjRvozvuxLD6/1OGjkk1doXCK2PhyYF
-         /Ag3jwFXquMmbkNkCD2xWIHUdYnBOsIbIbSsmaF9XPnkI9HKi6zXagsp1BXwAZ0N5kOs
-         iufnW6FLAQQKkuVZ0Dyxg/HFokHg0Es4whuZw1mdEhHehVunp2ls/DKho8FYQWQrCpq+
-         CTLGX3AFIFRW5j8SQ7asbCt9EF+0qwsJ64k4Fq55FCryfmybJ2GPnFcNV40zGSL06bmZ
-         UP2Q==
-X-Gm-Message-State: AHQUAuZerIpg661j1ymJbmU6Taovwtacfi2LQcsO4GNk91jQ+pdISXLf
-	h4/BfSpDLH8YrJ3FNxkBHQkNOpdNJQZuiXo6wR2V2b0k1m8PKWLeG6nPz379ifKH2wvJCcG300l
-	o+dnWpzrHnVnyPYaf6UsYDV1jFcKiqqDmw8S48sU3/MWOdiqq9hOa58iD03CM4IRpNXLpj0uVAz
-	6i9BHavB/yF2lrDEaJGgVw/70iTymTMcO5lau37czCG0nB2WRIIsWT7FiBx68ZVO6JoWyEYzAQa
-	U5Q5F1sAa2BNEYTIR9ko5+fsW7U73wV/PlvC73KmldsOiBxNPAv2V+dJHcZNASSZHSu6XH/wpQr
-	mdQ1e3oFzd8yqI7XLLkWpLeesxk0uXNAxlSnCbNkUoeUG/odcI1mLJ19EbDsBBpu8VKDxkeE3RM
-	z
-X-Received: by 2002:a25:3445:: with SMTP id b66mr13108345yba.515.1549911203490;
-        Mon, 11 Feb 2019 10:53:23 -0800 (PST)
-X-Received: by 2002:a25:3445:: with SMTP id b66mr13108310yba.515.1549911202902;
-        Mon, 11 Feb 2019 10:53:22 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549911202; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=hllwwMJ/8SbmGBMFJM2JbYIpnIqObbh2LBiUQ6YduI8=;
+        b=GFrpvT/3/kYOH843pTWVlsWcaLiJWu6ryzNEKciTW8ZRli2GhrJRCREBi/VNnONcmt
+         lqmRQ+DZEblz3Ce/J+GbxOIkPsD2Rsj2h4PseEwjIKAkBWjGOL2Zrh+iF/X0O4AGFZA6
+         v3vA1A/S8/zSR+AEMBeqBUBd+Lt8Xr93sZECJtoX7kDHQOn8O7Xfb9RizWMNyEC7JGi7
+         v+2q4HwBdD9KJvusQfCU6XVAjvI4OYK9iS7KcT/Qsrxwy4+NZXZT+nnbf/TUw+PIWNGr
+         KpgyPtOnDJhqv8lEZRn/yQYMf079wDJzYCt5rA1TnBPPoA+MrKuHQ+W84EiskpZO0Bdt
+         V7Dg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAuapa3Qk54Ed+Af4K2Q99+SmLm+rsIe8tSDkvRxptAsy1gCCFg6p
+	DvdKGbmUEbnQLD35r6QbxtmA38pyn37mFE0KEU83HTI9XoQ4G9/KoyhS+0WVUQlpEXFgjKX8SZI
+	Of+/5J4+b/1fsC0RfAdT0acm4JCOZsBI/WSH9JByT9+mbooXUbQDcSMU3ij41Lz5fQw==
+X-Received: by 2002:a0c:afa1:: with SMTP id s30mr28076564qvc.53.1549911291002;
+        Mon, 11 Feb 2019 10:54:51 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia+yU4i4fUa8qq4NU0kaW6bmbh6e9bpDHORG+bctI5pleYDuN6bACWQr/6o/+HjZibYS7HK
+X-Received: by 2002:a0c:afa1:: with SMTP id s30mr28076536qvc.53.1549911290463;
+        Mon, 11 Feb 2019 10:54:50 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549911290; cv=none;
         d=google.com; s=arc-20160816;
-        b=XA+0bc6iEf9oXnQx2t5BG91QtCbsqiNwLcQKAByK1yLWtyALmPXh2QaMd2hyTeqbYG
-         zU8i5GKjODhSqpJ7WerCUCmpL+F4aX+itRva/SBVLXA9DmKrRQidqT6y5rHGQsjB6vCT
-         kXJnpgZuCvQZTyJ1nR83hPIHrIj0JPWzWWG08k+OrPIDNLLQuz1O3FnkXbCrMMsp7Y0Z
-         bNjW6AGy53Ry+Lp7rqxvihIOA03DDkV8MK6h7KOPtoeOmYfuYgQI85IBavgQsCcGMgqT
-         1g1DOCvCxJ0UXVz9ynV7BziA2rjP+xufPvr3ubOvDC3q7VSzjeTvduphZ19a8Dm44/6o
-         /5QQ==
+        b=z65FFgGhlRlxSIh0NrO9bVmwMNzN9avPgxHtm8GQhtqkH+Mn0+SQjbRtGnzxGEWTFl
+         Jt0+gHGYH4QxHxLBBNEEPiOgEsyye0XFFqLR8TGTtPNANt5RNKPZyDIIVNHUO8g4Bicd
+         /u0UdmeW4nl+JgfSQH3TaXQ8ieib0lDNI5w8EJW8ycXV2Vv0XT+/9h5Cy0VzGM/3kwtP
+         AO1ZUqBej8eZVTldqiworRbhjESnpel+YrAePefE2DpgWjv8dRxVYUwDdaCUSelmgv3v
+         vzwj0hu+yvD+o8sDBChVXCCgtbW8rl2tKR6X6WVOi92x/o1tCSNqQGbX11IGDiv7dRb7
+         XuTQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Py05Zd5WRf99APZb89NwZR67zhDUZEH9vW9/0MbuiHY=;
-        b=rABoCFBzdG9Z2q2yB+64fO1NCSI4K2HM61HuDebUGVUpw6/AETOOUpjJ69viRwvJBs
-         r0VpePIFtfXTgPpEVB4Y70PQEy5q82kw3lM4YIkSeJMBMVE2lcTSpNETzZMlR6QF31ti
-         CeQ/Fh0fYqLQYJiNJypTuUkrq8/tRK51+mGM8GPpenwK6vwCJhD7zqJWegXUI/GO41fw
-         qj9e69iElCKsalA11ak7iSdwlmPW4qNJnvZzENGV2GQ+AkDPVCOr5RbbkcjTZQVvW7kf
-         17gUwvKqPissuX5U+07JmsduzbDRPVXLMcA8xy2pnWpydtKXhf7wdwegIxk42N5nXa5z
-         lBOw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=hllwwMJ/8SbmGBMFJM2JbYIpnIqObbh2LBiUQ6YduI8=;
+        b=TiEXpVTECV2T2dXiidQZ8EZCKF1xvd63ydQ6b879A+rbpb++2zvYlPuH4M3BtZtadB
+         9NB+2YZgAEeeUUXPI4H+bhoU3Px8SDpSjLpb5qmcLZ0SsGIZpqOB1BghrvZC6sFqBkHv
+         IUQmJiSjhcOp8Lw4g+yPloFMB/0sTTO08NK0KAadlW2ViNGcP7pYfLoJE/F1nLYiVzm+
+         kNvditilj+uGClsNrgD9VefD3ejO85pNeXpZeP4JC/jR4SY/b5u63wh+QWvalB4BbtO4
+         AxLMXtFuZGmUAaGE7E21ryhGVdJDxVT0Q329eJ7JBXubx7X0EGNQHWYEiqYSN84QemFi
+         Z5kw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=qSa3z0GI;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s18sor1962589ywg.182.2019.02.11.10.53.20
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v18si1639612qtp.194.2019.02.11.10.54.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Feb 2019 10:53:20 -0800 (PST)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Feb 2019 10:54:50 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=qSa3z0GI;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=Py05Zd5WRf99APZb89NwZR67zhDUZEH9vW9/0MbuiHY=;
-        b=qSa3z0GIZnsgj32mJi2Ca7wOnqCbzwnm5RT8DySZ6pWh1WOgpp45wlmjIiZmkIxpXK
-         OUHRmZnVAQNjI+GEzk+4wDOGWOoCLiaJSVPshy/8m6N+5ZP6qPJzOllpPEU+cJOsxOe5
-         NwXqtqYV2pr5soO7WF9+pblCA8G92HZG+b2KHjlxO8KIiRLAgYmgQVQkijqn9kAicSmn
-         7cIdEQly0paG5QgbfsSJSkdV5HUQhowt7XOVfGw0ikvmHTRwqxsB3x+bnVb+eE49lc3j
-         EIqGyspVRWlaPWDoKU7NZnpeWz+iEivKbpwAM9Wg4zrdML8eA1hWjmCWZHOZzb7MPiqF
-         3toA==
-X-Google-Smtp-Source: AHgI3IbtLUi3lvGZJNJ4o01pGavyO3l5XXe+wSMIfjTHUZdZj2M8pLAyy/MtZS6vUABiI3tI2IF4NQ==
-X-Received: by 2002:a81:2f03:: with SMTP id v3mr114708ywv.136.1549911200143;
-        Mon, 11 Feb 2019 10:53:20 -0800 (PST)
-Received: from localhost ([2620:10d:c091:200::5:6e5])
-        by smtp.gmail.com with ESMTPSA id k64sm2670628ywe.66.2019.02.11.10.53.18
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 11 Feb 2019 10:53:19 -0800 (PST)
-Date: Mon, 11 Feb 2019 13:53:18 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v2] mm: workingset: replace IRQ-off check with a lockdep
- assert.
-Message-ID: <20190211185318.GA13953@cmpxchg.org>
-References: <20190211095724.nmflaigqlcipbxtk@linutronix.de>
- <20190211113829.sqf6bdi4c4cdd3rp@linutronix.de>
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 59639804E4;
+	Mon, 11 Feb 2019 18:54:49 +0000 (UTC)
+Received: from redhat.com (ovpn-123-21.rdu2.redhat.com [10.10.123.21])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 389C55C21D;
+	Mon, 11 Feb 2019 18:54:47 +0000 (UTC)
+Date: Mon, 11 Feb 2019 13:54:45 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Matthew Wilcox <mawilcox@microsoft.com>,
+	Ross Zwisler <zwisler@kernel.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+	Michal Hocko <mhocko@kernel.org>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>, kvm@vger.kernel.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH v4 0/9] mmu notifier provide context informations
+Message-ID: <20190211185445.GA3838@redhat.com>
+References: <20190123222315.1122-1-jglisse@redhat.com>
+ <20190131161006.GA16593@redhat.com>
+ <20190201210230.GA11643@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20190211113829.sqf6bdi4c4cdd3rp@linutronix.de>
-User-Agent: Mutt/1.11.2 (2019-01-07)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190201210230.GA11643@quack2.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Mon, 11 Feb 2019 18:54:49 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2019 at 12:38:29PM +0100, Sebastian Andrzej Siewior wrote:
-> Commit
+On Fri, Feb 01, 2019 at 10:02:30PM +0100, Jan Kara wrote:
+> On Thu 31-01-19 11:10:06, Jerome Glisse wrote:
+> > 
+> > Andrew what is your plan for this ? I had a discussion with Peter Xu
+> > and Andrea about change_pte() and kvm. Today the change_pte() kvm
+> > optimization is effectively disabled because of invalidate_range
+> > calls. With a minimal couple lines patch on top of this patchset
+> > we can bring back the kvm change_pte optimization and we can also
+> > optimize some other cases like for instance when write protecting
+> > after fork (but i am not sure this is something qemu does often so
+> > it might not help for real kvm workload).
+> > 
+> > I will be posting a the extra patch as an RFC, but in the meantime
+> > i wanted to know what was the status for this.
+> > 
+> > Jan, Christian does your previous ACK still holds for this ?
 > 
->   68d48e6a2df57 ("mm: workingset: add vmstat counter for shadow nodes")
-> 
-> introduced an IRQ-off check to ensure that a lock is held which also
-> disabled interrupts. This does not work the same way on -RT because none
-> of the locks, that are held, disable interrupts.
-> Replace this check with a lockdep assert which ensures that the lock is
-> held.
-> 
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+> Yes, I still think the approach makes sense. Dan's concern about in tree
+> users is valid but it seems you have those just not merged yet, right?
 
-I'm not against checking for the lock, but if IRQs aren't disabled,
-what ensures __mod_lruvec_state() is safe? I'm guessing it's because
-preemption is disabled and irq handlers are punted to process context.
+(Catching up on email)
 
-That said, it seems weird to me that
+This version included some of the first users for this but i do not
+want to merge them through Andrew but through the individual driver
+project tree. Also in the meantime i found a use for this with kvm
+and i expect few others users of mmu notifier will leverage this
+extra informations.
 
-	spin_lock_irqsave();
-	BUG_ON(!irqs_disabled());
-	spin_unlock_irqrestore();
-
-would trigger. Wouldn't it make sense to have a raw_irqs_disabled() or
-something and keep the irqs_disabled() abstraction layer intact?
+Cheers,
+Jérôme
 
