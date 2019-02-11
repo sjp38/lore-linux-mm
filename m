@@ -2,191 +2,354 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D0CFC282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:54:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 42EA6C169C4
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 13:30:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2A6A9218D8
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:54:03 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=oneplus.com header.i=@oneplus.com header.b="Wu0M2ITt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A6A9218D8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=oneplus.com
+	by mail.kernel.org (Postfix) with ESMTP id A74D720855
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 13:30:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A74D720855
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D3CE8E00E2; Mon, 11 Feb 2019 07:54:00 -0500 (EST)
+	id 1F50B8E00E3; Mon, 11 Feb 2019 08:30:31 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 25A868E0002; Mon, 11 Feb 2019 07:54:00 -0500 (EST)
+	id 17F718E00C3; Mon, 11 Feb 2019 08:30:31 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B0BE8E00E2; Mon, 11 Feb 2019 07:54:00 -0500 (EST)
+	id 044A78E00E3; Mon, 11 Feb 2019 08:30:30 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B996D8E0002
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 07:53:59 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id a2so8244834pgt.11
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 04:53:59 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CABE78E00C3
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 08:30:30 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id u32so12920887qte.1
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 05:30:30 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-transfer-encoding:mime-version;
-        bh=YLbLzWsxzkZbWuSjvlGXl9in8bxDCkieJpOFt7iv164=;
-        b=nmPHkkgULroXP3ylaSM/iUvpVkT9xv6acoz64CNaVjaS62fA4AAbprJWayKNKHgLQa
-         ZbVzdtpDGn8xXOdxDSTPGBzErVgsCpyUMU+RHswZtaMQ8KiQJogxHQZyua0pxWGYNwX9
-         QTCJ5b7lnWp6W4EjWS/BAgnpx767uptLO1Wop8qI3n3NxzboOwWa5uGlWGXshhB1TrIB
-         R1rnvAvQc1GqKUQ1t4TnsOkddZfEdsEkAB6gQgEMe3gfws3+jnn2pdfs6whosMxqt5j+
-         tlsmbVISY7UdhNxNVomW+GV3rCXN8KhBOH42w0cibahGIGqQixKQDKsfWPytU08UwUk2
-         1dXw==
-X-Gm-Message-State: AHQUAuaaDL+c2gkVltk2AmdbZB4Blqby6opOP9+dHElZAY8rYHFYtPUP
-	Q5EYuOELte6Mud9dN0NnG3hAnV4+W6MblwWLBUDJ2/VB9TjEFXdUHEecy11BH2pMGdeD2ZombVB
-	8BZHT+zHbQMVV9zttyIdSgDxzCZJbCKaGfOQpXKwxFV+k1zcIW2OKBlmqSKsfpJu0Fw==
-X-Received: by 2002:a17:902:b609:: with SMTP id b9mr37393203pls.57.1549889639406;
-        Mon, 11 Feb 2019 04:53:59 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Iab8hE1uU8eAz4Hh7Hpr4DyO5wQEV3pjycokKugsVLR7DkZHKosuHE0jmUAMzBMTeNLm9Tb
-X-Received: by 2002:a17:902:b609:: with SMTP id b9mr37393136pls.57.1549889638384;
-        Mon, 11 Feb 2019 04:53:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549889638; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:subject
+         :to:cc:references:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to;
+        bh=Vb8rN/l5NVGZB2gcMiGlsZUBJJ0Vi1AUid4nLx3ExeA=;
+        b=RdIQsPXRz9VNZYs+VxryjoRfwCdKNp85gJhBWrT7HW1eLtNUU5zJqlX98KuDn/2/Io
+         nMmAlT99rh8Yuslu0DmT7xC4Gsn5BjeP3gtC0keMWB/IyaHjkPctUbVrR0Wq3GXlaed8
+         3pmkeX70anQB8WqKeuA+9IVRgDHsra0z2HRPx1NkzQ5RiEEgUOOWsvrS+Bgvy6W0eqr0
+         xLHPz3CAOyokPMzgLbUJvAIjcYPI2zKjEQJ3ZC1Yn0tfqvgnrAMNbIutqy+c2NPE95DO
+         flUyamLRrA31ThVxOYOiifKVGX4LQ4bneJ9ORYO965zgMvbfpU+96kBNS2DggDvIbl5u
+         691A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAubdXZ1NoYo76dwUoMZbTrMazqyNtVDogG5RnxJ4FLDn/sMd/3NQ
+	/b3gl0v4pmuINi8HnvlvqQPstJaWkRakbdQ91m0bu7vuW0OBfXWDdq4Qhh3mwzWX8mwHo6vUvoX
+	BGCE86d0lO8zw5enK5h09TLCC9TRP5IZp7SzDauTGuNkgDicWKR2g4+CFmcCGQ2n4cA==
+X-Received: by 2002:aed:3ae4:: with SMTP id o91mr27577914qte.251.1549891830467;
+        Mon, 11 Feb 2019 05:30:30 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYdIdLfbwpI5TCJ0MaH8SS1Ai14wUEUtqkcnkeZpKYE3rPDKmwSgx6OscHtmukKwI72TE/b
+X-Received: by 2002:aed:3ae4:: with SMTP id o91mr27577866qte.251.1549891829778;
+        Mon, 11 Feb 2019 05:30:29 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549891829; cv=none;
         d=google.com; s=arc-20160816;
-        b=bjxawgZugMeFIKfNypueDfPdVmd2VHRm4KqH6tc+GeZsJn6VIBbZxPoc0hjrMM+Vvl
-         cEA6us3bHOdRPOylbj4odcahLyIRYVnQU1SYe9WBMrkunpi1Ab6EIBb7V/mLzY0zEIn6
-         CeVxQ4WHJCN3OIoSVUaT4xknp1ZoGk4lcn/q4nE+v6jsZwLLdSAajixAP7tkTL8ACdr9
-         lswNvdQkRiwYJFCxiwYK/lTT6u/nrWkAcWxXcSgqkS/Fw8xmoy19vKeYNpPsclHbUuMV
-         g6OQiArHNl97aDAGyT1y14EYOL9TvKhS1iu0zcvN1yj5CKZYzDjZLqBfk6RpjL7XNyfi
-         g+wQ==
+        b=FCQaxkmf4casxziZGD1MbmXwQQUGgQuOY2co+mGsS8wIKl4XryitqRYoX8d1KF1irU
+         nHihSif6LGFS2lU8luM5DKfi0LZK0Z9135NyvVmMjB6APhJkbgqi5Jb3w3XqPaGDxG7u
+         MfJV61ivrEwyI6FqJ1dxhkfSyjbdVXp+FrrXbShjf7aP+yoBmU7a0YNnh5vT936yyV65
+         rsx57FPHKjfSljJoQTmDt9OiOVAPLWNfy8GvvHqvHYH3iJNZd3Ui4SsEhuz98xcRCR+0
+         3W1ten8rRlyP1adGYjcODALMxz8yjLXyolJTCsfz1kay7RHpKX/TrzddVhpbFvDWTRCM
+         ApKg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=YLbLzWsxzkZbWuSjvlGXl9in8bxDCkieJpOFt7iv164=;
-        b=LegLqtYjWKNckiGkfNsd6Nd7CrHSWPk35lVeKz6T6+tocEG6Wv3xil1KxZPwbNKWPQ
-         9HzDWC4JSWlGFaNhY+upksc5w/kWxme5iDbEtjFdU6AldCb2Hxk/t9SSQ3LMXJeoF7qF
-         A5gI4neiGrzMyxyxnSH6YPiUjcpyBZdEggdZSJgtILSjqGiG0gM9G5hxHizRBE+tn3P9
-         AoR4m0il3TThnFE7F6mjWE2PBTjOtKZL+Gt0KReEpmJcd/AyfDy15wCsfnfCbtAufnct
-         Y3DhaBg2BnzRak55sN2U67hYfBtx8c8OzJAvm2+nR3+OLgTd9MiBgpSo9ib5Re5Jmwhz
-         Fqzg==
+        h=in-reply-to:mime-version:user-agent:date:message-id:organization
+         :autocrypt:openpgp:references:cc:to:subject:from;
+        bh=Vb8rN/l5NVGZB2gcMiGlsZUBJJ0Vi1AUid4nLx3ExeA=;
+        b=m7MKhtjkCna/r6bE4s7smHZP7ikyr9D1AeEBcL5FnmnIPDmrY5yik1Imksn3wK6Jek
+         CJZnZsDBg3CX6QurwCz+JElqr0Fq2EoJdFe5HYe5WZofcGqNHQdWVahrQ84gkBxH9fP1
+         Nse0LiQMY9AU56R3ubXbFVx2skmGnXH3qRGiHcSVGYNhQSlQ6/QEyZP3wEOjI3FJr/bx
+         Suq8HpFuorRbeMBL5Lj5Y83m+y3Adx3tyhsKJ+XwSGkWwZBOqSAEw81cqFOCfSXaXRGd
+         3j5OxIoxZ29IUPjZmjHoMaOu8zsUqRR4iYQkKKcNjL43V3cwSTg1B2ksoSm9I3hKrSVX
+         uOjw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oneplus.com header.s=selector1 header.b=Wu0M2ITt;
-       spf=pass (google.com: domain of chintan.pandya@oneplus.com designates 40.107.128.114 as permitted sender) smtp.mailfrom=chintan.pandya@oneplus.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=oneplus.com
-Received: from KOR01-PS2-obe.outbound.protection.outlook.com (mail-eopbgr1280114.outbound.protection.outlook.com. [40.107.128.114])
-        by mx.google.com with ESMTPS id y1si9751925plt.356.2019.02.11.04.53.57
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q31si3780230qte.30.2019.02.11.05.30.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 04:53:58 -0800 (PST)
-Received-SPF: pass (google.com: domain of chintan.pandya@oneplus.com designates 40.107.128.114 as permitted sender) client-ip=40.107.128.114;
+        Mon, 11 Feb 2019 05:30:29 -0800 (PST)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oneplus.com header.s=selector1 header.b=Wu0M2ITt;
-       spf=pass (google.com: domain of chintan.pandya@oneplus.com designates 40.107.128.114 as permitted sender) smtp.mailfrom=chintan.pandya@oneplus.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=oneplus.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oneplus.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=YLbLzWsxzkZbWuSjvlGXl9in8bxDCkieJpOFt7iv164=;
- b=Wu0M2ITtoHvBsqKLpBmCfk7eIxgUVX9+ZWxWohhy32pOLl30jonEpqJik51yHStqEKFjbZ7AitR6goKCG+1CdZDU7vWDY7ynawSc9tisiFfSx1FNvR5P4SNsulAiyA1xbcH3fFi5D334WOgw/eKUZoXMLI9+fzATKixBxdGeZEQ=
-Received: from SL2PR04MB3323.apcprd04.prod.outlook.com (20.177.176.10) by
- SL2PR04MB3081.apcprd04.prod.outlook.com (20.177.177.85) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1601.22; Mon, 11 Feb 2019 12:53:55 +0000
-Received: from SL2PR04MB3323.apcprd04.prod.outlook.com
- ([fe80::c429:c599:d8eb:22ce]) by SL2PR04MB3323.apcprd04.prod.outlook.com
- ([fe80::c429:c599:d8eb:22ce%3]) with mapi id 15.20.1601.023; Mon, 11 Feb 2019
- 12:53:55 +0000
-From: Chintan Pandya <chintan.pandya@oneplus.com>
-To: Linux Upstream <linux.upstream@oneplus.com>, "hughd@google.com"
-	<hughd@google.com>, "peterz@infradead.org" <peterz@infradead.org>,
-	"jack@suse.cz" <jack@suse.cz>, "mawilcox@microsoft.com"
-	<mawilcox@microsoft.com>, "akpm@linux-foundation.org"
-	<akpm@linux-foundation.org>
-CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, Chintan Pandya
-	<chintan.pandya@oneplus.com>
-Subject: [RFC 2/2] page-flags: Catch the double setter of page flags
-Thread-Topic: [RFC 2/2] page-flags: Catch the double setter of page flags
-Thread-Index: AQHUwgjYN9vE1noifk67qEptfCyN+Q==
-Date: Mon, 11 Feb 2019 12:53:55 +0000
-Message-ID: <20190211125337.16099-3-chintan.pandya@oneplus.com>
-References: <20190211125337.16099-1-chintan.pandya@oneplus.com>
-In-Reply-To: <20190211125337.16099-1-chintan.pandya@oneplus.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: SG2PR04CA0193.apcprd04.prod.outlook.com
- (2603:1096:4:14::31) To SL2PR04MB3323.apcprd04.prod.outlook.com
- (2603:1096:100:38::10)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=chintan.pandya@oneplus.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-mailer: git-send-email 2.17.1
-x-originating-ip: [14.143.173.238]
-x-ms-publictraffictype: Email
-x-microsoft-exchange-diagnostics:
- 1;SL2PR04MB3081;6:O1yiluLSwZpyQGic/Gt2mi8+f+bChcksqjwUvRCODLvgQN+ce0u2yCbShOwBI0P9UwarpjiDqmQHr+w8xrruNVpGBrDQOoo5g0iU3H26zIPTAid5u9Cx53a4eWqeRpTKlLFwDOINJNsKujQOSp2RAMPzF1TXzBpMHdrIsh7l/wNTaPTcjKOozGk8SKdrkEwtUx7VgVWrwCccQ2ZCGXY3VI8QxQjYr038bEna13UrQKkqeK/J6gI4NdDJkmTuObWLO5yt3kamXrvHNwo6BqlTRO5qf0HxRcwzdZ38zxGmC5tDpoUe4HyuM2vVqxFT8oSRbu9/Dme+/aI99xTEwlr+6G7w8OZuoyMflJ4B7L+nnuCPXyWV+GXHl7gGPUhi4jJe2H4+gxTTY5cZuF/wKv0+7Yg/7jvdCOVJBqOZAupXciLqbFHZZQ5BAnGyDlUvkL7SnuwYc0jNHF+9VLCTZ2Mj4g==;5:2hnRvrD2esic0WMDmBP5R/GjGPlo9AU/N0FQBvbthd9VjjYCm4inJTiq4wD37FO8OZXEkdSsDifGWp2NES/q+FRAoDz7efbJ0zpdyQRk8hp0UWKnJhceBnIs8x9gmpOwKKIgTfA057OheQ7spAUtfu8vxtp3WqZ5o5QeyaIc3Q4XSEcVGSpePhvFxqgHA0OTDbM8ODqIHbK6EX8tExApmg==;7:bfuipAa0lvglIsbePXUThjBLuFvlKUDHsucMFd0yrwCZqZc/dcSA/aDYU1MMYZeqrpzxMiYSZ0U3YCNxpfbIcNKUuEmIZIFN3/FhJZrAv+gErJD2ZZ5ZXveZKQVBP+DSQykKYAAo5QDbtKSgJgdX0Q==
-x-ms-office365-filtering-correlation-id: 362dd64b-3dc8-49aa-f190-08d6901ffb37
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(2017052603328)(7153060)(7193020);SRVR:SL2PR04MB3081;
-x-ms-traffictypediagnostic: SL2PR04MB3081:
-x-ld-processed: 0423909d-296c-463e-ab5c-e5853a518df8,ExtAddr
-x-microsoft-antispam-prvs:
- <SL2PR04MB30815804DBCB110164C5B9FA91640@SL2PR04MB3081.apcprd04.prod.outlook.com>
-x-forefront-prvs: 0945B0CC72
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(376002)(346002)(396003)(136003)(366004)(39860400002)(189003)(199004)(7736002)(81166006)(50226002)(478600001)(8676002)(105586002)(8936002)(66066001)(81156014)(106356001)(1076003)(78486014)(305945005)(14454004)(71190400001)(71200400001)(2906002)(1511001)(36756003)(316002)(110136005)(54906003)(2501003)(2201001)(97736004)(6512007)(52116002)(76176011)(6506007)(386003)(68736007)(14444005)(53936002)(44832011)(6436002)(6486002)(25786009)(2616005)(86362001)(486006)(476003)(4326008)(186003)(26005)(102836004)(11346002)(446003)(6116002)(3846002)(99286004)(256004)(107886003)(55236004);DIR:OUT;SFP:1102;SCL:1;SRVR:SL2PR04MB3081;H:SL2PR04MB3323.apcprd04.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: oneplus.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- UqnQyUNS5Okl8AkUoaGuqmfNAZOyjNTLfai48itRgRWQ6fho0nlBZuSkbwfP8Wqj8m5PdZ6W4CrbxfW84bRudAaF+3VTbm3FD7ZnseIdEVI/90MHRr5rSPOFRn9m2z5HylkAUVITgA+h2Kh1+KsBKOL2Pu1PqLQo+U/+TC2BQEp8CR2dUPuK/7gWzkzpsy7d1Ugm2lDTR3B/cjxQZIXfebrbyrfn4JyB4VdKUhsQ+CrR3eDt6dkQSJwOnx+aYq21nZg92fN7v65GlcQdWS0n+2uu1rsffn1Qd6WEtBs3AUn+lhQNlUYMROF+bz2CXYnfRGhk4Ft7gR7ReoQI+ubhOyFw0zZKK9whBkYjCJVfSH4OMBlR55qWriNQ5WSNk0Y3KuHiWjSQhH9QFMoSpMV0PzMyfFwhhpfPa4V9cMlOMI4=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id D678358E33;
+	Mon, 11 Feb 2019 13:30:28 +0000 (UTC)
+Received: from [10.18.17.32] (dhcp-17-32.bos.redhat.com [10.18.17.32])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 34BE66012B;
+	Mon, 11 Feb 2019 13:30:05 +0000 (UTC)
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+Subject: Re: [RFC PATCH 4/4] mm: Add merge page notifier
+To: "Michael S. Tsirkin" <mst@redhat.com>,
+ Alexander Duyck <alexander.duyck@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org,
+ rkrcmar@redhat.com, alexander.h.duyck@linux.intel.com, x86@kernel.org,
+ mingo@redhat.com, bp@alien8.de, hpa@zytor.com, pbonzini@redhat.com,
+ tglx@linutronix.de, akpm@linux-foundation.org
+References: <20190204181118.12095.38300.stgit@localhost.localdomain>
+ <20190204181558.12095.83484.stgit@localhost.localdomain>
+ <20190209195325-mutt-send-email-mst@kernel.org>
+Openpgp: preference=signencrypt
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <7fcb61d6-64f0-f3ae-5e32-0e9f587fdd49@redhat.com>
+Date: Mon, 11 Feb 2019 08:30:03 -0500
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-X-OriginatorOrg: oneplus.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 362dd64b-3dc8-49aa-f190-08d6901ffb37
-X-MS-Exchange-CrossTenant-originalarrivaltime: 11 Feb 2019 12:53:53.8857
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-id: 0423909d-296c-463e-ab5c-e5853a518df8
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: SL2PR04MB3081
+In-Reply-To: <20190209195325-mutt-send-email-mst@kernel.org>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="bgcetFPJzTNKp4nh9DgTAgO3id5Syb3GZ"
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Mon, 11 Feb 2019 13:30:29 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Some of the page flags, like PG_locked is not supposed to
-be set twice. Currently, there is no protection around this
-and many callers directly tries to set this bit. Others
-follow trylock_page() which is much safer version of the
-same. But, for performance issues, we may not want to
-implement wait-until-set. So, at least, find out who is
-doing double setting and fix them.
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--bgcetFPJzTNKp4nh9DgTAgO3id5Syb3GZ
+Content-Type: multipart/mixed; boundary="rxrbFi0rimh0fffvwaHt9J6zKSdjFAYyj";
+ protected-headers="v1"
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>,
+ Alexander Duyck <alexander.duyck@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org,
+ rkrcmar@redhat.com, alexander.h.duyck@linux.intel.com, x86@kernel.org,
+ mingo@redhat.com, bp@alien8.de, hpa@zytor.com, pbonzini@redhat.com,
+ tglx@linutronix.de, akpm@linux-foundation.org
+Message-ID: <7fcb61d6-64f0-f3ae-5e32-0e9f587fdd49@redhat.com>
+Subject: Re: [RFC PATCH 4/4] mm: Add merge page notifier
+References: <20190204181118.12095.38300.stgit@localhost.localdomain>
+ <20190204181558.12095.83484.stgit@localhost.localdomain>
+ <20190209195325-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20190209195325-mutt-send-email-mst@kernel.org>
 
-Change-Id: I1295fcb8527ce4b54d5d11c11287fc7516006cf0
-Signed-off-by: Chintan Pandya <chintan.pandya@oneplus.com>
----
- include/linux/page-flags.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+--rxrbFi0rimh0fffvwaHt9J6zKSdjFAYyj
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index a56a9bd4bc6b..e307775c2b4a 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -208,7 +208,7 @@ static __always_inline int Page##uname(struct page *pag=
-e)		\
-=20
- #define SETPAGEFLAG(uname, lname, policy)				\
- static __always_inline void SetPage##uname(struct page *page)		\
--	{ set_bit(PG_##lname, &policy(page, 1)->flags); }
-+	{ WARN_ON(test_and_set_bit(PG_##lname, &policy(page, 1)->flags)); }
-=20
- #define CLEARPAGEFLAG(uname, lname, policy)				\
- static __always_inline void ClearPage##uname(struct page *page)		\
+
+On 2/9/19 7:57 PM, Michael S. Tsirkin wrote:
+> On Mon, Feb 04, 2019 at 10:15:58AM -0800, Alexander Duyck wrote:
+>> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+>>
+>> Because the implementation was limiting itself to only providing hints=
+ on
+>> pages huge TLB order sized or larger we introduced the possibility for=
+ free
+>> pages to slip past us because they are freed as something less then
+>> huge TLB in size and aggregated with buddies later.
+>>
+>> To address that I am adding a new call arch_merge_page which is called=
+
+>> after __free_one_page has merged a pair of pages to create a higher or=
+der
+>> page. By doing this I am able to fill the gap and provide full coverag=
+e for
+>> all of the pages huge TLB order or larger.
+>>
+>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> Looks like this will be helpful whenever active free page
+> hints are added. So I think it's a good idea to
+> add a hook.
+>
+> However, could you split adding the hook to a separate
+> patch from the KVM hypercall based implementation?
+>
+> Then e.g. Nilal's patches could reuse it too.
+With the current design of my patch-set, if I use this hook to report
+free pages. I will end up making redundant hints for the same pfns.
+
+This is because the pages once freed by the host, are returned back to
+the buddy.
+
+>
+>
+>> ---
+>>  arch/x86/include/asm/page.h |   12 ++++++++++++
+>>  arch/x86/kernel/kvm.c       |   28 ++++++++++++++++++++++++++++
+>>  include/linux/gfp.h         |    4 ++++
+>>  mm/page_alloc.c             |    2 ++
+>>  4 files changed, 46 insertions(+)
+>>
+>> diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h=
+
+>> index 4487ad7a3385..9540a97c9997 100644
+>> --- a/arch/x86/include/asm/page.h
+>> +++ b/arch/x86/include/asm/page.h
+>> @@ -29,6 +29,18 @@ static inline void arch_free_page(struct page *page=
+, unsigned int order)
+>>  	if (static_branch_unlikely(&pv_free_page_hint_enabled))
+>>  		__arch_free_page(page, order);
+>>  }
+>> +
+>> +struct zone;
+>> +
+>> +#define HAVE_ARCH_MERGE_PAGE
+>> +void __arch_merge_page(struct zone *zone, struct page *page,
+>> +		       unsigned int order);
+>> +static inline void arch_merge_page(struct zone *zone, struct page *pa=
+ge,
+>> +				   unsigned int order)
+>> +{
+>> +	if (static_branch_unlikely(&pv_free_page_hint_enabled))
+>> +		__arch_merge_page(zone, page, order);
+>> +}
+>>  #endif
+>> =20
+>>  #include <linux/range.h>
+>> diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
+>> index 09c91641c36c..957bb4f427bb 100644
+>> --- a/arch/x86/kernel/kvm.c
+>> +++ b/arch/x86/kernel/kvm.c
+>> @@ -785,6 +785,34 @@ void __arch_free_page(struct page *page, unsigned=
+ int order)
+>>  		       PAGE_SIZE << order);
+>>  }
+>> =20
+>> +void __arch_merge_page(struct zone *zone, struct page *page,
+>> +		       unsigned int order)
+>> +{
+>> +	/*
+>> +	 * The merging logic has merged a set of buddies up to the
+>> +	 * KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER. Since that is the case, take
+>> +	 * advantage of this moment to notify the hypervisor of the free
+>> +	 * memory.
+>> +	 */
+>> +	if (order !=3D KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER)
+>> +		return;
+>> +
+>> +	/*
+>> +	 * Drop zone lock while processing the hypercall. This
+>> +	 * should be safe as the page has not yet been added
+>> +	 * to the buddy list as of yet and all the pages that
+>> +	 * were merged have had their buddy/guard flags cleared
+>> +	 * and their order reset to 0.
+>> +	 */
+>> +	spin_unlock(&zone->lock);
+>> +
+>> +	kvm_hypercall2(KVM_HC_UNUSED_PAGE_HINT, page_to_phys(page),
+>> +		       PAGE_SIZE << order);
+>> +
+>> +	/* reacquire lock and resume freeing memory */
+>> +	spin_lock(&zone->lock);
+>> +}
+>> +
+>>  #ifdef CONFIG_PARAVIRT_SPINLOCKS
+>> =20
+>>  /* Kick a cpu by its apicid. Used to wake up a halted vcpu */
+>> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+>> index fdab7de7490d..4746d5560193 100644
+>> --- a/include/linux/gfp.h
+>> +++ b/include/linux/gfp.h
+>> @@ -459,6 +459,10 @@ static inline struct zonelist *node_zonelist(int =
+nid, gfp_t flags)
+>>  #ifndef HAVE_ARCH_FREE_PAGE
+>>  static inline void arch_free_page(struct page *page, int order) { }
+>>  #endif
+>> +#ifndef HAVE_ARCH_MERGE_PAGE
+>> +static inline void
+>> +arch_merge_page(struct zone *zone, struct page *page, int order) { }
+>> +#endif
+>>  #ifndef HAVE_ARCH_ALLOC_PAGE
+>>  static inline void arch_alloc_page(struct page *page, int order) { }
+>>  #endif
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index c954f8c1fbc4..7a1309b0b7c5 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -913,6 +913,8 @@ static inline void __free_one_page(struct page *pa=
+ge,
+>>  		page =3D page + (combined_pfn - pfn);
+>>  		pfn =3D combined_pfn;
+>>  		order++;
+>> +
+>> +		arch_merge_page(zone, page, order);
+>>  	}
+>>  	if (max_order < MAX_ORDER) {
+>>  		/* If we are here, it means order is >=3D pageblock_order.
 --=20
-2.17.1
+Regards
+Nitesh
+
+
+--rxrbFi0rimh0fffvwaHt9J6zKSdjFAYyj--
+
+--bgcetFPJzTNKp4nh9DgTAgO3id5Syb3GZ
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEkXcoRVGaqvbHPuAGo4ZA3AYyozkFAlxheNwACgkQo4ZA3AYy
+oznBhQ/8DTHV/Y4PGtL9dxvGU/FlAdRnEuPMHPw6hDGr5qcWCC9bkX9dfGAtoATp
+veCftnpMxcub00ObTcYFDsLg6OoJ5ThlgvZfQ/tKkzJO2X2AoMlW1GGF+jWRPSW6
+5Zmw4/IRJEW433Hg73MfAili6l3YpgvHv1EJ95hsA318j/14YmQKMB3OPKR7e8kk
+2R+0oD5QrS3hrjcsRWDOEBquMAt2JigPLv8TzqA+IdqdwNjFQ6vumXloMDUBVCym
+RADoNTWfAm1uHgLdlLNf2Fcoj8b2J/CVxWx7NgM3n+uPbU6PtcrLdXDFuR5wVjhN
++GazNsOM/Y3joNNlB+dBmNwBFTDJEZgJDhJVxLpxVCHcMi8oB+iuWVf6MZ87ivr+
+8Rd/GReIo2wVDVb27T4Le/tcX9VIk3AOVTgZ3VwodHLT7a4/JJGKsmCko8nrr8EX
+XiYZzwsLaiGdQQx63ALUmDhOXN97uu8JLyIzs8+OHYklPs4mYMXYwaQruGRcRvUt
+2HoY2UvARFy/7lfqQb8++gbwPPCsVbni0n1ERxinOtJV6kLkpB5u9pHEvTnIlqlp
+Xkn5pCqPqNV+X3F36GDsVnQ+vBXj3Uyd0/Wywr1JaW1ZWBVl3oP/KGoxc5JfU6/z
+faUhCYxovWqoTXQVtm60a0lu7w+Jis1ed4ZhhE+Br4bJYWbHALs=
+=X2Bz
+-----END PGP SIGNATURE-----
+
+--bgcetFPJzTNKp4nh9DgTAgO3id5Syb3GZ--
 
