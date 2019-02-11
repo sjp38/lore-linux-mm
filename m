@@ -2,165 +2,236 @@ Return-Path: <SRS0=4tVm=QS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 341B6C169C4
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:35:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 900A8C4151A
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:53:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EC98120818
-	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:35:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC98120818
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id 21833218D8
+	for <linux-mm@archiver.kernel.org>; Mon, 11 Feb 2019 12:53:57 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=oneplus.com header.i=@oneplus.com header.b="ropVOLtH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 21833218D8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=oneplus.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 79B898E00E1; Mon, 11 Feb 2019 07:35:21 -0500 (EST)
+	id 9D77F8E00B4; Mon, 11 Feb 2019 07:53:57 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 74B5F8E00DD; Mon, 11 Feb 2019 07:35:21 -0500 (EST)
+	id 9602F8E0002; Mon, 11 Feb 2019 07:53:57 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 63A3B8E00E1; Mon, 11 Feb 2019 07:35:21 -0500 (EST)
+	id 7DA9A8E00B4; Mon, 11 Feb 2019 07:53:57 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ECE58E00DD
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 07:35:21 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id c18so9229374edt.23
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 04:35:21 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3605C8E0002
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 07:53:57 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id t26so8224375pgu.18
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 04:53:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=+wxmfskF7vbLdDz7xTSS2N4psaEXRFRPGps36I3gfDI=;
-        b=GPOs0SoN4E7Wl+EDHP7hyhd3rxpgkYTXSFipjSWzpx2qeHp4N2z8EenZCecTYHxCC7
-         MP4ZgdeGkj+EaYf5dT7gw/ob1IDwR4+FDbhTGWSopVIypVBT1M6z+nrnl8P75YNSMnMo
-         YJB8aFmrWQQ+lU9POvZTunW31t7tymkIRpAl8YXekz986qnQB8UQXDpqnLZAANiKPmHe
-         ssKXx04owfVQG/07bq4pqbSRvaJaq79GR3WUbzLpraDyng50afk0tB5fGdGFvYumgo44
-         KpYyDtBv7Twvqf2AB3nN0NVv/EVQXXRcrksGoYXbG99MuKRR9k9XBTvPoTJzvXf96EGt
-         mn+w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-X-Gm-Message-State: AHQUAuZrtGmw334hgn1iFTHdQRF+3103G1GcBSeiMBt0ekTHDoDh1Ju0
-	k+RBpG9/KV5Gdqg5Z7yc6BcUafcAoqEbgK+OO/HqCmZyDpf9ni0F3RXpUEooRtEmHOgeOn9IdWm
-	p0+hSCpJcg9OrlIbhVtU84T8DBDq/9QQ1JupjgjOwDk3OIcz3PCzUCanyUTFmXt6rXQ==
-X-Received: by 2002:a17:906:580b:: with SMTP id m11mr9500211ejq.137.1549888520616;
-        Mon, 11 Feb 2019 04:35:20 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaCfCrrPJXQ/mQx8XGWz4V/fE5/so7BIKLOha/Wuj+La5Z2POAWkjVClu5m5N3xymXkzS1u
-X-Received: by 2002:a17:906:580b:: with SMTP id m11mr9500165ejq.137.1549888519752;
-        Mon, 11 Feb 2019 04:35:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549888519; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:accept-language:content-language
+         :content-transfer-encoding:mime-version;
+        bh=EZuF4W23b2uhObWENz+guU5vojx1VpAvjBe3lioAi5Q=;
+        b=N7gW/9hxM4r+WkQ3BY3VBWwzpsLT8lNlb5qEwZVFedApScsdH71Fzvg+TfE1eOpklk
+         uGdbYGBCZ3GqXYC07gwHi9ZBobDEsH3vXRPk4g/iMvLfq3Dn5ffZZ1xJ/K6tzA3w7+87
+         GVmaIQp28au67lZTitIuVTDvtVilyQ6GTRwVVXvDKSEqPricmJG7gXY5dsQ5zVzrN+GZ
+         +DYF6cCL+LJS8MHUCz/73Vy5qetHJb5wgcv8j7ds09DXXIk/Ipo9NVUMi7TSdy/cTN+v
+         VlC+6O88bzuHpGLvdznSGZGusfAvFfL2fAvQNpWMBWWkiqQPb+cnUaxrZbIMexi1a+Cv
+         6CyQ==
+X-Gm-Message-State: AHQUAubTYHjtQ0XZEOhel08+2pW1+FfHXgWOfXlV1pn1MTcJozunQo+w
+	kAD2i/+nVbWf+WCa8WsmN1fHpQB0RgDuN7aPEPOTHZZJ+32iCSHum9nkzshdQzLn4dv2SBjwAgn
+	LmhB16iWtX8WVP4RK2eTJD0DvMl0RU15kLSPOUrkn6XOfNixH/m3a6ljBRA6SsYmffw==
+X-Received: by 2002:a17:902:a50e:: with SMTP id s14mr25675435plq.311.1549889636802;
+        Mon, 11 Feb 2019 04:53:56 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYfPVdhhUSIE3MUw9tOBCw4l39nUvtNg/mt1jV8BAFif7RAtv+nCRY2YDOzcmkDqtfclq+7
+X-Received: by 2002:a17:902:a50e:: with SMTP id s14mr25675367plq.311.1549889635654;
+        Mon, 11 Feb 2019 04:53:55 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549889635; cv=none;
         d=google.com; s=arc-20160816;
-        b=arniRMpRdPzn99dLbKQjrsxO8t7VOCFiCCg7TsnGsavqaP8QE8dq4G+HzkLkeInEkO
-         O8LA5ZCfL93YIEYDEOmD4Kt1vvqL6ApVOHkiroIBKtfD3l1XhdM2q07gEMEzsy9EYxN2
-         yJi0zcoVdXc6Kv9JaCP2LUMypFrRsvRg0ZXIH/xO2ZRZJysjDck0At2QWfzVX3dqrS9L
-         I11skgJB/15O/JD1VihmRQxoUMgDVRqw+R8TwIIrBUTziBe6hEM8gIPk+y3ty/2N0RYB
-         I7vpiATA6lt293xBcQ5e/R3pWfgkttlOofC0F2BHAefJWvUBi70am6eVyw4kgRKIwohC
-         KuWQ==
+        b=v80oXoZ5DTB7R+O9RvyVT1pahF9mLuyU7qPXYZNKShRKO6P1zjpDYg2ZkdKDs8+WPZ
+         BCu9BjVBZ+hp4434Oo+6F5bWoLyzGgEMDol7q189I5N0Gom77g5cTsiKD7CWenAHdR2q
+         OUqdCLEALlyxzXxmzfuRf8AF0IZbWzR4V/lXZsuF4f55rV8MhHSByzVXqeVGhcgnDm+P
+         lk0ac9X7vWgz1QAFO+xX2pxgWKXS7bzey4sDjSys0xz028VRTkc76G+6QRwmMV56Sxd1
+         U9oijximwQxba5ciI2Woo9KDn8SR7KGoaaXBzbQ7qucoFBhK3A6Dh1UtqWrI7k/wWG/g
+         5Mcw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=+wxmfskF7vbLdDz7xTSS2N4psaEXRFRPGps36I3gfDI=;
-        b=k1s/cp87jqjOO1lgSYtmn8wZW9PVoi6xGQdjROw+x7jEeSNH2EB6FHm5AhOZLuajN6
-         pC0CuOZQ1tRjIbJfteVftqnc7IUIQnR6LNNtSGUabQLKYKSH10jBAg33Cd5bk3MAkxBt
-         27XK1kgI1rVH77qJV0y1w/IcbDiQd8rEj4ABbNvkoZVuoiXu8q35Vmfc5CUBTHuXQ/2r
-         /eWJU4el0v+zRDiqV92i68ZBlDtaxPLuWn0Io5T7as+vOxTHJC2s7PTEDbq3NygPOvR2
-         ww6yBagKKJpTuAhOtTdT5p+aIvtZZOh/Mto0q8AP/pZTaYUWXwCPhqJz3Cw8SebUCvCQ
-         kOlg==
+        h=mime-version:content-transfer-encoding:content-language
+         :accept-language:message-id:date:thread-index:thread-topic:subject
+         :cc:to:from:dkim-signature;
+        bh=EZuF4W23b2uhObWENz+guU5vojx1VpAvjBe3lioAi5Q=;
+        b=pODL+EqNKgQ4neVKY9wO/IfQ+IJcxQMI2c/eADBEntVjbWGVnWpVgF4sZsmhvXCPMF
+         5JoMZDNCs+iXht8tOlwA/c/BYdaWobWRKpyfn/RfWbKQu1DhSo2Dgb2bvGreY75+By83
+         Bam029FHGG1Gy+4gpPZJQOJZiF3xpARQH61/d14rgu7WI4r+Rj54AVss8X4vUvSSPNSI
+         kmZbJTaeU7g++VYNAjXNIWcJjPTd0KiasgquvnuDVlHw/h3NZbcQOg2wQzpQNHxIAP28
+         y/nWy4IcaPzEueos/nSFtCVm8Zf4quV6zz72ijdpn028icq3nTXahaFvVX9gxkqyFpSb
+         hWvQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i14si2227952ede.434.2019.02.11.04.35.19
+       dkim=pass header.i=@oneplus.com header.s=selector1 header.b=ropVOLtH;
+       spf=pass (google.com: domain of chintan.pandya@oneplus.com designates 40.107.128.124 as permitted sender) smtp.mailfrom=chintan.pandya@oneplus.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=oneplus.com
+Received: from KOR01-PS2-obe.outbound.protection.outlook.com (mail-eopbgr1280124.outbound.protection.outlook.com. [40.107.128.124])
+        by mx.google.com with ESMTPS id c24si9986391plo.434.2019.02.11.04.53.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 04:35:19 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 11 Feb 2019 04:53:55 -0800 (PST)
+Received-SPF: pass (google.com: domain of chintan.pandya@oneplus.com designates 40.107.128.124 as permitted sender) client-ip=40.107.128.124;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9DEAAAD38;
-	Mon, 11 Feb 2019 12:35:17 +0000 (UTC)
-Subject: Re: [Xen-devel] [PATCH v2 1/2] x86: respect memory size limiting via
- mem= parameter
-To: Ingo Molnar <mingo@kernel.org>
-Cc: sstabellini@kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, mingo@redhat.com, bp@alien8.de, hpa@zytor.com,
- xen-devel@lists.xenproject.org, boris.ostrovsky@oracle.com,
- tglx@linutronix.de
-References: <20190130082233.23840-1-jgross@suse.com>
- <20190130082233.23840-2-jgross@suse.com> <20190211120650.GA74879@gmail.com>
- <bd5863a2-291a-43e5-7633-c84c1026a31b@suse.com>
- <20190211122308.GA119972@gmail.com>
-From: Juergen Gross <jgross@suse.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=jgross@suse.com; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <39e8f05b-868b-8ab7-a310-b4ea7ef92bcc@suse.com>
-Date: Mon, 11 Feb 2019 13:35:16 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.3.0
+       dkim=pass header.i=@oneplus.com header.s=selector1 header.b=ropVOLtH;
+       spf=pass (google.com: domain of chintan.pandya@oneplus.com designates 40.107.128.124 as permitted sender) smtp.mailfrom=chintan.pandya@oneplus.com;
+       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=oneplus.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oneplus.com;
+ s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=EZuF4W23b2uhObWENz+guU5vojx1VpAvjBe3lioAi5Q=;
+ b=ropVOLtH7M0jqXR1thnZClWpZgVm6V16ZafzmNcg79MEtEI7d7fpLgrhUjVsN18P0tF4HlHNIxhjd1go4h7QUIuW2tMA7i6iTIxwLZDA3G4a9mQa71HfcWIEK55+YfKHWPVLLZ8Lb0WJ/Xug5jRGcz/anNZW+57wBTHz+0YM+9E=
+Received: from SL2PR04MB3323.apcprd04.prod.outlook.com (20.177.176.10) by
+ SL2PR04MB3081.apcprd04.prod.outlook.com (20.177.177.85) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1601.22; Mon, 11 Feb 2019 12:53:52 +0000
+Received: from SL2PR04MB3323.apcprd04.prod.outlook.com
+ ([fe80::c429:c599:d8eb:22ce]) by SL2PR04MB3323.apcprd04.prod.outlook.com
+ ([fe80::c429:c599:d8eb:22ce%3]) with mapi id 15.20.1601.023; Mon, 11 Feb 2019
+ 12:53:52 +0000
+From: Chintan Pandya <chintan.pandya@oneplus.com>
+To: Linux Upstream <linux.upstream@oneplus.com>, "hughd@google.com"
+	<hughd@google.com>, "peterz@infradead.org" <peterz@infradead.org>,
+	"jack@suse.cz" <jack@suse.cz>, "mawilcox@microsoft.com"
+	<mawilcox@microsoft.com>, "akpm@linux-foundation.org"
+	<akpm@linux-foundation.org>
+CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, Chintan Pandya
+	<chintan.pandya@oneplus.com>
+Subject: [RFC 0/2] Potential race condition with page lock
+Thread-Topic: [RFC 0/2] Potential race condition with page lock
+Thread-Index: AQHUwgjWmEDO0ZkgjE+Y+klyARb4XQ==
+Date: Mon, 11 Feb 2019 12:53:51 +0000
+Message-ID: <20190211125337.16099-1-chintan.pandya@oneplus.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: SG2PR04CA0193.apcprd04.prod.outlook.com
+ (2603:1096:4:14::31) To SL2PR04MB3323.apcprd04.prod.outlook.com
+ (2603:1096:100:38::10)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=chintan.pandya@oneplus.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-mailer: git-send-email 2.17.1
+x-originating-ip: [14.143.173.238]
+x-ms-publictraffictype: Email
+x-microsoft-exchange-diagnostics:
+ 1;SL2PR04MB3081;6:o4j1kJbfmEJhOTYS10ky22wByZxQ3QksZgTNsx8y0ng1NImiI8ZiTgB2vexv+r74HMEC/J0oNzEsVyiD+7D6zJZcf+Zl975nJpZZ+97GaMOyk6xurb6QU6J86UD7rX2bpYGrYmIWVyffDwjCi0PgOnyqdvYm6GXDDmV/yeGr3J0jw0qyCZ+4mXrIM2GYh9QLjqlYkQ2ZNZt+iVOq8VGaCKA0a8fjRAX2bZ4VhOVtIX6ChjHSpvgm8ABd7KBsSlgD879cuNFe9a9XAjCDWOJrJV+EnM/KzL26aBKFn+dXD3XW+5FZtOBQdx6ufbpsWc46wgreU1jezI68eAs/F0sG9wLhJoADyC7CdfTvgCELf+ZVTXhzwLjEhE2TD5jPW4CqUsR4wIn6M9iKnTcwTLplFKDvOyz6RdJ8xYGXWqjXYJwoHKgejgkG3x4yskrr+7hrIaAf56D3nQcXxHqIkKkfCA==;5:MTjo4LPtCpENHpMQk9kKZwIZo5zy2Rbts/cQIYXL4QQp1fl1LZVk8JVEQlyjoe8sngzebeKC3KMsrdla737nmclmaVMPhyBWrFmdm7ngU4LiUoz5sJf5S5CgVXaickGg2DLbq/0SOoJ8m+9FRKf6ziwQUPWRmrr6+cbcQnnwcli8cJ/7zCw+SB9GUxTDm4tPDy0ci+vwgFlya10x5gVIKA==;7:EjF7Ih5L/yCEjo8NJozS6x2+gUvhMxmrvmHqmDwJSw2/oQ5L9yzhvDMKA5njpFTlQG+f5a8k1ljaHesUwAVtlO7FvVKsnrv0xNx20dAWBXJCE+8mOAvQ9yDnHMgcgYoPvpj710/Mar967D7WzGhLAA==
+x-ms-office365-filtering-correlation-id: 7c65014b-7e56-439f-13e6-08d6901ff8ea
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(2017052603328)(7153060)(7193020);SRVR:SL2PR04MB3081;
+x-ms-traffictypediagnostic: SL2PR04MB3081:
+x-ld-processed: 0423909d-296c-463e-ab5c-e5853a518df8,ExtAddr
+x-microsoft-antispam-prvs:
+ <SL2PR04MB3081BF8066CDDC2AB434F6EF91640@SL2PR04MB3081.apcprd04.prod.outlook.com>
+x-forefront-prvs: 0945B0CC72
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10019020)(376002)(346002)(396003)(136003)(366004)(39860400002)(189003)(199004)(7736002)(81166006)(50226002)(478600001)(8676002)(105586002)(8936002)(66066001)(81156014)(106356001)(1076003)(78486014)(305945005)(14454004)(71190400001)(71200400001)(2906002)(1511001)(36756003)(316002)(110136005)(54906003)(2501003)(2201001)(97736004)(6512007)(52116002)(6506007)(386003)(68736007)(14444005)(53936002)(44832011)(6436002)(6486002)(25786009)(2616005)(86362001)(486006)(476003)(4326008)(186003)(26005)(102836004)(6116002)(3846002)(99286004)(256004)(107886003)(55236004);DIR:OUT;SFP:1102;SCL:1;SRVR:SL2PR04MB3081;H:SL2PR04MB3323.apcprd04.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: oneplus.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ gzrSjnqTGsVAnhqe1tdFAfesnV4ccZDXA9iJSju8P4lpVqDSjSXk0wT2MrC1BPZRBS71M+ipLB+UfGTnsFDv+mucHJ+c3TGD+ODMNcFDAyoxZwZ95Rzr4TtvTTyc7/zRP4WThFwRf6HMbqA6waCeYQW9GdCWB4FogHjADyPtle0xar62ZbTVzGnXbgs7jbvn5mwtaX5d3ygAzthUKT/VNS8G03u/eVScK6/NzAL9rJeLCOzTgO1GJYBk7UiXBi8WGxBuckNkCulH8CxSlZ5E8skK3pm3ZH4zmSzckxS9Zcp386g1p1X/cJjSuyMnSYkh8BY44MWYggQv5W9Z6RIuD8q5TfpmcCVkGQ15juVGzVR0c9pM0yKISX1sLVgOY6h5ZTHkXsfGW/3+B87lMu6j+zGoXvteSquFnnaSPKfryzI=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20190211122308.GA119972@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
+X-OriginatorOrg: oneplus.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 7c65014b-7e56-439f-13e6-08d6901ff8ea
+X-MS-Exchange-CrossTenant-originalarrivaltime: 11 Feb 2019 12:53:50.0069
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-id: 0423909d-296c-463e-ab5c-e5853a518df8
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: SL2PR04MB3081
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/02/2019 13:23, Ingo Molnar wrote:
-> 
-> * Juergen Gross <jgross@suse.com> wrote:
-> 
->>> If PCI devices had physical mmio memory areas above this range, we'd 
->>> still expect them to work - the option was really only meant to limit 
->>> RAM.
->>
->> No, in this case it seems to be real RAM added via PCI. The RAM is 
->> initially present in the E820 map, but the "mem=" will remove it from 
->> there again. During ACPI scan it is found (again) and will be added via 
->> hotplug mechanism, so "mem=" has no effect for that memory.
-> 
-> OK. With that background:
-> 
-> Acked-by: Ingo Molnar <mingo@kernel.org>
-> 
-> I suppose you want this to go upstream via the Xen tree, which is the 
-> main testcase for the bug to begin with?
+In 4.14 kernel, observed following 2 BUG_ON(!PageLocked(page)) scenarios.
+Both looks to be having similar cause.
 
-Yes, I'd prefer that.
+Case: 1
+[127823.176076] try_to_free_buffers+0xfc/0x108 (BUG_ON(), page lock was fre=
+ed
+                                               somehow)
+[127823.176079] jbd2_journal_try_to_free_buffers+0x15c/0x194 (page lock was
+                                              available till this function)
+[127823.176083] ext4_releasepage+0xe0/0x110=20
+[127823.176087] try_to_release_page+0x68/0x90 (page lock was available till
+                                              this function)
+[127823.176090] invalidate_inode_page+0x94/0xa8
+[127823.176093] invalidate_mapping_pages_without_uidlru+0xec/0x1a4 (page lo=
+ck
+                                              taken here)
+...
+...
 
+Case: 2
+[<ffffff9547a82fb0>] el1_dbg+0x18
+[<ffffff9547bfb544>] __remove_mapping+0x160  (BUG_ON(), page lock is not
+                                             available. Some one might have
+                                             free'd that.)
+[<ffffff9547bfb3c8>] remove_mapping+0x28
+[<ffffff9547bf8404>] invalidate_inode_page+0xa4
+[<ffffff9547bf8bcc>] invalidate_mapping_pages+0xd4  (acquired the page lock=
+)
+[<ffffff9547c7f934>] inode_lru_isolate+0x128
+[<ffffff9547c1b500>] __list_lru_walk_one+0x10c
+[<ffffff9547c1b3e0>] list_lru_walk_one+0x58
+[<ffffff9547c7f7d4>] prune_icache_sb+0x50
+[<ffffff9547c64fbc>] super_cache_scan+0xfc
+[<ffffff9547bfb17c>] shrink_slab+0x304
+[<ffffff9547bffb38>] shrink_node+0x254
+[<ffffff9547bfd4fc>] do_try_to_free_pages+0x144
+[<ffffff9547bfd2d8>] try_to_free_pages+0x390
+[<ffffff9547bebb80>] __alloc_pages_nodemask+0x940
+[<ffffff9547becedc>] __get_free_pages+0x28
+[<ffffff9547cd6870>] proc_pid_readlink+0x6c
+[<ffffff9547c7075c>] vfs_readlink+0x124
+[<ffffff9547c66374>] SyS_readlinkat+0xc8
+[<ffffff9547a83818>] __sys_trace_return+0x0
 
-Juergen
+Both the scenarios say that current stack tried taking page lock but got
+released in meantime by someone else. There could be 2 possiblities here.
+
+1) Someone trying to update page flags and due to race condition, PG_locked
+   bit got cleared, unwantedly.
+2) Someone else took the lock without checking if it is really locked or no=
+t
+   as there are explicit APIs to set PG_locked.
+
+I didn't get traces of history for having PG_locked being set non-atomicall=
+y.
+I believe it could be because of performance reasons. Not sure though.
+
+Chintan Pandya (2):
+  page-flags: Make page lock operation atomic
+  page-flags: Catch the double setter of page flags
+
+ fs/cifs/file.c             | 8 ++++----
+ fs/pipe.c                  | 2 +-
+ include/linux/page-flags.h | 4 ++--
+ include/linux/pagemap.h    | 6 +++---
+ mm/filemap.c               | 4 ++--
+ mm/khugepaged.c            | 2 +-
+ mm/ksm.c                   | 2 +-
+ mm/memory-failure.c        | 2 +-
+ mm/memory.c                | 2 +-
+ mm/migrate.c               | 2 +-
+ mm/shmem.c                 | 6 +++---
+ mm/swap_state.c            | 4 ++--
+ mm/vmscan.c                | 2 +-
+ 13 files changed, 23 insertions(+), 23 deletions(-)
+
+--=20
+2.17.1
 
