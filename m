@@ -2,154 +2,255 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3F56AC282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 21:47:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 905B4C282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 21:53:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F18B9222C0
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 21:47:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F18B9222C0
+	by mail.kernel.org (Postfix) with ESMTP id 349CC222B1
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 21:53:42 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="sLIBRlBc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 349CC222B1
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 795378E0002; Tue, 12 Feb 2019 16:47:56 -0500 (EST)
+	id B86C88E0003; Tue, 12 Feb 2019 16:53:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 741378E0001; Tue, 12 Feb 2019 16:47:56 -0500 (EST)
+	id AE6148E0001; Tue, 12 Feb 2019 16:53:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5E3288E0002; Tue, 12 Feb 2019 16:47:56 -0500 (EST)
+	id 9D5CC8E0003; Tue, 12 Feb 2019 16:53:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1886B8E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 16:47:56 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id h70so176298pfd.11
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 13:47:56 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B6DC8E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 16:53:41 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id n22so234517otq.8
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 13:53:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=4NnKV1ncEMyS3QDwhrnAHPQEstnwlF9jBRrcDHz5huE=;
-        b=B9339tBw8a8pWqyBSucsijCSTCWIaafK3nPY13Yde0XR3wbqWEf+V+KiEOOcOdUP26
-         jZD3wkXyibvhIhVsfaedSLGODdmhRXWWPdetkiZlcLwKlQeP1BqC8CqemVhQ7qVOge/V
-         nDJi//kDFLLkBDZKBtHlaxT/Iayu4ISQhhIjsDF/uTe8xFZkgjzy6RkV1lqYdv2P0Mg3
-         xB27dePxq8HXl7ccaJu60o7eMHcUeCK16PVg27GW0PLenBwyYqIyOnSmgPSJZs8CZ8eZ
-         W896oY3qQ679wVOE1FFDt0K7dSQKCW09N50wDx+3HWeD19sty6z21hjFq325bjag2gKm
-         yZqQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuaESicvqhb+0QbcNKo3Q2u5TZXvf2nyGbl7lm6EAUEeDwk0bf/g
-	Oeht9ow2I9GGUlypSXeHSn9JMMoZraTFnr5eLL6/7XOlW4bU2QBOVzTttDcAsbvjXTgwxQlh7bF
-	iJhVnHhlCBBPek06ITpbO8cKqH5kPC0lfRDAu0S4kMPb43mgHC8jo87cHMRy2oeYG8Q==
-X-Received: by 2002:a62:1e45:: with SMTP id e66mr6035106pfe.152.1550008075788;
-        Tue, 12 Feb 2019 13:47:55 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ia+bFIqAdYF1hHjsrfKghvn0rcEv4f21Trw+1kyLe6b5iVtACI+8ik4vPNcdxdy00+YrDyC
-X-Received: by 2002:a62:1e45:: with SMTP id e66mr6035059pfe.152.1550008075077;
-        Tue, 12 Feb 2019 13:47:55 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550008075; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=LEY0p2JsVS3a2cs2tzozqI6GCoofE/g5BNWFzUCn+cU=;
+        b=LOtz7RQxXxQYy7WzMDR6+pqqZu5WIJ4N2FD7bC/id0V+txuxTMP0D+MgKo7Fw6gCge
+         X2Saf5DWnu8lfftnZsXa/IWWCXwjFK+AJhNws2ZambuJV9724PigXRQ+K/byJqu5dYoQ
+         dSIxHOTL1jSAQCGOvZ6rP7ZDi5NN3EK5NaaViMkNg0isckb40h9C/STkGVtaIfLiUDnu
+         B6JrOiPd9q4KNEisWXyoF7/OqsOTRjdu1AWSyS6Az8q/TYeDdC0o/t1uILDtSzC2TRi5
+         Z+GwwLOYTvb9iZOcgwvMkWg1CHkDEG8nKLBKk8v5tnA3RhxphsSYJSK0hZ99mQp8yZYP
+         Jbhg==
+X-Gm-Message-State: AHQUAua63H+yrls6x49CdHBvek6SE+OEJG2o6ODcGMr2quzkllBa0j3d
+	wQ3EWS20Uc/foAcWGKS2hvEQu82FCGct/p1W4kAEgOiTfQzeGiq8extuPfbctPzdszWnm+7eFTk
+	ZrFOhKUb9ryJiPFFtILNSTBFcp1UqmCwh6zmQa6fWxlS5PdHXZ7qyTCjCZ7Hh0Vh7wIY0F8AQqg
+	Ysyw04ZYwAxQ9krbDzuWsfXeJPjwVaXp1oS+jD8KekaRDUFHYvgLiwbhTlgBMXw50jA13Kz9pXW
+	TjB9KiO8UxD7t/ABKJS/LZ7R4CemV2nWpuFGh0wxCiB16bLkRGy9Kj0Yxo4Qa4wvyC/2yFPOVi4
+	uQ4jS3PM9XKbQ2ZdNzt+uSNer2MxoGehZM7dnH0LrC8sekDg0qrUqf3MQeHjUpPp8dBXnwYRiw6
+	D
+X-Received: by 2002:a05:6830:2118:: with SMTP id i24mr6378617otc.224.1550008421164;
+        Tue, 12 Feb 2019 13:53:41 -0800 (PST)
+X-Received: by 2002:a05:6830:2118:: with SMTP id i24mr6378568otc.224.1550008420208;
+        Tue, 12 Feb 2019 13:53:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550008420; cv=none;
         d=google.com; s=arc-20160816;
-        b=JTRwi24FfiEZCwVG9MKLEEnLPZo/H6fpJdu+fRJ6EohBV5/DgpZbinXoIayF9zdhbv
-         skCun74U0wSRxPGcGNANTI4rf5V4wEn8DIGNMbN5hdmRb/2gqV1BCJUgTxTANzsbiupZ
-         uu3HjqriwBSUmQ/Z4gN7AEN1sf68hIUEMsIDnGrCnYkAqD8ViKjjVuK744Es4pEIGLFQ
-         nnjVjrfOk/rib/2faHpqbObVJ6FfyPl/kYoxxTMUocRqmmnuVyzs0cdYUbCDeLnvMn9t
-         FgjrEU8v43FREgWqnABDqGVMZc2TvxmVEglp+rN6nq+4a/8hOiY3nxofViV/emw9lXFu
-         RBMw==
+        b=FkithLJwm7gdx/S/INZE/ihQ42eoE7hdNC4FDRIsmty2IveUs5Hetmp7R/q7kQsJji
+         0UNDND7yfpCKU0a7G3RvBGlKG63n3QyJKgWGWt7V/64z84mXWXBpN1avoIYYZgNZIIk7
+         p4CEaADhEFWozThXFBDT6dqJtq4JAiG2JjBYK1r61cNXniEkDMO4IQCvcZlVaYRYJisR
+         RDqHREAkjmRSxtnI+wakzWTg/ZeLZEHO/1Trh2+nJshvN/5YIefmRtZgIEn17gGyy/OA
+         EQml8T+15PXjDkOaV4fiW8EA95Tvf27cU3yWca+K77bJs7dbUTcRQG2HDjhL/Am6Y4tz
+         jo2g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=4NnKV1ncEMyS3QDwhrnAHPQEstnwlF9jBRrcDHz5huE=;
-        b=MjsV7P4z2rn9cvlpQ88oNwjx1Tly58KxStMwXCXZBPoTEuiADLwMgqrla1qWXEwuUd
-         97vAlNGGFmsTS/CYMdve5jk9UHyyA7jtjxKIcuvWKoghMh4XraWJSAtbIPX5DXrcfEyv
-         MEte7MjKsZwXmBrW9EYHZ24oul+1U0VAeUAIghwHJCLVQAqY/FlQB0PJvnJ6ynRcIZuc
-         KO7j3H0+REVZd1ll6agOMLK1r4slJ8I8VfyUbvxcPB7Te9SER3gT/y7eH8y0oG8GdQ7x
-         SjIpEBQGE7Oo0Vi/pciXRadubqQiecryOpA5sxbsCTvROxt1HOacc94CjeKO/ZMtR+KV
-         hyqA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=LEY0p2JsVS3a2cs2tzozqI6GCoofE/g5BNWFzUCn+cU=;
+        b=N8UggbHpRMN48uC4d6fJTrXoA/kqVkh15gHFbXxzdLXcPsT+3Dy8bqGtQFx3Qi+l4G
+         I5AeiK0JTLYzffiMoqX0rpdrZErR8QundH9lLB/RW5GDSQ11ZXZ5F0RbE3jzpXpv9K2l
+         3P09XOV/3roSEMqhC4t3UGOcGcm03IWvc2Mi6pgumPwOWMeVkzrHRlyhgVlcYfZXYk+g
+         rFnrlo9yDvetHGVoLS75cMxbyMcrWt6WEP2pwh438dxnSdXEMpW3CpYwZ8c4bp+0Qgsu
+         wTXDelne1LZoKfQ0pllEdcytBTqFvBBAWvACvwOT+89aGa6KDDld/FQkvzSaiVERvMI5
+         L61Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=sLIBRlBc;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id j4si7075323pgc.186.2019.02.12.13.47.54
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v16sor10004584oth.145.2019.02.12.13.53.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 13:47:55 -0800 (PST)
-Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
+        (Google Transport Security);
+        Tue, 12 Feb 2019 13:53:40 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=sLIBRlBc;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from fmsmga007.fm.intel.com ([10.253.24.52])
-  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Feb 2019 13:47:54 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,362,1544515200"; 
-   d="scan'208";a="121941465"
-Received: from unknown (HELO localhost.localdomain) ([10.232.112.69])
-  by fmsmga007.fm.intel.com with ESMTP; 12 Feb 2019 13:47:54 -0800
-Date: Tue, 12 Feb 2019 14:47:36 -0700
-From: Keith Busch <keith.busch@intel.com>
-To: Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Cc: linux-mm@kvack.org, linux-acpi@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linuxarm@huawei.com,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	"Rafael J . Wysocki" <rjw@rjwysocki.net>,
-	Michal Hocko <mhocko@kernel.org>, jcm@redhat.com
-Subject: Re: [PATCH 1/3] ACPI: Support Generic Initator only domains
-Message-ID: <20190212214736.GG6176@localhost.localdomain>
-References: <20190212164926.202-1-Jonathan.Cameron@huawei.com>
- <20190212164926.202-2-Jonathan.Cameron@huawei.com>
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=LEY0p2JsVS3a2cs2tzozqI6GCoofE/g5BNWFzUCn+cU=;
+        b=sLIBRlBc+Y8VcrK+ShKJOL8wF5wcZGUpE1b1zS7aKUuoEfelW/Xnsh4EIoEEJd+AkB
+         YO7N/Fuqlg4tH7X3nxrOEPc9skJp55kuBARmO6xshNmL3uRFAUbbKRj3SKqKlvWtGhu/
+         oIKEsZ0qzAzQzCFTO05o8oAJ31m5M4gqYsHJ74U04N9h8TN4ZkBM/szhAR0WQVBTmn0M
+         1FIovxk+90qqM8dr4fx/aDrW28KbxobMUMiX3U+94G4Y/ADcXYEGIZMadw3b0rXOBGci
+         dv7Dq/MKHmrhbPTOgzRELvXXowa8lWX/WM0oqsF3p9M9aZ4dOItgGpntqqd92jEjHZmO
+         pJLw==
+X-Google-Smtp-Source: AHgI3IZpfzC+AasjrLyEJAqixfclkYCg9uWm1t2iYvho00RBxJ8f327SO5wiNwXoXsM5Sn9KAE1MJ7QK3+hFPfGccP8=
+X-Received: by 2002:a9d:7493:: with SMTP id t19mr5757624otk.98.1550008419886;
+ Tue, 12 Feb 2019 13:53:39 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190212164926.202-2-Jonathan.Cameron@huawei.com>
-User-Agent: Mutt/1.9.1 (2017-09-22)
+References: <20190206220828.GJ12227@ziepe.ca> <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
+ <CAPcyv4hqya1iKCfHJRXQJRD4qXZa3VjkoKGw6tEvtWNkKVbP+A@mail.gmail.com>
+ <bfe0fdd5400d41d223d8d30142f56a9c8efc033d.camel@redhat.com>
+ <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com>
+ <20190208044302.GA20493@dastard> <20190208111028.GD6353@quack2.suse.cz>
+ <CAPcyv4iVtBfO8zWZU3LZXLqv-dha1NSG+2+7MvgNy9TibCy4Cw@mail.gmail.com>
+ <20190211102402.GF19029@quack2.suse.cz> <CAPcyv4iHso+PqAm-4NfF0svoK4mELJMSWNp+vsG43UaW1S2eew@mail.gmail.com>
+ <20190212160707.GA19076@quack2.suse.cz>
+In-Reply-To: <20190212160707.GA19076@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 12 Feb 2019 13:53:28 -0800
+Message-ID: <CAPcyv4gKJ3=LhdO8Bnx2f-fnT_7H5D4FxvJDCEDEpcz1udnY_g@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
+ longterm-GUP usage by RDMA
+To: Jan Kara <jack@suse.cz>
+Cc: Dave Chinner <david@fromorbit.com>, Christopher Lameter <cl@linux.com>, 
+	Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Matthew Wilcox <willy@infradead.org>, 
+	Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, 
+	linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, 
+	Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 04:49:24PM +0000, Jonathan Cameron wrote:
-> +	case ACPI_SRAT_TYPE_GENERIC_INITIATOR_AFFINITY:
-> +	{
-> +		struct acpi_srat_gi_affinity *p =
-> +			(struct acpi_srat_gi_affinity *)header;
-> +		char name[9] = {};
-> +
-> +		if (p->flags & ACPI_SRAT_GI_PCI_HANDLE) {
-> +			/*
-> +			 * For pci devices this may be the only place they
-> +			 * are assigned a proximity domain
-> +			 */
-> +			pr_debug("SRAT Generic Initiator(Seg:%u BDF:%u) in proximity domain %d %s\n",
-> +				p->pci_handle.segment,
-> +				p->pci_handle.bdf,
-> +				p->proximity_domain,
-> +				(p->flags & ACPI_SRAT_GI_ENABLED) ?
-> +				"enabled" : "disabled");
+On Tue, Feb 12, 2019 at 8:07 AM Jan Kara <jack@suse.cz> wrote:
+>
+> On Mon 11-02-19 09:22:58, Dan Williams wrote:
+> > On Mon, Feb 11, 2019 at 2:24 AM Jan Kara <jack@suse.cz> wrote:
+> > >
+> > > On Fri 08-02-19 12:50:37, Dan Williams wrote:
+> > > > On Fri, Feb 8, 2019 at 3:11 AM Jan Kara <jack@suse.cz> wrote:
+> > > > >
+> > > > > On Fri 08-02-19 15:43:02, Dave Chinner wrote:
+> > > > > > On Thu, Feb 07, 2019 at 04:55:37PM +0000, Christopher Lameter wrote:
+> > > > > > > One approach that may be a clean way to solve this:
+> > > > > > > 3. Filesystems that allow bypass of the page cache (like XFS / DAX) will
+> > > > > > >    provide the virtual mapping when the PIN is done and DO NO OPERATIONS
+> > > > > > >    on the longterm pinned range until the long term pin is removed.
+> > > > > >
+> > > > > > So, ummm, how do we do block allocation then, which is done on
+> > > > > > demand during writes?
+> > > > > >
+> > > > > > IOWs, this requires the application to set up the file in the
+> > > > > > correct state for the filesystem to lock it down so somebody else
+> > > > > > can write to it.  That means the file can't be sparse, it can't be
+> > > > > > preallocated (i.e. can't contain unwritten extents), it must have zeroes
+> > > > > > written to it's full size before being shared because otherwise it
+> > > > > > exposes stale data to the remote client (secure sites are going to
+> > > > > > love that!), they can't be extended, etc.
+> > > > > >
+> > > > > > IOWs, once the file is prepped and leased out for RDMA, it becomes
+> > > > > > an immutable for the purposes of local access.
+> > > > > >
+> > > > > > Which, essentially we can already do. Prep the file, map it
+> > > > > > read/write, mark it immutable, then pin it via the longterm gup
+> > > > > > interface which can do the necessary checks.
+> > > > >
+> > > > > Hum, and what will you do if the immutable file that is target for RDMA
+> > > > > will be a source of reflink? That seems to be currently allowed for
+> > > > > immutable files but RDMA store would be effectively corrupting the data of
+> > > > > the target inode. But we could treat it similarly as swapfiles - those also
+> > > > > have to deal with writes to blocks beyond filesystem control. In fact the
+> > > > > similarity seems to be quite large there. What do you think?
+> > > >
+> > > > This sounds so familiar...
+> > > >
+> > > >     https://lwn.net/Articles/726481/
+> > > >
+> > > > I'm not opposed to trying again, but leases was what crawled out
+> > > > smoking crater when this last proposal was nuked.
+> > >
+> > > Umm, don't think this is that similar to daxctl() discussion. We are not
+> > > speaking about providing any new userspace API for this.
+> >
+> > I thought explicit userspace API was one of the outcomes, i.e. that we
+> > can't depend on this behavior being an implicit side effect of a page
+> > pin?
+>
+> I was thinking an implicit sideeffect of gup_longterm() call. Similarly as
+> swapon(2) does not require the file to be marked in any special way. But
+> OTOH I agree that RDMA is a less controlled usage than swapon so it is
+> questionable. I'd still require something like CAP_LINUX_IMMUTABLE at least
+> for gup_longterm() calls that end up pinning the file.
+>
+> Inspired by Christoph's idea you reference in [2], maybe gup_longterm()
+> will succeed only if there is FL_LAYOUT lease for the range being pinned
+> and we don't allow the lease to be released until there's a pinned page in
+> the range. And we make the file protected (i.e. treat it like swapfile) if
+> there's any such lease in it. But this is just a rough sketch and needs more
+> thinking.
+>
+> > > Also I think the
+> > > situation about leases has somewhat cleared up with this discussion - ODP
+> > > hardware does not need leases since it can use MMU notifiers, for non-ODP
+> > > hardware it is difficult to handle leases as such hardware has only one big
+> > > kill-everything call and using that would effectively mean lot of work on
+> > > the userspace side to resetup everything to make things useful if workable
+> > > at all.
+> > >
+> > > So my proposal would be:
+> > >
+> > > 1) ODP hardward uses gup_fast() like direct IO and uses MMU notifiers to do
+> > > its teardown when fs needs it.
+> > >
+> > > 2) Hardware not capable of tearing down pins from MMU notifiers will have
+> > > to use gup_longterm() (we may actually rename it to a more suitable name).
+> > > FS may just refuse such calls (for normal page cache backed file, it will
+> > > just return success but for DAX file it will do sanity checks whether the
+> > > file is fully allocated etc. like we currently do for swapfiles) but if
+> > > gup_longterm() returns success, it will provide the same guarantees as for
+> > > swapfiles. So the only thing that we need is some call from gup_longterm()
+> > > to a filesystem callback to tell it - this file is going to be used by a
+> > > third party as an IO buffer, don't touch it. And we can (and should)
+> > > probably refactor the handling to be shared between swapfiles and
+> > > gup_longterm().
+> >
+> > Yes, lets pursue this. At the risk of "arguing past 'yes'" this is a
+> > solution I thought we dax folks walked away from in the original
+> > MAP_DIRECT discussion [1]. Here is where leases were the response to
+> > MAP_DIRECT [2]. ...and here is where we had tame discussions about
+> > implications of notifying memory-registrations of lease break events
+> > [3].
+>
+> Yeah, thanks for the references.
+>
+> > I honestly don't like the idea that random subsystems can pin down
+> > file blocks as a side effect of gup on the result of mmap. Recall that
+> > it's not just RDMA that wants this guarantee. It seems safer to have
+> > the file be in an explicit block-allocation-immutable-mode so that the
+> > fallocate man page can describe this error case. Otherwise how would
+> > you describe the scenarios under which FALLOC_FL_PUNCH_HOLE fails?
+>
+> So with requiring lease for gup_longterm() to succeed (and the
+> FALLOC_FL_PUNCH_HOLE failure being keyed from the existence of such lease),
+> does it look more reasonable to you?
 
-<snip>
+That sounds reasonable to me, just the small matter of teaching the
+non-ODP RDMA ecosystem to take out FL_LAYOUT leases and do something
+reasonable when the lease needs to be recalled.
 
-> +#define ACPI_SRAT_GI_ENABLED     (1)		/* 00: Use affinity structure */
-> +#define ACPI_SRAT_GI_ACPI_HANDLE (0)		/* 01: */
-> +#define ACPI_SRAT_GI_PCI_HANDLE  (1 << 1)	/* 01: */
+I would hope that RDMA-to-FSDAX-PMEM support is enough motivation to
+either make the necessary application changes, or switch to an
+ODP-capable adapter.
 
-It looks like you're reading reserved bits. My copy of the 6.3 spec says
-PCI Handle is 1, and is set in Device Handle Type field, not in the Flags.
-
-> +/* 5 : Generic Initiator Affinity (ACPI 6.3) */
-> +
-> +struct acpi_srat_gi_affinity {
-> +	struct acpi_subtable_header header;
-> +	u8 reserved;
-> +	u8 device_handl_type;
-> +	u32 proximity_domain;
-> +	union {
-> +		struct acpi_srat_gi_acpi_handle acpi_handle;
-> +		struct acpi_srat_gi_pci_handle pci_handle;
-> +	};
-> +	u32 flags;
-> +	u32 reserved2;
-> +};
+Note that I think we need FL_LAYOUT regardless of whether the
+legacy-RDMA stack ever takes advantage of it. VFIO device passthrough
+to a guest that has a host DAX file mapped as physical PMEM in the
+guest needs guarantees that the guest will be killed and DMA force
+blocked by the IOMMU if someone punches a hole in memory in use by a
+guest, or otherwise have a paravirtualized driver in the guest to
+coordinate what effectively looks like a physical memory unplug event.
 
