@@ -2,401 +2,255 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B83BC282CE
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 13:21:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72565C282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 13:27:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 165F1214DA
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 13:21:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 165F1214DA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 1DCCD2084E
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 13:27:12 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="geSm948Z"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1DCCD2084E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7D2B98E0013; Tue, 12 Feb 2019 08:21:52 -0500 (EST)
+	id B03778E0013; Tue, 12 Feb 2019 08:27:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7831B8E0011; Tue, 12 Feb 2019 08:21:52 -0500 (EST)
+	id AB3428E0011; Tue, 12 Feb 2019 08:27:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 671788E0013; Tue, 12 Feb 2019 08:21:52 -0500 (EST)
+	id 9A1E18E0013; Tue, 12 Feb 2019 08:27:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A0348E0011
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 08:21:52 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id u7so2349199edj.10
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 05:21:51 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D2E18E0011
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 08:27:11 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id s27so2123607pgm.4
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 05:27:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language
-         :content-transfer-encoding:mime-version;
-        bh=t3RsL3SMelMTTdSZMj4vqBTqYzktafmOevpe3iETmBE=;
-        b=gjocjmUziieDwpK+BGaE3h01Ue7WSuaiAXbBAYqXax1iHBpF1ZApNlIKNUXB4hbkft
-         oRn2Jv9qB1B5alBdWXXNKteWqX7hQgdTojDZMWY/EqJFBmlTucLa1sTlWD8D5o/39d+Y
-         dAkawYRtdRUUp5l1LKouvrjUKTy5q1OU8PkI1MDVlLe+f7PX9gtGnoKw0nNIAgseWLfF
-         4og5xS0sDuOtUBzTV1umN8jEIbvxPMZKi4LJ/+Nld/9SkzYv32pcetN7VZPDh/q4SdUo
-         YuU05nV9ZoTzIkGdpthsuCDcg4bg5lbLZ+OCNQrM53/t/yXUVzxQFvz1TU2u0P5wHKzL
-         oaVg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of shameerali.kolothum.thodi@huawei.com designates 185.176.76.210 as permitted sender) smtp.mailfrom=shameerali.kolothum.thodi@huawei.com
-X-Gm-Message-State: AHQUAuYv26c/296Wwg/ROjx1sbtOUkFw4idSy85UhcpNRNUzF2AYT05t
-	dprgVh7fPVEtiL8O9M0RIoKaggEZGU028Gz72/0bZUN5TIR/OmqB5YpeqztLGNBjMMLuCPCgD+l
-	VsnOdp2dzj054JOQVBNcwT/3axegUqMzvdQIcwHZri5pd17GkCiRoWPn/R9GWPW/IWw==
-X-Received: by 2002:a17:906:6053:: with SMTP id p19mr2668962ejj.227.1549977711506;
-        Tue, 12 Feb 2019 05:21:51 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZQuGNeYE2oDxguV0DZrqZnyR7UD/uwHyrUruHartquSU8esx75kdxCqcwmL0PwanXU/5TG
-X-Received: by 2002:a17:906:6053:: with SMTP id p19mr2668851ejj.227.1549977709312;
-        Tue, 12 Feb 2019 05:21:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549977709; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=6Ba4mrnZaxTMVtD2bbYgpygn35lrgkquNjMLSonGxrw=;
+        b=eGzBrnoauC5UcL5a3WPjvLqwZ/dchuWOpZUQ7D36vmykjLS+Mzw66RLXer4rDhggXB
+         J9i+hQiJSv+4jvjDbmPdwMAOc31FRKWtBpJNB6H+9OXRfg8t+1QXKzKv4Yux3g2dDFqA
+         w1ok2cFRH67CmfYamSjcVv4Q5di/D68fSHe1GhlqKtpvfjhA/KyJ6GLVJaTI9aIS1R7c
+         momlhybcehxuws0wbhSG/aca6Eoj4x+25DMDSNBscI86jNA9U3LMJUNHlpIvER8Mb6WF
+         r/qxJPLm6SUg7j0ave1AYxVHYUeSENgjVwsC5IEahNCslwXuA/PxlL3uJN9FQMF6aKZV
+         E+0w==
+X-Gm-Message-State: AHQUAuYpkJQ3Qm3M46KnXCGNNk8w/AVnn1A2W8sSR9dVwBtY3u+jIB60
+	v4L6kObPw4AhQkQjqrhaXdGHqkTPeU/RbqgjmTESnxwJ/jeAAoCeNE6JAAMX6xMqdkYExan/Rkg
+	4JmeZtDJRbtLMEBdxJ+ibbmnv/sScZIs0uQTUifOYRedo7l/XJenqnPelT2bRxNtXuXRSmthCjn
+	XqfTM/ELgwm2C7dSKstwlREA0c++y2CjkaIvld+hnooKT3x8zVGW9Ehroo2mZW7m5DAktyPHD2Q
+	oSZS3tJztwpGrk3wX8ssOkogaD2Spctj1lCUv5u9hKsUe60iUoF+M8+8POiOAq7ATz5hr4VYmId
+	BsBSBRGtEqvk9GDlcBH1Ol+J0VQrgLtXVxcNFb9YQPiY5IFEPA2UxpyrSbcfB3ChvsNHuOUuDIN
+	H
+X-Received: by 2002:a63:3206:: with SMTP id y6mr3615278pgy.338.1549978030922;
+        Tue, 12 Feb 2019 05:27:10 -0800 (PST)
+X-Received: by 2002:a63:3206:: with SMTP id y6mr3615223pgy.338.1549978029971;
+        Tue, 12 Feb 2019 05:27:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549978029; cv=none;
         d=google.com; s=arc-20160816;
-        b=aAKVg02DVbR4KSzUbgraKNKD3giUSyV7BfPjXlmxWK+/EGR9FPzSf7pu+fmP701KTk
-         kbMlDn7ZPelj6gXsWjX8Vb/mFe6NuEwDOoexeY2hxHCL95/Hv2tfjUnOqQuRAHZAHXmP
-         9zymeQqWWa5AIRpwrCw8Yxo6Q2fRfQVyM/x/W/6Ne1T2iCYpr48heGvLSGZZPTyHC//e
-         sgZTgwsw+y3AmJmYLXBAg1EQW5H86z0IPBHaT0t7Oj6W2m/glE57CMCpwmuaKaSQ8OdG
-         VchOdjnlB6Yfis/2SPcdtdweJqJydAo+ShHQiTzbgdhkby41AziT7qk9L+spJ2c7T8xQ
-         JF3g==
+        b=fXrU2rK6wgwC3rAzUw4h80cysF5T5U47n9PLoI+voUVi8FexiBokOW7ZRBDDHeEPKX
+         e5njOX7aD3BoDMXD17v0x5CUXdclaMKUtmSM/sXUlbsNperAEv+Uo32+qaFHSjWuRI2u
+         yFd54lh6gmB580s2lhYvEeWdK9uNubpif6Z1g/tnuPLDaCQqprRMbPx9WNppbbsQ33/i
+         wg7FM8f0KvoSxLJoYeuqJfIQe9KVzshW5pgj4fxG0EA2nDMDrRAD6kSi+ZEODjNYdRFG
+         29Wqx5fmBTB/jRP5JR6T2FNywT01822usUrJ5t5Ho0XoPRBSSkkj22HWj5iaJlrFwd3v
+         i0lA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from;
-        bh=t3RsL3SMelMTTdSZMj4vqBTqYzktafmOevpe3iETmBE=;
-        b=cKQ9USaMOYoyyrC7sCoGwamSJI8SlYF8UWXqiE/I5ePWTZ1ZKWRbgF7Fz1G9/IS/Y7
-         IfgzJEJj5iKifYGnEJ5owR+AjXkegJiz+/ND2lTfb9EMcawhkcCw0yGsOIe34KO1skQA
-         zRk12V0mvRSb2f4W7nfJnvzBVevMFgCqNJTIAhrVGzGp0nmBOkLNdTm+PUu5/3yq8sb2
-         Gj+PmvGitanH/csdRYknt+sV8R/+CArvI+QNrzJnwIAm61zcQSKkw1vUAzYqp4p/mdf4
-         fe8DjoZ5SiKHFBGFpskbp984c+f1wNtMa8cOw7dbTtOGYYJVVrXo8IXCU1zBJHS/jrBm
-         w9Xg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=6Ba4mrnZaxTMVtD2bbYgpygn35lrgkquNjMLSonGxrw=;
+        b=Wz/ZgTwT6guteS4AdfG4k9a+1Tctm+40tJMXAihCReaDcy1rmyefgk6oZyyv4ZZY1i
+         /VVWvXIp63lriR4NN6yZDYuqoC6iO+HefF8MXmVQTU133i6l4dM2EASQlJqqWuq/ma9N
+         hw1+etCQsvpkqDuw0zdU35V+3Qqd2JTIVkGGR7AKk81fBK6x5bp5abdrbNBFd5qdwGTg
+         DBq5NccVh3KxxvpGUOZn2bEivlOifpYg9k+5xw4iJ4t2uQTPLvLxjY4qAutMpklFFzmd
+         sSzYH+l5TrZufwFdMr/6p7JRYMMQ3SWTjLpSzlMOomEDJYUYvXZWwSLBtHiLmNKiCFDl
+         V1Xw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of shameerali.kolothum.thodi@huawei.com designates 185.176.76.210 as permitted sender) smtp.mailfrom=shameerali.kolothum.thodi@huawei.com
-Received: from huawei.com (lhrrgout.huawei.com. [185.176.76.210])
-        by mx.google.com with ESMTPS id b28si1600262edd.78.2019.02.12.05.21.49
+       dkim=pass header.i=@google.com header.s=20161025 header.b=geSm948Z;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w34sor11770513pla.10.2019.02.12.05.27.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 05:21:49 -0800 (PST)
-Received-SPF: pass (google.com: domain of shameerali.kolothum.thodi@huawei.com designates 185.176.76.210 as permitted sender) client-ip=185.176.76.210;
+        (Google Transport Security);
+        Tue, 12 Feb 2019 05:27:09 -0800 (PST)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of shameerali.kolothum.thodi@huawei.com designates 185.176.76.210 as permitted sender) smtp.mailfrom=shameerali.kolothum.thodi@huawei.com
-Received: from lhreml701-cah.china.huawei.com (unknown [172.18.7.106])
-	by Forcepoint Email with ESMTP id B2E65315BB3DCEAA294A;
-	Tue, 12 Feb 2019 13:21:48 +0000 (GMT)
-Received: from LHREML524-MBS.china.huawei.com ([169.254.2.78]) by
- lhreml701-cah.china.huawei.com ([10.201.108.42]) with mapi id 14.03.0415.000;
- Tue, 12 Feb 2019 13:21:39 +0000
-From: Shameerali Kolothum Thodi <shameerali.kolothum.thodi@huawei.com>
-To: Jonathan Cameron <jonathan.cameron@huawei.com>, Oscar Salvador
-	<osalvador@suse.de>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@suse.com"
-	<mhocko@suse.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>,
-	"Pavel.Tatashin@microsoft.com" <Pavel.Tatashin@microsoft.com>,
-	"david@redhat.com" <david@redhat.com>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, "dave.hansen@intel.com"
-	<dave.hansen@intel.com>, Linuxarm <linuxarm@huawei.com>, Robin Murphy
-	<robin.murphy@arm.com>
-Subject: RE: [RFC PATCH v2 0/4] mm, memory_hotplug: allocate memmap from
- hotadded memory
-Thread-Topic: [RFC PATCH v2 0/4] mm, memory_hotplug: allocate memmap from
- hotadded memory
-Thread-Index: AQHUwtEdigDNP0y6HEKCgupIm+NFFKXcIEiQ
-Date: Tue, 12 Feb 2019 13:21:38 +0000
-Message-ID: <5FC3163CFD30C246ABAA99954A238FA8392B5DB6@lhreml524-mbs.china.huawei.com>
-References: <20190122103708.11043-1-osalvador@suse.de>
- <20190212124707.000028ea@huawei.com>
-In-Reply-To: <20190212124707.000028ea@huawei.com>
-Accept-Language: en-GB, en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [10.202.227.237]
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@google.com header.s=20161025 header.b=geSm948Z;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=6Ba4mrnZaxTMVtD2bbYgpygn35lrgkquNjMLSonGxrw=;
+        b=geSm948ZjGKpmp4A1fg6RPbdILSvX/YQikGKf69neRzarLTs2iM2U9H/AQbb7yNrgo
+         8TOSDM1FYoACO2R79Dubem7OmophgcsyhbMcEDGBpZobfHY4shtc5JyTijlPoek6IPAL
+         fXOq61HHT140SAU3wFO8+T3foQGYlOUE2KNGY7gjVvrjIWNUIYfie7XUuaSkO+L4CwJ1
+         yCz/s110r60L3lKv09SsZAY9+DSagzxzYGt5OLyhYw9/fEBzP0CAuiDuF9oNt2sdrxFt
+         5xpj2E1gc2leHmV3C6AKGidy1gkIBHrjl/yFogSvCNFHIF94pKmO83OgRTwW2HDqP3GF
+         SLUA==
+X-Google-Smtp-Source: AHgI3IaEXSCnkXFUgips13819VMT23YRSgARmZJjD+u4ORQfzwT9CoVffDanWSaZ1PGwGgUrMuCxw0jw36wHEEOVfig=
+X-Received: by 2002:a17:902:8641:: with SMTP id y1mr4016029plt.159.1549978029254;
+ Tue, 12 Feb 2019 05:27:09 -0800 (PST)
 MIME-Version: 1.0
-X-CFilter-Loop: Reflected
+References: <cover.1549921721.git.andreyknvl@google.com> <3df171559c52201376f246bf7ce3184fe21c1dc7.1549921721.git.andreyknvl@google.com>
+ <4bc08cee-cb49-885d-ef8a-84b188d3b5b3@lca.pw>
+In-Reply-To: <4bc08cee-cb49-885d-ef8a-84b188d3b5b3@lca.pw>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Tue, 12 Feb 2019 14:26:58 +0100
+Message-ID: <CAAeHK+zv5=oHJQg-bx7-tiD9197J7wdMeeRSgaxAfJjXEs3EyA@mail.gmail.com>
+Subject: Re: [PATCH 5/5] kasan, slub: fix conflicts with CONFIG_SLAB_FREELIST_HARDENED
+To: Qian Cai <cai@lca.pw>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, 
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	kasan-dev <kasan-dev@googlegroups.com>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Vincenzo Frascino <vincenzo.frascino@arm.com>, Kostya Serebryany <kcc@google.com>, 
+	Evgeniy Stepanov <eugenis@google.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Feb 12, 2019 at 3:43 AM Qian Cai <cai@lca.pw> wrote:
+>
+>
+>
+> On 2/11/19 4:59 PM, Andrey Konovalov wrote:
+> > CONFIG_SLAB_FREELIST_HARDENED hashes freelist pointer with the address
+> > of the object where the pointer gets stored. With tag based KASAN we don't
+> > account for that when building freelist, as we call set_freepointer() with
+> > the first argument untagged. This patch changes the code to properly
+> > propagate tags throughout the loop.
+> >
+> > Reported-by: Qian Cai <cai@lca.pw>
+> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> > ---
+> >  mm/slub.c | 20 +++++++-------------
+> >  1 file changed, 7 insertions(+), 13 deletions(-)
+> >
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index ce874a5c9ee7..0d32f8d30752 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -303,11 +303,6 @@ static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
+> >               __p < (__addr) + (__objects) * (__s)->size; \
+> >               __p += (__s)->size)
+> >
+> > -#define for_each_object_idx(__p, __idx, __s, __addr, __objects) \
+> > -     for (__p = fixup_red_left(__s, __addr), __idx = 1; \
+> > -             __idx <= __objects; \
+> > -             __p += (__s)->size, __idx++)
+> > -
+> >  /* Determine object index from a given position */
+> >  static inline unsigned int slab_index(void *p, struct kmem_cache *s, void *addr)
+> >  {
+> > @@ -1655,17 +1650,16 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+> >       shuffle = shuffle_freelist(s, page);
+> >
+> >       if (!shuffle) {
+> > -             for_each_object_idx(p, idx, s, start, page->objects) {
+> > -                     if (likely(idx < page->objects)) {
+> > -                             next = p + s->size;
+> > -                             next = setup_object(s, page, next);
+> > -                             set_freepointer(s, p, next);
+> > -                     } else
+> > -                             set_freepointer(s, p, NULL);
+> > -             }
+> >               start = fixup_red_left(s, start);
+> >               start = setup_object(s, page, start);
+> >               page->freelist = start;
+> > +             for (idx = 0, p = start; idx < page->objects - 1; idx++) {
+> > +                     next = p + s->size;
+> > +                     next = setup_object(s, page, next);
+> > +                     set_freepointer(s, p, next);
+> > +                     p = next;
+> > +             }
+> > +             set_freepointer(s, p, NULL);
+> >       }
+> >
+> >       page->inuse = page->objects;
+> >
+>
+> Well, this one patch does not work here, as it throws endless errors below
+> during boot. Still need this patch to fix it.
 
+Hm, did you apply all 6 patches (the one that you sent and these five)?
 
-> -----Original Message-----
-> From: Jonathan Cameron
-> Sent: 12 February 2019 12:47
-> To: Oscar Salvador <osalvador@suse.de>
-> Cc: linux-mm@kvack.org; mhocko@suse.com; dan.j.williams@intel.com;
-> Pavel.Tatashin@microsoft.com; david@redhat.com;
-> linux-kernel@vger.kernel.org; dave.hansen@intel.com; Shameerali Kolothum
-> Thodi <shameerali.kolothum.thodi@huawei.com>; Linuxarm
-> <linuxarm@huawei.com>; Robin Murphy <robin.murphy@arm.com>
-> Subject: Re: [RFC PATCH v2 0/4] mm, memory_hotplug: allocate memmap from
-> hotadded memory
->=20
-> On Tue, 22 Jan 2019 11:37:04 +0100
-> Oscar Salvador <osalvador@suse.de> wrote:
->=20
-> > Hi,
-> >
-> > this is the v2 of the first RFC I sent back then in October [1].
-> > In this new version I tried to reduce the complexity as much as possibl=
-e,
-> > plus some clean ups.
-> >
-> > [Testing]
-> >
-> > I have tested it on "x86_64" (small/big memblocks) and on "powerpc".
-> > On both architectures hot-add/hot-remove online/offline operations
-> > worked as expected using vmemmap pages, I have not seen any issues so f=
-ar.
-> > I wanted to try it out on Hyper-V/Xen, but I did not manage to.
-> > I plan to do so along this week (if time allows).
-> > I would also like to test it on arm64, but I am not sure I can grab
-> > an arm64 box anytime soon.
->=20
-> Hi Oscar,
->=20
-> I ran tests on one of our arm64 machines. Particular machine doesn't actu=
-ally
-> have
-> the mechanics for hotplug, so was all 'faked', but software wise it's all=
- the
-> same.
->=20
-> Upshot, seems to work as expected on arm64 as well.
-> Tested-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
->=20
-> Remove currently relies on some out of tree patches (and dirty hacks) due
-> to the usual issue with how arm64 does pfn_valid. It's not even vaguely
-> ready for upstream. I'll aim to post an informational set for anyone else
-> testing in this area (it's more or less just a rebase of the patches from
-> a few years ago).
->=20
-> +CC Shameer who has been testing the virtualization side for more details=
- on
-> that,=20
-
-Right, I have sent out a RFC series[1] to enable mem hotplug for Qemu ARM v=
-irt
-platform. Using this Qemu, I ran few tests with your patches on a HiSilicon=
- ARM64
-platform. Looks like it is doing the job.
-
-root@ubuntu:~# uname -a
-Linux ubuntu 5.0.0-rc1-mm1-00173-g22b0744 #5 SMP PREEMPT Tue Feb 5 10:32:26=
- GMT 2019 aarch64 aarch64 aarch64 GNU/Linux
-
-root@ubuntu:~# numactl -H
-available: 2 nodes (0-1)
-node 0 cpus: 0
-node 0 size: 981 MB
-node 0 free: 854 MB
-node 1 cpus:
-node 1 size: 0 MB
-node 1 free: 0 MB
-node distances:
-node   0   1=20
-  0:  10  20=20
-  1:  20  10=20
-root@ubuntu:~# (qemu)=20
-(qemu) object_add memory-backend-ram,id=3Dmem1,size=3D1G
-(qemu) device_add pc-dimm,id=3Ddimm1,memdev=3Dmem1,node=3D1
-root@ubuntu:~#=20
-root@ubuntu:~# numactl -H
-available: 2 nodes (0-1)
-node 0 cpus: 0
-node 0 size: 981 MB
-node 0 free: 853 MB
-node 1 cpus:
-node 1 size: 1008 MB
-node 1 free: 1008 MB
-node distances:
-node   0   1=20
-  0:  10  20=20
-  1:  20  10=20
-root@ubuntu:~# =20
-
-FWIW,
-Tested-by: Shameer Kolothum <shameerali.kolothum.thodi@huawei.com>
-
-Thanks,
-Shameer
-[1] https://lists.gnu.org/archive/html/qemu-devel/2019-01/msg06966.html
-
-and Robin who is driving forward memory hotplug in general on the arm64
-> side.
->=20
-> Thanks,
->=20
-> Jonathan
->=20
-> >
-> > [Coverletter]:
-> >
-> > This is another step to make the memory hotplug more usable. The primar=
-y
-> > goal of this patchset is to reduce memory overhead of the hot added
-> > memory (at least for SPARSE_VMEMMAP memory model). The current way
-> we use
-> > to populate memmap (struct page array) has two main drawbacks:
-> >
-> > a) it consumes an additional memory until the hotadded memory itself is
-> >    onlined and
-> > b) memmap might end up on a different numa node which is especially tru=
-e
-> >    for movable_node configuration.
-> >
-> > a) is problem especially for memory hotplug based memory "ballooning"
-> >    solutions when the delay between physical memory hotplug and the
-> >    onlining can lead to OOM and that led to introduction of hacks like =
-auto
-> >    onlining (see 31bc3858ea3e ("memory-hotplug: add automatic onlining
-> >    policy for the newly added memory")).
-> >
-> > b) can have performance drawbacks.
-> >
-> > I have also seen hot-add operations failing on powerpc due to the fact
-> > that we try to use order-8 pages when populating the memmap array.
-> > Given 64KB base pagesize, that is 16MB.
-> > If we run out of those, we just fail the operation and we cannot add
-> > more memory.
-> > We could fallback to base pages as x86_64 does, but we can do better.
-> >
-> > One way to mitigate all these issues is to simply allocate memmap array
-> > (which is the largest memory footprint of the physical memory hotplug)
-> > from the hotadded memory itself. VMEMMAP memory model allows us to
-> map
-> > any pfn range so the memory doesn't need to be online to be usable
-> > for the array. See patch 3 for more details. In short I am reusing an
-> > existing vmem_altmap which wants to achieve the same thing for nvdim
-> > device memory.
-> >
-> > There is also one potential drawback, though. If somebody uses memory
-> > hotplug for 1G (gigantic) hugetlb pages then this scheme will not work
-> > for them obviously because each memory block will contain reserved
-> > area. Large x86 machines will use 2G memblocks so at least one 1G page
-> > will be available but this is still not 2G...
-> >
-> > I am not really sure somebody does that and how reliable that can work
-> > actually. Nevertheless, I _believe_ that onlining more memory into
-> > virtual machines is much more common usecase. Anyway if there ever is a
-> > strong demand for such a usecase we have basically 3 options a) enlarge
-> > memory blocks even more b) enhance altmap allocation strategy and reuse
-> > low memory sections to host memmaps of other sections on the same NUMA
-> > node c) have the memmap allocation strategy configurable to fallback to
-> > the current allocation.
-> >
-> > [Overall design]:
-> >
-> > Let us say we hot-add 2GB of memory on a x86_64 (memblock size =3D 128M=
-).
-> > That is:
-> >
-> >  - 16 sections
-> >  - 524288 pages
-> >  - 8192 vmemmap pages (out of those 524288. We spend 512 pages for each
-> section)
-> >
-> >  The range of pages is: 0xffffea0004000000 - 0xffffea0006000000
-> >  The vmemmap range is:  0xffffea0004000000 - 0xffffea0004080000
-> >
-> >  0xffffea0004000000 is the head vmemmap page (first page), while all th=
-e
-> others
-> >  are "tails".
-> >
-> >  We keep the following information in it:
-> >
-> >  - Head page:
-> >    - head->_refcount: number of sections
-> >    - head->private :  number of vmemmap pages
-> >  - Tail page:
-> >    - tail->freelist : pointer to the head
-> >
-> > This is done because it eases the work in cases where we have to comput=
-e
-> the
-> > number of vmemmap pages to know how much do we have to skip etc, and to
-> keep
-> > the right accounting to present_pages.
-> >
-> > When we want to hot-remove the range, we need to be careful because the
-> first
-> > pages of that range, are used for the memmap maping, so if we remove
-> those
-> > first, we would blow up while accessing the others later on.
-> > For that reason we keep the number of sections in head->_refcount, to k=
-now
-> how
-> > much do we have to defer the free up.
-> >
-> > Since in a hot-remove operation, sections are being removed sequentiall=
-y, the
-> > approach taken here is that every time we hit free_section_memmap(), we
-> decrease
-> > the refcount of the head.
-> > When it reaches 0, we know that we hit the last section, so we call
-> > vmemmap_free() for the whole memory-range in backwards, so we make
-> sure that
-> > the pages used for the mapping will be latest to be freed up.
-> >
-> > The accounting is as follows:
-> >
-> >  Vmemmap pages are charged to spanned/present_paged, but not to
-> manages_pages.
-> >
-> > I yet have to check a couple of things like creating an accounting item
-> > like VMEMMAP_PAGES to show in /proc/meminfo to ease to spot the
-> memory that
-> > went in there, testing Hyper-V/Xen to see how they react to the fact th=
-at
-> > we are using the beginning of the memory-range for our own purposes, an=
-d
-> to
-> > check the thing about gigantic pages + hotplug.
-> > I also have to check that there is no compilation/runtime errors when
-> > CONFIG_SPARSEMEM but !CONFIG_SPARSEMEM_VMEMMAP.
-> > But before that, I would like to get people's feedback about the overal=
-l
-> > design, and ideas/suggestions.
-> >
-> >
-> > [1] https://patchwork.kernel.org/cover/10685835/
-> >
-> > Michal Hocko (3):
-> >   mm, memory_hotplug: cleanup memory offline path
-> >   mm, memory_hotplug: provide a more generic restrictions for memory
-> >     hotplug
-> >   mm, sparse: rename kmalloc_section_memmap,
-> __kfree_section_memmap
-> >
-> > Oscar Salvador (1):
-> >   mm, memory_hotplug: allocate memmap from the added memory range
-> for
-> >     sparse-vmemmap
-> >
-> >  arch/arm64/mm/mmu.c            |  10 ++-
-> >  arch/ia64/mm/init.c            |   5 +-
-> >  arch/powerpc/mm/init_64.c      |   7 ++
-> >  arch/powerpc/mm/mem.c          |   6 +-
-> >  arch/s390/mm/init.c            |  12 ++-
-> >  arch/sh/mm/init.c              |   6 +-
-> >  arch/x86/mm/init_32.c          |   6 +-
-> >  arch/x86/mm/init_64.c          |  20 +++--
-> >  drivers/hv/hv_balloon.c        |   1 +
-> >  drivers/xen/balloon.c          |   1 +
-> >  include/linux/memory_hotplug.h |  42 ++++++++--
-> >  include/linux/memremap.h       |   2 +-
-> >  include/linux/page-flags.h     |  23 +++++
-> >  kernel/memremap.c              |   9 +-
-> >  mm/compaction.c                |   8 ++
-> >  mm/memory_hotplug.c            | 186
-> +++++++++++++++++++++++++++++------------
-> >  mm/page_alloc.c                |  47 ++++++++++-
-> >  mm/page_isolation.c            |  13 +++
-> >  mm/sparse.c                    | 124
-> +++++++++++++++++++++++++--
-> >  mm/util.c                      |   2 +
-> >  20 files changed, 431 insertions(+), 99 deletions(-)
-> >
->=20
+>
+> https://marc.info/?l=linux-mm&m=154955366113951&w=2
+>
+> [   85.744772] BUG kmemleak_object (Tainted: G    B        L   ): Freepointer
+> corrupt
+> [   85.744776]
+> -----------------------------------------------------------------------------
+> [   85.744776]
+> [   85.744788] INFO: Allocated in create_object+0x88/0x9c8 age=2564 cpu=153 pid=1
+> [   85.744797]  kmem_cache_alloc+0x39c/0x4ec
+> [   85.744803]  create_object+0x88/0x9c8
+> [   85.744811]  kmemleak_alloc+0xbc/0x180
+> [   85.744818]  kmem_cache_alloc+0x3ec/0x4ec
+> [   85.744825]  acpi_ut_create_generic_state+0x64/0xc4
+> [   85.744832]  acpi_ut_create_pkg_state+0x24/0x1c8
+> [   85.744840]  acpi_ut_walk_package_tree+0x268/0x564
+> [   85.744848]  acpi_ns_init_one_package+0x80/0x114
+> [   85.744856]  acpi_ns_init_one_object+0x214/0x3d8
+> [   85.744862]  acpi_ns_walk_namespace+0x288/0x384
+> [   85.744869]  acpi_walk_namespace+0xac/0xe8
+> [   85.744877]  acpi_ns_initialize_objects+0x50/0x98
+> [   85.744883]  acpi_load_tables+0xac/0x120
+> [   85.744891]  acpi_init+0x128/0x850
+> [   85.744898]  do_one_initcall+0x3ac/0x8c0
+> [   85.744906]  kernel_init_freeable+0xcdc/0x1104
+> [   85.744916] INFO: Freed in free_object_rcu+0x200/0x228 age=3 cpu=153 pid=0
+> [   85.744923]  free_object_rcu+0x200/0x228
+> [   85.744931]  rcu_process_callbacks+0xb00/0x12c0
+> [   85.744937]  __do_softirq+0x644/0xfd0
+> [   85.744944]  irq_exit+0x29c/0x370
+> [   85.744952]  __handle_domain_irq+0xe0/0x1c4
+> [   85.744958]  gic_handle_irq+0x1c4/0x3b0
+> [   85.744964]  el1_irq+0xb0/0x140
+> [   85.744971]  arch_cpu_idle+0x26c/0x594
+> [   85.744978]  default_idle_call+0x44/0x5c
+> [   85.744985]  do_idle+0x180/0x260
+> [   85.744993]  cpu_startup_entry+0x24/0x28
+> [   85.745001]  secondary_start_kernel+0x36c/0x440
+> [   85.745009] INFO: Slab 0x(____ptrval____) objects=91 used=0
+> fp=0x(____ptrval____) flags=0x17ffffffc000200
+> [   85.745015] INFO: Object 0x(____ptrval____) @offset=35296 fp=0x(____ptrval____)
+>
+> kkkkk4.226750] Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb
+> bb bb bb  ................
+> [   84.22[   84.226765] ORedzone (____ptrptrval____): 5a worker/223:0 Tainted: G
+>    B        L    5.0.0-rc6+ #36
+> [   84.226790] Hardware name: HPE Apollo 70             /C01_APACHE_MB         ,
+> BIOS L50_5.13_1.0.6 07/10/2018
+> [   84.226798] Workqueue: events free_obj_work
+> [   84.226802] Call trace:
+> [   84.226809]  dump_backtrace+0x0/0x450
+> [   84.226815]  show_stack+0x20/0x2c
+> [   84.226822]  __dump_stack+0x20/0x28
+> [   84.226828]  dump_stack+0xa0/0xfc
+> [   84.226835]  print_trailer+0x1a8/0x1bc
+> [   84.226842]  object_err+0x40/0x50
+> [   84.226848]  check_object+0x214/0x2b8
+> [   84.226854]  __free_slab+0x9c/0x31c
+> [   84.226860]  discard_slab+0x78/0xa8
+> [   84.226866]  kmem_cache_free+0x99c/0x9f0
+> [   84.226873]  free_obj_work+0x92c/0xa44
+> [   84.226879]  process_one_work+0x894/0x1280
+> [   84.226885]  worker_thread+0x684/0xa1c
+> [   84.226892]  kthread+0x2cc/0x2e8
+> [   84.226898]  ret_from_fork+0x10/0x18
+> [   84.229197]
 
