@@ -2,207 +2,225 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
+	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1AC4CC282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 22:15:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 35127C282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 22:37:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C8301222C7
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 22:15:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8301222C7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=rjwysocki.net
+	by mail.kernel.org (Postfix) with ESMTP id C6065222C9
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 22:37:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="nvTpPMBd";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="MzX8Xjeo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C6065222C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 66B9E8E0002; Tue, 12 Feb 2019 17:15:40 -0500 (EST)
+	id 525BF8E0002; Tue, 12 Feb 2019 17:37:26 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 61A6A8E0001; Tue, 12 Feb 2019 17:15:40 -0500 (EST)
+	id 483658E0001; Tue, 12 Feb 2019 17:37:26 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5318C8E0002; Tue, 12 Feb 2019 17:15:40 -0500 (EST)
+	id 3261C8E0002; Tue, 12 Feb 2019 17:37:26 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D818F8E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 17:15:39 -0500 (EST)
-Received: by mail-lf1-f70.google.com with SMTP id t198so37042lff.9
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 14:15:39 -0800 (PST)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 052988E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 17:37:26 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id p21so581934itb.8
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 14:37:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=M+b8SOJU1+cl5JPt766rHl72qOEi8rJKWmCs5irLPJ8=;
-        b=I/lPP1S2MxyYAgCkF0EdmjjAarFv5/E6PxHLCp56HXj1QqoUzPr3iCnEa4aRSzsSIr
-         VSXaA25v5UMF5+8C/QcaDf39LG7iX6a/x0GIubtE9eCWVINVZoQu6H5W9cCDO1Re8YPB
-         d3p1KenRkrN0SNIyVknHUJrnEJswdnv7zqCvSGaJBMmXCmzBLB1pGOCdcpWqWeFP9GUG
-         x03dM1k7oyqw4PVLzEbRyShYlr04uAK8wfwCnB2l46IbqZMhIDQNlI2PhZ+ayudgSOAo
-         Qg9ONhNXii8QsCqiYIFWO9ziY3zURwzW5Uf+GWK/OzXR1rDBDDAOu0rx2lThf9gECzn1
-         JTOg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjw@rjwysocki.net designates 79.96.170.134 as permitted sender) smtp.mailfrom=rjw@rjwysocki.net
-X-Gm-Message-State: AHQUAublrJpgr7OqiexHQORaSkvcidey6J0IIMzpacv+lTXbMilUCzEG
-	ZT0Drzd5sznQVCNfVgsGUSWODogml9LPaj018WTpeINxNGtB865YxNOHcmTc4WnCxnLSQk5Z/3s
-	GEGgy9ULqUnryNF57sQlnoo/jBAKMoOnfR3Arrgh6GMhfYAnsDDMy7bWyjGHHYEEpnA==
-X-Received: by 2002:ac2:54b4:: with SMTP id w20mr3997787lfk.24.1550009739288;
-        Tue, 12 Feb 2019 14:15:39 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib+wqJiNrEXI722NkheasO4M2sJZj6KATTuepdKOMaGHvmIPwsj/ORQZmV1Y64NxPt2hnmi
-X-Received: by 2002:ac2:54b4:: with SMTP id w20mr3997718lfk.24.1550009737548;
-        Tue, 12 Feb 2019 14:15:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550009737; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=vyd2Riu5JqEoe7zptWm5DHJeuaWaP9W9OsNnxF5qA9g=;
+        b=m88ttYJubWthFSuz/TQJrRYvBm4e90gX7Twhn6v2I7yWWQiHfWQbA5464R6ZRRSews
+         cqBMtveb9NL9CM0/VR5yw072b23+2asgzO2sTb81gUIt8YsbGg9vC3nTgtzcB8Dv7mQn
+         duGJlLjXo8/ZL56g+bQLF0PspydydRqwGfEjA6A7GqwSsK6ownL0HDyAluXlqzpRs6pn
+         EoDqjKoRqr2oNis/eBW2DiZKZ6EVT1QEz7VLA7askhNT6MBYLXkNK6donWEWDfzX7AHU
+         VFgsQrJgx12DTcX2BUUNFDq2/QZYeemHDUF6IsH8Cvq+sjHa2N2mwq3WA0niIAiImXAq
+         otnA==
+X-Gm-Message-State: AHQUAubZ3/iSgkKgtpyHdBf75GBtXTf3c6gT+gb1ekEBa9dfcxoKQ213
+	OIKG/IL1vLeoy3Ge9ZlM8abBhEqxdiJYjXDGtAcPfdrpN/LptWzCRgA6iisdGUhjBTWoWIHnDiV
+	uh9Tu5XGn0MhgFrwYiOVsHNubJg3unV5adTtyKyMhJj4vEaqQ4EbvHSoogeMzuzfT2Q==
+X-Received: by 2002:a02:2702:: with SMTP id g2mr3039124jaa.83.1550011045751;
+        Tue, 12 Feb 2019 14:37:25 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZa+9cV+HyyDYhD1QeWSgld/zhkI2BnxDF5/QoHk7MNDms7a3EaE5X/5ELiag3EiB5iWEQc
+X-Received: by 2002:a02:2702:: with SMTP id g2mr3039109jaa.83.1550011045106;
+        Tue, 12 Feb 2019 14:37:25 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550011045; cv=none;
         d=google.com; s=arc-20160816;
-        b=0aXlN0Oca5RzSjT00bGJ2w0B8ZVDRMtK+DwKVGGbyZiyre8ZGWbiVSZW3+YNm7G/C8
-         0iRVnL+HNmt4vyG8LupnNCAC55DWhgi+6pP1wdN2mTLgmH59q2/qeHhbUGcKFGG0HTjN
-         S/esFSOqoaIcZ/dMX93Vejugxp6QwLVXo+XvLhAHmj+qz2ApcAvuTND+YrJyBSbuF0b1
-         LXPAVtIJdHT7ulilYBplGOKwmFJNaQyoXjV/SC73hr0SGtKdTPJKgXGQirGDR26pywOE
-         N0IHq+XmzFHIJ4GYgyeGBg6LKcYYQFE0tmzAqY0Mxo8RnVBAtuJaNdO0AKKT9JWx3cFh
-         i3Jg==
+        b=Q2RNVL6Ed+Z7Qez400lBH96dxA7Nnn9oC6rF2piIlU51ZpFpKuFcLKtB52DvvqxMtB
+         ORvmGfio/3skwwzn4Zsl3LMv6RGHjeMT1kNHlzwqyabAGn//R03G2VeOeDiKcIexy7Zx
+         ydEIIM3E2HZpUKYJN8+YRstnIn3zzArBvYsmu5AhMX1Z8q+3FfdMsT8FCsU7xP0o68k0
+         0nndvN6Eszun7kduCCMCuED1EQvRt7Yamk3Q1V8H2U5oNm04irFlnmHBQ9lfa/NRi6Ze
+         5JETTJHtdjkSF4hd5g66vh5Whm+eouG6gqHubYtIlUTUPQXNEjN5gqV5nKi2/ud++3sE
+         AUww==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=M+b8SOJU1+cl5JPt766rHl72qOEi8rJKWmCs5irLPJ8=;
-        b=lW0bsw307dt7bfvp5Jm1zomgrsFz9P6V0AXEsG6SksQLkhRx7htyRZU1VoUR6UrZjY
-         tpQwOUt3bAbOZjCVUIRuj5fUrOV+JqFYrKQeNISv+rZHvUj8qnH5sAKCn1FPdqSOJmZK
-         hTLAtplrLZWAVZKhXB4SFpUvhGM7shQrbI1+ESRUIbCyKO4YU6Ixawq4H6/Ys00JvMX+
-         NoXKn5g8qqrb2CalSZpmFZjyEuNIW7ehUuHCABIOB49t8xRShPOgKTO4yUQK4loE6TEt
-         TcLx4811t1sNAiJD6TA/+8WHtc3JbYQSIToZiIGNda2wb/hz0xH2F9J0VcopuUn7pHZR
-         vaEg==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=vyd2Riu5JqEoe7zptWm5DHJeuaWaP9W9OsNnxF5qA9g=;
+        b=SndoCTDwl1bA/w7Kg4HwobmOawNih6/BXynKnsSlCWvkb5700UaMYGHtynvqiz995X
+         MHUAVXKJQSX3RT5eu5L8jbei4lCxsBz5/+dwdmx/UpP/qxGGEb4fEsEUvAIKqO48lYSW
+         zBZ2xJzJODDJtfmNovX2fMcFhI7uyXOH3P2yTBIfZO/aMhTyJ7D/uQYjYjvFyhSxubjt
+         2jfDl8lv1z6N0Zb06BVciylTa4tWqL/g5xLkguxMT0jD/oY2CJ98khg7CHoALAZs8gXn
+         qIl2TkvXniOc8+3V0JKrgNf5hroiIvV3oU6MLHpFFq0WdAcFjO0e3ah74FCU92CugLps
+         Gm7w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rjw@rjwysocki.net designates 79.96.170.134 as permitted sender) smtp.mailfrom=rjw@rjwysocki.net
-Received: from cloudserver094114.home.pl (cloudserver094114.home.pl. [79.96.170.134])
-        by mx.google.com with ESMTPS id q26-v6si14336132lji.163.2019.02.12.14.15.37
+       dkim=pass header.i=@fb.com header.s=facebook header.b=nvTpPMBd;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=MzX8Xjeo;
+       spf=pass (google.com: domain of prvs=7946053819=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=7946053819=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id s12si1520359itk.96.2019.02.12.14.37.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 12 Feb 2019 14:15:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of rjw@rjwysocki.net designates 79.96.170.134 as permitted sender) client-ip=79.96.170.134;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Feb 2019 14:37:25 -0800 (PST)
+Received-SPF: pass (google.com: domain of prvs=7946053819=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rjw@rjwysocki.net designates 79.96.170.134 as permitted sender) smtp.mailfrom=rjw@rjwysocki.net
-Received: from 79.184.254.36.ipv4.supernova.orange.pl (79.184.254.36) (HELO aspire.rjw.lan)
- by serwer1319399.home.pl (79.96.170.134) with SMTP (IdeaSmtpServer 0.83.183)
- id 1561d8aff315dca9; Tue, 12 Feb 2019 23:15:36 +0100
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-To: James Morse <james.morse@arm.com>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>, Borislav Petkov <bp@alien8.de>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, kvmarm@lists.cs.columbia.edu, Linux ARM <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>
-Subject: Re: [PATCH v8 00/26] APEI in_nmi() rework and SDEI wire-up
-Date: Tue, 12 Feb 2019 23:14:18 +0100
-Message-ID: <2507221.Jg8xd6amJ7@aspire.rjw.lan>
-In-Reply-To: <f561e55c-3560-6a5a-bd23-5d687227e257@arm.com>
-References: <20190129184902.102850-1-james.morse@arm.com> <CAJZ5v0ibUO7F=+_GBbhEz4nc0jtC=UaK+cOcLCBrXd2pfc0iLg@mail.gmail.com> <f561e55c-3560-6a5a-bd23-5d687227e257@arm.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
+       dkim=pass header.i=@fb.com header.s=facebook header.b=nvTpPMBd;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=MzX8Xjeo;
+       spf=pass (google.com: domain of prvs=7946053819=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=7946053819=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0044012.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1CMVrsh016248;
+	Tue, 12 Feb 2019 14:37:12 -0800
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=vyd2Riu5JqEoe7zptWm5DHJeuaWaP9W9OsNnxF5qA9g=;
+ b=nvTpPMBd441OpWXSVHEuN+gCvhYxXW6TOXcN3Og5Rfbvrjp7R31GYhU2icoLb0JwV4KL
+ vTgHXJJkhtw+33KHnRjgqCmgRYA+cupW6ZqEzvDhTXi4OuZYq25n/XUbHShz8sJnpYQp
+ gsgG0KK/aMw/qtvy9xNVECfqFHHFuCwJR8A= 
+Received: from maileast.thefacebook.com ([199.201.65.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2qm3yx0mg6-6
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Tue, 12 Feb 2019 14:37:12 -0800
+Received: from frc-hub01.TheFacebook.com (2620:10d:c021:18::171) by
+ frc-hub06.TheFacebook.com (2620:10d:c021:18::176) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1531.3; Tue, 12 Feb 2019 14:36:14 -0800
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (192.168.183.28)
+ by o365-in.thefacebook.com (192.168.177.71) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1531.3
+ via Frontend Transport; Tue, 12 Feb 2019 14:36:14 -0800
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=vyd2Riu5JqEoe7zptWm5DHJeuaWaP9W9OsNnxF5qA9g=;
+ b=MzX8XjeoSS/mOJWXaH+tcs5d5NM2LgsZwSsVs9nrzR0QIqcspSVPD85QFPLC1qYQJ54UslgR1ybh2NcexpAWRulj8NduZ3bL0I2dPhXmqpfS+d9GWgulx+e5+c1LqK/nePrNd8UWC8o1fQxR1MBioExNHLEfpq+i6KIr3OwdaaQ=
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
+ BYAPR15MB2581.namprd15.prod.outlook.com (20.179.155.138) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1601.19; Tue, 12 Feb 2019 22:36:12 +0000
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::ecc7:1a8c:289f:df92]) by BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::ecc7:1a8c:289f:df92%3]) with mapi id 15.20.1601.016; Tue, 12 Feb 2019
+ 22:36:12 +0000
+From: Roman Gushchin <guro@fb.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guroan@gmail.com>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        Matthew Wilcox
+	<willy@infradead.org>,
+        Kernel Team <Kernel-team@fb.com>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH v2 0/3] vmalloc enhancements
+Thread-Topic: [PATCH v2 0/3] vmalloc enhancements
+Thread-Index: AQHUwvxltqRw0KKPyU2GUxvyv29fa6XcgNAAgAAd04CAACIUgA==
+Date: Tue, 12 Feb 2019 22:36:12 +0000
+Message-ID: <20190212223605.GA15979@tower.DHCP.thefacebook.com>
+References: <20190212175648.28738-1-guro@fb.com>
+ <20190212184724.GA18339@cmpxchg.org>
+ <20190212123409.7ed5c34d68466dbd8b7013a3@linux-foundation.org>
+In-Reply-To: <20190212123409.7ed5c34d68466dbd8b7013a3@linux-foundation.org>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: MWHPR22CA0070.namprd22.prod.outlook.com
+ (2603:10b6:300:12a::32) To BYAPR15MB2631.namprd15.prod.outlook.com
+ (2603:10b6:a03:152::24)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:200::6:81f7]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 85195b05-3eaa-47cb-8b92-08d6913a7da5
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600110)(711020)(4605077)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7153060)(7193020);SRVR:BYAPR15MB2581;
+x-ms-traffictypediagnostic: BYAPR15MB2581:
+x-microsoft-exchange-diagnostics: 1;BYAPR15MB2581;20:dQf1VwJzz55wY9i0VOAgTSJnFMZpXBfS3mzqH7JtHlHsnaDUJhZokiEtLVnmrU0QVWe23AxJLi+BXKrPGmccuhd98UF/GzTLTtbscFjvB6n3a4bZpHot/zv+x3esv0FCE0IBN4tAcTvsP8+E7WtRybeMBtdX5tj7/Yo4rGo2inc=
+x-microsoft-antispam-prvs: <BYAPR15MB2581454574BF07E1548EEE0CBE650@BYAPR15MB2581.namprd15.prod.outlook.com>
+x-forefront-prvs: 0946DC87A1
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(346002)(376002)(366004)(136003)(396003)(39860400002)(199004)(189003)(25786009)(478600001)(305945005)(102836004)(9686003)(105586002)(71200400001)(71190400001)(54906003)(11346002)(6506007)(386003)(14454004)(52116002)(53936002)(76176011)(486006)(1076003)(46003)(86362001)(33656002)(97736004)(6512007)(81156014)(8676002)(81166006)(256004)(446003)(7736002)(14444005)(6116002)(68736007)(229853002)(4326008)(186003)(6246003)(106356001)(8936002)(316002)(476003)(33896004)(2906002)(6436002)(99286004)(6916009)(6486002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2581;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: aa8ahCiJ6DmxEsk4LSePdQie/shft7jIHQRdfJlKb+6oA7gZc/jzoXSyXo2HEcmpRw1YS5uwzF3iIFxuid4qYnEIl99LJGS0z5wr/SAQQ273xmgNJerJQNArNPExJylY8I0PG0Kx0HvOCXfWzjvgapDreWjqGWq9WAqFj9ig0g7f1HarXH4DwXMCutF5/JPkzfziTo4ze6uWie85BZRtATljK1e+lflR1mld7on2zRIMvfTbC2a+sroBA3w9my1Z/dGdsDPGVFQeVFPTwJuk+J9gnLyUtlwIizT1CNKvDuJ17heYgS8JEvVM/vm+kVbwEJpChwayMSGNEaORJvP/Sm404Q/ARuuRAykutvpf/iIZTP+ek9u4mK3VDz0QhWBM8Gt3yt2F7aHpafbSCxpF1P5fVKkgJrbgiMpv1smsbMY=
 Content-Type: text/plain; charset="us-ascii"
+Content-ID: <6518C4C42851354B946B2D8F8245DF97@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-MS-Exchange-CrossTenant-Network-Message-Id: 85195b05-3eaa-47cb-8b92-08d6913a7da5
+X-MS-Exchange-CrossTenant-originalarrivaltime: 12 Feb 2019 22:36:11.6712
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2581
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-12_12:,,
+ signatures=0
+X-Proofpoint-Spam-Reason: safe
+X-FB-Internal: Safe
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday, February 11, 2019 7:35:03 PM CET James Morse wrote:
-> Hi Rafael,
-> 
-> On 11/02/2019 11:05, Rafael J. Wysocki wrote:
-> > On Fri, Feb 8, 2019 at 3:13 PM James Morse <james.morse@arm.com> wrote:
-> >> On 08/02/2019 11:40, Rafael J. Wysocki wrote:
-> >>> On Tuesday, January 29, 2019 7:48:36 PM CET James Morse wrote:
-> >>>> This series aims to wire-up arm64's fancy new software-NMI notifications
-> >>>> for firmware-first RAS. These need to use the estatus-queue, which is
-> >>>> also needed for notifications via emulated-SError. All of these
-> >>>> things take the 'in_nmi()' path through ghes_copy_tofrom_phys(), and
-> >>>> so will deadlock if they can interact, which they might.
-> >>
-> >>>> Known issues:
-> >>>>  * ghes_copy_tofrom_phys() already takes a lock in NMI context, this
-> >>>>    series moves that around, and makes sure we never try to take the
-> >>>>    same lock from different NMIlike notifications. Since the switch to
-> >>>>    queued spinlocks it looks like the kernel can only be 4 context's
-> >>>>    deep in spinlock, which arm64 could exceed as it doesn't have a
-> >>>>    single architected NMI. This would be fixed by dropping back to
-> >>>>    test-and-set when the nesting gets too deep:
-> >>>>  lore.kernel.org/r/1548215351-18896-1-git-send-email-longman@redhat.com
-> >>>>
-> >>>> * Taking an NMI from a KVM guest on arm64 with VHE leaves HCR_EL2.TGE
-> >>>>   clear, meaning AT and TLBI point at the guest, and PAN/UAO are squiffy.
-> >>>>   Only TLBI matters for APEI, and this is fixed by Julien's patch:
-> >>>>  http://lore.kernel.org/r/1548084825-8803-2-git-send-email-julien.thierry@arm.com
-> >>>>
-> >>>> * Linux ignores the physical address mask, meaning it doesn't call
-> >>>>   memory_failure() on all the affected pages if firmware or hypervisor
-> >>>>   believe in a different page size. Easy to hit on arm64, (easy to fix too,
-> >>>>   it just conflicts with this series)
-> >>
-> >>
-> >>>> James Morse (26):
-> >>>>   ACPI / APEI: Don't wait to serialise with oops messages when
-> >>>>     panic()ing
-> >>>>   ACPI / APEI: Remove silent flag from ghes_read_estatus()
-> >>>>   ACPI / APEI: Switch estatus pool to use vmalloc memory
-> >>>>   ACPI / APEI: Make hest.c manage the estatus memory pool
-> >>>>   ACPI / APEI: Make estatus pool allocation a static size
-> >>>>   ACPI / APEI: Don't store CPER records physical address in struct ghes
-> >>>>   ACPI / APEI: Remove spurious GHES_TO_CLEAR check
-> >>>>   ACPI / APEI: Don't update struct ghes' flags in read/clear estatus
-> >>>>   ACPI / APEI: Generalise the estatus queue's notify code
-> >>>>   ACPI / APEI: Don't allow ghes_ack_error() to mask earlier errors
-> >>>>   ACPI / APEI: Move NOTIFY_SEA between the estatus-queue and NOTIFY_NMI
-> >>>>   ACPI / APEI: Switch NOTIFY_SEA to use the estatus queue
-> >>>>   KVM: arm/arm64: Add kvm_ras.h to collect kvm specific RAS plumbing
-> >>>>   arm64: KVM/mm: Move SEA handling behind a single 'claim' interface
-> >>>>   ACPI / APEI: Move locking to the notification helper
-> >>>>   ACPI / APEI: Let the notification helper specify the fixmap slot
-> >>>>   ACPI / APEI: Pass ghes and estatus separately to avoid a later copy
-> >>>>   ACPI / APEI: Make GHES estatus header validation more user friendly
-> >>>>   ACPI / APEI: Split ghes_read_estatus() to allow a peek at the CPER
-> >>>>     length
-> >>>>   ACPI / APEI: Only use queued estatus entry during
-> >>>>     in_nmi_queue_one_entry()
-> >>>>   ACPI / APEI: Use separate fixmap pages for arm64 NMI-like
-> >>>>     notifications
-> >>>>   mm/memory-failure: Add memory_failure_queue_kick()
-> >>>>   ACPI / APEI: Kick the memory_failure() queue for synchronous errors
-> >>>>   arm64: acpi: Make apei_claim_sea() synchronise with APEI's irq work
-> >>>>   firmware: arm_sdei: Add ACPI GHES registration helper
-> >>>>   ACPI / APEI: Add support for the SDEI GHES Notification type
-> >>
-> >>
-> >>> I can apply patches in this series up to and including patch [21/26].
-> >>>
-> >>> Do you want me to do that?
-> >>
-> >> 9-12, 17-19, 21 are missing any review/ack tags, so I wouldn't ask, but as
-> >> you're offering, yes please!
-> >>
-> >>
-> >>> Patch [22/26] requires an ACK from mm people.
-> >>>
-> >>> Patch [23/26] has a problem that randconfig can generate a configuration
-> >>> in which memory_failure_queue_kick() is not present, so it is necessary
-> >>> to add a CONFIG_MEMORY_FAILURE dependency somewhere for things to
-> >>> work (or define an empty stub for that function in case the symbol is
-> >>> not set).
-> >>
-> >> Damn-it! Thanks, I was just trying to work that report out...
-> >>
-> >>
-> >>> If patches [24-26/26] don't depend on the previous two, I can try to
-> >>> apply them either, so please let me know.
-> >>
-> >> 22-24 depend on each other. Merging 24 without the other two is no-improvement,
-> >> so I'd like them to be kept together.
-> >>
-> >> 25-26 don't depend on 22-24, but came later so that they weren't affected by the
-> >> same race.
-> >> (note to self: describe that in the cover letter next time.)
-> >>
-> >>
-> >> If I apply the tag's and Boris' changes and post a tested v9 as 1-21, 25-26, is
-> >> that easier, or does it cause extra work?
-> > 
-> > Actually, I went ahead and applied them, since I had the 1-21 ready anyway.
-> 
-> > I applied the Boris' fixups manually which led to a bit of rebasing,
-> > so please check my linux-next branch.
-> 
-> Looks okay to me, and I ran your branch through the POLL/SEA/SDEI tests I've
-> been doing for each version so far.
+On Tue, Feb 12, 2019 at 12:34:09PM -0800, Andrew Morton wrote:
+> On Tue, 12 Feb 2019 13:47:24 -0500 Johannes Weiner <hannes@cmpxchg.org> w=
+rote:
+>=20
+> > On Tue, Feb 12, 2019 at 09:56:45AM -0800, Roman Gushchin wrote:
+> > > The patchset contains few changes to the vmalloc code, which are
+> > > leading to some performance gains and code simplification.
+> > >=20
+> > > Also, it exports a number of pages, used by vmalloc(),
+> > > in /proc/meminfo.
+> > >=20
+> > > Patch (1) removes some redundancy on __vunmap().
+> > > Patch (2) separates memory allocation and data initialization
+> > >   in alloc_vmap_area()
+> > > Patch (3) adds vmalloc counter to /proc/meminfo.
+> > >=20
+> > > v2->v1:
+> > >   - rebased on top of current mm tree
+> > >   - switch from atomic to percpu vmalloc page counter
+> >=20
+> > I don't understand what prompted this change to percpu counters.
 
-Thanks for the confirmation!
+I *think*, I see some performance difference, but it's barely measurable
+in my setup. Also as I remember, Matthew was asking why not percpu here.
+So if everybody prefers a global atomic, I'm fine with either.
+
+> >=20
+> > All writers already write vmap_area_lock and vmap_area_list, so it's
+> > not really saving much. The for_each_possible_cpu() for /proc/meminfo
+> > on the other hand is troublesome.
+>=20
+> percpu_counters would fit here.  They have probably-unneeded locking
+> but I expect that will be acceptable.
+>=20
+> And they address the issues with for_each_possible_cpu() avoidance, CPU
+> hotplug and transient negative values.
+
+Not sure, because percpu_counters are based on dynamic percpu allocations,
+which are using vmalloc under the hood.
+
+Thanks!
 
