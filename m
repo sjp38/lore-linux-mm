@@ -6,72 +6,72 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9E53C282D7
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 03:00:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DB7DAC169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 03:00:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8163221773
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 03:00:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8163221773
+	by mail.kernel.org (Postfix) with ESMTP id A0D4521773
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 03:00:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0D4521773
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F25B88E01AA; Mon, 11 Feb 2019 22:00:14 -0500 (EST)
+	id 403A08E01AB; Mon, 11 Feb 2019 22:00:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EE0458E000E; Mon, 11 Feb 2019 22:00:14 -0500 (EST)
+	id 389E88E000E; Mon, 11 Feb 2019 22:00:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D9CD98E01AA; Mon, 11 Feb 2019 22:00:14 -0500 (EST)
+	id 252628E01AB; Mon, 11 Feb 2019 22:00:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ABB828E000E
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 22:00:14 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id 43so1263856qtz.8
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 19:00:14 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E65B78E000E
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 22:00:20 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id q81so14413756qkl.20
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 19:00:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=qkUM5PHc4fGG1Gos3msNI5iqIZh+zFOQoQJ/383TR9s=;
-        b=sdjvHejiP0nkAeGVgK9XgeuJ/FIGKWN/dmGY19BTb1pe9Fw7lCOeND3V7XYiyJPftd
-         VU1Mev2A+3JElhUNWGHCpGCBdEaaHW9ePGrIzadEt2K12B48Bc24uA9XDIbNMHIT+pfD
-         YriHXDFtVlaixvluSn/OxKkBGciQ0JGQS/fuI+ccf1z7JKXuw5Ts64mq2d0T1002ybya
-         z/l5Z8DrlHf4FeIkDTRFqYcEXZUmwXhfUFeEkTLyB8r6Dlahf2eE9SQMgeclietryPGW
-         EHhkoMF/W9GI7BeAcCmcpFQDBMdNzHQVUwtN4XWdKPvH0tpZBvsrnZxuLF4Uq22LtXSj
-         ZXow==
+        bh=9uk3Q0rvNodB/4vR1QWlwzCboqvJ+Wix/SOodhBg4sg=;
+        b=N60BbA7Ft+pA2sLzwWbGO1VOcvHh5eslyVNM0Wo5RzkdgJiuCr82LZxbu0qSnksPAa
+         OfSdZYMNG90pw2tlCEFOcKRpj4AjK4yDPZNTrN7SI55+W4gO3dQo9qyjLPD66ejVPMhu
+         tQkLFYXHrTrAZYzYGzt82gdEYcEbc3fr3LWA4fZlpM1TK3pv8lk7MP8xDHKGT1NJT4bh
+         npDHW60bhoBLXjyoMSCi7viDeMzoA5hNU1Lre6GBBqeS0ZvKIo2+mDCAYuNVY5TsyiNQ
+         0DoOZdfAGJNzCX9r0B6ILvEsRV3gIL/+Iws6y3urae5W/NgX5qagIEQdKYK5N7NmtuZD
+         gl0w==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZM0qcj9JDT2+7plBlX/OXMxTzMCFSgXwDJtWyUdiQZGa44lY4p
-	JyHLomXk9FJwNm8whK8F0i88xGFOJ8oGZjUjgBJtlsBltCZgTNWhNXwJ6yBE5z2mB44+t0qPB7W
-	OO7rb+gw46YsgatLRjGK7gBY4LN01Zsf1D3qjvz+ULt3QDqqtt0iKL929vjPRFKrCgg==
-X-Received: by 2002:a37:4f8f:: with SMTP id d137mr1042734qkb.325.1549940414483;
-        Mon, 11 Feb 2019 19:00:14 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbcfFLRbvg/QCGtab7H+r/o9UGq3YDeeqpX7ql9uFCnLPjqMHt4oGpYZ+18L/zg+9S6ZFZY
-X-Received: by 2002:a37:4f8f:: with SMTP id d137mr1042701qkb.325.1549940413931;
-        Mon, 11 Feb 2019 19:00:13 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549940413; cv=none;
+X-Gm-Message-State: AHQUAuaeVoYg6OqeSa0/puLUL2AM7dZY48Z082l0+yJUjwsjXAom08x2
+	2aoMUixYrOBpVRVKIOPRT64gdgH687/Atojs4TKU8bpxldKhBApRmCsi4Egys40HEJQhIz0iTQK
+	FTw1BrtsasCAPW+IVRQsUedPqMhjjsN1wZ+/NMQ12AvxydS4duRcrdlnhyToEQvDF+A==
+X-Received: by 2002:a37:b405:: with SMTP id d5mr1040290qkf.162.1549940420730;
+        Mon, 11 Feb 2019 19:00:20 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZgX/B0DN5fn4Zw9F+5CJK1C+WnaHcFnHERH/Lz0eHl8fEwCAwUtnCVgy/qEzFoHo6XblGm
+X-Received: by 2002:a37:b405:: with SMTP id d5mr1040262qkf.162.1549940420195;
+        Mon, 11 Feb 2019 19:00:20 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549940420; cv=none;
         d=google.com; s=arc-20160816;
-        b=uWE85TBTKZDHtoieCqWbPS6SwJOn3Al7JBOUQIuXxkvA1woj0vwYmm0aZ8YljsLdpB
-         t8YcFagtl3f3uEzIrUBlcJ5+xzRq4KyKR6bJi/kGRXouzqPY5Or9cYhuHJ2bD7TngbVU
-         GjMuiWCn3D5Hbg19aWiadGoH78J1bMHrqMlB5SP3ie2m7/KHYPDoc1QRbCXqqUnCTZbl
-         c1RHyioPFv0in34JfloZmX1DaomWfCjh7qf5ioBibOQipPodPfOcmv8cADz6wKsAS3Co
-         G7IJvTc1aekbh9/eGzZMrTczyA8FD4sCjiWagnfFNDmg87WGRednYMLNqWTVfQ7qm60B
-         eYDQ==
+        b=WWDO4m0W92jkZsfdpszCJJ6+OGz8zvOzgg+cKo4xhPByg20VeE0pZ81/UPAzJ7uOLy
+         QDxQDWe7TsJKKfeVanV6wZewOqWLKZmJYLNqTAvwfTtk0nfk35OXkPSUEFCSi+TXz9m2
+         D6U+tWDM/vIWGM0/Pbu4Hk8AOXHCC6FunybRi0QxiKeiGmxg/wwtHTxR+n8HABoZj0g0
+         fJqo4Idkj5xotZQWD/bjPrAd8raHmNHAwO1lDgoC9fxY6TrWZ8vnGq6Sp4+8dxZdCJbd
+         qY//kPIzx126eKZ1rOKZd1SGH4kKE+9nftrwWNhQy3PHxcpAxNr8Lmif3mEqzeOJdX0K
+         csyA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=qkUM5PHc4fGG1Gos3msNI5iqIZh+zFOQoQJ/383TR9s=;
-        b=tNcqTRE0ih+b8EMNGHvepmpIE+OO4CXQ3NEr4cV//rl1HVzT3Aqmsnjy4X50PzCzpu
-         DQVxVoF7CkrRYX0suP+xKTELSpkIQ77/3YfK4MlVhAM8JWYgKG/BIPrAh9ECIq89l37M
-         6NAV1Hp4cXNAfVXiQn29pGyglYONCYgkWDRhZvE1P0lKi4Klet99kXAg+V4wvQf6lh3o
-         v3vW3ewutTg03F762TikI5a+CX0qtLq2x7w6KHmyh4qBE4qYRJRKSX2vAdsB9Ac5RBkp
-         p5VblAX4aT6jRbtRRDKkUQp7LOIaFI5HcaxB5hZ76lqAvioAK6AMQ1+RWFtJY3Z1hmWC
-         Co0Q==
+        bh=9uk3Q0rvNodB/4vR1QWlwzCboqvJ+Wix/SOodhBg4sg=;
+        b=n/24NT2ci/vXKHI5m3Q74sDs6UZR9mSYjDoA6MTZaGz6HwT45yJmP+ckDUyUTkK3Vi
+         Xd4tvoNrOKIjqivE7dmhin9bI+0PmwtXZn+s8gCsocsPi/sij0ojCzCfGtA7v+WLTU6B
+         graWdYEmHclqQWsF2+lgdWJUuRz2bVlsqpHH8uMF86GSYkrXyQziFkw9JujK+CYNX8+O
+         vdXJNDOaxKnGabTAgZm40XPXwWXc3rXBm7/1uFKNFzxnVfsgkIVGxIsskr838DODzRG5
+         cwTVFFYHzW/3f/wkFGtxHyXRPOstx1Lbv8zZEBidGOgUOZsvjs3XxCdAJ7xHj0gXWQ5L
+         DkHw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u22si2181690qvf.20.2019.02.11.19.00.13
+        by mx.google.com with ESMTPS id q31si1005650qvf.108.2019.02.11.19.00.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 19:00:13 -0800 (PST)
+        Mon, 11 Feb 2019 19:00:20 -0800 (PST)
 Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
@@ -79,11 +79,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id C56DF9FDCC;
-	Tue, 12 Feb 2019 03:00:12 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 0FC7D85362;
+	Tue, 12 Feb 2019 03:00:19 +0000 (UTC)
 Received: from xz-x1.nay.redhat.com (dhcp-14-116.nay.redhat.com [10.66.14.116])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id CD0EF600C6;
-	Tue, 12 Feb 2019 02:59:58 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 15BC8600CC;
+	Tue, 12 Feb 2019 03:00:12 +0000 (UTC)
 From: Peter Xu <peterx@redhat.com>
 To: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
@@ -104,93 +104,113 @@ Cc: David Hildenbrand <david@redhat.com>,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: [PATCH v2 18/26] khugepaged: skip collapse if uffd-wp detected
-Date: Tue, 12 Feb 2019 10:56:24 +0800
-Message-Id: <20190212025632.28946-19-peterx@redhat.com>
+Subject: [PATCH v2 19/26] userfaultfd: introduce helper vma_find_uffd
+Date: Tue, 12 Feb 2019 10:56:25 +0800
+Message-Id: <20190212025632.28946-20-peterx@redhat.com>
 In-Reply-To: <20190212025632.28946-1-peterx@redhat.com>
 References: <20190212025632.28946-1-peterx@redhat.com>
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Tue, 12 Feb 2019 03:00:13 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Tue, 12 Feb 2019 03:00:19 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Don't collapse the huge PMD if there is any userfault write protected
-small PTEs.  The problem is that the write protection is in small page
-granularity and there's no way to keep all these write protection
-information if the small pages are going to be merged into a huge PMD.
+We've have multiple (and more coming) places that would like to find a
+userfault enabled VMA from a mm struct that covers a specific memory
+range.  This patch introduce the helper for it, meanwhile apply it to
+the code.
 
-The same thing needs to be considered for swap entries and migration
-entries.  So do the check as well disregarding khugepaged_max_ptes_swap.
-
+Suggested-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 Signed-off-by: Peter Xu <peterx@redhat.com>
 ---
- include/trace/events/huge_memory.h |  1 +
- mm/khugepaged.c                    | 23 +++++++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ mm/userfaultfd.c | 54 +++++++++++++++++++++++++++---------------------
+ 1 file changed, 30 insertions(+), 24 deletions(-)
 
-diff --git a/include/trace/events/huge_memory.h b/include/trace/events/huge_memory.h
-index dd4db334bd63..2d7bad9cb976 100644
---- a/include/trace/events/huge_memory.h
-+++ b/include/trace/events/huge_memory.h
-@@ -13,6 +13,7 @@
- 	EM( SCAN_PMD_NULL,		"pmd_null")			\
- 	EM( SCAN_EXCEED_NONE_PTE,	"exceed_none_pte")		\
- 	EM( SCAN_PTE_NON_PRESENT,	"pte_non_present")		\
-+	EM( SCAN_PTE_UFFD_WP,		"pte_uffd_wp")			\
- 	EM( SCAN_PAGE_RO,		"no_writable_page")		\
- 	EM( SCAN_LACK_REFERENCED_PAGE,	"lack_referenced_page")		\
- 	EM( SCAN_PAGE_NULL,		"page_null")			\
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index 4f017339ddb2..396c7e4da83e 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -29,6 +29,7 @@ enum scan_result {
- 	SCAN_PMD_NULL,
- 	SCAN_EXCEED_NONE_PTE,
- 	SCAN_PTE_NON_PRESENT,
-+	SCAN_PTE_UFFD_WP,
- 	SCAN_PAGE_RO,
- 	SCAN_LACK_REFERENCED_PAGE,
- 	SCAN_PAGE_NULL,
-@@ -1123,6 +1124,15 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 		pte_t pteval = *_pte;
- 		if (is_swap_pte(pteval)) {
- 			if (++unmapped <= khugepaged_max_ptes_swap) {
-+				/*
-+				 * Always be strict with uffd-wp
-+				 * enabled swap entries.  Please see
-+				 * comment below for pte_uffd_wp().
-+				 */
-+				if (pte_swp_uffd_wp(pteval)) {
-+					result = SCAN_PTE_UFFD_WP;
-+					goto out_unmap;
-+				}
- 				continue;
- 			} else {
- 				result = SCAN_EXCEED_SWAP_PTE;
-@@ -1142,6 +1152,19 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 			result = SCAN_PTE_NON_PRESENT;
- 			goto out_unmap;
- 		}
-+		if (pte_uffd_wp(pteval)) {
-+			/*
-+			 * Don't collapse the page if any of the small
-+			 * PTEs are armed with uffd write protection.
-+			 * Here we can also mark the new huge pmd as
-+			 * write protected if any of the small ones is
-+			 * marked but that could bring uknown
-+			 * userfault messages that falls outside of
-+			 * the registered range.  So, just be simple.
-+			 */
-+			result = SCAN_PTE_UFFD_WP;
-+			goto out_unmap;
-+		}
- 		if (pte_write(pteval))
- 			writable = true;
+diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+index 80bcd642911d..fefa81c301b7 100644
+--- a/mm/userfaultfd.c
++++ b/mm/userfaultfd.c
+@@ -20,6 +20,34 @@
+ #include <asm/tlbflush.h>
+ #include "internal.h"
  
++/*
++ * Find a valid userfault enabled VMA region that covers the whole
++ * address range, or NULL on failure.  Must be called with mmap_sem
++ * held.
++ */
++static struct vm_area_struct *vma_find_uffd(struct mm_struct *mm,
++					    unsigned long start,
++					    unsigned long len)
++{
++	struct vm_area_struct *vma = find_vma(mm, start);
++
++	if (!vma)
++		return NULL;
++
++	/*
++	 * Check the vma is registered in uffd, this is required to
++	 * enforce the VM_MAYWRITE check done at uffd registration
++	 * time.
++	 */
++	if (!vma->vm_userfaultfd_ctx.ctx)
++		return NULL;
++
++	if (start < vma->vm_start || start + len > vma->vm_end)
++		return NULL;
++
++	return vma;
++}
++
+ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
+ 			    pmd_t *dst_pmd,
+ 			    struct vm_area_struct *dst_vma,
+@@ -228,20 +256,9 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+ 	 */
+ 	if (!dst_vma) {
+ 		err = -ENOENT;
+-		dst_vma = find_vma(dst_mm, dst_start);
++		dst_vma = vma_find_uffd(dst_mm, dst_start, len);
+ 		if (!dst_vma || !is_vm_hugetlb_page(dst_vma))
+ 			goto out_unlock;
+-		/*
+-		 * Check the vma is registered in uffd, this is
+-		 * required to enforce the VM_MAYWRITE check done at
+-		 * uffd registration time.
+-		 */
+-		if (!dst_vma->vm_userfaultfd_ctx.ctx)
+-			goto out_unlock;
+-
+-		if (dst_start < dst_vma->vm_start ||
+-		    dst_start + len > dst_vma->vm_end)
+-			goto out_unlock;
+ 
+ 		err = -EINVAL;
+ 		if (vma_hpagesize != vma_kernel_pagesize(dst_vma))
+@@ -488,20 +505,9 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+ 	 * both valid and fully within a single existing vma.
+ 	 */
+ 	err = -ENOENT;
+-	dst_vma = find_vma(dst_mm, dst_start);
++	dst_vma = vma_find_uffd(dst_mm, dst_start, len);
+ 	if (!dst_vma)
+ 		goto out_unlock;
+-	/*
+-	 * Check the vma is registered in uffd, this is required to
+-	 * enforce the VM_MAYWRITE check done at uffd registration
+-	 * time.
+-	 */
+-	if (!dst_vma->vm_userfaultfd_ctx.ctx)
+-		goto out_unlock;
+-
+-	if (dst_start < dst_vma->vm_start ||
+-	    dst_start + len > dst_vma->vm_end)
+-		goto out_unlock;
+ 
+ 	err = -EINVAL;
+ 	/*
 -- 
 2.17.1
 
