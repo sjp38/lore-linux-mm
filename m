@@ -2,148 +2,204 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CEC51C282CE
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 09:54:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3FA2BC4151A
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 10:06:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 957692229E
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 09:54:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 957692229E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 06DE8218D8
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 10:06:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06DE8218D8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F5D68E001A; Tue, 12 Feb 2019 04:54:00 -0500 (EST)
+	id 819A98E0014; Tue, 12 Feb 2019 05:06:33 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 27E1E8E0017; Tue, 12 Feb 2019 04:54:00 -0500 (EST)
+	id 7C96B8E0012; Tue, 12 Feb 2019 05:06:33 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1721E8E001A; Tue, 12 Feb 2019 04:53:59 -0500 (EST)
+	id 6BA2D8E0014; Tue, 12 Feb 2019 05:06:33 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 99BD38E0017
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 04:53:59 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id 39so1948911edq.13
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 01:53:59 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 440188E0012
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 05:06:33 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id q33so2132284qte.23
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 02:06:33 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=VWzlY1PPQ+/67pm+/z2QkBDdCvOyUHPQEXMFpI7S4nM=;
-        b=hcC7eo+ZL0HTVGPMtI6OWkQc9DlNmTsqj11X5B7MzvFuF/UD6i+EXArbhoUBEjmVjY
-         tvvWNBvCH2ws7tttZD4Q4yqLHvtJrdOm6IWrx8vN5LxC1bs4C3aqKt/H7vu5ITq/tef6
-         3qe0PZR3tlKrvJ60TCbUVmaMJEXZeoaECIsRWwbevi3eseqypGe/p1LzVk8YaEMbm1ZU
-         OsGAXn81ZojqOknVEi/7r5PrZ3JH2cyz4KGTb3ZzqGpHIy2NC7tKY4IbLK2E/tc3qUHY
-         7oPbwMEofxyR9jimKXHeH9sYm2b7yaF0Bb8k/kMe5K5vGufENRioDkYRHHeIvTBIVrFE
-         x/ng==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAubQoSET062OCExuOlS6mXV6Gdxfdr09DIDKMvT02v3JzHtgcZCI
-	rT5xEZTQcOzxisCFdg0drRSGz0uXE00o+nDklndLWUN+dIuUYBxeAEu4iOG5zcUP2wteEPZik2Z
-	WY+4UfZj7cyuXNyf/iDuH7QR3cA8u3ci6Xfv1sM2CPq/Hob/x7rFnT/nsgujMxuB4lj6yzBBq+h
-	5cgwN65mEfFXGwmPC1Thw86ooL1UEMDTrF/72G9C+ISk95844h6OF9ph408Zrc5LyiAX0PiIgT5
-	ktCgyO1DxYYef1ravFCPH7+u5wAox21lbdRzzqsWSDB9Ssg7zneAtLtxtNWiU3kDixxC6gmh+iG
-	M4pp3yjjYcEH5bUjlWG0/dSpcL7K6OW7Ot1OvdFuMoeAFZzn21dqHlbTvKZ2Qqfv5HXYmaprZQ=
-	=
-X-Received: by 2002:a17:906:1cd7:: with SMTP id i23mr2060261ejh.150.1549965239136;
-        Tue, 12 Feb 2019 01:53:59 -0800 (PST)
-X-Received: by 2002:a17:906:1cd7:: with SMTP id i23mr2060216ejh.150.1549965238100;
-        Tue, 12 Feb 2019 01:53:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549965238; cv=none;
+        bh=IghLfPK9voST0pZo26DQoOKWqr6P65VBAWg+jOA7etM=;
+        b=WXfmw8NCUxhtx1Z4LjIc1a7WDOBF5aI53dr1/hDimRIuTFO6Dz34XTJ33njJF9KUq/
+         /mJP2tsTj4ty28VzOaLvITni88Wv0lMDJUvxB+4fyGmjDl9tUXZDL28uRjPysIFjED/U
+         GcLlbyf5CNVAUuS6hrZB9bzYCxMY08jG3z5NJfJG+nIimbwmeNYGXSdQ6ZzZrQwtCPJk
+         rghevn6cYZPCpu1Gv5PfBa2NkYfOZwzVZhTQSbq90mV46afLAU9EY1TulKwJxiMxEBD1
+         Rdacoyzu3IVT24MGD0WND482/ANZ0QfJBulhI/tsRTqF2Xm+oEeo6b8jmf/7Z2OPklsc
+         2yug==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of brouer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=brouer@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAuYFtANgjyKRd9YIOl8P1f+l7wRvm7nfWhCtnpX9JowbSHf5VAK2
+	5ilepAT76+LTm1ySOZWNuGwJpKCFhr76poHFTtJE8lO2Yj6HkXyMQVmQWu51zfqgrjbutTRAcug
+	jcV5PLdMg1TnJLI7Vw9yv2H2yr0hpa4lvugKZy8vfd/Elm/R6TW17KU9oxiNYvhFnUg==
+X-Received: by 2002:aed:3574:: with SMTP id b49mr2093080qte.235.1549965993020;
+        Tue, 12 Feb 2019 02:06:33 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IboMsCkfCY3LRGY0wHE0FPYjc0AhWyqNVk0NmG/J/stGAim7PUCUy/paluKj1c4dLMefaln
+X-Received: by 2002:aed:3574:: with SMTP id b49mr2093045qte.235.1549965992354;
+        Tue, 12 Feb 2019 02:06:32 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549965992; cv=none;
         d=google.com; s=arc-20160816;
-        b=XR/XdLluRXr560yUzDwaT89fyVKSaASeX39YFXUh6BZgU6YM64/yvTBAtuvMQrsbfe
-         LVEMkBsH8tMe/aRCXDjoBGJ7P89kErraGs+6w2/YOGwoRVLBQy8LXi09QcxiwJ/OBdLa
-         joTXwjwhwJ8j9AzXZBSfV8tCQegSXVELqaH1kki7su0y9CSh+p4InHc9/toZGZsnYaDv
-         2axBrSp9mO5MArhxJEaEmKbGSJSWqL7zcssHtvxjBzhSZiMmDHrKPKJ03JyEgGIjSFCb
-         iFGmz1dUfdWQSC+qagPaVXIev039kmwK39HU6BcKjEze7y+QXkAFls9AdtzkMkrK2VPa
-         Gf9Q==
+        b=njZlMMMDdp1WYBYC11XN4HjDgKU6MmCtk0obqNrorxVSMfWc6TpdmLh1+O7t9xZaUo
+         icRXVF/RDFEgt6LqEK4SK5ZDPiHyknqTKfWyxVj5llODfwNQWZOBr0kLtmIhH0EXh/Wo
+         0s9MJnPxUJACUmu5j0fY0bw6UUUuk4uzaOHpVxiZTLDFyG7JmQN8nnejelKChzTPonvQ
+         3/2BvjlIvEV557gWlyNIuTYrTq1Ywz24sCGfv/cr7GLWVG/2wKdY/WScOSsiLKbmu1Mj
+         SIcgdDukCVrEuyYasNHUjlWV0b9lRFHd56u0ShZSmZlmdUQh8LlbeBnEvrtgAQANZjTp
+         FWtA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=VWzlY1PPQ+/67pm+/z2QkBDdCvOyUHPQEXMFpI7S4nM=;
-        b=CjR32sk02XeKOOFL/G1kFFoO8UahqjaX3JVOgw1wI0TjzY7Y2KqBFguC1SrCxfPUBA
-         d/apsoGkTlauNqgNZfVJUGUU0eees8MWZnzN+pVrGLDMUum3qKpkDsa6+zFhJRH+748R
-         oF5SIAFBMcjqcTcAItrWJtC6VZmMeF5yEvHivmpGdxBRaUxd4SatlftNgdzJ1b5C65o3
-         lDCNgEbC6O1xKCSsz2wq9biQ+PhWquvxLJs9xSMjXiFNjTX3R3pH01q9m+G0/u2Emdnc
-         LWvI65ofTMVreqGBtBJ1eENlMmCBS5ev2PYT00Mzw+zKKlBpHXTPV5CiSpxjsrZPRwgS
-         6c5g==
+         :message-id:subject:cc:to:from:date;
+        bh=IghLfPK9voST0pZo26DQoOKWqr6P65VBAWg+jOA7etM=;
+        b=mkZkBfHeAt3KbGFhcXMTSInJCT3eOQukz5GPpnvMEAdZZj1TJpDuJ/TF5YkG6Z2UiP
+         ImT9hX34T5WGYxNEsNUF/BkEVusfmz0W7ZOvArUId0G3hd65M/aFiJ+mCQwiTHXI9zgK
+         oSJ0GzZQacYZQVcGf4quwp0q35uAwDzrsP+ndE86ELGRHsQkBVasK6v8ceZxq507YnFC
+         VLJjsAJdu1ZJuVPkOGNRdntzfo0vnRr6mby4bpetzr8LfQ1Oyd/N1dwEFsei5rIxxiWx
+         WFwfi94ambrZ3Uq3TkUHvorEmM2hQXDBFDaUXrx9//ZcNJx9qM66RIAmRAmH5+zhszjB
+         G+FQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q16sor3664568eja.28.2019.02.12.01.53.57
+       spf=pass (google.com: domain of brouer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=brouer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z32si2537560qtb.234.2019.02.12.02.06.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Feb 2019 01:53:58 -0800 (PST)
-Received-SPF: pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: AHgI3IaDbQaoXUddyxRvptd1P3Q3Dkjw68Kopy2TfOs74h07Sehg+Np/NzTW4ul6z23IsVehH0xtyg==
-X-Received: by 2002:a17:906:18f1:: with SMTP id e17mr2093489ejf.82.1549965237531;
-        Tue, 12 Feb 2019 01:53:57 -0800 (PST)
-Received: from tiehlicka.microfocus.com (prg-ext-pat.suse.com. [213.151.95.130])
-        by smtp.gmail.com with ESMTPSA id i14sm2876791ejy.25.2019.02.12.01.53.56
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 01:53:56 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-To: <linux-mm@kvack.org>
-Cc: Pingfan Liu <kernelfans@gmail.com>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	x86@kernel.org,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Tony Luck <tony.luck@intel.com>,
-	linuxppc-dev@lists.ozlabs.org,
-	linux-ia64@vger.kernel.org,
-	LKML <linux-kernel@vger.kernel.org>,
-	Ingo Molnar <mingo@elte.hu>,
-	Michal Hocko <mhocko@suse.com>
-Subject: [PATCH 2/2] mm: be more verbose about zonelist initialization
-Date: Tue, 12 Feb 2019 10:53:43 +0100
-Message-Id: <20190212095343.23315-3-mhocko@kernel.org>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190212095343.23315-1-mhocko@kernel.org>
-References: <20190212095343.23315-1-mhocko@kernel.org>
+        Tue, 12 Feb 2019 02:06:32 -0800 (PST)
+Received-SPF: pass (google.com: domain of brouer@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of brouer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=brouer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 2824C49DDD;
+	Tue, 12 Feb 2019 10:06:30 +0000 (UTC)
+Received: from carbon (ovpn-200-42.brq.redhat.com [10.40.200.42])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id CAD275C21A;
+	Tue, 12 Feb 2019 10:06:22 +0000 (UTC)
+Date: Tue, 12 Feb 2019 11:06:20 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: netdev@vger.kernel.org, linux-mm@kvack.org, Toke =?UTF-8?B?SMO4aWxh?=
+ =?UTF-8?B?bmQtSsO4cmdlbnNlbg==?= <toke@toke.dk>, Ilias Apalodimas
+ <ilias.apalodimas@linaro.org>, Saeed Mahameed <saeedm@mellanox.com>, Andrew
+ Morton <akpm@linux-foundation.org>, mgorman@techsingularity.net, "David S.
+ Miller" <davem@davemloft.net>, Tariq Toukan <tariqt@mellanox.com>,
+ brouer@redhat.com, Willem de Bruijn <willemdebruijn.kernel@gmail.com>
+Subject: Re: [net-next PATCH 1/2] mm: add dma_addr_t to struct page
+Message-ID: <20190212110620.5ceb5366@carbon>
+In-Reply-To: <20190211165551.GD12668@bombadil.infradead.org>
+References: <154990116432.24530.10541030990995303432.stgit@firesoul>
+	<154990120685.24530.15350136329514629029.stgit@firesoul>
+	<20190211165551.GD12668@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Tue, 12 Feb 2019 10:06:31 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On Mon, 11 Feb 2019 08:55:51 -0800
+Matthew Wilcox <willy@infradead.org> wrote:
 
-We have seen several bugs where zonelists have not been initialized
-properly and it is not really straightforward to track those bugs down.
-One way to help a bit at least is to dump zonelists of each node when
-they are (re)initialized.
+> On Mon, Feb 11, 2019 at 05:06:46PM +0100, Jesper Dangaard Brouer wrote:
+> > The page_pool API is using page->private to store DMA addresses.
+> > As pointed out by David Miller we can't use that on 32-bit architectures
+> > with 64-bit DMA
+> > 
+> > This patch adds a new dma_addr_t struct to allow storing DMA addresses
+> > 
+> > Signed-off-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> > Signed-off-by: Ilias Apalodimas <ilias.apalodimas@linaro.org>  
+> 
+> Reviewed-by: Matthew Wilcox <willy@infradead.org>
+> 
+> > +		struct {	/* page_pool used by netstack */
+> > +			/**
+> > +			 * @dma_addr: Page_pool need to store DMA-addr, and  
+> 
+> s/need/needs/
+> 
+> > +			 * cannot use @private, as DMA-mappings can be 64-bit  
+> 
+> s/DMA-mappings/DMA addresses/
+> 
+> > +			 * even on 32-bit Architectures.  
+> 
+> s/A/a/
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/page_alloc.c | 5 +++++
- 1 file changed, 5 insertions(+)
+Yes, that comments needs improvement. I think I'll use AKPMs suggestion.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2e097f336126..c30d59f803fb 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5259,6 +5259,11 @@ static void build_zonelists(pg_data_t *pgdat)
+
+> > +			 */
+> > +			dma_addr_t dma_addr; /* Shares area with @lru */  
+> 
+> It also shares with @slab_list, @next, @compound_head, @pgmap and
+> @rcu_head.  I think it's pointless to try to document which other fields
+> something shares space with; the places which do it are a legacy from
+> before I rearranged struct page last year.  Anyone looking at this should
+> now be able to see "Oh, this is a union, only use the fields which are
+> in the union for the type of struct page I have here".
+
+I agree, I'll strip that comment.
+
  
- 	build_zonelists_in_node_order(pgdat, node_order, nr_nodes);
- 	build_thisnode_zonelists(pgdat);
-+
-+	pr_info("node[%d] zonelist: ", pgdat->node_id);
-+	for_each_zone_zonelist(zone, z, &pgdat->node_zonelists[ZONELIST_FALLBACK], MAX_NR_ZONES-1)
-+		pr_cont("%d:%s ", zone_to_nid(zone), zone->name);
-+	pr_cont("\n");
- }
- 
- #ifdef CONFIG_HAVE_MEMORYLESS_NODES
+> Are the pages allocated from this API ever supposed to be mapped to
+> userspace?
+
+I would like to know what fields on struct-page we cannot touch if we
+want to keep this a possibility?
+
+That said, I hope we don't need to do this. But as I integrate this
+further into the netstack code, we might have to support this, or
+at-least release the page_pool "state" (currently only DMA-addr) before
+the skb_zcopy code path.  First iteration will not do zero-copy stuff,
+and later I'll coordinate with Willem how to add this, if needed.
+
+My general opinion is that if an end-user want to have pages mapped to
+userspace, then page_pool (MEM_TYPE_PAGE_POOL) is not the right choice,
+but instead use MEM_TYPE_ZERO_COPY (see enum xdp_mem_type).  We are
+generally working towards allowing NIC drivers to have a different
+memory type per RX-ring.
+
+
+> You also say in the documentation:
+> 
+>  * If no DMA mapping is done, then it can act as shim-layer that
+>  * fall-through to alloc_page.  As no state is kept on the page, the
+>  * regular put_page() call is sufficient.
+> 
+> I think this is probably a dangerous precedent to set.  Better to require
+> exactly one call to page_pool_put_page() (with the understanding that the
+> refcount may be elevated, so this may not be the final free of the page,
+> but the page will no longer be usable for its page_pool purpose).
+
+Yes, this actually how it is implemented today, and the comment should
+be improved.  Today __page_pool_put_page() in case of refcount is
+elevated do call __page_pool_clean_page() to release page page_pool
+state, and is in principle no longer "usable" for page_pool purposes.
+BUT I have considered removing this, as it might not fit how want to
+use the API. In our current RFC we found a need for (and introduced) a
+page_pool_unmap_page() call (that call __page_pool_clean_page()), when
+driver hits cases where the code path doesn't have a call-back to
+page_pool_put_page() but instead end-up calling put_page().
+
 -- 
-2.20.1
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
