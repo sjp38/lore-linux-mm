@@ -2,207 +2,304 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 20D2EC282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 17:18:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E177CC282CE
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 17:20:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D2BD6222C0
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 17:18:38 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="cAWqpD7p"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D2BD6222C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 9D8A5222C0
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 17:20:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D8A5222C0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9E05F8E0003; Tue, 12 Feb 2019 12:18:38 -0500 (EST)
+	id 4D5A68E0004; Tue, 12 Feb 2019 12:20:26 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 98FB98E0001; Tue, 12 Feb 2019 12:18:38 -0500 (EST)
+	id 4859D8E0001; Tue, 12 Feb 2019 12:20:26 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 857DF8E0003; Tue, 12 Feb 2019 12:18:38 -0500 (EST)
+	id 39C6F8E0004; Tue, 12 Feb 2019 12:20:26 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EB068E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 12:18:38 -0500 (EST)
-Received: by mail-yb1-f198.google.com with SMTP id 83so91305ybz.5
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 09:18:38 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EA81A8E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 12:20:25 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id q20so2689318pls.4
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 09:20:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=VmxsxuHb/nNuCt+dhukfv0Psv77KAOzs+jgh6bmnEkg=;
-        b=ikDapgygian3zlOaaPDP4hvjsK8J9rXa/JLrlwAnaAvQqDdiRn2v64fL2q4qux3zns
-         PoRLxBSx+fVu0Qr3xQVEitnsisc+T7FM3q4JKHdIL85hdo1hywqYDwnaBLQDKqSfwOSq
-         rQBPHlBJQZMkc3uuIP5wwE7Txx6tvrr8JUUceO7pFeTqulkluRx0tf3dqmc3psWI6ZAU
-         2s/UgDKlhQTM4x1i8EW8fnZOB9o4H41kAA77EZCWU/X/XfWLAT6RWxMQiqVStew/PT6u
-         gaFJJZfQAbRFZkeyezD2dk30y4zTBhFfdDTIp3ooXu9gfS3w8YupcO8rf30DTxchv0of
-         n01Q==
-X-Gm-Message-State: AHQUAuYd9RNLHD0+agoA+JhdqsqNpTcGLXftHjMl+WUG+yLLiQba7sVS
-	ihRXra4kTrJR7MooxOnMBevNjo6q2fHE0NSEktKxD+Dp1QNVk/Qt7GfzbH2oQV3bn4a20RBthT0
-	2eAFo54d/7AvjLgv6exXdXGhBlJnqsXiuoBeviptpxivauZJ4DJ9stU6NykZRj2npJg==
-X-Received: by 2002:a25:d6ce:: with SMTP id n197mr3753984ybg.313.1549991918054;
-        Tue, 12 Feb 2019 09:18:38 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbJDPjn4F2beTxe3b3J/gtrC1vzwbPVKuEtgZdxi1GuUn/uc616G5CSJe/lC2XVzeEfNoNs
-X-Received: by 2002:a25:d6ce:: with SMTP id n197mr3753921ybg.313.1549991917349;
-        Tue, 12 Feb 2019 09:18:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549991917; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=x9UTPLTa8dCUVWJRiKQvzNuVzgwlcxyp2SfRhYbH69o=;
+        b=mN79JD0t6aDeJvyuOkU46i4lvY9Zf8yFavfDx9YtW+edCM2sLBtOjXC+fJrnRS90Ew
+         3XVMadzGhEH8ajo5E0T0Ql+GwxHcrLwImMUm/cQahJn67FB1VTCjZyHuS7qavgpM7ort
+         VNDgVVQt3aGChAi4ElDb7mWX/7wpQAscJWBfUVyNhpQ9UGlNaVHQdQfGFJqJtJ0SQo9Q
+         3Jz9CnFP5KifdiBXMmwjCYHQ7CGgSJH30fhsSIc/0k/WDYpzE0IQGI8ccds5pd1qWClW
+         iTRzUdgn2Xw1FzQDHUpgflQuLoslU2M1L47siMO90I8P2C2446HCeTHsncj/3Q8ytV38
+         14Kw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuYytF5OSsJEQ/9Ia9epTOTxS5ejeEOj+6LeIbrzUdjq4tD2n9cW
+	Wq8ZWI9uPOwyr8XtApyE6w1l42+pEtgajlDUaEODY9iSZAqKOA258K54DwknuejNVEFSc0Yn+Fp
+	uaNZhGKpThz2hJWgm2sKvQQmHakORaZNSXOrzIO4USZFdB3INHt//7zzxwTE09R10Hg==
+X-Received: by 2002:a63:4005:: with SMTP id n5mr4496909pga.86.1549992025600;
+        Tue, 12 Feb 2019 09:20:25 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbGlTBL0vUa2n2t5Xv0v5cR5+GwzpJLGPAGlGxTbfZJm3brH9ziyxXulmUmr9fiFzBqWZh8
+X-Received: by 2002:a63:4005:: with SMTP id n5mr4496841pga.86.1549992024572;
+        Tue, 12 Feb 2019 09:20:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549992024; cv=none;
         d=google.com; s=arc-20160816;
-        b=QWjT3GCZGbEsq66VQ8wUSy5z1RWZXuEH/aUCvK7FI8/Hlgpd0TpXB/BugzTUsS1fFq
-         8hcuE7Cqiz+cSYoOZleTUM3Hn6qv0IMgiGyVKLFkhIUOsegPR2EP54FKoz+2l58Mr8Vj
-         miJzBe3hwssx3Ebl6/PBA1e2zfO0LCSDwHcJtbFHxiPIFXE3dFs9l9z1vPZIcd/koZos
-         S4c/IpYK72rN/8uc7m5Z76Yf1yyWk/GcOzokbGYCkJlGcyKRwIP9fe+gz7YntEOVFo4O
-         AKA/otFlDSlvE0MKk5t7RSCZ2rCFrwYEQukDilM6PgrRy8EpHa/v7qQ90NnKsSbsRkrc
-         Lffg==
+        b=FqS7DPi2Xp0ljCOaTNkca8QH3yxKU+aImvgCprbCNw9yl1GBqlN41180N/v9SbhnTw
+         qujZPNEX65jr4iO0eU/+S4rrwKwDbhFGmN7DUkdhLa/P7NP+2lPiQvBvUA1G16UkIPkG
+         1Ws02wQwAUzRIQFRFwQ8CcgLYGTAHKhLArgtPMFo1qQqx1kTYkDV4L782lOLBbxm7Jg6
+         sGVz1WUPTfnHKscPgyxXUG/rZ9ErHlBWgzTQ8eqYoWEpihBd62uACsyXp7MVSYvALV+1
+         9Ksh+MeFBRMKfIXmRvKpLOUwolkfxmEGjKMLXbjTXIAG7x9YGZjyAS+6EcD/+23ewBSd
+         /8uQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=VmxsxuHb/nNuCt+dhukfv0Psv77KAOzs+jgh6bmnEkg=;
-        b=YSdwKCEbM/3JaN7KpGb8PlDKcANAL7Z/Td0HDqAbLvb9ydFWSpcq5IOHMgNb4+b4ap
-         oWViWIdVcTOEabu5Fw4BlVbrwIm2sQAgfYj9iWImbwxPfNRrYhuSL9ARkriR/EMpm8mw
-         kXGBJqdx7w1mFiCwgMc7cl2/kpU5lz7UIi/+9MmVgP5rzlAKeHVIGaec6iO1e/9eir+K
-         469/eOeHE1Y7ItqqGcAG1ZbGkkGiPwZ9fLhJWnMECIKoF3SFoLNpUaUnxz7F2MZhpPG9
-         y6H6n+ijdnK1M5KaHB3+M9ZSy/5EaWOvUEtQC5v1EXbc3mIORInOUQHTYiVAt3ecPm7r
-         QOeQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=x9UTPLTa8dCUVWJRiKQvzNuVzgwlcxyp2SfRhYbH69o=;
+        b=FAG921ZVuPZs8oIwCupxohkcKMRnnwaslG1H//sAJKxns5//sDp0e/GRZ2IcJjJJtU
+         ppJcBocI/LDyET3FYgNp1zWtWuIPvJfqqNPc9QoMKYXpxNau/IEubS/2bm7gopBjERmj
+         V51xFiMrxwd6LN2AJ85/LZXa1zE1Vd9lyDHU22gNHr1v23jgeD8zhd5JrrT7axlTWClL
+         3Sm/Sz7yFqFAPJ6AcKlU5bM/jT/9opxK6nQWeNmL11kQtqAyEwGnUW0yQCWJhPDj81Hd
+         2hPUZBaCDdi5hiL5LplkQCT2kWHeIgmDRlSn59SFgIWjoqUmFPLvn8tPzzL1SAVzHcQ+
+         38dw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=cAWqpD7p;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id q67si6503873ywe.151.2019.02.12.09.18.37
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id h7si11177797pgp.49.2019.02.12.09.20.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 09:18:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Tue, 12 Feb 2019 09:20:24 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=cAWqpD7p;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1CH9Ntn177072;
-	Tue, 12 Feb 2019 17:18:25 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=VmxsxuHb/nNuCt+dhukfv0Psv77KAOzs+jgh6bmnEkg=;
- b=cAWqpD7pHuas7OAJKc8a16t6RRPPDvFeCUPvPLZSU1DV0m2niD9UyXU3JG8AYTXb3UxD
- cosODj0IWQ1vAiERykYUlPqGoibt95GRbbgdi4RD4ABybKDbmwmFElonnj8b4ddSz/QK
- 6nleplkWrOjhJNgKzwYLwOHDzLMxbXqaBJoPzKcoD/svMYyNKKM/JoQzurdj0tdkZKl8
- HDDbK5VE+Z/Zj+rEul6f03Zbw6ns6ncUl17Yj3kLDMrDh4Fh7x3jWua+z1d3wCExktWc
- EJfg2BAMbjN87Ls8vB3umLoTeN1KX8AHFvGt7O1pcQtaYUJIMPmAjNOUFJUjqd0m/RDL ww== 
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by aserp2130.oracle.com with ESMTP id 2qhre5da28-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 12 Feb 2019 17:18:25 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x1CHIOKL026587
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 12 Feb 2019 17:18:24 GMT
-Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1CHIKOJ029838;
-	Tue, 12 Feb 2019 17:18:20 GMT
-Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 12 Feb 2019 09:18:20 -0800
-Date: Tue, 12 Feb 2019 12:18:40 -0500
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-To: Christopher Lameter <cl@linux.com>
-Cc: Alexey Kardashevskiy <aik@ozlabs.ru>,
-        Daniel Jordan <daniel.m.jordan@oracle.com>, jgg@ziepe.ca,
-        akpm@linux-foundation.org, dave@stgolabs.net, jack@suse.cz,
-        linux-mm@kvack.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
-        linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
-        linux-kernel@vger.kernel.org, alex.williamson@redhat.com,
-        paulus@ozlabs.org, benh@kernel.crashing.org, mpe@ellerman.id.au,
-        hao.wu@intel.com, atull@kernel.org, mdf@kernel.org
-Subject: Re: [PATCH 2/5] vfio/spapr_tce: use pinned_vm instead of locked_vm
- to account pinned pages
-Message-ID: <20190212171839.env4rnjwdjyips6z@ca-dmjordan1.us.oracle.com>
-References: <20190211224437.25267-1-daniel.m.jordan@oracle.com>
- <20190211224437.25267-3-daniel.m.jordan@oracle.com>
- <ee4d14db-05c3-6208-503c-16e287fa78eb@ozlabs.ru>
- <01000168e29daf0a-cb3a9394-e3dd-4d88-ad3c-31df1f9ec052-000000@email.amazonses.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <01000168e29daf0a-cb3a9394-e3dd-4d88-ad3c-31df1f9ec052-000000@email.amazonses.com>
-User-Agent: NeoMutt/20180323-268-5a959c
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9165 signatures=668683
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=18 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902120122
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga006.jf.intel.com ([10.7.209.51])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Feb 2019 09:20:23 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,362,1544515200"; 
+   d="scan'208";a="115638066"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga006.jf.intel.com with ESMTP; 12 Feb 2019 09:20:23 -0800
+Message-ID: <0963dd4b3256265160d7104e256aa606fb3f9519.camel@linux.intel.com>
+Subject: Re: [RFC PATCH 4/4] mm: Add merge page notifier
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: Aaron Lu <aaron.lwe@gmail.com>, Alexander Duyck
+ <alexander.duyck@gmail.com>,  linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, kvm@vger.kernel.org
+Cc: rkrcmar@redhat.com, x86@kernel.org, mingo@redhat.com, bp@alien8.de, 
+ hpa@zytor.com, pbonzini@redhat.com, tglx@linutronix.de,
+ akpm@linux-foundation.org
+Date: Tue, 12 Feb 2019 09:20:23 -0800
+In-Reply-To: <ead37c94-4703-170f-0ff4-1bb171556775@gmail.com>
+References: <20190204181118.12095.38300.stgit@localhost.localdomain>
+	 <20190204181558.12095.83484.stgit@localhost.localdomain>
+	 <5e6d22b2-0f14-43eb-846b-a940e629c02b@gmail.com>
+	 <a5b698b0f85667dba9b949dcb6e65a0d806669de.camel@linux.intel.com>
+	 <ead37c94-4703-170f-0ff4-1bb171556775@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.5 (3.28.5-2.fc28) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 04:50:11PM +0000, Christopher Lameter wrote:
-> On Tue, 12 Feb 2019, Alexey Kardashevskiy wrote:
+On Tue, 2019-02-12 at 10:09 +0800, Aaron Lu wrote:
+> On 2019/2/11 23:58, Alexander Duyck wrote:
+> > On Mon, 2019-02-11 at 14:40 +0800, Aaron Lu wrote:
+> > > On 2019/2/5 2:15, Alexander Duyck wrote:
+> > > > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > > > 
+> > > > Because the implementation was limiting itself to only providing hints on
+> > > > pages huge TLB order sized or larger we introduced the possibility for free
+> > > > pages to slip past us because they are freed as something less then
+> > > > huge TLB in size and aggregated with buddies later.
+> > > > 
+> > > > To address that I am adding a new call arch_merge_page which is called
+> > > > after __free_one_page has merged a pair of pages to create a higher order
+> > > > page. By doing this I am able to fill the gap and provide full coverage for
+> > > > all of the pages huge TLB order or larger.
+> > > > 
+> > > > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > > > ---
+> > > >  arch/x86/include/asm/page.h |   12 ++++++++++++
+> > > >  arch/x86/kernel/kvm.c       |   28 ++++++++++++++++++++++++++++
+> > > >  include/linux/gfp.h         |    4 ++++
+> > > >  mm/page_alloc.c             |    2 ++
+> > > >  4 files changed, 46 insertions(+)
+> > > > 
+> > > > diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
+> > > > index 4487ad7a3385..9540a97c9997 100644
+> > > > --- a/arch/x86/include/asm/page.h
+> > > > +++ b/arch/x86/include/asm/page.h
+> > > > @@ -29,6 +29,18 @@ static inline void arch_free_page(struct page *page, unsigned int order)
+> > > >  	if (static_branch_unlikely(&pv_free_page_hint_enabled))
+> > > >  		__arch_free_page(page, order);
+> > > >  }
+> > > > +
+> > > > +struct zone;
+> > > > +
+> > > > +#define HAVE_ARCH_MERGE_PAGE
+> > > > +void __arch_merge_page(struct zone *zone, struct page *page,
+> > > > +		       unsigned int order);
+> > > > +static inline void arch_merge_page(struct zone *zone, struct page *page,
+> > > > +				   unsigned int order)
+> > > > +{
+> > > > +	if (static_branch_unlikely(&pv_free_page_hint_enabled))
+> > > > +		__arch_merge_page(zone, page, order);
+> > > > +}
+> > > >  #endif
+> > > >  
+> > > >  #include <linux/range.h>
+> > > > diff --git a/arch/x86/kernel/kvm.c b/arch/x86/kernel/kvm.c
+> > > > index 09c91641c36c..957bb4f427bb 100644
+> > > > --- a/arch/x86/kernel/kvm.c
+> > > > +++ b/arch/x86/kernel/kvm.c
+> > > > @@ -785,6 +785,34 @@ void __arch_free_page(struct page *page, unsigned int order)
+> > > >  		       PAGE_SIZE << order);
+> > > >  }
+> > > >  
+> > > > +void __arch_merge_page(struct zone *zone, struct page *page,
+> > > > +		       unsigned int order)
+> > > > +{
+> > > > +	/*
+> > > > +	 * The merging logic has merged a set of buddies up to the
+> > > > +	 * KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER. Since that is the case, take
+> > > > +	 * advantage of this moment to notify the hypervisor of the free
+> > > > +	 * memory.
+> > > > +	 */
+> > > > +	if (order != KVM_PV_UNUSED_PAGE_HINT_MIN_ORDER)
+> > > > +		return;
+> > > > +
+> > > > +	/*
+> > > > +	 * Drop zone lock while processing the hypercall. This
+> > > > +	 * should be safe as the page has not yet been added
+> > > > +	 * to the buddy list as of yet and all the pages that
+> > > > +	 * were merged have had their buddy/guard flags cleared
+> > > > +	 * and their order reset to 0.
+> > > > +	 */
+> > > > +	spin_unlock(&zone->lock);
+> > > > +
+> > > > +	kvm_hypercall2(KVM_HC_UNUSED_PAGE_HINT, page_to_phys(page),
+> > > > +		       PAGE_SIZE << order);
+> > > > +
+> > > > +	/* reacquire lock and resume freeing memory */
+> > > > +	spin_lock(&zone->lock);
+> > > > +}
+> > > > +
+> > > >  #ifdef CONFIG_PARAVIRT_SPINLOCKS
+> > > >  
+> > > >  /* Kick a cpu by its apicid. Used to wake up a halted vcpu */
+> > > > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> > > > index fdab7de7490d..4746d5560193 100644
+> > > > --- a/include/linux/gfp.h
+> > > > +++ b/include/linux/gfp.h
+> > > > @@ -459,6 +459,10 @@ static inline struct zonelist *node_zonelist(int nid, gfp_t flags)
+> > > >  #ifndef HAVE_ARCH_FREE_PAGE
+> > > >  static inline void arch_free_page(struct page *page, int order) { }
+> > > >  #endif
+> > > > +#ifndef HAVE_ARCH_MERGE_PAGE
+> > > > +static inline void
+> > > > +arch_merge_page(struct zone *zone, struct page *page, int order) { }
+> > > > +#endif
+> > > >  #ifndef HAVE_ARCH_ALLOC_PAGE
+> > > >  static inline void arch_alloc_page(struct page *page, int order) { }
+> > > >  #endif
+> > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > > index c954f8c1fbc4..7a1309b0b7c5 100644
+> > > > --- a/mm/page_alloc.c
+> > > > +++ b/mm/page_alloc.c
+> > > > @@ -913,6 +913,8 @@ static inline void __free_one_page(struct page *page,
+> > > >  		page = page + (combined_pfn - pfn);
+> > > >  		pfn = combined_pfn;
+> > > >  		order++;
+> > > > +
+> > > > +		arch_merge_page(zone, page, order);
+> > > 
+> > > Not a proper place AFAICS.
+> > > 
+> > > Assume we have an order-8 page being sent here for merge and its order-8
+> > > buddy is also free, then order++ became 9 and arch_merge_page() will do
+> > > the hint to host on this page as an order-9 page, no problem so far.
+> > > Then the next round, assume the now order-9 page's buddy is also free,
+> > > order++ will become 10 and arch_merge_page() will again hint to host on
+> > > this page as an order-10 page. The first hint to host became redundant.
+> > 
+> > Actually the problem is even worse the other way around. My concern was
+> > pages being incrementally freed.
+> > 
+> > With this setup I can catch when we have crossed the threshold from
+> > order 8 to 9, and specifically for that case provide the hint. This
+> > allows me to ignore orders above and below 9.
 > 
-> > Now it is 3 independent accesses (actually 4 but the last one is
-> > diagnostic) with no locking around them. Why do not we need a lock
-> > anymore precisely? Thanks,
+> OK, I see, you are now only hinting for pages with order 9, not above.
+
+Right.
+
+> > If I move the hint to the spot after the merging I have no way of
+> > telling if I have hinted the page as a lower order or not. As such I
+> > will hint if it is merged up to orders 9 or greater. So for example if
+> > it merges up to order 9 and stops there then done_merging will report
+> > an order 9 page, then if another page is freed and merged with this up
+> > to order 10 you would be hinting on order 10. By placing the function
+> > here I can guarantee that no more than 1 hint is provided per 2MB page.
 > 
-> Updating a regular counter is racy and requires a lock. It was converted
-> to be an atomic which can be incremented without a race.
+> So what's the downside of hinting the page as order-10 after merge
+> compared to as order-9 before the merge? I can see the same physical
+> range can be hinted multiple times, but the total hint number is the
+> same: both are 2 - in your current implementation, we hint twice for
+> each of the 2 order-9 pages; alternatively, we can provide hint for one
+> order-9 page and the merged order-10 page. I think the cost of
+> hypercalls are the same? Is it that we want to ease the host side
+> madvise(DONTNEED) since we can avoid operating the same range multiple
+> times?
 
-Yes, though Alexey may have meant that the multiple reads of the atomic in
-decrement_pinned_vm are racy.  It only matters when there's a bug that would
-make the counter go negative, but it's there.
+The cost for the hypercall overhead is the same, but I would think you
+are in the hypercall a bit longer for the order 10 page because you are
+having to process both order 9 pages in order clear them. In my mind
+doing it that way you end up having to do 50% more madvise work. For a
+THP based setup it probably isn't an issue, but I would think if we are
+having to invalidate things at the 4K page level that cost could add up
+real quick.
 
-And FWIW the debug print in try_increment_pinned_vm is also racy.
+I could probably try launching the guest with THP disabled in QEMU to
+verify if the difference is visible or not.
 
-This fixes all that.  It doesn't try to correct the negative pinned_vm as the
-old code did because it's already a bug and adjusting the value by the negative
-amount seems to do nothing but make debugging harder.
+> The reason I asked is, if we can move the arch_merge_page() after
+> done_merging tag, we can theoretically make fewer function calls on free
+> path for the guest. Maybe not a big deal, I don't know...
 
-If it's ok, I'll respin the whole series this way (another point for common
-helper)
+I suspect it really isn't that big a deal. The two functions are
+essentially inline and only one will ever make use of the hypercall.
 
-diff --git a/drivers/vfio/vfio_iommu_spapr_tce.c b/drivers/vfio/vfio_iommu_spapr_tce.c
-index f47e020dc5e4..b79257304de6 100644
---- a/drivers/vfio/vfio_iommu_spapr_tce.c
-+++ b/drivers/vfio/vfio_iommu_spapr_tce.c
-@@ -53,25 +53,24 @@ static long try_increment_pinned_vm(struct mm_struct *mm, long npages)
- 		atomic64_sub(npages, &mm->pinned_vm);
- 	}
- 
--	pr_debug("[%d] RLIMIT_MEMLOCK +%ld %ld/%lu%s\n", current->pid,
--			npages << PAGE_SHIFT,
--			atomic64_read(&mm->pinned_vm) << PAGE_SHIFT,
--			rlimit(RLIMIT_MEMLOCK), ret ? " - exceeded" : "");
-+	pr_debug("[%d] RLIMIT_MEMLOCK +%ld %lld/%lu%s\n", current->pid,
-+			npages << PAGE_SHIFT, pinned << PAGE_SHIFT,
-+			lock_limit, ret ? " - exceeded" : "");
- 
- 	return ret;
- }
- 
- static void decrement_pinned_vm(struct mm_struct *mm, long npages)
- {
-+	s64 pinned;
-+
- 	if (!mm || !npages)
- 		return;
- 
--	if (WARN_ON_ONCE(npages > atomic64_read(&mm->pinned_vm)))
--		npages = atomic64_read(&mm->pinned_vm);
--	atomic64_sub(npages, &mm->pinned_vm);
--	pr_debug("[%d] RLIMIT_MEMLOCK -%ld %ld/%lu\n", current->pid,
--			npages << PAGE_SHIFT,
--			atomic64_read(&mm->pinned_vm) << PAGE_SHIFT,
-+	pinned = atomic64_sub_return(npages, &mm->pinned_vm);
-+	WARN_ON_ONCE(pinned < 0);
-+	pr_debug("[%d] RLIMIT_MEMLOCK -%ld %lld/%lu\n", current->pid,
-+			npages << PAGE_SHIFT, pinned << PAGE_SHIFT,
- 			rlimit(RLIMIT_MEMLOCK));
- }
- 
+> > > I think the proper place is after the done_merging tag.
+> > > 
+> > > BTW, with arch_merge_page() at the proper place, I don't think patch3/4
+> > > is necessary - any freed page will go through merge anyway, we won't
+> > > lose any hint opportunity. Or do I miss anything?
+> > 
+> > You can refer to my comment above. What I want to avoid is us hinting a
+> > page multiple times if we aren't using MAX_ORDER - 1 as the limit. What
+> 
+> Yeah that's a good point. But is this going to happen?
+
+One of the advantages I have from splitting things out the way I did is
+that I have been able to add some debug counters to track what is freed
+as a higher order page and what isn't. From what I am seeing after boot
+essentially all of the calls are coming from the merge logic.
+
+I'm suspecting the typical use case is that pages are likely going to
+either be freed as something THP or larger, or they will be freed in 4K
+increments. By splitting things up the way I did we end up getting the
+most efficient performance out of the 4K case since we avoid performing
+madvise 1.5 times per page and keep it to once per page.
 
