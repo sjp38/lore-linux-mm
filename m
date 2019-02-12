@@ -2,152 +2,298 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
-	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 67F4CC282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 15:27:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A1092C282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 15:46:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3113820863
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 15:27:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3113820863
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=free.fr
+	by mail.kernel.org (Postfix) with ESMTP id 3672921773
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 15:46:06 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="JGDUCiQb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3672921773
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CA60F8E0005; Tue, 12 Feb 2019 10:27:03 -0500 (EST)
+	id 9FF678E0002; Tue, 12 Feb 2019 10:46:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C7D5A8E0001; Tue, 12 Feb 2019 10:27:03 -0500 (EST)
+	id 9D65C8E0001; Tue, 12 Feb 2019 10:46:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B93758E0005; Tue, 12 Feb 2019 10:27:03 -0500 (EST)
+	id 8ED258E0002; Tue, 12 Feb 2019 10:46:05 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 649DF8E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 10:27:03 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id t133so1138323wmg.4
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 07:27:03 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 516698E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 10:46:05 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id s27so2385167pgm.4
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 07:46:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=dcMm0kE5qxkntCrevwhlMtNR5mhhW1J4gCjlyHdLZrQ=;
-        b=AAcRGHhq9s/xhjfclSDLMyAc8DGlq6nMPIyIB+8id82MyynfJGm9JfEBTkkJvXye/Y
-         T2TWr300SnTPM3hGBBYrItGlWBsKq0WiBKo0ixapEnlLZP5OLNMErXL3pnD0tlf98Qh4
-         OiGjKxkXrb7QpNJ3JdkRjQ9yzWvl4al4RtsDz7ACs5VsROHFRWEF3BEqvXJvEwXPkn5R
-         TL5Xwo09gP7Qcrr+jjNHJI7FwWBHLXXXt4L0aOgZ79rPIMM0UFwHuniWCA90dp57z9Ij
-         pCP1zMFOcgbblGNqL3zjTe6qeA8fJU1Nk7EHKy/ap/KRcx1Q80B67ClHI43d9yM3SSb4
-         p7bw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of marc.w.gonzalez@free.fr designates 212.27.42.3 as permitted sender) smtp.mailfrom=marc.w.gonzalez@free.fr
-X-Gm-Message-State: AHQUAuYMA+4G5k/tNQGouOBjbcUMTwOysmuhZ0fnC6vqsyMBlkRzvWKF
-	ISw3ds/z5Gztbe48E9iMdiaGNILiCGMd76+lOZhoOYXdcOakd/6tFtZ323HTKK9CbVwaGYu+F1N
-	vxXhJDxo9SChpDmZL/xFjIOGUd084UACExDcg+oR+yVeY93i3usYcWt7N8BPfHVgh6Q==
-X-Received: by 2002:adf:afce:: with SMTP id y14mr2826480wrd.219.1549985222993;
-        Tue, 12 Feb 2019 07:27:02 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IakapcG66EsKDRparj09MCQhfGsyDo2BSpzUli3ZtoMLgZfCq0rMzbXkCjxsut2dvVDnb7a
-X-Received: by 2002:adf:afce:: with SMTP id y14mr2826422wrd.219.1549985222212;
-        Tue, 12 Feb 2019 07:27:02 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549985222; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language;
+        bh=eMhNDOH++cdlbrqr2EGPEiewoTfXsUm8w7p7ZcMdX40=;
+        b=JYa5z0mNlEKBbNkYxXlMWqpT3jLcmVHjYuPJnav6K+PCKul1Wl+9bHpqcXkM7tpkVr
+         C4cC9mwlX803lJKH1WPQdRHHvcvJTwnKRHANf+t9cxymOLpGVSjr/L4RgpRpSKhUNABW
+         gz1gTuWIPQ6tK1Mi5pGUyQZOn34OUxmezlETjA+ja090mKtP+ioN6+lSfmDilhLmvw2f
+         2aZok2Vvj2uu2+Gby4IFtFO3MzT0EMFgR83obSwtHR+JhQqiZqSdCl8dfBPzNzwrD/7+
+         xGv45Qn51IHPNlH0bJN0h5ljop83BQPKqqPSs31ipru3u/s6TzaunudyuhsYxLEtpeoY
+         AgaQ==
+X-Gm-Message-State: AHQUAuYzSCAVkGoJtGQZLrSE39aZJMizlUblcUMVhPsJoNGhqTksOVqS
+	weo7rQDzBM/ApNLSp9MRb6eQ/kFpszUCuEtVuOgqcTLGl7QN1ZDPal6uODTuw7pU4WOBG8vyEio
+	IxdYZpzqEYUHglCQ427XQlYRqnVHC8VvLabgDmUJauz+SQ8Sae2+9NUwqzJcNDFHung==
+X-Received: by 2002:a62:d10b:: with SMTP id z11mr4593931pfg.84.1549986364697;
+        Tue, 12 Feb 2019 07:46:04 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaVV5n5nzfS39B/b1OmXldNlsPAlVWRKJWEn6sDRyQUW2jSgFr7X4ccJX81FvCFTP67xDW9
+X-Received: by 2002:a62:d10b:: with SMTP id z11mr4593889pfg.84.1549986363896;
+        Tue, 12 Feb 2019 07:46:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549986363; cv=none;
         d=google.com; s=arc-20160816;
-        b=n31FQBcAWy3BNQAsMZtP121H4jLShbeMAUXGtfOaXNCRyooVd30l9YYSQkTt+yE6oM
-         cusWFEfVqQ4XnKwIbw3WrCei6siE0UgE9SQdvP2saHkFvYPNyc0cfKEDVkMuCa1vQelM
-         XCySYiyb0uoMTP2v5wKMkdbZDZbH/N9Z1ZgW12fUR+EAwThdLfGc8r93ds7yq99hkQSx
-         lnRJKT/G4mZrYqpUtviEkXNlE5SGj0Puqvc7Jq4Sikp+8Iuh3qAzC3rJZmcnJrhvaKtD
-         eBWKNE4Pm2X4kH95R3Ia/k3A7SlOnckPbgf7N2MclwNo/Cvaz23WHmuScYsY9GsMkZfz
-         e7kg==
+        b=c897/1zDRcGx9eBvT0uBqjjmWOSYo/Bui7w+l2EYRXOUUzN2jAXDFbZgiVX3rbilDT
+         88vcfaM+bwyuWriAtqXvZGrgTRdWuI/lKkgJZ24KVfMVu1mKYWOAg4G3WIe0J7Rnxf6g
+         6As8ek5KQKq3glr5q87Iac9p8gQExjo8qsuSyQtJOkrP2/o617RN84FH1IP+Xne8ViKh
+         NBDpGEFbDbxfVDTZQoGaiBoK8KyJDhajyrkr/dFRG4EsgPGMKje54JsFWthaIcTOCage
+         2iPCMnPkK0i1UFOTMnZoqasMticDb7TFKu8v75q6FI/O/6xl6l7KlACK8CvhB9tGQSjE
+         WWdQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:from:subject;
-        bh=dcMm0kE5qxkntCrevwhlMtNR5mhhW1J4gCjlyHdLZrQ=;
-        b=iGGKpgPl+wO50rWe1K3qeLEoypU/U2j7VylOdsz8/tZoatRth/ROHl478+Mq2jiFNI
-         gEqIwpLI0++2XWyM83w7bv0Hlqbj65Iu/Xq+9dgz3FW/xTTbUcwGxyqqNTDG/LxdIEjT
-         fyWJQ/rZdbDic7EqtIofUs02A9BwlGTnjl2STVYX0SSRWJWAHeTXe5sKDvdtM0hew5fg
-         wAmuWHEIW1nRoO130+HUBxJslirDRqs9wOA1HVdpB4YLq5xw3oR2bNJb4lKZ0egiZXiM
-         WQYAO5tj1SoMyJCPy87Xi2ICjzQJWS3gAi1TPnvlkso79Rc2DNQwb496yxMdJZxh2pvY
-         NAaA==
+        h=content-language:in-reply-to:mime-version:user-agent:date
+         :message-id:organization:from:references:cc:to:subject
+         :dkim-signature;
+        bh=eMhNDOH++cdlbrqr2EGPEiewoTfXsUm8w7p7ZcMdX40=;
+        b=GtKRy2mV3eWrtvP1e6Mho19ICvp+bqWt3r2NDihkdNLLQtQ7o1iK/abDUBLg3K66iy
+         m3w5Bg2DruGwQiJB4suE44/bnMs7I9yKsJi63HyMHI0whQtdCj2FvDgSJm9MvjFqWFmp
+         7JsyFzt26oy/2mNnCYezuwdWTtl7O4fTbqDUu6ue/e+UTw3HeR8hsk+Mn6ECuGPIQEvD
+         S2dXHgKDAXHdin8mNVGAois9YhE95uzYKqrKzHbY7LBAN3OmFHGIooalESzzEkPOG9MA
+         6ebbdG0+ZohMxVETktxtP4t50LIbpIU5Mt3kCKd8rgBwSOFe0xrOoZ9HXvCZK55jfPkc
+         pF/A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of marc.w.gonzalez@free.fr designates 212.27.42.3 as permitted sender) smtp.mailfrom=marc.w.gonzalez@free.fr
-Received: from smtp3-g21.free.fr (smtp3-g21.free.fr. [212.27.42.3])
-        by mx.google.com with ESMTPS id e9si6838305wrr.359.2019.02.12.07.27.02
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=JGDUCiQb;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id q2si12343884pgv.124.2019.02.12.07.46.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 07:27:02 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of marc.w.gonzalez@free.fr designates 212.27.42.3 as permitted sender) client-ip=212.27.42.3;
+        Tue, 12 Feb 2019 07:46:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of marc.w.gonzalez@free.fr designates 212.27.42.3 as permitted sender) smtp.mailfrom=marc.w.gonzalez@free.fr
-Received: from [192.168.108.68] (unknown [213.36.7.13])
-	(Authenticated sender: marc.w.gonzalez)
-	by smtp3-g21.free.fr (Postfix) with ESMTPSA id 45D1F13F8C0;
-	Tue, 12 Feb 2019 16:26:10 +0100 (CET)
-Subject: [SOLVED] dd hangs when reading large partitions
-From: Marc Gonzalez <marc.w.gonzalez@free.fr>
-To: Bart Van Assche <bvanassche@acm.org>, linux-mm <linux-mm@kvack.org>,
- linux-block <linux-block@vger.kernel.org>
-Cc: Jianchao Wang <jianchao.w.wang@oracle.com>,
- Christoph Hellwig <hch@infradead.org>, Jens Axboe <axboe@kernel.dk>,
- fsdevel <linux-fsdevel@vger.kernel.org>, SCSI <linux-scsi@vger.kernel.org>,
- Jeffrey Hugo <jhugo@codeaurora.org>, Evan Green <evgreen@chromium.org>,
- Matthias Kaehlcke <mka@chromium.org>,
- Douglas Anderson <dianders@chromium.org>, Stephen Boyd
- <swboyd@chromium.org>, Tomas Winkler <tomas.winkler@intel.com>,
- Adrian Hunter <adrian.hunter@intel.com>,
- Bart Van Assche <bart.vanassche@wdc.com>,
- Martin Petersen <martin.petersen@oracle.com>,
- Bjorn Andersson <bjorn.andersson@linaro.org>, Ming Lei
- <ming.lei@redhat.com>, Omar Sandoval <osandov@fb.com>,
- Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>,
- Michal Hocko <mhocko@suse.com>, James Bottomley <jejb@linux.ibm.com>
-References: <f792574c-e083-b218-13b4-c89be6566015@free.fr>
- <398a6e83-d482-6e72-5806-6d5bbe8bfdd9@oracle.com>
- <ef734b94-e72b-771f-350b-08d8054a58f3@kernel.dk>
- <20190119095601.GA7440@infradead.org>
- <07b2df5d-e1fe-9523-7c11-f3058a966f8a@free.fr>
- <985b340c-623f-6df2-66bd-d9f4003189ea@free.fr>
- <b3910158-83d6-21fe-1606-33e88912404a@oracle.com>
- <d082bdee-62e5-d470-b63b-196c0fe3b9fb@free.fr>
- <5132e41b-cb1a-5b81-4a72-37d0f9ea4bb9@oracle.com>
- <7bd8b010-bf0c-ad64-f927-2d2187a18d0b@free.fr>
- <0cfe1ed2-41e1-66a4-8d98-ebc0d9645d21@free.fr>
- <d91e8342-4672-d51d-1bde-74e910e5a959@free.fr>
- <27165898-88c3-ab42-c6c9-dd52bf0a41c8@free.fr>
- <66419195-594c-aa83-c19d-f091ad3b296d@free.fr>
- <1549640986.34241.78.camel@acm.org>
- <690af800-1cd2-3e68-94d9-bc4825790837@free.fr>
- <493e04e4-849d-8f25-95e3-408f775fab64@free.fr>
-Message-ID: <734274cc-d22b-5fe9-1650-b13c692c5b9d@free.fr>
-Date: Tue, 12 Feb 2019 16:26:10 +0100
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=JGDUCiQb;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1CFcc8d089975;
+	Tue, 12 Feb 2019 15:45:53 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type; s=corp-2018-07-02;
+ bh=eMhNDOH++cdlbrqr2EGPEiewoTfXsUm8w7p7ZcMdX40=;
+ b=JGDUCiQb/xJpqX0PjPgd7bAHaBgqPfkR/GezmtFYiDvY/U9Imbx/6mBdZnYHsOnRVJgy
+ pV+jWhyrwNmBshdjBKFzVZt8M4ffSvq4w0rTQcoHbzfU2UrEYjVuAm8HVVHfXBESt46R
+ sCSX0boiqaZeVJ5xg/foScJYudYByFbKxY7iWWlQewZj9/4lpC6Lg0CdpLT9JGDZgIu8
+ zh7hlEDSlk/TmkWxdW/D7QWVmUB/REMoaW2BgoE3sH2Ne/VhhA2aZlWJ5pDUWkhA/gMj
+ pfSggcLPK2Cw/tcLNAnn7ctrMCZRpmidKEuPmEDU3nx0N/lu61Ol7QmBtAolcF+6d3jS fA== 
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by aserp2130.oracle.com with ESMTP id 2qhre5cpvn-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 12 Feb 2019 15:45:53 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1CFjlfn026656
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 12 Feb 2019 15:45:47 GMT
+Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1CFjiHA008994;
+	Tue, 12 Feb 2019 15:45:45 GMT
+Received: from [192.168.1.16] (/24.9.64.241)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 12 Feb 2019 07:45:44 -0800
+Subject: Re: [RFC PATCH v7 05/16] arm64/mm: Add support for XPFO
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com,
+        torvalds@linux-foundation.org, liran.alon@oracle.com,
+        keescook@google.com, Juerg Haefliger <juerg.haefliger@canonical.com>,
+        deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
+        tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
+        jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com,
+        joao.m.martins@oracle.com, jmattson@google.com,
+        pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de,
+        kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com,
+        kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+        Tycho Andersen <tycho@docker.com>
+References: <cover.1547153058.git.khalid.aziz@oracle.com>
+ <89f03091af87f5ab27bd6cafb032236d5bd81d65.1547153058.git.khalid.aziz@oracle.com>
+ <20190123142047.GB19289@Konrads-MacBook-Pro.local>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Organization: Oracle Corp
+Message-ID: <0ea68b21-ac03-e9d1-3285-14e6084e10fa@oracle.com>
+Date: Tue, 12 Feb 2019 08:45:41 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <493e04e4-849d-8f25-95e3-408f775fab64@free.fr>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20190123142047.GB19289@Konrads-MacBook-Pro.local>
+Content-Type: multipart/mixed;
+ boundary="------------CE9BD2F746D7F2667607891B"
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9165 signatures=668683
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1902120111
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/02/2019 18:27, Marc Gonzalez wrote:
+This is a multi-part message in MIME format.
+--------------CE9BD2F746D7F2667607891B
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-> A colleague pointed out that some memory areas are reserved downstream.
-> Perhaps the FW goes haywire once the kernel touches reserved memory?
+On 1/23/19 7:20 AM, Konrad Rzeszutek Wilk wrote:
+> On Thu, Jan 10, 2019 at 02:09:37PM -0700, Khalid Aziz wrote:
+>> From: Juerg Haefliger <juerg.haefliger@canonical.com>
+>>
+>> Enable support for eXclusive Page Frame Ownership (XPFO) for arm64 and=
 
-Bingo! FW quirk.
+>> provide a hook for updating a single kernel page table entry (which is=
 
-https://patchwork.kernel.org/patch/10808173/
+>> required by the generic XPFO code).
+>>
+>> v6: use flush_tlb_kernel_range() instead of __flush_tlb_one()
+>>
+>> CC: linux-arm-kernel@lists.infradead.org
+>> Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
+>> Signed-off-by: Tycho Andersen <tycho@docker.com>
+>> Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+>> ---
+>>  arch/arm64/Kconfig     |  1 +
+>>  arch/arm64/mm/Makefile |  2 ++
+>>  arch/arm64/mm/xpfo.c   | 58 +++++++++++++++++++++++++++++++++++++++++=
++
+>>  3 files changed, 61 insertions(+)
+>>  create mode 100644 arch/arm64/mm/xpfo.c
+>>
+>> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+>> index ea2ab0330e3a..f0a9c0007d23 100644
+>> --- a/arch/arm64/Kconfig
+>> +++ b/arch/arm64/Kconfig
+>> @@ -171,6 +171,7 @@ config ARM64
+>>  	select SWIOTLB
+>>  	select SYSCTL_EXCEPTION_TRACE
+>>  	select THREAD_INFO_IN_TASK
+>> +	select ARCH_SUPPORTS_XPFO
+>>  	help
+>>  	  ARM 64-bit (AArch64) Linux support.
+>> =20
+>> diff --git a/arch/arm64/mm/Makefile b/arch/arm64/mm/Makefile
+>> index 849c1df3d214..cca3808d9776 100644
+>> --- a/arch/arm64/mm/Makefile
+>> +++ b/arch/arm64/mm/Makefile
+>> @@ -12,3 +12,5 @@ KASAN_SANITIZE_physaddr.o	+=3D n
+>> =20
+>>  obj-$(CONFIG_KASAN)		+=3D kasan_init.o
+>>  KASAN_SANITIZE_kasan_init.o	:=3D n
+>> +
+>> +obj-$(CONFIG_XPFO)		+=3D xpfo.o
+>> diff --git a/arch/arm64/mm/xpfo.c b/arch/arm64/mm/xpfo.c
+>> new file mode 100644
+>> index 000000000000..678e2be848eb
+>> --- /dev/null
+>> +++ b/arch/arm64/mm/xpfo.c
+>> @@ -0,0 +1,58 @@
+>> +/*
+>> + * Copyright (C) 2017 Hewlett Packard Enterprise Development, L.P.
+>> + * Copyright (C) 2016 Brown University. All rights reserved.
+>> + *
+>> + * Authors:
+>> + *   Juerg Haefliger <juerg.haefliger@hpe.com>
+>> + *   Vasileios P. Kemerlis <vpk@cs.brown.edu>
+>> + *
+>> + * This program is free software; you can redistribute it and/or modi=
+fy it
+>> + * under the terms of the GNU General Public License version 2 as pub=
+lished by
+>> + * the Free Software Foundation.
+>> + */
+>> +
+>> +#include <linux/mm.h>
+>> +#include <linux/module.h>
+>> +
+>> +#include <asm/tlbflush.h>
+>> +
+>> +/*
+>> + * Lookup the page table entry for a virtual address and return a poi=
+nter to
+>> + * the entry. Based on x86 tree.
+>> + */
+>> +static pte_t *lookup_address(unsigned long addr)
+>=20
+> The x86 also has level. Would it make sense to include that in here?
+>=20
 
-Once the reserved memory range is extended, I am finally able
-to read large partitions:
+Possibly. ARM64 does not define page levels (as in the enum for page
+levels) at this time but that can be added easily. Adding level to
+lookup_address() for arm will make it uniform with x86 but is there any
+other rationale besides that? Do you see a future use for this
+information? The only other architecture I could see that defines
+lookup_address() is sh but it uses it for trapped io only.
 
-# dd if=/dev/sda of=/dev/null bs=1M
-55256+0 records in
-55256+0 records out
-57940115456 bytes (58 GB, 54 GiB) copied, 786.165 s, 73.7 MB/s
+Thanks,
+Khalid
 
-Thanks to everyone who provided suggestions and guidance.
+--------------CE9BD2F746D7F2667607891B
+Content-Type: application/pgp-keys;
+ name="pEpkey.asc"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: attachment;
+ filename="pEpkey.asc"
 
-Regards.
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
++Wrj8Rwom6h21PXZRKnlkis7ibQfE+TxqOI7vg=3D=3D
+=3DnPqY
+-----END PGP PUBLIC KEY BLOCK-----
+
+--------------CE9BD2F746D7F2667607891B--
 
