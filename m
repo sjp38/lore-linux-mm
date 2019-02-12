@@ -2,142 +2,123 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9F96C282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:44:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C1FF1C282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:50:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7C9CE217D9
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:44:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C9CE217D9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 5B199217FA
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:50:13 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="dPwog4Db"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5B199217FA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2A6978E0002; Tue, 12 Feb 2019 11:44:56 -0500 (EST)
+	id B558D8E0002; Tue, 12 Feb 2019 11:50:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 27C1A8E0001; Tue, 12 Feb 2019 11:44:56 -0500 (EST)
+	id ADD438E0001; Tue, 12 Feb 2019 11:50:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 16B798E0002; Tue, 12 Feb 2019 11:44:56 -0500 (EST)
+	id 9A73D8E0002; Tue, 12 Feb 2019 11:50:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B3FEC8E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 11:44:55 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id m19so2678389edc.6
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 08:44:55 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E2E78E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 11:50:12 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id y8so3284796qto.19
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 08:50:12 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=4O1Y4RP95JS27d17ct9edQQL17Rs4/Xf89dgVmP+zv4=;
-        b=lVSz+dGuNCpJGAUviqZEH3kAFhuFdjdhHtfGokH7eTcGsK3yPle31MCZm6BQB3QMeV
-         /uYP3SdATaXzyVbU9hSCE9wsRkP0S97ZN07dikjlffLqAUQZb+AnhNGOQNMdq1z2tqbl
-         yLYRfG4lE23B+0xv3ubQDt57W3Qz3L5s9x1WHgsSppf0PUALOxoXWwTk0Ue3mPssmwt6
-         MJjknrOv8tAjja9KHVFa9LfPbfuAfrOm8JaRcFwZZzZ7QzoV4PD7smo7kFOUGqLjwy+J
-         QK7p3CAwXRjRETtmNf4dlOiEXPDvOAA6dM6M7Sl1MWVemhy6wyhPmh4Ot8jzc3xexfvH
-         vR6Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: AHQUAuZIywNo0toccsRNXCHsvqBxqK4Mnk+cF01AvzrFP2o1RqYmKUAI
-	Yhmvob56Nj20AKKIRfXW2OkvLBZwGWCDJBet86KgnXmgLvDMJMVjWPLuYR9l3fBNI0AIHoJGhfC
-	nIp69v7YmV3niEMP3lZ1tD7LXKc0X3hA0LKKuMlcuNacQ8uQkSD3k6JykNds/EfqmFA==
-X-Received: by 2002:a17:906:1199:: with SMTP id n25mr3260792eja.120.1549989895288;
-        Tue, 12 Feb 2019 08:44:55 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZOwN5sm5x4/oQCSyRUxYrlppt0hgJ92mqx/GcI9NCRm6HCSN8KqdjJwxTghJ3wyFD8BYlU
-X-Received: by 2002:a17:906:1199:: with SMTP id n25mr3260747eja.120.1549989894371;
-        Tue, 12 Feb 2019 08:44:54 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549989894; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=d9wM12jhuDTWdWt+Pkovf6I5uVUhrDCPMcwRg2iB6/c=;
+        b=K9C1b16r9zy2Ovz5GIkpi2LqlrwIpYJ+jIde+nRSfCeI8GWRP1bCXdkjekmPqIDI92
+         DihYG4+VkA753WPHD69uhHgfMqBqO9tmyBvirmWinrMld/IFwQvX/cOK0/jpNfNKimtq
+         6w5YmbZdW6z3zbOOxWnLQetKRTiLo6r5tW46XwxTzmgQiDwkokyNFNjEYkEq8tOC24qW
+         v6tbIFlyykA8hC6w0/regs7hSDUO3NWFvpfoFMwxBmpIIiM/589Gx8Wh8cPyLnW/uMcQ
+         SQmTEKg/X1ZWDSD+3hDipJ1CI/M0AETjzxF6YEyygMtrYgQqqy8udEkhFW2oYZLQOVxC
+         F/dg==
+X-Gm-Message-State: AHQUAuYzBVj6qm3i5GTrLXb0igr3GPITs6CVonq/z+nqUmZlue2oZ+Vu
+	cd9SZiBG6lYMZC3ibPO3p/GPbWvPdb/j7u2no0JpA3vapVjvufpFre+cYlAMGcH292u73/DPcyn
+	b1ma+K5TI10aU62ay9iLY1nx4a8QZdalzxUZIB3JW7dzYQIDo+4q1sEvWa9rzAPA=
+X-Received: by 2002:a0c:b24f:: with SMTP id k15mr3494449qve.72.1549990212220;
+        Tue, 12 Feb 2019 08:50:12 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZriIPWeOOrBL7MaD+cVi19ACxC+vGEbGG94jr7beYFFf9xMJa+Gieyrj4mMWjQv7cqjy4N
+X-Received: by 2002:a0c:b24f:: with SMTP id k15mr3494414qve.72.1549990211812;
+        Tue, 12 Feb 2019 08:50:11 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549990211; cv=none;
         d=google.com; s=arc-20160816;
-        b=oMldQZcROG8UohlSMq0bSiZhhxXfEYi1FCrkVUR13Rjjl6i1ze4LxfHVOI4nJ2Omof
-         QVyOa897FAJotFDmUvHl2XZfv4X+DsahpO6kKG/ZpxSupRz5WdbNRL3lreOKMkOi6F1b
-         4XM0LvRCz3ShersJUzN8IDsfJO+r0SDu/XVGgjiXmQlmBaDrNvjRc2DOWZLekjvVTWZv
-         nhKWU7uKxAE9MFNROWCC0+4dk+7KVBGi8tmO3EvWMfENKfdZRF+lrfMbxOLhQfXg4ql2
-         tfKr55ywYgQm33ksmXiAlm3pMN7pcyUCqLwCAKvEDznHHathi4BY8Bu3Ya0J96OiCqOn
-         u9bA==
+        b=VSOJJkadzbf8x98r8eOOpNujoIdq86rLd9EbidOG5cmxxD0jxJ+IHNJV+jKgkotsNV
+         FsC4H0rQL6yiP6erWC99p3nwtZXCmhk+KcLbbGIY1ZTQ0ojckO7yRF45e3bDZahHmnsX
+         1tx7tWczqZxrKc/t2J7CVkP/kc4dA4tJVfHEyMBm6GUhlbdFfIhM64/x0hqU8EC+aBT6
+         n6S7X9Hj/C6S6ckzBTARbpaifRsGhZI35nM5lQuTV/Q0s/uwXChrayGsqQ73Ga+cY9f7
+         WUKRMVBzKB3s5jez6rkKPxSMQUsVhe0LAyOFSwYwHWeEA9WdCSoPRTrhjQ4GDe3RuqFO
+         xFEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=4O1Y4RP95JS27d17ct9edQQL17Rs4/Xf89dgVmP+zv4=;
-        b=TnOMka/XH2+7sWI3kSV3w7eiU75W+kMReI9F2DJWgb/c0tWtOmkpZRPkFh+2IQtZrY
-         g7B2eWhWAtvqac3ezYcQbcUcE11F7hjqxl79jyOsTKbq87WXNPpqtU/Mh6ljEnnvI/fc
-         luedMaIfzjtuuP9lJFZJ3LLisptY6ICc4Bo9vgZTu54ZXROQm7+DdPAhoAnjGDz/2D7g
-         SnjXH07DZYBvc3KbL7Vx/quTW0aO/adsXnf/1WfDJMvlxhe2xB7HEiH8oIRumDEU0uUL
-         W79JD915Ht5C8nupG/ovMZW2lw9tG1BUuV1TKrIPqqIbtQNBBxYLv77hkvHKre2MfN7l
-         QOOg==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=d9wM12jhuDTWdWt+Pkovf6I5uVUhrDCPMcwRg2iB6/c=;
+        b=BNbgrY9JkeqNX2BEyFp9pRgdhPhJDcofaqtgpb55y4HDCjnSBiMy5xnpTMkjwlgxIt
+         G0A/ysYTZ68JeWxrsaTQu/D6HwfIw45BcuwFNhqiIESrsawUtVk/jcRWg5WzTrheWHnI
+         gO7bNDEmbbOangJetqrzAC5OrmCKqoRCyNyF1Vwlmulee8VfMhECcZaXyhyeN8ZMBAxr
+         71lDdG44JlTjt28Q2I23ngBo1a7w24Bosa3L4KyJ9DiG/f2F0qgPoeCzmjY7vX2FTE5l
+         8HS9qg17i9MhXChrezR2hZNq2Qyo9ThYXypaWnReiipG6xMQYO63OrhonpA8pkjKEW3/
+         8TJA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u16si1413354edx.384.2019.02.12.08.44.54
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=dPwog4Db;
+       spf=pass (google.com: domain of 01000168e29daf0a-cb3a9394-e3dd-4d88-ad3c-31df1f9ec052-000000@amazonses.com designates 54.240.9.37 as permitted sender) smtp.mailfrom=01000168e29daf0a-cb3a9394-e3dd-4d88-ad3c-31df1f9ec052-000000@amazonses.com
+Received: from a9-37.smtp-out.amazonses.com (a9-37.smtp-out.amazonses.com. [54.240.9.37])
+        by mx.google.com with ESMTPS id a55si5320056qva.119.2019.02.12.08.50.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 08:44:54 -0800 (PST)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 12 Feb 2019 08:50:11 -0800 (PST)
+Received-SPF: pass (google.com: domain of 01000168e29daf0a-cb3a9394-e3dd-4d88-ad3c-31df1f9ec052-000000@amazonses.com designates 54.240.9.37 as permitted sender) client-ip=54.240.9.37;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id AB6ADAF50;
-	Tue, 12 Feb 2019 16:44:53 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 7FD1F1E09C5; Tue, 12 Feb 2019 17:44:52 +0100 (CET)
-Date: Tue, 12 Feb 2019 17:44:52 +0100
-From: Jan Kara <jack@suse.cz>
-To: Christopher Lameter <cl@linux.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Matthew Wilcox <willy@infradead.org>,
-	Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>,
-	Dave Chinner <david@fromorbit.com>,
-	Doug Ledford <dledford@redhat.com>,
-	lsf-pc@lists.linux-foundation.org,
-	linux-rdma <linux-rdma@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-Message-ID: <20190212164452.GF19076@quack2.suse.cz>
-References: <20190211102402.GF19029@quack2.suse.cz>
- <CAPcyv4iHso+PqAm-4NfF0svoK4mELJMSWNp+vsG43UaW1S2eew@mail.gmail.com>
- <20190211180654.GB24692@ziepe.ca>
- <20190211181921.GA5526@iweiny-DESK2.sc.intel.com>
- <20190211182649.GD24692@ziepe.ca>
- <20190211184040.GF12668@bombadil.infradead.org>
- <CAPcyv4j71WZiXWjMPtDJidAqQiBcHUbcX=+aw11eEQ5C6sA8hQ@mail.gmail.com>
- <20190211204945.GF24692@ziepe.ca>
- <CAPcyv4jHjeJxmHMyrbRhg9oeaLK5WbZm-qu1HywjY7bF2DwiDg@mail.gmail.com>
- <01000168e2913f2e-56010847-a10b-407e-b4eb-7730164267de-000000@email.amazonses.com>
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=dPwog4Db;
+       spf=pass (google.com: domain of 01000168e29daf0a-cb3a9394-e3dd-4d88-ad3c-31df1f9ec052-000000@amazonses.com designates 54.240.9.37 as permitted sender) smtp.mailfrom=01000168e29daf0a-cb3a9394-e3dd-4d88-ad3c-31df1f9ec052-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1549990211;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=d9wM12jhuDTWdWt+Pkovf6I5uVUhrDCPMcwRg2iB6/c=;
+	b=dPwog4Db8cxWFTs8RaPbWPHsdjVXXzK6xqpC2es8j1a9vMwSTJTBbxIqClS4bTWi
+	jn3E5648vwwyFuDLlzLP3ebtNmQ8QHcaanGSqOxZWOF9WwuscWPvVRcezYZjIzwFHH3
+	zSJ0zA/tay7p90Jbs8Pdv9fCw9l9ZFY8VqBAPqsw=
+Date: Tue, 12 Feb 2019 16:50:11 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Alexey Kardashevskiy <aik@ozlabs.ru>
+cc: Daniel Jordan <daniel.m.jordan@oracle.com>, jgg@ziepe.ca, 
+    akpm@linux-foundation.org, dave@stgolabs.net, jack@suse.cz, 
+    linux-mm@kvack.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, 
+    linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org, 
+    linux-kernel@vger.kernel.org, alex.williamson@redhat.com, 
+    paulus@ozlabs.org, benh@kernel.crashing.org, mpe@ellerman.id.au, 
+    hao.wu@intel.com, atull@kernel.org, mdf@kernel.org
+Subject: Re: [PATCH 2/5] vfio/spapr_tce: use pinned_vm instead of locked_vm
+ to account pinned pages
+In-Reply-To: <ee4d14db-05c3-6208-503c-16e287fa78eb@ozlabs.ru>
+Message-ID: <01000168e29daf0a-cb3a9394-e3dd-4d88-ad3c-31df1f9ec052-000000@email.amazonses.com>
+References: <20190211224437.25267-1-daniel.m.jordan@oracle.com> <20190211224437.25267-3-daniel.m.jordan@oracle.com> <ee4d14db-05c3-6208-503c-16e287fa78eb@ozlabs.ru>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <01000168e2913f2e-56010847-a10b-407e-b4eb-7730164267de-000000@email.amazonses.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.02.12-54.240.9.37
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 12-02-19 16:36:36, Christopher Lameter wrote:
-> On Mon, 11 Feb 2019, Dan Williams wrote:
-> 
-> > An mmap write after a fault due to a hole punch is free to trigger
-> > SIGBUS if the subsequent page allocation fails. So no, I don't see
-> > them as the same unless you're allowing for the holder of the MR to
-> > receive a re-fault failure.
-> 
-> Order 0 page allocation failures are generally not possible in that path.
-> System will reclaim and OOM before that happens.
+On Tue, 12 Feb 2019, Alexey Kardashevskiy wrote:
 
-But also block allocation can fail in the filesystem or you can have memcgs
-set up that make the page allocation fail, can't you? So in principle Dan
-is right. Page faults can and do fail...
+> Now it is 3 independent accesses (actually 4 but the last one is
+> diagnostic) with no locking around them. Why do not we need a lock
+> anymore precisely? Thanks,
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Updating a regular counter is racy and requires a lock. It was converted
+to be an atomic which can be incremented without a race.
 
