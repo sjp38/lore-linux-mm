@@ -2,255 +2,262 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 905B4C282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 21:53:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4EF9EC282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 22:14:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 349CC222B1
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 21:53:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EEC3B222C7
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 22:14:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="sLIBRlBc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 349CC222B1
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="pypCt11B"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EEC3B222C7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B86C88E0003; Tue, 12 Feb 2019 16:53:41 -0500 (EST)
+	id 72F728E0002; Tue, 12 Feb 2019 17:14:20 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AE6148E0001; Tue, 12 Feb 2019 16:53:41 -0500 (EST)
+	id 6DE678E0001; Tue, 12 Feb 2019 17:14:20 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9D5CC8E0003; Tue, 12 Feb 2019 16:53:41 -0500 (EST)
+	id 5A7108E0002; Tue, 12 Feb 2019 17:14:20 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B6DC8E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 16:53:41 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id n22so234517otq.8
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 13:53:41 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F6AD8E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 17:14:20 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id 35so294100qty.12
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 14:14:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=LEY0p2JsVS3a2cs2tzozqI6GCoofE/g5BNWFzUCn+cU=;
-        b=LOtz7RQxXxQYy7WzMDR6+pqqZu5WIJ4N2FD7bC/id0V+txuxTMP0D+MgKo7Fw6gCge
-         X2Saf5DWnu8lfftnZsXa/IWWCXwjFK+AJhNws2ZambuJV9724PigXRQ+K/byJqu5dYoQ
-         dSIxHOTL1jSAQCGOvZ6rP7ZDi5NN3EK5NaaViMkNg0isckb40h9C/STkGVtaIfLiUDnu
-         B6JrOiPd9q4KNEisWXyoF7/OqsOTRjdu1AWSyS6Az8q/TYeDdC0o/t1uILDtSzC2TRi5
-         Z+GwwLOYTvb9iZOcgwvMkWg1CHkDEG8nKLBKk8v5tnA3RhxphsSYJSK0hZ99mQp8yZYP
-         Jbhg==
-X-Gm-Message-State: AHQUAua63H+yrls6x49CdHBvek6SE+OEJG2o6ODcGMr2quzkllBa0j3d
-	wQ3EWS20Uc/foAcWGKS2hvEQu82FCGct/p1W4kAEgOiTfQzeGiq8extuPfbctPzdszWnm+7eFTk
-	ZrFOhKUb9ryJiPFFtILNSTBFcp1UqmCwh6zmQa6fWxlS5PdHXZ7qyTCjCZ7Hh0Vh7wIY0F8AQqg
-	Ysyw04ZYwAxQ9krbDzuWsfXeJPjwVaXp1oS+jD8KekaRDUFHYvgLiwbhTlgBMXw50jA13Kz9pXW
-	TjB9KiO8UxD7t/ABKJS/LZ7R4CemV2nWpuFGh0wxCiB16bLkRGy9Kj0Yxo4Qa4wvyC/2yFPOVi4
-	uQ4jS3PM9XKbQ2ZdNzt+uSNer2MxoGehZM7dnH0LrC8sekDg0qrUqf3MQeHjUpPp8dBXnwYRiw6
-	D
-X-Received: by 2002:a05:6830:2118:: with SMTP id i24mr6378617otc.224.1550008421164;
-        Tue, 12 Feb 2019 13:53:41 -0800 (PST)
-X-Received: by 2002:a05:6830:2118:: with SMTP id i24mr6378568otc.224.1550008420208;
-        Tue, 12 Feb 2019 13:53:40 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550008420; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references;
+        bh=tx8yofQ7GDtc8w7ZnLR4b4Phwy1fVbZgK2ukQvv27ZE=;
+        b=j24yT0AVKbLvCR2NytTD+QIWjND2yi5m71d/ffLuU+ViH9/XM+89IqW/Qn2pgDI4Kf
+         81bhDw0kAVul5QfdYb9eaSjHiMkPeA+EVTHviyEx6hmehoY0gfJEJnnz79GQkHB9EUlU
+         2WI0t2lzbjXWlcoZkqf7pFfGAZjibusH8JFJ7JnfkTpl8n0KLWDuL0SBwXZHBtI1/MAP
+         cU2eWl2Xc3DB0/2J/uZNhRwt+6kXD8BI3QEEVMXgCGq0WZro0J/t2ORS4crzRD0pBPdT
+         7OMY7kyoi76UGMDUFGSgyIAbwp8CPEwaF2p42xRCXG4tsqoY3Izm6Z/3uKYgwnCVcWqW
+         QNyA==
+X-Gm-Message-State: AHQUAubspV5i1cHKlNJven2Q3fv1MqEIlBqE8zcuFAIk4oIwXXy4q/7P
+	uMrpfBbewy+toAQMxBA53wLbCVRw5OE2Vv4TI2SuttzhUhPb5D6rSx9mOlQzqxha2H6QwSr9Rrb
+	T4H7hK799TX4GbHBjXqxxKcF1550gv1GpVzDLH0TyM3K+orfund4RbkCOT8A+j/ZdBg==
+X-Received: by 2002:a0c:bb98:: with SMTP id i24mr4564550qvg.129.1550009659899;
+        Tue, 12 Feb 2019 14:14:19 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZq3Kpy3fQkosdiFe/a4V3FUlxBGvQyNVcBRruAkZs1ybrqmjizirZou45O48z5QkfBotZV
+X-Received: by 2002:a0c:bb98:: with SMTP id i24mr4564507qvg.129.1550009659094;
+        Tue, 12 Feb 2019 14:14:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550009659; cv=none;
         d=google.com; s=arc-20160816;
-        b=FkithLJwm7gdx/S/INZE/ihQ42eoE7hdNC4FDRIsmty2IveUs5Hetmp7R/q7kQsJji
-         0UNDND7yfpCKU0a7G3RvBGlKG63n3QyJKgWGWt7V/64z84mXWXBpN1avoIYYZgNZIIk7
-         p4CEaADhEFWozThXFBDT6dqJtq4JAiG2JjBYK1r61cNXniEkDMO4IQCvcZlVaYRYJisR
-         RDqHREAkjmRSxtnI+wakzWTg/ZeLZEHO/1Trh2+nJshvN/5YIefmRtZgIEn17gGyy/OA
-         EQml8T+15PXjDkOaV4fiW8EA95Tvf27cU3yWca+K77bJs7dbUTcRQG2HDjhL/Am6Y4tz
-         jo2g==
+        b=Dg78diKDAlm7XP/+A5i8gx/AbmMsizZE5qqkjgO4IAPZ/ys+MS0SzMDyOm3XSsY9OR
+         c6G77f9Gar5t90vTrM9uzchaKlMiGdjnUsNL+FRK/7LDqGAUqPIhX30nsyqhuvRRXnmJ
+         xiG7k8dBS4krkKowPvmbtjeiTI2866Yqngppw0hY9mkL8t3xLA3RcPwZRkZuDokM6+lp
+         mrr4yqDUnbju5WpbvNrMGlNK+nYQlg1hHIkOhK+UtMFjHgJJigKvpVLDc1hf73q8+5gb
+         hewRSoG8PA51/ELHEKHDFuB2LXKoDXqqxZrQmDwbR4D2XCn0xY/YLvok3g2okMTL85Cc
+         tfIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=LEY0p2JsVS3a2cs2tzozqI6GCoofE/g5BNWFzUCn+cU=;
-        b=N8UggbHpRMN48uC4d6fJTrXoA/kqVkh15gHFbXxzdLXcPsT+3Dy8bqGtQFx3Qi+l4G
-         I5AeiK0JTLYzffiMoqX0rpdrZErR8QundH9lLB/RW5GDSQ11ZXZ5F0RbE3jzpXpv9K2l
-         3P09XOV/3roSEMqhC4t3UGOcGcm03IWvc2Mi6pgumPwOWMeVkzrHRlyhgVlcYfZXYk+g
-         rFnrlo9yDvetHGVoLS75cMxbyMcrWt6WEP2pwh438dxnSdXEMpW3CpYwZ8c4bp+0Qgsu
-         wTXDelne1LZoKfQ0pllEdcytBTqFvBBAWvACvwOT+89aGa6KDDld/FQkvzSaiVERvMI5
-         L61Q==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from
+         :dkim-signature;
+        bh=tx8yofQ7GDtc8w7ZnLR4b4Phwy1fVbZgK2ukQvv27ZE=;
+        b=d1n1DLkNAHysFhAMiWVPn7w7O/kEQsD9Gxx2GfmgAWNqSVlUTp6ILHrs7ck0lHN+ZW
+         gkZNvSalI8kykzYGlMgVWRbZe33dIGDit8nNi7ArzJj1hg6F/WyFABQucFwXvDBuu5vE
+         ZTB7ssINIC9Bkci58rAQsmYmaTXNbxSJKsYHxKPkfiTaappQT/7xSkRCwBz5j/WEjyIt
+         IBR+WxD8VGSe6WyfQB7K3DpGaGUgsGm1tb/rAe/B3UoGzlIEXFYmGnoR0T4gD25Icr5P
+         n6ekLCWc1ySyDNK2jwg/075PKYFVounvBCZqiOlclTxlwXnPDIG8t7svSFK4x4tI28Xh
+         DszQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=sLIBRlBc;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v16sor10004584oth.145.2019.02.12.13.53.40
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=pypCt11B;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id t126si5446183qkc.5.2019.02.12.14.14.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Feb 2019 13:53:40 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Feb 2019 14:14:19 -0800 (PST)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=sLIBRlBc;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=LEY0p2JsVS3a2cs2tzozqI6GCoofE/g5BNWFzUCn+cU=;
-        b=sLIBRlBc+Y8VcrK+ShKJOL8wF5wcZGUpE1b1zS7aKUuoEfelW/Xnsh4EIoEEJd+AkB
-         YO7N/Fuqlg4tH7X3nxrOEPc9skJp55kuBARmO6xshNmL3uRFAUbbKRj3SKqKlvWtGhu/
-         oIKEsZ0qzAzQzCFTO05o8oAJ31m5M4gqYsHJ74U04N9h8TN4ZkBM/szhAR0WQVBTmn0M
-         1FIovxk+90qqM8dr4fx/aDrW28KbxobMUMiX3U+94G4Y/ADcXYEGIZMadw3b0rXOBGci
-         dv7Dq/MKHmrhbPTOgzRELvXXowa8lWX/WM0oqsF3p9M9aZ4dOItgGpntqqd92jEjHZmO
-         pJLw==
-X-Google-Smtp-Source: AHgI3IZpfzC+AasjrLyEJAqixfclkYCg9uWm1t2iYvho00RBxJ8f327SO5wiNwXoXsM5Sn9KAE1MJ7QK3+hFPfGccP8=
-X-Received: by 2002:a9d:7493:: with SMTP id t19mr5757624otk.98.1550008419886;
- Tue, 12 Feb 2019 13:53:39 -0800 (PST)
-MIME-Version: 1.0
-References: <20190206220828.GJ12227@ziepe.ca> <0c868bc615a60c44d618fb0183fcbe0c418c7c83.camel@redhat.com>
- <CAPcyv4hqya1iKCfHJRXQJRD4qXZa3VjkoKGw6tEvtWNkKVbP+A@mail.gmail.com>
- <bfe0fdd5400d41d223d8d30142f56a9c8efc033d.camel@redhat.com>
- <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com>
- <20190208044302.GA20493@dastard> <20190208111028.GD6353@quack2.suse.cz>
- <CAPcyv4iVtBfO8zWZU3LZXLqv-dha1NSG+2+7MvgNy9TibCy4Cw@mail.gmail.com>
- <20190211102402.GF19029@quack2.suse.cz> <CAPcyv4iHso+PqAm-4NfF0svoK4mELJMSWNp+vsG43UaW1S2eew@mail.gmail.com>
- <20190212160707.GA19076@quack2.suse.cz>
-In-Reply-To: <20190212160707.GA19076@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 12 Feb 2019 13:53:28 -0800
-Message-ID: <CAPcyv4gKJ3=LhdO8Bnx2f-fnT_7H5D4FxvJDCEDEpcz1udnY_g@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-To: Jan Kara <jack@suse.cz>
-Cc: Dave Chinner <david@fromorbit.com>, Christopher Lameter <cl@linux.com>, 
-	Doug Ledford <dledford@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>, Matthew Wilcox <willy@infradead.org>, 
-	Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, 
-	linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, 
-	Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=pypCt11B;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1CM3hMC027722;
+	Tue, 12 Feb 2019 22:14:11 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
+ subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
+ bh=tx8yofQ7GDtc8w7ZnLR4b4Phwy1fVbZgK2ukQvv27ZE=;
+ b=pypCt11B+jkaTl4hUp/50uGx/FaaXb5YnO7F5AsPLoiqyyf24wvyQQ9nw+Rdj4p30g8R
+ D723oZVd7WlUGccYEhjn4V3F8rRryYD1UbTZNasaa0SowSM5POQHDgWplkRjp3kLDNcF
+ U6HxiQup+0IFZ68VQcUzQFS2DXzEYKjS5SRHV60gpP07AFSpNog0U7PQ4aZhHeNf6l09
+ bzIHIin9qLV5OWOkCiDP8t1oyaLlSx6IdZ4C94uSkmZd73nveSfXEyOqWbhrnN1Gw9Cr
+ Ewbwjhhvykq5+k7qTDf3sT9wlrIeFrLFvGWML9jS6/i2EOoYE9vYt5blib6WCr8gtZ6L 9Q== 
+Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
+	by userp2130.oracle.com with ESMTP id 2qhrekepuk-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 12 Feb 2019 22:14:11 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x1CME9Oj026407
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 12 Feb 2019 22:14:09 GMT
+Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1CME7mS016086;
+	Tue, 12 Feb 2019 22:14:07 GMT
+Received: from monkey.oracle.com (/50.38.38.67)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 12 Feb 2019 14:14:07 -0800
+From: Mike Kravetz <mike.kravetz@oracle.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@kernel.org>,
+        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+        Andrea Arcangeli <aarcange@redhat.com>,
+        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+        Mel Gorman <mgorman@techsingularity.net>,
+        Davidlohr Bueso <dave@stgolabs.net>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Mike Kravetz <mike.kravetz@oracle.com>, stable@vger.kernel.org
+Subject: [PATCH] huegtlbfs: fix races and page leaks during migration
+Date: Tue, 12 Feb 2019 14:14:00 -0800
+Message-Id: <20190212221400.3512-1-mike.kravetz@oracle.com>
+X-Mailer: git-send-email 2.17.2
+In-Reply-To: <803d2349-8911-0b47-bc5b-4f2c6cc3f928@oracle.com>
+References: <803d2349-8911-0b47-bc5b-4f2c6cc3f928@oracle.com>
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9165 signatures=668683
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=717 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1902120152
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 8:07 AM Jan Kara <jack@suse.cz> wrote:
->
-> On Mon 11-02-19 09:22:58, Dan Williams wrote:
-> > On Mon, Feb 11, 2019 at 2:24 AM Jan Kara <jack@suse.cz> wrote:
-> > >
-> > > On Fri 08-02-19 12:50:37, Dan Williams wrote:
-> > > > On Fri, Feb 8, 2019 at 3:11 AM Jan Kara <jack@suse.cz> wrote:
-> > > > >
-> > > > > On Fri 08-02-19 15:43:02, Dave Chinner wrote:
-> > > > > > On Thu, Feb 07, 2019 at 04:55:37PM +0000, Christopher Lameter wrote:
-> > > > > > > One approach that may be a clean way to solve this:
-> > > > > > > 3. Filesystems that allow bypass of the page cache (like XFS / DAX) will
-> > > > > > >    provide the virtual mapping when the PIN is done and DO NO OPERATIONS
-> > > > > > >    on the longterm pinned range until the long term pin is removed.
-> > > > > >
-> > > > > > So, ummm, how do we do block allocation then, which is done on
-> > > > > > demand during writes?
-> > > > > >
-> > > > > > IOWs, this requires the application to set up the file in the
-> > > > > > correct state for the filesystem to lock it down so somebody else
-> > > > > > can write to it.  That means the file can't be sparse, it can't be
-> > > > > > preallocated (i.e. can't contain unwritten extents), it must have zeroes
-> > > > > > written to it's full size before being shared because otherwise it
-> > > > > > exposes stale data to the remote client (secure sites are going to
-> > > > > > love that!), they can't be extended, etc.
-> > > > > >
-> > > > > > IOWs, once the file is prepped and leased out for RDMA, it becomes
-> > > > > > an immutable for the purposes of local access.
-> > > > > >
-> > > > > > Which, essentially we can already do. Prep the file, map it
-> > > > > > read/write, mark it immutable, then pin it via the longterm gup
-> > > > > > interface which can do the necessary checks.
-> > > > >
-> > > > > Hum, and what will you do if the immutable file that is target for RDMA
-> > > > > will be a source of reflink? That seems to be currently allowed for
-> > > > > immutable files but RDMA store would be effectively corrupting the data of
-> > > > > the target inode. But we could treat it similarly as swapfiles - those also
-> > > > > have to deal with writes to blocks beyond filesystem control. In fact the
-> > > > > similarity seems to be quite large there. What do you think?
-> > > >
-> > > > This sounds so familiar...
-> > > >
-> > > >     https://lwn.net/Articles/726481/
-> > > >
-> > > > I'm not opposed to trying again, but leases was what crawled out
-> > > > smoking crater when this last proposal was nuked.
-> > >
-> > > Umm, don't think this is that similar to daxctl() discussion. We are not
-> > > speaking about providing any new userspace API for this.
-> >
-> > I thought explicit userspace API was one of the outcomes, i.e. that we
-> > can't depend on this behavior being an implicit side effect of a page
-> > pin?
->
-> I was thinking an implicit sideeffect of gup_longterm() call. Similarly as
-> swapon(2) does not require the file to be marked in any special way. But
-> OTOH I agree that RDMA is a less controlled usage than swapon so it is
-> questionable. I'd still require something like CAP_LINUX_IMMUTABLE at least
-> for gup_longterm() calls that end up pinning the file.
->
-> Inspired by Christoph's idea you reference in [2], maybe gup_longterm()
-> will succeed only if there is FL_LAYOUT lease for the range being pinned
-> and we don't allow the lease to be released until there's a pinned page in
-> the range. And we make the file protected (i.e. treat it like swapfile) if
-> there's any such lease in it. But this is just a rough sketch and needs more
-> thinking.
->
-> > > Also I think the
-> > > situation about leases has somewhat cleared up with this discussion - ODP
-> > > hardware does not need leases since it can use MMU notifiers, for non-ODP
-> > > hardware it is difficult to handle leases as such hardware has only one big
-> > > kill-everything call and using that would effectively mean lot of work on
-> > > the userspace side to resetup everything to make things useful if workable
-> > > at all.
-> > >
-> > > So my proposal would be:
-> > >
-> > > 1) ODP hardward uses gup_fast() like direct IO and uses MMU notifiers to do
-> > > its teardown when fs needs it.
-> > >
-> > > 2) Hardware not capable of tearing down pins from MMU notifiers will have
-> > > to use gup_longterm() (we may actually rename it to a more suitable name).
-> > > FS may just refuse such calls (for normal page cache backed file, it will
-> > > just return success but for DAX file it will do sanity checks whether the
-> > > file is fully allocated etc. like we currently do for swapfiles) but if
-> > > gup_longterm() returns success, it will provide the same guarantees as for
-> > > swapfiles. So the only thing that we need is some call from gup_longterm()
-> > > to a filesystem callback to tell it - this file is going to be used by a
-> > > third party as an IO buffer, don't touch it. And we can (and should)
-> > > probably refactor the handling to be shared between swapfiles and
-> > > gup_longterm().
-> >
-> > Yes, lets pursue this. At the risk of "arguing past 'yes'" this is a
-> > solution I thought we dax folks walked away from in the original
-> > MAP_DIRECT discussion [1]. Here is where leases were the response to
-> > MAP_DIRECT [2]. ...and here is where we had tame discussions about
-> > implications of notifying memory-registrations of lease break events
-> > [3].
->
-> Yeah, thanks for the references.
->
-> > I honestly don't like the idea that random subsystems can pin down
-> > file blocks as a side effect of gup on the result of mmap. Recall that
-> > it's not just RDMA that wants this guarantee. It seems safer to have
-> > the file be in an explicit block-allocation-immutable-mode so that the
-> > fallocate man page can describe this error case. Otherwise how would
-> > you describe the scenarios under which FALLOC_FL_PUNCH_HOLE fails?
->
-> So with requiring lease for gup_longterm() to succeed (and the
-> FALLOC_FL_PUNCH_HOLE failure being keyed from the existence of such lease),
-> does it look more reasonable to you?
+hugetlb pages should only be migrated if they are 'active'.  The routines
+set/clear_page_huge_active() modify the active state of hugetlb pages.
+When a new hugetlb page is allocated at fault time, set_page_huge_active
+is called before the page is locked.  Therefore, another thread could
+race and migrate the page while it is being added to page table by the
+fault code.  This race is somewhat hard to trigger, but can be seen by
+strategically adding udelay to simulate worst case scheduling behavior.
+Depending on 'how' the code races, various BUG()s could be triggered.
 
-That sounds reasonable to me, just the small matter of teaching the
-non-ODP RDMA ecosystem to take out FL_LAYOUT leases and do something
-reasonable when the lease needs to be recalled.
+To address this issue, simply delay the set_page_huge_active call until
+after the page is successfully added to the page table.
 
-I would hope that RDMA-to-FSDAX-PMEM support is enough motivation to
-either make the necessary application changes, or switch to an
-ODP-capable adapter.
+Hugetlb pages can also be leaked at migration time if the pages are
+associated with a file in an explicitly mounted hugetlbfs filesystem.
+For example, a test program which hole punches, faults and migrates
+pages in such a file (1G in size) will eventually fail because it
+can not allocate a page.  Reported counts and usage at time of failure:
 
-Note that I think we need FL_LAYOUT regardless of whether the
-legacy-RDMA stack ever takes advantage of it. VFIO device passthrough
-to a guest that has a host DAX file mapped as physical PMEM in the
-guest needs guarantees that the guest will be killed and DMA force
-blocked by the IOMMU if someone punches a hole in memory in use by a
-guest, or otherwise have a paravirtualized driver in the guest to
-coordinate what effectively looks like a physical memory unplug event.
+node0
+537     free_hugepages
+1024    nr_hugepages
+0       surplus_hugepages
+node1
+1000    free_hugepages
+1024    nr_hugepages
+0       surplus_hugepages
+
+Filesystem                         Size  Used Avail Use% Mounted on
+nodev                              4.0G  4.0G     0 100% /var/opt/hugepool
+
+Note that the filesystem shows 4G of pages used, while actual usage is
+511 pages (just under 1G).  Failed trying to allocate page 512.
+
+If a hugetlb page is associated with an explicitly mounted filesystem,
+this information in contained in the page_private field.  At migration
+time, this information is not preserved.  To fix, simply transfer
+page_private from old to new page at migration time if necessary.
+
+Cc: <stable@vger.kernel.org>
+Fixes: bcc54222309c ("mm: hugetlb: introduce page_huge_active")
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+ fs/hugetlbfs/inode.c | 12 ++++++++++++
+ mm/hugetlb.c         |  9 ++++++---
+ 2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 32920a10100e..a7fa037b876b 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -859,6 +859,18 @@ static int hugetlbfs_migrate_page(struct address_space *mapping,
+ 	rc = migrate_huge_page_move_mapping(mapping, newpage, page);
+ 	if (rc != MIGRATEPAGE_SUCCESS)
+ 		return rc;
++
++	/*
++	 * page_private is subpool pointer in hugetlb pages.  Transfer to
++	 * new page.  PagePrivate is not associated with page_private for
++	 * hugetlb pages and can not be set here as only page_huge_active
++	 * pages can be migrated.
++	 */
++	if (page_private(page)) {
++		set_page_private(newpage, page_private(page));
++		set_page_private(page, 0);
++	}
++
+ 	if (mode != MIGRATE_SYNC_NO_COPY)
+ 		migrate_page_copy(newpage, page);
+ 	else
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index a80832487981..f859e319e3eb 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -3625,7 +3625,6 @@ static vm_fault_t hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	copy_user_huge_page(new_page, old_page, address, vma,
+ 			    pages_per_huge_page(h));
+ 	__SetPageUptodate(new_page);
+-	set_page_huge_active(new_page);
+ 
+ 	mmun_start = haddr;
+ 	mmun_end = mmun_start + huge_page_size(h);
+@@ -3647,6 +3646,7 @@ static vm_fault_t hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+ 				make_huge_pte(vma, new_page, 1));
+ 		page_remove_rmap(old_page, true);
+ 		hugepage_add_new_anon_rmap(new_page, vma, haddr);
++		set_page_huge_active(new_page);
+ 		/* Make the old page be freed below */
+ 		new_page = old_page;
+ 	}
+@@ -3792,7 +3792,6 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
+ 		}
+ 		clear_huge_page(page, address, pages_per_huge_page(h));
+ 		__SetPageUptodate(page);
+-		set_page_huge_active(page);
+ 
+ 		if (vma->vm_flags & VM_MAYSHARE) {
+ 			int err = huge_add_to_page_cache(page, mapping, idx);
+@@ -3863,6 +3862,10 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
+ 	}
+ 
+ 	spin_unlock(ptl);
++
++	/* May already be set if not newly allocated page */
++	set_page_huge_active(page);
++
+ 	unlock_page(page);
+ out:
+ 	return ret;
+@@ -4097,7 +4100,6 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+ 	 * the set_pte_at() write.
+ 	 */
+ 	__SetPageUptodate(page);
+-	set_page_huge_active(page);
+ 
+ 	mapping = dst_vma->vm_file->f_mapping;
+ 	idx = vma_hugecache_offset(h, dst_vma, dst_addr);
+@@ -4165,6 +4167,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
+ 	update_mmu_cache(dst_vma, dst_addr, dst_pte);
+ 
+ 	spin_unlock(ptl);
++	set_page_huge_active(page);
+ 	if (vm_shared)
+ 		unlock_page(page);
+ 	ret = 0;
+-- 
+2.17.2
 
