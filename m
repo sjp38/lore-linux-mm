@@ -3,98 +3,98 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E256C282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 08:33:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 565A2C4151A
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 08:33:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4146E2082F
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 08:33:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4146E2082F
+	by mail.kernel.org (Postfix) with ESMTP id 1363B2082F
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 08:33:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1363B2082F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D41C28E0012; Tue, 12 Feb 2019 03:33:14 -0500 (EST)
+	id AA9FE8E0014; Tue, 12 Feb 2019 03:33:33 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CCA3C8E0007; Tue, 12 Feb 2019 03:33:14 -0500 (EST)
+	id A58698E0007; Tue, 12 Feb 2019 03:33:33 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B93D18E0012; Tue, 12 Feb 2019 03:33:14 -0500 (EST)
+	id 948C08E0014; Tue, 12 Feb 2019 03:33:33 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DA298E0007
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 03:33:14 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id w51so1759446edw.7
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 00:33:14 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 395358E0007
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 03:33:33 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id f11so1773269edi.5
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 00:33:33 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=byhp5NnpbB254Ys28TFfX/kJzfNTxL1zIyQbThpjGyY=;
-        b=RbKwmoRN7jvVuecFCWxMQ2ZzBZ1Sz92VREAM/9Q8VQ1iRhAoVMoeYI57JWYcn5+zV/
-         /KO6vjJ/2GKOcdfUCCR2M9rKRWCVEiU7/QkhGws8FhU/YAP1c7wSFV9urgnV+08wGqo2
-         gqUdeUxLEe0cPX+h+f1NLylCHnFXOO5QrQoe6pqF4C5TawS+FKW1/9YMVipW61rPRJ/v
-         GKJqfoL+khmOjzwVCJUtD4RfJgU9VaulotQes5U4O1veK6V6+7oFdpy/pBrskLoVwplN
-         VY88KmeAkpd5X3Kki91LciYARgkiBmURfT36AgThv0MA5QAJQSnYVQam+DxOBM1Z3EU3
-         0yfw==
+        bh=Q5DRaxmW7lxiNbVPe0epPmhhIOtSaCUjtXl4REFUAiA=;
+        b=LZYaSSRUcvCDmX30Q9cjFOK/SAdbGDsmvwpzKF15y37dQ5YXnT1RkuKUiChl5TqaFO
+         yRRTl4oa8P6iZswgU8bnrg4y2wBMokAccLmD5A55t+TrClIAKQR4w08iUc/QkbMdgEy+
+         YQCANzdzoukrxihH1w5VMligy6uLOumcXjav9pjZPMlX4I2+caM/3WHKasQHvXQ8MUxF
+         LSIYNDKcfnvD16XisUzQJPi4ARQRrHZkGl0kSNiZqSr7A+JZ9+rQu8QPei6lajqTlhaV
+         WNnA+IinxyCpZbs44/XojajN0Re55EJWrEOOmmXVUkOe8LwJ5v+dgBmBRShwcr11Tejs
+         uKdw==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAuZdXZuGMy7vLkWv+JtpUMnCt7IHta4hLDZg4UFrp4j83gsKoTLr
-	ZkuYXu5ecsFAZMfNBO4AzkXv49xrM/v24aYXaPrK858HTCbBNiyHbfre2YcVMAriUpwUgLIivSg
-	C1TF0vbkPVxmClKMmgIlYTE97PKy5YTUQH9CSMbd4HFGKmjrZa2VY4/YLaCtvkeM=
-X-Received: by 2002:aa7:c2c6:: with SMTP id m6mr2047608edp.158.1549960393843;
-        Tue, 12 Feb 2019 00:33:13 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib+hpyD6zaHbSvPHOM2mQi0k/v1a4RaEk9cWq94xFmHK/m5mLsFNXSl0/0FI/MP5gAztYzs
-X-Received: by 2002:aa7:c2c6:: with SMTP id m6mr2047550edp.158.1549960392791;
-        Tue, 12 Feb 2019 00:33:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549960392; cv=none;
+X-Gm-Message-State: AHQUAuZijQpuoQtben9AcqwBqyJhkP1RfL+R5c5Ed12GYLAGFIkm3gTJ
+	TqrzETeEA06ZBbtVLy7X0wLESDEQHbEjL9t7yfrglx2sZoh48lFne1nTJsjtEPz44qxOxitancO
+	R/GLf81Qhd5KlfIqnwgISa/v5EzhGpEsGRXWtgoDZFk4e5mKf83AC3FcFa3Nz7HU=
+X-Received: by 2002:a50:a8c3:: with SMTP id k61mr2063050edc.296.1549960412741;
+        Tue, 12 Feb 2019 00:33:32 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYF8dt71o85LHmPtCpO46OTEtBybAO2B+6mClba+UYlqYRJ59dYWKAwVqzJgWciy9SoDNHb
+X-Received: by 2002:a50:a8c3:: with SMTP id k61mr2062989edc.296.1549960411700;
+        Tue, 12 Feb 2019 00:33:31 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549960411; cv=none;
         d=google.com; s=arc-20160816;
-        b=krs0mBfZ71a3GIObzILH8PXAHGE5fLxaU3SGjXBqzpImLaHsi8hEuv+suUIWre0h5G
-         ywSdSKujPfcdwiz9QDID/mGEVQaKVIoYDS/ziG2HFV34XB4JniE/w0eK+klZWM/3k33y
-         /tyoB8cMPgDDV4Y65ap+XezYpa/0iLKzPTrfjWsEfYluIfXpwpFW/NYc7TZCX3Hg5Me5
-         GPM5+5zfnQjr02YXSLAoUnAfbR1XhlFDPfLVwScn6lyzPV2LrcNgl6dGT1zLGbjfQeSd
-         JSbKDZJboGZEMG5KDQrzdtEjbO2YXMPMiOmTxRab6etB4C4bHfM9gEKxsd5l92Bqh0fs
-         mi7Q==
+        b=dHSOLanm6mops8GEpyOQKxsmhKlV7YfRUspTXyA2dbHFP/3MyGvTNyVTPAT4SXvsIY
+         tUUCC2PdBGV2eRudvoL/deTSq+2M2XxyWmyK2Qs9qLav48qWxR15jRtWrKnDAYjKuuJx
+         E6weu737nNyUldIAIf2YPaS+58yYIQCFqQ5MjA0koS5OqEk82j4Yoh9KfcwQEqC5DpI9
+         BPuPL5FqyTT7XXillxss0ckRKI9/OiqznqE7GpZfgjZjNGWWmsnl2ycnkmy04SqO+JFf
+         paC09T34hWJfq0rkn03YlvX2vbol/bw8u9tm9FuIXCBsD2YntZ7pug8CsnNMl+MRJaPc
+         zWYg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=byhp5NnpbB254Ys28TFfX/kJzfNTxL1zIyQbThpjGyY=;
-        b=TCXw/lHbgrgirh6UOp32m2KAp3EMPJ+HutcsC3gxd6eWia4q8xe6Lk27vUdzo7eodM
-         h6Ic7u7v7hExjR6p1ds/GLhsXJoH+sgLiANuOhMTTckQDTUfs9Utipd6FggXEj9Fiomp
-         buUmSV7koqwQcCFIXZuUg2sJCa94sybk4b/fyHDeZrC6S6+g5ZgfzJVLn3qeunSnWOzP
-         uI9I9o55HFLTkklxvS7PqoBMA4qs0SjN0y5yj1J0h48k0UbjuQnk6vVTQDCrBZKsD6qe
-         FHnoRnmJgwFTEA745z0eUbdNNJ7gxSChdrxyO2RtDjrHOxFwSM8KHvISxwj3Ima4ksmR
-         GSRg==
+        bh=Q5DRaxmW7lxiNbVPe0epPmhhIOtSaCUjtXl4REFUAiA=;
+        b=apHCe3oO4G9oIYe9GxWtv280QU4TKY5xZnk+ubcnvvsH9cdluy7YFxYIp8AbzgSfBP
+         mJPELC2IDLDRNW5slTeM7WXJIxuvZvri9f4TA7RvkpJdwL2vk29q7d4k0msHARyopLAw
+         0ySSaufdAb2BkUC7rHqooADWn6rc+dIPzbXWQBJk87ka9InnAx2sMfqNEi7Jo4ZrtT28
+         BxOlqWrtAnBwx8jMS5CqOnPmz+TmKUdUuqYSyXjw5cI9Y29HJ6UQxxfH3CFgwLtMWZvn
+         N8gCg7GzyExAllI45zJL2m3imaf8TcDbWxFOKk5N23fXaIhNfOBwXofPviBG6PIpbcBs
+         hCqA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w26si4796006edb.20.2019.02.12.00.33.12
+        by mx.google.com with ESMTPS id h17si1031745ejj.234.2019.02.12.00.33.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 00:33:12 -0800 (PST)
+        Tue, 12 Feb 2019 00:33:31 -0800 (PST)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id EB317AF1F;
-	Tue, 12 Feb 2019 08:33:11 +0000 (UTC)
-Date: Tue, 12 Feb 2019 09:33:10 +0100
+	by mx1.suse.de (Postfix) with ESMTP id 4EC3EAF17;
+	Tue, 12 Feb 2019 08:33:31 +0000 (UTC)
+Date: Tue, 12 Feb 2019 09:33:29 +0100
 From: Michal Hocko <mhocko@kernel.org>
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	gregkh@linuxfoundation.org, rafael@kernel.org,
-	akpm@linux-foundation.org, osalvador@suse.de
-Subject: Re: [PATCH v2] mm/memory-hotplug: Add sysfs hot-remove trigger
-Message-ID: <20190212083310.GM15609@dhcp22.suse.cz>
-References: <49ef5e6c12f5ede189419d4dcced5dc04957c34d.1549906631.git.robin.murphy@arm.com>
+To: Oscar Salvador <osalvador@suse.de>
+Cc: akpm@linux-foundation.org, david@redhat.com, anthony.yznaga@oracle.com,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm,memory_hotplug: Explicitly pass the head to
+ isolate_huge_page
+Message-ID: <20190212083329.GN15609@dhcp22.suse.cz>
+References: <20190208090604.975-1-osalvador@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <49ef5e6c12f5ede189419d4dcced5dc04957c34d.1549906631.git.robin.murphy@arm.com>
+In-Reply-To: <20190208090604.975-1-osalvador@suse.de>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -102,133 +102,55 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 11-02-19 17:50:46, Robin Murphy wrote:
-> ARCH_MEMORY_PROBE is a useful thing for testing and debugging hotplug,
-> but being able to exercise the (arguably trickier) hot-remove path would
-> be even more useful. Extend the feature to allow removal of offline
-> sections to be triggered manually to aid development.
+On Fri 08-02-19 10:06:04, Oscar Salvador wrote:
+> isolate_huge_page() expects we pass the head of hugetlb page to it:
 > 
-> Since process dictates the new sysfs entry be documented, let's also
-> document the existing probe entry to match - better 13-and-a-half years
-> late than never, as they say...
+> bool isolate_huge_page(...)
+> {
+> 	...
+> 	VM_BUG_ON_PAGE(!PageHead(page), page);
+> 	...
+> }
+> 
+> While I really cannot think of any situation where we end up with a
+> non-head page between hands in do_migrate_range(), let us make sure
+> the code is as sane as possible by explicitly passing the Head.
+> Since we already got the pointer, it does not take us extra effort.
+> 
+> Signed-off-by: Oscar Salvador <osalvador@suse.de>
 
-The probe sysfs is quite dubious already TBH. Apart from testing, is
-anybody using it for something real? Do we need to keep an API for
-something testing only? Why isn't a customer testing module enough for
-such a purpose?
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-In other words, why do we have to add an API that has to be maintained
-for ever for a testing only purpose?
+Btw.
 
-Besides that, what is the reason to use __remove_memory rather than the
-exported remove_memory which does an additional locking. Also, we do
-trust root to do sane things but are we sure that the current BUG-land
-mines in the hotplug code are ready enough to be exported for playing?
-
-> Signed-off-by: Robin Murphy <robin.murphy@arm.com>
 > ---
+>  mm/memory_hotplug.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
-> v2: Use is_memblock_offlined() helper, write up documentation
-> 
->  .../ABI/testing/sysfs-devices-memory          | 25 +++++++++++
->  drivers/base/memory.c                         | 42 ++++++++++++++++++-
->  2 files changed, 66 insertions(+), 1 deletion(-)
-> 
-> diff --git a/Documentation/ABI/testing/sysfs-devices-memory b/Documentation/ABI/testing/sysfs-devices-memory
-> index deef3b5723cf..02a4250964e0 100644
-> --- a/Documentation/ABI/testing/sysfs-devices-memory
-> +++ b/Documentation/ABI/testing/sysfs-devices-memory
-> @@ -91,3 +91,28 @@ Description:
->  		memory section directory.  For example, the following symbolic
->  		link is created for memory section 9 on node0.
->  		/sys/devices/system/node/node0/memory9 -> ../../memory/memory9
-> +
-> +What:		/sys/devices/system/memory/probe
-> +Date:		October 2005
-> +Contact:	Linux Memory Management list <linux-mm@kvack.org>
-> +Description:
-> +		The file /sys/devices/system/memory/probe is write-only, and
-> +		when written will simulate a physical hot-add of a memory
-> +		section at the given address. For example, assuming a section
-> +		of unused memory exists at physical address 0x80000000, it can
-> +		be introduced to the kernel with the following command:
-> +		# echo 0x80000000 > /sys/devices/system/memory/probe
-> +Users:		Memory hotplug testing and development
-> +
-> +What:		/sys/devices/system/memory/memoryX/remove
-> +Date:		February 2019
-> +Contact:	Linux Memory Management list <linux-mm@kvack.org>
-> +Description:
-> +		The file /sys/devices/system/memory/memoryX/remove is
-> +		write-only, and when written with a boolean 'true' value will
-> +		simulate a physical hot-remove of that memory section. For
-> +		example, assuming a 1GB section size, the section added by the
-> +		above "probe" example could be removed again with the following
-> +		command:
-> +		# echo 1 > /sys/devices/system/memory/memory2/remove
-> +Users:		Memory hotplug testing and development
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 048cbf7d5233..1ba9d1a6ba5e 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -521,7 +521,44 @@ static ssize_t probe_store(struct device *dev, struct device_attribute *attr,
->  }
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 656ff386ac15..d5f7afda67db 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1378,12 +1378,12 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 >  
->  static DEVICE_ATTR_WO(probe);
-> -#endif
-> +
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +static ssize_t remove_store(struct device *dev, struct device_attribute *attr,
-> +			    const char *buf, size_t count)
-> +{
-> +	struct memory_block *mem = to_memory_block(dev);
-> +	unsigned long start_pfn = section_nr_to_pfn(mem->start_section_nr);
-> +	bool remove;
-> +	int ret;
-> +
-> +	ret = kstrtobool(buf, &remove);
-> +	if (ret)
-> +		return ret;
-> +	if (!remove)
-> +		return count;
-> +
-> +	if (!is_memblock_offlined(mem))
-> +		return -EBUSY;
-> +
-> +	ret = lock_device_hotplug_sysfs();
-> +	if (ret)
-> +		return ret;
-> +
-> +	if (device_remove_file_self(dev, attr)) {
-> +		__remove_memory(pfn_to_nid(start_pfn), PFN_PHYS(start_pfn),
-> +				MIN_MEMORY_BLOCK_SIZE * sections_per_block);
-> +		ret = count;
-> +	} else {
-> +		ret = -EBUSY;
-> +	}
-> +
-> +	unlock_device_hotplug();
-> +	return ret;
-> +}
-> +
-> +static DEVICE_ATTR_WO(remove);
-> +#endif /* CONFIG_MEMORY_HOTREMOVE */
-> +#endif /* CONFIG_ARCH_MEMORY_PROBE */
->  
->  #ifdef CONFIG_MEMORY_FAILURE
->  /*
-> @@ -615,6 +652,9 @@ static struct attribute *memory_memblk_attrs[] = {
->  	&dev_attr_removable.attr,
->  #ifdef CONFIG_MEMORY_HOTREMOVE
->  	&dev_attr_valid_zones.attr,
-> +#ifdef CONFIG_ARCH_MEMORY_PROBE
-> +	&dev_attr_remove.attr,
-> +#endif
->  #endif
->  	NULL
->  };
+>  		if (PageHuge(page)) {
+>  			struct page *head = compound_head(page);
+> -			pfn = page_to_pfn(head) + (1<<compound_order(head)) - 1;
+>  			if (compound_order(head) > PFN_SECTION_SHIFT) {
+>  				ret = -EBUSY;
+>  				break;
+>  			}
+
+Why are we doing this, btw? 
+
+> -			isolate_huge_page(page, &source);
+> +			pfn = page_to_pfn(head) + (1<<compound_order(head)) - 1;
+> +			isolate_huge_page(head, &source);
+>  			continue;
+>  		} else if (PageTransHuge(page))
+>  			pfn = page_to_pfn(compound_head(page))
 > -- 
-> 2.20.1.dirty
+> 2.13.7
 
 -- 
 Michal Hocko
