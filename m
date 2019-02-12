@@ -2,168 +2,165 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F74DC282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 06:36:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A6504C282CE
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 06:40:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 35CA0217FA
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 06:36:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35CA0217FA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 6AE9C218DE
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 06:40:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6AE9C218DE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9792F8E0014; Tue, 12 Feb 2019 01:36:50 -0500 (EST)
+	id DE2848E0015; Tue, 12 Feb 2019 01:40:53 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9289E8E0013; Tue, 12 Feb 2019 01:36:50 -0500 (EST)
+	id D92BC8E0013; Tue, 12 Feb 2019 01:40:53 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 817C48E0014; Tue, 12 Feb 2019 01:36:50 -0500 (EST)
+	id CA7C88E0015; Tue, 12 Feb 2019 01:40:53 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C7488E0013
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 01:36:50 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id z10so1493031edz.15
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 22:36:50 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 865CE8E0013
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 01:40:53 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id l76so1593397pfg.1
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 22:40:53 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=2luFFSDHFsJbDwl821dl7kMAmz12dh1A0o8rlWHEfHs=;
-        b=aW2q4qHpy0BKRKPIxTBAdPax0eLFD9M2x4fjeQIRQNYHECzcOb0gzRVPCieQPqlGb8
-         nufun5riJ8Yls5h//m2EgOzCBNeZoL10myF2F0i+vYg1Vn1tXPc8ESOcVpwk873zJEFX
-         xDxh4g+6DjSEaXrML7+1yEa6DZwrT8VK2lxB2ks6zRXaJfn0KyLK5Am5px4Gomtmo7JP
-         /nVgOP6dK6x+vyrw+aJNRfxps8zwCJkNtd9N5bkw4QMAa/TFn1p5t80XIGoesyL/Eaa9
-         sk8HcxgXzzzVWHcGdPes7ARmBfFRhsu2Vk5IsCCvp4TvJdRXT5ZUSvYUzOuYYw4nxAXf
-         yvdw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAuZ4Ib4V6OQyFawFAqc/7acw/AnagjXbjneqfRvbgTTY+IgnVCJ6
-	/behTVcHw3Z3bB2z2LrTsK4nR8BdQsUhDHRFn9edJBNPlb4KSDqxJbnikbS1JacVy9SffPIzcpH
-	3gSfViBraeu0nOv+lIXmrCUrhO1HMRzXJ5OAEvMF6X/kca8cenqkBqMATlSTKYos=
-X-Received: by 2002:a50:a246:: with SMTP id 64mr1732420edl.43.1549953409663;
-        Mon, 11 Feb 2019 22:36:49 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYNeRfCKXfD2kY3wgvUxXlxH77qGmYt0v7LP9EEn6RLnyOGyWQRWdR1HpCNzToYmnzjRQi6
-X-Received: by 2002:a50:a246:: with SMTP id 64mr1732369edl.43.1549953408671;
-        Mon, 11 Feb 2019 22:36:48 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549953408; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=WH5kq+PAShKAq/Y0ruxegZEEOCx7byyFK0fK50EoAVI=;
+        b=L5CtSXM45+uArvbaV5l5rFAzvj8UBYep0bCzcpchfipYmCytQF1GehXBsC8uvlzcrF
+         gWWQlyWedJNyEaROMU5Iwz9mVBFUxHYv8nyc+H49nFKPtISA90BZ3dw6ZKBRGuW22SpU
+         BQx9AyYQOzLhW3aiN/PK+asWZNmGTKag/BjXMTi/ziQW/YE46FaCC0XwgUXmQE7TVFi2
+         YbKjaVqSPsTsXUCs47CwTi6VeStC8x4BcHPafyGRQkF203MBlP+Oncv9Cwxs8cHpZURT
+         bTAH32JJ/Uc6aecAp9DAEGm10cJkQVSUb22CWRLJDEMKLCGas0iliuWgnY3zyggzmYfz
+         n3SA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuYpGB/B03/K9NUTTSXJjAw/bTvyJgViYXKIF8KxUkUr8NRb7ilJ
+	Rm1dtU3tZ2Bp5k85Hd5vM76+rqCDlZc9+TYOCcwV4YoT/V1PjL0ctqD+9rCR1m9nhkBDByECR3e
+	ZFbwEIz6Lo4XWJb1lE2KL4t4gqupz5PPFKRHG5su2zQVy2rDkLbhlfxLTtKYYBBMkww==
+X-Received: by 2002:a17:902:442:: with SMTP id 60mr2352453ple.73.1549953653213;
+        Mon, 11 Feb 2019 22:40:53 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbEY9c1DLrGybXIUnDip3hsMRD4SJ4NxUNNawBWmVHAj9r8DXPPrlyTPABlGJvCs0SJdGwQ
+X-Received: by 2002:a17:902:442:: with SMTP id 60mr2352416ple.73.1549953652430;
+        Mon, 11 Feb 2019 22:40:52 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549953652; cv=none;
         d=google.com; s=arc-20160816;
-        b=0br9xlh/zDdpNRY9cGnqU8FUKfSI7BkkpJ3uwfVM2xaK0ukY2VSe5nM01YOzMgiYvK
-         pa+7+LxSwctbvroBI9iH7vONbRhNtj6K5Eyk76yUDntVEqIA/zZDW8wFq17t9T50m53R
-         6GsEdAqG0/iyfcv7MgG+kLNNq2V44Omz0di6S4Ey8yvVE+ji6oSmdVGa2Ao+808aP2dc
-         46T3AsQMqrReXhnMKbg3zXHPIyHcoDFFgnALbaHpH/SfQTWNVbPxtBXtJ7BAuejzUuen
-         wxstK6h4ffzROmdLvVCXGmCh+EcnBF1RiSfr/03SQO+Aa+V2lIB743VBXRCnSNufVlBf
-         v1Cg==
+        b=hfueTiryu7801QBgiWjFn2tnT0md7NbWbrU/QfSKGTMxa/epqPfwVhceXJOiseheLZ
+         +zPuDdyu2zgC1uuYeNfIY51JJ5bvwddbV0P9t6bqyCX9igKAXqpjTGJy+/T0/7R56Y9e
+         3hC/pe3/WMk2C3owYQ1VwY5Si+VbQCH/f+GULtLpBsQ2SDS97DsjCVgscYKape38VYNz
+         0w8oXIaxeePZD6XAPTy9dB+gfJjdJEGEpVqb5olxNFJomilCJGIOQEKXb3hUg3xZ5qJT
+         kfTZblZcBCTOkDshaTSUpKzICw7ziAaYfh0PPthD1CRBVyJp4nFn6Q+3mIY+4cMeabom
+         jGuw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=2luFFSDHFsJbDwl821dl7kMAmz12dh1A0o8rlWHEfHs=;
-        b=VMOLyl+8cmbEYoLlGk3hWqEZr2DhIhTKOiqg121MB7S6QX6mgju00369/dtrKpmQ8F
-         3NlygGVCBvFX3fp0Wj4H0GqWIz/d533FBF3aMSADYdsrRoPtQnt6ochkyT5/f3nxfqiU
-         yOP2i26DOeFfd5AnO1KwV/jHn3riemb4zJ8WrQIZxs4OhwOE/c3T5NPOKaYlhmciRHc4
-         4j6xefXyxTIGtA8LcpqCe3XSt6/0Cd613hgwYiXcPRV/1dUironLMIYTBXg1JIXm0NLF
-         e8+ZGj41BrnW3xoezM+Mv8Z8nBE8o6FlPsRvsGP5lPykr1hhMS2ttcSosJrKcTXdvJlC
-         d9WA==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=WH5kq+PAShKAq/Y0ruxegZEEOCx7byyFK0fK50EoAVI=;
+        b=cv0iE4kATTwDFaiqljJQ0lwil4LX/dsKs9cJc9V2m5UutI+zk7xLelT+1hfu8u71SS
+         Tbd/Uwx4LNxBIf7HiIJBL+Up1vU+ZDa+Qptn9xi4VX+Khkbs9Ib9NZQ6kNBbbZTvrW5x
+         GucVn4SyWWlyYDf5O/49XvscQlGsCx7LdU/evNDa0ixS9qO+rPPVXbUx7px0vWq8cChG
+         LiPfSo2sB+rrfknBG4II16nqCc1YDiXO9CnSdyAgBB4ylo2ScoDtn0GCMLm6usjXHstH
+         IE+nvamIJ4WNpFOpnsqkmLkU9rJcEv3SvbMrrNIGJHbXUhLUWOy/dSg8IiiUUlJKOPHf
+         FzGw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b2si5917838edy.279.2019.02.11.22.36.48
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id m6si182352pll.86.2019.02.11.22.40.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 22:36:48 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 11 Feb 2019 22:40:52 -0800 (PST)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 5F9C3AC4C;
-	Tue, 12 Feb 2019 06:36:47 +0000 (UTC)
-Date: Tue, 12 Feb 2019 07:36:43 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Jiri Kosina <jikos@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-api@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>,
-	Greg KH <gregkh@linuxfoundation.org>, Jann Horn <jannh@google.com>,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	Andy Lutomirski <luto@amacapital.net>,
-	Dave Chinner <david@fromorbit.com>,
-	Kevin Easton <kevin@guarana.org>,
-	Matthew Wilcox <willy@infradead.org>,
-	Cyril Hrubis <chrubis@suse.cz>, Tejun Heo <tj@kernel.org>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	Daniel Gruss <daniel@gruss.cc>, Josh Snyder <joshs@netflix.com>
-Subject: Re: [PATCH 3/3] mm/mincore: provide mapped status when cached status
- is not allowed
-Message-ID: <20190212063643.GL15609@dhcp22.suse.cz>
-References: <nycvar.YFH.7.76.1901051817390.16954@cbobk.fhfr.pm>
- <20190130124420.1834-1-vbabka@suse.cz>
- <20190130124420.1834-4-vbabka@suse.cz>
- <20190131100907.GS18811@dhcp22.suse.cz>
- <99ee4d3e-aeb2-0104-22be-b028938e7f88@suse.cz>
- <nycvar.YFH.7.76.1902120440430.11598@cbobk.fhfr.pm>
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga002.fm.intel.com ([10.253.24.26])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Feb 2019 22:40:51 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,361,1544515200"; 
+   d="scan'208";a="142668988"
+Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.151])
+  by fmsmga002.fm.intel.com with ESMTP; 11 Feb 2019 22:40:49 -0800
+From: "Huang\, Ying" <ying.huang@intel.com>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,  <linux-mm@kvack.org>,
+  <linux-kernel@vger.kernel.org>,  Hugh Dickins <hughd@google.com>,  "Paul
+ E . McKenney" <paulmck@linux.vnet.ibm.com>,  Minchan Kim
+ <minchan@kernel.org>,  Johannes Weiner <hannes@cmpxchg.org>,  Tim Chen
+ <tim.c.chen@linux.intel.com>,  Mel Gorman <mgorman@techsingularity.net>,
+  =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,  Michal Hocko
+ <mhocko@suse.com>,  Andrea Arcangeli <aarcange@redhat.com>,  David
+ Rientjes <rientjes@google.com>,  Rik van Riel <riel@redhat.com>,  Jan Kara
+ <jack@suse.cz>,  Dave Jiang <dave.jiang@intel.com>,  "Andrea Parri"
+ <andrea.parri@amarulasolutions.com>
+Subject: Re: [PATCH -mm -V7] mm, swap: fix race between swapoff and some swap operations
+References: <20190211083846.18888-1-ying.huang@intel.com>
+	<20190211190646.j6pdxqirc56inbbe@ca-dmjordan1.us.oracle.com>
+Date: Tue, 12 Feb 2019 14:40:48 +0800
+In-Reply-To: <20190211190646.j6pdxqirc56inbbe@ca-dmjordan1.us.oracle.com>
+	(Daniel Jordan's message of "Mon, 11 Feb 2019 14:06:46 -0500")
+Message-ID: <87a7j1ldan.fsf@yhuang-dev.intel.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <nycvar.YFH.7.76.1902120440430.11598@cbobk.fhfr.pm>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=ascii
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 12-02-19 04:44:30, Jiri Kosina wrote:
-> On Fri, 1 Feb 2019, Vlastimil Babka wrote:
-> 
-> > >> After "mm/mincore: make mincore() more conservative" we sometimes restrict the
-> > >> information about page cache residency, which we have to do without breaking
-> > >> existing userspace, if possible. We thus fake the resulting values as 1, which
-> > >> should be safer than faking them as 0, as there might theoretically exist code
-> > >> that would try to fault in the page(s) until mincore() returns 1.
-> > >>
-> > >> Faking 1 however means that such code would not fault in a page even if it was
-> > >> not in page cache, with unwanted performance implications. We can improve the
-> > >> situation by revisting the approach of 574823bfab82 ("Change mincore() to count
-> > >> "mapped" pages rather than "cached" pages") but only applying it to cases where
-> > >> page cache residency check is restricted. Thus mincore() will return 0 for an
-> > >> unmapped page (which may or may not be resident in a pagecache), and 1 after
-> > >> the process faults it in.
-> > >>
-> > >> One potential downside is that mincore() will be again able to recognize when a
-> > >> previously mapped page was reclaimed. While that might be useful for some
-> > >> attack scenarios, it's not as crucial as recognizing that somebody else faulted
-> > >> the page in, and there are also other ways to recognize reclaimed pages anyway.
-> > > 
-> > > Is this really worth it? Do we know about any specific usecase that
-> > > would benefit from this change? TBH I would rather wait for the report
-> > > than add a hard to evaluate side channel.
-> > 
-> > Well it's not that complicated IMHO. Linus said it's worth trying, so
-> > let's see how he likes the result. The side channel exists anyway as
-> > long as process can e.g. check if its rss shrinked, and I doubt we are
-> > going to remove that possibility.
-> 
-> So, where do we go from here?
-> 
-> Either Linus and Andrew like the mincore() return value tweak, or this 
-> could be further discussed (*). But in either of the cases, I think 
-> patches 1 and 2 should be at least queued for 5.1.
+Daniel Jordan <daniel.m.jordan@oracle.com> writes:
 
-I would go with patch 1 for 5.1. Patches 2 still sounds controversial or
-incomplete to me. And patch 3, well I will leave the decision to
-Andrew/Linus.
+> On Mon, Feb 11, 2019 at 04:38:46PM +0800, Huang, Ying wrote:
+>> +struct swap_info_struct *get_swap_device(swp_entry_t entry)
+>> +{
+>> +	struct swap_info_struct *si;
+>> +	unsigned long type, offset;
+>> +
+>> +	if (!entry.val)
+>> +		goto out;
+>
+>> +	type = swp_type(entry);
+>> +	si = swap_type_to_swap_info(type);
+>
+> These lines can be collapsed into swp_swap_info if you want.
 
-> (*) I'd personally include it as well, as I don't see how it would break 
->     anything, it's pretty straightforward, and brings back some sanity to
->     mincore() return value.
+Yes.  I can use that function to reduce another line from the patch.
+Thanks!  Will do that.
 
--- 
-Michal Hocko
-SUSE Labs
+>> +	if (!si)
+>> +		goto bad_nofile;
+>> +
+>> +	preempt_disable();
+>> +	if (!(si->flags & SWP_VALID))
+>> +		goto unlock_out;
+>
+> After Hugh alluded to barriers, it seems the read of SWP_VALID could be
+> reordered with the write in preempt_disable at runtime.  Without smp_mb()
+> between the two, couldn't this happen, however unlikely a race it is?
+>
+> CPU0                                CPU1
+>
+> __swap_duplicate()
+>     get_swap_device()
+>         // sees SWP_VALID set
+>                                    swapoff
+>                                        p->flags &= ~SWP_VALID;
+>                                        spin_unlock(&p->lock); // pair w/ smp_mb
+>                                        ...
+>                                        stop_machine(...)
+>                                        p->swap_map = NULL;
+>         preempt_disable()
+>     read NULL p->swap_map
+
+Andrea has helped to explain this.
+
+Best Regards,
+Huang, Ying
 
