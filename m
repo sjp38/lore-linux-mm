@@ -4,175 +4,197 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4152FC282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 07:20:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A5D1CC282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 07:45:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E32682184A
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 07:20:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4490D2083B
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 07:45:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="iPelpcvb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E32682184A
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uFQRCKd5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4490D2083B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7AA3C8E0013; Tue, 12 Feb 2019 02:20:40 -0500 (EST)
+	id AA67F8E0013; Tue, 12 Feb 2019 02:45:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 75AAA8E0012; Tue, 12 Feb 2019 02:20:40 -0500 (EST)
+	id A55988E0012; Tue, 12 Feb 2019 02:45:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 655828E0013; Tue, 12 Feb 2019 02:20:40 -0500 (EST)
+	id 945D48E0013; Tue, 12 Feb 2019 02:45:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E8EF8E0012
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 02:20:40 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id w4so631576wrt.21
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 23:20:40 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 53FF58E0012
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 02:45:10 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id a2so1463853pgt.11
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 23:45:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=U64zTCXWDQ7iL31iPsF8RezMrqba1QJ9+7xpUmpn3AA=;
-        b=i8pLjlBdalqPxE0ljgi79TsD+1dvirhRnTaK7m+hEUqxH0BCJ238yM0BsBWGvUbvJt
-         iZgwUyz71liS0B1ndSCoUEdCu2awaSiDsBBw/FDalw49PTPiKO2zKnikUuT8MNKhnK5I
-         LX+yVxhXOBl6Ai+x5oe5GDaCNUpVd2q23dK0PUrgoQwy04O6fCFvUNYJEdOTsj+qWLBC
-         bX9GOEZJrooznuFelYOHJsE+tG4ult20AOc4txt8u29lHGYKZT9NV2HbMO52rqQeOCn7
-         0YPseZlFwFt6t/jAuo8F4gunMwyeBdt1PlLFmugG9bZX4//cPJlmg4o7ZY4q6MPDqCmC
-         5yCA==
-X-Gm-Message-State: AHQUAuZtaIxE0dGroHNtT/WoQM6lXzFR29YsCmCxjtGcuTRxhMNY9J4j
-	c1FeXNxjZCp4RqD+1jf7DXr9prKYeOMbd+GhgRxqRbQDt/2EpsjYOAw4wfd4Dqbetjrkn9yodcR
-	TXnwmX+O8DfbYJalmUP5hYf3OWNraCx6Quc5qn9DHElSZNJXT5GcbN/1L6gg9NppQMX4XNMIPRt
-	L4aiqvpQ9xrJNRuClLC4SWArbrutVcTeLddi8+bDM4COhs/Pyguo5dd4gpwh4sR7+3gZ/McY7Rb
-	5LQIE7Yr5zB7ODpGrFrG/EUSWrrKiOlFhLQM5GG5skqI5PFxa+oJwPK7DegQ6B2UajQOsyJa0Uz
-	RXrUD04E4q27YDzm3bs8fuzWKuJkoTrhVkSzpiXjQLNeoNJUbCglzXCGItRyXHJ/X0y67sPa9Js
-	o
-X-Received: by 2002:adf:f9cb:: with SMTP id w11mr1609328wrr.201.1549956039587;
-        Mon, 11 Feb 2019 23:20:39 -0800 (PST)
-X-Received: by 2002:adf:f9cb:: with SMTP id w11mr1609277wrr.201.1549956038842;
-        Mon, 11 Feb 2019 23:20:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549956038; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=rQSmjdcB+ssMiEN1R8if29u9yg61brahFdCafNDHO+M=;
+        b=tYtqvc0bbsOXeTsTOxEoiRBPl7IQ82OIlhA8v9Ma/6SOLnNAnakiuq8uJfijwUoxse
+         YbF67LJ0wwReONkAqrOTpPLZr3KSJulknYugTvbI1EroyYqTaIk0/QVJrpsm1gQ8RmfO
+         y0g5T8LgZdbEB88bw4wPhfy2i0k+cj0GVe3Y3+pgSF6R+lhYfhwInZF59e6E8/n8yLEQ
+         zCMaY3wZuQX2pJZj/WdHa+u75XCAyclU7g9snwYeDZ9DKh247RUXCB3tc8JhkMfiJib7
+         iWLCiWBKhmj8HmFvTVx4r5abshkeohKoeg2J5mN5x8SHQAGUk1DB98xQxsepr6U+8JJH
+         BG/Q==
+X-Gm-Message-State: AHQUAubQRrtt6C8IRkwWChg9zrcmvPmZwD8ZpCSZobi7Eis76Uj+z2z4
+	VVUtLGMsJ/wqCCkDKvFJ47CRHc69OsTMpRebg++I1TDKinLXJjT+oMhMDF6nrMY9ovpjw48BOs1
+	odaBjBLx/SgwEDtBfMxkhm3MjbgZrOieFHzAAR3LcBDRWqwl4KzN0UJONolaBj8MClj7/DZSLLt
+	WzkKNdzjKIBqOfKWwjlvWSZTiUwFNW+ueq6qa3yrNZJdQeOM9c5JYFe++VtMgv8oG4B8myXPSJn
+	Xd4NnHa2fG1SAzEYeSUdyLSSLr98Q3Kpc+7oZgzsqHxNXfMUwytOo+XxJ5okjI6vbEOcevBca11
+	8s8SzuZ1VN/8A9NQf36N+BKdDfSE4GxBV/4FM3NXPNtuQG7JywNUyReOQx110Y50FGXw/f4X9V2
+	I
+X-Received: by 2002:a63:fd0a:: with SMTP id d10mr2473512pgh.164.1549957509918;
+        Mon, 11 Feb 2019 23:45:09 -0800 (PST)
+X-Received: by 2002:a63:fd0a:: with SMTP id d10mr2473464pgh.164.1549957509129;
+        Mon, 11 Feb 2019 23:45:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549957509; cv=none;
         d=google.com; s=arc-20160816;
-        b=v0fE+7c3K4baMrQz6onrvGe63ix/vhF5EREdIBl5EUEPnwPUQfk7l3sZJSd/gxsZy5
-         aoamYTT3f4L498KyWD30jEp9ToVDR66XXNMfdgLXmLUVqfF3rUG6k4dUWdpw1b22FmjA
-         ev3wWNUnXVTqMtib6GSDoU1oEDj5Jsgeds469hxSnJwmY5txgcgNTKK3+I/deiWWB3KB
-         OUoSaOE6R0YsSeTNakEbN/TR/dTH3eHmZeazqGAxxzH/Rwl/cgAEuULjddnKzr5nV3eS
-         7EzOH/2aNltCFEvdC2syR+bst7lvciBD61p6yrbSebXt65PUHu4ad7/YrE6kzAuDADbJ
-         8ZlA==
+        b=Zr7Yoac+Xm05qj5KrKmoyO37m8jWg5B1bdfh/ltNZ5kkOagqp9em0zsYWh86pt+9BB
+         caDsZvzcILrL6Wk0SXB5ftqAYsZNiPIHpfbEdnnHaOIeez13m54P8QHHm/6339YKNrln
+         BGhMGuciL96ShqsdRwrQ6soryDCsWx19AAgIydDuYqavyvinu6rupPvhX9MMiFjy3BAJ
+         hxFOFBIisw654j3b3x7ZGRUaxYCI+Q+Hm9o5zDOgsk5mNbne7NWW/CJgQzTznMBSd/fb
+         sN8dAdWzxvurnGFq8v2r8KJ29UmZziDSTz/Gb8jfLG4wO6LyJgEdWooe6uNZsaU33Do+
+         MddA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=U64zTCXWDQ7iL31iPsF8RezMrqba1QJ9+7xpUmpn3AA=;
-        b=wPufxqMYskTQrUHo+fwioPKsozv/D35+MlMorKdXfEYhvwLPDWhRIGNdtkeaXfT8Cu
-         +Zas1dmurmfR3Zp45RsCykmN/PvUKTLNWOBE4J1q42tbEf9i+LKRnv/RsUU3ARU+KYlJ
-         ebqIC+AVz0uLM+iWOx0MJzeraUv8LrUBrpOidVXR9gpmp1tYNRL2y0PEorFLqZeotubo
-         h8D5Bf3fh9AMdjH5B93xFavdaWxpXH2cHMQ98RaVqidyzICmrq6pvj4B5SJ6TjHL/asx
-         Ugug6M7wbiaR8uEgdQgql0JX3rmYm2mT8p0QQIHglkbrijRYqo26gZ4Mfj/Tv2dOd3u5
-         k9ng==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=rQSmjdcB+ssMiEN1R8if29u9yg61brahFdCafNDHO+M=;
+        b=a9/vzi1ZdzI2N5bagnfQy70REX3U9T/ti9ix5/x/AWcVBD4TpBxcXWAKnj1ZD6RN36
+         xrS0035MGiMQ4RLFGYgLoG4HcIL8/RzqJKurkWaAkaoRxt/pS/H2Q4wrQM2uYUVd1m0d
+         qcVXlYJFfx5mip86jEWw/cneqvrhqJxNoyA51aOVTwFizPqD9gLgv0IXLhnIk5DlzidS
+         IvkWAjXpVX6OpN88jvn4E3wLYbHQ3k9oP+9MckksjRSIRSWA+XC2TFy6hJbiReGrnnk3
+         D1Cvtm5Ib7JPWmESekKxB1qqO2LPs1mUvvwp7Nzxgo2jopGOgZEiYpOm1AjafCinMgUM
+         M/8A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iPelpcvb;
-       spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uFQRCKd5;
+       spf=pass (google.com: domain of matej.kupljen@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=matej.kupljen@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l1sor4608635wrx.37.2019.02.11.23.20.38
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x19sor1187033pfe.73.2019.02.11.23.45.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Feb 2019 23:20:38 -0800 (PST)
-Received-SPF: pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 11 Feb 2019 23:45:09 -0800 (PST)
+Received-SPF: pass (google.com: domain of matej.kupljen@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iPelpcvb;
-       spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uFQRCKd5;
+       spf=pass (google.com: domain of matej.kupljen@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=matej.kupljen@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=U64zTCXWDQ7iL31iPsF8RezMrqba1QJ9+7xpUmpn3AA=;
-        b=iPelpcvbRs7OVTfvAQIxw5jGMdR/imNfdBLMJWS+6cR3yNon0sbyKrc0uhM6WpfD9c
-         c5cHKI8P5wDgVY4vrKyJqaK6fDS1QB8gKlxWyYTjnVQTBQoeC6DxrtTAi273NNAfgBY+
-         BEAweeQJHwFJ9v0vvhIP1Xu6ypibp8nl4w2Kge0SvZtk6Ws3iu7a2at46rT85IXU7K1c
-         OKDH1oMBrwTlJq2eh+IXg+JBI02lNZ9BJFW5c7s1f59bZghUBuTP8j49HNS+BnpkKIrD
-         i+1pfV2ojGu3KMRUvbxIJD4/0kCwEjB5bi1/DqDEQGjkUJMeemLA5ZZC/eDXbMMsfKTN
-         c1/A==
-X-Google-Smtp-Source: AHgI3Ib1rteFIO7F0GUg3/O7a4JhOup1XgqAIL1t8DVD3QH5Hne7mwKWsjaC+uzVtJQT2Q3UmkphpA==
-X-Received: by 2002:adf:f60d:: with SMTP id t13mr1601500wrp.225.1549956038339;
-        Mon, 11 Feb 2019 23:20:38 -0800 (PST)
-Received: from [172.20.11.181] (bba134067.alshamil.net.ae. [217.165.112.209])
-        by smtp.gmail.com with ESMTPSA id a4sm1218794wmm.22.2019.02.11.23.20.35
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 23:20:37 -0800 (PST)
-Subject: Re: [RFC PATCH v4 01/12] __wr_after_init: Core and default arch
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Igor Stoppa <igor.stoppa@huawei.com>,
- Andy Lutomirski <luto@amacapital.net>, Nadav Amit <nadav.amit@gmail.com>,
- Peter Zijlstra <peterz@infradead.org>, Kees Cook <keescook@chromium.org>,
- Dave Hansen <dave.hansen@linux.intel.com>,
- Mimi Zohar <zohar@linux.vnet.ibm.com>,
- Thiago Jung Bauermann <bauerman@linux.ibm.com>,
- Ahmed Soliman <ahmedsoliman@mena.vt.edu>, linux-integrity@vger.kernel.org,
- kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <cover.1549927666.git.igor.stoppa@huawei.com>
- <9d03ef9d09446da2dd92c357aa39af6cd071d7c4.1549927666.git.igor.stoppa@huawei.com>
- <20190212023952.GK12668@bombadil.infradead.org>
-From: Igor Stoppa <igor.stoppa@gmail.com>
-Message-ID: <9ebd237c-c059-9219-8d11-7a708a1f80da@gmail.com>
-Date: Tue, 12 Feb 2019 09:20:34 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=rQSmjdcB+ssMiEN1R8if29u9yg61brahFdCafNDHO+M=;
+        b=uFQRCKd5uriQtFgQXVzXmt9iYAIXLkWqNExoFBN77E2Bc7mYGfZT3Kz75JJqi9VdkY
+         D+hwiIdMUdLF4FeNr7wjEUVXBRWcpXuCOxTzmWRQaQWCWopCYfYeSpXrOQG6HUFVTMc6
+         rkTiWhP7viGZ4667N8J1mZLKDlufl4/aqrlTksiGbHDrl9F7wPg0avhB0URLOzih8yqp
+         UGc+Gm6uhOtLJDYfb4coy43fIlXa13Z55ZENSHmwwO4DMV3zZDRfgsEh5PHvj5O+0Os1
+         8Yi5t7qKReR5uyxWQDDCAh9Bs2Qve9qK1Pvv/ZSYOQlQfrf3KRE6LhWKhEu/FkJ1YDB6
+         3IlQ==
+X-Google-Smtp-Source: AHgI3IZ/RTihHZ5997O0pQvxZSEWfmWrlSHyTNLSmmKPaqTbBs2pBCcaORMkssa6mLBlQegMhO6TPDGwRvL65kIZ5Fw=
+X-Received: by 2002:aa7:808f:: with SMTP id v15mr2729177pff.30.1549957508630;
+ Mon, 11 Feb 2019 23:45:08 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190212023952.GK12668@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <CAHMF36F4JN44Y-yMnxw36A8cO0yVUQhAkvJDcj_gbWbsuUAA5A@mail.gmail.com>
+In-Reply-To: <CAHMF36F4JN44Y-yMnxw36A8cO0yVUQhAkvJDcj_gbWbsuUAA5A@mail.gmail.com>
+From: Matej Kupljen <matej.kupljen@gmail.com>
+Date: Tue, 12 Feb 2019 08:44:57 +0100
+Message-ID: <CAHMF36HKu7S8ezhSbCcNcgwL0cHAVsB_6W1o4PE=rRgVQbMycw@mail.gmail.com>
+Subject: Fwd: tmpfs inode leakage when opening file with O_TMP_FILE
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi all,
+
+I sent this mail yesterday to kernel mailing list, but I got no reply.
+So, I checked the MAINTAINERS file and I have found these emails.
+I hope this is the right address for this issue.
+
+Thanks and BR,
+Matej
+
+---------- Forwarded message ---------
+From: Matej Kupljen <matej.kupljen@gmail.com>
+Date: Mon, Feb 11, 2019 at 3:18 PM
+Subject: tmpfs inode leakage when opening file with O_TMP_FILE
+To: <linux-kernel@vger.kernel.org>
 
 
-On 12/02/2019 04:39, Matthew Wilcox wrote:
-> On Tue, Feb 12, 2019 at 01:27:38AM +0200, Igor Stoppa wrote:
->> +#ifndef CONFIG_PRMEM
-> [...]
->> +#else
->> +
->> +#include <linux/mm.h>
-> 
-> It's a mistake to do conditional includes like this.  That way you see
-> include loops with some configs and not others.  Our headers are already
-> so messy, better to just include mm.h unconditionally.
-> 
+Hi,
 
-ok
+it seems that when opening file on file system that is mounted on
+tmpfs with the O_TMPFILE flag and using linkat call after that, it
+uses 2 inodes instead of 1.
 
-Can I still do the following, in prmem.c ?
+This is simple test case:
 
-#ifdef CONFIG_ARCH_HAS_PRMEM_HEADER
-+#include <asm/prmem.h>
-+#else
-+
-+struct wr_state {
-+       struct mm_struct *prev;
-+};
-+
-+#endif
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <linux/limits.h>
+#include <errno.h>
+
+#define TEST_STRING     "Testing\n"
+
+#define TMP_PATH        "/tmp/ping/"
+#define TMP_FILE        "file.txt"
 
 
-It's still a conditional include, but it's in a C file, it shouldn't 
-cause any chance of loops.
+int main(int argc, char* argv[])
+{
+        char path[PATH_MAX];
+        int fd;
+        int rc;
 
-The alternative is that each arch supporting prmem must have a 
-(probably) empty asm/prmem.h header.
+        fd = open(TMP_PATH, __O_TMPFILE | O_RDWR,
+                        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP |
+S_IROTH | S_IWOTH);
 
-I did some reasearch about telling the compiler to include a header only 
-if it exists, but it doesn't seem to be a gcc feature.
+        rc = write(fd, TEST_STRING, strlen(TEST_STRING));
 
---
-igor
+        snprintf(path, PATH_MAX,  "/proc/self/fd/%d", fd);
+        linkat(AT_FDCWD, path, AT_FDCWD, TMP_PATH TMP_FILE, AT_SYMLINK_FOLLOW);
+        close(fd);
+
+        return 0;
+}
+
+I have checked indoes with "df -i" tool. The first inode is used when
+the call to open is executed and the second one when the call to
+linkat is executed.
+It is not decreased when close is executed.
+
+I have also tested this on an ext4 mounted fs and there only one inode is used.
+
+I tested this on:
+$ cat /etc/lsb-release
+DISTRIB_ID=Ubuntu
+DISTRIB_RELEASE=18.04
+DISTRIB_CODENAME=bionic
+DISTRIB_DESCRIPTION="Ubuntu 18.04.1 LTS"
+
+$ uname -a
+Linux Orion 4.15.0-43-generic #46-Ubuntu SMP Thu Dec 6 14:45:28 UTC
+2018 x86_64 x86_64 x86_64 GNU/Linux
+
+If you need any more information, please let me know.
+
+And please CC me when replying, I am not subscribed to the list.
+
+Thanks and BR,
+Matej
 
