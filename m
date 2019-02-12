@@ -2,154 +2,141 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ACE8FC282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 10:11:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4672BC282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 10:13:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 741A92186A
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 10:11:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 741A92186A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 03BE12077B
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 10:13:28 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amarulasolutions.com header.i=@amarulasolutions.com header.b="DWfwx5tb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03BE12077B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amarulasolutions.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0EC028E0014; Tue, 12 Feb 2019 05:11:13 -0500 (EST)
+	id 973DD8E0014; Tue, 12 Feb 2019 05:13:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 09BA28E0012; Tue, 12 Feb 2019 05:11:13 -0500 (EST)
+	id 924888E0012; Tue, 12 Feb 2019 05:13:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EA68D8E0014; Tue, 12 Feb 2019 05:11:12 -0500 (EST)
+	id 813728E0014; Tue, 12 Feb 2019 05:13:28 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DE518E0012
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 05:11:12 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id w51so1973907edw.7
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 02:11:12 -0800 (PST)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A8658E0012
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 05:13:28 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id w4so803765wrt.21
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 02:13:28 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=nvEti5FG2smiIlnhwGRqK4//x6gtDsO83up5B2XfB1g=;
-        b=MktQCzV71l9umdGZ2RG3UgLgXLEyf7/tVujWnotCmC4xo9d+FI7RTmYBWWSDL2jYWC
-         55rwL5O1UVg2jjy2Di2cweIz3Q9mwENePxhOanMrCk2c0JuFSHKCxxs3u+4w3AjNiAc4
-         uoA/L1s4jNeKEmr4M9GFZBg9WoKLCyHuj/sO6pRmzWczt3lRotY2WgkY+FmURyRB+Pab
-         opulyxn/BaNl0zRQ2B8AjQG9bNtkUSFprWngTZih1kC9CthYP5x/wjeTT4EyvCuD3kjW
-         wowMAWai0c8ZJkBeGvz7j+g54RXumLtwv9mk9l9dwyTjo1rIZT4/0AwvXu6vmVBok/Mq
-         M94g==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAua00aoy1CkleYHuEtZP4Neio3ZMfpDX1XRNlaPvAvIM2UK2qLQ2
-	eYvmZjK+J3W3jlf5F2V/e2KLcwXeT145nhkvphOQtSg9x+x9INBkwLzEGyHsCQwywhFiJOnm2mT
-	hNdvRnhkHcRPYeVw3G4Z+5sVSiPjbrKmxDjY3qoQzCRZ01/tghby/P393JlibjmY=
-X-Received: by 2002:a50:b5c6:: with SMTP id a64mr2470328ede.112.1549966272113;
-        Tue, 12 Feb 2019 02:11:12 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYzMWnFvZ71ru4tW/FWiRz5SVmrVInFC821y52axklg3k6ggTczpx7On4TSJMYAzO20TS6U
-X-Received: by 2002:a50:b5c6:: with SMTP id a64mr2470285ede.112.1549966271316;
-        Tue, 12 Feb 2019 02:11:11 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549966271; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=g0JsiH41KjwvocfsMp0bTb3XeLXE9iKeGB1xz8dT32A=;
+        b=X2gOHi5bD42TbwNJdKOmPB9IG24YjLy271m/m0+k0u34SVF885So/9JTi3WGXRlUU6
+         mBqW3xJuLuvmStT5Nj6VRXuK5LNvtQpxSorDKQ4tFyrOhdAeJ1tKB5/t94tnivu9Elg6
+         1MPfjhdcg0Zw9as+eGRwXBvKfmYI/THeZCsyr9m7Rlg7L84rlvrXm+qAVIGG+exDl7fJ
+         U+lJ68JGSTmXejke88U/4R9kb458kii9gu0eUqRvECjJ+3sQSA8aRzQVo2wsu35M2Kr7
+         qUUVubChXeusZqyvoQxkPkOqiLiF8lpydA5+hDAnsJMWZBm21N83VsWQe2i9bqZHc8o/
+         ZMog==
+X-Gm-Message-State: AHQUAubLSmM0bB98Grd6bVEhzl0ssBxvCk4eydIDZQbfsTmHdGaeuGPK
+	0DxT2AtjJUKqYpD+JkNfadwBuLDAQTkYuJrQDy7yladswCdeZhbSmKtnSeQAlCHXbkxQEeF8ujt
+	f/QVfXf/XcXVvdZ6RVrsV0lgWy3uQKpUCd+svn/N6C7wQTXV7REXZumfyWVzvXCrAz1l9Bw/I19
+	Tyyq3Zr4bqu5TcijzLsLEk6u80XLJfiBh8W7iF6k84iWWl7vIsvsD1dLDveFpys58MyVVKUrjRb
+	HXWdVDyk0sek3zcAS88TivOHES/17++IiT7y2ImokM2G81dWm6ZLk0XrvKl0C3aeIoq+qAPa+eP
+	uz1vZOZrmE/6emdZbkhrbiRNSJZA3Jm4k0dx365tx/l0iaSUPbg7KCw1a5A5R6DS8gyiAM25KKG
+	Y
+X-Received: by 2002:a1c:41c5:: with SMTP id o188mr2205714wma.147.1549966407710;
+        Tue, 12 Feb 2019 02:13:27 -0800 (PST)
+X-Received: by 2002:a1c:41c5:: with SMTP id o188mr2205671wma.147.1549966406946;
+        Tue, 12 Feb 2019 02:13:26 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549966406; cv=none;
         d=google.com; s=arc-20160816;
-        b=pay4OAO5OEmBBbx4whkFjaR0fnb0mS8B7x8Iw5toVkxTMAkbPUqNahM3xC9qyCJmDt
-         GXHualFBn7F/58dBxs5bpLIehRWOIAI7MvyzirPtOs3TOwcWwDfcYH+iXK5/judE8vdj
-         4Ign6GZ5wEcLBlu5Qr0a0Ha7S2/XpBLde190ZEQHnr12HI4szQUqfA9ZwWo2zu+vvwz5
-         3/uamjTzjNkPAz+d2lzu4dWozfJ10lDAwkmjTI82RxGs6b9iynSwF05xwqzvNie7TM2N
-         zvfb+ojejJ5Hxz7q/rbK8C91Kg8s779VrEN2biLcC+tSRqMZ5nclJJFcu2oRjkZi/FHZ
-         w68g==
+        b=oRoQ5VXFNuAxQCmHb7AfTbYI64lrNKSd0hSFDmYgRG14cYYFnI84k/FLxfOcZPgrW4
+         FvpMsE0mKJxgr4PRNbme+RVIubB+zWONEvGtxgQ30JUFZREt73MpEDa7QXlSy6+/PLWm
+         SFTIIJycDvCyTFDH6gCue8wlKZSv3Q3DKHwa14mLBH6YFSC5Lic+38u377XCOHB4Yeqx
+         tGMYvKx1pENxNqjsnJE64YTdL7GoqIt5ERz38MTlnAPSJ0BHt9d+me5WzYwyHBVTDB1t
+         wlhrMHnHXY4VMLKmml4i4Gh57TLEtejA3pf2/dA+CA+BEwIcZKWHmwferPWRJAdlqY2x
+         vTSQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=nvEti5FG2smiIlnhwGRqK4//x6gtDsO83up5B2XfB1g=;
-        b=rCmkWrO0Kmc+Zp1QfCtOrnqy+rytQBMpmIBKZWisahpIqFGo66L1Ip0dAknbUHc4j/
-         WrmZflXfz1929vleJIGSdIm+6t1nkEsM/Bu3MgNx1twfqFIn2v1omPYzM0uzvea3O1yB
-         ZnQsC/QY9Lf9hn/GqvA7uTZhvBOlY721VxWjXouGl83Ok798yUeNbjmQgc7RGKy7E9HG
-         DU+Kb6LuMANDV8FZDBPIL7cbPLyMICxa8XyKFgm+5SqBcT4h++PiSXqHgoPHoHNodO4z
-         kAmGHaYwF/bgh51HLhybMTZ2gycbIqUGDaxrRTstrQ6/pwgDPkyda81y1gDP1ir+qQSt
-         hQjg==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=g0JsiH41KjwvocfsMp0bTb3XeLXE9iKeGB1xz8dT32A=;
+        b=VohsVFC1u+e9Uj8B+HM0aDs9wClA4W+lEqjWlEgoD4emTFR9aDgPzczQRo0XRZIpvR
+         6eE3vBsEKGU6FIyyBDGmPzm/umt5dz0Bn0kio5OKHpsMFI7aGsa+kCWSwzjWb7M/AFUf
+         s8qTGLNXDVa8/5zGoDoqMhViUDW/QwmfyUyb25gUg79D3N6AgtfjJ5reN6nFkj698yp4
+         iikrbK80j3DN47klR++8MalJmX5K1y/OBIueIyYc0r6IuoA5qknB7Y9q6UJX+kQxqj/W
+         zdrDnV4Np+6ZUdCdW1OZqvdigBw3tXuBxirf83dceSGvG973XLny+LNFWjaeD127faO6
+         41KA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dv23si3589002ejb.4.2019.02.12.02.11.11
+       dkim=pass header.i=@amarulasolutions.com header.s=google header.b=DWfwx5tb;
+       spf=pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=andrea.parri@amarulasolutions.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id r17sor8015339wrv.44.2019.02.12.02.13.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 02:11:11 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 12 Feb 2019 02:13:26 -0800 (PST)
+Received-SPF: pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id CDA6DB25D;
-	Tue, 12 Feb 2019 10:11:10 +0000 (UTC)
-Date: Tue, 12 Feb 2019 11:11:09 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Chris Metcalf <chris.d.metcalf@gmail.com>,
-	Rusty Russell <rusty@rustcorp.com.au>, linux-mm@kvack.org,
-	Guenter Roeck <linux@roeck-us.net>
-Subject: Re: [PATCH] mm/swap.c: workaround for_each_cpu() bug on UP kernel.
-Message-ID: <20190212101109.GB7584@dhcp22.suse.cz>
-References: <1549533189-9177-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+       dkim=pass header.i=@amarulasolutions.com header.s=google header.b=DWfwx5tb;
+       spf=pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=andrea.parri@amarulasolutions.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=amarulasolutions.com; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=g0JsiH41KjwvocfsMp0bTb3XeLXE9iKeGB1xz8dT32A=;
+        b=DWfwx5tbB6IVo4HIIiFhkNsfJ4SZ6/zDimJNgTlVGK+CvuSgxyZcPuDigAGLkxqqHn
+         aFEj3qBL+1KRbmVapS9XSNRwti4AEpOCmAiow73iKHa6A1utJW1qabjNj/+e7aCRWGFa
+         mf406VjNtP0kT3H6Yf5OlhFAOfQwD6DmX8RII=
+X-Google-Smtp-Source: AHgI3IZPZNArtBqTt7cgQ07OzsRJFORv/tckhbBOEZQDfGJt12ChgEvQA3SGdcEssYqkBT43NTRbSw==
+X-Received: by 2002:adf:9dc4:: with SMTP id q4mr2340947wre.330.1549966406403;
+        Tue, 12 Feb 2019 02:13:26 -0800 (PST)
+Received: from andrea (86.100.broadband17.iol.cz. [109.80.100.86])
+        by smtp.gmail.com with ESMTPSA id o9sm1809180wmh.3.2019.02.12.02.13.24
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Feb 2019 02:13:25 -0800 (PST)
+Date: Tue, 12 Feb 2019 11:13:16 +0100
+From: Andrea Parri <andrea.parri@amarulasolutions.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
+	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
+	Minchan Kim <minchan@kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Chen <tim.c.chen@linux.intel.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	David Rientjes <rientjes@google.com>,
+	Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>,
+	Dave Jiang <dave.jiang@intel.com>,
+	Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: Re: [PATCH -mm -V7] mm, swap: fix race between swapoff and some swap
+ operations
+Message-ID: <20190212101316.GA6905@andrea>
+References: <20190211083846.18888-1-ying.huang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1549533189-9177-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190211083846.18888-1-ying.huang@intel.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 07-02-19 18:53:09, Tetsuo Handa wrote:
-> Since for_each_cpu(cpu, mask) added by commit 2d3854a37e8b767a ("cpumask:
-> introduce new API, without changing anything") did not evaluate the mask
-> argument if NR_CPUS == 1 due to CONFIG_SMP=n, lru_add_drain_all() is
-> hitting WARN_ON() at __flush_work() added by commit 4d43d395fed12463
-> ("workqueue: Try to catch flush_work() without INIT_WORK().")
-> by unconditionally calling flush_work() [1].
-> 
-> We should fix for_each_cpu() etc. but we need enough grace period for
-> allowing people to test and fix unexpected behaviors including build
-> failures. Therefore, this patch temporarily duplicates flush_work() for
-> NR_CPUS == 1 case. This patch will be reverted after for_each_cpu() etc.
-> are fixed.
-> 
-> [1] https://lkml.kernel.org/r/18a30387-6aa5-6123-e67c-57579ecc3f38@roeck-us.net
-> 
-> Reported-by: Guenter Roeck <linux@roeck-us.net>
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Alternative implementation could be replacing disable preemption with
+> rcu_read_lock_sched and stop_machine() with synchronize_sched().
 
-This patch is ugly as hell! I do agree that for_each_cpu not working on
-CONFIG_SMP=n sucks but why do we even care about lru_add_drain_all when
-there is a single cpu? Why don't we simply do
+JFYI, starting with v4.20-rc1, synchronize_rcu{,expedited}() also wait
+for preempt-disable sections (the intent seems to retire the RCU-sched
+update-side API), so that here you could instead use preempt-disable +
+synchronize_rcu{,expedited}().  This LWN article gives an overview of
+the latest RCU API/semantics changes: https://lwn.net/Articles/777036/.
 
-diff --git a/mm/swap.c b/mm/swap.c
-index aa483719922e..952f24b09070 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -660,6 +660,7 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
- 
- static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
- 
-+#ifdef CONFIG_SMP
- /*
-  * Doesn't need any cpu hotplug locking because we do rely on per-cpu
-  * kworkers being shut down before our page_alloc_cpu_dead callback is
-@@ -702,6 +703,10 @@ void lru_add_drain_all(void)
- 
- 	mutex_unlock(&lock);
- }
-+#else
-+#define lru_add_drain_all() lru_add_drain()
-+
-+#endif
- 
- /**
-  * release_pages - batched put_page()
--- 
-Michal Hocko
-SUSE Labs
+  Andrea
 
