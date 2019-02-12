@@ -2,186 +2,163 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D3D8FC282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:31:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1FC1CC282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:31:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8CF3320842
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:31:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8CF3320842
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id CA72A20842
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:31:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="2GFIMDys"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA72A20842
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D8C68E0003; Tue, 12 Feb 2019 11:31:28 -0500 (EST)
+	id 60B1F8E0005; Tue, 12 Feb 2019 11:31:53 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 260D28E0001; Tue, 12 Feb 2019 11:31:28 -0500 (EST)
+	id 5943A8E0001; Tue, 12 Feb 2019 11:31:53 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 101FC8E0003; Tue, 12 Feb 2019 11:31:28 -0500 (EST)
+	id 45DB58E0005; Tue, 12 Feb 2019 11:31:53 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BAA658E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 11:31:27 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id 12so2554613plb.18
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 08:31:27 -0800 (PST)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 143CA8E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 11:31:53 -0500 (EST)
+Received: by mail-yw1-f69.google.com with SMTP id i2so2055120ywb.1
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 08:31:53 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:reply-to:references:mime-version:content-disposition
-         :in-reply-to:user-agent:message-id;
-        bh=edN5MxTKmE1CEZ9K0riw9MeaICT7hT+QbpqB9wkArgI=;
-        b=WPR+1FUAccRXfVEpCf/kLj2da/tbANgVpz0vAKy9aks9VqgsFTvKpetxyEcRdG3Vlr
-         omL67RhZ6VtVexuTkJcPjbJNQoMnpGCzV4yBhbas03nMkNvqDm7BCizSphEwPXeSEHiB
-         ECDASyH8SR/CHcRK7EBQmsrF9jZZL0NCyw9wsQ3n+TPotuZqXGDSeV0OnwRmJbrSFdcV
-         q95Iwx6KmzON4dIH8UOt3jDdsBG2ngQpU2ybG5v1yTIOd/VwVYxv7UBqB2gmbp1zzLFu
-         3KUKnqtq26edtOmwiPmtKvjpKJvu9mQgIH7+E2x8mWZYw8HPfjgSwvAy1PjISvnDR7J8
-         zhww==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 148.163.156.1 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) smtp.mailfrom=paulmck@linux.vnet.ibm.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuaua0ud6XA1PGJW8g+1b43Lxdcg3pqeg3u9KyQHLf9pAPPxLnZ6
-	DJ/l6rNnYkS+mi+CoL69sez8hO0NqaOgEJ/5iLVD1pJ1/XeHvBicK77m6StOcjhnqTRIkxKK/cO
-	Fao1a6fVCMzfoBCFH2uITuW+tFvhpjFjOpIJ8444xj8LeeAx5RDFVzskoZPpyZf4=
-X-Received: by 2002:a17:902:f095:: with SMTP id go21mr4704583plb.199.1549989087422;
-        Tue, 12 Feb 2019 08:31:27 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZixNLdMYQfOCNhipDSQ7O9sekTB+mFPRYC3mn/8Kdy285Bf+PCxytZpRqWmmCJGKBspgbx
-X-Received: by 2002:a17:902:f095:: with SMTP id go21mr4704538plb.199.1549989086789;
-        Tue, 12 Feb 2019 08:31:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549989086; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=k383lkrnMIT9hl6jPf7ElzcUVczNMkWeD3scLLSruZk=;
+        b=UsBe7X9Dh4l9WlClT8a/2Bq/uvtWaufMUi7C16DIgMNFzkBVp3lymJwxABj3chNwWy
+         bhh8ADB8jbWfTmOJBvEdFGLLrYcsZJytUOO68gIqUzUdd3E8cnf9ZTJkUDsJzmmjkVmA
+         Qss7Ys3SXqUkJXYPqwwVmDfZ02QTY+CbmCHdDVLT7SPNXw8vW6UhD1KVuANwm5Qps1EN
+         V6HL9bvARwnYzVnbsNZb6Tb7yUKEcdAhua7iwL0CEmC40FZ3nw4KffPDSK7htjvhrtj+
+         XvBeOnLy4wsPqnT3t+VvUriacGxSOZYCbLLQr6gYdQwXp9ZARvuG7KaYAB7O/8ZoYDF3
+         BQuw==
+X-Gm-Message-State: AHQUAuY+KOvNtv8RFzD70flswqmVAzM5bLsxe2DHfgv1TTJY3k9yzjWq
+	GC+umhuGrF4OPdlZginrsIYIRXhI/fmE2g2/j6qSAVh+b+QfHLFlqeGBIZLL7IZVZYMqUT4qH78
+	SORgKyGSMsSanUHGjcRiUYcNgdx1CMj60zbdMSFqRAwYbsgHiAe0psRhDsYjRGY+jCwDPv9UXLU
+	wz9k8VMPlCvWat+K1DZ3tgLHL8nZq18oBi8qM9hL96lvpNrqNW+uDNMjELLGUYNl9LC5741rgUU
+	nZVFMtULTvz2GIDgLMPHg7JTHEtmchfK3KXxVe1uuznl8o39jqm7WcY5i7AIDmowdGdk5QXOK5+
+	UKbqj2V6XSHAWG40lTGa60GSxBB57nSSreMjaB9XmU7tZnZFKZON0Sv6333YUQhOM45MkrEBWoo
+	O
+X-Received: by 2002:a81:2e86:: with SMTP id u128mr753047ywu.241.1549989112802;
+        Tue, 12 Feb 2019 08:31:52 -0800 (PST)
+X-Received: by 2002:a81:2e86:: with SMTP id u128mr753001ywu.241.1549989112245;
+        Tue, 12 Feb 2019 08:31:52 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549989112; cv=none;
         d=google.com; s=arc-20160816;
-        b=zWbgu2QvmYseS1UrTM7U3zz0DDbxplMrBlivKSQjG7yOFXqXhC6kKOtyzGzw91VGzC
-         ALXkMFgSS2rAEjWg2Md3CBRJIdfmBUvYra9LLuX7NjllFTOMPwaVzFW72hN+Qt9ETXJ1
-         vVBSPpvD8SkDCelgqj4FSSEz77yff9BCU7GjWhpWFFf7ztR3Fq9VZfo6Zs2Y0IFkBNYy
-         IF5XD7x2OKzDoGo8coDEF7RsElfHBz+Imo82Syu4NozuZwZZgOkkcK1k3Osv45NH+zHW
-         Yrm0o5gpMjDGwPm4Eabk7nb43SdM5wKt7UR6tE6xEt8mVa+9SQmVuelfLbT4Lmug4qm+
-         H9sg==
+        b=vjLmZY/mzdvq3+6n+j7d8LbIwOHmVCQBilOTDmMxcD1BB1YpTihTsvTExkFZY++8VI
+         HsImu7gzZODqwynATM2QbkPWfHWaanOSq52E6cYgTguYctqh2l6LoyHE5F3Sjb8lF67u
+         Xp/PSSJKkMgVPGCQLN1TKnrOROsRn5Wb8egx4FQ4f96jM7AXaphVqEjiv4OXFzd/sfwl
+         IqmgdPVK55DTauAnu01i09BXIL1I5rUFBqr0BtAvgDKlUmEWfP039cMY22Dfg1bRzIV+
+         IQqhrSG/PzPnb6lbQhzpqEStrkP+JDU/VSSipoxsoUvgF4mCXHQ6GAVfjfYzjSqF5P+0
+         +EEw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:reply-to:subject:cc:to:from:date;
-        bh=edN5MxTKmE1CEZ9K0riw9MeaICT7hT+QbpqB9wkArgI=;
-        b=XgYIsII/VSZ1M638C+BZV/Qo3DERxtBs25TuQw3+n03EF9Lktmvlt4RjZoKJ62t3Dd
-         zLY7g4zUHiCrchBv/Yz7YGToKgBjR5SIsJy/12i4NcpH8ONJLc/8L08dEodA/lvn9UwT
-         YVXwTD6xVqZlyMhHQgslqGfScKUP3aiDIWvDh6eHCtL84b5vUd1bDEMm+K/r8kOQd05R
-         LMD6Fdo9PpcPlOhsCiqb8Qx6zsGhJ9Z6WtLylzKJmPZm0ogh3jPILJPICFn+mfJ1uxuA
-         Ae+C/Jx4+xq82PBBYfO2N+HdReakvyZ7TVkL6EkEvQRkZX/f0bVDJaQgMSzK4AXBuzMH
-         N+Yw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=k383lkrnMIT9hl6jPf7ElzcUVczNMkWeD3scLLSruZk=;
+        b=AweAEND94skMzhI3cxS7/HUKWQW0TIfH5g0dKEGZ4pSostIq68DhWTzfhn1mMR8n/7
+         XBghzR4FD2rpUpwCF461aGKKWPovzgWdVFtm1nUpYGZg9ajI+1MM2OW7a7vUsSu3ZTjN
+         PQ9d/OkJO6woF+h3w0c/aphFaji6Q2WBovfeaeYF1Ip7J+dJILmwwbC7etfDpFo5Jx54
+         9Dg7EGxDY7c32w5Y1mJnIcwnDWflO5lmrudZil3yjtxPn5fn1CaZU4KwHbA1TZecuO5z
+         ySIL9ygX+Bnk0bUs3YIvKSbL94JOULDtd/ai4qdYPnCCVd28HjuEtMhOkCfMgxaLCDu7
+         6oAg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 148.163.156.1 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) smtp.mailfrom=paulmck@linux.vnet.ibm.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 61si13889170plz.117.2019.02.12.08.31.26
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=2GFIMDys;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l74sor1862350ywb.163.2019.02.12.08.31.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 08:31:26 -0800 (PST)
-Received-SPF: neutral (google.com: 148.163.156.1 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) client-ip=148.163.156.1;
+        (Google Transport Security);
+        Tue, 12 Feb 2019 08:31:47 -0800 (PST)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 148.163.156.1 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) smtp.mailfrom=paulmck@linux.vnet.ibm.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1CGSrti060033
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 11:31:26 -0500
-Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qm0x5jth7-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 11:31:25 -0500
-Received: from localhost
-	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Tue, 12 Feb 2019 16:31:23 -0000
-Received: from b01cxnp22034.gho.pok.ibm.com (9.57.198.24)
-	by e15.ny.us.ibm.com (146.89.104.202) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 12 Feb 2019 16:31:19 -0000
-Received: from b01ledav003.gho.pok.ibm.com (b01ledav003.gho.pok.ibm.com [9.57.199.108])
-	by b01cxnp22034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1CGVIfg7798850
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 12 Feb 2019 16:31:18 GMT
-Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 5EAAEB2064;
-	Tue, 12 Feb 2019 16:31:18 +0000 (GMT)
-Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 402A3B2065;
-	Tue, 12 Feb 2019 16:31:18 +0000 (GMT)
-Received: from paulmck-ThinkPad-W541 (unknown [9.70.82.41])
-	by b01ledav003.gho.pok.ibm.com (Postfix) with ESMTP;
-	Tue, 12 Feb 2019 16:31:18 +0000 (GMT)
-Received: by paulmck-ThinkPad-W541 (Postfix, from userid 1000)
-	id 658D816C4009; Tue, 12 Feb 2019 08:31:18 -0800 (PST)
-Date: Tue, 12 Feb 2019 08:31:18 -0800
-From: "Paul E. McKenney" <paulmck@linux.ibm.com>
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=2GFIMDys;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=k383lkrnMIT9hl6jPf7ElzcUVczNMkWeD3scLLSruZk=;
+        b=2GFIMDysrPLYLxvwEyC9v5xoewI4XO35dm3Y6X2rgPAggpwetTFPsErOgfqoOYF6+t
+         MVLiXMrouzsO8WFsYLZ1ipi3P4st0oPZX/y5uJJ2ALkJjmPKE3M1KuNMPe/3DY2sJf58
+         rhu5ebL9iwHX54M+PGcsAV1fmtl6l3tom+nGIo5Qnvl61u0a/lS7f9k6Z9EZpryBVzvA
+         n9nVctDuKEXGtbpPXlUyPPcQW920S3/66BIcxHIo0NI0bYNorBKSX6AdHro3y35+pf8c
+         /gZcadMFQwHb5c5f49enCGft3ecq5c2wwchku+ERyNP7dmsrwXgVGV7rFUDuW8qzhhhT
+         DDqA==
+X-Google-Smtp-Source: AHgI3IYWpqqXurq1JnNK68GVZHNBQkrbFiLjQnkrXQ9hQdJBYhLzawF5oOCA2B7R1ZXAB1TATGjnJw==
+X-Received: by 2002:a0d:e741:: with SMTP id q62mr805378ywe.34.1549989107465;
+        Tue, 12 Feb 2019 08:31:47 -0800 (PST)
+Received: from localhost ([2620:10d:c091:200::4:41f4])
+        by smtp.gmail.com with ESMTPSA id p3sm4004282ywp.44.2019.02.12.08.31.46
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 12 Feb 2019 08:31:46 -0800 (PST)
+Date: Tue, 12 Feb 2019 11:31:45 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-        kbuild test robot <lkp@intel.com>,
-        Suren Baghdasaryan <surenb@google.com>, kbuild-all@01.org,
-        Johannes Weiner <hannes@cmpxchg.org>,
-        Linux Memory Management List <linux-mm@kvack.org>
+Cc: "Paul E. McKenney" <paulmck@linux.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	kbuild test robot <lkp@intel.com>,
+	Suren Baghdasaryan <surenb@google.com>, kbuild-all@01.org,
+	Linux Memory Management List <linux-mm@kvack.org>
 Subject: Re: [linux-next:master 6618/6917] kernel/sched/psi.c:1230:13:
  sparse: error: incompatible types in comparison expression (different
  address spaces)
-Reply-To: paulmck@linux.ibm.com
+Message-ID: <20190212163145.GD14231@cmpxchg.org>
 References: <201902080231.RZbiWtQ6%fengguang.wu@intel.com>
  <20190208151441.4048e6968579dd178b259609@linux-foundation.org>
  <20190209074407.GE4240@linux.ibm.com>
  <20190212013606.GJ12668@bombadil.infradead.org>
- <20190212155610.GJ4240@linux.ibm.com>
- <20190212162518.GO12668@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190212162518.GO12668@bombadil.infradead.org>
-User-Agent: Mutt/1.5.21 (2010-09-15)
-X-TM-AS-GCONF: 00
-x-cbid: 19021216-0068-0000-0000-00000392B57D
-X-IBM-SpamModules-Scores: 
-X-IBM-SpamModules-Versions: BY=3.00010583; HX=3.00000242; KW=3.00000007;
- PH=3.00000004; SC=3.00000279; SDB=6.01160049; UDB=6.00605424; IPR=6.00940600;
- MB=3.00025547; MTD=3.00000008; XFM=3.00000015; UTC=2019-02-12 16:31:22
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19021216-0069-0000-0000-0000477BCBB2
-Message-Id: <20190212163118.GM4240@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-12_09:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=826 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902120117
+In-Reply-To: <20190212013606.GJ12668@bombadil.infradead.org>
+User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 08:25:18AM -0800, Matthew Wilcox wrote:
-> On Tue, Feb 12, 2019 at 07:56:10AM -0800, Paul E. McKenney wrote:
-> > On Mon, Feb 11, 2019 at 05:36:06PM -0800, Matthew Wilcox wrote:
-> > > radix_tree_iter_resume is, happily, gone from my xarray-conv tree.
-> > > __radix_tree_lookup, __radix_tree_replace, radix_tree_iter_replace and
-> > > radix_tree_iter_init are still present, but hopefully not for too much
-> > > longer.  For example, __radix_tree_replace() is (now) called only from
-> > > idr_replace(), and there are only 12 remaining callers of idr_replace().
-> > 
-> > Will this reduce the number of uses of rcu_dereference_raw()?  Or do they
-> > simply migrate into Xarray?
+On Mon, Feb 11, 2019 at 05:36:06PM -0800, Matthew Wilcox wrote:
+> On Fri, Feb 08, 2019 at 11:44:07PM -0800, Paul E. McKenney wrote:
+> > On Fri, Feb 08, 2019 at 03:14:41PM -0800, Andrew Morton wrote:
+> > > On Fri, 8 Feb 2019 02:29:33 +0800 kbuild test robot <lkp@intel.com> wrote:
+> > > >   1223	static __poll_t psi_fop_poll(struct file *file, poll_table *wait)
+> > > >   1224	{
+> > > >   1225		struct seq_file *seq = file->private_data;
+> > > >   1226		struct psi_trigger *t;
+> > > >   1227		__poll_t ret;
+> > > >   1228	
+> > > >   1229		rcu_read_lock();
+> > > > > 1230		t = rcu_dereference(seq->private);
 > 
-> Unlike the radix tree (which let you do whatever awful locking scheme you
-> wanted), the XArray requires that you use the spinlock embedded in the
-> root of the data structure to protect against simultaneous modification.
-> So all dereferences within the XArray code look like this:
-> 
-> (if either under lock, or rcu lock held):
->         return rcu_dereference_check(node->slots[offset],
->                                                 lockdep_is_held(&xa->xa_lock));
-> 
-> (if we know the lock is held):
->         return rcu_dereference_protected(node->slots[offset],
->                                                 lockdep_is_held(&xa->xa_lock));
-> 
-> The XArray API doesn't expose slot pointers to its clients.  It hides them
-> inside the xa_state's pointer to the current xa_node.
+> So the problem here is the opposite of what we think it is -- seq->private
+> is not marked as being RCU protected.
+>
+> > If you wish to opt into this checking, you need to mark the pointer
+> > definitions (in this case ->private) with __rcu.  It may also
+> > be necessary to mark function parameters as well, as is done for
+> > radix_tree_iter_resume().  If you do not wish to use this checking,
+> > you should ignore these sparse warnings.
 
-Nice!!!
+We cannot make struct seq_file->private generally __rcu, but the
+cgroup code has a similar thing with kernfs, where it's doing rcu for
+its particular use of struct kernfs_node->private. This is how it does
+the dereference:
 
-							Thanx, Paul
+	cgrp = rcu_dereference(*(void __rcu __force **)&kn->priv);
+
+We could do this here as well.
+
+It's ugly, though. I'd also be fine with ignoring the sparse warning.
 
