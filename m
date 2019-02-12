@@ -2,154 +2,234 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 605F9C282CA
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 13:57:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B82D9C282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 14:00:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 26C8020821
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 13:57:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26C8020821
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 7F58E20823
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 14:00:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F58E20823
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AEF608E0002; Tue, 12 Feb 2019 08:57:01 -0500 (EST)
+	id EE2F28E0003; Tue, 12 Feb 2019 09:00:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A9C978E0001; Tue, 12 Feb 2019 08:57:01 -0500 (EST)
+	id E921C8E0001; Tue, 12 Feb 2019 09:00:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 98D858E0002; Tue, 12 Feb 2019 08:57:01 -0500 (EST)
+	id D80EE8E0003; Tue, 12 Feb 2019 09:00:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 54B3E8E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 08:57:01 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id 143so2181994pgc.3
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 05:57:01 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AEAE38E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 09:00:04 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id p5so2822826qtp.3
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 06:00:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=G1nh9RbHpUmPcgmQsGpvZi0ugxM4T8zzjx9immFvgSg=;
-        b=beYuTbymg8434RPu7OdsS2E7t4SzeloT/kOz3N+gysN8wzhnFfCr7X7zj+DQGRUkyh
-         JD9ltuRIxdlXR3/c3OGGhFtMEj13KOh79W30HpPtlNeDdsJtC5TpDVa+3EhQyjSoiBso
-         zuQbxWi4g0j4k0TyzjbO/eW/8TDSF3IHN4ibWjSKPuVfaBZtqjlEF0+LhCsOAtgPcoOv
-         RJiugCHUydvZ4QerA3AbOA6zPyPSU6pWLX4UV4fGlAv12LD+0MfnvN6n0DBm/XZVU3Rh
-         y5coG1eakHwVoFEQ5K7IKyfkbmYKXhLg0HtszDsR0+ov88Mb3lNKGqcaITG6yFEvPwKx
-         RuYw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: AHQUAuYEa7tEbrbybwPkGcRLSETqvIistXFz4wAJrB40uKlKuU+HnjwA
-	awr8HYOf0wpTw1m4RdCa0c+lajC5QuWn6g7aAecoBvDtV7McCX2Ej7KqyEdCoK5SBI1FWic4ZRY
-	yvaipmZcHZ4haSGJsdp46lumLwWwl1vNEDYKo68gXyag9YeKEefqLcYdLRjvDEoM53g==
-X-Received: by 2002:a63:164b:: with SMTP id 11mr3764165pgw.238.1549979820910;
-        Tue, 12 Feb 2019 05:57:00 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib0en7zvPc6SM+ZaHebhP2vwIWOZll26t4160Kv7kpmHhJ8NstNpOKG873kHk9u3wdib2Ag
-X-Received: by 2002:a63:164b:: with SMTP id 11mr3764128pgw.238.1549979820156;
-        Tue, 12 Feb 2019 05:57:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549979820; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=LRU1q5dgVuCMjeCBG2gh4rpe3Jy20ONg0to0d1bil0k=;
+        b=kfuXh1JrT0gA/cfV97hNKHpcNjl57Sl2tZaKEFz47I3GGNP67/7bkA9ktrtpG0PQd+
+         76GMCmB2CdTZ6Al/QDewFdrNdboJlQ7ZlhznID4nk8qKc3Dkxw4TG9BL/3JuaaXGeQ9l
+         rs9S4lbEcJiLxwjJMl8g1ijETGoA2902zKJaDXxRGbxVGXC2Cr2d4Fo0X5tN4OTw9lkk
+         zKuoBErDAaUTuHPayVIePLGFYHoW/SnHgoKcxI3usCd0qrPpz/5e9aHd4lSzyfoZKvmt
+         Mez0t2U15VqhruyjT/mjqYRKYrcePvd5eLh4y+Uqa9HC0vTXXo8R/8wHwJXXZE8zFe8G
+         FiZA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuaJa05BuTBW2qn1drzvFA3MeqVAKY/PdWtQh3g/Yb/MxBuyrrDI
+	u8ymURp4lkRnywIXGmjWrSkkFwG4Hxucu49VNauMfq65Vx6odJ+vdN9ZnR9/F3X6Kj/4siisUus
+	einyYkP1sio67iRavx/5ujFXVHhWDsP2kpRfPJzmZAJRNObA2Oo4ducPd425bG184+w==
+X-Received: by 2002:a37:6bc1:: with SMTP id g184mr2664803qkc.236.1549980004472;
+        Tue, 12 Feb 2019 06:00:04 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZh5Y/zoJJGFVlsEwGsPTF6zDe5ujdGS1O05r0IdavyDexB3FaLajvldiUhv90MVilx6zfX
+X-Received: by 2002:a37:6bc1:: with SMTP id g184mr2664727qkc.236.1549980003502;
+        Tue, 12 Feb 2019 06:00:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549980003; cv=none;
         d=google.com; s=arc-20160816;
-        b=v36Fg8tC3BK2zHvA5utNDDxhtNTQZn9xYyPgUkdqYfc7uMtSRHjiq5WjF6FrL7tlhf
-         nHyVe/rtaPHKcQpeE5YxNFRtbEZWTTBVekRAmKAUtBRDIA5lNpZRcPsHCW4LJpDz/mrq
-         LayGum2kLFO+FcVzU1ObKr3n/XdbDETv9BigfVSiiE01w3E7q2ffhMFoWjWB++l5c+n4
-         lEKVu4vr+z2SvUllmxTFAvp0hwXprtuaUI33cruRquhcypZcDUIvX+dt7qANgxcx16xe
-         xPJaHQj8BkinTy8qjrhVnrM2ClS8t46iCLBMgZX+Y3neS+UI6DfBPP/QtshUOLLQmHFK
-         8skw==
+        b=zvRrYmo+l7vCDulfsHi7QNLm5Ssox5L7Bu+RIv2DjGejTVSad5uJ/hn83kP1JXzYhu
+         u9QmHgtBCIspLnIeOSQisUnposzxQUwDjReOiYT4bQnef7oVeXfmqFVFYd64TLIlcy5f
+         ZfwPupoH7DzKUREarC6rTK0mwmma/1vKo/yV7vbwkIGNFSy91TYEH4hDBanjRh6Vy7Hw
+         VV+vM7o8uxnR9QPasgftdZJBOSyK3waaPwMSzdpJMiNV3MMD+FZmzSzGA2hHMfNk5RqJ
+         TpvVmL1mVYTU+dGBPWlan/Z1AmzR7vY7v7ry9MEkXECuUAJBL/+xkJmsKGDKv1fAOVGm
+         dg7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=G1nh9RbHpUmPcgmQsGpvZi0ugxM4T8zzjx9immFvgSg=;
-        b=G61eUHEg7hpNtKUUzW/ueLv20HP8uVyC6Hj7eIiBOBjEK1OictxOOhrZlUSIjQE7QZ
-         Hd2tlZbHw6QCtkt0ZlF8pPTkhOw9ZfCjAiI0PMeOEo5OyQ7Bef8Q6lW2lQW0r8l31lW9
-         uMRKq/Jm48CtCxHbf9TKkommB7I9WSwhnocSphdSwf+2sN0MozMzI2fmi60SbQHv3S/j
-         tK9SyeF4EF02yegmb2k4VnxX24CjWKhLYl19sFBPpoNczeErTSI+Ix8uCr/xWAJ/1Ax0
-         yA5Xe/y5mqOLLVYhA012xUhOrkdR6CikDvlNeDEhquS/lakkev3TWNU38kZmAvNcQeDX
-         1hPg==
+        h=message-id:date:subject:cc:to:from;
+        bh=LRU1q5dgVuCMjeCBG2gh4rpe3Jy20ONg0to0d1bil0k=;
+        b=MCSG9l7rPjx73h2VyeZClmKUSBgXbOfZp6UXRoJFXDIc6ZfVt+NWvjQSPD/TvqL30p
+         pH4+GPnYvWfUuNnqypE5b3c+qALMwozqK9VnoM2vOYAbgjaOYDtraSRe2di/7tsPdwSG
+         BaHU0VAiLXydVAr697+nhnBTHl7nj8X9MPGn6r5lQGEp8aIv1eeo2bX/eHYqMtZ22iiD
+         J4coEkTbe3GzofEFYzwi19qwtrYwVuoiipOmF6pKijGbnQMvRJiW1zPtUhaVoctfI6I0
+         P2groi946JHI6axam0z9TfpmdvsTzFy7Dq202U+V08Tj1siNI/LTLPxZPGbW5Qef3yLU
+         z1ew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from suse.de (nat.nue.novell.com. [195.135.221.2])
-        by mx.google.com with ESMTP id q127si14162562pfq.19.2019.02.12.05.56.59
-        for <linux-mm@kvack.org>;
-        Tue, 12 Feb 2019 05:57:00 -0800 (PST)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id w65si938379qka.212.2019.02.12.06.00.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Feb 2019 06:00:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: by suse.de (Postfix, from userid 1000)
-	id 51A144241; Tue, 12 Feb 2019 14:56:58 +0100 (CET)
-Date: Tue, 12 Feb 2019 14:56:58 +0100
-From: Oscar Salvador <osalvador@suse.de>
-To: Shameerali Kolothum Thodi <shameerali.kolothum.thodi@huawei.com>
-Cc: Jonathan Cameron <jonathan.cameron@huawei.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"mhocko@suse.com" <mhocko@suse.com>,
-	"dan.j.williams@intel.com" <dan.j.williams@intel.com>,
-	"Pavel.Tatashin@microsoft.com" <Pavel.Tatashin@microsoft.com>,
-	"david@redhat.com" <david@redhat.com>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"dave.hansen@intel.com" <dave.hansen@intel.com>,
-	Linuxarm <linuxarm@huawei.com>, Robin Murphy <robin.murphy@arm.com>
-Subject: Re: [RFC PATCH v2 0/4] mm, memory_hotplug: allocate memmap from
- hotadded memory
-Message-ID: <20190212135658.fd3rdil634ztpekj@d104.suse.de>
-References: <20190122103708.11043-1-osalvador@suse.de>
- <20190212124707.000028ea@huawei.com>
- <5FC3163CFD30C246ABAA99954A238FA8392B5DB6@lhreml524-mbs.china.huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5FC3163CFD30C246ABAA99954A238FA8392B5DB6@lhreml524-mbs.china.huawei.com>
-User-Agent: NeoMutt/20170421 (1.8.2)
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1CDs895107992
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 09:00:02 -0500
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2qkwjewm8k-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 09:00:01 -0500
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Tue, 12 Feb 2019 13:59:57 -0000
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 12 Feb 2019 13:59:54 -0000
+Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1CDxrWA44826686
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Tue, 12 Feb 2019 13:59:53 GMT
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id B3B2EA404D;
+	Tue, 12 Feb 2019 13:59:53 +0000 (GMT)
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 3C4DCA4040;
+	Tue, 12 Feb 2019 13:59:52 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.59.139])
+	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Tue, 12 Feb 2019 13:59:52 +0000 (GMT)
+Received: by rapoport-lnx (sSMTP sendmail emulation); Tue, 12 Feb 2019 15:59:51 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: "James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>,
+        Helge Deller <deller@gmx.de>
+Cc: linux-parisc@vger.kernel.org, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
+Subject: [PATCH] parisc: use memblock_alloc() instead of custom get_memblock()
+Date: Tue, 12 Feb 2019 15:59:50 +0200
+X-Mailer: git-send-email 2.7.4
+X-TM-AS-GCONF: 00
+x-cbid: 19021213-0028-0000-0000-00000347ABD2
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19021213-0029-0000-0000-00002405CBB7
+Message-Id: <1549979990-6642-1-git-send-email-rppt@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-12_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 lowpriorityscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902120101
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 01:21:38PM +0000, Shameerali Kolothum Thodi wrote:
-> > Hi Oscar,
-> > 
-> > I ran tests on one of our arm64 machines. Particular machine doesn't actually
-> > have
-> > the mechanics for hotplug, so was all 'faked', but software wise it's all the
-> > same.
-> > 
-> > Upshot, seems to work as expected on arm64 as well.
-> > Tested-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+The get_memblock() function implements custom bottom-up memblock allocator.
+Setting 'memblock_bottom_up = true' before any memblock allocation is done
+allows replacing get_memblock() calls with memblock_alloc().
 
-Thanks Jonathan for having given it a spin, much appreciated!
-I was short of arm64 machines.
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+---
+ arch/parisc/mm/init.c | 52 +++++++++++++++++++--------------------------------
+ 1 file changed, 19 insertions(+), 33 deletions(-)
 
-> (qemu) object_add memory-backend-ram,id=mem1,size=1G
-> (qemu) device_add pc-dimm,id=dimm1,memdev=mem1,node=1
-> root@ubuntu:~# 
-> root@ubuntu:~# numactl -H
-...
-> node 1 cpus:
-> node 1 size: 1008 MB
-> node 1 free: 1008 MB
-> node distances:
-> node   0   1 
->   0:  10  20 
->   1:  20  10 
-> root@ubuntu:~#  
-
-Ok, this is what I wanted to see.
-When you hotplugged 1GB, 16MB out of 1024MB  were spent
-for the memmap array, that is why you only see 1008MB there.
-
-I am not sure what is the default section size for arm64, but assuming
-is 128MB, that would make sense as 1GB would mean 8 sections,
-and each section takes 2MB.
-
-That means that at least the mechanism works.
-
-> 
-> FWIW,
-> Tested-by: Shameer Kolothum <shameerali.kolothum.thodi@huawei.com>
-
-thanks for having tested it ;-)!
+diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
+index 059187a..38b928e 100644
+--- a/arch/parisc/mm/init.c
++++ b/arch/parisc/mm/init.c
+@@ -79,36 +79,6 @@ static struct resource sysram_resources[MAX_PHYSMEM_RANGES] __read_mostly;
+ physmem_range_t pmem_ranges[MAX_PHYSMEM_RANGES] __read_mostly;
+ int npmem_ranges __read_mostly;
+ 
+-/*
+- * get_memblock() allocates pages via memblock.
+- * We can't use memblock_find_in_range(0, KERNEL_INITIAL_SIZE) here since it
+- * doesn't allocate from bottom to top which is needed because we only created
+- * the initial mapping up to KERNEL_INITIAL_SIZE in the assembly bootup code.
+- */
+-static void * __init get_memblock(unsigned long size)
+-{
+-	static phys_addr_t search_addr __initdata;
+-	phys_addr_t phys;
+-
+-	if (!search_addr)
+-		search_addr = PAGE_ALIGN(__pa((unsigned long) &_end));
+-	search_addr = ALIGN(search_addr, size);
+-	while (!memblock_is_region_memory(search_addr, size) ||
+-		memblock_is_region_reserved(search_addr, size)) {
+-		search_addr += size;
+-	}
+-	phys = search_addr;
+-
+-	if (phys)
+-		memblock_reserve(phys, size);
+-	else
+-		panic("get_memblock() failed.\n");
+-
+-	memset(__va(phys), 0, size);
+-
+-	return __va(phys);
+-}
+-
+ #ifdef CONFIG_64BIT
+ #define MAX_MEM         (~0UL)
+ #else /* !CONFIG_64BIT */
+@@ -321,6 +291,13 @@ static void __init setup_bootmem(void)
+ 			max_pfn = start_pfn + npages;
+ 	}
+ 
++	/*
++	 * We can't use memblock top-down allocations because we only
++	 * created the initial mapping up to KERNEL_INITIAL_SIZE in
++	 * the assembly bootup code.
++	 */
++	memblock_set_bottom_up(true);
++
+ 	/* IOMMU is always used to access "high mem" on those boxes
+ 	 * that can support enough mem that a PCI device couldn't
+ 	 * directly DMA to any physical addresses.
+@@ -442,7 +419,10 @@ static void __init map_pages(unsigned long start_vaddr,
+ 		 */
+ 
+ 		if (!pmd) {
+-			pmd = (pmd_t *) get_memblock(PAGE_SIZE << PMD_ORDER);
++			pmd = memblock_alloc(PAGE_SIZE << PMD_ORDER,
++					     SMP_CACHE_BYTES);
++			if (!pmd)
++				panic("pmd allocation failed.\n");
+ 			pmd = (pmd_t *) __pa(pmd);
+ 		}
+ 
+@@ -461,7 +441,10 @@ static void __init map_pages(unsigned long start_vaddr,
+ 
+ 			pg_table = (pte_t *)pmd_address(*pmd);
+ 			if (!pg_table) {
+-				pg_table = (pte_t *) get_memblock(PAGE_SIZE);
++				pg_table = memblock_alloc(PAGE_SIZE,
++							  SMP_CACHE_BYTES);
++				if (!pg_table)
++					panic("page table allocation failed\n");
+ 				pg_table = (pte_t *) __pa(pg_table);
+ 			}
+ 
+@@ -700,7 +683,10 @@ static void __init pagetable_init(void)
+ 	}
+ #endif
+ 
+-	empty_zero_page = get_memblock(PAGE_SIZE);
++	empty_zero_page = memblock_alloc(PAGE_SIZE, SMP_CACHE_BYTES);
++	if (!empty_zero_page)
++		panic("zero page allocation failed.\n");
++
+ }
+ 
+ static void __init gateway_init(void)
 -- 
-Oscar Salvador
-SUSE L3
+2.7.4
 
