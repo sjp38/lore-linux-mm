@@ -2,97 +2,135 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 40F3BC282CE
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 15:14:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EFFBDC282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 15:16:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EEC17217D9
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 15:14:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EEC17217D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id AE5002075C
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 15:16:00 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="panJKHgc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AE5002075C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9EE478E0009; Tue, 12 Feb 2019 10:14:20 -0500 (EST)
+	id 5F6478E0005; Tue, 12 Feb 2019 10:16:00 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 97A2D8E0001; Tue, 12 Feb 2019 10:14:20 -0500 (EST)
+	id 5A58E8E0001; Tue, 12 Feb 2019 10:16:00 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7F33A8E0009; Tue, 12 Feb 2019 10:14:20 -0500 (EST)
+	id 495878E0005; Tue, 12 Feb 2019 10:16:00 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 112DA8E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 10:14:20 -0500 (EST)
-Received: by mail-lf1-f72.google.com with SMTP id d8so335773lfa.23
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 07:14:20 -0800 (PST)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 191E18E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 10:16:00 -0500 (EST)
+Received: by mail-yw1-f69.google.com with SMTP id c67so1898752ywe.5
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 07:16:00 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:date:message-id:in-reply-to:references:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=7zMctRGZ05kE70Bz3WkYp7PAVWydIeKsuSWdzLddV9E=;
-        b=dHBVVkYsVYe49rdnojMsEBQ9j34/nejMpqIZgjA6rwcOCK4yy765PydHmfFyu83wQY
-         2tA1xLdUNDL6b+x+gbOFVzwaOo7xlMjkq5aK2B+D/NOiwpgwCBiXuXUs6yt1awCf0E9E
-         dX41E7KZN9NNnb8tx4jKqSFYyQ2pllbMF3c6NT49G7SpwMGeUad2fY2XEnqkkJu6Qn2O
-         qPaVRfiEhXhWJ/DvG4M+WBtTAfcPQRua0/OT/ldPenkOxSqARzjlLqxqiuyRoexyog9/
-         0upCiEUExeFAqO4RIUrUIa1KeKWuJgNYNguvvGzbKXrXnqX5xjBuXJ4ognhpaqNkZc9c
-         wv0A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: AHQUAuZzjV5qtUgeA18UacsY78FWjlp/OwzlWnGfuGhW2x9yQvcPXpQd
-	8Oc0ZkXp9ojgbwTMuH4wwiuxA36XyNwSVO0i3CgNP6RlCLWDC8ID0QlTfzG0UrrKFIYPiqBjgNh
-	aWCr0kfrF3cv6snD9mA9DAgAufgKzbmeOt8utcEvd8idTWAolAWZxkljMCcf1E+VfPw==
-X-Received: by 2002:a2e:2f15:: with SMTP id v21-v6mr2657395ljv.56.1549984459399;
-        Tue, 12 Feb 2019 07:14:19 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaOuUBkqHBtfc5hc2FvAaGmztyafYPtxngcTbeXnCDOtx1h3rx/SAQRs57TNu3TBlc6CLIe
-X-Received: by 2002:a2e:2f15:: with SMTP id v21-v6mr2657325ljv.56.1549984457981;
-        Tue, 12 Feb 2019 07:14:17 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549984457; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=RqtMyuSranbSJ6NlUU6s0xosq9CQZC03joN1XI2VuCQ=;
+        b=c876SM64zgmqQvRIqOjTfNBYp5lh7JhyGthDeiydCzouln3ig4tUHQKShu6BokQL28
+         DyYAexwOXbYQXU8luN1X+JDDb3YcrCNBllCCNjjkttrgQ1gRcVtLyryFgr83LYWOCskp
+         3qecXF1OmAD3wzuPzDKOzbr+5dwFOhdWguIfvCXigfRbIWg7LyalfJsxZ+hyMg/Mq9TD
+         uyOrFVeocr55UJf9Aaa03Khyeunmvf1mL83JPlRWFEtNI5C5yMuOwS3UTSS3AgcrkuU+
+         XhaCCVI/H4SVB0nIsKi6lJhW2BWjNfLS2HDYorvUAZ2DMJU27tb+OupFrbtyLUCowudH
+         y5qw==
+X-Gm-Message-State: AHQUAuYGV1EnzLfPCzygaUBhDyGEToto48Nurdww5NIo06fyY+TTS9rn
+	7a8mYUVXsk61vxGDvOxg2C1evoT7CiGfish9opHsr8BzMEJ4ocgzrTnQQBvG1UW3V5gJNrh8gpO
+	KITAzvVeaTMxmdKKr6PsXlTt8fgC2QnDwsfxNTjMhLEBK38AE4H9gBvsU4Zctq50RFnF3Q6y4lR
+	LDlLI3JvKtE0kj9GaHosQ5Br8+73omc7g6XSZv+FdfVop50zibBnkGKitfnRpxB4gY73R5dZca9
+	sjjC/Xh6yrIKPq2X8qCsFH28PweIhFe4yPXNIBFrEo1UKDPKWgCQyMxPU3P3JxHM0N1DnDtqmua
+	bauneFB7iKI2CqIZ0x9iCNjUISyanM/5ZWHGFtTYBgnBTq5iMJ2mbOdWz4IVPNIjgAAv8DHw4DP
+	0
+X-Received: by 2002:a5b:3ca:: with SMTP id t10mr3302430ybp.304.1549984559739;
+        Tue, 12 Feb 2019 07:15:59 -0800 (PST)
+X-Received: by 2002:a5b:3ca:: with SMTP id t10mr3302379ybp.304.1549984559146;
+        Tue, 12 Feb 2019 07:15:59 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549984559; cv=none;
         d=google.com; s=arc-20160816;
-        b=DU5zYjnelJVrRj1cVoTslPV/9jW9LqUm/M0NvAnjDpzSPED0prRquRYAIS8g9D1Bws
-         vSxLu1wIVXynXJ4Hgxq5DBSdvL1NZqNDRjptJ0hgQI6uV2AIf6Nbul751J5GIvwDxx87
-         mFVO4rTvSbRum4qn8waMpYTA8we+2FS0OimEvGGW3cQYplo5Ed/JCr5aVoUYFGYmT4ae
-         fWU9hosf5hOtPPfVFjka2sOFcO7JREjZb/1hA0/xjus8HyplrmrSV91RL2GFFzb+rAil
-         r4cvEHvCHTbS0Ti7snRJ4SeXjhHafNpVow4s1RPkH4B5PHOmfbvfx+iSvj6FKxeE/XAQ
-         K9wQ==
+        b=rwaW6ZWVqhIW9dqUAajFMiK3Szi3vjuINXItLQkytu1fBKbmY7mUUd+mr7I9BTbS1o
+         LdEHJ1cs/fXAHrdwhnMnHnt8PI2Av9Ns7d8wMTBqbMOU69BG9wJ3sr7t7nCnZAL5c772
+         sgobtoru7W1yAMqrPSCGP7Z8bk3NeC4gdWm8z1FZrvYHJ+yLjGahx3cnSoambfyFfWQT
+         LfmDKNKw65Ntsk6eNbphzL741ayX6blxLTAe1IiQzPoNBSUMC5FnJTuciuvAyIbRyNga
+         1kCSsIQHt4o1Af+eAaYkuaB11s+wS/7mERkY9VOR3sdqhkDfulbtawShe3dtwc6J5oDP
+         QysQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:to:from:subject;
-        bh=7zMctRGZ05kE70Bz3WkYp7PAVWydIeKsuSWdzLddV9E=;
-        b=zvmRndHBY+CmjWcpQfO7+NbkhumkSYlv9SVfPgVpppK4RpJYHUDKno0VOkPfKlHzWR
-         dElfTVuhtHKz9XYhMO5JaTIWS8ZTk62BfoBV0Lb7CP3BEEsl3E7x0UN0Zhw72QxOVcNE
-         jQnbZ+zlre4Y6jRPF23npq3I24qs60K4KVMsH5c5bIVQR6uH7RoxYugjqncf0QH8oOB+
-         cjpqPqpyqiZz7HQp3/denA2k/GiGsvLXyKAMJph7dB6MUiSOBzbcwI+lD5GN/w9+lT4l
-         dWjAGJT/0pPPsP6N8ft+YqAI2L+xACdhhlK40Uo9wAWdYshRzvmjF5mt0PKccNibgag4
-         4APA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=RqtMyuSranbSJ6NlUU6s0xosq9CQZC03joN1XI2VuCQ=;
+        b=jqzA8qvnSsuySKvvNd1t3mFFZc0X7lVGqBMyqDMh4hNZmHE3dRaIBtafTBq50bNQia
+         95w2l/FFfhg5V6cYeoDZN5hw8Z9KQadsqZevaOSL8S4H32VOmPrccFWzFUCw5S0TtTnG
+         RuLPQxOBwFAF8Dqaym1mEsxt7LleAG19SNBLzqKmVrrau2BHWelNxQdOskYZ5dMswUt4
+         ZoW80lsQk/0cKZLvbvLz/2JSEWPuXvNor5bwCG3HGvIFVY87VnfyUeV19lDsVqMUbBmq
+         ZrmSFCs5inb05EITMkB0s238HTsPrw8FE2SHoQKfiDYSfoQc9g2z8Y5qwfvhpzWGiYNw
+         MG6A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id n21si2211060lfa.98.2019.02.12.07.14.17
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=panJKHgc;
+       spf=pass (google.com: domain of eric.dumazet@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=eric.dumazet@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k2sor7417062ybh.203.2019.02.12.07.15.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 07:14:17 -0800 (PST)
-Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        (Google Transport Security);
+        Tue, 12 Feb 2019 07:15:59 -0800 (PST)
+Received-SPF: pass (google.com: domain of eric.dumazet@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.169] (helo=localhost.localdomain)
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <ktkhai@virtuozzo.com>)
-	id 1gtZlJ-0001ZP-Gv; Tue, 12 Feb 2019 18:14:17 +0300
-Subject: [PATCH 4/4] mm: Generalize putback scan functions
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-To: akpm@linux-foundation.org, mhocko@suse.com, ktkhai@virtuozzo.com,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Date: Tue, 12 Feb 2019 18:14:16 +0300
-Message-ID: <154998445694.18704.16751838197928455484.stgit@localhost.localdomain>
-In-Reply-To: <154998432043.18704.10326447825287153712.stgit@localhost.localdomain>
-References: <154998432043.18704.10326447825287153712.stgit@localhost.localdomain>
-User-Agent: StGit/0.18
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=panJKHgc;
+       spf=pass (google.com: domain of eric.dumazet@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=eric.dumazet@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=RqtMyuSranbSJ6NlUU6s0xosq9CQZC03joN1XI2VuCQ=;
+        b=panJKHgcgOBhqJJPlBiMOZuPpZJzMk8Bngw9oHg3r6OueyqqakoAeebYaci/3edrMh
+         8fQmo7xAyAIBUQ80E4+CTSWybvrJ+Wj6CY4Zkt/46N0udIcNoAKcXILLmvD4iFafPJMr
+         7d6tF6I1ZvUKr463+PPLUhYrmCD0GmbH2YLoSSEd08Iqgx+bmBFxpAFVrt1J4nz9XHC6
+         LMhTqwX8tEb/btFO2mNwXEBD7cyb/gHpnUIsQ4/ggpS5u+Vj8HqPm5vhEHm+0JtJCvru
+         yHHFxJBJ1Ho9gLKvPfpIVflOZi1pv+HA1BTRowQWeHb72rNLCkH301R854Hsbnubl9C6
+         6+/g==
+X-Google-Smtp-Source: AHgI3IZfH0OCDGgp4potPiLlLuyWCzWBKkni/gD2JL9ai09luPJas2if4VY50FKbOZzF44s523/yhQ==
+X-Received: by 2002:a25:b98d:: with SMTP id r13mr3384874ybg.400.1549984558622;
+        Tue, 12 Feb 2019 07:15:58 -0800 (PST)
+Received: from [192.168.86.235] (c-73-241-150-70.hsd1.ca.comcast.net. [73.241.150.70])
+        by smtp.gmail.com with ESMTPSA id g127sm4940451ywf.38.2019.02.12.07.15.56
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Feb 2019 07:15:57 -0800 (PST)
+Subject: Re: [RFC, PATCH] net: page_pool: Don't use page->private to store
+ dma_addr_t
+To: Tariq Toukan <tariqt@mellanox.com>, Eric Dumazet
+ <eric.dumazet@gmail.com>, Ilias Apalodimas <ilias.apalodimas@linaro.org>,
+ Matthew Wilcox <willy@infradead.org>, "brouer@redhat.com" <brouer@redhat.com>
+Cc: David Miller <davem@davemloft.net>, "toke@redhat.com" <toke@redhat.com>,
+ "netdev@vger.kernel.org" <netdev@vger.kernel.org>,
+ "mgorman@techsingularity.net" <mgorman@techsingularity.net>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>
+References: <1549550196-25581-1-git-send-email-ilias.apalodimas@linaro.org>
+ <20190207150745.GW21860@bombadil.infradead.org>
+ <20190207152034.GA3295@apalos>
+ <20190207.132519.1698007650891404763.davem@davemloft.net>
+ <20190207213400.GA21860@bombadil.infradead.org>
+ <20190207214237.GA10676@Iliass-MBP.lan>
+ <bfd83487-7073-18c8-6d89-e50fe9a83313@mellanox.com>
+ <64f7af75-e6df-7abc-c4ce-82e6ca51fafe@gmail.com>
+ <27e97aac-f25b-d46c-3e70-7d0d44f784b5@mellanox.com>
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Message-ID: <d8fa6786-c252-6bb0-409f-42ce18127cb3@gmail.com>
+Date: Tue, 12 Feb 2019 07:15:55 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <27e97aac-f25b-d46c-3e70-7d0d44f784b5@mellanox.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -100,203 +138,45 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This combines two similar functions move_active_pages_to_lru()
-and putback_inactive_pages() into single move_pages_to_lru().
-This remove duplicate code and makes object file size smaller.
 
-Before:
-   text	   data	    bss	    dec	    hex	filename
-  57082	   4732	    128	  61942	   f1f6	mm/vmscan.o
-After:
-   text	   data	    bss	    dec	    hex	filename
-  55112	   4600	    128	  59840	   e9c0	mm/vmscan.o
 
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- mm/vmscan.c |  124 ++++++++++++++++++++---------------------------------------
- 1 file changed, 41 insertions(+), 83 deletions(-)
+On 02/12/2019 04:39 AM, Tariq Toukan wrote:
+> 
+> 
+> On 2/11/2019 7:14 PM, Eric Dumazet wrote:
+>>
+>>
+>> On 02/11/2019 12:53 AM, Tariq Toukan wrote:
+>>>
+>>
+>>> Hi,
+>>>
+>>> It's great to use the struct page to store its dma mapping, but I am
+>>> worried about extensibility.
+>>> page_pool is evolving, and it would need several more per-page fields.
+>>> One of them would be pageref_bias, a planned optimization to reduce the
+>>> number of the costly atomic pageref operations (and replace existing
+>>> code in several drivers).
+>>>
+>>
+>> But the point about pageref_bias is to place it in a different cache line than "struct page"
+>>
+>> The major cost is having a cache line bouncing between producer and consumer.
+>>
+> 
+> pageref_bias is meant to be dirtied only by the page requester, i.e. the 
+> NIC driver / page_pool.
+> All other components (basically, SKB release flow / put_page) should 
+> continue working with the atomic page_refcnt, and not dirty the 
+> pageref_bias.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 88fa71e4c28f..66e70cf1dd94 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1807,33 +1807,53 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
- 	return isolated > inactive;
- }
- 
--static noinline_for_stack void
--putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
-+/*
-+ * This moves pages from @list to corresponding LRU list.
-+ *
-+ * We move them the other way if the page is referenced by one or more
-+ * processes, from rmap.
-+ *
-+ * If the pages are mostly unmapped, the processing is fast and it is
-+ * appropriate to hold zone_lru_lock across the whole operation.  But if
-+ * the pages are mapped, the processing is slow (page_referenced()) so we
-+ * should drop zone_lru_lock around each page.  It's impossible to balance
-+ * this, so instead we remove the pages from the LRU while processing them.
-+ * It is safe to rely on PG_active against the non-LRU pages in here because
-+ * nobody will play with that bit on a non-LRU page.
-+ *
-+ * The downside is that we have to touch page->_refcount against each page.
-+ * But we had to alter page->flags anyway.
-+ *
-+ * Returns the number of pages moved to the given lruvec.
-+ */
-+
-+static unsigned noinline_for_stack move_pages_to_lru(struct lruvec *lruvec,
-+						     struct list_head *list)
- {
- 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
-+	int nr_pages, nr_moved = 0;
- 	LIST_HEAD(pages_to_free);
-+	struct page *page;
-+	enum lru_list lru;
- 
--	/*
--	 * Put back any unfreeable pages.
--	 */
--	while (!list_empty(page_list)) {
--		struct page *page = lru_to_page(page_list);
--		int lru;
--
--		VM_BUG_ON_PAGE(PageLRU(page), page);
--		list_del(&page->lru);
-+	while (!list_empty(list)) {
-+		page = lru_to_page(list);
- 		if (unlikely(!page_evictable(page))) {
-+			list_del_init(&page->lru);
- 			spin_unlock_irq(&pgdat->lru_lock);
- 			putback_lru_page(page);
- 			spin_lock_irq(&pgdat->lru_lock);
- 			continue;
- 		}
--
- 		lruvec = mem_cgroup_page_lruvec(page, pgdat);
- 
-+		VM_BUG_ON_PAGE(PageLRU(page), page);
- 		SetPageLRU(page);
- 		lru = page_lru(page);
--		add_page_to_lru_list(page, lruvec, lru);
-+
-+		nr_pages = hpage_nr_pages(page);
-+		update_lru_size(lruvec, lru, page_zonenum(page), nr_pages);
-+		list_move(&page->lru, &lruvec->lists[lru]);
- 
- 		if (put_page_testzero(page)) {
- 			__ClearPageLRU(page);
-@@ -1847,13 +1867,17 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
- 				spin_lock_irq(&pgdat->lru_lock);
- 			} else
- 				list_add(&page->lru, &pages_to_free);
-+		} else {
-+			nr_moved += nr_pages;
- 		}
- 	}
- 
- 	/*
- 	 * To save our caller's stack, now use input list for pages to free.
- 	 */
--	list_splice(&pages_to_free, page_list);
-+	list_splice(&pages_to_free, list);
-+
-+	return nr_moved;
- }
- 
- /*
-@@ -1945,7 +1969,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	reclaim_stat->recent_rotated[0] = stat.nr_activate[0];
- 	reclaim_stat->recent_rotated[1] = stat.nr_activate[1];
- 
--	putback_inactive_pages(lruvec, &page_list);
-+	move_pages_to_lru(lruvec, &page_list);
- 
- 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, -nr_taken);
- 
-@@ -1982,72 +2006,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	return nr_reclaimed;
- }
- 
--/*
-- * This moves pages from the active list to the inactive list.
-- *
-- * We move them the other way if the page is referenced by one or more
-- * processes, from rmap.
-- *
-- * If the pages are mostly unmapped, the processing is fast and it is
-- * appropriate to hold zone_lru_lock across the whole operation.  But if
-- * the pages are mapped, the processing is slow (page_referenced()) so we
-- * should drop zone_lru_lock around each page.  It's impossible to balance
-- * this, so instead we remove the pages from the LRU while processing them.
-- * It is safe to rely on PG_active against the non-LRU pages in here because
-- * nobody will play with that bit on a non-LRU page.
-- *
-- * The downside is that we have to touch page->_refcount against each page.
-- * But we had to alter page->flags anyway.
-- *
-- * Returns the number of pages moved to the given lru.
-- */
--
--static unsigned move_active_pages_to_lru(struct lruvec *lruvec,
--				     struct list_head *list,
--				     enum lru_list lru)
--{
--	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
--	LIST_HEAD(pages_to_free);
--	struct page *page;
--	int nr_pages;
--	int nr_moved = 0;
--
--	while (!list_empty(list)) {
--		page = lru_to_page(list);
--		lruvec = mem_cgroup_page_lruvec(page, pgdat);
--
--		VM_BUG_ON_PAGE(PageLRU(page), page);
--		SetPageLRU(page);
--
--		nr_pages = hpage_nr_pages(page);
--		update_lru_size(lruvec, lru, page_zonenum(page), nr_pages);
--		list_move(&page->lru, &lruvec->lists[lru]);
--
--		if (put_page_testzero(page)) {
--			__ClearPageLRU(page);
--			__ClearPageActive(page);
--			del_page_from_lru_list(page, lruvec, lru);
--
--			if (unlikely(PageCompound(page))) {
--				spin_unlock_irq(&pgdat->lru_lock);
--				mem_cgroup_uncharge(page);
--				(*get_compound_page_dtor(page))(page);
--				spin_lock_irq(&pgdat->lru_lock);
--			} else
--				list_add(&page->lru, &pages_to_free);
--		} else {
--			nr_moved += nr_pages;
--		}
--	}
--
--	/*
--	 * To save our caller's stack, now use input list for pages to free.
--	 */
--	list_splice(&pages_to_free, list);
--
--	return nr_moved;
--}
--
- static void shrink_active_list(unsigned long nr_to_scan,
- 			       struct lruvec *lruvec,
- 			       struct scan_control *sc,
-@@ -2134,8 +2092,8 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 	 */
- 	reclaim_stat->recent_rotated[file] += nr_rotated;
- 
--	nr_activate = move_active_pages_to_lru(lruvec, &l_active, lru);
--	nr_deactivate = move_active_pages_to_lru(lruvec, &l_inactive, lru - LRU_ACTIVE);
-+	nr_activate = move_pages_to_lru(lruvec, &l_active);
-+	nr_deactivate = move_pages_to_lru(lruvec, &l_inactive);
- 	/* Keep all free pages are in l_active list */
- 	list_splice(&l_inactive, &l_active);
- 
+This is exactly my point.
+
+You suggested to put pageref_bias in struct page, which breaks this completely.
+
+pageref_bias is better kept in a driver structure, with appropriate prefetching
+since most NIC use a ring buffer for their queues.
+
+The dma address _can_ be put in the struct page, since the driver does not dirty it
+and does not even read it when page can be recycled.
 
