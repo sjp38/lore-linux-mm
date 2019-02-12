@@ -6,72 +6,72 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 01176C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 02:59:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BF60AC169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 02:59:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B8F9F21773
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 02:59:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B8F9F21773
+	by mail.kernel.org (Postfix) with ESMTP id 8228E21773
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 02:59:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8228E21773
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5D7B58E017F; Mon, 11 Feb 2019 21:59:37 -0500 (EST)
+	id 206338E01A8; Mon, 11 Feb 2019 21:59:49 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 586E38E000E; Mon, 11 Feb 2019 21:59:37 -0500 (EST)
+	id 1B6FE8E000E; Mon, 11 Feb 2019 21:59:49 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 428FC8E017F; Mon, 11 Feb 2019 21:59:37 -0500 (EST)
+	id 058F68E01A8; Mon, 11 Feb 2019 21:59:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 105A88E000E
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 21:59:37 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id y8so1245533qto.19
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 18:59:37 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C22B18E000E
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 21:59:48 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id 42so1275934qtr.7
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 18:59:48 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=7IiIqj97bzkfWOp+1GqlfOmQCtvZ1lzK34xFsh5m1uc=;
-        b=hVMn7+xdsBFvukd/BGfGuXhGKVXVFhKI5oQWLUltsbQlk8JSnHd2pI8I0GU762tGpm
-         7AcGFBDb4Og57NuUTldke8any/UnYK6e3sA2wVS+Xe6zH0vp2fe7Ez7TfBqxP8PNiLGa
-         TE6hFinAz8QIXxBmNAUG64VWjmiZJzgfepa5uXmHPt884JmNYYEZJbbwp79FNtoZLsxg
-         rn0e0Wtxv5XKs0NMBFVCBF+l9RUeVhYyeCsjrtEXSh6ZNW9PbbMXwRyhPckDpwVjY1NS
-         aW8xjJR1b66xCPN7s0ukqunoSQJKnjq62ht44MgoO7bjycSe3p2xWOOWhRXsmGYkZ1O3
-         z0vg==
+        bh=P04+GFKWxEz1IxW9TwcjuRARGsgBA+kAqrjkE60dE6k=;
+        b=SLySybCZsRCBW1q0+lV+7S+ik2z0qZrRq35DLEGWR5A9wa4TTmCRqjiUdhZzPNYzdT
+         ffeoT1XC9RXGDyKsUzK82C+lhBGJWqei/kGyt7zqdnUQyhOHaGCXnRAdAuQM8Zlj3VI6
+         NlkyIuEZTfBpS3HEmLv9wgKsG7Giv1Y/f65hTo+V/cczBTiEofDe06SG7vAlgkQcfP8z
+         is/2pV5JMPPrz+LveApJH3DiXCRLgFWp5GpebBum2NheQ6Ltj7G4Zts2I97U69Y2lfHl
+         tUzQ2kWzhZLUefMUR/6YFoJ/DL1k79600Uqw06BMMSnYMppmwmmwMdxb7wikmEfyRW8G
+         Whag==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAubt2Fh7y+trWMk2F/NShScMUoEYKQXckVGushkVTWL7mU7xkm1f
-	Y8R2NkRS9X0UbmiQdmAq0EIPZiSGwsWAcSeKaTasoapYAO3SvJoQZ2TrFAzxWYzYkfGcEOvEV9C
-	bnt8BC7clEXGw6RMfmSFEGJoEtOOESZnmLjv3Bhzlx/QuY1Vv3eu0/25c60MaCNrN3g==
-X-Received: by 2002:a0c:f184:: with SMTP id m4mr1022109qvl.178.1549940376859;
-        Mon, 11 Feb 2019 18:59:36 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZnnukF/Xj9HQo9gNC80EUR79c/gurhyOBKsZOFSBGeho4+NgX5ztZYroTTXwBKvOFt0orV
-X-Received: by 2002:a0c:f184:: with SMTP id m4mr1022093qvl.178.1549940376448;
-        Mon, 11 Feb 2019 18:59:36 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549940376; cv=none;
+X-Gm-Message-State: AHQUAua3unixzgt96XS8ISEwMACJYtopT5De9HINlCj4ZKxsL61fd/rk
+	OnIrLk8uTOAhXyN4CGyhJOKRWNFfvcZhHyw5FyufvyOFnaJqJzZhl7MRimYYdCCGhc24/wNLHsY
+	EDHaR8d3jb1+Utd0mRZ1kD566DPNKglqzZNJMjsK4hdH7AkX22CGTbRSpU1H8xIRI/g==
+X-Received: by 2002:ae9:f712:: with SMTP id s18mr984730qkg.83.1549940388589;
+        Mon, 11 Feb 2019 18:59:48 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZfboEOqlFl1ZeL97xlfwf/gzZ0hJjNxbLyNPQwe0aUTmXa/opJbYHYhJGvx3EfzLGNlXDh
+X-Received: by 2002:ae9:f712:: with SMTP id s18mr984718qkg.83.1549940388187;
+        Mon, 11 Feb 2019 18:59:48 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549940388; cv=none;
         d=google.com; s=arc-20160816;
-        b=NLeqGizSyXxXE8zlhev0dHnmU2s7+IZZpo55PU2czDIQIMbh/KRVCsr2tgIcCkQ0Ry
-         w3QuzRvTnQw/ICHDcUqYTdokNGo4UjxW3lmzhm75iXGrnCqvnr0nBJPTBZynzT/S+mE3
-         KaOpHkXrQP4tShOe6P+NGYhE8CNKnNCA9+c5kOxCD3XWHeoc514piUyIv4nW7+7jwWBf
-         Q7M1Tald6BjP2Qg6d5zCE5cGxU92qLGaxIrXuQdOHvjU2mHPd+0858oMXnwyIGQQr/E9
-         Cu+17dxGg2sY9TBLT+BrImHxVNGCeqD0XLOJp1j1vrg40MN7Aahgr1ujh90SJDk/BaHl
-         j7rQ==
+        b=DKtTvCcww26ubO11zxdGQ9UbDwoVfO66X3fxiX/QQZ8TTSrL4RW72LTW8C8pQomSb4
+         uEuvjmhmAgamwHAQkG6RRPFLweIdcmpjXR/jLB2Zeyq+hy+6qCVK0mmJ/zErQuKfmPi+
+         +GpXx7Fcd+3PiscjndJieGL6j6a5iJpKLgmoGUyNcQqpkqlwgzCCcKfkm2lF1rJm38y9
+         06oTQ37P57s8zhZuLTal3I1q4V+twcH5lDLUkkueYLaLy7ABGI1QoSEaNTyygBnJbXTj
+         CveRKCMjXW/BX3bzzaRfw7JJxPoEnelm3esqdPOxtdjgwgSfunzqX53zg9Iq2hahqA+X
+         O63A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=7IiIqj97bzkfWOp+1GqlfOmQCtvZ1lzK34xFsh5m1uc=;
-        b=JjKbH3fw4OJXIp86jvXIbwrXez7UXj8JgGPE94G+k9Zlbh6NJ0T8kcCHvNh+9t7inT
-         h0nTNyKnlLUUOc7E7KT5YF9jyErgGeHuDe+ik07TFB7t40AUexED3l4ZyBQE9CENuB5L
-         1RxyEp3VzuThictcpqeSfS8n5CVu/3hUtq+sko2Sw+oEDXQWvvewikJI0zMn1msWCFQZ
-         6dT3MUdyVGLs7TgCEwLRe9CpuOIMgr7Vx3DS/nHv87UTea+woYdClQlSbNn87CZ14OgD
-         kIwj/PsOKFOBunwwW0R/W2N8rt+4z1xPDEWYBr5e2YzW7zpymWR9eQJ+BZZZpQjcMRZN
-         XaDw==
+        bh=P04+GFKWxEz1IxW9TwcjuRARGsgBA+kAqrjkE60dE6k=;
+        b=O9uGIDxRNooM4UrNAlePcUWuwi+eH8Ja/77MtuI5hYhhYalUNKyKab/plp0XybR3hH
+         F113ltA7Vt+wxy3Y/fOi187GJYagoo/EauZuBj2i4N0EMriM5J7Kaqn7lbTrgwLb7gax
+         p6vrbbTGaD1wSvCU4rhh75UCrldLd0sJ2sbt1PMM1hXG2l+PcibQ6cDpeV213RtT34A7
+         vDyhi36sEJ8kp4pcKXNRZf0ipLsBrCI55+9Mbx+5C9uGu/xO6+KV+1JQa2JTn+0fIai/
+         GNoqQHZyGV92rwWo94kqDZATwwL/kYjtSRT8v0M3fhIqwokn/P6MhgBp97IOcJA39P9p
+         kJyA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f17si7953511qvr.101.2019.02.11.18.59.36
+        by mx.google.com with ESMTPS id b21si3283517qtk.244.2019.02.11.18.59.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 18:59:36 -0800 (PST)
+        Mon, 11 Feb 2019 18:59:48 -0800 (PST)
 Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
@@ -79,11 +79,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 8CE4781254;
-	Tue, 12 Feb 2019 02:59:35 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 413F3C06C9F8;
+	Tue, 12 Feb 2019 02:59:47 +0000 (UTC)
 Received: from xz-x1.nay.redhat.com (dhcp-14-116.nay.redhat.com [10.66.14.116])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id E3690600C6;
-	Tue, 12 Feb 2019 02:59:22 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 10907600C6;
+	Tue, 12 Feb 2019 02:59:35 +0000 (UTC)
 From: Peter Xu <peterx@redhat.com>
 To: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
@@ -104,69 +104,80 @@ Cc: David Hildenbrand <david@redhat.com>,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: [PATCH v2 15/26] userfaultfd: wp: drop _PAGE_UFFD_WP properly when fork
-Date: Tue, 12 Feb 2019 10:56:21 +0800
-Message-Id: <20190212025632.28946-16-peterx@redhat.com>
+Subject: [PATCH v2 16/26] userfaultfd: wp: add pmd_swp_*uffd_wp() helpers
+Date: Tue, 12 Feb 2019 10:56:22 +0800
+Message-Id: <20190212025632.28946-17-peterx@redhat.com>
 In-Reply-To: <20190212025632.28946-1-peterx@redhat.com>
 References: <20190212025632.28946-1-peterx@redhat.com>
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Tue, 12 Feb 2019 02:59:35 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Tue, 12 Feb 2019 02:59:47 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-UFFD_EVENT_FORK support for uffd-wp should be already there, except
-that we should clean the uffd-wp bit if uffd fork event is not
-enabled.  Detect that to avoid _PAGE_UFFD_WP being set even if the VMA
-is not being tracked by VM_UFFD_WP.  Do this for both small PTEs and
-huge PMDs.
+Adding these missing helpers for uffd-wp operations with pmd
+swap/migration entries.
 
 Signed-off-by: Peter Xu <peterx@redhat.com>
 ---
- mm/huge_memory.c | 8 ++++++++
- mm/memory.c      | 8 ++++++++
- 2 files changed, 16 insertions(+)
+ arch/x86/include/asm/pgtable.h     | 15 +++++++++++++++
+ include/asm-generic/pgtable_uffd.h | 15 +++++++++++++++
+ 2 files changed, 30 insertions(+)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 817335b443c2..fb2234cb595a 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -938,6 +938,14 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	ret = -EAGAIN;
- 	pmd = *src_pmd;
- 
-+	/*
-+	 * Make sure the _PAGE_UFFD_WP bit is cleared if the new VMA
-+	 * does not have the VM_UFFD_WP, which means that the uffd
-+	 * fork event is not enabled.
-+	 */
-+	if (!(vma->vm_flags & VM_UFFD_WP))
-+		pmd = pmd_clear_uffd_wp(pmd);
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 6863236e8484..18a815d6f4ea 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1401,6 +1401,21 @@ static inline pte_t pte_swp_clear_uffd_wp(pte_t pte)
+ {
+ 	return pte_clear_flags(pte, _PAGE_SWP_UFFD_WP);
+ }
 +
- #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
- 	if (unlikely(is_swap_pmd(pmd))) {
- 		swp_entry_t entry = pmd_to_swp_entry(pmd);
-diff --git a/mm/memory.c b/mm/memory.c
-index b5d67bafae35..c2035539e9fd 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -788,6 +788,14 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		pte = pte_mkclean(pte);
- 	pte = pte_mkold(pte);
- 
-+	/*
-+	 * Make sure the _PAGE_UFFD_WP bit is cleared if the new VMA
-+	 * does not have the VM_UFFD_WP, which means that the uffd
-+	 * fork event is not enabled.
-+	 */
-+	if (!(vm_flags & VM_UFFD_WP))
-+		pte = pte_clear_uffd_wp(pte);
++static inline pmd_t pmd_swp_mkuffd_wp(pmd_t pmd)
++{
++	return pmd_set_flags(pmd, _PAGE_SWP_UFFD_WP);
++}
 +
- 	page = vm_normal_page(vma, addr, pte);
- 	if (page) {
- 		get_page(page);
++static inline int pmd_swp_uffd_wp(pmd_t pmd)
++{
++	return pmd_flags(pmd) & _PAGE_SWP_UFFD_WP;
++}
++
++static inline pmd_t pmd_swp_clear_uffd_wp(pmd_t pmd)
++{
++	return pmd_clear_flags(pmd, _PAGE_SWP_UFFD_WP);
++}
+ #endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
+ 
+ #define PKRU_AD_BIT 0x1
+diff --git a/include/asm-generic/pgtable_uffd.h b/include/asm-generic/pgtable_uffd.h
+index 643d1bf559c2..828966d4c281 100644
+--- a/include/asm-generic/pgtable_uffd.h
++++ b/include/asm-generic/pgtable_uffd.h
+@@ -46,6 +46,21 @@ static __always_inline pte_t pte_swp_clear_uffd_wp(pte_t pte)
+ {
+ 	return pte;
+ }
++
++static inline pmd_t pmd_swp_mkuffd_wp(pmd_t pmd)
++{
++	return pmd;
++}
++
++static inline int pmd_swp_uffd_wp(pmd_t pmd)
++{
++	return 0;
++}
++
++static inline pmd_t pmd_swp_clear_uffd_wp(pmd_t pmd)
++{
++	return pmd;
++}
+ #endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
+ 
+ #endif /* _ASM_GENERIC_PGTABLE_UFFD_H */
 -- 
 2.17.1
 
