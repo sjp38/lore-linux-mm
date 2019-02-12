@@ -2,182 +2,172 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F0CC4C282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:34:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 244ECC282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:35:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B5D1620855
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:34:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B5D1620855
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id D6AAC217FA
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:35:51 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Sr/H3MYU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D6AAC217FA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 608E68E0002; Tue, 12 Feb 2019 11:34:37 -0500 (EST)
+	id 5B9E18E0003; Tue, 12 Feb 2019 11:35:51 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5BA2C8E0001; Tue, 12 Feb 2019 11:34:37 -0500 (EST)
+	id 56A798E0001; Tue, 12 Feb 2019 11:35:51 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4CE258E0002; Tue, 12 Feb 2019 11:34:37 -0500 (EST)
+	id 4806F8E0003; Tue, 12 Feb 2019 11:35:51 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ABA98E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 11:34:37 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id cg18so2610326plb.1
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 08:34:36 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0307D8E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 11:35:51 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id e5so1303860pgc.16
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 08:35:50 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=nwHEhX651NKR4J/IqzBdizFL7Fd9ZYvXs4LuumuIM2k=;
-        b=cveo55ZiyQAHs0FYXyxUARm841W3UsBO+ZG5KPDQFr8iF/I0y4bEgwX5xzV5zjq2ek
-         USs6Z/NwX8UrYhKPd4tsCvjmyQpXVtC/CSthM0dYhzI2c3IS1hA3kIXBwmPA1sIMRgK4
-         ZdKruM+VGJDFpc9SbGH0nyQRwbLguPGSshp3gkjlfQm3zve93Q9vfI12idE+IGLEC7T8
-         +FKyXNp1jD4CrAwUvj2H+XHBBhFheXYDyy5V0hfwbHJ1Ah2rOxGjsR7E5d89Wnv1YIYB
-         bx9Yw73CINzFQnN21y9bV8mB2m5Hj/yVT3UnrBd7K8ANrNySGGI8MvfCFh9sUT9CN880
-         ec9A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: AHQUAuYpA2KopzeiMrnqfVIOoAusd1b8Xi1QhUw8Ftg0WbcqoLxtkXvB
-	JDItIMdTp2Qs9X89+yErmcrRKOXyL4uxRF5AhOGtT53Ii9h7tZulzoPAs/UoQnlh5WnmVp1d7rW
-	FmHxoJSwdYtUknoAbuMWpXbGLpkU7QEeYGFOeV8BafdXHNI+zdmfbKAIT37ZxeE5LQQ==
-X-Received: by 2002:aa7:82cb:: with SMTP id f11mr4789198pfn.49.1549989276697;
-        Tue, 12 Feb 2019 08:34:36 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib1bPCj2yZjgObvv1OHXtdsOhvm4rqpC+9dbSjqwgSRjgToL26Fuj+eUGG62B/mtEcTOQz9
-X-Received: by 2002:aa7:82cb:: with SMTP id f11mr4789149pfn.49.1549989275991;
-        Tue, 12 Feb 2019 08:34:35 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549989275; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=zNOt7tU83BvxZuWZ7kMdSaQzUFJaNFYMKeSqibVM4lk=;
+        b=mScDvHR8Q7+T5BwcebSR61Nnyv7wDMhCUqBsl9dsfzH8xfMxPLZMKyaUfGJN0EOsQC
+         FsFFnNp57XIFEffLj0AlrsP2W+LTiivgyQ+shUwZ5zeUyXWBNyilPSmFa9R+0pVJ3FzY
+         WDSNQ88JOkvPHVia8e07tstZrDOtQ20LZrql2aEiyEjzxW91ZklBF64WSXPevrBKncOz
+         tXNI0sP2uOSKRUmYtRIG/oL3cMo8PP1Arn3QR4bJaF+ECOYNr900z6Jtcg5Mu2bykMJt
+         PoGevoFUARCpWJlvHCmAaLJHydQpWgKIRlRnJ4qjFK5JHQPbSM+G8xDDhsmAdZXJmwwN
+         bKKQ==
+X-Gm-Message-State: AHQUAuahu9dssVwaW0o2vaak3nO8Gzvgs0akISOKTYq2V6/CEHmf20PB
+	R7ffny2CQLNUz5DaGteHWWmd9t43K/TZBtyGZQrVNsSmf5A2kznEQuVG8chADWjoEQI2AMRNGPt
+	QR5Vn0qPARJ2K7Ld2ZM5mQfH5K3hVSH+akS9RojB5ulIx/goco4q1+zusNnSAXArSTw==
+X-Received: by 2002:a63:ae0e:: with SMTP id q14mr4432499pgf.151.1549989350618;
+        Tue, 12 Feb 2019 08:35:50 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYFHPWZ3O7DQ9KuTjIt4IRx7ArRZNX7ynSX7UMzq4xDxUmA/P69PHbEGpBA+vM7e3nKpTzZ
+X-Received: by 2002:a63:ae0e:: with SMTP id q14mr4432464pgf.151.1549989349976;
+        Tue, 12 Feb 2019 08:35:49 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549989349; cv=none;
         d=google.com; s=arc-20160816;
-        b=rShNa0CCTm5zdUoRtcZtFjnHHkXPkAq/LRPjvYXGErRFneh4ws5i0YDfVN79oAygrO
-         gi6lGFTR6en5h5U93dnqYRY5GXS3F/MLA1o5hGr7PaDsza+0+22ii8sHhjYSQ01DnekV
-         SX5r/wh7Luds4zajef5udMaCECuZ/3zGN4kWlj50FAWK/lpm/PjIx7kaQkxKpnOqxnoO
-         MGZbosSTHVC6ucE/Xl20RnT6PjjBMgTynHrvuaC3yFFx8Zbf3pR01mdDqzVJK+DcMCHT
-         qZnrG8IA32u5ULwYhOnP9DbekudvUeDvQaiQf7Qv3cSoGonvuba3hVRGM+2NmjVN/xfW
-         UREg==
+        b=ddcOa8inADnupBXTEjYbEE5h4FFrzPWdhq/oCq+iKbPWuyvbnLuEzXf+PJfq+Adyu2
+         Nn1TKvzU4pgwPjMwz+Pjkm/dXs9Cv8xU8T2rPnk4wuOi2J0MTddY+gqJP8mZggXlljcd
+         ARqYrh7MZid1Z4Uf7iAaXtFfBYQx5aF5uKzc8uEOgp7ldpUTOcCU8xktHyTaC9srmc6d
+         qT/ZawCGGp7NBCZORBzrQYdyXgJaf9ZP/ZbWliJO0z5RnRYz67vig4pBa5EDzdrUGE8U
+         r1bhMf1EYWudLSqtrG9FVP+RvrAQpCaF4eyDsMKoedMf1wL5AmUZz6oRZchsUAtPjU4i
+         6JPQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=nwHEhX651NKR4J/IqzBdizFL7Fd9ZYvXs4LuumuIM2k=;
-        b=c40BdCNVaZT7uPvRqsLS6zPGz177RgoQIxpgAyCT7h9urGG5ZTdi3ValhTwgVDZsfc
-         zvpr6YCPuniGWcfiQKKRCK1GFgbhWExcTNRIcovIuUmmOGQxx6hI/nB/mxd09eiymoiZ
-         KpnlmCoXvkmX/QS6b8N4W4UkIxKwhv+9Lh9n+sm6I0G5J7aTi/ViGS1cLKLo86AkPwmL
-         GHBsInPSV/xdK8XREx0su8bhDp3CdfyfzlRQ1G7YZypYwiqPWwpiMaxQklsTIUR4JYMb
-         /wvyfMesPLZoud+pyC5vasEDzIDVltr0Jz/n1zDYkOGOnKn4XiS6Ffl2I905eEm6i8LP
-         sx1Q==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=zNOt7tU83BvxZuWZ7kMdSaQzUFJaNFYMKeSqibVM4lk=;
+        b=DMI+08V54mD18H8TnMoC9RPJs6nK7j2MfBlRjqHoBpFZnRHzbUz/ofaF2V52QULcKD
+         hqg8YPd8CURPdJA2k3ZfVumJtVzAuI3gBS3Rgfv/CFQ72Jq0KqaASH+/2ni6rLDe+TsJ
+         9+NAUhK4lt9NWfokiqsy4CvFbfmjXqZZV9UGnhIV1Bh6MDBd4TExONhUDHcL3NPlLHC2
+         0nhRP55w3XrqIkwsN9qyDLybMKzGDu9AEflqMiyk1PJteQhEhvkSqnO3Pp9pTwPw8WSx
+         HcqWeU18EZPZshe4n4RwFmBXe/V762xkcYX2FsoMTZ3eb3UWC83E/pKmDgGMNmtAEgKJ
+         klsA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 29si3422272pgw.109.2019.02.12.08.34.35
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="Sr/H3MYU";
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id 133si13532020pfw.64.2019.02.12.08.35.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 08:34:35 -0800 (PST)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 12 Feb 2019 08:35:49 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id C4F26AD17;
-	Tue, 12 Feb 2019 16:34:33 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 2ED141E09C5; Tue, 12 Feb 2019 17:34:33 +0100 (CET)
-Date: Tue, 12 Feb 2019 17:34:33 +0100
-From: Jan Kara <jack@suse.cz>
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>,
-	Dave Chinner <david@fromorbit.com>,
-	Christopher Lameter <cl@linux.com>,
-	Doug Ledford <dledford@redhat.com>,
-	lsf-pc@lists.linux-foundation.org,
-	linux-rdma <linux-rdma@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-Message-ID: <20190212163433.GD19076@quack2.suse.cz>
-References: <20190211102402.GF19029@quack2.suse.cz>
- <CAPcyv4iHso+PqAm-4NfF0svoK4mELJMSWNp+vsG43UaW1S2eew@mail.gmail.com>
- <20190211180654.GB24692@ziepe.ca>
- <20190211181921.GA5526@iweiny-DESK2.sc.intel.com>
- <20190211182649.GD24692@ziepe.ca>
- <20190211184040.GF12668@bombadil.infradead.org>
- <CAPcyv4j71WZiXWjMPtDJidAqQiBcHUbcX=+aw11eEQ5C6sA8hQ@mail.gmail.com>
- <20190211204945.GF24692@ziepe.ca>
- <CAPcyv4jHjeJxmHMyrbRhg9oeaLK5WbZm-qu1HywjY7bF2DwiDg@mail.gmail.com>
- <20190211210956.GG24692@ziepe.ca>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="Sr/H3MYU";
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=zNOt7tU83BvxZuWZ7kMdSaQzUFJaNFYMKeSqibVM4lk=; b=Sr/H3MYU50cJw780QDvWtI4BP
+	qxCpGcVPAxlRXz+6BLeJDIRS53SsIG61FeRHTWzF8NJSQqcpLmWHbmGrodeoHYg59MottV+fZ8g8A
+	puK5aP1RMnD5N7DHKjq2RP5yVEpOV0iZ/b+WQTff8KJQATfENf+5itH5BXJdZoHS3O+WvmOINaEi2
+	8Sk3a9P/NVlZr6Ldigb/yHIUI7Af7RbebnXbaIn8OgRjf3ec6/rHLE/dw4zZZGwGb6E8KHPMS5YCE
+	/LIb1/wdoK/E7KcpRc8lV0uc9C1iW/6ug5WwrDIFG+irVH13hNF6PE2ihmvcK6gzhN7I7ZZ71/PGY
+	J78j/+RCQ==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gtb2B-0002wD-LK; Tue, 12 Feb 2019 16:35:47 +0000
+Date: Tue, 12 Feb 2019 08:35:47 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Paul E. McKenney" <paulmck@linux.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	kbuild test robot <lkp@intel.com>,
+	Suren Baghdasaryan <surenb@google.com>, kbuild-all@01.org,
+	Linux Memory Management List <linux-mm@kvack.org>
+Subject: Re: [linux-next:master 6618/6917] kernel/sched/psi.c:1230:13:
+ sparse: error: incompatible types in comparison expression (different
+ address spaces)
+Message-ID: <20190212163547.GP12668@bombadil.infradead.org>
+References: <201902080231.RZbiWtQ6%fengguang.wu@intel.com>
+ <20190208151441.4048e6968579dd178b259609@linux-foundation.org>
+ <20190209074407.GE4240@linux.ibm.com>
+ <20190212013606.GJ12668@bombadil.infradead.org>
+ <20190212163145.GD14231@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190211210956.GG24692@ziepe.ca>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190212163145.GD14231@cmpxchg.org>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 11-02-19 14:09:56, Jason Gunthorpe wrote:
-> On Mon, Feb 11, 2019 at 01:02:37PM -0800, Dan Williams wrote:
-> > On Mon, Feb 11, 2019 at 12:49 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
-> > >
-> > > On Mon, Feb 11, 2019 at 11:58:47AM -0800, Dan Williams wrote:
-> > > > On Mon, Feb 11, 2019 at 10:40 AM Matthew Wilcox <willy@infradead.org> wrote:
-> > > > >
-> > > > > On Mon, Feb 11, 2019 at 11:26:49AM -0700, Jason Gunthorpe wrote:
-> > > > > > On Mon, Feb 11, 2019 at 10:19:22AM -0800, Ira Weiny wrote:
-> > > > > > > What if user space then writes to the end of the file with a regular write?
-> > > > > > > Does that write end up at the point they truncated to or off the end of the
-> > > > > > > mmaped area (old length)?
-> > > > > >
-> > > > > > IIRC it depends how the user does the write..
-> > > > > >
-> > > > > > pwrite() with a given offset will write to that offset, re-extending
-> > > > > > the file if needed
-> > > > > >
-> > > > > > A file opened with O_APPEND and a write done with write() should
-> > > > > > append to the new end
-> > > > > >
-> > > > > > A normal file with a normal write should write to the FD's current
-> > > > > > seek pointer.
-> > > > > >
-> > > > > > I'm not sure what happens if you write via mmap/msync.
-> > > > > >
-> > > > > > RDMA is similar to pwrite() and mmap.
-> > > > >
-> > > > > A pertinent point that you didn't mention is that ftruncate() does not change
-> > > > > the file offset.  So there's no user-visible change in behaviour.
-> > > >
-> > > > ...but there is. The blocks you thought you freed, especially if the
-> > > > system was under -ENOSPC pressure, won't actually be free after the
-> > > > successful ftruncate().
-> > >
-> > > They won't be free after something dirties the existing mmap either.
-> > >
-> > > Blocks also won't be free if you unlink a file that is currently still
-> > > open.
-> > >
-> > > This isn't really new behavior for a FS.
+On Tue, Feb 12, 2019 at 11:31:45AM -0500, Johannes Weiner wrote:
+> On Mon, Feb 11, 2019 at 05:36:06PM -0800, Matthew Wilcox wrote:
+> > On Fri, Feb 08, 2019 at 11:44:07PM -0800, Paul E. McKenney wrote:
+> > > On Fri, Feb 08, 2019 at 03:14:41PM -0800, Andrew Morton wrote:
+> > > > On Fri, 8 Feb 2019 02:29:33 +0800 kbuild test robot <lkp@intel.com> wrote:
+> > > > >   1223	static __poll_t psi_fop_poll(struct file *file, poll_table *wait)
+> > > > >   1224	{
+> > > > >   1225		struct seq_file *seq = file->private_data;
+> > > > >   1226		struct psi_trigger *t;
+> > > > >   1227		__poll_t ret;
+> > > > >   1228	
+> > > > >   1229		rcu_read_lock();
+> > > > > > 1230		t = rcu_dereference(seq->private);
 > > 
-> > An mmap write after a fault due to a hole punch is free to trigger
-> > SIGBUS if the subsequent page allocation fails.
+> > So the problem here is the opposite of what we think it is -- seq->private
+> > is not marked as being RCU protected.
+> >
+> > > If you wish to opt into this checking, you need to mark the pointer
+> > > definitions (in this case ->private) with __rcu.  It may also
+> > > be necessary to mark function parameters as well, as is done for
+> > > radix_tree_iter_resume().  If you do not wish to use this checking,
+> > > you should ignore these sparse warnings.
 > 
-> Isn't that already racy? If the mmap user is fast enough can't it
-> prevent the page from becoming freed in the first place today?
+> We cannot make struct seq_file->private generally __rcu, but the
+> cgroup code has a similar thing with kernfs, where it's doing rcu for
+> its particular use of struct kernfs_node->private. This is how it does
+> the dereference:
+> 
+> 	cgrp = rcu_dereference(*(void __rcu __force **)&kn->priv);
+> 
+> We could do this here as well.
+> 
+> It's ugly, though. I'd also be fine with ignoring the sparse warning.
 
-No, it cannot. We block page faulting for the file (via a lock), tear down
-page tables, free pages and blocks. Then we resume faults and return
-SIGBUS (if the page ends up being after the new end of file in case of
-truncate) or do new page fault and fresh block allocation (which can end
-with SIGBUS if the filesystem cannot allocate new block to back the page).
+How about:
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
++++ b/include/linux/seq_file.h
+@@ -26,7 +26,10 @@ struct seq_file {
+        const struct seq_operations *op;
+        int poll_event;
+        const struct file *file;
+-       void *private;
++       union {
++               void *private;
++               void __rcu *rcu_private;
++       };
+ };
+ 
+ struct seq_operations {
 
