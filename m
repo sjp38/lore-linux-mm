@@ -2,230 +2,275 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6F9D1C282CE
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 17:57:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C114EC282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 17:58:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 30F4420869
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 17:57:23 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lrYOH5Dd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30F4420869
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 7D90120869
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 17:58:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D90120869
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B273B8E0004; Tue, 12 Feb 2019 12:57:20 -0500 (EST)
+	id 0E9A18E0005; Tue, 12 Feb 2019 12:58:20 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AD4EC8E0001; Tue, 12 Feb 2019 12:57:20 -0500 (EST)
+	id 073538E0001; Tue, 12 Feb 2019 12:58:19 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9EBF68E0004; Tue, 12 Feb 2019 12:57:20 -0500 (EST)
+	id E32678E0005; Tue, 12 Feb 2019 12:58:19 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 625048E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 12:57:20 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id t65so2980938pfj.19
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 09:57:20 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 994F08E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 12:58:19 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id z4so2726563pln.12
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 09:58:19 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=gKD32Yoy3OQX5/4gri4PxomY3lVn8k0uhfbQMdVmPC8=;
-        b=r38TmtOCxMrFvutl9Y3O5kPoIrjWLtcuzw0F7Ii0jKwOUel8bUf4T9xIMAuYSko77/
-         f7JfXkT42zoEcs+I1FzqbacqinOBHfDOVOII96dEn4yvaywoESDk47jdfH2vMNnKdrH+
-         TVn4NnEhODe+mR2DHhxoJUpIMXyRnvi3hCuxwhVt5pp2AXqympv7bCAh3cHqMBT0pM7x
-         Jq9jjdhVA2ymTyKhqq4KAudjjgS3LPPy8xK5XKEwJdlGTB4w025Zw8xZKSFdsUYKMtT9
-         s1OiH/3c3Uac4pO39CmsnFqEaCrRrF0qfMzh3CUjkEYD3jGvBdoh343NSi0iStijUpQQ
-         HlIA==
-X-Gm-Message-State: AHQUAuY0WjnDW9JwE/u/a+uaiiy5Cml2I8JLebVSaqhrGQOznpQYi8UR
-	oWbTioRMPjS0KPjJjCsnR17wK+2Bh7Pim+Khf5UiSW0yMEYMwyMWW4Jtko1ox48U3WLLXTayBIG
-	aYWd1C4BmrX1QFKAifWBoXi3CgRjZMFplhEi8uOQS2UdCttUqJ37xFq17WqcB+N3GN4Ze/2VO8G
-	k2TRYQyXTRRpyj6HLAzkeA+IBWoum1hE0DEKRtDbZTEybr+yLAoLqKTJMN7emSDlOFe/nnjhfgL
-	dGqF7LFfT6eKNQ/TjzFYHE7AiMjtzv6Ohqx/UrHV1Abx6rfazZ5MZo91h/dm/pwpbMrKsVvIFGR
-	43OXMdVUxSj48LGt/ei9Sk+SNxNv6jL3hrUoezUcZfogkJ5MIv6k1ubq6GnxW4Erc5mqYA9Phg6
-	B
-X-Received: by 2002:a17:902:104:: with SMTP id 4mr5195869plb.62.1549994239938;
-        Tue, 12 Feb 2019 09:57:19 -0800 (PST)
-X-Received: by 2002:a17:902:104:: with SMTP id 4mr5195824plb.62.1549994239227;
-        Tue, 12 Feb 2019 09:57:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549994239; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=RWnNDEKqxNXuSQVw6Afw4jF+U4Q3bdVU++r4XCKrJ4k=;
+        b=Zw/Sv/9nDWGaVkvxllUBG6VBkPWNRGNIafPNevpk1B+z9pqGo2SuzVADS8tudvSBo+
+         3/awt/7BU6dU8A7AuChRVMe27SLUpFGmsxi9jTvJ/XEO5YKzJDwJOj4O+KfpampASgRQ
+         NGIgN0wNeyQuB60Di52X1dXgNghKGOK4NKJ7CkTk5pJVfCHt1wJKF/K+WBRkzCXAqW7m
+         8GwBhZbtK6NgN9eLO3ZrMtzHHSNVAka/gG5QdxrWgnligRPkppfbaSBsrokYTvqx4dBu
+         HntC0hIxOtzouBkdiRey1j9vy/RJeTfuS6HunvFb6u3I/iY/GFux7Rwfp4adN07w1E04
+         GyYA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tim.c.chen@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=tim.c.chen@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuZb9xB00czUWLOPeCWvVodWNT1MWh1yO1K3vqQyFbqyGO0ujgLs
+	LGB/xBAb+H0TxdaurKqs5kIOwLsKwEHTTg+bBDMhZJwMdbxz4QtOrVNNa7t4a5h/QTvDc51lKfI
+	caJfny28eBq4YnJj25RkpBoZwDWdLnJl3j1MvKFMfvZ0rf8D2vTbpHFoquId/unageQ==
+X-Received: by 2002:a62:5bc6:: with SMTP id p189mr5187813pfb.140.1549994299285;
+        Tue, 12 Feb 2019 09:58:19 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYYfLNqWNweZ7m2t1tkYF2ShUYN60IYz9PLs9fsg46BhiCplxkrs3lQzoLemhtlk77PCs9+
+X-Received: by 2002:a62:5bc6:: with SMTP id p189mr5187775pfb.140.1549994298538;
+        Tue, 12 Feb 2019 09:58:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549994298; cv=none;
         d=google.com; s=arc-20160816;
-        b=AQZsOtIGXlC4KjvEBqdE4PqU/WsBggvyoaqVIRJR77TOZiRHZ7hgAqq8hr56o46szi
-         gFBymMS+qLHbe616EhrkV8DVD/a5cTEMiGxvK5ag8jY4LmSTLvDfPeL3rYuPPcFzJKLz
-         pvmcDSE/htViQa0/mNH1u2fhWRzYEeQL9x2ibj1DTOnX4jb+kqHaB2m4efjeZR9gCtOz
-         JLlEezgAhidCnHw6QDgYxBMIGy2CcBRbA+Fex2M9ZUu8fDhgSOi/e0Z32vwQHBluGbft
-         on0byVp595dfl7/o+ynzkIDM3lV180XQhWxKVyKAtI+0y9pcWeMrP02Iv7CiePYofC3a
-         udBA==
+        b=AefF3hwr5g+I7jUY9nEP3jWM18PCpSAfpbieKzJJHP5lyV0uTV+9CzTzeuLuo2kJKf
+         ArBu5Q8vlVHeGIlLKVNo+DJ+lTDPwvJQXf2OxsBLF4roOGdua+TQL64acpt7zuOv20Vv
+         FZh4Kw5aXFUd5IOkjFGOHvMgF1EQn4HkXhjfu7+SpgqdyTzXabeSmwu5fvXePDNnzUKZ
+         M/JlpfDblYYs9yt230ZRSYLVq9vI6WFsx7YibXeAP9JSWQvRcnyTD36DrEiI3NKeRV8Y
+         ZsYqOBgwnhUKGEbGrfKlcrcZt9PmrbH9qAJNvNhCrEtnNZFXkY/P5hgooQvgRpFZjQAI
+         DonA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=gKD32Yoy3OQX5/4gri4PxomY3lVn8k0uhfbQMdVmPC8=;
-        b=N3NM2Rt6Khu63cvVqdRW2q9nNoHVKwvIGCOxeD3g32jCcrzU9bU3jffZTIEaTk/HmB
-         7lUHj7u4aeghl+zWQPJmipH5kTGpFNJYvGV2QbEQ0OYJYcTbVqDNBFWzxUba7rM19hpz
-         cg+p/zj1F8bit6ddwPhIQ/PMH8a43cN5i7lLNXhCeUGwZem4S0kY6M2A4X1fXnqdkiyp
-         A/hSgJIfRqgWHOebHnCHMIKhLKH0GGa0nz/wQNtJBTLLpu1mJDoYQVarpnHZJfdDO78i
-         fNnZVJwoig/kaM/sCrAjo6Vyvx3q29sR9q6r0PV+D78/Cl4RCIYR+kCZNpDhngZLH0iI
-         h1LQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=RWnNDEKqxNXuSQVw6Afw4jF+U4Q3bdVU++r4XCKrJ4k=;
+        b=hF5OjNBJ2IgFZ0hBT0kfMRaG3GhciGf1wwsRkzq1P7b1GsDOnRfZEWYW7LqFb64Dkf
+         eUhcv6M7x7E2f10Cb/TB57VqyBglqUYsDQ/PrbkBxDCVDwc7UitbPkeAQMFjjScwnjYl
+         j+dtKLm5M9sXUs+a0KnE368Lr0nBvkRfAkvLmQ5BPdCdzDee9oEa7Z9RO96hCfiLrMOp
+         0rhUcc92+BenxeYSW6p/9Xl8pBSFS+7rucKXA4j5z0UNhAgwVgavBPorwwvbA9+nk6ti
+         TDDEH4oQcBariX1pHovedAOLjpXzOEASQYldMS1T4wbNosNf3wh6t+zwa3aLUshnHzxD
+         YrVg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lrYOH5Dd;
-       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g4sor19501782pgc.74.2019.02.12.09.57.19
+       spf=pass (google.com: best guess record for domain of tim.c.chen@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=tim.c.chen@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id d87si3211580pfj.265.2019.02.12.09.58.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Feb 2019 09:57:19 -0800 (PST)
-Received-SPF: pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Feb 2019 09:58:18 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of tim.c.chen@linux.intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lrYOH5Dd;
-       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=gKD32Yoy3OQX5/4gri4PxomY3lVn8k0uhfbQMdVmPC8=;
-        b=lrYOH5DduVB4SGWITtLwhHB5PkSnt7X1YF/ulNlufQPN10JdBC3JKMtQnvkf5vzP9A
-         YLiuTZoCEu/56JlQngg6SGr+/UVhtpx0a7rvpj98atfRfeSC90uCghKgOA/jrV3byYfR
-         DGprnMtdxx+R7cP3dAL5wPq20Lhz1S40qCx/xiOXW987jnfMQQi1jZIpUKswiA5qxLsN
-         XcBHq4BkH3HQchxPa9HhnAnVtKHnrXLj2zs/a4wdF+cpd6CagMnzw5KWAmZrD5aKtUvE
-         cw33AoTM4HaBgNIVtq6bsALkld1RsUlDXCu2Q1ePr2kSjJGox+I/lilx+murwmqMyiYX
-         aSiQ==
-X-Google-Smtp-Source: AHgI3IaILzRq1X2DE5NdW31PIJY1d8o4nzOM96VGqUakZek+QPBqTvVl5YHHHJPpQ2A6etEQ4l7PmA==
-X-Received: by 2002:a65:614a:: with SMTP id o10mr4701974pgv.387.1549994238809;
-        Tue, 12 Feb 2019 09:57:18 -0800 (PST)
-Received: from tower.thefacebook.com ([2620:10d:c090:200::5:4d62])
-        by smtp.gmail.com with ESMTPSA id z186sm18608427pfz.119.2019.02.12.09.57.17
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 12 Feb 2019 09:57:18 -0800 (PST)
-From: Roman Gushchin <guroan@gmail.com>
-X-Google-Original-From: Roman Gushchin <guro@fb.com>
-To: linux-mm@kvack.org
-Cc: Matthew Wilcox <willy@infradead.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	kernel-team@fb.com,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-kernel@vger.kernel.org,
-	Roman Gushchin <guro@fb.com>
-Subject: [PATCH v2 3/3] mm: show number of vmalloc pages in /proc/meminfo
-Date: Tue, 12 Feb 2019 09:56:48 -0800
-Message-Id: <20190212175648.28738-4-guro@fb.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190212175648.28738-1-guro@fb.com>
-References: <20190212175648.28738-1-guro@fb.com>
+       spf=pass (google.com: best guess record for domain of tim.c.chen@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=tim.c.chen@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga006.jf.intel.com ([10.7.209.51])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Feb 2019 09:58:12 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,362,1544515200"; 
+   d="scan'208";a="115645391"
+Received: from schen9-desk.jf.intel.com (HELO [10.54.74.162]) ([10.54.74.162])
+  by orsmga006.jf.intel.com with ESMTP; 12 Feb 2019 09:58:12 -0800
+Subject: Re: [PATCH -mm -V7] mm, swap: fix race between swapoff and some swap
+ operations
+To: "Huang, Ying" <ying.huang@intel.com>,
+ Andrea Parri <andrea.parri@amarulasolutions.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>,
+ Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
+ "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
+ Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>,
+ Mel Gorman <mgorman@techsingularity.net>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+ <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>,
+ Andrea Arcangeli <aarcange@redhat.com>, David Rientjes
+ <rientjes@google.com>, Rik van Riel <riel@redhat.com>,
+ Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>
+References: <20190211083846.18888-1-ying.huang@intel.com>
+ <20190211190646.j6pdxqirc56inbbe@ca-dmjordan1.us.oracle.com>
+ <20190212032121.GA2723@andrea> <874l99ld05.fsf@yhuang-dev.intel.com>
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=tim.c.chen@linux.intel.com; prefer-encrypt=mutual; keydata=
+ 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
+ l50q2K/r651xphs7CGEdKi1nU0YJVbQxJQ==
+Message-ID: <997d210f-8706-7dc1-b1bb-abcc2db2ddd1@linux.intel.com>
+Date: Tue, 12 Feb 2019 09:58:11 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.3.1
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <874l99ld05.fsf@yhuang-dev.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Vmalloc() is getting more and more used these days (kernel stacks,
-bpf and percpu allocator are new top users), and the total %
-of memory consumed by vmalloc() can be pretty significant
-and changes dynamically.
+On 2/11/19 10:47 PM, Huang, Ying wrote:
+> Andrea Parri <andrea.parri@amarulasolutions.com> writes:
+> 
+>>>> +	if (!si)
+>>>> +		goto bad_nofile;
+>>>> +
+>>>> +	preempt_disable();
+>>>> +	if (!(si->flags & SWP_VALID))
+>>>> +		goto unlock_out;
+>>>
+>>> After Hugh alluded to barriers, it seems the read of SWP_VALID could be
+>>> reordered with the write in preempt_disable at runtime.  Without smp_mb()
+>>> between the two, couldn't this happen, however unlikely a race it is?
+>>>
+>>> CPU0                                CPU1
+>>>
+>>> __swap_duplicate()
+>>>     get_swap_device()
+>>>         // sees SWP_VALID set
+>>>                                    swapoff
+>>>                                        p->flags &= ~SWP_VALID;
+>>>                                        spin_unlock(&p->lock); // pair w/ smp_mb
+>>>                                        ...
+>>>                                        stop_machine(...)
+>>>                                        p->swap_map = NULL;
+>>>         preempt_disable()
+>>>     read NULL p->swap_map
+>>
+>>
+>> I don't think that that smp_mb() is necessary.  I elaborate:
+>>
+>> An important piece of information, I think, that is missing in the
+>> diagram above is the stopper thread which executes the work queued
+>> by stop_machine().  We have two cases to consider, that is,
+>>
+>>   1) the stopper is "executed before" the preempt-disable section
+>>
+>> 	CPU0
+>>
+>> 	cpu_stopper_thread()
+>> 	...
+>> 	preempt_disable()
+>> 	...
+>> 	preempt_enable()
+>>
+>>   2) the stopper is "executed after" the preempt-disable section
+>>
+>> 	CPU0
+>>
+>> 	preempt_disable()
+>> 	...
+>> 	preempt_enable()
+>> 	...
+>> 	cpu_stopper_thread()
+>>
+>> Notice that the reads from p->flags and p->swap_map in CPU0 cannot
+>> cross cpu_stopper_thread().  The claim is that CPU0 sees SWP_VALID
+>> unset in (1) and that it sees a non-NULL p->swap_map in (2).
+>>
+>> I consider the two cases separately:
+>>
+>>   1) CPU1 unsets SPW_VALID, it locks the stopper's lock, and it
+>>      queues the stopper work; CPU0 locks the stopper's lock, it
+>>      dequeues this work, and it reads from p->flags.
+>>
+>>      Diagrammatically, we have the following MP-like pattern:
+>>
+>> 	CPU0				CPU1
+>>
+>> 	lock(stopper->lock)		p->flags &= ~SPW_VALID
+>> 	get @work			lock(stopper->lock)
+>> 	unlock(stopper->lock)		add @work
+>> 	reads p->flags 			unlock(stopper->lock)
+>>
+>>      where CPU0 must see SPW_VALID unset (if CPU0 sees the work
+>>      added by CPU1).
+>>
+>>   2) CPU0 reads from p->swap_map, it locks the completion lock,
+>>      and it signals completion; CPU1 locks the completion lock,
+>>      it checks for completion, and it writes to p->swap_map.
+>>
+>>      (If CPU0 doesn't signal the completion, or CPU1 doesn't see
+>>      the completion, then CPU1 will have to iterate the read and
+>>      to postpone the control-dependent write to p->swap_map.)
+>>
+>>      Diagrammatically, we have the following LB-like pattern:
+>>
+>> 	CPU0				CPU1
+>>
+>> 	reads p->swap_map		lock(completion)
+>> 	lock(completion)		read completion->done
+>> 	completion->done++		unlock(completion)
+>> 	unlock(completion)		p->swap_map = NULL
+>>
+>>      where CPU0 must see a non-NULL p->swap_map if CPU1 sees the
+>>      completion from CPU0.
+>>
+>> Does this make sense?
+> 
+> Thanks a lot for detailed explanation!
 
-/proc/meminfo is the best place to display this information:
-its top goal is to show top consumers of the memory.
+This is certainly a non-trivial explanation of why memory barrier is not
+needed.  Can we put it in the commit log and mention something in
+comments on why we don't need memory barrier?
 
-Since the VmallocUsed field in /proc/meminfo is not in use
-for quite a long time (it has been defined to 0 by the
-commit a5ad88ce8c7f ("mm: get rid of 'vmalloc_info' from
-/proc/meminfo")), let's reuse it for showing the actual
-physical memory consumption of vmalloc().
+Thanks.
 
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Matthew Wilcox <willy@infradead.org>
----
- fs/proc/meminfo.c       |  2 +-
- include/linux/vmalloc.h |  2 ++
- mm/vmalloc.c            | 16 ++++++++++++++++
- 3 files changed, 19 insertions(+), 1 deletion(-)
-
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 568d90e17c17..465ea0153b2a 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -120,7 +120,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 	show_val_kb(m, "Committed_AS:   ", committed);
- 	seq_printf(m, "VmallocTotal:   %8lu kB\n",
- 		   (unsigned long)VMALLOC_TOTAL >> 10);
--	show_val_kb(m, "VmallocUsed:    ", 0ul);
-+	show_val_kb(m, "VmallocUsed:    ", vmalloc_nr_pages());
- 	show_val_kb(m, "VmallocChunk:   ", 0ul);
- 	show_val_kb(m, "Percpu:         ", pcpu_nr_pages());
- 
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 398e9c95cd61..0b497408272b 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -63,10 +63,12 @@ extern void vm_unmap_aliases(void);
- 
- #ifdef CONFIG_MMU
- extern void __init vmalloc_init(void);
-+extern unsigned long vmalloc_nr_pages(void);
- #else
- static inline void vmalloc_init(void)
- {
- }
-+static inline unsigned long vmalloc_nr_pages(void) { return 0; }
- #endif
- 
- extern void *vmalloc(unsigned long size);
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index f1f19d1105c4..8dd490d8d191 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -340,6 +340,19 @@ static unsigned long cached_align;
- 
- static unsigned long vmap_area_pcpu_hole;
- 
-+static DEFINE_PER_CPU(unsigned long, nr_vmalloc_pages);
-+
-+unsigned long vmalloc_nr_pages(void)
-+{
-+	unsigned long pages = 0;
-+	int cpu;
-+
-+	for_each_possible_cpu(cpu)
-+		pages += per_cpu(nr_vmalloc_pages, cpu);
-+
-+	return pages;
-+}
-+
- static struct vmap_area *__find_vmap_area(unsigned long addr)
- {
- 	struct rb_node *n = vmap_area_root.rb_node;
-@@ -1566,6 +1579,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
- 			BUG_ON(!page);
- 			__free_pages(page, 0);
- 		}
-+		this_cpu_sub(nr_vmalloc_pages, area->nr_pages);
- 
- 		kvfree(area->pages);
- 	}
-@@ -1742,12 +1756,14 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 		if (unlikely(!page)) {
- 			/* Successfully allocated i pages, free them in __vunmap() */
- 			area->nr_pages = i;
-+			this_cpu_add(nr_vmalloc_pages, area->nr_pages);
- 			goto fail;
- 		}
- 		area->pages[i] = page;
- 		if (gfpflags_allow_blocking(gfp_mask|highmem_mask))
- 			cond_resched();
- 	}
-+	this_cpu_add(nr_vmalloc_pages, area->nr_pages);
- 
- 	if (map_vm_area(area, prot, pages))
- 		goto fail;
--- 
-2.20.1
+Tim
 
