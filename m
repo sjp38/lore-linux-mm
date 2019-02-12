@@ -2,206 +2,182 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AAED6C282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 15:56:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E3E17C282CA
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 15:57:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 66CE520842
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 15:56:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66CE520842
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id AB7AC2184E
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 15:57:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AB7AC2184E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CDF858E0002; Tue, 12 Feb 2019 10:56:18 -0500 (EST)
+	id 4C6788E0003; Tue, 12 Feb 2019 10:57:06 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C65758E0001; Tue, 12 Feb 2019 10:56:18 -0500 (EST)
+	id 44EE58E0001; Tue, 12 Feb 2019 10:57:06 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B07D98E0002; Tue, 12 Feb 2019 10:56:18 -0500 (EST)
+	id 317AC8E0003; Tue, 12 Feb 2019 10:57:06 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 824698E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 10:56:18 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id 207so8050409qkf.9
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 07:56:18 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C97C28E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 10:57:05 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id b3so2636702edi.0
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 07:57:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:reply-to:references:mime-version:content-disposition
-         :in-reply-to:user-agent:message-id;
-        bh=wskkirGtVbS4ATv6Evn/45a6IDFb32ktNYk9xlWKcHg=;
-        b=Hevqx4xJVNS9pYJ5lveqJrUysDImLhCH7P0tgDniYoe4leFKhmcwMtRfMTLEAGg5uK
-         SpDcDoqAPVbEyRDchxNrc70BjPzbbR87VHEudALvu2d9QefBHPQLulAqLT6U1KFNGM9i
-         siGPSr4jENu0jyXvZOPnyB8Gsbq6oHwnU8vlHUh6ULy3SNaBX4pH4g7GBQK+aLzhD4M5
-         EUZAji3EzgnxZjxLAtLJpeCO6MXeCQ7zCerkgH3XCWySmk635nt2cZPZWbMeiVV9yOPs
-         v6IQF6McV8Hx6uIOYTvKKsWcIEk8uwFmQj3P0kM6jc+z33qx0kcybWX0IsVKi+wGlRen
-         TZMA==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) smtp.mailfrom=paulmck@linux.vnet.ibm.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuZNT40FOTDlxpFj5ipoYlBYzkm4NNoOOvDRRYiZuUreEAAOD2Xi
-	xwfct1wqV+B6/ElOT5Zv0sV4T/jG/1t1NXIuRP9wNKzYRgGwVpBIti8JdTx5H2TGvo+jkgtmoSE
-	tVn7qH3QjgqA+iUng16HuYUN8IO90o/x36eV8o5QginAIKGEV2/9TZKCqndh+ixc=
-X-Received: by 2002:a37:a546:: with SMTP id o67mr3100361qke.42.1549986978291;
-        Tue, 12 Feb 2019 07:56:18 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZis50mcdoOnRSMIV73m6/SGhDQ3FZBb4f93FYxj6y3HN5ZXwiC4xQvXGBVrn5ZbjA/2pHc
-X-Received: by 2002:a37:a546:: with SMTP id o67mr3100322qke.42.1549986977614;
-        Tue, 12 Feb 2019 07:56:17 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549986977; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=cm83j0NN2K9ELBvH1msDS9f0zRnM765gc3HBo8Dbkes=;
+        b=o+7FqL6XXhxnK9W4xxcLEzXiTUpsMht+ADEhZCaUE6G3c7fiYb7HWwXaRPRYMh3pPg
+         EvqAyPLm4EgFInokDPlVAx3pJ1bhh60Icol/+QnVrAQOpLLJwu6d8WHviVwATwhj7TPh
+         SixibX6mdLNVW4/Az0bvh6hiEacnIsb9UPu/cLar3jmdKJCeDsai0by+IJ2CTFkyRn7d
+         e4LOwkIFCZPgk0/VzwX+wT3S4xloOphPOTiY4w6CfYHeK0V4aXWVzKRj6hUd0t1KvhHM
+         IJmWvhDardBcgIvxRueSbECmzQ6sCB99O+C1XYQYX8NuLElT2GZot+YT4wXPqbx+BG3K
+         TJDw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+X-Gm-Message-State: AHQUAuYV/najohvr+LmNFBIo1ibNjgGptLo/707PnthGTtfUJoG8YCPH
+	sAQc26pc1XkxHHk2+TUBxiGok/aGQwWp+/wmkHh2WxJB9Cd9dJIE1cCzlnf8nCL3KJlyJmkEmKJ
+	nJp1/YHxB4DTj22E7ava7av09WMsJCB8aWU1BaWeCTW9zKkVfuhRlKOaxASHLmbXRlA==
+X-Received: by 2002:a17:906:11d5:: with SMTP id o21mr3238001eja.85.1549987025365;
+        Tue, 12 Feb 2019 07:57:05 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZwknC3smeBIAXFcoJ0M30vBCz+KkKz9Co+wEj264z1S/j3cBOksaRufOd+HsO1M0e7VFwd
+X-Received: by 2002:a17:906:11d5:: with SMTP id o21mr3237942eja.85.1549987024330;
+        Tue, 12 Feb 2019 07:57:04 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549987024; cv=none;
         d=google.com; s=arc-20160816;
-        b=uyOLG6CQkmPNl64KjJXW7fvUAbD0sY4BodmNDyA//nf1oG0qfIelCIwsxQudIXXcK3
-         U9HhsBOMb1k1Eu8ilqE857Dvgv96l//myoj6+AxZpPNKaM1/xfLhTlNyuGUjietW7uSQ
-         clw+RhNqHeZEL14H2lzvhF+r/gUF5LQN1upoNMFOEQ5hDBGGTZGl47Zh5+zyl4njhX9B
-         H/GD5EMbTVKtM9LkjV0DBfA+dTxZqLI1jbX+oPObzJ0Wi70jPol1721Svv6PzWZMSvs5
-         uHY3cs4WIUirdx7aE3vY7z+vjy+mdzF0k9kLFpU0j0onupshjD0HrLlBicPUAS7/AbIj
-         DlNg==
+        b=ImvwDeb/odrg7NxJuCyUACadKp37jiAl50Y4vzwNxLfGduWJAme5rCqYZscSxOnZSk
+         Kk01ogZJE+t/VoRQpcEKm5JQ6gtUdayL4Haz0iyFE1gXsDJEm1aQjcmKkTDMCiKy1zOq
+         vjaAlrorILByf8p03mSMoOm9B4G6GsNMG+3SSCu0syzHWT8hWENG3kUmLRuu2j+GJCNS
+         4AGFfXVwSPPGW6X6BC4hmfc8bwPv432kd55tuDPbAUGMQoo2yR2rMniGSWHeBcU9SWgS
+         obH8sp1YD0FEx3ubRTV6NHAFVmx8Hm6yL3CWKpSDRxardfEzJJZCv85NtzeBM7j+3w+n
+         xCgQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:reply-to:subject:cc:to:from:date;
-        bh=wskkirGtVbS4ATv6Evn/45a6IDFb32ktNYk9xlWKcHg=;
-        b=YKkAog/FzDEidXg3Biwrb5OIqDhC7la3kLGaeGku0SbEg/ZK+9nyYjZD5cO3gt42AS
-         C73l5QnpY3/cChxjVXQV5brGDe5mKmwepitsTolghe+o98WDtpPsgHSJH6OugaXohfDv
-         TU5i7ut+ndduyG6MlHDi89OyPKhAsn3DY6fPuyPEQHHPONOPhQVxp/QWzZzpnpMMjlSv
-         4t9RgtNrDwqlMGuBwyqvc6oeWa0JUaG9+MF7Qbli3DToM68iy34DydK+hIk4Gx1JTuJh
-         aIenSv99Sgp4kVILS4pJqSu1f39fTn4neliDtVEOKFIQJhLGFlhK7WOa6adUaxP6tKjm
-         5e7Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=cm83j0NN2K9ELBvH1msDS9f0zRnM765gc3HBo8Dbkes=;
+        b=heoL3F3yhbALOSo/XXLocTkUCIVlmm3srejupgwp5x38fvRhZ2Ftq77Xndy3qLpjeC
+         x4OOd/0NV1wbVh9inpBK5zOoMteLjIznzlUSH7Yy39SYVFIIc9ohsG/i3hQqnnQVrffO
+         T04qZ8SRbHtzQg8RT/t/lkiNFpcLc+2WdaUGX2w6BLqhwWZtmG+ysz/v43QT2jexUoMq
+         DkZ/R0JapjVcoJ7XFGPVbrfaGkKrWWbZK9Ju2H6BP4Uv3Ntyjw2iXeDzXyRVUX2kVf7b
+         Vs/9kiouagcIIEfa0uw03Hvl5BvEcAw9mndcuAW0gGU03FHXsEzEkFrFshBwyNg/MlD3
+         95BA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) smtp.mailfrom=paulmck@linux.vnet.ibm.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id i66si4213658qkf.246.2019.02.12.07.56.17
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 07:56:17 -0800 (PST)
-Received-SPF: neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) client-ip=148.163.158.5;
+       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id x67si6525432ede.100.2019.02.12.07.57.04
+        for <linux-mm@kvack.org>;
+        Tue, 12 Feb 2019 07:57:04 -0800 (PST)
+Received-SPF: pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of paulmck@linux.vnet.ibm.com) smtp.mailfrom=paulmck@linux.vnet.ibm.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1CFtkkr101463
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 10:56:17 -0500
-Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2qm0xvgvn2-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 10:56:16 -0500
-Received: from localhost
-	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Tue, 12 Feb 2019 15:56:16 -0000
-Received: from b01cxnp23034.gho.pok.ibm.com (9.57.198.29)
-	by e15.ny.us.ibm.com (146.89.104.202) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 12 Feb 2019 15:56:11 -0000
-Received: from b01ledav003.gho.pok.ibm.com (b01ledav003.gho.pok.ibm.com [9.57.199.108])
-	by b01cxnp23034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1CFuAON21168176
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 12 Feb 2019 15:56:11 GMT
-Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id DE72DB2064;
-	Tue, 12 Feb 2019 15:56:10 +0000 (GMT)
-Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id C161BB205F;
-	Tue, 12 Feb 2019 15:56:10 +0000 (GMT)
-Received: from paulmck-ThinkPad-W541 (unknown [9.70.82.41])
-	by b01ledav003.gho.pok.ibm.com (Postfix) with ESMTP;
-	Tue, 12 Feb 2019 15:56:10 +0000 (GMT)
-Received: by paulmck-ThinkPad-W541 (Postfix, from userid 1000)
-	id E773116C5EB2; Tue, 12 Feb 2019 07:56:10 -0800 (PST)
-Date: Tue, 12 Feb 2019 07:56:10 -0800
-From: "Paul E. McKenney" <paulmck@linux.ibm.com>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-        kbuild test robot <lkp@intel.com>,
-        Suren Baghdasaryan <surenb@google.com>, kbuild-all@01.org,
-        Johannes Weiner <hannes@cmpxchg.org>,
-        Linux Memory Management List <linux-mm@kvack.org>
-Subject: Re: [linux-next:master 6618/6917] kernel/sched/psi.c:1230:13:
- sparse: error: incompatible types in comparison expression (different
- address spaces)
-Reply-To: paulmck@linux.ibm.com
-References: <201902080231.RZbiWtQ6%fengguang.wu@intel.com>
- <20190208151441.4048e6968579dd178b259609@linux-foundation.org>
- <20190209074407.GE4240@linux.ibm.com>
- <20190212013606.GJ12668@bombadil.infradead.org>
+       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 155C280D;
+	Tue, 12 Feb 2019 07:57:03 -0800 (PST)
+Received: from [10.1.196.72] (e119884-lin.cambridge.arm.com [10.1.196.72])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 7401F3F557;
+	Tue, 12 Feb 2019 07:57:00 -0800 (PST)
+Subject: Re: [PATCH 2/5] kasan, kmemleak: pass tagged pointers to kmemleak
+To: Andrey Konovalov <andreyknvl@google.com>,
+ Andrey Ryabinin <aryabinin@virtuozzo.com>,
+ Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>,
+ Catalin Marinas <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>,
+ Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+ Andrew Morton <akpm@linux-foundation.org>, kasan-dev@googlegroups.com,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Qian Cai <cai@lca.pw>, Kostya Serebryany <kcc@google.com>,
+ Evgeniy Stepanov <eugenis@google.com>
+References: <cover.1549921721.git.andreyknvl@google.com>
+ <cd825aa4897b0fc37d3316838993881daccbe9f5.1549921721.git.andreyknvl@google.com>
+From: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Message-ID: <f57831be-c57a-4a9e-992e-1f193866467b@arm.com>
+Date: Tue, 12 Feb 2019 15:56:58 +0000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.2.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190212013606.GJ12668@bombadil.infradead.org>
-User-Agent: Mutt/1.5.21 (2010-09-15)
-X-TM-AS-GCONF: 00
-x-cbid: 19021215-0068-0000-0000-00000392B119
-X-IBM-SpamModules-Scores: 
-X-IBM-SpamModules-Versions: BY=3.00010583; HX=3.00000242; KW=3.00000007;
- PH=3.00000004; SC=3.00000279; SDB=6.01160037; UDB=6.00605417; IPR=6.00940588;
- MB=3.00025547; MTD=3.00000008; XFM=3.00000015; UTC=2019-02-12 15:56:14
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19021215-0069-0000-0000-0000477BB64C
-Message-Id: <20190212155610.GJ4240@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-12_09:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902120113
+In-Reply-To: <cd825aa4897b0fc37d3316838993881daccbe9f5.1549921721.git.andreyknvl@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2019 at 05:36:06PM -0800, Matthew Wilcox wrote:
-> On Fri, Feb 08, 2019 at 11:44:07PM -0800, Paul E. McKenney wrote:
-> > On Fri, Feb 08, 2019 at 03:14:41PM -0800, Andrew Morton wrote:
-> > > On Fri, 8 Feb 2019 02:29:33 +0800 kbuild test robot <lkp@intel.com> wrote:
-> > > 
-> > > > tree:   https://urldefense.proofpoint.com/v2/url?u=https-3A__git.kernel.org_pub_scm_linux_kernel_git_next_linux-2Dnext.git&d=DwICAg&c=jf_iaSHvJObTbx-siA1ZOg&r=q4hkQkeaNH3IlTsPvEwkaUALMqf7y6jCMwT5b6lVQbQ&m=myIJaLgovNwHx7SqCW_p1sQx2YvRlmVbShFnuZEFqxY&s=0Y32d-tVCGOq6Vu_VAGgVgbEplhfvOSJ5evHbXTtyBI&e= master
-> > > > head:   1bd831d68d5521c01d783af0275439ac645f5027
-> > > > commit: e7acbba0d6f7a24c8d24280089030eb9a0eb7522 [6618/6917] psi: introduce psi monitor
-> > > > reproduce:
-> > > >         # apt-get install sparse
-> > > >         git checkout e7acbba0d6f7a24c8d24280089030eb9a0eb7522
-> > > >         make ARCH=x86_64 allmodconfig
-> > > >         make C=1 CF='-fdiagnostic-prefix -D__CHECK_ENDIAN__'
-> > > > 
-> > > > All errors (new ones prefixed by >>):
-> > > > 
-> > > >    kernel/sched/psi.c:151:6: sparse: warning: symbol 'psi_enable' was not declared. Should it be static?
-> > > > >> kernel/sched/psi.c:1230:13: sparse: error: incompatible types in comparison expression (different address spaces)
-> > > >    kernel/sched/psi.c:774:30: sparse: warning: dereference of noderef expression
-> > > > 
-> > > > vim +1230 kernel/sched/psi.c
-> > > > 
-> > > >   1222	
-> > > >   1223	static __poll_t psi_fop_poll(struct file *file, poll_table *wait)
-> > > >   1224	{
-> > > >   1225		struct seq_file *seq = file->private_data;
-> > > >   1226		struct psi_trigger *t;
-> > > >   1227		__poll_t ret;
-> > > >   1228	
-> > > >   1229		rcu_read_lock();
-> > > > > 1230		t = rcu_dereference(seq->private);
+On 11/02/2019 21:59, Andrey Konovalov wrote:
+> Right now we call kmemleak hooks before assigning tags to pointers in
+> KASAN hooks. As a result, when an objects gets allocated, kmemleak sees
+> a differently tagged pointer, compared to the one it sees when the object
+> gets freed. Fix it by calling KASAN hooks before kmemleak's ones.
+>
+
+Nit: Could you please add comments to the the code? It should prevent that the
+code gets refactored in future, reintroducing the same issue.
+
+> Reported-by: Qian Cai <cai@lca.pw>
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> ---
+>  mm/slab.h        | 6 ++----
+>  mm/slab_common.c | 2 +-
+>  mm/slub.c        | 3 ++-
+>  3 files changed, 5 insertions(+), 6 deletions(-)
 > 
-> So the problem here is the opposite of what we think it is -- seq->private
-> is not marked as being RCU protected.
-
-Glad to have helped, then.  ;-)
-
-> > If you wish to opt into this checking, you need to mark the pointer
-> > definitions (in this case ->private) with __rcu.  It may also
-> > be necessary to mark function parameters as well, as is done for
-> > radix_tree_iter_resume().  If you do not wish to use this checking,
-> > you should ignore these sparse warnings.
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 4190c24ef0e9..638ea1b25d39 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -437,11 +437,9 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
+>  
+>  	flags &= gfp_allowed_mask;
+>  	for (i = 0; i < size; i++) {
+> -		void *object = p[i];
+> -
+> -		kmemleak_alloc_recursive(object, s->object_size, 1,
+> +		p[i] = kasan_slab_alloc(s, p[i], flags);
+> +		kmemleak_alloc_recursive(p[i], s->object_size, 1,
+>  					 s->flags, flags);
+> -		p[i] = kasan_slab_alloc(s, object, flags);
+>  	}
+>  
+>  	if (memcg_kmem_enabled())
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 81732d05e74a..fe524c8d0246 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -1228,8 +1228,8 @@ void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
+>  	flags |= __GFP_COMP;
+>  	page = alloc_pages(flags, order);
+>  	ret = page ? page_address(page) : NULL;
+> -	kmemleak_alloc(ret, size, 1, flags);
+>  	ret = kasan_kmalloc_large(ret, size, flags);
+> +	kmemleak_alloc(ret, size, 1, flags);
+>  	return ret;
+>  }
+>  EXPORT_SYMBOL(kmalloc_order);
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 1e3d0ec4e200..4a3d7686902f 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1374,8 +1374,9 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node,
+>   */
+>  static inline void *kmalloc_large_node_hook(void *ptr, size_t size, gfp_t flags)
+>  {
+> +	ptr = kasan_kmalloc_large(ptr, size, flags);
+>  	kmemleak_alloc(ptr, size, 1, flags);
+> -	return kasan_kmalloc_large(ptr, size, flags);
+> +	return ptr;
+>  }
+>  
+>  static __always_inline void kfree_hook(void *x)
 > 
-> radix_tree_iter_resume is, happily, gone from my xarray-conv tree.
-> __radix_tree_lookup, __radix_tree_replace, radix_tree_iter_replace and
-> radix_tree_iter_init are still present, but hopefully not for too much
-> longer.  For example, __radix_tree_replace() is (now) called only from
-> idr_replace(), and there are only 12 remaining callers of idr_replace().
 
-Will this reduce the number of uses of rcu_dereference_raw()?  Or do they
-simply migrate into Xarray?
-
-							Thanx, Paul
+-- 
+Regards,
+Vincenzo
 
