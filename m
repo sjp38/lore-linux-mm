@@ -2,84 +2,85 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CDF91C282CA
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:50:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 59C1CC282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:50:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 97597217D9
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:50:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 97597217D9
+	by mail.kernel.org (Postfix) with ESMTP id 1447F2184E
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 16:50:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1447F2184E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 38E138E0003; Tue, 12 Feb 2019 11:50:32 -0500 (EST)
+	id BF35E8E0004; Tue, 12 Feb 2019 11:50:32 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 33CD28E0001; Tue, 12 Feb 2019 11:50:32 -0500 (EST)
+	id B53AF8E0001; Tue, 12 Feb 2019 11:50:32 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 22BD78E0003; Tue, 12 Feb 2019 11:50:32 -0500 (EST)
+	id 9561A8E0004; Tue, 12 Feb 2019 11:50:32 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E79758E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 11:50:31 -0500 (EST)
-Received: by mail-vs1-f71.google.com with SMTP id g21so613645vsq.9
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 08:50:31 -0800 (PST)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 650D78E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 11:50:32 -0500 (EST)
+Received: by mail-vs1-f69.google.com with SMTP id o22so1197885vsp.18
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 08:50:32 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version;
-        bh=DxZPcI6g3hiImAY1U1HkjxAHcnEM/pUulDFW8A2UL28=;
-        b=ndT0QYJvGE7m0O4LAKsb8VFKztlO8oxerxOYFOKPKGz8lai6MNQE7OaRJdVJeacN0W
-         gCimcgau2CCF2n5wA13dXhZF6t7ui7I32f/F70vhyu5Cx1Gx4RjzwisTpBGkZDWFFWS0
-         vM6JyXunwDya7Nn/2Pw9Fbq5vK/lzKDgRPW9UIhx0kcxhDejb4ZVzW3gJnk8TGFcxOLh
-         G3iS8SP7gMM/IKzekuKi9dhQbL6YaKQxynjdLPEqt0ev2gsN8d7V7tcC6ECgqeGwefJh
-         wefsg+vVVt8T2GtcFvEblXR+JM0+eN0aNWKrD23DkzkfFYnDYQWvfQ1fQiZOctpZUJYM
-         daCg==
+         :subject:date:message-id:in-reply-to:references:mime-version;
+        bh=qHcqn+Ug+DP3AjqXDsty1crmXR+AS/AECu2pwPrmmFY=;
+        b=jfSd+bBW7fC3nUfzya1jNN6etCWYl68n4eR3PXGoqqIp3kdy2S9g8D9fVlW8VWGgXD
+         BZL4sBO+u+mvRTsbgOCB9/9JlEZvbVYX85u2rcwrSSCtB6UusW2XeNB0ATlLqMAc6d4+
+         GBsToOc2Vg7VAcWv8BXiznnpmIzHW+BeOWwD1qED8lqa7zmk1xJuOU7b6UffjS/wIFXo
+         +qFawp2Oxe31EECuIZZYQb1zDUaWB83CVsJFM+pCgEhumzA8Jx6vPMYvST7vHbQ8xIE/
+         yjHp4+mRXgZC4h2xMfuhX+zDM0w1WdftLjyiX5gCgHWppYgyydMCzCdLLIXZuU3UOWcN
+         pn7w==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-X-Gm-Message-State: AHQUAubHKsLzxGdz/UYZJ7uKvs1esQ4C9Bjj9/1o8DuSP6d4yRkYQ0x5
-	mzJ1gY1eBAPb37BnwGO8BG6MAqS7MpRN8sTEtB12G07/A1tHp+87fPNzsLvbfo/wmSHKHF1oDQD
-	2h3ZIFM2yl/7qZYvPefxhw8yVTZJHUi9xcOAyUEuv26gQLOpF9z9oCPPfIQpmwPRKGw==
-X-Received: by 2002:a67:b003:: with SMTP id z3mr1862997vse.200.1549990231562;
+X-Gm-Message-State: AHQUAubkC+XYCoWAqB33MbwqRIAuVztadR3Eq55pHk3+J4NTeUwN5yG9
+	Q4nZ02R83jURlftoEnsQI4tRJ9JQH4sW2ixWcTftrpSoV5397tSNsCzzGZVC2WQCZ3uGd0V62kQ
+	8u6U3QK3StvPIdJdNKwUNTgaaqO96fPwX7NqVHvLGndVPJSmaMMZuXLSPcroYsHAURA==
+X-Received: by 2002:a67:7c92:: with SMTP id x140mr1778200vsc.137.1549990232048;
+        Tue, 12 Feb 2019 08:50:32 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZ7RCowAWPzAVAzPikYhgUzLJV+g1/HR3elD67nxZ7PEvFPXWRKwHSNAFPFF+YJ+5h9gUsH
+X-Received: by 2002:a67:7c92:: with SMTP id x140mr1778171vsc.137.1549990231020;
         Tue, 12 Feb 2019 08:50:31 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYUlwtpyd/797EqeqK++sU6gZoWQSKLNXNgWZNefw3vaS8O7VogO49b/neN2blAeQdg3qh1
-X-Received: by 2002:a67:b003:: with SMTP id z3mr1862969vse.200.1549990230722;
-        Tue, 12 Feb 2019 08:50:30 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549990230; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1549990231; cv=none;
         d=google.com; s=arc-20160816;
-        b=bRbqYPfdYkGmSc64qDZ2ou88i6km1Snxgjgmo1AVM6gzzCOAmFF1zFQIAFxNRd5JQd
-         zVODiqebaTOAnDYHIagAaRdTYlx06l1CG2t3Um/lKri2Km+NmjWlgiIlo4ghm6fr/1RL
-         HDLb/q3islG2AGYxBde8v0wQALD7jKCP+6LxeE2/RBqVhHxK4FuBSU58zdzHYeSDQbgJ
-         dM6CtydCDesf3vDYQiucq3LtSu43HlC+Xj96gMgT/D8eClHYxNMyca6YDUtZ5FmOJvzQ
-         vBkg2zjYaeKyVmYOf3pefVLx3ixtqJrvk2mu8YCxmWltuvofAOnYXSUhVtpGkaE+RdE8
-         lz0g==
+        b=LQFu7xY2M71ltR97UBproVXMp1IeFI9VvYWFsE/ozBXLvGQ5Fx8xM5rAp2fnTrMeBc
+         B8VPikhwBqvhLTeEQ0iGst7mBTa2xCWP1TEhg0QA/lS5srPDfIc9Yk+dGWvYIrJ68mrR
+         /eKjhiPnYTZHQgKMvSc+Umsoet69OTM6kGc4XUfGPQkZRUR6YubueYTZFZSfb6cahlQs
+         0Hj/eVwgqwEkpIR+E/NokqUUPQCsIDsNxbkHoeXcoGvMB9x2Lc63/h+CWQZUmWUXa5Bn
+         Gf+ySryqyrmS5qal15xDJHbzGzHaeOjMedh0yFJqfKfif0pfONHmMJmVxdX/YBDt0OO+
+         OkEQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:subject:cc:to:from;
-        bh=DxZPcI6g3hiImAY1U1HkjxAHcnEM/pUulDFW8A2UL28=;
-        b=IqvSUYg/87sSTmTOM1uuVsaiBCeeSkiePxG0Ikk7kKbpyovOrxOR1rK0WiWmCbfKnh
-         LuZiaf5FORZXca/PINxBU572q7s7AM/c5RGMwHSkO6csOf2iUtusWrsPyrharakrMFZ0
-         dboV9sKr7RZPXTUXw0d1SrSYekNkZ68JuNoeVn/9sqv15xRWHgWp6AHveQPNQ6HxV6ar
-         KMGwD02pQJaCHdlvv5qF7jfQQscybxWSYbaYmAbljqgR0FkS2Uu3b/8jPW451vOZV/Xs
-         JzBGxRGgAcU92UTcxJhEMbL/dwgWBkBtYy7rWQXJiznxToQQApX33QNayLweRtYonL4g
-         v7DA==
+        h=mime-version:references:in-reply-to:message-id:date:subject:cc:to
+         :from;
+        bh=qHcqn+Ug+DP3AjqXDsty1crmXR+AS/AECu2pwPrmmFY=;
+        b=bvEnx3Ykqs2+yiazHhF+r5CVep/MkTFC7L2+ZxmBUL2vWKwKAjFENOqvYOKji+yjgj
+         Z0oGMn5std35s2Nc+m6o35w6dBN0HwL/+qd4zMyW3NHyYDXDqB+pdoFPoOswbshlooXT
+         0JeWM8+nwOCpm9VstD9W3csnY5OlW/uI/UcOxyb8BLYAd9rYSToV++k5t02bYuIZjZdI
+         sXSn8XrW5cAint+q1aEX5xSix3faAwqPnHtkC6fRuVOe5Sb1V++3Va5OMYhx9NDalwpK
+         vkbWdQiSfuF1n8QOTxPssH/pxsBTbg1GmYZQcIVDstrdX4aYVTI5RVVbkvH2mIegYe2P
+         P4Gg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
 Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id g4si967671vsq.229.2019.02.12.08.50.30
+        by mx.google.com with ESMTPS id s19si1365209vsl.400.2019.02.12.08.50.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 08:50:30 -0800 (PST)
+        Tue, 12 Feb 2019 08:50:31 -0800 (PST)
 Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
 Received: from DGGEMS414-HUB.china.huawei.com (unknown [172.30.72.59])
-	by Forcepoint Email with ESMTP id B9FF6C2F53D8B5932EBF;
+	by Forcepoint Email with ESMTP id B1501CCF6D9D67A146C9;
 	Wed, 13 Feb 2019 00:50:26 +0800 (CST)
 Received: from j00421895-HPW10.huawei.com (10.202.226.61) by
  DGGEMS414-HUB.china.huawei.com (10.3.19.214) with Microsoft SMTP Server id
- 14.3.408.0; Wed, 13 Feb 2019 00:50:16 +0800
+ 14.3.408.0; Wed, 13 Feb 2019 00:50:19 +0800
 From: Jonathan Cameron <Jonathan.Cameron@huawei.com>
 To: <jonathan.cameron@huawei.com>, <linux-mm@kvack.org>,
 	<linux-acpi@vger.kernel.org>, <linux-kernel@vger.kernel.org>
@@ -87,10 +88,12 @@ CC: <linuxarm@huawei.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?=
 	<jglisse@redhat.com>, Keith Busch <keith.busch@intel.com>, "Rafael J .
  Wysocki" <rjw@rjwysocki.net>, Michal Hocko <mhocko@kernel.org>,
 	<jcm@redhat.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Subject: [RFC PATCH 0/3] ACPI: Support generic initiator proximity domains
-Date: Tue, 12 Feb 2019 16:49:23 +0000
-Message-ID: <20190212164926.202-1-Jonathan.Cameron@huawei.com>
+Subject: [PATCH 1/3] ACPI: Support Generic Initator only domains
+Date: Tue, 12 Feb 2019 16:49:24 +0000
+Message-ID: <20190212164926.202-2-Jonathan.Cameron@huawei.com>
 X-Mailer: git-send-email 2.17.1
+In-Reply-To: <20190212164926.202-1-Jonathan.Cameron@huawei.com>
+References: <20190212164926.202-1-Jonathan.Cameron@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 X-Originating-IP: [10.202.226.61]
@@ -101,92 +104,239 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-ACPI 6.3 introduced a new entity that can be part of a NUMA proximity domain.
-It may share such a domain with the existing options (memory, cpu etc) but it
-may also exist on it's own.
+Generic Initiators are a new ACPI concept that allows for
+the description of proximity domains that contain a
+device which performs memory access (such as a network card)
+but neither host CPU nor memory.
 
-The intent is to allow the description of the NUMA properties (particulary
-via HMAT) of accelerators and other initiators of memory activity that are not
-the host processor running the operating system.
+This first patch has the parsing code and provides the
+infrastructure for an architecture to associate these
+new domains with their nearest memory possessing node.
 
-To illustrate one use case for this feature.
-
-A multiqueue high performance ethernet adaptor is connected to a pair
-of SoCs via an appropriate interconnect. The system memory is attached to
-the two SoCs. The ethernet adaptor driver wants to load balance the location
-of it's memory buffers between the two different SoCs to avoid saturating
-the interconnect.  Under current models the ethernet adaptor must be assigned
-to an existing NUMA domain (via _PXM).  None of these are able to indicate
-that the ethernet adaptor is equidistant from two separate memory / processor
-nodes. By assigning it to a node with none of the traditional elements, we can
-represent this and the driver is able to load balance between the nodes
-improving performance.   We have hardware where 5-10% performance
-improvement may be easily achieved using this approach.  As CCIX and similar
-interconnects become common, this situation will occur more often.
-
-This patch set introduces 'just enough' to make them work for arm64.
-It should be trivial to support other architectures, I just don't suitable
-NUMA systems readily available to test.
-
-There are a few quirks that need to be considered.
-
-1. Fall back nodes
-******************
-
-As pre ACPI 6.3 supporting operating systems do not have Generic Initiator
-Proximity Domains it is possible to specify, via _PXM in DSDT that another
-device is part of such a GI only node.  This currently blows up spectacularly
-in Linux.
-
-Whilst we can obviously 'now' protect against such a situation (see the related
-thread on PCI _PXM support and the  threadripper board identified there as
-also falling into the  problem of using non existent nodes
-https://patchwork.kernel.org/patch/10723311/ ), there is no way to  be sure
-we will never have legacy OSes that are not protected  against this.  It would
-also be 'non ideal' to fallback to  a default node as there may be a better
-(non GI) node to pick  if GI nodes aren't available.
-
-The work around is that we also have a new system wide OSC bit that allows
-an operating system to 'annouce' that it supports Generic Initiators.  This
-allows, the firmware to us DSDT magic to 'move' devices between the nodes
-dependent on whether our new nodes are there or not.
-
-2. New ways of assigning a proximity domain for devices
-*******************************************************
-
-Until now, the only way firmware could indicate that a particular device
-(outside the 'special' set of cpus etc) was to be found in a particular
-Proximity Domain by the use of _PXM in DSDT.
-
-That is equally valid with GI domains, but we have new options. The SRAT
-affinity structure includes a handle (ACPI or PCI) to identify devices
-with the system and specify their proximity domain that way.  If both _PXM
-and this are provided, they should give the same answer.
-
-For now this patch set completely ignores that feature as we don't need
-it to start the discussion.  It will form a follow up set at some point
-(if no one else fancies doing it).
-
-acpica-tools patches will go via the normal route to there.
-
-Bits of the headers are here in order to have this stand on it's own.
-
-Jonathan Cameron (3):
-  ACPI: Support Generic Initator only domains
-  arm64: Support Generic Initiator only domains
-  ACPI: Let ACPI know we support Generic Initiator Affinity Structures
-
- arch/arm64/kernel/smp.c        |  8 +++++
- drivers/acpi/bus.c             |  1 +
+Signed-off-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+---
  drivers/acpi/numa.c            | 62 +++++++++++++++++++++++++++++++++-
  drivers/base/node.c            |  3 ++
  include/acpi/actbl3.h          | 37 +++++++++++++++++++-
  include/asm-generic/topology.h |  3 ++
- include/linux/acpi.h           |  1 +
  include/linux/nodemask.h       |  1 +
  include/linux/topology.h       |  7 ++++
- 9 files changed, 121 insertions(+), 2 deletions(-)
+ 6 files changed, 111 insertions(+), 2 deletions(-)
 
+diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
+index 7bbbf8256a41..890095794695 100644
+--- a/drivers/acpi/numa.c
++++ b/drivers/acpi/numa.c
+@@ -183,6 +183,38 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
+ 		}
+ 		break;
+ 
++	case ACPI_SRAT_TYPE_GENERIC_INITIATOR_AFFINITY:
++	{
++		struct acpi_srat_gi_affinity *p =
++			(struct acpi_srat_gi_affinity *)header;
++		char name[9] = {};
++
++		if (p->flags & ACPI_SRAT_GI_PCI_HANDLE) {
++			/*
++			 * For pci devices this may be the only place they
++			 * are assigned a proximity domain
++			 */
++			pr_debug("SRAT Generic Initiator(Seg:%u BDF:%u) in proximity domain %d %s\n",
++				p->pci_handle.segment,
++				p->pci_handle.bdf,
++				p->proximity_domain,
++				(p->flags & ACPI_SRAT_GI_ENABLED) ?
++				"enabled" : "disabled");
++		} else {
++			/*
++			 * In this case we can rely on the device having a
++			 * proximity domain reference
++			 */
++			memcpy(name, p->acpi_handle.hid, 8);
++			pr_info("SRAT Generic Initiator(HID=%s UID=%u) in proximity domain %d %s\n",
++				name,
++				p->acpi_handle.uid,
++				p->proximity_domain,
++				(p->flags & ACPI_SRAT_GI_ENABLED) ?
++				"enabled" : "disabled");
++		}
++	}
++	break;
+ 	default:
+ 		pr_warn("Found unsupported SRAT entry (type = 0x%x)\n",
+ 			header->type);
+@@ -391,6 +423,32 @@ acpi_parse_gicc_affinity(struct acpi_subtable_header *header,
+ 	return 0;
+ }
+ 
++static int __init
++acpi_parse_gi_affinity(struct acpi_subtable_header *header,
++		       const unsigned long end)
++{
++	struct acpi_srat_gi_affinity *gi_affinity;
++	int node;
++
++	gi_affinity = (struct acpi_srat_gi_affinity *)header;
++	if (!gi_affinity)
++		return -EINVAL;
++	acpi_table_print_srat_entry(header);
++
++	if (!(gi_affinity->flags & ACPI_SRAT_GI_ENABLED))
++		return EINVAL;
++
++	node = acpi_map_pxm_to_node(gi_affinity->proximity_domain);
++	if (node == NUMA_NO_NODE || node >= MAX_NUMNODES) {
++		pr_err("SRAT: Too many proximity domains.\n");
++		return -EINVAL;
++	}
++	node_set(node, numa_nodes_parsed);
++	node_set_state(node, N_GENERIC_INITIATOR);
++
++	return 0;
++}
++
+ static int __initdata parsed_numa_memblks;
+ 
+ static int __init
+@@ -446,7 +504,7 @@ int __init acpi_numa_init(void)
+ 
+ 	/* SRAT: System Resource Affinity Table */
+ 	if (!acpi_table_parse(ACPI_SIG_SRAT, acpi_parse_srat)) {
+-		struct acpi_subtable_proc srat_proc[3];
++		struct acpi_subtable_proc srat_proc[4];
+ 
+ 		memset(srat_proc, 0, sizeof(srat_proc));
+ 		srat_proc[0].id = ACPI_SRAT_TYPE_CPU_AFFINITY;
+@@ -455,6 +513,8 @@ int __init acpi_numa_init(void)
+ 		srat_proc[1].handler = acpi_parse_x2apic_affinity;
+ 		srat_proc[2].id = ACPI_SRAT_TYPE_GICC_AFFINITY;
+ 		srat_proc[2].handler = acpi_parse_gicc_affinity;
++		srat_proc[3].id = ACPI_SRAT_TYPE_GENERIC_INITIATOR_AFFINITY;
++		srat_proc[3].handler = acpi_parse_gi_affinity;
+ 
+ 		acpi_table_parse_entries_array(ACPI_SIG_SRAT,
+ 					sizeof(struct acpi_table_srat),
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 86d6cd92ce3d..f59b9d4ca5d5 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -634,6 +634,8 @@ static struct node_attr node_state_attr[] = {
+ #endif
+ 	[N_MEMORY] = _NODE_ATTR(has_memory, N_MEMORY),
+ 	[N_CPU] = _NODE_ATTR(has_cpu, N_CPU),
++	[N_GENERIC_INITIATOR] = _NODE_ATTR(has_generic_initiator,
++					   N_GENERIC_INITIATOR),
+ };
+ 
+ static struct attribute *node_state_attrs[] = {
+@@ -645,6 +647,7 @@ static struct attribute *node_state_attrs[] = {
+ #endif
+ 	&node_state_attr[N_MEMORY].attr.attr,
+ 	&node_state_attr[N_CPU].attr.attr,
++	&node_state_attr[N_GENERIC_INITIATOR].attr.attr,
+ 	NULL
+ };
+ 
+diff --git a/include/acpi/actbl3.h b/include/acpi/actbl3.h
+index ea1ca49c9c1b..35ea3f736697 100644
+--- a/include/acpi/actbl3.h
++++ b/include/acpi/actbl3.h
+@@ -190,7 +190,8 @@ enum acpi_srat_type {
+ 	ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY = 2,
+ 	ACPI_SRAT_TYPE_GICC_AFFINITY = 3,
+ 	ACPI_SRAT_TYPE_GIC_ITS_AFFINITY = 4,	/* ACPI 6.2 */
+-	ACPI_SRAT_TYPE_RESERVED = 5	/* 5 and greater are reserved */
++	ACPI_SRAT_TYPE_GENERIC_INITIATOR_AFFINITY = 5, /* ACPI 6.3 */
++	ACPI_SRAT_TYPE_RESERVED = 6	/* 6 and greater are reserved */
+ };
+ 
+ /*
+@@ -271,6 +272,40 @@ struct acpi_srat_gic_its_affinity {
+ 	u32 its_id;
+ };
+ 
++/* Flags for struct acpi_srat_gi_affinity */
++
++#define ACPI_SRAT_GI_ENABLED     (1)		/* 00: Use affinity structure */
++#define ACPI_SRAT_GI_ACPI_HANDLE (0)		/* 01: */
++#define ACPI_SRAT_GI_PCI_HANDLE  (1 << 1)	/* 01: */
++
++/* Handles to associate the generic initiator with types of ACPI device */
++
++struct acpi_srat_gi_acpi_handle {
++	char hid[8];
++	u32 uid;
++	u32 reserved;
++};
++
++struct acpi_srat_gi_pci_handle {
++	u16 segment;
++	u16 bdf;
++	u8 reserved[12];
++};
++
++/* 5 : Generic Initiator Affinity (ACPI 6.3) */
++
++struct acpi_srat_gi_affinity {
++	struct acpi_subtable_header header;
++	u8 reserved;
++	u8 device_handl_type;
++	u32 proximity_domain;
++	union {
++		struct acpi_srat_gi_acpi_handle acpi_handle;
++		struct acpi_srat_gi_pci_handle pci_handle;
++	};
++	u32 flags;
++	u32 reserved2;
++};
+ /*******************************************************************************
+  *
+  * STAO - Status Override Table (_STA override) - ACPI 6.0
+diff --git a/include/asm-generic/topology.h b/include/asm-generic/topology.h
+index 238873739550..54d0b4176a45 100644
+--- a/include/asm-generic/topology.h
++++ b/include/asm-generic/topology.h
+@@ -71,6 +71,9 @@
+ #ifndef set_cpu_numa_mem
+ #define set_cpu_numa_mem(cpu, node)
+ #endif
++#ifndef set_gi_numa_mem
++#define set_gi_numa_mem(gi, node)
++#endif
+ 
+ #endif	/* !CONFIG_NUMA || !CONFIG_HAVE_MEMORYLESS_NODES */
+ 
+diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+index 5a30ad594ccc..501b1d32b323 100644
+--- a/include/linux/nodemask.h
++++ b/include/linux/nodemask.h
+@@ -399,6 +399,7 @@ enum node_states {
+ #endif
+ 	N_MEMORY,		/* The node has memory(regular, high, movable) */
+ 	N_CPU,		/* The node has one or more cpus */
++	N_GENERIC_INITIATOR,	/* The node is a GI only node */
+ 	NR_NODE_STATES
+ };
+ 
+diff --git a/include/linux/topology.h b/include/linux/topology.h
+index cb0775e1ee4b..9d5f8501efcf 100644
+--- a/include/linux/topology.h
++++ b/include/linux/topology.h
+@@ -125,6 +125,13 @@ static inline void set_numa_mem(int node)
+ }
+ #endif
+ 
++#ifndef set_gi_numa_mem
++static inline void set_gi_numa_mem(int gi, int node)
++{
++	_node_numa_mem_[gi] = node;
++}
++#endif
++
+ #ifndef node_to_mem_node
+ static inline int node_to_mem_node(int node)
+ {
 -- 
 2.18.0
 
