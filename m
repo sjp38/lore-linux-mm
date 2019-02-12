@@ -2,208 +2,208 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F10F3C282CE
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 09:32:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F3A1C282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 09:41:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5521321773
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 09:32:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5521321773
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id DA5262077B
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 09:41:55 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="oz4fqcyB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA5262077B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C9F2A8E0011; Tue, 12 Feb 2019 04:32:47 -0500 (EST)
+	id 6592D8E0018; Tue, 12 Feb 2019 04:41:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C283D8E0008; Tue, 12 Feb 2019 04:32:47 -0500 (EST)
+	id 5E0238E0017; Tue, 12 Feb 2019 04:41:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC9278E0011; Tue, 12 Feb 2019 04:32:47 -0500 (EST)
+	id 481D88E0018; Tue, 12 Feb 2019 04:41:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6614F8E0008
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 04:32:47 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id a10so1748679plp.14
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 01:32:47 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0578A8E0017
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 04:41:55 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id y8so1692614pgq.12
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 01:41:54 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=ap3x9QxJYzvusgBi+s1HI/tEQk7C8VZLszd7/QSbDrM=;
-        b=Qbl+kdLOuZt04ikzZlwotMhGMh6pMgnEm61SVZPTbmc2vUWHhdgSqE14IJ6j08drOa
-         0Z7ZCMO7xmYNAvDD9byfBiv5z6Q2/vabhkwZVtkZ8RaJRigGSmBo+s6tjMiVsQjn1NW8
-         memKVFk/p4AdLBUHSS1JBzXXn2FtNnf5ssPSr791MH+kzd/fIdQq7vQjCyTz+MpQjr1+
-         6949QCowRFYJSaCkPlJByqK1Gnop2eYuDVnRUyE9jOalLs1JSADnu3mrm6R/LFgIxPWQ
-         7czDdWtSvW6XNkpilX42ZYN+eHy2L7HfCrVEjzuk8Ec66vNQ7RU9YYStQRUY9JW+vtVg
-         I40Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuYLBkfXwIA8KWoXLIZxa6AJysVybftT/XQ4UAUh5oXSFwgzelAX
-	ii51lvTmKSc/VZGGsRlTUMynkNZTELUVKSbObfbvXSgpIWTZujZltihbwxjVtaCFxifcHChXtwy
-	eTvEO6FJ5LF3QUuL95aQHoEYAUXUG12s7U+rZbfbaxLNPSJ0OvkGDv22JB+rX9UUqhQ==
-X-Received: by 2002:a63:c946:: with SMTP id y6mr2789774pgg.109.1549963966997;
-        Tue, 12 Feb 2019 01:32:46 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZnIrBLzEDiAgOkXxhpKr6Rqh7+nNMplvMZnZWcqQmJNKBRh+Hm5U/S+wQE2I+TxTorwUfY
-X-Received: by 2002:a63:c946:: with SMTP id y6mr2789712pgg.109.1549963966052;
-        Tue, 12 Feb 2019 01:32:46 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549963966; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=ULKJGWPq0No+6GC/bcxSVWYWrbcjwzSVvmdDBR8FNpg=;
+        b=XBTxHEkXQWpevudTzyVqGuBuNa7wbCvLDNMSuHd6t1dmCRGEwiJu7zZQYRWsxX77iK
+         e7iEPNqfcHhEwok3uz64UqQlNHBsSpoWF4ggnLZ+R9K8K6noorVTcuJoXlyhxJzkKhY2
+         5nPpNHFaWTFLNGhc2oo8OjB92MPKFcuPEqEt+fdLrwGhKXWbk94OGSDRNvZUWq0c7wkH
+         hv+JUtH8mb6FnqkI5x4VzvaQivgqbMNEhQZ+mHhp5W/ExNN3jq73GNBEeyJy9aa05zBC
+         JcOOwS6Yb9f8WAxpA+gc7+VlBdu0eCpJuvThpcV96JE6myw6CgC8CZwRIC81rX4eX0hn
+         j56Q==
+X-Gm-Message-State: AHQUAuaDAlBD/ghLKofjg8eC1isXkRHlsFwxjBLi/xwpxUKV7ceKgBVL
+	enIV27qE0m/C/9G8yFI5a5Q4hd4LP1aJ+LMjlauCjikGpXuOGCmVOskvTsxZNo5FdCPI/a1+niW
+	1jU4sv2BbLIQ6ji+gIfi/xaa8FBy4Uv/KU5Ee35/uqeDJzIgjw2anRYwrPc4uFARoN05yOlcha4
+	h4t74zpf7ePlaRlcFaqOGu/x2kIFY1URiPZxRv45m+099R69ha4o1ZWquDqZ7aoFOlAHskHe8qV
+	tnEFNPOwhDZT91XTdQNp8Gxy09+eqAe1tYeTrM4PsRdXEJop/UYIGM0rVaTe2sA878Q1o8WsHxe
+	ZmE+Q6deDs5B9CifgiyzT7ygBz8zgYc69nCH1NmSuaqODfhTWu9kuB55ZzzU7Wj27UuJ5vCp1L7
+	G
+X-Received: by 2002:a63:fa10:: with SMTP id y16mr2767121pgh.88.1549964514550;
+        Tue, 12 Feb 2019 01:41:54 -0800 (PST)
+X-Received: by 2002:a63:fa10:: with SMTP id y16mr2767076pgh.88.1549964513624;
+        Tue, 12 Feb 2019 01:41:53 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549964513; cv=none;
         d=google.com; s=arc-20160816;
-        b=lZNLKgEtG6GSZeRPWEtlhYz3tuL2kJJ77n5q5BrRwA3NGAjkWqh9bUdj8KIbNJtCK1
-         lk+Z5VVzyzNlwheiZPevaxwN6yqmOGsxFTtzEx3diMKvipJp9tqKJ0zs5VfJ2NCDTyFT
-         bOA9hOC1rKFRVewIDvHUd4v32jAJ7jpsVrd1CHJvUg12UVIxO/Qg+Mw31TGisVw8yxpx
-         et3M/lVy7a35V0+qn9hgxNOrA6xZyFkNI8fcWcZVx/zO8iwrsa2nWTgfLIx5kpMcAK3H
-         KkpHzvNwOMEYUg2aaEQXavRECgOncIxf4ziANTqCZ/t4GA8ovNdrdRfa95hSCloQjdtW
-         WBSQ==
+        b=r057nd0iIgDKy2uuEi8cRrWhVKXEgHAHTAeZ6BzTzztiUHkb1whm3GXPwgGRw1Oy23
+         VzvRPG6d5TmdnYKOMVlURH2qws6eKijTd+9pAMNlxV2BIGvkvhpYaISQKyGt17Yjv2Ce
+         2n1SPHBUSFC/l4cgzsIpzv4KFTB3Be0t+wh05lD6KkzKO30M1frszjsxtQowSpW2gi93
+         A0pjylb5MLQWPdGMSukTPdwqDbIz929vVFi7JV6ZiMZbUWK+7ugpvvk4a2b4sNloHIXA
+         LuSUal/0+rnIZAFKlMQffrv5c0sr+7XEHlIeQ0FknVPmKiLQwM8Qp3Ij+gq3Ohv/Io8/
+         dWIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=ap3x9QxJYzvusgBi+s1HI/tEQk7C8VZLszd7/QSbDrM=;
-        b=sUycsJbvj/Wc1vAD5TEUnN/usWCKJPfi54wxnhr4EIjRcwjNCDub4e27uV17WqyX/Z
-         3EPoIjb0MhJ0QKw8dBHrtP+BTpwcblVT2kfkVRLLFlzQ7rvZeX9VCDjd3WZDm8G85+Tn
-         NIqaq4y3WZSdTQGHcU/KL1fYX0C4oHGSviR4l0zsVyn6OcZc7ruQG6cSbnSEHqZ0s9oA
-         f2yWJG9WCCLDfhS0KRAyOgL7hlUC8KWNIhWxA8iSjdJ7NYpDeD2n5XfqvB4TBcZen7Dx
-         mQcAUUyBN7ovNCqZACr3YEosgQOuq0RVv/Tqzhx1VRe22fGzbA3A9c/cWBeIflu7WyBz
-         O2Vw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=ULKJGWPq0No+6GC/bcxSVWYWrbcjwzSVvmdDBR8FNpg=;
+        b=Hto2x4yDmi8ezKU0sOwp0g2ltN/BMYqj7X+ROmeT24Fq5UWeZ3jbcxlXBBo6qH1DAl
+         3NPF28i2bJEBklM6z1rJk3BgRi4ukZieMj1TtnXkMypXE89nZYd5cDgbrR03o84/GV0Q
+         UJDcPHkUSrzYrKmdUODOdvuYtEo2tCuStLUPy/GVbsjo4zn+LGvOAVExxrcPWp0edIWW
+         H/yOupIoI+rPvJ3Hu7+XR4FR+eYWpXLobu73DFjy6JyYR9tsjSc0qmvi/T63L7hSdCRL
+         7Z+6/kMkmPLGj5VuD03F01oqn5BoDvJ1cH9zvuyWxfFumzaivjPTRj9ERvxJuhxejGm/
+         9mrQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id h2si11597638pgq.310.2019.02.12.01.32.45
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=oz4fqcyB;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b1sor18207438plx.42.2019.02.12.01.41.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 01:32:46 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        (Google Transport Security);
+        Tue, 12 Feb 2019 01:41:53 -0800 (PST)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1C9NtHL023005
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 04:32:45 -0500
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qktkttmr9-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 04:32:45 -0500
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 12 Feb 2019 09:32:42 -0000
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 12 Feb 2019 09:32:40 -0000
-Received: from d06av24.portsmouth.uk.ibm.com (d06av24.portsmouth.uk.ibm.com [9.149.105.60])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1C9We1P852386
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Tue, 12 Feb 2019 09:32:40 GMT
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 0848842047;
-	Tue, 12 Feb 2019 09:32:40 +0000 (GMT)
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 94E484203F;
-	Tue, 12 Feb 2019 09:32:38 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.59.139])
-	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Tue, 12 Feb 2019 09:32:38 +0000 (GMT)
-Received: by rapoport-lnx (sSMTP sendmail emulation); Tue, 12 Feb 2019 11:32:37 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: "'David S . Miller'" <davem@davemloft.net>
-Cc: linux-mm@kvack.org, sparclinux@vger.kernel.org,
-        linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH] sparc64: simplify reduce_memory() function
-Date: Tue, 12 Feb 2019 11:32:36 +0200
-X-Mailer: git-send-email 2.7.4
-X-TM-AS-GCONF: 00
-x-cbid: 19021209-0028-0000-0000-0000034791C3
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19021209-0029-0000-0000-00002405B092
-Message-Id: <1549963956-28269-1-git-send-email-rppt@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-12_06:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=697 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902120069
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=oz4fqcyB;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=ULKJGWPq0No+6GC/bcxSVWYWrbcjwzSVvmdDBR8FNpg=;
+        b=oz4fqcyBSi9ismZ7bytPCCn4QB2ehAPOo+jJuLzFVX2NYQ2azlwSYNQBmERfG1ZuVw
+         eGQZGM7lEK7RcBM76vfU85SEtWwdtfVlExo96dNE435NP4TRW+crgtzDnNLH2uiShe2D
+         CwsP6ZtNLwtB1FlDIIQbLv9+FEtcXyO4hy+6FZNg87BGUV0zDhttBb5qxe4RGMjCgAuE
+         lEQH00osnCynrZmPPIePFjLqDylh8H7cpz8tzII/yALTiUwRjYgKyvDa5VgsfPyedIw0
+         IVDExWw/9JzIlSmvGEQ8UnoP8VqC513UTVg+F0p3R9/36fwKNNdRIFjXXWxuZfv3840I
+         ulyA==
+X-Google-Smtp-Source: AHgI3IZbSkcUnItYKRqYqpDbDeAVRnQeTmuDwZZXQAMV8eQDd3Fni7xJYWoe03xeFvKMmhVcwLOcvA==
+X-Received: by 2002:a17:902:bd0b:: with SMTP id p11mr3085458pls.259.1549964512626;
+        Tue, 12 Feb 2019 01:41:52 -0800 (PST)
+Received: from kshutemo-mobl1.localdomain ([192.55.54.44])
+        by smtp.gmail.com with ESMTPSA id y21sm17816378pfi.150.2019.02.12.01.41.51
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Feb 2019 01:41:52 -0800 (PST)
+Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
+	id 84BA1300100; Tue, 12 Feb 2019 12:41:48 +0300 (+03)
+Date: Tue, 12 Feb 2019 12:41:48 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Jann Horn <jannh@google.com>
+Cc: mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-mm@kvack.org,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Andy Lutomirski <luto@amacapital.net>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Thomas Gleixner <tglx@linutronix.de>, linux-arch@vger.kernel.org,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	linuxppc-dev@lists.ozlabs.org,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	linux-arm-kernel@lists.infradead.org, linux-api@vger.kernel.org
+Subject: Re: [PATCH] mmap.2: describe the 5level paging hack
+Message-ID: <20190212094148.qpd6wudyry5vzw3v@kshutemo-mobl1>
+References: <20190211163653.97742-1-jannh@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190211163653.97742-1-jannh@google.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The reduce_memory() function clampls the available memory to a limit
-defined by the "mem=" command line parameter. It takes into account the
-amount of already reserved memory and excludes it from the limit
-calculations.
+On Mon, Feb 11, 2019 at 05:36:53PM +0100, Jann Horn wrote:
+> The manpage is missing information about the compatibility hack for
+> 5-level paging that went in in 4.14, around commit ee00f4a32a76 ("x86/mm:
+> Allow userspace have mappings above 47-bit"). Add some information about
+> that.
+> 
+> While I don't think any hardware supporting this is shipping yet (?), I
+> think it's useful to try to write a manpage for this API, partly to
+> figure out how usable that API actually is, and partly because when this
+> hardware does ship, it'd be nice if distro manpages had information about
+> how to use it.
+> 
+> Signed-off-by: Jann Horn <jannh@google.com>
 
-Rather than traverse memblocks and remove them by hand, use
-memblock_reserved_size() to account the reserved memory and
-memblock_enforce_memory_limit() to clamp the available memory.
+Thanks for doing this.
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- arch/sparc/mm/init_64.c | 42 ++----------------------------------------
- 1 file changed, 2 insertions(+), 40 deletions(-)
+> ---
+> This patch goes on top of the patch "[PATCH] mmap.2: fix description of
+> treatment of the hint" that I just sent, but I'm not sending them in a
+> series because I want the first one to go in, and I think this one might
+> be a bit more controversial.
+> 
+> It would be nice if the architecture maintainers and mm folks could have
+> a look at this and check that what I wrote is right - I only looked at
+> the source for this, I haven't tried it.
+> 
+>  man2/mmap.2 | 15 +++++++++++++++
+>  1 file changed, 15 insertions(+)
+> 
+> diff --git a/man2/mmap.2 b/man2/mmap.2
+> index 8556bbfeb..977782fa8 100644
+> --- a/man2/mmap.2
+> +++ b/man2/mmap.2
+> @@ -67,6 +67,8 @@ is NULL,
+>  then the kernel chooses the (page-aligned) address
+>  at which to create the mapping;
+>  this is the most portable method of creating a new mapping.
+> +On Linux, in this case, the kernel may limit the maximum address that can be
+> +used for allocations to a legacy limit for compatibility reasons.
+>  If
+>  .I addr
+>  is not NULL,
+> @@ -77,6 +79,19 @@ or equal to the value specified by
+>  and attempt to create the mapping there.
+>  If another mapping already exists there, the kernel picks a new
+>  address, independent of the hint.
+> +However, if a hint above the architecture's legacy address limit is provided
+> +(on x86-64: above 0x7ffffffff000, on arm64: above 0x1000000000000, on ppc64 with
+> +book3s: above 0x7fffffffffff or 0x3fffffffffff, depending on page size), the
+> +kernel is permitted to allocate mappings beyond the architecture's legacy
+> +address limit. The availability of such addresses is hardware-dependent.
+> +Therefore, if you want to be able to use the full virtual address space of
+> +hardware that supports addresses beyond the legacy range, you need to specify an
+> +address above that limit; however, for security reasons, you should avoid
+> +specifying a fixed valid address outside the compatibility range,
+> +since that would reduce the value of userspace address space layout
+> +randomization. Therefore, it is recommended to specify an address
+> +.I beyond
+> +the end of the userspace address space.
 
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index b4221d3..478b818 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -2261,19 +2261,6 @@ static unsigned long last_valid_pfn;
- static void sun4u_pgprot_init(void);
- static void sun4v_pgprot_init(void);
- 
--static phys_addr_t __init available_memory(void)
--{
--	phys_addr_t available = 0ULL;
--	phys_addr_t pa_start, pa_end;
--	u64 i;
--
--	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &pa_start,
--				&pa_end, NULL)
--		available = available + (pa_end  - pa_start);
--
--	return available;
--}
--
- #define _PAGE_CACHE_4U	(_PAGE_CP_4U | _PAGE_CV_4U)
- #define _PAGE_CACHE_4V	(_PAGE_CP_4V | _PAGE_CV_4V)
- #define __DIRTY_BITS_4U	 (_PAGE_MODIFIED_4U | _PAGE_WRITE_4U | _PAGE_W_4U)
-@@ -2287,33 +2274,8 @@ static phys_addr_t __init available_memory(void)
-  */
- static void __init reduce_memory(phys_addr_t limit_ram)
- {
--	phys_addr_t avail_ram = available_memory();
--	phys_addr_t pa_start, pa_end;
--	u64 i;
--
--	if (limit_ram >= avail_ram)
--		return;
--
--	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &pa_start,
--				&pa_end, NULL) {
--		phys_addr_t region_size = pa_end - pa_start;
--		phys_addr_t clip_start = pa_start;
--
--		avail_ram = avail_ram - region_size;
--		/* Are we consuming too much? */
--		if (avail_ram < limit_ram) {
--			phys_addr_t give_back = limit_ram - avail_ram;
--
--			region_size = region_size - give_back;
--			clip_start = clip_start + give_back;
--		}
--
--		memblock_remove(clip_start, region_size);
--
--		if (avail_ram <= limit_ram)
--			break;
--		i = 0UL;
--	}
-+	limit_ram += memblock_reserved_size();
-+	memblock_enforce_memory_limit(limit_ram);
- }
- 
- void __init paging_init(void)
+It probably worth recommending (void *) -1 as such address.
+
+>  .\" Before Linux 2.6.24, the address was rounded up to the next page
+>  .\" boundary; since 2.6.24, it is rounded down!
+>  The address of the new mapping is returned as the result of the call.
+> -- 
+> 2.20.1.791.gb4d0f1c61a-goog
+> 
+
 -- 
-2.7.4
+ Kirill A. Shutemov
 
