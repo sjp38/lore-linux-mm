@@ -6,72 +6,72 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D2B2C169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 03:00:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EA280C4151A
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 03:01:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4352F21773
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 03:00:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4352F21773
+	by mail.kernel.org (Postfix) with ESMTP id ADC4B21773
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 03:01:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ADC4B21773
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D9FAE8E01AC; Mon, 11 Feb 2019 22:00:54 -0500 (EST)
+	id 538178E01AD; Mon, 11 Feb 2019 22:01:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D4C948E000E; Mon, 11 Feb 2019 22:00:54 -0500 (EST)
+	id 4C13A8E000E; Mon, 11 Feb 2019 22:01:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BED738E01AC; Mon, 11 Feb 2019 22:00:54 -0500 (EST)
+	id 3B0F58E01AD; Mon, 11 Feb 2019 22:01:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FC3D8E000E
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 22:00:54 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id 42so1278896qtr.7
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 19:00:54 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C3F58E000E
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 22:01:04 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id n197so14471630qke.0
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 19:01:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=et7H5onmOlBCAp/YbZF3o8+/lw37bMOD7FBBfwvBrIY=;
-        b=oKa7hk/A6dl88nGopkHrO6D7j30Th3Fz09X7Lqv0AS9hFcgbxF+hB2Qqzx/f6YokJY
-         hiuIiW4If2Noz7p/C6w4mtsNuWs6JDXQbX1kGIxMAYDh3ucW0xFSu8azZMxiFUM5yKLB
-         FcwenLtKtrEKiB2TO0+T+aGKnkj7kG81DK3VZleTPWCRjmh/QUMUEvTibQN55HA2PNsX
-         Ue6brPSEM3zgpySCezrLFuFO7uz/DsAlDeKbZTd9Hc5RtH7GaGzdwBcvxHb8dYPK554n
-         PWgd47UYIfHrmu0apE7oMGu80uUC/ntol24EeZR5PTdAI9yzrP76rB0bIiRGDEkLYpsq
-         vutA==
+        bh=QzUweX58NX5kJXc37B6qWAgrFGIP75kjzpaY8e9hvrs=;
+        b=WLM46c8xDEMDP4z+hXdAJYRz3QIZl73wJ2djcLSWi+i3+7onh8KMXERKDdqp7lVuaE
+         67aqzrj6cfflBMOSbATVva/YSEiRgRzFvSi+GumEM116KJV6L9l0lVkxlBctlQDaFV9r
+         IupIttqV63WHZaUVen2KGqFVWS46qNioWKUWz73mAlCt7lz92d8S2rT4TjKp4WtnaPoi
+         vcrlv8NlbUWepiyvhPL+xca1VxfIWDsTK0t8V/FP8wbjzPBY4I0IQ+4MEe0AxBv4DZpE
+         btkXHvU+g74WIlP3lG8CkV3GyDlvgavauirhDuM5HWaiRJ5lloZjzVsJoXY899yWLpZp
+         +qqA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZiWzlqC8bs7nA+TV4f/Uq4kIzV8mwO8/jIlfmlEtB+3QIojUDK
-	o4PZX4hEqb1A/Oqh/Mb43XhKC8thCgs6oYIyc7NYz3fX+/tPQ90mMD4S6Lk8hT7dBL9JFFmyKJl
-	07gn4i6UgX3XmkLnCYXFKRcd50f0Y86Xo845I4QXocfYiGaOVGERdcH5kFC5pCnJAhw==
-X-Received: by 2002:a0c:8b67:: with SMTP id d39mr1055670qvc.9.1549940454387;
-        Mon, 11 Feb 2019 19:00:54 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYTbBMZYPO5A2R8CkbVDX5oGp01KeBoofQaXWsylCKUnaivPc7LW7qN7YC3iOBE+2Zfliku
-X-Received: by 2002:a0c:8b67:: with SMTP id d39mr1055652qvc.9.1549940453993;
-        Mon, 11 Feb 2019 19:00:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549940453; cv=none;
+X-Gm-Message-State: AHQUAuYIPLpFWcpWmJ4/YsZTBl9vCxr7Wd2oa9yFHKWkvpinhMuHecnS
+	LA74iBcJAU4kjUJXYKRsoc7fOWOw0MuJOVmkCiXHFW8Q2NcviV5i2jeL6NV19QUek6WcdtjsQ/D
+	j8ZWcOWyTdwncbCU4SHSgDTqJfHO9Gxmrr7cMQS3ieZA6aGrr/5S2e4xE0K1n4LO2tA==
+X-Received: by 2002:ac8:38fc:: with SMTP id g57mr1132046qtc.39.1549940463843;
+        Mon, 11 Feb 2019 19:01:03 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ibd+IHqmyASF+XMC+Aa4DDbgmsircmKAufpClZfQ9kgZsMJfQk5nCLlVh93xVPiQCkqSipr
+X-Received: by 2002:ac8:38fc:: with SMTP id g57mr1132029qtc.39.1549940463371;
+        Mon, 11 Feb 2019 19:01:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549940463; cv=none;
         d=google.com; s=arc-20160816;
-        b=bIq8kMK1sGJZk3Pov9F3OuiORxKT7ctKruk6VxBVEKnj4djlzJaYO2u06DEq1KTL28
-         rH9yoQVr9/JYMJGGjtcxkZ98zJsYFdXjdZPIT5mYnGpCqbwbE/16K7xz82WO0jChjaRB
-         V8XNwm7elc2FkH92l/1Fn/pHfoIRaS8ybKQA2CM0h8ZV95B4hODlIGPuJ5U+4o7mUjLK
-         TcVc0Js6Xu7AHMr3NbMhEv7Xf6GDFsH2wmVJ4eMnjdW81SF4LaQF5YfxrO0I6ihrgfmh
-         qAy4Mym6M8tNvAjqvYCbLPZzDXjMTY6LZgcAS44Mm8TFaPr1LoveXOJkFgbBmwH1Cb2h
-         ndJg==
+        b=szPLU93VdxmrLSwLGdnCiBOZoUKxqlTdioKUpHzsXFEeeJow3L3T+8np6ulBppD/s9
+         lY54u/jd63dep8av+elyzSE66d43ZUEZyMXHkIUv1XVkdaljqVcMxEUdhx2roo6/QKM+
+         J6Rrlig4VuSICYab8IfDl6hnq+cRfWoEzAgE6KBzW1Aw/HzcaPWRQDoTEyy7Gb/lbVwN
+         /SeUzfpVGy62jWifXKooIyzbrphwOKnJZ0L3C7oeOslGBWaOvNNaMP3qzUvLtNcawo61
+         2A7TVcGUfhV30OOAE1qAKHC54XXN8ZKV5H1qpNcnOQWyxp5Jtq2C1k29JAQpPrR8FeC9
+         uLZw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=et7H5onmOlBCAp/YbZF3o8+/lw37bMOD7FBBfwvBrIY=;
-        b=Ke1JKOcUqkEz1eIgTm381srEJGOGpxYPMzn14QP2qBzrhyFL4gY63Y0TcJc4bnrQ7a
-         Nw0gX+9T2/I7nu4jsuZwZvL7aBLGX2B7y26sZog6dzH8qvazS4QeYdDf1KPA99ahNIl8
-         6mv4xu1DXSvVelgXhruF1DD8kgBYNtNCxmsN+JlV6Cdj8VwLUboDoCgQV0ym+v7QQ+70
-         sJ7BDIT91WWeMF2vStERJArrwHf8xGm4asbGOk4lSOz5eRue2aLPzHP6Ro8ZVHCtrZQY
-         Frul3ro96N8trs+9pPJhNmJF95uzytyNjeQFNfcUT0xq1w0jozAt3KBJHzdbN2MO2d8e
-         5NEw==
+        bh=QzUweX58NX5kJXc37B6qWAgrFGIP75kjzpaY8e9hvrs=;
+        b=zFYxQsNfMlFUKH3I3z3qVSC2zIJA5wU0TH7F0lpKZb+JRTlkBz2VPRZWn4kswG2CY+
+         GAIjDpoKC2qJVL+Y532HhSQLsWh8z0CZlSApm82BZJVVVhts/1SlkUIeC9vhW5eoXM3A
+         x1qb2e9AP7Lm0wE5Px9TRRgwufQCwK1Rhx0oQ8pxefT7vyeFuuPgiMBj6TfKVyX2usXv
+         vfjsY6zFvV8/Y+ABLaE1q5CQtOT2ptxo/yE1Abad33y1fg+axN0t4L0r9/xcwh2xuTyj
+         JCFMRsdhfinM4/8C0500GBb/d28TIuwhOw84ODCZMCbwez5qjBY11tCAl0Fm0GG9/2kN
+         6XRA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q20si2613337qtq.364.2019.02.11.19.00.53
+        by mx.google.com with ESMTPS id i66si1483545qkc.207.2019.02.11.19.01.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 19:00:53 -0800 (PST)
+        Mon, 11 Feb 2019 19:01:03 -0800 (PST)
 Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
@@ -79,11 +79,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 19DED5947A;
-	Tue, 12 Feb 2019 03:00:53 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 585908762F;
+	Tue, 12 Feb 2019 03:01:02 +0000 (UTC)
 Received: from xz-x1.nay.redhat.com (dhcp-14-116.nay.redhat.com [10.66.14.116])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 6EDDE600C6;
-	Tue, 12 Feb 2019 03:00:41 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 94BE7600C6;
+	Tue, 12 Feb 2019 03:00:53 +0000 (UTC)
 From: Peter Xu <peterx@redhat.com>
 To: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
@@ -103,64 +103,67 @@ Cc: David Hildenbrand <david@redhat.com>,
 	Mike Rapoport <rppt@linux.vnet.ibm.com>,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>,
-	Pavel Emelyanov <xemul@parallels.com>,
-	Rik van Riel <riel@redhat.com>
-Subject: [PATCH v2 22/26] userfaultfd: wp: enabled write protection in userfaultfd API
-Date: Tue, 12 Feb 2019 10:56:28 +0800
-Message-Id: <20190212025632.28946-23-peterx@redhat.com>
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: [PATCH v2 23/26] userfaultfd: wp: don't wake up when doing write protect
+Date: Tue, 12 Feb 2019 10:56:29 +0800
+Message-Id: <20190212025632.28946-24-peterx@redhat.com>
 In-Reply-To: <20190212025632.28946-1-peterx@redhat.com>
 References: <20190212025632.28946-1-peterx@redhat.com>
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Tue, 12 Feb 2019 03:00:53 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Tue, 12 Feb 2019 03:01:02 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Shaohua Li <shli@fb.com>
+It does not make sense to try to wake up any waiting thread when we're
+write-protecting a memory region.  Only wake up when resolving a write
+protected page fault.
 
-Now it's safe to enable write protection in userfaultfd API
-
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Pavel Emelyanov <xemul@parallels.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Shaohua Li <shli@fb.com>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Signed-off-by: Peter Xu <peterx@redhat.com>
 ---
- include/uapi/linux/userfaultfd.h | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ fs/userfaultfd.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
 
-diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
-index 1b977a7a4435..a50f1ed24d23 100644
---- a/include/uapi/linux/userfaultfd.h
-+++ b/include/uapi/linux/userfaultfd.h
-@@ -19,7 +19,8 @@
-  * means the userland is reading).
-  */
- #define UFFD_API ((__u64)0xAA)
--#define UFFD_API_FEATURES (UFFD_FEATURE_EVENT_FORK |		\
-+#define UFFD_API_FEATURES (UFFD_FEATURE_PAGEFAULT_FLAG_WP |	\
-+			   UFFD_FEATURE_EVENT_FORK |		\
- 			   UFFD_FEATURE_EVENT_REMAP |		\
- 			   UFFD_FEATURE_EVENT_REMOVE |	\
- 			   UFFD_FEATURE_EVENT_UNMAP |		\
-@@ -34,7 +35,8 @@
- #define UFFD_API_RANGE_IOCTLS			\
- 	((__u64)1 << _UFFDIO_WAKE |		\
- 	 (__u64)1 << _UFFDIO_COPY |		\
--	 (__u64)1 << _UFFDIO_ZEROPAGE)
-+	 (__u64)1 << _UFFDIO_ZEROPAGE |		\
-+	 (__u64)1 << _UFFDIO_WRITEPROTECT)
- #define UFFD_API_RANGE_IOCTLS_BASIC		\
- 	((__u64)1 << _UFFDIO_WAKE |		\
- 	 (__u64)1 << _UFFDIO_COPY)
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 81962d62520c..f1f61a0278c2 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -1771,6 +1771,7 @@ static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
+ 	struct uffdio_writeprotect uffdio_wp;
+ 	struct uffdio_writeprotect __user *user_uffdio_wp;
+ 	struct userfaultfd_wake_range range;
++	bool mode_wp, mode_dontwake;
+ 
+ 	if (READ_ONCE(ctx->mmap_changing))
+ 		return -EAGAIN;
+@@ -1789,18 +1790,20 @@ static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
+ 	if (uffdio_wp.mode & ~(UFFDIO_WRITEPROTECT_MODE_DONTWAKE |
+ 			       UFFDIO_WRITEPROTECT_MODE_WP))
+ 		return -EINVAL;
+-	if ((uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_WP) &&
+-	     (uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE))
++
++	mode_wp = uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_WP;
++	mode_dontwake = uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE;
++
++	if (mode_wp && mode_dontwake)
+ 		return -EINVAL;
+ 
+ 	ret = mwriteprotect_range(ctx->mm, uffdio_wp.range.start,
+-				  uffdio_wp.range.len, uffdio_wp.mode &
+-				  UFFDIO_WRITEPROTECT_MODE_WP,
++				  uffdio_wp.range.len, mode_wp,
+ 				  &ctx->mmap_changing);
+ 	if (ret)
+ 		return ret;
+ 
+-	if (!(uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE)) {
++	if (!mode_wp && !mode_dontwake) {
+ 		range.start = uffdio_wp.range.start;
+ 		range.len = uffdio_wp.range.len;
+ 		wake_userfault(ctx, &range);
 -- 
 2.17.1
 
