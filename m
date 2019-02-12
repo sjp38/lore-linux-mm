@@ -2,100 +2,114 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E0BDC282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 21:06:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B4BDDC282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 21:07:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A810221B68
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 21:06:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A810221B68
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 7221E21B68
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 21:07:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7221E21B68
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 084928E0002; Tue, 12 Feb 2019 16:06:24 -0500 (EST)
+	id 258E28E0002; Tue, 12 Feb 2019 16:07:42 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 034C18E0001; Tue, 12 Feb 2019 16:06:23 -0500 (EST)
+	id 207C38E0001; Tue, 12 Feb 2019 16:07:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E8D608E0002; Tue, 12 Feb 2019 16:06:23 -0500 (EST)
+	id 11E818E0002; Tue, 12 Feb 2019 16:07:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A65BC8E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 16:06:23 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id b1so56565plr.21
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 13:06:23 -0800 (PST)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DD2A08E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 16:07:41 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id l8so112610otp.11
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 13:07:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=NUra/8WSkQjuItV8Gl3OvWiaQ7x2zuhVV6sDSa6EdBM=;
-        b=E7KZ2VDrGFHz3wlDmoDvhbIqle/AcVMa/DtB6rWzmrXwKpkl1HzYzGqFpgY37/15E/
-         Qp7kJD16z0XzBGris9BNHuK5eRUNjYbHUKYOk/entA7MpSq3CBOFIuRNN/RoOgH2n+rU
-         xJpx1EBIw2zr/umo73j6z49QSFpJVy0EYosp7sSicpdu/GdykmCqLpGeEJ7FHuLuq8Fe
-         fEJYnIek3g1sfhmNREBuhUFwxnraIJWgzKPi8+BHLO34oQD/oB14lKf85KYPjTN/UucZ
-         bDUMSWzMV9lqdEyvUrWJCLEMgihJAt4Ox/YcWVgVvS8Tm9BUg+pBPH5YvD0IWaBe8iZh
-         cqfg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: AHQUAuaP1QDOs8zVDSiEBF+rXjziqpsIkNAVH/6HzSaaYBar69UqFr+i
-	zV7ghHJGC9e3PmN1PGp2erfEYaqDWNMMO9O/vVh+MVAbbOOELWejo3t2hKOKajBSIekcUwdGqTN
-	ngAcMs+M5F5TNdF7hu3mEDtHp1qz+Me/RfwGUPVKvZEQx4fgUm4YvslxDr3YYozsmHw==
-X-Received: by 2002:a17:902:8f91:: with SMTP id z17mr5829460plo.300.1550005583345;
-        Tue, 12 Feb 2019 13:06:23 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaSuQ1hkp7tzjlQTd56swIGjYmzo8Uoe+9atFaSa65OehFrt9teivi0GMB7FfEtSYvBg6/E
-X-Received: by 2002:a17:902:8f91:: with SMTP id z17mr5829384plo.300.1550005582472;
-        Tue, 12 Feb 2019 13:06:22 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550005582; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=RY+t8uEc5Fq+07v8SJmGnmhu1rcVR03Y3OtSDhBprWw=;
+        b=TGQkPC7gi7xRfXm75ker1sFDyY+gBRXS3ownJwPbBFWu7Iv6boQH3vNhh66ZenqBPm
+         iFfz3mrd3/2caY9JDA2nvBETZf+XBXBtJlXQ13DlF/XA9wj01djrl/XHfmvaJpU4JUVf
+         ih87nipSvXavzhq4MVr+BoTyUzZZHojCHXfOfZaMsQNLGo66z+69/9MJOPRha0jsXxNr
+         y954e9DtsymO+kNjP0xD3F16FJ8OmJCzEnghtzdGwBxs9WlcjBm033/XwOFOiqzm8EDZ
+         Xpn+2AUebiREDuWnxJxXQawZBxAGWrQIK2zzT+DI0BkQvuvoYJK4W2jJtCjURENjtaLx
+         KSBw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: AHQUAuaSBFkIeMIpQHX3w/9/7mtLA+huLthU00TkV+fLW+JtOGYzzWtB
+	Q4+yL+dwkGYODbHecfgU4Xxna0lMNpTvSkLYdLvVqcJwqai8ugV/JYMU/EJUTNKUrPG59n99O0i
+	N9m7HufVuV2XRBm9k6Kmt7xMTvSTwn/pdxrMk7Q41a3UCtSqnVznoT7wETKc8ZYr8cw==
+X-Received: by 2002:a9d:64cb:: with SMTP id n11mr1047588otl.314.1550005661544;
+        Tue, 12 Feb 2019 13:07:41 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZBS6LofgU7d7wnJCg1JYqERFF/hCSXiqWcXqKC8+iDmQK7BnZ+18ERp0WMaQtj/jJKW+8z
+X-Received: by 2002:a9d:64cb:: with SMTP id n11mr1047544otl.314.1550005660912;
+        Tue, 12 Feb 2019 13:07:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550005660; cv=none;
         d=google.com; s=arc-20160816;
-        b=1GkN6Ria5ZlZCbGDNxozlKZZ+QVvDSgaa7FyhmqFNV/1BEseJEdGfNHtnaFVaOdQcL
-         /LQGDwnUyewlUvU5DDPNNjo5W58IFgI7ouTL4vJEtfO0TowzRYJESdL9XFO1gyQ3uebF
-         7NO5kbsP2lckmCj4fZ0e/lmxn8ePr5XDtGXIORjCimE/VNMkL2EGK+5qgCWDjbxQ21u+
-         0GPArVHiy9Tqh5tljqTtZdlFr+yx6fcN9TmAg25qm+3Mxye0KXjkw5BdVDZ16nzBDL3P
-         Gls3plCMMTg6Dz3Mzk+8ZpvF4mS8EQgkszV0Pzc3wr/toXyQyoCj0buReK+wgbSYhA5D
-         fogw==
+        b=pZjg6eg8xTXszs4nnplkrUOy7PVozR1wmOM0JqPxbXaALimNK71y0m7LJKFH4MEzZ4
+         W+Hi3NQtbl3hcWfahVT4qH4hbO1LT6Ce7ILmGKikdW1XMkPfSHDYvcA83wNbeKYaOZuU
+         vfS//wlx1YDvmg6AVRekU6CoBet3vWhH2y3Fb4LwMLfbkRTc0esRTaKb90y0Frt0c8mR
+         mIJeDfLsbJRp3oZ7qGvW8S5YxNkS/EUiatfUhtNIZV+xQ/Oe5AGiA4p3HKqvVMPaMRNg
+         ZxNFXE59tmpcZmAmKZCbNcHxv8JvuyoUdLCb/9JudBsXwLyrVCm3XwnPW0oHInHX1p22
+         0amg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=NUra/8WSkQjuItV8Gl3OvWiaQ7x2zuhVV6sDSa6EdBM=;
-        b=uaLQRVPTSr9XrzxoU11bczQ8K3CVe3UKKiVf5dxwn8c3KO1c1T35p6Njb8bMWoO7av
-         jrfAXdKtMs6/m0HwmGFbPuHJ81ZUYCDmo93mTikGT/OTkj5dgWTrC+plxGtOLZ0w4lXt
-         gVEnXECb8QzwWNHya18++YxZ8lndd9muyqBKGKoTIFU1kwZVkbr8PsNn48OMcP4Qln5W
-         9A1THJHSU+959RAWF/6S67540NBmkdWzFD33f+ENa2RZEuHV5WWjCwaPZWyBgcpg7jS1
-         U/EC4yqV3Gi4zU2zmzEuGt7XjAwdI/D5HgkNFj+mgdLGaOJlmp0CIFnC3eBZyVCwTSxi
-         ekOQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=RY+t8uEc5Fq+07v8SJmGnmhu1rcVR03Y3OtSDhBprWw=;
+        b=sFZ6OuK4gWWxhvK/6zqB/z4COViG1pv4VD7W/4j3/f5nFakqhKFI/u1V1GfhA0oZcK
+         2PYxnaPEuIXx2i5RellAMkGEL9AbOHAsC3DJdXULOZ9hICVPr47MH5v6LpZ194qMPLKz
+         Z8PquOqgsnjk6+V2RkgXr1CNVMI62TwyGcCk256Pf9eB2ACwemKC1OXRRydoQzAIrK/p
+         H9dCtIWx2afhokKy9SRiCbRhMkMd5TBB4bfpga3SKdYK8z9j3ew5k5octAhFQ2lZIUbp
+         HCP/Xz3MZWPE9rywzjntb3NFq5oMMN8ASI01xFS+AyZgIwXQu8GxxuNFL+P7YyxQrQTZ
+         1Ugg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a9si13049009pff.126.2019.02.12.13.06.22
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id c82si6150444oia.35.2019.02.12.13.07.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 13:06:22 -0800 (PST)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        Tue, 12 Feb 2019 13:07:40 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id DA135E25C;
-	Tue, 12 Feb 2019 21:06:21 +0000 (UTC)
-Date: Tue, 12 Feb 2019 13:06:20 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Chris Metcalf
- <chris.d.metcalf@gmail.com>, Rusty Russell <rusty@rustcorp.com.au>,
- linux-mm@kvack.org, Guenter Roeck <linux@roeck-us.net>
-Subject: Re: [PATCH] mm/swap.c: workaround for_each_cpu() bug on UP kernel.
-Message-Id: <20190212130620.c43e486c4f13c811e3d4a513@linux-foundation.org>
-In-Reply-To: <20190212112954.GV15609@dhcp22.suse.cz>
-References: <1549533189-9177-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20190212101109.GB7584@dhcp22.suse.cz>
-	<82168e14-8a89-e6ac-1756-e473e9c21616@i-love.sakura.ne.jp>
-	<20190212112117.GT15609@dhcp22.suse.cz>
-	<20190212112954.GV15609@dhcp22.suse.cz>
-X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav301.sakura.ne.jp (fsav301.sakura.ne.jp [153.120.85.132])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x1CL7UsS021116;
+	Wed, 13 Feb 2019 06:07:30 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav301.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav301.sakura.ne.jp);
+ Wed, 13 Feb 2019 06:07:30 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav301.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x1CL7OOv021047
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
+	Wed, 13 Feb 2019 06:07:29 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Subject: Re: [PATCH] proc, oom: do not report alien mms when setting
+ oom_score_adj
+To: Andrew Morton <akpm@linux-foundation.org>,
+        Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>,
+        Johannes Weiner
+ <hannes@cmpxchg.org>,
+        Linus Torvalds <torvalds@linux-foundation.org>,
+        Yong-Taek Lee <ytk.lee@samsung.com>, linux-mm@kvack.org,
+        LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+References: <20190212102129.26288-1-mhocko@kernel.org>
+ <20190212125635.27742b5741e92a0d47690c53@linux-foundation.org>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <46b3262e-2a9a-da01-16de-14cd4d7eaa40@i-love.sakura.ne.jp>
+Date: Wed, 13 Feb 2019 06:07:26 +0900
+User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
+MIME-Version: 1.0
+In-Reply-To: <20190212125635.27742b5741e92a0d47690c53@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -103,91 +117,33 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Feb 2019 12:29:54 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+On 2019/02/13 5:56, Andrew Morton wrote:
+> On Tue, 12 Feb 2019 11:21:29 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+> 
+>> Tetsuo has reported that creating a thousands of processes sharing MM
+>> without SIGHAND (aka alien threads) and setting
+>> /proc/<pid>/oom_score_adj will swamp the kernel log and takes ages [1]
+>> to finish. This is especially worrisome that all that printing is done
+>> under RCU lock and this can potentially trigger RCU stall or softlockup
+>> detector.
+>>
+>> The primary reason for the printk was to catch potential users who might
+>> depend on the behavior prior to 44a70adec910 ("mm, oom_adj: make sure
+>> processes sharing mm have same view of oom_score_adj") but after more
+>> than 2 years without a single report I guess it is safe to simply remove
+>> the printk altogether.
+>>
+>> The next step should be moving oom_score_adj over to the mm struct and
+>> remove all the tasks crawling as suggested by [2]
+>>
+>> [1] http://lkml.kernel.org/r/97fce864-6f75-bca5-14bc-12c9f890e740@i-love.sakura.ne.jp
+>> [2] http://lkml.kernel.org/r/20190117155159.GA4087@dhcp22.suse.cz
+> 
+> I think I'll put a cc:stable on this.  Deleting a might-trigger debug
+> printk is safe and welcome.
+> 
 
-> On Tue 12-02-19 12:21:17, Michal Hocko wrote:
-> > On Tue 12-02-19 19:25:46, Tetsuo Handa wrote:
-> > > On 2019/02/12 19:11, Michal Hocko wrote:
-> > > > This patch is ugly as hell! I do agree that for_each_cpu not working on
-> > > > CONFIG_SMP=n sucks but why do we even care about lru_add_drain_all when
-> > > > there is a single cpu? Why don't we simply do
-> > > > 
-> > > > diff --git a/mm/swap.c b/mm/swap.c
-> > > > index aa483719922e..952f24b09070 100644
-> > > > --- a/mm/swap.c
-> > > > +++ b/mm/swap.c
-> > > > @@ -660,6 +660,7 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
-> > > >  
-> > > >  static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
-> > > >  
-> > > > +#ifdef CONFIG_SMP
-> > > >  /*
-> > > >   * Doesn't need any cpu hotplug locking because we do rely on per-cpu
-> > > >   * kworkers being shut down before our page_alloc_cpu_dead callback is
-> > > > @@ -702,6 +703,10 @@ void lru_add_drain_all(void)
-> > > >  
-> > > >  	mutex_unlock(&lock);
-> > > >  }
-> > > > +#else
-> > > > +#define lru_add_drain_all() lru_add_drain()
-> > > > +
-> > > > +#endif
-> > > 
-> > > If there is no need to evaluate the "if" conditions, I'm fine with this shortcut.
-> > 
-> > lru_add_drain does drain only pagevecs which have pages and so we do not
-> > really have to duplicate the check. There is also no need to defer the
-> > execution to the workqueue for a local cpu. So we are left with only the
-> > lock to prevent parallel execution but the preemption disabling acts the
-> > same purpose on UP so the approach should be equivalent from the
-> > correctness point of view.
-> 
-> The patch with the full changelog follows:
-> 
-> 
-> >From db104f132bd6e1c02ecbe65e62c12caa7e4e2e2a Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Tue, 12 Feb 2019 12:25:28 +0100
-> Subject: [PATCH] mm: handle lru_add_drain_all for UP properly
-> 
-> Since for_each_cpu(cpu, mask) added by commit 2d3854a37e8b767a ("cpumask:
-> introduce new API, without changing anything") did not evaluate the mask
-> argument if NR_CPUS == 1 due to CONFIG_SMP=n, lru_add_drain_all() is
-> hitting WARN_ON() at __flush_work() added by commit 4d43d395fed12463
-> ("workqueue: Try to catch flush_work() without INIT_WORK().")
-> by unconditionally calling flush_work() [1].
-> 
-> Workaround this issue by using CONFIG_SMP=n specific lru_add_drain_all
-> implementation. There is no real need to defer the implementation to the
-> workqueue as the draining is going to happen on the local cpu. So alias
-> lru_add_drain_all to lru_add_drain which does all the necessary work.
-> 
-> [1] https://lkml.kernel.org/r/18a30387-6aa5-6123-e67c-57579ecc3f38@roeck-us.net
->
-> ...
->
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -660,6 +660,7 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
->  
->  static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
->  
-> +#ifdef CONFIG_SMP
->  /*
->   * Doesn't need any cpu hotplug locking because we do rely on per-cpu
->   * kworkers being shut down before our page_alloc_cpu_dead callback is
-> @@ -702,6 +703,10 @@ void lru_add_drain_all(void)
->  
->  	mutex_unlock(&lock);
->  }
-> +#else
-> +#define lru_add_drain_all() lru_add_drain()
-> +
-> +#endif
->  
->  /**
->   * release_pages - batched put_page()
-
-How can this even link?  Lots of compilation units call
-lru_add_drain_all() but the implementation just got removed.
+Putting cc:stable is fine. But I doubt the usefulness of this patch.
+If nobody really depends on the behavior prior to 44a70adec910,
+we should remove the pointless (otherwise racy) iteration itself.
 
