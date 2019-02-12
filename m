@@ -2,190 +2,178 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_NEOMUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BC436C282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 08:33:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D2006C282CA
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 08:49:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6C973218D8
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 08:33:38 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="Y8cK7K/R"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C973218D8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id 8053321773
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 08:49:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8053321773
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0215C8E0015; Tue, 12 Feb 2019 03:33:38 -0500 (EST)
+	id E22908E0016; Tue, 12 Feb 2019 03:49:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F13738E0007; Tue, 12 Feb 2019 03:33:37 -0500 (EST)
+	id DA8B78E0011; Tue, 12 Feb 2019 03:49:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DB5D78E0015; Tue, 12 Feb 2019 03:33:37 -0500 (EST)
+	id C72A98E0016; Tue, 12 Feb 2019 03:49:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 995578E0007
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 03:33:37 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id b8so1800973pfe.10
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 00:33:37 -0800 (PST)
+Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 98C4B8E0011
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 03:49:25 -0500 (EST)
+Received: by mail-vs1-f70.google.com with SMTP id v199so760316vsc.21
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 00:49:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=oxpVHbVB7l2HeJxotboIxFL5Ps+MVnJBLdvQHDnnO30=;
-        b=AU11lWVgDFAGaojqbo2eDcvsxc9+dw/o0P414KFeBOeGUI615HR37guthlFA4Cniiv
-         Grxu8lBdhKawEx9UYEWG+rVF9MzDcl6KSd7sd55cMc05SHem85LFIqrguqjH5xOgQXBe
-         go0T4u8y2N3FeNYi6RKiZfsc+/k0/OnnQQ13updm9+Hl6eSwSi2svmIxS8EypIO1w+Ng
-         dQSqFVopFm6fxmoV6SvntfLNdJAjBrmzM0xWTpPaRmJ84rHSnzzwPrRg/mT2hFmXTd8w
-         9ER/4y3kkfdMYMhltD+QsjurPpSzKpvTKvxxuES9lMsu/CxYMG2OfqvszktYPBL5jOtr
-         KNgA==
-X-Gm-Message-State: AHQUAuZg5uLqZblrTHjujmoV44yFSiFrKOXItFbYxBuU+8xWV7EVYL4i
-	5pN2WEKXj7Rp3eXmcO28oQ2Hsf7g3U8UdmslKQXgIJxttTKCSsoxawHhcbjwa0zBac+u1NrXHsL
-	4eAFMJnfqUkFd4mzpU13Jrr48Vv5BLrxOYJ5MFrRnUHvQ3l5yEq3pu4BY8jEQ9NEBaVOF7sxgHz
-	T1vDiHf20wfvrAjIN9OnaaJJdZOdzmFxtaS4hrQmc1kwUymYJPZN+53bEw6SjvJ68FOKrVUdfEo
-	NeVk22oI1sB20Deunh0H+VxOF46AGuGdVZz7IBSDBtONnKzvg+xhYj+AVg2R+jhuENAcPelew/u
-	Td0nnRU+oD2+RBLl2Z1Alk8Gz7NQpiRPb6HDNqsLW8BfhYtMTa0h2t7c5jnoKKhDn3XTwP2OPbt
-	9
-X-Received: by 2002:a17:902:1486:: with SMTP id k6mr2908483pla.49.1549960417306;
-        Tue, 12 Feb 2019 00:33:37 -0800 (PST)
-X-Received: by 2002:a17:902:1486:: with SMTP id k6mr2908441pla.49.1549960416568;
-        Tue, 12 Feb 2019 00:33:36 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549960416; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:organization
+         :mime-version:content-transfer-encoding;
+        bh=LtRRWFVm+oQ3i7IAQxflrpeG6M0+4OA1KFTwJbKv1B0=;
+        b=MQUR4zseUb3ZMt0fRbqZ3D3PlLABoPeMxJQ/kZaddFOcPQ8MsaxrcRNppwTvMJ1RZu
+         fi7gsYZSYjMvAIYEMDKr0rFTVEndiPCwTA+GjCGrzzlJFaczVaRWuFSMtPUDX7YSRqg0
+         iy/PXFE2w2i64IVaewEmFucmJ2scrxywKRzqMll2ISxGdH15/8wKjyXQ1Tle9GbNIO/4
+         vLzM/cRRBRfBPm7rgdnv0t5uw/mHiWyqebng90HToWQ9mJM6N/TOB7e9y/Jvf+NNsnhy
+         Pi0PU++v0KZhiA6ks3yFPttcNSgamKqCPw/jw+PV0fnunbQc4wpgfRzDtdJVrJOkkqok
+         UArQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+X-Gm-Message-State: AHQUAubW+JpfkojOBotZBQpA8ox8cIfCy6P2TbtNrV/R/RWW5kijiN50
+	PG9ocayRSBWc6w2h/DxsAgzqmfQVsT18R1/bNURKI/PyKlzneqA+P5/GcOLusF1bsmjMK7hkBIn
+	UX1ReSk0SdI88DfZuigF1hRGqcYVgifKDWdKQw/wU1Lkg9BU1FIhywJ1DtnB0XAaT8w==
+X-Received: by 2002:a67:858c:: with SMTP id h134mr1054051vsd.109.1549961365288;
+        Tue, 12 Feb 2019 00:49:25 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZTEG1c3cmpjKzBqnxaH/lZ/amBN514/+ZioRcJHlQUQ9ulT/YxE+UxXAAOcEb5c8DrhJqv
+X-Received: by 2002:a67:858c:: with SMTP id h134mr1054033vsd.109.1549961364413;
+        Tue, 12 Feb 2019 00:49:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549961364; cv=none;
         d=google.com; s=arc-20160816;
-        b=AVCFHF6FlZ30sOWZt0mguoubJcIkWEYq2TJwA0D3hN6Z7e4MfBNT3/piCactMz4gPe
-         u5oqva4LLuZ8xD3oVcZjhwfDm4mqpqD5qBXmPcru3OQRpiF2jVvR6nxWRoDT/TlBhJVS
-         0qlZVJgoJPZLKtMvP7e7x5z3kHQv5oO04nG/+G+7KhofwAGBCyESAwCue5xSZOYpkBa3
-         0kmIWoxKB+c88aGoojYG2VqARpy6VonGhLqMUU7gNACvmZtJrhMHEWxe3EVKV8eWaiXO
-         q4Ud90OnxKzONMiLV6mBBH77Neo4c5I9R5DUy2UNz8CQZXPJBVoVsohItT/Sf609C3Ys
-         m6WA==
+        b=LijyQ8vOCWqQAYcIixFQLmGDrn7b1SpKmT4ecfU9fZnd/v++JYeLT7WPgH3jq/nE4B
+         TEL1R+AzEmCKZp9/Hf5FAPvLKlLluqSibhdU4L+Ml7Toxaiarr3MPZ87SBgyEpafCGxs
+         RZqtgpb8kY/tYgFU254uGiJEvtNRiIYP/uaoqaVBZUkBNxLCkmzn7LEHQl6y1ZbcJjLd
+         gmAOAqWlfwbFFDvxFro/mfSTyYhoZbgCmHHupMejYwRBfzQ7Q/rDcua6JtuK/3Kzl1KA
+         RyZBKno4PleAYQvVn0yn071/rANJrNLDIg3lYT1sxc+9ZcDuix6dy/v81YZKibN4ubvO
+         Vejw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=oxpVHbVB7l2HeJxotboIxFL5Ps+MVnJBLdvQHDnnO30=;
-        b=J6BmLPLu1soLMLrsfN0TqQrkpEEYHlKPR4QXMPXmpghYUBJn3Oxyd4HF+RdC/MXs0c
-         tb/bMcHCx+2tvCpIeMeZxPUFatccQc5eyeXIs/+yJYNkZ7plyTMnfT4zy6WpLmH/ObgK
-         Rj/yTAg7xIt1C5nq/r0JsmERt9S4Mz878uOZ37tbRj2srXxAqwyMowUVDlQOaubiXmm2
-         o0sHocSgSqaShwznPoFb/ZtDUGkzdpqnMbLVXbZkRNwserDtLzTelFj0wCb6aZPVLHpJ
-         XpxIiOnVUmDBRdnYADFUriHS6tXsWH+nJbUvHhO8sAVoka33+6UHa5m7u4a5QVi30du2
-         Wj9Q==
+        h=content-transfer-encoding:mime-version:organization:references
+         :in-reply-to:message-id:subject:cc:to:from:date;
+        bh=LtRRWFVm+oQ3i7IAQxflrpeG6M0+4OA1KFTwJbKv1B0=;
+        b=YjlDzIc7WpM2QH4Jj84WnujQ7PjavG5jDl1LHF2AYnH0M1bRkftddYqMnVwtzDLeKV
+         BweYrqv71xyTO+3ahobvDE6LjDD6ehZIHnTO9vyFvpKaQ8zN2rgJlh0ybfFJkFPJ9CzR
+         6qTo9GbCBAGT4gNnh8VYiHye2YddJ2guTuqGSNCfxSeLWzBQtleJ7YC9op+xoeCVD8eD
+         i1u2R5t7hQMZdwBXIKXhev2/ZDgRsH1mknrvFx1DCnCu9647NksnVqGfXTnL6Hk+8tu9
+         Xoo8wNDzKCDRJLd9M6mhnrkssr3jHfhSIKokt6r/Q3WZ+hu8ytPFzqWLIGdCZ0rcQ/fj
+         +glg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b="Y8cK7K/R";
-       spf=neutral (google.com: 209.85.220.41 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e188sor17803378pgc.19.2019.02.12.00.33.36
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id e4si2676048vso.136.2019.02.12.00.49.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Feb 2019 00:33:36 -0800 (PST)
-Received-SPF: neutral (google.com: 209.85.220.41 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.41;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b="Y8cK7K/R";
-       spf=neutral (google.com: 209.85.220.41 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=oxpVHbVB7l2HeJxotboIxFL5Ps+MVnJBLdvQHDnnO30=;
-        b=Y8cK7K/R2zLDx3Bj2hQ1RX1SrUyGn1tV3BMXqVkN7ZWspvQcFuU1f0tbxoCYCOvGvi
-         9Q3sgeiVATtMmeWvM5tqo031SgpHatHXiWK03QEeMhdGC0LQ1JU/T1wMiv5tG9/3XRvl
-         DKHjgREpR9BD0oJKzXLCzjXLpgqmCmh8QxeHJlZIDGUBJk3YSdgyQ9jtf+gdSv3wXqe9
-         WmkcfXjmasP/z2wQ13SyZZYiHOL7bbu4WS63HuY07QwrxM481yfgT8IVoucnFbx162Kn
-         4lllmzDp/SVmHMxQoknKrRwFIA6xK4TBliABDpkcChISx1CiC9dUeRy4Xwz3yzRQzZ08
-         Zwdg==
-X-Google-Smtp-Source: AHgI3IY6lJA+Q5N5XsipGp9xj2gavVKReVrIo/vQTtw7S8oAQ6vQpHX+ohnN8tUL2spN5xLM270LWQ==
-X-Received: by 2002:a63:f552:: with SMTP id e18mr2565316pgk.239.1549960416064;
-        Tue, 12 Feb 2019 00:33:36 -0800 (PST)
-Received: from kshutemo-mobl1.localdomain ([192.55.54.41])
-        by smtp.gmail.com with ESMTPSA id l87sm23337013pfj.35.2019.02.12.00.33.34
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 00:33:35 -0800 (PST)
-Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
-	id EB8A0300573; Tue, 12 Feb 2019 11:33:31 +0300 (+03)
-Date: Tue, 12 Feb 2019 11:33:31 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: lsf-pc@lists.linux-foundation.org,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Vlastimil Babka <vbabka@suse.cz>
-Subject: Re: [LSF/MM TOPIC] Non standard size THP
-Message-ID: <20190212083331.dtch7xubjxlmz5tf@kshutemo-mobl1>
-References: <dcb0b2cf-ba5c-e6ef-0b05-c6006227b6a9@arm.com>
+        Tue, 12 Feb 2019 00:49:24 -0800 (PST)
+Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from DGGEMS408-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id 088157E31536FC437CC1;
+	Tue, 12 Feb 2019 16:49:19 +0800 (CST)
+Received: from localhost (10.202.226.61) by DGGEMS408-HUB.china.huawei.com
+ (10.3.19.208) with Microsoft SMTP Server id 14.3.408.0; Tue, 12 Feb 2019
+ 16:49:13 +0800
+Date: Tue, 12 Feb 2019 08:49:03 +0000
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+To: Keith Busch <keith.busch@intel.com>
+CC: Brice Goglin <Brice.Goglin@inria.fr>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>, "linux-acpi@vger.kernel.org"
+	<linux-acpi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"Greg Kroah-Hartman" <gregkh@linuxfoundation.org>, Rafael Wysocki
+	<rafael@kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>, "Williams, Dan
+ J" <dan.j.williams@intel.com>
+Subject: Re: [PATCHv4 10/13] node: Add memory caching attributes
+Message-ID: <20190212084903.00003ff5@huawei.com>
+In-Reply-To: <20190211152303.GA4525@localhost.localdomain>
+References: <20190116175804.30196-1-keith.busch@intel.com>
+	<20190116175804.30196-11-keith.busch@intel.com>
+	<4a7d1c0c-c269-d7b2-11cb-88ad62b70a06@inria.fr>
+	<20190210171958.00003ab2@huawei.com>
+	<20190211152303.GA4525@localhost.localdomain>
+Organization: Huawei
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; i686-w64-mingw32)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <dcb0b2cf-ba5c-e6ef-0b05-c6006227b6a9@arm.com>
-User-Agent: NeoMutt/20180716
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.202.226.61]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 08, 2019 at 07:43:57AM +0530, Anshuman Khandual wrote:
-> Hello,
-> 
-> THP is currently supported for
-> 
-> - PMD level pages (anon and file)
-> - PUD level pages (file - DAX file system)
-> 
-> THP is a single entry mapping at standard page table levels (either PMD or PUD)
-> 
-> But architectures like ARM64 supports non-standard page table level huge pages
-> with contiguous bits.
-> 
-> - These are created as multiple entries at either PTE or PMD level
-> - These multiple entries carry pages which are physically contiguous
-> - A special PTE bit (PTE_CONT) is set indicating single entry to be contiguous
-> 
-> These multiple contiguous entries create a huge page size which is different
-> than standard PMD/PUD level but they provide benefits of huge memory like
-> less number of faults, bigger TLB coverage, less TLB miss etc.
-> 
-> Currently they are used as HugeTLB pages because
-> 
-> 	- HugeTLB page sizes is carried in the VMA
-> 	- Page table walker can operate on multiple PTE or PMD entries given its size in VMA
-> 	- Irrespective of HugeTLB page size its operated with set_huge_pte_at() at any level
-> 	- set_huge_pte_at() is arch specific which knows how to encode multiple consecutive entries
-> 	
-> But not as THP huge pages because
-> 
-> 	- THP size is not encoded any where like VMA
-> 	- Page table walker expects it to be either at PUD (HPAGE_PUD_SIZE) or at PMD (HPAGE_PMD_SIZE)
-> 	- Page table operates directly with set_pmd_at() or set_pud_at()
-> 	- Direct faulted or promoted huge pages is verified with [pmd|pud]_trans_huge()
-> 
-> How non-standard huge pages can be supported for THP
-> 
-> 	- THP starts recognizing non standard huge page (exported by arch) like HPAGE_CONT_(PMD|PTE)_SIZE
-> 	- THP starts operating for either on HPAGE_PMD_SIZE or HPAGE_CONT_PMD_SIZE or HPAGE_CONT_PTE_SIZE
-> 	- set_pmd_at() only recognizes HPAGE_PMD_SIZE hence replace set_pmd_at() with set_huge_pmd_at()
-> 	- set_huge_pmd_at() could differentiate between HPAGE_PMD_SIZE or HPAGE_CONT_PMD_SIZE
-> 	- In case for HPAGE_CONT_PTE_SIZE extend page table walker till PTE level
-> 	- Use set_huge_pte_at() which can operate on multiple contiguous PTE bits
+On Mon, 11 Feb 2019 08:23:04 -0700
+Keith Busch <keith.busch@intel.com> wrote:
 
-You only listed trivial things. All tricky stuff is what make THP
-transparent.
+> On Sun, Feb 10, 2019 at 09:19:58AM -0800, Jonathan Cameron wrote:
+> > On Sat, 9 Feb 2019 09:20:53 +0100
+> > Brice Goglin <Brice.Goglin@inria.fr> wrote:
+> >   
+> > > Hello Keith
+> > > 
+> > > Could we ever have a single side cache in front of two NUMA nodes ? I
+> > > don't see a way to find that out in the current implementation. Would we
+> > > have an "id" and/or "nodemap" bitmask in the sidecache structure ?  
+> > 
+> > This is certainly a possible thing for hardware to do.
+> >
+> > ACPI IIRC doesn't provide any means of representing that - your best
+> > option is to represent it as two different entries, one for each of the
+> > memory nodes.  Interesting question of whether you would then claim
+> > they were half as big each, or the full size.  Of course, there are
+> > other possible ways to get this info beyond HMAT, so perhaps the interface
+> > should allow it to be exposed if available?  
+> 
+> HMAT doesn't do this, but I want this interface abstracted enough from
+> HMAT to express whatever is necessary.
+> 
+> The CPU cache is the closest existing exported attributes to this,
+> and they provide "shared_cpu_list". To that end, I can export a
+> "shared_node_list", though previous reviews strongly disliked multi-value
+> sysfs entries. :(
+> 
+> Would shared-node symlinks capture the need, and more acceptable?
 
-To consider it seriously we need to understand what it means for
-split_huge_p?d()/split_huge_page()? How khugepaged will deal with this?
+My inclination is that it's better to follow an existing pattern than
+invent a new one that breaks people's expectations.
 
-In particular, I'm worry to expose (to user or CPU) page table state in
-the middle of conversion (huge->small or small->huge). Handling this on
-page table level provides a level atomicity that you will not have.
+However, don't feel that strongly about it as long as the interface
+is functional and intuitive.
 
-Honestly, I'm very skeptical about the idea. It took a lot of time to
-stabilize THP for singe page size, equal to PMD page table, but this looks
-like a new can of worms. :P
 
-It *might* be possible to support it for DAX, but beyond that...
+>  
+> > Also, don't know if it's just me, but calling these sidecaches is
+> > downright confusing.  In ACPI at least they are always
+> > specifically referred to as Memory Side Caches.
+> > I'd argue there should even by a hyphen Memory-Side Caches, the point
+> > being that that they are on the memory side of the interconnected
+> > rather than the processor side.  Of course an implementation
+> > choice might be to put them off to the side (as implied by sidecaches)
+> > in some sense, but it's not the only one.
+> > 
+> > </terminology rant> :)  
+> 
+> Now that you mention it, I agree "side" is ambiguous.  Maybe call it
+> "numa_cache" or "node_cache"?
+I'm not sure any of the options work well.  My inclination would be to
+use the full name and keep the somewhat redundant memory there.
 
--- 
- Kirill A. Shutemov
+The other two feel like they could just as easily be coherent caches
+at accelerators for example...
+
+memory_side_cache?
+
+The fun of naming ;)
+
+Jonathan
 
