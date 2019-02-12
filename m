@@ -2,175 +2,166 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D00BC282D7
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 01:26:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D5494C169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 01:36:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E7ED0214DA
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 01:26:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8EF85218A1
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 01:36:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="kTOcJz2Z"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E7ED0214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="iOZl57fg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EF85218A1
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 691528E0009; Mon, 11 Feb 2019 20:26:23 -0500 (EST)
+	id 1A6888E000B; Mon, 11 Feb 2019 20:36:15 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 63F878E0004; Mon, 11 Feb 2019 20:26:23 -0500 (EST)
+	id 1581B8E000A; Mon, 11 Feb 2019 20:36:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5069F8E0009; Mon, 11 Feb 2019 20:26:23 -0500 (EST)
+	id 06CD18E000B; Mon, 11 Feb 2019 20:36:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DB5B8E0004
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 20:26:23 -0500 (EST)
-Received: by mail-vs1-f71.google.com with SMTP id 185so425036vsd.2
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 17:26:23 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B60E98E000A
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 20:36:14 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id 59so822669plc.13
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 17:36:14 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=tjplqgKWE3Hxn72OdOjfAgA2B9kW+HOJdNRvmQcqtBU=;
-        b=OjC2nUeTkv2oOU3WTaNAiZ4C82dbKc9DteqVmBtdTyRDz6SbGqhucqohNUpDzK/1mS
-         yJsB4Hancfa5bvRN4Uw/L3GFB49qACRtknBdJ/GA1Xokc/hHx81S5TbMs3CrD1I1WFnY
-         foZeUplut03188wVASTp9avLlnc2/pPTkp7zOd2ELka+RplVfGy0tLzQQLyce2KghCrg
-         zgnroAxRKG3BiQFaCwpaVIaOXD1iQHNFXK0xPECFfy9LzwTHK9OcACB7sS9Umwo+ZhMP
-         4BNpKX8+kIvr/mgxAembigoMT8KRIc8VnzcQZyukrBusgpDTtbjO3CjBhUnZMjoK8iRl
-         kThw==
-X-Gm-Message-State: AHQUAua6raEN1NyvIqzsHnWeqd3ttfdgsRR/n21I03LOd17vzLHG+cnB
-	/twNKylnpRKtgYc1hOZomXZJpFVWKOpxlsI9VpFgUaT/e4fwZFzmkaaxwqKbx2/SY9DbSQmdA27
-	sgZpZy6GeycvfVmF1+qZ/3Au/ktcva0cF9IyqZi3Q8/VPwwhLEN7YNabltOY4UZ60ibM2zgoty9
-	mmuLn46ZPzbld6tHHjOzqzurwDwIoApSDHufh2NUVakdpdSYkFD4r3Ld396VMpVEb9mWlQ3Wz/l
-	tCK/S+u1fGaLyT61w5oedzjzX/+xXwGrMjWc+B7NtHiLCdHvN8+xd7OtYc16bT6MsGajmRhiTRp
-	tJ5WV3a1CBVOvQ1qkN8OssGzQsyNoD7UedxilJsET+oBZV27DYGvdKPm7qqlvN1iuJbaPmrpWIa
-	2
-X-Received: by 2002:ab0:729a:: with SMTP id w26mr528541uao.12.1549934782743;
-        Mon, 11 Feb 2019 17:26:22 -0800 (PST)
-X-Received: by 2002:ab0:729a:: with SMTP id w26mr528524uao.12.1549934781975;
-        Mon, 11 Feb 2019 17:26:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549934781; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=AEB07sD0Nm37HdBEPjbf5+EZZV+iXv560mnR7taNMDo=;
+        b=tMntiwuSO3hmzCPq11UpC84WovZ0snaGdWY7V2heghkaocIEGeZFN+ba2mDcGbURRU
+         6g6l5IsEuFIZKmIV0z4yRMPo19WMehAKZJiEO+XVU0y+WaOXcLXcMYC+tb4k6eIsvChE
+         h8BPd+RSBjezlNZk5VhTmz9EnWV9sSUYOz9c5x2hPI/vY5zlzemUfU4mODTMucSlXHrh
+         tmMc3QD5+RqmrSDP/7IDoWj+8NGCwuNDzYzR0/GNFVM68Yl05WQgfR7WzGyqsEPh/mYM
+         Tz4hU+WO258JI8jkYcfYzyUUeooc9Bc+WwieOh9FNnxm5l4LfOFmUo8pGr1w/g732I0u
+         er8Q==
+X-Gm-Message-State: AHQUAuaUFm3ZT+0EMbyViw9b6OJEO2yjsO9eW5GuDgqbHD+wnQSthR/A
+	UdAdalgokpqJyK8RY/8ijUY8ey8A/Es/D+V8qd9tM5klR+oVECGUKgCLUAZMdfAaVey6l+ExWNy
+	loooOkUHk9VsrPiJ795N6gAnv9+jciF9dhSF1Kj/0m5V0iH0hPuVVYlYPis1rJMWUmQ==
+X-Received: by 2002:a62:1d0c:: with SMTP id d12mr1358943pfd.126.1549935374186;
+        Mon, 11 Feb 2019 17:36:14 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Iat1jJG8MYzNzmlJvCYc50DvKIbvTHjDn8dlNytC0hdBMqLwxVrYhAGpjp7RxpC8EKPrT+O
+X-Received: by 2002:a62:1d0c:: with SMTP id d12mr1358867pfd.126.1549935373318;
+        Mon, 11 Feb 2019 17:36:13 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549935373; cv=none;
         d=google.com; s=arc-20160816;
-        b=Q4y2q8VVbuhrWg0JaGQfItgGA9zfh2rBR2cDq22Hl36xuPQwJYyStc0la95pWuB7ZA
-         0OMLXsj2tHytJbWzY0AIPJVXL5/vBZIfailMKh+XSWyWei/lCLB0MV7U7zgdBJfYBfPs
-         gNHfMaQ1IPWpWr+bebzT6vn6c1l0K8WxVxqaOdKdg4ZBrjEvOhk8mG+djeauscAIZhWO
-         D5CUuTMoywGicL11DDdb53s7GFeqRna1wYxfREXk+weGLQS3g320QkggpwpjJZ6w8EPj
-         drRXNHnNwuMW26EDh9PdbN6fWmHvkOWpBcvfOUQ65oQkfLkvdeC+kecEu7EP1yF/3mD4
-         SRcg==
+        b=skz0tJtpSOPaAfwolFFy6si2fKhxv7shJpUoJ5bPL5RDe7w/eG0BOuGBRb4TbNxibF
+         ilRoSIE628WLs2c/FMD6ev5oTxi++UZkGZfKBPDEF5QjCgnhxX3418FXN+SBmePSzDH/
+         /XAiPYQ3Z7erf9gAYhOgQqwoysUaSUTACmka4BJD0SgM5e9jQkncyTXXYIJwE2LflPVE
+         9EWEdJJDWtXxuiVaWTCXlxfkOJR0lk8eGCMArDygCFSu4HuHJEx7yxIsgl3KFMM1eiu9
+         yKTi++knc95GB5iXo0ZQCrA0/VHuDR+vmj7m0nrdBOBDB62CF22yNeYPRZlYd33pWt1x
+         3qdw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=tjplqgKWE3Hxn72OdOjfAgA2B9kW+HOJdNRvmQcqtBU=;
-        b=o1Eqltj4KyCouo9EbjFe4X0CYbsl2EppY3xaKLtNPzd4UdinjUYE8Bv3fVnIRSNR2U
-         EuQ8Ke4SM48YBmQIVvyYQOhupLcnc5JzoAQiotTlBR28HwoBt8KYL7vngMi6IV1HCAmE
-         wE3IiXz0Zi7JQaGJSPaItE3SSUNiXKBe5qDrHLcr3+RKe+TXlhDNIoXCuEgQUlpak/9T
-         DzXhrz7Y1/gJLsXrdHfDMsMr8aR3WBr5W04O/cEZYN6xqS5qZ44W3pNUCW0ZgyEOR/t/
-         nEh9f1G4uyu3BdhA1eUZbjyq2lBKDH2hFi0RA2azGajH/X3dU3u7r7pas8k94JCUwMK8
-         1dcQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=AEB07sD0Nm37HdBEPjbf5+EZZV+iXv560mnR7taNMDo=;
+        b=PBsC3kng8iDIO2eaZIwEKagziILmM42zR2dzdl1wG7NWOE0yPae6YZ9iUw/Jp7oA09
+         O0snR49+tx/9f+LDvWTBdpIuDB3UKWzRpZFhY/Sgcz3v5SNf4X9twuaxW+SJUEZJerGG
+         Ou+grzMa/QYmBS9ZZOAXR8jux6TrIGrZhxWowbjliEV/lutpYdMJnE85fwMNbOYO/Oj/
+         eNJAuwuxdZ8fVMolk222wmo7T7Krb0bQFnMbtlPFFy6tcJUJ1dmI7aGbf+M1mZ9bCZ6w
+         bC7YC3c8wFmXJ1a7i9zmAJ75TCLEDcv+DgvtzF/tZHUf81AR7n3CapxQoKIJpzFWWPOH
+         Rkfg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=kTOcJz2Z;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g7sor5105247vso.55.2019.02.11.17.26.21
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=iOZl57fg;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id f12si10850523pgo.562.2019.02.11.17.36.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Feb 2019 17:26:21 -0800 (PST)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 11 Feb 2019 17:36:13 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=kTOcJz2Z;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=tjplqgKWE3Hxn72OdOjfAgA2B9kW+HOJdNRvmQcqtBU=;
-        b=kTOcJz2ZF73lKlesFnKYD0iEmI0plfu6EuXCcoJ6kJKDZPfjpJGUSCp3DuhQ6OELVg
-         5HhafM/ks7gDn02lvD5VacZAtMTrAu5New5ehqSGe1dBNc+0ZaBWBxgdfn5RgePWCruq
-         I4VRoypIEvm6GzpzCYX3K/JnpeK7DLkQ7GF4c=
-X-Google-Smtp-Source: AHgI3Ib1M++s36GF8s5BUbyz4KitfWuhepEEovqAsdvOsLF+fH9MbFhWU1KQGVN9EIwOgK9P8AHK0g==
-X-Received: by 2002:a67:7a44:: with SMTP id v65mr505892vsc.190.1549934781105;
-        Mon, 11 Feb 2019 17:26:21 -0800 (PST)
-Received: from mail-vk1-f182.google.com (mail-vk1-f182.google.com. [209.85.221.182])
-        by smtp.gmail.com with ESMTPSA id a68sm12010111vsd.24.2019.02.11.17.26.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 17:26:20 -0800 (PST)
-Received: by mail-vk1-f182.google.com with SMTP id t127so225483vke.8
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 17:26:19 -0800 (PST)
-X-Received: by 2002:a1f:4982:: with SMTP id w124mr512476vka.4.1549934779282;
- Mon, 11 Feb 2019 17:26:19 -0800 (PST)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=iOZl57fg;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=AEB07sD0Nm37HdBEPjbf5+EZZV+iXv560mnR7taNMDo=; b=iOZl57fgU9wlCpGzjFNhMpfIt
+	S5VVbkMFdabBrJSw3Xt+0t7Tfv9LwhP6d/mBzDyA4fgDJFQ8VQ71MdtKdGQ9GzZN7JU9DfdRCd+VY
+	NlvH9TdZfqsFv7rB8ileVj7O6f6UYpMMRxM9+Kxx2mJq6zaai9ZlmaOyiixesWcn1iJHuZKuLQZn6
+	Z/7IYWWjr6cIk27oieKFUp+I5cd0ux49D0VPnY4riVpGoSAkW4hmyW34IEqKXt4eoe3Z+znY9z5oP
+	paDKlSnXLCV+TWOc/jfAmBrjxu04c0+TxQir0Pm9dzEwagQOKHDdUKHMjOSnVo4iAPCA/ww+9n/vl
+	nsuVeIwFQ==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gtMzW-0004MR-OT; Tue, 12 Feb 2019 01:36:06 +0000
+Date: Mon, 11 Feb 2019 17:36:06 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: "Paul E. McKenney" <paulmck@linux.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	kbuild test robot <lkp@intel.com>,
+	Suren Baghdasaryan <surenb@google.com>, kbuild-all@01.org,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Linux Memory Management List <linux-mm@kvack.org>
+Subject: Re: [linux-next:master 6618/6917] kernel/sched/psi.c:1230:13:
+ sparse: error: incompatible types in comparison expression (different
+ address spaces)
+Message-ID: <20190212013606.GJ12668@bombadil.infradead.org>
+References: <201902080231.RZbiWtQ6%fengguang.wu@intel.com>
+ <20190208151441.4048e6968579dd178b259609@linux-foundation.org>
+ <20190209074407.GE4240@linux.ibm.com>
 MIME-Version: 1.0
-References: <cover.1549927666.git.igor.stoppa@huawei.com> <CAGXu5j+n3ky2dOe4F+VyneQsM4VJbGPUw+DO55NkxxPhKzKHag@mail.gmail.com>
- <25bf3c63-c54c-f7ea-bec1-996a2c05d997@gmail.com> <CAGXu5jLqmYRUVLb7-jPsN4onO5UNH+D6qOF=9TOiVjJa-=DnZQ@mail.gmail.com>
- <CAH2bzCRZ5xYOT0R8piqZx4mSGj1_8fNG=Ce4UU8i6F7mYD9m9Q@mail.gmail.com>
-In-Reply-To: <CAH2bzCRZ5xYOT0R8piqZx4mSGj1_8fNG=Ce4UU8i6F7mYD9m9Q@mail.gmail.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Mon, 11 Feb 2019 17:26:06 -0800
-X-Gmail-Original-Message-ID: <CAGXu5jLRJZuWjnwEuK=7AMeCrj-eioVGksPL9dE9pbzHM=+Rmg@mail.gmail.com>
-Message-ID: <CAGXu5jLRJZuWjnwEuK=7AMeCrj-eioVGksPL9dE9pbzHM=+Rmg@mail.gmail.com>
-Subject: Re: [RFC PATCH v4 00/12] hardening: statically allocated protected memory
-To: "igor.stoppa@gmail.com" <igor.stoppa@gmail.com>
-Cc: Igor Stoppa <igor.stoppa@huawei.com>, Ahmed Soliman <ahmedsoliman@mena.vt.edu>, 
-	linux-integrity <linux-integrity@vger.kernel.org>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190209074407.GE4240@linux.ibm.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 11, 2019 at 5:08 PM igor.stoppa@gmail.com
-<igor.stoppa@gmail.com> wrote:
->
->
->
-> On Tue, 12 Feb 2019, 4.47 Kees Cook <keescook@chromium.org wrote:
->>
->> On Mon, Feb 11, 2019 at 4:37 PM Igor Stoppa <igor.stoppa@gmail.com> wrote:
->> >
->> >
->> >
->> > On 12/02/2019 02:09, Kees Cook wrote:
->> > > On Mon, Feb 11, 2019 at 3:28 PM Igor Stoppa <igor.stoppa@gmail.com> wrote:
->> > > It looked like only the memset() needed architecture support. Is there
->> > > a reason for not being able to implement memset() in terms of an
->> > > inefficient put_user() loop instead? That would eliminate the need for
->> > > per-arch support, yes?
->> >
->> > So far, yes, however from previous discussion about power arch, I
->> > understood this implementation would not be so easy to adapt.
->> > Lacking other examples where the extra mapping could be used, I did not
->> > want to add code without a use case.
->> >
->> > Probably both arm and x86 32 bit could do, but I would like to first get
->> > to the bitter end with memory protection (the other 2 thirds).
->> >
->> > Mostly, I hated having just one arch and I also really wanted to have arm64.
->>
->> Right, I meant, if you implemented the _memset() case with put_user()
->> in this version, you could drop the arch-specific _memset() and shrink
->> the patch series. Then you could also enable this across all the
->> architectures in one patch. (Would you even need the Kconfig patches,
->> i.e. won't this "Just Work" on everything with an MMU?)
->
->
-> I had similar thoughts, but this answer [1] deflated my hopes (if I understood it correctly).
-> It seems that each arch needs to be massaged in separately.
+On Fri, Feb 08, 2019 at 11:44:07PM -0800, Paul E. McKenney wrote:
+> On Fri, Feb 08, 2019 at 03:14:41PM -0800, Andrew Morton wrote:
+> > On Fri, 8 Feb 2019 02:29:33 +0800 kbuild test robot <lkp@intel.com> wrote:
+> > 
+> > > tree:   https://urldefense.proofpoint.com/v2/url?u=https-3A__git.kernel.org_pub_scm_linux_kernel_git_next_linux-2Dnext.git&d=DwICAg&c=jf_iaSHvJObTbx-siA1ZOg&r=q4hkQkeaNH3IlTsPvEwkaUALMqf7y6jCMwT5b6lVQbQ&m=myIJaLgovNwHx7SqCW_p1sQx2YvRlmVbShFnuZEFqxY&s=0Y32d-tVCGOq6Vu_VAGgVgbEplhfvOSJ5evHbXTtyBI&e= master
+> > > head:   1bd831d68d5521c01d783af0275439ac645f5027
+> > > commit: e7acbba0d6f7a24c8d24280089030eb9a0eb7522 [6618/6917] psi: introduce psi monitor
+> > > reproduce:
+> > >         # apt-get install sparse
+> > >         git checkout e7acbba0d6f7a24c8d24280089030eb9a0eb7522
+> > >         make ARCH=x86_64 allmodconfig
+> > >         make C=1 CF='-fdiagnostic-prefix -D__CHECK_ENDIAN__'
+> > > 
+> > > All errors (new ones prefixed by >>):
+> > > 
+> > >    kernel/sched/psi.c:151:6: sparse: warning: symbol 'psi_enable' was not declared. Should it be static?
+> > > >> kernel/sched/psi.c:1230:13: sparse: error: incompatible types in comparison expression (different address spaces)
+> > >    kernel/sched/psi.c:774:30: sparse: warning: dereference of noderef expression
+> > > 
+> > > vim +1230 kernel/sched/psi.c
+> > > 
+> > >   1222	
+> > >   1223	static __poll_t psi_fop_poll(struct file *file, poll_table *wait)
+> > >   1224	{
+> > >   1225		struct seq_file *seq = file->private_data;
+> > >   1226		struct psi_trigger *t;
+> > >   1227		__poll_t ret;
+> > >   1228	
+> > >   1229		rcu_read_lock();
+> > > > 1230		t = rcu_dereference(seq->private);
 
-True, but I think x86_64, x86, arm64, and arm will all be "normal".
-power may be that way too, but they always surprise me. :)
+So the problem here is the opposite of what we think it is -- seq->private
+is not marked as being RCU protected.
 
-Anyway, series looks good, but since nothing uses _memset(), it might
-make sense to leave it out and put all the arch-enabling into a single
-patch to cover the 4 archs above, in an effort to make the series even
-smaller.
+> If you wish to opt into this checking, you need to mark the pointer
+> definitions (in this case ->private) with __rcu.  It may also
+> be necessary to mark function parameters as well, as is done for
+> radix_tree_iter_resume().  If you do not wish to use this checking,
+> you should ignore these sparse warnings.
 
--- 
-Kees Cook
+radix_tree_iter_resume is, happily, gone from my xarray-conv tree.
+__radix_tree_lookup, __radix_tree_replace, radix_tree_iter_replace and
+radix_tree_iter_init are still present, but hopefully not for too much
+longer.  For example, __radix_tree_replace() is (now) called only from
+idr_replace(), and there are only 12 remaining callers of idr_replace().
 
