@@ -2,262 +2,207 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4EF9EC282C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 22:14:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1AC4CC282C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 22:15:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EEC3B222C7
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 22:14:20 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="pypCt11B"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EEC3B222C7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id C8301222C7
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 22:15:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8301222C7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=rjwysocki.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 72F728E0002; Tue, 12 Feb 2019 17:14:20 -0500 (EST)
+	id 66B9E8E0002; Tue, 12 Feb 2019 17:15:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6DE678E0001; Tue, 12 Feb 2019 17:14:20 -0500 (EST)
+	id 61A6A8E0001; Tue, 12 Feb 2019 17:15:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5A7108E0002; Tue, 12 Feb 2019 17:14:20 -0500 (EST)
+	id 5318C8E0002; Tue, 12 Feb 2019 17:15:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F6AD8E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 17:14:20 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id 35so294100qty.12
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 14:14:20 -0800 (PST)
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D818F8E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 17:15:39 -0500 (EST)
+Received: by mail-lf1-f70.google.com with SMTP id t198so37042lff.9
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 14:15:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references;
-        bh=tx8yofQ7GDtc8w7ZnLR4b4Phwy1fVbZgK2ukQvv27ZE=;
-        b=j24yT0AVKbLvCR2NytTD+QIWjND2yi5m71d/ffLuU+ViH9/XM+89IqW/Qn2pgDI4Kf
-         81bhDw0kAVul5QfdYb9eaSjHiMkPeA+EVTHviyEx6hmehoY0gfJEJnnz79GQkHB9EUlU
-         2WI0t2lzbjXWlcoZkqf7pFfGAZjibusH8JFJ7JnfkTpl8n0KLWDuL0SBwXZHBtI1/MAP
-         cU2eWl2Xc3DB0/2J/uZNhRwt+6kXD8BI3QEEVMXgCGq0WZro0J/t2ORS4crzRD0pBPdT
-         7OMY7kyoi76UGMDUFGSgyIAbwp8CPEwaF2p42xRCXG4tsqoY3Izm6Z/3uKYgwnCVcWqW
-         QNyA==
-X-Gm-Message-State: AHQUAubspV5i1cHKlNJven2Q3fv1MqEIlBqE8zcuFAIk4oIwXXy4q/7P
-	uMrpfBbewy+toAQMxBA53wLbCVRw5OE2Vv4TI2SuttzhUhPb5D6rSx9mOlQzqxha2H6QwSr9Rrb
-	T4H7hK799TX4GbHBjXqxxKcF1550gv1GpVzDLH0TyM3K+orfund4RbkCOT8A+j/ZdBg==
-X-Received: by 2002:a0c:bb98:: with SMTP id i24mr4564550qvg.129.1550009659899;
-        Tue, 12 Feb 2019 14:14:19 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZq3Kpy3fQkosdiFe/a4V3FUlxBGvQyNVcBRruAkZs1ybrqmjizirZou45O48z5QkfBotZV
-X-Received: by 2002:a0c:bb98:: with SMTP id i24mr4564507qvg.129.1550009659094;
-        Tue, 12 Feb 2019 14:14:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550009659; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=M+b8SOJU1+cl5JPt766rHl72qOEi8rJKWmCs5irLPJ8=;
+        b=I/lPP1S2MxyYAgCkF0EdmjjAarFv5/E6PxHLCp56HXj1QqoUzPr3iCnEa4aRSzsSIr
+         VSXaA25v5UMF5+8C/QcaDf39LG7iX6a/x0GIubtE9eCWVINVZoQu6H5W9cCDO1Re8YPB
+         d3p1KenRkrN0SNIyVknHUJrnEJswdnv7zqCvSGaJBMmXCmzBLB1pGOCdcpWqWeFP9GUG
+         x03dM1k7oyqw4PVLzEbRyShYlr04uAK8wfwCnB2l46IbqZMhIDQNlI2PhZ+ayudgSOAo
+         Qg9ONhNXii8QsCqiYIFWO9ziY3zURwzW5Uf+GWK/OzXR1rDBDDAOu0rx2lThf9gECzn1
+         JTOg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjw@rjwysocki.net designates 79.96.170.134 as permitted sender) smtp.mailfrom=rjw@rjwysocki.net
+X-Gm-Message-State: AHQUAublrJpgr7OqiexHQORaSkvcidey6J0IIMzpacv+lTXbMilUCzEG
+	ZT0Drzd5sznQVCNfVgsGUSWODogml9LPaj018WTpeINxNGtB865YxNOHcmTc4WnCxnLSQk5Z/3s
+	GEGgy9ULqUnryNF57sQlnoo/jBAKMoOnfR3Arrgh6GMhfYAnsDDMy7bWyjGHHYEEpnA==
+X-Received: by 2002:ac2:54b4:: with SMTP id w20mr3997787lfk.24.1550009739288;
+        Tue, 12 Feb 2019 14:15:39 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib+wqJiNrEXI722NkheasO4M2sJZj6KATTuepdKOMaGHvmIPwsj/ORQZmV1Y64NxPt2hnmi
+X-Received: by 2002:ac2:54b4:: with SMTP id w20mr3997718lfk.24.1550009737548;
+        Tue, 12 Feb 2019 14:15:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550009737; cv=none;
         d=google.com; s=arc-20160816;
-        b=Dg78diKDAlm7XP/+A5i8gx/AbmMsizZE5qqkjgO4IAPZ/ys+MS0SzMDyOm3XSsY9OR
-         c6G77f9Gar5t90vTrM9uzchaKlMiGdjnUsNL+FRK/7LDqGAUqPIhX30nsyqhuvRRXnmJ
-         xiG7k8dBS4krkKowPvmbtjeiTI2866Yqngppw0hY9mkL8t3xLA3RcPwZRkZuDokM6+lp
-         mrr4yqDUnbju5WpbvNrMGlNK+nYQlg1hHIkOhK+UtMFjHgJJigKvpVLDc1hf73q8+5gb
-         hewRSoG8PA51/ELHEKHDFuB2LXKoDXqqxZrQmDwbR4D2XCn0xY/YLvok3g2okMTL85Cc
-         tfIw==
+        b=0aXlN0Oca5RzSjT00bGJ2w0B8ZVDRMtK+DwKVGGbyZiyre8ZGWbiVSZW3+YNm7G/C8
+         0iRVnL+HNmt4vyG8LupnNCAC55DWhgi+6pP1wdN2mTLgmH59q2/qeHhbUGcKFGG0HTjN
+         S/esFSOqoaIcZ/dMX93Vejugxp6QwLVXo+XvLhAHmj+qz2ApcAvuTND+YrJyBSbuF0b1
+         LXPAVtIJdHT7ulilYBplGOKwmFJNaQyoXjV/SC73hr0SGtKdTPJKgXGQirGDR26pywOE
+         N0IHq+XmzFHIJ4GYgyeGBg6LKcYYQFE0tmzAqY0Mxo8RnVBAtuJaNdO0AKKT9JWx3cFh
+         i3Jg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from
-         :dkim-signature;
-        bh=tx8yofQ7GDtc8w7ZnLR4b4Phwy1fVbZgK2ukQvv27ZE=;
-        b=d1n1DLkNAHysFhAMiWVPn7w7O/kEQsD9Gxx2GfmgAWNqSVlUTp6ILHrs7ck0lHN+ZW
-         gkZNvSalI8kykzYGlMgVWRbZe33dIGDit8nNi7ArzJj1hg6F/WyFABQucFwXvDBuu5vE
-         ZTB7ssINIC9Bkci58rAQsmYmaTXNbxSJKsYHxKPkfiTaappQT/7xSkRCwBz5j/WEjyIt
-         IBR+WxD8VGSe6WyfQB7K3DpGaGUgsGm1tb/rAe/B3UoGzlIEXFYmGnoR0T4gD25Icr5P
-         n6ekLCWc1ySyDNK2jwg/075PKYFVounvBCZqiOlclTxlwXnPDIG8t7svSFK4x4tI28Xh
-         DszQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=M+b8SOJU1+cl5JPt766rHl72qOEi8rJKWmCs5irLPJ8=;
+        b=lW0bsw307dt7bfvp5Jm1zomgrsFz9P6V0AXEsG6SksQLkhRx7htyRZU1VoUR6UrZjY
+         tpQwOUt3bAbOZjCVUIRuj5fUrOV+JqFYrKQeNISv+rZHvUj8qnH5sAKCn1FPdqSOJmZK
+         hTLAtplrLZWAVZKhXB4SFpUvhGM7shQrbI1+ESRUIbCyKO4YU6Ixawq4H6/Ys00JvMX+
+         NoXKn5g8qqrb2CalSZpmFZjyEuNIW7ehUuHCABIOB49t8xRShPOgKTO4yUQK4loE6TEt
+         TcLx4811t1sNAiJD6TA/+8WHtc3JbYQSIToZiIGNda2wb/hz0xH2F9J0VcopuUn7pHZR
+         vaEg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=pypCt11B;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id t126si5446183qkc.5.2019.02.12.14.14.17
+       spf=pass (google.com: domain of rjw@rjwysocki.net designates 79.96.170.134 as permitted sender) smtp.mailfrom=rjw@rjwysocki.net
+Received: from cloudserver094114.home.pl (cloudserver094114.home.pl. [79.96.170.134])
+        by mx.google.com with ESMTPS id q26-v6si14336132lji.163.2019.02.12.14.15.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 14:14:19 -0800 (PST)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 12 Feb 2019 14:15:37 -0800 (PST)
+Received-SPF: pass (google.com: domain of rjw@rjwysocki.net designates 79.96.170.134 as permitted sender) client-ip=79.96.170.134;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=pypCt11B;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1CM3hMC027722;
-	Tue, 12 Feb 2019 22:14:11 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
- subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
- bh=tx8yofQ7GDtc8w7ZnLR4b4Phwy1fVbZgK2ukQvv27ZE=;
- b=pypCt11B+jkaTl4hUp/50uGx/FaaXb5YnO7F5AsPLoiqyyf24wvyQQ9nw+Rdj4p30g8R
- D723oZVd7WlUGccYEhjn4V3F8rRryYD1UbTZNasaa0SowSM5POQHDgWplkRjp3kLDNcF
- U6HxiQup+0IFZ68VQcUzQFS2DXzEYKjS5SRHV60gpP07AFSpNog0U7PQ4aZhHeNf6l09
- bzIHIin9qLV5OWOkCiDP8t1oyaLlSx6IdZ4C94uSkmZd73nveSfXEyOqWbhrnN1Gw9Cr
- Ewbwjhhvykq5+k7qTDf3sT9wlrIeFrLFvGWML9jS6/i2EOoYE9vYt5blib6WCr8gtZ6L 9Q== 
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2130.oracle.com with ESMTP id 2qhrekepuk-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 12 Feb 2019 22:14:11 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x1CME9Oj026407
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 12 Feb 2019 22:14:09 GMT
-Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1CME7mS016086;
-	Tue, 12 Feb 2019 22:14:07 GMT
-Received: from monkey.oracle.com (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 12 Feb 2019 14:14:07 -0800
-From: Mike Kravetz <mike.kravetz@oracle.com>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Michal Hocko <mhocko@kernel.org>,
-        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-        Andrea Arcangeli <aarcange@redhat.com>,
-        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-        Mel Gorman <mgorman@techsingularity.net>,
-        Davidlohr Bueso <dave@stgolabs.net>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Mike Kravetz <mike.kravetz@oracle.com>, stable@vger.kernel.org
-Subject: [PATCH] huegtlbfs: fix races and page leaks during migration
-Date: Tue, 12 Feb 2019 14:14:00 -0800
-Message-Id: <20190212221400.3512-1-mike.kravetz@oracle.com>
-X-Mailer: git-send-email 2.17.2
-In-Reply-To: <803d2349-8911-0b47-bc5b-4f2c6cc3f928@oracle.com>
-References: <803d2349-8911-0b47-bc5b-4f2c6cc3f928@oracle.com>
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9165 signatures=668683
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=717 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902120152
+       spf=pass (google.com: domain of rjw@rjwysocki.net designates 79.96.170.134 as permitted sender) smtp.mailfrom=rjw@rjwysocki.net
+Received: from 79.184.254.36.ipv4.supernova.orange.pl (79.184.254.36) (HELO aspire.rjw.lan)
+ by serwer1319399.home.pl (79.96.170.134) with SMTP (IdeaSmtpServer 0.83.183)
+ id 1561d8aff315dca9; Tue, 12 Feb 2019 23:15:36 +0100
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+To: James Morse <james.morse@arm.com>
+Cc: "Rafael J. Wysocki" <rafael@kernel.org>, Borislav Petkov <bp@alien8.de>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, kvmarm@lists.cs.columbia.edu, Linux ARM <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Marc Zyngier <marc.zyngier@arm.com>, Christoffer Dall <christoffer.dall@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Len Brown <lenb@kernel.org>, Tony Luck <tony.luck@intel.com>, Dongjiu Geng <gengdongjiu@huawei.com>, Xie XiuQi <xiexiuqi@huawei.com>
+Subject: Re: [PATCH v8 00/26] APEI in_nmi() rework and SDEI wire-up
+Date: Tue, 12 Feb 2019 23:14:18 +0100
+Message-ID: <2507221.Jg8xd6amJ7@aspire.rjw.lan>
+In-Reply-To: <f561e55c-3560-6a5a-bd23-5d687227e257@arm.com>
+References: <20190129184902.102850-1-james.morse@arm.com> <CAJZ5v0ibUO7F=+_GBbhEz4nc0jtC=UaK+cOcLCBrXd2pfc0iLg@mail.gmail.com> <f561e55c-3560-6a5a-bd23-5d687227e257@arm.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hugetlb pages should only be migrated if they are 'active'.  The routines
-set/clear_page_huge_active() modify the active state of hugetlb pages.
-When a new hugetlb page is allocated at fault time, set_page_huge_active
-is called before the page is locked.  Therefore, another thread could
-race and migrate the page while it is being added to page table by the
-fault code.  This race is somewhat hard to trigger, but can be seen by
-strategically adding udelay to simulate worst case scheduling behavior.
-Depending on 'how' the code races, various BUG()s could be triggered.
+On Monday, February 11, 2019 7:35:03 PM CET James Morse wrote:
+> Hi Rafael,
+> 
+> On 11/02/2019 11:05, Rafael J. Wysocki wrote:
+> > On Fri, Feb 8, 2019 at 3:13 PM James Morse <james.morse@arm.com> wrote:
+> >> On 08/02/2019 11:40, Rafael J. Wysocki wrote:
+> >>> On Tuesday, January 29, 2019 7:48:36 PM CET James Morse wrote:
+> >>>> This series aims to wire-up arm64's fancy new software-NMI notifications
+> >>>> for firmware-first RAS. These need to use the estatus-queue, which is
+> >>>> also needed for notifications via emulated-SError. All of these
+> >>>> things take the 'in_nmi()' path through ghes_copy_tofrom_phys(), and
+> >>>> so will deadlock if they can interact, which they might.
+> >>
+> >>>> Known issues:
+> >>>>  * ghes_copy_tofrom_phys() already takes a lock in NMI context, this
+> >>>>    series moves that around, and makes sure we never try to take the
+> >>>>    same lock from different NMIlike notifications. Since the switch to
+> >>>>    queued spinlocks it looks like the kernel can only be 4 context's
+> >>>>    deep in spinlock, which arm64 could exceed as it doesn't have a
+> >>>>    single architected NMI. This would be fixed by dropping back to
+> >>>>    test-and-set when the nesting gets too deep:
+> >>>>  lore.kernel.org/r/1548215351-18896-1-git-send-email-longman@redhat.com
+> >>>>
+> >>>> * Taking an NMI from a KVM guest on arm64 with VHE leaves HCR_EL2.TGE
+> >>>>   clear, meaning AT and TLBI point at the guest, and PAN/UAO are squiffy.
+> >>>>   Only TLBI matters for APEI, and this is fixed by Julien's patch:
+> >>>>  http://lore.kernel.org/r/1548084825-8803-2-git-send-email-julien.thierry@arm.com
+> >>>>
+> >>>> * Linux ignores the physical address mask, meaning it doesn't call
+> >>>>   memory_failure() on all the affected pages if firmware or hypervisor
+> >>>>   believe in a different page size. Easy to hit on arm64, (easy to fix too,
+> >>>>   it just conflicts with this series)
+> >>
+> >>
+> >>>> James Morse (26):
+> >>>>   ACPI / APEI: Don't wait to serialise with oops messages when
+> >>>>     panic()ing
+> >>>>   ACPI / APEI: Remove silent flag from ghes_read_estatus()
+> >>>>   ACPI / APEI: Switch estatus pool to use vmalloc memory
+> >>>>   ACPI / APEI: Make hest.c manage the estatus memory pool
+> >>>>   ACPI / APEI: Make estatus pool allocation a static size
+> >>>>   ACPI / APEI: Don't store CPER records physical address in struct ghes
+> >>>>   ACPI / APEI: Remove spurious GHES_TO_CLEAR check
+> >>>>   ACPI / APEI: Don't update struct ghes' flags in read/clear estatus
+> >>>>   ACPI / APEI: Generalise the estatus queue's notify code
+> >>>>   ACPI / APEI: Don't allow ghes_ack_error() to mask earlier errors
+> >>>>   ACPI / APEI: Move NOTIFY_SEA between the estatus-queue and NOTIFY_NMI
+> >>>>   ACPI / APEI: Switch NOTIFY_SEA to use the estatus queue
+> >>>>   KVM: arm/arm64: Add kvm_ras.h to collect kvm specific RAS plumbing
+> >>>>   arm64: KVM/mm: Move SEA handling behind a single 'claim' interface
+> >>>>   ACPI / APEI: Move locking to the notification helper
+> >>>>   ACPI / APEI: Let the notification helper specify the fixmap slot
+> >>>>   ACPI / APEI: Pass ghes and estatus separately to avoid a later copy
+> >>>>   ACPI / APEI: Make GHES estatus header validation more user friendly
+> >>>>   ACPI / APEI: Split ghes_read_estatus() to allow a peek at the CPER
+> >>>>     length
+> >>>>   ACPI / APEI: Only use queued estatus entry during
+> >>>>     in_nmi_queue_one_entry()
+> >>>>   ACPI / APEI: Use separate fixmap pages for arm64 NMI-like
+> >>>>     notifications
+> >>>>   mm/memory-failure: Add memory_failure_queue_kick()
+> >>>>   ACPI / APEI: Kick the memory_failure() queue for synchronous errors
+> >>>>   arm64: acpi: Make apei_claim_sea() synchronise with APEI's irq work
+> >>>>   firmware: arm_sdei: Add ACPI GHES registration helper
+> >>>>   ACPI / APEI: Add support for the SDEI GHES Notification type
+> >>
+> >>
+> >>> I can apply patches in this series up to and including patch [21/26].
+> >>>
+> >>> Do you want me to do that?
+> >>
+> >> 9-12, 17-19, 21 are missing any review/ack tags, so I wouldn't ask, but as
+> >> you're offering, yes please!
+> >>
+> >>
+> >>> Patch [22/26] requires an ACK from mm people.
+> >>>
+> >>> Patch [23/26] has a problem that randconfig can generate a configuration
+> >>> in which memory_failure_queue_kick() is not present, so it is necessary
+> >>> to add a CONFIG_MEMORY_FAILURE dependency somewhere for things to
+> >>> work (or define an empty stub for that function in case the symbol is
+> >>> not set).
+> >>
+> >> Damn-it! Thanks, I was just trying to work that report out...
+> >>
+> >>
+> >>> If patches [24-26/26] don't depend on the previous two, I can try to
+> >>> apply them either, so please let me know.
+> >>
+> >> 22-24 depend on each other. Merging 24 without the other two is no-improvement,
+> >> so I'd like them to be kept together.
+> >>
+> >> 25-26 don't depend on 22-24, but came later so that they weren't affected by the
+> >> same race.
+> >> (note to self: describe that in the cover letter next time.)
+> >>
+> >>
+> >> If I apply the tag's and Boris' changes and post a tested v9 as 1-21, 25-26, is
+> >> that easier, or does it cause extra work?
+> > 
+> > Actually, I went ahead and applied them, since I had the 1-21 ready anyway.
+> 
+> > I applied the Boris' fixups manually which led to a bit of rebasing,
+> > so please check my linux-next branch.
+> 
+> Looks okay to me, and I ran your branch through the POLL/SEA/SDEI tests I've
+> been doing for each version so far.
 
-To address this issue, simply delay the set_page_huge_active call until
-after the page is successfully added to the page table.
-
-Hugetlb pages can also be leaked at migration time if the pages are
-associated with a file in an explicitly mounted hugetlbfs filesystem.
-For example, a test program which hole punches, faults and migrates
-pages in such a file (1G in size) will eventually fail because it
-can not allocate a page.  Reported counts and usage at time of failure:
-
-node0
-537     free_hugepages
-1024    nr_hugepages
-0       surplus_hugepages
-node1
-1000    free_hugepages
-1024    nr_hugepages
-0       surplus_hugepages
-
-Filesystem                         Size  Used Avail Use% Mounted on
-nodev                              4.0G  4.0G     0 100% /var/opt/hugepool
-
-Note that the filesystem shows 4G of pages used, while actual usage is
-511 pages (just under 1G).  Failed trying to allocate page 512.
-
-If a hugetlb page is associated with an explicitly mounted filesystem,
-this information in contained in the page_private field.  At migration
-time, this information is not preserved.  To fix, simply transfer
-page_private from old to new page at migration time if necessary.
-
-Cc: <stable@vger.kernel.org>
-Fixes: bcc54222309c ("mm: hugetlb: introduce page_huge_active")
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- fs/hugetlbfs/inode.c | 12 ++++++++++++
- mm/hugetlb.c         |  9 ++++++---
- 2 files changed, 18 insertions(+), 3 deletions(-)
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 32920a10100e..a7fa037b876b 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -859,6 +859,18 @@ static int hugetlbfs_migrate_page(struct address_space *mapping,
- 	rc = migrate_huge_page_move_mapping(mapping, newpage, page);
- 	if (rc != MIGRATEPAGE_SUCCESS)
- 		return rc;
-+
-+	/*
-+	 * page_private is subpool pointer in hugetlb pages.  Transfer to
-+	 * new page.  PagePrivate is not associated with page_private for
-+	 * hugetlb pages and can not be set here as only page_huge_active
-+	 * pages can be migrated.
-+	 */
-+	if (page_private(page)) {
-+		set_page_private(newpage, page_private(page));
-+		set_page_private(page, 0);
-+	}
-+
- 	if (mode != MIGRATE_SYNC_NO_COPY)
- 		migrate_page_copy(newpage, page);
- 	else
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index a80832487981..f859e319e3eb 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3625,7 +3625,6 @@ static vm_fault_t hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
- 	copy_user_huge_page(new_page, old_page, address, vma,
- 			    pages_per_huge_page(h));
- 	__SetPageUptodate(new_page);
--	set_page_huge_active(new_page);
- 
- 	mmun_start = haddr;
- 	mmun_end = mmun_start + huge_page_size(h);
-@@ -3647,6 +3646,7 @@ static vm_fault_t hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
- 				make_huge_pte(vma, new_page, 1));
- 		page_remove_rmap(old_page, true);
- 		hugepage_add_new_anon_rmap(new_page, vma, haddr);
-+		set_page_huge_active(new_page);
- 		/* Make the old page be freed below */
- 		new_page = old_page;
- 	}
-@@ -3792,7 +3792,6 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
- 		}
- 		clear_huge_page(page, address, pages_per_huge_page(h));
- 		__SetPageUptodate(page);
--		set_page_huge_active(page);
- 
- 		if (vma->vm_flags & VM_MAYSHARE) {
- 			int err = huge_add_to_page_cache(page, mapping, idx);
-@@ -3863,6 +3862,10 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
- 	}
- 
- 	spin_unlock(ptl);
-+
-+	/* May already be set if not newly allocated page */
-+	set_page_huge_active(page);
-+
- 	unlock_page(page);
- out:
- 	return ret;
-@@ -4097,7 +4100,6 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
- 	 * the set_pte_at() write.
- 	 */
- 	__SetPageUptodate(page);
--	set_page_huge_active(page);
- 
- 	mapping = dst_vma->vm_file->f_mapping;
- 	idx = vma_hugecache_offset(h, dst_vma, dst_addr);
-@@ -4165,6 +4167,7 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
- 	update_mmu_cache(dst_vma, dst_addr, dst_pte);
- 
- 	spin_unlock(ptl);
-+	set_page_huge_active(page);
- 	if (vm_shared)
- 		unlock_page(page);
- 	ret = 0;
--- 
-2.17.2
+Thanks for the confirmation!
 
