@@ -2,178 +2,234 @@ Return-Path: <SRS0=CIMh=QT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 851FAC169C4
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 00:35:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AE28BC169C4
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 00:37:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4ADDE206A3
-	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 00:35:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4ADDE206A3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 591CE206A3
+	for <linux-mm@archiver.kernel.org>; Tue, 12 Feb 2019 00:37:12 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qPdl+JTk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 591CE206A3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CD1B48E01A0; Mon, 11 Feb 2019 19:35:13 -0500 (EST)
+	id E7F598E01A1; Mon, 11 Feb 2019 19:37:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C818F8E019C; Mon, 11 Feb 2019 19:35:13 -0500 (EST)
+	id E2C868E019C; Mon, 11 Feb 2019 19:37:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B24228E01A0; Mon, 11 Feb 2019 19:35:13 -0500 (EST)
+	id CF6848E01A1; Mon, 11 Feb 2019 19:37:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E1448E019C
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 19:35:13 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id o62so654712pga.16
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 16:35:13 -0800 (PST)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AEF28E019C
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2019 19:37:11 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id m4so306575wrr.4
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2019 16:37:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:dlp-product
-         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
-        bh=d/bbpNybwqlafvtu1wi2MT1eS0FvpwuJQfeJ2QoYO2I=;
-        b=DkglFI60iH10ZWMj0SJtehRRMp/taoRJ6ia7AbkDX52cg5HdLgmqgNYbuOSHLOd3Mv
-         vqDMzsH7D64rYb90VVV+GD2+zMvm3+pOUpb4bREm+mssCyvbbfkVy48frKAHnWnIh55i
-         9WE1y38n9B0JG1WNNV7l3ZDF31g+W+m0R/YTLuCPhOxT2huUyiVGa2wP/vkiyfYenxDK
-         MHTjTV3dKPVdleDkh2UwRpAQtBYgwcUxOXLtHzzMVCjxOFb5ye3JtQIGb7YRwRb7g6cx
-         Vddy45X7f0564c0oyyVo2vjQz2+1IJYEWQX1lG7s0jm7GOAdQaaAWaBtnJ9L2QCMzCKf
-         b2Yg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAubTFjLv3zAVn7lKC1EPZ9YxlcvBggX2/JCtDAYCXY7xL0yDx9w6
-	cv34EuicgMl/3Vx49HSZcSj9oQymHEZgpBGSKWW3eX1CoiQ/ELSNbheU8iUXXaI7pszVhVRxLQ1
-	vCbTSphuEET6ei6GkzxQacJB9wP0bpAOKn80DY3JLGL6sbtC4snaO/IU9/DY14DQRLw==
-X-Received: by 2002:a62:190e:: with SMTP id 14mr1110139pfz.70.1549931713128;
-        Mon, 11 Feb 2019 16:35:13 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbhXkPPEM1xcgs2th1I9cHA4NCVktq5hkBbTAkBz6TzNsQF5xHFgs80scsNERZlFcM5tn4x
-X-Received: by 2002:a62:190e:: with SMTP id 14mr1110094pfz.70.1549931712431;
-        Mon, 11 Feb 2019 16:35:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1549931712; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=UYvbv4YryySKlDRppCsjYcorfRb6U7/oOzwS5dfq0Qc=;
+        b=oc2P0Hk+j/eD5GTT4ZIXrJnNBUZVS5BHK0DABcnK6kKHCOT18pWb0JW04xe3QzQq+N
+         rR/YuU4RCOh32yC4U3LCI9tdGIkM80uYwfplK8HvAZE8vv7Fp6TIRLah2yRjZJBwqP9Y
+         qvNtRpzDD+kbouMsotVPNJZpWgD9wm1W0UwYExD3tbEPNc6hX1gpEny+OmjIfT7JthBo
+         OBMYEURj5jpakzLSAlAtT93fRdCT7YjrG77dStMsEiTC59twXFFQRS3tu6bGIMK5QwWk
+         bw7niM58tQaCDyf+8OmAUzMQ+nSzGW0ol/SbXfeHcTvOW1du5s+DvEC1guWRS7mMpSeg
+         FF3g==
+X-Gm-Message-State: AHQUAuZz+eWM31r6+4D1/Z+CQNX4SAgceC2PpHKU1vpf2JjEZmBcR4TG
+	PwngehOx2OuLMsBGj5zNvMUAAKA0ixmsgBIAipkxOl7LeAvEZZH3qy1gkmlyje7i5vJHHGsBgEn
+	Kx3WypBkS3GmAUU8Ch6B0txO9Kalqw6u5NRYFHxT1q2Tt06hzZbjfi14G3DolJ8WaV/DIEp8Yyt
+	lqvxqhbvOy/13iu4ZT/91fBFpuKBiTiwspxzDNrjcSSYuScXUnsuRIbfAOkB3z+q1kIMnBtx5UF
+	vsJQhdbLnjk/PXpgubN/qqU/Qqj/Jm+uePrKkia2FBhJ7dDUcODXZH5bl70vKFt+CLy9PW2N9If
+	rD8e2j5IoMlp+4cD7p5DVHrBMnCCDYFwWdgpN8VqihJpcjK90Bnl3VdPeHg/HY4UoCQ8vPEfm6M
+	G
+X-Received: by 2002:a7b:c945:: with SMTP id i5mr654140wml.33.1549931830967;
+        Mon, 11 Feb 2019 16:37:10 -0800 (PST)
+X-Received: by 2002:a7b:c945:: with SMTP id i5mr654079wml.33.1549931830052;
+        Mon, 11 Feb 2019 16:37:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1549931830; cv=none;
         d=google.com; s=arc-20160816;
-        b=m7Hx95akarz7sm8+5nC5eqPo+KTWZ/gTO7hCl0q72vArno6F95HlLJtwfdN3SZU5gd
-         fmCxn51CVu+OTo0QjLj191Cm2j9jgVr0ecdM5B+U4YJMgOHLQmTubqa0kAfYTrXsd62v
-         5Kgf2mbyT+QPn4Vf8W4m8JSyMNVgFkhVdEn0PLaoQqhvJSDj7TmCFNlmvPHAAtGHiH1o
-         0izdqxogNwe/ZNJPHDmKcczBq3bxsHjg3ZCnlzUsEJpsbqPx0yrark5xfeGnkHA4OCZO
-         5AA7ZPWHQ27Pb+cSOsgfxPS174dkYSx7+gR3XUypGjL6KYe+hKPpquUI8Ov6jSfFvFPl
-         53+w==
+        b=jXdRiU66Wny7BBv1NkOpD0NZS+Rk2TnedWVt4jU0xeIA31jV+/+8eqvkNe0/xVXYF7
+         /NEa91VREdDtzEx+CcZBe1voKR3NaOV3L3CL24oTKgwmJmUfmWDIEDdlWCnHiNlWxtrF
+         pGkLCEX5WVu6NMLbvY8heL+0tq20cLxLjuqlnfF4e/KopYU3l5d95fj0grpqxrvvwYgh
+         cNWyib6t2Wa+IYBINl3Vbz9ZWyr6ejO+jkddDctPeyV43qW5eyajxf3LOz1iNM9HStHH
+         JGf8dnb8knY5jxBlizpo22KUaQEarUr57q690QXidGkgA2DR6fpZJ305uaECE0Bn2+ev
+         TaJw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
-         :dlp-product:content-language:accept-language:in-reply-to:references
-         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
-        bh=d/bbpNybwqlafvtu1wi2MT1eS0FvpwuJQfeJ2QoYO2I=;
-        b=vGn4t91H8qDWjSFZn+kcen6OzTYIJlY3kOkOf8iFBdKeOavlkZ0nFe9YQEqJ1GClyc
-         w/TTCFSZfPZqPJ3BCJSblFPtMHeG0tr8fDrmaoJrHQSApeKBXfVSTo40Cx+DbRLVsPVe
-         g9PMeaOLo26NyPCce7U4UZ9GIaOwu6F5hIQrT2kdTQMURPWcKaQOr9+MehmoEdMjaxx/
-         L3uXAfa0uxvcJh7ZfIR6NRHmSyqTNTqVoyIW4lKpTxSwVpcjsbp1rQmqTtTkTyW+irYr
-         Q3asI5APkD+H8eRiaws+EeoO8f+FsLOR7+Nsp0zMERJ85frU+iFdCuefgXje62L/JDnl
-         dZ5Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=UYvbv4YryySKlDRppCsjYcorfRb6U7/oOzwS5dfq0Qc=;
+        b=fr/KBUiaM1dwvlpkdUUEd9KBMA4jtEMfM9RGQbBA80mTmmpffv+w5Gw2a8imVDM/fv
+         BkfHX7l4YJcSvydS8fE6zrvLjjNBUDwvrLQb11ygf+0DVVVM3HTkZM3yrJPtdtyTq5tZ
+         avSzwbwFjMIXkZ4DQLY9rbK35PSvCn3hGjAh2EkNYcGsjwSfT4yuyho+YgnRhRXUZRWi
+         KtfMxxNtU7AJsU4+C18KvCjqi/NE77gSM72laa1/CIr0ebF+MNC6mewTNBsxFC34PPZN
+         IgGJ40nyX2ufLUj6uXEx+98/foa3P3s5TjxPurg3fl7Bp3RlgiLk7YA3S6ottj6zWjyp
+         kkgQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id g11si11559186pgn.32.2019.02.11.16.35.12
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qPdl+JTk;
+       spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l7sor577277wmg.2.2019.02.11.16.37.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Feb 2019 16:35:12 -0800 (PST)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        (Google Transport Security);
+        Mon, 11 Feb 2019 16:37:10 -0800 (PST)
+Received-SPF: pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga006.fm.intel.com ([10.253.24.20])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Feb 2019 16:35:11 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,360,1544515200"; 
-   d="scan'208";a="318189983"
-Received: from fmsmsx105.amr.corp.intel.com ([10.18.124.203])
-  by fmsmga006.fm.intel.com with ESMTP; 11 Feb 2019 16:35:11 -0800
-Received: from fmsmsx157.amr.corp.intel.com (10.18.116.73) by
- FMSMSX105.amr.corp.intel.com (10.18.124.203) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Mon, 11 Feb 2019 16:35:11 -0800
-Received: from crsmsx103.amr.corp.intel.com (172.18.63.31) by
- FMSMSX157.amr.corp.intel.com (10.18.116.73) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Mon, 11 Feb 2019 16:35:11 -0800
-Received: from crsmsx101.amr.corp.intel.com ([169.254.1.57]) by
- CRSMSX103.amr.corp.intel.com ([169.254.4.180]) with mapi id 14.03.0415.000;
- Mon, 11 Feb 2019 18:35:09 -0600
-From: "Weiny, Ira" <ira.weiny@intel.com>
-To: Davidlohr Bueso <dave@stgolabs.net>, "jgg@ziepe.ca" <jgg@ziepe.ca>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>
-CC: "dledford@redhat.com" <dledford@redhat.com>, "jgg@mellanox.com"
-	<jgg@mellanox.com>, "jack@suse.cz" <jack@suse.cz>, "willy@infradead.org"
-	<willy@infradead.org>, "linux-rdma@vger.kernel.org"
-	<linux-rdma@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: RE: [PATCH 7/6] Documentation/infiniband: update from locked to
- pinned_vm
-Thread-Topic: [PATCH 7/6] Documentation/infiniband: update from locked to
- pinned_vm
-Thread-Index: AQHUvoT55Uy7G877J0q1705BUMR+vKXbWG0A
-Date: Tue, 12 Feb 2019 00:35:08 +0000
-Message-ID: <2807E5FD2F6FDA4886F6618EAC48510E79BCF60F@CRSMSX101.amr.corp.intel.com>
-References: <20190206175920.31082-1-dave@stgolabs.net>
- <20190207013155.lq5diwqc2svyt3t3@linux-r8p5>
-In-Reply-To: <20190207013155.lq5diwqc2svyt3t3@linux-r8p5>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiNzcxNjc5YjktMWQzNC00MTc0LTgwNTAtNzBhOGM3YWZiZTIyIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoienppekg3cjdhNlpkTGlmOVF1c1JWXC9QamsrbjlLQ1ZTWStKcnhXSTR1WE5Jc2FvZ2lHNDUrWkRCTEtcLytQUERcLyJ9
-x-ctpclassification: CTP_NT
-dlp-product: dlpe-windows
-dlp-version: 11.0.400.15
-dlp-reaction: no-action
-x-originating-ip: [172.18.205.10]
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qPdl+JTk;
+       spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=UYvbv4YryySKlDRppCsjYcorfRb6U7/oOzwS5dfq0Qc=;
+        b=qPdl+JTk8Toj2frEOQfqrNevt6tq9hgDSFZL1sviqBoN9pdvYKYetHASLW7ClE4uJt
+         cTOKGCv5RsOvagu2Wci9XS6iKlKsMSErBcyCzP3wDBPbM3U6F8+ftcQZawcHp504sebV
+         LPjj1jNHBrDcPixk7ygX6gkaZi7tgt/r2sK4KpLF9ByJFRKDNsz1xfNdHJeuLdZ9MaFd
+         qulltJV7M7yZCQIUlTvHiSNeV6w1o/OXpaYnFshV3GFMKUxjLSHZnSgv+nTKqwW8uRkL
+         dxeJSKAZ1EMKQhl+pt5BZhEsvwx/j8hXVvjuDqRBPqLN/n0LVZjOuajB9BVXqf4nHxEJ
+         i9MA==
+X-Google-Smtp-Source: AHgI3IagzJXiPV1FFoqDpoUyz3igG3tVJCjdwtXPdbLLTECiHy4brKnj03aSzFJGxzfyRrGapM3OUw==
+X-Received: by 2002:a1c:38c4:: with SMTP id f187mr629238wma.90.1549931829496;
+        Mon, 11 Feb 2019 16:37:09 -0800 (PST)
+Received: from [172.20.11.181] (bba134276.alshamil.net.ae. [217.165.113.164])
+        by smtp.gmail.com with ESMTPSA id v6sm25543197wrd.88.2019.02.11.16.37.07
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Feb 2019 16:37:08 -0800 (PST)
+Subject: Re: [RFC PATCH v4 00/12] hardening: statically allocated protected
+ memory
+To: Kees Cook <keescook@chromium.org>
+Cc: Igor Stoppa <igor.stoppa@huawei.com>,
+ Ahmed Soliman <ahmedsoliman@mena.vt.edu>,
+ linux-integrity <linux-integrity@vger.kernel.org>,
+ Kernel Hardening <kernel-hardening@lists.openwall.com>,
+ Linux-MM <linux-mm@kvack.org>,
+ Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+References: <cover.1549927666.git.igor.stoppa@huawei.com>
+ <CAGXu5j+n3ky2dOe4F+VyneQsM4VJbGPUw+DO55NkxxPhKzKHag@mail.gmail.com>
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Message-ID: <25bf3c63-c54c-f7ea-bec1-996a2c05d997@gmail.com>
+Date: Tue, 12 Feb 2019 02:37:04 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
+In-Reply-To: <CAGXu5j+n3ky2dOe4F+VyneQsM4VJbGPUw+DO55NkxxPhKzKHag@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> -----Original Message-----
-> From: Davidlohr Bueso [mailto:dave@stgolabs.net]
-> Sent: Wednesday, February 06, 2019 5:32 PM
-> To: jgg@ziepe.ca; akpm@linux-foundation.org
-> Cc: dledford@redhat.com; jgg@mellanox.com; jack@suse.cz;
-> willy@infradead.org; Weiny, Ira <ira.weiny@intel.com>; linux-
-> rdma@vger.kernel.org; linux-mm@kvack.org; linux-kernel@vger.kernel.org
-> Subject: [PATCH 7/6] Documentation/infiniband: update from locked to
-> pinned_vm
->=20
-> We are really talking about pinned_vm here.
->=20
-> Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 
-Reviewed-by: Ira Weiny <ira.weiny@intel.com>
 
-> ---
->  Documentation/infiniband/user_verbs.txt | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
->=20
-> diff --git a/Documentation/infiniband/user_verbs.txt
-> b/Documentation/infiniband/user_verbs.txt
-> index df049b9f5b6e..47ebf2f80b2b 100644
-> --- a/Documentation/infiniband/user_verbs.txt
-> +++ b/Documentation/infiniband/user_verbs.txt
-> @@ -46,11 +46,11 @@ Memory pinning
->    I/O targets be kept resident at the same physical address.  The
->    ib_uverbs module manages pinning and unpinning memory regions via
->    get_user_pages() and put_page() calls.  It also accounts for the
-> -  amount of memory pinned in the process's locked_vm, and checks that
-> +  amount of memory pinned in the process's pinned_vm, and checks that
->    unprivileged processes do not exceed their RLIMIT_MEMLOCK limit.
->=20
->    Pages that are pinned multiple times are counted each time they are
-> -  pinned, so the value of locked_vm may be an overestimate of the
-> +  pinned, so the value of pinned_vm may be an overestimate of the
->    number of pages pinned by a process.
->=20
->  /dev files
-> --
-> 2.16.4
+On 12/02/2019 02:09, Kees Cook wrote:
+> On Mon, Feb 11, 2019 at 3:28 PM Igor Stoppa <igor.stoppa@gmail.com> wrote:
+
+[...]
+
+>> Patch-set implementing write-rare memory protection for statically
+>> allocated data.
+> 
+> It seems like this could be expanded in the future to cover dynamic
+> memory too (i.e. just a separate base range in the mm).
+
+Indeed. And part of the code refactoring is also geared in that 
+direction. I am working on that part, but it was agreed that I would 
+first provide this subset of features covering statically allocated 
+memory. So I'm sticking to the plan. But this is roughly 1/3 of the 
+basic infra I have in mind.
+
+>> Its purpose is to keep write protected the kernel data which is seldom
+>> modified, especially if altering it can be exploited during an attack.
+>>
+>> There is no read overhead, however writing requires special operations that
+>> are probably unsuitable for often-changing data.
+>> The use is opt-in, by applying the modifier __wr_after_init to a variable
+>> declaration.
+>>
+>> As the name implies, the write protection kicks in only after init() is
+>> completed; before that moment, the data is modifiable in the usual way.
+>>
+>> Current Limitations:
+>> * supports only data which is allocated statically, at build time.
+>> * supports only x86_64 and arm64;other architectures need to provide own
+>>    backend
+> 
+> It looked like only the memset() needed architecture support. Is there
+> a reason for not being able to implement memset() in terms of an
+> inefficient put_user() loop instead? That would eliminate the need for
+> per-arch support, yes?
+
+So far, yes, however from previous discussion about power arch, I 
+understood this implementation would not be so easy to adapt.
+Lacking other examples where the extra mapping could be used, I did not 
+want to add code without a use case.
+
+Probably both arm and x86 32 bit could do, but I would like to first get 
+to the bitter end with memory protection (the other 2 thirds).
+
+Mostly, I hated having just one arch and I also really wanted to have arm64.
+
+But eventually, yes, a generic put_user() loop could do, provided that 
+there are other arch where the extra mapping to user space would be a 
+good way to limit write access. This last part is what I'm not sure of.
+
+>> - I've added a simple example: the protection of ima_policy_flags
+> 
+> You'd also looked at SELinux too, yes? What other things could be
+> targeted for protection? (It seems we can't yet protect page tables
+> themselves with this...)
+
+Yes, I have. See the "1/3" explanation above. I'm also trying to get 
+away with as small example as possible, to get the basic infra merged.
+SELinux is not going to be a small patch set. I'd rather move to it once 
+at least some of the framework is merged. It might be a good use case 
+for dynamic allocation, if I do not find something smaller.
+But for static write rare, going after IMA was easier, and it is still a 
+good target for protection, imho, as flipping this variable should be 
+sufficient for turning IMA off.
+
+For the page tables, I have in mind a little bit different approach, 
+that I hope to explain better once I get to do the dynamic allocation.
+
+>> - the x86_64 user space address range is double the size of the kernel
+>>    address space, so it's possible to randomize the beginning of the
+>>    mapping of the kernel address space, but on arm64 they have the same
+>>    size, so it's not possible to do the same
+> 
+> Only the wr_rare section needs mapping, though, yes?
+
+Yup, however, once more, I'm not so keen to do what seems as premature 
+optimization, before I have addressed the framework in its entirety, as 
+the dynamic allocation will need similar treatment.
+
+>> - I'm not sure if it's correct, since it doesn't seem to be that common in
+>>    kernel sources, but instead of using #defines for overriding default
+>>    function calls, I'm using "weak" for the default functions.
+> 
+> The tradition is to use #defines for easier readability, but "weak"
+> continues to be a thing. *shrug*
+
+Yes, I wasn't so sure about it, but I kinda liked the fact that, by 
+using "weak", the arch header becomes optional, unless one has to 
+redefine the struct wr_state.
+
+> This will be a nice addition to protect more of the kernel's static
+> data from write-what-where attacks. :)
+
+I hope so :-)
+
+--
+thanks, igor
 
