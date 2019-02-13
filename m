@@ -2,226 +2,234 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 34ED6C282C4
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 02:06:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AA0CDC282C4
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 02:13:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A1228222C1
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 02:06:04 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="AX9yHuMZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A1228222C1
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 59E7D222BB
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 02:13:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 59E7D222BB
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DFB318E0002; Tue, 12 Feb 2019 21:06:03 -0500 (EST)
+	id E6B0F8E0002; Tue, 12 Feb 2019 21:13:23 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DAAF48E0001; Tue, 12 Feb 2019 21:06:03 -0500 (EST)
+	id E1A6E8E0001; Tue, 12 Feb 2019 21:13:23 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C98B68E0002; Tue, 12 Feb 2019 21:06:03 -0500 (EST)
+	id D32258E0002; Tue, 12 Feb 2019 21:13:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A2A0A8E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 21:06:03 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id q15so745906qki.14
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 18:06:03 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 903278E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 21:13:23 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id a10so608799plp.14
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 18:13:23 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=Hzqp/2bM8Ln/7TkhTNsRULjqW8T2TSZbSZrGbanUT7U=;
-        b=bk7P/saee8my9VBSVgF3JUTjD79AR1FG2JZ8FD+3sXT+xvkakj+o0f5b4Sa/jtWa6c
-         1a55IklWoZ+ihbG4RWiFOodxJvSkAvAgDEqirhD+sdZw7UapRYZcPSsKtrM0hhIah9x2
-         XwVSObDDfvFsCTZsAWWvg9EQpFChHXMi+1uleaZ0z6re3FDKPTPIGtNtsszHGa2Bf/Zs
-         WENX5vQId2O6Gq15COCTO3Xl0Ts3z4w2zUKcXCIz0zHp3MnOc+Xu7McrS6OHPUWN+5Ut
-         VEUkJxpYjQs4MMxGtX5hvaJJtxuWHR8sS+bwqOAubKeti0akhxrHJTCgYhbTsmd4pnPx
-         +sHQ==
-X-Gm-Message-State: AHQUAuZQGalzp/BVXCvQtfFWxpgElSosnYe4GdwYmDOfEACAHdGpbmv/
-	4I04UzRW556IQqxgBT6raL/aIeDguiThE6CWBNHeRpg+kUSG1xnwry4ONGFAhd2ONDpQh0Zp72X
-	WNVMdC3P9t0BdQtSCWlLzs6UyB42t+XwAl/yPoeLxR3kB0NP2/q42F42iKzFVOkGoco1/ndsldY
-	XINBn2ITEOmCUUdwWZbczxIAhh4Z9S/dYo/O34Lb9amw2NUQQn1tCnq7P3RPxoiD0XXAcfWrH/r
-	m7w+hHN4QFPpgtlAdllgcj3XTaM0efOQa9PGKR4nYJ8ToreYHeE0Gq/MMiCKExLnQXyQ9qpDB1N
-	L0HgD2zlAZv7QBG7sAQaMDqyyAbdEKWCUVdKrJrv+J7kvNe6jdnHzw83IapG9jjF/XVXk2zlZbt
-	1
-X-Received: by 2002:ac8:814:: with SMTP id u20mr5167157qth.313.1550023563356;
-        Tue, 12 Feb 2019 18:06:03 -0800 (PST)
-X-Received: by 2002:ac8:814:: with SMTP id u20mr5167130qth.313.1550023562643;
-        Tue, 12 Feb 2019 18:06:02 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550023562; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=r4V97l6XPsCekyE6ibxz539cJGfMM0efGv8qH0rh0Tk=;
+        b=hpQu0kNSxyrDK52DnrKCxY8GZlL7CigAcdjmEkl4eLEZzX9weFv4bqYc8rWroaRn46
+         iFPTchZTftIiNp0g7tUdgML+PM2EpQihZARdlnkCXWRvMSfuFyEaISXEN5vtLD7E0swt
+         0fmNCZOl6F0nkCQbWuABiZWVenmOyznZ0Mf7tzK8iA8sDz8V+9N6yzthgrRQh+o+sYne
+         WTOrT4iy0HGmWb+1HBRbLdz2yqOMXCX5/kkFmrwp6oQWpqdv5haEAT2uuVb8ZRp0wsl5
+         M/NjIuYbcwTp2SQCUil/Q9jKGOTppglKwL2mGc7uVtZoyLXgDYwicnt7vonaZCSC36+i
+         0TlQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.131 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: AHQUAuZbwpewMnzPqD3bWttOGBNYoyNZ0F2eEZlwBy9ECH/f6SGaTMxZ
+	4a5LydBC141AbJ6HNeh/mNGTnch0c+M84HoNZTHgMZH13kCXSQbzF8fiI55s0BBx2q/ofn/l4Cs
+	9RKycIwmfr2XKebcb0JQINUO6phZgwd88ReQ79EUsCf8aJWehcqLUeZNHzFGVx7c=
+X-Received: by 2002:a63:5107:: with SMTP id f7mr6300167pgb.218.1550024003139;
+        Tue, 12 Feb 2019 18:13:23 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZK3V5jRlwsfoIODb11fYmr81jWZN8iFDODLVUOxVN0As709FE0lmiJqWTtuEYf6MPRpY6p
+X-Received: by 2002:a63:5107:: with SMTP id f7mr6300108pgb.218.1550024002184;
+        Tue, 12 Feb 2019 18:13:22 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550024002; cv=none;
         d=google.com; s=arc-20160816;
-        b=z/xRMvNyyZY+igZ6jNM+nmobt8VuIg8UVwoAFXEICBbtDucojSzN7E6Uom304yxRfK
-         nc5PrlY0gT5Dp2/Yuns8iBEGcyJcYtZgLznUsgVM5+Jz78UVS7rTapgSlA2ZykhOK02i
-         VQ7q4lSMNXuCB6125rYwxidBE0eAq1t47K9lxvHrVuVNIBl6BUFFzodk2CKcpnWgEXaZ
-         QrusgbXMuXC/cGygz1Te3DdTGc/aXvZQKKSagD+6SIAH7JQZvXo9KyWct2jfWVZ8XwgU
-         I6RsMYJ4mPfw3NvlOhLweDy1O/7zsqWDB+vEqJVWMQFcFlIcsOMKWS5oF3iKn6mS7iiH
-         /GSw==
+        b=ToqjQPjvZd8LFJN85UrpjAB8Rsq4a899Ix3Ofm7HBprzuPnwzzt5muLNGAfvrXxqaT
+         hOHxjEFFu2AcVUWKz53p0/UINdmhVVowF3HbvCEzkGJWgDUNkLU6LRmuUQyPKwrW26Pi
+         IrsKRaYQOCQXw0RSP6uQthNqysaqsHh11BoHgiFdWbq2HZjzywMmASlcq6yEezpogKwH
+         586qBrctD7WEBU12QtyGhdKyKUt32Dioe8UCJ1qw4AQt68ipnozVYmBckZ4TywKt3DQ0
+         7zm44xpoM7JEjOt65kBAvd/6EUeSmksTjLLrqBDt9pEXKEH0aPeqNot8kLrbOPh4lkgN
+         qV0w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=Hzqp/2bM8Ln/7TkhTNsRULjqW8T2TSZbSZrGbanUT7U=;
-        b=cb8i1daQjd/y3WEWXjsxsfuJJEoxH+9fsUkMEteRuTX1YcHRCR5nXwm9kTcoEHAmgC
-         9pfdtVXtp31NcrAr8uCG+pioMDzLDbR2yYT3bq1f6a86pwmV1aZ7NPa96WeWqM6Tw2jv
-         KOozluQivHtiQ2u3aijBloBpQXaZ24W/0ZzgvGoKhP6gPpuvyGQI9iBBw6OF8/iG1s1r
-         72qLygVAu/I5fgbzyV1tfZDLIx6dWL86pBMMALCt5obRAjCFBsFMyOApK6FqMnFvVP0Q
-         l3pSzQ/G2t2niXRg/EE0a2UmpTsFUUU7tfjdUpCgg0jKwyUhM9L+BQ40KfZJf9XElR6t
-         /flg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=r4V97l6XPsCekyE6ibxz539cJGfMM0efGv8qH0rh0Tk=;
+        b=CMVxUSLu1uVG5qtF6QhFmLWWuTkAQUFmPMOAmetUUt4FZnoQuCxHD6G76n16nnySxb
+         Hb42IfZZD4x8RXD7rGd1EVL3K5vCnojzTPTdvRam38WW875og9EJbiz6M4AJOHVUETQg
+         9B8fmraoZ2ovgkmZu7r42rMWy1Fnh+vX52lmLccJTV2poutEBX6ejKVndhcHmzKg4zKx
+         BtYI4JF9O9EB6eC3mhj5tVy7L/k6c0G0l+DdxBag0V3Xcb4QR5TnrYh6YkYXRYP1Iv4Z
+         VqTS6g4POs0cx3ApJrCzfHI1PEg4kfhRzWq9zR+ogUQoMM4Yj4ttr7J4DofJl93FxfEx
+         Ge0A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=AX9yHuMZ;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t11sor14007667qti.36.2019.02.12.18.06.02
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Feb 2019 18:06:02 -0800 (PST)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=neutral (google.com: 150.101.137.131 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id i13si7294991pgj.199.2019.02.12.18.13.21
+        for <linux-mm@kvack.org>;
+        Tue, 12 Feb 2019 18:13:22 -0800 (PST)
+Received-SPF: neutral (google.com: 150.101.137.131 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.131;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=AX9yHuMZ;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:to:cc:subject:date:message-id;
-        bh=Hzqp/2bM8Ln/7TkhTNsRULjqW8T2TSZbSZrGbanUT7U=;
-        b=AX9yHuMZrU88mfRrZB+kXyI/eDjSdmrvx9Gx8HRkcX2OGNeTUW29/XMx1oBGTSvO99
-         +ACOQkHH7VT3sgskBBk06L1/JZLUaShZTSKC6hgRxZ9C/41R3DqKcNL+kAZMRQVZ7AaS
-         aEpNql+YKebvFL5aAQUz0lfHtlNNdBZtAndaklHcNmvMEwTOBcoAe2F8zOGKpSwoz6oa
-         GM2S7mPHQsqgULmMNyKGXQSn4G8qHIg8+DWOdDBbCgv7pF0TjuEkekrb6iZ5ztBUjIXK
-         U+uVIzPvaMCJ06whnYLOGZYIXA1ZcQrcst/S88BPdmI7hoDjy1U5nk2tA9vKYZUUIHxv
-         z4cA==
-X-Google-Smtp-Source: AHgI3IZcRcbgHIbMtfTqBEwKGEYeameIk54dQrq7XP23nFPd4AlL9pskb3vbFrk/PplY/l+f9b9Dkw==
-X-Received: by 2002:ac8:26b9:: with SMTP id 54mr5269401qto.301.1550023562237;
-        Tue, 12 Feb 2019 18:06:02 -0800 (PST)
-Received: from ovpn-120-150.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id k55sm19900153qtc.53.2019.02.12.18.06.01
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 18:06:01 -0800 (PST)
-From: Qian Cai <cai@lca.pw>
-To: akpm@linux-foundation.org,
-	cl@linux.com,
-	penberg@kernel.org,
-	rientjes@google.com,
-	iamjoonsoo.kim@lge.com
-Cc: andreyknvl@google.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Qian Cai <cai@lca.pw>
-Subject: [PATCH] slub: untag object before slab end
-Date: Tue, 12 Feb 2019 21:05:50 -0500
-Message-Id: <20190213020550.82453-1-cai@lca.pw>
-X-Mailer: git-send-email 2.17.2 (Apple Git-113)
+       spf=neutral (google.com: 150.101.137.131 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
+  by ipmail07.adl2.internode.on.net with ESMTP; 13 Feb 2019 12:43:19 +1030
+Received: from dave by dastard with local (Exim 4.80)
+	(envelope-from <david@fromorbit.com>)
+	id 1gtk34-00040r-GL; Wed, 13 Feb 2019 13:13:18 +1100
+Date: Wed, 13 Feb 2019 13:13:18 +1100
+From: Dave Chinner <david@fromorbit.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, lsf-pc@lists.linux-foundation.org,
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
+	Linux-MM <linux-mm@kvack.org>,
+	"Shutemov, Kirill" <kirill.shutemov@intel.com>,
+	"Schofield, Alison" <alison.schofield@intel.com>,
+	"Darrick J. Wong" <darrick.wong@oracle.com>,
+	Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>
+Subject: Re: [LSF/MM TOPIC] Memory Encryption on top of filesystems
+Message-ID: <20190213021318.GN20493@dastard>
+References: <788d7050-f6bb-b984-69d9-504056e6c5a6@intel.com>
+ <20190212235114.GM20493@dastard>
+ <CAPcyv4jhbYfrdTOyh90-u-gEUV7QEgF_HrNid5w5WbPPGr=axw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPcyv4jhbYfrdTOyh90-u-gEUV7QEgF_HrNid5w5WbPPGr=axw@mail.gmail.com>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-get_freepointer() could return NULL if there is no more free objects in
-the slab. However, it could return a tagged pointer (like
-0x2200000000000000) with KASAN_SW_TAGS which would escape the NULL
-object checking in check_valid_pointer() and trigger errors below, so
-untag the object before checking for a NULL object there.
+On Tue, Feb 12, 2019 at 04:27:20PM -0800, Dan Williams wrote:
+> On Tue, Feb 12, 2019 at 3:51 PM Dave Chinner <david@fromorbit.com> wrote:
+> >
+> > On Tue, Feb 12, 2019 at 08:55:57AM -0800, Dave Hansen wrote:
+> > > Multi-Key Total Memory Encryption (MKTME) [1] is feature of a memory
+> > > controller that allows memory to be selectively encrypted with
+> > > user-controlled key, in hardware, at a very low runtime cost.  However,
+> > > it is implemented using AES-XTS which encrypts each block with a key
+> > > that is generated based on the physical address of the data being
+> > > encrypted.  This has nice security properties, making some replay and
+> > > substitution attacks harder, but it means that encrypted data can not be
+> > > naively relocated.
+> >
+> > The subject is "Memory Encryption on top of filesystems", but really
+> > what you are talking about is "physical memory encryption /below/
+> > filesystems".
+> >
+> > i.e. it's encryption of the physical storage the filesystem manages,
+> > not encryption within the fileystem (like fscrypt) or or user data
+> > on top of the filesystem (ecryptfs or userspace).
+> >
+> > > Combined with persistent memory, MKTME allows data to be unlocked at the
+> > > device (DIMM or namespace) level, but left encrypted until it actually
+> > > needs to be used.
+> >
+> > This sounds more like full disk encryption (either in the IO
+> > path software by dm-crypt or in hardware itself), where the contents
+> > are decrypted/encrypted in the IO path as the data is moved between
+> > physical storage and the filesystem's memory (page/buffer caches).
+> >
+> > Is there any finer granularity than a DIMM or pmem namespace for
+> > specifying encrypted regions? Note that filesystems are not aware of
+> > the physical layout of the memory address space (i.e. what DIMM
+> > corresponds to which sector in the block device), so DIMM-level
+> > granularity doesn't seem particularly useful right now....
+> >
+> > Also, how many different hardware encryption keys are available for
+> > use, and how many separate memory regions can a single key have
+> > associated with it?
+> >
+> > > However, if encrypted data were placed on a
+> > > filesystem, it might be in its encrypted state for long periods of time
+> > > and could not be moved by the filesystem during that time.
+> >
+> > I'm not sure what you mean by "if encrypted data were placed on a
+> > filesystem", given that the memory encryption is transparent to the
+> > filesystem (i.e. happens in the memory controller on it's way
+> > to/from the physical storage).
+> >
+> > > The “easy” solution to this is to just require that the encryption key
+> > > be present and programmed into the memory controller before data is
+> > > moved.  However, this means that filesystems would need to know when a
+> > > given block has been encrypted and can not be moved.
+> >
+> > I'm missing something here - how does the filesystem even get
+> > mounted if we haven't unlocked the device the filesystem is stored
+> > on? i.e. we need to unlock the entire memory region containing the
+> > filesystem so it can read and write it's metadata (which can be
+> > randomly spread all over the block device).
+> >
+> > And if we have to do that to mount the filesystem, then aren't we
+> > also unlocking all the same memory regions that contain user data
+> > and hence they can be moved?
+> 
+> Yes, and this is the most likely scenario for enabling MKTME with
+> persistent memory. The filesystem will not be able to mount until the
+> entire physical address range (namespace device) is unlocked, and the
+> filesystem is kept unaware of the encryption. One key per namespace
+> device.
+> 
+> > At what point do we end up with a filesystem mounted and trying to
+> > access a locked memory region?
+> 
+> Another option is to enable encryption to be specified at mmap time
+> with the motivation of being able to use the file system for
+> provisioning instead of managing multiple namespaces.
 
-[   35.797667] BUG kmalloc-256 (Not tainted): Freepointer corrupt
-[   35.803584] -----------------------------------------------------------------------------
-[   35.803584]
-[   35.813368] Disabling lock debugging due to kernel taint
-[   35.818766] INFO: Allocated in build_sched_domains+0x28c/0x495c age=92 cpu=0 pid=1
-[   35.826443] 	__kmalloc_node+0x4ac/0x508
-[   35.830343] 	build_sched_domains+0x28c/0x495c
-[   35.834764] 	sched_init_domains+0x184/0x1d8
-[   35.839012] 	sched_init_smp+0x38/0xd4
-[   35.842732] 	kernel_init_freeable+0x67c/0x1104
-[   35.847243] 	kernel_init+0x18/0x2a4
-[   35.850790] 	ret_from_fork+0x10/0x18
-[   35.854423] INFO: Freed in destroy_sched_domain+0xa0/0xcc age=11 cpu=0 pid=1
-[   35.861569] 	destroy_sched_domain+0xa0/0xcc
-[   35.865814] 	cpu_attach_domain+0x304/0xb34
-[   35.869971] 	build_sched_domains+0x4654/0x495c
-[   35.874480] 	sched_init_domains+0x184/0x1d8
-[   35.878724] 	sched_init_smp+0x38/0xd4
-[   35.882443] 	kernel_init_freeable+0x67c/0x1104
-[   35.886953] 	kernel_init+0x18/0x2a4
-[   35.890495] 	ret_from_fork+0x10/0x18
-[   35.894128] INFO: Slab 0x(____ptrval____) objects=85 used=0 fp=0x(____ptrval____) flags=0x7ffffffc000200
-[   35.903733] INFO: Object 0x(____ptrval____) @offset=38528 fp=0x(____ptrval____)
-[   35.903733]
-[   35.912637] Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb  ................
-[   35.922155] Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb  ................
-[   35.931672] Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb  ................
-[   35.941190] Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb  ................
-[   35.950707] Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb  ................
-[   35.960224] Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb  ................
-[   35.969741] Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb  ................
-[   35.979258] Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb  ................
-[   35.988776] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   35.998206] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.007636] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.017065] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.026494] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.035923] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.045353] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.054783] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.064212] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.073642] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.083071] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.092501] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.101930] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.111359] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.120788] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-[   36.130218] Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5  kkkkkkkkkkkkkkk.
-[   36.139647] Redzone (____ptrval____): bb bb bb bb bb bb bb bb                          ........
-[   36.148462] Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-[   36.157979] Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-[   36.167496] Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-[   36.177021] CPU: 0 PID: 1 Comm: swapper/0 Tainted: G    B             5.0.0-rc6+ #41
-[   36.184854] Call trace:
-[   36.187328]  dump_backtrace+0x0/0x450
-[   36.191032]  show_stack+0x20/0x2c
-[   36.194385]  __dump_stack+0x20/0x28
-[   36.197911]  dump_stack+0xa0/0xfc
-[   36.201265]  print_trailer+0x1a8/0x1bc
-[   36.205057]  object_err+0x40/0x50
-[   36.208408]  check_object+0x214/0x2b8
-[   36.212111]  __free_slab+0x9c/0x31c
-[   36.215638]  discard_slab+0x78/0xa8
-[   36.219165]  kfree+0x918/0x980
-[   36.222259]  destroy_sched_domain+0xa0/0xcc
-[   36.226489]  cpu_attach_domain+0x304/0xb34
-[   36.230631]  build_sched_domains+0x4654/0x495c
-[   36.235125]  sched_init_domains+0x184/0x1d8
-[   36.239357]  sched_init_smp+0x38/0xd4
-[   36.243060]  kernel_init_freeable+0x67c/0x1104
-[   36.247555]  kernel_init+0x18/0x2a4
-[   36.251083]  ret_from_fork+0x10/0x18
+I'm assuming you are talking about DAX here, yes?
 
-Signed-off-by: Qian Cai <cai@lca.pw>
----
+Because fscrypt....
 
-Depends on slub-fix-slab_consistency_checks-kasan_sw_tags.patch.
+> The filesystem
+> would need to be careful to use the key for any physical block
+> management, and a decision would need to be made about when/whether
+> read(2)/write(2) access cipher text .
 
- mm/slub.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+... already handles all this via page cache coherency for
+mmap/read/write IO.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 4a61959e1887..2fd1cf39914c 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -503,11 +503,11 @@ static inline int check_valid_pointer(struct kmem_cache *s,
- {
- 	void *base;
- 
-+	object = kasan_reset_tag(object);
- 	if (!object)
- 		return 1;
- 
- 	base = page_address(page);
--	object = kasan_reset_tag(object);
- 	object = restore_red_left(s, object);
- 	if (object < base || object >= base + page->objects * s->size ||
- 		(object - base) % s->size) {
+> The current thinking is that
+> this would be too invasive / restrictive for the filesystem, but it's
+> otherwise an interesting thought experiment for allowing the
+> filesystem to take on more physical-storage allocation
+> responsibilities.
+
+Actually what we want in the filesystem world is /hardware offload/
+abstractions in the filesystems, not "filesystem controls hardware
+specific physical storage features" mechanisms.
+
+i.e. if the filesystem/fscrypt can offload the encryption of the
+data to the IO path by passing the fscrypt key/info with the IO,
+then it works with everything, not just pmem.
+
+In the case of pmem+DAX+mmap(), it needs to associate the correct
+key with the memory region that is to be encrypted when it is
+mmap()d. Then the DAX subsystem can associate the key with the
+physical pages that are faulted during DAX access. If it's bio based
+IO going to the DAX driver, then the keys should be attached to the
+bio....
+
+fscrypt encrypt/decrypt is already done at the filesystem/bio
+interface layer via bounce buffers - it's not a great stretch to
+push this down a layer so that it can be offloaded to the underlying
+device if it is hardware encryption capable. fscrypt would really
+only be used for key management (like needs work to support
+arbitrary hardware keys) and in filesystem metadata encryption (e.g.
+filenames) in that case....
+
+Cheers,
+
+Dave.
 -- 
-2.17.2 (Apple Git-113)
+Dave Chinner
+david@fromorbit.com
 
