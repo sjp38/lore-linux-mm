@@ -2,153 +2,145 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 80955C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 16:56:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88DFBC282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 17:12:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4309E222CF
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 16:56:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4309E222CF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 50B132070B
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 17:12:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50B132070B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C99298E0002; Wed, 13 Feb 2019 11:56:45 -0500 (EST)
+	id E139F8E0002; Wed, 13 Feb 2019 12:12:39 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C470D8E0001; Wed, 13 Feb 2019 11:56:45 -0500 (EST)
+	id DC1C68E0001; Wed, 13 Feb 2019 12:12:39 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B35D38E0002; Wed, 13 Feb 2019 11:56:45 -0500 (EST)
+	id CD7D58E0002; Wed, 13 Feb 2019 12:12:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 769CD8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 11:56:45 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id i3so2333052pfj.4
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:56:45 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 78C8F8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 12:12:39 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id x15so1306409edd.2
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:12:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=On/U0iOi/cUCxk4EHTWWwGA9cgiPP1ioDf10gBZVdtw=;
-        b=oK00GTF56t/1DEiDuurk98an5SZ+FZIDxntuQzLZbY7mxu/LdC+Mo9+gC99hWoBz16
-         I7IRQeWPmRrHufMlZEybPgt3z3tVozv18/77G+QkjrHg15durhvTv82PXQbIPNhwDVTZ
-         RUstFj7nTDk5LOPJDIhuRxzXuaBNSAtBfZgxMflVpP8RoiMNA411p8Bpqw1qrSA5+2li
-         spLg6k/ny0Nit9Ck6IjsZdWr8c2oysKC+DW5fsH+SmQdaoR3JmAhyge+6S/DR8C+ByW/
-         /oh04HeyG+We6j2KJX2D4oBxMJFSafzFzuY9yOqf11/B5Bv6d5jNnDJJ46E7mG8QbOhW
-         8cSQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAuYwxsYai/YZEuIobB98xIQ44YMMMYWyrn4gtNrE+m0eVYbTVWIk
-	+jsHrC6Qid1HR35xhqny40pOyZSPBhOIHvGxB8bIKEXUYpG5jzY3KXWGqQJZoPXvcIxuL2J+Jml
-	NRNdDcVjJqibacv48me+0heDXTx5T4qInJ4TfbpWPbXDv7hKaEJeAzH+2zDLAD54=
-X-Received: by 2002:a63:2882:: with SMTP id o124mr1311210pgo.446.1550077005144;
-        Wed, 13 Feb 2019 08:56:45 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZY0nITpjtMqW2L2L54lg+fZcKbShEQuhyb5xZWsNU5cRVI2HXLTZnWFlbbiwn7WOdOa/NM
-X-Received: by 2002:a63:2882:: with SMTP id o124mr1311178pgo.446.1550077004469;
-        Wed, 13 Feb 2019 08:56:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550077004; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=17e0/q4PYsBFQAvs4qmYyeLRljKF4qPlKW7i8nZTDY8=;
+        b=QalUe5u9aTRQ8jL0oKGlZ6q9SBasJcWbkF56I9TrVMUuv/XU5BEUfxpd7EcUCp8FfG
+         xmSo7ohZWuUDWX6tWfqPBxXv+PE1KvJVKfHb20+7QB8ruy+3yPP1fr+p4ypHHouSS90+
+         yzLtbju4S0D4PaMLysXOitIPNFf+WRq2QI8hkqhzJqrDZVJxBP5ogrj2gI/mTbwGZyHc
+         xN3v1DTIvFwYuA2BmkCGIj3D7ledwppXuMaUfqYVboJguVkhUmXAn9tO+fPKSx8mz2AH
+         PurA4KMUSoNm/2m05GsrjQqWcgogSUvAppQDKFfw57gtPA+fRpCHYBdemC1v+P6YaAdC
+         kz+Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: AHQUAuYNgI7hf3dK8q53K/Nh/M4MguVj4zv+xZ8U0Rc6NicAhgr1bt/1
+	t6abMsZcbj/yhYRu/vDHqoSQnSsXpwjPVq2nQCNf3A0TsfylpYHdI2WpHFF/C2HK1MKsZqm20Q5
+	VywcZ2EjijTjX08IgEJQmRhJJ6AF5/N2+DW1SSLCHxlUW0tvIsi3ZPQRD3fzz4KDnrA==
+X-Received: by 2002:a50:8b26:: with SMTP id l35mr1194212edl.146.1550077958970;
+        Wed, 13 Feb 2019 09:12:38 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZbwskdmTWeXwVhaZFo7eVQjYZQ1IgGIh+iOsGhLO5ymolkLYfeoByoObj6Bz/YvSttMoMh
+X-Received: by 2002:a50:8b26:: with SMTP id l35mr1194155edl.146.1550077958181;
+        Wed, 13 Feb 2019 09:12:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550077958; cv=none;
         d=google.com; s=arc-20160816;
-        b=OAHliAJ1v27IQX/ChpaJzZA7QXonVxYlvfaAXMXr7B0huE3DKrV7XDi9nT+r60WLjk
-         3JIHHMaN7Q/mtc8Zc7fOSyRV7jjSyUxQU0FDgY6/8v5mZGLLxE3N0RTY0/dF1SFkJv/u
-         s/WVI4fSmyS2HEGY+FMpawPKDAc+LJlImESh1CgBJ1gUw18uAVQEpP+9S9rxr5Cu9oLz
-         d32Svdpyp1ufoAX0FcM6Mz1uDU7YLC9AnidlWaxaOfoWx0hmIofWEK39VwVMkoGFWjpM
-         O+fXdwx5t/n5EgJC5+tdAwSSDECh4bVsx1NX4tBf+wLfKmC6xHY7JUbZ3h0SerXchY9N
-         ho6w==
+        b=XkSqNk+5nyZ2IsoJfplDu0R5Lf9XpvhSUjKg10Mlavs4uuiU2Fc+eNKLKO4IzFW3D0
+         PcpJZs0bTfN07epmxipSVllyo3pWM1Qqbi/EzIk39aBYoOLQHesPW0uYRJD7OZmhQq0Z
+         JM2TJK4T5mfYBXbqig7E6OtgwLpb3OJpYJp3a5M/sdZ/kkI4of3J4Ct5aopcU2o1xOHr
+         NBzAvfcd4W1vjxdfgWjzLcttByJpa4P5kaJ3gmyw58idGOSklUowHVd/Q6xx9+PnVOS2
+         JsURHKha9RH+NfKZBF+p+9Y7zxVeJFo0+2cXwgU0OsGig2XSm3VYhQ7fHGo0GCkESI13
+         ahcA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=On/U0iOi/cUCxk4EHTWWwGA9cgiPP1ioDf10gBZVdtw=;
-        b=nvkJQZs475iWAgnr7sI1V8zVBN3XH5Rvie/GHp7cRngtg76m4Glha+ot1wfoYMUtFr
-         ZuypiJ10nrFH+RS12pTgNcZKVbyq6oBeFWd3Y0N1kOI21ipregtdABHX37PM0X+y3flN
-         3aX9/PDXE9QgO0Qv7rgFsHitWY29jYZmNw1d0zVsSvwfw1Mgw5H8crCUr4jaUyl4JxZF
-         yJeMYhi+a7uhen4j84uYyPW+OoTyJekL51uHFkkQ21A+lwtI52KEGNdaW/ngvxV+pTI1
-         imV36zyUY4psG8TWVwcFWXb5SHINpF8q2Jnzw5hSX2MVVgtGFH67dqdv/52mSzu/zIOk
-         EqUQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=17e0/q4PYsBFQAvs4qmYyeLRljKF4qPlKW7i8nZTDY8=;
+        b=EZH+3zy+fwFN52QuRFLXPRRjoYPZvoYqvtaLwt/+pr7/xqizVmZVXygemfQiy/sNO+
+         GmfPYs8eaB3haoE/6zO9es4NmEDy3a7Isr+iQ5WkGOgmTEg2A/AhiBxzeEB9sYSG1Bzk
+         GCSCDvdmzuybJFBWVYKABiCIaNzB701qkpu/u4qx4jDvnbowiuG5+Y8qvGC0GAwm4Jhm
+         BAnnR0QrnWgV0mdDdZR1Jw87d3AY8Sjn9K2aS2XUfL/FczUGpClFOdAvgbhrFt53FdGE
+         JviZSNCo8cz7aKpVqzw0eUNJFHVKt1tIuT0tYti1UH8iE2Wq8GKagKG3n4lPSQdNoRMg
+         6+Xw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e29si9041961pfb.125.2019.02.13.08.56.44
+        by mx.google.com with ESMTPS id f4si1519500ejb.76.2019.02.13.09.12.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 08:56:44 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 13 Feb 2019 09:12:38 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 5104FAEC6;
-	Wed, 13 Feb 2019 16:56:41 +0000 (UTC)
-Date: Wed, 13 Feb 2019 17:56:40 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm <linux-mm@kvack.org>
-Subject: Re: [PATCH v3] mm,page_alloc: wait for oom_lock before retrying.
-Message-ID: <20190213165640.GV4525@dhcp22.suse.cz>
-References: <20900d89-b06d-2ec6-0ae0-beffc5874f26@I-love.SAKURA.ne.jp>
+	by mx1.suse.de (Postfix) with ESMTP id F0599B157;
+	Wed, 13 Feb 2019 17:12:36 +0000 (UTC)
+Subject: Re: [PATCH v6 0/3] iommu/io-pgtable-arm-v7s: Use DMA32 zone for page
+ tables
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nicolas Boichat <drinkcat@chromium.org>, Will Deacon
+ <will.deacon@arm.com>, Robin Murphy <robin.murphy@arm.com>,
+ Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+ David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+ Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>,
+ Levin Alexander <Alexander.Levin@microsoft.com>,
+ Huaisheng Ye <yehs1@lenovo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ linux-arm Mailing List <linux-arm-kernel@lists.infradead.org>,
+ iommu@lists.linux-foundation.org, lkml <linux-kernel@vger.kernel.org>,
+ linux-mm@kvack.org, Yong Wu <yong.wu@mediatek.com>,
+ Matthias Brugger <matthias.bgg@gmail.com>, Tomasz Figa <tfiga@google.com>,
+ Yingjoe Chen <yingjoe.chen@mediatek.com>, hch@infradead.org,
+ Matthew Wilcox <willy@infradead.org>, Hsin-Yi Wang <hsinyi@chromium.org>,
+ stable@vger.kernel.org, Joerg Roedel <joro@8bytes.org>
+References: <20181210011504.122604-1-drinkcat@chromium.org>
+ <CANMq1KAmFKpcxi49wJyfP4N01A80B2d-2RGY2Wrwg0BvaFxAxg@mail.gmail.com>
+ <20190111102155.in5rctq5krs4ewfi@8bytes.org>
+ <CANMq1KCq7wEYXKLZGCZczZ_yQrmK=MkHbUXESKhHnx5G_CMNVg@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <789fb2e6-0d80-b6de-adf3-57180a50ec3e@suse.cz>
+Date: Wed, 13 Feb 2019 18:12:34 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20900d89-b06d-2ec6-0ae0-beffc5874f26@I-love.SAKURA.ne.jp>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <CANMq1KCq7wEYXKLZGCZczZ_yQrmK=MkHbUXESKhHnx5G_CMNVg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 14-02-19 01:30:28, Tetsuo Handa wrote:
-[...]
-> >From 63c5c8ee7910fa9ef1c4067f1cb35a779e9d582c Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Tue, 12 Feb 2019 20:12:35 +0900
-> Subject: [PATCH v3] mm,page_alloc: wait for oom_lock before retrying.
+On 1/22/19 11:51 PM, Nicolas Boichat wrote:
+> Hi Andrew,
 > 
-> When many hundreds of threads concurrently triggered a page fault, and
-> one of them invoked the global OOM killer, the owner of oom_lock is
-> preempted for minutes because they are rather depriving the owner of
-> oom_lock of CPU time rather than waiting for the owner of oom_lock to
-> make progress. We don't want to disable preemption while holding oom_lock
-> but we want the owner of oom_lock to complete as soon as possible.
+> On Fri, Jan 11, 2019 at 6:21 PM Joerg Roedel <joro@8bytes.org> wrote:
+>>
+>> On Wed, Jan 02, 2019 at 01:51:45PM +0800, Nicolas Boichat wrote:
+>> > Does anyone have any further comment on this series? If not, which
+>> > maintainer is going to pick this up? I assume Andrew Morton?
+>>
+>> Probably, yes. I don't like to carry the mm-changes in iommu-tree, so
+>> this should go through mm.
 > 
-> Thus, this patch kills the dangerous assumption that sleeping for one
-> jiffy is sufficient for allowing the owner of oom_lock to make progress.
-
-What does this prevent any _other_ kernel path or even high priority
-userspace to preempt the oom killer path? This was the essential
-question the last time around and I do not see it covered here. I
-strongly suspect that all these games with the locking is just a
-pointless tunning for an insane workload without fixing the underlying
-issue.
-
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> ---
->  mm/page_alloc.c | 5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
+> Gentle ping on this series, it seems like it's better if it goes
+> through your tree.
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 35fdde0..c867513 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3618,7 +3618,10 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
->  	 */
->  	if (!mutex_trylock(&oom_lock)) {
->  		*did_some_progress = 1;
-> -		schedule_timeout_uninterruptible(1);
-> +		if (mutex_lock_killable(&oom_lock) == 0)
-> +			mutex_unlock(&oom_lock);
-> +		else if (!tsk_is_oom_victim(current))
-> +			schedule_timeout_uninterruptible(1);
->  		return NULL;
->  	}
->  
-> -- 
-> 1.8.3.1
+> Series still applies cleanly on linux-next, but I'm happy to resend if
+> that helps.
 
--- 
-Michal Hocko
-SUSE Labs
+Ping, Andrew?
+
+> Thanks!
+> 
+>> Regards,
+>>
+>>         Joerg
+> 
 
