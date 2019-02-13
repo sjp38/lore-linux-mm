@@ -2,209 +2,195 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F2180C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 18:41:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BC0FEC282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 18:44:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B8111222D5
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 18:41:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B8111222D5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 567C320835
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 18:44:40 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="key not found in DNS" (0-bit key) header.d=codeaurora.org header.i=@codeaurora.org header.b="fxLM/HTo";
+	dkim=fail reason="key not found in DNS" (0-bit key) header.d=codeaurora.org header.i=@codeaurora.org header.b="HbbSoRZ5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 567C320835
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=codeaurora.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4AACB8E0002; Wed, 13 Feb 2019 13:41:55 -0500 (EST)
+	id C47618E0003; Wed, 13 Feb 2019 13:44:39 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4309F8E0001; Wed, 13 Feb 2019 13:41:55 -0500 (EST)
+	id BF6BD8E0001; Wed, 13 Feb 2019 13:44:39 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2D2828E0002; Wed, 13 Feb 2019 13:41:55 -0500 (EST)
+	id A98128E0003; Wed, 13 Feb 2019 13:44:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D92DA8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 13:41:54 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id 74so2547485pfk.12
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 10:41:54 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 652F48E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 13:44:39 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id i11so2288357pgb.8
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 10:44:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=q62psrd/uVXgouRp8o/VdZg/pZ5EHFNSyMAA2QaEeHc=;
-        b=SpQlmUV4GRyToKakZyQPsCsqUiJw1LuDYe4dS2splKyCiR2VzW2Np5oZHIZgeekbCZ
-         ltGZBgMNcPGxxn8luV4OnZaQMQMwHaeAisQRpCRlssgbX2Dqwat7qPVAbCna9ZiWK2Or
-         0cDcdZewHQeePNwyIQrSxrQd/cU3oGPJnpE9MXtKWoRLrsYHd4CZ1dnMIfs2WZsUuTw8
-         /f/uV1n9pdFoT6wXGf9k5Mt8Bs33up5/g7HjQfsMVF8v3x5gBLQRv03t/Yd3zTqtuV/B
-         wV0/Ecf6KtTrex4iS/e+PvcpxdCByWSwq8m9wLwSWqPyOZVLi2iIWRHsV1nLHhcgrJxF
-         XHaQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuY1wnWOop/kiRJa5UwbgXbEEq5zcplvdLDrOqPmj/J/ifK3OebU
-	38cpLU+nTbn0Fe8JE/6ypH083MprXfKgXxmEzr2+aCDjkEmTtMzBQtUPdfKMZV9wMYYH06v/3Mn
-	Eh8ubEL7oNMtS6OTexP/klY0Q3MO/ezFVDmIOWOfxDTxP7WqH7VhlSkPSsVpmp5pxFQ==
-X-Received: by 2002:a62:1346:: with SMTP id b67mr1859959pfj.195.1550083314494;
-        Wed, 13 Feb 2019 10:41:54 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZUhi6iBFEqhmtZd9X9JcSkmVLRvI92nx7WGadWauxcS3jxM5+NUQZ3qHS0hzpZvKsNObsX
-X-Received: by 2002:a62:1346:: with SMTP id b67mr1859893pfj.195.1550083313551;
-        Wed, 13 Feb 2019 10:41:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550083313; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:dmarc-filter
+         :subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=PHzAU4HUNBCq3y3wdeMIQBv6wIv+y+vWTm3oWd0aw0E=;
+        b=tmG0E4S/WO0W+gGRjCxDUxR/ypbPzpuHdk+YSl5Ujd2sgplc3JH59SRUUJPnxNvZJf
+         xQHOkCr9oJl/ttkijkkRARF3ysdUbdMlPH4bhdOmBuat1tnPrDAivSDZDJXG1ECT3Da2
+         2jyeHMKfV+HALi8jpvWqh0m5q668ihUeBkqlaWT5UvyVKB5WB46irYQeNXDPDTI/0hB5
+         BTZaoIulopPReDv0HHpiCVj3l4uFwqDm1kprz/7USAtymiLUshmSHd5Ddce3l4DzYjG5
+         CfpHo58R81hrRQ8Kfv5K5yCYz2TyukjDekt1x9RldNgI9WPhtwtUtypo6lA5frmggf1/
+         tnog==
+X-Gm-Message-State: AHQUAuYZbee14TKsLqf+LBYsVNTepDTdFAYPgTzZOUrZRYVWQDVBL8s9
+	6YRWhMWydAxHZPhCtBCem+05nlXLVbiu6pw7aMzDwAVc+aTPI27Y+1eOtzt27mHf7S6ngFUSt8x
+	TN7mOKm+K5Qhn7IF89ANEgQ9WlR2MihiYzjby36xFhLxkjWY16LtJPcEgDA0OCyIYEg==
+X-Received: by 2002:a63:2705:: with SMTP id n5mr1708624pgn.429.1550083478989;
+        Wed, 13 Feb 2019 10:44:38 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYf/LvC4M6xGt1Ihjwa2PWKlljH47o1yX3R8xtNno3WjDjNvPy6e2q4znsce0N1kh2cyjvc
+X-Received: by 2002:a63:2705:: with SMTP id n5mr1708586pgn.429.1550083478177;
+        Wed, 13 Feb 2019 10:44:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550083478; cv=none;
         d=google.com; s=arc-20160816;
-        b=xuKyUUS3IbggkoWP9g4B30woLtrf2LooWq/1497FEyAh7ar66TuPNYuHwNlYnuGqZh
-         P23wr5UuKlibQAiXZl7Arv1YNqL6hTM6+ZqDKmiRugbJCFM16KK9ZyIEORPrZNU5CctE
-         2JbwGnKECOOCAJmj3Ys1oMfY1zSdnlAKjCvHkzFMiXnQtJ72AgagK3tjdTbL6AjqV9k/
-         96NRRg5mOhLkpJJqpRpA2SBzjwt2XZNUaniiza3HzZU9iYa2qkS6so+6OSZUq3lGKk8l
-         RAua8awtaict6Az2WBrNqcoDXbb4pGKUWBNUlXtllIboZWPnHd7WnPWxDtVXSLTmubYr
-         ov9A==
+        b=TRNQ4GEj8vhVIQOAL76W4U4LCFRnTTwMSUbkAoUnk76eJDk6EWECBsEbp4X3FeNY8Q
+         CFVPzGHRI1ze79XOh0HJ+RfzN2RFPhZQivywLPFEhl4HdQYWDPNfsi4f86iCBA/AX7dz
+         dy9riV0L9Z9iYlFAmg833/l3Z/yrPtRiV+XBxkL6ubHsf37d9SOmbY0HWsem8hB//JRp
+         v1VGb9h7tFueJQ3iMdL2Rtt/LY8h1sYwZM9ICrph41csWLje6k8AmyJg3s+bB90YNfvT
+         MvJPIcaVtUZcHBg1eKdbS4Dlka3e3uktapff6JjF8qR4blJXNg9Kthlctl9r2QkUEohd
+         FdhQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=q62psrd/uVXgouRp8o/VdZg/pZ5EHFNSyMAA2QaEeHc=;
-        b=aiIhH8exGZ38x1cfYTLbn3i4g8p4Or1oqaimhH/1T5WGx4+m0XQ7Dch8KYeKeNDMWY
-         wGG9KgQYixE8R7Zh9LdAkjCmhwNa+2hgOD7rHlLiiqIiq2A8Yn8RZsnSrlzqokK+oJvI
-         EnpYjW9qOc2BPVgEM3ln47/K+VwBWt59zwuuqPRK4J7w7tp+YZX4tBu4/SfBs9lb789n
-         2ezgvtO3jCEtPuLsLi5dmi/KyqEDMPgBcggyvVd5fqf7X/7G1ADesUZ5BeKIFdMNf32L
-         W7KL3rKBVQFSD0RsNDLL8CCOlo8f0r8UoFKyffgivfVoV+CVs8Zj9rNxmRTw3oNv5Vbe
-         Qocw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dmarc-filter:dkim-signature:dkim-signature;
+        bh=PHzAU4HUNBCq3y3wdeMIQBv6wIv+y+vWTm3oWd0aw0E=;
+        b=U8gGbMHk1A9zfK9r/p4/JJIQ2d6Ju7LybQ6eacXyo51zl1tehqdX9towGthc1wq6Nx
+         49ePoer12TBBncjto7kM7gjDS+gHgKcBGw5tG+2FzbtmecOVekg+h7/TRV3WE4w/WgvT
+         078EGs6KSerZVwWQh77UZXGqncgr+iy3VSDH8BejUU6q72oGjohzsQNO+LaCxCDy4UTA
+         YSFt6/cz6OkwyakQPCB/joLICRX927Dj8QKpYTeyt7D4f8TRENNjrOrHXki4Akyyla2U
+         /RV9vWUZg2FpPL59EGBUasKuZWfg8lQv1fqh+kivmtOCfjB9lgRaCpL1Zi0JGrd8HoWh
+         /qcg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id c23si13387pls.236.2019.02.13.10.41.53
+       dkim=pass header.i=@codeaurora.org header.s=default header.b="fxLM/HTo";
+       dkim=pass header.i=@codeaurora.org header.s=default header.b=HbbSoRZ5;
+       spf=pass (google.com: domain of saiprakash.ranjan@codeaurora.org designates 198.145.29.96 as permitted sender) smtp.mailfrom=saiprakash.ranjan@codeaurora.org
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id r12si39587pgf.22.2019.02.13.10.44.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 10:41:53 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Wed, 13 Feb 2019 10:44:38 -0800 (PST)
+Received-SPF: pass (google.com: domain of saiprakash.ranjan@codeaurora.org designates 198.145.29.96 as permitted sender) client-ip=198.145.29.96;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1DId7xI096955
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 13:41:52 -0500
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qmqanbwej-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 13:41:52 -0500
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 13 Feb 2019 18:41:50 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 13 Feb 2019 18:41:45 -0000
-Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1DIfiac43450398
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Wed, 13 Feb 2019 18:41:44 GMT
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id B2588AE051;
-	Wed, 13 Feb 2019 18:41:44 +0000 (GMT)
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 571CBAE053;
-	Wed, 13 Feb 2019 18:41:43 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.207.163])
-	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Wed, 13 Feb 2019 18:41:43 +0000 (GMT)
-Date: Wed, 13 Feb 2019 20:41:40 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-        Alexander Viro <viro@zeniv.linux.org.uk>,
-        Russell King <linux@armlinux.org.uk>,
-        Catalin Marinas <catalin.marinas@arm.com>,
-        Will Deacon <will.deacon@arm.com>, Guan Xuetao <gxt@pku.edu.cn>,
-        linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-        linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 7/8] initramfs: proide a generic free_initrd_mem
- implementation
-References: <20190213174621.29297-1-hch@lst.de>
- <20190213174621.29297-8-hch@lst.de>
+       dkim=pass header.i=@codeaurora.org header.s=default header.b="fxLM/HTo";
+       dkim=pass header.i=@codeaurora.org header.s=default header.b=HbbSoRZ5;
+       spf=pass (google.com: domain of saiprakash.ranjan@codeaurora.org designates 198.145.29.96 as permitted sender) smtp.mailfrom=saiprakash.ranjan@codeaurora.org
+Received: by smtp.codeaurora.org (Postfix, from userid 1000)
+	id 44CA5608CE; Wed, 13 Feb 2019 18:44:37 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=codeaurora.org;
+	s=default; t=1550083477;
+	bh=F87YOsPP9BTuLaqkEIDa5weDH2iiqGmOdN1YadkeJNE=;
+	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
+	b=fxLM/HTogcZbQ1gUCOtHsytxjeMCzFU3pejbivwr4SX7ISB3zPfuMSNlJQWhI35aD
+	 kLozx9XeeceQUvQTfr7/0EF+4rjUWNOvwPgT0ciEJd3z3/8kN70IK6dBdNMDvPInIq
+	 CplU6vLtb3fGe2AEFE+MKFtt6+TIFkt0Ub+s2zTI=
+Received: from [192.168.1.101] (unknown [157.45.221.146])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	(Authenticated sender: saiprakash.ranjan@smtp.codeaurora.org)
+	by smtp.codeaurora.org (Postfix) with ESMTPSA id D09CE60C3D;
+	Wed, 13 Feb 2019 18:44:31 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=codeaurora.org;
+	s=default; t=1550083476;
+	bh=F87YOsPP9BTuLaqkEIDa5weDH2iiqGmOdN1YadkeJNE=;
+	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
+	b=HbbSoRZ5E3D57TggqaplIL+7LSjb29zLnCED9DNxSum0WaWnR7UFps049LRVuzIxO
+	 0/g57YacSkEb3vZzDguBsT2lVOq2Q1X2snOSqR/VPc1HoLb18wV+R4nhDVxcx3czm5
+	 XRF6NSeHQpW19w4XS0XWYsWnqge6xdSegmMHkJxM=
+DMARC-Filter: OpenDMARC Filter v1.3.2 smtp.codeaurora.org D09CE60C3D
+Authentication-Results: pdx-caf-mail.web.codeaurora.org; dmarc=none (p=none dis=none) header.from=codeaurora.org
+Authentication-Results: pdx-caf-mail.web.codeaurora.org; spf=none smtp.mailfrom=saiprakash.ranjan@codeaurora.org
+Subject: Re: BUG: sleeping function called from invalid context at
+ kernel/locking/rwsem.c:65
+To: Pintu Agarwal <pintu.ping@gmail.com>
+Cc: open list <linux-kernel@vger.kernel.org>,
+ linux-arm-kernel@lists.infradead.org, linux-rt-users@vger.kernel.org,
+ linux-mm@kvack.org, Jorge Ramirez <jorge.ramirez-ortiz@linaro.org>,
+ "Xenomai@xenomai.org" <xenomai@xenomai.org>
+References: <CAOuPNLgaDJm27nECxq1jtny=+ixt=GPf2C7zyDsVgbsLvtDarA@mail.gmail.com>
+ <6183c865-2e90-5fb9-9e10-1339ae491b71@codeaurora.org>
+ <CAOuPNLgUvECE6XBjszFggY3efmEBKywzKNWupjfQ2svsCMqd7w@mail.gmail.com>
+From: Sai Prakash Ranjan <saiprakash.ranjan@codeaurora.org>
+Message-ID: <2c91af7d-4580-cedc-70ea-d38c2587c7bf@codeaurora.org>
+Date: Thu, 14 Feb 2019 00:14:28 +0530
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190213174621.29297-8-hch@lst.de>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19021318-0028-0000-0000-000003483455
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19021318-0029-0000-0000-000024065911
-Message-Id: <20190213184139.GC15270@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-13_10:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902130129
+In-Reply-To: <CAOuPNLgUvECE6XBjszFggY3efmEBKywzKNWupjfQ2svsCMqd7w@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 13, 2019 at 06:46:20PM +0100, Christoph Hellwig wrote:
-> For most architectures free_initrd_mem just expands to the same
-> free_reserved_area call.  Provide that as a generic implementation
-> marked __weak.
+Hi,
+
+On 2/13/2019 8:10 PM, Pintu Agarwal wrote:
+> OK thanks for your suggestions. sdm845-perf_defconfig did not work for
+> me. The target did not boot.
+
+Perf defconfig works fine. You need to enable serial console with below
+config added to perf defconfig.
+
+CONFIG_SERIAL_MSM_GENI_CONSOLE=y
+
+> However, disabling CONFIG_PANIC_ON_SCHED_BUG works, and I got a root
+> shell at least.
+
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  arch/alpha/mm/init.c      | 8 --------
->  arch/arc/mm/init.c        | 7 -------
->  arch/c6x/mm/init.c        | 7 -------
-
-csky seems to open-code free_reserved_page with the only
-difference that it's also increments totalram_pages for the freed pages,
-which doesn't seem correct anyway...
-
-That said, I suppose arch/csky can be also added to the party.
-
->  arch/h8300/mm/init.c      | 8 --------
->  arch/m68k/mm/init.c       | 7 -------
->  arch/microblaze/mm/init.c | 7 -------
->  arch/nds32/mm/init.c      | 7 -------
->  arch/nios2/mm/init.c      | 7 -------
->  arch/openrisc/mm/init.c   | 7 -------
->  arch/parisc/mm/init.c     | 7 -------
->  arch/powerpc/mm/mem.c     | 7 -------
->  arch/sh/mm/init.c         | 7 -------
->  arch/um/kernel/mem.c      | 7 -------
->  arch/unicore32/mm/init.c  | 7 -------
->  init/initramfs.c          | 5 +++++
->  15 files changed, 5 insertions(+), 100 deletions(-)
- 
-...
-
-> diff --git a/init/initramfs.c b/init/initramfs.c
-> index cf8bf014873f..f3aaa58ac63d 100644
-> --- a/init/initramfs.c
-> +++ b/init/initramfs.c
-> @@ -527,6 +527,11 @@ extern unsigned long __initramfs_size;
->  #include <linux/initrd.h>
->  #include <linux/kexec.h>
+> But this seems to be a work around.
+> I still get a back trace in kernel logs from many different places.
+> So, it looks like there is some code in qualcomm specific drivers that
+> is calling a sleeping method from invalid context.
+> How to find that...
+> If this fix is already available in latest version, please let me know.
 > 
-> +void __weak free_initrd_mem(unsigned long start, unsigned long end)
-> +{
-> +	free_reserved_area((void *)start, (void *)end, -1, "initrd");
 
-Some architectures have pr_info("Freeing initrd memory..."), I'd add it for
-the generic version as well.
+Seems like interrupts are disabled when down_write_killable() is called.
+It's not the drivers that is calling the sleeping method which can  be
+seen from the log.
 
-Another thing that I was thinking of is that x86 has all those memory
-protection calls in its free_initrd_mem, maybe it'd make sense to have them
-in the generic version as well?
+[   22.140224] [<ffffff88b8ce65a8>] ___might_sleep+0x140/0x188
+[   22.145862] [<ffffff88b8ce6648>] __might_sleep+0x58/0x90         <---
+[   22.151249] [<ffffff88b9d43f84>] down_write_killable+0x2c/0x80   <---
+[   22.157155] [<ffffff88b8e53cd8>] setup_arg_pages+0xb8/0x208      <---
+[   22.162792] [<ffffff88b8eb7534>] load_elf_binary+0x434/0x1298
+[   22.168600] [<ffffff88b8e55674>] search_binary_handler+0xac/0x1f0
+[   22.174763] [<ffffff88b8e560ec>]
+do_execveat_common.isra.15+0x504/0x6c8
+[   22.181452] [<ffffff88b8e562f4>] do_execve+0x44/0x58
+[   22.186481] [<ffffff88b8c84030>] run_init_process+0x38/0x48      <---
+[   22.192122] [<ffffff88b9d3db1c>] kernel_init+0x8c/0x108
+[   22.197411] [<ffffff88b8c83f00>] ret_from_fork+0x10/0x50
 
-> +}
-> +
->  #ifdef CONFIG_KEXEC_CORE
->  static bool kexec_free_initrd(void)
->  {
-> -- 
-> 2.20.1
-> 
+ >
+ > This at least proves that there is no issue in core ipipe patches, and
+ > I can proceed.
+
+I doubt the *IPIPE patches*. You said you removed the configs, but all
+code are not under IPIPE configs and as I see there are lots of
+changes to interrupt code in general with ipipe.
+
+So to actually confirm whether the issue is with qcom drivers or ipipe,
+please *remove ipipe patches (not just configs)* and boot.
+Also paste the full dmesg logs for these 2 cases(with and without
+ipipe).
+
+Thanks,
+Sai
 
 -- 
-Sincerely yours,
-Mike.
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a member
+of Code Aurora Forum, hosted by The Linux Foundation
 
