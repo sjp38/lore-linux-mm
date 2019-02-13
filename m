@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DBD00C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:05:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7A73BC10F00
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:05:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A2BBB222A4
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:05:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A2BBB222A4
+	by mail.kernel.org (Postfix) with ESMTP id 4374F222A4
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:05:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4374F222A4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C1F018E0001; Wed, 13 Feb 2019 18:05:32 -0500 (EST)
+	id BFDBA8E0014; Wed, 13 Feb 2019 18:05:35 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA9E98E0012; Wed, 13 Feb 2019 18:05:32 -0500 (EST)
+	id B0D268E0012; Wed, 13 Feb 2019 18:05:35 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A214E8E0001; Wed, 13 Feb 2019 18:05:32 -0500 (EST)
+	id 920978E0014; Wed, 13 Feb 2019 18:05:35 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EB288E0012
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 18:05:32 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id o9so2761945pgv.19
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 15:05:32 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 419BE8E0012
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 18:05:35 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id b15so3118661pfi.6
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 15:05:35 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=NxuweNm4GxL/BoOqBVX9oI0qswOBhm+J5hpwG3wNYwI=;
-        b=IcwLcFOd9qjT13b3RfkHHohn0NIJ8njVUxTctrzLZnha7rc71ir1G6SNuj4ca4idbi
-         sd1NczlAkyCvvWhpE0qo2a3TpvQLUN6CTlkN8S0kVQuL7/hPhvgcZPE8ZrRwrZTjwJOf
-         o6QZ+fR2kAR/ize1GbcpS6T1z+8Kv0YezdHxBvu2dt5ZvZ9lPCnCR2n+uAypmCLnGkqX
-         FgtzekLaXtx4kbCKprB3R8rSm2ZC9EvoVQDoLZylYLlUShsoN2yeFVXKp+dx1kyNpJMw
-         96SmShhExJICaQvUm0g6WF8eHTN08Z9lGVm+UAjPLzgVcRvcvWqyxA286ATNVzjp5KWf
-         dxgQ==
+        bh=kyMwtL6l+E6laFOjdhzDjY7ZhAMUjFdLnnCnR8EJtfw=;
+        b=eUEDoXp7LuzfEpS3aB0Wtq29HJxvYdRfDpG3cr95iv6XYHYkZ9hIpPGmrXYmD8KyXN
+         uX2dU8+fbCDynels9vm8JaL3uJw8pizsm73gnlC9gLL3fAOyfy6gABtW3DnsWorjXV7k
+         BZz4OvvDj/11ac4K4Xulq4jqLI/e/nondB3UR43zRRv8L5+isPcz+hdb7q2uDvljN+Zy
+         7J0/x58URern7oJBrln/J4aqHLZP04z0H/axj2bS2AsUo+WU5JGJFV9P4Jv+gL7XQUGl
+         0K63HeB2PO3xjUlpCNSXux35pyLPfHzEUAWTtwtzGceDWe3d93f1siUpPhc+CXY8Nk7W
+         z/pA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuZsaff82gtQQfjyI4ReHSAGNg8HxXvQ6fDA9URaVk+ruLF2UcYP
-	TXPBubpHZJLz+OtZshvrRZpMsrdR1hiW4gUX5g2CYk7cPHW94rzxSlRSZg581NwpeGglMt18u8O
-	aQWEZZtrpC2wVDzTTdpnYdBy6M8wGWdHIwZ5eePDpBp9FNRUlYf+dRcAjSk+KtjVYPQ==
-X-Received: by 2002:a63:8bc8:: with SMTP id j191mr588663pge.234.1550099131918;
-        Wed, 13 Feb 2019 15:05:31 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ibo74VBa/ap4hzyXh3DZbvPsxNWYtRuYofAPgrOqgbBFrKVLE+2EWjoCphNi+0rAwIGKr2d
-X-Received: by 2002:a63:8bc8:: with SMTP id j191mr588616pge.234.1550099131340;
-        Wed, 13 Feb 2019 15:05:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550099131; cv=none;
+X-Gm-Message-State: AHQUAuabaC29DvhJUUnVuFw/DTzKjkliqYGd4YATDk9+/cVwFitk2uUN
+	6TacFDt2a1pdQc7vBP4yBdSTabHEHUPWRRiJhWN32U0UbaxW+viaSdg/Etf6LbKEEF6RaJrz5C5
+	w1gsDE2fCq8wNRKxfvIM/Ff1oiaGqeog8Ty2Or2DR77adgZgOfPLJQwVHOJnYXk9fig==
+X-Received: by 2002:a63:9a09:: with SMTP id o9mr614868pge.94.1550099134943;
+        Wed, 13 Feb 2019 15:05:34 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IY6TsQWsU2GqtBM4w5BVv9Ng1qWErGUgVWjso8kKaS8a0yCzUOoqcGP4McP8Rc//9mi168Z
+X-Received: by 2002:a63:9a09:: with SMTP id o9mr614818pge.94.1550099134204;
+        Wed, 13 Feb 2019 15:05:34 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550099134; cv=none;
         d=google.com; s=arc-20160816;
-        b=AtOucSWVdCHPnl5ObR3W0DvXtuVBCbWbG9gYCLSJHSptdOLfrKAls5EpPEx1SZzeTK
-         YitRLcm22b7jGrCdX+CytQNN48Amf7mcuRzwDVcQBBOtN7aVuTdQu1cpOHxDJOqPgLfe
-         W9bzjMEok5YZ4L5/J83MI0kyQev6G3TjdB3tn1w49FQHyZ07qK9e3j3s4lCcJeolltKS
-         hIu5FSGyaDAP1AK3aOUF2FY+ayMUGiAld9riA+8l37gHdCIEaUoHu0Rw9VybBRTknhOW
-         jfTVPjxnkJzRUbASwzQmtREj5q3m2pVxveapySpsVOlm1v5gSqi31SQdzcMI1Q29w5lm
-         mUWQ==
+        b=rhS4aoeP5FqgaWNJMdWfeHokGJ9Jok4SQedA+GZYN2r8zaUxfJ5raayJCsr0faseJ7
+         aTCXpTRBucQ3Bor7BbVHhEL/xFu51jwTCrgU04g9Q1rv7isgIsdQuTkyYJvBdcVz2hBb
+         VIYBMpXEVgizoMjYIru80cobdJKsjsUPu/BbVs5xEXu5fW+wnoZFYey6VWvve90MZWxn
+         2wmMa/LJ1iWLvfj9bg9qO09iz2h7q6xx3Vtx2m7upI7n80NnolMn5G3IuE4i4XpmikGh
+         /aID/xLC5aROsezpcEbg3a+0NFb2x60W/V+3hZdV2QGdqRb2r1Jd2bQkdrtmN/6gyO6t
+         b1/g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=NxuweNm4GxL/BoOqBVX9oI0qswOBhm+J5hpwG3wNYwI=;
-        b=0DZtEx06c8nDHNgy0xMzKX+deXBAk/8hadB0hGEJz20Z9yg4lQFj5mtUExeNl6xOoY
-         3K4Uo6+Fgc09pH9TLCaS+9jiYhR+XI4ceiQOdMmiODlqiijT669Y+vHlPNDW5FkS//Wg
-         JHQI8Y+AL9rtZWCE1yTZC/HY31yxaoJ8rVHG3clLQX5W0Cmy1jcwQSRR5F/m0Xdk9GCO
-         Ch/bukqlX+3rikaQIHH+JVrGfg5SfCIbrsTW05BXjucFcbBRYRSHf5am/suegctqlJBa
-         azz5SMhiCD50IHIl7xWxIUbU63SJrJdn3MTW8aYe7pNkgzLQXTq5J7yjWDSaGUMrXYZP
-         tXQw==
+        bh=kyMwtL6l+E6laFOjdhzDjY7ZhAMUjFdLnnCnR8EJtfw=;
+        b=sm9KVq84oiiAYMg20zXiSmThnRl3AUZlX5Q/b9OCMQkGmc2BKApYzfnzIGXKsdPoiq
+         HhRF+7h5hBA/TPdLEZuy+y5V1ZyEiM0E3JLn4GZCzBldxuNpgPr1NEjnYLdeLKiqvtZG
+         b1rhrYRSF1qWZQcRXhHFWRijeYhJS+fpyYGAPSqBDtegnxp/qEpiOoDNROC+KWpDhUac
+         lo2FWpYF9R2EVV0X69F80gpA7JQtqfg9LnJSz590kM89hiKXTN9cqPq6xKEyCc2jou1u
+         txn9++FJvxjf7oZktSkElFJuIDSmhWK93+LYxrRcJ7ZOMDlzBw76Qni9WFf0rqPOI2Wr
+         GJLQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id f9si574863pgh.435.2019.02.13.15.05.31
+        by mx.google.com with ESMTPS id f9si574863pgh.435.2019.02.13.15.05.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 15:05:31 -0800 (PST)
+        Wed, 13 Feb 2019 15:05:34 -0800 (PST)
 Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
@@ -81,12 +81,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Feb 2019 15:05:31 -0800
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Feb 2019 15:05:33 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,366,1544515200"; 
-   d="scan'208";a="138415628"
+   d="scan'208";a="138415653"
 Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga001.jf.intel.com with ESMTP; 13 Feb 2019 15:05:27 -0800
+  by orsmga001.jf.intel.com with ESMTP; 13 Feb 2019 15:05:31 -0800
 From: ira.weiny@intel.com
 To: linux-mips@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
@@ -150,9 +150,9 @@ Cc: Ira Weiny <ira.weiny@intel.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Michal Hocko <mhocko@suse.com>,
 	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH V2 5/7] IB/hfi1: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
-Date: Wed, 13 Feb 2019 15:04:53 -0800
-Message-Id: <20190213230455.5605-6-ira.weiny@intel.com>
+Subject: [PATCH V2 6/7] IB/qib: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
+Date: Wed, 13 Feb 2019 15:04:54 -0800
+Message-Id: <20190213230455.5605-7-ira.weiny@intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190213230455.5605-1-ira.weiny@intel.com>
 References: <20190211201643.7599-1-ira.weiny@intel.com>
@@ -172,27 +172,22 @@ FS DAX pages being mapped.
 
 Signed-off-by: Ira Weiny <ira.weiny@intel.com>
 ---
- drivers/infiniband/hw/hfi1/user_pages.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ drivers/infiniband/hw/qib/qib_user_sdma.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
-index 78ccacaf97d0..6a7f9cd5a94e 100644
---- a/drivers/infiniband/hw/hfi1/user_pages.c
-+++ b/drivers/infiniband/hw/hfi1/user_pages.c
-@@ -104,9 +104,11 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
- 			    bool writable, struct page **pages)
- {
- 	int ret;
-+	unsigned int gup_flags = writable ? FOLL_WRITE : 0;
+diff --git a/drivers/infiniband/hw/qib/qib_user_sdma.c b/drivers/infiniband/hw/qib/qib_user_sdma.c
+index 31c523b2a9f5..b53cc0240e02 100644
+--- a/drivers/infiniband/hw/qib/qib_user_sdma.c
++++ b/drivers/infiniband/hw/qib/qib_user_sdma.c
+@@ -673,7 +673,7 @@ static int qib_user_sdma_pin_pages(const struct qib_devdata *dd,
+ 		else
+ 			j = npages;
  
--	ret = get_user_pages_fast(vaddr, npages, writable ? FOLL_WRITE : 0,
--				  pages);
-+	gup_flags |= FOLL_LONGTERM;
-+
-+	ret = get_user_pages_fast(vaddr, npages, gup_flags, pages);
- 	if (ret < 0)
- 		return ret;
- 
+-		ret = get_user_pages_fast(addr, j, 0, pages);
++		ret = get_user_pages_fast(addr, j, FOLL_LONGTERM, pages);
+ 		if (ret != j) {
+ 			i = 0;
+ 			j = ret;
 -- 
 2.20.1
 
