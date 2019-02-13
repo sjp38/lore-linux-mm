@@ -2,140 +2,156 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 254E5C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 09:27:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E425DC282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 09:40:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D659E222C9
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 09:27:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D659E222C9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id A9FC3222BA
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 09:40:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A9FC3222BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5AEEE8E0002; Wed, 13 Feb 2019 04:27:58 -0500 (EST)
+	id 3D1468E0002; Wed, 13 Feb 2019 04:40:46 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 55DE88E0001; Wed, 13 Feb 2019 04:27:58 -0500 (EST)
+	id 358EA8E0001; Wed, 13 Feb 2019 04:40:46 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 44E7F8E0002; Wed, 13 Feb 2019 04:27:58 -0500 (EST)
+	id 1FDA38E0002; Wed, 13 Feb 2019 04:40:46 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DB9C38E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 04:27:57 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id t21so337312wmt.3
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 01:27:57 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id BB1C58E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 04:40:45 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id b186so346709wmc.8
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 01:40:45 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=GKjV3LCbmcnlhk4L7+Wz5JQXz00WoPv7LODUBCCVFg8=;
-        b=Z60/AtV3Vvcd5cyKLqyB1jRyrO9Nl5dQtFwts++hj24tjwL+Ka8ebu7IFd2jG2f6yJ
-         ajK8h5JUC+Oelt+xNLR5zDR0BNu1em8mgpWrHWVAx7FNx40Zp3HvPH1B/IPUvxsrWvQP
-         EcqIj/c7BP8nIaKqTfQjxLgp7o/KFMOR4Uipm44tVmWi/27kf+/nHeHDrXFZR2LWVW/t
-         KEnIyiybwTjSyLAfCrAoc+hdDEfVmP0Mz7s5HMOQe8+C7OryYYFtSkagO1Wv9XPQJiNw
-         fd3QE9V/HQN6Oun301rfusK89JuSUNzyyUpmEc/MsYbGrmuMH0+TgmBvTsGufjGhV9mT
-         nzJQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-X-Gm-Message-State: AHQUAuZKt7UUxdqGzEH8lgGJqD7lqbrDOxKePaOwmHWid+YJIWbeA3Ys
-	0Oe+DxuA3THJI45zQh2Up/+glw5kIeYkmFtRRRrF/lpqwfkAf/qV0pgUolxYq0M6eAQdDrmQAgn
-	BJD1uRG3nt4Kl8toi0Ggm9+NFVt9MUQfgGRhnXbo4poNSy8d+1yw6MIrqh+BCCKYvuw==
-X-Received: by 2002:adf:ce91:: with SMTP id r17mr5940619wrn.80.1550050077433;
-        Wed, 13 Feb 2019 01:27:57 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZMjk52uyHDhVmmdFKQlpal99zHY3cNEDx44IpDDD/BmY7zXVDgvY3KBYR4B8rb35ZdmqFj
-X-Received: by 2002:adf:ce91:: with SMTP id r17mr5940584wrn.80.1550050076561;
-        Wed, 13 Feb 2019 01:27:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550050076; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=KPQIvusfQffcbSiTMJqq6ntVvlDynZgSpryXWkwTGaM=;
+        b=YbNHc8vHUEF5MmMVeCHITnjJcX3vGXJ9IrK7l0gKefZ6FOwFEGxXDfXuyDiNgxUuYJ
+         YzW7fcjPfDJIxW7SAAK1N6osDFLzaNvefX+g+q6NxVBt27YWORbIZmfhgj1CV+/y9YDo
+         NSSZQjXtAqHRqPo8X4j5zyGrG3c0JuYi/AFbe8EvLKjUMkDEtJkIT18nLEFd9SE6YhFQ
+         NVIUoUS7qe9fSNqd/t8ykXtI3/l7S1oXB7cgM7Q9fdx845sphngx3rnj62Ipd1n09sRe
+         CXzkTl/3GX/Tx6URL6hKWQWfh7VMJap5oq1nQ/J+PhjveQTOJGvlmMstW1w+AoQ3wBhp
+         0uXg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuaU5upIylwCnx4UC6JrRVKQr9rhKNUN4/XjB4dXQVbV8XczAmbN
+	c7NzQpTK0k4+45VNFcnk3UFZDW70yaFv4x9Ge4IF5t4v6a0hdkLQ7A1W1Ek/SX70BdRaeyR7wl0
+	GUQXB9bDX+HdDtQsyAUvm8e4d4QPdrYwHGZeeTeqR8nuR2xVzUfEmuJJgjzXBNlkEPZ3UwqN2Ap
+	AXJx2gwBnRD1gXBooYI1GZlAYtfusTBuCMLwXRW5vk3iqJ9tQIwnTrvBWYvX5qw/Hxvpgwm0Ar4
+	8KGDbjsn/UR+aaGeB95dUmGAMu0joVtunFFX9IFS5SIuiadCAAydmxEunGu/gEiY/g+ewsSyVUI
+	QN8IXv7nmhNBCFaM5rDqAgvFfqm/4m0864fNEjoZDpfWlNaDuQcy/TY4HMyZZK8GxGCXVyXI4g=
+	=
+X-Received: by 2002:adf:8143:: with SMTP id 61mr6068742wrm.47.1550050845330;
+        Wed, 13 Feb 2019 01:40:45 -0800 (PST)
+X-Received: by 2002:adf:8143:: with SMTP id 61mr6068691wrm.47.1550050844371;
+        Wed, 13 Feb 2019 01:40:44 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550050844; cv=none;
         d=google.com; s=arc-20160816;
-        b=u6SdEldobJyyikK/qgnWznSHFCsrcnqDe/J/uP48Kufd/Xv3eQBqvez2vPneUTPpLw
-         p6fE1hLKeGgdHCiYlib/ODfEOR5JkoS5x7BbEdQ484U/mtFLpVLUZqpBVTgBaAhJS85l
-         iLGgEOWEajxldXMZWbsdnQ6z2l/c4YAX5lLr8wvGLtHGUSrb08kniFW44W0rbWYSue0t
-         l68ZRPhPlEaM8ZVQhU6qOxCkR/yp/dHalJI/uuNxgN5MHHUILiXmV/+KN5WXyffW3TnY
-         +sqzsnQ5qxBAwIpy9Ods8FdFCUge8nWDipqoWb+3+jpcM7F0+cAMkLwVWHdrANSXs+RT
-         F+Qw==
+        b=P88oHdDUkG+rnM4bGx/FRiR7+I7Dfz4h4qRDnBP6jk01Jvfu4UWCfjxxaHqBXwv6pi
+         rNXIhCA3diYV2+2lH1nP33PPB8n7w748ahxnpkEZJ6IxGO3g4tN4gi4OjoJj5wR5R1z+
+         WXeB5DOR3PFK6QPHhWcz0G6z+ZgmhDXDRH65QL+iSPZV1QOIRS7Me3c7CSKYRLvHRAPZ
+         8cBdwbn0WQl1sW2q/1R8HD3dwHZdfRNnY5WnuQ9iJRrXj4ClyvFiPyQ94znwKVeia/wW
+         tc2a7tsI1mzzlKmCwkfHYGSvSygXLfQBy4Y0gESViSbCVsLschTCO0SInKbiRVF8zf63
+         kP+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=GKjV3LCbmcnlhk4L7+Wz5JQXz00WoPv7LODUBCCVFg8=;
-        b=fii+ElWLoQQJ42+NjGoC2S6sj09NYotHXOrcYI8yF20SaOr3QifFmbIG0g1bB2zjZw
-         6cwox8uBnKJHB38NbztyRZ3Q36WPiMh7OkiU7Yn7fzbJyxtIRSAdC0Yx5oMzYx2tHNwO
-         BYzkX2ZaF7jewJT3hV9b7M2VhP6LLB3DF1mKJhIWOZDhLhK7qywYKfk8lIkfeYkvwcEe
-         kbz0UHDkLPq88dCNJm6Aqs+tgvmNpJVEPr08f0RHGgYnLnNm1kcso1I2qdwKf8tDX6WU
-         b4b1/Fm6PKr/SgWYizx0v49rm7sCRn5YJ7SPKso/mCZvdi+dySYyvzi3pkuXhIeWm6PQ
-         fw1g==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=KPQIvusfQffcbSiTMJqq6ntVvlDynZgSpryXWkwTGaM=;
+        b=AJSswUxWfco1wQp8UNayprjji2bLFFGFAIr2SIlf3rLy6q1iouMY0h2EXzqyAOerTV
+         HZTKWn8jvEK1ECOAaAI9KGnrZdLG171UMjnNliuxt+zk2LKuwwGYfEndA/4DVjwc/Ray
+         dyViR39Zw21xyxiaj16X+UtylvfeagOSGtkD8bkbkClKYwxhSdA4mKEM0KSKdQ0fSkER
+         J02Dacb7+C36jC3Wf6Qe+rg6pT1ZA+3E419hq4KJ598ime5o34p55sojtO1pC/uDlfLr
+         PMIrJk/PBZ10rtDULwqRkPMHKtqp7qDYc3xbi2S/h4WaD90tHEOy38WjQEvVW1hDZhMX
+         eK/g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id u10si11829155wri.123.2019.02.13.01.27.56
+       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o18sor2550558wra.14.2019.02.13.01.40.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Feb 2019 01:27:56 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
+        (Google Transport Security);
+        Wed, 13 Feb 2019 01:40:44 -0800 (PST)
+Received-SPF: pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from bigeasy by Galois.linutronix.de with local (Exim 4.80)
-	(envelope-from <bigeasy@linutronix.de>)
-	id 1gtqpe-0004XT-Mt; Wed, 13 Feb 2019 10:27:54 +0100
-Date: Wed, 13 Feb 2019 10:27:54 +0100
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v2] mm: workingset: replace IRQ-off check with a lockdep
- assert.
-Message-ID: <20190213092754.baxi5zpe7kdpf3bj@linutronix.de>
-References: <20190211095724.nmflaigqlcipbxtk@linutronix.de>
- <20190211113829.sqf6bdi4c4cdd3rp@linutronix.de>
- <20190211185318.GA13953@cmpxchg.org>
- <20190211191345.lmh4kupxyta5fpja@linutronix.de>
- <20190211210208.GA9580@cmpxchg.org>
+       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: AHgI3IZuh4Vbs+i/l3tBIYxc0NPmfUP4uiVUoKfoZUsXIyJmFEXYRFSSKGguAs+YWrr2sqbfmcUeRQ==
+X-Received: by 2002:adf:de83:: with SMTP id w3mr6080776wrl.56.1550050843722;
+        Wed, 13 Feb 2019 01:40:43 -0800 (PST)
+Received: from tiehlicka.suse.cz (ip-37-188-151-205.eurotel.cz. [37.188.151.205])
+        by smtp.gmail.com with ESMTPSA id i13sm20879739wrm.86.2019.02.13.01.40.41
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Feb 2019 01:40:42 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+To: <linux-mm@kvack.org>
+Cc: Pingfan Liu <kernelfans@gmail.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	x86@kernel.org,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Tony Luck <tony.luck@intel.com>,
+	linuxppc-dev@lists.ozlabs.org,
+	linux-ia64@vger.kernel.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	Ingo Molnar <mingo@elte.hu>,
+	Michal Hocko <mhocko@suse.com>
+Subject: [PATCH v2 2/2] mm: be more verbose about zonelist initialization
+Date: Wed, 13 Feb 2019 10:40:34 +0100
+Message-Id: <20190213094034.1341-1-mhocko@kernel.org>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190212095343.23315-3-mhocko@kernel.org>
+References: <20190212095343.23315-3-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <20190211210208.GA9580@cmpxchg.org>
-User-Agent: NeoMutt/20180716
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019-02-11 16:02:08 [-0500], Johannes Weiner wrote:
-> > how do you define safe? I've been looking for dependencies of
-> > __mod_lruvec_state() but found only that the lock is held during the RMW
-> > operation with WORKINGSET_NODES idx.
->=20
-> These stat functions are not allowed to nest, and the executing thread
-> cannot migrate to another CPU during the operation, otherwise they
-> corrupt the state they're modifying.
+From: Michal Hocko <mhocko@suse.com>
 
-If everyone is taking the same lock (like i_pages.xa_lock) then there
-will not be two instances updating the same stat. The owner of the
-(sleeping)-spinlock will not be migrated to another CPU.
+We have seen several bugs where zonelists have not been initialized
+properly and it is not really straightforward to track those bugs down.
+One way to help a bit at least is to dump zonelists of each node when
+they are (re)initialized.
 
-> They are called from interrupt handlers, such as when NR_WRITEBACK is
-> decreased. Thus workingset_node_update() must exclude preemption from
-> irq handlers on the local CPU.
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/page_alloc.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-Do you have an example for a code path to check NR_WRITEBACK?
-=20
-> They rely on IRQ-disabling to also disable CPU migration.
-The spinlock disables CPU migration.=20
-
-> > >                                            I'm guessing it's because
-> > > preemption is disabled and irq handlers are punted to process context.
-> > preemption is enabled and IRQ are processed in forced-threaded mode.
->=20
-> That doesn't sound safe.
-
-Do you have test-case or something I could throw at it and verify that
-this still works? So far nothing complains=E2=80=A6
-
-Sebastian
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2e097f336126..02c843f0db4f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5234,6 +5234,7 @@ static void build_zonelists(pg_data_t *pgdat)
+ 	int node, load, nr_nodes = 0;
+ 	nodemask_t used_mask;
+ 	int local_node, prev_node;
++	struct zone *zone;
+ 
+ 	/* NUMA-aware ordering of nodes */
+ 	local_node = pgdat->node_id;
+@@ -5259,6 +5260,11 @@ static void build_zonelists(pg_data_t *pgdat)
+ 
+ 	build_zonelists_in_node_order(pgdat, node_order, nr_nodes);
+ 	build_thisnode_zonelists(pgdat);
++
++	pr_info("node[%d] zonelist: ", pgdat->node_id);
++	for_each_zone_zonelist(zone, z, &pgdat->node_zonelists[ZONELIST_FALLBACK], MAX_NR_ZONES-1)
++		pr_cont("%d:%s ", zone_to_nid(zone), zone->name);
++	pr_cont("\n");
+ }
+ 
+ #ifdef CONFIG_HAVE_MEMORYLESS_NODES
+-- 
+2.20.1
 
