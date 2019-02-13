@@ -2,136 +2,134 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 726F9C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:38:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 01451C282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:41:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3A8F2217F5
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:38:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A8F2217F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id BEE212190A
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:41:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BEE212190A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C925B8E0002; Wed, 13 Feb 2019 08:38:30 -0500 (EST)
+	id 6990D8E0002; Wed, 13 Feb 2019 08:41:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C3F748E0001; Wed, 13 Feb 2019 08:38:30 -0500 (EST)
+	id 6498B8E0001; Wed, 13 Feb 2019 08:41:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AE1798E0002; Wed, 13 Feb 2019 08:38:30 -0500 (EST)
+	id 538788E0002; Wed, 13 Feb 2019 08:41:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 525618E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:38:30 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id f11so1029163edi.5
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 05:38:30 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 128CD8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:41:01 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id m25so1006800edp.22
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 05:41:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=bm5uUr8Ra+OZXp25pW1LELKlbIi3ZN7tO3+pGsi91IY=;
-        b=sUw/c4446ybLM8FUIRpg4fn51zJNb2a08hMUSZX/SZMOQ1XOkig9x4jcDUwaqcgU8M
-         o955axiC9zqus/PgqNd3rVvwM/Yx/gegSxolfzQMfPz1zZ21r2CiFIDT2AZSlZSBWKMO
-         l5giIiRoBE6/wvV/TDQFB6CZsRIHVjv3gFfUXIZKEetdGChg9cuYKrfusEyq1gRtlC0+
-         Rieh5pifnL7kW/Z6ud5B1sg81ILX7P0pwfomPse5FRSFWqXUP9vrbcJd09qlK4Cm2Mt5
-         lBsbOEb9RbdQt8T5jV8l2d3IRoQ3LDcwo7qay+6IfGbWiguzSJIHroFq5op243j/Ky2q
-         YIhg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAuZqByWY9iCeQZFgOaVX0fLnSSu/5wTF9SwybW9pMaLyds4pEvDw
-	nFyIbohnwYfp35jlqPI1apo6xNEGyYiSRPa4cWIigZ8heikqhrBk5D3RnoQap9WQWPhpsulz3QE
-	iEOWLJ0BInqFzqGHzNjyYbvApbuGh26iG1z9S4uLJVmyTQRVZ0G1ccil0Zreb4Ek=
-X-Received: by 2002:a50:d58d:: with SMTP id v13mr422964edi.67.1550065109869;
-        Wed, 13 Feb 2019 05:38:29 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib5lK1Fn1f5kUYUySm40n4glqJvlbS3kRyrPh7fSIbDNgpSarGWW+5qB19TvA7REDpDB5eQ
-X-Received: by 2002:a50:d58d:: with SMTP id v13mr422920edi.67.1550065109130;
-        Wed, 13 Feb 2019 05:38:29 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550065109; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=j2NtpWulAfxY+M1SwtqWw8zv90a2bWWa0qFqTBFmGak=;
+        b=cTNar0YIS3r+AdEQAkeg3IcCLu89xI08XwPb0n2DEXb2f2KW9AxuZTgQ8N05+BVuNd
+         xOcMOhDtH1/KQvefBdz1YjBYNThT/BeSxfFI5egogkv8daUyNJkjyZ1vHHWq1mvyF7ne
+         jSEJDxFTOpZh3/1yYr9iuFSVS67bRzAvrBFZSJR80Zk5tLGE6iq1vLaFse+A6jhhDpBR
+         NaRCpoADrdSpwDwCNIcIncpCaVmPNRmAU6i37UAG0CkjPpgyrlaqyHOUTTh1vPXhEJjw
+         6IIF2zefOVpGZjICWM6TWwUcSTTOBxnUZBAP9tVnDAvXMeHkeUl7f9gZnGhcCag8qkco
+         c5/w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+X-Gm-Message-State: AHQUAuaQw/cmQBGFFrSbOJgjsTiehTAnSZ8lDyKTzP5hd76zzYyNq5fZ
+	pJnwvYM3RrXGLLmgAzw05ZVGQR+xFXicZP8Y1LHxmx8J8G05G+PjshRdUvSp99URdTHCyKu3/tv
+	soEHQjvqNNi9FavRmpqk7ZMPszQi5ZDW7tVKMvmmy4Ijcg4Ch377lQ6deCTL4Hh958w==
+X-Received: by 2002:aa7:c58c:: with SMTP id g12mr448511edq.226.1550065260548;
+        Wed, 13 Feb 2019 05:41:00 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaGrQKyUotx/L3v18wqfFc0bt0FH0oSzhjkTvJZu7wXyNZqBpA/JALcdE+gPrvFv5yA2frN
+X-Received: by 2002:aa7:c58c:: with SMTP id g12mr448436edq.226.1550065259140;
+        Wed, 13 Feb 2019 05:40:59 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550065259; cv=none;
         d=google.com; s=arc-20160816;
-        b=jO2dMYMOQg8HT7SEV+iKrq0qCKauMdUqrtYxsluF3BTDh75kaHhbc5q+lUf4VM88q+
-         phcqobAXwv8cjjoes/v5owOGupjhWF7G6eY+hayw8F07yCa0ojYIHQEuWX06F21ap90t
-         zF04fPNEylxYrIuk/pkKp6QzkAJHzuHBapVWT9bzTMhrWRn5C7k79Y7IhPeFMC16BRtH
-         MvzICxPZ7JQKi0sZX54TUhVBVcJzCM88i+uMy7z7CP0VfxUseHKBll2p5bKY0WIz5H78
-         u/aoO5bGixtJKM1fPTT8wa+6jOfNpan5xKBB5Dy/IQVKNcOgpSwvPzmjI4MXoYlmtMdB
-         4nJw==
+        b=AE0g/EKurQs5r6Tb2VjXvC32kUYg7ObYHB5sB8oTj3O27ICSlHdtV5vApeiIZyBRZ5
+         hVocrMT5vimqYYfIilYCfm/A/TrN0jLJ4ZScEo1r+u4bvc1o/n+Cu/tmlCFunL/D0OYo
+         XDuqyhlUs11BxeSbStw19rrc+P0dq/Voq/981UI4P8Q76FFLPkGGtum2/VHNG9Wh+2Gt
+         X9wZ+hiWwzN9ToXOtrrOKSe71/O8zkr3CTOrSAJkUVL6Rz4q5l6sJM6UA5MFE7AEOmRV
+         3PjGUDaBphOfSyGag1B7LEKXhYCpwuQq3eBml0Qad6BE9QUC38/Cd5K+xWi/BtKwApiL
+         zGnA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=bm5uUr8Ra+OZXp25pW1LELKlbIi3ZN7tO3+pGsi91IY=;
-        b=AuekddkO0yM1CqwxrZJ5LlNaF/0euzZb+LBQx3+PHpd3UyOEDCF9a4rQIGGgJODDeF
-         7/aARLtec1DvRHtG7X5q41ECKuh5UtdEkrSKXvvmBYJaauipj/TJKLQ/KM45Va+VPf8T
-         6p5siG8L9kl8C9+exDKDTmfOt96/7v3Sn59/lFEWT0vGDzZ8Tj1aB3ILayDgZn1hGDf0
-         gGgh0D4I6LKgP57vqwyPybyqO1l2etGLHdBOllEjaleGC+oXoAp/UvXv1lwffeCwgvjW
-         z2xMVX49YUmwrss5FprOx05TbdQ0KIsxR3dmTjiJVoBlKJ54vTsXlShQ1zPSm9du7h0v
-         ZMXw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=j2NtpWulAfxY+M1SwtqWw8zv90a2bWWa0qFqTBFmGak=;
+        b=sFg+JUjB4o8QZBDqALr9DV2q8ZBEjes5Et81ZRsnNpCiZ5Vz+xmB/ESI2DJqkJ0mQF
+         L+iWnRBGLMB1JKBE1t4YFIzUtRv9nZhs1qFVjFITCvPPaHNBX4/itFmoE9iTcUyHEZfo
+         Bmk1HXj5QeXRM4jzIAGagqhddmYfrD0XKSTr9SDBi3QuaLi/pH4/eQ24XdVHNUB3QA6Y
+         PMq1EHt3O+oM3LnVv00TcD2MLQZgtKVwu6Int7C/X+YpT+jThGZLDsXu99NcQ24iEkIv
+         zufcNaraOOuEs0y8Gi5kPKTRux72XhKoetx8b68C1ribAyFt3/ffLPAt1zAfvhwmcCdd
+         1Qaw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gs21si7180310ejb.3.2019.02.13.05.38.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 05:38:29 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id c13si5009915edj.268.2019.02.13.05.40.58
+        for <linux-mm@kvack.org>;
+        Wed, 13 Feb 2019 05:40:59 -0800 (PST)
+Received-SPF: pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 98D90AEBC;
-	Wed, 13 Feb 2019 13:38:28 +0000 (UTC)
-Date: Wed, 13 Feb 2019 14:38:27 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>,
-	lsf-pc@lists.linux-foundation.org,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Vlastimil Babka <vbabka@suse.cz>
-Subject: Re: [LSF/MM TOPIC] Non standard size THP
-Message-ID: <20190213133827.GN4525@dhcp22.suse.cz>
-References: <dcb0b2cf-ba5c-e6ef-0b05-c6006227b6a9@arm.com>
- <20190212083331.dtch7xubjxlmz5tf@kshutemo-mobl1>
- <282f6d89-bcc2-2622-1205-7c43ba85c37e@arm.com>
+       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 1A6F380D;
+	Wed, 13 Feb 2019 05:40:58 -0800 (PST)
+Received: from e110467-lin.cambridge.arm.com (e110467-lin.cambridge.arm.com [10.1.196.75])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 250093F557;
+	Wed, 13 Feb 2019 05:40:57 -0800 (PST)
+From: Robin Murphy <robin.murphy@arm.com>
+To: linux-mm@kvack.org
+Cc: mhocko@suse.com,
+	akpm@linux-foundation.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH] mm: Fix __dump_page() for poisoned pages
+Date: Wed, 13 Feb 2019 13:40:49 +0000
+Message-Id: <dbbcd36ca1f045ec81f49c7657928a1cdf24872b.1550065120.git.robin.murphy@arm.com>
+X-Mailer: git-send-email 2.20.1.dirty
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <282f6d89-bcc2-2622-1205-7c43ba85c37e@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Transfer-Encoding: 8bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000381, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 13-02-19 18:20:03, Anshuman Khandual wrote:
-> On 02/12/2019 02:03 PM, Kirill A. Shutemov wrote:
-> > Honestly, I'm very skeptical about the idea. It took a lot of time to
-> > stabilize THP for singe page size, equal to PMD page table, but this looks
-> > like a new can of worms. :P
-> 
-> I understand your concern here but HW providing some more TLB sizes beyond
-> standard page table level (PMD/PUD/PGD) based huge pages can help achieve
-> performance improvement when the buddy is already fragmented enough not to
-> provide higher order pages. PUD THP file mapping is already supported for
-> DAX and PUD THP anon mapping might be supported in near future (it is not
-> much challenging other than allocating HPAGE_PUD_SIZE huge page at runtime
-> will be much difficult). Around PMD sizes like HPAGE_CONT_PMD_SIZE or
-> HPAGE_CONT_PTE_SIZE really have better chances as future non-PMD level anon
-> mapping than a PUD size anon mapping support in THP.
+Evaluating page_mapping() on a poisoned page ends up dereferencing junk
+and making PF_POISONED_CHECK() considerably crashier than intended. Fix
+that by not inspecting the mapping until we've determined that it's
+likely to be valid.
 
-I do not think our page allocator is really ready to provide >PMD huge
-pages. So even if we deal with all the nasty things wrt locking and page
-table handling the crux becomes the allocation side. The current
-CMA/contig allocator is everything but useful for THP. It can barely
-handle hugetlb cases which are mostly pre-allocate based.
+Fixes: 1c6fb1d89e73 ("mm: print more information about mapping in __dump_page")
+Signed-off-by: Robin Murphy <robin.murphy@arm.com>
+---
+ mm/debug.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-Besides that is there any real world usecase driving this or it is
-merely "this is possible so let's just do it"?
+diff --git a/mm/debug.c b/mm/debug.c
+index 0abb987dad9b..1611cf00a137 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -44,7 +44,7 @@ const struct trace_print_flags vmaflag_names[] = {
+ 
+ void __dump_page(struct page *page, const char *reason)
+ {
+-	struct address_space *mapping = page_mapping(page);
++	struct address_space *mapping;
+ 	bool page_poisoned = PagePoisoned(page);
+ 	int mapcount;
+ 
+@@ -58,6 +58,8 @@ void __dump_page(struct page *page, const char *reason)
+ 		goto hex_only;
+ 	}
+ 
++	mapping = page_mapping(page);
++
+ 	/*
+ 	 * Avoid VM_BUG_ON() in page_mapcount().
+ 	 * page->_mapcount space in struct page is used by sl[aou]b pages to
 -- 
-Michal Hocko
-SUSE Labs
+2.20.1.dirty
 
