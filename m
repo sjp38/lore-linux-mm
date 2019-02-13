@@ -2,147 +2,152 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D6F6C282CA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 11:33:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 687FCC282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 11:47:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BF4C82073D
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 11:33:21 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="I72evs5D"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF4C82073D
+	by mail.kernel.org (Postfix) with ESMTP id 2708D222B2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 11:47:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2708D222B2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 579B38E0003; Wed, 13 Feb 2019 06:33:21 -0500 (EST)
+	id A03F48E0002; Wed, 13 Feb 2019 06:47:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 52BDB8E0001; Wed, 13 Feb 2019 06:33:21 -0500 (EST)
+	id 9B3D98E0001; Wed, 13 Feb 2019 06:47:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 43F048E0003; Wed, 13 Feb 2019 06:33:21 -0500 (EST)
+	id 8A2EC8E0002; Wed, 13 Feb 2019 06:47:28 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E1EE8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 06:33:21 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id m196so3624816itc.4
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 03:33:21 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A2F58E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 06:47:28 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id q62so1518406pgq.9
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 03:47:28 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=gdIwE2aBy/rd4nMZfHWmtIjw8GVWglWwxpfhXIWlMCc=;
-        b=qB4UYMVXgQN/uTtTi5fFEBRb7pRiSC+ddYJce/XLEHsI4DKbkvBNM2SjMNBjWIZK2c
-         S8Zg+MOAbkFdncg3/0pWPzzTN1UzgTbUzPA+lFG4aVMoBM1fEPh3msnyp+8kd6OIkcaq
-         EnyX/90IdECAs2ekzGEAg4rS1NJTnFbjR0qHQEVRG8ZKqisMCyO7PiKciW1Xrqe1OAzG
-         w9eq8f9VeZA20SsXWHTQS5lfkHJvDH9IlgO4L2FNIgd9GfbQdJ+c1bkFuBQRlWMeKfVr
-         hmiKGiN6hZ+zjBJ/7r+XWpzuaad2QheIYE96owMPaBn6NyUePQ5tw2s3nvid/AaLcXwc
-         zSzw==
-X-Gm-Message-State: AHQUAubLd129aGPfuuykf7/bmalEr1OUVCA1xAIA4t2X8RtzKITaDllI
-	w7vIzLh+fWYwV9+Knjw/6jiE49jcARXsG3oxivBhU9Dljn1HyS7DRoLqIrXRSDgBlIU+04CWoE/
-	1rcV5KoLlqotj7ttRnWqDz7TkquP0WV+C+Tj6uRLFvzNWaBVTHVTUZDMnSm8FlPcjcZ8n7FdKgD
-	bF1zG3BkOyLnn9TZkIhXetPKsJxCXZ8vs4wxzPusqIE9ZkYpjRJ3gV729QnFFdSB8xxEeBaD0OZ
-	iGUsM3Idw2eVbI4u79/P6qT5x55j7EmSf5XjXV8F0YbkvtTL4R7lHrtFGmTFARzrx/DzC4H+8ls
-	DV7zHpUqxnGgDA77KJlLEElVDwKda+PPWoaPZfIv0X3rLTlIofVQrcBhrt1Hcdy/wEvFP2g/xg=
-	=
-X-Received: by 2002:a6b:7402:: with SMTP id s2mr4364018iog.219.1550057600435;
-        Wed, 13 Feb 2019 03:33:20 -0800 (PST)
-X-Received: by 2002:a6b:7402:: with SMTP id s2mr4363991iog.219.1550057599771;
-        Wed, 13 Feb 2019 03:33:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550057599; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=2WwpL2L07AuK20ZP2HgSWeV40opIDpYTKHlG1jeLB/8=;
+        b=liEjQKmcjpzmirMKv50/K9BsJGqqyxDQOBkDHwX9eExhnaBAGIza/s6CcxHOetJlv6
+         yfIKbI2QDoQCNjTIu+GB+qZRNNboK+M610D12qYfAdkneU4r8YJUI9PH5cWWjRvE++p5
+         y08dlCf0B+ocbeHqzBCoHkD4zByO8xmAkOzCeZYpRp4RUfme3RDYtv3vmIZOUE0c3N3F
+         QunwVRYg+mwCO9w9oli25h5dKO1yNxeSsIcSDnf6KSiMUmA4Wck6Uq20nWdik55iC/S/
+         GdAYxHzTwtAMsveJk1OzFIsPJC1DeajzYI+vIMPhu4FWgthM8ppRxRpQ3NUSdK8AFGUd
+         eLjA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuarI1e3R59nNrGpZNkpDBrJ0gVlgkyuNaUuvpaujK/U5jx6Anml
+	zK+aY5KUuDjacnhlgWRfSNyOqLnG8yiHNyFsclJYzqleVSrFqEy7dotAom+3JdAIW95lv/Lv+87
+	WBnfpEyPb5pi2nrYmqrCpv/VV1hCUoF+ipRpsWd5+X9qU5AFEFFPUJ/ifnpUKa0k=
+X-Received: by 2002:a17:902:e48c:: with SMTP id cj12mr103011plb.146.1550058447909;
+        Wed, 13 Feb 2019 03:47:27 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYAuchzv4JMPMgl2t/QQ7pN128WsDae4TDTtINTRuhVEUue6Vp4L4+XhvuryR4bB1/mEcEA
+X-Received: by 2002:a17:902:e48c:: with SMTP id cj12mr102948plb.146.1550058447090;
+        Wed, 13 Feb 2019 03:47:27 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550058447; cv=none;
         d=google.com; s=arc-20160816;
-        b=OEZj9z6mKQGVl9hSRhAiyOoEhaa4LEAkmyfkxzFD/yLYxfEfkILfOcmkZzEE87XM+o
-         N3wzYs2fSkiYXxvmjxQ7u/9p5LLe7YmUTiVZl6ARPmNQabIPp79DdjSACqKGnA6mTJkR
-         Dz2krlrqkj50UfpQK9zQ26RrFQImzWZqXPUw7/Td/RoWzpDyp4I+oes4LBQmjP9VAdD/
-         vfasJCa3CEn48rw0YKaNEla2df9kjwEKBP+OvSKMN2KHgnUNlK+4FECEEl9pCLki57YC
-         nzMKWGb5/qJQKMUjbu4rQVdH87BNW4KLBbPsHMyWDaYLnzwT0ADC9+YKfZBPhW8ADrWD
-         0/7Q==
+        b=t3dOh5LcnxFcNslJ/zLn8RIZ3qmUd1OmaJXo7oVK/HCW3VLpoB8re3JNsfNO/bNFjW
+         h9uUDxrjREKjWVxTdBMPt8x9ODXNAxhdrU4zjQpMLUTmprM7dvZ/y17oEdwlfusyH+5/
+         t5fNXjsQ4p/FRIf6f5EtXk6lKcQMMd5u/03EDoZTza99OQkV3qZGxU0S2CVJZEf2bgBR
+         2n5jEk6RPVfDlmZ2bXbNdFeG0FCwnJpHWSwMRi0zK85Yka96Tif5lFh7c/Ju4jufTh9m
+         nMumG72Flo9TWoxrgV/FhkL8c3jPtLibpoXLsnKFm57agpUteCc2lJ9yHihutqZc0tbs
+         OMYQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=gdIwE2aBy/rd4nMZfHWmtIjw8GVWglWwxpfhXIWlMCc=;
-        b=Rpt7GP4t/zfvuW/+R17o4EYZvSo83LRSpJoE23nNWUf9ikBYEEYzm5XOA8pc8XXinp
-         2bk2RFqe2wVaawpXSKr9inNn2PE3Bomsiqktg4mmeVqhHy47fMODlffCjtXV0g/lE557
-         +c6XbkUPQgOLuHvEfNHSQOcxqt+LmkHPf5AAEYfhIsHwHr4Sr/JcQbRIlaNYuJ8KWJpq
-         7OSsUphhiRnjI196aadNDY1/1sWErdPfjizxW8widZBixuml0B3M5N2sjBq9pnuoR4ZU
-         qouSx4O5vVEkhywNXgvHDl30TaojSs/Srb0bCE5xxQKBUMSHgcpMO9Tw6u96Gq//6J2N
-         Jbzw==
+         :message-id:subject:cc:to:from:date;
+        bh=2WwpL2L07AuK20ZP2HgSWeV40opIDpYTKHlG1jeLB/8=;
+        b=rcj3Oq/TYycahqvZrpQ5y1BgFQaXFqt+W0Dq5c5FYTGUGXUaXWmeux44DGJhQ+jzZS
+         3ddFaSm6mifHnQ2K5m0buPvoy0JDszIk7CCKeYPn+2bI61ZV8xC2chWomPsC+G4zNNmo
+         j431p6LB0UZnSw081llFNoGRETo/6xm61Csyff85uo2ZumWM3wMMxF4Z1IsRHPgoBACY
+         QCiqW1p4snDew4AsTNkBq3+IlWvmjHX2/Free9z63byQN3xKaQhCEa5dNRaGaMF0WJcT
+         ki9Qt7WvIWiGFNfvRQnDlVBpTHXjym+lZ2QnM6XgC53dcs1jgbqoW8nWBO8Hgkjop7yS
+         QSyA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=I72evs5D;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f2sor9525193iol.87.2019.02.13.03.33.19
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u6si15364890pfb.92.2019.02.13.03.47.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Feb 2019 03:33:19 -0800 (PST)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Feb 2019 03:47:27 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=I72evs5D;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=gdIwE2aBy/rd4nMZfHWmtIjw8GVWglWwxpfhXIWlMCc=;
-        b=I72evs5DmhA/IkqhBTn3SfCPZeRF44Zs9eI4QXeKRbAp/XMivxySnEY+AVra3YHelk
-         4aAAZIjJyYBdCd80BK058Cv/TU/cPa1eTldyk5WNgwjTspp9YPoR4t+2DY2fqgLZ2mIS
-         bR0baOHsM/las67jgmo7vKyr/i6wCBw0aLCiMznGEhiMT7z/tGSTrSRdlFddmJxXdJnt
-         dFcMwgAgBBO8WvLUxB0yS/0hgHjvqKIqqM86qz6+3hNtqyctHXxlLZBkdP179a4naxga
-         mDzumdjxp3lFWYKeN02zMYjabvPf09NDfLscjQFWWAfjF3FsncUH94oroQYLOR/++Fto
-         ZOmg==
-X-Google-Smtp-Source: AHgI3IZLa6ZrZ3frPClxSclZ9XAR+2Ge7zfdXLzhOnpOJ2ueM396dqtnJMqSnq3bNGfHt/TMWjkdhg==
-X-Received: by 2002:a6b:b4cf:: with SMTP id d198mr17658iof.96.1550057599322;
-        Wed, 13 Feb 2019 03:33:19 -0800 (PST)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id y184sm3268683ity.27.2019.02.13.03.33.14
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 13 Feb 2019 03:33:17 -0800 (PST)
-Date: Wed, 13 Feb 2019 20:33:12 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: gregkh@linuxfoundation.org
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Hugh Dickins <hughd@google.com>, Liu Bo <bo.liu@linux.alibaba.com>,
-	stable@vger.kernel.org, Martin Liu <liumartin@google.com>
-Subject: Re: [PATCH] mm: Fix the pgtable leak
-Message-ID: <20190213113312.GA34988@google.com>
-References: <20190213112900.33963-1-minchan@kernel.org>
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4D62DABAC;
+	Wed, 13 Feb 2019 11:47:25 +0000 (UTC)
+Date: Wed, 13 Feb 2019 12:47:24 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Jann Horn <jannh@google.com>
+Cc: mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH] mmap.2: fix description of treatment of the hint
+Message-ID: <20190213114724.GA4525@dhcp22.suse.cz>
+References: <20190211163203.33477-1-jannh@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190213112900.33963-1-minchan@kernel.org>
-User-Agent: Mutt/1.10.1+60 (6df12dc1) (2018-08-07)
+In-Reply-To: <20190211163203.33477-1-jannh@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 13, 2019 at 08:29:00PM +0900, Minchan Kim wrote:
-> [1] was backported to v4.9 stable tree but it introduces pgtable
-> memory leak because with fault retrial, preallocated pagetable
-> could be leaked in second iteration.
-> To fix the problem, this patch backport [2].
+On Mon 11-02-19 17:32:03, Jann Horn wrote:
+> The current manpage reads to me as if the kernel will always pick a free
+> space close to the requested address, but that's not the case:
 > 
-> [1] 5cf3e5ff95876, mm, memcg: fix reclaim deadlock with writeback
-> [2] b0b9b3df27d10, mm: stop leaking PageTables
+> mmap(0x600000000000, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS,
+> -1, 0) = 0x600000000000
+> mmap(0x600000000000, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS,
+> -1, 0) = 0x7f5042859000
 > 
-> Fixes: 5cf3e5ff95876 ("mm, memcg: fix reclaim deadlock with writeback")
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Liu Bo <bo.liu@linux.alibaba.com>
-> Cc: <stable@vger.kernel.org> [4.9]
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-Reported-by: Martin Liu <liumartin@google.com>
+> You can also see this in the various implementations of
+> ->get_unmapped_area() - if the specified address isn't available, the
+> kernel basically ignores the hint (apart from the 5level paging hack).
+> 
+> Clarify how this works a bit.
+
+Do we really want to be that specific? What if a future implementation
+would like to ignore the mapping even if there is no colliding mapping
+already? E.g. becuase of fragmentation avoidance or whatever other
+reason. If we are explicit about the current implementation we might
+give a receipt to userspace to depend on that behavior.
+
+> Signed-off-by: Jann Horn <jannh@google.com>
+> ---
+>  man2/mmap.2 | 7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
+> 
+> diff --git a/man2/mmap.2 b/man2/mmap.2
+> index fccfb9b3e..8556bbfeb 100644
+> --- a/man2/mmap.2
+> +++ b/man2/mmap.2
+> @@ -71,7 +71,12 @@ If
+>  .I addr
+>  is not NULL,
+>  then the kernel takes it as a hint about where to place the mapping;
+> -on Linux, the mapping will be created at a nearby page boundary.
+> +on Linux, the kernel will pick a nearby page boundary (but always above
+> +or equal to the value specified by
+> +.IR /proc/sys/vm/mmap_min_addr )
+> +and attempt to create the mapping there.
+> +If another mapping already exists there, the kernel picks a new
+> +address, independent of the hint.
+>  .\" Before Linux 2.6.24, the address was rounded up to the next page
+>  .\" boundary; since 2.6.24, it is rounded down!
+>  The address of the new mapping is returned as the result of the call.
+> -- 
+> 2.20.1.791.gb4d0f1c61a-goog
+
+-- 
+Michal Hocko
+SUSE Labs
 
