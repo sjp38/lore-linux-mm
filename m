@@ -3,96 +3,106 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A68BEC282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 15:44:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 70B04C4151A
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 15:51:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 61990222BA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 15:44:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 61990222BA
+	by mail.kernel.org (Postfix) with ESMTP id 36B13222C9
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 15:51:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 36B13222C9
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F3E748E0002; Wed, 13 Feb 2019 10:44:25 -0500 (EST)
+	id C7A2C8E0002; Wed, 13 Feb 2019 10:51:13 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EEDEF8E0001; Wed, 13 Feb 2019 10:44:25 -0500 (EST)
+	id C50A28E0001; Wed, 13 Feb 2019 10:51:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D91B68E0002; Wed, 13 Feb 2019 10:44:25 -0500 (EST)
+	id B40938E0002; Wed, 13 Feb 2019 10:51:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 959A38E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 10:44:25 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id s27so1951897pgm.4
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 07:44:25 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 731478E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 10:51:13 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id t72so2148046pfi.21
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 07:51:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=vptJqCx01N81UCMUpXbc3IouR7pmhqQUEo/gMvLEEcg=;
-        b=BxwsEpt7dxyn9tff+hjK57Xo4MS+Q5jZdwro3FOF65Ifd422acCpwZcdBbc3niiT7D
-         9dbRE5Dr0oVWDpA0oKaRkyyBfstX9Cdx6aRb04C/Gr9N13VTWd7QwqMq59dDoQM/YekF
-         bgMtgHtU5lYjzAqSTBN4/W3HNAzWuyFVGsARUHwFzCpCfYNzaSTLmcWFMjRfAVWDEKJN
-         Tg10JV96sCTpS/5J/2+8lOSg9cEawAL9z7THXophKw81mZshC93tZT4pndeMNh/0ODnE
-         Ac1yNZXJpggO68RwJJCap76NxCaSpsS5rXDESYVwnDLwL6Sbjb2mOs9Uxv/EBmywcrk4
-         E2qw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuZOzAUTGO27iMI8R2TjP+smXlJBCir9uSLlUekGlpSJfPgRMbon
-	DCxT6kpXKybKiHr1avaowm74dQxBhCIqZKsdZ3fKpPG/OTizloxZ2j1S9qtM/WM3wxdQR4Z7nfe
-	I+bSY7kDaaFbkS1hx9OnowpBF1IiQ+f+eK/LoNJSrmB904LcZGMeCuGeOkkEL0aOX5g==
-X-Received: by 2002:a63:5902:: with SMTP id n2mr1006617pgb.354.1550072665290;
-        Wed, 13 Feb 2019 07:44:25 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZSIrVeeRpJghDJviQCrOfyuhV1TqU3AOUCoe0vzHVv2MYb+VFjqnPeVVW8j7gflOhvYlHc
-X-Received: by 2002:a63:5902:: with SMTP id n2mr1006580pgb.354.1550072664666;
-        Wed, 13 Feb 2019 07:44:24 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550072664; cv=none;
+        bh=fgQsZ6VxUSCnuA6WERI+ivrgHoQKon5VtEFEmujHWUI=;
+        b=QguzKWXPrtQsXBcjEEplwhDAa3KDWa61rNJ3oH9bNTtV3ePK9ztw7b5o7G58ktWYIi
+         BtyXmaxIt1IzSyhevMkIbIvKrqJYN8JyRmDuK5FV4mokbzLUJiOa7ZQKJeukEqyuS8ds
+         Gr2uM/6O3VNWkxpyukgtN1k5OJarJPH20QKs0Xe4IEXaFlEJT/5XMG+p/KKFP3dNJmJy
+         SyxjCEWk1oreTttpUKlBhFy5Zu+wB26KR+7GmjFOmAH09JI2TJ5bYBRR11uuC9D+BgDe
+         8M6D2mMdnlfuSKAiqBR9HH6RFlEqwVHoU7mmtliPgHY39elYkmJyMsD4AwC5Uc4FHUTo
+         3bbA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuaSGV7g7+4tnEfOVWRJPhLIa6siraRfIUqw9uU8GsHAQNh4PD63
+	Wna4/BhiksmmDV82J1rHyEgjRC704bOGFYPKhx9gOjGZ2iMRmkYv+wvfs3kLmLsHCfRWqSSxfQD
+	DB9gDTwy0yYwQhYsKIriiuKKSYef7Xtjyjz8NaQyPshUz8rWsyOo7aGu9R4+fksb5FA==
+X-Received: by 2002:a63:160d:: with SMTP id w13mr1025615pgl.85.1550073073165;
+        Wed, 13 Feb 2019 07:51:13 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYWUaED0SzmSbeWpZTulZGfOM9o29+zDJMIN45/oRcNp4Q1n7oMDmHkcZ5MxjOJfsVgOMGO
+X-Received: by 2002:a63:160d:: with SMTP id w13mr1025582pgl.85.1550073072541;
+        Wed, 13 Feb 2019 07:51:12 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550073072; cv=none;
         d=google.com; s=arc-20160816;
-        b=XE5T2lg9RGGev+vPeB5TAA8/UISDZaWRT1+H8Gw3n1havqQF+Gvke8E83EpDzF4lm/
-         In86pbEhvyBuOA1/qIDfb2FrBTXdBIBbKjS/QK3daK5IEwgUW0cxcnkUk+cv9Wjd06EP
-         4TqZnbZtjNRxuIvl1KklRI7s4wueVFMOv0ZD95Xjz1sTrgxvqbsoLpzNrjZdMtsM1vUQ
-         1YFL+QPHGZ4K+dVaR5TDddJJ5FDH3V5RadNz20azVhuIRg9TzT97yXLGsoLFeDbo4Dab
-         jKemfowZ1aE9CU46EV2XV1UhCEA2Vq4RmEhYLjZyEgj608VLh7xaI0UbayowSrqJT44E
-         3SzA==
+        b=qEMnPZaZT4vT3rkHEEkJm2jKI5T80ApX3f03togne0vUcPeyr0IqjCEBeyb6TjP1mt
+         S96AQ7wNQ6QI9UoWlaRss7vaKv1j9dB0Lq7ksnE8K5Mfw4WjrZWHGPty9g+i8nxAHi05
+         8V3FtC7mYWp4oUy3zTqy7kt1OMk32rIpG2YbjDzRmJZdW9Li4SA+3gvXR5cxRW0fvX4f
+         4GVKeMW9MzQQunwdSejyrUik6VRPbBCx7OFydsHLqD1aczUqrD1TWYpT9wgM8Ppf2kYx
+         0tqYaeMoIceI41ZkBxgiF6Ke3NliyU7gQalCU4QC7Xesx1p4ekQDx/dWRfieZ/3DOgaC
+         rOVA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=vptJqCx01N81UCMUpXbc3IouR7pmhqQUEo/gMvLEEcg=;
-        b=nbZwdt+DnNCsecKQBfyFsL9VnUsoLYLazWsNcHxy5XS0uivu4AXhq0WTgw74JuTLuB
-         2Lrmh31KUMB8N4lMWi3WsX02OonwZX3CwHkgBq1U83W2/zSkBGyOc2MqeSND0i4BcNLR
-         uoY3L6jtjbyjfOaLeWTvohgH+yM57t6ZgxK5/MRfG0Hz2tMWGgaAwkubpudMpITTKBsy
-         ILF7GsRKOZhK7DdKQNAbchR5dFQVUfGnaNCxYl5cjHrPCgNHZXabXjmrFTL4+8k2Yf5e
-         fLb/oNIfe2df8Fj8Yg7vdAg2DFERojfsSgNGSJb+bPa8PCShJrOTcM0ESdR6j+gXBg7J
-         9OxA==
+        bh=fgQsZ6VxUSCnuA6WERI+ivrgHoQKon5VtEFEmujHWUI=;
+        b=bBtlZSwwaFhBQhfXE7Gt3/s9KTgTtZsYDxPQgRaEqHRsjW5JrRCkn1WsJ2iVlQaxYc
+         hLn3mC/J7JnP5VCrtluKevbMefbvp/NC3ugWTJS/OLYjuWkznPbzU3lHEuz5fVpf53xs
+         NcBqOb0SbVdZ7q2jUoh9l2b6MK2DnO6FSeqDGicwcWeZDDUdwMvv/SPA5Kdo9GB7F7y0
+         0qJeQRWawCCqZlCzkQQXcw7S8POajMpdjlqzyrCun8zyDQeVKEWH92BaUQOcSakIiJFe
+         oB3xHkgByiFRoxsrxffmNHKCKBKZX8jicrA4mEqob5ltMWA5ehtvlo4t0iu9M4e6yax6
+         snLA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id m39si16808390plg.315.2019.02.13.07.44.24
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id n20si6904026pgb.195.2019.02.13.07.51.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 07:44:24 -0800 (PST)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+        Wed, 13 Feb 2019 07:51:12 -0800 (PST)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Feb 2019 07:44:24 -0800
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Feb 2019 07:51:11 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,366,1544515200"; 
-   d="scan'208";a="143943710"
+   d="scan'208";a="143945163"
 Received: from pmmonter-mobl.amr.corp.intel.com (HELO [10.254.87.236]) ([10.254.87.236])
-  by fmsmga004.fm.intel.com with ESMTP; 13 Feb 2019 07:44:23 -0800
-Subject: Re: [RFC 0/4] mm: Introduce lazy exec permission setting on a page
-To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org,
- akpm@linux-foundation.org
-Cc: mhocko@kernel.org, kirill@shutemov.name, kirill.shutemov@linux.intel.com,
- vbabka@suse.cz, will.deacon@arm.com, catalin.marinas@arm.com
-References: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
+  by fmsmga004.fm.intel.com with ESMTP; 13 Feb 2019 07:51:11 -0800
+Subject: Re: [LSF/MM TOPIC] Memory Encryption on top of filesystems
+To: Dan Williams <dan.j.williams@intel.com>,
+ Dave Chinner <david@fromorbit.com>
+Cc: lsf-pc@lists.linux-foundation.org,
+ linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-MM
+ <linux-mm@kvack.org>, "Shutemov, Kirill" <kirill.shutemov@intel.com>,
+ "Schofield, Alison" <alison.schofield@intel.com>,
+ "Darrick J. Wong" <darrick.wong@oracle.com>, Jan Kara <jack@suse.cz>,
+ Christoph Hellwig <hch@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
+ Jaegeuk Kim <jaegeuk@kernel.org>
+References: <788d7050-f6bb-b984-69d9-504056e6c5a6@intel.com>
+ <20190212235114.GM20493@dastard>
+ <CAPcyv4jhbYfrdTOyh90-u-gEUV7QEgF_HrNid5w5WbPPGr=axw@mail.gmail.com>
+ <20190213021318.GN20493@dastard>
+ <CAPcyv4g4vF84Ufrdv8ocwfW3hrvUJ_GaF65AbZyXzaZJQVMjEw@mail.gmail.com>
 From: Dave Hansen <dave.hansen@intel.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=dave.hansen@intel.com; keydata=
@@ -138,12 +148,12 @@ Autocrypt: addr=dave.hansen@intel.com; keydata=
  MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
  hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
  vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
-Message-ID: <7f25d3f4-68a1-58de-1a78-1bd942e3ba2f@intel.com>
-Date: Wed, 13 Feb 2019 07:44:24 -0800
+Message-ID: <a9b9af61-d4cb-46c2-8e98-256565dcf389@intel.com>
+Date: Wed, 13 Feb 2019 07:51:12 -0800
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
+In-Reply-To: <CAPcyv4g4vF84Ufrdv8ocwfW3hrvUJ_GaF65AbZyXzaZJQVMjEw@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -153,23 +163,16 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/13/19 12:06 AM, Anshuman Khandual wrote:
-> Setting an exec permission on a page normally triggers I-cache invalidation
-> which might be expensive. I-cache invalidation is not mandatory on a given
-> page if there is no immediate exec access on it. Non-fault modification of
-> user page table from generic memory paths like migration can be improved if
-> setting of the exec permission on the page can be deferred till actual use.
-> There was a performance report [1] which highlighted the problem.
+On 2/12/19 7:31 PM, Dan Williams wrote:
+> Thanks, yes, fscrypt needs a closer look. As far I can see at a quick
+> glance fscrypt has the same physical block inputs for the encryption
+> algorithm as MKTME so it seems it could be crafted as a drop in
+> accelerator for fscrypt for pmem block devices.
 
-How does this happen?  If the page was not executed, then it'll
-(presumably) be non-present which won't require icache invalidation.
-So, this would only be for pages that have been executed (and won't
-again before the next migration), *or* for pages that were mapped
-executable but never executed.
+One bummer is that we have the platform tweak offsets to worry about.
+As far as I know, those are opaque to software and practically prevent
+us from replicating the MKTME hardware's encryption/decryption in software.
 
-Any idea which one it is?
-
-If it's pages that got mapped in but were never executed, how did that
-happen?  Was it fault-around?  If so, maybe it would just be simpler to
-not do fault-around for executable pages on these platforms.
+Unless we can get around that, I think it rules out being a drop-in
+replacement for any software-driven encryption.
 
