@@ -2,257 +2,206 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BD318C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:07:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1FB46C282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:07:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 755F6222B1
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:07:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 755F6222B1
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=inria.fr
+	by mail.kernel.org (Postfix) with ESMTP id CF8CF2147C
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:07:41 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="nXb5qnNn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF8CF2147C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F1B5B8E0003; Wed, 13 Feb 2019 08:07:01 -0500 (EST)
+	id 6B4F18E0004; Wed, 13 Feb 2019 08:07:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ECBA18E0001; Wed, 13 Feb 2019 08:07:01 -0500 (EST)
+	id 664EB8E0001; Wed, 13 Feb 2019 08:07:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D45228E0003; Wed, 13 Feb 2019 08:07:01 -0500 (EST)
+	id 554308E0004; Wed, 13 Feb 2019 08:07:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A2018E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:07:01 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id a5so877632wrq.3
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 05:07:01 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1545A8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:07:41 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id ay11so1642708plb.20
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 05:07:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-transfer-encoding:content-language;
-        bh=emUdtZZS39L2W6qk7zlzTWRJClGtDNm49r0zM21Fq84=;
-        b=ALxhbKKudACEzdRR4TA6gw4XzXBTfPb0f2KfDTJ8MvRJ0ParctKtDt9xL31w1o4bWn
-         pb/9iHUnSPKJrSm4QQHtmsguy9essTmzFJJ2ZCyRToifVyKbkl40HcXzcFHgNeG+7dzn
-         kIMj4Gd+foYi5lUi9FWwRdYYk13hWlgdXmLEeQo/oBxfLv8HOAloiYy4m5a9e/CZAH4w
-         p4ah5mCATtQvv/+Pe20WEVGYXvVstajYbuSV5QZHK1UufQpd8pptjzy8K0+77/x9oIT/
-         ZEB+Xb0FW04p1pXt50osPAKkxZig1Qgu7LluOfy3CX8etUyU1HaI6zbgifWVm8nAs919
-         RTsw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of brice.goglin@inria.fr designates 192.134.164.83 as permitted sender) smtp.mailfrom=Brice.Goglin@inria.fr
-X-Gm-Message-State: AHQUAuZKcOAYFBa80yfqI5TDVFaU72S/Xz9YUJPBBRuChT5Hw14Mbbin
-	q/P14251mjbE/PckvcF7h6LO/bj8W5tqOV5RlrzQUebhmxJYXxZ4RH1JtcVsrvX4T6Eu3PQ4mJO
-	9g+LvP5HHCXfs5BrwbrUI+ZzUmwe5q2W+Wrp9UhitLnugtGqRexiJdRghL3OTR4sICQ==
-X-Received: by 2002:a5d:538a:: with SMTP id d10mr327981wrv.121.1550063221001;
-        Wed, 13 Feb 2019 05:07:01 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib7b0FgJJkQHyiLBQ6E1qwvMe7629+bm1xinT/gUnmiGlZ+BZdloSX/2Y13AzyMFlm/sZtW
-X-Received: by 2002:a5d:538a:: with SMTP id d10mr327922wrv.121.1550063220087;
-        Wed, 13 Feb 2019 05:07:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550063220; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=JYrfSHAT7eT7lR6t+0pt9fGRo4rQyrecCsCJETIVA34=;
+        b=rRLYUvyegI6P1xuGjtXCvSruC2TQzMWCjwoBedfJPA0AseaPmlvt7CSFiCJCGxGEzd
+         f8BFfmpnIVa4ZboYyPFPyA1CDSy5KtT//d8/Z1oIrBuMvqClS0CmOO1ckydvj1mWisEa
+         FySyWcolAiJEgWCBZy9SOgymc7HxSnOVauO2pU2GVO15Bsexy9OsNLJV9+cPC1KZZ06k
+         dMqFpb+4fFDuSWMg+nihtIzQQAcNOlmc0Dnor9Hn3GL4NU88JVhDb2vtv2k5dXthvs6W
+         CqJd7EFxswnlujGmsGgphNr5jD3QISSFX5uKS9wc008vsYjgR66w114DcMU14qo9x3ZJ
+         kwUg==
+X-Gm-Message-State: AHQUAuaQxgFc9FjstuAAW8cYE5LMxLMFLJxhbQxgL1UnD80SCI42r7JY
+	jrpRGYNqytDHaL8svkRUX0D5Pl8ScL3VpxajpTlk5a1RP0tintofALj0NEvLfOTrbA+XvurDxhK
+	XOAwYz8hiSOlN3F3s0PxnWInjFw3tlk/4baDFzQ2TV+J0k+wL+cUqFly1U1UScrR6yO24Ogq4z0
+	NdpAfj47OW4g5hzqv5NVvehy3KCaw45/YJnn2hRev6Uo2RzIbWSTbLwZaMqv5Uf+n3ubfDdkEdm
+	lCaizPxPAp/x+Sh8KvmmVlKYum/w+RiCGka6ST0mQ1VNFvzxsbLtgIoxitpbXw3o0HmHF5c5iyy
+	DmQFgn2FAhlw7FBT4vK30cHHnl54FO25l0ZpObT6SFjofJEOcIpchApGjmlCWQgAujxyt8gQpP5
+	O
+X-Received: by 2002:aa7:8199:: with SMTP id g25mr472689pfi.46.1550063260751;
+        Wed, 13 Feb 2019 05:07:40 -0800 (PST)
+X-Received: by 2002:aa7:8199:: with SMTP id g25mr472636pfi.46.1550063259919;
+        Wed, 13 Feb 2019 05:07:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550063259; cv=none;
         d=google.com; s=arc-20160816;
-        b=S/Bd+uJ6Q6vyoIij5ItJ4Ul5K9RJIFm7Cd8ib3JZO3l14dmmZQHARMe8TPxgq0gJte
-         1xPwGoBVxdNNR0lN1CXB1d7SkC25nH5hQ2OCZv8m2qLqjGcArv1dWMCBwMtZhimREo3Q
-         ai2lhsSynUsDdB2qW2C8NfxyOmXv1MmlwdgQc6y0R+IOU9dTAncPwC9dRjixBr0QlwEE
-         YiFDzwhogW6vsf0t4p+jq1/9OXOcAIahP0MYSqyHNRzoftjVqCopy4ieg5dV+YL1BMxS
-         4ZVcd/3yBIwExLkOdPcm0qpe/i1QWxfdliAjM/P3JGy5y7QOzkvp8AX3aMVA45+wLUd5
-         NdNA==
+        b=B34YB/NnZc7PG/Ce3WDHDKWPsV7c1IyDaEvwsObBHUSh2RWToi9XjDkcMXK1VAse4F
+         UV2sN3tNcx4Fkc4f9EJDj509E5kgl7zYEK4ADGZfpDOS7f0e34n26NBwNmfw6itfsTJ8
+         4i7f/oYOOwthvXQ8mV9jFrmWjuZ3eIcwcibok9d2SDfOyGwubdY5/eFe799RjpkmYITc
+         DO56k+2zpuDaw448taAzCqpbEZPo9Uu1FbLQRLWYsBCNGiHjMxkazUmBN3rFptVC/FhY
+         F8CSbLv97IJuQeLNHdQcIP92iMI8WYVvjnKPF9VbJhiAev0tOym2WmNBJKUkQUiihYgM
+         LQbw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:references:cc:to:from
-         :subject;
-        bh=emUdtZZS39L2W6qk7zlzTWRJClGtDNm49r0zM21Fq84=;
-        b=M4V3NGDV7LuF3ObjaX/4fELObk150eX6xYkf83g7sfOcdQQOmE3WrtCD+fDOYXBB8H
-         5cryBbpb2ZLnYgTx94B1WSGkfDmSlde5eytGdb/BjcOKKB18Q67f8/ZHCVu/f/4rwI5r
-         JIGsRRDhE+uGO+4f62I2zd1B6WEo+7PE1HRityJXHX46vCqe638Ys9ADS7xAmV82ssPy
-         d4X7vQnuqNy01DfjFosMfoiPPFGA/jyX076QJ5bprPZEowjE/UuxMf5l3/ZWDGEjXBnJ
-         SHUCbSpPTWGSaDKHLkgFLFcNFEu8ju/sga+Mw9TX1YaGGnhztviQoK7g0YGwOp5nSRBm
-         +/WA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=JYrfSHAT7eT7lR6t+0pt9fGRo4rQyrecCsCJETIVA34=;
+        b=IZUXuJv1uDXQfBdAVP3wombNzdQILjivkOpw4EkBAS1puRWOuXr96WeSLdAQkYWR/b
+         w0KBzlbU4mqS7XKma6u7je6delIznsKeTGXjzDhFN8qE1fkW18mgHOMTPpk9YOOtlS1q
+         VKMM7XcAUe53WhSnusE1A9noo1rHC0bDLqccGxA206j/onahCLNlWRAtBUyeCLpKhLOO
+         UkJk2i1fgdFwwzroXSoDwE9Uj5/4HeDo83gbtp1C7Fjj86uLZ05x/2zYbkfIGjhvyeEe
+         Sd9SKvaM0amm0e99FZarNV7vnfvQ1vMjNZKIx8nauBaaVRO2C1lByLHTH7Or2XjdXtSw
+         +vBQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of brice.goglin@inria.fr designates 192.134.164.83 as permitted sender) smtp.mailfrom=Brice.Goglin@inria.fr
-Received: from mail2-relais-roc.national.inria.fr (mail2-relais-roc.national.inria.fr. [192.134.164.83])
-        by mx.google.com with ESMTPS id 8si4753256wmb.103.2019.02.13.05.06.59
+       dkim=pass header.i=@google.com header.s=20161025 header.b=nXb5qnNn;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d2sor23097456pla.7.2019.02.13.05.07.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 05:07:00 -0800 (PST)
-Received-SPF: pass (google.com: domain of brice.goglin@inria.fr designates 192.134.164.83 as permitted sender) client-ip=192.134.164.83;
+        (Google Transport Security);
+        Wed, 13 Feb 2019 05:07:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of brice.goglin@inria.fr designates 192.134.164.83 as permitted sender) smtp.mailfrom=Brice.Goglin@inria.fr
-X-IronPort-AV: E=Sophos;i="5.58,365,1544482800"; 
-   d="scan'208";a="369257766"
-Received: from unknown (HELO [193.50.110.185]) ([193.50.110.185])
-  by mail2-relais-roc.national.inria.fr with ESMTP/TLS/AES128-SHA; 13 Feb 2019 14:06:59 +0100
-Subject: Re: [PATCH 5/5] dax: "Hotplug" persistent memory for use like normal
- RAM
-From: Brice Goglin <Brice.Goglin@inria.fr>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
- Tom Lendacky <thomas.lendacky@amd.com>, Michal Hocko <mhocko@suse.com>,
- linux-nvdimm <linux-nvdimm@lists.01.org>, Takashi Iwai <tiwai@suse.de>,
- Ross Zwisler <zwisler@kernel.org>, Linux MM <linux-mm@kvack.org>,
- =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
- Fengguang Wu <fengguang.wu@intel.com>,
- Yaowei Bai <baiyaowei@cmss.chinamobile.com>,
- "Huang, Ying" <ying.huang@intel.com>, Bjorn Helgaas <bhelgaas@google.com>,
- Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@suse.de>
-References: <20190124231441.37A4A305@viggo.jf.intel.com>
- <20190124231448.E102D18E@viggo.jf.intel.com>
- <c4c6aca8-6ee8-be10-65ae-4cbe0aa03bfb@inria.fr>
- <26ac36f4-7391-5321-217b-50d67e2119d7@intel.com>
- <453f13cd-a7fe-33eb-9a27-8490825ca29c@inria.fr>
- <CAPcyv4jF7ZyKaFDw7nb04UvWkVWGJdLGkZDQ1g=X7i+kdu7JRg@mail.gmail.com>
- <a3bfe739-228e-26fe-90f7-4a4f8ceb3a9a@inria.fr>
- <CAPcyv4jJ=C7ZEsJqBxzBMsQWz4+C8BZmWuk7OkztOebprd2rMg@mail.gmail.com>
- <057ad938-e745-02f7-edce-e19bd326da6a@inria.fr>
-Openpgp: preference=signencrypt
-Autocrypt: addr=Brice.Goglin@inria.fr; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <eb58cb96-1f61-2dd2-b1ab-5a7d4df78297@inria.fr>
-Date: Wed, 13 Feb 2019 14:06:59 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       dkim=pass header.i=@google.com header.s=20161025 header.b=nXb5qnNn;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=JYrfSHAT7eT7lR6t+0pt9fGRo4rQyrecCsCJETIVA34=;
+        b=nXb5qnNnL35PnkCzwYA0t9qk3LeIUvzdFzqUgc3HfNw6XKujX0N9F4PMEc1J0smFwp
+         baGeDtRtz/EmAIEsOpxxEdCjj2dkvRhWSbaek5tEdaoBJnzWHg1xmsuqiBsrDh7A5bu4
+         X1Aka85RpZ0/DW0blmyF3+PdN3inqu79qIvyUq6QZ4I5flwQcXdwwvOjHk6jMzKzub19
+         c7QwmFwO5g5s5xd/EI7vqwQlxJqpjucUyqCdCgTuIydMu8mFozKYOcAp19iEufp1I1G0
+         /iEvJgOOr53xkFCh9x9Tifk9yF6e/Ksb8VOy2cyHj7AE35+lpqj3pap2cb3Z2ZoPtMLG
+         fQ+A==
+X-Google-Smtp-Source: AHgI3IammU4XKdw1jiSYG4IdVnZylWrkf8QLpFe83hXNhh7/4s8wn2T5j1LteGVq1mGw7MwIhKQcRSG+a2RfJ/pgPDg=
+X-Received: by 2002:a17:902:4124:: with SMTP id e33mr460245pld.236.1550063259161;
+ Wed, 13 Feb 2019 05:07:39 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <057ad938-e745-02f7-edce-e19bd326da6a@inria.fr>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+References: <cover.1549921721.git.andreyknvl@google.com> <cd825aa4897b0fc37d3316838993881daccbe9f5.1549921721.git.andreyknvl@google.com>
+ <f57831be-c57a-4a9e-992e-1f193866467b@arm.com>
+In-Reply-To: <f57831be-c57a-4a9e-992e-1f193866467b@arm.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Wed, 13 Feb 2019 14:07:28 +0100
+Message-ID: <CAAeHK+y7q7BGYCnCNe1PDd+9jcmn7+F5EWxZ_hS+Ae7a2SBuew@mail.gmail.com>
+Subject: Re: [PATCH 2/5] kasan, kmemleak: pass tagged pointers to kmemleak
+To: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, 
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	kasan-dev <kasan-dev@googlegroups.com>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Qian Cai <cai@lca.pw>, 
+	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Feb 12, 2019 at 4:57 PM Vincenzo Frascino
+<vincenzo.frascino@arm.com> wrote:
+>
+> On 11/02/2019 21:59, Andrey Konovalov wrote:
+> > Right now we call kmemleak hooks before assigning tags to pointers in
+> > KASAN hooks. As a result, when an objects gets allocated, kmemleak sees
+> > a differently tagged pointer, compared to the one it sees when the object
+> > gets freed. Fix it by calling KASAN hooks before kmemleak's ones.
+> >
+>
+> Nit: Could you please add comments to the the code? It should prevent that the
+> code gets refactored in future, reintroducing the same issue.
 
-Le 13/02/2019 à 09:43, Brice Goglin a écrit :
-> Le 13/02/2019 à 09:24, Dan Williams a écrit :
->> On Wed, Feb 13, 2019 at 12:12 AM Brice Goglin <Brice.Goglin@inria.fr> wrote:
->>> Le 13/02/2019 à 01:30, Dan Williams a écrit :
->>>> On Tue, Feb 12, 2019 at 11:59 AM Brice Goglin <Brice.Goglin@inria.fr> wrote:
->>>>> # ndctl disable-region all
->>>>> # ndctl zero-labels all
->>>>> # ndctl enable-region region0
->>>>> # ndctl create-namespace -r region0 -t pmem -m devdax
->>>>> {
->>>>>   "dev":"namespace0.0",
->>>>>   "mode":"devdax",
->>>>>   "map":"dev",
->>>>>   "size":"1488.37 GiB (1598.13 GB)",
->>>>>   "uuid":"ad0096d7-3fe7-4402-b529-ad64ed0bf789",
->>>>>   "daxregion":{
->>>>>     "id":0,
->>>>>     "size":"1488.37 GiB (1598.13 GB)",
->>>>>     "align":2097152,
->>>>>     "devices":[
->>>>>       {
->>>>>         "chardev":"dax0.0",
->>>>>         "size":"1488.37 GiB (1598.13 GB)"
->>>>>       }
->>>>>     ]
->>>>>   },
->>>>>   "align":2097152
->>>>> }
->>>>> # ndctl enable-namespace namespace0.0
->>>>> # echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/remove_id
->>>>> <hang>
->>>>>
->>>>> I tried with and without dax_pmem_compat loaded, but it doesn't help.
->>>> I think this is due to:
->>>>
->>>>   a9f1ffdb6a20 device-dax: Auto-bind device after successful new_id
->>>>
->>>> I missed that this path is also called in the remove_id path. Thanks
->>>> for the bug report! I'll get this fixed up.
->>> Now that remove_id is fixed, things fails later in Dave's procedure:
->>>
->>> # echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/remove_id
->>> # echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/unbind
->>> # echo -n dax0.0 > /sys/bus/dax/drivers/kmem/new_id
->> In the current version of the code the bind is not necessary, so the
->> lack of error messages here means the bind succeeded.
+Sure, I'll send v2 with comments, thanks!
 
-
-It looks like "unbind" is required to make the PMEM appear as a new
-node. If I remove_id from devdax and new_id to kmem without "unbind" in
-the middle, nothing appears.
-
-Writing to "kmem/bind" didn't seem necessary.
-
-Brice
-
-
-
->>
->>> # echo -n dax0.0 > /sys/bus/dax/drivers/kmem/bind
->>> -bash: echo: write error: No such device
->> This also happens when the device is already bound.
->>
->>> (And nothing seems to have changed in /sys/devices/system/memory/*/state)
->> What does "cat /proc/iomem" say?
 >
-> 3060000000-1aa5fffffff : Persistent Memory
->   3060000000-36481fffff : namespace0.0
->   3680000000-1a9ffffffff : dax0.0
->     3680000000-1a9ffffffff : System RAM
-> (the last line wasn't here before attaching to kmem)
+> > Reported-by: Qian Cai <cai@lca.pw>
+> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> > ---
+> >  mm/slab.h        | 6 ++----
+> >  mm/slab_common.c | 2 +-
+> >  mm/slub.c        | 3 ++-
+> >  3 files changed, 5 insertions(+), 6 deletions(-)
+> >
+> > diff --git a/mm/slab.h b/mm/slab.h
+> > index 4190c24ef0e9..638ea1b25d39 100644
+> > --- a/mm/slab.h
+> > +++ b/mm/slab.h
+> > @@ -437,11 +437,9 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
+> >
+> >       flags &= gfp_allowed_mask;
+> >       for (i = 0; i < size; i++) {
+> > -             void *object = p[i];
+> > -
+> > -             kmemleak_alloc_recursive(object, s->object_size, 1,
+> > +             p[i] = kasan_slab_alloc(s, p[i], flags);
+> > +             kmemleak_alloc_recursive(p[i], s->object_size, 1,
+> >                                        s->flags, flags);
+> > -             p[i] = kasan_slab_alloc(s, object, flags);
+> >       }
+> >
+> >       if (memcg_kmem_enabled())
+> > diff --git a/mm/slab_common.c b/mm/slab_common.c
+> > index 81732d05e74a..fe524c8d0246 100644
+> > --- a/mm/slab_common.c
+> > +++ b/mm/slab_common.c
+> > @@ -1228,8 +1228,8 @@ void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
+> >       flags |= __GFP_COMP;
+> >       page = alloc_pages(flags, order);
+> >       ret = page ? page_address(page) : NULL;
+> > -     kmemleak_alloc(ret, size, 1, flags);
+> >       ret = kasan_kmalloc_large(ret, size, flags);
+> > +     kmemleak_alloc(ret, size, 1, flags);
+> >       return ret;
+> >  }
+> >  EXPORT_SYMBOL(kmalloc_order);
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index 1e3d0ec4e200..4a3d7686902f 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -1374,8 +1374,9 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node,
+> >   */
+> >  static inline void *kmalloc_large_node_hook(void *ptr, size_t size, gfp_t flags)
+> >  {
+> > +     ptr = kasan_kmalloc_large(ptr, size, flags);
+> >       kmemleak_alloc(ptr, size, 1, flags);
+> > -     return kasan_kmalloc_large(ptr, size, flags);
+> > +     return ptr;
+> >  }
+> >
+> >  static __always_inline void kfree_hook(void *x)
+> >
 >
-> I said nothing changed in memory/*/state, I actually meant that nothing
-> was offline. But things are actually working!
+> --
+> Regards,
+> Vincenzo
 >
-> First, node4 appeared, all memory is already attached to it without
-> having to write to memory/*/state
->
-> Node 4 MemTotal:       1558183936 kB
-> Node 4 MemFree:        1558068564 kB
-> Node 4 MemUsed:          115372 kB
->
-> I wasn't expecting node4 to appear because the machine has no
-> /sys/firmware/acpi/tables/HMAT when running in 1LM (there's one in 2LM).
-> I thought you said in the past that no HMAT would mean memory would be
-> added to the existing DDR node?
->
-> Thanks!
->
-> Brice
->
->
+> --
+> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
+> To post to this group, send email to kasan-dev@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/f57831be-c57a-4a9e-992e-1f193866467b%40arm.com.
+> For more options, visit https://groups.google.com/d/optout.
 
