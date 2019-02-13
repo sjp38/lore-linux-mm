@@ -2,193 +2,153 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0AF09C10F00
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:05:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E43F7C10F00
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:07:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C9702222A4
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:05:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C9702222A4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id A0546222A4
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:07:31 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="JpZ8ZbCo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0546222A4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1BF4D8E0015; Wed, 13 Feb 2019 18:05:38 -0500 (EST)
+	id 58E7A8E0016; Wed, 13 Feb 2019 18:07:31 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 149828E0012; Wed, 13 Feb 2019 18:05:38 -0500 (EST)
+	id 53C698E0012; Wed, 13 Feb 2019 18:07:31 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E91228E0015; Wed, 13 Feb 2019 18:05:37 -0500 (EST)
+	id 42B9A8E0016; Wed, 13 Feb 2019 18:07:31 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A48748E0012
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 18:05:37 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id j32so2798903pgm.5
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 15:05:37 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 009B18E0012
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 18:07:30 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id o9so2766849pgv.19
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 15:07:30 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=Z2oLMpEtZJkOWhiVxDwCbgAywRjmrernHVpSPAUXgTY=;
-        b=l3yeQFEizEpi0KVSD3VUQmgbsse5wvqRawVmk4JZNRIQMd0dcTb88eYniZRxbuQHnL
-         1utSVw16L8X87l0BfjMfw61dt1LHKtB4nmerkskZQUOLCSZE2MTGj3zMGUGu1ByJTS7J
-         XXhoSEE8An68RFosVd30EgUqTxozGtE5rLNX7IgYGdUIQf5A5ayekGumuUcZEkoHsqhK
-         SJGVDs/ZejVBJiLV1xdrVJwcXIgfGUA15l1hwx3kl8IcwYM5jYEAf4ZqWpSUNDjhh+zE
-         lFg390BMcVMobJjgHYEtnYoL8fy2Ut4/oZr/esIzpK54DxpA4ibMbUNbHouwafw1+eTM
-         HPXw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuZjT/+nzTGn6gjWROZdbCjFsgAO9CWOfl7MmNn1OrO38SzetgHi
-	r9AC7ZEly4tjwL2wDSyAn0unJG80adKohT4WHzU7ytkhKJWpsezJbfMP01VkVuc8tNystxYugUp
-	0fZgI1UFvWaSwSQnFmGtQXr/quQ9Q1AIR8oTulF+/mr83QEQg6oTK5tK2XwaJ6qBYIg==
-X-Received: by 2002:a63:535c:: with SMTP id t28mr641207pgl.128.1550099137372;
-        Wed, 13 Feb 2019 15:05:37 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYJAnj/twuVqstYauodB/67DR+pzsookn9ZMpcIVbn69mOzwaBXFLvIxueaM37clW890ScU
-X-Received: by 2002:a63:535c:: with SMTP id t28mr641159pgl.128.1550099136775;
-        Wed, 13 Feb 2019 15:05:36 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550099136; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=ycGZ/lql/XedLXMhQw613j8q5/nW7HtOXu0fJma7tbU=;
+        b=kkV0QExES7lJ70L7uQ9Hk0PqeAVsqTtZul+5s8yQqWKsAxLgp2Ny9biGmWofH52+vM
+         kZbd0ppUMyclm+ogDPy+dcdKw8BoiVGZCSglpze20W3is4SJ2xdzhX7D146I9wrzS8ah
+         jpQ8aOpKv9f/7nNXlC83/iUKFdvp0FeswENBaIKRZh8ICOFyssrodl0EtR5Bjdcf1NIP
+         tm4gkfp/jlSkvqKi2akhq3mYHQiyoGoU8o4i2+n+g5kawKfUxJ0bSm5RsHHy6QXjJ4Db
+         f9iekdZYKev71J371uj1WByWvXacIJ9+5E/1KgghCAx/t8CXymvkjaF+pGScW0ykChg2
+         YB+w==
+X-Gm-Message-State: AHQUAua1fd6kEsAGbT0A6KTL5w8MndygopKjwPAArs2I1as7utwQckda
+	hreX63Bq4Co0bzVHdn84YT4bnw2BkWMqmrry0AwFobn69XFEp/dN1hMQ4LrshXjk/ZtQl6yDbpX
+	c51X5M1BJASbTt3iIvWUeMC27a7ii6ChaLH3JZHJDXUBt58lEeS0MeX4qxPYUoWPq00YM1kxoiK
+	aB+IAuL/Fulv5YTIDaIQ4yWVeE9WmEJ1E+A4xuEpZKsKMwncy5e/8H42MHp/tXENiGoNHd87AQY
+	SfN1AtV0ZwjWfJr2XnEYYhDpsrihImTPR6n2Y1SdhES9CSr2cP9ckJoWa+kVYUgiLHrYeguZeMY
+	V0Tn1YEiN9dm/jN11uUQIjs/0T6ykbzi2o2RJiCNL0pXUe/fJEEaRqmML5SBTz2XgjGrSilJxyC
+	T
+X-Received: by 2002:a17:902:28aa:: with SMTP id f39mr651480plb.297.1550099250584;
+        Wed, 13 Feb 2019 15:07:30 -0800 (PST)
+X-Received: by 2002:a17:902:28aa:: with SMTP id f39mr651428plb.297.1550099249940;
+        Wed, 13 Feb 2019 15:07:29 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550099249; cv=none;
         d=google.com; s=arc-20160816;
-        b=PartS+TRrYoY7+H8AchZRYr23S0rVU2wRToXlDAMJ9hR9S/SvNqXcIVS4faqa9lS6A
-         a8otAno78LL0Hks+vQaKTtL8Bkzs5/aFpCXt3OaWZvbTZEeCcxKMXM8j8N+W4GhSWs7y
-         lIJR1nsleVivRAl85jbogsJ9Ssfkl1UaBzNz1sfeAOGTSgZdASG3zDB+2s0mr4EFip0w
-         Z8/J00Tblj2GN7qtTOXkZnczTqwnuI2BfMW+yrGMm5fQ9PNZwLGbbgbb+vwRNcZpVgxG
-         xxbikiDawmGrRGLdUxvxRS1jRdsgILY5egjaPwGpD57wePumOxi+zgyO2rMgPc4FgvmQ
-         egpw==
+        b=vKuN6HI61iyjqXDMRoT0clClixR3myFvCxS7UM/U1sL5jXiiGMyJPAX3MtvWnGvDAI
+         kYn71/s1Urie2UTbD6wo8yv8PbNJiHxQz0OOex0YnqPea/Ef9liFUU5L1dnazBxdHbFR
+         TK3tiJAP9WM4Gfa5v6Yj3EaEa67BJV1VrU9CJ74JSu9fe20+c7C6BqIhq06IEKulJHoE
+         vmvY6S/5chINGdlo1x8d1Div3191Q9G2n+DZsL/BCpvFOFJhoe8EpL4DzgPiDfAHlIFw
+         s9xAtw/stksEqudohyViI5Ce8EyQqSFp37yZrPmnwCJ+h/z3Y6vrSYOXlYLamqSn0q80
+         9trQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=Z2oLMpEtZJkOWhiVxDwCbgAywRjmrernHVpSPAUXgTY=;
-        b=ohd5wC4fgT00INUs6tO63N6gdeYA1Dt2p4m9rUFL//WfkWC+6IVItxJ1APOLj4FZn/
-         arT19X/CrQ6B+yJLJzeihyrZzhjWMTC4GebCv2mut7kKMiLbkF0MspQapDEHp7oP8nlL
-         5V9qbJhNiYkeQoM/F2OJvLE9VbNIg03kHLXTt1fDa/byMx6haND2MDMdoAcN0MFZhNoa
-         tuYk5RMkTJ90PJ+UjYCJn4qnXHuVXtH57X/eH2QnQ9+s0cLCt6pC3vxMP7kxdtppd3xd
-         iDx+nRd1Zv72imr5yFz1R2OT/Szw7PAlI1UPLRtx2qBfdmgdvd38BMyodxZ0ZeBRwFtp
-         oRIw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=ycGZ/lql/XedLXMhQw613j8q5/nW7HtOXu0fJma7tbU=;
+        b=s9pdqtvqerKsFD4TFYq8hVhvA3LOhAndMlHObnC23NldWaPEb7ZJLh80YbzfMKW23k
+         uJEjDKDFT/A5bDA065qhw3B+IraPVoAAL8WqAoNKeO3Wz/2QnlfIMYOPX71/n8nbjQoz
+         VYx1ZZGu3t0viuNDit0jORiLsmYQfjUeLCJY+6Jr0oY9wyLVa84vM2WW5scOPh/3YilF
+         HoMxqudWPTqhNXE1DSIs28onp7yRzdYX1u889b6Jukv6moNywtUpHysLURVw/LxXzVga
+         nUTGqM55YPV/5Hx8k3i07SCH8+OoxwtJ+cQ/GFl3PhrooXMjgWBxr8xF0qSe8HsIZQ0s
+         5Iuw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id f9si574863pgh.435.2019.02.13.15.05.36
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=JpZ8ZbCo;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 1sor946346pls.72.2019.02.13.15.07.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 15:05:36 -0800 (PST)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        (Google Transport Security);
+        Wed, 13 Feb 2019 15:07:29 -0800 (PST)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Feb 2019 15:05:36 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,366,1544515200"; 
-   d="scan'208";a="138415659"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga001.jf.intel.com with ESMTP; 13 Feb 2019 15:05:34 -0800
-From: ira.weiny@intel.com
-To: linux-mips@vger.kernel.org,
-	linux-kernel@vger.kernel.org,
-	kvm-ppc@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org,
-	linux-s390@vger.kernel.org,
-	linux-sh@vger.kernel.org,
-	sparclinux@vger.kernel.org,
-	kvm@vger.kernel.org,
-	linux-fpga@vger.kernel.org,
-	dri-devel@lists.freedesktop.org,
-	linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org,
-	linux-scsi@vger.kernel.org,
-	devel@driverdev.osuosl.org,
-	virtualization@lists.linux-foundation.org,
-	netdev@vger.kernel.org,
-	linux-fbdev@vger.kernel.org,
-	xen-devel@lists.xenproject.org,
-	devel@lists.orangefs.org,
-	linux-mm@kvack.org,
-	ceph-devel@vger.kernel.org,
-	rds-devel@oss.oracle.com
-Cc: Ira Weiny <ira.weiny@intel.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	David Hildenbrand <david@redhat.com>,
-	Cornelia Huck <cohuck@redhat.com>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	Rich Felker <dalias@libc.org>,
-	"David S. Miller" <davem@davemloft.net>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Joerg Roedel <joro@8bytes.org>,
-	Wu Hao <hao.wu@intel.com>,
-	Alan Tull <atull@kernel.org>,
-	Moritz Fischer <mdf@kernel.org>,
-	David Airlie <airlied@linux.ie>,
-	Daniel Vetter <daniel@ffwll.ch>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Christian Benvenuti <benve@cisco.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Matt Porter <mporter@kernel.crashing.org>,
-	Alexandre Bounine <alex.bou9@gmail.com>,
-	=?UTF-8?q?Kai=20M=C3=A4kisara?= <Kai.Makisara@kolumbus.fi>,
-	"James E.J. Bottomley" <jejb@linux.ibm.com>,
-	"Martin K. Petersen" <martin.petersen@oracle.com>,
-	Rob Springer <rspringer@google.com>,
-	Todd Poynor <toddpoynor@google.com>,
-	Ben Chan <benchan@chromium.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	"Michael S. Tsirkin" <mst@redhat.com>,
-	Jason Wang <jasowang@redhat.com>,
-	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>,
-	Stefano Stabellini <sstabellini@kernel.org>,
-	Martin Brandenburg <martin@omnibond.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH V2 7/7] IB/mthca: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
-Date: Wed, 13 Feb 2019 15:04:55 -0800
-Message-Id: <20190213230455.5605-8-ira.weiny@intel.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190213230455.5605-1-ira.weiny@intel.com>
-References: <20190211201643.7599-1-ira.weiny@intel.com>
- <20190213230455.5605-1-ira.weiny@intel.com>
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=JpZ8ZbCo;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=ycGZ/lql/XedLXMhQw613j8q5/nW7HtOXu0fJma7tbU=;
+        b=JpZ8ZbCoGmgsStGrD7Ces+eiaAcEBDwP2MwHm1odgXkmFHZ61NwFL4leS20cW9WLfo
+         FGa7uTtaOlqE4a7hhtN87sFCdcCrbr3+9j+g8Zt/SEDaGmT1DL6reEqmJ+sl9zPfB/ZL
+         sIvXBaZIjR95Sae1LORKUqxDVbVAdr+AtYHnQl+AMJJuZk44ObCM+ljD1a66/KrTAs1u
+         uQuAyBu/AGqV21vCZmuyQyTqyTcG+0nfpmGMLnXNosPfVrazfmWI/04pmdJ2OPq1avXF
+         +ffFBzKHBjoz5yrs/5QRZCMudXVQUio/NrXOJ/xwNF8mKZP97g59R7MdV+4bD0TjA6yW
+         JyaQ==
+X-Google-Smtp-Source: AHgI3IbZxmz9Cji7ywEHkD4zdpRd9ZWq16bVDbDKyOfZsY/wyvM5SVUNTc9mXDq5Bsx5HN2KKJx0pw==
+X-Received: by 2002:a17:902:b489:: with SMTP id y9mr666527plr.193.1550099249465;
+        Wed, 13 Feb 2019 15:07:29 -0800 (PST)
+Received: from ziepe.ca (S010614cc2056d97f.ed.shawcable.net. [174.3.196.123])
+        by smtp.gmail.com with ESMTPSA id k71sm454104pga.44.2019.02.13.15.07.28
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 13 Feb 2019 15:07:28 -0800 (PST)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1gu3cl-0001KE-SJ; Wed, 13 Feb 2019 16:07:27 -0700
+Date: Wed, 13 Feb 2019 16:07:27 -0700
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Alex Williamson <alex.williamson@redhat.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, akpm@linux-foundation.org,
+	dave@stgolabs.net, jack@suse.cz, cl@linux.com, linux-mm@kvack.org,
+	kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
+	linux-kernel@vger.kernel.org, paulus@ozlabs.org,
+	benh@kernel.crashing.org, mpe@ellerman.id.au, hao.wu@intel.com,
+	atull@kernel.org, mdf@kernel.org, aik@ozlabs.ru,
+	peterz@infradead.org
+Subject: Re: [PATCH 1/5] vfio/type1: use pinned_vm instead of locked_vm to
+ account pinned pages
+Message-ID: <20190213230727.GC24692@ziepe.ca>
+References: <20190211224437.25267-1-daniel.m.jordan@oracle.com>
+ <20190211224437.25267-2-daniel.m.jordan@oracle.com>
+ <20190211225620.GO24692@ziepe.ca>
+ <20190211231152.qflff6g2asmkb6hr@ca-dmjordan1.us.oracle.com>
+ <20190212114110.17bc8a14@w520.home>
+ <20190213002650.kav7xc4r2xs5f3ef@ca-dmjordan1.us.oracle.com>
+ <20190213130330.76ef1987@w520.home>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190213130330.76ef1987@w520.home>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Ira Weiny <ira.weiny@intel.com>
+On Wed, Feb 13, 2019 at 01:03:30PM -0700, Alex Williamson wrote:
+> > PeterZ posted an RFC that addresses this point[1].  It kept pinned_vm and
+> > locked_vm accounting separate, but allowed the two to be added safely to be
+> > compared against RLIMIT_MEMLOCK.
+> 
+> Unless I'm incorrect in the concerns above, I don't see how we can
+> convert vfio before this occurs.
 
-Use the new FOLL_LONGTERM to get_user_pages_fast() to protect against
-FS DAX pages being mapped.
+RDMA was converted to this pinned_vm scheme a long time ago, arguably
+it is a mistake that VFIO did something different... This was to fix
+some other bug where reporting of pages was wrong.
 
-Signed-off-by: Ira Weiny <ira.weiny@intel.com>
----
- drivers/infiniband/hw/mthca/mthca_memfree.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+You are not wrong that this approach doesn't entirely make sense
+though. :)
 
-diff --git a/drivers/infiniband/hw/mthca/mthca_memfree.c b/drivers/infiniband/hw/mthca/mthca_memfree.c
-index 112d2f38e0de..8ff0e90d7564 100644
---- a/drivers/infiniband/hw/mthca/mthca_memfree.c
-+++ b/drivers/infiniband/hw/mthca/mthca_memfree.c
-@@ -472,7 +472,8 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
- 		goto out;
- 	}
- 
--	ret = get_user_pages_fast(uaddr & PAGE_MASK, 1, FOLL_WRITE, pages);
-+	ret = get_user_pages_fast(uaddr & PAGE_MASK, 1,
-+				  FOLL_WRITE | FOLL_LONGTERM, pages);
- 	if (ret < 0)
- 		goto out;
- 
--- 
-2.20.1
+Jason
 
