@@ -6,150 +6,139 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BB58CC282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:11:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B3EBC282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:17:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 77F95218D3
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:11:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E440B222B1
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:17:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="iKXNBPgJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77F95218D3
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ROpBr8h6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E440B222B1
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 135698E0002; Wed, 13 Feb 2019 08:11:40 -0500 (EST)
+	id 723218E0002; Wed, 13 Feb 2019 08:17:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0BD6E8E0001; Wed, 13 Feb 2019 08:11:40 -0500 (EST)
+	id 6D20C8E0001; Wed, 13 Feb 2019 08:17:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E9F9F8E0002; Wed, 13 Feb 2019 08:11:39 -0500 (EST)
+	id 5E8E08E0002; Wed, 13 Feb 2019 08:17:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A64E58E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:11:39 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id e68so1693589plb.3
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 05:11:39 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D3018E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:17:16 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id i5so354288pfi.1
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 05:17:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=aYXYOSh02VrgFOoAtWZsG3dC6gl0mwh0qQIVsd6b6/U=;
-        b=Avw3lGQvkT3ahJe9b7AR3Q8iBiQGtPpgjSScDcvr4UKCdnDHo+urvWtuubi5OFIyU4
-         6W4xWdG2BgWtamepUpC749WB2nZrvMadZDJSIHY34D6eCOMtYIoGYvXbvXiW4G7+7FGS
-         u4/qqlBd9nbQFpCCfkvEVB4Mvjqel+XnW9JJ0JbzvptF56wUQ1nioCAUY3Z8SQdSEDED
-         ZHj0R67xc9FgJ5Dqf6Gynvmsj3ApSUoEYsxCaiKRVGyGwErHvamHq3PvYsdGhnov9Js4
-         rna+1BWclGHt+y5RxzpbSvz/GU3Dfa2Ayhw4rnipQNOCPlMLJoq+38JJpkIqJuOs1ynX
-         CoKg==
-X-Gm-Message-State: AHQUAuYh2mTaMfBSJHQBC+xvmrAUn4ND0s5lFh4Tlmz2D2feCAjW5VfQ
-	gMWyqxbCOmcDOXx9ZNBsEBDb3/Pg32vuIbSxO6GziVChYFBaYqSibH16fTnzkMN/TCd/fArCGOJ
-	2MW+arR3KIfK9zszVf2JxeMzdxFjvAeif+52JqZAJidluRnERZBYiUH832tVpultSsA==
-X-Received: by 2002:a63:da42:: with SMTP id l2mr379831pgj.403.1550063499305;
-        Wed, 13 Feb 2019 05:11:39 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZxY0WnIREttn6okuS2g4ns6tqT9FpWqJX3J/xsFH0QkTOH2MhBkTd0u1I7Ut6CHNRKvOti
-X-Received: by 2002:a63:da42:: with SMTP id l2mr379783pgj.403.1550063498713;
-        Wed, 13 Feb 2019 05:11:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550063498; cv=none;
+        bh=g258Euwx0GrLQtKmSvWxw0CICp9PokNV4/Yv5ookS90=;
+        b=DDAsjStzMSSDEhd86TY0FA8XNdcz7emW6rDkoLYtanNWp5g0eDzIz6yNdo+1FI0YAN
+         CsQD0g5iE0kEAp2bzLyLJ5b8eC2u9RBsBGhb2iKr2OB7rzl8wVacwm7h11ez3vaj2kqc
+         saWPNg1bxFJftx/G/LyhUbMmr8vR++y+OIznY/+gv3TmpeKBJPQ+K1W0SuLSnEE9IjeA
+         c3D3bV741D9eWMZE1l9JGSRXoWsFQkW29U7kNvG/nBZ2KkDSLsXLcfG+cNGBsqOnI50a
+         5KKFS4J3o6pClNdVAxJHfn8KHCUCxZqt1083/rgrhdxsJ8Lc3CKG3+D1+j5r15wVK1Q+
+         67Kg==
+X-Gm-Message-State: AHQUAuaVUKVSq0oO/slrxashk4Q19LHxBMLkdIAuVa0a+drQdmwK1p3n
+	yRZVPiaEAI56WfPJHt6OfYOtLieP6v04wifdoyhIe3QFnAimKz91dqpK4jc7+R5p2TFJJMKfVOR
+	ECWhDr1m/stzRoYNs8xBNYrFTNk4BnWZK+dHc/MdkSQjXFP8D07sDKznDngiU9jHoug==
+X-Received: by 2002:a62:5287:: with SMTP id g129mr520726pfb.22.1550063835779;
+        Wed, 13 Feb 2019 05:17:15 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia0gGMwXZ0RNNnHgvvEeUDO5xSiSaGBzz1Z2F2Fil3murObk8mAxuOH0KYWPaSHc+MPfLJr
+X-Received: by 2002:a62:5287:: with SMTP id g129mr520661pfb.22.1550063835047;
+        Wed, 13 Feb 2019 05:17:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550063835; cv=none;
         d=google.com; s=arc-20160816;
-        b=BiS48/PnRhM661tuGYdtMPMpy7IbKsRYF2NWqG3KILFoWXIbvdPgGCEBZ9yTxRJCGQ
-         4bFoA3ncWCv0TAIMeVMBScK9m9DIAUTGD9evsrQum9mfl1zLjA3+sJLKCRqB4/oMlGQT
-         SUVtQ6HoTjDnUjN6IjzOmLoERuSgjSJ5GrpRhhXCB3C9eOzc+VN+cw6P7Qlf3XXlGOZt
-         ZTsPZJyQx5JObkYc5+jBSmPCfxIBzmiAmFySTJkQ1cGjldYVJFnVH/kpFF2iCTzOTDGZ
-         +f+cDdmyBEoewAtOIMOOlcmQJfnRi/Sj/MJP49wt4SCekwNPBpPQPkCipNwKlenl24lu
-         Ba0Q==
+        b=C9aS2CLy+TcKtzY0ey5M9qOMHXoMsR/UQ1CMQnlMfRfRHKIwbb1EXXZy7aYz51kNtR
+         GnRJU3YCzlUzsFYlZdBCAu4qJs2+ZWEUO2XVSydDclgzZ+QDjumWxbXPTM1HVZ2JmD77
+         kU6CxXr+u3cs34jj6oMmFYwcOdc8m2ytb6908obZUtxrYRg4+K7WD6l/VwPR4lb/17iS
+         B+Wmi9eFx/0EmPRBGk8VBziDHtT1GkSunFod3fHvn1c88XyKclDiNwHSNgD7E3mbw3mg
+         Q4qKudtjcKvoYbf4PPGhe6ofIlyhopYifXKYnx++43yg1xXrQKsp1C1SxcAcf6KDNe7T
+         CcrA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=aYXYOSh02VrgFOoAtWZsG3dC6gl0mwh0qQIVsd6b6/U=;
-        b=SAAwCjbjrCqttspqNciI+IddgSUlgdwVADsQgnbm+RrwiK3yeqHU3vooGo25S4xfhA
-         bW+vd8Dp8jUkBzKq0ySB+Sb2m6m7nd4vAcQkn5KBbkObPkWdywQE1O/nbi3GvDdwFKsG
-         Se4jK07BlpyGTY+HPaqZPmL54Cts2qoF8eMrm3GkhFgYCmXLyKu6JfxWyXiupRtrGjVn
-         3zkqioH8sWotlqu6HNYFESaYmNfkwKCkJ4b5/P0C6OeuWYDHKCUndfftEsSqhevoPgcw
-         jsINoxrm1FVVTv7RM6LI+N1+TGbkUZTS0Egtk5Rqj5XTTmwZiXQRE/ZpBiORGiTOCC91
-         fT5Q==
+        bh=g258Euwx0GrLQtKmSvWxw0CICp9PokNV4/Yv5ookS90=;
+        b=NMZkKGMAjQVPQIDNdSf29Z618V78moTC2byJOJK2jtO/VMHa/H2+61U/Dczzw86Gdd
+         Yc2mGvrcRcQbc6jJ1S4UUj0gPQuj3/Xi7vJK3fZKIovpjKdHGjjgjCfDjg1qV0nTsg5u
+         9+OqbTqqkIze8THSCHb0yw/j2xqr1CE1KP3jvDgLeKkhohKVlWZrXMh8R4qnm3G4VzmN
+         7xLIGaSfYfdSx07BUdchnByiqlrkIiGlx9kmEgoy5+GhLNABF8NrFtsIaSYLLhYhgmEo
+         wMhcSf7hptQVHvot2JM/2oTxshhQ9jvgq//i0XtjrbJi6tXHCFg3k8WmCC1obOgrfGfi
+         urCw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=iKXNBPgJ;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ROpBr8h6;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id f193si128176pgc.31.2019.02.13.05.11.38
+        by mx.google.com with ESMTPS id i72si5551863pfi.52.2019.02.13.05.17.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 13 Feb 2019 05:11:38 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        Wed, 13 Feb 2019 05:17:15 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=iKXNBPgJ;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ROpBr8h6;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
 	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=aYXYOSh02VrgFOoAtWZsG3dC6gl0mwh0qQIVsd6b6/U=; b=iKXNBPgJ/QWjwdq9K/ZA6v+x9
-	5Y3A54QPC72zkNBsg4SgL6/FXbuEbgxUjjZMyeOumCtxt6+KjXuW94vOx+tdr0Gap/U+fRhOEtRcR
-	5umJ2pljfWs+9TCLUZoW5tO+8wKmpCeVreqbVS3UrJJH3d/tjN89mOiAU7uvZW8wTYr9WHgQy5zDm
-	NlQvX8XP71crgRCjSTVZ4xgb5A10DKgP/Ige657/16+t5l5sZqa8VLkfWNIoXpYC0j+4VHiWaunun
-	GY4ABcJ6XUZPFXm+zW79mgTBCCmQ4rmjPQQIYcDIBl+KJxJVmcd+eCoRvIark50+94JSFMGLSPZJa
-	N6Oe6fM9w==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gtuK4-0003qU-Na; Wed, 13 Feb 2019 13:11:32 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 3668222BBEBE5; Wed, 13 Feb 2019 14:11:31 +0100 (CET)
-Date: Wed, 13 Feb 2019 14:11:31 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Pingfan Liu <kernelfans@gmail.com>,
-	Dave Hansen <dave.hansen@intel.com>, x86@kernel.org,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Tony Luck <tony.luck@intel.com>, linuxppc-dev@lists.ozlabs.org,
-	linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
-	Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH v3 2/2] mm: be more verbose about zonelist initialization
-Message-ID: <20190213131131.GS32494@hirez.programming.kicks-ass.net>
-References: <20190212095343.23315-3-mhocko@kernel.org>
- <20190213094315.3504-1-mhocko@kernel.org>
- <20190213103231.GN32494@hirez.programming.kicks-ass.net>
- <20190213115014.GC4525@dhcp22.suse.cz>
+	 bh=g258Euwx0GrLQtKmSvWxw0CICp9PokNV4/Yv5ookS90=; b=ROpBr8h67o5e75H2FUd/lLVfM
+	u6I13qq/lEPQLC2MlT5i7JauXenxPe8ri8dIBdqxo/DGvTMJLYoVCzFUqN+H2Vt9eSmbo4znPaoSl
+	q/RSbrkG6zw5Wj1RJ39V9tPtvnKjFE1mSUrxzLsFSkhZxpDZWUZlGEPGtuhwcSUSzhigALi7YVRQF
+	CNRHjkBeMsihplz7JRmDydJHk5jdbbUwDVZkQd0QPEkw1AJrmfoasfW/B6gFiOlHcfF0G7V0qxplb
+	LTBkavhsR7gSPSjcqi2L255rWsd/oOrc4nSDmJz2HuuI7uUuXX0WyJ+/VKQQKpHZ9dkOo9LA8YoEO
+	1ZjGMhjjw==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gtuPW-0005n1-LV; Wed, 13 Feb 2019 13:17:10 +0000
+Date: Wed, 13 Feb 2019 05:17:10 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@kernel.org,
+	kirill@shutemov.name, kirill.shutemov@linux.intel.com,
+	vbabka@suse.cz, will.deacon@arm.com, catalin.marinas@arm.com,
+	dave.hansen@intel.com
+Subject: Re: [RFC 1/4] mm: Introduce lazy exec permission setting on a page
+Message-ID: <20190213131710.GR12668@bombadil.infradead.org>
+References: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
+ <1550045191-27483-2-git-send-email-anshuman.khandual@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190213115014.GC4525@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <1550045191-27483-2-git-send-email-anshuman.khandual@arm.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 13, 2019 at 12:50:14PM +0100, Michal Hocko wrote:
-> On Wed 13-02-19 11:32:31, Peter Zijlstra wrote:
-> > On Wed, Feb 13, 2019 at 10:43:15AM +0100, Michal Hocko wrote:
-> > > @@ -5259,6 +5261,11 @@ static void build_zonelists(pg_data_t *pgdat)
-> > >  
-> > >  	build_zonelists_in_node_order(pgdat, node_order, nr_nodes);
-> > >  	build_thisnode_zonelists(pgdat);
-> > > +
-> > > +	pr_info("node[%d] zonelist: ", pgdat->node_id);
-> > > +	for_each_zone_zonelist(zone, z, &pgdat->node_zonelists[ZONELIST_FALLBACK], MAX_NR_ZONES-1)
-> > > +		pr_cont("%d:%s ", zone_to_nid(zone), zone->name);
-> > > +	pr_cont("\n");
-> > >  }
-> > 
-> > Have you ran this by the SGI and other stupid large machine vendors?
-> 
-> I do not have such a large machine handy. The biggest I have has
-> handfull (say dozen) of NUMA nodes.
-> 
-> > Traditionally they tend to want to remove such things instead of adding
-> > them.
-> 
-> I do not insist on this patch but I find it handy. If there is an
-> opposition I will not miss it much.
+On Wed, Feb 13, 2019 at 01:36:28PM +0530, Anshuman Khandual wrote:
+> +#ifdef CONFIG_ARCH_SUPPORTS_LAZY_EXEC
+> +static inline pte_t maybe_mkexec(pte_t entry, struct vm_area_struct *vma)
+> +{
+> +	if (unlikely(vma->vm_flags & VM_EXEC))
+> +		return pte_mkexec(entry);
+> +	return entry;
+> +}
+> +#else
+> +static inline pte_t maybe_mkexec(pte_t entry, struct vm_area_struct *vma)
+> +{
+> +	return entry;
+> +}
+> +#endif
 
-Well, I don't have machines like that either and don't mind the patch.
-Just raising the issue; I've had the big iron boys complain about
-similar things (typically printing something for every CPU, which gets
-out of hand much faster than zones, but still).
+> +++ b/mm/memory.c
+> @@ -2218,6 +2218,8 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
+>  	flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
+>  	entry = pte_mkyoung(vmf->orig_pte);
+>  	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+> +	if (vmf->flags & FAULT_FLAG_INSTRUCTION)
+> +		entry = maybe_mkexec(entry, vma);
+
+I don't understand this bit.  We have a fault based on an instruction
+fetch.  But we're only going to _maybe_ set the exec bit?  Why not call
+pte_mkexec() unconditionally?
 
