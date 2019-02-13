@@ -2,148 +2,158 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A3AD4C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:41:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D69E3C282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:42:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6D3DB2190A
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:41:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D3DB2190A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 9401D218D3
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:42:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9401D218D3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F26488E0003; Wed, 13 Feb 2019 08:41:19 -0500 (EST)
+	id 3D9198E0004; Wed, 13 Feb 2019 08:42:39 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ED5358E0001; Wed, 13 Feb 2019 08:41:19 -0500 (EST)
+	id 388BE8E0001; Wed, 13 Feb 2019 08:42:39 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DC5778E0003; Wed, 13 Feb 2019 08:41:19 -0500 (EST)
+	id 251C98E0004; Wed, 13 Feb 2019 08:42:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8581A8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:41:19 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id b3so1041721edi.0
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 05:41:19 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id C3E708E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:42:38 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id m11so1048531edq.3
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 05:42:38 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=TZFOjxEzkb+xWsfZuwTAAn8tiDRXhJcT8XUbp/GzZDQ=;
-        b=P+SVNkRZTxetopgaRnd6OJTHeFtepg7Wncy9glGjmGilPjyMHhkRxS8w79KcgnHYej
-         1tvsBKHkQGWa1U5SLEkUoH6A8CefU8WWviT1uWrct74PdwPJNo2i6IDE7WcHsBIksiez
-         kxJO9sz+0PHDsMNp+nEe+7D0oJdvgsfhEqA8YYlXQEd9LkfHDdCcGh97D3h2/RGNplVD
-         BJ91FjBtJGjf+3Qqigwct2Vnzs2j0io2f5wFnCfiGyIs7g8rxCRB4emUCAqqtOqWM7b0
-         VhS4t4lyEVjveJ7kbxBoms5287/Vmgvp3OztCJELwyec79K+sPgfg+hPvMxew18WqWdE
-         2gug==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAuZDdjibGJfx46DJCR1aaxQGTxyU5hWX3iZpOSvBj7SPCD52jimz
-	uU+sOlmeZSEI2Z/qawmpMAFTZa4hK96q4VGWGhPX/CnGkUi2jDvczzakU9ivUBCRMiYRAanONbt
-	jZ9CGUUSYuw9DvQWGHfZpNycrdF3s5tLrXqkhKPZ+Jptykjn7ssftAmYeWPXY3i0=
-X-Received: by 2002:a17:906:33c1:: with SMTP id w1-v6mr408657eja.49.1550065279097;
-        Wed, 13 Feb 2019 05:41:19 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbbvKpSXRycBffRO0453OLRrSnoF5iNsQ9Yr69Gdrc89g6bOKdbWRpDmWlZHOxtDSx9udmQ
-X-Received: by 2002:a17:906:33c1:: with SMTP id w1-v6mr408619eja.49.1550065278222;
-        Wed, 13 Feb 2019 05:41:18 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550065278; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=pBoWwbhiE0nlNpzDhANiOMoopgDoc0V/NBkvTtexFyE=;
+        b=hy82orsb2HtWeqJNTU6y81iTFw91Ecpp/wg8txmTv6f2iJlJ0BWy9O0280B53jayeX
+         EZeKhL0ab01hwPREDXfTp/kMF1PINlGY3Mi0t7VybHJ7b24u/rvCWgUvo6pdLn4VjUSQ
+         KHXCPLxs/YlJLIlke3eGnkZm0mHoK6bLlcmjS3vCpQOm7dr3T1HRXaB8jR8yAAntcgG1
+         QRFebAWGvu+H7qeTcZL5qnuUaXmDf01Tn6uJFzl6vZ23MYrZDJ6GLHDfsCgYAhvJ5Bsh
+         +M1ZbZyKsruZKytLHzjSAac68SX4Z3c4Sgu7BMRzcjyGST4vJLEdYKGLlD6HQfXomq9u
+         sGiA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: AHQUAuYQxp4IQEeIEfgM5ZXyeliVT+RbySH3NJa9ns6cDMyCPhX1B5lJ
+	1bUiD8f0PWXpf2+oZ0SySKxYpbhN6J4ElIFYqgzY3ug+Wz5RqEN82VXrS0/JXuCSswe/LlK+Kdv
+	D1PnU3qwgeykRPzRbVu0ndB7u88xpD0Zbyz8seom2EOv780Y+9kmMOg5XtLUCbPcLow==
+X-Received: by 2002:a50:e10f:: with SMTP id h15mr420250edl.99.1550065358360;
+        Wed, 13 Feb 2019 05:42:38 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbEycvXB75PVEXHN5JmlZ9OLsOTIpyrJwMtXB9usqeY6TypYEU9LEPBWw/zZYoEjaTQMQX7
+X-Received: by 2002:a50:e10f:: with SMTP id h15mr420203edl.99.1550065357541;
+        Wed, 13 Feb 2019 05:42:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550065357; cv=none;
         d=google.com; s=arc-20160816;
-        b=hcBGXboRVr8gsUcW33kcQRx6DGnTT7Cjp3OqDhSElh2yTJoNYqQCwDUTiARYJ5NGTG
-         DF/xvnYW/NxHWBqH1FicuWS2XHq5H2Z7eG144AG1nwJ1hGWuo6wudJLkrXs6WrwDqGQQ
-         75WZArGgqmml2pSAlHtwvVKRv9FW3MqjDvnT+fuk+rS7RzzmlBuHgs51PZqDXEbAVd8k
-         IVAn0X5rA+f3lTXBiYhirktjUyD4i/5wJzAkKlqVyRbQCo4w1spDGJUWgFmsy1DbbJr0
-         7+lgdIVUYR9kxOeT1TUe8vjb7Td/ivqNSkkD9FRio8OIlksvXRUAIMYA5BwCqNL/Y863
-         eouA==
+        b=Zl2aNfiJWqBtdpwSdr0iGAAcq4EdUe/qu86qDt9dfdHLvd5nKPrCQjCNlZZC3UrBv7
+         bu1TTr2/50OfKJiHzq52IwhPPhcLIoN+uMfJ5K3bujGHGjkU06vf9iNfhvk3OmBCYl8Y
+         NhCF2DvamaxhU7pyyhb8zrHrgyChDM8rtetNA0z+AmGCpgQ7DkKpDATOxM6VfoeJuub1
+         VVB2SH49DMR/Fcshm6/WQrBrGDfz+D/UjchYwehVXM4o0TIeiw+MLYbq2UO2QDtLNAeH
+         hlcC7NH7xPHJnHyreM4Rk1hEaX1cH8BsSKpbk6KbC2bysrLzekoc6TLXh1mDvATQ/BBI
+         4ZjA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=TZFOjxEzkb+xWsfZuwTAAn8tiDRXhJcT8XUbp/GzZDQ=;
-        b=c/vp2c55PTQq4sEBn8yll9SwG1WebpvpKCfKX3nwbVvwpOOGSVu4oBwpki4+bbD/Sm
-         sNoIAUiDiWQ1is6eyyXUE41DTD9q4wwPtjEoxKzVXslqcSy5Pic/rAv6J4vdZTa4+snA
-         ut9UQBvYbJrSDT7Kf47HBHKLKJ9H8GvKKoF7lLMnipc8Xi7hb25hVBKqn/YsJIhDqH7X
-         ug/W8Bxm48HW5pIgeGCf/uG7uB8e69VqxLuiFEGRpr0EFfCWWF4RO5gUyLYw8XId2V5f
-         H+tvj8WPWahkDABNBXyilIh2Wi5NmgA1qk54cXjxxrkX7o1FtDkMCGDqe5oo6VL8XmTj
-         k/Gg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=pBoWwbhiE0nlNpzDhANiOMoopgDoc0V/NBkvTtexFyE=;
+        b=Lq3k0baojcLNBadPYk3UFqFltaxYObWHiCiFItloJYz7tj/zuLGg0W4kKlOLLXGx2+
+         pJGcP9fxrVen1eM+Uk1gBa3oYivTL/cfFDPzXSrqn05o7/rK+KocS9fHW6wM+GbjXocF
+         j/T3bI2Wtn25EGJkGRTLoJFlLe6gtA4fjub7LN+MeFD6F5Be3C9Nwxrb5SZy4+fqKxX7
+         JPIyMlmh7Ia68ZuU5FXBqQeiqD1g2PE06vVxfYwpfkzxgsHRk9T6rtPtVYDKVPRQGasw
+         8QBp2R8q4naoj8C4WmVkgO4vjO+WIiEywHxUFUgTuzHhejO/Ud9mO/sCwHMj/dnMsX9Z
+         kyeQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x15si5854276eds.146.2019.02.13.05.41.18
+        by mx.google.com with ESMTPS id t12si4684250edj.120.2019.02.13.05.42.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 05:41:18 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 13 Feb 2019 05:42:37 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id AA8E0AEBC;
-	Wed, 13 Feb 2019 13:41:17 +0000 (UTC)
-Date: Wed, 13 Feb 2019 14:41:15 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-mm@kvack.org, Pingfan Liu <kernelfans@gmail.com>,
-	Dave Hansen <dave.hansen@intel.com>, x86@kernel.org,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Tony Luck <tony.luck@intel.com>, linuxppc-dev@lists.ozlabs.org,
-	linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
-	Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH v3 2/2] mm: be more verbose about zonelist initialization
-Message-ID: <20190213134115.GO4525@dhcp22.suse.cz>
-References: <20190212095343.23315-3-mhocko@kernel.org>
- <20190213094315.3504-1-mhocko@kernel.org>
- <20190213103231.GN32494@hirez.programming.kicks-ass.net>
- <20190213115014.GC4525@dhcp22.suse.cz>
- <20190213131131.GS32494@hirez.programming.kicks-ass.net>
+	by mx1.suse.de (Postfix) with ESMTP id F33BAAEBC;
+	Wed, 13 Feb 2019 13:42:36 +0000 (UTC)
+Subject: Re: [PATCH] mm, page_alloc: Fix a division by zero error when
+ boosting watermarks
+To: Mel Gorman <mgorman@techsingularity.net>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: Yury Norov <yury.norov@gmail.com>, Andrea Arcangeli
+ <aarcange@redhat.com>, David Rientjes <rientjes@google.com>,
+ Michal Hocko <mhocko@kernel.org>, Will Deacon <will.deacon@arm.com>,
+ Catalin Marinas <catalin.marinas@arm.com>, linux-kernel@vger.kernel.org,
+ linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
+References: <20190213131923.GQ9565@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <295be99c-d09a-5572-fa49-2673a62c295b@suse.cz>
+Date: Wed, 13 Feb 2019 14:42:36 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190213131131.GS32494@hirez.programming.kicks-ass.net>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190213131923.GQ9565@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 13-02-19 14:11:31, Peter Zijlstra wrote:
-> On Wed, Feb 13, 2019 at 12:50:14PM +0100, Michal Hocko wrote:
-> > On Wed 13-02-19 11:32:31, Peter Zijlstra wrote:
-> > > On Wed, Feb 13, 2019 at 10:43:15AM +0100, Michal Hocko wrote:
-> > > > @@ -5259,6 +5261,11 @@ static void build_zonelists(pg_data_t *pgdat)
-> > > >  
-> > > >  	build_zonelists_in_node_order(pgdat, node_order, nr_nodes);
-> > > >  	build_thisnode_zonelists(pgdat);
-> > > > +
-> > > > +	pr_info("node[%d] zonelist: ", pgdat->node_id);
-> > > > +	for_each_zone_zonelist(zone, z, &pgdat->node_zonelists[ZONELIST_FALLBACK], MAX_NR_ZONES-1)
-> > > > +		pr_cont("%d:%s ", zone_to_nid(zone), zone->name);
-> > > > +	pr_cont("\n");
-> > > >  }
-> > > 
-> > > Have you ran this by the SGI and other stupid large machine vendors?
-> > 
-> > I do not have such a large machine handy. The biggest I have has
-> > handfull (say dozen) of NUMA nodes.
-> > 
-> > > Traditionally they tend to want to remove such things instead of adding
-> > > them.
-> > 
-> > I do not insist on this patch but I find it handy. If there is an
-> > opposition I will not miss it much.
+On 2/13/19 2:19 PM, Mel Gorman wrote:
+> Yury Norov reported that an arm64 KVM instance could not boot since after
+> v5.0-rc1 and could addressed by reverting the patches
 > 
-> Well, I don't have machines like that either and don't mind the patch.
-> Just raising the issue; I've had the big iron boys complain about
-> similar things (typically printing something for every CPU, which gets
-> out of hand much faster than zones, but still).
+> 1c30844d2dfe272d58c ("mm: reclaim small amounts of memory when an external
+> 73444bc4d8f92e46a20 ("mm, page_alloc: do not wake kswapd with zone lock held")
+> 
+> The problem is that a division by zero error is possible if boosting occurs
+> either very early in boot or if the high watermark is very small. This
+> patch checks for the conditions and avoids boosting in those cases.
 
-Maybe we can try to push this through and revert if somebody complains
-about an excessive output.
+Hmm is it really a division by zero? The following line sets max_boost to
+pageblock_nr_pages if it's zero. And where would the division happen anyway?
 
--- 
-Michal Hocko
-SUSE Labs
+So I wonder what's going on, your patch should AFAICS only take effect when
+zone->_watermark[WMARK_HIGH] is 0 or 1 to begin with, otherwise max_boost is at
+least 2?
+
+Also upon closer look, I think that (prior to the patch), boost_watermark()
+could be reduced (thanks to the max+min capping) to
+
+zone->watermark_boost = pageblock_nr_pages
+
+?
+
+> 
+> Fixes: 1c30844d2dfe ("mm: reclaim small amounts of memory when an external fragmentation event occurs")
+> Reported-and-tested-by: Yury Norov <yury.norov@gmail.com>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> ---
+>  mm/page_alloc.c | 5 +++++
+>  1 file changed, 5 insertions(+)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index d295c9bc01a8..ae7e4ba5b9f5 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2170,6 +2170,11 @@ static inline void boost_watermark(struct zone *zone)
+>  
+>  	max_boost = mult_frac(zone->_watermark[WMARK_HIGH],
+>  			watermark_boost_factor, 10000);
+> +
+> +	/* high watermark be be uninitialised or very small */
+> +	if (!max_boost)
+> +		return;
+> +
+>  	max_boost = max(pageblock_nr_pages, max_boost);
+>  
+>  	zone->watermark_boost = min(zone->watermark_boost + pageblock_nr_pages,
+> 
 
