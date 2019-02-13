@@ -2,227 +2,175 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 69D92C282CA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 17:43:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 04550C282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 17:46:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1955B20700
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 17:43:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1955B20700
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id B652E2190A
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 17:46:38 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="gQxXEPxP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B652E2190A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6A9218E0002; Wed, 13 Feb 2019 12:43:30 -0500 (EST)
+	id 323BD8E0003; Wed, 13 Feb 2019 12:46:38 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 657ED8E0001; Wed, 13 Feb 2019 12:43:30 -0500 (EST)
+	id 2D2AB8E0001; Wed, 13 Feb 2019 12:46:38 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 521368E0002; Wed, 13 Feb 2019 12:43:30 -0500 (EST)
+	id 1C14D8E0003; Wed, 13 Feb 2019 12:46:38 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EC3A98E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 12:43:29 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id c18so1289939edt.23
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:43:29 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CEC268E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 12:46:37 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id i11so2175217pgb.8
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:46:37 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=yMqE0SxU5CYG3T9tTFXhAtaDDtwlklgub+A0kqBD6fo=;
-        b=JQxT2xs0oIDVMahLJ2D7oudLUqPtbNkc1CJBXNKCU6GQZjWPbVCbQfnT3vDSeLQOl3
-         /P/l3F00g9Tqq8ub3vzvX4SS9gjr4DrKRAGzDnoy7OJavXJvMVMlyOhbLXi3Y6WoLi3J
-         e1kUyhKwJy8dzu9/vYG3PMo7mkmqPCHeI31QOWOM5w+Wb/a11Hz9L9Vu8TDTORFRjfY2
-         W+IwdM3rhwRUiFtiiz9NKxFA9sMy/c5YvYNWz3dYLpyLzFGv4Dj87siVTE77uVs78Z6j
-         lg6o7HIY3Xom7svGycV0tWHCwb7KUlzfY7g3pVsjXVNo4VrtTx1kRbgdwwGupt3ltLT0
-         BBFg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-X-Gm-Message-State: AHQUAubd51e/MuBvxwUZen3ypcq8zqmU0rVi6Mfin9W6Up5cda8vlG0M
-	aRYB7n1SIgH6+q90KsTwPdkbDMuROYSH6eLR5s21uy0qN6qITV7BiRXtzCL6Gw3t/sZQNXj+mGA
-	l3EdHBtFMDIQQjrrHZpv13jkvod6gvisIbuyRMkzyjy17S2D7fw3RoZCLFpCIw7pyVQ==
-X-Received: by 2002:a17:906:180c:: with SMTP id v12mr1179392eje.45.1550079809444;
-        Wed, 13 Feb 2019 09:43:29 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IavcJtTcSSQ35UvQ/s0SwPVhUv990BzdcDluKH4aH3QmYjKkc1Xj9uAJmjZuNs5EABW9LKw
-X-Received: by 2002:a17:906:180c:: with SMTP id v12mr1179347eje.45.1550079808495;
-        Wed, 13 Feb 2019 09:43:28 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550079808; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=F4/kzC3jhV0MG/GU79iUnwgEUzLi55LAygewrfHKenM=;
+        b=dc0qsAfeehstPghqVXj8/4RUM+3tZcXcgMvGSs95xemVWbz5QrDgi0EnE6ibH7Ss1v
+         brWo8tsSxOi7HOb0rQp4JLvS5aaOz2vkPtNdpoI/2MLrLm0CwHRBOlaezEUo12rQ66nN
+         sWSaZ5ofkNrgUTJLzjacs7sSUUkUheeH5HTY4p7aDdvDAXUB9KcGFsOPsm5iXkS2PMyo
+         OJ2p/e6E4+pFsWmZTybGXcP5+2HVimM10Qo6eXkK1/7/Pxem/w15T1TjkPnECq6neifP
+         fmHWNHQW1IeQ7TEk6P5abHHazAm/9oOmt0C0sXPksPXAd0RAgigb+inHpXcSXxy3mqUL
+         +zCQ==
+X-Gm-Message-State: AHQUAuZqkPe0hMj3E1HInGfSy3HE+3WP2OpClIHJfKnuv5/3hapMBPID
+	+oABMnIGWFqxFjlXTyedb4kSfS1wqbLzLlrUuZYpcjuk4W/vSNHDKkcvIdinps2Y0mddX91o33B
+	HgOw0bguIuLEADez9ReaVnjIVCaQeYQ97n1Le9zYWvRiY2bNISqlvaeE2r5BA5pU=
+X-Received: by 2002:a17:902:bf44:: with SMTP id u4mr1657260pls.5.1550079997319;
+        Wed, 13 Feb 2019 09:46:37 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbchJaIDQZTz71HP47iCZ61a8WuKt3qgIcEOdGhqcIzcamsEPnom4OV1PtFE8U4Lih+je0M
+X-Received: by 2002:a17:902:bf44:: with SMTP id u4mr1657203pls.5.1550079996668;
+        Wed, 13 Feb 2019 09:46:36 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550079996; cv=none;
         d=google.com; s=arc-20160816;
-        b=VPFAfkIRTc6bxPcn0EV1tvWq4U6UzehewyYqcEfVMi/78nZOC+bZAq4+QzHWQf0w2t
-         czWDBTEOK1jGNth/QxUvVH/s+QDgtcN0N/HkHaWFAeSyoGN7YF+RW8gC+R4jioeqPjO6
-         hLPpYUOPhvk1ZRDxFbjTemcq/+K6AjDwExKo5ay6aGDNtOUA9YWkWPVkXO0PuTHIBl+A
-         e+nPd1SjtR2qZrc8CSrBxVozAjUgrKSKYuP1oY4lP4zN9cRBT83oIsANUC3LF0EE0cjf
-         DPJ/OdHVRdU5z6T6W6bmRnnYAbyyB5FEEdX5I4KZ/jlbIyF+Z12OPiIy9djkBjgYNaSV
-         /O+Q==
+        b=j4JuZgN56OdC5ZmMH4UXNBwg8sLVR6Ul/LwSvifmXwB7h9DjyN5DXKi3ozAeFcQGwK
+         lJAMku4x7CTF2pWT2gNhhypeDBQHQMxH51ejPbyI5o7ttWdgvrTTz5aDCBL1N408Pb6q
+         Ih3EE3kdh6H707AIP6fNyh9QaMaLIW2SmUW3vCtPm0qeLRNTU3JE+tHDZF9ppbPBKKSY
+         mYTVCUJqVaTunHXYQZOaROku4u+Da5OtElCXO34rOiajsXCDyTO+Josb7ii1OLPPcYiz
+         sw/6WDTMVz5jPfcr6nfKOR8yQLh4xE6nMeH19giyaffoWyAbq2QhxUcNe5QXosjNqM5R
+         6j3Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=yMqE0SxU5CYG3T9tTFXhAtaDDtwlklgub+A0kqBD6fo=;
-        b=qqAQITSISt60WqYeHYxiegy/GwmHXO3ayhi0btudaFBHLNhFvRX3Az7zGUtfkvBYLW
-         h/C0lM3g/ULVeo9KyId0RNUIHCiFyZlJlIZWH4CdVYTJbJtAaaggB1bgBs89Mk/jx3/A
-         SevGQaKSKD8IT6mJAonDf1EkF0bZ1qLinQXJ1KgHa3k05PPAKnJAlSN47N3pzBWRc8FI
-         58/g5+fuE3Ye/95PN+QPKUKqxAwnzkDiI9nlYXmCo16I/GqrOSgw436MERtMzDMjkimv
-         1xpat1so1wfLc6OCebsOqP654DAB2KRRvACYdRRnN1ARezwtEC0tmAxaGOD4AqxxHQGX
-         gAmA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=F4/kzC3jhV0MG/GU79iUnwgEUzLi55LAygewrfHKenM=;
+        b=XX5qLBvQgkdg1uRjqgGxrRcZhTPdC2zqpwc21rxVU1KuvDhbUsl3AE8Y7hFYSNnc3f
+         IYvez7Vd4uDoti0RHoGeHPMh0SgaMqYgd6RCk1snWScKylPjZo0pi+bMgI68DN6T7oqv
+         KjtmNaMhkNDmoCCZYz8Jc7bfcW1eO4xMIDxR/ZEl8Wig5sEyFGFgfYAukKWh8yQiB0GV
+         1zoltfox8pDBajn8IMGM6h8O/kncHp2xc6LlBRNjZ6a+58aZ3eBfPyb13E44bOjRqKe8
+         Rb326wqHtBA/YVxXYVJyEWfk9W/FvX7n2Q57RoD2W+bY7kwI496kvQmXyvGdKJbDHRgR
+         tZqA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id f5si809991edw.285.2019.02.13.09.43.27
-        for <linux-mm@kvack.org>;
-        Wed, 13 Feb 2019 09:43:28 -0800 (PST)
-Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gQxXEPxP;
+       spf=pass (google.com: best guess record for domain of batv+b68490c3fe13e616ccfb+5652+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+b68490c3fe13e616ccfb+5652+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id l7si16386178plt.25.2019.02.13.09.46.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 13 Feb 2019 09:46:36 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of batv+b68490c3fe13e616ccfb+5652+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 098A6A78;
-	Wed, 13 Feb 2019 09:43:27 -0800 (PST)
-Received: from e103592.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 2F30E3F675;
-	Wed, 13 Feb 2019 09:43:22 -0800 (PST)
-Date: Wed, 13 Feb 2019 17:43:19 +0000
-From: Dave Martin <Dave.Martin@arm.com>
-To: Kevin Brodsky <kevin.brodsky@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Kate Stewart <kstewart@linuxfoundation.org>,
-	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>,
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gQxXEPxP;
+       spf=pass (google.com: best guess record for domain of batv+b68490c3fe13e616ccfb+5652+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+b68490c3fe13e616ccfb+5652+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	MIME-Version:References:In-Reply-To:Message-Id:Date:Subject:Cc:To:From:Sender
+	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
+	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=F4/kzC3jhV0MG/GU79iUnwgEUzLi55LAygewrfHKenM=; b=gQxXEPxPM3+F0T3U4GrV1QDT1/
+	G8JSf7aTTJH0Wm8ThrbxnywTU+9gC3SCujimS7i+k4jV+0kYzkR9T5bE6J6qMz8R69EvvquZ+BYkC
+	giznrEBe2MPuigbD81fsRbVr20J+tnbTCD2ElwFoZQRaBsSxAgXctZfP/N8afNaMWbw7KUg7rSgRw
+	imGWvaU6BoLgo2suacMCl1aoWRUjEc3wL+ynJkG2OzcA1/4w/ENho5QWA85w7bGk3MwMH5GpzyUgv
+	ndP++oI6sc5Np/qaIrkyzz5nJyTdWXsYisJPrpGx0Hv4i1uHeXZ3/u64uiafHU1uWuyMbE4k6j6Kx
+	1YSxWilA==;
+Received: from 089144210182.atnat0019.highway.a1.net ([89.144.210.182] helo=localhost)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gtyc6-0006aL-C8; Wed, 13 Feb 2019 17:46:26 +0000
+From: Christoph Hellwig <hch@lst.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>,
+	Russell King <linux@armlinux.org.uk>,
+	Catalin Marinas <catalin.marinas@arm.com>,
 	Will Deacon <will.deacon@arm.com>,
-	Kostya Serebryany <kcc@google.com>,
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
-	Chintan Pandya <cpandya@codeaurora.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>,
-	linux-arch <linux-arch@vger.kernel.org>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Evgenii Stepanov <eugenis@google.com>,
-	Kees Cook <keescook@chromium.org>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	Branislav Rankov <Branislav.Rankov@arm.com>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [RFC][PATCH 0/3] arm64 relaxed ABI
-Message-ID: <20190213174318.GM3567@e103592.cambridge.arm.com>
-References: <CAAeHK+xPZ-Z9YUAq=3+hbjj4uyJk32qVaxZkhcSAHYC4mHAkvQ@mail.gmail.com>
- <20181212150230.GH65138@arrakis.emea.arm.com>
- <CAAeHK+zxYJDJ7DJuDAOuOMgGvckFwMAoVUTDJzb6MX3WsXhRTQ@mail.gmail.com>
- <20181218175938.GD20197@arrakis.emea.arm.com>
- <20181219125249.GB22067@e103592.cambridge.arm.com>
- <9bbacb1b-6237-f0bb-9bec-b4cf8d42bfc5@arm.com>
- <CAFKCwrhH5R3e5ntX0t-gxcE6zzbCNm06pzeFfYEN2K13c5WLTg@mail.gmail.com>
- <20190212180223.GD199333@arrakis.emea.arm.com>
- <20190213145834.GJ3567@e103592.cambridge.arm.com>
- <90c54249-00dd-f8dd-6873-6bb8615c2c8a@arm.com>
+	Guan Xuetao <gxt@pku.edu.cn>,
+	linux-arm-kernel@lists.infradead.org,
+	linux-mm@kvack.org,
+	linux-arch@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH 2/8] initramfs: free initrd memory if opening /initrd.image fails
+Date: Wed, 13 Feb 2019 18:46:15 +0100
+Message-Id: <20190213174621.29297-3-hch@lst.de>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190213174621.29297-1-hch@lst.de>
+References: <20190213174621.29297-1-hch@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <90c54249-00dd-f8dd-6873-6bb8615c2c8a@arm.com>
-User-Agent: Mutt/1.5.23 (2014-03-12)
+Content-Transfer-Encoding: 8bit
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 13, 2019 at 04:42:11PM +0000, Kevin Brodsky wrote:
-> (+Cc other people with MTE experience: Branislav, Ruben)
+We free the initrd memory for all successful or error cases except
+for the case where opening /initrd.image fails, which looks like an
+oversight.
 
-[...]
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ init/initramfs.c | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)
 
-> >I'm wondering whether we can piggy-back on existing concepts.
-> >
-> >We could say that recolouring memory is safe when and only when
-> >unmapping of the page or removing permissions on the page (via
-> >munmap/mremap/mprotect) would be safe.  Otherwise, the resulting
-> >behaviour of the process is undefined.
-> 
-> Is that a sufficient requirement? I don't think that anything prevents you
-> from using mprotect() on say [vvar], but we don't necessarily want to map
-> [vvar] as tagged. I'm not sure it's easy to define what "safe" would mean
-> here.
-
-I think the origin rules have to apply too: [vvar] is not a regular,
-private page but a weird, shared thing mapped for you by the kernel.
-
-Presumably userspace _cannot_ do mprotect(PROT_WRITE) on it.
-
-I'm also assuming that userspace cannot recolour memory in read-only
-pages.  That sounds bad if there's no way to prevent it.
-
-[...]
-
-> >It might be reasonable to do the check in access_ok() and skip it in
-> >__put_user() etc.
-> >
-> >(I seem to remember some separate discussion about abolishing
-> >__put_user() and friends though, due to the accident risk they pose.)
-> 
-> Keep in mind that with MTE, there is no need to do any explicit check when
-> accessing user memory via a user-provided pointer. The tagged user pointer
-> is directly passed to copy_*_user() or put_user(). If the load/store causes
-> a tag fault, then it is handled just like a page fault (i.e. invoking the
-> fixup handler). As far as I can tell, there's no need to do anything special
-> in access_ok() in that case.
-> 
-> [The above applies to precise mode. In imprecise mode, some more work will
-> be needed after the load/store to check whether a tag fault happened.]
-
-Fair enough, I'm a bit hazy on the details as of right now..
-
-[...]
-
-> There are many possible ways to deploy MTE, and debugging is just one of
-> them. For instance, you may want to turn on heap colouring for some
-> processes in the system, including in production.
-
-To implement enforceable protection, or as a diagnostic tool for when
-something goes wrong?
-
-In the latter case it's still OK for the kernel's tag checking not to be
-exhaustive.
-
-> Regarding those cases where it is impossible to check tags at the point of
-> accessing user memory, it is indeed possible to check the memory tags at the
-> point of stripping the tag from the user pointer. Given that some MTE
-> use-cases favour performance over tag check coverage, the ideal approach
-> would be to make these checks configurable (e.g. check one granule, check
-> all of them, or check none). I don't know how feasible this is in practice.
-
-Check all granules of a massive DMA buffer?
-
-That doesn't sounds feasible without explicit support in the hardware to
-have the DMA check tags itself as the memory is accessed.  MTE by itself
-doesn't provide for this IIUC (at least, it would require support in the
-platform, not just the CPU).
-
-We do not want to bake any assumptions into the ABI about whether a
-given data transfer may or may not be offloaded to DMA.  That feels
-like a slippery slope.
-
-Providing we get the checks for free in put_user/get_user/
-copy_{to,from}_user(), those will cover a lot of cases though, for
-non-bulk-IO cases.
-
-
-My assumption has been that at this point in time we are mainly aiming
-to support the debug/diagnostic use cases today.
-
-At least, those are the low(ish)-hanging fruit.
-
-Others are better placed than me to comment on the goals here.
-
-Cheers
----Dave
+diff --git a/init/initramfs.c b/init/initramfs.c
+index 7cea802d00ef..1cba6bbeeb75 100644
+--- a/init/initramfs.c
++++ b/init/initramfs.c
+@@ -610,13 +610,12 @@ static int __init populate_rootfs(void)
+ 		printk(KERN_INFO "Trying to unpack rootfs image as initramfs...\n");
+ 		err = unpack_to_rootfs((char *)initrd_start,
+ 			initrd_end - initrd_start);
+-		if (!err) {
+-			free_initrd();
++		if (!err)
+ 			goto done;
+-		} else {
+-			clean_rootfs();
+-			unpack_to_rootfs(__initramfs_start, __initramfs_size);
+-		}
++
++		clean_rootfs();
++		unpack_to_rootfs(__initramfs_start, __initramfs_size);
++
+ 		printk(KERN_INFO "rootfs image is not initramfs (%s)"
+ 				"; looks like an initrd\n", err);
+ 		fd = ksys_open("/initrd.image",
+@@ -630,7 +629,6 @@ static int __init populate_rootfs(void)
+ 				       written, initrd_end - initrd_start);
+ 
+ 			ksys_close(fd);
+-			free_initrd();
+ 		}
+ 	done:
+ 		/* empty statement */;
+@@ -642,9 +640,9 @@ static int __init populate_rootfs(void)
+ 			printk(KERN_EMERG "Initramfs unpacking failed: %s\n", err);
+ 			clean_rootfs();
+ 		}
+-		free_initrd();
+ #endif
+ 	}
++	free_initrd();
+ 	flush_delayed_fput();
+ 	return 0;
+ }
+-- 
+2.20.1
 
