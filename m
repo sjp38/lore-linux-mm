@@ -2,148 +2,145 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E5B4C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 07:20:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 796DEC4151A
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 07:32:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 292A4206C0
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 07:20:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0A789222BE
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 07:32:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uoJ2oHrR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 292A4206C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="Yj9LduyX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0A789222BE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=iki.fi
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A9FF38E0002; Wed, 13 Feb 2019 02:20:13 -0500 (EST)
+	id 6ECE38E0002; Wed, 13 Feb 2019 02:32:42 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A4EFC8E0001; Wed, 13 Feb 2019 02:20:13 -0500 (EST)
+	id 69CD08E0001; Wed, 13 Feb 2019 02:32:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 98D2A8E0002; Wed, 13 Feb 2019 02:20:13 -0500 (EST)
+	id 566068E0002; Wed, 13 Feb 2019 02:32:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 714D78E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 02:20:13 -0500 (EST)
-Received: by mail-yb1-f198.google.com with SMTP id r11so905118ybm.0
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 23:20:13 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 28C4A8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 02:32:42 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id q33so1347250qte.23
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 23:32:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=HPF6yD5DAHgXAIV1vACWZVe+d25mUGRVf9xdp5LPo8k=;
-        b=JkK4YOgspWHezde2y/UYYfZZ45TKj8CYcYWSmmGf76YNaWmfhUdQh3hKrsmNsUIL4+
-         pv76bdpzTiogq4U7s9pKXk6km+osbpfXhFJM05N29Pt7UHJn+kc4wFHcYBQj8B7zAyqz
-         IaacKC5PKn5unOg8OuD8Uv/dmITxD/Pt04ZmlwkC7BK7sp4BK/SwGmlUONFWy2A2+fgC
-         ItbdOARpoh4G4PW4rmGUWijNjESPcZQLRo+4kut957FLvDnF5s6Nogu80d91xfJZbkcb
-         VPKlyHMOmEsS/L/7H/oqVIzf2Yk4gAdTlKC3xExQwblaqzSYHuu+jOsK/5Nf+E1SMxSN
-         L+nA==
-X-Gm-Message-State: AHQUAuZ+08N9wjTpIOfnhDuV/cmJYUQ3xj55l7LagZroWmSH7DGyxNeg
-	o6cE5OQNpq/UIwZd2csTPkF4qs5lMEXyHQvGCGgmMRJ7YaP8FcAmJPYB7LeKP3qu9FY8xEm34Av
-	Lvh3oRK+0O1STRtzD43rNCLMEudgFbLx8aSIPtObPfudybgYRL1amHcORyeOu7wTKCZ9PEelScq
-	cIs/CPuHz1sXSj4G7fN8kCR9nPWOOYu5rJoFY8PiMfDGnOWozg0SFbDt9ETNBmapqP6d3hX02qp
-	NNcBaZ2xTNCpLjRMILnlB+8jniUOrJSeMPdzDNRQ9wB5VgNt7VpjzoFJLT/ij3qOusU0nxkQ+b+
-	cgDo2sTlA1G1Ii5EVXFX3U1FZqp/QnKu2GKPcmj6w1p5aSeXannp9MdfRRJOQWuxteXb9/bbzV2
-	Y
-X-Received: by 2002:a25:37cd:: with SMTP id e196mr6094881yba.169.1550042413122;
-        Tue, 12 Feb 2019 23:20:13 -0800 (PST)
-X-Received: by 2002:a25:37cd:: with SMTP id e196mr6094859yba.169.1550042412530;
-        Tue, 12 Feb 2019 23:20:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550042412; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=+/C6EaNfq8gXsgMCYQEEr71KXJaPBdUxGSd0IfnMFlg=;
+        b=TLBAPoeGaC2Xs+I1k3aPrlneSkY1CB8sK/IR+3lZULYNW2nrt7hQFxqtu71ubO1G1v
+         PHdMnpRNg5mDj9pJo9sxChAxY9WxjT4ha+MKj+yQSbkxBIlQXwpobT3bw9Vw4GNDPvGu
+         QckSnqNTQbcnRHUV8vQ5HpLFJ2tuK1B8ULESQSLTnGgCmQS8820iiAfDuhGbXIY9BdLa
+         oz6wC+jb2MpfyFnSHSpApYRsgjVjkWIzk6a5O5kSFr03kWPOG416PVm9/85VmrWtDW5G
+         5PCW+Q7UyPxd+Du2fNDX75dReQplA6TzqpHQyUt/b3Y3QoB7qI7eVX+iSPvzSH6vstnJ
+         O8jw==
+X-Gm-Message-State: AHQUAuYT4HM6r2iVQETuL5c8UfVM0Lnk8dY6+Kx4XBG0X3QLpgYGQ1QD
+	M2i0tTK2tss5e0Gjof9AaVf6kjXXhD2rcx0eWC8LWVciZp8tNZ2wJ4EUtQ+zgM1tV4N3krb1qVg
+	P2GkCJJL9BFVe/mUHRTfgEnoxk8RqJbgeIhcK98yFF1/tybwlMO4ht9uBsPAcglc=
+X-Received: by 2002:a37:d204:: with SMTP id f4mr5460142qkj.311.1550043161837;
+        Tue, 12 Feb 2019 23:32:41 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaGmJc0kEe+DMHklbKiZPX6+0hd/nSO1jNAP6Lj+NeOt3fn/Qs1L8Qe3haFNM2oPbkRf/Kn
+X-Received: by 2002:a37:d204:: with SMTP id f4mr5460122qkj.311.1550043161339;
+        Tue, 12 Feb 2019 23:32:41 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550043161; cv=none;
         d=google.com; s=arc-20160816;
-        b=RG+t4yvFvm3aPoG2fGwMoZqZdZjIW5CPLwjviF+aiyMMzZCjYLG9jzgbBcJGzJbF4j
-         ZxTZHtDEnxA6yDE2E59xEBvx1zs4OM4vci3uJfk6M92f3GPueg/3vY39mVXaN4FEcJWW
-         Biwnp3NzRmEKNJZnwUIfVkzrx+RW3IYFJHO019t9tw/beJeUn3JnvL+ONzJM6bO5PjfY
-         yBlC5eYoLPpy/BLYXUkd525PumEWHHrLn6aXbs5WEagefrEUhXmR7DQs2W9whRDLJ6uC
-         opMuzVxOYJjDY3MgnOPVRuz2HC6lpUoI0PWofoJEgQWtC3WT+zz0wFy/haQi77DAuUQI
-         q5bw==
+        b=NMGU9oStimz7IMtl7kp7WuTEKcUeD19c1SAUzMJsbAKp0Gxd+2uxji3IQOG7/0m9um
+         T7RYqSQrQe8BWtx+kCYEluXhekhjcQJFPLb6nL60h6G5ne95zTle6PCFJwO5Dh2wY+15
+         VkCDuk/EaXsLPn3I7Fq9EUkFd5dauxsrjAQwekocsqjdU6H8ibqbppNXk30HqAUAL0kY
+         kVGndEglSVCbDh5P05fXiMufFimM1zmvydDKVBKEKSNz73A5EltZOe/nSxM/kFEL9ZVL
+         isCepsx6AQMlbPb+qizHgI0ZAyHEhv4BIBbAwVR3/uyaBM0PYGp97uC0VmuEIz6R2z+i
+         cx2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=HPF6yD5DAHgXAIV1vACWZVe+d25mUGRVf9xdp5LPo8k=;
-        b=NvauR4T6sc62jJEDLTTKGk577Mb3x0E8a6lRBBHBcNValXy5BuTxzv/Kj6gA6TZSyp
-         LqcV+mRwd/XOGRZUnwssjPNJdG9fydec9XCARmJuitBpZEKmmEDkgT8SV3yay4UkIeoH
-         xBptMyjNlHF57mRpx8oau2Pma1h0hPC4xnOSdIZ3u4OwCIlrVUsohXly4Ew43ZHIZYVM
-         YbN7iA4dKV5Y8+brsBzSwDsuYlF9K3cyKe4YnmgrUQ9w5lpQ/AiB417u83qtarJfLAUJ
-         bIA+RVxodWLu2wd/M3Dbejg1SjsFxiR8PGyxTF70GP5fBo+yx007RNQjYiz0VvBgJaOM
-         uWpw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=+/C6EaNfq8gXsgMCYQEEr71KXJaPBdUxGSd0IfnMFlg=;
+        b=LatPUWhWSE6h6rZzKykvlUWqXdTDm3oCVd2XHzjJrEA9x3wEJNNVxVqHTwdN/LPze6
+         e/vlIT2F1iEfVtqDcWwzwmhOa2Wwzsnbmr0QVU0vLAUinT6Numx5jCA/gJT5dnUjupHA
+         jpAINZJn4CyUzC+mTTo0cYKTj2Ls7M+KnqyWJbZjq9keA+BOS4AbwxsImKFKsp0OcR/M
+         UYuudIOs2Pg8NO5IQswdAqbhf81sh8PBjMbDct5Mz32iyKmfi66XZn5BDz6ZkDdWbymN
+         sK8lOSJZ7Mxqy0iRb4sxs+AzJ69/MXb0mSZv+JZM1iqcfZX2r/krlKeE6Aes5oDR2UAr
+         Ozww==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uoJ2oHrR;
-       spf=pass (google.com: domain of amir73il@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=amir73il@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i3sor2110970ywf.91.2019.02.12.23.20.12
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=Yj9LduyX;
+       spf=neutral (google.com: 66.111.4.26 is neither permitted nor denied by domain of penberg@iki.fi) smtp.mailfrom=penberg@iki.fi;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=iki.fi
+Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
+        by mx.google.com with ESMTPS id u45si5195319qta.73.2019.02.12.23.32.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Feb 2019 23:20:12 -0800 (PST)
-Received-SPF: pass (google.com: domain of amir73il@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Feb 2019 23:32:41 -0800 (PST)
+Received-SPF: neutral (google.com: 66.111.4.26 is neither permitted nor denied by domain of penberg@iki.fi) client-ip=66.111.4.26;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uoJ2oHrR;
-       spf=pass (google.com: domain of amir73il@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=amir73il@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=HPF6yD5DAHgXAIV1vACWZVe+d25mUGRVf9xdp5LPo8k=;
-        b=uoJ2oHrRafAF2oawLWlkR94ApOG7ku3/Hk7q8vAm3KyB9xX++HqFxIVbIJBZ2uTg/X
-         3xIStkJM1W3MdnLrLiAX4iG80Uz/0btaLWU+K6wVZseHrtIUnqBX9vWtEpyTCqoHCGPQ
-         5rJedKO28I8QcHgLUUrXWZfBZuA488uG74Xm6hbZvOcAmNXHaK3OpN91EkS2LiQhTePm
-         zJm9SOTKRwDDac5wE2tyKbc4vTfTCVXbJ4TTnaB3iijrlbKzU64SwXFIsshL6BJG5DsB
-         7OX7AJwkQFLDTreCFdzuzNv49ZXP3+/OgA7/7jcGqTwXUUcLh5Jvhht+NkTMwHuLHx4U
-         wmcA==
-X-Google-Smtp-Source: AHgI3IaJMefOiPRX8qJbKpqxucMftsRQkATfIl4/rAYG5CpcV+s7zQHKVAd7geiWTdd4nQWe2SX289IwneJ7XMcCwdU=
-X-Received: by 2002:a81:5509:: with SMTP id j9mr3478611ywb.409.1550042412166;
- Tue, 12 Feb 2019 23:20:12 -0800 (PST)
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=Yj9LduyX;
+       spf=neutral (google.com: 66.111.4.26 is neither permitted nor denied by domain of penberg@iki.fi) smtp.mailfrom=penberg@iki.fi;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=iki.fi
+Received: from compute4.internal (compute4.nyi.internal [10.202.2.44])
+	by mailout.nyi.internal (Postfix) with ESMTP id B3AEF21B55;
+	Wed, 13 Feb 2019 02:32:40 -0500 (EST)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute4.internal (MEProxy); Wed, 13 Feb 2019 02:32:40 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-transfer-encoding:content-type
+	:date:from:in-reply-to:message-id:mime-version:references
+	:subject:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender
+	:x-sasl-enc; s=fm2; bh=+/C6EaNfq8gXsgMCYQEEr71KXJaPBdUxGSd0IfnMF
+	lg=; b=Yj9LduyXHslYA/Z15hx4F+BD9rpMYQe0GyOUczRGa0oq4CiMjFVoxHNeR
+	iRBfQ+PkL085aBsS5OQA6H7iWl+Hf3WNeV3HYtIyefbIsrFhF1cjCoNIwLTOOf91
+	V+N7wTMT2jJpy3vMqYEJM4FOX0t5u2reM4tUSqpizWoTLLLhZxcYIT5gY7ESWnp7
+	hYgUFaqSzokVqZMHSrD6YfTLukZl53sl5aOwHaXS8qSj2xNKYz2oAq9EFRttLRHO
+	MNpo5drdyFeDvRm64RnR7GxvpmzT1KVtQuwKIDxgq7im7oYvW41uniiH8pdnrSAx
+	aWp65UCyad2yJC9zrLOK5ejloPScg==
+X-ME-Sender: <xms:F8hjXJE1YfvwsBLDsCIcm8h3CsRZBFToz8djiyugQUWt0ov4QBjTYg>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledruddtvddgudduudcutefuodetggdotefrod
+    ftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthenuceurghilhhouhhtmecu
+    fedttdenucenucfjughrpefuvfhfhffkffgfgggjtgfgsehtjeertddtfeejnecuhfhroh
+    hmpefrvghkkhgrucfgnhgsvghrghcuoehpvghnsggvrhhgsehikhhirdhfiheqnecukfhp
+    peekledrvdejrdeffedrudejfeenucfrrghrrghmpehmrghilhhfrhhomhepphgvnhgsvg
+    hrghesihhkihdrfhhinecuvehluhhsthgvrhfuihiivgeptd
+X-ME-Proxy: <xmx:F8hjXDCY4J0KLplMsgbReh1ul9H7rh2QsBr8v-8QvME3L9v3em1g7A>
+    <xmx:F8hjXLZUilAPAMEFyP3qvI8cmDOyzpSWosbtbJnKWrDDOQuG26PvWg>
+    <xmx:F8hjXDPSiYl7tKrgZgKflPCeUVhDaQC-5Mh0bh9PSLKBlb42PEcL5w>
+    <xmx:GMhjXKWLRqKKSKgsQEXUAQaZd0uaXfHLh3j2TrwoNQfxWHB-X1n7mw>
+Received: from Pekka-MacBook.local (89-27-33-173.bb.dnainternet.fi [89.27.33.173])
+	by mail.messagingengine.com (Postfix) with ESMTPA id 91A47E412E;
+	Wed, 13 Feb 2019 02:32:37 -0500 (EST)
+Subject: Re: [PATCH] slub: untag object before slab end
+To: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, cl@linux.com,
+ penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com
+Cc: andreyknvl@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190213020550.82453-1-cai@lca.pw>
+From: Pekka Enberg <penberg@iki.fi>
+Message-ID: <eeac3e54-c31a-a583-b185-b2d36d7debed@iki.fi>
+Date: Wed, 13 Feb 2019 09:32:32 +0200
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:60.0)
+ Gecko/20100101 Thunderbird/60.5.0
 MIME-Version: 1.0
-References: <20190212170012.GF69686@sasha-vm> <CAH2r5mviqHxaXg5mtVe30s2OTiPW2ZYa9+wPajjzz3VOarAUfw@mail.gmail.com>
-In-Reply-To: <CAH2r5mviqHxaXg5mtVe30s2OTiPW2ZYa9+wPajjzz3VOarAUfw@mail.gmail.com>
-From: Amir Goldstein <amir73il@gmail.com>
-Date: Wed, 13 Feb 2019 09:20:00 +0200
-Message-ID: <CAOQ4uxjMYWJPF8wFF_7J7yy7KCdGd8mZChfQc5GzNDcfqA7UAA@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] FS, MM, and stable trees
-To: Steve French <smfrench@gmail.com>, Sasha Levin <sashal@kernel.org>
-Cc: lsf-pc@lists.linux-foundation.org, 
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	LKML <linux-kernel@vger.kernel.org>, Greg KH <gregkh@linuxfoundation.org>, 
-	"Luis R. Rodriguez" <mcgrof@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190213020550.82453-1-cai@lca.pw>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 11:56 PM Steve French <smfrench@gmail.com> wrote:
->
-> Makes sense - e.g. I would like to have a process to make automation
-> of the xfstests for proposed patches for stable for cifs.ko easier and
-> part of the process (as we already do for cifs/smb3 related checkins
-> to for-next ie linux next before sending to mainline for cifs.ko).
-> Each filesystem has a different set of xfstests (and perhaps other
-> mechanisms) to run so might be very specific to each file system, but
-> would be helpful to discuss
->
 
-Agreed.
 
-Perhaps it is just a matter of communicating the stable tree workflow.
-I currently only see notice emails from Greg about patches being queued
-for stable.
+On 13/02/2019 4.05, Qian Cai wrote:
+> get_freepointer() could return NULL if there is no more free objects in
+> the slab. However, it could return a tagged pointer (like
+> 0x2200000000000000) with KASAN_SW_TAGS which would escape the NULL
+> object checking in check_valid_pointer() and trigger errors below, so
+> untag the object before checking for a NULL object there.
 
-I never saw an email from you or Greg saying, the branch "stable-xxx" is
-in review. Please run your tests.
-
-I have seen reports from LTP about stable kernels, so I know it is
-being run regularly and I recently saw the set of xfstests configurations
-that Sasha and Luis posted.
-
-Is there any publicly available information about which tests are being run
-on stable candidate branches?
-
-Thanks,
-Amir.
+Reviewed-by: Pekka Enberg <penberg@kernel.org>
 
