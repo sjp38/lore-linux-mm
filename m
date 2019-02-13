@@ -2,155 +2,185 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B36D5C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 11:27:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A0A39C4151A
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 11:29:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7BC632070D
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 11:27:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7BC632070D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 5CBC32073D
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 11:29:16 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="fBMsPRyi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5CBC32073D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 18B578E0002; Wed, 13 Feb 2019 06:27:34 -0500 (EST)
+	id ECC0E8E0003; Wed, 13 Feb 2019 06:29:15 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 111018E0001; Wed, 13 Feb 2019 06:27:34 -0500 (EST)
+	id E7CFB8E0001; Wed, 13 Feb 2019 06:29:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F19CF8E0002; Wed, 13 Feb 2019 06:27:33 -0500 (EST)
+	id D6BFD8E0003; Wed, 13 Feb 2019 06:29:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 93ACD8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 06:27:33 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id u19so864874eds.12
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 03:27:33 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 962698E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 06:29:15 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id k10so1682091pfi.5
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 03:29:15 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=BCV6CTHpDJTmmb+R3vkluxUBhHXsiIaPsOO9jAvnwyY=;
-        b=qhltygdVQl4hD1g7y9j3TyxPwqwldAv0R0qw3/CCfNGNioUZxATDv4unVJT2f8+ycE
-         EA1gU6cRq9BTtdQew77KIMUlhYKqkkpdWIMXhU5bNoYPY4dCVfmj7WSL7WigMO29iEQF
-         wtNuiOiJsSWSdI2Eh/ia2t7FD+at73Vv1WntvxDWmbjcVmV0g4QDCqs/RLGsqJvKWpWs
-         hdNgbHAX/2Dd3SuMvzJbjok4dhMSpSnWiW5EBlzREgzKeKctYQ9mrjb7Vh26rm7kDgoO
-         5MosFo59+imM5OeNUSZ1/7vP+XRc+t3wobK7lSg8FxZvtf5dV3O+X/Hf9cb8DQ+Z3p9Y
-         X2Lw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: AHQUAubSqu1sY1HpxVqXLCHKAUF6HQX082H8jBfW3cZfN+Ajqe/L5CMd
-	Hw1DdP+Ny7PZfk+4VKaSmr+nojq+u3LeD45t7oXvhzxh5BDHF9jYYtRoGqK/KpasT2rmTEjPeOh
-	CzB0+t6MSzGHvAhBTxRcGp2JoMTmAcUJcOv6WYUQfjTGqONu1+joMBlPsVrnVs5WUxA==
-X-Received: by 2002:a17:906:11d5:: with SMTP id o21mr6201132eja.85.1550057253065;
-        Wed, 13 Feb 2019 03:27:33 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ3GBF0ypSM9YykzBURdp5ocXxXb5moONh0leubsBlXz7P6z6b4RfMBTVd2FWjdUUpk2YFe
-X-Received: by 2002:a17:906:11d5:: with SMTP id o21mr6201084eja.85.1550057251976;
-        Wed, 13 Feb 2019 03:27:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550057251; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=ZP4eZYg4uMuESOTns7x6z0Gns1FpDtn/SzQe1DyPZ2c=;
+        b=b9iIdk6QQiUSU5bYwaX0njCBIQ+fL45muE/tHsa3pwinAn7olnvSRQDYERQOb2kSPs
+         k8oxGiaYqd6yOEKz+rgnP38nbIXXaMXjdFF42yCRzbMPhmEymUsLyCOC6gWkRBmtp2Qm
+         vQ3hbYVsAcGQhqLg8Xb2X9FsIUUlHYfUKWUDck3BABBnTOfP9Zwq3XKkAxpjcXYt0/t1
+         1C4lYZVCuS2+qXjswtbD1lEP+6vLJ8Hz6FTWc0gjIl7a22kX0yj52uh11VwLrTHeFme3
+         3HKw+fUY/xayUJcNiLl4AfNZm6Fp7C68LmB+pUUTgjFfUi/T/BifxsDrP71JxHTPjVHb
+         nJpA==
+X-Gm-Message-State: AHQUAuYlOcuImv02RNMeq+8LydzJH5AlHYG1/0+ebtBP2b+r8a6YyKXK
+	Ht6SylJbOEptre4l62ksX51hKhrM3MKbwrNwSY27ma2JNkeHS/BwxYCZL4iLrWjcgA60lu2RlAS
+	0UM8nYRPrEIdgueb2vmvQIUS372Cu4x1bVXeCksIxZX31uk86xZlb3Bfg//aWTv3lWYlqwcE4TD
+	n3HUz7Ow/gUN3PpFEfOrrv9MjF62tmEOxYhcRYyWuk3QvkJ988u7uOqG0Xle+gI8cvRxmmZsbCt
+	TaU5VdPFTs+Tcbape42FXCiA399IjZxgSbjlViGmEJlsUsoiM1Ll2jnrm5z0YEosTYoouY36UYF
+	utQR2GYe3hZXJCww72yqBNPWtweQJns7sAVLzn+81OwTlKiPFfdfh+jsQff9s6/AtieOyViJYQ=
+	=
+X-Received: by 2002:a63:ce45:: with SMTP id r5mr29377pgi.112.1550057355158;
+        Wed, 13 Feb 2019 03:29:15 -0800 (PST)
+X-Received: by 2002:a63:ce45:: with SMTP id r5mr29311pgi.112.1550057354216;
+        Wed, 13 Feb 2019 03:29:14 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550057354; cv=none;
         d=google.com; s=arc-20160816;
-        b=cG1f+9c1iAZf5SWZ6l8w3HlyDimOzMholqQBD6eWSC+YC3sqbdBfPXM8unFzRn9QiH
-         UeiHZTy928BOcLn9EOGe2gLq05YMhKDXklMaMmY5RgbAd3EWr98FY+krWU0neewQn3LS
-         igAXmQgDx7LXYYX0u/T9aLxcv2YscDxjd/trzMxa2Khl4GUmQR3RCBj2zr+Be5GTXyH1
-         LBqr3VZbPwIylPVGSqbfWFj93JmKh/ql9YdFsqJpeqrsVR8YVX9dRAxUVSEvZcYNF9wU
-         crBdjU3hwDA4bS94v8A1Fq9zbAt/ix/D2Srmqzmy9sItQAN6o96+1o4sqRhj6h/kWsjR
-         KC5g==
+        b=1Bs6aU2c1Wzzfnf81XJHjy3lXb9kJ556gICF0nggKV930S9Yk1RrRAYGbQ9iOlC5KY
+         xaKXT2GORrQUzgJh1B3+HtzJeqimQ8XyzcpdTt8ggZUdumz2YXMFR5NDVa0kzu0WyHKr
+         G7/dvHkMQYuIsjo/1hzThN4lwc0BZ8SUtPJF5eZQobHxAsr+5Qzu25/iZxzT+smM0aCJ
+         iNUXXRM7eQGeVD0ZNEN4fBPH0Nc1A/bBS3gES54kN/ReelCkIfxUkKJSQRk5GCPM2cyK
+         3fsELJzmeBdTaPh17WDYcoIZmgyuC7dfbkcRdNa3d0AQ/jMn+KCquv+oma9aFf3+n5tK
+         3xFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=BCV6CTHpDJTmmb+R3vkluxUBhHXsiIaPsOO9jAvnwyY=;
-        b=jphrCBQ/trC8/JCqfbNKz3TSqTpL4cgF/w/ENjRa7xRj7WuLyd/2Ad+1d/3betbfIz
-         V/0molxV/ngnviA92w+C01C2CnU606D9xIZNZL3BRudYOm6Zc6CW8sejRCBbidRjasWL
-         41Jrkiwk0FojSRyNtrxlTQrcToIU8+2MG0pFSeuF3X5WH9VixEHzt19EQj4UyfIGRil8
-         wOUjVUCwbI/+l0dOO6YevtTm9tNWL3E5W6xB7wjEUDGheKODjQ5gGv+vF2f6BCDsEBIJ
-         9j+wC3tKHPLWfUhviW8Ewp7mu6jp6VgO63NqTqyhiJL4PdMy7QhIu8/05JMuapaogbhn
-         wwpw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:sender:dkim-signature;
+        bh=ZP4eZYg4uMuESOTns7x6z0Gns1FpDtn/SzQe1DyPZ2c=;
+        b=jWhpJgCUsP8mnyoQYX3naD7p5XUf6Uqu2kMuB2pZdS2a0JEYWIe8cUPo0R6TFZ+Pdw
+         OcLeWOumFkE9MbMBqTnmikxizgbntE7QULET9s1sqbkBh1/laL743EYXtQb2eIyJQsrv
+         /HHqAvNCGqhAp9KbHn08XghkWT/iCmQn3cLG2Zzy1mPHKr/Z3eL2MwW9nsu3RjKLOXFV
+         loms/H2K1R7GBaFS0nYeydizgIrgJeYUChudzZ5z1c6Zp6KSBLRqIuimAjSvJfr8hYIk
+         4zqLBWtyVZI2vCmL5/ukTwI/oQajop6deJtp73Ji69Sr1/j7CKLpR4e18BErTAzmiZQY
+         CBcQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k18si522205edx.210.2019.02.13.03.27.31
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fBMsPRyi;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g10sor23185861pgq.32.2019.02.13.03.29.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 03:27:31 -0800 (PST)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 13 Feb 2019 03:29:14 -0800 (PST)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 2EF02ABAC;
-	Wed, 13 Feb 2019 11:27:31 +0000 (UTC)
-Subject: Re: [PATCH] hugetlb: allow to free gigantic pages regardless of the
- configuration
-To: Alexandre Ghiti <aghiti@upmem.com>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
- x86@kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>,
- Mike Kravetz <mike.kravetz@oracle.com>,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Cc: linux-riscv@lists.infradead.org, hch@infradead.org,
- Alexandre Ghiti <alex@ghiti.fr>
-References: <20190117183953.5990-1-aghiti@upmem.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <16a6209c-868b-8fd5-a70a-6e0e1ecb62d4@suse.cz>
-Date: Wed, 13 Feb 2019 12:27:29 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fBMsPRyi;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=ZP4eZYg4uMuESOTns7x6z0Gns1FpDtn/SzQe1DyPZ2c=;
+        b=fBMsPRyi5W07JhLDu6G7haXyioP2Nu9geoYYaXXao12x4/GcGBKANyupnDaTtheYrx
+         CBRu4eUMgDG8Imk1kCi7cLRQhdjs9hYBR6XrREMCo+ul2XWUK07iJSzf0RrzfmuKWl6D
+         HmS6ZH84nN8L6FYoydqnzV+FOQabKtRzxrGfCe9sxFsgqjFJmA4gV1ZwOYqz/ltjabEb
+         vDmM6fGwz/iR5z+iESZj4VVrl8ZOzr7SmlMVqPiUmifjPRavafgaKH7nL1UkhWF0IOdg
+         aYwymCh4A6LcwzdeTZkgYtiP5T3CwARnboi65AmwqmbV4djTXFhq+iF1kPdbFDE/6klb
+         d7Mg==
+X-Google-Smtp-Source: AHgI3IazGpHnKo0uva+QDysHCoFLMqAktO841uduCRt0cTupKZWBIYuAxV8TGgMRyaYbmf6asGY5SA==
+X-Received: by 2002:a63:5813:: with SMTP id m19mr12411pgb.294.1550057353027;
+        Wed, 13 Feb 2019 03:29:13 -0800 (PST)
+Received: from bbox-2.seo.corp.google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id e19sm6968911pfn.145.2019.02.13.03.29.08
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Feb 2019 03:29:11 -0800 (PST)
+From: Minchan Kim <minchan@kernel.org>
+To: gregkh@linuxfoundation.org
+Cc: linux-mm <linux-mm@kvack.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Minchan Kim <minchan@kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Hugh Dickins <hughd@google.com>,
+	Liu Bo <bo.liu@linux.alibaba.com>,
+	stable@vger.kernel.org
+Subject: [PATCH] mm: Fix the pgtable leak
+Date: Wed, 13 Feb 2019 20:29:00 +0900
+Message-Id: <20190213112900.33963-1-minchan@kernel.org>
+X-Mailer: git-send-email 2.20.1.791.gb4d0f1c61a-goog
 MIME-Version: 1.0
-In-Reply-To: <20190117183953.5990-1-aghiti@upmem.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 1/17/19 7:39 PM, Alexandre Ghiti wrote:
-> From: Alexandre Ghiti <alex@ghiti.fr>
-> 
-> On systems without CMA or (MEMORY_ISOLATION && COMPACTION) activated but
-> that support gigantic pages, boottime reserved gigantic pages can not be
-> freed at all. This patchs simply enables the possibility to hand back
-> those pages to memory allocator.
-> 
-> This commit then renames gigantic_page_supported and
-> ARCH_HAS_GIGANTIC_PAGE to make them more accurate. Indeed, those values
-> being false does not mean that the system cannot use gigantic pages: it
-> just means that runtime allocation of gigantic pages is not supported,
-> one can still allocate boottime gigantic pages if the architecture supports
-> it.
-> 
-> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
+[1] was backported to v4.9 stable tree but it introduces pgtable
+memory leak because with fault retrial, preallocated pagetable
+could be leaked in second iteration.
+To fix the problem, this patch backport [2].
 
-I'm fine with the change, but wonder if this can be structured better in a way
-which would remove the duplicated "if (MEMORY_ISOLATION && COMPACTION) || CMA"
-from all arches, as well as the duplicated
-gigantic_page_runtime_allocation_supported()
+[1] 5cf3e5ff95876, mm, memcg: fix reclaim deadlock with writeback
+[2] b0b9b3df27d10, mm: stop leaking PageTables
 
-something like:
+Fixes: 5cf3e5ff95876 ("mm, memcg: fix reclaim deadlock with writeback")
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Liu Bo <bo.liu@linux.alibaba.com>
+Cc: <stable@vger.kernel.org> [4.9]
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/memory.c | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)
 
-- "select ARCH_HAS_GIGANTIC_PAGE" has no conditions, it just says the arch can
-support them either at boottime or runtime (but runtime is usable only if other
-conditions are met)
-- gigantic_page_runtime_allocation_supported() is a function that returns true
-if ARCH_HAS_GIGANTIC_PAGE && ((MEMORY_ISOLATION && COMPACTION) || CMA) and
-there's a single instance, not per-arch.
-- code for freeing gigantic pages can probably still be conditional on
-ARCH_HAS_GIGANTIC_PAGE
-
-BTW I wanted also to do something about the "(MEMORY_ISOLATION && COMPACTION) ||
-CMA" ugliness itself, i.e. put the common parts behind some new kconfig
-(COMPACTION_CORE ?) and expose it better to users, but I can take a stab on that
-once the above part is settled.
-
-Vlastimil
+diff --git a/mm/memory.c b/mm/memory.c
+index 35d8217bb0467..47248dc0b9e1a 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3329,15 +3329,24 @@ static int do_fault(struct fault_env *fe)
+ {
+ 	struct vm_area_struct *vma = fe->vma;
+ 	pgoff_t pgoff = linear_page_index(vma, fe->address);
++	int ret;
+ 
+ 	/* The VMA was not fully populated on mmap() or missing VM_DONTEXPAND */
+ 	if (!vma->vm_ops->fault)
+-		return VM_FAULT_SIGBUS;
+-	if (!(fe->flags & FAULT_FLAG_WRITE))
+-		return do_read_fault(fe, pgoff);
+-	if (!(vma->vm_flags & VM_SHARED))
+-		return do_cow_fault(fe, pgoff);
+-	return do_shared_fault(fe, pgoff);
++		ret = VM_FAULT_SIGBUS;
++	else if (!(fe->flags & FAULT_FLAG_WRITE))
++		ret = do_read_fault(fe, pgoff);
++	else if (!(vma->vm_flags & VM_SHARED))
++		ret = do_cow_fault(fe, pgoff);
++	else
++		ret = do_shared_fault(fe, pgoff);
++
++	/* preallocated pagetable is unused: free it */
++	if (fe->prealloc_pte) {
++		pte_free(vma->vm_mm, fe->prealloc_pte);
++		fe->prealloc_pte = 0;
++	}
++	return ret;
+ }
+ 
+ static int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
+-- 
+2.20.1.791.gb4d0f1c61a-goog
 
