@@ -6,79 +6,79 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 60B1CC282CA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 08:06:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 24725C282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 08:06:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 29C72222CD
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 08:06:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 29C72222CD
+	by mail.kernel.org (Postfix) with ESMTP id E32FC222B5
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 08:06:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E32FC222B5
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E286E8E0005; Wed, 13 Feb 2019 03:06:51 -0500 (EST)
+	id 6892D8E0006; Wed, 13 Feb 2019 03:06:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D89BF8E0001; Wed, 13 Feb 2019 03:06:51 -0500 (EST)
+	id 60ED68E0001; Wed, 13 Feb 2019 03:06:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C51438E0005; Wed, 13 Feb 2019 03:06:51 -0500 (EST)
+	id 48DD48E0006; Wed, 13 Feb 2019 03:06:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E8438E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 03:06:51 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id f17so646683edt.20
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 00:06:51 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DE3138E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 03:06:54 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id x15so665915edd.2
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 00:06:54 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=podC4yBE/C4EalrFbyfqigYUTjh8/0NvFB8BYgeqwzI=;
-        b=WQOglXebwMBGN93B/UGp8Day8CBGAw/k6HPCSOrtY632OFRUS4d75jGtFqvXHKTQvG
-         fFeDrJqGPDDvGQ6PG3Penz+6EJpgo+dKaR8VwcvBNa5YZMQKJZmvS3lWLnwwf+1Vwbaz
-         QIkoPMTt2w0J7gvGnksfE74kr/F/LbWxOF6Nmk7N1uVP/O/Qe+ePFjXvnNAo+hItj+Xm
-         KTF67Lug036FRGw42Lh1lbQ8p8CgdqKq2seJSQ78cuSHhDxFRPAmgp7Z6zW2XmouwLhp
-         dbpQIZLBIzn6g5gimalesGrjNGNtFyFtHv20JZfeqF0p6yujHzkaeZLE1ze1M9Tcz9FJ
-         V8Eg==
+        bh=lLU9a6ZQu0wuumQ0c/KrMdC8hoqxGAN16ZlPM6u6TQ0=;
+        b=ugLHYkkdeMi6KdU4Utjx4WBJU8KixKbCtqiFkJDbimh5vkhhcJjcEdvqVyxbpbxKfA
+         kw1tF+5RlEFrvJXs0WTUvx1Z3II/eDM9ja6QuXaXcpg9S1yrbZPlYsy2YxaKqCxxbxJk
+         Ah/scg3BEbcKTFiSxIM5ybcVRAW9KCCaJdj1eYggnCXR2ziG4k8oecDSP8jTNhEfh9UY
+         ml6YPo9NeRRiOpcMGvWlVGbe8tkrtZGKiOmr55WovrZxLlRa+o7CYMwfm8Dkjnu9fc1w
+         xgWiNJDE64ei5RyKu9CspSVl7wXz+Ab/OFMHcOQE8ocNr27DyUaiV/IANVOp2PRPEY4s
+         wO5g==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: AHQUAuZaagh6FV8KS/XjciyqCXtBAXVcjbg8aPVQWPg3XjgJ28++hA7M
-	wswQhqn+SFdtxY9HOBdRl+/zxotdOINL+1UiePwChgSEsLxIsyrATpE9pgtV3QYSclhIhixHQ27
-	m1eIj+lpIdqWHAmAeH9v5VMvRD43jwnsrorjN8B8/15YSMwA7+bnYK+HJW5hSyJ5/5Q==
-X-Received: by 2002:a05:6402:1588:: with SMTP id c8mr2205569edv.176.1550045210904;
-        Wed, 13 Feb 2019 00:06:50 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ia2B1lP/e5gVO4YsRjrK3zlJG2Ui4t3Ae6gmL6MDmJOQ7+x2xgX0SIP+2L+ADHpCG9dEFT5
-X-Received: by 2002:a05:6402:1588:: with SMTP id c8mr2205527edv.176.1550045209965;
-        Wed, 13 Feb 2019 00:06:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550045209; cv=none;
+X-Gm-Message-State: AHQUAuaKi+TH/oJ3tZO2zbLA4uYCY3pPdbeGYmoVrE/+84/PJlp/EV7M
+	5cExH1EQM0/THRpK/NlADkwpUVIy8hINd32T9OIGpLE0HBW7PI8RbpAQS/4hYvEbiW8fCGRjuQl
+	5bCCdVSMeOtfOWmY2/rqM7+d83vofkJ057aFQPzQko+Qm8ppqACEoReq5je7hEqSlBg==
+X-Received: by 2002:aa7:c0c4:: with SMTP id j4mr6332646edp.182.1550045214418;
+        Wed, 13 Feb 2019 00:06:54 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYV7GKfOCGWNKpOzc87kKvs/n5mGYEDsbcaW6H+1Vt/W+w1xzZrwE8fTstLKE4K1IaOephj
+X-Received: by 2002:aa7:c0c4:: with SMTP id j4mr6332590edp.182.1550045213148;
+        Wed, 13 Feb 2019 00:06:53 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550045213; cv=none;
         d=google.com; s=arc-20160816;
-        b=ASu/5BglPOI81MJkOBX4XcWWC9rx9oOPgyIwEoPIP8YendpclIF28l3/DDYnd1AU/F
-         ONCCo677gzduN4J6s1iYJ/DI1eJjiM/Rnspcl86R161VlEZIHKqH5PBZ/+zZvzuuA4eY
-         mksyTlVkqVZuvYyG6SGqqa0htyYG3qoLGzPZn6lwV+s5H491626OgXTl8Oz2onpLH5/K
-         OdztdR67CiL93CX5HSw3ErkVQ7Rf/F7b0g2gPq8vS9BrvWckw4FpVsellRJCFYl3ukns
-         9CPCotk+SvA101JY/usq533fXWJIHXvu9P4tVSAE/N3iEquCBLgGOTH5Crqkhld0U3Dl
-         N4zA==
+        b=Ybei5Cm1MR5eIvwQH9I29JaQlUCZKsFYew2GLXPOPK8cptpoLGtErklx9CQ5nJXKFV
+         V43CWOE3I5VyqLji6GtVTUKvO5gE+UF5k+rqw/KrmUKmSiwn58DkndnUTNzLLHTpHg4X
+         4EB961o8WQ8rIHOIekMHpY30JGZhqeWVS3YDgxwbXYA54rrmsfDO0uDQHWPbk1x97Q8F
+         xbs7Tz+knS5seBvaNgMLmgExzkYPLp9RjCFy5pbBV8lpQOOBamYy2KvK0IZM/SxKwgl1
+         PET4S5aKt351RBkaUQ5HFqCVSBpkCe2J/XasljMvv+vsWncP5O0FA1bXkCOusALL1tiY
+         JsJQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=podC4yBE/C4EalrFbyfqigYUTjh8/0NvFB8BYgeqwzI=;
-        b=tw5HyGhkJit/yXJAxdJYgx1pLJ29FxclLy7s4dXP1zOrkAr+/vb7UMBAOcXxqyVmdc
-         I3YZsrvHwgvwZk/yOX/YjMrT5PlNYIRWd8qFM59BnjMrDSShaeA53RGgBQxJT4PDkR2S
-         OuAb4AqSsEkAyb8YnHMlFprJRTHRFHCTT6R+idCkXuE5UdWv4c6ZWLA5vu+6bmZ50Knd
-         EpxTlrJym/G4EoaT5xonjwLRqlWomCIfskNVoxSqT7R76VQhh47Vsc4UiuWCpnKgWCa1
-         yP6G8IGBabKUnifB5bNlavgdL/yeH4BYaKQYlHT9sVAc7UyyxfnnXRPCfdCtdWT6/T1K
-         1Hgg==
+        bh=lLU9a6ZQu0wuumQ0c/KrMdC8hoqxGAN16ZlPM6u6TQ0=;
+        b=jTtBkkkk+kmVbai0OaultWH1afIhRnnbqwU0U+MzJseziQIwCFt2xxSUsUkdXUHp+l
+         e/qYKKPWpRJqVqmpEFbFa2hB6Qmhu3GAxV2+wGalhzyDY+s5WDlF8OYMsy8bzCF9IRGF
+         MiUedkZ1hBeOQeB45lnxKmj+INMmVMWpvxHWTbaN3Aiu0NTeFJ8/LHbwM4Xm3JGB9Is5
+         ydB+FpUvJVWLf0yMhhCYNxY2y1R9hDiM+9ircsjrKVeDRgf5PvR3nWzXzHMrqriBLWMU
+         Fhy7Q9OIr7CRCjFjwYwURxussHcM+G4lY5Z+ahLd3uShdHDJ6jH2XRHBQAWKAdJwIm/a
+         c6LA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 12si2621876edx.436.2019.02.13.00.06.49
+        by mx.google.com with ESMTP id t17si1525918eds.207.2019.02.13.00.06.52
         for <linux-mm@kvack.org>;
-        Wed, 13 Feb 2019 00:06:49 -0800 (PST)
+        Wed, 13 Feb 2019 00:06:53 -0800 (PST)
 Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E152A1596;
-	Wed, 13 Feb 2019 00:06:48 -0800 (PST)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 2A4561596;
+	Wed, 13 Feb 2019 00:06:52 -0800 (PST)
 Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.43.147])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 146E13F575;
-	Wed, 13 Feb 2019 00:06:45 -0800 (PST)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 5D1023F575;
+	Wed, 13 Feb 2019 00:06:49 -0800 (PST)
 From: Anshuman Khandual <anshuman.khandual@arm.com>
 To: linux-mm@kvack.org,
 	akpm@linux-foundation.org
@@ -89,9 +89,9 @@ Cc: mhocko@kernel.org,
 	will.deacon@arm.com,
 	catalin.marinas@arm.com,
 	dave.hansen@intel.com
-Subject: [RFC 3/4] arm64/mm: Allow non-exec to exec transition in ptep_set_access_flags()
-Date: Wed, 13 Feb 2019 13:36:30 +0530
-Message-Id: <1550045191-27483-4-git-send-email-anshuman.khandual@arm.com>
+Subject: [RFC 4/4] arm64/mm: Enable ARCH_SUPPORTS_LAZY_EXEC
+Date: Wed, 13 Feb 2019 13:36:31 +0530
+Message-Id: <1550045191-27483-5-git-send-email-anshuman.khandual@arm.com>
 X-Mailer: git-send-email 2.7.4
 In-Reply-To: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
 References: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
@@ -101,57 +101,63 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-ptep_set_access_flags() updates page table for a mapped page entry which
-still got a fault probably because of a different permission than what
-it is mapped with. Previously an exec enabled page always gets required
-permission in the page table entry. Hence ptep_set_access_flags() never
-had to move an entry from non-exec to exec. This is going to change with
-deferred exec permission setting with later patches. Hence allow non-exec
-to exec transition here and do the required I-cache invalidation.
+Make arm64 subscribe to ARCH_SUPPORTS_LAZY_EXEC framework and provided all
+required helpers for this purpose. This moves away execution cost from the
+migration path to exec fault path as expected.
 
 Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
 ---
- arch/arm64/mm/fault.c | 19 +++++++++++--------
- 1 file changed, 11 insertions(+), 8 deletions(-)
+ arch/arm64/Kconfig               |  1 +
+ arch/arm64/include/asm/pgtable.h | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+)
 
-diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index 591670d..1540fc1 100644
---- a/arch/arm64/mm/fault.c
-+++ b/arch/arm64/mm/fault.c
-@@ -227,22 +227,25 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
- 	if (pte_same(pte, entry))
- 		return 0;
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index a4168d3..3cdb3e4 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -59,6 +59,7 @@ config ARM64
+ 	select ARCH_USE_CMPXCHG_LOCKREF
+ 	select ARCH_USE_QUEUED_RWLOCKS
+ 	select ARCH_USE_QUEUED_SPINLOCKS
++	select ARCH_SUPPORTS_LAZY_EXEC
+ 	select ARCH_SUPPORTS_MEMORY_FAILURE
+ 	select ARCH_SUPPORTS_ATOMIC_RMW
+ 	select ARCH_SUPPORTS_INT128 if GCC_VERSION >= 50000 || CC_IS_CLANG
+diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+index de70c1e..f2a5716 100644
+--- a/arch/arm64/include/asm/pgtable.h
++++ b/arch/arm64/include/asm/pgtable.h
+@@ -217,6 +217,18 @@ static inline pmd_t pmd_mkcont(pmd_t pmd)
+ 	return __pmd(pmd_val(pmd) | PMD_SECT_CONT);
+ }
  
--	/* only preserve the access flags and write permission */
--	pte_val(entry) &= PTE_RDONLY | PTE_AF | PTE_WRITE | PTE_DIRTY;
-+	/* only preserve the access flags, write and exec permission */
-+	pte_val(entry) &= PTE_RDONLY | PTE_AF | PTE_WRITE | PTE_DIRTY | PTE_UXN;
++#ifdef CONFIG_ARCH_SUPPORTS_LAZY_EXEC
++static inline pte_t pte_mkexec(pte_t pte)
++{
++	return clear_pte_bit(pte, __pgprot(PTE_UXN));
++}
 +
-+	if (pte_user_exec(entry))
-+		__sync_icache_dcache(pte);
++static inline pte_t pte_mklazyexec(pte_t pte)
++{
++	return set_pte_bit(pte, __pgprot(PTE_UXN));
++}
++#endif
++
+ static inline void set_pte(pte_t *ptep, pte_t pte)
+ {
+ 	WRITE_ONCE(*ptep, pte);
+@@ -355,6 +367,11 @@ static inline int pmd_protnone(pmd_t pmd)
+ }
+ #endif
  
- 	/*
- 	 * Setting the flags must be done atomically to avoid racing with the
--	 * hardware update of the access/dirty state. The PTE_RDONLY bit must
--	 * be set to the most permissive (lowest value) of *ptep and entry
--	 * (calculated as: a & b == ~(~a | ~b)).
-+	 * hardware update of the access/dirty state. The PTE_RDONLY bit and
-+	 * PTE_UXN must be set to the most permissive (lowest value) of *ptep
-+	 * and entry (calculated as: a & b == ~(~a | ~b)).
- 	 */
--	pte_val(entry) ^= PTE_RDONLY;
-+	pte_val(entry) ^= PTE_RDONLY | PTE_UXN;
- 	pteval = pte_val(pte);
- 	do {
- 		old_pteval = pteval;
--		pteval ^= PTE_RDONLY;
-+		pteval ^= PTE_RDONLY | PTE_UXN;
- 		pteval |= pte_val(entry);
--		pteval ^= PTE_RDONLY;
-+		pteval ^= PTE_RDONLY | PTE_UXN;
- 		pteval = cmpxchg_relaxed(&pte_val(*ptep), old_pteval, pteval);
- 	} while (pteval != old_pteval);
- 
++#ifdef CONFIG_ARCH_SUPPORTS_LAZY_EXEC
++#define pmd_mkexec(pmd)		pte_pmd(pte_mkexec(pmd_pte(pmd)))
++#define pmd_mklazyexec(pmd)	pte_pmd(pte_mklazyexec(pmd_pte(pmd)))
++#endif
++
+ /*
+  * THP definitions.
+  */
 -- 
 2.7.4
 
