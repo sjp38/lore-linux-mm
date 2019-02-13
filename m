@@ -2,181 +2,199 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30C50C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 12:48:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B6C6FC282CA
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 12:50:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E6E04222BA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 12:48:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6E04222BA
+	by mail.kernel.org (Postfix) with ESMTP id 74268222BA
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 12:50:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 74268222BA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 84A438E0002; Wed, 13 Feb 2019 07:48:54 -0500 (EST)
+	id 145498E0002; Wed, 13 Feb 2019 07:50:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7FAE18E0001; Wed, 13 Feb 2019 07:48:54 -0500 (EST)
+	id 0F6068E0001; Wed, 13 Feb 2019 07:50:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 710F18E0002; Wed, 13 Feb 2019 07:48:54 -0500 (EST)
+	id 00B568E0002; Wed, 13 Feb 2019 07:50:09 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 142C48E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 07:48:54 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id d9so976974edh.4
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 04:48:54 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E7E28E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 07:50:09 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id w51so964911edw.7
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 04:50:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=oTIOdswIZvO+jxCXUmKlZKTfqpu7OQoyvM3/PhNuASY=;
-        b=YybBYX2AGShgwnsfDDKZxO4qok9P9ZgYXurxgixLFukhTe5/o5k83sSl2s2ajULpLt
-         dh9FhMoWwWtE0ZelZUo4rwD6sOrVro/KzAnHKt2V2TDaNZM1O3xeSJeVqaHMUVqU51e+
-         qWhqSygRjl+2PWLs0BZDuqFbyEIF0HwC77d9e98PB1KdZn8SPGcOIXVSbrrJrX2hX9hy
-         DsiCjl3CQmOIw1rZ9BWm2aYRtTNkStySJbnc4rI4DBqoS1dyPP66ea24CE4xFH4S4tp4
-         gR3vN/T21lgtmMnCs3zLxs4u/PCIlVAp/GR8QqiJK4yN4+Z5wlIoazQrDvLgwiOtsu4H
-         OSkQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
-X-Gm-Message-State: AHQUAuaUEgQMOq6VGhz9vQ8ZM4XiggjFRr6c9kwPZcTdhGeUNXr5kJoH
-	XO9iUlw4ODPWl/e1nIPby0hLZu1dLIl+BBFvULEW7olAKVoZBwVG/+DeRlMUyE7BLP4xOIytPGE
-	DsqHqLu5NeDsvDRHWjXpYIWfA0VuUWQEeYmrmvUZxiLoy18J6/VauCKyRwq41E/ZCEA==
-X-Received: by 2002:a50:a1e5:: with SMTP id 92mr257232edk.181.1550062133633;
-        Wed, 13 Feb 2019 04:48:53 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IayLL5LwJXwMycwyKsoe51O+60D1agjPeXGQrHzDrVhTPGFUdXoe9JBIvGlPoU68faBssiz
-X-Received: by 2002:a50:a1e5:: with SMTP id 92mr257187edk.181.1550062132724;
-        Wed, 13 Feb 2019 04:48:52 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550062132; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=a0X1Yw2RXq48/7GsnL4XDxgaLAqh8uev3lyS90mzpJg=;
+        b=cIhzNYR31+6WcPVVh5HNiW/8OSamXiiKoK8f9RF8SulR87eGrDsTXc5fEZHtHHVyP2
+         /pMEp6oN0rkal6FwL12Xop7ASO9wR0gs3qvlZEfjvz6v0KyMGWdN4IIakDCgD+9Z0WmB
+         yPDJQzxZXQ0lyOF/D8m+7RTIKt3Ss56RMurOX9Pa5lXOuCxd1tfSiwoap78+7ZhvJKOQ
+         LDA9FMkEn0KBKCQ9uuD8Lxe6uhb2q2Il6JNohIILWdbCtOQe4BSjlTpIwa1cHie3GXX8
+         iZUdjfWpuP9anNC0/rh0EiSEfvj4QF3IvykNXN5dPBqTOlrIsE2W3HiMGz8g+7rH/zjr
+         JYgA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: AHQUAuZQT1NE7WHX+OU9qrbjbgHCw57XPDjAqwMY1SCENDaGhSty/BbB
+	YvnC3n083TxbvSPt38lnvfdThw32EPqw3U6w12ovt0oACQVVYXtnPPiXrwcMBlkTWDOjS4CwJO0
+	l+p9AFE21ViRr1jYwp1SWCP3fRo6mbrkDVx+vPEOuDsA8JnJ8IRz3olA0Wd/T84pmPA==
+X-Received: by 2002:a17:906:6992:: with SMTP id i18mr272684ejr.74.1550062209184;
+        Wed, 13 Feb 2019 04:50:09 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZYjGa6TmCMzwDeXAmfg5U/NDxnmuxgwohpk2Bk6hitubi+itTB9+MARZL4srgsgyiTqUiP
+X-Received: by 2002:a17:906:6992:: with SMTP id i18mr272626ejr.74.1550062208045;
+        Wed, 13 Feb 2019 04:50:08 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550062208; cv=none;
         d=google.com; s=arc-20160816;
-        b=0SSPhWz6YXBTZpeXNu4579MNB9YmPWDQvLaaP+Rz23L1ft+/mxYE87czeKZ8epst0s
-         wfvjx6wtnUUHnCCH6JN3yQiEJNpauMILn308Dh8kqLYdlT7ahcP0Y1GxFfxdqcF+yWIU
-         CMqLPQOtXZ4e312WZmTKdLftgA8nRgL8MDCafMP5+nrezGrkgSx1Y/8QYoV0Y6btWQj+
-         Go+mWFiT5yH8TRpxzVWYed8NuVzyFoSzbWhmdN4jk6uuLlxl+kxf5TNQx63Zv1+yT332
-         5GHrhtVOFbuHiZWtMn/60gCWg5cbjwXPHwNnyhfSxITFiEJja3ij0B0FTWcqgaZ/w/27
-         6m2A==
+        b=T32f2RchXTu64lDeKEY1E+HYbbuujvf4T2sW7Z/JmQaQhg/nkYGVUV/bjodgacH2mq
+         ee+UsQb0gy9tcgj3e2Pc/DMmkclhMsBSYy51UIy2JB9IJ3Qg5KGVldIJ4NVFcv0r+U/i
+         9GDL2vqs9yn731wopf5my0IIyvL+EZrE8KV2itOGxHGbW8mI3V8kUTNkme1NUOOcQyD5
+         172vJNuGAH8Aauht8SFvbmeNevgDF4z/Q2UlcLo2uP1ME8EJALYjFs1LRnNEnRKtwqT3
+         Z3D7pAWQ6smjPAD4ySyZIkkOXFWZbYYMJISyLhcuhU+EwFqlZ6yAl8+e4/rn5J/Iqg5J
+         NqYg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=oTIOdswIZvO+jxCXUmKlZKTfqpu7OQoyvM3/PhNuASY=;
-        b=kyCu9ckcURn9AAzVwOAKHzrbZoOUsQoaVB2Bg5/iNu4/Mh40xB10AG+HJKm66QtEbR
-         QJrv1DCPC9MC65TP6wdSxSPGYnPUUSs5JNI/Jc6T0KqPZBWHgfk+IGJQitLLpuItiFUg
-         cVMWZ3RNyiE+xrk/Yu8nshZoJ3Sr3aM+EecKpp/C0PGzlrONhPqb7XFzoM17egqT9AU6
-         b0qXUceoSX2wqTz2u2o9k54hY3YoRGxtF0NIdr6uIEu6q//u+4+EYcNjovIrYRC3hMXL
-         rDD2FCv2Pn2BOg7/31DrdhLime72F20QvMbjtc8R94gYL+ViK5vyXeWvLcBtPk1JopoB
-         cRHg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=a0X1Yw2RXq48/7GsnL4XDxgaLAqh8uev3lyS90mzpJg=;
+        b=LPxya7kwiHnDumRicF0FdVMD60CRF6bEP9N+mszZh/J2+Wra0uup1+4vzEDv1uDWjT
+         Xy73VBkNzXqjWny4RZDYeNwpZ87q42vwQk76Su7DO4GJuAoESTZktRh5qXQceGfM/+yK
+         h3f22fzAortZbvgpz+z+36oVDwbwVg9KGC4CwR0F5b5sJyNokmmVdJiUj/nMBDDh19kV
+         AC8NrLCX7espW4UOP2AfE2xR92EuFfnDeRYnMS3v8rBjaTfXSFuTZZY4Yf56gESVD4U4
+         fKI47qxp1gmx8GU6WgvkaKQXgq0YKYNGXewouiZOkQalmSIEfXhZ++SwImrSNqVjMnVG
+         rW6g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p4-v6si4815343ejj.5.2019.02.13.04.48.52
+        by mx.google.com with ESMTP id c73si2849183edf.450.2019.02.13.04.50.07
         for <linux-mm@kvack.org>;
-        Wed, 13 Feb 2019 04:48:52 -0800 (PST)
-Received-SPF: pass (google.com: domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+        Wed, 13 Feb 2019 04:50:08 -0800 (PST)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4073080D;
-	Wed, 13 Feb 2019 04:48:51 -0800 (PST)
-Received: from brain-police (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id DE75E3F557;
-	Wed, 13 Feb 2019 04:48:46 -0800 (PST)
-Date: Wed, 13 Feb 2019 12:48:43 +0000
-From: Will Deacon <will.deacon@arm.com>
-To: Jann Horn <jannh@google.com>
-Cc: mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-mm@kvack.org,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Andy Lutomirski <luto@amacapital.net>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Thomas Gleixner <tglx@linutronix.de>, linux-arch@vger.kernel.org,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	linuxppc-dev@lists.ozlabs.org,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	linux-arm-kernel@lists.infradead.org, linux-api@vger.kernel.org
-Subject: Re: [PATCH] mmap.2: describe the 5level paging hack
-Message-ID: <20190213124842.GD1912@brain-police>
-References: <20190211163653.97742-1-jannh@google.com>
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id DB34780D;
+	Wed, 13 Feb 2019 04:50:06 -0800 (PST)
+Received: from [10.162.43.147] (p8cg001049571a15.blr.arm.com [10.162.43.147])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 132273F557;
+	Wed, 13 Feb 2019 04:50:03 -0800 (PST)
+Subject: Re: [LSF/MM TOPIC] Non standard size THP
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org"
+ <linux-mm@kvack.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>,
+ "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+ Vlastimil Babka <vbabka@suse.cz>
+References: <dcb0b2cf-ba5c-e6ef-0b05-c6006227b6a9@arm.com>
+ <20190212083331.dtch7xubjxlmz5tf@kshutemo-mobl1>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <282f6d89-bcc2-2622-1205-7c43ba85c37e@arm.com>
+Date: Wed, 13 Feb 2019 18:20:03 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190211163653.97742-1-jannh@google.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190212083331.dtch7xubjxlmz5tf@kshutemo-mobl1>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Jann,
 
-On Mon, Feb 11, 2019 at 05:36:53PM +0100, Jann Horn wrote:
-> The manpage is missing information about the compatibility hack for
-> 5-level paging that went in in 4.14, around commit ee00f4a32a76 ("x86/mm:
-> Allow userspace have mappings above 47-bit"). Add some information about
-> that.
-> 
-> While I don't think any hardware supporting this is shipping yet (?), I
-> think it's useful to try to write a manpage for this API, partly to
-> figure out how usable that API actually is, and partly because when this
-> hardware does ship, it'd be nice if distro manpages had information about
-> how to use it.
-> 
-> Signed-off-by: Jann Horn <jannh@google.com>
-> ---
-> This patch goes on top of the patch "[PATCH] mmap.2: fix description of
-> treatment of the hint" that I just sent, but I'm not sending them in a
-> series because I want the first one to go in, and I think this one might
-> be a bit more controversial.
-> 
-> It would be nice if the architecture maintainers and mm folks could have
-> a look at this and check that what I wrote is right - I only looked at
-> the source for this, I haven't tried it.
-> 
->  man2/mmap.2 | 15 +++++++++++++++
->  1 file changed, 15 insertions(+)
-> 
-> diff --git a/man2/mmap.2 b/man2/mmap.2
-> index 8556bbfeb..977782fa8 100644
-> --- a/man2/mmap.2
-> +++ b/man2/mmap.2
-> @@ -67,6 +67,8 @@ is NULL,
->  then the kernel chooses the (page-aligned) address
->  at which to create the mapping;
->  this is the most portable method of creating a new mapping.
-> +On Linux, in this case, the kernel may limit the maximum address that can be
-> +used for allocations to a legacy limit for compatibility reasons.
->  If
->  .I addr
->  is not NULL,
-> @@ -77,6 +79,19 @@ or equal to the value specified by
->  and attempt to create the mapping there.
->  If another mapping already exists there, the kernel picks a new
->  address, independent of the hint.
-> +However, if a hint above the architecture's legacy address limit is provided
-> +(on x86-64: above 0x7ffffffff000, on arm64: above 0x1000000000000, on ppc64 with
-> +book3s: above 0x7fffffffffff or 0x3fffffffffff, depending on page size), the
-> +kernel is permitted to allocate mappings beyond the architecture's legacy
-> +address limit.
 
-On arm64 we support 36-bit, 39-bit, 42-bit, 47-bit, 48-bit and 52-bit user
-virtual addresses, some of which also enforce a particular page size of 4k,
-16k or 64k. With the exception of 52-bit, the user virtual address size is
-fixed at compile time and mmap() can allocate up to the maximum address
-size.
+On 02/12/2019 02:03 PM, Kirill A. Shutemov wrote:
+> On Fri, Feb 08, 2019 at 07:43:57AM +0530, Anshuman Khandual wrote:
+>> Hello,
+>>
+>> THP is currently supported for
+>>
+>> - PMD level pages (anon and file)
+>> - PUD level pages (file - DAX file system)
+>>
+>> THP is a single entry mapping at standard page table levels (either PMD or PUD)
+>>
+>> But architectures like ARM64 supports non-standard page table level huge pages
+>> with contiguous bits.
+>>
+>> - These are created as multiple entries at either PTE or PMD level
+>> - These multiple entries carry pages which are physically contiguous
+>> - A special PTE bit (PTE_CONT) is set indicating single entry to be contiguous
+>>
+>> These multiple contiguous entries create a huge page size which is different
+>> than standard PMD/PUD level but they provide benefits of huge memory like
+>> less number of faults, bigger TLB coverage, less TLB miss etc.
+>>
+>> Currently they are used as HugeTLB pages because
+>>
+>> 	- HugeTLB page sizes is carried in the VMA
+>> 	- Page table walker can operate on multiple PTE or PMD entries given its size in VMA
+>> 	- Irrespective of HugeTLB page size its operated with set_huge_pte_at() at any level
+>> 	- set_huge_pte_at() is arch specific which knows how to encode multiple consecutive entries
+>> 	
+>> But not as THP huge pages because
+>>
+>> 	- THP size is not encoded any where like VMA
+>> 	- Page table walker expects it to be either at PUD (HPAGE_PUD_SIZE) or at PMD (HPAGE_PMD_SIZE)
+>> 	- Page table operates directly with set_pmd_at() or set_pud_at()
+>> 	- Direct faulted or promoted huge pages is verified with [pmd|pud]_trans_huge()
+>>
+>> How non-standard huge pages can be supported for THP
+>>
+>> 	- THP starts recognizing non standard huge page (exported by arch) like HPAGE_CONT_(PMD|PTE)_SIZE
+>> 	- THP starts operating for either on HPAGE_PMD_SIZE or HPAGE_CONT_PMD_SIZE or HPAGE_CONT_PTE_SIZE
+>> 	- set_pmd_at() only recognizes HPAGE_PMD_SIZE hence replace set_pmd_at() with set_huge_pmd_at()
+>> 	- set_huge_pmd_at() could differentiate between HPAGE_PMD_SIZE or HPAGE_CONT_PMD_SIZE
+>> 	- In case for HPAGE_CONT_PTE_SIZE extend page table walker till PTE level
+>> 	- Use set_huge_pte_at() which can operate on multiple contiguous PTE bits
+> 
+> You only listed trivial things. All tricky stuff is what make THP
+> transparent.
 
-When 52-bit virtual addressing is configured, we continue to allocate up to
-48 bits unless either a hint is passed to mmap() as you describe, or
-CONFIG_ARM64_FORCE_52BIT=y (this is really intended as a debug option and is
-hidden behind EXPERT as well as being off by default).
+Agreed. I was trying to draw an analogy from HugeTLB with respect to page
+table creation and it's walking. Huge page collapse and split on such non
+standard huge pages will involve taking care of much details.
 
-One thing that just occurred to me is that our ASLR code is probably pretty
-weak for addresses greater than 48 bits because I don't think it was updated
-when we added 52-bit support. I'll take a deeper look when I get some time.
+> 
+> To consider it seriously we need to understand what it means for
+> split_huge_p?d()/split_huge_page()? How khugepaged will deal with this?
 
-Will
+Absolutely. Can these operate on non standard probably multi entry based
+huge pages ? How to handle atomicity etc.
+
+> 
+> In particular, I'm worry to expose (to user or CPU) page table state in
+> the middle of conversion (huge->small or small->huge). Handling this on
+> page table level provides a level atomicity that you will not have.
+
+I understand it might require a software based lock instead of standard HW
+atomicity constructs which will make it slow but is that even possible ?
+
+> 
+> Honestly, I'm very skeptical about the idea. It took a lot of time to
+> stabilize THP for singe page size, equal to PMD page table, but this looks
+> like a new can of worms. :P
+
+I understand your concern here but HW providing some more TLB sizes beyond
+standard page table level (PMD/PUD/PGD) based huge pages can help achieve
+performance improvement when the buddy is already fragmented enough not to
+provide higher order pages. PUD THP file mapping is already supported for
+DAX and PUD THP anon mapping might be supported in near future (it is not
+much challenging other than allocating HPAGE_PUD_SIZE huge page at runtime
+will be much difficult). Around PMD sizes like HPAGE_CONT_PMD_SIZE or
+HPAGE_CONT_PTE_SIZE really have better chances as future non-PMD level anon
+mapping than a PUD size anon mapping support in THP.
+
+> 
+> It *might* be possible to support it for DAX, but beyond that...
+>
+
+Did not get that. Why would you think that this is possible or appropriate
+only for DAX file mapping but not for anon mapping ?
 
