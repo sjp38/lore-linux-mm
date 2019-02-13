@@ -2,106 +2,98 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A379C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:15:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 14485C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:23:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 11921222B5
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:15:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11921222B5
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id CFE40222BA
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:23:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CFE40222BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 76C098E0002; Wed, 13 Feb 2019 09:15:22 -0500 (EST)
+	id 679818E0002; Wed, 13 Feb 2019 09:23:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 71AC58E0001; Wed, 13 Feb 2019 09:15:22 -0500 (EST)
+	id 629028E0001; Wed, 13 Feb 2019 09:23:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 608FE8E0002; Wed, 13 Feb 2019 09:15:22 -0500 (EST)
+	id 518D58E0002; Wed, 13 Feb 2019 09:23:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 062258E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:15:22 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id c18so1036246edt.23
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 06:15:21 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EC2378E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:23:10 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id u7so1081680edj.10
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 06:23:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=bDvAwIjr4uJJzDNhLm7t4YVkcLnEIwIPiH9BcV6debM=;
-        b=AvwbALtWG2hKNWgKBe8DzgIXEQAG8GHAyoJoqpM+EmfVfGYoznWAvH32mG9KJHiGwT
-         xVObuCbDxYDa0CxhPMsQtHs6rzdAmZbx/smK8kMcy9Rk/1g5YnkJE4BSB3wAkARr81XV
-         qLHy5cim3CMtBguqFCzSVUucKoyzA/ZMcL0mqdCRElnCRHzyHpdhrW8QVIEXwooT2CS0
-         E4+LVsabsCCyhHx8m124KevM1hcj4sbAIr6V6F16kPkOZYWKMKXz5Guhl4P7TBYFar/N
-         Vip5+eVFlGsDqe4Et8LKC0JDN3dW1NwLjh3rDfjt/s4mnpVxFe1JmshnuIc2F3Zr/fVd
-         UEfg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: AHQUAuYN/tVPZHSovvUnhdWMqBvab+32bSRZPkaS2/caO2UEyqDugGTN
-	cerNhdzHp4IrKYNCA/5RV/ld+bx+0MPpixtpc6nbs2QLBpvr1Dpa4wIEm53asgZO/HzDYzjEqsR
-	g6GNlwhA9XRDBcO9JM/m0ZPrNMRyUeKy5qHYVWte0NRq+ONWQc3hvyRdj+V0R+GiqMw==
-X-Received: by 2002:a17:906:3049:: with SMTP id d9mr534114ejd.19.1550067321517;
-        Wed, 13 Feb 2019 06:15:21 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZJTsT5+ihwlWuL113U0i8NajDM1GWnBe1fM9wCBhZjJvB1SA+kg/8vE4MT4FpkG2rZa5gz
-X-Received: by 2002:a17:906:3049:: with SMTP id d9mr534066ejd.19.1550067320674;
-        Wed, 13 Feb 2019 06:15:20 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550067320; cv=none;
+        bh=02/KIR4uFq6Kp5YWpHnlgUfm0mgT3Xh137Apdjb/mRw=;
+        b=QVFzr1W36L3fFUNfHBkSM+37NTBw6U41+CO8MaA7uhaI4/edrsOcyHDm+nssOEJznD
+         Yz2Z/1qn7QvTo4ynrimjvgx3j/095cMZf5PbH+xKaPfyNswYJoBeRzZiCPrboS/i2AeA
+         6G1m1giIJv3iG7Ik5PluStYqheGh68bHVaZIKa896uJq3Hsyo0Qc3HzhAch2eD44fxWB
+         ARt12KEKxsrZmbnFJmXErjsOjjnTgRMMfH1C1vyNInr8MXlSV/TgPQbzweFenGtBmGsj
+         BBl6Jz/OzAEGeqBwJ98CsqguYWECME/j6MEVjrnDzhTCfzi4c/uSDwn+xRiw2CLrOiIw
+         eKeQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAua2Mmqh2ZlvOkJrm2ouwCcFSz4v6XxWNMzGl05FG81MVL++RQ0P
+	EZ1extoKnX7QKViMvMDcR/FUBNuL4/WBtpxl7nfyl9+UtzV/C7kStfF14XybhS0WvgraipgvcH1
+	JIa9lI3Zsg3T1/zMDWRfx08zxpaLGamC3OpB4YpaBskZd7Xvu0kQHzE27NSYTrQw=
+X-Received: by 2002:a50:bb2c:: with SMTP id y41mr576871ede.147.1550067790474;
+        Wed, 13 Feb 2019 06:23:10 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbLTDMs1TWqZ9HEEZjsKETRmrWV2xUxMWLKlREFIhX3wGlHEe8KjSkZ4QpbixTe/ji3jxqx
+X-Received: by 2002:a50:bb2c:: with SMTP id y41mr576822ede.147.1550067789638;
+        Wed, 13 Feb 2019 06:23:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550067789; cv=none;
         d=google.com; s=arc-20160816;
-        b=kw3OX/nalbc3Q1mMr6Z3hXdLsqYeRjhiImCXCvUqYu8x0zYxqKq/9gSnHR0gWSc2fn
-         dD6aqi9uoW6zjdKpSM+ErD9rRFzFwuYpE7UecAVKwpb0uaJPuRCYU+Q5ZPZdPh2YnEZT
-         lxGfOG7e+mP6nH9Ra1rP8o+tNcc4P3NzBEM+ChjUSkTb5CKdtw0ksbt2yoREgCKdlkMW
-         osn/lqkRyTml7+nNSvyUBclsO/mXm4L9lZRVxTKTjmD7fV+WS4tCVMv6E54eSkonJCaM
-         2er1WF4ESo1J9UfS/e6qF5pBCwdzPBagzmVhEyQH00buAkqGgpMP3ssmUNEYuhurk80r
-         u46A==
+        b=I7JHtmzYb0iWkLB7wVEW6V/NM+/nl4LwYYR7HpPEUAz6q7Ay0vj+sMvlQXcoAJ7aO+
+         GZCDzZyhxog5dOUuSTNiudUF/6ljBSEujJ1BGsW91TFC9ZFtrKBLNkMKPvYCs50quf9U
+         +TV3oBCE0CHIwYjXO27doe5i5s8zX0aV/G2Kam/qGlVCUJIWAaADMtf+tTD08dTiK+y4
+         wc5htvcIeVkUBdfsnFbV7cxN/wjCxjlvfvnr0VV0TUSb/hT0j8TttwDsUANkKLrsql7o
+         MoeyN6N+frppfvYgfQVThj2uZdMNmAUdqIBVRM+na6tSDStbYxwCksZBw3t7OLPt5GmA
+         qxbA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=bDvAwIjr4uJJzDNhLm7t4YVkcLnEIwIPiH9BcV6debM=;
-        b=zDfJUMPkrsEYJd+TYSy5QcaAR2oIHhNqqSFRIOes4aKkMcDhSSxNRsoHna7b7yyFUy
-         QPXJpKgszOAtaqRw/Wm3SjAsUtUDHpIX4qP7XwTsfirKflgUOV5vW3DU3GxkinY2ghvO
-         22q+QVBv1G3rCQ6Hva1ZJRkO2eVDc4LoPzLsBm/ceaJ1QCIsWDJZ7fACE/CsxI4ZEhi1
-         k+QkkDGqtF05+2BWp8k/QwgEipEurLunLj8ivyq+8lioIpwqoji4WudZaI3HqW7vrNur
-         YLDGZOctMft/mrNVsnPZ+d2mW5XGGhvGWGB7dzZSRaZcN6FSkd0ATEl8bxCo0N/LPepX
-         G5VQ==
+        bh=02/KIR4uFq6Kp5YWpHnlgUfm0mgT3Xh137Apdjb/mRw=;
+        b=K3NybTjovL9qtERe+1ijVQXGtxXNJUS+xhieGrmpt3mx8Z+8IcxQbChViLX8kf1cmg
+         ldz8Iu27CWWuXC36Znpsw2fS3oGSey+ASMTderts05w6KxwH8vWSD/syNrldAHalteaf
+         lWzigeBQvNhnru3tQDzN1CF5qKWuXZNCZu0Iq0dDRhPUZVTfWNcVU/a6rdb5wzHDo0V1
+         2O35zY1hOp0jZSGS0ZxRvUVZrLKKnNQWFpJKcPVDMnkfcxhXQLFtnIHQ0EanPPyaUgXJ
+         56MFTpjyJ+Loh190kioT3zP+LrEZUdqhDak4JQqPXICba4TDIOZwY79T40uo8bv+iLkB
+         zF1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id f4si1353743ejb.76.2019.02.13.06.15.20
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k59si4737684edc.187.2019.02.13.06.23.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 06:15:20 -0800 (PST)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) client-ip=46.22.139.17;
+        Wed, 13 Feb 2019 06:23:09 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 299041C167C
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 14:15:20 +0000 (GMT)
-Received: (qmail 20426 invoked from network); 13 Feb 2019 14:15:20 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 13 Feb 2019 14:15:20 -0000
-Date: Wed, 13 Feb 2019 14:15:18 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Yury Norov <yury.norov@gmail.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	David Rientjes <rientjes@google.com>,
-	Michal Hocko <mhocko@kernel.org>, Will Deacon <will.deacon@arm.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH] mm, page_alloc: Fix a division by zero error when
- boosting watermarks
-Message-ID: <20190213141518.GS9565@techsingularity.net>
-References: <20190213131923.GQ9565@techsingularity.net>
- <295be99c-d09a-5572-fa49-2673a62c295b@suse.cz>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id CE619B120;
+	Wed, 13 Feb 2019 14:23:08 +0000 (UTC)
+Date: Wed, 13 Feb 2019 15:23:08 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Robin Murphy <robin.murphy@arm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: Fix __dump_page() for poisoned pages
+Message-ID: <20190213142308.GQ4525@dhcp22.suse.cz>
+References: <dbbcd36ca1f045ec81f49c7657928a1cdf24872b.1550065120.git.robin.murphy@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <295be99c-d09a-5572-fa49-2673a62c295b@suse.cz>
+In-Reply-To: <dbbcd36ca1f045ec81f49c7657928a1cdf24872b.1550065120.git.robin.murphy@arm.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -109,40 +101,49 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 13, 2019 at 02:42:36PM +0100, Vlastimil Babka wrote:
-> On 2/13/19 2:19 PM, Mel Gorman wrote:
-> > Yury Norov reported that an arm64 KVM instance could not boot since after
-> > v5.0-rc1 and could addressed by reverting the patches
-> > 
-> > 1c30844d2dfe272d58c ("mm: reclaim small amounts of memory when an external
-> > 73444bc4d8f92e46a20 ("mm, page_alloc: do not wake kswapd with zone lock held")
-> > 
-> > The problem is that a division by zero error is possible if boosting occurs
-> > either very early in boot or if the high watermark is very small. This
-> > patch checks for the conditions and avoids boosting in those cases.
-> 
-> Hmm is it really a division by zero? The following line sets max_boost to
-> pageblock_nr_pages if it's zero. And where would the division happen anyway?
-> 
-> So I wonder what's going on, your patch should AFAICS only take effect when
-> zone->_watermark[WMARK_HIGH] is 0 or 1 to begin with, otherwise max_boost is at
-> least 2?
-> 
+On Wed 13-02-19 13:40:49, Robin Murphy wrote:
+> Evaluating page_mapping() on a poisoned page ends up dereferencing junk
+> and making PF_POISONED_CHECK() considerably crashier than intended. Fix
+> that by not inspecting the mapping until we've determined that it's
+> likely to be valid.
 
-The issue can occur if pageblock_nr_pages is also zero or not yet
-initialised. It means the changelog is misleading because it  has to
-trigger very early in boot as happened with Yury.
+Has this ever triggered? I am mainly asking because there is no usage of
+mapping so I would expect that the compiler wouldn't really call
+page_mapping until it is really used.
 
-> Also upon closer look, I think that (prior to the patch), boost_watermark()
-> could be reduced (thanks to the max+min capping) to
+> Fixes: 1c6fb1d89e73 ("mm: print more information about mapping in __dump_page")
+> Signed-off-by: Robin Murphy <robin.murphy@arm.com>
+> ---
+>  mm/debug.c | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
 > 
-> zone->watermark_boost = pageblock_nr_pages
+> diff --git a/mm/debug.c b/mm/debug.c
+> index 0abb987dad9b..1611cf00a137 100644
+> --- a/mm/debug.c
+> +++ b/mm/debug.c
+> @@ -44,7 +44,7 @@ const struct trace_print_flags vmaflag_names[] = {
+>  
+>  void __dump_page(struct page *page, const char *reason)
+>  {
+> -	struct address_space *mapping = page_mapping(page);
+> +	struct address_space *mapping;
+>  	bool page_poisoned = PagePoisoned(page);
+>  	int mapcount;
+>  
+> @@ -58,6 +58,8 @@ void __dump_page(struct page *page, const char *reason)
+>  		goto hex_only;
+>  	}
+>  
+> +	mapping = page_mapping(page);
+> +
+>  	/*
+>  	 * Avoid VM_BUG_ON() in page_mapcount().
+>  	 * page->_mapcount space in struct page is used by sl[aou]b pages to
+> -- 
+> 2.20.1.dirty
 > 
-
-I don't think it's worth being fancy about it if we're hitting
-fragmentation issues that early in boot.
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
