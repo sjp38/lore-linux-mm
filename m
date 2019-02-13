@@ -2,183 +2,154 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AB0A9C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 19:22:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 976D8C282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 19:25:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7790F20835
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 19:22:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7790F20835
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
+	by mail.kernel.org (Postfix) with ESMTP id 59246218D3
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 19:25:16 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="N7fF38VA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 59246218D3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 12DBE8E0002; Wed, 13 Feb 2019 14:22:38 -0500 (EST)
+	id 06CB98E0003; Wed, 13 Feb 2019 14:25:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0DC0E8E0001; Wed, 13 Feb 2019 14:22:38 -0500 (EST)
+	id F0D358E0001; Wed, 13 Feb 2019 14:25:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EE6BF8E0002; Wed, 13 Feb 2019 14:22:37 -0500 (EST)
+	id D857C8E0003; Wed, 13 Feb 2019 14:25:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 97A708E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 14:22:37 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id d9so1444748edh.4
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 11:22:37 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 920D18E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 14:25:15 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id w20so2378899ply.16
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 11:25:15 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=Q6vEWTW35opmCQKNqyHy4VQAtcYCXhbRYGzBwGpyjhY=;
-        b=oja8/BEVlSIhs+GniZbK4jpRJhdu2KUhkoHtVEKB9JF2/HrzpG4CKP+beBlyRrcidZ
-         eERpZrujj6CiB14aI5fFg16iRp4T7RqyMPSHwEm4YKb4i2ccdHfVUZ07q2yYGrN4Jo2U
-         bPgj9mWu3TIXBixdlpjJP+/4hxY9Yd3mrvDG9vcnCzyJ6FcnDyiEd6Szs1mUiqu0qELU
-         ec+5iVphucAiBqVPsPW37kt4YTLPR8V+bib3EsvWTBzMy9AmDg2XcFSouM2qpZy30mAQ
-         s/M1aTk2yKZ5EEpWg28712QADQ73YSeyn2rMUp5IHeRxCBk36SNnlIhgch0gm1mE5prG
-         aAig==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.178.231 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: AHQUAuYBWfRNii1artr3GWJMyDSnKC+rB58nPBMEgibAXPU66+3qIRZX
-	9isSt5xubwoipCxQBWFmV0EbGrg9jS+mgIDB+cobnof4XCFX1FlRqjW9dLQSdr2A6brsmSa6ZTC
-	LML/IAD6BCupWvqltXtebCFklRIEB1hoJuPjOfIOsc07DBDIPZDlmOFar3dyXAAM=
-X-Received: by 2002:a05:6402:185a:: with SMTP id v26mr1633386edy.163.1550085757172;
-        Wed, 13 Feb 2019 11:22:37 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYbi2BOc5Nl+PVoaV9eE7bftm0ohGjh5fRs/9v65VpyS90JtwJ+xV3eNT8957FdJHLkiki1
-X-Received: by 2002:a05:6402:185a:: with SMTP id v26mr1633322edy.163.1550085755951;
-        Wed, 13 Feb 2019 11:22:35 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550085755; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=wp88X0n7T+oW/4jJeVP1LwxYcQsnaad4aiDkPEIVESg=;
+        b=Q6ZKcA666fMI0eqQstnv2kdgEPYsvc966UonsYsKfScun0DtALFQpki47DBD/mm9bZ
+         nmJzi2nmCZy/BsX7kvxq6W2ITSqGYaraRDEvW5Cdee3KQ+3/O7mWBwh+JTb2OleCCbgg
+         d8rUax66dR894+HEpQHyenCq0q/dCCvBSCw+8CzKKvBnM7eoIsP7QaZ0WBJ6WKdN4WEd
+         Mh9tib+3nkcMJRmX7+3v3Sdvies6nD313bGOKFrsct/iJaQqCNim0Mj6rRA7IiokyNNZ
+         7DDzVNxRu93cna8k+8EvlSqE15/eM29Me1CzFT3gOj10YqUviB9wVmLHu8cJfjh3iNjn
+         5+Bw==
+X-Gm-Message-State: AHQUAuYfKkYfg/Z+7xpPcYGPxG9HtyE49jO4bHByHFtd8cdI3FzAdbf9
+	NTeGJi+Lz/uV8s9+BEvMFQp6Ak/qOocS2JznZHDFh/c45F1129EtdQLN51fieDbdn4utRo/45DF
+	thnFY/7agcAsR9Pcbpii6jyRAMLEiHjYFjJsOGjhauMQQLnrR+5kvgp4CB7E12ruZCQ==
+X-Received: by 2002:a17:902:2966:: with SMTP id g93mr1979259plb.11.1550085915196;
+        Wed, 13 Feb 2019 11:25:15 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IY60IsFNyfKBPAR80YjnsnGhuP4AutGZ1BtS5IwAQYlq1DuyKo9PmmTvlsJxg8LBKhNZBC9
+X-Received: by 2002:a17:902:2966:: with SMTP id g93mr1979204plb.11.1550085914439;
+        Wed, 13 Feb 2019 11:25:14 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550085914; cv=none;
         d=google.com; s=arc-20160816;
-        b=AYMqdiCvy1fvInocMwmIL+i7kXbj7r+0EL5imEcyGh3dcRq1zsf7qRkjlUtHpcr3l7
-         UE1Ci161fc8AoNkbQCsZcFOfEe0x0JQYF8Ajx4ESHAJt3+6nGSGyJsIlVUiGYNXgxjPU
-         R16qJLVPIVqr0yasvHB0J+mC8f5HB81zU/rRHPM/i7UpNhaP1M5LruZ3RI5R/TtdX0lG
-         AsOVbwGLo8y5LWgtUv9SZDQQCQ8zkMNEJrHydyMg1GpcRXF00Jkato7HrUjLjwZRUfAg
-         NEiCCr5z1Iia1bDxlntkHJW8ODH3Mu3YwnSaIn7BK6NpPAkeQM5BavTudwzv2m4N8AW+
-         qAtA==
+        b=T1/d0PawrOuPDWWPRnZwXgr0C38cjRjC9YDnz/Jib/tIiAcT+Z2fi2Wc/kNnmDGsSR
+         56C08RIs4kgdZ7h2Mv1S/YoKUuDw0oYIX5GUAEvnoIlqbw9Xs4olkHrG7Zcg2r2qYfzw
+         tq+R8iYTy8yvr+EBYVwcUzb9pgG2wCOM1N+IAE+aRvdBWHUC209VpDnpJ1l4nIsX7q7v
+         855a28ln4lqbZ8WDXS4k7YpX07PXeLqNq3GTFpbDiIkvQcSJVVUau3AUhNnQNe3IwTML
+         ogF8Mc796/O+o7tkoR1b/v1Yzsrc6560TlH3L/zCzfuIJOpceV4ZFBzFTy2FXHNY0jcC
+         WoBQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=Q6vEWTW35opmCQKNqyHy4VQAtcYCXhbRYGzBwGpyjhY=;
-        b=QHnBZSDAMeEvMClhs6lrmpbzb/ODFETUwkEuvDtJTHsNkU3OL8EfWG7wdO+fndqKL0
-         XkYCibUGkjlLztBkT9VE/VAJUzyZFBaGxhTPTuaZLht7EuBFWupwu1iaCtOYkjT6A0UX
-         IgqozIDlWeTIoagZCjwMKKyanm1xgH2TSuljR95swdtCoQI1FLl0n3ftZoGsr7pmgoAo
-         2D+GzJ+ZmutLKA5AonF+z7Nm1hvvjeswoXtKrgl4FMBu97Zpa6pm5sCyLC1pbW9hIbMW
-         biBd9nIvw0fcoZVRqusWJNkZgfGDU408vErXL+1Mt6xTJoCEPXThoe2zpyyprmnnqQJ1
-         bwzQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=wp88X0n7T+oW/4jJeVP1LwxYcQsnaad4aiDkPEIVESg=;
+        b=EUpIjfFmgJ8N5BZVaQSf+gH6TiYuKXQWkrvDgbEiP8YtoipOZ0PUuHsK4cKtfcvkhj
+         /RHcIgjzddsna5F426NkspPJUm1mWbK0X8iT/OlpF61YYg8r3F8OUBRP3Ur2EAGUJwIn
+         zEQST3CvPrRvxf1E0X1uIdNFzqjn0+KbkMoKkEUkIw4H53ragr4rE634+4iF3RhNu5e0
+         gEpmrYcqMAZHiL4GGd4zpwW0DRPiWoeki9g84jvywXxBnh1S+Nw2y89MYoV1IsieH5VR
+         07frD6xNgdyeRbDemyvUOe3OhB3N4hrYAzaB0QDHiokRDvEHazw6e1wcSem5AoKZCqQL
+         Nrnw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.178.231 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay11.mail.gandi.net (relay11.mail.gandi.net. [217.70.178.231])
-        by mx.google.com with ESMTPS id p18si39431ejx.292.2019.02.13.11.22.35
+       dkim=pass header.i=@kernel.org header.s=default header.b=N7fF38VA;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id z12si109076pgv.1.2019.02.13.11.25.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 13 Feb 2019 11:22:35 -0800 (PST)
-Received-SPF: neutral (google.com: 217.70.178.231 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.178.231;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Feb 2019 11:25:14 -0800 (PST)
+Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.178.231 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from [192.168.0.11] (127.19.86.79.rev.sfr.net [79.86.19.127])
-	(Authenticated sender: alex@ghiti.fr)
-	by relay11.mail.gandi.net (Postfix) with ESMTPSA id 0F08B100005;
-	Wed, 13 Feb 2019 19:22:21 +0000 (UTC)
-Subject: Re: [PATCH] hugetlb: allow to free gigantic pages regardless of the
- configuration
-To: Vlastimil Babka <vbabka@suse.cz>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
- x86@kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>,
- Mike Kravetz <mike.kravetz@oracle.com>,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Cc: linux-riscv@lists.infradead.org, hch@infradead.org
-References: <20190117183953.5990-1-aghiti@upmem.com>
- <16a6209c-868b-8fd5-a70a-6e0e1ecb62d4@suse.cz>
-From: Alex Ghiti <alex@ghiti.fr>
-Message-ID: <7801de9c-9a8c-fb56-442a-6e530e52e0d8@ghiti.fr>
-Date: Wed, 13 Feb 2019 14:22:18 -0500
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@kernel.org header.s=default header.b=N7fF38VA;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from localhost (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id C36A0218D3;
+	Wed, 13 Feb 2019 19:25:13 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1550085914;
+	bh=wp88X0n7T+oW/4jJeVP1LwxYcQsnaad4aiDkPEIVESg=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=N7fF38VAjYGoMh9ztuD8OYJI6pSNlaXDcvqGOtmZqcF3KmSGICCypWjmmZdbbJ6ds
+	 XMdtNXg2N7BuRK1HanA9BA+TyPVn5PJG619hBDoDDL6Bs+qhygWzSM2qwbIONM4LiD
+	 Q2CYn/XxDXun2Fv3qnsJm1ly4G+iCSh1eZzGhw5Q=
+Date: Wed, 13 Feb 2019 14:25:12 -0500
+From: Sasha Levin <sashal@kernel.org>
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Amir Goldstein <amir73il@gmail.com>, Steve French <smfrench@gmail.com>,
+	lsf-pc@lists.linux-foundation.org,
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
+	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	"Luis R. Rodriguez" <mcgrof@kernel.org>
+Subject: Re: [LSF/MM TOPIC] FS, MM, and stable trees
+Message-ID: <20190213192512.GH69686@sasha-vm>
+References: <20190212170012.GF69686@sasha-vm>
+ <CAH2r5mviqHxaXg5mtVe30s2OTiPW2ZYa9+wPajjzz3VOarAUfw@mail.gmail.com>
+ <CAOQ4uxjMYWJPF8wFF_7J7yy7KCdGd8mZChfQc5GzNDcfqA7UAA@mail.gmail.com>
+ <20190213073707.GA2875@kroah.com>
+ <CAOQ4uxgQGCSbhppBfhHQmDDXS3TGmgB4m=Vp3nyyWTFiyv6z6g@mail.gmail.com>
+ <20190213091803.GA2308@kroah.com>
 MIME-Version: 1.0
-In-Reply-To: <16a6209c-868b-8fd5-a70a-6e0e1ecb62d4@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: sv-FI
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20190213091803.GA2308@kroah.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On 2/13/19 6:27 AM, Vlastimil Babka wrote:
-> On 1/17/19 7:39 PM, Alexandre Ghiti wrote:
->> From: Alexandre Ghiti <alex@ghiti.fr>
->>
->> On systems without CMA or (MEMORY_ISOLATION && COMPACTION) activated but
->> that support gigantic pages, boottime reserved gigantic pages can not be
->> freed at all. This patchs simply enables the possibility to hand back
->> those pages to memory allocator.
->>
->> This commit then renames gigantic_page_supported and
->> ARCH_HAS_GIGANTIC_PAGE to make them more accurate. Indeed, those values
->> being false does not mean that the system cannot use gigantic pages: it
->> just means that runtime allocation of gigantic pages is not supported,
->> one can still allocate boottime gigantic pages if the architecture supports
->> it.
->>
->> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
-> I'm fine with the change, but wonder if this can be structured better in a way
-> which would remove the duplicated "if (MEMORY_ISOLATION && COMPACTION) || CMA"
-> from all arches, as well as the duplicated
-> gigantic_page_runtime_allocation_supported()
-
-
-Yeah, totally, we can factorize more than what I did. I prepared a v2 of 
-this
-patch that does exactly that: remove the triplet from arch specific code
-and the duplicated gigantic_page_runtime_allocation_supported.
-
-
-> something like:
+On Wed, Feb 13, 2019 at 10:18:03AM +0100, Greg KH wrote:
+>On Wed, Feb 13, 2019 at 11:01:25AM +0200, Amir Goldstein wrote:
+>> Best effort testing in timely manner is good, but a good way to
+>> improve confidence in stable kernel releases is a publicly
+>> available list of tests that the release went through.
 >
-> - "select ARCH_HAS_GIGANTIC_PAGE" has no conditions, it just says the arch can
-> support them either at boottime or runtime (but runtime is usable only if other
-> conditions are met)
+>We have that, you aren't noticing them...
 
+This is one of the biggest things I want to address: there is a
+disconnect between the stable kernel testing story and the tests the fs/
+and mm/ folks expect to see here.
 
-And the v2 gets rid of ARCH_HAS_GIGANTIC_PAGE totally since it
-is not needed by arch to advertise the fact they support gigantic page,
-actually, when selected, it really just means that an arch has the means
-to allocate runtime gigantic page: it is equivalent to
-(MEMORY_ISOLATION && COMPACTION) || CMA.
+On one had, the stable kernel folks see these kernels go through entire
+suites of testing by multiple individuals and organizations, receiving
+way more coverage than any of Linus's releases.
 
+On the other hand, things like LTP and selftests tend to barely scratch
+the surface of our mm/ and fs/ code, and the maintainers of these
+subsystems do not see LTP-like suites as something that adds significant
+value and ignore them. Instead, they have a (convoluted) set of testing
+they do with different tools and configurations that qualifies their
+code as being "tested".
 
-> - gigantic_page_runtime_allocation_supported() is a function that returns true
-> if ARCH_HAS_GIGANTIC_PAGE && ((MEMORY_ISOLATION && COMPACTION) || CMA) and
-> there's a single instance, not per-arch.
-> - code for freeing gigantic pages can probably still be conditional on
-> ARCH_HAS_GIGANTIC_PAGE
->
-> BTW I wanted also to do something about the "(MEMORY_ISOLATION && COMPACTION) ||
-> CMA" ugliness itself, i.e. put the common parts behind some new kconfig
-> (COMPACTION_CORE ?) and expose it better to users, but I can take a stab on that
-> once the above part is settled.
-> Vlastimil
+So really, it sounds like a low hanging fruit: we don't really need to
+write much more testing code code nor do we have to refactor existing
+test suites. We just need to make sure the right tests are running on
+stable kernels. I really want to clarify what each subsystem sees as
+"sufficient" (and have that documented somewhere).
 
-
-I send the v2 right away, if you can take a look Vlastimil, that would 
-be great.
-Note that Andrew already picked this patch in its tree, I'm not sure how to
-proceed.
-
-
-Thanks for your remarks !
-
-
-Alex
+--
+Thanks,
+Sasha
 
