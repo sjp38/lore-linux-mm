@@ -2,197 +2,242 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EFBDC4151A
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 762BBC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:05:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EFF2C222CC
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:52 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="rZ7V6+h+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EFF2C222CC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 0AB80222A4
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:05:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0AB80222A4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8FB2B8E000D; Wed, 13 Feb 2019 17:42:52 -0500 (EST)
+	id 654998E000E; Wed, 13 Feb 2019 18:05:15 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8AAC98E0001; Wed, 13 Feb 2019 17:42:52 -0500 (EST)
+	id 5DA6B8E0001; Wed, 13 Feb 2019 18:05:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7C1188E000D; Wed, 13 Feb 2019 17:42:52 -0500 (EST)
+	id 4554A8E000E; Wed, 13 Feb 2019 18:05:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 529ED8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 17:42:52 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id w15so6646017ita.1
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 14:42:52 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 011B98E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 18:05:14 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id 74so3101669pfk.12
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 15:05:14 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=1rE3ENum9etw8FLEOLYubxTblJFLNuBz5iBEKWe/uDo=;
-        b=A/UD5eZQmr6E/FITjgbQigJhYZlUQyK1jWndvMUkXdfMUuRwuoO4G+1eKSVVY1T5Gy
-         kPnmAsN1Rnp8Odg1q5qSnKIZKQ8yvg/g9wiOUFAiYriIccaGlwETmroJQZyVqjkgK/FC
-         r3LM8a1eOmAImsyij83fY3i99/d8ax+99vxIb8A9GprRIIuFjrRhWtZn25bXZRqaK2l+
-         yGNCYwOKVlBY4bXVVJ3n2E9+7xKk2tdXFHByMQ2mWWhwJWmDz+Br08c6qo+8m9Cf8D4R
-         RG+oDwqaQ2B9mhZgyu9ZZdbarwpH1kvpECnAnNr0YiNI6doY5ZSJkraY/9XpocIzWL2X
-         9qDA==
-X-Gm-Message-State: AHQUAuZCr+r6OnL8XmjI/OEYOnjregkAimPS++QAgfM9Ct4lD52+56lp
-	vKpfxARMFk6hebtp/zNp6wbunqFNErKeRNu4GjC7dNJ8Ss0O5MnZrSHntaDFfgVZ/23IYCk7h+g
-	pDvLMGD++/2r18NguHY2MRssYPOzI2buGXpGzAuK2PlDkVCmP2ZwPZ/ThfwAqt/BN3m8Mbp5JGU
-	dcFNEm6QDse1MxKqtBm4MMYG7Ju/7R3lXY9FiV0e43ubKWcM+ahZjMB9mDQ17HKdQrLbK2KoMu2
-	2ZIpP8bTWTTp+FVn1EWR3PQV6IAurvagsqkfoNs+GH4Ekal4t6AdQSHJGrBh3SbToCs0aPy6oBq
-	9jeQcWnIQCFhsJ3uG/SUd/Ds6KcjtlJcM076grmIoCJoaWBN0BiErgSoSVFFdHRgXweFtyhAjXN
-	4
-X-Received: by 2002:a5d:8185:: with SMTP id u5mr366575ion.216.1550097772055;
-        Wed, 13 Feb 2019 14:42:52 -0800 (PST)
-X-Received: by 2002:a5d:8185:: with SMTP id u5mr366551ion.216.1550097771436;
-        Wed, 13 Feb 2019 14:42:51 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550097771; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=zDjJmdDKCnuzGVI1ffFlBWx2EW92voMzbQIkfK9Rw3U=;
+        b=b5OoYfkncUGh+7MQOXBmlouI8N9ncUpkqqRu3OVwIHZLTvbWmCwVHbacUp1CaTFixt
+         PCz/kA7ySK3EQk+yzcdeND8nWh4Xy7lfxvpT8tRY1ON8oJOAsId3gwWALQSQXgjtSGcX
+         O7d0AhV8JH1SGDJ6oW1U7/xwXvFeOH4oNXT9h3O7mEQYJ0UV3rujS2vi6/e3rwfB+Y2p
+         lERemtDxDLqBRq2yus+4DU/inZUpkd8F10/VzEfbf8E/cJnQoJFjg7rEFdc4Mn5UdBU+
+         gdfJ5oY+qQrS3LCVwggd9PbMJxakqInyYg2C16oyIbyp8aeI4uFYvcBwco0zBiKbc/NC
+         Fn6Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuY5v/5LRP9J+fFDwyEK1kfmy1nMCFXrFjyhWz+1CjZEt2P0hUF6
+	AlbAtZIHu4juPvJsqoWq11Scj8KPbIlGpeWMi71oVHnExuc8WaoPGMro9j2l+nzFyHOZ7pESqcN
+	Fx0krDV4O+8Cqr52FFAYGvormQjUKr09OxbzMqoe9QGYqyq7NFwivrN77HK8X4dBO1g==
+X-Received: by 2002:a17:902:e78e:: with SMTP id cp14mr708647plb.4.1550099114641;
+        Wed, 13 Feb 2019 15:05:14 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZDLWR9TISgOPWFeaC+Eqz/PEv7PTGYDNlH1MlXnJmbRp3pha9Vsd0Xbm8dEKRP8R2yfeid
+X-Received: by 2002:a17:902:e78e:: with SMTP id cp14mr708556plb.4.1550099113565;
+        Wed, 13 Feb 2019 15:05:13 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550099113; cv=none;
         d=google.com; s=arc-20160816;
-        b=K3iqE2NggapMW7XBkO080l/iIv2Ufa+JY5AuWlrKoyEjJ9WQYbQCSESy1XUs+fCa0Z
-         428/eSnoJS5lpvfWiYuTvSDhzQEAdPZJhOL7fLhgQUaxHzf5nrete4GTrOuTQpFbtHhi
-         M9Se+i0CScFycjrH0zyRPMU0TAWN0ybSL9tZdpoAwSVAXopk7wilrY0LLvLmfMRHnlnE
-         SU3G3q39pTOJJZG6CVJpBqPlZJGBCLWAodtkBGjRoHOwHgAtCm8B6W4YZSL7p+PNSybY
-         c6qki0suGo6OTo2rybqY/OU9oJhZt2oRjQkz/HnPMMUd+PlkmLixGVnxtcIEPk29gvCq
-         5ZmQ==
+        b=YoOIvikHahzyAtrHY1aMAB0Cyik+LcSVsjpmKyr2eOKGy1pCJ/4k2HqY0uvNQWKND4
+         HW4Qv+XEgnFccSezW9UupaVr6dTbR9ZwOaokuq9jHMXAyT+rkhQIfQh6Rd5CjTyrwyKj
+         snwEzvxRGcDLiFTh1cAlb0ryki4DqCLzbsc9NuXrDUvY5mzWzWcfStS/Z0lmSLEuaoWJ
+         nMRqAE7UQg+X2hHLA7hd8nP1osBaHG+/LHReOH42teh3cXDY+i+ocKOC5wdWRiJig7zT
+         LFGo0vjXiU9/Jjjme7ytHH025mh22MOmBoP1d8smzmIfQEiDOkTJUNj77a3qit24kA/p
+         wXyg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=1rE3ENum9etw8FLEOLYubxTblJFLNuBz5iBEKWe/uDo=;
-        b=sTb7c7zr3d8pBo9ftD5+YkocsdCN0bMp/r3Ur9nd4IQMrQB+jG4chscWG2uDoXCMpa
-         M/NLLx6G7llkJhBFwK8xHpw2wCiYtfhpH51CFKqn2IKK8K/JWJIyYAw9UOSNoO9bxnTD
-         LsQlxcp4qRJ/y4gCV7sXwnKUlqau+mEi6v6i8y4E1REadCPFCqNPuPb/SqG6XwwExzrS
-         bhraH6JO0T8qM2LSg/NnMIbMeK4taLosF9SbUtATFf7/GphKet7hdDGOTGO5hHBuzhZS
-         UgECnAnwF+1VFWmoERl0qXbs2Hl9RQnBOOsoNlAxZjYCkJiGLaskamh5+qJ6q0CmDnEm
-         ZhLA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=zDjJmdDKCnuzGVI1ffFlBWx2EW92voMzbQIkfK9Rw3U=;
+        b=Z1BAyLQdu77j9ZeRK1WvbOvXGmIx5CH4xNMO1KcprYrtwpFP2hvX76YBUhn4MnpP+o
+         iVRZzfSXGRwt/hcktC5a6j9u86z/dloFllSWNU51iAOlmtn+ISLVV0q5v2HeACz1y7iY
+         1Op063ITm9F7fAOWecHX3xL+j8NCAZYePVJq2nJeKiQf+KE8Uf4SgmLa7/MlIE3dXk9z
+         NQRMaa3OBYkGb1Gwbl8cWX+QPAieeHYlEoUA6NdPsis/cnkN6Yrh4E9uQMnsEdAJKPyO
+         9Sr1BO6x71fNhUymXd83tTW/kcJll7J0rBcFNrJo1y8Z8m1dFJAg/cWP57yUrGVXY2MT
+         C8Ew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rZ7V6+h+;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m143sor1157904itm.23.2019.02.13.14.42.51
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id 3si599378pli.417.2019.02.13.15.05.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Feb 2019 14:42:51 -0800 (PST)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Feb 2019 15:05:13 -0800 (PST)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rZ7V6+h+;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=1rE3ENum9etw8FLEOLYubxTblJFLNuBz5iBEKWe/uDo=;
-        b=rZ7V6+h+utXAZGJQoZDjA54bjjYcb7ywLdWYkYK0fi3mff9Dkdg+vxoqqTJMA/HIXH
-         DV2KZ6iDhfzxbeh4uFhSNKgpV9rS8l2/lQIA9Wc6SR9Qj+41beo/LKzHrmKcPZOauyyH
-         Jntvx5Hg70U633XKv8KFLOM+ulJXhWCqOBRVQnTpIOD/yDRmXSe/RpRI1xLc3mE/MrKa
-         V44xvB1CUpZ2qZZzr8XeT21Kwtx6B8CVs89nRNMPDosV9bKK0VWnfQN3Otdjqgfo6p7W
-         aAf0R5G3QMrCDHjfAlTpvDdUdMuCqN+ofqroGSqdDWgbB0fcZVPx3m+CWSlJnFMlkSeA
-         N9RA==
-X-Google-Smtp-Source: AHgI3Ia37dWLigwy1iXWhfEBHuwjMxAIRQlHqD+nA8C5nqLiqJgOwL8GGfYyXhA7B/AkcXW13JbXtgKB2q8oxNDUA1w=
-X-Received: by 2002:a24:2ed3:: with SMTP id i202mr291268ita.89.1550097770916;
- Wed, 13 Feb 2019 14:42:50 -0800 (PST)
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Feb 2019 15:05:12 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,366,1544515200"; 
+   d="scan'208";a="138415564"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga001.jf.intel.com with ESMTP; 13 Feb 2019 15:05:10 -0800
+From: ira.weiny@intel.com
+To: linux-mips@vger.kernel.org,
+	linux-kernel@vger.kernel.org,
+	kvm-ppc@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org,
+	linux-s390@vger.kernel.org,
+	linux-sh@vger.kernel.org,
+	sparclinux@vger.kernel.org,
+	kvm@vger.kernel.org,
+	linux-fpga@vger.kernel.org,
+	dri-devel@lists.freedesktop.org,
+	linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org,
+	linux-scsi@vger.kernel.org,
+	devel@driverdev.osuosl.org,
+	virtualization@lists.linux-foundation.org,
+	netdev@vger.kernel.org,
+	linux-fbdev@vger.kernel.org,
+	xen-devel@lists.xenproject.org,
+	devel@lists.orangefs.org,
+	linux-mm@kvack.org,
+	ceph-devel@vger.kernel.org,
+	rds-devel@oss.oracle.com
+Cc: Ira Weiny <ira.weiny@intel.com>,
+	John Hubbard <jhubbard@nvidia.com>,
+	David Hildenbrand <david@redhat.com>,
+	Cornelia Huck <cohuck@redhat.com>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	"David S. Miller" <davem@davemloft.net>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Joerg Roedel <joro@8bytes.org>,
+	Wu Hao <hao.wu@intel.com>,
+	Alan Tull <atull@kernel.org>,
+	Moritz Fischer <mdf@kernel.org>,
+	David Airlie <airlied@linux.ie>,
+	Daniel Vetter <daniel@ffwll.ch>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Christian Benvenuti <benve@cisco.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Matt Porter <mporter@kernel.crashing.org>,
+	Alexandre Bounine <alex.bou9@gmail.com>,
+	=?UTF-8?q?Kai=20M=C3=A4kisara?= <Kai.Makisara@kolumbus.fi>,
+	"James E.J. Bottomley" <jejb@linux.ibm.com>,
+	"Martin K. Petersen" <martin.petersen@oracle.com>,
+	Rob Springer <rspringer@google.com>,
+	Todd Poynor <toddpoynor@google.com>,
+	Ben Chan <benchan@chromium.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	"Michael S. Tsirkin" <mst@redhat.com>,
+	Jason Wang <jasowang@redhat.com>,
+	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>,
+	Stefano Stabellini <sstabellini@kernel.org>,
+	Martin Brandenburg <martin@omnibond.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH V2 0/7] Add FOLL_LONGTERM to GUP fast and use it
+Date: Wed, 13 Feb 2019 15:04:48 -0800
+Message-Id: <20190213230455.5605-1-ira.weiny@intel.com>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190211201643.7599-1-ira.weiny@intel.com>
+References: <20190211201643.7599-1-ira.weiny@intel.com>
 MIME-Version: 1.0
-References: <20190213204157.12570-1-jannh@google.com>
-In-Reply-To: <20190213204157.12570-1-jannh@google.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Wed, 13 Feb 2019 14:42:39 -0800
-Message-ID: <CAKgT0Uc7wheUjStv5a4BSNv_=-iu1Ttdj9f_10CdR_oc2BhVig@mail.gmail.com>
-Subject: Re: [PATCH] mm: page_alloc: fix ref bias in page_frag_alloc() for
- 1-byte allocs
-To: Jann Horn <jannh@google.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, 
-	Vlastimil Babka <vbabka@suse.cz>, Pavel Tatashin <pavel.tatashin@microsoft.com>, 
-	Oscar Salvador <osalvador@suse.de>, Mel Gorman <mgorman@techsingularity.net>, 
-	Aaron Lu <aaron.lu@intel.com>, Netdev <netdev@vger.kernel.org>, 
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 13, 2019 at 12:42 PM Jann Horn <jannh@google.com> wrote:
->
-> The basic idea behind ->pagecnt_bias is: If we pre-allocate the maximum
-> number of references that we might need to create in the fastpath later,
-> the bump-allocation fastpath only has to modify the non-atomic bias value
-> that tracks the number of extra references we hold instead of the atomic
-> refcount. The maximum number of allocations we can serve (under the
-> assumption that no allocation is made with size 0) is nc->size, so that's
-> the bias used.
->
-> However, even when all memory in the allocation has been given away, a
-> reference to the page is still held; and in the `offset < 0` slowpath, the
-> page may be reused if everyone else has dropped their references.
-> This means that the necessary number of references is actually
-> `nc->size+1`.
->
-> Luckily, from a quick grep, it looks like the only path that can call
-> page_frag_alloc(fragsz=1) is TAP with the IFF_NAPI_FRAGS flag, which
-> requires CAP_NET_ADMIN in the init namespace and is only intended to be
-> used for kernel testing and fuzzing.
+From: Ira Weiny <ira.weiny@intel.com>
 
-Actually that has me somewhat concerned. I wouldn't be surprised if
-most drivers expect the netdev_alloc_frags call to at least output an
-SKB_DATA_ALIGN sized value.
+NOTE: This series depends on my clean up patch to remove the write parameter
+from gup_fast_permitted()[1]
 
-We probably should update __netdev_alloc_frag and __napi_alloc_frag so
-that they will pass fragsz through SKB_DATA_ALIGN.
+HFI1, qib, and mthca, use get_user_pages_fast() due to it performance
+advantages.  These pages can be held for a significant time.  But
+get_user_pages_fast() does not protect against mapping of FS DAX pages.
 
-> To test for this issue, put a `WARN_ON(page_ref_count(page) == 0)` in the
-> `offset < 0` path, below the virt_to_page() call, and then repeatedly call
-> writev() on a TAP device with IFF_TAP|IFF_NO_PI|IFF_NAPI_FRAGS|IFF_NAPI,
-> with a vector consisting of 15 elements containing 1 byte each.
->
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Jann Horn <jannh@google.com>
-> ---
->  mm/page_alloc.c | 8 ++++----
->  1 file changed, 4 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 35fdde041f5c..46285d28e43b 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4675,11 +4675,11 @@ void *page_frag_alloc(struct page_frag_cache *nc,
->                 /* Even if we own the page, we do not use atomic_set().
->                  * This would break get_page_unless_zero() users.
->                  */
-> -               page_ref_add(page, size - 1);
-> +               page_ref_add(page, size);
->
->                 /* reset page count bias and offset to start of new frag */
->                 nc->pfmemalloc = page_is_pfmemalloc(page);
-> -               nc->pagecnt_bias = size;
-> +               nc->pagecnt_bias = size + 1;
->                 nc->offset = size;
->         }
->
-> @@ -4695,10 +4695,10 @@ void *page_frag_alloc(struct page_frag_cache *nc,
->                 size = nc->size;
->  #endif
->                 /* OK, page count is 0, we can safely set it */
-> -               set_page_count(page, size);
-> +               set_page_count(page, size + 1);
->
->                 /* reset page count bias and offset to start of new frag */
-> -               nc->pagecnt_bias = size;
-> +               nc->pagecnt_bias = size + 1;
->                 offset = size - fragsz;
->         }
+Introduce FOLL_LONGTERM and use this flag in get_user_pages_fast() which
+retains the performance while also adding the FS DAX checks.  XDP has also
+shown interest in using this functionality.[2]
 
-If we already have to add a constant it might be better to just use
-PAGE_FRAG_CACHE_MAX_SIZE + 1 in all these spots where you are having
-to use "size + 1" instead of "size". That way we can avoid having to
-add a constant to a register value and then program that value.
-instead we can just assign the constant value right from the start.
+In addition we change get_user_pages() to use the new FOLL_LONGTERM flag and
+remove the specialized get_user_pages_longterm call.
+
+[1] https://lkml.org/lkml/2019/2/11/237
+[2] https://lkml.org/lkml/2019/2/11/1789
+
+Ira Weiny (7):
+  mm/gup: Replace get_user_pages_longterm() with FOLL_LONGTERM
+  mm/gup: Change write parameter to flags in fast walk
+  mm/gup: Change GUP fast to use flags rather than a write 'bool'
+  mm/gup: Add FOLL_LONGTERM capability to GUP fast
+  IB/hfi1: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
+  IB/qib: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
+  IB/mthca: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
+
+ arch/mips/mm/gup.c                          |  11 +-
+ arch/powerpc/kvm/book3s_64_mmu_hv.c         |   4 +-
+ arch/powerpc/kvm/e500_mmu.c                 |   2 +-
+ arch/powerpc/mm/mmu_context_iommu.c         |   4 +-
+ arch/s390/kvm/interrupt.c                   |   2 +-
+ arch/s390/mm/gup.c                          |  12 +-
+ arch/sh/mm/gup.c                            |  11 +-
+ arch/sparc/mm/gup.c                         |   9 +-
+ arch/x86/kvm/paging_tmpl.h                  |   2 +-
+ arch/x86/kvm/svm.c                          |   2 +-
+ drivers/fpga/dfl-afu-dma-region.c           |   2 +-
+ drivers/gpu/drm/via/via_dmablit.c           |   3 +-
+ drivers/infiniband/core/umem.c              |   5 +-
+ drivers/infiniband/hw/hfi1/user_pages.c     |   5 +-
+ drivers/infiniband/hw/mthca/mthca_memfree.c |   3 +-
+ drivers/infiniband/hw/qib/qib_user_pages.c  |   8 +-
+ drivers/infiniband/hw/qib/qib_user_sdma.c   |   2 +-
+ drivers/infiniband/hw/usnic/usnic_uiom.c    |   9 +-
+ drivers/media/v4l2-core/videobuf-dma-sg.c   |   6 +-
+ drivers/misc/genwqe/card_utils.c            |   2 +-
+ drivers/misc/vmw_vmci/vmci_host.c           |   2 +-
+ drivers/misc/vmw_vmci/vmci_queue_pair.c     |   6 +-
+ drivers/platform/goldfish/goldfish_pipe.c   |   3 +-
+ drivers/rapidio/devices/rio_mport_cdev.c    |   4 +-
+ drivers/sbus/char/oradax.c                  |   2 +-
+ drivers/scsi/st.c                           |   3 +-
+ drivers/staging/gasket/gasket_page_table.c  |   4 +-
+ drivers/tee/tee_shm.c                       |   2 +-
+ drivers/vfio/vfio_iommu_spapr_tce.c         |   3 +-
+ drivers/vfio/vfio_iommu_type1.c             |   3 +-
+ drivers/vhost/vhost.c                       |   2 +-
+ drivers/video/fbdev/pvr2fb.c                |   2 +-
+ drivers/virt/fsl_hypervisor.c               |   2 +-
+ drivers/xen/gntdev.c                        |   2 +-
+ fs/orangefs/orangefs-bufmap.c               |   2 +-
+ include/linux/mm.h                          |  17 +-
+ kernel/futex.c                              |   2 +-
+ lib/iov_iter.c                              |   7 +-
+ mm/gup.c                                    | 220 ++++++++++++--------
+ mm/gup_benchmark.c                          |   5 +-
+ mm/util.c                                   |   8 +-
+ net/ceph/pagevec.c                          |   2 +-
+ net/rds/info.c                              |   2 +-
+ net/rds/rdma.c                              |   3 +-
+ 44 files changed, 232 insertions(+), 180 deletions(-)
+
+-- 
+2.20.1
 
