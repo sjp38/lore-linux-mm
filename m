@@ -2,137 +2,126 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C2C3CC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 21:28:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4182DC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 21:37:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7DC38222AA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 21:28:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="mTaZh0Lq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DC38222AA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 0A07B222A4
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 21:37:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0A07B222A4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 144638E0002; Wed, 13 Feb 2019 16:28:25 -0500 (EST)
+	id 92E9D8E0002; Wed, 13 Feb 2019 16:37:57 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0CD118E0001; Wed, 13 Feb 2019 16:28:25 -0500 (EST)
+	id 8B55A8E0001; Wed, 13 Feb 2019 16:37:57 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EAFC08E0002; Wed, 13 Feb 2019 16:28:24 -0500 (EST)
+	id 7552F8E0002; Wed, 13 Feb 2019 16:37:57 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A96848E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 16:28:24 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id 38so215653pld.6
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 13:28:24 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 310068E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 16:37:57 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id 59so2645568plc.13
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 13:37:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=QmQjCLKll0HK84X/6EadtAaXsCgicqazfQEbsU1cSjs=;
-        b=aDgYGEq6OoLSFAkOHfwI3W2pYSCtgt95Lfi241aTmn2sadGZijk8YqVmy+mY6lYnlW
-         SwMn8DCaqMeSJs75wUKkoqyI+RK2ML5zJ3ViPwH+7KxCw0xu/8vLPHf4EFPW2LjrkbEs
-         NaQdqZWRW9VufLl+9lSs93EzN/k4hB009+sh+vH30M5tof7RNtUr7D93NgWVmCE/1hYQ
-         +vCUJvCXRFkt1KW0Pd4/FdSX8g9mNmTerfaH94R5jctG+Jx0LGrZAuFYqBY4Fd+pG5TQ
-         Y4SkAeQJFOj2Wkk+PWPzW7DLB0nn1eU+8JpUrkcUNoRq0f/YwHa28X2MOu1T1lYWpYFF
-         i5cA==
-X-Gm-Message-State: AHQUAuaMZMnUIosFJblJShh2mOjTWhqNfWIKFavc7nMW7x3vh/eZMtby
-	hSU7MISfhg3GOUr6KOER7AojvWCvKb2yPXxpn6ZUccdT5eq+9lzgrubRFTaaDfWQtqT2nvujhK7
-	DyN9goemB8LEYll4L0KxVkEqSPrEYSPgZR0uKFWDeHINHBJejOeokFkUdI3y2QCCKZmPuawaL1P
-	w8jHgK/L2Ter11X16ez21ShFkYOxbaBME6YLq4OnP5YiGdRyDoGg9c9ObLWgoO+Ey+GUoB2tCdk
-	AuF/vNfUkjo6XdPT7tPvK0fTV8Zi8HPeljrVtvlRmrgueC27XvljAkRkN5eRIdc2rROg7dOUdkk
-	WXplRvcG9zyUDyBAtHGHJAZXeGennT+52jiiVeo4bBxq0OXw4YuBoKLGGUxsmBfg4jEDN2x2Qgb
-	l
-X-Received: by 2002:a63:6881:: with SMTP id d123mr275906pgc.10.1550093304337;
-        Wed, 13 Feb 2019 13:28:24 -0800 (PST)
-X-Received: by 2002:a63:6881:: with SMTP id d123mr275875pgc.10.1550093303612;
-        Wed, 13 Feb 2019 13:28:23 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550093303; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=cg/NbuZPWYwRbvqjjoz8GBNDa9Gssm1gttPEG1rygE4=;
+        b=FibbCDfzBG4RFTx8fzM6mY+ekUbZxIA/UjByNJabih7DwGK1H6IB+E5Ho9o7r/5p4l
+         UJFDdi4peUEm/30NpLn2EdFYNGKMYC2QryUEuItDYPp1CbfOYTH6qEnUUZqthEM6Ltlx
+         dUNYxReunwuHbk/mlseGjYPzIJ2+zPkQbpd3AApmPe9h2HKJJN87SuX9m7iqS+53lX5O
+         HzF4EtnUWQHQrA7S0dSFSXFVn21ZBaK8RcU4U3DVlO0sKe0xJh6+ImLn1iGcXAhElvHH
+         AlO9xgdDL5fn+GOLO12Q0asNf7/SqXZbdrMwxTrUFAIEmdaHjS3pYzEvLVCNKp/6/I26
+         edQg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: AHQUAuaxzDDZPUSkhzg2M/WqkUNqega52rIihvmceRVTSIx1UYXPVG8Z
+	5HOZaVa99zPTe6l3cek+M0jgqfKgpz2liHH3FKvoQLAS2LqWmO/ZB65ZqyPBuROSqS9r9ddmYjn
+	uvf6vAicNT25FawYnVNhTmvR1lbU1G9Cv2NNlKOF8rbi//wDjkTYc3hrVDfXlaeY60w==
+X-Received: by 2002:aa7:8109:: with SMTP id b9mr314854pfi.140.1550093876859;
+        Wed, 13 Feb 2019 13:37:56 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYOGitrRUQADxzEWq1RUW4oIkEd4jAkUbnr0j5yoqixMK5qTGWQrnWIpV2w/3VvgJxjfC+h
+X-Received: by 2002:aa7:8109:: with SMTP id b9mr314810pfi.140.1550093876100;
+        Wed, 13 Feb 2019 13:37:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550093876; cv=none;
         d=google.com; s=arc-20160816;
-        b=qDq7goX4M6DpnF+XOu6p3BOAiY8HUoyj/NT2QDehkhMA0sm7Y8Hncy9ML/kPTAzXLy
-         1LgvW/kS2A8r2+pMsGkpY11XiWIr/MmbHWUP4pnuPde50D/JznztG3LU/6+Rj5193WyN
-         sHbpGeg6I9Z69C4tZGCREK5r8V+legHIFZrhR55YMZUffZo1XCDDMsNF2sOyoYl483LA
-         G2Jvo/n991Le+DrsOWHApsGfhxpiZOiiEIUpSdMnLTao0hX/uL+vOoKsZWo4jZsNisSC
-         4GV0zIoDjbF0IGjzK1CZVNs2xcLqZ5JQJCXs0aZ+vixxjp06AaGOdIZc2eDnskjVqwuw
-         Ya+Q==
+        b=orBzi+nvRShDPwaZ1GGPzTo5CJp7bkRvfXmjDhvUtU3GzbRtIApqzKnGGlSKgxAOBV
+         XSgzTgRWi3sfwQqdhWzm3Kt4R+9OCAiHMw0jTGMKpl5t1MudOlI28igRn9lSPYs9XsZh
+         YdA/iirleaGbnO4y9kT/LLOSaIBAIcVkozpQRb76UpDgD2bz31u7jgM/CaRAY5++kQv4
+         ZBFyUrcsrDOGDAReueNS5/Ffm0vGqqsVsJA/1WvkIH2213y0KQ3nq3z/p3P1/1/ghrMc
+         R/H1ml7VgbvY/kS+pxSd6mQjgydMr+umJrp6TtgVZLabhDT1HJTELYiYZc5UpQLVmyh5
+         95MQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=QmQjCLKll0HK84X/6EadtAaXsCgicqazfQEbsU1cSjs=;
-        b=fvYLwASXLpX/ycna15398jXKo+DtXG3uB14aBpFLeCYj7G3hsVQCX9BG1E5W+B0Ac6
-         /mL3migtfinjEsKazLp2mWoILIlPxcNdYFToclkEdZJxDCokQzwOZTFRyFxIrUCYv7J5
-         KJbDt/aGpsEn7NgQupfNRY6wnlGYw7KgJcIhuKpA8SDAmAl380uhWxI3EGVzWeVCSDbE
-         3q4HvJu7ZuZ1Gd8DNKDFbOr8xTQmduoRrm5vAx7kzzco+ENj8esfY7nHpAGJHmkxirGH
-         +WgS8sW9ft+rB6e/tZBe80jxWeDtVveRTu+5LeqYU84TjlvNEHlL6QXEcVLRoWS/xbBH
-         C3eg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=cg/NbuZPWYwRbvqjjoz8GBNDa9Gssm1gttPEG1rygE4=;
+        b=tzVLO7biCEXpiKW6l3qQaAG+nhjVzFqWr8Ds/KUTACnAXLCQEENwZTxwBjhrDmSTTE
+         rNnPZlr43gqKZb3/o4QwNuChIEWUpWGGsOXz7V52j5ioC+GRIZRJBbFdMQhAmmEVaC6P
+         yIUx5XjjG5lW35DYdvZRSElCujPj4YIvkE8JPy5d1RF0ArCQaNNjHSFwIZBUeAu+/Q9R
+         Mrgz6mrcUwHrov+rfE+Kq+PUerOgsAlmwPVVWNg2jp9LPakPWRHXa6aT2RGFbtd96GAX
+         3hHAF5fbJ7HoE4hTDeioI/uAIEmxBFxAYOS33m0iZYMEZCl5shElHFi58QLCOZijS8te
+         CBwg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=mTaZh0Lq;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k196sor673895pga.61.2019.02.13.13.28.23
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id q16si407786pgh.185.2019.02.13.13.37.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Feb 2019 13:28:23 -0800 (PST)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Feb 2019 13:37:56 -0800 (PST)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=mTaZh0Lq;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=QmQjCLKll0HK84X/6EadtAaXsCgicqazfQEbsU1cSjs=;
-        b=mTaZh0LqJ9dy1I6SMciTBHhhYGYrNfaRewmTso8DrpkkJlJqpthKHo7+B5+GUo0sa3
-         okYnjXoYvozsPw+oUPHg4VWnN0BCl/ovW9EG/T6jvzLXo82+kGuwalmW8vP/J8DrnP5+
-         /LuSNoU0Wf1GsZg55eImGsBvZ7Ao6pp55NVV0fsg0RyBtIfaoG/xuspwjCujLs6h5Xzk
-         8tprRR2cwbMqKtbBiRIOmgHC5sT8A4GWJRzx5KLLRVX1n1jeii82/vx95OEjcU2yginY
-         WkUdDg4Rq2dkxXKMY4I4K7k5LRdlOhFkFHMQOflhySUMTtPF5Kkd2ldO/FaX5PwefTaW
-         CsnQ==
-X-Google-Smtp-Source: AHgI3IaqfAFAHULRCkhj18lAICwu4iljtEaal/xdgw3FkxfzCxymHkc7FtydVVb8D1mItBL9amRlrw3t9qwX7656iK8=
-X-Received: by 2002:a63:4706:: with SMTP id u6mr214977pga.95.1550093303008;
- Wed, 13 Feb 2019 13:28:23 -0800 (PST)
-MIME-Version: 1.0
-References: <cover.1550066133.git.andreyknvl@google.com> <20190213124159.862d62fd5dba54da7b46e3ea@linux-foundation.org>
-In-Reply-To: <20190213124159.862d62fd5dba54da7b46e3ea@linux-foundation.org>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Wed, 13 Feb 2019 22:28:11 +0100
-Message-ID: <CAAeHK+yc1ka8YttKu86LCedFPcGn_8RtRRzsS+v4MOe=vLRenA@mail.gmail.com>
-Subject: Re: [PATCH v2 0/5] kasan: more tag based mode fixes
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
-	Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, 
-	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, 
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>, kasan-dev <kasan-dev@googlegroups.com>, 
-	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Qian Cai <cai@lca.pw>, 
-	Vincenzo Frascino <vincenzo.frascino@arm.com>, Kostya Serebryany <kcc@google.com>, 
-	Evgeniy Stepanov <eugenis@google.com>
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 798361389;
+	Wed, 13 Feb 2019 21:37:55 +0000 (UTC)
+Date: Wed, 13 Feb 2019 13:37:54 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Chris Metcalf
+ <chris.d.metcalf@gmail.com>, Rusty Russell <rusty@rustcorp.com.au>,
+ linux-mm@kvack.org, Guenter Roeck <linux@roeck-us.net>, Tejun Heo
+ <tj@kernel.org>
+Subject: Re: [PATCH] mm/swap.c: workaround for_each_cpu() bug on UP kernel.
+Message-Id: <20190213133754.dae63726a93ba818e114cdb9@linux-foundation.org>
+In-Reply-To: <20190213124334.GH4525@dhcp22.suse.cz>
+References: <1549533189-9177-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20190212101109.GB7584@dhcp22.suse.cz>
+	<82168e14-8a89-e6ac-1756-e473e9c21616@i-love.sakura.ne.jp>
+	<20190212112117.GT15609@dhcp22.suse.cz>
+	<20190212112954.GV15609@dhcp22.suse.cz>
+	<20190212130620.c43e486c4f13c811e3d4a513@linux-foundation.org>
+	<20190213124334.GH4525@dhcp22.suse.cz>
+X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 13, 2019 at 9:42 PM Andrew Morton <akpm@linux-foundation.org> wrote:
->
-> On Wed, 13 Feb 2019 14:58:25 +0100 Andrey Konovalov <andreyknvl@google.com> wrote:
->
-> > Changes in v2:
-> > - Add comments about kmemleak vs KASAN hooks order.
->
-> I assume this refers to Vincenzo's review of "kasan, kmemleak: pass
-> tagged pointers to kmemleak".  But v2 of that patch is unchanged.
+On Wed, 13 Feb 2019 13:43:34 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-I've accidentally squashed this change into commit #3 instead of #2 :(
+> Since for_each_cpu(cpu, mask) added by commit 2d3854a37e8b767a ("cpumask:
+> introduce new API, without changing anything") did not evaluate the mask
+> argument if NR_CPUS == 1 due to CONFIG_SMP=n, lru_add_drain_all() is
+> hitting WARN_ON() at __flush_work() added by commit 4d43d395fed12463
+> ("workqueue: Try to catch flush_work() without INIT_WORK().")
+> by unconditionally calling flush_work() [1].
+> 
+> Workaround this issue by using CONFIG_SMP=n specific lru_add_drain_all
+> implementation. There is no real need to defer the implementation to the
+> workqueue as the draining is going to happen on the local cpu. So alias
+> lru_add_drain_all to lru_add_drain which does all the necessary work.
+> 
 
+I assume that warning comes out a LOT of times under the correct
+circumstances.
 
-
->
-> > - Fix compilation error when CONFIG_SLUB_DEBUG is not defined.
+Tejun, I think a WARN_ON_ONCE() would be better.
 
