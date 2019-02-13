@@ -2,172 +2,134 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76AAAC282CA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 16:14:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B726C282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 16:18:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 32AB821902
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 16:14:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 32AB821902
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id F1818222B6
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 16:18:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F1818222B6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B80438E0002; Wed, 13 Feb 2019 11:14:52 -0500 (EST)
+	id A43D08E0002; Wed, 13 Feb 2019 11:18:37 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B076C8E0001; Wed, 13 Feb 2019 11:14:52 -0500 (EST)
+	id 9F2EF8E0001; Wed, 13 Feb 2019 11:18:37 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 981748E0002; Wed, 13 Feb 2019 11:14:52 -0500 (EST)
+	id 8E4ED8E0002; Wed, 13 Feb 2019 11:18:37 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F6588E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 11:14:52 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id w17so1994831plp.23
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:14:52 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E53B8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 11:18:37 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id w17so2003568plp.23
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:18:37 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=3cSSqno9+gzkexR1mUyt/e8IDyZTelwu79ZWlVWpXFQ=;
-        b=fY5t0fpE8iiBoHGa4JxTlN5LcGPfChzWQezh7Npvv0KcnmszluV+nGAHA0RQL2UJI8
-         S0MZWQRsBRFzkMfLOAShKyuOEwL4wd1rItJSEAyrxJ0zTNWnescRoPSs2xg8l22fxByC
-         /I4aqFehr4HMaaqFURawBPne1f0SIbjDoOE/YD7LaasRMo9/cpxiczhRVNyUnxAhOjqL
-         PpZXLlCLe5ta4dFDaYZIjdcISiySOhATLa188JpkPVa23mdA9zWZ6UinQTVqiG3cLnYA
-         236XOJALqvcPJWgsqakUQhYJ3dobgDaWdmqjOKG4c97Xt+Rr7kggBYX6HoN4e1ewociC
-         fmJg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAubBYLorM9SQuXBxnWQzbfJPZH6PqlgDws0YSPY5sjVSZ/jxpYAY
-	r9Q5bUNatP6BsAn20SJzT1hjNNEy2sFeuU9NzJYFm/+ZRA3OI/625WAuozqs7ojZldxbFehyfCq
-	bTdYG68/oUsCay9b05gyux92Xv9ZSTQ9srecVEy6MEOeKa+NdJoYUERCDSYQLZocbBA==
-X-Received: by 2002:aa7:81c5:: with SMTP id c5mr1223821pfn.217.1550074491947;
-        Wed, 13 Feb 2019 08:14:51 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Iavjfov4gTLT49SI6TvYD0f3QHsfPeh7Jtny6RxP0UeYmoNwqrj7uMITCeRSVuD0skiGNUl
-X-Received: by 2002:aa7:81c5:: with SMTP id c5mr1223731pfn.217.1550074490982;
-        Wed, 13 Feb 2019 08:14:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550074490; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=TajlqAH5PnowJhsyXLmgp/vtr5uso6qFAhVN5NvtyOQ=;
+        b=VNoS2OehQ4m9mpP/9HRDM43pwnPy+DBJDobk83W0ZKbxW13ynn4KUDl1WrBUGzfyG7
+         IwubvUo+oMzYWdc8oMHreyMFMVx83FOJkXkNVLdGZ6C583UQ7DZuJNFenCYm569CISOL
+         KQEQY++g7vG63063n7qt/90AFr60oe8rBJnsbGduHBNBRlV8qO1YWURACVHgU7LTe0Ym
+         MTGBFKm1mCRDId4qUir/2M6M4M+1B9Wge0VhCHnXXrw9c5qaFkDp/iXr2ENAzI74wfJZ
+         s4+cLfC5izE4rm0MzKx8nn8/N8GFlqGsDVOW0J/ZfqdgRxO4I+D3g5dLGHQ8sQYgJxuA
+         a4yw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuYzm72f7DbyEkMYKUrcv6gyGS66wStgmzZfKLR51IcD1MBZB4ok
+	jSS5He51t9ZFzD53AAGAv/DPR+/vGsZDrt88QxT17bRBUOmoAdZFFzArMz02MkvyG+fI61jBGYC
+	hUlmeNaBiMl2skld3MUJTZ71GRMj4AuXJcQZRc35K5QZUcAwg//57VrRJTuz34Ek=
+X-Received: by 2002:a62:e005:: with SMTP id f5mr1311117pfh.64.1550074717014;
+        Wed, 13 Feb 2019 08:18:37 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZhGWCUP0zH2hXMmoJASAcOw84J8A6eTnJufoG/q7cEMjQ9b7jBP89rOVgBWdBW2H/XaC79
+X-Received: by 2002:a62:e005:: with SMTP id f5mr1311045pfh.64.1550074716117;
+        Wed, 13 Feb 2019 08:18:36 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550074716; cv=none;
         d=google.com; s=arc-20160816;
-        b=PAAv+dEAlEpIwSyAg7wkVisMjoJBMz6SUCxyOTf03d4G85xpm/PycQGK/PQxYdTa3s
-         +EFc1AkUnzeAeZ8M/cgyPP7twPB9cZ2LHUa01BoUvz3XYmWmrnkwvAfNTflhK9WzWyPM
-         eCmCVOeZ70A28lgFnVXmCFxJlMmkiRiUr99xXUW3NeOHizCEsvxhIfWOHBPtE6IRwneI
-         F0/9uO9b4TiDcrTHjA6Rw8Azp2X3u6ilQ2Veiyr3t+zql9JBuh7jL5hHB7js6a9EXyLt
-         ePoIZJrc1PlVHRvxCwozAFFe08Hjbj4COq7nDly6sOY6BZZ7V+6BsxNj7qbLy85jP4ft
-         xbZw==
+        b=ftqUBl0/Jqu2UGCJjnqIO//SVjkWkHFGw3HYMUjVG2I1vs7gKXXMlEsuvshNEOGrBg
+         3GYD5LLyUZ7J14MxDPEeIwE6NvG2y28pWGwvzRnUoDxpxBAhnU8a1IUdJbuSA50YzK7y
+         /g4I0XMeHIJxuErFe4+ouMFD3mTnPKI2uvlwQLuKh3TXsKGKUzp+npMrUiegcXkqL7My
+         U1xxc1OGFNCWzTA7xG5W+OX79NNkiOjt+cRQSpZktWYAzQxV8m3FwNqi4LQZWINQlCVK
+         B88B4cnRWk2X60f7a0z0+o5v16yBm93LZHktZK2pBD7uaKFssdiv3cz5Ah6fx3VPja0A
+         kflw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=3cSSqno9+gzkexR1mUyt/e8IDyZTelwu79ZWlVWpXFQ=;
-        b=SD7JRZMrRRIsi/gdxZsRO3E7cXhVZZhcH8ChNTDXrmcVL0cSNc7nLj00zBlxTOF7+P
-         W3BTIrDh55m2J7KVZaXoCa05RjR++dGpKIqR0657uXEwR5JZR2an64/ToXybnP9fVKCs
-         0jhFTJt6QmvzhTeJOBKspZupLUl3+mamt9sQh3ACK0TlOIimU7B5fh6Y/sjVQVVYCDJU
-         nCIQu+r1dArq95zcm7HcJ5evXyB9xdYAshS/4HECRFQJWnasATbMzG7BDaet1DsYZJwX
-         i/Z6xgcCjVmQ9W1tU5NA0vKo5sL8YxqcW7ioSYuRVkNNhc7V6UbSjnS+7L4SypxKc/1R
-         hwEg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=TajlqAH5PnowJhsyXLmgp/vtr5uso6qFAhVN5NvtyOQ=;
+        b=oaO+q3KtmT+h/JbwtsVlxRmT0QjFs7P6VglrqV5wYmFATPmn9WlE9qvGOkVVcDbUrE
+         fv00x7B6JL4W0/9RNcI46/jeWm3JFsxdG3hzzfF4viEdBK1rjA8Mdb/FYKSFtOywodPi
+         9kNw9avxqFs5o9OUOYjLIpDBUl54vLTqYdqCaoMy3WC4r10QNchccycTA48pOCiSy7cL
+         OmdQ9Qm90vxlMMhx9daZSaEI8mm08DEYY9quKsAnZEnJaXFkGB+52zVyb+2MXtbBJmYf
+         Mn9o6YJNRBZVIUm1rtypIlYsYS2IYJYM8BSUsnunLfqBs5cn8hoEtdpvuvTtSa5gVVPI
+         BFjQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id p1si11068802pgg.306.2019.02.13.08.14.50
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e17si192406pgd.109.2019.02.13.08.18.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 08:14:50 -0800 (PST)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        Wed, 13 Feb 2019 08:18:36 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Feb 2019 08:14:50 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,366,1544515200"; 
-   d="scan'208";a="143951793"
-Received: from pmmonter-mobl.amr.corp.intel.com (HELO [10.254.87.236]) ([10.254.87.236])
-  by fmsmga004.fm.intel.com with ESMTP; 13 Feb 2019 08:14:49 -0800
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 85ED4AD74;
+	Wed, 13 Feb 2019 16:18:34 +0000 (UTC)
+Date: Wed, 13 Feb 2019 17:18:32 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linux-mm@kvack.org, Pingfan Liu <kernelfans@gmail.com>,
+	Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Tony Luck <tony.luck@intel.com>, linuxppc-dev@lists.ozlabs.org,
+	linux-ia64@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
+	Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH v3 2/2] mm: be more verbose about zonelist initialization
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Pingfan Liu <kernelfans@gmail.com>, Peter Zijlstra
- <peterz@infradead.org>, x86@kernel.org,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>,
- linuxppc-dev@lists.ozlabs.org, linux-ia64@vger.kernel.org,
- LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>,
- Michal Hocko <mhocko@suse.com>
+Message-ID: <20190213161832.GT4525@dhcp22.suse.cz>
 References: <20190212095343.23315-3-mhocko@kernel.org>
  <20190213094315.3504-1-mhocko@kernel.org>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <1433a7e9-87b2-7e8d-a87d-dcffe486635c@intel.com>
-Date: Wed, 13 Feb 2019 08:14:50 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+ <1433a7e9-87b2-7e8d-a87d-dcffe486635c@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20190213094315.3504-1-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1433a7e9-87b2-7e8d-a87d-dcffe486635c@intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/13/19 1:43 AM, Michal Hocko wrote:
+On Wed 13-02-19 08:14:50, Dave Hansen wrote:
+> On 2/13/19 1:43 AM, Michal Hocko wrote:
+> > 
+> > We have seen several bugs where zonelists have not been initialized
+> > properly and it is not really straightforward to track those bugs down.
+> > One way to help a bit at least is to dump zonelists of each node when
+> > they are (re)initialized.
 > 
-> We have seen several bugs where zonelists have not been initialized
-> properly and it is not really straightforward to track those bugs down.
-> One way to help a bit at least is to dump zonelists of each node when
-> they are (re)initialized.
+> Were you thinking of boot-time bugs and crashes, or just stuff going
+> wonky after boot?
 
-Were you thinking of boot-time bugs and crashes, or just stuff going
-wonky after boot?
+Mostly boot time. I haven't seen hotplug related bugs in this direction.
+All the issues I have seen so far is that we forget a node altogether
+and it ends up with no zonelists at all. But who knows maybe we have
+some hidden bugs where zonelists is initialized only partially for some
+reason and there is no real way to find out.
 
-We don't have the zonelists dumped in /proc anywhere, do we?  Would that
-help?
+> We don't have the zonelists dumped in /proc anywhere, do we?  Would that
+> help?
+
+I would prefer to not export such an implementation detail into proc
+
+-- 
+Michal Hocko
+SUSE Labs
 
