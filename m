@@ -6,78 +6,78 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B308C4151A
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 17:46:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 679C5C282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 17:47:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3024F2190A
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 17:46:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1A814222B1
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 17:47:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="IJwpSI/X"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3024F2190A
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="tCEM6Wk7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1A814222B1
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CE8328E0009; Wed, 13 Feb 2019 12:46:57 -0500 (EST)
+	id 5E19B8E000A; Wed, 13 Feb 2019 12:46:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C995A8E0002; Wed, 13 Feb 2019 12:46:57 -0500 (EST)
+	id 5924A8E0002; Wed, 13 Feb 2019 12:46:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B38578E0009; Wed, 13 Feb 2019 12:46:57 -0500 (EST)
+	id 4A9EF8E000A; Wed, 13 Feb 2019 12:46:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 736578E0002
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 12:46:57 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id t72so2404048pfi.21
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:46:57 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AD048E0002
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 12:46:58 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id f3so2168341pgq.13
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:46:58 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=scDNPfor2+o2sRXISwjXU4Ei4L2S2/i4alFAOpD2+h8=;
-        b=tYRg09Z2Ac0qtu+D9I1seh6JP414Sl+7WVm3M8CdxT3+15Fs5nyoJmntyPC0lq8YUe
-         rgnUkj+CGrIIPPVoSEPfNMJFV4wMM448Z+vqLsl2dMoXm2nmTLVwfFP4N5U2JYiANpxP
-         TIfAkpsDrH6izZcC9M5ihVxRBdt7uyrsCbE/kHw6XdGwRzn+sibnC8YKF2HsD8RQYcBQ
-         y1lmskzG9QrcxEIHnw2iUSlYzXXqNaW95sHU0LiS40s6VtDzhG1HZ7XJ+DDm0pe9O4/8
-         n9C835/Lt48SdHQ3CrMQ1zzrNemeiKrvbD9xo1uUwp0zB9co0Vtj9NWJ/m4Oz3OT0YbJ
-         a1Og==
-X-Gm-Message-State: AHQUAuY1k+ckAwfg8f8onc/koKz6ONUPtU+bVQpIUXXK6xW7NI8KqvRm
-	AH9y3njiK6l00y3IK1CmxZW7eqpyrgZP4uHWN+rEZN4+z+VTTdyS1F4/aQ9PwR5U/C6/T0KP0fG
-	IqIjmhsBdjFBeJ3f6FIxDJ7kNrn2cLLhwfXpn5JWQbIt5nHMkGZHEMKLxIMXSZT0=
-X-Received: by 2002:a63:ea06:: with SMTP id c6mr1521816pgi.162.1550080017116;
+        bh=PrNOrZHUtDO30vN/fIi9FDRbb/3B7XAAJkaxXZrg5oY=;
+        b=HC1EwQ3wSawtKT/PdbjLv7vhuGNPwDzSScUJYv30Lx3xpYDHF8iYt983M+jTP+0Jy+
+         K3zGAhm5o2YmZQLcdQPmLO5AhPlNtK6zUcIoZ0qJ9lC/6hcnYRMyFrFFIjQN2FtKPBb9
+         EDE9PDZI/oJYYalkmOHtTA2517Zopbi1yC2bHfuhbcvu5zOPTXQ/HlM23Im51vS4pbRJ
+         5uda+QLV/AjePhG7dnRX7C3GhWS6TUAIEgUfHaFOqhgPY4Ds3jbLxD6nN4Eb8jdFmvAf
+         91w1jf9pHfQLqG+NwrsZCvFMvYjxdFQh3zDa5GdY4SuLZlpbCRYOICXVNup+nG+iAiol
+         m7iw==
+X-Gm-Message-State: AHQUAubVjOfcQ6SV8vYLCh+EU8dZI+40yqvnfBCAtSIZrJ72BuYi9v/7
+	xPhnhxajlqaSgnAePATq+ZyaGG8tgYjW52wcZL3n8GjOcHRhZ32DSsdwefvu/O7YXPk3cRqVGQh
+	gASvWhQPHm6ntWLEYgufP6diQ2ktoY+D/18EFgwecOROj7v2jdIzhfNeqfaTpttw=
+X-Received: by 2002:a63:160d:: with SMTP id w13mr1470628pgl.85.1550080017701;
         Wed, 13 Feb 2019 09:46:57 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbZ+n1o4nvZySVQRNaFKTcDy4CcZJ7aHoQ1dqSB4BFiTkne7DIqJHBK5cy0B6awFXT3W5Ie
-X-Received: by 2002:a63:ea06:: with SMTP id c6mr1521773pgi.162.1550080016336;
-        Wed, 13 Feb 2019 09:46:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550080016; cv=none;
+X-Google-Smtp-Source: AHgI3IagMQVHp1xmowyLotaWH+zYY9qcwep6qVJmBNZL6Ix7oU+MQqERHcs4vxC75KrmI09Yjpy+
+X-Received: by 2002:a63:160d:: with SMTP id w13mr1470512pgl.85.1550080015849;
+        Wed, 13 Feb 2019 09:46:55 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550080015; cv=none;
         d=google.com; s=arc-20160816;
-        b=Zc9/Ykqitj/RnsgtWlwHCFWLFUtIG1kIbRw6QU8Q6m2bnSLjwsDppUk6CRE+RZ7WUM
-         dlyhzXo3+pOwXexzs27tjrnUf/xCZloGguHnGuwAB8/fDUBsFqydPHoVxZ5tOAY73fmr
-         ieXTx/52R6c1L7ZfeKssf0jcn8R+yw74Q8R9WEqGJvbZoykbNcgk1ws7HnYcpfdVZKKm
-         mYkYpXa7SskjCqyQiHl9bHLBxsuo19T0rCn+aqV96LrGaD99m++mGQj7xpK/oDPWAI17
-         s1wwQ0Nkcp+gno4sUIOdZu9cjzJ0TrCVksPo1wx7AZjsMx1eoqNjQhksuHIw3+6MjxdA
-         hdzQ==
+        b=R+D6MK7piHaXulD/JZzPHCibedKEYzZdpQm9pGI01rJYCSjiRnFKqGu2o8+b6nfoOc
+         ynQ+wTNMsE3GkCYJBeXh09OwJsUg067gz97kRJYyywmecEjtU1aSdoB4EG0ClUFuOaCd
+         EwszBrMURtX27ckhdtN+4n74M1Q1TWpOeYXEivlOfMry3OI5wUJemYg4LV3zhW01V3OY
+         vgLkBdxx0dvCNO20bk7tentbrphHuPqwfAC5Z2sAf2o4roehR/mt3tmer7x1RRnchlaF
+         +0jKT2RYJpE5IdNiMZwB6eHUp/KMC8G1TgFl5kmqxkETyxG9LbfeJyvzlesbWs+x5/Pf
+         75PA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=scDNPfor2+o2sRXISwjXU4Ei4L2S2/i4alFAOpD2+h8=;
-        b=dVFZpifeXB8vJsPJyuGcyCTQwJv1Hf0umaRhtOdKNPa4EeWNC3rR8eajsG+8jy7VvR
-         yhQWOveSw5V7StNn+FFonQRHvG9GUyg+9uYTAlgOBl6DcO/WEGsa5m/TaZ2MfqeY6aSB
-         sZC9V5wyjheMmUVW/nMU7ATwfZ+BU7LUj7EleGUQOTJRPSkjPpwGsQS5jbDp9YzM2sTI
-         abdJCd3KQ1u9zvp1eM2sGFW+5PdZX1CafSlN2X9H/TQqxMJCMg2KlsuerUQfgRojALi7
-         hUMkRUcNQZ62AQonELUrKBU8AOHQYUfrAB3QU9Jt5ENiJEYhTgfVfLi1dwkNVNUAKIR+
-         eNYA==
+        bh=PrNOrZHUtDO30vN/fIi9FDRbb/3B7XAAJkaxXZrg5oY=;
+        b=M15ap++I8CEpCyG7QaeLrEjCQShi6SnyBI0yPWmQuVy0sWGv6zAnV++2bTyc0SB1AF
+         4D1eqsb3aJiGXnpHgtAX9gjXY5wjzm4TAoXvjwYOkjK3E/EvZeEdpcopnCukW6TSHcXK
+         lnerY3YV7fs/WF+F8ysJ1186WrjY5Mzdqv5qPLmj4eBgaMjis3S9vjLTj1EIWE3Y7aKn
+         mRK1mwQmppz78qaCHylL8ZaGrfL0t2+nCI+rVc3YmtEfj3W/hzBDiWfjEqu9PJhROfvS
+         UqlgnsofNEQd0u5DtsECdurXRyLareTW6gajj1sa9WDZNOCXwZuaCug/4bCbtpHU4H2F
+         FdXQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="IJwpSI/X";
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=tCEM6Wk7;
        spf=pass (google.com: best guess record for domain of batv+b68490c3fe13e616ccfb+5652+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+b68490c3fe13e616ccfb+5652+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c11si15588823pgj.255.2019.02.13.09.46.56
+        by mx.google.com with ESMTPS id x6si4491017pgp.367.2019.02.13.09.46.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 13 Feb 2019 09:46:56 -0800 (PST)
+        Wed, 13 Feb 2019 09:46:55 -0800 (PST)
 Received-SPF: pass (google.com: best guess record for domain of batv+b68490c3fe13e616ccfb+5652+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="IJwpSI/X";
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=tCEM6Wk7;
        spf=pass (google.com: best guess record for domain of batv+b68490c3fe13e616ccfb+5652+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+b68490c3fe13e616ccfb+5652+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -85,15 +85,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=scDNPfor2+o2sRXISwjXU4Ei4L2S2/i4alFAOpD2+h8=; b=IJwpSI/XRhEAwk7ZzJEGRkrw9d
-	jGjt38pnhTVOHXpxC14ac+cB89UHoVWK5xl6vc120cHNKmjpAJe+WlWjQ4411nbOc6irZz0FSwmem
-	4K7YXZvxLlhchihXJusyTq2KxOmh3Zire4J5JN9xn6Re3evnof3iJ9ozTK2DfNuGitsjCl4FEapYi
-	jYEMJuAD4CvXUs/CjaxTOmI88L14bw049dP5+0t9rYM7cS+FnwGI9GlykHqqfk23Lorutp4E7xxym
-	w0T8xV3/mfnDmG6FHmInh3GObANIk6lnQCvDs8uFmsghKNjU++Q/j5wo9Z4/gT6TVNzUcZIWiJK34
-	fGtsADkA==;
+	bh=PrNOrZHUtDO30vN/fIi9FDRbb/3B7XAAJkaxXZrg5oY=; b=tCEM6Wk7WB51JtayIYCq/rBjvK
+	OFbhI9keM+O8AX5RSorJz8SBS7+tKzeF4xklxv5mV112Do5791tI2VCLZM9xV682E7ItQbcD6Ds8j
+	G+0eORJMo+eyypbAMHb49J+6GbOWHOpLtddFl3OjSxJJSglh5FYCaozRhLkXT5lNmVmdTM9qW5yhO
+	H9Gf9MLmIWYnMo+rqTcgAuJRI9i+xkSrgkOc41NY+D1MUGjhqvdgc4h8t8tc/7w4fZiKs6bEhAFKx
+	xvy5VYVufLmchIF87QS3gm99ifTQYaIbu7H5ZYEcObgt6TeaNz1OTj0A/oQmDJe0E58XKCmNf/6IX
+	0KfT+qAQ==;
 Received: from 089144210182.atnat0019.highway.a1.net ([89.144.210.182] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gtycL-0006ux-DF; Wed, 13 Feb 2019 17:46:41 +0000
+	id 1gtycI-0006qw-Pn; Wed, 13 Feb 2019 17:46:39 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>,
@@ -105,9 +105,9 @@ Cc: Alexander Viro <viro@zeniv.linux.org.uk>,
 	linux-mm@kvack.org,
 	linux-arch@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 8/8] initramfs: poison freed initrd memory
-Date: Wed, 13 Feb 2019 18:46:21 +0100
-Message-Id: <20190213174621.29297-9-hch@lst.de>
+Subject: [PATCH 7/8] initramfs: proide a generic free_initrd_mem implementation
+Date: Wed, 13 Feb 2019 18:46:20 +0100
+Message-Id: <20190213174621.29297-8-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190213174621.29297-1-hch@lst.de>
 References: <20190213174621.29297-1-hch@lst.de>
@@ -120,110 +120,284 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Various architectures including x86 poison the freed initrd memory.
-Do the same in the generic free_initrd_mem implementation and switch
-a few more architectures that are identical to the generic code over
-to it now.
+For most architectures free_initrd_mem just expands to the same
+free_reserved_area call.  Provide that as a generic implementation
+marked __weak.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/mips/mm/init.c     | 8 --------
- arch/s390/mm/init.c     | 8 --------
- arch/sparc/mm/init_32.c | 8 --------
- arch/sparc/mm/init_64.c | 8 --------
- init/initramfs.c        | 3 ++-
- 5 files changed, 2 insertions(+), 33 deletions(-)
+ arch/alpha/mm/init.c      | 8 --------
+ arch/arc/mm/init.c        | 7 -------
+ arch/c6x/mm/init.c        | 7 -------
+ arch/h8300/mm/init.c      | 8 --------
+ arch/m68k/mm/init.c       | 7 -------
+ arch/microblaze/mm/init.c | 7 -------
+ arch/nds32/mm/init.c      | 7 -------
+ arch/nios2/mm/init.c      | 7 -------
+ arch/openrisc/mm/init.c   | 7 -------
+ arch/parisc/mm/init.c     | 7 -------
+ arch/powerpc/mm/mem.c     | 7 -------
+ arch/sh/mm/init.c         | 7 -------
+ arch/um/kernel/mem.c      | 7 -------
+ arch/unicore32/mm/init.c  | 7 -------
+ init/initramfs.c          | 5 +++++
+ 15 files changed, 5 insertions(+), 100 deletions(-)
 
-diff --git a/arch/mips/mm/init.c b/arch/mips/mm/init.c
-index b521d8e2d359..a9a977d75838 100644
---- a/arch/mips/mm/init.c
-+++ b/arch/mips/mm/init.c
-@@ -492,14 +492,6 @@ void free_init_pages(const char *what, unsigned long begin, unsigned long end)
- 	printk(KERN_INFO "Freeing %s: %ldk freed\n", what, (end - begin) >> 10);
+diff --git a/arch/alpha/mm/init.c b/arch/alpha/mm/init.c
+index a42fc5c4db89..97f4940f11e3 100644
+--- a/arch/alpha/mm/init.c
++++ b/arch/alpha/mm/init.c
+@@ -291,11 +291,3 @@ free_initmem(void)
+ {
+ 	free_initmem_default(-1);
+ }
+-
+-#ifdef CONFIG_BLK_DEV_INITRD
+-void
+-free_initrd_mem(unsigned long start, unsigned long end)
+-{
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
+-}
+-#endif
+diff --git a/arch/arc/mm/init.c b/arch/arc/mm/init.c
+index e1ab2d7f1d64..c357a3bd1532 100644
+--- a/arch/arc/mm/init.c
++++ b/arch/arc/mm/init.c
+@@ -214,10 +214,3 @@ void __ref free_initmem(void)
+ {
+ 	free_initmem_default(-1);
+ }
+-
+-#ifdef CONFIG_BLK_DEV_INITRD
+-void __init free_initrd_mem(unsigned long start, unsigned long end)
+-{
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
+-}
+-#endif
+diff --git a/arch/c6x/mm/init.c b/arch/c6x/mm/init.c
+index af5ada0520be..5504b71254f6 100644
+--- a/arch/c6x/mm/init.c
++++ b/arch/c6x/mm/init.c
+@@ -67,13 +67,6 @@ void __init mem_init(void)
+ 	mem_init_print_info(NULL);
+ }
+ 
+-#ifdef CONFIG_BLK_DEV_INITRD
+-void __init free_initrd_mem(unsigned long start, unsigned long end)
+-{
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
+-}
+-#endif
+-
+ void __init free_initmem(void)
+ {
+ 	free_initmem_default(-1);
+diff --git a/arch/h8300/mm/init.c b/arch/h8300/mm/init.c
+index 6519252ac4db..2eff00de2b78 100644
+--- a/arch/h8300/mm/init.c
++++ b/arch/h8300/mm/init.c
+@@ -101,14 +101,6 @@ void __init mem_init(void)
+ 	mem_init_print_info(NULL);
+ }
+ 
+-
+-#ifdef CONFIG_BLK_DEV_INITRD
+-void free_initrd_mem(unsigned long start, unsigned long end)
+-{
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
+-}
+-#endif
+-
+ void
+ free_initmem(void)
+ {
+diff --git a/arch/m68k/mm/init.c b/arch/m68k/mm/init.c
+index 933c33e76a48..c62e41563bb9 100644
+--- a/arch/m68k/mm/init.c
++++ b/arch/m68k/mm/init.c
+@@ -144,10 +144,3 @@ void __init mem_init(void)
+ 	init_pointer_tables();
+ 	mem_init_print_info(NULL);
+ }
+-
+-#ifdef CONFIG_BLK_DEV_INITRD
+-void free_initrd_mem(unsigned long start, unsigned long end)
+-{
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
+-}
+-#endif
+diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+index b17fd8aafd64..3bd32de46abb 100644
+--- a/arch/microblaze/mm/init.c
++++ b/arch/microblaze/mm/init.c
+@@ -186,13 +186,6 @@ void __init setup_memory(void)
+ 	paging_init();
  }
  
 -#ifdef CONFIG_BLK_DEV_INITRD
 -void free_initrd_mem(unsigned long start, unsigned long end)
 -{
--	free_reserved_area((void *)start, (void *)end, POISON_FREE_INITMEM,
--			   "initrd");
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
 -}
 -#endif
 -
- void (*free_init_pages_eva)(void *begin, void *end) = NULL;
+ void free_initmem(void)
+ {
+ 	free_initmem_default(-1);
+diff --git a/arch/nds32/mm/init.c b/arch/nds32/mm/init.c
+index 253f79fc7196..c02e10ac5e76 100644
+--- a/arch/nds32/mm/init.c
++++ b/arch/nds32/mm/init.c
+@@ -249,13 +249,6 @@ void free_initmem(void)
+ 	free_initmem_default(-1);
+ }
  
+-#ifdef CONFIG_BLK_DEV_INITRD
+-void free_initrd_mem(unsigned long start, unsigned long end)
+-{
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
+-}
+-#endif
+-
+ void __set_fixmap(enum fixed_addresses idx,
+ 			       phys_addr_t phys, pgprot_t flags)
+ {
+diff --git a/arch/nios2/mm/init.c b/arch/nios2/mm/init.c
+index 16cea5776b87..60736a725883 100644
+--- a/arch/nios2/mm/init.c
++++ b/arch/nios2/mm/init.c
+@@ -82,13 +82,6 @@ void __init mmu_init(void)
+ 	flush_tlb_all();
+ }
+ 
+-#ifdef CONFIG_BLK_DEV_INITRD
+-void __init free_initrd_mem(unsigned long start, unsigned long end)
+-{
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
+-}
+-#endif
+-
  void __ref free_initmem(void)
-diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-index 3e82f66d5c61..25e3113091ea 100644
---- a/arch/s390/mm/init.c
-+++ b/arch/s390/mm/init.c
-@@ -154,14 +154,6 @@ void free_initmem(void)
+ {
+ 	free_initmem_default(-1);
+diff --git a/arch/openrisc/mm/init.c b/arch/openrisc/mm/init.c
+index d157310eb377..d0d94a4391d4 100644
+--- a/arch/openrisc/mm/init.c
++++ b/arch/openrisc/mm/init.c
+@@ -221,13 +221,6 @@ void __init mem_init(void)
+ 	return;
+ }
+ 
+-#ifdef CONFIG_BLK_DEV_INITRD
+-void free_initrd_mem(unsigned long start, unsigned long end)
+-{
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
+-}
+-#endif
+-
+ void free_initmem(void)
+ {
+ 	free_initmem_default(-1);
+diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
+index 059187a3ded7..1b445e206ca8 100644
+--- a/arch/parisc/mm/init.c
++++ b/arch/parisc/mm/init.c
+@@ -935,10 +935,3 @@ void flush_tlb_all(void)
+ 	spin_unlock(&sid_lock);
+ }
+ #endif
+-
+-#ifdef CONFIG_BLK_DEV_INITRD
+-void free_initrd_mem(unsigned long start, unsigned long end)
+-{
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
+-}
+-#endif
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index 33cc6f676fa6..976c706a64e2 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -388,13 +388,6 @@ void free_initmem(void)
  	free_initmem_default(POISON_FREE_INITMEM);
  }
  
 -#ifdef CONFIG_BLK_DEV_INITRD
 -void __init free_initrd_mem(unsigned long start, unsigned long end)
 -{
--	free_reserved_area((void *)start, (void *)end, POISON_FREE_INITMEM,
--			   "initrd");
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
 -}
 -#endif
 -
- unsigned long memory_block_size_bytes(void)
- {
- 	/*
-diff --git a/arch/sparc/mm/init_32.c b/arch/sparc/mm/init_32.c
-index d900952bfc5f..f0dbc0bde70f 100644
---- a/arch/sparc/mm/init_32.c
-+++ b/arch/sparc/mm/init_32.c
-@@ -299,14 +299,6 @@ void free_initmem (void)
- 	free_initmem_default(POISON_FREE_INITMEM);
+ /*
+  * This is called when a page has been modified by the kernel.
+  * It just marks the page as not i-cache clean.  We do the i-cache
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index a8e5c0e00fca..2fa824336ec2 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -410,13 +410,6 @@ void free_initmem(void)
+ 	free_initmem_default(-1);
  }
  
 -#ifdef CONFIG_BLK_DEV_INITRD
 -void free_initrd_mem(unsigned long start, unsigned long end)
 -{
--	free_reserved_area((void *)start, (void *)end, POISON_FREE_INITMEM,
--			   "initrd");
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
 -}
 -#endif
 -
- void sparc_flush_page_to_ram(struct page *page)
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ int arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *altmap,
+ 		bool want_memblock)
+diff --git a/arch/um/kernel/mem.c b/arch/um/kernel/mem.c
+index 799b571a8f88..48b24b63b10d 100644
+--- a/arch/um/kernel/mem.c
++++ b/arch/um/kernel/mem.c
+@@ -172,13 +172,6 @@ void free_initmem(void)
  {
- 	unsigned long vaddr = (unsigned long)page_address(page);
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index b4221d3727d0..4179f0e11fd5 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -2602,14 +2602,6 @@ void free_initmem(void)
- 	}
  }
  
 -#ifdef CONFIG_BLK_DEV_INITRD
 -void free_initrd_mem(unsigned long start, unsigned long end)
 -{
--	free_reserved_area((void *)start, (void *)end, POISON_FREE_INITMEM,
--			   "initrd");
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
 -}
 -#endif
 -
- pgprot_t PAGE_KERNEL __read_mostly;
- EXPORT_SYMBOL(PAGE_KERNEL);
+ /* Allocate and free page tables. */
  
+ pgd_t *pgd_alloc(struct mm_struct *mm)
+diff --git a/arch/unicore32/mm/init.c b/arch/unicore32/mm/init.c
+index e3f4f791e10a..01271ce52ef9 100644
+--- a/arch/unicore32/mm/init.c
++++ b/arch/unicore32/mm/init.c
+@@ -316,10 +316,3 @@ void free_initmem(void)
+ {
+ 	free_initmem_default(-1);
+ }
+-
+-#ifdef CONFIG_BLK_DEV_INITRD
+-void free_initrd_mem(unsigned long start, unsigned long end)
+-{
+-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
+-}
+-#endif
 diff --git a/init/initramfs.c b/init/initramfs.c
-index f3aaa58ac63d..4a42ff3a2bd1 100644
+index cf8bf014873f..f3aaa58ac63d 100644
 --- a/init/initramfs.c
 +++ b/init/initramfs.c
-@@ -529,7 +529,8 @@ extern unsigned long __initramfs_size;
+@@ -527,6 +527,11 @@ extern unsigned long __initramfs_size;
+ #include <linux/initrd.h>
+ #include <linux/kexec.h>
  
- void __weak free_initrd_mem(unsigned long start, unsigned long end)
- {
--	free_reserved_area((void *)start, (void *)end, -1, "initrd");
-+	free_reserved_area((void *)start, (void *)end, POISON_FREE_INITMEM,
-+			"initrd");
- }
- 
++void __weak free_initrd_mem(unsigned long start, unsigned long end)
++{
++	free_reserved_area((void *)start, (void *)end, -1, "initrd");
++}
++
  #ifdef CONFIG_KEXEC_CORE
+ static bool kexec_free_initrd(void)
+ {
 -- 
 2.20.1
 
