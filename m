@@ -2,142 +2,257 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E3C19C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:06:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BD318C282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:07:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 993AF2147C
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:06:52 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="C+BUwJtT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 993AF2147C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 755F6222B1
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:07:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 755F6222B1
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=inria.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2E5878E0002; Wed, 13 Feb 2019 08:06:52 -0500 (EST)
+	id F1B5B8E0003; Wed, 13 Feb 2019 08:07:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 294238E0001; Wed, 13 Feb 2019 08:06:52 -0500 (EST)
+	id ECBA18E0001; Wed, 13 Feb 2019 08:07:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1AB2E8E0002; Wed, 13 Feb 2019 08:06:52 -0500 (EST)
+	id D45228E0003; Wed, 13 Feb 2019 08:07:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CDE988E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:06:51 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id t6so1639242pgp.10
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 05:06:51 -0800 (PST)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A2018E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:07:01 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id a5so877632wrq.3
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 05:07:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=v/SUZ32bLKbB19QVGv5xAUSeQGwbhzkwhCTSONn+E+M=;
-        b=FiG1w8UnhkXiupZIAGtQoO3W1obeaWfQbaUbYeh8kclT4QXwS+1R4vJbWgbFvo+FPn
-         6NLAbAVoOp7EvEya0vfjhAYR9kOrClSemkGsDyB19aCZ6VWqXnjywoe13AY++69HRNUA
-         2n7k5RFR7D7tjhsq53uWNfaLg0Vv/ZlfiPM8uegbZnBGQdY3EJb0c8wH5xnZsT+mrLdG
-         AqSFhuvpCj3ZEBs7VM0bV8yDrAS/IZImjcCb1oGgIXV44FepaCmbbTxkVWBW61rp+RBP
-         cwbGTpUTBstDMbxOgms8VZS3yt1FgvqAiRaq8nlmi431WWJ+ytQ6LCbQzEODrBShXa7/
-         pqVA==
-X-Gm-Message-State: AHQUAuYZtSYA4qSNawrxVlc9V6edns++dHM2DOa70x1/bvWFSBLvtabS
-	Wy/iwSlTGUPwbxrbSCZ2S8MuWD0jLR6eZBas9InQU43Y/zguBOQbKLBsf1bp+p5acplK4KtSo94
-	vubRW/DI57lMZmMaRqK3RmXpm2zSynMaDxycRK1xo0VjmasQ3DwqDHeEvOw0kyXlg+A==
-X-Received: by 2002:a62:1981:: with SMTP id 123mr408793pfz.69.1550063211474;
-        Wed, 13 Feb 2019 05:06:51 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaZ6h8cWPSRU0vEaGBsR7xpn4Y3K4lHEnAnavcvK91FDIbqL0S4dUUTda8mVbYH/3cQtqrB
-X-Received: by 2002:a62:1981:: with SMTP id 123mr408717pfz.69.1550063210550;
-        Wed, 13 Feb 2019 05:06:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550063210; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-transfer-encoding:content-language;
+        bh=emUdtZZS39L2W6qk7zlzTWRJClGtDNm49r0zM21Fq84=;
+        b=ALxhbKKudACEzdRR4TA6gw4XzXBTfPb0f2KfDTJ8MvRJ0ParctKtDt9xL31w1o4bWn
+         pb/9iHUnSPKJrSm4QQHtmsguy9essTmzFJJ2ZCyRToifVyKbkl40HcXzcFHgNeG+7dzn
+         kIMj4Gd+foYi5lUi9FWwRdYYk13hWlgdXmLEeQo/oBxfLv8HOAloiYy4m5a9e/CZAH4w
+         p4ah5mCATtQvv/+Pe20WEVGYXvVstajYbuSV5QZHK1UufQpd8pptjzy8K0+77/x9oIT/
+         ZEB+Xb0FW04p1pXt50osPAKkxZig1Qgu7LluOfy3CX8etUyU1HaI6zbgifWVm8nAs919
+         RTsw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of brice.goglin@inria.fr designates 192.134.164.83 as permitted sender) smtp.mailfrom=Brice.Goglin@inria.fr
+X-Gm-Message-State: AHQUAuZKcOAYFBa80yfqI5TDVFaU72S/Xz9YUJPBBRuChT5Hw14Mbbin
+	q/P14251mjbE/PckvcF7h6LO/bj8W5tqOV5RlrzQUebhmxJYXxZ4RH1JtcVsrvX4T6Eu3PQ4mJO
+	9g+LvP5HHCXfs5BrwbrUI+ZzUmwe5q2W+Wrp9UhitLnugtGqRexiJdRghL3OTR4sICQ==
+X-Received: by 2002:a5d:538a:: with SMTP id d10mr327981wrv.121.1550063221001;
+        Wed, 13 Feb 2019 05:07:01 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib7b0FgJJkQHyiLBQ6E1qwvMe7629+bm1xinT/gUnmiGlZ+BZdloSX/2Y13AzyMFlm/sZtW
+X-Received: by 2002:a5d:538a:: with SMTP id d10mr327922wrv.121.1550063220087;
+        Wed, 13 Feb 2019 05:07:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550063220; cv=none;
         d=google.com; s=arc-20160816;
-        b=NDSWpzwabYWi62DmBSEqghBQjRv35mH/meItBXPu1lCTXCQ13qO3vyQyh6kH98D4tD
-         9z4dAhpmCeCDtWZXAyBXjdcLuKd7dyZ1QTT8YfW1E5mc+To9VfWb83nbl2JVlU2gLnuB
-         WKkcKmoPjHIhH177ntY2ArriyJVcuxi6nFOykcMBh07Rsw0ylviXmPsB0yLmW9UIs6eF
-         68lHM12yIBG1KVVTRiXcmA+85RFKLugaK2FASVnBWu3ZyuNVTAMpqTcMpuhl/u0YKgF/
-         gDNVv02ZEgOyV8Z8BIDIWJgS19tNokNTsyQ1cDRpXQwYBso/4WPsMLS6yixtmERQYaHg
-         BWQA==
+        b=S/Bd+uJ6Q6vyoIij5ItJ4Ul5K9RJIFm7Cd8ib3JZO3l14dmmZQHARMe8TPxgq0gJte
+         1xPwGoBVxdNNR0lN1CXB1d7SkC25nH5hQ2OCZv8m2qLqjGcArv1dWMCBwMtZhimREo3Q
+         ai2lhsSynUsDdB2qW2C8NfxyOmXv1MmlwdgQc6y0R+IOU9dTAncPwC9dRjixBr0QlwEE
+         YiFDzwhogW6vsf0t4p+jq1/9OXOcAIahP0MYSqyHNRzoftjVqCopy4ieg5dV+YL1BMxS
+         4ZVcd/3yBIwExLkOdPcm0qpe/i1QWxfdliAjM/P3JGy5y7QOzkvp8AX3aMVA45+wLUd5
+         NdNA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=v/SUZ32bLKbB19QVGv5xAUSeQGwbhzkwhCTSONn+E+M=;
-        b=T5RA711rXdVKSRjCMb3f8oJ4B0QMJ11zX4/9aBdtycyhsIfVPoM/+7raBwW4abQeQn
-         AAooq/N9Rd3oSFt5eDrRtXjcKqrLqEPm3MqqPBbfNtdVGC8E7yFKk9AmEwI9beZ95Jfu
-         UNnHnNuAhv2PyYJ0pMQj1KgxiPgHgx7LUt12TDp9OSVx5HuPsjuDORFBvQcR+vUDN1lm
-         pjKH0Dn7AkXnJUpqZXbe+N2xFgNvzPDWFUDJqJyJQvaEVDYRL/RGM5I4EJrnAkRvdPs2
-         CY7z4gKMOjuG9/Fg9l/ymd1hmXC9ImycsffrJq/mo/6c9N0ueYeSdjEydudg/ATaAlTT
-         kIog==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:references:cc:to:from
+         :subject;
+        bh=emUdtZZS39L2W6qk7zlzTWRJClGtDNm49r0zM21Fq84=;
+        b=M4V3NGDV7LuF3ObjaX/4fELObk150eX6xYkf83g7sfOcdQQOmE3WrtCD+fDOYXBB8H
+         5cryBbpb2ZLnYgTx94B1WSGkfDmSlde5eytGdb/BjcOKKB18Q67f8/ZHCVu/f/4rwI5r
+         JIGsRRDhE+uGO+4f62I2zd1B6WEo+7PE1HRityJXHX46vCqe638Ys9ADS7xAmV82ssPy
+         d4X7vQnuqNy01DfjFosMfoiPPFGA/jyX076QJ5bprPZEowjE/UuxMf5l3/ZWDGEjXBnJ
+         SHUCbSpPTWGSaDKHLkgFLFcNFEu8ju/sga+Mw9TX1YaGGnhztviQoK7g0YGwOp5nSRBm
+         +/WA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=C+BUwJtT;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q13si15128082pgj.86.2019.02.13.05.06.50
+       spf=pass (google.com: domain of brice.goglin@inria.fr designates 192.134.164.83 as permitted sender) smtp.mailfrom=Brice.Goglin@inria.fr
+Received: from mail2-relais-roc.national.inria.fr (mail2-relais-roc.national.inria.fr. [192.134.164.83])
+        by mx.google.com with ESMTPS id 8si4753256wmb.103.2019.02.13.05.06.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 13 Feb 2019 05:06:50 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Feb 2019 05:07:00 -0800 (PST)
+Received-SPF: pass (google.com: domain of brice.goglin@inria.fr designates 192.134.164.83 as permitted sender) client-ip=192.134.164.83;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=C+BUwJtT;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=v/SUZ32bLKbB19QVGv5xAUSeQGwbhzkwhCTSONn+E+M=; b=C+BUwJtTvwgYa5sRRkKMYNVqZ
-	ak/NcpoOoVcJZ4tdr+3q/lIQOpBkN4DGqFIwj/mLp3NZc7Kz2JHDl2ou46v77pWFfvw9vCVWN/8Iz
-	nMRJOWeUpm06CpdcFAf7YrzdjMK5aMOtiqArK7ZxB4YNDQ+PlhjDMuSH7GGwweP3gAM9w3fgQW1G7
-	GZHs5cheOfonHKGxrN7FPkAbpA9bZssfg0flQaXgqvEnqAex1nFQvVMeXGDYE8L/TdG4nuiCVK7GK
-	xYLPO+p8P+v8IvdyFzBtyRShxLmqU9kHvBC34xX7yPb7nxxt2NSj+7teE0Yd6I/qy7yvJyvPuXW2I
-	HgvS/hHfQ==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gtuFT-0001z6-Av; Wed, 13 Feb 2019 13:06:47 +0000
-Date: Wed, 13 Feb 2019 05:06:47 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
-	lsf-pc@lists.linux-foundation.org,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Vlastimil Babka <vbabka@suse.cz>
-Subject: Re: [LSF/MM TOPIC] Non standard size THP
-Message-ID: <20190213130647.GQ12668@bombadil.infradead.org>
-References: <dcb0b2cf-ba5c-e6ef-0b05-c6006227b6a9@arm.com>
- <20190212083331.dtch7xubjxlmz5tf@kshutemo-mobl1>
+       spf=pass (google.com: domain of brice.goglin@inria.fr designates 192.134.164.83 as permitted sender) smtp.mailfrom=Brice.Goglin@inria.fr
+X-IronPort-AV: E=Sophos;i="5.58,365,1544482800"; 
+   d="scan'208";a="369257766"
+Received: from unknown (HELO [193.50.110.185]) ([193.50.110.185])
+  by mail2-relais-roc.national.inria.fr with ESMTP/TLS/AES128-SHA; 13 Feb 2019 14:06:59 +0100
+Subject: Re: [PATCH 5/5] dax: "Hotplug" persistent memory for use like normal
+ RAM
+From: Brice Goglin <Brice.Goglin@inria.fr>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>,
+ Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+ Tom Lendacky <thomas.lendacky@amd.com>, Michal Hocko <mhocko@suse.com>,
+ linux-nvdimm <linux-nvdimm@lists.01.org>, Takashi Iwai <tiwai@suse.de>,
+ Ross Zwisler <zwisler@kernel.org>, Linux MM <linux-mm@kvack.org>,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Fengguang Wu <fengguang.wu@intel.com>,
+ Yaowei Bai <baiyaowei@cmss.chinamobile.com>,
+ "Huang, Ying" <ying.huang@intel.com>, Bjorn Helgaas <bhelgaas@google.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@suse.de>
+References: <20190124231441.37A4A305@viggo.jf.intel.com>
+ <20190124231448.E102D18E@viggo.jf.intel.com>
+ <c4c6aca8-6ee8-be10-65ae-4cbe0aa03bfb@inria.fr>
+ <26ac36f4-7391-5321-217b-50d67e2119d7@intel.com>
+ <453f13cd-a7fe-33eb-9a27-8490825ca29c@inria.fr>
+ <CAPcyv4jF7ZyKaFDw7nb04UvWkVWGJdLGkZDQ1g=X7i+kdu7JRg@mail.gmail.com>
+ <a3bfe739-228e-26fe-90f7-4a4f8ceb3a9a@inria.fr>
+ <CAPcyv4jJ=C7ZEsJqBxzBMsQWz4+C8BZmWuk7OkztOebprd2rMg@mail.gmail.com>
+ <057ad938-e745-02f7-edce-e19bd326da6a@inria.fr>
+Openpgp: preference=signencrypt
+Autocrypt: addr=Brice.Goglin@inria.fr; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <eb58cb96-1f61-2dd2-b1ab-5a7d4df78297@inria.fr>
+Date: Wed, 13 Feb 2019 14:06:59 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190212083331.dtch7xubjxlmz5tf@kshutemo-mobl1>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <057ad938-e745-02f7-edce-e19bd326da6a@inria.fr>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 11:33:31AM +0300, Kirill A. Shutemov wrote:
-> To consider it seriously we need to understand what it means for
-> split_huge_p?d()/split_huge_page()? How khugepaged will deal with this?
-> 
-> In particular, I'm worry to expose (to user or CPU) page table state in
-> the middle of conversion (huge->small or small->huge). Handling this on
-> page table level provides a level atomicity that you will not have.
 
-We could do an RCU-style trick where (eg) for merging 16 consecutive
-entries together, we allocate a new PTE leaf, take the mmap_sem for write,
-copy the page table over, update the new entries, then put the new leaf
-into the PMD level.  Then iterate over the old PTE leaf again, and set
-any dirty bits in the new leaf which were set during the race window.
+Le 13/02/2019 à 09:43, Brice Goglin a écrit :
+> Le 13/02/2019 à 09:24, Dan Williams a écrit :
+>> On Wed, Feb 13, 2019 at 12:12 AM Brice Goglin <Brice.Goglin@inria.fr> wrote:
+>>> Le 13/02/2019 à 01:30, Dan Williams a écrit :
+>>>> On Tue, Feb 12, 2019 at 11:59 AM Brice Goglin <Brice.Goglin@inria.fr> wrote:
+>>>>> # ndctl disable-region all
+>>>>> # ndctl zero-labels all
+>>>>> # ndctl enable-region region0
+>>>>> # ndctl create-namespace -r region0 -t pmem -m devdax
+>>>>> {
+>>>>>   "dev":"namespace0.0",
+>>>>>   "mode":"devdax",
+>>>>>   "map":"dev",
+>>>>>   "size":"1488.37 GiB (1598.13 GB)",
+>>>>>   "uuid":"ad0096d7-3fe7-4402-b529-ad64ed0bf789",
+>>>>>   "daxregion":{
+>>>>>     "id":0,
+>>>>>     "size":"1488.37 GiB (1598.13 GB)",
+>>>>>     "align":2097152,
+>>>>>     "devices":[
+>>>>>       {
+>>>>>         "chardev":"dax0.0",
+>>>>>         "size":"1488.37 GiB (1598.13 GB)"
+>>>>>       }
+>>>>>     ]
+>>>>>   },
+>>>>>   "align":2097152
+>>>>> }
+>>>>> # ndctl enable-namespace namespace0.0
+>>>>> # echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/remove_id
+>>>>> <hang>
+>>>>>
+>>>>> I tried with and without dax_pmem_compat loaded, but it doesn't help.
+>>>> I think this is due to:
+>>>>
+>>>>   a9f1ffdb6a20 device-dax: Auto-bind device after successful new_id
+>>>>
+>>>> I missed that this path is also called in the remove_id path. Thanks
+>>>> for the bug report! I'll get this fixed up.
+>>> Now that remove_id is fixed, things fails later in Dave's procedure:
+>>>
+>>> # echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/remove_id
+>>> # echo -n dax0.0 > /sys/bus/dax/drivers/device_dax/unbind
+>>> # echo -n dax0.0 > /sys/bus/dax/drivers/kmem/new_id
+>> In the current version of the code the bind is not necessary, so the
+>> lack of error messages here means the bind succeeded.
 
-Does that cover all the problems?
 
-> Honestly, I'm very skeptical about the idea. It took a lot of time to
-> stabilize THP for singe page size, equal to PMD page table, but this looks
-> like a new can of worms. :P
+It looks like "unbind" is required to make the PMEM appear as a new
+node. If I remove_id from devdax and new_id to kmem without "unbind" in
+the middle, nothing appears.
 
-It's definitely a lot of work, and it has a lot of prerequisites.
+Writing to "kmem/bind" didn't seem necessary.
+
+Brice
+
+
+
+>>
+>>> # echo -n dax0.0 > /sys/bus/dax/drivers/kmem/bind
+>>> -bash: echo: write error: No such device
+>> This also happens when the device is already bound.
+>>
+>>> (And nothing seems to have changed in /sys/devices/system/memory/*/state)
+>> What does "cat /proc/iomem" say?
+>
+> 3060000000-1aa5fffffff : Persistent Memory
+>   3060000000-36481fffff : namespace0.0
+>   3680000000-1a9ffffffff : dax0.0
+>     3680000000-1a9ffffffff : System RAM
+> (the last line wasn't here before attaching to kmem)
+>
+> I said nothing changed in memory/*/state, I actually meant that nothing
+> was offline. But things are actually working!
+>
+> First, node4 appeared, all memory is already attached to it without
+> having to write to memory/*/state
+>
+> Node 4 MemTotal:       1558183936 kB
+> Node 4 MemFree:        1558068564 kB
+> Node 4 MemUsed:          115372 kB
+>
+> I wasn't expecting node4 to appear because the machine has no
+> /sys/firmware/acpi/tables/HMAT when running in 1LM (there's one in 2LM).
+> I thought you said in the past that no HMAT would mean memory would be
+> added to the existing DDR node?
+>
+> Thanks!
+>
+> Brice
+>
+>
 
