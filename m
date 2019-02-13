@@ -2,236 +2,209 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 11F34C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 17:56:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F2180C282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 18:41:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C62052086C
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 17:56:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C62052086C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id B8111222D5
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 18:41:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B8111222D5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 567DF8E0002; Wed, 13 Feb 2019 12:56:06 -0500 (EST)
+	id 4AACB8E0002; Wed, 13 Feb 2019 13:41:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 516FA8E0001; Wed, 13 Feb 2019 12:56:06 -0500 (EST)
+	id 4309F8E0001; Wed, 13 Feb 2019 13:41:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 42BC08E0002; Wed, 13 Feb 2019 12:56:06 -0500 (EST)
+	id 2D2828E0002; Wed, 13 Feb 2019 13:41:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AC468E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 12:56:06 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id f137so5153296ita.7
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:56:06 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D92DA8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 13:41:54 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id 74so2547485pfk.12
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 10:41:54 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:message-id:subject:from:to;
-        bh=tGpGGv9zZPSYd1bawqbNQ+HgCFaseK+m9nbLFgTQS/k=;
-        b=dUAj6swTyCfouZNd3xVXdUGw/bXiWOO3ESKzDWtorUoyNYkOE/wO8ZOZeGC3T3i4L9
-         dcGVgRdLDFUvXQhPyU0HTtDVTGKYbHaQmqondVrSPX9DbK9pFTiHUnlbH08ioC/DHqr+
-         mkRoxay6XJOoj1UgYGGxJF4h1KHETKouxeN6F2tkVctkJOG2v2qI4ylqZg1CibzIJX6/
-         b6Q9GIf0QtyjmFRr2nuGrAtZKu0NUIzseiSioplZof2DQrtauWTw8YHhqjUvVQUF8KO0
-         MpNuzMd5hyX7MxyWt+0PRUbv3YXcoWzISjHA68tBb6abdN0Q1CNew43fK4NQR0Rz2aki
-         nFnQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3nfpkxakbagmtzalbmmfsbqqje.hpphmfvtfsdpoufou.dpn@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3NFpkXAkbAGMTZaLBMMFSBQQJE.HPPHMFVTFSDPOUFOU.DPN@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: AHQUAuY4NkkQ1NPOE28MGdoa9w8aQa0szgfRCZhj7F9jmUqHwd/Qpv+O
-	372009qGrJe3jjgb8Q2L1dJKmF6UdhtsvCSqggQTqTHazd3F70vCxji+psFxNRYxRbSVf0bbafQ
-	cExkVn3qXPRr5b7wRFHjSWF3uZwKOGYIpSruMNsiqjufK0IUyplHXKcRrXuiMTWQ/8WRt7ncf/0
-	TZgVwHr2Ekb13NmCn81hLa87wkiivqCQB7gSKFBiGLq1MiepCyOjr9o+YUvUedTUhlbAPDg7mgB
-	zWiqhQD4aghr68ZJ3ATBplTvPTZjQLa/znQ9GjRL7I5FwWHpFHYjQCAjjQ9f6w6svJfvA+Zo7zl
-	SZ1apmTaGbjLLHnxBa9epKuh1b5UBESyl9ny6QDe9p2vYvuTOPMxT/xA9x1NoDzOGW90Nh76DA=
-	=
-X-Received: by 2002:a5d:948a:: with SMTP id v10mr993572ioj.189.1550080565825;
-        Wed, 13 Feb 2019 09:56:05 -0800 (PST)
-X-Received: by 2002:a5d:948a:: with SMTP id v10mr993533ioj.189.1550080564727;
-        Wed, 13 Feb 2019 09:56:04 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550080564; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=q62psrd/uVXgouRp8o/VdZg/pZ5EHFNSyMAA2QaEeHc=;
+        b=SpQlmUV4GRyToKakZyQPsCsqUiJw1LuDYe4dS2splKyCiR2VzW2Np5oZHIZgeekbCZ
+         ltGZBgMNcPGxxn8luV4OnZaQMQMwHaeAisQRpCRlssgbX2Dqwat7qPVAbCna9ZiWK2Or
+         0cDcdZewHQeePNwyIQrSxrQd/cU3oGPJnpE9MXtKWoRLrsYHd4CZ1dnMIfs2WZsUuTw8
+         /f/uV1n9pdFoT6wXGf9k5Mt8Bs33up5/g7HjQfsMVF8v3x5gBLQRv03t/Yd3zTqtuV/B
+         wV0/Ecf6KtTrex4iS/e+PvcpxdCByWSwq8m9wLwSWqPyOZVLi2iIWRHsV1nLHhcgrJxF
+         XHaQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuY1wnWOop/kiRJa5UwbgXbEEq5zcplvdLDrOqPmj/J/ifK3OebU
+	38cpLU+nTbn0Fe8JE/6ypH083MprXfKgXxmEzr2+aCDjkEmTtMzBQtUPdfKMZV9wMYYH06v/3Mn
+	Eh8ubEL7oNMtS6OTexP/klY0Q3MO/ezFVDmIOWOfxDTxP7WqH7VhlSkPSsVpmp5pxFQ==
+X-Received: by 2002:a62:1346:: with SMTP id b67mr1859959pfj.195.1550083314494;
+        Wed, 13 Feb 2019 10:41:54 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZUhi6iBFEqhmtZd9X9JcSkmVLRvI92nx7WGadWauxcS3jxM5+NUQZ3qHS0hzpZvKsNObsX
+X-Received: by 2002:a62:1346:: with SMTP id b67mr1859893pfj.195.1550083313551;
+        Wed, 13 Feb 2019 10:41:53 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550083313; cv=none;
         d=google.com; s=arc-20160816;
-        b=OA88p3bqL5XgoXfvb99TEtkljmWmuNEAL9k4GX7o5Spbyd3dsKICKo+sVfNUiQhb5a
-         KvIJREcdXM52YxT7FdAKAlrNDQbjMbyBueEaBXK9AWZGmqATsS4KA5jTZT0jqCxfg33k
-         v5jCaiuktacVZIskrep7Hn5ab1XnCXDFZYrqEqnrvI116S+X8aSDCDiFOh2XhVD6O2tk
-         DxAtZoJfFZUio7/IGdH6E51kCIsORtHPg77j3n/bpXzbXetEAs3H8dpoiHkHz7AVbhJj
-         SjzqJ9GDljVyZnGrlgiyynhGJOIwCoC/8jiTpxwSsoj0bQk97Ms7E83eiFdMrhH7x9Cr
-         BXlw==
+        b=xuKyUUS3IbggkoWP9g4B30woLtrf2LooWq/1497FEyAh7ar66TuPNYuHwNlYnuGqZh
+         P23wr5UuKlibQAiXZl7Arv1YNqL6hTM6+ZqDKmiRugbJCFM16KK9ZyIEORPrZNU5CctE
+         2JbwGnKECOOCAJmj3Ys1oMfY1zSdnlAKjCvHkzFMiXnQtJ72AgagK3tjdTbL6AjqV9k/
+         96NRRg5mOhLkpJJqpRpA2SBzjwt2XZNUaniiza3HzZU9iYa2qkS6so+6OSZUq3lGKk8l
+         RAua8awtaict6Az2WBrNqcoDXbb4pGKUWBNUlXtllIboZWPnHd7WnPWxDtVXSLTmubYr
+         ov9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:from:subject:message-id:date:mime-version;
-        bh=tGpGGv9zZPSYd1bawqbNQ+HgCFaseK+m9nbLFgTQS/k=;
-        b=hzcTTc+Ql3gVXJY5Tc2Pm9DWIl08pZBbLzEg877EzvyrLm973O11OwGN0cEFQNblVY
-         5zjguz8j+2bGMzrmiHMclOYSEpMfuuABC8EfmEsssGCiQfdESBXCS7104W6AU9eNNAfT
-         6ylzbimOol5wFiwVQBRULAR6M41rSHyeUDV9eb5+/0cqD93qZgMxLgE3pwF857Ybh9nK
-         64uuwLiJa8G+T15e6p4uPje+q3yxGZSDYUs+RxFstijpa97c4NEF25Uuifejf0dqwxof
-         e+nVMfRm53PBnjwsSz8rSu9wzuHC7Q8L27IFhlMDfjemcgcMo/W53h1VuUz9w57L5k2S
-         Q10A==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=q62psrd/uVXgouRp8o/VdZg/pZ5EHFNSyMAA2QaEeHc=;
+        b=aiIhH8exGZ38x1cfYTLbn3i4g8p4Or1oqaimhH/1T5WGx4+m0XQ7Dch8KYeKeNDMWY
+         wGG9KgQYixE8R7Zh9LdAkjCmhwNa+2hgOD7rHlLiiqIiq2A8Yn8RZsnSrlzqokK+oJvI
+         EnpYjW9qOc2BPVgEM3ln47/K+VwBWt59zwuuqPRK4J7w7tp+YZX4tBu4/SfBs9lb789n
+         2ezgvtO3jCEtPuLsLi5dmi/KyqEDMPgBcggyvVd5fqf7X/7G1ADesUZ5BeKIFdMNf32L
+         W7KL3rKBVQFSD0RsNDLL8CCOlo8f0r8UoFKyffgivfVoV+CVs8Zj9rNxmRTw3oNv5Vbe
+         Qocw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 3nfpkxakbagmtzalbmmfsbqqje.hpphmfvtfsdpoufou.dpn@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3NFpkXAkbAGMTZaLBMMFSBQQJE.HPPHMFVTFSDPOUFOU.DPN@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id l128sor8741946ioa.69.2019.02.13.09.56.04
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id c23si13387pls.236.2019.02.13.10.41.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Feb 2019 09:56:04 -0800 (PST)
-Received-SPF: pass (google.com: domain of 3nfpkxakbagmtzalbmmfsbqqje.hpphmfvtfsdpoufou.dpn@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Feb 2019 10:41:53 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 3nfpkxakbagmtzalbmmfsbqqje.hpphmfvtfsdpoufou.dpn@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3NFpkXAkbAGMTZaLBMMFSBQQJE.HPPHMFVTFSDPOUFOU.DPN@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: AHgI3IYlS2NNcvSkEFyhiWkWuB1SpsLZPUaTYv4wgqwXTgMNfuhmJwGh2/8ElzFKHBUHzGJISgoHEvg8v3snZHXPN50689bvw1bo
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1DId7xI096955
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 13:41:52 -0500
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qmqanbwej-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 13:41:52 -0500
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 13 Feb 2019 18:41:50 -0000
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
+	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 13 Feb 2019 18:41:45 -0000
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1DIfiac43450398
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Wed, 13 Feb 2019 18:41:44 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id B2588AE051;
+	Wed, 13 Feb 2019 18:41:44 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 571CBAE053;
+	Wed, 13 Feb 2019 18:41:43 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.207.163])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed, 13 Feb 2019 18:41:43 +0000 (GMT)
+Date: Wed, 13 Feb 2019 20:41:40 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+        Alexander Viro <viro@zeniv.linux.org.uk>,
+        Russell King <linux@armlinux.org.uk>,
+        Catalin Marinas <catalin.marinas@arm.com>,
+        Will Deacon <will.deacon@arm.com>, Guan Xuetao <gxt@pku.edu.cn>,
+        linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+        linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 7/8] initramfs: proide a generic free_initrd_mem
+ implementation
+References: <20190213174621.29297-1-hch@lst.de>
+ <20190213174621.29297-8-hch@lst.de>
 MIME-Version: 1.0
-X-Received: by 2002:a6b:510c:: with SMTP id f12mr1272016iob.16.1550080564397;
- Wed, 13 Feb 2019 09:56:04 -0800 (PST)
-Date: Wed, 13 Feb 2019 09:56:04 -0800
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <0000000000006a12bd0581ca4145@google.com>
-Subject: BUG: Bad page state (5)
-From: syzbot <syzbot+2cd2887ea471ed6e6995@syzkaller.appspotmail.com>
-To: akpm@linux-foundation.org, dan.j.williams@intel.com, 
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, 
-	nborisov@suse.com, rppt@linux.vnet.ibm.com, shakeelb@google.com, 
-	syzkaller-bugs@googlegroups.com, vbabka@suse.cz, willy@infradead.org
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190213174621.29297-8-hch@lst.de>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19021318-0028-0000-0000-000003483455
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19021318-0029-0000-0000-000024065911
+Message-Id: <20190213184139.GC15270@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-13_10:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902130129
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Wed, Feb 13, 2019 at 06:46:20PM +0100, Christoph Hellwig wrote:
+> For most architectures free_initrd_mem just expands to the same
+> free_reserved_area call.  Provide that as a generic implementation
+> marked __weak.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  arch/alpha/mm/init.c      | 8 --------
+>  arch/arc/mm/init.c        | 7 -------
+>  arch/c6x/mm/init.c        | 7 -------
 
-syzbot found the following crash on:
+csky seems to open-code free_reserved_page with the only
+difference that it's also increments totalram_pages for the freed pages,
+which doesn't seem correct anyway...
 
-HEAD commit:    c4f3ef3eb53f Add linux-next specific files for 20190213
-git tree:       linux-next
-console output: https://syzkaller.appspot.com/x/log.txt?x=1130a124c00000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=9ec67976eb2df882
-dashboard link: https://syzkaller.appspot.com/bug?extid=2cd2887ea471ed6e6995
-compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=14ecdaa8c00000
-C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=12ebe178c00000
+That said, I suppose arch/csky can be also added to the party.
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+2cd2887ea471ed6e6995@syzkaller.appspotmail.com
+>  arch/h8300/mm/init.c      | 8 --------
+>  arch/m68k/mm/init.c       | 7 -------
+>  arch/microblaze/mm/init.c | 7 -------
+>  arch/nds32/mm/init.c      | 7 -------
+>  arch/nios2/mm/init.c      | 7 -------
+>  arch/openrisc/mm/init.c   | 7 -------
+>  arch/parisc/mm/init.c     | 7 -------
+>  arch/powerpc/mm/mem.c     | 7 -------
+>  arch/sh/mm/init.c         | 7 -------
+>  arch/um/kernel/mem.c      | 7 -------
+>  arch/unicore32/mm/init.c  | 7 -------
+>  init/initramfs.c          | 5 +++++
+>  15 files changed, 5 insertions(+), 100 deletions(-)
+ 
+...
 
-BUG: Bad page state in process udevd  pfn:472f0
-name:"memfd:"
-page:ffffea00011cbc00 count:0 mapcount:0 mapping:ffff88800df2ad40 index:0xf
-shmem_aops
-flags: 0x1fffc000008000c(uptodate|dirty|swapbacked)
-raw: 01fffc000008000c ffffea0000ac4f08 ffff8880a85af890 ffff88800df2ad40
-raw: 000000000000000f 0000000000000000 00000000ffffffff 0000000000000000
-page dumped because: non-NULL mapping
-Modules linked in:
-CPU: 1 PID: 7586 Comm: udevd Not tainted 5.0.0-rc6-next-20190213 #34
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x172/0x1f0 lib/dump_stack.c:113
-  bad_page.cold+0xda/0xff mm/page_alloc.c:586
-  free_pages_check_bad+0x142/0x1a0 mm/page_alloc.c:1014
-  free_pages_check mm/page_alloc.c:1023 [inline]
-  free_pages_prepare mm/page_alloc.c:1113 [inline]
-  free_pcp_prepare mm/page_alloc.c:1138 [inline]
-  free_unref_page_prepare mm/page_alloc.c:2991 [inline]
-  free_unref_page_list+0x31d/0xc40 mm/page_alloc.c:3060
-name:"memfd:"
-  release_pages+0x60d/0x1940 mm/swap.c:791
-  pagevec_lru_move_fn+0x218/0x2a0 mm/swap.c:213
-  __pagevec_lru_add mm/swap.c:917 [inline]
-  lru_add_drain_cpu+0x2f7/0x520 mm/swap.c:581
-  lru_add_drain+0x20/0x60 mm/swap.c:652
-  exit_mmap+0x290/0x530 mm/mmap.c:3134
-  __mmput kernel/fork.c:1047 [inline]
-  mmput+0x15f/0x4c0 kernel/fork.c:1068
-  exec_mmap fs/exec.c:1046 [inline]
-  flush_old_exec+0x8d9/0x1c20 fs/exec.c:1279
-  load_elf_binary+0x9bc/0x53f0 fs/binfmt_elf.c:864
-  search_binary_handler fs/exec.c:1656 [inline]
-  search_binary_handler+0x17f/0x570 fs/exec.c:1634
-  exec_binprm fs/exec.c:1698 [inline]
-  __do_execve_file.isra.0+0x1394/0x23f0 fs/exec.c:1818
-  do_execveat_common fs/exec.c:1865 [inline]
-  do_execve fs/exec.c:1882 [inline]
-  __do_sys_execve fs/exec.c:1958 [inline]
-  __se_sys_execve fs/exec.c:1953 [inline]
-  __x64_sys_execve+0x8f/0xc0 fs/exec.c:1953
-  do_syscall_64+0x103/0x610 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x7fc7001ba207
-Code: Bad RIP value.
-RSP: 002b:00007ffe06aa13b8 EFLAGS: 00000206 ORIG_RAX: 000000000000003b
-RAX: ffffffffffffffda RBX: 00000000ffffffff RCX: 00007fc7001ba207
-RDX: 0000000001fd5fd0 RSI: 00007ffe06aa14b0 RDI: 00007ffe06aa24c0
-RBP: 0000000000625500 R08: 0000000000001c49 R09: 0000000000001c49
-R10: 0000000000000000 R11: 0000000000000206 R12: 0000000001fd5fd0
-R13: 0000000000000007 R14: 0000000001fc6250 R15: 0000000000000005
-BUG: Bad page state in process udevd  pfn:2b13c
-page:ffffea0000ac4f00 count:0 mapcount:0 mapping:ffff88800df2ad40 index:0xe
-shmem_aops
-flags: 0x1fffc000008000c(uptodate|dirty|swapbacked)
-raw: 01fffc000008000c ffff8880a85af890 ffff8880a85af890 ffff88800df2ad40
-raw: 000000000000000e 0000000000000000 00000000ffffffff 0000000000000000
-page dumped because: non-NULL mapping
-Modules linked in:
-CPU: 1 PID: 7586 Comm: udevd Tainted: G    B              
-5.0.0-rc6-next-20190213 #34
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x172/0x1f0 lib/dump_stack.c:113
-  bad_page.cold+0xda/0xff mm/page_alloc.c:586
-name:"memfd:"
-  free_pages_check_bad+0x142/0x1a0 mm/page_alloc.c:1014
-  free_pages_check mm/page_alloc.c:1023 [inline]
-  free_pages_prepare mm/page_alloc.c:1113 [inline]
-  free_pcp_prepare mm/page_alloc.c:1138 [inline]
-  free_unref_page_prepare mm/page_alloc.c:2991 [inline]
-  free_unref_page_list+0x31d/0xc40 mm/page_alloc.c:3060
-  release_pages+0x60d/0x1940 mm/swap.c:791
-  pagevec_lru_move_fn+0x218/0x2a0 mm/swap.c:213
-  __pagevec_lru_add mm/swap.c:917 [inline]
-  lru_add_drain_cpu+0x2f7/0x520 mm/swap.c:581
-  lru_add_drain+0x20/0x60 mm/swap.c:652
-  exit_mmap+0x290/0x530 mm/mmap.c:3134
-  __mmput kernel/fork.c:1047 [inline]
-  mmput+0x15f/0x4c0 kernel/fork.c:1068
-  exec_mmap fs/exec.c:1046 [inline]
-  flush_old_exec+0x8d9/0x1c20 fs/exec.c:1279
-  load_elf_binary+0x9bc/0x53f0 fs/binfmt_elf.c:864
-  search_binary_handler fs/exec.c:1656 [inline]
-  search_binary_handler+0x17f/0x570 fs/exec.c:1634
-  exec_binprm fs/exec.c:1698 [inline]
-  __do_execve_file.isra.0+0x1394/0x23f0 fs/exec.c:1818
-  do_execveat_common fs/exec.c:1865 [inline]
-  do_execve fs/exec.c:1882 [inline]
-  __do_sys_execve fs/exec.c:1958 [inline]
-  __se_sys_execve fs/exec.c:1953 [inline]
-  __x64_sys_execve+0x8f/0xc0 fs/exec.c:1953
-  do_syscall_64+0x103/0x610 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x7fc7001ba207
-Code: Bad RIP value.
-RSP: 002b:00007ffe06aa13b8 EFLAGS: 00000206 ORIG_RAX: 000000000000003b
-RAX: ffffffffffffffda RBX: 00000000ffffffff RCX: 00007fc7001ba207
-RDX: 0000000001fd5fd0 RSI: 00007ffe06aa14b0 RDI: 00007ffe06aa24c0
-RBP: 0000000000625500 R08: 0000000000001c49 R09: 0000000000001c49
-R10: 0000000000000000 R11: 0000000000000206 R12: 0000000001fd5fd0
-R13: 0000000000000007 R14: 0000000001fc6250 R15: 0000000000000005
+> diff --git a/init/initramfs.c b/init/initramfs.c
+> index cf8bf014873f..f3aaa58ac63d 100644
+> --- a/init/initramfs.c
+> +++ b/init/initramfs.c
+> @@ -527,6 +527,11 @@ extern unsigned long __initramfs_size;
+>  #include <linux/initrd.h>
+>  #include <linux/kexec.h>
+> 
+> +void __weak free_initrd_mem(unsigned long start, unsigned long end)
+> +{
+> +	free_reserved_area((void *)start, (void *)end, -1, "initrd");
 
+Some architectures have pr_info("Freeing initrd memory..."), I'd add it for
+the generic version as well.
 
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
+Another thing that I was thinking of is that x86 has all those memory
+protection calls in its free_initrd_mem, maybe it'd make sense to have them
+in the generic version as well?
 
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-syzbot.
-syzbot can test patches for this bug, for details see:
-https://goo.gl/tpsmEJ#testing-patches
+> +}
+> +
+>  #ifdef CONFIG_KEXEC_CORE
+>  static bool kexec_free_initrd(void)
+>  {
+> -- 
+> 2.20.1
+> 
+
+-- 
+Sincerely yours,
+Mike.
 
