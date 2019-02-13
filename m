@@ -2,192 +2,169 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6F203C282DA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 20:03:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D5C29C282DA
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 20:14:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 36E8020675
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 20:03:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 36E8020675
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 90330222AC
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 20:14:41 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="xI+srN6X"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90330222AC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=HansenPartnership.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CA8908E0002; Wed, 13 Feb 2019 15:03:38 -0500 (EST)
+	id 266CB8E0002; Wed, 13 Feb 2019 15:14:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C7DD38E0001; Wed, 13 Feb 2019 15:03:38 -0500 (EST)
+	id 215BF8E0001; Wed, 13 Feb 2019 15:14:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B6CB18E0002; Wed, 13 Feb 2019 15:03:38 -0500 (EST)
+	id 0DF7E8E0002; Wed, 13 Feb 2019 15:14:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D43F8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 15:03:38 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id n95so3321736qte.16
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 12:03:38 -0800 (PST)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D64758E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 15:14:40 -0500 (EST)
+Received: by mail-yw1-f69.google.com with SMTP id b8so2126723ywb.17
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 12:14:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=2ML8WRsAwsvMwPXH6qDr56hBsb1FU6bRNweALP+rRgU=;
-        b=sGGt6fA/EnIV9vw77fZa+xWeUFIVj7zVCkC3kkCvFQw5Mz/qY2d2wWx2Ord5hWDAIu
-         vPhUqVQcsnYqJC/mPVQlYSGytmBJpt0DxkUfEcgPKi8IxTpKZEFR5lHIdgV6sffc/tXX
-         QTEEPqVCuKenX70GcgiEd1WvgsM3+YIVsGPu85krjiKLwGMJO0z6QULUXXyGG8Awi4iw
-         FYf5CXUpSI7AQBVgs/ZD0fsV3yrYQ9KbAUBu+hQEmr4Csus0oZJ/z/K9iOh6BFo/5yTZ
-         OuPgQn0d70ZPx7vUg7tc9F/4VAp8432APpHOoA0gjI7Yh6vsUboR01poxGAi7nB7pgAG
-         EJTA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alex.williamson@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=alex.williamson@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZHdR/56e9nZnqdLiqSmi35zIjTEVMDZL4LYQb1Ny+OIJ1w6oKP
-	dRqmIAfHcDBlL/tsM0s5RqpmfkEd9dn4si3eCroFL8IYTZEpci+sSBj/NRp7TrmlL7pURh9yIim
-	g5lwxhqmv8TDKXGhHh5qcMpJ8fjAGpLiTkga/8x85VlEl0uoSv4qvjQ71W1aloCra7A==
-X-Received: by 2002:a0c:b024:: with SMTP id k33mr1802584qvc.204.1550088218216;
-        Wed, 13 Feb 2019 12:03:38 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaFnrgLUJFPRTj/wfcs+20MKqcc6USh85InmTqXO9MiFQ3jJKp9aSJ3QYMblm2hBjzCSvEC
-X-Received: by 2002:a0c:b024:: with SMTP id k33mr1802529qvc.204.1550088217365;
-        Wed, 13 Feb 2019 12:03:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550088217; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=zUi3bbK09oyChFQKYzO9PYVuOwCnfm1vrHavwgrvpKI=;
+        b=aQuum1yyk8gNfB+z6fA3msePd6A7DaIsWztBENMHXzAjviFE5lyXePV9mg25sByPd8
+         PbS8dp0swQimngbFU+d90kAGBIQeEO/Mqk5qklelwj7VNv0inrb4pUav0Ju9/qZQ4PHB
+         KNuYVTPBh8BRAOIXzW5JPabppDEn3wooHZW2YkSqgio7cyH6qIUzblGVOBe16AmggHAf
+         pLKU4BSoxOLjGaYFpjKf8IypdjYqh/BJV0kT5kXzGTZsNE1jV8pYlGipn14Y7hijQJhi
+         hVHEndKfm1ur+qcKwojRHWnrnlGdal7gFV4IbZiqEh8MxECobkkb507wg4yK7/srJw7y
+         1jpg==
+X-Gm-Message-State: AHQUAuZ7hFL2fcnzBlAoH76HQc+jtR8I1Ty2fx2oqx2jSdJl0HTj43pg
+	1e7KufB+Jlkm+d80IviWJatRAscEGyqkH6+nKcoilHe0fBRA9WV0WW3HU+mz7joHLeJ59Ep50xp
+	yLvGv5rXErIb3OZS0/1G6c9olIuuZAY9OpdC3Hh9nqaTf4PTrK4TcwILts76YYLmrTA==
+X-Received: by 2002:a25:1687:: with SMTP id 129mr2278229ybw.11.1550088880473;
+        Wed, 13 Feb 2019 12:14:40 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYo82PYgvNn8NvHcux2SnkZbParLLV2GjtK4PPKwpckmLNvKw4rNkt1kOV0b4t9snwR2UFo
+X-Received: by 2002:a25:1687:: with SMTP id 129mr2278168ybw.11.1550088879614;
+        Wed, 13 Feb 2019 12:14:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550088879; cv=none;
         d=google.com; s=arc-20160816;
-        b=uLiQri+e7cIxh6ZoVZiu5f+H6hHQU5DsVtstXWHWna+h6edDTxpQ/L+YYOfzddlRnH
-         95i3gsEc/+ltz2Kekz2a+H8ZxN8Y++n55fIrELi88eTBiZSVN18zU/TBydEW6he3HAii
-         EMBHkBpKiMcg/Al2wcSBZjPmoEfoNsMVxnQ9E+5iYg93S7YPSnAf5MLxuZj0Y8xF0vKl
-         uxmB8p6/ANAZ428Me4wfbxuhUbW0C1TXFEEIhiSrE9k84+j2BPvqXACIlZNhrPvSuXzF
-         VsfJV3e2DgxyRWlQ1BVohIaQo2LRrONXspldmTAPWeQGuaydqmVsJyABXV6CYuVSL+aJ
-         Dw+g==
+        b=FgPfG6qIdGW2qRfChgXLflSBG9qG/iMBSZo48yv6rtm8dGfQBI0WheqRVT7GhsTzIj
+         6XqmDdQKLgAkWWZiDBAn3SQERhjThkobykd/Qqoz6/fQwoyBliopM/xuyJhY8FAAoHsd
+         5VnZrONqrDV+azlGD6+uFC/4kuCOGVinyCiNzxgKRLAqSwaEdE/XCvBog4eH/dvOzGDQ
+         ddqSQ+4iDWGHBS/G81rNXBXcNyo7IK8FIyofGeVADTwhvib6fGPYOLa7ulg399V9fgFs
+         zhf2yameHGRZZjHxrQBsJbU/2rRn1nv9as+1b5wyB41fLr68pVRoE/16h00uXCd3nN+w
+         WaaA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=2ML8WRsAwsvMwPXH6qDr56hBsb1FU6bRNweALP+rRgU=;
-        b=yN5hP7oxmyasrmnjTgD2Ddp4hFBeQdSrO/bIaJqrCOs9lrQSA4lYOi8CJdV6fdrb5d
-         KIMIKSs90aMdI0YAaX7ZvyReDM8l4oqnAqdXDWmFBNYBBm1gxvTHIZbyA24wGjfSv45v
-         1RUCdhBqYpYo5VDgdgv007pHLu1bBcjQkuXuoHV/AA73bla7rfyYpKzqKgy6lVb36ISN
-         ZSwq+t8YQVWrXKl24qq0VarMhiBjPkWjZ3zhs3vx+yNVm2pPX72uVOE4QmLOPFuge/eU
-         L0lkXEs2Ttx+IewIwWjkoyMb5BlxdILtj8Jp75piV7XLYNNWRuN2Ht0pioSI3xJ+S2ma
-         QaWQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=zUi3bbK09oyChFQKYzO9PYVuOwCnfm1vrHavwgrvpKI=;
+        b=FAmBLhC0AT/U07OmapgjEjEdGxnox4cv9UkwbaLXc8+IewXzf8wtbmqFWeavx+BczW
+         fHxb2Kq3DXEC0Ug7GkSfeXQ2VnNhV8CtU5qhpxMV0+G4LHmKqCrXJHC2Csnzf0c8nb6q
+         rHEjyHzYlRsd3A5H1NpJ6Hs/TvkxrQZfqoUCg9kczfT51fTxPUlTeKgOpKWgoiEkp3as
+         NQtlZUuETBBtog7xDSLPSOVz07r8onfeU541LDzshqKWzdrUICx0UH4NX97io4Z8ZZe3
+         CCxKbXWLHFv2SoulYwvbpoysRZWl/hiAzV/Z8skGmfg9A6vev0YDHWnoHXZAzD4c28CB
+         v5KQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of alex.williamson@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=alex.williamson@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z8si133757qvn.117.2019.02.13.12.03.37
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=xI+srN6X;
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id 132si159232ywe.163.2019.02.13.12.14.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 12:03:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of alex.williamson@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 13 Feb 2019 12:14:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) client-ip=66.63.167.143;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of alex.williamson@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=alex.williamson@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=xI+srN6X;
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from localhost (localhost [127.0.0.1])
+	by bedivere.hansenpartnership.com (Postfix) with ESMTP id ED5328EE241;
+	Wed, 13 Feb 2019 12:14:37 -0800 (PST)
+Received: from bedivere.hansenpartnership.com ([127.0.0.1])
+	by localhost (bedivere.hansenpartnership.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id AHExg__6OIgB; Wed, 13 Feb 2019 12:14:37 -0800 (PST)
+Received: from [153.66.254.194] (unknown [50.35.68.20])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 76DA6C0669DD;
-	Wed, 13 Feb 2019 20:03:34 +0000 (UTC)
-Received: from w520.home (ovpn-116-24.phx2.redhat.com [10.3.116.24])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 570CB5D6B3;
-	Wed, 13 Feb 2019 20:03:31 +0000 (UTC)
-Date: Wed, 13 Feb 2019 13:03:30 -0700
-From: Alex Williamson <alex.williamson@redhat.com>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, akpm@linux-foundation.org,
- dave@stgolabs.net, jack@suse.cz, cl@linux.com, linux-mm@kvack.org,
- kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
- linux-kernel@vger.kernel.org, paulus@ozlabs.org, benh@kernel.crashing.org,
- mpe@ellerman.id.au, hao.wu@intel.com, atull@kernel.org, mdf@kernel.org,
- aik@ozlabs.ru, peterz@infradead.org
-Subject: Re: [PATCH 1/5] vfio/type1: use pinned_vm instead of locked_vm to
- account pinned pages
-Message-ID: <20190213130330.76ef1987@w520.home>
-In-Reply-To: <20190213002650.kav7xc4r2xs5f3ef@ca-dmjordan1.us.oracle.com>
-References: <20190211224437.25267-1-daniel.m.jordan@oracle.com>
-	<20190211224437.25267-2-daniel.m.jordan@oracle.com>
-	<20190211225620.GO24692@ziepe.ca>
-	<20190211231152.qflff6g2asmkb6hr@ca-dmjordan1.us.oracle.com>
-	<20190212114110.17bc8a14@w520.home>
-	<20190213002650.kav7xc4r2xs5f3ef@ca-dmjordan1.us.oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by bedivere.hansenpartnership.com (Postfix) with ESMTPSA id 1BE5D8EE177;
+	Wed, 13 Feb 2019 12:14:37 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
+	s=20151216; t=1550088877;
+	bh=0InwHf7+mURVAKyXEaQpqNoLecFzymNi+/Deb4eyYCc=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=xI+srN6XtRVUQAx4e28wl7kirjboFHpZ7AE+H2UKiiuaetc074za9B9XQv3rDJqXj
+	 qBiHpjBkDkyl63ykUhla4gL9N508Z74ZNDmKZPLfAsUciZ8WMNP9+jai4E1OS9PDi0
+	 Iy555aTJ+F1dD7WuoArKQlZ86W98wsqelbEYJvGc=
+Message-ID: <1550088875.2871.21.camel@HansenPartnership.com>
+Subject: Re: [LSF/MM TOPIC] FS, MM, and stable trees
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+To: Greg KH <gregkh@linuxfoundation.org>, Sasha Levin <sashal@kernel.org>
+Cc: Amir Goldstein <amir73il@gmail.com>, Steve French <smfrench@gmail.com>, 
+ lsf-pc@lists.linux-foundation.org, linux-fsdevel
+ <linux-fsdevel@vger.kernel.org>,  linux-mm <linux-mm@kvack.org>, LKML
+ <linux-kernel@vger.kernel.org>, "Luis R. Rodriguez" <mcgrof@kernel.org>
+Date: Wed, 13 Feb 2019 12:14:35 -0800
+In-Reply-To: <20190213195232.GA10047@kroah.com>
+References: <20190212170012.GF69686@sasha-vm>
+	 <CAH2r5mviqHxaXg5mtVe30s2OTiPW2ZYa9+wPajjzz3VOarAUfw@mail.gmail.com>
+	 <CAOQ4uxjMYWJPF8wFF_7J7yy7KCdGd8mZChfQc5GzNDcfqA7UAA@mail.gmail.com>
+	 <20190213073707.GA2875@kroah.com>
+	 <CAOQ4uxgQGCSbhppBfhHQmDDXS3TGmgB4m=Vp3nyyWTFiyv6z6g@mail.gmail.com>
+	 <20190213091803.GA2308@kroah.com> <20190213192512.GH69686@sasha-vm>
+	 <20190213195232.GA10047@kroah.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.26.6 
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Wed, 13 Feb 2019 20:03:35 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Feb 2019 19:26:50 -0500
-Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
-
-> On Tue, Feb 12, 2019 at 11:41:10AM -0700, Alex Williamson wrote:
-> > Daniel Jordan <daniel.m.jordan@oracle.com> wrote:  
-> > > On Mon, Feb 11, 2019 at 03:56:20PM -0700, Jason Gunthorpe wrote:  
-> > > > I haven't looked at this super closely, but how does this stuff work?
-> > > > 
-> > > > do_mlock doesn't touch pinned_vm, and this doesn't touch locked_vm...
-> > > > 
-> > > > Shouldn't all this be 'if (locked_vm + pinned_vm < RLIMIT_MEMLOCK)' ?
-> > > >
-> > > > Otherwise MEMLOCK is really doubled..    
+On Wed, 2019-02-13 at 20:52 +0100, Greg KH wrote:
+> On Wed, Feb 13, 2019 at 02:25:12PM -0500, Sasha Levin wrote:
+> > On Wed, Feb 13, 2019 at 10:18:03AM +0100, Greg KH wrote:
+> > > On Wed, Feb 13, 2019 at 11:01:25AM +0200, Amir Goldstein wrote:
+> > > > Best effort testing in timely manner is good, but a good way to
+> > > > improve confidence in stable kernel releases is a publicly
+> > > > available list of tests that the release went through.
 > > > 
-> > > So this has been a problem for some time, but it's not as easy as adding them
-> > > together, see [1][2] for a start.
-> > > 
-> > > The locked_vm/pinned_vm issue definitely needs fixing, but all this series is
-> > > trying to do is account to the right counter.  
+> > > We have that, you aren't noticing them...
+> > 
+> > This is one of the biggest things I want to address: there is a
+> > disconnect between the stable kernel testing story and the tests
+> > the fs/ and mm/ folks expect to see here.
+> > 
+> > On one had, the stable kernel folks see these kernels go through
+> > entire suites of testing by multiple individuals and organizations,
+> > receiving way more coverage than any of Linus's releases.
+> > 
+> > On the other hand, things like LTP and selftests tend to barely
+> > scratch the surface of our mm/ and fs/ code, and the maintainers of
+> > these subsystems do not see LTP-like suites as something that adds
+> > significant value and ignore them. Instead, they have a
+> > (convoluted) set of testing they do with different tools and
+> > configurations that qualifies their code as being "tested".
+> > 
+> > So really, it sounds like a low hanging fruit: we don't really need
+> > to write much more testing code code nor do we have to refactor
+> > existing test suites. We just need to make sure the right tests are
+> > running on stable kernels. I really want to clarify what each
+> > subsystem sees as "sufficient" (and have that documented
+> > somewhere).
 > 
-> Thanks for taking a look, Alex.
-> 
-> > This still makes me nervous because we have userspace dependencies on
-> > setting process locked memory.  
-> 
-> Could you please expand on this?  Trying to get more context.
+> kernel.ci and 0-day and Linaro are starting to add the fs and mm
+> tests to their test suites to address these issues (I think 0-day
+> already has many of them).  So this is happening, but not quite
+> obvious.  I know I keep asking Linaro about this :(
 
-VFIO is a userspace driver interface and the pinned/locked page
-accounting we're doing here is trying to prevent a user from exceeding
-their locked memory limits.  Thus a VM management tool or unprivileged
-userspace driver needs to have appropriate locked memory limits
-configured for their use case.  Currently we do not have a unified
-accounting scheme, so if a page is mlock'd by the user and also mapped
-through VFIO for DMA, it's accounted twice, these both increment
-locked_vm and userspace needs to manage that.  If pinned memory
-and locked memory are now two separate buckets and we're only comparing
-one of them against the locked memory limit, then it seems we have
-effectively doubled the user's locked memory for this use case, as
-Jason questioned.  The user could mlock one page and DMA map another,
-they're both "locked", but now they only take one slot in each bucket.
+0day has xfstests at least, but it's opt-in only (you have to request
+that it be run on your trees).  When I did it for the SCSI tree, I had
+to email Fenguangg directly, there wasn't any other way of getting it.
 
-If we continue forward with using a separate bucket here, userspace
-could infer that accounting is unified and lower the user's locked
-memory limit, or exploit the gap that their effective limit might
-actually exceed system memory.  In the former case, if we do eventually
-correct to compare the total of the combined buckets against the user's
-locked memory limits, we'll break users that have adapted their locked
-memory limits to meet the apparent needs.  In the latter case, the
-inconsistent accounting is potentially an attack vector.
-
-> > There's a user visible difference if we
-> > account for them in the same bucket vs separate.  Perhaps we're
-> > counting in the wrong bucket now, but if we "fix" that and userspace
-> > adapts, how do we ever go back to accounting both mlocked and pinned
-> > memory combined against rlimit?  Thanks,  
-> 
-> PeterZ posted an RFC that addresses this point[1].  It kept pinned_vm and
-> locked_vm accounting separate, but allowed the two to be added safely to be
-> compared against RLIMIT_MEMLOCK.
-
-Unless I'm incorrect in the concerns above, I don't see how we can
-convert vfio before this occurs.
- 
-> Anyway, until some solution is agreed on, are there objections to converting
-> locked_vm to an atomic, to avoid user-visible changes, instead of switching
-> locked_vm users to pinned_vm?
-
-Seems that as long as we have separate buckets that are compared
-individually to rlimit that we've got problems, it's just a matter of
-where they're exposed based on which bucket is used for which
-interface.  Thanks,
-
-Alex
+James
 
