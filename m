@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EE935C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:05:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4EBDEC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:05:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 92A30222A1
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:05:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92A30222A1
+	by mail.kernel.org (Postfix) with ESMTP id 04CD1222A1
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 23:05:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 04CD1222A1
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3BC378E000F; Wed, 13 Feb 2019 18:05:20 -0500 (EST)
+	id A22A48E0010; Wed, 13 Feb 2019 18:05:22 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 31CF48E0001; Wed, 13 Feb 2019 18:05:20 -0500 (EST)
+	id 9AD288E0001; Wed, 13 Feb 2019 18:05:22 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 171018E000F; Wed, 13 Feb 2019 18:05:20 -0500 (EST)
+	id 8294C8E0010; Wed, 13 Feb 2019 18:05:22 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B3A1F8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 18:05:19 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id v16so2780096plo.17
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 15:05:19 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 370AF8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 18:05:22 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id b4so2807442plb.9
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 15:05:22 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=zcCs+/ppDsVLY/PzOPAzCFhswuBzNQFUyyhmkhgkJ74=;
-        b=LgFD21h8NzT/lKczEZL6plwkYHPeTsoqw0cWL8Npip888pcueVhYAsZlqe0M4T5o70
-         312CdLbh+GJCZq3DerB/UWH3kBNHX1G6X+eeFZVFWZ1JOA57E0b7aVrPu++yWs9T5Eof
-         +fAGO4wUCTXtumIhFleATyIiHxY8T5pfQ57A35jtY1SEf06SeHl1N8aIYMSaPWpllqOd
-         x8FPYd0KvB6bS14r84QQcoWHmsdueOuMj/eKq15QdIOsyOM6CERpp6Gjtec5nsl+8S6t
-         /1/EBbwFlIxJhJV3c1eKOi/qyEegd6x76UwdUgNrN3g3YRlgIKXt0oAgGekLqhbNDNQd
-         Fidw==
+        bh=RzbtnJhqY18zIuZY4t315OOLtNGQZKeZZoAOjTb5+XQ=;
+        b=YZRIZXIqRpo/KQuAssW/jbaQOlSF8jUdluRYreC97G58GTxhECKN/kp6cJsZxV2AXU
+         RQekEh3yOYYLtOXRQJ3F60KGow/UshZeMGXOmeIE3tf9PUy7OkMRq0Q/PgKJ7NY6HGXM
+         svhqYgneczdsrMePCydQZy/RD/z1KlaKVS9ntavMXHMt0knwxU+QdO4PN2tfH98whVrH
+         0ZQRFtEz9GYq0csRZY5n7ZOKPNlDIuktoqq+5VphL8ujFC/95u+PKeaTJ5Tb8LkoS9UC
+         zwzyX7PBOj8an1IEUex3fol9Vk7iFXNi/6L6gnu8FwUL15wppxK6XDcIYdyyG9NKDaTE
+         GNOw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuYH8T1Dvf/3oo8mC1ZnLtPng7jCGQZF3/hbRKaKW95V50o2Yesh
-	rwgLQOT4eIQPC//tnxSL4FPloGm3DGoOslONIp+JwfgvZ/OxmA28KrGoH2O1BxuTEXmbzr8m/VH
-	YIsIVeXHj6vWc5SyPJy1GUjwwHDryn6JbEgC1ciP3SvMU5Zw26ijauQZT317/giEIJA==
-X-Received: by 2002:aa7:808f:: with SMTP id v15mr694760pff.30.1550099119330;
-        Wed, 13 Feb 2019 15:05:19 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IatwixXPmZom0Ytn9XcHWD6OJ0F9+B+SBBj07QRFvC6VGDo8rzt93boviIBsWt4IKhUcj7F
-X-Received: by 2002:aa7:808f:: with SMTP id v15mr694653pff.30.1550099118156;
-        Wed, 13 Feb 2019 15:05:18 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550099118; cv=none;
+X-Gm-Message-State: AHQUAubyAGg46QukN2WxiSa/52meYFY+k4qGlbcNx9TowHtXhX+othAI
+	SfKBbKXSCZtF1n6Z4MTcxmXi8J1TecYNAlVjpH7JNwTWoFKfyQnzPB9XPqwj/7IE/n23sH0oyvj
+	xqvecSR4BcOOe7qn+b1Z3Pr0zpMjBljiUoGSVP7sdFQHYQVML3+dZ+109Cab9XwOpmA==
+X-Received: by 2002:a63:235c:: with SMTP id u28mr616422pgm.400.1550099121896;
+        Wed, 13 Feb 2019 15:05:21 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbZgaZ1Vn1shW7GRAm+jZH//DOrXM0zT6vY1rzRokulNnLTSEnBtNKJGOXXSDTf1p5CEsMV
+X-Received: by 2002:a63:235c:: with SMTP id u28mr616341pgm.400.1550099120953;
+        Wed, 13 Feb 2019 15:05:20 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550099120; cv=none;
         d=google.com; s=arc-20160816;
-        b=NSvow3bB+9eupWP/DQ/wWZkVYxxxfTDP4nqdtwuxwxuKpHpPT3PTB6ouEtY7cKsOum
-         SSD83cQEH1sO7yBgudlwdNxoe34pZLS66ok0oPQSyowi4kRMpjDFyKwzHATLC+S54600
-         +dqzQolG2cEvIRhQBNRXL16Nik43LorOLfBCivsuI6lrbw8Tyw9SW1igpWvVkYbtd9KD
-         xd4NjZqQX0lagSyjcFStFacFU/fYT6x/1KP9deCjFWUCt8jbfMQ7XkTW+6LA5DZvtMs8
-         6vkl3LEQwDAMoJjPTnNgFEigb6P/bYboZcTZJ6ngA0l9Dz9Ee85DYk7+gSLud2Wkq5cP
-         H55A==
+        b=xgL8MGiDwG0YsFC9Uq4VUp+i6uAK4+WtDx9bk5pFmsC5E304GW1lUmFUgRhnZHQ9DP
+         GeP3JDD0KlE44Q6IeIP0Wq3SF8OubFvMk6Z5uj2HRgb26b6jvZNQQZtj0HF9swG7EF0r
+         6pG438b/Mtsdk+n6QhQ/xe0bj2/v0w3ISZaydaF141BmJkRN+xs0S7JzLNDjMp5M3kwZ
+         9D5e9i/A0IMhmYoUK9AibhL9+GNyVyWrC8MEU/BpTls3wQMoy6tpWTbzWMFIFJ7eyQRJ
+         KNOYr3DnVa4ijFZa7M/HQXfPcBq4AF8V+QVjLiIumq8k3zU/7td5iRm76RqFY1l12G4r
+         5JxA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=zcCs+/ppDsVLY/PzOPAzCFhswuBzNQFUyyhmkhgkJ74=;
-        b=n7Nn2WATx34wsVxhv3nMArKPSyAMk8BFEEmkYyz4M9NgTeJvdQ91BKCIbUptVAqmGR
-         v94rq1lLZki4oLsxnac5ihBq8rHWWymcMN4zbvwqCViNiI+FdFPdnOziM/G0hrL7SliW
-         5u1w1/OEjyumLGOe6wIyZsrvd8EStxefgihhkUJXFpOsWHEB4teejBr26uTLPl/d7H6E
-         E8ks2loPocLVzoRXV/QLPN5ial0/5GlcKaneMtx7PHUyfz8HDVr6usumDMuHt7NHUtOV
-         SWhXorXjWHyF7hwbL+OFPK9e5xMQ1SFZJQclni8z/QfFPr2/uoNN0OyTCrs3ANkJZ+LY
-         +jHA==
+        bh=RzbtnJhqY18zIuZY4t315OOLtNGQZKeZZoAOjTb5+XQ=;
+        b=a01BeGuKqwaparAorqJRHId3iOky8lwpodYvtCdyVVg2toSNsnSRFaI0WKkedlXBwj
+         T5hCBFiNZotb/HSkKjkIHSg0SulSo1B4fBKxZwemFM/SgZosdx6wNWVxfXkNDcmFK06D
+         bDW7Nb4pRF8gJeSRGHNikr86GqWYusDZquCBBrNQAz8iTUb7xyIzKYttUqGmzCCuXeU3
+         rMLzUf0aNnPeii0A8BrXjV/g4/B9hoCfFYDGiEYXjvS//RxvycnI2SXn3b8FIrNHGR6M
+         LynXN5OZCi0K40AlcQAfXoeGy8V0fxsVA/NGF/2ghYSd4OJO9riOkykY7L1uw6WH/pQd
+         av/g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id 3si599378pli.417.2019.02.13.15.05.17
+        by mx.google.com with ESMTPS id 3si599378pli.417.2019.02.13.15.05.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 15:05:18 -0800 (PST)
+        Wed, 13 Feb 2019 15:05:20 -0800 (PST)
 Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
@@ -81,12 +81,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Feb 2019 15:05:17 -0800
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Feb 2019 15:05:20 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,366,1544515200"; 
-   d="scan'208";a="138415583"
+   d="scan'208";a="138415588"
 Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga001.jf.intel.com with ESMTP; 13 Feb 2019 15:05:13 -0800
+  by orsmga001.jf.intel.com with ESMTP; 13 Feb 2019 15:05:18 -0800
 From: ira.weiny@intel.com
 To: linux-mips@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
@@ -150,9 +150,9 @@ Cc: Ira Weiny <ira.weiny@intel.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Michal Hocko <mhocko@suse.com>,
 	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH V2 1/7] mm/gup: Replace get_user_pages_longterm() with FOLL_LONGTERM
-Date: Wed, 13 Feb 2019 15:04:49 -0800
-Message-Id: <20190213230455.5605-2-ira.weiny@intel.com>
+Subject: [PATCH V2 2/7] mm/gup: Change write parameter to flags in fast walk
+Date: Wed, 13 Feb 2019 15:04:50 -0800
+Message-Id: <20190213230455.5605-3-ira.weiny@intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190213230455.5605-1-ira.weiny@intel.com>
 References: <20190211201643.7599-1-ira.weiny@intel.com>
@@ -167,337 +167,217 @@ List-ID: <linux-mm.kvack.org>
 
 From: Ira Weiny <ira.weiny@intel.com>
 
-Rather than have a separate get_user_pages_longterm() call,
-introduce FOLL_LONGTERM and change the longterm callers to use
-it.
+In order to support more options in the GUP fast walk, change
+the write parameter to flags throughout the call stack.
 
-This patch does not change any functionality.
-
-FOLL_LONGTERM can only be supported with get_user_pages() as it
-requires vmas to determine if DAX is in use.
+This patch does not change functionality and passes FOLL_WRITE
+where write was previously used.
 
 Signed-off-by: Ira Weiny <ira.weiny@intel.com>
 ---
- drivers/infiniband/core/umem.c             |   5 +-
- drivers/infiniband/hw/qib/qib_user_pages.c |   8 +-
- drivers/infiniband/hw/usnic/usnic_uiom.c   |   9 +-
- drivers/media/v4l2-core/videobuf-dma-sg.c  |   6 +-
- drivers/vfio/vfio_iommu_type1.c            |   3 +-
- include/linux/mm.h                         |  13 +-
- mm/gup.c                                   | 138 ++++++++++++---------
- mm/gup_benchmark.c                         |   5 +-
- 8 files changed, 101 insertions(+), 86 deletions(-)
+ mm/gup.c | 52 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 26 insertions(+), 26 deletions(-)
 
-diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
-index b69d3efa8712..120a40df91b4 100644
---- a/drivers/infiniband/core/umem.c
-+++ b/drivers/infiniband/core/umem.c
-@@ -185,10 +185,11 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
- 
- 	while (npages) {
- 		down_read(&mm->mmap_sem);
--		ret = get_user_pages_longterm(cur_base,
-+		ret = get_user_pages(cur_base,
- 				     min_t(unsigned long, npages,
- 					   PAGE_SIZE / sizeof (struct page *)),
--				     gup_flags, page_list, vma_list);
-+				     gup_flags | FOLL_LONGTERM,
-+				     page_list, vma_list);
- 		if (ret < 0) {
- 			up_read(&mm->mmap_sem);
- 			goto umem_release;
-diff --git a/drivers/infiniband/hw/qib/qib_user_pages.c b/drivers/infiniband/hw/qib/qib_user_pages.c
-index ef8bcf366ddc..1b9368261035 100644
---- a/drivers/infiniband/hw/qib/qib_user_pages.c
-+++ b/drivers/infiniband/hw/qib/qib_user_pages.c
-@@ -114,10 +114,10 @@ int qib_get_user_pages(unsigned long start_page, size_t num_pages,
- 
- 	down_read(&current->mm->mmap_sem);
- 	for (got = 0; got < num_pages; got += ret) {
--		ret = get_user_pages_longterm(start_page + got * PAGE_SIZE,
--					      num_pages - got,
--					      FOLL_WRITE | FOLL_FORCE,
--					      p + got, NULL);
-+		ret = get_user_pages(start_page + got * PAGE_SIZE,
-+				     num_pages - got,
-+				     FOLL_LONGTERM | FOLL_WRITE | FOLL_FORCE,
-+				     p + got, NULL);
- 		if (ret < 0) {
- 			up_read(&current->mm->mmap_sem);
- 			goto bail_release;
-diff --git a/drivers/infiniband/hw/usnic/usnic_uiom.c b/drivers/infiniband/hw/usnic/usnic_uiom.c
-index 06862a6af185..1d9a182ac163 100644
---- a/drivers/infiniband/hw/usnic/usnic_uiom.c
-+++ b/drivers/infiniband/hw/usnic/usnic_uiom.c
-@@ -143,10 +143,11 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
- 	ret = 0;
- 
- 	while (npages) {
--		ret = get_user_pages_longterm(cur_base,
--					min_t(unsigned long, npages,
--					PAGE_SIZE / sizeof(struct page *)),
--					gup_flags, page_list, NULL);
-+		ret = get_user_pages(cur_base,
-+				     min_t(unsigned long, npages,
-+				     PAGE_SIZE / sizeof(struct page *)),
-+				     gup_flags | FOLL_LONGTERM,
-+				     page_list, NULL);
- 
- 		if (ret < 0)
- 			goto out;
-diff --git a/drivers/media/v4l2-core/videobuf-dma-sg.c b/drivers/media/v4l2-core/videobuf-dma-sg.c
-index 08929c087e27..870a2a526e0b 100644
---- a/drivers/media/v4l2-core/videobuf-dma-sg.c
-+++ b/drivers/media/v4l2-core/videobuf-dma-sg.c
-@@ -186,12 +186,12 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
- 	dprintk(1, "init user [0x%lx+0x%lx => %d pages]\n",
- 		data, size, dma->nr_pages);
- 
--	err = get_user_pages_longterm(data & PAGE_MASK, dma->nr_pages,
--			     flags, dma->pages, NULL);
-+	err = get_user_pages(data & PAGE_MASK, dma->nr_pages,
-+			     flags | FOLL_LONGTERM, dma->pages, NULL);
- 
- 	if (err != dma->nr_pages) {
- 		dma->nr_pages = (err >= 0) ? err : 0;
--		dprintk(1, "get_user_pages_longterm: err=%d [%d]\n", err,
-+		dprintk(1, "get_user_pages: err=%d [%d]\n", err,
- 			dma->nr_pages);
- 		return err < 0 ? err : -EINVAL;
- 	}
-diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
-index 73652e21efec..1500bd0bb6da 100644
---- a/drivers/vfio/vfio_iommu_type1.c
-+++ b/drivers/vfio/vfio_iommu_type1.c
-@@ -351,7 +351,8 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
- 
- 	down_read(&mm->mmap_sem);
- 	if (mm == current->mm) {
--		ret = get_user_pages_longterm(vaddr, 1, flags, page, vmas);
-+		ret = get_user_pages(vaddr, 1, flags | FOLL_LONGTERM, page,
-+				     vmas);
- 	} else {
- 		ret = get_user_pages_remote(NULL, mm, vaddr, 1, flags, page,
- 					    vmas, NULL);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 80bb6408fe73..05a105d9d4c3 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1536,18 +1536,6 @@ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
- 		    unsigned int gup_flags, struct page **pages, int *locked);
- long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
- 		    struct page **pages, unsigned int gup_flags);
--#ifdef CONFIG_FS_DAX
--long get_user_pages_longterm(unsigned long start, unsigned long nr_pages,
--			    unsigned int gup_flags, struct page **pages,
--			    struct vm_area_struct **vmas);
--#else
--static inline long get_user_pages_longterm(unsigned long start,
--		unsigned long nr_pages, unsigned int gup_flags,
--		struct page **pages, struct vm_area_struct **vmas)
--{
--	return get_user_pages(start, nr_pages, gup_flags, pages, vmas);
--}
--#endif /* CONFIG_FS_DAX */
- 
- int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 			struct page **pages);
-@@ -2615,6 +2603,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
- #define FOLL_REMOTE	0x2000	/* we are working on non-current tsk/mm */
- #define FOLL_COW	0x4000	/* internal GUP flag */
- #define FOLL_ANON	0x8000	/* don't do file mappings */
-+#define FOLL_LONGTERM	0x10000	/* mapping is intended for a long term pin */
- 
- static inline int vm_fault_to_errno(vm_fault_t vm_fault, int foll_flags)
- {
 diff --git a/mm/gup.c b/mm/gup.c
-index b63e88eca31b..ee96eaff118c 100644
+index ee96eaff118c..681388236106 100644
 --- a/mm/gup.c
 +++ b/mm/gup.c
-@@ -1109,87 +1109,109 @@ long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
- }
- EXPORT_SYMBOL(get_user_pages_remote);
+@@ -1417,7 +1417,7 @@ static void undo_dev_pagemap(int *nr, int nr_start, struct page **pages)
  
--/*
-- * This is the same as get_user_pages_remote(), just with a
-- * less-flexible calling convention where we assume that the task
-- * and mm being operated on are the current task's and don't allow
-- * passing of a locked parameter.  We also obviously don't pass
-- * FOLL_REMOTE in here.
-- */
--long get_user_pages(unsigned long start, unsigned long nr_pages,
--		unsigned int gup_flags, struct page **pages,
--		struct vm_area_struct **vmas)
--{
--	return __get_user_pages_locked(current, current->mm, start, nr_pages,
--				       pages, vmas, NULL,
--				       gup_flags | FOLL_TOUCH);
--}
--EXPORT_SYMBOL(get_user_pages);
--
- #ifdef CONFIG_FS_DAX
- /*
-- * This is the same as get_user_pages() in that it assumes we are
-- * operating on the current task's mm, but it goes further to validate
-- * that the vmas associated with the address range are suitable for
-- * longterm elevated page reference counts. For example, filesystem-dax
-- * mappings are subject to the lifetime enforced by the filesystem and
-- * we need guarantees that longterm users like RDMA and V4L2 only
-- * establish mappings that have a kernel enforced revocation mechanism.
-+ * __gup_longterm_locked() is a wrapper for __get_uer_pages_locked which
-+ * allows us to process the FOLL_LONGTERM flag if present.
-+ *
-+ * __gup_longterm_locked() validates that the vmas associated with the address
-+ * range are suitable for longterm elevated page reference counts. For example,
-+ * filesystem-dax mappings are subject to the lifetime enforced by the
-+ * filesystem and we need guarantees that longterm users like RDMA and V4L2
-+ * only establish mappings that have a kernel enforced revocation mechanism.
-  *
-  * "longterm" == userspace controlled elevated page count lifetime.
-  * Contrast this to iov_iter_get_pages() usages which are transient.
-  */
--long get_user_pages_longterm(unsigned long start, unsigned long nr_pages,
--		unsigned int gup_flags, struct page **pages,
--		struct vm_area_struct **vmas_arg)
-+static __always_inline long __gup_longterm_locked(struct task_struct *tsk,
-+						  struct mm_struct *mm,
-+						  unsigned long start,
-+						  unsigned long nr_pages,
-+						  struct page **pages,
-+						  struct vm_area_struct **vmas,
-+						  unsigned int flags)
+ #ifdef CONFIG_ARCH_HAS_PTE_SPECIAL
+ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+-			 int write, struct page **pages, int *nr)
++			 unsigned int flags, struct page **pages, int *nr)
  {
--	struct vm_area_struct **vmas = vmas_arg;
-+	struct vm_area_struct **vmas_tmp = vmas;
- 	struct vm_area_struct *vma_prev = NULL;
- 	long rc, i;
+ 	struct dev_pagemap *pgmap = NULL;
+ 	int nr_start = *nr, ret = 0;
+@@ -1435,7 +1435,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+ 		if (pte_protnone(pte))
+ 			goto pte_unmap;
  
--	if (!pages)
--		return -EINVAL;
--
--	if (!vmas) {
--		vmas = kcalloc(nr_pages, sizeof(struct vm_area_struct *),
--			       GFP_KERNEL);
--		if (!vmas)
--			return -ENOMEM;
-+	if (flags & FOLL_LONGTERM) {
-+		if (!pages)
-+			return -EINVAL;
-+
-+		if (!vmas_tmp) {
-+			vmas_tmp = kcalloc(nr_pages,
-+					   sizeof(struct vm_area_struct *),
-+					   GFP_KERNEL);
-+			if (!vmas_tmp)
-+				return -ENOMEM;
-+		}
+-		if (!pte_access_permitted(pte, write))
++		if (!pte_access_permitted(pte, flags & FOLL_WRITE))
+ 			goto pte_unmap;
+ 
+ 		if (pte_devmap(pte)) {
+@@ -1487,7 +1487,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+  * useful to have gup_huge_pmd even if we can't operate on ptes.
+  */
+ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+-			 int write, struct page **pages, int *nr)
++			 unsigned int flags, struct page **pages, int *nr)
+ {
+ 	return 0;
+ }
+@@ -1570,12 +1570,12 @@ static int __gup_device_huge_pud(pud_t pud, pud_t *pudp, unsigned long addr,
+ #endif
+ 
+ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+-		unsigned long end, int write, struct page **pages, int *nr)
++		unsigned long end, unsigned int flags, struct page **pages, int *nr)
+ {
+ 	struct page *head, *page;
+ 	int refs;
+ 
+-	if (!pmd_access_permitted(orig, write))
++	if (!pmd_access_permitted(orig, flags & FOLL_WRITE))
+ 		return 0;
+ 
+ 	if (pmd_devmap(orig))
+@@ -1608,12 +1608,12 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+ }
+ 
+ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+-		unsigned long end, int write, struct page **pages, int *nr)
++		unsigned long end, unsigned int flags, struct page **pages, int *nr)
+ {
+ 	struct page *head, *page;
+ 	int refs;
+ 
+-	if (!pud_access_permitted(orig, write))
++	if (!pud_access_permitted(orig, flags & FOLL_WRITE))
+ 		return 0;
+ 
+ 	if (pud_devmap(orig))
+@@ -1646,13 +1646,13 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+ }
+ 
+ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
+-			unsigned long end, int write,
++			unsigned long end, unsigned int flags,
+ 			struct page **pages, int *nr)
+ {
+ 	int refs;
+ 	struct page *head, *page;
+ 
+-	if (!pgd_access_permitted(orig, write))
++	if (!pgd_access_permitted(orig, flags & FOLL_WRITE))
+ 		return 0;
+ 
+ 	BUILD_BUG_ON(pgd_devmap(orig));
+@@ -1683,7 +1683,7 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
+ }
+ 
+ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+-		int write, struct page **pages, int *nr)
++		unsigned int flags, struct page **pages, int *nr)
+ {
+ 	unsigned long next;
+ 	pmd_t *pmdp;
+@@ -1705,7 +1705,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ 			if (pmd_protnone(pmd))
+ 				return 0;
+ 
+-			if (!gup_huge_pmd(pmd, pmdp, addr, next, write,
++			if (!gup_huge_pmd(pmd, pmdp, addr, next, flags,
+ 				pages, nr))
+ 				return 0;
+ 
+@@ -1715,9 +1715,9 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ 			 * pmd format and THP pmd format
+ 			 */
+ 			if (!gup_huge_pd(__hugepd(pmd_val(pmd)), addr,
+-					 PMD_SHIFT, next, write, pages, nr))
++					 PMD_SHIFT, next, flags, pages, nr))
+ 				return 0;
+-		} else if (!gup_pte_range(pmd, addr, next, write, pages, nr))
++		} else if (!gup_pte_range(pmd, addr, next, flags, pages, nr))
+ 			return 0;
+ 	} while (pmdp++, addr = next, addr != end);
+ 
+@@ -1725,7 +1725,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ }
+ 
+ static int gup_pud_range(p4d_t p4d, unsigned long addr, unsigned long end,
+-			 int write, struct page **pages, int *nr)
++			 unsigned int flags, struct page **pages, int *nr)
+ {
+ 	unsigned long next;
+ 	pud_t *pudp;
+@@ -1738,14 +1738,14 @@ static int gup_pud_range(p4d_t p4d, unsigned long addr, unsigned long end,
+ 		if (pud_none(pud))
+ 			return 0;
+ 		if (unlikely(pud_huge(pud))) {
+-			if (!gup_huge_pud(pud, pudp, addr, next, write,
++			if (!gup_huge_pud(pud, pudp, addr, next, flags,
+ 					  pages, nr))
+ 				return 0;
+ 		} else if (unlikely(is_hugepd(__hugepd(pud_val(pud))))) {
+ 			if (!gup_huge_pd(__hugepd(pud_val(pud)), addr,
+-					 PUD_SHIFT, next, write, pages, nr))
++					 PUD_SHIFT, next, flags, pages, nr))
+ 				return 0;
+-		} else if (!gup_pmd_range(pud, addr, next, write, pages, nr))
++		} else if (!gup_pmd_range(pud, addr, next, flags, pages, nr))
+ 			return 0;
+ 	} while (pudp++, addr = next, addr != end);
+ 
+@@ -1753,7 +1753,7 @@ static int gup_pud_range(p4d_t p4d, unsigned long addr, unsigned long end,
+ }
+ 
+ static int gup_p4d_range(pgd_t pgd, unsigned long addr, unsigned long end,
+-			 int write, struct page **pages, int *nr)
++			 unsigned int flags, struct page **pages, int *nr)
+ {
+ 	unsigned long next;
+ 	p4d_t *p4dp;
+@@ -1768,9 +1768,9 @@ static int gup_p4d_range(pgd_t pgd, unsigned long addr, unsigned long end,
+ 		BUILD_BUG_ON(p4d_huge(p4d));
+ 		if (unlikely(is_hugepd(__hugepd(p4d_val(p4d))))) {
+ 			if (!gup_huge_pd(__hugepd(p4d_val(p4d)), addr,
+-					 P4D_SHIFT, next, write, pages, nr))
++					 P4D_SHIFT, next, flags, pages, nr))
+ 				return 0;
+-		} else if (!gup_pud_range(p4d, addr, next, write, pages, nr))
++		} else if (!gup_pud_range(p4d, addr, next, flags, pages, nr))
+ 			return 0;
+ 	} while (p4dp++, addr = next, addr != end);
+ 
+@@ -1778,7 +1778,7 @@ static int gup_p4d_range(pgd_t pgd, unsigned long addr, unsigned long end,
+ }
+ 
+ static void gup_pgd_range(unsigned long addr, unsigned long end,
+-		int write, struct page **pages, int *nr)
++		unsigned int flags, struct page **pages, int *nr)
+ {
+ 	unsigned long next;
+ 	pgd_t *pgdp;
+@@ -1791,14 +1791,14 @@ static void gup_pgd_range(unsigned long addr, unsigned long end,
+ 		if (pgd_none(pgd))
+ 			return;
+ 		if (unlikely(pgd_huge(pgd))) {
+-			if (!gup_huge_pgd(pgd, pgdp, addr, next, write,
++			if (!gup_huge_pgd(pgd, pgdp, addr, next, flags,
+ 					  pages, nr))
+ 				return;
+ 		} else if (unlikely(is_hugepd(__hugepd(pgd_val(pgd))))) {
+ 			if (!gup_huge_pd(__hugepd(pgd_val(pgd)), addr,
+-					 PGDIR_SHIFT, next, write, pages, nr))
++					 PGDIR_SHIFT, next, flags, pages, nr))
+ 				return;
+-		} else if (!gup_p4d_range(pgd, addr, next, write, pages, nr))
++		} else if (!gup_p4d_range(pgd, addr, next, flags, pages, nr))
+ 			return;
+ 	} while (pgdp++, addr = next, addr != end);
+ }
+@@ -1852,7 +1852,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 
+ 	if (gup_fast_permitted(start, nr_pages)) {
+ 		local_irq_save(flags);
+-		gup_pgd_range(start, end, write, pages, &nr);
++		gup_pgd_range(start, end, write ? FOLL_WRITE : 0, pages, &nr);
+ 		local_irq_restore(flags);
  	}
  
--	rc = get_user_pages(start, nr_pages, gup_flags, pages, vmas);
-+	rc = __get_user_pages_locked(tsk, mm, start, nr_pages, pages,
-+				     vmas_tmp, NULL, flags);
+@@ -1894,7 +1894,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
  
--	for (i = 0; i < rc; i++) {
--		struct vm_area_struct *vma = vmas[i];
-+	if (flags & FOLL_LONGTERM) {
-+		for (i = 0; i < rc; i++) {
-+			struct vm_area_struct *vma = vmas_tmp[i];
- 
--		if (vma == vma_prev)
--			continue;
-+			if (vma == vma_prev)
-+				continue;
- 
--		vma_prev = vma;
-+			vma_prev = vma;
- 
--		if (vma_is_fsdax(vma))
--			break;
--	}
-+			if (vma_is_fsdax(vma))
-+				break;
-+		}
- 
--	/*
--	 * Either get_user_pages() failed, or the vma validation
--	 * succeeded, in either case we don't need to put_page() before
--	 * returning.
--	 */
--	if (i >= rc)
--		goto out;
-+		/*
-+		 * Either get_user_pages() failed, or the vma validation
-+		 * succeeded, in either case we don't need to put_page() before
-+		 * returning.
-+		 */
-+		if (i >= rc)
-+			goto out;
- 
--	for (i = 0; i < rc; i++)
--		put_page(pages[i]);
--	rc = -EOPNOTSUPP;
-+		for (i = 0; i < rc; i++)
-+			put_page(pages[i]);
-+		rc = -EOPNOTSUPP;
- out:
--	if (vmas != vmas_arg)
--		kfree(vmas);
-+		if (vmas_tmp != vmas)
-+			kfree(vmas_tmp);
-+	}
-+
- 	return rc;
- }
--EXPORT_SYMBOL(get_user_pages_longterm);
-+#else /* !CONFIG_FS_DAX */
-+static __always_inline long __gup_longterm_locked(struct task_struct *tsk,
-+						  struct mm_struct *mm,
-+						  unsigned long start,
-+						  unsigned long nr_pages,
-+						  struct page **pages,
-+						  struct vm_area_struct **vmas,
-+						  unsigned int flags)
-+{
-+	return __get_user_pages_locked(tsk, mm, start, nr_pages, pages, vmas,
-+				       NULL, flags);
-+}
- #endif /* CONFIG_FS_DAX */
- 
-+/*
-+ * This is the same as get_user_pages_remote(), just with a
-+ * less-flexible calling convention where we assume that the task
-+ * and mm being operated on are the current task's and don't allow
-+ * passing of a locked parameter.  We also obviously don't pass
-+ * FOLL_REMOTE in here.
-+ */
-+long get_user_pages(unsigned long start, unsigned long nr_pages,
-+		unsigned int gup_flags, struct page **pages,
-+		struct vm_area_struct **vmas)
-+{
-+	return __gup_longterm_locked(current, current->mm, start, nr_pages,
-+				     pages, vmas, gup_flags | FOLL_TOUCH);
-+}
-+EXPORT_SYMBOL(get_user_pages);
-+
- /**
-  * populate_vma_page_range() -  populate a range of pages in the vma.
-  * @vma:   target vma
-diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
-index 5b42d3d4b60a..c898e2e0d1e4 100644
---- a/mm/gup_benchmark.c
-+++ b/mm/gup_benchmark.c
-@@ -54,8 +54,9 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
- 						 pages + i);
- 			break;
- 		case GUP_LONGTERM_BENCHMARK:
--			nr = get_user_pages_longterm(addr, nr, gup->flags & 1,
--						     pages + i, NULL);
-+			nr = get_user_pages(addr, nr,
-+					    (gup->flags & 1) | FOLL_LONGTERM,
-+					    pages + i, NULL);
- 			break;
- 		case GUP_BENCHMARK:
- 			nr = get_user_pages(addr, nr, gup->flags & 1, pages + i,
+ 	if (gup_fast_permitted(start, nr_pages)) {
+ 		local_irq_disable();
+-		gup_pgd_range(addr, end, write, pages, &nr);
++		gup_pgd_range(addr, end, write ? FOLL_WRITE : 0, pages, &nr);
+ 		local_irq_enable();
+ 		ret = nr;
+ 	}
 -- 
 2.20.1
 
