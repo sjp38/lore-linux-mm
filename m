@@ -2,153 +2,148 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8FC71C282CA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 09:18:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A2A7FC282CA
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 09:26:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 49AD4222C9
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 09:18:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="aJBR3p8U"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49AD4222C9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 5B5A7222C0
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 09:26:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5B5A7222C0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CE2FE8E0002; Wed, 13 Feb 2019 04:18:07 -0500 (EST)
+	id DC60D8E0002; Wed, 13 Feb 2019 04:26:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C91898E0001; Wed, 13 Feb 2019 04:18:07 -0500 (EST)
+	id D762B8E0001; Wed, 13 Feb 2019 04:26:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BA7128E0002; Wed, 13 Feb 2019 04:18:07 -0500 (EST)
+	id C645E8E0002; Wed, 13 Feb 2019 04:26:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A5918E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 04:18:07 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id b8so1435077pfe.10
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 01:18:07 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 824A78E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 04:26:52 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id t72so1421090pfi.21
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 01:26:52 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=ezC/cSIEOi9TZhW/zhe4OwXuUzMJ8JGy1VtqvyP7VJI=;
-        b=cC25Ah+L0wyARPzEUwP3h3SBzCYEqCD3UYO7jdZPJLWmSZUTsim/TCSFtsNmRsxN3R
-         Z/WoXxzfjuSxBoTjdz7aKvFcDpSsG8I7wDj60VR1/NBkAtZPoQdqDMtOKlBYee7yzkj9
-         0e2dIG5zXAf0u05KlhB5KDVDK5CckuzXW2W5tvCvWUlcpaq9ZQiSvJI1vYqp3u74PrWL
-         YbHIZ59E6o9OFlCAxW/i4L7l8TyfR1z1xdnzLJFiywI6gfy9yAHlzMCrzNzoo7CvqQYt
-         WTQToFujMwkJc+cLeU3RahEgHPjRQKDigDdXKP2SNqtoRzXq4Fwia0rgfuZF6fvlub20
-         pEcA==
-X-Gm-Message-State: AHQUAuatGcPbERmBL9Ih9QMTO6ggNJOOwPT2OQLb6DIUGMGc+yi6K/3W
-	PqRD1Th7iVq/IK9lVFEcyGHiEY97zL07hUXub7PG7tUwWFbs/T1BE16k6Be3TemFbUkGjlzvcfg
-	ja/Pr75WFDjdJOyH4wH6sT/3eBbPsNRZ67mdgPbix5WA0MXapHPV8zkMJYrE8ftU=
-X-Received: by 2002:a62:35c7:: with SMTP id c190mr8886196pfa.76.1550049487086;
-        Wed, 13 Feb 2019 01:18:07 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbLRxCGHcJb4S/TnZOwhcmOaGLDmUWjp1xEL0rTHJ18AYkjRXbmf86adn4e9ra7CctrQSql
-X-Received: by 2002:a62:35c7:: with SMTP id c190mr8886132pfa.76.1550049486104;
-        Wed, 13 Feb 2019 01:18:06 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550049486; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=MTob8uIYjM0Kzz0IRR/itK/nCHxP3GKuMWcSWon6HIc=;
+        b=uUu96uIz1YBj2hw576yTK6fqlKkbNeU2vZ+cWxFzlhSc9tM2I6tM7TBFk27QkLTO4n
+         tY72m6JGYp2CPsCVTfXEUkOuoYDJzgH7yis9y/WbfqznSFudKrsq5id6Lp9QRe2RLZBr
+         GBOj2nIXhHox+9v3gL+tiezU7utI/qNLXUqhBbfFagsMb1YQs3XiN+qgJ5vlOvcnkDbc
+         p7/XvK/C3D/XHrNl+XTC3meyhyGxCk8nXy3767iOlcTQ8qgNegm+NPyCLAMecWtaeaty
+         DfFG8TdjSBClN79d4EOjJl2+aW9op0gEpJAlmI/x/z+p3ynKT2aaSsBMvHpWWnPqy029
+         6E/Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: AHQUAuahcmezPTEllimtoEfBLoyjUKjjvTRDSxWaoS+qhMAAZ/B9pI15
+	cVnyNCWfT7QuowfAqMSOTzO17NFAoG3BBlh9H4UNShQfZbH77okze5bM+fOF2ep1JBbmkEu4fht
+	/8yfh7uQJokfxD0TlEO7Z6gJOJne9zXfgnPNODFsBbexF22mBa9CYkP55Tds+ubE64g==
+X-Received: by 2002:a17:902:a58c:: with SMTP id az12mr8543583plb.299.1550050012175;
+        Wed, 13 Feb 2019 01:26:52 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYe6DJmE5+Wul6GKHcKLlPWZtDjp8aYn4Okw1mKOYaMPUuWOPfZekTLhVaqZbu3SN7CyciE
+X-Received: by 2002:a17:902:a58c:: with SMTP id az12mr8543537plb.299.1550050011390;
+        Wed, 13 Feb 2019 01:26:51 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550050011; cv=none;
         d=google.com; s=arc-20160816;
-        b=Zdfp8vm+aQZjnrvHbiBI+mS0uyuYDBy7gCnUD/AzEJIPgwZNW0f7n3ChDQJidHdKT3
-         Js1Sqz19ORgGSrYlHuhCO6SVbyb9ZROvWkV27IYCT+eqT4Jb9jTbMs73BiKHzarYpA8Y
-         6UiuUGz/dlYlHJawgFEs3oLjYqukrj5c4j6hvFD60oIpKpqMOBzR+gU60y8c2XGg8JR2
-         iDCE4fX9S87+zvM5rAQsqVX+P344frOLGgoZHI2GjU8XmphJgsMrQXct2DwXO7pKNy77
-         rz+LqZRQQHwOAqdjrFIItOtlDIBVlwIqlkrGX0YTTE6DKHWeTdb5Af0wHNLyj88m69zF
-         VIqg==
+        b=va9rtpo5sq58trcHrR287kk+DfF8Hv0gN9KcMbBId0yVji3f8jllUmbDYs+GcllWZw
+         OrcU+N2bBgxwpdGwwbtKY9gsfQcaD4RNeGckdd6l4gcv11TTOnewrix3p6+jLGKU+BYN
+         1bQLircuBUNcsocy+6LuS/cFqOnJFUhXf/0A2ps92REvGJWtefPIEyiugyrOI7HFxOV4
+         JtvTbCp+fF87yApMXuG4HAumuirYlCnUUNaDKAiFkblDC+cXISGMEnbtxMOXAlKhkfeK
+         jmE5AZjoVbf4Ut9nn64rW1SsUMql5L8GvGAN3rQqiv2cC9QcuUTr4DdgwVXRbN/cjX3P
+         3BKA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ezC/cSIEOi9TZhW/zhe4OwXuUzMJ8JGy1VtqvyP7VJI=;
-        b=CQe0U2e7jd7514QJtf/1xSECTf9M3hWtCyWcDiib3AeBjgs0siucblUFjimm6+IKLh
-         1STXRv8WnnAZv8BbcWbmhhw/LjXzNm4m3y5QbBm1YBrfNBLDGevi847DtXbdlMqmChs2
-         2izvNqdFU1jss7hmHxhoXN2r7gnjRZ4AaC+2iWyhYzIW/yq45Qb1QC4fSuBekVRVOCbj
-         ZXdPg10Z+n40/jnb+7lDMDRvCGhT6d2YoDkxZE2FYFrARY6uRsNM/JnOmtTnSCPjMn+T
-         Rv8kFx1rushWI6NuqzEQPbzYvJU4lcJHgUoHMtuglsT9w9P1aTAJHBCQ6+9ybwui99dB
-         Osmw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=MTob8uIYjM0Kzz0IRR/itK/nCHxP3GKuMWcSWon6HIc=;
+        b=gtUDuYXllNeTcXMuCiFXtrw25qJsfXhw9EctwE6fS12oHLaryBAp+PqMNjTfi2eUbu
+         LqsUcDKJ79C2GHLxhRnA/FRCd1Al0UqakIHlrSRKZbpVKZNJj/nrBWfVHlh33SCbr/+p
+         wfi9e992OF3Coe65ffVJX2ebvieQ7pP8FUP40odx1c5QuhOynn/sACmZKxuaIX/QBl8o
+         L1Xr6+UgXLUB6TlEv+AKv7rE9+9GyKILydIIdJpPiHye3gbieLOU8zxmH63MmHGKZZVW
+         gjuYF/VaO8BUELmNScRrh1w+II3pw4LeXUy2fmTZDsE8bYaUvVc2xffngryizO3OsYWk
+         Kcqw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=aJBR3p8U;
-       spf=pass (google.com: domain of srs0=8kuc=qu=linuxfoundation.org=gregkh@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=8KUc=QU=linuxfoundation.org=gregkh@kernel.org"
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id b1si8312376plr.379.2019.02.13.01.18.05
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w21si10154250pgk.122.2019.02.13.01.26.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 01:18:06 -0800 (PST)
-Received-SPF: pass (google.com: domain of srs0=8kuc=qu=linuxfoundation.org=gregkh@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Wed, 13 Feb 2019 01:26:50 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=aJBR3p8U;
-       spf=pass (google.com: domain of srs0=8kuc=qu=linuxfoundation.org=gregkh@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=8KUc=QU=linuxfoundation.org=gregkh@kernel.org"
-Received: from localhost (5356596B.cm-6-7b.dynamic.ziggo.nl [83.86.89.107])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 286E8222BE;
-	Wed, 13 Feb 2019 09:18:04 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1550049485;
-	bh=OBwtMif6U+gAaRqAxV3AgL7zafK6ORpn+3ToEs1jewg=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=aJBR3p8UeaFYq4Y9hKmUYhWwNBpI/rhmNsqsWY5DyLtM70GEH2zsy934/UJrWt0UQ
-	 YlRgwty3vJMnXJEYcGPMOCe90hxSs6XnD2eriPsByXASy9gNMWSFhdXkTRVXQc8CVi
-	 P6OKqoUYaAOb5ywdBMwvzWG5uev3p2PZSm37lpAE=
-Date: Wed, 13 Feb 2019 10:18:03 +0100
-From: Greg KH <gregkh@linuxfoundation.org>
-To: Amir Goldstein <amir73il@gmail.com>
-Cc: Steve French <smfrench@gmail.com>, Sasha Levin <sashal@kernel.org>,
-	lsf-pc@lists.linux-foundation.org,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	"Luis R. Rodriguez" <mcgrof@kernel.org>
-Subject: Re: [LSF/MM TOPIC] FS, MM, and stable trees
-Message-ID: <20190213091803.GA2308@kroah.com>
-References: <20190212170012.GF69686@sasha-vm>
- <CAH2r5mviqHxaXg5mtVe30s2OTiPW2ZYa9+wPajjzz3VOarAUfw@mail.gmail.com>
- <CAOQ4uxjMYWJPF8wFF_7J7yy7KCdGd8mZChfQc5GzNDcfqA7UAA@mail.gmail.com>
- <20190213073707.GA2875@kroah.com>
- <CAOQ4uxgQGCSbhppBfhHQmDDXS3TGmgB4m=Vp3nyyWTFiyv6z6g@mail.gmail.com>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 54122AF9B;
+	Wed, 13 Feb 2019 09:26:49 +0000 (UTC)
+Subject: Re: No system call to determine MAX_NUMNODES?
+To: Alexander Duyck <alexander.duyck@gmail.com>,
+ Ralph Campbell <rcampbell@nvidia.com>
+Cc: Linux MM <linux-mm@kvack.org>, longman@redhat.com,
+ Linux API <linux-api@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>
+References: <631c44cc-df2d-40d4-a537-d24864df0679@nvidia.com>
+ <CAKgT0UewZP7AE8o__+6TYeKxERBdbnLP9DSzRApZQjzj9Jpeww@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <4dab8a83-803a-56e0-6bbf-bdf581f2d1b4@suse.cz>
+Date: Wed, 13 Feb 2019 10:26:48 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOQ4uxgQGCSbhppBfhHQmDDXS3TGmgB4m=Vp3nyyWTFiyv6z6g@mail.gmail.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
+In-Reply-To: <CAKgT0UewZP7AE8o__+6TYeKxERBdbnLP9DSzRApZQjzj9Jpeww@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 13, 2019 at 11:01:25AM +0200, Amir Goldstein wrote:
-> I think the main difference between these review announcements
-> and true CI is what kind of guaranty you get for a release candidate
-> from NOT getting a test failure response, which is one of the main
-> reasons that where holding back xfs stable fixes for so long.
+On 2/7/19 1:27 AM, Alexander Duyck wrote:
+> On Wed, Feb 6, 2019 at 3:13 PM Ralph Campbell <rcampbell@nvidia.com> wrote:
+>>
+>> I was using the latest git://git.cmpxchg.org/linux-mmotm.git and noticed
+>> a new issue compared to 5.0.0-rc5.
+>>
+>> It looks like there is no convenient way to query the kernel's value for
+>> MAX_NUMNODES yet this is used in kernel_get_mempolicy() to validate the
+>> 'maxnode' parameter to the GET_MEMPOLICY(2) system call.
+>> Otherwise, EINVAL is returned.
+>>
+>> Searching the internet for get_mempolicy yields some references that
+>> recommend reading /proc/<pid>/status and parsing the line "Mems_allowed:".
+>>
+>> Running "cat /proc/self/status | grep Mems_allowed:" I get:
+>> With 5.0.0-rc5:
+>> Mems_allowed:   00000000,00000001
+>> With 5.0.0-rc5-mm1:
+>> Mems_allowed:   1
+>> (both kernels were config'ed with CONFIG_NODES_SHIFT=6)
+>>
+>> Clearly, there should be a better way to query MAX_NUMNODES like
+>> sysconf(), sysctl(), or libnuma.
+> 
+> Really we shouldn't need to know that. That just tells us about how
+> the kernel was built, it doesn't really provide any information about
+> the layout of the system.
+> 
+>> I searched for the patch that changed /proc/self/status but didn't find it.
+> 
+> The patch you are looking for is located at:
+> http://lkml.kernel.org/r/1545405631-6808-1-git-send-email-longman@redhat.com
 
-That's not true, I know to wait for some responses before doing a
-release of these kernels.
+Hmm looks like libnuma [1] uses that /proc/self/status parsing approach for
+numa_num_possible_nodes() and it's also mentioned in man numa(3), and comment in
+code mentions that libcpuset does that as well. I'm afraid we can't just break this.
 
-> Best effort testing in timely manner is good, but a good way to
-> improve confidence in stable kernel releases is a publicly
-> available list of tests that the release went through.
+> I wonder if we shouldn't look at modifying kernel_get_mempolicy and
+> the compat call to test for nr_node_ids instead of MAX_NUMNODES since
+> the rest of the data would be useless anyway.
+> 
 
-We have that, you aren't noticing them...
-
-> Do you have any such list of tests that you *know* are being run,
-> that you (or Sasha) run yourself or that you actively wait on an
-> ACK from a group before a release?
-
-Yes, look at the responses to those messages from Guenter, Shuah, Jon,
-kernel.ci, Red Hat testing, the Linaro testing teams, and a few other
-testers that come and go over time.  Those list out all of the tests
-that are being run, and the results of those tests.
-
-I also get a number of private responses from different build systems
-from companies that don't want to post in public, which is fine, I
-understand the issues involved with that.
-
-I would argue that the stable releases are better tested than Linus's
-releases for that reason alone :)
-
-thanks,
-
-greg k-h
+[1] https://github.com/numactl/numactl/blob/master/libnuma.c
 
