@@ -2,191 +2,193 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 69AB0C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:41:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E77B8C282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:41:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 27C6D20835
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:41:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 27C6D20835
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id A438020835
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:41:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="r/PaWOEg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A438020835
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD8A48E0002; Wed, 13 Feb 2019 09:41:06 -0500 (EST)
+	id 423ED8E0003; Wed, 13 Feb 2019 09:41:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A88C28E0001; Wed, 13 Feb 2019 09:41:06 -0500 (EST)
+	id 3D2718E0001; Wed, 13 Feb 2019 09:41:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 99E9E8E0002; Wed, 13 Feb 2019 09:41:06 -0500 (EST)
+	id 274608E0003; Wed, 13 Feb 2019 09:41:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 588AB8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:41:06 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id a23so2053441pfo.2
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 06:41:06 -0800 (PST)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EC93F8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:41:07 -0500 (EST)
+Received: by mail-vs1-f69.google.com with SMTP id u29so611620vsj.1
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 06:41:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=nvlwPyQYARni0b3cZG9bzQyjlrPfoDOryJPlL9uYpF0=;
-        b=Pfz5nws3TuSNK+LJ3+IrELzPr44j1L5ZW+WExSv0H88kPpcIOzoo+N6gZo7ECdXEPr
-         NfUaqIEoUpDmN6D/iIPlAYcHU28NjRJRUW3dwRQb+w7XE+sK0fHMiFWrS8rH4M2Hy0np
-         HHv3I2oDIzI0BUHCp6ZjuygufnQip2q1g7lYNHT5KtO8H/c3/GaRXU3tq+SJXl1HDMW8
-         CyTLfPxvpWcfG4kSGMYYojpPqQxvGXxukBxcCIE/XWuuBZmyS8P/kAIEPUdFaasWDgno
-         3odKMJkl1bovL2AlbqAcwhAnyVExfyCsepysGHSaUEQYiRUIFGZjqyYM0t1FFR8P0WmY
-         la+A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: AHQUAubT2R3CXbB9x+3ahRSo8jXTrgBZR8Gusr3rFyIJjSlNYfeuHxNh
-	xSqcXhBD221WA8Fy8r/zRjxaseZ4XMuuT+l3DDDsa2BL7Ws+C/4xw0cVIDgtHDWJ7VlYT6nuyNx
-	ac6iKby6Iwvoc/XjTgS/1bbYw1qaftgfCcu19iiDkxD8SeH01mRzDWd2RBdfm6ALFjw==
-X-Received: by 2002:a17:902:4324:: with SMTP id i33mr819758pld.227.1550068866032;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=A83HwLkscd+n/ThJxRWxJ32yY+Lg5D0jBF/2KpDB3qY=;
+        b=saGsTPCFw1EnaHyumDt+adJgbCtygljnl4KN/aN/ZaU4a5+S/9JJSYRBnt5vxhnIMn
+         ipvstywIu+lnTrMkwlxORPkh6psvpZmoBYh9c8aS+643zDhAGy4ChVYbec4OhycLd0bT
+         IIWIFLADvSPGDN/o8lyKtQHJBRuzYEB9+x+1GZ9jb5LDa/zisTPmKMA/d7t5swhh1E1P
+         vI4LDGBblml2sE2u8q3TAGe7ft5lZHki6aIdYHBe2PTuaPIVfny9YFRc8cds9teMqgmI
+         pdmgXyUM3gDNtUXZksJHBz6GKKd/jAuyZB4YJDdTWeFF0PDt7hVngvApABfzNQcGxRqD
+         lidA==
+X-Gm-Message-State: AHQUAubx0Rztf5GlOFyNBLMGNIVt0H4F+v5SymNv7B1DHd+lf/Cibl87
+	EYLCtcMSSfTMm1GgcVvBG0V3iyZgpMth3TjkX5GM880WkS2wOTM/Sr8kwbCeypRf4NfL6II/OLC
+	cZWkI3K58+jndwCw97bYpxm3GqwFzIkoorpyXuZPYrK3bKAqGS+BgIV60a6gBZ9WXt6Acy0Oo3N
+	QYMUrYfVf4/+xpki6TSelt2N64DLvYBwkSDaJBFmMghHB3qhc2klH5GhyzeStnnEbpI5VTTj/UE
+	mwzrkoCfXEIUEsXJEtOGadBeLaj8n9rRMYbFh42+J6zhQQm84gdKUv09RiSXu6C6QAnYBm715co
+	TdukX0nLakYxl5/a2qDFjI3WzqOz6pLhBAiptXblOR+23KrvfYg8gFt/iP02HeAsHnnv/YPzhFq
+	0
+X-Received: by 2002:ab0:498d:: with SMTP id e13mr325027uad.134.1550068867594;
+        Wed, 13 Feb 2019 06:41:07 -0800 (PST)
+X-Received: by 2002:ab0:498d:: with SMTP id e13mr325011uad.134.1550068866804;
         Wed, 13 Feb 2019 06:41:06 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaCaG/gFlweCbdB60oeaU4AmzaVWmS4cSAgW+lLUALyHTKzFPqMTwrQSBH9Nn0hasD7HLSI
-X-Received: by 2002:a17:902:4324:: with SMTP id i33mr819706pld.227.1550068865140;
-        Wed, 13 Feb 2019 06:41:05 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550068865; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1550068866; cv=none;
         d=google.com; s=arc-20160816;
-        b=ebbZR+djlsoAjOQ0vpBrRR7xV+WzIBzE3gEDMmJSiJfxGQrxhm/tQP4bT69BeHNgZj
-         CHMLY2LMjGSISs/JjGh9YPCnAxtYM54LHlA/QaTMu74uX6eBJFdYEKedwzWpIzLGmHTn
-         O7EWB2nSR61nWsihhlJE4YdfO03GhVFHDC3dMcB8450r8N/eBbLta7QyC9FvLAOzSAVZ
-         yyR6/gHjhea/q5yYMmYezKg8DgJ2foiT08Zf9AF8hEVWTgKCXPttZq/+7rLo+t9L40qP
-         tip3eRVUmmoZC0PIa6LGH7Vy6TgmRODfRxLfyyjGiOk0yi94WuS/gKtPyTMDpNW+UGY0
-         PN1g==
+        b=rhQowEDi5va3hW+VlZHcr2tAnLgzY4CmtfU4PE5i2XZQHH3HM5rN/KsNF7x4c5wmiq
+         CVB9pmg3DmhD6bzvMfmvVXlGIl3AiXxpy4paoCMT2MSmdBQgTbPNdEmgb28XJ7uaNlAc
+         kZ714K7jtlX4m4VgkLOMUG0jxGN74QxLx3x96izE0rM8WFEeo6Xdd4asOLkzVJikS20m
+         6E1TB0CgvCFqgp8ICEhVcrrjBKYNUh6te7CXQDR5uYaMmzwEpBKkrq9zEZtXgBhXXC0O
+         RragXIn4GpwEDWl7xXpo+mp2oHH1aqpX3/Y4HTjdE0+H4FHLiwVSfJiBnSy8t0mjVw3q
+         3Uag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=nvlwPyQYARni0b3cZG9bzQyjlrPfoDOryJPlL9uYpF0=;
-        b=mhztDyjRz10TPhymTHq5cAtaQlN02BCGZ2+sPv3Pa2x+ML8ywlaES02kckfsAIbhc0
-         SuivSrwyYPZMZGU1VzeZ8Av3JfdNKqbT20rPKkq0CpqoT67sHuwg4mUnLGCAFimqwsy+
-         Pva1HUmR6IB1ny1I1xO8qizqbx9Y3o0PzeoBn+1Uf1pLiP2iUVxsJw42oRm6WnHINpcq
-         HTA6ffs9nqFjIx7uGUqYeZvZDtJHB+4l+S+FZ+FzWMp2NjBHSkeipLMZjGsHicVWc/kc
-         367sdXZ+g1AhkXz28IRl1nGuTv8+5mKx0u1PemKnB4g5ZLHbFxRFZTbB978e+wcRbZpo
-         Bc4w==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=A83HwLkscd+n/ThJxRWxJ32yY+Lg5D0jBF/2KpDB3qY=;
+        b=vgv7s3UrlKvgqBjLVKk/cXbSAHm3clOkmpPgkQdEVm0s4kY4kPIb15/MTboVjK9T8L
+         b82hlX3LHo5sXCNXgUbCHR+PHWF5R80o81biSDtUP6A/pKY4T6elnK88EOPm04povaSV
+         hjangTnJvzpypXUHsEyienbUMtebxcIS1kfjj53C6VSepwjVOw5SMqci2n8sgQydaBQu
+         KBxY4S8yawnBTMCOVNZ+d3MoFs7k41rJgu0feVPniG0vH8UccrHxZ76U1/hClZCQMfAS
+         l5S8Iwp9pzlVrniT+mhPl2XjxiqmwFjP1MagbOdJtX5pAB+9dXEXEMHzScUKI+deNjc6
+         1wNw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n15si11776065pgv.96.2019.02.13.06.41.04
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="r/PaWOEg";
+       spf=pass (google.com: domain of pintu.ping@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pintu.ping@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o2sor8877820ual.30.2019.02.13.06.41.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 06:41:05 -0800 (PST)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 13 Feb 2019 06:41:06 -0800 (PST)
+Received-SPF: pass (google.com: domain of pintu.ping@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 641C7ABCE;
-	Wed, 13 Feb 2019 14:41:03 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id D94551E09C5; Wed, 13 Feb 2019 15:41:02 +0100 (CET)
-Date: Wed, 13 Feb 2019 15:41:02 +0100
-From: Jan Kara <jack@suse.cz>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: "Kirill A . Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Hugh Dickins <hughd@google.com>,
-	William Kucharski <william.kucharski@oracle.com>
-Subject: Re: [PATCH v2] page cache: Store only head pages in i_pages
-Message-ID: <20190213144102.GA18351@quack2.suse.cz>
-References: <20190212183454.26062-1-willy@infradead.org>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="r/PaWOEg";
+       spf=pass (google.com: domain of pintu.ping@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pintu.ping@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=A83HwLkscd+n/ThJxRWxJ32yY+Lg5D0jBF/2KpDB3qY=;
+        b=r/PaWOEgaZqRchY5b+f2Aqpg3NUrIWco/uoRwXLcLhwB8B5qxyiDnFz9uo/U11TGio
+         DLiYX102zjFQJuOVt+VmeaDlP9sWXmdSM0sr4W8/95cKua5UW4jLkzRmx0GNOJh3cXHp
+         Smkp6lUiv/O9736wsh1aY7pkMqcaJlNMKV5puOBAk0lQUBjCbKz5NS5TwmBxg8kA5+SW
+         ecmblUU10D37/LSTNzre+sDf3PpicU9xKYrlfz3vDLgu7Rx6bpBhPGlCgg7WFntkxPcn
+         ZENXkhbUqyCnPm24fUhWVa3nqsxNXr8tPIES5eAJIhnAdyN9ioZcYclnNgOKi+RX2+PD
+         qqyg==
+X-Google-Smtp-Source: AHgI3Ia8V3vK8w1HHishMyZgGE6WARkR4czKUI8KdC5YbgaGPvh4Jl4j9OCo3NSLG+r2yx7/j4YxjsW/FIswodfTXps=
+X-Received: by 2002:ab0:5a71:: with SMTP id m46mr316889uad.123.1550068866332;
+ Wed, 13 Feb 2019 06:41:06 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190212183454.26062-1-willy@infradead.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <CAOuPNLgaDJm27nECxq1jtny=+ixt=GPf2C7zyDsVgbsLvtDarA@mail.gmail.com>
+ <6183c865-2e90-5fb9-9e10-1339ae491b71@codeaurora.org>
+In-Reply-To: <6183c865-2e90-5fb9-9e10-1339ae491b71@codeaurora.org>
+From: Pintu Agarwal <pintu.ping@gmail.com>
+Date: Wed, 13 Feb 2019 20:10:55 +0530
+Message-ID: <CAOuPNLgUvECE6XBjszFggY3efmEBKywzKNWupjfQ2svsCMqd7w@mail.gmail.com>
+Subject: Re: BUG: sleeping function called from invalid context at kernel/locking/rwsem.c:65
+To: Sai Prakash Ranjan <saiprakash.ranjan@codeaurora.org>
+Cc: open list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, 
+	linux-rt-users@vger.kernel.org, linux-mm@kvack.org, 
+	Jorge Ramirez <jorge.ramirez-ortiz@linaro.org>, 
+	"Xenomai@xenomai.org" <xenomai@xenomai.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 12-02-19 10:34:54, Matthew Wilcox wrote:
-> Transparent Huge Pages are currently stored in i_pages as pointers to
-> consecutive subpages.  This patch changes that to storing consecutive
-> pointers to the head page in preparation for storing huge pages more
-> efficiently in i_pages.
-> 
-> Large parts of this are "inspired" by Kirill's patch
-> https://lore.kernel.org/lkml/20170126115819.58875-2-kirill.shutemov@linux.intel.com/
-> 
-> Signed-off-by: Matthew Wilcox <willy@infradead.org>
+On Wed, Feb 13, 2019 at 3:21 PM Sai Prakash Ranjan
+<saiprakash.ranjan@codeaurora.org> wrote:
+>
+> Hi Pintu,
+>
+> On 2/13/2019 2:04 PM, Pintu Agarwal wrote:
+> >
+> > This is the complete logs at the time of crash:
+> >
+> > [   21.681020] VFS: Mounted root (ext4 filesystem) readonly on device 8:6.
+> > [   21.690441] devtmpfs: mounted
+> > [   21.702517] Freeing unused kernel memory: 6528K
+> > [   21.766665] BUG: sleeping function called from invalid context at
+> > kernel/locking/rwsem.c:65
+> > [   21.775108] in_atomic(): 0, irqs_disabled(): 128, pid: 1, name: init
+> > [   21.781532] ------------[ cut here ]------------
+> > [   21.786209] kernel BUG at kernel/sched/core.c:8490!
+> > [   21.791157] ------------[ cut here ]------------
+> > [   21.795831] kernel BUG at kernel/sched/core.c:8490!
+> > [   21.800763] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
+> > [   21.806319] Modules linked in:
+> > [   21.809474] CPU: 0 PID: 1 Comm: init Not tainted 4.9.103+ #115
+> > [   21.815375] Hardware name: Qualcomm Technologies, Inc. MSM XXXX
+> > [   21.822584] task: ffffffe330440080 task.stack: ffffffe330448000
+> > [   21.828584] PC is at ___might_sleep+0x140/0x188
+> > [   21.833175] LR is at ___might_sleep+0x128/0x188
+> > [   21.837759] pc : [<ffffff88b8ce65a8>] lr : [<ffffff88b8ce6590>]
+> > pstate: 604001c5
+>
+> <snip...>
+>
+> > 0000000000000000 ffffffe33044b8d0
+> > [   22.135279] bac0: 0000000000000462 0000000000000006
+> > [   22.140224] [<ffffff88b8ce65a8>] ___might_sleep+0x140/0x188
+> > [   22.145862] [<ffffff88b8ce6648>] __might_sleep+0x58/0x90
+> > [   22.151249] [<ffffff88b9d43f84>] down_write_killable+0x2c/0x80
+> > [   22.157155] [<ffffff88b8e53cd8>] setup_arg_pages+0xb8/0x208
+> > [   22.162792] [<ffffff88b8eb7534>] load_elf_binary+0x434/0x1298
+> > [   22.168600] [<ffffff88b8e55674>] search_binary_handler+0xac/0x1f0
+> > [   22.174763] [<ffffff88b8e560ec>] do_execveat_common.isra.15+0x504/0x6c8
+> > [   22.181452] [<ffffff88b8e562f4>] do_execve+0x44/0x58
+> > [   22.186481] [<ffffff88b8c84030>] run_init_process+0x38/0x48
+> > [   22.192122] [<ffffff88b9d3db1c>] kernel_init+0x8c/0x108
+> > [   22.197411] [<ffffff88b8c83f00>] ret_from_fork+0x10/0x50
+> > [   22.202790] Code: b9453800 0b000020 6b00027f 540000c1 (d4210000)
+> > [   22.208965] ---[ end trace d775a851176a61ec ]---
+> > [   22.220051] Kernel panic - not syncing: Attempted to kill init!
+> > exitcode=0x0000000b
+> >
+>
+> This might be the work of CONFIG_PANIC_ON_SCHED_BUG which is extra debug
+> option enabled in *sdm845_defconfig*. You can disable it or better
+> I would suggest to use *sdm845-perf_defconfig* instead of
+> sdm845_defconfig since there are a lot of debug options enabled
+> in the latter which may be not compatible when IPIPE patches
+> are applied.
 
-I like the idea!
+OK thanks for your suggestions. sdm845-perf_defconfig did not work for
+me. The target did not boot.
+However, disabling CONFIG_PANIC_ON_SCHED_BUG works, and I got a root
+shell at least.
+This at least proves that there is no issue in core ipipe patches, and
+I can proceed.
 
-> @@ -1778,33 +1767,27 @@ unsigned find_get_pages_range(struct address_space *mapping, pgoff_t *start,
->  
->  	rcu_read_lock();
->  	xas_for_each(&xas, page, end) {
-> -		struct page *head;
->  		if (xas_retry(&xas, page))
->  			continue;
->  		/* Skip over shadow, swap and DAX entries */
->  		if (xa_is_value(page))
->  			continue;
->  
-> -		head = compound_head(page);
-> -		if (!page_cache_get_speculative(head))
-> +		if (!page_cache_get_speculative(page))
->  			goto retry;
->  
-> -		/* The page was split under us? */
-> -		if (compound_head(page) != head)
-> -			goto put_page;
-> -
-> -		/* Has the page moved? */
-> +		/* Has the page moved or been split? */
->  		if (unlikely(page != xas_reload(&xas)))
->  			goto put_page;
->  
-> -		pages[ret] = page;
-> +		pages[ret] = find_subpage(page, xas.xa_index);
->  		if (++ret == nr_pages) {
->  			*start = page->index + 1;
->  			goto out;
->  		}
+But this seems to be a work around.
+I still get a back trace in kernel logs from many different places.
+So, it looks like there is some code in qualcomm specific drivers that
+is calling a sleeping method from invalid context.
+How to find that...
+If this fix is already available in latest version, please let me know.
 
-So this subtly changes the behavior because now we will be returning in
-'*start' a different index. So you should rather use 'pages[ret]->index'
-instead.
-
-> @@ -1923,26 +1899,21 @@ unsigned find_get_pages_range_tag(struct address_space *mapping, pgoff_t *index,
->  		if (xa_is_value(page))
->  			continue;
->  
-> -		head = compound_head(page);
-> -		if (!page_cache_get_speculative(head))
-> +		if (!page_cache_get_speculative(page))
->  			goto retry;
->  
-> -		/* The page was split under us? */
-> -		if (compound_head(page) != head)
-> -			goto put_page;
-> -
-> -		/* Has the page moved? */
-> +		/* Has the page moved or been split? */
->  		if (unlikely(page != xas_reload(&xas)))
->  			goto put_page;
->  
-> -		pages[ret] = page;
-> +		pages[ret] = find_subpage(page, xas.xa_index);
->  		if (++ret == nr_pages) {
->  			*index = page->index + 1;
->  			goto out;
->  		}
-
-Ditto here.
-
-Otherwise the patch looks good to me so feel free to add:
-
-Acked-by: Jan Kara <jack@suse.cz>
-
-after fixing these two.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Thanks,
+Pintu
 
