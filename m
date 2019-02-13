@@ -2,222 +2,269 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
-	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 37740C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:00:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C8143C10F00
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BB410222A4
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:00:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 75C90222C9
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="m2wSsZof";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="iKNVCGoF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BB410222A4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="HV9aVsJP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75C90222C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3506F8E0002; Wed, 13 Feb 2019 17:00:24 -0500 (EST)
+	id E2B538E0002; Wed, 13 Feb 2019 17:41:59 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2FD7A8E0001; Wed, 13 Feb 2019 17:00:24 -0500 (EST)
+	id DDC658E0001; Wed, 13 Feb 2019 17:41:59 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1A06B8E0002; Wed, 13 Feb 2019 17:00:24 -0500 (EST)
+	id CC9FF8E0002; Wed, 13 Feb 2019 17:41:59 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CC90B8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 17:00:23 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id y1so2687616pgo.0
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 14:00:23 -0800 (PST)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 76E4D8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 17:41:59 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id v16so1411891wru.8
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 14:41:59 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=qHKCPOrJcNRd8N1tcJ6b89jpPL5eDAmkwvFiz9F1dOI=;
-        b=CrlAMu/TOteU4KQeamt5WjSJc+PCe15eEeOJnmZf6hvkoD7VDFpDjxzsOTIkDwsOog
-         NxO1IgE/+S0AFH6Qeu/0KLxiQ6spRvkSP2BGJ3+QMGKjLNowLdbGRgHDMS2/4Q5nOhfz
-         umbZH/xVyfsFVWkJDW2Xfgiu2K50rJaUvGfTMHpEwNq8pm79RzDMmTdZnYv8PrYFfVPd
-         TzonpI2tOfxgcO7SXcqdrwOnsFK4x0E3zzQK4zRke7FeHaDig18R6ZQ2djvhJ4t+tssp
-         rsFqd6c1wxzZI4dIJqRAc72rWaXAXrYfKceAUFGp4gpfn1a/cmq6Mu55ViJev51SWieo
-         R5Iw==
-X-Gm-Message-State: AHQUAubKuncslQL7eXtfN9vxPcCUw3NTKlKYU/oHC7WvY33yH8V/CNjd
-	EbO9lAQsKZhrB2gpEozWZsKKRYsVEjWf29m+sOcYxaRUtEJULnxVeCpbYn757kBiCoVi0sp0ePq
-	BSmt3KaC09FGai+FIZcAKlPJdAKD3jLHocJDcHi5xg2o8t0q9kW8tpuczJjGAL64qzQ==
-X-Received: by 2002:a17:902:bb0b:: with SMTP id l11mr381212pls.127.1550095223314;
-        Wed, 13 Feb 2019 14:00:23 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYaYVsN+9QcXoHRN56vz/2JbOPt9wgMEMdFeb/HBtB0hNuVz0TmFBLBrGCGEtulMJJzPbju
-X-Received: by 2002:a17:902:bb0b:: with SMTP id l11mr381143pls.127.1550095222573;
-        Wed, 13 Feb 2019 14:00:22 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550095222; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:reply-to:mime-version:content-transfer-encoding;
+        bh=v//UVpOdI2pMBj7QngoAd2+0IKN5JRjyVZ7fMRhNP+M=;
+        b=rZUDORxKddtnjPWrnC4lyp5GNPlZ00hbUDEjpX+kHRos+BHzj0oC3X6LNz6w/JNOQ6
+         e09MQ++vLg9QdvOeW8ureFBKx312ArNzGLVU0n+KIPtFr0F+Orp8FC1+mvcdyhGEbF0k
+         iB0o14jk3gdbdjczoqERmNXQOW+LsIyyPYcx9pshh16RCW9lQXKv8lEHfsoLbvj0HaFT
+         FSIuev/rwGP8kZyCbCXp55lJhHfSPsvBcvaxrkF1gZwA+Cwza5OffnxLbMu465ELVZQj
+         8tLLuv/Wh2NHgXhIXGp6FyckL+ET+YDa72ZBhmVHRk4zmzKOGUhcPyH30LLyHaDrAvzI
+         hGEg==
+X-Gm-Message-State: AHQUAube+v7mol5Ip8+ot+jg4HHKwIJPO55LTcV5PFWosYHEFr4ay/Ni
+	T6LK7MGfCF8JuQ74EwfMzSch5ZLSgi/zVYWwuLRGEruoOK+KPMAFRQFJqXMznwkLgNJRUYvGUTT
+	3HxQtdhJZ4oFBfTew2h1f3Dx7CWS1nEEvM0mfI46MayvvJs252UOyjuBVUX5OyE2+Lnvs/1Dudr
+	yEAgDAb+xTo3n2Ufs32f9h/GCt/bAS5bRfbvKOFN3Yfh0+wNZhpe7DY6y0PNSLhNQUyRBU1XAPa
+	8cTpRmSW2E1ljbL64GUxoqoou9gxj9VF58bpicF/UeQfIzxs1GSSGr4UoAq1enmAdKY94sBMYgb
+	6BIpM/hp7x6bX5BjDygg+p8pMl3gc/RjiPgjt5dpvm+dLYvrezZUpymQikIzwTs/iA6mRhOGn99
+	f
+X-Received: by 2002:a5d:6b46:: with SMTP id x6mr269295wrw.305.1550097718563;
+        Wed, 13 Feb 2019 14:41:58 -0800 (PST)
+X-Received: by 2002:a5d:6b46:: with SMTP id x6mr269263wrw.305.1550097717422;
+        Wed, 13 Feb 2019 14:41:57 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550097717; cv=none;
         d=google.com; s=arc-20160816;
-        b=KKD3B2Cpg8XgX5/rn9pQmf11+tuAhOrTZ7AG/wEkgDy9gfqavHnfcrieKqif2/KKsa
-         wxdxNR27ZJRHBVDdwJuNnu4PvVXF7211GFxz3b6WzTMrlaWfAzmf9h51Mr91CrpkUVk/
-         /l7kWc+PvDus5gAoibCh+HuCYUwf8v8+gAF1Kd2i/Aev3TBsD/qv++AaiKYvcX/LWiYp
-         YEYdvqCx8oC0js/ZGZ58DE5xCwrK1ILIv7yo5xniSr7htBQUebm/+2lyhsRWsO8DBYHc
-         8KrHQNzAdDWSz/hXYmj0vnPkUyGYwo7/26DUu5+ZhU/bze1nEMZJCUECoQnXnjoiXjY6
-         QcCQ==
+        b=CaSjlaGKcemLTbGebyg6oS3pPkIco125o8cf3HEK+94Sj6SKcjAxhkJjTA5gr0bUTL
+         FCIYoDc1UbSFT527No+nJVGJTBBGGbBwX1tntRnm3FUsG4dtroQjnfkFpcfdMq/SNY+1
+         TIQdo/pN5yp5WZvDFLGmiJp68fnE7SDHAQYlLSlw9OTQCkgvClFj24xjlxKx89JNqx0K
+         z6VFmjRJIEUZU3TYIpI6UPT+YUCfOjeIuwe1ifxX9Eqe2oen6eu9YAxcENsFbgrDYoAj
+         jAXEJyYznmnwaZV3pTyNPvhICW8CKMYYWUwKrPd2IVdX3bDtk7yki21ruQCSEtZkthlJ
+         n/MQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:message-id:date:thread-index:thread-topic:subject
-         :cc:to:from:dkim-signature:dkim-signature;
-        bh=qHKCPOrJcNRd8N1tcJ6b89jpPL5eDAmkwvFiz9F1dOI=;
-        b=x5Gtn1Ypw1hRMz5z604g55sXEOGJ0OyQ25Hl1edGv4axrknppwQnAQ4Ar1Jh3QXIPz
-         67ij0rYsfhu+mDaWp6OTHP3IA5fqEyqk7NWVpIRvehLG1dV4zDytLGqEiyh4H5vUOO5L
-         l1WLkzngWmJvPcySKNgBe5FIlaXna3crDzQmkm0fHjsIABh6AeOMBOFhrKFURpSYgdmb
-         +KBNdHsSPbFOHJS1EB2/x+KwbxzUrARXfmOcOZUW37eZtMc/S8l+ii6ZTdMVDcBuzozj
-         FYh353BnMEOv37bRyeC5jvJAtWa8VP/Ef1cePiyK9ewL+/RX19+XJXxs7/7JX8pfEZ+R
-         PCNg==
+        h=content-transfer-encoding:mime-version:reply-to:message-id:date
+         :subject:cc:to:from:dkim-signature;
+        bh=v//UVpOdI2pMBj7QngoAd2+0IKN5JRjyVZ7fMRhNP+M=;
+        b=MkmS/e29UFm2Y8gcdg35VWv/7czMozatrPZqySv84DS/XeZ8caBZncGzqwfJ95zgN5
+         PJNWGhvAbuzki2vctc9dY97Ojx/oLTRSs+LjNgyDHzwTdEd3pBbZFBU750kZXsyM5+zC
+         rEhN9armq3iN2myHa6I21KDn9wQM9tWc/izKw80H8VFPz2FU30WjwVWI3kPhgGhNYkXt
+         v/sNpUr5S5G1kuUK8aJpeuhzge6Nt1y5cXJLBY573Wy+Gl34xqEhEl+GpU+kuGBvTj4G
+         D7RwIEKPrMxNa17jUzODRvye9/d2tY1Z+5f/gtV3n82EgcV1vbVkm6VRVlzyaEyLazGQ
+         v9CA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=m2wSsZof;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=iKNVCGoF;
-       spf=pass (google.com: domain of prvs=794782e062=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=794782e062=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id g132si510478pfb.23.2019.02.13.14.00.22
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HV9aVsJP;
+       spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y13sor361649wru.50.2019.02.13.14.41.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 14:00:22 -0800 (PST)
-Received-SPF: pass (google.com: domain of prvs=794782e062=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        (Google Transport Security);
+        Wed, 13 Feb 2019 14:41:57 -0800 (PST)
+Received-SPF: pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=m2wSsZof;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=iKNVCGoF;
-       spf=pass (google.com: domain of prvs=794782e062=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=794782e062=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109333.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1DLsmAG009371;
-	Wed, 13 Feb 2019 14:00:22 -0800
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : content-type : content-id :
- content-transfer-encoding : mime-version; s=facebook;
- bh=qHKCPOrJcNRd8N1tcJ6b89jpPL5eDAmkwvFiz9F1dOI=;
- b=m2wSsZof89XUOoDKH8NHUG1k1onKRWQw2iA0OnITKzgdBAn5CKGLURQOUwiQdpfN0rhD
- M/GiltFJ3ikdFNMISnS1Env/PNl/fYTuD5T3+vgVtk2ESYaxNpr010jYpc7Jv+FqrgIL
- 5jvNSaQgx89A8ms71HleV2bXUDsWIXpZjSM= 
-Received: from maileast.thefacebook.com ([199.201.65.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2qms4armmc-5
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Wed, 13 Feb 2019 14:00:21 -0800
-Received: from frc-hub03.TheFacebook.com (2620:10d:c021:18::173) by
- frc-hub05.TheFacebook.com (2620:10d:c021:18::175) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1531.3; Wed, 13 Feb 2019 14:00:12 -0800
-Received: from NAM04-CO1-obe.outbound.protection.outlook.com (192.168.183.28)
- by o365-in.thefacebook.com (192.168.177.73) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1531.3
- via Frontend Transport; Wed, 13 Feb 2019 14:00:12 -0800
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=qHKCPOrJcNRd8N1tcJ6b89jpPL5eDAmkwvFiz9F1dOI=;
- b=iKNVCGoFcMdVi9wGiN3Y1KErfSJRowBtBBLyDw+sL0NRAHlsYgr8/tP3Y5cPgCRKi+fZQSofmciHyph83cOe6M0jEjhUJFUUM4wzCqMDn8G6lAoZP28Pl0c43PJxYzcy1QIkupf4uZr4dN9Sjta3fT6VbJFupgjoeJPyVN8s75A=
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.2.19) by
- MWHPR15MB1439.namprd15.prod.outlook.com (10.173.234.141) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1601.17; Wed, 13 Feb 2019 22:00:10 +0000
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::ec0e:4a05:81f8:7df9]) by MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::ec0e:4a05:81f8:7df9%4]) with mapi id 15.20.1601.023; Wed, 13 Feb 2019
- 22:00:10 +0000
-From: Song Liu <songliubraving@fb.com>
-To: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        linux-kernel
-	<linux-kernel@vger.kernel.org>,
-        linux-raid <linux-raid@vger.kernel.org>,
-        "bpf@vger.kernel.org" <bpf@vger.kernel.org>,
-        "linux-fsdevel@vger.kernel.org"
-	<linux-fsdevel@vger.kernel.org>
-CC: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: [LSF/MM TOPIC] (again) THP for file systems 
-Thread-Topic: [LSF/MM TOPIC] (again) THP for file systems 
-Thread-Index: AQHUw+d98PJr/f1RW0yrtlybflg8VA==
-Date: Wed, 13 Feb 2019 22:00:10 +0000
-Message-ID: <77A00946-D70D-469D-963D-4C4EA20AE4FA@fb.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: Apple Mail (2.3445.102.3)
-x-originating-ip: [2620:10d:c090:180::1:f80f]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 57ec5233-de4e-4423-2a70-08d691fe9fac
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605077)(2017052603328)(7153060)(7193020);SRVR:MWHPR15MB1439;
-x-ms-traffictypediagnostic: MWHPR15MB1439:
-x-ms-exchange-purlcount: 3
-x-microsoft-exchange-diagnostics: 1;MWHPR15MB1439;20:hy1n5M+KXnbfYRHZrH+M4PwwePhRQeMxosaf5HpofpptO/oxnWZTFruJH6u813Z6z7Me8LBxvs9bL2+Z6MDEElIJ24TNn/RzQ9qoq8vjoSu08cOtPcmS26VptXLLRcY9HgZ0rK4+E5eL7hmTgyuv1+qvftFemjD7xs5GPQnxCZQ=
-x-microsoft-antispam-prvs: <MWHPR15MB14394E936E88F4AD94D3E27CB3660@MWHPR15MB1439.namprd15.prod.outlook.com>
-x-forefront-prvs: 094700CA91
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(396003)(376002)(136003)(366004)(39860400002)(346002)(189003)(199004)(2501003)(81166006)(478600001)(6116002)(33656002)(4743002)(966005)(99286004)(57306001)(53936002)(81156014)(8676002)(105586002)(6436002)(7736002)(4326008)(110136005)(106356001)(6486002)(316002)(6306002)(8936002)(83716004)(71200400001)(71190400001)(6512007)(68736007)(102836004)(97736004)(46003)(36756003)(2906002)(2616005)(82746002)(6506007)(305945005)(50226002)(486006)(256004)(25786009)(86362001)(186003)(14454004)(2201001)(476003);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1439;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: j5JNJSuf3Ta1uW0DAHUEjrTXHZFFekoxIpEMCDEtvdG0invqqin5/4j0fE7vhEmRO4IpuhOF7bTKfm8dwzWSy723uKR3t0Zeo79wA2Y0+hnY/w+XvBFDbisXzWdKogKmbNPU/j79AsFnB4sxNe+dogNYM6cjig5sp4W1UMjS4j5svs/c2O6vlDM8vUzXpp8iyYNLXAWWwSRse6q0A38UxWqwHWfPqYLkr0nWZQ47fDNppnG0/h3ltmmKTg/86J4c8c7qtvQmV9wSUU16dWzD5iR3qMgn5XBfajpqxKCqsLJ4Z6IBx9kUXdA9RPfe1v4/OpipklPCUbGG+dXCLCWnPscdHXRBWlb2LI6uJQPQUI3XNnTTCV61cAFw8ApYb/oeuy91FbYPOkHbPWrX8E6RpGjnYcij/RZ9vWUN9yl05UE=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <D311F68F799EF74789524BC7643BD169@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HV9aVsJP;
+       spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:reply-to:mime-version
+         :content-transfer-encoding;
+        bh=v//UVpOdI2pMBj7QngoAd2+0IKN5JRjyVZ7fMRhNP+M=;
+        b=HV9aVsJPiTJ8ZtGFtYNGVlu+kroKUKT0z0DZv7bbng1WJtW39lNBcvRrJ4L2yi8thp
+         8GgJBfqo5LY41MIA4JzsvzB9JICICqzCxkxwMgRnIohIkBLovLdHs8zA2bXaV0ivk8dE
+         T5/W2cyc4qGmNas/ftPIQ1eIB2CJHuajsm3wvGcs9ZNK4DOzLweatVfsI30+HGbJYInb
+         JgoK4tB/kYtLHG+NI2Vp5v5mXStjmL1hP1Eg+MF/OKVcGOVRy9Cru/ptSYzI3HKWAFAR
+         Z7biHK7zLf7raY13IZ4KLoAdgkY3w1C8KDgVpPi8eSWOoZe83PcX7qUn8cQFVzefOy9/
+         29cw==
+X-Google-Smtp-Source: AHgI3IZUuVHIWSI5hYTH0/oiUtwLakqcG7yQVPGl6sKahQzdaJJLWVEUPmv7QWzr17ryUO0e9iB5YQ==
+X-Received: by 2002:adf:b60e:: with SMTP id f14mr296526wre.134.1550097716715;
+        Wed, 13 Feb 2019 14:41:56 -0800 (PST)
+Received: from localhost.localdomain ([91.75.74.250])
+        by smtp.gmail.com with ESMTPSA id f196sm780810wme.36.2019.02.13.14.41.53
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Feb 2019 14:41:55 -0800 (PST)
+From: Igor Stoppa <igor.stoppa@gmail.com>
+X-Google-Original-From: Igor Stoppa <igor.stoppa@huawei.com>
+To: 
+Cc: Igor Stoppa <igor.stoppa@huawei.com>,
+	Kees Cook <keescook@chromium.org>,
+	Ahmed Soliman <ahmedsoliman@mena.vt.edu>,
+	linux-integrity <linux-integrity@vger.kernel.org>,
+	Kernel Hardening <kernel-hardening@lists.openwall.com>,
+	Linux-MM <linux-mm@kvack.org>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Subject: [RFC PATCH v5 00/12] hardening: statically allocated protected memory
+Date: Thu, 14 Feb 2019 00:41:29 +0200
+Message-Id: <cover.1550097697.git.igor.stoppa@huawei.com>
+X-Mailer: git-send-email 2.19.1
+Reply-To: Igor Stoppa <igor.stoppa@gmail.com>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 57ec5233-de4e-4423-2a70-08d691fe9fac
-X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Feb 2019 22:00:10.3502
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1439
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-13_12:,,
- signatures=0
-X-Proofpoint-Spam-Reason: safe
-X-FB-Internal: Safe
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+To: Andy Lutomirski <luto@amacapital.net>,
+To: Matthew Wilcox <willy@infradead.org>,
+To: Nadav Amit <nadav.amit@gmail.com>
+To: Peter Zijlstra <peterz@infradead.org>,
+To: Dave Hansen <dave.hansen@linux.intel.com>,
+To: Mimi Zohar <zohar@linux.vnet.ibm.com>
+To: Thiago Jung Bauermann <bauerman@linux.ibm.com>
+CC: Kees Cook <keescook@chromium.org>
+CC: Ahmed Soliman <ahmedsoliman@mena.vt.edu>
+CC: linux-integrity <linux-integrity@vger.kernel.org>
+CC: Kernel Hardening <kernel-hardening@lists.openwall.com>
+CC: Linux-MM <linux-mm@kvack.org>
+CC: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-I would like to attend the LSF/MM Summit 2019. I'm interested in topics abo=
-ut
-BPF, mdraid, and MM. I am a designated reviewer of BPF. I am also helping J=
-ens
-organize mdraid patches.
+Hello,
+new version of the patchset, with default memset_user() function.
 
-I would like to discuss remaining work to bring THP to (non-tmpfs) file sys=
-tems.
-This topic has been discussed multiple times in previous LSF/MM summits [1]=
-[2].
-However, there hasn't been much progress since late 2017 (the latest work I=
- can
-find is by Kirill A. Shutemov [3]).
+Patch-set implementing write-rare memory protection for statically
+allocated data.
+Its purpose is to keep write protected the kernel data which is seldom
+modified, especially if altering it can be exploited during an attack.
 
-We (Facebook) uses THP in many services. We see significant savings by putt=
-ing
-hot-text on THP. To achieve this with state-of-the-art Linux Kernel, we hav=
-e to
-either: trick the Kernel to believe certain region is anonymous pages; or p=
-ut
-the executable in tmpfs. In our case, the tmpfs solution is too expensive.
-Therefore, we use a hack to trick the Kernel. This hack breaks other useful
-features, e.g. perf symbols and uprobes. Instead of introducing more hacks =
-to
-use these broken features, it is better to enable THP for file systems.
-Therefore, we would like discuss (for one more time) what is needed to brin=
-g
-THP to file systems like ext4, xfs, btrfs, etc. Once we are aligned on the
-direction, we are more than happy to commit time and resource to make it ha=
-ppen.
+There is no read overhead, however writing requires special operations that
+are probably unsuitable for often-changing data.
+The use is opt-in, by applying the modifier __wr_after_init to a variable
+declaration.
 
-Since this topic is my main focus of this year's summit, I would like an in=
-vite
-to the MM track.
+As the name implies, the write protection kicks in only after init() is
+completed; before that moment, the data is modifiable in the usual way.
 
-Thanks,
-Song
+Current Limitations:
+* supports only data which is allocated statically, at build time.
+* verified (and enabled) only x86_64 and arm64; other architectures need to
+  be tested, possibly providing own backend.
 
-[1] https://lwn.net/Articles/686690/
-[2] https://lwn.net/Articles/718102/
-[3] https://kernel.googlesource.com/pub/scm/linux/kernel/git/kas/linux/+/hu=
-geext4/wip=
+Some notes:
+- in case an architecture doesn't support write rare, the behavior is to
+  fallback to regular write operations
+- before altering any memory, the destination is sanitized
+- write rare data is segregated into own set of pages
+- only x86_64 and arm64 verified, atm
+- the memset_user() assembly functions seems to work, but I'm not too sure
+  they are really ok
+- I've added a simple example: the protection of ima_policy_flags
+- the last patch is optional, but it seemed worth to do the refactoring
+- the x86_64 user space address range is double the size of the kernel
+  address space, so it's possible to randomize the beginning of the
+  mapping of the kernel address space, but on arm64 they have the same
+  size, so it's not possible to do the same. Eventually, the randomization
+  could affect exclusively the ranges containing protectable memory, but
+  this should be done togeter with the protection of dynamically allocated
+  data (once it is available).
+- unaddressed: Nadav proposed to do:
+	#define __wr          __attribute__((address_space(5)))
+  but I don't know exactly where to use it atm
+
+Changelog:
+
+v4->v5
+------
+* turned conditional inclusion of mm.h into permanent
+* added generic, albeit unoptimized memset_user() function
+* more verbose error messages for testing of wr_memset()
+
+v3->v4
+------
+
+* added function for setting memory in user space mapping for arm64
+* refactored code, to work with both supported architectures
+* reduced dependency on x86_64 specific code, to support by default also
+  arm64
+* improved memset_user() for x86_64, but I'm not sure if I understood
+  correctly what was the best way to enhance it.
+
+v2->v3
+------
+
+* both wr_memset and wr_memcpy are implemented as generic functions
+  the arch code must provide suitable helpers
+* regular initialization for ima_policy_flags: it happens during init
+* remove spurious code from the initialization function
+
+v1->v2
+------
+
+* introduce cleaner split between generic and arch code
+* add x86_64 specific memset_user()
+* replace kernel-space memset() memcopy() with userspace counterpart
+* randomize the base address for the alternate map across the entire
+  available address range from user space (128TB - 64TB)
+* convert BUG() to WARN()
+* turn verification of written data into debugging option
+* wr_rcu_assign_pointer() as special case of wr_assign()
+* example with protection of ima_policy_flags
+* documentation
+
+Igor Stoppa (11):
+  __wr_after_init: linker section and attribute
+  __wr_after_init: Core and default arch
+  __wr_after_init: x86_64: randomize mapping offset
+  __wr_after_init: x86_64: enable
+  __wr_after_init: arm64: enable
+  __wr_after_init: Documentation: self-protection
+  __wr_after_init: lkdtm test
+  __wr_after_init: rodata_test: refactor tests
+  __wr_after_init: rodata_test: test __wr_after_init
+  __wr_after_init: test write rare functionality
+  IMA: turn ima_policy_flags into __wr_after_init
+
+Nadav Amit (1):
+  fork: provide a function for copying init_mm
+
+ Documentation/security/self-protection.rst |  14 +-
+ arch/Kconfig                               |  22 +++
+ arch/arm64/Kconfig                         |   1 +
+ arch/x86/Kconfig                           |   1 +
+ arch/x86/mm/Makefile                       |   2 +
+ arch/x86/mm/prmem.c (new)                  |  20 +++
+ drivers/misc/lkdtm/core.c                  |   3 +
+ drivers/misc/lkdtm/lkdtm.h                 |   3 +
+ drivers/misc/lkdtm/perms.c                 |  29 ++++
+ include/asm-generic/vmlinux.lds.h          |  25 +++
+ include/linux/cache.h                      |  21 +++
+ include/linux/prmem.h (new)                |  70 ++++++++
+ include/linux/sched/task.h                 |   1 +
+ init/main.c                                |   3 +
+ kernel/fork.c                              |  24 ++-
+ mm/Kconfig.debug                           |   8 +
+ mm/Makefile                                |   2 +
+ mm/prmem.c (new)                           | 193 +++++++++++++++++++++
+ mm/rodata_test.c                           |  69 +++++---
+ mm/test_write_rare.c (new)                 | 142 +++++++++++++++
+ security/integrity/ima/ima.h               |   3 +-
+ security/integrity/ima/ima_policy.c        |   9 +-
+ 22 files changed, 628 insertions(+), 37 deletions(-)
+ create mode 100644 arch/x86/mm/prmem.c
+ create mode 100644 include/linux/prmem.h
+ create mode 100644 mm/prmem.c
+ create mode 100644 mm/test_write_rare.c
+
+-- 
+2.19.1
 
