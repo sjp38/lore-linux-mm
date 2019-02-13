@@ -2,148 +2,157 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 14485C282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:23:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 635AFC282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:25:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CFE40222BA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:23:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CFE40222BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 0CFDD222B2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:25:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CFDD222B2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 679818E0002; Wed, 13 Feb 2019 09:23:11 -0500 (EST)
+	id 58E228E0002; Wed, 13 Feb 2019 09:25:24 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 629028E0001; Wed, 13 Feb 2019 09:23:11 -0500 (EST)
+	id 53CF38E0001; Wed, 13 Feb 2019 09:25:24 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 518D58E0002; Wed, 13 Feb 2019 09:23:11 -0500 (EST)
+	id 42D2E8E0002; Wed, 13 Feb 2019 09:25:24 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EC2378E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:23:10 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id u7so1081680edj.10
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 06:23:10 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1981A8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:25:24 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id i18so2251967qtm.21
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 06:25:24 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=02/KIR4uFq6Kp5YWpHnlgUfm0mgT3Xh137Apdjb/mRw=;
-        b=QVFzr1W36L3fFUNfHBkSM+37NTBw6U41+CO8MaA7uhaI4/edrsOcyHDm+nssOEJznD
-         Yz2Z/1qn7QvTo4ynrimjvgx3j/095cMZf5PbH+xKaPfyNswYJoBeRzZiCPrboS/i2AeA
-         6G1m1giIJv3iG7Ik5PluStYqheGh68bHVaZIKa896uJq3Hsyo0Qc3HzhAch2eD44fxWB
-         ARt12KEKxsrZmbnFJmXErjsOjjnTgRMMfH1C1vyNInr8MXlSV/TgPQbzweFenGtBmGsj
-         BBl6Jz/OzAEGeqBwJ98CsqguYWECME/j6MEVjrnDzhTCfzi4c/uSDwn+xRiw2CLrOiIw
-         eKeQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAua2Mmqh2ZlvOkJrm2ouwCcFSz4v6XxWNMzGl05FG81MVL++RQ0P
-	EZ1extoKnX7QKViMvMDcR/FUBNuL4/WBtpxl7nfyl9+UtzV/C7kStfF14XybhS0WvgraipgvcH1
-	JIa9lI3Zsg3T1/zMDWRfx08zxpaLGamC3OpB4YpaBskZd7Xvu0kQHzE27NSYTrQw=
-X-Received: by 2002:a50:bb2c:: with SMTP id y41mr576871ede.147.1550067790474;
-        Wed, 13 Feb 2019 06:23:10 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbLTDMs1TWqZ9HEEZjsKETRmrWV2xUxMWLKlREFIhX3wGlHEe8KjSkZ4QpbixTe/ji3jxqx
-X-Received: by 2002:a50:bb2c:: with SMTP id y41mr576822ede.147.1550067789638;
-        Wed, 13 Feb 2019 06:23:09 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550067789; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=E61FAmuelOOigpHIMx/sFvCSDGzRY0mJW/GICyOlGU8=;
+        b=rPPijoX3Yt2NIrhb4HAoIgjB2lOGxATBLWdwIiZfQhMtFRwhakfl87jyJEPMYCXxuW
+         Vv4JKCQL2+ovWZVFP29DRhyxPVnIaCkupUfvbB6HZkB+OEndRbHD7g0DC66bJoIRMWZ4
+         Exvj6BgvTaKBnlypEZH7ErO+BkZu9NXFLXszY5/S7Y2He6f+6ZgGhJWYyrIkKiUq8Gy1
+         Gdq2XNFzvVRXpfGA9QDsyUr/h1sk/CjlGoiuzPYq96uvx1fzt/qUWUgcUF7PP/kZ9rEx
+         dQdus8LdbNU4ogC09j5xi4SGZWqsE9/RzF6ZxB0H8PD9dCuPOfRjR9wGno59OCgQ8Qr1
+         24wA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAuYWfYOWah/OAcTlU6ZjjNOJ0JzNj5zYJTq7sznUV8c4xozk2T20
+	45Tog2ESDTdpR8PWMES9MbF20LExb4Gq94IC4yo43LJ4BersoRsnfzGxHGmrsPoSCwByojWEVyf
+	G2JRaWni7+F1bR2vjElUVJskxZ21elllI7hfKeMwImQSR8SzUN1kdcIyWwb+1PlfgYA==
+X-Received: by 2002:a0c:98c9:: with SMTP id g9mr579091qvd.150.1550067923842;
+        Wed, 13 Feb 2019 06:25:23 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYnfP8GvykW7Byfye/vslv14lp5tWcegqDgbC9sR+7k4s9JPpO6xytEpqU0qYpmUSfAj2xn
+X-Received: by 2002:a0c:98c9:: with SMTP id g9mr579027qvd.150.1550067922954;
+        Wed, 13 Feb 2019 06:25:22 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550067922; cv=none;
         d=google.com; s=arc-20160816;
-        b=I7JHtmzYb0iWkLB7wVEW6V/NM+/nl4LwYYR7HpPEUAz6q7Ay0vj+sMvlQXcoAJ7aO+
-         GZCDzZyhxog5dOUuSTNiudUF/6ljBSEujJ1BGsW91TFC9ZFtrKBLNkMKPvYCs50quf9U
-         +TV3oBCE0CHIwYjXO27doe5i5s8zX0aV/G2Kam/qGlVCUJIWAaADMtf+tTD08dTiK+y4
-         wc5htvcIeVkUBdfsnFbV7cxN/wjCxjlvfvnr0VV0TUSb/hT0j8TttwDsUANkKLrsql7o
-         MoeyN6N+frppfvYgfQVThj2uZdMNmAUdqIBVRM+na6tSDStbYxwCksZBw3t7OLPt5GmA
-         qxbA==
+        b=CA1LlJlyj0rwEZp6i5NyZXkBFgbhDy81YS8QkAeyj4QhFpwqKS5JnBnWaVs+Bh2uN6
+         63G1y0HcqSEOvLEDKGtXYkoZYuubp4d0TR+iZwFmHILAS4Zz0FcicezlyFeWo6Z/AGrU
+         nOe6S1jW20bujyspzOgRs2V9XReOAOb4jRbzSbeCDXmiGsgACegcUhpmq3zBQCEq/VcK
+         lNf+p4ZxhxbFrSjmTOB/0jDG0VOl91g/FPc3Q26zNcxdp4vIDpea+/9ofcomDXomwnmK
+         TI9MM2tfCxLmJNF5K6tnJeX3vewPE8E/6jmZMQrFOaGyfX6C6qSRJtte1UHHD6Q0aOKp
+         mPlw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=02/KIR4uFq6Kp5YWpHnlgUfm0mgT3Xh137Apdjb/mRw=;
-        b=K3NybTjovL9qtERe+1ijVQXGtxXNJUS+xhieGrmpt3mx8Z+8IcxQbChViLX8kf1cmg
-         ldz8Iu27CWWuXC36Znpsw2fS3oGSey+ASMTderts05w6KxwH8vWSD/syNrldAHalteaf
-         lWzigeBQvNhnru3tQDzN1CF5qKWuXZNCZu0Iq0dDRhPUZVTfWNcVU/a6rdb5wzHDo0V1
-         2O35zY1hOp0jZSGS0ZxRvUVZrLKKnNQWFpJKcPVDMnkfcxhXQLFtnIHQ0EanPPyaUgXJ
-         56MFTpjyJ+Loh190kioT3zP+LrEZUdqhDak4JQqPXICba4TDIOZwY79T40uo8bv+iLkB
-         zF1Q==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=E61FAmuelOOigpHIMx/sFvCSDGzRY0mJW/GICyOlGU8=;
+        b=PUu2CO3d7QbMzs9igdbgQSFvMfuPMEJPFkJXkY0ZbjDoy0uMwXQZbKMJ6PVVv2/aA2
+         FoU03B6f4hSMnLq6HzW/NMJkhICfSLPqN6A5FQXlTN+DBVcQH4s4WvnX98mu0QJ5TzBZ
+         +sspYd2gtxjVOH9dl+pnEq3cWYevzjdXLKozR6q2xKVc07tXe5ZAAlHWKREZxckZG0H7
+         4nFaKSJCC9ac5qz8gyu2f5yl4foEOz1wo7Vww1pHypU9ng0u+Q7J8mE2YOhtLOxKk+7p
+         DgYv9p2Jjh8hQLaEoUG4b+YWwoJ1kr7Nyk3h6RUacvjTs32+a3VQWaROLwXTA+ksPJeu
+         yCxA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k59si4737684edc.187.2019.02.13.06.23.09
+       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r21si3029829qtn.351.2019.02.13.06.25.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 06:23:09 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 13 Feb 2019 06:25:22 -0800 (PST)
+Received-SPF: pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id CE619B120;
-	Wed, 13 Feb 2019 14:23:08 +0000 (UTC)
-Date: Wed, 13 Feb 2019 15:23:08 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm: Fix __dump_page() for poisoned pages
-Message-ID: <20190213142308.GQ4525@dhcp22.suse.cz>
-References: <dbbcd36ca1f045ec81f49c7657928a1cdf24872b.1550065120.git.robin.murphy@arm.com>
+       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id B25B8C0C6C06;
+	Wed, 13 Feb 2019 14:25:21 +0000 (UTC)
+Received: from oldenburg2.str.redhat.com (dhcp-192-219.str.redhat.com [10.33.192.219])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id D86715C219;
+	Wed, 13 Feb 2019 14:25:15 +0000 (UTC)
+From: Florian Weimer <fweimer@redhat.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>,  Ralph Campbell <rcampbell@nvidia.com>,  Linux MM <linux-mm@kvack.org>,  longman@redhat.com,  Linux API <linux-api@vger.kernel.org>,  Andi Kleen <ak@linux.intel.com>
+Subject: Re: No system call to determine MAX_NUMNODES?
+References: <631c44cc-df2d-40d4-a537-d24864df0679@nvidia.com>
+	<CAKgT0UewZP7AE8o__+6TYeKxERBdbnLP9DSzRApZQjzj9Jpeww@mail.gmail.com>
+	<4dab8a83-803a-56e0-6bbf-bdf581f2d1b4@suse.cz>
+Date: Wed, 13 Feb 2019 15:25:14 +0100
+In-Reply-To: <4dab8a83-803a-56e0-6bbf-bdf581f2d1b4@suse.cz> (Vlastimil Babka's
+	message of "Wed, 13 Feb 2019 10:26:48 +0100")
+Message-ID: <87d0nvepf9.fsf@oldenburg2.str.redhat.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <dbbcd36ca1f045ec81f49c7657928a1cdf24872b.1550065120.git.robin.murphy@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Wed, 13 Feb 2019 14:25:22 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 13-02-19 13:40:49, Robin Murphy wrote:
-> Evaluating page_mapping() on a poisoned page ends up dereferencing junk
-> and making PF_POISONED_CHECK() considerably crashier than intended. Fix
-> that by not inspecting the mapping until we've determined that it's
-> likely to be valid.
+* Vlastimil Babka:
 
-Has this ever triggered? I am mainly asking because there is no usage of
-mapping so I would expect that the compiler wouldn't really call
-page_mapping until it is really used.
+> On 2/7/19 1:27 AM, Alexander Duyck wrote:
+>> On Wed, Feb 6, 2019 at 3:13 PM Ralph Campbell <rcampbell@nvidia.com> wrote:
+>>>
+>>> I was using the latest git://git.cmpxchg.org/linux-mmotm.git and noticed
+>>> a new issue compared to 5.0.0-rc5.
+>>>
+>>> It looks like there is no convenient way to query the kernel's value for
+>>> MAX_NUMNODES yet this is used in kernel_get_mempolicy() to validate the
+>>> 'maxnode' parameter to the GET_MEMPOLICY(2) system call.
+>>> Otherwise, EINVAL is returned.
+>>>
+>>> Searching the internet for get_mempolicy yields some references that
+>>> recommend reading /proc/<pid>/status and parsing the line "Mems_allowed:".
+>>>
+>>> Running "cat /proc/self/status | grep Mems_allowed:" I get:
+>>> With 5.0.0-rc5:
+>>> Mems_allowed:   00000000,00000001
+>>> With 5.0.0-rc5-mm1:
+>>> Mems_allowed:   1
+>>> (both kernels were config'ed with CONFIG_NODES_SHIFT=6)
+>>>
+>>> Clearly, there should be a better way to query MAX_NUMNODES like
+>>> sysconf(), sysctl(), or libnuma.
+>> 
+>> Really we shouldn't need to know that. That just tells us about how
+>> the kernel was built, it doesn't really provide any information about
+>> the layout of the system.
+>> 
+>>> I searched for the patch that changed /proc/self/status but didn't find it.
+>> 
+>> The patch you are looking for is located at:
+>> http://lkml.kernel.org/r/1545405631-6808-1-git-send-email-longman@redhat.com
+>
+> Hmm looks like libnuma [1] uses that /proc/self/status parsing approach for
+> numa_num_possible_nodes() and it's also mentioned in man numa(3), and comment in
+> code mentions that libcpuset does that as well. I'm afraid we can't just break this.
 
-> Fixes: 1c6fb1d89e73 ("mm: print more information about mapping in __dump_page")
-> Signed-off-by: Robin Murphy <robin.murphy@arm.com>
-> ---
->  mm/debug.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/debug.c b/mm/debug.c
-> index 0abb987dad9b..1611cf00a137 100644
-> --- a/mm/debug.c
-> +++ b/mm/debug.c
-> @@ -44,7 +44,7 @@ const struct trace_print_flags vmaflag_names[] = {
->  
->  void __dump_page(struct page *page, const char *reason)
->  {
-> -	struct address_space *mapping = page_mapping(page);
-> +	struct address_space *mapping;
->  	bool page_poisoned = PagePoisoned(page);
->  	int mapcount;
->  
-> @@ -58,6 +58,8 @@ void __dump_page(struct page *page, const char *reason)
->  		goto hex_only;
->  	}
->  
-> +	mapping = page_mapping(page);
-> +
->  	/*
->  	 * Avoid VM_BUG_ON() in page_mapcount().
->  	 * page->_mapcount space in struct page is used by sl[aou]b pages to
-> -- 
-> 2.20.1.dirty
-> 
+Oh-oh.  This looks utterly broken to me in the face of process
+migration.
 
--- 
-Michal Hocko
-SUSE Labs
+Is this used for anything important?  Perhaps sizing data structures in
+user space?
+
+Thanks,
+Florian
 
