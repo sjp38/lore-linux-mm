@@ -2,159 +2,147 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C2291C282CA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:03:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A379C282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:15:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 84E09222B1
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:03:53 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="mR1zb3ZE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 84E09222B1
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 11921222B5
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 14:15:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11921222B5
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0BD628E0003; Wed, 13 Feb 2019 09:03:53 -0500 (EST)
+	id 76C098E0002; Wed, 13 Feb 2019 09:15:22 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0458F8E0001; Wed, 13 Feb 2019 09:03:52 -0500 (EST)
+	id 71AC58E0001; Wed, 13 Feb 2019 09:15:22 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E296F8E0003; Wed, 13 Feb 2019 09:03:52 -0500 (EST)
+	id 608FE8E0002; Wed, 13 Feb 2019 09:15:22 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BCE38E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:03:52 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id t72so1917334pfi.21
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 06:03:52 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 062258E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 09:15:22 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id c18so1036246edt.23
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 06:15:21 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:user-agent;
-        bh=F9hIq6OqtC1SVS2O3U7ZkPoLnNclA70DsapCWy7Q+lE=;
-        b=nyt08jdY0K2UdNE4q5JvE+8HRGAN2/9ZYFp7lDFOmjk2XhEFBghGg9Fco4KBxoqJQq
-         /7MaE74tqvX6IsfWvTzmi3OjN9QqTwF5dCHUIyrzbxp/GYgQ413VV3qB38ibo+LVPRCo
-         FAwTnn5L9Csbynp32H4I5bnc3bF+uwsmyDpaqw9ue+ri2C/EabxQ86zGNZQvpqzBsIeP
-         r8iVBAmWv8C9kE6OsVnsYfGel2eG0FdzmOD6ad48sd9s6sKyPv1EEEIz0X8cMt7nzEbZ
-         Z9BgPqkSPKsyK7RqlpHHD8+IMVqorwXMUPutxjLEKK4FeaRQAwynZHVk8B1iwQYx9GXw
-         34cw==
-X-Gm-Message-State: AHQUAuaKS5Gmi9rq5L/3Lfbv/yotATNjW7q8tn5UJ5OejULtCd9VSCya
-	7qB+9J9Q5GWKCyf7pQfd7ohLiIMF65+MqQiVl3h6pEOoCbgVCXeBiHeBjqzpdRNvSih/4v4NEvE
-	oS6RVbDfcm45L9E0EEb5jjtTziTAi+2+/xBlYaXT/SmomSJ37fFqSZRJ2XU/68mv4f6FLvz7/+H
-	vM8Ho49P3xuloRec/eBiKNVmJvBbBC4xqiP42da/WuPIxSnBbsvldpjhw/3/yDq7UwurTXS6h2N
-	/wagcDMqVWSoFvmRQBGnVtq9kiZIU7QUX3CnIJrkL5pTD43F4bmi7+SQJ8uEdTlTGES+xr5ye1H
-	9oGD37yfQG0MEqiUqJMnFH6RoDr7sWj9uoS/BT9M93i8DP+ETV0hyPfydtEvSxhGULw8mXftFF5
-	7
-X-Received: by 2002:a63:4913:: with SMTP id w19mr617531pga.394.1550066632293;
-        Wed, 13 Feb 2019 06:03:52 -0800 (PST)
-X-Received: by 2002:a63:4913:: with SMTP id w19mr617461pga.394.1550066631298;
-        Wed, 13 Feb 2019 06:03:51 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550066631; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=bDvAwIjr4uJJzDNhLm7t4YVkcLnEIwIPiH9BcV6debM=;
+        b=AvwbALtWG2hKNWgKBe8DzgIXEQAG8GHAyoJoqpM+EmfVfGYoznWAvH32mG9KJHiGwT
+         xVObuCbDxYDa0CxhPMsQtHs6rzdAmZbx/smK8kMcy9Rk/1g5YnkJE4BSB3wAkARr81XV
+         qLHy5cim3CMtBguqFCzSVUucKoyzA/ZMcL0mqdCRElnCRHzyHpdhrW8QVIEXwooT2CS0
+         E4+LVsabsCCyhHx8m124KevM1hcj4sbAIr6V6F16kPkOZYWKMKXz5Guhl4P7TBYFar/N
+         Vip5+eVFlGsDqe4Et8LKC0JDN3dW1NwLjh3rDfjt/s4mnpVxFe1JmshnuIc2F3Zr/fVd
+         UEfg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: AHQUAuYN/tVPZHSovvUnhdWMqBvab+32bSRZPkaS2/caO2UEyqDugGTN
+	cerNhdzHp4IrKYNCA/5RV/ld+bx+0MPpixtpc6nbs2QLBpvr1Dpa4wIEm53asgZO/HzDYzjEqsR
+	g6GNlwhA9XRDBcO9JM/m0ZPrNMRyUeKy5qHYVWte0NRq+ONWQc3hvyRdj+V0R+GiqMw==
+X-Received: by 2002:a17:906:3049:: with SMTP id d9mr534114ejd.19.1550067321517;
+        Wed, 13 Feb 2019 06:15:21 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZJTsT5+ihwlWuL113U0i8NajDM1GWnBe1fM9wCBhZjJvB1SA+kg/8vE4MT4FpkG2rZa5gz
+X-Received: by 2002:a17:906:3049:: with SMTP id d9mr534066ejd.19.1550067320674;
+        Wed, 13 Feb 2019 06:15:20 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550067320; cv=none;
         d=google.com; s=arc-20160816;
-        b=FZnzrJ9G3G9HF53M465WHQNbLYlCJwvr2CJ26AsVBREkTrKm7IZ5MFHHjwEwZyTiBc
-         JS9W0TulZE05nNlgL3NdcNTFPmL2c3XLQIj69Po96CHowry5u4odAlook1KBX3yQP9w0
-         oLlhQ6Iy054HOk2lrN+sLuno2rCtlgOCXtdHlDrzuoa5Sc7PPOqWgjymvbECwiAx6T/a
-         zTg7wEGrAkRryq8RjFMP8mzKxHFLeaBJ0j4OVlmHuHAmWGui07m/s3NcU7cb/FOhBPAC
-         64k0KwMKF856DB0zTXEtAujoL+R4gJxa5+RJGxSxfdq5FXWzU3pova1hg6RD5GEbqYq/
-         qTHw==
+        b=kw3OX/nalbc3Q1mMr6Z3hXdLsqYeRjhiImCXCvUqYu8x0zYxqKq/9gSnHR0gWSc2fn
+         dD6aqi9uoW6zjdKpSM+ErD9rRFzFwuYpE7UecAVKwpb0uaJPuRCYU+Q5ZPZdPh2YnEZT
+         lxGfOG7e+mP6nH9Ra1rP8o+tNcc4P3NzBEM+ChjUSkTb5CKdtw0ksbt2yoREgCKdlkMW
+         osn/lqkRyTml7+nNSvyUBclsO/mXm4L9lZRVxTKTjmD7fV+WS4tCVMv6E54eSkonJCaM
+         2er1WF4ESo1J9UfS/e6qF5pBCwdzPBagzmVhEyQH00buAkqGgpMP3ssmUNEYuhurk80r
+         u46A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=F9hIq6OqtC1SVS2O3U7ZkPoLnNclA70DsapCWy7Q+lE=;
-        b=ak9NFKEQKGR9Xyx0igani5XgnjVTXB9HisGMybEShlUKzZwOxZyI3Ej+tOl3CuLQ55
-         nky23ADah2ZuKnacEumM6TqqwVkoPZkADTyXtOHo4J68DJ1E72R9pRisFzJM/zE7MFcz
-         DdtfPQ6hb6PwCg1wZxeF1EwrIK8XdDsHkFWIuUjT5+AXKasN69csQk0IPwwR2mhlmIYe
-         fSo250LD8B33tDrpO+grdz9XNe3Scqg/8Njz4WPRD1TnwiNfgnH9KpJ3++4vlMLBCnKc
-         XIB8dL+NTNKkN9Vk2p08KIckFgmPeOr1+5x9KwBd+0BNyu1gq0bvE/GCPy+TWUlDaEAj
-         OIFQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=bDvAwIjr4uJJzDNhLm7t4YVkcLnEIwIPiH9BcV6debM=;
+        b=zDfJUMPkrsEYJd+TYSy5QcaAR2oIHhNqqSFRIOes4aKkMcDhSSxNRsoHna7b7yyFUy
+         QPXJpKgszOAtaqRw/Wm3SjAsUtUDHpIX4qP7XwTsfirKflgUOV5vW3DU3GxkinY2ghvO
+         22q+QVBv1G3rCQ6Hva1ZJRkO2eVDc4LoPzLsBm/ceaJ1QCIsWDJZ7fACE/CsxI4ZEhi1
+         k+QkkDGqtF05+2BWp8k/QwgEipEurLunLj8ivyq+8lioIpwqoji4WudZaI3HqW7vrNur
+         YLDGZOctMft/mrNVsnPZ+d2mW5XGGhvGWGB7dzZSRaZcN6FSkd0ATEl8bxCo0N/LPepX
+         G5VQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mR1zb3ZE;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e6sor8959984pgn.60.2019.02.13.06.03.51
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
+        by mx.google.com with ESMTPS id f4si1353743ejb.76.2019.02.13.06.15.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Feb 2019 06:03:51 -0800 (PST)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Feb 2019 06:15:20 -0800 (PST)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) client-ip=46.22.139.17;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mR1zb3ZE;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
-         :user-agent;
-        bh=F9hIq6OqtC1SVS2O3U7ZkPoLnNclA70DsapCWy7Q+lE=;
-        b=mR1zb3ZEg02mBIPkYaAVMZE66k5L2R/4wFfthpIKD2x3RXESd7eiszAW4r1knRLpTn
-         wnxSzM8wZc5Mkz3Z49kMS93pCVbrKDkebiXliRr0MLguCoBBzx3UIY6gRbVSevX8sUlA
-         t0TnCvA4KzIxDQ1NhguOdXUGK6CEp2PM35M5kw6L8CUGCQorsyg8koIIUymChKedDxwo
-         wDUw7vvME3QeIWVpILxu3BZjyCiOfgTp+xlM8wcQWb2ioU0gaK0lIdJ+zNZxg+bA9B1c
-         6HYiTaKbvgyyQHIL08zPUp5Nm4UWICDz8npUj7KAUtwMGujiFlESyiR4EEVtAG0NSBzJ
-         vYBw==
-X-Google-Smtp-Source: AHgI3Ian//MU/KECqqeVW28HKO0eOqidmv+3nYdGVBdjjqesuGGlM5g1X58lilAYfu4GeuswRHCPdA==
-X-Received: by 2002:a63:d444:: with SMTP id i4mr600550pgj.237.1550066630319;
-        Wed, 13 Feb 2019 06:03:50 -0800 (PST)
-Received: from jordon-HP-15-Notebook-PC ([49.207.48.54])
-        by smtp.gmail.com with ESMTPSA id e2sm36513942pga.92.2019.02.13.06.03.48
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 13 Feb 2019 06:03:49 -0800 (PST)
-Date: Wed, 13 Feb 2019 19:38:07 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com,
-	boris.ostrovsky@oracle.com, jgross@suse.com, linux@armlinux.org.uk,
-	robin.murphy@arm.com
-Cc: xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org,
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.17 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 299041C167C
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 14:15:20 +0000 (GMT)
+Received: (qmail 20426 invoked from network); 13 Feb 2019 14:15:20 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 13 Feb 2019 14:15:20 -0000
+Date: Wed, 13 Feb 2019 14:15:18 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Yury Norov <yury.norov@gmail.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	David Rientjes <rientjes@google.com>,
+	Michal Hocko <mhocko@kernel.org>, Will Deacon <will.deacon@arm.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
 	linux-mm@kvack.org
-Subject: [PATCH v3 9/9] xen/privcmd-buf.c: Convert to use vm_map_pages_zero()
-Message-ID: <20190213140807.GA22098@jordon-HP-15-Notebook-PC>
+Subject: Re: [PATCH] mm, page_alloc: Fix a division by zero error when
+ boosting watermarks
+Message-ID: <20190213141518.GS9565@techsingularity.net>
+References: <20190213131923.GQ9565@techsingularity.net>
+ <295be99c-d09a-5572-fa49-2673a62c295b@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-User-Agent: Mutt/1.5.21 (2010-09-15)
+In-Reply-To: <295be99c-d09a-5572-fa49-2673a62c295b@suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Convert to use vm_map_pages_zero() to map range of kernel
-memory to user vma.
+On Wed, Feb 13, 2019 at 02:42:36PM +0100, Vlastimil Babka wrote:
+> On 2/13/19 2:19 PM, Mel Gorman wrote:
+> > Yury Norov reported that an arm64 KVM instance could not boot since after
+> > v5.0-rc1 and could addressed by reverting the patches
+> > 
+> > 1c30844d2dfe272d58c ("mm: reclaim small amounts of memory when an external
+> > 73444bc4d8f92e46a20 ("mm, page_alloc: do not wake kswapd with zone lock held")
+> > 
+> > The problem is that a division by zero error is possible if boosting occurs
+> > either very early in boot or if the high watermark is very small. This
+> > patch checks for the conditions and avoids boosting in those cases.
+> 
+> Hmm is it really a division by zero? The following line sets max_boost to
+> pageblock_nr_pages if it's zero. And where would the division happen anyway?
+> 
+> So I wonder what's going on, your patch should AFAICS only take effect when
+> zone->_watermark[WMARK_HIGH] is 0 or 1 to begin with, otherwise max_boost is at
+> least 2?
+> 
 
-This driver has ignored vm_pgoff. We could later "fix" these drivers
-to behave according to the normal vm_pgoff offsetting simply by
-removing the _zero suffix on the function name and if that causes
-regressions, it gives us an easy way to revert.
+The issue can occur if pageblock_nr_pages is also zero or not yet
+initialised. It means the changelog is misleading because it  has to
+trigger very early in boot as happened with Yury.
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
----
- drivers/xen/privcmd-buf.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+> Also upon closer look, I think that (prior to the patch), boost_watermark()
+> could be reduced (thanks to the max+min capping) to
+> 
+> zone->watermark_boost = pageblock_nr_pages
+> 
 
-diff --git a/drivers/xen/privcmd-buf.c b/drivers/xen/privcmd-buf.c
-index de01a6d..d02dc43 100644
---- a/drivers/xen/privcmd-buf.c
-+++ b/drivers/xen/privcmd-buf.c
-@@ -166,12 +166,8 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
- 	if (vma_priv->n_pages != count)
- 		ret = -ENOMEM;
- 	else
--		for (i = 0; i < vma_priv->n_pages; i++) {
--			ret = vm_insert_page(vma, vma->vm_start + i * PAGE_SIZE,
--					     vma_priv->pages[i]);
--			if (ret)
--				break;
--		}
-+		ret = vm_map_pages_zero(vma, vma_priv->pages,
-+						vma_priv->n_pages);
- 
- 	if (ret)
- 		privcmd_buf_vmapriv_free(vma_priv);
+I don't think it's worth being fancy about it if we're hitting
+fragmentation issues that early in boot.
+
 -- 
-1.9.1
+Mel Gorman
+SUSE Labs
 
