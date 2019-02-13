@@ -2,140 +2,208 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A9F9C282C2
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:53:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 90EC7C282C2
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:56:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BFE892075D
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:53:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFE892075D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 40BD0207E0
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 13:56:21 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Wo+rn4+r"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40BD0207E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 46D7F8E0002; Wed, 13 Feb 2019 08:53:25 -0500 (EST)
+	id AD3FE8E0002; Wed, 13 Feb 2019 08:56:20 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 41CE58E0001; Wed, 13 Feb 2019 08:53:25 -0500 (EST)
+	id A5CDC8E0001; Wed, 13 Feb 2019 08:56:20 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 30BF98E0002; Wed, 13 Feb 2019 08:53:25 -0500 (EST)
+	id 900BB8E0002; Wed, 13 Feb 2019 08:56:20 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CF4138E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:53:24 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id m11so1061238edq.3
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 05:53:24 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 483D28E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 08:56:20 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id s27so1740114pgm.4
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 05:56:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=bOV8Wv1vRtPgqZoML7SL6Zwu6Kwh1cX89Ql2n1q9jDU=;
-        b=OPoYig/ctoYOoar+6Wqt6IGVLdF7H4QAQiABshfLA8GX7osjC9oETBwMIGr2n3BcVD
-         vKHOo+RU0dvy/j3kJy/ZIl4Ly4VvNqZaztPDHOwkEyGkkCtCu99u9WVrjvbKGMzcqByc
-         bLg0/W7ekLUcemleZeryJajrl5nERWsBbsZ8vzsWZ8iVWKDU4Gb7ZqFhMVqnsnGsFm2I
-         lP0h8/6mj/tWpaV+3A4xm/vNxHLu0QQxtt6BhNZ9+JAMcC+GgvdCmiulfBv1l0qq+51q
-         7UVdCGjsMMDYACE3vNpnd5+uaIajgwq+7OhLQzgJHfktjIroHOmdbob+00R4q7j1t4m+
-         eY8A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: AHQUAubVuY2wYAI+4nCi7sS4fcLWcl38VojhEyb19H2coysWWnIJxLgf
-	uExFaBucnpKmex7FP6RBh/9Ltm/EdkbPqpqgSrE2YFDj6MEFm9w9W1WIskdJKGuGhG+5q/Fyesv
-	n5MZQTF5kWu2vygOPr5T4n/OAQzizETgWqqbVNoax/X2ILhE8jctp0szyfmKSpm1xzA==
-X-Received: by 2002:a50:9a01:: with SMTP id o1mr527336edb.82.1550066004383;
-        Wed, 13 Feb 2019 05:53:24 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYH/sXEcSfA23+NYo2zLQ5IyxmK4mhIVzGa5vxPSCfMZrdMzP6OZS7XMv7fV+fQyo1BRh+I
-X-Received: by 2002:a50:9a01:: with SMTP id o1mr527269edb.82.1550066003423;
-        Wed, 13 Feb 2019 05:53:23 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550066003; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:mime-version:content-disposition:user-agent;
+        bh=V2qFA0OcwjrK68risolzFdRV/D9+52UF5C3nMIQDVp4=;
+        b=RAtMq79sj9U1eDW8w6NP3l7AiE2MSVePZoNWsWTr1RJwU0YT7MD8bSOfpx2W6m5v4N
+         at4z0/AbOaVwOCb8uYp/w1QKAsLGYwWL8bi4RP6Ndeg5/NQxwf7jq5BVh3SPoSP7SZVm
+         v2rYB/OnJSn30m88f18L1ACsQ7V9uwrAmCFzzwGBQzWY4RW2igQcCjhDY1qOZu9vMHNT
+         uE8cqkEiYewr6u5PJGJYyEkhF7Tw8NicgAWkE48Hi/ERX1GxaWZMOzPwW+Jd/ECnCWgF
+         RV+XOnvUdJtWVNwE/gV7GqlQbhvVG825mdimBQvB1bv8Y2Nc17t0w/p1OrennIvApezi
+         rysw==
+X-Gm-Message-State: AHQUAuayDSHENQcH0BhY9IIAHMlZi8QJ4um1hACm2V83X0gWVCWXbIcy
+	7wdZ7Mq5CqZrrTgdPyQmzh55C/b1M/0B7WKwulv5Y7QmB9SycEi4imsTHiWhgu077GVWRVjWxvO
+	zraHYC/aAwNQXIXH8ZLRo8vP03MWYTcRjNq3a6cX6YUPhzU9hUAtCBW7mli4ckbDG8CdDTdwZ5B
+	BrqMlEMLWumDiJmH5twgyWsVkGuKIM4dqK0MdPTjfU5KPc8D5xybPwZA6jRPb5PqQXxh44oEfF/
+	2zNwJYSzZRRfaZYiKtDZHgZjFACGYFFg4UtL3ye984whGDLINz6WavIvaA4fGZcaKAuNYcmi/iU
+	Au8x75DOk2qT55QQtLwEBmQ9OyajEzkKwiqzZsNxrxUN4gIRtXBMUQLQ0VmbhrSlkreF6z9x0BE
+	/
+X-Received: by 2002:a62:8a51:: with SMTP id y78mr587762pfd.225.1550066179923;
+        Wed, 13 Feb 2019 05:56:19 -0800 (PST)
+X-Received: by 2002:a62:8a51:: with SMTP id y78mr587699pfd.225.1550066179042;
+        Wed, 13 Feb 2019 05:56:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550066179; cv=none;
         d=google.com; s=arc-20160816;
-        b=QO9nMlipwzp0tRWa4PKiz4rV1DBCAbnocl4sJT7LLGAS9JqtOHGC1uU50sO0y076gF
-         8Boid4rw8SEa/Mg9Q3Qmon5vDtJpSPiRT4riF+z+8HBEF3AsxG317A+DLtDEyfOe38yR
-         aQKAoHrWrIgUK69dGWLZDMyzRqvVVmSeb5yTwui2n9xcVX+2n47W1RB6pnkDbPtXkAQ/
-         qdNdlJ2v/vJOfMqm/xzZXnkVtJSnKpbqftiB1a7bdUSBQUklCDYCa5vF5ign9dYDVzzC
-         QBLciHZuMd/sKzXDCHi2KzfRgJ0EAZa3A4Oh9u6aDRjE2id1rUTF0Dop2+wjBQNwk1WF
-         33BA==
+        b=b+sxfrwDcYqHagtxlnpeq5Na2a97D9YXZI1eWUTq25uxHqmD2RuZuYd1gjIiPun28N
+         fhp94s34iUFFp8rccI/iwX09TGCYwwzOZhyrwyUdpR8GUpqxtaTwPN6MAjmVFcgNg0dV
+         LjFFLDP4MEK4ALphzh1eDVQVyxzAqoP6SwoIxLkIK9LmGW40BrrqfvUs/dwLPtzOebW8
+         CVc5qhaRCU2BzYPJ+Hb5y78has2CP/R5t7IcDGgHAA2lRuVeHJV2nvRFKqghBrBgT2U/
+         4ewosmDoqBs65oyEoMorelEWx/06TF3k9883mXnQOg9dLLNzPLE7IlLMYOZzIOznIMCd
+         kbow==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=bOV8Wv1vRtPgqZoML7SL6Zwu6Kwh1cX89Ql2n1q9jDU=;
-        b=mMYX6WBFpAJ9Z7gNSciUrhueR8so/zexYIKDIIfciFrcmlg1eIqi16U2A2Kw9zQdkD
-         y+nvMN22y8z2xVRZO5c1YtdzrnPWHO6wyyLWFqD05vl5VDSEPJOVWkVLMJGpfPe7bsdK
-         zj/C/58jU78olFOZ0JOAGY4s3TF4R/UkX5xtI1iCfuE6rzen+EuvISHdaIMRa3nU1p0r
-         sywUuIq4zZEuU6Fk7sfwfVTSyt5cQa8/Sdv1NNuR7dDpd1qOQaQufi1G/SQw/aQkZROd
-         8q2kVc9UIcE8vyGOP85BDLUlHj4z9lcT68G9BMpc0AloPA92acqKpMJmLU/dpscjyYMw
-         ikrg==
+        h=user-agent:content-disposition:mime-version:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=V2qFA0OcwjrK68risolzFdRV/D9+52UF5C3nMIQDVp4=;
+        b=UtSXtxc1hziDs9943mjmm08+Z03EywkM3KQDRlaOY19CrB4uGm0vjYiBFUB3FxfByT
+         Wmshx0uLsJ/MHeiug9cka195xOsS686LA2wWtvwKdarCtr6mUHchU0VWmn6Hsux0TDx6
+         sUKiOEhpS2vLXXkaSFr6fyOIqovSo3TFiN/P5wvjKY5mKM3i9mme0JvOaBQ+nnv/DS9B
+         /UpJ94pVmBZgoQfLLw6T7zt5OV2mxBzJMg6fcTfBj0cSDNBPvGS9PGcvpI8ApXs94aAb
+         UEHVnVsgvw5G1D1TdAUz71lmJT1JANQ29upgt8WBClA6wUqYyuTRBEmYL9Kf8wDdLLKw
+         Kzkw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m88si4371703ede.157.2019.02.13.05.53.23
-        for <linux-mm@kvack.org>;
-        Wed, 13 Feb 2019 05:53:23 -0800 (PST)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Wo+rn4+r;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b10sor22662555plm.14.2019.02.13.05.56.18
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 13 Feb 2019 05:56:19 -0800 (PST)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 320B080D;
-	Wed, 13 Feb 2019 05:53:22 -0800 (PST)
-Received: from [10.162.43.147] (p8cg001049571a15.blr.arm.com [10.162.43.147])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C93C03F557;
-	Wed, 13 Feb 2019 05:53:18 -0800 (PST)
-Subject: Re: [RFC 1/4] mm: Introduce lazy exec permission setting on a page
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@kernel.org,
- kirill@shutemov.name, kirill.shutemov@linux.intel.com, vbabka@suse.cz,
- will.deacon@arm.com, catalin.marinas@arm.com, dave.hansen@intel.com
-References: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
- <1550045191-27483-2-git-send-email-anshuman.khandual@arm.com>
- <20190213131710.GR12668@bombadil.infradead.org>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <19b85484-e76b-3ef0-b013-49efa87917ae@arm.com>
-Date: Wed, 13 Feb 2019 19:23:18 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Wo+rn4+r;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
+         :user-agent;
+        bh=V2qFA0OcwjrK68risolzFdRV/D9+52UF5C3nMIQDVp4=;
+        b=Wo+rn4+rpbWNXMXw8f961P6oxr28SV0R3AE2+Iuvqh7fxEkblbcFpBrThrdGUZASMo
+         +obY5tWBT5FcDq1TCc2YALzjSj/RwS62oxijXHr27AMGgQQ5EAXv7KDXIR8qS+CriIzl
+         v+ii3rGwru5TZogwAVIdxKFZ3HcsQXSMp2qyjqUotAp7B0lv2662QZR8uNlKx7/r97Wt
+         Q1kF7Xrwhfuo0ODVWB5AEbZlo/SYZi2B7iswqgis9OVmaodYPCQ5gXnYca7KlKSYKhWN
+         qJ16mA6TwoJHT3BVnzle1LT/35tmCVTvOSmsrJwpZE+NSxRv6QEEiAd7//aDbrQIA0zS
+         /cfg==
+X-Google-Smtp-Source: AHgI3IZ+SXZkfuwQeWGM2fq41k8bLY3tiDCzMWyTKTaAYfDA8NidP+PtWIWRFYBlC0duiJnXDlxZqA==
+X-Received: by 2002:a17:902:161:: with SMTP id 88mr683223plb.306.1550066178456;
+        Wed, 13 Feb 2019 05:56:18 -0800 (PST)
+Received: from jordon-HP-15-Notebook-PC ([49.207.48.54])
+        by smtp.gmail.com with ESMTPSA id y20sm26266582pfd.161.2019.02.13.05.56.16
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 13 Feb 2019 05:56:17 -0800 (PST)
+Date: Wed, 13 Feb 2019 19:30:35 +0530
+From: Souptick Joarder <jrdr.linux@gmail.com>
+To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com,
+	kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com,
+	sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org,
+	linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com,
+	treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com,
+	stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de,
+	airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org,
+	pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org,
+	boris.ostrovsky@oracle.com, jgross@suse.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-arm-kernel@lists.infradead.org,
+	linux1394-devel@lists.sourceforge.net,
+	dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org,
+	xen-devel@lists.xen.org, iommu@lists.linux-foundation.org,
+	linux-media@vger.kernel.org
+Subject: [PATCH v3 0/9] mm: Use vm_map_pages() and vm_map_pages_zero() API
+Message-ID: <20190213140035.GA21935@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
-In-Reply-To: <20190213131710.GR12668@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Previouly drivers have their own way of mapping range of
+kernel pages/memory into user vma and this was done by
+invoking vm_insert_page() within a loop.
 
+As this pattern is common across different drivers, it can
+be generalized by creating new functions and use it across
+the drivers.
 
-On 02/13/2019 06:47 PM, Matthew Wilcox wrote:
-> On Wed, Feb 13, 2019 at 01:36:28PM +0530, Anshuman Khandual wrote:
->> +#ifdef CONFIG_ARCH_SUPPORTS_LAZY_EXEC
->> +static inline pte_t maybe_mkexec(pte_t entry, struct vm_area_struct *vma)
->> +{
->> +	if (unlikely(vma->vm_flags & VM_EXEC))
->> +		return pte_mkexec(entry);
->> +	return entry;
->> +}
->> +#else
->> +static inline pte_t maybe_mkexec(pte_t entry, struct vm_area_struct *vma)
->> +{
->> +	return entry;
->> +}
->> +#endif
-> 
->> +++ b/mm/memory.c
->> @@ -2218,6 +2218,8 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
->>  	flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
->>  	entry = pte_mkyoung(vmf->orig_pte);
->>  	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
->> +	if (vmf->flags & FAULT_FLAG_INSTRUCTION)
->> +		entry = maybe_mkexec(entry, vma);
-> 
-> I don't understand this bit.  We have a fault based on an instruction
-> fetch.  But we're only going to _maybe_ set the exec bit?  Why not call
-> pte_mkexec() unconditionally?
+vm_map_pages() is the API which could be used to map
+kernel memory/pages in drivers which has considered vm_pgoff.
 
-Because the arch might not have subscribed to this in which case the fall
-back function does nothing and return the same entry. But in case this is
-enabled it also checks for VMA exec flag (VM_EXEC) before calling into
-pte_mkexec() something similar to existing maybe_mkwrite().
+vm_map_pages_zero() is the API which could be used to map
+range of kernel memory/pages in drivers which has not considered
+vm_pgoff. vm_pgoff is passed default as 0 for those drivers.
+
+We _could_ then at a later "fix" these drivers which are using
+vm_map_pages_zero() to behave according to the normal vm_pgoff
+offsetting simply by removing the _zero suffix on the function
+name and if that causes regressions, it gives us an easy way to revert.
+
+Tested on Rockchip hardware and display is working fine, including talking
+to Lima via prime.
+
+v1 -> v2:
+        Few Reviewed-by.
+
+        Updated the change log in [8/9]
+
+        In [7/9], vm_pgoff is treated in V4L2 API as a 'cookie'
+        to select a buffer, not as a in-buffer offset by design
+        and it always want to mmap a whole buffer from its beginning.
+        Added additional changes after discussing with Marek and
+        vm_map_pages() could be used instead of vm_map_pages_zero().
+
+v2 -> v3:
+        Corrected the documentation as per review comment.
+
+        As suggested in v2, renaming the interfaces to -
+        *vm_insert_range() -> vm_map_pages()* and
+        *vm_insert_range_buggy() -> vm_map_pages_zero()*.
+        As the interface is renamed, modified the code accordingly,
+        updated the change logs and modified the subject lines to use the
+        new interfaces. There is no other change apart from renaming and
+        using the new interface.
+
+	Patch[1/9] & [4/9], Tested on Rockchip hardware.
+
+Souptick Joarder (9):
+  mm: Introduce new vm_map_pages() and vm_map_pages_zero() API
+  arm: mm: dma-mapping: Convert to use vm_map_pages()
+  drivers/firewire/core-iso.c: Convert to use vm_map_pages_zero()
+  drm/rockchip/rockchip_drm_gem.c: Convert to use vm_map_pages()
+  drm/xen/xen_drm_front_gem.c: Convert to use vm_map_pages()
+  iommu/dma-iommu.c: Convert to use vm_map_pages()
+  videobuf2/videobuf2-dma-sg.c: Convert to use vm_map_pages()
+  xen/gntdev.c: Convert to use vm_map_pages()
+  xen/privcmd-buf.c: Convert to use vm_map_pages_zero()
+
+ arch/arm/mm/dma-mapping.c                          | 22 ++----
+ drivers/firewire/core-iso.c                        | 15 +---
+ drivers/gpu/drm/rockchip/rockchip_drm_gem.c        | 17 +----
+ drivers/gpu/drm/xen/xen_drm_front_gem.c            | 18 ++---
+ drivers/iommu/dma-iommu.c                          | 12 +---
+ drivers/media/common/videobuf2/videobuf2-core.c    |  7 ++
+ .../media/common/videobuf2/videobuf2-dma-contig.c  |  6 --
+ drivers/media/common/videobuf2/videobuf2-dma-sg.c  | 22 ++----
+ drivers/xen/gntdev.c                               | 16 ++---
+ drivers/xen/privcmd-buf.c                          |  8 +--
+ include/linux/mm.h                                 |  4 ++
+ mm/memory.c                                        | 81 ++++++++++++++++++++++
+ mm/nommu.c                                         | 14 ++++
+ 13 files changed, 136 insertions(+), 106 deletions(-)
+
+-- 
+1.9.1
 
