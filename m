@@ -7,102 +7,102 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5AD03C10F00
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B6304C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0DAF3222CE
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6A76B222C9
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="PL+qO4BS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0DAF3222CE
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="PNVepkl6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A76B222C9
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B6DFF8E0006; Wed, 13 Feb 2019 17:42:15 -0500 (EST)
+	id 1A9208E0007; Wed, 13 Feb 2019 17:42:19 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B1C648E0001; Wed, 13 Feb 2019 17:42:15 -0500 (EST)
+	id 15AA78E0001; Wed, 13 Feb 2019 17:42:19 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A0B618E0006; Wed, 13 Feb 2019 17:42:15 -0500 (EST)
+	id 06F398E0007; Wed, 13 Feb 2019 17:42:19 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 476CF8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 17:42:15 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id s5so1404387wrp.17
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 14:42:15 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id A4D1D8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 17:42:18 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id b8so1423895wru.10
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 14:42:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=ktrl99/4+i4VLz6USppssXo49kPq9nmcbGTF0KLoSBQ=;
-        b=WPqPFKDQV3JJ+TDgA76JEHkrzpGat3dtg9u+IKXuVwKRqYLoxlQ2MDIhujHE3tttJR
-         Ia2oYZWMIx92JfL/An9A5b2PsIMNMqT/hZP8tAAxQ6b7mC0ge14PhM9ZTSUZ0Y5Ok1kE
-         T8gn9LfnZxtbTWQWXtQhpGSBxDnUegi3nc88Dt3wKoWQs9iOh1Z54e8YzQSx4+byIOsP
-         VRlkYqR7+cjDF6ZJ9MCZNT+xMafXDcmsgvIC3uwNYD4bwSj+p/UJ4E14nnijkqO6Pfgi
-         WjattkpMq0QHOFoTPBM0dYp4/VDL5HWrVaUgGRprd0QmKzhJNuTrYjnJ3pyYKo34r/+y
-         Olyg==
-X-Gm-Message-State: AHQUAuaLe0zJ1LPEVl64ytkHFmehZjk73jrXEPuOWNPrm781hUcp1FQ9
-	FEuNEHVMq4jAE9mG9C4M+fZWmtEHgqZjIwyiLrhah9O4li/A0xJeUrAecd1sjqHnlxQiZCrs27W
-	9JlADs7FWLOUUJGY50cK9GBpGdRYXA35zBXp2Rr4qbSQONpUX26epQF2jR0iqebkKoWGO1ZhIOM
-	gglNdh4SO6ucSLmJcnCy8XWbxs4FuBkLOyi98Mmr3nffbz5oRyOSlMRoL8H4yi2yvotZ2jGqQib
-	qmhnkSs+9Jtk5mgLK81R+a8AGs2qBcxhfQ4eDoCnv3KKM9X61/Vvg9u2Lz6vQZYB8YCDPwvM5q5
-	CrX+FEqG+YV73UwDdWT140j9hCdSk9RRc5y61SPEDtIaMFf/6If1Y/p06Ist7zEHEpj2zbvzaam
-	W
-X-Received: by 2002:adf:dccf:: with SMTP id x15mr265362wrm.309.1550097734818;
-        Wed, 13 Feb 2019 14:42:14 -0800 (PST)
-X-Received: by 2002:adf:dccf:: with SMTP id x15mr265324wrm.309.1550097733753;
-        Wed, 13 Feb 2019 14:42:13 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550097733; cv=none;
+        bh=hnmNnr9YQbwfaI93UrUGE24zBu/XKqtY3CcuY5KmkdU=;
+        b=NYLcPf4PhDTfluHGTJ2dshFnd/hJDB1aj6PZ9aFFDduSj290pEv8sCG5Kau+LHhs+2
+         s0euHu8yTiOeeens+bqmEteR/NMaMfx07ikIpm48zTbIUE2Krvr+oNKHVDMP1MMR1Q+I
+         nrP0FGsUJYCBYabq+wXwLr+awG061Rgim7WAiilgnpnYKcJJJdJs9jV51KPSdwr72/lx
+         Sei6xA13c2ex2VuPXsTMCfITxKDpnSVrMZiYUGXHkMcxXrSD96J7Gk1zEoTXsTdRozGO
+         yeDRobV8j9Bpy264RdHMRmKffkkklZkZrIpYiHGm1SAOwYY10M1cKg2jLFlQG1c8q7Je
+         hWfQ==
+X-Gm-Message-State: AHQUAuaOTkxbXhif7MdifNgHRVDwAx5dnseaXG49lw6azlIK4qPgOobg
+	lh+LjN2aOszAVGJmZGiwUM5kaktEL9ly12Wr2hhhXHxDMTBylgd+com4tD884qzs2udIgK9Niz/
+	dlaksUif86MJ2K+MofbfvR9Un7eUlabEy3NCqmt+X/QgaeakVsdygHsjzka4CLp4jWFSbZrPv+C
+	9hvpScOXq7lvytW5Wd/xYQquo92eyUiTZNIpsN+YgV3kUYS2MTmr6ldPhFOq7cLPZvPoC+uI95h
+	kg3+GlIH1Y8Kzt2MiKIuakgEO1UcjbsIKHMJox/dD/f6P+MHMeNT1O5bQonnyw0BYN3SFOG4hPg
+	WrR9kCYSYs9ltPGZXIPusmGmsNaiDv/tt4hL4jv48VXoh+t2MuQGSOOyS2/AYuh6dBbj1w7ce1T
+	2
+X-Received: by 2002:a1c:7304:: with SMTP id d4mr274752wmb.136.1550097738173;
+        Wed, 13 Feb 2019 14:42:18 -0800 (PST)
+X-Received: by 2002:a1c:7304:: with SMTP id d4mr274713wmb.136.1550097737138;
+        Wed, 13 Feb 2019 14:42:17 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550097737; cv=none;
         d=google.com; s=arc-20160816;
-        b=Iunf3gO/q1x4BCwtnFHWOlufww9Tpsw0uGcR4+TUvhZqFz6o2Cbuk6XWvKOAvxTeNk
-         m2LP0Rdot2PEx8N6QB1pcDSFkbhkOQrlROvY2fwgW+y++Qs0YnwW77f2VMwF9mgO+K8L
-         kVwMs6UtlgU39l5Ke+y6XA8FqNiyTa8ahvsO1+VOkSpChcZakrO/ykfMpKjst8NAWwGV
-         tfItf7irbPCFQmAi68+VcqRUdpDy6Wn5lkZ0vt5WPnBT6XmMtZx4Tn2YiYKyw/JcxE8l
-         cH5Jo6RHWjlcnYvhGmFlgi8sch9v1TiEtgMB/IXmoB4Qo+W2zab9j8uuoVQ8EKqyi4du
-         ENtg==
+        b=ea32TTZfql8fA90Xe9wvpcC0GBtxCzQtcMoPrZe6ClqqOfHx3Dvp4PjLnIWnfpkRr0
+         W9cfo/mGQdP6Pe71eszCAQFcLw3M8gquGe6IJIXVWip5fpKZUre455TiQxF0I5v9biBs
+         R1yDGwtgGG9ZhWr8cL5ZDA+ok4P7fxTsu4WcmQJrjybbY0YVGsIeRHGgiYoQM7WfiJCu
+         H+GnGD9OH8BSS/lC/VPk2BkcSOpBnl9/+MbLdmSnoDf0Eoy1TXrzLvH8NcQ5bIpcF5eg
+         JIsHCJOiq+OQ3yvVEZxw9AV8A2RU0jj3aGBcSZ3NrHGxg9rZK1LvojOnp3Qlovq0gxLa
+         oJCg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature;
-        bh=ktrl99/4+i4VLz6USppssXo49kPq9nmcbGTF0KLoSBQ=;
-        b=lVk21soFr6NhkQ+bzJCdIYL/6gbeiyVKt9gk9iHVPTb9YwQ8YV8s8g95tQzgbJ6U+A
-         ZvBe5qj9BcS4E/4DL/lprw+yOKItLT+uzZfOAc3C27rwYkHl3774otjeqESG3gB3xv3B
-         rLCCu95sbywl0Hw3rcpxrpwia0PIKs+sgo79iCRAHWzoqFESJ47SH6fBXpVhXRHtGqwK
-         AMaJO3/2A7uPuFD1QEt5zOFr/iobah9jL8atui3l4xxH+x0n54rMr8cFFsqLu/iY0+KR
-         WKQz4/o29BYWZZSB/9qnqoPwD/H4qdlucdrqt81C3rvK/dISDACsruRZsvMC83hjGLlX
-         ycSQ==
+        bh=hnmNnr9YQbwfaI93UrUGE24zBu/XKqtY3CcuY5KmkdU=;
+        b=FhM+gWRprXsj4d/x1afJa2lx/TvegK5T5ka7PCSpj+C9ezeaG+aWo6JMhWns35P0tV
+         TLNY2rj3xbPoutU/JAyr6Tm9MP8/jn3SttDbXgstH3Nj4SD7BaT+Efytr7y0Y8D3skVk
+         dLA3JKtWXmt6rEmThFMR9K3w2JYvfPChsWyuVEe0F/4wJAerV0MP3Uv/J6qh0Fus8xMD
+         PwW3dzUfUM6OSf6ePUJkuKgJJP7/LZBesLh0tSsKgF6gGHruOcCOcp17au8QgBQC8A/c
+         l8L13rxI3IaPI6RJncQxpI4II8v21SGnGNLmQsd6pex5QJxKKIY+yi+2KB5vVMxoONGU
+         b3TA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=PL+qO4BS;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=PNVepkl6;
        spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 71sor369955wma.20.2019.02.13.14.42.13
+        by mx.google.com with SMTPS id e5sor376952wru.29.2019.02.13.14.42.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 13 Feb 2019 14:42:13 -0800 (PST)
+        Wed, 13 Feb 2019 14:42:17 -0800 (PST)
 Received-SPF: pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=PL+qO4BS;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=PNVepkl6;
        spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references:reply-to
          :mime-version:content-transfer-encoding;
-        bh=ktrl99/4+i4VLz6USppssXo49kPq9nmcbGTF0KLoSBQ=;
-        b=PL+qO4BSrqbTBZVvQdKVfuy3/R+TSzmQVsSmPWSD0nYfCQOw4/ftFDGqeAZGSDmsrD
-         gp5dGhCLQjbXWBv2zPEel7ZGbFiiHXKIek08yxjbI/8bRXIXLDgV3glT33iw2UZwlzF6
-         ZWtW7gYc5MVUhpPAtUuhRfoed2qyAVf+Nntc5wC3H4/s2pYobeRt0viKWP7Txq5JAUgK
-         zb27BPlMpvk46SWw6eK2V2YyFXBJnAP8jjBEEB5li9V5UUDTFf3bDWz8iq6hJrbY/pXp
-         KcT+ffr0v8t9+4SCEJMuLmWpGXbPjoJa2FgJQJ6vmf7fAQnr6F1cclKwU046m0j6BDC+
-         kczQ==
-X-Google-Smtp-Source: AHgI3IZgZPIjnSp/dGfR7iVH0dIRhuCCwStYtqJDhnVvkktzfFNDDUM47bqA//xCjlNKL+dEg6bIOg==
-X-Received: by 2002:a1c:a58c:: with SMTP id o134mr259360wme.79.1550097733324;
-        Wed, 13 Feb 2019 14:42:13 -0800 (PST)
+        bh=hnmNnr9YQbwfaI93UrUGE24zBu/XKqtY3CcuY5KmkdU=;
+        b=PNVepkl6wnUM5Gny5FQUy8cW58lk/9t/2MXulvttnDMJYmFIRT1s7OQDhJgy7JoYKr
+         RENLyyEJtlADc4C3wWCABbcBNHnXBcoU97GOP46rTUOZi8pzqVZgUHorFtxsx6S0m9bo
+         8cwStO91nzWS2kMGecQlHxxNYgZSEJk8564FrYQFFBKN79k5hsgwSqoR6L1SUgrG5STy
+         6DnBXrTS5lCwPxLO7pNI8vjUAOAOL0lBgIhfFj90qFIvbvWhy2EvSEM+VEn4kc13PxnL
+         G3vVyv/a1nxVe44l0Mz6WkwSBr5iEs3AxGCQ+65TWE7c0BkrHQtenb7WOy6oPPulyMcA
+         vpRg==
+X-Google-Smtp-Source: AHgI3IY2zZ/s+/of06qs5oz7e3UG5TRwg7xiFolsJ/mC0V02SnY5LJL9Knhh3oBwoWb72MhgeMlbNw==
+X-Received: by 2002:a5d:5289:: with SMTP id c9mr284768wrv.11.1550097736697;
+        Wed, 13 Feb 2019 14:42:16 -0800 (PST)
 Received: from localhost.localdomain ([91.75.74.250])
-        by smtp.gmail.com with ESMTPSA id f196sm780810wme.36.2019.02.13.14.42.09
+        by smtp.gmail.com with ESMTPSA id f196sm780810wme.36.2019.02.13.14.42.13
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 14:42:12 -0800 (PST)
+        Wed, 13 Feb 2019 14:42:16 -0800 (PST)
 From: Igor Stoppa <igor.stoppa@gmail.com>
 X-Google-Original-From: Igor Stoppa <igor.stoppa@huawei.com>
 To: 
@@ -120,9 +120,9 @@ Cc: Igor Stoppa <igor.stoppa@huawei.com>,
 	kernel-hardening@lists.openwall.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC PATCH v5 05/12] __wr_after_init: x86_64: enable
-Date: Thu, 14 Feb 2019 00:41:34 +0200
-Message-Id: <c5838cd211a1648f44e0c2f48ab5bcbc1387cb8c.1550097697.git.igor.stoppa@huawei.com>
+Subject: [RFC PATCH v5 06/12] __wr_after_init: arm64: enable
+Date: Thu, 14 Feb 2019 00:41:35 +0200
+Message-Id: <c81c8be7d5bfcc234dce969b8be7efad3d18d1b8.1550097697.git.igor.stoppa@huawei.com>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <cover.1550097697.git.igor.stoppa@huawei.com>
 References: <cover.1550097697.git.igor.stoppa@huawei.com>
@@ -135,7 +135,7 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Set ARCH_HAS_PRMEM to Y for x86_64
+Set ARCH_HAS_PRMEM to Y for arm64
 
 Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 
@@ -153,21 +153,21 @@ CC: kernel-hardening@lists.openwall.com
 CC: linux-mm@kvack.org
 CC: linux-kernel@vger.kernel.org
 ---
- arch/x86/Kconfig | 1 +
+ arch/arm64/Kconfig | 1 +
  1 file changed, 1 insertion(+)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 68261430fe6e..7392b53b12c2 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -32,6 +32,7 @@ config X86_64
- 	select SWIOTLB
- 	select X86_DEV_DMA_OPS
- 	select ARCH_HAS_SYSCALL_WRAPPER
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index a4168d366127..7cbb2c133ed7 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -66,6 +66,7 @@ config ARM64
+ 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
+ 	select ARCH_WANT_FRAME_POINTERS
+ 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 +	select ARCH_HAS_PRMEM
- 
- #
- # Arch settings
+ 	select ARM_AMBA
+ 	select ARM_ARCH_TIMER
+ 	select ARM_GIC
 -- 
 2.19.1
 
