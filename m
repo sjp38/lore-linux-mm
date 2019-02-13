@@ -2,145 +2,234 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3ACA1C282CA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 03:10:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E4693C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 03:23:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C3EAA21B68
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 03:10:03 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Nu39IdlO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C3EAA21B68
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id A334621B68
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 03:23:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A334621B68
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3BA008E0002; Tue, 12 Feb 2019 22:10:03 -0500 (EST)
+	id 3FD6F8E0002; Tue, 12 Feb 2019 22:23:46 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 369978E0001; Tue, 12 Feb 2019 22:10:03 -0500 (EST)
+	id 3AC698E0001; Tue, 12 Feb 2019 22:23:46 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 20C888E0002; Tue, 12 Feb 2019 22:10:03 -0500 (EST)
+	id 29CDB8E0002; Tue, 12 Feb 2019 22:23:46 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D0C088E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 22:10:02 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id h15so770205pfj.22
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 19:10:02 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E0D708E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 22:23:45 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id j32so746688pgm.5
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 19:23:45 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=YTJqe0BFIXEHjERP1CPFfEIYWeKwxFAUWIz6qSWu6fc=;
-        b=Ly1Z5JU0ubpiUOmvSB/1Za1Bq0cdmP/qK+lNemkNFFFlwUzRBuB+ow3fkdyy0zzSwf
-         Uvcb4oYW+o7gsV9a5nxhoDSPYM5wQd/qaruPlig1RSQZfXDwrUuqHKkPGtHyaWkh5rPQ
-         rFIOmchVYPo9M7ia9mzxIrL4zmNGR60T43S+3BeHd0rML4XWen2/9OVo485QczAg5WWi
-         f6bIYXNU7t2JyDb3ymlWB99Rbzf6WsL7cvYaBFn3RSHMYF55MSGv/kOVOa6ZwxHBV7NC
-         wAzudYmTlbOENTM4DUZbS4TQt+v0WtHE2WgpRZaAISkcf4hDxOvtQkIxDTs74a+Gj6OS
-         z1tw==
-X-Gm-Message-State: AHQUAuZtXBtehUcZKYrPXAevXIogizUzll0A9iO+KLkb4D6EDzhtqbn4
-	zxRGK5lkMcY31PpDa2uzYyNfOonM4mIsF1WivcFyyhvTMn813kt3G7zXHqWDMjZ1ZKDMjNfsOEk
-	M2wVEabq0PYKhycsvNbR52YQmFUoeROaTpVtS58N+OwWGEZy6dn17hSXRqIq6D6GOTQ==
-X-Received: by 2002:a62:c21c:: with SMTP id l28mr7252979pfg.74.1550027402438;
-        Tue, 12 Feb 2019 19:10:02 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYIKnLBWzUhkUrr11OqCcFujz6aUerXxC7tcgph8nYVaEntb6y5pE+sMo5Gowr3i+XZ3NUI
-X-Received: by 2002:a62:c21c:: with SMTP id l28mr7252909pfg.74.1550027401515;
-        Tue, 12 Feb 2019 19:10:01 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550027401; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=AbbilO3KjCKg7M7hSMfL94Xg/9oX5fEzQBOE1Nvuzog=;
+        b=uJ1p++oUNf8Ec7qOPOD5Yaej93kcdS7WTM1X1GRwQXh3N1VqF2Wi7tSqOK3c/yEK9n
+         Wh58lwTAxf9q6A2TyOynPsUe4SgzSAKrC85RY9fdBA2KUVGdHmyYn5jDf2mkDtWQnrLi
+         tDNdKVUvPpzpoReDNlOAJiTx0pUnYOTYcTds/MG+cYJpCrc92K2ZG02K6+mGQSkhiYgf
+         9f5dlHCSvzJ+kraEu31x2aOAh0vNJGPOa8xzS8qGBHflipm0xe8fSYfSQaViMltIRogU
+         9L8HvCu/ybtr45NW3Eyrm/lxCPiSkIAPzyh/jX2hMuqcRUyRB0vCWU1ZJPRfr5VPdkfv
+         m21Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuaNgP4fGlRnsHdZ0EGTNwFe/eqww4uECFoFS1WaspaCo4PlwI9J
+	rsAzLaynOz6CNbpiAcAPU0+nzUJX0/RBPMN6V+d5NwZq6MF66MR2UswXwvU2T5C6JZJEIgjtSrX
+	8jdwW57SJRjnuAxhNhpWDLgoSBa/35jRPfTsy41C7Vv+LUBOpvHenURpZoLb7oDrK8A==
+X-Received: by 2002:a63:ae0e:: with SMTP id q14mr990156pgf.151.1550028225560;
+        Tue, 12 Feb 2019 19:23:45 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IY0rh8IIfn4yCQ5iG73T1O8lFYUYcIWXRgraMMSht//HdB7B3QLHXuO2/lmx72AEuzPqOXZ
+X-Received: by 2002:a63:ae0e:: with SMTP id q14mr990106pgf.151.1550028224672;
+        Tue, 12 Feb 2019 19:23:44 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550028224; cv=none;
         d=google.com; s=arc-20160816;
-        b=KdtXNSWsawiXRry8LJENlJua70MbJF7rryLX7MV0HFjJ2zrqF7JS/ck9Fxxc1npY37
-         7uGnG+sNbD4jm0kQRoUWM/feQW01vesFnAJJEfF9FDwqFh7dPr7WgyDNtnyY5OfAiHNK
-         5dTbDybUvV5KKzEMGnAyQyJWiVH1pKqicUd+a9wlU+PKTBihJLj6nnQYrMIoJ6jBbiHZ
-         TwAz/Rm0XFgg7UIxE1S9ytbN6axmYyijfZ8n2M2nWoRbYXGY8xWXm/RB75DM6da82RS+
-         NAKexbkoi3lIZiKtIzotOlSp2Xo4eYqPqBiJfbuG5a7mZhGFbs9tqfEgmvvSUZosVSuC
-         9GYg==
+        b=EQD3K/o/oL0AZQh2L5efd6bKOYfDnvx3zSjLXc8HZYM2LxUbgokRQd1YsifTuAQxRe
+         8/2HbeBR5nJmaBg5jqkVPzOEFZlDo8ybTK+jfWcqy4GL2oPAB+QSeWtmPTNgOCkR+JvD
+         bNRx9HgoTZgv7sgpNfcuyCZWZpL7nDsmvugcDX/YiQOdX5NP7uAEJYBuW9Ml3I119an1
+         namCDdu1dPZoxYVvo/8jcGygNP0lYgjs51Y2xW/LO1I71lDq7mph+cXN8sTpTBBJ8Uu2
+         2envaiC2Ch/taTo2dC6mgFIJw3dOMFxhdbjDMEvgewb99c3bEbiN60S836a2TApv0gXA
+         YoHA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:to:subject
-         :dkim-signature;
-        bh=YTJqe0BFIXEHjERP1CPFfEIYWeKwxFAUWIz6qSWu6fc=;
-        b=NITT4fVLy58Mx+pxCI1fXaG/OQJ6Hl34g3MPASLPEhyx77N3hl3AkH1eF5m5QiXclr
-         J4RAF9fkDVIv2cakHuUS4gQ5r3rd9tvu5MBee7Pbz+2p/SL5t21K8N/uhcs8k5CB06mv
-         RCpd7WV7dty4hIZpmg+9NDP5WEtxyE7bNdRqyhKzQESYuV7hJbp692rrMa7YdI56uVGm
-         efFJxZLwjNbNwi0sVze8stkBK7Sz/LIBa0LIdwcfijy41wFqup94QMO1abkIibSIojyL
-         /PgACRjKYI2pz49uyYwSLALk7gSUhIakSItgWkGfBtn+2RC9eAuVeZPdB403hVxLEkPZ
-         N87w==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=AbbilO3KjCKg7M7hSMfL94Xg/9oX5fEzQBOE1Nvuzog=;
+        b=jqR0mJRjgNLSwvOCIPwwjKYfsA4BG6f2hKHV3HGlkZ/pO/zH2N1VxDPmzPSK+nPabr
+         AZZlBQ5rViCORPHuvd219IQ55+XIRDmaxSG1JM1iR+B2IISLQE0OilLedlYxBxJDeaEQ
+         IyOnMpsKdSnemZ93nZKt5E4QCBkfFqIwW42tcVh4YZvq9hMjZ9JpZbLjs9HpmdWD7D5e
+         ZDQ5FM1i+ERdE+imiOwaiO7CFyFdozmz+YN6WTmyZL81bz8A03FjM1iUv+GXqVquwBrc
+         s1VdYTtEdhPk//kDGBrF5fXVEPN4gYyR7RptfYiwIvXrbrY8J97xUu8G1Q3nIfHiX4FS
+         Kwvw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Nu39IdlO;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g124si13362691pgc.568.2019.02.12.19.10.01
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id u4si13215727pga.91.2019.02.12.19.23.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 12 Feb 2019 19:10:01 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Feb 2019 19:23:44 -0800 (PST)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Nu39IdlO;
-       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
-	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:To:
-	Subject:Sender:Reply-To:Cc:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=YTJqe0BFIXEHjERP1CPFfEIYWeKwxFAUWIz6qSWu6fc=; b=Nu39IdlOGJtwfQhDDlccbR69K
-	IFMK9UFQ1J35KW8AOHqmmvyKLDyJUVqalDHRkDy2jTmfa2aaEPYUWjXqxVFenBke6ZpwzmJQTaUTL
-	djnHIXPZZVB96T6dGkXFSDcwe5rp4YuM0mt61Z9bdj9DaN+W/aEQWjROMTQOoynTPTBPlgD/EaNA9
-	clXOFswoV29cQ1J6FskskMNsnXBcrSCeBI7q73AXs61RmMeqbHcHdhCVCi3kZbREowlXqETRz/upl
-	xFjWw+1mSuKCqOL7ygu8XrTkj3+oVsYfT1fNT7teoyp2LJkgIaT03pPXDsNs3d7Yo3Ef1a2iya0BC
-	9Y+pjlY7g==;
-Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=midway.dunlab)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gtkvw-0005Vp-CN; Wed, 13 Feb 2019 03:10:00 +0000
-Subject: Re: mmotm 2019-02-12-15-37 uploaded (net/ipv4/devinit.c)
-To: akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz,
- sfr@canb.auug.org.au, linux-next@vger.kernel.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org,
- "netdev@vger.kernel.org" <netdev@vger.kernel.org>
-References: <20190212233743.mGzbg%akpm@linux-foundation.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <011529bd-bae3-f815-0d7e-6da733c1cf55@infradead.org>
-Date: Tue, 12 Feb 2019 19:09:59 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.3.0
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga006.jf.intel.com ([10.7.209.51])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Feb 2019 19:23:43 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,364,1544515200"; 
+   d="scan'208";a="115769977"
+Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.151])
+  by orsmga006.jf.intel.com with ESMTP; 12 Feb 2019 19:23:39 -0800
+From: "Huang\, Ying" <ying.huang@intel.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Andrea Parri <andrea.parri@amarulasolutions.com>,  Daniel Jordan
+ <daniel.m.jordan@oracle.com>,  Andrew Morton <akpm@linux-foundation.org>,
+  <linux-mm@kvack.org>,  <linux-kernel@vger.kernel.org>,  Hugh Dickins
+ <hughd@google.com>,  "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
+  Minchan Kim <minchan@kernel.org>,  Johannes Weiner <hannes@cmpxchg.org>,
+  Mel Gorman <mgorman@techsingularity.net>,  =?utf-8?B?SsOpcsO0bWU=?= Glisse
+ <jglisse@redhat.com>,  Michal Hocko <mhocko@suse.com>,  Andrea Arcangeli
+ <aarcange@redhat.com>,  David Rientjes <rientjes@google.com>,  Rik van
+ Riel <riel@redhat.com>,  Jan Kara <jack@suse.cz>,  Dave Jiang
+ <dave.jiang@intel.com>
+Subject: Re: [PATCH -mm -V7] mm, swap: fix race between swapoff and some swap operations
+References: <20190211083846.18888-1-ying.huang@intel.com>
+	<20190211190646.j6pdxqirc56inbbe@ca-dmjordan1.us.oracle.com>
+	<20190212032121.GA2723@andrea> <874l99ld05.fsf@yhuang-dev.intel.com>
+	<997d210f-8706-7dc1-b1bb-abcc2db2ddd1@linux.intel.com>
+Date: Wed, 13 Feb 2019 11:23:38 +0800
+In-Reply-To: <997d210f-8706-7dc1-b1bb-abcc2db2ddd1@linux.intel.com> (Tim
+	Chen's message of "Tue, 12 Feb 2019 09:58:11 -0800")
+Message-ID: <87lg2kid6t.fsf@yhuang-dev.intel.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-In-Reply-To: <20190212233743.mGzbg%akpm@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ascii
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/12/19 3:37 PM, akpm@linux-foundation.org wrote:
-> The mm-of-the-moment snapshot 2019-02-12-15-37 has been uploaded to
-> 
->    http://www.ozlabs.org/~akpm/mmotm/
-> 
-> mmotm-readme.txt says
-> 
-> README for mm-of-the-moment:
-> 
-> http://www.ozlabs.org/~akpm/mmotm/
-> 
-> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> more than once a week.
+Tim Chen <tim.c.chen@linux.intel.com> writes:
 
-on x86_64:
+> On 2/11/19 10:47 PM, Huang, Ying wrote:
+>> Andrea Parri <andrea.parri@amarulasolutions.com> writes:
+>> 
+>>>>> +	if (!si)
+>>>>> +		goto bad_nofile;
+>>>>> +
+>>>>> +	preempt_disable();
+>>>>> +	if (!(si->flags & SWP_VALID))
+>>>>> +		goto unlock_out;
+>>>>
+>>>> After Hugh alluded to barriers, it seems the read of SWP_VALID could be
+>>>> reordered with the write in preempt_disable at runtime.  Without smp_mb()
+>>>> between the two, couldn't this happen, however unlikely a race it is?
+>>>>
+>>>> CPU0                                CPU1
+>>>>
+>>>> __swap_duplicate()
+>>>>     get_swap_device()
+>>>>         // sees SWP_VALID set
+>>>>                                    swapoff
+>>>>                                        p->flags &= ~SWP_VALID;
+>>>>                                        spin_unlock(&p->lock); // pair w/ smp_mb
+>>>>                                        ...
+>>>>                                        stop_machine(...)
+>>>>                                        p->swap_map = NULL;
+>>>>         preempt_disable()
+>>>>     read NULL p->swap_map
+>>>
+>>>
+>>> I don't think that that smp_mb() is necessary.  I elaborate:
+>>>
+>>> An important piece of information, I think, that is missing in the
+>>> diagram above is the stopper thread which executes the work queued
+>>> by stop_machine().  We have two cases to consider, that is,
+>>>
+>>>   1) the stopper is "executed before" the preempt-disable section
+>>>
+>>> 	CPU0
+>>>
+>>> 	cpu_stopper_thread()
+>>> 	...
+>>> 	preempt_disable()
+>>> 	...
+>>> 	preempt_enable()
+>>>
+>>>   2) the stopper is "executed after" the preempt-disable section
+>>>
+>>> 	CPU0
+>>>
+>>> 	preempt_disable()
+>>> 	...
+>>> 	preempt_enable()
+>>> 	...
+>>> 	cpu_stopper_thread()
+>>>
+>>> Notice that the reads from p->flags and p->swap_map in CPU0 cannot
+>>> cross cpu_stopper_thread().  The claim is that CPU0 sees SWP_VALID
+>>> unset in (1) and that it sees a non-NULL p->swap_map in (2).
+>>>
+>>> I consider the two cases separately:
+>>>
+>>>   1) CPU1 unsets SPW_VALID, it locks the stopper's lock, and it
+>>>      queues the stopper work; CPU0 locks the stopper's lock, it
+>>>      dequeues this work, and it reads from p->flags.
+>>>
+>>>      Diagrammatically, we have the following MP-like pattern:
+>>>
+>>> 	CPU0				CPU1
+>>>
+>>> 	lock(stopper->lock)		p->flags &= ~SPW_VALID
+>>> 	get @work			lock(stopper->lock)
+>>> 	unlock(stopper->lock)		add @work
+>>> 	reads p->flags 			unlock(stopper->lock)
+>>>
+>>>      where CPU0 must see SPW_VALID unset (if CPU0 sees the work
+>>>      added by CPU1).
+>>>
+>>>   2) CPU0 reads from p->swap_map, it locks the completion lock,
+>>>      and it signals completion; CPU1 locks the completion lock,
+>>>      it checks for completion, and it writes to p->swap_map.
+>>>
+>>>      (If CPU0 doesn't signal the completion, or CPU1 doesn't see
+>>>      the completion, then CPU1 will have to iterate the read and
+>>>      to postpone the control-dependent write to p->swap_map.)
+>>>
+>>>      Diagrammatically, we have the following LB-like pattern:
+>>>
+>>> 	CPU0				CPU1
+>>>
+>>> 	reads p->swap_map		lock(completion)
+>>> 	lock(completion)		read completion->done
+>>> 	completion->done++		unlock(completion)
+>>> 	unlock(completion)		p->swap_map = NULL
+>>>
+>>>      where CPU0 must see a non-NULL p->swap_map if CPU1 sees the
+>>>      completion from CPU0.
+>>>
+>>> Does this make sense?
+>> 
+>> Thanks a lot for detailed explanation!
+>
+> This is certainly a non-trivial explanation of why memory barrier is not
+> needed.  Can we put it in the commit log and mention something in
+> comments on why we don't need memory barrier?
 
-when CONFIG_SYSCTL is not enabled:
+Good idea!  Will do this.
 
-ld: net/ipv4/devinet.o: in function `devinet_init_net':
-devinet.c:(.text+0x3ad): undefined reference to `sysctl_devconf_inherit_init_net'
+Best Regards,
+Huang, Ying
 
-
-
--- 
-~Randy
+> Thanks.
+>
+> Tim
 
