@@ -2,187 +2,206 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B8FDC282C4
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 00:27:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9A076C282C4
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 00:27:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 19B03222BA
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 00:27:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3E1D9222BE
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 00:27:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="4uhNkb1F"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19B03222BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="A75fEOe9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3E1D9222BE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9D8DA8E0002; Tue, 12 Feb 2019 19:27:04 -0500 (EST)
+	id E44DB8E0003; Tue, 12 Feb 2019 19:27:33 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 988458E0001; Tue, 12 Feb 2019 19:27:04 -0500 (EST)
+	id DF4138E0001; Tue, 12 Feb 2019 19:27:33 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8768E8E0002; Tue, 12 Feb 2019 19:27:04 -0500 (EST)
+	id D0C2E8E0003; Tue, 12 Feb 2019 19:27:33 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DFDA8E0001
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 19:27:04 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id 135so1100989itk.5
-        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 16:27:04 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A53548E0001
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2019 19:27:33 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id j23so581359otl.6
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2019 16:27:33 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=w0tqhPo+t2SUjHi0LS/CYN1wUpJy7dXBRCRCEWoqsoM=;
-        b=YxYeTHZVtw3EQlEfVp5p0D1D4LVkVSV0KcZR8ABOlenZDFJJRQekccof7O/Qdr4tN4
-         UdM7j/rHttc1abQmM/7CW0U2gpcGgJcRZAxR2rtGZParzLUxE60AKfIUfEOdf2bTpoja
-         wPjjas+aJe9BCiWI94ARDq5EN9GAJAo2lawkVE69LrVlUSn8Wp6YYD+MHMXEKNeMGCDT
-         2xMsjXkt2kKlJEPQEbB2L1QJTd6GeBN1KZlOv1Bo5c9CRvtdLBP+EennjV52hfr7g6X4
-         xij/ERhIxQNhijhaKhD6C84oESqLqauXzJEHii7TGbPNAc0zBBIL5QGgIRaV4/qqsN+D
-         cVFw==
-X-Gm-Message-State: AHQUAubQsydml26cJW1J4Jy8q5UMOaIWJ/mpHuq1stHINUwg0Hik0BTF
-	7Eu/eexzbkKYDvqjnX8pCjFTPw72FfyvMSpBFK/m3pkBJv/cAwpXK2716Mz9OldqO35mobPBjOi
-	kEXP0aKFb2f412nSFr6ABkDCxHBuSMNJRY38mm7SebOSGb8PRKgDylqCZWEndC7f9ww==
-X-Received: by 2002:a5d:9508:: with SMTP id d8mr4125575iom.155.1550017624157;
-        Tue, 12 Feb 2019 16:27:04 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaIYIkrnLmz0538dy1nmXCqz+hquU7YTH44sPPflLZ+v3wtwB9uCyArt3SWlkaB/38zuDny
-X-Received: by 2002:a5d:9508:: with SMTP id d8mr4125555iom.155.1550017623581;
-        Tue, 12 Feb 2019 16:27:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550017623; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=y2TCsZERRG+6EYzxN92qIb/n/TWRZq+et/eHaEh69F0=;
+        b=ewdgXycaQb5Pdr6WDTFvjkVRfjvDFmryUG+RjUQeMZjxOZXLsXIEt3W+drCdGRwwFv
+         YX1YPLbII/z4WR6jJWMc+FkyBEy5xth5yCyftkSYU6nNLYzYLDFRXkl2UPkMjABU8nbK
+         p8m51jA5gduMR3V8L5FYLNLjjFxbOKZBLnb6xBQq7buoVn4NA/Mdar/mTHxmZkoVQbol
+         SIt8uScI3dGDq5219HLkSgyMYrhqCBZdjwmB6FSSV0jGSw+57I4CVo/Lg1hTADognryD
+         vd1Ez51MDEBR+TPXaBibPZzSTHXk+BDNGL2yo/srOF1zxCmO7IJWttbEQaZtnDtkDw5w
+         Hrjw==
+X-Gm-Message-State: AHQUAua39bEwDvuk7QbanvFID+ThhrrjqOiRDfWUlHczNr2nLqy/Thm1
+	cFcm3YiwvjqMYldGxeIl7PwiI6gjSEDI7R0TAmo7FwkHEyogwCn80iUVLL5mOazrbs95w6E4NGS
+	NvRQZjMXnnp71U8OIqXAB7e5gCRUlLiMonhNgaDh3KYK+bWvdqBTl0aRBrA/rDTZbBLdqtA+kqu
+	aRjI8zTd8Fr7lE0zxYTDZpUEYgEakkbKQa0o/4dGxQ8a3ZXLaIhed5Lk0xEZ+xsDQfelJMipy4S
+	HGDH5oee16lVifS6sbNopvGogTLh1ZAgmb34QtsIHiWFBbzSGs11SwuKDlo9P3jEvcbEAICpKf9
+	4ab1gaWGJRJwmpFOFjsi+N4uQF+BiugG17OGtnfeUBn00wOIJB8udfXmpAF5Sbzba/H4iYVEfiI
+	D
+X-Received: by 2002:a9d:5f85:: with SMTP id g5mr41013oti.333.1550017653422;
+        Tue, 12 Feb 2019 16:27:33 -0800 (PST)
+X-Received: by 2002:a9d:5f85:: with SMTP id g5mr40979oti.333.1550017652642;
+        Tue, 12 Feb 2019 16:27:32 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550017652; cv=none;
         d=google.com; s=arc-20160816;
-        b=F6So8KBVPmQhbWI0pWsFrA9lGQrx5QEOQTzvlacnmwf8ScJpBt+2UDcCrwdtEoMEZD
-         ZELeknQXorQxyRs2bStxEDHQ12nD/AiexlUzG7vOsXxiOoUWHhXt4TEhnyMzETcPPnOX
-         ufQ0KEoG/0/2NrWhxeKzeYpuRRlctu+0NKpb61goL0bh5PJwXTiZxFgrwUUzA5kY02oZ
-         eeutG6coCuhzpqhrPcOFyfCJ6oL+dz9LwP3qim7gNJAtGDYjJmbubdsZahdwgKrZzL4n
-         loXCPF/rTJzTa09LHHq/dLDIptRmue5afdmznZJj2poTGePqnYrAXQedLUACDUo9Xiy+
-         HLFg==
+        b=eDHMM7EjjzkOWjD34ZchnXJ3m8VfPz3Hy1J4dOlNIA/dmG6dMG3r6wbciK7WWLrpeF
+         rJL89eM9o0J+OSd/dnO7wcyr3Hx7/5veZYeaXHw/fLNkQezePCdqMvsZTK0p/WAVTGiq
+         bQjwTLhKzGi4TedrX4xUqZhG1/0S4Ae65onXMnadnKiVi0ClrbCrLp2WSXfyNbbuGFeP
+         45HByhunQEUSzW9kVB31QJvn5eGxyljYq90XQDFNpgFL0sfp1+O2V0p3Q+NuHPrNZHIC
+         oCgW04GFXRCfGGNluzw7jS0j7g1zG907olvJFIXUUeVy3ZU7kLgvVR4CuZcgNzTIB3Ys
+         72xw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=w0tqhPo+t2SUjHi0LS/CYN1wUpJy7dXBRCRCEWoqsoM=;
-        b=DRNDfyL2b81w3jEr035CgP6lXvuoeBZM0NtU0xvB3z5Xn9gIpS6glToOYI2W2AdzQR
-         XPkC0a2dRXJHzwJ8AaIsimzF2F1bUA/lLIrOxqrxTPw9iDzk/lIHwk+CkBqvO/LNj1ac
-         TD+Weak0dagEj++p5Cwr1qIcydJWnXwotO/aHl/JelMrJ9J9f10ic1xb/1+6ALKVgBpq
-         MN6ZcE7vOx0roIxVxpc+OkhO4lNNgq30GLjYuaxzwjSY1lU5B/CdNPjJlH66oO0BeaNJ
-         A5HUA2ZJblLxMxa0bV+sfMHHCrVIxZztmjr7wRZ9E5FYIe33Kg66rNd85AcLsovhlqXi
-         K7eg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=y2TCsZERRG+6EYzxN92qIb/n/TWRZq+et/eHaEh69F0=;
+        b=NXAWpKABd3N+qr7rmDX+rUvSFZjPvWqU4X8uGpyn1M9xBPy+L4+wqynBjKTV80CXDL
+         XfkRt/J1jnQsnPkihmtjxNl+yJmO4mOExW4aacWcAdtGBR7YQFD0SxW5PMy47YZtioPL
+         RcOcZ/QyUjy1XUJIr10P2UfZCQOV/57XOqgvZBkRCUmrz6XSvzdUqLJOCk1ZnZMcnUwU
+         FRqTJmxaHDMZQ1FajdtZAVPiFDkn8lmg0DpB+bAjM+mkO2CgKulnTIXatWCr12HUwjkO
+         T3M6Aktg8sEuvMBKAeHtsvugIGXhVYDQl5oCQ9wc887E96a/rwheG2Dun/qMEhaNk+ML
+         PlPw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=4uhNkb1F;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id x67si2133191itd.31.2019.02.12.16.27.03
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=A75fEOe9;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j11sor3118405otn.96.2019.02.12.16.27.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Feb 2019 16:27:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        (Google Transport Security);
+        Tue, 12 Feb 2019 16:27:32 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=4uhNkb1F;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1D04ItA127795;
-	Wed, 13 Feb 2019 00:26:36 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=w0tqhPo+t2SUjHi0LS/CYN1wUpJy7dXBRCRCEWoqsoM=;
- b=4uhNkb1FBNWMTFMQtPUk8damVBnjRIUT7GL5gQsYHz64WDzTPPtvcus+e60ProDyirXA
- BIBzWsGcRc0nHdUKObIy7isnuU5mxDmG2Eqhgwswz9l/zeQmVrqvv1bmjZ8tNlW73vQ3
- tIV/bA4IIkByvi7kHkDTFv1HTComQfdsds3sPIbvf/J7/+e7CJkeuo+0gzdHgxyxhTqs
- gOh37VPD3tZ18pYTYvOcFEO/9Q8Z+mwAyAeGdutNQ7Rt8uWL2gmrFHP2efApacziCexv
- WvNERa0JSl/O7luXzRpjaQdoxFvecYasxSh7RwfvLmZctY10vmFVu2Tyzquis+f2PhaC gQ== 
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by aserp2130.oracle.com with ESMTP id 2qhre5f4r3-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 13 Feb 2019 00:26:36 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x1D0QYY2005778
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 13 Feb 2019 00:26:34 GMT
-Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x1D0QUic020233;
-	Wed, 13 Feb 2019 00:26:31 GMT
-Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 12 Feb 2019 16:26:30 -0800
-Date: Tue, 12 Feb 2019 19:26:50 -0500
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-To: Alex Williamson <alex.williamson@redhat.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-        akpm@linux-foundation.org, dave@stgolabs.net, jack@suse.cz,
-        cl@linux.com, linux-mm@kvack.org, kvm@vger.kernel.org,
-        kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
-        linux-fpga@vger.kernel.org, linux-kernel@vger.kernel.org,
-        paulus@ozlabs.org, benh@kernel.crashing.org, mpe@ellerman.id.au,
-        hao.wu@intel.com, atull@kernel.org, mdf@kernel.org, aik@ozlabs.ru,
-        peterz@infradead.org
-Subject: Re: [PATCH 1/5] vfio/type1: use pinned_vm instead of locked_vm to
- account pinned pages
-Message-ID: <20190213002650.kav7xc4r2xs5f3ef@ca-dmjordan1.us.oracle.com>
-References: <20190211224437.25267-1-daniel.m.jordan@oracle.com>
- <20190211224437.25267-2-daniel.m.jordan@oracle.com>
- <20190211225620.GO24692@ziepe.ca>
- <20190211231152.qflff6g2asmkb6hr@ca-dmjordan1.us.oracle.com>
- <20190212114110.17bc8a14@w520.home>
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=A75fEOe9;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=y2TCsZERRG+6EYzxN92qIb/n/TWRZq+et/eHaEh69F0=;
+        b=A75fEOe9R90kV2GScPTNMAUPngiL+eNMY0oZ0OKHPk5OztxH9Df7c6sM0DuZCgI60/
+         5Mb1cu6iCxdd6riY0ClnsLL3/8Ym8StuKIcf46LFb3QUwVgL4LdKmvTtoQUq7aD6++wq
+         TPgiQ6QMgWwm+T+DuD36275BXXGaVy/HcxsRpaG87l54O4IbIAjgxb2GSF0T6onLjw5P
+         WrneLaFVMEke/K5DgHV+Hjylb4RGHX+lu4mahDLCGqJJxlOR6xjuMezGYPMrdHgmLgtz
+         imyROKKwGwMBrK3e5BDamtqLCRgAkiqzBcqmfdsHTJtoh+Y/Cqyyk6nQf0kzwZGl2fqi
+         IJYQ==
+X-Google-Smtp-Source: AHgI3IbnvF7P5f16Hzx1P+INe5f+ZZu/+RzqOFetn+03YPaE7a/8n1/bJKYqMcDXqTJojYjxvyFnq/ZoJZouHT3V88c=
+X-Received: by 2002:a9d:37b7:: with SMTP id x52mr6870269otb.214.1550017652285;
+ Tue, 12 Feb 2019 16:27:32 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190212114110.17bc8a14@w520.home>
-User-Agent: NeoMutt/20180323-268-5a959c
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9165 signatures=668683
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902120162
+References: <788d7050-f6bb-b984-69d9-504056e6c5a6@intel.com> <20190212235114.GM20493@dastard>
+In-Reply-To: <20190212235114.GM20493@dastard>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 12 Feb 2019 16:27:20 -0800
+Message-ID: <CAPcyv4jhbYfrdTOyh90-u-gEUV7QEgF_HrNid5w5WbPPGr=axw@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC] Memory Encryption on top of filesystems
+To: Dave Chinner <david@fromorbit.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, lsf-pc@lists.linux-foundation.org, 
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
+	"Shutemov, Kirill" <kirill.shutemov@intel.com>, 
+	"Schofield, Alison" <alison.schofield@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, 
+	Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 11:41:10AM -0700, Alex Williamson wrote:
-> Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
-> > On Mon, Feb 11, 2019 at 03:56:20PM -0700, Jason Gunthorpe wrote:
-> > > I haven't looked at this super closely, but how does this stuff work?
-> > > 
-> > > do_mlock doesn't touch pinned_vm, and this doesn't touch locked_vm...
-> > > 
-> > > Shouldn't all this be 'if (locked_vm + pinned_vm < RLIMIT_MEMLOCK)' ?
-> > >
-> > > Otherwise MEMLOCK is really doubled..  
-> > 
-> > So this has been a problem for some time, but it's not as easy as adding them
-> > together, see [1][2] for a start.
-> > 
-> > The locked_vm/pinned_vm issue definitely needs fixing, but all this series is
-> > trying to do is account to the right counter.
+On Tue, Feb 12, 2019 at 3:51 PM Dave Chinner <david@fromorbit.com> wrote:
+>
+> On Tue, Feb 12, 2019 at 08:55:57AM -0800, Dave Hansen wrote:
+> > Multi-Key Total Memory Encryption (MKTME) [1] is feature of a memory
+> > controller that allows memory to be selectively encrypted with
+> > user-controlled key, in hardware, at a very low runtime cost.  However,
+> > it is implemented using AES-XTS which encrypts each block with a key
+> > that is generated based on the physical address of the data being
+> > encrypted.  This has nice security properties, making some replay and
+> > substitution attacks harder, but it means that encrypted data can not b=
+e
+> > naively relocated.
+>
+> The subject is "Memory Encryption on top of filesystems", but really
+> what you are talking about is "physical memory encryption /below/
+> filesystems".
+>
+> i.e. it's encryption of the physical storage the filesystem manages,
+> not encryption within the fileystem (like fscrypt) or or user data
+> on top of the filesystem (ecryptfs or userspace).
+>
+> > Combined with persistent memory, MKTME allows data to be unlocked at th=
+e
+> > device (DIMM or namespace) level, but left encrypted until it actually
+> > needs to be used.
+>
+> This sounds more like full disk encryption (either in the IO
+> path software by dm-crypt or in hardware itself), where the contents
+> are decrypted/encrypted in the IO path as the data is moved between
+> physical storage and the filesystem's memory (page/buffer caches).
+>
+> Is there any finer granularity than a DIMM or pmem namespace for
+> specifying encrypted regions? Note that filesystems are not aware of
+> the physical layout of the memory address space (i.e. what DIMM
+> corresponds to which sector in the block device), so DIMM-level
+> granularity doesn't seem particularly useful right now....
+>
+> Also, how many different hardware encryption keys are available for
+> use, and how many separate memory regions can a single key have
+> associated with it?
+>
+> > However, if encrypted data were placed on a
+> > filesystem, it might be in its encrypted state for long periods of time
+> > and could not be moved by the filesystem during that time.
+>
+> I'm not sure what you mean by "if encrypted data were placed on a
+> filesystem", given that the memory encryption is transparent to the
+> filesystem (i.e. happens in the memory controller on it's way
+> to/from the physical storage).
+>
+> > The =E2=80=9Ceasy=E2=80=9D solution to this is to just require that the=
+ encryption key
+> > be present and programmed into the memory controller before data is
+> > moved.  However, this means that filesystems would need to know when a
+> > given block has been encrypted and can not be moved.
+>
+> I'm missing something here - how does the filesystem even get
+> mounted if we haven't unlocked the device the filesystem is stored
+> on? i.e. we need to unlock the entire memory region containing the
+> filesystem so it can read and write it's metadata (which can be
+> randomly spread all over the block device).
+>
+> And if we have to do that to mount the filesystem, then aren't we
+> also unlocking all the same memory regions that contain user data
+> and hence they can be moved?
 
-Thanks for taking a look, Alex.
+Yes, and this is the most likely scenario for enabling MKTME with
+persistent memory. The filesystem will not be able to mount until the
+entire physical address range (namespace device) is unlocked, and the
+filesystem is kept unaware of the encryption. One key per namespace
+device.
 
-> This still makes me nervous because we have userspace dependencies on
-> setting process locked memory.
+> At what point do we end up with a filesystem mounted and trying to
+> access a locked memory region?
 
-Could you please expand on this?  Trying to get more context.
-
-> There's a user visible difference if we
-> account for them in the same bucket vs separate.  Perhaps we're
-> counting in the wrong bucket now, but if we "fix" that and userspace
-> adapts, how do we ever go back to accounting both mlocked and pinned
-> memory combined against rlimit?  Thanks,
-
-PeterZ posted an RFC that addresses this point[1].  It kept pinned_vm and
-locked_vm accounting separate, but allowed the two to be added safely to be
-compared against RLIMIT_MEMLOCK.
-
-Anyway, until some solution is agreed on, are there objections to converting
-locked_vm to an atomic, to avoid user-visible changes, instead of switching
-locked_vm users to pinned_vm?
-
-Daniel
-
-[1] http://lkml.kernel.org/r/20130524140114.GK23650@twins.programming.kicks-ass.net
+Another option is to enable encryption to be specified at mmap time
+with the motivation of being able to use the file system for
+provisioning instead of managing multiple namespaces. The filesystem
+would need to be careful to use the key for any physical block
+management, and a decision would need to be made about when/whether
+read(2)/write(2) access cipher text . The current thinking is that
+this would be too invasive / restrictive for the filesystem, but it's
+otherwise an interesting thought experiment for allowing the
+filesystem to take on more physical-storage allocation
+responsibilities.
 
