@@ -2,182 +2,157 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7F68C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 21:46:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B6EEEC4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 21:54:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 958D7222C9
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 21:46:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="nmSN7x4f"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 958D7222C9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 7F23F222A4
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 21:54:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F23F222A4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 298A48E0002; Wed, 13 Feb 2019 16:46:13 -0500 (EST)
+	id 1A57E8E0002; Wed, 13 Feb 2019 16:54:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 21E4C8E0001; Wed, 13 Feb 2019 16:46:13 -0500 (EST)
+	id 12F188E0001; Wed, 13 Feb 2019 16:54:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0E8EF8E0002; Wed, 13 Feb 2019 16:46:13 -0500 (EST)
+	id EEB3D8E0002; Wed, 13 Feb 2019 16:54:24 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D76528E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 16:46:12 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id h6so4968092itk.9
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 13:46:12 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A77978E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 16:54:24 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id o9so2629787pgv.19
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 13:54:24 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=FNhxP8JN/aOogF64x1RdI276bG+FvUjSYc/h3hGis10=;
-        b=Nxh/OmmbFfyuq42CnvgC7/ZHxK6koGAHv5DQi+Y90Z7VRp9OPlvjeupwPkmarcKZ7E
-         xIraUr20DL9BiCuPILFAsERagJBZrvBECk2qEXh5G2yFBcxaeWJruoZ8NpFnnvk96WEX
-         sVZoyAD8onECxN0KuukVNNIJtTxN+ga10xSiySHMn98CocKnDK8Fso6gqgvM7BAfYpda
-         Pom6RH4jGrs67zVrNVo0tc2Oc7H27u6obP701CPvYtsLrBMKsyNWtgGJCpeuY4/Fx1+4
-         ZKBRybv5H3gADkkl4nXMKghrCdcia5gEGifJ28WM7E+a5ChTnJRNvNm1fd7FAqEnoL2W
-         X7Fw==
-X-Gm-Message-State: AHQUAua3aTEk0CNcJr2sxnkururdX0HG6qDLfk5aOeJ2Y31THEkVamj7
-	ZufqQhaCpL6IGQ8M4vIfryU28S7k0XYQ8UW2/xtbOEe8YnHYIPVRA5Hz3uxif/JQ14g9CKtJMo/
-	ICyS1p1ySgIbuLjFaWTcpnUuHKVf5ViJEHqpHoxbFiIfcST9KtQITAY15QZ0fDqKHv2bDAwO5fT
-	bO3zmiyBnSf2au3Bo1AiuLtZKYTu7sLDB8ghVK+ANtygAR4yuoS39jXMjJznhhPlRplI9bB8ReY
-	QLx3u92vd95KBhzLFZtkH36jaWrjuZzO8TAWBDRTQRP/kKG+qrPp/jj3lhBV3qjgRFCBCp+/Uk6
-	WXRoUbNnonBX74b6iAD8OehLk6SPOJsaoQ83xF9NL4TYx3Fu2du2YpoT/g2NXN3/nLdcuiXvDlt
-	6
-X-Received: by 2002:a02:946e:: with SMTP id a101mr223930jai.90.1550094372615;
-        Wed, 13 Feb 2019 13:46:12 -0800 (PST)
-X-Received: by 2002:a02:946e:: with SMTP id a101mr223871jai.90.1550094371445;
-        Wed, 13 Feb 2019 13:46:11 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550094371; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=cuRX7H0FRf69bDHIoNZZwguThmQM4wQmhCuOvzdmw4k=;
+        b=Oxa6/vuSYFZnZ1vcPbdUzPsfdJ4Fsq6twichXWEliALWN65zmK9PwIcPgZAHpB3Fe7
+         VTo7briOJVSzW8MaeB/r/h3vMRiCi8UCsna1m9IPsG+UnESvFNnSvu8dC8nY1jlmLjXH
+         alK7YZGD2rq3NRkaLISdE6QBSZiRuPS9Sme18mRT9yTrziR4VUdtlAZ02HEeVG4jKoxR
+         thrkVaE2YfTk0f3mN/hZUGaGAvfuL/vwFZpIZE/iGbX23I+bHodXEowU7PgWW6EjT71h
+         7D/pdIYUhKvH7HoEWuwDHKpMOJNFbTHOKPTBebsbkKQ0bqWO9hWYexprGYKue1+1mbHF
+         Dz3Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuZU0McWjfRJKtACyTnsYVZKE3t2ZgNxiYha3dOekb33+8SXFNX5
+	pVOaV3TDaya98FIdB3mti1RPjk3EfQjoiukRfoYWQVkEaaxW9IGkXWTKsP10eCl0+oxJGr7cgeb
+	QoBqasmm73cekg8XuRunmIVyqBjMn9EYBauNzx+NZ/+oFiNAUT+Fo8hTYFdW0jOsKgw==
+X-Received: by 2002:a17:902:4d46:: with SMTP id o6mr359753plh.302.1550094864357;
+        Wed, 13 Feb 2019 13:54:24 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbTZl7OyKktP26heQpMmflIUp3lBsZA/m5I1AV9gWntrc5GqS3iHD3N95QDGwaH2sHFEjjW
+X-Received: by 2002:a17:902:4d46:: with SMTP id o6mr359714plh.302.1550094863725;
+        Wed, 13 Feb 2019 13:54:23 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550094863; cv=none;
         d=google.com; s=arc-20160816;
-        b=jQ16D1BFtRTDnxM9AVoLIZR2Tl8HpEr79muLMO8uJxPC5gN+32Yhg+pM1b/wAxKpV0
-         rZRM9Tv4ezAph3fZr+jVWtYbt3CP7cIUJ0grAiPnUDAG/yjGXMbfdTuEVVFJ71X8BuK2
-         DczAafGKkltd9I4sMjTKKuE/N4H2MIym54h6d7jmXl17ClrQ5jKyy7I8kOW68IMZKrRg
-         rxNBo02Ny6WoOVFMvd6abLggt5brdnpemQ81l/WkylLRQcWO0bCjoDRqqZLTIluQ24kF
-         zgnb724BLH2W41gLP+zF89KjyI5o9Ku4rtjV1Pv0vP5lDDCS3Hzvh2Q8BKd4h8xZz14g
-         s5Vw==
+        b=w8NFvA8pvGG3hWgylFR2SCAwlR+HLDY7aMPbbzZedJHND6z7qDIhiIwzq5uLkZbgUD
+         /m18i4x68NcjgNSzKdsJMleY9o3NPengR4dPzuzvSgg4f2aB1VYoA2M2ZYWOxSqXZ8Wh
+         0yNCsVfDM94kogkb/f+TzTKmrFgBRe5FsLyMqW+S/sdVS8ds4ThK333Ch9g1EzRo51gR
+         ukgjTSEbx6EkzRo2hh2PH4ZjZP3EqOa5x0k0bfR2Y+QrcY7nJFaSeLec4vmLdy/Q4E9b
+         y+5N/wXYQqj4wN+M0brEx4Rx0HrjVQXo+1sk/5V48kAy+vTzrMsbg1xgoNWyGv/Y1svV
+         S8pw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=FNhxP8JN/aOogF64x1RdI276bG+FvUjSYc/h3hGis10=;
-        b=WD+hGr8R9rrGJLGDM8ktCe8fhMPBlg8OsiW0YwAcgeSPyqbepnuVJcL5O85wXPHzjc
-         PoPy1FZRDYCESPIaOUcjgNjucKdJfX780CO0e8qvLWa0Hvz1UQ8DlME18DBLNcpD+sza
-         pQkdnt6ZNNZhNEHBKO8WjCb3Op9e7V75+2N02b1Q/90GsuXBgrFqJca5bRQRjhEY8k1a
-         EGsKqeRa75S23dTTOAhbMBHIyeYnx0Hv6nyz/Rwx3cRLVBoqC48o6hZ1yolwgqwa7LH7
-         SjQGm3/t+b35U6Ovx2wND4JK5Snewzhimaovbw1Epi5uF7R/I03re9f7sc3TDp/GS7wL
-         Xgmg==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=cuRX7H0FRf69bDHIoNZZwguThmQM4wQmhCuOvzdmw4k=;
+        b=ovhAtNa18D7KZsbvyTIwpgOzPQ1y4EOCa3EoJ4lXrClwYvz0cXUjIY1tgJp+MN8zkp
+         EjQ2Yw80HszZsf8P6u1CscATVc5BuAZejkcWzJlFUzXlRvjvTrYlaxmOWgzqpAAzbKJr
+         pkxBCuox7OoH2KtDSIGdO9YofuMsG75sMim31bkoiI3MYaMDQpJvAR30tPKXQIcakzJG
+         XS9qg3XQg0n5S2gAwp3sS43S/iOAi26KtR0z0ew+4rC/39k9RKpft10WrAdUPrHDWSbO
+         T/f3gCviQN9mm8rM1PKEwLCy3UqDHiqPMltFMAUvXMlE7VDM/ddEA0TCr5CLNjANzCak
+         fBJw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=nmSN7x4f;
-       spf=pass (google.com: domain of 3i5bkxaukcl4nerrlksskpi.gsqpmry1-qqozego.svk@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3I5BkXAUKCL4nerrlksskpi.gsqpmry1-qqozego.svk@flex--jannh.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id t134sor856166ita.12.2019.02.13.13.46.11
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id t74si435846pgc.150.2019.02.13.13.54.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Feb 2019 13:46:11 -0800 (PST)
-Received-SPF: pass (google.com: domain of 3i5bkxaukcl4nerrlksskpi.gsqpmry1-qqozego.svk@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Feb 2019 13:54:23 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=nmSN7x4f;
-       spf=pass (google.com: domain of 3i5bkxaukcl4nerrlksskpi.gsqpmry1-qqozego.svk@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3I5BkXAUKCL4nerrlksskpi.gsqpmry1-qqozego.svk@flex--jannh.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=FNhxP8JN/aOogF64x1RdI276bG+FvUjSYc/h3hGis10=;
-        b=nmSN7x4f0dFsz2f8CmOy0DSZEVYELcvMbs3qFQceL8JHg4uPw7v3hsrtQFyLw9sE5X
-         K3+ltokbjOLnlDMKXcOKKCOxKs5urZWEJmGd7HmcyAcanVs7dh0Hb+XIT6mehoPOHu1z
-         c0KH48taiqX05DvKw2KMQDIa+P5Iky7RvtdBpMnRXl1xtahZSCjHg0ryL3QpeEfSNy7n
-         1Jxu74dVhDvvJF/jLy64FaZnxTo88JDD7+vqhn4Oqv214x+MzdzUXP6mwVozZrCTCvDX
-         VNBrpaIh/tsmsJ0HLMKHyWPFXwtTsDKh39OoHk3xwKBdfASz/7QgvfdSBoToyD1iQi1H
-         K9vQ==
-X-Google-Smtp-Source: AHgI3IYHqsYwFvWOqst/rKom/+dGsarTpRUx/qbL+/QdEt9tRubhgZrB/16HNXoxImLIXoRQ9XJseh71SA==
-X-Received: by 2002:a24:5311:: with SMTP id n17mr187606itb.39.1550094371114;
- Wed, 13 Feb 2019 13:46:11 -0800 (PST)
-Date: Wed, 13 Feb 2019 22:45:59 +0100
-Message-Id: <20190213214559.125666-1-jannh@google.com>
-Mime-Version: 1.0
-X-Mailer: git-send-email 2.20.1.791.gb4d0f1c61a-goog
-Subject: [RESEND PATCH net] mm: page_alloc: fix ref bias in page_frag_alloc()
- for 1-byte allocs
-From: Jann Horn <jannh@google.com>
-To: "David S. Miller" <davem@davemloft.net>, netdev@vger.kernel.org, jannh@google.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, 
-	Pavel Tatashin <pavel.tatashin@microsoft.com>, Oscar Salvador <osalvador@suse.de>, 
-	Mel Gorman <mgorman@techsingularity.net>, Aaron Lu <aaron.lu@intel.com>, 
-	Alexander Duyck <alexander.h.duyck@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1DLrlUP058628
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 16:54:23 -0500
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qmt753ae8-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 16:54:22 -0500
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 13 Feb 2019 21:54:20 -0000
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 13 Feb 2019 21:54:15 -0000
+Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1DLsEiG54460644
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Wed, 13 Feb 2019 21:54:14 GMT
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 7E4D5A404D;
+	Wed, 13 Feb 2019 21:54:14 +0000 (GMT)
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 6AC9AA4057;
+	Wed, 13 Feb 2019 21:54:13 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.207.163])
+	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed, 13 Feb 2019 21:54:13 +0000 (GMT)
+Date: Wed, 13 Feb 2019 23:54:11 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+        Alexander Viro <viro@zeniv.linux.org.uk>,
+        Russell King <linux@armlinux.org.uk>,
+        Catalin Marinas <catalin.marinas@arm.com>,
+        Will Deacon <will.deacon@arm.com>, Guan Xuetao <gxt@pku.edu.cn>,
+        linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+        linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: Re: initramfs tidyups
+References: <20190213174621.29297-1-hch@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190213174621.29297-1-hch@lst.de>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19021321-0008-0000-0000-000002C02702
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19021321-0009-0000-0000-0000222C470E
+Message-Id: <20190213215411.GF15270@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-13_12:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=433 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902130144
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The basic idea behind ->pagecnt_bias is: If we pre-allocate the maximum
-number of references that we might need to create in the fastpath later,
-the bump-allocation fastpath only has to modify the non-atomic bias value
-that tracks the number of extra references we hold instead of the atomic
-refcount. The maximum number of allocations we can serve (under the
-assumption that no allocation is made with size 0) is nc->size, so that's
-the bias used.
-
-However, even when all memory in the allocation has been given away, a
-reference to the page is still held; and in the `offset < 0` slowpath, the
-page may be reused if everyone else has dropped their references.
-This means that the necessary number of references is actually
-`nc->size+1`.
-
-Luckily, from a quick grep, it looks like the only path that can call
-page_frag_alloc(fragsz=1) is TAP with the IFF_NAPI_FRAGS flag, which
-requires CAP_NET_ADMIN in the init namespace and is only intended to be
-used for kernel testing and fuzzing.
-
-To test for this issue, put a `WARN_ON(page_ref_count(page) == 0)` in the
-`offset < 0` path, below the virt_to_page() call, and then repeatedly call
-writev() on a TAP device with IFF_TAP|IFF_NO_PI|IFF_NAPI_FRAGS|IFF_NAPI,
-with a vector consisting of 15 elements containing 1 byte each.
-
-Signed-off-by: Jann Horn <jannh@google.com>
----
-Resending to davem at the request of akpm.
-
- mm/page_alloc.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 35fdde041f5c..46285d28e43b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4675,11 +4675,11 @@ void *page_frag_alloc(struct page_frag_cache *nc,
- 		/* Even if we own the page, we do not use atomic_set().
- 		 * This would break get_page_unless_zero() users.
- 		 */
--		page_ref_add(page, size - 1);
-+		page_ref_add(page, size);
+On Wed, Feb 13, 2019 at 06:46:13PM +0100, Christoph Hellwig wrote:
+> Hi all,
+> 
+> I've spent some time chasing down behavior in initramfs and found
+> plenty of opportunity to improve the code.  A first stab on that is
+> contained in this series.
  
- 		/* reset page count bias and offset to start of new frag */
- 		nc->pfmemalloc = page_is_pfmemalloc(page);
--		nc->pagecnt_bias = size;
-+		nc->pagecnt_bias = size + 1;
- 		nc->offset = size;
- 	}
- 
-@@ -4695,10 +4695,10 @@ void *page_frag_alloc(struct page_frag_cache *nc,
- 		size = nc->size;
- #endif
- 		/* OK, page count is 0, we can safely set it */
--		set_page_count(page, size);
-+		set_page_count(page, size + 1);
- 
- 		/* reset page count bias and offset to start of new frag */
--		nc->pagecnt_bias = size;
-+		nc->pagecnt_bias = size + 1;
- 		offset = size - fragsz;
- 	}
- 
+For the series:
+
+Acked-by: Mike Rapoport <rppt@linux.ibm.com>
+
 -- 
-2.20.1.791.gb4d0f1c61a-goog
+Sincerely yours,
+Mike.
 
