@@ -2,115 +2,184 @@ Return-Path: <SRS0=NGLy=QU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9682BC0044B
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 20:42:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 307FCC0044B
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 20:42:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 57404222B6
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 20:42:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57404222B6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id E1883222B6
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 20:42:36 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="vk+9afpc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1883222B6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CD85D8E0002; Wed, 13 Feb 2019 15:42:02 -0500 (EST)
+	id 81E028E0003; Wed, 13 Feb 2019 15:42:36 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C88148E0001; Wed, 13 Feb 2019 15:42:02 -0500 (EST)
+	id 7CCC48E0001; Wed, 13 Feb 2019 15:42:36 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B76AA8E0002; Wed, 13 Feb 2019 15:42:02 -0500 (EST)
+	id 6E38E8E0003; Wed, 13 Feb 2019 15:42:36 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 854DD8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 15:42:02 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id b24so2528151pls.11
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 12:42:02 -0800 (PST)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 46DA98E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 15:42:36 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id u66so2150831ybb.15
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 12:42:36 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=KDWDHzqzS2ucnNyfEjZQxs4uJ9iIv97IlYDgt0UMYl4=;
-        b=b62NPerjadGE+8gGAmGdPqhvgvhNU9/1kRWGFUOackRlfNHJsPa44U1XOAugGfajqW
-         nkv7w1r/PU2X80JU/nmDbMGGbUHwrf8CDKO5g2pJjmecEIOj6/CHgoLQNyYpEOqsy1wW
-         ylnM/U2LJHU59SjXXW70NciFIi614P/DCOutobWa+gkPRyCJUTYvS4AU4yJzfOUJwhDB
-         pvOP4UEuetfrXh++2KWye3qeDssE+9WpROn4fndB8jAN4TrEtfZCptAI4+ZYMZlACiyk
-         WLy+qX/Vu2Aevv/Ra8Zyg4MrNxScjWCs9zy4eoNqt0wj7YWTqfdU2DT7WzzwhKNz0QAb
-         Pilw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: AHQUAub6Hht0E9XYK8JBRGRvqx5WOQ7lUgCVfFGg+xHMl+ATcGmFA8dO
-	/kUwA7hkVxTsqCBvhK1NZuVqm8Zu+P8XQy+ULu+e6inLaGWLp1VHzmMJ1J3Rcu2yhQoSpuNwhO2
-	N14hCVdnEXrDaoMz9KBPG/GzFTP09Ee1ChdRb5TVZ1HCTwlbeLPz2YaDRqx+Ybl3bRA==
-X-Received: by 2002:a62:12d5:: with SMTP id 82mr5360pfs.255.1550090522219;
-        Wed, 13 Feb 2019 12:42:02 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZen2hDacF9Yrq0Z/pj7qfdxj+58h9sm24F+hFHxRmofJjW7XU6Xhcd1cEBBDpf8qxtYR/j
-X-Received: by 2002:a62:12d5:: with SMTP id 82mr5304pfs.255.1550090521603;
-        Wed, 13 Feb 2019 12:42:01 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550090521; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=qNCR0xN3839y7VMAmcBdO2qZgWS8pHFZK1yfc/zYXzk=;
+        b=M48AmyvKRyVH111g98KUDFFzQGe4RVVpTP74QIu4SKkn2ohuymUQ3JG0TgRqJQ36Fu
+         uv/FXx3eH+vS2apSXJ6ENTHLEqBHxbUocMaKobilHYvN0GkZBDcC29GYhTJ2Y+icaQ1r
+         JhR6wV+fNLMekn+ivl7XmlCHXb7I1i9Wgn70e5TK6Z87ku3VIhlPhWfqyKZjxKAKoBaz
+         H1Dgglv9IjnZmlS3ud7fW6ZJm3/7QlIb62+1pwcK9czpbm98kZ0H0j3mZxSfTiV0hTh6
+         8FtqoLsfhZ9f4aEzXhUuA4mgjSPYtnu1mrlortMVGLjvhZQBgWBhd+9eGZe7VstQaOFN
+         ERlw==
+X-Gm-Message-State: AHQUAuaTlTBo9KPBMXzx+qagdNDlqeet4/rJkvuOb91fXwf9c8SFVK6w
+	KqhS3Mx3E+kIFbfC04PT4E3OgQVWG+keS38IEoYTyeiSbJQ7TalFmHskwiIPndmtVQS1GpV1eU7
+	xnOhBUnMBAhUvOEEipROeB6+GOrKQbB2oL2HvPYFp/9CDqni+q/0ZbcoQ8MDrxU0HA7LoqtgIps
+	Bs4nKR46PsisIXof/W8393wn96eTHDot17uBnCRcnVQzGic5dUmbY20a/70zQyDxrI68dEhlKwq
+	dEwtNVbclqSZL1XtEMjqYl87uezGeUPyX6VHBve6uSs/YJmxeBzIAx12M63RmyzT7034qkvHds9
+	LbAGDyNDB//ybNOVZrMUxS4RxFw/sk7OXfs5nLalV2M/WnNbkX7JWfcHJ+fEDEdrIp7FbOfaxbE
+	qDQ5e9LqQicPeJ42kTTtX9/hKPEkFSxYPFUoOJkoYwwljWIvO2dP0e/dYNZgZhTK9680nbf9TIb
+	+P1RHrTMk7gLsKJVmXELmMXG6nkwgkE2g2kWGNYy/eTj8CVuVjNffkQ52x1Wu8wqv70/7L0hfz/
+	QAjLC7kP+cyhNOfhchlgdtFBVKFF14IYRl49eYjdtcnsTCsAoMerBG0dwNyQRA4xiIBcQfcU2x9
+	khxb0jRe0u2xyTqurCntduuLrlq0dtqH3UAmg4/M0rD6Xp2koXbF1gV+NurXFRbH9OI/HJ8Iup5
+	N
+X-Received: by 2002:a81:2548:: with SMTP id l69mr6400212ywl.397.1550090555986;
+        Wed, 13 Feb 2019 12:42:35 -0800 (PST)
+X-Received: by 2002:a81:2548:: with SMTP id l69mr6400177ywl.397.1550090555342;
+        Wed, 13 Feb 2019 12:42:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550090555; cv=none;
         d=google.com; s=arc-20160816;
-        b=wHmmS8qWDvJaax7pInqtqeNGIIi371CAij826QOVNAeCFrKVYMCbqCVivZA/0iq7pO
-         K+RPoqDnuIIyAQaedXrFjGMLIw0j4WezJhPlOXNxk9k9GZZzJONvpRPWyQS9kKR/kHnr
-         W2uZpaKpZ5jp8hBTMDfoAs5jggZTmbHzn/SMctkl9gvVA0BXUl1g8LEdtGxD9+oh2L1O
-         56V8ds0euNBOS8wo5pIFDM11VfzhzR9UP14KkCjQvxqg2RPKsmRjNRLBgZsDIyvQ/vrc
-         iocdte/aiMbgpclFVr1tGMvCe6Vf93zEWapkWqMnLWbR0+GsLSdKwE++G6Zf6vUtx0vc
-         oihA==
+        b=i6sNX3SBh3vadC7LaGryBSxLkfDjZ+eaG/VnyxdJzcsgYhX6XDyR8whgN+1b0k9fHd
+         lBr6MefCAmX1RCuX7rJTKPZ2WJQiDqpAJQbSYS5pB7dP1Mv0d9CnXD8ODcurz1TUorJZ
+         4racNuSTJtZ75DYMKKl6h7iBS8KTanyDkm+nZTlsJylj76QJ7z1aT9Pia+lDryzwbTVP
+         t0Q3VVLq83I+uGqtz4OsUOI4Xaj2h2LXHJYPwLGN3RaryuDZdkRy79u1bcGoBs1X6p/4
+         NvUhGM71bCsiJvpGi5POzrFuetydMqlpkDY+R+ECGTf46SecgtKKjL8I45ZKpROhAV1C
+         guqQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=KDWDHzqzS2ucnNyfEjZQxs4uJ9iIv97IlYDgt0UMYl4=;
-        b=bMBNNuhTT1RkCjMs8bH6iZqcqhSFH4RSSL3Xh8Wk9Nj31nNRpuvLUvvBfZzqQC1s2z
-         vuAc7D5Rn69b/yEztex0DWqbd+5UsYKH5ktPRPIee0GZe4zXj+V2hCW+71D2BMvGyaj/
-         fmi8ZBd5OHwB4JFVLE7MCFEEQxKLN1sa8rWHgFZ5PBJyoeDLtst4DxK5kT7QuwLzAORZ
-         w5lBicOTxS23KjPVmbuV873LG30eeg02slLt6psSFn8PHcJtfNtz8BdpkgAqhs5UuPlY
-         YB7AkdIrMSGmma0Pi4da2O0v46I6NZ+aUp/KwkjKXhX3Upe7jWW8Wee96zpbsALkTJRe
-         6Spw==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=qNCR0xN3839y7VMAmcBdO2qZgWS8pHFZK1yfc/zYXzk=;
+        b=p/BN/PiqmBno1C/nXFg4k4C8jAA4ctozbwsv/DcR+XLUtG+mqaICWAdrBlOlgeib4b
+         uDNAbJFPSAnf86j3xcXWkmLV2d+vcC7xqSBz4Y8r5rschXfOdRKOKUAsJ9HjnV7PdgQS
+         x2G/coUwqar7wJ6Y+Z3CHYY0Oj6lDKTvrozTZ0Wyi0PClDL/Ghtn6C/nExtBnkE6ha2j
+         ojrMvcmgucGFXmD75a1zHv397xj6NuKQtxvXdTfdCurf1H4A7m3/2QReJl/rgdKI8Kmm
+         vD9C1M1cxlEwUekRZXcR3gWXIfr2cJBbO3cBZL36p68QFyRXa6n0rjTxczLi/7eMx/xX
+         3HPA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j24si258150pff.186.2019.02.13.12.42.01
+       dkim=pass header.i=@google.com header.s=20161025 header.b=vk+9afpc;
+       spf=pass (google.com: domain of 3o4fkxaukclghyllfemmejc.amkjglsv-kkityai.mpe@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3O4FkXAUKCLghYllfemmejc.amkjglsv-kkitYai.mpe@flex--jannh.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id z1sor55656ywl.213.2019.02.13.12.42.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 12:42:01 -0800 (PST)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        (Google Transport Security);
+        Wed, 13 Feb 2019 12:42:35 -0800 (PST)
+Received-SPF: pass (google.com: domain of 3o4fkxaukclghyllfemmejc.amkjglsv-kkityai.mpe@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id AD693120F;
-	Wed, 13 Feb 2019 20:42:00 +0000 (UTC)
-Date: Wed, 13 Feb 2019 12:41:59 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko
- <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas
- <catalin.marinas@arm.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg
- <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim
- <iamjoonsoo.kim@lge.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, Qian Cai <cai@lca.pw>, Vincenzo Frascino
- <vincenzo.frascino@arm.com>, Kostya Serebryany <kcc@google.com>, Evgeniy
- Stepanov <eugenis@google.com>
-Subject: Re: [PATCH v2 0/5] kasan: more tag based mode fixes
-Message-Id: <20190213124159.862d62fd5dba54da7b46e3ea@linux-foundation.org>
-In-Reply-To: <cover.1550066133.git.andreyknvl@google.com>
-References: <cover.1550066133.git.andreyknvl@google.com>
-X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+       dkim=pass header.i=@google.com header.s=20161025 header.b=vk+9afpc;
+       spf=pass (google.com: domain of 3o4fkxaukclghyllfemmejc.amkjglsv-kkityai.mpe@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3O4FkXAUKCLghYllfemmejc.amkjglsv-kkitYai.mpe@flex--jannh.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=qNCR0xN3839y7VMAmcBdO2qZgWS8pHFZK1yfc/zYXzk=;
+        b=vk+9afpcYaiUM95aJA3YpkniHaAPKIKCIB0/xfPAYsnuF7/YNMPbNb4k5yafb8q/hg
+         dVvuTWNKWxUYfWb8F6n2t+L5vbcXbDUy3v0W2SR65b+SIBSo/aW1YG0v4KZnPP49Yw8i
+         4RdXH8htDGSG2dUmswH0gKObCDVSIPoaKTXzxGC2+quA8rx4wmm1VU1/SPLn6lViG2bR
+         YnuQuZSJVMNhR4T6L/wKH9RF32kEWhfaJ6A0OACNv8zBV3ni012T46sxjKfCeLhRCLy3
+         B9ecidL7VHAcArqfULSdG2dD3UjWr73rgCyOjB4szjIgotWbzRazwSg1rn3un1gjiHA8
+         R3Vg==
+X-Google-Smtp-Source: AHgI3IYGHa4+7qE44erSpdyH7XPkwQLF/QTlE5/7wNbNcq+pC/rZo8F6iVN+yBzCSGsts8+B5GUGhLRnOw==
+X-Received: by 2002:a81:e50:: with SMTP id 77mr19924ywo.20.1550090555029; Wed,
+ 13 Feb 2019 12:42:35 -0800 (PST)
+Date: Wed, 13 Feb 2019 21:41:57 +0100
+Message-Id: <20190213204157.12570-1-jannh@google.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+X-Mailer: git-send-email 2.20.1.791.gb4d0f1c61a-goog
+Subject: [PATCH] mm: page_alloc: fix ref bias in page_frag_alloc() for 1-byte allocs
+From: Jann Horn <jannh@google.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, jannh@google.com
+Cc: linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, Pavel Tatashin <pavel.tatashin@microsoft.com>, 
+	Oscar Salvador <osalvador@suse.de>, Mel Gorman <mgorman@techsingularity.net>, 
+	Aaron Lu <aaron.lu@intel.com>, netdev@vger.kernel.org, 
+	Alexander Duyck <alexander.h.duyck@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Feb 2019 14:58:25 +0100 Andrey Konovalov <andreyknvl@google.com> wrote:
+The basic idea behind ->pagecnt_bias is: If we pre-allocate the maximum
+number of references that we might need to create in the fastpath later,
+the bump-allocation fastpath only has to modify the non-atomic bias value
+that tracks the number of extra references we hold instead of the atomic
+refcount. The maximum number of allocations we can serve (under the
+assumption that no allocation is made with size 0) is nc->size, so that's
+the bias used.
 
-> Changes in v2:
-> - Add comments about kmemleak vs KASAN hooks order.
+However, even when all memory in the allocation has been given away, a
+reference to the page is still held; and in the `offset < 0` slowpath, the
+page may be reused if everyone else has dropped their references.
+This means that the necessary number of references is actually
+`nc->size+1`.
 
-I assume this refers to Vincenzo's review of "kasan, kmemleak: pass
-tagged pointers to kmemleak".  But v2 of that patch is unchanged.
+Luckily, from a quick grep, it looks like the only path that can call
+page_frag_alloc(fragsz=1) is TAP with the IFF_NAPI_FRAGS flag, which
+requires CAP_NET_ADMIN in the init namespace and is only intended to be
+used for kernel testing and fuzzing.
 
-> - Fix compilation error when CONFIG_SLUB_DEBUG is not defined.
+To test for this issue, put a `WARN_ON(page_ref_count(page) == 0)` in the
+`offset < 0` path, below the virt_to_page() call, and then repeatedly call
+writev() on a TAP device with IFF_TAP|IFF_NO_PI|IFF_NAPI_FRAGS|IFF_NAPI,
+with a vector consisting of 15 elements containing 1 byte each.
+
+Cc: stable@vger.kernel.org
+Signed-off-by: Jann Horn <jannh@google.com>
+---
+ mm/page_alloc.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 35fdde041f5c..46285d28e43b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4675,11 +4675,11 @@ void *page_frag_alloc(struct page_frag_cache *nc,
+ 		/* Even if we own the page, we do not use atomic_set().
+ 		 * This would break get_page_unless_zero() users.
+ 		 */
+-		page_ref_add(page, size - 1);
++		page_ref_add(page, size);
+ 
+ 		/* reset page count bias and offset to start of new frag */
+ 		nc->pfmemalloc = page_is_pfmemalloc(page);
+-		nc->pagecnt_bias = size;
++		nc->pagecnt_bias = size + 1;
+ 		nc->offset = size;
+ 	}
+ 
+@@ -4695,10 +4695,10 @@ void *page_frag_alloc(struct page_frag_cache *nc,
+ 		size = nc->size;
+ #endif
+ 		/* OK, page count is 0, we can safely set it */
+-		set_page_count(page, size);
++		set_page_count(page, size + 1);
+ 
+ 		/* reset page count bias and offset to start of new frag */
+-		nc->pagecnt_bias = size;
++		nc->pagecnt_bias = size + 1;
+ 		offset = size - fragsz;
+ 	}
+ 
+-- 
+2.20.1.791.gb4d0f1c61a-goog
 
