@@ -7,102 +7,102 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D2D6BC4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 81461C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 87A3A222CC
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2DA29222C9
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="NjIzVPkQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 87A3A222CC
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="MIR5bn/f"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2DA29222C9
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3A4768E0009; Wed, 13 Feb 2019 17:42:26 -0500 (EST)
+	id D40B58E000A; Wed, 13 Feb 2019 17:42:29 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3534B8E0001; Wed, 13 Feb 2019 17:42:26 -0500 (EST)
+	id CF6AD8E0001; Wed, 13 Feb 2019 17:42:29 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 243A78E0009; Wed, 13 Feb 2019 17:42:26 -0500 (EST)
+	id BBCED8E000A; Wed, 13 Feb 2019 17:42:29 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BCFEF8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 17:42:25 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id e2so1420429wrv.16
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 14:42:25 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 6069C8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 17:42:29 -0500 (EST)
+Received: by mail-wr1-f72.google.com with SMTP id v16so1412385wru.8
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 14:42:29 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=FDryqu5ur4j9ePg/wc9MnpTPYVkBg8AjJFLLJs3gfA8=;
-        b=hoSKbBtfpbj9OHt5963nQzgnb0bv0uVt0FMtKRj+smqQjzX/jfxplOdpNbFITsJyz4
-         AFT6o8vU7Nk1U2tv9kfl6b/XzyN9O8IQj26bSNqsqDWcw3lBrNP+qmBfIZx2RA5+hgGx
-         KSqiOQiwg+QV1PuTJo8LIGDcEdo+ojtLQ+iTmb2YfNS7dBMPwtl8yTAdevXvEnDDLmav
-         Q15ITG9obGLFXcHkNGs3s0pzPR3K44yUu37U/w/ylSGM+GQtD7FkUhFQR/MvEl4yNr0T
-         x/08bIBpvePWbcZ+F4qFixL3BrpROE4uIon1Qpje+x6RAHaHepUHXXiOOPiYChoKuHIC
-         NKRw==
-X-Gm-Message-State: AHQUAuYbVhoL00Blsdb8sJO/B/cb6k/qpZLjBwJpBhC69+tXP0jf8dTr
-	cInYbF8O9UyAW2cQTcP1uXXE9R9+YVxwcBWR+Im01wSShKY3ZedSY9mdtAnvGTp3v+YqMvvMDrW
-	QgvC5oiK6tR/ZVjrzA3hhUnal9KFbqS3gUuj1G5NLFj7TWhYm8FwOit7v5jIrxwnyo7TIn+gur/
-	UaeHvhVHV/CWX5gsHoYLryMP0XAkm09yNSUH/rptjKS/MzFqBve6pFX7OXI2LRYK+EvTcs6D6Jb
-	0HQsL+CRbuCfJB6S8Lm5jxeAd7CiD9aQLb6GfYO127X/ddZSuEEOex2jL4xwtyOBKqbtPfSTISb
-	BPHjCnrgK3rYHfU4xubXxSJujZEPLsBqME8igIRoDKNArAeu3/b0PraxsQ29xe1rFZuy/Mi02iI
+        bh=vgb7J+uzu72a1nLgAIDJQpmIZYI0IWGcwJEvrx3eHk8=;
+        b=r8LNN9A4g6Kgu1L0fJrxzWlE+WlwfcYmC6nefqfPg/52sThW+5jbKrktWMw9uhNW4j
+         xt2GUwXKGFOuYEcf8DF7/B3fR1lXUTlwqbnRNfpqvsMxyLJ7/a6exrYxDYaLgWDjWjY+
+         VCV4K5vaT7Gj47kT4o8AbmetsGKfzjcvJ7xOIxvZh0akdHMOluMFQXymDipUiMNArvAV
+         kT2NBEZ3tLPbccGOH2InWejTwRF/wcMPKXWvm1wNVEhhYc53jJCtk+lwiBF52uLrxnNX
+         V9yPKNIYkRTKnwjLxS6lVf7KVZUvQ7pmiEpOGWPskiv/fN7r2sQKnJ7T5uvQSmLgZANQ
+         s2Mg==
+X-Gm-Message-State: AHQUAuZc8Hi+EhznTVZJzIbnUwmUKinBCTx1WAsdLQ2SDkyU7UfQWyjW
+	YJpWFGy4CbqpRzX7p0z2kd9Q0J9oEw1HuYtiMr3RHhDkx8Y3lHvmpPtZOvn+sZiNgRNDL5DI/LZ
+	lylLhbJHzp0bePMot6K90MZgq98bvGTQ8pLtuMjD2Zz7yMCU8/csX4H8d5z3GLBUfJYubjOAjWi
+	hsYo5KtkZFqhIXiGRWwoKdH+zmk6fq2p0NIWyWNGZ4zqzDssYVV2vAZzVWIH0BGepNbOsdu9L9E
+	AAxMAXqFk/4luXt8kPw5kxTfHZl60g+MyvUEyCfqiq5tfY3ZtlCzEEi1QTQ5w1Zsdo7GBL+cY/3
+	hN1RxPAig8PHGpEECdiwm6PGLZBMS+wCWKgcqkad1WMBOTSAotcxzZu9kdMrBLlAdsgrIeCROfR
 	s
-X-Received: by 2002:adf:f410:: with SMTP id g16mr319589wro.246.1550097745286;
-        Wed, 13 Feb 2019 14:42:25 -0800 (PST)
-X-Received: by 2002:adf:f410:: with SMTP id g16mr319531wro.246.1550097743982;
-        Wed, 13 Feb 2019 14:42:23 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550097743; cv=none;
+X-Received: by 2002:a1c:4006:: with SMTP id n6mr276892wma.137.1550097748898;
+        Wed, 13 Feb 2019 14:42:28 -0800 (PST)
+X-Received: by 2002:a1c:4006:: with SMTP id n6mr276856wma.137.1550097747621;
+        Wed, 13 Feb 2019 14:42:27 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550097747; cv=none;
         d=google.com; s=arc-20160816;
-        b=aWhETM7947fM7ipKcGBSlAgCgsvBV9Kp1qYqjCX9D9snLKM9KwmNaGYiKqtowNODYG
-         dAUvQi5c04ztSX/qie+bfkaI1K+HK9Wr5ZsWkugPBLxBs84t14hQbHzkt/rn0t5NzoNb
-         ldcUv8mhDUNQhhsTIsddxxA2ZPxYZKrNL7g5KA8/132lQBI6UnIVI3+zW7SWsv/wnvFh
-         tQf5UBtjfPC0UZTu6fkqD/qhB3q85aJcDQnvODqIgKDlIYu0iim+rO8WIyvRLQmwv3eJ
-         /UT3HFxrBkRySAe6UDDKxncXyMzm2D2vtxQMrZPYNvD1LaW9vk6BB4w6XmB4TDHwBVcq
-         QJvw==
+        b=wClrNA1L8Ha38L9C3/DM1mznmY5wtRE++26qQeRAvguMnjFo0B4YPAZM5ZvEBXE2Pt
+         7OOkdgoVw3iHtoqXWeoW0mfnwNttEZYDc1JnbkP0/CHKrKmA7zMNDqfMK2EaFxI54Jka
+         i6Hd1JdhZR66+fgGov5ztcfVWyVHReIwSZLSMmVwV5TbeSpbdMmzppBUpvwHRVIQrDzT
+         QS24/Uzl1c8O0u2PXYTJEcBDll5AOQ5s4ZgAxHxp9pTX4ibA7jphD56NR5DXOOCQe7dp
+         B0A/ZOrhPtWbfcXo1U9AHJAEVuBdo3R3WiExo5vEe+g4LDd+dPZqRurxJnMf+wcCNTSQ
+         IB7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature;
-        bh=FDryqu5ur4j9ePg/wc9MnpTPYVkBg8AjJFLLJs3gfA8=;
-        b=qnxBd0ErdEM3BjZ9VmLpuq54PGx2it88wh0d5YyKfL162GIJ+F2Sn9d2MATuUFSvmg
-         z9WEOX7hHxM9rEQDwyKF3LzJg0JEuO5GnPWS6Eq3swBJADnK0gNnTz2JqxamrEialnUy
-         ZKjdUBWID1H/o1DRYAFcpDvFM527JFms9Kf3CWLprrHZrmmBuS8lDNw7SpI56aANWlIR
-         YqepDchEntkSvt13mdMRAUA2zbOuKsq8T+1j1O708t3/c7RKMAW+Xa/bHFTlG20WaNLs
-         lZm8hIjLJm620xpzH7IhLX7kNmSgylfyXSxIE2Ux0eFvMxnrZwkznSHZxT2uCvL0dUZa
-         lJ1w==
+        bh=vgb7J+uzu72a1nLgAIDJQpmIZYI0IWGcwJEvrx3eHk8=;
+        b=ByEoDKtZxYDOmuyVLP0NGTz3JlVuvyGV0tDOvRJVHNUKAeJ4MupikLaVpXdfFZND4F
+         RBPxCZBs5X3UnH5YWyD67e3CH863d6Csuo1CoTuiqgVGiTZo4aYvDs0FwdPcCBLcTRJw
+         Z5jDGGjDPvp8oCJ/SDM6ep4Bu8dDo3b+eB8Pu/Pjkho/gXjGAZfFqFfMSrJ0iIHB9wcr
+         oYQf5DhIz9GQJP4kbNOGCjftyBni4x/O6G/TPN1R8pzkvDfG60EkBPZpUp6TqHQKTBlE
+         5eOQJXKhZhoTpSAgJmQqc9FQvc/0IrQYpYmi7zFQSm0R1D9rGcUYv7EVEFKJD8T2DHrq
+         Ihfg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NjIzVPkQ;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="MIR5bn/f";
        spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t8sor377761wmh.15.2019.02.13.14.42.23
+        by mx.google.com with SMTPS id l23sor366566wmi.23.2019.02.13.14.42.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 13 Feb 2019 14:42:23 -0800 (PST)
+        Wed, 13 Feb 2019 14:42:27 -0800 (PST)
 Received-SPF: pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NjIzVPkQ;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="MIR5bn/f";
        spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references:reply-to
          :mime-version:content-transfer-encoding;
-        bh=FDryqu5ur4j9ePg/wc9MnpTPYVkBg8AjJFLLJs3gfA8=;
-        b=NjIzVPkQI+bCcLNEI/Rt4U85tu0DGaKik0uQCOMXvSEkO/SvlHDTcAU8+IhLk21y1p
-         5m+FNp4iAWRrJ/k/DDDQZG8GEE1PO9QmTNuEZj9sZ3t8GOVxkaHS88LjJhq6BKQ7N9X3
-         FJu9x7w0j1lXKAVEa9NaOLOiDSwyj28NVgD1R/mi4Ij/muEfi9+4T/7X6PO8M08gwtT4
-         aaJwB93WJNH0Lk9jcLkQo1ju6chbGRcgdS0TIt45lL7EReQ2hPmGRvbjzBEH7IuKbkQK
-         PTBJS9E+bupu40oKgPBcvq9VxB11GBhj6qIU7b2yqA1Ep6uVGLC5RY2njYXlBvxDI91M
-         RhlQ==
-X-Google-Smtp-Source: AHgI3Ia10COWxjNMWWeGUZ4kyfPoLmhHvf/GKRNqfO/0o20+P2q+df+RyfuyEETkMZNIJGOmGU8VSw==
-X-Received: by 2002:a1c:e086:: with SMTP id x128mr325384wmg.10.1550097743522;
-        Wed, 13 Feb 2019 14:42:23 -0800 (PST)
+        bh=vgb7J+uzu72a1nLgAIDJQpmIZYI0IWGcwJEvrx3eHk8=;
+        b=MIR5bn/fwd0D9N8Om1k7o8c/GCTN6LB0C3GeABYZt+IdgyaeK88/xnCr2afThsQtba
+         OdrxjaKohAGefxP47UJqddJuo1wL6QROIgYS0nqcNKVXavRx0k4ynvja67Sso2VpdoLb
+         z9j+1xtt6Ba4iqVJyiEtsV6kVv2f6na8AIvyf5kQBP+bHJANL/fMnSMajCnjT+s2x5We
+         S0NgnOqmddtMsILaxMaOff7AK5WqJx2F8sVI6dC5yeP3exfq/e0MKp75IrcRWN3PIgcX
+         a55clojZ32DlpLA7ve3dKZwubnysbhMO49f7OxiSBhfj+QUGvfT6whA+F8zobwRBMXHz
+         Re+w==
+X-Google-Smtp-Source: AHgI3IY/qpx9bIN8m/MToJYg7+VC1FFLoWbQiBQL48Q2ZmiFFaSGSIEBHj0CtX918v3oqTB9pREW7w==
+X-Received: by 2002:a1c:14:: with SMTP id 20mr259551wma.91.1550097747249;
+        Wed, 13 Feb 2019 14:42:27 -0800 (PST)
 Received: from localhost.localdomain ([91.75.74.250])
-        by smtp.gmail.com with ESMTPSA id f196sm780810wme.36.2019.02.13.14.42.20
+        by smtp.gmail.com with ESMTPSA id f196sm780810wme.36.2019.02.13.14.42.23
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 14:42:22 -0800 (PST)
+        Wed, 13 Feb 2019 14:42:26 -0800 (PST)
 From: Igor Stoppa <igor.stoppa@gmail.com>
 X-Google-Original-From: Igor Stoppa <igor.stoppa@huawei.com>
 To: 
@@ -120,9 +120,9 @@ Cc: Igor Stoppa <igor.stoppa@huawei.com>,
 	kernel-hardening@lists.openwall.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC PATCH v5 08/12] __wr_after_init: lkdtm test
-Date: Thu, 14 Feb 2019 00:41:37 +0200
-Message-Id: <b739e9f8f43cb9cf5843fcb2f90b569bd560fccc.1550097697.git.igor.stoppa@huawei.com>
+Subject: [RFC PATCH v5 09/12] __wr_after_init: rodata_test: refactor tests
+Date: Thu, 14 Feb 2019 00:41:38 +0200
+Message-Id: <826811306c45f5735b83b169017b40f563f21fba.1550097697.git.igor.stoppa@huawei.com>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <cover.1550097697.git.igor.stoppa@huawei.com>
 References: <cover.1550097697.git.igor.stoppa@huawei.com>
@@ -135,8 +135,8 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Verify that trying to modify a variable with the __wr_after_init
-attribute will cause a crash.
+Refactor the test cases, in preparation for using them also for testing
+__wr_after_init memory, when available.
 
 Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 
@@ -154,97 +154,85 @@ CC: kernel-hardening@lists.openwall.com
 CC: linux-mm@kvack.org
 CC: linux-kernel@vger.kernel.org
 ---
- drivers/misc/lkdtm/core.c  |  3 +++
- drivers/misc/lkdtm/lkdtm.h |  3 +++
- drivers/misc/lkdtm/perms.c | 29 +++++++++++++++++++++++++++++
- 3 files changed, 35 insertions(+)
+ mm/rodata_test.c | 48 ++++++++++++++++++++++++++++--------------------
+ 1 file changed, 28 insertions(+), 20 deletions(-)
 
-diff --git a/drivers/misc/lkdtm/core.c b/drivers/misc/lkdtm/core.c
-index 2837dc77478e..73c34b17c433 100644
---- a/drivers/misc/lkdtm/core.c
-+++ b/drivers/misc/lkdtm/core.c
-@@ -155,6 +155,9 @@ static const struct crashtype crashtypes[] = {
- 	CRASHTYPE(ACCESS_USERSPACE),
- 	CRASHTYPE(WRITE_RO),
- 	CRASHTYPE(WRITE_RO_AFTER_INIT),
-+#ifdef CONFIG_PRMEM
-+	CRASHTYPE(WRITE_WR_AFTER_INIT),
-+#endif
- 	CRASHTYPE(WRITE_KERN),
- 	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
- 	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
-diff --git a/drivers/misc/lkdtm/lkdtm.h b/drivers/misc/lkdtm/lkdtm.h
-index 3c6fd327e166..abba2f52ffa6 100644
---- a/drivers/misc/lkdtm/lkdtm.h
-+++ b/drivers/misc/lkdtm/lkdtm.h
-@@ -38,6 +38,9 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void);
- void __init lkdtm_perms_init(void);
- void lkdtm_WRITE_RO(void);
- void lkdtm_WRITE_RO_AFTER_INIT(void);
-+#ifdef CONFIG_PRMEM
-+void lkdtm_WRITE_WR_AFTER_INIT(void);
-+#endif
- void lkdtm_WRITE_KERN(void);
- void lkdtm_EXEC_DATA(void);
- void lkdtm_EXEC_STACK(void);
-diff --git a/drivers/misc/lkdtm/perms.c b/drivers/misc/lkdtm/perms.c
-index 53b85c9d16b8..f681730aa652 100644
---- a/drivers/misc/lkdtm/perms.c
-+++ b/drivers/misc/lkdtm/perms.c
-@@ -9,6 +9,7 @@
- #include <linux/vmalloc.h>
- #include <linux/mman.h>
+diff --git a/mm/rodata_test.c b/mm/rodata_test.c
+index d908c8769b48..e1349520b436 100644
+--- a/mm/rodata_test.c
++++ b/mm/rodata_test.c
+@@ -14,44 +14,52 @@
  #include <linux/uaccess.h>
-+#include <linux/prmem.h>
- #include <asm/cacheflush.h>
+ #include <asm/sections.h>
  
- /* Whether or not to fill the target memory area with do_nothing(). */
-@@ -27,6 +28,10 @@ static const unsigned long rodata = 0xAA55AA55;
- /* This is marked __ro_after_init, so it should ultimately be .rodata. */
- static unsigned long ro_after_init __ro_after_init = 0x55AA5500;
+-static const int rodata_test_data = 0xC3;
++#define INIT_TEST_VAL 0xC3
  
-+/* This is marked __wr_after_init, so it should be in .rodata. */
-+static
-+unsigned long wr_after_init __wr_after_init = 0x55AA5500;
+-void rodata_test(void)
++static const int rodata_test_data = INIT_TEST_VAL;
 +
- /*
-  * This just returns to the caller. It is designed to be copied into
-  * non-executable memory regions.
-@@ -104,6 +109,28 @@ void lkdtm_WRITE_RO_AFTER_INIT(void)
- 	*ptr ^= 0xabcd1234;
- }
- 
-+#ifdef CONFIG_PRMEM
-+
-+void lkdtm_WRITE_WR_AFTER_INIT(void)
-+{
-+	unsigned long *ptr = &wr_after_init;
-+
-+	/*
-+	 * Verify we were written to during init. Since an Oops
-+	 * is considered a "success", a failure is to just skip the
-+	 * real test.
-+	 */
-+	if ((*ptr & 0xAA) != 0xAA) {
-+		pr_info("%p was NOT written during init!?\n", ptr);
-+		return;
-+	}
-+
-+	pr_info("attempting bad wr_after_init write at %p\n", ptr);
-+	*ptr ^= 0xabcd1234;
-+}
-+
-+#endif
-+
- void lkdtm_WRITE_KERN(void)
++static bool test_data(char *data_type, const int *data,
++		      unsigned long start, unsigned long end)
  {
- 	size_t size;
-@@ -200,4 +227,6 @@ void __init lkdtm_perms_init(void)
- 	/* Make sure we can write to __ro_after_init values during __init */
- 	ro_after_init |= 0xAA;
+-	unsigned long start, end;
+ 	int zero = 0;
  
-+	/* Make sure we can write to __wr_after_init during __init */
-+	wr_after_init |= 0xAA;
+ 	/* test 1: read the value */
+ 	/* If this test fails, some previous testrun has clobbered the state */
+-	if (!rodata_test_data) {
+-		pr_err("test 1 fails (start data)\n");
+-		return;
++	if (*data != INIT_TEST_VAL) {
++		pr_err("%s: test 1 fails (init data value)\n", data_type);
++		return false;
+ 	}
+ 
+ 	/* test 2: write to the variable; this should fault */
+-	if (!probe_kernel_write((void *)&rodata_test_data,
+-				(void *)&zero, sizeof(zero))) {
+-		pr_err("test data was not read only\n");
+-		return;
++	if (!probe_kernel_write((void *)data, (void *)&zero, sizeof(zero))) {
++		pr_err("%s: test data was not read only\n", data_type);
++		return false;
+ 	}
+ 
+ 	/* test 3: check the value hasn't changed */
+-	if (rodata_test_data == zero) {
+-		pr_err("test data was changed\n");
+-		return;
++	if (*data != INIT_TEST_VAL) {
++		pr_err("%s: test data was changed\n", data_type);
++		return false;
+ 	}
+ 
+ 	/* test 4: check if the rodata section is PAGE_SIZE aligned */
+-	start = (unsigned long)__start_rodata;
+-	end = (unsigned long)__end_rodata;
+ 	if (start & (PAGE_SIZE - 1)) {
+-		pr_err("start of .rodata is not page size aligned\n");
+-		return;
++		pr_err("%s: start of data is not page size aligned\n",
++		       data_type);
++		return false;
+ 	}
+ 	if (end & (PAGE_SIZE - 1)) {
+-		pr_err("end of .rodata is not page size aligned\n");
+-		return;
++		pr_err("%s: end of data is not page size aligned\n",
++		       data_type);
++		return false;
+ 	}
++	pr_info("%s tests were successful", data_type);
++	return true;
++}
+ 
+-	pr_info("all tests were successful\n");
++void rodata_test(void)
++{
++	test_data("rodata", &rodata_test_data,
++		  (unsigned long)&__start_rodata,
++		  (unsigned long)&__end_rodata);
  }
 -- 
 2.19.1
