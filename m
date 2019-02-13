@@ -7,102 +7,102 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CE15BC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 797EEC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 818B4222CC
-	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 29FE1222C9
+	for <linux-mm@archiver.kernel.org>; Wed, 13 Feb 2019 22:42:37 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qXZ2Vu+P"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 818B4222CC
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="TIw6rtOy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 29FE1222C9
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 330FC8E000B; Wed, 13 Feb 2019 17:42:33 -0500 (EST)
+	id D4A5F8E000C; Wed, 13 Feb 2019 17:42:36 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2BCA08E0001; Wed, 13 Feb 2019 17:42:33 -0500 (EST)
+	id C83318E0001; Wed, 13 Feb 2019 17:42:36 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 15B248E000B; Wed, 13 Feb 2019 17:42:33 -0500 (EST)
+	id AD0EF8E000C; Wed, 13 Feb 2019 17:42:36 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B4D358E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 17:42:32 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id a5so1457229wrq.3
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 14:42:32 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 58C7D8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 17:42:36 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id v16so1412489wru.8
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 14:42:36 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=hKpBmvKhY62YcE+qk2JyFeoOHJdEVTVCpq3mJ7wKHeo=;
-        b=TEsw0RV/yt56MmyinZrc1YdXA9lUlJiHPhRAeBdetnXO+tQydvDdL9eOUgYyb8mc+9
-         /K63Y6f0t6lqMRynwDmExGpslUbgcCpc49XHbgty2u+VqnOH90ed4OQM2bORSPtY2csl
-         4aLUJSrvdVArGqjcirrOrTgNWcgURRlVOhYaI7YMnscDqzRWQFGcovu95JCFdk9Hfnen
-         IK62x3FDcd2QfWXv7b9piM7uDp7xt3hidK1vqNZdsSu0RhydYPBfBRcbc35Y+bfnkWwI
-         +adOWcvCV3sbd5CHrk8z3IuGqDHcVwAbCDvHzSABGIryWoqhoSu/SHuXgNExZ3k691p5
-         0DjA==
-X-Gm-Message-State: AHQUAuZ95tRoKJR/1tvXvBqd9ycAbHPnjPDn+gA2+16NTCt9Jrtdba79
-	kxajjMmqePoS1vo2vIxVO6wz+qh5wir2ycTTDA2dzGYJqk8DkOcGgyu2c/nsJxW9CgjHpppWct2
-	SWMD7hcYva2dZtzRoTF50t4E73X4hvfmJoFivQkWt/wDCJZvuGiI5rYhAMIV4N38VfwEmmR9ZXo
-	shzLllGTz82PcIOGUvx89InEe9G0eNHApBchJ8YECMj1RA3SbOMi2zKe9Ii4PfGE1pxl82SaBYY
-	CwsFs5fjTT25C+msrTk8dMMApaMDGVB1exMtB+zbuxJzO0HJYFuZ7QDM4rpxuFWWGeBHboXRmz4
-	8s/hijTE6k7pNQkWsZ/37ydAKNRKQAfCXl0PnMpOBDy6/mW9bkH9MxpRrBzqQSFXJ8uuO80GKnX
-	s
-X-Received: by 2002:a05:6000:8a:: with SMTP id m10mr275939wrx.79.1550097752247;
-        Wed, 13 Feb 2019 14:42:32 -0800 (PST)
-X-Received: by 2002:a05:6000:8a:: with SMTP id m10mr275899wrx.79.1550097750960;
-        Wed, 13 Feb 2019 14:42:30 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550097750; cv=none;
+        bh=wCRDB9N5TtYa3rCa6suYTZMLeDPPoUYVjqLC9Yos7dc=;
+        b=cdOjLiwO7XO5HxdXXeYdPsMOM36a+2bpVHyRjFz2mq59GWbXmvU0F+mNk505zcQZXO
+         RiPC2AS0DFyykP5CsWWy0RlQumh7/8xGlF+dHVr7NSbJ72LxKmks6sn8A03fdmcvsa+f
+         7Q+t+ynqO2R3kAgF4mSunxTZj3UKH/faCpLNCWqOJRvXAqVe1fSswCU2hcL/GLuvAAX5
+         JLoghOaWOzCwxnNWwF5FD9WBUtSsK3AsOR3AeGbMhlxvvD7sL0cAoO9UfjirwObPOiI+
+         jGJhE9r625kEKMhnB3RnK2HScVyD9cC1d/NXzj81899phEy/7ctHo1Cl8WSieSK9xp9L
+         7D9Q==
+X-Gm-Message-State: AHQUAuaO7UcDglJ6Isx34/J5wV4QDI+e4M9vkL2CWtzvX5hOYH9rdexJ
+	ibyU/zpbA98eOGm0eVhr4sOqhhBIOpNYR+w9XoDJenMVGSnlQltigazYHBuvIku93otagErpmvY
+	YJiDNMGO/t3APbzZ/+0H5X8k7F+qFJs8Z+uRt8/51OjpVUj8iS6Is5lRag+DJYTFcB15OK1oZ6Y
+	v+OAbBZowQpRgUmZNolbH8EKpYlGIRIZFp0kvZ/ZUhctzMhX0xVGBI0RUi46IjhA3R/5+uL7U/w
+	Mw67jwjd6puw+1qKox9kxGthBgaxlpYoDXKezzRbJAj6CjUN2XI+qRqBaecMqYZ05GfzqIoJxq5
+	u1CM6A8I7Af+z9p2KHttGXHHNKkVt0UVPWVSjjAtw0IQFCeNwe242AAuL2hiQ9dTR6uaL7MbOcn
+	x
+X-Received: by 2002:a5d:574e:: with SMTP id q14mr298614wrw.200.1550097755860;
+        Wed, 13 Feb 2019 14:42:35 -0800 (PST)
+X-Received: by 2002:a5d:574e:: with SMTP id q14mr298579wrw.200.1550097754523;
+        Wed, 13 Feb 2019 14:42:34 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550097754; cv=none;
         d=google.com; s=arc-20160816;
-        b=MXoPx6AA0DGx+bCiw3zA/U1oMPZbInGiAjFdOvYSZDxuvQgLoNuoiGcabwilRn1u0y
-         65jGnH+O5iyvVRi5gA3/m9nfiRIwnNp1WpgJ7n++4TC5JIDOR103TnQ9meFVgWx3vEgE
-         w7WuS/SPp5/3unjYcBbQe5xfiwrbKdsJGAFEdCwhdjAc+35sby+F5e9KXh26iUTIe/AT
-         xjmmvDKgVZUhCmlvPjkq+ZfxsQ8IPObg4D8/4GwHF2ua0eWMo83DQDI6wLNK/+KrUhFP
-         7w2W8972aUE2tSgJzzzUNKM6ffGfW0gT1nyJg1zwpTyqxwkSdsFHJouZTbUFJ6mU239O
-         AuMA==
+        b=LzK6ymFHPJTr7EnEodFjXx2YhaOXP5odfqdBebzvTHeoX8+qJLxDRD506I1xOAhvQE
+         PhwYY2RTazTA49trwFg7ogTytBkVNTELjAo+i7C0KhSTiRXeo0Bq6qujKCiS5kGcSg/k
+         Xdp8o0rSROp+3nwRYIXcOwWgOTUhLFu9H2VwpAH2BL/1EjHl4khlR/kS7KeUfMLZoidn
+         aUPS7tpomnx9BZbFjHIk2zcE5IL5u5vAFddz3ymFZE6CHhZPvpK7DmVh5Wq0gNiYjQzo
+         /lh9fYCZORQV0ssJslEFOHQlrgjkrrKEuUy9u3Zb5FMqCHSuYaN0VYpWvJHu02ptBo1+
+         I6Ug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature;
-        bh=hKpBmvKhY62YcE+qk2JyFeoOHJdEVTVCpq3mJ7wKHeo=;
-        b=f42xJrwhGv1A70CD5Z8/KufVOMePqBQHo2gH7o8skyhBgtl0B5H9TydjuorwG4LdgB
-         kTlbOB8m021/CC0xN2bBLe3hR2E4gJiyeDD1Xb53X54mrUR5MWbeifL+st523PyzPBQY
-         Twla9AVZZxONWYx5AWD1nR2rBjc9XrlKHAEjA0dmNHayOYzLZ2LFIOP37P2u/b9Zi4Rp
-         S64sVhmMGhjwb/35GYnIms2n63i+sfPYN2ZS/0HB46cVdG44PZnx893vIroKPf6JDJf4
-         G6kQnsf4ElpHHOmONHxijzNEyJ4Gz+5zFXwdEW3pu+AH/LJYRccTZAIMEVh+Gv9QX/R2
-         RC1Q==
+        bh=wCRDB9N5TtYa3rCa6suYTZMLeDPPoUYVjqLC9Yos7dc=;
+        b=cstqDxU3KLx3qYKdD9ZEMSwEiK5kj/AD6gZgzyYE5wcKcXWckTw5amOoSewC3z4dVo
+         qVHJOOosffpUhVGjPeMC10DKG6eoJ96avkfYuwvX+oaqMXbKVbBATkZDZgTL4jgOzmfj
+         QlsfPZjDvuYNSZPipC+FHUyWJmcAIMMq7gKjGm2fKFikzjrYb9dsmDVxei0Z5qh2oAxF
+         hAssfK82gtA367AuUHm2RNN5q4v/hFEToBd/I1jKH2S96pxFaSnGqSBBk3itj1Jgz7fm
+         HdoarRT9+ZNSqSFdRjQmdc4CaiOdPy8bIPsJtrgdh+rqGK6JEl3hDpIaXlqK5ZVQxmPa
+         i72g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qXZ2Vu+P;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TIw6rtOy;
        spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t12sor383128wrw.18.2019.02.13.14.42.30
+        by mx.google.com with SMTPS id y4sor397304wrh.6.2019.02.13.14.42.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 13 Feb 2019 14:42:30 -0800 (PST)
+        Wed, 13 Feb 2019 14:42:34 -0800 (PST)
 Received-SPF: pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qXZ2Vu+P;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TIw6rtOy;
        spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references:reply-to
          :mime-version:content-transfer-encoding;
-        bh=hKpBmvKhY62YcE+qk2JyFeoOHJdEVTVCpq3mJ7wKHeo=;
-        b=qXZ2Vu+P6kthMEkjo4iNmgotT7rvJqsgrxxwiFIZl81jupiKBpLSUH2abdTiMlSLJs
-         YahkFPUw4qFNOTutD7eS0RkUg8/4x71BFfYo03YVardx8EzGJKYPhLTp7k9S+a53JLMv
-         M0pdfY2WiUJrH05PCxiQNB/qHgXxlZuJ3TU+QrEu0FcGIo457jatHpc7OPuJqaa9AZl6
-         RGP/Zel8+olUZCL6uwyRtRpnAnITyKhXcOeL8t64zoh8KvFaWjZqdhMCNOoDamFRVbxm
-         WFsxWPvhhEzgW6QvSW1k6TbPE36aOAgqq9OpmuIO5LEScw602S7o8oXyO3Tc0d4i2nNa
-         pjag==
-X-Google-Smtp-Source: AHgI3IawnVj1KBrwvlzP2l4yYPQzxhp3IgPK38fpbbnsPGtbn+e/GwYjxoGB2EAAlzWjGvPfKesd0w==
-X-Received: by 2002:a5d:538a:: with SMTP id d10mr283768wrv.121.1550097750621;
-        Wed, 13 Feb 2019 14:42:30 -0800 (PST)
+        bh=wCRDB9N5TtYa3rCa6suYTZMLeDPPoUYVjqLC9Yos7dc=;
+        b=TIw6rtOyjaONtQsjhIlQpVLu2ZEQ+rEV+L3V2lcYZ0in1bYgfu7uBdU5k23yOKY1fu
+         XU9Mxu+MU2HuBZVjPKxLOXmTqy6w5940ncoJTA0nr67mtrVOFBX5c7KM91Yn0FA0U+gb
+         NkowSC0nyRckPRsIDwiUOslXXKxWKbadr043RBh+Cga1oyqFagDiS1WiT3agTR3Z3Plu
+         fRTH0dNdS7wH4tCEuMF81FGEoyLIjYgzlBohqqUYqT/CNuZAGcMsdUKrgkAs2UI+h4WS
+         +d4L7KdQHozJkRft3bsWZnCXq4PzN7QJ3ZozDtfNsKw6lEYxQuWxNq8TgDGfZhsGgqBp
+         zF9A==
+X-Google-Smtp-Source: AHgI3Ial7QSwV8vc2DB+PujK1Kt2IXsKfk76ElX0Wf6gNMPti4q1AkMfAbFdrtoGcQolDZsKqU9/qg==
+X-Received: by 2002:adf:fa51:: with SMTP id y17mr292984wrr.233.1550097754132;
+        Wed, 13 Feb 2019 14:42:34 -0800 (PST)
 Received: from localhost.localdomain ([91.75.74.250])
-        by smtp.gmail.com with ESMTPSA id f196sm780810wme.36.2019.02.13.14.42.27
+        by smtp.gmail.com with ESMTPSA id f196sm780810wme.36.2019.02.13.14.42.30
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 14:42:30 -0800 (PST)
+        Wed, 13 Feb 2019 14:42:33 -0800 (PST)
 From: Igor Stoppa <igor.stoppa@gmail.com>
 X-Google-Original-From: Igor Stoppa <igor.stoppa@huawei.com>
 To: 
@@ -120,9 +120,9 @@ Cc: Igor Stoppa <igor.stoppa@huawei.com>,
 	kernel-hardening@lists.openwall.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC PATCH v5 10/12] __wr_after_init: rodata_test: test __wr_after_init
-Date: Thu, 14 Feb 2019 00:41:39 +0200
-Message-Id: <c46757d8e40a2c4269c2a5376f7d96b17b81f250.1550097697.git.igor.stoppa@huawei.com>
+Subject: [RFC PATCH v5 11/12] __wr_after_init: test write rare functionality
+Date: Thu, 14 Feb 2019 00:41:40 +0200
+Message-Id: <16a099a9d40e00591b106676eb7f18cc304b1f85.1550097697.git.igor.stoppa@huawei.com>
 X-Mailer: git-send-email 2.19.1
 In-Reply-To: <cover.1550097697.git.igor.stoppa@huawei.com>
 References: <cover.1550097697.git.igor.stoppa@huawei.com>
@@ -135,8 +135,9 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The write protection of the __wr_after_init data can be verified with the
-same methodology used for const data.
+Set of test cases meant to confirm that the write rare functionality
+works as expected.
+It can be optionally compiled as module.
 
 Signed-off-by: Igor Stoppa <igor.stoppa@huawei.com>
 
@@ -154,54 +155,187 @@ CC: kernel-hardening@lists.openwall.com
 CC: linux-mm@kvack.org
 CC: linux-kernel@vger.kernel.org
 ---
- mm/rodata_test.c | 27 ++++++++++++++++++++++++---
- 1 file changed, 24 insertions(+), 3 deletions(-)
+ mm/Kconfig.debug           |   8 +++
+ mm/Makefile                |   1 +
+ mm/test_write_rare.c (new) | 142 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 151 insertions(+)
 
-diff --git a/mm/rodata_test.c b/mm/rodata_test.c
-index e1349520b436..a669cf9f5a61 100644
---- a/mm/rodata_test.c
-+++ b/mm/rodata_test.c
-@@ -16,8 +16,23 @@
- 
- #define INIT_TEST_VAL 0xC3
- 
+diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
+index 9a7b8b049d04..a62c31901fea 100644
+--- a/mm/Kconfig.debug
++++ b/mm/Kconfig.debug
+@@ -94,3 +94,11 @@ config DEBUG_RODATA_TEST
+     depends on STRICT_KERNEL_RWX
+     ---help---
+       This option enables a testcase for the setting rodata read-only.
++
++config DEBUG_PRMEM_TEST
++    tristate "Run self test for statically allocated protected memory"
++    depends on PRMEM
++    default n
++    help
++      Tries to verify that the protection for statically allocated memory
++      works correctly and that the memory is effectively protected.
+diff --git a/mm/Makefile b/mm/Makefile
+index ef3867c16ce0..8de1d468f4e7 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -59,6 +59,7 @@ obj-$(CONFIG_SPARSEMEM_VMEMMAP) += sparse-vmemmap.o
+ obj-$(CONFIG_SLOB) += slob.o
+ obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
+ obj-$(CONFIG_PRMEM) += prmem.o
++obj-$(CONFIG_DEBUG_PRMEM_TEST) += test_write_rare.o
+ obj-$(CONFIG_KSM) += ksm.o
+ obj-$(CONFIG_PAGE_POISONING) += page_poison.o
+ obj-$(CONFIG_SLAB) += slab.o
+diff --git a/mm/test_write_rare.c b/mm/test_write_rare.c
+new file mode 100644
+index 000000000000..e9ebc8e12041
+--- /dev/null
++++ b/mm/test_write_rare.c
+@@ -0,0 +1,142 @@
++// SPDX-License-Identifier: GPL-2.0
++
 +/*
-+ * Note: __ro_after_init data is, for every practical effect, equivalent to
-+ * const data, since they are even write protected at the same time; there
-+ * is no need for separate testing.
-+ * __wr_after_init data, otoh, is altered also after the write protection
-+ * takes place and it cannot be exploitable for altering more permanent
-+ * data.
++ * test_write_rare.c
++ *
++ * (C) Copyright 2018 Huawei Technologies Co. Ltd.
++ * Author: Igor Stoppa <igor.stoppa@huawei.com>
 + */
 +
- static const int rodata_test_data = INIT_TEST_VAL;
- 
-+#ifdef CONFIG_PRMEM
-+static int wr_after_init_test_data __wr_after_init = INIT_TEST_VAL;
-+extern long __start_wr_after_init;
-+extern long __end_wr_after_init;
++#include <linux/init.h>
++#include <linux/module.h>
++#include <linux/mm.h>
++#include <linux/bug.h>
++#include <linux/string.h>
++#include <linux/prmem.h>
++
++#ifdef pr_fmt
++#undef pr_fmt
 +#endif
 +
- static bool test_data(char *data_type, const int *data,
- 		      unsigned long start, unsigned long end)
- {
-@@ -59,7 +74,13 @@ static bool test_data(char *data_type, const int *data,
- 
- void rodata_test(void)
- {
--	test_data("rodata", &rodata_test_data,
--		  (unsigned long)&__start_rodata,
--		  (unsigned long)&__end_rodata);
-+	if (!test_data("rodata", &rodata_test_data,
-+		       (unsigned long)&__start_rodata,
-+		       (unsigned long)&__end_rodata))
-+		return;
-+#ifdef CONFIG_PRMEM
-+	    test_data("wr after init data", &wr_after_init_test_data,
-+		      (unsigned long)&__start_wr_after_init,
-+		      (unsigned long)&__end_wr_after_init);
-+#endif
- }
++#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
++
++extern long __start_wr_after_init;
++extern long __end_wr_after_init;
++
++static __wr_after_init int scalar = '0';
++static __wr_after_init u8 array[PAGE_SIZE * 3] __aligned(PAGE_SIZE);
++
++/* The section must occupy a non-zero number of whole pages */
++static bool test_alignment(void)
++{
++	unsigned long pstart = (unsigned long)&__start_wr_after_init;
++	unsigned long pend = (unsigned long)&__end_wr_after_init;
++
++	if (WARN((pstart & ~PAGE_MASK) || (pend & ~PAGE_MASK) ||
++		 (pstart >= pend), "Boundaries test failed."))
++		return false;
++	pr_info("Boundaries test passed.");
++	return true;
++}
++
++static bool test_pattern(void)
++{
++	if (memchr_inv(array, '0', PAGE_SIZE / 2))
++		return pr_info("Pattern part 1 failed.");
++	if (memchr_inv(array + PAGE_SIZE / 2, '1', PAGE_SIZE * 3 / 4) )
++		return pr_info("Pattern part 2 failed.");
++	if (memchr_inv(array + PAGE_SIZE * 5 / 4, '0', PAGE_SIZE / 2))
++		return pr_info("Pattern part 3 failed.");
++	if (memchr_inv(array + PAGE_SIZE * 7 / 4, '1', PAGE_SIZE * 3 / 4))
++		return pr_info("Pattern part 4 failed.");
++	if (memchr_inv(array + PAGE_SIZE * 5 / 2, '0', PAGE_SIZE / 2))
++		return pr_info("Pattern part 5 failed.");
++	return 0;
++}
++
++static bool test_wr_memset(void)
++{
++	int new_val = '1';
++
++	wr_memset(&scalar, new_val, sizeof(scalar));
++	if (WARN(memchr_inv(&scalar, new_val, sizeof(scalar)),
++		 "Scalar write rare memset test failed."))
++		return false;
++
++	pr_info("Scalar write rare memset test passed.");
++
++	wr_memset(array, '0', PAGE_SIZE * 3);
++	if (WARN(memchr_inv(array, '0', PAGE_SIZE * 3),
++		 "Array page aligned write rare memset test failed."))
++		return false;
++
++	wr_memset(array + PAGE_SIZE / 2, '1', PAGE_SIZE * 2);
++	if (WARN(memchr_inv(array + PAGE_SIZE / 2, '1', PAGE_SIZE * 2),
++		 "Array half page aligned write rare memset test failed."))
++		return false;
++
++	wr_memset(array + PAGE_SIZE * 5 / 4, '0', PAGE_SIZE / 2);
++	if (WARN(memchr_inv(array + PAGE_SIZE * 5 / 4, '0', PAGE_SIZE / 2),
++		 "Array quarter page aligned write rare memset test failed."))
++		return false;
++
++	if (WARN(test_pattern(), "Array write rare memset test failed."))
++		return false;
++
++	pr_info("Array write rare memset test passed.");
++	return true;
++}
++
++static u8 array_1[PAGE_SIZE * 2];
++static u8 array_2[PAGE_SIZE * 2];
++
++static bool test_wr_memcpy(void)
++{
++	int new_val = 0x12345678;
++
++	wr_assign(scalar, new_val);
++	if (WARN(memcmp(&scalar, &new_val, sizeof(scalar)),
++		 "Scalar write rare memcpy test failed."))
++		return false;
++	pr_info("Scalar write rare memcpy test passed.");
++
++	wr_memset(array, '0', PAGE_SIZE * 3);
++	memset(array_1, '1', PAGE_SIZE * 2);
++	memset(array_2, '0', PAGE_SIZE * 2);
++	wr_memcpy(array + PAGE_SIZE / 2, array_1, PAGE_SIZE * 2);
++	wr_memcpy(array + PAGE_SIZE * 5 / 4, array_2, PAGE_SIZE / 2);
++
++	if (WARN(test_pattern(), "Array write rare memcpy test failed."))
++		return false;
++
++	pr_info("Array write rare memcpy test passed.");
++	return true;
++}
++
++static __wr_after_init int *dst;
++static int reference = 0x54;
++
++static bool test_wr_rcu_assign_pointer(void)
++{
++	wr_rcu_assign_pointer(dst, &reference);
++	return dst == &reference;
++}
++
++static int __init test_static_wr_init_module(void)
++{
++	pr_info("static write rare test");
++	if (WARN(!(test_alignment() &&
++		   test_wr_memset() &&
++		   test_wr_memcpy() &&
++		   test_wr_rcu_assign_pointer()),
++		 "static write rare test failed"))
++		return -EFAULT;
++	pr_info("static write rare test passed");
++	return 0;
++}
++
++module_init(test_static_wr_init_module);
++
++MODULE_LICENSE("GPL v2");
++MODULE_AUTHOR("Igor Stoppa <igor.stoppa@huawei.com>");
++MODULE_DESCRIPTION("Test module for static write rare.");
 -- 
 2.19.1
 
