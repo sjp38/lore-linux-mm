@@ -2,175 +2,158 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6218FC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 10:59:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CCE75C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 11:00:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2B2FB222A1
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 10:59:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B2FB222A1
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
+	by mail.kernel.org (Postfix) with ESMTP id 8032D222A1
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 11:00:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="QW7XapRi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8032D222A1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B3F028E0002; Thu, 14 Feb 2019 05:59:28 -0500 (EST)
+	id 3776D8E0002; Thu, 14 Feb 2019 06:00:53 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AC8C98E0001; Thu, 14 Feb 2019 05:59:28 -0500 (EST)
+	id 2FEE68E0001; Thu, 14 Feb 2019 06:00:53 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 991F38E0002; Thu, 14 Feb 2019 05:59:28 -0500 (EST)
+	id 17AB98E0002; Thu, 14 Feb 2019 06:00:53 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D3248E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 05:59:28 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id d9so2329997edl.16
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 02:59:28 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D15428E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 06:00:52 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id x134so4479568pfd.18
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 03:00:52 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=OLGi4+bVgT+IBRSUTh+5UpvDZCcRO6jlzjyKTzE7H+U=;
-        b=FO1GZGrRIeGWWtgfWBzHTcKmyUbYI4cZnQO/wOZrvk0Hou/ew//fpcZXLWa9Pfr/6S
-         UQzD51R0wPwSlkJnCP2r1Jk9kdR3cw9TFoCAtUeI468gi1wOe7XCqu6y2y1J+beHBRRO
-         NyWpU+m26Pqc77HVIdlraC77GPSDiVmwLvz9hXAmpPhEXWX8JYJDwbFuH2dvtaiSjfeg
-         c3aPnWVwI1Q34EYht4SE2KXXPJcEdevoWMClmfnVYjahNrixRkJiXYom0/iyVfgCYtIn
-         4ug/PfngjHJIHZlj9d+0PyJIcuHUxzfnT5TJuM/qmt8XTeRRXyheEUbCuYdgJiIxGOyz
-         KmQQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.193 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: AHQUAub2FDpVk3AcA9mRgkrJ0FA07n0oMBnzaa+8FKyu1iLsCwgCfLXY
-	y54m8pR5wtHaPsMjNb0cDSAyLPqabEqza6tYm/EUD7KCDHCh9tMm83Ds+SmA/j/Pre/nlUM2E2q
-	0G4+rat4JRJcAfJFm9xsgKVcYlEVw8LoxvvrLOwTeT3Mot4hBO5FuPqtkC9phlo4=
-X-Received: by 2002:a17:906:a94c:: with SMTP id hh12mr2372410ejb.168.1550141967775;
-        Thu, 14 Feb 2019 02:59:27 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IY4SPjAAHFj0yzQyycMexMvV9sINdo2dKPiwi8Zey8qQ9j1SAqF9dllx4ddiG9ytJ1B7QK1
-X-Received: by 2002:a17:906:a94c:: with SMTP id hh12mr2372365ejb.168.1550141966816;
-        Thu, 14 Feb 2019 02:59:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550141966; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=oBoYKrHmkB0DE74B1po/8VDjK8Xr/YU8KGJgp6PsWoo=;
+        b=JJcS8D6N+xTUf/douwFLynN1/sDbBYgy17QV9UYvtHdJBMzJZ25LAImSW1IKZnHkH5
+         KQhRUjWHEsrGgPVYhfO9WgUVxRxZ9vsbrIWK0CO4ukHdxSJI+R2b57ntU+rCaclk9Lg0
+         cOBDyDUGbcIMNXAib3jMFZeXc6jZOrTwB68p5fVc4LMciYtAULqwBb5xPIXqOi6j7Ixc
+         sdzexHmbZfvmZDLDtaSozHX//SL+Yrh/ONwXLSUKV6kW66VTVIRRlVuyBJBWQreBcEdA
+         U8+z3+SnP6fzSbOh406ovpp2x5Tky80Ff7AKUHSR1yOhqw0lVwiyUhcNwV9g2h42qL8T
+         Yd+w==
+X-Gm-Message-State: AHQUAuY+DJ6QPWOCOrEbbpC6Lp18Ga6DcKpvorVEmHHPwNKLxogGWH0s
+	QMSvLU8/HOWiKgTiG2kYYTDPDTXCwtC1FuyPaiIHjf9p+zpcd7yc9jEyEzXvz6djZDFDzDrS9Y2
+	Tqh3rg6p8BHoBRkO23qIW+ZR/EKg6U5XAMcikFrpLEahKEi7mhWTkBqS2pTAPbnNrIw==
+X-Received: by 2002:a17:902:f24:: with SMTP id 33mr3494748ply.65.1550142052392;
+        Thu, 14 Feb 2019 03:00:52 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYoDR7QGix/Bu27E/HkOZZkJGHb2e4a0+4QiYx0IMbyaM0GaogGSsxGntG/7XhXYfITxBVY
+X-Received: by 2002:a17:902:f24:: with SMTP id 33mr3494686ply.65.1550142051761;
+        Thu, 14 Feb 2019 03:00:51 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550142051; cv=none;
         d=google.com; s=arc-20160816;
-        b=kxFGQax5NeXxLwUNmfalW6OqJ0F2euk4wFidcwqr+HdZIciT9Nl71sfDciUZWEAXRB
-         fGNJWWzXt6J7hSAcEM8NZU/vNxAZUSBkygjh/6jp8fpneN6DwP+aHFb11rU9l1P/5jf4
-         1KgfPJn6YZbultLWe2hdXSUlnkqn6eVeKKBCHJCD0rx7aTpo29JQZiYcfH/Io7kPxzDk
-         iytY5UIn8aG5LpHIobTfBHj4NafAQjcnFXLeL/sbg6VH44l7pWCtn1tVqTKcaL0jh/eT
-         MCgXyaKMmRO1V4r/upkXeilhZUzS/vcNzFxsTyrSCPffMWOYyK9J7t/Dse1mNVgNvXb0
-         DFvw==
+        b=gY+HELQMpD4KTjlyGObNjS3QhgPH7OJ4BqaTgrStdWoTqL2Knuzq8oAxcgI3CZAN8Y
+         7cPBvU6nygkePcI3IKmWedygpmyxoe1Kb/kRpkClG7PAhFFm4uF8bK7oLz8AyQNVsCNy
+         5BaXTliJKxwf9q5iVQAW8jONlquopE+d6P7wKtgFiutha9g0PsDu9zGcCDozzkxQlWQe
+         B66Prcm9zo/nDL+ifWZRVN07/XbSIxV5VcjRiRXQagr4Tmltom2q6fQGtY49mqs7L1fv
+         +vKcVBESWogXO2Ql3Z40a08TY5Mg4wXJE3uIKiNhsN/qacEX4d717gzYW0nUBlJVvdue
+         Jfcg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:to:subject;
-        bh=OLGi4+bVgT+IBRSUTh+5UpvDZCcRO6jlzjyKTzE7H+U=;
-        b=ItcBdm7lCGkbuX6pC/1m/ycFQDXT+fJE8gAbDubNCFk7G+1cFWfRHmwIACBY3GNm4M
-         MtEeTAAdKLeAabmuLDh3FPSn2d9PmUYBkwOEFzvglbvLRHanZGV2oO+SPcPa7K+sefIc
-         ZZH2LWm5CLqdl33ReGkosg4/yjp2g8hT/LYPQ6nreJKqOMZik6n/sxSOZxs+28kFDEB6
-         8ymWpikBC+895jOheL4z4tAWvIzfVDoFSlKHjbKcmrE+76cXF2KIIB96jnRF9ETtYgGD
-         UcBrPsMPar6I34qjqR3SDv1XrbAzmKPMEH/F7sDk6k2ig5jTDrzHvmXL8LohYWTFToDy
-         ePkg==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=oBoYKrHmkB0DE74B1po/8VDjK8Xr/YU8KGJgp6PsWoo=;
+        b=ND7YZFZ4TDrlDCrxzbn9gdALd0zh39j0e3A94rBBLZjaaS5Zug7KcxcTlq/L/rS3s/
+         3STZx1ofSQZwDaRusTPL3y6sa5a4luFNKxS5HBau/p/l8N5LqBlpeicwGHAqQOF0AYsu
+         EbjKE+UEmhrv3y22u1lDwNUUxK/iMGziaAMoZ8WfheaAh1i/eHGWhDZEHhP2lG24mup1
+         ow9oaKJdgWvb6UVZ071GpD71PcRlgISS+PhhcF8bsREDisraB94Htn/CFfCkYTsE89sc
+         1YUDG3tvNwezk4Rvj8C9ESbLL3jIZnV4cgQPnRqcq6/OOFTUhW3VdcOWi2atbcH3b8KB
+         L5JQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.183.193 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay1-d.mail.gandi.net (relay1-d.mail.gandi.net. [217.70.183.193])
-        by mx.google.com with ESMTPS id o8si879676ejd.11.2019.02.14.02.59.26
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=QW7XapRi;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id 1si244980plp.114.2019.02.14.03.00.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 14 Feb 2019 02:59:26 -0800 (PST)
-Received-SPF: neutral (google.com: 217.70.183.193 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.193;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Feb 2019 03:00:51 -0800 (PST)
+Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.183.193 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Originating-IP: 81.250.144.103
-Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
-	(Authenticated sender: alex@ghiti.fr)
-	by relay1-d.mail.gandi.net (Postfix) with ESMTPSA id 87261240005;
-	Thu, 14 Feb 2019 10:59:18 +0000 (UTC)
-Subject: Re: [PATCH v2] hugetlb: allow to free gigantic pages regardless of
- the configuration
-To: Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@intel.com>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
- x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
- Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
- Alexander Viro <viro@zeniv.linux.org.uk>,
- Mike Kravetz <mike.kravetz@oracle.com>,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-References: <20190213192610.17265-1-alex@ghiti.fr>
- <d367b5c7-eb05-6d0b-f9bf-5b3fc3f392a9@intel.com>
- <bcffa37e-22cd-f0d7-ee85-769c0d54520a@suse.cz>
-From: Alexandre Ghiti <alex@ghiti.fr>
-Message-ID: <3f694efe-c8d4-d0b0-a3eb-127d1a6b0fd0@ghiti.fr>
-Date: Thu, 14 Feb 2019 11:59:18 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.5.2
-MIME-Version: 1.0
-In-Reply-To: <bcffa37e-22cd-f0d7-ee85-769c0d54520a@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=QW7XapRi;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1EAwecb195540;
+	Thu, 14 Feb 2019 11:00:45 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
+ mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to;
+ s=corp-2018-07-02; bh=oBoYKrHmkB0DE74B1po/8VDjK8Xr/YU8KGJgp6PsWoo=;
+ b=QW7XapRi9UF3HwATVM8EisoJD4kQ6XotQFX1LnXN6HmumbHSkpdH8Ay94BmR4UIasXhY
+ NBM0J62c1Ldk3UlG0iaMpIHQDnx7wd2HHiLpW4G9apLA1TFx55ka5XKHZsOwG1ZzjA4Z
+ p+S+iHraR3p9tQoExUD+sN7hOKiOmQT4GGpzwnBKhzOm3JU6sa860zS9MSXTwFZJ9n3V
+ bqZ9VxsYuvl+LpwvX06ThKUR+M+U9uke0mKsj/FvHWgaTwdrab4xi/M5r6V/9/IemGwC
+ n8Xzb0cZ0nqW22TH77Sfc5T+voDJwlRaZQJSMkPflW8oMtTvVcHTEM4mr3PhEMeADZsZ +g== 
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by userp2120.oracle.com with ESMTP id 2qhree7brc-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 14 Feb 2019 11:00:45 +0000
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1EB0d4H014736
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 14 Feb 2019 11:00:39 GMT
+Received: from abhmp0015.oracle.com (abhmp0015.oracle.com [141.146.116.21])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1EB0d14012698;
+	Thu, 14 Feb 2019 11:00:39 GMT
+Received: from [192.168.0.110] (/73.243.10.6)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 14 Feb 2019 11:00:39 +0000
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.2\))
+Subject: Re: [PATCH v3 1/2] x86: respect memory size limiting via mem=
+ parameter
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <20190214104240.24428-2-jgross@suse.com>
+Date: Thu, 14 Feb 2019 04:00:37 -0700
+Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xenproject.org,
+        x86@kernel.org, linux-mm@kvack.org, boris.ostrovsky@oracle.com,
+        sstabellini@kernel.org, hpa@zytor.com, tglx@linutronix.de,
+        mingo@redhat.com, bp@alien8.de
 Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Message-Id: <A93A19ED-0121-4E88-B24E-1593BEBD3384@oracle.com>
+References: <20190214104240.24428-1-jgross@suse.com>
+ <20190214104240.24428-2-jgross@suse.com>
+To: Juergen Gross <jgross@suse.com>
+X-Mailer: Apple Mail (2.3445.104.2)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9166 signatures=668683
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1902140080
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 02/14/2019 10:52 AM, Vlastimil Babka wrote:
-> On 2/13/19 8:30 PM, Dave Hansen wrote:
->>> -#if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
->>> +#ifdef CONFIG_COMPACTION_CORE
->>>   static __init int gigantic_pages_init(void)
->>>   {
->>>   	/* With compaction or CMA we can allocate gigantic pages at runtime */
->>> diff --git a/fs/Kconfig b/fs/Kconfig
->>> index ac474a61be37..8fecd3ea5563 100644
->>> --- a/fs/Kconfig
->>> +++ b/fs/Kconfig
->>> @@ -207,8 +207,9 @@ config HUGETLB_PAGE
->>>   config MEMFD_CREATE
->>>   	def_bool TMPFS || HUGETLBFS
->>>   
->>> -config ARCH_HAS_GIGANTIC_PAGE
->>> +config COMPACTION_CORE
->>>   	bool
->>> +	default y if (MEMORY_ISOLATION && MIGRATION) || CMA
->> This takes a hard dependency (#if) and turns it into a Kconfig *default*
->> that can be overridden.  That seems like trouble.
->>
->> Shouldn't it be:
->>
->> config COMPACTION_CORE
->> 	def_bool y
->> 	depends on (MEMORY_ISOLATION && MIGRATION) || CMA
-> Agreed. Also I noticed that it now depends on MIGRATION instead of
-> COMPACTION. That intention is correct IMHO, but will fail to
-> compile/link when both COMPACTION and CMA are disabled, and would need
-> more changes in mm/internal.h and mm/compaction.c (possibly just
-> replacing CMA in all "if defined CONFIG_COMPACTION || defined
-> CONFIG_CMA" instances with COMPACTION_CORE, but there might be more
-> problems, wanna try? :)
 
-Let's be honest, that's a "typo" :) Migration is logical to me but
-that's because I don't know much about compaction. Thanks for
-noticing it.
-I'll take a look at what you propose to do too.
 
->
-> Also, I realized that COMPACTION_CORE is a wrong name, sorry about that.
-> What the config really provides is alloc_contig_range(), so it should be
-> named either CONFIG_CMA_CORE (as it provides contiguous memory
-> allocation, but not the related reservation and accounting), or
-> something like CONFIG_CONTIG_ALLOC. I would also move it from fs/Kconfig
-> to mm/Kconfig.
+> On Feb 14, 2019, at 3:42 AM, Juergen Gross <jgross@suse.com> wrote:
+> 
+> When limiting memory size via kernel parameter "mem=" this should be
+> respected even in case of memory made accessible via a PCI card.
+> 
+> Today this kind of memory won't be made usable in initial memory
+> setup as the memory won't be visible in E820 map, but it might be
+> added when adding PCI devices due to corresponding ACPI table entries.
+> 
+> Not respecting "mem=" can be corrected by adding a global max_mem_size
+> variable set by parse_memopt() which will result in rejecting adding
+> memory areas resulting in a memory size above the allowed limit.
+> 
+> Signed-off-by: Juergen Gross <jgross@suse.com>
+> Acked-by: Ingo Molnar <mingo@kernel.org>
 
-No problem, I was not inspired either. I'll send a v3 with the renaming
-you propose.
-
-> Thanks!
-
-Thank you.
-
-Alex
+Reviewed-by: William Kucharski <william.kucharski@oracle.com>
 
