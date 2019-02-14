@@ -2,215 +2,178 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ED330C10F00
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 01:46:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1174CC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 01:51:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9CA27222CC
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 01:46:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B9C9321904
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 01:51:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="l5Ns9i+u"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9CA27222CC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="vSAH0Rpc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9C9321904
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F4AB8E0002; Wed, 13 Feb 2019 20:46:50 -0500 (EST)
+	id 42B418E0002; Wed, 13 Feb 2019 20:51:09 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A4178E0001; Wed, 13 Feb 2019 20:46:50 -0500 (EST)
+	id 3B3C68E0001; Wed, 13 Feb 2019 20:51:09 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 193938E0002; Wed, 13 Feb 2019 20:46:50 -0500 (EST)
+	id 2A42D8E0002; Wed, 13 Feb 2019 20:51:09 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E6CFD8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 20:46:49 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id 135so7347727itk.5
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 17:46:49 -0800 (PST)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C468C8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 20:51:08 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id v8so1562255wrt.18
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 17:51:08 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=Mv4loqm46Z/QYiGEHUXmuNKDhUS254UKT2WUxryVk2A=;
-        b=XwpmdZ/RTAcPL3HOnLlWuPHpDFX7prYDIxrKSNH5qCsgN0PX1Vq3DT/zKGSxThcG1Q
-         2DMO9e4uTLSIQ6Csc8BPoMQ/K7eaibt2xFHPjqzC8nyC3nJa3Kz3OCkRQqS13R3pBWHD
-         /5TarIx/BLvBPUUt8MKiyc+671GRJgAVsjdNDc1qNDHF+r+mJT1EuAmH06Qwyp4DqgAg
-         4iNJ8f9iwbBDGcfCTrUkR5HKFucfMlVoMZHscRCl8pI/Yba8g1TsGa3vSGeT9ibPajKN
-         ZIzl9T1om05TPTg1YAz2I95I+ztXDKZFmTpu2m9IJ8MywGwMDGr8AUW12ip1qsY/9ZSC
-         mYCQ==
-X-Gm-Message-State: AHQUAuY94IkGCKYpPHroZqOxrpCi4qwF1AEPiiZQukc9Hw2maqnSc7I3
-	/HNRon21lGijLCHwRPlojF8csmvqz+uzBHR89+6IlnIPvHv17G3u6mDepaMjnzuP7xN1BVTvUwh
-	FIIQEiuDtdlPnvBlU9atapPc3aVoNXzHxqjJyNQFaA/J8oETPKpNtSxTZVRUejSU++A==
-X-Received: by 2002:a02:234f:: with SMTP id u76mr258348jau.133.1550108809704;
-        Wed, 13 Feb 2019 17:46:49 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbeMiOLhbKT/8V5dIizM5zA15gzAwJ4381+GvNsN0ULIoVm132BpgUAy3G5KIkb+fLm+zEw
-X-Received: by 2002:a02:234f:: with SMTP id u76mr258330jau.133.1550108808947;
-        Wed, 13 Feb 2019 17:46:48 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550108808; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=F24RVbeKKB1cnCpDEq5tv60PU/vFe4EDFYXQPFBYiG4=;
+        b=sgWML6tO/c16+1VQseLNrcmSRfxiXj38daOhpcj4/7wJl+IEw83Wy1iwvdPS9PkZZg
+         t1vwDgNKasPE8njk2qfRy6qUng8Ky84C2c+ILIL5zRvD/agdiXKAsQNDwkcumqpoE7xl
+         sj94v9NKwwEqsGPYQIABt1nJMV2BTRz5JbbvXfah//8JUclrUoaDDiHNC+xXtD+K4RN7
+         HfzpEjOETaZBAs+n9neF3NU4x9Kx25FoLGA0sJoHUL5ctEBuUE/LGv3i5dMETpXV3FOv
+         PVY4ntPMsI8HoJGiHXiaL4JDeDsf/RHtlr8Gi4XyJaGH1CocOokuzbeox1KITYwn69Qm
+         X7eA==
+X-Gm-Message-State: AHQUAua2JuvdiN+t6gtzcN3JP/a+c9FmGPrygvJlZeQGKla+hupI4bjN
+	yjaer8hqhjK0ogZpcdcb2X54lX/kxJx/fpNlAGyvNvUXharEBHzS/xVjQDzK0V2W2QsbjOc19ql
+	Dve6n6y/rzn3W8twBuMONkZTKAiQ8/Y8ebNL5fS0VqMnnnFHI99jGA/LWVmHUAsMkstLzvT/3Kf
+	SvIFVjQsYqr2ECVqVoxDHDcupSTqcjWm0zv47nW+9f4HAvBWo/05ZTkBLEMRjYoWtByHdVBc+qH
+	DRHA4eH/wJoMeDQi4IOznIEH7WKYbvhLAXs9eNU74NOtDxop14J+4sVIvL16v0mrN7IuJ5X24M/
+	uO4ILAd4yS0IRwSFU4HVs7z75Mm3barorn2aT1xU/MK7tvjAOi2lcWL5I9YNF/bwPcwZ4JEY8p9
+	E
+X-Received: by 2002:a1c:8086:: with SMTP id b128mr665986wmd.117.1550109068351;
+        Wed, 13 Feb 2019 17:51:08 -0800 (PST)
+X-Received: by 2002:a1c:8086:: with SMTP id b128mr665966wmd.117.1550109067523;
+        Wed, 13 Feb 2019 17:51:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550109067; cv=none;
         d=google.com; s=arc-20160816;
-        b=chatMLGSfpArpYnuE8wWsJqFR8Xt6PXNOO0uW6AQhan1JvPdHUc8x9cvoxSmhJoGUg
-         sBzG3bJM88cjVH80SOLOM0Y0UurQLhKQws1+HBmoGQU1lCvszWlMdTKCcQs1RndkZbHs
-         u4sliMFZJ6YS3u2vLrmtUaOVdNC8HtfJqMBvZwiAzwAPhkky8GU5gXU3PJhGR4ehyaLi
-         dK0eQoAU0L5autYt5GEIsFyeGVhA//tqysB8oJOuMrNx7J50y8Mn1xdirGen10CuBrUu
-         xdhB2zrtdnnJTBltt1vd723A4NWcLaYI/plc000yaBN/SXLLWqCO8yYGj+4/IXIqNlQO
-         OU3A==
+        b=UdmZl23jNu8rDhD9HaxL59ajSbPTsVKTmtEWTUh2ZItXO/ZGZes18xQ7Jb+t84gPoA
+         LL3FOCTuA1oWX0rQ8FLSVQNTRoGytlr0tEnk82xe5hqg44p/kQYoLwVuhx3emOnaNzN0
+         VKR0D8SEi/WZfUwmNd4iSTQFFYfWsQaChK5EW/h27MCuAqDrMzgmxYFrUCVQ357ZSGwg
+         7fduMc7vM+g7x9dSx/14fnYhDt63qd59rmSdEwcI+xE/oqMRU1ZBkikcvkrRHc5XFv34
+         XxcYCrJv+1XcPRE1YUbeobV9CdCwRuA1CT3om6vb0YzjkSXxacjTVT9qALg1dH50WInr
+         wv5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Mv4loqm46Z/QYiGEHUXmuNKDhUS254UKT2WUxryVk2A=;
-        b=M62g/J3ghZpnHq8VKoz157yqWzsHnjVMCUGhz9/wZhsN5sf4mlmYI0KBEnGTKqqoNY
-         2AMTuSzwFFn3fazveyCUyjwKBeN5k4EBf8ZGwE69326Y+c0cTS6YLoGsmYXlkm7opKFS
-         7vaJ1VKa9GpU+yz3phiDBmDo10he1IW1diC+WdikSzVWeclxpYXZADdam2N/x0rUbkGL
-         COav188NlwOkQeBlXYEFMDMUtlJMNL6t9McAP2Lc1dTfQG6pEm05BhXHWh+U9HDuj3QF
-         mB7vI5tQrK0wc5oRSCWMd+hCAlaa8mZ5sm3R4bRQFaziUcoIMpp3gc9MERKcyMp8qi0A
-         dlzA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=F24RVbeKKB1cnCpDEq5tv60PU/vFe4EDFYXQPFBYiG4=;
+        b=JQkhuhuSIPtzR1/gIuM2jPO8HkvkjAjytcz3TddNfTZaNYubOIFvAmiGFfH5u5wvux
+         MedLfMvDXrpcVJFbSf5bwIKjMBWeOWW3gs5nGAp6z1mkGuXR9719b8kDEsGNthVmRJ98
+         /9nIoD417tOfYc/sEl1IN+w3grUKTyVGeAM3tB5oe7eSeCLvWupW2g1WIQAltxtxKbwu
+         qqCtD5CIc6xhybCBzjkSrHzZqs104c2WLp1vEj60zyqoI6pSqRLGWNzJG2QGJ6PRHkR7
+         crsrHkvX2TIs6YXsHh4xINwu5wRVs8Dip02txR2cJfpMZnzc3qLBzz/2lEGODGHnQrpe
+         oopg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=l5Ns9i+u;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id 135si551543itk.12.2019.02.13.17.46.48
+       dkim=pass header.i=@google.com header.s=20161025 header.b=vSAH0Rpc;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 3sor565237wrs.49.2019.02.13.17.51.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 17:46:48 -0800 (PST)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        (Google Transport Security);
+        Wed, 13 Feb 2019 17:51:07 -0800 (PST)
+Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=l5Ns9i+u;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1E1iCen164153;
-	Thu, 14 Feb 2019 01:46:18 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=Mv4loqm46Z/QYiGEHUXmuNKDhUS254UKT2WUxryVk2A=;
- b=l5Ns9i+utIL6ouIO9ODcBGb2oeY93cHhqOnXNv/2L29/pPR6gQtogJBiAgwh9JhEDnjk
- wLlOschNbcSVtu+yXoUJxhfVmiT3SZtitv+c1TY9bBFbmXPPifAIQ26UFWXPYn2VeyOA
- t1sCPrQF35sCdHoaNM0IkQRSGsnGhj+uuzNbBnADT5NFt+6SaiaIhmk8/H2f/SjqB3ux
- VAtut17mZKE7D1xJYhg4MYAamNzc/xnS19gNPYqcuh4xK/EcbwSrYHfeV3KQxxbpZGcF
- gHNPfmILcXaqPIqICyTc+1tpU59yPJviu5ZqCH/DVUKgA33dg0idbbLEBXSe7gnGISOW Qg== 
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by userp2130.oracle.com with ESMTP id 2qhreknc7d-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Feb 2019 01:46:18 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x1E1kI9Z027465
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Feb 2019 01:46:18 GMT
-Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x1E1kEMH002971;
-	Thu, 14 Feb 2019 01:46:14 GMT
-Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 14 Feb 2019 01:46:14 +0000
-Date: Wed, 13 Feb 2019 20:46:34 -0500
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-To: Alex Williamson <alex.williamson@redhat.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-        akpm@linux-foundation.org, dave@stgolabs.net, jack@suse.cz,
-        cl@linux.com, linux-mm@kvack.org, kvm@vger.kernel.org,
-        kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
-        linux-fpga@vger.kernel.org, linux-kernel@vger.kernel.org,
-        paulus@ozlabs.org, benh@kernel.crashing.org, mpe@ellerman.id.au,
-        hao.wu@intel.com, atull@kernel.org, mdf@kernel.org, aik@ozlabs.ru,
-        peterz@infradead.org
-Subject: Re: [PATCH 1/5] vfio/type1: use pinned_vm instead of locked_vm to
- account pinned pages
-Message-ID: <20190214014634.kxjiwzelczlskeo6@ca-dmjordan1.us.oracle.com>
-References: <20190211224437.25267-1-daniel.m.jordan@oracle.com>
- <20190211224437.25267-2-daniel.m.jordan@oracle.com>
- <20190211225620.GO24692@ziepe.ca>
- <20190211231152.qflff6g2asmkb6hr@ca-dmjordan1.us.oracle.com>
- <20190212114110.17bc8a14@w520.home>
- <20190213002650.kav7xc4r2xs5f3ef@ca-dmjordan1.us.oracle.com>
- <20190213130330.76ef1987@w520.home>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=vSAH0Rpc;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=F24RVbeKKB1cnCpDEq5tv60PU/vFe4EDFYXQPFBYiG4=;
+        b=vSAH0RpcqZoI384N6aWx/a6ZO2VP1uD+NDCUhuF485R1ktTjgbuR4PWJN1jDtxgthv
+         tpuxVzwCTlSEem19lNbbjRd64NWiI9+H6gVoVdOXse39STXrhIByIAXR29cbksE5hDeC
+         XDzgSzzrFoubIeuv61vg5LzUDm/AuQA4Xu03E2eYI9EmAfExE4qrbEENk6rXge3HAWll
+         yk+QSMLSZoH9LNhMKxKRUJrev4N4BQU22lVhPXu6d7xlfHHX0HTrpCxsEuitSs+riyGW
+         xPyFR4EXHqRBAEPYUcJ2+Tz9aB+EKuX81RkV5ag74cXkyQ1IH4W3dS6RONT25M15qXXs
+         +74w==
+X-Google-Smtp-Source: AHgI3IawV0AoL7/SiLAiW/evEF+BYLElakf4/oiB4CxjF1FDKzc7cBvow+JY0LNl96CjfAcJTQ9o3oVFmLRng1RtSqs=
+X-Received: by 2002:adf:dbc4:: with SMTP id e4mr748458wrj.320.1550109066968;
+ Wed, 13 Feb 2019 17:51:06 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190213130330.76ef1987@w520.home>
-User-Agent: NeoMutt/20180323-268-5a959c
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9166 signatures=668683
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902140011
+References: <201902080231.RZbiWtQ6%fengguang.wu@intel.com> <20190208151441.4048e6968579dd178b259609@linux-foundation.org>
+ <20190209074407.GE4240@linux.ibm.com> <20190212013606.GJ12668@bombadil.infradead.org>
+ <20190212163145.GD14231@cmpxchg.org> <20190212163547.GP12668@bombadil.infradead.org>
+In-Reply-To: <20190212163547.GP12668@bombadil.infradead.org>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Wed, 13 Feb 2019 17:50:55 -0800
+Message-ID: <CAJuCfpGuT=Rn6J-YbN6TUoiqZqmUBS7pHRvXOEdX1RcasM-A+Q@mail.gmail.com>
+Subject: Re: [linux-next:master 6618/6917] kernel/sched/psi.c:1230:13: sparse:
+ error: incompatible types in comparison expression (different address spaces)
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, "Paul E. McKenney" <paulmck@linux.ibm.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, kbuild test robot <lkp@intel.com>, kbuild-all@01.org, 
+	Linux Memory Management List <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 13, 2019 at 01:03:30PM -0700, Alex Williamson wrote:
-> Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
-> > On Tue, Feb 12, 2019 at 11:41:10AM -0700, Alex Williamson wrote:
-> > > This still makes me nervous because we have userspace dependencies on
-> > > setting process locked memory.  
-> > 
-> > Could you please expand on this?  Trying to get more context.
-> 
-> VFIO is a userspace driver interface and the pinned/locked page
-> accounting we're doing here is trying to prevent a user from exceeding
-> their locked memory limits.  Thus a VM management tool or unprivileged
-> userspace driver needs to have appropriate locked memory limits
-> configured for their use case.  Currently we do not have a unified
-> accounting scheme, so if a page is mlock'd by the user and also mapped
-> through VFIO for DMA, it's accounted twice, these both increment
-> locked_vm and userspace needs to manage that.  If pinned memory
-> and locked memory are now two separate buckets and we're only comparing
-> one of them against the locked memory limit, then it seems we have
-> effectively doubled the user's locked memory for this use case, as
-> Jason questioned.  The user could mlock one page and DMA map another,
-> they're both "locked", but now they only take one slot in each bucket.
+On Tue, Feb 12, 2019 at 8:35 AM Matthew Wilcox <willy@infradead.org> wrote:
+>
+> On Tue, Feb 12, 2019 at 11:31:45AM -0500, Johannes Weiner wrote:
+> > On Mon, Feb 11, 2019 at 05:36:06PM -0800, Matthew Wilcox wrote:
+> > > On Fri, Feb 08, 2019 at 11:44:07PM -0800, Paul E. McKenney wrote:
+> > > > On Fri, Feb 08, 2019 at 03:14:41PM -0800, Andrew Morton wrote:
+> > > > > On Fri, 8 Feb 2019 02:29:33 +0800 kbuild test robot <lkp@intel.com> wrote:
+> > > > > >   1223        static __poll_t psi_fop_poll(struct file *file, poll_table *wait)
+> > > > > >   1224        {
+> > > > > >   1225                struct seq_file *seq = file->private_data;
+> > > > > >   1226                struct psi_trigger *t;
+> > > > > >   1227                __poll_t ret;
+> > > > > >   1228
+> > > > > >   1229                rcu_read_lock();
+> > > > > > > 1230                t = rcu_dereference(seq->private);
+> > >
+> > > So the problem here is the opposite of what we think it is -- seq->private
+> > > is not marked as being RCU protected.
+> > >
+> > > > If you wish to opt into this checking, you need to mark the pointer
+> > > > definitions (in this case ->private) with __rcu.  It may also
+> > > > be necessary to mark function parameters as well, as is done for
+> > > > radix_tree_iter_resume().  If you do not wish to use this checking,
+> > > > you should ignore these sparse warnings.
+> >
+> > We cannot make struct seq_file->private generally __rcu, but the
+> > cgroup code has a similar thing with kernfs, where it's doing rcu for
+> > its particular use of struct kernfs_node->private. This is how it does
+> > the dereference:
+> >
+> >       cgrp = rcu_dereference(*(void __rcu __force **)&kn->priv);
+> >
+> > We could do this here as well.
+> >
+> > It's ugly, though. I'd also be fine with ignoring the sparse warning.
+>
+> How about:
+>
+> +++ b/include/linux/seq_file.h
+> @@ -26,7 +26,10 @@ struct seq_file {
+>         const struct seq_operations *op;
+>         int poll_event;
+>         const struct file *file;
+> -       void *private;
+> +       union {
+> +               void *private;
+> +               void __rcu *rcu_private;
+> +       };
+>  };
+>
+>  struct seq_operations {
+>
 
-Right, yes.  Should have been more specific.  I was after a concrete use case
-where this would happen (sounded like you may have had a specific tool in
-mind).
-
-But it doesn't matter.  I understand your concern and agree that, given the
-possibility that accounting in _some_ tool can be affected, we should fix
-accounting before changing user visible behavior.  I can start a separate
-discussion, having opened the can of worms again :)
-
-> If we continue forward with using a separate bucket here, userspace
-> could infer that accounting is unified and lower the user's locked
-> memory limit, or exploit the gap that their effective limit might
-> actually exceed system memory.  In the former case, if we do eventually
-> correct to compare the total of the combined buckets against the user's
-> locked memory limits, we'll break users that have adapted their locked
-> memory limits to meet the apparent needs.  In the latter case, the
-> inconsistent accounting is potentially an attack vector.
-
-Makes sense.
-
-> > > There's a user visible difference if we
-> > > account for them in the same bucket vs separate.  Perhaps we're
-> > > counting in the wrong bucket now, but if we "fix" that and userspace
-> > > adapts, how do we ever go back to accounting both mlocked and pinned
-> > > memory combined against rlimit?  Thanks,  
-> > 
-> > PeterZ posted an RFC that addresses this point[1].  It kept pinned_vm and
-> > locked_vm accounting separate, but allowed the two to be added safely to be
-> > compared against RLIMIT_MEMLOCK.
-> 
-> Unless I'm incorrect in the concerns above, I don't see how we can
-> convert vfio before this occurs.
->  
-> > Anyway, until some solution is agreed on, are there objections to converting
-> > locked_vm to an atomic, to avoid user-visible changes, instead of switching
-> > locked_vm users to pinned_vm?
-> 
-> Seems that as long as we have separate buckets that are compared
-> individually to rlimit that we've got problems, it's just a matter of
-> where they're exposed based on which bucket is used for which
-> interface.  Thanks,
-
-Indeed.  But for now, any concern with simply changing the type of the
-currently used counter to an atomic, to reduce mmap_sem usage?  This is just an
-implementation detail, invisible to userspace.
+Personally I would prefer cgrp = rcu_dereference(*(void __rcu __force
+**)&kn->priv); as it's more localized change but if union would be
+preferable I'll roll that into the next version of psi monitor.
+Thanks,
+Suren.
 
