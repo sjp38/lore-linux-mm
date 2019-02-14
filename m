@@ -2,152 +2,173 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85163C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 22:41:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A54B8C10F04
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 23:10:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 35FBA2229F
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 22:41:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 623B421B1A
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 23:10:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="xEPmjA7U"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35FBA2229F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="B80IEHWH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 623B421B1A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A91F58E0002; Thu, 14 Feb 2019 17:41:21 -0500 (EST)
+	id C28888E0002; Thu, 14 Feb 2019 18:10:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A40448E0001; Thu, 14 Feb 2019 17:41:21 -0500 (EST)
+	id BD77E8E0001; Thu, 14 Feb 2019 18:10:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 92F778E0002; Thu, 14 Feb 2019 17:41:21 -0500 (EST)
+	id AC6B08E0002; Thu, 14 Feb 2019 18:10:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 51BE18E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 17:41:21 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id h26so5934233pfn.20
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 14:41:21 -0800 (PST)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 58F6F8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 18:10:40 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id f4so2929602wrg.9
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 15:10:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=PIbuAu83tU6MnBvhuGJcfbmbWhFchHhVCd+8U8eEQ4g=;
-        b=Yb/nLua6E0mHEdMws/Oajd00QeQvxPmCOaJxy2/fesLJLatXN7PMHjMFaUwGgbYzWV
-         CKEVn0u3wi65Y/KWf++62T7a+ff6h1/G4ylJ5Wp/i494qKmBwx07CxAah9eYeSAtkJSz
-         J6TBPnJKYcjyMIY1v0YSj/lnnknIiEIbpyuNKr6ApnuAmloNbyRqR2aOHMyha6EDuo9w
-         Nm1pXG2Yl22itNlukjmtxupds6LYmC+MUd7706FXrjnawOYGUWF2N0CWyoW0fEaPfFzf
-         NNBDNaayFb+YoSBI7pMYRg3CSoKtA4wWPaL60cqRNZ+yUmPudcYCrG59U72SSlTQvlvB
-         AzDA==
-X-Gm-Message-State: AHQUAuYCHKi/jeGZjT26npoyfwUofdNQnGtuj0LfFXWniJMMdGv6etB+
-	X2PxWpksBRYprFsyEd3orwLluokXCc3OmPssh3QexB8ALQnjwilBMBpjOJNXZRViM+uJEKs6MI7
-	djBY3lW5gprvJHe4j9cuGMR6hVLuQWKr3a3Mi+AcTP2vlLL1hTWY1lTGQbBIv6gZbT3MXY2UPMc
-	sIL65H76kYRp8sS3pSk+tkWiSjM8+VCBWJnE4fhZj/5ePMHccABihhItZUChcJ64Q/z2JEe/ROi
-	+QKQ0e7edjhQ6dPXnTcZJqv/41uoIkfppEmWXRUCl+Q2qTg+Nd0Na4SW+tqwpctvr56IvMDg4ba
-	Kcz0ErHXYL/q7NIdL9MWYEku7cvpQ6BfC36562DahAnxPAHV3HQATo6dgQDHAaO786qAk8eOczs
-	V
-X-Received: by 2002:a17:902:f83:: with SMTP id 3mr145978plz.125.1550184080903;
-        Thu, 14 Feb 2019 14:41:20 -0800 (PST)
-X-Received: by 2002:a17:902:f83:: with SMTP id 3mr145944plz.125.1550184080252;
-        Thu, 14 Feb 2019 14:41:20 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550184080; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=z+9zbb8RFe/yUhMkwO8O4v64fl479cQbUFQDaaeTxkI=;
+        b=Z8230yoCyxSAiNrsKueYImDGkQ72uzfHh1FaWgcyvoIXx6Pu2eV0Zhc+QF/ZHh1loP
+         p2IL52L5qUX+vDInySFF+C1rp6ECP79LsRsh77KbKYKGCfkMmTcBl9ksTUejyV3ugQ6e
+         YRJiUoNsBmyQhLbl/TrBxDL8IHT4Ii3inAWtJS3JYLSNNulcT9a/lyuLtho3OtEp0JGQ
+         Og24rBNaZ2UB3/13Hm6aFxScusTkLkzdIm4TTIjHagdHZM1tosj3QKyU/GQivb3jwBR1
+         PgN6jM054DjNQsjQIzVTcDISnOVbcsRjQP0wzmXcrJyieXZyAJaKLbUYn4kmqfV6GSKC
+         0HiQ==
+X-Gm-Message-State: AHQUAuZAuk+VHpY7siThVEq6nRbBBEDDA7iyUdyP6haoaqS8L49WSbbh
+	Di+ECJ++knmeX5lkHlRZhHk6cs6d99DJYI8cxlVSPUAMa5kSiMoCn1X2MZNSWXau3cNgJNG4WRN
+	78PqJo8ptceBiPhmbROV9rZiErcn/Jerfv+C020LMFwUD1us0sYA8q1fJ/liXSkNfQyQUhWfn8j
+	wKUoBSfvqKZVZxJ3fR1nmUeP5xdEPTDlxzteDooPLrVk6ek55BmQmM6RcB3Ae6OtIDKL52j6moV
+	1nBgEo7ZnA8DK9e7vBFyGASxoLfbWVbdGJezOgUQeO7tCQAhxQ4q0MB6SCPRwouSKaVbZDFN4Sm
+	2TmehSkwdojLVPy0EMW7wDlPoFn78e5OR4MBjZZ+LLKM7NWRPYFQh9a8EEswhmoaJgYgoo99pB+
+	N
+X-Received: by 2002:a05:600c:2102:: with SMTP id u2mr4424170wml.152.1550185839729;
+        Thu, 14 Feb 2019 15:10:39 -0800 (PST)
+X-Received: by 2002:a05:600c:2102:: with SMTP id u2mr4424131wml.152.1550185838650;
+        Thu, 14 Feb 2019 15:10:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550185838; cv=none;
         d=google.com; s=arc-20160816;
-        b=0fSfSfZ+JN6e8ofoDcivESYhmI6leY2k2mxGjD97Ony5aGaLdM5ZCTgFhsZefq4lBX
-         l9TmKifz2WC3Uz0ORUBmCjuu/hrq00wpcbo+dwzu9Lm58cA+vSTel6av1GSbvxTSvztT
-         r13FhxPZv061FjnPTt3GkzJdkAtGXTX3tHXDjaX0l7hrd5SizoX/LYlCxn+rFMQZD3hn
-         kgpeAnHQKl10S9QsHAgaj9+pM2lwxyfZNhVQox3wdniOqmE/BKbUECLNZzZG3omXHxzV
-         x7DGgiVgqW+wzvFZ5c/YvOshvVaInoVFAhsaPu9uHG+L9lDYG3oL4k1XJZgQrhP46iK+
-         S4tQ==
+        b=TG3u93uZJc//lN4VVBFkqgWqiji29rW39cLOB3MI8V2RGAuxRIRGpfpyfSIAlXsSvX
+         G/zYM+rhk5syDkKCN6lfZVxE0Xd2+6mssgVcJg4mGSgZo+Vs+j+EeiwljIs3xFA007rs
+         z8UzkJgTcXnZ4o6h331e9U8b336fceeu9AtiAZu1kTaK19MOOECZoMLLQyxyIUPaLboS
+         k6/hv5YbEMVk3fxyuKcFOFXij7f3xEtZ1GpiB8dJQlrCx4UAfgWk+oMUcqSulXNr30vu
+         agd7TsNCoosQzbRN3dBcDqAhZb5yZR5dDIoJhxgfqOyOUshxiIzj6nB3joM//FOmsvxr
+         nHxg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=PIbuAu83tU6MnBvhuGJcfbmbWhFchHhVCd+8U8eEQ4g=;
-        b=vUYRGqlEk9qnXUSMyAFPtvAIFUEQaOqNHx6Rcjjb7jK7SjsHedPNOiGRce4r/ZVnYm
-         xIkRrV/Bk3UChawAknGgoj/oCCpOuX/edLW/g4sC1Ln0BTUYJl0Ei9nm1Y+1QtEixlvw
-         NEhERi1cb5+D8JVjXB+RnqwZKP6haMz5lv+x+3BGFkPB4nJ3LvoWDagbxo7mrgx3kvFr
-         x3BVmI5+UnwEwoOU7osuQWj1mk262IcLTRM5rinSP8nXXFLTE5qEnxBFscdj7YQ33XEe
-         F+v+rYCpX8R3wtruhTokR5YjLvg9H1A2a7UkXx21Q5hj6p1SXjRs63UlSLunInC0vUY5
-         jAdA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=z+9zbb8RFe/yUhMkwO8O4v64fl479cQbUFQDaaeTxkI=;
+        b=WGEDr+VjvWSVOjAAXIIPM3r5HHZZupdeUoMsxsqFjYgNpeL+dqe5A+s3hwMRZm0Kyo
+         WaWNCtpp7AJXz1ch9ysKyUA2U+/3rNFROnwNBkanK71uelY9cxzWlElZP6MBfHyCfvkf
+         43qyJEgaa5opV4Bynxuxi8OTCq5mZlaBw4wJ6+EGGqB0axG57kwwYXFdsG++cwAfiRA5
+         vfjrHJrwpJgY0BvO2Ep69loRfWGWs7Cf0lGBN7oBXJtxjQ80PFDIsKz9Vnj+H9hEAH9O
+         yiVFIVjuoiXMjN4WBkPj9nNMU0RLfLAi4I564r9ojMqwMjFyqCRefwZKeAAsbxqPb+UI
+         tXMw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=xEPmjA7U;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=B80IEHWH;
+       spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g13sor5960339pgk.35.2019.02.14.14.41.20
+        by mx.google.com with SMTPS id m10sor2784735wro.1.2019.02.14.15.10.38
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 14 Feb 2019 14:41:20 -0800 (PST)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+        Thu, 14 Feb 2019 15:10:38 -0800 (PST)
+Received-SPF: pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=xEPmjA7U;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=B80IEHWH;
+       spf=pass (google.com: domain of igor.stoppa@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=igor.stoppa@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=PIbuAu83tU6MnBvhuGJcfbmbWhFchHhVCd+8U8eEQ4g=;
-        b=xEPmjA7Ur5QzxnY9HhmKWp7m+N5ET2X6uJICYKN7XEucCSvCzbZxF/x41NDa6DPxOp
-         z2RmqocGPk9l96tUFltKq9ZyYc7eII3va/hoMjNGfG8OcugOfFT/QlFc3YhFx3SOmPFS
-         ueNpacTm8PbBaOuJOfuk1srGZpuxqL3QUpMWeh0w5FVGSz5sTC1wuJD+hsV5GGfL0xEa
-         5xvWTga/HwNx13PHrF6hGMeo5OoDVC7ZC7QPFUexcjT9BT12or4ZylghiiNPt+fpBhWP
-         gUBEu6BJZ3u0AL1Qx2UkKhJA1u7MLdoABEHSmVRf4mog0D+tXiwqTREobiHRhWeUZzTD
-         s7kA==
-X-Google-Smtp-Source: AHgI3IbBtBc8ecYjxuLAkMM7INBEAgmMEWl4Mr9FMhVLpVQuuO5irj0i9E/fjpQNvqRUQZIPf7zhlg==
-X-Received: by 2002:a63:516:: with SMTP id 22mr2159642pgf.353.1550184079904;
-        Thu, 14 Feb 2019 14:41:19 -0800 (PST)
-Received: from kshutemo-mobl1.localdomain ([134.134.139.83])
-        by smtp.gmail.com with ESMTPSA id m68sm10097613pfj.89.2019.02.14.14.41.18
+        d=gmail.com; s=20161025;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=z+9zbb8RFe/yUhMkwO8O4v64fl479cQbUFQDaaeTxkI=;
+        b=B80IEHWH7Opk+JI5pSyBN4WBwwOYdiaWFl5lpRa56dKMWQrdo0SWI013F9SnWvp4RU
+         a4xLPNKiVu07GJ1V7SYGutQTTXfzXuy7JpPMaCZ24/2Op1XfDcdkxZMRzHfbqAFjrFpw
+         SklayuQMtbEtVR/7bOqkXTvN+qe9TiN5iOahznxESvMsLUm642K93wv2CyS9BvegFx3U
+         OcRMfZEkQjDQChQB7YhbPScjb1bLjsnQwEK6iCk0M5fNlDU7nKcz6EAWOWf7Dfc/kvwJ
+         C1wGcbVsMUIqUMzWqKgK8CRMX8WJzStgIy0HvBfie3isr4IJbfeSWGGtGaQnric/khNQ
+         LrMg==
+X-Google-Smtp-Source: AHgI3IbsNlk4Fvpr3HH+kDs+qGc4Q1NAHmTiRsxdrVOqxRzBB2FRVhft3utppOvMD+0T6z/BkkeXbA==
+X-Received: by 2002:adf:e949:: with SMTP id m9mr4830622wrn.1.1550185838039;
+        Thu, 14 Feb 2019 15:10:38 -0800 (PST)
+Received: from [10.32.107.126] ([80.227.69.14])
+        by smtp.gmail.com with ESMTPSA id o12sm10467992wre.0.2019.02.14.15.10.34
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 14:41:19 -0800 (PST)
-Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
-	id 899A03008A8; Fri, 15 Feb 2019 01:41:15 +0300 (+03)
-Date: Fri, 15 Feb 2019 01:41:15 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
-	William Kucharski <william.kucharski@oracle.com>
-Subject: Re: [PATCH v2] page cache: Store only head pages in i_pages
-Message-ID: <20190214224115.4edwl7x72abztajb@kshutemo-mobl1>
-References: <20190212183454.26062-1-willy@infradead.org>
- <20190214133004.js7s42igiqc5pgwf@kshutemo-mobl1>
+        Thu, 14 Feb 2019 15:10:37 -0800 (PST)
+Subject: Re: [RFC PATCH v5 03/12] __wr_after_init: Core and default arch
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Igor Stoppa <igor.stoppa@huawei.com>,
+ Andy Lutomirski <luto@amacapital.net>, Nadav Amit <nadav.amit@gmail.com>,
+ Matthew Wilcox <willy@infradead.org>, Kees Cook <keescook@chromium.org>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ Mimi Zohar <zohar@linux.vnet.ibm.com>,
+ Thiago Jung Bauermann <bauerman@linux.ibm.com>,
+ Ahmed Soliman <ahmedsoliman@mena.vt.edu>, linux-integrity@vger.kernel.org,
+ kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+References: <cover.1550097697.git.igor.stoppa@huawei.com>
+ <b99f0de701e299b9d25ce8cfffa3387b9687f5fc.1550097697.git.igor.stoppa@huawei.com>
+ <20190214112849.GM32494@hirez.programming.kicks-ass.net>
+From: Igor Stoppa <igor.stoppa@gmail.com>
+Message-ID: <6e9ec71c-ee75-9b1e-9ff8-a3210030e85d@gmail.com>
+Date: Fri, 15 Feb 2019 01:10:33 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190214133004.js7s42igiqc5pgwf@kshutemo-mobl1>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <20190214112849.GM32494@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 14, 2019 at 04:30:04PM +0300, Kirill A. Shutemov wrote:
-> On Tue, Feb 12, 2019 at 10:34:54AM -0800, Matthew Wilcox wrote:
-> > Transparent Huge Pages are currently stored in i_pages as pointers to
-> > consecutive subpages.  This patch changes that to storing consecutive
-> > pointers to the head page in preparation for storing huge pages more
-> > efficiently in i_pages.
-> > 
-> > Large parts of this are "inspired" by Kirill's patch
-> > https://lore.kernel.org/lkml/20170126115819.58875-2-kirill.shutemov@linux.intel.com/
-> > 
-> > Signed-off-by: Matthew Wilcox <willy@infradead.org>
-> 
-> I believe I found few missing pieces:
-> 
->  - page_cache_delete_batch() will blow up on
-> 
-> 			VM_BUG_ON_PAGE(page->index + HPAGE_PMD_NR - tail_pages
-> 					!= pvec->pages[i]->index, page);
-> 
->  - migrate_page_move_mapping() has to be converted too.
 
-  - __delete_from_swap_cache() will blow up on
 
-	VM_BUG_ON_PAGE(entry != page + i, entry);
+On 14/02/2019 13:28, Peter Zijlstra wrote:
+> On Thu, Feb 14, 2019 at 12:41:32AM +0200, Igor Stoppa wrote:
 
--- 
- Kirill A. Shutemov
+[...]
+
+>> +#define wr_rcu_assign_pointer(p, v) ({	\
+>> +	smp_mb();			\
+>> +	wr_assign(p, v);		\
+>> +	p;				\
+>> +})
+> 
+> This requires that wr_memcpy() (through wr_assign) is single-copy-atomic
+> for native types. There is not a comment in sight that states this.
+
+Right, I kinda expected native-aligned <-> atomic, but it's not 
+necessarily true. It should be confirmed when enabling write rare on a 
+new architecture. I'll add the comment.
+
+> Also, is this true of x86/arm64 memcpy ?
+
+
+For x86_64:
+https://elixir.bootlin.com/linux/v5.0-rc6/source/arch/x86/include/asm/uaccess.h#L462 
+  the mov"itype"  part should deal with atomic copy of native, aligned 
+types.
+
+
+For arm64:
+https://elixir.bootlin.com/linux/v5.0-rc6/source/arch/arm64/lib/copy_template.S#L110 
+.Ltiny15 deals with copying less than 16 bytes, which includes pointers. 
+When the data is aligned, the copy of a pointer should be atomic.
+
+
+--
+igor
 
