@@ -2,188 +2,205 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9B89C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 16:32:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1FB6BC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 16:55:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5C457222DA
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 16:32:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C457222DA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id CC36821928
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 16:55:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC36821928
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC97C8E0002; Thu, 14 Feb 2019 11:31:59 -0500 (EST)
+	id 468958E0002; Thu, 14 Feb 2019 11:55:35 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D50848E0001; Thu, 14 Feb 2019 11:31:59 -0500 (EST)
+	id 418E78E0001; Thu, 14 Feb 2019 11:55:35 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C41CE8E0002; Thu, 14 Feb 2019 11:31:59 -0500 (EST)
+	id 2DFF88E0002; Thu, 14 Feb 2019 11:55:35 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 686C48E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 11:31:59 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id p52so2679909eda.18
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 08:31:59 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E2E9A8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 11:55:34 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id n24so4677997pgm.17
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 08:55:34 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=dGB9RBkZesdHOgFy6liuEtRqoMywJBqINem8etCnZ1Y=;
-        b=Tv1tDuVuSCuzksSw2ghQGmcEu+Vwx8Ny003iWWFGR1tRauRs26kSe/jqGoCRn3U0Ob
-         S6zlTg212VSPaAG8Yfnw/75hgX59Y/IWs5uqhiOiXXvQYYQd0KGmdN1CTaaV7eMunRnu
-         XwoP0m5njsVuYN65ghvKoUNEU/PHPcXUV+678ETVm9xdAsGJcPbWo2r2i8Yzg7dFqFhK
-         jOJ9oM03g4WjcQ6Dl4eWDX9lUUFtCG+EcmF+KsO2SgWDXgt8LyRdUn0hVh6xhs0wX7Hj
-         6zf40B3xLZOK5GzupakZE0aEs0Z4XNUu84HUDBfFJcMrpkIjpH/TbRdJEBrHapmCeTT9
-         y4tg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: AHQUAuZefxYnZvxkMmAf40z0ekgxDb2tnDlRvjRZPeKbZ/aP/RH7A8EV
-	9b7gYYoTV8tH/CXLK/0T/xndMgRqIf0Azzc7NbFmJeARGrZFKcfAZIsesw6M81yEyS96MET4est
-	7c4ogpm2hQ3KmyEbOBBRTtWvkw70oygJqOTAYuWOjzWqGDsHtYafw0bl7byXZ5HKSbQ==
-X-Received: by 2002:a17:906:49d4:: with SMTP id w20mr3487228ejv.191.1550161918910;
-        Thu, 14 Feb 2019 08:31:58 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IY/fY0rTg6zyGMErOwZkekXiu/7jzBXfQIBnwDZ/QmXn0tvFORuEhziahFL4e87dXNp5NYR
-X-Received: by 2002:a17:906:49d4:: with SMTP id w20mr3487158ejv.191.1550161917716;
-        Thu, 14 Feb 2019 08:31:57 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550161917; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=1Q2TuyCD73oIpYHfgAoLyLcqU7x3xNhtkD9ZCRglQm0=;
+        b=LmsEnGpj/XgT6+Aj/PR2CPGpYedfjlgwW0wTusVbc8VnkjjP3yFcj/kjXekWClipa3
+         A6qGUtU+7uKcq8oSNC2+yevNAJojpgtpu5pRDaOZ7QGWgpd5RLDFZ4rynsw3XZdIjAji
+         /M66WxeznGwMDNmcosWOVhf2uGd7/JVeptnYGLZPLEXKwHCVRp/b/9AONf+7EKsa8SZY
+         WNbhZ8wlfGo5YuhnaRMFAyTKRfLzhzQgjsTksz78bjRzkgvXoteu9Vb7qK7BAo0aVHN4
+         EME4F33zlO/dZwIqa47d0JXfHm7b9omWGQod9yplyTxUn+zGZHwzuSlwNNWz4H9WjiVR
+         0BmQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuZfo5oVhp48ljSj7PVTEfKD4RpxDC064v+YaTei9FMEzeW2f+VU
+	5mpE8pccQg+N/KPKm3LOFL2dm4hS1PZcOtyysyGEQYZDomEReeoefkrTR5dMA1FcTWOFL/wLdLu
+	3UWquhmcq/mgwhJCO8p4S5gJexPjG053/60AwuLHJUj4RkG4WUalMTaTGial8iRU/QA==
+X-Received: by 2002:a65:51ca:: with SMTP id i10mr4535688pgq.371.1550163334532;
+        Thu, 14 Feb 2019 08:55:34 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYgTfC0xExWQDpS/C9o8IN2KYKPxnV43XKGn8YsjllSG4cNBza+MZFOCOm8z07hF+iVaqew
+X-Received: by 2002:a65:51ca:: with SMTP id i10mr4535620pgq.371.1550163333392;
+        Thu, 14 Feb 2019 08:55:33 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550163333; cv=none;
         d=google.com; s=arc-20160816;
-        b=HDTnARSTbXKOFmuLpeZuctbAzgSj6ohIRQ/ZID2Qrt+pLkPJ3Qf9Xy36CGigl3qdmb
-         cCMMyA6G7TWR/Vgfzej7nmHBnTqdY0H5hGQoYtd7q2mT0EogH1jChCPRrkDQADGjb89T
-         5NOdY6ADD0EkIYf5TsaqfJ6hRiLpo8V7QyjQ3S1IOiqqmuk9fAJ3ofA6CnDSip/sBr0n
-         YgJOOwYbeZR6un7mNeLt0itCDOYrByn/4qPN4VWXL9owD4dntTb5J7h7eKq5UyauOg9m
-         OYXwogJKDUGJxfT9m66W5YeDd5gpvtXL2/a9AiAey7joLG4Psv/r8JAQXZVMsYvhesl6
-         hVYw==
+        b=v5/iqULvIeGHZuV86lhdhukARH9rip/w6IbAKdIZMxF72VFbjofe68YHAwPvlsZz14
+         WBfLIhlgEneNRQb9ihOSLF4OHU50qZXAnq2X1vQCM8UFbBCNeEeyvrpDTNj4e80/Q5RM
+         o1IA9nFqedtR9KOaZplFQsPetY0z4b/FN2v0EnJrmI8yqObjoKmwssf56Y2e3BR1fItq
+         aqtwDynfHS5oCjZ9bf2M+XBMby1uphel1wMGX0YgJKAvKNyT8kMnfugZUwX4+J9m7Ekj
+         YO/Hjv5RJaax4nwxciZ5yE1FdQ2yCpT5o+Y1WpKT1zp0FGxmUJRFzeEvXC4JYfbT9s/B
+         cesA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=dGB9RBkZesdHOgFy6liuEtRqoMywJBqINem8etCnZ1Y=;
-        b=J4uY60rybZEHKniyY9hfT4IQaXpUdSm65fCcOekI/JcDAq35JXxbLJTjXg03ajV5zu
-         yjp/YPGDm+4PhFf8982P87V0yqHDbMsfkEu0Ea4RPLCibPE3LEQT3K6Mj6Co3vuElydb
-         SJVYHmsEyG18eseb1tj1KhYgWyD8OcOn5vAeCBD/Uaq779LeE/QmKMb9+2rD7Z6okGSc
-         SnNHNlE8bAbr90xzjGNh50sQ8wxcraoYX68RM6U4dIpjVu23/jPT7CraxxviXxSJ/hUL
-         Aux/Lklmg/PpMM50spk2JqL7Qm1EV7ePHz/yiPfiw7lhGa0AboPpjbljqgqxZ2hzu6oP
-         ws+Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=1Q2TuyCD73oIpYHfgAoLyLcqU7x3xNhtkD9ZCRglQm0=;
+        b=j9bC9PYBJikt/6GLZRqyyNGnKJG9wy/dV1jVYeRkZBMnB7WQ9oIEpAUOzgsgnXcj8E
+         xcuSG6QrJgCTBXR5cF2RGXdrXX5TrPWXLnhYJ8w6Yp4MwqoN0Q8Ct+yjpng1JSEk8TNA
+         tpmzxXR8rNEQZasov+Dqq8v14almRNqy7jDu9UPropxb1lo+7nkXALMi+emLn7cmQYVS
+         b/rVq3nCChhFiozYycD8o68DFaaFEmVTYNCWjZUR0uckFrGnOyCws0+ZpT8qf7lHIDy1
+         5bPFcx+9koaN+BvwGi47rnuZZLJ3Istbe6j8cblgSRQurZUXv9KiFvE8L+bcUZijYNYh
+         B2tw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 12si1003615edx.436.2019.02.14.08.31.57
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id d11si2842763plo.184.2019.02.14.08.55.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 08:31:57 -0800 (PST)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 14 Feb 2019 08:55:33 -0800 (PST)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E9F93AF63;
-	Thu, 14 Feb 2019 16:31:56 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 0929E1E0900; Thu, 14 Feb 2019 17:31:56 +0100 (CET)
-Date: Thu, 14 Feb 2019 17:31:56 +0100
-From: Jan Kara <jack@suse.cz>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: linuxppc-dev@ozlabs.org, aneesh.kumar@linux.vnet.ibm.com, jack@suse.cz,
-	erhard_f@mailbox.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH] powerpc/64s: Fix possible corruption on big endian due
- to pgd/pud_present()
-Message-ID: <20190214163156.GB23000@quack2.suse.cz>
-References: <20190214062339.7139-1-mpe@ellerman.id.au>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Feb 2019 08:55:32 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,369,1544515200"; 
+   d="scan'208";a="138644178"
+Received: from pmmonter-mobl.amr.corp.intel.com (HELO [10.254.87.236]) ([10.254.87.236])
+  by orsmga001.jf.intel.com with ESMTP; 14 Feb 2019 08:55:32 -0800
+Subject: Re: [RFC 0/4] mm: Introduce lazy exec permission setting on a page
+To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org,
+ akpm@linux-foundation.org
+Cc: mhocko@kernel.org, kirill@shutemov.name, kirill.shutemov@linux.intel.com,
+ vbabka@suse.cz, will.deacon@arm.com, catalin.marinas@arm.com
+References: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
+ <7f25d3f4-68a1-58de-1a78-1bd942e3ba2f@intel.com>
+ <413d74d1-7d74-435c-70c0-91b8a642bf99@arm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ mQINBE6HMP0BEADIMA3XYkQfF3dwHlj58Yjsc4E5y5G67cfbt8dvaUq2fx1lR0K9h1bOI6fC
+ oAiUXvGAOxPDsB/P6UEOISPpLl5IuYsSwAeZGkdQ5g6m1xq7AlDJQZddhr/1DC/nMVa/2BoY
+ 2UnKuZuSBu7lgOE193+7Uks3416N2hTkyKUSNkduyoZ9F5twiBhxPJwPtn/wnch6n5RsoXsb
+ ygOEDxLEsSk/7eyFycjE+btUtAWZtx+HseyaGfqkZK0Z9bT1lsaHecmB203xShwCPT49Blxz
+ VOab8668QpaEOdLGhtvrVYVK7x4skyT3nGWcgDCl5/Vp3TWA4K+IofwvXzX2ON/Mj7aQwf5W
+ iC+3nWC7q0uxKwwsddJ0Nu+dpA/UORQWa1NiAftEoSpk5+nUUi0WE+5DRm0H+TXKBWMGNCFn
+ c6+EKg5zQaa8KqymHcOrSXNPmzJuXvDQ8uj2J8XuzCZfK4uy1+YdIr0yyEMI7mdh4KX50LO1
+ pmowEqDh7dLShTOif/7UtQYrzYq9cPnjU2ZW4qd5Qz2joSGTG9eCXLz5PRe5SqHxv6ljk8mb
+ ApNuY7bOXO/A7T2j5RwXIlcmssqIjBcxsRRoIbpCwWWGjkYjzYCjgsNFL6rt4OL11OUF37wL
+ QcTl7fbCGv53KfKPdYD5hcbguLKi/aCccJK18ZwNjFhqr4MliQARAQABtEVEYXZpZCBDaHJp
+ c3RvcGhlciBIYW5zZW4gKEludGVsIFdvcmsgQWRkcmVzcykgPGRhdmUuaGFuc2VuQGludGVs
+ LmNvbT6JAjgEEwECACIFAlQ+9J0CGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEGg1
+ lTBwyZKwLZUP/0dnbhDc229u2u6WtK1s1cSd9WsflGXGagkR6liJ4um3XCfYWDHvIdkHYC1t
+ MNcVHFBwmQkawxsYvgO8kXT3SaFZe4ISfB4K4CL2qp4JO+nJdlFUbZI7cz/Td9z8nHjMcWYF
+ IQuTsWOLs/LBMTs+ANumibtw6UkiGVD3dfHJAOPNApjVr+M0P/lVmTeP8w0uVcd2syiaU5jB
+ aht9CYATn+ytFGWZnBEEQFnqcibIaOrmoBLu2b3fKJEd8Jp7NHDSIdrvrMjYynmc6sZKUqH2
+ I1qOevaa8jUg7wlLJAWGfIqnu85kkqrVOkbNbk4TPub7VOqA6qG5GCNEIv6ZY7HLYd/vAkVY
+ E8Plzq/NwLAuOWxvGrOl7OPuwVeR4hBDfcrNb990MFPpjGgACzAZyjdmYoMu8j3/MAEW4P0z
+ F5+EYJAOZ+z212y1pchNNauehORXgjrNKsZwxwKpPY9qb84E3O9KYpwfATsqOoQ6tTgr+1BR
+ CCwP712H+E9U5HJ0iibN/CDZFVPL1bRerHziuwuQuvE0qWg0+0SChFe9oq0KAwEkVs6ZDMB2
+ P16MieEEQ6StQRlvy2YBv80L1TMl3T90Bo1UUn6ARXEpcbFE0/aORH/jEXcRteb+vuik5UGY
+ 5TsyLYdPur3TXm7XDBdmmyQVJjnJKYK9AQxj95KlXLVO38lcuQINBFRjzmoBEACyAxbvUEhd
+ GDGNg0JhDdezyTdN8C9BFsdxyTLnSH31NRiyp1QtuxvcqGZjb2trDVuCbIzRrgMZLVgo3upr
+ MIOx1CXEgmn23Zhh0EpdVHM8IKx9Z7V0r+rrpRWFE8/wQZngKYVi49PGoZj50ZEifEJ5qn/H
+ Nsp2+Y+bTUjDdgWMATg9DiFMyv8fvoqgNsNyrrZTnSgoLzdxr89FGHZCoSoAK8gfgFHuO54B
+ lI8QOfPDG9WDPJ66HCodjTlBEr/Cwq6GruxS5i2Y33YVqxvFvDa1tUtl+iJ2SWKS9kCai2DR
+ 3BwVONJEYSDQaven/EHMlY1q8Vln3lGPsS11vSUK3QcNJjmrgYxH5KsVsf6PNRj9mp8Z1kIG
+ qjRx08+nnyStWC0gZH6NrYyS9rpqH3j+hA2WcI7De51L4Rv9pFwzp161mvtc6eC/GxaiUGuH
+ BNAVP0PY0fqvIC68p3rLIAW3f97uv4ce2RSQ7LbsPsimOeCo/5vgS6YQsj83E+AipPr09Caj
+ 0hloj+hFoqiticNpmsxdWKoOsV0PftcQvBCCYuhKbZV9s5hjt9qn8CE86A5g5KqDf83Fxqm/
+ vXKgHNFHE5zgXGZnrmaf6resQzbvJHO0Fb0CcIohzrpPaL3YepcLDoCCgElGMGQjdCcSQ+Ci
+ FCRl0Bvyj1YZUql+ZkptgGjikQARAQABiQIfBBgBAgAJBQJUY85qAhsMAAoJEGg1lTBwyZKw
+ l4IQAIKHs/9po4spZDFyfDjunimEhVHqlUt7ggR1Hsl/tkvTSze8pI1P6dGp2XW6AnH1iayn
+ yRcoyT0ZJ+Zmm4xAH1zqKjWplzqdb/dO28qk0bPso8+1oPO8oDhLm1+tY+cOvufXkBTm+whm
+ +AyNTjaCRt6aSMnA/QHVGSJ8grrTJCoACVNhnXg/R0g90g8iV8Q+IBZyDkG0tBThaDdw1B2l
+ asInUTeb9EiVfL/Zjdg5VWiF9LL7iS+9hTeVdR09vThQ/DhVbCNxVk+DtyBHsjOKifrVsYep
+ WpRGBIAu3bK8eXtyvrw1igWTNs2wazJ71+0z2jMzbclKAyRHKU9JdN6Hkkgr2nPb561yjcB8
+ sIq1pFXKyO+nKy6SZYxOvHxCcjk2fkw6UmPU6/j/nQlj2lfOAgNVKuDLothIxzi8pndB8Jju
+ KktE5HJqUUMXePkAYIxEQ0mMc8Po7tuXdejgPMwgP7x65xtfEqI0RuzbUioFltsp1jUaRwQZ
+ MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
+ hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
+ vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
+Message-ID: <35b14038-379f-12fb-d943-5a083a2a7056@intel.com>
+Date: Thu, 14 Feb 2019 08:55:34 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190214062339.7139-1-mpe@ellerman.id.au>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <413d74d1-7d74-435c-70c0-91b8a642bf99@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 14-02-19 17:23:39, Michael Ellerman wrote:
-> In v4.20 we changed our pgd/pud_present() to check for _PAGE_PRESENT
-> rather than just checking that the value is non-zero, e.g.:
-> 
->   static inline int pgd_present(pgd_t pgd)
->   {
->  -       return !pgd_none(pgd);
->  +       return (pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
->   }
-> 
-> Unfortunately this is broken on big endian, as the result of the
-> bitwise && is truncated to int, which is always zero because
-> _PAGE_PRESENT is 0x8000000000000000ul. This means pgd_present() and
-> pud_present() are always false at compile time, and the compiler
-> elides the subsequent code.
-> 
-> Remarkably with that bug present we are still able to boot and run
-> with few noticeable effects. However under some work loads we are able
-> to trigger a warning in the ext4 code:
+On 2/13/19 8:12 PM, Anshuman Khandual wrote:
+> On 02/13/2019 09:14 PM, Dave Hansen wrote:
+>> On 2/13/19 12:06 AM, Anshuman Khandual wrote:
+>>> Setting an exec permission on a page normally triggers I-cache invalidation
+>>> which might be expensive. I-cache invalidation is not mandatory on a given
+>>> page if there is no immediate exec access on it. Non-fault modification of
+>>> user page table from generic memory paths like migration can be improved if
+>>> setting of the exec permission on the page can be deferred till actual use.
+>>> There was a performance report [1] which highlighted the problem.
+>>
+>> How does this happen?  If the page was not executed, then it'll
+>> (presumably) be non-present which won't require icache invalidation.
+>> So, this would only be for pages that have been executed (and won't
+>> again before the next migration), *or* for pages that were mapped
+>> executable but never executed.
+> I-cache invalidation happens while migrating a 'mapped and executable' page
+> irrespective whether that page was really executed for being mapped there
+> in the first place.
 
-Wow, good catch. I wouldn't believe there are so few bad effects from
-such a major breakage! :)
+Ahh, got it.  I also assume that the Accessed bit on these platforms is
+also managed similar to how we do it on x86 such that it can't be used
+to drive invalidation decisions?
 
-								Honza
+>> Any idea which one it is?
+> 
+> I am not sure about this particular reported case. But was able to reproduce
+> the problem through a test case where a buffer was mapped with R|W|X, get it
+> faulted/mapped through write, migrate and then execute from it.
 
-> 
->   WARNING: CPU: 11 PID: 29593 at fs/ext4/inode.c:3927 .ext4_set_page_dirty+0x70/0xb0
->   CPU: 11 PID: 29593 Comm: debugedit Not tainted 4.20.0-rc1 #1
->   ...
->   NIP .ext4_set_page_dirty+0x70/0xb0
->   LR  .set_page_dirty+0xa0/0x150
->   Call Trace:
->    .set_page_dirty+0xa0/0x150
->    .unmap_page_range+0xbf0/0xe10
->    .unmap_vmas+0x84/0x130
->    .unmap_region+0xe8/0x190
->    .__do_munmap+0x2f0/0x510
->    .__vm_munmap+0x80/0x110
->    .__se_sys_munmap+0x14/0x30
->    system_call+0x5c/0x70
-> 
-> The fix is simple, we need to convert the result of the bitwise && to
-> an int before returning it.
-> 
-> Thanks to Jan Kara and Aneesh for help with debugging.
-> 
-> Fixes: da7ad366b497 ("powerpc/mm/book3s: Update pmd_present to look at _PAGE_PRESENT bit")
-> Cc: stable@vger.kernel.org # v4.20+
-> Reported-by: Erhard F. <erhard_f@mailbox.org>
-> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-> Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
-> ---
->  arch/powerpc/include/asm/book3s/64/pgtable.h | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> index c9bfe526ca9d..d8c8d7c9df15 100644
-> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> @@ -904,7 +904,7 @@ static inline int pud_none(pud_t pud)
->  
->  static inline int pud_present(pud_t pud)
->  {
-> -	return (pud_raw(pud) & cpu_to_be64(_PAGE_PRESENT));
-> +	return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PRESENT));
->  }
->  
->  extern struct page *pud_page(pud_t pud);
-> @@ -951,7 +951,7 @@ static inline int pgd_none(pgd_t pgd)
->  
->  static inline int pgd_present(pgd_t pgd)
->  {
-> -	return (pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
-> +	return !!(pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
->  }
->  
->  static inline pte_t pgd_pte(pgd_t pgd)
-> -- 
-> 2.20.1
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Could you make sure, please?
+
+Write and Execute at the same time are generally a "bad idea".  Given
+the hardware, I'm not surprised that this problem pops up, but it would
+be great to find out if this is a real application, or a "doctor it
+hurts when I do this."
+
+>> If it's pages that got mapped in but were never executed, how did that
+>> happen?  Was it fault-around?  If so, maybe it would just be simpler to
+>> not do fault-around for executable pages on these platforms.
+> Page can get mapped through a different access (write) without being executed.
+> Even if it got mapped through execution and subsequent invalidation, the
+> invalidation does not have to be repeated again after migration without first
+> getting an exec access subsequently. This series just tries to hold off the
+> invalidation after migration till subsequent exec access.
+
+This set generally seems to be assuming an environment with "lots of
+migration, and not much execution".  That seems like a kinda odd
+situation to me.
 
