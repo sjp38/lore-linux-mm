@@ -2,228 +2,151 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2E407C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 10:42:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 37B96C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 10:49:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EA7B2222A4
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 10:42:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA7B2222A4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id F3817222A4
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 10:49:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3817222A4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0F34D8E0002; Thu, 14 Feb 2019 05:42:47 -0500 (EST)
+	id 8AFF58E0002; Thu, 14 Feb 2019 05:49:29 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 077718E0001; Thu, 14 Feb 2019 05:42:46 -0500 (EST)
+	id 85EC58E0001; Thu, 14 Feb 2019 05:49:29 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E09A88E0002; Thu, 14 Feb 2019 05:42:46 -0500 (EST)
+	id 74E118E0002; Thu, 14 Feb 2019 05:49:29 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 79D368E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 05:42:46 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id y91so2304962edy.21
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 02:42:46 -0800 (PST)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2033E8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 05:49:29 -0500 (EST)
+Received: by mail-wr1-f71.google.com with SMTP id o5so2067440wrh.7
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 02:49:29 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=LbJTBwht9poXC7QUGnhBvoZkF3UNcARyj+Ip1dZ+wro=;
-        b=f56Z4Duf3NsYIe44yjCcwPGdrw9z6wiaNoAG5AMueCRS9yuZ1EaoXaK5STfvMHbn33
-         H6XfKiyEcUT2I5stC01W6/mTdImUCr/aam2EawvusDJIxv9sERXw56pgzMWrum0kW8zO
-         Uj/W+sfoRIiv9Q3q302BRudgzzfFgiWiEZM2DYcGvFSkKwtpN9ukK/pMPDj9H+nuQnon
-         pHaxkGio92SlHz7QeOJiHV8dXECrm3qiQZRuZhM35+btF+YHC2PMgGnc69zMFW8+6pte
-         R6Z52UXScrcJS+ApsF3R6FgzCsH0/xsBHMuodKlr3ktmKvftgeJkp0nV8Ag6QXyVRdIO
-         7jEw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-X-Gm-Message-State: AHQUAubNLQXW+VamLOV2WMRrAoSviV+2s2iP3Hlb99zuTTdxAudV+6Kt
-	7ArpO1yfKblf9ett2V3WdtC/R+hl2f7INCsf/QWblCf9id7lVE1uQbniw+LVPfD+l3H27L6d3WG
-	V0CCmp6fmrdzETDXVSM0O8H0wdwb8qxwUd3wdVi/yizkIYueenR/bFydNA1zq6Naxwg==
-X-Received: by 2002:a50:c2d9:: with SMTP id u25mr2532592edf.280.1550140965935;
-        Thu, 14 Feb 2019 02:42:45 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaszyVfzVr88t+Q6l0KRpqcF9NaUjfTK9YqIgjmzSVbX22f/mYyLm//djar9iP+wCSiYrkZ
-X-Received: by 2002:a50:c2d9:: with SMTP id u25mr2532522edf.280.1550140964678;
-        Thu, 14 Feb 2019 02:42:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550140964; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=1xZMdwQdfY9N0X/0yrJb3tFIpsNNrczV59J++hWZHRg=;
+        b=b5YapAOHC4kiKFHthqxgiUJGb4jgMsYRrzAMl/fKECD3nyUQzyNL+r/ms7m0rEcnfl
+         uUGW/Vgx6U/6ga+oF82EfikTIB627i3Yg4secFNWz+vkW1KAwdFytGIu7Iok9+PfR40i
+         ojGCPTZwBseqgIKhEYk8ewHmhIT1muDpuKza4ILvtS34mJfWbwEoLw2up8hGsmoSgVLY
+         9z2kjYSkNgJ5LbFs81bJzC/De4BTilPHPgUyEYfz9niuYRj4Hzl4AOtzbpBfKMrlgTr5
+         6B6PY2ET0GKTX+x0rK+bfp3jst2+UZ9Leaq7V5n7PBq55knn4tKLvVNhiq54vhESr5AM
+         WMvw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.201 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: AHQUAuas46M0P4GkLIcFzE6EubPh3YalPad7t+0+BnbLU9veIIdUNSlq
+	zcyC3gkq+bw3/dXr6JPEpKoCa3ACa+aazR0LjOxm4FLhX7CLxLC+UZYiZZsPbFwhMGUwbxjY5WO
+	SC9UpwvQWu5fjtM6VL2V3B5iNdnf5bswynD9yq+wg+DzypH3CxzLhi7J7e5T/6dQ=
+X-Received: by 2002:a7b:c7c2:: with SMTP id z2mr2082242wmk.47.1550141368661;
+        Thu, 14 Feb 2019 02:49:28 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia7lE2k1yF/dJGg+R7+VLHQ+Hh82+c9F8ANu4F6CAbmv/Kv9jTTOw1m3H+rv9eTbTmtB7VE
+X-Received: by 2002:a7b:c7c2:: with SMTP id z2mr2082171wmk.47.1550141367555;
+        Thu, 14 Feb 2019 02:49:27 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550141367; cv=none;
         d=google.com; s=arc-20160816;
-        b=UHjio89Uz13X7uOlaDArmM+EYf4y3kzbFj3xSj4N24ilV4ZmVT3kdI2qf5TbUdL1iu
-         1x6D6+75wn/SvxIIRoO6QIX4WKsCuP7cRPYudk7JmsmOIBcW6v6HsUkJcgbIMl/EwWIP
-         aN+iflAyXTEms/hps08N06WNiT+dvPGROD+qjZcQg2KdJTBMefHjyuJUtdbgk+oKHfjT
-         gWOdkg4HfwDtXM4Csw9URUS5R6VP6W/4gLQJLdoqbZcVX+QZSsftvBB4/8yhqIOxfTzx
-         Lz/1CctQkyjmX41XP+kIeSZbjDymfuByrxxy7GYrAvXlfDJtKAgBR3jsV+U0iwe0lHmF
-         U+bw==
+        b=0XUkiuPzD+gXm+fjgpSr3OClthC0+24c7ABQh7isvkBA5i8gS05ZuNFI1t7uYCTfmt
+         4YPJ0teI1BMY4Boo78dp+EXzged6eyGyxc+fZVsrxdDs1eHTv2XC0QFqG0jTRyyVTlWv
+         hpKz27x5c5Tm76bPFwf+ebhJ7cvM0tz9QXtPU4M3NA5TXCFP42Y9X8zRPSZXkdKL4QkJ
+         L6Xc4RUGXpvRI73vBahfvTYkkDQXzk4pN6NP4vM13nVgqkfTk8oyRsS73FvMLGHl8LLZ
+         qVa5R5tVHBSsOhkoxeIw045lRZTCzCJjY4JRXlZk0nRf/C6AD1z7+pcWuWA37Exer44k
+         jPCg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=LbJTBwht9poXC7QUGnhBvoZkF3UNcARyj+Ip1dZ+wro=;
-        b=EdGtNDKGG3OkzWFhzDQQZN3fLpn9ym62iSmKjuzOzgn255oQKxWNrf2kNOwJ+iN4j+
-         aNwj7Serzc+9/W5GYg05WwgPo0u/cROhwIcMTbEYakEYSCt6E23rlDhVJON36H0vRwix
-         r1zkc2g39IY6svOYA5OD28kVu+RfdImjpg7fjZ5UCoENPdkczJlJalxhgyutJ56DwOpL
-         FZN4f8OEPb0ALvBzMRmvvLrozb7kFNpBat6FvFLqBoTJBFnSj/kDSu8UvXJzQAiDSIZK
-         VLG789uaEXYj2lp0bWPUCkBJcg1mcmpyTGgK4AqrQjx0KpEzz9bVMdM4s7sikogTYHWB
-         AP4A==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:to:subject;
+        bh=1xZMdwQdfY9N0X/0yrJb3tFIpsNNrczV59J++hWZHRg=;
+        b=d7KZU1SLwv+XR3oWAgDHUbLKlRPguk7IrFleECizTc87RL1l84Tmww+sPTJmHmNJ7O
+         BgmcL45C/DyxW7BBwoFdRD9LeihImzO4JW0ft4R1W6c4XWrWWN4JrylqPnYJdJPUSiL0
+         TXM3N8foXo0Hfzkq5xEjTITxfGhDv0GWA3TkNIERuKRDNryabasg323uZgAydVJTrIpV
+         8VToTZPD1bBA8bRMj4kbSarP4+rOe1lU1lVmaj6kxul9fG8ujO5lr5mXZeTT/gkJjDjw
+         sSpo+Kr3PjsZ61ksCNTjMCgavFN5SRxgLn0y/lLie+cqvW89KeS2rd9z5lhmOMUXutBZ
+         kv8A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ka14si870435ejb.127.2019.02.14.02.42.44
+       spf=neutral (google.com: 217.70.183.201 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay8-d.mail.gandi.net (relay8-d.mail.gandi.net. [217.70.183.201])
+        by mx.google.com with ESMTPS id o14si1395429wrm.294.2019.02.14.02.49.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 02:42:44 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 14 Feb 2019 02:49:27 -0800 (PST)
+Received-SPF: neutral (google.com: 217.70.183.201 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.201;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 375FDB0BE;
-	Thu, 14 Feb 2019 10:42:44 +0000 (UTC)
-From: Juergen Gross <jgross@suse.com>
-To: linux-kernel@vger.kernel.org,
-	xen-devel@lists.xenproject.org,
-	x86@kernel.org,
-	linux-mm@kvack.org
-Cc: boris.ostrovsky@oracle.com,
-	sstabellini@kernel.org,
-	hpa@zytor.com,
-	tglx@linutronix.de,
-	mingo@redhat.com,
-	bp@alien8.de,
-	Juergen Gross <jgross@suse.com>
-Subject: [PATCH v3 2/2] x86/xen: dont add memory above max allowed allocation
-Date: Thu, 14 Feb 2019 11:42:40 +0100
-Message-Id: <20190214104240.24428-3-jgross@suse.com>
-X-Mailer: git-send-email 2.16.4
-In-Reply-To: <20190214104240.24428-1-jgross@suse.com>
-References: <20190214104240.24428-1-jgross@suse.com>
+       spf=neutral (google.com: 217.70.183.201 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 81.250.144.103
+Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay8-d.mail.gandi.net (Postfix) with ESMTPSA id 066C61BF221;
+	Thu, 14 Feb 2019 10:49:19 +0000 (UTC)
+Subject: Re: [PATCH v2] hugetlb: allow to free gigantic pages regardless of
+ the configuration
+To: Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>,
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+ <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+ Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
+ x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
+ Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
+ Alexander Viro <viro@zeniv.linux.org.uk>,
+ Mike Kravetz <mike.kravetz@oracle.com>,
+ linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+ linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+ linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+References: <20190213192610.17265-1-alex@ghiti.fr>
+ <d367b5c7-eb05-6d0b-f9bf-5b3fc3f392a9@intel.com>
+From: Alexandre Ghiti <alex@ghiti.fr>
+Message-ID: <a60ed0fd-2f2c-4789-aca0-ecf37885fb93@ghiti.fr>
+Date: Thu, 14 Feb 2019 11:49:19 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.5.2
+MIME-Version: 1.0
+In-Reply-To: <d367b5c7-eb05-6d0b-f9bf-5b3fc3f392a9@intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Don't allow memory to be added above the allowed maximum allocation
-limit set by Xen.
 
-Trying to do so would result in cases like the following:
+On 02/13/2019 08:30 PM, Dave Hansen wrote:
+>> -#if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
+>> +#ifdef CONFIG_COMPACTION_CORE
+>>   static __init int gigantic_pages_init(void)
+>>   {
+>>   	/* With compaction or CMA we can allocate gigantic pages at runtime */
+>> diff --git a/fs/Kconfig b/fs/Kconfig
+>> index ac474a61be37..8fecd3ea5563 100644
+>> --- a/fs/Kconfig
+>> +++ b/fs/Kconfig
+>> @@ -207,8 +207,9 @@ config HUGETLB_PAGE
+>>   config MEMFD_CREATE
+>>   	def_bool TMPFS || HUGETLBFS
+>>   
+>> -config ARCH_HAS_GIGANTIC_PAGE
+>> +config COMPACTION_CORE
+>>   	bool
+>> +	default y if (MEMORY_ISOLATION && MIGRATION) || CMA
+> This takes a hard dependency (#if) and turns it into a Kconfig *default*
+> that can be overridden.  That seems like trouble.
+>
+> Shouldn't it be:
+>
+> config COMPACTION_CORE
+> 	def_bool y
+> 	depends on (MEMORY_ISOLATION && MIGRATION) || CMA
+>
+> ?
 
-[  584.559652] ------------[ cut here ]------------
-[  584.564897] WARNING: CPU: 2 PID: 1 at ../arch/x86/xen/multicalls.c:129 xen_alloc_pte+0x1c7/0x390()
-[  584.575151] Modules linked in:
-[  584.578643] Supported: Yes
-[  584.581750] CPU: 2 PID: 1 Comm: swapper/0 Not tainted 4.4.120-92.70-default #1
-[  584.590000] Hardware name: Cisco Systems Inc UCSC-C460-M4/UCSC-C460-M4, BIOS C460M4.4.0.1b.0.0629181419 06/29/2018
-[  584.601862]  0000000000000000 ffffffff813175a0 0000000000000000 ffffffff8184777c
-[  584.610200]  ffffffff8107f4e1 ffff880487eb7000 ffff8801862b79c0 ffff88048608d290
-[  584.618537]  0000000000487eb7 ffffea0000000201 ffffffff81009de7 ffffffff81068561
-[  584.626876] Call Trace:
-[  584.629699]  [<ffffffff81019ad9>] dump_trace+0x59/0x340
-[  584.635645]  [<ffffffff81019eaa>] show_stack_log_lvl+0xea/0x170
-[  584.642391]  [<ffffffff8101ac51>] show_stack+0x21/0x40
-[  584.648238]  [<ffffffff813175a0>] dump_stack+0x5c/0x7c
-[  584.654085]  [<ffffffff8107f4e1>] warn_slowpath_common+0x81/0xb0
-[  584.660932]  [<ffffffff81009de7>] xen_alloc_pte+0x1c7/0x390
-[  584.667289]  [<ffffffff810647f0>] pmd_populate_kernel.constprop.6+0x40/0x80
-[  584.675241]  [<ffffffff815ecfe8>] phys_pmd_init+0x210/0x255
-[  584.681587]  [<ffffffff815ed207>] phys_pud_init+0x1da/0x247
-[  584.687931]  [<ffffffff815edb3b>] kernel_physical_mapping_init+0xf5/0x1d4
-[  584.695682]  [<ffffffff815e9bdd>] init_memory_mapping+0x18d/0x380
-[  584.702631]  [<ffffffff81064699>] arch_add_memory+0x59/0xf0
+Thanks for that,
 
-Signed-off-by: Juergen Gross <jgross@suse.com>
----
- arch/x86/xen/setup.c      | 13 +++++++++++++
- drivers/xen/xen-balloon.c | 11 +++++++++++
- include/xen/xen.h         |  4 ++++
- 3 files changed, 28 insertions(+)
-
-diff --git a/arch/x86/xen/setup.c b/arch/x86/xen/setup.c
-index d5f303c0e656..0e770f5e5e8c 100644
---- a/arch/x86/xen/setup.c
-+++ b/arch/x86/xen/setup.c
-@@ -12,6 +12,7 @@
- #include <linux/memblock.h>
- #include <linux/cpuidle.h>
- #include <linux/cpufreq.h>
-+#include <linux/memory_hotplug.h>
- 
- #include <asm/elf.h>
- #include <asm/vdso.h>
-@@ -589,6 +590,14 @@ static void __init xen_align_and_add_e820_region(phys_addr_t start,
- 	if (type == E820_TYPE_RAM) {
- 		start = PAGE_ALIGN(start);
- 		end &= ~((phys_addr_t)PAGE_SIZE - 1);
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+		/*
-+		 * Don't allow adding memory not in E820 map while booting the
-+		 * system. Once the balloon driver is up it will remove that
-+		 * restriction again.
-+		 */
-+		max_mem_size = end;
-+#endif
- 	}
- 
- 	e820__range_add(start, end - start, type);
-@@ -748,6 +757,10 @@ char * __init xen_memory_setup(void)
- 	memmap.nr_entries = ARRAY_SIZE(xen_e820_table.entries);
- 	set_xen_guest_handle(memmap.buffer, xen_e820_table.entries);
- 
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+	xen_saved_max_mem_size = max_mem_size;
-+#endif
-+
- 	op = xen_initial_domain() ?
- 		XENMEM_machine_memory_map :
- 		XENMEM_memory_map;
-diff --git a/drivers/xen/xen-balloon.c b/drivers/xen/xen-balloon.c
-index 2acbfe104e46..a67236b02452 100644
---- a/drivers/xen/xen-balloon.c
-+++ b/drivers/xen/xen-balloon.c
-@@ -37,6 +37,7 @@
- #include <linux/mm_types.h>
- #include <linux/init.h>
- #include <linux/capability.h>
-+#include <linux/memory_hotplug.h>
- 
- #include <xen/xen.h>
- #include <xen/interface/xen.h>
-@@ -50,6 +51,10 @@
- 
- #define BALLOON_CLASS_NAME "xen_memory"
- 
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+u64 xen_saved_max_mem_size = 0;
-+#endif
-+
- static struct device balloon_dev;
- 
- static int register_balloon(struct device *dev);
-@@ -63,6 +68,12 @@ static void watch_target(struct xenbus_watch *watch,
- 	static bool watch_fired;
- 	static long target_diff;
- 
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+	/* The balloon driver will take care of adding memory now. */
-+	if (xen_saved_max_mem_size)
-+		max_mem_size = xen_saved_max_mem_size;
-+#endif
-+
- 	err = xenbus_scanf(XBT_NIL, "memory", "target", "%llu", &new_target);
- 	if (err != 1) {
- 		/* This is ok (for domain0 at least) - so just return */
-diff --git a/include/xen/xen.h b/include/xen/xen.h
-index 0e2156786ad2..d8f1ab43ab56 100644
---- a/include/xen/xen.h
-+++ b/include/xen/xen.h
-@@ -46,4 +46,8 @@ struct bio_vec;
- bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,
- 		const struct bio_vec *vec2);
- 
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+extern u64 xen_saved_max_mem_size;
-+#endif
-+
- #endif	/* _XEN_XEN_H */
--- 
-2.16.4
+Alex
 
