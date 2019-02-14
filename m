@@ -2,98 +2,103 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B97E5C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 11:30:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 04051C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 12:28:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7D6382070D
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 11:30:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D6382070D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 9BA96218D3
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 12:28:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9BA96218D3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2EB978E0002; Thu, 14 Feb 2019 06:30:50 -0500 (EST)
+	id 04D558E0002; Thu, 14 Feb 2019 07:28:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 299D58E0001; Thu, 14 Feb 2019 06:30:50 -0500 (EST)
+	id F18FD8E0001; Thu, 14 Feb 2019 07:28:20 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1B0278E0002; Thu, 14 Feb 2019 06:30:50 -0500 (EST)
+	id DE23A8E0002; Thu, 14 Feb 2019 07:28:20 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B987E8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 06:30:49 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id d9so2381989edh.4
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 03:30:49 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 82F028E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 07:28:20 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id d9so2441789edh.4
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 04:28:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=K7l/vvN01NeVJmxbBysCPc6n+N3PmIZhixmKQAhlHXw=;
-        b=R6a1fjRrnjRzymgPTczOokauGacV6gNKBB798LoOiZYL3aTaWpxvrsPYLv6wvYr2Vu
-         exCeXpWnG/s6hbO16iFPYtB1jzepasizoFwCBhthbBR95feH+ixvwL6SWrYjpd+jqgtb
-         8/Q5oT0QBY8LrWjyt433fUoSlKrrjM4kD3oVNdDMUFgcegCbdh/3kZW2Yr7Kj8Z1RJev
-         oGdfR6JuTIRW0ZOX2Y3cUTna5xE1mTpGGX7V2mnSyAlol7sOYVF9ioADUyffx8pFtaiR
-         vH7umReWtOh9oIjE15fMZ2OORmi79Ud0g5m4mURnwEC5sZXuWETd7GuwBMn2Gw7No5Zj
-         b/WQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAuYrXVF0uhBBG+BJ4Z9Z8VcsXpfFouF0yRd4kct7O8xkTboRr0Ej
-	RAvThcZq4KNwYLUbzW5FQufVWovWecB+0d7Y7i65rkfKB7H4aoJDEVlw5v7Lv/3FaniFupNkbUU
-	2HZuiIjWHVH+6ZWTGQPOjPiZXc3IFNjv70uWCsX57g/wfZ0+HKG6qeWNaMEaYY48=
-X-Received: by 2002:a17:906:1508:: with SMTP id b8mr2458579ejd.48.1550143849283;
-        Thu, 14 Feb 2019 03:30:49 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZf5heSzgPFml2mjoj2rdqDvSrsbfdoShi/O5eZeT8ixvQlOb+5tkTkLzLPN+YVlrIWx90M
-X-Received: by 2002:a17:906:1508:: with SMTP id b8mr2458528ejd.48.1550143848378;
-        Thu, 14 Feb 2019 03:30:48 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550143848; cv=none;
+        bh=q1Pf2DPnxwvTQqkiHfBjsgr3/zWh5dw3+4HKpwaSgSY=;
+        b=H0GyrJpmsBHrwABBKxGtqz9otmGzPBqrHWZcckiGDtS8c9vbuOaKjxItVJTas61CPe
+         4K46nEMv0y2lBodWU6UYT1Ll2R3VQtkYwPOK2Vb61YCQHLsJPHweSwFxI24IDIkcHiwy
+         rgiTIRP79zgnU6R7Cy5TLhSmn3I6eCK+lIp2V2KLhjXMC0PohCiAC7obwAfkA+HLlGMM
+         WGFLCKOlf1Qoil4PMt+hKaWIOeHw8g/BpOEGU8cRy1MEOeCbEQqg1xLbQNFwPJzySiBK
+         /q0lYTVg7y76ESnxQn59RHB4+rFZhcmTdFa3gKLGdEnEt6CeV+Hi3wsYpzqEMuOXI1DY
+         cOZA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Gm-Message-State: AHQUAuatKdufCVXjX1mwEqrrcoRojKb46W5BIKqY/E1/IIDc8UGvnPep
+	kaQj1QsCLvwYpxvUpq403uin1w7oa6aMIYLaa2bj74C/ZonhzUFQfGG/prEVXLdABjilJjvRHx1
+	93pCLaNhEYHR3UzWAKEtWVIVcZCLGwAux6ENJ49iBCtElvS5HNvX6n5EvI7C5J1VdnA==
+X-Received: by 2002:a17:906:7252:: with SMTP id n18-v6mr2615495ejk.192.1550147299938;
+        Thu, 14 Feb 2019 04:28:19 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYPoCgES3qNsHRQI/y4e8nilDAZEowGsYjRX0Kyke79y7piwE18PJqCNElmB3h+8CQp7WmU
+X-Received: by 2002:a17:906:7252:: with SMTP id n18-v6mr2615424ejk.192.1550147298800;
+        Thu, 14 Feb 2019 04:28:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550147298; cv=none;
         d=google.com; s=arc-20160816;
-        b=PzT3Lm9o41+dpiyHyp01Zz5DX2x67KBWtqmOgcunWNzvBWhH4X8maSNfYpSELDqTBF
-         442i/IwQ1L3eaFaVLbfzaiwP/oDhzqHBCGXRhmgPWqQnRi/RXKpkb8MzgD90dpZ9/cqP
-         hSNJtmu/UbtiQkDMfjDnzSAMOsLbrXad4pi/WZJ36vYM2GldxvBlrtlRTeripvjyAI0N
-         6uGvyi9WnIMC0m19J06U5qdCQ+9aCTBA4mVYTWrR+3pABlEYHNDqeyWBIItWCN0RNCMA
-         j0OKbjod41ApfeZh+kaAsv1VViMK7ynBONd2XdArdFQvjWqekwI1ixi0lq8FpnNJtS9H
-         LFqQ==
+        b=IKCdXzeXIW1OKQM3AzFpTerS+TCBoXAljG/DinJ78ZGnRq4418jFaKc3/ERMMJuLpm
+         NsSq5HuxNOxvMQNfIRBiC/w6n3Sew764bsEOj9r478+uZhiHXG8dFvQVu/Puqh8S30iK
+         FvU1pmmwl4uHT5IixsRKX6gmsoiLxx+HQsH2T5xVufpAPoEtvgdGs8zWLc6TIJHzzhSP
+         vx8YMkEkb5LPuqAhuNZdZGIXn2ga6AkmXFeFLxPoDjHPr3eORELCJxqiPMM1FXbfw3l4
+         O+gp0dtgzo1IefIHQD4zd9Pw/43pU/0smiIgqvLzq0TFfLYr7m0KuKznoqs9liKm5U5x
+         VUiA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=K7l/vvN01NeVJmxbBysCPc6n+N3PmIZhixmKQAhlHXw=;
-        b=CpdRXuf/Q/nYBT/v7rBVgaIuIrwkfIRELbWqPSOOfATNl3BWrz0e2XXuk3Lwv8hf9R
-         IzOCp7KZWMk27J5wH2bWDNJYX4o8QWoS74IByp56Ab4naCuLVq6SvR8hrz9mNjRUJjew
-         vq+nrDZV9ouLx/L9MkrcpQo4kGgN+XLgRF3iK5dSX8yCUPw711lTlELj1/nGQ+l9oo1r
-         EbEzza8qZf17J0kVGHy4bCQSLB0KFOzOwICsz5n3m3TfasMfgbOvp+XP1HurHOQFjspK
-         Y4UOqofxvnHJ55q1q6VI95v08NLlrS00MdC3xjoPKASDtyj0M685xopUDlkfEsE+rKgY
-         ESxQ==
+        bh=q1Pf2DPnxwvTQqkiHfBjsgr3/zWh5dw3+4HKpwaSgSY=;
+        b=kOU3+UTQE2KsDuIUrkGv/DYcNpH9DymjIh7c//M+qCJzKXVmMP8+QHCvQUDu6IjcRD
+         9hFNImOSYIIAqx7sA1b8EiGXpfjvCQ4X1ZHiAUshelpHpy0Z8uGoZHus5+4fXtJ4/ZWz
+         eYswa95tDTIXQt5Z5vcdtkhi8Jrse82b7FVS3q/stX191sQAYPMKqapp1Srru2oDbbRN
+         uTo88aTk7G9O8d7j18dWPtlYQmHW2KKave21pXIKB2Eu49JaIoUaCQ0e02l0KXt9xt68
+         bBZUCBsIa6D8MsGBEW2/4ZIbRVAoimQCIIviy39pZf+iASAnPgsF66+MyhJFeaybI64L
+         aw4g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z18si912841eji.43.2019.02.14.03.30.48
+        by mx.google.com with ESMTPS id t24si992474ejr.13.2019.02.14.04.28.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 03:30:48 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 14 Feb 2019 04:28:18 -0800 (PST)
+Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 8D35FAC7A;
-	Thu, 14 Feb 2019 11:30:47 +0000 (UTC)
-Date: Thu, 14 Feb 2019 12:30:47 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] MAINTAINERS: add entry for memblock
-Message-ID: <20190214113047.GB4525@dhcp22.suse.cz>
-References: <20190214093630.GC9063@rapoport-lnx>
+	by mx1.suse.de (Postfix) with ESMTP id E587CACA2;
+	Thu, 14 Feb 2019 12:28:17 +0000 (UTC)
+Date: Thu, 14 Feb 2019 13:28:16 +0100
+From: Michal Hocko <mhocko@suse.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org,
+	akpm@linux-foundation.org, kirill@shutemov.name,
+	kirill.shutemov@linux.intel.com, vbabka@suse.cz,
+	will.deacon@arm.com, dave.hansen@intel.com
+Subject: Re: [RFC 0/4] mm: Introduce lazy exec permission setting on a page
+Message-ID: <20190214122816.GD4525@dhcp22.suse.cz>
+References: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
+ <20190213112135.GA9296@c02tf0j2hf1t.cambridge.arm.com>
+ <20190213153819.GS4525@dhcp22.suse.cz>
+ <0b6457d0-eed1-54e4-789b-d62881bea013@arm.com>
+ <20190214083844.GZ4525@dhcp22.suse.cz>
+ <20190214101936.GD9296@c02tf0j2hf1t.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190214093630.GC9063@rapoport-lnx>
+In-Reply-To: <20190214101936.GD9296@c02tf0j2hf1t.cambridge.arm.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -101,52 +106,78 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 14-02-19 11:36:31, Mike Rapoport wrote:
-> Hi,
+On Thu 14-02-19 10:19:37, Catalin Marinas wrote:
+> On Thu, Feb 14, 2019 at 09:38:44AM +0100, Michal Hocko wrote:
+> > On Thu 14-02-19 11:34:09, Anshuman Khandual wrote:
+> > > On 02/13/2019 09:08 PM, Michal Hocko wrote:
+> > > > Are there any numbers to show the optimization impact?
+> > > 
+> > > This series transfers execution cost linearly with nr_pages from migration path
+> > > to subsequent exec access path for normal, THP and HugeTLB pages. The experiment
+> > > is on mainline kernel (1f947a7a011fcceb14cb912f548) along with some patches for
+> > > HugeTLB and THP migration enablement on arm64 platform.
+> > 
+> > Please make sure that these numbers are in the changelog. I am also
+> > missing an explanation why this is an overal win. Why should we pay
+> > on the later access rather than the migration which is arguably a slower
+> > path. What is the usecase that benefits from the cost shift?
 > 
-> I was surprised to see lots of activity around memblock (beside the churn
-> I create there), so I'm going to look after it.
+> Originally the investigation started because of a regression we had
+> sending IPIs on each set_pte_at(PROT_EXEC). This has been fixed
+> separately, so the original value of this patchset has been diminished.
 > 
-> >From 7b3d02797ef18fb1c515f32125fb9b0055a312de Mon Sep 17 00:00:00 2001
-> From: Mike Rapoport <rppt@linux.ibm.com>
-> Date: Thu, 14 Feb 2019 11:21:26 +0200
-> Subject: [PATCH] MAINTAINERS: add entry for memblock
+> Trying to frame the problem, let's analyse the overall cost of migration
+> + execute. Removing other invariants like cost of the initial mapping of
+> the pages or the mapping of new pages after migration, we have:
 > 
-> Add entry for memblock in MAINTAINERS file
-
-It is great that this code gains an official maintainer finaly. Thanks
-for stepping in.
-
-> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  MAINTAINERS | 8 ++++++++
->  1 file changed, 8 insertions(+)
+> M - number of mapped executable pages just before migration
+> N - number of previously mapped pages that will be executed after
+>     migration (N <= M)
+> D - cost of migrating page data
+> I - cost of I-cache maintenance for a page
+> F - cost of an instruction fault (handle_mm_fault() + set_pte_at()
+>     without the actual I-cache maintenance)
 > 
-> diff --git a/MAINTAINERS b/MAINTAINERS
-> index 41ce5f4ad838..4e870d8b31af 100644
-> --- a/MAINTAINERS
-> +++ b/MAINTAINERS
-> @@ -9792,6 +9792,14 @@ F:	kernel/sched/membarrier.c
->  F:	include/uapi/linux/membarrier.h
->  F:	arch/powerpc/include/asm/membarrier.h
->  
-> +MEMBLOCK
-> +M:	Mike Rapoport <rppt@linux.ibm.com>
-> +L:	linux-mm@kvack.org
-> +S:	Maintained
-> +F:	include/linux/memblock.h
-> +F:	mm/memblock.c
-> +F:	Documentation/core-api/boot-time-mm.rst
-> +
->  MEMORY MANAGEMENT
->  L:	linux-mm@kvack.org
->  W:	http://www.linux-mm.org
-> -- 
-> 2.7.4
+> Tc - total migration cost current kernel (including executing)
+> Tp - total migration cost patched kernel (including executing)
+> 
+>   Tc = M * (D + I)
+>   Tp = M * D + N * (F + I)
+> 
+> To be useful, we want this patchset to lead to:
+> 
+>   Tp < Tc
+> 
+> Simplifying:
+> 
+>   M * D + N * (F + I) < M * (D + I)
+>   ...
+>   F < I * (M - N) / N
+> 
+> So the question is, in a *real-world* scenario, what proportion of the
+> mapped executable pages would still be executed from after migration.
+> I'd leave this as a task for Anshuman to investigate and come up with
+> some numbers (and it's fine if it's just in the noise, we won't need
+> this patchset).
 
+Yeah, betting on accessing only a smaller subset of the migrated memory
+is something I figured out. But I am really missing a usecase or a
+larger set of them to actually benefit from it. We have different
+triggers for a migration. E.g. numa balancing. I would expect that
+migrated pages are likely to be accessed after migration because
+the primary reason to migrate them is that they are accessed from a
+remote node. Then we a compaction which is a completely different story.
+It is hard to assume any further access for migrated pages here. Then we
+have an explicit move_pages syscall and I would expect this to be
+somewhere in the middle. One would expect that the caller knows why the
+memory is migrated and it will be used but again, we cannot really
+assume anything.
+
+This would suggest that this depends on the migration reason quite a
+lot. So I would really like to see a more comprehensive analysis of
+different workloads to see whether this is really worth it.
+
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
