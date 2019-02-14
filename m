@@ -2,292 +2,205 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2E9D9C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 15:11:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9AE9EC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 15:13:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D9ABE218FF
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 15:11:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D9ABE218FF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 4C42F222C9
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 15:13:43 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Xa+qZY+m"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C42F222C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 662E98E0003; Thu, 14 Feb 2019 10:11:32 -0500 (EST)
+	id E2BFB8E0004; Thu, 14 Feb 2019 10:13:42 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 612498E0001; Thu, 14 Feb 2019 10:11:32 -0500 (EST)
+	id DB2838E0001; Thu, 14 Feb 2019 10:13:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 502928E0003; Thu, 14 Feb 2019 10:11:32 -0500 (EST)
+	id C7A4D8E0004; Thu, 14 Feb 2019 10:13:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 26EFF8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 10:11:32 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id s4so5795359qts.11
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 07:11:32 -0800 (PST)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B78C8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 10:13:42 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id m52so5535245otc.13
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 07:13:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=nAUbIzHIDytdEQz7ne0188JCOOie/wkLzkeetVjZnko=;
-        b=hbL3oJArfrY8HrKZhV+4H936ZvqI6i7b0ZwPbe3fb6e7DOguyUeN+vPNmcnU5wAtBJ
-         TH2quz9D0PGtwV2OHOHsGw2ziA48UxCXGWOH0oVMxR0fK4yETTR9+uSHUExzz3Zo9sjA
-         018IoIcsRzsvQCJ8zUvL5P3bCEwLjy80XLtf9EYMKMwyNqQJheRUglHQMeXr8VoZ2cYJ
-         fhAAPJsC9c2Snwg9ewWaF2dEVjoOWxBA3Hbr9tINJ3zWWKwrJawESMUO+9wrcQZD04c1
-         H6bXN97Gc8oM29ajNm62FzCMBbOn6fl+T6DWIYKBGktg0DppOeqrUR54fqC5yqkjybJV
-         OS3A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuY0HcSEKDKo6LQ6u5aYaPkg1tcIa1OQieXWBUyJoW0tFs3Yur2q
-	Qcq32xmrAl9V3fOtPw6Cl/HRvuD8lyWV2CIqoBM6ia28z5eu7YCqefE8g9GmIKQDZS8vVIdCFJW
-	dt1uv2CLwX1g/thgNQUb0/fSbLbe23zvShBNAGNwt69RlPeO7pQRzsd/zHkV34Z2CuQ==
-X-Received: by 2002:ae9:c30f:: with SMTP id n15mr3151300qkg.227.1550157091875;
-        Thu, 14 Feb 2019 07:11:31 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaDVp5NDHUOpmOHKfccBwkLtj+0TSm6qRnqW9WKqOB4B3IQZOZRlf6pPZzuxaw9LCyUbcdh
-X-Received: by 2002:ae9:c30f:: with SMTP id n15mr3151243qkg.227.1550157091100;
-        Thu, 14 Feb 2019 07:11:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550157091; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=iJI/pk5H55mfRvQVlZ1QB6KQyS4XiuvbQpyQ9QHp3cg=;
+        b=twgMr08M7MBHr4cDSx/+EJhxXPbgAapZqJSlZ3b4mU5kVzXe7q7LskpvFNj8RLy7G6
+         hqphOuhpbqpEfhg1clTwtytmev2xM4ZBxKXbPbGxsgVCD1H1fz48ay0/W1v1d3hyYf0k
+         hlN+rVC6k+RzmsQofi+MMZ3XMBA6C6sspCKlhkyFSLX4OseXSuj7DfOYmKb4quuVowrh
+         C3fBJOjFbC1aIMtYtFFWMUxIkUtaCQrsQr/3IW+N9GFuFpfoIk3G3XwHO2aC9Sm/e8Ww
+         qyGLOuOkExh4T5+/pI+HZHnD2uJuJho8DUoFStGcALemDI/FFyV/+pQM9za3nKYjBT7f
+         6DBQ==
+X-Gm-Message-State: AHQUAubW1Q9PQsY1YODh9YwWVlO0PKHWPzmukE9ZJn8ftEGX2OmV5qnU
+	gYhDelUR+U7qUxqRV1v2IkBAAD9Lw8CQFeYIruJAwnmkg/9M9p3s1sUyLgci1S/jhhS7h3/Tiyt
+	cz5Vq3oWZZsIhZaCEkVT0qD/WQ7R/aZE7mHndZqoXDwsQ54AEvoVbAd8utXZ0ArGqFcn+YeFJE9
+	f66vWi8EXy3cZi1yUZ6gcAUuUI91hYxkNbE2UFziF3zKjzS3NJpdb7ddd3FE+1AdI+qRoimf+Py
+	GwOO5qtoCzTQqdxeqWei5U+Ja7uGwiRmdf4oscx/cOSz3ThhH9Up/Lc1p9R7KkfT8R5aW4TpYCa
+	g70W13yeZ9n9deSwPe38YzF0bR+LdAsv3xllzgpgObpc5dNn/t4eQeXNx4deZDoZmC0XqFcduCl
+	3
+X-Received: by 2002:aca:538f:: with SMTP id h137mr2801525oib.54.1550157222262;
+        Thu, 14 Feb 2019 07:13:42 -0800 (PST)
+X-Received: by 2002:aca:538f:: with SMTP id h137mr2801479oib.54.1550157221512;
+        Thu, 14 Feb 2019 07:13:41 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550157221; cv=none;
         d=google.com; s=arc-20160816;
-        b=UVdGS6NCPku+iEpQ4SpTR7tMf7WuFDEKYybAgzJdll78fwRvwZZrB8XM8i0gY5utYq
-         Yio9ad/btKG74hAGTihRL4mcPWrdxeDzHct3YJnZoz4abvd5OZskveowIIfjmuHrwbeq
-         Wm9zPgtyFohFZZHPIJGmP/ijwQJpV40nuoAqHjKPuzsM1UJ9PX//1UxTeZZXD+YI1G8X
-         SmscV8GxTecsRkom2vfN/WepzV0ekpEHdafSy96IBBl31UkxYO17U6EZrlo97uzJHMWQ
-         SzPldhUNWMFIWybGee3f5aQYj7HXBhC4+/iWc3lbHveGmf1v2CR0SSjBe8O3/Ewq26Bu
-         9ygw==
+        b=t0tyPE0fAs5flwo26/I+4HA8P8YDU7ikDfaOLyYiwd2I1DrBNiEPG7ZAeSKwnaL6RV
+         NjgqGNQs5H/rWxkTendd3U5vFnN54GqmwQo+buG0ppSZWMY9PwbjN+VM3Hujxjzgh5eI
+         OWueYKvQ8nR1A2WeJHh7XAfMYatwstDOGYtLDFbkQHvxvm5kns86QB331UUZK8p8GhlE
+         OzY+jWT9hBX9dxL00cZrOacyD0MEyhAAb4inZRmmVXBaCIv8k0Y03E9GbqcIlM0PXC8j
+         p2C4GIOF8Ej2RdMw7ijo6vFmjziZfwsQbktvDpJGjXVOoT3BqUKiTWd70Xrj2VyKBtAJ
+         VUfA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=nAUbIzHIDytdEQz7ne0188JCOOie/wkLzkeetVjZnko=;
-        b=eFRE0O3adf/tAfNJut7lEgnco2f3p4m3KDzDNuUe7ZXeMFLLoFslIVQt9tVJnPlBPp
-         hxxcoAh7tEx/xGzczljzq1AOtGSidPGgnq+ltiqxKqQ6uK9C9caBdamgdUPINgSKdg1W
-         dpPx5LxllfJw8Age8ECjrkv8LBu12EciuVuITNQHKJmcLx549yNTlarR6+Gibq0wm1IO
-         7UpFLWuk9Lytyg1aoTvCj4Mz2T2A1P2r4NxnokPSA8YL6NWWCYGTnk7I8Gm41hVoBnBo
-         Ar30CyLmdoIsi9DHuUaxiH1dXHhZRZgcrXuJ+R8Mi3vOObNbQqEdtXj540ZvSP48wjL1
-         oOew==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=iJI/pk5H55mfRvQVlZ1QB6KQyS4XiuvbQpyQ9QHp3cg=;
+        b=DTC52ADl6iq+b/MVAlWwmhCwWZyExanQ+WJPKP5boj6TGGhuS/CptaHFz1yxho+wmF
+         i/vF1cPb5KZwq96an9zXoklTMmfQIiB7ZnHMaqGZV375wGXkBolf6mLbYYT/1krAHOYS
+         VpEpA8BHvjxo/XWsvmQ7CqaFBXN6BJQjtB9+5gi6e+IXCxagE+6fUGw16En5U29d0N+A
+         ETJcd3qoa5lPRl97FpF+9El/jlM+he7bJopUWBAZnCoEG77SPbm2ye68lYRUWt1dBTro
+         vZEvFFWZSHhaj1oBTC9Umu/g4NiVeMxAJojOdS6XERKz+gTVGgQcL4IYu1fI2RETa2OY
+         2jyg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id t19si1748971qtt.295.2019.02.14.07.11.29
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Xa+qZY+m;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u84sor1542257oib.6.2019.02.14.07.13.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 07:11:30 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        (Google Transport Security);
+        Thu, 14 Feb 2019 07:13:41 -0800 (PST)
+Received-SPF: pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1EF8QHN082942
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 10:11:29 -0500
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2qnap38mhp-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 10:11:27 -0500
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 14 Feb 2019 15:11:20 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 14 Feb 2019 15:11:17 -0000
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1EFBGaq66453726
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Feb 2019 15:11:16 GMT
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 54432A4065;
-	Thu, 14 Feb 2019 15:11:16 +0000 (GMT)
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 91A4AA4066;
-	Thu, 14 Feb 2019 15:11:15 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.84])
-	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Thu, 14 Feb 2019 15:11:15 +0000 (GMT)
-Date: Thu, 14 Feb 2019 17:11:13 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: linux-efi <linux-efi@vger.kernel.org>,
-        linux-arm-kernel <linux-arm-kernel@lists.infradead.org>,
-        Catalin Marinas <catalin.marinas@arm.com>,
-        Will Deacon <will.deacon@arm.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Marc Zyngier <marc.zyngier@arm.com>, James Morse <james.morse@arm.com>,
-        Linux-MM <linux-mm@kvack.org>
-Subject: Re: [PATCH 1/2] arm64: account for GICv3 LPI tables in static
- memblock reserve table
-References: <20190213132738.10294-1-ard.biesheuvel@linaro.org>
- <20190213132738.10294-2-ard.biesheuvel@linaro.org>
- <20190214083350.GA9063@rapoport-lnx>
- <CAKv+Gu8ZvMgS3VgkGVQthh-QWWoAmjxEDhj-pp98_BG4-810Wg@mail.gmail.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Xa+qZY+m;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=iJI/pk5H55mfRvQVlZ1QB6KQyS4XiuvbQpyQ9QHp3cg=;
+        b=Xa+qZY+mcalye0fRh8JiCRY2VzHP4nXzMty8/xvOdxDYelcPykB9tFfdPE2TQXzifQ
+         d3q5UWieKFooAx/BcbMsO8mIiEEBlmGfD6vEc3FePMF37o0MFEFF6XTrvBCT2PWLCr3P
+         ZTDBf3WNDv/5KaCBZsKtp4yWNI+kAFIj9svQHfSod0HLzTZzvD4T/1JS6tzh8iWhw/64
+         I1cfcI5j52B0PjiRHT3td0/QJUlo9DfcivVEpp7fbtjeiZCOb5nQMkcDfVaa6oV43eyQ
+         mkjlnJPHB5EH2nEXv9FEZSjIdlSUx1ebc+YfXKVLUhJH303K6d4Yuvpz4rQ2+7PwwFeB
+         xOzw==
+X-Google-Smtp-Source: AHgI3IYtH6Br7+jtnzndSJDWGG8uEAmaoG1A+RjcD/4JuI2o3aAA0GTtYjkIUK8162ciwLyeee9wolUaXeFMqrH29Ko=
+X-Received: by 2002:aca:3806:: with SMTP id f6mr1973512oia.47.1550157220765;
+ Thu, 14 Feb 2019 07:13:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKv+Gu8ZvMgS3VgkGVQthh-QWWoAmjxEDhj-pp98_BG4-810Wg@mail.gmail.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19021415-0028-0000-0000-000003489433
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19021415-0029-0000-0000-00002406C072
-Message-Id: <20190214151113.GE9063@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-14_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902140106
+References: <20190213204157.12570-1-jannh@google.com> <CAKgT0Uc7wheUjStv5a4BSNv_=-iu1Ttdj9f_10CdR_oc2BhVig@mail.gmail.com>
+In-Reply-To: <CAKgT0Uc7wheUjStv5a4BSNv_=-iu1Ttdj9f_10CdR_oc2BhVig@mail.gmail.com>
+From: Jann Horn <jannh@google.com>
+Date: Thu, 14 Feb 2019 16:13:14 +0100
+Message-ID: <CAG48ez0v7QwtCKDs5vgRJht8yfZR5nudEpkMOLaDX-=47WeFqA@mail.gmail.com>
+Subject: Re: [PATCH] mm: page_alloc: fix ref bias in page_frag_alloc() for
+ 1-byte allocs
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, Pavel Tatashin <pavel.tatashin@microsoft.com>, 
+	Oscar Salvador <osalvador@suse.de>, Mel Gorman <mgorman@techsingularity.net>, 
+	Aaron Lu <aaron.lu@intel.com>, Netdev <netdev@vger.kernel.org>, 
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 14, 2019 at 03:57:35PM +0100, Ard Biesheuvel wrote:
-> On Thu, 14 Feb 2019 at 09:34, Mike Rapoport <rppt@linux.ibm.com> wrote:
+On Wed, Feb 13, 2019 at 11:42 PM Alexander Duyck
+<alexander.duyck@gmail.com> wrote:
+> On Wed, Feb 13, 2019 at 12:42 PM Jann Horn <jannh@google.com> wrote:
+> > The basic idea behind ->pagecnt_bias is: If we pre-allocate the maximum
+> > number of references that we might need to create in the fastpath later,
+> > the bump-allocation fastpath only has to modify the non-atomic bias value
+> > that tracks the number of extra references we hold instead of the atomic
+> > refcount. The maximum number of allocations we can serve (under the
+> > assumption that no allocation is made with size 0) is nc->size, so that's
+> > the bias used.
 > >
-> > On Wed, Feb 13, 2019 at 02:27:37PM +0100, Ard Biesheuvel wrote:
-> > > In the irqchip and EFI code, we have what basically amounts to a quirk
-> > > to work around a peculiarity in the GICv3 architecture, which permits
-> > > the system memory address of LPI tables to be programmable only once
-> > > after a CPU reset. This means kexec kernels must use the same memory
-> > > as the first kernel, and thus ensure that this memory has not been
-> > > given out for other purposes by the time the ITS init code runs, which
-> > > is not very early for secondary CPUs.
-> > >
-> > > On systems with many CPUs, these reservations could overflow the
-> > > memblock reservation table, and this was addressed in commit
-> > > eff896288872 ("efi/arm: Defer persistent reservations until after
-> > > paging_init()"). However, this turns out to have made things worse,
-> > > since the allocation of page tables and heap space for the resized
-> > > memblock reservation table itself may overwrite the regions we are
-> > > attempting to reserve, which may cause all kinds of corruption,
-> > > also considering that the ITS will still be poking bits into that
-> > > memory in response to incoming MSIs.
-> > >
-> > > So instead, let's grow the static memblock reservation table on such
-> > > systems so it can accommodate these reservations at an earlier time.
-> > > This will permit us to revert the above commit in a subsequent patch.
-> > >
-> > > Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-> > > ---
-> > >  arch/arm64/include/asm/memory.h | 11 +++++++++++
-> > >  include/linux/memblock.h        |  3 ---
-> > >  mm/memblock.c                   | 10 ++++++++--
-> > >  3 files changed, 19 insertions(+), 5 deletions(-)
-> > >
-> > > diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-> > > index e1ec947e7c0c..7e2b13cdd970 100644
-> > > --- a/arch/arm64/include/asm/memory.h
-> > > +++ b/arch/arm64/include/asm/memory.h
-> > > @@ -332,6 +332,17 @@ static inline void *phys_to_virt(phys_addr_t x)
-> > >  #define virt_addr_valid(kaddr)               \
-> > >       (_virt_addr_is_linear(kaddr) && _virt_addr_valid(kaddr))
-> > >
-> > > +/*
-> > > + * Given that the GIC architecture permits ITS implementations that can only be
-> > > + * configured with a LPI table address once, GICv3 systems with many CPUs may
-> > > + * end up reserving a lot of different regions after a kexec for their LPI
-> > > + * tables, as we are forced to reuse the same memory after kexec (and thus
-> > > + * reserve it persistently with EFI beforehand)
-> > > + */
-> > > +#if defined(CONFIG_EFI) && defined(CONFIG_ARM_GIC_V3_ITS)
-> > > +#define INIT_MEMBLOCK_RESERVED_REGIONS       (INIT_MEMBLOCK_REGIONS + 2 * NR_CPUS)
-> > > +#endif
+> > However, even when all memory in the allocation has been given away, a
+> > reference to the page is still held; and in the `offset < 0` slowpath, the
+> > page may be reused if everyone else has dropped their references.
+> > This means that the necessary number of references is actually
+> > `nc->size+1`.
+> >
+> > Luckily, from a quick grep, it looks like the only path that can call
+> > page_frag_alloc(fragsz=1) is TAP with the IFF_NAPI_FRAGS flag, which
+> > requires CAP_NET_ADMIN in the init namespace and is only intended to be
+> > used for kernel testing and fuzzing.
+>
+> Actually that has me somewhat concerned. I wouldn't be surprised if
+> most drivers expect the netdev_alloc_frags call to at least output an
+> SKB_DATA_ALIGN sized value.
+>
+> We probably should update __netdev_alloc_frag and __napi_alloc_frag so
+> that they will pass fragsz through SKB_DATA_ALIGN.
 
-Not strictly related, with high NR_CPUS the memblock.reserved becomes quite
-large and mostly empty in many cases. Is there a reason arm64 does not set
-ARCH_DISCARD_MEMBLOCK?
+Do you want to do a separate patch for that? I'd like to not mix
+logically separate changes in a single patch, and I also don't have a
+good understanding of the alignment concerns here.
 
-> > > +
-> > >  #include <asm-generic/memory_model.h>
-> > >
-> > >  #endif
-> > > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> > > index 64c41cf45590..859b55b66db2 100644
-> > > --- a/include/linux/memblock.h
-> > > +++ b/include/linux/memblock.h
-> > > @@ -29,9 +29,6 @@ extern unsigned long max_pfn;
-> > >   */
-> > >  extern unsigned long long max_possible_pfn;
-> > >
-> > > -#define INIT_MEMBLOCK_REGIONS        128
-> > > -#define INIT_PHYSMEM_REGIONS 4
-> > > -
-> > >  /**
-> > >   * enum memblock_flags - definition of memory region attributes
-> > >   * @MEMBLOCK_NONE: no special request
-> > > diff --git a/mm/memblock.c b/mm/memblock.c
-> > > index 022d4cbb3618..a526c3ab8390 100644
-> > > --- a/mm/memblock.c
-> > > +++ b/mm/memblock.c
-> > > @@ -26,6 +26,12 @@
-> > >
-> > >  #include "internal.h"
-> > >
-> > > +#define INIT_MEMBLOCK_REGIONS                128
-> > > +#define INIT_PHYSMEM_REGIONS         4
-> > > +#ifndef INIT_MEMBLOCK_RESERVED_REGIONS
-> > > +#define INIT_MEMBLOCK_RESERVED_REGIONS       INIT_MEMBLOCK_REGIONS
-> > > +#endif
-> > > +
+> > To test for this issue, put a `WARN_ON(page_ref_count(page) == 0)` in the
+> > `offset < 0` path, below the virt_to_page() call, and then repeatedly call
+> > writev() on a TAP device with IFF_TAP|IFF_NO_PI|IFF_NAPI_FRAGS|IFF_NAPI,
+> > with a vector consisting of 15 elements containing 1 byte each.
 > >
-> > I'd suggest
+> > Cc: stable@vger.kernel.org
+> > Signed-off-by: Jann Horn <jannh@google.com>
+> > ---
+> >  mm/page_alloc.c | 8 ++++----
+> >  1 file changed, 4 insertions(+), 4 deletions(-)
 > >
-> > s/INIT_MEMBLOCK_REGIONS/INIT_MEMORY_REGIONS
-> > s/INIT_MEMBLOCK_RESERVED_REGIONS/INIT_RESERVED_REGIONS
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 35fdde041f5c..46285d28e43b 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -4675,11 +4675,11 @@ void *page_frag_alloc(struct page_frag_cache *nc,
+> >                 /* Even if we own the page, we do not use atomic_set().
+> >                  * This would break get_page_unless_zero() users.
+> >                  */
+> > -               page_ref_add(page, size - 1);
+> > +               page_ref_add(page, size);
 > >
-> 
-> Well, I'd prefer to keep MEMBLOCK in the identifier, given that we are
-> setting it from an arch header file as well.
- 
-I was bothered by lack of consistency, but you're right, namespacing here
-is more important.
+> >                 /* reset page count bias and offset to start of new frag */
+> >                 nc->pfmemalloc = page_is_pfmemalloc(page);
+> > -               nc->pagecnt_bias = size;
+> > +               nc->pagecnt_bias = size + 1;
+> >                 nc->offset = size;
+> >         }
+> >
+> > @@ -4695,10 +4695,10 @@ void *page_frag_alloc(struct page_frag_cache *nc,
+> >                 size = nc->size;
+> >  #endif
+> >                 /* OK, page count is 0, we can safely set it */
+> > -               set_page_count(page, size);
+> > +               set_page_count(page, size + 1);
+> >
+> >                 /* reset page count bias and offset to start of new frag */
+> > -               nc->pagecnt_bias = size;
+> > +               nc->pagecnt_bias = size + 1;
+> >                 offset = size - fragsz;
+> >         }
+>
+> If we already have to add a constant it might be better to just use
+> PAGE_FRAG_CACHE_MAX_SIZE + 1 in all these spots where you are having
+> to use "size + 1" instead of "size". That way we can avoid having to
+> add a constant to a register value and then program that value.
+> instead we can just assign the constant value right from the start.
 
-Care to update /** DOC: */ section as a separate patch?
-
-> > Except that,
-> >
-> > Acked-by: Mike Rapoport <rppt@linux.ibm.com>
-> >
-> 
-> Thanks
-> 
-> 
-> > >  /**
-> > >   * DOC: memblock overview
-> > >   *
-> > > @@ -92,7 +98,7 @@ unsigned long max_pfn;
-> > >  unsigned long long max_possible_pfn;
-> > >
-> > >  static struct memblock_region memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
-> > > -static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
-> > > +static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_RESERVED_REGIONS] __initdata_memblock;
-> > >  #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
-> > >  static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS] __initdata_memblock;
-> > >  #endif
-> > > @@ -105,7 +111,7 @@ struct memblock memblock __initdata_memblock = {
-> > >
-> > >       .reserved.regions       = memblock_reserved_init_regions,
-> > >       .reserved.cnt           = 1,    /* empty dummy entry */
-> > > -     .reserved.max           = INIT_MEMBLOCK_REGIONS,
-> > > +     .reserved.max           = INIT_MEMBLOCK_RESERVED_REGIONS,
-> > >       .reserved.name          = "reserved",
-> > >
-> > >  #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
-> > > --
-> > > 2.20.1
-> > >
-> >
-> > --
-> > Sincerely yours,
-> > Mike.
-> >
-> 
-
--- 
-Sincerely yours,
-Mike.
+I doubt that these few instructions make a difference, but sure, I can
+send a v2 with that changed.
 
