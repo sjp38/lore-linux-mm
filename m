@@ -2,205 +2,251 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1FB6BC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 16:55:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A004C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 16:55:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CC36821928
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 16:55:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC36821928
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id EBBD521928
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 16:55:41 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=linaro.org header.i=@linaro.org header.b="d99rXLfY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EBBD521928
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 468958E0002; Thu, 14 Feb 2019 11:55:35 -0500 (EST)
+	id 7EB698E0003; Thu, 14 Feb 2019 11:55:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 418E78E0001; Thu, 14 Feb 2019 11:55:35 -0500 (EST)
+	id 79AC08E0001; Thu, 14 Feb 2019 11:55:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2DFF88E0002; Thu, 14 Feb 2019 11:55:35 -0500 (EST)
+	id 68A958E0003; Thu, 14 Feb 2019 11:55:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E2E9A8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 11:55:34 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id n24so4677997pgm.17
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 08:55:34 -0800 (PST)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 41D318E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 11:55:41 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id t18so11141172itk.2
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 08:55:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=1Q2TuyCD73oIpYHfgAoLyLcqU7x3xNhtkD9ZCRglQm0=;
-        b=LmsEnGpj/XgT6+Aj/PR2CPGpYedfjlgwW0wTusVbc8VnkjjP3yFcj/kjXekWClipa3
-         A6qGUtU+7uKcq8oSNC2+yevNAJojpgtpu5pRDaOZ7QGWgpd5RLDFZ4rynsw3XZdIjAji
-         /M66WxeznGwMDNmcosWOVhf2uGd7/JVeptnYGLZPLEXKwHCVRp/b/9AONf+7EKsa8SZY
-         WNbhZ8wlfGo5YuhnaRMFAyTKRfLzhzQgjsTksz78bjRzkgvXoteu9Vb7qK7BAo0aVHN4
-         EME4F33zlO/dZwIqa47d0JXfHm7b9omWGQod9yplyTxUn+zGZHwzuSlwNNWz4H9WjiVR
-         0BmQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuZfo5oVhp48ljSj7PVTEfKD4RpxDC064v+YaTei9FMEzeW2f+VU
-	5mpE8pccQg+N/KPKm3LOFL2dm4hS1PZcOtyysyGEQYZDomEReeoefkrTR5dMA1FcTWOFL/wLdLu
-	3UWquhmcq/mgwhJCO8p4S5gJexPjG053/60AwuLHJUj4RkG4WUalMTaTGial8iRU/QA==
-X-Received: by 2002:a65:51ca:: with SMTP id i10mr4535688pgq.371.1550163334532;
-        Thu, 14 Feb 2019 08:55:34 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYgTfC0xExWQDpS/C9o8IN2KYKPxnV43XKGn8YsjllSG4cNBza+MZFOCOm8z07hF+iVaqew
-X-Received: by 2002:a65:51ca:: with SMTP id i10mr4535620pgq.371.1550163333392;
-        Thu, 14 Feb 2019 08:55:33 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550163333; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=SbBKzNBycKxM70itibKfUlYiJ9pJfd1fqDbErtUvpXc=;
+        b=ErHoxNb4mMBdYlRU+vOwYm4om2mG3qto6UWxZGCr3RQosuoI6uK5Ko6bw0fSzixZAg
+         0ro5XoGfrYVRW3Z8aUufdb5SSZTO1pb4xnfZdLiK3IiUs2nYUshx2FH1dHVJ6Xl/DUhw
+         8yg/aArBJ1AxSuqzJhGFn/DEl+YloovVxOy6PW/WtLP3TMHUoOARGPoLVam8supa/tPw
+         A2vo7rDZI3bKRdYfDGH1C6EUebB6ImTp72KTPMSj4pclJOGUV8UUH/9bcvb0RyrjzhpL
+         kjh9LmBjk/tfhZfll744THK6mGxCXSi9LnLFguCX1QgcLq2lMWhBMMDkXy6k6PQyEvlu
+         Q22A==
+X-Gm-Message-State: AHQUAuZsTPSTD2ZkH65juyEipqXbK2hz9+Yx/P5QRi31ERtnAYBCNErO
+	aZqBZrHSUlGyn0MdqLoNCT/GyOpC+sDAwKDoN731V6n7ZPTXs75PsRW1GmWP9yfllAPjMqGqf4z
+	XK4SGHrBg8vgJHmRkvZPx1GP1CKDLZsxNAWwi3HLSATjwPL67pns71wmjWmcCwF9BMhuQtINLiH
+	yhhy90h9kaR9+ttfzclgoYSMSvkXAEQQ5EtxCYXqxfgqLeSvqgnQlciYQ1W5a5J7iXoxTTdYOgc
+	iQsRMv4dk0nIQolZjbxwiyRZAUBWX+gdTHuai2eRGiuKIL9gBH1wHl0g5RoX/8GQY5nQRzX/gGz
+	/Js0oM4XGu5dIWz11yNkvZ1lEko0GcFdCJ1HQrvGLsUelO3HZNRigB3B+G6zc18QeFyosygNB0V
+	t
+X-Received: by 2002:a5d:9a98:: with SMTP id c24mr2927870iom.227.1550163341005;
+        Thu, 14 Feb 2019 08:55:41 -0800 (PST)
+X-Received: by 2002:a5d:9a98:: with SMTP id c24mr2927828iom.227.1550163340083;
+        Thu, 14 Feb 2019 08:55:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550163340; cv=none;
         d=google.com; s=arc-20160816;
-        b=v5/iqULvIeGHZuV86lhdhukARH9rip/w6IbAKdIZMxF72VFbjofe68YHAwPvlsZz14
-         WBfLIhlgEneNRQb9ihOSLF4OHU50qZXAnq2X1vQCM8UFbBCNeEeyvrpDTNj4e80/Q5RM
-         o1IA9nFqedtR9KOaZplFQsPetY0z4b/FN2v0EnJrmI8yqObjoKmwssf56Y2e3BR1fItq
-         aqtwDynfHS5oCjZ9bf2M+XBMby1uphel1wMGX0YgJKAvKNyT8kMnfugZUwX4+J9m7Ekj
-         YO/Hjv5RJaax4nwxciZ5yE1FdQ2yCpT5o+Y1WpKT1zp0FGxmUJRFzeEvXC4JYfbT9s/B
-         cesA==
+        b=a+KtMkC2awngC32rOrIH9/E2YGRD/jiRASeC/MWLXnAeboBJB9oIvBn+7Wk4ZG31P0
+         zzNlXhP1BKsvuSGAlYmLowtHMtXeXEKfU8GwwUkpSCVa12Q3diUesryyPd5QJVHI3WG6
+         MvB1JMM+uXOt5KqjcpOtxgRwgEBn2Cpcztxg4W6GeTWXg8EFAJmrgxduHKEzwFKmnWgh
+         WF7ijlLgYbBmmM7/p/5FRDio7J0sPc+U51HFMDQq9LOGCimRB6VrnpW+BtrB8oo662wm
+         +klLaaSoLPW7lt7NWTVVoDFruLrBn4x/nwFfi3BA1qY3Mdnaw1/2IzfQhM0I54OTJpI/
+         vF/A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=1Q2TuyCD73oIpYHfgAoLyLcqU7x3xNhtkD9ZCRglQm0=;
-        b=j9bC9PYBJikt/6GLZRqyyNGnKJG9wy/dV1jVYeRkZBMnB7WQ9oIEpAUOzgsgnXcj8E
-         xcuSG6QrJgCTBXR5cF2RGXdrXX5TrPWXLnhYJ8w6Yp4MwqoN0Q8Ct+yjpng1JSEk8TNA
-         tpmzxXR8rNEQZasov+Dqq8v14almRNqy7jDu9UPropxb1lo+7nkXALMi+emLn7cmQYVS
-         b/rVq3nCChhFiozYycD8o68DFaaFEmVTYNCWjZUR0uckFrGnOyCws0+ZpT8qf7lHIDy1
-         5bPFcx+9koaN+BvwGi47rnuZZLJ3Istbe6j8cblgSRQurZUXv9KiFvE8L+bcUZijYNYh
-         B2tw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=SbBKzNBycKxM70itibKfUlYiJ9pJfd1fqDbErtUvpXc=;
+        b=vJ7tzz2bEXXj90o97zmyl6xFaTDQE5AvmmqEDpnV5+VkohfdHXtkWxkSsCDzeQnLop
+         0XnBUZAEV2IjigXnJMLJjwxLbO2KjeQlkRq4OfpSrPF/0PTypua7ZB72OZ6ZJnNCjAO1
+         AY53U1rFC79evCNR5IY7yC+efNLcDUlhw8t8fQYpWUNpc9zPWIpjL3yf06Mdw6Mvfsql
+         IAV6CdhLRHYPzYv5flq2QMBo/jZjMZ3P+GTTUxhTYZVsLGp99+M6/cGBur9g71s+esZ8
+         xZCvqMgvI4MTeTvjKFrUoqj/n9owAS1aQY+sclyS+ofusmu/jX7MrG3r5yqe12UOxudN
+         QsgA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id d11si2842763plo.184.2019.02.14.08.55.33
+       dkim=pass header.i=@linaro.org header.s=google header.b=d99rXLfY;
+       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d9sor5122287itk.35.2019.02.14.08.55.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 08:55:33 -0800 (PST)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+        (Google Transport Security);
+        Thu, 14 Feb 2019 08:55:40 -0800 (PST)
+Received-SPF: pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Feb 2019 08:55:32 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,369,1544515200"; 
-   d="scan'208";a="138644178"
-Received: from pmmonter-mobl.amr.corp.intel.com (HELO [10.254.87.236]) ([10.254.87.236])
-  by orsmga001.jf.intel.com with ESMTP; 14 Feb 2019 08:55:32 -0800
-Subject: Re: [RFC 0/4] mm: Introduce lazy exec permission setting on a page
-To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org,
- akpm@linux-foundation.org
-Cc: mhocko@kernel.org, kirill@shutemov.name, kirill.shutemov@linux.intel.com,
- vbabka@suse.cz, will.deacon@arm.com, catalin.marinas@arm.com
-References: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
- <7f25d3f4-68a1-58de-1a78-1bd942e3ba2f@intel.com>
- <413d74d1-7d74-435c-70c0-91b8a642bf99@arm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <35b14038-379f-12fb-d943-5a083a2a7056@intel.com>
-Date: Thu, 14 Feb 2019 08:55:34 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       dkim=pass header.i=@linaro.org header.s=google header.b=d99rXLfY;
+       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linaro.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=SbBKzNBycKxM70itibKfUlYiJ9pJfd1fqDbErtUvpXc=;
+        b=d99rXLfYTXazHCp6agNx8f/TLrwjgUX4pj1ny26fJvjhOaGgaaZY49A6iZYz1cC65e
+         uCd3zm7zE3ZYC6rgH67f+DE4uDpu/g3bP0uCzpDWTKuTUmfpwg/SdX6DX2nLNWDIwMN1
+         LRPPsMwJgF22mEVbaRzYEG02AaBjDffWJn2u7lz0B8U7IjQV5jOAD00Fl2SUMdCaF1f2
+         tui1aHAa/JkdiocARufySsS6A22M3Ml15Zn3nkYZBzPmpubtvxPqADRb73PxSaCp14vP
+         rIxjo48gfu+NbF4kw5YiMMgNIebHdF14IKJFs8DhM2qvcdaxK6lgOkGolVYaRKSN7sML
+         KS3w==
+X-Google-Smtp-Source: AHgI3IZ73trhTnBp56oqdiFpvhVapXV9PZgD9Ci4654hxG67oSOYjdqP39cfx3Orco0gZ94/lV+wvRPodce2JKUFiM4=
+X-Received: by 2002:a24:c3c4:: with SMTP id s187mr2932777itg.158.1550163339656;
+ Thu, 14 Feb 2019 08:55:39 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <413d74d1-7d74-435c-70c0-91b8a642bf99@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+References: <20190213132738.10294-1-ard.biesheuvel@linaro.org>
+ <20190213132738.10294-2-ard.biesheuvel@linaro.org> <325ae70b-6520-a186-c65f-8ab29a5be3a5@arm.com>
+In-Reply-To: <325ae70b-6520-a186-c65f-8ab29a5be3a5@arm.com>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Thu, 14 Feb 2019 17:55:28 +0100
+Message-ID: <CAKv+Gu9BpVDg1=2bsR6ouWM2Xw1OZGMOZ4DXv5fQxE=HQXJsRg@mail.gmail.com>
+Subject: Re: [PATCH 1/2] arm64: account for GICv3 LPI tables in static
+ memblock reserve table
+To: Marc Zyngier <marc.zyngier@arm.com>
+Cc: linux-efi <linux-efi@vger.kernel.org>, 
+	linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, 
+	Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, James Morse <james.morse@arm.com>, 
+	Linux-MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/13/19 8:12 PM, Anshuman Khandual wrote:
-> On 02/13/2019 09:14 PM, Dave Hansen wrote:
->> On 2/13/19 12:06 AM, Anshuman Khandual wrote:
->>> Setting an exec permission on a page normally triggers I-cache invalidation
->>> which might be expensive. I-cache invalidation is not mandatory on a given
->>> page if there is no immediate exec access on it. Non-fault modification of
->>> user page table from generic memory paths like migration can be improved if
->>> setting of the exec permission on the page can be deferred till actual use.
->>> There was a performance report [1] which highlighted the problem.
->>
->> How does this happen?  If the page was not executed, then it'll
->> (presumably) be non-present which won't require icache invalidation.
->> So, this would only be for pages that have been executed (and won't
->> again before the next migration), *or* for pages that were mapped
->> executable but never executed.
-> I-cache invalidation happens while migrating a 'mapped and executable' page
-> irrespective whether that page was really executed for being mapped there
-> in the first place.
+On Thu, 14 Feb 2019 at 16:48, Marc Zyngier <marc.zyngier@arm.com> wrote:
+>
+> Hi Ard,
+>
+> On 13/02/2019 13:27, Ard Biesheuvel wrote:
+> > In the irqchip and EFI code, we have what basically amounts to a quirk
+> > to work around a peculiarity in the GICv3 architecture, which permits
+> > the system memory address of LPI tables to be programmable only once
+> > after a CPU reset. This means kexec kernels must use the same memory
+> > as the first kernel, and thus ensure that this memory has not been
+> > given out for other purposes by the time the ITS init code runs, which
+> > is not very early for secondary CPUs.
+> >
+> > On systems with many CPUs, these reservations could overflow the
+> > memblock reservation table, and this was addressed in commit
+> > eff896288872 ("efi/arm: Defer persistent reservations until after
+> > paging_init()"). However, this turns out to have made things worse,
+> > since the allocation of page tables and heap space for the resized
+> > memblock reservation table itself may overwrite the regions we are
+> > attempting to reserve, which may cause all kinds of corruption,
+> > also considering that the ITS will still be poking bits into that
+> > memory in response to incoming MSIs.
+> >
+> > So instead, let's grow the static memblock reservation table on such
+> > systems so it can accommodate these reservations at an earlier time.
+> > This will permit us to revert the above commit in a subsequent patch.
+> >
+> > Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+> > ---
+> >  arch/arm64/include/asm/memory.h | 11 +++++++++++
+> >  include/linux/memblock.h        |  3 ---
+> >  mm/memblock.c                   | 10 ++++++++--
+> >  3 files changed, 19 insertions(+), 5 deletions(-)
+> >
+> > diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
+> > index e1ec947e7c0c..7e2b13cdd970 100644
+> > --- a/arch/arm64/include/asm/memory.h
+> > +++ b/arch/arm64/include/asm/memory.h
+> > @@ -332,6 +332,17 @@ static inline void *phys_to_virt(phys_addr_t x)
+> >  #define virt_addr_valid(kaddr)               \
+> >       (_virt_addr_is_linear(kaddr) && _virt_addr_valid(kaddr))
+> >
+> > +/*
+> > + * Given that the GIC architecture permits ITS implementations that can only be
+> > + * configured with a LPI table address once, GICv3 systems with many CPUs may
+> > + * end up reserving a lot of different regions after a kexec for their LPI
+> > + * tables, as we are forced to reuse the same memory after kexec (and thus
+> > + * reserve it persistently with EFI beforehand)
+> > + */
+> > +#if defined(CONFIG_EFI) && defined(CONFIG_ARM_GIC_V3_ITS)
+> > +#define INIT_MEMBLOCK_RESERVED_REGIONS       (INIT_MEMBLOCK_REGIONS + 2 * NR_CPUS)
+>
+> Since GICv3 has 1 pending table per CPU, plus one global property table,
+> can we make this 2 * NR_CPUS + 1? Or is that enough already?
+>
 
-Ahh, got it.  I also assume that the Accessed bit on these platforms is
-also managed similar to how we do it on x86 such that it can't be used
-to drive invalidation decisions?
+Ah, I misread the code then. That would mean we'll only need 1 extra
+slot per CPU.
 
->> Any idea which one it is?
-> 
-> I am not sure about this particular reported case. But was able to reproduce
-> the problem through a test case where a buffer was mapped with R|W|X, get it
-> faulted/mapped through write, migrate and then execute from it.
+So I will change this to
 
-Could you make sure, please?
+> > +#define INIT_MEMBLOCK_RESERVED_REGIONS       (INIT_MEMBLOCK_REGIONS + NR_CPUS)
 
-Write and Execute at the same time are generally a "bad idea".  Given
-the hardware, I'm not surprised that this problem pops up, but it would
-be great to find out if this is a real application, or a "doctor it
-hurts when I do this."
+considering that INIT_MEMBLOCK_REGIONS defaults to 128, so that one
+global table is already accounted for.
 
->> If it's pages that got mapped in but were never executed, how did that
->> happen?  Was it fault-around?  If so, maybe it would just be simpler to
->> not do fault-around for executable pages on these platforms.
-> Page can get mapped through a different access (write) without being executed.
-> Even if it got mapped through execution and subsequent invalidation, the
-> invalidation does not have to be repeated again after migration without first
-> getting an exec access subsequently. This series just tries to hold off the
-> invalidation after migration till subsequent exec access.
 
-This set generally seems to be assuming an environment with "lots of
-migration, and not much execution".  That seems like a kinda odd
-situation to me.
+> > +#endif
+> > +
+> >  #include <asm-generic/memory_model.h>
+> >
+> >  #endif
+> > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> > index 64c41cf45590..859b55b66db2 100644
+> > --- a/include/linux/memblock.h
+> > +++ b/include/linux/memblock.h
+> > @@ -29,9 +29,6 @@ extern unsigned long max_pfn;
+> >   */
+> >  extern unsigned long long max_possible_pfn;
+> >
+> > -#define INIT_MEMBLOCK_REGIONS        128
+> > -#define INIT_PHYSMEM_REGIONS 4
+> > -
+> >  /**
+> >   * enum memblock_flags - definition of memory region attributes
+> >   * @MEMBLOCK_NONE: no special request
+> > diff --git a/mm/memblock.c b/mm/memblock.c
+> > index 022d4cbb3618..a526c3ab8390 100644
+> > --- a/mm/memblock.c
+> > +++ b/mm/memblock.c
+> > @@ -26,6 +26,12 @@
+> >
+> >  #include "internal.h"
+> >
+> > +#define INIT_MEMBLOCK_REGIONS                128
+> > +#define INIT_PHYSMEM_REGIONS         4
+> > +#ifndef INIT_MEMBLOCK_RESERVED_REGIONS
+> > +#define INIT_MEMBLOCK_RESERVED_REGIONS       INIT_MEMBLOCK_REGIONS
+> > +#endif
+> > +
+> >  /**
+> >   * DOC: memblock overview
+> >   *
+> > @@ -92,7 +98,7 @@ unsigned long max_pfn;
+> >  unsigned long long max_possible_pfn;
+> >
+> >  static struct memblock_region memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
+> > -static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS] __initdata_memblock;
+> > +static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_RESERVED_REGIONS] __initdata_memblock;
+> >  #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
+> >  static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS] __initdata_memblock;
+> >  #endif
+> > @@ -105,7 +111,7 @@ struct memblock memblock __initdata_memblock = {
+> >
+> >       .reserved.regions       = memblock_reserved_init_regions,
+> >       .reserved.cnt           = 1,    /* empty dummy entry */
+> > -     .reserved.max           = INIT_MEMBLOCK_REGIONS,
+> > +     .reserved.max           = INIT_MEMBLOCK_RESERVED_REGIONS,
+> >       .reserved.name          = "reserved",
+> >
+> >  #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
+> >
+>
+> Otherwise:
+>
+> Acked-by: Marc Zyngier <marc.zyngier@arm.com>
+>
+>         M.
+> --
+> Jazz is not dead. It just smells funny...
 
