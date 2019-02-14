@@ -2,170 +2,160 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A626CC4360F
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 20:12:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8FE9C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 20:17:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 30EF52229F
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 20:12:35 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="hA9VncW7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30EF52229F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 6D3EA2229F
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 20:17:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D3EA2229F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bluematt.me
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 757F78E0002; Thu, 14 Feb 2019 15:12:35 -0500 (EST)
+	id 0EDCE8E0002; Thu, 14 Feb 2019 15:17:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 707428E0001; Thu, 14 Feb 2019 15:12:35 -0500 (EST)
+	id 0748F8E0001; Thu, 14 Feb 2019 15:17:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5F5B18E0002; Thu, 14 Feb 2019 15:12:35 -0500 (EST)
+	id E58268E0002; Thu, 14 Feb 2019 15:17:51 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EC158E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 15:12:35 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id x14so5115192pln.5
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 12:12:35 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B671D8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 15:17:51 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id a199so6046905qkb.23
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 12:17:51 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=ccxzyt/RMKZ2OOmgM+tFIm3eRFm02Zizg0pcCDEvEpA=;
-        b=eXrTnKfRCyjgMT2iMd8cxhiN0EsQxkjYK2HuoFXCyrd582PZxdpVn6XNlPHyE3bm9w
-         h5PqLYMk+OfjplZoua1cPvZtjn1UwBayVgpv1Fy+jmHq1S53orGCCqkx4BjcnIq4J/op
-         qFABQHYAZ8kV+cibMKuSUEKALMKUBdGsBCY3iLkxutwvcdyq83RblJ+1Cm6TcHJCG8WG
-         hgRmV1bJZEE+Ksk5FIaWsTQUieKL6BeQrtlLZ/tz312CckIL430W38TAcwdVvPDK1Lb6
-         024TENFYfxF9CqGwWnxIABoMD3S8ymt0tA/W+PB5s+OwU1rKlnp9R6RhFc3mf07dBHa/
-         wqqQ==
-X-Gm-Message-State: AHQUAuZc0moWdgcKoKuOnvX4+WQojXAfyHSOJ5qjJ7IomkxZ9dGwdofC
-	TJ2qARD+lboVCZi5DXZ4zhbj9zubFf0fSu99eQqVdmk/5J+IvHHUicq5koTZRBe8iTu8XCSc05P
-	pN09kucsisS8dKbsBUnj3CeiKaeWgHTdB9c0yY3jns2DLqESfF4DovMpDoICYX713SUXTMUeQNS
-	UGCj8r9pmo0ycBTgFKh/T58MXTWQHeQfkS2KF0rc9CizM5lY8Z08Du5o2vyZi6keZczVAuapHpE
-	q6KKYnBy0AZ+yQZQbGuJtTFC1taJVI4gci2CdBp/ECmkEQkyabd6lOODzCJq56a9WmlH0iYNVyl
-	W9zecqNla99FPrejtUyDI78p9ZgnX6FgIW/QUPspialXuWBqq17JKbgQY2oPihLvgxzjyNEM3Dd
-	3
-X-Received: by 2002:a17:902:2ae8:: with SMTP id j95mr6047277plb.292.1550175154618;
-        Thu, 14 Feb 2019 12:12:34 -0800 (PST)
-X-Received: by 2002:a17:902:2ae8:: with SMTP id j95mr6047222plb.292.1550175153886;
-        Thu, 14 Feb 2019 12:12:33 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550175153; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :subject:from:in-reply-to:date:cc:content-transfer-encoding
+         :message-id:references:to;
+        bh=/Wr4ZLkq9aHEE1cN+LAtwbm46Ug5i36H8ynIAmwOjx4=;
+        b=tpUZFsT3gsIIWYZqPrQTVj39Bg6sSees1pTd9rkjvMPQzD0dpr2k0xF5IaF2acLj9m
+         qpODKi0LSm6pQaPM8Z6fKmuTF/DSRZIiYr3b0EakbsAIFh++mmyT4QaYcxJDqLUe23F4
+         qA7ty9q5TqsqPWj3Maf5fGs+9sK+DsdQt6EKsFaGW6/FFagQrK8BIdV3ydKIANnMoPxf
+         +Wj9LZxI8/HEStUhzQt3RX9VFomUXq+Jj7QLW/XPSgmPjK08DHWWBp1Ph7k/nlGC9hZT
+         vF3/44X+A8qtuJ73c1X7mEEmiNc3CiTUvFSfl1tPYI9Wd6YFPqOzNFTK2xzP/qidiZAy
+         +wAA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of kernel@bluematt.me designates 192.241.179.72 as permitted sender) smtp.mailfrom=kernel@bluematt.me
+X-Gm-Message-State: AHQUAuZISAYaOfaIoOG4h9nIKqhcVPZA9UEbWY56tdIADZUsoh4rvAJR
+	L6b7qtgPMPaoEBsc/wKhHPu0ljbysxEuA1wyhL+W6jIfXixVs3tzu/FJZ9Xke/Gctm6W4EVlzDW
+	LQtDBL/c6xtnxGFifRMUZWWlT6oZmhNc7EcAvqaVPemQHTaU1hzthSe/WtDkvxX3cbQ==
+X-Received: by 2002:ae9:ea0f:: with SMTP id f15mr4387064qkg.113.1550175471458;
+        Thu, 14 Feb 2019 12:17:51 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia2s0Haj31kYdLaVlwRsQF9IzcXfJCAdE8iNf6wb1/76yw/9GiB4J4fPr7z8tVmmWknBBc5
+X-Received: by 2002:ae9:ea0f:: with SMTP id f15mr4387034qkg.113.1550175470867;
+        Thu, 14 Feb 2019 12:17:50 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550175470; cv=none;
         d=google.com; s=arc-20160816;
-        b=BFE8YNCV6ceZu8NAdw9LtGlZCKfisQ/VPJcqA9UAF8GR/fySAjQ0gvDOUKzfnQKN8Q
-         ZpZca9zEw6GbzG1Tu9yuZRIc8ZYy13jszatihASjHhN+hTKwSLDQZdZB7e2G3WgPsvH5
-         K9wXq3yAd2vnUd4T/ffZhTtNwvkSAchp+Dla2TU//B/Ww6ogpD9kVnLnm4DbanrWhjsl
-         jcwbFWKie+Jt4IZb7wOGwOwRsqra5xgoMDd903RXDLYkqs/NM8shAdjVUQAtAzw2waCq
-         +wzq9mW46frYI7DbmMzZVRJmUu5AnpJcN2828RrwLhF9OQB/fRb6BOYNI5BC6HxvlL19
-         pDsQ==
+        b=02UqEXpnaILaWuLobYxlcuMMt0XiCAv8AJNMUfkIKivc/28/lgAxr1I0JiAA2UpJC1
+         WQ/mESuwROqASv8DhdYW3T88Q2+3GGmAucNrhAtBYVU6DRD0+Uc4DPxJGXDrQPF/z+wo
+         dOHDG0Q3OWwWd7k1jYYaKNKIlVcQ3gEW5/9AgadbF/imSXl6nr1e4Prpb4ylq+UTunEL
+         wlacp5YCoGdiRoNIytlhjFKprxJDsSpfEFHLJaN9E4W1ZvH3u+G8Yk/0h8LpYqR0NT1e
+         unM8HV8dL6IUbnNhHfJ9oUTWdqERTYkZJ1P+bIqoWKqnwatgvla565CjBOQ8YmiuQolM
+         KlLQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ccxzyt/RMKZ2OOmgM+tFIm3eRFm02Zizg0pcCDEvEpA=;
-        b=vWEJC5rYD1iFyW5ckvISIinIFmX6nvCrEADY02JP2ztR4z3uPXgJLmYf/Cxk3QnSff
-         VE/3bW3SXsLYWEGnfVOuFFi0/JIlvCRKhMXcPlN1xMMwEV105OmxUi4+n+2l4MvQxM1J
-         NkddnYvS53AesLq+K6p/5bJiFDOgOb0nBED9QU+bpx2u9ohraxlI0DJkTAyMQmY6sqjy
-         gDZoqWs2rHxBB6pzMyHz5suqEk9PPn+e0aI9L0ZmWYJVP2TcXQDTNAsr5VZu8vlb3g4h
-         /yLwuP8mMAxhsVzlGIjZp7pEIguFinyjZpTSvluU3QQUXTWpl36wwRUyqLnqcv8mieCG
-         RTaA==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version;
+        bh=/Wr4ZLkq9aHEE1cN+LAtwbm46Ug5i36H8ynIAmwOjx4=;
+        b=S8H/IThhlgGyts5cM16YjFCYejEbogdvwZIyuZNqSkuV+LODKZp6mHGy9JgtqQp3Vu
+         bifKUgaItQhP84dmQwQWaRlQpCD/pDlO6+aWbrgsyz8VzhZLs5gMFTugl6adsRmOVld+
+         +YSB//vvPh2VPjr+4T8Fn0M+xuw5JSl47BmANFsmvwkvFs14Wezaa9tizTKpTl3uqgvh
+         PhuBGNgc+nAn40FdxVgR/1WL6ZNClAjdj9Evi5WkQMtpPyQvSGwEwthJ1j+0Kx+QOeNa
+         ZyMiILzudsjCS2s1HRN8mKz/GPHZmmh08KqdHPdZj5glQKB4qAfWn7BxMR7YFR+qL31V
+         z2WA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=hA9VncW7;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x11sor5721125pfn.58.2019.02.14.12.12.33
+       spf=pass (google.com: domain of kernel@bluematt.me designates 192.241.179.72 as permitted sender) smtp.mailfrom=kernel@bluematt.me
+Received: from mail.bluematt.me (mail.bluematt.me. [192.241.179.72])
+        by mx.google.com with ESMTPS id r21si715898qtn.351.2019.02.14.12.17.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 14 Feb 2019 12:12:33 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=hA9VncW7;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=ccxzyt/RMKZ2OOmgM+tFIm3eRFm02Zizg0pcCDEvEpA=;
-        b=hA9VncW7abr9v+2utX/VkY1ZMwjjXa+hwVTodjREfjCiB0K7/Kc1hdBbZP6VIclrft
-         XOlV/kBSodmvMnJmU6S+VCif2RbCUEwe4jiK021/ptlayI1p9QvtTplnf6hXcgW17wb+
-         QnehE0OatJE+W6+9FVvKXjsQS9WlMlC81CJMTIZkDJ4RfuKrLjfzhp/2YUPNRFY/w0Lc
-         aUTkEhbENTvNIWFJCqAuRCY2ROYZ4dZzB+xqdPWBbhLmA24jTl0pTqeeCY5bZatXCoQw
-         abmHXi9B7hQUHXsFEubY8QrdE6yffwStU9kEa6Ykk1vfsXxhwe1xCEIBVbJx8CT9RHfQ
-         tu1g==
-X-Google-Smtp-Source: AHgI3IZWZ0MGPLsLn4wrH2r78+5Tb6L2fudxI7tZh+KJRQfM13M8w4S/vvhozZ+3+r9nH+nNGegkWw==
-X-Received: by 2002:a62:a1a:: with SMTP id s26mr5944270pfi.31.1550175153085;
-        Thu, 14 Feb 2019 12:12:33 -0800 (PST)
-Received: from ziepe.ca (S010614cc2056d97f.ed.shawcable.net. [174.3.196.123])
-        by smtp.gmail.com with ESMTPSA id q21sm8921770pfq.138.2019.02.14.12.12.32
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 14 Feb 2019 12:12:32 -0800 (PST)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1guNN1-0007Ay-MB; Thu, 14 Feb 2019 13:12:31 -0700
-Date: Thu, 14 Feb 2019 13:12:31 -0700
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, akpm@linux-foundation.org,
-	dave@stgolabs.net, jack@suse.cz, cl@linux.com, linux-mm@kvack.org,
-	kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
-	linux-kernel@vger.kernel.org, alex.williamson@redhat.com,
-	paulus@ozlabs.org, benh@kernel.crashing.org, mpe@ellerman.id.au,
-	hao.wu@intel.com, atull@kernel.org, mdf@kernel.org, aik@ozlabs.ru
-Subject: Re: [PATCH 0/5] use pinned_vm instead of locked_vm to account pinned
- pages
-Message-ID: <20190214201231.GC1739@ziepe.ca>
-References: <20190211224437.25267-1-daniel.m.jordan@oracle.com>
- <20190211225447.GN24692@ziepe.ca>
- <20190214015314.GB1151@iweiny-DESK2.sc.intel.com>
- <20190214060006.GE24692@ziepe.ca>
- <20190214193352.GA7512@iweiny-DESK2.sc.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190214193352.GA7512@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+        Thu, 14 Feb 2019 12:17:50 -0800 (PST)
+Received-SPF: pass (google.com: domain of kernel@bluematt.me designates 192.241.179.72 as permitted sender) client-ip=192.241.179.72;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of kernel@bluematt.me designates 192.241.179.72 as permitted sender) smtp.mailfrom=kernel@bluematt.me
+Received: from [192.168.0.100] (unknown [69.202.205.58])
+	by mail.bluematt.me (Postfix) with ESMTPSA id E3B16139579;
+	Thu, 14 Feb 2019 20:17:49 +0000 (UTC)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (1.0)
+Subject: Re: [Bug 202149] New: NULL Pointer Dereference in __split_huge_pmd on PPC64LE
+From: Matt Corallo <kernel@bluematt.me>
+X-Mailer: iPhone Mail (16D57)
+In-Reply-To: <87bm4achnu.fsf@linux.ibm.com>
+Date: Thu, 14 Feb 2019 15:17:48 -0500
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+ linuxppc-dev@lists.ozlabs.org, bugzilla-daemon@bugzilla.kernel.org
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <CCDBD6B9-31CD-4B94-AA8F-9BEF1C133AED@bluematt.me>
+References: <bug-202149-27@https.bugzilla.kernel.org/> <20190104170459.c8c7fa57ba9bc8a69dee5666@linux-foundation.org> <87ef9nk4cj.fsf@linux.ibm.com> <ed4bea40-cf9e-89a1-f99a-3dbd6249847f@bluematt.me> <8736q2jbhr.fsf@linux.ibm.com> <A61367CF-277E-4E74-8A9D-C94C5E53817B@bluematt.me> <87bm4achnu.fsf@linux.ibm.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 14, 2019 at 11:33:53AM -0800, Ira Weiny wrote:
+Hey, sorry for the delay on this. I had some apparently-unrelated hangs that=
+ I believe were due to mpt3sas instability, and at the risk of speaking too s=
+oon for a bug I couldn't reliably reproduce, this patch appears to have reso=
+lved it, thanks!
 
-> > I think it had to do with double accounting pinned and mlocked pages
-> > and thus delivering a lower than expected limit to userspace.
-> > 
-> > vfio has this bug, RDMA does not. RDMA has a bug where it can
-> > overallocate locked memory, vfio doesn't.
-> 
-> Wouldn't vfio also be able to overallocate if the user had RDMA pinned pages?
-
-Yes
- 
-> I think the problem is that if the user calls mlock on a large range then both
-> vfio and RDMA could potentially overallocate even with this fix.  This was your
-> initial email to Daniel, I think...  And Alex's concern.
-
-Here are the possibilities
-- mlock and pin on the same pages - RDMA respects the limit, VFIO halfs it.
-- mlock and pin on different pages - RDMA doubles the limit, VFIO
-  respects it
-- VFIO and RDMA in the same process, the limit is halfed or doubled, depending.
-
-IHMO we should make VFIO & RDMA the same, and then decide what to do
-about case #2.
-
-> > Really unclear how to fix this. The pinned/locked split with two
-> > buckets may be the right way.
-> 
-> Are you suggesting that we have 2 user limits?
-
-This is what RDMA has done since CL's patch.
-
-It is very hard to fix as you need to track how many pages are mlocked
-*AND* pinned.
-
-Jason
+> On Jan 21, 2019, at 07:35, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com> w=
+rote:
+>=20
+>=20
+> Can you test this patch?
+>=20
+> =46rom e511e79af9a314854848ea8fda9dfa6d7e07c5e4 Mon Sep 17 00:00:00 2001
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+> Date: Mon, 21 Jan 2019 16:43:17 +0530
+> Subject: [PATCH] arch/powerpc/radix: Fix kernel crash with mremap
+>=20
+> With support for split pmd lock, we use pmd page pmd_huge_pte pointer to s=
+tore
+> the deposited page table. In those config when we move page tables we need=
+ to
+> make sure we move the depoisted page table to the right pmd page. Otherwis=
+e this
+> can result in crash when we withdraw of deposited page table because we ca=
+n find
+> the pmd_huge_pte NULL.
+>=20
+> c0000000004a1230 __split_huge_pmd+0x1070/0x1940
+> c0000000004a0ff4 __split_huge_pmd+0xe34/0x1940 (unreliable)
+> c0000000004a4000 vma_adjust_trans_huge+0x110/0x1c0
+> c00000000042fe04 __vma_adjust+0x2b4/0x9b0
+> c0000000004316e8 __split_vma+0x1b8/0x280
+> c00000000043192c __do_munmap+0x13c/0x550
+> c000000000439390 sys_mremap+0x220/0x7e0
+> c00000000000b488 system_call+0x5c/0x70
+>=20
+> Fixes: 675d995297d4 ("powerpc/book3s64: Enable split pmd ptlock.")
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> ---
+> arch/powerpc/include/asm/book3s/64/pgtable.h | 2 --
+> 1 file changed, 2 deletions(-)
+>=20
+> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/i=
+nclude/asm/book3s/64/pgtable.h
+> index 92eaea164700..86e62384256d 100644
+> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
+> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+> @@ -1262,8 +1262,6 @@ static inline int pmd_move_must_withdraw(struct spin=
+lock *new_pmd_ptl,
+>                     struct spinlock *old_pmd_ptl,
+>                     struct vm_area_struct *vma)
+> {
+> -    if (radix_enabled())
+> -        return false;
+>    /*
+>     * Archs like ppc64 use pgtable to store per pmd
+>     * specific information. So when we switch the pmd,
+> --=20
+> 2.20.1
+>=20
 
