@@ -2,206 +2,173 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 682DBC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 09:11:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9175BC10F04
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 09:36:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 24018222A4
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 09:11:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lXo5CZBL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24018222A4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 3F98B222D4
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 09:36:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F98B222D4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B45B48E0002; Thu, 14 Feb 2019 04:11:40 -0500 (EST)
+	id 6C5DA8E0002; Thu, 14 Feb 2019 04:36:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AF8E38E0001; Thu, 14 Feb 2019 04:11:40 -0500 (EST)
+	id 675748E0001; Thu, 14 Feb 2019 04:36:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9E60B8E0002; Thu, 14 Feb 2019 04:11:40 -0500 (EST)
+	id 53E148E0002; Thu, 14 Feb 2019 04:36:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 724EF8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 04:11:40 -0500 (EST)
-Received: by mail-vs1-f72.google.com with SMTP id r133so1255659vsc.3
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 01:11:40 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C58D8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 04:36:40 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id n197so4631096qke.0
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 01:36:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=eFBWiFIaqtau2CVEYcyX/n7Z0Eb/ey9J9D6DfDHhgzs=;
-        b=YBgmMK4hHjegiMP/3GdYLUCr1chfl1AGz5KMyfAy2JOM+fzgtispUgKfrWDSm8eLKz
-         X2mR276GHZz5pfABKHB80IZyz0k+ON7efHYHLnACO+kRxA2qeh+lznxnj7BJDAeQ9oqL
-         rdjII8SnA1UhYVKiIAUxR2nOicYxGkBNMQA9lqUuvzBuq+8DiDuOCCQxHib7rqmriABU
-         p2awXxmoN6KbIqX/XpF5eUxlRAKpvDJn6WzyqapDeber9uNR4CQtBr/RGPDO6+ml4FnW
-         HbVWzNbathX2VJle/0jUyCPwK92wxuSo86cjhpOwHlZJNgTq9bLSu7VbtaetNJN/MwYG
-         cyuw==
-X-Gm-Message-State: AHQUAuY2s1fKnjki7DcR/OWqcv0Akn4E+YvmGEfhzA6Eu9OK+83oW+uT
-	SfZPo6XV1lSKlE3RLbTD66duL36TDzuyvep1UFaUbh/vSxwbbV6dxAVZF0sRi/OY7317cYBOyN4
-	g22lEcAatg+daZBJtVZopJc4WbrwFdyhaNfcVtqrETszueLey+pvXP9xj7YyIutIqZ2p4CjXjsj
-	saq0XoMaYVmI7gqH3EV0avMPsHxoPueoWWZ95O3FbF9EEYuvDsJDeg2HnxMuszcaBRepszwnwK7
-	sygiPelzC0r0bBm83bb2luD8Q2Dj7gtXBd39YOMM/6eNOaCNL7Do4L7nJc+xSl5r0BZiDWZlFWz
-	7yBPjhNrh14sc6lppzm9/K/tCdqHqCSsWzAp0SPNDdLV5L58EcZWMyL1MaT3VS/AnOXl2O9v+kw
-	/
-X-Received: by 2002:ab0:7259:: with SMTP id d25mr1395065uap.129.1550135500080;
-        Thu, 14 Feb 2019 01:11:40 -0800 (PST)
-X-Received: by 2002:ab0:7259:: with SMTP id d25mr1395043uap.129.1550135499344;
-        Thu, 14 Feb 2019 01:11:39 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550135499; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:mime-version:content-disposition:user-agent:message-id;
+        bh=f3NXSs03Q6geYDA6XS0VqDIHPb54F7V7kcN/aKvF5oU=;
+        b=aHR4uBpBo/+58vuiIjxfMilXnMmeEl1Gpn+Tb+2aVPzmhN9gk+PjE2C7G0GH29PxUN
+         vuidShwgUkQF9NWCFtj0BIJYfRVwfjYrtzFMQ3lqx2NZAt7a9HTDF7rWdOUhT8UZ3KVi
+         EMSn1cwjyCQUjHEbRcL3PGo71rXCBE4PoSYbqMbn8jumRUb48nW1G1qtcwVBXYfJpkrU
+         4Zzuyh6W+NJA8K9iLX00owDiKDSrkPS9Raf0DFFGP4GuS5IKIkAcf8ec7xIBWHqImqea
+         0qbslrziX66MRFM4UaMafs65orfO7ED2OSlMttEwMmDxu8gVPU4cL+qXePGf3uGGmu6i
+         IuMg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAubCuSQ2Ng9EMIepH0cV7ICejH5kMiZN0gnsmbIApsIgOMS0FLRP
+	elquaceu2weT53wXep2Gipdz/qInsyH6W5M7rsDZ5bfuzZ00Gw/lMf5jtUgtwdtmxRW7TgReMQ8
+	Mt73Le7MbiFvD6SpYIURd/92lwgI0+/9oR6OtBDi/zirAE7B0QgIVeF8EOahfd+CVRw==
+X-Received: by 2002:a0c:8938:: with SMTP id 53mr2148125qvp.165.1550136999843;
+        Thu, 14 Feb 2019 01:36:39 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbCh0R13jB1uknxQdrB4LsLJsHfJEnScTM3fBE55DIxwmSlJ0jyQsWKlLR+U3sovu3kNs1q
+X-Received: by 2002:a0c:8938:: with SMTP id 53mr2148090qvp.165.1550136999160;
+        Thu, 14 Feb 2019 01:36:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550136999; cv=none;
         d=google.com; s=arc-20160816;
-        b=XsffMd64RDt+vaqES5xL0s1Xk+oR8j8K3VVVa4/j8OaDmg8S4HzxNVwfjHfih1jttZ
-         zYQ36kvuAsu4hWJzVfJn6BLVjY0a75C8OlvaYLH2jknxMfnH3bwvLPZl4d/ebIuQ3d3M
-         X4pC48AoHI0oUCZWEsb0Btr0ZIdbmQCoZt7tH7Ui+kE76dIC9SpJOzZTzMtYGYNSSwek
-         JbnMbIjOddcYdU1GHO69vugfQ3sF9ecRybJ6gPb6C+RelLawEpt7ATz6aik4ltwzKHYO
-         AD/SnqTFBcrTOQ6f048tp1mLlWLIZiI8eGoNjZwC7LKaiE22WBcYScMmelE3umQ65bkv
-         tHCA==
+        b=TYoSIaLklQlOXCk5MSihcRJqXT6S+Si60yidNJfNmHd+25GpNZgEhpqtKu/4cwOU0m
+         MuMKN0lBOMG7tLLVPl48Pa8K3gJmAEn15GRFwHPom1+FUoT5YYJEeMx9HW0ZML/4je+n
+         FAs9P5skoXW99MsCYhbUkZ7Q2spEiMe/mAFUA1dG/eppjfJKJWYBQulR0IjwardbtaOb
+         OgDm1LidiDE8BoH3PYxuYZDGz91up/tqyDSH1xkFawUuWGEJvpWvzSAOdFNNSjrJrVLw
+         E9DlDVHm6PZsKsqeQWfxVv2aJgjoVxIXHdV+c6Woga97IdDVmp5nY61snJDzJJLeHa3j
+         TxNg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=eFBWiFIaqtau2CVEYcyX/n7Z0Eb/ey9J9D6DfDHhgzs=;
-        b=N1uoTYUqu74CQSa5Map+XQksEEjjJ0NqHWePOe24hMwu60pJafpYKYb+xfF8OGCTyN
-         hY2SCyq9dI2PycIMJDT0kvAFhCmIYbhpyqYnXfQSlX9Xhk2upWtWtkszHBSgha/w25al
-         OD+TyqfKh2/m4VAMphd5Q6qjmX+jcRJDarLkq/DQ/Ot1/LE7+IPsdWjDaorswrAyKvOp
-         cy4ZX7fNtxDUb3RQUpIC5A24FWY8A1OHUO7rZhUfsCqswIEJIwwwTdv3CE2ro8IzfmSf
-         VCEQX9b7/Zltwyvp6p5U5eSU+bImqyFAp0L01Im4UcJjJnQwFbAyiBuJ4GcIx2q2imlT
-         6jZw==
+        h=message-id:user-agent:content-disposition:mime-version:subject:cc
+         :to:from:date;
+        bh=f3NXSs03Q6geYDA6XS0VqDIHPb54F7V7kcN/aKvF5oU=;
+        b=xenypNcmXajKoHd5fP4+U+hG55aeKFivsNAZovCH+y+JN2EqlomFof/V/qJgzKd/xw
+         ljei6iFwbNbHZM1NRbwong2lRCydWCY4uSlVQjDEKMeHDed4CyjfAUZ5aYWLT/xGXi8P
+         CXLBO/ivhzitIJAXuJtRCDParbq4AntWgY7su9+T3nqPC/GUquOwzzRGcFwbOMQsRQqs
+         MEFlQ17OERv0jS+8n9cVGgP62PZjVIkQ7cPCO+txITvtV8OAzCsPC9W+N7c2SkYbUDY3
+         DonKuhdKFrz5cKF/Ih5M4CRKHRrIsz3HWfAZ7sZgY1o+zU8buT3Db9jtVgLSQhn5S4Dh
+         28ew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lXo5CZBL;
-       spf=pass (google.com: domain of pintu.ping@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pintu.ping@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e68sor975518vsd.92.2019.02.14.01.11.39
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d4si1213298qvj.122.2019.02.14.01.36.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 14 Feb 2019 01:11:39 -0800 (PST)
-Received-SPF: pass (google.com: domain of pintu.ping@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Feb 2019 01:36:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lXo5CZBL;
-       spf=pass (google.com: domain of pintu.ping@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pintu.ping@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=eFBWiFIaqtau2CVEYcyX/n7Z0Eb/ey9J9D6DfDHhgzs=;
-        b=lXo5CZBLyz09qu2yMefNbmTEv9ODDQ63Nr7/pO7A4Tfecbc8tRWL0VO+sjk1MMVIGV
-         Pds4mYWbdz5Z3vXKWVHOasiXWH5oTdLG1Yacn+Vt89SaidIlI+NVDGiUVAOrMYA4t79W
-         XwLkB4KhGd3mHKZcJf6J7zN9Zma8ycIZPSSD9X6M4yz4zQf2QrqzUYKU7Wzt7VZU49zz
-         xvC6XXilhC1UZM4c4WhkZoTLMVgs9nHPw+krMkylz/E/e0/lII6yEm1mU0PV4fN6awyJ
-         m+d43bDfjZtclBp7d2MIZiuaYj/ygrn+8umOK/6hviZ3uZsSkxINGXloPRjHIwl/fU+w
-         gT5w==
-X-Google-Smtp-Source: AHgI3Ia2bkMipgD+6KUp7PEUN+/FFL4FgtPyWHqMV1yVk97wsZcM/zTPsglMQF1pQ+Yk1LKK6+59/ArfIyaM4ujlVTo=
-X-Received: by 2002:a67:edca:: with SMTP id e10mr1418794vsp.196.1550135498946;
- Thu, 14 Feb 2019 01:11:38 -0800 (PST)
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1E9P72O117501
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 04:36:38 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qn55wth9e-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 04:36:37 -0500
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 14 Feb 2019 09:36:36 -0000
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 14 Feb 2019 09:36:34 -0000
+Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1E9aX373539294
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Thu, 14 Feb 2019 09:36:33 GMT
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 3E7B64C04E;
+	Thu, 14 Feb 2019 09:36:33 +0000 (GMT)
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id CC8424C044;
+	Thu, 14 Feb 2019 09:36:32 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.84])
+	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Thu, 14 Feb 2019 09:36:32 +0000 (GMT)
+Date: Thu, 14 Feb 2019 11:36:31 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+        Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] MAINTAINERS: add entry for memblock
 MIME-Version: 1.0
-References: <CAOuPNLgaDJm27nECxq1jtny=+ixt=GPf2C7zyDsVgbsLvtDarA@mail.gmail.com>
- <6183c865-2e90-5fb9-9e10-1339ae491b71@codeaurora.org> <CAOuPNLgUvECE6XBjszFggY3efmEBKywzKNWupjfQ2svsCMqd7w@mail.gmail.com>
- <2c91af7d-4580-cedc-70ea-d38c2587c7bf@codeaurora.org>
-In-Reply-To: <2c91af7d-4580-cedc-70ea-d38c2587c7bf@codeaurora.org>
-From: Pintu Agarwal <pintu.ping@gmail.com>
-Date: Thu, 14 Feb 2019 14:41:27 +0530
-Message-ID: <CAOuPNLip6rwxC1DdDiCb28d5+uJNE9=ThCn+rjac854GkcnedA@mail.gmail.com>
-Subject: Re: BUG: sleeping function called from invalid context at kernel/locking/rwsem.c:65
-To: Sai Prakash Ranjan <saiprakash.ranjan@codeaurora.org>
-Cc: open list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, 
-	linux-rt-users@vger.kernel.org, linux-mm@kvack.org, 
-	Jorge Ramirez <jorge.ramirez-ortiz@linaro.org>, 
-	"Xenomai@xenomai.org" <xenomai@xenomai.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19021409-0020-0000-0000-00000316B0E5
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19021409-0021-0000-0000-00002167DE74
+Message-Id: <20190214093630.GC9063@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-14_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=876 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902140070
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello Sai,
+Hi,
 
-Thanks so much for your help.
+I was surprised to see lots of activity around memblock (beside the churn
+I create there), so I'm going to look after it.
 
-On Thu, Feb 14, 2019 at 12:14 AM Sai Prakash Ranjan
-<saiprakash.ranjan@codeaurora.org> wrote:
->
-> Hi,
->
-> On 2/13/2019 8:10 PM, Pintu Agarwal wrote:
-> > OK thanks for your suggestions. sdm845-perf_defconfig did not work for
-> > me. The target did not boot.
->
-> Perf defconfig works fine. You need to enable serial console with below
-> config added to perf defconfig.
->
-> CONFIG_SERIAL_MSM_GENI_CONSOLE=y
->
-Actually for me the kernel does not boot. It stuck in bootloader, with
-"valid dtb not found".
-I did not debug it further.
-Anyways, we can look into this issue later.
+From 7b3d02797ef18fb1c515f32125fb9b0055a312de Mon Sep 17 00:00:00 2001
+From: Mike Rapoport <rppt@linux.ibm.com>
+Date: Thu, 14 Feb 2019 11:21:26 +0200
+Subject: [PATCH] MAINTAINERS: add entry for memblock
 
-> > However, disabling CONFIG_PANIC_ON_SCHED_BUG works, and I got a root
-> > shell at least.
->
-> >
-> > But this seems to be a work around.
-> > I still get a back trace in kernel logs from many different places.
-> > So, it looks like there is some code in qualcomm specific drivers that
-> > is calling a sleeping method from invalid context.
-> > How to find that...
-> > If this fix is already available in latest version, please let me know.
-> >
->
-> Seems like interrupts are disabled when down_write_killable() is called.
-> It's not the drivers that is calling the sleeping method which can  be
-> seen from the log.
->
-> [   22.140224] [<ffffff88b8ce65a8>] ___might_sleep+0x140/0x188
-> [   22.145862] [<ffffff88b8ce6648>] __might_sleep+0x58/0x90         <---
-> [   22.151249] [<ffffff88b9d43f84>] down_write_killable+0x2c/0x80   <---
-> [   22.157155] [<ffffff88b8e53cd8>] setup_arg_pages+0xb8/0x208      <---
-> [   22.162792] [<ffffff88b8eb7534>] load_elf_binary+0x434/0x1298
-> [   22.168600] [<ffffff88b8e55674>] search_binary_handler+0xac/0x1f0
-> [   22.174763] [<ffffff88b8e560ec>]
-> do_execveat_common.isra.15+0x504/0x6c8
-> [   22.181452] [<ffffff88b8e562f4>] do_execve+0x44/0x58
-> [   22.186481] [<ffffff88b8c84030>] run_init_process+0x38/0x48      <---
-> [   22.192122] [<ffffff88b9d3db1c>] kernel_init+0x8c/0x108
-> [   22.197411] [<ffffff88b8c83f00>] ret_from_fork+0x10/0x50
->
-Yes, these are generic API, and I don't expect any changes in here.
-We don't have this issue in another SOC 4.9 kernel.
-Also I compared these APIs with mainline and there is no major changes here.
-This is just one example.
-This sleep issue is happening from other places as well.
-May be one common similarity may be: during task loading, or switching.
+Add entry for memblock in MAINTAINERS file
 
->  >
->  > This at least proves that there is no issue in core ipipe patches, and
->  > I can proceed.
->
-> I doubt the *IPIPE patches*. You said you removed the configs, but all
-> code are not under IPIPE configs and as I see there are lots of
-> changes to interrupt code in general with ipipe.
->
-We observed that this issue is happening in normal sdm845 kernel as
-well (without ipipe/xenomai patches applied in another branch).
-Another point is, we don't see this issue in another arm64 target such
-as hikey, with same 4.9 kernel.
+Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+---
+ MAINTAINERS | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-> So to actually confirm whether the issue is with qcom drivers or ipipe,
-> please *remove ipipe patches (not just configs)* and boot.
-> Also paste the full dmesg logs for these 2 cases(with and without
-> ipipe).
->
-hmmm. This will be little tough.
-I will try to find sometime to point the exact cause, and share findings here.
-Currently, I am debugging another issue.
-
-Thanks for your help.
-
-
-Regards
+diff --git a/MAINTAINERS b/MAINTAINERS
+index 41ce5f4ad838..4e870d8b31af 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -9792,6 +9792,14 @@ F:	kernel/sched/membarrier.c
+ F:	include/uapi/linux/membarrier.h
+ F:	arch/powerpc/include/asm/membarrier.h
+ 
++MEMBLOCK
++M:	Mike Rapoport <rppt@linux.ibm.com>
++L:	linux-mm@kvack.org
++S:	Maintained
++F:	include/linux/memblock.h
++F:	mm/memblock.c
++F:	Documentation/core-api/boot-time-mm.rst
++
+ MEMORY MANAGEMENT
+ L:	linux-mm@kvack.org
+ W:	http://www.linux-mm.org
+-- 
+2.7.4
 
