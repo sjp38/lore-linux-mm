@@ -2,224 +2,147 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F207EC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 02:38:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BD870C10F04
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 03:41:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 976E6222A4
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 02:38:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 976E6222A4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 685EE222B6
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 03:41:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 685EE222B6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 197338E0002; Wed, 13 Feb 2019 21:38:14 -0500 (EST)
+	id B54488E0002; Wed, 13 Feb 2019 22:41:42 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 147CF8E0001; Wed, 13 Feb 2019 21:38:14 -0500 (EST)
+	id B02218E0001; Wed, 13 Feb 2019 22:41:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 036148E0002; Wed, 13 Feb 2019 21:38:13 -0500 (EST)
+	id 9F11F8E0002; Wed, 13 Feb 2019 22:41:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CCE258E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 21:38:13 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id p5so4329543qtp.3
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 18:38:13 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 47FFB8E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 22:41:42 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id f11so1895111edi.5
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 19:41:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=EL2EreK6yxsWIZVuyW7ZRBytPZKu6ZPSvXQYs/Ld7/M=;
-        b=Ryu0RdU3O+AQ4fr8C3qRCidM4uOITskSX0rATB1tmpvAp/abGwuejXtvvaksDbk0F6
-         qZNFGcJ/DUddgkOkaz8ZeAgs1JR5x81ZWYJhY9sxjPv27T+zat6kV0LdNKmC0XG7PG4T
-         n9Z5tCj08Zem60KPbo7RWtGpCNX0G/IuHi7J48O+wARfhgZ4Kwp+L4OHJlYLyp1M8dpe
-         9oDRaq6xGb3ZoFXxxPUunnrdP5wpcgIi5ifPtICV7rAa3ZbpU4/77g2bUmIDtmlOrb+e
-         zv4Pnwt1RN9S5TrS8117E2AfSKJYMrKLjHuZY4yN1/lIWEe15o3sByU/tiLZoZAAPzWa
-         ljLw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZfdroIeWXtsXKPZksgb132PFr7gdKq3OVeR33LfO//eXYwcbHL
-	GIkRtQJu/fFKAXCnCS9s/vzfHbJyO8mMTLTwm42o9EM2g3NePgfSTugt6jpLxpAchAicZWLLAlY
-	HcwLb99fYLzIiSTzpqyQ0qPP92YNjwy5hobAXqZ9fs46oA/cAS8UCye2aTihRRis6ug==
-X-Received: by 2002:a37:6105:: with SMTP id v5mr1025759qkb.63.1550111893604;
-        Wed, 13 Feb 2019 18:38:13 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYCQnZwK9DMBRkVKokf29Z9jpGGyZnOPkCCVHpteW0Ucd7MiBHGRxIBzzEFsJXTB9KKdoHe
-X-Received: by 2002:a37:6105:: with SMTP id v5mr1025722qkb.63.1550111892768;
-        Wed, 13 Feb 2019 18:38:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550111892; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=0Sqbp0acYxkkmUMZczKAGPCmfwBf7ep1Ohyv9I4ScuM=;
+        b=G7q68O3Otx1G9uQPF8tYAYjLvrYsvlE/9ubFkNnlaLc55sU00X0sW7o6RTSvvB+Qqu
+         8ya4yc7CbTH4YuWg/u+5GsMAENpDhzB+VOJon/rKaqYkvww3MtGWgUVdTbCGbBOu0PTc
+         vHI0TYcWSHn4jTHVmq61O5hyl9sqYeYnofkQ/fdZGdwirymrysNI3Mk5y99ZdOj0Mz+2
+         Zey94D3m2LtO35WbZrs49Ia/uTQGUNeLRlJ521tjFOc4vpezm4WXVhjcmqKQv40zBxOo
+         s8XlsMvevHv4GdN6QKeGiK5hjdovLf/+k0X6GAO5XaU9isPOtjBcGliF5CYrxVqVJcO9
+         MskA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: AHQUAub9huqtbcM7O7LdKA8TZDclFartvodWIvbsOMbjrb3XFATIk9IT
+	4zrvKxuTmFtguBoxUghLDMuGk9Em8vFPIgSWqkQ+Z/PM/06G6/sW2CWU0PdVc1GSggj8Tqofmjp
+	sg2gb//B+iluqZCxB6qDnwN1tWdDz2jMleH8Wt0C8wc3xwhF/dBs20Bwmf2GZNgDjew==
+X-Received: by 2002:a17:906:3391:: with SMTP id v17mr1063075eja.101.1550115701682;
+        Wed, 13 Feb 2019 19:41:41 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYn3WGw9aowiJ5gM3ynmayZYJVC3z0go0Nrgw6XHBuHAB/xP2cO64lrny4Px5YYKyZjY/B0
+X-Received: by 2002:a17:906:3391:: with SMTP id v17mr1063018eja.101.1550115700756;
+        Wed, 13 Feb 2019 19:41:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550115700; cv=none;
         d=google.com; s=arc-20160816;
-        b=ttTKDn+RdA5BXHoMna6crKmTByFOPaoR0OU8HMGDdPcSdlEZMSanvr672hiB88sN3z
-         E7lBO0BKSE2F7SRzqQUrpPI4RSfhcaLES9KxTvie1Ng0etw4wuTRdx/QVAAwHuzEiq6D
-         aFDMRy5ZmdxrcCoNJQI9GWOFSdrTXB7oMwWgsLIXqjfV7uAPbuKNKHhorfJJiALN4PET
-         gqzn3laPnZDchFU8lMc3A4TpyYg1PFYJrWSL1cjhOMykddmomnuf52vU+7YJdwgiWiTO
-         9PAFS3BQoIECr/vtlp2mwGFLxjx5ZWT3e0T3Smf7m6IGkciqDxfMOPfCrI5+PHpZ3tZ2
-         ncfg==
+        b=YkSh7GQmFYO9SHQ6Mt9k7DZutHGz8s1ByEJNWKAE5K0KuL9RhRFzVwj1zThclMuWmj
+         KQzqD+J/8H0F2h4OnTlBdtTe2A4WBca4I3mnDonzjVASnWca27W7rRDWU8/t3GBu0AHW
+         3DfrlTAGzlrm8/hM9yOLtVqSfDaClfJYEdsvMzNolGc7WCLQnn0+ebeCC/edp8mPct8p
+         VC31vpCUDShjHuQntsGDbOdAvfdZJVx8IkV9WuH8ESQvktB7UbFSfNLDVSvLkqmTLCSs
+         I2EiDo26uClZnb93JTM5op+V5CiSvLkvkHR3A2JjCCVjwxh9tLp+k4tp2pMnOmryIB7d
+         jCog==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=EL2EreK6yxsWIZVuyW7ZRBytPZKu6ZPSvXQYs/Ld7/M=;
-        b=f8ZTX7epFa4TS4mECAtJAgJ8yNCMiI+JiIa9aj1Z9kyXs4FpmC7Fw5/S79iTTmaCLQ
-         mv2rAv+j52s3uQ06JIv7CCoHnAbKvN+seV+NCL+vOIukwEfV90xkQTkIVTEu7MvdpIkS
-         +d7lNbwo87O0Io4qlfCGI6JEdVjyachAGmOuz7LPM+cqR+M6WSUr2pX5QOOPCsl+YGNz
-         ArHHSwqrr0w9980yFa2u82p0JNhOA23S7v30XUVx9T527CoVHw+NyL9Rmu30u9+/dTW5
-         U7hpy5qFkyomw9kCcjbvGkWJcyn5CQxuPh8dw92tbYGMzMhnNrOUDnw1FhvHMnDLYeIx
-         KVIQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=0Sqbp0acYxkkmUMZczKAGPCmfwBf7ep1Ohyv9I4ScuM=;
+        b=cwMOfkAGpz0CXTcnqe/1FAK8aTyCJRxi+lTATb1c4rABvh+JqA+TUTkOnlJmBepyk3
+         8zaNeiZ4xujQJ8tuVnqhvnm01mxONhy7Dp/gjIaELsldijuVpsrz/weUZZeViLq8G+8C
+         euCWlHuctQZMoO5MoHzyLXCiFf0w0QbW1MRuBJ6H6NqKv2AuBu6+cD9WjCizvc5VEh6b
+         W81oyWCN4PK1H9h0+PKlT2EAhfqeMdXQdhHHkgHxUZ8W8nxw8XDdiIcE0xZEQgLnyOe0
+         75BIsX6qdvDXk6C/fI6QlhbfrD73RUoTbG4jaO8vqyGBtmqnTEGVvoXlCJCa0TlPkJ4t
+         i/ZQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g92si727114qva.34.2019.02.13.18.38.12
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 18:38:12 -0800 (PST)
-Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id i5si554103eds.261.2019.02.13.19.41.40
+        for <linux-mm@kvack.org>;
+        Wed, 13 Feb 2019 19:41:40 -0800 (PST)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9014DC049D67;
-	Thu, 14 Feb 2019 02:38:10 +0000 (UTC)
-Received: from sky.random (ovpn-120-178.rdu2.redhat.com [10.10.120.178])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 97FC25D6B3;
-	Thu, 14 Feb 2019 02:38:06 +0000 (UTC)
-Date: Wed, 13 Feb 2019 21:38:05 -0500
-From: Andrea Arcangeli <aarcange@redhat.com>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
-	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
-	Minchan Kim <minchan@kernel.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Chen <tim.c.chen@linux.intel.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Michal Hocko <mhocko@suse.com>,
-	David Rientjes <rientjes@google.com>,
-	Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>,
-	Dave Jiang <dave.jiang@intel.com>,
-	Daniel Jordan <daniel.m.jordan@oracle.com>,
-	Andrea Parri <andrea.parri@amarulasolutions.com>
-Subject: Re: [PATCH -mm -V7] mm, swap: fix race between swapoff and some swap
- operations
-Message-ID: <20190214023805.GA19090@redhat.com>
-References: <20190211083846.18888-1-ying.huang@intel.com>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 1E79D80D;
+	Wed, 13 Feb 2019 19:41:39 -0800 (PST)
+Received: from [10.162.42.113] (p8cg001049571a15.blr.arm.com [10.162.42.113])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C89953F589;
+	Wed, 13 Feb 2019 19:41:36 -0800 (PST)
+Subject: Re: [LSF/MM TOPIC] Non standard size THP
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>,
+ lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org"
+ <linux-mm@kvack.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+ Vlastimil Babka <vbabka@suse.cz>
+References: <dcb0b2cf-ba5c-e6ef-0b05-c6006227b6a9@arm.com>
+ <20190212083331.dtch7xubjxlmz5tf@kshutemo-mobl1>
+ <282f6d89-bcc2-2622-1205-7c43ba85c37e@arm.com>
+ <20190213133827.GN4525@dhcp22.suse.cz>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <3088cb22-a304-16d8-d97a-5e1e840a7f55@arm.com>
+Date: Thu, 14 Feb 2019 09:11:36 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190211083846.18888-1-ying.huang@intel.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 14 Feb 2019 02:38:11 +0000 (UTC)
+In-Reply-To: <20190213133827.GN4525@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello everyone,
 
-On Mon, Feb 11, 2019 at 04:38:46PM +0800, Huang, Ying wrote:
-> @@ -2386,7 +2463,17 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
->  	frontswap_init(p->type, frontswap_map);
->  	spin_lock(&swap_lock);
->  	spin_lock(&p->lock);
-> -	 _enable_swap_info(p, prio, swap_map, cluster_info);
-> +	setup_swap_info(p, prio, swap_map, cluster_info);
-> +	spin_unlock(&p->lock);
-> +	spin_unlock(&swap_lock);
-> +	/*
-> +	 * Guarantee swap_map, cluster_info, etc. fields are used
-> +	 * between get/put_swap_device() only if SWP_VALID bit is set
-> +	 */
-> +	stop_machine(swap_onoff_stop, NULL, cpu_online_mask);
 
-Should cpu_online_mask be read while holding cpus_read_lock?
+On 02/13/2019 07:08 PM, Michal Hocko wrote:
+> On Wed 13-02-19 18:20:03, Anshuman Khandual wrote:
+>> On 02/12/2019 02:03 PM, Kirill A. Shutemov wrote:
+>>> Honestly, I'm very skeptical about the idea. It took a lot of time to
+>>> stabilize THP for singe page size, equal to PMD page table, but this looks
+>>> like a new can of worms. :P
+>>
+>> I understand your concern here but HW providing some more TLB sizes beyond
+>> standard page table level (PMD/PUD/PGD) based huge pages can help achieve
+>> performance improvement when the buddy is already fragmented enough not to
+>> provide higher order pages. PUD THP file mapping is already supported for
+>> DAX and PUD THP anon mapping might be supported in near future (it is not
+>> much challenging other than allocating HPAGE_PUD_SIZE huge page at runtime
+>> will be much difficult). Around PMD sizes like HPAGE_CONT_PMD_SIZE or
+>> HPAGE_CONT_PTE_SIZE really have better chances as future non-PMD level anon
+>> mapping than a PUD size anon mapping support in THP.
+> 
+> I do not think our page allocator is really ready to provide >PMD huge
+> pages. So even if we deal with all the nasty things wrt locking and page
+> table handling the crux becomes the allocation side. The current
+> CMA/contig allocator is everything but useful for THP. It can barely
+> handle hugetlb cases which are mostly pre-allocate based.
 
-	cpus_read_lock();
-	err = __stop_machine(swap_onoff_stop, NULL, cpu_online_mask);
-	cpus_read_unlock();
+I understand the point for > PMD size. Hence first we can just narrow the
+focus on contiguous PTE level huge pages which are < PMD but could offer
+THP benefits on arm64 for 64K config page sizes.
 
-I missed what the exact motivation was for the switch from
-rcu_read_lock()/syncrhonize_rcu() to preempt_disable()/stop_machine().
+> 
+> Besides that is there any real world usecase driving this or it is
+> merely "this is possible so let's just do it"?
 
-It looks like the above stop_machine all it does is to reach a
-quiescent point, when you've RCU that already can reach the quiescent
-point without an explicit stop_machine.
-
-The reason both implementations are basically looking the same is that
-stop_machine dummy call of swap_onoff_stop() { /* noop */ } will only
-reach a quiescent point faster than RCU, but it's otherwise
-functionally identical to RCU, but it's extremely more expensive. If
-it wasn't functionally identical stop_machine() couldn't be used as a
-drop in replacement of synchronize_sched() in the previous patch.
-
-I don't see the point of worrying about the synchronize_rcu latency in
-swapoff when RCU is basically identical and not more complex.
-
-So to be clear, I'm not against stop_machine() but with stop_machine()
-method invoked in all CPUs, you can actually do more than RCU and you
-can remove real locking not just reach a quiescent point.
-
-With stop_machine() the code would need reshuffling around so that the
-actual p->swap_map = NULL happens inside stop_machine, not outside
-like with RCU.
-
-With RCU all code stays concurrent at all times, simply the race is
-controlled, as opposed with stop_machine() you can make fully
-serialize and run like in UP temporarily (vs all preempt_disable()
-section at least).
-
-For example nr_swapfiles could in theory become a constant under
-preempt_disable() with stop_machine() without having to take a
-swap_lock.
-
-swap_onoff_stop can be implemented like this:
-
-enum {
-	FIRST_STOP_MACHINE_INIT,
-	FIRST_STOP_MACHINE_START,
-	FIRST_STOP_MACHINE_END,
-};
-static int first_stop_machine;
-static int swap_onoff_stop(void *data)
-{
-	struct swap_stop_machine *swsm = (struct swap_stop_machine *)data;
-	int first;
-
-	first = cmpxchg(&first_stop_machine, FIRST_STOP_MACHINE_INIT,
-			FIRST_STOP_MACHINE_START);
-	if (first == FIRST_STOP_MACHINE_INIT) {
-		swsm->p->swap_map = NULL;
-		/* add more stuff here until swap_lock goes away */
-		smp_wmb();
-		WRITE_ONCE(first_stop_machine, FIRST_STOP_MACHINE_END);
-	} else {
-		do {
-			cpu_relax();
-		} while (READ_ONCE(first_stop_machine) !=
-			 FIRST_STOP_MACHINE_END);
-		smp_rmb();
-	}
-
-	return 0;
-}
-
-stop_machine invoked with a method like above, will guarantee while we
-set p->swap_map to NULL (and while we do nr_swapfiles++) nothing else
-can run, no even interrupts, so some lock may just disappear. Only NMI
-and SMI could possibly run concurrently with the swsm->p->swap_map =
-NULL operation.
-
-If we've to keep swap_onoff_stop() a dummy function run on all CPUs
-just to reach a quiescent point, then I don't see why
-the synchronize_rcu() (or synchronize_sched or synchronize_kernel or
-whatever it is called right now, but still RCU) solution isn't
-preferable.
-
-Thanks,
-Andrea
+64K config arm64 kernel is mostly unable to use THP at PMD level of 512 MB.
+But it should be able benefit from THP if we have support at cont PTE level
+of 2MB which is way less than 512MB.
 
