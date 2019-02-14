@@ -2,120 +2,121 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D117C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:20:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 535CCC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:30:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 07D28222DA
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:20:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F11AE21928
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:30:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="1Q3h77ek"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 07D28222DA
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="uOOtJqOt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F11AE21928
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 89CA88E0002; Thu, 14 Feb 2019 12:20:00 -0500 (EST)
+	id 735DA8E0002; Thu, 14 Feb 2019 12:30:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 84C778E0001; Thu, 14 Feb 2019 12:20:00 -0500 (EST)
+	id 6E6338E0001; Thu, 14 Feb 2019 12:30:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 739F68E0002; Thu, 14 Feb 2019 12:20:00 -0500 (EST)
+	id 5D5718E0002; Thu, 14 Feb 2019 12:30:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B2278E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 12:20:00 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id a11so5670611qkk.10
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 09:20:00 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E45E8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 12:30:21 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id h70so5295832pfd.11
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 09:30:21 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
          :organization:message-id:date:user-agent:mime-version:in-reply-to
          :content-language;
-        bh=Z/qAl0rILNkjo+9n96+ul65QbUgdUPpDBNBiImZV1P4=;
-        b=iLg9EqpL5M8DRFBByqHSdTxeLqNzZ6bz3+SIFYJTWwGQTkbCG84A0i1or337QPkgsp
-         DXbzEuMD/4g9ErAUribolGBjF/XafNJ6m6FuQQoeNqX6F+mZe0jGHTF8umHlQWzX4rF/
-         jsdbNykGLogSXt54AYw9jjXaBojvZeyDSvGbSvfFfa2eaxLxsWMfYXC989VPvqRdFCL7
-         gMk1cnWofwfosf1dPa48+scfy/QgiBdGt5yeSE6ju7siB4NYxqSaruR79l95QkxkhyQY
-         qRJa6VaJP6NXY8N/OKifTK9ztZbHPmUM/56c+F5NkadjdHouvY+Vg/i2VRKRtCa3NX9/
-         g2sw==
-X-Gm-Message-State: AHQUAuYDc568kSJxaF1q4uYHhz45F+teK0N4LmJi7inilKkp1OzPv8dT
-	GJOL5pbMXRXA0nvQiSvS+1ogESBF4Ysqhu9E1gdrXgmX1jOb739+6VDjx7RaNgZK6zutXQXJLQF
-	+cNF09+bKmIaHJzio6O+64GwTyOplCvophe83XFPmqgWyAYeOE9iO8xBMpATWI7p8mQ==
-X-Received: by 2002:a0c:8b50:: with SMTP id d16mr1204217qvc.233.1550164800056;
-        Thu, 14 Feb 2019 09:20:00 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ibe44jAxMt+xvZ/BYk3y63HDkiy5wm97LNQK7dRSvL6uu2N/do2XQ2z9CC5v7sVYInY+hU5
-X-Received: by 2002:a0c:8b50:: with SMTP id d16mr1204174qvc.233.1550164799570;
-        Thu, 14 Feb 2019 09:19:59 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550164799; cv=none;
+        bh=ZDnSGb7HkaLIn3ieo9EA5WXs8Eea/qqfp6fJCQp9l2Y=;
+        b=GOaqdcZEM3hGI+95JbWkT9yenSo2F2aVxzs3pOOCVVSQNIaq45gVdqCbLooKLsl/1j
+         hzaEPiQpkCjmS+134FIHaoLacGwOedf0cgx0ofQOvu/FXcsu/+w68aL8wc0PNT0bYDiH
+         KjgKCClxE+LIgzdPffz6yVdCdmurVAr+iq55JCr5FX4os6EMEF1mmYcszFkInu07d6lG
+         nrc2jjcCsXfjl4lI599XUIs0ne/vu+w8Prtx53F/8qu973Ss9HYa8frfth6xZ2onXdEE
+         4h2ogs4kFI+WcA6x3ordgh2Ee3mwm93mdO2UEr9zGbnUDcCvxkbVCF1Pw2kO8tWKF4Ph
+         nyfQ==
+X-Gm-Message-State: AHQUAuZhZUa/V6HlVHGDZQcHj3yH/xW+3lh2xGndUhGsADVwv6eggMml
+	qTAx7Smtc0eRyacCJRih3l5Sy1fP7UJ7gwvvHDoU7KIpBVBKqZSkvgt2IKI/uelhral7TZa0wjU
+	yZutqz9Q5i8Tu4kXvp/iSd3uGX6pihrnekEhrr98l3ktEcttS8QEh1r0SIVPTWsdP8Q==
+X-Received: by 2002:a63:4a21:: with SMTP id x33mr968646pga.428.1550165420723;
+        Thu, 14 Feb 2019 09:30:20 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IalBFsm3crBOgFlEcom85lW3Le4DDsjQLUbzqq+LyDyIIlD7f9No9bcGeAIxKiIo5w43h9G
+X-Received: by 2002:a63:4a21:: with SMTP id x33mr968586pga.428.1550165420050;
+        Thu, 14 Feb 2019 09:30:20 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550165420; cv=none;
         d=google.com; s=arc-20160816;
-        b=cCl+itxXxXfE+ghIMnmSy/4tRAZRmEPHxliHFINb6/Ky2TNzUxP5Njsae8pUAxMZEC
-         68gIfIpSsgF2eA2wefO/S3IYf3EGEzau+fTMxpVFlOLUxB4iRGhAGd6C3UjyEJBoMPTm
-         zsAG4IiIvbK73jgRG4D0rU+UUNXEISbP52gHSyZCtjVwHvUsER3izmipB11Pw+23xFzk
-         PG2ljrYR4c4LE/Tq6HCqAJgS7p6Yk6GvVJYlNpZf+PvhbuGqqAOEBtl0TPidkVJ58Oc6
-         efLSJczUK8UqgWfvx+CTCzAJ8h2HBnEKhM64R6nIsvbqnSzdp1Pxy4gONN2DSxcq1Q67
-         hqlg==
+        b=tgeR4vqPvJ5UANTXDCnivGRMXH3Y+IMGaFUMgaTJZddrk0yGltWwFUNDjn2QwOT/aJ
+         U+O4P40GurhINXXifjnU+KaeUEZnNhuz+orDpuPecuEJrJL0rw1No/9wqiL2NVO/lIbT
+         kXKldljLsCT9a1/BRl+nCIK/TZ7+wmkRTO0jX+xrSh7brw8XKf7pwgjYU7xoKeHCXaTG
+         tNIqpHwyS8HZLA+YktqlvzITA5g3yHA70lh6xpa+aoKv8/wMBwchq61XxFB5y0jt1e2n
+         rJMFXuxmgiUge1E4W/2yuyTzppMjJEWWzxuVD8ah11lIE6clFS4W2mAF/zEhFHiozl0v
+         FF9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-language:in-reply-to:mime-version:user-agent:date
          :message-id:organization:from:references:cc:to:subject
          :dkim-signature;
-        bh=Z/qAl0rILNkjo+9n96+ul65QbUgdUPpDBNBiImZV1P4=;
-        b=fEaMa+O89zpC273sr5iHq5xsSac1SKg1M9WgmXErGew3UZgNjsdoqNAxN9u0ElZ9gL
-         TceSiKdcD2pxIdVl03nrqRMndU2oDzro9x+lIh4AUdzdqBmn5SileLJ6gDe+f9MSw4/K
-         ++NWMJOPVvgPEbxqj0+Cxyq2gmZjg/tDsIeDG4P9ZC2YuOBrwInyQOVKRusxyyyWOgTr
-         UpFcdlBR6skG6fJGF+8C+8Z5DYpyLWdpC6XBIXeMCZLprUpNcErL8nbVs+LeQESgDEdt
-         7g0a5jrsoD+n912RUlac+Y3IjcupwIJVt3vHSzSiLthXw6Hg9zBDD5V0aLDYByYgYzR2
-         A3WA==
+        bh=ZDnSGb7HkaLIn3ieo9EA5WXs8Eea/qqfp6fJCQp9l2Y=;
+        b=Ec+5555pqg/6fHosNETfTGnqPg8bd1m2gqgwInO06QLb15098z6rYhqxhZQA2c/RuJ
+         oZBMUqmXFOrv9GJsb8pxFbnMmQVHxEWO3j+LKOp5CVdPq6FvpJuuBakyriaXrelePwo6
+         Kn3yb3/WeRRqDmjZQRiv5zARKEs/jyCdQLDF8jtrEnWbXG8yryNrXSKhBt5G2YFfbZJ4
+         Rw2ADQKOQTaXYjnHbgpier9moBD+8o/UcjPPadz4r3qtVOURJLofLYXsitCuNslYMFtk
+         awpqAh8YUWJwAeABR7HytZcLeKqnUSRiqyz9XsIM5V0/OdY7F31N3UIfDZhX/1CGthMA
+         mjGA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=1Q3h77ek;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=uOOtJqOt;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id u2si1946477qka.125.2019.02.14.09.19.59
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id f33si2148451pgl.437.2019.02.14.09.30.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 09:19:59 -0800 (PST)
-Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Thu, 14 Feb 2019 09:30:20 -0800 (PST)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=1Q3h77ek;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=uOOtJqOt;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1EHEh9O126979;
-	Thu, 14 Feb 2019 17:19:28 GMT
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1EHNeAr141911;
+	Thu, 14 Feb 2019 17:30:00 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
  references : from : message-id : date : mime-version : in-reply-to :
  content-type; s=corp-2018-07-02;
- bh=Z/qAl0rILNkjo+9n96+ul65QbUgdUPpDBNBiImZV1P4=;
- b=1Q3h77ek/zcGl7JP4I1iF7b4Hd/BiLn5LlRyb46NoP9p/3eNXUtoIXxQ0usjbmwA/eKV
- 4lbXkmHLYKUrS6lMKRlRXS5f5lbIoJwThJXYI73oU1OPchgUDeibud+cHIokXFU6JrlW
- ZGIvam5pTDfWLBEUl2fuxtP3QP8lKW2unELvZ6gVTZWYrCuDReVvdWoOFiK45WABD8yV
- Er90dBqJdIOtKiH9ONgPnGbS18o3KWHnElNE2wFCcLjenypobwery40aQmsh2mklGa+f
- xoc4FdeJyPR0nuWtHgQomJC2wO859Y+gYZD+4wOMtYGER4l+mYbIne5K3+CHeHt6qaPi og== 
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2130.oracle.com with ESMTP id 2qhreksbbt-1
+ bh=ZDnSGb7HkaLIn3ieo9EA5WXs8Eea/qqfp6fJCQp9l2Y=;
+ b=uOOtJqOtbC48aiUYK7vBMB1Txf0pPmrAz1wG7bZGH1ULEm3z9SX4+p7Zhyzv5iZVXp5J
+ 1I3xEGEtox+EuAVdei/dp0z0cJKmIv6Vx6BHKJBBuXaskVUE9wYOS1vyq4rZhuptj/HL
+ FIKGhwG+SqTCAYxIyKqgM8K9s/Ite23JIHLsQVHfmdYb/T7O9vQ3SOs0iMQybbur4kGK
+ PAE7YgZf5dcj3XQcXe8KcbTfGYFKzrnqET51jqquZz4nZRop3L1tBg2Svw4x0eoUiPFu
+ bkGwO67djEi5QY+LklsyWMBHg0sWLI8ph6uSsPG8FzaHRgx87V5yhzNMoPKMtBcUOjFg lQ== 
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by aserp2130.oracle.com with ESMTP id 2qhre5scjb-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Feb 2019 17:19:28 +0000
+	Thu, 14 Feb 2019 17:30:00 +0000
 Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x1EHJRxJ005673
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1EHTvpe010398
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Feb 2019 17:19:27 GMT
-Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1EHJRWM021695;
-	Thu, 14 Feb 2019 17:19:27 GMT
+	Thu, 14 Feb 2019 17:29:58 GMT
+Received: from abhmp0022.oracle.com (abhmp0022.oracle.com [141.146.116.28])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1EHTug6027865;
+	Thu, 14 Feb 2019 17:29:56 GMT
 Received: from [192.168.1.16] (/24.9.64.241)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 14 Feb 2019 17:19:26 +0000
-Subject: Re: [RFC PATCH v8 03/14] mm, x86: Add support for eXclusive Page
- Frame Ownership (XPFO)
-To: Borislav Petkov <bp@alien8.de>, juergh@gmail.com
-Cc: Peter Zijlstra <peterz@infradead.org>, tycho@tycho.ws, jsteckli@amazon.de,
-        ak@linux.intel.com, torvalds@linux-foundation.org,
-        liran.alon@oracle.com, keescook@google.com, akpm@linux-foundation.org,
-        mhocko@suse.com, catalin.marinas@arm.com, will.deacon@arm.com,
-        jmorris@namei.org, konrad.wilk@oracle.com,
+	with ESMTP ; Thu, 14 Feb 2019 09:29:55 -0800
+Subject: Re: [RFC PATCH v8 07/14] arm64/mm, xpfo: temporarily map dcache
+ regions
+To: Tycho Andersen <tycho@tycho.ws>
+Cc: juergh@gmail.com, jsteckli@amazon.de, ak@linux.intel.com,
+        torvalds@linux-foundation.org, liran.alon@oracle.com,
+        keescook@google.com, akpm@linux-foundation.org, mhocko@suse.com,
+        catalin.marinas@arm.com, will.deacon@arm.com, jmorris@namei.org,
+        konrad.wilk@oracle.com,
         Juerg Haefliger <juerg.haefliger@canonical.com>,
         deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
         tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
@@ -124,31 +125,29 @@ Cc: Peter Zijlstra <peterz@infradead.org>, tycho@tycho.ws, jsteckli@amazon.de,
         pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de,
         kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com,
         labbott@redhat.com, luto@kernel.org, dave.hansen@intel.com,
-        kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
-        x86@kernel.org, linux-arm-kernel@lists.infradead.org,
-        linux-kernel@vger.kernel.org,
-        Marco Benatto <marco.antonio.780@gmail.com>
+        peterz@infradead.org, kernel-hardening@lists.openwall.com,
+        linux-mm@kvack.org, x86@kernel.org,
+        linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
 References: <cover.1550088114.git.khalid.aziz@oracle.com>
- <8275de2a7e6b72d19b1cd2ec5d71a42c2c7dd6c5.1550088114.git.khalid.aziz@oracle.com>
- <20190214105631.GJ32494@hirez.programming.kicks-ass.net>
- <20190214161552.GF4423@zn.tnic>
+ <ea50404604bdbe1547601b6ea0af89e3da8886b0.1550088114.git.khalid.aziz@oracle.com>
+ <20190214155435.GA15694@cisco>
 From: Khalid Aziz <khalid.aziz@oracle.com>
 Organization: Oracle Corp
-Message-ID: <6c689028-6748-66b9-0d9c-2b57b5dd6383@oracle.com>
-Date: Thu, 14 Feb 2019 10:19:23 -0700
+Message-ID: <92787149-bb9e-6ee9-6d04-431ec145e9a4@oracle.com>
+Date: Thu, 14 Feb 2019 10:29:52 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <20190214161552.GF4423@zn.tnic>
+In-Reply-To: <20190214155435.GA15694@cisco>
 Content-Type: multipart/mixed;
- boundary="------------8D637083EDAD02B721201657"
+ boundary="------------831B727C76672501BCC5E3E8"
 Content-Language: en-US
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9167 signatures=668683
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
  lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902140117
+ definitions=main-1902140118
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -156,27 +155,86 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------8D637083EDAD02B721201657
+--------------831B727C76672501BCC5E3E8
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-On 2/14/19 9:15 AM, Borislav Petkov wrote:
-> On Thu, Feb 14, 2019 at 11:56:31AM +0100, Peter Zijlstra wrote:
->>> +EXPORT_SYMBOL(xpfo_kunmap);
->>
->> And these here things are most definitely not IRQ-safe.
+On 2/14/19 8:54 AM, Tycho Andersen wrote:
+> Hi,
 >=20
-> Should also be EXPORT_SYMBOL_GPL.
+> On Wed, Feb 13, 2019 at 05:01:30PM -0700, Khalid Aziz wrote:
+>> From: Juerg Haefliger <juerg.haefliger@canonical.com>
+>>
+>> If the page is unmapped by XPFO, a data cache flush results in a fatal=
+
+>> page fault, so let's temporarily map the region, flush the cache, and =
+then
+>> unmap it.
+>>
+>> v6: actually flush in the face of xpfo, and temporarily map the underl=
+ying
+>>     memory so it can be flushed correctly
+>>
+>> CC: linux-arm-kernel@lists.infradead.org
+>> Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
+>> Signed-off-by: Tycho Andersen <tycho@docker.com>
+>> ---
+>>  arch/arm64/mm/flush.c | 7 +++++++
+>>  1 file changed, 7 insertions(+)
+>>
+>> diff --git a/arch/arm64/mm/flush.c b/arch/arm64/mm/flush.c
+>> index 30695a868107..fad09aafd9d5 100644
+>> --- a/arch/arm64/mm/flush.c
+>> +++ b/arch/arm64/mm/flush.c
+>> @@ -20,6 +20,7 @@
+>>  #include <linux/export.h>
+>>  #include <linux/mm.h>
+>>  #include <linux/pagemap.h>
+>> +#include <linux/xpfo.h>
+>> =20
+>>  #include <asm/cacheflush.h>
+>>  #include <asm/cache.h>
+>> @@ -28,9 +29,15 @@
+>>  void sync_icache_aliases(void *kaddr, unsigned long len)
+>>  {
+>>  	unsigned long addr =3D (unsigned long)kaddr;
+>> +	unsigned long num_pages =3D XPFO_NUM_PAGES(addr, len);
+>> +	void *mapping[num_pages];
+>=20
+> What version does this build on? Presumably -Wvla will cause an error
+> here, but,
+>=20
+>>  	if (icache_is_aliasing()) {
+>> +		xpfo_temp_map(kaddr, len, mapping,
+>> +			      sizeof(mapping[0]) * num_pages);
+>>  		__clean_dcache_area_pou(kaddr, len);
+>=20
+> Here, we map the pages to some random address via xpfo_temp_map(),
+> then pass the *original* address (which may not have been mapped) to
+> __clean_dcache_area_pou(). So I think this whole approach is wrong.
+>=20
+> If we want to do it this way, it may be that we need some
+> xpfo_map_contiguous() type thing, but since we're just going to flush
+> it anyway, that seems a little crazy. Maybe someone who knows more
+> about arm64 knows a better way?
+>=20
+> Tycho
 >=20
 
-Agreed. On the other hand, is there even a need to export this? It
-should only be called from kunmap() or kunmap_atomic() and not from any
-module directly. Same for xpfo_kmap.
+Hi Tycho,
+
+You are right. Things don't quite look right with this patch. I don't
+know arm64 well enough either, so I will wait for someone more
+knowledgeable to make a recommendation here.
+
+On a side note, do you mind if I update your address in your
+signed-off-by from tycho@docker.com when I send the next version of this
+series?
 
 Thanks,
 Khalid
 
---------------8D637083EDAD02B721201657
+--------------831B727C76672501BCC5E3E8
 Content-Type: application/pgp-keys;
  name="pEpkey.asc"
 Content-Transfer-Encoding: quoted-printable
@@ -225,5 +283,5 @@ E6wtYze9oihz8mbNHY3jtUGajTsv/F7Jl42rmnbeukwfN2H/4gTDV1sB/D8z5G1+
 =3DnPqY
 -----END PGP PUBLIC KEY BLOCK-----
 
---------------8D637083EDAD02B721201657--
+--------------831B727C76672501BCC5E3E8--
 
