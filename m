@@ -6,206 +6,230 @@ X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
 	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 626BAC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 19:49:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B06DC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 19:57:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E21E21916
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 19:49:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3058721B68
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 19:57:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="5MN0n8QW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E21E21916
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="owg2EAXP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3058721B68
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B12618E0002; Thu, 14 Feb 2019 14:48:59 -0500 (EST)
+	id C1D5C8E0002; Thu, 14 Feb 2019 14:57:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AC43D8E0001; Thu, 14 Feb 2019 14:48:59 -0500 (EST)
+	id BCCD68E0001; Thu, 14 Feb 2019 14:57:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9B2088E0002; Thu, 14 Feb 2019 14:48:59 -0500 (EST)
+	id AE3238E0002; Thu, 14 Feb 2019 14:57:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B8E58E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 14:48:59 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id e5so5021207pgc.16
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 11:48:59 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DCE38E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 14:57:55 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id 75so5607072pfq.8
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 11:57:55 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
          :organization:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=44ag5C0KnKZ9v0n5xm9kYXZ5oCu2l/oDOkg2NTBpUXI=;
-        b=uFYOxQJAuI4b1X/uWA+TD3910grB09ZWCJBe7B7E3Xg2FzdaS1XfdxJUOzoSWnheKz
-         nm3PsfYUenTYkMf4OhhTOQhgnd1rKFthmbgELxWnnIzw7ewVtkkrWJPKYC0FgJvhfC/4
-         4jEXikeofv9ImKJ9GycyRpxY+ZL9zN94UmQrZ3M5lIo/57AB2rdfXjbgP/UeKBnZlbAi
-         gLQ8US4xU6uteCHPtZgJmnhyCGtO3/3mwHF+oCcf5OneQlRHXaRK37k3TEL/BzKnh7ki
-         ZOwC9JVv42xfJTpuoAdoiRr/XBV8iQurvWnSOS5kPCbtY1rd6uzpFPCBrVSd1tEHBZDk
-         OPhw==
-X-Gm-Message-State: AHQUAuZMNzvBB+cwbhjDO4oWayTUKRsx3nThNwtqWkk2OxkHk2x4PTmr
-	HrINQBjYOpr1Q9/t5eH5JukUkFPahQxutP5ZBjILOrZ0UZBvOUMuLH5JXao0W+kk3ka4kPW7ngi
-	7efZirpu0yNVxNMuYSNxfURjo1rxu4/IY3MJoJ/naWN9MebaUqvZ7VShE/aefNDXV7w==
-X-Received: by 2002:a62:5301:: with SMTP id h1mr5747624pfb.17.1550173739022;
-        Thu, 14 Feb 2019 11:48:59 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZFGkH9ESawh7duBMwkKeH5faIx+uWMTkfz0sNSnb6PKvy5//OkzhLMiXpTTRG/ob/dYWf4
-X-Received: by 2002:a62:5301:: with SMTP id h1mr5747576pfb.17.1550173738233;
-        Thu, 14 Feb 2019 11:48:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550173738; cv=none;
+        bh=BdK7IaSpJfGdyre7bODL0VtCcEpshJ2Y4O0xLokGeZA=;
+        b=rV2zUb7c4q1XmDhSDt3D8sJspV8kn1rBPwmQBz8ldQaOp6FBmALC6TBnNtF//3f8iN
+         uGWdjnAeGQSNR3XpIgaBbZblFZv8nWDj4fT9uChtHjYStVzhdcljc8M3BEqx3DNEl9Ju
+         5DjkGnnUEDg42dCg5BATE71BN96RTU/5oAmbVAxacu/2gdCT2swXjDcichW5rVSeD+m+
+         MPV1EUy04Yr/drzqJbH/ZGR0iOx8XyBL27uZcenYVvzKLRX7Fvy9VdeklnQSL2u+yOqd
+         8mRA8gxF7XWoVjPmT2zVSdTtIr9bm+gU0f0u0alFlv8hCZjmhvXy5z5Uts3fP+o/Y5Iv
+         PnKA==
+X-Gm-Message-State: AHQUAuYoRZX5nbxCPLXcmZXgXO4fFspKmoNyj+Ay6/7jeea4Yoy/tCrz
+	6zR4WiZP0hBm1Y/x/xKnDJP1TcKJg/dVot43LFEDmqoNIt7iVAZMYJ6kIWX143yJnqi2M1P8Cck
+	BFA4oCTi3WsZsVuM+EJ8Ww1nqB6n7ZVfKhmJ5Fs7GvnfITukHSubQmi/XBqb2AthdZQ==
+X-Received: by 2002:a17:902:b68a:: with SMTP id c10mr5856745pls.248.1550174275109;
+        Thu, 14 Feb 2019 11:57:55 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYUNJ68o+N869pL4Rv1bzOzDLchG7YLgGdiMZzKOEZShrzIPusCYkQOpWLJbJ9dEr3XnzUg
+X-Received: by 2002:a17:902:b68a:: with SMTP id c10mr5856688pls.248.1550174274366;
+        Thu, 14 Feb 2019 11:57:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550174274; cv=none;
         d=google.com; s=arc-20160816;
-        b=sA4mtQKGnX54TgHoZlvXsq/DQvzp+t1R6yAl6+Ie9NjTWI9nT7spy2W9gOlrcpvNwv
-         iNKmh3wgprIloUw9zOMPJjVVqijULpwgXDaXu0vf9narIkiygSCbrx5HwR8Y1vb4oZKA
-         PPs3YuUnogLbjQMxQAtnaqoJ7K/rUDTJ+CbwhHUDO2XXfbMFcMjsk0LhFoSUfH2zPjyi
-         8VwWFZMQ4xNKjFzyGmSqO+6J27Ef3veaLKI+Yh+wrBSXdVHEl5wFFGV87lgTrtqt/g/U
-         BI2BmQb8WmqNY/ixJi0givU+N2ZKikzOxf7B4UMqUpNANFQjf/6qeXfjOwTH4N0eowj7
-         tGNQ==
+        b=U/VUfUotY7eJP1e4EILx4U0cBCCUSGDXijt2GMyBEuvMznUjZD7tjkcuX8/lPPshzb
+         BIbXSdkmIYLWvmD4UYpeNxTnM3R/INb2Fk/3bZtBS06tLV/rXnDgiixVPImyh7LraTjk
+         PaH7zoy9eRBJi4uXkUXlLicD2TNO42+swjgx9JkwypiWDvJISjmxFJLX9RBny87SuGDg
+         EPWVlNAZiKLIhEdJrcGIGCxci7fM/Qx7y9nmGHgs04i1YquSOPvnu/HAGGeS4opv7ks7
+         eEOl/2CZMhqiAEz+kH+N7Pc6QzAt6uCHISCCLUQ49U63t5cistWCvhyGnoSLQDpznQj+
+         wGjg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:from:references:cc:to
          :subject:dkim-signature;
-        bh=44ag5C0KnKZ9v0n5xm9kYXZ5oCu2l/oDOkg2NTBpUXI=;
-        b=pJk2/kMHtF7us+a4cyl8oS19oWhX0CNFEA6dZqGNikNuEs8HpxtrVpQnV3bb66N4nb
-         ZgjR2ItlVTvYcrZFDy5hGpCS5PEGFmQYAlcqNXnu5ABbfZTbqVFjoeSHCpa1BnYi2dUW
-         ntKvRLV2WZJAosh48WmwIBp0Hf9/u/0YYpi2P61SWTIBRcIvj6bVsoIP6F8SA0HB77cT
-         6JcXpTRmXXj4414Eci9UkrCUPU49C5NoFy+ixsfD+7/E5RJtJRtt/8xsevGrydwIXGWo
-         MupAsUtgNjsG20j5J9uA84nXrZc1DE+UgdsKvvPv8HM2w/aKiK+8OqB8EBApTEw0RC/J
-         ZEhQ==
+        bh=BdK7IaSpJfGdyre7bODL0VtCcEpshJ2Y4O0xLokGeZA=;
+        b=nUmrlFXWUH8+LoCeK3nMlRTKQEfKsvGdNGy9PQihzhq4yMmGjinnzsaA/ksuJ81j/V
+         k3w9OHN0qHERneq06NoSQl1Kv5vfLx3ozqgRqwqp+uWQIKhYhc3+T5yj/lXxCpwFKOf1
+         6V9+e/UzobaMOH8KCQLr5W+F4HLASwLH2NbOO50tbXULavCO4ZfRU+44uE3VsxOOs3fg
+         4l3WZPE0/ndW48hDJ+YQcRyhB3hSs+/rWGqz+hifMvg5YsJOdh6jPNsapNmX+UqPRfj3
+         JDbbZ+ew5x+OfOyXeLV+O0Xf3Acdbuv49ddOhafFRe5jBYKJH/v1c4utWfRY4APyQgXX
+         LP6Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=5MN0n8QW;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=owg2EAXP;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id e2si3264460pfe.111.2019.02.14.11.48.57
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id 33si3354729plh.245.2019.02.14.11.57.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 11:48:58 -0800 (PST)
-Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Thu, 14 Feb 2019 11:57:54 -0800 (PST)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=5MN0n8QW;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=owg2EAXP;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1EJdiW7062012;
-	Thu, 14 Feb 2019 19:48:38 GMT
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1EJsITk073232;
+	Thu, 14 Feb 2019 19:57:37 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
  references : from : message-id : date : mime-version : in-reply-to :
  content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=44ag5C0KnKZ9v0n5xm9kYXZ5oCu2l/oDOkg2NTBpUXI=;
- b=5MN0n8QWLGoZiAIYHc+P1ljOzXm9A3NnlHqnj7fVjd0Yi71el8kU+50Iq1aqnXxxsf/7
- pa2Ikp4AhlO9jOPpDax8AkDG/KkluV3PlvtcmGaV5K7T/jqKsCkWegiw4CRT4Y1/zkM9
- YPp6d4nca/YPsxuLvPhs+YsoBJliCKJdVzdW7InGegAgZ/hYqBjsDFYNh8UzDqOXUwhC
- aX+cMXCZwycPE1ehXFcR0ZmpM6WMwOs1pStDgtxlP85SHpfzJKRELmhLDvYk7WepRAWh
- FNrOK+bYt9t/ef9+l8ALHCxhUm8RvKMica2GTeb8egXJzTt+0TE0KqoR5p/oqTDd5tyi /A== 
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by aserp2130.oracle.com with ESMTP id 2qhre5t280-1
+ bh=BdK7IaSpJfGdyre7bODL0VtCcEpshJ2Y4O0xLokGeZA=;
+ b=owg2EAXP1djY4nOw3m8VNIzE98O8OriShbmSSMKZ1A19elg+OjugPa4ORsAae1iR/QG+
+ Oo6TItCage0cFqLHvah7MyhhQEJRLw3heZpg0f9FxV8KjBacCmhDbU4A0xmkJ4AE0tW7
+ 7J9JF0zShtWDBE+r9ZN2h7CQ6evngnuEYCI2DcA3CDxWWAikNj2v6M/+F1z0RzJ8PftT
+ w/OicGnyFF60fSAZPPiq1gNdWsq+Jc80DNuUYrKuzTkrqjKuKEtmKgryWLQec1RjtvWO
+ whVfMYxFhwr12ksKkKKbj0LUcJjPeYPtDBVapSvKu0btUzQCxs69XCHlEjHQ3KEkgP2z tg== 
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by userp2120.oracle.com with ESMTP id 2qhreea5de-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Feb 2019 19:48:38 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1EJmVIO024689
+	Thu, 14 Feb 2019 19:57:36 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1EJvZQN015680
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Feb 2019 19:48:31 GMT
-Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1EJmStY012916;
-	Thu, 14 Feb 2019 19:48:28 GMT
+	Thu, 14 Feb 2019 19:57:35 GMT
+Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x1EJvXGY021984;
+	Thu, 14 Feb 2019 19:57:33 GMT
 Received: from [192.168.1.16] (/24.9.64.241)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 14 Feb 2019 19:48:28 +0000
-Subject: Re: [RFC PATCH v8 04/14] swiotlb: Map the buffer if it was unmapped
- by XPFO
-To: Christoph Hellwig <hch@lst.de>
-Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com,
-        torvalds@linux-foundation.org, liran.alon@oracle.com,
-        keescook@google.com, akpm@linux-foundation.org, mhocko@suse.com,
-        catalin.marinas@arm.com, will.deacon@arm.com, jmorris@namei.org,
-        konrad.wilk@oracle.com,
-        Juerg Haefliger <juerg.haefliger@canonical.com>,
-        deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
-        tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
-        jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com,
+	with ESMTP ; Thu, 14 Feb 2019 19:57:33 +0000
+Subject: Re: [RFC PATCH v8 13/14] xpfo, mm: Defer TLB flushes for non-current
+ CPUs (x86 only)
+To: Dave Hansen <dave.hansen@intel.com>, juergh@gmail.com, tycho@tycho.ws,
+        jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org,
+        liran.alon@oracle.com, keescook@google.com, akpm@linux-foundation.org,
+        mhocko@suse.com, catalin.marinas@arm.com, will.deacon@arm.com,
+        jmorris@namei.org, konrad.wilk@oracle.com
+Cc: deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com,
+        dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com,
+        boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com,
         joao.m.martins@oracle.com, jmattson@google.com,
         pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de,
-        kirill.shutemov@linux.intel.com, steven.sistare@oracle.com,
-        labbott@redhat.com, luto@kernel.org, dave.hansen@intel.com,
-        peterz@infradead.org, kernel-hardening@lists.openwall.com,
-        linux-mm@kvack.org, x86@kernel.org,
-        linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+        kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com,
+        labbott@redhat.com, luto@kernel.org, peterz@infradead.org,
+        kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
+        x86@kernel.org, linux-arm-kernel@lists.infradead.org,
+        linux-kernel@vger.kernel.org
 References: <cover.1550088114.git.khalid.aziz@oracle.com>
- <b595ffb3231dfef3c6b6c896a8e1cba0e838978c.1550088114.git.khalid.aziz@oracle.com>
- <20190214074747.GA10666@lst.de>
- <3c75c46c-2a5a-cd75-83d4-f77d96d22f7d@oracle.com>
- <20190214174451.GA3338@lst.de>
+ <98134cb73e911b2f0b59ffb76243a7777963d218.1550088114.git.khalid.aziz@oracle.com>
+ <a6510fa8-e96d-677b-78df-da9a19c4089b@intel.com>
 From: Khalid Aziz <khalid.aziz@oracle.com>
 Organization: Oracle Corp
-Message-ID: <056ffba0-e970-96d5-3d0b-c0a6f9460405@oracle.com>
-Date: Thu, 14 Feb 2019 12:48:25 -0700
+Message-ID: <95fb62d4-1dbc-e420-74c1-ff929c5552e1@oracle.com>
+Date: Thu, 14 Feb 2019 12:57:30 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <20190214174451.GA3338@lst.de>
+In-Reply-To: <a6510fa8-e96d-677b-78df-da9a19c4089b@intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: quoted-printable
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9167 signatures=668683
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=891 adultscore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902140131
+ definitions=main-1902140133
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/14/19 10:44 AM, Christoph Hellwig wrote:
-> On Thu, Feb 14, 2019 at 09:56:24AM -0700, Khalid Aziz wrote:
->> On 2/14/19 12:47 AM, Christoph Hellwig wrote:
->>> On Wed, Feb 13, 2019 at 05:01:27PM -0700, Khalid Aziz wrote:
->>>> +++ b/kernel/dma/swiotlb.c
->>>> @@ -396,8 +396,9 @@ static void swiotlb_bounce(phys_addr_t orig_addr=
-, phys_addr_t tlb_addr,
->>>>  {
->>>>  	unsigned long pfn =3D PFN_DOWN(orig_addr);
->>>>  	unsigned char *vaddr =3D phys_to_virt(tlb_addr);
->>>> +	struct page *page =3D pfn_to_page(pfn);
->>>> =20
->>>> -	if (PageHighMem(pfn_to_page(pfn))) {
->>>> +	if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {
->>>
->>> I think this just wants a page_unmapped or similar helper instead of
->>> needing the xpfo_page_is_unmapped check.  We actually have quite
->>> a few similar construct in the arch dma mapping code for architecture=
+On 2/14/19 10:42 AM, Dave Hansen wrote:
+>>  #endif
+>> +
+>> +	/* If there is a pending TLB flush for this CPU due to XPFO
+>> +	 * flush, do it now.
+>> +	 */
+>=20
+> Don't forget CodingStyle in all this, please.
+
+Of course. I will fix that.
+
+>=20
+>> +	if (cpumask_test_and_clear_cpu(cpu, &pending_xpfo_flush)) {
+>> +		count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
+>> +		__flush_tlb_all();
+>> +	}
+>=20
+> This seems to exist in parallel with all of the cpu_tlbstate
+> infrastructure.  Shouldn't it go in there?
+
+That sounds like a good idea. On the other hand, pending flush needs to
+be kept track of entirely within arch/x86/mm/tlb.c and using a local
+variable with scope limited to just that file feels like a lighter
+weight implementation. I could go either way.
+
+>=20
+> Also, if we're doing full flushes like this, it seems a bit wasteful to=
+
+> then go and do later things like invalidate_user_asid() when we *know*
+> that the asid would have been flushed by this operation.  I'm pretty
+> sure this isn't the only __flush_tlb_all() callsite that does this, so
+> it's not really criticism of this patch specifically.  It's more of a
+> structural issue.
+>=20
+>=20
+
+That is a good point. It is not just wasteful, it is bound to have
+performance impact even if slight.
+
+>> +void xpfo_flush_tlb_kernel_range(unsigned long start, unsigned long e=
+nd)
+>> +{
+>=20
+> This is a bit lightly commented.  Please give this some good
+> descriptions about the logic behind the implementation and the tradeoff=
 s
->>> that require cache flushing.
->>
->> As I am not the original author of this patch, I am interpreting the
->> original intent. I think xpfo_page_is_unmapped() was added to account
->> for kernel build without CONFIG_XPFO. xpfo_page_is_unmapped() has an
->> alternate definition to return false if CONFIG_XPFO is not defined.
->> xpfo_is_unmapped() is cleaned up further in patch 11 ("xpfo, mm: remov=
-e
->> dependency on CONFIG_PAGE_EXTENSION") to a one-liner "return
->> PageXpfoUnmapped(page);". xpfo_is_unmapped() can be eliminated entirel=
-y
->> by adding an else clause to the following code added by that patch:
+> that are in play.
 >=20
-> The point I'm making it that just about every PageHighMem() check
-> before code that does a kmap* later needs to account for xpfo as well.
+> This is doing a local flush, but deferring the flushes on all other
+> processors, right?  Can you explain the logic behind that in a comment
+> here, please?  This also has to be called with preemption disabled, rig=
+ht?
 >=20
-> So instead of opencoding the above, be that using xpfo_page_is_unmapped=
-
-> or PageXpfoUnmapped, we really need one self-describing helper that
-> checks if a page is unmapped for any reason and needs a kmap to access
-> it.
+>> +	struct cpumask tmp_mask;
+>> +
+>> +	/* Balance as user space task's flush, a bit conservative */
+>> +	if (end =3D=3D TLB_FLUSH_ALL ||
+>> +	    (end - start) > tlb_single_page_flush_ceiling << PAGE_SHIFT) {
+>> +		do_flush_tlb_all(NULL);
+>> +	} else {
+>> +		struct flush_tlb_info info;
+>> +
+>> +		info.start =3D start;
+>> +		info.end =3D end;
+>> +		do_kernel_range_flush(&info);
+>> +	}
+>> +	cpumask_setall(&tmp_mask);
+>> +	cpumask_clear_cpu(smp_processor_id(), &tmp_mask);
+>> +	cpumask_or(&pending_xpfo_flush, &pending_xpfo_flush, &tmp_mask);
+>> +}
+>=20
+> Fun.  cpumask_setall() is non-atomic while cpumask_clear_cpu() and
+> cpumask_or() *are* atomic.  The cpumask_clear_cpu() is operating on
+> thread-local storage and doesn't need to be atomic.  Please make it
+> __cpumask_clear_cpu().
 >=20
 
-Understood. XpfoUnmapped is a the state for a page when it is a free
-page. When this page is allocated to userspace and userspace passes this
-page back to kernel in a syscall, kernel will always go through kmap to
-map it temporarily any way. When the page is freed back to the kernel,
-its mapping in physmap is restored. If the free page is allocated to
-kernel, its physmap entry is preserved. So I am inclined to say a page
-being XpfoUnmapped should not affect need or lack of need for kmap
-elsewhere. Does that make sense?
+I will fix that. Thanks!
 
-Thanks,
+--
 Khalid
 
