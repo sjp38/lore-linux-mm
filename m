@@ -3,150 +3,152 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84061C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:44:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B2DCAC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 18:39:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4B691222D7
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:44:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B691222D7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 76BC521B68
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 18:39:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 76BC521B68
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D94B68E0002; Thu, 14 Feb 2019 12:44:53 -0500 (EST)
+	id E7C508E0002; Thu, 14 Feb 2019 13:39:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D426C8E0001; Thu, 14 Feb 2019 12:44:53 -0500 (EST)
+	id E2D4F8E0001; Thu, 14 Feb 2019 13:39:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BE5418E0002; Thu, 14 Feb 2019 12:44:53 -0500 (EST)
+	id D1C218E0002; Thu, 14 Feb 2019 13:39:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 64B198E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 12:44:53 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id y129so2327684wmd.1
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 09:44:53 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B67E8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 13:39:10 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id x134so5420151pfd.18
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 10:39:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=nhONcvXGm61KLi/zYqWGoS2zlMlk8XmKbAq7rlcJi4w=;
-        b=buBZp69FxKC4pHdfTdwcD0tuy1J3CHENTCal75Z1dwHWfZspxRb9wz6G02/n2Vb/Y1
-         cvgRKVL9Q4P5wqXDXNGmbtC1fTwTcDhZvE4lAud9PHyXm9EJK/uoEmepfBAvjPchzYWA
-         OUGjOh9GFDhfzTEjtp05IBBdwjhhvr5h6zoKWPbHO7H56vVnyahDR0JS0C3IUIB60eoo
-         Bn7IKiHuAylY8sRBTXp7cqGcVs48aMIU8f9Qd554NGR5DxHh0K7HT3EmGkVYh550MvpF
-         TMI1uKxba7mMDhCRT+WeJ19IgCefKfRFW6T6NR7RsRyiqjP+SJjEXpQ3RduUT2ReHU7T
-         9mmA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: AHQUAubNG6d8Dv6qmBcATaq4ZIX2IQU0ZTxs/PMtdPpY280AFkRzYooB
-	K4TMlsMlrDVVrStmWYnKDY37U4Q6G9F5D+2VEFaPDiIrHqAM6mftKULsnl3W88mOFHV922JSikJ
-	HKSjD7T3y//axWfae+uvg6NqDfJAe7x6DnWill1sXBjDjujY7wj1rLQ+NIUV2y8fmng==
-X-Received: by 2002:adf:fc87:: with SMTP id g7mr3665150wrr.136.1550166292882;
-        Thu, 14 Feb 2019 09:44:52 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib3pDd6ar8tdBxDSOG0Lu9DsP9MAxqZfFDCYlOOQ6H6sT/vRof8+FiiZpJMrl70Q9Xfs7wT
-X-Received: by 2002:adf:fc87:: with SMTP id g7mr3665118wrr.136.1550166292047;
-        Thu, 14 Feb 2019 09:44:52 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550166292; cv=none;
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=Z/c04WIYVaJ0dTpkvWrCyPOP01jGX0WKjBkYpk40CB8=;
+        b=lzOlbbbB//Bft6FsOngeDO2oZa3edB7OaL7baZszzJWLDHRD+fhzTet4Dkhqm6pYbp
+         wswBpkjc6MTP2CAIdhu+ROJaocRMGudfSgOryy8bISNhawPIStw5t3lYsF+EXdKlgeOq
+         sNz18D04XsU0SU5l2QNqGTm+g98UqSPnbjzO7MOdLdgMCYUwEchBOgLy+NyOnqY0nUcQ
+         l+uPfDdF5IVRngMMTTt3GoYDOrVEPVYy9JmBjN4SkDE7cF2KWzKLLZ7z5ykmD20KRXun
+         h8SPhP4LpoVnwk40JTAmbusH1LPyLbvHizWPQKiTzD5M0TEXRTeqkrgxCd/7X9hwuCMT
+         /0KQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuZLBZdszb1esleXhurzyK1e1VADP/cCAm10iLt9hbruYtlMBlRl
+	9yilX4ubs9M0nxjgTFLEx24edQcK+3I0LlWlX/z9zyAsH0wfeRsztf7XMxCHjbWyDuKrG40i9aF
+	dz3qNgY2KZ2V4en9H2JRYRN7UrQgWTLfwPPeon3SI3wP3Wav8s7k8yb4IARRODQmKZw==
+X-Received: by 2002:a63:c345:: with SMTP id e5mr1259241pgd.103.1550169550269;
+        Thu, 14 Feb 2019 10:39:10 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbJj0/fAXrn0DVhYHOiQdFh1YkSqMtsWfWRzeI7UHtOTSfN/kKndHoarttvRTs1+jpiRAX2
+X-Received: by 2002:a63:c345:: with SMTP id e5mr1259188pgd.103.1550169549402;
+        Thu, 14 Feb 2019 10:39:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550169549; cv=none;
         d=google.com; s=arc-20160816;
-        b=Fadjny18ISFIeAP2N9xNOxuEfUT0re1twmrSrjG5asKbVltDaRaRPFDZ7xYyGKr8TK
-         b6JYdkCfImALpZnN1DZhVzUEP3vwqXA9rjFDvd6CF5vLvDqeESc3XA06AXqw3iuwO/5N
-         z1bvZrUtlxYSiyTfkaHtzzwN7Wf8uWYJSIHvKJo87Amd73TlUaEXbpE/u2mM/nNeCa6z
-         /AEf76WGfGQMmoSWEWFhLNtujPzRmnASomh3iChbSOsfs0gGJ2JGqsrX6Csgm9mQhT0D
-         pamlTZKj+9+WAOtvn3tPm8p0TyOyw5bP9xBD4fdV3ekDb+pc+dae3AJXjyBNo97nhIlO
-         MlOA==
+        b=cxeh84aayiE2/zrCyvNBZSxxgWiVGZ+NOqjQRkgfrm1aR0gL1hZ47mHFjsYV8yI3o2
+         rs3NsMveZGPmsqGFfQ/JUGnWyzzj78eZrio9zaMWvyUpB9ZL5Nh8KvwI8jFD1E6h7Nrs
+         aMElTG83PvDC9I9mc4aGiOMSTqKSf3pNyu5bbG9CLiNfwZM2kbFtY5qqaeA6vRGcivP4
+         udzp+BSfGIeuHUSot0TMlnGq7mixcMIrEFxz6udVUNinyhWCE8SfNXKZmJ9W+abTTTLn
+         26pARC6p3v045TozyN7ioOG17eWm8a2PGLCAAfdzt1Ei49+X9YL10wNZhky+viS5AFlU
+         G31w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=nhONcvXGm61KLi/zYqWGoS2zlMlk8XmKbAq7rlcJi4w=;
-        b=J5aAMTCfm4BBM7X/cocxS89TOLe/lIKwFvNPjj9vCA1SyHF95rRvpsgLw+jcPKqUOV
-         696STGS75vbTrTbHH8fCfOjndWT/bsE4YSA2J6ILKrgAzvVtdOrBemvhdgV6EAW0+Z87
-         FiCtbKktu5rhMUL2NEdK+arRIGjHRVeiIXGdDwQP2kxVt2C5L6+PGuySPrxoz5Bs4ATQ
-         UCaARVvPe64gIEYw5D3uFlUDIUsqlt0aLf9K1Zb0jDJBhex1Ezp0vrDSo4KDqPwJokZL
-         4irIhFHwVYIU3dBIqItdBOsB8DHQo3PfVYL88rUKltFFrFyAf13z/m91G64tZaiQ3ZFm
-         em7Q==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=Z/c04WIYVaJ0dTpkvWrCyPOP01jGX0WKjBkYpk40CB8=;
+        b=UHNV0aPmuL+59rH89W4/oesRl85u4bscw9allljMi+nB5qsluyA7NWjAve/892SP1o
+         IPyt5sc6gtSEQoT2Y0KHmCDcQMbtL5bUhubdjFmmVXNmEA3+ez00ZRWCOLUFzziSUsye
+         wie8vHuW+pBcoEF3PN/3z/Lc+8drloYc/HI/KlzRwHuBVpwvztkkcPOatws4diLRIWLT
+         +B+g3CKdFDRfvtik1+wGsd2bsprnfQpnJLb+oZpvagq2ZQqBafn6n5blHXb9diNBdL1J
+         vi0kqe0YdfmtjGM/me7fb/zU/QqQ3E7wTXN3i/l4Aov+oMEWx4sf1BC7+cDH/GWzOHya
+         /HyA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id m1si2274885wmg.171.2019.02.14.09.44.51
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id g187si3056656pfc.43.2019.02.14.10.39.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 09:44:52 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Thu, 14 Feb 2019 10:39:09 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by newverein.lst.de (Postfix, from userid 2407)
-	id 5C65B6FA8C; Thu, 14 Feb 2019 18:44:51 +0100 (CET)
-Date: Thu, 14 Feb 2019 18:44:51 +0100
-From: Christoph Hellwig <hch@lst.de>
-To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: Christoph Hellwig <hch@lst.de>, juergh@gmail.com, tycho@tycho.ws,
-	jsteckli@amazon.de, ak@linux.intel.com,
-	torvalds@linux-foundation.org, liran.alon@oracle.com,
-	keescook@google.com, akpm@linux-foundation.org, mhocko@suse.com,
-	catalin.marinas@arm.com, will.deacon@arm.com, jmorris@namei.org,
-	konrad.wilk@oracle.com,
-	Juerg Haefliger <juerg.haefliger@canonical.com>,
-	deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
-	tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
-	jcm@redhat.com, boris.ostrovsky@oracle.com,
-	kanth.ghatraju@oracle.com, oao.m.martins@oracle.com,
-	jmattson@google.com, pradeep.vincent@oracle.com,
-	john.haxby@oracle.com, tglx@linutronix.de,
-	kirill.shutemov@linux.intel.com, steven.sistare@oracle.com,
-	labbott@redhat.com, luto@kernel.org, dave.hansen@intel.com,
-	peterz@infradead.org, kernel-hardening@lists.openwall.com,
-	linux-mm@kvack.org, x86@kernel.org,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-	Tycho Andersen <tycho@docker.com>
-Subject: Re: [RFC PATCH v8 04/14] swiotlb: Map the buffer if it was
- unmapped by XPFO
-Message-ID: <20190214174451.GA3338@lst.de>
-References: <cover.1550088114.git.khalid.aziz@oracle.com> <b595ffb3231dfef3c6b6c896a8e1cba0e838978c.1550088114.git.khalid.aziz@oracle.com> <20190214074747.GA10666@lst.de> <3c75c46c-2a5a-cd75-83d4-f77d96d22f7d@oracle.com>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1EIcwPP121909
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 13:39:08 -0500
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qnbxuyqax-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 13:39:08 -0500
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 14 Feb 2019 18:39:05 -0000
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 14 Feb 2019 18:39:02 -0000
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1EId2d92163186
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 14 Feb 2019 18:39:02 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id DC84BA405F;
+	Thu, 14 Feb 2019 18:39:01 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id ADF45A4054;
+	Thu, 14 Feb 2019 18:38:58 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.206.8])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Thu, 14 Feb 2019 18:38:58 +0000 (GMT)
+Date: Thu, 14 Feb 2019 20:38:55 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+        Palmer Dabbelt <palmer@sifive.com>, Richard Kuo <rkuo@codeaurora.org>,
+        linux-arch@vger.kernel.org, linux-hexagon@vger.kernel.org,
+        linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+        linux-riscv@lists.infradead.org
+Subject: Re: [PATCH 0/4] provide a generic free_initmem implementation
+References: <1550159977-8949-1-git-send-email-rppt@linux.ibm.com>
+ <20190214170416.GA32441@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3c75c46c-2a5a-cd75-83d4-f77d96d22f7d@oracle.com>
-User-Agent: Mutt/1.5.17 (2007-11-01)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <20190214170416.GA32441@lst.de>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19021418-0012-0000-0000-000002F5CEE3
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19021418-0013-0000-0000-0000212D4D2D
+Message-Id: <20190214183854.GA10795@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-14_09:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=736 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902140126
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000062, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 14, 2019 at 09:56:24AM -0700, Khalid Aziz wrote:
-> On 2/14/19 12:47 AM, Christoph Hellwig wrote:
-> > On Wed, Feb 13, 2019 at 05:01:27PM -0700, Khalid Aziz wrote:
-> >> +++ b/kernel/dma/swiotlb.c
-> >> @@ -396,8 +396,9 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,
-> >>  {
-> >>  	unsigned long pfn = PFN_DOWN(orig_addr);
-> >>  	unsigned char *vaddr = phys_to_virt(tlb_addr);
-> >> +	struct page *page = pfn_to_page(pfn);
-> >>  
-> >> -	if (PageHighMem(pfn_to_page(pfn))) {
-> >> +	if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {
-> > 
-> > I think this just wants a page_unmapped or similar helper instead of
-> > needing the xpfo_page_is_unmapped check.  We actually have quite
-> > a few similar construct in the arch dma mapping code for architectures
-> > that require cache flushing.
-> 
-> As I am not the original author of this patch, I am interpreting the
-> original intent. I think xpfo_page_is_unmapped() was added to account
-> for kernel build without CONFIG_XPFO. xpfo_page_is_unmapped() has an
-> alternate definition to return false if CONFIG_XPFO is not defined.
-> xpfo_is_unmapped() is cleaned up further in patch 11 ("xpfo, mm: remove
-> dependency on CONFIG_PAGE_EXTENSION") to a one-liner "return
-> PageXpfoUnmapped(page);". xpfo_is_unmapped() can be eliminated entirely
-> by adding an else clause to the following code added by that patch:
+On Thu, Feb 14, 2019 at 06:04:16PM +0100, Christoph Hellwig wrote:
+> This look fine to me, but I'm a little worried that as-is this will
+> just create conflicts with my series..
 
-The point I'm making it that just about every PageHighMem() check
-before code that does a kmap* later needs to account for xpfo as well.
+I'll rebase on top of your patches once they are in. Or I can send both
+series as a single set.
+Preferences? 
 
-So instead of opencoding the above, be that using xpfo_page_is_unmapped
-or PageXpfoUnmapped, we really need one self-describing helper that
-checks if a page is unmapped for any reason and needs a kmap to access
-it.
+-- 
+Sincerely yours,
+Mike.
 
