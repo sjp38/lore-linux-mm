@@ -2,178 +2,152 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1174CC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 01:51:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E7E1C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 01:53:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B9C9321904
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 01:51:09 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="vSAH0Rpc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9C9321904
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 2124421904
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 01:53:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2124421904
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 42B418E0002; Wed, 13 Feb 2019 20:51:09 -0500 (EST)
+	id BA1858E0002; Wed, 13 Feb 2019 20:53:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3B3C68E0001; Wed, 13 Feb 2019 20:51:09 -0500 (EST)
+	id B51608E0001; Wed, 13 Feb 2019 20:53:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2A42D8E0002; Wed, 13 Feb 2019 20:51:09 -0500 (EST)
+	id A409C8E0002; Wed, 13 Feb 2019 20:53:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C468C8E0001
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 20:51:08 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id v8so1562255wrt.18
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 17:51:08 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 60D098E0001
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 20:53:25 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id r9so3454497pfb.13
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 17:53:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=F24RVbeKKB1cnCpDEq5tv60PU/vFe4EDFYXQPFBYiG4=;
-        b=sgWML6tO/c16+1VQseLNrcmSRfxiXj38daOhpcj4/7wJl+IEw83Wy1iwvdPS9PkZZg
-         t1vwDgNKasPE8njk2qfRy6qUng8Ky84C2c+ILIL5zRvD/agdiXKAsQNDwkcumqpoE7xl
-         sj94v9NKwwEqsGPYQIABt1nJMV2BTRz5JbbvXfah//8JUclrUoaDDiHNC+xXtD+K4RN7
-         HfzpEjOETaZBAs+n9neF3NU4x9Kx25FoLGA0sJoHUL5ctEBuUE/LGv3i5dMETpXV3FOv
-         PVY4ntPMsI8HoJGiHXiaL4JDeDsf/RHtlr8Gi4XyJaGH1CocOokuzbeox1KITYwn69Qm
-         X7eA==
-X-Gm-Message-State: AHQUAua2JuvdiN+t6gtzcN3JP/a+c9FmGPrygvJlZeQGKla+hupI4bjN
-	yjaer8hqhjK0ogZpcdcb2X54lX/kxJx/fpNlAGyvNvUXharEBHzS/xVjQDzK0V2W2QsbjOc19ql
-	Dve6n6y/rzn3W8twBuMONkZTKAiQ8/Y8ebNL5fS0VqMnnnFHI99jGA/LWVmHUAsMkstLzvT/3Kf
-	SvIFVjQsYqr2ECVqVoxDHDcupSTqcjWm0zv47nW+9f4HAvBWo/05ZTkBLEMRjYoWtByHdVBc+qH
-	DRHA4eH/wJoMeDQi4IOznIEH7WKYbvhLAXs9eNU74NOtDxop14J+4sVIvL16v0mrN7IuJ5X24M/
-	uO4ILAd4yS0IRwSFU4HVs7z75Mm3barorn2aT1xU/MK7tvjAOi2lcWL5I9YNF/bwPcwZ4JEY8p9
-	E
-X-Received: by 2002:a1c:8086:: with SMTP id b128mr665986wmd.117.1550109068351;
-        Wed, 13 Feb 2019 17:51:08 -0800 (PST)
-X-Received: by 2002:a1c:8086:: with SMTP id b128mr665966wmd.117.1550109067523;
-        Wed, 13 Feb 2019 17:51:07 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550109067; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=GQ9VF+dvWfYLc9m6nWFfekhlvYVx+0eETtTp4Zl13xE=;
+        b=oYB/3UqV6Fl1oF/95Y8PAql8ajnkJEeB4VQCRc+NBS5DzabAseL5JiH1baSRqCWEf8
+         +taEWxWLH1wSgN8Bbc/xTftARUf3tlkFh2TLeKg8QB9Mt69mwfBNjOpNOrbMbxyZhYuZ
+         Pmkx8VKW4BclattoQkck8CJpSblB0w+0lDRjsbtLi9E3zluqw/W4+s3O5YYcYw9Su9DK
+         ar+dETdLqRm0fjSJGXB6vpMSg0KbFr8BuSEhDaU25jLPa8BY93S2mjzGRcEV7RnKs45v
+         qPxRh5Nhq74oa6mxfD1ix4lWJnEmpTgmAxohuEi0zGwPBuc8brLuwlxw1ShXw4oAP3df
+         Ijdw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAub7NTt2FstQSbgfo3gqi0zFqeeG+TUzwtaI0vIZUhYq17aJlzc7
+	lAx3b+ZdWmEk2XmsQcIjYUji2RIxpjLP9wi6+wc+SBEyfplYIlSIFeZkeacO2Jdv1uvBTi8ylwv
+	qc09Ofy+4EuVZnf65EF+KtlqrVJuxmh9DHmNUrGKTBN4I1wJpPI4HPtF73n7EgV7Tsg==
+X-Received: by 2002:a62:1992:: with SMTP id 140mr1369749pfz.33.1550109205063;
+        Wed, 13 Feb 2019 17:53:25 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib4Q3SWyv5AgOQ2D3+bmoXQeTDJIIRCGlCS1UTqLl7aMN6DgAC4e64BcJoFt7hQy2T/yYXF
+X-Received: by 2002:a62:1992:: with SMTP id 140mr1369706pfz.33.1550109204337;
+        Wed, 13 Feb 2019 17:53:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550109204; cv=none;
         d=google.com; s=arc-20160816;
-        b=UdmZl23jNu8rDhD9HaxL59ajSbPTsVKTmtEWTUh2ZItXO/ZGZes18xQ7Jb+t84gPoA
-         LL3FOCTuA1oWX0rQ8FLSVQNTRoGytlr0tEnk82xe5hqg44p/kQYoLwVuhx3emOnaNzN0
-         VKR0D8SEi/WZfUwmNd4iSTQFFYfWsQaChK5EW/h27MCuAqDrMzgmxYFrUCVQ357ZSGwg
-         7fduMc7vM+g7x9dSx/14fnYhDt63qd59rmSdEwcI+xE/oqMRU1ZBkikcvkrRHc5XFv34
-         XxcYCrJv+1XcPRE1YUbeobV9CdCwRuA1CT3om6vb0YzjkSXxacjTVT9qALg1dH50WInr
-         wv5A==
+        b=Q5mjcFlFC4QAa2bitIyc95pnHJTmo2v7Xeck6nGtd4PJwflgFHfLqZXUlK1WrUcUcN
+         ls/lFDgmR5iC+zgg/LCmd23kilplwnuUCyDI8gF9NOR0JmtlzCEYTqPfCOe0coMVuT04
+         0XOcjoQdT/kDKofuAho8UesbznyLbPTIkulygg2LRbhGFtYLABuLTnoaWTHnXRs+BsQI
+         HjV1athGVuEdujswV+ZvezMcktJuOjpKpnvI3PzsSPGRCH2dJ6KqYoesXkshDBbp+sq9
+         EDBxM+fCOOA9DeVmmGjERI5jKZ5lJIbhcY+T7r9vXTyXYH1jDAzgWYUIiCyM8qvHgBjY
+         q4+w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=F24RVbeKKB1cnCpDEq5tv60PU/vFe4EDFYXQPFBYiG4=;
-        b=JQkhuhuSIPtzR1/gIuM2jPO8HkvkjAjytcz3TddNfTZaNYubOIFvAmiGFfH5u5wvux
-         MedLfMvDXrpcVJFbSf5bwIKjMBWeOWW3gs5nGAp6z1mkGuXR9719b8kDEsGNthVmRJ98
-         /9nIoD417tOfYc/sEl1IN+w3grUKTyVGeAM3tB5oe7eSeCLvWupW2g1WIQAltxtxKbwu
-         qqCtD5CIc6xhybCBzjkSrHzZqs104c2WLp1vEj60zyqoI6pSqRLGWNzJG2QGJ6PRHkR7
-         crsrHkvX2TIs6YXsHh4xINwu5wRVs8Dip02txR2cJfpMZnzc3qLBzz/2lEGODGHnQrpe
-         oopg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=GQ9VF+dvWfYLc9m6nWFfekhlvYVx+0eETtTp4Zl13xE=;
+        b=vDTwDC42Q+LvQGY4QzOqn5VyF1cQ0I/jBlGj1qLhFrnwPwCrrLg343t7Qj+VmTITYA
+         K7Mm8KFKc2+xuvE9xyo9oY3rX4TTKJ9kAwzXuzPqRlDZ9t8C3fhGcz3Gb1wC4KYvDqB2
+         QjyJVM+AnxaP87hWCODA9bnPyJiEwTMwbEb5GLAQfkeRJccVamCONdi3iGcJ3XftIeWm
+         kaCkdZgsVvvc8HpUVMWDv5P5TREahxAGTamdFPkjH5igAYVZ3SaRJnkR4i3pU8CArzJa
+         S7oVX9O3JGGMtzyxzK1ymZrdXZd/nr72ll7ski0fQTOZWKfnnfsSQZU2qwGh9SNOV+w9
+         XlcA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=vSAH0Rpc;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 3sor565237wrs.49.2019.02.13.17.51.07
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id 90si1038400plb.17.2019.02.13.17.53.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Feb 2019 17:51:07 -0800 (PST)
-Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Feb 2019 17:53:24 -0800 (PST)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=vSAH0Rpc;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=F24RVbeKKB1cnCpDEq5tv60PU/vFe4EDFYXQPFBYiG4=;
-        b=vSAH0RpcqZoI384N6aWx/a6ZO2VP1uD+NDCUhuF485R1ktTjgbuR4PWJN1jDtxgthv
-         tpuxVzwCTlSEem19lNbbjRd64NWiI9+H6gVoVdOXse39STXrhIByIAXR29cbksE5hDeC
-         XDzgSzzrFoubIeuv61vg5LzUDm/AuQA4Xu03E2eYI9EmAfExE4qrbEENk6rXge3HAWll
-         yk+QSMLSZoH9LNhMKxKRUJrev4N4BQU22lVhPXu6d7xlfHHX0HTrpCxsEuitSs+riyGW
-         xPyFR4EXHqRBAEPYUcJ2+Tz9aB+EKuX81RkV5ag74cXkyQ1IH4W3dS6RONT25M15qXXs
-         +74w==
-X-Google-Smtp-Source: AHgI3IawV0AoL7/SiLAiW/evEF+BYLElakf4/oiB4CxjF1FDKzc7cBvow+JY0LNl96CjfAcJTQ9o3oVFmLRng1RtSqs=
-X-Received: by 2002:adf:dbc4:: with SMTP id e4mr748458wrj.320.1550109066968;
- Wed, 13 Feb 2019 17:51:06 -0800 (PST)
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga006.jf.intel.com ([10.7.209.51])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Feb 2019 17:53:23 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,367,1544515200"; 
+   d="scan'208";a="116051781"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga006.jf.intel.com with ESMTP; 13 Feb 2019 17:53:22 -0800
+Date: Wed, 13 Feb 2019 17:53:14 -0800
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, akpm@linux-foundation.org,
+	dave@stgolabs.net, jack@suse.cz, cl@linux.com, linux-mm@kvack.org,
+	kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
+	linux-kernel@vger.kernel.org, alex.williamson@redhat.com,
+	paulus@ozlabs.org, benh@kernel.crashing.org, mpe@ellerman.id.au,
+	hao.wu@intel.com, atull@kernel.org, mdf@kernel.org, aik@ozlabs.ru
+Subject: Re: [PATCH 0/5] use pinned_vm instead of locked_vm to account pinned
+ pages
+Message-ID: <20190214015314.GB1151@iweiny-DESK2.sc.intel.com>
+References: <20190211224437.25267-1-daniel.m.jordan@oracle.com>
+ <20190211225447.GN24692@ziepe.ca>
 MIME-Version: 1.0
-References: <201902080231.RZbiWtQ6%fengguang.wu@intel.com> <20190208151441.4048e6968579dd178b259609@linux-foundation.org>
- <20190209074407.GE4240@linux.ibm.com> <20190212013606.GJ12668@bombadil.infradead.org>
- <20190212163145.GD14231@cmpxchg.org> <20190212163547.GP12668@bombadil.infradead.org>
-In-Reply-To: <20190212163547.GP12668@bombadil.infradead.org>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Wed, 13 Feb 2019 17:50:55 -0800
-Message-ID: <CAJuCfpGuT=Rn6J-YbN6TUoiqZqmUBS7pHRvXOEdX1RcasM-A+Q@mail.gmail.com>
-Subject: Re: [linux-next:master 6618/6917] kernel/sched/psi.c:1230:13: sparse:
- error: incompatible types in comparison expression (different address spaces)
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, "Paul E. McKenney" <paulmck@linux.ibm.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, kbuild test robot <lkp@intel.com>, kbuild-all@01.org, 
-	Linux Memory Management List <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190211225447.GN24692@ziepe.ca>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 8:35 AM Matthew Wilcox <willy@infradead.org> wrote:
->
-> On Tue, Feb 12, 2019 at 11:31:45AM -0500, Johannes Weiner wrote:
-> > On Mon, Feb 11, 2019 at 05:36:06PM -0800, Matthew Wilcox wrote:
-> > > On Fri, Feb 08, 2019 at 11:44:07PM -0800, Paul E. McKenney wrote:
-> > > > On Fri, Feb 08, 2019 at 03:14:41PM -0800, Andrew Morton wrote:
-> > > > > On Fri, 8 Feb 2019 02:29:33 +0800 kbuild test robot <lkp@intel.com> wrote:
-> > > > > >   1223        static __poll_t psi_fop_poll(struct file *file, poll_table *wait)
-> > > > > >   1224        {
-> > > > > >   1225                struct seq_file *seq = file->private_data;
-> > > > > >   1226                struct psi_trigger *t;
-> > > > > >   1227                __poll_t ret;
-> > > > > >   1228
-> > > > > >   1229                rcu_read_lock();
-> > > > > > > 1230                t = rcu_dereference(seq->private);
-> > >
-> > > So the problem here is the opposite of what we think it is -- seq->private
-> > > is not marked as being RCU protected.
-> > >
-> > > > If you wish to opt into this checking, you need to mark the pointer
-> > > > definitions (in this case ->private) with __rcu.  It may also
-> > > > be necessary to mark function parameters as well, as is done for
-> > > > radix_tree_iter_resume().  If you do not wish to use this checking,
-> > > > you should ignore these sparse warnings.
-> >
-> > We cannot make struct seq_file->private generally __rcu, but the
-> > cgroup code has a similar thing with kernfs, where it's doing rcu for
-> > its particular use of struct kernfs_node->private. This is how it does
-> > the dereference:
-> >
-> >       cgrp = rcu_dereference(*(void __rcu __force **)&kn->priv);
-> >
-> > We could do this here as well.
-> >
-> > It's ugly, though. I'd also be fine with ignoring the sparse warning.
->
-> How about:
->
-> +++ b/include/linux/seq_file.h
-> @@ -26,7 +26,10 @@ struct seq_file {
->         const struct seq_operations *op;
->         int poll_event;
->         const struct file *file;
-> -       void *private;
-> +       union {
-> +               void *private;
-> +               void __rcu *rcu_private;
-> +       };
->  };
->
->  struct seq_operations {
->
+On Mon, Feb 11, 2019 at 03:54:47PM -0700, Jason Gunthorpe wrote:
+> On Mon, Feb 11, 2019 at 05:44:32PM -0500, Daniel Jordan wrote:
+> 
+> > All five of these places, and probably some of Davidlohr's conversions,
+> > probably want to be collapsed into a common helper in the core mm for
+> > accounting pinned pages.  I tried, and there are several details that
+> > likely need discussion, so this can be done as a follow-on.
+> 
+> I've wondered the same..
 
-Personally I would prefer cgrp = rcu_dereference(*(void __rcu __force
-**)&kn->priv); as it's more localized change but if union would be
-preferable I'll roll that into the next version of psi monitor.
-Thanks,
-Suren.
+I'm really thinking this would be a nice way to ensure it gets cleaned up and
+does not happen again.
+
+Also, by moving it to the core we could better manage any user visible changes.
+
+From a high level, pinned is a subset of locked so it seems like we need a 2
+sets of helpers.
+
+try_increment_locked_vm(...)
+decrement_locked_vm(...)
+
+try_increment_pinned_vm(...)
+decrement_pinned_vm(...)
+
+Where try_increment_pinned_vm() also increments locked_vm...  Of course this
+may end up reverting the improvement of Davidlohr  Bueso's atomic work...  :-(
+
+Furthermore it would seem better (although I don't know if at all possible) if
+this were accounted for in core calls which tracked them based on how the pages
+are being used so that drivers can't call try_increment_locked_vm() and then
+pin the pages...  Thus getting the account wrong vs what actually happened.
+
+And then in the end we can go back to locked_vm being the value checked against
+RLIMIT_MEMLOCK.
+
+Ira
 
