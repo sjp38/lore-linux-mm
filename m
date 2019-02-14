@@ -3,154 +3,168 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B5A0DC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 21:39:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C3F01C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 21:47:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7A33D2147C
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 21:39:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A33D2147C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 88173217F5
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 21:47:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 88173217F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 196D98E0002; Thu, 14 Feb 2019 16:39:28 -0500 (EST)
+	id 0CF8B8E0002; Thu, 14 Feb 2019 16:47:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 148B68E0001; Thu, 14 Feb 2019 16:39:28 -0500 (EST)
+	id 0586A8E0001; Thu, 14 Feb 2019 16:47:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 037658E0002; Thu, 14 Feb 2019 16:39:27 -0500 (EST)
+	id E3B9E8E0002; Thu, 14 Feb 2019 16:47:00 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CA0938E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 16:39:27 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id e31so6941106qtb.22
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 13:39:27 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C43C8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 16:47:00 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id b15so5849449pfi.6
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 13:47:00 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=s35jh3LllDPkRpPyieU7vUJCfrRoayTstsbDUCPNZ3M=;
-        b=Hy099vG+YqWNmLP1+kRJZhxjaKyla/JgyIveQq0qHb9whR/2iHzpZsSl8PSv61ULZ3
-         xEC48olYK/18r0tr0ELo6NZRom1kUPRbMfQqwx2bWWA0yiJ1VoQlsdCq/bGKy9Qm1mvM
-         aRi9GO1xc46V2tKTdezlFG2HYiJKRUH68lpKViofGGTL6n3M96mV1nt5v6VY9tk2qt7r
-         +MiTh23ivNNxsMAJq3667G88jbR4Y0ElYreLqAGvEfUfggLYgWis0pbGyOUuRXI+3GJI
-         IKm6/Tcn8ivWX4VJgV/m4OYuNUPYW4QVpkib3cFL5dejzK0MCNge4Wle11GGEup3xQ2A
-         C5aQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuaZXU+cc6ubKkAhWQCc9a9zDCBe5HKFneX30aHkPbf1KbEDCCmF
-	Qh4g0T8Ou0tFTijSavwl5b4YdNXH69nItVzK2M/6SHUCAlvyn66km8DnRo6pNyI9bXKNyJ8mRlH
-	/ZC6jJhno8S8EKAVCLD7/fHnI/aOkngy6U3ud4lvhFu6tdYTS2fx6SpgaU7QyzSnLGA==
-X-Received: by 2002:ac8:285c:: with SMTP id 28mr4800403qtr.54.1550180367579;
-        Thu, 14 Feb 2019 13:39:27 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IY7/MKCEVL9UCxAFrF918tOiLSHB+XnPl7cuv+PujeUStEZcFd7U5emarf3OGV5Bg6b41kL
-X-Received: by 2002:ac8:285c:: with SMTP id 28mr4800378qtr.54.1550180366962;
-        Thu, 14 Feb 2019 13:39:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550180366; cv=none;
+         :in-reply-to:user-agent;
+        bh=hvQJpm+mV7X4eaXVQRDtl3tzptiQH+a3WDEWk8temtY=;
+        b=Xhxftc+eP5yN2BQre+jjhrOagz1J+jLeA2+qu+TuzVcJu/wDCVO/8PfiTGlUC1j496
+         49/wQbDmNpZG5w5gE/Z3wkiLMQky08iVKz9eVTzhca9j0UVDt1ZTkNMIPQf/K/z19k7i
+         /pH0cDbdvZHkhHXXRknMuIdh/2Sb3AjpfQlPrSVJ4zGYLtTMLUmUct/Pck4k9lZNOYk5
+         tIGeECIM4ktggruHpvgZ1X1yqmX3q64BhrLhwKrn/gJS7aJasOHZgkETrfbaX7cX2uwV
+         Qhn/AoD2LZKvIAQpGorZ9cmfKsilvfV9xt2qRLwUFRZiGKoHo8YyhDYVIcYQdN3vAJvW
+         Uy8g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAua8Fz+jQ7A/l2XXQFG3yOvoQnLTS+onhzSa16NmMzqXvIncWqqP
+	qM39VQhM27x8Tgz6QlRw1VHqrvQwrkwAwUHvSx0IV1+kWggj5FwADIsHRsT1A4puXG9afoOB/RN
+	P+rZ+60feMmItuxhrDqFONaeJK2N4sU8MWYMQzOVtvlzsnBEs2n7BOg4SpICFJ9XZAg==
+X-Received: by 2002:a62:9305:: with SMTP id b5mr6265862pfe.10.1550180820309;
+        Thu, 14 Feb 2019 13:47:00 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYtAgkG/s6Mt6mx0l9IbcWCHLvc8y53pUrf7HDM/NjUpBwRwnyfKMJVihgYmMbPegzD7mxd
+X-Received: by 2002:a62:9305:: with SMTP id b5mr6265785pfe.10.1550180819114;
+        Thu, 14 Feb 2019 13:46:59 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550180819; cv=none;
         d=google.com; s=arc-20160816;
-        b=daITP89sZQDZkbDs4ldz63qTca+W5vc6/zw++3JxRLGv71oG62T8xTYg43Crg8AQ0q
-         23oTHIEluv6nWqGTQzCRiqOsHcfBWfCwGhVEYGxlXxSddJWKPBbzu4jRaX3T3ivoimIn
-         T/DnTbtLfsQnmKdjkOuN3txo5IlTpr1636JwxVD5RHRyKNgymzSwuxeRorT50Lrbj0kG
-         2l8yuvSWi7bETQY/wDZ1E1wDMaAc7V79bSvmzL7PvlYAXmn2Czlp5UTFvQ/SIW3xTWh4
-         9eAQDJ/ZzQ9BsqUT9Xkgoy3Z5LLl/wbYOTRnw45t7woeilRapf5qaNcNTUO0F5rIfdbx
-         WtCg==
+        b=QbIo3/boeb/5SsKCBwlNoT/kkg1/Nd8DDmGMdl7UL4JSOyV+kzsJ93uaWjk2xJ+WYs
+         riQ7n3+qk9N2wqNuwLbUE9Kdd4X89GrurzU8RkAGaIuCpz+7zgCKp7ggBFnaVlp3iEK4
+         EZUAuuD85F5oNYxehldujO5XgvnLfQZPZtOFhH+cAd7WZiwZBOfMbLgA/SrVmK+8sEwT
+         Cc+szIVQDKbtsJlFZjR9YhYmvAMmzKL3xPyyLr6JUD6+7gP0TS95w1wCSrtTQ4yMQZDa
+         z5DmWECEZePLS4h/CoZA2VJTuZIjPXvLd+kTJTS4o1zVUC6nVoSe034J+L5aksluGmKq
+         FKDA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=s35jh3LllDPkRpPyieU7vUJCfrRoayTstsbDUCPNZ3M=;
-        b=QEzetrJCIP34lc6QoRKbNN9i1mKQRpvaVvstW6s9hAcK80jMSEHca3i3hj27ue9fog
-         nzHWsHBmg1Y9wCsJm2Sdscwr/B6vZLrQYfP53Odr+VWRpPaf3xTyN5KBuN/NGP5uJu/y
-         Row4PXyDHlJ+MzB4nr1hvMgnY5s/v9nXiVqT0YqdgabAD/p0WSFQWCOchLcsRlk1t1co
-         fDiqhF+gkVZVghnrPcY02L07jlJQOhRK/PW0j99+KwVcZqtdtcbs0RRBcdnr+LyAQTvj
-         m/nIRmTPwCObN9/Hfsis7Q4JCRLy4uUQsq4QtRam8BRTxtKObawBHxjxe1veqjSl4vOm
-         YSVQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=hvQJpm+mV7X4eaXVQRDtl3tzptiQH+a3WDEWk8temtY=;
+        b=yyyW2bmRE3jUYjyrWuO/43fbE3WDddfC9sJfz0covAHWTyl6SAaLbLaU3OJFBznheb
+         SzlvJB8QWv+r1MXw+f/jXDPyrogIHfm57dHM+5e3EbLdSmv4KH5B1yUYRtuFQdNYMryn
+         yT+Xg74o3MX6CV5Ka6r/ChyeS98o0fgnuUIAIO5bGVxSRqWqWbRt8FgR+2FhdPZwHXG2
+         50J1sXCp0usV7enLvwRoGiXHuZjDzXvnS2RJ3MW34HMOi+GOqkf8+KP4j75jibfR2w/g
+         d/jyzSztUU/vWBN3ayux46zkwCBFRzyrV+4EDTF0UXFerobkHhHqXbfvmoYK13cbmMHv
+         9axw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b203si1343740qka.144.2019.02.14.13.39.26
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id p18si3323145pgl.557.2019.02.14.13.46.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 13:39:26 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 14 Feb 2019 13:46:59 -0800 (PST)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 1AD2A7A48C;
-	Thu, 14 Feb 2019 21:39:26 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 8A9535ED22;
-	Thu, 14 Feb 2019 21:39:24 +0000 (UTC)
-Date: Thu, 14 Feb 2019 16:39:22 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>,
-	Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>,
-	Christopher Lameter <cl@linux.com>,
-	Doug Ledford <dledford@redhat.com>, Ira Weiny <ira.weiny@intel.com>,
-	lsf-pc@lists.linux-foundation.org,
-	linux-rdma <linux-rdma@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving
- longterm-GUP usage by RDMA
-Message-ID: <20190214213922.GD3420@redhat.com>
-References: <bfe0fdd5400d41d223d8d30142f56a9c8efc033d.camel@redhat.com>
- <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com>
- <20190208044302.GA20493@dastard>
- <20190208111028.GD6353@quack2.suse.cz>
- <CAPcyv4iVtBfO8zWZU3LZXLqv-dha1NSG+2+7MvgNy9TibCy4Cw@mail.gmail.com>
- <20190211102402.GF19029@quack2.suse.cz>
- <CAPcyv4iHso+PqAm-4NfF0svoK4mELJMSWNp+vsG43UaW1S2eew@mail.gmail.com>
- <20190211180654.GB24692@ziepe.ca>
- <20190214202622.GB3420@redhat.com>
- <20190214205049.GC12668@bombadil.infradead.org>
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Feb 2019 13:46:58 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,370,1544515200"; 
+   d="scan'208";a="118016118"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga008.jf.intel.com with ESMTP; 14 Feb 2019 13:46:57 -0800
+Date: Thu, 14 Feb 2019 13:46:51 -0800
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, akpm@linux-foundation.org,
+	dave@stgolabs.net, jack@suse.cz, cl@linux.com, linux-mm@kvack.org,
+	kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
+	linux-kernel@vger.kernel.org, alex.williamson@redhat.com,
+	paulus@ozlabs.org, benh@kernel.crashing.org, mpe@ellerman.id.au,
+	hao.wu@intel.com, atull@kernel.org, mdf@kernel.org, aik@ozlabs.ru
+Subject: Re: [PATCH 0/5] use pinned_vm instead of locked_vm to account pinned
+ pages
+Message-ID: <20190214214650.GB7512@iweiny-DESK2.sc.intel.com>
+References: <20190211224437.25267-1-daniel.m.jordan@oracle.com>
+ <20190211225447.GN24692@ziepe.ca>
+ <20190214015314.GB1151@iweiny-DESK2.sc.intel.com>
+ <20190214060006.GE24692@ziepe.ca>
+ <20190214193352.GA7512@iweiny-DESK2.sc.intel.com>
+ <20190214201231.GC1739@ziepe.ca>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190214205049.GC12668@bombadil.infradead.org>
-User-Agent: Mutt/1.10.0 (2018-05-17)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Thu, 14 Feb 2019 21:39:26 +0000 (UTC)
+In-Reply-To: <20190214201231.GC1739@ziepe.ca>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 14, 2019 at 12:50:49PM -0800, Matthew Wilcox wrote:
-> On Thu, Feb 14, 2019 at 03:26:22PM -0500, Jerome Glisse wrote:
-> > On Mon, Feb 11, 2019 at 11:06:54AM -0700, Jason Gunthorpe wrote:
-> > > But it also doesnt' trucate/create a hole. Another thread wrote to it
-> > > right away and the 'hole' was essentially instantly reallocated. This
-> > > is an inherent, pre-existing, race in the ftrucate/etc APIs.
-> > 
-> > So it is kind of a // point to this, but direct I/O do "truncate" pages
-> > or more exactly after a write direct I/O invalidate_inode_pages2_range()
-> > is call and it will try to unmap and remove from page cache all pages
-> > that have been written too.
+On Thu, Feb 14, 2019 at 01:12:31PM -0700, Jason Gunthorpe wrote:
+> On Thu, Feb 14, 2019 at 11:33:53AM -0800, Ira Weiny wrote:
 > 
-> Hang on.  Pages are tossed out of the page cache _before_ an O_DIRECT
-> write starts.  The only way what you're describing can happen is if
-> there's a race between an O_DIRECT writer and an mmap.  Which is either
-> an incredibly badly written application or someone trying an exploit.
+> > > I think it had to do with double accounting pinned and mlocked pages
+> > > and thus delivering a lower than expected limit to userspace.
+> > > 
+> > > vfio has this bug, RDMA does not. RDMA has a bug where it can
+> > > overallocate locked memory, vfio doesn't.
+> > 
+> > Wouldn't vfio also be able to overallocate if the user had RDMA pinned pages?
+> 
+> Yes
+>  
+> > I think the problem is that if the user calls mlock on a large range then both
+> > vfio and RDMA could potentially overallocate even with this fix.  This was your
+> > initial email to Daniel, I think...  And Alex's concern.
+> 
+> Here are the possibilities
+> - mlock and pin on the same pages - RDMA respects the limit, VFIO halfs it.
+> - mlock and pin on different pages - RDMA doubles the limit, VFIO
+>   respects it
+> - VFIO and RDMA in the same process, the limit is halfed or doubled, depending.
+> 
+> IHMO we should make VFIO & RDMA the same, and then decide what to do
+> about case #2.
 
-I believe they are tossed after O_DIRECT starts (dio_complete). But
-regardless the issues is that an RDMA can have pin the page long
-before the DIO in which case the page can not be toss from the page
-cache and what ever is written to the block device will be discarded
-once the RDMA unpin the pages. So we would end up in the code path
-that spit out big error message in the kernel log.
+I'm not against that.  Sorry if I came across that way.  For this series I
+agree we should make it consistent.
 
-Cheers,
-Jérôme
+> 
+> > > Really unclear how to fix this. The pinned/locked split with two
+> > > buckets may be the right way.
+> > 
+> > Are you suggesting that we have 2 user limits?
+> 
+> This is what RDMA has done since CL's patch.
+
+I don't understand?  What is the other _user_ limit (other than
+RLIMIT_MEMLOCK)?
+
+> 
+> It is very hard to fix as you need to track how many pages are mlocked
+> *AND* pinned.
+
+Understood. :-/
+
+Ira
+
+> 
+> Jason
 
