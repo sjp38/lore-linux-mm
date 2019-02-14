@@ -2,286 +2,225 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 535CCC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:30:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A8672C10F04
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:42:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F11AE21928
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:30:21 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="uOOtJqOt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F11AE21928
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 3DADC222D7
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:42:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DADC222D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 735DA8E0002; Thu, 14 Feb 2019 12:30:21 -0500 (EST)
+	id BE96D8E0002; Thu, 14 Feb 2019 12:42:27 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6E6338E0001; Thu, 14 Feb 2019 12:30:21 -0500 (EST)
+	id B70E28E0001; Thu, 14 Feb 2019 12:42:27 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5D5718E0002; Thu, 14 Feb 2019 12:30:21 -0500 (EST)
+	id 9EA238E0002; Thu, 14 Feb 2019 12:42:27 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E45E8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 12:30:21 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id h70so5295832pfd.11
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 09:30:21 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 597628E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 12:42:27 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id m3so5325023pfj.14
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 09:42:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :organization:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language;
-        bh=ZDnSGb7HkaLIn3ieo9EA5WXs8Eea/qqfp6fJCQp9l2Y=;
-        b=GOaqdcZEM3hGI+95JbWkT9yenSo2F2aVxzs3pOOCVVSQNIaq45gVdqCbLooKLsl/1j
-         hzaEPiQpkCjmS+134FIHaoLacGwOedf0cgx0ofQOvu/FXcsu/+w68aL8wc0PNT0bYDiH
-         KjgKCClxE+LIgzdPffz6yVdCdmurVAr+iq55JCr5FX4os6EMEF1mmYcszFkInu07d6lG
-         nrc2jjcCsXfjl4lI599XUIs0ne/vu+w8Prtx53F/8qu973Ss9HYa8frfth6xZ2onXdEE
-         4h2ogs4kFI+WcA6x3ordgh2Ee3mwm93mdO2UEr9zGbnUDcCvxkbVCF1Pw2kO8tWKF4Ph
-         nyfQ==
-X-Gm-Message-State: AHQUAuZhZUa/V6HlVHGDZQcHj3yH/xW+3lh2xGndUhGsADVwv6eggMml
-	qTAx7Smtc0eRyacCJRih3l5Sy1fP7UJ7gwvvHDoU7KIpBVBKqZSkvgt2IKI/uelhral7TZa0wjU
-	yZutqz9Q5i8Tu4kXvp/iSd3uGX6pihrnekEhrr98l3ktEcttS8QEh1r0SIVPTWsdP8Q==
-X-Received: by 2002:a63:4a21:: with SMTP id x33mr968646pga.428.1550165420723;
-        Thu, 14 Feb 2019 09:30:20 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IalBFsm3crBOgFlEcom85lW3Le4DDsjQLUbzqq+LyDyIIlD7f9No9bcGeAIxKiIo5w43h9G
-X-Received: by 2002:a63:4a21:: with SMTP id x33mr968586pga.428.1550165420050;
-        Thu, 14 Feb 2019 09:30:20 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550165420; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=u1F8cssiCEWbey4phsGbRHnO6z5hrr4yYt4G2B4UbAk=;
+        b=AtHNnSY63R3qGBGuwY4sT5tEapKJsJfEzT8BTKsHk1BqH+tepsV9DdXK+iZVs1EtTH
+         MH09Rya0MWP4Sa1hUNob+ncp7Dr+SYTGuP1/YamedRicWxd9+NNG2VM2W25zCRL6Wo7D
+         GDBWdyPYxG6At6tUYHGMMgyJYw8c81xqftpgUyjJfvNdFRTYtCZdIefiEb9Fq3XY6Hgf
+         VDa2YJ/RMtlAeLkqhHs3cNPI5eK+gtgGU/skncj+Sa/tsrZJMIk1rgdFeKX8M8aJ/1ps
+         MvR29bcBGmOQ6YR2XnEfNUTcyT0Iynsa1+9kap9GfNU8caxf162mGqVAjo1yMwKuLwsx
+         KKIw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuZ972Apqm33Zo2W/1j4y+UK/19XkBheuHYjGXzD8/y0TlWZnnq2
+	MqEhi9NaoKZPjBv8o7ud7JaDxJ/zPm5qOMMoQ0SPlTF+2YTgPYdIbOVoQ/tYP+sBpKsc5Za0euk
+	UJYkO/Z58nV8k1YnXZC0CxutRy/17AVc3odhEk8F2HweW/oHkK1QBbo/o0tLQw66d/g==
+X-Received: by 2002:a62:f598:: with SMTP id b24mr5254893pfm.72.1550166146553;
+        Thu, 14 Feb 2019 09:42:26 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYqbyheartzgU7iS61Rx3jU4QFpHcmdhOVZnjaGVRG6tzcViVuUhvJ/ugnnGxqWJfoLu8M8
+X-Received: by 2002:a62:f598:: with SMTP id b24mr5254841pfm.72.1550166145788;
+        Thu, 14 Feb 2019 09:42:25 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550166145; cv=none;
         d=google.com; s=arc-20160816;
-        b=tgeR4vqPvJ5UANTXDCnivGRMXH3Y+IMGaFUMgaTJZddrk0yGltWwFUNDjn2QwOT/aJ
-         U+O4P40GurhINXXifjnU+KaeUEZnNhuz+orDpuPecuEJrJL0rw1No/9wqiL2NVO/lIbT
-         kXKldljLsCT9a1/BRl+nCIK/TZ7+wmkRTO0jX+xrSh7brw8XKf7pwgjYU7xoKeHCXaTG
-         tNIqpHwyS8HZLA+YktqlvzITA5g3yHA70lh6xpa+aoKv8/wMBwchq61XxFB5y0jt1e2n
-         rJMFXuxmgiUge1E4W/2yuyTzppMjJEWWzxuVD8ah11lIE6clFS4W2mAF/zEhFHiozl0v
-         FF9A==
+        b=Wf30h7yeydtJt028M+WYRxoGLaKigtgFE+SpAEogNCORStDc0S7JiEYh1i9OSvq4Eg
+         2Fty0xZFpxgeSTJsVYxEIZFXrjTFijHttl1kPUxChviP+XQbb4iSCgG4fhvG7wXRaflW
+         rmAO1Q4sN4qE1OvkeiV370b3dXuA3qAA0qihPglEW4TtQLY0YVNvvIDkrb89x4/eZ9TA
+         3cQaR8pP00kGaZ3/m7Ysz32T0x8FmFWGhxztmHmAK7qeGpreSyEiS9jQygi6faW5vsYA
+         AAuuLqL549RMTtEg821n1DzmToKF0Nc0Hz4jSvQL2bZB+dQN5jZxquFmJGh96SdiSqhc
+         EqvA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:in-reply-to:mime-version:user-agent:date
-         :message-id:organization:from:references:cc:to:subject
-         :dkim-signature;
-        bh=ZDnSGb7HkaLIn3ieo9EA5WXs8Eea/qqfp6fJCQp9l2Y=;
-        b=Ec+5555pqg/6fHosNETfTGnqPg8bd1m2gqgwInO06QLb15098z6rYhqxhZQA2c/RuJ
-         oZBMUqmXFOrv9GJsb8pxFbnMmQVHxEWO3j+LKOp5CVdPq6FvpJuuBakyriaXrelePwo6
-         Kn3yb3/WeRRqDmjZQRiv5zARKEs/jyCdQLDF8jtrEnWbXG8yryNrXSKhBt5G2YFfbZJ4
-         Rw2ADQKOQTaXYjnHbgpier9moBD+8o/UcjPPadz4r3qtVOURJLofLYXsitCuNslYMFtk
-         awpqAh8YUWJwAeABR7HytZcLeKqnUSRiqyz9XsIM5V0/OdY7F31N3UIfDZhX/1CGthMA
-         mjGA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=u1F8cssiCEWbey4phsGbRHnO6z5hrr4yYt4G2B4UbAk=;
+        b=Ti94Jr07X7L9x2HskhEUC0aHd7ktJ/M5R1BQC+3Fqmt4nR9FJVqQuuvU2h0mysNPbe
+         thY8q5fDaOa/VZCZ3Rew8jrMWKoyRizqeyYO/zTyWEDvuLvDnkjiCkl+wYFFqNIul0UZ
+         sb9MrpQ9b3ZZlbabcmreQYeCjW9J71UlJnr4vEbZ8Zotu13a2n5XGuA78IgszRP0yIda
+         +K2DPa0T49tL0NVuW0Xm7KzMxtlRTy92PcYujGOzxKJrpBpFRwnJgX9HOn8E//DkLWKA
+         2BeTAAg78pGZKHWRdFxXk1WppAa6i7kbTtVbfymdCgAnveoNbOx2U0eecEh5V9SK92/P
+         lhYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=uOOtJqOt;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id f33si2148451pgl.437.2019.02.14.09.30.19
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id h8si2953890pgc.397.2019.02.14.09.42.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 09:30:20 -0800 (PST)
-Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Thu, 14 Feb 2019 09:42:25 -0800 (PST)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=uOOtJqOt;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1EHNeAr141911;
-	Thu, 14 Feb 2019 17:30:00 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type; s=corp-2018-07-02;
- bh=ZDnSGb7HkaLIn3ieo9EA5WXs8Eea/qqfp6fJCQp9l2Y=;
- b=uOOtJqOtbC48aiUYK7vBMB1Txf0pPmrAz1wG7bZGH1ULEm3z9SX4+p7Zhyzv5iZVXp5J
- 1I3xEGEtox+EuAVdei/dp0z0cJKmIv6Vx6BHKJBBuXaskVUE9wYOS1vyq4rZhuptj/HL
- FIKGhwG+SqTCAYxIyKqgM8K9s/Ite23JIHLsQVHfmdYb/T7O9vQ3SOs0iMQybbur4kGK
- PAE7YgZf5dcj3XQcXe8KcbTfGYFKzrnqET51jqquZz4nZRop3L1tBg2Svw4x0eoUiPFu
- bkGwO67djEi5QY+LklsyWMBHg0sWLI8ph6uSsPG8FzaHRgx87V5yhzNMoPKMtBcUOjFg lQ== 
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by aserp2130.oracle.com with ESMTP id 2qhre5scjb-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Feb 2019 17:30:00 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1EHTvpe010398
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Feb 2019 17:29:58 GMT
-Received: from abhmp0022.oracle.com (abhmp0022.oracle.com [141.146.116.28])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1EHTug6027865;
-	Thu, 14 Feb 2019 17:29:56 GMT
-Received: from [192.168.1.16] (/24.9.64.241)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 14 Feb 2019 09:29:55 -0800
-Subject: Re: [RFC PATCH v8 07/14] arm64/mm, xpfo: temporarily map dcache
- regions
-To: Tycho Andersen <tycho@tycho.ws>
-Cc: juergh@gmail.com, jsteckli@amazon.de, ak@linux.intel.com,
-        torvalds@linux-foundation.org, liran.alon@oracle.com,
-        keescook@google.com, akpm@linux-foundation.org, mhocko@suse.com,
-        catalin.marinas@arm.com, will.deacon@arm.com, jmorris@namei.org,
-        konrad.wilk@oracle.com,
-        Juerg Haefliger <juerg.haefliger@canonical.com>,
-        deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
-        tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
-        jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com,
-        joao.m.martins@oracle.com, jmattson@google.com,
-        pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de,
-        kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com,
-        labbott@redhat.com, luto@kernel.org, dave.hansen@intel.com,
-        peterz@infradead.org, kernel-hardening@lists.openwall.com,
-        linux-mm@kvack.org, x86@kernel.org,
-        linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Feb 2019 09:42:25 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,369,1544515200"; 
+   d="scan'208";a="138657185"
+Received: from pmmonter-mobl.amr.corp.intel.com (HELO [10.254.87.236]) ([10.254.87.236])
+  by orsmga001.jf.intel.com with ESMTP; 14 Feb 2019 09:42:24 -0800
+Subject: Re: [RFC PATCH v8 13/14] xpfo, mm: Defer TLB flushes for non-current
+ CPUs (x86 only)
+To: Khalid Aziz <khalid.aziz@oracle.com>, juergh@gmail.com, tycho@tycho.ws,
+ jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org,
+ liran.alon@oracle.com, keescook@google.com, akpm@linux-foundation.org,
+ mhocko@suse.com, catalin.marinas@arm.com, will.deacon@arm.com,
+ jmorris@namei.org, konrad.wilk@oracle.com
+Cc: deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
+ tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
+ jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com,
+ oao.m.martins@oracle.com, jmattson@google.com, pradeep.vincent@oracle.com,
+ john.haxby@oracle.com, tglx@linutronix.de, kirill.shutemov@linux.intel.com,
+ hch@lst.de, steven.sistare@oracle.com, labbott@redhat.com, luto@kernel.org,
+ peterz@infradead.org, kernel-hardening@lists.openwall.com,
+ linux-mm@kvack.org, x86@kernel.org, linux-arm-kernel@lists.infradead.org,
+ linux-kernel@vger.kernel.org
 References: <cover.1550088114.git.khalid.aziz@oracle.com>
- <ea50404604bdbe1547601b6ea0af89e3da8886b0.1550088114.git.khalid.aziz@oracle.com>
- <20190214155435.GA15694@cisco>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Organization: Oracle Corp
-Message-ID: <92787149-bb9e-6ee9-6d04-431ec145e9a4@oracle.com>
-Date: Thu, 14 Feb 2019 10:29:52 -0700
+ <98134cb73e911b2f0b59ffb76243a7777963d218.1550088114.git.khalid.aziz@oracle.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ mQINBE6HMP0BEADIMA3XYkQfF3dwHlj58Yjsc4E5y5G67cfbt8dvaUq2fx1lR0K9h1bOI6fC
+ oAiUXvGAOxPDsB/P6UEOISPpLl5IuYsSwAeZGkdQ5g6m1xq7AlDJQZddhr/1DC/nMVa/2BoY
+ 2UnKuZuSBu7lgOE193+7Uks3416N2hTkyKUSNkduyoZ9F5twiBhxPJwPtn/wnch6n5RsoXsb
+ ygOEDxLEsSk/7eyFycjE+btUtAWZtx+HseyaGfqkZK0Z9bT1lsaHecmB203xShwCPT49Blxz
+ VOab8668QpaEOdLGhtvrVYVK7x4skyT3nGWcgDCl5/Vp3TWA4K+IofwvXzX2ON/Mj7aQwf5W
+ iC+3nWC7q0uxKwwsddJ0Nu+dpA/UORQWa1NiAftEoSpk5+nUUi0WE+5DRm0H+TXKBWMGNCFn
+ c6+EKg5zQaa8KqymHcOrSXNPmzJuXvDQ8uj2J8XuzCZfK4uy1+YdIr0yyEMI7mdh4KX50LO1
+ pmowEqDh7dLShTOif/7UtQYrzYq9cPnjU2ZW4qd5Qz2joSGTG9eCXLz5PRe5SqHxv6ljk8mb
+ ApNuY7bOXO/A7T2j5RwXIlcmssqIjBcxsRRoIbpCwWWGjkYjzYCjgsNFL6rt4OL11OUF37wL
+ QcTl7fbCGv53KfKPdYD5hcbguLKi/aCccJK18ZwNjFhqr4MliQARAQABtEVEYXZpZCBDaHJp
+ c3RvcGhlciBIYW5zZW4gKEludGVsIFdvcmsgQWRkcmVzcykgPGRhdmUuaGFuc2VuQGludGVs
+ LmNvbT6JAjgEEwECACIFAlQ+9J0CGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEGg1
+ lTBwyZKwLZUP/0dnbhDc229u2u6WtK1s1cSd9WsflGXGagkR6liJ4um3XCfYWDHvIdkHYC1t
+ MNcVHFBwmQkawxsYvgO8kXT3SaFZe4ISfB4K4CL2qp4JO+nJdlFUbZI7cz/Td9z8nHjMcWYF
+ IQuTsWOLs/LBMTs+ANumibtw6UkiGVD3dfHJAOPNApjVr+M0P/lVmTeP8w0uVcd2syiaU5jB
+ aht9CYATn+ytFGWZnBEEQFnqcibIaOrmoBLu2b3fKJEd8Jp7NHDSIdrvrMjYynmc6sZKUqH2
+ I1qOevaa8jUg7wlLJAWGfIqnu85kkqrVOkbNbk4TPub7VOqA6qG5GCNEIv6ZY7HLYd/vAkVY
+ E8Plzq/NwLAuOWxvGrOl7OPuwVeR4hBDfcrNb990MFPpjGgACzAZyjdmYoMu8j3/MAEW4P0z
+ F5+EYJAOZ+z212y1pchNNauehORXgjrNKsZwxwKpPY9qb84E3O9KYpwfATsqOoQ6tTgr+1BR
+ CCwP712H+E9U5HJ0iibN/CDZFVPL1bRerHziuwuQuvE0qWg0+0SChFe9oq0KAwEkVs6ZDMB2
+ P16MieEEQ6StQRlvy2YBv80L1TMl3T90Bo1UUn6ARXEpcbFE0/aORH/jEXcRteb+vuik5UGY
+ 5TsyLYdPur3TXm7XDBdmmyQVJjnJKYK9AQxj95KlXLVO38lcuQINBFRjzmoBEACyAxbvUEhd
+ GDGNg0JhDdezyTdN8C9BFsdxyTLnSH31NRiyp1QtuxvcqGZjb2trDVuCbIzRrgMZLVgo3upr
+ MIOx1CXEgmn23Zhh0EpdVHM8IKx9Z7V0r+rrpRWFE8/wQZngKYVi49PGoZj50ZEifEJ5qn/H
+ Nsp2+Y+bTUjDdgWMATg9DiFMyv8fvoqgNsNyrrZTnSgoLzdxr89FGHZCoSoAK8gfgFHuO54B
+ lI8QOfPDG9WDPJ66HCodjTlBEr/Cwq6GruxS5i2Y33YVqxvFvDa1tUtl+iJ2SWKS9kCai2DR
+ 3BwVONJEYSDQaven/EHMlY1q8Vln3lGPsS11vSUK3QcNJjmrgYxH5KsVsf6PNRj9mp8Z1kIG
+ qjRx08+nnyStWC0gZH6NrYyS9rpqH3j+hA2WcI7De51L4Rv9pFwzp161mvtc6eC/GxaiUGuH
+ BNAVP0PY0fqvIC68p3rLIAW3f97uv4ce2RSQ7LbsPsimOeCo/5vgS6YQsj83E+AipPr09Caj
+ 0hloj+hFoqiticNpmsxdWKoOsV0PftcQvBCCYuhKbZV9s5hjt9qn8CE86A5g5KqDf83Fxqm/
+ vXKgHNFHE5zgXGZnrmaf6resQzbvJHO0Fb0CcIohzrpPaL3YepcLDoCCgElGMGQjdCcSQ+Ci
+ FCRl0Bvyj1YZUql+ZkptgGjikQARAQABiQIfBBgBAgAJBQJUY85qAhsMAAoJEGg1lTBwyZKw
+ l4IQAIKHs/9po4spZDFyfDjunimEhVHqlUt7ggR1Hsl/tkvTSze8pI1P6dGp2XW6AnH1iayn
+ yRcoyT0ZJ+Zmm4xAH1zqKjWplzqdb/dO28qk0bPso8+1oPO8oDhLm1+tY+cOvufXkBTm+whm
+ +AyNTjaCRt6aSMnA/QHVGSJ8grrTJCoACVNhnXg/R0g90g8iV8Q+IBZyDkG0tBThaDdw1B2l
+ asInUTeb9EiVfL/Zjdg5VWiF9LL7iS+9hTeVdR09vThQ/DhVbCNxVk+DtyBHsjOKifrVsYep
+ WpRGBIAu3bK8eXtyvrw1igWTNs2wazJ71+0z2jMzbclKAyRHKU9JdN6Hkkgr2nPb561yjcB8
+ sIq1pFXKyO+nKy6SZYxOvHxCcjk2fkw6UmPU6/j/nQlj2lfOAgNVKuDLothIxzi8pndB8Jju
+ KktE5HJqUUMXePkAYIxEQ0mMc8Po7tuXdejgPMwgP7x65xtfEqI0RuzbUioFltsp1jUaRwQZ
+ MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
+ hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
+ vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
+Message-ID: <a6510fa8-e96d-677b-78df-da9a19c4089b@intel.com>
+Date: Thu, 14 Feb 2019 09:42:27 -0800
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <20190214155435.GA15694@cisco>
-Content-Type: multipart/mixed;
- boundary="------------831B727C76672501BCC5E3E8"
+In-Reply-To: <98134cb73e911b2f0b59ffb76243a7777963d218.1550088114.git.khalid.aziz@oracle.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9167 signatures=668683
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902140118
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------831B727C76672501BCC5E3E8
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+>  #endif
+> +
+> +	/* If there is a pending TLB flush for this CPU due to XPFO
+> +	 * flush, do it now.
+> +	 */
 
-On 2/14/19 8:54 AM, Tycho Andersen wrote:
-> Hi,
->=20
-> On Wed, Feb 13, 2019 at 05:01:30PM -0700, Khalid Aziz wrote:
->> From: Juerg Haefliger <juerg.haefliger@canonical.com>
->>
->> If the page is unmapped by XPFO, a data cache flush results in a fatal=
+Don't forget CodingStyle in all this, please.
 
->> page fault, so let's temporarily map the region, flush the cache, and =
-then
->> unmap it.
->>
->> v6: actually flush in the face of xpfo, and temporarily map the underl=
-ying
->>     memory so it can be flushed correctly
->>
->> CC: linux-arm-kernel@lists.infradead.org
->> Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
->> Signed-off-by: Tycho Andersen <tycho@docker.com>
->> ---
->>  arch/arm64/mm/flush.c | 7 +++++++
->>  1 file changed, 7 insertions(+)
->>
->> diff --git a/arch/arm64/mm/flush.c b/arch/arm64/mm/flush.c
->> index 30695a868107..fad09aafd9d5 100644
->> --- a/arch/arm64/mm/flush.c
->> +++ b/arch/arm64/mm/flush.c
->> @@ -20,6 +20,7 @@
->>  #include <linux/export.h>
->>  #include <linux/mm.h>
->>  #include <linux/pagemap.h>
->> +#include <linux/xpfo.h>
->> =20
->>  #include <asm/cacheflush.h>
->>  #include <asm/cache.h>
->> @@ -28,9 +29,15 @@
->>  void sync_icache_aliases(void *kaddr, unsigned long len)
->>  {
->>  	unsigned long addr =3D (unsigned long)kaddr;
->> +	unsigned long num_pages =3D XPFO_NUM_PAGES(addr, len);
->> +	void *mapping[num_pages];
->=20
-> What version does this build on? Presumably -Wvla will cause an error
-> here, but,
->=20
->>  	if (icache_is_aliasing()) {
->> +		xpfo_temp_map(kaddr, len, mapping,
->> +			      sizeof(mapping[0]) * num_pages);
->>  		__clean_dcache_area_pou(kaddr, len);
->=20
-> Here, we map the pages to some random address via xpfo_temp_map(),
-> then pass the *original* address (which may not have been mapped) to
-> __clean_dcache_area_pou(). So I think this whole approach is wrong.
->=20
-> If we want to do it this way, it may be that we need some
-> xpfo_map_contiguous() type thing, but since we're just going to flush
-> it anyway, that seems a little crazy. Maybe someone who knows more
-> about arm64 knows a better way?
->=20
-> Tycho
->=20
+> +	if (cpumask_test_and_clear_cpu(cpu, &pending_xpfo_flush)) {
+> +		count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
+> +		__flush_tlb_all();
+> +	}
 
-Hi Tycho,
+This seems to exist in parallel with all of the cpu_tlbstate
+infrastructure.  Shouldn't it go in there?
 
-You are right. Things don't quite look right with this patch. I don't
-know arm64 well enough either, so I will wait for someone more
-knowledgeable to make a recommendation here.
+Also, if we're doing full flushes like this, it seems a bit wasteful to
+then go and do later things like invalidate_user_asid() when we *know*
+that the asid would have been flushed by this operation.  I'm pretty
+sure this isn't the only __flush_tlb_all() callsite that does this, so
+it's not really criticism of this patch specifically.  It's more of a
+structural issue.
 
-On a side note, do you mind if I update your address in your
-signed-off-by from tycho@docker.com when I send the next version of this
-series?
 
-Thanks,
-Khalid
+> +void xpfo_flush_tlb_kernel_range(unsigned long start, unsigned long end)
+> +{
 
---------------831B727C76672501BCC5E3E8
-Content-Type: application/pgp-keys;
- name="pEpkey.asc"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: attachment;
- filename="pEpkey.asc"
+This is a bit lightly commented.  Please give this some good
+descriptions about the logic behind the implementation and the tradeoffs
+that are in play.
 
------BEGIN PGP PUBLIC KEY BLOCK-----
+This is doing a local flush, but deferring the flushes on all other
+processors, right?  Can you explain the logic behind that in a comment
+here, please?  This also has to be called with preemption disabled, right?
 
-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
-+Wrj8Rwom6h21PXZRKnlkis7ibQfE+TxqOI7vg=3D=3D
-=3DnPqY
------END PGP PUBLIC KEY BLOCK-----
+> +	struct cpumask tmp_mask;
+> +
+> +	/* Balance as user space task's flush, a bit conservative */
+> +	if (end == TLB_FLUSH_ALL ||
+> +	    (end - start) > tlb_single_page_flush_ceiling << PAGE_SHIFT) {
+> +		do_flush_tlb_all(NULL);
+> +	} else {
+> +		struct flush_tlb_info info;
+> +
+> +		info.start = start;
+> +		info.end = end;
+> +		do_kernel_range_flush(&info);
+> +	}
+> +	cpumask_setall(&tmp_mask);
+> +	cpumask_clear_cpu(smp_processor_id(), &tmp_mask);
+> +	cpumask_or(&pending_xpfo_flush, &pending_xpfo_flush, &tmp_mask);
+> +}
 
---------------831B727C76672501BCC5E3E8--
+Fun.  cpumask_setall() is non-atomic while cpumask_clear_cpu() and
+cpumask_or() *are* atomic.  The cpumask_clear_cpu() is operating on
+thread-local storage and doesn't need to be atomic.  Please make it
+__cpumask_clear_cpu().
 
