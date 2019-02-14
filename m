@@ -7,106 +7,106 @@ X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EF280C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 00:02:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72DF8C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 00:03:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A2555222CC
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 00:02:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 21103222CC
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 00:03:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="5c4qlL79"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A2555222CC
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="VjSTr/Aq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 21103222CC
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B5CF8E000A; Wed, 13 Feb 2019 19:02:55 -0500 (EST)
+	id 0A9008E000C; Wed, 13 Feb 2019 19:02:59 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3917E8E0005; Wed, 13 Feb 2019 19:02:55 -0500 (EST)
+	id 05D488E0005; Wed, 13 Feb 2019 19:02:59 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 231548E000A; Wed, 13 Feb 2019 19:02:55 -0500 (EST)
+	id E8B2E8E000C; Wed, 13 Feb 2019 19:02:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D41DC8E0005
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 19:02:54 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id q62so2892852pgq.9
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 16:02:54 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C1458E0005
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2019 19:02:58 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id d3so2853978pgv.23
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 16:02:58 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:in-reply-to:references;
-        bh=MZqi6ournax3KQmG8JyBwhw5kF/1WOYT8qIrSyRL3+o=;
-        b=hAxY21JeJ9n5xrmvqR5m2MVWxkb3GgM82X5C35G/s5WXVPmTnA2XK25F7y+UPlZLZm
-         Lv8TRHJ05YWvCn6qBipVWWEPift5Ual0d+KgBuBLXseCw2w//lYINl7tDuOWfr3EY+vL
-         1ZCkbBpavNa1gZpiWfDiFfhoDArexQogXS1eYO83iXw8VG+VZl9ptMny642B/Waa2jZL
-         Xp/4nsF1J0yAcdVeB/LqfcBZCfUlxLcSHCD3/XhCHSjneOLgvnXctEZsZw7/7KtB/hbW
-         Prt5JdqLWjj7cqgwKjqAEZed0ugZkpC/XqBmtiZPZ36wf9mL5s0e8tyAoqND8Td+7DFJ
-         2V+Q==
-X-Gm-Message-State: AHQUAubisjRO2ip1ItF3B/cJW3upWou4cr7MqkUJVk8ghj3s0cVP/Yz5
-	W76T8t1Ucp987LUh7HwSuODv5R2g0++lOcbYgO9MnwaH1P/AZNnoRygm477q0kaDO6dO9mpOLf+
-	vkI/zAwxQGcolflOU0YkAJyGLU6BoMED5HkcQLwsn1KCQZuCjHnHvjSOJNIXte/Z3Rg==
-X-Received: by 2002:a63:4913:: with SMTP id w19mr830786pga.394.1550102574460;
-        Wed, 13 Feb 2019 16:02:54 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZumfSNdSEuP6jo3DsbeF8AjN2J5keDEGTGt/0vvQU5ZzM0meawRRDmvL6BU6L54rHitR7O
-X-Received: by 2002:a63:4913:: with SMTP id w19mr830729pga.394.1550102573757;
-        Wed, 13 Feb 2019 16:02:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550102573; cv=none;
+        bh=iAUhMQrV5BcM9lvrtcT+KJw+jAn1o1A4vhSmYo6KfrI=;
+        b=b6alK2/z+0CFtLq5myWxZGQPSl5JWSBB7fzSkU5aO+sjCRW33DjEP/fQCZROdCTNZr
+         pqgv+mxEhf1EiXDuUTCDE/9xBLHbDLk1h0+gkTMClKMbjNdY49HjD2jDpQvjhboDGmoC
+         PscJocaJS9MYz+AsoDkIHjg7U9akjVAzYq9HJ1DmGwI0rRaHheeRoO4bVD3qdmqoadKx
+         crhfu6PluatTGl44DUerX4F3BJ/ppSPbUTmoWuCE3VZvrSQA5ST5Ysb7EAhP697Xxsv2
+         zC3dzFhzDPQQ8GaPUyw1UdYKLgkXvqi3aPvrtHmQSusQ2lk6yKkhtOwE0F+bimtbYvHM
+         srRw==
+X-Gm-Message-State: AHQUAuYEgYbWLHK7CMo0Dfpu4xbXq4wCzgCtCbNC7zaQwq3S4OyvWsOd
+	RoxLoaW6GB0P+qTh5negfvF/ipQ93WFB7bItXbUIrZ2MpTMfn0RBxzCMKi2ws8xZGrEXiBZVRT6
+	cJ9EByKKB23jeS7q035bNZFZSmguNDhJoYHcvPf2RMje+SqEfyJUGkQQcrc9Psp3Yrw==
+X-Received: by 2002:a17:902:28c1:: with SMTP id f59mr918824plb.37.1550102578275;
+        Wed, 13 Feb 2019 16:02:58 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYVCohG/AKnTpehFrSpF5OZNDBmVXXiu82b41xr9olfcOzQgSumzSAfPFj80EwT/Pmz1Zbr
+X-Received: by 2002:a17:902:28c1:: with SMTP id f59mr918739plb.37.1550102577347;
+        Wed, 13 Feb 2019 16:02:57 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550102577; cv=none;
         d=google.com; s=arc-20160816;
-        b=UZd/ufIeJrD8qVtbMhvEVgsdnkJBLzYnWhyryzCzRoKNMHgqGNnBc3jx/lqHpsoe5R
-         AGgVEJ31baoWvTOZY9frdYueWhzsYD3x1oz8oJYyK+rkDLcMce++7Gx2Ogznr/dIlLii
-         QcRgGza4stlbeo/57t534no/EYd2LpqfUBjh2q3nvJ3DWrAqN+DMaaHkPAPbBtgFt6+D
-         Sc9nxHbPmU8N2B9T0FNgbV0UZPO4FmYytpL5m8TXXL16aVAtrjCipJaMlf+KaHCZBZC2
-         i/7uXE67wsk5NXcrpC7yU96TF1H/eyxsveUHXQeNXqUwwtPfQuR2lhC3K0Jf3xxIuZKd
-         8MBw==
+        b=IrsZSwSqkY7uj5B+/wwhseskymOgz7FdrOy4FLXRibg4ijnP3KqDPFemG/lDbGInqv
+         6ROzyBc0dmzb6xVnkTDsbKLVScH2qvd83KYWc4QoaMuY59jK16Q1avqbstOnDYxSRHpL
+         MmYO7K8B7IWqwGp/viaF19DmvuNW71tT38V/CNJSQNtmS4K3nwduwOCGvB0QCfNARpBK
+         Zace/TBrQC0DsWzZ+0LvroBLB+ZUfgnyQZ1SYleJllxyXvUoxVDgdy44knymUYpQr0gc
+         Pkef5Rl95dW+gauR3XFZMdia4573DupapsoRJqWKBTgPgdON7Vlp/vgQFpH+dx0y2qw2
+         OocQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:references:in-reply-to:message-id:date
          :subject:cc:to:from:dkim-signature;
-        bh=MZqi6ournax3KQmG8JyBwhw5kF/1WOYT8qIrSyRL3+o=;
-        b=OJDiabx/7mpQIfqeOAKe4u1m+rYgzTWK5x6bHE0KTwmCIRwWx+RfV8JbDH1lV3p34y
-         1WE+LBtq3T/zKd753cqQCbasvuT91JTZHXy76lCCqqyf06KAFrLhI+8t0EvrbGsEo5Jv
-         E7d8gQBij2vPKWzLoFxYt3s/upf4jIwnRvHnBnwm1ZCFMzSWMaBDAFzw6R3P2kpb7Z57
-         Yxv2EiJbIYlhdCsRgVZG8M18DKQoNVm8ZtB35Eoxoi5KcK4qZf0GDBZK4I3T68edG1qw
-         RRd/A6E8KUVWu/0PzyxtUg3RG2UlJGnMhzbNjRlzIHMTvMBXHPpQBw7qLPDWr2z6yF2R
-         QdiA==
+        bh=iAUhMQrV5BcM9lvrtcT+KJw+jAn1o1A4vhSmYo6KfrI=;
+        b=a/dxRy5YLsOO5L5/dl/VrhvbAwxW+JQ+8Y9BwGxLmlUrU8FtGtDk2OUsxOVM3MEHNI
+         Mfw7dNXqmCqtzckCuFTSIORYEn6LImbgd/diinI0WUgoAOt/qcxnM+9KDjF9Y4pqdwU4
+         ueLU3/UG4BBaVk3uhJ6dcUFVdy4nsHAQHlLmGdHXkhcZq0C5fVWGxd9Q/iQXdeCvjbQN
+         Cj0s1hYQgqRJbHYMVkDcmoNoDJuTSoYbhOkwRCJcnF1Em9eEObmPfzZxzjSWxTEUzFoh
+         qfFE+CdU12CS5nb56v1PcOkNWCfh5Y9j4yCbYEYs7yhg9YL/aLbsYu4wCtWqXZ+tengT
+         m+Lg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=5c4qlL79;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="VjSTr/Aq";
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id c6si720708plo.270.2019.02.13.16.02.53
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id y71si761140pfd.96.2019.02.13.16.02.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Feb 2019 16:02:53 -0800 (PST)
-Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Wed, 13 Feb 2019 16:02:57 -0800 (PST)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=5c4qlL79;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="VjSTr/Aq";
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1DNwfsg100210;
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1DNwvnk099503;
 	Thu, 14 Feb 2019 00:02:10 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references : in-reply-to :
  references; s=corp-2018-07-02;
- bh=MZqi6ournax3KQmG8JyBwhw5kF/1WOYT8qIrSyRL3+o=;
- b=5c4qlL7951pylpPk/LYjHCqBaQh+OE07SNEncySbv9VpXjItDk191jRy8R2qAS/Si7wk
- 5azy3SAjL1y5ZU+ayiqvpGeYyYPej1QFoowA8i7hY6LnuqWwGRdVeXP9R8NT7EnzXbG6
- VmTdJcDS8tsN+qApiiulm6FgWZxe8R1C9yy4gLDgnBMg2ET8uYg5u30QJc9jnecDxXLZ
- Ws9u2vhvaPb5ONbVL/qJNVAlo/vUy0Ks8iSwt4n7n8NmKRBZtbPL12yeMBe53Z6nM1Be
- It7bqaU0WEZ+yaRGwGM5y3xEn/ALsicHwZUxBoSgDXDN78jBld75C6noZszpY4wmUtbI 7A== 
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by aserp2130.oracle.com with ESMTP id 2qhre5n3uq-1
+ bh=iAUhMQrV5BcM9lvrtcT+KJw+jAn1o1A4vhSmYo6KfrI=;
+ b=VjSTr/AqEcZZcnT253Enimw080YefgzZ6lczl9mWxonAMufYwkCcF3dwQch6ueHmg70i
+ dJpR3VkpqqCo5MrMJg08cXPCQwRMg0ItEUkV50un7KCD9qy/0d+vUhhjmxELv5vDsXg3
+ Ec8x2cdR9pfsnnCSj5tyMVOUNuafN0UEGEnMrvyKFP6U+tH7zegPGoK2cHWcMcllXHpR
+ 1PT/VRty4pVVnHKlT/GtTFe+lLr6OSdMuZAJLbsu2cPVgpX0UlpaWQ5YfTTR1EgTiKBX
+ JspamAuYU1IEU+REu+zfOfbB5ugsNlyZSl+JykVJwE4cXEWuAqhvosNaLi5M380H3gN0 KA== 
+Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
+	by userp2120.oracle.com with ESMTP id 2qhree55mx-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
 	Thu, 14 Feb 2019 00:02:10 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1E024xT025641
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x1E029GD008227
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Feb 2019 00:02:04 GMT
+	Thu, 14 Feb 2019 00:02:09 GMT
 Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1E024Xu018660;
-	Thu, 14 Feb 2019 00:02:04 GMT
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x1E027gu001545;
+	Thu, 14 Feb 2019 00:02:07 GMT
 Received: from concerto.internal (/24.9.64.241)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 13 Feb 2019 16:02:04 -0800
+	with ESMTP ; Wed, 13 Feb 2019 16:02:06 -0800
 From: Khalid Aziz <khalid.aziz@oracle.com>
 To: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com,
         torvalds@linux-foundation.org, liran.alon@oracle.com,
@@ -124,10 +124,11 @@ Cc: Juerg Haefliger <juerg.haefliger@canonical.com>,
         peterz@infradead.org, kernel-hardening@lists.openwall.com,
         linux-mm@kvack.org, x86@kernel.org,
         linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-        Tycho Andersen <tycho@docker.com>
-Subject: [RFC PATCH v8 04/14] swiotlb: Map the buffer if it was unmapped by XPFO
-Date: Wed, 13 Feb 2019 17:01:27 -0700
-Message-Id: <b595ffb3231dfef3c6b6c896a8e1cba0e838978c.1550088114.git.khalid.aziz@oracle.com>
+        Tycho Andersen <tycho@docker.com>,
+        Khalid Aziz <khalid.aziz@oracle.com>
+Subject: [RFC PATCH v8 05/14] arm64/mm: Add support for XPFO
+Date: Wed, 13 Feb 2019 17:01:28 -0700
+Message-Id: <4a7b373b438d5b93999349c648189bd5ba8f9198.1550088114.git.khalid.aziz@oracle.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <cover.1550088114.git.khalid.aziz@oracle.com>
 References: <cover.1550088114.git.khalid.aziz@oracle.com>
@@ -135,8 +136,8 @@ In-Reply-To: <cover.1550088114.git.khalid.aziz@oracle.com>
 References: <cover.1550088114.git.khalid.aziz@oracle.com>
 X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9166 signatures=668683
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=845 adultscore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
  definitions=main-1902130157
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -147,79 +148,119 @@ List-ID: <linux-mm.kvack.org>
 
 From: Juerg Haefliger <juerg.haefliger@canonical.com>
 
-v6: * guard against lookup_xpfo() returning NULL
+Enable support for eXclusive Page Frame Ownership (XPFO) for arm64 and
+provide a hook for updating a single kernel page table entry (which is
+required by the generic XPFO code).
 
-CC: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+CC: linux-arm-kernel@lists.infradead.org
 Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
 Signed-off-by: Tycho Andersen <tycho@docker.com>
-Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
-Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
 ---
- include/linux/xpfo.h |  4 ++++
- kernel/dma/swiotlb.c |  3 ++-
- mm/xpfo.c            | 15 +++++++++++++++
- 3 files changed, 21 insertions(+), 1 deletion(-)
+v6:
+	- use flush_tlb_kernel_range() instead of __flush_tlb_one()
 
-diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
-index b15234745fb4..cba37ffb09b1 100644
---- a/include/linux/xpfo.h
-+++ b/include/linux/xpfo.h
-@@ -36,6 +36,8 @@ void xpfo_kunmap(void *kaddr, struct page *page);
- void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp);
- void xpfo_free_pages(struct page *page, int order);
+v8:
+	- Add check for NULL pte in set_kpte()
+
+ arch/arm64/Kconfig     |  1 +
+ arch/arm64/mm/Makefile |  2 ++
+ arch/arm64/mm/xpfo.c   | 64 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+)
+ create mode 100644 arch/arm64/mm/xpfo.c
+
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index ea2ab0330e3a..f0a9c0007d23 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -171,6 +171,7 @@ config ARM64
+ 	select SWIOTLB
+ 	select SYSCTL_EXCEPTION_TRACE
+ 	select THREAD_INFO_IN_TASK
++	select ARCH_SUPPORTS_XPFO
+ 	help
+ 	  ARM 64-bit (AArch64) Linux support.
  
-+bool xpfo_page_is_unmapped(struct page *page);
+diff --git a/arch/arm64/mm/Makefile b/arch/arm64/mm/Makefile
+index 849c1df3d214..cca3808d9776 100644
+--- a/arch/arm64/mm/Makefile
++++ b/arch/arm64/mm/Makefile
+@@ -12,3 +12,5 @@ KASAN_SANITIZE_physaddr.o	+= n
+ 
+ obj-$(CONFIG_KASAN)		+= kasan_init.o
+ KASAN_SANITIZE_kasan_init.o	:= n
 +
- #else /* !CONFIG_XPFO */
- 
- static inline void xpfo_kmap(void *kaddr, struct page *page) { }
-@@ -43,6 +45,8 @@ static inline void xpfo_kunmap(void *kaddr, struct page *page) { }
- static inline void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp) { }
- static inline void xpfo_free_pages(struct page *page, int order) { }
- 
-+static inline bool xpfo_page_is_unmapped(struct page *page) { return false; }
++obj-$(CONFIG_XPFO)		+= xpfo.o
+diff --git a/arch/arm64/mm/xpfo.c b/arch/arm64/mm/xpfo.c
+new file mode 100644
+index 000000000000..1f790f7746ad
+--- /dev/null
++++ b/arch/arm64/mm/xpfo.c
+@@ -0,0 +1,64 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (C) 2017 Hewlett Packard Enterprise Development, L.P.
++ * Copyright (C) 2016 Brown University. All rights reserved.
++ *
++ * Authors:
++ *   Juerg Haefliger <juerg.haefliger@hpe.com>
++ *   Vasileios P. Kemerlis <vpk@cs.brown.edu>
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms of the GNU General Public License version 2 as published by
++ * the Free Software Foundation.
++ */
 +
- #endif /* CONFIG_XPFO */
- 
- #endif /* _LINUX_XPFO_H */
-diff --git a/kernel/dma/swiotlb.c b/kernel/dma/swiotlb.c
-index 045930e32c0e..820a54b57491 100644
---- a/kernel/dma/swiotlb.c
-+++ b/kernel/dma/swiotlb.c
-@@ -396,8 +396,9 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,
- {
- 	unsigned long pfn = PFN_DOWN(orig_addr);
- 	unsigned char *vaddr = phys_to_virt(tlb_addr);
-+	struct page *page = pfn_to_page(pfn);
- 
--	if (PageHighMem(pfn_to_page(pfn))) {
-+	if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {
- 		/* The buffer does not have a mapping.  Map it in and copy */
- 		unsigned int offset = orig_addr & ~PAGE_MASK;
- 		char *buffer;
-diff --git a/mm/xpfo.c b/mm/xpfo.c
-index 24b33d3c20cb..67884736bebe 100644
---- a/mm/xpfo.c
-+++ b/mm/xpfo.c
-@@ -221,3 +221,18 @@ void xpfo_kunmap(void *kaddr, struct page *page)
- 	spin_unlock(&xpfo->maplock);
- }
- EXPORT_SYMBOL(xpfo_kunmap);
++#include <linux/mm.h>
++#include <linux/module.h>
 +
-+bool xpfo_page_is_unmapped(struct page *page)
++#include <asm/tlbflush.h>
++
++/*
++ * Lookup the page table entry for a virtual address and return a pointer to
++ * the entry. Based on x86 tree.
++ */
++static pte_t *lookup_address(unsigned long addr)
 +{
-+	struct xpfo *xpfo;
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
 +
-+	if (!static_branch_unlikely(&xpfo_inited))
-+		return false;
++	pgd = pgd_offset_k(addr);
++	if (pgd_none(*pgd))
++		return NULL;
 +
-+	xpfo = lookup_xpfo(page);
-+	if (unlikely(!xpfo) && !xpfo->inited)
-+		return false;
++	pud = pud_offset(pgd, addr);
++	if (pud_none(*pud))
++		return NULL;
 +
-+	return test_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags);
++	pmd = pmd_offset(pud, addr);
++	if (pmd_none(*pmd))
++		return NULL;
++
++	return pte_offset_kernel(pmd, addr);
 +}
-+EXPORT_SYMBOL(xpfo_page_is_unmapped);
++
++/* Update a single kernel page table entry */
++inline void set_kpte(void *kaddr, struct page *page, pgprot_t prot)
++{
++	pte_t *pte = lookup_address((unsigned long)kaddr);
++
++	if (unlikely(!pte)) {
++		WARN(1, "xpfo: invalid address %p\n", kaddr);
++		return;
++	}
++
++	set_pte(pte, pfn_pte(page_to_pfn(page), prot));
++}
++
++inline void xpfo_flush_kernel_tlb(struct page *page, int order)
++{
++	unsigned long kaddr = (unsigned long)page_address(page);
++	unsigned long size = PAGE_SIZE;
++
++	flush_tlb_kernel_range(kaddr, kaddr + (1 << order) * size);
++}
 -- 
 2.17.1
 
