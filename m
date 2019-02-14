@@ -2,181 +2,170 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8AAE9C10F04
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 06:00:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 49022C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 06:04:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 23319222B6
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 06:00:11 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="AqFGGKQk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23319222B6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 08A4C21934
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 06:04:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08A4C21934
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 84DEB8E0002; Thu, 14 Feb 2019 01:00:10 -0500 (EST)
+	id 8754A8E0003; Thu, 14 Feb 2019 01:04:15 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7FDF18E0001; Thu, 14 Feb 2019 01:00:10 -0500 (EST)
+	id 7FC1A8E0001; Thu, 14 Feb 2019 01:04:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 713DD8E0002; Thu, 14 Feb 2019 01:00:10 -0500 (EST)
+	id 6C3B88E0003; Thu, 14 Feb 2019 01:04:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3056B8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 01:00:10 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id h15so3881822pfj.22
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 22:00:10 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ED508E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 01:04:15 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id a21so720343eda.3
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2019 22:04:15 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=EyhZ0LXI8S6DO+1lKPJ+3xCo7Hi2M9DApl/OXP8GRG0=;
-        b=DU1kN5q8etAxJbVIfq+DaRWaYjyNAsJg6VCJRlJJQDNCoYnfN7fOWB0v9Ydwbh0RiM
-         /HU12RIfm+jePp4xarROEcHfaWwv/kg5V+vScsR4366za0Z6n1rDfYRByKbWXIWeYHkO
-         LT13w2b3pypIDsCp4E4TgnaZrMSiWRt3kTwAW5PtBThoTI2/h5YGH3ynPxWNYkuRDmYu
-         9lLONpsFIVnG9kZtGbGNdj/09pz3BEFf33shUdL/wDB1GLL8K52i9EDAdY1Jqwnp1pRK
-         tj4xZhIILkTlkJkmy+k9ED2gknDlSpUv+E9imIN2BfH2U6LxNP2PPj2KDK72tx345Z/v
-         GGLw==
-X-Gm-Message-State: AHQUAuaayQhtKfyPnKqver89vCs+fsRt4NhC5tYx4uBhAtm0Uqzkr8dO
-	eHgVTAyqv6F2vZi33hXCLHHtZBSsmVjJ5q1QD1+6yX41ve9yyGk3kpa4aSVLDEHDOQdGMrdYslE
-	ZX6qUczu7Xs9TeB6Fxdc+4TdtMJ9ow3CK1AEvVsGqYPHDBL1+OYSAkxYBQQdhZAzRQxsbLwGZKe
-	peSrMyBWtGVrici7LG+sjE2SdZq5xh6iML7eDEe9raSn0Tgh1GF7G/ChcVGDMQBfIOBgHAR+aQD
-	uWL0cfYmZIkxczdbtxnsPNHw7eabQBdd99Wwde2/PwM7bWGvmIRQw0FzeBmDupYU34m4inbbhyD
-	akU5M+UPKvfW34AKEaIxhsT1r7XDEyTw77U5/f1kywAxYoMzWE3NKYcMi7BR/Ku6mP+Ttp7eE1a
-	f
-X-Received: by 2002:a63:be0a:: with SMTP id l10mr2150834pgf.292.1550124009762;
-        Wed, 13 Feb 2019 22:00:09 -0800 (PST)
-X-Received: by 2002:a63:be0a:: with SMTP id l10mr2150769pgf.292.1550124008763;
-        Wed, 13 Feb 2019 22:00:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550124008; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=837dtVyVb/c7rG7Ym8sNaGnnqVuoGEAD+GZyAZhmZ5w=;
+        b=cCBn7QwvHRxDqvbv6vReQZZ2mL70Kgvr/sVMjN4RaZ4jpowVebkZiybNfkTwAQ5uJu
+         MczQrTt/39ekvO4QvKHaHntfIrQnZmPX8lkpF3eVMRCNZJUGz+Da8RQaaRoRr0HPGK5J
+         qXWZrOAgLBBRYefXdsY0hzZ7glPP89dzQjfYfQ2KUj4Nzz7CWTGRhDAEFKnG9fOL0M87
+         2HHuwKqB2M8GgM0767BEnTcpSrV9qjzYtVS4TxbPBlULdS0+BApHluxhATWxQcFV8GVW
+         ThZbd3/hjfRBlmeol/BBgyYbi2dEGzbSKHtLolTlzSYvdbp9hVq6HIyl2uVG8dhEIBKX
+         gukQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: AHQUAubAElLMtzDqj6ECOnTFOw+3ND1yJq88YRFzf7Gee8nYyTTb9kVu
+	3fsJTYajg5bT0mpjUFcrYCsKqqiFKbgsMSRusL/iLZxz/T95+HVrAlhYZKlnQccFkXmui88GUxb
+	RTPCACKOoUbKC6NPFqearY0wK2P83wY1BvMxxMXsD50+/KZHOr0tcWTl5RcEnJfI3mg==
+X-Received: by 2002:a17:906:4bd9:: with SMTP id x25mr1487234ejv.171.1550124254518;
+        Wed, 13 Feb 2019 22:04:14 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYlpdjnZJvd+yMihmuCkCmWTXkZalu/H1+V5T8gyEvd0VFQoRdefGkulhro449TT4idWx+O
+X-Received: by 2002:a17:906:4bd9:: with SMTP id x25mr1487192ejv.171.1550124253533;
+        Wed, 13 Feb 2019 22:04:13 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550124253; cv=none;
         d=google.com; s=arc-20160816;
-        b=wYMURILUhEbLxOrEnMj0dzymcYEfABxOvXGr7ueRNUpvUb+kA8SE3c01puVpqYeS0d
-         tD9HEkpg/tRCcZ/yO6zOeTcAndsLy7BCkOHaQDxJ9IXdL0acefD3IHWiisIYX52YIM9h
-         C1xhBptQ8tBC3OpgidyXyJJwXjnozf0EI61e3eeK652aJjYMOKJTm7PerzFvZshQpy+t
-         kQ6ZGSKb+fz6n0rmHuFYx++4Qbzrp1AqX1CVE9iUbS5DNzhxljlgcxAIJRWVxghBHsfi
-         jVf4fkhmdzgAH0s2CjIu0PWs0hHOFtey94XJqNTwnbiUVyBNW9ertmivf0ZFWQP5X/WE
-         MqZg==
+        b=Aw7odYDi5VE1BAV4YJt04+egoalZvwbU20/1itvNkgCTTsgsXrExcnAwBcUk+heobO
+         DgcU3uM6/PrbkzeNL7AMI5AGwNv7Q3tYL3F8uKusMYrw0+t6IQy6D64eA/L/0CsRnpyk
+         hZA5uOnQDA3H+hN+p0CzwjvmZkuump0Rc3IVAjCVNPf3zNjq4CBncU05g9+Y1XUy/Avr
+         msXN4FZbeXpd71vT7hHx5HAYNtuNTTvlpzHL5lxeLh2Cr+LURSuF5OWH8Nd3yFH/NWY3
+         5CdRPCBoJznh7NBAcNB5NIhLwBP43+nEfXHtK9ICA/d7TgRScX5ePIEiVgL7xPT5Gb4Q
+         iVvA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=EyhZ0LXI8S6DO+1lKPJ+3xCo7Hi2M9DApl/OXP8GRG0=;
-        b=KTcgK2xbB8IraWEu5Ywz2AVg/giZUcQ7mms5kRRJQhWbOLzKQ50Q6jY6rzyhUhGm24
-         l6LPZChgqgWyL2981KTaE7QSNESoejE+vEO3iuemMzTbEx/PxCvuo0j0NzMHRasJqWhM
-         DyMUB4sAB2uaHKlfKPl+zxbDWGrCFFs5M9wq5ZhtB5T5AtNrAOdvZPFSdCqa2TB+pXzR
-         YSd+tmfnNevtgkWnauoAmVs68ryu0Q6IB8MpmskRGODNFVGavU+FgVIQuVhzrzLM0/M9
-         dC46mjlzC3b08eTUv5SySCyEHqVRZGECBZ9y65bDQ3cBCtleNedexcYvMnKKUX3tMRt4
-         IPAA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=837dtVyVb/c7rG7Ym8sNaGnnqVuoGEAD+GZyAZhmZ5w=;
+        b=hsJuy/WWdc+B3SOHQZmBfUhX0VJxoVA6U41kjImO7AAfSay4p7NQb4xvfsb38Hb2Dy
+         UQgTsgwTgLKBQxX6a+ugkJqE4gMbwbT5jIM+XAR7h1EPnaBj9kSSeAZecg0bDoIrTzM4
+         ekIR/ym2yY1xpZuvxzvQPRKBF2WOCp4OZ11lH6bdju6pSKUfNkeKJZSjM7C2gQyudl6T
+         wF7jhBoH/Wc+aFQ8Z/bO+2nmkp99UsM3KzkkFe+o9iwfvqU9TCXEesdDh9AkMQ3Irnna
+         I7OEuTQlVhFqgHzCS87iSf3Bjy/zRNUX63g6FR0UL05eomeMBYNnt64NyovWLJDTi2Kc
+         tM5g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=AqFGGKQk;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t62sor2149938pfa.72.2019.02.13.22.00.08
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Feb 2019 22:00:08 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id l19si316603edc.437.2019.02.13.22.04.13
+        for <linux-mm@kvack.org>;
+        Wed, 13 Feb 2019 22:04:13 -0800 (PST)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=AqFGGKQk;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=EyhZ0LXI8S6DO+1lKPJ+3xCo7Hi2M9DApl/OXP8GRG0=;
-        b=AqFGGKQkWIE4m9oWUPQKPfYDWffEV3DD3kw2gte/hIVc+ZOI2ALww287MyZktoOcDi
-         CbpDfqNDDxjQTYKo+HSL1jPCcxgIu0tlHCqsVDa+M5KY9ZBsLFTmv/t2wqc5kisOEAq3
-         Ey9IsWcwZPCXnG/nVFmz7GUhhGKdm8IWeTP2Dk0HwbmuU3cqx7K5BZzuoEE5qUenFwFw
-         FhXuEgKL+2MrnrRuMG0A1nR+NYB/69dpYPvc7V/phtqqydIA5J2EkPID7AxDk9lsLjAP
-         NbaOeXfbMwnJ+uPtI2ATX/eErFA+0vBz71ipAT/cQzRY+HNlZcQmNhta5uk0wuPGbr4p
-         3GKA==
-X-Google-Smtp-Source: AHgI3IZsTuAr/2agKNUI6fHNmik1DYYjhaWBR5rn+7baCxky03ZS5RyeSxDZdNqDP/QzwRlb2m6TAA==
-X-Received: by 2002:a62:9f1a:: with SMTP id g26mr2297647pfe.123.1550124008008;
-        Wed, 13 Feb 2019 22:00:08 -0800 (PST)
-Received: from ziepe.ca (S010614cc2056d97f.ed.shawcable.net. [174.3.196.123])
-        by smtp.gmail.com with ESMTPSA id z127sm2288820pfb.80.2019.02.13.22.00.07
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 13 Feb 2019 22:00:07 -0800 (PST)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1guA46-00040P-Jk; Wed, 13 Feb 2019 23:00:06 -0700
-Date: Wed, 13 Feb 2019 23:00:06 -0700
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>, akpm@linux-foundation.org,
-	dave@stgolabs.net, jack@suse.cz, cl@linux.com, linux-mm@kvack.org,
-	kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
-	linux-kernel@vger.kernel.org, alex.williamson@redhat.com,
-	paulus@ozlabs.org, benh@kernel.crashing.org, mpe@ellerman.id.au,
-	hao.wu@intel.com, atull@kernel.org, mdf@kernel.org, aik@ozlabs.ru
-Subject: Re: [PATCH 0/5] use pinned_vm instead of locked_vm to account pinned
- pages
-Message-ID: <20190214060006.GE24692@ziepe.ca>
-References: <20190211224437.25267-1-daniel.m.jordan@oracle.com>
- <20190211225447.GN24692@ziepe.ca>
- <20190214015314.GB1151@iweiny-DESK2.sc.intel.com>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4DA6C80D;
+	Wed, 13 Feb 2019 22:04:12 -0800 (PST)
+Received: from [10.162.42.113] (p8cg001049571a15.blr.arm.com [10.162.42.113])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id BBC313F675;
+	Wed, 13 Feb 2019 22:04:09 -0800 (PST)
+Subject: Re: [RFC 0/4] mm: Introduce lazy exec permission setting on a page
+To: Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill@shutemov.name,
+ kirill.shutemov@linux.intel.com, vbabka@suse.cz, will.deacon@arm.com,
+ dave.hansen@intel.com
+References: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
+ <20190213112135.GA9296@c02tf0j2hf1t.cambridge.arm.com>
+ <20190213153819.GS4525@dhcp22.suse.cz>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <0b6457d0-eed1-54e4-789b-d62881bea013@arm.com>
+Date: Thu, 14 Feb 2019 11:34:09 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190214015314.GB1151@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190213153819.GS4525@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 13, 2019 at 05:53:14PM -0800, Ira Weiny wrote:
-> On Mon, Feb 11, 2019 at 03:54:47PM -0700, Jason Gunthorpe wrote:
-> > On Mon, Feb 11, 2019 at 05:44:32PM -0500, Daniel Jordan wrote:
-> > 
-> > > All five of these places, and probably some of Davidlohr's conversions,
-> > > probably want to be collapsed into a common helper in the core mm for
-> > > accounting pinned pages.  I tried, and there are several details that
-> > > likely need discussion, so this can be done as a follow-on.
-> > 
-> > I've wondered the same..
-> 
-> I'm really thinking this would be a nice way to ensure it gets cleaned up and
-> does not happen again.
-> 
-> Also, by moving it to the core we could better manage any user visible changes.
-> 
-> From a high level, pinned is a subset of locked so it seems like we need a 2
-> sets of helpers.
-> 
-> try_increment_locked_vm(...)
-> decrement_locked_vm(...)
-> 
-> try_increment_pinned_vm(...)
-> decrement_pinned_vm(...)
-> 
-> Where try_increment_pinned_vm() also increments locked_vm...  Of course this
-> may end up reverting the improvement of Davidlohr  Bueso's atomic work...  :-(
-> 
-> Furthermore it would seem better (although I don't know if at all possible) if
-> this were accounted for in core calls which tracked them based on how the pages
-> are being used so that drivers can't call try_increment_locked_vm() and then
-> pin the pages...  Thus getting the account wrong vs what actually happened.
-> 
-> And then in the end we can go back to locked_vm being the value checked against
-> RLIMIT_MEMLOCK.
 
-Someone would need to understand the bug that was fixed by splitting
-them. 
 
-I think it had to do with double accounting pinned and mlocked pages
-and thus delivering a lower than expected limit to userspace.
+On 02/13/2019 09:08 PM, Michal Hocko wrote:
+> On Wed 13-02-19 11:21:36, Catalin Marinas wrote:
+>> On Wed, Feb 13, 2019 at 01:36:27PM +0530, Anshuman Khandual wrote:
+>>> Setting an exec permission on a page normally triggers I-cache invalidation
+>>> which might be expensive. I-cache invalidation is not mandatory on a given
+>>> page if there is no immediate exec access on it. Non-fault modification of
+>>> user page table from generic memory paths like migration can be improved if
+>>> setting of the exec permission on the page can be deferred till actual use.
+>>> There was a performance report [1] which highlighted the problem.
+>> [...]
+>>> [1] http://lists.infradead.org/pipermail/linux-arm-kernel/2018-December/620357.html
+>>
+>> FTR, this performance regression has been addressed by commit
+>> 132fdc379eb1 ("arm64: Do not issue IPIs for user executable ptes"). That
+>> said, I still think this patch series is valuable for further optimising
+>> the page migration path on arm64 (and can be extended to other
+>> architectures that currently require I/D cache maintenance for
+>> executable pages).
+> 
+> Are there any numbers to show the optimization impact?
 
-vfio has this bug, RDMA does not. RDMA has a bug where it can
-overallocate locked memory, vfio doesn't.
+This series transfers execution cost linearly with nr_pages from migration path
+to subsequent exec access path for normal, THP and HugeTLB pages. The experiment
+is on mainline kernel (1f947a7a011fcceb14cb912f548) along with some patches for
+HugeTLB and THP migration enablement on arm64 platform.
 
-Really unclear how to fix this. The pinned/locked split with two
-buckets may be the right way.
+A. [Normal Pages]
 
-Jason
+nr_pages	migration1 	migration2	execfault1	execfault2	
+
+1000 		7.000000	3.000000	24.000000	31.000000
+5000 		38.000000 	18.000000	127.000000	153.000000
+10000 		80.000000 	40.000000	289.000000	343.000000
+15000		120.000000	60.000000	435.000000	514.000000
+19900 		159.000000	79.000000	576.000000	681.000000
+
+B. [THP Pages]
+
+nr_pages	migration1 	migration2	execfault1	execfault2
+
+10 		22.000000	3.000000	131.000000	146.000000
+30 		72.000000	15.000000	443.000000	503.000000
+50 		121.000000	24.000000	739.000000	837.000000
+100 		242.000000	49.000000	1485.000000	1673.000000
+199 		473.000000 	98.000000	2685.000000	3327.000000
+
+C. [HugeTLB Pages]
+
+nr_pages	migration1 	migration2	execfault1	execfault2
+
+10		97.000000 	79.000000	125.000000	144.000000
+30 		292.000000 	235.000000	408.000000	463.000000
+50 		487.000000 	392.000000	674.000000	777.000000
+100 		995.000000 	802.000000	1480.000000	1671.000000
+130 		1300.000000 	1048.000000	1925.000000	2172.000000
+
+NOTE:
+
+migration1: Execution time (ms) for migrating nr_pages without patches
+migration2: Execution time (ms) for migrating nr_pages with patches
+execfault1: Execution time (ms) for executing nr_pages without patches
+execfault2: Execution time (ms) for executing nr_pages with patches
 
