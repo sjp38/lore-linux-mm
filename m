@@ -2,140 +2,209 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C02CC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:10:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CBF9C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:10:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F32D2222D7
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:10:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F32D2222D7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=youngman.org.uk
+	by mail.kernel.org (Postfix) with ESMTP id 36FC4222D7
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:10:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 36FC4222D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8F4D18E0002; Thu, 14 Feb 2019 12:10:33 -0500 (EST)
+	id 0B4AA8E0003; Thu, 14 Feb 2019 12:10:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8A0B18E0001; Thu, 14 Feb 2019 12:10:33 -0500 (EST)
+	id 063B78E0001; Thu, 14 Feb 2019 12:10:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 78F828E0002; Thu, 14 Feb 2019 12:10:33 -0500 (EST)
+	id EBC838E0003; Thu, 14 Feb 2019 12:10:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 21DF08E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 12:10:33 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id m7so2499326wrn.15
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 09:10:33 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ABDE28E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 12:10:40 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id b24so4741703pls.11
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 09:10:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:cc:from:message-id:date:user-agent:mime-version
-         :in-reply-to:content-transfer-encoding;
-        bh=+6DJnYolsx5XAGeJ434LHaErbIYhZTLMmVWBHtfDpIY=;
-        b=aCzP4zNChkkz2HZoEG9aeSUkAqQ9JNWzEFLVNNw3mzeOCivYFmWbSymMhKoxpcaDYH
-         gTgyeieF2nCBlRUQb/QTqShI2iQz6ejHIg36qwyardhvOoSu1IUC0VQbjXY15/ATZ4QO
-         wW0tm0gS4g8mCdTYGp6Nq7LxUxA88fDL1+Kv5++PPkZNWj8ChvVZYd1WQkn9Zopv/A8Y
-         nxBSZhY84X4fLUcVJ9rWcWh4Ow4aI0sgJH+mJZ+sG2uQGS6xdZ1r5IwyVqdgdyB6KNVq
-         9HKSvXDZ2zKMvPtk0skWdIVPBtfGWlZRhAruHfa5aKXceFbZLwmA61Qvs3Efi9EL3vjq
-         zcMQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of antlists@youngman.org.uk designates 85.233.160.19 as permitted sender) smtp.mailfrom=antlists@youngman.org.uk
-X-Gm-Message-State: AHQUAubnU7d64d9CnVOqHLc5c+mivGeibU68a569K3Vy/dhwq7U1F7gX
-	ZO9IZUMJpUm2eNWp600PbHgwgw+VB35XgQacHJ0tgUpv+g/R8o9dfDgj6BXXH/K/l9xEqW7bcS0
-	YBnEOcWTnWa3LmvYjCeLdZQlUB7zLq381t7A8lZx6bFhG47y0Mu+yi3z1lzhnR8ShbA==
-X-Received: by 2002:adf:f58b:: with SMTP id f11mr3429802wro.266.1550164232715;
-        Thu, 14 Feb 2019 09:10:32 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Iagxqk/qpdYZ99ZA+35cqWJLDxUDq5yEKzv5Vlyf7mbpyen2qKYCKtHBkJwxUtUz3i5ODo4
-X-Received: by 2002:adf:f58b:: with SMTP id f11mr3429753wro.266.1550164231863;
-        Thu, 14 Feb 2019 09:10:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550164231; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=aAfl4dS5AoUlguQ06daS7InlD2mgNefIJaWvl5vgoko=;
+        b=ULpd/+vExULneJaf5IkIyjSEBZUgnQpdhRqJmTqc4jpvL8LLBYPRta+4oiawujCxGa
+         NYZEdwhjyX42EFWTNvxhDlJObRzbMqvy9fFWqVwwDf774b9pDDmabU4QAYIU9f3STl2w
+         UPx8bJv6Jt5TGAOYMJki8c45G57ax3Kyzglw3zO10fNrvteobt2djg8AQGX9lAv4jvgO
+         tUIfWu2DvfIPlo4lUZlKCQRCVISpcwAA4tvBKLRNAwM2ti76PIrE4PvaF/tPr7/bE5+Y
+         /HE3OgVmr+Hd/N+Ekvj6ZNlGVlVe6nTyHXEpUVMZ8SYcLWHKikfw8aGTYH243oZ7Kzvh
+         HYvA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuaqaa3UyWANSWyi53GZdImZdXokuR17ngX4ZXpYMl1iDj8s8GCF
+	BYXdP02RlzvITft4AcrrOfRo7PgUdILRfNoY9Hq9gjawSg/0PHF182c9z2N8hZSHldnmY+kO0ub
+	g0PLNc2x4JaJ3m0vAYPtpi9HI3WP0XwgpXUcEzAC6/i/YGNDgPNS/ioiKvmAd+45XRg==
+X-Received: by 2002:a17:902:4d46:: with SMTP id o6mr5079854plh.302.1550164240347;
+        Thu, 14 Feb 2019 09:10:40 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYsjYXbzyw8XuDJR5HbiPv2UEzK/6wu+09fW0XEUsdBV+SvlwYG8fg6p9i/BPaJRDDZgDBN
+X-Received: by 2002:a17:902:4d46:: with SMTP id o6mr5079793plh.302.1550164239406;
+        Thu, 14 Feb 2019 09:10:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550164239; cv=none;
         d=google.com; s=arc-20160816;
-        b=P7OIDTueD/HMGhSas/vpZ1oQd2qTQdw/GOjjgEEbdCBRq5XAFHHsAQhxEedHkf5XKR
-         bwXgBd2X+smhwWwmVT1GE8NPB9Uqk02QWHb4GL7WMZLM9e/ZlBnsa1BEE6zni8crirxP
-         PZertUQRfOGJWeX8/nnu8TMS2HBMuB1Fge45AVonIKZ5rWLELA2nMUlYxoblyvG9CQIa
-         CWZvwS1dxdw5TpQNgWWdYJLA0L2B90bSVV8k3KsNkwEI5v6i19bYcdvnKiYX81BUWtx2
-         x/cIuP97wkWvevSc49uaiTGVOs/vYOGHGMHCF64+JEvigO6Lb2Gl34NVmLjU8DdknMGr
-         koQw==
+        b=xUYAdFjimfvg8Jg1dGFJp4RMiVnr+E6SpX0Je5c5gJKICDsvyHWgK6gT0nPyviTm7N
+         tcrm+7D6a14Vs5jIsqwiIg1nWLcmd9rsplNlZlVOwAE1tfhev14HCmHoO9AAYEE/Eot4
+         JTU4MhLX6pDgzzxgZVtIBwU4AhTqD56xkJVX3lEN8VqNSGmPK6W3o6kKfe8Vu5MeZO6T
+         JL4RomT7GUpxX5jOStiOTJWS8B0aAOBO3jyRTf7+RjZXcvhRw1hAmKdHT3PxX+eyHOAi
+         sllP6cV4geEtlcL58gFUe4VrWfF9LG0E8f8cR2dk4aSvYCTI7TKw/8T/BWG2Iv9HGsVT
+         rWvA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
-         :message-id:from:cc:references:to:subject;
-        bh=+6DJnYolsx5XAGeJ434LHaErbIYhZTLMmVWBHtfDpIY=;
-        b=AqWmljpqKcwLfHcISs3iya6VZ5J9n0G9SJeqj45k+rqEyPont2FCPdk8jJ4MHJUiGa
-         rhw9Ef3zlcKfQpQliGdOyMd+UzWbts+UwncR0aBo9FgnGqPD0AVrj43fVcEDzWRmCSqF
-         TMtTGUmkzs9z/ZrD+rWOON06xfncpY5kHEW9EozVGzg4PxQ+HL0wwoPz+FXuyy+/8YoR
-         qfrT0y7sq2hwLZNitZzIrq7NOOWmokZR4BFIioW8ehN6ZIt+e6yjFxAJ8iDW1M09tBtw
-         aSCAiuKes+/jA5cBpx5x7zf6cHWJIfGvZEAW/SEOURG3MGmE/doN5XsySG8eU3tUaxxp
-         Oong==
+        h=message-id:date:subject:cc:to:from;
+        bh=aAfl4dS5AoUlguQ06daS7InlD2mgNefIJaWvl5vgoko=;
+        b=hOCCzC1QxJXMnzZU4lKgPfDLW3hfB9MqgXIDh0565ahm7wk48cEZIYTGqXM16xxCyi
+         Cid9rdE2UCEnmXko7h0kzCDt+eodOX178taxArsCPmwtOJYAG91V1Jnv/Le2dvG5Y4pR
+         fM2h6vxYQcFRoJd4lxrupgvwJxBiej4mvoBNZmCHNoP4UGNQnu632Gr3dNnzSDbgpnDM
+         ZL0YpwOu5PgVhhjRp7AxMSkOygRx6sTynTb6DmV3HRwYTRS/c071P7FrM5nC0Pz2uBl5
+         ThKXrKbfCuDfKMngL9/TNpZxphwj8bRWO1QR8bmPCBdB6m1+7RW74D6jHSLyYPZd7meW
+         53rw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of antlists@youngman.org.uk designates 85.233.160.19 as permitted sender) smtp.mailfrom=antlists@youngman.org.uk
-Received: from smtp.hosts.co.uk (smtp.hosts.co.uk. [85.233.160.19])
-        by mx.google.com with ESMTPS id j185si1991823wma.127.2019.02.14.09.10.31
+       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id j17si2724426pfn.271.2019.02.14.09.10.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 09:10:31 -0800 (PST)
-Received-SPF: pass (google.com: domain of antlists@youngman.org.uk designates 85.233.160.19 as permitted sender) client-ip=85.233.160.19;
+        Thu, 14 Feb 2019 09:10:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of antlists@youngman.org.uk designates 85.233.160.19 as permitted sender) smtp.mailfrom=antlists@youngman.org.uk
-Received: from [81.153.42.125] (helo=[192.168.1.82])
-	by smtp.hosts.co.uk with esmtpa (Exim)
-	(envelope-from <antlists@youngman.org.uk>)
-	id 1guKWt-0006cL-3j; Thu, 14 Feb 2019 17:10:31 +0000
-Subject: Re: [LSF/MM TOPIC] (again) THP for file systems
-To: Song Liu <songliubraving@fb.com>, Matthew Wilcox <willy@infradead.org>
-References: <77A00946-D70D-469D-963D-4C4EA20AE4FA@fb.com>
- <20190213235959.GX12668@bombadil.infradead.org>
- <843818E0-C7E8-451E-A5B1-DAF0F120BD5A@fb.com>
-Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- linux-kernel <linux-kernel@vger.kernel.org>,
- linux-raid <linux-raid@vger.kernel.org>,
- "bpf@vger.kernel.org" <bpf@vger.kernel.org>,
- "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
- "Kirill A. Shutemov" <kirill@shutemov.name>
-From: Wols Lists <antlists@youngman.org.uk>
-X-Enigmail-Draft-Status: N1110
-Message-ID: <5C65A101.4010909@youngman.org.uk>
-Date: Thu, 14 Feb 2019 17:10:25 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:38.0) Gecko/20100101
- Thunderbird/38.7.0
-MIME-Version: 1.0
-In-Reply-To: <843818E0-C7E8-451E-A5B1-DAF0F120BD5A@fb.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga003.fm.intel.com ([10.253.24.29])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Feb 2019 09:10:38 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,369,1544515200"; 
+   d="scan'208";a="133613093"
+Received: from unknown (HELO localhost.lm.intel.com) ([10.232.112.69])
+  by FMSMGA003.fm.intel.com with ESMTP; 14 Feb 2019 09:10:37 -0800
+From: Keith Busch <keith.busch@intel.com>
+To: linux-kernel@vger.kernel.org,
+	linux-acpi@vger.kernel.org,
+	linux-mm@kvack.org,
+	linux-api@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Rafael Wysocki <rafael@kernel.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Keith Busch <keith.busch@intel.com>
+Subject: [PATCHv6 00/10] Heterogenous memory node attributes
+Date: Thu, 14 Feb 2019 10:10:07 -0700
+Message-Id: <20190214171017.9362-1-keith.busch@intel.com>
+X-Mailer: git-send-email 2.13.6
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 14/02/19 01:59, Song Liu wrote:
->> I believe the direction is clear.  It needs people to do the work.
->> > We're critically short of reviewers.  I got precious little review of
->> > the original XArray work, which made Andrew nervous and delayed its
->> > integration.  Now I'm getting little review of the followup patches
->> > to lay the groundwork for filesystems to support larger page sizes.
->> > I have very little patience for this situation.
+== Changes since v5 ==
 
-> I don't feel I am a qualified reviewer for MM patches, yet. But I will 
-> try my best to catch up. 
+  Updated HMAT parsing to account for the recently released ACPI 6.3
+  changes.
 
-Then just dive in!
+  HMAT attribute calculation overflow checks.
 
-Ask questions - "what does this do?", "please explain this, I don't
-understand", "I'm new here, please teach me".
+  Fixed memory leak if HMAT parse fails.
 
-Okay, some people are too busy to help much, but I've found looking
-after the raid wiki that people are happy to help, *especially* if they
-know that their time is going to be rewarded. If I ask for help it
-usually results in an update to the wiki.
+  Minor change to the patch order. All the base node attributes occur
+  before HMAT usage for these new node attributes to resolve a
+  dependency on a new struct.
 
-If they know you are reading through the patch asking them to explain it
-helps two ways - you are another set of eyes to spot something wrong,
-and your questions will make them look at their code in a new light.
-Even if you don't understand what you're looking at, you can still spot
-stuff that looks weird, and if you ask them to explain then it will mean
-that code gets an extra check. Anything that slips through that is
-probably fine.
+  Reporting failures to parse HMAT or allocate structures are elevated
+  to a NOTICE level from DEBUG. Any failure will result in just one
+  print so that it is obvious something may need to be investigated
+  rather than silently fail, but also not to be too alarming either.
 
-Cheers,
-Wol
+  Determining the cpu and memory node local relationships is quite
+  different this time (PATCH 7/10). The local relationship to a memory
+  target will be either *only* the node from the Initiator Proximity
+  Domain if provided, or if it is not provided, all the nodes that have
+  the same highest performance. Latency was chosen to take prioirty over
+  bandwidth when ranking performance.
+
+  Renamed "side_cache" to "memory_side_cache". The previous name was
+  ambiguous.
+
+  Removed "level" as an exported cache attribute. It was redundant with
+  the directory name anyway.
+
+  Minor changelog updates, added received reviews, and documentation
+  fixes.
+
+Just want to point out that I am sticking with struct device
+instead of using struct kobject embedded in the attribute tracking
+structures. Previous feedback was leaning either way on this point.
+
+== Background ==
+
+Platforms may provide multiple types of cpu attached system memory. The
+memory ranges for each type may have different characteristics that
+applications may wish to know about when considering what node they want
+their memory allocated from. 
+
+It had previously been difficult to describe these setups as memory
+rangers were generally lumped into the NUMA node of the CPUs. New
+platform attributes have been created and in use today that describe
+the more complex memory hierarchies that can be created.
+
+This series' objective is to provide the attributes from such systems
+that are useful for applications to know about, and readily usable with
+existing tools and libraries. Those applications may query performance
+attributes relative to a particular CPU they're running on in order to
+make more informed choices for where they want to allocate hot and cold
+data. This works with mbind() or the numactl library.
+
+Keith Busch (10):
+  acpi: Create subtable parsing infrastructure
+  acpi: Add HMAT to generic parsing tables
+  acpi/hmat: Parse and report heterogeneous memory
+  node: Link memory nodes to their compute nodes
+  node: Add heterogenous memory access attributes
+  node: Add memory-side caching attributes
+  acpi/hmat: Register processor domain to its memory
+  acpi/hmat: Register performance attributes
+  acpi/hmat: Register memory side cache attributes
+  doc/mm: New documentation for memory performance
+
+ Documentation/ABI/stable/sysfs-devices-node   |  89 +++-
+ Documentation/admin-guide/mm/numaperf.rst     | 164 +++++++
+ arch/arm64/kernel/acpi_numa.c                 |   2 +-
+ arch/arm64/kernel/smp.c                       |   4 +-
+ arch/ia64/kernel/acpi.c                       |  12 +-
+ arch/x86/kernel/acpi/boot.c                   |  36 +-
+ drivers/acpi/Kconfig                          |   1 +
+ drivers/acpi/Makefile                         |   1 +
+ drivers/acpi/hmat/Kconfig                     |   9 +
+ drivers/acpi/hmat/Makefile                    |   1 +
+ drivers/acpi/hmat/hmat.c                      | 677 ++++++++++++++++++++++++++
+ drivers/acpi/numa.c                           |  16 +-
+ drivers/acpi/scan.c                           |   4 +-
+ drivers/acpi/tables.c                         |  76 ++-
+ drivers/base/Kconfig                          |   8 +
+ drivers/base/node.c                           | 351 ++++++++++++-
+ drivers/irqchip/irq-gic-v2m.c                 |   2 +-
+ drivers/irqchip/irq-gic-v3-its-pci-msi.c      |   2 +-
+ drivers/irqchip/irq-gic-v3-its-platform-msi.c |   2 +-
+ drivers/irqchip/irq-gic-v3-its.c              |   6 +-
+ drivers/irqchip/irq-gic-v3.c                  |  10 +-
+ drivers/irqchip/irq-gic.c                     |   4 +-
+ drivers/mailbox/pcc.c                         |   2 +-
+ include/linux/acpi.h                          |   6 +-
+ include/linux/node.h                          |  60 ++-
+ 25 files changed, 1480 insertions(+), 65 deletions(-)
+ create mode 100644 Documentation/admin-guide/mm/numaperf.rst
+ create mode 100644 drivers/acpi/hmat/Kconfig
+ create mode 100644 drivers/acpi/hmat/Makefile
+ create mode 100644 drivers/acpi/hmat/hmat.c
+
+-- 
+2.14.4
 
