@@ -6,136 +6,141 @@ X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
 	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B06DC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 19:57:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0B4F7C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 19:59:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3058721B68
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 19:57:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B199D20842
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 19:59:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="owg2EAXP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3058721B68
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="dz2KSoaS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B199D20842
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C1D5C8E0002; Thu, 14 Feb 2019 14:57:55 -0500 (EST)
+	id 58D4C8E0002; Thu, 14 Feb 2019 14:59:17 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BCCD68E0001; Thu, 14 Feb 2019 14:57:55 -0500 (EST)
+	id 53CD28E0001; Thu, 14 Feb 2019 14:59:17 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AE3238E0002; Thu, 14 Feb 2019 14:57:55 -0500 (EST)
+	id 452A88E0002; Thu, 14 Feb 2019 14:59:17 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DCE38E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 14:57:55 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id 75so5607072pfq.8
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 11:57:55 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 078228E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 14:59:17 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id t26so5029592pgu.18
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 11:59:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
          :organization:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=BdK7IaSpJfGdyre7bODL0VtCcEpshJ2Y4O0xLokGeZA=;
-        b=rV2zUb7c4q1XmDhSDt3D8sJspV8kn1rBPwmQBz8ldQaOp6FBmALC6TBnNtF//3f8iN
-         uGWdjnAeGQSNR3XpIgaBbZblFZv8nWDj4fT9uChtHjYStVzhdcljc8M3BEqx3DNEl9Ju
-         5DjkGnnUEDg42dCg5BATE71BN96RTU/5oAmbVAxacu/2gdCT2swXjDcichW5rVSeD+m+
-         MPV1EUy04Yr/drzqJbH/ZGR0iOx8XyBL27uZcenYVvzKLRX7Fvy9VdeklnQSL2u+yOqd
-         8mRA8gxF7XWoVjPmT2zVSdTtIr9bm+gU0f0u0alFlv8hCZjmhvXy5z5Uts3fP+o/Y5Iv
-         PnKA==
-X-Gm-Message-State: AHQUAuYoRZX5nbxCPLXcmZXgXO4fFspKmoNyj+Ay6/7jeea4Yoy/tCrz
-	6zR4WiZP0hBm1Y/x/xKnDJP1TcKJg/dVot43LFEDmqoNIt7iVAZMYJ6kIWX143yJnqi2M1P8Cck
-	BFA4oCTi3WsZsVuM+EJ8Ww1nqB6n7ZVfKhmJ5Fs7GvnfITukHSubQmi/XBqb2AthdZQ==
-X-Received: by 2002:a17:902:b68a:: with SMTP id c10mr5856745pls.248.1550174275109;
-        Thu, 14 Feb 2019 11:57:55 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYUNJ68o+N869pL4Rv1bzOzDLchG7YLgGdiMZzKOEZShrzIPusCYkQOpWLJbJ9dEr3XnzUg
-X-Received: by 2002:a17:902:b68a:: with SMTP id c10mr5856688pls.248.1550174274366;
-        Thu, 14 Feb 2019 11:57:54 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550174274; cv=none;
+        bh=UodKr1fXU4B03KwJD9SdR+UIiFpP5cWdJfx+zOBFFho=;
+        b=iIhNl3AxrOEm88gfwheEKeBtPa8aCyMrv+75VBtFfTDMqQVIJHu8uZcppXcCh0Q/ov
+         3AT2bXvo3ycJMEFod1PMMsw8F6FpXTEvX6sXAwGzol/HuTz65YpiHkYFQOF5SbAr2PHu
+         f3fvMZde+eMZ0rJfQTB/NbuLZTTOy8NnPaUXBF1H9zPudreg8gvJvhMR16yw6cd21EVJ
+         /9/MZVy33CHfbdTYh1m7ecot5ZqZ94fmDsZqgG0+haNwhT3SncyW9JncoIj8y8NLFkKe
+         3dzODnGtXpsvsMBo3LsCWlicB84AWiXZ19biwgVBerqCT5IVSAcSzHwTcm7hbXyKltU+
+         1M9A==
+X-Gm-Message-State: AHQUAuYMJz4uBTIGTPdTUS0eQG6W1KBk5hWmc+zQWdg8z9IWgchEEfID
+	xW6vsUb5i01mh20mYlLXRXzgzV7N7vnFoS3SQAufxTepTm1ZJ8G0jmh+CJ+ANhU/3O6aTTUy9mX
+	KmdW/NkSdiz6hTlUS9MjO8oFyk+hPvy5LABHBdtJNhOiinI5hIA7x6WeBMX7q/EoiEg==
+X-Received: by 2002:a65:620a:: with SMTP id d10mr1540673pgv.75.1550174356691;
+        Thu, 14 Feb 2019 11:59:16 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbjupN3YCMBlk5Iq/COfAS+ZqGoxyBmCgqoJs5tQfng2x++UAfgzWfGwJvevo+thC9KsuIc
+X-Received: by 2002:a65:620a:: with SMTP id d10mr1540622pgv.75.1550174355943;
+        Thu, 14 Feb 2019 11:59:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550174355; cv=none;
         d=google.com; s=arc-20160816;
-        b=U/VUfUotY7eJP1e4EILx4U0cBCCUSGDXijt2GMyBEuvMznUjZD7tjkcuX8/lPPshzb
-         BIbXSdkmIYLWvmD4UYpeNxTnM3R/INb2Fk/3bZtBS06tLV/rXnDgiixVPImyh7LraTjk
-         PaH7zoy9eRBJi4uXkUXlLicD2TNO42+swjgx9JkwypiWDvJISjmxFJLX9RBny87SuGDg
-         EPWVlNAZiKLIhEdJrcGIGCxci7fM/Qx7y9nmGHgs04i1YquSOPvnu/HAGGeS4opv7ks7
-         eEOl/2CZMhqiAEz+kH+N7Pc6QzAt6uCHISCCLUQ49U63t5cistWCvhyGnoSLQDpznQj+
-         wGjg==
+        b=sqQHqB7pWTUZnchCqMWCyAWBdexiNbj3XZn4XWLI9za9ro1QYbzVnX7QEY2LGqWQGD
+         n2ATtS6o+EiBsmIZdb7wygLMh4R0IPAZlFYD2cj4nuJGi4M1dx7DROhDzr8bab2QjdIT
+         hTWjwlPPhldtYrNjF0MgJpEvu9pbQTfD5OlZPOlmJw1X2zz4oQP/J1Mt+PCrMvEv77wZ
+         4xG5rOxqApVY6BJSVeBfDC8fezyXsvlZuBNUHwezP/IvuXstbFafBL9wl42mMUgIHhP1
+         qdai4WHN7OTYaUv8aiaPQVZ3oeODUJvwHaas1tXzN9K3MLAX6MvhnHkoNDVIBnSxVla8
+         23mA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:from:references:cc:to
          :subject:dkim-signature;
-        bh=BdK7IaSpJfGdyre7bODL0VtCcEpshJ2Y4O0xLokGeZA=;
-        b=nUmrlFXWUH8+LoCeK3nMlRTKQEfKsvGdNGy9PQihzhq4yMmGjinnzsaA/ksuJ81j/V
-         k3w9OHN0qHERneq06NoSQl1Kv5vfLx3ozqgRqwqp+uWQIKhYhc3+T5yj/lXxCpwFKOf1
-         6V9+e/UzobaMOH8KCQLr5W+F4HLASwLH2NbOO50tbXULavCO4ZfRU+44uE3VsxOOs3fg
-         4l3WZPE0/ndW48hDJ+YQcRyhB3hSs+/rWGqz+hifMvg5YsJOdh6jPNsapNmX+UqPRfj3
-         JDbbZ+ew5x+OfOyXeLV+O0Xf3Acdbuv49ddOhafFRe5jBYKJH/v1c4utWfRY4APyQgXX
-         LP6Q==
+        bh=UodKr1fXU4B03KwJD9SdR+UIiFpP5cWdJfx+zOBFFho=;
+        b=u4+P4i61MoI2iVgi9GQF/BpxHYMKRilMiI1bx6qbq6RFzUrGMYDYPxYl/yjUso3tpy
+         NamgL110yCwmNSQ7526nriKr6szJeELF/NOqBX3b0B01/5NEpAKcJjQJ75r4V1VA9Tt0
+         6XaiBBgBXaBXTMP0bLpa6vNcd/jCmnMhFdOHO/J5t1Jspk6LFnwk5Oz4iRUwRAFTcCmE
+         +1FkKmC12D1dkgHBlI4aSeuvwSzHjbm2FUsjbsjlU44/LDI/roJ6w7TwZsvg5IADRFUA
+         OH5KSEyo9DIQwAcrO20Zy2Yz/aTxBOdYMomN3PUFnbf+skObETTW3mdQAgXJytzI0k3K
+         gkJg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=owg2EAXP;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=dz2KSoaS;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id 33si3354729plh.245.2019.02.14.11.57.53
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id d19si3345454plr.327.2019.02.14.11.59.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 11:57:54 -0800 (PST)
-Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Thu, 14 Feb 2019 11:59:15 -0800 (PST)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=owg2EAXP;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=dz2KSoaS;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1EJsITk073232;
-	Thu, 14 Feb 2019 19:57:37 GMT
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1EJrseS067506;
+	Thu, 14 Feb 2019 19:58:58 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
  references : from : message-id : date : mime-version : in-reply-to :
  content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=BdK7IaSpJfGdyre7bODL0VtCcEpshJ2Y4O0xLokGeZA=;
- b=owg2EAXP1djY4nOw3m8VNIzE98O8OriShbmSSMKZ1A19elg+OjugPa4ORsAae1iR/QG+
- Oo6TItCage0cFqLHvah7MyhhQEJRLw3heZpg0f9FxV8KjBacCmhDbU4A0xmkJ4AE0tW7
- 7J9JF0zShtWDBE+r9ZN2h7CQ6evngnuEYCI2DcA3CDxWWAikNj2v6M/+F1z0RzJ8PftT
- w/OicGnyFF60fSAZPPiq1gNdWsq+Jc80DNuUYrKuzTkrqjKuKEtmKgryWLQec1RjtvWO
- whVfMYxFhwr12ksKkKKbj0LUcJjPeYPtDBVapSvKu0btUzQCxs69XCHlEjHQ3KEkgP2z tg== 
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2120.oracle.com with ESMTP id 2qhreea5de-1
+ bh=UodKr1fXU4B03KwJD9SdR+UIiFpP5cWdJfx+zOBFFho=;
+ b=dz2KSoaSHx5EwTIfMkUMYh75KBTt6+5VYapY90JnPP3YN45gOftu/wFTxrsPeGsbmK5h
+ +visaHIEiAvue4Xd+4bGNgYt7lbfc+zYfOXEQzRMHKJUFxnV1tG6g65+q5tfG6aA3BpA
+ D8TtR155ODag8FBNXzn3S6DTZiyWB6F0pJdzRGEzuSmzl9Rz9LQqmIfzNKYzbRnN9bc/
+ lBRUIM6Y5Oq6+T6oN6RGvDzO6uL4zNKXvnmZ+PsB2H2eDIOrR+gKGarWeP2ch5DMY2ik
+ Od+aJaE2jMhXzYO/HAqzB74XTf11f9opBt+Bj0bQDOut39OrK+J4N+QoAE3ahIa8FFHa fg== 
+Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
+	by userp2130.oracle.com with ESMTP id 2qhrekt4hs-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Feb 2019 19:57:36 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1EJvZQN015680
+	Thu, 14 Feb 2019 19:58:57 +0000
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x1EJwus2011554
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 14 Feb 2019 19:57:35 GMT
-Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x1EJvXGY021984;
-	Thu, 14 Feb 2019 19:57:33 GMT
+	Thu, 14 Feb 2019 19:58:56 GMT
+Received: from abhmp0016.oracle.com (abhmp0016.oracle.com [141.146.116.22])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1EJwuSJ018915;
+	Thu, 14 Feb 2019 19:58:56 GMT
 Received: from [192.168.1.16] (/24.9.64.241)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 14 Feb 2019 19:57:33 +0000
-Subject: Re: [RFC PATCH v8 13/14] xpfo, mm: Defer TLB flushes for non-current
- CPUs (x86 only)
-To: Dave Hansen <dave.hansen@intel.com>, juergh@gmail.com, tycho@tycho.ws,
-        jsteckli@amazon.de, ak@linux.intel.com, torvalds@linux-foundation.org,
-        liran.alon@oracle.com, keescook@google.com, akpm@linux-foundation.org,
-        mhocko@suse.com, catalin.marinas@arm.com, will.deacon@arm.com,
-        jmorris@namei.org, konrad.wilk@oracle.com
-Cc: deepa.srinivasan@oracle.com, chris.hyser@oracle.com, tyhicks@canonical.com,
-        dwmw@amazon.co.uk, andrew.cooper3@citrix.com, jcm@redhat.com,
-        boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com,
+	with ESMTP ; Thu, 14 Feb 2019 19:58:56 +0000
+Subject: Re: [RFC PATCH v8 03/14] mm, x86: Add support for eXclusive Page
+ Frame Ownership (XPFO)
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: juergh@gmail.com, jsteckli@amazon.de, tycho@tycho.ws, ak@linux.intel.com,
+        torvalds@linux-foundation.org, liran.alon@oracle.com,
+        keescook@google.com, akpm@linux-foundation.org, mhocko@suse.com,
+        catalin.marinas@arm.com, will.deacon@arm.com, jmorris@namei.org,
+        konrad.wilk@oracle.com,
+        Juerg Haefliger <juerg.haefliger@canonical.com>,
+        deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
+        tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
+        jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com,
         joao.m.martins@oracle.com, jmattson@google.com,
         pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de,
         kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com,
-        labbott@redhat.com, luto@kernel.org, peterz@infradead.org,
+        labbott@redhat.com, luto@kernel.org, dave.hansen@intel.com,
         kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
         x86@kernel.org, linux-arm-kernel@lists.infradead.org,
-        linux-kernel@vger.kernel.org
+        linux-kernel@vger.kernel.org,
+        Marco Benatto <marco.antonio.780@gmail.com>
 References: <cover.1550088114.git.khalid.aziz@oracle.com>
- <98134cb73e911b2f0b59ffb76243a7777963d218.1550088114.git.khalid.aziz@oracle.com>
- <a6510fa8-e96d-677b-78df-da9a19c4089b@intel.com>
+ <8275de2a7e6b72d19b1cd2ec5d71a42c2c7dd6c5.1550088114.git.khalid.aziz@oracle.com>
+ <20190214105631.GJ32494@hirez.programming.kicks-ass.net>
+ <e157e274-1bdf-0987-bfe9-21c9301578ab@oracle.com>
+ <20190214190803.GQ32477@hirez.programming.kicks-ass.net>
 From: Khalid Aziz <khalid.aziz@oracle.com>
 Organization: Oracle Corp
-Message-ID: <95fb62d4-1dbc-e420-74c1-ff929c5552e1@oracle.com>
-Date: Thu, 14 Feb 2019 12:57:30 -0700
+Message-ID: <3b55fb25-9571-2208-4e04-052cd6dd4fee@oracle.com>
+Date: Thu, 14 Feb 2019 12:58:53 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <a6510fa8-e96d-677b-78df-da9a19c4089b@intel.com>
+In-Reply-To: <20190214190803.GQ32477@hirez.programming.kicks-ass.net>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: quoted-printable
@@ -151,85 +156,32 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/14/19 10:42 AM, Dave Hansen wrote:
->>  #endif
->> +
->> +	/* If there is a pending TLB flush for this CPU due to XPFO
->> +	 * flush, do it now.
->> +	 */
+On 2/14/19 12:08 PM, Peter Zijlstra wrote:
+> On Thu, Feb 14, 2019 at 10:13:54AM -0700, Khalid Aziz wrote:
 >=20
-> Don't forget CodingStyle in all this, please.
-
-Of course. I will fix that.
-
+>> Patch 11 ("xpfo, mm: remove dependency on CONFIG_PAGE_EXTENSION") clea=
+ns
+>> all this up. If the original authors of these two patches, Juerg
+>> Haefliger and Julian Stecklina, are ok with it, I would like to combin=
+e
+>> the two patches in one.
 >=20
->> +	if (cpumask_test_and_clear_cpu(cpu, &pending_xpfo_flush)) {
->> +		count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
->> +		__flush_tlb_all();
->> +	}
+> Don't preserve broken patches because of different authorship or
+> whatever.
 >=20
-> This seems to exist in parallel with all of the cpu_tlbstate
-> infrastructure.  Shouldn't it go in there?
-
-That sounds like a good idea. On the other hand, pending flush needs to
-be kept track of entirely within arch/x86/mm/tlb.c and using a local
-variable with scope limited to just that file feels like a lighter
-weight implementation. I could go either way.
-
+> If you care you can say things like:
 >=20
-> Also, if we're doing full flushes like this, it seems a bit wasteful to=
-
-> then go and do later things like invalidate_user_asid() when we *know*
-> that the asid would have been flushed by this operation.  I'm pretty
-> sure this isn't the only __flush_tlb_all() callsite that does this, so
-> it's not really criticism of this patch specifically.  It's more of a
-> structural issue.
+>  Based-on-code-from:
+>  Co-developed-by:
+>  Originally-from:
 >=20
+> or whatever other things there are. But individual patches should be
+> correct and complete.
 >=20
 
-That is a good point. It is not just wasteful, it is bound to have
-performance impact even if slight.
+That sounds reasonable. I will merge these two patches in the next versio=
+n.
 
->> +void xpfo_flush_tlb_kernel_range(unsigned long start, unsigned long e=
-nd)
->> +{
->=20
-> This is a bit lightly commented.  Please give this some good
-> descriptions about the logic behind the implementation and the tradeoff=
-s
-> that are in play.
->=20
-> This is doing a local flush, but deferring the flushes on all other
-> processors, right?  Can you explain the logic behind that in a comment
-> here, please?  This also has to be called with preemption disabled, rig=
-ht?
->=20
->> +	struct cpumask tmp_mask;
->> +
->> +	/* Balance as user space task's flush, a bit conservative */
->> +	if (end =3D=3D TLB_FLUSH_ALL ||
->> +	    (end - start) > tlb_single_page_flush_ceiling << PAGE_SHIFT) {
->> +		do_flush_tlb_all(NULL);
->> +	} else {
->> +		struct flush_tlb_info info;
->> +
->> +		info.start =3D start;
->> +		info.end =3D end;
->> +		do_kernel_range_flush(&info);
->> +	}
->> +	cpumask_setall(&tmp_mask);
->> +	cpumask_clear_cpu(smp_processor_id(), &tmp_mask);
->> +	cpumask_or(&pending_xpfo_flush, &pending_xpfo_flush, &tmp_mask);
->> +}
->=20
-> Fun.  cpumask_setall() is non-atomic while cpumask_clear_cpu() and
-> cpumask_or() *are* atomic.  The cpumask_clear_cpu() is operating on
-> thread-local storage and doesn't need to be atomic.  Please make it
-> __cpumask_clear_cpu().
->=20
-
-I will fix that. Thanks!
-
---
+Thanks,
 Khalid
 
