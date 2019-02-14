@@ -2,149 +2,158 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A621EC10F04
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 16:16:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3FE06C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 16:18:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 63C622077B
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 16:16:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EF9702077B
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 16:18:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=alien8.de header.i=@alien8.de header.b="X9N2wtn6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 63C622077B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=alien8.de
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="mS1kRCWJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF9702077B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2FFB18E0002; Thu, 14 Feb 2019 11:16:00 -0500 (EST)
+	id 855B28E0003; Thu, 14 Feb 2019 11:18:50 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 287198E0001; Thu, 14 Feb 2019 11:16:00 -0500 (EST)
+	id 803108E0001; Thu, 14 Feb 2019 11:18:50 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 129E78E0002; Thu, 14 Feb 2019 11:16:00 -0500 (EST)
+	id 6F2BF8E0003; Thu, 14 Feb 2019 11:18:50 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AF3168E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 11:15:59 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id s5so2401284wrp.17
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 08:15:59 -0800 (PST)
+Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EFDB8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 11:18:50 -0500 (EST)
+Received: by mail-vk1-f199.google.com with SMTP id d123so2748069vka.4
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 08:18:50 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=nRzGo2WdRGVlfCrR5IW3r6niSjb+gE5vLdPAiNJgD2c=;
-        b=nKU01rlF9qwGPiATzFOeTkE6tgFuHDomoOE59rU5+2ZJtFHvnd2JiqIcuzXh22uISM
-         h4erI1YHKWtMX5rUF6WCULKaK4NvQ+rurbVZTIrWI6Yxen3d4KBzVfO694XuWBTymQHi
-         Rew2jTcPc5d2/1mhlsCtoELVBAUKsb3hkueLuuPepoI2/AzeloFqk/qaIpA8cxxewrtz
-         uoQzvTnrWDQpBENE2w6kUGkIzSo6ur3yrjB/si/Ydc/dXng8Imzn2HfyjJGaWi0f/g4V
-         KYDJN1Z3Cqz2kSMg1otqtBK/O5PNWdiQ0rSj8gPWZZm/ajN+4KVcTzSd0H1xappg+6Px
-         uFTQ==
-X-Gm-Message-State: AHQUAuYKjjoW7R/dLD3UE/xy4yaca1X0MsYqsQu3WgiZHgkIhdS++kQL
-	jhgbxcxbU5mOxMCU4rSHdLj1napYLG7QX+2aimPRPUXd4KNhf0+LwHpDQlgVJl5siIPnnnKNHAu
-	nBQnOvTvFa/kaqhRgTSuQ2LatpHJqszQx341si8eEpWP0gBqmfVAx0xxEd3Asn0ZHWg==
-X-Received: by 2002:a1c:c010:: with SMTP id q16mr1560794wmf.134.1550160959263;
-        Thu, 14 Feb 2019 08:15:59 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZBXBktQydHy9/oV/VtKIZzO1HNP/PY2w/f8x2bjIZ7si2eR78SsZOeq6iTuqKRwboZqawO
-X-Received: by 2002:a1c:c010:: with SMTP id q16mr1560747wmf.134.1550160958411;
-        Thu, 14 Feb 2019 08:15:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550160958; cv=none;
+        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
+         :subject:from:to:cc;
+        bh=oKk58CX0dVCOzbtvHNUy4h7TKuAtrChgZJQZr0P+GiE=;
+        b=df6zMGj7Hg+j3CqIPAn5mOR7OrTgCj/lCdPA1/AJ0Tg2b/Jfzs7jqryGYeKyt6giTR
+         8Lh26A5RKhprZCcZ5Fnt7L6eq4TcRuXkkcyVpLTmjour9YDrm7g9KBCetiRz38Lrmjuw
+         mtGnh6i6biLR/hg7+dMU+beDw1zOBNvJD2d+XmrmE4Ik9wqf/s6GQ69nuOb3SFCsPrbM
+         3DLMG2enDn+0SGazpmZUR8HFnRFoNNWE4z1rQfF6ePGgJQFR9NKn0VOMZ48Gxgoz+k4b
+         m2DO39X/XvFcp0/r1Y4+8wMBauAb7N6Sf5w82+Xezskex072dYwMnJSvbcnhjlm7mjTp
+         YleA==
+X-Gm-Message-State: AHQUAuYp4r+PiRQCkAvWN9CrU3PU36skbMjOArdRj6gjOnZY8KpAMfoE
+	4MmxTyC7173PyaJFlOcMPlQu+lyOlj6l10yU+rIrVnr+Flb/KZUxMtVWoDK/YnPfQUqGd8fIPIX
+	ZzfJndGAUxO6pa3CjYnYyn2DNN1G600tu2Ix5/f2lt7xw13XCFuFlcZRtoUpFRY0mVcDLRwsQmm
+	W/UhHxaT4VOJRsYu5QaPFZr/2rmETFRFvdW9WSVJqBWiMW/YdcGPU+ueMkIIERsMCveig2MaOss
+	NK0PKebHLS7GzUrKXKNGvbdShLRTiVvLb4RmPV9a5iiccCFI6pq/FgTuZfGE5mVgQc7bDtlx+Yp
+	D7PselUHAtVjiFXYM1kQwTev9uBfvJ/XqnYcrY8yrErwOgHQ6L7oEw1m5kP60jj1PTbfPi8lNtU
+	k
+X-Received: by 2002:a67:7e09:: with SMTP id z9mr2366207vsc.194.1550161129621;
+        Thu, 14 Feb 2019 08:18:49 -0800 (PST)
+X-Received: by 2002:a67:7e09:: with SMTP id z9mr2366159vsc.194.1550161128779;
+        Thu, 14 Feb 2019 08:18:48 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550161128; cv=none;
         d=google.com; s=arc-20160816;
-        b=qLiTym9ZyHfr0VnUT94nKP+krh3JJYhg2nGU6l5fsxN5hQ+NWJI73Xk4ySWmFb7tNv
-         NM81Cx/kxRWacaLpyHNAcJu+1hAGj/JPas39SL0q5oGzKp2SzMagIEAVdVxnBFQXNpmp
-         hv1nAoSbG/zd1RkKl3RJa7h1Ejr436o83VtHUv5DnFVLKc4DDGW0aW8hFNmql/E2P42Z
-         y7vxG7QtbxtzWqiu87KW8fLdKUamUk3rri1Oxu+19t6WNOBlVzw2ARPiktvYYzE2uXfA
-         0j+0IXg6yIWpaLsTZirAYkoHjvj47jJ9hO5/DP/ICo/XksRQYeeviCKEbmy5ulrstIuM
-         Ld9g==
+        b=tO0aW1C5TfkvTX1El4Z8joHnt6Ol70QU1iQ553A22uSBM5bks94L3QxFDH7/zU1Tos
+         kOi7ckbVDPSidHaVZlMbUPWeM58HdicmyhpgnbzUGn9JLcPEMC3kun8sm1Y8rhCD7zJF
+         uPqGRbsuetXP6CNpaGfg5VLEislARPjgg4GGGyBOLzgOWwNShldvoKZl/RTgtqikfEXx
+         5TxHX0JFH6kyGHcDlCTiH04RpjJiVJ063aPUkqPcSWtFJdBNkmpFFVIA9cqUXIkBdHRZ
+         bXs1BptPfIRcclhz005RJwIpMd7YOrF2xt71KKHoLtjgA0TMfoum2QKQOZ9J2IOWhoXo
+         V3Cw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=nRzGo2WdRGVlfCrR5IW3r6niSjb+gE5vLdPAiNJgD2c=;
-        b=tl03ALRuhBpH/jRaHuS7tWwulHwkgDgUKfyngdtaJPLx2NS1qMisyJ8mzJZ14irHIs
-         6cXglblwxTF+R8wCrALuZOwCjviw5tu3jMgK/8BUOBoumZCQQPPjcnilg2VxFVVaYVm+
-         kf7P4WrG8VnxbAIhzO00xzBeckYO0rZ5c9yY75QEd5vf6vSRp7kBUQln2mIDIb49LNTb
-         rKOAX4Q1odQ9bFTfJ8uRW5o7U3+TyqC1Oiajfo50NXYGdk3PjlAs6K3Ha6BnbYkkzCcM
-         tak62t6WA8a8ONyS5ST+kjfF7/QyAH3XScPSaP+q6++6cnFZZWlDYhGv2pEFWa5Ccrjf
-         1KFA==
+        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
+        bh=oKk58CX0dVCOzbtvHNUy4h7TKuAtrChgZJQZr0P+GiE=;
+        b=Oi1yQGswr6ye5gm9Sz7LgRGnuwm09YaXzMeUFZqtkU6zoMs6+jTB/4LPHBG7NpX/Gw
+         kih64jFKsagZfu3fhV4SZiHWLsZCr8DH7y8NFrfkx2Cl7SL1DeqDzn/H/JblQsdpEJV/
+         7E6BZZxV0O28Z5V1dR9r15ncv+hqmH2leF+89YksMCySMYnd17usI/gA9WL7Z65vCzLb
+         KvezQa86F7DL3XOFikS7pvEcKLI6mwvW/pJoJh9Tb3oskUKPQ2wwQ4sFaoKhU2ZVU40h
+         JmMkUp0iOXFAM8i5kSrH0ZhxIoCDPzQN71hK0bk+L2JQVXs7WQAIYh4OOM0tx8Pj4u+q
+         YgwA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b=X9N2wtn6;
-       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id j34si1914448wre.310.2019.02.14.08.15.58
+       dkim=pass header.i=@google.com header.s=20161025 header.b=mS1kRCWJ;
+       spf=pass (google.com: domain of 36jrlxaukcje4v88219916z.x97638fi-775gvx5.9c1@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=36JRlXAUKCJE4v88219916z.x97638FI-775Gvx5.9C1@flex--jannh.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id e63sor1502022vkh.5.2019.02.14.08.18.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 08:15:58 -0800 (PST)
-Received-SPF: pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) client-ip=5.9.137.197;
+        (Google Transport Security);
+        Thu, 14 Feb 2019 08:18:48 -0800 (PST)
+Received-SPF: pass (google.com: domain of 36jrlxaukcje4v88219916z.x97638fi-775gvx5.9c1@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b=X9N2wtn6;
-       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from zn.tnic (p200300EC2BCDFC001CE8649D49136343.dip0.t-ipconnect.de [IPv6:2003:ec:2bcd:fc00:1ce8:649d:4913:6343])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.skyhub.de (SuperMail on ZX Spectrum 128k) with ESMTPSA id 11D161EC0253;
-	Thu, 14 Feb 2019 17:15:57 +0100 (CET)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=alien8.de; s=dkim;
-	t=1550160957;
-	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
-	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
-	 content-transfer-encoding:in-reply-to:in-reply-to:  references:references;
-	bh=nRzGo2WdRGVlfCrR5IW3r6niSjb+gE5vLdPAiNJgD2c=;
-	b=X9N2wtn6f0+HrkqlYxsrPU1T4BUJXTu6UuzwxZwPNn+jFGABVXEN4BN5WClF+wGi1DxAQq
-	E/Rvm4hnd4jV3rJSqgqbAXFSHNsWcXRoVTe1Ju+cvwu5Lugv3hoDPrpvlrXJiHO4y4eoFV
-	P1NBzIFEoRdA87/zavwJ2qWiX1cCQrQ=
-Date: Thu, 14 Feb 2019 17:15:52 +0100
-From: Borislav Petkov <bp@alien8.de>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Khalid Aziz <khalid.aziz@oracle.com>, juergh@gmail.com, tycho@tycho.ws,
-	jsteckli@amazon.de, ak@linux.intel.com,
-	torvalds@linux-foundation.org, liran.alon@oracle.com,
-	keescook@google.com, akpm@linux-foundation.org, mhocko@suse.com,
-	catalin.marinas@arm.com, will.deacon@arm.com, jmorris@namei.org,
-	konrad.wilk@oracle.com,
-	Juerg Haefliger <juerg.haefliger@canonical.com>,
-	deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
-	tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
-	jcm@redhat.com, boris.ostrovsky@oracle.com,
-	kanth.ghatraju@oracle.com, oao.m.martins@oracle.com,
-	jmattson@google.com, pradeep.vincent@oracle.com,
-	john.haxby@oracle.com, tglx@linutronix.de,
-	kirill.shutemov@linux.intel.com, hch@lst.de,
-	steven.sistare@oracle.com, labbott@redhat.com, luto@kernel.org,
-	dave.hansen@intel.com, kernel-hardening@lists.openwall.com,
-	linux-mm@kvack.org, x86@kernel.org,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-	Tycho Andersen <tycho@docker.com>,
-	Marco Benatto <marco.antonio.780@gmail.com>
-Subject: Re: [RFC PATCH v8 03/14] mm, x86: Add support for eXclusive Page
- Frame Ownership (XPFO)
-Message-ID: <20190214161552.GF4423@zn.tnic>
-References: <cover.1550088114.git.khalid.aziz@oracle.com>
- <8275de2a7e6b72d19b1cd2ec5d71a42c2c7dd6c5.1550088114.git.khalid.aziz@oracle.com>
- <20190214105631.GJ32494@hirez.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20190214105631.GJ32494@hirez.programming.kicks-ass.net>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+       dkim=pass header.i=@google.com header.s=20161025 header.b=mS1kRCWJ;
+       spf=pass (google.com: domain of 36jrlxaukcje4v88219916z.x97638fi-775gvx5.9c1@flex--jannh.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=36JRlXAUKCJE4v88219916z.x97638FI-775Gvx5.9C1@flex--jannh.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:message-id:mime-version:subject:from:to:cc;
+        bh=oKk58CX0dVCOzbtvHNUy4h7TKuAtrChgZJQZr0P+GiE=;
+        b=mS1kRCWJiqrdR2I28pUMVV7dUzsj3u2bjHCUuI1NBtQnbga7MdZBcOecCT/pcqcejq
+         vO1xAFuMg6VDkg8uPNFaOHnBrlw2chDWQDiXjw+h6DE6tV9RtuCvNyo1PUP5vIe8imOF
+         39OwTiGs+9LBH+dhgd0V/r7UBChbHyx9tFPR614u1JbIGgz3CDPbdjlvZVi+sAagWG8E
+         IAFtUPDvv/CGkdtEvRnmhARHFWDqquO0JkXZLHdGbJtd5z5f2AHcWxF8snFUTZtZXWfq
+         GeoppSp43tw3sgvx5sgNvoOpIdOvOqM6HCBivjype7Di1sY+7KLFCYDxTxWFceJKLZQR
+         tvFQ==
+X-Google-Smtp-Source: AHgI3IZENa5stLf3BmZXrkkpDjFibVOtJyqCAzo3f+gbiNpbmVAskmxuKgc5hqf1elacYQ5y/Si280bI2w==
+X-Received: by 2002:a1f:2d08:: with SMTP id t8mr2942878vkt.14.1550161128419;
+ Thu, 14 Feb 2019 08:18:48 -0800 (PST)
+Date: Thu, 14 Feb 2019 17:18:36 +0100
+Message-Id: <20190214161836.184044-1-jannh@google.com>
+Mime-Version: 1.0
+X-Mailer: git-send-email 2.21.0.rc0.258.g878e2cd30e-goog
+Subject: [PATCH v2] mmap.2: fix description of treatment of the hint
+From: Jann Horn <jannh@google.com>
+To: mtk.manpages@gmail.com, jannh@google.com
+Cc: linux-man@vger.kernel.org, linux-mm@kvack.org, 
+	Michal Hocko <mhocko@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000429, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 14, 2019 at 11:56:31AM +0100, Peter Zijlstra wrote:
-> > +EXPORT_SYMBOL(xpfo_kunmap);
-> 
-> And these here things are most definitely not IRQ-safe.
+The current manpage reads to me as if the kernel will always pick a free
+space close to the requested address, but that's not the case:
 
-Should also be EXPORT_SYMBOL_GPL.
+mmap(0x600000000000, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS,
+-1, 0) = 0x600000000000
+mmap(0x600000000000, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS,
+-1, 0) = 0x7f5042859000
 
+You can also see this in the various implementations of
+->get_unmapped_area() - if the specified address isn't available, the
+kernel basically ignores the hint (apart from the 5level paging hack).
+
+Clarify how this works a bit.
+
+Signed-off-by: Jann Horn <jannh@google.com>
+---
+changed in v2:
+ - be less specific about what the kernel does when the requested address
+   is unavailable to avoid constraining future behavior changes
+   (Michal Hocko)
+
+ man2/mmap.2 | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/man2/mmap.2 b/man2/mmap.2
+index fccfb9b3e..dbcae59be 100644
+--- a/man2/mmap.2
++++ b/man2/mmap.2
+@@ -71,7 +71,12 @@ If
+ .I addr
+ is not NULL,
+ then the kernel takes it as a hint about where to place the mapping;
+-on Linux, the mapping will be created at a nearby page boundary.
++on Linux, the kernel will pick a nearby page boundary (but always above
++or equal to the value specified by
++.IR /proc/sys/vm/mmap_min_addr )
++and attempt to create the mapping there.
++If another mapping already exists there, the kernel picks a new address that
++may or may not depend on the hint.
+ .\" Before Linux 2.6.24, the address was rounded up to the next page
+ .\" boundary; since 2.6.24, it is rounded down!
+ The address of the new mapping is returned as the result of the call.
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+2.21.0.rc0.258.g878e2cd30e-goog
 
