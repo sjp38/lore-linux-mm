@@ -2,138 +2,156 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C88FC10F04
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:13:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B991C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:14:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2A801222DA
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:13:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A801222DA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=davemloft.net
+	by mail.kernel.org (Postfix) with ESMTP id 1EFD3206B6
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 17:14:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1EFD3206B6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D0F738E0005; Thu, 14 Feb 2019 12:13:32 -0500 (EST)
+	id C4ACB8E0006; Thu, 14 Feb 2019 12:14:00 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CBD088E0001; Thu, 14 Feb 2019 12:13:32 -0500 (EST)
+	id BFA438E0001; Thu, 14 Feb 2019 12:14:00 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BD3868E0005; Thu, 14 Feb 2019 12:13:32 -0500 (EST)
+	id B10058E0006; Thu, 14 Feb 2019 12:14:00 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 69F938E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 12:13:32 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id b8so2490312wru.10
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 09:13:32 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 59BFA8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 12:14:00 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id b3so2806522edi.0
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 09:14:00 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date
-         :message-id:to:cc:subject:from:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=OpBG4h/Nj4VmKx6rfBl+RnWgxImWBhrruCrw1BAcLS8=;
-        b=sbZBvqgei5DuOZYlfSgDvFCXDguUlY97a+V5hHvpGIVElRzpTfhDl9EUYhbFdTTlFL
-         1P6nkggeU291LrEavCddieWp4IU6wtCr1AJA/GZeLLSaO8POqDFlwI98NZpIJC8qynAC
-         hcj4R+8/DAJiStGY2RoXh+8+0WAmb2H+V0+oXc/4RpuwJNsmoZvDrzBIawpuo62X4bBv
-         qMT7FLzCNJ9KcPlEXp8yJfvZuZ9Y5og0k6sF+c071OkzsmUbtMX4b2s8DfMtM0Kege0r
-         BjFldpBsz/47rfa3CXUpMXLWnBF/YwIMKYR95nSPx4mOeDLoLgKeZ61q+8J9pQYf033S
-         lSPg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-X-Gm-Message-State: AHQUAublIC878pi/yVjZZ9Uwo3qavlcjjlUEjt5hAvBSD6N/cOvL3mjR
-	Dy2lk6kIq6iucD8MHxU33zLK4P1k0v8k/d/Y5uuGfZPgj6DLSHTTi9jwUxWPoqfVMkMT5Nx9Cos
-	iRIQMSNmcBI7dkcAz9QZplW9rp9CEmh/qDKrEOXqfZLdXWQOHghWh6g43NLBPwxc=
-X-Received: by 2002:adf:8447:: with SMTP id 65mr3503070wrf.328.1550164411949;
-        Thu, 14 Feb 2019 09:13:31 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ+7eCVgPWbFM405wHKBX6hz1S6qHcmhqXn15NGEFouUxawPWbKtsfExPwRn11iKIYMikYX
-X-Received: by 2002:adf:8447:: with SMTP id 65mr3503021wrf.328.1550164411121;
-        Thu, 14 Feb 2019 09:13:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550164411; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=KoJ2hmB2EuTXveUt+Cu906+g5CIR2gb8MLMwmOc7vtM=;
+        b=e7Tq34lKbR8OPLQV+RvbmMycUPmEftZYVk7SEq+nPgDZbS4Ap2JebkSuDVoA1+5ANn
+         gIzWFFjeLC0Y1zluuHKecD5UdXommwzr2EMamLWiHqXlJ8dqu8xL8XCTUfxAYz3JAUfY
+         fZ6e22MP20i2AR+tWf8UpnXDn/JnK5uc7/f47wDDRAmPU4nAbLs5RwrA94hnn9UgNg5t
+         rC9Qq7FpGcmzU4g4QLegE8zEYcYbsMv3sREKKucFMWUaTgw/Ar6ODgPfG4PXrrFQ0vDM
+         fWRX341v7Za8fd94urygNKWzreMFDjQUpdTDEWQWJjdR+TQq09Ztq5T5rBAH2H7hA6n3
+         kn+g==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAub+3qpqGcP+xGb4Ht1vj419jrJgYblneSJWsRWmPKKp5Z7Za0aS
+	9ol17O+HkptZc19rVgUCBY1HvjG7kZELZ+9hNxMakCZIMnRVvigmTVIlbAv9sEXYWHfHnFhc+uM
+	6ts4CMMHj0ieAmxoBn2b4Dc9ZL7ENTZz9I++CW4vBlBmFTXHbKzQ0jhOjAUOPjhs=
+X-Received: by 2002:a17:906:4bc8:: with SMTP id x8mr3653280ejv.6.1550164439896;
+        Thu, 14 Feb 2019 09:13:59 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbfJv/EZj6jwVwdhRSamaOXf3Zi0xzyRMb5ypIIWdWABaarsANfLwD/G13jajfBFYjBIZNV
+X-Received: by 2002:a17:906:4bc8:: with SMTP id x8mr3653237ejv.6.1550164438977;
+        Thu, 14 Feb 2019 09:13:58 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550164438; cv=none;
         d=google.com; s=arc-20160816;
-        b=hFQXpRJgq4BAvcelL3Q2saDBjDpPDWBwKzm/0tYKPJHyrEc3YqcmJtHnizpcwv7veZ
-         Rwi85OAecI3EB2MeuiMzvCu/hltWUWO+dNihi7zfEtO+k5bhKfgBA/6OsJoASlgPS0YF
-         zZsbBHNI1wgulsCTtvORucHE9JCQa2lAh8s+FJ+rW1eXYJzJPMLPHBb8Hgtle37ZnTJn
-         BdtdfWONGLz189tqW7+nusH6iNIdUO3kqKQC2y4qzC91mdDykcNUWzomcq/11cVpDAdq
-         UFUWG619jRYHSjVzX81EuczqRrkXv4LLfYs6VakqwVloCyzc+7nYXNXo0xusfI94QbVn
-         sGIg==
+        b=o2BfFWlGbfnw2LpU7VZK0JLsj+KeOoEpLZoVHBNCgC/o2NwZzSywKvFReEIHK3Ydb/
+         MnM0SSD8aYnf7kgwy8HskynSIEnj+DPYrtyScTzv/9Btv7HED70UTcdsphBNIyhLpq0L
+         AAmtSiDpxg7G0FmDWnT2Tux3Mfx+YWAkbF0I5szGskGsUKe66w4Nvt1EeLwDXuussMYq
+         RM8PtjbXYuAkvptfzn5sMa2ii48wlPW5mtHiwhpbF2Dgh3WzTBmauYzHNqnab/XQ1+C4
+         N5TNcM6x37GCyofPSMd5OKIJ8T71zaMe0mAKlTWEMY0abceVPxwhU1OZqt4W6PFabv/X
+         uPAQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:from
-         :subject:cc:to:message-id:date;
-        bh=OpBG4h/Nj4VmKx6rfBl+RnWgxImWBhrruCrw1BAcLS8=;
-        b=wm96BUR1jxdj4j+Ibc8ReCpTvmekJAU5z5hN3BrjJ6uya+Y0mb1cxW+N5PiVHoJTpl
-         CKj4aEt8aIPbm0cb9AzcuR+BeW3IbDcRHn5h3sBOrBeaEYEBBYWnROFs21PmVzzkVD/E
-         buscFlONN9YaUnZAp0WAAJddTf8SfXdhgyLrwc9LlfGsi6XjpyGG2Rv0bbagken3eYOt
-         ZRQoKH1tKcD1390l8y+eESkkfQDqwvvqOqNoAAwwMB47X4cwJ8pONpBSBtXwF1H0W/nV
-         7Q8m5YKRHRKDp3y8BBc/8hpLlmSdemUvNOZkLYgIF7s9AMPzh36X5fl1ytyLxbvoWxXT
-         50xQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=KoJ2hmB2EuTXveUt+Cu906+g5CIR2gb8MLMwmOc7vtM=;
+        b=m3VhNOPCyHD6ybUZb/jcZmQRffrVGE7OO3rbru4/l2F0Lnlm5ANDedNZyaFMV7wgmo
+         aNXLZztHu7TfUb/oq4qbGcWxNNXdBJNDBJNNVMaoiLodZXEfdo06qVuRhacJ5a9G4brU
+         iYELlZya14xcIk0U8Oi3b4qCHNRbKgvv0y4ITBjh/GCm9KbKTjN1+WkVs4v5h/wJTqrD
+         1sIyNX85e1tDxMWb32dNmxDOODfM5Us2t7E9k/xTgbyUREjIRVz32sAbAZbOC78rmaGD
+         jsJCuPfTWZr+kxOf5MKp8yJWlI9CicAHppzwN8lMtbWhdK0D3frEZoMkhFfH2oXEU7P6
+         e+bQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2620:137:e000::1:9])
-        by mx.google.com with ESMTPS id o19si1948621wmc.113.2019.02.14.09.13.30
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e28si78330edj.410.2019.02.14.09.13.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 09:13:30 -0800 (PST)
-Received-SPF: neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) client-ip=2620:137:e000::1:9;
+        Thu, 14 Feb 2019 09:13:58 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-Received: from localhost (96-89-128-221-static.hfc.comcastbusiness.net [96.89.128.221])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
-	(Client did not present a certificate)
-	(Authenticated sender: davem-davemloft)
-	by shards.monkeyblade.net (Postfix) with ESMTPSA id CD96614D5ECC8;
-	Thu, 14 Feb 2019 09:13:28 -0800 (PST)
-Date: Thu, 14 Feb 2019 09:13:28 -0800 (PST)
-Message-Id: <20190214.091328.1687361207100252890.davem@davemloft.net>
-To: jannh@google.com
-Cc: netdev@vger.kernel.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, mhocko@suse.com, vbabka@suse.cz,
- pavel.tatashin@microsoft.com, osalvador@suse.de,
- mgorman@techsingularity.net, aaron.lu@intel.com,
- alexander.h.duyck@redhat.com
-Subject: Re: [RESEND PATCH net] mm: page_alloc: fix ref bias in
- page_frag_alloc() for 1-byte allocs
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20190213214559.125666-1-jannh@google.com>
-References: <20190213214559.125666-1-jannh@google.com>
-X-Mailer: Mew version 6.8 on Emacs 26.1
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-X-Greylist: Sender succeeded SMTP AUTH, not delayed by milter-greylist-4.5.12 (shards.monkeyblade.net [149.20.54.216]); Thu, 14 Feb 2019 09:13:29 -0800 (PST)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 90EEAAD25;
+	Thu, 14 Feb 2019 17:13:58 +0000 (UTC)
+Date: Thu, 14 Feb 2019 18:13:57 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Jann Horn <jannh@google.com>
+Cc: mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH v2] mmap.2: fix description of treatment of the hint
+Message-ID: <20190214171357.GO4525@dhcp22.suse.cz>
+References: <20190214161836.184044-1-jannh@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190214161836.184044-1-jannh@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jann Horn <jannh@google.com>
-Date: Wed, 13 Feb 2019 22:45:59 +0100
-
-> The basic idea behind ->pagecnt_bias is: If we pre-allocate the maximum
-> number of references that we might need to create in the fastpath later,
-> the bump-allocation fastpath only has to modify the non-atomic bias value
-> that tracks the number of extra references we hold instead of the atomic
-> refcount. The maximum number of allocations we can serve (under the
-> assumption that no allocation is made with size 0) is nc->size, so that's
-> the bias used.
+On Thu 14-02-19 17:18:36, Jann Horn wrote:
+> The current manpage reads to me as if the kernel will always pick a free
+> space close to the requested address, but that's not the case:
 > 
-> However, even when all memory in the allocation has been given away, a
-> reference to the page is still held; and in the `offset < 0` slowpath, the
-> page may be reused if everyone else has dropped their references.
-> This means that the necessary number of references is actually
-> `nc->size+1`.
+> mmap(0x600000000000, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS,
+> -1, 0) = 0x600000000000
+> mmap(0x600000000000, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS,
+> -1, 0) = 0x7f5042859000
 > 
-> Luckily, from a quick grep, it looks like the only path that can call
-> page_frag_alloc(fragsz=1) is TAP with the IFF_NAPI_FRAGS flag, which
-> requires CAP_NET_ADMIN in the init namespace and is only intended to be
-> used for kernel testing and fuzzing.
+> You can also see this in the various implementations of
+> ->get_unmapped_area() - if the specified address isn't available, the
+> kernel basically ignores the hint (apart from the 5level paging hack).
 > 
-> To test for this issue, put a `WARN_ON(page_ref_count(page) == 0)` in the
-> `offset < 0` path, below the virt_to_page() call, and then repeatedly call
-> writev() on a TAP device with IFF_TAP|IFF_NO_PI|IFF_NAPI_FRAGS|IFF_NAPI,
-> with a vector consisting of 15 elements containing 1 byte each.
+> Clarify how this works a bit.
 > 
 > Signed-off-by: Jann Horn <jannh@google.com>
 
-Applied and queued up for -stable.
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+
+> ---
+> changed in v2:
+>  - be less specific about what the kernel does when the requested address
+>    is unavailable to avoid constraining future behavior changes
+>    (Michal Hocko)
+> 
+>  man2/mmap.2 | 7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
+> 
+> diff --git a/man2/mmap.2 b/man2/mmap.2
+> index fccfb9b3e..dbcae59be 100644
+> --- a/man2/mmap.2
+> +++ b/man2/mmap.2
+> @@ -71,7 +71,12 @@ If
+>  .I addr
+>  is not NULL,
+>  then the kernel takes it as a hint about where to place the mapping;
+> -on Linux, the mapping will be created at a nearby page boundary.
+> +on Linux, the kernel will pick a nearby page boundary (but always above
+> +or equal to the value specified by
+> +.IR /proc/sys/vm/mmap_min_addr )
+> +and attempt to create the mapping there.
+> +If another mapping already exists there, the kernel picks a new address that
+> +may or may not depend on the hint.
+>  .\" Before Linux 2.6.24, the address was rounded up to the next page
+>  .\" boundary; since 2.6.24, it is rounded down!
+>  The address of the new mapping is returned as the result of the call.
+> -- 
+> 2.21.0.rc0.258.g878e2cd30e-goog
+
+-- 
+Michal Hocko
+SUSE Labs
 
