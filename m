@@ -2,133 +2,167 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 82424C4360F
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 21:18:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B4935C10F04
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 21:22:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 40DAC21B68
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 21:18:00 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="OblGoiEo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40DAC21B68
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 75E4E218FF
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 21:22:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75E4E218FF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AA8948E0002; Thu, 14 Feb 2019 16:17:59 -0500 (EST)
+	id 17CBE8E0002; Thu, 14 Feb 2019 16:22:44 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A58708E0001; Thu, 14 Feb 2019 16:17:59 -0500 (EST)
+	id 1565F8E0001; Thu, 14 Feb 2019 16:22:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9979A8E0003; Thu, 14 Feb 2019 16:17:59 -0500 (EST)
+	id 0695C8E0002; Thu, 14 Feb 2019 16:22:43 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A3658E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 16:17:59 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id k14so5249896pls.2
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 13:17:59 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CDFD48E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 16:22:43 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id m34so7033253qtb.14
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 13:22:43 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=1yL8YCNTyPRDZJHx8ppA3BOOOrsNcEeL/DDCwGQrYXE=;
-        b=npPC6RRTklsAm5TH2OmhCUR7QfkmC6mCpS7BYEdTcscnZZ3dvMpXQkjNxySdh3uHQY
-         vLgm6fMsPeWWXnGcH520St6NdXw5Y2sKnyVZAQY3CiL2411GlHhOgQl9ZuzRvphsGDyd
-         nMbhpns+bhs1c05zmYRpMqpqyYxt9b8fj/ERu5TsNKpgmhct/DLcveOs6x25RHI4lYcN
-         SMITy4F03zlxwST428cIEsVS0Vo28JIQxFKDkNH6ZnFNHErGZPoiimlyEpxoRCsTPE2U
-         KNsA7xBjUcdbYylzx/FxP2AZA4fZDza4upYsGmt0ZXgcoHe7CwYlUyrP2mCE6zQGncdA
-         fYGQ==
-X-Gm-Message-State: AHQUAuZAf/L0CHCIvY9xM1KxC7G5zKQ+XdL7F229brbyvkqEUx4USCUS
-	Z2nEzJ2P84yitvrS9EVsw+VfY7Ss9/HZ1IO1x8cu8d5MUs/Hlx6sF7zGxVrApZPE7Iiaz3Jo/a1
-	x7XuVvjDUsdjdnWSVQBGmlA69mk2rSR6DEarEbCOQET9iyoBJzwNg4empxoTYGnKL5w==
-X-Received: by 2002:a17:902:988b:: with SMTP id s11mr6403027plp.162.1550179079070;
-        Thu, 14 Feb 2019 13:17:59 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZBitP9+0zSVU4xraD+DNq+N8MnbjYSwdZQ3Ae6C5VF7DEuTJZuP2U3GO13HTZqBY49hpeF
-X-Received: by 2002:a17:902:988b:: with SMTP id s11mr6402986plp.162.1550179078430;
-        Thu, 14 Feb 2019 13:17:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550179078; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=0Hts8HKfoq6xzawpRQkWO0Qyk4NLI1ZN8C3xnvZokNc=;
+        b=IqJBeolGndwKulQVrEXwopkeE5EOORBTpRGws65gHthP1Xfk70HqSa1Fi2oHDwqjpI
+         kVujU36lngIgbT2LxFFBFJ1eP1PpbvnFsqJ1f9x1WDbMErHMspBBGKB3w+rQblKjix1X
+         U4W8LwsR73rjmGgwcxlXHoSVRhS+jwByGCQ9sdd92iJ+PAMz5RhyrGNbMbMvHqx4Zm4m
+         /IVLnyOx2NkeZM6krNH7kTjz319wPlE6M+wlLu48CfyNs+YgUx6VKk8eFg19lYc5dK1g
+         T0e1MAzEyzY2LgqbXJhz8HvDVSSpvZwVZi3LFFMt/ypOG3zmhMllJavR3KbxG+Kxk3ZW
+         LVBg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAubfeXZqHkAGT62q5vD37iQs+k8VNHoqfAMSn+xDYbuQJmRoysbp
+	TJn0X4vNPbZ/0hbREzoNRWtAeyQ5qrYhjueVg3I2XqAqbUuMBY+BTngLN6Cadp727hxEBAOfzgx
+	zGRowdxnyBskXduG73sRA6SLNa2+d12Uq3MEheqFfaB3ilCVO8ciK9JYihevbXFx8rA==
+X-Received: by 2002:a37:9f04:: with SMTP id i4mr4347071qke.221.1550179363534;
+        Thu, 14 Feb 2019 13:22:43 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IY/h3JfqAoE8iMq8+dx1j8Kfb0ovFxlbzqrgzZMmzG1LtLbAn4neiREdePLVIQ/2/Tsw7GL
+X-Received: by 2002:a37:9f04:: with SMTP id i4mr4347043qke.221.1550179362944;
+        Thu, 14 Feb 2019 13:22:42 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550179362; cv=none;
         d=google.com; s=arc-20160816;
-        b=fQsbCPcx0LFbgSSwqVo0SSkHhpq7tbS0hXtaFj7DcyhPlR+4uLlkmxiSrF4rXaKChe
-         wjIkrR5BoHHlDYm5/dhJ+DbSmTUlhkVEadfLektAz2nxMqtZ+DpiQ2aBpK4b0/7/9bbS
-         sW0lKLDr4SiBeRKliHz4IAdT+2+oiof8RExo8vPSvz/GSFJXEkMNC7fZKw0iSBayfV10
-         ESWVu5joNt1Q4RtrmyDYlQt2oiCaVaGbyQpoYQeu5jNKtc9WRP7i2PQXdzZegAA91DPh
-         aCDmrxCPJFmNsBqOk5cTdsII0OUug26Ve0h+2+MKKk6xNbNdxQAXuqKGZrH24RHgZzTj
-         eBMA==
+        b=jkZ/hBdqdJJfyA7COF+iWHi7TYyu6bwKKn4EodfRHlRL3M3ffRZxGtU6834lCmNErH
+         uleRj0tPI1bMoOnmyiYv/+s6D5/0NO7SndpEQS15pQSKBxSAS5D6R/sW73VLH5+hUfRi
+         6KtvoBJOhKgE6nadLyOpzQAXQ4i5U37cy0hPpD+Im7CQhLydvizJpHoXm4hYjMWaqy3k
+         MMb3x9yaVxJF9s59Ra5xMelP/OzWeLEItCdRGNiyzxdTPSJDhwYtEMil2p/Rjxc0vHpd
+         KnG80uXe5wjZsYhbTgw/4eolc+yCGfkSIbUP64TxMrKwnR8sIi/JD6Vilw5PfDF2q9cL
+         WR9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=1yL8YCNTyPRDZJHx8ppA3BOOOrsNcEeL/DDCwGQrYXE=;
-        b=o+KTJjdE39Q9brpQXr7uVUZkEQo8TPDSYBx68UyoqK9du5vhF9JViJovJ1l/J91TFh
-         Q2BWZNmikm8noqKbM/WHJG+X5T2OCYVjfA8PtujW87I6gv/aDYNG9Re8F384MgghIqxI
-         Jw65SqCNnzi4sZHH+JsfrtRTUbncmq9+Q4Fdc5RO7b6GH/JyZ0otEbT67/1++U7gVA4V
-         JrVejGQEmBet8by2JQYeGTdsZq1sFqfYnybF+cp/hKe98lqNhfYD3UvBVnRRTowxFMQY
-         gzsSaYHl9lbX6woJMJVydWj1ryWXJPfXONRbdOmICKrwP1IWSUee/AGGLytsPUzSjuPF
-         QBgA==
+         :message-id:subject:cc:to:from:date;
+        bh=0Hts8HKfoq6xzawpRQkWO0Qyk4NLI1ZN8C3xnvZokNc=;
+        b=UvBIkfx7NY3yeKcj9Y1IT8fNRaVMxwW1xnDRth+xMTrKDxxLotx669s4Ek2HCCkTgx
+         4BJmTJ6Ha1Qf7mhvKXH0mPw0yX5SU6TLFYOT4QAjOzS55jtKHa78d/tbGjXwFNNtykus
+         lDfKo4dbqZ/MuJIFHo42rW08YN2RkDNKiqfbEeAGfm8liC934qFEm88BmODIvt/bCBNW
+         8pa5NoxHbrbeQUHBcRt16b3xVtHimrpxRKSHX3DTStQJGxkZb6fUjGAgeDX3l9vs311/
+         5gnAssEg2ML1UmpGUeGRTdK2HiqGDAJxLXVAUQZ+DutVdW6wbVg88gy/dOMEscZ5fiAQ
+         EDYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=OblGoiEo;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 97si3587767ple.389.2019.02.14.13.17.58
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z12si2593791qva.55.2019.02.14.13.22.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 14 Feb 2019 13:17:58 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Feb 2019 13:22:42 -0800 (PST)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=OblGoiEo;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=1yL8YCNTyPRDZJHx8ppA3BOOOrsNcEeL/DDCwGQrYXE=; b=OblGoiEoqNUCx7iifqcOT3krK
-	r8c5Z+drdTpWgHR50kG0PnEHRAy9TeIXu0EiLwvA7OVY2LFXNXVaF8Qo7cFDyA0G7Xa+0Ol1531F+
-	0bt4sHrt0HFgCu8tRHyUp79MfqISuOfO4kR72LO7t4JeTZ7W1zVmdxcWNVqaT7t5xUzKb/Vl7YjEP
-	CEcFf++SqdUdxGRroRdV51r/tRH2uLX75J5jcqMJB79kVSp6pi0XxIGTkyWYK97zTsUOR3ikPWZQB
-	qH7qDT0PsQI6rhKhdeJDNmFnvIRd0CJ+8nRpGX/A//iDGEvLUs1XDa1PjllyY+PqPQAeIXQwNuYqi
-	evZ1+vQUw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1guOOL-0001kd-Qx; Thu, 14 Feb 2019 21:17:57 +0000
-Date: Thu, 14 Feb 2019 13:17:57 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
-	William Kucharski <william.kucharski@oracle.com>
-Subject: Re: [PATCH v2] page cache: Store only head pages in i_pages
-Message-ID: <20190214211757.GE12668@bombadil.infradead.org>
-References: <20190212183454.26062-1-willy@infradead.org>
- <20190214133004.js7s42igiqc5pgwf@kshutemo-mobl1>
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 0B5DF42BDA;
+	Thu, 14 Feb 2019 21:22:41 +0000 (UTC)
+Received: from sky.random (ovpn-120-178.rdu2.redhat.com [10.10.120.178])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 38425611B3;
+	Thu, 14 Feb 2019 21:22:37 +0000 (UTC)
+Date: Thu, 14 Feb 2019 16:22:36 -0500
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, "Huang, Ying" <ying.huang@intel.com>,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Hugh Dickins <hughd@google.com>,
+	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
+	Minchan Kim <minchan@kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Chen <tim.c.chen@linux.intel.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	David Rientjes <rientjes@google.com>,
+	Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>,
+	Dave Jiang <dave.jiang@intel.com>,
+	Daniel Jordan <daniel.m.jordan@oracle.com>,
+	Andrea Parri <andrea.parri@amarulasolutions.com>
+Subject: Re: [PATCH -mm -V7] mm, swap: fix race between swapoff and some swap
+ operations
+Message-ID: <20190214212236.GA10698@redhat.com>
+References: <20190211083846.18888-1-ying.huang@intel.com>
+ <20190214143318.GJ4525@dhcp22.suse.cz>
+ <20190214123002.b921b680fea07bf5f798df79@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190214133004.js7s42igiqc5pgwf@kshutemo-mobl1>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <20190214123002.b921b680fea07bf5f798df79@linux-foundation.org>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Thu, 14 Feb 2019 21:22:42 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 14, 2019 at 04:30:04PM +0300, Kirill A. Shutemov wrote:
->  - migrate_page_move_mapping() has to be converted too.
+Hello,
 
-I think that's as simple as:
+On Thu, Feb 14, 2019 at 12:30:02PM -0800, Andrew Morton wrote:
+> This was discussed to death and I think the changelog explains the
+> conclusions adequately.  swapoff is super-rare so a stop_machine() in
+> that path is appropriate if its use permits more efficiency in the
+> regular swap code paths.  
 
-+++ b/mm/migrate.c
-@@ -465,7 +465,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
- 
-                for (i = 1; i < HPAGE_PMD_NR; i++) {
-                        xas_next(&xas);
--                       xas_store(&xas, newpage + i);
-+                       xas_store(&xas, newpage);
-                }
-        }
- 
+The problem is precisely that the way the stop_machine callback is
+implemented right now (a dummy noop), makes the stop_machine()
+solution fully equivalent to RCU from the fast path point of view. It
+does not permit more efficiency in the fast path which is all we care
+about.
 
-or do you see something else I missed?
+For the slow path point of view the only difference is possibly that
+stop_machine will reach the quiescent state faster (i.e. swapoff may
+return a few dozen milliseconds faster), but nobody cares about the
+latency of swapoff and it's actually nicer if swapoff doesn't stop all
+CPUs on large systems and it uses less CPU overall.
+
+This is why I suggested if we keep using stop_machine() we should not
+use a dummy function whose only purpose is to reach a queiscent state
+(which is something that is more efficiently achieved with the
+syncronize_rcu/sched/kernel RCU API of the day) but we should instead
+try to leverage the UP-like serialization to remove more spinlocks
+from the fast path and convert them to preempt_disable(). However the
+current dummy callback cannot achieve that higher efficiency in the
+fast paths, the code would need to be reshuffled to try to remove at
+least the swap_lock.
+
+If no spinlock is converted to preempt_disable() RCU I don't see the
+point of stop_machine().
+
+On a side note, the cmpxchge machinery I posted to run the function
+simultaneously on all CPUs I think may actually be superflous if using
+cpus=NULL like Hing suggested. Implementation details aside, still the
+idea of stop_machine would be to do those p->swap_map = NULL and
+everything protected by the swap_lock, should be executed inside the
+callback that runs like in a UP system to speedup the fast path
+further.
+
+Thanks,
+Andrea
 
