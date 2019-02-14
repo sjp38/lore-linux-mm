@@ -3,100 +3,99 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8BCBBC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 20:30:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2E4C3C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 20:38:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4A4F621916
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 20:30:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A4F621916
+	by mail.kernel.org (Postfix) with ESMTP id E14F921916
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 20:38:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E14F921916
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CF2F48E0002; Thu, 14 Feb 2019 15:30:09 -0500 (EST)
+	id 7E38D8E0002; Thu, 14 Feb 2019 15:38:27 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C9F5E8E0001; Thu, 14 Feb 2019 15:30:09 -0500 (EST)
+	id 7902A8E0001; Thu, 14 Feb 2019 15:38:27 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BB7128E0002; Thu, 14 Feb 2019 15:30:09 -0500 (EST)
+	id 6A7F18E0002; Thu, 14 Feb 2019 15:38:27 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C0A18E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 15:30:09 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id d3so5090599pgv.23
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 12:30:09 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2926C8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 15:38:27 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id h26so5685377pfn.20
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 12:38:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=014kmWKdZnQ5ek9CQiz5h17iGhQ1vzM21YymOgXgDIs=;
-        b=jhn0vmaWV7XmrsuTqV+j7NTCfwsYTozq9wPdChMFiPOpMPKcOwQ/kmKacjvLjeQ6Ud
-         NVKjnOrMgkdOx81HNhbEiHQbgFhu9vvpiSJL1/oOhAlEq5s1W/c0n6vrRsoQWEQu4X12
-         VD8AB1yDFcAMc+svT/yRu+UFVyZW1iGFNV8cSBy+u+Aa3pAChRa40ZDgM87EF25XuRG6
-         acVARBUJLXevro72CxEPiR4R6IAS9SwyO2/c9hMsd02OpYuJV05eIOAJsizj/LOOuv6j
-         Mv/oPatg/mqNzcJQwUdpkjEbogyrjSEuWgntLZ+E7qIY19mljgpWwlVlws8zWncmkF3F
-         AfiQ==
+        bh=KAwhWuNiiut9/IOCMTxO38q+0iFaqALYJhDT7CUjoqg=;
+        b=pHKVCsuDi68YIQ8pM+yBp7kVRoyNr1OFu7qssnoG7EZI6YwivVQSCQzSI7oSD4lTIJ
+         nMy3pSC+BbqI7XNCC9S8Coo45QwGAbwlnfpiJ4yqwEIZnGjKLS0mmvSjzMGJ2+zW+MZa
+         ZNInGRDXo5vy9NB0EtojGmdNMfidaLdMysxFcTWx8KsQ/zCH2DkFp3Imnulg9LGXvFTx
+         Nfuv0J28Ez1UQSdhfcKNFSaQfvrAIz+96bsIzzTpz4OJKG+hzeR93i7GcRa1s8uB66WV
+         0khvfNepM1DZoHbGO+MC/eVxsR5Gi5o75vmuJKs+TK4tDt/1J7zgx4HSwvFthl2+9pB0
+         L8Zw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: AHQUAuYBNp2v8BYqTPcdFv2eMc7RWOdkj92qXRX3wae8SF8OWHmg7LU1
-	EgNCm6MGbGxyldXd749Anc5CD78j7pb1IY2OKBtSTA62FU+2nYnN0Gx6+QHu+4B/YwdqLTuH5+D
-	9OojlKJydFKHCBkdPpEYK4aitDETGG5rX440NzYPXn76ZLNk3FNhC2ZefuTZwrie14w==
-X-Received: by 2002:a17:902:8641:: with SMTP id y1mr6132904plt.159.1550176209116;
-        Thu, 14 Feb 2019 12:30:09 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZHn69uFssr3bOx6aQHsArG2WmTnXqmVMSireISH7uF/2GFALywwtIgOqO2dU9yLjsBkSIf
-X-Received: by 2002:a17:902:8641:: with SMTP id y1mr6132856plt.159.1550176208418;
-        Thu, 14 Feb 2019 12:30:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550176208; cv=none;
+X-Gm-Message-State: AHQUAuamlHnKxSYCfTvCWPxTk4MlI1ifi1VQfth1bcyulVV0jo/EvqCO
+	gpTqN0vuy6XYhshyAfHcn5mXZzv+H3PkaWwbKFBngnCMzO//LLeBRuJALtqEc9i8lLlWp3eQd8E
+	l1Z3SNYX0yUJn+F5p02POvr7vW/FHxJcRB/ECLeV9lc1ylYJfRmBtFCg6eWS7w8XyRQ==
+X-Received: by 2002:aa7:9102:: with SMTP id 2mr5950785pfh.179.1550176706828;
+        Thu, 14 Feb 2019 12:38:26 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZuscRiZNfVMdwGYlGKv7/kdWRUTwkt8aZIecyNYRrH9baZskEnOTEAK6msFTOxlu2BT106
+X-Received: by 2002:aa7:9102:: with SMTP id 2mr5950736pfh.179.1550176706162;
+        Thu, 14 Feb 2019 12:38:26 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550176706; cv=none;
         d=google.com; s=arc-20160816;
-        b=Z/yzezKMN3DEiZgWgl1qE9EO0DXtup86eP7JsrXXfsxIOKp8h6WKBaBFMMrGDsquoF
-         OxnwZi38zcjcndmh/ZrJA3gFkcPet6alhRUgDeydjcJFW0qQXverkUIsuNS+Uyw1iO0t
-         WPHF7GoWTrkXXXbMA5l5MXi7EQUse8T20azC47e3NlSDLuq/8ZEbtVmi8+QBLAxP85e0
-         BneNpnw+1AgR0WrbIjl9LK06srZ/slnDHfN9z6byJL/AjeucdWkCWeBA0fikwfSV+0ko
-         Z6ug5bFgxVdCadL3i9XfFv3sdRwRPZ/g6Zus3ccPrsiAb49TQXJyQZwtKmqPASb/P/QY
-         BhBg==
+        b=I/u1wPiaDTkiMMe/tMGN5DJ7GUTPlSLIZNulAlkw73x0qi0EyA0wDFq6E+TBHtRpgK
+         lMvHKpGtG9PmriiuONvP5TMGDikLEuHqK1vW32eTn1nWTDKHzkBiCMMvJ19jpebwgXE1
+         s0vp9ZHBEbRme9cjQfge72RbnCHR+fh6sEWX3h2XAZeh5JGMYioXOkVMvVC/E7p/k9dr
+         GlRoAjVCfNDTeX3bcaSDXIPGm6XqsMXjjuJwtH65ory+DLYlzqkvO87N7e/Nzaa8izbO
+         94DnLKwdyPAYq0b/DOB7nUbGShmkSf2zIbmoKt4IJ+9su9Lv764GzhQxa52zt4pu2rPw
+         uChw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date;
-        bh=014kmWKdZnQ5ek9CQiz5h17iGhQ1vzM21YymOgXgDIs=;
-        b=TzVOJAnWyNybh/bu2rDMls7o6IUtGC7fUZ0cNA8ny4wz4au0ZvlUtKYtmyR2ghZHsk
-         FkQquNJlQTW09qikqfa82BNnE4QE7tp6IUo5UpEPrPx0Tk2tRPlTYqTj6wFZGNoJmhZy
-         mOebqVGpkM5eUQS4cEQa1lm0yHDsv4w6Qd1fAtC93gs6h3Xr1x0Mmv3IkzXC4rdTX9jw
-         PIeebNLHKFaLbS7h8ZarQ41l8rhzCOMNneGxV5CX4AiWcuVtQNEXC5QN9K0XIKmEMujX
-         7fagQu/6cIxCDLJynQxSjYanW8ZEQR5izNkfX4q7aLGxv5gFLvKIgNLUqzGStn2LdIuB
-         SRWQ==
+        bh=KAwhWuNiiut9/IOCMTxO38q+0iFaqALYJhDT7CUjoqg=;
+        b=HR0348JNikU8Z88sW8AwgnTGIEw6SxBzUgQmdkd+lQyGU4CaCifW6uCvxSNSY8CsQ0
+         stRdqlD/JIbCMJkheHxiA0zaRhDKn5Lb7IQNSEy2IcVILYbKALE0YIP0e9fEx9XsqvFV
+         biZVZO9GYkoLwNZWawuvT0ixxDuiaAtwlA2csEMdSQhzR25Y5iZkOmaVb0ys7o0tt6x/
+         K7mUvYx7sMbz6SxiTatUzXu5Hc7iP67bt9ZvsBvmyFYMMVSzieY9koXk6/EJvBGWk1Kl
+         PJoF+k3cR1M6+xasEqTvGdcIDI6auafOPXv4J31RXfa5W3Evn9nrJ6m0RWTmM3aGPC5P
+         U02g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id r17si3290839pgr.331.2019.02.14.12.30.08
+        by mx.google.com with ESMTPS id b86si3532001pfc.217.2019.02.14.12.38.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 12:30:08 -0800 (PST)
+        Thu, 14 Feb 2019 12:38:26 -0800 (PST)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 9C690AD1;
-	Thu, 14 Feb 2019 20:30:07 +0000 (UTC)
-Date: Thu, 14 Feb 2019 12:30:02 -0800
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 5BEAAA7A;
+	Thu, 14 Feb 2019 20:38:25 +0000 (UTC)
+Date: Thu, 14 Feb 2019 12:38:24 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
- "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Minchan Kim
- <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen
- <tim.c.chen@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>,
- =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, Andrea Arcangeli
- <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel
- <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang
- <dave.jiang@intel.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Andrea
- Parri <andrea.parri@amarulasolutions.com>
-Subject: Re: [PATCH -mm -V7] mm, swap: fix race between swapoff and some
- swap operations
-Message-Id: <20190214123002.b921b680fea07bf5f798df79@linux-foundation.org>
-In-Reply-To: <20190214143318.GJ4525@dhcp22.suse.cz>
-References: <20190211083846.18888-1-ying.huang@intel.com>
-	<20190214143318.GJ4525@dhcp22.suse.cz>
+To: Peng Fan <peng.fan@nxp.com>
+Cc: "labbott@redhat.com" <labbott@redhat.com>, "mhocko@suse.com"
+ <mhocko@suse.com>, "vbabka@suse.cz" <vbabka@suse.cz>,
+ "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>,
+ "rppt@linux.vnet.ibm.com" <rppt@linux.vnet.ibm.com>,
+ "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>,
+ "rdunlap@infradead.org" <rdunlap@infradead.org>, "andreyknvl@google.com"
+ <andreyknvl@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ "van.freenix@gmail.com" <van.freenix@gmail.com>, Mike Rapoport
+ <rppt@linux.ibm.com>
+Subject: Re: [PATCH] mm/cma: cma_declare_contiguous: correct err handling
+Message-Id: <20190214123824.fe95cc2e603f75382490bfb4@linux-foundation.org>
+In-Reply-To: <20190214125704.6678-1-peng.fan@nxp.com>
+References: <20190214125704.6678-1-peng.fan@nxp.com>
 X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -107,35 +106,33 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Feb 2019 15:33:18 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+On Thu, 14 Feb 2019 12:45:51 +0000 Peng Fan <peng.fan@nxp.com> wrote:
 
-> > Because swapoff() is very rare code path, to make the normal path runs as
-> > fast as possible, disabling preemption + stop_machine() instead of
-> > reference count is used to implement get/put_swap_device().  From
-> > get_swap_device() to put_swap_device(), the preemption is disabled, so
-> > stop_machine() in swapoff() will wait until put_swap_device() is called.
-> > 
-> > In addition to swap_map, cluster_info, etc.  data structure in the struct
-> > swap_info_struct, the swap cache radix tree will be freed after swapoff,
-> > so this patch fixes the race between swap cache looking up and swapoff
-> > too.
-> > 
-> > Races between some other swap cache usages protected via disabling
-> > preemption and swapoff are fixed too via calling stop_machine() between
-> > clearing PageSwapCache() and freeing swap cache data structure.
-> > 
-> > Alternative implementation could be replacing disable preemption with
-> > rcu_read_lock_sched and stop_machine() with synchronize_sched().
+> In case cma_init_reserved_mem failed, need to free the memblock allocated
+> by memblock_reserve or memblock_alloc_range.
 > 
-> using stop_machine is generally discouraged. It is a gross
-> synchronization.
+> ...
+>
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -353,12 +353,14 @@ int __init cma_declare_contiguous(phys_addr_t base,
+>  
+>  	ret = cma_init_reserved_mem(base, size, order_per_bit, name, res_cma);
+>  	if (ret)
+> -		goto err;
+> +		goto free_mem;
+>  
+>  	pr_info("Reserved %ld MiB at %pa\n", (unsigned long)size / SZ_1M,
+>  		&base);
+>  	return 0;
+>  
+> +free_mem:
+> +	memblock_free(base, size);
+>  err:
+>  	pr_err("Failed to reserve %ld MiB\n", (unsigned long)size / SZ_1M);
+>  	return ret;
 
-This was discussed to death and I think the changelog explains the
-conclusions adequately.  swapoff is super-rare so a stop_machine() in
-that path is appropriate if its use permits more efficiency in the
-regular swap code paths.  
-
-> Besides that, since when do we have this problem?
-
-What problem??
+This doesn't look right to me.  In the `fixed==true' case we didn't
+actually allocate anything and in the `fixed==false' case, the
+allocated memory is at `addr', not at `base'.
 
