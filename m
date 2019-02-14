@@ -2,149 +2,169 @@ Return-Path: <SRS0=uhAD=QV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54DC4C10F04
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 13:30:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 068D8C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 13:51:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DFDE9222DF
-	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 13:30:11 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="AAqBWSkz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DFDE9222DF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id BE58B222B6
+	for <linux-mm@archiver.kernel.org>; Thu, 14 Feb 2019 13:51:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE58B222B6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4DBD28E0002; Thu, 14 Feb 2019 08:30:11 -0500 (EST)
+	id 42EA78E0003; Thu, 14 Feb 2019 08:51:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 489968E0001; Thu, 14 Feb 2019 08:30:11 -0500 (EST)
+	id 3DD558E0001; Thu, 14 Feb 2019 08:51:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 32C558E0002; Thu, 14 Feb 2019 08:30:11 -0500 (EST)
+	id 2CC488E0003; Thu, 14 Feb 2019 08:51:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E16AA8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 08:30:10 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id v16so4298061plo.17
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 05:30:10 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C71E28E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 08:51:57 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id f17so2521351edt.20
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 05:51:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=cD8gOqInkhDXw2CiDZ0G3aAu7ObyRZomWCuhX6uppCY=;
-        b=QTpJxugB3Pm/1pQgUr+JpTGK2cIm3bQCTHgKKvvJoKKH9v6lhPDUCCycd9Of6zvBY9
-         i5rIqsywJn3qz31qTqu3TZW1cTEuBAnOQukeWflT4XEdexUb7peY5bw+sFoRiRv4Nhb1
-         FX3KDLUF25M6GKfPR6xq2e2Ry9FxnPBf2MePcouWXOVbUpH5MyGBtTkfR6J8P7n/qNoW
-         ZPVOqYWRP+H5BKKdRC1Qlo2WxWRixPr9XhfzNf22rIKGLjz9Eqs1Eu5Fpc4p80SHDoy3
-         jkluUg70xe+CjsJ45NEHQT4Vn2S4exzrY53qTsjQcGbseC/jY8AArKABPoNQbQfuu2Xk
-         gG5w==
-X-Gm-Message-State: AHQUAuadlGoR8TUdXzaVw9oNJ6er22CZBZExh+WsIFT58SgvL7jRTHx5
-	sHemr2kbIxI+I3f+yyShNjWK1nLMvEc8PSKlaq2L9hIRRwMqaIUmlofWKiqyboGRNDanPQlyvJ+
-	eBPhcDHDgx1HqZr0zbumC+Oqsl93ugTcv4SseLYZkYZcLxW4dQjTjhpzm5lCUN77V5ITjkiB92e
-	2ljQD19sA2/L0iu2lOePXoOtl0ZZzyYVGAjcnXIpEWlsQY3AwWSNrpIIv97OsZEmQ1NVT/MAQCf
-	/D2XrZTBBsk3vDkvzECmnRExSaWPWjJaC1uijsPjYaQ9ndZNBT+lJII9YsPkD/yV6CWQ8IEdRtZ
-	O1E9+OfJz+J1QaQf0T+B1iV+6MFKIOr6O6NF1n8QZshAo4mKbD9IqE7HExWDs436olVWCdRvwrV
-	o
-X-Received: by 2002:a63:580f:: with SMTP id m15mr3823062pgb.342.1550151010481;
-        Thu, 14 Feb 2019 05:30:10 -0800 (PST)
-X-Received: by 2002:a63:580f:: with SMTP id m15mr3822975pgb.342.1550151009415;
-        Thu, 14 Feb 2019 05:30:09 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550151009; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=ukJ0RVTLC0smaHMOvnwBpLn4TfSwJqmjhLvyDjoNEys=;
+        b=HKeLOAOITnu6GhYEp+oOrdvI5R/fi1eRuq23Vm96BLn2s/0gvWS9gPAy0WVsWTy+06
+         uzhvYcH3zTCIhekqcfMJlUN1h8yf7hs4fJSKDvPd2XZzFyq1/juPNXPEpy56gzW5utyx
+         8chtzhzfG7lVvvxMotENhVrhJRJZ4ejsv95S+ahPVSP5LGdyKBRbC+j5q7Ix5NT5ANqZ
+         hhZnP9g1L5O6YbBXgS6du6C1djwn+ms3tDcfGYk9el026dJ6KoJ1DjVazn9uxRRoGbPj
+         3n91O0a4rWz4xQmROfpfp+rcM0t+L6kQVSNPDmDr4wk8to8N8ErxqmHK9xzQqf057OX8
+         /VoQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: AHQUAuZgZzWK18zXyzX8E967dRlMbOTe4M5ewxZVb018M/gEGCKUOUmM
+	ETrbwhJ7xtOY4XIfuOD2LKL3TSZE6fPfmWrsEIrskysC8dsAwe9eN5eAJTnS22bi2t09wJLbUHT
+	z3X3xOgsTu8LiBnTXjoPF1+zHFSdE1vBPpPE1XvOmQh+rO5df7ZBYVx0+V//UnDoYgQ==
+X-Received: by 2002:a17:906:ca1a:: with SMTP id jt26mr2942537ejb.56.1550152317333;
+        Thu, 14 Feb 2019 05:51:57 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZBx6LFVSFKRS/oJNPJKAy+lZkF2wEFE2U+lafiObqc4SyeRX/rhpQwY6WoNfNc+DY04R69
+X-Received: by 2002:a17:906:ca1a:: with SMTP id jt26mr2942478ejb.56.1550152316286;
+        Thu, 14 Feb 2019 05:51:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550152316; cv=none;
         d=google.com; s=arc-20160816;
-        b=O/TTcI7hEokbcShn83f+uiu9vlrGEGe6+BCQL3OMeFI6bGMBd1SDXqg0deeZeMtCY4
-         mOrMXrF/NBhtGt4HXTw8RM5q+J3uaSA89n6J8ibPtAhqwv8sRMTykB54FplQU7T8f66J
-         1iH8w0wV68+5HT4QRiMzMhEoa1/NsVlmjrzyeJ9Z5OfMwR+I8Ns9c8XYxGLvd5nrk8rI
-         oUY+k7Z+7+iLX3cd2qLn3G4OUa0C7XJNfEi7zn+wN2UrhWcrv7lFiWr9G74McsxAAmKt
-         kqYwY/f6SWzvD2R+QAyBmbws0I8bgZE93OWqB2ieDXfu3ULJHM/uYjdqXeZAsBHzi5+l
-         rDXA==
+        b=FtpD1h7dja9uixzI/iBG74GkoOLWwUravBRyoRlb6EOgsMFwLH/AkboxaA5KNJ1BPJ
+         PZ6mHa2ej6nWuoi4DDZBXDeTWm9khmTqVcCdZxeJ6GqphRsbVvSQL4DDCuRKzB9rcEwJ
+         yOVCEIKDGnB3xksjHT4qscvuNMhIFi5DqabVnE9u3SlK35wIJH4gItWhVRmjhkT2OQsW
+         Bykfyu8tqV6aWcp5gjvOK8rtXrrWnnOPIcu1IYrJOQqLpJZGHv6g5P+r3CtIT3MoYHFJ
+         hzzzhtf1WPGAXZejlfXj1BE+hpePXfIClfekCRA/lczYAtAtPCfiM0c7ppULd9KqLJDP
+         asKA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=cD8gOqInkhDXw2CiDZ0G3aAu7ObyRZomWCuhX6uppCY=;
-        b=JmGk4woY6ID/JcCrfLtdngE1FpXECvlooe6iLCm34j1AkyDuw8xivIhMEZm+2GjnnP
-         rO8Fdp+kqczWsGlfT/9ZND4hqrF5jhshRmzpn/hYxOJ5ifl2QtFlM0BYyS8BbY0dpruE
-         +DkyUwPEbjyS/McVKD6yrZwHdRNeOZn6iJ4haqN/qZa5LBXAIHLeFIOet7B/4/mfjbfU
-         +KLfNG/81nxNRSKzSW4njaGgaZhsmYRlsamWSZcCeyOCMedvrZGF4c3+6GDkgr7dWGg1
-         CTEhIvkQyYFLw9DzBNg3vjcJjsoQpLF7hJiukXjwEu/OIBoG543iwyMcCcv6fdA4fP5N
-         r8kQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=ukJ0RVTLC0smaHMOvnwBpLn4TfSwJqmjhLvyDjoNEys=;
+        b=nCgTx2cogWjktWiQNd+J4gnaN2dhlUJkUZ0Mv8mqbb3QF3A/Ve8XqdUYyy0On9zvfx
+         pAw8l1qbqH61Vy7QTtmHl/Itb6VYbx7pita+zG4JhSpq/ipwK9xAmAh6aPUCIi8aaoh1
+         BkJkLgpsWnYxkukmnOqMAKvqvRlRyxfU5sfjSS51S00uQeA57Hed2XdYSzvg5InjDEj3
+         IwrN49pAZm/FtTQaWxuJbJCfOIU5NOT9bLDzEG9SbPMneuErpUxbveSAmnWzo8cMUUtJ
+         8Ksdcc5HpbVgie/Y161l7+ceKnI+ay/zQPUNovfPf0rXgd0fDQ4LGSEe9dYjNOslDg14
+         WJXg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=AAqBWSkz;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z13sor3589971pgp.62.2019.02.14.05.30.09
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 14 Feb 2019 05:30:09 -0800 (PST)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id hk18si1056931ejb.308.2019.02.14.05.51.55
+        for <linux-mm@kvack.org>;
+        Thu, 14 Feb 2019 05:51:56 -0800 (PST)
+Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=AAqBWSkz;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=cD8gOqInkhDXw2CiDZ0G3aAu7ObyRZomWCuhX6uppCY=;
-        b=AAqBWSkzqbVNJ1NwR/lYh74r3OF7SADwVijueSwhv3pgXkJocI84Eg/PvjryagJ1Be
-         Mp+DDGujpphUExEXT8wa264ko9phe+Xh2x/qeyOKZYywFpPBFJalsOvwpIFJf8QvCD+l
-         rXNyN9CVyu9cIgKcgg931ZBrKFfAoFqJfAS/mkSnD+1nk3OWYjoKsIcqSOum/wOXngAw
-         w9Obx4wIrgsr6cuYDKYwznchICuloxA0CLPEO+sVGn3doOBvaXoESv0sCz6adPpJJICn
-         X+zEJ/lM+WTpDUvysNb/EpdBke7AXzosr+F2r5PmlSRWaLAelHT7MBAH55zTzBFxA5ob
-         4jwg==
-X-Google-Smtp-Source: AHgI3Ib8FcTyXhejuuqak93lu0VkvS65lcJUVtOIXNavlw5FG8HPeLMO12TkhRcqS2v6FeG68QNZWw==
-X-Received: by 2002:a63:5b1f:: with SMTP id p31mr3818511pgb.56.1550151008763;
-        Thu, 14 Feb 2019 05:30:08 -0800 (PST)
-Received: from kshutemo-mobl1.localdomain ([192.55.54.44])
-        by smtp.gmail.com with ESMTPSA id h128sm2825694pgc.15.2019.02.14.05.30.07
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 05:30:07 -0800 (PST)
-Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
-	id 1A1473008A8; Thu, 14 Feb 2019 16:30:04 +0300 (+03)
-Date: Thu, 14 Feb 2019 16:30:04 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
-	William Kucharski <william.kucharski@oracle.com>
-Subject: Re: [PATCH v2] page cache: Store only head pages in i_pages
-Message-ID: <20190214133004.js7s42igiqc5pgwf@kshutemo-mobl1>
-References: <20190212183454.26062-1-willy@infradead.org>
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 0181F80D;
+	Thu, 14 Feb 2019 05:51:55 -0800 (PST)
+Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 2A0943F675;
+	Thu, 14 Feb 2019 05:51:53 -0800 (PST)
+Subject: Re: [PATCH 2/8] initramfs: free initrd memory if opening
+ /initrd.image fails
+To: Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-arch@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>,
+ Will Deacon <will.deacon@arm.com>, Russell King <linux@armlinux.org.uk>,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ Alexander Viro <viro@zeniv.linux.org.uk>, Guan Xuetao <gxt@pku.edu.cn>,
+ linux-arm-kernel@lists.infradead.org
+References: <20190213174621.29297-1-hch@lst.de>
+ <20190213174621.29297-3-hch@lst.de>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <e4246b25-628e-de5e-56ba-8d45ad9c9fa6@arm.com>
+Date: Thu, 14 Feb 2019 13:51:51 +0000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190212183454.26062-1-willy@infradead.org>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <20190213174621.29297-3-hch@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 10:34:54AM -0800, Matthew Wilcox wrote:
-> Transparent Huge Pages are currently stored in i_pages as pointers to
-> consecutive subpages.  This patch changes that to storing consecutive
-> pointers to the head page in preparation for storing huge pages more
-> efficiently in i_pages.
+On 13/02/2019 17:46, Christoph Hellwig wrote:
+> We free the initrd memory for all successful or error cases except
+> for the case where opening /initrd.image fails, which looks like an
+> oversight.
+
+This also changes the behaviour when CONFIG_INITRAMFS_FORCE is enabled -
+specifically it means that the initrd is freed (previously it was
+ignored and never freed). But that seems like reasonable behaviour and
+the previous behaviour looks like another oversight. FWIW:
+
+Reviewed-by: Steven Price <steven.price@arm.com>
+
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  init/initramfs.c | 14 ++++++--------
+>  1 file changed, 6 insertions(+), 8 deletions(-)
 > 
-> Large parts of this are "inspired" by Kirill's patch
-> https://lore.kernel.org/lkml/20170126115819.58875-2-kirill.shutemov@linux.intel.com/
+> diff --git a/init/initramfs.c b/init/initramfs.c
+> index 7cea802d00ef..1cba6bbeeb75 100644
+> --- a/init/initramfs.c
+> +++ b/init/initramfs.c
+> @@ -610,13 +610,12 @@ static int __init populate_rootfs(void)
+>  		printk(KERN_INFO "Trying to unpack rootfs image as initramfs...\n");
+>  		err = unpack_to_rootfs((char *)initrd_start,
+>  			initrd_end - initrd_start);
+> -		if (!err) {
+> -			free_initrd();
+> +		if (!err)
+>  			goto done;
+> -		} else {
+> -			clean_rootfs();
+> -			unpack_to_rootfs(__initramfs_start, __initramfs_size);
+> -		}
+> +
+> +		clean_rootfs();
+> +		unpack_to_rootfs(__initramfs_start, __initramfs_size);
+> +
+>  		printk(KERN_INFO "rootfs image is not initramfs (%s)"
+>  				"; looks like an initrd\n", err);
+>  		fd = ksys_open("/initrd.image",
+> @@ -630,7 +629,6 @@ static int __init populate_rootfs(void)
+>  				       written, initrd_end - initrd_start);
+>  
+>  			ksys_close(fd);
+> -			free_initrd();
+>  		}
+>  	done:
+>  		/* empty statement */;
+> @@ -642,9 +640,9 @@ static int __init populate_rootfs(void)
+>  			printk(KERN_EMERG "Initramfs unpacking failed: %s\n", err);
+>  			clean_rootfs();
+>  		}
+> -		free_initrd();
+>  #endif
+>  	}
+> +	free_initrd();
+>  	flush_delayed_fput();
+>  	return 0;
+>  }
 > 
-> Signed-off-by: Matthew Wilcox <willy@infradead.org>
-
-I believe I found few missing pieces:
-
- - page_cache_delete_batch() will blow up on
-
-			VM_BUG_ON_PAGE(page->index + HPAGE_PMD_NR - tail_pages
-					!= pvec->pages[i]->index, page);
-
- - migrate_page_move_mapping() has to be converted too.
-
-The rest *looks* fine to me. But it needs a lot of testing.
-
--- 
- Kirill A. Shutemov
 
