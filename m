@@ -2,189 +2,200 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9E92CC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 10:35:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D1E65C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 10:38:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 634ED21924
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 10:35:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 634ED21924
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 798B921924
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 10:38:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 798B921924
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EE4718E0002; Fri, 15 Feb 2019 05:35:19 -0500 (EST)
+	id E6C6A8E0002; Fri, 15 Feb 2019 05:38:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E93BD8E0001; Fri, 15 Feb 2019 05:35:19 -0500 (EST)
+	id E1C908E0001; Fri, 15 Feb 2019 05:38:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D83B88E0002; Fri, 15 Feb 2019 05:35:19 -0500 (EST)
+	id D0BB48E0002; Fri, 15 Feb 2019 05:38:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C9A18E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 05:35:19 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id f11so3777788edi.5
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 02:35:19 -0800 (PST)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6772C8E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 05:38:40 -0500 (EST)
+Received: by mail-lj1-f198.google.com with SMTP id v8so2421292ljh.20
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 02:38:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date
-         :message-id:from:to:cc:subject:in-reply-to:references:user-agent
-         :organization:mime-version;
-        bh=01//ASKnOXNYLBAT7HOnY5LHyIBrUSYdVH6/3LCcD3k=;
-        b=l67IkSQYFOeJm2yw5ECGM9QWQH+Q1k/7PF3T3UKdeoApeL9KBflYy+a0WxQxLFQ17z
-         ogpT5lQW4oAR3Wd1xIR/XASmLTJWQu4sNetXBLu6XXSAB4PqeXJZpW4yxsbA3XmYxmig
-         lgu2Ms+n0bzVqGdX8lsFM2SRhQ5KPqYz4P0v38HIOv0izJqq+Nmueh6aPSuDDOWFYESB
-         ZcGNNvPyvwwFMzAPnMgFcOGevGaRrHGvf3jGCZ3+QZ5JvNEe61bcT6u4XM6J9V4pdGv6
-         eM3nJp3ICq/pT7s3GR74MOnlO+fO7P6fCa06FQ2NfUONO/+K8w5WTtAZzn68JfYQzsyS
-         uhVg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of marc.zyngier@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=marc.zyngier@arm.com
-X-Gm-Message-State: AHQUAuayzzE/UyaF5vwvRzO4vrucpyzmSc2DZB/uxYUHzXhhk4ZBK8Zm
-	jRrTFz/U1/jAWEFghG5WgPRusfC3ECYSg2lj08JPPiSAnvBQR5F387RzlmLitrxsVnBNt5GJ62O
-	RmaE6EZBzBiL6B5HlCXwKv8KaEk8+2rBQmbd2adpp9u6WYjW2j4hBfNhVsabgqpKnTA==
-X-Received: by 2002:a17:906:1cce:: with SMTP id i14mr6183512ejh.42.1550226919003;
-        Fri, 15 Feb 2019 02:35:19 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYhjwqbFKmPWavghv/h3Y0p2l6zEeZJIOxZv5ro1GYv5k9mmPaEOmMTIc5ytoNlfQBDw2Nq
-X-Received: by 2002:a17:906:1cce:: with SMTP id i14mr6183453ejh.42.1550226917917;
-        Fri, 15 Feb 2019 02:35:17 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550226917; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=V8W6lFhD94x7i+uX0K7RSwudYx4hWDMfrTrzwycJ5mg=;
+        b=BPTxqB5F9eZaBZzAdr2bEv67D9oBrGff/ki0DzOvQBQ3fnfUd2Tw9yn+gZUDPK9VW/
+         wYbqvmIwH88Z/G6/Pv0WIkWV5pxZ3Bwy2FE1qR298wt5y/+0zfjZWFJGC+a4AjGw45XW
+         MLDZ6nJVK2c5Yo0w4NdL5Tr0QXkZvDLDM2ncEq4ZQAm0LWeihiv7aSuoclMhM9eLrCbl
+         mcBbJ5QqBoww/9heoYAq4iPpjcyiy6jtcFgnGdiw0lR8fmA4xvem953Fjd9CMZLAeNx7
+         PYu9HIIsmth0keNZlP7KstnZ+op6RQjdnZBQ14N9cLsGk5CnNPu2BB9l+u4jY7Z0MNak
+         W5sg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: AHQUAuaYkTwyxrhtMaW988n10SN+WoUONqDatdlPk8VPJ6GN5jXD3kzo
+	RkFPbMGxKflLmwK/2kWeb2pWCVJxnDwSi0vnybnfFgNavb1hpYPL3Y5Z7TUuULf5y+d9y9tBfJl
+	mV1be1MHHRVTA7WDx6sp7sUTRaorb1//lkLscxM8FlLi7INZF8O2HRZjHIJz/Ly/McQ==
+X-Received: by 2002:a2e:7615:: with SMTP id r21-v6mr5218005ljc.131.1550227119762;
+        Fri, 15 Feb 2019 02:38:39 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZL5U8dAr2QOTNHa+FqhseBk2v4FXmQwE3QfjnjgegtOC86EvPsGncHKkzPLNPZ5Ll4lRqM
+X-Received: by 2002:a2e:7615:: with SMTP id r21-v6mr5217965ljc.131.1550227118622;
+        Fri, 15 Feb 2019 02:38:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550227118; cv=none;
         d=google.com; s=arc-20160816;
-        b=Nybp8DEOiBlm04pVhPbvbCM0wQCT9UbTpb7k3ca6uJ7pjW86YSfowgJ1iPg4ecqlj3
-         2gpVctcak3CTxla7j/eY60TMc6Q+Su+8zrK5ud7g3eMQywUky+NvFMRG0vCr3rzNU+It
-         rMXjefBB8yopnA6S03tLqI7LvssZga5SIKpeYwc7e/f6IPcx9A0mi1tQzNgUbmlLkxgI
-         SO9qgk7J3fZitJrmWPmquNsz2WrGIBH/5/4KoNoDFmJuSZHFEcW6EbkNi52RJUAn1ftP
-         k593Snywl22SRxRWzHHM8E3QdKHbpy9kWjkPjh7vwim7AClONyaKf5xfb1PKS4tTybMm
-         GJ7g==
+        b=FLfdJjLC6ksr5sNJuIf9b5Y4A4pgI2c9O+Ez8M9wQYJCVlGji2ZZ4RoW5NGH1ssqDf
+         eQRwd4Z+eBPI71CNt5VvZqZ2g0wklNPE9oD0QkAQ6r5ntZkndUp3oDqwtxSINwYD6s/I
+         WaapQhyQ3ZrhYQo2PJXWGeIbjA7euutqC7KhY1xG0NPQnfCgzKLBGcoMfMlT6E9qATmO
+         fhu5Iqv/Lgj3k4HJ9Df2d2PIpL/t6MVO6u/Rcng7opbfi+9mb6LnYSWivfAu20WKMN+d
+         QOkmHW0eLKL8z/mariw1n0NkdhpkOXgBzrgTTMODdbiwxh609DxIVxB5NI9bNnmq7cu7
+         o2Ow==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:organization:user-agent:references:in-reply-to:subject
-         :cc:to:from:message-id:date;
-        bh=01//ASKnOXNYLBAT7HOnY5LHyIBrUSYdVH6/3LCcD3k=;
-        b=Qve5V8oABym4gCpkGadeI/9QOEwq7B5hvoOBFkNr1tAok1fyMdxsNkB+/bScc+iLYa
-         3UpQ4gQwG/PeT9twXP19XO77/jd1cRTR/qV4YqMt29OTAPiwd4uCReGyFJW1gXfkTy9i
-         +/4j+kl1XBXEa+SlTV4DLncEn2nmSJEnS5dxcJhZy01AZWUemdIJhw6jQISNGzV2KrvD
-         yA++BNx/t7BtCWj4ScNCTyPQXiiSGGCGkHU9tzFdkcQoSu6Cs6gY/3nCISSx/um4mn/d
-         T/BYGebpkT++uKPh4tLXfjf0IIQnE1gu0j8HCJCKU2TjGDIs710VzBi7mreWibP5N4H7
-         OEgA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=V8W6lFhD94x7i+uX0K7RSwudYx4hWDMfrTrzwycJ5mg=;
+        b=FBmCiGx9NhAd6Otai5hXtS9U64iBYaHOrAhDoQswcZheioeWanUNUHeVSQZevldwmJ
+         I6DXCEKouGjO4NORMvLBfdjmTh64Pcsy/7oaC+8EawdTF4azETANwhiRwzAjjFa2hFD/
+         k9t7rTeWzLlALefMQlzN3bFVjcJPyOzAzZvJ9qs1pz1mGR1nlJIhNSrEwp8wiX6U33jg
+         ycyG5uZbRyFAW+nWez53NP9qxcZzk7ZjbLkeqW/yzw+DsuUVba3Cboo584F9sawt/ZWA
+         3yrDyWgdGQW494fKML8hvffZi8abfiohTsl3369q2AdXH5+s8uh9rSd0f5yElAg7Qpur
+         etSg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of marc.zyngier@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=marc.zyngier@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id m24si1845835edm.148.2019.02.15.02.35.17
-        for <linux-mm@kvack.org>;
-        Fri, 15 Feb 2019 02:35:17 -0800 (PST)
-Received-SPF: pass (google.com: domain of marc.zyngier@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id f19-v6si4272878ljg.114.2019.02.15.02.38.38
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Feb 2019 02:38:38 -0800 (PST)
+Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of marc.zyngier@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=marc.zyngier@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9A318EBD;
-	Fri, 15 Feb 2019 02:35:16 -0800 (PST)
-Received: from big-swifty.misterjones.org (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 51D2E3F557;
-	Fri, 15 Feb 2019 02:35:05 -0800 (PST)
-Date: Fri, 15 Feb 2019 10:34:54 +0000
-Message-ID: <865ztls5kh.wl-marc.zyngier@arm.com>
-From: Marc Zyngier <marc.zyngier@arm.com>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: linux-efi <linux-efi@vger.kernel.org>,
-	linux-arm-kernel <linux-arm-kernel@lists.infradead.org>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	James Morse <james.morse@arm.com>,
-	Linux-MM <linux-mm@kvack.org>
-Subject: Re: [PATCH 1/2] arm64: account for GICv3 LPI tables in static memblock reserve table
-In-Reply-To: <CAKv+Gu9BpVDg1=2bsR6ouWM2Xw1OZGMOZ4DXv5fQxE=HQXJsRg@mail.gmail.com>
-References: <20190213132738.10294-1-ard.biesheuvel@linaro.org>
-	<20190213132738.10294-2-ard.biesheuvel@linaro.org>
-	<325ae70b-6520-a186-c65f-8ab29a5be3a5@arm.com>
-	<CAKv+Gu9BpVDg1=2bsR6ouWM2Xw1OZGMOZ4DXv5fQxE=HQXJsRg@mail.gmail.com>
-User-Agent: Wanderlust/2.15.9 (Almost Unreal) SEMI-EPG/1.14.7 (Harue)
- FLIM/1.14.9 (=?UTF-8?B?R29qxY0=?=) APEL/10.8 EasyPG/1.0.0 Emacs/25.1
- (aarch64-unknown-linux-gnu) MULE/6.0 (HANACHIRUSATO)
-Organization: ARM Ltd
-MIME-Version: 1.0 (generated by SEMI-EPG 1.14.7 - "Harue")
-Content-Type: text/plain; charset=US-ASCII
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.12]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <aryabinin@virtuozzo.com>)
+	id 1guat9-0003sq-Lj; Fri, 15 Feb 2019 13:38:35 +0300
+Subject: Re: [PATCH v5 3/3] powerpc/32: Add KASAN support
+To: Christophe Leroy <christophe.leroy@c-s.fr>, Daniel Axtens
+ <dja@axtens.net>, Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
+ Nicholas Piggin <npiggin@gmail.com>,
+ "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+ Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ kasan-dev@googlegroups.com, linux-mm@kvack.org
+References: <cover.1549935247.git.christophe.leroy@c-s.fr>
+ <3429fe33b68206ecc2a725a740937bbaef2d1ac8.1549935251.git.christophe.leroy@c-s.fr>
+ <8736oq3u2r.fsf@dja-thinkpad.axtens.net>
+ <b5db7714-51e3-785c-34ca-6c358661c9e8@c-s.fr>
+ <e43e21c2-f42c-bab3-c112-2a557f3de5b1@virtuozzo.com>
+ <cd942662-2e93-ca93-915f-c9f346317535@c-s.fr>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <0c8f357d-a0b9-2dcd-63cc-44edec153b6c@virtuozzo.com>
+Date: Fri, 15 Feb 2019 13:38:56 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
+MIME-Version: 1.0
+In-Reply-To: <cd942662-2e93-ca93-915f-c9f346317535@c-s.fr>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Feb 2019 16:55:28 +0000,
-Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
-> 
-> On Thu, 14 Feb 2019 at 16:48, Marc Zyngier <marc.zyngier@arm.com> wrote:
-> >
-> > Hi Ard,
-> >
-> > On 13/02/2019 13:27, Ard Biesheuvel wrote:
-> > > In the irqchip and EFI code, we have what basically amounts to a quirk
-> > > to work around a peculiarity in the GICv3 architecture, which permits
-> > > the system memory address of LPI tables to be programmable only once
-> > > after a CPU reset. This means kexec kernels must use the same memory
-> > > as the first kernel, and thus ensure that this memory has not been
-> > > given out for other purposes by the time the ITS init code runs, which
-> > > is not very early for secondary CPUs.
-> > >
-> > > On systems with many CPUs, these reservations could overflow the
-> > > memblock reservation table, and this was addressed in commit
-> > > eff896288872 ("efi/arm: Defer persistent reservations until after
-> > > paging_init()"). However, this turns out to have made things worse,
-> > > since the allocation of page tables and heap space for the resized
-> > > memblock reservation table itself may overwrite the regions we are
-> > > attempting to reserve, which may cause all kinds of corruption,
-> > > also considering that the ITS will still be poking bits into that
-> > > memory in response to incoming MSIs.
-> > >
-> > > So instead, let's grow the static memblock reservation table on such
-> > > systems so it can accommodate these reservations at an earlier time.
-> > > This will permit us to revert the above commit in a subsequent patch.
-> > >
-> > > Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-> > > ---
-> > >  arch/arm64/include/asm/memory.h | 11 +++++++++++
-> > >  include/linux/memblock.h        |  3 ---
-> > >  mm/memblock.c                   | 10 ++++++++--
-> > >  3 files changed, 19 insertions(+), 5 deletions(-)
-> > >
-> > > diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-> > > index e1ec947e7c0c..7e2b13cdd970 100644
-> > > --- a/arch/arm64/include/asm/memory.h
-> > > +++ b/arch/arm64/include/asm/memory.h
-> > > @@ -332,6 +332,17 @@ static inline void *phys_to_virt(phys_addr_t x)
-> > >  #define virt_addr_valid(kaddr)               \
-> > >       (_virt_addr_is_linear(kaddr) && _virt_addr_valid(kaddr))
-> > >
-> > > +/*
-> > > + * Given that the GIC architecture permits ITS implementations that can only be
-> > > + * configured with a LPI table address once, GICv3 systems with many CPUs may
-> > > + * end up reserving a lot of different regions after a kexec for their LPI
-> > > + * tables, as we are forced to reuse the same memory after kexec (and thus
-> > > + * reserve it persistently with EFI beforehand)
-> > > + */
-> > > +#if defined(CONFIG_EFI) && defined(CONFIG_ARM_GIC_V3_ITS)
-> > > +#define INIT_MEMBLOCK_RESERVED_REGIONS       (INIT_MEMBLOCK_REGIONS + 2 * NR_CPUS)
-> >
-> > Since GICv3 has 1 pending table per CPU, plus one global property table,
-> > can we make this 2 * NR_CPUS + 1? Or is that enough already?
-> >
-> 
-> Ah, I misread the code then. That would mean we'll only need 1 extra
-> slot per CPU.
-> 
-> So I will change this to
-> 
-> > > +#define INIT_MEMBLOCK_RESERVED_REGIONS       (INIT_MEMBLOCK_REGIONS + NR_CPUS)
-> 
-> considering that INIT_MEMBLOCK_REGIONS defaults to 128, so that one
-> global table is already accounted for.
 
-Look good to me.
 
-Thanks,
+On 2/15/19 1:10 PM, Christophe Leroy wrote:
+> 
+> 
+> Le 15/02/2019 à 11:01, Andrey Ryabinin a écrit :
+>>
+>>
+>> On 2/15/19 11:41 AM, Christophe Leroy wrote:
+>>>
+>>>
+>>> Le 14/02/2019 à 23:04, Daniel Axtens a écrit :
+>>>> Hi Christophe,
+>>>>
+>>>>> --- a/arch/powerpc/include/asm/string.h
+>>>>> +++ b/arch/powerpc/include/asm/string.h
+>>>>> @@ -27,6 +27,20 @@ extern int memcmp(const void *,const void *,__kernel_size_t);
+>>>>>    extern void * memchr(const void *,int,__kernel_size_t);
+>>>>>    extern void * memcpy_flushcache(void *,const void *,__kernel_size_t);
+>>>>>    +void *__memset(void *s, int c, __kernel_size_t count);
+>>>>> +void *__memcpy(void *to, const void *from, __kernel_size_t n);
+>>>>> +void *__memmove(void *to, const void *from, __kernel_size_t n);
+>>>>> +
+>>>>> +#if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
+>>>>> +/*
+>>>>> + * For files that are not instrumented (e.g. mm/slub.c) we
+>>>>> + * should use not instrumented version of mem* functions.
+>>>>> + */
+>>>>> +#define memcpy(dst, src, len) __memcpy(dst, src, len)
+>>>>> +#define memmove(dst, src, len) __memmove(dst, src, len)
+>>>>> +#define memset(s, c, n) __memset(s, c, n)
+>>>>> +#endif
+>>>>> +
+>>>>
+>>>> I'm finding that I miss tests like 'kasan test: kasan_memcmp
+>>>> out-of-bounds in memcmp' because the uninstrumented asm version is used
+>>>> instead of an instrumented C version. I ended up guarding the relevant
+>>>> __HAVE_ARCH_x symbols behind a #ifndef CONFIG_KASAN and only exporting
+>>>> the arch versions if we're not compiled with KASAN.
+>>>>
+>>>> I find I need to guard and unexport strncpy, strncmp, memchr and
+>>>> memcmp. Do you need to do this on 32bit as well, or are those tests
+>>>> passing anyway for some reason?
+>>>
+>>> Indeed, I didn't try the KASAN test module recently, because my configs don't have CONFIG_MODULE by default.
+>>>
+>>> Trying to test it now, I am discovering that module loading oopses with latest version of my series, I need to figure out exactly why. Here below the oops by modprobing test_module (the one supposed to just say hello to the world).
+>>>
+>>> What we see is an access to the RO kasan zero area.
+>>>
+>>> The shadow mem is 0xf7c00000..0xffc00000
+>>> Linear kernel memory is shadowed by 0xf7c00000-0xf8bfffff
+>>> 0xf8c00000-0xffc00000 is shadowed read only by the kasan zero page.
+>>>
+>>> Why is kasan trying to access that ? Isn't kasan supposed to not check stuff in vmalloc area ?
+>>
+>> It tries to poison global variables in modules. If module is in vmalloc, than it will try to poison vmalloc.
+>> Given that the vmalloc area is not so big on 32bits, the easiest solution is to cover all vmalloc with RW shadow.
+>>
+> 
+> Euh ... Not so big ?
+> 
+> Memory: 96448K/131072K available (8016K kernel code, 1680K rwdata
+> , 2720K rodata, 624K init, 4678K bss, 34624K reserved, 0K cma-reserved)
+> Kernel virtual memory layout:
+>   * 0xffefc000..0xffffc000  : fixmap
+>   * 0xf7c00000..0xffc00000  : kasan shadow mem
+>   * 0xf7a00000..0xf7c00000  : consistent mem
+>   * 0xf7a00000..0xf7a00000  : early ioremap
+>   * 0xc9000000..0xf7a00000  : vmalloc & ioremap
+> 
+> Here, vmalloc area size 0x2ea00000, that is 746Mbytes. Shadow for this would be 93Mbytes and we are already using 16Mbytes to shadow the linear memory area .... this poor board has 128Mbytes RAM in total.
+> 
+> So another solution is needed.
+> 
 
-	M.
+Ok.
+As a temporary workaround your can make __asan_register_globals() to skip globals in vmalloc(). 
+Obviously it means that out-of-bounds accesses to in modules will be missed.
 
--- 
-Jazz is not dead, it just smell funny.
+Non temporary solution would making kasan to fully support vmalloc, i.e. remove RO shadow and allocate/free shadow on vmalloc()/vfree().
+But this feels like separate task, out of scope of this patch set.
+
+It is also possible to follow some other arches - dedicate separate address range for modules, allocate/free shadow in module_alloc/free.
+But it doesn't seem worthy to implement this only for the sake of kasan, since vmalloc support needs to be done anyway.
 
