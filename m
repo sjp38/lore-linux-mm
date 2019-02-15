@@ -2,200 +2,289 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D1E65C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 10:38:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 40416C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 10:38:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 798B921924
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 10:38:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 798B921924
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id D886521B1A
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 10:38:50 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="T+oJqY33"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D886521B1A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E6C6A8E0002; Fri, 15 Feb 2019 05:38:40 -0500 (EST)
+	id 765ED8E0003; Fri, 15 Feb 2019 05:38:50 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E1C908E0001; Fri, 15 Feb 2019 05:38:40 -0500 (EST)
+	id 717AB8E0001; Fri, 15 Feb 2019 05:38:50 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D0BB48E0002; Fri, 15 Feb 2019 05:38:40 -0500 (EST)
+	id 6069B8E0003; Fri, 15 Feb 2019 05:38:50 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6772C8E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 05:38:40 -0500 (EST)
-Received: by mail-lj1-f198.google.com with SMTP id v8so2421292ljh.20
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 02:38:40 -0800 (PST)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 399B48E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 05:38:50 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id l8so7814327otp.11
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 02:38:50 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=V8W6lFhD94x7i+uX0K7RSwudYx4hWDMfrTrzwycJ5mg=;
-        b=BPTxqB5F9eZaBZzAdr2bEv67D9oBrGff/ki0DzOvQBQ3fnfUd2Tw9yn+gZUDPK9VW/
-         wYbqvmIwH88Z/G6/Pv0WIkWV5pxZ3Bwy2FE1qR298wt5y/+0zfjZWFJGC+a4AjGw45XW
-         MLDZ6nJVK2c5Yo0w4NdL5Tr0QXkZvDLDM2ncEq4ZQAm0LWeihiv7aSuoclMhM9eLrCbl
-         mcBbJ5QqBoww/9heoYAq4iPpjcyiy6jtcFgnGdiw0lR8fmA4xvem953Fjd9CMZLAeNx7
-         PYu9HIIsmth0keNZlP7KstnZ+op6RQjdnZBQ14N9cLsGk5CnNPu2BB9l+u4jY7Z0MNak
-         W5sg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: AHQUAuaYkTwyxrhtMaW988n10SN+WoUONqDatdlPk8VPJ6GN5jXD3kzo
-	RkFPbMGxKflLmwK/2kWeb2pWCVJxnDwSi0vnybnfFgNavb1hpYPL3Y5Z7TUuULf5y+d9y9tBfJl
-	mV1be1MHHRVTA7WDx6sp7sUTRaorb1//lkLscxM8FlLi7INZF8O2HRZjHIJz/Ly/McQ==
-X-Received: by 2002:a2e:7615:: with SMTP id r21-v6mr5218005ljc.131.1550227119762;
-        Fri, 15 Feb 2019 02:38:39 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZL5U8dAr2QOTNHa+FqhseBk2v4FXmQwE3QfjnjgegtOC86EvPsGncHKkzPLNPZ5Ll4lRqM
-X-Received: by 2002:a2e:7615:: with SMTP id r21-v6mr5217965ljc.131.1550227118622;
-        Fri, 15 Feb 2019 02:38:38 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550227118; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=t8q/0PA8uXwKk5D1EfntF2AkELIreh2vw65y6k9f1Eg=;
+        b=LYQZgobHq/2PpbNZOUNCadYMtCnWnWnUQ23Tg0AczXzXWJYNE+SI86y4LLljIz7dpb
+         VDPFg9UwzwCQU5VuXPhweyCIFpsDHcjdp8K65+OEqYKHID0CUJoh0Dvxe7iSqnkQWlcz
+         y5NhaMGq/muTWBLQ3Hup1ZwDN2UE5wMSitOun1Zo9/KTRKBd5etYRFjcdJpDPQwISu3a
+         l4vt418Hujck/s3PX6Gf0/oI99w96TCHTOu+SYDRng4XF6WlGCUuUCGVXWBUvA1zj2Ak
+         1YHduFVyGk1Ha/w0z73rpvRDzKsOfCXJUmkXZLfB3p7KK1YXUimcfuaeCl8sAYgZ/4ke
+         cykw==
+X-Gm-Message-State: AHQUAuYrEkGYuPu+mqndr9avnj6GSPstaxTD36q2aWdcsPcyMje2rh5i
+	fT8iGA7C+IapH2+yPGRYWgBrEdFkgwh6PZ2MbczU6gAbDTYZQJAmYhOJufAWlt7iyNzWCdJtbIt
+	C+fLVkQ/bP5sOm2Dg7fEpkg20FHf+sc/oEtkOSuWkA67b/HYZtbAw359GO98H5Lnb/pypeM1pmw
+	sUOpFHGVIwDHtQ21gzW0uFmyYI33mbGfUQwNlIJmoSc9f3p/EndqaV19KpMROtMM2zJ22LBggQk
+	fBR3qM6M/lSVqkIs3W/5izCVBOrPz89Huyvab4Tp1GHTNr6m+geDgwK+WXPFO84wt6UNIqyaRIK
+	TAdXdHvrYApEaBIodfq4ge/iE9I1nTQ+rbbWVQlbLCU786RyzuYT1aJbtOzbqZkSSVIA+sochLM
+	F
+X-Received: by 2002:aca:5114:: with SMTP id f20mr2365656oib.152.1550227129864;
+        Fri, 15 Feb 2019 02:38:49 -0800 (PST)
+X-Received: by 2002:aca:5114:: with SMTP id f20mr2365620oib.152.1550227129002;
+        Fri, 15 Feb 2019 02:38:49 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550227128; cv=none;
         d=google.com; s=arc-20160816;
-        b=FLfdJjLC6ksr5sNJuIf9b5Y4A4pgI2c9O+Ez8M9wQYJCVlGji2ZZ4RoW5NGH1ssqDf
-         eQRwd4Z+eBPI71CNt5VvZqZ2g0wklNPE9oD0QkAQ6r5ntZkndUp3oDqwtxSINwYD6s/I
-         WaapQhyQ3ZrhYQo2PJXWGeIbjA7euutqC7KhY1xG0NPQnfCgzKLBGcoMfMlT6E9qATmO
-         fhu5Iqv/Lgj3k4HJ9Df2d2PIpL/t6MVO6u/Rcng7opbfi+9mb6LnYSWivfAu20WKMN+d
-         QOkmHW0eLKL8z/mariw1n0NkdhpkOXgBzrgTTMODdbiwxh609DxIVxB5NI9bNnmq7cu7
-         o2Ow==
+        b=EhrMxEr0GsKuwAiLi1hkJxTb2SsMAndBbyjdUvIhvgkleNv7kxYqcK0ZBB3LIc3bIZ
+         KDuF020VOiV9sbMRbeiqq1Emv0xVZcwjExFKDn4Sqt4KTxJd+wr5eMJoOCBL4rT1g7BG
+         PrAmYW/AYxvw3C0r7qm2+tJ2askCM3f+CIaSCvb+ffbm5tB63XYZfXIS83gCfzKg+ZVS
+         Ojp1SKQoHCLcgikvZOWBBRPAu5YwYVE9KT4vfkHvsOawpgvV1b76UEvQnzuEs42EbFux
+         op9q9FOLH7iGgDlVQZDj2bNVm+AMvUNuHHK0ttJRNvKGc+exAaLfhsXaPTShvHo5CORv
+         Hcmg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=V8W6lFhD94x7i+uX0K7RSwudYx4hWDMfrTrzwycJ5mg=;
-        b=FBmCiGx9NhAd6Otai5hXtS9U64iBYaHOrAhDoQswcZheioeWanUNUHeVSQZevldwmJ
-         I6DXCEKouGjO4NORMvLBfdjmTh64Pcsy/7oaC+8EawdTF4azETANwhiRwzAjjFa2hFD/
-         k9t7rTeWzLlALefMQlzN3bFVjcJPyOzAzZvJ9qs1pz1mGR1nlJIhNSrEwp8wiX6U33jg
-         ycyG5uZbRyFAW+nWez53NP9qxcZzk7ZjbLkeqW/yzw+DsuUVba3Cboo584F9sawt/ZWA
-         3yrDyWgdGQW494fKML8hvffZi8abfiohTsl3369q2AdXH5+s8uh9rSd0f5yElAg7Qpur
-         etSg==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=t8q/0PA8uXwKk5D1EfntF2AkELIreh2vw65y6k9f1Eg=;
+        b=N3Z9X1cqmZQ76cTgDixf9Jd8fzOu5skizxinvYM4TGCTBVsJW5og1ZWpC1vkVT20oo
+         wn3+epDfWpqIOp2XAAUk8C1s856bZXYib+qTxC5LIKihiI+5Kips081aNsw4KRA8ShUG
+         LVthCoYVl/MyWtgJSJLvDWtDzNJFKrIDONWC8Q3uvs2dMv2mWENj5fQ+rbBnwV42Kay/
+         1HIT0diXASWeQ2BmyWVPC8ZWWy2fncou8rOiyoJPPO4auS7Epm1xl0ICTreT9knv19R6
+         RoLnRoVclcJ/USuoV+n5+ppTt9octMjaCNvyJbPTVToh97t3Q9RFEoKGzzwLky1EdL7D
+         m+9A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id f19-v6si4272878ljg.114.2019.02.15.02.38.38
+       dkim=pass header.i=@google.com header.s=20161025 header.b=T+oJqY33;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c16sor2932471otn.177.2019.02.15.02.38.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 02:38:38 -0800 (PST)
-Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        (Google Transport Security);
+        Fri, 15 Feb 2019 02:38:48 -0800 (PST)
+Received-SPF: pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.12]
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1guat9-0003sq-Lj; Fri, 15 Feb 2019 13:38:35 +0300
-Subject: Re: [PATCH v5 3/3] powerpc/32: Add KASAN support
-To: Christophe Leroy <christophe.leroy@c-s.fr>, Daniel Axtens
- <dja@axtens.net>, Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
- Nicholas Piggin <npiggin@gmail.com>,
- "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
- Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
- kasan-dev@googlegroups.com, linux-mm@kvack.org
-References: <cover.1549935247.git.christophe.leroy@c-s.fr>
- <3429fe33b68206ecc2a725a740937bbaef2d1ac8.1549935251.git.christophe.leroy@c-s.fr>
- <8736oq3u2r.fsf@dja-thinkpad.axtens.net>
- <b5db7714-51e3-785c-34ca-6c358661c9e8@c-s.fr>
- <e43e21c2-f42c-bab3-c112-2a557f3de5b1@virtuozzo.com>
- <cd942662-2e93-ca93-915f-c9f346317535@c-s.fr>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <0c8f357d-a0b9-2dcd-63cc-44edec153b6c@virtuozzo.com>
-Date: Fri, 15 Feb 2019 13:38:56 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       dkim=pass header.i=@google.com header.s=20161025 header.b=T+oJqY33;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=t8q/0PA8uXwKk5D1EfntF2AkELIreh2vw65y6k9f1Eg=;
+        b=T+oJqY33MghHK629guMGsBziuXSkShHTeTNFsbgkXTHx+IAW/KBPGcAwcfHBiZbAnP
+         KON1rsrDEOhxmAx01IJ0+Ew0Q/7WenpKhDlR59uHaieaDS/Ocf/yeIoOSX+6y761zIcz
+         Y6UiW6nDWoUBKK/oDK6YqhcgIgeq51uxrnq9AL0oAmRzXdJ2OBvjcMyyyN/NnshVBPJy
+         2emnezxTtq1y/rGvdN/vRQbjb6VXNWURLsdCOOOhcerUCGxDl8M4mhSnzjW17Lpfvf5Q
+         XMDCsKL9p8wt1t9JdKj0aijckQoRjc/gxqukBCJFohUpx1OrY9bEyHWuCvmChRGn/W8n
+         tluQ==
+X-Google-Smtp-Source: AHgI3IY8FvMjVi1RTHPHLyH459O3qcq1fr8s4/TXVZ4NP+Q7L3V75NO6TLaJK6mZ0ZqstICFCbhsww==
+X-Received: by 2002:a9d:6a:: with SMTP id 97mr5681878ota.313.1550227128321;
+        Fri, 15 Feb 2019 02:38:48 -0800 (PST)
+Received: from eggly.attlocal.net (172-10-233-147.lightspeed.sntcca.sbcglobal.net. [172.10.233.147])
+        by smtp.gmail.com with ESMTPSA id v20sm1998411otk.77.2019.02.15.02.38.46
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 15 Feb 2019 02:38:47 -0800 (PST)
+Date: Fri, 15 Feb 2019 02:38:40 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+X-X-Sender: hugh@eggly.anvils
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+cc: Andrew Morton <akpm@linux-foundation.org>, 
+    Matej Kupljen <matej.kupljen@gmail.com>, linux-kernel@vger.kernel.org, 
+    linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com
+Subject: Re: tmpfs inode leakage when opening file with O_TMP_FILE
+In-Reply-To: <20190215002631.GB6474@magnolia>
+Message-ID: <alpine.LSU.2.11.1902150159100.5680@eggly.anvils>
+References: <CAHMF36F4JN44Y-yMnxw36A8cO0yVUQhAkvJDcj_gbWbsuUAA5A@mail.gmail.com> <20190214154402.5d204ef2aa109502761ab7a0@linux-foundation.org> <20190215002631.GB6474@magnolia>
+User-Agent: Alpine 2.11 (LSU 23 2013-08-11)
 MIME-Version: 1.0
-In-Reply-To: <cd942662-2e93-ca93-915f-c9f346317535@c-s.fr>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 14 Feb 2019, Darrick J. Wong wrote:
+> [cc the shmem maintainer and the mm list]
 
+Yup, thanks - Matej also did so the day after sending to linux-kernel.
 
-On 2/15/19 1:10 PM, Christophe Leroy wrote:
 > 
-> 
-> Le 15/02/2019 à 11:01, Andrey Ryabinin a écrit :
->>
->>
->> On 2/15/19 11:41 AM, Christophe Leroy wrote:
->>>
->>>
->>> Le 14/02/2019 à 23:04, Daniel Axtens a écrit :
->>>> Hi Christophe,
->>>>
->>>>> --- a/arch/powerpc/include/asm/string.h
->>>>> +++ b/arch/powerpc/include/asm/string.h
->>>>> @@ -27,6 +27,20 @@ extern int memcmp(const void *,const void *,__kernel_size_t);
->>>>>    extern void * memchr(const void *,int,__kernel_size_t);
->>>>>    extern void * memcpy_flushcache(void *,const void *,__kernel_size_t);
->>>>>    +void *__memset(void *s, int c, __kernel_size_t count);
->>>>> +void *__memcpy(void *to, const void *from, __kernel_size_t n);
->>>>> +void *__memmove(void *to, const void *from, __kernel_size_t n);
->>>>> +
->>>>> +#if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
->>>>> +/*
->>>>> + * For files that are not instrumented (e.g. mm/slub.c) we
->>>>> + * should use not instrumented version of mem* functions.
->>>>> + */
->>>>> +#define memcpy(dst, src, len) __memcpy(dst, src, len)
->>>>> +#define memmove(dst, src, len) __memmove(dst, src, len)
->>>>> +#define memset(s, c, n) __memset(s, c, n)
->>>>> +#endif
->>>>> +
->>>>
->>>> I'm finding that I miss tests like 'kasan test: kasan_memcmp
->>>> out-of-bounds in memcmp' because the uninstrumented asm version is used
->>>> instead of an instrumented C version. I ended up guarding the relevant
->>>> __HAVE_ARCH_x symbols behind a #ifndef CONFIG_KASAN and only exporting
->>>> the arch versions if we're not compiled with KASAN.
->>>>
->>>> I find I need to guard and unexport strncpy, strncmp, memchr and
->>>> memcmp. Do you need to do this on 32bit as well, or are those tests
->>>> passing anyway for some reason?
->>>
->>> Indeed, I didn't try the KASAN test module recently, because my configs don't have CONFIG_MODULE by default.
->>>
->>> Trying to test it now, I am discovering that module loading oopses with latest version of my series, I need to figure out exactly why. Here below the oops by modprobing test_module (the one supposed to just say hello to the world).
->>>
->>> What we see is an access to the RO kasan zero area.
->>>
->>> The shadow mem is 0xf7c00000..0xffc00000
->>> Linear kernel memory is shadowed by 0xf7c00000-0xf8bfffff
->>> 0xf8c00000-0xffc00000 is shadowed read only by the kasan zero page.
->>>
->>> Why is kasan trying to access that ? Isn't kasan supposed to not check stuff in vmalloc area ?
->>
->> It tries to poison global variables in modules. If module is in vmalloc, than it will try to poison vmalloc.
->> Given that the vmalloc area is not so big on 32bits, the easiest solution is to cover all vmalloc with RW shadow.
->>
-> 
-> Euh ... Not so big ?
-> 
-> Memory: 96448K/131072K available (8016K kernel code, 1680K rwdata
-> , 2720K rodata, 624K init, 4678K bss, 34624K reserved, 0K cma-reserved)
-> Kernel virtual memory layout:
->   * 0xffefc000..0xffffc000  : fixmap
->   * 0xf7c00000..0xffc00000  : kasan shadow mem
->   * 0xf7a00000..0xf7c00000  : consistent mem
->   * 0xf7a00000..0xf7a00000  : early ioremap
->   * 0xc9000000..0xf7a00000  : vmalloc & ioremap
-> 
-> Here, vmalloc area size 0x2ea00000, that is 746Mbytes. Shadow for this would be 93Mbytes and we are already using 16Mbytes to shadow the linear memory area .... this poor board has 128Mbytes RAM in total.
-> 
-> So another solution is needed.
-> 
+> On Thu, Feb 14, 2019 at 03:44:02PM -0800, Andrew Morton wrote:
+> > (cc linux-fsdevel)
 
-Ok.
-As a temporary workaround your can make __asan_register_globals() to skip globals in vmalloc(). 
-Obviously it means that out-of-bounds accesses to in modules will be missed.
+Okay, thanks, but a tmpfs peculiarity we think.
 
-Non temporary solution would making kasan to fully support vmalloc, i.e. remove RO shadow and allocate/free shadow on vmalloc()/vfree().
-But this feels like separate task, out of scope of this patch set.
+> > 
+> > On Mon, 11 Feb 2019 15:18:11 +0100 Matej Kupljen <matej.kupljen@gmail.com> wrote:
+> > 
+> > > Hi,
+> > > 
+> > > it seems that when opening file on file system that is mounted on
+> > > tmpfs with the O_TMPFILE flag and using linkat call after that, it
+> > > uses 2 inodes instead of 1.
+> > > 
+> > > This is simple test case:
+> > > 
+> > > #include <sys/types.h>
+> > > #include <sys/stat.h>
+> > > #include <fcntl.h>
+> > > #include <unistd.h>
+> > > #include <string.h>
+> > > #include <stdio.h>
+> > > #include <stdlib.h>
+> > > #include <linux/limits.h>
+> > > #include <errno.h>
+> > > 
+> > > #define TEST_STRING     "Testing\n"
+> > > 
+> > > #define TMP_PATH        "/tmp/ping/"
+> > > #define TMP_FILE        "file.txt"
+> > > 
+> > > 
+> > > int main(int argc, char* argv[])
+> > > {
+> > >         char path[PATH_MAX];
+> > >         int fd;
+> > >         int rc;
+> > > 
+> > >         fd = open(TMP_PATH, __O_TMPFILE | O_RDWR,
+> > >                         S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP |
+> > > S_IROTH | S_IWOTH);
+> > > 
+> > >         rc = write(fd, TEST_STRING, strlen(TEST_STRING));
+> > > 
+> > >         snprintf(path, PATH_MAX,  "/proc/self/fd/%d", fd);
+> > >         linkat(AT_FDCWD, path, AT_FDCWD, TMP_PATH TMP_FILE, AT_SYMLINK_FOLLOW);
+> > >         close(fd);
+> > > 
+> > >         return 0;
+> > > }
+> > > 
+> > > I have checked indoes with "df -i" tool. The first inode is used when
+> > > the call to open is executed and the second one when the call to
+> > > linkat is executed.
+> > > It is not decreased when close is executed.
+> > > 
+> > > I have also tested this on an ext4 mounted fs and there only one inode is used.
+> > > 
+> > > I tested this on:
+> > > $ cat /etc/lsb-release
+> > > DISTRIB_ID=Ubuntu
+> > > DISTRIB_RELEASE=18.04
+> > > DISTRIB_CODENAME=bionic
+> > > DISTRIB_DESCRIPTION="Ubuntu 18.04.1 LTS"
+> > > 
+> > > $ uname -a
+> > > Linux Orion 4.15.0-43-generic #46-Ubuntu SMP Thu Dec 6 14:45:28 UTC
+> > > 2018 x86_64 x86_64 x86_64 GNU/Linux
+> 
+> Heh, tmpfs and its weird behavior where each new link counts as a new
+> inode because "each new link needs a new dentry, pinning lowmem, and
+> tmpfs dentries cannot be pruned until they are unlinked."
 
-It is also possible to follow some other arches - dedicate separate address range for modules, allocate/free shadow in module_alloc/free.
-But it doesn't seem worthy to implement this only for the sake of kasan, since vmalloc support needs to be done anyway.
+That's very much a peculiarity of tmpfs, so agreed: it's what I expect
+to be the cause, but I've not actually tracked it through and fixed yet.
+
+> 
+> It seems to have this behavior on 5.0-rc6 too:
+
+Yes, it does.
+
+> 
+> $ /bin/df -i /tmp ; ./c ; /bin/df -i /tmp
+> Filesystem      Inodes IUsed   IFree IUse% Mounted on
+> tmp            1019110    17 1019093    1% /tmp
+> Filesystem      Inodes IUsed   IFree IUse% Mounted on
+> tmp            1019110    19 1019091    1% /tmp
+> 
+> Probably because shmem_tmpfile -> shmem_get_inode -> shmem_reserve_inode
+> which decrements ifree when we create the tmpfile, and then the
+> d_tmpfile decrements i_nlink to zero.  Now we have iused=1, nlink=0,
+> assuming iused=itotal-ifree like usual.
+> 
+> Then the linkat call does:
+> 
+> shmem_link -> shmem_reserve_inode
+> 
+> which decrements ifree again and increments i_nlink to 1.  Now we have
+> iused=2, nlink=1.
+> 
+> The program exits, which closes the file.  /tmp/ping/file.txt still
+> exists and we haven't evicted inodes yet, so nothing much happens.
+> 
+> But then I added in rm -rf /tmp/ping/file.txt to see what happens.
+> shmem_unlink contains this:
+> 
+> 	if (inode->i_nlink > 1 && !S_ISDIR(inode->i_mode))
+> 		shmem_free_inode(inode->i_sb);
+> 
+> So shmem_iunlink *doesnt* decrement ifree but does drop the nlink, so
+> our state is now iused=2, nlink=0.
+> 
+> Now we evict the inode, which decrements ifree, so iused=1 and the inode
+> goes away.  Oops, we just leaked an ifree.
+> 
+> I /think/ the proper fix is to change shmem_link to decrement ifree only
+> if the inode has nonzero nlink, e.g.
+> 
+> 	/*
+> 	 * No ordinary (disk based) filesystem counts links as inodes;
+> 	 * but each new link needs a new dentry, pinning lowmem, and
+> 	 * tmpfs dentries cannot be pruned until they are unlinked.  If
+> 	 * we're linking an O_TMPFILE file into the tmpfs we can skip
+> 	 * this because there's still only one link to the inode.
+> 	 */
+> 	if (inode->i_nlink > 0) {
+> 		ret = shmem_reserve_inode(inode->i_sb);
+> 		if (ret)
+> 			goto out;
+> 	}
+> 
+> Says me who was crawling around poking at O_TMPFILE behavior all morning.
+
+Thanks for the Cc on that patch: I thought at first that you were
+coincidentally fixing up Matej's observation, but from its commit
+message no.  That work is just a generic cleanup to suit XFS needs,
+and won't change the tmpfs behavior one way or the other.
+
+> Not sure if that's right; what happens to the old dentry?
+
+I'm relieved to see your "/think/" above and "Not sure" there :)
+Me too.  It is so easy to get these counting things wrong, especially
+when distributed between the generic and the specific file system.
+
+I'm not going to attempt a pronouncement until I've had time to
+sink properly into it at the weekend, when I'll follow your guide
+and work it through - thanks a lot for getting this far, Darrick.
+
+Hugh
+
+> 
+> --D
+> 
+> > > If you need any more information, please let me know.
+> > > 
+> > > And please CC me when replying, I am not subscribed to the list.
+> > > 
+> > > Thanks and BR,
+> > > Matej
 
