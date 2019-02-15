@@ -2,182 +2,231 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E1B8FC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 15:48:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5CAD5C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 15:49:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9C4342192D
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 15:48:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DC2832192D
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 15:49:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="l4O8Pn2G"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C4342192D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=kernel-dk.20150623.gappssmtp.com header.i=@kernel-dk.20150623.gappssmtp.com header.b="h9OUIip/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC2832192D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kernel.dk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3E43A8E0002; Fri, 15 Feb 2019 10:48:44 -0500 (EST)
+	id 82BC08E0003; Fri, 15 Feb 2019 10:49:36 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 394228E0001; Fri, 15 Feb 2019 10:48:44 -0500 (EST)
+	id 7B27A8E0001; Fri, 15 Feb 2019 10:49:36 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 282C28E0002; Fri, 15 Feb 2019 10:48:44 -0500 (EST)
+	id 6A3318E0003; Fri, 15 Feb 2019 10:49:36 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D53638E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 10:48:43 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id p20so7074464plr.22
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 07:48:43 -0800 (PST)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FDEF8E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 10:49:36 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id w15so16460032ita.1
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 07:49:36 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:to:to:cc:cc:cc
-         :subject:in-reply-to:references:message-id;
-        bh=eoDF//MAOx0SYGCby4nSIyVisNwGzr4z2uZZnM4yBds=;
-        b=pTafBpmUYdTKe9Q9AjCIBtEVYCIG1IzJJAGioUJP0NG7iyTOGShfiUnQKpmc7c8iAR
-         XhMpdMZpuWmuT0lwNMQRpFUvwbml+EPEfsKCfcumn71EdnbuS6Dt2gL/g6OP8gwVVX46
-         +V+FkrIH60RBddFbnEu+YrQVWJvXaalSDqROra2FALEdN567vMoB+cjIJie/MxzLGy2D
-         OW72j48/2aolXo7Ou1GLDfwkIDBt/Vmtcn4Tnj/4/kp7mu4LVmz5VDKSr8OE+9y8weme
-         897meCSIp0US6TXHwc1mNAzQHlrPnfNcC6TyFkG7NCS8ftY5NPyb+PNz9MBiWrMayw+i
-         0Dzg==
-X-Gm-Message-State: AHQUAuZm4nCJEMhSXwSudpr3DZgGRK1GkMFMc8puvFK91bDLeHZLBrXz
-	BfZafQpmDatKJxjSQ58yRWMXdadC+uyekZ6BA7eBcELhJjdZ8yM3Wg66TtYDd+9hRe6Y0ihf1Pr
-	7AhiNmjt4ufklSj08XugWQQkXgZTIn/vTaUwvxPrwYMffld1PgfsXopa9I8bBnGGq8g==
-X-Received: by 2002:a63:454a:: with SMTP id u10mr9575487pgk.224.1550245723258;
-        Fri, 15 Feb 2019 07:48:43 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYTQne+eEC0ubLmr11kweCqUatgMYc61DCdkCeUyxDtG7tv/X/548K03qitYDhrzL56M6/U
-X-Received: by 2002:a63:454a:: with SMTP id u10mr9575410pgk.224.1550245722425;
-        Fri, 15 Feb 2019 07:48:42 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550245722; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=gxvfq5TL/2HmGfmAumLfCM1Ftb4XqCEsXRfcSZF+1T0=;
+        b=krz8JhJjY66Nlmg0FCMrhc4iEPJouj8XvYKX3ttzxJsd/VMff3MFrYQM1DvCGwh3aj
+         OvKczByO6Xeu8oqD3mJX9CLsNuQzeKtGgZDU2ICG8RzmhWBrmaRrGFI/0433FHDOfJsF
+         BLXhZxxxaGEkHmbTCbIzaFQArrJ4/2L5DK4qiuEUzdO7vVzQJc+6uv2Tv9KcFqsUekq3
+         e2ucZmioBXaw5qFcaGtlYZkN7RNM0vKLXN+Te9UDf92T5EfQsqsVvpxeL2AYqwPMgkfE
+         H5ZxOBh1VUQzUDvOkcrpmPfqGdPQLzQqGDftNma/9Rkok0hlcJrO5oZUJULOo4K3wH4M
+         abKg==
+X-Gm-Message-State: AHQUAubWMGrQbHz+RHzzsI1P9rqCDRwaWik0hV2yK3ewl2t2kSFtHp5m
+	9ZhbcQcjOvKznmIEAx0KqTliGOjD2ay2i5r5uc/gSYAvFYvsesamnTxRE5JderppvtTNIczicni
+	adtBknPdNQN88gnAWvm0jZREox3iddWtxaf0qcYkjBXAem4C9VHWK2jb3PSOhDDMtrkxmxFE5jA
+	zgEa1eSxBn169JyrHVdajO/q38207IqYLLJGlXOrHy8J0H4gIZzF9+HW3j0Ep/1lA/obOTeQNEX
+	z8UurslldNxAy0lhALjzvLvt42jl/LwVNfgqyI3zWs46H2pTwN417POj2cta/JXB3gvwFSG61qA
+	JI9mUbuGsCZYyMDo7j2dJGK4dNjm2zJI71zvIU0HwazFCMH1Gfw5XYYoMeNNxFr7plmzudG10Po
+	d
+X-Received: by 2002:a6b:7514:: with SMTP id l20mr6871149ioh.120.1550245776047;
+        Fri, 15 Feb 2019 07:49:36 -0800 (PST)
+X-Received: by 2002:a6b:7514:: with SMTP id l20mr6871101ioh.120.1550245775210;
+        Fri, 15 Feb 2019 07:49:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550245775; cv=none;
         d=google.com; s=arc-20160816;
-        b=h86XDujspwpD3VwQV97JZy1kl/iJqBv1CbWJhh/2PrVbn+HkEowzs1Nx6ACkjl4+u1
-         eHv+sFR69V2z1wHGNtoym8opxS9mz6GeZapKMXZWcB5FYUgBotbbMm2Cwayv30sYwVJO
-         7jne53vANsoArSXWXUKTX93zwqSxM/z5POQrf9R6OMtqPsPupar5ZLvUpoNWG3B2t7kG
-         jJbPejETk1FroIil8HjWbvPn3Q1Cje+YppeibMES6VxflhH4XjIi9TCSzmP/JClfQs/G
-         fkotRP2sm90ZKt5XfOkP5cUH+qxOu5tutSbzzrLGOvsa/ClJ5fl7GyjzfuowySwVk7UC
-         0gsw==
+        b=Qexl/FCvKNrbkxlPtkbwvcrkPHKjGB/3uZwkA3dIjM7dKe9SblmLSQIrhlnyGxH5ps
+         ZaJiexC5daZTPtpd6MGBgfTnT79qWGV9uqywMfg/plfNC7hZaqufd4UYU3Onn6TuOkxE
+         TJ2mnrTefEAVnwr+GDScKwTN4JrRt1dOaqYgoG5casWbl0D0Qmyqjfa2fOxt5WBxGBFS
+         fhQPXd09r/vX/9AkMAxaRHYwUtVqeLAER9hwvORIkHEOlz8PJBmvqZQks+GVS2OyOT0c
+         2ub2XWWZg+5Exw9OaB2l6kI/CLFomc/97Qxz7c59wP19NmHKdzdb0h7IaW8+P3fqr6NG
+         achA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:references:in-reply-to:subject:cc:cc:cc:to:to:to:from
-         :date:dkim-signature;
-        bh=eoDF//MAOx0SYGCby4nSIyVisNwGzr4z2uZZnM4yBds=;
-        b=nzMTmkIoHDAThFAoO6Pxp9L4ZOWEall2C7w8qk22nlOZfgSl3ZK5AglqibtG7NoUBv
-         P1mHRJb3JLtTGTpxQ0sDOEPjVW3cilciaw5x2puwS8UWzwspnDCIjE7AyjSy4uLylTS+
-         lrsufBaelGylnAFmcurc5LgKK/wWtFX3HVsmm5azKC3IjQE/rLVjI7MRwpZohIRJJpXI
-         oRfLSw1NhxLWG4Hqx1MuQj2yMVGeQk5eMCs6N15mXScXhVxG8p6XBOCZZ6vcvH3HldBn
-         0YXN+SNdCgGo8c4u+GBFp0+Wr90GJSn93Pvw9Qwv9dXT6qt6F7UZWPwFeIDhpEHoFQzh
-         JMWA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=gxvfq5TL/2HmGfmAumLfCM1Ftb4XqCEsXRfcSZF+1T0=;
+        b=0c3BjYuiMv9Zjwn1eu3aLQ+Rk9my/vd7X700sazFy59Kd89MwaoHmDO6Tv1+U8PQi1
+         wr6Pf4zHNwjGrKSZ3Isu9CJ0azpfGI8oM++WEbHJpy8fKw9WL0xA7IdV+lPfFETKI+40
+         nnilMAswZblWQIrbEyn1xG3nNuSWXSdI/JB95ticZA2b+vQaELPDrXTfnci9TKv73GZY
+         FpPb0LFMktV9uABR2+FIEmTN1/k2mk2YR9QmYIETioWWx/FlvLiXFCn2Z1B8cdZpAt8u
+         mAK9zyfW2CGk23GvHznAIS1NdmUMq9DK02USmVBIP6995uR5dtzWujA2su6Fvfs6KyYD
+         R4KQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=l4O8Pn2G;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id q17si470578pfi.248.2019.02.15.07.48.42
+       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b="h9OUIip/";
+       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i34sor13712500jaf.1.2019.02.15.07.49.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 07:48:42 -0800 (PST)
-Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Fri, 15 Feb 2019 07:49:35 -0800 (PST)
+Received-SPF: pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=l4O8Pn2G;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from localhost (unknown [23.100.24.84])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id D66E22192D;
-	Fri, 15 Feb 2019 15:48:41 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1550245722;
-	bh=jErfl/TWNCyPZbjdyaVAUeYNsbEH/3N3G2dJ1zXexg4=;
-	h=Date:From:To:To:To:Cc:Cc:Cc:Subject:In-Reply-To:References:From;
-	b=l4O8Pn2GxfPw03ZAQsq0ceTJa6OcOC5/050IfoFkdC741YOokC6uP93x6PrQGPK70
-	 IawJhsTsqHFixcmgcYm8YTGnphpRzfmVe+eXbPYnkq7emakEe5rmwe0+pvlzJvCwWN
-	 Vf2adiK/Y5m+u14K8K+vxM8Ihvs5Q3lBRfk27g9I=
-Date: Fri, 15 Feb 2019 15:48:41 +0000
-From: Sasha Levin <sashal@kernel.org>
-To: Sasha Levin <sashal@kernel.org>
-To:   Mike Kravetz <mike.kravetz@oracle.com>
-To:     linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc:     Michal Hocko <mhocko@kernel.org>,
-Cc: <stable@vger.kernel.org>
-Cc: stable@vger.kernel.org
-Subject: Re: [PATCH] huegtlbfs: fix races and page leaks during migration
-In-Reply-To: <20190212221400.3512-1-mike.kravetz@oracle.com>
-References: <20190212221400.3512-1-mike.kravetz@oracle.com>
-Message-Id: <20190215154841.D66E22192D@mail.kernel.org>
+       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b="h9OUIip/";
+       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=kernel-dk.20150623.gappssmtp.com; s=20150623;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=gxvfq5TL/2HmGfmAumLfCM1Ftb4XqCEsXRfcSZF+1T0=;
+        b=h9OUIip/xw+IU3EFOgAuJ2mEtH+VQuLeB4N2O2e5L27iYvYrtP6ekFwJsYUVSR8Bs1
+         V392XnrQeNAUy7rzEK5X9RjrKX8vmLHjqRiG5HONgjRm2+fOgE6f7wJuvX6QtuzsWOdF
+         MfkNy1spvU8KVAOhzx2gB7lsHkND6yni833wB9wMTVzynMNMNsVhVjpfEHZ2/3qGsz9D
+         rXvPlMf1e6MpwVMTBVf+gHJWXTWyumwVlENzGzRya5qqopY95rsZqVKBmvI+tskX1FeI
+         khsRD7p9S2INbR0YIRanHv6C+VCXUUdEVjlIFSQ4S3sSSa7xj2Un1EU661Qgk61bbUHy
+         K1+Q==
+X-Google-Smtp-Source: AHgI3IaV0Q9G5s5V1+OIQRz7sTqwSOWc1UGhJpRZNN56AkN2+6GPnd9+jvWg/bVCGoDtKm+mPdu3Pg==
+X-Received: by 2002:a02:984d:: with SMTP id x13mr4966711jaj.140.1550245774598;
+        Fri, 15 Feb 2019 07:49:34 -0800 (PST)
+Received: from [192.168.1.158] ([216.160.245.98])
+        by smtp.gmail.com with ESMTPSA id w186sm2639569itb.15.2019.02.15.07.49.32
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Feb 2019 07:49:33 -0800 (PST)
+Subject: Re: [PATCH V15 00/18] block: support multi-page bvec
+To: Ming Lei <ming.lei@redhat.com>
+Cc: linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>,
+ Omar Sandoval <osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>,
+ Dave Chinner <dchinner@redhat.com>,
+ Kent Overstreet <kent.overstreet@gmail.com>,
+ Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com,
+ Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org,
+ linux-raid@vger.kernel.org, David Sterba <dsterba@suse.com>,
+ linux-btrfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>,
+ linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>,
+ Christoph Hellwig <hch@lst.de>, linux-ext4@vger.kernel.org,
+ Coly Li <colyli@suse.de>, linux-bcache@vger.kernel.org,
+ Boaz Harrosh <ooo@electrozaur.com>, Bob Peterson <rpeterso@redhat.com>,
+ cluster-devel@redhat.com
+References: <20190215111324.30129-1-ming.lei@redhat.com>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <c52b6a8b-d1d4-67ff-f81c-371d09cc6d5b@kernel.dk>
+Date: Fri, 15 Feb 2019 08:49:31 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
+MIME-Version: 1.0
+In-Reply-To: <20190215111324.30129-1-ming.lei@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On 2/15/19 4:13 AM, Ming Lei wrote:
+> Hi,
+> 
+> This patchset brings multi-page bvec into block layer:
+> 
+> 1) what is multi-page bvec?
+> 
+> Multipage bvecs means that one 'struct bio_bvec' can hold multiple pages
+> which are physically contiguous instead of one single page used in linux
+> kernel for long time.
+> 
+> 2) why is multi-page bvec introduced?
+> 
+> Kent proposed the idea[1] first. 
+> 
+> As system's RAM becomes much bigger than before, and huge page, transparent
+> huge page and memory compaction are widely used, it is a bit easy now
+> to see physically contiguous pages from fs in I/O. On the other hand, from
+> block layer's view, it isn't necessary to store intermediate pages into bvec,
+> and it is enough to just store the physicallly contiguous 'segment' in each
+> io vector.
+> 
+> Also huge pages are being brought to filesystem and swap [2][6], we can
+> do IO on a hugepage each time[3], which requires that one bio can transfer
+> at least one huge page one time. Turns out it isn't flexiable to change
+> BIO_MAX_PAGES simply[3][5]. Multipage bvec can fit in this case very well.
+> As we saw, if CONFIG_THP_SWAP is enabled, BIO_MAX_PAGES can be configured
+> as much bigger, such as 512, which requires at least two 4K pages for holding
+> the bvec table.
+> 
+> With multi-page bvec:
+> 
+> - Inside block layer, both bio splitting and sg map can become more
+> efficient than before by just traversing the physically contiguous
+> 'segment' instead of each page.
+> 
+> - segment handling in block layer can be improved much in future since it
+> should be quite easy to convert multipage bvec into segment easily. For
+> example, we might just store segment in each bvec directly in future.
+> 
+> - bio size can be increased and it should improve some high-bandwidth IO
+> case in theory[4].
+> 
+> - there is opportunity in future to improve memory footprint of bvecs. 
+> 
+> 3) how is multi-page bvec implemented in this patchset?
+> 
+> Patch 1 ~ 3 parpares for supporting multi-page bvec. 
+> 
+> Patches 4 ~ 14 implement multipage bvec in block layer:
+> 
+> 	- put all tricks into bvec/bio/rq iterators, and as far as
+> 	drivers and fs use these standard iterators, they are happy
+> 	with multipage bvec
+> 
+> 	- introduce bio_for_each_bvec() to iterate over multipage bvec for splitting
+> 	bio and mapping sg
+> 
+> 	- keep current bio_for_each_segment*() to itereate over singlepage bvec and
+> 	make sure current users won't be broken; especailly, convert to this
+> 	new helper prototype in single patch 21 given it is bascially a mechanism
+> 	conversion
+> 
+> 	- deal with iomap & xfs's sub-pagesize io vec in patch 13
+> 
+> 	- enalbe multipage bvec in patch 14 
+> 
+> Patch 15 redefines BIO_MAX_PAGES as 256.
+> 
+> Patch 16 documents usages of bio iterator helpers.
+> 
+> Patch 17~18 kills NO_SG_MERGE.
+> 
+> These patches can be found in the following git tree:
+> 
+> 	git:  https://github.com/ming1/linux.git  v5.0-blk_mp_bvec_v14
+                                                                   ^^^
 
-[This is an automated email]
+v15?
 
-This commit has been processed because it contains a "Fixes:" tag,
-fixing commit: bcc54222309c mm: hugetlb: introduce page_huge_active.
+> Lots of test(blktest, xfstests, ltp io, ...) have been run with this patchset,
+> and not see regression.
+> 
+> Thanks Christoph for reviewing the early version and providing very good
+> suggestions, such as: introduce bio_init_with_vec_table(), remove another
+> unnecessary helpers for cleanup and so on.
+> 
+> Thanks Chritoph and Omar for reviewing V10/V11/V12, and provides lots of
+> helpful comments.
 
-The bot has tested the following trees: v4.20.8, v4.19.21, v4.14.99, v4.9.156, v4.4.174, v3.18.134.
+Applied, thanks Ming. Let's hope it sticks!
 
-v4.20.8: Build OK!
-v4.19.21: Build OK!
-v4.14.99: Failed to apply! Possible dependencies:
-    5b7a1d406062 ("mm, hugetlbfs: rename address to haddr in hugetlb_cow()")
-
-v4.9.156: Failed to apply! Possible dependencies:
-    2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
-    369cd2121be4 ("userfaultfd: hugetlbfs: userfaultfd_huge_must_wait for hugepmd ranges")
-    5b7a1d406062 ("mm, hugetlbfs: rename address to haddr in hugetlb_cow()")
-    7868a2087ec1 ("mm/hugetlb: add size parameter to huge_pte_offset()")
-    82b0f8c39a38 ("mm: join struct fault_env and vm_fault")
-    8fb5debc5fcd ("userfaultfd: hugetlbfs: add hugetlb_mcopy_atomic_pte for userfaultfd support")
-    953c66c2b22a ("mm: THP page cache support for ppc64")
-    fd60775aea80 ("mm, thp: avoid unlikely branches for split_huge_pmd")
-
-v4.4.174: Failed to apply! Possible dependencies:
-    09cbfeaf1a5a ("mm, fs: get rid of PAGE_CACHE_* and page_cache_{get,release} macros")
-    0e749e54244e ("dax: increase granularity of dax_clear_blocks() operations")
-    2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
-    2a28900be206 ("udf: Export superblock magic to userspace")
-    4420cfd3f51c ("staging: lustre: format properly all comment blocks for LNet core")
-    48b4800a1c6a ("zsmalloc: page migration support")
-    5057dcd0f1aa ("virtio_balloon: export 'available' memory to balloon statistics")
-    52db400fcd50 ("pmem, dax: clean up clear_pmem()")
-    5b7a487cf32d ("f2fs: add customized migrate_page callback")
-    5fd88337d209 ("staging: lustre: fix all conditional comparison to zero in LNet layer")
-    a188222b6ed2 ("net: Rename NETIF_F_ALL_CSUM to NETIF_F_CSUM_MASK")
-    b1123ea6d3b3 ("mm: balloon: use general non-lru movable page feature")
-    b2e0d1625e19 ("dax: fix lifetime of in-kernel dax mappings with dax_map_atomic()")
-    bda807d44454 ("mm: migrate: support non-lru movable page migration")
-    c8b8e32d700f ("direct-io: eliminate the offset argument to ->direct_IO")
-    d1a5f2b4d8a1 ("block: use DAX for partition table reads")
-    e10624f8c097 ("pmem: fail io-requests to known bad blocks")
-
-v3.18.134: Failed to apply! Possible dependencies:
-    0722b1011a5f ("f2fs: set page private for inmemory pages for truncation")
-    1601839e9e5b ("f2fs: fix to release count of meta page in ->invalidatepage")
-    2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
-    31a3268839c1 ("f2fs: cleanup if-statement of phase in gc_data_segment")
-    34ba94bac938 ("f2fs: do not make dirty any inmemory pages")
-    34d67debe02b ("f2fs: add infra struct and helper for inline dir")
-    4634d71ed190 ("f2fs: fix missing kmem_cache_free")
-    487261f39bcd ("f2fs: merge {invalidate,release}page for meta/node/data pages")
-    5b7a487cf32d ("f2fs: add customized migrate_page callback")
-    67298804f344 ("f2fs: introduce struct inode_management to wrap inner fields")
-    769ec6e5b7d4 ("f2fs: call radix_tree_preload before radix_tree_insert")
-    7dda2af83b2b ("f2fs: more fast lookup for gc_inode list")
-    8b26ef98da33 ("f2fs: use rw_semaphore for nat entry lock")
-    8c402946f074 ("f2fs: introduce the number of inode entries")
-    9be32d72becc ("f2fs: do retry operations with cond_resched")
-    9e4ded3f309e ("f2fs: activate f2fs_trace_pid")
-    d5053a34a9cc ("f2fs: introduce -o fastboot for reducing booting time only")
-    e5e7ea3c86e5 ("f2fs: control the memory footprint used by ino entries")
-    f68daeebba5a ("f2fs: keep PagePrivate during releasepage")
-
-
-How should we proceed with this patch?
-
---
-Thanks,
-Sasha
+-- 
+Jens Axboe
 
