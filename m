@@ -2,223 +2,167 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F2222C4360F
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 08:46:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7A718C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 08:58:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A9DDC2054F
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 08:46:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A9DDC2054F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 39AC92190C
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 08:57:46 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="gT8IzfYM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39AC92190C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 264A18E0002; Fri, 15 Feb 2019 03:46:03 -0500 (EST)
+	id C48328E0002; Fri, 15 Feb 2019 03:57:43 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 213888E0001; Fri, 15 Feb 2019 03:46:03 -0500 (EST)
+	id BCF238E0001; Fri, 15 Feb 2019 03:57:43 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1036D8E0002; Fri, 15 Feb 2019 03:46:03 -0500 (EST)
+	id A705C8E0002; Fri, 15 Feb 2019 03:57:43 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AC5048E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 03:46:02 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id 39so3673448edq.13
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 00:46:02 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 648AE8E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 03:57:43 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id g13so6389695plo.10
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 00:57:43 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:subject
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=2UV+8OcJUghGaV9Huy40qDoVntpGzLgTIK+t/JVUVac=;
-        b=dnxHr+IkrQym8WDVd/OdB5wkgwEPg55mwfC3WSdvJD3dRMQD4lfFoE2tfH7xS2nVII
-         fqQrsIj5mOeCLG/2opf7aQK/R12lmQ0f8IWKTq7WYrpxFPDsQbX57PqhzKGXs24ngC2p
-         tXtq9SYUV/FChpJ4lgq4o7HjeqBmrlXulDqHPNfDAhp5a+V9y6onTBmD7isKpVF8f0qk
-         bCFlTKVkXM5Eqxcm7IttyM9aszfctRgq5J5kapOn7L2FXZFLbFHJpPKVy5xmVwpZ75ec
-         m/79lyC2H2rhSys7TjabiMaWrsiJHYSXjtgWUy2cucyfKhxHrHsCcRT2u8hXn7wU63K4
-         wM8w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: AHQUAuZt7kHFEK7ktvNdnQ8goXEaWbuTOpVMt6XXVREbYkW96croZhtV
-	ivxzuzrlGO9tcbEozxNdEd09Wgo8tjlnY7nbJn+z4rlsXy/0HnutXMP2YuG1Cp1jvNOkcviyWA4
-	GwgrmIdpnhuz8MIPxqlLS1I6NN++b779pAxnTUBWqsSG+BhpkzsfHGuxFX/gl3lEfDg==
-X-Received: by 2002:a17:906:3b8e:: with SMTP id u14mr5895773ejf.130.1550220362093;
-        Fri, 15 Feb 2019 00:46:02 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ia+UHNg8j3jWCSnl5K0K6bKW2A1F9jygd2Igflohzi97VRGbpQB7A0ScQ3GX7CwauB1Uj0k
-X-Received: by 2002:a17:906:3b8e:: with SMTP id u14mr5895726ejf.130.1550220360989;
-        Fri, 15 Feb 2019 00:46:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550220360; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=lC0sJXKkNVKrNcwoJXfFFpIZaHgwwYjVNEpuiQ0lz3E=;
+        b=h7bLU5UPAZkzwi7slopVgb5f2QaruKXoQFETgpyjxIiZQfD7xet1XMu8524p2xa5Se
+         yFZDxsxPalbqmOa4Wy4pODOWL6ow3TCh5NXhbxQ4Pb2DVLphsh6QI1PKGYxnYyRznNrU
+         iZ8EZWgvmwgEWIPs60c6nIO3CApMJu9n4ulAr7fJzoi1cwhUhXaLt2BReMLSFBDQw6L5
+         R0Jdj2Ve6b7yPZxncYfwmWUl6JmF52oTv+bgbDeQpkISY/PnQHbbPEUbzqTwDcB5t7cr
+         qx++insAeAqfYDHadAJTuYEo+VspRpRHxsDhgYGhgOBI1cNvSCBVyqr6NIT5oPlPEf3L
+         XaDQ==
+X-Gm-Message-State: AHQUAuY0M/QEfXgvsYU6gyVtZY3B9Ac+j30gNbY6yInvfFvo1//Pi0Zi
+	XNAiJdL7ZthMv7lkLGBScwGQ2gGoOEE4wtveKKCBPMGCddlTCkK3sc7puiAjnq4jnFwQRMUAFfb
+	WdFppW7uNPjclqx2WNmjIGmV9WLzCu5RP74p7Z0IN0glSgDsANkQ7NWN11qtAzlnuAQ==
+X-Received: by 2002:a63:5518:: with SMTP id j24mr4324727pgb.208.1550221062993;
+        Fri, 15 Feb 2019 00:57:42 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZH1Ie+ZMBxN6w//BFH1p+dw1KxNRF5ibXqatp1hD8rBhOIcZI3kfqGn/lqIqAE7xWp6k65
+X-Received: by 2002:a63:5518:: with SMTP id j24mr4324679pgb.208.1550221062231;
+        Fri, 15 Feb 2019 00:57:42 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550221062; cv=none;
         d=google.com; s=arc-20160816;
-        b=xlYHWwK4aOMQ7ovJk6ClmaSVs0kReRGl71++wmREKsVjauK/dUlNAl1YmsYkGDpRHP
-         O8n43lm0iZONikTxNVv2K99G88QmRvOvIReFblfrV/XQHGB5UW8s9pVhL8FjeffuPWat
-         O3PuLOUXs6PIS3tXMerOTp4HwroKJVcavNHp5yguSYZzC7PY7mB/Pd88eggBm9qdz9Th
-         /GCy/RVbdoG5EBYxbseO1YMRAQIMInldMi8i4pKO3ObfUkQ4Ww1jIx9a/uBmgI4mmtkD
-         BXJnJiZeAb8c26fqDqJL/3z/tID+0TvlEXYwhwTAx+kq9Ep0VmS+tildBHc7xhORcUHi
-         lAmw==
+        b=vRGvUjUJ1DkMp39C/UvP1Io48HfL7MWo5SupP7n6yqxL46ZPHG2uzEOeXRFkVyHIfK
+         s+39GGhzhAhmGmnoJ4k2uZnV1YZJIIeOKK680DZ3EBm/iwCeDVOv5kKwKaDiG0LqDIFb
+         TvNK/fj7Usxsfd16W7iwKdzugVCKd2eS/98WpJc8WV/67x/JMkHMh2t03hlcOPO8V9dY
+         +tAJK0f0r2vB6fVlaJALgGmCboilfLDZgQ4izsWlJj9f0+f+IFz6i9JCw0gJM0EO4oyE
+         tzdAj5Raz5A6p80ayangf/VGd1UVPtqTYcnMu9jWsvV8bhOhMDl78M/79ID+kUMtmKXZ
+         GIgA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:subject:from;
-        bh=2UV+8OcJUghGaV9Huy40qDoVntpGzLgTIK+t/JVUVac=;
-        b=JmfVQ8cjB11uE+PQIMlUtij3VHMs0peYkq1/3Ezje2MJnDBOtMomI/WIbta1NN2mqN
-         zUDXmYom8dx7vdRUBrRWtJMybpPSdBTGU2CfxHcCMLFrHyNI28G9pas8OjoDPuZ7yzEU
-         jf1x3znvV2RWS8HPSELfgeNh3Ynx3SFpdh+xgWFHK/Zc8+oik4WE7k2FW6guumTvVWRN
-         9Y0Iv4E2Z6xc1FVP/hf5/AMDERkIhfhPFHnicpaGoWx6aqwDcgERd1fKho2Uib5IFe6P
-         7T2PuLuQPLDH8YcaHa+SjogVEWYJXl+9bQFHei6SxD6DMs9beD/3CPUOdoqrSwSwCTT9
-         /FHA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=lC0sJXKkNVKrNcwoJXfFFpIZaHgwwYjVNEpuiQ0lz3E=;
+        b=DvFyPJirsPbVOP40OG8svqkWziBaRAsRJ/bU67ut+lDOY/JUlJxzFpvSpJ1o/kdCRB
+         Au5L2fyBoAKro5jyO2JxJfqzmzEaE3Tx+HwVpFnn4m9PWOot1To8lueqNV96VS4JkvzL
+         cWttvIrLv2NrQymFSBS+rdItJenMJBGkigNhdC2hAq37OGb1i2ayR6SgVMX5oZvzcCS+
+         VLeOu7XoPpDDigLmA1953JKitePZ1HDa66T07uHdcWDbVbnILDmAc1F0K5q6RvwMHYlu
+         chD3Rd3Dk8Te2SPIxYg0PGjYfWxH+fyigBTANLUSxyweCeFDOb9UFTUjrwCVQ/apvBbD
+         jANg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id b53si82716edd.297.2019.02.15.00.46.00
-        for <linux-mm@kvack.org>;
-        Fri, 15 Feb 2019 00:46:00 -0800 (PST)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gT8IzfYM;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id i12si2096308pgq.466.2019.02.15.00.57.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 15 Feb 2019 00:57:42 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id A8181A78;
-	Fri, 15 Feb 2019 00:45:59 -0800 (PST)
-Received: from [10.162.43.140] (p8cg001049571a15.blr.arm.com [10.162.43.140])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 158BD3F557;
-	Fri, 15 Feb 2019 00:45:56 -0800 (PST)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: Re: [RFC 0/4] mm: Introduce lazy exec permission setting on a page
-To: Michal Hocko <mhocko@suse.com>, Catalin Marinas <catalin.marinas@arm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill@shutemov.name,
- kirill.shutemov@linux.intel.com, vbabka@suse.cz, will.deacon@arm.com,
- dave.hansen@intel.com
-References: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
- <20190213112135.GA9296@c02tf0j2hf1t.cambridge.arm.com>
- <20190213153819.GS4525@dhcp22.suse.cz>
- <0b6457d0-eed1-54e4-789b-d62881bea013@arm.com>
- <20190214083844.GZ4525@dhcp22.suse.cz>
- <20190214101936.GD9296@c02tf0j2hf1t.cambridge.arm.com>
- <20190214122816.GD4525@dhcp22.suse.cz>
-Message-ID: <d2646840-f2f0-3618-889a-54cfef6cb455@arm.com>
-Date: Fri, 15 Feb 2019 14:15:58 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gT8IzfYM;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=lC0sJXKkNVKrNcwoJXfFFpIZaHgwwYjVNEpuiQ0lz3E=; b=gT8IzfYM0rLFTG1VADzNxWfkL
+	0eTJScOywY+BgA5bL80r6zjO1AZl0H1zn29CTmFlZpu9sIc1WYqCtNA2bv/sLQy+V7B5KSUJL9kBf
+	Mjc3XlxeAS2Al3t6/Whmm/lamblTaQI4AOdXw4EJkWBnRgFshT9ee/IpFzmm8tY1oqVPt1WRJewMQ
+	wg8kTdGA4sk4TirfNw88ZtdtbGnDMH45veEYZy1uMspmPpNxOUFG+XJ9YCgDMkUqaGfGURYZIExdP
+	N88tGKmHqC9VA5C/vAfXJZLPzY1ecvbeTU9gZV2OI7fGkQGeoFyBBHE8kTs/NXjsX9OU67Bl1b2ZI
+	4/Q6jy/xQ==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1guZJT-0000As-Ke; Fri, 15 Feb 2019 08:57:39 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id EE255201A8970; Fri, 15 Feb 2019 09:57:36 +0100 (CET)
+Date: Fri, 15 Feb 2019 09:57:36 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+To: Igor Stoppa <igor.stoppa@gmail.com>
+Cc: Igor Stoppa <igor.stoppa@huawei.com>,
+	Andy Lutomirski <luto@amacapital.net>,
+	Nadav Amit <nadav.amit@gmail.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Mimi Zohar <zohar@linux.vnet.ibm.com>,
+	Thiago Jung Bauermann <bauerman@linux.ibm.com>,
+	Ahmed Soliman <ahmedsoliman@mena.vt.edu>,
+	linux-integrity@vger.kernel.org,
+	kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [RFC PATCH v5 03/12] __wr_after_init: Core and default arch
+Message-ID: <20190215085736.GO32494@hirez.programming.kicks-ass.net>
+References: <cover.1550097697.git.igor.stoppa@huawei.com>
+ <b99f0de701e299b9d25ce8cfffa3387b9687f5fc.1550097697.git.igor.stoppa@huawei.com>
+ <20190214112849.GM32494@hirez.programming.kicks-ass.net>
+ <6e9ec71c-ee75-9b1e-9ff8-a3210030e85d@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20190214122816.GD4525@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6e9ec71c-ee75-9b1e-9ff8-a3210030e85d@gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-a
-
-On 02/14/2019 05:58 PM, Michal Hocko wrote:
-> On Thu 14-02-19 10:19:37, Catalin Marinas wrote:
->> On Thu, Feb 14, 2019 at 09:38:44AM +0100, Michal Hocko wrote:
->>> On Thu 14-02-19 11:34:09, Anshuman Khandual wrote:
->>>> On 02/13/2019 09:08 PM, Michal Hocko wrote:
->>>>> Are there any numbers to show the optimization impact?
->>>>
->>>> This series transfers execution cost linearly with nr_pages from migration path
->>>> to subsequent exec access path for normal, THP and HugeTLB pages. The experiment
->>>> is on mainline kernel (1f947a7a011fcceb14cb912f548) along with some patches for
->>>> HugeTLB and THP migration enablement on arm64 platform.
->>>
->>> Please make sure that these numbers are in the changelog. I am also
->>> missing an explanation why this is an overal win. Why should we pay
->>> on the later access rather than the migration which is arguably a slower
->>> path. What is the usecase that benefits from the cost shift?
->>
->> Originally the investigation started because of a regression we had
->> sending IPIs on each set_pte_at(PROT_EXEC). This has been fixed
->> separately, so the original value of this patchset has been diminished.
->>
->> Trying to frame the problem, let's analyse the overall cost of migration
->> + execute. Removing other invariants like cost of the initial mapping of
->> the pages or the mapping of new pages after migration, we have:
->>
->> M - number of mapped executable pages just before migration
->> N - number of previously mapped pages that will be executed after
->>     migration (N <= M)
->> D - cost of migrating page data
->> I - cost of I-cache maintenance for a page
->> F - cost of an instruction fault (handle_mm_fault() + set_pte_at()
->>     without the actual I-cache maintenance)
->>
->> Tc - total migration cost current kernel (including executing)
->> Tp - total migration cost patched kernel (including executing)
->>
->>   Tc = M * (D + I)
->>   Tp = M * D + N * (F + I)
->>
->> To be useful, we want this patchset to lead to:
->>
->>   Tp < Tc
->>
->> Simplifying:
->>
->>   M * D + N * (F + I) < M * (D + I)
->>   ...
->>   F < I * (M - N) / N
->>
->> So the question is, in a *real-world* scenario, what proportion of the
->> mapped executable pages would still be executed from after migration.
->> I'd leave this as a task for Anshuman to investigate and come up with
->> some numbers (and it's fine if it's just in the noise, we won't need
->> this patchset).
+On Fri, Feb 15, 2019 at 01:10:33AM +0200, Igor Stoppa wrote:
 > 
-> Yeah, betting on accessing only a smaller subset of the migrated memory
-> is something I figured out. But I am really missing a usecase or a
-> larger set of them to actually benefit from it. We have different
-> triggers for a migration. E.g. numa balancing. I would expect that
-> migrated pages are likely to be accessed after migration because
-> the primary reason to migrate them is that they are accessed from a
-> remote node. Then we a compaction which is a completely different story.
-
-That access might not have been an exec fault it could have been bunch of
-write faults which triggered NUMA migration. So NUMA triggered migration
-does not necessarily mean continuing exec faults before and after migration.
-
-Compaction might move around mapped pages with exec permission which might
-not have any recent history of exec accesses before compaction or might not
-even see any future exec access as well.
-
-> It is hard to assume any further access for migrated pages here. Then we
-> have an explicit move_pages syscall and I would expect this to be
-> somewhere in the middle. One would expect that the caller knows why the
-> memory is migrated and it will be used but again, we cannot really
-> assume anything.
-
-What if the caller knows that it wont be used ever again or in near future
-and hence trying to migrate to a different node which has less expensive and
-slower memory. Kernel should not assume either way on it but can decide to
-be conservative in spending time in preparing for future exec faults.
-
-But being conservative during migration risks additional exec faults which
-would have been avoided if exec permission should have stayed on followed
-by an I-cache invalidation. Deferral of the I-cache invalidation requires
-removing the exec permission completely (unless there is some magic which
-I am not aware about) i.e unmapping page for exec permission and risking
-an exec fault next time around.
-
-This problem gets particularly amplified for mixed permission (WRITE | EXEC)
-user space mappings where things like NUMA migration, compaction etc probably
-gets triggered by write faults and additional exec permission there never
-really gets used.
-
 > 
-> This would suggest that this depends on the migration reason quite a
-> lot. So I would really like to see a more comprehensive analysis of
-> different workloads to see whether this is really worth it.
+> On 14/02/2019 13:28, Peter Zijlstra wrote:
+> > On Thu, Feb 14, 2019 at 12:41:32AM +0200, Igor Stoppa wrote:
+> 
+> [...]
+> 
+> > > +#define wr_rcu_assign_pointer(p, v) ({	\
+> > > +	smp_mb();			\
+> > > +	wr_assign(p, v);		\
+> > > +	p;				\
+> > > +})
+> > 
+> > This requires that wr_memcpy() (through wr_assign) is single-copy-atomic
+> > for native types. There is not a comment in sight that states this.
+> 
+> Right, I kinda expected native-aligned <-> atomic, but it's not necessarily
+> true. It should be confirmed when enabling write rare on a new architecture.
+> I'll add the comment.
+> 
+> > Also, is this true of x86/arm64 memcpy ?
+> 
+> 
+> For x86_64:
+> https://elixir.bootlin.com/linux/v5.0-rc6/source/arch/x86/include/asm/uaccess.h#L462
+> the mov"itype"  part should deal with atomic copy of native, aligned types.
+> 
+> 
+> For arm64:
+> https://elixir.bootlin.com/linux/v5.0-rc6/source/arch/arm64/lib/copy_template.S#L110
+> .Ltiny15 deals with copying less than 16 bytes, which includes pointers.
+> When the data is aligned, the copy of a pointer should be atomic.
+> 
 
-Sure. Could you please give some more details on how to go about this and
-what specifically you are looking for ? User initiated migration through
-systems calls seems bit tricky as an application can be written primarily
-to benefit from this series. If real world applications can help give
-some better insights then which ones I wonder. Or do we need to understand
-more about compaction and NUMA triggered migration which are kernel
-driven. Statistics from compaction/NUMA migration can reveal what ratio
-of the exec enabled mapping gets exec faulted again later on after kernel
-driven migrations (compaction/NUMA) which are more or less random without
-depending too much on application behavior.
-
-- Anshuman
+Where are the comments and Changelog notes ? How is an arch maintainer
+to be aware of this requirement when adding support for his/her arch?
 
