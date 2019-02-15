@@ -6,108 +6,107 @@ X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 01C77C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 15:26:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DBEEC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 15:42:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B38B2192D
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 15:26:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BCCA62192D
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 15:42:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="KSNOoqqs"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B38B2192D
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="Unvl08o3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BCCA62192D
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A5F068E0002; Fri, 15 Feb 2019 10:26:51 -0500 (EST)
+	id 5BE318E0002; Fri, 15 Feb 2019 10:42:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A33F18E0001; Fri, 15 Feb 2019 10:26:51 -0500 (EST)
+	id 56DA88E0001; Fri, 15 Feb 2019 10:42:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 94A688E0002; Fri, 15 Feb 2019 10:26:51 -0500 (EST)
+	id 45C468E0002; Fri, 15 Feb 2019 10:42:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A5528E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 10:26:51 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id a65so8367710qkf.19
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 07:26:51 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AB348E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 10:42:04 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id q33so9120079qte.23
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 07:42:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :in-reply-to:message-id:references:user-agent:mime-version
          :feedback-id;
-        bh=eQQ5G47ht1L2LtaSIQ/9ji/Y/+sfRIjwdzgr3C6Kr9M=;
-        b=rUG7wfRl29iYhIEJLG1QmPH8zwJjEGiW1jzZ+Cc9nFIbiF28Vk47uvGfRrZNBAyoLL
-         cBQAVOxlpKFAoeNyxn0imlQoN0BVCLcWraqXWqBce3+eBDuBjcIFVSUDdT45N/BE+BEz
-         SpN4tKx1V47Nr0nr3GDinsf4MCBby+FremvW1JyXXLwbzwDcoQYqrn+ZMRoz044ZkiUv
-         277ZQxFKs0WfKsFPlFCbBCIX9V53QlYwm1dOavPbQPyIUzkvbllypZq3uxy1YhdK3fh6
-         2ao7u2mvR3/t2qLRbyGdOoo9cqCoKl8Ul/dAyxttnw0gErKlBTnNPHgkMgv8ks3kmBE+
-         RurA==
-X-Gm-Message-State: AHQUAuY3TDr6e5F5tLLhntbzKKJ5CQu9btB1Ab+fRnDLMVd071FnfJpL
-	fED0SaXUFPgYPc0zTiWVk4VVhWv5drrXkc7hJqo74K7Gqzz8qU+tzsN/+SQSPDJnjNccc2KjpZV
-	lnLCb+TXQJyLiBiu8mEZc7fa3GsFqJnIaD6b/XmhrGOR81lXaeXid7Vz0/DcXZ50=
-X-Received: by 2002:a37:c04a:: with SMTP id o71mr7294420qki.234.1550244411166;
-        Fri, 15 Feb 2019 07:26:51 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ia/0YovtN9Evsn5MgyQb0/EuNIQqAAzEFFvgL1j10LrE665h8k03fS53Iv37wU9Vt+D6JkM
-X-Received: by 2002:a37:c04a:: with SMTP id o71mr7294387qki.234.1550244410494;
-        Fri, 15 Feb 2019 07:26:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550244410; cv=none;
+        bh=AO5+6GjAtfAdzflCMfirBHPryl+1cPDIOakSZMCQ+6c=;
+        b=tMcx5yrcm3PfFHVZ5UWoUU4B2syZBrT5DRtdsEvvFZCUY6668i3EBaaP7veIVVaMIP
+         52Y+P6GXsKcD10A2cKnYYqVWpkgnLRfaavfazMY3D7FOnuN4J2nVPHGG842BUiNK+8OV
+         iQrI5QcgPokvFd6Gg539IXrFqNqZU3puF4CcYHjEdf1+2G8ku86CGvGn5UWpOgKcniC8
+         Ui83kGttYmM1rKrmtIHVlZ1C6VP7Etb9owLnHicb83WqTs6eFZLvkZIQjp3zRCGNepJZ
+         dvsq1P/ghP/f7GiMPAksZvnK7gR/C20oBmGFv0PdjlMuIwT+j7brcfxNLh0mYY6lct9+
+         S53A==
+X-Gm-Message-State: AHQUAuYyuvIcn/d7LtVxp32LZw30+6XoaU3WaW58oTecT4FN5tCHIsZ4
+	u7DqBHTEcdQtxXdXkYPEyHSWtHyJfhj+lt4rYl2eVce4OcQ7KZrT1kwTOg9dwvOIFV3YOHJd/1C
+	ODzJ+r0SG3AyM8TSZr/jozGY1VI/9yHwzbdfyV+MprvKnH4WHoCU13P16hsyWBfQ=
+X-Received: by 2002:a0c:e70f:: with SMTP id d15mr7604452qvn.223.1550245323837;
+        Fri, 15 Feb 2019 07:42:03 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaQbdHOfhRkOlXJ32QinilV5VR+eelQDCfwJpok+pTo0Z6eoyQ7ny16imeEsyemVUAZYivN
+X-Received: by 2002:a0c:e70f:: with SMTP id d15mr7604407qvn.223.1550245323020;
+        Fri, 15 Feb 2019 07:42:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550245323; cv=none;
         d=google.com; s=arc-20160816;
-        b=a5xRgG02VAoMApZmILqEVZXJe9ErCIHIh2kx++luOm0sAbxjCU+1h7R5O6YPIymwd1
-         fa8ub7JU3Yeigqqe+ytzz4ONvbPOr2Tn+ud2eRxZC51Olo4rokeGDS2qYFOw0BvZB/WP
-         uVnSNJamIhGRCsZ8MWYOUUyPwEkyA7ZS+ahAW4lUoIs7Y4MGwoNUOY9uVhGhc11lRXHM
-         hUrAWN7wioAUFtkIboAyz6qY/aSkmWub4CpOrzD43qDT6+5lN32i7IA7bPdAQwqANYXl
-         zqSW5UJC/GINMW2GObhp6Qf1gCIjsbwK37uGxN3FVaf293kcFsvGUwVq98lbliY6SMKV
-         wcBQ==
+        b=dskboF6Cjy+9CDD+fZELU9K8I7s9Hv856VChbglJQkgX6/aTuaqqP/g6PQ87usjH3V
+         HCPFHja40fMB1jcDdD2JSzLn2uMIw9B4YEV3wGGhMa3H1biyOKSzMaAq2HLLvv/pguls
+         /HOUVjvhEWrOSFTNluVgM3SgnEaTGFyU6pzvzI6m6PHW6hdd4M7M/l31s09mNycvnUaa
+         tOcidhcvgsvZuWF4TDuyyJzvjFl5OfICf6Rl1UUL43rUP/+FGjck3sikArBd5Fq3grUz
+         xWrqVkF14Ox5nKUMtJ9mLgT7La7jnbAlAyUfQK0L/D0CG9io0NqZjCToJTC83oYdu+ZI
+         Cw5w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=feedback-id:mime-version:user-agent:references:message-id
          :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=eQQ5G47ht1L2LtaSIQ/9ji/Y/+sfRIjwdzgr3C6Kr9M=;
-        b=QIC+kdLpt3UqOsZl4DWm8mGBP9ldCeilvEsoucqxxZCX6z8mQ+7ZF2YikTPmtfvRZj
-         KRbFvgt9G+wwMYlhd26wqMAEz95MTea1Pdliu5ItQwJ7mHLgPkdoPLWrLBT0lwl3TMTv
-         J9Zvlr/KBxn5Gg229efZV17Y1LWZVa6y83l1WH8VlM34fyt7GOwsO8AGCOIv04jVLIGF
-         a1GZM+f8cvLzpu7S99Ix+yPpyRbNJ/G8QNVsP5U1DAd4YASH7tWpNR8vmCvJA+wDqH+s
-         xT4oqXil9KVau6U9/KLZpOaaubS8Jb67FE4EcO+BfYGdxdrAOX8E5Lg0QTEZbSzV6geR
-         uADw==
+        bh=AO5+6GjAtfAdzflCMfirBHPryl+1cPDIOakSZMCQ+6c=;
+        b=QPAOZt4+FrdCdpxCu4XwE80U1n+Ts9F+k4/eTyUgwQQkhnj4oOodI7dtknH0z7Ex6w
+         nTJIeKS2WM7/dFBgA1J635F7C2aPX5x6HfLh7OhpintUqAU4XCP72Y844ihKR+oerQnG
+         gbo3UhAvfXd5mM01hsHO4HsndxEvlVWIlSdd3ymv4vGaVXEFzyAaYnL9whAc8SzjAUi2
+         oOU9NOcXLw5L5uYQyzqpqVMGs7TlPyTLRP8hL9EUPkRj/b1E9vdp7ngQMVwW44OX+1j8
+         M5eaYEnb5nllBe/8lrn/Hdy9+rnHsyo/sQwYjTrfLl9SY6/dQm1G9dZUVNPW9NxjLGW6
+         aohQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=KSNOoqqs;
-       spf=pass (google.com: domain of 01000168f1c4718d-91714478-72d3-47cd-ae36-2d781947ebde-000000@amazonses.com designates 54.240.9.31 as permitted sender) smtp.mailfrom=01000168f1c4718d-91714478-72d3-47cd-ae36-2d781947ebde-000000@amazonses.com
-Received: from a9-31.smtp-out.amazonses.com (a9-31.smtp-out.amazonses.com. [54.240.9.31])
-        by mx.google.com with ESMTPS id q128si657526qka.151.2019.02.15.07.26.50
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=Unvl08o3;
+       spf=pass (google.com: domain of 01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@amazonses.com designates 54.240.9.36 as permitted sender) smtp.mailfrom=01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@amazonses.com
+Received: from a9-36.smtp-out.amazonses.com (a9-36.smtp-out.amazonses.com. [54.240.9.36])
+        by mx.google.com with ESMTPS id j92si3763394qte.44.2019.02.15.07.42.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 15 Feb 2019 07:26:50 -0800 (PST)
-Received-SPF: pass (google.com: domain of 01000168f1c4718d-91714478-72d3-47cd-ae36-2d781947ebde-000000@amazonses.com designates 54.240.9.31 as permitted sender) client-ip=54.240.9.31;
+        Fri, 15 Feb 2019 07:42:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of 01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@amazonses.com designates 54.240.9.36 as permitted sender) client-ip=54.240.9.36;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=KSNOoqqs;
-       spf=pass (google.com: domain of 01000168f1c4718d-91714478-72d3-47cd-ae36-2d781947ebde-000000@amazonses.com designates 54.240.9.31 as permitted sender) smtp.mailfrom=01000168f1c4718d-91714478-72d3-47cd-ae36-2d781947ebde-000000@amazonses.com
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=Unvl08o3;
+       spf=pass (google.com: domain of 01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@amazonses.com designates 54.240.9.36 as permitted sender) smtp.mailfrom=01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@amazonses.com
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1550244409;
+	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1550245322;
 	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=ph+Ox1e7xNScZGS+VdWAQM0Ff/E6RjNkQYhIunoJh5I=;
-	b=KSNOoqqsLE+r8KYX2OGbVKpGlhsa+Ylr4yLduMXvPZjEz1KtCJCrXjbXi05MCABz
-	GfKhX70kQFfDTpoB3XA0etFSJKc3qzbKiYMlp8/e0SZ/sM66h8/4m0+1mqYIrp4Ss5v
-	X7EU6bVAeo2r2h9wXORmJ3AkbZYhtBwR8GhooEac=
-Date: Fri, 15 Feb 2019 15:26:49 +0000
+	bh=ieoA9G/W7FjMw2f/8b6ijric5X7WLHj4SWCwlIfIT3E=;
+	b=Unvl08o3EUDCs5oYoOtJ8OdPcFc3nBgaouZGWhaSGZlU9kTY9eNGTON+3/0G29W6
+	6pXPvYuHZZIEeICI7KLo9AEm2ZplYtKkKF+PsXj0PEPeb2H8EbZirMGy+OxsrEYPu3i
+	2bZjBAUyQ6w+UfRWab+O9lfJretpOK2oDiEyOQPY=
+Date: Fri, 15 Feb 2019 15:42:02 +0000
 From: Christopher Lameter <cl@linux.com>
 X-X-Sender: cl@nuc-kabylake
-To: Jason Gunthorpe <jgg@ziepe.ca>
-cc: Ira Weiny <ira.weiny@intel.com>, 
-    Daniel Jordan <daniel.m.jordan@oracle.com>, akpm@linux-foundation.org, 
-    dave@stgolabs.net, jack@suse.cz, linux-mm@kvack.org, kvm@vger.kernel.org, 
-    kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, 
-    linux-fpga@vger.kernel.org, linux-kernel@vger.kernel.org, 
-    alex.williamson@redhat.com, paulus@ozlabs.org, benh@kernel.crashing.org, 
-    mpe@ellerman.id.au, hao.wu@intel.com, atull@kernel.org, mdf@kernel.org, 
-    aik@ozlabs.ru
-Subject: Re: [PATCH 0/5] use pinned_vm instead of locked_vm to account pinned
- pages
-In-Reply-To: <20190214221629.GD1739@ziepe.ca>
-Message-ID: <01000168f1c4718d-91714478-72d3-47cd-ae36-2d781947ebde-000000@email.amazonses.com>
-References: <20190211224437.25267-1-daniel.m.jordan@oracle.com> <20190211225447.GN24692@ziepe.ca> <20190214015314.GB1151@iweiny-DESK2.sc.intel.com> <20190214060006.GE24692@ziepe.ca> <20190214193352.GA7512@iweiny-DESK2.sc.intel.com> <20190214201231.GC1739@ziepe.ca>
- <20190214214650.GB7512@iweiny-DESK2.sc.intel.com> <20190214221629.GD1739@ziepe.ca>
+To: Dave Chinner <david@fromorbit.com>
+cc: Jerome Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@infradead.org>, 
+    Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, 
+    Jan Kara <jack@suse.cz>, Doug Ledford <dledford@redhat.com>, 
+    Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, 
+    linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+    Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
+    John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@kernel.org>
+Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving longterm-GUP
+ usage by RDMA
+In-Reply-To: <20190215011921.GS20493@dastard>
+Message-ID: <01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@email.amazonses.com>
+References: <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com> <20190208044302.GA20493@dastard> <20190208111028.GD6353@quack2.suse.cz> <CAPcyv4iVtBfO8zWZU3LZXLqv-dha1NSG+2+7MvgNy9TibCy4Cw@mail.gmail.com> <20190211102402.GF19029@quack2.suse.cz>
+ <CAPcyv4iHso+PqAm-4NfF0svoK4mELJMSWNp+vsG43UaW1S2eew@mail.gmail.com> <20190211180654.GB24692@ziepe.ca> <20190214202622.GB3420@redhat.com> <20190214205049.GC12668@bombadil.infradead.org> <20190214213922.GD3420@redhat.com> <20190215011921.GS20493@dastard>
 User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.02.15-54.240.9.31
+X-SES-Outgoing: 2019.02.15-54.240.9.36
 Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -115,46 +114,29 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Feb 2019, Jason Gunthorpe wrote:
+On Fri, 15 Feb 2019, Dave Chinner wrote:
 
-> On Thu, Feb 14, 2019 at 01:46:51PM -0800, Ira Weiny wrote:
+> Which tells us filesystem people that the applications are doing
+> something that _will_ cause data corruption and hence not to spend
+> any time triaging data corruption reports because it's not a
+> filesystem bug that caused it.
 >
-> > > > > Really unclear how to fix this. The pinned/locked split with two
-> > > > > buckets may be the right way.
-> > > >
-> > > > Are you suggesting that we have 2 user limits?
-> > >
-> > > This is what RDMA has done since CL's patch.
-> >
-> > I don't understand?  What is the other _user_ limit (other than
-> > RLIMIT_MEMLOCK)?
+> See open(2):
 >
-> With todays implementation RLIMIT_MEMLOCK covers two user limits,
-> total number of pinned pages and total number of mlocked pages. The
-> two are different buckets and not summed.
+> 	Applications should avoid mixing O_DIRECT and normal I/O to
+> 	the same file, and especially to overlapping byte regions in
+> 	the same file.  Even when the filesystem correctly handles
+> 	the coherency issues in this situation, overall I/O
+> 	throughput is likely to be slower than using either mode
+> 	alone.  Likewise, applications should avoid mixing mmap(2)
+> 	of files with direct I/O to the same files.
 
-Applications were failing at some point because they were effectively
-summed up. If you mlocked/pinned a dataset of more than half the memory of
-a system then things would get really weird.
+Since RDMA is something similar: Can we say that a file that is used for
+RDMA should not use the page cache?
 
-Also there is the possibility of even more duplication because pages can
-be pinned by multiple kernel subsystems. So you could get more than
-doubling of the number.
+And can we enforce this in the future? I.e. have some file state that says
+that this file is direct/RDMA or contains long term pinning and thus
+allows only a certain type of operations to ensure data consistency?
 
-The sane thing was to account them separately so that mlocking and
-pinning worked without apps failing and then wait for another genius
-to find out how to improve the situation by getting the pinned page mess
-under control.
-
-It is not even advisable to check pinned pages against any limit because
-pages can be pinned by multiple subsystems.
-
-The main problem here is that we only have a refcount to indicate pinning
-and no way to clearly distinguish long term from short pins. In order to
-really fix this issue we would need to have a list of subsystems that have
-taken long term pins on a page. But doing so would waste a lot of memory
-and cause a significant performance regression.
-
-And the discussions here seem to be meandering around these issues.
-Nothing really that convinces me that we have a clean solution at hand.
+If we cannot enforce it then we may want to spit out some warning?
 
