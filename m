@@ -2,165 +2,168 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C6DD0C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 16:48:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8AA2DC10F02
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 17:03:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8D391206BB
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 16:48:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D391206BB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 5317821924
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 17:03:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5317821924
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 27EAC8E0003; Fri, 15 Feb 2019 11:48:57 -0500 (EST)
+	id C87228E0003; Fri, 15 Feb 2019 12:03:06 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 208E68E0001; Fri, 15 Feb 2019 11:48:57 -0500 (EST)
+	id C388E8E0001; Fri, 15 Feb 2019 12:03:06 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0D2DA8E0003; Fri, 15 Feb 2019 11:48:57 -0500 (EST)
+	id B4C508E0003; Fri, 15 Feb 2019 12:03:06 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A511D8E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 11:48:56 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id x15so4234479edd.2
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 08:48:56 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D8338E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 12:03:06 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id o14so2230400edr.15
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 09:03:06 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=hocUS+4WIVmLQlgxns18lkRc3VuCIgC1yKblcJJS3gE=;
-        b=pz2vDZO2AIG9UEaAtn9swK1XlXkDtczM8ezS2RRGRW1+/e96lm1nAGkuRgIRXkz+KO
-         Hai8eiRI1VsFaXge8lJXFADG5cCZ0BjqpwKHvND62Ing0JUWZkGTQGK0QA3BJ7zBjOQp
-         I5tOYkZgUmP9jLmE91rMznryHLFcG0ApVtsBq0xUtUEtQTrYy1rLPjMXNO0bc6qY6hA0
-         Idy+mI+ZhIbQHDv0mlUtVRlPcx2jgqFBcNVSn6rwDLueSA9I2DQeDd1GSXfV0KKcPZlv
-         LnvC7G/hs6io/py9YqHh0LfJgiuwor0GkD0prhmhV8liDtJkOmwHDE2jyybldBnzCbkK
-         Btug==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: AHQUAuYDvba/f/PrFJAVXVWTDb0F9slcQykCU9/g9u+a8dIlQIlo7eyi
-	LwyYPEEygVvudeGaW/0Tbdz8m9tvubRqMSnlETfBr5BHxSiHopJi4al5jwMcJH5MWntsnqVXLCB
-	/97sLjF9Sn0892M+UORm4hTmzknub/huEaHChq5XLdXdQthb1VxT5XswsAylJCeyy2w==
-X-Received: by 2002:a50:a901:: with SMTP id l1mr8418024edc.90.1550249336162;
-        Fri, 15 Feb 2019 08:48:56 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbCWAL/FfPeYe0srKCasK63FuEF7CKrdyaqSBAUrEN3d3tcWyDVjQknTHv49f2L65rJeOxr
-X-Received: by 2002:a50:a901:: with SMTP id l1mr8417971edc.90.1550249335126;
-        Fri, 15 Feb 2019 08:48:55 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550249335; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=OLdK6qnJVeZJFxiIfOrWpKFHM3h9lXf0pOIxynRsQ60=;
+        b=hU/c45ifDPfWNbmzWGolokBYNUhct/r/aeAZQXy3O99EInshLs7CQCe6cgvO+wZTZG
+         ye8m7npouWZJlTTqFZUI/iqeVBFkNgazNRuLRHsY5A4dR6cPs1QGdiYRrk6DubOlc1NQ
+         uwMgiXGSqUP3/xB22QC/jpvUS5zQwq9TccOJJNDiGVozDf8vnGSYuZF2fA2jAudV9f/G
+         d3tPSvDeonVYCH2bZAROs87BoFKDVjiseOr3SyfEVYFT7PX8Rk9xeG7oi0Kwagk6Woe7
+         R9s+cEm7twhH6h4k5tGdIXjTaPK1IDdiOaV5pA9x9BRld07Ck5qJtRmBC6p+nS/xFovV
+         swsw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: AHQUAub3S5SHMtNovkj4UxXDBkUU43ibSlYEsU7EW+JewSumwOK8gGUp
+	PtF8PKO3ZexYii+4Wne4qV2xI8nN45Ln93REhZ4Bez8EDF3H5Tyc1l+WtekeAjf0QjGqy9BOqIX
+	SMYbIFF7TkErL9fc+mUa1uA+SVKtUxa0pqXE8oQ9lUb9e9OqeQi+U88fAFGPIuykVDA==
+X-Received: by 2002:a17:906:7c49:: with SMTP id g9mr255911ejp.31.1550250185848;
+        Fri, 15 Feb 2019 09:03:05 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZvwqBc97VVuvgnXQhi3v9Wu8olHHty27Ais4FcLUlNqq3QL/hegMv13a+Rk5DPsE0yzAR0
+X-Received: by 2002:a17:906:7c49:: with SMTP id g9mr255838ejp.31.1550250184682;
+        Fri, 15 Feb 2019 09:03:04 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550250184; cv=none;
         d=google.com; s=arc-20160816;
-        b=wOE+7eAQbLagyiLCOkrx6/s5TssoJ0k/L9YftQO6C9FrobqRhFFBryvCHF3GVJ1vsL
-         7FIzl6HUzKhFoAHRShoAIsRq8c7NOqtEyOn+bn8vlVEYVV6TwTQR+ZuRQwqAlnv+eiOk
-         +w73J5nEh4jsZuEfrG211Jb3yDDFdj0HKoOqU+tTeZAD0UYk+fJm6yBElfPay5JSyjVM
-         kg1vGLr5QgyMw9ryMb4YCd3rIRkmNCNYse8wL8ihTjds1W9MNWOjmSDDVOylQrVUJTEp
-         zuIeHSoseWGaDbs20BS4/H2f1JKDyQX3WBRlQnJG9JXxG51Co8a+u6gX9WFYT511n27m
-         5sxw==
+        b=McbJyKMXtJV7AIpdms/xssM+4oRTRFm3/Af/r27+KlMIPj5tpuz46GW6WGL9YvKLBV
+         X32VDg575QmN3TGKMEokKB7gqjwq0stqMJySFNsM5HwAAboPnBqupMgde2A+6N9eo58q
+         7k8ZYxWSEp5bxsIj9zN/IRyH0MWR0J/90UgeToYbgBQb3K7eHMfwFT/5vRrbuM6v7gbu
+         Bo5C9qgPZSDgUKcmX1dIitTcQl7O2M2suWgAIzv9zYcO8iI6/UlQDCiVi7+LA2U0JeRR
+         FNu49orzmQwb8h/rBunDULOOae3SGDgEJnR745CyRASyM1turVKLznOMCgtl/VbntviG
+         5a9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:to:subject;
-        bh=hocUS+4WIVmLQlgxns18lkRc3VuCIgC1yKblcJJS3gE=;
-        b=xr+JFm7LAZEssZx0OULnYuwyRhFx7exQQdCjaZA9lFSOhZcPg0Q3TBFE1/Yd+BaDnE
-         5CbLmjefA6Lb0toUs+/FkVuaryAepyfkoUXAqLknEBBg+yAAytaj7EmoSXx1vqR1qlNB
-         G5zFFg1C1hr9iI/O5UU1x5oD3gossap6qsRnjdX+KIk9bfgY+BQG7v6pP/ss50aGFbNN
-         7Solg1th/1wn3qdPHEpykOPTu6r1AxExn/c+0sKhJI07qwMp1AiZwGWQ39hPJdAGkgJv
-         UG4MSVvx3n/GowtypnYVSHcIiRUMPczsH0BjniNIYtpk9dBMGjka+ZcxUzEZePFkr449
-         hnIg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=OLdK6qnJVeZJFxiIfOrWpKFHM3h9lXf0pOIxynRsQ60=;
+        b=IPtAXeStNSHAUeyT9FpAzPlBWB8a1L6mBlI8iqVbL1QQ1+SMAewb0qJrsUt9sf8PSF
+         wt+TkkLKIMqvzQoE5xmFoNqgVTuYlAlJk8b9EyzQqesqoP5M7t1iW/hsWvi1bfVn8Aui
+         4CCZHx4iSpfRrSeMxq7vR2o3u9gbc+c6ITDi+5qqXi3Mq0cB4NWACxUqnV7d9Z0SLLON
+         bfkGPHZfFvJLLTLQJoy/CjLwcW0Pzcb4C/BogRbb3Tb8WFbaGIS4laOBzb36sp9catBW
+         litSvmIw4Oxsdp+jusB6dVkyfsB9ELe35XKoh5scihuTueA0X1WokuHBhbu7Upqdj/FI
+         dWrA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hk14si2546887ejb.26.2019.02.15.08.48.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 08:48:55 -0800 (PST)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id p7si2414492ejj.19.2019.02.15.09.03.04
+        for <linux-mm@kvack.org>;
+        Fri, 15 Feb 2019 09:03:04 -0800 (PST)
+Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id CF894B03F;
-	Fri, 15 Feb 2019 16:48:53 +0000 (UTC)
-Subject: Re: [PATCH v3] hugetlb: allow to free gigantic pages regardless of
- the configuration
-To: Alexandre Ghiti <alex@ghiti.fr>, Catalin Marinas
- <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
- x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
- Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
- Alexander Viro <viro@zeniv.linux.org.uk>,
- Mike Kravetz <mike.kravetz@oracle.com>,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
- Andrew Morton <akpm@linux-foundation.org>
-References: <20190214193100.3529-1-alex@ghiti.fr>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <363365a7-f1ac-5bde-ff7f-bdb137c20628@suse.cz>
-Date: Fri, 15 Feb 2019 17:48:50 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9A0F8EBD;
+	Fri, 15 Feb 2019 09:03:03 -0800 (PST)
+Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.69])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id A5A373F557;
+	Fri, 15 Feb 2019 09:03:00 -0800 (PST)
+From: Steven Price <steven.price@arm.com>
+To: linux-mm@kvack.org
+Cc: Steven Price <steven.price@arm.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Arnd Bergmann <arnd@arndb.de>,
+	Borislav Petkov <bp@alien8.de>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Ingo Molnar <mingo@redhat.com>,
+	James Morse <james.morse@arm.com>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Will Deacon <will.deacon@arm.com>,
+	x86@kernel.org,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	linux-arm-kernel@lists.infradead.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH 00/13] Convert x86 & arm64 to use generic page walk
+Date: Fri, 15 Feb 2019 17:02:21 +0000
+Message-Id: <20190215170235.23360-1-steven.price@arm.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-In-Reply-To: <20190214193100.3529-1-alex@ghiti.fr>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/14/19 8:31 PM, Alexandre Ghiti wrote:
-> On systems without CMA or (MEMORY_ISOLATION && COMPACTION) activated but
-> that support gigantic pages, boottime reserved gigantic pages can not be
-> freed at all. This patch simply enables the possibility to hand back
-> those pages to memory allocator.
-> 
-> This patch also renames:
-> 
-> - the triplet CMA or (MEMORY_ISOLATION && COMPACTION) into CONTIG_ALLOC,
-> and gets rid of all use of it in architecture specific code (and then
-> removes ARCH_HAS_GIGANTIC_PAGE config).
-> - gigantic_page_supported to make it more accurate: this value being false
-> does not mean that the system cannot use gigantic pages, it just means that
-> runtime allocation of gigantic pages is not supported, one can still
-> allocate boottime gigantic pages if the architecture supports it.
-> 
-> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
+Most architectures current have a debugfs file for dumping the kernel
+page tables. Currently each architecture has to implement custom
+functions for walking the page tables because the generic
+walk_page_range() function is unable to walk the page tables used by the
+kernel.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+This series extends the capabilities of walk_page_range() so that it can
+deal with the page tables of the kernel (which have no VMAs and can
+contain larger huge pages than exist for user space). x86 and arm64 are
+then converted to make use of walk_page_range() removing the custom page
+table walkers.
 
-Thanks!
+Potentially future changes could unify the implementations of the
+debugfs walkers further, moving the common functionality into common
+code. This would require a common way of handling the effective
+permissions (currently implemented only for x86) along with a per-arch
+way of formatting the page table information for debugfs. One
+immediate benefit would be getting the KASAN speed up optimisation in
+arm64 (and other arches) which is currently only implemented for x86.
 
-...
+James Morse (2):
+  arm64: mm: Add p?d_large() definitions
+  mm: Add generic p?d_large() macros
 
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -252,12 +252,17 @@ config MIGRATION
->  	  pages as migration can relocate pages to satisfy a huge page
->  	  allocation instead of reclaiming.
->  
-> +
+Steven Price (11):
+  x86/mm: Add p?d_large() definitions
+  mm: pagewalk: Add p4d_entry() and pgd_entry()
+  mm: pagewalk: Allow walking without vma
+  mm: pagewalk: Add 'depth' parameter to pte_hole
+  mm: pagewalk: Add test_p?d callbacks
+  arm64: mm: Convert mm/dump.c to use walk_page_range()
+  x86/mm: Point to struct seq_file from struct pg_state
+  x86/mm+efi: Convert ptdump_walk_pgd_level() to take a mm_struct
+  x86/mm: Convert ptdump_walk_pgd_level_debugfs() to take an mm_struct
+  x86/mm: Convert ptdump_walk_pgd_level_core() to take an mm_struct
+  x86: mm: Convert dump_pagetables to use walk_page_range
 
-Stray newline? No need to resend, Andrew can fix up.
-Ah, he wasn't in To:, adding.
+ arch/arm64/include/asm/pgtable.h |   2 +
+ arch/arm64/mm/dump.c             | 108 +++++-----
+ arch/x86/include/asm/pgtable.h   |   8 +-
+ arch/x86/mm/debug_pagetables.c   |   8 +-
+ arch/x86/mm/dump_pagetables.c    | 342 ++++++++++++++++---------------
+ arch/x86/platform/efi/efi_32.c   |   2 +-
+ arch/x86/platform/efi/efi_64.c   |   4 +-
+ fs/proc/task_mmu.c               |   4 +-
+ include/asm-generic/pgtable.h    |  10 +
+ include/linux/mm.h               |  25 ++-
+ mm/hmm.c                         |   2 +-
+ mm/migrate.c                     |   1 +
+ mm/mincore.c                     |   1 +
+ mm/pagewalk.c                    |  92 ++++++---
+ 14 files changed, 350 insertions(+), 259 deletions(-)
 
->  config ARCH_ENABLE_HUGEPAGE_MIGRATION
->  	bool
->  
->  config ARCH_ENABLE_THP_MIGRATION
->  	bool
->  
-> +config CONTIG_ALLOC
-> +	def_bool y
-> +	depends on (MEMORY_ISOLATION && COMPACTION) || CMA
-> +
->  config PHYS_ADDR_T_64BIT
->  	def_bool 64BIT
->  
+-- 
+2.20.1
 
