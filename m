@@ -2,208 +2,187 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 77F41C4360F
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 13:09:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 929D5C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 13:11:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 414B9222BE
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 13:09:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 414B9222BE
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 4BE84218AC
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 13:11:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4BE84218AC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D36968E0002; Fri, 15 Feb 2019 08:09:54 -0500 (EST)
+	id DAA218E0002; Fri, 15 Feb 2019 08:11:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CBF188E0001; Fri, 15 Feb 2019 08:09:54 -0500 (EST)
+	id D5BAC8E0001; Fri, 15 Feb 2019 08:11:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B87A68E0002; Fri, 15 Feb 2019 08:09:54 -0500 (EST)
+	id C4BC08E0002; Fri, 15 Feb 2019 08:11:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DEEB8E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 08:09:54 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id u19so3864798eds.12
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 05:09:54 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 672C48E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 08:11:25 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id u7so3942744edj.10
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 05:11:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=9mQ6ySwwfLpY9qTN0K12N9m3XcRwfoKFnvN9Lw4/iPo=;
-        b=eI8WYE6h2qWykzd9jzkVmNkFTxMjDufQ45XW7Op/04tzt7s5F5QhrvPGpAFyRkh5Nw
-         hE01jKjIrsyI2wFfuySYrfKP2Gyk6LL5KgpUFGnrHoy+fvzoxiT2fyKcL0AJ4f8xdYRk
-         8sN8fR93lhGFz+fnS2ol0PrPvEu4Sw7PZ5GZKvZLNpIURTakQy2AcncYYr5iVZBkfeIp
-         civRaNDqokFKmfExiUyo6h3anPFakIT29jTH746SEo/XEPGcvqfmC6I7QD9o8MADLDX6
-         O41R6GzrLRgGdj0vX1ISfcAxOlrZgrFUEFHOWiEY9eHRUaBQG45HHN5rAgkyTMchgSQA
-         qbkQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: AHQUAuatb2hpNorXDcm8jrtT+sfWzeneqk8yNevQn9h6rhVmvSVHuFs3
-	viVdUDogg/NuvCxM5x+FTXuWmQdw7Lh7CAfNfm8yd+rt/oKiGN62DqEYFx86Yr5VIMCKW5yDdqA
-	bSG1M0xAIKl5lTSWu6vNfseiNs4nyAU2v5c//trqRdq3JgQsQN8DnOip51I3DRcjXxA==
-X-Received: by 2002:a17:906:115a:: with SMTP id i26mr6564228eja.116.1550236193897;
-        Fri, 15 Feb 2019 05:09:53 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYIIVNuPhlDx2mnUVMK/WdgJwoBXBEYDWnCM3TdlvQdFle+bYBgPWyii47R+1e2rGbsh8l1
-X-Received: by 2002:a17:906:115a:: with SMTP id i26mr6564176eja.116.1550236192857;
-        Fri, 15 Feb 2019 05:09:52 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550236192; cv=none;
+        bh=eiGYyTMLjvoCfZDYnRCaaCBm4lN8kCVhrT3KK2fZQ5c=;
+        b=B61fttaXMSanDHmOiPFFTMht9wHkcrowSEUpllTV4k6PxQOR1tfcxhik8XeKPcyA8f
+         q98Cw+X3dYhWSBvAjOmFXASQXnyT0Zr+iFIiCyilRVSDNG8NNAtw5+OMqE86c307ul0n
+         g0FEo49CPaDaSanNiltYtTqMn9qpBMxYOYGE2WYyX4E9574i6FDVH9YB6UKMIcrpD6r1
+         wKhZBKfUuPLU9lKSuC7EfW5GQYjPxtM9JUbtK0CkEgGaZ+77SK7y9GWmT017rIyjl8Dc
+         c95iDY29TpdyCBSsxXNJ+tnnhSa3VywmoU73nR/uLbiNGqhA/70RMKoWEHDNqb2Mo1jw
+         wL7A==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuaNzZ7LHlMpET5oI8zKJgTbg2bl05evOVuRCOcxea5ItSyLWPNx
+	ttIo2CK1L9+ylmrEpCDWlS2kMZr7ye5byw2lg97hR1lUdy/DyGB3rsvLUWrz3DKreEKU06Kw8Sg
+	tWjhAWrAs8YaDUSqzcg/evy2yyAP4pHV7yowq4GzL/ZaIdUurQko5SN/FKPaoBTs=
+X-Received: by 2002:a50:b7ad:: with SMTP id h42mr7581178ede.210.1550236284963;
+        Fri, 15 Feb 2019 05:11:24 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZzALOmDrnm7sh9Ub2R5uEYbg7vhNHPZHzGWJDd4JD8ZvR/0ZrsxJ0Ffoko7SZVOkJiuRNl
+X-Received: by 2002:a50:b7ad:: with SMTP id h42mr7581126ede.210.1550236284013;
+        Fri, 15 Feb 2019 05:11:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550236284; cv=none;
         d=google.com; s=arc-20160816;
-        b=tczPddC8P9vd/PEWaQwRojSwfohrFOWIBMh4yU2lFU1O3hgnr0Fw7lQOCWWXN+anlX
-         4rqHYdiM3FWpKnrOTMZSJ3p72E+Jj3WT8jKkxMxpc7K/AbN3m8QSQJYHqrJLTahQpPub
-         6lMV9PgVx9Gwsr2tzcGs9IxWfRa3LY2TPEERsTxd3m7bbRqycGpYwYKbLzxbi+3/GAI2
-         /40cOuyaRrMEIfSjTi1Hw/2JqtMF38FeXdLtYLo2nevESRxw22lUOTPX26DQe1wReQDH
-         g2skzB9rKYC9s0L8qwlteW/AsSmISsmqYbDPbDRlVrrvgtpYkQLbQCIf95H/pHSHlYXa
-         7fGQ==
+        b=qd97bcCqwL37IbN3Tb1WD16ssax96l+bekCHkTBjj3VbGf6Fj5SkbQnKbCCqFsfKyj
+         rcFEqsYV6LTLkw6zK9ThJKf36I10gs0SQHOPAyRt4vooIa/SO77UfgfYOvz7icp0KEV3
+         qtw/mZLFHY3/K3jIGXeYOm+PIqTeRiXG36C0Qxtw3YpV1ezUKEDsbtbrb1qbpCrXdAaW
+         zu99hVxVxUAS+MdP+KpxvgSaM19uDJoJ+9lXiavY7O9jJBH3zvpMMiiZsT4UtluoRxr0
+         nitf+ja2I3lfc90SBaYFm9JYsbrKTpuCPoCnRB7OjRPWT802UIBLODUBDqzpd02sEj0G
+         MEwA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=9mQ6ySwwfLpY9qTN0K12N9m3XcRwfoKFnvN9Lw4/iPo=;
-        b=mqrClavtDQsCfsbMd49Gs1Vai59kbwXpE1ZGEyV4LLv3AwBd6LWCpA1hhEu9iJnmih
-         vUONkgl33w4GF62PReGQThYa9x6VAG9RCSi3QfvKIpDWnhq/gUnEqlb16uH7bIHj1hDK
-         VvJ7Q91uzXyYLrmK5DR5Ij3lmzqEryfzrqLdbrZ+94pBp8EkJ0A8tUoCtpOr5W3waVP+
-         Dae23l5JljVpxYxjPZmUkd5g0i95s391v4H7EyKzq0fvgvlBY7JTy6NjnQ6xGLMb7gq6
-         aTwNFcCIYW7TbFUMpHvI9VoS63h1wdxLFQ0FW39M+kebECtk8wRbU55dbhSHh1SxMxEf
-         Ny+A==
+        bh=eiGYyTMLjvoCfZDYnRCaaCBm4lN8kCVhrT3KK2fZQ5c=;
+        b=BTnjxPg+1D/wusWJIn913P3L04/RVYUBtlE1dDG9AIM0FT/jFFtQ67bLQXSxrg0xor
+         UpjuwInejAA4SEL1R1jvE9bZm7DU3BnTfgUOxMgh5c3EX8/q09Xt4lng/WFZR/by8gLS
+         eqDELLhtbDJxIeFVRbeMrAxxtAEgzWm3QOAFNeajd5rPQTzU4929AiJa1kwRoiGzgE+w
+         +4rR37DQjPEa+I0Ue5hd9TJHF7Xo4dC89bQoPBo4YQu/dy0zatx/LzG7RuimSR0X2RLW
+         UzqwO0bZyiHErk3hABaFakUlhSyUt9v57MZso937QWQ2/S8NQinaO0t5HYn/3O/mQnNQ
+         x+xA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 92si2059632edn.212.2019.02.15.05.09.52
-        for <linux-mm@kvack.org>;
-        Fri, 15 Feb 2019 05:09:52 -0800 (PST)
-Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l19si431100edr.195.2019.02.15.05.11.23
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Feb 2019 05:11:23 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5EA9EA78;
-	Fri, 15 Feb 2019 05:09:51 -0800 (PST)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 3BE993F575;
-	Fri, 15 Feb 2019 05:09:45 -0800 (PST)
-Date: Fri, 15 Feb 2019 13:09:42 +0000
-From: Mark Rutland <mark.rutland@arm.com>
-To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de,
-	ak@linux.intel.com, torvalds@linux-foundation.org,
-	liran.alon@oracle.com, keescook@google.com,
-	akpm@linux-foundation.org, mhocko@suse.com, catalin.marinas@arm.com,
-	will.deacon@arm.com, jmorris@namei.org, konrad.wilk@oracle.com,
-	Tycho Andersen <tycho@docker.com>, deepa.srinivasan@oracle.com,
-	chris.hyser@oracle.com, tyhicks@canonical.com, dwmw@amazon.co.uk,
-	andrew.cooper3@citrix.com, jcm@redhat.com,
-	boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com,
-	oao.m.martins@oracle.com, jmattson@google.com,
-	pradeep.vincent@oracle.com, john.haxby@oracle.com,
-	tglx@linutronix.de, kirill.shutemov@linux.intel.com, hch@lst.de,
-	steven.sistare@oracle.com, labbott@redhat.com, luto@kernel.org,
-	dave.hansen@intel.com, peterz@infradead.org,
-	kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
-	x86@kernel.org, linux-arm-kernel@lists.infradead.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [RFC PATCH v8 08/14] arm64/mm: disable section/contiguous
- mappings if XPFO is enabled
-Message-ID: <20190215130942.GD53520@lakrids.cambridge.arm.com>
-References: <cover.1550088114.git.khalid.aziz@oracle.com>
- <0b9624b6c1fe5a31d73a6390e063d551bfebc321.1550088114.git.khalid.aziz@oracle.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4B6ADADCA;
+	Fri, 15 Feb 2019 13:11:23 +0000 (UTC)
+Date: Fri, 15 Feb 2019 14:11:22 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
+	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
+	Minchan Kim <minchan@kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Chen <tim.c.chen@linux.intel.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	=?utf-8?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	David Rientjes <rientjes@google.com>,
+	Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>,
+	Dave Jiang <dave.jiang@intel.com>,
+	Daniel Jordan <daniel.m.jordan@oracle.com>,
+	Andrea Parri <andrea.parri@amarulasolutions.com>
+Subject: Re: [PATCH -mm -V7] mm, swap: fix race between swapoff and some swap
+ operations
+Message-ID: <20190215131122.GA4525@dhcp22.suse.cz>
+References: <20190211083846.18888-1-ying.huang@intel.com>
+ <20190214143318.GJ4525@dhcp22.suse.cz>
+ <871s49bkaz.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0b9624b6c1fe5a31d73a6390e063d551bfebc321.1550088114.git.khalid.aziz@oracle.com>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+In-Reply-To: <871s49bkaz.fsf@yhuang-dev.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Wed, Feb 13, 2019 at 05:01:31PM -0700, Khalid Aziz wrote:
-> From: Tycho Andersen <tycho@docker.com>
+On Fri 15-02-19 15:08:36, Huang, Ying wrote:
+> Michal Hocko <mhocko@kernel.org> writes:
 > 
-> XPFO doesn't support section/contiguous mappings yet, so let's disable it
-> if XPFO is turned on.
+> > On Mon 11-02-19 16:38:46, Huang, Ying wrote:
+> >> From: Huang Ying <ying.huang@intel.com>
+> >> 
+> >> When swapin is performed, after getting the swap entry information from
+> >> the page table, system will swap in the swap entry, without any lock held
+> >> to prevent the swap device from being swapoff.  This may cause the race
+> >> like below,
+> >> 
+> >> CPU 1				CPU 2
+> >> -----				-----
+> >> 				do_swap_page
+> >> 				  swapin_readahead
+> >> 				    __read_swap_cache_async
+> >> swapoff				      swapcache_prepare
+> >>   p->swap_map = NULL		        __swap_duplicate
+> >> 					  p->swap_map[?] /* !!! NULL pointer access */
+> >> 
+> >> Because swapoff is usually done when system shutdown only, the race may
+> >> not hit many people in practice.  But it is still a race need to be fixed.
+> >> 
+> >> To fix the race, get_swap_device() is added to check whether the specified
+> >> swap entry is valid in its swap device.  If so, it will keep the swap
+> >> entry valid via preventing the swap device from being swapoff, until
+> >> put_swap_device() is called.
+> >> 
+> >> Because swapoff() is very rare code path, to make the normal path runs as
+> >> fast as possible, disabling preemption + stop_machine() instead of
+> >> reference count is used to implement get/put_swap_device().  From
+> >> get_swap_device() to put_swap_device(), the preemption is disabled, so
+> >> stop_machine() in swapoff() will wait until put_swap_device() is called.
+> >> 
+> >> In addition to swap_map, cluster_info, etc.  data structure in the struct
+> >> swap_info_struct, the swap cache radix tree will be freed after swapoff,
+> >> so this patch fixes the race between swap cache looking up and swapoff
+> >> too.
+> >> 
+> >> Races between some other swap cache usages protected via disabling
+> >> preemption and swapoff are fixed too via calling stop_machine() between
+> >> clearing PageSwapCache() and freeing swap cache data structure.
+> >> 
+> >> Alternative implementation could be replacing disable preemption with
+> >> rcu_read_lock_sched and stop_machine() with synchronize_sched().
+> >
+> > using stop_machine is generally discouraged. It is a gross
+> > synchronization.
+> >
+> > Besides that, since when do we have this problem?
 > 
-> Thanks to Laura Abbot for the simplification from v5, and Mark Rutland for
-> pointing out we need NO_CONT_MAPPINGS too.
-> 
-> CC: linux-arm-kernel@lists.infradead.org
-> Signed-off-by: Tycho Andersen <tycho@docker.com>
-> Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
+> For problem, you mean the race between swapoff and the page fault
+> handler?
 
-There should be no point in this series where it's possible to enable a
-broken XPFO. Either this patch should be merged into the rest of the
-arm64 bits, or it should be placed before the rest of the arm64 bits.
+yes
 
-That's a pre-requisite for merging, and it significantly reduces the
-burden on reviewers.
+> The problem is introduced in v4.11 when we avoid to replace
+> swap_info_struct->lock with swap_cluster_info->lock in
+> __swap_duplicate() if possible to improve the scalability of swap
+> operations.  But because swapoff is a really rare operation, I don't
+> think it's necessary to backport the fix.
 
-In general, a patch series should bisect cleanly. Could you please
-restructure the series to that effect?
+Well, a lack of any bug reports would support your theory that this is
+unlikely to hit in practice. Fixes tag would be nice to have regardless
+though.
 
-Thanks,
-Mark.
-
-> ---
->  arch/arm64/mm/mmu.c  | 2 +-
->  include/linux/xpfo.h | 4 ++++
->  mm/xpfo.c            | 6 ++++++
->  3 files changed, 11 insertions(+), 1 deletion(-)
-> 
-> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-> index d1d6601b385d..f4dd27073006 100644
-> --- a/arch/arm64/mm/mmu.c
-> +++ b/arch/arm64/mm/mmu.c
-> @@ -451,7 +451,7 @@ static void __init map_mem(pgd_t *pgdp)
->  	struct memblock_region *reg;
->  	int flags = 0;
->  
-> -	if (debug_pagealloc_enabled())
-> +	if (debug_pagealloc_enabled() || xpfo_enabled())
->  		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
->  
->  	/*
-> diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
-> index 1ae05756344d..8b029918a958 100644
-> --- a/include/linux/xpfo.h
-> +++ b/include/linux/xpfo.h
-> @@ -47,6 +47,8 @@ void xpfo_temp_map(const void *addr, size_t size, void **mapping,
->  void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
->  		     size_t mapping_len);
->  
-> +bool xpfo_enabled(void);
-> +
->  #else /* !CONFIG_XPFO */
->  
->  static inline void xpfo_kmap(void *kaddr, struct page *page) { }
-> @@ -69,6 +71,8 @@ static inline void xpfo_temp_unmap(const void *addr, size_t size,
->  }
->  
->  
-> +static inline bool xpfo_enabled(void) { return false; }
-> +
->  #endif /* CONFIG_XPFO */
->  
->  #endif /* _LINUX_XPFO_H */
-> diff --git a/mm/xpfo.c b/mm/xpfo.c
-> index 92ca6d1baf06..150784ae0f08 100644
-> --- a/mm/xpfo.c
-> +++ b/mm/xpfo.c
-> @@ -71,6 +71,12 @@ struct page_ext_operations page_xpfo_ops = {
->  	.init = init_xpfo,
->  };
->  
-> +bool __init xpfo_enabled(void)
-> +{
-> +	return !xpfo_disabled;
-> +}
-> +EXPORT_SYMBOL(xpfo_enabled);
-> +
->  static inline struct xpfo *lookup_xpfo(struct page *page)
->  {
->  	struct page_ext *page_ext = lookup_page_ext(page);
-> -- 
-> 2.17.1
-> 
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
