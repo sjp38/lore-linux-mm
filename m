@@ -2,155 +2,161 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E740DC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 09:13:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D71BAC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 09:28:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 79A9D21925
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 09:13:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79A9D21925
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
+	by mail.kernel.org (Postfix) with ESMTP id A2C662192D
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 09:27:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A2C662192D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F21FF8E0002; Fri, 15 Feb 2019 04:13:11 -0500 (EST)
+	id 3F26A8E0002; Fri, 15 Feb 2019 04:27:50 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ED1458E0001; Fri, 15 Feb 2019 04:13:11 -0500 (EST)
+	id 3A2A48E0001; Fri, 15 Feb 2019 04:27:50 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DBED08E0002; Fri, 15 Feb 2019 04:13:11 -0500 (EST)
+	id 292668E0002; Fri, 15 Feb 2019 04:27:50 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CE688E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 04:13:11 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id h70so7043957pfd.11
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 01:13:11 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C3DE28E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 04:27:49 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id b3so3709032edi.0
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 01:27:49 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:message-id:mime-version;
-        bh=juFHqzeKfwBJva52CybdDJ7ojpRQMEPZc12GIizILx4=;
-        b=GNijkivNQfB3ST1Op1IxylbuyS+cXcZf5ZpVwfWJ5uOOAUe+mt8UIPTQkCNp0+wgGQ
-         uft5usi9pgLvKnL9aLvJ+ohAw2jFoec19bZlgXdKPg2vukQBKSMjlxl4Mc/qbGxPCrRC
-         fXo3Fr/a4EK9Zq2ztgruee++53Qu3weh6RY8DynkpoMC80D7bKikRpGCsWiLkeCYp1lr
-         +47FUJgETqN6OsoDaEFG7/hj+uilyCMB7IlX2ORvKoRcq9627U3MhhNl0KUbAgUewg8C
-         ugXPo1+jFvpt9KwrqlCasPFneEOAz8HfyJdBN0Uy/ZcTURA+pOU0y5Hxs1vCWAvvI+EZ
-         Mf9g==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-X-Gm-Message-State: AHQUAuaNmYYivMtmRQ8w4EoeXXz0NFKgeD1amwpdEacLQJkYOkKn0M8s
-	3XyNEOxp5wE0w555w6KzeXycI+cyR2MPAQy892c4C/it4IkLBatBuXy1Ct4JpFOXfMUumgIFQk2
-	FgUr7r6rMqPbo223NCOl7hj8QZA6uiU63YSWudMx5WQEpNhbHhFkGm8Cf+UooaNk=
-X-Received: by 2002:a63:f241:: with SMTP id d1mr4464779pgk.2.1550221991283;
-        Fri, 15 Feb 2019 01:13:11 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbKoiMNAPh/REh3w5GxGNzyjMwsM5ztQClOOgyxSDON8MNKfyWEIagBQXjkXiV0FqmoMRCN
-X-Received: by 2002:a63:f241:: with SMTP id d1mr4464718pgk.2.1550221990458;
-        Fri, 15 Feb 2019 01:13:10 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550221990; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=YijIa7NE+xsB570xjfMDqrLN8BlzFmSKjX5wGZcY10w=;
+        b=rdzXSDA+uF+APTvu7GE1K/Fkuge+f2gHscTnKPaYDUQfrX3937gKdazccuAZa5WhJ8
+         vXHg8ujNk3KILpAAk4bJDNF6klsAFKncFwXEGxWPCsEP9SABVHatxRobPthWePjiNZza
+         yN8MXPfkjb0iWDwFPVgxWtuuD8oTppwGQ3YWfOQUXvtfTiOvWps24AXfu9ogrhDwqAFu
+         YR7vUQb69lMMZljdJFOFIhZcjFT4GtCVdqOd4RtB58uQfnqUqpwfg2gRvxiHSeSWcmog
+         XSfBCa9/vNQ68PbrBp+U4SKpMnFsB5j54kVhJ/9bxoa4Mnyk3mcdUKUT/Rw3CZ7QNi0T
+         ZH8g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Gm-Message-State: AHQUAuZ+V/MTa/+Pbdfz0YwjbiL4htXEHlOly09iL91wz/t8goxjnini
+	UDY+qcVJ8mwmUr441uMR/CYD5cC0FsKebIf4UX11nwp3wEOm0IZ1ay11OFDfE36CMaUmF0Ad+QI
+	Jx08MZvCMRdsF233tDBNClm3P1hGyurvQtv4kk4M0nyANzmyEmGmb9pL+twBcmVISXQ==
+X-Received: by 2002:a50:9b50:: with SMTP id a16mr6472837edj.135.1550222869267;
+        Fri, 15 Feb 2019 01:27:49 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ibiu1I+aoQItFsUWJA2EZLhGD+wcs3n9zdk8DUAtVJqBC/rIUVZLCp5ntQ1EVvMr/3idwPs
+X-Received: by 2002:a50:9b50:: with SMTP id a16mr6472798edj.135.1550222868266;
+        Fri, 15 Feb 2019 01:27:48 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550222868; cv=none;
         d=google.com; s=arc-20160816;
-        b=xF32hQz0bvTe1OZMPpXpyTMOcH6Sy1okwkjTCo1QOd67nH1wd6O1utX1K9ZjX0IA0Q
-         JdcgetVHhdTcCJIoq98V6D7xsrttRzpeWGzXtDa4ANYsWiEJW68JevXNYOahgoZeBtFY
-         LyK4eEmAAHz6QPEvZnoERda+eAYXlTANF3oKcTqxgbaDV7qFtlfPBFGf9o+Q+Jpt+4ZE
-         NiyanNhADWoh3Bh9dRRYIOZ2H+6ILsrp4ejnfcn8VUub167X04qlgTE3kT3wg61NuHi4
-         VyrVuoaWkCblREIJ6FhS5qQ4rSAHWVdh6Gz4WBTJk7ZvbU2Xn15MuUHKDay6u7Gyw9WH
-         Y+6w==
+        b=cz1kZdCV7qRuQFIY9STHHwfvyw7OM3+fvkA9EWRHKMQ7TvEDDiwD5SXnWHXv9y0V4D
+         C5i+w0ElXcE3ZIHirpy0zaZFgm4ri6Qw5xW11SR2EO1aQUceG+SDtjNPSewvZC0GdvXY
+         O2EMGtyiNY0M5vwT3KEv7uD3TooBVTk3FXz1XAm6MinfsC0oTTSbhShMHPPdEWSSOYz0
+         j6PPR/WhRPf/HRp/R5o8xnaoAzyQyRVRh5aZ/HFLXAi/S7S9GSdLkfiS2BXQhms1CSfd
+         4TwEccwUAds8ms0W+V6p0oBTO8d0tBT9y+1vv140VRudX5r8IrknQun/dbO1h2Loz0S9
+         xt6A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=juFHqzeKfwBJva52CybdDJ7ojpRQMEPZc12GIizILx4=;
-        b=GVbT6B+TT9pbPptEmyQcRHr/fP9hka1vXQ6p/ecFPCSRs1RVrFX+zDgX/X4IC86HFx
-         v09mrzqjdRIyttU2VrY31qOqrH0zhtRj670KEvaEbPUmyr7N/6oqBfb57xzbF+1UXnHY
-         gXRr+VDVTABW7HiI5dJdm74qA4oIDrryZhwi8EjV3fa+cOBTzXmeLhH+k+1pyW6tm6+i
-         knVhW8qtcU5JmuIJpu5CcGclv4J29BJcjmZPpiUuzxNVfudbVo/kjyFQ2sm1WquLETM8
-         MmNaz3jVrM+e7aQiAURsXSMAIDcmT+hiSEfwDqDppp4FdJYLXKMTyKFYsBf0r/PhnNrw
-         Ox8Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=YijIa7NE+xsB570xjfMDqrLN8BlzFmSKjX5wGZcY10w=;
+        b=KZ4sotucb3HGhDRx8XD+QtOSZFS0e6JG+VssH0TU8WKB25HtybSVDOvJEZaF9bVNQd
+         9o/h9Dol9kjjVwMZmFwloiSNds6lgp8C0HzvwgDsrrFn9jyriDLh/OebkBMDI1FuqVFM
+         31v5Ux3nToOq0dE9tc6n9f61cm1TtY/MxEUTfgP1Rh8I9qb2VSleGkDVQSZzJRFX36Ir
+         dSuMrNujEmJAg8G0qmMIvUzl5cYVJzAxiaZvY7HGOvAcJuml87l3O+vta2Wiye/5Bbjv
+         KcugqNYVSlprzdF0RKf5PyAei8OZrHVG2/cDYKXBR5lE+BPvgnVsDA65arQBAMIRf9KJ
+         NmVg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id n59si443159plb.388.2019.02.15.01.13.10
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i18si218985edg.44.2019.02.15.01.27.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 15 Feb 2019 01:13:10 -0800 (PST)
-Received-SPF: neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=203.11.71.1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Feb 2019 01:27:48 -0800 (PST)
+Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits) server-digest SHA256)
-	(No client certificate requested)
-	by ozlabs.org (Postfix) with ESMTPSA id 4416xG3vTtz9s7T;
-	Fri, 15 Feb 2019 20:13:06 +1100 (AEDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-To: Jann Horn <jannh@google.com>, mtk.manpages@gmail.com, jannh@google.com
-Cc: linux-man@vger.kernel.org, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-arch@vger.kernel.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, linux-api@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: Re: [PATCH] mmap.2: describe the 5level paging hack
-In-Reply-To: <20190211163653.97742-1-jannh@google.com>
-References: <20190211163653.97742-1-jannh@google.com>
-Date: Fri, 15 Feb 2019 20:13:02 +1100
-Message-ID: <87sgwpct41.fsf@concordia.ellerman.id.au>
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 8EAC8ACFA;
+	Fri, 15 Feb 2019 09:27:47 +0000 (UTC)
+Date: Fri, 15 Feb 2019 10:27:46 +0100
+From: Michal Hocko <mhocko@suse.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org,
+	akpm@linux-foundation.org, kirill@shutemov.name,
+	kirill.shutemov@linux.intel.com, vbabka@suse.cz,
+	will.deacon@arm.com, dave.hansen@intel.com
+Subject: Re: [RFC 0/4] mm: Introduce lazy exec permission setting on a page
+Message-ID: <20190215092746.GU4525@dhcp22.suse.cz>
+References: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
+ <20190213112135.GA9296@c02tf0j2hf1t.cambridge.arm.com>
+ <20190213153819.GS4525@dhcp22.suse.cz>
+ <0b6457d0-eed1-54e4-789b-d62881bea013@arm.com>
+ <20190214083844.GZ4525@dhcp22.suse.cz>
+ <20190214101936.GD9296@c02tf0j2hf1t.cambridge.arm.com>
+ <20190214122816.GD4525@dhcp22.suse.cz>
+ <d2646840-f2f0-3618-889a-54cfef6cb455@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d2646840-f2f0-3618-889a-54cfef6cb455@arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jann Horn <jannh@google.com> writes:
+On Fri 15-02-19 14:15:58, Anshuman Khandual wrote:
+> On 02/14/2019 05:58 PM, Michal Hocko wrote:
+> > It is hard to assume any further access for migrated pages here. Then we
+> > have an explicit move_pages syscall and I would expect this to be
+> > somewhere in the middle. One would expect that the caller knows why the
+> > memory is migrated and it will be used but again, we cannot really
+> > assume anything.
+> 
+> What if the caller knows that it wont be used ever again or in near future
+> and hence trying to migrate to a different node which has less expensive and
+> slower memory. Kernel should not assume either way on it but can decide to
+> be conservative in spending time in preparing for future exec faults.
+> 
+> But being conservative during migration risks additional exec faults which
+> would have been avoided if exec permission should have stayed on followed
+> by an I-cache invalidation. Deferral of the I-cache invalidation requires
+> removing the exec permission completely (unless there is some magic which
+> I am not aware about) i.e unmapping page for exec permission and risking
+> an exec fault next time around.
+> 
+> This problem gets particularly amplified for mixed permission (WRITE | EXEC)
+> user space mappings where things like NUMA migration, compaction etc probably
+> gets triggered by write faults and additional exec permission there never
+> really gets used.
 
-> The manpage is missing information about the compatibility hack for
-> 5-level paging that went in in 4.14, around commit ee00f4a32a76 ("x86/mm:
-> Allow userspace have mappings above 47-bit"). Add some information about
-> that.
+Please quantify that and provide us with some _data_
 
-Thanks for doing this.
+> > This would suggest that this depends on the migration reason quite a
+> > lot. So I would really like to see a more comprehensive analysis of
+> > different workloads to see whether this is really worth it.
+> 
+> Sure. Could you please give some more details on how to go about this and
+> what specifically you are looking for ?
 
-> While I don't think any hardware supporting this is shipping yet (?), I
-> think it's useful to try to write a manpage for this API, partly to
-> figure out how usable that API actually is, and partly because when this
-> hardware does ship, it'd be nice if distro manpages had information about
-> how to use it.
->
-> Signed-off-by: Jann Horn <jannh@google.com>
-> ---
-> This patch goes on top of the patch "[PATCH] mmap.2: fix description of
-> treatment of the hint" that I just sent, but I'm not sending them in a
-> series because I want the first one to go in, and I think this one might
-> be a bit more controversial.
->
-> It would be nice if the architecture maintainers and mm folks could have
-> a look at this and check that what I wrote is right - I only looked at
-> the source for this, I haven't tried it.
->
->  man2/mmap.2 | 15 +++++++++++++++
->  1 file changed, 15 insertions(+)
->
-> diff --git a/man2/mmap.2 b/man2/mmap.2
-> index 8556bbfeb..977782fa8 100644
-> --- a/man2/mmap.2
-> +++ b/man2/mmap.2
-> @@ -67,6 +67,8 @@ is NULL,
->  then the kernel chooses the (page-aligned) address
->  at which to create the mapping;
->  this is the most portable method of creating a new mapping.
-> +On Linux, in this case, the kernel may limit the maximum address that can be
-> +used for allocations to a legacy limit for compatibility reasons.
->  If
->  .I addr
->  is not NULL,
-> @@ -77,6 +79,19 @@ or equal to the value specified by
->  and attempt to create the mapping there.
->  If another mapping already exists there, the kernel picks a new
->  address, independent of the hint.
-> +However, if a hint above the architecture's legacy address limit is provided
-> +(on x86-64: above 0x7ffffffff000, on arm64: above 0x1000000000000, on ppc64 with
-> +book3s: above 0x7fffffffffff or 0x3fffffffffff, depending on page size), the
+You are proposing an optimization without actually providing any
+justification. The overhead is not removed it is just shifted from one
+path to another. So you should have some pretty convincing arguments
+to back that shift as a general win. You can go an test on wider range
+of workloads and isolate the worst/best case behavior. I fully realize
+that this is tedious. Another option would be to define conditions when
+the optimization is going to be a huge win and have some convincing
+arguments that many/most workloads are falling into that category while
+pathological ones are not suffering much.
 
-It doesn't depend on page size for ppc64(le). With 4K pages the user VM
-is always 64TB.
+This is no different from any other optimizations/heuristics we have.
 
-So the only boundary for us is at 128T when using 64K pages.
-
-cheers
+Btw. have you considered to have this optimization conditional based on
+the migration reason or vma flags?
+-- 
+Michal Hocko
+SUSE Labs
 
