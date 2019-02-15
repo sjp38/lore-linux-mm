@@ -2,187 +2,348 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 36065C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:01:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D33C6C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:03:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B53D2192C
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:01:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 727892192C
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:03:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=virtuozzo.com header.i=@virtuozzo.com header.b="RU3EU3x+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B53D2192C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="g99XmDGv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 727892192C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F66C8E0002; Fri, 15 Feb 2019 17:01:10 -0500 (EST)
+	id 196098E0005; Fri, 15 Feb 2019 17:03:51 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A3B08E0001; Fri, 15 Feb 2019 17:01:10 -0500 (EST)
+	id 11DD58E0001; Fri, 15 Feb 2019 17:03:51 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 16E738E0002; Fri, 15 Feb 2019 17:01:10 -0500 (EST)
+	id ED8B78E0004; Fri, 15 Feb 2019 17:03:50 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B639D8E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:01:09 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id u7so4465971edj.10
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:01:09 -0800 (PST)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B87038E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:03:50 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id c74so6924945ywc.9
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:03:50 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=3W5UlzZWve2oLpsWzekoZqMv0wretQeJahaAQpJBU48=;
-        b=pKAunhl3kFlFGdOgSZIePKBtDeUq/Z9IEz2pzkFZ8mIyTDSyQ6/Na35LEi+SkONAAk
-         30Zq+/hzuK6osi9iT4S8kyv4W34bMfziNekJ6+8uDj+QvM1d2QAJ9OtDalPpxk6/I4R/
-         qhqbN3mVk1uQnDPz2Njv112Hl+8ctjUH37Fz5j64AO7uJKGYfQk0rXFY1LdvCBAXuWm1
-         QxNBvWR0auoM8vx5nftB25Sh8XUm2MKucbOuw2L5EAtF1pp764vNCzC0AcesVCAumIOC
-         81Ec9d+DS2P+hkus3YbSJ36aGZ29tJCcJQNU/S9s021Hl5YhvAB5Njz7QkO5udwR0Nf2
-         ckbw==
-X-Gm-Message-State: AHQUAuZXX1Qw0kEeBskhpBL+7i1afIa6Ig6UVOqPjDRAp8wgz91azkqp
-	bvOubXD7s5eZ5PVgcN8GiednDnMKz/y6SFVMeDbda5/jjQFuXoeb7DKnnSNAxCymAt2EffQcTUB
-	gm5ai1CRSnMU/gJHAEuy1GnMmIe/6HZZ1cyh3Iovze/t3cp8NyrhdV9ojdWoflz0vKw==
-X-Received: by 2002:a50:d311:: with SMTP id g17mr8893915edh.187.1550268069273;
-        Fri, 15 Feb 2019 14:01:09 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaWeIsVc431wnxdHPOySFpprI1x7RF0rexWCNeIpEX4LFVGzFzU90pSuAZbGLTA8K7Fwgyx
-X-Received: by 2002:a50:d311:: with SMTP id g17mr8893875edh.187.1550268068386;
-        Fri, 15 Feb 2019 14:01:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550268068; cv=none;
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding:dkim-signature;
+        bh=PwAD888+nxx/Wnfyu0U2CK68HaihH5P14l67i4Nat7o=;
+        b=jQ3cfXzpnm7Av91ZdPPyV4Dak1jJb8pKK/57WHLxjzJCSNgGxMv9pPEP4ha62EIhd+
+         xlb/Ht5GcJD8GVxrkZfnZbTIx3LVHt+kg5X0f6953kSre/3kP2M/2pJqE7RZ0tq9psqy
+         sGKGL4bVYW5PwM6ELQVz6eI2/s4pEnBnDw17J5EJA8QgVUf4RiL5P98PfgMSthTXEC8/
+         DLH93rNOn1EL3/kuRlwqjF+7ykI3rEgFxMSHXtNIQmjXjJLPlTddw8MbnbZ/JPZvjF43
+         5VYxKv+G2DYqRTrtNtOvbqYSq4dConj1MnMJt8qO3BdPk2ZmXq8BAwm/Mg5wlMGuJuMB
+         7TDw==
+X-Gm-Message-State: AHQUAuZDdwCFJaEYFdfpM4mNW2sU+BOXKtT0VmK5lDvd45kq3vggkLQZ
+	AEpVPeovIgKkf+SI1jU3Q+Y16AQpRrLWzBfewnn9Cb8T9OnBHT0we7eIjULspus3uXpv5iQTyWO
+	1lset0zpUXn4nbtZw7wc4sHPEb7RUNhK9pp/9hik1nfo3tWuIF4PybEeaJ/g18YI64g==
+X-Received: by 2002:a81:3742:: with SMTP id e63mr9945106ywa.416.1550268230426;
+        Fri, 15 Feb 2019 14:03:50 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYj2Xai2kqycv0pEaryPRYH4EkDLmEpWa8oZ1z6hnDpyWkD5ap7hEXkYlZz8u31zeGnJ4sq
+X-Received: by 2002:a81:3742:: with SMTP id e63mr9945018ywa.416.1550268229303;
+        Fri, 15 Feb 2019 14:03:49 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550268229; cv=none;
         d=google.com; s=arc-20160816;
-        b=mz3KBd1peqBksIwVJoMR6VRWnxKppH+w7ZBk+eos/807F1WcYg1uzJtO4cU2sVGnUw
-         9JtO0I+qgjly4VaEMcLVZDHdpQ75LC25v3jOd28/KhYcRuBkBbsOTnkxOVFzB+rF3ivx
-         du6eTyJSaM+1ixULBt7/hoY17ZPsYCDc7xW7NucWE03MM0vRLg9cP9zzxUWiPpgjXxbQ
-         XpDvtPo++bEV5I7jvU3FSsrxC2ocKhPrIcy+zs87a1K6KqLQEsSuKDpoElqJE9mMfrWJ
-         oSJHK4aczN3w7fmYtuT/wpEf4JMpKR2XHBjnL0O5SqyhucIL4sjfK91mZZiHyD/Ric8I
-         dhuA==
+        b=ATtJnMQKj64Ka5uld68j6iojsa22XV7EaxvMoUrxytWfGrR8CVF/6OEFxMr2gPIqm8
+         XJqxg3WhC/zSqy9Fml2aedmq2jmpImnW4SmPEVwQzDhNb2ERU0+F0nMzthjtZFHqiF1m
+         Xwkx8J0ikccEnwqxoFv3i7fiB8/KsDmSMNthdb8RI82JAPNQjkQeh2zUhNHOykN+5db+
+         Ngi2rpArcGR2mUppJSztkmoYasBSXzxwUhqXhQQj21sin5fwzH4DrDW1V9ufluTVZ5Xo
+         qBv4vLL7EwzPmRO59EmcIGPsJLmoWrt0M0NWEjUJf9GKrOxdpmPkO1MUVMTjrpnP/yWF
+         UxMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=3W5UlzZWve2oLpsWzekoZqMv0wretQeJahaAQpJBU48=;
-        b=LLDi0Ktq5V7H5sEjZyDcLb1T8NenSRNn2QsKA1XzFqaJhqLPlhBGD6YmKIUYsemD9y
-         DqjO7d1x7r14jLWB4c5QCEaG5Ui+Ygp/CuvnMyDYm2uWiOo78yprErOChLuQoJau5ZLi
-         OlJGB1gzabV3u/l5AbfY8hBS1AQnJEQtgCzfOINzXtBRhW9FKLNP0d9hbdvd1I67RByZ
-         PQJLqwr5Qi3czwNsnR7oyUUBoL/Wd2w64y5aFzbsycR1fPZhuMG2C3FSdHs7e91ZudE0
-         pn2THyCjAGMjhB3H4QJRDnXasbZHxgyxIuPgRL6883Rhbg6FZD2d3t/C5qDEjcAAWIJh
-         3Ldw==
+        h=dkim-signature:content-transfer-encoding:mime-version:message-id
+         :date:subject:cc:to:from;
+        bh=PwAD888+nxx/Wnfyu0U2CK68HaihH5P14l67i4Nat7o=;
+        b=QaALo9YTbP+e1UktlWg5cYCGddEnYJ00MLbuUpZ84kNsbeJusvncMmiLfwcqO5g3+9
+         q83/ko540QRKkJamqZ0eonxFf5vsEG5YZRVd3/Df3rKyYYkdACwGDjTjbcuRzVEgRnfW
+         JYdMrm85mLq9Ld10ObNP8ThDFw95REvNs2O6vC7iG3Mpq5HNG8N2rawP0Qy/vmK6giPw
+         jXIjk7lpxChqpDNqzsCkrS5HX7lw0vB5pwzdiiaobQ5m81IVFurkC313tX/xmOe8DPhr
+         BUv/484pPShv7PybH8qIL2VwEP/5bmCotQTJgWNBGqNMzSau3f7Pse93vlDx/ELEsrv0
+         vptg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@virtuozzo.com header.s=selector1 header.b=RU3EU3x+;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 40.107.7.135 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from EUR04-HE1-obe.outbound.protection.outlook.com (mail-eopbgr70135.outbound.protection.outlook.com. [40.107.7.135])
-        by mx.google.com with ESMTPS id o13si14809ejh.93.2019.02.15.14.01.08
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=g99XmDGv;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id j77si3145332ywj.230.2019.02.15.14.03.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 15 Feb 2019 14:01:08 -0800 (PST)
-Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 40.107.7.135 as permitted sender) client-ip=40.107.7.135;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Feb 2019 14:03:49 -0800 (PST)
+Received-SPF: pass (google.com: domain of ziy@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@virtuozzo.com header.s=selector1 header.b=RU3EU3x+;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 40.107.7.135 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=virtuozzo.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=3W5UlzZWve2oLpsWzekoZqMv0wretQeJahaAQpJBU48=;
- b=RU3EU3x++7YGKzvzqZ+y+d/v+zFj78IUVHXKKm/DxJRSpEyZ4hEiXxlZhsq2OWRUodbsxWiwIHONRF7ZvSuJSI/0rJFg6pgl+czsMTiRdd0wNGgUJID4OAbAR4SB6xu5f7jwRoDSInCUI+skIEkOmOWjA9QQ+G8nBUa0iBmEHvA=
-Received: from DB7PR08MB3771.eurprd08.prod.outlook.com (20.178.47.26) by
- DB7PR08MB3673.eurprd08.prod.outlook.com (20.177.120.155) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1622.16; Fri, 15 Feb 2019 22:01:06 +0000
-Received: from DB7PR08MB3771.eurprd08.prod.outlook.com
- ([fe80::59ce:a552:89d5:47b9]) by DB7PR08MB3771.eurprd08.prod.outlook.com
- ([fe80::59ce:a552:89d5:47b9%5]) with mapi id 15.20.1601.023; Fri, 15 Feb 2019
- 22:01:06 +0000
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-CC: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.com"
-	<mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH v2 4/4] mm: Generalize putback scan functions
-Thread-Topic: [PATCH v2 4/4] mm: Generalize putback scan functions
-Thread-Index: AQHUxFEL53fZZeHOl0uxGT7DbkvR8aXhVHOAgAAWcQA=
-Date: Fri, 15 Feb 2019 22:01:05 +0000
-Message-ID: <b2fcd214-52a5-6284-81b9-8a09de27fbea@virtuozzo.com>
-References:
- <155014039859.28944.1726860521114076369.stgit@localhost.localdomain>
- <155014053725.28944.7960592286711533914.stgit@localhost.localdomain>
- <20190215203926.ldpfniqwpn7rtqif@ca-dmjordan1.us.oracle.com>
-In-Reply-To: <20190215203926.ldpfniqwpn7rtqif@ca-dmjordan1.us.oracle.com>
-Accept-Language: ru-RU, en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: HE1PR06CA0144.eurprd06.prod.outlook.com
- (2603:10a6:7:16::31) To DB7PR08MB3771.eurprd08.prod.outlook.com
- (2603:10a6:10:7c::26)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=ktkhai@virtuozzo.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [128.69.177.17]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 07d24579-30dd-4718-5126-08d693911546
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600110)(711020)(4605077)(4534185)(7168020)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7153060)(7193020);SRVR:DB7PR08MB3673;
-x-ms-traffictypediagnostic: DB7PR08MB3673:
-x-microsoft-exchange-diagnostics:
- 1;DB7PR08MB3673;20:zPeykguNM5ppb1GzTGxHHyrM1PCMD/FKOkV0nTJZK/FBpDnuMsvFWY4mHauaPs04tz6M675ueFjRVLLWmeq2EK4Zl76Z3D3gOQjWskRxYwB/utlrUJVrPbmHC7GVgwZ+PM4L8A7pWNF1PnemhFZi+zxvdxvbeMRGMacI6LQYz4A=
-x-microsoft-antispam-prvs:
- <DB7PR08MB36737D1A4CA15C60E470F913CD600@DB7PR08MB3673.eurprd08.prod.outlook.com>
-x-forefront-prvs: 09497C15EB
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(366004)(346002)(136003)(396003)(39850400004)(376002)(199004)(189003)(86362001)(6916009)(476003)(6512007)(102836004)(8936002)(486006)(31696002)(68736007)(26005)(97736004)(66066001)(6506007)(6486002)(2906002)(386003)(316002)(446003)(55236004)(11346002)(6436002)(6246003)(53936002)(256004)(478600001)(5660300002)(2616005)(25786009)(54906003)(99286004)(106356001)(76176011)(81166006)(81156014)(105586002)(53546011)(8676002)(7736002)(14454004)(52116002)(3846002)(36756003)(186003)(71190400001)(71200400001)(229853002)(4326008)(31686004)(305945005)(6116002);DIR:OUT;SFP:1102;SCL:1;SRVR:DB7PR08MB3673;H:DB7PR08MB3771.eurprd08.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: virtuozzo.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- MabVeYNV7iwGWqfI9vr21SLoNKF/9vHzD3qSDh6ftM9hfWxUgp8SpoipjTNp9Jm1KrwZGGR1NneemsL/ydb7pcGomICW/IWJl/mTEaim86UHxKmmwdZ+f6GAmQkwvHIx0ijruZGKJYaU6PMHctBAwr9lZDsCPRitzNysQIdAv6/jMh6GLFH19ea6kkYFIHMaI2s8SbBbm2VtHMx2ZQPYIPgiLTb3yUro4AeiVlKCcGhJAcITRGJco1sMhIp82pto5HeHpyRgWL7Vv3O/jSGebZFzkWdwfT8zdW+LNLGLCyFQPIJmZz3VUQ0841/YdAzzUnd8Gnt71CE26VKohGNavofWgw9mhCQ2sbdmr2irHIplwRSJL3CRzZhwkYSVnHIFPBKALQSXD84+kFrumMmIrS/upCRk0iS7nMRxeMD7ur8=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <C117B143E78C6C45940299C83D4F7C6F@eurprd08.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=g99XmDGv;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c6737470001>; Fri, 15 Feb 2019 14:03:51 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Fri, 15 Feb 2019 14:03:48 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Fri, 15 Feb 2019 14:03:48 -0800
+Received: from nvrsysarch5.nvidia.com (172.20.13.39) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Fri, 15 Feb
+ 2019 22:03:48 +0000
+From: Zi Yan <ziy@nvidia.com>
+To: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>
+CC: Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko
+	<mhocko@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>,
+	Mel Gorman <mgorman@techsingularity.net>, John Hubbard <jhubbard@nvidia.com>,
+	Mark Hairgrove <mhairgrove@nvidia.com>, Nitin Gupta <nigupta@nvidia.com>,
+	David Nellans <dnellans@nvidia.com>, Zi Yan <ziy@nvidia.com>
+Subject: [RFC PATCH 00/31] Generating physically contiguous memory after page allocation
+Date: Fri, 15 Feb 2019 14:03:03 -0800
+Message-ID: <20190215220334.29298-1-ziy@nvidia.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-X-OriginatorOrg: virtuozzo.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 07d24579-30dd-4718-5126-08d693911546
-X-MS-Exchange-CrossTenant-originalarrivaltime: 15 Feb 2019 22:01:04.8008
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-id: 0bc7f26d-0264-416e-a6fc-8352af79c58f
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DB7PR08MB3673
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1550268231; bh=PwAD888+nxx/Wnfyu0U2CK68HaihH5P14l67i4Nat7o=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
+	 MIME-Version:X-Originating-IP:X-ClientProxiedBy:Content-Type:
+	 Content-Transfer-Encoding;
+	b=g99XmDGvWJMJ51nDd2p1OlD8qzNJGklMnV68ZO7Hv8u4+Em+7TzNydsNiIk7UTRbR
+	 buV2brDUEeLBn3z9xYshJo686JbO7x9Ut2T/YOUkGh1BJgAFeik2N7mhgpWx24rEJY
+	 qcu5JeNDifh1t4ePu4zKi3zHcuJCdyrYangX19+U1l/iPTxHVRkJydaKb0unpLbEIk
+	 U894BCIeGGR7qBadeIJqQJXlbJmMqzp7RiWNBdohDcQLbaHa1FYiRfMogHf5AEqa2j
+	 6NqvFeUjSlPGDNr7SdUOEYeRPRZNeUHJxVi15UwG8nQtifStwBlwL5hAKg9L1ycQ4u
+	 +dZdsdASgWEcQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gMTUuMDIuMjAxOSAyMzozOSwgRGFuaWVsIEpvcmRhbiB3cm90ZToNCj4gT24gVGh1LCBGZWIg
-MTQsIDIwMTkgYXQgMDE6MzU6MzdQTSArMDMwMCwgS2lyaWxsIFRraGFpIHdyb3RlOg0KPj4gK3N0
-YXRpYyB1bnNpZ25lZCBub2lubGluZV9mb3Jfc3RhY2sgbW92ZV9wYWdlc190b19scnUoc3RydWN0
-IGxydXZlYyAqbHJ1dmVjLA0KPj4gKwkJCQkJCSAgICAgc3RydWN0IGxpc3RfaGVhZCAqbGlzdCkN
-Cj4+ICB7DQo+PiAgCXN0cnVjdCBwZ2xpc3RfZGF0YSAqcGdkYXQgPSBscnV2ZWNfcGdkYXQobHJ1
-dmVjKTsNCj4+ICsJaW50IG5yX3BhZ2VzLCBucl9tb3ZlZCA9IDA7DQo+PiAgCUxJU1RfSEVBRChw
-YWdlc190b19mcmVlKTsNCj4+ICsJc3RydWN0IHBhZ2UgKnBhZ2U7DQo+PiArCWVudW0gbHJ1X2xp
-c3QgbHJ1Ow0KPj4gIA0KPj4gLQkvKg0KPj4gLQkgKiBQdXQgYmFjayBhbnkgdW5mcmVlYWJsZSBw
-YWdlcy4NCj4+IC0JICovDQo+PiAtCXdoaWxlICghbGlzdF9lbXB0eShwYWdlX2xpc3QpKSB7DQo+
-PiAtCQlzdHJ1Y3QgcGFnZSAqcGFnZSA9IGxydV90b19wYWdlKHBhZ2VfbGlzdCk7DQo+PiAtCQlp
-bnQgbHJ1Ow0KPj4gLQ0KPj4gKwl3aGlsZSAoIWxpc3RfZW1wdHkobGlzdCkpIHsNCj4+ICsJCXBh
-Z2UgPSBscnVfdG9fcGFnZShsaXN0KTsNCj4+ICAJCVZNX0JVR19PTl9QQUdFKFBhZ2VMUlUocGFn
-ZSksIHBhZ2UpOw0KPj4gLQkJbGlzdF9kZWwoJnBhZ2UtPmxydSk7DQo+PiAgCQlpZiAodW5saWtl
-bHkoIXBhZ2VfZXZpY3RhYmxlKHBhZ2UpKSkgew0KPj4gKwkJCWxpc3RfZGVsX2luaXQoJnBhZ2Ut
-PmxydSk7DQo+IA0KPiBXaHkgY2hhbmdlIHRvIGxpc3RfZGVsX2luaXQ/ICBJdCdzIG1vcmUgc3Bl
-Y2lhbCB0aGFuIGxpc3RfZGVsIGJ1dCBkb2Vzbid0IHNlZW0NCj4gbmVlZGVkIHNpbmNlIHRoZSBw
-YWdlIGlzIGxpc3RfYWRkKCllZCBsYXRlci4NCg0KTm90IHNvbWV0aGluZyBzcGVjaWFsIGlzIGhl
-cmUsIEknbGwgcmVtb3ZlIHRoaXMgX2luaXQuDQogDQo+IFRoYXQgcG9zdHByb2Nlc3Mgc2NyaXB0
-IGZyb20gcGF0Y2ggMSBzZWVtcyBraW5kYSBicm9rZW4gYmVmb3JlIHRoaXMgc2VyaWVzLCBhbmQN
-Cj4gc3RpbGwgaXMuICBOb3QgdGhhdCBpdCBzaG91bGQgYmxvY2sgdGhpcyBjaGFuZ2UuICBPdXQg
-b2YgY3VyaW9zaXR5IGRpZCB5b3UgZ2V0DQo+IGl0IHRvIHJ1bj8NCg0KSSBmaXhlZCBhbGwgbmV3
-IHdhcm5pbmdzLCB3aGljaCBjb21lIHdpdGggbXkgY2hhbmdlcywgc28gdGhlIHBhdGNoIGRvZXMg
-bm90IG1ha2UNCnRoZSBzY3JpcHQgd29yc2UuDQoNCklmIHlvdSBjaGFuZ2UgYWxsIGFscmVhZHkg
-ZXhpc3Rpbmcgd2FybmluZ3MgYnkgcmVuYW1pbmcgdmFyaWFibGVzIGluIGFwcHJvcHJpYXRlDQpw
-bGFjZXMsIHRoZSBzY3JpcHQgd2lsbCB3b3JrIGluIHNvbWUgd2F5LiBCdXQgSSdtIG5vdCBzdXJl
-IHRoaXMgaXMgZW5vdWdoIHRvIGdldA0KcmVzdWx0cyBjb3JyZWN0LCBhbmQgSSBoYXZlIG5vIGEg
-YmlnIHdpc2ggdG8gZGl2ZSBpbnRvIHBlcmwgdG8gZml4IHdhcm5pbmdzDQppbnRyb2R1Y2VkIGJ5
-IGFub3RoZXIgcGVvcGxlLCBzbyBJIGRvbid0IHBsYW4gdG8gZG8gd2l0aCB0aGlzIHNjcmlwdCBz
-b21ldGhpbmcgZWxzZS4NCg==
+Hi all,
+
+This patchset produces physically contiguous memory by moving in-use pages
+without allocating any new pages. It targets two scenarios that complements
+khugepaged use cases: 1) avoiding page reclaim and memory compaction when t=
+he
+system is under memory pressure because this patchset does not allocate any=
+ new
+pages, 2) generating pages larger than 2^MAX_ORDER without changing the bud=
+dy
+allocator.
+
+To demonstrate its use, I add very basic 1GB THP support and enable promoti=
+ng
+512 2MB THPs to a 1GB THP in my patchset. Promoting 512 4KB pages to a 2MB
+THP is also implemented.
+
+The patches are on top of v5.0-rc5. They are posted as part of my upcoming
+LSF/MM proposal.
+
+Motivation=C2=A0
+----=C2=A0
+
+The goal of this patchset is to provide alternative way of generating physi=
+cally
+contiguous memory and making it available as arbitrary sized large pages. T=
+his
+patchset generates physically contiguous memory/arbitrary size pages after =
+pages
+are allocated by moving virtually-contiguous pages to become physically
+contiguous at any size, thus it does not require changes to memory allocato=
+rs.
+On the other hand, it works only for moveable pages, so it also faces the s=
+ame
+fragmentation issues as memory compaction, i.e., if non-moveable pages spre=
+ad
+across the entire memory, this patchset can only generate contiguity betwee=
+n
+any two non-moveable pages.=C2=A0
+
+Large pages and physically contiguous memory are important to devices, such=
+ as
+GPUs, FPGAs, NICs and RDMA controllers, because they can often achieve bett=
+er
+performance when operating on large pages. The same can be said of CPU
+performance, of course, but there is an important difference: GPUs and
+high-throughput devices often take a more severe performance hit, in the ev=
+ent
+of a TLB miss and subsequent page table walks, as compared to a CPU. The ef=
+fect
+is sufficiently large that such devices *really* want a highly reliable way=
+ to
+allocate large pages to minimize the number of potential TLB misses and the=
+ time
+spent on the induced page table walks.=C2=A0
+
+Vendors (like Oracle, Mellanox, IBM, NVIDIA) are interested in generating
+physically contiguous memory beyond THP sizes and looking for solutions [1]=
+,[2],[3].
+This patchset provides an alternative approach, compared to allocating
+physically contiguous memory at page allocation time, to generating physica=
+lly
+contiguous memory after pages are allocated. This approach can avoid page
+reclaim and memory compaction, which happen during the process of page
+allocation, but still produces comparable physically contiguous memory.=C2=
+=A0
+
+In terms of THPs, it helps, but we are interested in even larger contiguous
+ranges (or page size support) to further reduce the address translation ove=
+rheads.
+With this patchset, we can generate pages larger than PMD-level THPs withou=
+t
+requiring MAX_ORDER changes in the buddy allocators.=C2=A0
+
+
+Patch structure=C2=A0
+----=C2=A0
+
+The patchset I developed to generate physically contiguous memory/arbitrary
+sized pages merely moves pages around. There are three components in this
+patchset:
+
+1) a new page migration mechanism, called exchange pages, that exchanges th=
+e
+content of two in-use pages instead of performing two back-to-back page
+migration. It saves on overheads and avoids page reclaim and memory compact=
+ion
+in the page allocation path, although it is not strictly required if enough
+free memory is available in the system.
+
+2) a new mechanism that utilizes both page migration and exchange pages to
+produce physically contiguous memory/arbitrary sized pages without allocati=
+ng
+any new pages, unlike what khugepaged does. It works on per-VMA basis, crea=
+ting
+physically contiguous memory out of each VMA, which is virtually contiguous=
+.
+A simple range tree is used to ensure no two VMAs are overlapping with each
+other in the physical address space.
+
+3) a use case of the new physically contiguous memory producing mechanism t=
+hat
+generates 1GB THPs by migrating and exchanging pages and promoting 512
+contiguous 2MB THPs to a 1GB THP, although even larger physically contiguou=
+s
+memory ranges can be generated. The 1GB THP implement is very basic, which =
+can
+handle 1GB THP faults when buddy allocator is modified to allocate 1GB page=
+s,
+support 1GB THP split to 2MB THP and in-place promotion from 2MB THP to 1GB=
+ THP,
+and PMD/PTE-mapped 1GB THP. These are not fully tested.
+
+
+[1] https://lwn.net/Articles/736170/=C2=A0
+[2] https://lwn.net/Articles/753167/=C2=A0
+[3] https://blogs.nvidia.com/blog/2018/06/08/worlds-fastest-exascale-ai-sup=
+ercomputer-summit/=C2=A0
+
+Zi Yan (31):
+  mm: migrate: Add exchange_pages to exchange two lists of pages.
+  mm: migrate: Add THP exchange support.
+  mm: migrate: Add tmpfs exchange support.
+  mm: add mem_defrag functionality.
+  mem_defrag: split a THP if either src or dst is THP only.
+  mm: Make MAX_ORDER configurable in Kconfig for buddy allocator.
+  mm: deallocate pages with order > MAX_ORDER.
+  mm: add pagechain container for storing multiple pages.
+  mm: thp: 1GB anonymous page implementation.
+  mm: proc: add 1GB THP kpageflag.
+  mm: debug: print compound page order in dump_page().
+  mm: stats: Separate PMD THP and PUD THP stats.
+  mm: thp: 1GB THP copy on write implementation.
+  mm: thp: handling 1GB THP reference bit.
+  mm: thp: add 1GB THP split_huge_pud_page() function.
+  mm: thp: check compound_mapcount of PMD-mapped PUD THPs at free time.
+  mm: thp: split properly PMD-mapped PUD THP to PTE-mapped PUD THP.
+  mm: page_vma_walk: teach it about PMD-mapped PUD THP.
+  mm: thp: 1GB THP support in try_to_unmap().
+  mm: thp: split 1GB THPs at page reclaim.
+  mm: thp: 1GB zero page shrinker.
+  mm: thp: 1GB THP follow_p*d_page() support.
+  mm: support 1GB THP pagemap support.
+  sysctl: add an option to only print the head page virtual address.
+  mm: thp: add a knob to enable/disable 1GB THPs.
+  mm: thp: promote PTE-mapped THP to PMD-mapped THP.
+  mm: thp: promote PMD-mapped PUD pages to PUD-mapped PUD pages.
+  mm: vmstats: add page promotion stats.
+  mm: madvise: add madvise options to split PMD and PUD THPs.
+  mm: mem_defrag: thp: PMD THP and PUD THP in-place promotion support.
+  sysctl: toggle to promote PUD-mapped 1GB THP or not.
+
+ arch/x86/Kconfig                       |   15 +
+ arch/x86/entry/syscalls/syscall_64.tbl |    1 +
+ arch/x86/include/asm/pgalloc.h         |   69 +
+ arch/x86/include/asm/pgtable.h         |   20 +
+ arch/x86/include/asm/sparsemem.h       |    4 +-
+ arch/x86/mm/pgtable.c                  |   38 +
+ drivers/base/node.c                    |    3 +
+ fs/exec.c                              |    4 +
+ fs/proc/meminfo.c                      |    2 +
+ fs/proc/page.c                         |    2 +
+ fs/proc/task_mmu.c                     |   47 +-
+ include/asm-generic/pgtable.h          |  110 +
+ include/linux/huge_mm.h                |   78 +-
+ include/linux/khugepaged.h             |    1 +
+ include/linux/ksm.h                    |    5 +
+ include/linux/mem_defrag.h             |   60 +
+ include/linux/memcontrol.h             |    5 +
+ include/linux/mm.h                     |   34 +
+ include/linux/mm_types.h               |    5 +
+ include/linux/mmu_notifier.h           |   13 +
+ include/linux/mmzone.h                 |    1 +
+ include/linux/page-flags.h             |   79 +-
+ include/linux/pagechain.h              |   73 +
+ include/linux/rmap.h                   |   10 +-
+ include/linux/sched/coredump.h         |    4 +
+ include/linux/swap.h                   |    2 +
+ include/linux/syscalls.h               |    3 +
+ include/linux/vm_event_item.h          |   33 +
+ include/uapi/asm-generic/mman-common.h |   15 +
+ include/uapi/linux/kernel-page-flags.h |    2 +
+ kernel/events/uprobes.c                |    4 +-
+ kernel/fork.c                          |   14 +
+ kernel/sysctl.c                        |  101 +-
+ mm/Makefile                            |    2 +
+ mm/compaction.c                        |   17 +-
+ mm/debug.c                             |    8 +-
+ mm/exchange.c                          |  878 +++++++
+ mm/filemap.c                           |    8 +
+ mm/gup.c                               |   60 +-
+ mm/huge_memory.c                       | 3360 ++++++++++++++++++++----
+ mm/hugetlb.c                           |    4 +-
+ mm/internal.h                          |   46 +
+ mm/khugepaged.c                        |    7 +-
+ mm/ksm.c                               |   39 +-
+ mm/madvise.c                           |  121 +
+ mm/mem_defrag.c                        | 1941 ++++++++++++++
+ mm/memcontrol.c                        |   13 +
+ mm/memory.c                            |   55 +-
+ mm/migrate.c                           |   14 +-
+ mm/mmap.c                              |   29 +
+ mm/page_alloc.c                        |  108 +-
+ mm/page_vma_mapped.c                   |  129 +-
+ mm/pgtable-generic.c                   |   78 +-
+ mm/rmap.c                              |  283 +-
+ mm/swap.c                              |   38 +
+ mm/swap_slots.c                        |    2 +
+ mm/swapfile.c                          |    4 +-
+ mm/userfaultfd.c                       |    2 +-
+ mm/util.c                              |    7 +
+ mm/vmscan.c                            |   55 +-
+ mm/vmstat.c                            |   32 +
+ 61 files changed, 7452 insertions(+), 745 deletions(-)
+ create mode 100644 include/linux/mem_defrag.h
+ create mode 100644 include/linux/pagechain.h
+ create mode 100644 mm/exchange.c
+ create mode 100644 mm/mem_defrag.c
+
+--
+2.20.1
 
