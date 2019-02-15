@@ -6,93 +6,93 @@ X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E1A0FC10F04
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:12:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 11DAFC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:14:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 91E9E222D0
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:12:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B747520643
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:14:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="czbZs5Yh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 91E9E222D0
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="18v3JiU0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B747520643
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 363508E0003; Thu, 14 Feb 2019 21:12:41 -0500 (EST)
+	id 695608E0004; Thu, 14 Feb 2019 21:14:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 311AD8E0001; Thu, 14 Feb 2019 21:12:41 -0500 (EST)
+	id 675EC8E0001; Thu, 14 Feb 2019 21:14:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2285E8E0003; Thu, 14 Feb 2019 21:12:41 -0500 (EST)
+	id 55BF78E0004; Thu, 14 Feb 2019 21:14:05 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D91DF8E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 21:12:40 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id 143so5757042pgc.3
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 18:12:40 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 143D18E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 21:14:05 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id t72so6321152pfi.21
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 18:14:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=+w0huGYiHVH98eeswxvg29eIrgG60OftvJd6Bjr+gg0=;
-        b=ZT7NWI4A71AVJFttb065RjDdXsScTQWHU+3M8uAJjEbdPmuC6j3ZPxtrNbo6oJ68oK
-         WKY/RYQM1diXduwI0remx/8DjyYqOU6C+wFAKi7zPC1qQRajul3zZeADdmnqE1lewf2I
-         nlI+USeO2N489EdudGotFzP62UtMPmv1J44cn7bdTZX6A6+POmvWmTUOctPImXwuSt8o
-         DAUVmNCxfbS/HTjjmn+XjnCZf7xSHI416mjncznAZBgVYMGhKnwDqxt9MDHwhyb0YlID
-         viFeDfEXWhxZgk+OSXI06fu0CWve2Vp0V0alJgsfsOJ5jutlh6tOe0Xa9G7y+dae8VEm
-         z5Yw==
-X-Gm-Message-State: AHQUAuYIGQpEhmhENwm35gWYFXaCUHDgofs8Qq1ntJvrVyB9gwoWZaVQ
-	hPAL8oHmGx//on52KpAKGJxprB7KkLpzmlYUDbJsVEpL/NCDttzCqPmJEtTo/rzECCl/LTJ1A+C
-	G+ieRvFG65nATt3sEO6bN2hw7VF+aduMQGO/rxlqu8pu9Q1IvzYDeFHNzMZXmrwbRPw==
-X-Received: by 2002:a63:6bc1:: with SMTP id g184mr3060222pgc.25.1550196760529;
-        Thu, 14 Feb 2019 18:12:40 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYCVjFKvGE9TflXaXb7+5l0GhlMeLXPk9D698mkNogFKQFctpwDddLBYJ+Sgt1P3YAzewJE
-X-Received: by 2002:a63:6bc1:: with SMTP id g184mr3059639pgc.25.1550196751625;
-        Thu, 14 Feb 2019 18:12:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550196751; cv=none;
+        bh=XwWr6eq+Y6CL/gVTewVoPlNaS1TC9ogiRZ9md2XAXEw=;
+        b=XI73uDBW84+9luuHoXOnag11PR8jtGyaKZ9WkzVwaoQEtf5RccXCs9sgYaoKHuKCYU
+         q//3xPuG/5lpLc4mlsahIcmmgZckpi14um5keRiCqEi+lpZimbFtuPeY+CHldTGDI5LJ
+         0C1ipxJLS3kbgeRBjrIN7LCbeYAUnv00fmEf7UOiM0Tcvl88dEnHqZ8GX4IK/hfE+xc3
+         HRgI3MJGp0MBjkcsfk358UUtBNnNBNSqRON3qkGGKiZzGO2NVvXeDjCs1n/R0d7Xg5xM
+         R+9TJapG8CNSuipvJawu6oEhu8Rl5wu5H9Fr6d+t/BrIHSn+ARqO1hKu/hTjVV3m70yF
+         EpAA==
+X-Gm-Message-State: AHQUAuaB9hp/RRhb58dd9U2v/JtFdo+CZZMBxZPCwf0UUOzN6cOvE3Ir
+	wjf3udcIY15ULIiQABuPxUe+8ABJnM7ElNGjbzmLlCBK8QbIM0AHRBf4blhU7zJQ48pCjjaIF2M
+	zuSxk1YAj2AKQOvdfkWcXukx6JmQfaySv7GmCe69Q/m/8rH9nD6549g8R/l8MyZ2u3Q==
+X-Received: by 2002:a62:60c7:: with SMTP id u190mr2283089pfb.180.1550196844740;
+        Thu, 14 Feb 2019 18:14:04 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZkrGX+9sECaYE7ys9IlbMhS9YXlwsfheJ1bhWxWkOhATk5zCB8aXh+p5xg3xsGAVC5Nxno
+X-Received: by 2002:a62:60c7:: with SMTP id u190mr2283046pfb.180.1550196844003;
+        Thu, 14 Feb 2019 18:14:04 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550196844; cv=none;
         d=google.com; s=arc-20160816;
-        b=EeGTC1plWxRj/Koe1iXleGN+MxBPkIPFBhXoRoIgYT/9MbrM57Q+s8Qtm7oAqtaa/Y
-         OBlJfAi+CyEyFPTtYhEO9uaVXP/+Ny75n78IHD0Qck/HTk35tL9GKDMrRs/MhR2m/paW
-         2dUZewOq0uQqZygKoUsei6pTHlsc/uiowuanGY7ZuNomlbnF3VLEMEjeok9/UXbZKqdj
-         GLptv09HPBHfpL6wB2YdZqUDWs6teEPiG1wtif4j5YhiC9BJRgEtflmOuw+LtlIKU4l1
-         Hk9LJI/dFNkWHK7yu8vn7OTem1Xa98J+sxAkBGdA1fON/aXpcV8q48exHSyXgirbS0Zs
-         KfNA==
+        b=MHLu8Z6O0ujpAD/Uuvo1JU0v084V5CI/OaBRMBw58Bh7Duj7voIqjAEtLR7PWqXMb9
+         lGcnAutIMaO0CDW2u2VmdslM4yiM3RMVFmGVLMb5Ab3RwM6BF8PGAUT+JoMH2yiIMbrW
+         b0FjbkDFfXL28OEYaB9mtodlGvpnERX7Y7FCdbC80LNxnAdp2k804Of37XVRsvWOnR9C
+         Q12mzwb3I02eIJwYYYZGdnsBU8tEpf3yPWz/PegsfiD1grR+T/1Ew4ULveMD+sf9KTA5
+         pFz3IJUS3H5Oq4EZOn+blqk+T55A8noESij0PJat0rtfGdQzaOH0Erc7TMqIzksy9V9M
+         SB0A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=+w0huGYiHVH98eeswxvg29eIrgG60OftvJd6Bjr+gg0=;
-        b=p2jvY3E8uyg6czKpmps+pgvg09litk8vNX9bMDGtFmcji+J+0E29foFIJNQY45caZq
-         BDfONYCmlDtgENS6mlZdXaoydvrkqIu3VK2ReXo1w5nWB0mr5Y088H4XpIiv4Lx80joB
-         uTnUnZICVF+sJtyErZITHw6hAe4DXcznVDzG2AOtoJHumjl4B9z5gEeHy+GUfHXbQj5G
-         6xWKELniv59Bl95PNTvTg9Jn/5yeH1TTv4ABXmzVi9BOH0hwCUEd7l5Eje+7DkHxsXgw
-         kvZR25syHKlN7a5fgzQQrLPA0ftqROr3sYUw+2J1WN9nRt15yBkKeM7qgiyYh75W8IOf
-         i8UQ==
+        bh=XwWr6eq+Y6CL/gVTewVoPlNaS1TC9ogiRZ9md2XAXEw=;
+        b=Eq3qRK6I6G+2ceG4N3SDeD1ESzcAsq2mGLvgASmzGRpN4eaM9EiaCLMThnyVIbqsyB
+         oYlpbHK51ctYlisMYOwOlR3AyUpBLqhQGpTAsNZMyqy/f3p4IsLtI0A468OxBHTEdmk0
+         nCF8OL6H9QFzj2vVVe6MASB3mUO5QtxIMoxxKyQWCx3Z+k0lieI6uH7Xb1ZmbKjI2gUd
+         +D51E8MMejRh1ZQMPZPEpeVTq6mlnEHpmYzOD06D7T6STZ4/iehD1fKmqkz/vmF9Qi5o
+         +4Xm8tzqVN9V4seEXAGIAjWMZROy0SBsInn08tuFLnvcpcznEJ7VSOQvd9GrF3DJNL3D
+         gmFw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=czbZs5Yh;
+       dkim=pass header.i=@kernel.org header.s=default header.b=18v3JiU0;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id a5si3831575pgw.155.2019.02.14.18.12.31
+        by mx.google.com with ESMTPS id j2si4039264pgm.428.2019.02.14.18.14.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 18:12:31 -0800 (PST)
+        Thu, 14 Feb 2019 18:14:03 -0800 (PST)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=czbZs5Yh;
+       dkim=pass header.i=@kernel.org header.s=default header.b=18v3JiU0;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 7C55C21934;
-	Fri, 15 Feb 2019 02:12:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id D8E0020643;
+	Fri, 15 Feb 2019 02:14:02 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1550196751;
-	bh=8b+nD2gxk3CIxUx056hPA3Oe82UM5m44h+GjOegFd0A=;
+	s=default; t=1550196843;
+	bh=4HOsD54m5O9dFe7sXAZgxMGg9V5wBSI53XHaWeo07CQ=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=czbZs5YhH1WvQy4Qa4BXqhiZ/YWE/UqMmFOReH1D5O05/2SHn2wyb65bxUtKUXq2i
-	 35CQ4yobpEHsWJKhwad0SHHPTxQUS02Xb/Q3F/1WF/04K/zpFFF3YHjs7h/eAZIMnw
-	 YJ0jlE7Vvjnt3d1jArYmc2NRRh2rstyhuU6WJK1w=
+	b=18v3JiU0KCa2/MZ0ygorlj1JFqFbXR1XjNbHjSKMOTgRrdFP41G0nqUgGliDGZcn3
+	 V3GzMbX38xSBLMG8BXmWmYEjpnouPrud1BOZGKNy1HcyQJAqk93KM0ea1O7j8n14Ql
+	 Enw6vdBTABroYzVom6MUcWc7y+hI1S7Geab6TSbI=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
@@ -101,12 +101,12 @@ Cc: Tejun Heo <tj@kernel.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-fsdevel@vger.kernel.org,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.19 42/65] writeback: synchronize sync(2) against cgroup writeback membership switches
-Date: Thu, 14 Feb 2019 21:10:58 -0500
-Message-Id: <20190215021121.177674-42-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.14 27/40] writeback: synchronize sync(2) against cgroup writeback membership switches
+Date: Thu, 14 Feb 2019 21:13:00 -0500
+Message-Id: <20190215021313.178476-27-sashal@kernel.org>
 X-Mailer: git-send-email 2.19.1
-In-Reply-To: <20190215021121.177674-1-sashal@kernel.org>
-References: <20190215021121.177674-1-sashal@kernel.org>
+In-Reply-To: <20190215021313.178476-1-sashal@kernel.org>
+References: <20190215021313.178476-1-sashal@kernel.org>
 MIME-Version: 1.0
 X-Patchwork-Hint: Ignore
 Content-Transfer-Encoding: 8bit
@@ -147,7 +147,7 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  3 files changed, 40 insertions(+), 2 deletions(-)
 
 diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 471d863958bc..82ce6d4f7e31 100644
+index 3244932f4d5c..6a76616c9401 100644
 --- a/fs/fs-writeback.c
 +++ b/fs/fs-writeback.c
 @@ -331,11 +331,22 @@ struct inode_switch_wbs_context {
@@ -241,7 +241,7 @@ index 471d863958bc..82ce6d4f7e31 100644
  static struct bdi_writeback *
  locked_inode_to_wb_and_lock_list(struct inode *inode)
  	__releases(&inode->i_lock)
-@@ -2420,8 +2453,11 @@ void sync_inodes_sb(struct super_block *sb)
+@@ -2408,8 +2441,11 @@ void sync_inodes_sb(struct super_block *sb)
  		return;
  	WARN_ON(!rwsem_is_locked(&sb->s_umount));
  
@@ -254,10 +254,10 @@ index 471d863958bc..82ce6d4f7e31 100644
  	wait_sb_inodes(sb);
  }
 diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-index c31157135598..07e02d6df5ad 100644
+index 19240379637f..b186c4b464e0 100644
 --- a/include/linux/backing-dev-defs.h
 +++ b/include/linux/backing-dev-defs.h
-@@ -190,6 +190,7 @@ struct backing_dev_info {
+@@ -165,6 +165,7 @@ struct backing_dev_info {
  	struct radix_tree_root cgwb_tree; /* radix tree of active cgroup wbs */
  	struct rb_root cgwb_congested_tree; /* their congested states */
  	struct mutex cgwb_release_mutex;  /* protect shutdown of wb structs */
@@ -266,10 +266,10 @@ index c31157135598..07e02d6df5ad 100644
  	struct bdi_writeback_congested *wb_congested;
  #endif
 diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 8a8bb8796c6c..72e6d0c55cfa 100644
+index 9386c98dac12..6fa31754eadd 100644
 --- a/mm/backing-dev.c
 +++ b/mm/backing-dev.c
-@@ -689,6 +689,7 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
+@@ -684,6 +684,7 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
  	INIT_RADIX_TREE(&bdi->cgwb_tree, GFP_ATOMIC);
  	bdi->cgwb_congested_tree = RB_ROOT;
  	mutex_init(&bdi->cgwb_release_mutex);
