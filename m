@@ -7,111 +7,111 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B216C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:09:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 884E1C4360F
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:09:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D3405222D0
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:09:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 40786222D0
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:09:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="BQ6h4EMP";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="3v/Qhodh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3405222D0
+	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="LMQQ6Foj";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="OIv/vxn8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40786222D0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=sent.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 38F9F8E000D; Fri, 15 Feb 2019 17:09:19 -0500 (EST)
+	id 2EF7F8E000E; Fri, 15 Feb 2019 17:09:20 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 314778E0009; Fri, 15 Feb 2019 17:09:19 -0500 (EST)
+	id 2A09A8E0009; Fri, 15 Feb 2019 17:09:20 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1DBB78E000D; Fri, 15 Feb 2019 17:09:19 -0500 (EST)
+	id 167218E000E; Fri, 15 Feb 2019 17:09:20 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E8B028E0009
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:09:18 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id c9so2510259qte.11
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:09:18 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E33498E0009
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:09:19 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id d13so10342786qth.6
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:09:19 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :date:message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=jPUMl05hp4GyYNPKyUU/j1/LhtwQWzBCTR2KiGtIjhE=;
-        b=HUeVbpD1FUvfBBXm1GZOFbhbsud+TNonGQwf/Vy6zhu0WsuWJsKPli77bQCgIzDudr
-         b649XafSwVayG435mqGsmMzfbD1scpamLp4wz3b9LRs7uTKKiWcKHi3h0fNSLK372dfD
-         IkkKPIU6zxiHaBgTzGMLqax0Ip+FQOddZr1BEzTW04XiKcgCDl4zkdhFUZVQfl+3Yh/c
-         Bj2jtid2Rs+yMs1Ipy8rtFldej5QgMSy8blPD6PQY+pVEXCJMm+VIgEWN+iBNiZ7Uom2
-         2/qDcGthnIOOOAnEePGvbwO0CG5Ga9sZBGhqe6ssAEijp2nVq7w0CGIRgVAlWj7fFy7L
-         dJug==
-X-Gm-Message-State: AHQUAuY6sJhq/vh3vRS2sQu5D0V1EI12NmnOb4sN4ptRPYr0oA+LvSRh
-	iTOaT3m6lLgIVyYDqH2ImiYJKBSrlZL0xBq+AynQbmAcHRT2i+J6K7x+adTo1U+AmJ6Sm4J1XqJ
-	K4NQ0/eODvA0oevVwNE+sgcSnVe/NX6zduFOukxoLiFH4WDq4TSwxaFAdFIUPstOcLQ==
-X-Received: by 2002:ac8:396b:: with SMTP id t40mr9188508qtb.159.1550268558754;
-        Fri, 15 Feb 2019 14:09:18 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ1l5A6MeKFGEzqxVhYGI/N5VWAgGcYqP5RXDrwD44ENI3cJvtZAbGdrAhsY0eX2bV0PrHy
-X-Received: by 2002:ac8:396b:: with SMTP id t40mr9188469qtb.159.1550268558135;
-        Fri, 15 Feb 2019 14:09:18 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550268558; cv=none;
+        bh=s+M9Q1Dn/74r7Hqs3gLQcg1STi/Xk0kU2xFV7ZybJ5M=;
+        b=L2BFguBpr/DNcgJm9VMuViyDOxQdf/4C/jefn3WFBRU6yJRfAiyoejkcQRrYuICDSr
+         n9Tx8HJzQmZQpGWh2jA8uqij5RHPl5Yd7wbnLRXWi7G1+rYsnqiLnvMhRMgJhcN/3vlb
+         sau1P8bw0aV74H/N+YHQd4cMpXkWf7aoTM+25gm441OjKJZULJdffc5UpEQIdcjXGHfA
+         0e+ydcPCooP9KdkFmAlEgRNV7+tjr0LB6lM6kcXeO1U/g9qlis04vItD9z83nVRJCnDk
+         Ll5g82YfWFG/KPTWvLzb94C2nncxIfc7S7M9190BhXXr+3luuG+hdkiTfIVgFZ3sLIFI
+         JskA==
+X-Gm-Message-State: AHQUAuZeQ2c1iT03XzPUofPOoxEEuRVPC0eKVZTxDEhBKOFxCvwH+Gq4
+	wnZ8jRRg1T+F8uYqW5kZk16CQMKq//umwihxgHR4/VWBHHuIUVxiJKDm895AU5wJNqUhy9QgEir
+	zqlLcOGuWb//CI39Sw6KUJk61cXpZQ8APcaZrXybW7cFd7ptn+DNLQqbMxBpPIo097Q==
+X-Received: by 2002:a37:9a13:: with SMTP id c19mr4963184qke.48.1550268559730;
+        Fri, 15 Feb 2019 14:09:19 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbwqqwK27XoMgTt+/+jBduorQua0qN+eUAcWGWBZ9goM5CEW7XbIzXbdUJfUtXsDJIsBMyq
+X-Received: by 2002:a37:9a13:: with SMTP id c19mr4963153qke.48.1550268559263;
+        Fri, 15 Feb 2019 14:09:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550268559; cv=none;
         d=google.com; s=arc-20160816;
-        b=d87r28LgYNdd7tXj5Ya7jlPcbd5O/AdQqI7y2anAyV+DAwm6pTDl1R71mcnwXATpJM
-         OUoWu+YWcPcQL2iIUB1dL8ISd6gl0Qrle13eMImq503KQHAtT0PuWfiFqjAl6JRVbGes
-         RgGvnjaSkhoCSCEYvZTO++KyAYT9g/XCMwf0IWS0aBrZP0PMqT4Bt2jB7b358mTpJ9iP
-         060bIlxZC4OwMXl0JMhOHJsHQ6NVXA7mTOwGoBl5+zWNSHHdDirjwyuXA/7EUn6jUr66
-         RnvZFxMJeb1alWE0OKpx2fJRq2haWh1O+KGeUF5mGzJovo5n0otPc+c3ILdSgsPsLn9I
-         +C6Q==
+        b=HUqEjDukVMuD0MfWON3gH2f/DTAfI8Z5a+HDYkX5GlAApBnPdutefDek1aPr1U2zTi
+         DGD7qcpN4dgdDCHctL5UyjlLmDE0RqHUM71p4MaiGpZE6RxqQ8hFL+q+KRvcUAnobXtT
+         VSQw1lSBZJV0S2GxvSfSpD5XvJW6qJ294iyAx/Y8DvELE8iP5ZtRJxyqLS6sFEvT5Zgm
+         3SQrXaI/sEUgrCeOngw1iE6bbpu3z8harVxo5f1DMa6BCc4Tagg9tMvd/3/i5SHAk5YE
+         +cVRMFzW3KYOcJwTPnrDvUOi4hvTN/2RfdFjT9KykJqyNfRw63z9hOObbsjG0M+3khup
+         X7Xg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature
          :dkim-signature;
-        bh=jPUMl05hp4GyYNPKyUU/j1/LhtwQWzBCTR2KiGtIjhE=;
-        b=n/VpN1k2J8QEBVKGyiVnMJ+s8S4YJfFtffWq1sQKPHQVQ9bvcfZxhO6FLSF1+TG7J5
-         j6RxU2oxNRu40PHXYwtDjpDa78JlNvxOvUIXe9LjuffPf/8A6JwK7NZNga7/aomQliGT
-         HMFDjunqp3x2wSaTp9Uv9rpbxLgIhl2okFloMuWs4CIOcoe+frE79y/gt803KfBvf2Ev
-         MAGr2uQD0Mw8rSymw2X9Hc6IcBws6OfNFpaxjdHxAce/BvoM+LXret8ppGK8Sc7KACBl
-         O0e6eesrgXX8maH2S/NkRCPCphqX0SwPfaJ8ThdHmhKDZrAdX+zf3ODl3qmnJk1Sx9Kn
-         w8uw==
+        bh=s+M9Q1Dn/74r7Hqs3gLQcg1STi/Xk0kU2xFV7ZybJ5M=;
+        b=o4oVP7xRDOK9rIa8iqnlEXp2RvzhTBvsfEpLpduQbek/klUM08fKdTzHkQhrbQD4pb
+         tzhcNR4QQUfytV7v9lew/AtdWvOKCIfTCxVypZpq0GLKi7rz+9pxO8V74W9rnzt/s6UN
+         fH1TEn4N9M/uoLyLzf/cwjtp0pby89pSTjkvKSh1us7paim4XokU0zsYbjSv9v4k8w1b
+         I5LxdTWNhHC5gmy1B4ezBPCTjCXWuNFDo/CtrgVEyfYhF8luHi1C68AuqTyyiWn12ofM
+         06XAOJSzHlRrlm1keBo23KplRw2zNEu8sWxCwUzgJPti+4ZZWfHJJ2rsXOnXSoaP2Nss
+         rPXQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm2 header.b=BQ6h4EMP;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="3v/Qhodh";
+       dkim=pass header.i=@sent.com header.s=fm2 header.b=LMQQ6Foj;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="OIv/vxn8";
        spf=pass (google.com: domain of zi.yan@sent.com designates 64.147.123.25 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from wout2-smtp.messagingengine.com (wout2-smtp.messagingengine.com. [64.147.123.25])
-        by mx.google.com with ESMTPS id l15si4605480qti.7.2019.02.15.14.09.17
+        by mx.google.com with ESMTPS id m37si509442qvc.174.2019.02.15.14.09.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 14:09:18 -0800 (PST)
+        Fri, 15 Feb 2019 14:09:19 -0800 (PST)
 Received-SPF: pass (google.com: domain of zi.yan@sent.com designates 64.147.123.25 as permitted sender) client-ip=64.147.123.25;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm2 header.b=BQ6h4EMP;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="3v/Qhodh";
+       dkim=pass header.i=@sent.com header.s=fm2 header.b=LMQQ6Foj;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="OIv/vxn8";
        spf=pass (google.com: domain of zi.yan@sent.com designates 64.147.123.25 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.west.internal (Postfix) with ESMTP id 4C83B31E4;
-	Fri, 15 Feb 2019 17:09:16 -0500 (EST)
+	by mailout.west.internal (Postfix) with ESMTP id 7BBD7310A;
+	Fri, 15 Feb 2019 17:09:17 -0500 (EST)
 Received: from mailfrontend1 ([10.202.2.162])
-  by compute3.internal (MEProxy); Fri, 15 Feb 2019 17:09:17 -0500
+  by compute3.internal (MEProxy); Fri, 15 Feb 2019 17:09:18 -0500
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=sent.com; h=from
 	:to:cc:subject:date:message-id:in-reply-to:references:reply-to
-	:mime-version:content-transfer-encoding; s=fm2; bh=jPUMl05hp4GyY
-	NPKyUU/j1/LhtwQWzBCTR2KiGtIjhE=; b=BQ6h4EMPTg4jJ0R72Qup5JbWpeCpy
-	dzOaqn8Ww8vNnPWA3Gsra+/513+QVm3TnPdfFClO5KVwub/InOwz/Mnx+T3N6UKN
-	/zRSRUSUzkx8O9RHe9QTJM4nfusej/0Ti0wJrf5Sl6JgqKJ+B54Xy3qM0E3BqAX8
-	rmKpUXAZCFfpVvSoATLHZdgBtA6r1XW823RVM9iqQ+4PZfU4RF5yNVGIzGo++IJz
-	HMLLR4odcMaEAp126CPnk0kJXug+Apz9T1VpbD/iYyYitRDC+NoJgXgeJMTT+6OW
-	47thcQNkT0SIPHA4jQAeZSBheymoaWDiQ1y8jJb3iA1HRWuqR0RfYdkXw==
+	:mime-version:content-transfer-encoding; s=fm2; bh=s+M9Q1Dn/74r7
+	Hqs3gLQcg1STi/Xk0kU2xFV7ZybJ5M=; b=LMQQ6FojPBEWUxYcZyupLkHS7Gi6/
+	lCmVLgDcfuWz9E42THOfhFiodqUK9AGh/8qXtf2Oz92BOz8GBlswGNkO10eAsI8p
+	MnPC+Z6phDvGEVAQJx3NS0hZBEIrm+Zykik8xVKRicMjNuMx/Q5Pseh/BkMkdOPE
+	mVyJTbEZepYPiFmRSwzOYwIyafdxqPSjfy8tMAvmCxtYnm+Y5m7FfyqLmSfsD7be
+	gHmAJQ+E9QlOo7671DKVipxixMf2koJcueOM/TJhVPBR2JG35KIyWX93ehf6wXz+
+	HmTH5oKrFuZVcMTORI4XtdgikLmA6D3ixeLcAvtgo6XjQ+Wyo8Olt3AEg==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:reply-to:subject
 	:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=jPUMl05hp4GyYNPKyUU/j1/LhtwQWzBCTR2KiGtIjhE=; b=3v/Qhodh
-	InEnJMOf3bLckfH9lSJhVQmHnWX/0B2Q4Y2ByWqwrlIcXJI1yMDZA4FMUEpAz6Kx
-	sfD4ukW/MRGzTnI79jbXaeyWKo2EQZGiANrOZuQYzvQD6rYitA4xMo6t5vS6ahzJ
-	3I9793OkBllaXj2mne6aJa3FsPJOcenUyqAnotNAri7k6anYgC4rvS/19Pj/XCA1
-	aVNGKgwn/IzSH5TefCaI3OM0otU2R8Y7nSWLtwDINEAvFntb5FWDjla1Jgy4A2IZ
-	JkxolW+rRHnJxQMfM4ms+Avce8xytqW+AcfcBqskAyhcUP9ue4lvzQRCp2zTONBk
-	AP4rId/C4vq3rA==
-X-ME-Sender: <xms:izhnXI2VS_dBz3PTw5P-TXklNjLd6zOWXhdreeZRjPzC1vLC1OQrTg>
+	fm2; bh=s+M9Q1Dn/74r7Hqs3gLQcg1STi/Xk0kU2xFV7ZybJ5M=; b=OIv/vxn8
+	z8uHrE0XwEs5J3iyx9QT7uKYL6ToBVMAWN5DFv8SVn3iTZNUSJa8TdtF/FnfxOuW
+	ydrpe04VTkGrfL2oJenrQ5PVE1XQ0mc5KNg3vxskG6exsbG63ILI6X+rRapRgWHH
+	WaHKW16CkiQF1x7giugKKyZPqsUr9bh2OQTSCV7JPYHe/CwzqTd+aNnYtMASt+vs
+	HLA4JPfbL8CjOvnHUBvbESMGVjEzXx4Ar7HNpQl+4aggb0Gyi2rJXOu0E8F2cZ1T
+	4tU6/j3coPB5+DfUjENijh2Nd+dv0CucbaI06/1vRIFVfLjSTxVRasibOPW5C5gr
+	OLmyU8z8PTtlAg==
+X-ME-Sender: <xms:jDhnXBCcq1om_2qetgpMaysLFy25EP24mNfLi1FrawSH3G4DmaAtZg>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledruddtjedgudehkecutefuodetggdotefrod
     ftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthenuceurghilhhouhhtmecu
     fedttdenucesvcftvggtihhpihgvnhhtshculddquddttddmnecujfgurhephffvufffkf
@@ -119,13 +119,13 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledruddtjedgudehkecutefuodetgg
     sehsvghnthdrtghomheqnecukfhppedvudeirddvvdekrdduuddvrddvvdenucfrrghrrg
     hmpehmrghilhhfrhhomhepiihirdihrghnsehsvghnthdrtghomhenucevlhhushhtvghr
     ufhiiigvpeel
-X-ME-Proxy: <xmx:izhnXOmkVow0n8y0cz-_ZyaQGo2NgB2uPKL0XTzY0LqmvA0n64DazA>
-    <xmx:izhnXH7Qrf3gF0SLW019gYpvTUzhv4lfKKKE8aHfhkFNuNfBFtb03w>
-    <xmx:izhnXKz_Tx3reWpKobQgpVDDOwIVxBdhjb2hSgR7ly3WfRRYDmd2sA>
-    <xmx:izhnXG99W0ghHBSXKoI7-i4_UBblNpSFENIUXYo-iou4aRgks6ne9g>
+X-ME-Proxy: <xmx:jDhnXJlFYof067REGB9rlsC2amOjXGIKIobFc_GXDpJeS29aY-Lvlw>
+    <xmx:jDhnXLozpyq_wKigPm5JLVtE3CgxRON_INRvmMBAWUCvE6vxgHJINQ>
+    <xmx:jDhnXD6VjRIjEv5oawlrTA6Zchmp3QzFpVexlg8959mVhH7F6-2KqQ>
+    <xmx:jThnXNZATm-XiCR9VxyMSGa5OKynws_2l_gCJuikAmxKVfn9sgPIEQ>
 Received: from nvrsysarch5.nvidia.com (thunderhill.nvidia.com [216.228.112.22])
-	by mail.messagingengine.com (Postfix) with ESMTPA id E04D5E4680;
-	Fri, 15 Feb 2019 17:09:13 -0500 (EST)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 922BBE4511;
+	Fri, 15 Feb 2019 17:09:15 -0500 (EST)
 From: Zi Yan <zi.yan@sent.com>
 To: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
@@ -140,9 +140,9 @@ Cc: Dave Hansen <dave.hansen@linux.intel.com>,
 	Nitin Gupta <nigupta@nvidia.com>,
 	David Nellans <dnellans@nvidia.com>,
 	Zi Yan <ziy@nvidia.com>
-Subject: [RFC PATCH 10/31] mm: proc: add 1GB THP kpageflag.
-Date: Fri, 15 Feb 2019 14:08:35 -0800
-Message-Id: <20190215220856.29749-11-zi.yan@sent.com>
+Subject: [RFC PATCH 11/31] mm: debug: print compound page order in dump_page().
+Date: Fri, 15 Feb 2019 14:08:36 -0800
+Message-Id: <20190215220856.29749-12-zi.yan@sent.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190215220856.29749-1-zi.yan@sent.com>
 References: <20190215220856.29749-1-zi.yan@sent.com>
@@ -157,39 +157,33 @@ List-ID: <linux-mm.kvack.org>
 
 From: Zi Yan <ziy@nvidia.com>
 
-Bit 27 is used to identify 1GB THP.
+Since we have more than just PMD-level THPs, printing compound page
+order is helpful to check the actual compound page sizes.
 
 Signed-off-by: Zi Yan <ziy@nvidia.com>
 ---
- fs/proc/page.c                         | 2 ++
- include/uapi/linux/kernel-page-flags.h | 2 ++
- 2 files changed, 4 insertions(+)
+ mm/debug.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
-diff --git a/fs/proc/page.c b/fs/proc/page.c
-index 40b05e0d4274..5d1471a6082a 100644
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -138,6 +138,8 @@ u64 stable_page_flags(struct page *page)
- 			u |= 1 << KPF_ZERO_PAGE;
- 			u |= 1 << KPF_THP;
- 		}
-+		if (compound_order(head) == HPAGE_PUD_ORDER)
-+			u |= 1 << KPF_PUD_THP;
- 	} else if (is_zero_pfn(page_to_pfn(page)))
- 		u |= 1 << KPF_ZERO_PAGE;
- 
-diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
-index 21b9113c69da..743bd730917d 100644
---- a/include/uapi/linux/kernel-page-flags.h
-+++ b/include/uapi/linux/kernel-page-flags.h
-@@ -36,5 +36,7 @@
- #define KPF_ZERO_PAGE		24
- #define KPF_IDLE		25
- #define KPF_PGTABLE		26
-+#define KPF_PUD_THP		27
+diff --git a/mm/debug.c b/mm/debug.c
+index 0abb987dad9b..21d211d7776c 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -68,8 +68,12 @@ void __dump_page(struct page *page, const char *reason)
+ 	pr_warn("page:%px count:%d mapcount:%d mapping:%px index:%#lx",
+ 		  page, page_ref_count(page), mapcount,
+ 		  page->mapping, page_to_pgoff(page));
+-	if (PageCompound(page))
+-		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
++	if (PageCompound(page)) {
++		struct page *head = compound_head(page);
 +
- 
- #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
++		pr_cont(" compound_mapcount: %d, order: %d", compound_mapcount(page),
++				compound_order(head));
++	}
+ 	pr_cont("\n");
+ 	if (PageAnon(page))
+ 		pr_warn("anon ");
 -- 
 2.20.1
 
