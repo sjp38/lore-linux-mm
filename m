@@ -2,615 +2,333 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AA643C10F02
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:25:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B03ECC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:40:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4026F222E5
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:25:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5D26A222DE
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:40:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Tj4QAZ7/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4026F222E5
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="DlWuhRsQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5D26A222DE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B6DD78E0002; Fri, 15 Feb 2019 17:25:31 -0500 (EST)
+	id DFBD98E0006; Fri, 15 Feb 2019 17:40:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B1E9A8E0001; Fri, 15 Feb 2019 17:25:31 -0500 (EST)
+	id DAAC48E0001; Fri, 15 Feb 2019 17:40:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9BF628E0002; Fri, 15 Feb 2019 17:25:31 -0500 (EST)
+	id BFF578E0006; Fri, 15 Feb 2019 17:40:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C7858E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:25:31 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id y1so7800711pgo.0
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:25:31 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 774538E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:40:03 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id a2so7771164pgt.11
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:40:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=4Gp3bQShK9aP2AM3VG2hKKx2Up4d2goE9hEe/0W7+Z4=;
-        b=GL3c+Mi10dhaOakeebgGLuvZmJVeF23D/tjBLSmZ6S/e6gQQM7kd66/tFHThY/Sh+W
-         xVx6518DahZqLso2XPltaBi2IxT8iXZOubTh6dUqZVa7RD8YAgdBV8FUOnatZ87Mg4b5
-         Q6pCak3q+EANHZ3Dre5Cyj7U2V73TFAyCXnbWIJuFHMd4ipDUoBiYreoDMy/D47mRTht
-         Fkhfm//PbARVYVLQF3L8Y/cubJ1Mj1wjQLAP0kI4b8H4+Xy3KIogkIFvR6iS938EvTZR
-         tnmVp6XRRqGXgw93njyD2a+kMrD8u7CEIg3B8TvFuF0fAoi/EQPj6DC8uHC7p/IQZ6O5
-         enlw==
-X-Gm-Message-State: AHQUAuYE3Jm+g/dzPjb70L0+cp7lSt7j/G0TaZM4tsD7/3QDQouk8qK9
-	BKJcXg+oB/ttkUVZoo03ZEJEOKqkdEuYuuGOJuwPfwu80WC6qHAgRKXLBqoTrSBm+Zfwb3MRNDn
-	oD3L7rAaxflfslJ5DKxsSMROqJIdKLNVBxH8lU/zC48KEtpwsilcED6SfyXMGbpQBrg==
-X-Received: by 2002:a63:bd51:: with SMTP id d17mr7579603pgp.443.1550269530918;
-        Fri, 15 Feb 2019 14:25:30 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZcI9Hgt8Cyi+BVp84y8Cz40dEC6R/TQ5ftrsRDqcbAqhAyuK47q3d88vt4B3r+G8NiE73A
-X-Received: by 2002:a63:bd51:: with SMTP id d17mr7579495pgp.443.1550269529210;
-        Fri, 15 Feb 2019 14:25:29 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550269529; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=rFBuPAUp3qyHrOOVnWy4HHWdGelJ0ySma1MEojBeK4Y=;
+        b=HzneaFNW69dcTaOuN42ChC3ZfsXiBGuEUCXcgdnEpUxZy1FXQOGJ+XM11K+qDF7qQK
+         7KlMEiBWfJCmwrv+wfuyhr5wX1ZhYE+48e62fOKL+76Kcfe0fOuyZWOq49n0iGxErjAt
+         zwa7cC/ZfASpL55M/x9XOE7VIY22k3qs5K6JjzeeOKYlasXsW3U8sVZ2f2Twn9q1WRfj
+         KviYV1xv7OjwwYQV169nlMFs8qO3sAELB6pURgf41PGrP26rNKV1E4k/Q7MHMmbcvhCT
+         TA2iJCKZ8Ep1hlWz0uudbUVY+wpzagbJH+IjT0SnUkWAyLfpakbtPhersMMfU2hT5APe
+         8KrA==
+X-Gm-Message-State: AHQUAuZFhj01Oshqej/chnva385qEeIbwSOWgJPa+aYWcm2rIWvnqmm/
+	P7Drom0ujFDgwfChhAVigopaDbwGei1px6LSzYZEx94dt9jbdX8PLQWNkk/ijCm3C/QIYsK5U4e
+	UXelWoP0PC4pfG6en714PjaVrduZcH/5vpUjKSO1BHobNlqXmnwMfRVNBZYNDXb+npw==
+X-Received: by 2002:a63:ca:: with SMTP id 193mr8434567pga.288.1550270403122;
+        Fri, 15 Feb 2019 14:40:03 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbW138uaNNJtSpKvdNgOvPxJhCf4MECoNGXeHhFYFytF5NWOi3iN03Xddd2AAPZ1SRNQwfL
+X-Received: by 2002:a63:ca:: with SMTP id 193mr8434518pga.288.1550270402162;
+        Fri, 15 Feb 2019 14:40:02 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550270402; cv=none;
         d=google.com; s=arc-20160816;
-        b=EV0drq3uP+ciWa6id4PasY0EfsQT0+sdadGeFq8ssCrg4l9j5PX1tZC9biqUo0nGy7
-         AFS+yoCB1WYwgsgkLtTWzE/6cZXjPr6AgB4rA6W0UEej8xTYJerErwZU1zB1HYrV/ACQ
-         YnYsUFU6DVx/7+6Yfbqr1eo8/ApIisjUTLJY0x7tQQ529JOjHPW1tMUw7f6i0y6O8BCM
-         h8vcIDBpS4t6Unv7ae3Lt0bkXvGgvQ2A8Q1RpEzH1C93M7mVSw76PyX4oHypwRoDtT4n
-         xG8Q0G7SSFkpCoFuAi25gbu7DZPW3kDX1PNm2U+Be/AxDDbcPhRlRJpxRDKf3SUa1Ftd
-         QCUg==
+        b=cUYC3WBtpjyGbJT90oC+Zb7Al3fqmOm3/y8tWB4/bYYoqUXdw2WT4UPAhd80UM92/h
+         xUJltCG/hujwKuyv8y56hwK6nl57joqCj+Kb1BqKDgnPYAhGG8zWIWRRWzJZ2jViJqfZ
+         whMbOY87nCJKKviaFPl+Rf5zbaX88vQ0f+bdhsHPeK6n5E/RyOc7cAgDY50hMttXR0ii
+         p06qZ0++kXiXocdBR2jbWpnBnsP//d8rtgpco+n7tQdkb4qaBhsJNSMPL+bgv/10nBzZ
+         dZwTAJXCFlR8xa7E5sl6RQ+ovSbOi4RrsAlTxvEr/IaaNZoIqwWCm/BPbClKtGpodFMl
+         uXkA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=4Gp3bQShK9aP2AM3VG2hKKx2Up4d2goE9hEe/0W7+Z4=;
-        b=JO54WCAarB2pdBCnpGAHCVWB0nKf2/3Q+5rh8KZ7rmv8+r0gBf5FcbyhTBCtIz+YXM
-         kzAtFFHXW92ZO7KApXgVLLqFl2iKpGCdS2uwiwG0bI/jdbZKg/kxty7Zo9TO5VTPxdQa
-         wHyFDoyFp3R6Y+VIJ+z+PXhwmCS8tEa7piUuQqzNrxskT19gFdA4sm+2EokuIR6MY+3S
-         gf3jNf6NYaeOEi4y5BK13oRNf+vbFTk9/HD45hhdWlj2KB+kOLc1S9daRGUZbG8PiZGJ
-         ALsDridb/8OKftyeds2MvfuZSuwysuFbtH+j4QJSoy92ydLLmf7duuaBCKsjBNVE2cBM
-         d6BQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=rFBuPAUp3qyHrOOVnWy4HHWdGelJ0ySma1MEojBeK4Y=;
+        b=wpLYQ4d6XqrO2hAJGGXX6bKiopQtysgTbcuxUfi4ZMA5+Aibo7q7WANALjBwLnJGLy
+         KEWCPd1JzjXMhDyloXEHyRHYNKDt+v9pOsVagovTilrduowM7mOqLmy57CIGN3Lme1nL
+         SgKaYBemiz9TRfRX6QhbncG4/VCLd9Qlz8lKM/z7zimPK2q7AdQ7n4l05CZA6Ze4bMgd
+         hfaMQRv699G1pKV7B5A1D6O/X4FWfrvdr0DouOdu+b94gwY83qQ7XV7NdvQ8pSS9tQT9
+         E3Xwc99OkAIK6yfsgk9fzkIPJ4OEBNTgjTvLwVDE8KYL6zl9qfntV3GWshvt8vvZo7vY
+         xoxw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="Tj4QAZ7/";
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id h4si6188234pgl.409.2019.02.15.14.25.28
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=DlWuhRsQ;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id r10si6253289pgr.489.2019.02.15.14.40.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 15 Feb 2019 14:25:29 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Feb 2019 14:40:02 -0800 (PST)
+Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="Tj4QAZ7/";
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Message-Id:Date:Subject:Cc:To:From:
-	Sender:Reply-To:MIME-Version:Content-Type:Content-Transfer-Encoding:
-	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
-	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=4Gp3bQShK9aP2AM3VG2hKKx2Up4d2goE9hEe/0W7+Z4=; b=Tj4QAZ7/lBXKK3YTkdcEj5Y4C
-	q/XIctdkj7rP+bW/JnBq8GItUHdu8/J4fwgNkDD2WN5U69R0qb/uzL98jMD3D46+y9JWBaFaa4Zvf
-	yKP1vAeDhd0Vzm1kxrdbhsaOEj8AZUkW9IImp9pHhQ2K5cfWGPy1EoawLUMgYgyxhFCMN0Q4Z09yX
-	ApcQJpg4fhYpcCO9Un46KejQ2ksfb/W8NX6fFj5Pq+4iupQOcCtLE3IDwWGzdsoAiqJmstAqGd7no
-	11bSlKgQMvhobOhR6r2koHMwU/p/zHYPmcbojpCRR7VdbtJBUPvS9YFixd5br0H28+0+B2D5NGWIe
-	JswBiBUkw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gulvD-0004eK-Uo; Fri, 15 Feb 2019 22:25:27 +0000
-From: Matthew Wilcox <willy@infradead.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>,
-	linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Cc: Matthew Wilcox <willy@infradead.org>,
-	Hugh Dickins <hughd@google.com>,
-	Jan Kara <jack@suse.cz>,
-	William Kucharski <william.kucharski@oracle.com>
-Subject: [PATCH v3] page cache: Store only head pages in i_pages
-Date: Fri, 15 Feb 2019 14:25:25 -0800
-Message-Id: <20190215222525.17802-1-willy@infradead.org>
-X-Mailer: git-send-email 2.14.5
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=DlWuhRsQ;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1FMcxWe146163;
+	Fri, 15 Feb 2019 22:39:37 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=rFBuPAUp3qyHrOOVnWy4HHWdGelJ0ySma1MEojBeK4Y=;
+ b=DlWuhRsQN5kmw/90osRqZIUez1X7TeWVRLI7Kmo3JJLaKkBIv/m6V3c1AfzbcvH/Fbv+
+ Pat6xx5UMyo9oCVRyHCxwxWw36YcaWzwhLQybvwJNUtbYmWmiDXFFunEW33PVOvPUoXA
+ QXGfkWN/0Z9F0oJjJtCSx3wAragBKmNc9NDTbsAQzGrHgvDE+dmf6X1MnccK3sZSLsqd
+ y414B1CWKpfaaRFfeNsWyrhr3YsdHnUhXpCyIumo1j6uZgNE0s/q0K3/QUb07LBRYli/
+ hXX4XlAFW5Ylxq3u/f3kV4GyW9T6f6uyQXsPYlFhYDrSG1WTLIp47m4Jj7sPgUTCu9mn 5A== 
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by userp2130.oracle.com with ESMTP id 2qhrem0cbf-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 15 Feb 2019 22:39:36 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x1FMdTnq026520
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 15 Feb 2019 22:39:30 GMT
+Received: from abhmp0022.oracle.com (abhmp0022.oracle.com [141.146.116.28])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x1FMdR7l015082;
+	Fri, 15 Feb 2019 22:39:28 GMT
+Received: from localhost (/10.145.178.102)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Fri, 15 Feb 2019 14:39:27 -0800
+Date: Fri, 15 Feb 2019 14:39:25 -0800
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+To: clm@fb.com, josef@toxicpanda.com, dsterba@suse.com,
+        viro@zeniv.linux.org.uk, jack@suse.com, tytso@mit.edu,
+        adilger.kernel@dilger.ca, jaegeuk@kernel.org, yuchao0@huawei.com,
+        hughd@google.com, hch@infradead.org
+Cc: richard@nod.at, dedekind1@gmail.com, adrian.hunter@intel.com,
+        linux-xfs@vger.kernel.org, linux-btrfs@vger.kernel.org,
+        linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
+        linux-f2fs-devel@lists.sourceforge.net, linux-mtd@lists.infradead.org,
+        linux-mm@kvack.org, amir73il@gmail.com
+Subject: [PATCH v2] vfs: don't decrement i_nlink in d_tmpfile
+Message-ID: <20190215223925.GO32253@magnolia>
+References: <20190214234908.GA6474@magnolia>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190214234908.GA6474@magnolia>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9168 signatures=668683
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=831 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1902150147
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Transparent Huge Pages are currently stored in i_pages as pointers to
-consecutive subpages.  This patch changes that to storing consecutive
-pointers to the head page in preparation for storing huge pages more
-efficiently in i_pages.
+From: Darrick J. Wong <darrick.wong@oracle.com>
 
-Large parts of this are "inspired" by Kirill's patch
-https://lore.kernel.org/lkml/20170126115819.58875-2-kirill.shutemov@linux.intel.com/
+d_tmpfile was introduced to instantiate an inode in the dentry cache as
+a temporary file.  This helper decrements the inode's nlink count and
+dirties the inode, presumably so that filesystems could call new_inode
+to create a new inode with nlink == 1 and then call d_tmpfile which will
+decrement nlink.
 
-Signed-off-by: Matthew Wilcox <willy@infradead.org>
-Acked-by: Jan Kara <jack@suse.cz>
-Reviewed-by: Kirill Shutemov <kirill@shutemov.name>
+However, this doesn't play well with XFS, which needs to allocate,
+initialize, and insert a tempfile inode on its unlinked list in a single
+transaction.  In order to maintain referential integrity of the XFS
+metadata, we cannot have an inode on the unlinked list with nlink >= 1.
+
+XFS and btrfs hack around d_tmpfile's behavior by creating the inode
+with nlink == 0 and then incrementing it just prior to calling
+d_tmpfile, anticipating that it will be reset to 0.
+
+Everywhere else, it appears that nlink updates and persistence is
+the responsibility of individual filesystems.  Therefore, move the nlink
+decrement out of d_tmpfile into the callers, and require that callers
+only pass in inodes with nlink already set to 0.
+
+Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 ---
- include/linux/pagemap.h |   9 +++
- mm/filemap.c            | 158 ++++++++++++++++------------------------
- mm/huge_memory.c        |   3 +
- mm/khugepaged.c         |   4 +-
- mm/memfd.c              |   2 +
- mm/migrate.c            |   2 +-
- mm/shmem.c              |   2 +-
- mm/swap_state.c         |   4 +-
- 8 files changed, 81 insertions(+), 103 deletions(-)
+v2: convert BUG_ON to WARN_ON per review comment
+---
+ fs/btrfs/inode.c  |    8 --------
+ fs/dcache.c       |   10 ++++++----
+ fs/ext2/namei.c   |    2 +-
+ fs/ext4/namei.c   |    1 +
+ fs/f2fs/namei.c   |    1 +
+ fs/minix/namei.c  |    2 +-
+ fs/ubifs/dir.c    |    1 +
+ fs/udf/namei.c    |    2 +-
+ fs/xfs/xfs_iops.c |   13 ++-----------
+ mm/shmem.c        |    1 +
+ 10 files changed, 15 insertions(+), 26 deletions(-)
 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index bcf909d0de5f..7d58e4e0b68e 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -333,6 +333,15 @@ static inline struct page *grab_cache_page_nowait(struct address_space *mapping,
- 			mapping_gfp_mask(mapping));
- }
- 
-+static inline struct page *find_subpage(struct page *page, pgoff_t offset)
-+{
-+	VM_BUG_ON_PAGE(PageTail(page), page);
-+	VM_BUG_ON_PAGE(page->index > offset, page);
-+	VM_BUG_ON_PAGE(page->index + (1 << compound_order(page)) <= offset,
-+			page);
-+	return page - page->index + offset;
-+}
-+
- struct page *find_get_entry(struct address_space *mapping, pgoff_t offset);
- struct page *find_lock_entry(struct address_space *mapping, pgoff_t offset);
- unsigned find_get_entries(struct address_space *mapping, pgoff_t start,
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 5673672fd444..d9161cae11b5 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -279,11 +279,11 @@ EXPORT_SYMBOL(delete_from_page_cache);
-  * @pvec: pagevec with pages to delete
-  *
-  * The function walks over mapping->i_pages and removes pages passed in @pvec
-- * from the mapping. The function expects @pvec to be sorted by page index.
-+ * from the mapping. The function expects @pvec to be sorted by page index
-+ * and is optimised for it to be dense.
-  * It tolerates holes in @pvec (mapping entries at those indices are not
-  * modified). The function expects only THP head pages to be present in the
-- * @pvec and takes care to delete all corresponding tail pages from the
-- * mapping as well.
-+ * @pvec.
-  *
-  * The function expects the i_pages lock to be held.
-  */
-@@ -292,40 +292,43 @@ static void page_cache_delete_batch(struct address_space *mapping,
- {
- 	XA_STATE(xas, &mapping->i_pages, pvec->pages[0]->index);
- 	int total_pages = 0;
--	int i = 0, tail_pages = 0;
-+	int i = 0;
- 	struct page *page;
- 
- 	mapping_set_update(&xas, mapping);
- 	xas_for_each(&xas, page, ULONG_MAX) {
--		if (i >= pagevec_count(pvec) && !tail_pages)
-+		if (i >= pagevec_count(pvec))
- 			break;
-+
-+		/* A swap/dax/shadow entry got inserted? Skip it. */
- 		if (xa_is_value(page))
- 			continue;
--		if (!tail_pages) {
--			/*
--			 * Some page got inserted in our range? Skip it. We
--			 * have our pages locked so they are protected from
--			 * being removed.
--			 */
--			if (page != pvec->pages[i]) {
--				VM_BUG_ON_PAGE(page->index >
--						pvec->pages[i]->index, page);
--				continue;
--			}
--			WARN_ON_ONCE(!PageLocked(page));
--			if (PageTransHuge(page) && !PageHuge(page))
--				tail_pages = HPAGE_PMD_NR - 1;
-+		/*
-+		 * A page got inserted in our range? Skip it. We have our
-+		 * pages locked so they are protected from being removed.
-+		 * If we see a page whose index is higher than ours, it
-+		 * means our page has been removed, which shouldn't be
-+		 * possible because we're holding the PageLock.
-+		 */
-+		if (page != pvec->pages[i]) {
-+			VM_BUG_ON_PAGE(page->index > pvec->pages[i]->index,
-+					page);
-+			continue;
-+		}
-+
-+		WARN_ON_ONCE(!PageLocked(page));
-+
-+		if (page->index == xas.xa_index)
- 			page->mapping = NULL;
--			/*
--			 * Leave page->index set: truncation lookup relies
--			 * upon it
--			 */
-+		/* Leave page->index set: truncation lookup relies on it */
-+
-+		/*
-+		 * Move to the next page in the vector if this is a small page
-+		 * or the index is of the last page in this compound page).
-+		 */
-+		if (page->index + (1UL << compound_order(page)) - 1 ==
-+				xas.xa_index)
- 			i++;
--		} else {
--			VM_BUG_ON_PAGE(page->index + HPAGE_PMD_NR - tail_pages
--					!= pvec->pages[i]->index, page);
--			tail_pages--;
--		}
- 		xas_store(&xas, NULL);
- 		total_pages++;
- 	}
-@@ -1491,7 +1494,7 @@ EXPORT_SYMBOL(page_cache_prev_miss);
- struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
- {
- 	XA_STATE(xas, &mapping->i_pages, offset);
--	struct page *head, *page;
-+	struct page *page;
- 
- 	rcu_read_lock();
- repeat:
-@@ -1506,25 +1509,19 @@ struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
- 	if (!page || xa_is_value(page))
+diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+index 5c349667c761..bd189fc50f83 100644
+--- a/fs/btrfs/inode.c
++++ b/fs/btrfs/inode.c
+@@ -10382,14 +10382,6 @@ static int btrfs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+ 	if (ret)
  		goto out;
  
--	head = compound_head(page);
--	if (!page_cache_get_speculative(head))
-+	if (!page_cache_get_speculative(page))
- 		goto repeat;
+-	/*
+-	 * We set number of links to 0 in btrfs_new_inode(), and here we set
+-	 * it to 1 because d_tmpfile() will issue a warning if the count is 0,
+-	 * through:
+-	 *
+-	 *    d_tmpfile() -> inode_dec_link_count() -> drop_nlink()
+-	 */
+-	set_nlink(inode, 1);
+ 	d_tmpfile(dentry, inode);
+ 	unlock_new_inode(inode);
+ 	mark_inode_dirty(inode);
+diff --git a/fs/dcache.c b/fs/dcache.c
+index aac41adf4743..bb349d423055 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -3042,12 +3042,14 @@ void d_genocide(struct dentry *parent)
  
--	/* The page was split under us? */
--	if (compound_head(page) != head) {
--		put_page(head);
--		goto repeat;
--	}
--
- 	/*
--	 * Has the page moved?
-+	 * Has the page moved or been split?
- 	 * This is part of the lockless pagecache protocol. See
- 	 * include/linux/pagemap.h for details.
- 	 */
- 	if (unlikely(page != xas_reload(&xas))) {
--		put_page(head);
-+		put_page(page);
- 		goto repeat;
+ EXPORT_SYMBOL(d_genocide);
+ 
++/*
++ * Instantiate an inode in the dentry cache as a temporary file.  Callers must
++ * ensure that @inode has a zero link count.
++ */
+ void d_tmpfile(struct dentry *dentry, struct inode *inode)
+ {
+-	inode_dec_link_count(inode);
+-	BUG_ON(dentry->d_name.name != dentry->d_iname ||
+-		!hlist_unhashed(&dentry->d_u.d_alias) ||
+-		!d_unlinked(dentry));
++	WARN_ON(dentry->d_name.name != dentry->d_iname ||
++		!d_unlinked(dentry) || inode->i_nlink != 0);
+ 	spin_lock(&dentry->d_parent->d_lock);
+ 	spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
+ 	dentry->d_name.len = sprintf(dentry->d_iname, "#%llu",
+diff --git a/fs/ext2/namei.c b/fs/ext2/namei.c
+index 0c26dcc5d850..8542e9ce9677 100644
+--- a/fs/ext2/namei.c
++++ b/fs/ext2/namei.c
+@@ -117,7 +117,7 @@ static int ext2_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+ 		return PTR_ERR(inode);
+ 
+ 	ext2_set_file_ops(inode);
+-	mark_inode_dirty(inode);
++	inode_dec_link_count(inode);
+ 	d_tmpfile(dentry, inode);
+ 	unlock_new_inode(inode);
+ 	return 0;
+diff --git a/fs/ext4/namei.c b/fs/ext4/namei.c
+index 2b928eb07fa2..7502432f9816 100644
+--- a/fs/ext4/namei.c
++++ b/fs/ext4/namei.c
+@@ -2517,6 +2517,7 @@ static int ext4_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+ 		inode->i_op = &ext4_file_inode_operations;
+ 		inode->i_fop = &ext4_file_operations;
+ 		ext4_set_aops(inode);
++		inode_dec_link_count(inode);
+ 		d_tmpfile(dentry, inode);
+ 		err = ext4_orphan_add(handle, inode);
+ 		if (err)
+diff --git a/fs/f2fs/namei.c b/fs/f2fs/namei.c
+index 62d9829f3a6a..31a556af5f3a 100644
+--- a/fs/f2fs/namei.c
++++ b/fs/f2fs/namei.c
+@@ -780,6 +780,7 @@ static int __f2fs_tmpfile(struct inode *dir, struct dentry *dentry,
+ 		f2fs_i_links_write(inode, false);
+ 		*whiteout = inode;
+ 	} else {
++		inode_dec_link_count(inode);
+ 		d_tmpfile(dentry, inode);
  	}
-+	page = find_subpage(page, offset);
- out:
- 	rcu_read_unlock();
- 
-@@ -1706,7 +1703,6 @@ unsigned find_get_entries(struct address_space *mapping,
- 
- 	rcu_read_lock();
- 	xas_for_each(&xas, page, ULONG_MAX) {
--		struct page *head;
- 		if (xas_retry(&xas, page))
- 			continue;
- 		/*
-@@ -1717,17 +1713,13 @@ unsigned find_get_entries(struct address_space *mapping,
- 		if (xa_is_value(page))
- 			goto export;
- 
--		head = compound_head(page);
--		if (!page_cache_get_speculative(head))
-+		if (!page_cache_get_speculative(page))
- 			goto retry;
- 
--		/* The page was split under us? */
--		if (compound_head(page) != head)
--			goto put_page;
--
--		/* Has the page moved? */
-+		/* Has the page moved or been split? */
- 		if (unlikely(page != xas_reload(&xas)))
- 			goto put_page;
-+		page = find_subpage(page, xas.xa_index);
- 
- export:
- 		indices[ret] = xas.xa_index;
-@@ -1736,7 +1728,7 @@ unsigned find_get_entries(struct address_space *mapping,
- 			break;
- 		continue;
- put_page:
--		put_page(head);
-+		put_page(page);
- retry:
- 		xas_reset(&xas);
+ 	/* link_count was changed by d_tmpfile as well. */
+diff --git a/fs/minix/namei.c b/fs/minix/namei.c
+index 1a6084d2b02e..3249f86c476a 100644
+--- a/fs/minix/namei.c
++++ b/fs/minix/namei.c
+@@ -57,7 +57,7 @@ static int minix_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+ 	struct inode *inode = minix_new_inode(dir, mode, &error);
+ 	if (inode) {
+ 		minix_set_inode(inode, 0);
+-		mark_inode_dirty(inode);
++		inode_dec_link_count(inode);
+ 		d_tmpfile(dentry, inode);
  	}
-@@ -1778,33 +1770,27 @@ unsigned find_get_pages_range(struct address_space *mapping, pgoff_t *start,
- 
- 	rcu_read_lock();
- 	xas_for_each(&xas, page, end) {
--		struct page *head;
- 		if (xas_retry(&xas, page))
- 			continue;
- 		/* Skip over shadow, swap and DAX entries */
- 		if (xa_is_value(page))
- 			continue;
- 
--		head = compound_head(page);
--		if (!page_cache_get_speculative(head))
-+		if (!page_cache_get_speculative(page))
- 			goto retry;
- 
--		/* The page was split under us? */
--		if (compound_head(page) != head)
--			goto put_page;
--
--		/* Has the page moved? */
-+		/* Has the page moved or been split? */
- 		if (unlikely(page != xas_reload(&xas)))
- 			goto put_page;
- 
--		pages[ret] = page;
-+		pages[ret] = find_subpage(page, xas.xa_index);
- 		if (++ret == nr_pages) {
- 			*start = page->index + 1;
- 			goto out;
- 		}
- 		continue;
- put_page:
--		put_page(head);
-+		put_page(page);
- retry:
- 		xas_reset(&xas);
+ 	return error;
+diff --git a/fs/ubifs/dir.c b/fs/ubifs/dir.c
+index 5767b373a8ff..7187e4fd7561 100644
+--- a/fs/ubifs/dir.c
++++ b/fs/ubifs/dir.c
+@@ -419,6 +419,7 @@ static int do_tmpfile(struct inode *dir, struct dentry *dentry,
+ 		drop_nlink(inode);
+ 		*whiteout = inode;
+ 	} else {
++		inode_dec_link_count(inode);
+ 		d_tmpfile(dentry, inode);
  	}
-@@ -1849,7 +1835,6 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
+ 	ubifs_assert(c, ui->dirty);
+diff --git a/fs/udf/namei.c b/fs/udf/namei.c
+index 58cc2414992b..38bd021f9673 100644
+--- a/fs/udf/namei.c
++++ b/fs/udf/namei.c
+@@ -652,7 +652,7 @@ static int udf_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+ 		inode->i_data.a_ops = &udf_aops;
+ 	inode->i_op = &udf_file_inode_operations;
+ 	inode->i_fop = &udf_file_operations;
+-	mark_inode_dirty(inode);
++	inode_dec_link_count(inode);
+ 	d_tmpfile(dentry, inode);
+ 	unlock_new_inode(inode);
+ 	return 0;
+diff --git a/fs/xfs/xfs_iops.c b/fs/xfs/xfs_iops.c
+index 1efef69a7f1c..f48ffd7a8d3e 100644
+--- a/fs/xfs/xfs_iops.c
++++ b/fs/xfs/xfs_iops.c
+@@ -191,18 +191,9 @@ xfs_generic_create(
  
- 	rcu_read_lock();
- 	for (page = xas_load(&xas); page; page = xas_next(&xas)) {
--		struct page *head;
- 		if (xas_retry(&xas, page))
- 			continue;
- 		/*
-@@ -1859,24 +1844,19 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
- 		if (xa_is_value(page))
- 			break;
+ 	xfs_setup_iops(ip);
  
--		head = compound_head(page);
--		if (!page_cache_get_speculative(head))
-+		if (!page_cache_get_speculative(page))
- 			goto retry;
+-	if (tmpfile) {
+-		/*
+-		 * The VFS requires that any inode fed to d_tmpfile must have
+-		 * nlink == 1 so that it can decrement the nlink in d_tmpfile.
+-		 * However, we created the temp file with nlink == 0 because
+-		 * we're not allowed to put an inode with nlink > 0 on the
+-		 * unlinked list.  Therefore we have to set nlink to 1 so that
+-		 * d_tmpfile can immediately set it back to zero.
+-		 */
+-		set_nlink(inode, 1);
++	if (tmpfile)
+ 		d_tmpfile(dentry, inode);
+-	} else
++	else
+ 		d_instantiate(dentry, inode);
  
--		/* The page was split under us? */
--		if (compound_head(page) != head)
--			goto put_page;
--
--		/* Has the page moved? */
-+		/* Has the page moved or been split? */
- 		if (unlikely(page != xas_reload(&xas)))
- 			goto put_page;
- 
--		pages[ret] = page;
-+		pages[ret] = find_subpage(page, xas.xa_index);
- 		if (++ret == nr_pages)
- 			break;
- 		continue;
- put_page:
--		put_page(head);
-+		put_page(page);
- retry:
- 		xas_reset(&xas);
- 	}
-@@ -1912,7 +1892,6 @@ unsigned find_get_pages_range_tag(struct address_space *mapping, pgoff_t *index,
- 
- 	rcu_read_lock();
- 	xas_for_each_marked(&xas, page, end, tag) {
--		struct page *head;
- 		if (xas_retry(&xas, page))
- 			continue;
- 		/*
-@@ -1923,26 +1902,21 @@ unsigned find_get_pages_range_tag(struct address_space *mapping, pgoff_t *index,
- 		if (xa_is_value(page))
- 			continue;
- 
--		head = compound_head(page);
--		if (!page_cache_get_speculative(head))
-+		if (!page_cache_get_speculative(page))
- 			goto retry;
- 
--		/* The page was split under us? */
--		if (compound_head(page) != head)
--			goto put_page;
--
--		/* Has the page moved? */
-+		/* Has the page moved or been split? */
- 		if (unlikely(page != xas_reload(&xas)))
- 			goto put_page;
- 
--		pages[ret] = page;
-+		pages[ret] = find_subpage(page, xas.xa_index);
- 		if (++ret == nr_pages) {
- 			*index = page->index + 1;
- 			goto out;
- 		}
- 		continue;
- put_page:
--		put_page(head);
-+		put_page(page);
- retry:
- 		xas_reset(&xas);
- 	}
-@@ -1991,7 +1965,6 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
- 
- 	rcu_read_lock();
- 	xas_for_each_marked(&xas, page, ULONG_MAX, tag) {
--		struct page *head;
- 		if (xas_retry(&xas, page))
- 			continue;
- 		/*
-@@ -2002,17 +1975,13 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
- 		if (xa_is_value(page))
- 			goto export;
- 
--		head = compound_head(page);
--		if (!page_cache_get_speculative(head))
-+		if (!page_cache_get_speculative(page))
- 			goto retry;
- 
--		/* The page was split under us? */
--		if (compound_head(page) != head)
--			goto put_page;
--
--		/* Has the page moved? */
-+		/* Has the page moved or been split? */
- 		if (unlikely(page != xas_reload(&xas)))
- 			goto put_page;
-+		page = find_subpage(page, xas.xa_index);
- 
- export:
- 		indices[ret] = xas.xa_index;
-@@ -2021,7 +1990,7 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
- 			break;
- 		continue;
- put_page:
--		put_page(head);
-+		put_page(page);
- retry:
- 		xas_reset(&xas);
- 	}
-@@ -2686,7 +2655,7 @@ void filemap_map_pages(struct vm_fault *vmf,
- 	pgoff_t last_pgoff = start_pgoff;
- 	unsigned long max_idx;
- 	XA_STATE(xas, &mapping->i_pages, start_pgoff);
--	struct page *head, *page;
-+	struct page *page;
- 
- 	rcu_read_lock();
- 	xas_for_each(&xas, page, end_pgoff) {
-@@ -2695,24 +2664,19 @@ void filemap_map_pages(struct vm_fault *vmf,
- 		if (xa_is_value(page))
- 			goto next;
- 
--		head = compound_head(page);
--
- 		/*
- 		 * Check for a locked page first, as a speculative
- 		 * reference may adversely influence page migration.
- 		 */
--		if (PageLocked(head))
-+		if (PageLocked(page))
- 			goto next;
--		if (!page_cache_get_speculative(head))
-+		if (!page_cache_get_speculative(page))
- 			goto next;
- 
--		/* The page was split under us? */
--		if (compound_head(page) != head)
--			goto skip;
--
--		/* Has the page moved? */
-+		/* Has the page moved or been split? */
- 		if (unlikely(page != xas_reload(&xas)))
- 			goto skip;
-+		page = find_subpage(page, xas.xa_index);
- 
- 		if (!PageUptodate(page) ||
- 				PageReadahead(page) ||
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index d4847026d4b1..7008174c033b 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2458,6 +2458,9 @@ static void __split_huge_page(struct page *page, struct list_head *list,
- 			if (IS_ENABLED(CONFIG_SHMEM) && PageSwapBacked(head))
- 				shmem_uncharge(head->mapping->host, 1);
- 			put_page(head + i);
-+		} else if (!PageAnon(page)) {
-+			__xa_store(&head->mapping->i_pages, head[i].index,
-+					head + i, 0);
- 		}
- 	}
- 
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index 449044378782..7ba7a1e4fa79 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -1374,7 +1374,7 @@ static void collapse_shmem(struct mm_struct *mm,
- 				result = SCAN_FAIL;
- 				goto xa_locked;
- 			}
--			xas_store(&xas, new_page + (index % HPAGE_PMD_NR));
-+			xas_store(&xas, new_page);
- 			nr_none++;
- 			continue;
- 		}
-@@ -1450,7 +1450,7 @@ static void collapse_shmem(struct mm_struct *mm,
- 		list_add_tail(&page->lru, &pagelist);
- 
- 		/* Finally, replace with the new page. */
--		xas_store(&xas, new_page + (index % HPAGE_PMD_NR));
-+		xas_store(&xas, new_page);
- 		continue;
- out_unlock:
- 		unlock_page(page);
-diff --git a/mm/memfd.c b/mm/memfd.c
-index 650e65a46b9c..bccbf7dff050 100644
---- a/mm/memfd.c
-+++ b/mm/memfd.c
-@@ -39,6 +39,7 @@ static void memfd_tag_pins(struct xa_state *xas)
- 	xas_for_each(xas, page, ULONG_MAX) {
- 		if (xa_is_value(page))
- 			continue;
-+		page = find_subpage(page, xas.xa_index);
- 		if (page_count(page) - page_mapcount(page) > 1)
- 			xas_set_mark(xas, MEMFD_TAG_PINNED);
- 
-@@ -88,6 +89,7 @@ static int memfd_wait_for_pins(struct address_space *mapping)
- 			bool clear = true;
- 			if (xa_is_value(page))
- 				continue;
-+			page = find_subpage(page, xas.xa_index);
- 			if (page_count(page) - page_mapcount(page) != 1) {
- 				/*
- 				 * On the last scan, we clean up all those tags
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 412d5fff78d4..8cb55dd69b9c 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -465,7 +465,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
- 
- 		for (i = 1; i < HPAGE_PMD_NR; i++) {
- 			xas_next(&xas);
--			xas_store(&xas, newpage + i);
-+			xas_store(&xas, newpage);
- 		}
- 	}
- 
+ 	xfs_finish_inode_setup(ip);
 diff --git a/mm/shmem.c b/mm/shmem.c
-index c8cdaa012f18..a78d4f05a51f 100644
+index 6ece1e2fe76e..4a7810093561 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -614,7 +614,7 @@ static int shmem_add_to_page_cache(struct page *page,
- 		if (xas_error(&xas))
- 			goto unlock;
- next:
--		xas_store(&xas, page + i);
-+		xas_store(&xas, page);
- 		if (++i < nr) {
- 			xas_next(&xas);
- 			goto next;
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 85245fdec8d9..eb714165afd2 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -132,7 +132,7 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp)
- 		for (i = 0; i < nr; i++) {
- 			VM_BUG_ON_PAGE(xas.xa_index != idx + i, page);
- 			set_page_private(page + i, entry.val + i);
--			xas_store(&xas, page + i);
-+			xas_store(&xas, page);
- 			xas_next(&xas);
- 		}
- 		address_space->nrpages += nr;
-@@ -167,7 +167,7 @@ void __delete_from_swap_cache(struct page *page, swp_entry_t entry)
- 
- 	for (i = 0; i < nr; i++) {
- 		void *entry = xas_store(&xas, NULL);
--		VM_BUG_ON_PAGE(entry != page + i, entry);
-+		VM_BUG_ON_PAGE(entry != page, entry);
- 		set_page_private(page + i, 0);
- 		xas_next(&xas);
+@@ -2818,6 +2818,7 @@ shmem_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+ 		error = simple_acl_create(dir, inode);
+ 		if (error)
+ 			goto out_iput;
++		inode_dec_link_count(inode);
+ 		d_tmpfile(dentry, inode);
  	}
--- 
-2.20.1
+ 	return error;
 
