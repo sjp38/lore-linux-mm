@@ -2,197 +2,134 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=FAKE_REPLY_C,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D26D8C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 18:29:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0CB1DC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 18:31:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9AB9F21920
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 18:29:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9AB9F21920
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id B9F7121920
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 18:31:38 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="DW/4HFBW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9F7121920
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F78E8E0002; Fri, 15 Feb 2019 13:29:45 -0500 (EST)
+	id 568258E0002; Fri, 15 Feb 2019 13:31:38 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A8298E0001; Fri, 15 Feb 2019 13:29:45 -0500 (EST)
+	id 515F38E0001; Fri, 15 Feb 2019 13:31:38 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1BE018E0002; Fri, 15 Feb 2019 13:29:45 -0500 (EST)
+	id 42C048E0002; Fri, 15 Feb 2019 13:31:38 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CF73A8E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 13:29:44 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id e68so7444742plb.3
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 10:29:44 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 172158E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 13:31:38 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id n197so8891367qke.0
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 10:31:38 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :subject:message-id:reply-to:mime-version:content-disposition
-         :user-agent;
-        bh=eJX5+HKF5cZ+yX4ACXSl639OGzVXGxRmd72CVoAegoQ=;
-        b=Al7K6BcUQrJj/UonU9IP9Z5oxc8zykJ9vUHvupsBZPoocWkcq+hQbHfPSbzJCLmcQ5
-         B6Ft3ipIEpSotTlbpBmajB+Ar6c6wvHBnsZgw6GnppC41+oqJu+1JRcDW7CybJ28OHoU
-         pI9rVWnJweAdqFUNPiliYjS54B8FRdT8ryhF7t8DHsW5NTnCfZXbeB9qm4tcdIK7I46s
-         8ZTCaoix5RQibKGaXi4Ri0A8i3MVYBMqaX1BjEdQkdsp4Whtxl8wyXSdNagT3BRSTFX0
-         4hJ6LZABudvKoXDT3hx6u4OG/5MvqF9Ntb+fLtxXdF9ZJgQFMsecJ2m9BZio3ipBs2NJ
-         qOVA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuYzY18kzAfiJLC7RhN4hA0luwPry4WMOHUKoDSe0pTcv2jyKPep
-	Gf8VJg+AI6zUVyq2AaAfRd/24sikrdhv+eAnv/9xLd8MNAQfT4rEUyDYb/a+aZrTS431DYeFuWP
-	7KfwPjSYyhwaNt1zgPvLvFmjxjSCHcNqbl8BZWUVmXfRNXHABkhEHl2It2+E60CeDBw==
-X-Received: by 2002:a62:60c5:: with SMTP id u188mr11169101pfb.4.1550255384457;
-        Fri, 15 Feb 2019 10:29:44 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbJvB/x5yC4AwUjGW3ck7nQTItsVcF4jO8oYR4KAX9qvUokSGv/1/CHNC6Zf6llguoJ5Umw
-X-Received: by 2002:a62:60c5:: with SMTP id u188mr11169034pfb.4.1550255383406;
-        Fri, 15 Feb 2019 10:29:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550255383; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=TXLgFI/pw+0pz5gj7vemkVrKIPPDAgFksp2sfKSU0BM=;
+        b=eoHJq4uSNUs5dYZdaCaFLofzxRJ5W32PjktxdsUP93uSUYuQk/wn6rlV3kLjECSzTX
+         oc3MDKvSf2eKdb/fjxcQL4CkqjgNUwHwrKI/wbEP7Fa8E1Y2PZfDvc9QtsZ77NbBPCog
+         af26tayeH12OsAl7tKYP4WLB/sPmYgEqBbr+Y+21yB96f/FiQafCQsBZMKRs6u4lq24W
+         XGV119ebN2NgSSrjKrwLgcEJmJGDB9wJyi8tJ+oB4yhU15ous5/FX34rBXDA+xuxlyXL
+         sFVPLVqE/4xkokmmj+e17TCNxNJQw9Qe2fW08lR06B83GzkHd1xUHk18HAtWNKf58Bs2
+         Aq+A==
+X-Gm-Message-State: AHQUAuZfbHTnTPNk8FO9L7nL3Wubdjb4yjWNkTzSD+5lVBCh3N3FFkb8
+	osk3sp7dUvKGImQBzaq46PmMTyzJU7qzHLn/cLYtme/AKYAh+N2ETO6oTclATavgiYv8eL2MLrC
+	YPpgPzrRlg5SVpF3h2dOH7rBvJwivxkjlHVCT6vXXDWXD4OJ42bK8NwUsj3D9eFg=
+X-Received: by 2002:aed:3964:: with SMTP id l91mr8702521qte.33.1550255497808;
+        Fri, 15 Feb 2019 10:31:37 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZDpPZTwsNNtKv7Fu6i7/JFSOQDZcVSJD0Z3u7CCwfMF1NyYIAl2J2bgpF1jpJwNj9ag7BF
+X-Received: by 2002:aed:3964:: with SMTP id l91mr8702478qte.33.1550255497201;
+        Fri, 15 Feb 2019 10:31:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550255497; cv=none;
         d=google.com; s=arc-20160816;
-        b=TgCraaW2nLPhOoGj0xVA42k287cDw0SlMnXSgOQw4NgJ8by6LlFUilYpUUm+sAs4l0
-         ch87qN3fX7rjGC2APlcrvCQpkEPG+PrHf4bufYBxiZvq2BW9lP8YftO4bIT5pHweK4+Q
-         rKQbzq3d9H7ryvjbGz8kiTmZRbu6FnKZ1D5ZM+Bzb91E+sPqFAaXpKDv1ZG/c6wa1w16
-         TPDDlpHsWOl0JcYHiI7Q3Wg72TDaTI94khCCC5NtBAf5l6hVB0w4o2q+7G3o2X2FNkxF
-         xKBD1yfPfSGakREHpWuf5iTcjWWyHCbTgjuztcyyLmMo4ZSkVq5dd8hh1nbl5HiQ6N67
-         PMdA==
+        b=kPBLIzjN1rKJUQmOCxSrElXRPadp8MfsdBqBIse8K0sr3iDkQapXCo+abLRDmtj/od
+         KYutN/mXNki3ZW83OFhxxj+6L8FYvYjld/zuvDfnS0ZCq9Pl/975M/c+N20J0dfumhEy
+         DPudErQBHcIi+qxMI4DAwTrmABROinXWjhCq8wNF36ypxR6cz1IFXgLPmMjEmwqVtq86
+         /rrAqB8KINKzUS22ykt3rHa8hq91eeywA7JnWYLipJLFNrHXup1xSFg8jGqUKCheRHf6
+         qsFhHK6QP6+Yp5426gv/HKT7WpxEntI/wFVLhoA0f1FknToLH6un64jA0E4hJguxcmpE
+         aQog==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:reply-to:message-id
-         :subject:to:from:date;
-        bh=eJX5+HKF5cZ+yX4ACXSl639OGzVXGxRmd72CVoAegoQ=;
-        b=XsUgJETKIXrUDt1RA3vpjsHps8o58AWf1JeRXuwFjG0xUcuNI3fJnS/uo4oKLPCcwx
-         5mvMfceKlHdv5wpINo/jXKnvyXS2If+M/aU4m7XEzCTcH1dB/5P9zn/gXDLycVctueOD
-         GgRWjrx6pzUs1mm8MeNsEMk2oqtDGk9ZYdZO3f7apRGWU7qAFFQRZWVUjZHn/bOlgM3J
-         b6GMyGxRGeHT/n/jIJHm21++uKxKAhW7jCF9ul0VFqWsQu9s4EN/mtzGr5AVvgmTrfFN
-         3IPCOhzHFbnj55TwJSMeNnK149UbB/vfUWX0R8WjzJ84rMHqs8qR2z/TVjQh0jEdxW7G
-         Ikbg==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=TXLgFI/pw+0pz5gj7vemkVrKIPPDAgFksp2sfKSU0BM=;
+        b=ZJ0F5l+Nd5gzh2BNGdIEarbc+waYHzmtS2cuLt9Ri3BhP2GISd/h6p0hlC1PrtZYpu
+         VSazZSeYnXkcBmEcEXeyl4pyrlBQwx0ByLhaZKbn1h0JyyJAiimlXFXQo5omdkJGwSxU
+         X5GrJDtmO26U+okAaw0kVuJ39nDuD+tyKjMkuYg6aTgHVRs2DHj32XaXEQEcoewhhZKR
+         JGdQxEwxYfZmBvoJGE5BXMnztTWDPyG2+tl3KxWumiwSLdAz5HD+/oDE00Md40jbY/3j
+         letQDzfc7mOpBOdxE+g+SYMJaFWip9L/3em0WzR84lQCCRjQqLvQUUlQ+UNAX1F4xgJF
+         vkYQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id k2si6096849pfc.189.2019.02.15.10.29.43
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b="DW/4HFBW";
+       spf=pass (google.com: domain of 01000168f26d9e0c-aef3255a-5059-4657-b241-dae66663bbea-000000@amazonses.com designates 54.240.9.37 as permitted sender) smtp.mailfrom=01000168f26d9e0c-aef3255a-5059-4657-b241-dae66663bbea-000000@amazonses.com
+Received: from a9-37.smtp-out.amazonses.com (a9-37.smtp-out.amazonses.com. [54.240.9.37])
+        by mx.google.com with ESMTPS id o127si797402qkd.13.2019.02.15.10.31.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 10:29:43 -0800 (PST)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 15 Feb 2019 10:31:37 -0800 (PST)
+Received-SPF: pass (google.com: domain of 01000168f26d9e0c-aef3255a-5059-4657-b241-dae66663bbea-000000@amazonses.com designates 54.240.9.37 as permitted sender) client-ip=54.240.9.37;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from fmsmga008.fm.intel.com ([10.253.24.58])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 15 Feb 2019 10:29:42 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,373,1544515200"; 
-   d="scan'208";a="124787412"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga008.fm.intel.com with ESMTP; 15 Feb 2019 10:29:42 -0800
-Date: Fri, 15 Feb 2019 10:29:36 -0800
-From: Ira Weiny <ira.weiny@intel.com>
-To: linux-mips@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
-	linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
-	sparclinux@vger.kernel.org, kvm@vger.kernel.org,
-	linux-fpga@vger.kernel.org, dri-devel@lists.freedesktop.org,
-	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org,
-	linux-scsi@vger.kernel.org, devel@driverdev.osuosl.org,
-	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
-	linux-fbdev@vger.kernel.org, xen-devel@lists.xenproject.org,
-	devel@lists.orangefs.org, linux-mm@kvack.org,
-	ceph-devel@vger.kernel.org, rds-devel@oss.oracle.com
-Subject: Re: [PATCH V2 0/7] Add FOLL_LONGTERM to GUP fast and use it
-Message-ID: <20190215182935.GC26988@iweiny-DESK2.sc.intel.com>
-Reply-To: 20190211201643.7599-1-ira.weiny@intel.com
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b="DW/4HFBW";
+       spf=pass (google.com: domain of 01000168f26d9e0c-aef3255a-5059-4657-b241-dae66663bbea-000000@amazonses.com designates 54.240.9.37 as permitted sender) smtp.mailfrom=01000168f26d9e0c-aef3255a-5059-4657-b241-dae66663bbea-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1550255496;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=FL49OqYV7AJ7BdfqMIiruaHQ/KIj/D+PCy38BhKpJ8M=;
+	b=DW/4HFBWl7QxvxO7+RPK0EnTWciRC6KBevIyCX844sINXkFtro9foTj9NAy+yYNH
+	KkrA17PnOuoFvHC503Pq6MYSRDKVdvWqqN3P0WOo5yW2T+28qcy/csPN+XvNkMyOgJ1
+	hDFPRkfFHIw71VRLb6JkcoK1iXbQB5k8exBjyM/I=
+Date: Fri, 15 Feb 2019 18:31:36 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Matthew Wilcox <willy@infradead.org>
+cc: Dave Chinner <david@fromorbit.com>, Jerome Glisse <jglisse@redhat.com>, 
+    Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, 
+    Jan Kara <jack@suse.cz>, Doug Ledford <dledford@redhat.com>, 
+    Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, 
+    linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+    Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
+    John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@kernel.org>
+Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving longterm-GUP
+ usage by RDMA
+In-Reply-To: <20190215180852.GJ12668@bombadil.infradead.org>
+Message-ID: <01000168f26d9e0c-aef3255a-5059-4657-b241-dae66663bbea-000000@email.amazonses.com>
+References: <20190208111028.GD6353@quack2.suse.cz> <CAPcyv4iVtBfO8zWZU3LZXLqv-dha1NSG+2+7MvgNy9TibCy4Cw@mail.gmail.com> <20190211102402.GF19029@quack2.suse.cz> <CAPcyv4iHso+PqAm-4NfF0svoK4mELJMSWNp+vsG43UaW1S2eew@mail.gmail.com> <20190211180654.GB24692@ziepe.ca>
+ <20190214202622.GB3420@redhat.com> <20190214205049.GC12668@bombadil.infradead.org> <20190214213922.GD3420@redhat.com> <20190215011921.GS20493@dastard> <01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@email.amazonses.com>
+ <20190215180852.GJ12668@bombadil.infradead.org>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: Mutt/1.11.1 (2018-12-01)
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.02.15-54.240.9.37
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> NOTE: This series depends on my clean up patch to remove the write parameter
-> from gup_fast_permitted()[1]
-> 
-> HFI1, qib, and mthca, use get_user_pages_fast() due to it performance
-> advantages.  These pages can be held for a significant time.  But
-> get_user_pages_fast() does not protect against mapping of FS DAX pages.
-> 
-> Introduce FOLL_LONGTERM and use this flag in get_user_pages_fast() which
-> retains the performance while also adding the FS DAX checks.  XDP has also
-> shown interest in using this functionality.[2]
-> 
-> In addition we change get_user_pages() to use the new FOLL_LONGTERM flag and
-> remove the specialized get_user_pages_longterm call.
-> 
-> [1] https://lkml.org/lkml/2019/2/11/237
-> [2] https://lkml.org/lkml/2019/2/11/1789
+On Fri, 15 Feb 2019, Matthew Wilcox wrote:
 
-Any comments on this series?  I've touched a lot of subsystems which I think
-require review.
+> > Since RDMA is something similar: Can we say that a file that is used for
+> > RDMA should not use the page cache?
+>
+> That makes no sense.  The page cache is the standard synchronisation point
+> for filesystems and processes.  The only problems come in for the things
+> which bypass the page cache like O_DIRECT and DAX.
 
-Thanks,
-Ira
+It makes a lot of sense since the filesystems play COW etc games with the
+pages and RDMA is very much like O_DIRECT in that the pages are modified
+directly under I/O. It also bypasses the page cache in case you have
+not noticed yet.
 
-> 
-> Ira Weiny (7):
->   mm/gup: Replace get_user_pages_longterm() with FOLL_LONGTERM
->   mm/gup: Change write parameter to flags in fast walk
->   mm/gup: Change GUP fast to use flags rather than a write 'bool'
->   mm/gup: Add FOLL_LONGTERM capability to GUP fast
->   IB/hfi1: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
->   IB/qib: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
->   IB/mthca: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
-> 
->  arch/mips/mm/gup.c                          |  11 +-
->  arch/powerpc/kvm/book3s_64_mmu_hv.c         |   4 +-
->  arch/powerpc/kvm/e500_mmu.c                 |   2 +-
->  arch/powerpc/mm/mmu_context_iommu.c         |   4 +-
->  arch/s390/kvm/interrupt.c                   |   2 +-
->  arch/s390/mm/gup.c                          |  12 +-
->  arch/sh/mm/gup.c                            |  11 +-
->  arch/sparc/mm/gup.c                         |   9 +-
->  arch/x86/kvm/paging_tmpl.h                  |   2 +-
->  arch/x86/kvm/svm.c                          |   2 +-
->  drivers/fpga/dfl-afu-dma-region.c           |   2 +-
->  drivers/gpu/drm/via/via_dmablit.c           |   3 +-
->  drivers/infiniband/core/umem.c              |   5 +-
->  drivers/infiniband/hw/hfi1/user_pages.c     |   5 +-
->  drivers/infiniband/hw/mthca/mthca_memfree.c |   3 +-
->  drivers/infiniband/hw/qib/qib_user_pages.c  |   8 +-
->  drivers/infiniband/hw/qib/qib_user_sdma.c   |   2 +-
->  drivers/infiniband/hw/usnic/usnic_uiom.c    |   9 +-
->  drivers/media/v4l2-core/videobuf-dma-sg.c   |   6 +-
->  drivers/misc/genwqe/card_utils.c            |   2 +-
->  drivers/misc/vmw_vmci/vmci_host.c           |   2 +-
->  drivers/misc/vmw_vmci/vmci_queue_pair.c     |   6 +-
->  drivers/platform/goldfish/goldfish_pipe.c   |   3 +-
->  drivers/rapidio/devices/rio_mport_cdev.c    |   4 +-
->  drivers/sbus/char/oradax.c                  |   2 +-
->  drivers/scsi/st.c                           |   3 +-
->  drivers/staging/gasket/gasket_page_table.c  |   4 +-
->  drivers/tee/tee_shm.c                       |   2 +-
->  drivers/vfio/vfio_iommu_spapr_tce.c         |   3 +-
->  drivers/vfio/vfio_iommu_type1.c             |   3 +-
->  drivers/vhost/vhost.c                       |   2 +-
->  drivers/video/fbdev/pvr2fb.c                |   2 +-
->  drivers/virt/fsl_hypervisor.c               |   2 +-
->  drivers/xen/gntdev.c                        |   2 +-
->  fs/orangefs/orangefs-bufmap.c               |   2 +-
->  include/linux/mm.h                          |  17 +-
->  kernel/futex.c                              |   2 +-
->  lib/iov_iter.c                              |   7 +-
->  mm/gup.c                                    | 220 ++++++++++++--------
->  mm/gup_benchmark.c                          |   5 +-
->  mm/util.c                                   |   8 +-
->  net/ceph/pagevec.c                          |   2 +-
->  net/rds/info.c                              |   2 +-
->  net/rds/rdma.c                              |   3 +-
->  44 files changed, 232 insertions(+), 180 deletions(-)
-> 
-> -- 
-> 2.20.1
-> 
+Both filesysetms and RDMA acting on a page cache at
+the same time lead to the mess that we are trying to solve.
+
 
