@@ -2,281 +2,173 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 11DAFC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:14:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E45EDC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:27:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B747520643
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:14:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="18v3JiU0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B747520643
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id A076B2073D
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:27:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A076B2073D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 695608E0004; Thu, 14 Feb 2019 21:14:05 -0500 (EST)
+	id 3F39D8E0002; Thu, 14 Feb 2019 21:27:17 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 675EC8E0001; Thu, 14 Feb 2019 21:14:05 -0500 (EST)
+	id 3A3688E0001; Thu, 14 Feb 2019 21:27:17 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 55BF78E0004; Thu, 14 Feb 2019 21:14:05 -0500 (EST)
+	id 293A58E0002; Thu, 14 Feb 2019 21:27:17 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 143D18E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 21:14:05 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id t72so6321152pfi.21
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 18:14:05 -0800 (PST)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F30988E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 21:27:16 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id 135so13531313itb.6
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 18:27:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=XwWr6eq+Y6CL/gVTewVoPlNaS1TC9ogiRZ9md2XAXEw=;
-        b=XI73uDBW84+9luuHoXOnag11PR8jtGyaKZ9WkzVwaoQEtf5RccXCs9sgYaoKHuKCYU
-         q//3xPuG/5lpLc4mlsahIcmmgZckpi14um5keRiCqEi+lpZimbFtuPeY+CHldTGDI5LJ
-         0C1ipxJLS3kbgeRBjrIN7LCbeYAUnv00fmEf7UOiM0Tcvl88dEnHqZ8GX4IK/hfE+xc3
-         HRgI3MJGp0MBjkcsfk358UUtBNnNBNSqRON3qkGGKiZzGO2NVvXeDjCs1n/R0d7Xg5xM
-         R+9TJapG8CNSuipvJawu6oEhu8Rl5wu5H9Fr6d+t/BrIHSn+ARqO1hKu/hTjVV3m70yF
-         EpAA==
-X-Gm-Message-State: AHQUAuaB9hp/RRhb58dd9U2v/JtFdo+CZZMBxZPCwf0UUOzN6cOvE3Ir
-	wjf3udcIY15ULIiQABuPxUe+8ABJnM7ElNGjbzmLlCBK8QbIM0AHRBf4blhU7zJQ48pCjjaIF2M
-	zuSxk1YAj2AKQOvdfkWcXukx6JmQfaySv7GmCe69Q/m/8rH9nD6549g8R/l8MyZ2u3Q==
-X-Received: by 2002:a62:60c7:: with SMTP id u190mr2283089pfb.180.1550196844740;
-        Thu, 14 Feb 2019 18:14:04 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZkrGX+9sECaYE7ys9IlbMhS9YXlwsfheJ1bhWxWkOhATk5zCB8aXh+p5xg3xsGAVC5Nxno
-X-Received: by 2002:a62:60c7:: with SMTP id u190mr2283046pfb.180.1550196844003;
-        Thu, 14 Feb 2019 18:14:04 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550196844; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:mime-version:date:content-transfer-encoding;
+        bh=AJVS5rwWh/Joo1wc3/TDAVTF9c9bL7hRBodxSTeasy4=;
+        b=O0AwxgPJSaPQZ//XlUWj0N9km94vFXt2Bb3WUmCdDjCaSPp8Zl+r/ZDeUxEXE6cYXJ
+         odIEA+T+GusMpWJnoPZ0+Y0qN//Mh3+qZQ7CeQ3XPGQ7/hQYYxtIItblEV9RI01b5yDn
+         DEyfnBUnWRy8tKgY5rbHQxM9WrJKOMDKFJmsMANxkjd2o+lvADxEuQbfFPnRKYQjCrX+
+         bZ1iMlQ+Va/gLAjgKvWRwJa71dgn6xUwC/3qgMrXDTDcwFsVOmRXaMfZHX1Lblr+BWJu
+         XQNUVMMXdWqq6vQmbOARicVIn2g+1iAIFogxZ4UB7JSNh/LXsPtEaRWtQA9zl/D+7xdK
+         Vp7Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: AHQUAuZnq9PsljNWMlQD48Dh/jVcu87ZO0psuW2Thid+LWJLbV26xBx1
+	dvxQxOT3Ooq39ZQ4uIIxHSh7NvFw0KaUVNmXCI+KtHQjtpw5aFPRhmVWJZLkCJ4+ctYvnsaVtRK
+	rPMZHFhiUZEReywOsVqw5qPDQwTML/a1W+ABLlaI3Pj56l7vRjzO35vFspOXW2vbW4g==
+X-Received: by 2002:a24:ed4f:: with SMTP id r76mr3520089ith.17.1550197636740;
+        Thu, 14 Feb 2019 18:27:16 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYRDrlfJq2dyHYF3fdGRGt5S4x7oh4CAfmbYGX/+BrwcAV5X4uzvXc6v/THkw/XOvjqJSSj
+X-Received: by 2002:a24:ed4f:: with SMTP id r76mr3520061ith.17.1550197635292;
+        Thu, 14 Feb 2019 18:27:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550197635; cv=none;
         d=google.com; s=arc-20160816;
-        b=MHLu8Z6O0ujpAD/Uuvo1JU0v084V5CI/OaBRMBw58Bh7Duj7voIqjAEtLR7PWqXMb9
-         lGcnAutIMaO0CDW2u2VmdslM4yiM3RMVFmGVLMb5Ab3RwM6BF8PGAUT+JoMH2yiIMbrW
-         b0FjbkDFfXL28OEYaB9mtodlGvpnERX7Y7FCdbC80LNxnAdp2k804Of37XVRsvWOnR9C
-         Q12mzwb3I02eIJwYYYZGdnsBU8tEpf3yPWz/PegsfiD1grR+T/1Ew4ULveMD+sf9KTA5
-         pFz3IJUS3H5Oq4EZOn+blqk+T55A8noESij0PJat0rtfGdQzaOH0Erc7TMqIzksy9V9M
-         SB0A==
+        b=tqgRLgte0JvEVMHRrDeVPUFxb4BZ3+5SEUV7q4vU+UFHrXG+XANqpdWH9/kr9peDw3
+         h4JjMK51hbAMBiauvqybFbqWSWNea79ZdmuA85NfvAnIlT0LzuLgbbZhURPq2d7Nxr0/
+         1QhtutvdGamWvf9OLFt5dn0C09IqpuEC4UA24TBLc//0gKiBgAgDMpSOxO0o0wRwTX0h
+         AjME/37RI++OFs3CyKIMFNyVrFv6BZJW2GZPbDFZAgyU83BI/EodPKO3mYVI9nQsK/8z
+         nZWQojzBC3IH0I62mz2uVx+2kqA8w0P8/G1iYbUrzXGZq0/NgTJBnWQNpaKFWbyPUFef
+         Vg/A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=XwWr6eq+Y6CL/gVTewVoPlNaS1TC9ogiRZ9md2XAXEw=;
-        b=Eq3qRK6I6G+2ceG4N3SDeD1ESzcAsq2mGLvgASmzGRpN4eaM9EiaCLMThnyVIbqsyB
-         oYlpbHK51ctYlisMYOwOlR3AyUpBLqhQGpTAsNZMyqy/f3p4IsLtI0A468OxBHTEdmk0
-         nCF8OL6H9QFzj2vVVe6MASB3mUO5QtxIMoxxKyQWCx3Z+k0lieI6uH7Xb1ZmbKjI2gUd
-         +D51E8MMejRh1ZQMPZPEpeVTq6mlnEHpmYzOD06D7T6STZ4/iehD1fKmqkz/vmF9Qi5o
-         +4Xm8tzqVN9V4seEXAGIAjWMZROy0SBsInn08tuFLnvcpcznEJ7VSOQvd9GrF3DJNL3D
-         gmFw==
+        h=content-transfer-encoding:date:mime-version:cc:to:from:subject
+         :message-id;
+        bh=AJVS5rwWh/Joo1wc3/TDAVTF9c9bL7hRBodxSTeasy4=;
+        b=Qoo/Rc2KVVhjtIk+PHC854z5Y31QcoIxMgXhetqtnbi3YW8RJb1nf6pcyfkXGZ8ShB
+         IAzl+Nb8Uxxyylb8DdH5nYhXUwAa1CTuCcIcHdDMBeWJztsm5pVAHmd5Q3lDxJX2vvWm
+         alGzWjk8HsH2Kl2GenfyBSjssHYpGO3gJZHcawZl1GFaMOdPKT2Q8SeDaFvf6iQPs+mP
+         lL6W+qxch3IG1W+YbG+0tNts0Yslm+4xjKRTjUGUD28aXavi3FuH/L8Od00C84OqgVK7
+         cYofsK16KOouVKF+DrccBQW/ujiOEfarqlUqueqep2iX2GH2lKGxf2u0lbsY2OhSSGyF
+         FBow==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=18v3JiU0;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id j2si4039264pgm.428.2019.02.14.18.14.03
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id r65si1778752iod.30.2019.02.14.18.27.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 18:14:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Thu, 14 Feb 2019 18:27:15 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=18v3JiU0;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id D8E0020643;
-	Fri, 15 Feb 2019 02:14:02 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1550196843;
-	bh=4HOsD54m5O9dFe7sXAZgxMGg9V5wBSI53XHaWeo07CQ=;
-	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=18v3JiU0KCa2/MZ0ygorlj1JFqFbXR1XjNbHjSKMOTgRrdFP41G0nqUgGliDGZcn3
-	 V3GzMbX38xSBLMG8BXmWmYEjpnouPrud1BOZGKNy1HcyQJAqk93KM0ea1O7j8n14Ql
-	 Enw6vdBTABroYzVom6MUcWc7y+hI1S7Geab6TSbI=
-From: Sasha Levin <sashal@kernel.org>
-To: linux-kernel@vger.kernel.org,
-	stable@vger.kernel.org
-Cc: Tejun Heo <tj@kernel.org>,
-	Jens Axboe <axboe@kernel.dk>,
-	Sasha Levin <sashal@kernel.org>,
-	linux-fsdevel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.14 27/40] writeback: synchronize sync(2) against cgroup writeback membership switches
-Date: Thu, 14 Feb 2019 21:13:00 -0500
-Message-Id: <20190215021313.178476-27-sashal@kernel.org>
-X-Mailer: git-send-email 2.19.1
-In-Reply-To: <20190215021313.178476-1-sashal@kernel.org>
-References: <20190215021313.178476-1-sashal@kernel.org>
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav404.sakura.ne.jp (fsav404.sakura.ne.jp [133.242.250.103])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x1F2RBgd041783;
+	Fri, 15 Feb 2019 11:27:11 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav404.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav404.sakura.ne.jp);
+ Fri, 15 Feb 2019 11:27:11 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav404.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (localhost [127.0.0.1])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x1F2RBSc041765;
+	Fri, 15 Feb 2019 11:27:11 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: (from i-love@localhost)
+	by www262.sakura.ne.jp (8.15.2/8.15.2/Submit) id x1F2RBhh041762;
+	Fri, 15 Feb 2019 11:27:11 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Message-Id: <201902150227.x1F2RBhh041762@www262.sakura.ne.jp>
+X-Authentication-Warning: www262.sakura.ne.jp: i-love set sender to penguin-kernel@i-love.sakura.ne.jp using -f
+Subject: [linux-next-20190214] Free pages statistics is broken.
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
 MIME-Version: 1.0
-X-Patchwork-Hint: Ignore
-Content-Transfer-Encoding: 8bit
+Date: Fri, 15 Feb 2019 11:27:10 +0900
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Tejun Heo <tj@kernel.org>
+I noticed that amount of free memory reported by DMA: / DMA32: / Normal: fields are
+increasing over time. Since 5.0-rc6 is working correctly, some change in linux-next
+is causing this problem.
 
-[ Upstream commit 7fc5854f8c6efae9e7624970ab49a1eac2faefb1 ]
+----------
+[   92.010105][T14750] Mem-Info:
+[   92.012409][T14750] active_anon:623678 inactive_anon:2182 isolated_anon:0
+[   92.012409][T14750]  active_file:7 inactive_file:99 isolated_file:0
+[   92.012409][T14750]  unevictable:0 dirty:0 writeback:0 unstable:0
+[   92.012409][T14750]  slab_reclaimable:16216 slab_unreclaimable:48544
+[   92.012409][T14750]  mapped:623 shmem:2334 pagetables:9774 bounce:0
+[   92.012409][T14750]  free:21145 free_pcp:332 free_cma:0
+[   92.034020][T14750] Node 0 active_anon:2494712kB inactive_anon:8728kB active_file:80kB inactive_file:320kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:2592kB dirty:0kB writeback:0kB shmem:9336kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 2144256kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
+[   92.052787][T14750] DMA free:12096kB min:352kB low:440kB high:528kB active_anon:3696kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15960kB managed:15876kB mlocked:0kB kernel_stack:0kB pagetables:36kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+[   92.063686][T14750] lowmem_reserve[]: 0 2647 2941 2941
+[   92.066370][T14750] DMA32 free:61212kB min:60508kB low:75632kB high:90756kB active_anon:2411444kB inactive_anon:460kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:3129152kB managed:2711060kB mlocked:0kB kernel_stack:36544kB pagetables:36212kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+[   92.084432][T14750] lowmem_reserve[]: 0 0 294 294
+[   92.088254][T14750] Normal free:11120kB min:6716kB low:8392kB high:10068kB active_anon:79572kB inactive_anon:8268kB active_file:360kB inactive_file:540kB unevictable:0kB writepending:0kB present:1048576kB managed:301068kB mlocked:0kB kernel_stack:7776kB pagetables:2848kB bounce:0kB free_pcp:140kB local_pcp:88kB free_cma:0kB
+[   92.102106][T14750] lowmem_reserve[]: 0 0 0 0
+[   92.105259][T14750] DMA: 210*4kB () 105*8kB () 56*16kB (UM) 29*32kB (U) 13*64kB () 9*128kB (UM) 6*256kB (UM) 2*512kB () 2*1024kB (U) 2*2048kB (M) 2*4096kB (M) = 22384kB
+[   92.113929][T14750] DMA32: 85952*4kB (UM) 36165*8kB (UM) 17368*16kB (UME) 11953*32kB (UME) 5598*64kB (UME) 2641*128kB (UM) 1252*256kB (ME) 604*512kB (UM) 303*1024kB (UM) 680*2048kB (U) 1*4096kB (M) = 4326600kB
+[   92.124563][T14750] Normal: 41430*4kB (UE) 14837*8kB (UME) 10319*16kB (UE) 6379*32kB (UE) 2677*64kB () 1230*128kB () 557*256kB () 239*512kB () 83*1024kB () 42*2048kB () 0*4096kB = 1418384kB
+[   92.132526][T14750] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
+[   92.136838][T14750] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+[   92.141838][T14750] 2683 total pagecache pages
+[   92.144736][T14750] 0 pages in swap cache
+[   92.147422][T14750] Swap cache stats: add 0, delete 0, find 0/0
+[   92.150690][T14750] Free swap  = 0kB
+[   92.153216][T14750] Total swap = 0kB
+[   92.156285][T14750] 1048422 pages RAM
+[   92.159794][T14750] 0 pages HighMem/MovableOnly
+[   92.162966][T14750] 291421 pages reserved
+[   92.165806][T14750] 0 pages cma reserved
+----------
 
-sync_inodes_sb() can race against cgwb (cgroup writeback) membership
-switches and fail to writeback some inodes.  For example, if an inode
-switches to another wb while sync_inodes_sb() is in progress, the new
-wb might not be visible to bdi_split_work_to_wbs() at all or the inode
-might jump from a wb which hasn't issued writebacks yet to one which
-already has.
-
-This patch adds backing_dev_info->wb_switch_rwsem to synchronize cgwb
-switch path against sync_inodes_sb() so that sync_inodes_sb() is
-guaranteed to see all the target wbs and inodes can't jump wbs to
-escape syncing.
-
-v2: Fixed misplaced rwsem init.  Spotted by Jiufei.
-
-Signed-off-by: Tejun Heo <tj@kernel.org>
-Reported-by: Jiufei Xue <xuejiufei@gmail.com>
-Link: http://lkml.kernel.org/r/dc694ae2-f07f-61e1-7097-7c8411cee12d@gmail.com
-Acked-by: Jan Kara <jack@suse.cz>
-Signed-off-by: Jens Axboe <axboe@kernel.dk>
-Signed-off-by: Sasha Levin <sashal@kernel.org>
----
- fs/fs-writeback.c                | 40 ++++++++++++++++++++++++++++++--
- include/linux/backing-dev-defs.h |  1 +
- mm/backing-dev.c                 |  1 +
- 3 files changed, 40 insertions(+), 2 deletions(-)
-
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 3244932f4d5c..6a76616c9401 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -331,11 +331,22 @@ struct inode_switch_wbs_context {
- 	struct work_struct	work;
- };
- 
-+static void bdi_down_write_wb_switch_rwsem(struct backing_dev_info *bdi)
-+{
-+	down_write(&bdi->wb_switch_rwsem);
-+}
-+
-+static void bdi_up_write_wb_switch_rwsem(struct backing_dev_info *bdi)
-+{
-+	up_write(&bdi->wb_switch_rwsem);
-+}
-+
- static void inode_switch_wbs_work_fn(struct work_struct *work)
- {
- 	struct inode_switch_wbs_context *isw =
- 		container_of(work, struct inode_switch_wbs_context, work);
- 	struct inode *inode = isw->inode;
-+	struct backing_dev_info *bdi = inode_to_bdi(inode);
- 	struct address_space *mapping = inode->i_mapping;
- 	struct bdi_writeback *old_wb = inode->i_wb;
- 	struct bdi_writeback *new_wb = isw->new_wb;
-@@ -343,6 +354,12 @@ static void inode_switch_wbs_work_fn(struct work_struct *work)
- 	bool switched = false;
- 	void **slot;
- 
-+	/*
-+	 * If @inode switches cgwb membership while sync_inodes_sb() is
-+	 * being issued, sync_inodes_sb() might miss it.  Synchronize.
-+	 */
-+	down_read(&bdi->wb_switch_rwsem);
-+
- 	/*
- 	 * By the time control reaches here, RCU grace period has passed
- 	 * since I_WB_SWITCH assertion and all wb stat update transactions
-@@ -435,6 +452,8 @@ static void inode_switch_wbs_work_fn(struct work_struct *work)
- 	spin_unlock(&new_wb->list_lock);
- 	spin_unlock(&old_wb->list_lock);
- 
-+	up_read(&bdi->wb_switch_rwsem);
-+
- 	if (switched) {
- 		wb_wakeup(new_wb);
- 		wb_put(old_wb);
-@@ -475,9 +494,18 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
- 	if (inode->i_state & I_WB_SWITCH)
- 		return;
- 
-+	/*
-+	 * Avoid starting new switches while sync_inodes_sb() is in
-+	 * progress.  Otherwise, if the down_write protected issue path
-+	 * blocks heavily, we might end up starting a large number of
-+	 * switches which will block on the rwsem.
-+	 */
-+	if (!down_read_trylock(&bdi->wb_switch_rwsem))
-+		return;
-+
- 	isw = kzalloc(sizeof(*isw), GFP_ATOMIC);
- 	if (!isw)
--		return;
-+		goto out_unlock;
- 
- 	/* find and pin the new wb */
- 	rcu_read_lock();
-@@ -511,12 +539,14 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
- 	 * Let's continue after I_WB_SWITCH is guaranteed to be visible.
- 	 */
- 	call_rcu(&isw->rcu_head, inode_switch_wbs_rcu_fn);
--	return;
-+	goto out_unlock;
- 
- out_free:
- 	if (isw->new_wb)
- 		wb_put(isw->new_wb);
- 	kfree(isw);
-+out_unlock:
-+	up_read(&bdi->wb_switch_rwsem);
- }
- 
- /**
-@@ -894,6 +924,9 @@ fs_initcall(cgroup_writeback_init);
- 
- #else	/* CONFIG_CGROUP_WRITEBACK */
- 
-+static void bdi_down_write_wb_switch_rwsem(struct backing_dev_info *bdi) { }
-+static void bdi_up_write_wb_switch_rwsem(struct backing_dev_info *bdi) { }
-+
- static struct bdi_writeback *
- locked_inode_to_wb_and_lock_list(struct inode *inode)
- 	__releases(&inode->i_lock)
-@@ -2408,8 +2441,11 @@ void sync_inodes_sb(struct super_block *sb)
- 		return;
- 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
- 
-+	/* protect against inode wb switch, see inode_switch_wbs_work_fn() */
-+	bdi_down_write_wb_switch_rwsem(bdi);
- 	bdi_split_work_to_wbs(bdi, &work, false);
- 	wb_wait_for_completion(bdi, &done);
-+	bdi_up_write_wb_switch_rwsem(bdi);
- 
- 	wait_sb_inodes(sb);
- }
-diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-index 19240379637f..b186c4b464e0 100644
---- a/include/linux/backing-dev-defs.h
-+++ b/include/linux/backing-dev-defs.h
-@@ -165,6 +165,7 @@ struct backing_dev_info {
- 	struct radix_tree_root cgwb_tree; /* radix tree of active cgroup wbs */
- 	struct rb_root cgwb_congested_tree; /* their congested states */
- 	struct mutex cgwb_release_mutex;  /* protect shutdown of wb structs */
-+	struct rw_semaphore wb_switch_rwsem; /* no cgwb switch while syncing */
- #else
- 	struct bdi_writeback_congested *wb_congested;
- #endif
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 9386c98dac12..6fa31754eadd 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -684,6 +684,7 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
- 	INIT_RADIX_TREE(&bdi->cgwb_tree, GFP_ATOMIC);
- 	bdi->cgwb_congested_tree = RB_ROOT;
- 	mutex_init(&bdi->cgwb_release_mutex);
-+	init_rwsem(&bdi->wb_switch_rwsem);
- 
- 	ret = wb_init(&bdi->wb, bdi, 1, GFP_KERNEL);
- 	if (!ret) {
--- 
-2.19.1
+----------
+[ 3204.099198][T42110] Mem-Info:
+[ 3204.101094][T42110] active_anon:645144 inactive_anon:14056 isolated_anon:0
+[ 3204.101094][T42110]  active_file:0 inactive_file:0 isolated_file:0
+[ 3204.101094][T42110]  unevictable:0 dirty:0 writeback:0 unstable:0
+[ 3204.101094][T42110]  slab_reclaimable:8328 slab_unreclaimable:47169
+[ 3204.101094][T42110]  mapped:990 shmem:22735 pagetables:1462 bounce:0
+[ 3204.101094][T42110]  free:22187 free_pcp:181 free_cma:0
+[ 3204.116827][T42110] Node 0 active_anon:2580576kB inactive_anon:56224kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:3960kB dirty:0kB writeback:0kB shmem:90940kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 1159168kB writeback_tmp:0kB unstable:0kB all_unreclaimable? yes
+[ 3204.127991][T42110] DMA free:12116kB min:352kB low:440kB high:528kB active_anon:3724kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15960kB managed:15876kB mlocked:0kB kernel_stack:0kB pagetables:4kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+[ 3204.137735][T42110] lowmem_reserve[]: 0 2647 2941 2941
+[ 3204.140385][T42110] DMA32 free:61592kB min:60508kB low:75632kB high:90756kB active_anon:2508676kB inactive_anon:9448kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:3129152kB managed:2711060kB mlocked:0kB kernel_stack:2304kB pagetables:4908kB bounce:0kB free_pcp:540kB local_pcp:0kB free_cma:0kB
+[ 3204.151829][T42110] lowmem_reserve[]: 0 0 294 294
+[ 3204.154387][T42110] Normal free:15040kB min:21052kB low:22728kB high:24404kB active_anon:68176kB inactive_anon:46776kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:1048576kB managed:301068kB mlocked:0kB kernel_stack:6848kB pagetables:936kB bounce:0kB free_pcp:184kB local_pcp:0kB free_cma:0kB
+[ 3204.166972][T42110] lowmem_reserve[]: 0 0 0 0
+[ 3204.169666][T42110] DMA: 3842*4kB (M) 1924*8kB () 970*16kB (M) 494*32kB (UM) 254*64kB (UM) 128*128kB (U) 74*256kB (UM) 36*512kB () 19*1024kB (U) 18*2048kB (M) 2*4096kB (M) = 196616kB
+[ 3204.177392][T42110] DMA32: 3222548*4kB (UM) 1353981*8kB (U) 579496*16kB (UM) 267125*32kB (UME) 111607*64kB (UME) 46106*128kB (UME) 18144*256kB (UM) 6284*512kB () 1521*1024kB () 7061*2048kB () 0*4096kB = 78467096kB
+[ 3204.185907][T42110] Normal: 637045*4kB () 202228*8kB (U) 64530*16kB (U) 19303*32kB (UE) 3969*64kB () 1321*128kB () 562*256kB () 239*512kB () 83*1024kB () 42*2048kB () 0*4096kB = 6676532kB
+[ 3204.193851][T42110] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
+[ 3204.198253][T42110] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+[ 3204.202507][T42110] 22747 total pagecache pages
+[ 3204.205522][T42110] 0 pages in swap cache
+[ 3204.208297][T42110] Swap cache stats: add 0, delete 0, find 0/0
+[ 3204.211716][T42110] Free swap  = 0kB
+[ 3204.214380][T42110] Total swap = 0kB
+[ 3204.217017][T42110] 1048422 pages RAM
+[ 3204.219747][T42110] 0 pages HighMem/MovableOnly
+[ 3204.222754][T42110] 291421 pages reserved
+[ 3204.225527][T42110] 0 pages cma reserved
+----------
 
