@@ -8,121 +8,110 @@ X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A1D2AC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:38:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BF9EAC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:39:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5260D2192B
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:38:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7E87D2192B
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:39:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="SvKO/8Qu"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5260D2192B
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="C8J8YEaP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E87D2192B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 01A578E0003; Thu, 14 Feb 2019 21:38:24 -0500 (EST)
+	id 328008E0002; Thu, 14 Feb 2019 21:39:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F33958E0001; Thu, 14 Feb 2019 21:38:23 -0500 (EST)
+	id 2FE0C8E0001; Thu, 14 Feb 2019 21:39:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E239F8E0003; Thu, 14 Feb 2019 21:38:23 -0500 (EST)
+	id 1EF6C8E0002; Thu, 14 Feb 2019 21:39:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A5CF48E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 21:38:23 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id y66so6383591pfg.16
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 18:38:23 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id D0D0A8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 21:39:10 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id a5so3104821pfn.2
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 18:39:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:mime-version:content-disposition:user-agent;
-        bh=QS3mWzK39q3lW8WqJHFL6wuRYacMcGaOmOmP8soCdrs=;
-        b=hAc0IiZ5Hzb6Ahh/nnBBBrsOZQHU6iQhUhD80XgxLUwvSWYowizWZHhPuwTapjkPH6
-         h+DWMQChDb/Xmn+T3iRcZX9skc6sp4d2ba9F0/rsvo5Jy2bkwL2lJJf2EjFvQWu9tFy8
-         AqqOGVCmjex1WhJnLw+KZlPzKByP2lCkWB5jRJO+RRN8aGeKwZIrL64iwVIjNII1nv+n
-         BN4iNWz7u614io7Kmy2yJdbTtzvB+WwvEMb59f2E3h+TpFH/tBSzcr0+GHeEjTVgoHOu
-         eEGe70Fl6nRikXaHh0HltL+wD7Wxt0FH+OEVnmNNHoLDZ5lD5YGnkQ0TtMaV8rDklxj1
-         KEDQ==
-X-Gm-Message-State: AHQUAuYj/0OBkRJioplifFcAY5Zy0f+VE22qocUGnbgzMBRD5DdK7Puz
-	CATN37AFRb0Ld/4iL3ci3jFWwf4kL1ElKfkOqnvLIhZvfihyfWRKNaqLxMxyBknmwf5xRFxvnOK
-	CWiOe2JlZVbSopbvXiEdMvlMJOgzrJm9BxpnMA6LDx4LEdvZf1Iyml7p90rDjaGkz9AwhFgEpWo
-	M+0wI0FEI1qzxlPqQ9/Ir+6aqWRWxRQ6TOUQZpUkQD05V2qW+curQDH14OYiQHcD0xbVYuS/pFz
-	vsmcBRcIER3C4d0Us2AYQSaRRsIYEVwZFRWoic82m6lqTQLW+q7EKKAqMMATkktR3ABMFFmWk4p
-	AVKuKopsxoCU4iPW2lRaeAx5yXgCBttUtAIoRs6ZrxD+6ZD3gC2yHMeft6Ylet6CocVZgMN/9Xi
-	z
-X-Received: by 2002:a63:5153:: with SMTP id r19mr3104610pgl.281.1550198303267;
-        Thu, 14 Feb 2019 18:38:23 -0800 (PST)
-X-Received: by 2002:a63:5153:: with SMTP id r19mr3104556pgl.281.1550198302309;
-        Thu, 14 Feb 2019 18:38:22 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550198302; cv=none;
+        bh=cNyFM0J2DfW9voxw9FzV7E7Y/LrzsWkGDKLqwe0d5pk=;
+        b=r6vAt/2/gQNPea/HeVCbVzHkeKAxssXtmW+6owRf+rf1lewSrxA4YksfwMX2S1fDJA
+         xIPDZpgom4U8vME6yMOCk3kLt+zLc7h0u1k+a/KZX2QFanA3utWy9Ru27s+fFwTn2mOV
+         MiGW9J8WegSm+Nn75aLBLni3sMOir55ZMZ9Wju4dptwKri0KJ73beFbbag/3VoiURm+0
+         CyqKgYMFXFOg3vEbgmYz7NSPOnpZ/0FdRhxc5+nJCtJfU60PrNBokR2hUc2RdVEAFySF
+         LfZ7h7xCVpHh1AsolhKb9W+J0D6mpXI6umJU7g7abKpf73a2RFAoynDOo1Y7r8jClgeK
+         cnqw==
+X-Gm-Message-State: AHQUAuYjK/93SGlk5xnD2E0aKiuuKONDEuib4Xcd1ZCr5tzHfjh/k4Us
+	X98DcaF+zjCUfKS+eX9H2MxJ/lftwDchewV3hRImqEvGNMiDnHG4Mxm2H1i92ERArN+eR5bl6PU
+	3sDRyUgvmjH7jfJXAyMIHnhE8I1T/k7uXezGQ3fd1b1YrUkfM0WpekL+cO0iJxtGf+UNEtL+NER
+	hUKBlC8ZFMVCBdbENfaV8+sMO83pPbg7QBxwH4RWYWW2d9YwAkJ9WGGHU3fFInflD/ok7DrRq9L
+	mcfY6iArIu/JHODl0aIuEwXRNHeVF6aROHs/CsB/EU68TJeD2lNnHSgIoL2HxWISMKfaabEHww6
+	y9pnydV08d0nyyfqyblpI+PUd3MJ9zG2/yhYcKm0DbR5HILUnJ78aODQidexNUOYuwJKqmuvTWY
+	F
+X-Received: by 2002:a63:d50f:: with SMTP id c15mr6968408pgg.287.1550198350536;
+        Thu, 14 Feb 2019 18:39:10 -0800 (PST)
+X-Received: by 2002:a63:d50f:: with SMTP id c15mr6968360pgg.287.1550198349777;
+        Thu, 14 Feb 2019 18:39:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550198349; cv=none;
         d=google.com; s=arc-20160816;
-        b=oeXZ8FSEaDw9e2DdRPNjg1F+rrZr3EL091vBQGX1tjQndeTLoGBYiUNj1Q5Nxbdb7S
-         eEE7RZBa0QlfnaGN6jERQpgyQnppBGCXgFdimY3PjqqGrJwWIuUoydIaFq8pFVAf3N+b
-         HBjnZH09muAxsjJky8u7oHpHyYEine9mljmFsYgEjo3czr0+mWUe9RdAVN1+1EZFs93Z
-         fUDMx0rHv4kx4D7S/GdNZC99I4r2VkSpXhfszDks9LkOOjcDaq7S0ggIRsPxbKPWbAP6
-         YVVsLsU9o8G6DAbstPtLHgG/nrEUcJnb7lNhzU48QxaYP34uXYWl/k7LBLCWUT4MY9ik
-         LzCA==
+        b=JJPdc8rov9qGRAgR/YKbKZVWa7A2lkcxTEgULMykWx0OMcG5sWbJevVhG0txr+4zmZ
+         2a40xIMKFFNY4NHPeUHadcL457WXAkLQe5AFMhCtTuX7RNijaAQ58FLKrMu5c7/8u01/
+         Bn0lsFxkAbmDDSD+BeviNeIk3RlORftPYvhqnmuLTST1jUsYFubRhFjHC27vZG4nz4f0
+         tDlt0IzwD6kidM114tkbaAY48RsuuCrFtp5w5S6l8799Ee1ZbPlDJ6fnENeB/iNtJLDD
+         SG0y3M8F2GoXFaodW6Mri7JU2mt5aETYB6W2PA9WxmypXnFotx2AabXQASPWVsHgUvqF
+         OY5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:content-disposition:mime-version:message-id:subject:cc
          :to:from:date:dkim-signature;
-        bh=QS3mWzK39q3lW8WqJHFL6wuRYacMcGaOmOmP8soCdrs=;
-        b=cNkVBT7mZR422bWaJvypcM9JmC5X/9gGeceDBiONKK91bTJM103kfTUEoWlQ6bu81G
-         pgQw4H2zPq5Cs4TkBWwGh0p2D+UGmBdSB0ecvu76Y7b7IBea1dTyLIzaWbPuzqHX07jq
-         RMr+Y7AUO1eKQ7XpESQbbIHxrNk4oGhBWNTjP4xCF/2k23h4UwQlnjrJgVvPnB+0k6Yw
-         nQ8KWo/OzWsYl37nqFp7uy+/bcOzymG5NGEY/VRfTG4J4EG9wPmMVxu/E2ldzxzXmnFO
-         57bfoj6FeoV9MW8QsxrtrMD5LQXCp/kJpfW7bUFEGyvxilFm9MHCUPakV1ibiq22bSg2
-         +veQ==
+        bh=cNyFM0J2DfW9voxw9FzV7E7Y/LrzsWkGDKLqwe0d5pk=;
+        b=MWhM9rU9iZ6yXRJEQo8YKWs9vZyb9AHHlbnSoqGlh4jkIVvgK9XlvGIgSirsEMRuEW
+         M2vg8lT9iO2OA5xsMMUTQ53vpSoLjHfJiT9GBv7s2LKuCL3kLUhpLp+Hu/31ZXzARFE1
+         mfDGVDIQjQsCPoONZW29vDS8p5JzxosWUUmXFyuJYcDesdP5ElTtWWBcsDwHeIo5DrNH
+         OggtTkeYe8DEoGdHaOf9Bc/cEJe5/mgQICEbV8YhrefhoNiQt6xz1ZmWVbU8aslQaLwg
+         5H/wLRvplXSul+ApneXLDpfxMqftqflhVf9dW1hsC87oc6jau62LOsl3wC/tU5Im7JHq
+         lEsA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="SvKO/8Qu";
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=C8J8YEaP;
        spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b36sor6687186pgl.8.2019.02.14.18.38.22
+        by mx.google.com with SMTPS id h131sor6773321pgc.9.2019.02.14.18.39.09
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 14 Feb 2019 18:38:22 -0800 (PST)
+        Thu, 14 Feb 2019 18:39:09 -0800 (PST)
 Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="SvKO/8Qu";
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=C8J8YEaP;
        spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=date:from:to:cc:subject:message-id:mime-version:content-disposition
          :user-agent;
-        bh=QS3mWzK39q3lW8WqJHFL6wuRYacMcGaOmOmP8soCdrs=;
-        b=SvKO/8Qua3oK4cc04JxBOABmX9Lcs7OlPSis//wxrWJYxpUEEW0AwWfwFg7XPPkM9+
-         QADPLQsqmaC/p2ZufsCfS3Ge83uGWPUWE09/20bfO/mh4I0ezFUGT63uVWuoI3PWUc0b
-         7tkcSKGPRr9Z/G3N+gPRFwa09FtMiLR/oAZZ6Nfw3V/23rM4gjawS+m+B/f2q95GXwF4
-         DG85JqW8Awyst8kSFZ/+DNXV1GycMdMZkuYlI9X+lNzCnx33LVj20wM0JmDE1ZhBX9ye
-         ahW788DDSK1er+310WveH4ER6u0KEwCb0tkfiCK/ym7po3kDquKXj0FnrzXnfMhf5v6s
-         OI/A==
-X-Google-Smtp-Source: AHgI3Iba0jcQFwegqG4NLDbZHaOWcAX7sXcmudyJYCZAfU2Rx3rH8jIxfvL/3yVO80UpTMBO9iuHZQ==
-X-Received: by 2002:a62:e704:: with SMTP id s4mr7409860pfh.94.1550198301951;
-        Thu, 14 Feb 2019 18:38:21 -0800 (PST)
+        bh=cNyFM0J2DfW9voxw9FzV7E7Y/LrzsWkGDKLqwe0d5pk=;
+        b=C8J8YEaP1sXar/+zW0yONM/GThKVOZP43UoKx+bsMs0rR+kOwbwuiT2BIDoESBLxKN
+         X6AH8lyLqHVlJ3S1+7SjnEjca5R1G8T4RFnjNToQO6v4YNaQSQSNkLbvxe90zZykLVDi
+         54ov/SHMO/cZOMqPEs91uSOr6MV9wmu9R1mZMEKYCox3q1ABu4U+roRJf/5xpBsTlTDO
+         KAmeeosjCfbEhSgpHYgu6X3qTk/lRll1yN/eR/pYc5h5Gznm4xGDGVTvZ1VW0BjA2yKi
+         9shB5cJBIHEFyFW2Gn9ppb3AKrv2U+8H26GIKZ1mUlV4K3ypWZYz6UbQihzp+r6bWUJk
+         St0g==
+X-Google-Smtp-Source: AHgI3IYPDJcfAJcux7am1/kgkI8RGRJz/Eho2e26RlxYpln5H5W4x8B/Nfk9OSESdiI7mMZpfEdzLw==
+X-Received: by 2002:a63:4b12:: with SMTP id y18mr3125993pga.340.1550198349469;
+        Thu, 14 Feb 2019 18:39:09 -0800 (PST)
 Received: from jordon-HP-15-Notebook-PC ([49.207.53.51])
-        by smtp.gmail.com with ESMTPSA id d13sm5397358pfd.58.2019.02.14.18.38.20
+        by smtp.gmail.com with ESMTPSA id t3sm4758131pga.31.2019.02.14.18.39.07
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 14 Feb 2019 18:38:21 -0800 (PST)
-Date: Fri, 15 Feb 2019 08:12:41 +0530
+        Thu, 14 Feb 2019 18:39:08 -0800 (PST)
+Date: Fri, 15 Feb 2019 08:13:29 +0530
 From: Souptick Joarder <jrdr.linux@gmail.com>
 To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com,
-	kirill.shutemov@linux.intel.com, vbabka@suse.cz, riel@surriel.com,
-	sfr@canb.auug.org.au, rppt@linux.vnet.ibm.com, peterz@infradead.org,
 	linux@armlinux.org.uk, robin.murphy@arm.com, iamjoonsoo.kim@lge.com,
-	treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com,
-	stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, heiko@sntech.de,
-	airlied@linux.ie, oleksandr_andrushchenko@epam.com, joro@8bytes.org,
-	pawel@osciak.com, kyungmin.park@samsung.com, mchehab@kernel.org,
-	boris.ostrovsky@oracle.com, jgross@suse.com
+	treding@nvidia.com, keescook@chromium.org, m.szyprowski@samsung.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-arm-kernel@lists.infradead.org,
-	linux1394-devel@lists.sourceforge.net,
-	dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org,
-	xen-devel@lists.xen.org, iommu@lists.linux-foundation.org,
-	linux-media@vger.kernel.org
-Subject: [PATCH v4 1/9] mm: Introduce new vm_map_pages() and
- vm_map_pages_zero() API
-Message-ID: <20190215024241.GA26350@jordon-HP-15-Notebook-PC>
+	linux-arm-kernel@lists.infradead.org
+Subject: [PATCH v4 2/9] arm: mm: dma-mapping: Convert to use vm_map_pages()
+Message-ID: <20190215024329.GA26372@jordon-HP-15-Notebook-PC>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -133,172 +122,56 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Previouly drivers have their own way of mapping range of
-kernel pages/memory into user vma and this was done by
-invoking vm_insert_page() within a loop.
-
-As this pattern is common across different drivers, it can
-be generalized by creating new functions and use it across
-the drivers.
-
-vm_map_pages() is the API which could be used to mapped
-kernel memory/pages in drivers which has considered vm_pgoff
-
-vm_map_pages_zero() is the API which could be used to map
-range of kernel memory/pages in drivers which has not considered
-vm_pgoff. vm_pgoff is passed default as 0 for those drivers.
-
-We _could_ then at a later "fix" these drivers which are using
-vm_map_pages_zero() to behave according to the normal vm_pgoff
-offsetting simply by removing the _zero suffix on the function
-name and if that causes regressions, it gives us an easy way to revert.
-
-Tested on Rockchip hardware and display is working, including talking
-to Lima via prime.
+Convert to use vm_map_pages() to map range of kernel
+memory to user vma.
 
 Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Suggested-by: Russell King <linux@armlinux.org.uk>
-Suggested-by: Matthew Wilcox <willy@infradead.org>
-Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
-Tested-by: Heiko Stuebner <heiko@sntech.de>
 ---
- include/linux/mm.h |  4 +++
- mm/memory.c        | 81 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/nommu.c         | 14 ++++++++++
- 3 files changed, 99 insertions(+)
+ arch/arm/mm/dma-mapping.c | 22 ++++++----------------
+ 1 file changed, 6 insertions(+), 16 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 80bb640..e0aaa73 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2565,6 +2565,10 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
- int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
- 			unsigned long pfn, unsigned long size, pgprot_t);
- int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
-+int vm_map_pages(struct vm_area_struct *vma, struct page **pages,
-+				unsigned long num);
-+int vm_map_pages_zero(struct vm_area_struct *vma, struct page **pages,
-+				unsigned long num);
- vm_fault_t vmf_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 			unsigned long pfn);
- vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
-diff --git a/mm/memory.c b/mm/memory.c
-index e11ca9d..cad3e27 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1520,6 +1520,87 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
- }
- EXPORT_SYMBOL(vm_insert_page);
- 
-+/*
-+ * __vm_map_pages - maps range of kernel pages into user vma
-+ * @vma: user vma to map to
-+ * @pages: pointer to array of source kernel pages
-+ * @num: number of pages in page array
-+ * @offset: user's requested vm_pgoff
-+ *
-+ * This allows drivers to map range of kernel pages into a user vma.
-+ *
-+ * Return: 0 on success and error code otherwise.
-+ */
-+static int __vm_map_pages(struct vm_area_struct *vma, struct page **pages,
-+				unsigned long num, unsigned long offset)
-+{
-+	unsigned long count = vma_pages(vma);
-+	unsigned long uaddr = vma->vm_start;
-+	int ret, i;
-+
-+	/* Fail if the user requested offset is beyond the end of the object */
-+	if (offset > num)
-+		return -ENXIO;
-+
-+	/* Fail if the user requested size exceeds available object size */
-+	if (count > num - offset)
-+		return -ENXIO;
-+
-+	for (i = 0; i < count; i++) {
-+		ret = vm_insert_page(vma, uaddr, pages[offset + i]);
-+		if (ret < 0)
-+			return ret;
-+		uaddr += PAGE_SIZE;
-+	}
-+
-+	return 0;
-+}
-+
-+/**
-+ * vm_map_pages - maps range of kernel pages starts with non zero offset
-+ * @vma: user vma to map to
-+ * @pages: pointer to array of source kernel pages
-+ * @num: number of pages in page array
-+ *
-+ * Maps an object consisting of @num pages, catering for the user's
-+ * requested vm_pgoff
-+ *
-+ * If we fail to insert any page into the vma, the function will return
-+ * immediately leaving any previously inserted pages present.  Callers
-+ * from the mmap handler may immediately return the error as their caller
-+ * will destroy the vma, removing any successfully inserted pages. Other
-+ * callers should make their own arrangements for calling unmap_region().
-+ *
-+ * Context: Process context. Called by mmap handlers.
-+ * Return: 0 on success and error code otherwise.
-+ */
-+int vm_map_pages(struct vm_area_struct *vma, struct page **pages,
-+				unsigned long num)
-+{
-+	return __vm_map_pages(vma, pages, num, vma->vm_pgoff);
-+}
-+EXPORT_SYMBOL(vm_map_pages);
-+
-+/**
-+ * vm_map_pages_zero - map range of kernel pages starts with zero offset
-+ * @vma: user vma to map to
-+ * @pages: pointer to array of source kernel pages
-+ * @num: number of pages in page array
-+ *
-+ * Similar to vm_map_pages(), except that it explicitly sets the offset
-+ * to 0. This function is intended for the drivers that did not consider
-+ * vm_pgoff.
-+ *
-+ * Context: Process context. Called by mmap handlers.
-+ * Return: 0 on success and error code otherwise.
-+ */
-+int vm_map_pages_zero(struct vm_area_struct *vma, struct page **pages,
-+				unsigned long num)
-+{
-+	return __vm_map_pages(vma, pages, num, 0);
-+}
-+EXPORT_SYMBOL(vm_map_pages_zero);
-+
- static vm_fault_t insert_pfn(struct vm_area_struct *vma, unsigned long addr,
- 			pfn_t pfn, pgprot_t prot, bool mkwrite)
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index f1e2922..de7c76e 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -1575,31 +1575,21 @@ static int __arm_iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma
+ 		    void *cpu_addr, dma_addr_t dma_addr, size_t size,
+ 		    unsigned long attrs)
  {
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 749276b..b492fd1 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -473,6 +473,20 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
- }
- EXPORT_SYMBOL(vm_insert_page);
+-	unsigned long uaddr = vma->vm_start;
+-	unsigned long usize = vma->vm_end - vma->vm_start;
+ 	struct page **pages = __iommu_get_pages(cpu_addr, attrs);
+ 	unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+-	unsigned long off = vma->vm_pgoff;
++	int err;
  
-+int vm_map_pages(struct vm_area_struct *vma, struct page **pages,
-+			unsigned long num)
-+{
-+	return -EINVAL;
-+}
-+EXPORT_SYMBOL(vm_map_pages);
-+
-+int vm_map_pages_zero(struct vm_area_struct *vma, struct page **pages,
-+				unsigned long num)
-+{
-+	return -EINVAL;
-+}
-+EXPORT_SYMBOL(vm_map_pages_zero);
-+
- /*
-  *  sys_brk() for the most part doesn't need the global kernel
-  *  lock, except when an application is doing something nasty
+ 	if (!pages)
+ 		return -ENXIO;
+ 
+-	if (off >= nr_pages || (usize >> PAGE_SHIFT) > nr_pages - off)
++	if (vma->vm_pgoff >= nr_pages)
+ 		return -ENXIO;
+ 
+-	pages += off;
+-
+-	do {
+-		int ret = vm_insert_page(vma, uaddr, *pages++);
+-		if (ret) {
+-			pr_err("Remapping memory failed: %d\n", ret);
+-			return ret;
+-		}
+-		uaddr += PAGE_SIZE;
+-		usize -= PAGE_SIZE;
+-	} while (usize > 0);
++	err = vm_map_pages(vma, pages, nr_pages);
++	if (err)
++		pr_err("Remapping memory failed: %d\n", err);
+ 
+-	return 0;
++	return err;
+ }
+ static int arm_iommu_mmap_attrs(struct device *dev,
+ 		struct vm_area_struct *vma, void *cpu_addr,
 -- 
 1.9.1
 
