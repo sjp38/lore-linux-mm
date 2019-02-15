@@ -6,84 +6,84 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3ECBDC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:16:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C2559C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:16:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ED27521B1A
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:16:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED27521B1A
+	by mail.kernel.org (Postfix) with ESMTP id 8B3BD21B1C
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:16:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B3BD21B1C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 96D6E8E000C; Fri, 15 Feb 2019 06:16:17 -0500 (EST)
+	id 3C9AC8E000D; Fri, 15 Feb 2019 06:16:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8F5F08E0001; Fri, 15 Feb 2019 06:16:17 -0500 (EST)
+	id 3292A8E0001; Fri, 15 Feb 2019 06:16:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7BF0C8E000C; Fri, 15 Feb 2019 06:16:17 -0500 (EST)
+	id 1D0E78E000D; Fri, 15 Feb 2019 06:16:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F4228E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 06:16:17 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id a199so7662803qkb.23
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 03:16:17 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E1A2B8E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 06:16:20 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id c84so7841120qkb.13
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 03:16:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=QsyyCrPYM4mSQKLdRXgny5EZIKPBaVsU+ab/s6p3Gys=;
-        b=HjCrG0WvzxY7TD5V2hBMJv3rXAQTYfOjZKok7DyZ9skprkzbzxVZ9iuRfc1CH2hSjS
-         TTbgLk5iCbprJGJdNXM9WyBLWb0yBUuUGVZS0xdabwyUO/pWwZ1h0pO3o6lrBoJaXR4A
-         rM6LdBEddQHZ2a3FNgjQEtY+mGhNs0bcqR+ppULEDSzjlZ0VUPme7AvNFbX+W3+NIWuN
-         mmF/fCdwqljwlPa1/9JIGCwi1UMOoq/iwl3mLLPGfU7kANfSHroJI5eGWFvgQt+RqLOM
-         eWKZCjSr4DEUbbvH+jfNwF4ptfuy3P6C2axpfwhqdbKh6DOZRA5ehyqdwBTNFjcyBTku
-         W++Q==
+        bh=QDJuYdB/v5IBDbMNukxwyLgaj2zPEtaGeI+9DGb7M44=;
+        b=WJykEW/s2w93i1sFSzcLZGmU+HAvng3fAjYqD2PPhxU99jcBVz13hq2S33IyCz8CEg
+         cafHvb/E6z0Ye4ZlyAF/ykNiwLBdzLVYBRvr7Nv8luaPAUWKXgpOu1Dz6ycDimN5gsgg
+         DX3KOv5pFZmnJpG7InMErnMQUuVgrF7wxpzZb8hJaZBAiLelN/MWMDvr+l2LbU2aNszY
+         ZPaS966O4BM76++t33DHqjhLkvd7wJWqkWyiG9OrSMilpbHvy+HarGGxyYHj2SjXSNnC
+         /qdVaa3iCmLfyOL7xhqpjaeXeidVW7+9icVCBxEbkkrgfREgvgtDb0yG4qwQmCTO2+dI
+         t9Uw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuaf2rPJCubmAVRVmM3c1nCfNjZNaoOEQdaTjNx2G6DQGBdXDr4R
-	+8SjRB9BoeVEnLSkSQNwJ0tTTl1NWVZCok5o8xe+m7mORDjgEfY0sp9MAYH1Hzxg8h2h+mzCGIw
-	q4Tjl+2KHoT9BssGfQqAOzeTbbV+YlrO1PbjLFdz+OWS6A/oYb4ty2200CPBc68bHgg==
-X-Received: by 2002:ae9:ddc3:: with SMTP id r186mr6531868qkf.163.1550229377105;
-        Fri, 15 Feb 2019 03:16:17 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ibw2DDDE18GImCftpz1KZ+IjTfcxi5G83X+ajSvabQ+5YmY125OoJO2OiofJbf+IgZC/kUT
-X-Received: by 2002:ae9:ddc3:: with SMTP id r186mr6531838qkf.163.1550229376623;
-        Fri, 15 Feb 2019 03:16:16 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550229376; cv=none;
+X-Gm-Message-State: AHQUAubAq1zJEGbAZtZiqJdF8sORXq9Y+VmLV9OBL2aCSnRdiale156U
+	Skyt4fFT5D32PG/QksN4j2mDtYtcAMRqIrM9/jgPmLzCi54oca8nDLJo8VHOIs9o6nC0J7QgBT4
+	G/Nt3nYW9iiSJJdZyVNcB9BAEZd4r4kwos0FbNv1/gFVox2wARuBwch2bNlCllHtxcQ==
+X-Received: by 2002:ae9:c303:: with SMTP id n3mr6449283qkg.49.1550229380673;
+        Fri, 15 Feb 2019 03:16:20 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IY4RlwLv17TfL/P9KrQXQLGTO03e0T1KPbjyJacaegeDAevm5kHFAOiXDtwLpIqMHQL8xEc
+X-Received: by 2002:ae9:c303:: with SMTP id n3mr6449258qkg.49.1550229380085;
+        Fri, 15 Feb 2019 03:16:20 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550229380; cv=none;
         d=google.com; s=arc-20160816;
-        b=NN5Atc3yoL0yrjX2zADRQ3K2zz+z1vawlftJGin5CVD/VRKULoiSMlPk32wC/KDEKQ
-         ujOWWmOAPWAUyCh/U8bZAiHcwVd2tCATdmVrWzIYh+OLRqdCcSbvOXcV8Q92ovqADKIN
-         d0fEyT8BlW2ota/HySiGzj5hjYwrKgbm42+QRYGENgSzD1vAq42mArRk5JUq650F41g7
-         T9PXsq+EocBe8zuUI3AsAuDLhBIn6wQK0ZtFxS34blRHRsqtc4mQSBrDrJOpl5Evqhs6
-         NOeNiypGD6+1YRPCNn5h6cguVqrK96ZnrIqG4zwUacvlUwyC8RKahFak4Vi88hh42qGB
-         pTxA==
+        b=VAXPb5v+u61oPJpgQXLq0pA+9acpxMuxxwRSju71BvvLN7BxmFYpK/LFvWCjdYvFaA
+         P5l24iaT62UCx2D+aXcURweZcfBohMIQJweC5TtGL+KMybQgtaCWzfK9Af7v/jUAlgbU
+         VEr7AHeY8vcSZgYm2v+5VECn1hC11OgmThkfTsrezA9A/O7zTSCcnqf6THoP/oM28Htr
+         MTpOhaj3pfZGrSfIB1Vk4kKfvgQ+NoTA5ed56ZBCHKStUbEv/d5C3yZLXSurFLsd4uP3
+         uaqZYaJ5l4Lsx7wS6BoHy9nXTQVizPXjBO0GMfiUgFjz6vsZIzmttJNApQpeFuQFMyHY
+         yLSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=QsyyCrPYM4mSQKLdRXgny5EZIKPBaVsU+ab/s6p3Gys=;
-        b=yHJ8q0r1u6YYHEFJubYhYF5YsTc+87Xh0n3kdh+Su/tnu72pXAjvGOr3VYWaBsqc5I
-         bbtHB4JV3TCcBNzHclOu2kZy/9m3suCgHelC2QzSogDUFFdXQ2jyCvr2WNMR1mC3UqJK
-         beTGAtH9ZpIErdrpxozS6adJFKpTqW6yO2bNYRxOKYRYPeqkEn05e5RlB+876iyZBZZB
-         5QfHnxcDmPmsd8+SdcWGLwEjR7K+aW/OhZLMKg7sO6ejP7HvWeZvoDUNaASB5wTuHAfI
-         1+3ppeKrOOzZ3s1caqg+3FUxqJQ1NJpQynckptc/TPxThH9fYawBgyRvFhjrwloo7BGC
-         A+lA==
+        bh=QDJuYdB/v5IBDbMNukxwyLgaj2zPEtaGeI+9DGb7M44=;
+        b=JZp484oYd49DegsJFSRaQL+uOerx/Hfmr6JivTFtreT7BiR9zgvnaSGncpGAFUrWLY
+         6Ug/cBIT39xWHYVlXTjSwiLxhBv2iEYUZl7KWP+6L2NM5y3KggTT8lbH6LtJrpHQsbMi
+         LykXBqrJiWZFsCW7FYLrPqq8tMZnvg1aS5sERsrIkQ8q28hB0pCZwweC3Iy2BSAJQuwt
+         HdDuWDxAKUqCzg8xspm5/R2y1fjuIkxvbhzavaTF0dxwa+Fdv1IBwJSwJASU0oUaEQra
+         1R9bP27LbTBy9OC1gs0BuIqkNlMpVwQMtEdLPwoA+TlByChXeP9IrY4DmMf8i9uY4DGx
+         Ri0Q==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w3si3355857qth.85.2019.02.15.03.16.16
+        by mx.google.com with ESMTPS id n66si3468547qka.101.2019.02.15.03.16.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 03:16:16 -0800 (PST)
+        Fri, 15 Feb 2019 03:16:20 -0800 (PST)
 Received-SPF: pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0CEA2C0AD406;
-	Fri, 15 Feb 2019 11:16:15 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id B6648C01DE19;
+	Fri, 15 Feb 2019 11:16:18 +0000 (UTC)
 Received: from localhost (ovpn-8-22.pek2.redhat.com [10.72.8.22])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 077AD60A9C;
-	Fri, 15 Feb 2019 11:16:13 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id B69A026E59;
+	Fri, 15 Feb 2019 11:16:17 +0000 (UTC)
 From: Ming Lei <ming.lei@redhat.com>
 To: Jens Axboe <axboe@kernel.dk>
 Cc: linux-block@vger.kernel.org,
@@ -112,46 +112,89 @@ Cc: linux-block@vger.kernel.org,
 	Bob Peterson <rpeterso@redhat.com>,
 	cluster-devel@redhat.com,
 	Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V15 10/18] btrfs: use mp_bvec_last_segment to get bio's last page
-Date: Fri, 15 Feb 2019 19:13:16 +0800
-Message-Id: <20190215111324.30129-11-ming.lei@redhat.com>
+Subject: [PATCH V15 11/18] block: loop: pass multi-page bvec to iov_iter
+Date: Fri, 15 Feb 2019 19:13:17 +0800
+Message-Id: <20190215111324.30129-12-ming.lei@redhat.com>
 In-Reply-To: <20190215111324.30129-1-ming.lei@redhat.com>
 References: <20190215111324.30129-1-ming.lei@redhat.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Fri, 15 Feb 2019 11:16:15 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Fri, 15 Feb 2019 11:16:19 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Preparing for supporting multi-page bvec.
+iov_iter is implemented on bvec itererator helpers, so it is safe to pass
+multi-page bvec to it, and this way is much more efficient than passing one
+page in each bvec.
 
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Omar Sandoval <osandov@fb.com>
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- fs/btrfs/extent_io.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ drivers/block/loop.c | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
 
-diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-index dc8ba3ee515d..986ef49b0269 100644
---- a/fs/btrfs/extent_io.c
-+++ b/fs/btrfs/extent_io.c
-@@ -2697,11 +2697,12 @@ static int __must_check submit_one_bio(struct bio *bio, int mirror_num,
+diff --git a/drivers/block/loop.c b/drivers/block/loop.c
+index cf5538942834..8ef583197414 100644
+--- a/drivers/block/loop.c
++++ b/drivers/block/loop.c
+@@ -511,21 +511,22 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+ 		     loff_t pos, bool rw)
  {
- 	blk_status_t ret = 0;
- 	struct bio_vec *bvec = bio_last_bvec_all(bio);
--	struct page *page = bvec->bv_page;
-+	struct bio_vec bv;
- 	struct extent_io_tree *tree = bio->bi_private;
- 	u64 start;
+ 	struct iov_iter iter;
++	struct req_iterator rq_iter;
+ 	struct bio_vec *bvec;
+ 	struct request *rq = blk_mq_rq_from_pdu(cmd);
+ 	struct bio *bio = rq->bio;
+ 	struct file *file = lo->lo_backing_file;
++	struct bio_vec tmp;
+ 	unsigned int offset;
+-	int segments = 0;
++	int nr_bvec = 0;
+ 	int ret;
  
--	start = page_offset(page) + bvec->bv_offset;
-+	mp_bvec_last_segment(bvec, &bv);
-+	start = page_offset(bv.bv_page) + bv.bv_offset;
++	rq_for_each_bvec(tmp, rq, rq_iter)
++		nr_bvec++;
++
+ 	if (rq->bio != rq->biotail) {
+-		struct req_iterator iter;
+-		struct bio_vec tmp;
  
- 	bio->bi_private = NULL;
+-		__rq_for_each_bio(bio, rq)
+-			segments += bio_segments(bio);
+-		bvec = kmalloc_array(segments, sizeof(struct bio_vec),
++		bvec = kmalloc_array(nr_bvec, sizeof(struct bio_vec),
+ 				     GFP_NOIO);
+ 		if (!bvec)
+ 			return -EIO;
+@@ -534,10 +535,10 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+ 		/*
+ 		 * The bios of the request may be started from the middle of
+ 		 * the 'bvec' because of bio splitting, so we can't directly
+-		 * copy bio->bi_iov_vec to new bvec. The rq_for_each_segment
++		 * copy bio->bi_iov_vec to new bvec. The rq_for_each_bvec
+ 		 * API will take care of all details for us.
+ 		 */
+-		rq_for_each_segment(tmp, rq, iter) {
++		rq_for_each_bvec(tmp, rq, rq_iter) {
+ 			*bvec = tmp;
+ 			bvec++;
+ 		}
+@@ -551,11 +552,10 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+ 		 */
+ 		offset = bio->bi_iter.bi_bvec_done;
+ 		bvec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
+-		segments = bio_segments(bio);
+ 	}
+ 	atomic_set(&cmd->ref, 2);
  
+-	iov_iter_bvec(&iter, rw, bvec, segments, blk_rq_bytes(rq));
++	iov_iter_bvec(&iter, rw, bvec, nr_bvec, blk_rq_bytes(rq));
+ 	iter.iov_offset = offset;
+ 
+ 	cmd->iocb.ki_pos = pos;
 -- 
 2.9.5
 
