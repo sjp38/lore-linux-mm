@@ -7,125 +7,125 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F3DBBC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:10:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D254FC10F02
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:10:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A1660222D0
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:10:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 81136222D0
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:10:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="nJw98cFu";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="GOpffcTO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A1660222D0
+	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="i82NFi9c";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="a41IDbu3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81136222D0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=sent.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E5E948E0019; Fri, 15 Feb 2019 17:09:35 -0500 (EST)
+	id 9CDC08E001A; Fri, 15 Feb 2019 17:09:36 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E10F28E0014; Fri, 15 Feb 2019 17:09:35 -0500 (EST)
+	id 97C938E0014; Fri, 15 Feb 2019 17:09:36 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D006A8E0019; Fri, 15 Feb 2019 17:09:35 -0500 (EST)
+	id 81C528E001A; Fri, 15 Feb 2019 17:09:36 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BAC18E0014
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:09:35 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id u197so9235372qka.8
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:09:35 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 512DA8E0014
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:09:36 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id p5so10415672qtp.3
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:09:36 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :date:message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=/AQEq7MFamEX+lef9TgIsa67uAqS6jJC4Tewj7KDxqE=;
-        b=eBuiAciNwjqESUUii+UgeyORE14sZ7buSop+OpRIZLNpDT1We1VXyaC6xAmbeX/y8/
-         L4K3xO0IvUWz2+Vqu/rgzCtu2OVFCIqBJBciWJsjxIJr20fCH90j50WKCYfNUizltzI8
-         Qu6zVl7k1Cu0N/im8sEoaYvJORp+b+AMlL1JrVe3tUTO110/CNDbTp9Vl80Uaw5q6tlc
-         SqEyiIjdpQdtKR/sD/AuEwgPxdUOq0nCk4jL58Y8xDPBFevid9yYOipT5MTT/aJCYWK8
-         VJvvb1Wtn+O2OHwHCajyH6VzaFrGyRvhv7wuSwdNolJ36rnpEzNfL9TQE1z+TH9hD5JM
-         RXsw==
-X-Gm-Message-State: AHQUAuZPELhE3ZEsZpkr43x2e5s7/2RqzlWnWVV4zZNy13ZNFfv98bxz
-	ssVPNdIMWrXPmu5NRVR9rBMZChcqN2OauZWix/y/JjD6LqzyvgtSpwgPtedFEDdMSXWoKfM1Lpj
-	62GHTaKvbKqa8v8NNZPqGHDzTBFQTt59LdsUk8zpuiSUAL0Pi3FUCutuaSJNBj+U/Kg==
-X-Received: by 2002:a37:2241:: with SMTP id i62mr8923698qki.226.1550268575376;
+        bh=EYbvEGR5T55O/whT3ormGMsc4OjejtdS/ncHWvxXxkQ=;
+        b=MUHQDaEVIPp3/aw4XN9JN+BnKiZl6OceBlytjQdqRv3683E5A+3ytiB+fIlVEwaOtZ
+         Mzzb8dA8JWLj2WeRLGSPGPMP2lG6FnvgaTHC8GdNRaGVisz3tJH8ln8e0T/5eJgmschT
+         JeeycWMkLoMRuGW3H8EsihBGHnx8v85DLR0iZXvKQJ6DDlyzINlqGD/GiNcz527su6HB
+         o72kyXjfeuiuDMKXsujO1cTDRLULj0imbjjHO+aVSSDbcR8LMIsNIKteYWIzPW9qyL/K
+         YVzYzfbPcMXXV2kA3A1dWU4g67JJOFKpHM4pOyZiyefhGKewn7q1IOLkrT3bpOYO8Cjl
+         L+/A==
+X-Gm-Message-State: AHQUAuYrdqfqjdRUIIXcz4s8Erqa+fZgD/tx/CjBvN+jZibgqsN6AEA+
+	SPPTvxbGdbBTl78PcrgNovfjb1G2NRAGABHrqoAnWxSm0OU9MOTt6wJUAB+C7DPjsnXEzkGvQrP
+	Eo1dVi+L7/MO3/tCvDUHNPCD6Dsth8t1qPo2+593tOy1PeQCkbf345C262Uw4rNpqtw==
+X-Received: by 2002:a0c:a326:: with SMTP id u35mr9156737qvu.190.1550268576103;
+        Fri, 15 Feb 2019 14:09:36 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbIiJcWOAzt7wT3DgS/fNJGl7//ERbB2c/fXPhrWMm9DVPKw8/T6YaucM8dlwjTxpzdDWhY
+X-Received: by 2002:a0c:a326:: with SMTP id u35mr9156696qvu.190.1550268575534;
         Fri, 15 Feb 2019 14:09:35 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Iape6rE8M05HWCi4niHRtf0NV+PjXwMVWmZxH2RuChmkJ/3nMRcpeIz3AL5EjrD3y87G1St
-X-Received: by 2002:a37:2241:: with SMTP id i62mr8923654qki.226.1550268574558;
-        Fri, 15 Feb 2019 14:09:34 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550268574; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1550268575; cv=none;
         d=google.com; s=arc-20160816;
-        b=vG8tCek/RHQ8rPYwQKk0s3mn4HS/FaTuo9Vm8CEYAzqNqZ7hCZoo/mf+p58DMb1pu5
-         TcV261LE66/t2y+MTZd3xGrvTSzZu8aOzcyOT62CzT20OnlHxA+EQ1NAAI0jtyW2r87G
-         vu3LnyXOP4V0XTfCqgvOs+fMJNHksB4Kqs5z73ToDFxBglV/tWUa1xAfdJ3PnSP6W6bz
-         jgo0/qDeEi8tAa0DKwEFr1d9P+Dn1jdgSvbwqFQygdhxPPdqam21Nt++7cM16HeGlcBd
-         Vv3yfny/4XHK6dhoLPWhdXWk3kBe5YNXRMfch2gIuTmw2Hra0haA18Q0/F3p+fg5AsvM
-         8VHw==
+        b=fSYJHRlnXMMNEaEKx8p7bjFa66uyywRnwECp/OutFwoBLZEJl3mFmtJPT5AZIRa8Hm
+         uWWnwOEusthJhLtVQnoLYU3L4ld5FMzLwtDAdPqxQOBXaFlnpV7MsjLg+kIMn7oSbLBl
+         wE7CEa1zovinXl6rUyx+oFqBG8plJ57pLc19tEt3eXlgYaE3L9/9Q9ixRq5MAgovI27d
+         5OeA3UFY2yFHRzZndvQiCvbTcduQo55noKlryG5g4TRPT3XvyYZyucQ/uqcbEFAn3VqA
+         cnZN8YD/2mqGHVg8EhOayYkEs5nuYUVBpK7pHsNfyEkxhTPhl42rxmXAepRToUprg1Qa
+         PXDA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature
          :dkim-signature;
-        bh=/AQEq7MFamEX+lef9TgIsa67uAqS6jJC4Tewj7KDxqE=;
-        b=i/rcvWm4M9u3u7rXsIB+8lLe6+r0rLMV2w8Jh5acU/wXlUwH1wWFl0GB3Gb2w65N1E
-         y06Z2o5hoqsUjdK+ZWYENmcqWiCenJlbyrIXZGhDa+BrOO5qPsqLGjrxCTyoEAl0EotN
-         Bao81lbBhtqrAZCXP8Fz0bbfeTlPVIP4aIicP4NghHHjz/C8ZK4NogYDwACN2q5axfFS
-         TAsWHpVaAtnW1mYoEekXIU35tge5k6wAkO1I4oF2g3tSyPyj6mPk9D/trXWMjQQIxJIf
-         YP6/ZZCIAsfBFxJk0QUFHi0vrMjMo0je8gFECyS7tFp3/6N0H1C886Jy/Nlpt1Da/rEQ
-         28AA==
+        bh=EYbvEGR5T55O/whT3ormGMsc4OjejtdS/ncHWvxXxkQ=;
+        b=y7hY6tCmPbCn8z5E+xmLK0q5Tg+/yD3e0B/btj9EF0rCIjMgBnSolfD5SntCQEcQS1
+         PEsjZPWbW81+3iSJgj4FfFMxFnMSURyTQ6c/ZwlyWuEW+1SRnNHqakiULpbYLbbfMlzc
+         qGVbvXT3GilEhdlHY0Z4qCxBarjHSRm7Rwso0x6Rt21XBYTss0gX7ESrQHofKSJg+ZEk
+         M+TBi1Dyo2sKN/Qn5xMBR8Xfv4d1mj14D9F+5tyIfIAQuqMqm1FuqWc2Pv9MUjuH6rJs
+         5TwPlpVqPmcYzbgpH83u6dQRGmOOaMvNURIQWneH5xdC0sXZiszhUi4vEJuHLRl2FBP4
+         IjeQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm2 header.b=nJw98cFu;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=GOpffcTO;
+       dkim=pass header.i=@sent.com header.s=fm2 header.b=i82NFi9c;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=a41IDbu3;
        spf=pass (google.com: domain of zi.yan@sent.com designates 64.147.123.25 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from wout2-smtp.messagingengine.com (wout2-smtp.messagingengine.com. [64.147.123.25])
-        by mx.google.com with ESMTPS id n63si1410068qva.115.2019.02.15.14.09.34
+        by mx.google.com with ESMTPS id j6si578330qtb.108.2019.02.15.14.09.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 14:09:34 -0800 (PST)
+        Fri, 15 Feb 2019 14:09:35 -0800 (PST)
 Received-SPF: pass (google.com: domain of zi.yan@sent.com designates 64.147.123.25 as permitted sender) client-ip=64.147.123.25;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm2 header.b=nJw98cFu;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=GOpffcTO;
+       dkim=pass header.i=@sent.com header.s=fm2 header.b=i82NFi9c;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=a41IDbu3;
        spf=pass (google.com: domain of zi.yan@sent.com designates 64.147.123.25 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.west.internal (Postfix) with ESMTP id BC535329D;
-	Fri, 15 Feb 2019 17:09:32 -0500 (EST)
+	by mailout.west.internal (Postfix) with ESMTP id B6AA9310A;
+	Fri, 15 Feb 2019 17:09:33 -0500 (EST)
 Received: from mailfrontend1 ([10.202.2.162])
-  by compute3.internal (MEProxy); Fri, 15 Feb 2019 17:09:33 -0500
+  by compute3.internal (MEProxy); Fri, 15 Feb 2019 17:09:34 -0500
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=sent.com; h=from
 	:to:cc:subject:date:message-id:in-reply-to:references:reply-to
-	:mime-version:content-transfer-encoding; s=fm2; bh=/AQEq7MFamEX+
-	lef9TgIsa67uAqS6jJC4Tewj7KDxqE=; b=nJw98cFuoVjMJxVajB0ZbTFZLpH6k
-	sVVoLvTUAiPL7hd5xY3ESJa3IMPWNrQCNVjU91ojIWudhbT17n/87KEacbDpxu8W
-	jtliE8TiMSzwb5t4nQO0k4M/EEq+HmJbJ1pskDwGW7Zc2IouHjtYAT0vPYSYaf4l
-	DAVR+7pY2Am1WWjJvMmLJwX5FmCqMwtihIhp2UxIefwPqB/M45D9IoEHoN3eE0Xl
-	cgon6S8jKGzL27KQl9GcSQdOhPNFl9BqxkpAyjnM3IsB2fj/Dp6uzOBOauZktyom
-	sFEghzxAP/zQQkx/C2r/6NrDqaUM9DWNFB88/jZ9hW2bIGdUNI3s4AybA==
+	:mime-version:content-transfer-encoding; s=fm2; bh=EYbvEGR5T55O/
+	whT3ormGMsc4OjejtdS/ncHWvxXxkQ=; b=i82NFi9clRWllhWB+1WAQDVTJSxf2
+	jkZ+OZAH1x/MG1hPo+I91aXGzCqHNZqN/VbppOW4xJYXO4kNZfKmmcVg6gK/K8YM
+	fsd2Eew3vCg8A5AxWQpjCGI2G22ajdn05x7sotOilp56JcFmTWtM+rDWjnCxsOPI
+	mAtnifkzdIbVhOTNOBOTM3e5rOLAJ7g4zykkGNg9Jc/UYSG2BhMq+n106msRfV9i
+	ZIOVP1PIZVEnuj/NwEZFV6XpzaSW5WDH0RdHpc9iAvwRaGnPCWbLkcLWsFtSNqsx
+	eToUv6aDMEdcKSq6T89UMR1bm4VTPcZRPoce57vAp475TeBacI19f1Jgw==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:reply-to:subject
 	:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=/AQEq7MFamEX+lef9TgIsa67uAqS6jJC4Tewj7KDxqE=; b=GOpffcTO
-	NWchByon5Enk/TsqQkBi5A4+w4CuF+l75DY7LnedtUcB8nDTnZxl1Ank6j9hjE/z
-	oKJ7wGE6uuj5n9TVzaWmb2C2CDOnmUwSMchVy4rEFVjZszHU6ANu9NZACPrwa3lH
-	5bozi5ZtjyOuAfOPhAKbOPIyRLF3Kg3DZEOQnDQTXpdR5cp86Hg8XGnZdfqfIrLV
-	lXWCAaIC0Awos3rjugymqMDliKbtDhilxhy6HhGirCKINZPzCpuPv6gJEnF20cZY
-	briSyliEBPO8sBBgSPXST3HE0sTv2Q7rSfToExy6iku3mANeY709e9K4ETAae1VK
-	xNfzOLcCbOAmyQ==
-X-ME-Sender: <xms:mzhnXA_veGd6T1c9iQcnC2FvouWA5OwEUO793_cYA6mtcbSdjb5uNA>
+	fm2; bh=EYbvEGR5T55O/whT3ormGMsc4OjejtdS/ncHWvxXxkQ=; b=a41IDbu3
+	5RvxGLl/hTeM1wR3EQ9zuSaqUa3N/oLwo1XIObh6/XEIjeq8g8IFvjLlyqals5Sa
+	ckfgVcYysYgWcyp/M++lW2PcvAXKaTHPKVEXYvTEfcmnPU+87hMTXTzkacOFTebi
+	/gmTBScgG9ZTVAaKE29y1CX+rg4dwjekj0vLs9uuO9kfeDV7ASd2gy0n4azIeLKc
+	A1jGIaQFVmk1iXi20m5uRATMbjTLmL1KM0qVAaaMS0Oj3X0Q3K6r2hzrPJv9p7aJ
+	KfP5r7sSURNfkcQrpyxop7Y8d5r2tjMu/jLM9DS64ZFD23CsgRYFGOkZQYY6WVfp
+	hjV+pVn0qBJ72g==
+X-ME-Sender: <xms:nThnXH9mjHl8YGa-yOYXgO5plywmTDc7i6epfRjTNv7g2vNE_1KtZQ>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledruddtjedgudehkecutefuodetggdotefrod
     ftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthenuceurghilhhouhhtmecu
     fedttdenucesvcftvggtihhpihgvnhhtshculddquddttddmnecujfgurhephffvufffkf
     fojghfrhgggfestdekredtredttdenucfhrhhomhepkghiucgjrghnuceoiihirdihrghn
     sehsvghnthdrtghomheqnecukfhppedvudeirddvvdekrdduuddvrddvvdenucfrrghrrg
     hmpehmrghilhhfrhhomhepiihirdihrghnsehsvghnthdrtghomhenucevlhhushhtvghr
-    ufhiiigvpeduke
-X-ME-Proxy: <xmx:nDhnXM84ProuA7o-5QpwqgKhUdZJfUh3N7tJdPFN64ZDujWhHKgDdQ>
-    <xmx:nDhnXBAXB9ZN-zeY_GWrw3jlQheJbBfS_MHcQg_TnqBR_luSDhtMpw>
-    <xmx:nDhnXEw7fLEeHc5PgQLOFkXHezz6xXdHpqJvrhlaJT9t9zgIlJTuFg>
-    <xmx:nDhnXI4SB6YxH-TGDDBOFO_An7XAWzxW6mbzDcclQ-_TjgWDkznHUw>
+    ufhiiigvpedvvd
+X-ME-Proxy: <xmx:nThnXDEVJkV_hM72tcbdo7pebFQDt3G71YnQf5AieEy3_bMYDDoAzg>
+    <xmx:nThnXHl4RnGCNoatF2ox2lA-MQsC-CYCjghd6Dd0XFsRWvtj2CisxA>
+    <xmx:nThnXErGKbXI2wgyjb0Tbyxn4yOi3cX8Xo9klJhvCqKimZB29XSoFQ>
+    <xmx:nThnXFpbYtB2yNpp-J_95fonAyrP1QR-t7LcPkvxhkP_oycOH45zBg>
 Received: from nvrsysarch5.nvidia.com (thunderhill.nvidia.com [216.228.112.22])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 93795E4680;
-	Fri, 15 Feb 2019 17:09:30 -0500 (EST)
+	by mail.messagingengine.com (Postfix) with ESMTPA id E5B2AE4511;
+	Fri, 15 Feb 2019 17:09:31 -0500 (EST)
 From: Zi Yan <zi.yan@sent.com>
 To: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
@@ -140,9 +140,9 @@ Cc: Dave Hansen <dave.hansen@linux.intel.com>,
 	Nitin Gupta <nigupta@nvidia.com>,
 	David Nellans <dnellans@nvidia.com>,
 	Zi Yan <ziy@nvidia.com>
-Subject: [RFC PATCH 22/31] mm: thp: 1GB THP follow_p*d_page() support.
-Date: Fri, 15 Feb 2019 14:08:47 -0800
-Message-Id: <20190215220856.29749-23-zi.yan@sent.com>
+Subject: [RFC PATCH 23/31] mm: support 1GB THP pagemap support.
+Date: Fri, 15 Feb 2019 14:08:48 -0800
+Message-Id: <20190215220856.29749-24-zi.yan@sent.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190215220856.29749-1-zi.yan@sent.com>
 References: <20190215220856.29749-1-zi.yan@sent.com>
@@ -157,209 +157,73 @@ List-ID: <linux-mm.kvack.org>
 
 From: Zi Yan <ziy@nvidia.com>
 
-Add follow_page support for 1GB THPs.
+Print page flags properly.
 
 Signed-off-by: Zi Yan <ziy@nvidia.com>
 ---
- include/linux/huge_mm.h | 11 +++++++
- mm/gup.c                | 60 ++++++++++++++++++++++++++++++++-
- mm/huge_memory.c        | 73 ++++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 142 insertions(+), 2 deletions(-)
+ fs/proc/task_mmu.c | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index bd5cc5e65de8..b1acada9ce8c 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -20,6 +20,10 @@ extern int copy_huge_pud(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- extern void huge_pud_set_accessed(struct vm_fault *vmf, pud_t orig_pud);
- extern int do_huge_pud_anonymous_page(struct vm_fault *vmf);
- extern int do_huge_pud_wp_page(struct vm_fault *vmf, pud_t orig_pud);
-+extern struct page *follow_trans_huge_pud(struct vm_area_struct *vma,
-+					  unsigned long addr,
-+					  pud_t *pud,
-+					  unsigned int flags);
- #else
- static inline void huge_pud_set_accessed(struct vm_fault *vmf, pud_t orig_pud)
- {
-@@ -32,6 +36,13 @@ extern int do_huge_pud_wp_page(struct vm_fault *vmf, pud_t orig_pud)
- {
- 	return VM_FAULT_FALLBACK;
- }
-+struct page *follow_trans_huge_pud(struct vm_area_struct *vma,
-+					  unsigned long addr,
-+					  pud_t *pud,
-+					  unsigned int flags)
-+{
-+	return NULL;
-+}
- #endif
- 
- extern vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd);
-diff --git a/mm/gup.c b/mm/gup.c
-index 05acd7e2eb22..0ad0509b03fc 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -348,10 +348,68 @@ static struct page *follow_pud_mask(struct vm_area_struct *vma,
- 		if (page)
- 			return page;
- 	}
-+
-+#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-+	if (likely(!pud_trans_huge(*pud))) {
-+		if (unlikely(pud_bad(*pud)))
-+			return no_page_table(vma, flags);
-+		return follow_pmd_mask(vma, address, pud, flags, ctx);
-+	}
-+
-+	ptl = pud_lock(mm, pud);
-+
-+	if (unlikely(!pud_trans_huge(*pud))) {
-+		spin_unlock(ptl);
-+		if (unlikely(pud_bad(*pud)))
-+			return no_page_table(vma, flags);
-+		return follow_pmd_mask(vma, address, pud, flags, ctx);
-+	}
-+
-+	if (flags & FOLL_SPLIT) {
-+		int ret;
-+		pmd_t *pmd = NULL;
-+
-+		page = pud_page(*pud);
-+		if (is_huge_zero_page(page)) {
-+
-+			spin_unlock(ptl);
-+			ret = 0;
-+			split_huge_pud(vma, pud, address);
-+			pmd = pmd_offset(pud, address);
-+			split_huge_pmd(vma, pmd, address);
-+			if (pmd_trans_unstable(pmd))
-+				ret = -EBUSY;
-+		} else {
-+			get_page(page);
-+			spin_unlock(ptl);
-+			lock_page(page);
-+			ret = split_huge_pud_page(page);
-+			if (!ret)
-+				ret = split_huge_page(page);
-+			else {
-+				unlock_page(page);
-+				put_page(page);
-+				goto out;
-+			}
-+			unlock_page(page);
-+			put_page(page);
-+			if (pud_none(*pud))
-+				return no_page_table(vma, flags);
-+			pmd = pmd_offset(pud, address);
-+		}
-+out:
-+		return ret ? ERR_PTR(ret) :
-+			follow_page_pte(vma, address, pmd, flags, &ctx->pgmap);
-+	}
-+	page = follow_trans_huge_pud(vma, address, pud, flags);
-+	spin_unlock(ptl);
-+	ctx->page_mask = HPAGE_PUD_NR - 1;
-+	return page;
-+#else
- 	if (unlikely(pud_bad(*pud)))
- 		return no_page_table(vma, flags);
--
- 	return follow_pmd_mask(vma, address, pud, flags, ctx);
-+#endif
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index f0ec9edab2f3..ccf8ce760283 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1373,6 +1373,45 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+ 	return err;
  }
  
- static struct page *follow_p4d_mask(struct vm_area_struct *vma,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 41adc103ead1..191261771452 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1309,6 +1309,77 @@ struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
- 	return page;
- }
- 
-+/*
-+ * FOLL_FORCE can write to even unwritable pmd's, but only
-+ * after we've gone through a COW cycle and they are dirty.
-+ */
-+static inline bool can_follow_write_pud(pud_t pud, unsigned int flags)
++static int pagemap_pud_range(pud_t *pudp, unsigned long addr, unsigned long end,
++			     struct mm_walk *walk)
 +{
-+	return pud_write(pud) ||
-+	       ((flags & FOLL_FORCE) && (flags & FOLL_COW) && pud_dirty(pud));
-+}
-+
-+struct page *follow_trans_huge_pud(struct vm_area_struct *vma,
-+				   unsigned long addr,
-+				   pud_t *pud,
-+				   unsigned int flags)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
++	struct vm_area_struct *vma = walk->vma;
++	struct pagemapread *pm = walk->private;
++	int err = 0;
++	u64 flags = 0, frame = 0;
++	pud_t pud = *pudp;
 +	struct page *page = NULL;
 +
-+	assert_spin_locked(pud_lockptr(mm, pud));
++	if (vma->vm_flags & VM_SOFTDIRTY)
++		flags |= PM_SOFT_DIRTY;
 +
-+	if (flags & FOLL_WRITE && !can_follow_write_pud(*pud, flags))
-+		goto out;
++	if (pud_present(pud)) {
++		page = pud_page(pud);
 +
-+	/* Avoid dumping huge zero page */
-+	if ((flags & FOLL_DUMP) && is_huge_zero_pud(*pud))
-+		return ERR_PTR(-EFAULT);
-+
-+	/* Full NUMA hinting faults to serialise migration in fault paths */
-+	/*&& pud_protnone(*pmd)*/
-+	if ((flags & FOLL_NUMA))
-+		goto out;
-+
-+	page = pud_page(*pud);
-+	VM_BUG_ON_PAGE(!PageHead(page) && !is_zone_device_page(page), page);
-+	if (flags & FOLL_TOUCH)
-+		touch_pud(vma, addr, pud, flags);
-+	if ((flags & FOLL_MLOCK) && (vma->vm_flags & VM_LOCKED)) {
-+		/*
-+		 * We don't mlock() pte-mapped THPs. This way we can avoid
-+		 * leaking mlocked pages into non-VM_LOCKED VMAs.
-+		 *
-+		 * For anon THP:
-+		 *
-+		 * We do the same thing as PMD-level THP.
-+		 *
-+		 * For file THP:
-+		 *
-+		 * No support yet.
-+		 *
-+		 */
-+
-+		if (PageAnon(page) && compound_mapcount(page) != 1)
-+			goto skip_mlock;
-+		if (PagePUDDoubleMap(page) || !page->mapping)
-+			goto skip_mlock;
-+		if (!trylock_page(page))
-+			goto skip_mlock;
-+		lru_add_drain();
-+		if (page->mapping && !PagePUDDoubleMap(page))
-+			mlock_vma_page(page);
-+		unlock_page(page);
++		flags |= PM_PRESENT;
++		if (pud_soft_dirty(pud))
++			flags |= PM_SOFT_DIRTY;
++		if (pm->show_pfn)
++			frame = pud_pfn(pud) +
++				((addr & ~PMD_MASK) >> PAGE_SHIFT);
 +	}
-+skip_mlock:
-+	page += (addr & ~HPAGE_PUD_MASK) >> PAGE_SHIFT;
-+	VM_BUG_ON_PAGE(!PageCompound(page) && !is_zone_device_page(page), page);
-+	if (flags & FOLL_GET)
-+		get_page(page);
 +
-+out:
-+	return page;
++	if (page && page_mapcount(page) == 1)
++		flags |= PM_MMAP_EXCLUSIVE;
++
++	for (; addr != end; addr += PAGE_SIZE) {
++		pagemap_entry_t pme = make_pme(frame, flags);
++
++		err = add_to_pagemap(addr, &pme, pm);
++		if (err)
++			break;
++		if (pm->show_pfn && (flags & PM_PRESENT))
++			frame++;
++	}
++	return err;
 +}
- int copy_huge_pud(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		  pud_t *dst_pud, pud_t *src_pud, unsigned long addr,
- 		  struct vm_area_struct *vma)
-@@ -1991,7 +2062,7 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 		goto out;
++
+ #ifdef CONFIG_HUGETLB_PAGE
+ /* This function walks within one hugetlb entry in the single call */
+ static int pagemap_hugetlb_range(pte_t *ptep, unsigned long hmask,
+@@ -1479,6 +1518,9 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+ 	if (!pm.buffer)
+ 		goto out_mm;
  
- 	page = pmd_page(*pmd);
--	VM_BUG_ON_PAGE(!PageHead(page) && !is_zone_device_page(page), page);
-+	VM_BUG_ON_PAGE(!PageHead(page) && !is_zone_device_page(page) && !PMDPageInPUD(page), page);
- 	if (flags & FOLL_TOUCH)
- 		touch_pmd(vma, addr, pmd, flags);
- 	if ((flags & FOLL_MLOCK) && (vma->vm_flags & VM_LOCKED)) {
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	pagemap_walk.pud_entry = pagemap_pud_range;
++#endif
+ 	pagemap_walk.pmd_entry = pagemap_pmd_range;
+ 	pagemap_walk.pte_hole = pagemap_pte_hole;
+ #ifdef CONFIG_HUGETLB_PAGE
 -- 
 2.20.1
 
