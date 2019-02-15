@@ -7,111 +7,111 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 27158C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:09:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E88BC10F02
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:09:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BF1E5222D0
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:09:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3C526222D0
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:09:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="H7QS7MH5";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="COCQw14/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF1E5222D0
+	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="nC8wJYxr";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="Cr27w0fX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C526222D0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=sent.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E50508E0004; Fri, 15 Feb 2019 17:09:14 -0500 (EST)
+	id 009848E000B; Fri, 15 Feb 2019 17:09:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B9EF88E000B; Fri, 15 Feb 2019 17:09:14 -0500 (EST)
+	id ED5008E0009; Fri, 15 Feb 2019 17:09:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A67148E0004; Fri, 15 Feb 2019 17:09:14 -0500 (EST)
+	id D9FE28E000B; Fri, 15 Feb 2019 17:09:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 70B378E0009
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:09:14 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id q15so9395342qki.14
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:09:14 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A9D1D8E0009
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:09:15 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id a11so9324966qkk.10
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:09:15 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :date:message-id:in-reply-to:references:reply-to:mime-version
          :content-transfer-encoding;
-        bh=YB7G8kYGI8bRnBYacSSGAZcz9slxKgMGLPhOLzrEt8M=;
-        b=ujzSxHTHRmuezParrY/8ugFUuqnN4Vi+6R1YIDkxOYE6sRgt8h58hu4ZX6U0m3L9ys
-         W+dudlBzJ5AnDPFMiirj7Zk0LWUM/QiSSCXb2/NJGrjUmeyZv8ZuCEminKtvspKRaisj
-         DwmK7UhXDvOvv+5DtjG1MGzO5JaPFbYkV+oyUOwbqcD20PuZ5xDhis7WrZHA4w/W1Qjq
-         +lN073waW0fBT52B9yrBRknrsVljqZM4zSOCKfWn0ltF+Q1XbpDv34fhQtGx9ozub8a1
-         2Kqd7Z6gsrmdOKSPFQz0cR9tWPGijyK1+ou5r3ECYBWRNmqiBYNet6dLgj2s9tPdsxXL
-         bjQA==
-X-Gm-Message-State: AHQUAub2wjEk3bTGGQ+ef7GBkundXAl+uiOmqhO8Zj2Elc43vgyDugzp
-	M9N0es2vW12+SvHdn0z4JAYG3mr3nRbK/bp9xJVi+qYVPJfg2MYKDIaawLSbF6QZWu7zkhg6jEG
-	Kyj5GSE7vTm4S6bIgLMNaxTKbt1EGpJ2vNOS1+K6YmBCoHn7AfOiNka6b5FBdPQUKBA==
-X-Received: by 2002:a37:8882:: with SMTP id k124mr8544274qkd.1.1550268554230;
+        bh=uwePujYO5Bi6rSoxtQfAUMSLQwvWmv1VR4nTNRj43D8=;
+        b=Zamj5IsG5sIPNhNvVl/E5aDjCSVhrKA6yHiCvnhzAJI1Bo99IePQBJZ/AF47gdbw+r
+         eb/KdO35o8Xr8uL0ULAIq5vTt+TgcLfrOiVyU7jjtka5qS0tvWvAyDP8uxQNiIysqzfd
+         4OdoX5lB6x8yd8iU3byPRMUbR/oKpVxpEbiErPEDZeNDVoifbyjxBjZ5Z0XOT3UjeNNh
+         Zp89485ORBBbKReiPJ5FgthUcPlpBq/CzKR8gA1cxw4YcHB/VvCSw0b1y9Wecy6Ym6d0
+         BSbasHsX+IdXUbM+Fv0OIXeO+rsYKrK1mEdMpo61L+8uPF12QjIrAFt0u1AU8E9JkSyf
+         ORKw==
+X-Gm-Message-State: AHQUAub2c4an14qJRvXL2UEIX+QwInl+1lqN7WpB5EemQ+GPf2Bi2jWD
+	nDdkQ3a46BrW9k0hyH3fRByx27lCIkQ9IdBHLx87WmdYyqjdYJFfBuNu1SptLQFvJ6yoTqQUOPd
+	rVzj0hz4XbynwBrRdO2NykTyqKBBxEsJms0j9c1I0pUvnPcplPnAWN7UqyAXw6SUQPQ==
+X-Received: by 2002:a37:b581:: with SMTP id e123mr8526412qkf.183.1550268555455;
+        Fri, 15 Feb 2019 14:09:15 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZfo1K0aIBAGnmqApEiUa4lE6cuWFIZsJZmMX99h4RUAiyccAgSxXxxEWUNpLSSCvdf/mck
+X-Received: by 2002:a37:b581:: with SMTP id e123mr8526381qkf.183.1550268554813;
         Fri, 15 Feb 2019 14:09:14 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZIXq2dVgwNCZwVhRj9MiwSWK9tx9nJXVQ6NjedyIJivU1HuBJdFHSNJ/t9pK/dc9Y8j2Ad
-X-Received: by 2002:a37:8882:: with SMTP id k124mr8544241qkd.1.1550268553534;
-        Fri, 15 Feb 2019 14:09:13 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550268553; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1550268554; cv=none;
         d=google.com; s=arc-20160816;
-        b=HaUjqt4ddYLy79nhIdz02/TZll1m616ev2TDsOZ9fu1TeQY+vaFvXPwapnLf7Cj4ur
-         5LMy/PIpdhzcLc6udICRjTvaDCbOt9zgkmNHbrSQkHsuUsWHJ/Afpm1SOYZYinyPgjnR
-         491XlF51mqpraDzTWPEaHt3mWxbNXpTeoc22Ji4SnFPaIQzF0D0SO2xk+PJi/RzdNwD6
-         SE4LiV765ecNd8CCMywV4DC21Ma+DoEbdOwpqXG6y/wofJTXThfxkBlfHKEokYTWxeHf
-         9QgZUrI2RkdsGpC5VSfWLl/S5XZLE+jGm1lt5XtJL5/D4OBACVMU+r9YrbJlxjMr24bQ
-         sZSg==
+        b=MFC8fH5pxSs37BPQqurrJJNYyqWuToErxY8d4ueYk4G3bNPnVcVG3fHBgBorf7hym1
+         D7mlJLse2P/+IgIfxxTQ/axxfqkmxFGpky58t77Q1EJqbJirFMEn3T2xu7yq9s1h2Hxj
+         wmNLDB7MHEwjBL8RJfiiMzj3m3CmlDotaQ7cl4XYWAGB5rFnIZZo/8tmG6fYTmw00Ira
+         FL/qfMb1NMPgPRRLgWyw7/PygUkyzwWDyoFW1Q6JuUvmFOMiMKEvcAS7OwjKebmtpIGC
+         6fXmhhPVKTMnUZo2WShY3b+Xx/JEggvKIZ9hkorm3F4B8ZLsFz4NPvDXrjj5J5m17cQz
+         5cyw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:reply-to:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature
          :dkim-signature;
-        bh=YB7G8kYGI8bRnBYacSSGAZcz9slxKgMGLPhOLzrEt8M=;
-        b=gTHK7GdGfnlkroIYbOZemv5+8IhXLmPmkPmqUAEOr/E75D+ih+Tc1SKKx23NP0jonD
-         meMqmSw4jmyBI+xif3ti+H4XfqH/jKZecBycspZMZ+9D4VN37B0Ft7vYMey5xUjlwpkv
-         RPZd7JUSJkPJh2/CDYz2g3kicQAZl6iFfQK9Nhhg8q1Pyo8pnDLZTc2ClR0fCZi75ysA
-         819WyOoWXKhmZCQ885pGAwjBELt6VRuHTUO4aagr2e9oajebpb4J04gLZ71gGg565CG0
-         y9X37jXhNqQVMUrsd3Yqq/ixcqai8/hG9WvsyGiIDo4yJ7pEHT4WCjD2OKU6SFoYdpKo
-         kfhQ==
+        bh=uwePujYO5Bi6rSoxtQfAUMSLQwvWmv1VR4nTNRj43D8=;
+        b=k1cB0GDSKDU6pUJOu4C7/32XffWHWX++p/8bXvcMzaEeAZNU8jod0eR5Z85tNjXs9o
+         1jpOxPeKor1Kotjbee+eOMdvSB8jDR79MCcCl2++4I+XlkSJ4lMJxcnpa0o9YUoDvGhI
+         7sa6btznZ9WBZiZJXTKepsajdBC64h/ER2wBUtdcikJ1xgIRJ80qvxcbWAfOXuuK9PGg
+         t/lxxpbipYHdsY/0mjBcZQrYM8FDXmlZgb3b9eJ45LiHKkXLj5K5AFKBTuMPbksvRK5X
+         YGIYAasNoVosjTDbnisk6ZWPvnorISJMW7EO2Z/8KHwXVK6s+Tg+pQixACwCvuijJRnk
+         UNEQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm2 header.b=H7QS7MH5;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="COCQw14/";
+       dkim=pass header.i=@sent.com header.s=fm2 header.b=nC8wJYxr;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=Cr27w0fX;
        spf=pass (google.com: domain of zi.yan@sent.com designates 64.147.123.25 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from wout2-smtp.messagingengine.com (wout2-smtp.messagingengine.com. [64.147.123.25])
-        by mx.google.com with ESMTPS id z18si2925262qti.297.2019.02.15.14.09.13
+        by mx.google.com with ESMTPS id f36si4192660qtk.149.2019.02.15.14.09.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 14:09:13 -0800 (PST)
+        Fri, 15 Feb 2019 14:09:14 -0800 (PST)
 Received-SPF: pass (google.com: domain of zi.yan@sent.com designates 64.147.123.25 as permitted sender) client-ip=64.147.123.25;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@sent.com header.s=fm2 header.b=H7QS7MH5;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="COCQw14/";
+       dkim=pass header.i=@sent.com header.s=fm2 header.b=nC8wJYxr;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=Cr27w0fX;
        spf=pass (google.com: domain of zi.yan@sent.com designates 64.147.123.25 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailout.west.internal (Postfix) with ESMTP id B9B8F3299;
-	Fri, 15 Feb 2019 17:09:11 -0500 (EST)
+	by mailout.west.internal (Postfix) with ESMTP id 0AF6631E4;
+	Fri, 15 Feb 2019 17:09:12 -0500 (EST)
 Received: from mailfrontend1 ([10.202.2.162])
-  by compute3.internal (MEProxy); Fri, 15 Feb 2019 17:09:12 -0500
+  by compute3.internal (MEProxy); Fri, 15 Feb 2019 17:09:13 -0500
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=sent.com; h=from
 	:to:cc:subject:date:message-id:in-reply-to:references:reply-to
-	:mime-version:content-transfer-encoding; s=fm2; bh=YB7G8kYGI8bRn
-	BYacSSGAZcz9slxKgMGLPhOLzrEt8M=; b=H7QS7MH59u8xwucq0Z1GHNPXlaQRC
-	FHeYGCF1tAMxxXP403wg/3pcu+/Qod0JH10zVxAksBVNfZokneF7fPoWXeikvNBF
-	iH6blrzJNdL3s1JvOgRHKdzOfP/PgsVcoIjflgyuzwwG++f7WuSfQUXjy9KO5GND
-	WV0oWxdRZqahNjyVEPk0miHYhtF9HcRWQuQ1uxn+filUOUAf24WLtoBGwqU5+IHv
-	bGptQory6nGB3qjJGbu30AcQ94zmv4OegwV/mOo5oO7imkgnh6W/yVzHlthZ7Qij
-	l+Yn6h5uDHJDeuUM0kJZJdlQ3LiBkTGODdWgnaKTvxpQ2Tgc0KP/xAhrw==
+	:mime-version:content-transfer-encoding; s=fm2; bh=uwePujYO5Bi6r
+	SoxtQfAUMSLQwvWmv1VR4nTNRj43D8=; b=nC8wJYxrkic1or95bLI0GYWFtsGrQ
+	9VYMM75Q7iaUOojaj3DxJATMc98abDC5rnSiIqSVbMboOPzaiQZGZFYIY0JNXbzt
+	fn5Ccwqpq8a8eFx/cewftjMPzK1g0swu1KgrHqn++lE1FBn9oHzbFHnxcygnuHMT
+	ajoGJCK8DhNIdAFN2g1nmnLyISw+3Zuj9IJYFakrkeqGu4tQ94WeBwmYx8DB6JKF
+	HEh7V32pyFVtybjuC8R0yJv+1arzGA3MGHKbl1xMwRElzsFNtTdpM+koDKP5Xhbt
+	FhFcB6p4c6JSoFGBC26ad0XVlVLCzxKE0dY3BB9RYftHlkX2mCwiI3v9w==
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:reply-to:subject
 	:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=YB7G8kYGI8bRnBYacSSGAZcz9slxKgMGLPhOLzrEt8M=; b=COCQw14/
-	OnB2gMlAGBaEv2afOVWzIFuk76BGlb4G/8ob3jmC8kdWDb3wM/OULj/7wB2jRCRl
-	DWsRFMwU71vAmreUChlz7cUU8S+4CYjlwNnXBRS/B/9agl6rlHaF72VmKkOtSIUi
-	ca6bFjH0vbxC+jHeE5+alLiihoAMbp0WnVysOCB71tJx2l86dXNFbq4NnB1rHfnz
-	+0RwROQ4V/xM1lKxz3zE1SyW5lZvMDJKjJQVIjIuLIQqihCEcNHAoVEKgnuI/0pZ
-	chLn0SG84GIKVqYSCApaFt2y5ulkKk7q0f4OA9gWEf7DkuMUpJdSfe7IlX5lm0m7
-	z4JhtXzq2GAmEw==
-X-ME-Sender: <xms:hzhnXL69dlxmbrI0m-3ynuD-L0T_lazgElZ9QPDNlOYUJpRwicB9cA>
+	fm2; bh=uwePujYO5Bi6rSoxtQfAUMSLQwvWmv1VR4nTNRj43D8=; b=Cr27w0fX
+	JNjaiz9AQcalW7mj+chni9lvuDy2hlj5bN++V4Zz/pzLbTyJJ6+gWvhbeejSPrKF
+	qE4LVQwDMHxWuFUz2dp0NM2ZWU/Jy6tEhkke3NGTgbIu9mKwYdPCc57qbMoS2J03
+	jnzWObyX20UCFARwxhjxDbFY05pOZWmFOfcr0+Hix2Nb9URberL/7Zh0O5F4btjf
+	dMZX9spArEGnOaEFtCd2yBEEg2VlhFro8OAdG+KhpwBpwO4YHMvOT1wBOB6Qgd3b
+	l4qcgYuCq0BRbqXK+tO1EmKjR9IZgNXagRS7xSJQdSejFu2NXBuJh8y9fZ3vhD+s
+	C+V/O/eL6Hv0Kg==
+X-ME-Sender: <xms:iDhnXOpX2PCGy33ayjTK4o6RZGWXpf91RrdkoLdqQ7u7lfNYBZdQow>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledruddtjedgudehkecutefuodetggdotefrod
     ftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthenuceurghilhhouhhtmecu
     fedttdenucesvcftvggtihhpihgvnhhtshculddquddttddmnecujfgurhephffvufffkf
@@ -119,13 +119,13 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledruddtjedgudehkecutefuodetgg
     sehsvghnthdrtghomheqnecukfhppedvudeirddvvdekrdduuddvrddvvdenucfrrghrrg
     hmpehmrghilhhfrhhomhepiihirdihrghnsehsvghnthdrtghomhenucevlhhushhtvghr
     ufhiiigvpeeh
-X-ME-Proxy: <xmx:hzhnXHPGmE_54ehQ-iGCAsWDrmx7-rGWr1beaU4hfP-RzIfOhcWoAA>
-    <xmx:hzhnXIdG6MMGeTPFrAQQyrVmbufoybYBS7ixtxxIF82DFQUI9eJ54A>
-    <xmx:hzhnXJfys44KqfuFyUXK5plLS1mgiUfijyZv_Cl5DXm1e72rOLLBIg>
-    <xmx:hzhnXPDoRW4G0LxQxWr34JfiqChaalxhp-aIEVl1mRYAp9uc9WUsyg>
+X-ME-Proxy: <xmx:iDhnXIcVA6Ahuam9gSqND0WuZ1FlhBdCMM85_rZQGVmgj9NKpynMJQ>
+    <xmx:iDhnXOmtbJnJDecc_JsFaEXuupo5Uj0a_jYxA8ashy4MI679vy3Tbg>
+    <xmx:iDhnXHaf_4p9p-UAF_AtEWgKWeYmXGBPFyHqHhVGt_lbo8Xwn_6Nfw>
+    <xmx:iDhnXOKsMKwGLSAfgTNWDxsGYqN4HIJXX7ZJKPhquvKsmLg6Uvuqtg>
 Received: from nvrsysarch5.nvidia.com (thunderhill.nvidia.com [216.228.112.22])
-	by mail.messagingengine.com (Postfix) with ESMTPA id C8156E4680;
-	Fri, 15 Feb 2019 17:09:09 -0500 (EST)
+	by mail.messagingengine.com (Postfix) with ESMTPA id 27FBCE4511;
+	Fri, 15 Feb 2019 17:09:11 -0500 (EST)
 From: Zi Yan <zi.yan@sent.com>
 To: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
@@ -140,9 +140,9 @@ Cc: Dave Hansen <dave.hansen@linux.intel.com>,
 	Nitin Gupta <nigupta@nvidia.com>,
 	David Nellans <dnellans@nvidia.com>,
 	Zi Yan <ziy@nvidia.com>
-Subject: [RFC PATCH 07/31] mm: deallocate pages with order > MAX_ORDER.
-Date: Fri, 15 Feb 2019 14:08:32 -0800
-Message-Id: <20190215220856.29749-8-zi.yan@sent.com>
+Subject: [RFC PATCH 08/31] mm: add pagechain container for storing multiple pages.
+Date: Fri, 15 Feb 2019 14:08:33 -0800
+Message-Id: <20190215220856.29749-9-zi.yan@sent.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190215220856.29749-1-zi.yan@sent.com>
 References: <20190215220856.29749-1-zi.yan@sent.com>
@@ -157,82 +157,98 @@ List-ID: <linux-mm.kvack.org>
 
 From: Zi Yan <ziy@nvidia.com>
 
-When MAX_ORDER is not set to allocate 1GB pages and 1GB THPs are created
-from in-place promotion, we need this to properly free 1GB THPs.
+When depositing page table pages for 1GB THPs, we need 512 PTE pages +
+1 PMD page. Instead of counting and depositing 513 pages, we can use the
+PMD page as a leader page and chain the rest 512 PTE pages with ->lru.
+This, however, prevents us depositing PMD pages with ->lru, which is
+currently used by depositing PTE pages for 2MB THPs. So add a new
+pagechain container for PMD pages.
 
 Signed-off-by: Zi Yan <ziy@nvidia.com>
 ---
- mm/page_alloc.c | 36 ++++++++++++++++++++++++++++++------
- 1 file changed, 30 insertions(+), 6 deletions(-)
+ include/linux/pagechain.h | 73 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 73 insertions(+)
+ create mode 100644 include/linux/pagechain.h
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9ba2cdc320f2..cfa99bb54bd6 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1287,6 +1287,24 @@ void __meminit reserve_bootmem_region(phys_addr_t start, phys_addr_t end)
- 	}
- }
- 
-+static void destroy_compound_gigantic_page(struct page *page,
-+					unsigned int order)
+diff --git a/include/linux/pagechain.h b/include/linux/pagechain.h
+new file mode 100644
+index 000000000000..be536142b413
+--- /dev/null
++++ b/include/linux/pagechain.h
+@@ -0,0 +1,73 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * include/linux/pagechain.h
++ *
++ * In many places it is efficient to batch an operation up against multiple
++ * pages. A pagechain is a multipage container which is used for that.
++ */
++
++#ifndef _LINUX_PAGECHAIN_H
++#define _LINUX_PAGECHAIN_H
++
++#include <linux/slab.h>
++
++/* 14 pointers + two long's align the pagechain structure to a power of two */
++#define PAGECHAIN_SIZE	13
++
++struct page;
++
++struct pagechain {
++	struct list_head list;
++	unsigned int nr;
++	struct page *pages[PAGECHAIN_SIZE];
++};
++
++static inline void pagechain_init(struct pagechain *pchain)
 +{
-+	int i;
-+	int nr_pages = 1 << order;
-+	struct page *p = page + 1;
-+
-+	atomic_set(compound_mapcount_ptr(page), 0);
-+	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
-+		clear_compound_head(p);
-+		set_page_refcounted(p);
-+	}
-+
-+	set_compound_order(page, 0);
-+	__ClearPageHead(page);
-+	set_page_refcounted(page);
++	pchain->nr = 0;
++	INIT_LIST_HEAD(&pchain->list);
 +}
 +
- static void __free_pages_ok(struct page *page, unsigned int order)
- {
- 	unsigned long flags;
-@@ -1296,11 +1314,16 @@ static void __free_pages_ok(struct page *page, unsigned int order)
- 	if (!free_pages_prepare(page, order, true))
- 		return;
- 
--	migratetype = get_pfnblock_migratetype(page, pfn);
--	local_irq_save(flags);
--	__count_vm_events(PGFREE, 1 << order);
--	free_one_page(page_zone(page), page, pfn, order, migratetype);
--	local_irq_restore(flags);
-+	if (order > MAX_ORDER) {
-+		destroy_compound_gigantic_page(page, order);
-+		free_contig_range(page_to_pfn(page), 1 << order);
-+	} else {
-+		migratetype = get_pfnblock_migratetype(page, pfn);
-+		local_irq_save(flags);
-+		__count_vm_events(PGFREE, 1 << order);
-+		free_one_page(page_zone(page), page, pfn, order, migratetype);
-+		local_irq_restore(flags);
-+	}
- }
- 
- static void __init __free_pages_boot_core(struct page *page, unsigned int order)
-@@ -8281,6 +8304,8 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 	return ret;
- }
- 
-+#endif
++static inline void pagechain_reinit(struct pagechain *pchain)
++{
++	pchain->nr = 0;
++}
 +
- void free_contig_range(unsigned long pfn, unsigned nr_pages)
- {
- 	unsigned int count = 0;
-@@ -8293,7 +8318,6 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
- 	}
- 	WARN(count != 0, "%d pages are still in use!\n", count);
- }
--#endif
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
- /*
++static inline unsigned int pagechain_count(struct pagechain *pchain)
++{
++	return pchain->nr;
++}
++
++static inline unsigned int pagechain_space(struct pagechain *pchain)
++{
++	return PAGECHAIN_SIZE - pchain->nr;
++}
++
++static inline bool pagechain_empty(struct pagechain *pchain)
++{
++	return pchain->nr == 0;
++}
++
++/*
++ * Add a page to a pagechain.  Returns the number of slots still available.
++ */
++static inline unsigned int pagechain_deposit(struct pagechain *pchain, struct page *page)
++{
++	VM_BUG_ON(!pagechain_space(pchain));
++	pchain->pages[pchain->nr++] = page;
++	return pagechain_space(pchain);
++}
++
++static inline struct page *pagechain_withdraw(struct pagechain *pchain)
++{
++	if (!pagechain_count(pchain))
++		return NULL;
++	return pchain->pages[--pchain->nr];
++}
++
++void __init pagechain_cache_init(void);
++struct pagechain *pagechain_alloc(void);
++void pagechain_free(struct pagechain *pchain);
++
++#endif /* _LINUX_PAGECHAIN_H */
++
 -- 
 2.20.1
 
