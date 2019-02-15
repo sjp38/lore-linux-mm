@@ -2,161 +2,178 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D71BAC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 09:28:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 57D9DC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 09:30:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A2C662192D
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 09:27:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A2C662192D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id 1B678206B7
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 09:30:02 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=linaro.org header.i=@linaro.org header.b="T7k/lFrP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B678206B7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3F26A8E0002; Fri, 15 Feb 2019 04:27:50 -0500 (EST)
+	id 949308E0002; Fri, 15 Feb 2019 04:29:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3A2A48E0001; Fri, 15 Feb 2019 04:27:50 -0500 (EST)
+	id 8F9AD8E0001; Fri, 15 Feb 2019 04:29:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 292668E0002; Fri, 15 Feb 2019 04:27:50 -0500 (EST)
+	id 7E7CD8E0002; Fri, 15 Feb 2019 04:29:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C3DE28E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 04:27:49 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id b3so3709032edi.0
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 01:27:49 -0800 (PST)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A5DD8E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 04:29:58 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id w12so3474830wru.20
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 01:29:58 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=YijIa7NE+xsB570xjfMDqrLN8BlzFmSKjX5wGZcY10w=;
-        b=rdzXSDA+uF+APTvu7GE1K/Fkuge+f2gHscTnKPaYDUQfrX3937gKdazccuAZa5WhJ8
-         vXHg8ujNk3KILpAAk4bJDNF6klsAFKncFwXEGxWPCsEP9SABVHatxRobPthWePjiNZza
-         yN8MXPfkjb0iWDwFPVgxWtuuD8oTppwGQ3YWfOQUXvtfTiOvWps24AXfu9ogrhDwqAFu
-         YR7vUQb69lMMZljdJFOFIhZcjFT4GtCVdqOd4RtB58uQfnqUqpwfg2gRvxiHSeSWcmog
-         XSfBCa9/vNQ68PbrBp+U4SKpMnFsB5j54kVhJ/9bxoa4Mnyk3mcdUKUT/Rw3CZ7QNi0T
-         ZH8g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-X-Gm-Message-State: AHQUAuZ+V/MTa/+Pbdfz0YwjbiL4htXEHlOly09iL91wz/t8goxjnini
-	UDY+qcVJ8mwmUr441uMR/CYD5cC0FsKebIf4UX11nwp3wEOm0IZ1ay11OFDfE36CMaUmF0Ad+QI
-	Jx08MZvCMRdsF233tDBNClm3P1hGyurvQtv4kk4M0nyANzmyEmGmb9pL+twBcmVISXQ==
-X-Received: by 2002:a50:9b50:: with SMTP id a16mr6472837edj.135.1550222869267;
-        Fri, 15 Feb 2019 01:27:49 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ibiu1I+aoQItFsUWJA2EZLhGD+wcs3n9zdk8DUAtVJqBC/rIUVZLCp5ntQ1EVvMr/3idwPs
-X-Received: by 2002:a50:9b50:: with SMTP id a16mr6472798edj.135.1550222868266;
-        Fri, 15 Feb 2019 01:27:48 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550222868; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=OEnwGAiuFy8bBpFq9pPytLIcw+y/tAtIcUvB8liOjts=;
+        b=RSCT1kvKZfZjWArDsKSbh69gY9h8F+vLuS5txgUTxu8rZW2L61PFdym+8Rw4JzdaCA
+         COVRPAELvtFvkSHoZ7/wxee4OFbTGGrEwY/WP3ojGzIV1vf+cgsdAA/M6NmK38gzUC/d
+         6ioiXFHzvgxYR3Mh0eJddw5imYOo+vDxC7jjMqftfWMlyeBJDs5CiwzYVcXd693w/zQP
+         jKSLWhECe3mrD1F6Sz1pTE/LWQq3fXWBBFzzK/40uRdnvMzixF+BY9k0nW1/W/5ExOXL
+         OpmybCbbm1OXQAqVGOErRvsrxTtgBG0i0sgVx04/SCL88p4zPvS8eyyrIEgf87Br6h6d
+         K2JQ==
+X-Gm-Message-State: AHQUAuY3zHVqbNajEkOiJKMWqakMdOeO8JuIFLWBJbyeWGbUpnVj8Jbg
+	wXYGVFrz158wDs3dWnptOh5eik0EGiIDWE2DZA8gPCW7BDpgiVUpmdIbyTKwpml1OZxM1kZp9v3
+	oIlvqlbJk3Y8YEXyH1LrAjnmHXhgv+fjl1zy0h4gIJetV/2Pt8IwyMZoDPBkxoyQLcixSjgoK7D
+	gdYDbclScLLOY/4nqsEHcET+RfQgMlYYUBRA5QLYKkgM9PzjUNbbwjcroDVpT3WMwERQLszaP9K
+	zPV5DN1BFvY80EoSd4/Bwq9UhLu7BziLHoVrYei33ju3bnS9+EtE0GCZbm5fmmQ5uDj5gvefV78
+	TEB7QyGGXzvHF/Q+e5dpIR76h1zeZt15KnXl9SKI7yFLIMzIGhX5TLk5bvl0OpPwpl10mtlgOjD
+	j
+X-Received: by 2002:a1c:e911:: with SMTP id q17mr6277141wmc.31.1550222997665;
+        Fri, 15 Feb 2019 01:29:57 -0800 (PST)
+X-Received: by 2002:a1c:e911:: with SMTP id q17mr6277091wmc.31.1550222996730;
+        Fri, 15 Feb 2019 01:29:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550222996; cv=none;
         d=google.com; s=arc-20160816;
-        b=cz1kZdCV7qRuQFIY9STHHwfvyw7OM3+fvkA9EWRHKMQ7TvEDDiwD5SXnWHXv9y0V4D
-         C5i+w0ElXcE3ZIHirpy0zaZFgm4ri6Qw5xW11SR2EO1aQUceG+SDtjNPSewvZC0GdvXY
-         O2EMGtyiNY0M5vwT3KEv7uD3TooBVTk3FXz1XAm6MinfsC0oTTSbhShMHPPdEWSSOYz0
-         j6PPR/WhRPf/HRp/R5o8xnaoAzyQyRVRh5aZ/HFLXAi/S7S9GSdLkfiS2BXQhms1CSfd
-         4TwEccwUAds8ms0W+V6p0oBTO8d0tBT9y+1vv140VRudX5r8IrknQun/dbO1h2Loz0S9
-         xt6A==
+        b=gP9UFh2Y4kGjrGZUZSpLFhoC4ttqgM/7wmHiQ5BJ0q7kbSSdDVtD16NsPICk/z0mY9
+         rEbLb09OQAJANxEw61mwqTV+CYmuhYgGquE3hVJoKpwtVuSjm1SRMDR91IM0yBhSv1N9
+         haR2oINd5LCakGfF7HEcZTQ7AKpP1sKhMreISEQ9BAw7aEw9vct86cfWXVxvRlsHg+CG
+         MrlxnDND6Xqcc9hUDoAJvy+FEtbX4i6JQS/PH+K9fIYJlcHRHlYoZdomCYDnnxk9jaOc
+         /+L0Fp+uMmxtoYsXqEu/Dxm0qyHqG358JDQUa9E1CKCx26HfxCAzqH7yQzDxc/t5bY4b
+         RBrw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=YijIa7NE+xsB570xjfMDqrLN8BlzFmSKjX5wGZcY10w=;
-        b=KZ4sotucb3HGhDRx8XD+QtOSZFS0e6JG+VssH0TU8WKB25HtybSVDOvJEZaF9bVNQd
-         9o/h9Dol9kjjVwMZmFwloiSNds6lgp8C0HzvwgDsrrFn9jyriDLh/OebkBMDI1FuqVFM
-         31v5Ux3nToOq0dE9tc6n9f61cm1TtY/MxEUTfgP1Rh8I9qb2VSleGkDVQSZzJRFX36Ir
-         dSuMrNujEmJAg8G0qmMIvUzl5cYVJzAxiaZvY7HGOvAcJuml87l3O+vta2Wiye/5Bbjv
-         KcugqNYVSlprzdF0RKf5PyAei8OZrHVG2/cDYKXBR5lE+BPvgnVsDA65arQBAMIRf9KJ
-         NmVg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=OEnwGAiuFy8bBpFq9pPytLIcw+y/tAtIcUvB8liOjts=;
+        b=NZJFyMM5etjccw9sS2LbuxTh3zHz08Dpxam+ptB/mjCLh7KgMr2VvwFVbnaSApr/Cb
+         1J9aIg8MiVRYnPJTbFRaenZJac8N/PX3OA0buqYQi52HvYy8SaN9g1zxzDqY35h+vmKA
+         4C5pjPcLD+elnd5FezARgOh6s/T+IEsWtL1VjhO+W61GGA5FREd4UtCN1cQxwjq2sJjz
+         JmCEjHyYXqYeX9UtmTB7NZOIE98sXJ5c/Q/qBRETWV6UFV4P3yTFuknvILOfJG/l2W5g
+         B1UsqY2yjCcTlv5CMkftDW8ziTlju33CO/QO7JI6UifECFd3BuYUDTt5cgGK4SSDoANg
+         D1OQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i18si218985edg.44.2019.02.15.01.27.48
+       dkim=pass header.i=@linaro.org header.s=google header.b="T7k/lFrP";
+       spf=pass (google.com: domain of srinivas.kandagatla@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=srinivas.kandagatla@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 201sor7957552wma.0.2019.02.15.01.29.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 01:27:48 -0800 (PST)
-Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Fri, 15 Feb 2019 01:29:56 -0800 (PST)
+Received-SPF: pass (google.com: domain of srinivas.kandagatla@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 8EAC8ACFA;
-	Fri, 15 Feb 2019 09:27:47 +0000 (UTC)
-Date: Fri, 15 Feb 2019 10:27:46 +0100
-From: Michal Hocko <mhocko@suse.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-mm@kvack.org,
-	akpm@linux-foundation.org, kirill@shutemov.name,
-	kirill.shutemov@linux.intel.com, vbabka@suse.cz,
-	will.deacon@arm.com, dave.hansen@intel.com
-Subject: Re: [RFC 0/4] mm: Introduce lazy exec permission setting on a page
-Message-ID: <20190215092746.GU4525@dhcp22.suse.cz>
-References: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
- <20190213112135.GA9296@c02tf0j2hf1t.cambridge.arm.com>
- <20190213153819.GS4525@dhcp22.suse.cz>
- <0b6457d0-eed1-54e4-789b-d62881bea013@arm.com>
- <20190214083844.GZ4525@dhcp22.suse.cz>
- <20190214101936.GD9296@c02tf0j2hf1t.cambridge.arm.com>
- <20190214122816.GD4525@dhcp22.suse.cz>
- <d2646840-f2f0-3618-889a-54cfef6cb455@arm.com>
+       dkim=pass header.i=@linaro.org header.s=google header.b="T7k/lFrP";
+       spf=pass (google.com: domain of srinivas.kandagatla@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=srinivas.kandagatla@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linaro.org; s=google;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=OEnwGAiuFy8bBpFq9pPytLIcw+y/tAtIcUvB8liOjts=;
+        b=T7k/lFrPu08ytbc7nMtd+y3ezVlYviXSgH/GjkGUn8ZbRquqaQdjmFm0yKqLK1HJso
+         SdHvl/ycFZQAfJ5XN9bbax9QmR8yYjcdiG88aV9AgIiLhk97I54ZtTo80vWURWpylmEv
+         +TVQxf6PfR6ThGQ0f8Z4b6cDgvMRbm+qT6obC2Vu2DVyWVZvaYGDBrpu1Jrui00KWj/M
+         jdvmy6jDhfcHKsTncdJ+lEyEahpUfEHOxdGxVSK4LpuLRaoOHyIN62WOBqLwV7dGWziI
+         iVmnfYQze6Z0cKqQud7HWGtGwqrLp0zcfMq7O1VB+3gAGPqc35ly4nJwJy6w/Gd9DdB8
+         bF9g==
+X-Google-Smtp-Source: AHgI3IbOZP5dvaRZOj/GZU5acXwgT9dklZld6SBAYIpwzRq2os3Cuxm05yYg4C/Ia/IlOYDrdYCqyA==
+X-Received: by 2002:a1c:c003:: with SMTP id q3mr2425904wmf.84.1550222996296;
+        Fri, 15 Feb 2019 01:29:56 -0800 (PST)
+Received: from [192.168.86.34] (cpc89974-aztw32-2-0-cust43.18-1.cable.virginm.net. [86.30.250.44])
+        by smtp.googlemail.com with ESMTPSA id q8sm9089993wrr.9.2019.02.15.01.29.54
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Feb 2019 01:29:54 -0800 (PST)
+Subject: Re: mmotm 2019-02-14-15-22 uploaded (drivers/misc/fastrpc.c)
+To: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org,
+ broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au,
+ linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org
+Cc: robh+dt@kernel.org, Arnd Bergmann <arnd@arndb.de>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+References: <20190214232307.rIB08%akpm@linux-foundation.org>
+ <44c1e917-bd56-cc51-8b65-0bcedfcd5f4a@infradead.org>
+From: Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+Message-ID: <619bd894-5849-1eab-b12b-da76d8d52c4c@linaro.org>
+Date: Fri, 15 Feb 2019 09:29:54 +0000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d2646840-f2f0-3618-889a-54cfef6cb455@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <44c1e917-bd56-cc51-8b65-0bcedfcd5f4a@infradead.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 15-02-19 14:15:58, Anshuman Khandual wrote:
-> On 02/14/2019 05:58 PM, Michal Hocko wrote:
-> > It is hard to assume any further access for migrated pages here. Then we
-> > have an explicit move_pages syscall and I would expect this to be
-> > somewhere in the middle. One would expect that the caller knows why the
-> > memory is migrated and it will be used but again, we cannot really
-> > assume anything.
+Thanks for Reporting this Randy,
+I will send a patch to fix this!
+
+On 15/02/2019 03:20, Randy Dunlap wrote:
+> On 2/14/19 3:23 PM, akpm@linux-foundation.org wrote:
+>> The mm-of-the-moment snapshot 2019-02-14-15-22 has been uploaded to
+>>
+>>     http://www.ozlabs.org/~akpm/mmotm/
+>>
+>> mmotm-readme.txt says
+>>
+>> README for mm-of-the-moment:
+>>
+>> http://www.ozlabs.org/~akpm/mmotm/
+>>
+>> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+>> more than once a week.
+>>
+>> You will need quilt to apply these patches to the latest Linus release (5.x
+>> or 5.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+>> http://ozlabs.org/~akpm/mmotm/series
 > 
-> What if the caller knows that it wont be used ever again or in near future
-> and hence trying to migrate to a different node which has less expensive and
-> slower memory. Kernel should not assume either way on it but can decide to
-> be conservative in spending time in preparing for future exec faults.
+> on x86_64:
 > 
-> But being conservative during migration risks additional exec faults which
-> would have been avoided if exec permission should have stayed on followed
-> by an I-cache invalidation. Deferral of the I-cache invalidation requires
-> removing the exec permission completely (unless there is some magic which
-> I am not aware about) i.e unmapping page for exec permission and risking
-> an exec fault next time around.
+> when CONFIG_DMA_SHARED_BUFFER is not set:
 > 
-> This problem gets particularly amplified for mixed permission (WRITE | EXEC)
-> user space mappings where things like NUMA migration, compaction etc probably
-> gets triggered by write faults and additional exec permission there never
-> really gets used.
-
-Please quantify that and provide us with some _data_
-
-> > This would suggest that this depends on the migration reason quite a
-> > lot. So I would really like to see a more comprehensive analysis of
-> > different workloads to see whether this is really worth it.
+> ld: drivers/misc/fastrpc.o: in function `fastrpc_free_map':
+> fastrpc.c:(.text+0xbe): undefined reference to `dma_buf_unmap_attachment'
+> ld: fastrpc.c:(.text+0xcb): undefined reference to `dma_buf_detach'
+> ld: fastrpc.c:(.text+0xd4): undefined reference to `dma_buf_put'
+> ld: drivers/misc/fastrpc.o: in function `fastrpc_map_create':
+> fastrpc.c:(.text+0xb2b): undefined reference to `dma_buf_get'
+> ld: fastrpc.c:(.text+0xb47): undefined reference to `dma_buf_attach'
+> ld: fastrpc.c:(.text+0xb61): undefined reference to `dma_buf_map_attachment'
+> ld: fastrpc.c:(.text+0xc36): undefined reference to `dma_buf_put'
+> ld: fastrpc.c:(.text+0xc48): undefined reference to `dma_buf_detach'
+> ld: drivers/misc/fastrpc.o: in function `fastrpc_device_ioctl':
+> fastrpc.c:(.text+0x1756): undefined reference to `dma_buf_get'
+> ld: fastrpc.c:(.text+0x1776): undefined reference to `dma_buf_put'
+> ld: fastrpc.c:(.text+0x1780): undefined reference to `dma_buf_put'
+> ld: fastrpc.c:(.text+0x1abf): undefined reference to `dma_buf_export'
+> ld: fastrpc.c:(.text+0x1ae7): undefined reference to `dma_buf_fd'
+> ld: fastrpc.c:(.text+0x1cb5): undefined reference to `dma_buf_put'
+> ld: fastrpc.c:(.text+0x1cca): undefined reference to `dma_buf_put'
 > 
-> Sure. Could you please give some more details on how to go about this and
-> what specifically you are looking for ?
-
-You are proposing an optimization without actually providing any
-justification. The overhead is not removed it is just shifted from one
-path to another. So you should have some pretty convincing arguments
-to back that shift as a general win. You can go an test on wider range
-of workloads and isolate the worst/best case behavior. I fully realize
-that this is tedious. Another option would be to define conditions when
-the optimization is going to be a huge win and have some convincing
-arguments that many/most workloads are falling into that category while
-pathological ones are not suffering much.
-
-This is no different from any other optimizations/heuristics we have.
-
-Btw. have you considered to have this optimization conditional based on
-the migration reason or vma flags?
--- 
-Michal Hocko
-SUSE Labs
+> 
+> 
+--srini
 
