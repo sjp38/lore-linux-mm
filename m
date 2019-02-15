@@ -2,2797 +2,344 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E6232C4360F
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:04:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C0064C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:09:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5E67320645
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:04:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5D7A4222D0
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:09:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="Im06plRY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E67320645
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (2048-bit key) header.d=sent.com header.i=@sent.com header.b="lJhJmIht";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="iLtaEl2d"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5D7A4222D0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=sent.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B5F2B8E0007; Fri, 15 Feb 2019 17:03:55 -0500 (EST)
+	id F24168E0003; Fri, 15 Feb 2019 17:09:06 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9FA408E0001; Fri, 15 Feb 2019 17:03:55 -0500 (EST)
+	id ED4198E0001; Fri, 15 Feb 2019 17:09:06 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7B0278E0007; Fri, 15 Feb 2019 17:03:55 -0500 (EST)
+	id DC34B8E0003; Fri, 15 Feb 2019 17:09:06 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 39FA68E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:03:55 -0500 (EST)
-Received: by mail-yb1-f198.google.com with SMTP id m2so6707987ybp.20
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:03:55 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B287D8E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:09:06 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id k5so10435961qte.0
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:09:06 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
-         :references:mime-version:content-transfer-encoding:dkim-signature;
-        bh=JHbAHsw3fP7W/+/16hxE96Ofr24vKouSy6Uk8xAj36k=;
-        b=DNoyaFV+clLyiAVRVl5Xxu/03pcc+Q5yr+xcPSBvt/qxzh7nMztUhH39oYK1V1zvFI
-         9vqEi84Bpkh/LCgdrPEdXX4Hrnh6pFzfa6b/hrLd+joSy/WbERMOsFoLnaTsnu/y9rqy
-         lGj4xL9itqyXxlvHm5R2TegbJvPaYx9osdJ8xxMbnZXZ8sgS6jy8pK6QS5vXn92VvNlB
-         5xvPeWhLlqaIrkRcGLMxnLGCPCv6g/C+qDkZcoNqiZG9zgN/9Li5Q1z9Dwle936zuIjZ
-         bJT5Fzn/UiQuVyKd/krBp7VgahQloPdmsmgUgCxiNsIEj9w36IO1cuavrrYe64rIvWH6
-         GpVQ==
-X-Gm-Message-State: AHQUAuatnHus6sdjNzbjFGr9+BKqqeguWgYenumd/hjxMAmdL2Whr69v
-	VE22YPo1vA2BYzCIOyPhH71MLmpGZw+wR/4dEzScvZiyk9ceRp4Dv+Cgu+AcvSHtpfM8ITSFv8G
-	6rKIlQVI7cbEJzp3tSE7FQpNjYGs5HWM6U2U0JanAEpF59kgM0BMu7o8Kc+xjPUB8Pg==
-X-Received: by 2002:a25:6650:: with SMTP id z16mr10485155ybm.394.1550268234742;
-        Fri, 15 Feb 2019 14:03:54 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZdcPqAg4Cexpw+EnwtiXhhMmoTeVT0gCSRzqc4Z5lICcIylpjCXv6ypzCgdk/RGncUuiJP
-X-Received: by 2002:a25:6650:: with SMTP id z16mr10484854ybm.394.1550268230658;
-        Fri, 15 Feb 2019 14:03:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550268230; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :date:message-id:reply-to:mime-version:content-transfer-encoding;
+        bh=nLJfuZTbeeI/jMZqph7TlMT1OBBbnm2vTZXn8g4L1p8=;
+        b=q5bNxSH7mqqLk26P0d2LlW6Qs/Jn6dvKoQW//ieb0gD6U3E3V5xfrtb7gpshQ6imfe
+         +qQflhGfQ20jv9HozN4ALUtqQBYnfMiU2HZW+e/fRXj66kEII8ECHYomPij/34vhIKju
+         51eMbDff7qif2SZ0PbNlcJNrmfQ8mvP5W/0orlGtiKPIzPkN8vuGDJUc5HqmtBt1ZLAA
+         dspbzdcJ1weMEX8qqaFvPWu4jLoYEc9Ma/nKC+im6yIzLEAX+SjiiR+aD/xToTzZNNmx
+         6T40EugAQFF+l3pGzSJeOPeE8BDl8c1JAmaOScCMVCAztHZEFsgLk1lLge2WyYGR3HWj
+         dhVA==
+X-Gm-Message-State: AHQUAuZqiZuIo1ZCogr7vHqcn1ULi9zVcTY2CabNu2fo+twLCk+/bDlC
+	zeILp3//9Zbsv0A/x90myLRCp/8tXZ3PQCP37Hv4qA4q5dnaEckh6zWRBV95vRCpMv8XOEqlF8B
+	lu9Yt/M7Iio4MNo7mnZQpIGySqH050gwhNIj4g2CvS36KhkleI4rN/XlTjc286BxDxQ==
+X-Received: by 2002:aed:37e7:: with SMTP id j94mr9475411qtb.282.1550268546439;
+        Fri, 15 Feb 2019 14:09:06 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZMf6lTpmiSww4BsaNM0tfNlcTxXyFib2zKdB4ASXGZhptv6DATJX3iGxtIQOrf/csbE4bm
+X-Received: by 2002:aed:37e7:: with SMTP id j94mr9475343qtb.282.1550268545380;
+        Fri, 15 Feb 2019 14:09:05 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550268545; cv=none;
         d=google.com; s=arc-20160816;
-        b=duKw/jfJmWRs5Z2x2O7YaD1qvp7nlPZJ1nSNsbgodu1zyf+UY0ylKd4RT1PQRr01fT
-         Wno4qB9KdWrhwkBu+xmwdkIkmDyyfXZqRWRaoCc+TcIeSMG8rB5NCot2JbRRUrDjLd9w
-         zcyPaSs2RA5f+TxPGU/2ga3xIob8SCnllBHm0EteRu+SjKcpKHiDaZyxTEttc0zpenZc
-         BwTTqy4552Pn2NI1OvA71Ews7tItY16LWmNvFJ3kjzwrU3sfYomnZmYKGq4LVgbtp+QW
-         ib8uwExQGO2Zu5+bbgD0ZJP5WvQH4YuyDZkTayhv66FBnfJfaBiV+Z1rIRWRhRRxaF6u
-         fyzg==
+        b=LXNIWUePo/4moP19rAXvGGhrRG6dEV1Xm9tCf8b+/0vPxfLtxKUWsYnuvH7LoF4zrq
+         /7SjqNQJLbit5GXqeMK7zurPWunW0Pmst8DwbRSLhSSuVyYnwjr7spWo5wgk5g8XYavf
+         q5oBlKjATQYJO3HVYrP6FjDossAO7qjQmSz8wltctam8pqtz4QbNN9NxfsK0nj2EnwWq
+         BVjz941+fQ5ptU24xQ9fduWCncxcyQPF/WglNkdsryKY6tRIB5NEzzNrcGz1QmhKA8xg
+         PkFY/m4VWY4mGlgpBKuLY6ZAdpXN/oVtqjlBezncjk94CegtJYItG+blTxVqOp5ORAZJ
+         UdGw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:mime-version:references
-         :in-reply-to:message-id:date:subject:cc:to:from;
-        bh=JHbAHsw3fP7W/+/16hxE96Ofr24vKouSy6Uk8xAj36k=;
-        b=R2JofmtZWVQvbyyNefQxfOP6xMOD3jw00Vk+vrZ+t1cpZKWV6dLwBWdt4eWV4od6S0
-         nx55BiRzhb4d8XYAsIs9xd13TLTzTntNAdsASY7K/wau/Z0oTZX549xjboOfoXe3JhXx
-         x6HNI+8bIpLWYIILMnc08Cut3WHqh0XRFO7xxNzonu/pm4diAK6sRqNNj5vcWngxCYoM
-         BQJRY5dqWPjz+dL/8VJ5e18DEbwURoS0knJ/Sb4GUnDVZmilUseQsJPLczHn5JHpWFZA
-         HU2I5COx0cWjFFN5+ICvXDtX21aB/qjs2mjyMbSelOQdnwOQgSxtZ0J3c3A0YZrrq+5+
-         PagQ==
+        h=content-transfer-encoding:mime-version:reply-to:message-id:date
+         :subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=nLJfuZTbeeI/jMZqph7TlMT1OBBbnm2vTZXn8g4L1p8=;
+        b=VDqF/iGlQRckNVy4Q4CXwuTwkrtIzKA6ZK9vpWUr2p1nDjjSTr2aSr8Fza66aw9Cqf
+         0umqd53ZrKn08Vx00Gy/gCevXOqF7M2/dRUw+yDcBHGQ0mQWuVzGxcd+EcT7IOVoV/V+
+         VyblqX13UDlnLretMjcip87czWxCVgsYNd7FQ3r8/W0VeiRo6g57letUSNrSCqSidvmr
+         wJV1jeq11g7GyzT5c2OLnpO94Jd/USNIBkdzhQji1xxMfFE4rzT6l4qzUYaGxiHyPxdv
+         IgN4mTclBPZjKYPJi6WhGki6NseKK8pr74e26XAwMN1JwqvvC59DaB0pY/xNPZ3tNA3i
+         57fg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Im06plRY;
-       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id g12si4125142ybk.465.2019.02.15.14.03.50
+       dkim=pass header.i=@sent.com header.s=fm2 header.b=lJhJmIht;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=iLtaEl2d;
+       spf=pass (google.com: domain of zi.yan@sent.com designates 64.147.123.25 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
+Received: from wout2-smtp.messagingengine.com (wout2-smtp.messagingengine.com. [64.147.123.25])
+        by mx.google.com with ESMTPS id q90si4274131qvq.51.2019.02.15.14.09.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 14:03:50 -0800 (PST)
-Received-SPF: pass (google.com: domain of ziy@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Fri, 15 Feb 2019 14:09:05 -0800 (PST)
+Received-SPF: pass (google.com: domain of zi.yan@sent.com designates 64.147.123.25 as permitted sender) client-ip=64.147.123.25;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Im06plRY;
-       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c6737210000>; Fri, 15 Feb 2019 14:03:13 -0800
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Fri, 15 Feb 2019 14:03:49 -0800
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Fri, 15 Feb 2019 14:03:49 -0800
-Received: from nvrsysarch5.nvidia.com (172.20.13.39) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Fri, 15 Feb
- 2019 22:03:48 +0000
-From: Zi Yan <ziy@nvidia.com>
-To: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>
-CC: Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko
-	<mhocko@kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>,
-	Mel Gorman <mgorman@techsingularity.net>, John Hubbard <jhubbard@nvidia.com>,
-	Mark Hairgrove <mhairgrove@nvidia.com>, Nitin Gupta <nigupta@nvidia.com>,
-	David Nellans <dnellans@nvidia.com>, Zi Yan <ziy@nvidia.com>
-Subject: [RFC PATCH 04/31] mm: add mem_defrag functionality.
-Date: Fri, 15 Feb 2019 14:03:07 -0800
-Message-ID: <20190215220334.29298-5-ziy@nvidia.com>
+       dkim=pass header.i=@sent.com header.s=fm2 header.b=lJhJmIht;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=iLtaEl2d;
+       spf=pass (google.com: domain of zi.yan@sent.com designates 64.147.123.25 as permitted sender) smtp.mailfrom=zi.yan@sent.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=sent.com
+Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
+	by mailout.west.internal (Postfix) with ESMTP id 68367310A;
+	Fri, 15 Feb 2019 17:09:03 -0500 (EST)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute3.internal (MEProxy); Fri, 15 Feb 2019 17:09:04 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=sent.com; h=from
+	:to:cc:subject:date:message-id:reply-to:mime-version
+	:content-type:content-transfer-encoding; s=fm2; bh=nLJfuZTbeeI/j
+	MZqph7TlMT1OBBbnm2vTZXn8g4L1p8=; b=lJhJmIhtXKxj2OBuYbhBiTyteW+N9
+	KRW/qhZXBI1GR97eDddUzS1dr6tFFc1El4qrqqEfyll37L3E8jTmPes1HG+jyqir
+	DD/+UW1G7IFI7mLoGmm5HFW9bPZHis3FqQKsGfI2dQKIfe2srnNinRYVQqdlY49n
+	QMHBW0m+/3Ha4f0BU9wB+bDnA/Wy6ScdAup+GO2KOiXFVLPpWTrhRd4linbl3P8I
+	2NQpGnwGLUcZ4Ri/Tdn7hS1h+DCoGP6gxDAah5WInYqflx3mCW21Tt0Q7qcdiUSb
+	dEt2i191IfzCljTukXx9FpDz7xJfICVw0cIDTjOM1yucDrkXcCFk/TuFQ==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-transfer-encoding:content-type
+	:date:from:message-id:mime-version:reply-to:subject:to
+	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
+	fm2; bh=nLJfuZTbeeI/jMZqph7TlMT1OBBbnm2vTZXn8g4L1p8=; b=iLtaEl2d
+	nHri1/AUiqqPILSRtY9+NFSN/qf0sWFNnIZUCUEuGFJ6jw9Fh2MoFCeAkrYYzF+D
+	dmotJSb4w3QTkfifrA6Boilbm5sfEvS2Aoo/d2JBqZI2+opXUr4+5p6KYmzSQBSB
+	J99RTGL9fCTsrUhfC2qLOscjEP23jW9ZCuuXwETHP8afWNJctTqIjoHef7xkDXif
+	YmV2ASUW4l438w7e2xB5FGqi1eWb1OLxJknX9ArbgipGS03hSxxmsCoCVkxNtAfk
+	N/8EboMUggxSkaOuBu752xmoRAMjEQUhPaSWR1mReLRPSPo1qbo+QUUqivwfKj8o
+	V6G/LT5l71nADg==
+X-ME-Sender: <xms:fThnXDzfKQbdTyKydaU9obQvU4uc81rXE5qc6kB82ztEurcF5LXlMA>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedtledruddtjedgudehkecutefuodetggdotefrod
+    ftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfhuthenuceurghilhhouhhtmecu
+    fedttdenucesvcftvggtihhpihgvnhhtshculddquddttddmnecujfgurhephffvufffkf
+    forhggtgfgsehtkeertdertdejnecuhfhrohhmpegkihcujggrnhcuoeiiihdrhigrnhes
+    shgvnhhtrdgtohhmqeenucffohhmrghinhepnhhvihguihgrrdgtohhmpdhlfihnrdhnvg
+    htnecukfhppedvudeirddvvdekrdduuddvrddvvdenucfrrghrrghmpehmrghilhhfrhho
+    mhepiihirdihrghnsehsvghnthdrtghomhenucevlhhushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:fThnXPjp2LL14gqp36MJaugX9hSh0xfQHU6JjKOzCr_FLsF4jOx4dg>
+    <xmx:fThnXIVb24qmfrjSMP9MSjomclCUDJdztYeq4EI5x57wvlu4VAILTQ>
+    <xmx:fThnXB1_Ovd_cChVm0T4JfiPobIis7TCX4xF6uqR-CJe6U04PnC-Qg>
+    <xmx:fjhnXJ_skfITWrDlrwIrrhAYMzo2NaEJnJ9GDqg4XBopGxA36Y_m-Q>
+Received: from nvrsysarch5.nvidia.com (thunderhill.nvidia.com [216.228.112.22])
+	by mail.messagingengine.com (Postfix) with ESMTPA id 0F667E4597;
+	Fri, 15 Feb 2019 17:08:59 -0500 (EST)
+From: Zi Yan <zi.yan@sent.com>
+To: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>,
+	Michal Hocko <mhocko@kernel.org>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Mark Hairgrove <mhairgrove@nvidia.com>,
+	Nitin Gupta <nigupta@nvidia.com>,
+	David Nellans <dnellans@nvidia.com>,
+	Zi Yan <ziy@nvidia.com>
+Subject: [RFC PATCH 00/31] Generating physically contiguous memory after page allocation
+Date: Fri, 15 Feb 2019 14:08:25 -0800
+Message-Id: <20190215220856.29749-1-zi.yan@sent.com>
 X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190215220334.29298-1-ziy@nvidia.com>
-References: <20190215220334.29298-1-ziy@nvidia.com>
+Reply-To: ziy@nvidia.com
 MIME-Version: 1.0
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1550268193; bh=JHbAHsw3fP7W/+/16hxE96Ofr24vKouSy6Uk8xAj36k=;
-	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
-	 In-Reply-To:References:MIME-Version:X-Originating-IP:
-	 X-ClientProxiedBy:Content-Transfer-Encoding:Content-Type;
-	b=Im06plRYbCrzGzStogBUI+vA45mc6CSX8iksUrHkZnElFDFUPVYrHDMEQM0/GbWrg
-	 0RCuz00NvXybuZ7UVi2Pjswgj/fcVbne+++csWYLlX4SpMEjJPX4c1W9fl/l4K93FC
-	 MxA8sW9KbxIwMG0VX8RVEClAkhmKY12HZFMXrdD+GYAC0clf9XMYyu5yUcQoY+Bsw/
-	 N7CmOXsU7QECeXXGq1HJfjdPlKo5tfQSn1Ek8MDmu8Z+ovwAX3xP6Yyh7AiAfE8MjZ
-	 J6HAZCx+srrCPWOf9fnJuRnCoVWc1HNapG0U8y6VUyQkeH48pty8Bv1WBCMqVknaJE
-	 1zjU4+tKlbjsw==
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Create contiguous physical memory regions by migrating/exchanging pages.
+From: Zi Yan <ziy@nvidia.com>
 
-1. It scans all VMAs in one process and determines an anchor pair
-(VPN, PFN) for each VMA.
-2. Then, it migrates/exchanges pages in each VMA to make
-them aligned with the anchor pair.
+Hi all,
 
-At the end of day, a physically contiguous region should be created for
-each VMA in the physical address range [PFN, PFN + VMA size).
+This patchset produces physically contiguous memory by moving in-use pages
+without allocating any new pages. It targets two scenarios that complements
+khugepaged use cases: 1) avoiding page reclaim and memory compaction when the
+system is under memory pressure because this patchset does not allocate any new
+pages, 2) generating pages larger than 2^MAX_ORDER without changing the buddy
+allocator.
 
-Signed-off-by: Zi Yan <ziy@nvidia.com>
----
+To demonstrate its use, I add very basic 1GB THP support and enable promoting
+512 2MB THPs to a 1GB THP in my patchset. Promoting 512 4KB pages to a 2MB
+THP is also implemented.
+
+The patches are on top of v5.0-rc5. They are posted as part of my upcoming
+LSF/MM proposal.
+
+Motivation 
+---- 
+
+The goal of this patchset is to provide alternative way of generating physically
+contiguous memory and making it available as arbitrary sized large pages. This
+patchset generates physically contiguous memory/arbitrary size pages after pages
+are allocated by moving virtually-contiguous pages to become physically
+contiguous at any size, thus it does not require changes to memory allocators.
+On the other hand, it works only for moveable pages, so it also faces the same
+fragmentation issues as memory compaction, i.e., if non-moveable pages spread
+across the entire memory, this patchset can only generate contiguity between
+any two non-moveable pages. 
+
+Large pages and physically contiguous memory are important to devices, such as
+GPUs, FPGAs, NICs and RDMA controllers, because they can often achieve better
+performance when operating on large pages. The same can be said of CPU
+performance, of course, but there is an important difference: GPUs and
+high-throughput devices often take a more severe performance hit, in the event
+of a TLB miss and subsequent page table walks, as compared to a CPU. The effect
+is sufficiently large that such devices *really* want a highly reliable way to
+allocate large pages to minimize the number of potential TLB misses and the time
+spent on the induced page table walks. 
+
+Vendors (like Oracle, Mellanox, IBM, NVIDIA) are interested in generating
+physically contiguous memory beyond THP sizes and looking for solutions [1],[2],[3].
+This patchset provides an alternative approach, compared to allocating
+physically contiguous memory at page allocation time, to generating physically
+contiguous memory after pages are allocated. This approach can avoid page
+reclaim and memory compaction, which happen during the process of page
+allocation, but still produces comparable physically contiguous memory. 
+
+In terms of THPs, it helps, but we are interested in even larger contiguous
+ranges (or page size support) to further reduce the address translation overheads.
+With this patchset, we can generate pages larger than PMD-level THPs without
+requiring MAX_ORDER changes in the buddy allocators. 
+
+
+Patch structure 
+---- 
+
+The patchset I developed to generate physically contiguous memory/arbitrary
+sized pages merely moves pages around. There are three components in this
+patchset:
+
+1) a new page migration mechanism, called exchange pages, that exchanges the
+content of two in-use pages instead of performing two back-to-back page
+migration. It saves on overheads and avoids page reclaim and memory compaction
+in the page allocation path, although it is not strictly required if enough
+free memory is available in the system.
+
+2) a new mechanism that utilizes both page migration and exchange pages to
+produce physically contiguous memory/arbitrary sized pages without allocating
+any new pages, unlike what khugepaged does. It works on per-VMA basis, creating
+physically contiguous memory out of each VMA, which is virtually contiguous.
+A simple range tree is used to ensure no two VMAs are overlapping with each
+other in the physical address space.
+
+3) a use case of the new physically contiguous memory producing mechanism that
+generates 1GB THPs by migrating and exchanging pages and promoting 512
+contiguous 2MB THPs to a 1GB THP, although even larger physically contiguous
+memory ranges can be generated. The 1GB THP implement is very basic, which can
+handle 1GB THP faults when buddy allocator is modified to allocate 1GB pages,
+support 1GB THP split to 2MB THP and in-place promotion from 2MB THP to 1GB THP,
+and PMD/PTE-mapped 1GB THP. These are not fully tested.
+
+
+[1] https://lwn.net/Articles/736170/ 
+[2] https://lwn.net/Articles/753167/ 
+[3] https://blogs.nvidia.com/blog/2018/06/08/worlds-fastest-exascale-ai-supercomputer-summit/ 
+
+Zi Yan (31):
+  mm: migrate: Add exchange_pages to exchange two lists of pages.
+  mm: migrate: Add THP exchange support.
+  mm: migrate: Add tmpfs exchange support.
+  mm: add mem_defrag functionality.
+  mem_defrag: split a THP if either src or dst is THP only.
+  mm: Make MAX_ORDER configurable in Kconfig for buddy allocator.
+  mm: deallocate pages with order > MAX_ORDER.
+  mm: add pagechain container for storing multiple pages.
+  mm: thp: 1GB anonymous page implementation.
+  mm: proc: add 1GB THP kpageflag.
+  mm: debug: print compound page order in dump_page().
+  mm: stats: Separate PMD THP and PUD THP stats.
+  mm: thp: 1GB THP copy on write implementation.
+  mm: thp: handling 1GB THP reference bit.
+  mm: thp: add 1GB THP split_huge_pud_page() function.
+  mm: thp: check compound_mapcount of PMD-mapped PUD THPs at free time.
+  mm: thp: split properly PMD-mapped PUD THP to PTE-mapped PUD THP.
+  mm: page_vma_walk: teach it about PMD-mapped PUD THP.
+  mm: thp: 1GB THP support in try_to_unmap().
+  mm: thp: split 1GB THPs at page reclaim.
+  mm: thp: 1GB zero page shrinker.
+  mm: thp: 1GB THP follow_p*d_page() support.
+  mm: support 1GB THP pagemap support.
+  sysctl: add an option to only print the head page virtual address.
+  mm: thp: add a knob to enable/disable 1GB THPs.
+  mm: thp: promote PTE-mapped THP to PMD-mapped THP.
+  mm: thp: promote PMD-mapped PUD pages to PUD-mapped PUD pages.
+  mm: vmstats: add page promotion stats.
+  mm: madvise: add madvise options to split PMD and PUD THPs.
+  mm: mem_defrag: thp: PMD THP and PUD THP in-place promotion support.
+  sysctl: toggle to promote PUD-mapped 1GB THP or not.
+
+ arch/x86/Kconfig                       |   15 +
  arch/x86/entry/syscalls/syscall_64.tbl |    1 +
+ arch/x86/include/asm/pgalloc.h         |   69 +
+ arch/x86/include/asm/pgtable.h         |   20 +
+ arch/x86/include/asm/sparsemem.h       |    4 +-
+ arch/x86/mm/pgtable.c                  |   38 +
+ drivers/base/node.c                    |    3 +
  fs/exec.c                              |    4 +
+ fs/proc/meminfo.c                      |    2 +
+ fs/proc/page.c                         |    2 +
+ fs/proc/task_mmu.c                     |   47 +-
+ include/asm-generic/pgtable.h          |  110 +
+ include/linux/huge_mm.h                |   78 +-
+ include/linux/khugepaged.h             |    1 +
+ include/linux/ksm.h                    |    5 +
  include/linux/mem_defrag.h             |   60 +
- include/linux/mm.h                     |   12 +
- include/linux/mm_types.h               |    4 +
- include/linux/sched/coredump.h         |    3 +
+ include/linux/memcontrol.h             |    5 +
+ include/linux/mm.h                     |   34 +
+ include/linux/mm_types.h               |    5 +
+ include/linux/mmu_notifier.h           |   13 +
+ include/linux/mmzone.h                 |    1 +
+ include/linux/page-flags.h             |   79 +-
+ include/linux/pagechain.h              |   73 +
+ include/linux/rmap.h                   |   10 +-
+ include/linux/sched/coredump.h         |    4 +
+ include/linux/swap.h                   |    2 +
  include/linux/syscalls.h               |    3 +
- include/linux/vm_event_item.h          |   23 +
- include/uapi/asm-generic/mman-common.h |    3 +
- kernel/fork.c                          |    9 +
- kernel/sysctl.c                        |   79 +-
- mm/Makefile                            |    1 +
+ include/linux/vm_event_item.h          |   33 +
+ include/uapi/asm-generic/mman-common.h |   15 +
+ include/uapi/linux/kernel-page-flags.h |    2 +
+ kernel/events/uprobes.c                |    4 +-
+ kernel/fork.c                          |   14 +
+ kernel/sysctl.c                        |  101 +-
+ mm/Makefile                            |    2 +
  mm/compaction.c                        |   17 +-
- mm/huge_memory.c                       |    4 +
- mm/internal.h                          |   28 +
- mm/khugepaged.c                        |    1 +
- mm/madvise.c                           |   15 +
- mm/mem_defrag.c                        | 1782 ++++++++++++++++++++++++
- mm/memory.c                            |    7 +
+ mm/debug.c                             |    8 +-
+ mm/exchange.c                          |  878 +++++++
+ mm/filemap.c                           |    8 +
+ mm/gup.c                               |   60 +-
+ mm/huge_memory.c                       | 3360 ++++++++++++++++++++----
+ mm/hugetlb.c                           |    4 +-
+ mm/internal.h                          |   46 +
+ mm/khugepaged.c                        |    7 +-
+ mm/ksm.c                               |   39 +-
+ mm/madvise.c                           |  121 +
+ mm/mem_defrag.c                        | 1941 ++++++++++++++
+ mm/memcontrol.c                        |   13 +
+ mm/memory.c                            |   55 +-
+ mm/migrate.c                           |   14 +-
  mm/mmap.c                              |   29 +
- mm/page_alloc.c                        |    4 +-
- mm/vmstat.c                            |   21 +
- 22 files changed, 2096 insertions(+), 14 deletions(-)
+ mm/page_alloc.c                        |  108 +-
+ mm/page_vma_mapped.c                   |  129 +-
+ mm/pgtable-generic.c                   |   78 +-
+ mm/rmap.c                              |  283 +-
+ mm/swap.c                              |   38 +
+ mm/swap_slots.c                        |    2 +
+ mm/swapfile.c                          |    4 +-
+ mm/userfaultfd.c                       |    2 +-
+ mm/util.c                              |    7 +
+ mm/vmscan.c                            |   55 +-
+ mm/vmstat.c                            |   32 +
+ 61 files changed, 7452 insertions(+), 745 deletions(-)
  create mode 100644 include/linux/mem_defrag.h
+ create mode 100644 include/linux/pagechain.h
+ create mode 100644 mm/exchange.c
  create mode 100644 mm/mem_defrag.c
 
-diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscal=
-ls/syscall_64.tbl
-index f0b1709a5ffb..374c11e3cf80 100644
---- a/arch/x86/entry/syscalls/syscall_64.tbl
-+++ b/arch/x86/entry/syscalls/syscall_64.tbl
-@@ -343,6 +343,7 @@
- 332	common	statx			__x64_sys_statx
- 333	common	io_pgetevents		__x64_sys_io_pgetevents
- 334	common	rseq			__x64_sys_rseq
-+335	common	scan_process_memory		__x64_sys_scan_process_memory
-=20
- #
- # x32-specific system call numbers start at 512 to avoid cache impact
-diff --git a/fs/exec.c b/fs/exec.c
-index fb72d36f7823..b71b9d305d7d 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -1010,7 +1010,11 @@ static int exec_mmap(struct mm_struct *mm)
- {
- 	struct task_struct *tsk;
- 	struct mm_struct *old_mm, *active_mm;
-+	int move_mem_defrag =3D current->mm ?
-+		test_bit(MMF_VM_MEM_DEFRAG_ALL, &current->mm->flags):0;
-=20
-+	if (move_mem_defrag && mm)
-+		set_bit(MMF_VM_MEM_DEFRAG_ALL, &mm->flags);
- 	/* Notify parent that we're no longer interested in the old VM */
- 	tsk =3D current;
- 	old_mm =3D current->mm;
-diff --git a/include/linux/mem_defrag.h b/include/linux/mem_defrag.h
-new file mode 100644
-index 000000000000..43954a316752
---- /dev/null
-+++ b/include/linux/mem_defrag.h
-@@ -0,0 +1,60 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * mem_defrag.h Memory defragmentation function.
-+ *
-+ * Copyright (C) 2019 Zi Yan <ziy@nvidia.com>
-+ *
-+ *
-+ */
-+#ifndef _LINUX_KMEM_DEFRAGD_H
-+#define _LINUX_KMEM_DEFRAGD_H
-+
-+#include <linux/sched/coredump.h> /* MMF_VM_MEM_DEFRAG */
-+
-+#define MEM_DEFRAG_SCAN				0
-+#define MEM_DEFRAG_MARK_SCAN_ALL	1
-+#define MEM_DEFRAG_CLEAR_SCAN_ALL	2
-+#define MEM_DEFRAG_DEFRAG			3
-+#define MEM_DEFRAG_CONTIG_SCAN		5
-+
-+enum mem_defrag_action {
-+	MEM_DEFRAG_FULL_STATS =3D 0,
-+	MEM_DEFRAG_DO_DEFRAG,
-+	MEM_DEFRAG_CONTIG_STATS,
-+};
-+
-+extern int kmem_defragd_always;
-+
-+extern int __kmem_defragd_enter(struct mm_struct *mm);
-+extern void __kmem_defragd_exit(struct mm_struct *mm);
-+extern int memdefrag_madvise(struct vm_area_struct *vma,
-+		     unsigned long *vm_flags, int advice);
-+
-+static inline int kmem_defragd_fork(struct mm_struct *mm,
-+		struct mm_struct *oldmm)
-+{
-+	if (test_bit(MMF_VM_MEM_DEFRAG, &oldmm->flags))
-+		return __kmem_defragd_enter(mm);
-+	return 0;
-+}
-+
-+static inline void kmem_defragd_exit(struct mm_struct *mm)
-+{
-+	if (test_bit(MMF_VM_MEM_DEFRAG, &mm->flags))
-+		__kmem_defragd_exit(mm);
-+}
-+
-+static inline int kmem_defragd_enter(struct vm_area_struct *vma,
-+				   unsigned long vm_flags)
-+{
-+	if (!test_bit(MMF_VM_MEM_DEFRAG, &vma->vm_mm->flags))
-+		if (((kmem_defragd_always ||
-+		     ((vm_flags & VM_MEMDEFRAG))) &&
-+		    !(vm_flags & VM_NOMEMDEFRAG)) ||
-+			test_bit(MMF_VM_MEM_DEFRAG_ALL, &vma->vm_mm->flags))
-+			if (__kmem_defragd_enter(vma->vm_mm))
-+				return -ENOMEM;
-+	return 0;
-+}
-+
-+#endif /* _LINUX_KMEM_DEFRAGD_H */
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 80bb6408fe73..5bcc1b03372a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -251,13 +251,20 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_HIGH_ARCH_BIT_2	34	/* bit only usable on 64-bit architectures *=
-/
- #define VM_HIGH_ARCH_BIT_3	35	/* bit only usable on 64-bit architectures *=
-/
- #define VM_HIGH_ARCH_BIT_4	36	/* bit only usable on 64-bit architectures *=
-/
-+#define VM_HIGH_ARCH_BIT_5	37	/* bit only usable on 64-bit architectures *=
-/
-+#define VM_HIGH_ARCH_BIT_6	38	/* bit only usable on 64-bit architectures *=
-/
- #define VM_HIGH_ARCH_0	BIT(VM_HIGH_ARCH_BIT_0)
- #define VM_HIGH_ARCH_1	BIT(VM_HIGH_ARCH_BIT_1)
- #define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
- #define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
- #define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
-+#define VM_HIGH_ARCH_5	BIT(VM_HIGH_ARCH_BIT_5)
-+#define VM_HIGH_ARCH_6	BIT(VM_HIGH_ARCH_BIT_6)
- #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
-=20
-+#define VM_MEMDEFRAG	VM_HIGH_ARCH_5	/* memory defrag */
-+#define VM_NOMEMDEFRAG	VM_HIGH_ARCH_6	/* no memory defrag */
-+
- #ifdef CONFIG_ARCH_HAS_PKEYS
- # define VM_PKEY_SHIFT	VM_HIGH_ARCH_BIT_0
- # define VM_PKEY_BIT0	VM_HIGH_ARCH_0	/* A protection key is a 4-bit value =
-*/
-@@ -487,6 +494,9 @@ static inline void vma_init(struct vm_area_struct *vma,=
- struct mm_struct *mm)
- 	vma->vm_mm =3D mm;
- 	vma->vm_ops =3D &dummy_vm_ops;
- 	INIT_LIST_HEAD(&vma->anon_vma_chain);
-+	vma->anchor_page_rb =3D RB_ROOT_CACHED;
-+	vma->vma_create_jiffies =3D jiffies;
-+	vma->vma_defrag_jiffies =3D 0;
- }
-=20
- static inline void vma_set_anonymous(struct vm_area_struct *vma)
-@@ -2837,6 +2847,8 @@ static inline bool debug_guardpage_enabled(void) { re=
-turn false; }
- static inline bool page_is_guard(struct page *page) { return false; }
- #endif /* CONFIG_DEBUG_PAGEALLOC */
-=20
-+void free_anchor_pages(struct vm_area_struct *vma);
-+
- #if MAX_NUMNODES > 1
- void __init setup_nr_node_ids(void);
- #else
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 2c471a2c43fa..32549b255d25 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -328,6 +328,10 @@ struct vm_area_struct {
- 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
- #endif
- 	struct vm_userfaultfd_ctx vm_userfaultfd_ctx;
-+	struct rb_root_cached anchor_page_rb;
-+	unsigned long vma_create_jiffies; /* life time of the vma  */
-+	unsigned long vma_modify_jiffies; /* being modified time of the vma */
-+	unsigned long vma_defrag_jiffies; /* being defragged time of the vma */
- } __randomize_layout;
-=20
- struct core_thread {
-diff --git a/include/linux/sched/coredump.h b/include/linux/sched/coredump.=
-h
-index ecdc6542070f..52ad71db6687 100644
---- a/include/linux/sched/coredump.h
-+++ b/include/linux/sched/coredump.h
-@@ -76,5 +76,8 @@ static inline int get_dumpable(struct mm_struct *mm)
-=20
- #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK |\
- 				 MMF_DISABLE_THP_MASK)
-+#define MMF_VM_MEM_DEFRAG	26	/* set mm is added to do mem defrag */
-+#define MMF_VM_MEM_DEFRAG_ALL	27	/* all vmas in the mm will be mem defrag =
-*/
-+
-=20
- #endif /* _LINUX_SCHED_COREDUMP_H */
-diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-index 257cccba3062..caa6f043b29a 100644
---- a/include/linux/syscalls.h
-+++ b/include/linux/syscalls.h
-@@ -926,6 +926,8 @@ asmlinkage long sys_statx(int dfd, const char __user *p=
-ath, unsigned flags,
- 			  unsigned mask, struct statx __user *buffer);
- asmlinkage long sys_rseq(struct rseq __user *rseq, uint32_t rseq_len,
- 			 int flags, uint32_t sig);
-+asmlinkage long sys_scan_process_memory(pid_t pid, char __user *out_buf,
-+			int buf_len, int action);
-=20
- /*
-  * Architecture-specific system calls
-@@ -1315,4 +1317,5 @@ static inline unsigned int ksys_personality(unsigned =
-int personality)
- 	return old;
- }
-=20
-+
- #endif
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 47a3441cf4c4..6b32c8243616 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -109,6 +109,29 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- #ifdef CONFIG_SWAP
- 		SWAP_RA,
- 		SWAP_RA_HIT,
-+#endif
-+		/* MEM_DEFRAG STATS  */
-+		MEM_DEFRAG_DEFRAG_NUM,
-+		MEM_DEFRAG_SCAN_NUM,
-+		MEM_DEFRAG_DST_FREE_PAGES,
-+		MEM_DEFRAG_DST_ANON_PAGES,
-+		MEM_DEFRAG_DST_FILE_PAGES,
-+		MEM_DEFRAG_DST_NONLRU_PAGES,
-+		MEM_DEFRAG_DST_FREE_PAGES_FAILED,
-+		MEM_DEFRAG_DST_FREE_PAGES_OVERFLOW_FAILED,
-+		MEM_DEFRAG_DST_ANON_PAGES_FAILED,
-+		MEM_DEFRAG_DST_FILE_PAGES_FAILED,
-+		MEM_DEFRAG_DST_NONLRU_PAGES_FAILED,
-+		MEM_DEFRAG_SRC_ANON_PAGES_FAILED,
-+		MEM_DEFRAG_SRC_COMP_PAGES_FAILED,
-+		MEM_DEFRAG_DST_SPLIT_HUGEPAGES,
-+#ifdef CONFIG_COMPACTION
-+		/* memory compaction */
-+		COMPACT_MIGRATE_PAGES,
-+#endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+		/* thp collapse */
-+		THP_COLLAPSE_MIGRATE_PAGES,
- #endif
- 		NR_VM_EVENT_ITEMS
- };
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-gene=
-ric/mman-common.h
-index e7ee32861d51..d1ec94a1970d 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -66,6 +66,9 @@
- #define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
- #define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
-=20
-+#define MADV_MEMDEFRAG	20		/* Worth backing with hugepages */
-+#define MADV_NOMEMDEFRAG	21		/* Not worth backing with hugepages */
-+
- /* compatibility flags */
- #define MAP_FILE	0
-=20
-diff --git a/kernel/fork.c b/kernel/fork.c
-index b69248e6f0e0..dcefa978c232 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -92,6 +92,7 @@
- #include <linux/livepatch.h>
- #include <linux/thread_info.h>
- #include <linux/stackleak.h>
-+#include <linux/mem_defrag.h>
-=20
- #include <asm/pgtable.h>
- #include <asm/pgalloc.h>
-@@ -343,12 +344,16 @@ struct vm_area_struct *vm_area_dup(struct vm_area_str=
-uct *orig)
- 	if (new) {
- 		*new =3D *orig;
- 		INIT_LIST_HEAD(&new->anon_vma_chain);
-+		new->anchor_page_rb =3D RB_ROOT_CACHED;
-+		new->vma_create_jiffies =3D jiffies;
-+		new->vma_defrag_jiffies =3D 0;
- 	}
- 	return new;
- }
-=20
- void vm_area_free(struct vm_area_struct *vma)
- {
-+	free_anchor_pages(vma);
- 	kmem_cache_free(vm_area_cachep, vma);
- }
-=20
-@@ -496,6 +501,9 @@ static __latent_entropy int dup_mmap(struct mm_struct *=
-mm,
- 	if (retval)
- 		goto out;
- 	retval =3D khugepaged_fork(mm, oldmm);
-+	if (retval)
-+		goto out;
-+	retval =3D kmem_defragd_fork(mm, oldmm);
- 	if (retval)
- 		goto out;
-=20
-@@ -1044,6 +1052,7 @@ static inline void __mmput(struct mm_struct *mm)
- 	exit_aio(mm);
- 	ksm_exit(mm);
- 	khugepaged_exit(mm); /* must run before exit_mmap */
-+	kmem_defragd_exit(mm);
- 	exit_mmap(mm);
- 	mm_put_huge_zero_page(mm);
- 	set_mm_exe_file(mm, NULL);
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index ba4d9e85feb8..6bf0be1af7e0 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -115,6 +115,13 @@ extern unsigned int sysctl_nr_open_min, sysctl_nr_open=
-_max;
- extern int sysctl_nr_trim_pages;
- #endif
-=20
-+extern int kmem_defragd_always;
-+extern int vma_scan_percentile;
-+extern int vma_scan_threshold_type;
-+extern int vma_no_repeat_defrag;
-+extern int num_breakout_chunks;
-+extern int defrag_size_threshold;
-+
- /* Constants used for minimum and  maximum */
- #ifdef CONFIG_LOCKUP_DETECTOR
- static int sixty =3D 60;
-@@ -1303,7 +1310,7 @@ static struct ctl_table vm_table[] =3D {
- 		.proc_handler	=3D overcommit_kbytes_handler,
- 	},
- 	{
--		.procname	=3D "page-cluster",=20
-+		.procname	=3D "page-cluster",
- 		.data		=3D &page_cluster,
- 		.maxlen		=3D sizeof(int),
- 		.mode		=3D 0644,
-@@ -1691,6 +1698,58 @@ static struct ctl_table vm_table[] =3D {
- 		.extra2		=3D (void *)&mmap_rnd_compat_bits_max,
- 	},
- #endif
-+	{
-+		.procname	=3D "kmem_defragd_always",
-+		.data		=3D &kmem_defragd_always,
-+		.maxlen		=3D sizeof(kmem_defragd_always),
-+		.mode		=3D 0644,
-+		.proc_handler	=3D proc_dointvec_minmax,
-+		.extra1		=3D &zero,
-+		.extra2		=3D &one,
-+	},
-+	{
-+		.procname	=3D "vma_scan_percentile",
-+		.data		=3D &vma_scan_percentile,
-+		.maxlen		=3D sizeof(vma_scan_percentile),
-+		.mode		=3D 0644,
-+		.proc_handler	=3D proc_dointvec_minmax,
-+		.extra1		=3D &zero,
-+		.extra2		=3D &one_hundred,
-+	},
-+	{
-+		.procname	=3D "vma_scan_threshold_type",
-+		.data		=3D &vma_scan_threshold_type,
-+		.maxlen		=3D sizeof(vma_scan_threshold_type),
-+		.mode		=3D 0644,
-+		.proc_handler	=3D proc_dointvec_minmax,
-+		.extra1		=3D &zero,
-+		.extra2		=3D &one,
-+	},
-+	{
-+		.procname	=3D "vma_no_repeat_defrag",
-+		.data		=3D &vma_no_repeat_defrag,
-+		.maxlen		=3D sizeof(vma_no_repeat_defrag),
-+		.mode		=3D 0644,
-+		.proc_handler	=3D proc_dointvec_minmax,
-+		.extra1		=3D &zero,
-+		.extra2		=3D &one,
-+	},
-+	{
-+		.procname	=3D "num_breakout_chunks",
-+		.data		=3D &num_breakout_chunks,
-+		.maxlen		=3D sizeof(num_breakout_chunks),
-+		.mode		=3D 0644,
-+		.proc_handler	=3D proc_dointvec_minmax,
-+		.extra1		=3D &zero,
-+	},
-+	{
-+		.procname	=3D "defrag_size_threshold",
-+		.data		=3D &defrag_size_threshold,
-+		.maxlen		=3D sizeof(defrag_size_threshold),
-+		.mode		=3D 0644,
-+		.proc_handler	=3D proc_dointvec_minmax,
-+		.extra1		=3D &zero,
-+	},
- 	{ }
- };
-=20
-@@ -1807,7 +1866,7 @@ static struct ctl_table fs_table[] =3D {
- 		.mode		=3D 0555,
- 		.child		=3D inotify_table,
- 	},
--#endif=09
-+#endif
- #ifdef CONFIG_EPOLL
- 	{
- 		.procname	=3D "epoll",
-@@ -2252,12 +2311,12 @@ static int __do_proc_dointvec(void *tbl_data, struc=
-t ctl_table *table,
- 	int *i, vleft, first =3D 1, err =3D 0;
- 	size_t left;
- 	char *kbuf =3D NULL, *p;
--=09
-+
- 	if (!tbl_data || !table->maxlen || !*lenp || (*ppos && !write)) {
- 		*lenp =3D 0;
- 		return 0;
- 	}
--=09
-+
- 	i =3D (int *) tbl_data;
- 	vleft =3D table->maxlen / sizeof(*i);
- 	left =3D *lenp;
-@@ -2483,7 +2542,7 @@ static int do_proc_douintvec(struct ctl_table *table,=
- int write,
-  * @ppos: file position
-  *
-  * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
-- * values from/to the user buffer, treated as an ASCII string.=20
-+ * values from/to the user buffer, treated as an ASCII string.
-  *
-  * Returns 0 on success.
-  */
-@@ -2974,7 +3033,7 @@ static int do_proc_dointvec_ms_jiffies_conv(bool *neg=
-p, unsigned long *lvalp,
-  * @ppos: file position
-  *
-  * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
-- * values from/to the user buffer, treated as an ASCII string.=20
-+ * values from/to the user buffer, treated as an ASCII string.
-  * The values read are assumed to be in seconds, and are converted into
-  * jiffies.
-  *
-@@ -2996,8 +3055,8 @@ int proc_dointvec_jiffies(struct ctl_table *table, in=
-t write,
-  * @ppos: pointer to the file position
-  *
-  * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
-- * values from/to the user buffer, treated as an ASCII string.=20
-- * The values read are assumed to be in 1/USER_HZ seconds, and=20
-+ * values from/to the user buffer, treated as an ASCII string.
-+ * The values read are assumed to be in 1/USER_HZ seconds, and
-  * are converted into jiffies.
-  *
-  * Returns 0 on success.
-@@ -3019,8 +3078,8 @@ int proc_dointvec_userhz_jiffies(struct ctl_table *ta=
-ble, int write,
-  * @ppos: the current position in the file
-  *
-  * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
-- * values from/to the user buffer, treated as an ASCII string.=20
-- * The values read are assumed to be in 1/1000 seconds, and=20
-+ * values from/to the user buffer, treated as an ASCII string.
-+ * The values read are assumed to be in 1/1000 seconds, and
-  * are converted into jiffies.
-  *
-  * Returns 0 on success.
-diff --git a/mm/Makefile b/mm/Makefile
-index 1574ea5743e4..925f21c717db 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -44,6 +44,7 @@ obj-y			:=3D filemap.o mempool.o oom_kill.o fadvise.o \
- obj-y +=3D init-mm.o
- obj-y +=3D memblock.o
- obj-y +=3D exchange.o
-+obj-y +=3D mem_defrag.o
-=20
- ifdef CONFIG_MMU
- 	obj-$(CONFIG_ADVISE_SYSCALLS)	+=3D madvise.o
-diff --git a/mm/compaction.c b/mm/compaction.c
-index ef29490b0f46..54c4bfdbdbc3 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -50,7 +50,7 @@ static inline void count_compact_events(enum vm_event_ite=
-m item, long delta)
- #define pageblock_start_pfn(pfn)	block_start_pfn(pfn, pageblock_order)
- #define pageblock_end_pfn(pfn)		block_end_pfn(pfn, pageblock_order)
-=20
--static unsigned long release_freepages(struct list_head *freelist)
-+unsigned long release_freepages(struct list_head *freelist)
- {
- 	struct page *page, *next;
- 	unsigned long high_pfn =3D 0;
-@@ -58,7 +58,10 @@ static unsigned long release_freepages(struct list_head =
-*freelist)
- 	list_for_each_entry_safe(page, next, freelist, lru) {
- 		unsigned long pfn =3D page_to_pfn(page);
- 		list_del(&page->lru);
--		__free_page(page);
-+		if (PageCompound(page))
-+			__free_pages(page, compound_order(page));
-+		else
-+			__free_page(page);
- 		if (pfn > high_pfn)
- 			high_pfn =3D pfn;
- 	}
-@@ -1593,6 +1596,8 @@ static enum compact_result compact_zone(struct zone *=
-zone, struct compact_contro
-=20
- 	while ((ret =3D compact_finished(zone, cc)) =3D=3D COMPACT_CONTINUE) {
- 		int err;
-+		int num_migrated_pages =3D 0;
-+		struct page *iter;
-=20
- 		switch (isolate_migratepages(zone, cc)) {
- 		case ISOLATE_ABORT:
-@@ -1611,6 +1616,9 @@ static enum compact_result compact_zone(struct zone *=
-zone, struct compact_contro
- 			;
- 		}
-=20
-+		list_for_each_entry(iter, &cc->migratepages, lru)
-+			num_migrated_pages++;
-+
- 		err =3D migrate_pages(&cc->migratepages, compaction_alloc,
- 				compaction_free, (unsigned long)cc, cc->mode,
- 				MR_COMPACTION);
-@@ -1618,6 +1626,11 @@ static enum compact_result compact_zone(struct zone =
-*zone, struct compact_contro
- 		trace_mm_compaction_migratepages(cc->nr_migratepages, err,
- 							&cc->migratepages);
-=20
-+		list_for_each_entry(iter, &cc->migratepages, lru)
-+			num_migrated_pages--;
-+
-+		count_vm_events(COMPACT_MIGRATE_PAGES, num_migrated_pages);
-+
- 		/* All pages were either migrated or will be released */
- 		cc->nr_migratepages =3D 0;
- 		if (err) {
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index faf357eaf0ce..ffcae07a87d3 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -33,6 +33,7 @@
- #include <linux/page_idle.h>
- #include <linux/shmem_fs.h>
- #include <linux/oom.h>
-+#include <linux/mem_defrag.h>
-=20
- #include <asm/tlb.h>
- #include <asm/pgalloc.h>
-@@ -695,6 +696,9 @@ vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *=
-vmf)
- 		return VM_FAULT_OOM;
- 	if (unlikely(khugepaged_enter(vma, vma->vm_flags)))
- 		return VM_FAULT_OOM;
-+	/* Make it defrag  */
-+	if (unlikely(kmem_defragd_enter(vma, vma->vm_flags)))
-+		return VM_FAULT_OOM;
- 	if (!(vmf->flags & FAULT_FLAG_WRITE) &&
- 			!mm_forbids_zeropage(vma->vm_mm) &&
- 			transparent_hugepage_use_zero_page()) {
-diff --git a/mm/internal.h b/mm/internal.h
-index 77e205c423ce..4fe8d1a4d7bb 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -15,6 +15,7 @@
- #include <linux/mm.h>
- #include <linux/pagemap.h>
- #include <linux/tracepoint-defs.h>
-+#include <linux/interval_tree.h>
-=20
- /*
-  * The set of flags that only affect watermark checking and reclaim
-@@ -549,4 +550,31 @@ bool buffer_migrate_lock_buffers(struct buffer_head *h=
-ead,
- int writeout(struct address_space *mapping, struct page *page);
- extern int exchange_two_pages(struct page *page1, struct page *page2);
-=20
-+struct anchor_page_info {
-+	struct list_head list;
-+	struct page *anchor_page;
-+	unsigned long vaddr;
-+	unsigned long start;
-+	unsigned long end;
-+};
-+
-+struct anchor_page_node {
-+	struct interval_tree_node node;
-+	unsigned long anchor_pfn; /* struct page can be calculated from pfn_to_pa=
-ge()  */
-+	unsigned long anchor_vpn;
-+};
-+
-+unsigned long release_freepages(struct list_head *freelist);
-+
-+void free_anchor_pages(struct vm_area_struct *vma);
-+
-+extern int exchange_two_pages(struct page *page1, struct page *page2);
-+
-+void expand(struct zone *zone, struct page *page,
-+	int low, int high, struct free_area *area,
-+	int migratetype);
-+
-+void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
-+							unsigned int alloc_flags);
-+
- #endif	/* __MM_INTERNAL_H */
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index 4f017339ddb2..aedaa9f75806 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -660,6 +660,7 @@ static void __collapse_huge_page_copy(pte_t *pte, struc=
-t page *page,
- 		} else {
- 			src_page =3D pte_page(pteval);
- 			copy_user_highpage(page, src_page, address, vma);
-+			count_vm_event(THP_COLLAPSE_MIGRATE_PAGES);
- 			VM_BUG_ON_PAGE(page_mapcount(src_page) !=3D 1, src_page);
- 			release_pte_page(src_page);
- 			/*
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 21a7881a2db4..9cef96d633e8 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -24,6 +24,7 @@
- #include <linux/swapops.h>
- #include <linux/shmem_fs.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/mem_defrag.h>
-=20
- #include <asm/tlb.h>
-=20
-@@ -616,6 +617,13 @@ static long madvise_remove(struct vm_area_struct *vma,
- 	return error;
- }
-=20
-+static long madvise_memdefrag(struct vm_area_struct *vma,
-+		     struct vm_area_struct **prev,
-+		     unsigned long start, unsigned long end, int behavior)
-+{
-+	*prev =3D vma;
-+	return memdefrag_madvise(vma, &vma->vm_flags, behavior);
-+}
- #ifdef CONFIG_MEMORY_FAILURE
- /*
-  * Error injection support for memory error handling.
-@@ -697,6 +705,9 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_=
-struct **prev,
- 	case MADV_FREE:
- 	case MADV_DONTNEED:
- 		return madvise_dontneed_free(vma, prev, start, end, behavior);
-+	case MADV_MEMDEFRAG:
-+	case MADV_NOMEMDEFRAG:
-+		return madvise_memdefrag(vma, prev, start, end, behavior);
- 	default:
- 		return madvise_behavior(vma, prev, start, end, behavior);
- 	}
-@@ -731,6 +742,8 @@ madvise_behavior_valid(int behavior)
- 	case MADV_SOFT_OFFLINE:
- 	case MADV_HWPOISON:
- #endif
-+	case MADV_MEMDEFRAG:
-+	case MADV_NOMEMDEFRAG:
- 		return true;
-=20
- 	default:
-@@ -785,6 +798,8 @@ madvise_behavior_valid(int behavior)
-  *  MADV_DONTDUMP - the application wants to prevent pages in the given ra=
-nge
-  *		from being included in its core dump.
-  *  MADV_DODUMP - cancel MADV_DONTDUMP: no longer exclude from core dump.
-+ *  MADV_MEMDEFRAG - allow mem defrag running on this region.
-+ *  MADV_NOMEMDEFRAG - no mem defrag here.
-  *
-  * return values:
-  *  zero    - success
-diff --git a/mm/mem_defrag.c b/mm/mem_defrag.c
-new file mode 100644
-index 000000000000..414909e1c19c
---- /dev/null
-+++ b/mm/mem_defrag.c
-@@ -0,0 +1,1782 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * Memory defragmentation.
-+ *
-+ * Copyright (C) 2019 Zi Yan <ziy@nvidia.com>
-+ *
-+ * Two lists:
-+ *   1) a mm list, representing virtual address spaces
-+ *   2) a anon_vma list, representing the physical address space.
-+ */
-+
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-+
-+#include <linux/mm.h>
-+#include <linux/sched/mm.h>
-+#include <linux/mm_inline.h>
-+#include <linux/rmap.h>
-+#include <linux/swap.h>
-+#include <linux/hashtable.h>
-+#include <linux/mem_defrag.h>
-+#include <linux/shmem_fs.h>
-+#include <linux/syscalls.h>
-+#include <linux/security.h>
-+#include <linux/vmalloc.h>
-+#include <linux/mman.h>
-+#include <linux/vmstat.h>
-+#include <linux/migrate.h>
-+#include <linux/page-isolation.h>
-+#include <linux/sort.h>
-+
-+#include <asm/tlb.h>
-+#include <asm/pgalloc.h>
-+#include "internal.h"
-+
-+
-+struct contig_stats {
-+	int err;
-+	unsigned long contig_pages;
-+	unsigned long first_vaddr_in_chunk;
-+	unsigned long first_paddr_in_chunk;
-+};
-+
-+struct defrag_result_stats {
-+	unsigned long aligned;
-+	unsigned long migrated;
-+	unsigned long src_pte_thp_failed;
-+	unsigned long src_thp_dst_not_failed;
-+	unsigned long src_not_present;
-+	unsigned long dst_out_of_bound_failed;
-+	unsigned long dst_pte_thp_failed;
-+	unsigned long dst_thp_src_not_failed;
-+	unsigned long dst_isolate_free_failed;
-+	unsigned long dst_migrate_free_failed;
-+	unsigned long dst_anon_failed;
-+	unsigned long dst_file_failed;
-+	unsigned long dst_non_lru_failed;
-+	unsigned long dst_non_moveable_failed;
-+	unsigned long not_defrag_vpn;
-+};
-+
-+enum {
-+	VMA_THRESHOLD_TYPE_TIME =3D 0,
-+	VMA_THRESHOLD_TYPE_SIZE,
-+};
-+
-+int num_breakout_chunks;
-+int vma_scan_percentile =3D 100;
-+int vma_scan_threshold_type =3D VMA_THRESHOLD_TYPE_TIME;
-+int vma_no_repeat_defrag;
-+int kmem_defragd_always;
-+int defrag_size_threshold =3D 5;
-+static DEFINE_SPINLOCK(kmem_defragd_mm_lock);
-+
-+#define MM_SLOTS_HASH_BITS 10
-+static __read_mostly DEFINE_HASHTABLE(mm_slots_hash, MM_SLOTS_HASH_BITS);
-+
-+static struct kmem_cache *mm_slot_cache __read_mostly;
-+
-+struct defrag_scan_control {
-+	struct mm_struct *mm;
-+	unsigned long scan_address;
-+	char __user *out_buf;
-+	int buf_len;
-+	int used_len;
-+	enum mem_defrag_action action;
-+	bool scan_in_vma;
-+	unsigned long vma_scan_threshold;
-+};
-+
-+/**
-+ * struct mm_slot - hash lookup from mm to mm_slot
-+ * @hash: hash collision list
-+ * @mm_node: kmem_defragd scan list headed in kmem_defragd_scan.mm_head
-+ * @mm: the mm that this information is valid for
-+ */
-+struct mm_slot {
-+	struct hlist_node hash;
-+	struct list_head mm_node;
-+	struct mm_struct *mm;
-+};
-+
-+/**
-+ * struct kmem_defragd_scan - cursor for scanning
-+ * @mm_head: the head of the mm list to scan
-+ * @mm_slot: the current mm_slot we are scanning
-+ * @address: the next address inside that to be scanned
-+ *
-+ * There is only the one kmem_defragd_scan instance of this cursor structu=
-re.
-+ */
-+struct kmem_defragd_scan {
-+	struct list_head mm_head;
-+	struct mm_slot *mm_slot;
-+	unsigned long address;
-+};
-+
-+static struct kmem_defragd_scan kmem_defragd_scan =3D {
-+	.mm_head =3D LIST_HEAD_INIT(kmem_defragd_scan.mm_head),
-+};
-+
-+
-+static inline struct mm_slot *alloc_mm_slot(void)
-+{
-+	if (!mm_slot_cache)	/* initialization failed */
-+		return NULL;
-+	return kmem_cache_zalloc(mm_slot_cache, GFP_KERNEL);
-+}
-+
-+static inline void free_mm_slot(struct mm_slot *mm_slot)
-+{
-+	kmem_cache_free(mm_slot_cache, mm_slot);
-+}
-+
-+static struct mm_slot *get_mm_slot(struct mm_struct *mm)
-+{
-+	struct mm_slot *mm_slot;
-+
-+	hash_for_each_possible(mm_slots_hash, mm_slot, hash, (unsigned long)mm)
-+		if (mm =3D=3D mm_slot->mm)
-+			return mm_slot;
-+
-+	return NULL;
-+}
-+
-+static void insert_to_mm_slots_hash(struct mm_struct *mm,
-+				    struct mm_slot *mm_slot)
-+{
-+	mm_slot->mm =3D mm;
-+	hash_add(mm_slots_hash, &mm_slot->hash, (long)mm);
-+}
-+
-+static inline int kmem_defragd_test_exit(struct mm_struct *mm)
-+{
-+	return atomic_read(&mm->mm_users) =3D=3D 0;
-+}
-+
-+int __kmem_defragd_enter(struct mm_struct *mm)
-+{
-+	struct mm_slot *mm_slot;
-+
-+	mm_slot =3D alloc_mm_slot();
-+	if (!mm_slot)
-+		return -ENOMEM;
-+
-+	/* __kmem_defragd_exit() must not run from under us */
-+	VM_BUG_ON_MM(kmem_defragd_test_exit(mm), mm);
-+	if (unlikely(test_and_set_bit(MMF_VM_MEM_DEFRAG, &mm->flags))) {
-+		free_mm_slot(mm_slot);
-+		return 0;
-+	}
-+
-+	spin_lock(&kmem_defragd_mm_lock);
-+	insert_to_mm_slots_hash(mm, mm_slot);
-+	/*
-+	 * Insert just behind the scanning cursor, to let the area settle
-+	 * down a little.
-+	 */
-+	list_add_tail(&mm_slot->mm_node, &kmem_defragd_scan.mm_head);
-+	spin_unlock(&kmem_defragd_mm_lock);
-+
-+	atomic_inc(&mm->mm_count);
-+
-+	return 0;
-+}
-+
-+void __kmem_defragd_exit(struct mm_struct *mm)
-+{
-+	struct mm_slot *mm_slot;
-+	int free =3D 0;
-+
-+	spin_lock(&kmem_defragd_mm_lock);
-+	mm_slot =3D get_mm_slot(mm);
-+	if (mm_slot && kmem_defragd_scan.mm_slot !=3D mm_slot) {
-+		hash_del(&mm_slot->hash);
-+		list_del(&mm_slot->mm_node);
-+		free =3D 1;
-+	}
-+	spin_unlock(&kmem_defragd_mm_lock);
-+
-+	if (free) {
-+		clear_bit(MMF_VM_MEM_DEFRAG, &mm->flags);
-+		free_mm_slot(mm_slot);
-+		mmdrop(mm);
-+	} else if (mm_slot) {
-+		/*
-+		 * This is required to serialize against
-+		 * kmem_defragd_test_exit() (which is guaranteed to run
-+		 * under mmap sem read mode). Stop here (after we
-+		 * return all pagetables will be destroyed) until
-+		 * kmem_defragd has finished working on the pagetables
-+		 * under the mmap_sem.
-+		 */
-+		down_write(&mm->mmap_sem);
-+		up_write(&mm->mmap_sem);
-+	}
-+}
-+
-+static void collect_mm_slot(struct mm_slot *mm_slot)
-+{
-+	struct mm_struct *mm =3D mm_slot->mm;
-+
-+	VM_BUG_ON(NR_CPUS !=3D 1 && !spin_is_locked(&kmem_defragd_mm_lock));
-+
-+	if (kmem_defragd_test_exit(mm)) {
-+		/* free mm_slot */
-+		hash_del(&mm_slot->hash);
-+		list_del(&mm_slot->mm_node);
-+
-+		/*
-+		 * Not strictly needed because the mm exited already.
-+		 *
-+		 * clear_bit(MMF_VM_HUGEPAGE, &mm->flags);
-+		 */
-+
-+		/* kmem_defragd_mm_lock actually not necessary for the below */
-+		free_mm_slot(mm_slot);
-+		mmdrop(mm);
-+	}
-+}
-+
-+static bool mem_defrag_vma_check(struct vm_area_struct *vma)
-+{
-+	if ((!test_bit(MMF_VM_MEM_DEFRAG_ALL, &vma->vm_mm->flags) &&
-+			!(vma->vm_flags & VM_MEMDEFRAG) && !kmem_defragd_always) ||
-+			(vma->vm_flags & VM_NOMEMDEFRAG))
-+			return false;
-+	if (shmem_file(vma->vm_file)) {
-+		if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
-+			return false;
-+		return IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
-+				HPAGE_PMD_NR);
-+	}
-+	if (is_vm_hugetlb_page(vma))
-+		return true;
-+	if (!vma->anon_vma || vma->vm_ops)
-+		return false;
-+	if (is_vma_temporary_stack(vma))
-+		return false;
-+	return true;
-+}
-+
-+static int do_vma_stat(struct mm_struct *mm, struct vm_area_struct *vma,
-+		char *kernel_buf, int pos, int *remain_buf_len)
-+{
-+	int used_len;
-+	int init_remain_len =3D *remain_buf_len;
-+
-+	if (!*remain_buf_len || !kernel_buf)
-+		return -1;
-+
-+	used_len =3D scnprintf(kernel_buf + pos, *remain_buf_len, "%p, 0x%lx, 0x%=
-lx, "
-+						 "0x%lx, -1\n",
-+						 mm, (unsigned long)vma+vma->vma_create_jiffies,
-+						 vma->vm_start, vma->vm_end);
-+
-+	*remain_buf_len -=3D used_len;
-+
-+	if (*remain_buf_len =3D=3D 1) {
-+		*remain_buf_len =3D init_remain_len;
-+		kernel_buf[pos] =3D '\0';
-+		return -1;
-+	}
-+
-+	return 0;
-+}
-+
-+static inline int get_contig_page_size(struct page *page)
-+{
-+	int page_size =3D PAGE_SIZE;
-+
-+	if (PageCompound(page)) {
-+		struct page *head_page =3D compound_head(page);
-+		int compound_size =3D PAGE_SIZE<<compound_order(head_page);
-+
-+		if (head_page !=3D page) {
-+			VM_BUG_ON_PAGE(!PageTail(page), page);
-+			page_size =3D compound_size - (page - head_page) * PAGE_SIZE;
-+		} else
-+			page_size =3D compound_size;
-+	}
-+
-+	return page_size;
-+}
-+
-+/*
-+ * write one page stats to kernel_buf.
-+ *
-+ * If kernel_buf is not big enough, the page information will not be recor=
-ded
-+ * at all.
-+ *
-+ */
-+static int do_page_stat(struct mm_struct *mm, struct vm_area_struct *vma,
-+		struct page *page, unsigned long vaddr,
-+		char *kernel_buf, int pos, int *remain_buf_len,
-+		enum mem_defrag_action action,
-+		struct contig_stats *contig_stats,
-+		bool scan_in_vma)
-+{
-+	int used_len;
-+	struct anon_vma *anon_vma;
-+	int init_remain_len =3D *remain_buf_len;
-+	int end_note =3D -1;
-+	unsigned long num_pages =3D page?(get_contig_page_size(page)/PAGE_SIZE):1=
-;
-+
-+	if (!*remain_buf_len || !kernel_buf)
-+		return -1;
-+
-+	if (action =3D=3D MEM_DEFRAG_CONTIG_STATS) {
-+		long long contig_pages;
-+		unsigned long paddr =3D page?PFN_PHYS(page_to_pfn(page)):0;
-+		bool last_entry =3D false;
-+
-+		if (!contig_stats->first_vaddr_in_chunk) {
-+			contig_stats->first_vaddr_in_chunk =3D vaddr;
-+			contig_stats->first_paddr_in_chunk =3D paddr;
-+			contig_stats->contig_pages =3D 0;
-+		}
-+
-+		/* scan_in_vma is set to true if buffer runs out while scanning a
-+		 * vma. A corner case happens, when buffer runs out, then vma changes,
-+		 * scan_address is reset to vm_start. Then, vma info is printed twice.
-+		 */
-+		if (vaddr =3D=3D vma->vm_start && !scan_in_vma) {
-+			used_len =3D scnprintf(kernel_buf + pos, *remain_buf_len,
-+					"%p, 0x%lx, 0x%lx, 0x%lx, ",
-+					mm, (unsigned long)vma+vma->vma_create_jiffies,
-+					vma->vm_start, vma->vm_end);
-+
-+			*remain_buf_len -=3D used_len;
-+
-+			if (*remain_buf_len =3D=3D 1) {
-+				contig_stats->err =3D 1;
-+				goto out_of_buf;
-+			}
-+			pos +=3D used_len;
-+		}
-+
-+		if (page) {
-+			if (contig_stats->first_paddr_in_chunk) {
-+				if (((long long)vaddr - contig_stats->first_vaddr_in_chunk) =3D=3D
-+					((long long)paddr - contig_stats->first_paddr_in_chunk))
-+					contig_stats->contig_pages +=3D num_pages;
-+				else {
-+					/* output present contig chunk */
-+					contig_pages =3D contig_stats->contig_pages;
-+					goto output_contig_info;
-+				}
-+			} else { /* the previous chunk is not present pages */
-+				/* output non-present contig chunk */
-+				contig_pages =3D -(long long)contig_stats->contig_pages;
-+				goto output_contig_info;
-+			}
-+		} else {
-+			/* the previous chunk is not present pages */
-+			if (!contig_stats->first_paddr_in_chunk) {
-+				VM_BUG_ON(contig_stats->first_vaddr_in_chunk +
-+						  contig_stats->contig_pages * PAGE_SIZE !=3D
-+						  vaddr);
-+				++contig_stats->contig_pages;
-+			} else {
-+				/* output present contig chunk */
-+				contig_pages =3D contig_stats->contig_pages;
-+
-+				goto output_contig_info;
-+			}
-+		}
-+
-+check_last_entry:
-+		/* if vaddr is the last page, we need to dump stats as well  */
-+		if ((vaddr + num_pages * PAGE_SIZE) >=3D vma->vm_end) {
-+			if (contig_stats->first_paddr_in_chunk)
-+				contig_pages =3D contig_stats->contig_pages;
-+			else
-+				contig_pages =3D -(long long)contig_stats->contig_pages;
-+			last_entry =3D true;
-+		} else
-+			return 0;
-+output_contig_info:
-+		if (last_entry)
-+			used_len =3D scnprintf(kernel_buf + pos, *remain_buf_len,
-+					"%lld, -1\n", contig_pages);
-+		else
-+			used_len =3D scnprintf(kernel_buf + pos, *remain_buf_len,
-+					"%lld, ", contig_pages);
-+
-+		*remain_buf_len -=3D used_len;
-+		if (*remain_buf_len =3D=3D 1) {
-+			contig_stats->err =3D 1;
-+			goto out_of_buf;
-+		} else {
-+			pos +=3D used_len;
-+			if (last_entry) {
-+				/* clear contig_stats  */
-+				contig_stats->first_vaddr_in_chunk =3D 0;
-+				contig_stats->first_paddr_in_chunk =3D 0;
-+				contig_stats->contig_pages =3D 0;
-+				return 0;
-+			} else {
-+				/* set new contig_stats  */
-+				contig_stats->first_vaddr_in_chunk =3D vaddr;
-+				contig_stats->first_paddr_in_chunk =3D paddr;
-+				contig_stats->contig_pages =3D num_pages;
-+				goto check_last_entry;
-+			}
-+		}
-+		return 0;
-+	}
-+
-+	used_len =3D scnprintf(kernel_buf + pos, *remain_buf_len,
-+				"%p, %p, 0x%lx, 0x%lx, 0x%lx, 0x%llx",
-+				 mm, vma, vma->vm_start, vma->vm_end,
-+				 vaddr, page ? PFN_PHYS(page_to_pfn(page)) : 0);
-+
-+	*remain_buf_len -=3D used_len;
-+	if (*remain_buf_len =3D=3D 1)
-+		goto out_of_buf;
-+	pos +=3D used_len;
-+
-+	if (page && PageAnon(page)) {
-+		/* check page order  */
-+		used_len =3D scnprintf(kernel_buf + pos, *remain_buf_len, ", %d",
-+							 compound_order(page));
-+		*remain_buf_len -=3D used_len;
-+		if (*remain_buf_len =3D=3D 1)
-+			goto out_of_buf;
-+		pos +=3D used_len;
-+
-+		anon_vma =3D page_anon_vma(page);
-+		if (!anon_vma)
-+			goto end_of_stat;
-+		anon_vma_lock_read(anon_vma);
-+
-+		do {
-+			used_len =3D scnprintf(kernel_buf + pos, *remain_buf_len, ", %p",
-+								 anon_vma);
-+			*remain_buf_len -=3D used_len;
-+			if (*remain_buf_len =3D=3D 1) {
-+				anon_vma_unlock_read(anon_vma);
-+				goto out_of_buf;
-+			}
-+			pos +=3D used_len;
-+
-+			anon_vma =3D anon_vma->parent;
-+		} while (anon_vma !=3D anon_vma->parent);
-+
-+		anon_vma_unlock_read(anon_vma);
-+	}
-+end_of_stat:
-+	/* end of one page stat  */
-+	used_len =3D scnprintf(kernel_buf + pos, *remain_buf_len, ", %d\n", end_n=
-ote);
-+	*remain_buf_len -=3D used_len;
-+	if (*remain_buf_len =3D=3D 1)
-+		goto out_of_buf;
-+
-+	return 0;
-+out_of_buf: /* revert incomplete data  */
-+	*remain_buf_len =3D init_remain_len;
-+	kernel_buf[pos] =3D '\0';
-+	return -1;
-+
-+}
-+
-+static int isolate_free_page_no_wmark(struct page *page, unsigned int orde=
-r)
-+{
-+	struct zone *zone;
-+	int mt;
-+
-+	VM_BUG_ON(!PageBuddy(page));
-+
-+	zone =3D page_zone(page);
-+	mt =3D get_pageblock_migratetype(page);
-+
-+
-+	/* Remove page from free list */
-+	list_del(&page->lru);
-+	zone->free_area[order].nr_free--;
-+	__ClearPageBuddy(page);
-+	set_page_private(page, 0);
-+
-+	/*
-+	 * Set the pageblock if the isolated page is at least half of a
-+	 * pageblock
-+	 */
-+	if (order >=3D pageblock_order - 1) {
-+		struct page *endpage =3D page + (1 << order) - 1;
-+
-+		for (; page < endpage; page +=3D pageblock_nr_pages) {
-+			int mt =3D get_pageblock_migratetype(page);
-+
-+			if (!is_migrate_isolate(mt) && !is_migrate_cma(mt)
-+				&& mt !=3D MIGRATE_HIGHATOMIC)
-+				set_pageblock_migratetype(page,
-+							  MIGRATE_MOVABLE);
-+		}
-+	}
-+
-+	return 1UL << order;
-+}
-+
-+struct exchange_alloc_info {
-+	struct list_head list;
-+	struct page *src_page;
-+	struct page *dst_page;
-+};
-+
-+struct exchange_alloc_head {
-+	struct list_head exchange_list;
-+	struct list_head freelist;
-+	struct list_head migratepage_list;
-+	unsigned long num_freepages;
-+};
-+
-+static int create_exchange_alloc_info(struct vm_area_struct *vma,
-+		unsigned long scan_address, struct page *first_in_use_page,
-+		int total_free_pages,
-+		struct list_head *freelist,
-+		struct list_head *exchange_list,
-+		struct list_head *migratepage_list)
-+{
-+	struct page *in_use_page;
-+	struct page *freepage;
-+	struct exchange_alloc_info *one_pair;
-+	int err;
-+	int pagevec_flushed =3D 0;
-+
-+	down_read(&vma->vm_mm->mmap_sem);
-+	in_use_page =3D follow_page(vma, scan_address,
-+							FOLL_GET|FOLL_MIGRATION | FOLL_REMOTE);
-+	up_read(&vma->vm_mm->mmap_sem);
-+
-+	freepage =3D list_first_entry_or_null(freelist, struct page, lru);
-+
-+	if (first_in_use_page !=3D in_use_page ||
-+		!freepage ||
-+		PageCompound(in_use_page) !=3D PageCompound(freepage) ||
-+		compound_order(in_use_page) !=3D compound_order(freepage)) {
-+		if (in_use_page)
-+			put_page(in_use_page);
-+		return -EBUSY;
-+	}
-+	one_pair =3D kmalloc(sizeof(struct exchange_alloc_info),
-+		GFP_KERNEL | __GFP_ZERO);
-+
-+	if (!one_pair) {
-+		put_page(in_use_page);
-+		return -ENOMEM;
-+	}
-+
-+retry_isolate:
-+	/* isolate in_use_page */
-+	err =3D isolate_lru_page(in_use_page);
-+	if (err) {
-+		if (!pagevec_flushed) {
-+			migrate_prep();
-+			pagevec_flushed =3D 1;
-+			goto retry_isolate;
-+		}
-+		put_page(in_use_page);
-+		in_use_page =3D NULL;
-+	}
-+
-+	if (in_use_page) {
-+		put_page(in_use_page);
-+		mod_node_page_state(page_pgdat(in_use_page),
-+				NR_ISOLATED_ANON + page_is_file_cache(in_use_page),
-+				hpage_nr_pages(in_use_page));
-+		list_add_tail(&in_use_page->lru, migratepage_list);
-+	}
-+	/* fill info  */
-+	one_pair->src_page =3D in_use_page;
-+	one_pair->dst_page =3D freepage;
-+	INIT_LIST_HEAD(&one_pair->list);
-+
-+	list_add_tail(&one_pair->list, exchange_list);
-+
-+	return 0;
-+}
-+
-+static void free_alloc_info(struct list_head *alloc_info_list)
-+{
-+	struct exchange_alloc_info *item, *item2;
-+
-+	list_for_each_entry_safe(item, item2, alloc_info_list, list) {
-+		list_del(&item->list);
-+		kfree(item);
-+	}
-+}
-+
-+/*
-+ * migrate callback: give a specific free page when it is called to guaran=
-tee
-+ * contiguity after migration.
-+ */
-+static struct page *exchange_alloc(struct page *migratepage,
-+				unsigned long data)
-+{
-+	struct exchange_alloc_head *head =3D (struct exchange_alloc_head *)data;
-+	struct page *freepage =3D NULL;
-+	struct exchange_alloc_info *info;
-+
-+	list_for_each_entry(info, &head->exchange_list, list) {
-+		if (migratepage =3D=3D info->src_page) {
-+			freepage =3D info->dst_page;
-+			/* remove it from freelist */
-+			list_del(&freepage->lru);
-+			if (PageTransHuge(freepage))
-+				head->num_freepages -=3D HPAGE_PMD_NR;
-+			else
-+				head->num_freepages--;
-+			break;
-+		}
-+	}
-+
-+	return freepage;
-+}
-+
-+static void exchange_free(struct page *freepage, unsigned long data)
-+{
-+	struct exchange_alloc_head *head =3D (struct exchange_alloc_head *)data;
-+
-+	list_add_tail(&freepage->lru, &head->freelist);
-+	if (PageTransHuge(freepage))
-+		head->num_freepages +=3D HPAGE_PMD_NR;
-+	else
-+		head->num_freepages++;
-+}
-+
-+int defrag_address_range(struct mm_struct *mm, struct vm_area_struct *vma,
-+		unsigned long start_addr, unsigned long end_addr,
-+		struct page *anchor_page, unsigned long page_vaddr,
-+		struct defrag_result_stats *defrag_stats)
-+{
-+	/*unsigned long va_pa_page_offset =3D (unsigned long)-1;*/
-+	unsigned long scan_address;
-+	unsigned long page_size =3D PAGE_SIZE;
-+	int failed =3D 0;
-+	int not_present =3D 0;
-+	bool src_thp =3D false;
-+
-+	for (scan_address =3D start_addr; scan_address < end_addr;
-+		 scan_address +=3D page_size) {
-+		struct page *scan_page;
-+		unsigned long scan_phys_addr;
-+		long long page_dist;
-+
-+		cond_resched();
-+
-+		down_read(&vma->vm_mm->mmap_sem);
-+		scan_page =3D follow_page(vma, scan_address, FOLL_MIGRATION | FOLL_REMOT=
-E);
-+		up_read(&vma->vm_mm->mmap_sem);
-+		scan_phys_addr =3D PFN_PHYS(scan_page ? page_to_pfn(scan_page) : 0);
-+
-+		page_size =3D PAGE_SIZE;
-+
-+		if (!scan_phys_addr) {
-+			not_present++;
-+			failed +=3D 1;
-+			defrag_stats->src_not_present +=3D 1;
-+			continue;
-+		}
-+
-+		page_size =3D get_contig_page_size(scan_page);
-+
-+		/* PTE-mapped THP not allowed  */
-+		if ((scan_page =3D=3D compound_head(scan_page)) &&
-+			PageTransHuge(scan_page) && !PageHuge(scan_page))
-+			src_thp =3D true;
-+
-+		/* Allow THPs  */
-+		if (PageCompound(scan_page) && !src_thp) {
-+			count_vm_events(MEM_DEFRAG_SRC_COMP_PAGES_FAILED, page_size/PAGE_SIZE);
-+			failed +=3D (page_size/PAGE_SIZE);
-+			defrag_stats->src_pte_thp_failed +=3D (page_size/PAGE_SIZE);
-+
-+			defrag_stats->not_defrag_vpn =3D scan_address + page_size;
-+			goto quit_defrag;
-+			continue;
-+		}
-+
-+		VM_BUG_ON(!anchor_page);
-+
-+		page_dist =3D ((long long)scan_address - page_vaddr) / PAGE_SIZE;
-+
-+		/* already in the contiguous pos  */
-+		if (page_dist =3D=3D (long long)(scan_page - anchor_page)) {
-+			defrag_stats->aligned +=3D (page_size/PAGE_SIZE);
-+			continue;
-+		} else { /* migrate pages according to the anchor pages in the vma.  */
-+			struct page *dest_page =3D anchor_page + page_dist;
-+			int page_drained =3D 0;
-+			bool dst_thp =3D false;
-+			int scan_page_order =3D src_thp?compound_order(scan_page):0;
-+
-+			if (!zone_spans_pfn(page_zone(anchor_page),
-+					(page_to_pfn(anchor_page) + page_dist))) {
-+				failed +=3D 1;
-+				defrag_stats->dst_out_of_bound_failed +=3D 1;
-+
-+				defrag_stats->not_defrag_vpn =3D scan_address + page_size;
-+				goto quit_defrag;
-+				continue;
-+			}
-+
-+retry_defrag:
-+			/* migrate */
-+			if (PageBuddy(dest_page)) {
-+				struct zone *zone =3D page_zone(dest_page);
-+				spinlock_t *zone_lock =3D &zone->lock;
-+				unsigned long zone_lock_flags;
-+				unsigned long free_page_order =3D 0;
-+				int err =3D 0;
-+				struct exchange_alloc_head exchange_alloc_head =3D {0};
-+				int migratetype =3D get_pageblock_migratetype(dest_page);
-+
-+				INIT_LIST_HEAD(&exchange_alloc_head.exchange_list);
-+				INIT_LIST_HEAD(&exchange_alloc_head.freelist);
-+				INIT_LIST_HEAD(&exchange_alloc_head.migratepage_list);
-+
-+				count_vm_events(MEM_DEFRAG_DST_FREE_PAGES, 1<<scan_page_order);
-+
-+				/* lock page_zone(dest_page)->lock  */
-+				spin_lock_irqsave(zone_lock, zone_lock_flags);
-+
-+				if (!PageBuddy(dest_page)) {
-+					err =3D -EINVAL;
-+					goto freepage_isolate_fail;
-+				}
-+
-+				free_page_order =3D page_order(dest_page);
-+
-+				/* fail early if not enough free pages */
-+				if (free_page_order < scan_page_order) {
-+					err =3D -ENOMEM;
-+					goto freepage_isolate_fail;
-+				}
-+
-+				/* __isolate_free_page()  */
-+				err =3D isolate_free_page_no_wmark(dest_page, free_page_order);
-+				if (!err)
-+					goto freepage_isolate_fail;
-+
-+				expand(zone, dest_page, scan_page_order, free_page_order,
-+					&(zone->free_area[free_page_order]),
-+					migratetype);
-+
-+				if (!is_migrate_isolate(migratetype))
-+					__mod_zone_freepage_state(zone, -(1UL << scan_page_order),
-+							migratetype);
-+
-+				prep_new_page(dest_page, scan_page_order,
-+					__GFP_MOVABLE|(scan_page_order?__GFP_COMP:0), 0);
-+
-+				if (scan_page_order) {
-+					VM_BUG_ON(!src_thp);
-+					VM_BUG_ON(scan_page_order !=3D HPAGE_PMD_ORDER);
-+					prep_transhuge_page(dest_page);
-+				}
-+
-+				list_add(&dest_page->lru, &exchange_alloc_head.freelist);
-+
-+freepage_isolate_fail:
-+				spin_unlock_irqrestore(zone_lock, zone_lock_flags);
-+
-+				if (err < 0) {
-+					failed +=3D (page_size/PAGE_SIZE);
-+					defrag_stats->dst_isolate_free_failed +=3D (page_size/PAGE_SIZE);
-+
-+					defrag_stats->not_defrag_vpn =3D scan_address + page_size;
-+					goto quit_defrag;
-+					continue;
-+				}
-+
-+				/* gather in-use pages
-+				 * create a exchange_alloc_info structure, a list of
-+				 * tuples, each like:
-+				 * (in_use_page, free_page)
-+				 *
-+				 * so in exchange_alloc, the code needs to traverse the list
-+				 * and find the tuple from in_use_page. Then return the
-+				 * corresponding free page.
-+				 *
-+				 * This can guarantee the contiguity after migration.
-+				 */
-+
-+				err =3D create_exchange_alloc_info(vma, scan_address, scan_page,
-+							1<<free_page_order,
-+							&exchange_alloc_head.freelist,
-+							&exchange_alloc_head.exchange_list,
-+							&exchange_alloc_head.migratepage_list);
-+
-+				if (err)
-+					pr_debug("create_exchange_alloc_info error: %d\n", err);
-+
-+				exchange_alloc_head.num_freepages =3D 1<<scan_page_order;
-+
-+				/* migrate pags  */
-+				err =3D migrate_pages(&exchange_alloc_head.migratepage_list,
-+					exchange_alloc, exchange_free,
-+					(unsigned long)&exchange_alloc_head,
-+					MIGRATE_SYNC, MR_COMPACTION);
-+
-+				/* putback not migrated in_use_pagelist */
-+				putback_movable_pages(&exchange_alloc_head.migratepage_list);
-+
-+				/* release free pages in freelist */
-+				release_freepages(&exchange_alloc_head.freelist);
-+
-+				/* free allocated exchange info  */
-+				free_alloc_info(&exchange_alloc_head.exchange_list);
-+
-+				count_vm_events(MEM_DEFRAG_DST_FREE_PAGES_FAILED,
-+						exchange_alloc_head.num_freepages);
-+
-+				if (exchange_alloc_head.num_freepages) {
-+					failed +=3D exchange_alloc_head.num_freepages;
-+					defrag_stats->dst_migrate_free_failed +=3D
-+						exchange_alloc_head.num_freepages;
-+				}
-+				defrag_stats->migrated +=3D ((1UL<<scan_page_order) -
-+						exchange_alloc_head.num_freepages);
-+
-+			} else { /* exchange  */
-+				int err =3D -EBUSY;
-+
-+				/* PTE-mapped THP not allowed  */
-+				if ((dest_page =3D=3D compound_head(dest_page)) &&
-+					PageTransHuge(dest_page) && !PageHuge(dest_page))
-+					dst_thp =3D true;
-+
-+				if (PageCompound(dest_page) && !dst_thp) {
-+					failed +=3D get_contig_page_size(dest_page);
-+					defrag_stats->dst_pte_thp_failed +=3D page_size/PAGE_SIZE;
-+
-+					defrag_stats->not_defrag_vpn =3D scan_address + page_size;
-+					goto quit_defrag;
-+				}
-+
-+				if (src_thp !=3D dst_thp) {
-+					failed +=3D get_contig_page_size(scan_page);
-+					if (src_thp && !dst_thp)
-+						defrag_stats->src_thp_dst_not_failed +=3D
-+							page_size/PAGE_SIZE;
-+					else /* !src_thp && dst_thp */
-+						defrag_stats->dst_thp_src_not_failed +=3D
-+							page_size/PAGE_SIZE;
-+
-+					defrag_stats->not_defrag_vpn =3D scan_address + page_size;
-+					goto quit_defrag;
-+					/*continue;*/
-+				}
-+
-+				/* free page on pcplist */
-+				if (page_count(dest_page) =3D=3D 0) {
-+					/* not managed pages  */
-+					if (!dest_page->flags) {
-+						failed +=3D 1;
-+						defrag_stats->dst_out_of_bound_failed +=3D 1;
-+
-+						defrag_stats->not_defrag_vpn =3D scan_address + page_size;
-+						goto quit_defrag;
-+					}
-+					/* spill order-0 pages to buddy allocator from pcplist */
-+					if (!page_drained) {
-+						drain_all_pages(NULL);
-+						page_drained =3D 1;
-+						goto retry_defrag;
-+					}
-+				}
-+
-+				if (PageAnon(dest_page)) {
-+					count_vm_events(MEM_DEFRAG_DST_ANON_PAGES,
-+							1<<scan_page_order);
-+
-+					err =3D exchange_two_pages(scan_page, dest_page);
-+					if (err) {
-+						count_vm_events(MEM_DEFRAG_DST_ANON_PAGES_FAILED,
-+								1<<scan_page_order);
-+						failed +=3D 1<<scan_page_order;
-+						defrag_stats->dst_anon_failed +=3D 1<<scan_page_order;
-+					}
-+				} else if (page_mapping(dest_page)) {
-+					count_vm_events(MEM_DEFRAG_DST_FILE_PAGES,
-+							1<<scan_page_order);
-+
-+					err =3D exchange_two_pages(scan_page, dest_page);
-+					if (err) {
-+						count_vm_events(MEM_DEFRAG_DST_FILE_PAGES_FAILED,
-+								1<<scan_page_order);
-+						failed +=3D 1<<scan_page_order;
-+						defrag_stats->dst_file_failed +=3D 1<<scan_page_order;
-+					}
-+				} else if (!PageLRU(dest_page) && __PageMovable(dest_page)) {
-+					err =3D -ENODEV;
-+					count_vm_events(MEM_DEFRAG_DST_NONLRU_PAGES,
-+							1<<scan_page_order);
-+					failed +=3D 1<<scan_page_order;
-+					defrag_stats->dst_non_lru_failed +=3D 1<<scan_page_order;
-+					count_vm_events(MEM_DEFRAG_DST_NONLRU_PAGES_FAILED,
-+							1<<scan_page_order);
-+				} else {
-+					err =3D -ENODEV;
-+					failed +=3D 1<<scan_page_order;
-+					/* unmovable pages  */
-+					defrag_stats->dst_non_moveable_failed +=3D 1<<scan_page_order;
-+				}
-+
-+				if (err =3D=3D -EAGAIN)
-+					goto retry_defrag;
-+				if (!err)
-+					defrag_stats->migrated +=3D 1<<scan_page_order;
-+				else {
-+
-+					defrag_stats->not_defrag_vpn =3D scan_address + page_size;
-+					goto quit_defrag;
-+				}
-+
-+			}
-+		}
-+	}
-+quit_defrag:
-+	return failed;
-+}
-+
-+struct anchor_page_node *get_anchor_page_node_from_vma(struct vm_area_stru=
-ct *vma,
-+	unsigned long address)
-+{
-+	struct interval_tree_node *prev_vma_node;
-+
-+	prev_vma_node =3D interval_tree_iter_first(&vma->anchor_page_rb,
-+		address, address);
-+
-+	if (!prev_vma_node)
-+		return NULL;
-+
-+	return container_of(prev_vma_node, struct anchor_page_node, node);
-+}
-+
-+unsigned long get_undefragged_area(struct zone *zone, struct vm_area_struc=
-t *vma,
-+	unsigned long start_addr, unsigned long end_addr)
-+{
-+	struct mm_struct *mm =3D vma->vm_mm;
-+	struct vm_area_struct *scan_vma =3D NULL;
-+	unsigned long vma_size =3D end_addr - start_addr;
-+	bool first_vma =3D true;
-+
-+	for (scan_vma =3D mm->mmap; scan_vma; scan_vma =3D scan_vma->vm_next)
-+		if (!RB_EMPTY_ROOT(&scan_vma->anchor_page_rb.rb_root))
-+			break;
-+	/* no defragged area */
-+	if (!scan_vma)
-+		return zone->zone_start_pfn;
-+
-+	scan_vma =3D mm->mmap;
-+	while (scan_vma) {
-+		if (!RB_EMPTY_ROOT(&scan_vma->anchor_page_rb.rb_root)) {
-+			struct interval_tree_node *node =3D NULL, *next_node =3D NULL;
-+			struct anchor_page_node *anchor_node, *next_anchor_node =3D NULL;
-+			struct vm_area_struct *next_vma =3D scan_vma->vm_next;
-+			unsigned long end_pfn;
-+			/* each vma get one anchor range */
-+			node =3D interval_tree_iter_first(&scan_vma->anchor_page_rb,
-+				 scan_vma->vm_start, scan_vma->vm_end - 1);
-+			if (!node) {
-+				scan_vma =3D scan_vma->vm_next;
-+				continue;
-+			}
-+
-+			anchor_node =3D container_of(node, struct anchor_page_node, node);
-+			end_pfn =3D (anchor_node->anchor_pfn +
-+					((scan_vma->vm_end - scan_vma->vm_start)>>PAGE_SHIFT));
-+
-+			/* check space before first vma */
-+			if (first_vma) {
-+				first_vma =3D false;
-+				if (zone->zone_start_pfn + vma_size < anchor_node->anchor_pfn)
-+					return zone->zone_start_pfn;
-+				/* remove existing anchor if new vma is much larger */
-+				if (vma_size > (scan_vma->vm_end - scan_vma->vm_start)*2) {
-+					first_vma =3D true;
-+					interval_tree_remove(node, &scan_vma->anchor_page_rb);
-+					kfree(anchor_node);
-+					scan_vma =3D scan_vma->vm_next;
-+					continue;
-+				}
-+			}
-+
-+			/* find next vma with anchor range */
-+			for (next_vma =3D scan_vma->vm_next;
-+				next_vma && RB_EMPTY_ROOT(&next_vma->anchor_page_rb.rb_root);
-+				next_vma =3D next_vma->vm_next);
-+
-+			if (!next_vma)
-+				return end_pfn;
-+			else {
-+				next_node =3D interval_tree_iter_first(&next_vma->anchor_page_rb,
-+					 next_vma->vm_start, next_vma->vm_end - 1);
-+				VM_BUG_ON(!next_node);
-+				next_anchor_node =3D container_of(next_node,
-+									struct anchor_page_node, node);
-+				if (end_pfn + vma_size < next_anchor_node->anchor_pfn)
-+					return end_pfn;
-+			}
-+			scan_vma =3D next_vma;
-+		} else
-+			scan_vma =3D scan_vma->vm_next;
-+	}
-+
-+	return zone->zone_start_pfn;
-+}
-+
-+/*
-+ * anchor pages decide the va pa offset in each vma
-+ *
-+ */
-+static int find_anchor_pages_in_vma(struct mm_struct *mm,
-+		struct vm_area_struct *vma, unsigned long start_addr)
-+{
-+	struct anchor_page_node *anchor_node;
-+	unsigned long end_addr =3D vma->vm_end - PAGE_SIZE;
-+	struct interval_tree_node *existing_anchor =3D NULL;
-+	unsigned long scan_address =3D start_addr;
-+	struct page *present_page =3D NULL;
-+	struct zone *present_zone =3D NULL;
-+	unsigned long alignment_size =3D PAGE_SIZE;
-+
-+	/* Out of range query  */
-+	if (start_addr >=3D vma->vm_end || start_addr < vma->vm_start)
-+		return -1;
-+
-+	/*
-+	 * Clean up unrelated anchor infor
-+	 *
-+	 * VMA range can change and leave some anchor info out of range,
-+	 * so clean it here.
-+	 * It should be cleaned when vma is changed, but the code there
-+	 * is too complicated.
-+	 */
-+	if (!RB_EMPTY_ROOT(&vma->anchor_page_rb.rb_root) &&
-+		!interval_tree_iter_first(&vma->anchor_page_rb,
-+		 vma->vm_start, vma->vm_end - 1)) {
-+		struct interval_tree_node *node =3D NULL;
-+
-+		for (node =3D interval_tree_iter_first(&vma->anchor_page_rb,
-+				0, (unsigned long)-1);
-+			 node;) {
-+			struct anchor_page_node *anchor_node =3D container_of(node,
-+					struct anchor_page_node, node);
-+			interval_tree_remove(node, &vma->anchor_page_rb);
-+			node =3D interval_tree_iter_next(node, 0, (unsigned long)-1);
-+			kfree(anchor_node);
-+		}
-+	}
-+
-+	/* no range at all  */
-+	if (RB_EMPTY_ROOT(&vma->anchor_page_rb.rb_root))
-+		goto insert_new_range;
-+
-+	/* look for first range has start_addr or after it */
-+	existing_anchor =3D interval_tree_iter_first(&vma->anchor_page_rb,
-+		start_addr, end_addr);
-+
-+	/* first range has start_addr or after it  */
-+	if (existing_anchor) {
-+		/* redundant range, do nothing */
-+		if (existing_anchor->start =3D=3D start_addr)
-+			return 0;
-+		else if (existing_anchor->start < start_addr &&
-+				 existing_anchor->last >=3D start_addr){
-+			return 0;
-+		} else { /* a range after start_addr  */
-+			struct anchor_page_node *existing_node =3D container_of(existing_anchor=
-,
-+				struct anchor_page_node, node);
-+			VM_BUG_ON(!(existing_anchor->start > start_addr));
-+			/* remove the existing range and insert a new one, since expanding
-+			 * forward can make the range go beyond the zone limit
-+			 */
-+			interval_tree_remove(existing_anchor, &vma->anchor_page_rb);
-+			kfree(existing_node);
-+			VM_BUG_ON(!RB_EMPTY_ROOT(&vma->anchor_page_rb.rb_root));
-+			goto insert_new_range;
-+		}
-+	} else {
-+		struct interval_tree_node *prev_anchor =3D NULL, *cur_anchor;
-+		/* there is a range before start_addr  */
-+
-+		/* find the range just before start_addr  */
-+		for (cur_anchor =3D interval_tree_iter_first(&vma->anchor_page_rb,
-+				vma->vm_start, start_addr - PAGE_SIZE);
-+			 cur_anchor;
-+			 prev_anchor =3D cur_anchor,
-+			 cur_anchor =3D interval_tree_iter_next(cur_anchor,
-+				vma->vm_start, start_addr - PAGE_SIZE));
-+
-+		interval_tree_remove(prev_anchor, &vma->anchor_page_rb);
-+		prev_anchor->last =3D vma->vm_end;
-+		interval_tree_insert(prev_anchor, &vma->anchor_page_rb);
-+
-+		goto out;
-+	}
-+
-+insert_new_range: /* start_addr to end_addr  */
-+	down_read(&vma->vm_mm->mmap_sem);
-+	/* find the first present page and use it as the anchor page */
-+	while (!present_page && scan_address < end_addr) {
-+		present_page =3D follow_page(vma, scan_address,
-+			FOLL_MIGRATION | FOLL_REMOTE);
-+		scan_address +=3D present_page?get_contig_page_size(present_page):PAGE_S=
-IZE;
-+	}
-+	up_read(&vma->vm_mm->mmap_sem);
-+
-+	if (!present_page)
-+		goto out;
-+
-+	anchor_node =3D
-+			kmalloc(sizeof(struct anchor_page_node), GFP_KERNEL | __GFP_ZERO);
-+	if (!anchor_node)
-+		return -ENOMEM;
-+
-+	present_zone =3D page_zone(present_page);
-+
-+	anchor_node->node.start =3D start_addr;
-+	anchor_node->node.last =3D end_addr;
-+
-+	anchor_node->anchor_vpn =3D start_addr>>PAGE_SHIFT;
-+	anchor_node->anchor_pfn =3D get_undefragged_area(present_zone,
-+			vma, start_addr, end_addr);
-+
-+	/* adjust VPN and PFN alignment according to VMA size */
-+	if (vma->vm_end - vma->vm_start >=3D HPAGE_PUD_SIZE) {
-+		if ((anchor_node->anchor_vpn & ((HPAGE_PUD_SIZE>>PAGE_SHIFT) - 1)) <
-+			(anchor_node->anchor_pfn & ((HPAGE_PUD_SIZE>>PAGE_SHIFT) - 1)))
-+			anchor_node->anchor_pfn +=3D (HPAGE_PUD_SIZE>>PAGE_SHIFT);
-+
-+		anchor_node->anchor_pfn =3D (anchor_node->anchor_pfn & (PUD_MASK>>PAGE_S=
-HIFT)) |
-+			(anchor_node->anchor_vpn & ((HPAGE_PUD_SIZE>>PAGE_SHIFT) - 1));
-+
-+		alignment_size =3D HPAGE_PUD_SIZE;
-+	} else if (vma->vm_end - vma->vm_start >=3D HPAGE_PMD_SIZE) {
-+		if ((anchor_node->anchor_vpn & ((HPAGE_PMD_SIZE>>PAGE_SHIFT) - 1)) <
-+			(anchor_node->anchor_pfn & ((HPAGE_PMD_SIZE>>PAGE_SHIFT) - 1)))
-+			anchor_node->anchor_pfn +=3D (HPAGE_PMD_SIZE>>PAGE_SHIFT);
-+
-+		anchor_node->anchor_pfn =3D (anchor_node->anchor_pfn & (PMD_MASK>>PAGE_S=
-HIFT)) |
-+			(anchor_node->anchor_vpn & ((HPAGE_PMD_SIZE>>PAGE_SHIFT) - 1));
-+
-+		alignment_size =3D HPAGE_PMD_SIZE;
-+	} else
-+		alignment_size =3D PAGE_SIZE;
-+
-+	/* move the range into the zone limit */
-+	if (!(zone_spans_pfn(present_zone, anchor_node->anchor_pfn))) {
-+		while (anchor_node->anchor_pfn >=3D zone_end_pfn(present_zone))
-+			anchor_node->anchor_pfn -=3D alignment_size / PAGE_SHIFT;
-+		while (anchor_node->anchor_pfn <  present_zone->zone_start_pfn)
-+			anchor_node->anchor_pfn +=3D alignment_size / PAGE_SHIFT;
-+	}
-+
-+	interval_tree_insert(&anchor_node->node, &vma->anchor_page_rb);
-+
-+out:
-+	return 0;
-+}
-+
-+static inline bool is_stats_collection(enum mem_defrag_action action)
-+{
-+	switch (action) {
-+	case MEM_DEFRAG_FULL_STATS:
-+	case MEM_DEFRAG_CONTIG_STATS:
-+		return true;
-+	default:
-+		return false;
-+	}
-+	return false;
-+}
-+
-+/* comparator for sorting vma's lifetime */
-+static int unsigned_long_cmp(const void *a, const void *b)
-+{
-+	const unsigned long *l =3D a, *r =3D b;
-+
-+	if (*l < *r)
-+		return -1;
-+	if (*l > *r)
-+		return 1;
-+	return 0;
-+}
-+
-+/*
-+ * scan all to-be-defragged VMA lifetime and calculate VMA defragmentation
-+ * threshold.
-+ */
-+static void scan_all_vma_lifetime(struct defrag_scan_control *sc)
-+{
-+	struct mm_struct *mm =3D sc->mm;
-+	struct vm_area_struct *vma =3D NULL;
-+	unsigned long current_jiffies =3D jiffies; /* fix one jiffies  */
-+	unsigned int num_vma =3D 0, index =3D 0;
-+	unsigned long *vma_scan_list =3D NULL;
-+
-+	down_read(&mm->mmap_sem);
-+	for (vma =3D find_vma(mm, 0); vma; vma =3D vma->vm_next)
-+		/* only care about to-be-defragged vmas  */
-+		if (mem_defrag_vma_check(vma))
-+			++num_vma;
-+
-+	vma_scan_list =3D kmalloc(num_vma*sizeof(unsigned long),
-+			GFP_KERNEL | __GFP_ZERO);
-+
-+	if (ZERO_OR_NULL_PTR(vma_scan_list)) {
-+		sc->vma_scan_threshold =3D 1;
-+		goto out;
-+	}
-+
-+	for (vma =3D find_vma(mm, 0); vma; vma =3D vma->vm_next)
-+		/* only care about to-be-defragged vmas  */
-+		if (mem_defrag_vma_check(vma)) {
-+			if (vma_scan_threshold_type =3D=3D VMA_THRESHOLD_TYPE_TIME)
-+				vma_scan_list[index] =3D current_jiffies - vma->vma_create_jiffies;
-+			else if (vma_scan_threshold_type =3D=3D VMA_THRESHOLD_TYPE_SIZE)
-+				vma_scan_list[index] =3D vma->vm_end - vma->vm_start;
-+			++index;
-+			if (index >=3D num_vma)
-+				break;
-+		}
-+
-+	sort(vma_scan_list, num_vma, sizeof(unsigned long),
-+		 unsigned_long_cmp, NULL);
-+
-+	index =3D (100 - vma_scan_percentile) * num_vma / 100;
-+
-+	sc->vma_scan_threshold =3D vma_scan_list[index];
-+
-+	kfree(vma_scan_list);
-+out:
-+	up_read(&mm->mmap_sem);
-+}
-+
-+/*
-+ * Scan single mm_struct.
-+ * The function will down_read mmap_sem.
-+ *
-+ */
-+static int kmem_defragd_scan_mm(struct defrag_scan_control *sc)
-+{
-+	struct mm_struct *mm =3D sc->mm;
-+	struct vm_area_struct *vma =3D NULL;
-+	unsigned long *scan_address =3D &sc->scan_address;
-+	char *stats_buf =3D NULL;
-+	int remain_buf_len =3D sc->buf_len;
-+	int err =3D 0;
-+	struct contig_stats contig_stats;
-+
-+
-+	if (sc->out_buf &&
-+		sc->buf_len) {
-+		stats_buf =3D vzalloc(sc->buf_len);
-+		if (!stats_buf)
-+			goto breakouterloop;
-+	}
-+
-+	/*down_read(&mm->mmap_sem);*/
-+	if (unlikely(kmem_defragd_test_exit(mm)))
-+		vma =3D NULL;
-+	else {
-+		/* get vma_scan_threshold  */
-+		if (!sc->vma_scan_threshold)
-+			scan_all_vma_lifetime(sc);
-+
-+		vma =3D find_vma(mm, *scan_address);
-+	}
-+
-+	for (; vma; vma =3D vma->vm_next) {
-+		unsigned long vstart, vend;
-+		struct anchor_page_node *anchor_node =3D NULL;
-+		int scanned_chunks =3D 0;
-+
-+
-+		if (unlikely(kmem_defragd_test_exit(mm)))
-+			break;
-+		if (!mem_defrag_vma_check(vma)) {
-+			/* collect contiguity stats for this VMA */
-+			if (is_stats_collection(sc->action))
-+				if (do_vma_stat(mm, vma, stats_buf, sc->buf_len - remain_buf_len,
-+							&remain_buf_len))
-+					goto breakouterloop;
-+			*scan_address =3D vma->vm_end;
-+			goto done_one_vma;
-+		}
-+
-+
-+		vstart =3D vma->vm_start;
-+		vend =3D vma->vm_end;
-+		if (vstart >=3D vend)
-+			goto done_one_vma;
-+		if (*scan_address > vend)
-+			goto done_one_vma;
-+		if (*scan_address < vstart)
-+			*scan_address =3D vstart;
-+
-+		if (sc->action =3D=3D MEM_DEFRAG_DO_DEFRAG) {
-+			/* Check VMA size, skip if below the size threshold */
-+			if (vma->vm_end - vma->vm_start <
-+					defrag_size_threshold * HPAGE_PMD_SIZE)
-+				goto done_one_vma;
-+
-+			/*
-+			 * Check VMA lifetime or size, skip if below the lifetime/size
-+			 * threshold derived from a percentile
-+			 */
-+			if (vma_scan_threshold_type =3D=3D VMA_THRESHOLD_TYPE_TIME) {
-+				if ((jiffies - vma->vma_create_jiffies) < sc->vma_scan_threshold)
-+					goto done_one_vma;
-+			} else if (vma_scan_threshold_type =3D=3D VMA_THRESHOLD_TYPE_SIZE) {
-+				if ((vma->vm_end - vma->vm_start) < sc->vma_scan_threshold)
-+					goto done_one_vma;
-+			}
-+
-+			/* Avoid repeated defrag if the vma has not been changed */
-+			if (vma_no_repeat_defrag &&
-+				vma->vma_defrag_jiffies > vma->vma_modify_jiffies)
-+				goto done_one_vma;
-+
-+			/* vma contiguity stats collection */
-+			if (remain_buf_len && stats_buf) {
-+				int used_len;
-+				int pos =3D sc->buf_len - remain_buf_len;
-+
-+				used_len =3D scnprintf(stats_buf + pos, remain_buf_len,
-+							"vma: 0x%lx, 0x%lx, 0x%lx, -1\n",
-+							(unsigned long)vma+vma->vma_create_jiffies,
-+							vma->vm_start, vma->vm_end);
-+
-+				remain_buf_len -=3D used_len;
-+
-+				if (remain_buf_len =3D=3D 1) {
-+					stats_buf[pos] =3D '\0';
-+					remain_buf_len =3D 0;
-+				}
-+			}
-+
-+			anchor_node =3D get_anchor_page_node_from_vma(vma, vma->vm_start);
-+
-+			if (!anchor_node) {
-+				find_anchor_pages_in_vma(mm, vma, vma->vm_start);
-+				anchor_node =3D get_anchor_page_node_from_vma(vma, vma->vm_start);
-+
-+				if (!anchor_node)
-+					goto done_one_vma;
-+			}
-+		}
-+
-+		contig_stats =3D (struct contig_stats) {0};
-+
-+		while (*scan_address < vend) {
-+			struct page *page;
-+
-+			cond_resched();
-+
-+			if (unlikely(kmem_defragd_test_exit(mm)))
-+				goto breakouterloop;
-+
-+			if (is_stats_collection(sc->action)) {
-+				down_read(&vma->vm_mm->mmap_sem);
-+				page =3D follow_page(vma, *scan_address,
-+						FOLL_MIGRATION | FOLL_REMOTE);
-+
-+				if (do_page_stat(mm, vma, page, *scan_address,
-+							stats_buf, sc->buf_len - remain_buf_len,
-+							&remain_buf_len, sc->action, &contig_stats,
-+							sc->scan_in_vma)) {
-+					/* reset scan_address to the beginning of the contig.
-+					 * So next scan will get the whole contig.
-+					 */
-+					if (contig_stats.err) {
-+						*scan_address =3D contig_stats.first_vaddr_in_chunk;
-+						sc->scan_in_vma =3D true;
-+					}
-+					goto breakouterloop;
-+				}
-+				/* move to next address */
-+				if (page)
-+					*scan_address +=3D get_contig_page_size(page);
-+				else
-+					*scan_address +=3D PAGE_SIZE;
-+				up_read(&vma->vm_mm->mmap_sem);
-+			} else if (sc->action =3D=3D MEM_DEFRAG_DO_DEFRAG) {
-+				/* go to nearest 1GB aligned address  */
-+				unsigned long defrag_end =3D min_t(unsigned long,
-+							(*scan_address + HPAGE_PUD_SIZE) & HPAGE_PUD_MASK,
-+							vend);
-+				int defrag_result;
-+
-+				anchor_node =3D get_anchor_page_node_from_vma(vma, *scan_address);
-+
-+				/*  in case VMA size changes */
-+				if (!anchor_node) {
-+					find_anchor_pages_in_vma(mm, vma, *scan_address);
-+					anchor_node =3D get_anchor_page_node_from_vma(vma, *scan_address);
-+				}
-+
-+				if (!anchor_node)
-+					goto done_one_vma;
-+
-+				/*
-+				 * looping through the 1GB region and defrag 2MB range in each
-+				 * iteration.
-+				 */
-+				while (*scan_address < defrag_end) {
-+					unsigned long defrag_sub_chunk_end =3D min_t(unsigned long,
-+							(*scan_address + HPAGE_PMD_SIZE) & HPAGE_PMD_MASK,
-+							defrag_end);
-+					struct defrag_result_stats defrag_stats =3D {0};
-+continue_defrag:
-+					if (!anchor_node) {
-+						anchor_node =3D get_anchor_page_node_from_vma(vma,
-+										*scan_address);
-+						if (!anchor_node) {
-+							find_anchor_pages_in_vma(mm, vma, *scan_address);
-+							anchor_node =3D get_anchor_page_node_from_vma(vma,
-+											*scan_address);
-+						}
-+						if (!anchor_node)
-+							goto done_one_vma;
-+					}
-+
-+					defrag_result =3D defrag_address_range(mm, vma, *scan_address,
-+									defrag_sub_chunk_end,
-+									pfn_to_page(anchor_node->anchor_pfn),
-+									anchor_node->anchor_vpn<<PAGE_SHIFT,
-+									&defrag_stats);
-+
-+					/*
-+					 * collect defrag results to show the cause of page
-+					 * migration/exchange failure
-+					 */
-+					if (remain_buf_len && stats_buf) {
-+						int used_len;
-+						int pos =3D sc->buf_len - remain_buf_len;
-+
-+						used_len =3D scnprintf(stats_buf + pos, remain_buf_len,
-+							"[0x%lx, 0x%lx):%lu [alig:%lu, migrated:%lu, "
-+							"src: not:%lu, src_thp_dst_not:%lu, src_pte_thp:%lu "
-+							"dst: out_bound:%lu, dst_thp_src_not:%lu, "
-+							"dst_pte_thp:%lu, isolate_free:%lu, "
-+							"migrate_free:%lu, anon:%lu, file:%lu, "
-+							"non-lru:%lu, non-moveable:%lu], "
-+							"anchor: (%lx, %lx), range: [%lx, %lx], "
-+							"vma: 0x%lx, not_defrag_vpn: %lx\n",
-+							*scan_address, defrag_sub_chunk_end,
-+							(defrag_sub_chunk_end - *scan_address)/PAGE_SIZE,
-+							defrag_stats.aligned,
-+							defrag_stats.migrated,
-+							defrag_stats.src_not_present,
-+							defrag_stats.src_thp_dst_not_failed,
-+							defrag_stats.src_pte_thp_failed,
-+							defrag_stats.dst_out_of_bound_failed,
-+							defrag_stats.dst_thp_src_not_failed,
-+							defrag_stats.dst_pte_thp_failed,
-+							defrag_stats.dst_isolate_free_failed,
-+							defrag_stats.dst_migrate_free_failed,
-+							defrag_stats.dst_anon_failed,
-+							defrag_stats.dst_file_failed,
-+							defrag_stats.dst_non_lru_failed,
-+							defrag_stats.dst_non_moveable_failed,
-+							anchor_node->anchor_vpn,
-+							anchor_node->anchor_pfn,
-+							anchor_node->node.start,
-+							anchor_node->node.last,
-+							(unsigned long)vma+vma->vma_create_jiffies,
-+							defrag_stats.not_defrag_vpn
-+							);
-+
-+						remain_buf_len -=3D used_len;
-+
-+						if (remain_buf_len =3D=3D 1) {
-+							stats_buf[pos] =3D '\0';
-+							remain_buf_len =3D 0;
-+						}
-+					}
-+
-+					/*
-+					 * skip the page which cannot be defragged and restart
-+					 * from the next page
-+					 */
-+					if (defrag_stats.not_defrag_vpn &&
-+						defrag_stats.not_defrag_vpn < defrag_sub_chunk_end) {
-+						VM_BUG_ON(defrag_sub_chunk_end !=3D defrag_end &&
-+							defrag_stats.not_defrag_vpn > defrag_sub_chunk_end);
-+
-+						*scan_address =3D defrag_stats.not_defrag_vpn;
-+						defrag_stats.not_defrag_vpn =3D 0;
-+						goto continue_defrag;
-+					}
-+
-+					/* Done with current 2MB chunk */
-+					*scan_address =3D defrag_sub_chunk_end;
-+					scanned_chunks++;
-+					/*
-+					 * if the knob is set, break out of the defrag loop after
-+					 * a preset number of 2MB chunks are defragged
-+					 */
-+					if (num_breakout_chunks && scanned_chunks >=3D num_breakout_chunks) {
-+						scanned_chunks =3D 0;
-+						goto breakouterloop;
-+					}
-+				}
-+
-+			}
-+		}
-+done_one_vma:
-+		sc->scan_in_vma =3D false;
-+		if (sc->action =3D=3D MEM_DEFRAG_DO_DEFRAG)
-+			vma->vma_defrag_jiffies =3D jiffies;
-+	}
-+breakouterloop:
-+
-+	/* copy stats to user space */
-+	if (sc->out_buf &&
-+		sc->buf_len) {
-+		err =3D copy_to_user(sc->out_buf, stats_buf,
-+				sc->buf_len - remain_buf_len);
-+		sc->used_len =3D sc->buf_len - remain_buf_len;
-+	}
-+
-+	if (stats_buf)
-+		vfree(stats_buf);
-+
-+	/* 0: scan a vma complete, 1: scan a vma incomplete  */
-+	return vma =3D=3D NULL ? 0 : 1;
-+}
-+
-+SYSCALL_DEFINE4(scan_process_memory, pid_t, pid, char __user *, out_buf,
-+				int, buf_len, int, action)
-+{
-+	const struct cred *cred =3D current_cred(), *tcred;
-+	struct task_struct *task;
-+	struct mm_struct *mm;
-+	int err =3D 0;
-+	static struct defrag_scan_control defrag_scan_control =3D {0};
-+
-+	/* Find the mm_struct */
-+	rcu_read_lock();
-+	task =3D pid ? find_task_by_vpid(pid) : current;
-+	if (!task) {
-+		rcu_read_unlock();
-+		return -ESRCH;
-+	}
-+	get_task_struct(task);
-+
-+	/*
-+	 * Check if this process has the right to modify the specified
-+	 * process. The right exists if the process has administrative
-+	 * capabilities, superuser privileges or the same
-+	 * userid as the target process.
-+	 */
-+	tcred =3D __task_cred(task);
-+	if (!uid_eq(cred->euid, tcred->suid) && !uid_eq(cred->euid, tcred->uid) &=
-&
-+	    !uid_eq(cred->uid,  tcred->suid) && !uid_eq(cred->uid,  tcred->uid) &=
-&
-+	    !capable(CAP_SYS_NICE)) {
-+		rcu_read_unlock();
-+		err =3D -EPERM;
-+		goto out;
-+	}
-+	rcu_read_unlock();
-+
-+	err =3D security_task_movememory(task);
-+	if (err)
-+		goto out;
-+
-+	mm =3D get_task_mm(task);
-+	put_task_struct(task);
-+
-+	if (!mm)
-+		return -EINVAL;
-+
-+	switch (action) {
-+	case MEM_DEFRAG_SCAN:
-+	case MEM_DEFRAG_CONTIG_SCAN:
-+		count_vm_event(MEM_DEFRAG_SCAN_NUM);
-+		/*
-+		 * We allow scanning one process's address space for multiple
-+		 * iterations. When we change the scanned process, reset
-+		 * defrag_scan_control's mm_struct
-+		 */
-+		if (!defrag_scan_control.mm ||
-+			defrag_scan_control.mm !=3D mm) {
-+			defrag_scan_control =3D (struct defrag_scan_control){0};
-+			defrag_scan_control.mm =3D mm;
-+		}
-+		defrag_scan_control.out_buf =3D out_buf;
-+		defrag_scan_control.buf_len =3D buf_len;
-+		if (action =3D=3D MEM_DEFRAG_SCAN)
-+			defrag_scan_control.action =3D MEM_DEFRAG_FULL_STATS;
-+		else if (action =3D=3D MEM_DEFRAG_CONTIG_SCAN)
-+			defrag_scan_control.action =3D MEM_DEFRAG_CONTIG_STATS;
-+		else {
-+			err =3D -EINVAL;
-+			break;
-+		}
-+
-+		defrag_scan_control.used_len =3D 0;
-+
-+		if (unlikely(!access_ok(out_buf, buf_len))) {
-+			err =3D -EFAULT;
-+			break;
-+		}
-+
-+		/* clear mm once it is fully scanned  */
-+		if (!kmem_defragd_scan_mm(&defrag_scan_control) &&
-+			!defrag_scan_control.used_len)
-+			defrag_scan_control.mm =3D NULL;
-+
-+		err =3D defrag_scan_control.used_len;
-+		break;
-+	case MEM_DEFRAG_MARK_SCAN_ALL:
-+		set_bit(MMF_VM_MEM_DEFRAG_ALL, &mm->flags);
-+		__kmem_defragd_enter(mm);
-+		break;
-+	case MEM_DEFRAG_CLEAR_SCAN_ALL:
-+		clear_bit(MMF_VM_MEM_DEFRAG_ALL, &mm->flags);
-+		break;
-+	case MEM_DEFRAG_DEFRAG:
-+		count_vm_event(MEM_DEFRAG_DEFRAG_NUM);
-+
-+		if (!defrag_scan_control.mm ||
-+			defrag_scan_control.mm !=3D mm) {
-+			defrag_scan_control =3D (struct defrag_scan_control){0};
-+			defrag_scan_control.mm =3D mm;
-+		}
-+		defrag_scan_control.action =3D MEM_DEFRAG_DO_DEFRAG;
-+
-+		defrag_scan_control.out_buf =3D out_buf;
-+		defrag_scan_control.buf_len =3D buf_len;
-+
-+		/* clear mm once it is fully defragged */
-+		if (buf_len) {
-+			if (!kmem_defragd_scan_mm(&defrag_scan_control) &&
-+				!defrag_scan_control.used_len) {
-+				defrag_scan_control.mm =3D NULL;
-+			}
-+			err =3D defrag_scan_control.used_len;
-+		} else {
-+			err =3D kmem_defragd_scan_mm(&defrag_scan_control);
-+			if (err =3D=3D 0)
-+				defrag_scan_control.mm =3D NULL;
-+		}
-+		break;
-+	default:
-+		err =3D -EINVAL;
-+		break;
-+	}
-+
-+	mmput(mm);
-+	return err;
-+
-+out:
-+	put_task_struct(task);
-+	return err;
-+}
-+
-+static unsigned int kmem_defragd_scan_mm_slot(void)
-+{
-+	struct mm_slot *mm_slot;
-+	int scan_status =3D 0;
-+	struct defrag_scan_control defrag_scan_control =3D {0};
-+
-+	spin_lock(&kmem_defragd_mm_lock);
-+	if (kmem_defragd_scan.mm_slot)
-+		mm_slot =3D kmem_defragd_scan.mm_slot;
-+	else {
-+		mm_slot =3D list_entry(kmem_defragd_scan.mm_head.next,
-+				     struct mm_slot, mm_node);
-+		kmem_defragd_scan.address =3D 0;
-+		kmem_defragd_scan.mm_slot =3D mm_slot;
-+	}
-+	spin_unlock(&kmem_defragd_mm_lock);
-+
-+	defrag_scan_control.mm =3D mm_slot->mm;
-+	defrag_scan_control.scan_address =3D kmem_defragd_scan.address;
-+	defrag_scan_control.action =3D MEM_DEFRAG_DO_DEFRAG;
-+
-+	scan_status =3D kmem_defragd_scan_mm(&defrag_scan_control);
-+
-+	kmem_defragd_scan.address =3D defrag_scan_control.scan_address;
-+
-+	spin_lock(&kmem_defragd_mm_lock);
-+	VM_BUG_ON(kmem_defragd_scan.mm_slot !=3D mm_slot);
-+	/*
-+	 * Release the current mm_slot if this mm is about to die, or
-+	 * if we scanned all vmas of this mm.
-+	 */
-+	if (kmem_defragd_test_exit(mm_slot->mm) || !scan_status) {
-+		/*
-+		 * Make sure that if mm_users is reaching zero while
-+		 * kmem_defragd runs here, kmem_defragd_exit will find
-+		 * mm_slot not pointing to the exiting mm.
-+		 */
-+		if (mm_slot->mm_node.next !=3D &kmem_defragd_scan.mm_head) {
-+			kmem_defragd_scan.mm_slot =3D list_first_entry(
-+				&mm_slot->mm_node,
-+				struct mm_slot, mm_node);
-+			kmem_defragd_scan.address =3D 0;
-+		} else
-+			kmem_defragd_scan.mm_slot =3D NULL;
-+
-+		if (kmem_defragd_test_exit(mm_slot->mm))
-+			collect_mm_slot(mm_slot);
-+		else if (!scan_status) {
-+			list_del(&mm_slot->mm_node);
-+			list_add_tail(&mm_slot->mm_node, &kmem_defragd_scan.mm_head);
-+		}
-+	}
-+	spin_unlock(&kmem_defragd_mm_lock);
-+
-+	return 0;
-+}
-+
-+int memdefrag_madvise(struct vm_area_struct *vma,
-+		     unsigned long *vm_flags, int advice)
-+{
-+	switch (advice) {
-+	case MADV_MEMDEFRAG:
-+		*vm_flags &=3D ~VM_NOMEMDEFRAG;
-+		*vm_flags |=3D VM_MEMDEFRAG;
-+		/*
-+		 * If the vma become good for kmem_defragd to scan,
-+		 * register it here without waiting a page fault that
-+		 * may not happen any time soon.
-+		 */
-+		if (kmem_defragd_enter(vma, *vm_flags))
-+			return -ENOMEM;
-+		break;
-+	case MADV_NOMEMDEFRAG:
-+		*vm_flags &=3D ~VM_MEMDEFRAG;
-+		*vm_flags |=3D VM_NOMEMDEFRAG;
-+		/*
-+		 * Setting VM_NOMEMDEFRAG will prevent kmem_defragd from scanning
-+		 * this vma even if we leave the mm registered in kmem_defragd if
-+		 * it got registered before VM_NOMEMDEFRAG was set.
-+		 */
-+		break;
-+	}
-+
-+	return 0;
-+}
-+
-+
-+void __init kmem_defragd_destroy(void)
-+{
-+	kmem_cache_destroy(mm_slot_cache);
-+}
-+
-+int __init kmem_defragd_init(void)
-+{
-+	mm_slot_cache =3D kmem_cache_create("kmem_defragd_mm_slot",
-+					  sizeof(struct mm_slot),
-+					  __alignof__(struct mm_slot), 0, NULL);
-+	if (!mm_slot_cache)
-+		return -ENOMEM;
-+
-+	return 0;
-+}
-+
-+subsys_initcall(kmem_defragd_init);
-\ No newline at end of file
-diff --git a/mm/memory.c b/mm/memory.c
-index e11ca9dd823f..019036e87088 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -69,6 +69,7 @@
- #include <linux/userfaultfd_k.h>
- #include <linux/dax.h>
- #include <linux/oom.h>
-+#include <linux/mem_defrag.h>
-=20
- #include <asm/io.h>
- #include <asm/mmu_context.h>
-@@ -2926,6 +2927,9 @@ static vm_fault_t do_anonymous_page(struct vm_fault *=
-vmf)
- 	/* Allocate our own private page. */
- 	if (unlikely(anon_vma_prepare(vma)))
- 		goto oom;
-+	/* Make it defrag  */
-+	if (unlikely(kmem_defragd_enter(vma, vma->vm_flags)))
-+		goto oom;
- 	page =3D alloc_zeroed_user_highpage_movable(vma, vmf->address);
- 	if (!page)
- 		goto oom;
-@@ -3844,6 +3848,9 @@ static vm_fault_t __handle_mm_fault(struct vm_area_st=
-ruct *vma,
- 	p4d_t *p4d;
- 	vm_fault_t ret;
-=20
-+	/* Zi: page faults modify vma */
-+	vma->vma_modify_jiffies =3D jiffies;
-+
- 	pgd =3D pgd_offset(mm, address);
- 	p4d =3D p4d_alloc(mm, pgd, address);
- 	if (!p4d)
-diff --git a/mm/mmap.c b/mm/mmap.c
-index f901065c4c64..653dd99d5145 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -169,6 +169,28 @@ void unlink_file_vma(struct vm_area_struct *vma)
- 	}
- }
-=20
-+void free_anchor_pages(struct vm_area_struct *vma)
-+{
-+	struct interval_tree_node *node;
-+
-+	if (!vma)
-+		return;
-+
-+	if (RB_EMPTY_ROOT(&vma->anchor_page_rb.rb_root))
-+		return;
-+
-+	for (node =3D interval_tree_iter_first(&vma->anchor_page_rb,
-+				0, (unsigned long)-1);
-+		 node;) {
-+		struct anchor_page_node *anchor_node =3D container_of(node,
-+					struct anchor_page_node, node);
-+		interval_tree_remove(node, &vma->anchor_page_rb);
-+		node =3D interval_tree_iter_next(node, 0, (unsigned long)-1);
-+		kfree(anchor_node);
-+	}
-+
-+}
-+
- /*
-  * Close a vm structure and free it, returning the next.
-  */
-@@ -181,6 +203,7 @@ static struct vm_area_struct *remove_vma(struct vm_area=
-_struct *vma)
- 		vma->vm_ops->close(vma);
- 	if (vma->vm_file)
- 		fput(vma->vm_file);
-+	free_anchor_pages(vma);
- 	mpol_put(vma_policy(vma));
- 	vm_area_free(vma);
- 	return next;
-@@ -725,10 +748,15 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned=
- long start,
- 	long adjust_next =3D 0;
- 	int remove_next =3D 0;
-=20
-+	/*free_anchor_pages(vma);*/
-+
-+	vma->vma_modify_jiffies =3D jiffies;
-+
- 	if (next && !insert) {
- 		struct vm_area_struct *exporter =3D NULL, *importer =3D NULL;
-=20
- 		if (end >=3D next->vm_end) {
-+			/*free_anchor_pages(next);*/
- 			/*
- 			 * vma expands, overlapping all the next, and
- 			 * perhaps the one after too (mprotect case 6).
-@@ -775,6 +803,7 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned l=
-ong start,
- 				exporter =3D next->vm_next;
-=20
- 		} else if (end > next->vm_start) {
-+			/*free_anchor_pages(next);*/
- 			/*
- 			 * vma expands, overlapping part of the next:
- 			 * mprotect case 5 shifting the boundary up.
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 35fdde041f5c..a35605e0924a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1828,7 +1828,7 @@ void __init init_cma_reserved_pageblock(struct page *=
-page)
-  *
-  * -- nyc
-  */
--static inline void expand(struct zone *zone, struct page *page,
-+inline void expand(struct zone *zone, struct page *page,
- 	int low, int high, struct free_area *area,
- 	int migratetype)
- {
-@@ -1950,7 +1950,7 @@ inline void post_alloc_hook(struct page *page, unsign=
-ed int order,
- 	set_page_owner(page, order, gfp_flags);
- }
-=20
--static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp=
-_flags,
-+void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
- 							unsigned int alloc_flags)
- {
- 	int i;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 83b30edc2f7f..c18a42250a5c 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1293,6 +1293,27 @@ const char * const vmstat_text[] =3D {
- 	"swap_ra",
- 	"swap_ra_hit",
- #endif
-+	"memdefrag_defrag",
-+	"memdefrag_scan",
-+	"memdefrag_dest_free_pages",
-+	"memdefrag_dest_anon_pages",
-+	"memdefrag_dest_file_pages",
-+	"memdefrag_dest_non_lru_pages",
-+	"memdefrag_dest_free_pages_failed",
-+	"memdefrag_dest_free_pages_overflow_failed",
-+	"memdefrag_dest_anon_pages_failed",
-+	"memdefrag_dest_file_pages_failed",
-+	"memdefrag_dest_nonlru_pages_failed",
-+	"memdefrag_src_anon_pages_failed",
-+	"memdefrag_src_compound_pages_failed",
-+	"memdefrag_dst_split_hugepage",
-+#ifdef CONFIG_COMPACTION
-+	"compact_migrate_pages",
-+#endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	"thp_collapse_migrate_pages"
-+#endif
-+
- #endif /* CONFIG_VM_EVENTS_COUNTERS */
- };
- #endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA */
---=20
+--
 2.20.1
 
