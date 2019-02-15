@@ -2,153 +2,213 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A8A2CC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 07:50:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C3F9C10F02
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 08:04:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 71E1A20836
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 07:50:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 71E1A20836
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id C08EA21920
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 08:04:29 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="iTwuZODZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C08EA21920
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F0F4C8E0003; Fri, 15 Feb 2019 02:50:27 -0500 (EST)
+	id 459F18E0002; Fri, 15 Feb 2019 03:04:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EBFDC8E0001; Fri, 15 Feb 2019 02:50:27 -0500 (EST)
+	id 3E03B8E0001; Fri, 15 Feb 2019 03:04:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DD6E98E0003; Fri, 15 Feb 2019 02:50:27 -0500 (EST)
+	id 282A38E0002; Fri, 15 Feb 2019 03:04:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 97DED8E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 02:50:27 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id g9so6901414pfe.7
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 23:50:27 -0800 (PST)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E8C1F8E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 03:04:24 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id q185so5415622ywf.8
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 00:04:24 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
-         :mime-version;
-        bh=d36AgB+FqbIk/ltA0COgY/2J/z0AkXVW2tCe9o8bRF4=;
-        b=UFIyo2Og0OZqPfPkg7fsAPeBq2IBGeKh435VMk8fFBGUL7GVlJDbhbC/aw3pnUB7bM
-         HTYqpUzKg5N6YQmAzGcJqNsXreDzKiYg1q/CaVYjftiQra/HetIcZSPTrMOElt+Un5Gn
-         YIw2fU/97SMjd5oXS13zje0AE6v7ENXOw6Q70V2U6paLKjN8XQqUycKGMtg63kUpfYoJ
-         zmeVzZ9Ofnb4ZON4ZIAAqUqRkhpb7vZ2yfcbLdWJzm6zOoU4MsqBkL8gGMwIWi1KZ1P3
-         69RkpR8IO78qoelNnrzSoh1fTAu7E7wUigG/ncy682vAtQcdGGeBWAy7ZemFFoaCjRw3
-         csUQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAubypKcWBSZUpf0RTEQkUHsNY4lWYbBEtYvpGbuFvU4Ue47JgRaR
-	wQvqretus+2O7vyyH76lta5uCmzaDQ1N1cLJxNRWIUQEuEXkvZOw1LMkD7wjj/FcHfBHL5GmFIJ
-	/2p8CIV+YiOFbyX+B4zWvR1n5/uVsheJf1wxzDCrIX0N2EZ7XOHQ+5/CYJLx/GPUhDg==
-X-Received: by 2002:a63:5a5e:: with SMTP id k30mr4166641pgm.345.1550217027272;
-        Thu, 14 Feb 2019 23:50:27 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZrHyJ3129dLTgKU9NxvqxDizchE73//iLvzElQSklbKcCZxX5gxcdFg0tca9p9oOTrCI/o
-X-Received: by 2002:a63:5a5e:: with SMTP id k30mr4166593pgm.345.1550217026572;
-        Thu, 14 Feb 2019 23:50:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550217026; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=QuEfGz9b+yTPacvnfh/QMnf3j7UM3cHWmseR0aorNT0=;
+        b=LCeMHQrinFZiLYUbSYmksJMn02lmzlVyisqVq4jjuQTnVo40vZszxIitLm+c1mQaU9
+         taIcKVyYHz5ATGoqov+NaXmEhJutd3mnro+SXzfYpTpkZecDbn52r/ZKXLhTaqzpNWbc
+         9JjRV3/nnT6rtup+e3ntcQCWU9yS36dPsL1YWgTDnFSEhEHX+iRPmPBeWzr6Iyc8TkMC
+         OsiltiqQSb3h3MdhXm2igvjv3HT3Ome85sQF3n3+mxbytoHOVkphSgpQ8J1YD/3ILw55
+         tzVULCd3BfU3NjAPX8Bon9apupg28oBlVALJIZxeexImmNHQJKzJX7Aw4dSopvczuVuR
+         h68Q==
+X-Gm-Message-State: AHQUAubR6iRmiDyQKXFDb3R62YmEhbwQ7xKcEvNu+bZ0U8SFkm4KhW+J
+	60t+mGXT1RIGyHlQHaOSmAcx9zVc2gCe+a1Iq1fi1ZPD0HFUvjltTnrUUizd/urGWrFljONOyQU
+	lclVfyv3ls8w4KIYmzpvnZ3tZpBZTmSjzAqIqo1eAeeEsEMNZiyIvf89WAH1yBmVX/lpKC3dtSO
+	Y4Ckxa2CueHyXcGNhOY8I/m9cgPyLlW7YVgeImb7ISXM4X2TV1leF2pZfngMtSEXSfmrGTu5zHs
+	S41VhB9pmeCNg7AFHmY7OW3um/b3Ff6S8PkKhudI+MTeRhRUQ88Jr9P08vhSpsBG3OYHkalSlr8
+	LgQVxpnGkwIkABfQwNuLvCMFb4X7aaBEpQmYdILIee2uEzfuBosQDbWraui7ME4bIRnkV7dBTdk
+	U
+X-Received: by 2002:a81:e408:: with SMTP id r8mr6851410ywl.367.1550217864548;
+        Fri, 15 Feb 2019 00:04:24 -0800 (PST)
+X-Received: by 2002:a81:e408:: with SMTP id r8mr6851369ywl.367.1550217863854;
+        Fri, 15 Feb 2019 00:04:23 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550217863; cv=none;
         d=google.com; s=arc-20160816;
-        b=XdCuiSP1k6H3dXcVxChHGhX8K0j4wdxo55GKPKfdMEL/ZwAHInrT2hl5eJVGI327i6
-         UNWuQf1GnSGQtfILBgayvtJKZj3cDUVXHvdkWi3rQ41h2O6vQWbVzAXEkOiPnZ2BjAC3
-         rP8UaZHp49Usj1UqJPaVm8U5RrjLBbTWs3hccGUUTjx6ePR7n/ucWdYx2mXbFPivuRcE
-         pZcMYRKbRkglzuWkw26K+6tLagdSYBEQLaS0sgHBIGq5F2mxbcF0Uc22G7AOBGXNPQ9C
-         PMlWVdhkJ03R4yU8GBx2DroV02FOSATxCJ9FnH3tFHmbx0bvpxn3h7XO7O0FUSqqW8qV
-         eQFQ==
+        b=BmCysGuV6dlts/mfEkERgs60o+aFVR4F2G9ptdUKt91z8nv3pyMPkDn3KQ33eTi7LC
+         L+2QdAko2jJ+AekoU0jZIcMJQky/k2LK3DXj3ClCm8C0wrwT79ZiHnLO9DryB6DwP6Nu
+         xHk4pMA4fhkvTnkF3ABLgtSlNZr2op/qMrVCAS2itjsciszFQMXeyRmCzMpaygA1U6IQ
+         Z8dd35t5oSXmbBPER/EZvAJWI/fsmWQPC7fVlRN4TgEAZsKRF9oIfUiMDlqORvB74jfr
+         jJ1MfWQ84N7bwQnFmFbMoyE3wb4xwJal10WfoNWo1oKTYrhBpMCiBsRZC1+hEU6Q3gvk
+         IlwQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :subject:cc:to:from;
-        bh=d36AgB+FqbIk/ltA0COgY/2J/z0AkXVW2tCe9o8bRF4=;
-        b=L3uMxblE2B3Rc9Z9Yko7ot/qXKO5b8toeaZT/1548MDQbTM/0WHM4d7rX5Dklruy85
-         0xxXsWbnkSRqnC08Ld5UiZrrVNdpNsuA+Dal1Y8uedY3MHuJwtJLI9iQmhsY3mOWyh46
-         VfYomw+pnWUlgfxBcmlufZ54H5qBZ5wrgtbGEp6ykzAiFKQElLzihQaXMZ027CEknZeH
-         kitGzn/rQigkG8CHoYaGkRmSRfPnB3qxGVH3vZy/RyXAPwMI/tIh/9UW0Tfwhci7wC0t
-         wn2Jpz9jsqIPRd55eX8q9uITMIpT1hqEvrGpwmWnge4ETexpho7ZBWZZ3v0qIWxgMkHk
-         tKrA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=QuEfGz9b+yTPacvnfh/QMnf3j7UM3cHWmseR0aorNT0=;
+        b=PUwYTfyGu9migvyRungBFNkmotSckWUV8tWaxTuaE565nR12vvmS+yBAWu7NvjZk//
+         1nCw1NsfMm3Dg+YpGCEp22fqgSplxOqmBSWRuoLO1SuCSRlVEN2MIl06GmYmHZWkvdmq
+         x7Eb60cAxB2RbotraPaKZuw336cj5pWefx6rvNTkQr5Bjj+wY2UvnsT0VH/Y77sxseGE
+         mEv/8qvc+AWtIVcoL7vTSq2YJfaWo4s+HqcGueVr+l7k7tCpRhUd4nZS0+VVjyCJJG20
+         vlCd5cSGKxCHByvViPWgNhTRNfBrgu3PaPxkObRsZpLa2kpBuHOLKNN2JgQSPyeI01oK
+         1zCA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id r135si2993979pfc.123.2019.02.14.23.50.26
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iTwuZODZ;
+       spf=pass (google.com: domain of amir73il@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=amir73il@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k11sor2720326ybm.112.2019.02.15.00.04.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 23:50:26 -0800 (PST)
-Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
+        (Google Transport Security);
+        Fri, 15 Feb 2019 00:04:23 -0800 (PST)
+Received-SPF: pass (google.com: domain of amir73il@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga003.jf.intel.com ([10.7.209.27])
-  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Feb 2019 23:50:26 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,372,1544515200"; 
-   d="scan'208";a="126685015"
-Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.151])
-  by orsmga003.jf.intel.com with ESMTP; 14 Feb 2019 23:50:23 -0800
-From: "Huang\, Ying" <ying.huang@intel.com>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,  <linux-mm@kvack.org>,
-  <linux-kernel@vger.kernel.org>,  Hugh Dickins <hughd@google.com>,  "Paul
- E . McKenney" <paulmck@linux.vnet.ibm.com>,  Minchan Kim
- <minchan@kernel.org>,  Johannes Weiner <hannes@cmpxchg.org>,  Tim Chen
- <tim.c.chen@linux.intel.com>,  Mel Gorman <mgorman@techsingularity.net>,
-  =?utf-8?Q?J=EF=BF=BDr=EF=BF=BDme_Glisse?= <jglisse@redhat.com>,  Michal
- Hocko <mhocko@suse.com>,  David Rientjes <rientjes@google.com>,  Rik van
- Riel <riel@redhat.com>,  Jan Kara <jack@suse.cz>,  Dave Jiang
- <dave.jiang@intel.com>,  Daniel Jordan <daniel.m.jordan@oracle.com>,
-  Andrea Parri <andrea.parri@amarulasolutions.com>
-Subject: Re: [PATCH -mm -V7] mm, swap: fix race between swapoff and some swap operations
-References: <20190211083846.18888-1-ying.huang@intel.com>
-	<20190214023805.GA19090@redhat.com>
-	<87k1i2oks6.fsf@yhuang-dev.intel.com>
-	<20190214214741.GB10698@redhat.com>
-Date: Fri, 15 Feb 2019 15:50:21 +0800
-In-Reply-To: <20190214214741.GB10698@redhat.com> (Andrea Arcangeli's message
-	of "Thu, 14 Feb 2019 16:47:41 -0500")
-Message-ID: <87mumxa3sy.fsf@yhuang-dev.intel.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iTwuZODZ;
+       spf=pass (google.com: domain of amir73il@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=amir73il@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=QuEfGz9b+yTPacvnfh/QMnf3j7UM3cHWmseR0aorNT0=;
+        b=iTwuZODZm/rOKVxYNUyD7WhyONkGHoFKvHJmU7KQQHd0OVhYrDsruvhfGPlzfQWG7d
+         +LhdlRPH0b3tYOAMqbilffCBDMxU5eztxCZaPrJbLzNokDIQxUvUtbg86I0sLJtkPR7o
+         VOrHSFY3YblvfYFJEYnLYjMCRkAXhEobe5kACtHAKixavdyqWYZacDFfwCgtB/N4/IcK
+         zfNUci1q3fNIzEgFayI+DNU2j8H0pqP20H424oIRwjqC24gbo0ogGEtWdpawpXfjAj1w
+         nxWq+N1u0WqkaL4TuPva8RtuFImC2B69xUzGCHeEUkPFdzi2hD5jVIOqCYp5KSBakC4G
+         c+sw==
+X-Google-Smtp-Source: AHgI3IbStHEFP2mPJIlWtmF4n/NoxAegtGV89PF4VxWaRToDnmSo0gKvywSNl1E5lM/gDGjkKC8HTPs6V3PZGp1+bd8=
+X-Received: by 2002:a25:9c09:: with SMTP id c9mr7114969ybo.462.1550217863552;
+ Fri, 15 Feb 2019 00:04:23 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+References: <20190214234908.GA6474@magnolia>
+In-Reply-To: <20190214234908.GA6474@magnolia>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Fri, 15 Feb 2019 10:04:12 +0200
+Message-ID: <CAOQ4uxho2AK7g-uhHykGaG6n+aqad-SaCTC6Z_EaA4Jn07tDSg@mail.gmail.com>
+Subject: Re: [PATCH] vfs: don't decrement i_nlink in d_tmpfile
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>, dsterba@suse.com, 
+	Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.com>, Theodore Tso <tytso@mit.edu>, 
+	Andreas Dilger <adilger.kernel@dilger.ca>, Jaegeuk Kim <jaegeuk@kernel.org>, yuchao0@huawei.com, 
+	Hugh Dickins <hughd@google.com>, Christoph Hellwig <hch@infradead.org>, 
+	Richard Weinberger <richard@nod.at>, Artem Bityutskiy <dedekind1@gmail.com>, 
+	Adrian Hunter <adrian.hunter@intel.com>, linux-xfs <linux-xfs@vger.kernel.org>, 
+	Linux Btrfs <linux-btrfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, 
+	Ext4 <linux-ext4@vger.kernel.org>, linux-f2fs-devel@lists.sourceforge.net, 
+	linux-mtd@lists.infradead.org, Linux MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli <aarcange@redhat.com> writes:
-
-> On Thu, Feb 14, 2019 at 04:07:37PM +0800, Huang, Ying wrote:
->> Before, we choose to use stop_machine() to reduce the overhead of hot
->> path (page fault handler) as much as possible.  But now, I found
->> rcu_read_lock_sched() is just a wrapper of preempt_disable().  So maybe
->> we can switch to RCU version now.
+On Fri, Feb 15, 2019 at 4:23 AM Darrick J. Wong <darrick.wong@oracle.com> wrote:
 >
-> rcu_read_lock looks more efficient than rcu_read_lock_sched. So for
-> this purpose in the fast path rcu_read_lock()/unlock() should be the
-> preferred methods, no need to force preempt_disable() (except for
-> debug purposes if sleep debug is enabled). Server builds are done with
-> voluntary preempt (no preempt shouldn't even exist as config option)
-> and there rcu_read_lock might be just a noop.
+> From: Darrick J. Wong <darrick.wong@oracle.com>
+>
+> d_tmpfile was introduced to instantiate an inode in the dentry cache as
+> a temporary file.  This helper decrements the inode's nlink count and
+> dirties the inode, presumably so that filesystems could call new_inode
+> to create a new inode with nlink == 1 and then call d_tmpfile which will
+> decrement nlink.
+>
+> However, this doesn't play well with XFS, which needs to allocate,
+> initialize, and insert a tempfile inode on its unlinked list in a single
+> transaction.  In order to maintain referential integrity of the XFS
+> metadata, we cannot have an inode on the unlinked list with nlink >= 1.
+>
+> XFS and btrfs hack around d_tmpfile's behavior by creating the inode
+> with nlink == 0 and then incrementing it just prior to calling
+> d_tmpfile, anticipating that it will be reset to 0.
+>
+> Everywhere else outside of d_tmpfile, it appears that nlink updates and
+> persistence is the responsibility of individual filesystems.  Therefore,
+> move the nlink decrement out of d_tmpfile into the callers, and require
+> that callers only pass in inodes with nlink already set to 0.
+>
+> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> ---
+>  fs/btrfs/inode.c  |    8 --------
+>  fs/dcache.c       |    8 ++++++--
+>  fs/ext2/namei.c   |    2 +-
+>  fs/ext4/namei.c   |    1 +
+>  fs/f2fs/namei.c   |    1 +
+>  fs/minix/namei.c  |    2 +-
+>  fs/ubifs/dir.c    |    1 +
+>  fs/udf/namei.c    |    2 +-
+>  fs/xfs/xfs_iops.c |   13 ++-----------
+>  mm/shmem.c        |    1 +
+>  10 files changed, 15 insertions(+), 24 deletions(-)
+>
+> diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+> index 5c349667c761..bd189fc50f83 100644
+> --- a/fs/btrfs/inode.c
+> +++ b/fs/btrfs/inode.c
+> @@ -10382,14 +10382,6 @@ static int btrfs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+>         if (ret)
+>                 goto out;
+>
+> -       /*
+> -        * We set number of links to 0 in btrfs_new_inode(), and here we set
+> -        * it to 1 because d_tmpfile() will issue a warning if the count is 0,
+> -        * through:
+> -        *
+> -        *    d_tmpfile() -> inode_dec_link_count() -> drop_nlink()
+> -        */
+> -       set_nlink(inode, 1);
+>         d_tmpfile(dentry, inode);
+>         unlock_new_inode(inode);
+>         mark_inode_dirty(inode);
+> diff --git a/fs/dcache.c b/fs/dcache.c
+> index aac41adf4743..5fb4ecce2589 100644
+> --- a/fs/dcache.c
+> +++ b/fs/dcache.c
+> @@ -3042,12 +3042,16 @@ void d_genocide(struct dentry *parent)
+>
+>  EXPORT_SYMBOL(d_genocide);
+>
+> +/*
+> + * Instantiate an inode in the dentry cache as a temporary file.  Callers must
+> + * ensure that @inode has a zero link count.
+> + */
+>  void d_tmpfile(struct dentry *dentry, struct inode *inode)
+>  {
+> -       inode_dec_link_count(inode);
+>         BUG_ON(dentry->d_name.name != dentry->d_iname ||
+>                 !hlist_unhashed(&dentry->d_u.d_alias) ||
+> -               !d_unlinked(dentry));
+> +               !d_unlinked(dentry) ||
+> +               inode->i_nlink != 0);
 
-If
+You've just promoted i_nlink filesystem accounting error (which
+are not that rare) from WARN_ON() to BUG_ON(), not to mention
+Linus' objection to any use of BUG_ON() at all.
 
-CONFIG_PREEMPT_VOLUNTARY=y
-CONFIG_PREEMPT=n
-CONFIG_PREEMPT_COUNT=n
+!hlist_unhashed is anyway checked again in d_instantiate().
+!d_unlinked is not a reason to break the machine.
+The name check is really not a reason to break the machine.
+Can probably make tmp name code conditional to WARN_ON().
 
-which is common for servers,
-
-rcu_read_lock() will be a noop, rcu_read_lock_sched() and
-preempt_disable() will be barrier().  So rcu_read_lock() is a little
-better.
-
-> Against a fast path rcu_read_lock/unlock before the consolidation
-> synchronize_rcu would have been enough, now after the consolidation
-> even more certain that it's enough because it's equivalent to _mult.
-
-Yes.  Will change to rcu_read_lock/unlock based method.
-
-Best Regards,
-Huang, Ying
+Thanks,
+Amir.
 
