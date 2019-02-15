@@ -2,134 +2,156 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0CB1DC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 18:31:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 89E15C10F02
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 18:43:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B9F7121920
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 18:31:38 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="DW/4HFBW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9F7121920
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	by mail.kernel.org (Postfix) with ESMTP id 2FE53222D0
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 18:43:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FE53222D0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 568258E0002; Fri, 15 Feb 2019 13:31:38 -0500 (EST)
+	id 8BABF8E0002; Fri, 15 Feb 2019 13:43:29 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 515F38E0001; Fri, 15 Feb 2019 13:31:38 -0500 (EST)
+	id 842DC8E0001; Fri, 15 Feb 2019 13:43:29 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 42C048E0002; Fri, 15 Feb 2019 13:31:38 -0500 (EST)
+	id 6E49D8E0002; Fri, 15 Feb 2019 13:43:29 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 172158E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 13:31:38 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id n197so8891367qke.0
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 10:31:38 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 29DBE8E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 13:43:29 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id a26so8126329pff.15
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 10:43:29 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=TXLgFI/pw+0pz5gj7vemkVrKIPPDAgFksp2sfKSU0BM=;
-        b=eoHJq4uSNUs5dYZdaCaFLofzxRJ5W32PjktxdsUP93uSUYuQk/wn6rlV3kLjECSzTX
-         oc3MDKvSf2eKdb/fjxcQL4CkqjgNUwHwrKI/wbEP7Fa8E1Y2PZfDvc9QtsZ77NbBPCog
-         af26tayeH12OsAl7tKYP4WLB/sPmYgEqBbr+Y+21yB96f/FiQafCQsBZMKRs6u4lq24W
-         XGV119ebN2NgSSrjKrwLgcEJmJGDB9wJyi8tJ+oB4yhU15ous5/FX34rBXDA+xuxlyXL
-         sFVPLVqE/4xkokmmj+e17TCNxNJQw9Qe2fW08lR06B83GzkHd1xUHk18HAtWNKf58Bs2
-         Aq+A==
-X-Gm-Message-State: AHQUAuZfbHTnTPNk8FO9L7nL3Wubdjb4yjWNkTzSD+5lVBCh3N3FFkb8
-	osk3sp7dUvKGImQBzaq46PmMTyzJU7qzHLn/cLYtme/AKYAh+N2ETO6oTclATavgiYv8eL2MLrC
-	YPpgPzrRlg5SVpF3h2dOH7rBvJwivxkjlHVCT6vXXDWXD4OJ42bK8NwUsj3D9eFg=
-X-Received: by 2002:aed:3964:: with SMTP id l91mr8702521qte.33.1550255497808;
-        Fri, 15 Feb 2019 10:31:37 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZDpPZTwsNNtKv7Fu6i7/JFSOQDZcVSJD0Z3u7CCwfMF1NyYIAl2J2bgpF1jpJwNj9ag7BF
-X-Received: by 2002:aed:3964:: with SMTP id l91mr8702478qte.33.1550255497201;
-        Fri, 15 Feb 2019 10:31:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550255497; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=lXzZQDiLj+YlSMM74+Z82ZwxGcRsCJXxK7Kp+nLjY6I=;
+        b=o1M7augwQH8wR87hKaeMixyRQvl8Zm9b51vZlQ6HnQUD1vMe8clN0etC4tC7uG4Gg5
+         BRN42zlsBH38IHTnzhirjNIzVRY2FVPWh5N/LZmhhpe9KkilSOeHwlBQjnmoaqjnWBZs
+         kfZCsrPi20FySkV1UDsQnlh2rbtIsYhm5w/nrssSHTnblAicJApQXPjCmJ9Z8vnDAWBW
+         BZTxfLLndoMicsxcgB/DsoKOhzvQS/0C2cq1vaEWvUznmGbmhl/t7OpUJAIp+h2VE3jS
+         4bMJjiX9wijE2ZCqcQP8I2HbzzTvLG/ud9UjwgVALh/sciNj4jlBr2LtvxFYzqpJX3r8
+         oSuQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: AHQUAuYOSPF68Yae53ZMJyQGjTi5KLYRRq0trSRCNCQ/BmuEsW6NPnCL
+	85PFjmGlEXqbPSc1DUiuRR1OvgBky3LpSdvd7wM7c/7xeWSq5R6hzcwLFnoPKaRI43q1FnzVqnj
+	Bu5kYjTrcyDHNfH/pHafQvcTsdOM6f4ram1sMOL8tJ4U0gMa8PZG6SnFHv5OJbdtlvA==
+X-Received: by 2002:a65:6542:: with SMTP id a2mr10469583pgw.389.1550256208778;
+        Fri, 15 Feb 2019 10:43:28 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Iah67AI1xonMvyvbZg2IZjNqszGs+UbjYRxjheWqz0qRATrbQmwcrEAruQmaIJ7OExXzD/k
+X-Received: by 2002:a65:6542:: with SMTP id a2mr10469527pgw.389.1550256207893;
+        Fri, 15 Feb 2019 10:43:27 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550256207; cv=none;
         d=google.com; s=arc-20160816;
-        b=kPBLIzjN1rKJUQmOCxSrElXRPadp8MfsdBqBIse8K0sr3iDkQapXCo+abLRDmtj/od
-         KYutN/mXNki3ZW83OFhxxj+6L8FYvYjld/zuvDfnS0ZCq9Pl/975M/c+N20J0dfumhEy
-         DPudErQBHcIi+qxMI4DAwTrmABROinXWjhCq8wNF36ypxR6cz1IFXgLPmMjEmwqVtq86
-         /rrAqB8KINKzUS22ykt3rHa8hq91eeywA7JnWYLipJLFNrHXup1xSFg8jGqUKCheRHf6
-         qsFhHK6QP6+Yp5426gv/HKT7WpxEntI/wFVLhoA0f1FknToLH6un64jA0E4hJguxcmpE
-         aQog==
+        b=KzwhwBeR7fAQwdV1LJZlwNVgCdvXR2RQEOvXU4fgDZc58zlJkjVvwKUdWEteCHB7i0
+         YwzqzphagCey3ZR8aPEB6ZqZ15zGtVXvZ5x55ojbuCErJjnu4vGMiw8nW56VqmoF6VYN
+         jBbrIK9rRdMEfQqSE+vwZUobODpgDumDF7DDOR4YVmUJwwAH2wc5046SO+QitrNl+WeO
+         epKZlpdxEzUJ6R5QpIAiAWWuEkio1f33Xa8lyB6zZP8t78jKW+GAHsRpHs7e2aTHheHi
+         w7mEIiun1bU5TayIlIb+zzSG+uWsd4uDhxL8g9jZ8ej9fqGatsxthzygYxbszOM5ZyYm
+         dlaQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=TXLgFI/pw+0pz5gj7vemkVrKIPPDAgFksp2sfKSU0BM=;
-        b=ZJ0F5l+Nd5gzh2BNGdIEarbc+waYHzmtS2cuLt9Ri3BhP2GISd/h6p0hlC1PrtZYpu
-         VSazZSeYnXkcBmEcEXeyl4pyrlBQwx0ByLhaZKbn1h0JyyJAiimlXFXQo5omdkJGwSxU
-         X5GrJDtmO26U+okAaw0kVuJ39nDuD+tyKjMkuYg6aTgHVRs2DHj32XaXEQEcoewhhZKR
-         JGdQxEwxYfZmBvoJGE5BXMnztTWDPyG2+tl3KxWumiwSLdAz5HD+/oDE00Md40jbY/3j
-         letQDzfc7mOpBOdxE+g+SYMJaFWip9L/3em0WzR84lQCCRjQqLvQUUlQ+UNAX1F4xgJF
-         vkYQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=lXzZQDiLj+YlSMM74+Z82ZwxGcRsCJXxK7Kp+nLjY6I=;
+        b=XEv/zMlfJJra/qVIceMoAqIi0vud7Si1nZnLqXK7B8/A06fJvOGrRtXWQsV06wAqwK
+         nHQBPWMKQ1GRH/BcURl4b1z0uWch47cMCQ8hjmyxhxKHAYavM6vYmuNg3MMS8eqg8xf9
+         Y2cyUa85sGJXBsaL0NiDEjsfoFtrt7H+ZseIimvEwlHgUxAIZMI36Q9G3XMli/9rI6kY
+         LRgvB88AiRJgWAKlDK7RWe8pxPk2DqBFNQdIlx1c1bq0Pm6XgVKfKZOwqHthd2tvjZ+9
+         RnYHVCWu5zNh6GZcppPlj6cUl0nx44n/DKjSxkuaIaARd4XY0ZUxuNRa5dJO+G6LLSSq
+         XCYw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b="DW/4HFBW";
-       spf=pass (google.com: domain of 01000168f26d9e0c-aef3255a-5059-4657-b241-dae66663bbea-000000@amazonses.com designates 54.240.9.37 as permitted sender) smtp.mailfrom=01000168f26d9e0c-aef3255a-5059-4657-b241-dae66663bbea-000000@amazonses.com
-Received: from a9-37.smtp-out.amazonses.com (a9-37.smtp-out.amazonses.com. [54.240.9.37])
-        by mx.google.com with ESMTPS id o127si797402qkd.13.2019.02.15.10.31.37
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id m1si6006783pgi.218.2019.02.15.10.43.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 15 Feb 2019 10:31:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of 01000168f26d9e0c-aef3255a-5059-4657-b241-dae66663bbea-000000@amazonses.com designates 54.240.9.37 as permitted sender) client-ip=54.240.9.37;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Feb 2019 10:43:27 -0800 (PST)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b="DW/4HFBW";
-       spf=pass (google.com: domain of 01000168f26d9e0c-aef3255a-5059-4657-b241-dae66663bbea-000000@amazonses.com designates 54.240.9.37 as permitted sender) smtp.mailfrom=01000168f26d9e0c-aef3255a-5059-4657-b241-dae66663bbea-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1550255496;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=FL49OqYV7AJ7BdfqMIiruaHQ/KIj/D+PCy38BhKpJ8M=;
-	b=DW/4HFBWl7QxvxO7+RPK0EnTWciRC6KBevIyCX844sINXkFtro9foTj9NAy+yYNH
-	KkrA17PnOuoFvHC503Pq6MYSRDKVdvWqqN3P0WOo5yW2T+28qcy/csPN+XvNkMyOgJ1
-	hDFPRkfFHIw71VRLb6JkcoK1iXbQB5k8exBjyM/I=
-Date: Fri, 15 Feb 2019 18:31:36 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Matthew Wilcox <willy@infradead.org>
-cc: Dave Chinner <david@fromorbit.com>, Jerome Glisse <jglisse@redhat.com>, 
-    Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, 
-    Jan Kara <jack@suse.cz>, Doug Ledford <dledford@redhat.com>, 
-    Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, 
-    linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-    Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-    John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving longterm-GUP
- usage by RDMA
-In-Reply-To: <20190215180852.GJ12668@bombadil.infradead.org>
-Message-ID: <01000168f26d9e0c-aef3255a-5059-4657-b241-dae66663bbea-000000@email.amazonses.com>
-References: <20190208111028.GD6353@quack2.suse.cz> <CAPcyv4iVtBfO8zWZU3LZXLqv-dha1NSG+2+7MvgNy9TibCy4Cw@mail.gmail.com> <20190211102402.GF19029@quack2.suse.cz> <CAPcyv4iHso+PqAm-4NfF0svoK4mELJMSWNp+vsG43UaW1S2eew@mail.gmail.com> <20190211180654.GB24692@ziepe.ca>
- <20190214202622.GB3420@redhat.com> <20190214205049.GC12668@bombadil.infradead.org> <20190214213922.GD3420@redhat.com> <20190215011921.GS20493@dastard> <01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@email.amazonses.com>
- <20190215180852.GJ12668@bombadil.infradead.org>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
-MIME-Version: 1.0
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 82702B1D;
+	Fri, 15 Feb 2019 18:43:26 +0000 (UTC)
+Date: Fri, 15 Feb 2019 10:43:25 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+To: "kernelci.org bot" <bot@kernelci.org>
+Cc: tomeu.vizoso@collabora.com, guillaume.tucker@collabora.com, Dan Williams
+ <dan.j.williams@intel.com>, broonie@kernel.org, matthew.hart@linaro.org,
+ Stephen Rothwell <sfr@canb.auug.org.au>, khilman@baylibre.com,
+ enric.balletbo@collabora.com, Nicholas Piggin <npiggin@gmail.com>, Dominik
+ Brodowski <linux@dominikbrodowski.net>, Masahiro Yamada
+ <yamada.masahiro@socionext.com>, Kees Cook <keescook@chromium.org>, Adrian
+ Reber <adrian@lisas.de>, linux-kernel@vger.kernel.org, Johannes Weiner
+ <hannes@cmpxchg.org>, linux-mm@kvack.org, Mathieu Desnoyers
+ <mathieu.desnoyers@efficios.com>, Michal Hocko <mhocko@suse.com>, Richard
+ Guy Briggs <rgb@redhat.com>, "Peter Zijlstra (Intel)"
+ <peterz@infradead.org>
+Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
+Message-Id: <20190215104325.039dbbd9c3bfb35b95f9247b@linux-foundation.org>
+In-Reply-To: <5c6702da.1c69fb81.12a14.4ece@mx.google.com>
+References: <5c6702da.1c69fb81.12a14.4ece@mx.google.com>
+X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.02.15-54.240.9.37
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 Feb 2019, Matthew Wilcox wrote:
+On Fri, 15 Feb 2019 10:20:10 -0800 (PST) "kernelci.org bot" <bot@kernelci.org> wrote:
 
-> > Since RDMA is something similar: Can we say that a file that is used for
-> > RDMA should not use the page cache?
->
-> That makes no sense.  The page cache is the standard synchronisation point
-> for filesystems and processes.  The only problems come in for the things
-> which bypass the page cache like O_DIRECT and DAX.
+> * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+> * This automated bisection report was sent to you on the basis  *
+> * that you may be involved with the breaking commit it has      *
+> * found.  No manual investigation has been done to verify it,   *
+> * and the root cause of the problem may be somewhere else.      *
+> * Hope this helps!                                              *
+> * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+> 
+> next/master boot bisection: next-20190215 on beaglebone-black
+> 
+> Summary:
+>   Start:      7a92eb7cc1dc Add linux-next specific files for 20190215
+>   Details:    https://kernelci.org/boot/id/5c666ea959b514b017fe6017
+>   Plain log:  https://storage.kernelci.org//next/master/next-20190215/arm/multi_v7_defconfig+CONFIG_SMP=n/gcc-7/lab-collabora/boot-am335x-boneblack.txt
+>   HTML log:   https://storage.kernelci.org//next/master/next-20190215/arm/multi_v7_defconfig+CONFIG_SMP=n/gcc-7/lab-collabora/boot-am335x-boneblack.html
+>   Result:     8dd037cc97d9 mm/shuffle: default enable all shuffling
+> 
+> Checks:
+>   revert:     PASS
+>   verify:     PASS
+> 
+> Parameters:
+>   Tree:       next
+>   URL:        git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
+>   Branch:     master
+>   Target:     beaglebone-black
+>   CPU arch:   arm
+>   Lab:        lab-collabora
+>   Compiler:   gcc-7
+>   Config:     multi_v7_defconfig+CONFIG_SMP=n
+>   Test suite: boot
+> 
+> Breaking commit found:
+> 
+> -------------------------------------------------------------------------------
+> commit 8dd037cc97d9226c97c2ee1abb4e97eff71e0c8d
+> Author: Dan Williams <dan.j.williams@intel.com>
+> Date:   Fri Feb 15 11:28:30 2019 +1100
+> 
+>     mm/shuffle: default enable all shuffling
 
-It makes a lot of sense since the filesystems play COW etc games with the
-pages and RDMA is very much like O_DIRECT in that the pages are modified
-directly under I/O. It also bypasses the page cache in case you have
-not noticed yet.
+Thanks.
 
-Both filesysetms and RDMA acting on a page cache at
-the same time lead to the mess that we are trying to solve.
+But what actually went wrong?  Kernel doesn't boot?
 
 
