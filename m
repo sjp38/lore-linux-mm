@@ -6,72 +6,72 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4DE0FC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:16:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C649EC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:17:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB12C21B1A
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:16:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB12C21B1A
+	by mail.kernel.org (Postfix) with ESMTP id 8D22F21B1C
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:17:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D22F21B1C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8FA3F8E000F; Fri, 15 Feb 2019 06:16:45 -0500 (EST)
+	id 3030F8E0002; Fri, 15 Feb 2019 06:17:07 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 89F6B8E0001; Fri, 15 Feb 2019 06:16:45 -0500 (EST)
+	id 28C388E0001; Fri, 15 Feb 2019 06:17:07 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 724518E000F; Fri, 15 Feb 2019 06:16:45 -0500 (EST)
+	id 155C38E0002; Fri, 15 Feb 2019 06:17:07 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3ACAC8E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 06:16:45 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id r24so8653369qtj.13
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 03:16:45 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DA07B8E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 06:17:06 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id c84so7842557qkb.13
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 03:17:06 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=iK/keQTa+g2rXBeS7+SCvlmZbsSS1FVW28sk0za4K44=;
-        b=Mcf0WWlKtYNkpTo20pc5+C5ifZa43k1qb35QMPjb6qQXqZVk6+GwsjICQIeeeIk3vs
-         rH10l6w368MmoTVRNhqVRKdWk/Hyt4TvzGIBXM5d9o1a4FPwcF30KRSdY6/PPSXfO+oJ
-         UYQguU/pRbRIA5/TH390eJuMPZS4FkM4dsAxXZ452u2un2L8ijSNfsCEEdQufNrqD6Lw
-         zClNOS5qEBroFLThLR8yeW5Cg6DEPoLNq5V1LEU/HWNhskrm8AW8tAyMMmYoA+OM79Ud
-         YzGDqKcTTlXgO4FK0/QK0ShtKVquNX8CvVF6EtPp2vLkmqCbJWfwfemC1BjPTtWGJWhb
-         mcAg==
+        bh=o364efRtKvzLvt+ZEMVS/ez57YOCJqD0TpkJltjZPDU=;
+        b=hWatIi5D8NW3TsfPCjzEZG66fWgz3ck/3VS5a/hB0oGxbsg4u9aPtq6dyHpj6l51kM
+         XLA3NV+3UH/4pu1qjBbPwZvVMFwzg6wKomMAmZp+vkrg+TqtmvjmJUlOupGmwFUF4Bwm
+         kw/DJw18pD8H40p2LsBm5d10Lq9YLFuMQUbMH6vb1wXbdPX7sZAVwhXwMiRw/1dar+V4
+         T99PjhVo4QLn7T5VBD682hzSwFkaPHnAKy/NdyoYe1jUvrxrcn++an901Xj6Imtld9/3
+         Z0LS8n/Yi1f8ezJj207z3/jEeVH83uzU3ULKTvzJdpuWBlUiv9JUcQt/NyYIDWC9azya
+         dQWA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAua0umBZBWUGqEyy8fSrY38M2LVmapeyYTv74C17k8zM+bgGF5hW
-	dmKOwhF4t/No1N3Tf90FM93tRgjt2sw4O2p+cB4Ub3LAKx0vH3wN661gwPZATa6RWW2Ij324J2i
-	JfJwUj0iI4rKVDe0CFmAgpdCXZCeRaIrxSJ7wjgHha2X4KK2RhvqAv4kx1YjQaBpicQ==
-X-Received: by 2002:a37:2d82:: with SMTP id t124mr6125464qkh.189.1550229404877;
-        Fri, 15 Feb 2019 03:16:44 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZRLDWOlwytph5BuBcE7sh6/isX4JjArdJaR9QIXYCI19Edo142uBDi+ujoDhm4niA+TuAC
-X-Received: by 2002:a37:2d82:: with SMTP id t124mr6125398qkh.189.1550229403447;
-        Fri, 15 Feb 2019 03:16:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550229403; cv=none;
+X-Gm-Message-State: AHQUAuagRRxlhFdb9e0hL97Gx1aj997ZR/kQMjLTQXKvbMNPI0waOZgr
+	2HnF3j5bvSeSwM8dp207tv5eLw5CjFbFvhRqCks3aNIFfflpcSFUJQNDZsOE5JwOf8gsfPfki8F
+	9qAZfIehPBGS2MZRDDaFbjQNhdz/Tju/bY7NxvjTv1ut+XR6bB78UyKg0+3CBYGfAIw==
+X-Received: by 2002:ae9:dec5:: with SMTP id s188mr6486385qkf.127.1550229426635;
+        Fri, 15 Feb 2019 03:17:06 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia38Ovd3GR/jWWT6P1/njYIqJtl8wlqvlUL78hV7D5OqQ/JpR/rSjaSekMSZ1B04rUDMqTJ
+X-Received: by 2002:ae9:dec5:: with SMTP id s188mr6486345qkf.127.1550229425975;
+        Fri, 15 Feb 2019 03:17:05 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550229425; cv=none;
         d=google.com; s=arc-20160816;
-        b=F8n9QrpdwTaInRwZUbW1rQwMnMZ5hBdh1ovdv+toEstXJ3d9giwUiXYKZqvDh2jZ/r
-         4QAo318QjwLsLHAliG9p7znEfhLM0AEELWOrHMvD28iufxDo/h7/dkRE/I0Pm0NZrqqT
-         9jWkN908F3HGkCkzWLRINCxbTM4pWwEU1KTf2U3OXecURjtIMBh+Ctru9OpotlN10luE
-         HVv9K4sYETruQwJzaPmQskIj5+0UHkYYu0bKuTpIxjplB7V7UE34qt4LT/li1DPeWMwo
-         6LUfU9i6syjAsPSD4pI1/FisiSR1EnR3B867dcQ3EdVCwCSzJNeuhjjIvX+wayUy1eO0
-         I0Yg==
+        b=T+GW/hkSEt/OalOJMXs64pu0WZqirX/In2z3S2gt4xwLbfcXTTNzekmBx6g8NhiP7m
+         pubwzv77fimIgN5yyxnrOb7+7MnWwzT85StAxd5jmFiC0QjsBOxG77BRlppO9XfHHnd3
+         KgiMdoFFBWAyDgRZVu0SdXnjDRcyT9dUugAgKThzBUclvGaA2JFlQEfKR2EuTzg9ybxG
+         35rN3Wx41M8+VJ1w49JdFW7QlaJKtLjziyRThOR5NHAvxmoIYm7pDEmd6tR2K70DUUrl
+         Sics4qIITBGflbzRVqB/gbsG7R0B5ZYCyk6M10t1DNGDEER4gshdaxLOhJqARdCBDOrE
+         M4PA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=iK/keQTa+g2rXBeS7+SCvlmZbsSS1FVW28sk0za4K44=;
-        b=exRmlrjhsBrZ//Jjaz7ZkWp11pckPOF3x0JGAMowD5bAKzeqBScaApqe7trp9HWSQj
-         JqJIOYtSilWhNf9iIhLt2wGkKn77bb9u8dvGPTTLj0dmDgC0hFI3krBawxDAeryblRoq
-         C6y+r4qxSAXoDLpuvk2G5gHMk6h2WLBpptts7GFw+A0X5tPLAXclakbmus1L675i0PGn
-         u1QFRWVOprpEwid1hXi2W41SiFw26l/+xelFGLhurGWgdVBJFeDaKPCl7HTqY5vbo4GE
-         hyKoGtg4u0+gLEiHSxmqiOgFQcmtP2O65PfuJocacmz3eICQVh/Pzzv5IJ93NLpQM9bi
-         7Ihg==
+        bh=o364efRtKvzLvt+ZEMVS/ez57YOCJqD0TpkJltjZPDU=;
+        b=vzbW+KUu8791jPKjFehbnFBblvH+H2Rs7EVTYLd2FuscjbZOV0FfcYfDyM/6wtdAL7
+         L7eDFsrvWT9v0pTt9w1T7LjsV6YS/4BAnEU+cwASQdilkTLMOttaUQAFaB4DbUrFW1Um
+         phyavA5ByPaXvLUvI+WZJu5aFh/8O8c8WpicjcqijVYapr3d/mg+KSoyLsFPWZdlezHY
+         2NY6UVhQTtkNHRZThGYrSJrbbRGAQvjTvwVew8VzO3GybAp23L7jZcqa8uF+afAcT+Es
+         9SbjmGSwXs9Fw5UydX3mEQiwgCPpifIJcu/EaIpcNoVKXDdTZf6N3wv5JivX+0gNrQpi
+         0QQA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j18si277092qth.388.2019.02.15.03.16.43
+        by mx.google.com with ESMTPS id f12si303816qvh.98.2019.02.15.03.17.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 03:16:43 -0800 (PST)
+        Fri, 15 Feb 2019 03:17:05 -0800 (PST)
 Received-SPF: pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
@@ -79,11 +79,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9E6EBAD885;
-	Fri, 15 Feb 2019 11:16:41 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 826C08E6E5;
+	Fri, 15 Feb 2019 11:17:04 +0000 (UTC)
 Received: from localhost (ovpn-8-22.pek2.redhat.com [10.72.8.22])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id C8E755D6A9;
-	Fri, 15 Feb 2019 11:16:24 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id C61CD5D6A9;
+	Fri, 15 Feb 2019 11:16:43 +0000 (UTC)
 From: Ming Lei <ming.lei@redhat.com>
 To: Jens Axboe <axboe@kernel.dk>
 Cc: linux-block@vger.kernel.org,
@@ -112,798 +112,138 @@ Cc: linux-block@vger.kernel.org,
 	Bob Peterson <rpeterso@redhat.com>,
 	cluster-devel@redhat.com,
 	Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V15 13/18] block: allow bio_for_each_segment_all() to iterate over multi-page bvec
-Date: Fri, 15 Feb 2019 19:13:19 +0800
-Message-Id: <20190215111324.30129-14-ming.lei@redhat.com>
+Subject: [PATCH V15 14/18] block: enable multipage bvecs
+Date: Fri, 15 Feb 2019 19:13:20 +0800
+Message-Id: <20190215111324.30129-15-ming.lei@redhat.com>
 In-Reply-To: <20190215111324.30129-1-ming.lei@redhat.com>
 References: <20190215111324.30129-1-ming.lei@redhat.com>
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Fri, 15 Feb 2019 11:16:42 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Fri, 15 Feb 2019 11:17:05 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch introduces one extra iterator variable to bio_for_each_segment_all(),
-then we can allow bio_for_each_segment_all() to iterate over multi-page bvec.
-
-Given it is just one mechannical & simple change on all bio_for_each_segment_all()
-users, this patch does tree-wide change in one single patch, so that we can
-avoid to use a temporary helper for this conversion.
+This patch pulls the trigger for multi-page bvecs.
 
 Reviewed-by: Omar Sandoval <osandov@fb.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- block/bio.c                       | 27 ++++++++++++++++++---------
- block/bounce.c                    |  6 ++++--
- drivers/md/bcache/btree.c         |  3 ++-
- drivers/md/dm-crypt.c             |  3 ++-
- drivers/md/raid1.c                |  3 ++-
- drivers/staging/erofs/data.c      |  3 ++-
- drivers/staging/erofs/unzip_vle.c |  3 ++-
- fs/block_dev.c                    |  6 ++++--
- fs/btrfs/compression.c            |  3 ++-
- fs/btrfs/disk-io.c                |  3 ++-
- fs/btrfs/extent_io.c              |  9 ++++++---
- fs/btrfs/inode.c                  |  6 ++++--
- fs/btrfs/raid56.c                 |  3 ++-
- fs/crypto/bio.c                   |  3 ++-
- fs/direct-io.c                    |  4 +++-
- fs/exofs/ore.c                    |  3 ++-
- fs/exofs/ore_raid.c               |  3 ++-
- fs/ext4/page-io.c                 |  3 ++-
- fs/ext4/readpage.c                |  3 ++-
- fs/f2fs/data.c                    |  9 ++++++---
- fs/gfs2/lops.c                    |  9 ++++++---
- fs/gfs2/meta_io.c                 |  3 ++-
- fs/iomap.c                        |  6 ++++--
- fs/mpage.c                        |  3 ++-
- fs/xfs/xfs_aops.c                 |  5 +++--
- include/linux/bio.h               | 11 +++++++++--
- include/linux/bvec.h              | 30 ++++++++++++++++++++++++++++++
- 27 files changed, 127 insertions(+), 46 deletions(-)
+ block/bio.c         | 22 +++++++++++++++-------
+ fs/iomap.c          |  4 ++--
+ fs/xfs/xfs_aops.c   |  4 ++--
+ include/linux/bio.h |  2 +-
+ 4 files changed, 20 insertions(+), 12 deletions(-)
 
 diff --git a/block/bio.c b/block/bio.c
-index 4db1008309ed..968b12fea564 100644
+index 968b12fea564..83a2dfa417ca 100644
 --- a/block/bio.c
 +++ b/block/bio.c
-@@ -1072,8 +1072,9 @@ static int bio_copy_from_iter(struct bio *bio, struct iov_iter *iter)
- {
- 	int i;
- 	struct bio_vec *bvec;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		ssize_t ret;
- 
- 		ret = copy_page_from_iter(bvec->bv_page,
-@@ -1103,8 +1104,9 @@ static int bio_copy_to_iter(struct bio *bio, struct iov_iter iter)
- {
- 	int i;
- 	struct bio_vec *bvec;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		ssize_t ret;
- 
- 		ret = copy_page_to_iter(bvec->bv_page,
-@@ -1126,8 +1128,9 @@ void bio_free_pages(struct bio *bio)
- {
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bvec, bio, i)
-+	bio_for_each_segment_all(bvec, bio, i, iter_all)
- 		__free_page(bvec->bv_page);
- }
- EXPORT_SYMBOL(bio_free_pages);
-@@ -1295,6 +1298,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
- 	struct bio *bio;
- 	int ret;
- 	struct bio_vec *bvec;
-+	struct bvec_iter_all iter_all;
- 
- 	if (!iov_iter_count(iter))
- 		return ERR_PTR(-EINVAL);
-@@ -1368,7 +1372,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
- 	return bio;
- 
-  out_unmap:
--	bio_for_each_segment_all(bvec, bio, j) {
-+	bio_for_each_segment_all(bvec, bio, j, iter_all) {
- 		put_page(bvec->bv_page);
- 	}
- 	bio_put(bio);
-@@ -1379,11 +1383,12 @@ static void __bio_unmap_user(struct bio *bio)
- {
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
- 	/*
- 	 * make sure we dirty pages we wrote to
- 	 */
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		if (bio_data_dir(bio) == READ)
- 			set_page_dirty_lock(bvec->bv_page);
- 
-@@ -1475,8 +1480,9 @@ static void bio_copy_kern_endio_read(struct bio *bio)
- 	char *p = bio->bi_private;
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		memcpy(p, page_address(bvec->bv_page), bvec->bv_len);
- 		p += bvec->bv_len;
- 	}
-@@ -1585,8 +1591,9 @@ void bio_set_pages_dirty(struct bio *bio)
- {
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		if (!PageCompound(bvec->bv_page))
- 			set_page_dirty_lock(bvec->bv_page);
- 	}
-@@ -1596,8 +1603,9 @@ static void bio_release_pages(struct bio *bio)
- {
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bvec, bio, i)
-+	bio_for_each_segment_all(bvec, bio, i, iter_all)
- 		put_page(bvec->bv_page);
- }
- 
-@@ -1644,8 +1652,9 @@ void bio_check_pages_dirty(struct bio *bio)
- 	struct bio_vec *bvec;
- 	unsigned long flags;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		if (!PageDirty(bvec->bv_page) && !PageCompound(bvec->bv_page))
- 			goto defer;
- 	}
-diff --git a/block/bounce.c b/block/bounce.c
-index ffb9e9ecfa7e..add085e28b1d 100644
---- a/block/bounce.c
-+++ b/block/bounce.c
-@@ -165,11 +165,12 @@ static void bounce_end_io(struct bio *bio, mempool_t *pool)
- 	struct bio_vec *bvec, orig_vec;
- 	int i;
- 	struct bvec_iter orig_iter = bio_orig->bi_iter;
-+	struct bvec_iter_all iter_all;
- 
- 	/*
- 	 * free up bounce indirect pages used
- 	 */
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		orig_vec = bio_iter_iovec(bio_orig, orig_iter);
- 		if (bvec->bv_page != orig_vec.bv_page) {
- 			dec_zone_page_state(bvec->bv_page, NR_BOUNCE);
-@@ -294,6 +295,7 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
- 	bool bounce = false;
- 	int sectors = 0;
- 	bool passthrough = bio_is_passthrough(*bio_orig);
-+	struct bvec_iter_all iter_all;
- 
- 	bio_for_each_segment(from, *bio_orig, iter) {
- 		if (i++ < BIO_MAX_PAGES)
-@@ -313,7 +315,7 @@ static void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig,
- 	bio = bounce_clone_bio(*bio_orig, GFP_NOIO, passthrough ? NULL :
- 			&bounce_bio_set);
- 
--	bio_for_each_segment_all(to, bio, i) {
-+	bio_for_each_segment_all(to, bio, i, iter_all) {
- 		struct page *page = to->bv_page;
- 
- 		if (page_to_pfn(page) <= q->limits.bounce_pfn)
-diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/btree.c
-index 23cb1dc7296b..64def336f053 100644
---- a/drivers/md/bcache/btree.c
-+++ b/drivers/md/bcache/btree.c
-@@ -432,8 +432,9 @@ static void do_btree_node_write(struct btree *b)
- 		int j;
- 		struct bio_vec *bv;
- 		void *base = (void *) ((unsigned long) i & ~(PAGE_SIZE - 1));
-+		struct bvec_iter_all iter_all;
- 
--		bio_for_each_segment_all(bv, b->bio, j)
-+		bio_for_each_segment_all(bv, b->bio, j, iter_all)
- 			memcpy(page_address(bv->bv_page),
- 			       base + j * PAGE_SIZE, PAGE_SIZE);
- 
-diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
-index 47d4e0d30bf0..9a29037f5615 100644
---- a/drivers/md/dm-crypt.c
-+++ b/drivers/md/dm-crypt.c
-@@ -1447,8 +1447,9 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
- {
- 	unsigned int i;
- 	struct bio_vec *bv;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bv, clone, i) {
-+	bio_for_each_segment_all(bv, clone, i, iter_all) {
- 		BUG_ON(!bv->bv_page);
- 		mempool_free(bv->bv_page, &cc->page_pool);
- 	}
-diff --git a/drivers/md/raid1.c b/drivers/md/raid1.c
-index 7e63ccc4ae7b..88c61d3090b0 100644
---- a/drivers/md/raid1.c
-+++ b/drivers/md/raid1.c
-@@ -2112,13 +2112,14 @@ static void process_checks(struct r1bio *r1_bio)
- 		struct page **spages = get_resync_pages(sbio)->pages;
- 		struct bio_vec *bi;
- 		int page_len[RESYNC_PAGES] = { 0 };
-+		struct bvec_iter_all iter_all;
- 
- 		if (sbio->bi_end_io != end_sync_read)
- 			continue;
- 		/* Now we can 'fixup' the error value */
- 		sbio->bi_status = 0;
- 
--		bio_for_each_segment_all(bi, sbio, j)
-+		bio_for_each_segment_all(bi, sbio, j, iter_all)
- 			page_len[j] = bi->bv_len;
- 
- 		if (!status) {
-diff --git a/drivers/staging/erofs/data.c b/drivers/staging/erofs/data.c
-index 5a55f0bfdfbb..4871ba7b7d9a 100644
---- a/drivers/staging/erofs/data.c
-+++ b/drivers/staging/erofs/data.c
-@@ -20,8 +20,9 @@ static inline void read_endio(struct bio *bio)
- 	int i;
- 	struct bio_vec *bvec;
- 	const blk_status_t err = bio->bi_status;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		struct page *page = bvec->bv_page;
- 
- 		/* page is already locked */
-diff --git a/drivers/staging/erofs/unzip_vle.c b/drivers/staging/erofs/unzip_vle.c
-index 4ac1099a39c6..c057c5616b1d 100644
---- a/drivers/staging/erofs/unzip_vle.c
-+++ b/drivers/staging/erofs/unzip_vle.c
-@@ -830,8 +830,9 @@ static inline void z_erofs_vle_read_endio(struct bio *bio)
- #ifdef EROFS_FS_HAS_MANAGED_CACHE
- 	struct address_space *mc = NULL;
- #endif
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		struct page *page = bvec->bv_page;
- 		bool cachemngd = false;
- 
-diff --git a/fs/block_dev.c b/fs/block_dev.c
-index 58a4c1217fa8..7758adee6efe 100644
---- a/fs/block_dev.c
-+++ b/fs/block_dev.c
-@@ -211,6 +211,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
- 	ssize_t ret;
- 	blk_qc_t qc;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
- 	if ((pos | iov_iter_alignment(iter)) &
- 	    (bdev_logical_block_size(bdev) - 1))
-@@ -260,7 +261,7 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
- 	}
- 	__set_current_state(TASK_RUNNING);
- 
--	bio_for_each_segment_all(bvec, &bio, i) {
-+	bio_for_each_segment_all(bvec, &bio, i, iter_all) {
- 		if (should_dirty && !PageCompound(bvec->bv_page))
- 			set_page_dirty_lock(bvec->bv_page);
- 		put_page(bvec->bv_page);
-@@ -329,8 +330,9 @@ static void blkdev_bio_end_io(struct bio *bio)
- 	} else {
- 		struct bio_vec *bvec;
- 		int i;
-+		struct bvec_iter_all iter_all;
- 
--		bio_for_each_segment_all(bvec, bio, i)
-+		bio_for_each_segment_all(bvec, bio, i, iter_all)
- 			put_page(bvec->bv_page);
- 		bio_put(bio);
- 	}
-diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
-index 548057630b69..6896ea60c843 100644
---- a/fs/btrfs/compression.c
-+++ b/fs/btrfs/compression.c
-@@ -162,13 +162,14 @@ static void end_compressed_bio_read(struct bio *bio)
- 	} else {
- 		int i;
- 		struct bio_vec *bvec;
-+		struct bvec_iter_all iter_all;
- 
- 		/*
- 		 * we have verified the checksum already, set page
- 		 * checked so the end_io handlers know about it
- 		 */
- 		ASSERT(!bio_flagged(bio, BIO_CLONED));
--		bio_for_each_segment_all(bvec, cb->orig_bio, i)
-+		bio_for_each_segment_all(bvec, cb->orig_bio, i, iter_all)
- 			SetPageChecked(bvec->bv_page);
- 
- 		bio_endio(cb->orig_bio);
-diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index 6a2a2a951705..ca1b7da6dd1b 100644
---- a/fs/btrfs/disk-io.c
-+++ b/fs/btrfs/disk-io.c
-@@ -832,9 +832,10 @@ static blk_status_t btree_csum_one_bio(struct bio *bio)
- 	struct bio_vec *bvec;
- 	struct btrfs_root *root;
- 	int i, ret = 0;
-+	struct bvec_iter_all iter_all;
- 
- 	ASSERT(!bio_flagged(bio, BIO_CLONED));
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		root = BTRFS_I(bvec->bv_page->mapping->host)->root;
- 		ret = csum_dirty_buffer(root->fs_info, bvec->bv_page);
- 		if (ret)
-diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-index 986ef49b0269..4ed58c9a94a9 100644
---- a/fs/btrfs/extent_io.c
-+++ b/fs/btrfs/extent_io.c
-@@ -2422,9 +2422,10 @@ static void end_bio_extent_writepage(struct bio *bio)
- 	u64 start;
- 	u64 end;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
- 	ASSERT(!bio_flagged(bio, BIO_CLONED));
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		struct page *page = bvec->bv_page;
- 		struct inode *inode = page->mapping->host;
- 		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-@@ -2493,9 +2494,10 @@ static void end_bio_extent_readpage(struct bio *bio)
- 	int mirror;
- 	int ret;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
- 	ASSERT(!bio_flagged(bio, BIO_CLONED));
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		struct page *page = bvec->bv_page;
- 		struct inode *inode = page->mapping->host;
- 		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-@@ -3635,9 +3637,10 @@ static void end_bio_extent_buffer_writepage(struct bio *bio)
- 	struct bio_vec *bvec;
- 	struct extent_buffer *eb;
- 	int i, done;
-+	struct bvec_iter_all iter_all;
- 
- 	ASSERT(!bio_flagged(bio, BIO_CLONED));
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		struct page *page = bvec->bv_page;
- 
- 		eb = (struct extent_buffer *)page->private;
-diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
-index 5c349667c761..7ade5769f691 100644
---- a/fs/btrfs/inode.c
-+++ b/fs/btrfs/inode.c
-@@ -7777,6 +7777,7 @@ static void btrfs_retry_endio_nocsum(struct bio *bio)
- 	struct bio_vec *bvec;
- 	struct extent_io_tree *io_tree, *failure_tree;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
- 	if (bio->bi_status)
- 		goto end;
-@@ -7788,7 +7789,7 @@ static void btrfs_retry_endio_nocsum(struct bio *bio)
- 
- 	done->uptodate = 1;
- 	ASSERT(!bio_flagged(bio, BIO_CLONED));
--	bio_for_each_segment_all(bvec, bio, i)
-+	bio_for_each_segment_all(bvec, bio, i, iter_all)
- 		clean_io_failure(BTRFS_I(inode)->root->fs_info, failure_tree,
- 				 io_tree, done->start, bvec->bv_page,
- 				 btrfs_ino(BTRFS_I(inode)), 0);
-@@ -7867,6 +7868,7 @@ static void btrfs_retry_endio(struct bio *bio)
- 	int uptodate;
- 	int ret;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
- 	if (bio->bi_status)
- 		goto end;
-@@ -7880,7 +7882,7 @@ static void btrfs_retry_endio(struct bio *bio)
- 	failure_tree = &BTRFS_I(inode)->io_failure_tree;
- 
- 	ASSERT(!bio_flagged(bio, BIO_CLONED));
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		ret = __readpage_endio_check(inode, io_bio, i, bvec->bv_page,
- 					     bvec->bv_offset, done->start,
- 					     bvec->bv_len);
-diff --git a/fs/btrfs/raid56.c b/fs/btrfs/raid56.c
-index e74455eb42f9..1869ba8e5981 100644
---- a/fs/btrfs/raid56.c
-+++ b/fs/btrfs/raid56.c
-@@ -1443,10 +1443,11 @@ static void set_bio_pages_uptodate(struct bio *bio)
- {
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
- 	ASSERT(!bio_flagged(bio, BIO_CLONED));
- 
--	bio_for_each_segment_all(bvec, bio, i)
-+	bio_for_each_segment_all(bvec, bio, i, iter_all)
- 		SetPageUptodate(bvec->bv_page);
- }
- 
-diff --git a/fs/crypto/bio.c b/fs/crypto/bio.c
-index 0959044c5cee..5759bcd018cd 100644
---- a/fs/crypto/bio.c
-+++ b/fs/crypto/bio.c
-@@ -30,8 +30,9 @@ static void __fscrypt_decrypt_bio(struct bio *bio, bool done)
- {
- 	struct bio_vec *bv;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bv, bio, i) {
-+	bio_for_each_segment_all(bv, bio, i, iter_all) {
- 		struct page *page = bv->bv_page;
- 		int ret = fscrypt_decrypt_page(page->mapping->host, page,
- 				PAGE_SIZE, 0, page->index);
-diff --git a/fs/direct-io.c b/fs/direct-io.c
-index ec2fb6fe6d37..9bb015bc4a83 100644
---- a/fs/direct-io.c
-+++ b/fs/direct-io.c
-@@ -551,7 +551,9 @@ static blk_status_t dio_bio_complete(struct dio *dio, struct bio *bio)
- 	if (dio->is_async && dio->op == REQ_OP_READ && dio->should_dirty) {
- 		bio_check_pages_dirty(bio);	/* transfers ownership */
- 	} else {
--		bio_for_each_segment_all(bvec, bio, i) {
-+		struct bvec_iter_all iter_all;
-+
-+		bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 			struct page *page = bvec->bv_page;
- 
- 			if (dio->op == REQ_OP_READ && !PageCompound(page) &&
-diff --git a/fs/exofs/ore.c b/fs/exofs/ore.c
-index 5331a15a61f1..24a8e34882e9 100644
---- a/fs/exofs/ore.c
-+++ b/fs/exofs/ore.c
-@@ -420,8 +420,9 @@ static void _clear_bio(struct bio *bio)
- {
- 	struct bio_vec *bv;
- 	unsigned i;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bv, bio, i) {
-+	bio_for_each_segment_all(bv, bio, i, iter_all) {
- 		unsigned this_count = bv->bv_len;
- 
- 		if (likely(PAGE_SIZE == this_count))
-diff --git a/fs/exofs/ore_raid.c b/fs/exofs/ore_raid.c
-index 199590f36203..e83bab54b03e 100644
---- a/fs/exofs/ore_raid.c
-+++ b/fs/exofs/ore_raid.c
-@@ -468,11 +468,12 @@ static void _mark_read4write_pages_uptodate(struct ore_io_state *ios, int ret)
- 	/* loop on all devices all pages */
- 	for (d = 0; d < ios->numdevs; d++) {
- 		struct bio *bio = ios->per_dev[d].bio;
-+		struct bvec_iter_all iter_all;
- 
- 		if (!bio)
- 			continue;
- 
--		bio_for_each_segment_all(bv, bio, i) {
-+		bio_for_each_segment_all(bv, bio, i, iter_all) {
- 			struct page *page = bv->bv_page;
- 
- 			SetPageUptodate(page);
-diff --git a/fs/ext4/page-io.c b/fs/ext4/page-io.c
-index 2aa62d58d8dd..cff4c4aa7a9c 100644
---- a/fs/ext4/page-io.c
-+++ b/fs/ext4/page-io.c
-@@ -63,8 +63,9 @@ static void ext4_finish_bio(struct bio *bio)
- {
- 	int i;
- 	struct bio_vec *bvec;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		struct page *page = bvec->bv_page;
- #ifdef CONFIG_EXT4_FS_ENCRYPTION
- 		struct page *data_page = NULL;
-diff --git a/fs/ext4/readpage.c b/fs/ext4/readpage.c
-index 6aa282ee455a..e53639784892 100644
---- a/fs/ext4/readpage.c
-+++ b/fs/ext4/readpage.c
-@@ -72,6 +72,7 @@ static void mpage_end_io(struct bio *bio)
- {
- 	struct bio_vec *bv;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
- 	if (ext4_bio_encrypted(bio)) {
- 		if (bio->bi_status) {
-@@ -81,7 +82,7 @@ static void mpage_end_io(struct bio *bio)
- 			return;
- 		}
- 	}
--	bio_for_each_segment_all(bv, bio, i) {
-+	bio_for_each_segment_all(bv, bio, i, iter_all) {
- 		struct page *page = bv->bv_page;
- 
- 		if (!bio->bi_status) {
-diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
-index f91d8630c9a2..da060b77f64d 100644
---- a/fs/f2fs/data.c
-+++ b/fs/f2fs/data.c
-@@ -87,8 +87,9 @@ static void __read_end_io(struct bio *bio)
- 	struct page *page;
- 	struct bio_vec *bv;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bv, bio, i) {
-+	bio_for_each_segment_all(bv, bio, i, iter_all) {
- 		page = bv->bv_page;
- 
- 		/* PG_error was set if any post_read step failed */
-@@ -164,13 +165,14 @@ static void f2fs_write_end_io(struct bio *bio)
- 	struct f2fs_sb_info *sbi = bio->bi_private;
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
- 	if (time_to_inject(sbi, FAULT_WRITE_IO)) {
- 		f2fs_show_injection_info(FAULT_WRITE_IO);
- 		bio->bi_status = BLK_STS_IOERR;
- 	}
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		struct page *page = bvec->bv_page;
- 		enum count_type type = WB_DATA_TYPE(page);
- 
-@@ -347,6 +349,7 @@ static bool __has_merged_page(struct f2fs_bio_info *io, struct inode *inode,
- 	struct bio_vec *bvec;
- 	struct page *target;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
- 	if (!io->bio)
- 		return false;
-@@ -354,7 +357,7 @@ static bool __has_merged_page(struct f2fs_bio_info *io, struct inode *inode,
- 	if (!inode && !page && !ino)
- 		return true;
- 
--	bio_for_each_segment_all(bvec, io->bio, i) {
-+	bio_for_each_segment_all(bvec, io->bio, i, iter_all) {
- 
- 		if (bvec->bv_page->mapping)
- 			target = bvec->bv_page;
-diff --git a/fs/gfs2/lops.c b/fs/gfs2/lops.c
-index 94dcab655bc0..15deefeaafd0 100644
---- a/fs/gfs2/lops.c
-+++ b/fs/gfs2/lops.c
-@@ -170,7 +170,8 @@ u64 gfs2_log_bmap(struct gfs2_sbd *sdp)
-  * that is pinned in the pagecache.
+@@ -753,6 +753,8 @@ EXPORT_SYMBOL(bio_add_pc_page);
+  * @page: page to add
+  * @len: length of the data to add
+  * @off: offset of the data in @page
++ * @same_page: if %true only merge if the new data is in the same physical
++ *		page as the last segment of the bio.
+  *
+  * Try to add the data at @page + @off to the last bvec of @bio.  This is a
+  * a useful optimisation for file systems with a block size smaller than the
+@@ -761,19 +763,25 @@ EXPORT_SYMBOL(bio_add_pc_page);
+  * Return %true on success or %false on failure.
   */
- 
--static void gfs2_end_log_write_bh(struct gfs2_sbd *sdp, struct bio_vec *bvec,
-+static void gfs2_end_log_write_bh(struct gfs2_sbd *sdp,
-+				  struct bio_vec *bvec,
- 				  blk_status_t error)
+ bool __bio_try_merge_page(struct bio *bio, struct page *page,
+-		unsigned int len, unsigned int off)
++		unsigned int len, unsigned int off, bool same_page)
  {
- 	struct buffer_head *bh, *next;
-@@ -208,6 +209,7 @@ static void gfs2_end_log_write(struct bio *bio)
- 	struct bio_vec *bvec;
- 	struct page *page;
- 	int i;
-+	struct bvec_iter_all iter_all;
+ 	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
+ 		return false;
  
- 	if (bio->bi_status) {
- 		fs_err(sdp, "Error %d writing to journal, jid=%u\n",
-@@ -215,7 +217,7 @@ static void gfs2_end_log_write(struct bio *bio)
- 		wake_up(&sdp->sd_logd_waitq);
+ 	if (bio->bi_vcnt > 0) {
+ 		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
++		phys_addr_t vec_end_addr = page_to_phys(bv->bv_page) +
++			bv->bv_offset + bv->bv_len - 1;
++		phys_addr_t page_addr = page_to_phys(page);
+ 
+-		if (page == bv->bv_page && off == bv->bv_offset + bv->bv_len) {
+-			bv->bv_len += len;
+-			bio->bi_iter.bi_size += len;
+-			return true;
+-		}
++		if (vec_end_addr + 1 != page_addr + off)
++			return false;
++		if (same_page && (vec_end_addr & PAGE_MASK) != page_addr)
++			return false;
++
++		bv->bv_len += len;
++		bio->bi_iter.bi_size += len;
++		return true;
  	}
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		page = bvec->bv_page;
- 		if (page_has_buffers(page))
- 			gfs2_end_log_write_bh(sdp, bvec, bio->bi_status);
-@@ -388,8 +390,9 @@ static void gfs2_end_log_read(struct bio *bio)
- 	struct page *page;
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		page = bvec->bv_page;
- 		if (bio->bi_status) {
- 			int err = blk_status_to_errno(bio->bi_status);
-diff --git a/fs/gfs2/meta_io.c b/fs/gfs2/meta_io.c
-index be9c0bf697fe..3201342404a7 100644
---- a/fs/gfs2/meta_io.c
-+++ b/fs/gfs2/meta_io.c
-@@ -190,8 +190,9 @@ static void gfs2_meta_read_endio(struct bio *bio)
+ 	return false;
+ }
+@@ -819,7 +827,7 @@ EXPORT_SYMBOL_GPL(__bio_add_page);
+ int bio_add_page(struct bio *bio, struct page *page,
+ 		 unsigned int len, unsigned int offset)
  {
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bvec, bio, i) {
-+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
- 		struct page *page = bvec->bv_page;
- 		struct buffer_head *bh = page_buffers(page);
- 		unsigned int len = bvec->bv_len;
+-	if (!__bio_try_merge_page(bio, page, len, offset)) {
++	if (!__bio_try_merge_page(bio, page, len, offset, false)) {
+ 		if (bio_full(bio))
+ 			return 0;
+ 		__bio_add_page(bio, page, len, offset);
 diff --git a/fs/iomap.c b/fs/iomap.c
-index a3088fae567b..af736acd9006 100644
+index af736acd9006..0c350e658b7f 100644
 --- a/fs/iomap.c
 +++ b/fs/iomap.c
-@@ -267,8 +267,9 @@ iomap_read_end_io(struct bio *bio)
- 	int error = blk_status_to_errno(bio->bi_status);
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_iter_all iter_all;
- 
--	bio_for_each_segment_all(bvec, bio, i)
-+	bio_for_each_segment_all(bvec, bio, i, iter_all)
- 		iomap_read_page_end_io(bvec, error);
- 	bio_put(bio);
- }
-@@ -1559,8 +1560,9 @@ static void iomap_dio_bio_end_io(struct bio *bio)
- 	} else {
- 		struct bio_vec *bvec;
- 		int i;
-+		struct bvec_iter_all iter_all;
- 
--		bio_for_each_segment_all(bvec, bio, i)
-+		bio_for_each_segment_all(bvec, bio, i, iter_all)
- 			put_page(bvec->bv_page);
- 		bio_put(bio);
+@@ -318,7 +318,7 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+ 	 */
+ 	sector = iomap_sector(iomap, pos);
+ 	if (ctx->bio && bio_end_sector(ctx->bio) == sector) {
+-		if (__bio_try_merge_page(ctx->bio, page, plen, poff))
++		if (__bio_try_merge_page(ctx->bio, page, plen, poff, true))
+ 			goto done;
+ 		is_contig = true;
  	}
-diff --git a/fs/mpage.c b/fs/mpage.c
-index c820dc9bebab..3f19da75178b 100644
---- a/fs/mpage.c
-+++ b/fs/mpage.c
-@@ -48,8 +48,9 @@ static void mpage_end_io(struct bio *bio)
- {
- 	struct bio_vec *bv;
- 	int i;
-+	struct bvec_iter_all iter_all;
+@@ -349,7 +349,7 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+ 		ctx->bio->bi_end_io = iomap_read_end_io;
+ 	}
  
--	bio_for_each_segment_all(bv, bio, i) {
-+	bio_for_each_segment_all(bv, bio, i, iter_all) {
- 		struct page *page = bv->bv_page;
- 		page_endio(page, bio_op(bio),
- 			   blk_status_to_errno(bio->bi_status));
+-	__bio_add_page(ctx->bio, page, plen, poff);
++	bio_add_page(ctx->bio, page, plen, poff);
+ done:
+ 	/*
+ 	 * Move the caller beyond our range so that it keeps making progress.
 diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-index 338b9d9984e0..1f1829e506e8 100644
+index 1f1829e506e8..b9fd44168f61 100644
 --- a/fs/xfs/xfs_aops.c
 +++ b/fs/xfs/xfs_aops.c
-@@ -62,7 +62,7 @@ xfs_find_daxdev_for_inode(
- static void
- xfs_finish_page_writeback(
- 	struct inode		*inode,
--	struct bio_vec		*bvec,
-+	struct bio_vec	*bvec,
- 	int			error)
- {
- 	struct iomap_page	*iop = to_iomap_page(bvec->bv_page);
-@@ -98,6 +98,7 @@ xfs_destroy_ioend(
- 	for (bio = &ioend->io_inline_bio; bio; bio = next) {
- 		struct bio_vec	*bvec;
- 		int		i;
-+		struct bvec_iter_all iter_all;
- 
- 		/*
- 		 * For the last bio, bi_private points to the ioend, so we
-@@ -109,7 +110,7 @@ xfs_destroy_ioend(
- 			next = bio->bi_private;
- 
- 		/* walk each page on bio, ending page IO on them */
--		bio_for_each_segment_all(bvec, bio, i)
-+		bio_for_each_segment_all(bvec, bio, i, iter_all)
- 			xfs_finish_page_writeback(inode, bvec, error);
- 		bio_put(bio);
+@@ -616,12 +616,12 @@ xfs_add_to_ioend(
+ 				bdev, sector);
  	}
+ 
+-	if (!__bio_try_merge_page(wpc->ioend->io_bio, page, len, poff)) {
++	if (!__bio_try_merge_page(wpc->ioend->io_bio, page, len, poff, true)) {
+ 		if (iop)
+ 			atomic_inc(&iop->write_count);
+ 		if (bio_full(wpc->ioend->io_bio))
+ 			xfs_chain_bio(wpc->ioend, wbc, bdev, sector);
+-		__bio_add_page(wpc->ioend->io_bio, page, len, poff);
++		bio_add_page(wpc->ioend->io_bio, page, len, poff);
+ 	}
+ 
+ 	wpc->ioend->io_size += len;
 diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 7ef8a7505c0a..089370eb84d9 100644
+index 089370eb84d9..9f77adcfde82 100644
 --- a/include/linux/bio.h
 +++ b/include/linux/bio.h
-@@ -128,12 +128,19 @@ static inline bool bio_full(struct bio *bio)
- 	return bio->bi_vcnt >= bio->bi_max_vecs;
- }
- 
-+#define mp_bvec_for_each_segment(bv, bvl, i, iter_all)			\
-+	for (bv = bvec_init_iter_all(&iter_all);			\
-+		(iter_all.done < (bvl)->bv_len) &&			\
-+		(mp_bvec_next_segment((bvl), &iter_all), 1);		\
-+		iter_all.done += bv->bv_len, i += 1)
-+
- /*
-  * drivers should _never_ use the all version - the bio may have been split
-  * before it got to the driver and the driver won't own all of it
-  */
--#define bio_for_each_segment_all(bvl, bio, i)				\
--	for (i = 0, bvl = (bio)->bi_io_vec; i < (bio)->bi_vcnt; i++, bvl++)
-+#define bio_for_each_segment_all(bvl, bio, i, iter_all)		\
-+	for (i = 0, iter_all.idx = 0; iter_all.idx < (bio)->bi_vcnt; iter_all.idx++)	\
-+		mp_bvec_for_each_segment(bvl, &((bio)->bi_io_vec[iter_all.idx]), i, iter_all)
- 
- static inline void bio_advance_iter(struct bio *bio, struct bvec_iter *iter,
- 				    unsigned bytes)
-diff --git a/include/linux/bvec.h b/include/linux/bvec.h
-index 21f76bad7be2..30a57b68d017 100644
---- a/include/linux/bvec.h
-+++ b/include/linux/bvec.h
-@@ -45,6 +45,12 @@ struct bvec_iter {
- 						   current bvec */
- };
- 
-+struct bvec_iter_all {
-+	struct bio_vec	bv;
-+	int		idx;
-+	unsigned	done;
-+};
-+
- /*
-  * various member access, note that bio_data should of course not be used
-  * on highmem page vectors
-@@ -131,6 +137,30 @@ static inline bool bvec_iter_advance(const struct bio_vec *bv,
- 	.bi_bvec_done	= 0,						\
- }
- 
-+static inline struct bio_vec *bvec_init_iter_all(struct bvec_iter_all *iter_all)
-+{
-+	iter_all->bv.bv_page = NULL;
-+	iter_all->done = 0;
-+
-+	return &iter_all->bv;
-+}
-+
-+static inline void mp_bvec_next_segment(const struct bio_vec *bvec,
-+					struct bvec_iter_all *iter_all)
-+{
-+	struct bio_vec *bv = &iter_all->bv;
-+
-+	if (bv->bv_page) {
-+		bv->bv_page = nth_page(bv->bv_page, 1);
-+		bv->bv_offset = 0;
-+	} else {
-+		bv->bv_page = bvec->bv_page;
-+		bv->bv_offset = bvec->bv_offset;
-+	}
-+	bv->bv_len = min_t(unsigned int, PAGE_SIZE - bv->bv_offset,
-+			   bvec->bv_len - iter_all->done);
-+}
-+
- /*
-  * Get the last single-page segment from the multi-page bvec and store it
-  * in @seg
+@@ -441,7 +441,7 @@ extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
+ extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
+ 			   unsigned int, unsigned int);
+ bool __bio_try_merge_page(struct bio *bio, struct page *page,
+-		unsigned int len, unsigned int off);
++		unsigned int len, unsigned int off, bool same_page);
+ void __bio_add_page(struct bio *bio, struct page *page,
+ 		unsigned int len, unsigned int off);
+ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter);
 -- 
 2.9.5
 
