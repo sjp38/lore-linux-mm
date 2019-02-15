@@ -2,141 +2,182 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DBEEC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 15:42:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E1B8FC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 15:48:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BCCA62192D
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 15:42:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9C4342192D
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 15:48:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="Unvl08o3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BCCA62192D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="l4O8Pn2G"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C4342192D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5BE318E0002; Fri, 15 Feb 2019 10:42:04 -0500 (EST)
+	id 3E43A8E0002; Fri, 15 Feb 2019 10:48:44 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 56DA88E0001; Fri, 15 Feb 2019 10:42:04 -0500 (EST)
+	id 394228E0001; Fri, 15 Feb 2019 10:48:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 45C468E0002; Fri, 15 Feb 2019 10:42:04 -0500 (EST)
+	id 282C28E0002; Fri, 15 Feb 2019 10:48:44 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AB348E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 10:42:04 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id q33so9120079qte.23
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 07:42:04 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D53638E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 10:48:43 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id p20so7074464plr.22
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 07:48:43 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=AO5+6GjAtfAdzflCMfirBHPryl+1cPDIOakSZMCQ+6c=;
-        b=tMcx5yrcm3PfFHVZ5UWoUU4B2syZBrT5DRtdsEvvFZCUY6668i3EBaaP7veIVVaMIP
-         52Y+P6GXsKcD10A2cKnYYqVWpkgnLRfaavfazMY3D7FOnuN4J2nVPHGG842BUiNK+8OV
-         iQrI5QcgPokvFd6Gg539IXrFqNqZU3puF4CcYHjEdf1+2G8ku86CGvGn5UWpOgKcniC8
-         Ui83kGttYmM1rKrmtIHVlZ1C6VP7Etb9owLnHicb83WqTs6eFZLvkZIQjp3zRCGNepJZ
-         dvsq1P/ghP/f7GiMPAksZvnK7gR/C20oBmGFv0PdjlMuIwT+j7brcfxNLh0mYY6lct9+
-         S53A==
-X-Gm-Message-State: AHQUAuYyuvIcn/d7LtVxp32LZw30+6XoaU3WaW58oTecT4FN5tCHIsZ4
-	u7DqBHTEcdQtxXdXkYPEyHSWtHyJfhj+lt4rYl2eVce4OcQ7KZrT1kwTOg9dwvOIFV3YOHJd/1C
-	ODzJ+r0SG3AyM8TSZr/jozGY1VI/9yHwzbdfyV+MprvKnH4WHoCU13P16hsyWBfQ=
-X-Received: by 2002:a0c:e70f:: with SMTP id d15mr7604452qvn.223.1550245323837;
-        Fri, 15 Feb 2019 07:42:03 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaQbdHOfhRkOlXJ32QinilV5VR+eelQDCfwJpok+pTo0Z6eoyQ7ny16imeEsyemVUAZYivN
-X-Received: by 2002:a0c:e70f:: with SMTP id d15mr7604407qvn.223.1550245323020;
-        Fri, 15 Feb 2019 07:42:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550245323; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:to:to:cc:cc:cc
+         :subject:in-reply-to:references:message-id;
+        bh=eoDF//MAOx0SYGCby4nSIyVisNwGzr4z2uZZnM4yBds=;
+        b=pTafBpmUYdTKe9Q9AjCIBtEVYCIG1IzJJAGioUJP0NG7iyTOGShfiUnQKpmc7c8iAR
+         XhMpdMZpuWmuT0lwNMQRpFUvwbml+EPEfsKCfcumn71EdnbuS6Dt2gL/g6OP8gwVVX46
+         +V+FkrIH60RBddFbnEu+YrQVWJvXaalSDqROra2FALEdN567vMoB+cjIJie/MxzLGy2D
+         OW72j48/2aolXo7Ou1GLDfwkIDBt/Vmtcn4Tnj/4/kp7mu4LVmz5VDKSr8OE+9y8weme
+         897meCSIp0US6TXHwc1mNAzQHlrPnfNcC6TyFkG7NCS8ftY5NPyb+PNz9MBiWrMayw+i
+         0Dzg==
+X-Gm-Message-State: AHQUAuZm4nCJEMhSXwSudpr3DZgGRK1GkMFMc8puvFK91bDLeHZLBrXz
+	BfZafQpmDatKJxjSQ58yRWMXdadC+uyekZ6BA7eBcELhJjdZ8yM3Wg66TtYDd+9hRe6Y0ihf1Pr
+	7AhiNmjt4ufklSj08XugWQQkXgZTIn/vTaUwvxPrwYMffld1PgfsXopa9I8bBnGGq8g==
+X-Received: by 2002:a63:454a:: with SMTP id u10mr9575487pgk.224.1550245723258;
+        Fri, 15 Feb 2019 07:48:43 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYTQne+eEC0ubLmr11kweCqUatgMYc61DCdkCeUyxDtG7tv/X/548K03qitYDhrzL56M6/U
+X-Received: by 2002:a63:454a:: with SMTP id u10mr9575410pgk.224.1550245722425;
+        Fri, 15 Feb 2019 07:48:42 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550245722; cv=none;
         d=google.com; s=arc-20160816;
-        b=dskboF6Cjy+9CDD+fZELU9K8I7s9Hv856VChbglJQkgX6/aTuaqqP/g6PQ87usjH3V
-         HCPFHja40fMB1jcDdD2JSzLn2uMIw9B4YEV3wGGhMa3H1biyOKSzMaAq2HLLvv/pguls
-         /HOUVjvhEWrOSFTNluVgM3SgnEaTGFyU6pzvzI6m6PHW6hdd4M7M/l31s09mNycvnUaa
-         tOcidhcvgsvZuWF4TDuyyJzvjFl5OfICf6Rl1UUL43rUP/+FGjck3sikArBd5Fq3grUz
-         xWrqVkF14Ox5nKUMtJ9mLgT7La7jnbAlAyUfQK0L/D0CG9io0NqZjCToJTC83oYdu+ZI
-         Cw5w==
+        b=h86XDujspwpD3VwQV97JZy1kl/iJqBv1CbWJhh/2PrVbn+HkEowzs1Nx6ACkjl4+u1
+         eHv+sFR69V2z1wHGNtoym8opxS9mz6GeZapKMXZWcB5FYUgBotbbMm2Cwayv30sYwVJO
+         7jne53vANsoArSXWXUKTX93zwqSxM/z5POQrf9R6OMtqPsPupar5ZLvUpoNWG3B2t7kG
+         jJbPejETk1FroIil8HjWbvPn3Q1Cje+YppeibMES6VxflhH4XjIi9TCSzmP/JClfQs/G
+         fkotRP2sm90ZKt5XfOkP5cUH+qxOu5tutSbzzrLGOvsa/ClJ5fl7GyjzfuowySwVk7UC
+         0gsw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=AO5+6GjAtfAdzflCMfirBHPryl+1cPDIOakSZMCQ+6c=;
-        b=QPAOZt4+FrdCdpxCu4XwE80U1n+Ts9F+k4/eTyUgwQQkhnj4oOodI7dtknH0z7Ex6w
-         nTJIeKS2WM7/dFBgA1J635F7C2aPX5x6HfLh7OhpintUqAU4XCP72Y844ihKR+oerQnG
-         gbo3UhAvfXd5mM01hsHO4HsndxEvlVWIlSdd3ymv4vGaVXEFzyAaYnL9whAc8SzjAUi2
-         oOU9NOcXLw5L5uYQyzqpqVMGs7TlPyTLRP8hL9EUPkRj/b1E9vdp7ngQMVwW44OX+1j8
-         M5eaYEnb5nllBe/8lrn/Hdy9+rnHsyo/sQwYjTrfLl9SY6/dQm1G9dZUVNPW9NxjLGW6
-         aohQ==
+        h=message-id:references:in-reply-to:subject:cc:cc:cc:to:to:to:from
+         :date:dkim-signature;
+        bh=eoDF//MAOx0SYGCby4nSIyVisNwGzr4z2uZZnM4yBds=;
+        b=nzMTmkIoHDAThFAoO6Pxp9L4ZOWEall2C7w8qk22nlOZfgSl3ZK5AglqibtG7NoUBv
+         P1mHRJb3JLtTGTpxQ0sDOEPjVW3cilciaw5x2puwS8UWzwspnDCIjE7AyjSy4uLylTS+
+         lrsufBaelGylnAFmcurc5LgKK/wWtFX3HVsmm5azKC3IjQE/rLVjI7MRwpZohIRJJpXI
+         oRfLSw1NhxLWG4Hqx1MuQj2yMVGeQk5eMCs6N15mXScXhVxG8p6XBOCZZ6vcvH3HldBn
+         0YXN+SNdCgGo8c4u+GBFp0+Wr90GJSn93Pvw9Qwv9dXT6qt6F7UZWPwFeIDhpEHoFQzh
+         JMWA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=Unvl08o3;
-       spf=pass (google.com: domain of 01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@amazonses.com designates 54.240.9.36 as permitted sender) smtp.mailfrom=01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@amazonses.com
-Received: from a9-36.smtp-out.amazonses.com (a9-36.smtp-out.amazonses.com. [54.240.9.36])
-        by mx.google.com with ESMTPS id j92si3763394qte.44.2019.02.15.07.42.02
+       dkim=pass header.i=@kernel.org header.s=default header.b=l4O8Pn2G;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id q17si470578pfi.248.2019.02.15.07.48.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 15 Feb 2019 07:42:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of 01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@amazonses.com designates 54.240.9.36 as permitted sender) client-ip=54.240.9.36;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Feb 2019 07:48:42 -0800 (PST)
+Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=Unvl08o3;
-       spf=pass (google.com: domain of 01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@amazonses.com designates 54.240.9.36 as permitted sender) smtp.mailfrom=01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1550245322;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=ieoA9G/W7FjMw2f/8b6ijric5X7WLHj4SWCwlIfIT3E=;
-	b=Unvl08o3EUDCs5oYoOtJ8OdPcFc3nBgaouZGWhaSGZlU9kTY9eNGTON+3/0G29W6
-	6pXPvYuHZZIEeICI7KLo9AEm2ZplYtKkKF+PsXj0PEPeb2H8EbZirMGy+OxsrEYPu3i
-	2bZjBAUyQ6w+UfRWab+O9lfJretpOK2oDiEyOQPY=
-Date: Fri, 15 Feb 2019 15:42:02 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Dave Chinner <david@fromorbit.com>
-cc: Jerome Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@infradead.org>, 
-    Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>, 
-    Jan Kara <jack@suse.cz>, Doug Ledford <dledford@redhat.com>, 
-    Ira Weiny <ira.weiny@intel.com>, lsf-pc@lists.linux-foundation.org, 
-    linux-rdma <linux-rdma@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-    Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-    John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@kernel.org>
-Subject: Re: [LSF/MM TOPIC] Discuss least bad options for resolving longterm-GUP
- usage by RDMA
-In-Reply-To: <20190215011921.GS20493@dastard>
-Message-ID: <01000168f1d25e3a-2857236c-a7cc-44b8-a5f3-f51c2cfe6ce4-000000@email.amazonses.com>
-References: <01000168c8e2de6b-9ab820ed-38ad-469c-b210-60fcff8ea81c-000000@email.amazonses.com> <20190208044302.GA20493@dastard> <20190208111028.GD6353@quack2.suse.cz> <CAPcyv4iVtBfO8zWZU3LZXLqv-dha1NSG+2+7MvgNy9TibCy4Cw@mail.gmail.com> <20190211102402.GF19029@quack2.suse.cz>
- <CAPcyv4iHso+PqAm-4NfF0svoK4mELJMSWNp+vsG43UaW1S2eew@mail.gmail.com> <20190211180654.GB24692@ziepe.ca> <20190214202622.GB3420@redhat.com> <20190214205049.GC12668@bombadil.infradead.org> <20190214213922.GD3420@redhat.com> <20190215011921.GS20493@dastard>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.02.15-54.240.9.36
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+       dkim=pass header.i=@kernel.org header.s=default header.b=l4O8Pn2G;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from localhost (unknown [23.100.24.84])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id D66E22192D;
+	Fri, 15 Feb 2019 15:48:41 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1550245722;
+	bh=jErfl/TWNCyPZbjdyaVAUeYNsbEH/3N3G2dJ1zXexg4=;
+	h=Date:From:To:To:To:Cc:Cc:Cc:Subject:In-Reply-To:References:From;
+	b=l4O8Pn2GxfPw03ZAQsq0ceTJa6OcOC5/050IfoFkdC741YOokC6uP93x6PrQGPK70
+	 IawJhsTsqHFixcmgcYm8YTGnphpRzfmVe+eXbPYnkq7emakEe5rmwe0+pvlzJvCwWN
+	 Vf2adiK/Y5m+u14K8K+vxM8Ihvs5Q3lBRfk27g9I=
+Date: Fri, 15 Feb 2019 15:48:41 +0000
+From: Sasha Levin <sashal@kernel.org>
+To: Sasha Levin <sashal@kernel.org>
+To:   Mike Kravetz <mike.kravetz@oracle.com>
+To:     linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc:     Michal Hocko <mhocko@kernel.org>,
+Cc: <stable@vger.kernel.org>
+Cc: stable@vger.kernel.org
+Subject: Re: [PATCH] huegtlbfs: fix races and page leaks during migration
+In-Reply-To: <20190212221400.3512-1-mike.kravetz@oracle.com>
+References: <20190212221400.3512-1-mike.kravetz@oracle.com>
+Message-Id: <20190215154841.D66E22192D@mail.kernel.org>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 Feb 2019, Dave Chinner wrote:
+Hi,
 
-> Which tells us filesystem people that the applications are doing
-> something that _will_ cause data corruption and hence not to spend
-> any time triaging data corruption reports because it's not a
-> filesystem bug that caused it.
->
-> See open(2):
->
-> 	Applications should avoid mixing O_DIRECT and normal I/O to
-> 	the same file, and especially to overlapping byte regions in
-> 	the same file.  Even when the filesystem correctly handles
-> 	the coherency issues in this situation, overall I/O
-> 	throughput is likely to be slower than using either mode
-> 	alone.  Likewise, applications should avoid mixing mmap(2)
-> 	of files with direct I/O to the same files.
+[This is an automated email]
 
-Since RDMA is something similar: Can we say that a file that is used for
-RDMA should not use the page cache?
+This commit has been processed because it contains a "Fixes:" tag,
+fixing commit: bcc54222309c mm: hugetlb: introduce page_huge_active.
 
-And can we enforce this in the future? I.e. have some file state that says
-that this file is direct/RDMA or contains long term pinning and thus
-allows only a certain type of operations to ensure data consistency?
+The bot has tested the following trees: v4.20.8, v4.19.21, v4.14.99, v4.9.156, v4.4.174, v3.18.134.
 
-If we cannot enforce it then we may want to spit out some warning?
+v4.20.8: Build OK!
+v4.19.21: Build OK!
+v4.14.99: Failed to apply! Possible dependencies:
+    5b7a1d406062 ("mm, hugetlbfs: rename address to haddr in hugetlb_cow()")
+
+v4.9.156: Failed to apply! Possible dependencies:
+    2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
+    369cd2121be4 ("userfaultfd: hugetlbfs: userfaultfd_huge_must_wait for hugepmd ranges")
+    5b7a1d406062 ("mm, hugetlbfs: rename address to haddr in hugetlb_cow()")
+    7868a2087ec1 ("mm/hugetlb: add size parameter to huge_pte_offset()")
+    82b0f8c39a38 ("mm: join struct fault_env and vm_fault")
+    8fb5debc5fcd ("userfaultfd: hugetlbfs: add hugetlb_mcopy_atomic_pte for userfaultfd support")
+    953c66c2b22a ("mm: THP page cache support for ppc64")
+    fd60775aea80 ("mm, thp: avoid unlikely branches for split_huge_pmd")
+
+v4.4.174: Failed to apply! Possible dependencies:
+    09cbfeaf1a5a ("mm, fs: get rid of PAGE_CACHE_* and page_cache_{get,release} macros")
+    0e749e54244e ("dax: increase granularity of dax_clear_blocks() operations")
+    2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
+    2a28900be206 ("udf: Export superblock magic to userspace")
+    4420cfd3f51c ("staging: lustre: format properly all comment blocks for LNet core")
+    48b4800a1c6a ("zsmalloc: page migration support")
+    5057dcd0f1aa ("virtio_balloon: export 'available' memory to balloon statistics")
+    52db400fcd50 ("pmem, dax: clean up clear_pmem()")
+    5b7a487cf32d ("f2fs: add customized migrate_page callback")
+    5fd88337d209 ("staging: lustre: fix all conditional comparison to zero in LNet layer")
+    a188222b6ed2 ("net: Rename NETIF_F_ALL_CSUM to NETIF_F_CSUM_MASK")
+    b1123ea6d3b3 ("mm: balloon: use general non-lru movable page feature")
+    b2e0d1625e19 ("dax: fix lifetime of in-kernel dax mappings with dax_map_atomic()")
+    bda807d44454 ("mm: migrate: support non-lru movable page migration")
+    c8b8e32d700f ("direct-io: eliminate the offset argument to ->direct_IO")
+    d1a5f2b4d8a1 ("block: use DAX for partition table reads")
+    e10624f8c097 ("pmem: fail io-requests to known bad blocks")
+
+v3.18.134: Failed to apply! Possible dependencies:
+    0722b1011a5f ("f2fs: set page private for inmemory pages for truncation")
+    1601839e9e5b ("f2fs: fix to release count of meta page in ->invalidatepage")
+    2916ecc0f9d4 ("mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY")
+    31a3268839c1 ("f2fs: cleanup if-statement of phase in gc_data_segment")
+    34ba94bac938 ("f2fs: do not make dirty any inmemory pages")
+    34d67debe02b ("f2fs: add infra struct and helper for inline dir")
+    4634d71ed190 ("f2fs: fix missing kmem_cache_free")
+    487261f39bcd ("f2fs: merge {invalidate,release}page for meta/node/data pages")
+    5b7a487cf32d ("f2fs: add customized migrate_page callback")
+    67298804f344 ("f2fs: introduce struct inode_management to wrap inner fields")
+    769ec6e5b7d4 ("f2fs: call radix_tree_preload before radix_tree_insert")
+    7dda2af83b2b ("f2fs: more fast lookup for gc_inode list")
+    8b26ef98da33 ("f2fs: use rw_semaphore for nat entry lock")
+    8c402946f074 ("f2fs: introduce the number of inode entries")
+    9be32d72becc ("f2fs: do retry operations with cond_resched")
+    9e4ded3f309e ("f2fs: activate f2fs_trace_pid")
+    d5053a34a9cc ("f2fs: introduce -o fastboot for reducing booting time only")
+    e5e7ea3c86e5 ("f2fs: control the memory footprint used by ino entries")
+    f68daeebba5a ("f2fs: keep PagePrivate during releasepage")
+
+
+How should we proceed with this patch?
+
+--
+Thanks,
+Sasha
 
