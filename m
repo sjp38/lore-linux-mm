@@ -6,84 +6,84 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 50210C4360F
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:15:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A870AC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:15:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1B9B021B1C
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:15:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B9B021B1C
+	by mail.kernel.org (Postfix) with ESMTP id 66E6521B1C
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:15:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66E6521B1C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C2C3B8E0009; Fri, 15 Feb 2019 06:15:49 -0500 (EST)
+	id 157B78E000A; Fri, 15 Feb 2019 06:15:53 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BDB468E0001; Fri, 15 Feb 2019 06:15:49 -0500 (EST)
+	id 106B28E0001; Fri, 15 Feb 2019 06:15:53 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AF77B8E0009; Fri, 15 Feb 2019 06:15:49 -0500 (EST)
+	id F3C258E000A; Fri, 15 Feb 2019 06:15:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 811158E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 06:15:49 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id a199so7661940qkb.23
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 03:15:49 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CC1A08E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 06:15:52 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id 65so8485804qte.18
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 03:15:52 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=x6GvV3QaY1/jhRE59b51JpwNHXfPk01RcQDzFCAs7ko=;
-        b=AyDaS+pkfhDZGOLaaXLrtuCkpQZUZB7BQ2hiQRVzgx/XFZPu5ucfRoVj6kYJGyXeVr
-         qJHALPHBntwMc0aQH2sig8pACiFZBuAUQ3ZJoIoIOgfRxqfsaRXQcfOp5kMYok5pnymG
-         A+coRz8hi7m9MCFioF4Al6rWyUb8HQQfAc7FdOZnTTbOpuHLPz8/jo9pqLBHw9+2Sqst
-         HazO7l7ivWlp1rtzjBsaYIqUz7ftFd4fD7Km30ljzH55n2WsodnTmoJ1nbgoUPfQEcw1
-         FsfZAzhkPA3rGQSrGyR6AOj+jPJbntsuLM/o108nGCWDRIcs2GO2azJ/H2jYl8j4Z4Ls
-         WrJw==
+        bh=UPqY5b1JqVkM1npPaeOz/GFx2XqKiaYkjhq3oYeVa/0=;
+        b=EQha5vmxHqnN/duaFCczJ/1Z/lq1mOXYn3FSQQjE8e8aIV7uE/gvI30bRBDR1Gcnhx
+         1Fosv3bCOj0RG5ba74wBnPKfgux3OAe1KtqMRl3eSyfJkt9TM/gc/HPg5YiH3Wb+Ftf2
+         I+fxQhh/fcoxxTAi8DJlRMhyhNRYeo3TowHpBhkfbIiEq9hrrO2xSOaqlRKzfi22xqKg
+         nenDaYgDhVHX44vNhakoCyHi97LRHaOHSo8Wf271tRI1AdvyDdRHq7fIUgBHl2xhcNDH
+         KmB0y9f+q4u2gLq+oQ3E2HJ0fRC86DUWDEdrdTg+ovh5kL5UPfKTBlD1ZrGlJc0CcAq0
+         j4XQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuai/0/Pu4QO+lSF3kpSXnPG6l7TQDNnMJmtOUltBYqp6QbAp+CH
-	GrmcKkpHnR+6ZdG020ezWIq5jWhb9gpbXfUX4ZircAQs1D+xRDrrMpVPdf8R7J5EmLvMUBWqn76
-	dk3xgbNcoI+20gMupMFJBOdq6YlxTE6hkLgiZzeG49ikfm91+3std8+lhMa3dWu80sg==
-X-Received: by 2002:a0c:8542:: with SMTP id n60mr6686510qva.205.1550229349274;
-        Fri, 15 Feb 2019 03:15:49 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ibok54kefhayiupgcs/h3O/D1oLUYMqY+N92A8RbEN0mCf1xQVUMnHBFb50CjK8y9wZHCY3
-X-Received: by 2002:a0c:8542:: with SMTP id n60mr6686483qva.205.1550229348697;
-        Fri, 15 Feb 2019 03:15:48 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550229348; cv=none;
+X-Gm-Message-State: AHQUAuYaFHgDiLf2fYCqPpQHTVDsRMK7FzH2eZ6d3hdtlDlD9s9TGLeP
+	LOTnUJx3b8whBfiEceZ8RUfzkjsCF8lSJghTK657+NtFQftt6Q3kabgehYodiEGDHXNRx2b6WEu
+	FWaeiRv/1khhSYegbiEh5dnpWoxOOsCfpZ5JNhzdg2NNkqULbzs+g+w1TuhRk4dVvwQ==
+X-Received: by 2002:a0c:ae76:: with SMTP id z51mr6910611qvc.103.1550229352603;
+        Fri, 15 Feb 2019 03:15:52 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IY/vN+8lUgfupCwOVsoNZSiHK6VJSDktrqcgbVpaDi3FGSCaIlLv9rFuY9VjUEUCaN81B3b
+X-Received: by 2002:a0c:ae76:: with SMTP id z51mr6910580qvc.103.1550229352100;
+        Fri, 15 Feb 2019 03:15:52 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550229352; cv=none;
         d=google.com; s=arc-20160816;
-        b=f3oOT2r7pVxpJ08ugDc+3snxPu4g5asEg692qjrgoHrz4og4aBsaaFJREWDNDhlC/6
-         lkfZ9Be3xGtFrfFxE/gZ3WO6EUvM33HjPMIjt5bZmxvSCGGSA/W6uOwjsoSl/FRRYaaL
-         Qp4dvafeRQVMKIZZ9gM6Zvf2ldDe345imCWXs4uKV1TLyHXvoS9/285aM860ii7UZ6lr
-         xNOV5D2k5E5tkogjVgl7t84JMXH1Tohz1qdBSlHwQFXOII94XoKWjahMzEnPXEXNOnJ7
-         Lop+qQXt7TpY0B51MgfW81hw6d9aK3tBYzCUkdYiLVj17QvhravdclQMGDWkLNe2eXNV
-         IVvw==
+        b=gf3Vjavu6hB4sSEPXhFabOVw9WSLSgH88zdmY19ApjPPqD7EIpix5ZTrM5jvDwItY6
+         BtkBXxcOX6SHEKpu6BNOfuF3pLsilzrZcAX/b37ab6XQOgWVgg7aL574W0sCMg3kg8mC
+         ElLBJL4qVJ+xvLwbPrOXBy4XdsN+h4JocJqIYi9pSbEIEVe5b7LC82eu0p09BaqltyeI
+         vxWROVZWkPQBkZBFCnrzSKOXTK07aGcLLUscZgWdznW7lE91XXloYxA55G7auRYiwZs/
+         V9zqha2iUPgUSQI1Khtu7GTaDoh3nffgFPZqq0n5Gx6bhtU5Yi1aJr0hbXIcdyQi4XFQ
+         RNkg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=x6GvV3QaY1/jhRE59b51JpwNHXfPk01RcQDzFCAs7ko=;
-        b=MNk3Lk840XPYhCNFVwVtUQwA5/pZmMpQQdby43AaU8vyZp0KvhzPuZgpSH6YP8dKwC
-         r235YxXoMgjzQ0Mtwo0v8ks0TSK24wH//hjvfEzXC+GwYPGOabTTd2+giom83/f/UHdB
-         96HVpiC6w5R0bXYUANzumsrqMi5lCrVPI+hJ/4Ty1ngiHV2ZcUYFRt725Dod6pNeIuEH
-         ChAQ5FfsNrzcUfpDlecXTe/Go+OOLfD4RKZ+VfulruDOa36BbIKh/KTfE8tf+2Bfoxh8
-         Wq2RpdQVcUnT7j5DEdh5JH6fK6n2RdC7a89Vz8IMRuvQ169o4jWssIxkp5ZNCFIgLyhA
-         F8Lw==
+        bh=UPqY5b1JqVkM1npPaeOz/GFx2XqKiaYkjhq3oYeVa/0=;
+        b=HSwSVUNO+cJKJDgyeagAy3oe0C4icJoYttNIk38yzUWrWJswc04uYzTmVsOu0O2cqB
+         a2bF7XrvsUMdWdFzDicNUwEA6MLfjUn2xYJokSMwpAA4/jgXohYHcwWP+AZ+nfyW9mLl
+         C8YVI+E1gF4qtcxgmaTtHl05RQRK+wlyULPplSAwHGn33Byptfi5pGdtBLsxeUDVXrny
+         B8LxUQMAGLqb3MNzVM9jWxYn79cPYEI2uWDS8JYtN6tRr6BKT+yQ6FPu3FsDMzkIQ+tH
+         AMKSVvkRpa2cYjPLG6YKwdjSS4UtmM5GTqDhrPEPb4GviPAYblW8gVK/hXmLRH6XYYkB
+         vdOQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b5si3506704qti.147.2019.02.15.03.15.48
+        by mx.google.com with ESMTPS id o4si551284qti.312.2019.02.15.03.15.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 03:15:48 -0800 (PST)
+        Fri, 15 Feb 2019 03:15:52 -0800 (PST)
 Received-SPF: pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9360E124564;
-	Fri, 15 Feb 2019 11:15:47 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id F39521244C3;
+	Fri, 15 Feb 2019 11:15:50 +0000 (UTC)
 Received: from localhost (ovpn-8-22.pek2.redhat.com [10.72.8.22])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 81D4760A9C;
-	Fri, 15 Feb 2019 11:15:46 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 312215DD6B;
+	Fri, 15 Feb 2019 11:15:49 +0000 (UTC)
 From: Ming Lei <ming.lei@redhat.com>
 To: Jens Axboe <axboe@kernel.dk>
 Cc: linux-block@vger.kernel.org,
@@ -112,124 +112,59 @@ Cc: linux-block@vger.kernel.org,
 	Bob Peterson <rpeterso@redhat.com>,
 	cluster-devel@redhat.com,
 	Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V15 07/18] block: use bio_for_each_bvec() to map sg
-Date: Fri, 15 Feb 2019 19:13:13 +0800
-Message-Id: <20190215111324.30129-8-ming.lei@redhat.com>
+Subject: [PATCH V15 08/18] block: introduce mp_bvec_last_segment()
+Date: Fri, 15 Feb 2019 19:13:14 +0800
+Message-Id: <20190215111324.30129-9-ming.lei@redhat.com>
 In-Reply-To: <20190215111324.30129-1-ming.lei@redhat.com>
 References: <20190215111324.30129-1-ming.lei@redhat.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Fri, 15 Feb 2019 11:15:47 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Fri, 15 Feb 2019 11:15:51 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-It is more efficient to use bio_for_each_bvec() to map sg, meantime
-we have to consider splitting multipage bvec as done in blk_bio_segment_split().
+BTRFS and guard_bio_eod() need to get the last singlepage segment
+from one multipage bvec, so introduce this helper to make them happy.
 
 Reviewed-by: Omar Sandoval <osandov@fb.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- block/blk-merge.c | 70 +++++++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 50 insertions(+), 20 deletions(-)
+ include/linux/bvec.h | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
 
-diff --git a/block/blk-merge.c b/block/blk-merge.c
-index 4ef56b2d2aa5..1912499b08b7 100644
---- a/block/blk-merge.c
-+++ b/block/blk-merge.c
-@@ -464,6 +464,54 @@ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
- 	return biovec_phys_mergeable(q, &end_bv, &nxt_bv);
+diff --git a/include/linux/bvec.h b/include/linux/bvec.h
+index 0ae729b1c9fe..21f76bad7be2 100644
+--- a/include/linux/bvec.h
++++ b/include/linux/bvec.h
+@@ -131,4 +131,26 @@ static inline bool bvec_iter_advance(const struct bio_vec *bv,
+ 	.bi_bvec_done	= 0,						\
  }
  
-+static struct scatterlist *blk_next_sg(struct scatterlist **sg,
-+		struct scatterlist *sglist)
++/*
++ * Get the last single-page segment from the multi-page bvec and store it
++ * in @seg
++ */
++static inline void mp_bvec_last_segment(const struct bio_vec *bvec,
++					struct bio_vec *seg)
 +{
-+	if (!*sg)
-+		return sglist;
++	unsigned total = bvec->bv_offset + bvec->bv_len;
++	unsigned last_page = (total - 1) / PAGE_SIZE;
 +
-+	/*
-+	 * If the driver previously mapped a shorter list, we could see a
-+	 * termination bit prematurely unless it fully inits the sg table
-+	 * on each mapping. We KNOW that there must be more entries here
-+	 * or the driver would be buggy, so force clear the termination bit
-+	 * to avoid doing a full sg_init_table() in drivers for each command.
-+	 */
-+	sg_unmark_end(*sg);
-+	return sg_next(*sg);
-+}
++	seg->bv_page = nth_page(bvec->bv_page, last_page);
 +
-+static unsigned blk_bvec_map_sg(struct request_queue *q,
-+		struct bio_vec *bvec, struct scatterlist *sglist,
-+		struct scatterlist **sg)
-+{
-+	unsigned nbytes = bvec->bv_len;
-+	unsigned nsegs = 0, total = 0, offset = 0;
-+
-+	while (nbytes > 0) {
-+		unsigned seg_size;
-+		struct page *pg;
-+		unsigned idx;
-+
-+		*sg = blk_next_sg(sg, sglist);
-+
-+		seg_size = get_max_segment_size(q, bvec->bv_offset + total);
-+		seg_size = min(nbytes, seg_size);
-+
-+		offset = (total + bvec->bv_offset) % PAGE_SIZE;
-+		idx = (total + bvec->bv_offset) / PAGE_SIZE;
-+		pg = nth_page(bvec->bv_page, idx);
-+
-+		sg_set_page(*sg, pg, seg_size, offset);
-+
-+		total += seg_size;
-+		nbytes -= seg_size;
-+		nsegs++;
++	/* the whole segment is inside the last page */
++	if (bvec->bv_offset >= last_page * PAGE_SIZE) {
++		seg->bv_offset = bvec->bv_offset % PAGE_SIZE;
++		seg->bv_len = bvec->bv_len;
++	} else {
++		seg->bv_offset = 0;
++		seg->bv_len = total - last_page * PAGE_SIZE;
 +	}
-+
-+	return nsegs;
 +}
 +
- static inline void
- __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
- 		     struct scatterlist *sglist, struct bio_vec *bvprv,
-@@ -481,25 +529,7 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
- 		(*sg)->length += nbytes;
- 	} else {
- new_segment:
--		if (!*sg)
--			*sg = sglist;
--		else {
--			/*
--			 * If the driver previously mapped a shorter
--			 * list, we could see a termination bit
--			 * prematurely unless it fully inits the sg
--			 * table on each mapping. We KNOW that there
--			 * must be more entries here or the driver
--			 * would be buggy, so force clear the
--			 * termination bit to avoid doing a full
--			 * sg_init_table() in drivers for each command.
--			 */
--			sg_unmark_end(*sg);
--			*sg = sg_next(*sg);
--		}
--
--		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
--		(*nsegs)++;
-+		(*nsegs) += blk_bvec_map_sg(q, bvec, sglist, sg);
- 	}
- 	*bvprv = *bvec;
- }
-@@ -521,7 +551,7 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
- 	int nsegs = 0;
- 
- 	for_each_bio(bio)
--		bio_for_each_segment(bvec, bio, iter)
-+		bio_for_each_bvec(bvec, bio, iter)
- 			__blk_segment_map_sg(q, &bvec, sglist, &bvprv, sg,
- 					     &nsegs);
- 
+ #endif /* __LINUX_BVEC_ITER_H */
 -- 
 2.9.5
 
