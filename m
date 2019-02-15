@@ -2,189 +2,281 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AD3AAC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:13:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 11EBBC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:20:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6A635222D7
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:13:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BD771222D7
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 22:20:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="qsArAo4B"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A635222D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="ogWR0BCu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD771222D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 054708E0003; Fri, 15 Feb 2019 17:13:21 -0500 (EST)
+	id 57FC28E0005; Fri, 15 Feb 2019 17:20:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 004228E0001; Fri, 15 Feb 2019 17:13:20 -0500 (EST)
+	id 52F438E0001; Fri, 15 Feb 2019 17:20:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E36288E0003; Fri, 15 Feb 2019 17:13:20 -0500 (EST)
+	id 3D1108E0005; Fri, 15 Feb 2019 17:20:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B64AF8E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:13:20 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id 42so10284576qtr.7
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:13:20 -0800 (PST)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 08C5A8E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 17:20:41 -0500 (EST)
+Received: by mail-yw1-f69.google.com with SMTP id p62so6961046ywd.3
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:20:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=o+Le5xqB8mfOGViqpY9sITB2QN9I9Wu1PwGPQLk7yIg=;
-        b=RtrBqRE4ybYReticvQkADtehbgV4mLwkcMu/BWHI/NTaODSOtuU2DJ7g6masa7PT30
-         D8vOv3In4wKkL+i5ZUTrPKnXkPUxVEXu385I79qHGtrTlqfYSi3+Mc7eZPDCTUXhtVW8
-         AGw3/0bBYRE0mmduXvNe2yHGQdMXQ4iV9rbspIy5vF+Lkzq0g/tWg6UdsuwOGYheDHQf
-         FFwYqEBJ51joO+xFJqo/bt6WbYn53wZp81hyzU4qSAyAC9Eugj1UKMBHs9iOTGhCY5zD
-         eFMsqrR1R6KSkPHVUQqno53rRbnYghUoz6ImYcRpS92a/rOZkABfHS49wMv8UrgL4I6i
-         tVDA==
-X-Gm-Message-State: AHQUAuac0ZC8OOF7kR/NJKMyuXWejXURhHVue6+qSdMqjgw7JK1y+8BU
-	rD0lByHDGac0vCSGp6x2SQW8EQuMnLTybUJiSTCqSdE+SkX5EDW/3d0bryJ1Qg1J27yK2hMQ2n6
-	8isD5EGMLAx2enr7IEclT99X6zhfRWfDW37SjiolaH2P2dy5nXo7YiiIynW5E8JFGXw==
-X-Received: by 2002:a0c:b3dc:: with SMTP id b28mr8922305qvf.222.1550268800511;
-        Fri, 15 Feb 2019 14:13:20 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZazED4xhRGiF0QewnbTDnCxmhpX4jR1hmm0i5TPOSy7NHpbKZYl0wrLitomn5kj5bSa5eq
-X-Received: by 2002:a0c:b3dc:: with SMTP id b28mr8922270qvf.222.1550268799952;
-        Fri, 15 Feb 2019 14:13:19 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550268799; cv=none;
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding:dkim-signature;
+        bh=PVlYGjyWaFVWJioBZgBkG+3PLaDi4XJfqvkkL2DVWxY=;
+        b=YAa3EhPIFsPg7MJ5vfhnvc0i5noawr6jc6e1bft07qgsyBJu+pYV90XqHTMvON17Rw
+         Nv82KC5exeG4RYVBcr68mA7Bx8P+xSZDsEXlnp4ViDoS3gNnaMWxnb/WLHE2I0QtbMnK
+         FpgSwraNR0mWjBFDmCSEfC9fUoADqZJll3sBpGfAX8LXxzAqohPf719GG00Aqo/sXLyv
+         aHh9fU2VYgXtWcv9cgcnPLLXLsjgbHI4Jmu2YrLBS/lgGCAOTAVwOS1dfDWPwVo8xpxx
+         k9k6DQrbB5It1YrknhWIPDBAImZY0bMJlH5y9UHc2CZ+qiZFxiIPdLMT6WRL7GJVWlHU
+         21hA==
+X-Gm-Message-State: AHQUAuZKxtTnd9xikVzgyb2o96sZRGYp6s/iLImFXm92E2AXpTJ4SSV5
+	YKsMZ79BJMY/hfDXYg50rdwuJXWYCOzyn+RIY2cf178cSDO1r3PKzPaxkAJpGkNbkxQhSJmg8cY
+	WFFuo8D1o+gWiBASJBNV78CW0lQQT/Y+4i5WeZpPW1s109ZUzRjHxuV7Krclnu2Brcg==
+X-Received: by 2002:a25:ba8d:: with SMTP id s13mr9857314ybg.332.1550269240680;
+        Fri, 15 Feb 2019 14:20:40 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZ2PPORtCx5gXy+K44DqqDBS+MlldqbQHy/ZcD6QHCVDfcRH5iNPqekeTTImxqCwMyt+XRN
+X-Received: by 2002:a25:ba8d:: with SMTP id s13mr9857265ybg.332.1550269239776;
+        Fri, 15 Feb 2019 14:20:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550269239; cv=none;
         d=google.com; s=arc-20160816;
-        b=Hy9EWZIsNPsFMA3LaoEzWClqNPdOOTTSlzG9+6bIiwAZx/xHholZiFMihRo00FEY4M
-         /VIQYXZjz2KavPR3Ug4x4mT/qWly3xuFL7W7aMdWNYcj7qnZMk0qPAer989O1giYEbxd
-         Ak5TEFFXkUUkjpsR77Z4cY+YCsGikybZLC+PC9L9xWDeCOBU8ibCR0hw8W7QnYFOcVow
-         MH4y/sEqw0BJAjEvHbxNR3EKAcRLuQ5qFTJyzZCqbJKDKWzcEagMv2QSRVUXWioDdB8e
-         v1jRgNzwu4ByFyo8nU2zsE0E0iYE9PaIDGoDW7TB7qjghvZ0UbRdA6ALk1OyhNaIeWj4
-         B09A==
+        b=NkwZT1lzxvZwlXIYDsrsKtr4qnN0yTX2YFuT6/N5h2qWyAxcMCdge/b9doTeSjNHH2
+         mbzHi3vqHTSBM1WQ882RbrfhlrmUp49g1LZtqUKAF6EbzTL2FJEb2iQoRe27n/D1acV1
+         SMBxC+qxORLTHUCjJJgKSpUu0RDljjVrSfy1WXBwrMAD681bFdq/TulruGqAFjGgL+rG
+         RX1Qq/6lZVb6wazb3kZO7L2zidAO5Gmitsm6FFZqn/GEWwTr3FDkssHSNVD9A3isGlh5
+         FMPNnEcYeXM2ff1qbJ8vLdTbD8mIpmZXC2z6LywWuRHL83wB6w73HZ3qBdypNBGNNcc4
+         ikvw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=o+Le5xqB8mfOGViqpY9sITB2QN9I9Wu1PwGPQLk7yIg=;
-        b=N1gyj2jxopuV9yXt+/Myp+s/WRmFNwqoe1Y8+2IyyDndDNqmUAMvIzZwkVHH9xRveY
-         RUVcjuaHRApkGh+HhGfbb5bpkTieEwHAKXqcXokMYYMXqDo3hbBk2jbwPc6aFFmdxF4w
-         HuXd9+TZJ1XnuSuCeVIeemaARb14s5OEPEq+KsJBNTpem7ewKWHb76N3kuxMWTG1Cyo7
-         He312/vqd+yMvM5hhENQahE9sI3fghD0YKtFpChiX6ZEhB7fY5UrPva5duiETNCqbn6i
-         jMTaVz3STMqtotmk0srC40UtW+GxHBy0w7BQ0Po0dXJLPp0JkM1bNWgYyPsPlinqRSFx
-         hV5A==
+        h=dkim-signature:content-transfer-encoding:mime-version:message-id
+         :date:subject:cc:to:from;
+        bh=PVlYGjyWaFVWJioBZgBkG+3PLaDi4XJfqvkkL2DVWxY=;
+        b=Trdgbsl3CNCzhRbaoPbidDAiU/txOMzFs4lCG62oLJM8nrnzTy2uF/u1eUImHnCcnc
+         ETA7Km6nEVFqSJMIyMMwkHuC2d4OK3EnoGTLa3UTUeWQFIzbBQjPjhfkqY3m6shute98
+         Xoh41JtIVoWxbXoorwGgB4Fb2nXozaoD4KfqJPKgdQh+NexKLNNoI602svKS+XRteBR8
+         /1MyD7qy4fueE3POZZo+49SeNpFRN9qsXd+C4OVy52gUSUb6eqSCqyEIqpHeSBic3Zml
+         RbiuASdq46bdayd0rVb1fFfKEIkhbc2DOmOr++KHP5QzoF4UN7Kpg5AmTx5Nyv0DkPbE
+         iemQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qsArAo4B;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id c186si1381860qkf.202.2019.02.15.14.13.19
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=ogWR0BCu;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id 185si3855753ybn.262.2019.02.15.14.20.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 14:13:19 -0800 (PST)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Fri, 15 Feb 2019 14:20:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qsArAo4B;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1FMCRp6126565;
-	Fri, 15 Feb 2019 22:13:16 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=o+Le5xqB8mfOGViqpY9sITB2QN9I9Wu1PwGPQLk7yIg=;
- b=qsArAo4B7Rj+kDj8eFEmCJGgFYwRModtDjazZ6Tt805grVDzAJ9Oof4kU455phrQ4+ir
- bX3+AcLybQYtXmOQoHYy2egyPP+0OGCTE+KuKO7DU97UDiTDj7yi6gp+qhdxozG8s1Qc
- bwLYx8LeiseOq+CiJBBR8A23nD7p/CCCoTHDZnL5ml+K3VJ6PZPdjobLsuRBR98CcplH
- 8hAHz6Purt59SGnB1STJG3FVOBAYKd0QPICcZoMx9UFanVLZoDGr8Yh3qTkZDStMuoJZ
- aYnJPYtTK7VeW8ME8rGRmnS2eJxc7ppFCyQRpbtYqozCrPT/c8/DBkZSS3pavvngTJs0 Tw== 
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2130.oracle.com with ESMTP id 2qhrem09xm-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 15 Feb 2019 22:13:16 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x1FMDFlJ000547
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 15 Feb 2019 22:13:15 GMT
-Received: from abhmp0015.oracle.com (abhmp0015.oracle.com [141.146.116.21])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1FMDFL7028907;
-	Fri, 15 Feb 2019 22:13:15 GMT
-Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 15 Feb 2019 22:13:14 +0000
-Date: Fri, 15 Feb 2019 17:13:36 -0500
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>,
-        "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-        "mhocko@suse.com" <mhocko@suse.com>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH v2 4/4] mm: Generalize putback scan functions
-Message-ID: <20190215221335.32zqxhwtcr2kmgku@ca-dmjordan1.us.oracle.com>
-References: <155014039859.28944.1726860521114076369.stgit@localhost.localdomain>
- <155014053725.28944.7960592286711533914.stgit@localhost.localdomain>
- <20190215203926.ldpfniqwpn7rtqif@ca-dmjordan1.us.oracle.com>
- <b2fcd214-52a5-6284-81b9-8a09de27fbea@virtuozzo.com>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=ogWR0BCu;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c673b3b0000>; Fri, 15 Feb 2019 14:20:43 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Fri, 15 Feb 2019 14:20:38 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Fri, 15 Feb 2019 14:20:38 -0800
+Received: from [10.2.160.210] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Fri, 15 Feb
+ 2019 22:20:38 +0000
+From: Zi Yan <ziy@nvidia.com>
+To: <lsf-pc@lists.linux-foundation.org>
+CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, Michal Hocko
+	<mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Matthew Wilcox
+	<willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A.
+ Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, Mike
+ Kravetz <mike.kravetz@oracle.com>, Anshuman Khandual
+	<anshuman.khandual@arm.com>, John Hubbard <jhubbard@nvidia.com>, Mark
+ Hairgrove <mhairgrove@nvidia.com>, Nitin Gupta <nigupta@nvidia.com>, David
+ Nellans <dnellans@nvidia.com>
+Subject: [LSF/MM TOPIC] Generating physically contiguous memory
+Date: Fri, 15 Feb 2019 14:20:37 -0800
+X-Mailer: MailMate (1.12.4r5594)
+Message-ID: <CEDBC792-DE5A-42CB-AA31-40C039470BD0@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b2fcd214-52a5-6284-81b9-8a09de27fbea@virtuozzo.com>
-User-Agent: NeoMutt/20180323-268-5a959c
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9168 signatures=668683
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902150144
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; format=flowed
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1550269243; bh=PVlYGjyWaFVWJioBZgBkG+3PLaDi4XJfqvkkL2DVWxY=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:X-Mailer:Message-ID:
+	 MIME-Version:X-Originating-IP:X-ClientProxiedBy:Content-Type:
+	 Content-Transfer-Encoding;
+	b=ogWR0BCuJXewZzQEbJpYlL6oQOPHs3TDFPbVoaDaQfS985aojrx16wa56IBizh27Q
+	 W650rtKEZTBrMGR3NmV59/2JI9QFULJ8lNlkvmq/GvvhmDe5oMNGjiEsk/Gs0B4xcB
+	 0tvVG0B1FBs/z0ynvpN1lT1F8jz2MPYNDa4qM+hFaGG0ZiQuCkq+aiJz8i3WerXaJM
+	 91rderrFOSmUTTdB9kXVGlKcGeqsseaHFRhyP49yPEzT4LNVH2Jm1v1KuAFrna9S/4
+	 7bepyHG4HtcPv0/PbMEYRmU3+He3k/+6BVAM/2SOB+KTg9g0NTwahvWZUi0Dz/gvVg
+	 C3Fr5BaFr5tgQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 15, 2019 at 10:01:05PM +0000, Kirill Tkhai wrote:
-> On 15.02.2019 23:39, Daniel Jordan wrote:
-> > On Thu, Feb 14, 2019 at 01:35:37PM +0300, Kirill Tkhai wrote:
-> >> +static unsigned noinline_for_stack move_pages_to_lru(struct lruvec *lruvec,
-> >> +						     struct list_head *list)
-> >>  {
-> >>  	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
-> >> +	int nr_pages, nr_moved = 0;
-> >>  	LIST_HEAD(pages_to_free);
-> >> +	struct page *page;
-> >> +	enum lru_list lru;
-> >>  
-> >> -	/*
-> >> -	 * Put back any unfreeable pages.
-> >> -	 */
-> >> -	while (!list_empty(page_list)) {
-> >> -		struct page *page = lru_to_page(page_list);
-> >> -		int lru;
-> >> -
-> >> +	while (!list_empty(list)) {
-> >> +		page = lru_to_page(list);
-> >>  		VM_BUG_ON_PAGE(PageLRU(page), page);
-> >> -		list_del(&page->lru);
-> >>  		if (unlikely(!page_evictable(page))) {
-> >> +			list_del_init(&page->lru);
-> > 
-> > Why change to list_del_init?  It's more special than list_del but doesn't seem
-> > needed since the page is list_add()ed later.
-> 
-> Not something special is here, I'll remove this _init.
->  
-> > That postprocess script from patch 1 seems kinda broken before this series, and
-> > still is.  Not that it should block this change.  Out of curiosity did you get
-> > it to run?
-> 
-> I fixed all new warnings, which come with my changes, so the patch does not make
-> the script worse.
-> 
-> If you change all already existing warnings by renaming variables in appropriate
-> places, the script will work in some way. But I'm not sure this is enough to get
-> results correct, and I have no a big wish to dive into perl to fix warnings
-> introduced by another people, so I don't plan to do with this script something else.
+The Problem
 
-Ok, was asking in case I was doing something wrong.
+----
 
-With the above change, for the series, you can add
+Large pages and physically contiguous memory are important to devices, =
 
-Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+such as GPUs, FPGAs, NICs and RDMA controllers, because they can often =
+
+reduce address translation overheads and hence achieve better =
+
+performance when operating on large pages (2MB and beyond). The same can =
+
+be said of CPU performance, of course, but there is an important =
+
+difference: GPUs and high-throughput devices often take a more severe =
+
+performance hit, in the event of a TLB miss, as compared to a CPU, =
+
+because larger volume of in-flight work is stalled due to the TLB miss =
+
+and the induced page table walks. The effect is sufficiently large that =
+
+such devices *really* want highly reliable ways to allocate large pages =
+
+to minimize TLB misses and reduce the duration of page table walks.
+
+
+
+Due to the lack of flexibility, Approaches using memory reservation at =
+
+boot time (such as hugetlbfs) are a compromise that would be nice to =
+
+avoid. THPs, in general, seems to be a proper way to go because it is =
+
+transparent to userspace and provides large pages, but it is not perfect =
+
+yet. The community is still working on it since 1) THP size is limited =
+
+by the page allocation system and 2) THP creation requires a lot of =
+
+effort (e.g., memory compaction and page reclamation on the critical =
+
+path of page allocations).
+
+
+
+
+Possible solutions
+
+----
+
+1. I recently posted an RFC [1] about actively generating physically =
+
+contiguous memory from in-use pages after page allocation. This RFC =
+
+moves pages around and make them physically contiguous when possible. It =
+
+is different from existing approaches, since it does not rely on page =
+
+allocation. On the other hand, this approach is still affected by =
+
+non-moveable pages scattered across the memory, which is highly related =
+
+but orthogonal and one of whose possible solutions is proposed by Mel =
+
+Gorman recently [2].
+
+
+
+
+2. THPs could be a solution as it provide large pages. THP avoids memory =
+
+reservation at boot time, but to meet the needs, i.e., a lot of large =
+
+pages, of some of these high-throughput accelerators, we need to make it =
+
+easier to produce large pages, namely increasing the successful rate of =
+
+allocating THPs and decreasing the overheads of allocating them. Mel =
+
+Gorman has posted a related patchset [3].
+
+
+It is also possible to generate THPs in the background, either like what =
+
+khugepaged does right now, or periodically perform memory compaction to =
+
+lower whole memory fragmentation level, or having certain amount of THP =
+
+pools for future use. But these solutions still face the same problem.
+
+
+
+
+3. A more restricted but more reliable way might be using libhugetlbfs. =
+
+It reserves memory, which is dedicated to large page allocations and =
+
+hence requires less effort to obtain large pages. It also supports page =
+
+sizes larger than 2MB, which further reduces address translation =
+
+overheads. But AFAIK device drivers are not able to directly grab large =
+
+pages from libhugetlbfs, which is something devices want.
+
+
+
+
+4. Recently Matthew Wilcox mentioned his XArray is going to support =
+
+arbitrary sized pages [4], which would help maintain physically =
+
+contiguous ranges once created (aka my RFC). Once my RFC generates =
+
+physically contiguous memory, XArrays would maintain the page size and =
+
+prevent reclaim/compaction from breaking them. Getting arbitrary sized =
+
+pages can still be beneficial to devices when larger than 2MB pages =
+
+becomes very difficult to get.
+
+
+
+Feel free to provide your comments.
+
+Thanks.
+
+
+[1] https://lore.kernel.org/lkml/20190215220856.29749-1-zi.yan@sent.com/
+
+[2] =
+
+https://lore.kernel.org/lkml/20181123114528.28802-1-mgorman@techsingulari=
+ty.net/
+
+[3] =
+
+https://lore.kernel.org/lkml/20190118175136.31341-1-mgorman@techsingulari=
+ty.net/
+
+[4] =
+
+https://lore.kernel.org/lkml/20190208042448.GB21860@bombadil.infradead.or=
+g/
+
+
+
+--
+Best Regards,
+Yan Zi
 
