@@ -2,158 +2,166 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7007FC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 20:29:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B3401C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 20:39:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2319620823
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 20:29:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6CD49222D0
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 20:39:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="W1EkMPd+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2319620823
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="wv6bEB26"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6CD49222D0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B50DA8E0003; Fri, 15 Feb 2019 15:29:00 -0500 (EST)
+	id E7C138E0003; Fri, 15 Feb 2019 15:39:19 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B002C8E0001; Fri, 15 Feb 2019 15:29:00 -0500 (EST)
+	id E2BD28E0001; Fri, 15 Feb 2019 15:39:19 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A17678E0003; Fri, 15 Feb 2019 15:29:00 -0500 (EST)
+	id D40C98E0003; Fri, 15 Feb 2019 15:39:19 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 607528E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 15:29:00 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id k14so7693713pls.2
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 12:29:00 -0800 (PST)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A1BB48E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 15:39:19 -0500 (EST)
+Received: by mail-yb1-f199.google.com with SMTP id x132so6477529ybx.22
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 12:39:19 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=RfJTwQxNtAt3SGNUAeeBsgYvXmANCdHsJDtsXuMeyS8=;
-        b=gsRoT1GDAXH8vQeS3pE0lCVeTJMbo+TBZ3h/U6HjWg8/W5U1jDWKugZKl6yikBbCm8
-         ysayh0lHfAg4oCo3YP2SBlL5LGSIQj+gF2KAmkLXghcww/r9nlUSNLSimXi8pKHi2H5s
-         SlFT4QWBvkxmJxVp/fQuVMDDKsLjwaO0+kG8xOSrgcd0XOuVVlGdVUA0Yy3SaTKMVURl
-         GT04dX1b3hq6C9wB7bKmKWMhdxK6Y66op0BHswt0AfYdTNBFhfxWsm4B5jWOvbKMnVhU
-         G6jgy3+wgUELP66ohbQ+VmxNwUvGns1TC9juMCyJBWp3cKGvDtS/tZFykfpnDpqGC4np
-         jveQ==
-X-Gm-Message-State: AHQUAuaDGC9GcT/0L4nXCSAg66Tbxa2fCVZEvO2z4qLQ9CK/kMt3xZ0l
-	MqogsPhpRVnxynXfmdGBp+YnfJwW6uMvX26vLrJb8LvfL27WwQglhVEY/aPzID7i/D5uU8LcXb1
-	GOXB6kb3fxBnFXAhsNcUpZNL0n5lMP5U2gwyC20D2Qmfznbc0+a99OUf4gfsQzgg96w==
-X-Received: by 2002:a17:902:7683:: with SMTP id m3mr12091260pll.191.1550262540081;
-        Fri, 15 Feb 2019 12:29:00 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYTyXtDniC6sudbWdZqSeBibLvrVvLMqzcJ3auk68PDsYWjgjdUerQUFz/fLu9evqwxActE
-X-Received: by 2002:a17:902:7683:: with SMTP id m3mr12091197pll.191.1550262539389;
-        Fri, 15 Feb 2019 12:28:59 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550262539; cv=none;
+        bh=rNtnO7rrhauRz+civhMrk0zTJ+CPDxwnD/u/os2j5wE=;
+        b=MQnLcHdmdcd5Yyj75+A42O4O1LLTvnHcHqK4VBv6A00psUBO6pYnl216MGAcAR8Pnt
+         HjALsQGgjyHAtZY8zhH7UuQEimfonDpzJVEVww2OFSS8vrBRsJLrh9Oez7+5mM4MoJQ0
+         chOTWm45Fw2taabSRW32qKIQ5D3U99i8KZgslc/XxYx0dWVpUjoc76hIlLIre48IXLRv
+         arPUpMemsqbpJovZzPKjvQ5VqiGMC6BJI4U6HSCiAkiCHTS4GDtCNL1SAHHyNKzFBqTB
+         YxbK0o6vYHYKZajVSrw1aRs41go1+qXs1TU/WUdICDtJh0XAKXAs266LWEH0ghLkgO5R
+         dFUg==
+X-Gm-Message-State: AHQUAubISCTdhINkFp5+GU1nUnT2AeGQujVFo5EApqr9RwGyAVQoTbG9
+	4f3CFAOb4gIfMZIFfgnMyVVEKwZx9os5rnGLeNbOPi4QkAEUvzWDp6OBqrhkVa2UQufyTZQP3qS
+	ifJeJ2akUvganydj7TxA/pTbFe6oadL3psaWQ1gnz+2hBo7BWfnFyu+cbWtSAiV75iw==
+X-Received: by 2002:a25:8544:: with SMTP id f4mr9681206ybn.484.1550263159255;
+        Fri, 15 Feb 2019 12:39:19 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaPGnQYM1IeY5qjK0uR9HKFyeSGQVXd9+CnjeX8hc104PzJGmO5TvA2CMMnb+ZEPCEK6buM
+X-Received: by 2002:a25:8544:: with SMTP id f4mr9681172ybn.484.1550263158682;
+        Fri, 15 Feb 2019 12:39:18 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550263158; cv=none;
         d=google.com; s=arc-20160816;
-        b=i5h4e+nQnB9S43Byo0phe886sJeBcqhh9Jl08u+mwNk6ae3whdmpOOwTXFgrwEHKmN
-         FP2JkpX4wbQ1gwiUzy3oWNl9HYg/tvmcG0n0XOlUQXUo2OCC3hvl+UhOzL8BqKKeCbnI
-         8In64Y9Ari4xAgY8t8ah/EnjiOuLvLa8+HM886iq/CkJZRAFls9TZveTnBqwXDcFfNPX
-         8JLQ6cynVTJFL/VABnphFP/TKEmX2Kaoxihbe+4ibZ5vTVDLh9mm7Mv8gD+yXTj5k/Em
-         /4zpDxMEoK1+oHnPaK0+erE9ewodnR8w8i+ci0HMzGGe0sazB2ftdCTbH49+yHbebD2g
-         2nfw==
+        b=PVOfhZHsPvCblttHlitkkC/ZEMI7hgrXmixzFORNvXGT4q1anVSAgXq4c8KbtOFN8z
+         MLssU8zFeXdG3h94xSIxdoW2qho4eSPDCC8x8YZznXM1kxbGBz7N2XUcyXenCdVwcWva
+         f7Xs4imjpcSqh61AyEwpITylgBXQtjOWUqvMpzIJAEQ9hb3hmWqIt/+9uj5thnYN2VYU
+         1ipKiEHEjqW9homfNHiz3YQxHzpPBJQNypyViejkz+dA2+Ij1lOATyfnjF8itOtSmkHb
+         J529atbgUjCeuMIOXMiyu6cIrg8GXbjCK2vnYb1aRjFeMTi0bDc9wzSSg3pCcdoTtQaD
+         oEWg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=RfJTwQxNtAt3SGNUAeeBsgYvXmANCdHsJDtsXuMeyS8=;
-        b=LTJX5VCZDfA/S5q0xar8whAJ8iFgDJpl7cyK/GMry442O7TmBxe/Nhs+exr3PLTvwy
-         0dsXRGSFhxk6IieOkNB7ZIl/WEXt1zFR+2ngJe2QozRVnKEQscbKGJ3PO4/AN6FyZvvT
-         v7zHMorh3oXlp+AseP9cBKefaglATaiNE16skVPAPPbf64p+Dx7ilipp6LyRORkBha4K
-         iCTOT09bOH3LRXjOJKjV8rWhJORMrVx+1vVBCycSLVjo8pum6tsPlYOuVFxezhUyYbSQ
-         uAYJf1ILNJ/nYSYN+gYGpPYC+JMdlPVdNxmXqCcPSFB7C/Flk39XfwayGGZyvTgpaohz
-         X6pw==
+        bh=rNtnO7rrhauRz+civhMrk0zTJ+CPDxwnD/u/os2j5wE=;
+        b=EZ4Q5tSY2ndrAizuZpjliIhVHIk+a1cF2gOR1zbKfF3TIJYjsOyqyCoNGGQkTHNXRT
+         doghY9edCpVQ3++Zr32eDX+UqIJGHxd8aTbNm1QEQMtDyGnOuPrZNEI9/YEh+3fmyoUJ
+         EkBiwQ91Fcuz/xk2HrzvzDU6EMT73ers32dXzSlrcVzF2NOxMExhOA1tq+PMHFz0f2I9
+         Twa7TiXnHDfiBA4tmNfQN8s9qOdCy//IXA+clmDUhHIgFemdtVhfUiSj2jpGti2A5/Ed
+         4VKPPpq1WwquRl8HPdcKrLTfQxMVEnN7tUubr0k8PkFnN0QTvzXEPCN/NIpBTOigh2tq
+         ph0Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=W1EkMPd+;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id bc7si6453200plb.120.2019.02.15.12.28.59
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=wv6bEB26;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id 134si3651077ybc.79.2019.02.15.12.39.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 15 Feb 2019 12:28:59 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Feb 2019 12:39:18 -0800 (PST)
+Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=W1EkMPd+;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=RfJTwQxNtAt3SGNUAeeBsgYvXmANCdHsJDtsXuMeyS8=; b=W1EkMPd+0mkWguf2uAGeMdTk3
-	kZDkDxRdVsxC4bMDWDO/dB6wLusOvD4FSMkOajm/mzZCMr4eRc0QdIhOitulAZ0i+XxsGbICEUzsF
-	8SYRg2eBxldECz8EjvYHs3DIHmiyAhMqr0ZayB0sutHedapn1CnACbAus6JToj2ZUdkN0IzzpLGVY
-	+L5Z5Ey2VLTT0jd3j/yIAV/AZosDGDfaYDWucu78zkdEFazU32lalN2iDO60DNBh5wAIeL6nYJFsT
-	jmPMJNvC5jyogYRq8H+ygQwIeambm5Myf3CiPc9VDy8QroKcuf+hLTzR2FwjC4hEs3PbAVsoIXG1G
-	a1xMriBPg==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1guk6U-0001Xm-AK; Fri, 15 Feb 2019 20:28:58 +0000
-Date: Fri, 15 Feb 2019 12:28:58 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
-	William Kucharski <william.kucharski@oracle.com>
-Subject: Re: [PATCH v2] page cache: Store only head pages in i_pages
-Message-ID: <20190215202858.GL12668@bombadil.infradead.org>
-References: <20190212183454.26062-1-willy@infradead.org>
- <20190214133004.js7s42igiqc5pgwf@kshutemo-mobl1>
- <20190214222944.74ipvbnvo2lvfgnr@kshutemo-mobl1>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=wv6bEB26;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1FKdGJ7062143;
+	Fri, 15 Feb 2019 20:39:16 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=rNtnO7rrhauRz+civhMrk0zTJ+CPDxwnD/u/os2j5wE=;
+ b=wv6bEB26lL2CSNHY6O6O/J5Yb4U9YrV7plIBrbZAIALvEiingOLKroZ2Pn4BtR49u8Kn
+ 8BCIpW3j8o6263qqbqQ6OKZw74WuH3Hm7W8TQ35zIRUA5voJ5hP6YYfKRTg8SluMnKJd
+ bD7vxsMseRLf+z6QknR3QN7m/zLs5KHKrro0mfvALFl6D+Ii6qUgsc8+aDQYsW3r/yTC
+ 3DKVBUyKeNoEtw73kpb/o7RKXd/ZmnyROx7pdLg4EllbJdtdFeekuhLQw9yOMQOMEBrF
+ xJeQomlaC+BR+xm2V/Bqi5Ytld1f/nv3kDYcVgDcR3B0XYJrEZ/AlUi77GGD5Xltp3Ji 2w== 
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by userp2120.oracle.com with ESMTP id 2qhreeg05s-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 15 Feb 2019 20:39:16 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1FKd7Wa005035
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 15 Feb 2019 20:39:07 GMT
+Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x1FKd6pF008310;
+	Fri, 15 Feb 2019 20:39:06 GMT
+Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Fri, 15 Feb 2019 20:39:05 +0000
+Date: Fri, 15 Feb 2019 15:39:27 -0500
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, daniel.m.jordan@oracle.com, mhocko@suse.com,
+        linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v2 4/4] mm: Generalize putback scan functions
+Message-ID: <20190215203926.ldpfniqwpn7rtqif@ca-dmjordan1.us.oracle.com>
+References: <155014039859.28944.1726860521114076369.stgit@localhost.localdomain>
+ <155014053725.28944.7960592286711533914.stgit@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190214222944.74ipvbnvo2lvfgnr@kshutemo-mobl1>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <155014053725.28944.7960592286711533914.stgit@localhost.localdomain>
+User-Agent: NeoMutt/20180323-268-5a959c
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9168 signatures=668683
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=851 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1902150136
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 15, 2019 at 01:29:44AM +0300, Kirill A. Shutemov wrote:
-> On Thu, Feb 14, 2019 at 04:30:04PM +0300, Kirill A. Shutemov wrote:
-> > On Tue, Feb 12, 2019 at 10:34:54AM -0800, Matthew Wilcox wrote:
-> > > Transparent Huge Pages are currently stored in i_pages as pointers to
-> > > consecutive subpages.  This patch changes that to storing consecutive
-> > > pointers to the head page in preparation for storing huge pages more
-> > > efficiently in i_pages.
-> > > 
-> > > Large parts of this are "inspired" by Kirill's patch
-> > > https://lore.kernel.org/lkml/20170126115819.58875-2-kirill.shutemov@linux.intel.com/
-> > > 
-> > > Signed-off-by: Matthew Wilcox <willy@infradead.org>
-> > 
-> > I believe I found few missing pieces:
-> > 
-> >  - page_cache_delete_batch() will blow up on
-> > 
-> > 			VM_BUG_ON_PAGE(page->index + HPAGE_PMD_NR - tail_pages
-> > 					!= pvec->pages[i]->index, page);
-> > 
-> >  - migrate_page_move_mapping() has to be converted too.
-> 
-> Other missing pieces are memfd_wait_for_pins() and memfd_tag_pins()
-> We need to call page_mapcount() for tail pages there.
+On Thu, Feb 14, 2019 at 01:35:37PM +0300, Kirill Tkhai wrote:
+> +static unsigned noinline_for_stack move_pages_to_lru(struct lruvec *lruvec,
+> +						     struct list_head *list)
+>  {
+>  	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+> +	int nr_pages, nr_moved = 0;
+>  	LIST_HEAD(pages_to_free);
+> +	struct page *page;
+> +	enum lru_list lru;
+>  
+> -	/*
+> -	 * Put back any unfreeable pages.
+> -	 */
+> -	while (!list_empty(page_list)) {
+> -		struct page *page = lru_to_page(page_list);
+> -		int lru;
+> -
+> +	while (!list_empty(list)) {
+> +		page = lru_to_page(list);
+>  		VM_BUG_ON_PAGE(PageLRU(page), page);
+> -		list_del(&page->lru);
+>  		if (unlikely(!page_evictable(page))) {
+> +			list_del_init(&page->lru);
 
-@@ -39,6 +39,7 @@ static void memfd_tag_pins(struct xa_state *xas)
-        xas_for_each(xas, page, ULONG_MAX) {
-                if (xa_is_value(page))
-                        continue;
-+               page = find_subpage(page, xas.xa_index);
-                if (page_count(page) - page_mapcount(page) > 1)
-                        xas_set_mark(xas, MEMFD_TAG_PINNED);
- 
-@@ -88,6 +89,7 @@ static int memfd_wait_for_pins(struct address_space *mapping)
-                        bool clear = true;
-                        if (xa_is_value(page))
-                                continue;
-+                       page = find_subpage(page, xas.xa_index);
-                        if (page_count(page) - page_mapcount(page) != 1) {
-                                /*
-                                 * On the last scan, we clean up all those tags
+Why change to list_del_init?  It's more special than list_del but doesn't seem
+needed since the page is list_add()ed later.
+
+That postprocess script from patch 1 seems kinda broken before this series, and
+still is.  Not that it should block this change.  Out of curiosity did you get
+it to run?
 
