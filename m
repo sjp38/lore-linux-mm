@@ -2,159 +2,208 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 36A00C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:44:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3AA76C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:48:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E72E62192B
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:44:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DCAD62192B
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:48:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="QWuFZnGW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E72E62192B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="SpFC1bFl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DCAD62192B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=HansenPartnership.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 98D788E0003; Thu, 14 Feb 2019 21:44:58 -0500 (EST)
+	id 89FCA8E0002; Thu, 14 Feb 2019 21:48:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 93BFB8E0001; Thu, 14 Feb 2019 21:44:58 -0500 (EST)
+	id 84F208E0001; Thu, 14 Feb 2019 21:48:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 805348E0003; Thu, 14 Feb 2019 21:44:58 -0500 (EST)
+	id 73D0C8E0002; Thu, 14 Feb 2019 21:48:28 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3ECE58E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 21:44:58 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id r13so5789713pgb.7
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 18:44:58 -0800 (PST)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BFE58E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 21:48:28 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id 187so2831320ybv.0
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 18:48:28 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:user-agent;
-        bh=F9hIq6OqtC1SVS2O3U7ZkPoLnNclA70DsapCWy7Q+lE=;
-        b=c4jCjnggpvJu2W4XrUfdNqtC9bHH2L7eFZ36IP0T3zouDAEW9axsXvpsAGlc2YTSMG
-         +Yvi2z/3rqdYUPuWn/2PzcJjYqLoAQ/GoNMf9mJFDNMiV++ZrDG4GF+MdeJbW6ruc3UJ
-         txC+lRs/rmWvRRnXA1P/nX/qVT5dOz+5qbvvUuhs3Sqi7NyQqgLQWWa+9KuDPI3RREe1
-         DfVbIDh/A1i0QWz0P+UDMbL+PJNT+5hD7TlFH4oOYdTlnuMyDt37a2Gaj26+XGro6YHd
-         2Px2U7RbYTqOdjZtlk0iZgVlXjlMGHdEGV7uf3oNXas98uhL6O9WUCP88k8e9KoPifgK
-         pw0A==
-X-Gm-Message-State: AHQUAuZgPuA2YtiMm0SDbMWZeL5e5RohnbWlz5iH3S5qYCLMmr7m70yx
-	2yv0vIU2fbrmFyNE7JMV+YExosq1nXyvKxTYRcTR/E6lKsR4AIkzJqT8ZwaRbX01opPwj9U0mr9
-	A+BBb2a7LiY+IBT1ZRsl2VoTbbqqNjovVBpO7sfOERKyuePPRXiR1bhiLMjSO10wHh2/hr51VkY
-	45pUslyAKvzmEDKCJ8UHKtJe97Tlj8l9NLBY0SCkmN0P+qyLTRA7M2kjK9QsA3pKahACL2QD6YH
-	vFUjZl/pjPCEH2DUeQujMpqyR/Sxi1UrPRNjsYgyUwllvRgWxOeKT+MQJMJC7z5ZX8FPTjFk1OQ
-	pebzNOQZITM0PzkVLXtnPAmFloRILw8SvvFu743VfuamTknW/kq9MDtp/RIvw9MMHZa+KmWRWYQ
-	Z
-X-Received: by 2002:a17:902:112c:: with SMTP id d41mr7671662pla.177.1550198697937;
-        Thu, 14 Feb 2019 18:44:57 -0800 (PST)
-X-Received: by 2002:a17:902:112c:: with SMTP id d41mr7671626pla.177.1550198697285;
-        Thu, 14 Feb 2019 18:44:57 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550198697; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=mA47N9RI4NsC4pjiCAz5GmHFekzmXDKJNXH8el/LXmg=;
+        b=pfi+dZSqZ1ukkLvh/UA6VaIvw/k65DlFE2Ads2JP3FERdHx6FGzwt9yEARMGMMvgdg
+         Z6rYuWOCnvWRgQmAMwC4ItnoA0UZHT/tZHv1ZkZexVfEiSC1+HUJX5LTnSb5fmntyjEq
+         88SC6n65fmvxKdOoZveK4FpF8+EA0Wc3TQW7NicvDze/JwWy5GZeBFJ4cHOFMxnEDYDE
+         ftuHUPfRPU5GDH8PD2K05eKXFkHRTqN+bmHP2NiMPucJ8nN2yv9wCNMmQBEJpkrDi84v
+         2FfW1qL/neXoEKNs5fB7ZY5z40ygTOib1q7Strienq+chH8q3uGAVMIzXcwANMI1wfrf
+         oytA==
+X-Gm-Message-State: AHQUAuaN6Mv1q/4iG29hS+HPPHLTZJWwblNEYS08gQ1FFCeDfyhuPZBE
+	K5HVFM8u9SPpm0nOBX+4WiGGzjsbLfplxd0GHcV/rqDM/GOQOY4zVntw+KarqU6mBC/AmoCF9jR
+	mDf6/xRq7d5pypCWfLg1emm6rE+UDNCtLkEzKL50M+zCqPDfIXpSNz6+XHaltOLjeiQ==
+X-Received: by 2002:a0d:cc89:: with SMTP id o131mr6257251ywd.144.1550198907897;
+        Thu, 14 Feb 2019 18:48:27 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaWs7ww0EYKvXuUkLQ70/zSUdIxv1rpkY1907AIQvg/jYBysdJQEHwrtN9LJsXRbOyNTAFF
+X-Received: by 2002:a0d:cc89:: with SMTP id o131mr6257221ywd.144.1550198907129;
+        Thu, 14 Feb 2019 18:48:27 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550198907; cv=none;
         d=google.com; s=arc-20160816;
-        b=xaWa64B3IXEcOfk24ke/UHKZjbI1RnvfAImmOZ8m1z6PVw+28R8KN4Wa1si5nKW/sf
-         nlS7lXXwDJrpHix40IQLORZdi8tCdUEDYC3b8DJzR8bQzOMmFYBpFwFH+VnjMGaRDiK4
-         bXSUi6McsWRUm9A57aenaqgiN3aexJ+ferqu4L6G6GVIiaTZi5xdG0il0PwRKq6t8jGy
-         x1XVx2PRsMYOJ16gejkEskpl9cLwTps3l0QJE4u+LqbTPY0WoHK4ns3Nc9aoHu1+Flr6
-         t8HYiPY9oTPBiMPrLsH4K+ERvyH0i7GMV7c+ZkivD5YmcCAp3F0SnHG2wBGAJ5waKg8R
-         9A1g==
+        b=OMm2JfQjhLcAIye+th7KlRvFE78yqiaf5CMj4MfA8jsRC7aj6asCOMLDovRnb4y/oF
+         WIv0QYCGb69pSbT3gWG7dF+n5R1PrTOvd2MX9FYCmuhuXqjpsGSOzAaCdXnnrU04Iozg
+         54522ZGWAOHt/UJ31L/NIc91A+HUoXXvieRysrXb+MD+li+5Xp/O4LkEJ4nBhCwxNQ8o
+         OSZkZdb8+GicwDqua4l9yvg97XohY8w64eUOJgMal+7BuDOaHPrcqL3D9ExQHVdQJbUe
+         ByQONvinRKwwpZtfumBvOKF66hXfU+XLAgcuJhXk4YTWDUFRsvo+W6lH81pGr7yzhD5+
+         ZzRQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=F9hIq6OqtC1SVS2O3U7ZkPoLnNclA70DsapCWy7Q+lE=;
-        b=As9tFz/1l4KJBkM70eHNvPs+aJznmnSdB+DVIl+Bkpljz6r2BnFEAcUhunKorFPbPt
-         ZUTBnHZc9yGN7KlYkzOjraKwUQCR0OiAY8BxZz7TvbPxu8OBEzikgaw6RhhGkqAjDjWY
-         3A6YRhWC6/Y3cw5Wa4Fi/iZmcM0sNhw59qjtc3E9X7nuiRfSZYe0KNCS4no0UMcNeVPv
-         sC3tnBJJ6x7jhWCqXbXBlGIQmawNiummfc0qaE5ALEW1+LtuqFxa0lShf7u2MrD+4xrV
-         yWFqIWez1SrBGMc5VseUj/fK0fcBVRcgjaTIeqr0Sb9ni7uz5xKTkGTdHvHTPyaMCXiE
-         tc1g==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=mA47N9RI4NsC4pjiCAz5GmHFekzmXDKJNXH8el/LXmg=;
+        b=s5QiC2ecef0xEggYb4PO5gYhQ95Y9K9CBbhxLl4q5JyPi+rKZ4wWXEilH+/WZrJQRL
+         tzepR7sZgHF9kYC32Sp8T9528B9tpersPqv7OgVMNSf4NDYXVWCK6sqj4zc+UsthXAkB
+         MRnRZ9JvFss0N5Q0k0Ua5GDDn45hwlh5BbBAlTCS/NyKqpbif5kCVLMixPnGoZdUNjYQ
+         aj79RIqnzvvexhlXYyTZF4s800AGOZ1hmQCO2eXZ3qN69Qjbex8bkQJfbKVARxgCGjCb
+         ssQUEOg0BCiCQp3mEintD+S8HUjtE6QZa3RI2U9zSuW98Hlg/v0UpYVBf8NFBHag+Sli
+         do6w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QWuFZnGW;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d2sor6401403pla.7.2019.02.14.18.44.57
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=SpFC1bFl;
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id o17si2477297ybk.203.2019.02.14.18.48.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 14 Feb 2019 18:44:57 -0800 (PST)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 14 Feb 2019 18:48:26 -0800 (PST)
+Received-SPF: pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) client-ip=66.63.167.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QWuFZnGW;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
-         :user-agent;
-        bh=F9hIq6OqtC1SVS2O3U7ZkPoLnNclA70DsapCWy7Q+lE=;
-        b=QWuFZnGW1rAFmlIYTR8KT5WNdvrhaezr0i4ZoVMqFLa54ofNW2h9D9a5ZzgYyp41MF
-         rvXlFdLTe1vJbS+yYGRhKQFGPj+MKLD1iVlvMm9nhnIlH0nFQ5/bX/r3BgdjW2MtktLL
-         fE5F7PKlj7zIDHLD10ydW/9+vyhDv6wCFhmmc9esTga8VDt9eB/q3GWtNUJB7Ih4v8gF
-         hysNnNr3phiGvpEKd6M8VkY5G2p4IwHVd8tz8sNvMG5Yof71tMkfCzELiIvS7ATGGdrk
-         f2Fjtt+lYU6DRmN0pNS3UaeqrhCqlzqJPjrNKTGR5zpPj8DyL7JWfrs3Bxalf9n153ai
-         kn/g==
-X-Google-Smtp-Source: AHgI3IYS4Rmfmmn4KPKMZ+5sCz/9GuQcTZN8Ld6ccRNBZU9OLJommfG+bJc6qfgdLMUnSbD4C9x9Pw==
-X-Received: by 2002:a17:902:b190:: with SMTP id s16mr7726474plr.262.1550198696592;
-        Thu, 14 Feb 2019 18:44:56 -0800 (PST)
-Received: from jordon-HP-15-Notebook-PC ([49.207.53.51])
-        by smtp.gmail.com with ESMTPSA id t5sm6861584pfb.60.2019.02.14.18.44.55
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 14 Feb 2019 18:44:55 -0800 (PST)
-Date: Fri, 15 Feb 2019 08:19:16 +0530
-From: Souptick Joarder <jrdr.linux@gmail.com>
-To: akpm@linux-foundation.org, willy@infradead.org, mhocko@suse.com,
-	boris.ostrovsky@oracle.com, jgross@suse.com, linux@armlinux.org.uk,
-	robin.murphy@arm.com
-Cc: xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: [PATCH v4 9/9] xen/privcmd-buf.c: Convert to use vm_map_pages_zero()
-Message-ID: <20190215024916.GA26495@jordon-HP-15-Notebook-PC>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: Mutt/1.5.21 (2010-09-15)
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=SpFC1bFl;
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from localhost (localhost [127.0.0.1])
+	by bedivere.hansenpartnership.com (Postfix) with ESMTP id AE46F8EE23E;
+	Thu, 14 Feb 2019 18:48:25 -0800 (PST)
+Received: from bedivere.hansenpartnership.com ([127.0.0.1])
+	by localhost (bedivere.hansenpartnership.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id NfGbFDjpEDAs; Thu, 14 Feb 2019 18:48:25 -0800 (PST)
+Received: from [153.66.254.194] (unknown [50.35.68.20])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by bedivere.hansenpartnership.com (Postfix) with ESMTPSA id E51118EE15F;
+	Thu, 14 Feb 2019 18:48:24 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
+	s=20151216; t=1550198905;
+	bh=Hdt5XqqSkBX1Pp/GVYTeN07WE45/gKKk88sNDiiMCbo=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=SpFC1bFlZbQaa6sggFEA2tXgWD2xOZyDuweLFKBKXQchgqCBqxBWwsqozGYcUxGRt
+	 jMK0Hfy390lHbfHrXbt2c41ANfGSHXqxcUrkwnHF/GL+zciae68S1FhYwya2P6vCDP
+	 KhYsEUucEmjYurFcGWZ3qW7bRXY7uJsXVydw/d8E=
+Message-ID: <1550198902.2802.12.camel@HansenPartnership.com>
+Subject: Re: [LSF/MM TOPIC] FS, MM, and stable trees
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+To: Sasha Levin <sashal@kernel.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Amir Goldstein
+ <amir73il@gmail.com>,  Steve French <smfrench@gmail.com>,
+ lsf-pc@lists.linux-foundation.org, linux-fsdevel
+ <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, LKML
+ <linux-kernel@vger.kernel.org>, "Luis R. Rodriguez" <mcgrof@kernel.org>
+Date: Thu, 14 Feb 2019 18:48:22 -0800
+In-Reply-To: <20190215015020.GJ69686@sasha-vm>
+References: <20190212170012.GF69686@sasha-vm>
+	 <CAH2r5mviqHxaXg5mtVe30s2OTiPW2ZYa9+wPajjzz3VOarAUfw@mail.gmail.com>
+	 <CAOQ4uxjMYWJPF8wFF_7J7yy7KCdGd8mZChfQc5GzNDcfqA7UAA@mail.gmail.com>
+	 <20190213073707.GA2875@kroah.com>
+	 <CAOQ4uxgQGCSbhppBfhHQmDDXS3TGmgB4m=Vp3nyyWTFiyv6z6g@mail.gmail.com>
+	 <20190213091803.GA2308@kroah.com> <20190213192512.GH69686@sasha-vm>
+	 <20190213195232.GA10047@kroah.com>
+	 <1550088875.2871.21.camel@HansenPartnership.com>
+	 <20190215015020.GJ69686@sasha-vm>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.26.6 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Convert to use vm_map_pages_zero() to map range of kernel
-memory to user vma.
+On Thu, 2019-02-14 at 20:50 -0500, Sasha Levin wrote:
+> On Wed, Feb 13, 2019 at 12:14:35PM -0800, James Bottomley wrote:
+> > On Wed, 2019-02-13 at 20:52 +0100, Greg KH wrote:
+> > > On Wed, Feb 13, 2019 at 02:25:12PM -0500, Sasha Levin wrote:
+> > > > On Wed, Feb 13, 2019 at 10:18:03AM +0100, Greg KH wrote:
+> > > > > On Wed, Feb 13, 2019 at 11:01:25AM +0200, Amir Goldstein
+> > > > > wrote:
+> > > > > > Best effort testing in timely manner is good, but a good
+> > > > > > way to improve confidence in stable kernel releases is a
+> > > > > > publicly available list of tests that the release went
+> > > > > > through.
+> > > > > 
+> > > > > We have that, you aren't noticing them...
+> > > > 
+> > > > This is one of the biggest things I want to address: there is a
+> > > > disconnect between the stable kernel testing story and the
+> > > > tests the fs/ and mm/ folks expect to see here.
+> > > > 
+> > > > On one had, the stable kernel folks see these kernels go
+> > > > through entire suites of testing by multiple individuals and
+> > > > organizations, receiving way more coverage than any of Linus's
+> > > > releases.
+> > > > 
+> > > > On the other hand, things like LTP and selftests tend to barely
+> > > > scratch the surface of our mm/ and fs/ code, and the
+> > > > maintainers of these subsystems do not see LTP-like suites as
+> > > > something that adds significant value and ignore them. Instead,
+> > > > they have a (convoluted) set of testing they do with different
+> > > > tools and configurations that qualifies their code as being
+> > > > "tested".
+> > > > 
+> > > > So really, it sounds like a low hanging fruit: we don't really
+> > > > need to write much more testing code code nor do we have to
+> > > > refactor existing test suites. We just need to make sure the
+> > > > right tests are running on stable kernels. I really want to
+> > > > clarify what each subsystem sees as "sufficient" (and have that
+> > > > documented somewhere).
+> > > 
+> > > kernel.ci and 0-day and Linaro are starting to add the fs and mm
+> > > tests to their test suites to address these issues (I think 0-day
+> > > already has many of them).  So this is happening, but not quite
+> > > obvious.  I know I keep asking Linaro about this :(
+> > 
+> > 0day has xfstests at least, but it's opt-in only (you have to
+> > request that it be run on your trees).  When I did it for the SCSI
+> > tree, I had to email Fenguangg directly, there wasn't any other way
+> > of getting it.
+> 
+> It's very tricky to do even if someone would just run it.
 
-This driver has ignored vm_pgoff. We could later "fix" these drivers
-to behave according to the normal vm_pgoff offsetting simply by
-removing the _zero suffix on the function name and if that causes
-regressions, it gives us an easy way to revert.
+It is?  It's a test suite, so you just run it and it exercises standard
+and growing set of regression tests.
 
-Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
----
- drivers/xen/privcmd-buf.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+>  I worked with the xfs folks for quite a while to gather the various
+> configs they want to use, and to establish the baseline for a few of
+> the stable trees (some tests are know to fail, etc).
 
-diff --git a/drivers/xen/privcmd-buf.c b/drivers/xen/privcmd-buf.c
-index de01a6d..d02dc43 100644
---- a/drivers/xen/privcmd-buf.c
-+++ b/drivers/xen/privcmd-buf.c
-@@ -166,12 +166,8 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
- 	if (vma_priv->n_pages != count)
- 		ret = -ENOMEM;
- 	else
--		for (i = 0; i < vma_priv->n_pages; i++) {
--			ret = vm_insert_page(vma, vma->vm_start + i * PAGE_SIZE,
--					     vma_priv->pages[i]);
--			if (ret)
--				break;
--		}
-+		ret = vm_map_pages_zero(vma, vma_priv->pages,
-+						vma_priv->n_pages);
- 
- 	if (ret)
- 		privcmd_buf_vmapriv_free(vma_priv);
--- 
-1.9.1
+The only real config issue is per-fs non-standard tests (features
+specific to a given filesystem).  I just want it to exercise the
+storage underneath, so the SCSI tree is configured for the default set
+on xfs.
+
+> So just running xfstests "blindly" doesn't add much value beyond ltp
+> I think.
+
+Well, we differ on the value of running regression tests, then.  The
+whole point of a test infrastructure is that it's simple to run 'make
+check' in autoconf parlance.  xfstests does provide a useful baseline
+set of regression tests.  However, since my goal is primarily to detect
+problems in the storage path rather than the filesystem, the utility is
+exercising that path, although I fully appreciate that filesystem
+regression tests aren't going to catch every SCSI issue, they do
+provide some level of assurance against bugs.
+
+Hopefully we can switch over to blktests when it's ready, but in the
+meantime xfstests is way better than nothing.
+
+James
 
