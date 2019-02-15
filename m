@@ -6,93 +6,93 @@ X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E298BC4151A
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:10:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E1A0FC10F04
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:12:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6E515222D0
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:10:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 91E9E222D0
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:12:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="iO7EkztH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6E515222D0
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="czbZs5Yh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 91E9E222D0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 009B78E0002; Thu, 14 Feb 2019 21:10:24 -0500 (EST)
+	id 363508E0003; Thu, 14 Feb 2019 21:12:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EFA988E0001; Thu, 14 Feb 2019 21:10:23 -0500 (EST)
+	id 311AD8E0001; Thu, 14 Feb 2019 21:12:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D9CE18E0002; Thu, 14 Feb 2019 21:10:23 -0500 (EST)
+	id 2285E8E0003; Thu, 14 Feb 2019 21:12:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 944508E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 21:10:23 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id w16so6365878pfn.3
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 18:10:23 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D91DF8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 21:12:40 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id 143so5757042pgc.3
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 18:12:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=Qh34yj/BF1xtDZNSc4yllRfut6YYSlPHZcvjSSUjgyQ=;
-        b=gxVWO0VKu5tG4Ufyg836EW3Nzb7wtxyJgp9F6HYP3W7zStAJmXuk/aL+VIHHMoserr
-         HjASIfiJcgLQ0LmfsdlAOqneEMnLneZNZFdNqk+JYzJeby58okG97vSQ6bLP7++cL0/A
-         zHVyW4Hb76WAE5c8c6bgY/Q7XA4RW07L8cDQ2qtxkHCQ41T44Juao/Bn1qgryR+KUNfo
-         qosku6+17GOwu+x6FO8w62ef8d64s2uG0dd6kEx87ZY69h55nzV5KTPeiIlZRjOrTF0M
-         S22pQQLjfy4sF6Hb667g4RNMJRT+s74tzgoJ0MXhMYOYlKl9kRwv22s8mlFUSUdzp51B
-         fnPA==
-X-Gm-Message-State: AHQUAuZJHi7xJ4itIRo61YZ4IeoYjuxZpmbR8fjNRk6JO2SL7mZiRQgQ
-	0kyDw6s0dh4ExUONK5QBJJh6VruHYAIxbVhHMI9l6uycXDFqpBhxwFdDuvDzzAmLaI8KDT0oHmn
-	6GLPIpkxTkWJzX6naske/DZ1O9YZSgOJdavSb1Pcy+r+VqhaY0xptguilILK+png4qg==
-X-Received: by 2002:a62:4641:: with SMTP id t62mr7226215pfa.141.1550196623144;
-        Thu, 14 Feb 2019 18:10:23 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYitlJAZX94e3379XwbkcDdPBNuPOBviE0u5i6/iEdAn4pmrBniaCsa6mzTym/qx+oYqoxW
-X-Received: by 2002:a62:4641:: with SMTP id t62mr7226152pfa.141.1550196622314;
-        Thu, 14 Feb 2019 18:10:22 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550196622; cv=none;
+        bh=+w0huGYiHVH98eeswxvg29eIrgG60OftvJd6Bjr+gg0=;
+        b=ZT7NWI4A71AVJFttb065RjDdXsScTQWHU+3M8uAJjEbdPmuC6j3ZPxtrNbo6oJ68oK
+         WKY/RYQM1diXduwI0remx/8DjyYqOU6C+wFAKi7zPC1qQRajul3zZeADdmnqE1lewf2I
+         nlI+USeO2N489EdudGotFzP62UtMPmv1J44cn7bdTZX6A6+POmvWmTUOctPImXwuSt8o
+         DAUVmNCxfbS/HTjjmn+XjnCZf7xSHI416mjncznAZBgVYMGhKnwDqxt9MDHwhyb0YlID
+         viFeDfEXWhxZgk+OSXI06fu0CWve2Vp0V0alJgsfsOJ5jutlh6tOe0Xa9G7y+dae8VEm
+         z5Yw==
+X-Gm-Message-State: AHQUAuYIGQpEhmhENwm35gWYFXaCUHDgofs8Qq1ntJvrVyB9gwoWZaVQ
+	hPAL8oHmGx//on52KpAKGJxprB7KkLpzmlYUDbJsVEpL/NCDttzCqPmJEtTo/rzECCl/LTJ1A+C
+	G+ieRvFG65nATt3sEO6bN2hw7VF+aduMQGO/rxlqu8pu9Q1IvzYDeFHNzMZXmrwbRPw==
+X-Received: by 2002:a63:6bc1:: with SMTP id g184mr3060222pgc.25.1550196760529;
+        Thu, 14 Feb 2019 18:12:40 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYCVjFKvGE9TflXaXb7+5l0GhlMeLXPk9D698mkNogFKQFctpwDddLBYJ+Sgt1P3YAzewJE
+X-Received: by 2002:a63:6bc1:: with SMTP id g184mr3059639pgc.25.1550196751625;
+        Thu, 14 Feb 2019 18:12:31 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550196751; cv=none;
         d=google.com; s=arc-20160816;
-        b=tEzQxdDPiP48Dn3z4JmrgJJUq94qCqXmXiKzLUNtC359JtCVXoyqyv1Gh5eZmmJPRh
-         h5tw2wEdA9iDHH63cr2yHjnviGYPbymRr18+cFLLqKid+0vszrLklJAhqx965VcrVT/Q
-         HD4tpzTo8aSnGDNnSnq48q091XHH+L3i/c3esajPniwTugj/0m/hSBJfq9zZsE0XW3oH
-         Q38X0hegjHQhoDZJTd0qyuNqSezG9a1f1TXGvCMzU6szAHoQe2tPpigZ/SY3pCQmatq3
-         sDlsYQ+2UWeJdFB15HvhjuZa9aH6MS4CX2fGDF8tADQ/MlAXYogdhDaWWy67/OvEZQjh
-         qn/A==
+        b=EeGTC1plWxRj/Koe1iXleGN+MxBPkIPFBhXoRoIgYT/9MbrM57Q+s8Qtm7oAqtaa/Y
+         OBlJfAi+CyEyFPTtYhEO9uaVXP/+Ny75n78IHD0Qck/HTk35tL9GKDMrRs/MhR2m/paW
+         2dUZewOq0uQqZygKoUsei6pTHlsc/uiowuanGY7ZuNomlbnF3VLEMEjeok9/UXbZKqdj
+         GLptv09HPBHfpL6wB2YdZqUDWs6teEPiG1wtif4j5YhiC9BJRgEtflmOuw+LtlIKU4l1
+         Hk9LJI/dFNkWHK7yu8vn7OTem1Xa98J+sxAkBGdA1fON/aXpcV8q48exHSyXgirbS0Zs
+         KfNA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=Qh34yj/BF1xtDZNSc4yllRfut6YYSlPHZcvjSSUjgyQ=;
-        b=DDNqUH0KXq8j9U/Jsg/ugQ13pb9rGJaaVxSy+uZgTYT1wyJeAGCDSHsAGPZIN6Fomd
-         fV2glH1W1shqbIEaecyIp5YghQUr8PVy86abE9v/zeLXZrcgu4aOGgwO45N84Y1s9TD9
-         grpugLLIEcLWHVZ4eyS6HMoTXYAQJ51kzGF8p1VvPSJSnaxPMe5+O+d/DN6lks8FMT4i
-         BVuUn/XtVk06YdhclxSh7ifPK87IbxYcLcR+cZl/UYhaAzMKf7MqgH7rUyIYYEH8WiMg
-         ITxp4wFgtdMP8BEtKQdaKG2PnTc1MvKvO1SEjTYgXcpmLi6QHqhCdFydK5o1ZaoM6HN4
-         miVg==
+        bh=+w0huGYiHVH98eeswxvg29eIrgG60OftvJd6Bjr+gg0=;
+        b=p2jvY3E8uyg6czKpmps+pgvg09litk8vNX9bMDGtFmcji+J+0E29foFIJNQY45caZq
+         BDfONYCmlDtgENS6mlZdXaoydvrkqIu3VK2ReXo1w5nWB0mr5Y088H4XpIiv4Lx80joB
+         uTnUnZICVF+sJtyErZITHw6hAe4DXcznVDzG2AOtoJHumjl4B9z5gEeHy+GUfHXbQj5G
+         6xWKELniv59Bl95PNTvTg9Jn/5yeH1TTv4ABXmzVi9BOH0hwCUEd7l5Eje+7DkHxsXgw
+         kvZR25syHKlN7a5fgzQQrLPA0ftqROr3sYUw+2J1WN9nRt15yBkKeM7qgiyYh75W8IOf
+         i8UQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=iO7EkztH;
+       dkim=pass header.i=@kernel.org header.s=default header.b=czbZs5Yh;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d21si4147831pfj.98.2019.02.14.18.10.22
+        by mx.google.com with ESMTPS id a5si3831575pgw.155.2019.02.14.18.12.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Feb 2019 18:10:22 -0800 (PST)
+        Thu, 14 Feb 2019 18:12:31 -0800 (PST)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=iO7EkztH;
+       dkim=pass header.i=@kernel.org header.s=default header.b=czbZs5Yh;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id EBBBF2229F;
-	Fri, 15 Feb 2019 02:10:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 7C55C21934;
+	Fri, 15 Feb 2019 02:12:30 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1550196621;
-	bh=d4gbIeZC91ZTxIDuoQcQgg9PCqtubcjoweccGLNMwDQ=;
+	s=default; t=1550196751;
+	bh=8b+nD2gxk3CIxUx056hPA3Oe82UM5m44h+GjOegFd0A=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=iO7EkztHBD9GWEJ0uxToewUhfzk933AX6iyl3yytlIkqJ11u82EQMgtUgrBKQP2YF
-	 Cerlyj/r14BK8H5nEoysN/LLWVqeGgsvLoIfzU7gX5BntfJ7wEjv+lLsm6Af8+tCVz
-	 JazRcTxRuQtE9wBEBTHXZGKzZEJTioSpkVL0WlO8=
+	b=czbZs5YhH1WvQy4Qa4BXqhiZ/YWE/UqMmFOReH1D5O05/2SHn2wyb65bxUtKUXq2i
+	 35CQ4yobpEHsWJKhwad0SHHPTxQUS02Xb/Q3F/1WF/04K/zpFFF3YHjs7h/eAZIMnw
+	 YJ0jlE7Vvjnt3d1jArYmc2NRRh2rstyhuU6WJK1w=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
@@ -101,12 +101,12 @@ Cc: Tejun Heo <tj@kernel.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-fsdevel@vger.kernel.org,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.20 50/77] writeback: synchronize sync(2) against cgroup writeback membership switches
-Date: Thu, 14 Feb 2019 21:08:28 -0500
-Message-Id: <20190215020855.176727-50-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 42/65] writeback: synchronize sync(2) against cgroup writeback membership switches
+Date: Thu, 14 Feb 2019 21:10:58 -0500
+Message-Id: <20190215021121.177674-42-sashal@kernel.org>
 X-Mailer: git-send-email 2.19.1
-In-Reply-To: <20190215020855.176727-1-sashal@kernel.org>
-References: <20190215020855.176727-1-sashal@kernel.org>
+In-Reply-To: <20190215021121.177674-1-sashal@kernel.org>
+References: <20190215021121.177674-1-sashal@kernel.org>
 MIME-Version: 1.0
 X-Patchwork-Hint: Ignore
 Content-Transfer-Encoding: 8bit
@@ -147,7 +147,7 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  3 files changed, 40 insertions(+), 2 deletions(-)
 
 diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index b40168fcc94a..36855c1f8daf 100644
+index 471d863958bc..82ce6d4f7e31 100644
 --- a/fs/fs-writeback.c
 +++ b/fs/fs-writeback.c
 @@ -331,11 +331,22 @@ struct inode_switch_wbs_context {
@@ -174,8 +174,8 @@ index b40168fcc94a..36855c1f8daf 100644
  	struct bdi_writeback *old_wb = inode->i_wb;
  	struct bdi_writeback *new_wb = isw->new_wb;
 @@ -343,6 +354,12 @@ static void inode_switch_wbs_work_fn(struct work_struct *work)
- 	struct page *page;
  	bool switched = false;
+ 	void **slot;
  
 +	/*
 +	 * If @inode switches cgwb membership while sync_inodes_sb() is
@@ -186,7 +186,7 @@ index b40168fcc94a..36855c1f8daf 100644
  	/*
  	 * By the time control reaches here, RCU grace period has passed
  	 * since I_WB_SWITCH assertion and all wb stat update transactions
-@@ -428,6 +445,8 @@ static void inode_switch_wbs_work_fn(struct work_struct *work)
+@@ -435,6 +452,8 @@ static void inode_switch_wbs_work_fn(struct work_struct *work)
  	spin_unlock(&new_wb->list_lock);
  	spin_unlock(&old_wb->list_lock);
  
@@ -195,7 +195,7 @@ index b40168fcc94a..36855c1f8daf 100644
  	if (switched) {
  		wb_wakeup(new_wb);
  		wb_put(old_wb);
-@@ -468,9 +487,18 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
+@@ -475,9 +494,18 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
  	if (inode->i_state & I_WB_SWITCH)
  		return;
  
@@ -215,7 +215,7 @@ index b40168fcc94a..36855c1f8daf 100644
  
  	/* find and pin the new wb */
  	rcu_read_lock();
-@@ -504,12 +532,14 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
+@@ -511,12 +539,14 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
  	 * Let's continue after I_WB_SWITCH is guaranteed to be visible.
  	 */
  	call_rcu(&isw->rcu_head, inode_switch_wbs_rcu_fn);
@@ -231,7 +231,7 @@ index b40168fcc94a..36855c1f8daf 100644
  }
  
  /**
-@@ -887,6 +917,9 @@ fs_initcall(cgroup_writeback_init);
+@@ -894,6 +924,9 @@ fs_initcall(cgroup_writeback_init);
  
  #else	/* CONFIG_CGROUP_WRITEBACK */
  
@@ -241,7 +241,7 @@ index b40168fcc94a..36855c1f8daf 100644
  static struct bdi_writeback *
  locked_inode_to_wb_and_lock_list(struct inode *inode)
  	__releases(&inode->i_lock)
-@@ -2413,8 +2446,11 @@ void sync_inodes_sb(struct super_block *sb)
+@@ -2420,8 +2453,11 @@ void sync_inodes_sb(struct super_block *sb)
  		return;
  	WARN_ON(!rwsem_is_locked(&sb->s_umount));
  
