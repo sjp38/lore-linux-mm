@@ -2,137 +2,258 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E3264C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 14:27:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D54ECC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 14:48:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A66D12192D
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 14:27:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A66D12192D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
+	by mail.kernel.org (Postfix) with ESMTP id 838FD2192D
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 14:48:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="g5aUM/On"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 838FD2192D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 46EDE8E0002; Fri, 15 Feb 2019 09:27:49 -0500 (EST)
+	id 01AF18E0002; Fri, 15 Feb 2019 09:48:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 41E318E0001; Fri, 15 Feb 2019 09:27:49 -0500 (EST)
+	id EE50C8E0001; Fri, 15 Feb 2019 09:48:17 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 35D008E0002; Fri, 15 Feb 2019 09:27:49 -0500 (EST)
+	id D61888E0002; Fri, 15 Feb 2019 09:48:17 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F6E58E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 09:27:49 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id n124so15934792itb.7
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 06:27:49 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 928298E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 09:48:17 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id 143so6959842pgc.3
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 06:48:17 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=G8sLvgVTsx2D5zU1ivXpDSWlx6mDSsT3r677meWDaPU=;
-        b=bmzT0tGRTdvHtlp9DoNSoR8LIooXmYs4xTB8XI7Q7dPlVC9KKakuZuBHfy/iKuKk/s
-         KhbFMe3G6okGe1QbwVwQRenFScxjUGUMsbhU52zr6UOPiPWEPxM2fqogSIUz4ODKYmqe
-         hjMGqIF0w+FAqvB6zk028himWVlYV4da8oEMEk+Me4O53MB7QxeDx1PQrfMvoMgXXYtk
-         ZLk3Zk2mnVzXpJreBVHY0l/qEGd1o4eg7XHe7GyxxysTL0dspAf640PESP/VjOAugaKb
-         z/EE4wVrfbgloIjuYA9BE+ltL916B1YlYzQjdwB7ocyMgx8aBgtdSCf3L2DMkLw9/aZX
-         6bIg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: AHQUAuZYVF7/rc3678wyAd0jIjkrRVnk40aB55E3r1d84p8CxEmYDyVS
-	0woMZb3IQ1tJV0kA96K7/CbiXl3xI5MMd7irNjHSeTMHRYTuLRZhHQqw/DBzDSJE6ReYkD4Y3t9
-	CBILSaBio/ND/N9MhiHj8rNBD4Qjh65ricR/xHz1Y5gs7tV5sRYhAPOu7ID68Qor4wQ==
-X-Received: by 2002:a5d:8049:: with SMTP id b9mr4956157ior.302.1550240868861;
-        Fri, 15 Feb 2019 06:27:48 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZBzeo5HsJiS4Eg53vSKTSOv+E8XF8/rNHj3HwzI0Pk0ktfLUTJv7D7knsCKBHSGxAeYLTZ
-X-Received: by 2002:a5d:8049:: with SMTP id b9mr4956116ior.302.1550240868105;
-        Fri, 15 Feb 2019 06:27:48 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550240868; cv=none;
+        bh=LEY7b8sXzNhyukf/ItsQKn6GFmrxWnF+Kj6inOmoBHc=;
+        b=RxraQQUlxU/WmVuVMcoYjk6UJkK16SNgPbii1gYYQJ9dUTPJn9ytfrxYy3NAD8F5mb
+         RZ6hEZkNMHHvG7t+6cAk7UbgkJSBCQv2mWB5b8mcqs+X9mmg4p/adYKciaM9UR2bDUup
+         LH5ZrDYNKyx3do0RUMOBd7x59e/2ub+1mMwGp/Ah4LZ3Fzb32rXIDgxxUeZVZtUdl3Bv
+         Glf416s7WCT2oh99KLa11yxNOyG9BsMMDMXhTF0Ais+Qv7j3yHoup0SjOGin5l4qJ69p
+         VHjRsHULJfQU5MGgNDqfsAwK2pEcuxOMqOC1C/mq8GHrgSsFZeelzVYTF7RaW0HvDPTy
+         t73w==
+X-Gm-Message-State: AHQUAubNOadvTzwHi+6Bnj10yDnmiHX2F9s6K95IxZK715/FlMf/3rNw
+	md3O75PhR1zPcho5ztlvMqBMX0eIBRA3k6+4KmUIwYQms+yYqbGAoF/PONMbmLJhKgdXcfB5Kh8
+	9jnQ41D9ZD4c+QvxV/ut6MY4bgc9vot1g8VMgxEBkXm/y6t7Wl/ec7NcL+kNk8en2QA==
+X-Received: by 2002:a62:b248:: with SMTP id x69mr10107194pfe.256.1550242097041;
+        Fri, 15 Feb 2019 06:48:17 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia/oxOSD1y8IHakI9Qg17Pk5xa1GDgxN+Wl50D+RwWOawvDEdSQpTW0fdfkNzJbL+fjljj6
+X-Received: by 2002:a62:b248:: with SMTP id x69mr10107143pfe.256.1550242096190;
+        Fri, 15 Feb 2019 06:48:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550242096; cv=none;
         d=google.com; s=arc-20160816;
-        b=KCJj+1kDjoScWaOhe4DJmW9VHpKgerdBAceuUeqggUu9xrE1DgGmPjrMWg5frNT5vK
-         jDBnMCLCMHMgcXnTje44mg1ITHk19MHBpnqpQ1vlVGLFN6z8HblOuNrXQY4J0XnAO4Rn
-         14HK9VEA+EGfouUq/jxOka/DNGKzhbYq2LwHd2dNcUIvqiH9Uc9J39TfyxhSjFUdvfmq
-         W44FHtJrAt8gX43h/T9FS8QnHK9PablfWxJOnycdyKooQ+uNgo0y06Hp64Hr//Uznhr9
-         t2+5iJDpOlQtIYfrQiC3B5nFAHBtDICtJh8aFlAMD2AJHMVtpxEQndj8ZXVNrYUnEiRu
-         77RQ==
+        b=uq8SDOm2Z7da71n2bA7jObAgIAveDAlDSQMNUmLbZzvXByhv1ZzExRr+yGykiRQUym
+         hRpA+ypfxXY49tQI51Fo1h3uaqdzb671slpBR4UmWHbd4NhvnjrkC51lFb/+Ma87trdQ
+         fTVI4qxrhHQLW/KtUrJWxmSDCIy5DkwGQLzLTOc4zBHNQg5RAGNbZGZCjoU1LZQW0Tia
+         J/xo8Xut9n+jDBdVcv5bAX76E7sUZOdXBCtAWY9yC3Og+Q6CeV1P72zD3J8rgwaoQB8k
+         3RxvlGXU1U5HCanKZ12IJ20vh+bnTWcURk0wC8pEw0rZMFmKMcYUkIZRS7l0LmRMe/Z8
+         0CLA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=G8sLvgVTsx2D5zU1ivXpDSWlx6mDSsT3r677meWDaPU=;
-        b=aQOcar7f4GWi+kop2D1DnFlD37yLJ6R/iN0z0dGcfSUG89nrF0ixhSJaGJmxWc6pjW
-         BxhWkA6lJk+pLmW1k4pphzLzaJDfh7bieM00qXT9a6GwakzLqXkwUBdOpa/USLJ3BWnO
-         VEsShCno1pYLbnS3QMdTE8okvJKObmYr8fLhTezhbLwSPzj8ILfnWSctpNczyG+H/AIn
-         oXUoDYfez/0uSR7/OC08GKK/9iO/LSGcevKwZQb8LHMP2/PClyK8LgEonJcMX7fdiZ7O
-         kqZ8uRiX+FEkX9sdCNX+gJhfIcAEvkuN03Zoninkm0fZpD7rqLAtoG6N7DJMB2h5Q3tG
-         km8Q==
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=LEY7b8sXzNhyukf/ItsQKn6GFmrxWnF+Kj6inOmoBHc=;
+        b=Kxxz5hxWVHTB9/qS2jb1dWydaMPR2WF2ogoCDE1WnWLXWDDFx/WbEBRyADLeIN/0TO
+         AvNAeIF0xXRCXvJsbylieK7TJSBc78SSQl+NPKbdklVED43blyww02qJKnTjxfnQZRq4
+         t6UH9AqhFzudusG9VuAfE8k9CWFsI2kAV+rmewx17YZ9e9nzOFSdTOp54CenPZFbFEmi
+         U+Nm5aL8F8Ce6sabunvDd3zA2yC3mO4au/KID11/lBxmiL+o4o5ADF3p7FYQzTJKyNZA
+         nKIE1ZWvPhXkGPE4M1D3AhP5xL9tw3r0ZWFgiUPd9MFckdxgnrrL/pOiKYsf1VItOki/
+         ZZlA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id x72si97901itb.65.2019.02.15.06.27.47
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="g5aUM/On";
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id 61si2686407plc.364.2019.02.15.06.48.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 06:27:47 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+        Fri, 15 Feb 2019 06:48:16 -0800 (PST)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav405.sakura.ne.jp (fsav405.sakura.ne.jp [133.242.250.104])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x1FERfJw095720;
-	Fri, 15 Feb 2019 23:27:41 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav405.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav405.sakura.ne.jp);
- Fri, 15 Feb 2019 23:27:41 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav405.sakura.ne.jp)
-Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
-	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x1FERRt0095514
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
-	Fri, 15 Feb 2019 23:27:41 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Subject: Re: [linux-next-20190214] Free pages statistics is broken.
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-References: <201902150227.x1F2RBhh041762@www262.sakura.ne.jp>
- <20190215130147.GZ4525@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <1189d67e-3672-5364-af89-501cad94a6ac@i-love.sakura.ne.jp>
-Date: Fri, 15 Feb 2019 23:27:25 +0900
-User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="g5aUM/On";
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1FEhRvN145107;
+	Fri, 15 Feb 2019 14:47:44 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=LEY7b8sXzNhyukf/ItsQKn6GFmrxWnF+Kj6inOmoBHc=;
+ b=g5aUM/On3juV/6dNCJ2/OPN3ycrzeV3k+bTRNIwfJ5yfySj0ogZ65V6Ery9ajs+y+1K6
+ xQDwcYHlLsxTVGxBV8ZWA3LT2FJhKKd2yIk4Ltc2YEVL1Q8qeDbrVX4rnZKdxo60pC2h
+ a+9qBgfNukozi/KUtGkG6l3uJCPI0dsggN1RLy/LdTqBKeYBM6/LDe8OCznIOKL0sGnt
+ dSfomHBKKf5Dzv2Zrv1yTCgOfa8hasNabaEVOnl+MwIQ+1JpEb/91xKVgN9JLyGsclyL
+ 3+8N2FM42kLuumKB62tz2JlM/ZeCqYl8mlM8oMcSNa/aJxdVwcgE7ZEbX+Y+ODel/LYk pQ== 
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by userp2130.oracle.com with ESMTP id 2qhrekx7nq-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 15 Feb 2019 14:47:44 +0000
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1FEliLE020615
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 15 Feb 2019 14:47:44 GMT
+Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x1FEldPL008491;
+	Fri, 15 Feb 2019 14:47:39 GMT
+Received: from [192.168.1.16] (/24.9.64.241)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Fri, 15 Feb 2019 14:47:39 +0000
+Subject: Re: [RFC PATCH v8 08/14] arm64/mm: disable section/contiguous
+ mappings if XPFO is enabled
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: juergh@gmail.com, tycho@tycho.ws, jsteckli@amazon.de, ak@linux.intel.com,
+        torvalds@linux-foundation.org, liran.alon@oracle.com,
+        keescook@google.com, akpm@linux-foundation.org, mhocko@suse.com,
+        catalin.marinas@arm.com, will.deacon@arm.com, jmorris@namei.org,
+        konrad.wilk@oracle.com, Tycho Andersen <tycho@docker.com>,
+        deepa.srinivasan@oracle.com, chris.hyser@oracle.com,
+        tyhicks@canonical.com, dwmw@amazon.co.uk, andrew.cooper3@citrix.com,
+        jcm@redhat.com, boris.ostrovsky@oracle.com, kanth.ghatraju@oracle.com,
+        joao.m.martins@oracle.com, jmattson@google.com,
+        pradeep.vincent@oracle.com, john.haxby@oracle.com, tglx@linutronix.de,
+        kirill.shutemov@linux.intel.com, hch@lst.de, steven.sistare@oracle.com,
+        labbott@redhat.com, luto@kernel.org, dave.hansen@intel.com,
+        peterz@infradead.org, kernel-hardening@lists.openwall.com,
+        linux-mm@kvack.org, x86@kernel.org,
+        linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+References: <cover.1550088114.git.khalid.aziz@oracle.com>
+ <0b9624b6c1fe5a31d73a6390e063d551bfebc321.1550088114.git.khalid.aziz@oracle.com>
+ <20190215130942.GD53520@lakrids.cambridge.arm.com>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Organization: Oracle Corp
+Message-ID: <259cac45-3337-d446-5abc-21b694d916e1@oracle.com>
+Date: Fri, 15 Feb 2019 07:47:37 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <20190215130147.GZ4525@dhcp22.suse.cz>
+In-Reply-To: <20190215130942.GD53520@lakrids.cambridge.arm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9167 signatures=668683
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1902150102
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/02/15 22:01, Michal Hocko wrote:
-> On Fri 15-02-19 11:27:10, Tetsuo Handa wrote:
->> I noticed that amount of free memory reported by DMA: / DMA32: / Normal: fields are
->> increasing over time. Since 5.0-rc6 is working correctly, some change in linux-next
->> is causing this problem.
-> 
-> Just a shot into the dark. Could you try to disable the page allocator
-> randomization (page_alloc.shuffle kernel command line parameter)? Not
-> that I see any bug there but it is a recent change in the page allocator
-> I am aware of and it might have some anticipated side effects.
-> 
+On 2/15/19 6:09 AM, Mark Rutland wrote:
+> Hi,
+>=20
+> On Wed, Feb 13, 2019 at 05:01:31PM -0700, Khalid Aziz wrote:
+>> From: Tycho Andersen <tycho@docker.com>
+>>
+>> XPFO doesn't support section/contiguous mappings yet, so let's disable=
+ it
+>> if XPFO is turned on.
+>>
+>> Thanks to Laura Abbot for the simplification from v5, and Mark Rutland=
+ for
+>> pointing out we need NO_CONT_MAPPINGS too.
+>>
+>> CC: linux-arm-kernel@lists.infradead.org
+>> Signed-off-by: Tycho Andersen <tycho@docker.com>
+>> Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
+>=20
+> There should be no point in this series where it's possible to enable a=
 
-I tried CONFIG_SHUFFLE_PAGE_ALLOCATOR=n but problem still exists.
+> broken XPFO. Either this patch should be merged into the rest of the
+> arm64 bits, or it should be placed before the rest of the arm64 bits.
+>=20
+> That's a pre-requisite for merging, and it significantly reduces the
+> burden on reviewers.
+>=20
+> In general, a patch series should bisect cleanly. Could you please
+> restructure the series to that effect?
+>=20
+> Thanks,
+> Mark.
 
-[   45.788185][    C3] Node 0 DMA: 0*4kB 0*8kB 0*16kB 0*32kB 2*64kB (U) 1*128kB (U) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (M) 3*4096kB (M) = 15872kB
-[   45.793869][    C3] Node 0 DMA32: 2017*4kB (M) 1007*8kB () 511*16kB (UM) 257*32kB (UM) 129*64kB (UM) 62*128kB () 33*256kB (UM) 15*512kB (U) 9*1024kB (UM) 186*2048kB (M) 481*4096kB (M) = 2425164kB
-[   45.800355][    C3] Node 0 Normal: 71712*4kB () 32360*8kB () 16640*16kB (UME) 10536*32kB (UE) 5199*64kB (UME) 2551*128kB (M) 1232*256kB (UM) 604*512kB () 300*1024kB (UM) 233*2048kB (E) 4*4096kB (M) = 3233792kB
+That sounds reasonable to me. I will merge this with patch 5 ("arm64/mm:
+Add support for XPFO") for the next version unless there are objections.
 
-[  212.578797][ T9783] Node 0 DMA: 298*4kB (UM) 151*8kB (UM) 76*16kB (U) 41*32kB (UM) 21*64kB (UM) 11*128kB (U) 8*256kB (UM) 5*512kB (M) 3*1024kB (U) 0*2048kB 3*4096kB (M) = 27648kB
-[  212.585534][ T9783] Node 0 DMA32: 18100*4kB () 8704*8kB (UM) 3984*16kB (M) 1704*32kB (M) 673*64kB (M) 261*128kB (M) 139*256kB (M) 48*512kB (UM) 23*1024kB (UM) 1308*2048kB (M) 10*4096kB (UM) = 3140240kB
-[  212.593410][ T9783] Node 0 Normal: 285472*4kB (H) 105638*8kB (UEH) 43419*16kB (UEH) 19474*32kB (UEH) 7986*64kB (H) 3628*128kB () 1661*256kB () 753*512kB () 349*1024kB () 316*2048kB () 0*4096kB = 6095648kB
+Thanks,
+Khalid
 
-[  230.654713][ T9550] Node 0 DMA: 298*4kB (UM) 151*8kB (UM) 76*16kB (U) 41*32kB (UM) 21*64kB (UM) 11*128kB (U) 8*256kB (UM) 5*512kB (M) 3*1024kB (U) 0*2048kB 3*4096kB (M) = 27648kB
-[  230.661248][ T9550] Node 0 DMA32: 29452*4kB () 14391*8kB () 6814*16kB () 3109*32kB (M) 1365*64kB (M) 491*128kB (M) 263*256kB (M) 150*512kB (M) 125*1024kB (M) 1309*2048kB (UM) 10*4096kB (UM) = 3585576kB
-[  230.669879][ T9550] Node 0 Normal: 367054*4kB (UMEH) 123969*8kB (UMEH) 48498*16kB (UMEH) 20325*32kB (UMEH) 8069*64kB (UMH) 3640*128kB (H) 1662*256kB (H) 753*512kB () 350*1024kB (H) 316*2048kB () 0*4096kB = 6685248kB
+>=20
+>> ---
+>>  arch/arm64/mm/mmu.c  | 2 +-
+>>  include/linux/xpfo.h | 4 ++++
+>>  mm/xpfo.c            | 6 ++++++
+>>  3 files changed, 11 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+>> index d1d6601b385d..f4dd27073006 100644
+>> --- a/arch/arm64/mm/mmu.c
+>> +++ b/arch/arm64/mm/mmu.c
+>> @@ -451,7 +451,7 @@ static void __init map_mem(pgd_t *pgdp)
+>>  	struct memblock_region *reg;
+>>  	int flags =3D 0;
+>> =20
+>> -	if (debug_pagealloc_enabled())
+>> +	if (debug_pagealloc_enabled() || xpfo_enabled())
+>>  		flags =3D NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
+>> =20
+>>  	/*
+>> diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
+>> index 1ae05756344d..8b029918a958 100644
+>> --- a/include/linux/xpfo.h
+>> +++ b/include/linux/xpfo.h
+>> @@ -47,6 +47,8 @@ void xpfo_temp_map(const void *addr, size_t size, vo=
+id **mapping,
+>>  void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
+>>  		     size_t mapping_len);
+>> =20
+>> +bool xpfo_enabled(void);
+>> +
+>>  #else /* !CONFIG_XPFO */
+>> =20
+>>  static inline void xpfo_kmap(void *kaddr, struct page *page) { }
+>> @@ -69,6 +71,8 @@ static inline void xpfo_temp_unmap(const void *addr,=
+ size_t size,
+>>  }
+>> =20
+>> =20
+>> +static inline bool xpfo_enabled(void) { return false; }
+>> +
+>>  #endif /* CONFIG_XPFO */
+>> =20
+>>  #endif /* _LINUX_XPFO_H */
+>> diff --git a/mm/xpfo.c b/mm/xpfo.c
+>> index 92ca6d1baf06..150784ae0f08 100644
+>> --- a/mm/xpfo.c
+>> +++ b/mm/xpfo.c
+>> @@ -71,6 +71,12 @@ struct page_ext_operations page_xpfo_ops =3D {
+>>  	.init =3D init_xpfo,
+>>  };
+>> =20
+>> +bool __init xpfo_enabled(void)
+>> +{
+>> +	return !xpfo_disabled;
+>> +}
+>> +EXPORT_SYMBOL(xpfo_enabled);
+>> +
+>>  static inline struct xpfo *lookup_xpfo(struct page *page)
+>>  {
+>>  	struct page_ext *page_ext =3D lookup_page_ext(page);
+>> --=20
+>> 2.17.1
+>>
+
 
