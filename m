@@ -2,133 +2,133 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A1E4CC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 19:00:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 24291C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 20:21:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6640E217F5
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 19:00:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6640E217F5
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id AF485222A1
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 20:21:00 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="rEIVnWW2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF485222A1
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 071338E0002; Fri, 15 Feb 2019 14:00:35 -0500 (EST)
+	id 032998E0002; Fri, 15 Feb 2019 15:21:00 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F39E08E0001; Fri, 15 Feb 2019 14:00:34 -0500 (EST)
+	id F271D8E0001; Fri, 15 Feb 2019 15:20:59 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E02BA8E0002; Fri, 15 Feb 2019 14:00:34 -0500 (EST)
+	id E3D2A8E0002; Fri, 15 Feb 2019 15:20:59 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BA3D8E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 14:00:34 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id e5so7388021pgc.16
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 11:00:34 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A32238E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 15:20:59 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id ay11so7630657plb.20
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 12:20:59 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=rO5Gi17MchYKRoQ9JMkM2o6Ac/1ZRye6Gk/QCMk6MwI=;
-        b=Eepk7rIkAqvA2F628s7Z250b+X7UoBjaKPRf5ZOoBoO+5g1BIvmZZ0E9njwqx+YDfY
-         0qrEWo68msxsoC/OamwVmK19D0yf+lLXEOvVsuVv0aV6fDHkyVOqvMyUtgHM3RDX/TTQ
-         WKKcv9Rk7rsxDtXjKxIfaDsQJJySIgcEgp7f0GMUmetxjAI4EdooV8GiyrPle0iU+OrE
-         Du9f2zRfCsMkDLruXDanwhsmk/ReTUR3YVnKP+ndCNVAMJ6yG3mhufcYSELrrW8JYb3P
-         dP5TdP/fXP02oFcVdgNxbv6bx/rumNYb9/P5Llqw2IfweMSzSW5LUBBcli5fF4kV+Y3Z
-         5FVQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: AHQUAua2FqBbkKKFTQ+Gu31W7ei/5hlmXuYfGLH4nWD3PUrhLy5mSOMQ
-	vLB6G9XOX9j6BtQL98viS414gOEyQqsbucw0USFLX5vvPI+lDHKuUrR4dF/f0AxNgwv3a41qpJV
-	oEUOK5ZwUWyGhj9627IknG0yXiCl33nbG/fThxli0NdIecnp0G6IwZglyeL99l428mQ==
-X-Received: by 2002:a63:1d1d:: with SMTP id d29mr6806411pgd.49.1550257234281;
-        Fri, 15 Feb 2019 11:00:34 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ia3I8NCgwvhm5X3eiVhCqXIhU2pIa1Zo05hpRqfaoTEXapqWNwk2JZMKHpngIENxQdkc2lI
-X-Received: by 2002:a63:1d1d:: with SMTP id d29mr6806358pgd.49.1550257233554;
-        Fri, 15 Feb 2019 11:00:33 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550257233; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=t4kh6gL7Nt9+3Mr1Ov9ssDsZXZ4VLPAcQPbRxG5XoQE=;
+        b=Zc7X0E4HQCs2dd3++VImm5ZgNsKjykTqyN906AyglMdwapbuYTtQczXFRibBce6Mmc
+         g9+mMwwWdbGo6zg/fP8rwdeX6D5cq+CyKnesJLjnE97pUpHOS3AAZUlnbzBqpdQyLEBG
+         86w61CmrQMex+dPOnHTpLfvZ41K1ymGjwxVgL7nZfe158m9zWzGqOSlswLmFuePjA0MT
+         /xF60wByuZpIYjrgVMsKBMooY1CcRTRpDP5/b9Ub5YyH66dCpqOWdxrQnVa79bn9BJg1
+         dzkEMUHi2pIT4riNBf3+CXtbJfmXp4QuncLEDpFK5D5h9tmaSbtGjGfk0FPXkq7llwjW
+         qc/Q==
+X-Gm-Message-State: AHQUAuZLFACgF2IqOmaYsKbnRVrFTU9ehHusVdgISfGQ4eu+MfgUDNgy
+	Q9qTKF0oB6X7vIGy6KgbbPnfLygw66qQLVKc7kBcYOH9MmCwOOvS0nX4h+JBrkPisd/8c4AWWyt
+	or9i0jFUkdnU+/PR+hDMCD7BIsg47iiTRuNdreDZA7LGa45I/R7enZBHg/HTsRNwUBA==
+X-Received: by 2002:a17:902:241:: with SMTP id 59mr11854672plc.72.1550262059175;
+        Fri, 15 Feb 2019 12:20:59 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZyrt1fZFenljH4DQAXq3Cv7tpkwl55KKJpzKTuie0dWS7dFGlutxNkW75JSSQCA0OoG5sB
+X-Received: by 2002:a17:902:241:: with SMTP id 59mr11854619plc.72.1550262058392;
+        Fri, 15 Feb 2019 12:20:58 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550262058; cv=none;
         d=google.com; s=arc-20160816;
-        b=Oz5q2g5rd4nufudL7tD9+QfP7otqOSRGq7UqqF03+7WrUKMw7ErgTk9ybRTqyBMRS4
-         V/Gy/ypFaBVpMCzrkDRVEbbnJoEukPoD8UaKT7hWPuyRyCTRNFvqY/dZX9aDR1pPY+Py
-         s7Jsq5N4xFOOuY0hGWFFe/tHpPJ5G8JLLLTZaWG8622nkpJDookJT+RUUvo7gPpezALd
-         tLfHt/F/H0AGBkp4PVKn7n3Co/fFaBgOlo1oLgJX5o43qXuEr0HdwFJgibXJTpsyzAq0
-         QS5CRof8hEOPbskFzGds3t8KXm/0w4sd/UZvmMTt8IqrywGfSKEg75+p52Y046WD8n8N
-         eOzA==
+        b=eYFbzK5UqjjZBXw3Vx0+GDLebwMXKBN2FcltEP2cP93atDNo+gjfC1OoJ39EhMNSfa
+         cCw1ULmAJ0CQk1YUvadvJkgf+YJwA1pKlY4Ym4rFcbhvEtw5xrZW9WC1rAX34pbAQzRT
+         U45h7uxtproHrYkwfSJcvcqceufctRRkN49RFmLu/Z9pFUafx8s6IiPE+1X4NCy+E5uS
+         WgXmd1jtiExUfWaeniMV0GgkZUMXMz52oi3df7oYOk4oq+rcfxqqHtRBtU+zjyuF4xAf
+         9to058Z2LXfF+8Pcn0+gb+8zTb2zlyk43pOVi8JBpNDp8I52VYpY8B67FqZivtMzNCgl
+         NJnw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=rO5Gi17MchYKRoQ9JMkM2o6Ac/1ZRye6Gk/QCMk6MwI=;
-        b=tIKSzHKWvY4/TB3cVkxoU0yrIEVbBlTfOJUc3EPycTfvcZujkPZgvdFbrzGVoTCfzm
-         9WYaiw+Io7s4U+wfzfjQXQgLovc7oWtE2k9q6vVke48xL9QZeEfFHxP18ZzrB5x4CTS4
-         uCfNce/VLzeYS9ivJtgtrin3prNnrWicGXCRva2h1Nh4ELK8Gkkgy2SgoJMaXfW4vFkb
-         pB0Yk4UCGHQV8FyTRdGK5vs6xVUOFUFvCouuyed+YFWo91AYVVBTF5s7KKw2nrggPY32
-         4wHzPsKRcudobaOEs/9inBtxNhqA6zqrwjoQWHV0+duiZhNdxdqYxjttARShvbIScste
-         Enjg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=t4kh6gL7Nt9+3Mr1Ov9ssDsZXZ4VLPAcQPbRxG5XoQE=;
+        b=lCfET4erd09+6+EbXaDOS6wpH0Kh80oEZ7U/ilBXanCfgUYEpMYiOpynOL09OW97XO
+         oVGfzwiHGSNdB/4ZWnntX7WNHE9xg+vJpQyuc9qJgXrRlAk3w9OxUJu/10xvrgV+rrnN
+         jukxiImr88ftjUMNxkSePOuKIsxkgx3SF/stDVAUmseYnmQtsvQ3x1Qm6fLQ6CV/YFZj
+         hiB5LzOfyPNAcoLPOCd+N0Quv5+KvHZ5rAn7d3MmApZaHtLUnrl8APBNcYH7PRJVr8Xt
+         Q1NNxu7mUTKDMynHFaXsO6JlrzMDstSpU9Nu+q9esD2cON7hPD9B7RdKAFNNmKgtEt1B
+         BFPQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b5si5962563pgl.254.2019.02.15.11.00.33
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=rEIVnWW2;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id k188si6597890pgc.246.2019.02.15.12.20.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 11:00:33 -0800 (PST)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 15 Feb 2019 12:20:58 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id A0BF8C84;
-	Fri, 15 Feb 2019 19:00:32 +0000 (UTC)
-Date: Fri, 15 Feb 2019 11:00:24 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Mark Brown <broonie@kernel.org>
-Cc: "kernelci.org bot" <bot@kernelci.org>, tomeu.vizoso@collabora.com,
- guillaume.tucker@collabora.com, Dan Williams <dan.j.williams@intel.com>,
- matthew.hart@linaro.org, Stephen Rothwell <sfr@canb.auug.org.au>,
- khilman@baylibre.com, enric.balletbo@collabora.com, Nicholas Piggin
- <npiggin@gmail.com>, Dominik Brodowski <linux@dominikbrodowski.net>,
- Masahiro Yamada <yamada.masahiro@socionext.com>, Kees Cook
- <keescook@chromium.org>, Adrian Reber <adrian@lisas.de>,
- linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
- linux-mm@kvack.org, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
- Michal Hocko <mhocko@suse.com>, Richard Guy Briggs <rgb@redhat.com>,
- "Peter Zijlstra (Intel)" <peterz@infradead.org>, Stephen Rothwell
- <sfr@canb.auug.org.au>
-Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
-Message-Id: <20190215110024.011197d86e3ab8642a9bbecf@linux-foundation.org>
-In-Reply-To: <20190215185151.GG7897@sirena.org.uk>
-References: <5c6702da.1c69fb81.12a14.4ece@mx.google.com>
-	<20190215104325.039dbbd9c3bfb35b95f9247b@linux-foundation.org>
-	<20190215185151.GG7897@sirena.org.uk>
-X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=rEIVnWW2;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=t4kh6gL7Nt9+3Mr1Ov9ssDsZXZ4VLPAcQPbRxG5XoQE=; b=rEIVnWW2VmDLAFvnYVAJS9d0A
+	WYO74VFpVSuuTJjJTmuLb2Pd0os80RVkoZMhJ1+8pMVhnDNhDN2XsYrNcgBIf45rUowaVCLh9uyc7
+	qIf0clGtvkiiCE3+56fIKS+l/L+9u+yNjbr7G8/U0n7gjdwtL7ZTaKwfQH0KKImdKB4Rzk1+sIAwG
+	r/hYCUPKEXeL+VFFtvEaSKQCHvBT+/8CUCESKqWK4DtMd/75Scf/P6mnDaVy1KD318xj3lea9Vt8j
+	l33nVqqjeTYkHev8OLJ+tPdu7Np5wHsWriuXqOouo2l7yDC4ACjZyCVseuMXb4X9G0dQgTdPuOUud
+	3nftqlg1w==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gujyj-0008Pk-7C; Fri, 15 Feb 2019 20:20:57 +0000
+Date: Fri, 15 Feb 2019 12:20:57 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
+	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
+	William Kucharski <william.kucharski@oracle.com>
+Subject: Re: [PATCH v2] page cache: Store only head pages in i_pages
+Message-ID: <20190215202056.GK12668@bombadil.infradead.org>
+References: <20190212183454.26062-1-willy@infradead.org>
+ <20190214133004.js7s42igiqc5pgwf@kshutemo-mobl1>
+ <20190214224115.4edwl7x72abztajb@kshutemo-mobl1>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190214224115.4edwl7x72abztajb@kshutemo-mobl1>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 Feb 2019 18:51:51 +0000 Mark Brown <broonie@kernel.org> wrote:
+On Fri, Feb 15, 2019 at 01:41:15AM +0300, Kirill A. Shutemov wrote:
+>   - __delete_from_swap_cache() will blow up on
+> 
+> 	VM_BUG_ON_PAGE(entry != page + i, entry);
 
-> On Fri, Feb 15, 2019 at 10:43:25AM -0800, Andrew Morton wrote:
-> > On Fri, 15 Feb 2019 10:20:10 -0800 (PST) "kernelci.org bot" <bot@kernelci.org> wrote:
-> 
-> > >   Details:    https://kernelci.org/boot/id/5c666ea959b514b017fe6017
-> > >   Plain log:  https://storage.kernelci.org//next/master/next-20190215/arm/multi_v7_defconfig+CONFIG_SMP=n/gcc-7/lab-collabora/boot-am335x-boneblack.txt
-> > >   HTML log:   https://storage.kernelci.org//next/master/next-20190215/arm/multi_v7_defconfig+CONFIG_SMP=n/gcc-7/lab-collabora/boot-am335x-boneblack.html
-> 
-> > Thanks.
-> 
-> > But what actually went wrong?  Kernel doesn't boot?
-> 
-> The linked logs show the kernel dying early in boot before the console
-> comes up so yeah.  There should be kernel output at the bottom of the
-> logs.
+Right.
 
-OK, thanks.
-
-Well, we have a result.  Stephen, can we please drop
-mm-shuffle-default-enable-all-shuffling.patch for now?
+@@ -167,7 +167,7 @@ void __delete_from_swap_cache(struct page *page, swp_entry_t entry)
+ 
+        for (i = 0; i < nr; i++) {
+                void *entry = xas_store(&xas, NULL);
+-               VM_BUG_ON_PAGE(entry != page + i, entry);
++               VM_BUG_ON_PAGE(entry != page, entry);
+                set_page_private(page + i, 0);
+                xas_next(&xas);
+        }
 
