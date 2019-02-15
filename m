@@ -2,275 +2,185 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C80CC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:18:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CB6C5C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 12:18:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 37F3B21B1A
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 11:18:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 37F3B21B1A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 759E62192B
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 12:18:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 759E62192B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D65768E0006; Fri, 15 Feb 2019 06:18:04 -0500 (EST)
+	id BB1C88E0002; Fri, 15 Feb 2019 07:18:51 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CECC48E0001; Fri, 15 Feb 2019 06:18:04 -0500 (EST)
+	id B37898E0001; Fri, 15 Feb 2019 07:18:51 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BB5648E0006; Fri, 15 Feb 2019 06:18:04 -0500 (EST)
+	id 9D8038E0002; Fri, 15 Feb 2019 07:18:51 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 85F208E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 06:18:04 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id k66so7902190qkf.1
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 03:18:04 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FA318E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 07:18:51 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id d9so3874678edl.16
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 04:18:51 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=g1Djg1X1NcqtCABohTLxUrXqjefG6jTDiXkVVbfL1ng=;
-        b=UlTZ+zceX83OtrcqKT24TzB2G/cBoRHg4mjYUrTswa608Had9Wnh4NATmlHKzdBRIp
-         IKXt24fAm42BtU84oewigxMgi/GdMyYcmaccpOgaGOCALzn2vi7vM+J+S75s9/Mw8dbz
-         xyOKjq8jMFMPWjSxWzX3q0zHm9V16B99wLGqIhYHmySoqch8dEX/FI6m1Vii/I5LPf+J
-         2Gl6hWpUYGDinBWKajtdoZUOiS2WFU03fmYXR8fHjnKLsm9MgjotjbprBCq+cUTMMeUM
-         BEWx5tuLVPNMTMMNoSOTENefPGWCf7KxjOdJisaLFUNCUxsdoymu8ef328VQgegDbwbB
-         Zn9Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuasSlUOWxwq591Lex5XZzIooWdkk9WV2fY9awiBg+HmQ6aIk3am
-	mRcYsvIHMiwbZ+1S7mexBov9QXyXfEP5rOoeIBXsR0pRqqK/b4YXW80QbJzywXbU4oFEpgBDJ4o
-	XzQPsYGJH+Pm9eBapL0x6ivDEvnaisBP6yAKcxma2D1qPTJY90y/tjfPS8WCFf3y+SQ==
-X-Received: by 2002:a37:7707:: with SMTP id s7mr6505604qkc.252.1550229484310;
-        Fri, 15 Feb 2019 03:18:04 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbVFNUq5LXl2XUOMZnS7vUyBnb44frnPYW9g5Ov/lOjOwqwIwIYB3+7QE64HHOf2V+bzEnm
-X-Received: by 2002:a37:7707:: with SMTP id s7mr6505559qkc.252.1550229483453;
-        Fri, 15 Feb 2019 03:18:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550229483; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=A8NkFGx7t4xh0Z8FXKwUgOlVYbr1DNYsH6w5upFUvN8=;
+        b=nFU6O5MP57tk40UaFqUSqpTxZrMzLQpyXrMagNUYoQFxpOuKfIh0bBTd1mvE97zSsx
+         oAhHXp7QmEZGWZXOAYDqYmzdJPaw4oxN8bOUN2P92PRDHq5TQ+/kDblqaS/AMIT8qPM/
+         pa1aRyH/ec9jYwarQd/lisTgJDle1SNiBMZGhHyi5iJyAao/xwlNdrMRo3X/gwdaOlsE
+         DceNWaWflqNawOXThJiJnlYeM2mz7dzMqGegDzwu9mB/Lm1nIeWDJ+Nm7vXcIGI/OXfr
+         DRSHhTwvVxgBLHfBaPCzrNS55P2bUgBfwQF02ky3S9sIHmViyLbXiXP9RakbvLprKE4q
+         p2uA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuYPAibuzc7JlMh/nLBfc3XtAgpVW79eHDO4sTnQe3p7PQ0aUl/A
+	de+PXGuvbkYGZe8ObOtNdAY6WzrPTujB9xj6H3pH31OQlivvMMgub0kjMZcL/mt7ZIEBzBTthxH
+	oXrkLotwIK5qac6POwARe8TuswBh+YX7biYQ8ItgLeT8JG1HqjyRS6g70Y2oD7IM=
+X-Received: by 2002:a17:906:81d7:: with SMTP id e23mr6409133ejx.207.1550233130772;
+        Fri, 15 Feb 2019 04:18:50 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZL8q7C8uyk2Ac6JsXpfZ7hoeWaCjr+hy7lpctFiHg2TLxFqXZP/CLgUDq/qJQRDo08shjt
+X-Received: by 2002:a17:906:81d7:: with SMTP id e23mr6409072ejx.207.1550233129631;
+        Fri, 15 Feb 2019 04:18:49 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550233129; cv=none;
         d=google.com; s=arc-20160816;
-        b=cBgLCcvxXIbcpZoXjGa9D9lgcKNCbO+rJySgdqwhVBXLdhp48DcJuidaz4gvqQDuEJ
-         Ambj3JPLNj/z+QsulAPBZE86r6U/XvUyGKjSu0b+5PfxgNJcQ9ymeZHaTIEhsWBpRutA
-         YOabopqPJkYlNa3kY9aAq3A/pUihMUj1CUcvYJXeaIwG0jceQFCZ1HRWFxx5WCzGlomG
-         nYaEIGsGb83POjqm3nyoTm65uXiPSIqww7uKU8XiUmdGySgLMxyQMoWQiSUcsA5DbJjc
-         4YHhKQhm3a2jhWB31dPookjKjvt+SAUDLM/svQx7gkedrFuz3LLaqpM2T3uTyt+jS4u0
-         HJ9g==
+        b=c5kVLeDYbgcIoOV6wdQJN7lwQJHvQwtLFa5MbXqC6dpKWjT6IxKL5MLJRoV+S6wXxu
+         rzAYpARYG4cL2zMa8Fyo0nuoDMaAfe3Ss6AglwfmLJgB+rhoWEKF8xwQVBpH7iz7BKqG
+         OMuQ+cmdD7bgSSEzc9pNw8H+L6iNbSXV5nL4ysMeXgg/PLpVgQS6rwWatC0aJQ8wuZ0K
+         HJ4tx7iV3JiG46Zf/MjLIxHUSSYRzFmF8HRBwnenRF6iEY1YZrTgebi1bSMnFoPz2aSM
+         tzSeJOuuxcJgKB12pNB3H5VHXDHRaZgUvFC6WZXKLQL7KrXlKk2r6ttznuIdLaZe9ORg
+         1CLg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=g1Djg1X1NcqtCABohTLxUrXqjefG6jTDiXkVVbfL1ng=;
-        b=xptpK+dbIt3qXonNKlHdvyMkngt8vUi8c3IYSNKCXgpudxcoli3L1abhhYqiUlOzXt
-         m2aeQX85J58PyzrP/xCsBqEcWFcpQEjexFcWlHMdsjSQqF8yE1W2RAtZWB0RXHQeCClg
-         qNIWvnxSHnz69vFGdqp9FxVq3TcMV8XwjO0M2ElU6YP5Q0SgrgEg5/k1IPVGiTX+eECl
-         danH8nHLHsTiBH1v6/qI8m2pcfBITdSI3jjwm3DafW09ti9dSzBet382MuMWZONctPwT
-         dFzLld/9OjpR/Q7w6ZuiYYVxXjelnZr/C4NcZ9w4sNqnB2VEtOHCUz/WQKEWO8Ya+z2O
-         ui6Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=A8NkFGx7t4xh0Z8FXKwUgOlVYbr1DNYsH6w5upFUvN8=;
+        b=fum+pqg1mI4LDF6f2x0xW2kzJyykyG6oUzr6x93ll60/WHRe1I+BjgZ74gccr/v//B
+         d4uT1dXnLZA6M+ajVbAJCAuVPlLWFSEGWy2GM0d4XAFpq2KYBSMm5kJ9Wov4MKqeGm0N
+         fKtw5ZrU/rrxMWNu8dS8oZVBjPeDuDXzyG5vOz360PxLpMuPVGp/RPMGB2acmIFZqpqa
+         7XnBrOnlIFyHx/6YByym71u9aM/2JAiRKT6Rd+d2l9/Ha6sGHlp0/tu/7/0iWYkgJFmy
+         U+aNglcdIXkXUj17fkOYLMm32/RNCWEXFIK+1yurk29Yl7Mcr6wT8FNb4JNZDdRwNScO
+         TZjA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i67si2818394qke.61.2019.02.15.03.18.03
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a9si2219022ejj.269.2019.02.15.04.18.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 03:18:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Fri, 15 Feb 2019 04:18:49 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5C3C8C0E012A;
-	Fri, 15 Feb 2019 11:18:02 +0000 (UTC)
-Received: from localhost (ovpn-8-22.pek2.redhat.com [10.72.8.22])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 6D2E95F9C1;
-	Fri, 15 Feb 2019 11:18:01 +0000 (UTC)
-From: Ming Lei <ming.lei@redhat.com>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-block@vger.kernel.org,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	Theodore Ts'o <tytso@mit.edu>,
-	Omar Sandoval <osandov@fb.com>,
-	Sagi Grimberg <sagi@grimberg.me>,
-	Dave Chinner <dchinner@redhat.com>,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	Mike Snitzer <snitzer@redhat.com>,
-	dm-devel@redhat.com,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	linux-fsdevel@vger.kernel.org,
-	linux-raid@vger.kernel.org,
-	David Sterba <dsterba@suse.com>,
-	linux-btrfs@vger.kernel.org,
-	"Darrick J . Wong" <darrick.wong@oracle.com>,
-	linux-xfs@vger.kernel.org,
-	Gao Xiang <gaoxiang25@huawei.com>,
-	Christoph Hellwig <hch@lst.de>,
-	linux-ext4@vger.kernel.org,
-	Coly Li <colyli@suse.de>,
-	linux-bcache@vger.kernel.org,
-	Boaz Harrosh <ooo@electrozaur.com>,
-	Bob Peterson <rpeterso@redhat.com>,
-	cluster-devel@redhat.com,
-	Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V15 18/18] block: kill BLK_MQ_F_SG_MERGE
-Date: Fri, 15 Feb 2019 19:13:24 +0800
-Message-Id: <20190215111324.30129-19-ming.lei@redhat.com>
-In-Reply-To: <20190215111324.30129-1-ming.lei@redhat.com>
-References: <20190215111324.30129-1-ming.lei@redhat.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Fri, 15 Feb 2019 11:18:02 +0000 (UTC)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 237F5AF0F;
+	Fri, 15 Feb 2019 12:18:49 +0000 (UTC)
+Date: Fri, 15 Feb 2019 13:18:48 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: linux-mm <linux-mm@kvack.org>
+Subject: Re: [PATCH v3] mm,page_alloc: wait for oom_lock before retrying.
+Message-ID: <20190215121848.GY4525@dhcp22.suse.cz>
+References: <20900d89-b06d-2ec6-0ae0-beffc5874f26@I-love.SAKURA.ne.jp>
+ <20190213165640.GV4525@dhcp22.suse.cz>
+ <87896c67-ddc9-56d9-8643-09865c6cbfe2@i-love.sakura.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87896c67-ddc9-56d9-8643-09865c6cbfe2@i-love.sakura.ne.jp>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-QUEUE_FLAG_NO_SG_MERGE has been killed, so kill BLK_MQ_F_SG_MERGE too.
+On Fri 15-02-19 19:42:41, Tetsuo Handa wrote:
+> On 2019/02/14 1:56, Michal Hocko wrote:
+> > On Thu 14-02-19 01:30:28, Tetsuo Handa wrote:
+> > [...]
+> >> >From 63c5c8ee7910fa9ef1c4067f1cb35a779e9d582c Mon Sep 17 00:00:00 2001
+> >> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> >> Date: Tue, 12 Feb 2019 20:12:35 +0900
+> >> Subject: [PATCH v3] mm,page_alloc: wait for oom_lock before retrying.
+> >>
+> >> When many hundreds of threads concurrently triggered a page fault, and
+> >> one of them invoked the global OOM killer, the owner of oom_lock is
+> >> preempted for minutes because they are rather depriving the owner of
+> >> oom_lock of CPU time rather than waiting for the owner of oom_lock to
+> >> make progress. We don't want to disable preemption while holding oom_lock
+> >> but we want the owner of oom_lock to complete as soon as possible.
+> >>
+> >> Thus, this patch kills the dangerous assumption that sleeping for one
+> >> jiffy is sufficient for allowing the owner of oom_lock to make progress.
+> > 
+> > What does this prevent any _other_ kernel path or even high priority
+> > userspace to preempt the oom killer path? This was the essential
+> > question the last time around and I do not see it covered here. I
+> 
+> Since you already NACKed disabling preemption at
+> https://marc.info/?i=20180322114002.GC23100@dhcp22.suse.cz , pointing out
+> "even high priority userspace to preempt the oom killer path" is invalid.
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Omar Sandoval <osandov@fb.com>
-Signed-off-by: Ming Lei <ming.lei@redhat.com>
----
- block/blk-mq-debugfs.c       | 1 -
- drivers/block/loop.c         | 2 +-
- drivers/block/nbd.c          | 2 +-
- drivers/block/rbd.c          | 2 +-
- drivers/block/skd_main.c     | 1 -
- drivers/block/xen-blkfront.c | 2 +-
- drivers/md/dm-rq.c           | 2 +-
- drivers/mmc/core/queue.c     | 3 +--
- drivers/scsi/scsi_lib.c      | 2 +-
- include/linux/blk-mq.h       | 1 -
- 10 files changed, 7 insertions(+), 11 deletions(-)
+Why?
 
-diff --git a/block/blk-mq-debugfs.c b/block/blk-mq-debugfs.c
-index 697d6213c82b..c39247c5ddb6 100644
---- a/block/blk-mq-debugfs.c
-+++ b/block/blk-mq-debugfs.c
-@@ -249,7 +249,6 @@ static const char *const alloc_policy_name[] = {
- static const char *const hctx_flag_name[] = {
- 	HCTX_FLAG_NAME(SHOULD_MERGE),
- 	HCTX_FLAG_NAME(TAG_SHARED),
--	HCTX_FLAG_NAME(SG_MERGE),
- 	HCTX_FLAG_NAME(BLOCKING),
- 	HCTX_FLAG_NAME(NO_SCHED),
- };
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index 8ef583197414..3d63ad036398 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -1937,7 +1937,7 @@ static int loop_add(struct loop_device **l, int i)
- 	lo->tag_set.queue_depth = 128;
- 	lo->tag_set.numa_node = NUMA_NO_NODE;
- 	lo->tag_set.cmd_size = sizeof(struct loop_cmd);
--	lo->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
-+	lo->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
- 	lo->tag_set.driver_data = lo;
- 
- 	err = blk_mq_alloc_tag_set(&lo->tag_set);
-diff --git a/drivers/block/nbd.c b/drivers/block/nbd.c
-index 7c9a949e876b..32a7ba1674b7 100644
---- a/drivers/block/nbd.c
-+++ b/drivers/block/nbd.c
-@@ -1571,7 +1571,7 @@ static int nbd_dev_add(int index)
- 	nbd->tag_set.numa_node = NUMA_NO_NODE;
- 	nbd->tag_set.cmd_size = sizeof(struct nbd_cmd);
- 	nbd->tag_set.flags = BLK_MQ_F_SHOULD_MERGE |
--		BLK_MQ_F_SG_MERGE | BLK_MQ_F_BLOCKING;
-+		BLK_MQ_F_BLOCKING;
- 	nbd->tag_set.driver_data = nbd;
- 
- 	err = blk_mq_alloc_tag_set(&nbd->tag_set);
-diff --git a/drivers/block/rbd.c b/drivers/block/rbd.c
-index 1e92b61d0bd5..abe9e1c89227 100644
---- a/drivers/block/rbd.c
-+++ b/drivers/block/rbd.c
-@@ -3988,7 +3988,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
- 	rbd_dev->tag_set.ops = &rbd_mq_ops;
- 	rbd_dev->tag_set.queue_depth = rbd_dev->opts->queue_depth;
- 	rbd_dev->tag_set.numa_node = NUMA_NO_NODE;
--	rbd_dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
-+	rbd_dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
- 	rbd_dev->tag_set.nr_hw_queues = 1;
- 	rbd_dev->tag_set.cmd_size = sizeof(struct work_struct);
- 
-diff --git a/drivers/block/skd_main.c b/drivers/block/skd_main.c
-index ab893a7571a2..7d3ad6c22ee5 100644
---- a/drivers/block/skd_main.c
-+++ b/drivers/block/skd_main.c
-@@ -2843,7 +2843,6 @@ static int skd_cons_disk(struct skd_device *skdev)
- 		skdev->sgs_per_request * sizeof(struct scatterlist);
- 	skdev->tag_set.numa_node = NUMA_NO_NODE;
- 	skdev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE |
--		BLK_MQ_F_SG_MERGE |
- 		BLK_ALLOC_POLICY_TO_MQ_FLAG(BLK_TAG_ALLOC_FIFO);
- 	skdev->tag_set.driver_data = skdev;
- 	rc = blk_mq_alloc_tag_set(&skdev->tag_set);
-diff --git a/drivers/block/xen-blkfront.c b/drivers/block/xen-blkfront.c
-index 0ed4b200fa58..d43a5677ccbc 100644
---- a/drivers/block/xen-blkfront.c
-+++ b/drivers/block/xen-blkfront.c
-@@ -977,7 +977,7 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
- 	} else
- 		info->tag_set.queue_depth = BLK_RING_SIZE(info);
- 	info->tag_set.numa_node = NUMA_NO_NODE;
--	info->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
-+	info->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
- 	info->tag_set.cmd_size = sizeof(struct blkif_req);
- 	info->tag_set.driver_data = info;
- 
-diff --git a/drivers/md/dm-rq.c b/drivers/md/dm-rq.c
-index 4eb5f8c56535..b2f8eb2365ee 100644
---- a/drivers/md/dm-rq.c
-+++ b/drivers/md/dm-rq.c
-@@ -527,7 +527,7 @@ int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t)
- 	md->tag_set->ops = &dm_mq_ops;
- 	md->tag_set->queue_depth = dm_get_blk_mq_queue_depth();
- 	md->tag_set->numa_node = md->numa_node_id;
--	md->tag_set->flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
-+	md->tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
- 	md->tag_set->nr_hw_queues = dm_get_blk_mq_nr_hw_queues();
- 	md->tag_set->driver_data = md;
- 
-diff --git a/drivers/mmc/core/queue.c b/drivers/mmc/core/queue.c
-index 35cc138b096d..cc19e71c71d4 100644
---- a/drivers/mmc/core/queue.c
-+++ b/drivers/mmc/core/queue.c
-@@ -410,8 +410,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
- 	else
- 		mq->tag_set.queue_depth = MMC_QUEUE_DEPTH;
- 	mq->tag_set.numa_node = NUMA_NO_NODE;
--	mq->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE |
--			    BLK_MQ_F_BLOCKING;
-+	mq->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
- 	mq->tag_set.nr_hw_queues = 1;
- 	mq->tag_set.cmd_size = sizeof(struct mmc_queue_req);
- 	mq->tag_set.driver_data = mq;
-diff --git a/drivers/scsi/scsi_lib.c b/drivers/scsi/scsi_lib.c
-index 6d65ac584eba..6cadbe945bdb 100644
---- a/drivers/scsi/scsi_lib.c
-+++ b/drivers/scsi/scsi_lib.c
-@@ -1899,7 +1899,7 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
- 	shost->tag_set.queue_depth = shost->can_queue;
- 	shost->tag_set.cmd_size = cmd_size;
- 	shost->tag_set.numa_node = NUMA_NO_NODE;
--	shost->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
-+	shost->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
- 	shost->tag_set.flags |=
- 		BLK_ALLOC_POLICY_TO_MQ_FLAG(shost->hostt->tag_alloc_policy);
- 	shost->tag_set.driver_data = shost;
-diff --git a/include/linux/blk-mq.h b/include/linux/blk-mq.h
-index 0e030f5f76b6..b0c814bcc7e3 100644
---- a/include/linux/blk-mq.h
-+++ b/include/linux/blk-mq.h
-@@ -218,7 +218,6 @@ struct blk_mq_ops {
- enum {
- 	BLK_MQ_F_SHOULD_MERGE	= 1 << 0,
- 	BLK_MQ_F_TAG_SHARED	= 1 << 1,
--	BLK_MQ_F_SG_MERGE	= 1 << 2,
- 	BLK_MQ_F_BLOCKING	= 1 << 5,
- 	BLK_MQ_F_NO_SCHED	= 1 << 6,
- 	BLK_MQ_F_ALLOC_POLICY_START_BIT = 8,
+> Since printk() is very slow, dump_header() can become slow, especially when
+> dump_tasks() is called. And changing dump_tasks() to use rcu_lock_break()
+> does not solve this problem, for this is a problem that once current thread
+> released CPU, current thread might be kept preempted for minutes.
+
+dump_tasks might be disabled for those who are concerned about the
+overhead but I do not see what your actual point here is.
+
+> Allowing OOM path to be preempted is what you prefer, isn't it?
+
+No, it is just practicality. If you disable preemption you are
+immediatelly going to fight with soft lockups.
+
+> Then,
+> spending CPU time for something (what you call "any _other_ kernel path") is
+> accountable for delaying OOM path. But wasting CPU time when allocating
+> threads can do nothing but wait for the owner of oom_lock to complete OOM
+> path is not accountable for delaying OOM path.
+> 
+> Thus, there is nothing to cover for your "I do not see it covered here"
+> response, except how to avoid "wasting CPU time when allocating threads
+> can do nothing but wait for the owner of oom_lock to complete OOM path".
+> 
+> > strongly suspect that all these games with the locking is just a
+> > pointless tunning for an insane workload without fixing the underlying
+> > issue.
+> 
+> We could even change oom_lock to a local lock inside oom_kill_process(), for
+> all threads in a same allocating context will select the same OOM victim
+> (unless oom_kill_allocating_task case), and many threads already inside
+> oom_kill_process() will prevent themselves from selecting next OOM victim.
+> Although this approach wastes some CPU resources for needlessly selecting
+> same OOM victim for many times, this approach also can solve this problem.
+> 
+> It seems that you don't want to admit that "wasting CPU time when allocating
+> threads can do nothing but wait for the owner of oom_lock to complete OOM path"
+> as the underlying issue. But we can't fix it without throttling direct reclaim
+> paths. That's the evidence that this problem is not fixed for many years.
+
+And yet I do not rememeber any _single_ bug report for a real life
+workload that would be suffering from this. I am all for a better
+throttling on the OOM conditions but what you have been proposing are
+hacks at best without any real world workload backing them.
+
+Please try to understand that the OOM path in the current form is quite
+complex already and adding more on top without addressing a problem
+which real workloads do care about is not really all that attractive.
+I have no objections to simple and obviously correct changes in this
+area but playing with locking with hard to evaluate side effects is not
+something I will ack.
 -- 
-2.9.5
+Michal Hocko
+SUSE Labs
 
