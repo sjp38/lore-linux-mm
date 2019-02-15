@@ -2,125 +2,117 @@ Return-Path: <SRS0=VMr4=QW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3AA76C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:48:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7730FC10F04
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 03:21:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DCAD62192B
-	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 02:48:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 15E322192D
+	for <linux-mm@archiver.kernel.org>; Fri, 15 Feb 2019 03:21:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="SpFC1bFl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DCAD62192B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=HansenPartnership.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="s7pu0GU3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15E322192D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 89FCA8E0002; Thu, 14 Feb 2019 21:48:28 -0500 (EST)
+	id 8397D8E0002; Thu, 14 Feb 2019 22:21:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 84F208E0001; Thu, 14 Feb 2019 21:48:28 -0500 (EST)
+	id 7E8BD8E0001; Thu, 14 Feb 2019 22:21:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 73D0C8E0002; Thu, 14 Feb 2019 21:48:28 -0500 (EST)
+	id 6D7218E0002; Thu, 14 Feb 2019 22:21:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BFE58E0001
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 21:48:28 -0500 (EST)
-Received: by mail-yb1-f197.google.com with SMTP id 187so2831320ybv.0
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 18:48:28 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C57D8E0001
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2019 22:21:04 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id w16so6492930pfn.3
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2019 19:21:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=mA47N9RI4NsC4pjiCAz5GmHFekzmXDKJNXH8el/LXmg=;
-        b=pfi+dZSqZ1ukkLvh/UA6VaIvw/k65DlFE2Ads2JP3FERdHx6FGzwt9yEARMGMMvgdg
-         Z6rYuWOCnvWRgQmAMwC4ItnoA0UZHT/tZHv1ZkZexVfEiSC1+HUJX5LTnSb5fmntyjEq
-         88SC6n65fmvxKdOoZveK4FpF8+EA0Wc3TQW7NicvDze/JwWy5GZeBFJ4cHOFMxnEDYDE
-         ftuHUPfRPU5GDH8PD2K05eKXFkHRTqN+bmHP2NiMPucJ8nN2yv9wCNMmQBEJpkrDi84v
-         2FfW1qL/neXoEKNs5fB7ZY5z40ygTOib1q7Strienq+chH8q3uGAVMIzXcwANMI1wfrf
-         oytA==
-X-Gm-Message-State: AHQUAuaN6Mv1q/4iG29hS+HPPHLTZJWwblNEYS08gQ1FFCeDfyhuPZBE
-	K5HVFM8u9SPpm0nOBX+4WiGGzjsbLfplxd0GHcV/rqDM/GOQOY4zVntw+KarqU6mBC/AmoCF9jR
-	mDf6/xRq7d5pypCWfLg1emm6rE+UDNCtLkEzKL50M+zCqPDfIXpSNz6+XHaltOLjeiQ==
-X-Received: by 2002:a0d:cc89:: with SMTP id o131mr6257251ywd.144.1550198907897;
-        Thu, 14 Feb 2019 18:48:27 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaWs7ww0EYKvXuUkLQ70/zSUdIxv1rpkY1907AIQvg/jYBysdJQEHwrtN9LJsXRbOyNTAFF
-X-Received: by 2002:a0d:cc89:: with SMTP id o131mr6257221ywd.144.1550198907129;
-        Thu, 14 Feb 2019 18:48:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550198907; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:references:cc:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=AwjRuM4DjzJtODtzZyEza48FzxTdsBFsERrlwqwdPu0=;
+        b=WvuEqmmUS99RnfuUNDgNgwQq9I6ByknLiKYsuQZF5HDQMLtmBeQPu5AcEfkt2wYOMt
+         CV5Ezi3h03Mx+MmAI7HVKQwMLqZeS0g1K1Bzcr6EdmFLdHjlp71ScrldIwSaK1hVtOCB
+         OrwvLYhZpTmSFa+XBVcT+t/tGVdX79LjMQ+E8wjlWdHjxbgJ0aBTaLv2b9y34OCZ7K24
+         n1TFvULuQxq77/fEiWnBmOxzYb9i8XKF2P3tAI3mywUkMgceitdzDA2oZ2/482wjVbKe
+         5x+j3cxXwdugAfAoDoVRGhrw5va/kDXFKovDegq+8vU41xwJ8N3TjjgxNDWmPHdy3kA/
+         QTUQ==
+X-Gm-Message-State: AHQUAublvBAVPTxjBRCP17vuP1YZJGq0Ix7LTy+oxMCQgee7Y1AsTLGi
+	7hshBWCvaatjc33akoa5u8YNkDFydfSOvawxtXgrUBqFsTN7HwdGAR1mnZO6PVCNSPw8cUk5Hdw
+	mJ28S0ZvQiWVBqxL8EVSS8OVLAotDzhG+5H3oQeXQ4H+yWqgVCbmK6Qfb4Toz1Qfv7Q==
+X-Received: by 2002:a17:902:b114:: with SMTP id q20mr7862602plr.48.1550200863791;
+        Thu, 14 Feb 2019 19:21:03 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbtuPhKg8djsj8KuXFFSGRIknZIHG8Xqk5lkk2gCuBycmrNPD7VQhzi5+/hrWm8FdHn2uIY
+X-Received: by 2002:a17:902:b114:: with SMTP id q20mr7862565plr.48.1550200862988;
+        Thu, 14 Feb 2019 19:21:02 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550200862; cv=none;
         d=google.com; s=arc-20160816;
-        b=OMm2JfQjhLcAIye+th7KlRvFE78yqiaf5CMj4MfA8jsRC7aj6asCOMLDovRnb4y/oF
-         WIv0QYCGb69pSbT3gWG7dF+n5R1PrTOvd2MX9FYCmuhuXqjpsGSOzAaCdXnnrU04Iozg
-         54522ZGWAOHt/UJ31L/NIc91A+HUoXXvieRysrXb+MD+li+5Xp/O4LkEJ4nBhCwxNQ8o
-         OSZkZdb8+GicwDqua4l9yvg97XohY8w64eUOJgMal+7BuDOaHPrcqL3D9ExQHVdQJbUe
-         ByQONvinRKwwpZtfumBvOKF66hXfU+XLAgcuJhXk4YTWDUFRsvo+W6lH81pGr7yzhD5+
-         ZzRQ==
+        b=Gx0XC1FTZZuI+F1qripLLayk7xaI5znBeT1puQ57L96q4me651X6rX8qUuY9TTnzSy
+         D9WJ5dRG5/A5xBr/uVjkyYbrVMB6Os+e7FHtLN4j8IvpADvdndOIySUCHkKQ7BpGxV+D
+         5043U0l0aFHRKEC4rdnteVCqMK1jloHHFVu9d20nZAyPdqULKLlqOoi1JdvoCinKaY3e
+         U70j4Ol4VPiPxCN8qSpB5nzyltN01ectYRiCzyiANtGerjncbw6jKEbIzX/jyQef5fHW
+         vx2+3Cy7dDH3Or0Q8im9DxINmjlLe/NRem0N2wR3rvHNpLv0NoXWYcEPQJxbtRD+IzSR
+         iTIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=mA47N9RI4NsC4pjiCAz5GmHFekzmXDKJNXH8el/LXmg=;
-        b=s5QiC2ecef0xEggYb4PO5gYhQ95Y9K9CBbhxLl4q5JyPi+rKZ4wWXEilH+/WZrJQRL
-         tzepR7sZgHF9kYC32Sp8T9528B9tpersPqv7OgVMNSf4NDYXVWCK6sqj4zc+UsthXAkB
-         MRnRZ9JvFss0N5Q0k0Ua5GDDn45hwlh5BbBAlTCS/NyKqpbif5kCVLMixPnGoZdUNjYQ
-         aj79RIqnzvvexhlXYyTZF4s800AGOZ1hmQCO2eXZ3qN69Qjbex8bkQJfbKVARxgCGjCb
-         ssQUEOg0BCiCQp3mEintD+S8HUjtE6QZa3RI2U9zSuW98Hlg/v0UpYVBf8NFBHag+Sli
-         do6w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:cc:references:to:subject
+         :dkim-signature;
+        bh=AwjRuM4DjzJtODtzZyEza48FzxTdsBFsERrlwqwdPu0=;
+        b=wNldBat0Sbi101NfXOpNY0hzgJK7oAnEujjrBmHiCqsIGNuBaoeDXpPw02k1xNMgh8
+         +prdqHTEapS+zZyEjqyn6yAo/enzZoywNgNQFhotHyFyxKbB9UKTYUrINprsqgoCKkiP
+         yJW9Yu0IrAKGcqkQMXhl31WBTCakK3flqw6fSchrNoM1k/x86C0cZ2waWze86WNc0/bh
+         eGTxHfzSq2IPbSuaJJVlaPXLyE9Ct3LMpLFDIp53+Vrlvq5O+N8L6f6xh2fjezpJD5jL
+         ipuhgaVbjgtygoLUMN4MoaZX9y36Aa+TU1DYfKAiEpUz77CgB+2cEEGIuy85x8xw/a9k
+         wX/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=SpFC1bFl;
-       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTPS id o17si2477297ybk.203.2019.02.14.18.48.26
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=s7pu0GU3;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id a8si3816723pgt.326.2019.02.14.19.21.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 14 Feb 2019 18:48:26 -0800 (PST)
-Received-SPF: pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) client-ip=66.63.167.143;
+        Thu, 14 Feb 2019 19:21:02 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=SpFC1bFl;
-       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
-Received: from localhost (localhost [127.0.0.1])
-	by bedivere.hansenpartnership.com (Postfix) with ESMTP id AE46F8EE23E;
-	Thu, 14 Feb 2019 18:48:25 -0800 (PST)
-Received: from bedivere.hansenpartnership.com ([127.0.0.1])
-	by localhost (bedivere.hansenpartnership.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id NfGbFDjpEDAs; Thu, 14 Feb 2019 18:48:25 -0800 (PST)
-Received: from [153.66.254.194] (unknown [50.35.68.20])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by bedivere.hansenpartnership.com (Postfix) with ESMTPSA id E51118EE15F;
-	Thu, 14 Feb 2019 18:48:24 -0800 (PST)
-DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
-	s=20151216; t=1550198905;
-	bh=Hdt5XqqSkBX1Pp/GVYTeN07WE45/gKKk88sNDiiMCbo=;
-	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
-	b=SpFC1bFlZbQaa6sggFEA2tXgWD2xOZyDuweLFKBKXQchgqCBqxBWwsqozGYcUxGRt
-	 jMK0Hfy390lHbfHrXbt2c41ANfGSHXqxcUrkwnHF/GL+zciae68S1FhYwya2P6vCDP
-	 KhYsEUucEmjYurFcGWZ3qW7bRXY7uJsXVydw/d8E=
-Message-ID: <1550198902.2802.12.camel@HansenPartnership.com>
-Subject: Re: [LSF/MM TOPIC] FS, MM, and stable trees
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-To: Sasha Levin <sashal@kernel.org>
-Cc: Greg KH <gregkh@linuxfoundation.org>, Amir Goldstein
- <amir73il@gmail.com>,  Steve French <smfrench@gmail.com>,
- lsf-pc@lists.linux-foundation.org, linux-fsdevel
- <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, LKML
- <linux-kernel@vger.kernel.org>, "Luis R. Rodriguez" <mcgrof@kernel.org>
-Date: Thu, 14 Feb 2019 18:48:22 -0800
-In-Reply-To: <20190215015020.GJ69686@sasha-vm>
-References: <20190212170012.GF69686@sasha-vm>
-	 <CAH2r5mviqHxaXg5mtVe30s2OTiPW2ZYa9+wPajjzz3VOarAUfw@mail.gmail.com>
-	 <CAOQ4uxjMYWJPF8wFF_7J7yy7KCdGd8mZChfQc5GzNDcfqA7UAA@mail.gmail.com>
-	 <20190213073707.GA2875@kroah.com>
-	 <CAOQ4uxgQGCSbhppBfhHQmDDXS3TGmgB4m=Vp3nyyWTFiyv6z6g@mail.gmail.com>
-	 <20190213091803.GA2308@kroah.com> <20190213192512.GH69686@sasha-vm>
-	 <20190213195232.GA10047@kroah.com>
-	 <1550088875.2871.21.camel@HansenPartnership.com>
-	 <20190215015020.GJ69686@sasha-vm>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.26.6 
-Mime-Version: 1.0
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=s7pu0GU3;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:Cc:References:To:
+	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=AwjRuM4DjzJtODtzZyEza48FzxTdsBFsERrlwqwdPu0=; b=s7pu0GU3Gw5oDlkFcjXw0YxL2
+	QL+VR19C2rXgiyR9bI9+ruPxvlr273Hj+FgUmE1EWkqn6GYK4J+Z9s/RFVEVo0Hy42ttiDsqSljlu
+	fRSg3jscamcppMXnCfH3F6/vaDUOGO1e9Stp4enVSU2K1r5ZuNbws0MiPhSbaRp7gRLIO98LdO7RV
+	dL+ybuGNp7TaRE3nfk1gXn8qNdZvjbrVJchizO/61bZVCAW7tD5TMH5LE4CT+KedxULQnURsv+dhB
+	jSr8Bd50MAc59T8RllGf/I1nRcm0eDrHIeC7wdULVNZmLe1vCoT1vUtYnXIfdm6AHoPOK09alcNQP
+	IKKHnh2nw==;
+Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=midway.dunlab)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1guU3f-0003sC-Bw; Fri, 15 Feb 2019 03:20:59 +0000
+Subject: Re: mmotm 2019-02-14-15-22 uploaded (drivers/misc/fastrpc.c)
+To: akpm@linux-foundation.org, broonie@kernel.org, mhocko@suse.cz,
+ sfr@canb.auug.org.au, linux-next@vger.kernel.org,
+ linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, mm-commits@vger.kernel.org
+References: <20190214232307.rIB08%akpm@linux-foundation.org>
+Cc: Srinivas Kandagatla <srinivas.kandagatla@linaro.org>, robh+dt@kernel.org,
+ Arnd Bergmann <arnd@arndb.de>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <44c1e917-bd56-cc51-8b65-0bcedfcd5f4a@infradead.org>
+Date: Thu, 14 Feb 2019 19:20:55 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.3.0
+MIME-Version: 1.0
+In-Reply-To: <20190214232307.rIB08%akpm@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -128,82 +120,49 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2019-02-14 at 20:50 -0500, Sasha Levin wrote:
-> On Wed, Feb 13, 2019 at 12:14:35PM -0800, James Bottomley wrote:
-> > On Wed, 2019-02-13 at 20:52 +0100, Greg KH wrote:
-> > > On Wed, Feb 13, 2019 at 02:25:12PM -0500, Sasha Levin wrote:
-> > > > On Wed, Feb 13, 2019 at 10:18:03AM +0100, Greg KH wrote:
-> > > > > On Wed, Feb 13, 2019 at 11:01:25AM +0200, Amir Goldstein
-> > > > > wrote:
-> > > > > > Best effort testing in timely manner is good, but a good
-> > > > > > way to improve confidence in stable kernel releases is a
-> > > > > > publicly available list of tests that the release went
-> > > > > > through.
-> > > > > 
-> > > > > We have that, you aren't noticing them...
-> > > > 
-> > > > This is one of the biggest things I want to address: there is a
-> > > > disconnect between the stable kernel testing story and the
-> > > > tests the fs/ and mm/ folks expect to see here.
-> > > > 
-> > > > On one had, the stable kernel folks see these kernels go
-> > > > through entire suites of testing by multiple individuals and
-> > > > organizations, receiving way more coverage than any of Linus's
-> > > > releases.
-> > > > 
-> > > > On the other hand, things like LTP and selftests tend to barely
-> > > > scratch the surface of our mm/ and fs/ code, and the
-> > > > maintainers of these subsystems do not see LTP-like suites as
-> > > > something that adds significant value and ignore them. Instead,
-> > > > they have a (convoluted) set of testing they do with different
-> > > > tools and configurations that qualifies their code as being
-> > > > "tested".
-> > > > 
-> > > > So really, it sounds like a low hanging fruit: we don't really
-> > > > need to write much more testing code code nor do we have to
-> > > > refactor existing test suites. We just need to make sure the
-> > > > right tests are running on stable kernels. I really want to
-> > > > clarify what each subsystem sees as "sufficient" (and have that
-> > > > documented somewhere).
-> > > 
-> > > kernel.ci and 0-day and Linaro are starting to add the fs and mm
-> > > tests to their test suites to address these issues (I think 0-day
-> > > already has many of them).  So this is happening, but not quite
-> > > obvious.  I know I keep asking Linaro about this :(
-> > 
-> > 0day has xfstests at least, but it's opt-in only (you have to
-> > request that it be run on your trees).  When I did it for the SCSI
-> > tree, I had to email Fenguangg directly, there wasn't any other way
-> > of getting it.
+On 2/14/19 3:23 PM, akpm@linux-foundation.org wrote:
+> The mm-of-the-moment snapshot 2019-02-14-15-22 has been uploaded to
 > 
-> It's very tricky to do even if someone would just run it.
+>    http://www.ozlabs.org/~akpm/mmotm/
+> 
+> mmotm-readme.txt says
+> 
+> README for mm-of-the-moment:
+> 
+> http://www.ozlabs.org/~akpm/mmotm/
+> 
+> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> more than once a week.
+> 
+> You will need quilt to apply these patches to the latest Linus release (5.x
+> or 5.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> http://ozlabs.org/~akpm/mmotm/series
 
-It is?  It's a test suite, so you just run it and it exercises standard
-and growing set of regression tests.
+on x86_64:
 
->  I worked with the xfs folks for quite a while to gather the various
-> configs they want to use, and to establish the baseline for a few of
-> the stable trees (some tests are know to fail, etc).
+when CONFIG_DMA_SHARED_BUFFER is not set:
 
-The only real config issue is per-fs non-standard tests (features
-specific to a given filesystem).  I just want it to exercise the
-storage underneath, so the SCSI tree is configured for the default set
-on xfs.
+ld: drivers/misc/fastrpc.o: in function `fastrpc_free_map':
+fastrpc.c:(.text+0xbe): undefined reference to `dma_buf_unmap_attachment'
+ld: fastrpc.c:(.text+0xcb): undefined reference to `dma_buf_detach'
+ld: fastrpc.c:(.text+0xd4): undefined reference to `dma_buf_put'
+ld: drivers/misc/fastrpc.o: in function `fastrpc_map_create':
+fastrpc.c:(.text+0xb2b): undefined reference to `dma_buf_get'
+ld: fastrpc.c:(.text+0xb47): undefined reference to `dma_buf_attach'
+ld: fastrpc.c:(.text+0xb61): undefined reference to `dma_buf_map_attachment'
+ld: fastrpc.c:(.text+0xc36): undefined reference to `dma_buf_put'
+ld: fastrpc.c:(.text+0xc48): undefined reference to `dma_buf_detach'
+ld: drivers/misc/fastrpc.o: in function `fastrpc_device_ioctl':
+fastrpc.c:(.text+0x1756): undefined reference to `dma_buf_get'
+ld: fastrpc.c:(.text+0x1776): undefined reference to `dma_buf_put'
+ld: fastrpc.c:(.text+0x1780): undefined reference to `dma_buf_put'
+ld: fastrpc.c:(.text+0x1abf): undefined reference to `dma_buf_export'
+ld: fastrpc.c:(.text+0x1ae7): undefined reference to `dma_buf_fd'
+ld: fastrpc.c:(.text+0x1cb5): undefined reference to `dma_buf_put'
+ld: fastrpc.c:(.text+0x1cca): undefined reference to `dma_buf_put'
 
-> So just running xfstests "blindly" doesn't add much value beyond ltp
-> I think.
 
-Well, we differ on the value of running regression tests, then.  The
-whole point of a test infrastructure is that it's simple to run 'make
-check' in autoconf parlance.  xfstests does provide a useful baseline
-set of regression tests.  However, since my goal is primarily to detect
-problems in the storage path rather than the filesystem, the utility is
-exercising that path, although I fully appreciate that filesystem
-regression tests aren't going to catch every SCSI issue, they do
-provide some level of assurance against bugs.
 
-Hopefully we can switch over to blktests when it's ready, but in the
-meantime xfstests is way better than nothing.
-
-James
+-- 
+~Randy
 
