@@ -2,238 +2,207 @@ Return-Path: <SRS0=AfK9=QX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.7 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 006E7C43381
-	for <linux-mm@archiver.kernel.org>; Sat, 16 Feb 2019 08:05:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4C68C10F00
+	for <linux-mm@archiver.kernel.org>; Sat, 16 Feb 2019 10:55:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 870C7222D7
-	for <linux-mm@archiver.kernel.org>; Sat, 16 Feb 2019 08:05:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 870C7222D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 3C7E2222E3
+	for <linux-mm@archiver.kernel.org>; Sat, 16 Feb 2019 10:55:19 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="gTSYYkp1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C7E2222E3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DDDA98E0002; Sat, 16 Feb 2019 03:05:04 -0500 (EST)
+	id 963678E0002; Sat, 16 Feb 2019 05:55:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D63A58E0001; Sat, 16 Feb 2019 03:05:04 -0500 (EST)
+	id 9128E8E0001; Sat, 16 Feb 2019 05:55:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C54218E0002; Sat, 16 Feb 2019 03:05:04 -0500 (EST)
+	id 8296F8E0002; Sat, 16 Feb 2019 05:55:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A42D8E0001
-	for <linux-mm@kvack.org>; Sat, 16 Feb 2019 03:05:04 -0500 (EST)
-Received: by mail-it1-f199.google.com with SMTP id z3so20058847itj.2
-        for <linux-mm@kvack.org>; Sat, 16 Feb 2019 00:05:04 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 443478E0001
+	for <linux-mm@kvack.org>; Sat, 16 Feb 2019 05:55:18 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id k10so9558243pfi.5
+        for <linux-mm@kvack.org>; Sat, 16 Feb 2019 02:55:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:message-id:subject:from:to;
-        bh=ATDW+1im1+6McfmFYNDyHPkRS2FcJXcAGn4j03Aw5xA=;
-        b=tVlo93e3wToCr0qA/2frm8Rf/+kk/weOm4QHEoHhWNVGs9O5bXk6v2QxnowrIYIUsV
-         PZVbWizC2YJB9U1tFBto3BeHgqjv7Xg03XyWlcvfZ3u6Lf9xkWISag7YDBBDiOQe5oBW
-         E6yFB2Zs988Pnywn6lYFYJvK0hmLbcOeBKJlyH3Bz4S1/gQhCXI99tpHqA9R5CVluCEp
-         ihv5dIgEaqXIsKwvyJW4M2YsvF6ej3wgJCT8Zct0Qe295q9qynuWaIrn79SSGtxisRhe
-         w941heHqeIXlM15Xqo7YMuBxScEZlGsZynztvtDG4v/mf/GsIL1nAQI9P6ZVHKxvF6Kk
-         8hvg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3lsrnxakbad8tz0lbmmfsbqqje.hpphmfvtfsdpoufou.dpn@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3LsRnXAkbAD8tz0lbmmfsbqqje.hpphmfvtfsdpoufou.dpn@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: AHQUAuZ+5+BCHfrQB+Bdjl2CWitG5SoHiwGKAibUQlBkY9SQMXvUhHqG
-	+m7PWfvgNpR8fk7TUgmh7tJ9q8jOcRP040maGeLf82R4YQi/6t5VefoT29USbtp8zjpaoYeKMtJ
-	gGbsLfeGsB8tHBJgLINJOl9VSi60HOrjvfPze4jExxPg6lOBRl3lGlFnYvbK/VrR3sXGzSo/J2y
-	4aLFBagSUdqRQPjtCZbUUKpwY7Z9VD5KIdkOW2nCCTbNVkNmqqYfG8bMR5rN7zUPToN/20spyEa
-	vP6p5tla3fmutPz8lBNdfbdCYg8E7tA9n2n3lld48f4dQt7NDTGQjlPvtiyxZ3sNbYhg9nUKqIo
-	HsEpaYf9csB31gGLkAq74/dtO2bW01r002GbNqZngacCnCqfY4oRM6x6Cxa64K1jYU1LbFZ9zw=
-	=
-X-Received: by 2002:a5d:8198:: with SMTP id u24mr7890021ion.177.1550304304319;
-        Sat, 16 Feb 2019 00:05:04 -0800 (PST)
-X-Received: by 2002:a5d:8198:: with SMTP id u24mr7889990ion.177.1550304303274;
-        Sat, 16 Feb 2019 00:05:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550304303; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=1Ubpr1Ey/DmY/KE61Qrh0yzi4L35UYNNw5PJu00uODc=;
+        b=lJLmaRMRQUYknSjrmxnmf81/iHCYXOYpcBcuIA/3wrdJwUDWgO7mfybhDbZjHyQ7qI
+         f2FAirjoR+pKDCQhfUwtK09o07QLZujwlA+FLYFL/9+C2DrS4fFHqou2Idw4bRr3syQc
+         xQweVGhA83iExrhzk5u+oAizV5SMnfGpXk/bCpys6xQ37yoGYvZoC0J7Z5anxMJ26Vrs
+         yiywK2JDxDB20QMRVN6JQVxAY/Ytwsq3mDM0wKuYg/mtKWrK38UTBysGgQAnb8V+G1xJ
+         ZNHLvpScPBchJVaeh7P6HfrZC9L69EPPBYUCGfuohC7BN7qSk6cB022C3Sum6DGzX7sz
+         jETQ==
+X-Gm-Message-State: AHQUAuaqePG7YC+Ks8B4QKPkC1hgky7EcpfFJ1Z4YXyLQhjEOkXXCREz
+	8qJ6eyQ5JeZKinp4bq7q39ExGlu89IYLc5a14eVHS62+KGhHSb0VAE4dJUV11Wu14Y/qtP4pIaB
+	37Uylo1w/BbCbB2g/cdl2VpDsQpbAQT2BiVZ0ndyzoCIiLgtQ3G2CGnnAtLSb53KPlsXRFDuLPv
+	oVxD8E+mYO8mHdTfZz+vXWuArNfrt5PEUD8f3Ct8UJpL/D6mGrG4qXNZQUSjotMAZbtZONJRaSL
+	W37wONJmnmnDzJVJPvtTIg4tqbDVmH3fmHK7Z2qIsNk3QF3f8W5yuABeJj3G1jEpJAv2vjH6d0g
+	mdkk+vhsjUOCUsAn6UIG8p3Hgk2W53eMu3Ao2DBmmbAVenGUy9KM2wcWKw1RxQqF3G68SYne0FD
+	V
+X-Received: by 2002:a62:57dd:: with SMTP id i90mr14356966pfj.154.1550314517675;
+        Sat, 16 Feb 2019 02:55:17 -0800 (PST)
+X-Received: by 2002:a62:57dd:: with SMTP id i90mr14356918pfj.154.1550314516651;
+        Sat, 16 Feb 2019 02:55:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550314516; cv=none;
         d=google.com; s=arc-20160816;
-        b=WIggDAq4FDgv/c/l6wmRRc4pWqpQUYCBAAt10IiZm0YQV0Pu6/mpOpcaZtVMtjzBb4
-         b02pIjHgKRY3ajeBBxjBHEcClZiqlcd+MUp/3rFznwqIsXebL9Fjg2jr9IPzKKDmhycp
-         +4hQTbgeUKSXeNGWnAhAKuBZR/RYILh4LP7cy96J3AR0ggBntH/Az8JCB6184V4Dn9Z9
-         GoFif6mHGgzpHiAJsqc7NpVLAYvb6YARfDG3OjWJw+D+dfcOMTE8xk2xwl2ZvFv7WOKU
-         xmOueuWlhdQ7CGiUR1BqjlKyoKo19938fq8fO770x2RuDpYdNsH6+daLVSpJZpg3Z98g
-         /qOQ==
+        b=ggkJBOZiIX1qgFZF/aNSvWe5Gx6w7BODCGsJkPRzXj1Q4jKujGy9FWptC/95i/wMde
+         N9guXTRcM3olgcBPRxNtrzqw2qS9fTG+qtAKWTZ7jFXtTHkbw2AGV6rah24KYSat6nJP
+         x3fy2puwor5Ce9bCMf/nOgARWVC3Og/Iz8fQwvDWA1hnYrXHvd2nLIItYXf+WOmAQ5sJ
+         XVu8Hhe6pwmOmofqo0nK30E3U11sARgVC5JYKySB3iHmhJ+ZmiIyRfSabcGx+dbORGty
+         aZ2boxqxxQpXnUtYOIePRgeQ8rkBW+JkpxlkFv/hSw2pGB0hQp8H2ITYpZ3S8FfaPJzS
+         v06A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:from:subject:message-id:date:mime-version;
-        bh=ATDW+1im1+6McfmFYNDyHPkRS2FcJXcAGn4j03Aw5xA=;
-        b=AXbdQYRGXLkwzVzBink6ZFr9zBQli+rONFSuAa95vessYsrAl79HnwdUIdaH86caOW
-         z+wp9FlpwdDKCrMY/eSyKvM82sExiPNqX3G77dSVQgDJpRTyalKe2uBRjNLSyBWdlIa9
-         qZTFdETZCoUGJdCxQRs8B5Ecoaj5CxrLzEHUtj6yP6IDtSSMkg3WaiwHkCoyooSYFLp5
-         yVReo3Fp6t7cX1GWp67qiV1jz41+/CTaeq+6YOpJnHWJ+zKx83J7FTTSlPIhHiky2VZt
-         15YBPKfJj3lnlZ8Y8//oOkaDrJLMVCIJwj7HjntxHjCcAVyUpNj5OJi/5TY8zaI3aDnz
-         bHTA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=1Ubpr1Ey/DmY/KE61Qrh0yzi4L35UYNNw5PJu00uODc=;
+        b=MzEKcmLi2oSQHQe7n3hxNAAnJDLWxAAXqnidjRD78Nevpr/Z13jXCRc5NhlTo0m8FM
+         k5r8aEyfCI+E37pRFtLyW1gs87ncuKocIEtgo+PkUVs7v0JPlHvEouq3WWLPtjFaX380
+         td/3Ve3yTvtRRdcpejbnbAY+FccICVTAc57MTX3saWSrXF+6F+TpY+aGkShweFbJ1uVh
+         irT64knvPPdwo0pkHQUli7lY39gNehph1sDe8XrePI5V1FCQPtgYy60ORnbqK2Lo2dh8
+         PQnnZPj08A3f82oIHS2g4FbDaS4Ioz3+2yMK2hK+j/R93E5evGr79/RDXyR0exR+z+uc
+         GsRQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 3lsrnxakbad8tz0lbmmfsbqqje.hpphmfvtfsdpoufou.dpn@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3LsRnXAkbAD8tz0lbmmfsbqqje.hpphmfvtfsdpoufou.dpn@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id 5sor12726391itx.25.2019.02.16.00.05.03
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gTSYYkp1;
+       spf=pass (google.com: domain of bsingharora@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bsingharora@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b10sor12417027plm.14.2019.02.16.02.55.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 16 Feb 2019 00:05:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of 3lsrnxakbad8tz0lbmmfsbqqje.hpphmfvtfsdpoufou.dpn@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+        Sat, 16 Feb 2019 02:55:16 -0800 (PST)
+Received-SPF: pass (google.com: domain of bsingharora@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 3lsrnxakbad8tz0lbmmfsbqqje.hpphmfvtfsdpoufou.dpn@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3LsRnXAkbAD8tz0lbmmfsbqqje.hpphmfvtfsdpoufou.dpn@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: AHgI3Ia92SHGf1uRvzKXxRULFuC5aOsfpJchL24HY98Qr8l6q1wKFAYqRekHkUXGhVmVXmxNRi9DW5FONKDfO/+LGphUSnyq5TUN
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gTSYYkp1;
+       spf=pass (google.com: domain of bsingharora@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bsingharora@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=1Ubpr1Ey/DmY/KE61Qrh0yzi4L35UYNNw5PJu00uODc=;
+        b=gTSYYkp1t3MnTZM0YoT8ot7TKpB/68aT35/5SpKN4og5QIhe8orF0G0hFRBEdlhzSZ
+         QUI97HjYOShyGwqv/RBr4sBgk9vJyWEO/KhEYRDTdKe6kqbIepfy1i+jNqeQgQT5i9nx
+         GUT3mzRHk+JnWlSPY2PQ4JzIm2C4WlnViSb8R+UVlPdqwnIYhtEjM3wD/9jy4iHCKAmO
+         d82k+tDkXgOQBBQWmicHzH0OcQPf3Q7Xzm0PhQK0a7GDmXsghgaioI8raZ1m0wk67uD8
+         2i1TAfvSNY8TgWPw0OuZRv8Wh3Gf7KjwfDCTRQYBPrTOEheaKTZfu7uTA3x1GSXnyf7M
+         GtXw==
+X-Google-Smtp-Source: AHgI3IaJGJ4E5JLUuz+5RAh+KUilztY5KioLABGSyqMSqji8EHYOrI10oopn/wpXsFIzfD3Hl7vpJg==
+X-Received: by 2002:a17:902:2dc3:: with SMTP id p61mr14670803plb.166.1550314515841;
+        Sat, 16 Feb 2019 02:55:15 -0800 (PST)
+Received: from localhost (123-243-232-193.tpgi.com.au. [123.243.232.193])
+        by smtp.gmail.com with ESMTPSA id p12sm17159170pfj.81.2019.02.16.02.55.14
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sat, 16 Feb 2019 02:55:15 -0800 (PST)
+Date: Sat, 16 Feb 2019 21:55:11 +1100
+From: Balbir Singh <bsingharora@gmail.com>
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: linuxppc-dev@ozlabs.org, aneesh.kumar@linux.vnet.ibm.com, jack@suse.cz,
+	erhard_f@mailbox.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH] powerpc/64s: Fix possible corruption on big endian due
+ to pgd/pud_present()
+Message-ID: <20190216105511.GA31125@350D>
+References: <20190214062339.7139-1-mpe@ellerman.id.au>
 MIME-Version: 1.0
-X-Received: by 2002:a24:6c93:: with SMTP id w141mr7459266itb.35.1550304302976;
- Sat, 16 Feb 2019 00:05:02 -0800 (PST)
-Date: Sat, 16 Feb 2019 00:05:02 -0800
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <00000000000045d4f10581fe59a7@google.com>
-Subject: KASAN: use-after-free Read in shmem_fault
-From: syzbot <syzbot+56fbe62f8c55f860fd99@syzkaller.appspotmail.com>
-To: hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
-	syzkaller-bugs@googlegroups.com
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190214062339.7139-1-mpe@ellerman.id.au>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Thu, Feb 14, 2019 at 05:23:39PM +1100, Michael Ellerman wrote:
+> In v4.20 we changed our pgd/pud_present() to check for _PAGE_PRESENT
+> rather than just checking that the value is non-zero, e.g.:
+> 
+>   static inline int pgd_present(pgd_t pgd)
+>   {
+>  -       return !pgd_none(pgd);
+>  +       return (pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
+>   }
+> 
+> Unfortunately this is broken on big endian, as the result of the
+> bitwise && is truncated to int, which is always zero because
 
-syzbot found the following crash on:
+Not sure why that should happen, why is the result an int? What
+causes the casting of pgd_t & be64 to be truncated to an int.
 
-HEAD commit:    aa0c38cf39de Merge branch 'fixes' of git://git.kernel.org/..
-git tree:       upstream
-console output: https://syzkaller.appspot.com/x/log.txt?x=146cadff400000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=ee434566c893c7b1
-dashboard link: https://syzkaller.appspot.com/bug?extid=56fbe62f8c55f860fd99
-compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+> _PAGE_PRESENT is 0x8000000000000000ul. This means pgd_present() and
+> pud_present() are always false at compile time, and the compiler
+> elides the subsequent code.
+> 
+> Remarkably with that bug present we are still able to boot and run
+> with few noticeable effects. However under some work loads we are able
+> to trigger a warning in the ext4 code:
+> 
+>   WARNING: CPU: 11 PID: 29593 at fs/ext4/inode.c:3927 .ext4_set_page_dirty+0x70/0xb0
+>   CPU: 11 PID: 29593 Comm: debugedit Not tainted 4.20.0-rc1 #1
+>   ...
+>   NIP .ext4_set_page_dirty+0x70/0xb0
+>   LR  .set_page_dirty+0xa0/0x150
+>   Call Trace:
+>    .set_page_dirty+0xa0/0x150
+>    .unmap_page_range+0xbf0/0xe10
+>    .unmap_vmas+0x84/0x130
+>    .unmap_region+0xe8/0x190
+>    .__do_munmap+0x2f0/0x510
+>    .__vm_munmap+0x80/0x110
+>    .__se_sys_munmap+0x14/0x30
+>    system_call+0x5c/0x70
+> 
+> The fix is simple, we need to convert the result of the bitwise && to
+> an int before returning it.
+> 
+> Thanks to Jan Kara and Aneesh for help with debugging.
+> 
+> Fixes: da7ad366b497 ("powerpc/mm/book3s: Update pmd_present to look at _PAGE_PRESENT bit")
+> Cc: stable@vger.kernel.org # v4.20+
+> Reported-by: Erhard F. <erhard_f@mailbox.org>
+> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> Signed-off-by: Michael Ellerman <mpe@ellerman.id.au>
+> ---
+>  arch/powerpc/include/asm/book3s/64/pgtable.h | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+> index c9bfe526ca9d..d8c8d7c9df15 100644
+> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
+> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+> @@ -904,7 +904,7 @@ static inline int pud_none(pud_t pud)
+>  
+>  static inline int pud_present(pud_t pud)
+>  {
+> -	return (pud_raw(pud) & cpu_to_be64(_PAGE_PRESENT));
+> +	return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PRESENT));
+>  }
+>  
+>  extern struct page *pud_page(pud_t pud);
+> @@ -951,7 +951,7 @@ static inline int pgd_none(pgd_t pgd)
+>  
+>  static inline int pgd_present(pgd_t pgd)
+>  {
+> -	return (pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
+> +	return !!(pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
+>  }
+>
 
-Unfortunately, I don't have any reproducer for this crash yet.
+Care to put a big FAT warning, so that we don't repeat this again
+(as in authors planning on changing these bits). 
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+56fbe62f8c55f860fd99@syzkaller.appspotmail.com
-
-==================================================================
-BUG: KASAN: use-after-free in __lock_acquire+0x30e0/0x4700  
-kernel/locking/lockdep.c:3215
-Read of size 8 at addr ffff888098eda1a0 by task syz-executor.2/16643
-
-CPU: 0 PID: 16643 Comm: syz-executor.2 Not tainted 5.0.0-rc6+ #68
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
-  __dump_stack lib/dump_stack.c:77 [inline]
-  dump_stack+0x172/0x1f0 lib/dump_stack.c:113
-  print_address_description.cold+0x7c/0x20d mm/kasan/report.c:187
-  kasan_report.cold+0x1b/0x40 mm/kasan/report.c:317
-  __asan_report_load8_noabort+0x14/0x20 mm/kasan/generic_report.c:135
-  __lock_acquire+0x30e0/0x4700 kernel/locking/lockdep.c:3215
-  lock_acquire+0x16f/0x3f0 kernel/locking/lockdep.c:3841
-  __raw_spin_lock include/linux/spinlock_api_smp.h:142 [inline]
-  _raw_spin_lock+0x2f/0x40 kernel/locking/spinlock.c:144
-  spin_lock include/linux/spinlock.h:329 [inline]
-  shmem_fault+0x5b4/0x760 mm/shmem.c:1972
-  __do_fault+0x116/0x4e0 mm/memory.c:3019
-  do_read_fault mm/memory.c:3430 [inline]
-  do_fault mm/memory.c:3556 [inline]
-  handle_pte_fault mm/memory.c:3787 [inline]
-  __handle_mm_fault+0x2cbd/0x3f20 mm/memory.c:3911
-  handle_mm_fault+0x43f/0xb30 mm/memory.c:3948
-  faultin_page mm/gup.c:535 [inline]
-  __get_user_pages+0x7b6/0x1a40 mm/gup.c:738
-  populate_vma_page_range+0x20d/0x2a0 mm/gup.c:1247
-  __mm_populate+0x204/0x380 mm/gup.c:1295
-  mm_populate include/linux/mm.h:2388 [inline]
-  vm_mmap_pgoff+0x213/0x230 mm/util.c:355
-  ksys_mmap_pgoff+0xf7/0x630 mm/mmap.c:1609
-  __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
-  __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
-  __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
-  do_syscall_64+0x103/0x610 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-RIP: 0033:0x457e39
-Code: ad b8 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7  
-48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
-ff 0f 83 7b b8 fb ff c3 66 2e 0f 1f 84 00 00 00 00
-RSP: 002b:00007fe43bdebc78 EFLAGS: 00000246 ORIG_RAX: 0000000000000009
-RAX: ffffffffffffffda RBX: 0000000000000006 RCX: 0000000000457e39
-RDX: 0000000000000003 RSI: 0000000000b36000 RDI: 0000000020000000
-RBP: 000000000073bf00 R08: ffffffffffffffff R09: 0000000000000000
-R10: 0000000000008031 R11: 0000000000000246 R12: 00007fe43bdec6d4
-R13: 00000000004c3b9e R14: 00000000004d6c88 R15: 00000000ffffffff
-
-Allocated by task 16643:
-  save_stack+0x45/0xd0 mm/kasan/common.c:73
-  set_track mm/kasan/common.c:85 [inline]
-  __kasan_kmalloc mm/kasan/common.c:496 [inline]
-  __kasan_kmalloc.constprop.0+0xcf/0xe0 mm/kasan/common.c:469
-  kasan_kmalloc mm/kasan/common.c:504 [inline]
-  kasan_slab_alloc+0xf/0x20 mm/kasan/common.c:411
-  kmem_cache_alloc+0x12d/0x710 mm/slab.c:3543
-  shmem_alloc_inode+0x1c/0x50 mm/shmem.c:3544
-  alloc_inode+0x66/0x190 fs/inode.c:210
-  new_inode_pseudo+0x19/0xf0 fs/inode.c:906
-  new_inode+0x1f/0x40 fs/inode.c:935
-  shmem_get_inode+0x84/0x780 mm/shmem.c:2148
-  __shmem_file_setup.part.0+0x1e2/0x2b0 mm/shmem.c:3900
-  __shmem_file_setup mm/shmem.c:3894 [inline]
-  shmem_kernel_file_setup mm/shmem.c:3930 [inline]
-  shmem_zero_setup+0xe2/0x474 mm/shmem.c:3974
-  mmap_region+0x136c/0x1760 mm/mmap.c:1802
-  do_mmap+0x8e2/0x1080 mm/mmap.c:1559
-  do_mmap_pgoff include/linux/mm.h:2379 [inline]
-  vm_mmap_pgoff+0x1c5/0x230 mm/util.c:350
-  ksys_mmap_pgoff+0xf7/0x630 mm/mmap.c:1609
-  __do_sys_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
-  __se_sys_mmap arch/x86/kernel/sys_x86_64.c:91 [inline]
-  __x64_sys_mmap+0xe9/0x1b0 arch/x86/kernel/sys_x86_64.c:91
-  do_syscall_64+0x103/0x610 arch/x86/entry/common.c:290
-  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-
-Freed by task 16:
-  save_stack+0x45/0xd0 mm/kasan/common.c:73
-  set_track mm/kasan/common.c:85 [inline]
-  __kasan_slab_free+0x102/0x150 mm/kasan/common.c:458
-  kasan_slab_free+0xe/0x10 mm/kasan/common.c:466
-  __cache_free mm/slab.c:3487 [inline]
-  kmem_cache_free+0x86/0x260 mm/slab.c:3749
-  shmem_destroy_callback+0x6e/0xc0 mm/shmem.c:3555
-  __rcu_reclaim kernel/rcu/rcu.h:240 [inline]
-  rcu_do_batch kernel/rcu/tree.c:2452 [inline]
-  invoke_rcu_callbacks kernel/rcu/tree.c:2773 [inline]
-  rcu_process_callbacks+0x928/0x1390 kernel/rcu/tree.c:2754
-  __do_softirq+0x266/0x95a kernel/softirq.c:292
-
-The buggy address belongs to the object at ffff888098eda000
-  which belongs to the cache shmem_inode_cache(49:syz2) of size 1184
-The buggy address is located 416 bytes inside of
-  1184-byte region [ffff888098eda000, ffff888098eda4a0)
-The buggy address belongs to the page:
-page:ffffea000263b680 count:1 mapcount:0 mapping:ffff888085ba8d80  
-index:0xffff888098edaffd
-flags: 0x1fffc0000000200(slab)
-raw: 01fffc0000000200 ffffea000283a708 ffffea00029ce6c8 ffff888085ba8d80
-raw: ffff888098edaffd ffff888098eda000 0000000100000001 ffff88805755e540
-page dumped because: kasan: bad access detected
-page->mem_cgroup:ffff88805755e540
-
-Memory state around the buggy address:
-  ffff888098eda080: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-  ffff888098eda100: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> ffff888098eda180: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-                                ^
-  ffff888098eda200: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-  ffff888098eda280: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-==================================================================
-
-
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
-
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-syzbot.
+Balbir Singh.
+  
 
