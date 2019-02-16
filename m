@@ -2,127 +2,154 @@ Return-Path: <SRS0=AfK9=QX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C19CC4360F
-	for <linux-mm@archiver.kernel.org>; Sat, 16 Feb 2019 00:56:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 39E90C43381
+	for <linux-mm@archiver.kernel.org>; Sat, 16 Feb 2019 02:18:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B9DC6222DF
-	for <linux-mm@archiver.kernel.org>; Sat, 16 Feb 2019 00:56:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9DC6222DF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id D3F72222D0
+	for <linux-mm@archiver.kernel.org>; Sat, 16 Feb 2019 02:18:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3F72222D0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 46C6A8E0002; Fri, 15 Feb 2019 19:56:19 -0500 (EST)
+	id 281A18E0002; Fri, 15 Feb 2019 21:18:44 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 41B838E0001; Fri, 15 Feb 2019 19:56:19 -0500 (EST)
+	id 22FCD8E0001; Fri, 15 Feb 2019 21:18:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 36AD08E0002; Fri, 15 Feb 2019 19:56:19 -0500 (EST)
+	id 11F238E0002; Fri, 15 Feb 2019 21:18:44 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 043F68E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 19:56:19 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id j32so8003317pgm.5
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 16:56:18 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D5E348E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 21:18:43 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id i4so5958402otf.3
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 18:18:43 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=2N2EWSe2QIjfFUIlI7BzyvrKm4weSNV599whd376Ke4=;
-        b=pQUfJfp6NlwS01WPnGSNANaziu3m4e84Tp45TK/gQNbj4Ad2s02NDY5J1XRhgA/SCg
-         ujaSofGxRDZyOq+BbK0DwsXf7nY+a2KV+oRtfXRS6jyrz9xW0BWsRqpVDujk0TenwA3a
-         yBv0Epz4DchnoQjWYP+WjD+2n/7n3DaS/vxYA4AmC1x5KD+wEDEdcCyvm/V9ZS7DZIrz
-         DXZESgehWrLdaEQySKozSsZL1r/utVDzB2tnhJuBkZLy49Smm8fOQmGnNxvW1WO90GQa
-         vStH17wjEuG+tvPZNeDdEvYM/RxzPtut3dSEQLXXYYrdJNUtPZs8E7Rs4FIayEoC9HzU
-         7SOA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: AHQUAuZkUFReTF/27rFGghLWcUCwBmrKsjl2CLDaD5xlAXhifjvUJSaP
-	JYg9ixTYHCU6pRupddt7RpANE3qOvgJDqm9KlBXq1ZNyxymdF13wc9yvi78/R+3I0CCjMsUGe4K
-	TvoPeUda3s3ACRwhMuVJvmbtuXs+RXJYqLvNiua4EWE09oMS1YUzr9ez8X+6xier+dQ==
-X-Received: by 2002:a62:569b:: with SMTP id h27mr12275659pfj.163.1550278578580;
-        Fri, 15 Feb 2019 16:56:18 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaQmUo4DAaw+ea6Sm2wMmxRhUk506gS2c3tSUKWkFevAVr2Hgv4rghOE7vs4885qR8a88Nl
-X-Received: by 2002:a62:569b:: with SMTP id h27mr12275613pfj.163.1550278577820;
-        Fri, 15 Feb 2019 16:56:17 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550278577; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=cvyCuyOPTdVhsKv//0bWBBKQQA8ZYZfiC6FsQJbeOj4=;
+        b=f2cFC4r1CA/NNdRJTXbVlcZzXYnD6HGFejz76oQL+cNYjFsdpYP9eDBwDcv6LZUiGI
+         qC4FFqJaeZZuN+nXNkKFdfKiQqp0UOghBEJNBsIzFKWzJ9L9aOQq8O2qH48+TAswcmun
+         kc3RlwEVR0Z6mqFQfrU24FpabzrYqRMKmxXxNaPX1iosxxRG7Vpc6uIvTUv9hiGxgYE3
+         K7g5WEcvASybjprBj5ueS8KYkHHvNAtMca/gcVxK2zBEUHkOFW91fn6gEn3U6ehSdmhY
+         RzF1aE5BpvIVVqRGEqCqvinc8de3yU15ZOz6JQWqTyOoPxUeRaBslF/wJR70NXHX+MJn
+         yT9A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: AHQUAuZdTHx8xn016fdVpzTYOcx4cKRK83mzpuepQkL/YlXD1tUu0rnj
+	CY1pbjGg6aHd10GHGP0bAC7i5PCBCaCHnReiZXpGargIPxqC9qOtNMGmWm5umqhmCeN8cQbjf7q
+	SD9WJ5AbSb21r2zCc5INcAL6ElIPNwGK9MuvNjz9Zr2j2KcmOP4TwzZKjjfUrXgniHA==
+X-Received: by 2002:a9d:6b94:: with SMTP id b20mr7465342otq.42.1550283523569;
+        Fri, 15 Feb 2019 18:18:43 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYZjlRmL2PCetgGsgISs64EXo7h8V9mHd4EKJJih2Niw2Rw+Az18N4jaq13p3kIyGrMiPDA
+X-Received: by 2002:a9d:6b94:: with SMTP id b20mr7465318otq.42.1550283522804;
+        Fri, 15 Feb 2019 18:18:42 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550283522; cv=none;
         d=google.com; s=arc-20160816;
-        b=hfV4uV7DW9Uw5ttZxVVxTzAr3EE7XH4qYUaf/lE6f7XPw/cdfypNXhS6IfZom/zU5+
-         zXUh5iV8RBRK4uw8/TeNVhFFIpFCgGB0d7eo1Yc9TFB98didy684wE28CLrFzKjCWnqB
-         gdwp7NQUbe2VwnAG6za4F/mqbd8zaUU1iJEHMA1gb9DEVza4KnzB9chR82+gTh0QaG9N
-         4Hxma6wGbH/TqfOmeszNUTyJcPbRLrS+73RgMbUg2ZqaT1qcLHVT2uIxJkBKFsOywT6p
-         JMk5vjdaUjvNuKXrm31thDZqxTOEj2n2lql4zEWS3cHMyZ39YSWrqB9AaWD0g57xwT3D
-         pDog==
+        b=LVvD6XtXzLL2L7OhUAR+7Lgxf91bAn/LYXgVMS5rPEDHra9JDkPLkl8NsCw1WPQue8
+         xngr6ptWBYWVRg/baeyKVzUeFno76jtyCF9eB5o1clSdqyplDu/AIz1Xq/LJrxTjcPS8
+         jKVBHYNshf9Ez5aXe1lCJEMBDEQe+Dg5dMIxCyVmJvh+g8PO5iVx+K1zXmGzxRGAKabS
+         kD+GxYm3C9XW7e/M5bh7ph/cD74HeJ37gjCe7ky5ZGcTB+3DfjoLcWljDjY+Tdhi6cPG
+         jrn2LBUG4/lZJyfZIfbkjpXRAY63/3iv88bsp2j7Wk1o+aHB8LT1iuumsytXO836SBjR
+         rJjA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=2N2EWSe2QIjfFUIlI7BzyvrKm4weSNV599whd376Ke4=;
-        b=gWug9g9HcuByqFt2EvTk/FuaroCgeSD/2R+n18VeaC3vTdzuOMLzYbnEi9SZSUN32F
-         7Z+xGE9j40uRF/OyGFDuSb3lZlUb0VI5unsICMKDA/jEdFk+d1rgaMOb2ibJj3onWnKQ
-         5P+lLqhfho3ORl0N667Rk1dXdGoQ8to3BCjHrKPaiYDrB/dInqgr/W0RHSbUPE+6xLl/
-         EMFn/zfPdtHXBiApLEjiEUVzMxjLJYUWbjHAhbwxhdsBEaeXoJmNXUgZwPjh85o1gLaL
-         uHUVE5dLLCjq+9mznWtTgwGW2bpvreEAPpQYPNTAJscnzwZjGBV6VsS/I6hoha19+R2x
-         0Krg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=cvyCuyOPTdVhsKv//0bWBBKQQA8ZYZfiC6FsQJbeOj4=;
+        b=UI17tddJLgLXeUFy0JtT+TFV2AoI9b0/LJz0sUbAINtfZE/zp+d2seiNvcLqG69j7/
+         Y0bIcTqsJD1bNKej42t7JD+j+0iBgK5qSOVSS+ihFjdXL7GXA7a7odp5XQk7t/Yuuqar
+         Utf38TXIzNDUGxqm53UBJ4XHMrh/0TliCgRM46+TQYwGwc+Wf0RM9zLfsqtaKR1IwStQ
+         /gGsbx1JjSfV6lvKaDaft5TWMJ+lFkEn995vrnVZ09pbJqDwotpDt+9658KP8b7Ex1nf
+         X+3lu6SM3zxlC8tNomC7TX2SuQIXBO594D9iyNM7PqHZVav/tLOmgiH/VYdFyClTKcTv
+         Gdlg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-42.freemail.mail.aliyun.com (out30-42.freemail.mail.aliyun.com. [115.124.30.42])
-        by mx.google.com with ESMTPS id l192si2454871pge.280.2019.02.15.16.56.16
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id x186si1546092oif.108.2019.02.15.18.18.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 16:56:17 -0800 (PST)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) client-ip=115.124.30.42;
+        Fri, 15 Feb 2019 18:18:42 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R181e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e01424;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TKBzhpr_1550278564;
-Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TKBzhpr_1550278564)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Sat, 16 Feb 2019 08:56:15 +0800
-From: Yang Shi <yang.shi@linux.alibaba.com>
-To: tj@kernel.org,
-	hannes@cmpxchg.org,
-	corbet@lwn.net
-Cc: yang.shi@linux.alibaba.com,
-	cgroups@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH] doc: cgroup: correct the wrong information about measure of memory pressure
-Date: Sat, 16 Feb 2019 08:56:04 +0800
-Message-Id: <1550278564-81540-1-git-send-email-yang.shi@linux.alibaba.com>
-X-Mailer: git-send-email 1.8.3.1
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav105.sakura.ne.jp (fsav105.sakura.ne.jp [27.133.134.232])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x1G2ICme056271;
+	Sat, 16 Feb 2019 11:18:12 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav105.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav105.sakura.ne.jp);
+ Sat, 16 Feb 2019 11:18:12 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav105.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x1G2I76W056252
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
+	Sat, 16 Feb 2019 11:18:12 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Subject: Re: [linux-next-20190214] Free pages statistics is broken.
+To: Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, Linux MM <linux-mm@kvack.org>,
+        Andrew Morton <akpm@linux-foundation.org>
+References: <201902150227.x1F2RBhh041762@www262.sakura.ne.jp>
+ <20190215130147.GZ4525@dhcp22.suse.cz>
+ <1189d67e-3672-5364-af89-501cad94a6ac@i-love.sakura.ne.jp>
+ <e7197148-4612-3d6a-f367-1c647193c509@suse.cz>
+ <CAPcyv4ihKWkONbnaParFKLke7sHBWJzXzN2auUKPQvhcEnJjdg@mail.gmail.com>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <11e41efb-e04d-119c-fcaa-24a01b471930@i-love.sakura.ne.jp>
+Date: Sat, 16 Feb 2019 11:18:04 +0900
+User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
+MIME-Version: 1.0
+In-Reply-To: <CAPcyv4ihKWkONbnaParFKLke7sHBWJzXzN2auUKPQvhcEnJjdg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Since PSI has implemented some kind of measure of memory pressure, the
-statement about lack of such measure is not true anymore.
+On 2019/02/16 3:13, Dan Williams wrote:
+> On Fri, Feb 15, 2019 at 9:44 AM Vlastimil Babka <vbabka@suse.cz> wrote:
+>>
+>> On 2/15/19 3:27 PM, Tetsuo Handa wrote:
+>>> On 2019/02/15 22:01, Michal Hocko wrote:
+>>>> On Fri 15-02-19 11:27:10, Tetsuo Handa wrote:
+>>>>> I noticed that amount of free memory reported by DMA: / DMA32: / Normal: fields are
+>>>>> increasing over time. Since 5.0-rc6 is working correctly, some change in linux-next
+>>>>> is causing this problem.
+>>>>
+>>>> Just a shot into the dark. Could you try to disable the page allocator
+>>>> randomization (page_alloc.shuffle kernel command line parameter)? Not
+>>>> that I see any bug there but it is a recent change in the page allocator
+>>>> I am aware of and it might have some anticipated side effects.
+>>>>
+>>>
+>>> I tried CONFIG_SHUFFLE_PAGE_ALLOCATOR=n but problem still exists.
+>>
+>> I think it's the preparation patch [1], even with randomization off:
+>>
+>> @@ -1910,7 +1900,7 @@ static inline void expand(struct zone *zone, struct page *page,
+>>                 if (set_page_guard(zone, &page[size], high, migratetype))
+>>                         continue;
+>>
+>> -               list_add(&page[size].lru, &area->free_list[migratetype]);
+>> +               add_to_free_area(&page[size], area, migratetype);
+>>                 area->nr_free++;
+>>                 set_page_order(&page[size], high);
+>>         }
+>>
+>> This should have removed the 'area->nr_free++;' line, as add_to_free_area()
+>> includes the increment.
+> 
+> Yes, good find! I'll send an incremental fixup patch in a moment
+> unless someone beats me to it.
+> 
 
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Jonathan Corbet <corbet@lwn.net>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
- Documentation/admin-guide/cgroup-v2.rst | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
-
-diff --git a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/admin-guide/cgroup-v2.rst
-index 7bf3f12..9a92013 100644
---- a/Documentation/admin-guide/cgroup-v2.rst
-+++ b/Documentation/admin-guide/cgroup-v2.rst
-@@ -1310,8 +1310,7 @@ network to a file can use all available memory but can also operate as
- performant with a small amount of memory.  A measure of memory
- pressure - how much the workload is being impacted due to lack of
- memory - is necessary to determine whether a workload needs more
--memory; unfortunately, memory pressure monitoring mechanism isn't
--implemented yet.
-+memory.
- 
- 
- Memory Ownership
--- 
-1.8.3.1
+Removing the 'area->nr_free++;' line solved the problem. Thank you.
 
