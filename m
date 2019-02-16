@@ -2,154 +2,155 @@ Return-Path: <SRS0=AfK9=QX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 39E90C43381
-	for <linux-mm@archiver.kernel.org>; Sat, 16 Feb 2019 02:18:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E078C43381
+	for <linux-mm@archiver.kernel.org>; Sat, 16 Feb 2019 03:25:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D3F72222D0
-	for <linux-mm@archiver.kernel.org>; Sat, 16 Feb 2019 02:18:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3F72222D0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
+	by mail.kernel.org (Postfix) with ESMTP id E14D6222A1
+	for <linux-mm@archiver.kernel.org>; Sat, 16 Feb 2019 03:25:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E14D6222A1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 281A18E0002; Fri, 15 Feb 2019 21:18:44 -0500 (EST)
+	id 4237A8E0002; Fri, 15 Feb 2019 22:25:23 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 22FCD8E0001; Fri, 15 Feb 2019 21:18:44 -0500 (EST)
+	id 3ACBB8E0001; Fri, 15 Feb 2019 22:25:23 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 11F238E0002; Fri, 15 Feb 2019 21:18:44 -0500 (EST)
+	id 275768E0002; Fri, 15 Feb 2019 22:25:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D5E348E0001
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 21:18:43 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id i4so5958402otf.3
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 18:18:43 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EBCFA8E0001
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2019 22:25:22 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id q17so10806480qta.17
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2019 19:25:22 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=cvyCuyOPTdVhsKv//0bWBBKQQA8ZYZfiC6FsQJbeOj4=;
-        b=f2cFC4r1CA/NNdRJTXbVlcZzXYnD6HGFejz76oQL+cNYjFsdpYP9eDBwDcv6LZUiGI
-         qC4FFqJaeZZuN+nXNkKFdfKiQqp0UOghBEJNBsIzFKWzJ9L9aOQq8O2qH48+TAswcmun
-         kc3RlwEVR0Z6mqFQfrU24FpabzrYqRMKmxXxNaPX1iosxxRG7Vpc6uIvTUv9hiGxgYE3
-         K7g5WEcvASybjprBj5ueS8KYkHHvNAtMca/gcVxK2zBEUHkOFW91fn6gEn3U6ehSdmhY
-         RzF1aE5BpvIVVqRGEqCqvinc8de3yU15ZOz6JQWqTyOoPxUeRaBslF/wJR70NXHX+MJn
-         yT9A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: AHQUAuZdTHx8xn016fdVpzTYOcx4cKRK83mzpuepQkL/YlXD1tUu0rnj
-	CY1pbjGg6aHd10GHGP0bAC7i5PCBCaCHnReiZXpGargIPxqC9qOtNMGmWm5umqhmCeN8cQbjf7q
-	SD9WJ5AbSb21r2zCc5INcAL6ElIPNwGK9MuvNjz9Zr2j2KcmOP4TwzZKjjfUrXgniHA==
-X-Received: by 2002:a9d:6b94:: with SMTP id b20mr7465342otq.42.1550283523569;
-        Fri, 15 Feb 2019 18:18:43 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYZjlRmL2PCetgGsgISs64EXo7h8V9mHd4EKJJih2Niw2Rw+Az18N4jaq13p3kIyGrMiPDA
-X-Received: by 2002:a9d:6b94:: with SMTP id b20mr7465318otq.42.1550283522804;
-        Fri, 15 Feb 2019 18:18:42 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550283522; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=B/BQUIknTyy/s4WMR9WaEytvAioBqctQ22DeQCXeT4c=;
+        b=K2mj+hRw1TN3LTUt0ddC9Do9UJDoN+TUzz6bHY9ZJ4DE8VIfYzIkH/l2wsJXQYZSQw
+         mtRLeuEEVlOb2BCoJAoWE9lURRn+JE6QFF+X5sNB8C+RiHGSOjJo/zhjteM7oGcw3POX
+         c2hSSCxP+88EgZaC6YxW3XASzkfR3zVTrvzRVVSL8lTDhaJ9Sxyo3GnH0VO0vNmA+8RL
+         vNDvJhQkXUWqDSsScA/AOrZ+OvASHKGT0uRWZNfeIzv9wva8UyQYAstxNyM/PPQD2MOD
+         gWuXC8QYzFW7ngjRbOW5GvFsktEqQznE2x5nlQedXSdbzVjS5p9ITHQdmyyXZlOsynSb
+         h9mQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAuYWjTNA4yIdHNySC2X+iQL2aZa5yEd/QW6eTneamQc1/BW6xXB5
+	YuIDXHX/qQcotlKMTNC+s2KYfkpLJdNBqRcAbVwgcqpSub4X5IrNwY5Ey3HG3N9UzaA8UNBdaBi
+	iURVSQCLUKp09SkV0O2Nraq1zefxCJ1VcM+yc9xakgGCNrszufq2l/FGJSmvYpz1ayA==
+X-Received: by 2002:ae9:d8c5:: with SMTP id u188mr9436318qkf.356.1550287522678;
+        Fri, 15 Feb 2019 19:25:22 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbJxUkOOYpH8mVUzU9avey+vPUH1zlAAZLpII+o3TN927yJDHoFuWcO5Ym4ZdQXhKBiBz0t
+X-Received: by 2002:ae9:d8c5:: with SMTP id u188mr9436299qkf.356.1550287522069;
+        Fri, 15 Feb 2019 19:25:22 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550287522; cv=none;
         d=google.com; s=arc-20160816;
-        b=LVvD6XtXzLL2L7OhUAR+7Lgxf91bAn/LYXgVMS5rPEDHra9JDkPLkl8NsCw1WPQue8
-         xngr6ptWBYWVRg/baeyKVzUeFno76jtyCF9eB5o1clSdqyplDu/AIz1Xq/LJrxTjcPS8
-         jKVBHYNshf9Ez5aXe1lCJEMBDEQe+Dg5dMIxCyVmJvh+g8PO5iVx+K1zXmGzxRGAKabS
-         kD+GxYm3C9XW7e/M5bh7ph/cD74HeJ37gjCe7ky5ZGcTB+3DfjoLcWljDjY+Tdhi6cPG
-         jrn2LBUG4/lZJyfZIfbkjpXRAY63/3iv88bsp2j7Wk1o+aHB8LT1iuumsytXO836SBjR
-         rJjA==
+        b=JqrbzFolUwnQ1UtComyMhMUXOLxsAAsGdl7f4swLMuJRjrUEGCohOJ1Bbkh1pCxi8h
+         q/TcJyspj6M5fImoi80blcsG+fduI+EBUoJ/TJtYPN7EIMhevyDdO95UBEuaJXmXA0oC
+         pDKRCVOKI1x5+dywpl9mAOxMlOWSmhk90ecqZP+i5+cQP3Oa3I1iPZh/8Zwgem4AAVov
+         uc3/T2qbDA2T6fA39WB1NwoJpQnNv9EDZRJurjoj47oDSY6718AaTemf4AZJW6w/Bfp9
+         8ji7LJYHqe7jEnLsJmDhqjw1q2dyVfq/bKepdLihw6MSj1IxwVVwWRsWp9EfHhuDTxik
+         zRbw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=cvyCuyOPTdVhsKv//0bWBBKQQA8ZYZfiC6FsQJbeOj4=;
-        b=UI17tddJLgLXeUFy0JtT+TFV2AoI9b0/LJz0sUbAINtfZE/zp+d2seiNvcLqG69j7/
-         Y0bIcTqsJD1bNKej42t7JD+j+0iBgK5qSOVSS+ihFjdXL7GXA7a7odp5XQk7t/Yuuqar
-         Utf38TXIzNDUGxqm53UBJ4XHMrh/0TliCgRM46+TQYwGwc+Wf0RM9zLfsqtaKR1IwStQ
-         /gGsbx1JjSfV6lvKaDaft5TWMJ+lFkEn995vrnVZ09pbJqDwotpDt+9658KP8b7Ex1nf
-         X+3lu6SM3zxlC8tNomC7TX2SuQIXBO594D9iyNM7PqHZVav/tLOmgiH/VYdFyClTKcTv
-         Gdlg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=B/BQUIknTyy/s4WMR9WaEytvAioBqctQ22DeQCXeT4c=;
+        b=Im+1quNY8FwknpJoQ7QCpC8+MbNPYxb9j96lV+hJn7b0LphdhGnAPUbwdfJ7BmIsHA
+         ObSZdvPoq1Bop1F/NC1UcMJ2jBIGACbTtGV8wV2pGzS0OOxaMyEemFCSNWTIFFaKyXTY
+         koG77buakb961Fame57GJjoyG9fttlAoNFaWTrRrIs+hV9pcy2Vih1gTr0Ieaw0mPr96
+         qbBDbWKD8KW7iNa87xUzrLSLeZhIa2Gl8DczdRl/tYjtTJ7LPeFllMqFK0jrd8kz46ax
+         t/hE+l56ve04zGt0anYZP1o/WzzceU54jnCjficczLq+FPfBJbhG0ETZ/jEnSdDnjQe5
+         eOqg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id x186si1546092oif.108.2019.02.15.18.18.42
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 51si1574015qtu.326.2019.02.15.19.25.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Feb 2019 18:18:42 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+        Fri, 15 Feb 2019 19:25:22 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav105.sakura.ne.jp (fsav105.sakura.ne.jp [27.133.134.232])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x1G2ICme056271;
-	Sat, 16 Feb 2019 11:18:12 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav105.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav105.sakura.ne.jp);
- Sat, 16 Feb 2019 11:18:12 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav105.sakura.ne.jp)
-Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
-	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x1G2I76W056252
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
-	Sat, 16 Feb 2019 11:18:12 +0900 (JST)
-	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
-Subject: Re: [linux-next-20190214] Free pages statistics is broken.
-To: Dan Williams <dan.j.williams@intel.com>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, Linux MM <linux-mm@kvack.org>,
-        Andrew Morton <akpm@linux-foundation.org>
-References: <201902150227.x1F2RBhh041762@www262.sakura.ne.jp>
- <20190215130147.GZ4525@dhcp22.suse.cz>
- <1189d67e-3672-5364-af89-501cad94a6ac@i-love.sakura.ne.jp>
- <e7197148-4612-3d6a-f367-1c647193c509@suse.cz>
- <CAPcyv4ihKWkONbnaParFKLke7sHBWJzXzN2auUKPQvhcEnJjdg@mail.gmail.com>
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Message-ID: <11e41efb-e04d-119c-fcaa-24a01b471930@i-love.sakura.ne.jp>
-Date: Sat, 16 Feb 2019 11:18:04 +0900
-User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 07886127931;
+	Sat, 16 Feb 2019 03:25:21 +0000 (UTC)
+Received: from redhat.com (ovpn-121-232.rdu2.redhat.com [10.10.121.232])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 269D3611C2;
+	Sat, 16 Feb 2019 03:25:20 +0000 (UTC)
+Date: Fri, 15 Feb 2019 22:25:18 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: rcampbell@nvidia.com
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [PATCH] mm/hmm: Fix struct hmm memory leak
+Message-ID: <20190216032517.GB13561@redhat.com>
+References: <20190215215922.29797-1-rcampbell@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4ihKWkONbnaParFKLke7sHBWJzXzN2auUKPQvhcEnJjdg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190215215922.29797-1-rcampbell@nvidia.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Sat, 16 Feb 2019 03:25:21 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/02/16 3:13, Dan Williams wrote:
-> On Fri, Feb 15, 2019 at 9:44 AM Vlastimil Babka <vbabka@suse.cz> wrote:
->>
->> On 2/15/19 3:27 PM, Tetsuo Handa wrote:
->>> On 2019/02/15 22:01, Michal Hocko wrote:
->>>> On Fri 15-02-19 11:27:10, Tetsuo Handa wrote:
->>>>> I noticed that amount of free memory reported by DMA: / DMA32: / Normal: fields are
->>>>> increasing over time. Since 5.0-rc6 is working correctly, some change in linux-next
->>>>> is causing this problem.
->>>>
->>>> Just a shot into the dark. Could you try to disable the page allocator
->>>> randomization (page_alloc.shuffle kernel command line parameter)? Not
->>>> that I see any bug there but it is a recent change in the page allocator
->>>> I am aware of and it might have some anticipated side effects.
->>>>
->>>
->>> I tried CONFIG_SHUFFLE_PAGE_ALLOCATOR=n but problem still exists.
->>
->> I think it's the preparation patch [1], even with randomization off:
->>
->> @@ -1910,7 +1900,7 @@ static inline void expand(struct zone *zone, struct page *page,
->>                 if (set_page_guard(zone, &page[size], high, migratetype))
->>                         continue;
->>
->> -               list_add(&page[size].lru, &area->free_list[migratetype]);
->> +               add_to_free_area(&page[size], area, migratetype);
->>                 area->nr_free++;
->>                 set_page_order(&page[size], high);
->>         }
->>
->> This should have removed the 'area->nr_free++;' line, as add_to_free_area()
->> includes the increment.
+On Fri, Feb 15, 2019 at 01:59:22PM -0800, rcampbell@nvidia.com wrote:
+> From: Ralph Campbell <rcampbell@nvidia.com>
 > 
-> Yes, good find! I'll send an incremental fixup patch in a moment
-> unless someone beats me to it.
+> The patch [1] introduced reference counting on struct hmm and works
+> fine when calling hmm_mirror_register() and hmm_mirror_unregister().
+> However, when a process exits without explicitly unregistering,
+> the MMU notifier callback hmm_release() doesn't release the mirror->hmm
+> reference and thus leaks the struct hmm allocation.
+> Fix this by releasing the reference in hmm_release().
 > 
+> [1] https://marc.info/?l=linux-mm&m=154878089214597&w=2
+>     ("mm/hmm: use reference counting for HMM struct")
 
-Removing the 'area->nr_free++;' line solved the problem. Thank you.
+NAK we do not want to free stuff from underneath the driver that
+was the whole point of the refcounting. Instead for driver that
+want to free their mirror from the release call back can call the
+hmm_mirror_unregister() function safely. Sorry if that was not
+clear.
+
+> 
+> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: "Jérôme Glisse" <jglisse@redhat.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> ---
+>  mm/hmm.c | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 3c9781037918..50523df6ea0c 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -179,6 +179,8 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+>  			mirror->ops->release(mirror);
+>  			down_write(&hmm->mirrors_sem);
+>  		}
+> +		hmm_put(mirror->hmm);
+> +		mirror->hmm = NULL;
+>  		mirror = list_first_entry_or_null(&hmm->mirrors,
+>  						  struct hmm_mirror, list);
+>  	}
+> -- 
+> 2.17.2
+> 
 
