@@ -2,121 +2,176 @@ Return-Path: <SRS0=1HZa=QY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 49540C43381
-	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 08:34:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 16AB5C4360F
+	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 11:29:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 13C73218A1
-	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 08:34:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13C73218A1
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
+	by mail.kernel.org (Postfix) with ESMTP id ABDD1222EB
+	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 11:29:49 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="bILEhpIU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABDD1222EB
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A55D68E0003; Sun, 17 Feb 2019 03:34:40 -0500 (EST)
+	id 1FF8C8E0002; Sun, 17 Feb 2019 06:29:49 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A044E8E0001; Sun, 17 Feb 2019 03:34:40 -0500 (EST)
+	id 1D8968E0001; Sun, 17 Feb 2019 06:29:49 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8CDE58E0003; Sun, 17 Feb 2019 03:34:40 -0500 (EST)
+	id 09ED48E0002; Sun, 17 Feb 2019 06:29:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CDF68E0001
-	for <linux-mm@kvack.org>; Sun, 17 Feb 2019 03:34:40 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id g81so2850014pfe.7
-        for <linux-mm@kvack.org>; Sun, 17 Feb 2019 00:34:40 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BF55E8E0001
+	for <linux-mm@kvack.org>; Sun, 17 Feb 2019 06:29:48 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id 71so10426351plf.19
+        for <linux-mm@kvack.org>; Sun, 17 Feb 2019 03:29:48 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:message-id:mime-version;
-        bh=X6V94a/BrXX5nh4fCozOBtzpMFCIqnvf0UfEvRAcQdQ=;
-        b=OrQtekGqFpTnKnnE2kLYn0RSGb4WPfXydzgmUyL5zY00At5JAnDUjroIUgh9WyK1IZ
-         ZYktXk1MA1liGMxhwaCUlvKp+aRaVxx50iAbZs3f5OnI+nqeZj9aPnSUuqcMAhBw7E0U
-         BwlKG+1tmXlB5c2Q46yuRbyu9XHn0kxbfBP+nLLo72Cz8oej/13Wh4jL21dnRg5tjraa
-         3HpCfrrFaRT4OxYXnXnL8oZDFJYmGTEGDCqhz5fsN5E41qfj0LpkPjiRlUu8jKvyW85N
-         W99BCcL9FUq1wAecfUAeQDv1oocr2ZrBvrniH4JB7FHknY2cCKp9c4nQUvhlNuNIif82
-         QC8A==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-X-Gm-Message-State: AHQUAuY1UEjtM/iArTYDo6CJJBF8ACAFvPs+tYPpwu6P8gR48fA4clas
-	/QC4BgnghySJCrUvP4L0C8a8N9d7nx+AAWPwM6no9o2aevedMKs3BuccMNRrm1uiXywnLf7e5Kp
-	Sz2if8q2JZuDglWwqgIiRACCHp+60VO21rvGY8GPYC21dNi4Op5zYlmfyEPS/cYQ=
-X-Received: by 2002:a17:902:6a4:: with SMTP id 33mr18756036plh.99.1550392480089;
-        Sun, 17 Feb 2019 00:34:40 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ8TwRPTUausyu8gfFPP2bpHEhUWG/3xuOFzzdy5OVkTPK97i8qjOHxbYXG8M5kYkPSAnAL
-X-Received: by 2002:a17:902:6a4:: with SMTP id 33mr18756004plh.99.1550392479545;
-        Sun, 17 Feb 2019 00:34:39 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550392479; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=rXiUAXlA4Y4NVU1+nGtiu2iiqqDtjUNA9mpoGknFqWQ=;
+        b=I4IqNv21pDkNZbbs8fX1V6gky7mCFlXKIsxtH4v2bhLvA3zf2Dqkg1n3x4xCOeVy7I
+         2KiX3PByV0QT6VH61trKWI0qrE4z6FLKybMMF5wPNkMkinEetrjE2IHeXh9YlPNcM77a
+         02s4dCObY6UmPTWaELMcSj3wNwI2uAGuFOK9CAgc1VEiWGnGx6jHSRJoYBWfMp9jfN+O
+         I49sXl1bYBsU6q+iF+fuWGcRI/fOD72rF5u1mG9lzDruG4TvI0vuuqYmKoTpS8tuUowh
+         IblbZB88GfYuCU4t85DX0gSbs6NH9K3fq7wfd8SSIBsuX8AKcVLpP6RbzZ4emEEqN/6h
+         VLJQ==
+X-Gm-Message-State: AHQUAuYU/dqYLS7vjh8+6qXgPDoTM7jJmXv4OcsyuFLYa6V4JQ9H1Ylr
+	T7MDHtRG9ywa1UPYUwfIZygrVkxkd+DTMr4x8NnbrkOM0A+m1uHmK1Iq2odqmJxsAXxHJ8BGEWp
+	XMOCJZrXhwc+8otOpiLziTZtBeS/wTuMHOfK/hanzt47BMRx9d0AlQMYO7W07sODOIg==
+X-Received: by 2002:a17:902:8e8b:: with SMTP id bg11mr19992928plb.332.1550402988388;
+        Sun, 17 Feb 2019 03:29:48 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZePMxz491X4q1eGX6Uog0FonnoEGuTruH+L0aaOxw8Ot23gxkZr+/92EZ4fsid+XG4lO6L
+X-Received: by 2002:a17:902:8e8b:: with SMTP id bg11mr19992877plb.332.1550402987593;
+        Sun, 17 Feb 2019 03:29:47 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550402987; cv=none;
         d=google.com; s=arc-20160816;
-        b=S89qRRcqxfT80nDJV9Os2HoB5QMLc8jsd7EJnfsz75dc9YRdz24FHv0AEXvY0CV0M0
-         hf85QS5e/SMqhmuRvNQSUZnHjbnKIwUAvwn5zgMzSk9YUtEAB//gh6vUCXCkrLPURIIz
-         381D/NT1PN9AKUVs9ks94GR1/oud88n2WZNBragUVrrtTmU/EYTXeSUEh4vAjdg460vf
-         kF88dA/DmfeS+JV+oRNgObe+aQYvEX9/RdLBnbXJ9CBqStaF/9sCtrrkT1RPY0JoGvu+
-         Nw64+ZAFmP+HHe9YeDRjvYsi3V5ZLPpav1gV74x7aChROffc9hZsgzJ0FOnnNvLid5u3
-         iL2Q==
+        b=VbSjzUOF0W3yUCAXxC7p4moPjsFD1HcS3Xwf5cFSkT6PTW+nzc4c88d6rdNpa+7MgW
+         PUzfKP+7Y9oljD4UblQ1yh4BWF5Y9YnslOPt+Ii2xISvhyf0SMRYdbFndmZvmLbMG7uz
+         nNve0A/WMuqInVSwG41c99wevplBjBR+X8P/TBn3suRHEFqal/r4CI7gFaLf1qyk4yY7
+         Qh2K9TXCPzaZtUrwRZHP6MSRykElM1T4vQUZnJVutMDWPc9D/uFYzFmBjy1nHmzhOxe+
+         n/FA860ZbXcadic81hhdHAcOO0A+S98z39Rud12escVS8M7T/SVYkUda2LutAfSrcLc6
+         /b8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=X6V94a/BrXX5nh4fCozOBtzpMFCIqnvf0UfEvRAcQdQ=;
-        b=GOqYjQLRsYSe6+gSL8/xQbsPMgeyrFXLY321isOKnVJIjFnvrD3RlXjq7WCRTZlNNa
-         i06k0owe6GiJWYQp+VcCfAumbkf4EhWlajhJ66yV4/H9oN8atgFaO27FnYhB7Z4e2v3W
-         xqdsEYwWrjNKBoR7IfuPB7PjHSeGGWHYKZiQqQMSzC4W4tc7dDR16CzWIKqsQ/HALHbF
-         yr7LGdPu+C9sfm+Q7kIO+ER6zo4datjTn+abPfkJxGcu5dAXzvoQBijzEu34HibCKRJy
-         7+ztuEHw3fiAoPcT3EzKRkh99y9zZK3EMM3WQODmlQPJ7oeyYTg1fx8L2HTX9lM9T8dU
-         3spA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=rXiUAXlA4Y4NVU1+nGtiu2iiqqDtjUNA9mpoGknFqWQ=;
+        b=R8c8ADE0e+SgSLMCQFjmZqihl6CwfMUxPLfhzOQqIwicBDCP/C4b1YYCwIVV0dQmc5
+         UyrKxbnxqyvz8qzZh8SbyinNa2GdwuZZxp93W+8ID/iU9KV5xrBSCDm9Y097UJbOUQIl
+         xzRSufWYWTgaaxVle5stqdTQolIE7EaT2b5Pr3asUb9vU37O/llP8HBGm2m8asLG5hns
+         KwOedy0KAKbW3lGFsHwjhh5sYuoMWx+ugCOEURd5XMY1un4qfxpt0EPucMlXeis6Z423
+         AlDFbCOkyYf/oCK5WTQXfLNmlDS9daC8FLhK5hTdSilSR0+YbWN/NH/M9VXDkK3h+DnR
+         UjyQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id g63si2299965pgc.382.2019.02.17.00.34.39
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=bILEhpIU;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id z3si4755623pgr.90.2019.02.17.03.29.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 17 Feb 2019 00:34:39 -0800 (PST)
-Received-SPF: neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=2401:3900:2:1::2;
+        Sun, 17 Feb 2019 03:29:47 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits) server-digest SHA256)
-	(No client certificate requested)
-	by ozlabs.org (Postfix) with ESMTPSA id 442Kzx30D5z9sLw;
-	Sun, 17 Feb 2019 19:34:37 +1100 (AEDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-To: Segher Boessenkool <segher@kernel.crashing.org>, Balbir Singh <bsingharora@gmail.com>
-Cc: erhard_f@mailbox.org, jack@suse.cz, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aneesh.kumar@linux.vnet.ibm.com
-Subject: Re: [PATCH] powerpc/64s: Fix possible corruption on big endian due to pgd/pud_present()
-In-Reply-To: <20190216142206.GE14180@gate.crashing.org>
-References: <20190214062339.7139-1-mpe@ellerman.id.au> <20190216105511.GA31125@350D> <20190216142206.GE14180@gate.crashing.org>
-Date: Sun, 17 Feb 2019 19:34:36 +1100
-Message-ID: <87bm3add9f.fsf@concordia.ellerman.id.au>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=bILEhpIU;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=rXiUAXlA4Y4NVU1+nGtiu2iiqqDtjUNA9mpoGknFqWQ=; b=bILEhpIUWBFNWSR42Wf71Z99F
+	AhGCHBIy/mlttSXoA1pWjgcAeH3AhOiAeg0yN7/YCU8hODtO/MYWkwW0jN/dbsttWYCYg3QuC8CFF
+	uCeaspFD090sg7VcupXePFXHnDcCkLYG1gNKy/QtXP5MiPgpr6fFck+BRYN/69StopET93VAeQFFt
+	3+2iDoxJcjncSU6R0++wShu3sMBLEZSxTKOytpXkzstjlMtZ5PybcJN6/KjtjlL0Uf2/KlcU/HCCM
+	xCQgcLxIOFtUhrmOd5tUn+c//WQIYteh9BEp85M8HPNtrZ9pQgx2tfHjaah81uUelMvz/4PDYnD1q
+	isJcGcoqg==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gvKdm-0004aK-8D; Sun, 17 Feb 2019 11:29:46 +0000
+Date: Sun, 17 Feb 2019 03:29:46 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: ziy@nvidia.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Michal Hocko <mhocko@kernel.org>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Mark Hairgrove <mhairgrove@nvidia.com>,
+	Nitin Gupta <nigupta@nvidia.com>,
+	David Nellans <dnellans@nvidia.com>
+Subject: Re: [RFC PATCH 01/31] mm: migrate: Add exchange_pages to exchange
+ two lists of pages.
+Message-ID: <20190217112943.GP12668@bombadil.infradead.org>
+References: <20190215220856.29749-1-zi.yan@sent.com>
+ <20190215220856.29749-2-zi.yan@sent.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190215220856.29749-2-zi.yan@sent.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Segher Boessenkool <segher@kernel.crashing.org> writes:
+On Fri, Feb 15, 2019 at 02:08:26PM -0800, Zi Yan wrote:
+> +struct page_flags {
+> +	unsigned int page_error :1;
+> +	unsigned int page_referenced:1;
+> +	unsigned int page_uptodate:1;
+> +	unsigned int page_active:1;
+> +	unsigned int page_unevictable:1;
+> +	unsigned int page_checked:1;
+> +	unsigned int page_mappedtodisk:1;
+> +	unsigned int page_dirty:1;
+> +	unsigned int page_is_young:1;
+> +	unsigned int page_is_idle:1;
+> +	unsigned int page_swapcache:1;
+> +	unsigned int page_writeback:1;
+> +	unsigned int page_private:1;
+> +	unsigned int __pad:3;
+> +};
 
-> Hi all,
->
-> On Sat, Feb 16, 2019 at 09:55:11PM +1100, Balbir Singh wrote:
->> On Thu, Feb 14, 2019 at 05:23:39PM +1100, Michael Ellerman wrote:
->> > In v4.20 we changed our pgd/pud_present() to check for _PAGE_PRESENT
->> > rather than just checking that the value is non-zero, e.g.:
->> > 
->> >   static inline int pgd_present(pgd_t pgd)
->> >   {
->> >  -       return !pgd_none(pgd);
->> >  +       return (pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
->> >   }
->> > 
->> > Unfortunately this is broken on big endian, as the result of the
->> > bitwise && is truncated to int, which is always zero because
->
-> (Bitwise "&" of course).
+I'm not sure how to feel about this.  It's a bit fragile versus somebody adding
+new page flags.  I don't know whether it's needed or whether you can just
+copy page->flags directly because you're holding PageLock.
 
-Thanks, I fixed that up.
+> +static void exchange_page(char *to, char *from)
+> +{
+> +	u64 tmp;
+> +	int i;
+> +
+> +	for (i = 0; i < PAGE_SIZE; i += sizeof(tmp)) {
+> +		tmp = *((u64 *)(from + i));
+> +		*((u64 *)(from + i)) = *((u64 *)(to + i));
+> +		*((u64 *)(to + i)) = tmp;
+> +	}
+> +}
 
-cheers
+I have a suspicion you'd be better off allocating a temporary page and
+using copy_page().  Some architectures have put a lot of effort into
+making copy_page() run faster.
+
+> +		xa_lock_irq(&to_mapping->i_pages);
+> +
+> +		to_pslot = radix_tree_lookup_slot(&to_mapping->i_pages,
+> +			page_index(to_page));
+
+This needs to be converted to the XArray.  radix_tree_lookup_slot() is
+going away soon.  You probably need:
+
+	XA_STATE(to_xas, &to_mapping->i_pages, page_index(to_page));
+
+This is a lot of code and I'm still trying to get my head aroud it all.
+Thanks for putting in this work; it's good to see this approach being
+explored.
 
