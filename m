@@ -2,188 +2,168 @@ Return-Path: <SRS0=1HZa=QY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85BF2C10F06
-	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 13:14:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CCE6DC43381
+	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 16:43:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4B0AD2192C
-	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 13:14:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B0AD2192C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 629D82192C
+	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 16:43:09 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=hansenpartnership.com header.i=@hansenpartnership.com header.b="AxB7KhKr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 629D82192C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=HansenPartnership.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D99788E0003; Sun, 17 Feb 2019 08:14:04 -0500 (EST)
+	id B2B888E0002; Sun, 17 Feb 2019 11:43:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D49A78E0001; Sun, 17 Feb 2019 08:14:04 -0500 (EST)
+	id ADBCE8E0001; Sun, 17 Feb 2019 11:43:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C39828E0003; Sun, 17 Feb 2019 08:14:04 -0500 (EST)
+	id 9F09B8E0002; Sun, 17 Feb 2019 11:43:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 976C48E0001
-	for <linux-mm@kvack.org>; Sun, 17 Feb 2019 08:14:04 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id q15so12667776qki.14
-        for <linux-mm@kvack.org>; Sun, 17 Feb 2019 05:14:04 -0800 (PST)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F0718E0001
+	for <linux-mm@kvack.org>; Sun, 17 Feb 2019 11:43:08 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id i21so9569353ywe.15
+        for <linux-mm@kvack.org>; Sun, 17 Feb 2019 08:43:08 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=nu5bMcxmsm7ufZa+1SEfKKyDFAUuY7anUqaD0T/wDuo=;
-        b=GjE3dTcalF4EB0uc+RqER1XJc6AOTUcnC3L60dPvM5H4Ks4koNvAxUPIay2mAzkYCC
-         b6TyJIYDKUyBKEYL+bnxggI8LDvxiqtBAbAiv3+EohHBeRtakoiL0ECTssqvIb4ZX6YX
-         6O9swVuq5epdQ1o3L4CQnzonHAbBjvSpWtTfFY1BsrJlz9/HnNeBUfmFzUEQf8foE5TN
-         58I2npkJUW4EvcR7IgOxGiW7y1dHDU9zJoxNnpWobi5uUclfdBEwSZJa3psz240NfPLD
-         /b/5vYyFbcSXOPQdGlFW6AA98RMExsFsBs8VqevVpfoMWnUPJ3/fScG5XKIaXSLEknYf
-         Z2pw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuaLbrx3EKzju6OoUAUuWEwljPVteGP/pk2bsdeeltS+aPHNAkgY
-	hfoq7/gWVjKQL4238aVW7LwWa4sZ5CD5mLoLoG26Yg2Ux3iLNktDT5wm7urIn/D892//s2BpMqW
-	J+LIVyGnismZbBRqynkeYbJJPgCebNPJbNMsX/8KrTQAeXx1zw4M6banUYrkxy089cg==
-X-Received: by 2002:a37:8546:: with SMTP id h67mr13421285qkd.277.1550409244368;
-        Sun, 17 Feb 2019 05:14:04 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaykqujHuIsc42a1pz3BQER+PtdOLUUaAuhSLQFeU+edJni/UeG7S6g3ZXq3lb70CgvaqSH
-X-Received: by 2002:a37:8546:: with SMTP id h67mr13421259qkd.277.1550409243813;
-        Sun, 17 Feb 2019 05:14:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550409243; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=jbbsl1atj1zK3IKfTsL4IYE/Yg6CzOPeRS02hGXPims=;
+        b=lCvvWdu2OE0lOHBT+V9cmMIVSYSYloSfjMal84S+NvwBDeQBpNs6WzQVXQZZ7KK45Z
+         yCv7LJEx6dlOvbXjRibhA3/VDzfUbpaztTvnpLpfIYg0n2IHc4H7NF+STXGVTmSXEIfZ
+         DL34yoeY6VJqs08kA4d4W7XFvkU1j5t8q0+/kUEsn01Q+9ukMShPaKFDVNwZ9eI4Hgfv
+         POwdjAW9MOG4oCHFvygjH5bpKA9Hks9iHDQ4LGWakZZGGfJsFvbdzaE0ZTNI3eKOZBVC
+         8QVMTuvDVWN396cqiFX9v6cnu+C9sGbMypaS03bHvE195y5+4PGsU4gKUesOe3tr6e3H
+         fbtQ==
+X-Gm-Message-State: AHQUAuZpG+Z6LbJ94+ciGoPbwgwJTtu8W5xBcZ9EVF1DZXwcMA2nZhua
+	wd9C5A2k5l8CkSf5bsDkEgARgeqlA4pBB5oPuvwA1FDZgmMXPdTEN1+FsRAf5+N13tJzCbqWIZm
+	BUxEZvCw9Dw/6UX7QTAjiT3osDGnl73LL3IMaiKQiTMZ4374X0UWlUJxFevZjRjcgpA==
+X-Received: by 2002:a81:5683:: with SMTP id k125mr14853966ywb.436.1550421788106;
+        Sun, 17 Feb 2019 08:43:08 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZHmcOrgkU6WUIZS2t7QIlz73vIO/LmXIvsiHVZsuy8kh+gP71GqI92GkfRZ7zBd0yJ7UBd
+X-Received: by 2002:a81:5683:: with SMTP id k125mr14853935ywb.436.1550421787300;
+        Sun, 17 Feb 2019 08:43:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550421787; cv=none;
         d=google.com; s=arc-20160816;
-        b=PyHq/wO7qNTGTVAGbSLamsoiqY3+jxnGCDPUMURi96IJRprBBoiqhT/KaE2deuqNG6
-         OWU/1QBn0pUo9DQqsMtlINkSZ4pIfh7XUswWIGEeRc3KIGQSP0oXnwKq7GGcwUojABNU
-         HYZTqFcAls7mfSyfOhF+psjBIJuASrqP0cJqklBx0MXJ7wLqp3TsqujRW076CGn6V1qy
-         zx/Cu3OtQ76Y2hCP2u0DJly9s6idJjnl6Kbh1qonPvTG+n+wsnKv4bVaKJ2/Tt1OKGeQ
-         zPPinc/Hf3grURGZFZtbKW00QCAexcyq0f9X0ZcTYV8QbjpU2uTN4csNO7FSpFdBfrX3
-         Yvxg==
+        b=R4igeT2glbe00uI7IuiMFkZf/tjMGaqnHsuSSJfGc7DT/Rl1Xvc7bM+deEQOLs6TV2
+         ZXoEfMr8I+Xp2hCU46JKciGHTzSb9nrjudaJd4mtvzLYsdnq62sdJhej6dSfpXHI7dWw
+         DzpUYX46/qS883i56XTukRqPn6q5nCqTOeaOEeWICuD1jM6s5RTM2mS81yhc9hoXXY0t
+         THShryHKiqAgqCBKatnRqQUFLF7kU9vZIXDpcdagtF3fy/HEtHgCn0jxlm0hCMXljmg9
+         t5FSWzsuF6IZMsj98Spmi0JLurm70txDLP6WFT8g+tSLYHtC6Y5XpfE8YzJHgpUmXE42
+         IU9w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=nu5bMcxmsm7ufZa+1SEfKKyDFAUuY7anUqaD0T/wDuo=;
-        b=VcbSVQExGlgEiaFKUE0qw6oHR9KMf3p7AQKLUOjFRjzi4NQV6VsGQUHf2yjpqk/hqg
-         dsi9ujc0FeTeHR1brGato2uEMBthD1tf671RPeprqzzLPwz1fczrDBO3Bxe7s9ItnWcV
-         2rLu/jIMlsAM17RnM9zbm8Nfo70lQM3jIxnCKHwafESwCPHW2J/qkQOwoL9I2dQc1DI1
-         xRUPDey7Qj056grKlAjM7dz0iYApURfIRyS4gsmBxyXQIgtB39sbk2LDRa1ISmeM9b9W
-         YwW6a++RJI+j6ryjHe+5P0eSEV+Rn4fIIdA4BWcDh8B/29XyiMK0mfAzOfK8ussBTWtv
-         AgBA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=jbbsl1atj1zK3IKfTsL4IYE/Yg6CzOPeRS02hGXPims=;
+        b=unNf8zfsEHEuMPF5rHDvvlWC7y6x0Ge6irVmaxB1kEX32PLoWXMTXKl0GqOkWPu2nu
+         lmq7+e+anHotCoKjqeAnn0k6NVyZQdaD4gJJJih8l/RK5i4L08HMpSX9HVVS+BRzsj3z
+         mqwx421mqxc61C9oVTsYBlGaH7sPIj2Ua1fKqnvoH+NQOBHOGbKFzW1ZB9QyuWD4r3sl
+         rVEWYgi9KJUZY06mCFR+uDf0/p3jInqa2NTA1ZNZ1iZdrbTIkp1qIcPgjfZyOTI8oVYP
+         ZMrczcykUKAHVciVeQA1QBjGspLrhkiKwdSvjMWH0fdx2/44HO3IwAfw9sAAx6pQU/Nr
+         ZTfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l18si6809763qkk.192.2019.02.17.05.14.03
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=AxB7KhKr;
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id i3si5827717ybe.457.2019.02.17.08.43.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Feb 2019 05:14:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 17 Feb 2019 08:43:07 -0800 (PST)
+Received-SPF: pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) client-ip=66.63.167.143;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+       dkim=pass header.i=@hansenpartnership.com header.s=20151216 header.b=AxB7KhKr;
+       spf=pass (google.com: domain of james.bottomley@hansenpartnership.com designates 66.63.167.143 as permitted sender) smtp.mailfrom=James.Bottomley@hansenpartnership.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=hansenpartnership.com
+Received: from localhost (localhost [127.0.0.1])
+	by bedivere.hansenpartnership.com (Postfix) with ESMTP id E72CA8EE229;
+	Sun, 17 Feb 2019 08:43:04 -0800 (PST)
+Received: from bedivere.hansenpartnership.com ([127.0.0.1])
+	by localhost (bedivere.hansenpartnership.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id e_vla_Vsu1Fx; Sun, 17 Feb 2019 08:43:04 -0800 (PST)
+Received: from [153.66.254.194] (unknown [50.35.68.20])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id AD99281DF0;
-	Sun, 17 Feb 2019 13:14:02 +0000 (UTC)
-Received: from ming.t460p (ovpn-8-16.pek2.redhat.com [10.72.8.16])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 5679760BF7;
-	Sun, 17 Feb 2019 13:13:37 +0000 (UTC)
-Date: Sun, 17 Feb 2019 21:13:33 +0800
-From: Ming Lei <ming.lei@redhat.com>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Bart Van Assche <bvanassche@acm.org>, Mike Snitzer <snitzer@redhat.com>,
-	linux-mm@kvack.org, dm-devel@redhat.com,
-	Christoph Hellwig <hch@lst.de>, Sagi Grimberg <sagi@grimberg.me>,
-	"Darrick J . Wong" <darrick.wong@oracle.com>,
-	Omar Sandoval <osandov@fb.com>, cluster-devel@redhat.com,
-	linux-ext4@vger.kernel.org,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	Boaz Harrosh <ooo@electrozaur.com>,
-	Gao Xiang <gaoxiang25@huawei.com>, Coly Li <colyli@suse.de>,
-	linux-raid@vger.kernel.org, Bob Peterson <rpeterso@redhat.com>,
-	linux-bcache@vger.kernel.org,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Dave Chinner <dchinner@redhat.com>, David Sterba <dsterba@suse.com>,
-	linux-block@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>,
-	linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org
-Subject: Re: [dm-devel] [PATCH V15 00/18] block: support multi-page bvec
-Message-ID: <20190217131332.GC7296@ming.t460p>
-References: <20190215111324.30129-1-ming.lei@redhat.com>
- <c52b6a8b-d1d4-67ff-f81c-371d09cc6d5b@kernel.dk>
- <1550250855.31902.102.camel@acm.org>
- <18c711a9-ca13-885d-43cd-4d48e683a6a2@kernel.dk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <18c711a9-ca13-885d-43cd-4d48e683a6a2@kernel.dk>
-User-Agent: Mutt/1.9.1 (2017-09-22)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Sun, 17 Feb 2019 13:14:03 +0000 (UTC)
+	by bedivere.hansenpartnership.com (Postfix) with ESMTPSA id E570F8EE03B;
+	Sun, 17 Feb 2019 08:43:03 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=hansenpartnership.com;
+	s=20151216; t=1550421784;
+	bh=oYUumXGYz666qKgagUFB+74ogRb95pKBm2RP3wr9yuo=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=AxB7KhKryGDa9yF7k+yo7YsvqWEyMjPsH77u9Iw8E/SkMSLgTN1U+BExWQuihMgWK
+	 h0JbHXekH2gsRcL5QBz3jYI4mkELmx9BH59utg3vWYFIUa/RdhfYMJeKRJm+3uuyNC
+	 sQXa1Yig75ugi00Y7DXT30bOUPSSVkQFUVWCPpVw=
+Message-ID: <1550421781.2809.2.camel@HansenPartnership.com>
+Subject: Re: [LSF/MM TOPIC] Address space isolation inside the kernel
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Mike Rapoport <rppt@linux.ibm.com>, lsf-pc@lists.linux-foundation.org, 
+	linux-mm@kvack.org
+Date: Sun, 17 Feb 2019 08:43:01 -0800
+In-Reply-To: <20190217080146.GF31125@350D>
+References: <20190207072421.GA9120@rapoport-lnx>
+	 <20190216121950.GB31125@350D>
+	 <1550334616.3131.10.camel@HansenPartnership.com>
+	 <20190217080146.GF31125@350D>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.26.6 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 15, 2019 at 10:59:47AM -0700, Jens Axboe wrote:
-> On 2/15/19 10:14 AM, Bart Van Assche wrote:
-> > On Fri, 2019-02-15 at 08:49 -0700, Jens Axboe wrote:
-> >> On 2/15/19 4:13 AM, Ming Lei wrote:
-> >>> This patchset brings multi-page bvec into block layer:
-> >>
-> >> Applied, thanks Ming. Let's hope it sticks!
+On Sun, 2019-02-17 at 19:01 +1100, Balbir Singh wrote:
+> On Sat, Feb 16, 2019 at 08:30:16AM -0800, James Bottomley wrote:
+> > On Sat, 2019-02-16 at 23:19 +1100, Balbir Singh wrote:
+> > > On Thu, Feb 07, 2019 at 09:24:22AM +0200, Mike Rapoport wrote:
+> > > > (Joint proposal with James Bottomley)
+> > > > 
+> > > > Address space isolation has been used to protect the kernel
+> > > > from the userspace and userspace programs from each other since
+> > > > the invention of the virtual memory.
+> > > > 
+> > > > Assuming that kernel bugs and therefore vulnerabilities are
+> > > > inevitable it might be worth isolating parts of the kernel to
+> > > > minimize damage that these vulnerabilities can cause.
+> > > > 
+> > > 
+> > > Is Address Space limited to user space and kernel space, where
+> > > does the hypervisor fit into the picture?
 > > 
-> > Hi Jens and Ming,
+> > It doesn't really.  The work is driven by the Nabla HAP measure
 > > 
-> > Test nvmeof-mp/002 fails with Jens' for-next branch from this morning.
-> > I have not yet tried to figure out which patch introduced the failure.
-> > Anyway, this is what I see in the kernel log for test nvmeof-mp/002:
+> > https://blog.hansenpartnership.com/measuring-the-horizontal-attack-
+> > profile-of-nabla-containers/
 > > 
-> > [  475.611363] BUG: unable to handle kernel NULL pointer dereference at 0000000000000020
-> > [  475.621188] #PF error: [normal kernel read fault]
-> > [  475.623148] PGD 0 P4D 0  
-> > [  475.624737] Oops: 0000 [#1] PREEMPT SMP KASAN
-> > [  475.626628] CPU: 1 PID: 277 Comm: kworker/1:1H Tainted: G    B             5.0.0-rc6-dbg+ #1
-> > [  475.630232] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
-> > [  475.633855] Workqueue: kblockd blk_mq_requeue_work
-> > [  475.635777] RIP: 0010:__blk_recalc_rq_segments+0xbe/0x590
-> > [  475.670948] Call Trace:
-> > [  475.693515]  blk_recalc_rq_segments+0x2f/0x50
-> > [  475.695081]  blk_insert_cloned_request+0xbb/0x1c0
-> > [  475.701142]  dm_mq_queue_rq+0x3d1/0x770
-> > [  475.707225]  blk_mq_dispatch_rq_list+0x5fc/0xb10
-> > [  475.717137]  blk_mq_sched_dispatch_requests+0x256/0x300
-> > [  475.721767]  __blk_mq_run_hw_queue+0xd6/0x180
-> > [  475.725920]  __blk_mq_delay_run_hw_queue+0x25c/0x290
-> > [  475.727480]  blk_mq_run_hw_queue+0x119/0x1b0
-> > [  475.732019]  blk_mq_run_hw_queues+0x7b/0xa0
-> > [  475.733468]  blk_mq_requeue_work+0x2cb/0x300
-> > [  475.736473]  process_one_work+0x4f1/0xa40
-> > [  475.739424]  worker_thread+0x67/0x5b0
-> > [  475.741751]  kthread+0x1cf/0x1f0
-> > [  475.746034]  ret_from_fork+0x24/0x30
+> > Although the results are spectacular (building a container that's
+> > measurably more secure than a hypervisor based system), they come
+> > at the price of emulating a lot of the kernel and thus damaging the
+> > precise resource control advantage containers have.  The idea then
+> > is to render parts of the kernel syscall interface safe enough that
+> > they have a security profile equivalent to the emulated one and can
+> > thus be called directly instead of being emulated, hoping to
+> > restore most of the container resource management properties.
 > > 
-> > (gdb) list *(__blk_recalc_rq_segments+0xbe)
-> > 0xffffffff816a152e is in __blk_recalc_rq_segments (block/blk-merge.c:366).
-> > 361                                                  struct bio *bio)
-> > 362     {
-> > 363             struct bio_vec bv, bvprv = { NULL };
-> > 364             int prev = 0;
-> > 365             unsigned int seg_size, nr_phys_segs;
-> > 366             unsigned front_seg_size = bio->bi_seg_front_size;
-> > 367             struct bio *fbio, *bbio;
-> > 368             struct bvec_iter iter;
-> > 369
-> > 370             if (!bio)
+> > In theory, I suppose it would buy you protection from things like
+> > the kata containers host breach:
+> > 
+> > https://nabla-containers.github.io/2018/11/28/fs/
+> > 
 > 
-> Just ran a few tests, and it also seems to cause about a 5% regression
-> in per-core IOPS throughput. Prior to this work, I could get 1620K 4k
-> rand read IOPS out of core, now I'm at ~1535K. The cycler stealer seems
-> to be blk_queue_split() and blk_rq_map_sg().
+> Thanks, so it's largely to prevent escaping the container namespace.
+> Since the topic thread was generic, I thought I'd ask
 
-Could you share us your test setting?
+Actually, that's not quite it either.  The motivation is certainly
+container security but the current thrust of the work is generic kernel
+security ... the rising tide principle.
 
-I will run null_blk first and see if it can be reproduced.
-
-Thanks,
-Ming
+James
 
