@@ -2,176 +2,134 @@ Return-Path: <SRS0=1HZa=QY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 16AB5C4360F
-	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 11:29:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 17319C4360F
+	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 13:10:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ABDD1222EB
-	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 11:29:49 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="bILEhpIU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABDD1222EB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id B364F222E0
+	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 13:10:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B364F222E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1FF8C8E0002; Sun, 17 Feb 2019 06:29:49 -0500 (EST)
+	id 253C08E0002; Sun, 17 Feb 2019 08:10:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1D8968E0001; Sun, 17 Feb 2019 06:29:49 -0500 (EST)
+	id 1D9D28E0001; Sun, 17 Feb 2019 08:10:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 09ED48E0002; Sun, 17 Feb 2019 06:29:49 -0500 (EST)
+	id 0A18D8E0002; Sun, 17 Feb 2019 08:10:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BF55E8E0001
-	for <linux-mm@kvack.org>; Sun, 17 Feb 2019 06:29:48 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id 71so10426351plf.19
-        for <linux-mm@kvack.org>; Sun, 17 Feb 2019 03:29:48 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D011E8E0001
+	for <linux-mm@kvack.org>; Sun, 17 Feb 2019 08:10:51 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id q33so13999221qte.23
+        for <linux-mm@kvack.org>; Sun, 17 Feb 2019 05:10:51 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=rXiUAXlA4Y4NVU1+nGtiu2iiqqDtjUNA9mpoGknFqWQ=;
-        b=I4IqNv21pDkNZbbs8fX1V6gky7mCFlXKIsxtH4v2bhLvA3zf2Dqkg1n3x4xCOeVy7I
-         2KiX3PByV0QT6VH61trKWI0qrE4z6FLKybMMF5wPNkMkinEetrjE2IHeXh9YlPNcM77a
-         02s4dCObY6UmPTWaELMcSj3wNwI2uAGuFOK9CAgc1VEiWGnGx6jHSRJoYBWfMp9jfN+O
-         I49sXl1bYBsU6q+iF+fuWGcRI/fOD72rF5u1mG9lzDruG4TvI0vuuqYmKoTpS8tuUowh
-         IblbZB88GfYuCU4t85DX0gSbs6NH9K3fq7wfd8SSIBsuX8AKcVLpP6RbzZ4emEEqN/6h
-         VLJQ==
-X-Gm-Message-State: AHQUAuYU/dqYLS7vjh8+6qXgPDoTM7jJmXv4OcsyuFLYa6V4JQ9H1Ylr
-	T7MDHtRG9ywa1UPYUwfIZygrVkxkd+DTMr4x8NnbrkOM0A+m1uHmK1Iq2odqmJxsAXxHJ8BGEWp
-	XMOCJZrXhwc+8otOpiLziTZtBeS/wTuMHOfK/hanzt47BMRx9d0AlQMYO7W07sODOIg==
-X-Received: by 2002:a17:902:8e8b:: with SMTP id bg11mr19992928plb.332.1550402988388;
-        Sun, 17 Feb 2019 03:29:48 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZePMxz491X4q1eGX6Uog0FonnoEGuTruH+L0aaOxw8Ot23gxkZr+/92EZ4fsid+XG4lO6L
-X-Received: by 2002:a17:902:8e8b:: with SMTP id bg11mr19992877plb.332.1550402987593;
-        Sun, 17 Feb 2019 03:29:47 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550402987; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=idHFXYR6S/qYo2651OVv7ru+dKEcKzkTVcr1oIDeUb0=;
+        b=p6JKlrE4L8A5r1UyOaaMmxVHsYZJN5w6PCjFWgBrYnB2eysvCq02t1wNJfMddthzU1
+         d5sTfTpeKZJN/VvVjWP/xWAVC6dzWlt0mUGaxTce0JNF0MBMud1XWxT/acDoH9y0VHNx
+         u6z/eHr+rhzyWjcAtBzJ+1dBgxc2kii5q8DsL4s6T5hZDcSlW4RIXbWnngxgT3LUxa3F
+         s4rO2WQzzjsPoVGqXaeXzRuMp0jWtfXcL1T9EXIU8KjP7iox7GUs4IBcS4dVTJp5uv4r
+         SU2+84GgVX7wPJsc6tJwRM7aMWpgn2U4qsLRIgJZ8peKuyAkH724qmXcC2hYy2NrS8vf
+         zTRw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAubgzrzsr+YilkiTNLiEBHKu5sjwRReg+OKIYS12HsJ0tdTw7mx9
+	weXDgNID+Ta3eD8zBAFOziq3ZQ4Ctdgn8hFDqAR4cwdRpGjphKJoZ3jhemnzEUaOPjhRUuerQ4U
+	QhtqKl15f8kf5HSKiFPHIThHcAMPaKHO1MgqdqjQZVAyRRdneCm7e/bA/bmYLj5lOKQ==
+X-Received: by 2002:a0c:941b:: with SMTP id h27mr13995686qvh.8.1550409051511;
+        Sun, 17 Feb 2019 05:10:51 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia6dC0ZXNWHhFTL+cHgkCeedPe9/B8OeRzD0KNTWvwgcUeD8Ldw3K2wAUT1/O7pNzpqQ7CP
+X-Received: by 2002:a0c:941b:: with SMTP id h27mr13995663qvh.8.1550409050891;
+        Sun, 17 Feb 2019 05:10:50 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550409050; cv=none;
         d=google.com; s=arc-20160816;
-        b=VbSjzUOF0W3yUCAXxC7p4moPjsFD1HcS3Xwf5cFSkT6PTW+nzc4c88d6rdNpa+7MgW
-         PUzfKP+7Y9oljD4UblQ1yh4BWF5Y9YnslOPt+Ii2xISvhyf0SMRYdbFndmZvmLbMG7uz
-         nNve0A/WMuqInVSwG41c99wevplBjBR+X8P/TBn3suRHEFqal/r4CI7gFaLf1qyk4yY7
-         Qh2K9TXCPzaZtUrwRZHP6MSRykElM1T4vQUZnJVutMDWPc9D/uFYzFmBjy1nHmzhOxe+
-         n/FA860ZbXcadic81hhdHAcOO0A+S98z39Rud12escVS8M7T/SVYkUda2LutAfSrcLc6
-         /b8A==
+        b=yR65vwN1wLDxt630R/W/hHpSwMpzptbyaKzHtDdlBFKkXxlrM/ZsMVPQGPNv3Rc1Qz
+         mxlAGGdvGnuOlKQ5uA/lUyHzfSYIIsIXYMOFpzg60KDLuc24+IxwSXvgKYcAAdtZ9YbF
+         7VT9dcBfaRQUj/tPDxl2Eeo1Hj/uiajhO6mE6LqC+7GSYgS7Qgr60H9z3hN6aAWSECxO
+         aiinD00SkmcTXlhSCCkVUPpjjeRU48sqiag5pew1UD2sDV+rIikRWQUqyNpnP164NC8g
+         c2z+la77sZA/C33tKQLrnR8yqvyor1hjglEuLo6EvmFn6tKFXhkONGqTn1Yxgznq0W5G
+         M0ug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=rXiUAXlA4Y4NVU1+nGtiu2iiqqDtjUNA9mpoGknFqWQ=;
-        b=R8c8ADE0e+SgSLMCQFjmZqihl6CwfMUxPLfhzOQqIwicBDCP/C4b1YYCwIVV0dQmc5
-         UyrKxbnxqyvz8qzZh8SbyinNa2GdwuZZxp93W+8ID/iU9KV5xrBSCDm9Y097UJbOUQIl
-         xzRSufWYWTgaaxVle5stqdTQolIE7EaT2b5Pr3asUb9vU37O/llP8HBGm2m8asLG5hns
-         KwOedy0KAKbW3lGFsHwjhh5sYuoMWx+ugCOEURd5XMY1un4qfxpt0EPucMlXeis6Z423
-         AlDFbCOkyYf/oCK5WTQXfLNmlDS9daC8FLhK5hTdSilSR0+YbWN/NH/M9VXDkK3h+DnR
-         UjyQ==
+         :message-id:subject:cc:to:from:date;
+        bh=idHFXYR6S/qYo2651OVv7ru+dKEcKzkTVcr1oIDeUb0=;
+        b=CBnukiWW7xOstF5mz8vLSzm9iR4anJLP0z+mFSY/pFlL7Rcy2UpL2aeeDHnqJK54Hj
+         oGocWgJpm7tQg+ZZxCWvs9EL6Mt/6PEx8iorgB5HcpkTqDB5HorXto1lr9UD+WDYUeZU
+         1GcsY2I/wgc+Tv4xum/MnrkoL3HiQ7Q7X1FXqH2dc7c95mZN+DrACP80JJyBeSrIQ7QD
+         s635qwbMd0+FlixBYEbiv81Jw51PiMeGWVYDTysI/a/DYLjtQfyNNyfThoVYKT96mOe2
+         t40k1AEwfy81o/n3qsOfAM5dKTeKJsnCh/UzdJTZ1K4rjrEVhQn73nHxvQAC+DgwadyP
+         wkRQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=bILEhpIU;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id z3si4755623pgr.90.2019.02.17.03.29.47
+       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a10si2872950qvj.12.2019.02.17.05.10.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 17 Feb 2019 03:29:47 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 17 Feb 2019 05:10:50 -0800 (PST)
+Received-SPF: pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=bILEhpIU;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=rXiUAXlA4Y4NVU1+nGtiu2iiqqDtjUNA9mpoGknFqWQ=; b=bILEhpIUWBFNWSR42Wf71Z99F
-	AhGCHBIy/mlttSXoA1pWjgcAeH3AhOiAeg0yN7/YCU8hODtO/MYWkwW0jN/dbsttWYCYg3QuC8CFF
-	uCeaspFD090sg7VcupXePFXHnDcCkLYG1gNKy/QtXP5MiPgpr6fFck+BRYN/69StopET93VAeQFFt
-	3+2iDoxJcjncSU6R0++wShu3sMBLEZSxTKOytpXkzstjlMtZ5PybcJN6/KjtjlL0Uf2/KlcU/HCCM
-	xCQgcLxIOFtUhrmOd5tUn+c//WQIYteh9BEp85M8HPNtrZ9pQgx2tfHjaah81uUelMvz/4PDYnD1q
-	isJcGcoqg==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gvKdm-0004aK-8D; Sun, 17 Feb 2019 11:29:46 +0000
-Date: Sun, 17 Feb 2019 03:29:46 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: ziy@nvidia.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Mark Hairgrove <mhairgrove@nvidia.com>,
-	Nitin Gupta <nigupta@nvidia.com>,
-	David Nellans <dnellans@nvidia.com>
-Subject: Re: [RFC PATCH 01/31] mm: migrate: Add exchange_pages to exchange
- two lists of pages.
-Message-ID: <20190217112943.GP12668@bombadil.infradead.org>
-References: <20190215220856.29749-1-zi.yan@sent.com>
- <20190215220856.29749-2-zi.yan@sent.com>
+       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 6FEABC051685;
+	Sun, 17 Feb 2019 13:10:49 +0000 (UTC)
+Received: from ming.t460p (ovpn-8-16.pek2.redhat.com [10.72.8.16])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 931F8101E846;
+	Sun, 17 Feb 2019 13:10:28 +0000 (UTC)
+Date: Sun, 17 Feb 2019 21:10:23 +0800
+From: Ming Lei <ming.lei@redhat.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Jens Axboe <axboe@kernel.dk>, linux-block@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	Theodore Ts'o <tytso@mit.edu>, Omar Sandoval <osandov@fb.com>,
+	Sagi Grimberg <sagi@grimberg.me>,
+	Dave Chinner <dchinner@redhat.com>,
+	Kent Overstreet <kent.overstreet@gmail.com>,
+	Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org,
+	David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org,
+	"Darrick J . Wong" <darrick.wong@oracle.com>,
+	linux-xfs@vger.kernel.org, Gao Xiang <gaoxiang25@huawei.com>,
+	linux-ext4@vger.kernel.org, Coly Li <colyli@suse.de>,
+	linux-bcache@vger.kernel.org, Boaz Harrosh <ooo@electrozaur.com>,
+	Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+Subject: Re: [PATCH V15 00/18] block: support multi-page bvec
+Message-ID: <20190217131022.GA7296@ming.t460p>
+References: <20190215111324.30129-1-ming.lei@redhat.com>
+ <20190215145126.GA16717@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190215220856.29749-2-zi.yan@sent.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <20190215145126.GA16717@lst.de>
+User-Agent: Mutt/1.9.1 (2017-09-22)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Sun, 17 Feb 2019 13:10:50 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 15, 2019 at 02:08:26PM -0800, Zi Yan wrote:
-> +struct page_flags {
-> +	unsigned int page_error :1;
-> +	unsigned int page_referenced:1;
-> +	unsigned int page_uptodate:1;
-> +	unsigned int page_active:1;
-> +	unsigned int page_unevictable:1;
-> +	unsigned int page_checked:1;
-> +	unsigned int page_mappedtodisk:1;
-> +	unsigned int page_dirty:1;
-> +	unsigned int page_is_young:1;
-> +	unsigned int page_is_idle:1;
-> +	unsigned int page_swapcache:1;
-> +	unsigned int page_writeback:1;
-> +	unsigned int page_private:1;
-> +	unsigned int __pad:3;
-> +};
+On Fri, Feb 15, 2019 at 03:51:26PM +0100, Christoph Hellwig wrote:
+> I still don't understand why mp_bvec_last_segment isn't simply
+> called bvec_last_segment as there is no conflict.  But I don't
+> want to hold this series up on that as there only are two users
+> left and we can always just fix it up later.
 
-I'm not sure how to feel about this.  It's a bit fragile versus somebody adding
-new page flags.  I don't know whether it's needed or whether you can just
-copy page->flags directly because you're holding PageLock.
+mp_bvec_last_segment() is one bvec helper, so better to keep its
+name consistent with other bvec helpers.
 
-> +static void exchange_page(char *to, char *from)
-> +{
-> +	u64 tmp;
-> +	int i;
-> +
-> +	for (i = 0; i < PAGE_SIZE; i += sizeof(tmp)) {
-> +		tmp = *((u64 *)(from + i));
-> +		*((u64 *)(from + i)) = *((u64 *)(to + i));
-> +		*((u64 *)(to + i)) = tmp;
-> +	}
-> +}
-
-I have a suspicion you'd be better off allocating a temporary page and
-using copy_page().  Some architectures have put a lot of effort into
-making copy_page() run faster.
-
-> +		xa_lock_irq(&to_mapping->i_pages);
-> +
-> +		to_pslot = radix_tree_lookup_slot(&to_mapping->i_pages,
-> +			page_index(to_page));
-
-This needs to be converted to the XArray.  radix_tree_lookup_slot() is
-going away soon.  You probably need:
-
-	XA_STATE(to_xas, &to_mapping->i_pages, page_index(to_page));
-
-This is a lot of code and I'm still trying to get my head aroud it all.
-Thanks for putting in this work; it's good to see this approach being
-explored.
+Thanks,
+Ming
 
