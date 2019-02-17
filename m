@@ -5,122 +5,121 @@ X-Spam-Level:
 X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54552C43381
-	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 21:56:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 18D2BC43381
+	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 22:01:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 118D42146E
-	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 21:56:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C2C41217F9
+	for <linux-mm@archiver.kernel.org>; Sun, 17 Feb 2019 22:01:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="bXiPb+jj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 118D42146E
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="dnz4qIz/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C2C41217F9
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8E15E8E0003; Sun, 17 Feb 2019 16:56:01 -0500 (EST)
+	id 61EFB8E0003; Sun, 17 Feb 2019 17:01:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8913E8E0001; Sun, 17 Feb 2019 16:56:01 -0500 (EST)
+	id 5A5018E0001; Sun, 17 Feb 2019 17:01:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7A4B48E0003; Sun, 17 Feb 2019 16:56:01 -0500 (EST)
+	id 4478D8E0003; Sun, 17 Feb 2019 17:01:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AFAD8E0001
-	for <linux-mm@kvack.org>; Sun, 17 Feb 2019 16:56:01 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id v82so12252840pfj.9
-        for <linux-mm@kvack.org>; Sun, 17 Feb 2019 13:56:01 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EF9A88E0001
+	for <linux-mm@kvack.org>; Sun, 17 Feb 2019 17:01:54 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id 11so7260222pgd.19
+        for <linux-mm@kvack.org>; Sun, 17 Feb 2019 14:01:54 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=0wmxiqqk7vAqmoD3PZT4D63Pg1Meu3+th20mrox0DOk=;
-        b=dp+yoghQq5SSv1k40+9lBD/Tomg6QMRMAx1lecxTjhIL5TSqJVmUoDsgoH8LmNABSy
-         ShhONxzcvj6sr+531yEqfE5rOXOXO6aVwDvA9lwjem7SPRJkZrGaKKBw8UeI3P9BGMTk
-         1rREBrciSDJgsHFFke3frZ7+ekNnpk72eWm3wU12atbXGBPXwf92/Q0Cvd9v8/bpjy4D
-         2a41YJcGbPrmPxC3AaluIsZ+pKlTBbjfTic7UjTLOiG9Ue+oGxSjSitPmSYTlXqYe6A0
-         hVdQJXNKpTjehdlakF+uI4CwO1Y5ED5fEVDvOKjRazDCa7Ugg/iurznyMTNjrISOFKmJ
-         tvRQ==
-X-Gm-Message-State: AHQUAuZzACGlWaz8EzmCOuKf+EUpbVgyxLqA8xwXqbLqX+V1Re7LkgA6
-	5Lf5ofY4Ms9P1UgQjpNkMcUtM0qiL1iHzX0h2Coyot2hEFjQP7Me0ftZzfh7cgjl1hdFe09o3Cs
-	VV3T1PGB5qyGUkH7bKhfcAj6tPyXN0uvz3OfQbOiv0Xrn0DUSGjwUw9+URvRE6gHUe1RqTlaukb
-	fBTyPPuLln8U621+gMwshaBYooVWF4VTurKCHgbWryAlIuMT2RwS1Fqt+P8aS2b8WKD5ZGDH3hz
-	FXLGlDx1NFVgBwKRsmcKKoxJFNGjIRdxASe2/kgdxscROYYRzIvqNRk0c8TUkmrz3Ww7TKke0bv
-	uVjlt8uwXBs4X7NbmICYuyc3zCnX3AYF2ZFFuTtR/d53N1JooiglXvP6AoPFEq+2+TIJpxOzjGA
-	o
-X-Received: by 2002:a62:76d4:: with SMTP id r203mr21232867pfc.15.1550440560938;
-        Sun, 17 Feb 2019 13:56:00 -0800 (PST)
-X-Received: by 2002:a62:76d4:: with SMTP id r203mr21232805pfc.15.1550440560010;
-        Sun, 17 Feb 2019 13:56:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550440560; cv=none;
+        bh=0V94wftf7qYYjGwslfQBCAle9jbzinWXN8ZI6JiDtmQ=;
+        b=CpsB4iCnrfe5wdnTiCuQ85wT+IXWGqYk3ikt40HjN4DjuHUtjDqLQSOxcKVNCyQlzM
+         LFvo/9mUZjFOr8JMP2pSeULVFlu6Ag+FnC+dIoZqb3yBAmM39rJ2faBWE6ev/RA8q137
+         wZfnhEnjnXsi/+6KUUUziz8lZRYF9wR8R9JCDD0S2lheRk0g44O95Cd64B4mFZXlBCJZ
+         Fw4jRSF8Wov+zK6fP8CzilptanmN33WnvnhvSDWVV/Dy/C+JPUY1A34ATOIhgH9h6p1j
+         AAshw9mq/8a9RjtmvEOK9keaZVF24bO5lIMVvSJwMor1yw/cSziO15Kkp60QAHzXevgt
+         2jSQ==
+X-Gm-Message-State: AHQUAuZpU7RzynTWKBg6XWD3T5mkIr8/sBYDEDq7wIhjm9L1y5OWPaCR
+	b+rcyNC7XHpRiidxLsGfVsINza8zyVNezcd3leK1z+Rk0kr50nv6uL3jf+wGiOBIRVGEVrqpggu
+	JiH2j45HaHF0nS9ZBM7Dz24lhEB5e9CEQi3UKrqukP2HX8h57VkHbVRnVyjSxo/Jrnl9FbwZj4O
+	yh+PwrsGML7VYm7nLfSMugHgTnGS8rThy9q2shlmgsAvipqmQFgJiaTrpbD/no5ZhlbezWn3ANM
+	uEz7J0NISwbkOJeMJ+fJMZcbW2fZVLsIleUateYJQ3TWwy6h/5mfHOJ6stubc2zmRT5sE7uaRlo
+	wIrdqmrknSxeCifsmXUujEQqUebSQfeLcyiNSc2TR+FeR4dzvuLpYMOlxryoU947qKQMxGmAtKQ
+	k
+X-Received: by 2002:a17:902:a40d:: with SMTP id p13mr12173314plq.144.1550440914583;
+        Sun, 17 Feb 2019 14:01:54 -0800 (PST)
+X-Received: by 2002:a17:902:a40d:: with SMTP id p13mr12173268plq.144.1550440913983;
+        Sun, 17 Feb 2019 14:01:53 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550440913; cv=none;
         d=google.com; s=arc-20160816;
-        b=pe/+dEtMQinTV9ZGS5Oh2niL/8lHJ+QKh96GTP2nuOI+Cpp9bDHqUin06zwA1IMoRT
-         Eu4stS3Xc4gjE3YnZ47YROp6wTRA1ye9HJj9Lba+md0pp6MiajDl0IyHyIjWG14JHc+9
-         Q2pDGLMaa+TUlGxJhZ9SNdXRqDeQf3wCdfGoQBwR4l7C6W8pTCKp6HCMEFjecwayyQzS
-         CHgtcTKSHlP5rl1hC98unIiTaXq4Eos1tgw8i4Au/0I9B795nTS6ntwxRRP6gVYtNFfa
-         vzpWGDuVmS/tIIRcIIarq/4xH28pFy1Ce2sbunh8MlkXzoRMs32rht6HiMgjWdk5Zsh/
-         I7uQ==
+        b=sSX9AlkEbiyQUYlEnMrcIGpydtxvRVF4n3cqi4uM/5O8J35IM4QcdjW9bIuKufUjaL
+         7meerf0Dk1IrqyK9OYT14L4PMwbSoYkjVg5Dju5WOltkYpHj2USyaScU1cDBjnwyWzC8
+         B3GJxlFiyib25UkY8jS4oBQapInnTNJVlCBMDb7/LlgFOzXn9FfRY131BDXNtIj7TJWH
+         wT/jH22MvlaUFmuo7O5Xtgg87n6tAmS0DYQ/wUhyREyCzrjSudN2jHGAP42jJ8ChnC91
+         tEoMOcYPOVob4t+slti9z/dQ0Z3jiaE0rM0p2Deah0pTaUWxS6IGwzZA8LyFSVidUaPW
+         rd+g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=0wmxiqqk7vAqmoD3PZT4D63Pg1Meu3+th20mrox0DOk=;
-        b=jB/oN+m6zrfngtrUtYZ57ZT8XPJ82kL7Xj3NIAp9PyZmuWF9uHjlnLlYeSA1SVQGGn
-         yn/2Ico209weQg6WT/yjekzB1L+LGxYo0Oqdn1N1Zd4fO7iMKYYTefoCoLkNeOeUDb2x
-         WEbBaZa0e6Sd8siDpSblE6010MX8RE+78KxkB8qisjXR34/Nh8qTuPkVZGM8Zjxv88UQ
-         71nYUeKsqe6gpsz0yRt8GozkqIm2NqLZ8XV25A+4ZccBFn0SOVs44PlpiQZ8CXU/hAXC
-         K6YeNWhqzw5KSooJhfJNf3XvKk4z3MHwBG/fLP3j06kDQMT2vsmToNRjG+NtJcARwXEp
-         L9jg==
+        bh=0V94wftf7qYYjGwslfQBCAle9jbzinWXN8ZI6JiDtmQ=;
+        b=0lAHs/rMOliRpR8aaFUXoiVcFa3/OxuR3YqzxAUcL9LEdXjAW9Y9dvt15rYt71YliJ
+         S4vBVu/apLud0xbzNuc/DLRiI7E1IQFXY0lY6kuo7kV7Vr5TYgU/5RMCLRqnp+UwaDir
+         kZF0/scYYeT7OTY2uTmUOXuomWfgmR3p8KcgKl5BhW8h2+a4zoCHIR0OiS9bHT+M3S1/
+         BxCT5eV/VYOurVzSa0E9AAYzDMN/BzgJ7lVYxo/0HHmw5iVUsiTY68z1DDxLeTwo9mLj
+         UlHlzYRQXIR/6uqKq0QyVvn6c/rQwVTToe55yL6QY1n/MrVAhrFoYcFBZm+/stRQLg1B
+         wfCw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bXiPb+jj;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="dnz4qIz/";
        spf=pass (google.com: domain of bsingharora@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bsingharora@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b1sor17678156plx.42.2019.02.17.13.55.59
+        by mx.google.com with SMTPS id y66sor17213215pgy.45.2019.02.17.14.01.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 17 Feb 2019 13:56:00 -0800 (PST)
+        Sun, 17 Feb 2019 14:01:53 -0800 (PST)
 Received-SPF: pass (google.com: domain of bsingharora@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bXiPb+jj;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="dnz4qIz/";
        spf=pass (google.com: domain of bsingharora@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bsingharora@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=0wmxiqqk7vAqmoD3PZT4D63Pg1Meu3+th20mrox0DOk=;
-        b=bXiPb+jjfszHalIcoiGQpr79ma8nHUzFESYIQEBjgvau7dlK3K1YyqqgkSGMsyuTAN
-         oi91PYriZRkfrrF/V8hoEH4ml69BOQMHy86EvXVDzpK9wlww8T5kstXI0AMa8MqsFZ8z
-         3fG41To4sZ5ucp8bstPbknWBHxLatVJjmDIUOxEoyMVB0DeNxDf6UGbs1vZoXgD8zalt
-         e3smdskO9nQgH11fmjyY+g0kVftd5WfwBF4+keK2y5lFUDra1xiQJRWIFzHKCkLDIkDh
-         lSKxg/2+KIrGF33aPuTrHYpSBVlfKgeEfJ0cPEw/EYfT2hvYkkv1+NJtoq8qq+rwXG8Y
-         Se8A==
-X-Google-Smtp-Source: AHgI3IbqXw5YEK0XINbUyF5eYSMqG3seFTkN2WP0zeb+/N+xaXLutf2s82q5LgbDabqLwxuFqUbxag==
-X-Received: by 2002:a17:902:28e9:: with SMTP id f96mr21903651plb.169.1550440559472;
-        Sun, 17 Feb 2019 13:55:59 -0800 (PST)
+        bh=0V94wftf7qYYjGwslfQBCAle9jbzinWXN8ZI6JiDtmQ=;
+        b=dnz4qIz//oYMT6PFsYAwVosPJQ8DBUZFNQ1O4wlSvrqUYu/kcZ5x43fvV4SZW8SjPn
+         CGNnYiHeuLppQFSWt7RI94eZSzNkwLzS7mCUYZT/cQrT7NmezOxMY+sYQRVAQLsKD9gq
+         mA8vXMVB7s1Y8/XGcubDTtuWFXkbDTmo91idcKZlBjT4zJJIi4yyq4DNORRUu5VxVm3P
+         9j+g6rwK+1yNIHU7rf2hZGyTnPO46oZhRTgPasyKryzBl4rDg2CVodF9rWJ7hUMGS3NI
+         waxqenzqm5QcEDdXlywph4H9ZLUd9pT//6jkomO0X/PjbD+KGzhkwVK/TJqGAYxVmtnP
+         uHHg==
+X-Google-Smtp-Source: AHgI3IZAFCHDIOZDN/BDA+fT7xYi65ieDd1MnUSrNh5wv7caN69V6wAtINFqNxNuu0y0owl9ryoMzQ==
+X-Received: by 2002:a65:6654:: with SMTP id z20mr7264026pgv.390.1550440913450;
+        Sun, 17 Feb 2019 14:01:53 -0800 (PST)
 Received: from localhost ([203.219.252.113])
-        by smtp.gmail.com with ESMTPSA id k74sm5381900pfb.172.2019.02.17.13.55.58
+        by smtp.gmail.com with ESMTPSA id y9sm16911390pfi.74.2019.02.17.14.01.52
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 17 Feb 2019 13:55:58 -0800 (PST)
-Date: Mon, 18 Feb 2019 08:55:56 +1100
+        Sun, 17 Feb 2019 14:01:52 -0800 (PST)
+Date: Mon, 18 Feb 2019 09:01:50 +1100
 From: Balbir Singh <bsingharora@gmail.com>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Segher Boessenkool <segher@kernel.crashing.org>, erhard_f@mailbox.org,
-	jack@suse.cz, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, aneesh.kumar@linux.vnet.ibm.com
-Subject: Re: [PATCH] powerpc/64s: Fix possible corruption on big endian due
- to pgd/pud_present()
-Message-ID: <20190217215556.GH31125@350D>
-References: <20190214062339.7139-1-mpe@ellerman.id.au>
- <20190216105511.GA31125@350D>
- <20190216142206.GE14180@gate.crashing.org>
- <20190217062333.GC31125@350D>
- <87ef86dd9v.fsf@concordia.ellerman.id.au>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Matthew Wilcox <willy@infradead.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+Subject: Re: [LSF/MM TOPIC] Address space isolation inside the kernel
+Message-ID: <20190217220150.GI31125@350D>
+References: <20190207072421.GA9120@rapoport-lnx>
+ <20190216121950.GB31125@350D>
+ <1550334616.3131.10.camel@HansenPartnership.com>
+ <20190217193434.GQ12668@bombadil.infradead.org>
+ <1550434146.2809.28.camel@HansenPartnership.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87ef86dd9v.fsf@concordia.ellerman.id.au>
+In-Reply-To: <1550434146.2809.28.camel@HansenPartnership.com>
 User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -128,46 +127,57 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Feb 17, 2019 at 07:34:20PM +1100, Michael Ellerman wrote:
-> Balbir Singh <bsingharora@gmail.com> writes:
-> > On Sat, Feb 16, 2019 at 08:22:12AM -0600, Segher Boessenkool wrote:
-> >> Hi all,
-> >> 
-> >> On Sat, Feb 16, 2019 at 09:55:11PM +1100, Balbir Singh wrote:
-> >> > On Thu, Feb 14, 2019 at 05:23:39PM +1100, Michael Ellerman wrote:
-> >> > > In v4.20 we changed our pgd/pud_present() to check for _PAGE_PRESENT
-> >> > > rather than just checking that the value is non-zero, e.g.:
-> >> > > 
-> >> > >   static inline int pgd_present(pgd_t pgd)
-> >> > >   {
-> >> > >  -       return !pgd_none(pgd);
-> >> > >  +       return (pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
-> >> > >   }
-> >> > > 
-> >> > > Unfortunately this is broken on big endian, as the result of the
-> >> > > bitwise && is truncated to int, which is always zero because
-> >> 
-> >> (Bitwise "&" of course).
-> >> 
-> >> > Not sure why that should happen, why is the result an int? What
-> >> > causes the casting of pgd_t & be64 to be truncated to an int.
-> >> 
-> >> Yes, it's not obvious as written...  It's simply that the return type of
-> >> pgd_present is int.  So it is truncated _after_ the bitwise and.
-> >>
-> >
-> > Thanks, I am surprised the compiler does not complain about the truncation
-> > of bits. I wonder if we are missing -Wconversion
+On Sun, Feb 17, 2019 at 12:09:06PM -0800, James Bottomley wrote:
+> On Sun, 2019-02-17 at 11:34 -0800, Matthew Wilcox wrote:
+> > On Sat, Feb 16, 2019 at 08:30:16AM -0800, James Bottomley wrote:
+> > > On Sat, 2019-02-16 at 23:19 +1100, Balbir Singh wrote:
+> > > > For namespaces, does allocating the right memory protection key
+> > > > work? At some point we'll need to recycle the keys
+> > > 
+> > > I don't think anyone mentioned memory keys and namespaces ... I
+> > > take it you're thinking of SEV/MKTME?
+> > 
+> > I thought he meant Protection Keys
+> > https://en.wikipedia.org/wiki/Memory_protection#Protection_keys
 > 
-> Good luck with that :)
+> Really?  I wasn't really considering that mainly because in parisc we
+> use them to implement no execute, so they'd have to be repurposed.
 > 
-> What I should start doing is building with it enabled and then comparing
-> the output before and after commits to make sure we're not introducing
-> new cases.
+> > > The idea being to shield one container's execution from another
+> > > using memory encryption?  We've speculated it's possible but the
+> > > actual mechanism we were looking at is tagging pages to namespaces
+> > > (essentially using the mount namspace and tags on the
+> > > page cache) so the kernel would refuse to map a page into the wrong
+> > > namespace.  This approach doesn't seem to be as promising as the
+> > > separated address space one because the security properties are
+> > > harder
+> > > to measure.
+> > 
+> > What do you mean by "tags on the pages cache"?  Is that different
+> > from the radix tree tags (now renamed to XArray marks), which are
+> > search keys.
+> 
+> Tagging the page cache to namespaces means having a set of mount
+> namespaces per page in the page cache and not allowing placing the page
+> into a VMA unless the owning task's nsproxy is one of the tagged mount
+> namespaces.  The idea was to introduce kernel supported fencing between
+> containers, particularly if they were handling sensitive data, so that
+> if a container used an exploit to map another container's page, the
+> mapping would fail.  However, since sensitive data should be on an
+> encrypted filesystem, it looks like SEV/MKTME coupled with file based
+> encryption might provide a better mechanism.
 >
 
-Fair enough, my point was that the compiler can help out. I'll see what
--Wconversion finds on my local build :)
+Splitting out this point to a different email, I think being able to
+tag page cache is quite interesting and in the long run might help
+us to get things like mincore() right across shared boundaries.
 
-Balbir Singh. 
+But any fencing will come in the way of sharing and density of containers.
+I still don't see how a container can map page cache it does not have
+right permissions to/for? In an ideal world any writable pages (sensitive)
+should ideally go to the writable bits of the union mount filesystem which is
+private to the container (but I could be making up things without
+trying them out)
+
+Balbir Singh.
 
