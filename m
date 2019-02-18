@@ -2,155 +2,147 @@ Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3236FC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 09:03:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 98F08C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 09:04:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E99E22175B
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 09:03:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E99E22175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 5F605206B7
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 09:04:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F605206B7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 874808E0003; Mon, 18 Feb 2019 04:03:14 -0500 (EST)
+	id F050A8E0004; Mon, 18 Feb 2019 04:04:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8253B8E0002; Mon, 18 Feb 2019 04:03:14 -0500 (EST)
+	id EBF3A8E0002; Mon, 18 Feb 2019 04:04:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 73BA08E0003; Mon, 18 Feb 2019 04:03:14 -0500 (EST)
+	id D7EFD8E0004; Mon, 18 Feb 2019 04:04:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E7278E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 04:03:14 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id d16so536811edv.22
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 01:03:14 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 77C4D8E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 04:04:41 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id c53so6928086edc.9
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 01:04:41 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=e3pGMJeqPw8F62l4V7GmBPSc9yCuxxclBIMpd0DJdhI=;
-        b=FyoNPNDb7yO96CufFNIbCAApsv7Brw3YZmEAqc3+sXDfYC+TAqTijH1BS99S9A5otg
-         ytkXJkI5oRqt6zZw95hRubpq/+FCNBnA42tcWK4ATUNMX5HWQGFyreBSLB4CY6lXhisR
-         onRske3bwLE11Gj2cNhgHhcfn6cnxybvnbeAoh8xstd46h3v4/Wv01A58FF2KvA/L/8M
-         dw8CxsH4hmQHB5lKJxrhbWyPobVpgT8rokZxm9auEvRGX44IQtAgzhG4am5J7GhggDpl
-         2UGhPLRSP085diFvI/JD+rlZ+HaTEDNpCwJ+34H5ga+RIMSeCWBxe/9NGviVueb3iqfR
-         7KIg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAubqWgtXypzRhG0gfPju3RTnWn+5qqLLbr2Ekv712aYWCaVxjUWT
-	aSGAMhhsHwl3x66cOX/t+e6sICuYo4+sCQY09X5G89XDHVae0F5wCj6Efd0HQAOKyz0cZRBOexq
-	iVuDHjlv7gTrs8OiN+I6Ac7UKeGZ/7PMLh64XB5gO1uUqwUHPBvxAukcf5IyAzhs=
-X-Received: by 2002:a17:906:741:: with SMTP id z1mr14272152ejb.206.1550480593660;
-        Mon, 18 Feb 2019 01:03:13 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZMMbA2VQtanCk8UZr5YnlXWtIgmeHqLKUACruN7LuDowKqTN8i310e4q/r0EY7/twOIQOR
-X-Received: by 2002:a17:906:741:: with SMTP id z1mr14272101ejb.206.1550480592749;
-        Mon, 18 Feb 2019 01:03:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550480592; cv=none;
+        bh=bVz+ef9BUELcEQozHVwrKrHx7VZ9+CwQCVvpB7f9kpA=;
+        b=pdgZTfwMrUIAJNMK3QPYohhQhtn+qrkK/ofeJEzQI0tLBcnfThjp67PE8+PmAz/yhu
+         xcCOxpMHU/Rw066+p8g+wxpDySeWcW7xZDAQPvhGLrTQt4LHMFSBZCxQPIRUiKwkalfy
+         vaLrUmn3w0MwC8fSLNMkcHTMnOpNlAuCwiP4uai5bZuzZCT2NL/xggABjVKnrcgobZqK
+         bNcxDTkutQjrvLMkVqoXcAk6jw8wTbNzKM2MzYS/jY0fnWXmSETQXDEm4lB097l4SsTj
+         ixLdgKd48QOCYcnxooDM1H7aXUnyGiTfjMYL9hyZ47SE3iV+HlvA53H8sZa27OhtLjzC
+         84dg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: AHQUAuY8Du1EnX78btlr9FqLNP+uV8eMJHA44t8GHhArY3DmfxoXllV3
+	PvtBLaW7vPvlOXQ1I+9mXAFOcfj+ek0U+ljML/DTs20D3k+zLvHSfWGpc8YOt8egk9JHzK3Kid8
+	L/Dgy95Q4OkVhz27upvw9wcNKgfb+N3djs5TNHXPHHty2OwK97WasdY0ahxq84QhPHA==
+X-Received: by 2002:a17:906:82c2:: with SMTP id a2mr16055195ejy.8.1550480681050;
+        Mon, 18 Feb 2019 01:04:41 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IblBCl9g5jiprfYrNlSwK3SZkg0vl8GBNyoDdor0oNXksJ5majzFiFodLI8BolWKKktogB8
+X-Received: by 2002:a17:906:82c2:: with SMTP id a2mr16055148ejy.8.1550480680133;
+        Mon, 18 Feb 2019 01:04:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550480680; cv=none;
         d=google.com; s=arc-20160816;
-        b=gQCQKDa9+6Jzu1eNZJl/6yHwBNo4jYuKmSVwPuP9WlE37agv7GH0QuuuEJv7RmUHny
-         06xF0Wc/C6m1FOjd/l1yWyyNRhNWH5C+w/cFZS4xAssaHlujt7/jGN6JxYtLAne0/CJC
-         tbCI/7VThH9t49cvUZ4ctd1+P+gqFNeqctNmcR2V/xUqiCzTBaPBIgsmNBvmwvq9Jj4k
-         ybTWxtL3y4kwqgXL10dkmV7OYXsrjM349zhg2R7khxiojrKMLgNY4J4CgVtlrgkBiJ89
-         BNSryl0fBJAfPSLkhMHHBxLn2uL1/yug9/OAzUXXAlc8WBTri0HwGfOeNBBxsKkzfIUH
-         BFUQ==
+        b=vyfTmy+KS0VcIAwug5gnNfYn1Z/zHrainKWER8Ph/jmYKTnUTPEkKrKp7PmMbVy5Un
+         L/5oy4/OmhQ+1DSOqm1gJUGD1G+YZigzKa4/wbbhaOsIr3WWNx+R/VQEsyELW/fhaWbU
+         DIwM9jMng2FCbfxIWofS5sj9UKBl1p/IFxxwXdBFLOMHggKiAX3XwCpyGv7W40GeOHom
+         OMSt3yKazQkfHDaXwOcKjAmrDwEEPSuuRxeHTnVDYenn1dUUplhK3PpLq2NxAb0fk7bu
+         3H7P90yvxrcdl6Zm4tlN6G1lLfw5XzJtNaAqXfIYh7/nXqVfm+2NVpd57hmIF5x40KPu
+         U6XQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=e3pGMJeqPw8F62l4V7GmBPSc9yCuxxclBIMpd0DJdhI=;
-        b=d2TxAQPYvzz7x2k0r8lH+LzkebPNb2TctJhFJyJn5oDMFCuHfwfMBh1o7ZVdEg4os8
-         MkPkSlFv0Dy0Hr2rMLzyOuSwqCkjEknJx8gloLyiJYWoRhVUF4+1LTFDRf11LJpj8+lx
-         LB5vNDIg1yNj5w7MBaH1FgoGzTr1LkYiLFHTeDGivTOuX4wxK0ZEr2G4XlrJdylMljjB
-         rt2DXWQyVAF/j0wQBQ7hRWYoQQomgvfekYXFEwDnOvbss6UosMQpHuNJjRUrhDqacucM
-         HVQGxubtp8NRH1aPlkxDZMteYwZuUmOaAo7lsXfxZeiJ52G/KjBddFdB6MLwDgDtZ7Xw
-         2B2Q==
+        bh=bVz+ef9BUELcEQozHVwrKrHx7VZ9+CwQCVvpB7f9kpA=;
+        b=KWqFHudnQt8cBi+7QZEzeamQVSZ+TMi/r+CKTc1YhOtbmqVq/Wqo792BmiMYLCQdS/
+         CKfJfEO2bcdPmtk4kA+LC+DqKhFmasYD/hmUj5VDQ5QNPCeOAiTVX/wu7M6iUylCbXIJ
+         TewqL3LR2eLf9EPoDvtOk4WXIxRBJMZeR/xrN9+OU/Di7iPC3BLFHuji/dduG4AsKGZh
+         TC88vAS1tiS7A4T75zp4MQ7z8DYKfU7qXXXXVuQkqpOAyxcNv8YwmC65oHH6WgoHVt/H
+         RVJ2F0xR7Clonz494/8RZfIsgfuh8x8WryYYNi/rgh/sNQnlclar7+o/MXVkVy8dtKcv
+         K/yA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y7si3979881edh.249.2019.02.18.01.03.12
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Feb 2019 01:03:12 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id b8si4673859ejj.266.2019.02.18.01.04.39
+        for <linux-mm@kvack.org>;
+        Mon, 18 Feb 2019 01:04:40 -0800 (PST)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 51037AECF;
-	Mon, 18 Feb 2019 09:03:12 +0000 (UTC)
-Date: Mon, 18 Feb 2019 10:03:10 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Rong Chen <rong.a.chen@intel.com>
-Cc: Oscar Salvador <osalvador@suse.de>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	linux-kernel@vger.kernel.org, LKP <lkp@01.org>
-Subject: Re: [LKP] efad4e475c [ 40.308255] Oops: 0000 [#1] PREEMPT SMP PTI
-Message-ID: <20190218090310.GE4525@dhcp22.suse.cz>
-References: <20190218052823.GH29177@shao2-debian>
- <20190218070844.GC4525@dhcp22.suse.cz>
- <79a3d305-1d96-3938-dc14-617a9e475648@intel.com>
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E80FFA78;
+	Mon, 18 Feb 2019 01:04:38 -0800 (PST)
+Received: from mbp (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 0DE0C3F589;
+	Mon, 18 Feb 2019 01:04:36 -0800 (PST)
+Date: Mon, 18 Feb 2019 09:04:34 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org,
+	akpm@linux-foundation.org, mhocko@kernel.org, kirill@shutemov.name,
+	kirill.shutemov@linux.intel.com, vbabka@suse.cz,
+	will.deacon@arm.com
+Subject: Re: [RFC 0/4] mm: Introduce lazy exec permission setting on a page
+Message-ID: <20190218090433.bxtty3rrgo4ln6hp@mbp>
+References: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
+ <7f25d3f4-68a1-58de-1a78-1bd942e3ba2f@intel.com>
+ <413d74d1-7d74-435c-70c0-91b8a642bf99@arm.com>
+ <35b14038-379f-12fb-d943-5a083a2a7056@intel.com>
+ <3da12849-bc56-cb9b-f13f-e15d42416223@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <79a3d305-1d96-3938-dc14-617a9e475648@intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <3da12849-bc56-cb9b-f13f-e15d42416223@arm.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 18-02-19 16:47:26, Rong Chen wrote:
+On Mon, Feb 18, 2019 at 02:01:55PM +0530, Anshuman Khandual wrote:
+> On 02/14/2019 10:25 PM, Dave Hansen wrote:
+> > On 2/13/19 8:12 PM, Anshuman Khandual wrote:
+> >> On 02/13/2019 09:14 PM, Dave Hansen wrote:
+> >>> On 2/13/19 12:06 AM, Anshuman Khandual wrote:
+> >>>> Setting an exec permission on a page normally triggers I-cache invalidation
+> >>>> which might be expensive. I-cache invalidation is not mandatory on a given
+> >>>> page if there is no immediate exec access on it. Non-fault modification of
+> >>>> user page table from generic memory paths like migration can be improved if
+> >>>> setting of the exec permission on the page can be deferred till actual use.
+> >>>> There was a performance report [1] which highlighted the problem.
+> >>>
+> >>> How does this happen?  If the page was not executed, then it'll
+> >>> (presumably) be non-present which won't require icache invalidation.
+> >>> So, this would only be for pages that have been executed (and won't
+> >>> again before the next migration), *or* for pages that were mapped
+> >>> executable but never executed.
+> >> I-cache invalidation happens while migrating a 'mapped and executable' page
+> >> irrespective whether that page was really executed for being mapped there
+> >> in the first place.
+> > 
+> > Ahh, got it.  I also assume that the Accessed bit on these platforms is
+> > also managed similar to how we do it on x86 such that it can't be used
+> > to drive invalidation decisions?
 > 
-> On 2/18/19 3:08 PM, Michal Hocko wrote:
-> > On Mon 18-02-19 13:28:23, kernel test robot wrote:
-[...]
-> > > [   40.305212] PGD 0 P4D 0
-> > > [   40.308255] Oops: 0000 [#1] PREEMPT SMP PTI
-> > > [   40.313055] CPU: 1 PID: 239 Comm: udevd Not tainted 5.0.0-rc4-00149-gefad4e4 #1
-> > > [   40.321348] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
-> > > [   40.330813] RIP: 0010:page_mapping+0x12/0x80
-> > > [   40.335709] Code: 5d c3 48 89 df e8 0e ad 02 00 85 c0 75 da 89 e8 5b 5d c3 0f 1f 44 00 00 53 48 89 fb 48 8b 43 08 48 8d 50 ff a8 01 48 0f 45 da <48> 8b 53 08 48 8d 42 ff 83 e2 01 48 0f 44 c3 48 83 38 ff 74 2f 48
-> > > [   40.356704] RSP: 0018:ffff88801fa87cd8 EFLAGS: 00010202
-> > > [   40.362714] RAX: ffffffffffffffff RBX: fffffffffffffffe RCX: 000000000000000a
-> > > [   40.370798] RDX: fffffffffffffffe RSI: ffffffff820b9a20 RDI: ffff88801e5c0000
-> > > [   40.378830] RBP: 6db6db6db6db6db7 R08: ffff88801e8bb000 R09: 0000000001b64d13
-> > > [   40.386902] R10: ffff88801fa87cf8 R11: 0000000000000001 R12: ffff88801e640000
-> > > [   40.395033] R13: ffffffff820b9a20 R14: ffff88801f145258 R15: 0000000000000001
-> > > [   40.403138] FS:  00007fb2079817c0(0000) GS:ffff88801dd00000(0000) knlGS:0000000000000000
-> > > [   40.412243] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> > > [   40.418846] CR2: 0000000000000006 CR3: 000000001fa82000 CR4: 00000000000006a0
-> > > [   40.426951] Call Trace:
-> > > [   40.429843]  __dump_page+0x14/0x2c0
-> > > [   40.433947]  is_mem_section_removable+0x24c/0x2c0
-> > This looks like we are stumbling over an unitialized struct page again.
-> > Something this patch should prevent from. Could you try to apply [1]
-> > which will make __dump_page more robust so that we do not blow up there
-> > and give some more details in return.
-> 
-> 
-> Hi Hocko,
-> 
-> I have applied [1] and attached the dmesg file.
+> Drive I-cache invalidation ? Could you please elaborate on this. Is not that
+> the access bit mechanism is to identify dirty pages after write faults when
+> it is SW updated or write accesses when HW updated. In SW updated method, given
+> PTE goes through pte_young() during page fault. Then how to differentiate exec
+> fault/access from an write fault/access and decide to invalidate the I-cache.
+> Just being curious.
 
-Thanks so the log confirms that this is really an unitialized struct
-page
-[   12.228622] raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff
-[   12.231474] page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
-[   12.232135] ------------[ cut here ]------------
-[   12.232649] kernel BUG at include/linux/mm.h:1020!
+The access flag is used to identify young/old pages only (the dirty bit
+is used to track writes to a page). Depending on the Arm implementation,
+the access bit/flag could be managed by hardware transparently, so no
+fault taken to the kernel on accessing through an 'old' pte.
 
-So now, we have to find out what has been left behind. Please see my
-other email. Also could you give me faddr2line of the
-is_mem_section_removable offset please? I assume it is 
-is_pageblock_removable_nolock:
-	if (!node_online(page_to_nid(page)))
-		return false;
 -- 
-Michal Hocko
-SUSE Labs
+Catalin
 
