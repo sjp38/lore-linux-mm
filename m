@@ -2,161 +2,154 @@ Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EB88FC4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 13:34:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 94D35C4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 13:44:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 98FD32089F
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 13:34:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 98FD32089F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=angband.pl
+	by mail.kernel.org (Postfix) with ESMTP id 18B7E217F5
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 13:44:12 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=bofh-nu.20150623.gappssmtp.com header.i=@bofh-nu.20150623.gappssmtp.com header.b="drdfA6Ux"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 18B7E217F5
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bofh.nu
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 38A698E0004; Mon, 18 Feb 2019 08:34:28 -0500 (EST)
+	id AAEBA8E0003; Mon, 18 Feb 2019 08:44:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 339628E0002; Mon, 18 Feb 2019 08:34:28 -0500 (EST)
+	id A35A08E0002; Mon, 18 Feb 2019 08:44:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2509F8E0004; Mon, 18 Feb 2019 08:34:28 -0500 (EST)
+	id 8FCD28E0003; Mon, 18 Feb 2019 08:44:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C5A838E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 08:34:27 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id b9so7848722wrw.14
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 05:34:27 -0800 (PST)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FD6F8E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 08:44:11 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id f15so14883013otl.17
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 05:44:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mime-version:content-disposition
-         :content-transfer-encoding:user-agent;
-        bh=hcqmhSFLWS4InaULMDSTMjMXIU8QBoJOtQge6Oi+cko=;
-        b=UHzYvzBhh9/qp+vL6XWTWyp9L500LpT8B4VrHtPx1SIFHDPEEJlJJ770maUHG2vYoT
-         sUXLrdB9LojCRlfJFvmJ/Cxa81x80WU233vJty4qDPxMgL/0FO39HHkyrNyVlWIJhfWA
-         7cZjPhzd0vxR3va+jCCOkqkfy/fl2DYixYOjod2z+GW6LP/WZQrj7ulP3MEKTi44m033
-         8bFMdH8DmAlDmgMAVFRzfMGXBFLax0mOTtR1ezCipXV692s0aby3HBTDoyMVbQcANz8C
-         okFTNAfcfXtcykIfmmzbtL6jXffcl5SD5PMsiNCgPVnHQE5UuEkxnxL1rIdcUvzO/7iu
-         Vvkg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of kilobyte@angband.pl designates 2001:41d0:602:dbe::8 as permitted sender) smtp.mailfrom=kilobyte@angband.pl
-X-Gm-Message-State: AHQUAuZr2c2rMMbnuICnu5r8lFzXouSvnedRFBYKL6XOyrYPfgbUQhUp
-	yG1fOY9P5MfMiOKC0oDTu2z7ak8vMHudpBobXP3Ba3eLljj74ygI///yxA+zEig3HhX5VPMR1EZ
-	K41zfAbcbWkXHWtUqzTmCE8ClogpolTyJQjI2bTmD4X8Pk+4QOpxlAJVSWKT/yWW+kQ==
-X-Received: by 2002:a5d:4cd1:: with SMTP id c17mr15824288wrt.229.1550496867326;
-        Mon, 18 Feb 2019 05:34:27 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYmfAFcG51LG3CsVmxtbSRbz/k0GOvEE6iWJWsXpd8pNq9ixYOEtVVi73/flvlw1z1RHog7
-X-Received: by 2002:a5d:4cd1:: with SMTP id c17mr15824250wrt.229.1550496866318;
-        Mon, 18 Feb 2019 05:34:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550496866; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=wFz5T/gKS4sQKCfoA+LnrdX7HOe7jBqNz1iE1oIU+e8=;
+        b=lrgfqmfjbt2LDESLlZamgbqsXAVmYq/mq9/9XhkE83tRjKdw+uVU0f3p16E8/6jRPE
+         +jSXeRFv/ysCP0k+CQtTZnzRYpGJjPu3SS5olGj9yJFl5eCr5IjjKv0d1T0XPqjaj4e2
+         cbv4u9aatoQCngvnRMkC8Tb+OzraQdEOAMOesrQmbIw5QHWDlCVbGaPnGtl2Z/qbgCFJ
+         +v6x/ETyHpP3IGIioUePEalnytJClISNYfOaF88lzJB6gG5sTh4WyKQXE+7oOLbj4bWF
+         lFw2KPwF8J2gCRZFNKv1QuTe7Z/FKp6zIlY6BwzFYHTbwNLrhVMYPDPbuGPx3fz5CHUI
+         EOFA==
+X-Gm-Message-State: AHQUAuZXv/b/vrjTd5hb84WaD2ftaS60nlwxndg1L/PrExOxJHG4yjjy
+	T1vbP2zLy66luJR5lVYlnDmmBS/K3RvX8dCe1sF4KmlRYgd8FfRPwUCFaGlFH/fNAig3NVHF3fN
+	EoO/P3DAJ7K1x3p87AeYroUODNtV6rWFPoICp33KGOe3skDYGx7+6lE3D38waaNwqYIFlzi1iID
+	SkQFY3c0NsGnjxCvFgwc5478EMbCD8JJf639Ie+2jGo2CS1LQUrtn1bIX1cEuiDdqJ40xmjilTG
+	zDw0wx8BT72C3AO60dDTNNqF/tnDlyh+JLIcilq3xp+vvT/d59gEPm3hoCi/tU0AnmQMiAw2UDL
+	y1Vuos6hzFdHwCnvsb5nK2qJkZOh+PNgqSPCf/QYgu4GQ/HdA1Aj7OLBE+kARFZStpYGuPur6iK
+	e
+X-Received: by 2002:a05:6830:100b:: with SMTP id a11mr14028320otp.75.1550497450854;
+        Mon, 18 Feb 2019 05:44:10 -0800 (PST)
+X-Received: by 2002:a05:6830:100b:: with SMTP id a11mr14028295otp.75.1550497450157;
+        Mon, 18 Feb 2019 05:44:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550497450; cv=none;
         d=google.com; s=arc-20160816;
-        b=ez/iVGiYzd2uFDeS+afqMaXIFsaDLX97oSghlTXXhx0L7moIVKJ+bn3NJhEugeKFI0
-         i+JQNwRiw5oJYscUYd6UfKAnl4wOhpsab3Ps1BkqhDFQc2P/KhrxklxMYlky0uKl5ox4
-         mG7Fpfv8tm38AJ+2gEulRvT/giUwdhjZiUVgkgpM4qj+zShbqHDePHwsldd4T6cechiH
-         Cpokkc95tB30MzA1ZWBaA/JbvaDB+nA0NTHVRITpHG6T2V/Czctw17lltL4n3BEbIZz7
-         HDQ82FAUZgpWlv0x5HWBtXzTBRs3Y1TjyweymcZzLUXmPcRJkzFNvOBxIYeJkHzc8C13
-         MHcA==
+        b=lz4bF/BZmBt4lx29kKMEHQnYC4S5JkQWXbBZd7FPWAI3nz4x/cpY66UMySpeYHgPAq
+         6hWACPi+xeLvMazNe0V01MvJvIf+1k4V2fU/FI8ruxkbrNEAEEs9WrItItSTZSUoXVMx
+         BxlX3h6mlk5+HawngVnS92X76XYnaOsB8pEt7wznIFjowtHMP1PKwsTOaiF5cNMdBxMP
+         59+oViXeZG9y91I8tQeg59q5i7KNjGze35XGQHnvSk/1+Q+FM2XS1x05I6UrObh35ZWs
+         t0sbLe7aWMYKVooie/qv51EHTlMPyPBgVDNTZyKpEVKVaODSrbRWw2qDEbkXbVsXR4Lq
+         wOBA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-transfer-encoding:content-disposition
-         :mime-version:message-id:subject:cc:to:from:date;
-        bh=hcqmhSFLWS4InaULMDSTMjMXIU8QBoJOtQge6Oi+cko=;
-        b=iG6vX5hoaJWNhcrs+xybry0qkOMNypu16G2RSp1HgCDFPzhrAOP4yI19mE39W8j1YD
-         R8SEBYj0KhlXJm/zmpPTywkS308LTO4fuOnhNljSqkwPQLIayNG3+y6zyp+2fOcaQUIu
-         IaAIpc/VH5sAf7JiXN3czuZpo7ZebQXr5UeqQKDEVBErKq3H2HGXft403F1LF+VdrzL6
-         OnDT1mdnlXVYPoTu/Y07F6OCHLm4XRsRhnnlU/xnfKffhmZLYAYKtEJ69DA/ulrHvj9B
-         NPh7nj6hKgx1ydADbmBXPt9xAiIoINDGotmTMCXaPCdpTrpLpwZaNzq2TNKFTptF07Fu
-         hMlQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=wFz5T/gKS4sQKCfoA+LnrdX7HOe7jBqNz1iE1oIU+e8=;
+        b=dpwCuZw0GDkXqh7NguWaKPTAmsoEdzTi2W2qYFJCyyWpmUshMK2VURMLiQdfuQOohx
+         FnbhSpzW4Pts51sDhwQoTQQx8umala8pgehpxUBFyayLG0/R2Jc6O3+MDAcxWpzfTEei
+         x5QFASqb3eWuEq5OEKI3Z6aGaOt4L2Pwgu/c0NnaORDhoKtXoMuIJtZDuHEI6ZkMjw2t
+         fxQu4zc8+ijnLSXOU4r08jgo0lfhRGDT0k5CUfGL4yozYENEbG8v9SWWPenr3JPdEsld
+         jrJMc3nXoToz0OR6dPMq/zN4ODdbWI2YGywTceUv1J2nceFxO+o5AUsztYlo85px9aj2
+         g0uw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of kilobyte@angband.pl designates 2001:41d0:602:dbe::8 as permitted sender) smtp.mailfrom=kilobyte@angband.pl
-Received: from tartarus.angband.pl (tartarus.angband.pl. [2001:41d0:602:dbe::8])
-        by mx.google.com with ESMTPS id c17si9428647wre.152.2019.02.18.05.34.26
+       dkim=pass header.i=@bofh-nu.20150623.gappssmtp.com header.s=20150623 header.b=drdfA6Ux;
+       spf=pass (google.com: domain of lists@bofh.nu designates 209.85.220.65 as permitted sender) smtp.mailfrom=lists@bofh.nu
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e11sor7091768oiy.62.2019.02.18.05.44.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 18 Feb 2019 05:34:26 -0800 (PST)
-Received-SPF: pass (google.com: domain of kilobyte@angband.pl designates 2001:41d0:602:dbe::8 as permitted sender) client-ip=2001:41d0:602:dbe::8;
+        (Google Transport Security);
+        Mon, 18 Feb 2019 05:44:10 -0800 (PST)
+Received-SPF: pass (google.com: domain of lists@bofh.nu designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of kilobyte@angband.pl designates 2001:41d0:602:dbe::8 as permitted sender) smtp.mailfrom=kilobyte@angband.pl
-Received: from kilobyte by tartarus.angband.pl with local (Exim 4.89)
-	(envelope-from <kilobyte@angband.pl>)
-	id 1gvj3v-0006jN-Ge; Mon, 18 Feb 2019 14:34:23 +0100
-Date: Mon, 18 Feb 2019 14:34:23 +0100
-From: Adam Borowski <kilobyte@angband.pl>
-To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: Marcin =?utf-8?Q?=C5=9Alusarz?= <marcin.slusarz@intel.com>
-Subject: tmpfs fails fallocate(more than DRAM)
-Message-ID: <20190218133423.tdzawczn4yjdzjqf@angband.pl>
+       dkim=pass header.i=@bofh-nu.20150623.gappssmtp.com header.s=20150623 header.b=drdfA6Ux;
+       spf=pass (google.com: domain of lists@bofh.nu designates 209.85.220.65 as permitted sender) smtp.mailfrom=lists@bofh.nu
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=bofh-nu.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=wFz5T/gKS4sQKCfoA+LnrdX7HOe7jBqNz1iE1oIU+e8=;
+        b=drdfA6UxeMOkGPRrukDac0Pfot+RfjI7X4llH+DqvnrjuMY14f/nJfGe9lu88QsPA/
+         ZG+V3FrYSD0bDqmCdl24m/ZWWYDoA8rp728t/jWwPlfuS1GTSCKeidWlo71ssgQE47iL
+         PyKI7cSnwttBv0anKgfK/L5qrEGekLuWaV3xKcgGv89ZcatVbOQzWTF6QNJU/4+vqlxb
+         O/3Tq4j8ZHvn4VTXW7JRzwh54XLEo4u5JwT6MXn4ZfgH3jH8ch+uDCje+Fxe2Q1OR5+d
+         sGz9crjI6+erc0Q9MNo0UseeJgH+u4Y8TnhOL5l7m1g9FRAnZr7PmPvs6//v8lcxwust
+         sTgQ==
+X-Google-Smtp-Source: AHgI3IZdX+BaKD9r8NSRj2jb9ncPlX8I5T5KiNHlt3XTaZjkEcj2TuEK74CefWHQLOWud5almRRl1Nk45eigelx5Kck=
+X-Received: by 2002:aca:fd4c:: with SMTP id b73mr14874883oii.33.1550497449575;
+ Mon, 18 Feb 2019 05:44:09 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-X-Junkbait: aaron@angband.pl, zzyx@angband.pl
-User-Agent: NeoMutt/20170113 (1.7.2)
-X-SA-Exim-Connect-IP: <locally generated>
-X-SA-Exim-Mail-From: kilobyte@angband.pl
-X-SA-Exim-Scanned: No (on tartarus.angband.pl); SAEximRunCond expanded to false
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.001518, version=1.2.4
+References: <eabca57aa14f4df723173b24891f4a2d9c501f21.1543526537.git.jstancek@redhat.com>
+ <c440d69879e34209feba21e12d236d06bc0a25db.1543577156.git.jstancek@redhat.com>
+ <CADnJP=vsum7_YYWBpknpahTQFAzm7G40_E2dLMB_poFEhPKEfw@mail.gmail.com> <997509746.100933786.1549350874925.JavaMail.zimbra@redhat.com>
+In-Reply-To: <997509746.100933786.1549350874925.JavaMail.zimbra@redhat.com>
+From: Lars Persson <lists@bofh.nu>
+Date: Mon, 18 Feb 2019 14:43:58 +0100
+Message-ID: <CADnJP=t25=AcVq7z3w8iG1+ywnSNN4Vbow3-7tOai+qnyD5ACQ@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: page_mapped: don't assume compound page is huge or THP
+To: Jan Stancek <jstancek@redhat.com>
+Cc: linux-mm@kvack.org, lersek@redhat.com, 
+	alex williamson <alex.williamson@redhat.com>, aarcange@redhat.com, rientjes@google.com, 
+	kirill@shutemov.name, mgorman@techsingularity.net, mhocko@suse.com, 
+	linux-kernel@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000015, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
-There's something that looks like a bug in tmpfs' implementation of
-fallocate.  If you try to fallocate more than the available DRAM (yet
-with plenty of swap space), it will evict everything swappable out
-then fail, undoing all the work done so far first.
+On Tue, Feb 5, 2019 at 8:14 AM Jan Stancek <jstancek@redhat.com> wrote:
+> Hi,
+>
+> are you using THP (CONFIG_TRANSPARENT_HUGEPAGE)?
+>
+> The changed line should affect only THP and normal compound pages,
+> so a test with THP disabled might be interesting.
+>
+> >
+> > The breakage consists of random processes dying with SIGILL or SIGSEGV
+> > when we stress test the system with high memory pressure and explicit
+> > memory compaction requested through /proc/sys/vm/compact_memory.
+> > Reverting this patch fixes the crashes.
+> >
+> > We can put some effort on debugging if there are no obvious
+> > explanations for this. Keep in mind that this is 32-bit system with
+> > HIGHMEM.
+>
+> Nothing obvious that I can see. I've been trying to reproduce on
+> 32-bit x86 Fedora with no luck so far.
+>
 
-The returned error is ENOMEM rather than POSIX mandated ENOSPC (for
-posix_allocate(), but our documentation doesn't mention ENOMEM for
-Linux-specific fallocate() either).
+Hi
 
-Doing the same allocation in multiple calls -- be it via non-overlapping
-calls or even with same offset but increasing len -- works as expected.
+Thanks for looking in to it. After some deep dive in MM code, I think
+it is safe to say this patch was innocent.
 
-An example:
-Machine has 32GB RAM, minus 4GB memmapped as fake pmem.  No big tasks
-(X, some shells, browser, ...).  Run ｢while :;do free -m;done｣ on another
-terminal, then:
+All traces studied so far points to a missing cache coherency call in
+mm/migrate.c:migrate_page that is needed only for those evil MIPSes
+that lack I/D cache coherency. I will send a write-up to linux-mips
+about this. Basically for a non-mapped page it does only a copy of
+page data and metadata but no flush_dcache_page() call will be done.
+This races with subsequent use of the page.
 
-# mount -osize=64G -t tmpfs none /mnt/vol1
-# chown you /mnt/vol1
-$ cd /mnt/vol1
-$ fallocate -l 32G foo
-fallocate: fallocate failed: Cannot allocate memory
-$ fallocate -l 28G foo
-fallocate: fallocate failed: Cannot allocate memory
-$ fallocate -l 27G foo
-fallocate: fallocate failed: Cannot allocate memory
-$ fallocate -l 26G foo
-$ fallocate -l 52G foo
-
-It takes a few seconds for the allocation to succeed, then a couple for it
-to be torn down if it fails.  More if it has to writeout the zeroes it
-allocated in the previous call.
-
-This raises multiple questions:
-* why would fallocate bother to prefault the memory instead of just
-  reserving it?  We want to kill overcommit, but reserving swap is as good
-  -- if there's memory pressure, our big allocation will be evicted anyway.
-* why does it insist on doing everything in one piece?  Biggest chunk I
-  see to be beneficial is 1G (for hugepages).
-* when it fails, why does it undo the work done so far?  This can matter
-  for other reasons, such as EINTR -- and fallocate isn't expected to be
-  atomic anyway.
-* if I'm wrong and atomicity+prefaulting are desired, why does fallocate
-  forces just the delta (pages not yet allocated) to reside in core, rather
-  than the entire requested range?
-
-Thus, I believe fallocate on tmpfs should behave consistently with other
-filesystems and succeed unless we run into ENOSPC.
-
-Am I missing something?
-
-
-Meow!
--- 
-⢀⣴⠾⠻⢶⣦⠀
-⣾⠁⢠⠒⠀⣿⡁
-⢿⡄⠘⠷⠚⠋⠀ Have you accepted Khorne as your lord and saviour?
-⠈⠳⣄⠀⠀⠀⠀
+BR,
+ Lars
 
