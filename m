@@ -1,52 +1,64 @@
-Subject: Results of running lots_of_forks.sh for recent kernels.
-From: Steven Cole <elenstev@mesatop.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 13 Aug 2002 09:57:41 -0600
-Message-Id: <1029254261.2051.107.camel@spc9.esa.lanl.gov>
+From: "mobutu" <dubemobutu@fsmail.net>
+Subject: Assistance
 Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-8859-1"
+Date: Wed, 14 Aug 2002 14:22:34
+Message-Id: <20020814123655Z26529-6280+40@kvack.org>
 Sender: owner-linux-mm@kvack.org
+FROM: MR.DUBE MOBUTU. 
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: Steven Cole <scole@lanl.gov>
 List-ID: <linux-mm.kvack.org>
 
-I ran Daniel's lots_of_forks.sh test for several kernels.
-
-http://people.nl.linux.org/~phillips/patches/lots_of_forks.sh
-
-I realize that this may be like dbench in that it is not 
-a realistic real world test, but the numbers may still be
-interesting.  Note the much larger variance in the 2.5.x
-system times.
-
-19p713b = 2.4.19-pre7-rmap13b
-speedup = same as above with speedup patch
--pre2 	= 2.4.20-pre2
-
-Numbers are System time as reported by time -v.
-The machine is 2-way p3, SMP kernels, configured
-the same, no tweaks to /proc/sys/vm.  The test was
-performed 8 times with no delay between runs. 
-
-	19p713b	speedup 2.4.19	-pre2  	2.5.28	2.5.31
-
-1	34.46	31.47	24.71	24.96	39.91	37.04
-2	33.93	31.78	24.64	24.92	44.91	45.88
-3	33.87	35.76	24.95	24.69	48.63	44.89
-4	34.48	31.11	24.97	24.39	58.12	55.8
-5	34.46	31.78	24.67	24.72	49.81	43.18
-6	34.49	31.1	25.1	24.34	57.62	40.93
-7	34.03	31.47	24.43	24.64	50.42	47.27
-8	33.84	31.71	25.04	24.53	45	36.49
+THE NETHERLANDS 
+EMAIL:dubemobutu@fsmail.net
 
 
-I have the output of time -v sh lots_of_forks.sh for these 
-tests if anyone is interested.
+SOLICITING FOR A BUSINESS VENTURE AND PARTNERSHIP 
 
-Steven
+I am the son of the late president of the Federal Republic of Zaire, President Mobutu Sese 
+Seko, (now Republic of Congo, 
+under the leadership of the son of Mr. Laurent Kabila). I presume you are aware there is a 
+financial dispute between my family 
+(THE MOBUTU) and the present civilian Government. This is based on what they believe 
+as bad and corrupt governance on 
+my late father's part. May his soul rest in Perfect peace. 
 
+Presently, we cannot do business here in Holland and many countries of the World 
+because of the new friendly relationship 
+between the present government and the Western World. As you might have heard how a 
+lot of my father's bank account in 
+Switzerland and North American have since been frozen. 
 
+Following the above mentioned reasons ,I am soliciting for your humble and confidential 
+assistance to take custody of Fifteen 
+Million United States Dollars (US$15,000,000.00), also to front for me in the areas of 
+business you desire profitable. 
+
+This sum of US$15M has secretly been deposited into a confidential Security Company, 
+where it can easily be withdrawn or 
+paid to a recommended beneficiary. The funds will be released to you by the Security 
+Company based on my 
+recommendations, on that note, you will be presented as my partner who will be fronting for 
+me and my family in any 
+subsequent ventures. 
+
+To show my preparedness and the appreciation to conduct this business with you, I shall 
+give you and your family 20% of the 
+funds and 20% commission on any profit realizable in the process of investment of this 
+funds. For your role in this business, 
+we are willing to make available 5% for any eventual cost that may occur in the process of 
+this transaction. 
+
+Please, I need your entire support and co-operation for the success of this business 
+ventures, your utmost confidentiality and 
+secrecy is highly required, due to my family present predicament. 
+
+I sincerely will appreciate your acknowledgement by fax or telephone as soon as possible. 
+
+Yours truly, 
+
+MR. DUBE MOBUTU. 
 
 
 --
