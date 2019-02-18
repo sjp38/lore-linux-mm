@@ -2,116 +2,163 @@ Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6220CC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 09:49:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8935C10F02
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 09:57:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 26E31218AD
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 09:49:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26E31218AD
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 80F46218C3
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 09:57:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 80F46218C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B87B08E0003; Mon, 18 Feb 2019 04:49:50 -0500 (EST)
+	id 20C2D8E0004; Mon, 18 Feb 2019 04:57:23 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B10AE8E0002; Mon, 18 Feb 2019 04:49:50 -0500 (EST)
+	id 1958A8E0002; Mon, 18 Feb 2019 04:57:23 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9D7EE8E0003; Mon, 18 Feb 2019 04:49:50 -0500 (EST)
+	id 05CA28E0004; Mon, 18 Feb 2019 04:57:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5803E8E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 04:49:50 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id e18so3885646wrw.10
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 01:49:50 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D1708E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 04:57:22 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id j5so3276935edt.17
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 01:57:22 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=MOF63q3vfU6dggOXVMgMFG4vwES+iJS9xSLXWGcyg8k=;
-        b=cFwzNB1eDU4spEJkllpp2bQoUtwDOfgXxjo3wyN74diR7hMY4akKEsgotVTwwCTPUC
-         uV4lP2VXUk5zHUb4olCQwI5wbOvWgkCJKI4ZFJBcf3BYLY6bE/0jFQhOd2WVydPp5bkW
-         9Hl+kkDiHjc564rG+63NiCKLf4bPsL+YQaXCSXuYg/YGdHugcgVzmmEDFmuTPRU1Siso
-         tfvAJCj3ThJwGjINqkIAqPlYMDX1mXsq8+3Mb9YxmXo6EbgJW1XLOxbWRh9Zm+vbVOB9
-         gNHfTdEKtAn742x8qKre4IDOznbFtE1nQ3GqUWdbw1ADTD74hFh5pHM4tfinBaJBjKnV
-         JdjQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: AHQUAuYrLx9q9q2VlnYdoZYObfodgwWkVTUbKgnnWNUFA0v3d1Yzxrd+
-	8McNgnCeA2pe3KSImJc+pYPKpIhioRTc42HFynfg0qCFp0NB4RhfwHpTIfCC/kUJYuMwpoYwhbi
-	6jtxoXQaI7ML6HJm5KEH90MOoJtPVXUE5GCRbB65LivJJwQcAviZHIk92Gsy713/JNg==
-X-Received: by 2002:a1c:7d8c:: with SMTP id y134mr15960796wmc.102.1550483389874;
-        Mon, 18 Feb 2019 01:49:49 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYX5bQC1qJWoOjzc8Pgd2Y4o/Nad2FU7/3DUmoXb7lqA1m4UtM8snNtDmBVcVXGjWGI1qdD
-X-Received: by 2002:a1c:7d8c:: with SMTP id y134mr15960751wmc.102.1550483389099;
-        Mon, 18 Feb 2019 01:49:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550483389; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=uUGM/73znCvwlaNjK2niLL+TaPm0SAotppy07CyK6pc=;
+        b=P1qYZPlAspD0M4l21XPRJfemLt4ri5+G4+Cle1ecD2HQp2b/vvGdkMgpeP5nT4y/DJ
+         FI6rP3NUNXAN7HJAS7mqZzP62tvNU5glmSyQpBdSPZY+NK9NRNMGECc1ExQnBAtA9wf9
+         wq2qarulV62iBR4vvF0frYXETSfrxHfhx/De04/UQLiYkQTt+Wosv+G89gmCnGiYR+2r
+         DTXdvdfO4h7yVCTtQBqPTGuGMfnPySv4792kz+j32x+AgHpNVhLcqjuCPTii/9oKs88z
+         GfBvWvfhlx6gKc/oPIHbtxTUoNBUXSkAnHYSLijHG7pTjOnKAh50j2FecMZDM2ECmOEl
+         CxOA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: AHQUAuZyEjFcm0gWssosBr3VON//bnXvgusSDuZ8rgDdJA0UUO4Ot+aG
+	rhBEc7vE3jQDYhdhH5AjwLODoEcfPvdsxR82hoK5NmGJKtCDRnkIeJVJa4tzNJw8coAR2cjHf9o
+	qKr6DTlwFAqeNT2OenwOIrGlSeNH+FBPlq7HCOO8ipcSZ2iHLr9GgREQTLChsU9KUqQ==
+X-Received: by 2002:a17:906:19c4:: with SMTP id h4mr15470027ejd.30.1550483842143;
+        Mon, 18 Feb 2019 01:57:22 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IY21Gwr0dlmbl9uu0kIzndwz/fcYxZq+XIXfhIINXIQ3BPqCwg9i0dPgWUMO8Y/TSpw9GDE
+X-Received: by 2002:a17:906:19c4:: with SMTP id h4mr15469981ejd.30.1550483841197;
+        Mon, 18 Feb 2019 01:57:21 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550483841; cv=none;
         d=google.com; s=arc-20160816;
-        b=e0RrgNZo+E1JVYDSHWYdbTNJMNjYgOMoFpv1KPvG+tmipHenPgQI05qqo/gZBV7Ezt
-         CcrXMqiiFH1Zpr22U95Im0dnwuU1y9fJ+SxWktH8bcMm27yvn7rjSF8CacS04LB+Wf3L
-         i+uTQx7nSUyAXUP2pOfs5lT1h1ZVBt2yTm07T411fvGheu+VwlTRrJUje624EM0UdbVX
-         J2JFADO0SDRdbmyu1n3IYixDDKTUKAEbnh6m9XzziqcWPv284QbJ9VhpnSSsq14pOQtc
-         E7nGfOjTbUCsR0J84xXmTG0PeIIxNHadg4JdXL2OZPHLzYPyKIRGXP6iyrJC0IXFl7fA
-         3tww==
+        b=BaOxyN7y7J/n6CLL7wgd1AcHKHK8okDcAg3xwasPD+Vy6cKG3b5JnE7AQcklI4tQD+
+         Q2xCHdNsOqYjNjxcj4eP2XbDIohcetOhJwIlcsr211NI+2wE0vecf+b/kYGdf0x58Js6
+         +DXyxCdJx3A2KAZVwaD/ws6yAmIEptFLc+Bymg5CrR/jfZfqsHaa37ZERj0gf2lpJBoT
+         55stPVqKEZ5Q/dMTydyklVE8AEkCMFYXN3ZTcXgvCHE8hruNnPAICWI56aSezFToWfoP
+         rKzcywM4b89029yjDJ+MmmOs6zvT6vOEmy8eziI7T+QNYVn07xkI216WYRUkrWWy8brX
+         OZLA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=MOF63q3vfU6dggOXVMgMFG4vwES+iJS9xSLXWGcyg8k=;
-        b=0L3muEQCyodhYyYfiVyGa9YPAC2rK8qviSCRb0W7edTtUFZKamNlmbBySq0sn/9emg
-         Z/nnuT2Or9ntekFIzCEqVl/PmAMVPxycppCDUyvfO1rx2eyPiHxg4UbZ9hZcuWkglwf9
-         65eUapByFyXNQcUNiT4tHjyb0b2CDi3cOyJ8FA6Ru2ReJXWrD/0fr2fUs9VZxll889Ph
-         8kAmby+dNQEz5l1usxB+bquOgZgUdrmlJMv+pbpC0D0rsX25kGbwmEJMMI0oOTGkGtuA
-         Z/sRPP7uRG9u+oCnAzzYYwAd7ygS2BnomSusZgA/nSoiS6LMKElPYU+5QV3qit4CoxSw
-         SwKw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:openpgp:from:references:cc:to:subject;
+        bh=uUGM/73znCvwlaNjK2niLL+TaPm0SAotppy07CyK6pc=;
+        b=nP9QOiFs5ivyg19B04h1eQTkr+rPG3y8SOF5nseMraR42L0e+gnUBfjsdbF9sYV1iM
+         Q1Q962Rfbo8GwunVdGfrLfpD4aNMFKuFzHFseua8odVtnniEbORbCRy4pInni4HKz6el
+         ukkqB2qvLiI2xIvgqz4xBo65pzkCaLw9wX9yvdIxT3PoMILxNRTqoN6VqKUnnLi6qtYy
+         I1mcGtNB7BZJ1UbCTAfmzg7gAW3nMyCOA/R1SjTAq9A3ss5CpiB6nmGIWAnxHZlE5dP2
+         D6+S3nX4wl7PaXsf0fLbCI7cMepC3/gXFjMqDuRl57xgN0o4zNIc6UyEnv0T32fn/8G5
+         ftfg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id f12si8415106wrr.238.2019.02.18.01.49.48
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k18si2018299eda.415.2019.02.18.01.57.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Feb 2019 01:49:49 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Mon, 18 Feb 2019 01:57:21 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by newverein.lst.de (Postfix, from userid 2407)
-	id 64A3B68D93; Mon, 18 Feb 2019 10:49:48 +0100 (CET)
-Date: Mon, 18 Feb 2019 10:49:48 +0100
-From: Christoph Hellwig <hch@lst.de>
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Christoph Hellwig <hch@lst.de>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Palmer Dabbelt <palmer@sifive.com>,
-	Richard Kuo <rkuo@codeaurora.org>, linux-arch@vger.kernel.org,
-	linux-hexagon@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, linux-riscv@lists.infradead.org
-Subject: Re: [PATCH 0/4] provide a generic free_initmem implementation
-Message-ID: <20190218094948.GA5892@lst.de>
-References: <1550159977-8949-1-git-send-email-rppt@linux.ibm.com> <20190214170416.GA32441@lst.de> <20190214183854.GA10795@rapoport-lnx>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 861A3ABE3;
+	Mon, 18 Feb 2019 09:57:20 +0000 (UTC)
+Subject: Re: mremap vs sysctl_max_map_count
+To: Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+Cc: hughd@google.com, viro@zeniv.linux.org.uk, torvalds@linux-foundation.org
+References: <20190218083326.xsnx7cx2lxurbmux@d104.suse.de>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Message-ID: <a11a10b5-4a31-2537-7b14-83f4b22e5f6c@suse.cz>
+Date: Mon, 18 Feb 2019 10:57:18 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190214183854.GA10795@rapoport-lnx>
-User-Agent: Mutt/1.5.17 (2007-11-01)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000023, version=1.2.4
+In-Reply-To: <20190218083326.xsnx7cx2lxurbmux@d104.suse.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 14, 2019 at 08:38:55PM +0200, Mike Rapoport wrote:
-> On Thu, Feb 14, 2019 at 06:04:16PM +0100, Christoph Hellwig wrote:
-> > This look fine to me, but I'm a little worried that as-is this will
-> > just create conflicts with my series..
+On 2/18/19 9:33 AM, Oscar Salvador wrote:
 > 
-> I'll rebase on top of your patches once they are in. Or I can send both
-> series as a single set.
-> Preferences? 
+> Hi all,
+> 
+> I would like to bring up a topic that comes from an issue a customer of ours
+> is facing with the mremap syscall + hitting the max_map_count threshold:
+> 
+> When passing the MREMAP_FIXED flag, mremap() calls mremap_to() which does the
+> following:
+> 
+> 1) it unmaps the region where we want to put the new map:
+>    (new_addr, new_addr + new_len] [1]
+> 2) IFF old_len > new_len, it unmaps the region:
+>    (old_addr + new_len, (old_addr + new_len) + (old_len - new_len)] [2]
+> 
+> Now, having gone through steps 1) and 2), we eventually call move_vma() to do
+> the actual move.
+> 
+> move_vma() checks if we are at least 4 maps below max_map_count, otherwise
+> it bails out with -ENOMEM [3].
+> The problem is that we might have already unmapped the vma's in steps 1) and 2),
+> so it is not possible for userspace to figure out the state of the vma's after
+> it gets -ENOMEM.
+> 
+> - Did new_addr got unmaped?
+> - Did part of the old_addr got unmaped?
+> 
+> Because of that, it gets tricky for userspace to clean up properly on error
+> path.
+> 
+> While it is true that we can return -ENOMEM for more reasons
+> (e.g: see vma_to_resize()->may_expand_vm()), I think that we might be able to
+> pre-compute the number of maps that we are going add/release during the first
+> two do_munmaps(), and check whether we are 4 maps below the threshold
+> (as move_vma() does).
+> Should not be the case, we can bail out early before we unmap anything, so we
+> make sure the vma's are left untouched in case we are going to be short of maps.
+> 
+> I am not sure if that is realistically doable, or there are limitations
+> I overlooked, or we simply do not want to do that.
 
-So far there wasn't really much a reason to rebase my series, hope
-this gets picked up either by Andrew or Al (not sure what the right
-place is).  I think for now just rebase your series on top, we can
-then figure out how to proceed.
+IMHO it makes sense to do all such resource limit checks upfront. It
+should all be protected by mmap_sem and thus stable, right? Even if it
+was racy, I'd think it's better to breach the limit a bit due to a race
+than bail out in the middle of operation. Being also resilient against
+"real" ENOMEM's due to e.g. failure to alocate a vma would be much
+harder perhaps (but maybe it's already mostly covered by the
+too-small-to-fail in page allocator), but I'd try with the artificial
+limits at least.
+
+> Before investing more time and giving it a shoot, I just wanted to bring
+> this upstream to get feedback on this matter.
+> 
+> Thanks
+> 
+> [1] https://github.com/torvalds/linux/blob/master/mm/mremap.c#L519
+> [2] https://github.com/torvalds/linux/blob/master/mm/mremap.c#L523
+> [3] https://github.com/torvalds/linux/blob/master/mm/mremap.c#L338
+> 
 
