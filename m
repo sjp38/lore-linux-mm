@@ -3,140 +3,182 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84024C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 00:49:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7267AC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 00:52:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 24F042184E
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 00:49:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24F042184E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
+	by mail.kernel.org (Postfix) with ESMTP id 1B4CB2184E
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 00:52:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B4CB2184E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 773598E0002; Sun, 17 Feb 2019 19:49:27 -0500 (EST)
+	id 8345E8E0002; Sun, 17 Feb 2019 19:52:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7220F8E0001; Sun, 17 Feb 2019 19:49:27 -0500 (EST)
+	id 7E3DE8E0001; Sun, 17 Feb 2019 19:52:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5C4D88E0002; Sun, 17 Feb 2019 19:49:27 -0500 (EST)
+	id 6847A8E0002; Sun, 17 Feb 2019 19:52:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A1538E0001
-	for <linux-mm@kvack.org>; Sun, 17 Feb 2019 19:49:27 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id y1so10874490pgo.0
-        for <linux-mm@kvack.org>; Sun, 17 Feb 2019 16:49:27 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 254E38E0001
+	for <linux-mm@kvack.org>; Sun, 17 Feb 2019 19:52:03 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id q21so12452734pfi.17
+        for <linux-mm@kvack.org>; Sun, 17 Feb 2019 16:52:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:message-id:mime-version;
-        bh=t/Tw3mg2eScR+/eDukcxRR+xCCMQN0tMQ+7ePdAhFec=;
-        b=bQMrVfUovWeN7B/MeJbJvgvwRODXKbgoi89eaA5moxw/4Q6bAqbfwPAvzC1EJx1WqL
-         lfe5tSpNq2iKagPopLyFx9TQxNQFjz82lXU5V2YOqFcowJ3SOqgdHIqkxJ8GKZRoWE/X
-         5yOA4JKUat5aHHeYsMGnwmqpT4s7MTGELOJSiYJGkkm7Yt+AUX4Tc3WkiszSC6VJBCfg
-         5eHP8M140bk+0PzEnBuQg0RVPsbelMgzz4SwlPFb5oOVJUkHrAYWdHXtBPDktPwR0fIs
-         31RANd2UIbzanejCBTkQ3VZY7Rc7wGGVNmHt2NrS0MIIfTfMo7m8fZUn3N0U89szb1me
-         XjkQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-X-Gm-Message-State: AHQUAuZzFgreiEtSWMeyZjWlKr1suIb2AuRTJp8EV9Y4j3PMsESBNxCf
-	p3jv0SUXaanq7/GsX2rm73HmikAU4OqWdGX67oaq7Kc1tvUbYw5tyjed4wLcPi5srA6FykPhKvE
-	jw4rtgJTediRd447gYQrTy8WEpkw6gNO+XfK+XDrulxfBwsjf/Q/S+xU9VCa2g0E=
-X-Received: by 2002:a62:3047:: with SMTP id w68mr8171281pfw.17.1550450966759;
-        Sun, 17 Feb 2019 16:49:26 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ4+0ZS6kwrbPraFWrMEzve7qqH0JecNfFm72vGCtJ2rjgCXZI8BpQTPtFKXjswJdWRCepc
-X-Received: by 2002:a62:3047:: with SMTP id w68mr8171241pfw.17.1550450965894;
-        Sun, 17 Feb 2019 16:49:25 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550450965; cv=none;
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=LCTRL8N26w6VeA+ALDoKaNaBw3BD9ZLmf399vjPkAeY=;
+        b=j2yTAXsrY3wpUIhLzXILQu38W7KAzr/QjNxG9lAfbMNQqCoFCLSO+MztizWGy5oM0+
+         zf1xsko7wKvMm4NO1r3Vi0LWbrUidq1yMk1mWksPT39QyT0n9dV/HHhTMdNXPs79xFzb
+         xA0S9TSFex01BSiZac7RWfilGQQtBJTKgIyPfiqsHq/tx+jIj/GLCbttdJHOO7HkXbn5
+         YRC+NHs3eoYinsksCEpXHUAHg+NAXW6eveJijQoYMQKOCpEVkLs3L5atjMyiGTMakLa5
+         M4igD/jZqeZy2WkCf2dzFTP0r7Bd7oH7uo+Rao3PLJbZr/KY81AGBqrHOAyU4hcXwx1g
+         umLg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuZ+2vy4BEvSIFuNHs4ltJOi7vyuhTkwsqt6mRM4EzEzlw2qwMB8
+	CoEYhY7DEUvv4xxc7QcnrjvxLon9nyUV7/xV2n+1+DCnnQBG/8OAtQARmvkcUDWWFKVaqx0l0Bd
+	bhCAh4X/6dVBoei0Tec5KBInTguz/3pS8TIhKTE78jZp9P/rW2jnenEkGJxY2J3ZdSw==
+X-Received: by 2002:a62:cf81:: with SMTP id b123mr1480668pfg.29.1550451122806;
+        Sun, 17 Feb 2019 16:52:02 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbWWhykrVf1RcqqTHcp2ihqn8xJ93haHPoc0+pc1X981avrgxCGwkdVemUZIlCr/2oTnEy1
+X-Received: by 2002:a62:cf81:: with SMTP id b123mr1480574pfg.29.1550451121324;
+        Sun, 17 Feb 2019 16:52:01 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550451121; cv=none;
         d=google.com; s=arc-20160816;
-        b=BFFF6SHcSbTvl4XTmQT3ULMAt1GLQYIivF/fajqrclYJ9BNZKdIR8eYbNB9BVF3Ica
-         RJeuHTuwWSZdH2tNgqH2rrVV3NAZfuIHtjEOreU57U5HYu3EuWmtE4T/H/oiRqkaUu9M
-         JzK47z0zxhacjTLCKaXA8/n6sdPGBsRRxKkO3SUN4xvyDGbmZw0CYJTb/YbRT6UIz9/l
-         Wep7D6OCLRzh2J6gvfi4NhLW1KqzDKU8ZnvgTgZOwerllCIAsAQmfMebZFxoGxFlrCPt
-         9QGJWl6YmVzDksbVeahtFhvPkUDFEklbv0rp1wjQTqPKIMjq5rw4xbyOhGaJAnSVBHY1
-         DRFg==
+        b=EHTtHkRMnoW8TCrEkI7UjoGqS88NOTA730YbbseamQPAfoRpjeOj7rtBVpWk4omJJO
+         MsRQFaPpCMH5pFxql8hO3Hh/juK9IPQZPyD6y/aHHP2b46E88Mv0mHuFQ6NM61ztvTYK
+         B7g2/c1Qlys2doIguLsuTHrdE1+LtMrNwtaJkUjOKjADV2gOtOMaaR0hJ59ue7DaodOC
+         gwpRta+ksD7cIE6HbsDqJeNHId/soAE+xR8FzWRjbbVmjsVtOsBwRjwZHeiaHav8Cy/9
+         lcLrOxKWEjZKafCMUYwxM6W6qwIJ1Np4rIXYHVQ7ooHAZEFML6CGz4qcFij98FHRU9UC
+         u/Jw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=t/Tw3mg2eScR+/eDukcxRR+xCCMQN0tMQ+7ePdAhFec=;
-        b=jrwtdG4/aomZ0UxIRia5FhaqLzO2qFn7jWoBNTsme8dEoKMlNMG8pH1phAHvXctAYX
-         Stnb1dX1SeiV4neG8OsI0I1zygq1K9VXVvP4IWSSbwS/QqR8ASF/y2E56prTRWP6vSlz
-         33v+DeafCDXXuM/8hwU6GnT3jETtZ8YnrA4IPvNtM4cieFt89eyzzNPEhgKVCbze59p4
-         ihyfdnOPHoSF1SpRDcAsgRJaUGJPD9ZwPB1K5TuP0cbnrfQ/3qvGXGv9cf3Wzhvq6+wC
-         74JSFVZvevHlwlODFsIijmlURkbKE7N1hri3uwsyOZqiixpEafHvOcI6ObAjAqNiH88y
-         Jk9w==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=LCTRL8N26w6VeA+ALDoKaNaBw3BD9ZLmf399vjPkAeY=;
+        b=ZUkZh+lEqRl97YpNgZuD6HXl+ci7S28lPFfi9WbXCPhJ3fOEPPswRd9ZawoEkto2BZ
+         FlTMUcR+wcUlhk873mWMALhM+5e7TSPqhTvf983p/Pn1y5RqN0CcoGPa96XSgiWJBJ6A
+         Kr32dJYMgK6XIULQywCT6i8jW3JfmoX3cU/J4cjYbjeM2B/Bo1I67utaHmtyGC5yL7CT
+         t95MWQIWsBm34fu19y6VrWCcb7libKDyi2eyEaIeR5cgQUj+sg8MX/eNAJV3t1Guqe1c
+         2hMuWJV3l5KvH4seC3ebb3Obkueby3WUVe81sCaRjyKzicIS05fThh7h3mbWlMAAb72p
+         ut7g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id s14si4759690plq.284.2019.02.17.16.49.25
+       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id f30si8737848plf.393.2019.02.17.16.52.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 17 Feb 2019 16:49:25 -0800 (PST)
-Received-SPF: neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=2401:3900:2:1::2;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 17 Feb 2019 16:52:01 -0800 (PST)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits) server-digest SHA256)
-	(No client certificate requested)
-	by ozlabs.org (Postfix) with ESMTPSA id 442lcd2whwz9s7h;
-	Mon, 18 Feb 2019 11:49:21 +1100 (AEDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Segher Boessenkool <segher@kernel.crashing.org>, erhard_f@mailbox.org, jack@suse.cz, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aneesh.kumar@linux.vnet.ibm.com
-Subject: Re: [PATCH] powerpc/64s: Fix possible corruption on big endian due to pgd/pud_present()
-In-Reply-To: <20190217215556.GH31125@350D>
-References: <20190214062339.7139-1-mpe@ellerman.id.au> <20190216105511.GA31125@350D> <20190216142206.GE14180@gate.crashing.org> <20190217062333.GC31125@350D> <87ef86dd9v.fsf@concordia.ellerman.id.au> <20190217215556.GH31125@350D>
-Date: Mon, 18 Feb 2019 11:49:18 +1100
-Message-ID: <87imxhrkdt.fsf@concordia.ellerman.id.au>
+       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 Feb 2019 16:52:00 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,382,1544515200"; 
+   d="scan'208";a="115707640"
+Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.151])
+  by orsmga007.jf.intel.com with ESMTP; 17 Feb 2019 16:51:57 -0800
+From: "Huang\, Ying" <ying.huang@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,  <linux-mm@kvack.org>,  <linux-kernel@vger.kernel.org>,  Hugh Dickins <hughd@google.com>,  "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,  Minchan Kim <minchan@kernel.org>,  Johannes Weiner <hannes@cmpxchg.org>,  Tim Chen <tim.c.chen@linux.intel.com>,  Mel Gorman <mgorman@techsingularity.net>,  Jérôme Glisse <jglisse@redhat.com>,  Andrea Arcangeli <aarcange@redhat.com>,  David Rientjes <rientjes@google.com>,  Rik van Riel <riel@redhat.com>,  Jan Kara <jack@suse.cz>,  Dave Jiang <dave.jiang@intel.com>,  Daniel Jordan <daniel.m.jordan@oracle.com>,  Andrea Parri <andrea.parri@amarulasolutions.com>
+Subject: Re: [PATCH -mm -V7] mm, swap: fix race between swapoff and some swap operations
+References: <20190211083846.18888-1-ying.huang@intel.com>
+	<20190214143318.GJ4525@dhcp22.suse.cz>
+	<871s49bkaz.fsf@yhuang-dev.intel.com>
+	<20190215131122.GA4525@dhcp22.suse.cz>
+Date: Mon, 18 Feb 2019 08:51:55 +0800
+In-Reply-To: <20190215131122.GA4525@dhcp22.suse.cz> (Michal Hocko's message of
+	"Fri, 15 Feb 2019 14:11:22 +0100")
+Message-ID: <87bm39apg4.fsf@yhuang-dev.intel.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=ascii
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh <bsingharora@gmail.com> writes:
-> On Sun, Feb 17, 2019 at 07:34:20PM +1100, Michael Ellerman wrote:
->> Balbir Singh <bsingharora@gmail.com> writes:
->> > On Sat, Feb 16, 2019 at 08:22:12AM -0600, Segher Boessenkool wrote:
->> >> On Sat, Feb 16, 2019 at 09:55:11PM +1100, Balbir Singh wrote:
->> >> > On Thu, Feb 14, 2019 at 05:23:39PM +1100, Michael Ellerman wrote:
->> >> > > In v4.20 we changed our pgd/pud_present() to check for _PAGE_PRESENT
->> >> > > rather than just checking that the value is non-zero, e.g.:
->> >> > > 
->> >> > >   static inline int pgd_present(pgd_t pgd)
->> >> > >   {
->> >> > >  -       return !pgd_none(pgd);
->> >> > >  +       return (pgd_raw(pgd) & cpu_to_be64(_PAGE_PRESENT));
->> >> > >   }
->> >> > > 
->> >> > > Unfortunately this is broken on big endian, as the result of the
->> >> > > bitwise && is truncated to int, which is always zero because
+Michal Hocko <mhocko@kernel.org> writes:
+
+> On Fri 15-02-19 15:08:36, Huang, Ying wrote:
+>> Michal Hocko <mhocko@kernel.org> writes:
+>> 
+>> > On Mon 11-02-19 16:38:46, Huang, Ying wrote:
+>> >> From: Huang Ying <ying.huang@intel.com>
 >> >> 
->> >> (Bitwise "&" of course).
+>> >> When swapin is performed, after getting the swap entry information from
+>> >> the page table, system will swap in the swap entry, without any lock held
+>> >> to prevent the swap device from being swapoff.  This may cause the race
+>> >> like below,
 >> >> 
->> >> > Not sure why that should happen, why is the result an int? What
->> >> > causes the casting of pgd_t & be64 to be truncated to an int.
+>> >> CPU 1				CPU 2
+>> >> -----				-----
+>> >> 				do_swap_page
+>> >> 				  swapin_readahead
+>> >> 				    __read_swap_cache_async
+>> >> swapoff				      swapcache_prepare
+>> >>   p->swap_map = NULL		        __swap_duplicate
+>> >> 					  p->swap_map[?] /* !!! NULL pointer access */
 >> >> 
->> >> Yes, it's not obvious as written...  It's simply that the return type of
->> >> pgd_present is int.  So it is truncated _after_ the bitwise and.
->> >>
+>> >> Because swapoff is usually done when system shutdown only, the race may
+>> >> not hit many people in practice.  But it is still a race need to be fixed.
+>> >> 
+>> >> To fix the race, get_swap_device() is added to check whether the specified
+>> >> swap entry is valid in its swap device.  If so, it will keep the swap
+>> >> entry valid via preventing the swap device from being swapoff, until
+>> >> put_swap_device() is called.
+>> >> 
+>> >> Because swapoff() is very rare code path, to make the normal path runs as
+>> >> fast as possible, disabling preemption + stop_machine() instead of
+>> >> reference count is used to implement get/put_swap_device().  From
+>> >> get_swap_device() to put_swap_device(), the preemption is disabled, so
+>> >> stop_machine() in swapoff() will wait until put_swap_device() is called.
+>> >> 
+>> >> In addition to swap_map, cluster_info, etc.  data structure in the struct
+>> >> swap_info_struct, the swap cache radix tree will be freed after swapoff,
+>> >> so this patch fixes the race between swap cache looking up and swapoff
+>> >> too.
+>> >> 
+>> >> Races between some other swap cache usages protected via disabling
+>> >> preemption and swapoff are fixed too via calling stop_machine() between
+>> >> clearing PageSwapCache() and freeing swap cache data structure.
+>> >> 
+>> >> Alternative implementation could be replacing disable preemption with
+>> >> rcu_read_lock_sched and stop_machine() with synchronize_sched().
 >> >
->> > Thanks, I am surprised the compiler does not complain about the truncation
->> > of bits. I wonder if we are missing -Wconversion
+>> > using stop_machine is generally discouraged. It is a gross
+>> > synchronization.
+>> >
+>> > Besides that, since when do we have this problem?
 >> 
->> Good luck with that :)
->> 
->> What I should start doing is building with it enabled and then comparing
->> the output before and after commits to make sure we're not introducing
->> new cases.
+>> For problem, you mean the race between swapoff and the page fault
+>> handler?
 >
-> Fair enough, my point was that the compiler can help out. I'll see what
-> -Wconversion finds on my local build :)
+> yes
+>
+>> The problem is introduced in v4.11 when we avoid to replace
+>> swap_info_struct->lock with swap_cluster_info->lock in
+>> __swap_duplicate() if possible to improve the scalability of swap
+>> operations.  But because swapoff is a really rare operation, I don't
+>> think it's necessary to backport the fix.
+>
+> Well, a lack of any bug reports would support your theory that this is
+> unlikely to hit in practice. Fixes tag would be nice to have regardless
+> though.
 
-I get about 43MB of warnings here :)
+Sure.  Will add "Fixes" tag.
 
-cheers
+Best Regards,
+Huang, Ying
+
+> Thanks!
 
