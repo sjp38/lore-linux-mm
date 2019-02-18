@@ -2,166 +2,166 @@ Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 89736C4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 18:42:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AF42EC10F01
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 19:05:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 53A60217D9
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 18:42:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 53A60217D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 6E4B7217D7
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 19:05:25 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="lvNDpOUK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6E4B7217D7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E89D78E0008; Mon, 18 Feb 2019 13:42:07 -0500 (EST)
+	id 020178E0003; Mon, 18 Feb 2019 14:05:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E10288E0002; Mon, 18 Feb 2019 13:42:07 -0500 (EST)
+	id F104B8E0002; Mon, 18 Feb 2019 14:05:24 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C8A898E0008; Mon, 18 Feb 2019 13:42:07 -0500 (EST)
+	id DD7C28E0003; Mon, 18 Feb 2019 14:05:24 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D3D68E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:42:07 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id w134so15510970qka.6
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 10:42:07 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AA938E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 14:05:24 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id 74so14377233pfk.12
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 11:05:24 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:in-reply-to:references:message-id;
-        bh=6UfCPPZllTEGGEKF29OGuMk2xjG0QrU1dWYvy6NrkGI=;
-        b=F9+6tlPnxV/uJU7RABBA2D5emr3BLNmm9PZZvz2uvWVrwZYOb/ykI7RNeG9p5QSkdp
-         kfjE5a8It/uXXoK9twwY9s9W7KH/TEQfiRF+lQG9j921ZDTnzxX7CsXKRs47pj/wdjxt
-         Jv6ICVHUB1LS6/3/0IJAPg0otFucrshoZASE3APbk/mGWLjmGRrLjdfZMnr5mgXAyVeZ
-         z/3GuQNTCfOxXhY8bKoCZxmSB1OGTaOuij9r9P3McrQG1NvNelmIuF8RnUbxtG+3LMqp
-         uIB23v2FkGIC0m7Vqjb0Dnhu0Xpo4heI1CaFfJMTl/2WcaQaoFSL//5ggnPT7g5hpl0i
-         fTkw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuY5TjljCCctVDbAZClTh3XP2BSGXNWXwDDv4zukEHqivjkB+u3F
-	aV8aNZXMO83Xcs6/HkLJh9bG9ARLKGYfCqkzcVM224vfssLsbDmxhMKAPk54UlirRhKRhBaBM3L
-	wJ07xyfPAGabw9DntYqi/3kCCyK3s8Gz5iFXReJ5dpgM9otIjCsOt2OVgB8QdGQbn9A==
-X-Received: by 2002:a0c:d4ab:: with SMTP id u40mr18787561qvh.30.1550515327418;
-        Mon, 18 Feb 2019 10:42:07 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZsCXLYkF5zTVtiQMPrLol9Fvbs3I8tGfoLtBouZFRkrn70VpKy0D2LJvlwViwx404cG1fk
-X-Received: by 2002:a0c:d4ab:: with SMTP id u40mr18787522qvh.30.1550515326756;
-        Mon, 18 Feb 2019 10:42:06 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550515326; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=g5AvimQGenRhlXMXqYl0ru8SXdeHWIlWf5DBX0KvNhk=;
+        b=OPsSB2nJN4NcrnzNt2QIoekF6IA3MQVvo3Frci/aqeeV4dwlFAxol3BWQLTe0iEoyF
+         LHEwP75ZWnHF1Rlko3FE+1kiitL2/zcaeeWXpgCUGUOvp/ktfLpmW7ffmCvBZuPrkJ9H
+         jqoFoWcOOeIor43lB4GV7dgtp7kXkPbT13ydwRMpjJUh/Q2ieps81uDnJmn2rvKAtB2o
+         vU5wIB/GfTKt+Gd29fabezshdvpuFdUOdR6Rdmvq3LnNfko3fJdlIQuW7xjV1V7nPwGj
+         iFcHh1/9XkMouqWnZ4RGhuohr5BCr8O9EXD06CZ7cXvR/ctjqhJ28WA4alWfckwUABUa
+         NWjA==
+X-Gm-Message-State: AHQUAuZe3GWJVfW26rGGOhJk9FvNyF7dyGH9LeOs1aVBiaxaJqtkOXpm
+	zYRk3SEcI1HJQbdjPoPj1BPyIIk2obrpwQ6ENN/Uwnma0FbqeQEnmFSb1w7+WDMjhohgfaQDoJi
+	oI/gV+xhHXL1zvhERkcOnA2BcDPc+ku8P7Zk4cj7NajPh2oFGOuJKr+Oic7Nyov5dWA==
+X-Received: by 2002:a17:902:e00d:: with SMTP id ca13mr303658plb.206.1550516724268;
+        Mon, 18 Feb 2019 11:05:24 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Iay8rqVh8oJv1/eSREK1jcs4sUA/pXnMoTIqhTmA/Gj8qK8QxDR6YNmdQ1uApp7ZolNI9/1
+X-Received: by 2002:a17:902:e00d:: with SMTP id ca13mr303589plb.206.1550516723358;
+        Mon, 18 Feb 2019 11:05:23 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550516723; cv=none;
         d=google.com; s=arc-20160816;
-        b=BxukflfSkh8WaBcL0yfi7JWQ+OlAL78a4uKRBhdd+hsOaDJyRI579cVAI7oXY9SDOH
-         zctQI+wG6/a9aOhNQWfamANqFM7tnGAFzl/EQdHQCQmgIeu3LNr+yJ0PveXFbYeuX/h5
-         uV5/20k0drEj87klEnqVkRPjCkGL+s71514eguTwHsOTbyyvUpVO6UKc7P+iMa0P7OgJ
-         Tk929fZAarpHfEVnGmuKOJbSeH6T03ANaJ5G+ZtDRJcbRsAro9FdZOyeUdfDgKBFKTTT
-         VhvdYB6+uPtecPRAvihsmGxdbK8ESTjccZG+nEv+pqDE8hZfFU9p7KcCS0GParRkJ2Hf
-         A7OA==
+        b=l3WLbAQtCeKWwMpjR00PGY1yQDFO636XZF/cde+Dcof0KzHg3exVU8IytcaLWaZul8
+         aBhi9D5VKFRJ5lbDl3QmWLNCP2ewR8tyJc2b8hY7fIzfzv5u3G4B62W4TwbSz/HdIIKU
+         HNmytm7z5o8u84AFgj4Bv0WS4tiT4Aw56ey7Wq1bMO9czF90A0lhL6DHOlTjPmRTBOQ9
+         GbRXStxCabVDDhhz8ktH/4KRT8JDXq1H9CPNplFfPhO4oYmmKa9YUaUnkCNgXIM7Xqre
+         2pO+6DOLqfAft3L3m1qND/3ZcTjwsllit6zOjrPgDQisPcLaC7jURYF8/V+eeRwlBweT
+         +7wg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:references:in-reply-to:date:subject:cc:to:from;
-        bh=6UfCPPZllTEGGEKF29OGuMk2xjG0QrU1dWYvy6NrkGI=;
-        b=O4zz3x1YkiTWu/JEXu5umEjgu1A6LW5SRZDSCpVJwvcqWal0e7namaqS+52rTlcOX3
-         WBOlFKGvoA/Ock9Aqv/AQQkEl2Cw4FCrVAuh1Dx/y5Lj4t7PFmSP/3f0kCnvK4sJknco
-         0FZWpBk5lCItprAt9msNIlXC5vZM+w9ZUQ6XhzIII+7Xw4s0MOYTuO3nKyche4YcPzBm
-         y8vxQpU1SFNsOsGGE2ma8pfZkCEtjDT724bhW8ArRwr5ExoyMOdXfjPAvsD3NL4fUVmV
-         E3GfPuGzUJ7c+Blqo7IxZZOXgDSrL5rqCmKY0TDV/hdhLvR9hJAweD7H1LLuuHVNm6nq
-         qOOQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=g5AvimQGenRhlXMXqYl0ru8SXdeHWIlWf5DBX0KvNhk=;
+        b=uKSZxl8LTkcJt/wLtsYmscxGK8uItOCO4audJXSeKfxfH4MHKN+EHyeNjBFBlPLCVE
+         fBEuEcOh5A61ZHFUtcKfvoEyNq2feleDcEFuS+9BfU/C1Tqeo42nJNTetnJqVs01WCFT
+         rHxJzX/tjs/m4p4dEGGRuYHWAZigQkNuYCncaha7euKvyTttt5/xff3noSO4jsv+PPPN
+         5pDx/ULvuUP82Lrc/OVA7/Qtn7szYa0sthudt3tUhSsUa+RK4RDawWUUC8JKald/mjZZ
+         qZiMGWjDOPS8CuGncoQ0rosbPHM9K8WJ10Vs8yqFSqNDBy1AcV7O3J5ejTolhxKkNx41
+         SxDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id o17si3745739qve.102.2019.02.18.10.42.06
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=lvNDpOUK;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id r4si12930119pgv.245.2019.02.18.11.05.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Feb 2019 10:42:06 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 18 Feb 2019 11:05:23 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1IIcqEu043780
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:42:06 -0500
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2qqy19j7m2-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:42:05 -0500
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 18 Feb 2019 18:42:04 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 18 Feb 2019 18:42:00 -0000
-Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1IIfxAR26935366
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Mon, 18 Feb 2019 18:41:59 GMT
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 2179E11C050;
-	Mon, 18 Feb 2019 18:41:59 +0000 (GMT)
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 84BBC11C04C;
-	Mon, 18 Feb 2019 18:41:56 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.207.239])
-	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Mon, 18 Feb 2019 18:41:56 +0000 (GMT)
-Received: by rapoport-lnx (sSMTP sendmail emulation); Mon, 18 Feb 2019 20:41:53 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@lst.de>, Palmer Dabbelt <palmer@sifive.com>,
-        Richard Kuo <rkuo@codeaurora.org>, linux-arch@vger.kernel.org,
-        linux-hexagon@vger.kernel.org, linux-kernel@vger.kernel.org,
-        linux-mm@kvack.org, linux-riscv@lists.infradead.org,
-        Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v2 4/4] riscv: switch over to generic free_initmem()
-Date: Mon, 18 Feb 2019 20:41:25 +0200
-X-Mailer: git-send-email 2.7.4
-In-Reply-To: <1550515285-17446-1-git-send-email-rppt@linux.ibm.com>
-References: <1550515285-17446-1-git-send-email-rppt@linux.ibm.com>
-X-TM-AS-GCONF: 00
-x-cbid: 19021818-0012-0000-0000-000002F72E7B
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19021818-0013-0000-0000-0000212EB8B6
-Message-Id: <1550515285-17446-5-git-send-email-rppt@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-18_14:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=758 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902180138
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=lvNDpOUK;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=g5AvimQGenRhlXMXqYl0ru8SXdeHWIlWf5DBX0KvNhk=; b=lvNDpOUKSxwz3Oa9crOFBip3E
+	h8WGDPoH8yvzlMcw1fKMJAuVSHRvXhKXAIsA8kUTTkbF6z3w2PtEjvOUBI2S2qXCuL/+BUdQCJkjw
+	1QzZ60+E6fS2YDyyM2WWcwZyPt6D0zFSrzvXrtWrClBGqP1Y9Js/LvwO6vaGbtO1/eLnZR3KpGSnQ
+	oZK5QEWJsd469BXVXZrYQeL5/s3bUpLk14ODkvZ06c56Z2kabdwOj+71ZSvlBDybIwYu1UAyxha2r
+	T7FPtT/4OqSoJMyOlAnHZ4etjQq6Mef26hcsOUErr4zQGcTuQkHXLpTGnZodr12HsVznHYjP7fg6Y
+	5UhUNu8rg==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gvoEC-0003Lu-2r; Mon, 18 Feb 2019 19:05:20 +0000
+Date: Mon, 18 Feb 2019 11:05:19 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mike Rapoport <rppt@linux.ibm.com>, Rong Chen <rong.a.chen@intel.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	linux-kernel@vger.kernel.org,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>, LKP <lkp@01.org>,
+	Oscar Salvador <osalvador@suse.de>
+Subject: Re: [LKP] efad4e475c [ 40.308255] Oops: 0000 [#1] PREEMPT SMP PTI
+Message-ID: <20190218190519.GV12668@bombadil.infradead.org>
+References: <20190218085510.GC7251@dhcp22.suse.cz>
+ <4c75d424-2c51-0d7d-5c28-78c15600e93c@intel.com>
+ <20190218103013.GK4525@dhcp22.suse.cz>
+ <20190218140515.GF25446@rapoport-lnx>
+ <20190218152050.GS4525@dhcp22.suse.cz>
+ <20190218152213.GT4525@dhcp22.suse.cz>
+ <20190218164813.GG25446@rapoport-lnx>
+ <20190218170558.GV4525@dhcp22.suse.cz>
+ <20190218175726.GU12668@bombadil.infradead.org>
+ <20190218181155.GC4525@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190218181155.GC4525@dhcp22.suse.cz>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The riscv version of free_initmem() differs from the generic one only in
-that it sets the freed memory to zero.
+On Mon, Feb 18, 2019 at 07:11:55PM +0100, Michal Hocko wrote:
+> On Mon 18-02-19 09:57:26, Matthew Wilcox wrote:
+> > On Mon, Feb 18, 2019 at 06:05:58PM +0100, Michal Hocko wrote:
+> > > +	end_pfn = min(start_pfn + nr_pages,
+> > > +			zone_end_pfn(page_zone(pfn_to_page(start_pfn))));
+> > >  
+> > >  	/* Check the starting page of each pageblock within the range */
+> > > -	for (; page < end_page; page = next_active_pageblock(page)) {
+> > > -		if (!is_pageblock_removable_nolock(page))
+> > > +	for (; start_pfn < end_pfn; start_pfn = next_active_pageblock(start_pfn)) {
+> > > +		if (!is_pageblock_removable_nolock(start_pfn))
+> > 
+> > If you have a zone which contains pfns that run from ULONG_MAX-n to ULONG_MAX,
+> > end_pfn is going to wrap around to 0 and this loop won't execute.
+> 
+> Is this a realistic situation to bother?
 
-Make ricsv use the generic version and poison the freed memory.
+How insane do you think hardware manufacturers are ... ?  I don't know
+of one today, but I wouldn't bet on something like that never existing.
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-Reviewed-by: Palmer Dabbelt <palmer@sifive.com>
----
- arch/riscv/mm/init.c | 5 -----
- 1 file changed, 5 deletions(-)
+> > I think
+> > you should use:
+> > 
+> > 	max_pfn = min(start_pfn + nr_pages,
+> > 			zone_end_pfn(page_zone(pfn_to_page(start_pfn)))) - 1;
+> > 
+> > 	for (; start_pfn <= max_pfn; ...)
+> 
+> I do not really care strongly, but we have more places were we do
+> start_pfn + nr_pages and then use it as pfn < end_pfn construct. I
+> suspect we would need to make a larger audit and make the code
+> consistent so unless there are major concerns I would stick with what
+> I have for now and leave the rest for the cleanup. Does that sound
+> reasonable?
 
-diff --git a/arch/riscv/mm/init.c b/arch/riscv/mm/init.c
-index 658ebf6..2af0010 100644
---- a/arch/riscv/mm/init.c
-+++ b/arch/riscv/mm/init.c
-@@ -60,11 +60,6 @@ void __init mem_init(void)
- 	mem_init_print_info(NULL);
- }
- 
--void free_initmem(void)
--{
--	free_initmem_default(0);
--}
--
- #ifdef CONFIG_BLK_DEV_INITRD
- void free_initrd_mem(unsigned long start, unsigned long end)
- {
--- 
-2.7.4
+Yes, I think so.  There are a number of other places where we can wrap
+around from ULONG_MAX to 0 fairly easily (eg page offsets in a file on
+32-bit machines).  I started thinking about this with the XArray and
+rapidly convinced myself we have a problem throughout Linux.
 
