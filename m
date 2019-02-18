@@ -1,48 +1,36 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id VAA02756
-	for <linux-mm@kvack.org>; Sat, 28 Sep 2002 21:49:22 -0700 (PDT)
-Message-ID: <3D968652.28AD6766@digeo.com>
-Date: Sat, 28 Sep 2002 21:49:22 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] vma->shared list_head initializations
-References: <20020928234930.F13817@bitchcake.off.net>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+From: "schneckchen" <schneckchen@brisant-mail.com>
+Subject: Ich bin`s
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-8859-1"
+Date: Sun, 29 Sep 2002 13:18:34
+Message-Id: <20020929122058Z26520-6280+650@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zach Brown <zab@zabbo.net>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Zach Brown wrote:
-> 
-> more list_head debugging carnage.
-> 
+Hallo, 
+....danke fur Dein Mail. Ist schon `ne Weile her. Nun ja, bist Du immer noch allein? Einsam? Ich 
+auch. 
+Obwohl Freunde von mir sagen, dass ich recht gut aussehe, fehlt mir doch noch ein netter 
+Partner zum Reden, Lieben und Kuscheln. Vielleicht bist Du es.  Dein Alter und Dein Aussehen 
+ist fur mich nicht so wichtig. 
 
-yup
+Im Moment spanne ich einige Tage aus, lasse die Seele baumeln-, versuche nach 
+Enttauschungen mein Leben neu zu ordnen. 
 
-> --- linux-2.5.39/fs/exec.c.fmuta        Sat Sep 28 19:50:20 2002
-> +++ linux-2.5.39/fs/exec.c      Sat Sep 28 19:51:08 2002
-> @@ -400,6 +400,7 @@
->                 mpnt->vm_ops = NULL;
->                 mpnt->vm_pgoff = 0;
->                 mpnt->vm_file = NULL;
-> +               INIT_LIST_HEAD(&mpnt->shared);
->                 mpnt->vm_private_data = (void *) 0;
->                 insert_vm_struct(mm, mpnt);
->                 mm->total_vm = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
+Ich habe mich bei  http://www.singles-contacts.com
+eingetragen. Du findest ein Foto und meine Wohnungsanschrift mit normaler Telefonnummer 
+unter der Rubrik "Sie sucht Ihn". Wenn ich Dir gefallen sollte, rufe mich doch einfach einmal an.
 
-Fair enough, short-term.  But what your patch is really saying
-is "this code stinks".
+Ich freue mich auf ein Gesprach mit Dir. Bis bald
 
-We need to lose all those open-coded accesses to vm_area_cachep,
-give that cache a constructor and possibly write some helper
-functions.  To lose all this fragile "did I remember to
-initialise everything and has anyone added any more fields
-since I wrote that code" gunk.
+Dein 
+        Schneckchen
 
-<looks hopefully at Christoph>
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
