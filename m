@@ -2,145 +2,202 @@ Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 825EAC10F01
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 17:57:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D207C10F01
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 17:59:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3BBE0217D9
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 17:57:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0ADD5217F9
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 17:59:03 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="XaKaNOye"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3BBE0217D9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="NPjmsRzx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0ADD5217F9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C12948E0003; Mon, 18 Feb 2019 12:57:30 -0500 (EST)
+	id 952828E0004; Mon, 18 Feb 2019 12:59:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B992F8E0002; Mon, 18 Feb 2019 12:57:30 -0500 (EST)
+	id 8D8B28E0002; Mon, 18 Feb 2019 12:59:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A3A3A8E0003; Mon, 18 Feb 2019 12:57:30 -0500 (EST)
+	id 779338E0004; Mon, 18 Feb 2019 12:59:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D9A98E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 12:57:30 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id 38so10626704pld.6
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 09:57:30 -0800 (PST)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4358B8E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 12:59:03 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id g123so11435712ywb.20
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 09:59:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=+Plq0e0BG0Zenzxpp1loEbirrQRhIFIHE6Uh3NdBTOU=;
-        b=kg0cp6Gax1D1dznn/C2GKqj7/211i/vo2aTS8tazw64uBwEo+S8NOsWxmqX0lYdTbQ
-         gBIqRnYM9eVTQRubOHjxYreiRC9Me1p2cCoZCeCVoKW3ZxheefiwvEQKTyCftgYzcO7o
-         EtTIVmGYxPXYwrBz22XkupK7GoPVuC1LERA6AjFZIzbXDmZtrNsPXdXYuVXMGxgkSOwE
-         7W+mCOqu6Kmi6B57OnO61neWL02qJpPqmJ5efkbWqUHPD3NsOcaAhfiHVzlWIpmpNhyt
-         8PJAkf8AAx/t9/64gWyNGzdbdC3BdyMy+fJIj07XS2/H28U10q4asqAgU7utkuYeTf/d
-         1T8g==
-X-Gm-Message-State: AHQUAua9ZEC9xA0/3l/1XwP4j+c1/biq/lCjiz9ZnItD7X9DWO9APLnZ
-	slF34qnxUmeLR2xOjtyOgas9G8OPAh9a+0qFkxNyiBrKIq8llkG5+KkTqOlMZ1HXgeb9PCbdh0t
-	7jOd7P6X9qE4nN+KKBCramnIJQ5Lhi4Rr/9cI3A76ErOM+gNrnjuialqExAhPW379kg==
-X-Received: by 2002:a62:5c1:: with SMTP id 184mr25087081pff.165.1550512649926;
-        Mon, 18 Feb 2019 09:57:29 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbREdRAXCQ5uZ9wVAvnEDG84rKyszKsiJA1yEMzFIurrFM5YFx8aUrItR5wGIY+tlBr5vXQ
-X-Received: by 2002:a62:5c1:: with SMTP id 184mr25087042pff.165.1550512649316;
-        Mon, 18 Feb 2019 09:57:29 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550512649; cv=none;
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+         :references:mime-version:dkim-signature;
+        bh=yljpbhmUSpbK3ZHxUMPa6QcOvurPZMhS7eG0xTM1hHc=;
+        b=MI1e+vtpPSLrlTk4Nrn2LQwLrlL1xxKrSIjW3RuxCBWASlKcE75llRDEKz1E63Xl/G
+         0aBnrpigfejXfNbGpMVUTqEpEhj2tdRl4Yf5eup0xKwljp/o8eMpvRt/s06Ko9TQChvc
+         Sxxq6kkHYccCoSOrKdzhiys0SmEtq+IQXm4ZKaFb4pgm3U7bwUStnHTsz/HDUDYl0hN9
+         UYnRLgWyxn8ASJwBDIHizy/ovpOatySYG87sq6CN8EI1j6EetL/uMZit2kQ0EoBXV49O
+         X1MA/rtdwdRMkCWb4597/CA0w24UcEMxPm+jHOvssW0BpxG32MWa7p44oAo/j0WyIkoI
+         W6/Q==
+X-Gm-Message-State: AHQUAuZuklm4VeypjbXgzxGDKoSTP2JxRUxuVN5vu4IrOHGEC7oOyH20
+	wNYcF8blWWzDJdoVSp3naWNla9N45daWqLv7YzYpXRqXwVPasQi/esKuZasKPP3cVM1YtGkuq2L
+	BDHcLyy4+lKXNyrnky7pB4FOvwIBPem4u5UHxLmVK7ihA5uUhvqoQGrez25DSYgiZtQ==
+X-Received: by 2002:a25:c1c6:: with SMTP id r189mr20555372ybf.109.1550512743013;
+        Mon, 18 Feb 2019 09:59:03 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ibruu3yMN3Nr99/UWjHGwfFqj0IQjnjG4vtUL2/YRaN/A07TVX0hJuPpVmPVSpDiSxhMuYI
+X-Received: by 2002:a25:c1c6:: with SMTP id r189mr20555349ybf.109.1550512742610;
+        Mon, 18 Feb 2019 09:59:02 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550512742; cv=none;
         d=google.com; s=arc-20160816;
-        b=JN6l+v8XuZjCfQKK2Kk69/RwL1BccRH76kfBGAH6tPHk5fZwKnSWju1GZhCPMdRy8J
-         F8Yw+hMiX8JLvCR+rQcCzAs4ortdqReP1UC/o7wnm3ww/60E//f/KV3coiT6NsdHSJs7
-         2xOy5e3/VO29qJYf/xtSBIuSuAEdgK/cafrrFM4c4hwFBW6RQAWTyu5GWWG+w8EUXb80
-         hcEaiPuVn7mj9ZFRgLlhsSPxlz47Ln6rqHLVnCnacdNSis32ukX6pEl2UKc6UGK/f2cw
-         rm0+HTPfuLCWVuJAqjg9tsp7Q0skJnNluAdk4VcDARBZnUfavZiNfWWdCSQxHk4b26PQ
-         1psg==
+        b=FVlVJjydo/PaxMmIvb53A/5mwUEjDkVPbRuhYNTs3aWFVhno6iVicuvF+82mcER/1O
+         nANSsryL9Rz6OhEliKN058RJDAOUgIFM/2fdKxD+b9vNjQiaLbRALS9hdI7AHZQdVGuH
+         5E5wgXjqUW1v3OlRwCW+oYY+ubtKmBHYrgkyw1e//uJNWU9a1u+V9vBvg2cl1BTVp3Mu
+         f3h9zYCB6NKGIwNOHegb0YcxAvDyDK+12yvJqpW2798aWw40kwUXco4D6AUD5xW4BY9+
+         PJT/LlnZvJzDNXahsPSXqR/w5msWcscZcwlFts85k8H9iIOMMPlioSmOyAr53g0VHkyj
+         +9cA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=+Plq0e0BG0Zenzxpp1loEbirrQRhIFIHE6Uh3NdBTOU=;
-        b=ooi1P+kBmIL9hwkoKORjTjo3BE2UFyb0VSn0xVjVbgT+hHO7+xy9GmFPO8kWEEqzFZ
-         Qw3Dyics95yky/rA4FKSr/lTnDWrEVxUubKGo5rA0JN0KyTIIuX6kpEC+AeK6dKUL8rc
-         G5U3geaGEsxYXLeQNutDOU//FvuMZtwzS6Glygy2vw2kvNmZur6x2lfTH9hlukNZ0kDi
-         AgZWPCjJueX2goXCf5wPl8w4f2yCSORlBwCxAzLfHPWU6Bg98KAFvpnzh/CbJiDCtjz2
-         sLdDEGsMlucHCUNKwannXkbkO1RwRqifqbCjET7S12+1E9rSLFLq3OIaMydPZtebyKYp
-         POig==
+        h=dkim-signature:mime-version:references:in-reply-to:message-id:date
+         :subject:cc:to:from;
+        bh=yljpbhmUSpbK3ZHxUMPa6QcOvurPZMhS7eG0xTM1hHc=;
+        b=qGG7HQHae2ZH9Vw7+1o7WTlDTbWY6XitaNwqFnk+uFHoLLPg9n7cDGGFkDcSxHlffm
+         0H+er7UUjJRjhS1Jui5I28mvtbeJkbQKUuF0tuZS/tAfY4JUvWL/Av1Nlb0tMhGp4WTG
+         vTiB5yvNQj7WVUmYOQysUBy6YzXbiRXgwF/9wpznXzJ4HvbP2yLy26DIjnpDBmmwjaQx
+         CuJOWruG13oy8waRK3/cr6VUQIV8FwUmlx2k6EpvPbhF0E7y3/cfFUEtuLxUuMFa2OCG
+         5LrNUKocc0R4yAa4XcMG1aSQZtQQA3BeCW6EQpF8VcQZd7eZ+3PadYhOWf/ZyPW4yfHi
+         tiIQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=XaKaNOye;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n4si13698192pgd.10.2019.02.18.09.57.29
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=NPjmsRzx;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id b203si7920938ybc.447.2019.02.18.09.59.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 18 Feb 2019 09:57:29 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Feb 2019 09:59:02 -0800 (PST)
+Received-SPF: pass (google.com: domain of ziy@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=XaKaNOye;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=+Plq0e0BG0Zenzxpp1loEbirrQRhIFIHE6Uh3NdBTOU=; b=XaKaNOyelEJ3LS2EGOgFm5tvo
-	TOj+pO6qm3IO4tsX5n6FTnzhLPojb3Ksjfn9BYX5TrTysdFk6Hz5iFg8Ow7+vCfV68CeSQs+YkRzA
-	+9yGx7VFINhjJrk4hg1LoOEnuemS4tK6b71Ruc0vRUY8eUOULvSgFZKRILcxIEqm2OqbCLE58GG7T
-	g/qByk2T8ha16EHt6REkmnm+aeWMhdFAZyvRiF2mKiIggOtBwDYT3W3O9fAvS57LHsrQ5L7JnOr/0
-	ysN9bT3l7tcwRceG2q9VO3ZrcR7+ZzfDP7xab0hj5JECFHNCwNDn1NpO+sJjDarK8BX0hqTkZ6Hex
-	5Yrky4LLg==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gvnAU-00028C-Cp; Mon, 18 Feb 2019 17:57:26 +0000
-Date: Mon, 18 Feb 2019 09:57:26 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Rapoport <rppt@linux.ibm.com>, Rong Chen <rong.a.chen@intel.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	linux-kernel@vger.kernel.org,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>, LKP <lkp@01.org>,
-	Oscar Salvador <osalvador@suse.de>
-Subject: Re: [LKP] efad4e475c [ 40.308255] Oops: 0000 [#1] PREEMPT SMP PTI
-Message-ID: <20190218175726.GU12668@bombadil.infradead.org>
-References: <20190218052823.GH29177@shao2-debian>
- <20190218070844.GC4525@dhcp22.suse.cz>
- <20190218085510.GC7251@dhcp22.suse.cz>
- <4c75d424-2c51-0d7d-5c28-78c15600e93c@intel.com>
- <20190218103013.GK4525@dhcp22.suse.cz>
- <20190218140515.GF25446@rapoport-lnx>
- <20190218152050.GS4525@dhcp22.suse.cz>
- <20190218152213.GT4525@dhcp22.suse.cz>
- <20190218164813.GG25446@rapoport-lnx>
- <20190218170558.GV4525@dhcp22.suse.cz>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=NPjmsRzx;
+       spf=pass (google.com: domain of ziy@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=ziy@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c6af26a0000>; Mon, 18 Feb 2019 09:59:06 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Mon, 18 Feb 2019 09:59:01 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Mon, 18 Feb 2019 09:59:01 -0800
+Received: from [192.168.45.1] (172.20.13.39) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Mon, 18 Feb
+ 2019 17:59:01 +0000
+From: Zi Yan <ziy@nvidia.com>
+To: Matthew Wilcox <willy@infradead.org>
+CC: Vlastimil Babka <vbabka@suse.cz>, <linux-mm@kvack.org>,
+	<linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>,
+	Michal Hocko <mhocko@kernel.org>, "Kirill A . Shutemov"
+	<kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>,
+	Mel Gorman <mgorman@techsingularity.net>, John Hubbard <jhubbard@nvidia.com>,
+	Mark Hairgrove <mhairgrove@nvidia.com>, Nitin Gupta <nigupta@nvidia.com>,
+	David Nellans <dnellans@nvidia.com>
+Subject: Re: [RFC PATCH 01/31] mm: migrate: Add exchange_pages to exchange two
+ lists of pages.
+Date: Mon, 18 Feb 2019 09:59:00 -0800
+X-Mailer: MailMate (1.12.4r5594)
+Message-ID: <C84D2490-B6C6-4C7C-870F-945E31719728@nvidia.com>
+In-Reply-To: <20190218175224.GT12668@bombadil.infradead.org>
+References: <20190215220856.29749-1-zi.yan@sent.com>
+ <20190215220856.29749-2-zi.yan@sent.com>
+ <20190217112943.GP12668@bombadil.infradead.org>
+ <65A1FFA0-531C-4078-9704-3F44819C3C07@nvidia.com>
+ <2630a452-8c53-f109-1748-36b98076c86e@suse.cz>
+ <53690FCD-B0BA-4619-8DF1-B9D721EE1208@nvidia.com>
+ <20190218175224.GT12668@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190218170558.GV4525@dhcp22.suse.cz>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: multipart/signed;
+	boundary="=_MailMate_0BB521CA-1CAD-4EA1-A067-DCAFAE90573C_=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1550512746; bh=yljpbhmUSpbK3ZHxUMPa6QcOvurPZMhS7eG0xTM1hHc=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:X-Mailer:Message-ID:
+	 In-Reply-To:References:MIME-Version:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type;
+	b=NPjmsRzxI4Znr1hzBLzzxCI+yt/7CUxfGhpVkEJBB0Z32UeGbrQMJIQrQAOEA533M
+	 ccK+V7tOtviV3OdFezrVfLYJOZ/19XUR3cgdYg7HgWQ0O/0AVYEK4LDNwJoQG7YCJ3
+	 yV6SAWrj7w2nNFcIC0hFQr1Q9kVcdnmMcr0Urt2sYRVC7betMBJrY0NADKk8DJejxI
+	 GjxqXFJPP/z6z4L35qtsCcpjEMLIoCt4kkHv2T7o2cnefuHztsS9IALt5AILUg3NLf
+	 p/IWPTmMEMaKmCor2rb2fy08/MKuog9yeoygzQEZneA2i3/j/vrCi8pxz4oYRzxdzc
+	 g9/7UcwdZDlnw==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 18, 2019 at 06:05:58PM +0100, Michal Hocko wrote:
-> +	end_pfn = min(start_pfn + nr_pages,
-> +			zone_end_pfn(page_zone(pfn_to_page(start_pfn))));
->  
->  	/* Check the starting page of each pageblock within the range */
-> -	for (; page < end_page; page = next_active_pageblock(page)) {
-> -		if (!is_pageblock_removable_nolock(page))
-> +	for (; start_pfn < end_pfn; start_pfn = next_active_pageblock(start_pfn)) {
-> +		if (!is_pageblock_removable_nolock(start_pfn))
+--=_MailMate_0BB521CA-1CAD-4EA1-A067-DCAFAE90573C_=
+Content-Type: text/plain; markup=markdown
 
-If you have a zone which contains pfns that run from ULONG_MAX-n to ULONG_MAX,
-end_pfn is going to wrap around to 0 and this loop won't execute.  I think
-you should use:
+On 18 Feb 2019, at 9:52, Matthew Wilcox wrote:
 
-	max_pfn = min(start_pfn + nr_pages,
-			zone_end_pfn(page_zone(pfn_to_page(start_pfn)))) - 1;
+> On Mon, Feb 18, 2019 at 09:51:33AM -0800, Zi Yan wrote:
+>> On 18 Feb 2019, at 9:42, Vlastimil Babka wrote:
+>>> On 2/18/19 6:31 PM, Zi Yan wrote:
+>>>> The purpose of proposing exchange_pages() is to avoid allocating any
+>>>> new
+>>>> page,
+>>>> so that we would not trigger any potential page reclaim or memory
+>>>> compaction.
+>>>> Allocating a temporary page defeats the purpose.
+>>>
+>>> Compaction can only happen for order > 0 temporary pages. Even if you
+>>> used
+>>> single order = 0 page to gradually exchange e.g. a THP, it should be
+>>> better than
+>>> u64. Allocating order = 0 should be a non-issue. If it's an issue, then
+>>> the
+>>> system is in a bad state and physically contiguous layout is a secondary
+>>> concern.
+>>
+>> You are right if we only need to allocate one order-0 page. But this also
+>> means
+>> we can only exchange two pages at a time. We need to add a lock to make sure
+>> the temporary page is used exclusively or we need to keep allocating
+>> temporary pages
+>> when multiple exchange_pages() are happening at the same time.
+>
+> You allocate one temporary page per thread that's doing an exchange_page().
 
-	for (; start_pfn <= max_pfn; ...)
+Yeah, you are right. I think at most I need NR_CPU order-0 pages. I will try
+it. Thanks.
+
+--
+Best Regards,
+Yan Zi
+
+--=_MailMate_0BB521CA-1CAD-4EA1-A067-DCAFAE90573C_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQJDBAEBAgAtFiEEh7yFAW3gwjwQ4C9anbJR82th+ooFAlxq8mQPHHppeUBudmlk
+aWEuY29tAAoJEJ2yUfNrYfqKvz8P/2QWoZ7BWe9DN+EX/xH7sX2+WgzwoOXSbqud
+Q1DOF9mtLfTCPyxff+My2P2j1h2fyptIoVN5SE4J6j8BggLKN5wp1IH+rfl0z1Q1
+oN3+L4cOKtOGl9/kVEDcCng46pMgCXBr4JrkcR/tbpe+lqlgcxJQKSMThLDg+NC2
+k9LUt1mY5AG+3SgCmRayI4ROjsmsRjk2mlQq6e+cXLKToaByJ5GlTc+IebjXevVo
+Fbet14T79dJWG+FHpMA1RwqFFJk48y5NYf0kMvWY+SnZHaeNm0gFUKnKtgH3EbK3
+I7RQaVEvPnEptOEXsHXD24ukVLAaELib/molyY7OLeVw0W1X1jN0ARF3vwbTDf7x
+TepaHrzK+Ft7VX08Lc/W3yOH0RSipkoobDUPiZwxnWf13PKKxl5C84tiAMvxj7zL
+7vxOO0uEaSCRP5johYsCvglRoPLZ4YUR8yxF8uhOat5UQbymt2w10V67+nyAAsoQ
++rHZ84bWhpOuX/ussS0zjz6AVchq8z1w9PanYHLU0Wm7HcJzHbcVWTcn2lfyESiH
+o50VP92H1w4biHlNIOUiOjl2ColtSOCUXhrBycd2/cSLL6Ub7oEbLCNr3ivF60PL
+GcywjYloQ/lQtFWUStFSN9UXONpj+urQ3GfXJj4owAK/rgwXX1cVH87a098zRm3z
+uMDfSnJx
+=Hhar
+-----END PGP SIGNATURE-----
+
+--=_MailMate_0BB521CA-1CAD-4EA1-A067-DCAFAE90573C_=--
 
