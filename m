@@ -1,505 +1,220 @@
-Return-Path: <SRS0=oA8h=PB=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-12.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT,
+	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EC1B3C64E75
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Dec 2018 17:50:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C6982C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 20:48:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7609D2173B
-	for <linux-mm@archiver.kernel.org>; Mon, 24 Dec 2018 17:50:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7BFE62146E
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 20:48:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="jCxFSl6g"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7609D2173B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="NUQUzfw8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7BFE62146E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C20148E0002; Mon, 24 Dec 2018 12:50:16 -0500 (EST)
+	id 131E48E0003; Mon, 18 Feb 2019 15:48:48 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA6F58E0001; Mon, 24 Dec 2018 12:50:16 -0500 (EST)
+	id 0E1968E0002; Mon, 18 Feb 2019 15:48:48 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A20BA8E0002; Mon, 24 Dec 2018 12:50:16 -0500 (EST)
+	id EEA448E0003; Mon, 18 Feb 2019 15:48:47 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A2C08E0001
-	for <linux-mm@kvack.org>; Mon, 24 Dec 2018 12:50:16 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id s25so13956434ioc.14
-        for <linux-mm@kvack.org>; Mon, 24 Dec 2018 09:50:16 -0800 (PST)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C82908E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 15:48:47 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id 135so716891itk.5
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 12:48:47 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=mw/pGvmp+w80dZNVS4ioDLRTAAMGouNYOKHv0Y8eb0E=;
-        b=ofQUdvhhqq/xLycdbEd9oSs2mE8Kq3dfkFes0CY/NHLNAQUDOUGQar6cJNhY2c6fTo
-         zsmC0LohYOivGlzqZlf5tJqGCo9+RzQsufTg6GGJSgMhqa2aV1yOXsM3mbEGaujvKi0G
-         yiReML+R4lKBWxZ/6tJmQL4dDpecAA1LpGOHZGBIpv+NYOZOvkU0yGwsprDtZ1wsIr1e
-         hEXZAOd1W/b6uRkC2SOGtFNZ3nCZOKmyHceB1rLYMg6P8rPLBkxuTr13S7FcPEvU8nvs
-         1YKNgCfoLHdianHvfe01xRJ0Kc5j+dnBqpyxTW6UJ23dUkDBIJtHFvKWzdaAaXtLLrwA
-         0qAw==
-X-Gm-Message-State: AA+aEWYSFUTdhEL57AY51C8+WwF2FTkS159kj4quXOjm1OLhqhtIBe5h
-	G9SZLPVAqQTZGffUDziIoWIF+OzxOsxMjSBGHnFJm/ZJD5rxe1s/4G3qS1++/84Ts6j35MUuxjd
-	tX3A1YWngeMefMD3NbgGzgoLRhy0kApiXIZJH4jNUQQ2XZGyRKWNpMf9ZEYgp1vuK2/GMzvNbeZ
-	B8s06M05buTdPWQQ4qlAoPvwmcKiC9qwKMZTpTJjkn1jNpe1e9Vpqmi2R4gtO+ysxgOmyMNSslk
-	fN8rSFZZT68qLrS95jNzH+N0c6J3///xpKW7ck1ysAr7zE60yvIebvK3H19k6+1TG1Qc8W67IA7
-	1OMEfHWLL10eYQ3IFoGatFRPLNa8ha2lYHJcdj045BzK46BbRlsb/r76gQLzMEkEbaeLIITeQ/+
-	V
-X-Received: by 2002:a24:7d93:: with SMTP id b141mr8850543itc.91.1545673816111;
-        Mon, 24 Dec 2018 09:50:16 -0800 (PST)
-X-Received: by 2002:a24:7d93:: with SMTP id b141mr8850497itc.91.1545673814512;
-        Mon, 24 Dec 2018 09:50:14 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1545673814; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=/NLpiy+j/zrpP+sVhQdIcgCVfL0HwEex4aRdsJ4vY8Q=;
+        b=CRiOZRzRI7lic+lHenqm11GkdHZPpNpopOomiFHcLnJeqHronVofX0W2gTBfd17Bsm
+         RpBqOyFnhhIDozp3o5bBE0+TyZuqLrlPE0nONrfhdjX1pd3v+OojAtLiLXNean+vs70I
+         qX+L/aR3te3cA1ZK3DTjeAECjHrA3nqZrPYIHGN0o8FUgUFtGd+WcnI8h0kNuMgZn7rq
+         hIwTBQbNZ87hgKXKMBpZ3LdZK3Dv0SzO+tCtYoagKoCtn9eEuzN3yjcb1Ub9xqfRk76E
+         2Q1upa+0WVW1Vk+0dVaSXifdGLHjkew6ProrL8h084jmpAzWKHK8QzYZuuuFjyFpP4mQ
+         xy+w==
+X-Gm-Message-State: AHQUAual/1+CBFyB9yB2ZOgFr1glnEsJdhUVp4a3hWMvFXHaaBGgBCj4
+	/WkNHVwCyZJ6U27VmzlHpYFR98actpKe9j8hADKdkd5SqwUlLTQ9TtN8yxeTGfRzFqPn7HxhotL
+	NHpGJwV3PMRtb8/wZNDStDluPK+pGX0i3i73TQzhqpDT+95vxIRNantHLTZ6ZSJhUMYie1TR7YS
+	1xtiLK6TbdwrgEXZjn/YCgrKkfikXDgwL6LezwB6n1IwKeMkQ41BRpotiaKX7b5zrKom+zWDkf8
+	ULWXQAAkQ2BK5GyYXFJKRcnrqF+g2B20jhmx6Iy/WMjHrpknQlbPjWHwIdtV0hdgvxdFGOwPOyE
+	cmVOTMJh9Xf1XXu81wFe3/7R78jM4gqdA9k2MVi0iRNbrHMMVfEjLvmC9OnJWzJ+dPQnK5mHjj+
+	x
+X-Received: by 2002:a6b:500a:: with SMTP id e10mr13500091iob.127.1550522927502;
+        Mon, 18 Feb 2019 12:48:47 -0800 (PST)
+X-Received: by 2002:a6b:500a:: with SMTP id e10mr13500046iob.127.1550522926432;
+        Mon, 18 Feb 2019 12:48:46 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550522926; cv=none;
         d=google.com; s=arc-20160816;
-        b=eOPpKGidF8nqOHY8TR7wIHCQBAeTBq6EG7TDWkADDfSnRTMdUI0n5Bq0DZwagRuD1+
-         DungTEhMlYBg2sdMJzCLGKGvLoGaWrbn84stG08hW1factheDQfyr5v9SYD0V3wUs0Hv
-         b1JHXNdSyi3ksbUqtZ98ioOAvyeckXB61z/X6Fna+OoKAtQdjAYOv9ERJKMqffVVyIEo
-         zjEVyDkw007ZqLprEzr5Y7Ar5H0FqgGOUFS6XF9Q7nCRRTPqH1I2GBqiQEcoKIq2Ha0D
-         lsBAC7UpQYwlqfJSce1PU2h4iZPMRXNFHeFqn2/xOfWvxxwFAq1r9S7xewBceker+B0f
-         1vGg==
+        b=iByUJB8X++Y/7H3nYeKdMA+z+Xfc74xTdg3Rb06mANourOCr+eQ9tv8vhNVTPn/Eyp
+         CulSg7OTrTD3I0pgPlNS/43CX6Y9cZO6v4sjNi3Af7pqGpWMbgA6aJARDQQxk3piue9F
+         qMK/PFIwZDzWHHEwyh/HAy0Mka0CL2b+We1XTo7j9Saes80KTygNU7mekuHUz42R/yMK
+         guATiE+D/6Wy/IlpvbkXZhMqxxjZ+zFBzxibnTrzTlps0Ukm/xRzb0p3bHsRDPwguwvW
+         PVDjq889XmFbhyNNrrGfB/aRJrdtPlTUW2Nm/SOgNZdYCkzunIQkCV0kxGe/eG8etacU
+         Pf/A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=mw/pGvmp+w80dZNVS4ioDLRTAAMGouNYOKHv0Y8eb0E=;
-        b=g8pYDqMeaFTQ5jvMtgxng97AB1kaF5ZL/F6/7oo0/I9/kfPHhLU5kxDYEMJorE6Y7H
-         J4qE+F0sIeD1nbY3ANvh1nYeN8BsQiHHk/tSY6Kos2loO32PMtSgy+FIAaSRw+3zx1s3
-         /pKB0dAmefHp/Cp3uQGOsM8SSr24O6lofyx7516/PsRA8Fh4YzWrHPtBik9diKKDaDY0
-         x7PLb+jVXxESPz8eBDq8OAmdXJZQ0BN65gxEERFi5PtPGlxcwWAPoBmqxPAIvNAwVub4
-         oQPLQpO/OO0ISoYkfrEjckz2LStWpaRrgxTivPlMPTnYyZyELXWchikNFj/JMuv8Uioi
-         Ktbg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=/NLpiy+j/zrpP+sVhQdIcgCVfL0HwEex4aRdsJ4vY8Q=;
+        b=KwICQ+VArD3fh+7iUQoLBLd7NhfACvci3JeqrAcSU99YwnLi2bh+4tPqur11yukHXZ
+         JVxO355Pq9uVY0v5gu4voDGZ3q+XrD7VFZkj5DkA1osy9n9hGlEFTHBv/MysPpTR7GVE
+         H9QAoYJOHOP3v291fsVy1ongdeb667Ub5cbcPucladqFZWtGv7PDWvMCjz0oQRU4t78y
+         yOKYCk4WKq9ryvPXO4gxfyOD2SEdgpSFiGfhYSB0gaiVvvwlElYX+k02uc+96sI06E3R
+         +xh/rsiwXS4GyQkVcRoxyMhrTbVhu9jhViGivIbR3XwHW46LSaPYE8mjTbwdZjF0cguM
+         Tm0g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jCxFSl6g;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y98sor31118041ita.20.2018.12.24.09.50.14
+       dkim=pass header.i=@google.com header.s=20161025 header.b=NUQUzfw8;
+       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j187sor735982itj.27.2019.02.18.12.48.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 24 Dec 2018 09:50:14 -0800 (PST)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Mon, 18 Feb 2019 12:48:46 -0800 (PST)
+Received-SPF: pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=jCxFSl6g;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=NUQUzfw8;
+       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=mw/pGvmp+w80dZNVS4ioDLRTAAMGouNYOKHv0Y8eb0E=;
-        b=jCxFSl6guTRJb1vZHOBFV4u8mnhdRnd7swlMo20OwjHb9rasRsQipT/ZRMRooS1ZoY
-         pkc2m2UbqIWIiK2nRlsG2I2YkR4ndPtmYzQHz9qvO46B7pWRICwdHa0pGJcs9Y6NIU3I
-         9e5CCkXsr2GBg2CKBPedl9sEHAo/3kF58AP5BbqBwpHtGMIYuQa66El4QRUf3zBDXtp8
-         pSZ0up6hd4N57mpx7/BkgjYWkFRthhOmUOYLZRYj6yOavAe1p35O/hx35vwMdBMtRlZG
-         x9XoAZ/CmeK/GyUcx0lS0ySiaW0D9WuW6CUdDnkkIiPlWqNthUSQIzVCG92bfGInDdel
-         VJVQ==
-X-Google-Smtp-Source: AFSGD/WuuB1zQRdRrU+ZeJESRHAb8RkCvo/PHC0Xjwjbr6EKNIPwC1iPF4ZYJ4/fcLcm/xslB3tJjxeGXS70W+3QI0o=
-X-Received: by 2002:a24:5989:: with SMTP id p131mr9296325itb.6.1545673813832;
- Mon, 24 Dec 2018 09:50:13 -0800 (PST)
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=/NLpiy+j/zrpP+sVhQdIcgCVfL0HwEex4aRdsJ4vY8Q=;
+        b=NUQUzfw8/x7dr0Q70sqUQawAGRy1k43ldVFkm4ZbYxr1A3YdpzcGBs+YvYXIOhmZr+
+         45UfT9cky6fpnR0KZOUXAxs90kZDwfEffomg1cwN/PpVg0WEPS6aW5GpHLtuct5JMUJq
+         K213WVXJIDZ0l/iI9bu25oOyzAcMIFxP79Nzr9hkj/tZezv0NOLTYFZ9AnOC59poJK9q
+         21/h5HJxE20vXVmiNlzp3I8scZNb5ELd+yb3+OnbaSox94ydiQ/+kUattnzPon/0+iDL
+         dldi9AiGX42H8k9DyNw8FdUIZITG8BoFgW4sWn7w7K/aJ6rwcJ5lSHZ1Wj1Iso7Z53Ba
+         dSvA==
+X-Google-Smtp-Source: AHgI3IYoW571J1Mbargry0dSLvhBvQdK5/NeOan6qv4n/bRuaI5i5jinvq0JPQkH5R/r3DLUERBiXg==
+X-Received: by 2002:a24:4648:: with SMTP id j69mr470647itb.56.1550522925849;
+        Mon, 18 Feb 2019 12:48:45 -0800 (PST)
+Received: from google.com ([2620:15c:183:0:a0c3:519e:9276:fc96])
+        by smtp.gmail.com with ESMTPSA id d6sm5943432ioc.44.2019.02.18.12.48.44
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 18 Feb 2019 12:48:44 -0800 (PST)
+Date: Mon, 18 Feb 2019 13:48:42 -0700
+From: Yu Zhao <yuzhao@google.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>,
+	"Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Nick Piggin <npiggin@gmail.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-arch@vger.kernel.org, linux-mm@kvack.org,
+	mark.rutland@arm.com
+Subject: Re: [PATCH] arm64: mm: enable per pmd page table lock
+Message-ID: <20190218204842.GA203083@google.com>
+References: <20190214211642.2200-1-yuzhao@google.com>
+ <20190218151223.GB16091@fuggles.cambridge.arm.com>
+ <20190218194938.GA184109@google.com>
 MIME-Version: 1.0
-References: <20181207100859.8999-1-richard.weiyang@gmail.com>
- <619af066710334134f78fd5ed0f9e3222a468847.camel@linux.intel.com>
- <20181221224451.tv4plkhkmuolmclv@master> <fcbf10c73e2b2ce7b8580f0f91c447571a506ea4.camel@linux.intel.com>
- <20181222002235.imzsqh6p7ryt3cgh@master> <32d061d6-39a2-97f1-6609-d27ad74f8404@linux.intel.com>
- <20181223065827.ng2xqck7jdllt7b7@master>
-In-Reply-To: <20181223065827.ng2xqck7jdllt7b7@master>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Mon, 24 Dec 2018 09:50:02 -0800
-Message-ID:
- <CAKgT0UdgzzP=wPovsWk_Twm+hhKJ1YQYAFNB9VBMAKaiUscJDw@mail.gmail.com>
-Subject: Re: [PATCH] mm, page_alloc: calculate first_deferred_pfn directly
-To: richard.weiyang@gmail.com
-Cc: alexander.h.duyck@linux.intel.com, linux-mm <linux-mm@kvack.org>, 
-	pavel.tatashin@microsoft.com, Andrew Morton <akpm@linux-foundation.org>, 
-	Michal Hocko <mhocko@suse.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190218194938.GA184109@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20181224175002.U49VXzihJmjM-ZCXYDDhrET6sFnGrIhl5RkvAqtHiMw@z>
 
-On Sat, Dec 22, 2018 at 11:50 PM Wei Yang <richard.weiyang@gmail.com> wrote:
->
-> On Fri, Dec 21, 2018 at 05:41:30PM -0800, Alexander Duyck wrote:
-> >On 12/21/2018 4:22 PM, Wei Yang wrote:
-> >> On Fri, Dec 21, 2018 at 03:45:40PM -0800, Alexander Duyck wrote:
-> >> > On Fri, 2018-12-21 at 22:44 +0000, Wei Yang wrote:
-> >> > > On Thu, Dec 20, 2018 at 03:47:53PM -0800, Alexander Duyck wrote:
-> >> > > > On Fri, 2018-12-07 at 18:08 +0800, Wei Yang wrote:
-> >> > > > > After commit c9e97a1997fb ("mm: initialize pages on demand during
-> >> > > > > boot"), the behavior of DEFERRED_STRUCT_PAGE_INIT is changed to
-> >> > > > > initialize first section for highest zone on each node.
-> >> > > > >
-> >> > > > > Instead of test each pfn during iteration, we could calculate the
-> >> > > > > first_deferred_pfn directly with necessary information.
-> >> > > > >
-> >> > > > > By doing so, we also get some performance benefit during bootup:
-> >> > > > >
-> >> > > > >      +----------+-----------+-----------+--------+
-> >> > > > >      |          |Base       |Patched    |Gain    |
-> >> > > > >      +----------+-----------+-----------+--------+
-> >> > > > >      | 1 Node   |0.011993   |0.011459   |-4.45%  |
-> >> > > > >      +----------+-----------+-----------+--------+
-> >> > > > >      | 4 Nodes  |0.006466   |0.006255   |-3.26%  |
-> >> > > > >      +----------+-----------+-----------+--------+
-> >> > > > >
-> >> > > > > Test result is retrieved from dmesg time stamp by add printk around
-> >> > > > > free_area_init_nodes().
-> >> > > > >
-> >> > > > > Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-> >> > >
-> >> > > Hi, Alexander
-> >> > >
-> >> > > Thanks for your comment!
-> >> > >
-> >> > > > I'm pretty sure the fundamental assumption made in this patch is wrong.
-> >> > > >
-> >> > > > It is assuming that the first deferred PFN will just be your start PFN
-> >> > > > + PAGES_PER_SECTION aligned to the nearest PAGES_PER_SECTION, do I have
-> >> > > > that correct?
-> >> > >
-> >> > > You are right.
-> >> > >
-> >> > > >
-> >> > > > If I am not mistaken that can result in scenarios where you actually
-> >> > > > start out with 0 pages allocated if your first section is in a span
-> >> > > > belonging to another node, or is reserved memory for things like MMIO.
-> >> > >
-> >> > > Yeah, sounds it is possible.
-> >> > >
-> >> > > >
-> >> > > > Ideally we don't want to do that as we have to immediately jump into
-> >> > > > growing the zone with the code as it currently stands.
-> >> > >
-> >> > > You are right.
-> >> > >
-> >> > > >
-> >> > > > > ---
-> >> > > > >   mm/page_alloc.c | 57 +++++++++++++++++++++++++++------------------------------
-> >> > > > >   1 file changed, 27 insertions(+), 30 deletions(-)
-> >> > > > >
-> >> > > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >> > > > > index baf473f80800..5f077bf07f3e 100644
-> >> > > > > --- a/mm/page_alloc.c
-> >> > > > > +++ b/mm/page_alloc.c
-> >> > > > > @@ -306,38 +306,33 @@ static inline bool __meminit early_page_uninitialised(unsigned long pfn)
-> >> > > > >   }
-> >> > > > >   /*
-> >> > > > > - * Returns true when the remaining initialisation should be deferred until
-> >> > > > > - * later in the boot cycle when it can be parallelised.
-> >> > > > > + * Calculate first_deferred_pfn in case:
-> >> > > > > + * - in MEMMAP_EARLY context
-> >> > > > > + * - this is the last zone
-> >> > > > > + *
-> >> > > > > + * If the first aligned section doesn't exceed the end_pfn, set it to
-> >> > > > > + * first_deferred_pfn and return it.
-> >> > > > >    */
-> >> > > > > -static bool __meminit
-> >> > > > > -defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
-> >> > > > > +unsigned long __meminit
-> >> > > > > +defer_pfn(int nid, unsigned long start_pfn, unsigned long end_pfn,
-> >> > > > > +      enum memmap_context context)
-> >> > > > >   {
-> >> > > > > -    static unsigned long prev_end_pfn, nr_initialised;
-> >> > > > > +    struct pglist_data *pgdat = NODE_DATA(nid);
-> >> > > > > +    unsigned long pfn;
-> >> > > > > -    /*
-> >> > > > > -     * prev_end_pfn static that contains the end of previous zone
-> >> > > > > -     * No need to protect because called very early in boot before smp_init.
-> >> > > > > -     */
-> >> > > > > -    if (prev_end_pfn != end_pfn) {
-> >> > > > > -            prev_end_pfn = end_pfn;
-> >> > > > > -            nr_initialised = 0;
-> >> > > > > -    }
-> >> > > > > +    if (context != MEMMAP_EARLY)
-> >> > > > > +            return end_pfn;
-> >> > > > > -    /* Always populate low zones for address-constrained allocations */
-> >> > > > > -    if (end_pfn < pgdat_end_pfn(NODE_DATA(nid)))
-> >> > > > > -            return false;
-> >> > > > > +    /* Always populate low zones */
-> >> > > > > +    if (end_pfn < pgdat_end_pfn(pgdat))
-> >> > > > > +            return end_pfn;
-> >> > > > > -    /*
-> >> > > > > -     * We start only with one section of pages, more pages are added as
-> >> > > > > -     * needed until the rest of deferred pages are initialized.
-> >> > > > > -     */
-> >> > > > > -    nr_initialised++;
-> >> > > > > -    if ((nr_initialised > PAGES_PER_SECTION) &&
-> >> > > > > -        (pfn & (PAGES_PER_SECTION - 1)) == 0) {
-> >> > > > > -            NODE_DATA(nid)->first_deferred_pfn = pfn;
-> >> > > > > -            return true;
-> >> > > > > +    pfn = roundup(start_pfn + PAGES_PER_SECTION - 1, PAGES_PER_SECTION);
-> >> > > > > +    if (end_pfn > pfn) {
-> >> > > > > +            pgdat->first_deferred_pfn = pfn;
-> >> > > > > +            end_pfn = pfn;
-> >> > > > >      }
-> >> > > > > -    return false;
-> >> > > > > +    return end_pfn;
-> >> > > >
-> >> > > > Okay so I stand corrected. It looks like you are rounding up by
-> >> > > > (PAGES_PER_SECTION - 1) * 2 since if I am not mistaken roundup should
-> >> > > > do the same math you already did in side the function.
-> >> > > >
-> >> > > > >   }
-> >> > > > >   #else
-> >> > > > >   static inline bool early_page_uninitialised(unsigned long pfn)
-> >> > > > > @@ -345,9 +340,11 @@ static inline bool early_page_uninitialised(unsigned long pfn)
-> >> > > > >      return false;
-> >> > > > >   }
-> >> > > > > -static inline bool defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
-> >> > > > > +unsigned long __meminit
-> >> > > > > +defer_pfn(int nid, unsigned long start_pfn, unsigned long end_pfn,
-> >> > > > > +      enum memmap_context context)
-> >> > > > >   {
-> >> > > > > -    return false;
-> >> > > > > +    return end_pfn;
-> >> > > > >   }
-> >> > > > >   #endif
-> >> > > > > @@ -5514,6 +5511,8 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
-> >> > > > >      }
-> >> > > > >   #endif
-> >> > > > > +    end_pfn = defer_pfn(nid, start_pfn, end_pfn, context);
-> >> > > > > +
-> >> > > >
-> >> > > > A better approach for this might be to look at placing the loop within
-> >> > > > a loop similar to how I handled this for the deferred init. You only
-> >> > > > really need to be performing all of these checks once per section
-> >> > > > aligned point anyway.
-> >> > >
-> >> > > I didn't really get your idea here. Do you have the commit id you handle
-> >> > > deferred init?
-> >> >
-> >> > The deferred_grow_zone function actually had some logic like this
-> >> > before I had rewritten it, you can still find it on lxr:
-> >> > https://elixir.bootlin.com/linux/latest/source/mm/page_alloc.c#L1668
-> >> >
-> >> > >
-> >> > > >
-> >> > > > Basically if you added another loop and limited the loop below so that
-> >> > > > you only fed it one section at a time then you could just pull the
-> >> > > > defer_init check out of this section and place it in the outer loop
-> >> > > > after you have already tried initializing at least one section worth of
-> >> > > > pages.
-> >> > > >
-> >> > > > You could probably also look at pulling in the logic that is currently
-> >> > > > sitting at the end of the current function that is initializing things
-> >> > > > until the end_pfn is aligned with PAGES_PER_SECTION.
-> >> > > >
-> >> > > > >      for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-> >> > > > >              /*
-> >> > > > >               * There can be holes in boot-time mem_map[]s handed to this
-> >> > > > > @@ -5526,8 +5525,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
-> >> > > > >                              continue;
-> >> > > > >                      if (overlap_memmap_init(zone, &pfn))
-> >> > > > >                              continue;
-> >> > > > > -                    if (defer_init(nid, pfn, end_pfn))
-> >> > > > > -                            break;
-> >> > > > >              }
-> >> > > >
-> >> > > > So the whole reason for the "defer_init" call being placed here is
-> >> > > > because there are checks to see if the prior PFN is valid, in our NUMA
-> >> > > > node, or is an overlapping region. If your first section or in this
-> >> > > > case 2 sections contain pages that fall into these categories you
-> >> > > > aren't going to initialize any pages.
-> >> > >
-> >> > > Ok, I get your point. Let me do a summary, the approach in this patch
-> >> > > has one flaw: in case all pages in the first section fall into these two
-> >> > > categories, we will end up with no page initialized for this zone.
-> >> > >
-> >> > > So my suggestion is:
-> >> > >
-> >> > >    Find the first valid page and roundup it to PAGES_PER_SECTION. This
-> >> > >    would ensure we won't end up with zero initialized page.
-> >> >
-> >> > Using the first valid PFN will not work either. The problem is you want
-> >> > to ideally have PAGES_PER_SECTION number of pages allocated before we
-> >> > begin deferring allocation. The pages will have a number of regions
-> >> > that are reserved and/or full of holes so you cannot rely on the first
-> >> > PFN to be the start of a contiguous section of pages.
-> >> >
-> >>
-> >> Hmm... my original idea is we don't need to initialize at least
-> >> PAGES_PER_SECTION pages before defer init. In my mind, we just need to
-> >> initialize *some* pages for this zone. The worst case is there is only
-> >> one page initialized at bootup.
-> >>
-> >> So here is the version with a little change to cope with the situation
-> >> when the whole section is not available.
-> >>
-> >>      for (pfn = start_pfn; pfn < enf_pfn; pfn++) {
-> >>              if (!early_pfn_valid(pfn))
-> >>                      continue;
-> >>              if (!early_pfn_in_nid(pfn, nid))
-> >>                      continue;
-> >>              if (overlap_memmap_init(zone, &pfn))
-> >>                      continue;
-> >>
-> >>              break;
-> >>      }
-> >>
-> >>      pfn = round_up(pfn + 1, PAGES_PER_SECTION);
-> >>
-> >>      if (end_pfn > pfn) {
-> >>              pgdat->first_deferred_pfn = pfn;
-> >>              end_pfn = pfn;
-> >>      }
-> >>
-> >
-> >This would have you updating your first_deferred_pfn for every valid pfn. I
-> >don't think that is what you want.
->
-> It break out at the first valid pfn, so it update first_deferred_pfn
-> once on the first valid pfn. Is my logic in code incorrect?
+On Mon, Feb 18, 2019 at 12:49:38PM -0700, Yu Zhao wrote:
+> On Mon, Feb 18, 2019 at 03:12:23PM +0000, Will Deacon wrote:
+> > [+Mark]
+> > 
+> > On Thu, Feb 14, 2019 at 02:16:42PM -0700, Yu Zhao wrote:
+> > > Switch from per mm_struct to per pmd page table lock by enabling
+> > > ARCH_ENABLE_SPLIT_PMD_PTLOCK. This provides better granularity for
+> > > large system.
+> > > 
+> > > I'm not sure if there is contention on mm->page_table_lock. Given
+> > > the option comes at no cost (apart from initializing more spin
+> > > locks), why not enable it now.
+> > > 
+> > > Signed-off-by: Yu Zhao <yuzhao@google.com>
+> > > ---
+> > >  arch/arm64/Kconfig               |  3 +++
+> > >  arch/arm64/include/asm/pgalloc.h | 12 +++++++++++-
+> > >  arch/arm64/include/asm/tlb.h     |  5 ++++-
+> > >  3 files changed, 18 insertions(+), 2 deletions(-)
+> > > 
+> > > diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> > > index a4168d366127..104325a1ffc3 100644
+> > > --- a/arch/arm64/Kconfig
+> > > +++ b/arch/arm64/Kconfig
+> > > @@ -872,6 +872,9 @@ config ARCH_WANT_HUGE_PMD_SHARE
+> > >  config ARCH_HAS_CACHE_LINE_SIZE
+> > >  	def_bool y
+> > >  
+> > > +config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+> > > +	def_bool y
+> > > +
+> > >  config SECCOMP
+> > >  	bool "Enable seccomp to safely compute untrusted bytecode"
+> > >  	---help---
+> > > diff --git a/arch/arm64/include/asm/pgalloc.h b/arch/arm64/include/asm/pgalloc.h
+> > > index 52fa47c73bf0..dabba4b2c61f 100644
+> > > --- a/arch/arm64/include/asm/pgalloc.h
+> > > +++ b/arch/arm64/include/asm/pgalloc.h
+> > > @@ -33,12 +33,22 @@
+> > >  
+> > >  static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+> > >  {
+> > > -	return (pmd_t *)__get_free_page(PGALLOC_GFP);
+> > > +	struct page *page;
+> > > +
+> > > +	page = alloc_page(PGALLOC_GFP);
+> > > +	if (!page)
+> > > +		return NULL;
+> > > +	if (!pgtable_pmd_page_ctor(page)) {
+> > > +		__free_page(page);
+> > > +		return NULL;
+> > > +	}
+> > > +	return page_address(page);
+> > 
+> > I'm a bit worried as to how this interacts with the page-table code in
+> > arch/arm64/mm/mmu.c when pgd_pgtable_alloc is used as the allocator. It
+> > looks like that currently always calls pgtable_page_ctor(), regardless of
+> > level. Do we now need a separate allocator function for the PMD level?
+> 
+> Thanks for reminding me, I never noticed this. The short answer is
+> no.
+> 
+> I guess pgtable_page_ctor() is used on all pud/pmd/pte entries
+> there because it's also compatible with pud, and pmd too without
+> this patch. So your concern is valid. Thanks again.
+> 
+> Why my answer is no? Because I don't think the ctor matters for
+> pgd_pgtable_alloc(). The ctor is only required for userspace page
+> tables, and that's why we don't have it in pte_alloc_one_kernel().
+> AFAICT, none of the pgds (efi_mm.pgd, tramp_pg_dir and init_mm.pgd)
+> pre-populated by pgd_pgtable_alloc() is. (I doubt we pre-populate
+> userspace page tables in any other arch).
+> 
+> So to avoid future confusion, we might just remove the ctor from
+> pgd_pgtable_alloc().
 
-It is possible we might be discussing too much via pseudocode. The key
-bit is that you aren't supposed to break out on an unaligned section.
-You need to break out aligned with the PAGES_PER_SECTION value.
+I'm sorry. I've missed that we call apply_to_page_range() on efi_mm.
+The function does require the ctor. So we actually can't remove it.
+Though pgtable_page_ctor() also does the work adequately for pmd in
+terms of giving apply_to_page_range() what it requires, it would be
+more appropriate to use pgtable_pmd_page_ctor() instead (and not
+calling the ctor at all on pud).
 
-> >
-> >> And here is the version if we want to count the number of valid pages.
-> >>
-> >>      for (pfn = start_pfn; pfn < enf_pfn; pfn++) {
-> >>              if (!early_pfn_valid(pfn))
-> >>                      continue;
-> >>              if (!early_pfn_in_nid(pfn, nid))
-> >>                      continue;
-> >>              if (overlap_memmap_init(zone, &pfn))
-> >>                      continue;
-> >>
-> >>              if (++valid_pfns == PAGES_PER_SECTION)
-> >>                      break;
-> >>      }
-> >>
-> >
-> >Your break condition here is wrong. You don't want to break out if the number
-> >of valid_pfns is equal to PAGES_PER_SECTION, you want to break out if pfn is
-> >aligned to PAGES_PER_SECTION.
-> >
-> >>      pfn = round_up(pfn + 1, PAGES_PER_SECTION);
->
-> Hmm... here it align pfn to PAGES_PER_SECTION. The loop above makes sure
-> there are one section pages initialized during bootup.
-
-You are aligning the deferred PFN, but the PFN you break out on is
-unaligned. So what are you doing about the pages in between?
-
-> >>
-> >>      if (end_pfn > pfn) {
-> >>              pgdat->first_deferred_pfn = pfn;
-> >>              end_pfn = pfn;
-> >>      }
-> >>
-> >
-> >This is even more incorrect then the original patch.
-> >
-> >> > > Generally, my purpose in this patch is:
-> >> > >
-> >> > > 1. Don't affect the initialisation for non defer init zones.
-> >> > >     Current code will call defer_init() for each pfn, no matter this pfn
-> >> > >     should be defer_init or not. By taking this out, we try to minimize
-> >> > >     the effect on the initialisation process.
-> >> >
-> >> > So one problem with trying to pull out defer_init is that it contains
-> >> > the increment nr_initialized. At a minimum that logic should probably
-> >> > be pulled out and placed back where it was.
-> >> >
-> >> > > 2. Iterate on less pfn for defer zone
-> >> > >     Current code will count on each pfn in defer zone. By roundup pfn
-> >> > >     directly, less calculation would be necessary. Defer init will handle
-> >> > >     the rest. Or if we really want at least PAGES_PER_SECTION pfn be
-> >> > >     initialized for defer zone, we can do the same math in defer_pfn().
-> >> >
-> >> > So the general idea I was referring to above would be something like:
-> >> > for (pfn = start_pfn; pfn < end_pfn;) {
-> >> >    t = ALIGN_DOWN(pfn + PAGES_PER_SECTION, PAGES_PER_SECTION);
-> >> >    first_deferred_pfn = min(t, end_pfn);
-> >> >    section_initialized = 0;
-> >> >
-> >> >    for (; pfn < first_deferred_pfn; pfn++) {
-> >> >            struct page *page;
-> >> >
-> >> >            /* All or original checks here w/ continue */
-> >> >
-> >> >            /* all of the original page initialization stuff */
-> >> >
-> >> >            section_initialized++;
-> >> >    }
-> >> >
-> >> >    /* Place all the original checks for deferred init here */
-> >> >
-> >> >    nr_initialized += section_initialized;
-> >> >
-> >> >    /* remaining checks for deferred init to see if we exit/break here */
-> >> > }
-> >> >
-> >> > The general idea is the same as what you have stated. However with this
-> >> > approach we should be able to count the number of pages initialized and
-> >> > once per section we will either just drop the results stored in
-> >> > section_initialized, or we will add them to the initialized count and
-> >> > if it exceeds the needed value we could then break out of the loop.
-> >> >
-> >>
-> >> Yep, it looks we share similar idea. While I take the initialization
-> >> part out and just count the pfn ahead. And use this pfn for the loop.
-> >>
-> >> Do you think I understand you correctly?
-> >>
-> >
-> >There are two pieces to this. One is tracking the number of PFNs that you
-> >have initialized in a given section. We need to do that and the overhead
-> >should be pretty light since it is just an increment. It would probably be
-> >only one or two instructions manipulating a local variable, possibly even a
-> >register.
-> >
->
-> Yes, the effort to count for defer zone is not huge, while the function
-> defer_ini() will be called for each pfn in non-defer zone.
-
-The counting itself should be cheap. You just need to avoid all the
-extra conditional checks on every PFN. That is why I suggested
-breaking it up into two counters. One that is reset per section and
-one that aggregates the counts of those sections that we care about.
-
-> >The other bit is to see if we even care about the section/zone and if we
-> >should do something with the count of pages initialized in it. That check
-> >should be done once at the end of every section we initialize. I would say we
-> >should aim for trying to initialize at least a section number worth of pages.
->
-> If we have to initialize PAGES_PER_SECTION pages, my approach is not
-> better than current one. :)
-
-It could be. The one other thing I am not sure about is if we
-absolutely have to initialize a section worth of pages or if we just
-have to do 1 << MAX_ORDER number of pages. All the comments I have
-read seem to indicate MAX_ORDER is the hard requirement because of the
-fact that free_pages_<whatever> will end up trying to do the creation
-of a max order page as the pages are freed into the buddy allocator.
-So you could try experimenting with code around that if you are still
-wanting to try to allocate less than a section worth of pages.
-
-> >I admit it is kind of arbitrary, but if we don't do that then the work falls
-> >back to deferred_grow_zone and that is resorting to allocating a section
-> >number worth of pages so one way or another we will end up having to do that
-> >anyway.
-> >
-> >We should be section aligned in order to keep the later freeing of the pages
-> >from blowing up due to accessing an uninitialized page.
-> >
-> >> > >
-> >> > > Glad to talk with you and look forward your comments:-)
-> >> > >
-> >> > > >
-> >> > > > >              page = pfn_to_page(pfn);
-> >> > >
-> >> > >
-> >>
->
-> --
-> Wei Yang
-> Help you, Help me
->
+I could add this change prior to this patch, if it makes sense to
+you. Thanks.
 
