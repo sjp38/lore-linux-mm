@@ -2,223 +2,186 @@ Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_NEOMUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 032C1C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 11:14:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3BBB3C10F01
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 11:15:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A09252173C
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 11:14:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EEAF9218FC
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 11:15:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=armh.onmicrosoft.com header.i=@armh.onmicrosoft.com header.b="SN/xW1TU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A09252173C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="fc51Dots"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EEAF9218FC
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 357CC8E0003; Mon, 18 Feb 2019 06:14:29 -0500 (EST)
+	id 8AEBE8E0004; Mon, 18 Feb 2019 06:15:42 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 307FE8E0002; Mon, 18 Feb 2019 06:14:29 -0500 (EST)
+	id 837E08E0002; Mon, 18 Feb 2019 06:15:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1D2888E0003; Mon, 18 Feb 2019 06:14:29 -0500 (EST)
+	id 6D98F8E0004; Mon, 18 Feb 2019 06:15:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B977B8E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 06:14:28 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id d9so7030327edh.4
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 03:14:28 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 25D888E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 06:15:42 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id g13so12474156plo.10
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 03:15:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:user-agent:content-id:content-transfer-encoding
-         :mime-version;
-        bh=v+kg+3SUn8YALUSgNr6Ir2VTidISkCWDI/Gzi//ZmY4=;
-        b=og0q3jdkPB8uaY7bFJUEIdYC/uaASBL0KtX+G4e5CvP7dupQpNqFG8gQrPjWJSJeqz
-         jmo4+DsmXIDRsnJJ2+Sl2DsPb2WZxxeNVr5P8dW1l5fEqYE65p7r9pMar71ih0AY24w/
-         24ACSd4Hyv7gS+3x5BUl+7M8xz4kBt4uUWWKIVwjln7mJYAucguNq7CnZrOknEvlSl1Q
-         OABQ+Us1PIVvnEX/lE19LtaxbITbKetMCdkwso91TOtkNA/+1kwgYbJjgPDN6pgVq0bT
-         Ze6SC53Vm1fKJhbHIfcuLH95nZClwp5lQow+0wn73CrYXoeIUMUw40Dc5xdv1z0meltG
-         s4Tw==
-X-Gm-Message-State: AHQUAuY0p9Q0oaZG2/KThT60c+LRkINakzvzjEgKH4+ST4Xl3QXVhMxS
-	2ryPzBdCKOmwgbaWjObIQlsNLgNdC+V5FS0F7QSSszkgqRZ4LoI1T4sYXw5myH08OFQppNcN3XZ
-	OVTqCWFtI7bYY648f+Vnr1AUxFKJrsRFYkvQBLN2heerq6HTtDfoy17J6uvrvmX5kKw==
-X-Received: by 2002:a17:906:9398:: with SMTP id l24mr1514701ejx.128.1550488468201;
-        Mon, 18 Feb 2019 03:14:28 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZkQgJfXbfex8BJEnPM0cTUZOnPKUJVDxfFpWxPpit3SaTVYX9I6R4PgaCWWfwqWM1cr5Zt
-X-Received: by 2002:a17:906:9398:: with SMTP id l24mr1514620ejx.128.1550488466596;
-        Mon, 18 Feb 2019 03:14:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550488466; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=bnsuTPZJgCfJkno9x9y084y1LYZfgF4jJqn/Ofc0v/A=;
+        b=JV05MZg4ctc1Ylmhn/Pps+cSSlZfhCC9dB0dPcxTSoBUBlsHE2zYPEO00mbmXi6aLh
+         7SkI+CsfBXKMxgbPFmnVbWv2QaIh4nbPSnxcVnooLRl2b5NpxtCWnk/mW7VdxvR6XjHZ
+         o61wMZkjLvlykOqvlbAVTkvcnVRVqUak8uynfvoRPSByglNW9x+FRIfzsPFcE7/du7eE
+         aUCieCir71QLCbMmdRHrBddBEvKqSmxoP094G8czyAHU8LehHkxmVVAqnfp+t65YTBLE
+         e2TEK/dRGXDdBRSkbLvhd+o+oXHrFryRuR7sLUgXDgKoIyLb5Hq2MVrNTle8mzy7YJ9M
+         eB0Q==
+X-Gm-Message-State: AHQUAubi8ZYDffldS5N0aDZXLxjSAyCUampBMleXtwrfYHUFyhyD6CRx
+	9/Fmg9QSV+ohwZWA+0FWsasEkbSJSW14bwI3aIbt/39cnWWYYfPyWIsTrWJ59ERZOjUAH6JV8bT
+	vIMGjJe87mWEk0af/I+IvvK8rUbf7uQ13CcgYGIukRBOXolfQl+fckbwzts0/T9ZtJeYtv7AYI2
+	lxyKkgC4S1+qkW1fZQp3ql/CRK0BTR5d77zd4quaRihJy7SCSkEhq9F/Ee+V5NKrOif6eb2Ro/N
+	f62lApfWC5LcTkNVFhpdP2gf3f4WPv8AjuKZafPMdzLlnbU9jKgSk/73ZHn/z8nMtFRvhrLc807
+	1T5RX/LRveunvs7HuG5FsEPjB3Rof64SDSC8RSiYX6i/LarGeVUoN4f7WllEdnvmYQI2I6UUmsg
+	8
+X-Received: by 2002:a63:788a:: with SMTP id t132mr11779619pgc.0.1550488541717;
+        Mon, 18 Feb 2019 03:15:41 -0800 (PST)
+X-Received: by 2002:a63:788a:: with SMTP id t132mr11779546pgc.0.1550488540720;
+        Mon, 18 Feb 2019 03:15:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550488540; cv=none;
         d=google.com; s=arc-20160816;
-        b=N5yskdh7lyUxhALWA2RhgmFmChKcsJOAd9A2SZB79Yhg2eWSbJZqnwJ/8rVbAj0tc5
-         dszqZA6NfwB4FPVLAVFIXUYuew06WPT/27G321UYCiSul54efzk67GX4SvNERI687XCt
-         qOKg8ojLbbhXyMn4EiU7QR/CBmdLEMZHrggG8mPloCha70XaLEfnBgMH2f7PcoLj4Zwr
-         pjSwIULtzGd0+3hy+tkNI5RUeWW6qr6DO833h8DdjNxU8LswmrW3z/YfZRE9sW8tRvGm
-         uwmu/fJKoqFBVGvQIqJHVXR3Dj7eWOTAL+ER9XTMEvBsq95RDSCxuZ/zbf5lgeF/6Wf5
-         rIoA==
+        b=RzulBf3xSf76ivBptMyFKhlzAUFN3aTJfWkYyCOOkYTxS6jCwDVrf4m6W5TjjhZHI7
+         MuNokXn2UYTI1gWZaMAZwkNKATvTGC0ua87UVB487TyfgoNACGl00wzHIGtDdXxFaT/c
+         PQ7+YEvPRaScyKc9DqXZAbqObjC7WRwbAcfknox6RlYR3v0KhZkfy1A9qpurY6gCypMv
+         4bvjcPSkur1J3dAY/rbSqq+7ODDrUGENE2XjkBOx8ALrwPVLfPJS8dymeF4R1FodiIT6
+         +2Ajlm1ahkB754gXAlsXtwJAZvUwXVMYtCuF0TRlXPlSBXW4HYP0vtywes7h79+ovlot
+         dCkg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:in-reply-to:references:message-id
-         :date:thread-index:thread-topic:subject:cc:to:from:dkim-signature;
-        bh=v+kg+3SUn8YALUSgNr6Ir2VTidISkCWDI/Gzi//ZmY4=;
-        b=Jkt69H5DjVooqMIu11ebQYFaiSjYLsefPvDSPsI3kF/UkxCfwrWSktNk/zY8hWwF5P
-         BVQ7yEli1Tyr3GaYp0bPH+oxc26XMxdgTTCwVI9PiMWoHwPuKsr9fHwKfjMLte6kO26H
-         kHB7xaTznZ4gsdvdQyb0pB3N9A47OfZZwWz88RAFbIif6Wuxq22+m9P6H7j7/clEKKXr
-         TLK6biK+nhlyghDk6aePtbkeqf4ofVsYaLhbIGsxhfdwzImzQKiyfLrO95V7f6CCXKXk
-         bLIrqyfAXtBnM62g3jaRPMASL0n5/kknkeFKiNABAf4FKxrrFWiI1YOs4GSzzO1K3G+C
-         G/lA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=bnsuTPZJgCfJkno9x9y084y1LYZfgF4jJqn/Ofc0v/A=;
+        b=AoV/PJfyRyQvBDhuL2X1ZrlSl4fSLfJDTxLFQLLZtMDQK9e4IzsluChv9NTZuraDYv
+         1VnkNnmm1r/OpVMjmwUCOKPJinV/9A6tosOPBj/TNinAlQZD0LOGJy5MFlG8zlOmrh4x
+         HRtGYLuqPNg3tZrPYPFb56ZH/DF4JYra0nawrEYEvPDhz/KmYmPmS7aljCB2B/g+hN4s
+         ah28MyPreu/k3HutY9juMRY2RF7qrCKGkr1Hlf7eNTkxb6Grz4u1heseqK9JGR1ga4+U
+         oof7/iVmsWrh6K7ub0AqeRcN+wnDTCvItIpXU8GAR+0gz6tXMXD+9dlP7nl4LujNi+ZD
+         52iA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@armh.onmicrosoft.com header.s=selector1-arm-com header.b="SN/xW1TU";
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 40.107.7.82 as permitted sender) smtp.mailfrom=Mark.Rutland@arm.com
-Received: from EUR04-HE1-obe.outbound.protection.outlook.com (mail-eopbgr70082.outbound.protection.outlook.com. [40.107.7.82])
-        by mx.google.com with ESMTPS id kb11si681078ejb.163.2019.02.18.03.14.26
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=fc51Dots;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 88sor19457996plb.63.2019.02.18.03.15.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 18 Feb 2019 03:14:26 -0800 (PST)
-Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 40.107.7.82 as permitted sender) client-ip=40.107.7.82;
+        (Google Transport Security);
+        Mon, 18 Feb 2019 03:15:40 -0800 (PST)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@armh.onmicrosoft.com header.s=selector1-arm-com header.b="SN/xW1TU";
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 40.107.7.82 as permitted sender) smtp.mailfrom=Mark.Rutland@arm.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=armh.onmicrosoft.com;
- s=selector1-arm-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=v+kg+3SUn8YALUSgNr6Ir2VTidISkCWDI/Gzi//ZmY4=;
- b=SN/xW1TUIgRvUHT4QCEAi3CoxJtju28dlN8M3Hw3TvAvXRuDhqkaCc/9G6l3cnnmbQ5IudTMqJFV+OiGOpH4UwqGrMm7JGteNIBYw11kRUAquwsDcBx0NzfkxZuTe3u2Au8Lhr692ebSbmAI08FnLosDacpjBzfjn/b5ffCVpjI=
-Received: from VI1PR08MB3742.eurprd08.prod.outlook.com (20.178.15.26) by
- VI1PR08MB4592.eurprd08.prod.outlook.com (20.178.13.90) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1622.18; Mon, 18 Feb 2019 11:14:24 +0000
-Received: from VI1PR08MB3742.eurprd08.prod.outlook.com
- ([fe80::2508:8790:80cb:2f91]) by VI1PR08MB3742.eurprd08.prod.outlook.com
- ([fe80::2508:8790:80cb:2f91%6]) with mapi id 15.20.1622.018; Mon, 18 Feb 2019
- 11:14:24 +0000
-From: Mark Rutland <Mark.Rutland@arm.com>
-To: Steven Price <Steven.Price@arm.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org"
-	<x86@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel
-	<ard.biesheuvel@linaro.org>, Peter Zijlstra <peterz@infradead.org>, Catalin
- Marinas <Catalin.Marinas@arm.com>, Dave Hansen <dave.hansen@linux.intel.com>,
-	Will Deacon <Will.Deacon@arm.com>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, =?iso-8859-1?Q?J=E9r=F4me_Glisse?=
-	<jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov
-	<bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin"
-	<hpa@zytor.com>, James Morse <James.Morse@arm.com>, Thomas Gleixner
-	<tglx@linutronix.de>, "linux-arm-kernel@lists.infradead.org"
-	<linux-arm-kernel@lists.infradead.org>
-Subject: Re: [PATCH 03/13] mm: Add generic p?d_large() macros
-Thread-Topic: [PATCH 03/13] mm: Add generic p?d_large() macros
-Thread-Index: AQHUxVB13qXbZZSGCkaNmBP9ni6xCaXla5CA
-Date: Mon, 18 Feb 2019 11:14:23 +0000
-Message-ID: <20190218111421.GC8036@lakrids.cambridge.arm.com>
-References: <20190215170235.23360-1-steven.price@arm.com>
- <20190215170235.23360-4-steven.price@arm.com>
-In-Reply-To: <20190215170235.23360-4-steven.price@arm.com>
-Accept-Language: en-GB, en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-user-agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
-x-originating-ip: [217.140.106.52]
-x-clientproxiedby: LO2P265CA0014.GBRP265.PROD.OUTLOOK.COM
- (2603:10a6:600:62::26) To VI1PR08MB3742.eurprd08.prod.outlook.com
- (2603:10a6:803:bc::26)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=Mark.Rutland@arm.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: c9d66bc4-5040-437a-c302-08d695923cba
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605104)(4618075)(2017052603328)(7153060)(7193020);SRVR:VI1PR08MB4592;
-x-ms-traffictypediagnostic: VI1PR08MB4592:
-x-ms-exchange-purlcount: 1
-x-microsoft-exchange-diagnostics:
- 1;VI1PR08MB4592;20:+LaEaSls8RFdyZp8JCBePq6fsER350oifRElVu9PkeUYOE/7f3GTgIqhWjdnfX43V29xc4fvgR4rxCrZOEmEGVda7y/DHstmUdlbctibbDGiuKiNgGE0S+NXJyhqmQeOEj+wKN3NZZjarYEY7OlurQ93avcj6ZcqoI2bn7t0gSA=
-x-microsoft-antispam-prvs:
- <VI1PR08MB45924F5EC4EE6FB3B2955EBB84630@VI1PR08MB4592.eurprd08.prod.outlook.com>
-x-forefront-prvs: 09525C61DB
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(366004)(396003)(136003)(346002)(376002)(39860400002)(40434004)(199004)(189003)(6436002)(81166006)(8676002)(478600001)(4326008)(71200400001)(446003)(6512007)(11346002)(102836004)(6246003)(6862004)(5024004)(14444005)(256004)(6306002)(76176011)(99286004)(68736007)(476003)(6506007)(386003)(71190400001)(316002)(81156014)(58126008)(7736002)(54906003)(966005)(8936002)(2906002)(14454004)(72206003)(86362001)(5660300002)(305945005)(1076003)(186003)(97736004)(106356001)(7416002)(52116002)(26005)(105586002)(3846002)(6116002)(6636002)(486006)(33656002)(44832011)(53936002)(6486002)(66066001)(25786009)(229853002)(18370500001)(41533002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR08MB4592;H:VI1PR08MB3742.eurprd08.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: arm.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- AW0NrUKeAakbjy85/NBtXV21wpnIrAjcnMTJU2xeRwfixyvWPMmDLEsQ+HU6JUpWjf1tuLdBuvMHR8TwqKjwoxasfgSsJLCnWaIoAGesRuYuwOpvnTqA5SMecKsV1+gJjs+2AVmyk4pOcra2JDONbm5Z/ZcRk+e8ngxULwYR5YfjWCvndTtm5L4i5TPrdvqSE7oe9nl7Op7I3THsq9zNEKu8agrWySFq2YJ1Chb0ee1JtfOV+R/VFAyChasBrDpouX46iQ9yWzy4IHHNb2Lh9GRViy5YA5AjbIkjwoHa26EXPUtEjMThux4KGLRsV+aREjcPe5ddvpRJCb0gAGif4dm1C0cYXy6Sy8htmfGn/RwXs5pZYhMNCTwmMFrJJpFk4wZWVWPv2lKk4RI75wGa5Eh9OzWYmGY1v8Uuc2hQGnU=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <1EAE3F73B7FC5443939FAD57784A5865@eurprd08.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=fc51Dots;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=bnsuTPZJgCfJkno9x9y084y1LYZfgF4jJqn/Ofc0v/A=;
+        b=fc51DotsSi/ZDVqcuM+zz2E5VvzsHBADPHlsTIeijFmdP1Nl4JKwpAkZ4jwpS8OUMF
+         AT5Rbpqri+1WoVsMlxCvRPW7kip5cUwDzp6ApSChQJZbbYD1LSOfBW92pzlX9XnUvmrQ
+         QHwUan7ORaoLdsDCo/VSVsxPdeBUKnvrcCXOJy8GhAGrtmhXbD5+rz0oPgXb0gsU9J3D
+         2ZCXm+DstbvHcFbGdtkI0JE1N6YBUrGO7gKu/f5x9QcG/E2y/+cb3vMI36Rz9p9Y1GZH
+         C6adDUZlg/iOx9w7cVhzlPukqD1S69Bz2C5hDr6y84DY6irCpDo+gsSzWYvX8Q3aOtzt
+         soog==
+X-Google-Smtp-Source: AHgI3Ia4sdyFpZDnnzf1LF4LNTSmFm3tiVnCyW0A2KoBUCySQ0q8bKhqCeNniENUIugm8eyXLQJtPA==
+X-Received: by 2002:a17:902:8d8d:: with SMTP id v13mr24391965plo.121.1550488540222;
+        Mon, 18 Feb 2019 03:15:40 -0800 (PST)
+Received: from kshutemo-mobl1.localdomain ([134.134.139.82])
+        by smtp.gmail.com with ESMTPSA id d68sm18849242pfa.64.2019.02.18.03.15.39
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Feb 2019 03:15:39 -0800 (PST)
+Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
+	id DA3AF3002B2; Mon, 18 Feb 2019 14:15:35 +0300 (+03)
+Date: Mon, 18 Feb 2019 14:15:35 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, linux-api@vger.kernel.org,
+	hughd@google.com, viro@zeniv.linux.org.uk,
+	torvalds@linux-foundation.org
+Subject: Re: mremap vs sysctl_max_map_count
+Message-ID: <20190218111535.dxkm7w7c2edgl2lh@kshutemo-mobl1>
+References: <20190218083326.xsnx7cx2lxurbmux@d104.suse.de>
+ <a11a10b5-4a31-2537-7b14-83f4b22e5f6c@suse.cz>
 MIME-Version: 1.0
-X-OriginatorOrg: arm.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: c9d66bc4-5040-437a-c302-08d695923cba
-X-MS-Exchange-CrossTenant-originalarrivaltime: 18 Feb 2019 11:14:23.0296
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-id: f34e5979-57d9-4aaa-ad4d-b122a662184d
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR08MB4592
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <a11a10b5-4a31-2537-7b14-83f4b22e5f6c@suse.cz>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 15, 2019 at 05:02:24PM +0000, Steven Price wrote:
-> From: James Morse <james.morse@arm.com>
->
-> Exposing the pud/pgd levels of the page tables to walk_page_range() means
-> we may come across the exotic large mappings that come with large areas
-> of contiguous memory (such as the kernel's linear map).
->
-> For architectures that don't provide p?d_large() macros, provided a
-> does nothing default.
->
-> Signed-off-by: James Morse <james.morse@arm.com>
-> Signed-off-by: Steven Price <steven.price@arm.com>
-> ---
->  include/asm-generic/pgtable.h | 10 ++++++++++
->  1 file changed, 10 insertions(+)
->
-> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.=
-h
-> index 05e61e6c843f..7630d663cd51 100644
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -1186,4 +1186,14 @@ static inline bool arch_has_pfn_modify_check(void)
->  #define mm_pmd_folded(mm)__is_defined(__PAGETABLE_PMD_FOLDED)
->  #endif
->
-> +#ifndef pgd_large
-> +#define pgd_large(x)0
-> +#endif
-> +#ifndef pud_large
-> +#define pud_large(x)0
-> +#endif
-> +#ifndef pmd_large
-> +#define pmd_large(x)0
-> +#endif
+On Mon, Feb 18, 2019 at 10:57:18AM +0100, Vlastimil Babka wrote:
+> On 2/18/19 9:33 AM, Oscar Salvador wrote:
+> > 
+> > Hi all,
+> > 
+> > I would like to bring up a topic that comes from an issue a customer of ours
+> > is facing with the mremap syscall + hitting the max_map_count threshold:
+> > 
+> > When passing the MREMAP_FIXED flag, mremap() calls mremap_to() which does the
+> > following:
+> > 
+> > 1) it unmaps the region where we want to put the new map:
+> >    (new_addr, new_addr + new_len] [1]
+> > 2) IFF old_len > new_len, it unmaps the region:
+> >    (old_addr + new_len, (old_addr + new_len) + (old_len - new_len)] [2]
+> > 
+> > Now, having gone through steps 1) and 2), we eventually call move_vma() to do
+> > the actual move.
+> > 
+> > move_vma() checks if we are at least 4 maps below max_map_count, otherwise
+> > it bails out with -ENOMEM [3].
+> > The problem is that we might have already unmapped the vma's in steps 1) and 2),
+> > so it is not possible for userspace to figure out the state of the vma's after
+> > it gets -ENOMEM.
+> > 
+> > - Did new_addr got unmaped?
+> > - Did part of the old_addr got unmaped?
+> > 
+> > Because of that, it gets tricky for userspace to clean up properly on error
+> > path.
+> > 
+> > While it is true that we can return -ENOMEM for more reasons
+> > (e.g: see vma_to_resize()->may_expand_vm()), I think that we might be able to
+> > pre-compute the number of maps that we are going add/release during the first
+> > two do_munmaps(), and check whether we are 4 maps below the threshold
+> > (as move_vma() does).
+> > Should not be the case, we can bail out early before we unmap anything, so we
+> > make sure the vma's are left untouched in case we are going to be short of maps.
+> > 
+> > I am not sure if that is realistically doable, or there are limitations
+> > I overlooked, or we simply do not want to do that.
+> 
+> IMHO it makes sense to do all such resource limit checks upfront. It
+> should all be protected by mmap_sem and thus stable, right? Even if it
+> was racy, I'd think it's better to breach the limit a bit due to a race
+> than bail out in the middle of operation. Being also resilient against
+> "real" ENOMEM's due to e.g. failure to alocate a vma would be much
+> harder perhaps (but maybe it's already mostly covered by the
+> too-small-to-fail in page allocator), but I'd try with the artificial
+> limits at least.
 
-It might be worth a comment defining the semantics of these, e.g. how
-they differ from p?d_huge() and p?d_trans_huge().
+There's slight chance of false-postive -ENOMEM with upfront approach:
+unmapping can reduce number of VMAs so in some cases upfront check would
+fail something that could succeed otherwise.
 
-Thanks,
-Mark.
+We could check also what number of VMA unmap would free (if any). But it
+complicates the picture and I don't think worth it in the end.
 
-> +
->  #endif /* _ASM_GENERIC_PGTABLE_H */
-> --
-> 2.20.1
->
->
-> _______________________________________________
-> linux-arm-kernel mailing list
-> linux-arm-kernel@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
-IMPORTANT NOTICE: The contents of this email and any attachments are confid=
-ential and may also be privileged. If you are not the intended recipient, p=
-lease notify the sender immediately and do not disclose the contents to any=
- other person, use it for any purpose, or store or copy the information in =
-any medium. Thank you.
+-- 
+ Kirill A. Shutemov
 
