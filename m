@@ -1,10 +1,10 @@
 From: NeedPcParts.com@kvack.org
-Date: Fri, 16 Nov 2001 15:58:51
-Subject: You have to see this to believe it...
+Date: Fri, 16 Nov 2001 18:24:05
+Subject: Proper Introductions
 MIME-Version: 1.0
 Content-Type: text/plain;charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <200111161607435.SM01732@mail.kvack.org>
+Message-Id: <200111161830253.SM01732@mail.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
@@ -20,15 +20,18 @@ We sell everything Computer & Network related.
 
 If its Computer related we have it and at the very best price around.
 
-We have been in business for 10 Years, Let us show you why our customers love us soooo much...
+We have been in business for 10 Years, Let us show you why our 
+customers love us soooo much...
 
-We offer 2 year Warranty on all CPU & Motherboard Combo's 
+We offer 2 year Warranty on all CPU & Motherboard Combo's
 
 We offer Lifetime Warranty on all Memory
 
-We will Custom build any Server or System you want for a $45 Flat Fee. & Include a 2 Year Parts & Labor Warranty!!!
+We will Custom build any Server or System you want for a $45 Flat 
+Fee. & Include a 2 Year Parts & Labor Warranty!!!
 
-We do not charge a handling fee when shipping, We ship 99% of all items within 24 Hrs. We Ship Via UPS.
+We do not charge a handling fee when shipping, We ship 99% of all 
+items within 24 Hrs. We Ship Via UPS.
 
 Thank you for your time.
 
@@ -37,11 +40,6 @@ Contact us Emailto:sales@NeedPcParts.com
 Call Toll Free : 1-800-361-5448
 
 Website: www.NeedPcParts.com
-
-
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
