@@ -1,126 +1,81 @@
-Date: Tue, 2 Oct 2007 19:12:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [BUGFIX][RFC][PATCH][only -mm] FIX memory leak in memory cgroup vs.
- page migration [2/1] additional patch for migrate page/memory cgroup
-Message-Id: <20071002191217.61b4cf77.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20071002183306.0c132ff4.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20071002183031.3352be6a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20071002183306.0c132ff4.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, balbir@linux.vnet.ibm.com, "containers@lists.osdl.org" <containers@lists.osdl.org>, Christoph Lameter <clameter@sgi.com>
+Message-ID: <00ebffa4$00ebfe78$1467bbc2@ivorville>
+From: "Ignacio Poe" <ivorville@bet.com>
+Subject: Man Lebt nur einmal - probiers aus !  you were informed  --  Patterns--the lessons
+Date: Tue, 32 Sep 2007 12:30:36 +0200
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_00EBFFA4.00EBFE0C"
+Return-Path: <ivorville@bet.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The patch I sent needs following fix, sorry.
-Anyway, I'll repost good-version with reflected comments again.
+This is a multi-part message in MIME format.
 
-Thanks,
- -Kame
-=
-fix-page-migration-under-memory-controller patch needs this fix..sorry.
+------=_NextPart_000_0007_00EBFFA4.00EBFE0C
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
- - We should uncharge page by mem_cgroup_end_migration() only if
-   page is not charged by mem_cgroup_prepare_migration().
- - move mem_cgroup_prepare_migration() after goto:
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestati=
+gen!
 
-  Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Preise die keine Konkurrenz kennen 
 
-Index: linux-2.6.23-rc8-mm2/mm/memcontrol.c
-===================================================================
---- linux-2.6.23-rc8-mm2.orig/mm/memcontrol.c
-+++ linux-2.6.23-rc8-mm2/mm/memcontrol.c
-@@ -445,7 +445,7 @@ retry:
- 	}
- }
- 
--void mem_cgroup_prepare_migration(struct page *page)
-+int mem_cgroup_prepare_migration(struct page *page)
- {
- 	struct page_cgroup *pc;
- 	lock_page_cgroup(page);
-@@ -453,7 +453,7 @@ void mem_cgroup_prepare_migration(struct
- 	if (pc)
- 		atomic_inc(&pc->ref_cnt);
- 	unlock_page_cgroup(page);
--	return;
-+	return (pc != NULL);
- }
- 
- void mem_cgroup_end_migration(struct page *page)
-Index: linux-2.6.23-rc8-mm2/include/linux/memcontrol.h
-===================================================================
---- linux-2.6.23-rc8-mm2.orig/include/linux/memcontrol.h
-+++ linux-2.6.23-rc8-mm2/include/linux/memcontrol.h
-@@ -47,7 +47,7 @@ extern void mem_cgroup_out_of_memory(str
- extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 					gfp_t gfp_mask);
- /* For handling page migration in proper way */
--extern void mem_cgroup_prepare_migration(struct page *page);
-+extern int mem_cgroup_prepare_migration(struct page *page);
- extern void mem_cgroup_end_migration(struct page *page);
- extern void mem_cgroup_page_migration(struct page *newpage, struct page *page);
- 
-@@ -114,9 +114,9 @@ static inline struct mem_cgroup *mm_cgro
- }
- 
- /* For page migration */
--static inline void mem_cgroup_prepare_migration(struct page *page)
-+static inline int mem_cgroup_prepare_migration(struct page *page)
- {
--	return;
-+	return 0;
- }
- 
- static inline void mem_cgroup_end_migration(struct mem_cgroup *cgroup)
-Index: linux-2.6.23-rc8-mm2/mm/migrate.c
-===================================================================
---- linux-2.6.23-rc8-mm2.orig/mm/migrate.c
-+++ linux-2.6.23-rc8-mm2/mm/migrate.c
-@@ -620,6 +620,7 @@ static int unmap_and_move(new_page_t get
- 	int *result = NULL;
- 	struct page *newpage = get_new_page(page, private, &result);
- 	int rcu_locked = 0;
-+	int charge = 0;
- 
- 	if (!newpage)
- 		return -ENOMEM;
-@@ -652,8 +653,6 @@ static int unmap_and_move(new_page_t get
- 		rcu_read_lock();
- 		rcu_locked = 1;
- 	}
--	mem_cgroup_prepare_migration(page);
--
- 	/*
- 	 * This is a corner case handling.
- 	 * When a new swap-cache is read into, it is linked to LRU
-@@ -663,6 +662,8 @@ static int unmap_and_move(new_page_t get
- 	 */
- 	if (!page->mapping)
- 		goto rcu_unlock;
-+
-+	charge = mem_cgroup_prepare_migration(page);
- 	/* Establish migration ptes or remove ptes */
- 	try_to_unmap(page, 1);
- 
-@@ -671,8 +672,9 @@ static int unmap_and_move(new_page_t get
- 
- 	if (rc) {
- 		remove_migration_ptes(page, page);
--		mem_cgroup_end_migration(page);
--	} else
-+		if (charge)
-+			mem_cgroup_end_migration(page);
-+	} else if (charge)
- 		mem_cgroup_end_migration(newpage);
- 
- rcu_unlock:
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Kein peinlicher Arztbesuch erforderlich
+- Diskrete Verpackung und Zahlung
+- Kostenlose, arztliche Telefon-Beratung
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- keine versteckte Kosten
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
+
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://receivesure.cn
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------=_NextPart_000_0007_00EBFFA4.00EBFE0C
+Content-Type: text/html;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dus-ascii">
+<META content=3D"MSHTML 5.00.2919.6700" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich bin 28 Jahre alt=
+ und habe keine Err. ..ektionsprobleme. Ich wollte Viiaaaagra einfach nur s=
+o probieren. Es funktioniert, aber die Durchblutung ist st&#228;rker als so=
+nst und es f&#252;hlt sich an, als w&#252;rde ich mit einem Dildo v&#246;ge=
+ln und nicht mit meinem Schwanz. Ich hatte ziemliche Probleme, wieder runte=
+rzukommen. Aber ich w&#252;rde es wohl wieder tun ...</strong></p><p><stron=
+g>Jetzt, wo ich Viiaaaagra ausprobiert habe, w&#252;rde ich es immer wieder=
+ kaufen, auch wenn ich das Dreifache daf&#252;r bezahlen m&#252;sste. Ich b=
+edaure all die ungl&#252;cklichen M&#228;nner, die in ihrem Leben nie die G=
+elegenheit hatten, Viiaaaagra auszuprobieren. Und ein bisschen bedaure ich =
+mich selbst: Warum habe ich nicht schon vor Jahren den Mut gehabt, es zu pr=
+obieren?<br>
+</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
+unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
+ <p>
+- Diskrete Verpackung und Zahlung<br>- Bequem und diskret online bestellen.=
+<br>- Kein peinlicher Arztbesuch erforderlich<br>- Kostenlose, arztliche Te=
+lefon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tag=
+en<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://receivesure.cn" target=3D"_blank">Jetzt bestellen - und vier Pillen=
+ umsonst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die Se=
+ite vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
+
+------=_NextPart_000_0007_00EBFFA4.00EBFE0C--
