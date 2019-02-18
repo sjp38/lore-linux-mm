@@ -1,95 +1,68 @@
-Received: from toomuch.toronto.redhat.com (IDENT:bcrl@toomuch.toronto.redhat.com [172.16.14.22])
-	by devserv.devel.redhat.com (8.11.0/8.11.0) with ESMTP id f844QYO21779
-	for <linux-mm@kvack.org>; Tue, 4 Sep 2001 00:26:34 -0400
-Date: Tue, 4 Sep 2001 00:26:33 -0400 (EDT)
-From: Ben LaHaise <bcrl@redhat.com>
-Subject: pmap revisited (fwd)
-Message-ID: <Pine.LNX.4.33.0109040026270.2726-100000@toomuch.toronto.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Brian Elias <removeme@inetwindows2k.com>
+Date: 9/4/2001 8:53:39 PM
+Subject: Hello
+Message-ID: <HANSONSMAILzHZlJ2Hx00000ff7@hansonsmail.hansonsmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Dear Neighbor:
 
--- 
-"The world would be a better place if Larry Wall had been born in
-Iceland, or any other country where the native language actually
-has syntax" -- Peter da Silva
+	I'm having a tax problem and I want you to be the beneficiary 
+instead of the IRS...
 
----------- Forwarded message ----------
-Date: Tue, 4 Sep 2001 03:13:34 +0000 (UTC)
-From: Samium Gromoff <_deepfire@mail.ru>
-To: linux-kernel@vger.kernel.org
-Cc: marcelo@brutus.conectiva.com.br, riel@surriel.com
-Subject: pmap revisited
+	My business has had a phenomenal year so far in 2001. In fact, 
+we've done so well I'm probably going to pay 2 1/2  times more corporate 
+taxes than I did last year. And if we make any more money this year, 
+the tax problem will only get worse... I'll have to pay even more 
+money to the IRS.  
 
-             Ashes on my head guys...
-    Gotta wrong results in my previous perftest... (slightly different
-  environments), so these are to be sure that on low VM load there isnt
-  any significant difference...
+	I have employees who I don't want to lay-off. So in order to keep 
+my employees busy and not give more money to the IRS, I've decided on 
+a strategy that's so bold ? so daring ? that I doubt anyone else 
+would even dare try it.  I have decided to offer windows and siding 
+to you, at our basic cost.  In other words, I'm going to offer you 
+windows and siding for no personal profit whatsoever!  This will 
+increase our expenses thereby decrease our percent of profits. Just 
+click the link below to set up an appointment with one of my sales 
+representatives today!
 
-  Here are new and revisited. Actually i maked sure that the environments
-differs only in kernels...
+	Just point your browser at www.inetwindows2k.com
 
-  Bonus: two bugs! :)
-   1. Quintela`s (shmtest of memtest) and pmap{2,3} == 100% instant deadlock
-      plain ac12 demonstrates ignorance.
-   2. Swapoff oops 100% - only in pmap3! (okay, swapoff of reiserfs
-      to be strict, but i think that doesnt actually matters)
-      swapoff oops will be in next mail.
+Brian Elias
+President 
+Hansons Windows & Siding
 
-  Revisited results:
+P. S. This a one time email offer only good for the next 9 day 
+or until we decrease our tax problem.
 
-time find / -xdev - done 5 times
-pmap 3
-real    1m5.175s
-real    1m4.699s
-real    1m3.579s
-============================
-pmap 2
-real    1m5.039s
-real    1m4.779s
-real    1m4.506s
-============================
-plain
-real    1m4.820s
-real    1m4.433s
-real    1m4.285s
 
-* fillmem == (fillmem of memtest)
-* dont count on differences - they are quite flaky, one is only known:
-  there are no much difference anyways...
-time fillmem - done 7 times, still giving strange results sometimes...
-pmap 3
-real    1m2.709s
-real    1m2.417s
-real    1m1.371s
-real    1m1.241s
-real    1m0.235s
-(1m3.~, 1m4.5~) - add results
-============================
-pmap 2
-real    1m5.294s
-real    1m5.169s
-real    1m4.431s
-real    1m3.878s
-real    1m3.523s
-(1m6.~, 1m0.~, 1m3.355) - add results
-============================
-plain
-real    1m1.570s
-real    1m1.063s
-real    1m1.007s
-real    1m0.201s
-real    0m59.677s
 
--
-To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-the body of a message to majordomo@vger.kernel.org
-More majordomo info at  http://vger.kernel.org/majordomo-info.html
-Please read the FAQ at  http://www.tux.org/lkml/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+**If you wish to have your e-mail removed from our list, please reply to this
+email with REMOVE as the subject.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
