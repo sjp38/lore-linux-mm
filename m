@@ -1,156 +1,291 @@
-Return-Path: <SRS0=ysF+=PT=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 62E29C43444
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 07:11:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5CF73C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 21:07:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1FECB20870
-	for <linux-mm@archiver.kernel.org>; Fri, 11 Jan 2019 07:11:46 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="HGj/rnID"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1FECB20870
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 175D6217F5
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 21:07:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 175D6217F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=collabora.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD9828E0003; Fri, 11 Jan 2019 02:11:45 -0500 (EST)
+	id 938AE8E0004; Mon, 18 Feb 2019 16:07:29 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A61EB8E0001; Fri, 11 Jan 2019 02:11:45 -0500 (EST)
+	id 911128E0002; Mon, 18 Feb 2019 16:07:29 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 903B88E0003; Fri, 11 Jan 2019 02:11:45 -0500 (EST)
+	id 7B0588E0004; Mon, 18 Feb 2019 16:07:29 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 218798E0001
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2019 02:11:45 -0500 (EST)
-Received: by mail-lj1-f198.google.com with SMTP id x18-v6so3485478lji.0
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 23:11:45 -0800 (PST)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 296938E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 16:07:29 -0500 (EST)
+Received: by mail-wr1-f70.google.com with SMTP id j16so6743596wrp.4
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:07:29 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Ran2Tn+WYwgFy+GtFJyFcZV6eUa7NG8NL2k0jnbBh1A=;
-        b=GkhCxAfLjk+bOM8diTQPNVGAJe6TuVV//xZY8IbeqQFqXz8M0LM7cUYGyIEEEijkJV
-         Vfy5blpGLtDR6rSI3a4HKIsCAjxxVz9w7ib5QvviIv4JQLlpfQNc7W+0QOvTprEjQHtu
-         xteE1AAGXTyPG0vnJFnkTsJ9iWzt0m3RTxt9clfc2eX2HugvF99YRzLkM+3C8lL/cLq2
-         YoSpxy0/l5YOzrxT7gm6JxHUzKRt+T+A1h9rZkyMAHLy/Am5DxMA/3/qA0TNqcRQyiL6
-         5cpfoMjJ1hMYtmtScsZt1EqJdDhh+tlv+PcAYdMuPZR8/0Hxc6kF21IUl2xq7TJF5NFq
-         CpaA==
-X-Gm-Message-State: AJcUukcJ7lW7va4w3knmm3GrGDbbCtPOr6wnAgyRVE+rNAdq/vHdb+tN
-	L9KkteZV4AzqHx41x1SYzVx7vR48EVJsATIyPdsES+Pk+faYjGckeMLveYOTXMfkTCpFcQXU/DW
-	QCTku7Dqwp8APIyKkc2NTzlNNZ5s1y95S4Xde4TPNzzJgHxe6o/3KFFV+uMfH2OysgPQH/fxgPh
-	x+of7K+cGfX2LvFjO0XH8nrjI5IH6lC74oLYoSsU79rxDveTlY7QMxqEaVaPl/wuHL3qHsdoytC
-	UcZ171fooGlFcmNVRGI8/YBMr4djnO/pMQrVfKp/gl3FC7d0INCSRSQIenlHidt46dLaAAZteBU
-	9NPqrIAiBxCyexoT8CjkUUqM3sEjUA1h+MVYQu+9f+T9SXti3AAmxyfyW3gwl1sr+Uz1ADGidxy
-	u
-X-Received: by 2002:a19:24c6:: with SMTP id k189mr7224019lfk.77.1547190704407;
-        Thu, 10 Jan 2019 23:11:44 -0800 (PST)
-X-Received: by 2002:a19:24c6:: with SMTP id k189mr7223979lfk.77.1547190703503;
-        Thu, 10 Jan 2019 23:11:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1547190703; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=eTq9HjBTOU/jc5MhAmF8ieTxY15GS5mv/p78sMj8zOY=;
+        b=pSbGjTxSaVnZnDNBVmiOsj7ZvXIXOoB7Xl585Db2eZ5yBsbuMMkkbOxrpqlKNyZtcb
+         7pZud7jveKSjRKwKaqgxCH52AGpzSB6efXzat7XE9BIaCEE1FBLThPdhdcKQHh1FIFkg
+         it3HdfVCDFdiqIWtZtfVO7rv3oAi/FF2zfoQZa4USL2gn9eEydfUCwN7C1UJEiUYSW3N
+         v5Xyb8iztM2c9bOIDwQ1e56bc2eWHJj//+Q963YKnFA898CK9I42q3kXs36m/NRIWTKb
+         dSbXIIowqhc4JHI2PErSa2004j/iOxMhSfxrVfr7oxu7Si6Eh5nEbSSEX19iRP4QpMcK
+         FW3g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of krisman@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) smtp.mailfrom=krisman@collabora.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
+X-Gm-Message-State: AHQUAuanfT2lJEr3z2d29KVPi6qks5dY099aInoXH++EhMNLPRPL41nZ
+	r6H3kNgCfVEdtNiNTJoBmPP9fpB93FVirXVzGmQ+sYpY5RjluFPG1a3gfw1CvBrFNfCNan+5gBv
+	3PQSjAYYxvb67iNVGpngJODRhCItO9hy0Q1WnchzxvfdlJ5Po0QQqAuGuDKYvK5Gpng==
+X-Received: by 2002:a1c:eb0a:: with SMTP id j10mr449183wmh.115.1550524048643;
+        Mon, 18 Feb 2019 13:07:28 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYnCrW5epgoki43i0ZoylVupeg7VoeCLNBxj8P+BTnYe1bK+ww29WUGs+qJO9ozpYuGgBzu
+X-Received: by 2002:a1c:eb0a:: with SMTP id j10mr449149wmh.115.1550524047444;
+        Mon, 18 Feb 2019 13:07:27 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550524047; cv=none;
         d=google.com; s=arc-20160816;
-        b=WmF/E1hNXJceoWSkNmsbLvFYsyIXQzfT4K5huV9v9rNahFKmFEmKFYFAcZ4lK88WEc
-         aDKiJ/u/jjHUlWt8yHGHgPatTQzVjZtl80YNiqen2beJHKu1zizWbacJBj1elXdwuCk0
-         S6ffxnMLFWU5AI9ak4gU9XYEPxSV1zd8h6y3a3RV3JSdqhV0kButcXfuuv6cqPyVs5h8
-         QB6JvRz+v7UNyj6f34OW+wfEXTZa1AxJ/0XBVPGvd3EonuC9TyP/cFyStaJO0XFVrRgs
-         bfywEpetBjpErR5YeIEsllOUOae2lCNc7IfPJ6ibums4Xc27q9CsFjoZqThub2ohsXFi
-         n2cQ==
+        b=vT/yZ3RHDsS9HI9UGp1NpLDeo7NN420U5weQvPBA5s/A2GR0vRY7Z6Xil8S8eWrs5m
+         sWlMNBYTg0tyWmhRnuuL1GRYW+k9Gwa4XJ8aR7TJeIjbhT44KKjvuuebwGKm5mvp3Jwv
+         YDik1BpBDQPGWx0Ax+v/WDBTit2lf3C2aVoSuTE+6PAMtf2M1lT0NhhV4OnnXMdzkXDE
+         l6OTvs18XR8jtuP/e+7Mj022qXJDTMSMEreJSPvSsj6FHC4rAw5X8Z9kfO4XcK21Pmr6
+         RQ2KMNFz/DTiF65V4QcnM0BP2WZUcrsZIitMRBjGbnVclcIqu67pNh8vNeBmqWaRPVry
+         toKw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=Ran2Tn+WYwgFy+GtFJyFcZV6eUa7NG8NL2k0jnbBh1A=;
-        b=eMyi6QOUjKSJWECLI8Gz+LEm2yxbFq0GTr3bQlF1KqVKB7HvuZIv2Xi7y4ZLNYHV9H
-         YCxRYaBGcaYzPf4gYfwqclBpCQgi59U+JE3sZHjqaC6lHf/flH/wSGMdp6pTRGVDmRxr
-         iKrDaP5z6BpLFcjAyhf8AUSLyJdC0u5z9kMFCKWFU7vbyV8LrXB4oTzZhWV7pUcHIN5R
-         L1w2LlHGo2PnzrMLIMbeHKsnpKWovrRfbjPUydm99Sl3ALQmS8/W4RKkVSYZdwB2ZXav
-         IZh81v0j1NHNmvf8R2ErluRDNiP1Slwweq9uBqelddX43j7u2M3EW2vjINxJXVxSVFsS
-         uyfg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=eTq9HjBTOU/jc5MhAmF8ieTxY15GS5mv/p78sMj8zOY=;
+        b=KdJHmrsIRguFjym7h6W1nhlgNKEYQvkOi/PfbBKyt5eUkd04nNfsJ8dyPVkx/DqQ/k
+         XN89vKMmEl2qKYxNkUvI78K1q89w52hgJWcRkA6nVjk9ATo+cFCZzkFP1BsOIngM3jec
+         qTGF5eA5ZTphHojkf5+wSbt0z8/Fw/bGCvnpv24Rk59RONMxyXz2uIl9p089Rb8PsI7w
+         Qhk3lsmaetD4NhzNMJun2nJ+hXnWfWe1ZerWA9eUHAKa+dSsge9Ix3T1OkM3DDWnHqrt
+         mU/XeO/XFCrqBQphN8+Ez+sy4kEKuX+16898+NJQjpX64Tt3Azdp183U6Lu+lnsERErG
+         9SSg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b="HGj/rnID";
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a16sor19942555lfi.3.2019.01.10.23.11.43
+       spf=pass (google.com: domain of krisman@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) smtp.mailfrom=krisman@collabora.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
+Received: from bhuna.collabora.co.uk (bhuna.collabora.co.uk. [2a00:1098:0:82:1000:25:2eeb:e3e3])
+        by mx.google.com with ESMTPS id t13si10019593wrn.408.2019.02.18.13.07.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 10 Jan 2019 23:11:43 -0800 (PST)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 18 Feb 2019 13:07:27 -0800 (PST)
+Received-SPF: pass (google.com: domain of krisman@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) client-ip=2a00:1098:0:82:1000:25:2eeb:e3e3;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b="HGj/rnID";
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=Ran2Tn+WYwgFy+GtFJyFcZV6eUa7NG8NL2k0jnbBh1A=;
-        b=HGj/rnIDA7w/CWKwOeurlFEaqKK1al46Dss9ncxDgNiAUDZIPiSfmNpTdB8HWGfDQ4
-         kODe24uzyisA3eqzkKr6meSOn6eXHpZ7y8yrZhOmS/w/6HQBmt5S8qPz140Wj61cp28G
-         jSiHMmS3IietdkxIyexQ13K9ImtqvcYArprbg=
-X-Google-Smtp-Source: ALg8bN70SaxiEPRuj+TJuqakN3saTws4Oc/0n1VYj1eY8RICZWQLXq7WkOk2zhLjWg0jBj3iWtgZcQ==
-X-Received: by 2002:a19:c801:: with SMTP id y1mr7058558lff.53.1547190702527;
-        Thu, 10 Jan 2019 23:11:42 -0800 (PST)
-Received: from mail-lf1-f49.google.com (mail-lf1-f49.google.com. [209.85.167.49])
-        by smtp.gmail.com with ESMTPSA id h12-v6sm15501227ljb.80.2019.01.10.23.11.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jan 2019 23:11:40 -0800 (PST)
-Received: by mail-lf1-f49.google.com with SMTP id z13so10069395lfe.11
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2019 23:11:40 -0800 (PST)
-X-Received: by 2002:a19:982:: with SMTP id 124mr7044684lfj.138.1547190699923;
- Thu, 10 Jan 2019 23:11:39 -0800 (PST)
+       spf=pass (google.com: domain of krisman@collabora.com designates 2a00:1098:0:82:1000:25:2eeb:e3e3 as permitted sender) smtp.mailfrom=krisman@collabora.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
+Received: from [127.0.0.1] (localhost [127.0.0.1])
+	(Authenticated sender: krisman)
+	with ESMTPSA id F1D6127F9AB
+From: Gabriel Krisman Bertazi <krisman@collabora.com>
+To: linux-mm@kvack.org
+Cc: labbott@redhat.com,
+	kernel@collabora.com,
+	gael.portay@collabora.com,
+	mike.kravetz@oracle.com,
+	m.szyprowski@samsung.com,
+	Gabriel Krisman Bertazi <krisman@collabora.com>
+Subject: [PATCH 1/6] Revert "kernel/dma: remove unsupported gfp_mask parameter from dma_alloc_from_contiguous()"
+Date: Mon, 18 Feb 2019 16:07:10 -0500
+Message-Id: <20190218210715.1066-2-krisman@collabora.com>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190218210715.1066-1-krisman@collabora.com>
+References: <20190218210715.1066-1-krisman@collabora.com>
 MIME-Version: 1.0
-References: <20190109022430.GE27534@dastard> <nycvar.YFH.7.76.1901090326460.16954@cbobk.fhfr.pm>
- <20190109043906.GF27534@dastard> <CAHk-=wic28fSkwmPbBHZcJ3BGbiftprNy861M53k+=OAB9n0=w@mail.gmail.com>
- <20190110004424.GH27534@dastard> <CAHk-=wg1jSQ-gq-M3+HeTBbDs1VCjyiwF4gqnnBhHeWizyrigg@mail.gmail.com>
- <20190110070355.GJ27534@dastard> <CAHk-=wigwXV_G-V1VxLs6BAvVkvW5=Oj+xrNHxE_7yxEVwoe3w@mail.gmail.com>
- <20190110122442.GA21216@nautica> <CAHk-=wip2CPrdOwgF0z4n2tsdW7uu+Egtcx9Mxxe3gPfPW_JmQ@mail.gmail.com>
- <20190111045750.GA27333@nautica>
-In-Reply-To: <20190111045750.GA27333@nautica>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 10 Jan 2019 23:11:23 -0800
-X-Gmail-Original-Message-ID: <CAHk-=wiqfAdmmE+pR3O5zs=xtkd6A6ShyyCwpwSZ+341L=zVYw@mail.gmail.com>
-Message-ID:
- <CAHk-=wiqfAdmmE+pR3O5zs=xtkd6A6ShyyCwpwSZ+341L=zVYw@mail.gmail.com>
-Subject: Re: [PATCH] mm/mincore: allow for making sys_mincore() privileged
-To: Dominique Martinet <asmadeus@codewreck.org>
-Cc: Dave Chinner <david@fromorbit.com>, Jiri Kosina <jikos@kernel.org>, 
-	Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, 
-	Peter Zijlstra <peterz@infradead.org>, Michal Hocko <mhocko@suse.com>, Linux-MM <linux-mm@kvack.org>, 
-	kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190111071123.XzgGTojkzmSBqTNcWykdIpwuZW4du82nyLlzCloN4f4@z>
 
-On Thu, Jan 10, 2019 at 8:58 PM Dominique Martinet
-<asmadeus@codewreck.org> wrote:
->
-> I get on average over a few queries approximately a real time of 350ms,
-> 230ms and 220ms immediately after drop cache and service restart, and
-> 150ms, 60ms and 60ms after a prefetch (hand-wavy average over 3 runs, I
-> didn't have the patience to do proper testing).
-> (In both cases, user/sys are less than 10ms; I don't see much difference
-> there)
+This reverts commit d834c5ab83febf9624ad3b16c3c348aa1e02014c.
 
-But those numbers aren't about the mincore() change. That's just from
-dropping caches.
+Commit d834c5ab83fe ("kernel/dma: remove unsupported gfp_mask parameter
+from dma_alloc_from_contiguous()") attempts to make more clear that the
+CMA allocator doesn't support all of the standard GFP flags by removing
+that parameter from cma_alloc().  Unfortunately, this don't make things
+much more clear about what CMA supports, as exemplified by the ARM DMA
+layer issue, which simply masks away the GFP_NOIO flag when calling the
+CMA allocator, letting it assume it is always the hardcoded GFP_KERNEL.
 
-Now, what's the difference with the mincore change, and without? Is it
-actually measurable?
+The removal of gfp_flags doesn't make any easier to eventually support
+these flags in the CMA allocator, like the rest of this series attempt
+to do.  Instead, this patch and the next patch restores that parameter.
 
-Because that's all that matters: is the mincore change something you
-can even notice? Is it a big regression?
+CC: Marek Szyprowski <m.szyprowski@samsung.com>
+Signed-off-by: Gabriel Krisman Bertazi <krisman@collabora.com>
+  [Fix new callers]
+---
+ arch/arm/mm/dma-mapping.c      | 5 ++---
+ arch/arm64/mm/dma-mapping.c    | 2 +-
+ arch/xtensa/kernel/pci-dma.c   | 2 +-
+ drivers/iommu/amd_iommu.c      | 2 +-
+ drivers/iommu/intel-iommu.c    | 3 +--
+ include/linux/dma-contiguous.h | 4 ++--
+ kernel/dma/contiguous.c        | 7 ++++---
+ kernel/dma/direct.c            | 3 +--
+ kernel/dma/remap.c             | 2 +-
+ 9 files changed, 14 insertions(+), 16 deletions(-)
 
-The fact that things are slower when they are cold in the cache isn't
-the issue. The issue is whether the change to mincore semantics makes
-any difference to real loads.
-
-                Linus
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index f1e2922e447c..bc3a62087f52 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -586,7 +586,7 @@ static void *__alloc_from_contiguous(struct device *dev, size_t size,
+ 	struct page *page;
+ 	void *ptr = NULL;
+ 
+-	page = dma_alloc_from_contiguous(dev, count, order, gfp & __GFP_NOWARN);
++	page = dma_alloc_from_contiguous(dev, count, order, gfp);
+ 	if (!page)
+ 		return NULL;
+ 
+@@ -1291,8 +1291,7 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
+ 		unsigned long order = get_order(size);
+ 		struct page *page;
+ 
+-		page = dma_alloc_from_contiguous(dev, count, order,
+-						 gfp & __GFP_NOWARN);
++		page = dma_alloc_from_contiguous(dev, count, order, gfp);
+ 		if (!page)
+ 			goto error;
+ 
+diff --git a/arch/arm64/mm/dma-mapping.c b/arch/arm64/mm/dma-mapping.c
+index 78c0a72f822c..660adedaab5d 100644
+--- a/arch/arm64/mm/dma-mapping.c
++++ b/arch/arm64/mm/dma-mapping.c
+@@ -159,7 +159,7 @@ static void *__iommu_alloc_attrs(struct device *dev, size_t size,
+ 		struct page *page;
+ 
+ 		page = dma_alloc_from_contiguous(dev, size >> PAGE_SHIFT,
+-					get_order(size), gfp & __GFP_NOWARN);
++						 get_order(size), gfp);
+ 		if (!page)
+ 			return NULL;
+ 
+diff --git a/arch/xtensa/kernel/pci-dma.c b/arch/xtensa/kernel/pci-dma.c
+index 9171bff76fc4..e15b893caadb 100644
+--- a/arch/xtensa/kernel/pci-dma.c
++++ b/arch/xtensa/kernel/pci-dma.c
+@@ -157,7 +157,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+ 
+ 	if (gfpflags_allow_blocking(flag))
+ 		page = dma_alloc_from_contiguous(dev, count, get_order(size),
+-						 flag & __GFP_NOWARN);
++						 flag);
+ 
+ 	if (!page)
+ 		page = alloc_pages(flag | __GFP_ZERO, get_order(size));
+diff --git a/drivers/iommu/amd_iommu.c b/drivers/iommu/amd_iommu.c
+index 2a7b78bb98b4..23346a7a32fc 100644
+--- a/drivers/iommu/amd_iommu.c
++++ b/drivers/iommu/amd_iommu.c
+@@ -2692,7 +2692,7 @@ static void *alloc_coherent(struct device *dev, size_t size,
+ 			return NULL;
+ 
+ 		page = dma_alloc_from_contiguous(dev, size >> PAGE_SHIFT,
+-					get_order(size), flag & __GFP_NOWARN);
++						 get_order(size), flag);
+ 		if (!page)
+ 			return NULL;
+ 	}
+diff --git a/drivers/iommu/intel-iommu.c b/drivers/iommu/intel-iommu.c
+index 78188bf7e90d..ebaab2d3750f 100644
+--- a/drivers/iommu/intel-iommu.c
++++ b/drivers/iommu/intel-iommu.c
+@@ -3791,8 +3791,7 @@ static void *intel_alloc_coherent(struct device *dev, size_t size,
+ 	if (gfpflags_allow_blocking(flags)) {
+ 		unsigned int count = size >> PAGE_SHIFT;
+ 
+-		page = dma_alloc_from_contiguous(dev, count, order,
+-						 flags & __GFP_NOWARN);
++		page = dma_alloc_from_contiguous(dev, count, order, flags);
+ 		if (page && iommu_no_mapping(dev) &&
+ 		    page_to_phys(page) + size > dev->coherent_dma_mask) {
+ 			dma_release_from_contiguous(dev, page, count);
+diff --git a/include/linux/dma-contiguous.h b/include/linux/dma-contiguous.h
+index f247e8aa5e3d..3c5a4cb3eb95 100644
+--- a/include/linux/dma-contiguous.h
++++ b/include/linux/dma-contiguous.h
+@@ -112,7 +112,7 @@ static inline int dma_declare_contiguous(struct device *dev, phys_addr_t size,
+ }
+ 
+ struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
+-				       unsigned int order, bool no_warn);
++				       unsigned int order, gfp_t gfp_mask);
+ bool dma_release_from_contiguous(struct device *dev, struct page *pages,
+ 				 int count);
+ 
+@@ -145,7 +145,7 @@ int dma_declare_contiguous(struct device *dev, phys_addr_t size,
+ 
+ static inline
+ struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
+-				       unsigned int order, bool no_warn)
++				       unsigned int order, gfp_t gfp_mask)
+ {
+ 	return NULL;
+ }
+diff --git a/kernel/dma/contiguous.c b/kernel/dma/contiguous.c
+index b2a87905846d..b1c3109bbd26 100644
+--- a/kernel/dma/contiguous.c
++++ b/kernel/dma/contiguous.c
+@@ -182,7 +182,7 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+  * @dev:   Pointer to device for which the allocation is performed.
+  * @count: Requested number of pages.
+  * @align: Requested alignment of pages (in PAGE_SIZE order).
+- * @no_warn: Avoid printing message about failed allocation.
++ * @gfp_mask: GFP flags to use for this allocation.
+  *
+  * This function allocates memory buffer for specified device. It uses
+  * device specific contiguous memory area if available or the default
+@@ -190,12 +190,13 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+  * function.
+  */
+ struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
+-				       unsigned int align, bool no_warn)
++				       unsigned int align, gfp_t gfp_mask)
+ {
+ 	if (align > CONFIG_CMA_ALIGNMENT)
+ 		align = CONFIG_CMA_ALIGNMENT;
+ 
+-	return cma_alloc(dev_get_cma_area(dev), count, align, no_warn);
++	return cma_alloc(dev_get_cma_area(dev), count, align,
++			 gfp_mask & __GFP_NOWARN);
+ }
+ 
+ /**
+diff --git a/kernel/dma/direct.c b/kernel/dma/direct.c
+index 355d16acee6d..6c7009dc9cab 100644
+--- a/kernel/dma/direct.c
++++ b/kernel/dma/direct.c
+@@ -111,8 +111,7 @@ struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
+ again:
+ 	/* CMA can be used only in the context which permits sleeping */
+ 	if (gfpflags_allow_blocking(gfp)) {
+-		page = dma_alloc_from_contiguous(dev, count, page_order,
+-						 gfp & __GFP_NOWARN);
++		page = dma_alloc_from_contiguous(dev, count, page_order, gfp);
+ 		if (page && !dma_coherent_ok(dev, page_to_phys(page), size)) {
+ 			dma_release_from_contiguous(dev, page, count);
+ 			page = NULL;
+diff --git a/kernel/dma/remap.c b/kernel/dma/remap.c
+index 7a723194ecbe..862fc8e781c2 100644
+--- a/kernel/dma/remap.c
++++ b/kernel/dma/remap.c
+@@ -115,7 +115,7 @@ int __init dma_atomic_pool_init(gfp_t gfp, pgprot_t prot)
+ 
+ 	if (dev_get_cma_area(NULL))
+ 		page = dma_alloc_from_contiguous(NULL, nr_pages,
+-						 pool_size_order, false);
++						 pool_size_order, gfp);
+ 	else
+ 		page = alloc_pages(gfp, pool_size_order);
+ 	if (!page)
+-- 
+2.20.1
 
