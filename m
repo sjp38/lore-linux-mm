@@ -2,144 +2,161 @@ Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 914B1C4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 13:33:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EB88FC4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 13:34:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4523121872
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 13:33:42 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="i+vNEoXI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4523121872
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 98FD32089F
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 13:34:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 98FD32089F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=angband.pl
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D26D18E0003; Mon, 18 Feb 2019 08:33:41 -0500 (EST)
+	id 38A698E0004; Mon, 18 Feb 2019 08:34:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD7058E0002; Mon, 18 Feb 2019 08:33:41 -0500 (EST)
+	id 339628E0002; Mon, 18 Feb 2019 08:34:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BEDCF8E0003; Mon, 18 Feb 2019 08:33:41 -0500 (EST)
+	id 2509F8E0004; Mon, 18 Feb 2019 08:34:28 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8037E8E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 08:33:41 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id o24so3525658pgh.5
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 05:33:41 -0800 (PST)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C5A838E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 08:34:27 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id b9so7848722wrw.14
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 05:34:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=3WMTodfPuoC7pIQeJ4r7goXGSg2DbqIaR1ESJWyxvBM=;
-        b=loSWCLr9TlSWNWzo6jwfDI4UtsWiDsclc3yXQ/x8LvFPQBC3B3TDE2iFsI0r31BoHQ
-         eTSJV06o9dBZo4NKDhe2qCxPHBrbaJS2Qj0Tehx1iJkbesgfs//9foF8OqIEEKBpZQmx
-         nrDSMqCABs6/XFV/wlAUHXII12kzBA3FnA1V1txrQ85dyoBP5rIbboB503IKn2p68FM6
-         rJcCkPGXGgdk+WI1tWyhgis0DiHzGAZRuqj/4E3zOvWC6MU9sRCLlpGH0UhqkYjbbH0C
-         IlQ46S+4e8Thkq2a5yBmTtZ+PvStMZBmDjzYQD1zH5eWFY14l1u2odSI40pBBC9W1Ddq
-         Wyug==
-X-Gm-Message-State: AHQUAuZLVsKIQRdxS8gUf584LVYcGy50t1AjGXQwyk8Jxn5c7zOBfweo
-	wLhZtwl6+27fOmTibWcv/dEFVg4MeJx09+vNie6JQY9LCeOFyCztG+XN0BTyKxOLi3VblqJOg9k
-	qa819VGAE/8UBArXQDHiqhRLixYQ6Z9JGTK/wyQMK24EUp9Xeh+ZpaDNGVNH17P0=
-X-Received: by 2002:a17:902:8e8a:: with SMTP id bg10mr25392150plb.192.1550496821092;
-        Mon, 18 Feb 2019 05:33:41 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaqmAOaDnN6sWfLZyc9TCgW7f0E2CSjy6a7gZ+6ocJM3qp3dFlAHy/X6MMFdbe/3fuwq+tA
-X-Received: by 2002:a17:902:8e8a:: with SMTP id bg10mr25392095plb.192.1550496820349;
-        Mon, 18 Feb 2019 05:33:40 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550496820; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:mime-version:content-disposition
+         :content-transfer-encoding:user-agent;
+        bh=hcqmhSFLWS4InaULMDSTMjMXIU8QBoJOtQge6Oi+cko=;
+        b=UHzYvzBhh9/qp+vL6XWTWyp9L500LpT8B4VrHtPx1SIFHDPEEJlJJ770maUHG2vYoT
+         sUXLrdB9LojCRlfJFvmJ/Cxa81x80WU233vJty4qDPxMgL/0FO39HHkyrNyVlWIJhfWA
+         7cZjPhzd0vxR3va+jCCOkqkfy/fl2DYixYOjod2z+GW6LP/WZQrj7ulP3MEKTi44m033
+         8bFMdH8DmAlDmgMAVFRzfMGXBFLax0mOTtR1ezCipXV692s0aby3HBTDoyMVbQcANz8C
+         okFTNAfcfXtcykIfmmzbtL6jXffcl5SD5PMsiNCgPVnHQE5UuEkxnxL1rIdcUvzO/7iu
+         Vvkg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of kilobyte@angband.pl designates 2001:41d0:602:dbe::8 as permitted sender) smtp.mailfrom=kilobyte@angband.pl
+X-Gm-Message-State: AHQUAuZr2c2rMMbnuICnu5r8lFzXouSvnedRFBYKL6XOyrYPfgbUQhUp
+	yG1fOY9P5MfMiOKC0oDTu2z7ak8vMHudpBobXP3Ba3eLljj74ygI///yxA+zEig3HhX5VPMR1EZ
+	K41zfAbcbWkXHWtUqzTmCE8ClogpolTyJQjI2bTmD4X8Pk+4QOpxlAJVSWKT/yWW+kQ==
+X-Received: by 2002:a5d:4cd1:: with SMTP id c17mr15824288wrt.229.1550496867326;
+        Mon, 18 Feb 2019 05:34:27 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYmfAFcG51LG3CsVmxtbSRbz/k0GOvEE6iWJWsXpd8pNq9ixYOEtVVi73/flvlw1z1RHog7
+X-Received: by 2002:a5d:4cd1:: with SMTP id c17mr15824250wrt.229.1550496866318;
+        Mon, 18 Feb 2019 05:34:26 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550496866; cv=none;
         d=google.com; s=arc-20160816;
-        b=joyGMD7cEEJ/5J3vOG6fgaWPeD/9VSIgk/1lwhfI+g+h6tF/wxRlhi+RwJUOnZ3ymv
-         KPf6mVVHbP7F3GDB+zXNpimXp2ncX0c1hv40CZXJz259qgKJEoQhZEHIwWUjZP7zuVU5
-         N8RN0fLF+iW85FJyXVTxC6vQvzrtEsUYAwu/tDpXZUE157vJXzv9nzIsJ2pH8/avg1HA
-         cpZ/n1w+J9Ogq5Nbw0yZtYcb17+78svYMFimWE2b1Dlxj//no2zsVe/NRynKL/rKC1hj
-         cC8unG+0D5kDq5eqkGb7zy1SMZbDqR3FV9s5Zy6f8UNtrn6wJEbHiTCEinacn3IS+DIU
-         3/QA==
+        b=ez/iVGiYzd2uFDeS+afqMaXIFsaDLX97oSghlTXXhx0L7moIVKJ+bn3NJhEugeKFI0
+         i+JQNwRiw5oJYscUYd6UfKAnl4wOhpsab3Ps1BkqhDFQc2P/KhrxklxMYlky0uKl5ox4
+         mG7Fpfv8tm38AJ+2gEulRvT/giUwdhjZiUVgkgpM4qj+zShbqHDePHwsldd4T6cechiH
+         Cpokkc95tB30MzA1ZWBaA/JbvaDB+nA0NTHVRITpHG6T2V/Czctw17lltL4n3BEbIZz7
+         HDQ82FAUZgpWlv0x5HWBtXzTBRs3Y1TjyweymcZzLUXmPcRJkzFNvOBxIYeJkHzc8C13
+         MHcA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=3WMTodfPuoC7pIQeJ4r7goXGSg2DbqIaR1ESJWyxvBM=;
-        b=wtuFiB4I+J7Qn//abXWbMA+neHBiidotO/vEo84n8Q+XDTV00/ChdNfghMmoZROfCu
-         AwmqW1G5cNTCIdgMKRysQAruF5XmThvEhDY3ZRr97mpmpRLYqdkPHb5HWU9VK6uRwDtb
-         CclbDzhsq/jSD9XZvdEyPGobKgUiwG+3ekDOPgTC3c8jOG7tWBwfqcVazP8CE31uRw8K
-         //wGybk0xd6URTBCMA4Arw+dMr52s1oIyI5FXzn+wEADDUZFplcDpB2g+PYdXC3mbzo/
-         NtkejfOi8ZfhF1a1b9bHxONsuhCfNenyZVwz699pj2R3rAcn8ExIN/SM06NgTRFafMIB
-         TgRA==
+        h=user-agent:content-transfer-encoding:content-disposition
+         :mime-version:message-id:subject:cc:to:from:date;
+        bh=hcqmhSFLWS4InaULMDSTMjMXIU8QBoJOtQge6Oi+cko=;
+        b=iG6vX5hoaJWNhcrs+xybry0qkOMNypu16G2RSp1HgCDFPzhrAOP4yI19mE39W8j1YD
+         R8SEBYj0KhlXJm/zmpPTywkS308LTO4fuOnhNljSqkwPQLIayNG3+y6zyp+2fOcaQUIu
+         IaAIpc/VH5sAf7JiXN3czuZpo7ZebQXr5UeqQKDEVBErKq3H2HGXft403F1LF+VdrzL6
+         OnDT1mdnlXVYPoTu/Y07F6OCHLm4XRsRhnnlU/xnfKffhmZLYAYKtEJ69DA/ulrHvj9B
+         NPh7nj6hKgx1ydADbmBXPt9xAiIoINDGotmTMCXaPCdpTrpLpwZaNzq2TNKFTptF07Fu
+         hMlQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=i+vNEoXI;
-       spf=pass (google.com: domain of srs0=7u7d=qz=linuxfoundation.org=gregkh@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=7u7d=QZ=linuxfoundation.org=gregkh@kernel.org"
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id s5si13120986pgl.481.2019.02.18.05.33.40
+       spf=pass (google.com: domain of kilobyte@angband.pl designates 2001:41d0:602:dbe::8 as permitted sender) smtp.mailfrom=kilobyte@angband.pl
+Received: from tartarus.angband.pl (tartarus.angband.pl. [2001:41d0:602:dbe::8])
+        by mx.google.com with ESMTPS id c17si9428647wre.152.2019.02.18.05.34.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Feb 2019 05:33:40 -0800 (PST)
-Received-SPF: pass (google.com: domain of srs0=7u7d=qz=linuxfoundation.org=gregkh@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 18 Feb 2019 05:34:26 -0800 (PST)
+Received-SPF: pass (google.com: domain of kilobyte@angband.pl designates 2001:41d0:602:dbe::8 as permitted sender) client-ip=2001:41d0:602:dbe::8;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=i+vNEoXI;
-       spf=pass (google.com: domain of srs0=7u7d=qz=linuxfoundation.org=gregkh@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=7u7d=QZ=linuxfoundation.org=gregkh@kernel.org"
-Received: from localhost (5356596B.cm-6-7b.dynamic.ziggo.nl [83.86.89.107])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 6ECB72147A;
-	Mon, 18 Feb 2019 13:33:39 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1550496820;
-	bh=xVTxS5W0tuWQ5kJJ1jNbiEp7I+LCmqfv6UhLLql9NBg=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=i+vNEoXIxe5Hp1OvQ3NurLSZEfbbTCugflAEiqrk1O0eIUhxAFb5bOL4tSSXw0HYW
-	 9TIgap/24VjKTuROt9nlqGLWGolZBGEod/0zgEzcwouV55+7bYQukHYSzotXbKmJrB
-	 KRxlv3QugaQUeWU/qrRQ0vP6jEtObUY3fvs8LWoY=
-Date: Mon, 18 Feb 2019 14:33:37 +0100
-From: Greg KH <gregkh@linuxfoundation.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Hugh Dickins <hughd@google.com>, Liu Bo <bo.liu@linux.alibaba.com>,
-	stable@vger.kernel.org
-Subject: Re: [PATCH] mm: Fix the pgtable leak
-Message-ID: <20190218133337.GB30139@kroah.com>
-References: <20190213112900.33963-1-minchan@kernel.org>
+       spf=pass (google.com: domain of kilobyte@angband.pl designates 2001:41d0:602:dbe::8 as permitted sender) smtp.mailfrom=kilobyte@angband.pl
+Received: from kilobyte by tartarus.angband.pl with local (Exim 4.89)
+	(envelope-from <kilobyte@angband.pl>)
+	id 1gvj3v-0006jN-Ge; Mon, 18 Feb 2019 14:34:23 +0100
+Date: Mon, 18 Feb 2019 14:34:23 +0100
+From: Adam Borowski <kilobyte@angband.pl>
+To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: Marcin =?utf-8?Q?=C5=9Alusarz?= <marcin.slusarz@intel.com>
+Subject: tmpfs fails fallocate(more than DRAM)
+Message-ID: <20190218133423.tdzawczn4yjdzjqf@angband.pl>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190213112900.33963-1-minchan@kernel.org>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Transfer-Encoding: 8bit
+X-Junkbait: aaron@angband.pl, zzyx@angband.pl
+User-Agent: NeoMutt/20170113 (1.7.2)
+X-SA-Exim-Connect-IP: <locally generated>
+X-SA-Exim-Mail-From: kilobyte@angband.pl
+X-SA-Exim-Scanned: No (on tartarus.angband.pl); SAEximRunCond expanded to false
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.001518, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 13, 2019 at 08:29:00PM +0900, Minchan Kim wrote:
-> [1] was backported to v4.9 stable tree but it introduces pgtable
-> memory leak because with fault retrial, preallocated pagetable
-> could be leaked in second iteration.
-> To fix the problem, this patch backport [2].
-> 
-> [1] 5cf3e5ff95876, mm, memcg: fix reclaim deadlock with writeback
-> [2] b0b9b3df27d10, mm: stop leaking PageTables
-> 
-> Fixes: 5cf3e5ff95876 ("mm, memcg: fix reclaim deadlock with writeback")
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Liu Bo <bo.liu@linux.alibaba.com>
-> Cc: <stable@vger.kernel.org> [4.9]
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/memory.c | 21 +++++++++++++++------
->  1 file changed, 15 insertions(+), 6 deletions(-)
+Hi!
+There's something that looks like a bug in tmpfs' implementation of
+fallocate.  If you try to fallocate more than the available DRAM (yet
+with plenty of swap space), it will evict everything swappable out
+then fail, undoing all the work done so far first.
 
-I fixed up the changelog text to be correct, and now queued this up,
-thanks.
+The returned error is ENOMEM rather than POSIX mandated ENOSPC (for
+posix_allocate(), but our documentation doesn't mention ENOMEM for
+Linux-specific fallocate() either).
 
-greg k-h
+Doing the same allocation in multiple calls -- be it via non-overlapping
+calls or even with same offset but increasing len -- works as expected.
+
+An example:
+Machine has 32GB RAM, minus 4GB memmapped as fake pmem.  No big tasks
+(X, some shells, browser, ...).  Run ｢while :;do free -m;done｣ on another
+terminal, then:
+
+# mount -osize=64G -t tmpfs none /mnt/vol1
+# chown you /mnt/vol1
+$ cd /mnt/vol1
+$ fallocate -l 32G foo
+fallocate: fallocate failed: Cannot allocate memory
+$ fallocate -l 28G foo
+fallocate: fallocate failed: Cannot allocate memory
+$ fallocate -l 27G foo
+fallocate: fallocate failed: Cannot allocate memory
+$ fallocate -l 26G foo
+$ fallocate -l 52G foo
+
+It takes a few seconds for the allocation to succeed, then a couple for it
+to be torn down if it fails.  More if it has to writeout the zeroes it
+allocated in the previous call.
+
+This raises multiple questions:
+* why would fallocate bother to prefault the memory instead of just
+  reserving it?  We want to kill overcommit, but reserving swap is as good
+  -- if there's memory pressure, our big allocation will be evicted anyway.
+* why does it insist on doing everything in one piece?  Biggest chunk I
+  see to be beneficial is 1G (for hugepages).
+* when it fails, why does it undo the work done so far?  This can matter
+  for other reasons, such as EINTR -- and fallocate isn't expected to be
+  atomic anyway.
+* if I'm wrong and atomicity+prefaulting are desired, why does fallocate
+  forces just the delta (pages not yet allocated) to reside in core, rather
+  than the entire requested range?
+
+Thus, I believe fallocate on tmpfs should behave consistently with other
+filesystems and succeed unless we run into ENOSPC.
+
+Am I missing something?
+
+
+Meow!
+-- 
+⢀⣴⠾⠻⢶⣦⠀
+⣾⠁⢠⠒⠀⣿⡁
+⢿⡄⠘⠷⠚⠋⠀ Have you accepted Khorne as your lord and saviour?
+⠈⠳⣄⠀⠀⠀⠀
 
