@@ -6,105 +6,105 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA491C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 18:41:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 576C8C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 18:42:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 85C6721773
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 18:41:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 85C6721773
+	by mail.kernel.org (Postfix) with ESMTP id 2362E217D9
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 18:42:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2362E217D9
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 16EE78E0006; Mon, 18 Feb 2019 13:41:54 -0500 (EST)
+	id B7B7D8E0007; Mon, 18 Feb 2019 13:42:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0F1778E0002; Mon, 18 Feb 2019 13:41:54 -0500 (EST)
+	id B020A8E0002; Mon, 18 Feb 2019 13:42:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E89D98E0006; Mon, 18 Feb 2019 13:41:53 -0500 (EST)
+	id 9A3F78E0007; Mon, 18 Feb 2019 13:42:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BA3298E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:41:53 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id k1so17736969qta.2
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 10:41:53 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 53D8F8E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:42:03 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id n24so12516560pgm.17
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 10:42:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:in-reply-to:references:message-id;
-        bh=qhg9Az/DDU/n4f5fXjzWqaPfB0uzomNSOq9QUopuYBo=;
-        b=VMg0GD1g9keJbbUwPzxJy9qXYjxv84oO4tOsgET8Tok1/QqchzT2HKH9L0E0zYrvHR
-         339bzszhDesenhalF2M7e3hEEX7Zb+wovmfcToUcLt6AZJJ5tbR5KuCg6dgc8wWe/MID
-         sTapGajL5NZl7y8iSMzOKl3gCONd5YPK8ahwIZ8aNVLoLeHac94be6LL2hkPFnFdYkpG
-         c0Ov7c8/QHGlApnR3KIADXD4v1hHwqY5EdYHdECVE5nTdS0vr/BV3DJ/T32bYzZhZy74
-         j29zRnuTETTvX7z+G3bdClsSCcOWWRigVbc4TLTtiHmBdM50JVHC0QJuyzAbcBRgyUf0
-         j+Qg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuajkeigeNo0SmGz8UR/RHhdS9hWxtYMdSVAsj0C3bJdh3Ifp4+T
-	dUm2WFwiQkE99O57p5p5pCjPFzCOi/d8RIBSQnVdhqwEA7zCqae7hihGh2zXzSgr9916+//yNoS
-	Q1pU8mTAXxuea4tlBFoC0eDGNIToM1G+WL7TH68EJ+C0DOGUYwO7v/OlJ4vJkFc1Ugw==
-X-Received: by 2002:aed:3ef6:: with SMTP id o51mr19353784qtf.183.1550515313487;
-        Mon, 18 Feb 2019 10:41:53 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZU53z6wnN0cWDQuZ9lnRFR2K2mPUNxCgfD41d6ovEnX7k5KCa2hZ1tIjEpBnojC/H93PXh
-X-Received: by 2002:aed:3ef6:: with SMTP id o51mr19353748qtf.183.1550515312830;
-        Mon, 18 Feb 2019 10:41:52 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550515312; cv=none;
+        bh=7nb5sfZMKLy3F4xJmE1rTMV54PH3l/oP5gHKnkf80Q4=;
+        b=tg9EcmhhDEXXy94XIpMQt/jOtgpad4T6CITcs3drMUWE5a/oO/3d8T1bo0aXpiSL18
+         knrKKF9OeDOnGpOlhtPgcdpbfIZspFTa3Xz6dWeTgLYenUzwawUyld2ERkkkkttVHmPh
+         R5zWcmXPbHdmXqRPE7cYw7cetzgbSrCtxH448uITfZTVk636WmlR4o1tay5T7y/xEn7d
+         RnzvFGQLXRReS/ty+EJoNe266VfFbp5zN8A7HB60jSBgTFurg3bNuT2yY2OmuuEMmPlw
+         yjXzEx7NZO2H0U0hrntf4Vj2kyChGnuSlU6N4PGRQUCRxF1rwgtYSl8O6bLPtWV1igm6
+         tzfQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuaxZtBhclR0FUWaBIr3cdN1frQuSR/LTeskb30wkSVUlo11N2L/
+	8NvWiTWbfKtf/9vZ8ONtue/pNXG/VO/iiJicXIf+ks2oeVcw2Pq5nAQIGNgooUyPB3wLpm7OYmn
+	9D5IXbqOWN+bt2HIGe3Xpl/omB3r32JM6S3DoL8G26hrbTmJT0v+J7JblvEHFmZDukQ==
+X-Received: by 2002:a63:e451:: with SMTP id i17mr23883914pgk.413.1550515323012;
+        Mon, 18 Feb 2019 10:42:03 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbAdO0pzGHMVGptCGb0S+cvyYcfWxv9OIrw78u9P20edSR2Xfbau/dMElbp3Wet2f2MusRZ
+X-Received: by 2002:a63:e451:: with SMTP id i17mr23883861pgk.413.1550515322024;
+        Mon, 18 Feb 2019 10:42:02 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550515322; cv=none;
         d=google.com; s=arc-20160816;
-        b=iZdhm2sEtaoh4p2OoM12slc7h1UbLz5OI4n8rZQ5p2h5IB0j4R8aUXIMETQuJKEU39
-         7Ia/P04AdIuPFMxOMsQH9WXkjGvsOJ3HQ8Q25zPznHklGJaUTC7gBgKfnGKgtLDjS8wp
-         VIw/pfUgPT72WSt3SgYHBG11FNEdpkyejBi9Ns8lXNpmNzOSq4YBkVZKbexTu0z/EPQv
-         el5bgUYE7kbzdv46S4Y47DgKlwne6PmR5qF5dhCebFn+R8lKWollujvZHGQ7ZsGc3E20
-         JVY0mtjEFZRchHG3oSiz4mlgV/3dxcA1TVckWbzHSfRmZmI+qY27NmBjeVK8xvKuAtVH
-         rJgQ==
+        b=dRJliW+RXv6YygwTmWFgm2RehDrXEjDLoGqZAWHDGGl/H9/wLBHfkr1QFGtr9wcP9b
+         fGO6E3geouKLsG9wSffJ/FRmVUkwNRmcYiDtUFYZ0SrfXlPtKtI0LR6/pcwnxqrQz8Ks
+         Wl5vqYGeJ6AfmSARtOA3zoarJxX3obF+uXZ7dlPsy0OMpAuTWq2H69SfUpewnktrva8y
+         Ne5rgeI+7GTZdmuBsaHTHAxZFqOxRjIs7+JNVAt30YrpCTCJw6r0AqkuLqz93T5Rtxek
+         FW4IM+8lu0l6w0OzvT7Wst7TOW98jzb0aoOwU38vprXSq6nWNDqTgiqyFM4ROoDC5FJo
+         ONiw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:references:in-reply-to:date:subject:cc:to:from;
-        bh=qhg9Az/DDU/n4f5fXjzWqaPfB0uzomNSOq9QUopuYBo=;
-        b=iAGLQSmlP81isQVWeBMGBUcrh3rCr417Gn01jhj9bVG1dCkSfwu/+Khq/17pVzB/sL
-         +KF1gsByzYqgZP/a+06iilNFMkfj9L5aQdgUMWOeMPmXWb2Oyeciz6e4e1DGM6S1NzJS
-         luYlKUS1l5fR1BalBGMJRFJQmkbkNyNqRYmMpqorH7uR+AqLsSBN7ye/gCt+iuXqwbU/
-         J+AiberuMHjR3ikrifrRAPv4kFo2YIwJ6LewUukpi6yOh58DtgRQgPwxOjlzINwlYRy7
-         JBGHdjOI7mBWmB3tu3OmSEB5bwrRTXLc94QLcuRvrN787SfJxZvjgCYcITqRm8px2ZOB
-         S05w==
+        bh=7nb5sfZMKLy3F4xJmE1rTMV54PH3l/oP5gHKnkf80Q4=;
+        b=DNoLj6MwVaNqYw5BqZPp2wGOktYWm8x0cvV09UGAyw/X3ciVk6Ru2XQMfD8tHuQvpD
+         S5+1awlQYMCqbYYkXb3Qym3hxhn0unAoSFMUSaT3IGx7SJWXP9dePawDVYEcrNH321ZZ
+         /+Ms8MTcVptyCujxthJYtYHlcVuC1+Df1gwCuVy1Z6Pj3a9+9NpTPnG+pOpfvvu9IYI0
+         zri9/P86wh4bLeq7L4RepelO3LDZfhU1AH21uGsj377SF68NNa3FuS/uF0Oovs0pbbli
+         yaGV8gOl7756BlDVINz9o0VJ8z1BUGOwOw5wa/HGARrxQIgxn4m928Fko9werKQTTi6z
+         +tMg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 7si2238247qto.247.2019.02.18.10.41.52
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id r17si12725663pgv.329.2019.02.18.10.42.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Feb 2019 10:41:52 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Mon, 18 Feb 2019 10:42:02 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1IIcpuq010870
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:41:52 -0500
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1IIcqRR094158
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:42:01 -0500
 Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qr06f68v8-1
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qr0nncpwc-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:41:51 -0500
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:42:01 -0500
 Received: from localhost
 	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 18 Feb 2019 18:41:50 -0000
+	Mon, 18 Feb 2019 18:41:59 -0000
 Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
 	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 18 Feb 2019 18:41:47 -0000
-Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1IIfkW460686370
+	Mon, 18 Feb 2019 18:41:54 -0000
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1IIfrJJ55181540
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Mon, 18 Feb 2019 18:41:46 GMT
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 97FA0A4040;
-	Mon, 18 Feb 2019 18:41:46 +0000 (GMT)
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 7D2BFA4053;
-	Mon, 18 Feb 2019 18:41:43 +0000 (GMT)
+	Mon, 18 Feb 2019 18:41:53 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 459D2AE051;
+	Mon, 18 Feb 2019 18:41:53 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 344B7AE04D;
+	Mon, 18 Feb 2019 18:41:48 +0000 (GMT)
 Received: from rapoport-lnx (unknown [9.148.207.239])
-	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Mon, 18 Feb 2019 18:41:43 +0000 (GMT)
-Received: by rapoport-lnx (sSMTP sendmail emulation); Mon, 18 Feb 2019 20:41:42 +0200
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Mon, 18 Feb 2019 18:41:48 +0000 (GMT)
+Received: by rapoport-lnx (sSMTP sendmail emulation); Mon, 18 Feb 2019 20:41:46 +0200
 From: Mike Rapoport <rppt@linux.ibm.com>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Christoph Hellwig <hch@lst.de>, Palmer Dabbelt <palmer@sifive.com>,
@@ -112,63 +112,68 @@ Cc: Christoph Hellwig <hch@lst.de>, Palmer Dabbelt <palmer@sifive.com>,
         linux-hexagon@vger.kernel.org, linux-kernel@vger.kernel.org,
         linux-mm@kvack.org, linux-riscv@lists.infradead.org,
         Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH v2 2/4] hexagon: switch over to generic free_initmem()
-Date: Mon, 18 Feb 2019 20:41:23 +0200
+Subject: [PATCH v2 3/4] init: free_initmem: poison freed init memory
+Date: Mon, 18 Feb 2019 20:41:24 +0200
 X-Mailer: git-send-email 2.7.4
 In-Reply-To: <1550515285-17446-1-git-send-email-rppt@linux.ibm.com>
 References: <1550515285-17446-1-git-send-email-rppt@linux.ibm.com>
 X-TM-AS-GCONF: 00
-x-cbid: 19021818-0008-0000-0000-000002C1EA72
+x-cbid: 19021818-0008-0000-0000-000002C1EA74
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19021818-0009-0000-0000-0000222E1A1C
-Message-Id: <1550515285-17446-3-git-send-email-rppt@linux.ibm.com>
+x-cbparentid: 19021818-0009-0000-0000-0000222E1A1E
+Message-Id: <1550515285-17446-4-git-send-email-rppt@linux.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-18_14:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
  malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=780 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=824 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1902180138
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hexagon implementation of free_initmem() is currently empty and marked with
-comment
-
- * Todo:  free pages between __init_begin and __init_end; possibly
- * some devtree related stuff as well.
-
-Switch it to the generic implementation.
+Various architectures including x86 poison the freed init memory.
+Do the same in the generic free_initmem implementation and switch sparc32
+architecture that is identical to the generic code over to it now.
 
 Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 ---
- arch/hexagon/mm/init.c | 10 ----------
- 1 file changed, 10 deletions(-)
+ arch/sparc/mm/init_32.c | 5 -----
+ init/main.c             | 2 +-
+ 2 files changed, 1 insertion(+), 6 deletions(-)
 
-diff --git a/arch/hexagon/mm/init.c b/arch/hexagon/mm/init.c
-index 1719ede..41cf342 100644
---- a/arch/hexagon/mm/init.c
-+++ b/arch/hexagon/mm/init.c
-@@ -85,16 +85,6 @@ void __init mem_init(void)
+diff --git a/arch/sparc/mm/init_32.c b/arch/sparc/mm/init_32.c
+index f0dbc0b..d02a9ae 100644
+--- a/arch/sparc/mm/init_32.c
++++ b/arch/sparc/mm/init_32.c
+@@ -294,11 +294,6 @@ void __init mem_init(void)
+ 	mem_init_print_info(NULL);
  }
  
- /*
-- * free_initmem - frees memory used by stuff declared with __init
-- *
-- * Todo:  free pages between __init_begin and __init_end; possibly
-- * some devtree related stuff as well.
-- */
--void __ref free_initmem(void)
+-void free_initmem (void)
 -{
+-	free_initmem_default(POISON_FREE_INITMEM);
 -}
 -
--/*
-  * free_initrd_mem - frees...  initrd memory.
-  * @start - start of init memory
-  * @end - end of init memory
+ void sparc_flush_page_to_ram(struct page *page)
+ {
+ 	unsigned long vaddr = (unsigned long)page_address(page);
+diff --git a/init/main.c b/init/main.c
+index 38d69e0..9a61e9c 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -1049,7 +1049,7 @@ static inline void mark_readonly(void)
+ 
+ void __weak free_initmem(void)
+ {
+-	free_initmem_default(-1);
++	free_initmem_default(POISON_FREE_INITMEM);
+ }
+ 
+ static int __ref kernel_init(void *unused)
 -- 
 2.7.4
 
