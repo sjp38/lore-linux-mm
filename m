@@ -1,53 +1,153 @@
-Subject: Re: Consistent page aging....
-References: <Pine.LNX.4.21.0107260701290.3707-100000@freak.distro.conectiva>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 26 Jul 2001 08:46:29 -0600
-In-Reply-To: <Pine.LNX.4.21.0107260701290.3707-100000@freak.distro.conectiva>
-Message-ID: <m166cfg33u.fsf@frodo.biederman.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: felipodelacasa@latinmail.com
+Message-Id: <31HP_yjbG@>
+Subject: Toner Cartridges  For Your Printers, Faxes & Copiers!....   
+Reply-To: dprint2000@aol.com
+Mime-Version: 1.0
+Content-Type: text/plain, charset="iso-8859-1"
+Date: Thu, 26 Jul 2001 11:33:15
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti <marcelo@conectiva.com.br> writes:
+D & J Printing Corporation
+2564 Cochise Drive
+Acworth, GA 30102
+770-974-8228
+DPRINT2000@AOL.COM
 
-> On 25 Jul 2001, Eric W. Biederman wrote:
-> 
-> > 
-> > Be very clear on this because I sense some confusion.  We don't
-> > ``require'' allocation of swap space to do aging. 
-> 
-> Right now, we have to make anon pages become swap cache pages (which need
-> swap space allocated) to be able to age them in the LRU lists.
 
-Nothing important in the aging algorithm on the active list requires
-that the page be in the page cache.  The only immediate difference is
-that the test to see if a page is busy needs to be updated to not
-assume the page is in the page cache.  
 
-> Sure, we do aging before by just scanning the pte's and the process of
-> adding a page to the swapcache is already some kind of aging. 
-> 
-> I'm talking about the aging in the LRU lists here. 
+ --LASER, FAX AND COPIER PRINTER TONER CARTRIDGES--
 
-Me to.
- 
-> There is no confusion. Its the way 2.4 VM works. 
+*WE ACCEPT GOVERNMENT, SCHOOL AND UNIVERSITY PURCHASE ORDERS*
 
-It is a minor implemtation detail of the 2.4 VM not a fundamental
-property.  If fundamental routines like add_to_page_cache didn't make
-the assumption that a page they are being called on wasn't on an lru
-list it might be straight forward to change.   But as it is you have
-to be very careful to make that kind of change.
 
-> See? 
+    ***FREE SHIPPING WITH ANY ORDER OF $200 OR MORE!!!***
 
-Nope.
+APPLE
 
-Eric
+  LASER WRITER SELECT 300/310/360 		$60          
+  LASER WRITER PRO 600/630 OR 16/600            $60         
+  LASER WRITER 300/320 OR 4/600         	$45               
+  LASER WRITER LS/NT/NTR/SC                     $50    
+  LASER WRITER 2NT/2NTX/2SC/2F/2G               $50
+  LASER WRITER 12/640				             $60
+                           
+HEWLETT PACKARD
+
+  LASERJET SERIES 1100/1100A (92A)		$40
+  LASERJET SERIES 2100/SE/XI/M/TN (96A)  	$70
+  LASERJET SERIES 2/2D/3/3D (95A) 		$43            
+  LASERJET SERIES 2P/2P+/3P (75A)		$55	  	
+  LASERJET SERIES 3SI/4SI   (91A)	        $75  
+  LASERJET SERIES 4/4M/4+/4M+/5/5M/5N (98A)	$55          
+  LASERJET SERIES 4L/4ML/4P/4MP (74A)		$40	                 
+  LASERJET SERIES 4000/T/N/TN  (27X-HIGH YIELD) $70        
+  LASERJET SERIES 4V/4MV			       $80                              		                            
+  LASERJET SERIES 5000 (29X)			       $95                                                  
+  LASERJET SERIES 5L/6L	                        $39
+  LASERJET SERIES 5P/5MP/6P/6MP		        $50
+  LASERJET SERIES 5SI/5SI MX/5SI MOPIER/8000	$85
+  LASERJET SERIES 8100/N/DN (82X)		$115
+
+HEWLETT PACKARD LASERFAX
+
+  LASERFAX 500/700, FX1 			$50                      
+  LASERFAX 5000/7000, FX2  			$50                    
+  LASERFAX FX3					$60                                 
+  LASERFAX FX4 					$65                                 
+
+LEXMARK
+
+  OPTRA 4019, 4029 HIGH YIELD			$130                   
+  OPTRA R, 4039, 4049 HIGH YIELD		$135		               
+  OPTRA S, 4059 HIGH YIELD			$135                                                             
+  OPTRA N               			$110                                       
+
+EPSON LASER TONER
+
+  EPL-7000/7500/8000 		$95
+                               
+  EPL-1000/1500			$95
+
+EPSON INK JET
+
+  STYLUS COLOR 440/640/740/760/860 (COLOR)   $20
+
+  STYLUS COLOR 740/760/860  (BLACK)          $20
+
+
+CANON
+  LBP-430     			$45                                      
+  LBP-460/465 	      $55           
+  LBP-8 II    			$50		
+  LBP-LX      			$54					
+  LBP-NX      			$90					
+  LBP-AX      			$49					
+  LBP-EX      			$59					
+  LBP-SX      			$49					
+  LBP-BX        		$90					
+  LBP-PX      			$49					
+  LBP-WX          		$90					
+  LBP-VX      			$59		
+
+			
+  CANON FAX L700 THRU L790 (FX1)	$55		
+  CANON FAX L5000 THRU L7500 (FX2)	$65	
+  CANON LASERCLASS 4000/4500/300 (FX3)	$60
+  CANON LASERCLASS 8500 THRU 9800 (FX4) $65
+
+CANON COPIERS
+
+  PC 1/2/3/6/6RE/7/8/11/12/65 (A30)	        $69			
+  PC 210 THRU 780 (E40/E31)			     $80				
+  PC 300/400 (E20/E16)                          $80
+
+NEC
+
+  SERIES 2 LASER MODEL 90/95			$100			
+  SUPERSCRIPT 860                   $115
+
+
+    PLEASE NOTE:
+***FREE SHIPPING WITH ANY ORDER OF $200 OR MORE!!!***
+ * ALL OF OUR PRICES ARE IN US DOLLARS
+ * WE SHIP UPS GROUND.  ADD $6.50 FOR SHIPPING AND HANDLING
+ * WE ACCEPT ALL MAJOR CREDIT CARDS OR "COD" ORDERS.
+ * COD CHECK ORDERS ADD $3.50 TO YOUR SHIPPING COST.   
+ * OUR STANDARD MERCHANDISE REPLACEMENT POLICY IS NET 90 DAYS.
+ * WE DO NOT SELL TO RESELLERS OR BUY FROM DISTRIBUTERS.
+ * WE DO NOT CARRY: BROTHER, MINOLTA, KYOSERA, PANASONIC, XEROX, 
+                    FUJITSU, OKIDATA OR SHARP PRODUCTS. 
+ * WE ALSO DO NOT CARRY:  DESKJET OR BUBBLEJET SUPPLIES.
+ * WE DO NOT BUY FROM OR SELL TO RECYCLERS OR REMANUFACTURERS.
+
+           -PLACE YOUR ORDER AS FOLLOWS-
+
+1) BY PHONE (770) 974-8228
+2) BY MAIL:  D AND J PRINTING CORPORATION
+             2564 COCHISE DR
+             ACWORTH, GA 30102
+3) BY INTERNET: DPRINT2000@AOL.COM
+
+ INCLUDE THE FOLLOWING INFORMATION WHEN YOU PLACE YOUR ORDER:
+
+1) YOUR PHONE NUMBER
+2) COMPANY NAME
+3) SHIPPING ADDRESS
+4) CONTACT NAME
+5) ITEMS NEEDED WITH QUANTITIES
+6) METHOD OF PAYMENT (COD OR CREDIT CARD)
+7) CREDIT CARD NUMBER WITH EXPIRATION DATE
+** IF YOU ARE ORDERING BY PURCHASE ORDER, PLEASE INCLUDE A 
+   SEPARATE BILLING ADDRESS AND SHIPPING ADDRESS WHEN NEEDED.
+  
+** TO BE REMOVED FROM THIS LIST, SEND YOUR REQUEST TO                             
+ DPRINT2000@AOL.COM
+            
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
