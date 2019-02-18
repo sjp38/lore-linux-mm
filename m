@@ -1,209 +1,168 @@
 Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Level: *
+X-Spam-Status: No, score=1.4 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 685D5C4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 07:49:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 083F9C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 08:20:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1EEDC217F5
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 07:49:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1EEDC217F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 9D626218AD
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 08:20:35 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Od1xhSlj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D626218AD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ACEB98E0002; Mon, 18 Feb 2019 02:49:42 -0500 (EST)
+	id 11B108E0002; Mon, 18 Feb 2019 03:20:35 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A7C988E0001; Mon, 18 Feb 2019 02:49:42 -0500 (EST)
+	id 0CA5B8E0001; Mon, 18 Feb 2019 03:20:35 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 992F78E0002; Mon, 18 Feb 2019 02:49:42 -0500 (EST)
+	id F22258E0002; Mon, 18 Feb 2019 03:20:34 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E7328E0001
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 02:49:42 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id 35so15926206qty.12
-        for <linux-mm@kvack.org>; Sun, 17 Feb 2019 23:49:42 -0800 (PST)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B8B008E0001
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 03:20:34 -0500 (EST)
+Received: by mail-pl1-f199.google.com with SMTP id d17so4278124pls.2
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 00:20:34 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=drkJz+TDHq8btJFEo03IIxszTU6UhEPx3LnkIUBJSlg=;
-        b=harHx9aacJXu6hTInTYZUeseXCUWhrDYX4uCa1RLVB+cUwe/UyXMcHV0sXERDHjyJq
-         5sW+TRN9IGl44hI/RJzFJ7Eg9tggfwQQhaHYMBlb0KvdaPQQdlzA5udDeoWBkoqRDDHm
-         n9b1vNu/osOMVI0QT5+7rxDDEBn4FWjY5MaWonyFzf1ROQYQacoZWt74ps/trPDbj7u2
-         hZdD15l7PIMVZsP+6O1r+1xfoYab9EeZUtsusAy83d323FUbX8yEA6Mj1FjotLkYVOX8
-         0rvyFog3chxk6byChDrW8SCxsIB/lf4sj9wQw0+vlwW+kx45USpahBPqw2zgTw1r/VJY
-         8Aeg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAubej8+5PpaVgKzXOevts8W48gRJptSOPbIBDL/C+PxtJIjAYfwH
-	ypd9QF5OKfpxg8ySPaVMfIkesF8ZyXIUTaOE9SkZW2qqTd/kn+FM+mM8sBkebQvy9dOFqw8gpRr
-	V+7uzEeMrjQtKn/v0HQO1Tkj57hmsbSdbKQaKg7kMSpk1PJww9M4gM8wXvgTBlQQPEA==
-X-Received: by 2002:a37:2f86:: with SMTP id v128mr2562482qkh.305.1550476182174;
-        Sun, 17 Feb 2019 23:49:42 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Iba03iWOOiV5l4rHuEs5FCzcZuDc9Cc6kKnAgo6KsK5KsJb5t0027rHKlCqm8Lp9sEYdDvn
-X-Received: by 2002:a37:2f86:: with SMTP id v128mr2562450qkh.305.1550476181090;
-        Sun, 17 Feb 2019 23:49:41 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550476181; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=smQ3UZLScYHvuL/U/au9eTzJZ5+ZHSry0nos0pW1Ac8=;
+        b=Im/xWg8urq2/6Tc/wCNK3pTQHK60oDqyRrXRFJgER6EmHBDSrR8mhBeBPU3KAGyTpb
+         4Xtk/dDmaqIRubui1ppoxQyRfaliPIkQ4gV/7QahQiTmFPy+kYAWwsJq7Hic2lAbMrGx
+         q0G6aaXIk/qRPT9KYHTI6cUNpKAdqNLb1z3BwmLGpIH+TKMs0L9CxRPyT3m5LEpjn2Ys
+         ABBhvVqLZ86OdUBo9BYp/Rj598Ttbs3p4vWP9uoZpNUpAqbRRpLB6f+QGXKm7R9Q64eO
+         JP7cwVtJwwyMTBbNEYuve89FVJx3tiHt+pkKHRlNtqKPgKupnuVjwG68HZSwVjDEiY71
+         +iWA==
+X-Gm-Message-State: AHQUAuabi8NDUp7rqaaCdPdvayT5I5ZwZj2yi7lK8UztHQmhC9kzU0oN
+	VG3g1NPKXsRUUX32DkjaLbcGpAuWcLuN/rV2UgOz/SJImVb6LqQEdiETKXu4Mly1Rioq44Kr3y/
+	zr0+MC4laRhgNW3GJsJ+J5EZ/2k3W/9ZhpLjNFocree/JUNcY5BeI75NJpskdkd9sD/1bYMjXk2
+	bvb9uBccsQ13M9+dnlIwN0yTGgqBwM3tD0V7kCkrquJXIIeFTtVzjtQqE0ORURGc5tMAdl8v977
+	9QAkq7m5geHLnHMJ2aU+rqQdLX35ySANb8u3P1ZFJMjSxNW3qinmyc3wOZ5cD23WsNWFen8Swbj
+	SJcOZrtqsvwfmUBh61OthJtSpdjFtYGJIfRsdVojAwfAq++Jv4uUea634KKRs12ORcqqcvnwQA=
+	=
+X-Received: by 2002:a17:902:a514:: with SMTP id s20mr13824970plq.242.1550478034275;
+        Mon, 18 Feb 2019 00:20:34 -0800 (PST)
+X-Received: by 2002:a17:902:a514:: with SMTP id s20mr13824931plq.242.1550478033541;
+        Mon, 18 Feb 2019 00:20:33 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550478033; cv=none;
         d=google.com; s=arc-20160816;
-        b=tPSBCtmLty3UIjAEx3zVZBvCU3hr29C1lX4GueX/zvAQyR2566n4nRj5KWQEZ2xYEQ
-         y641Fmem2HXEkHa0PqVgNFWn2KmFHlw0SJL2hClIV1y0HpKk2EScvwqh2p1OyOXM2cCw
-         cz3IONsPiKOejZyOo3BoeOzcQAmH4Gb2q+VHB/zSSLF34X7lsrY7axJJjWYjd5ZY3HRf
-         JLnVfk/H4tc8ON9l18J44WwawNT2lpqzX11pZMXj+0+AFWEEGy1k3dH8lnO4zqnBKqRP
-         LfNv4vKN1QXyNeYZSxYk+jtTLZlqUi62cEOl7OksCxYtkIxj4lwz8rdsR3XWp06XEduT
-         tYuA==
+        b=lq5uepUdN32Ql56PK5nqYYQT/Ll72nkCmmzxuThO7+tMuN9Cc4VuxFkt4fA2z1NbWX
+         6plx8GoSiCSAg2o2yRAH3keUw1S36hBNqAZfgPNRlum66Fubxd2K9JXhf1ORA5zwE7l4
+         aN8NB9xeceyz7qSTMQPRiSaDIYe+LxYXo2fkcVEXSgsma8Q9X8EysZ53ho2ce8Ae0vrc
+         K53TRqnStVXbCsn24gcvG1WVrX9PsGVSI2bfShJ9lQ2PODnVvZfFS02BROMQdgSOFHlF
+         AO6SaAgkJSIbkWyuFVbu/3y45WDORAtP7UqXMZ9k5juWFyXK7u4L1EsNkAyvVTKEA5Kj
+         F7bw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=drkJz+TDHq8btJFEo03IIxszTU6UhEPx3LnkIUBJSlg=;
-        b=hwzo5Aln6Z4AT0XXzpAXLhRob3NdQHbFvQmCBldvBsZ4lVVIIX+QqFtK9AiXOjH8zn
-         wV/aGg1ufbRkDc/CBxcOUxh8ocKBkYPv/l+br3geEA6TiUStflnXIwvC19Cm6+DZDlTc
-         DObfA+J2Wk2JldQ6DZtLQ9idxD/lW/q9Fd9Zbnwpc0yiT8v+Thkg/7OnYYBse8himKuy
-         UvxAp/4p+tWhEh34l0VxTJxEN9fMLs6fp3kjbMFebxUtvsjWivzHFvCTt4ka2Lt7BFfD
-         D2v1+BCDv2BZEmG9rXc3FY7WRWm7NKOH1iKRyrXjN2DxlJEpmImJBAIfcJqZg9dZp+Gv
-         iluw==
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=smQ3UZLScYHvuL/U/au9eTzJZ5+ZHSry0nos0pW1Ac8=;
+        b=vdc1tcCcQeM9y3jK22B+0Jl5NWf70RGKWBdhtVnZVOswuuqT8UM9aeKI2ecW1sahGe
+         kwsQf0uwB3Pv1odYchSGFKcHWUiPPSJ4vthL0VzfQOxTmW/ykiVmrIcoUMKXzWvJEse+
+         45znSSsJMnsaTWc8FnihDaXl7Z8KdFBpSK/3uL+0HzihX6NiFgKFPrv7YkkYqWWSXkfS
+         kZdKXwr5n5A3Kz8SnJ4o3StfAF0NJlOo03xFeiS5ZwBeGH6Y8Xr5z23dtafG7sqh1yBJ
+         b91v7kPTf6bBleKalQBu4KdkMjT8W0zwXLM+sxTbWpy+PxSkrU9Ydz5FJPGyLLlNdFeG
+         DjzQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r20si3561300qvl.44.2019.02.17.23.49.40
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Od1xhSlj;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i20sor1816413pgj.36.2019.02.18.00.20.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Feb 2019 23:49:41 -0800 (PST)
-Received-SPF: pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Mon, 18 Feb 2019 00:20:33 -0800 (PST)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 50FDE36887;
-	Mon, 18 Feb 2019 07:49:39 +0000 (UTC)
-Received: from ming.t460p (ovpn-8-22.pek2.redhat.com [10.72.8.22])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 01D95608C7;
-	Mon, 18 Feb 2019 07:49:12 +0000 (UTC)
-Date: Mon, 18 Feb 2019 15:49:08 +0800
-From: Ming Lei <ming.lei@redhat.com>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Bart Van Assche <bvanassche@acm.org>, Mike Snitzer <snitzer@redhat.com>,
-	linux-mm@kvack.org, dm-devel@redhat.com,
-	Christoph Hellwig <hch@lst.de>, Sagi Grimberg <sagi@grimberg.me>,
-	"Darrick J . Wong" <darrick.wong@oracle.com>,
-	Omar Sandoval <osandov@fb.com>, cluster-devel@redhat.com,
-	linux-ext4@vger.kernel.org,
-	Kent Overstreet <kent.overstreet@gmail.com>,
-	Boaz Harrosh <ooo@electrozaur.com>,
-	Gao Xiang <gaoxiang25@huawei.com>, Coly Li <colyli@suse.de>,
-	linux-raid@vger.kernel.org, Bob Peterson <rpeterso@redhat.com>,
-	linux-bcache@vger.kernel.org,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Dave Chinner <dchinner@redhat.com>, David Sterba <dsterba@suse.com>,
-	linux-block@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>,
-	linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org
-Subject: Re: [dm-devel] [PATCH V15 00/18] block: support multi-page bvec
-Message-ID: <20190218074907.GA806@ming.t460p>
-References: <20190215111324.30129-1-ming.lei@redhat.com>
- <c52b6a8b-d1d4-67ff-f81c-371d09cc6d5b@kernel.dk>
- <1550250855.31902.102.camel@acm.org>
- <18c711a9-ca13-885d-43cd-4d48e683a6a2@kernel.dk>
- <20190217131332.GC7296@ming.t460p>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Od1xhSlj;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=smQ3UZLScYHvuL/U/au9eTzJZ5+ZHSry0nos0pW1Ac8=;
+        b=Od1xhSljbWo3lxm8juCFdcBlxaiHw1ZEjfyL0pHfxUmCLSsd1hn2KPoNWCgczS3I6w
+         gWGMmNp0+ZVap4NtrZHLS1nhFeAgML7oRffvfXsLt+KSxzTgpogIKsHcYQC7Cqvn0TEC
+         OOzPqI8D3Vttbqwu7wGqNJEKzU3YbpgGjgVhY7EWV2DY5lCGeBxfSEx7O309AaaohDcO
+         ej859s2vNfLRttVJ5SzQs6uXmim244ihj/Rz/Bjdi/1FP2RHcC/UKCThxDmynmyF5Suo
+         u450ETx3MTHnDZpcZQLopLTq2+sE4OuRyMjvdBuOCNTuMswIC4gCFksFULypR364s2k8
+         GSGQ==
+X-Google-Smtp-Source: AHgI3Iav4jqBKezlgwNb3JzRYCs5r7JAWnEaRBCpeQQShzGNANjFafBIxhvWEUa4FSBUB4T5kF5I3Q==
+X-Received: by 2002:a63:5964:: with SMTP id j36mr17725124pgm.210.1550478032951;
+        Mon, 18 Feb 2019 00:20:32 -0800 (PST)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id q75sm20865180pfa.38.2019.02.18.00.20.29
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 18 Feb 2019 00:20:31 -0800 (PST)
+Date: Mon, 18 Feb 2019 17:20:26 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Hugh Dickins <hughd@google.com>, Liu Bo <bo.liu@linux.alibaba.com>,
+	stable@vger.kernel.org
+Subject: Re: [PATCH] mm: Fix the pgtable leak
+Message-ID: <20190218082026.GA88360@google.com>
+References: <20190213112900.33963-1-minchan@kernel.org>
+ <20190213133624.GB9460@kroah.com>
+ <20190214072352.GA15820@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190217131332.GC7296@ming.t460p>
-User-Agent: Mutt/1.9.1 (2017-09-22)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Mon, 18 Feb 2019 07:49:40 +0000 (UTC)
+In-Reply-To: <20190214072352.GA15820@google.com>
+User-Agent: Mutt/1.10.1+60 (6df12dc1) (2018-08-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Feb 17, 2019 at 09:13:32PM +0800, Ming Lei wrote:
-> On Fri, Feb 15, 2019 at 10:59:47AM -0700, Jens Axboe wrote:
-> > On 2/15/19 10:14 AM, Bart Van Assche wrote:
-> > > On Fri, 2019-02-15 at 08:49 -0700, Jens Axboe wrote:
-> > >> On 2/15/19 4:13 AM, Ming Lei wrote:
-> > >>> This patchset brings multi-page bvec into block layer:
-> > >>
-> > >> Applied, thanks Ming. Let's hope it sticks!
+On Thu, Feb 14, 2019 at 04:23:52PM +0900, Minchan Kim wrote:
+> On Wed, Feb 13, 2019 at 02:36:24PM +0100, Greg KH wrote:
+> > On Wed, Feb 13, 2019 at 08:29:00PM +0900, Minchan Kim wrote:
+> > > [1] was backported to v4.9 stable tree but it introduces pgtable
+> > > memory leak because with fault retrial, preallocated pagetable
+> > > could be leaked in second iteration.
+> > > To fix the problem, this patch backport [2].
 > > > 
-> > > Hi Jens and Ming,
-> > > 
-> > > Test nvmeof-mp/002 fails with Jens' for-next branch from this morning.
-> > > I have not yet tried to figure out which patch introduced the failure.
-> > > Anyway, this is what I see in the kernel log for test nvmeof-mp/002:
-> > > 
-> > > [  475.611363] BUG: unable to handle kernel NULL pointer dereference at 0000000000000020
-> > > [  475.621188] #PF error: [normal kernel read fault]
-> > > [  475.623148] PGD 0 P4D 0  
-> > > [  475.624737] Oops: 0000 [#1] PREEMPT SMP KASAN
-> > > [  475.626628] CPU: 1 PID: 277 Comm: kworker/1:1H Tainted: G    B             5.0.0-rc6-dbg+ #1
-> > > [  475.630232] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
-> > > [  475.633855] Workqueue: kblockd blk_mq_requeue_work
-> > > [  475.635777] RIP: 0010:__blk_recalc_rq_segments+0xbe/0x590
-> > > [  475.670948] Call Trace:
-> > > [  475.693515]  blk_recalc_rq_segments+0x2f/0x50
-> > > [  475.695081]  blk_insert_cloned_request+0xbb/0x1c0
-> > > [  475.701142]  dm_mq_queue_rq+0x3d1/0x770
-> > > [  475.707225]  blk_mq_dispatch_rq_list+0x5fc/0xb10
-> > > [  475.717137]  blk_mq_sched_dispatch_requests+0x256/0x300
-> > > [  475.721767]  __blk_mq_run_hw_queue+0xd6/0x180
-> > > [  475.725920]  __blk_mq_delay_run_hw_queue+0x25c/0x290
-> > > [  475.727480]  blk_mq_run_hw_queue+0x119/0x1b0
-> > > [  475.732019]  blk_mq_run_hw_queues+0x7b/0xa0
-> > > [  475.733468]  blk_mq_requeue_work+0x2cb/0x300
-> > > [  475.736473]  process_one_work+0x4f1/0xa40
-> > > [  475.739424]  worker_thread+0x67/0x5b0
-> > > [  475.741751]  kthread+0x1cf/0x1f0
-> > > [  475.746034]  ret_from_fork+0x24/0x30
-> > > 
-> > > (gdb) list *(__blk_recalc_rq_segments+0xbe)
-> > > 0xffffffff816a152e is in __blk_recalc_rq_segments (block/blk-merge.c:366).
-> > > 361                                                  struct bio *bio)
-> > > 362     {
-> > > 363             struct bio_vec bv, bvprv = { NULL };
-> > > 364             int prev = 0;
-> > > 365             unsigned int seg_size, nr_phys_segs;
-> > > 366             unsigned front_seg_size = bio->bi_seg_front_size;
-> > > 367             struct bio *fbio, *bbio;
-> > > 368             struct bvec_iter iter;
-> > > 369
-> > > 370             if (!bio)
+> > > [1] 5cf3e5ff95876, mm, memcg: fix reclaim deadlock with writeback
 > > 
-> > Just ran a few tests, and it also seems to cause about a 5% regression
-> > in per-core IOPS throughput. Prior to this work, I could get 1620K 4k
-> > rand read IOPS out of core, now I'm at ~1535K. The cycler stealer seems
-> > to be blk_queue_split() and blk_rq_map_sg().
+> > This is really commit 63f3655f9501 ("mm, memcg: fix reclaim deadlock
+> > with writeback") which was in 4.9.152, 4.14.94, 4.19.16, and 4.20.3 as
+> > well as 5.0-rc2.
 > 
-> Could you share us your test setting?
+> Since 4.10, we has [2] so it should be okay other (tree > 4.10)
 > 
-> I will run null_blk first and see if it can be reproduced.
+> > 
+> > > [2] b0b9b3df27d10, mm: stop leaking PageTables
+> > 
+> > This commit was in 4.10, so I am guessing that this really is just a
+> > backport of that commit?
+> 
+> Yub.
+> 
+> > 
+> > If so, it's not the full backport, why not take the whole thing?  Why
+> > only cherry-pick one chunk of it?  Why do we not need the other parts?
+> 
+> Because [2] actually aims for fixing [3] which was introduced at 4.10.
+> Since then, [1] relies on the chunk I sent. Thus we don't need other part
+> for 4.9.
+> 
+> [3] 953c66c2b22a ("mm: THP page cache support for ppc64")
 
-Looks this performance drop isn't reproduced on null_blk with the following
-setting by me:
+Hi Greg,
 
-- modprobe null_blk nr_devices=4 submit_queues=48
-- test machine : dual socket, two NUMA nodes, 24cores/socket
-- fio script:
-fio --direct=1 --size=128G --bsrange=4k-4k --runtime=40 --numjobs=48 --ioengine=libaio --iodepth=64 --group_reporting=1 --filename=/dev/nullb0 --name=randread --rw=randread
-
-result: 10.7M IOPS(base kernel), 10.6M IOPS(patched kernel)
-
-And if 'bs' is increased to 256k, 512k, 1024k, IOPS improvement can be ~8%
-with multi-page bvec patches in above test.
-
-BTW, there isn't cost added to bio_for_each_bvec(), so blk_queue_split() and
-blk_rq_map_sg() should be fine. However, bio_for_each_segment_all()
-may not be quick as before.
-
-
-Thanks,
-Ming
+Any chance to look into this patch?
 
