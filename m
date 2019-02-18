@@ -1,80 +1,78 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id l91FkE71010360
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 01:46:14 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l91Fk4hx4645086
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 01:46:04 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l91Fjms2025256
-	for <linux-mm@kvack.org>; Tue, 2 Oct 2007 01:45:48 +1000
-Message-ID: <4701161E.3030204@linux.vnet.ibm.com>
-Date: Mon, 01 Oct 2007 21:15:34 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+From: "Felicia Nix" <ray.quattlebaum@usu.edu>
+Subject: Probieren Sie es - Mann Lebt nur einmal  by either the FSA or -- applications. You 
+Date: Mon, 31 Sep 2007 17:03:06 +0100
+Message-ID: <0102ffa4$0102fe78$b68a56d9@ray.quattlebaum>
 MIME-Version: 1.0
-Subject: Re: [patch] splice mmap_sem deadlock
-References: <20070928160035.GD12538@wotan.suse.de> <20070928173144.GA11717@kernel.dk> <alpine.LFD.0.999.0709281109290.3579@woody.linux-foundation.org> <20070928181513.GB11717@kernel.dk> <alpine.LFD.0.999.0709281120220.3579@woody.linux-foundation.org> <20070928193017.GC11717@kernel.dk> <alpine.LFD.0.999.0709281247490.3579@woody.linux-foundation.org> <alpine.LFD.0.999.0709281303250.3579@woody.linux-foundation.org> <20071001120330.GE5303@kernel.dk> <alpine.LFD.0.999.0710010807360.3579@woody.linux-foundation.org>
-In-Reply-To: <alpine.LFD.0.999.0710010807360.3579@woody.linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_000E_0102FFA4.0102FE0C"
+Return-Path: <ray.quattlebaum@usu.edu>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> The comment is wrong.
-> 
-> On Mon, 1 Oct 2007, Jens Axboe wrote:
->>  
->>  /*
->> + * Do a copy-from-user while holding the mmap_semaphore for reading. If we
->> + * have to fault the user page in, we must drop the mmap_sem to avoid a
->> + * deadlock in the page fault handling (it wants to grab mmap_sem too, but for
->> + * writing). This assumes that we will very rarely hit the partial != 0 path,
->> + * or this will not be a win.
->> + */
-> 
-> Page faulting only grabs it for reading, and having a page fault happen is 
-> not problematic in itself. Readers *do* nest.
-> 
-> What is problematic is:
-> 
-> 	thread#1			thread#2
-> 
-> 	get_iovec_page_array
-> 	down_read()
-> 	.. everything ok so far ..
-> 					mmap()
-> 					down_write()
-> 					.. correctly blocks on the reader ..
-> 					.. everything ok so far ..
-> 
-> 	.. pagefault ..
-> 	down_read()
-> 	.. fairness code now blocks on the waiting writer! ..
-> 	.. oops. We're deadlocked ..
-> 
-> So the problem is that while readers do nest nicely, they only do so if no 
-> potential writers can possibly exist (which of course never happens: an 
-> rwlock with no writers is a no-op ;).
+This is a multi-part message in MIME format.
 
-Sounds very similar to the problems we had with CPU hotplug earlier.
-It's a rwlock locking anti-pattern. I know that recursive locks
-have been frowned upon earlier, but I wonder if there is a case here.
-Of-course recursive locks would not be *fair*.
+------=_NextPart_000_000E_0102FFA4.0102FE0C
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: 7bit
 
-The other solution of passing down lock ownership information is a pain.
+Haben Sie endlich wieder Spass am Leben!
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+Preise die keine Konkurrenz kennen 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+- Kein peinlicher Arztbesuch erforderlich
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Diskrete Verpackung und Zahlung
+- keine versteckte Kosten
+
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
+
+Nur fur kurze Zeit - vier Pillen umsonst erhalten
+http://coverpopulate.cn
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+
+
+------=_NextPart_000_000E_0102FFA4.0102FE0C
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+<META content=3D"text/html; charset=3Diso-8859-2" http-equiv=3DContent-Type>
+<META content=3D"MSHTML 6.00.2900.2180" name=3DGENERATOR></HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich finde Viiaaaagra=
+ einfach wunderbar. Egal, ob f&#252;r den Sex oder, um mich selbst zu verw&=
+#246;hnen: Es funktioniert. Mein Schwanz wird extrem hart und mein Orgasmus=
+ ist sehr intensiv. Die Wirkung ist so stark, dass ich Viiaaaagra nur am Wo=
+chenende verwende oder wenn ich viel Zeit habe, es richtig zu genie&#223;en=
+</strong></p><p><strong>Bin restlos begeistert. Bin 50 und schlage mich se=
+it einem guten Jahre damit herum, dass meinem Freund im entscheidenden Mome=
+nt die Standfestigkeit abhanden kommt. Aber nun ist es wie in allerbesten Z=
+eiten. 10 mg reichen f&#252;r ein sehr LUSTiges Weekend. Null Nebenwirkunge=
+n - abgesehen vom Muskelkater am n&#228;chten Tag. Aber der verschwindet ja=
+ durch ausreichendes Training ;-))<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><=
+p>Preise die keine Konkurrenz kennen <p>
+- Visa verifizierter Onlineshop<br>- Bequem und diskret online bestellen.<b=
+r>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Diskrete=
+ Verpackung und Zahlung<br>- Kein peinlicher Arztbesuch erforderlich<br>- K=
+ostenlose, arztliche Telefon-Beratung<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://coverpopulate.cn" target=3D"_blank">Nur fur kurze Zeit - vier Pille=
+n umsonst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die S=
+eite vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
+
+------=_NextPart_000_000E_0102FFA4.0102FE0C--
