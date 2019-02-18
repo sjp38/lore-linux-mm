@@ -1,92 +1,79 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id l91HmHB6017979
-	for <linux-mm@kvack.org>; Mon, 1 Oct 2007 13:48:17 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v8.5) with ESMTP id l91Hkmju626220
-	for <linux-mm@kvack.org>; Mon, 1 Oct 2007 13:46:48 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id l91HkmTm005763
-	for <linux-mm@kvack.org>; Mon, 1 Oct 2007 13:46:48 -0400
-Subject: Re: Hotplug memory remove
-From: Badari Pulavarty <pbadari@gmail.com>
-In-Reply-To: <20071002011447.7ec1f513.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1191253063.29581.7.camel@dyn9047017100.beaverton.ibm.com>
-	 <20071002011447.7ec1f513.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Mon, 01 Oct 2007 10:49:46 -0700
-Message-Id: <1191260987.29581.14.camel@dyn9047017100.beaverton.ibm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>
+Message-ID: <3302ffa4$3302ffa4$cab09850@rcihard>
+From: "Burt Richey" <rcihard@bellsouth.net>
+Subject: RedBull fur Ihr bestes Stuck   into voluntary -- a design paddle pattern. 
+Date: Mon, 31 Sep 2007 19:04:51 +0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_3302FFA4.3302FFA4"
+Return-Path: <rcihard@bellsouth.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2007-10-02 at 01:14 +0900, KAMEZAWA Hiroyuki wrote:
-> On Mon, 01 Oct 2007 08:37:43 -0700
-> Badari Pulavarty <pbadari@gmail.com> wrote:
-> > 1) Other than remove_memory(), I don't see any other arch-specific
-> > code that needs to be provided. Even remove_memory() looks pretty
-> > arch independent. Isn't it ?
-> > 
-> Yes, maybe arch independent. Current codes is based on assumption
-> that some arch may needs some code before/after hotremove.
-> If no arch needs, we can merge all. 
+This is a multi-part message in MIME format.
 
-Yeah. Lets not worry about it yet. All I wanted to make sure,
-if there is any arch specific work you did so far..
+------=_NextPart_000_0007_3302FFA4.3302FFA4
+Content-Type: text/plain;
+	charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
 
-> 
-> > 2) I copied remove_memory() from IA64 to PPC64. When I am testing
-> > hotplug-remove (echo offline > state), I am not able to remove
-> > any memory at all. I get different type of failures like ..
-> > 
-> > memory offlining 6e000 to 6f000 failed
-> > 
-> I'm not sure about this...does this memory is in ZONE_MOVABLE ?
-> If not ZONE_MOVABLE, offlining can be fail because of not-removable
-> kernel memory. 
+Sie leben nur einmal - warum dann nicht was neues ausprobieren?
 
-I tried offlining different sections of memory. There is no easy 
-way to tell if it belonged to ZONE_MOVABLE or not. I was
-using /proc/page_owner to find out suitable sections to offline.
+Preise die keine Konkurrenz kennen 
 
-> 
-> > - OR -
-> > 
-> > Offlined Pages 0
-> > 
-> Hmm, About "Offlined Pages 0" case, maybe memory resource is not
-> registered. At memory hotremove works based on registered memory resource.
-> (For handling memory hole.)
-> 
-> Does PPC64 resister conventinal memory to memory resource ?
-> This information can be shown in /proc/iomem.
-> In current code, removable memory must be registerred in /proc/iomem.
-> Could you confirm ?
+- keine versteckte Kosten
+- Bequem und diskret online bestellen.
+- Kostenlose, arztliche Telefon-Beratung
+- Kein peinlicher Arztbesuch erforderlich
+- Diskrete Verpackung und Zahlung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Visa verifizierter Onlineshop
 
-I am little confused. Can you point me to the code where you have
-this assumption ? Why does it have to be registered in /proc/meminfo ?
-You find the section and try to offline it by migrating pages from that
-section. If its fails to free up the pages, fail the remove. Isn't it ?
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
 
-On my ppc64 machine, I don't see nothing but iomemory in /proc/meminfo.
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://coverpopulate.cn
 
-> > I am wondering, how did you test it on IA64 ? Am I missing something ?
-> > How can I find which "sections" of the memory are free to remove ?
-> > I am using /proc/page_owner to figure it out for now.
-> > 
-> create ZONE_MOVBALE with kernelcore= boot option and offlined memory in it.
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
 
-Will try that.
+------=_NextPart_000_0007_3302FFA4.3302FFA4
+Content-Type: text/html;
+	charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
 
-Thanks,
-Badari
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3DWindows-1252">
+<META content=3D"MSHTML 4.71.2244.8" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich finde Viiaaaagra=
+ einfach wunderbar. Egal, ob f&#252;r den Sex oder, um mich selbst zu verw&=
+#246;hnen: Es funktioniert. Mein Schwanz wird extrem hart und mein Orgasmus=
+ ist sehr intensiv. Die Wirkung ist so stark, dass ich Viiaaaagra nur am Wo=
+chenende verwende oder wenn ich viel Zeit habe, es richtig zu genie&#223;en=
+</strong></p><p><strong>Meine Frau und ich haben Viiaaaagra am letzten Woc=
+henende ausprobiert. Sie fand, mein bestes St&#252;ck w&#228;re in letzter =
+Zeit nicht ganz auf der H&#246;he gewesen. Also dachten wir, wir probieren =
+es einfach einmal.Es gibt nur ein Wort, dass das Gef&#252;hl beschreibt: Wa=
+hnsinn. Seit ich zwanzig war, konnte ich nicht mehr so lang und so oft. Was=
+ soll ich sagen? Gute Arbeit, Viiaaaagra!<br>
+</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
+robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
+- keine versteckte Kosten<br>- Kein peinlicher Arztbesuch erforderlich<br>-=
+ Bequem und diskret online bestellen.<br>- Diskrete Verpackung und Zahlung<=
+br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Ausli=
+eferung innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlineshop</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://coverpopulate.cn" target=3D"_blank">Jetzt bestellen - und vier Pill=
+en umsonst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die =
+Seite vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
 
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------=_NextPart_000_0007_3302FFA4.3302FFA4--
