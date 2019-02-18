@@ -2,270 +2,165 @@ Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E0E94C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 14:05:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 23F90C4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 14:11:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9A2A521902
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 14:05:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A2A521902
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id ED3DB21901
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 14:11:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED3DB21901
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5444F8E0003; Mon, 18 Feb 2019 09:05:48 -0500 (EST)
+	id 89AB08E0003; Mon, 18 Feb 2019 09:11:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4F4D48E0002; Mon, 18 Feb 2019 09:05:48 -0500 (EST)
+	id 8238C8E0002; Mon, 18 Feb 2019 09:11:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3E3898E0003; Mon, 18 Feb 2019 09:05:48 -0500 (EST)
+	id 7129C8E0003; Mon, 18 Feb 2019 09:11:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F11818E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 09:05:47 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id b12so1935818pgj.7
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 06:05:47 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1330D8E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 09:11:52 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id d62so7275143edd.19
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 06:11:52 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=8znrEN/KSEjIE5Asxx51O0sd1cC1JmUI0dY1rAUSXHk=;
-        b=owRYNiCsiTJvfgBbIBNSucjPEiPCe90dRSYKBCwOkA/inHf8xxBhPJfPeGlFseDDo9
-         Bw0bRHBiLRKHYmjehA+ALISaCn0ZY4tIPZPKNvbUFrbDt+DCf9u9KMiSbFHGGAgk/23E
-         8xBgxLag/He1BOHH47KXbvsPuYA9YsoCJswg7aipojSLYAW1/7b2IXrD9jn+XV8s1cu7
-         kI2DJJNlhQPvkZspvj+qq+crEI/DKZfOw/akL7v4p3kqGbqDblr5+JBj0wPFNWzp/7Ov
-         Qp3hH5im+ZOwPmkena+5qgY4AU909mO/CpgC3SrxWpquLZ9vBzV5lqV/URWzup6YxEhq
-         jTQg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuZY8J8a8SCyqHGfUxnCEuQAtaeOcxqwquQIm/lVGqd3MjNNdGGo
-	Ok9F1ZQ/7rBFhPiLRD9hO21Mie2idPYFW5kv8fau0Wk+Cq9qzh6mnD+CXQk8bYiIWrcWkXHam+9
-	ITmUvBX71pOdlwvYf09Tu85Yj0JByl5wSt2PX3l5FflBAVd27avIdhH4g4jMexdplig==
-X-Received: by 2002:a17:902:7006:: with SMTP id y6mr11792878plk.260.1550498747579;
-        Mon, 18 Feb 2019 06:05:47 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYpjFO36pGNLCQCKFBQ+LaV4ItuzG3Rh2hlsa9GUw6DVjxF7tVEXjHu/Ug1USmiId5Niu6q
-X-Received: by 2002:a17:902:7006:: with SMTP id y6mr11792753plk.260.1550498746040;
-        Mon, 18 Feb 2019 06:05:46 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550498746; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=xqoNOqg1iSXVBFpRUeWxRSzvi5/YhOf8aybzzzeil2A=;
+        b=hgOYA5Hhw125X8QibqKJbk7rHe5lF/4xht2WpI9XhWIgcl7hi0+hWnF46teSVnxlT1
+         9SA8oUarKtycKo7qRMRq8H4NVlYJ2XsLypOLla5+bA+XdzmUfaYgIrdeVBj0oB5rzjBi
+         d2UXIqBz2dkzodrNI513k96yxM7poZd71Vya6KK4mfmntC9Hu8AjJanswAfCDWmYHIfN
+         MWj6D2HjzM0ri5joZ4oyyYhqmVICDAjkXwbRtKA9DXtmOXQjzW9uUP/Pb7TqsUyOvdMB
+         V1Psm2nRFjGpMfEo3UAvR0AcsCZGc4XBMYZ2QE0gry7FjUdPUS2qCo10QTl5aM7kpIUA
+         2KvQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: AHQUAubW+pNw2YYyzh5WmzD68MsdosDYbo27v6TZaX39EFuKzxgEdvVx
+	DeLQX6ZZUo7KvUSRY38dFsS7XR+2EWkaQ2N2AaYINEZx5O0BBciX5AthbqKmQp8jcPyz0AwMpja
+	0ypBLikdOeMuZPcVg7PEGT38tFEYgqMJM7lLJccVkuMaQWyW6VmMGU+5c8AH4uwHw8Q==
+X-Received: by 2002:aa7:d1d7:: with SMTP id g23mr18482280edp.217.1550499111617;
+        Mon, 18 Feb 2019 06:11:51 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYv0oRKUd0nyBK6WaSbVun0843Ty1ATzmDU65JLV92pWCB4umiSjQszHu8ABZZAsEc00euY
+X-Received: by 2002:aa7:d1d7:: with SMTP id g23mr18482214edp.217.1550499110641;
+        Mon, 18 Feb 2019 06:11:50 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550499110; cv=none;
         d=google.com; s=arc-20160816;
-        b=yDpWW2+HxwHjlVVWNXti1a5+FFeD0Ahj9ydrTAuF67973cqiYddL6iu0ltx+S2kE+s
-         7cyRmuAn2Fnlyv7XwJp150oJQpnla7Vael76LYWUSn8Itu5Gfg4g0z/yYLbXhUr2R/dr
-         sATU3KvqIUQcoD52pz9uhqYGBBWKSi2s6tHOEA4RVGEimStX3boHcEOv93g4ov1mBIZm
-         zfWfXq7Khg5XBuTd6bIOCBAvG4jhw5JZprPDSsWQwxVEahwMcYLqCNd2TcFABd4hYRm6
-         einRng16bvPoNJOD8yFJlzPH+PuhQD7os4Rs027VRJUiuG5RIBB1b8T7tOiO76i2lWPF
-         jmow==
+        b=LP0NW1vbG1DlwkadkQAh28Yo7EFLPeYLS9ghqhchylsTwpD49LlOPg51SazWcEA3l2
+         YjXH9YYjwSFr+1H3KMseKact6GxOkvdeLh3wRrZUKXn4finc9H0YUH0RJ0WLepIWBa46
+         DxyBSARpeAyNDNUe+n5aSr9tYEv7NrsDkwi09mgJH9QRlZPES1GRlwub6ySs5sRzMFb7
+         CN20dXM4GNncvMPag7u82cadfIlu37TFfLjuWu1M0ei5Obz50wlO6wv9dUotlrZU1M3y
+         oBkEoYR54dY+0RlGARDz4+c3IgPQeZIuocQP6KfL9XzBK7CWdSUYwOeRNgrcgUduVmWM
+         8Jiw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=8znrEN/KSEjIE5Asxx51O0sd1cC1JmUI0dY1rAUSXHk=;
-        b=xwkMSA2ZLHaG1xf6qQmxLaCiwTlqx/WUjoYaiMc225IC8kZobigeUn8grNQCna6kMd
-         ixJYSzzpnrLniIxaV2IGPYbGAYYfXLHjpqnePcISWuQvqFK8GxtgckBRjWjj0CAtj2JA
-         pxeiyAkReZUqye7pZ9oEjcMSpkzjThOe1hVLFIEwEavXicHUz7mTWJ3wvYPtgsz/TwWr
-         RUcVSmnNqXYrCWF/uouSWZqtuF0msYolShmuHNBFkE3zD7WLaylD1OQ3D45ku8NRdPZ1
-         D+gwzLugb2pi3N6OSnOZyMznJ2emK3FwKML/CV9wA4iLrx/mraYEPRere/qOQ3qvhAli
-         xA3Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=xqoNOqg1iSXVBFpRUeWxRSzvi5/YhOf8aybzzzeil2A=;
+        b=f0FCE8UF2q4zDhHVxHyqQsSiNfdOzsKFmtRlj1y/FiwSGC/Yfb1m7CBLLuAWt4B5gi
+         Oaz4Ew5y0B8lRQYia312lHtqcMHD72LXCza6eNuwhQO0+c4NFxkQXdqxxSlhqBFIHxtC
+         QSGzIE/36zBnm6f1fCIFylOfaPj1C56GiPnybvasPy2eOZkaIPJsrHVIksFIcznd2aDu
+         ExvI1X8hrssNM0qLfV2vPKnGE2J9kyS7CVF8gscGPja2gcpFNkG9xZAUagFIKYpl7RNF
+         xBdlE7ZZaf9PwlzhK6I9LrEqaFPE+jlbJAkkJWv0RMBYks68xOPrI24JREmG8Q9i7ljL
+         Vmqg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id j16si2110524pfe.152.2019.02.18.06.05.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Feb 2019 06:05:46 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id n17si1686645edd.333.2019.02.18.06.11.46
+        for <linux-mm@kvack.org>;
+        Mon, 18 Feb 2019 06:11:50 -0800 (PST)
+Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1IE4qgC013870
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 09:05:45 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qqwmn1xaf-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 09:05:38 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 18 Feb 2019 14:05:23 -0000
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 18 Feb 2019 14:05:20 -0000
-Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1IE5JPa11468970
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 18 Feb 2019 14:05:19 GMT
-Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id ED46352057;
-	Mon, 18 Feb 2019 14:05:18 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.207.239])
-	by d06av21.portsmouth.uk.ibm.com (Postfix) with ESMTPS id CFC495204E;
-	Mon, 18 Feb 2019 14:05:17 +0000 (GMT)
-Date: Mon, 18 Feb 2019 16:05:15 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Rong Chen <rong.a.chen@intel.com>,
-        Pavel Tatashin <pasha.tatashin@soleen.com>,
-        linux-kernel@vger.kernel.org,
-        Linux Memory Management List <linux-mm@kvack.org>,
-        Andrew Morton <akpm@linux-foundation.org>, LKP <lkp@01.org>,
-        Oscar Salvador <osalvador@suse.de>
-Subject: Re: [LKP] efad4e475c [ 40.308255] Oops: 0000 [#1] PREEMPT SMP PTI
-References: <20190218052823.GH29177@shao2-debian>
- <20190218070844.GC4525@dhcp22.suse.cz>
- <20190218085510.GC7251@dhcp22.suse.cz>
- <4c75d424-2c51-0d7d-5c28-78c15600e93c@intel.com>
- <20190218103013.GK4525@dhcp22.suse.cz>
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5EB10A78;
+	Mon, 18 Feb 2019 06:11:45 -0800 (PST)
+Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id ACC763F589;
+	Mon, 18 Feb 2019 06:11:42 -0800 (PST)
+Subject: Re: [PATCH 01/13] arm64: mm: Add p?d_large() definitions
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>, Arnd Bergmann <arnd@arndb.de>,
+ Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>,
+ James Morse <james.morse@arm.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+ <jglisse@redhat.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Will Deacon <will.deacon@arm.com>, x86@kernel.org,
+ "H. Peter Anvin" <hpa@zytor.com>, linux-arm-kernel@lists.infradead.org,
+ linux-kernel@vger.kernel.org
+References: <20190215170235.23360-1-steven.price@arm.com>
+ <20190215170235.23360-2-steven.price@arm.com>
+ <20190218112922.GT32477@hirez.programming.kicks-ass.net>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <fe36ed1c-b90d-8062-f7a9-e52d940733c4@arm.com>
+Date: Mon, 18 Feb 2019 14:11:40 +0000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190218103013.GK4525@dhcp22.suse.cz>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19021814-0016-0000-0000-00000257CD78
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19021814-0017-0000-0000-000032B20D41
-Message-Id: <20190218140515.GF25446@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-18_10:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902180106
+In-Reply-To: <20190218112922.GT32477@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 18, 2019 at 11:30:13AM +0100, Michal Hocko wrote:
-> On Mon 18-02-19 18:01:39, Rong Chen wrote:
-> > 
-> > On 2/18/19 4:55 PM, Michal Hocko wrote:
-> > > [Sorry for an excessive quoting in the previous email]
-> > > [Cc Pavel - the full report is http://lkml.kernel.org/r/20190218052823.GH29177@shao2-debian[]
-> > > 
-> > > On Mon 18-02-19 08:08:44, Michal Hocko wrote:
-> > > > On Mon 18-02-19 13:28:23, kernel test robot wrote:
-> > > [...]
-> > > > > [   40.305212] PGD 0 P4D 0
-> > > > > [   40.308255] Oops: 0000 [#1] PREEMPT SMP PTI
-> > > > > [   40.313055] CPU: 1 PID: 239 Comm: udevd Not tainted 5.0.0-rc4-00149-gefad4e4 #1
-> > > > > [   40.321348] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
-> > > > > [   40.330813] RIP: 0010:page_mapping+0x12/0x80
-> > > > > [   40.335709] Code: 5d c3 48 89 df e8 0e ad 02 00 85 c0 75 da 89 e8 5b 5d c3 0f 1f 44 00 00 53 48 89 fb 48 8b 43 08 48 8d 50 ff a8 01 48 0f 45 da <48> 8b 53 08 48 8d 42 ff 83 e2 01 48 0f 44 c3 48 83 38 ff 74 2f 48
-> > > > > [   40.356704] RSP: 0018:ffff88801fa87cd8 EFLAGS: 00010202
-> > > > > [   40.362714] RAX: ffffffffffffffff RBX: fffffffffffffffe RCX: 000000000000000a
-> > > > > [   40.370798] RDX: fffffffffffffffe RSI: ffffffff820b9a20 RDI: ffff88801e5c0000
-> > > > > [   40.378830] RBP: 6db6db6db6db6db7 R08: ffff88801e8bb000 R09: 0000000001b64d13
-> > > > > [   40.386902] R10: ffff88801fa87cf8 R11: 0000000000000001 R12: ffff88801e640000
-> > > > > [   40.395033] R13: ffffffff820b9a20 R14: ffff88801f145258 R15: 0000000000000001
-> > > > > [   40.403138] FS:  00007fb2079817c0(0000) GS:ffff88801dd00000(0000) knlGS:0000000000000000
-> > > > > [   40.412243] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> > > > > [   40.418846] CR2: 0000000000000006 CR3: 000000001fa82000 CR4: 00000000000006a0
-> > > > > [   40.426951] Call Trace:
-> > > > > [   40.429843]  __dump_page+0x14/0x2c0
-> > > > > [   40.433947]  is_mem_section_removable+0x24c/0x2c0
-> > > > This looks like we are stumbling over an unitialized struct page again.
-> > > > Something this patch should prevent from. Could you try to apply [1]
-> > > > which will make __dump_page more robust so that we do not blow up there
-> > > > and give some more details in return.
-> > > > 
-> > > > Btw. is this reproducible all the time?
-> > > And forgot to ask whether this is reproducible with pending mmotm
-> > > patches in linux-next.
-> > 
-> > 
-> > Do you mean the below patch? I can reproduce the problem too.
+On 18/02/2019 11:29, Peter Zijlstra wrote:
+> On Fri, Feb 15, 2019 at 05:02:22PM +0000, Steven Price wrote:
 > 
-> Yes, thanks for the swift response. The patch has just added a debugging
-> output
-> [    0.013697] Early memory node ranges
-> [    0.013701]   node   0: [mem 0x0000000000001000-0x000000000009efff]
-> [    0.013706]   node   0: [mem 0x0000000000100000-0x000000001ffdffff]
-> [    0.013711] zeroying 0-1
+>> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+>> index de70c1eabf33..09d308921625 100644
+>> --- a/arch/arm64/include/asm/pgtable.h
+>> +++ b/arch/arm64/include/asm/pgtable.h
+>> @@ -428,6 +428,7 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+>>  				 PMD_TYPE_TABLE)
+>>  #define pmd_sect(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
+>>  				 PMD_TYPE_SECT)
+>> +#define pmd_large(x)		pmd_sect(x)
+>>  
+>>  #if defined(CONFIG_ARM64_64K_PAGES) || CONFIG_PGTABLE_LEVELS < 3
+>>  #define pud_sect(pud)		(0)
+>> @@ -435,6 +436,7 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+>>  #else
+>>  #define pud_sect(pud)		((pud_val(pud) & PUD_TYPE_MASK) == \
+>>  				 PUD_TYPE_SECT)
+>> +#define pud_large(x)		pud_sect(x)
+>>  #define pud_table(pud)		((pud_val(pud) & PUD_TYPE_MASK) == \
+>>  				 PUD_TYPE_TABLE)
+>>  #endif
 > 
-> This is the first pfn.
+> So on x86 p*d_large() also matches p*d_huge() and thp, But it is not
+> clear to me this p*d_sect() thing does so, given your definitions.
 > 
-> [    0.013715] zeroying 9f-100
+> See here why I care:
 > 
-> this is [mem 0x9f000, 0xfffff] so it fills up the whole hole between the
-> above two ranges. This is definitely good.
-> 
-> [    0.013722] zeroying 1ffe0-1ffe0
-> 
-> this is a single page at 0x1ffe0000 right after the zone end.
-> 
-> [    0.013727] Zeroed struct page in unavailable ranges: 98 pages
-> 
-> Hmm, so this is getting really interesting. The whole zone range should
-> be covered. So this is either some off-by-one or I something that I am
-> missing right now. Could you apply the following on top please? We
-> definitely need to see what pfn this is.
-> 
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 124e794867c5..59bcfd934e37 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1232,12 +1232,14 @@ static bool is_pageblock_removable_nolock(struct page *page)
->  /* Checks if this range of memory is likely to be hot-removable. */
->  bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
->  {
-> -	struct page *page = pfn_to_page(start_pfn);
-> +	struct page *page = pfn_to_page(start_pfn), *first_page;
->  	unsigned long end_pfn = min(start_pfn + nr_pages, zone_end_pfn(page_zone(page)));
->  	struct page *end_page = pfn_to_page(end_pfn);
-> 
->  	/* Check the starting page of each pageblock within the range */
-> -	for (; page < end_page; page = next_active_pageblock(page)) {
-> +	for (first_page = page; page < end_page; page = next_active_pageblock(page)) {
-> +		if (PagePoisoned(page))
-> +			pr_info("Unexpected poisoned page %px pfn:%lx\n", page, start_pfn + page-first_page);
->  		if (!is_pageblock_removable_nolock(page))
->  			return false;
->  		cond_resched();
-
-I've added more prints and somehow end_page gets too big (in brackets is
-the pfn):
-
-[   11.183835] ===> start: ffff88801e240000(0), end: ffff88801e400000(8000)
-[   11.188457] ===> start: ffff88801e400000(8000), end: ffff88801e640000(10000)
-[   11.193266] ===> start: ffff88801e640000(10000), end: ffff88801e060000(18000)
-
-                                                 should be ffff88801e5c0000
-
-[   11.197363] ===> start: ffff88801e060000(18000), end: ffff88801e21f900(1ffe0)
-[   11.207547] Unexpected poisoned page ffff88801e5c0000 pfn:10000
-
-
-With the patch below the problem seem to disappear, although I have no idea
-why...
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 91e6fef..53d15ff 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1234,7 +1234,7 @@ bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
- {
- 	struct page *page = pfn_to_page(start_pfn);
- 	unsigned long end_pfn = min(start_pfn + nr_pages, zone_end_pfn(page_zone(page)));
--	struct page *end_page = pfn_to_page(end_pfn);
-+	struct page *end_page = page + (end_pfn - start_pfn);
- 
- 	/* Check the starting page of each pageblock within the range */
- 	for (; page < end_page; page = next_active_pageblock(page)) {
-
-
-> -- 
-> Michal Hocko
-> SUSE Labs
+>   http://lkml.kernel.org/r/20190201124741.GE31552@hirez.programming.kicks-ass.net
 > 
 
--- 
-Sincerely yours,
-Mike.
+pmd_huge()/pud_huge() unfortunately are currently defined as '0' if
+!CONFIG_HUGETLB_PAGE and for this reason I was avoiding using them.
+While most code would reasonably not care about huge pages in that build
+configuration, the likes of the debugfs page table dump code needs to be
+able to recognise them in all build configurations. I believe the
+situation is the same on arm64 and x86.
+
+The other quirk is that higher levels are not supported for HUGETLB on
+some arch implementations. For example arm64 provides no definition for
+pgd_huge() so falls back to the generic defined as '0' implementation.
+The only architecture I can see that defines this is powerpc. Keeping
+this as '0' ensures that the otherwise dead code in other places is
+compiled out.
+
+Where p?d_huge is defined by the arch code the intention is that
+p?d_large(x)==p?d_huge(x).
+
+Thanks,
+
+Steve
 
