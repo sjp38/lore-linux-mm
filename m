@@ -1,31 +1,54 @@
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [discuss] [PATCH] Inconsistent mmap()/mremap() flags
-Date: Tue, 2 Oct 2007 15:45:32 +0200
-References: <1190958393.5128.85.camel@phantasm.home.enterpriseandprosperity.com> <1191308772.5200.66.camel@phantasm.home.enterpriseandprosperity.com> <Pine.LNX.4.64.0710021304230.26719@blonde.wat.veritas.com>
-In-Reply-To: <Pine.LNX.4.64.0710021304230.26719@blonde.wat.veritas.com>
+Date: Tue, 32 Sep 2007 16:52:02 +0300
+From: "Isabelle Rubio" <rawford@poetravel.com>
+Reply-To: rawford@poetravel.com
+Message-ID: <295820765.43500627078560@poetravel.com>
+Subject: Potenzschwache - wir haben die Losung  agency for China or  -- somewhere in the world
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200710021545.32556.ak@suse.de>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: discuss@x86-64.org
-Cc: Hugh Dickins <hugh@veritas.com>, Thayne Harbaugh <thayne@c2.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: multipart/alternative;
+  boundary="----------CEDAF0CE670534"
+Return-Path: <rawford@poetravel.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> First call mmap with a low hint address, the new size you'll be wanting
-> from the mremap, PROT_NONE, MAP_ANONYMOUS, -1, 0.  Then call mremap with
-> old address, old size, new size, MREMAP_MAYMOVE|MREMAP_FIXED, and new
-> address as returned by the preparatory mmap.
+------------CEDAF0CE670534
+Content-Type: text/plain; charset=Windows-1252
+Content-Transfer-Encoding: 7bit
 
-That's racy unfortunately in a multithreaded process. They would need to loop.
+Haben Sie endlich wieder Spass am Leben!
 
--Andi
+Preise die keine Konkurrenz kennen 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+- Diskrete Verpackung und Zahlung
+- Bequem und diskret online bestellen.
+- Visa verifizierter Onlineshop
+- Kein peinlicher Arztbesuch erforderlich
+- Kostenlose, arztliche Telefon-Beratung
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- keine versteckte Kosten
+
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
+
+Klicken Sie HIER und Sie erhalten vier Dosen umsonst
+http://equatehappen.cn
+
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
+------------CEDAF0CE670534
+Content-Type: text/html; charset=Windows-1252
+Content-Transfer-Encoding: 7bit
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+</HEAD>
+<BODY>
+
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich glaube, ich habe bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jetzt noch nie Nebenwirkungen durch Viiaaaagra - au&#223;er einer brettharten Latte, und das f&#252;r Stunden.</strong></p><p><strong>Ich muss sagen, Ciaaaalis ist wirklich nochmals viel besser als Viiaaaagra. Es ist alles viel nat&#252;rlicher als mit Viiaaaagra. Aufgrund der langen Wirkungszeit von 24 Stunden kann man sich richtig Zeit lassen und mehrer Runden einlegen.<br>
+</strong><strong><br>Haben Sie endlich wieder Spass am Leben!</strong></p><p>Preise die keine Konkurrenz kennen <p>
+- Bequem und diskret online bestellen.<br>- Kostenlose, arztliche Telefon-Beratung<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Visa verifizierter Onlineshop<br>- Kein peinlicher Arztbesuch erforderlich<br>- Diskrete Verpackung und Zahlung<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong><br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href="http://equatehappen.cn" target="_blank">Klicken Sie HIER und Sie erhalten vier Dosen umsonst</a><br></strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
+
+</BODY></HTML>
+------------CEDAF0CE670534--
