@@ -1,106 +1,83 @@
-Date: Thu, 11 Jul 2002 20:18:25 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] Optimize out pte_chain take three
-In-Reply-To: <3D2E08DE.3C0D619@zip.com.au>
-Message-ID: <Pine.LNX.4.44L.0207112011150.14432-100000@imladris.surriel.com>
+From: "Dr.Paul Collins U." <paul_uc400@hotmail.com>
+Date: Fri, 12 Jul 2002 03:27:57
+Subject: I need Partner.
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <20020712022047Z26621-954+94@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Jul 2002, Andrew Morton wrote:
-
-> > generic_file_write() calls deactivate_page() if it crosses
-> > the page boundary (ie. if it is done writing this page)
->
-> Ah, OK.  I tried lots of those sorts of things.  But fact is
-> that moving the unwanted pages to the far of the inactive list
-> just isn't effective: pagecache which will be used at some time
-> in the future always ends up getting evicted.
-
-There's no way around that, unless you know your application
-workload well enough to be able to predict the future.
+Dear Sir,
 
 
-> But yes, at some point you do need to stop carving away at the
-> clean pagecache and wait on writeback completion.  Not sure
-> how to balance that.
-
-Keeping all the pages on the same LRU would be a start.
-There's no reason you couldn't start (or even finish)
-writeout of the dirty pages before they reach the end
-of the LRU.  If a page is still dirty when it reaches
-the end of the LRU it can be moved aside onto a laundry
-list, from where it gets freed after IO completes.
-
-As soon as you start putting dirty pages on a different
-LRU list we'll almost certainly lose the ability to
-balance things.
+I am Dr Paul Collins, corporate banker in Zenith International Bank of
+Nigeria, Lagos Branch. I have urgent and very confidential business
+proposition for you.
+On June 6, 1998, an American Oil Consultant/Contractor with the
+Nigeria National Petroleum Corporation, Mr. Robert Noel made a
+numbered time (Fixed) Deposit for twelve calendar months, valued at
+US$25,000,000.00 (Twenty-five Million US dollars only) in my branch.
 
 
-> Suppose you're running a massive `dd of=foo'.  Some innocent
-> task tries to allocate a page and hits a dirty one.  It
-> sleeps in get_request_wait().  dd is sleeping there too.
-> Now 32 requests complete and both tasks get woken.  The innocent
-> page allocator starts running again.  And `dd' immediately jams
-> another 32 requests into the queue.  It's very unfair.
+Upon maturity, I sent a routine notification to his forwarding
+address but got no reply. After a month, we sent a reminder and
+finally we discovered from his contract employers, the Nigeria
+National Petroleum Corporation that Mr. Robert Noel died from an
+automobile crash. On further investigation, I found out that he died
+without making a "WILL", and all attempt to trace his next of kin was
+fruitless.
+I therefore made further investigation and discovered that Mr. Robert
+Noel did not declare any kin relations in all his official documents,
+including his Bank Deposit paper work in my Bank. This sum of
+US$35,000,000.00 only is still in my bank and the interest is being
+rolled over with the principal sum at the end of each year. No one
+will ever come foreword to claim it.
 
-Fixing this unfairness when the queue is "almost full"
-is probably a useful thing to do.
+According to Nigeria Law, at the
+expiration of 5 (five) years, the money will revert to the ownership
+of the Nigeria Government if nobody applies to claim the fund.
+Consequently, my proposal is that I will like you to stand in as the
+next of kin to Mr. Robert Noel so that the fruit of the old man's
+labour will not get into the hands of some corrupt government
+officials. 
 
+This is simple, I will like you to provide immediately
+your full names and address so that the Attorney will prepare the
+necessary documents and affidavits, which will put you in place as
+the next of kin. We shall employ the service of two Attorneys for
+drafting and notarization of the "WILL" and to obtain the necessary
+documents and letter of probate/administration in your favour for the
+transfer. 
 
-> > Keeping them on the LRU _does_ make sense since we know
-> > when we want to evict these pages.  Putting them aside
-> > on a laundry list might make sense though, provided that
-> > they are immediately made a candidate for replacement
-> > after IO completion.
->
-> Yes, well that's basically what we do now, if you're referring
-> to PageWriteback (used to be PageLocked) pages.  We just shove
-> them onto the far end of the LRU and hope they don't come back
-> until IO completes.
+A Bank account in any part of the world, which you will
+provide, will then facilitate the transfer of this of this money to
+you as the beneficiary/next of kin. The money will be paid into your
+account for us to share in the ratio of 60% for me and 40% for you.
+There is no risk at all as the paper work for this transaction will
+be done by the Attorney and my position as a senior Manager
+guarantees the successful execution of this transaction. If you are
+interested, please reply immediately via my private e-mai address
+above. 
 
-Which is wrong, not only because these pages have reached the
-end of the LRU and want to get replaced, but also because we
-just don't want to go through the trouble of scanning them
-again.
-
-This would be a good place to catch these pages and put them
-on a separate list from which they go to the free list once
-IO completes.
-
-
-> > > > ...
-> > > > If the throttling is wrong, I propose we fix the trottling.
-> > >
-> > > How?  (Without adding more list scanning)
-> >
-> > For one, we shouldn't let every process go into
-> > try_to_free_pages() and check for itself if the
-> > pages really aren't freeable.
->
-> mm.  Well we do want processes to go in and reclaim their own
-> pages normally, to avoid a context switch (I guess.  No numbers
-> to back this up).
-
-Falling from __alloc_pages into the pageout path shouldn't be
-part of the fast path.  If it is we have bigger problems...
+Upon your response, I shall then provide you with more details
+and relevant documents that will help you understand the transaction.
+Please observe utmost confidentiality, and be rest assured that this
+transaction would be most profitable for both of us because I shall
+require your assistance to invest my share in your country.
 
 
-> But I think killing batch_requests may make all this rather better.
+Awaiting your urgent reply by e-mail.
 
-Probably.
 
-regards,
+Thanks and regards
 
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
 
-http://www.surriel.com/		http://distro.conectiva.com/
+Dr. Paul Collins U.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
