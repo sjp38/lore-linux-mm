@@ -2,152 +2,201 @@ Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AC628C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 09:16:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B892FC4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 09:27:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 738342184E
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 09:16:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 738342184E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 66A8B21738
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 09:27:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66A8B21738
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0A4518E0005; Mon, 18 Feb 2019 04:16:29 -0500 (EST)
+	id CD1AD8E0005; Mon, 18 Feb 2019 04:27:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 054A98E0002; Mon, 18 Feb 2019 04:16:29 -0500 (EST)
+	id C80248E0002; Mon, 18 Feb 2019 04:27:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E85838E0005; Mon, 18 Feb 2019 04:16:28 -0500 (EST)
+	id B96CD8E0005; Mon, 18 Feb 2019 04:27:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A1918E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 04:16:28 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id c53so6945623edc.9
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 01:16:28 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 78ACA8E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 04:27:52 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id h70so13309229pfd.11
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 01:27:52 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=QSd1Ak0wqqWuI3DaxeXT3BfhjDbcISdj4h6hnpJFMuE=;
-        b=mUk988rOWGVEcom1dzJwxtNWFt8vdb+olLSMSjGDqL4sYIIRSuajl0f+sxh+uya3sb
-         r77LP5NB3+KxYspL2d7ABQbNeo8LY8hKZ2SwU7G5rUFbH13VvZhZld94DrnwfNgz/jFv
-         1qBHjIQ0s1M0b1whaCP2QAVVQ0zyvOH8vHeeqk1WjXnM2oovq/oB09AIu+1o5f+z/TeV
-         palDsnOQ/dH156JaixqHUe5wlMkFXT1fPB/rh+c2dkaFplb5Jrt8WpzsF5dneN/9Yi+f
-         GEsGgOfR0ViUqXrUHintaCXu3AVCKq7cRtL/eIIJ5ZW7Aq1GlpaASmkr8F+pK3Lw8zMN
-         00gg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: AHQUAuaY91DnZklfRPpsIVsR5JVp9hSCI5fsmFPWVfSyMi7i4rtpGqOY
-	lasD+SEDId85tuUZriMtX5iH8j8qQtXhDGdDO7xjzkXT5DhxI2AxUKbAcBB/se2SAFKEMwoGuSZ
-	hrcNr9uWY4Juokn06sqKrxjIOjHHrOZRL6YKueJzDStUC3szwCbHpOJMtaKhLL/ISRw==
-X-Received: by 2002:a50:adfa:: with SMTP id b55mr18575603edd.160.1550481388091;
-        Mon, 18 Feb 2019 01:16:28 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IblR30bjg0LtJX92rG7Vd9+r5oKpnARkKJmZM8vqQnZkxVKHJSEMXvhrxeIwEGBzaW/7WgP
-X-Received: by 2002:a50:adfa:: with SMTP id b55mr18575558edd.160.1550481387200;
-        Mon, 18 Feb 2019 01:16:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550481387; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:message-id:mime-version;
+        bh=PZjiJcvfgxMPiW9sIqKOrKGdE27M0UIJb3+NvMR9UcY=;
+        b=TR4FcyBcpitUiMGJ8XRuT2mk8ynYv0im0CFTbkujnMFkVG9ZC/dVl9RxAXQ1XHfEZS
+         0jdsLkKgrRMmxsYwbLfKR548H7hRcBPDY0d+5uIzCZTMUlgSdgQlHEl1yXEJqotpylN4
+         Xy6TEp2ukxJJtInA7tJ+kNg571hVgmPfVdvyDQZa5PJWpRkf84NlUk7PBu4+PNO47AJo
+         J69YezTGUy7Kdaroqx2eCpvAZg4VGvc+fM/1ARds5DTnBQTxJNMat0v7VINQpJLuXTIs
+         xdIZdg9CLOhm466IhxAgurP7M3ihjfEILelw4khx7iELDmSgQ7vpVYcWMhPDb3BB/eQK
+         FK5w==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+X-Gm-Message-State: AHQUAuaa0ckvAc/Nux0fK2maKy8lEpkuqeWFX0chIS+FkCMOyPhfxyWg
+	oYAaiO8pi/bV0XePDf3Rx26pjF/lvNRzYL9TMB2ojbg3L0MwrtB2Km8elqIRS8Qm3mNlT5nNvyg
+	Kg/Z7swTzs4c+nTbIxvplJZxSoDIxypuDGwNvWf4vvPvNKQd7uhLqL5CG5hUOP+I=
+X-Received: by 2002:aa7:8d53:: with SMTP id s19mr3473988pfe.16.1550482072094;
+        Mon, 18 Feb 2019 01:27:52 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia+YenqNHa/zD7d++UTsium63YRMLfgNG8i2XB4IAx9kZCarsPGaWPYE5CYaZKhsTLAIwk4
+X-Received: by 2002:aa7:8d53:: with SMTP id s19mr3473920pfe.16.1550482070940;
+        Mon, 18 Feb 2019 01:27:50 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550482070; cv=none;
         d=google.com; s=arc-20160816;
-        b=iZpP+4/mNOO1JCSaZkAToAyWwr/jzt9g7ziMjQ4OVr1cNnZ8po8VRlsC6Essb5dtXr
-         fP+LdPJRVCgqeZVCjgcn9JDXGtBEXkIUO6PQkTsRLrd1rz9//DrzKJkT4hdplYHhPPft
-         FIyu48TVejmuXUhFb3P7GvjdqM18ufdgZdhIdbpFde1xfg7f100FUxoqLI2Im4u2Vb03
-         KGcK9JWuiEJEgIIyiypI0fCwVF9tfoDDaKyeoK6w6c0f6rVAh5x1+GW3IoBH19BullVg
-         cqPoc4uJc0YswsLyPWC1Qn1xEUIHcblfVlbPJ//ryVHC+IBDSO9I++4Jw6V8WN7faXK8
-         nlhQ==
+        b=HjmOeCotAxgMvH7VEuERmk3Tt2D+jz/AYSfgoNMXSkbrXub5ym9UFKYtFqzmadhG+b
+         pL860qNIJMvZWXvig4jPQGSY5DkZPnt9NCiytq5003OIdhdAT9uxa/GSYiFrwjljqQ3I
+         MQPxIbpeRVShC2tlh9FVUBWlGgiNJdssvtwEMyZMwoDc0IXgUxzolJF8I7A75d58RHYk
+         skVQfRWLWPcAkd0q6WrU8JIrEAZZk67xZHuu0U0qojTT0HwDqWLYpgq0lWeB5MuzWR5B
+         q9zcx9nESjdquJ9UMIp+49pzcn2VyTcvxRg8vQz+CFKbmEgkWanvusGZbl1yA9ynrRY2
+         GTrA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=QSd1Ak0wqqWuI3DaxeXT3BfhjDbcISdj4h6hnpJFMuE=;
-        b=EOhwsHrGXgV2bUc+y1pogp7vMkVeXHH4iaGNV3E0D1pMU0e42MUyJtGscS+8YLhBP7
-         SnxBOGn46Lbh3RIDma8vqvsEH67gWmJmg5W1wttORCULEg4X1QfHQEievM4Mgv/TDl94
-         VbftPMot/j6sTeP1UaQO89+c0L6HbyVbsvTMK1IsyT91cDhl+ck9mXi8b8hfYYle1B9F
-         4boHRo8vXEG7S303zPy5tzNSGywewCk+t+mTbTuzv+yoZf5xJ+yy9nXXor3QlhrVjqJc
-         6xr3cfvPi23p8Xzte141Hl+rK8JJ7G0fXjeh/f0cG2ZeqgYJbuOzB5MI9Z8IUOikw9Xv
-         GdjQ==
+        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
+         :from;
+        bh=PZjiJcvfgxMPiW9sIqKOrKGdE27M0UIJb3+NvMR9UcY=;
+        b=lGj+9Q5LsD9hfw7aNQ5AfsQi6TSuVORXBfM2kCoUMO2oF18NL4X/ZW9dWsxL3lshAq
+         0HryZT+NzTvcQvR6HDcZqTCLr9AZzGpbYehviF+k2SL1KJz1vVzKI5NhbvwiVyug6W8I
+         WoiZBBQ4yUXekNd2vpG3Qp6lsaWggmluGLO68LelHgf9WussQ5kt27P10yd6/VKvxQ0q
+         Cm1JzUVL+Q7JayUmwV1+w/DCus9rwNJBl+L52Q6YbkZzk7xqYkVToJI+PVK92C/iJFie
+         d3a0lPZr9PBBD2O3rcG5Qu9YL2T6msXwFcYAQUzToWZ31lGQxDMygSo/fwK+aQl9jyOd
+         ThrA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g18si319073edh.385.2019.02.18.01.16.26
-        for <linux-mm@kvack.org>;
-        Mon, 18 Feb 2019 01:16:27 -0800 (PST)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id h16si12423794pgh.283.2019.02.18.01.27.50
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 18 Feb 2019 01:27:50 -0800 (PST)
+Received-SPF: neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=2401:3900:2:1::2;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 25D9BA78;
-	Mon, 18 Feb 2019 01:16:26 -0800 (PST)
-Received: from [10.162.40.135] (p8cg001049571a15.blr.arm.com [10.162.40.135])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 6011C3F589;
-	Mon, 18 Feb 2019 01:16:22 -0800 (PST)
-Subject: Re: [RFC 0/4] mm: Introduce lazy exec permission setting on a page
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org,
- akpm@linux-foundation.org, mhocko@kernel.org, kirill@shutemov.name,
- kirill.shutemov@linux.intel.com, vbabka@suse.cz, will.deacon@arm.com
-References: <1550045191-27483-1-git-send-email-anshuman.khandual@arm.com>
- <7f25d3f4-68a1-58de-1a78-1bd942e3ba2f@intel.com>
- <413d74d1-7d74-435c-70c0-91b8a642bf99@arm.com>
- <35b14038-379f-12fb-d943-5a083a2a7056@intel.com>
- <3da12849-bc56-cb9b-f13f-e15d42416223@arm.com>
- <20190218090433.bxtty3rrgo4ln6hp@mbp>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <b1a09e8b-7975-3f5c-8fd3-76b3a3447371@arm.com>
-Date: Mon, 18 Feb 2019 14:46:24 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=neutral (google.com: 2401:3900:2:1::2 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (2048 bits) server-digest SHA256)
+	(No client certificate requested)
+	by ozlabs.org (Postfix) with ESMTPSA id 442z6q1sf4z9s7h;
+	Mon, 18 Feb 2019 20:27:47 +1100 (AEDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+To: Christophe Leroy <christophe.leroy@c-s.fr>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Nicholas Piggin <npiggin@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
+Subject: Re: [PATCH v5 3/3] powerpc/32: Add KASAN support
+In-Reply-To: <3429fe33b68206ecc2a725a740937bbaef2d1ac8.1549935251.git.christophe.leroy@c-s.fr>
+References: <cover.1549935247.git.christophe.leroy@c-s.fr> <3429fe33b68206ecc2a725a740937bbaef2d1ac8.1549935251.git.christophe.leroy@c-s.fr>
+Date: Mon, 18 Feb 2019 20:27:47 +1100
+Message-ID: <87a7itqwdo.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-In-Reply-To: <20190218090433.bxtty3rrgo4ln6hp@mbp>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Christophe Leroy <christophe.leroy@c-s.fr> writes:
+
+> diff --git a/arch/powerpc/include/asm/ppc_asm.h b/arch/powerpc/include/asm/ppc_asm.h
+> index e0637730a8e7..dba2c1038363 100644
+> --- a/arch/powerpc/include/asm/ppc_asm.h
+> +++ b/arch/powerpc/include/asm/ppc_asm.h
+> @@ -251,6 +251,10 @@ GLUE(.,name):
+>  
+>  #define _GLOBAL_TOC(name) _GLOBAL(name)
+>  
+> +#define KASAN_OVERRIDE(x, y) \
+> +	.weak x;	     \
+> +	.set x, y
+> +
+
+Can you add a comment describing what that does and why?
+
+> diff --git a/arch/powerpc/kernel/Makefile b/arch/powerpc/kernel/Makefile
+> index 879b36602748..fc4c42262694 100644
+> --- a/arch/powerpc/kernel/Makefile
+> +++ b/arch/powerpc/kernel/Makefile
+> @@ -16,8 +16,9 @@ CFLAGS_prom_init.o      += -fPIC
+>  CFLAGS_btext.o		+= -fPIC
+>  endif
+>  
+> -CFLAGS_cputable.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
+> -CFLAGS_prom_init.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
+> +CFLAGS_early_32.o += -DDISABLE_BRANCH_PROFILING
+> +CFLAGS_cputable.o += $(DISABLE_LATENT_ENTROPY_PLUGIN) -DDISABLE_BRANCH_PROFILING
+> +CFLAGS_prom_init.o += $(DISABLE_LATENT_ENTROPY_PLUGIN) -DDISABLE_BRANCH_PROFILING
+
+Why do we need to disable branch profiling now?
+
+I'd probably be happier if all the CFLAGS changes were done in a leadup
+patch to make them more obvious.
+
+> diff --git a/arch/powerpc/kernel/prom_init_check.sh b/arch/powerpc/kernel/prom_init_check.sh
+> index 667df97d2595..da6bb16e0876 100644
+> --- a/arch/powerpc/kernel/prom_init_check.sh
+> +++ b/arch/powerpc/kernel/prom_init_check.sh
+> @@ -16,8 +16,16 @@
+>  # If you really need to reference something from prom_init.o add
+>  # it to the list below:
+>  
+> +grep CONFIG_KASAN=y .config >/dev/null
+
+Just to be safe "^CONFIG_KASAN=y$" ?
+
+> +if [ $? -eq 0 ]
+> +then
+> +	MEMFCT="__memcpy __memset"
+> +else
+> +	MEMFCT="memcpy memset"
+> +fi
+
+MEM_FUNCS ?
+
+> diff --git a/arch/powerpc/lib/Makefile b/arch/powerpc/lib/Makefile
+> index 3bf9fc6fd36c..ce8d4a9f810a 100644
+> --- a/arch/powerpc/lib/Makefile
+> +++ b/arch/powerpc/lib/Makefile
+> @@ -8,6 +8,14 @@ ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
+>  CFLAGS_REMOVE_code-patching.o = $(CC_FLAGS_FTRACE)
+>  CFLAGS_REMOVE_feature-fixups.o = $(CC_FLAGS_FTRACE)
+>  
+> +KASAN_SANITIZE_code-patching.o := n
+> +KASAN_SANITIZE_feature-fixups.o := n
+> +
+> +ifdef CONFIG_KASAN
+> +CFLAGS_code-patching.o += -DDISABLE_BRANCH_PROFILING
+> +CFLAGS_feature-fixups.o += -DDISABLE_BRANCH_PROFILING
+> +endif
+
+There's that branch profiling again, though here it's only if KASAN is enabled.
+
+> diff --git a/arch/powerpc/mm/kasan_init.c b/arch/powerpc/mm/kasan_init.c
+> new file mode 100644
+> index 000000000000..bd8e0a263e12
+> --- /dev/null
+> +++ b/arch/powerpc/mm/kasan_init.c
+> @@ -0,0 +1,114 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +
+> +#define DISABLE_BRANCH_PROFILING
+> +
+> +#include <linux/kasan.h>
+> +#include <linux/printk.h>
+> +#include <linux/memblock.h>
+> +#include <linux/sched/task.h>
+> +#include <asm/pgalloc.h>
+> +
+> +void __init kasan_early_init(void)
+> +{
+> +	unsigned long addr = KASAN_SHADOW_START;
+> +	unsigned long end = KASAN_SHADOW_END;
+> +	unsigned long next;
+> +	pmd_t *pmd = pmd_offset(pud_offset(pgd_offset_k(addr), addr), addr);
+
+Can none of those fail?
 
 
-On 02/18/2019 02:34 PM, Catalin Marinas wrote:
-> On Mon, Feb 18, 2019 at 02:01:55PM +0530, Anshuman Khandual wrote:
->> On 02/14/2019 10:25 PM, Dave Hansen wrote:
->>> On 2/13/19 8:12 PM, Anshuman Khandual wrote:
->>>> On 02/13/2019 09:14 PM, Dave Hansen wrote:
->>>>> On 2/13/19 12:06 AM, Anshuman Khandual wrote:
->>>>>> Setting an exec permission on a page normally triggers I-cache invalidation
->>>>>> which might be expensive. I-cache invalidation is not mandatory on a given
->>>>>> page if there is no immediate exec access on it. Non-fault modification of
->>>>>> user page table from generic memory paths like migration can be improved if
->>>>>> setting of the exec permission on the page can be deferred till actual use.
->>>>>> There was a performance report [1] which highlighted the problem.
->>>>>
->>>>> How does this happen?  If the page was not executed, then it'll
->>>>> (presumably) be non-present which won't require icache invalidation.
->>>>> So, this would only be for pages that have been executed (and won't
->>>>> again before the next migration), *or* for pages that were mapped
->>>>> executable but never executed.
->>>> I-cache invalidation happens while migrating a 'mapped and executable' page
->>>> irrespective whether that page was really executed for being mapped there
->>>> in the first place.
->>>
->>> Ahh, got it.  I also assume that the Accessed bit on these platforms is
->>> also managed similar to how we do it on x86 such that it can't be used
->>> to drive invalidation decisions?
->>
->> Drive I-cache invalidation ? Could you please elaborate on this. Is not that
->> the access bit mechanism is to identify dirty pages after write faults when
->> it is SW updated or write accesses when HW updated. In SW updated method, given
->> PTE goes through pte_young() during page fault. Then how to differentiate exec
->> fault/access from an write fault/access and decide to invalidate the I-cache.
->> Just being curious.
-> 
-> The access flag is used to identify young/old pages only (the dirty bit
-> is used to track writes to a page). Depending on the Arm implementation,
-> the access bit/flag could be managed by hardware transparently, so no
-> fault taken to the kernel on accessing through an 'old' pte.
-
-Then there is no way to identify an exec fault with either of the facilities of
-access/reference bit or dirty bit whether managed by SW or HW. Still wondering about
-previous comment where Dave mentioned how it can be used for I-cache invalidation.
+cheers
 
