@@ -2,166 +2,207 @@ Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-12.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT,
+	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AF42EC10F01
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 19:05:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D108C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 19:49:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6E4B7217D7
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 19:05:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 18102217D9
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 19:49:43 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="lvNDpOUK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6E4B7217D7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="lnCZINN7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 18102217D9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 020178E0003; Mon, 18 Feb 2019 14:05:25 -0500 (EST)
+	id 813FF8E0003; Mon, 18 Feb 2019 14:49:43 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F104B8E0002; Mon, 18 Feb 2019 14:05:24 -0500 (EST)
+	id 7C4368E0002; Mon, 18 Feb 2019 14:49:43 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DD7C28E0003; Mon, 18 Feb 2019 14:05:24 -0500 (EST)
+	id 6D90E8E0003; Mon, 18 Feb 2019 14:49:43 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AA938E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 14:05:24 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id 74so14377233pfk.12
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 11:05:24 -0800 (PST)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 48AFD8E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 14:49:43 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id i4so505666itb.1
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 11:49:43 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=g5AvimQGenRhlXMXqYl0ru8SXdeHWIlWf5DBX0KvNhk=;
-        b=OPsSB2nJN4NcrnzNt2QIoekF6IA3MQVvo3Frci/aqeeV4dwlFAxol3BWQLTe0iEoyF
-         LHEwP75ZWnHF1Rlko3FE+1kiitL2/zcaeeWXpgCUGUOvp/ktfLpmW7ffmCvBZuPrkJ9H
-         jqoFoWcOOeIor43lB4GV7dgtp7kXkPbT13ydwRMpjJUh/Q2ieps81uDnJmn2rvKAtB2o
-         vU5wIB/GfTKt+Gd29fabezshdvpuFdUOdR6Rdmvq3LnNfko3fJdlIQuW7xjV1V7nPwGj
-         iFcHh1/9XkMouqWnZ4RGhuohr5BCr8O9EXD06CZ7cXvR/ctjqhJ28WA4alWfckwUABUa
-         NWjA==
-X-Gm-Message-State: AHQUAuZe3GWJVfW26rGGOhJk9FvNyF7dyGH9LeOs1aVBiaxaJqtkOXpm
-	zYRk3SEcI1HJQbdjPoPj1BPyIIk2obrpwQ6ENN/Uwnma0FbqeQEnmFSb1w7+WDMjhohgfaQDoJi
-	oI/gV+xhHXL1zvhERkcOnA2BcDPc+ku8P7Zk4cj7NajPh2oFGOuJKr+Oic7Nyov5dWA==
-X-Received: by 2002:a17:902:e00d:: with SMTP id ca13mr303658plb.206.1550516724268;
-        Mon, 18 Feb 2019 11:05:24 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Iay8rqVh8oJv1/eSREK1jcs4sUA/pXnMoTIqhTmA/Gj8qK8QxDR6YNmdQ1uApp7ZolNI9/1
-X-Received: by 2002:a17:902:e00d:: with SMTP id ca13mr303589plb.206.1550516723358;
-        Mon, 18 Feb 2019 11:05:23 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550516723; cv=none;
+        bh=0wtsBdExeMA1wwCJ28I4aSi9QBIDjm+ySXCh9WlH+r8=;
+        b=O8Fh4yhQW6c7bPY16NFpkhtMTeHf0Ol0UFCAlX9UnQG9ANbsOmyD/FzsAHWZdzkaRK
+         NF0KL5Eeko0jRGA5PqeeQE27XtZEQsMbz7OcGL8gkaKNAx1HjA1LOrh9nDgZKp05EWGo
+         nECekFMAEmzUg0I9Edd4pbg7QjA3gawsyoRoiSEPrevUMx1ant4cSycKXjAHgVNg7SJp
+         WKUsc0sdXkdcOCqv2k1MIumiMeF8QbC+bkLmys4OVOB4BrjvcXylU56wokDcwKoWzVeA
+         QCviSH96WoojA0RSs3ESaWZXdLVLZkqo2k58YO/Av3tyDkU26SlHEA0b2syeQ57s/RWG
+         XjWw==
+X-Gm-Message-State: AHQUAubUWW/NXjVap0ePedlpAXG/2g9oSfC/A9B1Rflt2mmg5ZU5gRLa
+	gMdIT0CWJk8uk/mLquSZiqHlFKd7MZZTS+9rCBc4rM0O/1WfMciLSChk5m1KMPydfSyM+dL0iPP
+	58YnjjtBtDpjLJ93jO5uKdNC/6rbZt3y3qZtqQhD9TtJF3F+DUfJcJZlsAnkZPVhKqFsxBoUQty
+	aizjBijba/LgFljSluXKrVz3bbXFRli0hwM2VvSPBOPm3gEwcFSLmvROl455O4o4KFh0blwFEGH
+	jvbV5qtrrT0L8SPUyo1ipM+mRTZ4JcYqZ4d/CpLsKsF6X6yd92Dd1cCwe8PmiFV0MJa/2N1EbeI
+	13YS+LWK6556c7ZURGvppH1V+juMW+8xa5jmooVlnithnBhP6EvylWdu1uYxhMg6ehnSMausaY/
+	v
+X-Received: by 2002:a6b:6507:: with SMTP id z7mr7917914iob.275.1550519383070;
+        Mon, 18 Feb 2019 11:49:43 -0800 (PST)
+X-Received: by 2002:a6b:6507:: with SMTP id z7mr7917892iob.275.1550519382273;
+        Mon, 18 Feb 2019 11:49:42 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550519382; cv=none;
         d=google.com; s=arc-20160816;
-        b=l3WLbAQtCeKWwMpjR00PGY1yQDFO636XZF/cde+Dcof0KzHg3exVU8IytcaLWaZul8
-         aBhi9D5VKFRJ5lbDl3QmWLNCP2ewR8tyJc2b8hY7fIzfzv5u3G4B62W4TwbSz/HdIIKU
-         HNmytm7z5o8u84AFgj4Bv0WS4tiT4Aw56ey7Wq1bMO9czF90A0lhL6DHOlTjPmRTBOQ9
-         GbRXStxCabVDDhhz8ktH/4KRT8JDXq1H9CPNplFfPhO4oYmmKa9YUaUnkCNgXIM7Xqre
-         2pO+6DOLqfAft3L3m1qND/3ZcTjwsllit6zOjrPgDQisPcLaC7jURYF8/V+eeRwlBweT
-         +7wg==
+        b=B9wy7usPyWk73u9taQbY5l9tSjd9iBBGeUV+lckUimQwlr453s4X5UOgX/NcQPI0No
+         yodcIKqVQMd0SN4zmsM0cDcHxbKyC5fGSgJviSmDmsao7tFYyAIs8N27L4pKdZhdwEiB
+         FKfBLth+GsbG/cvLF3LcdHi+ZAx5MlpD5a1ydol6McsiYwB3ySGX/6+C9M0ZK7luF23E
+         arA5BkrzHzmjHn5m07rTJLwB2pDj2toh0P9GPu+k85v9Wvq6v8hszBeB43KlJq3il7Nq
+         jOqCNjncTOTMvoj8eY02hhYAybcglDTEFaAwxfMt3geQfTmnSmha3G94YT2o8ZQE5BFv
+         p8SQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=g5AvimQGenRhlXMXqYl0ru8SXdeHWIlWf5DBX0KvNhk=;
-        b=uKSZxl8LTkcJt/wLtsYmscxGK8uItOCO4audJXSeKfxfH4MHKN+EHyeNjBFBlPLCVE
-         fBEuEcOh5A61ZHFUtcKfvoEyNq2feleDcEFuS+9BfU/C1Tqeo42nJNTetnJqVs01WCFT
-         rHxJzX/tjs/m4p4dEGGRuYHWAZigQkNuYCncaha7euKvyTttt5/xff3noSO4jsv+PPPN
-         5pDx/ULvuUP82Lrc/OVA7/Qtn7szYa0sthudt3tUhSsUa+RK4RDawWUUC8JKald/mjZZ
-         qZiMGWjDOPS8CuGncoQ0rosbPHM9K8WJ10Vs8yqFSqNDBy1AcV7O3J5ejTolhxKkNx41
-         SxDA==
+        bh=0wtsBdExeMA1wwCJ28I4aSi9QBIDjm+ySXCh9WlH+r8=;
+        b=ee+TzuG4zR8btDvv1LZ9EUBjHssOOoGS7Ndbb1PQA7aV3h9vKngnMj68wPFiZ3Pk2h
+         QG8v82XMmWS0JWh7iER6/YzLsECT/eRZFZQfgaKDccwiHpgCtOE017yPgQef+jpf9nsP
+         Aoe0yQpfIPO5C9yNVTwExPQWzb2FzPjuhkmAzOWjyqmliN9/ZcMOSUzy6trIFRSZJfeS
+         BALdSNKAH8xD9IGLNruHC4auZ/ALOL8NklE2uI8TJRSo6frRpoQO6M7+rmi+hA6BldPF
+         KEQgmS27Q1TQKHy1LE33de5Wpue1gXiKhPU4azqgIgMeJyf/FBV9vpXB1zB008RngEcX
+         Bsiw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=lvNDpOUK;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id r4si12930119pgv.245.2019.02.18.11.05.23
+       dkim=pass header.i=@google.com header.s=20161025 header.b=lnCZINN7;
+       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l14sor34141746jac.7.2019.02.18.11.49.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 18 Feb 2019 11:05:23 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Mon, 18 Feb 2019 11:49:42 -0800 (PST)
+Received-SPF: pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=lvNDpOUK;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=g5AvimQGenRhlXMXqYl0ru8SXdeHWIlWf5DBX0KvNhk=; b=lvNDpOUKSxwz3Oa9crOFBip3E
-	h8WGDPoH8yvzlMcw1fKMJAuVSHRvXhKXAIsA8kUTTkbF6z3w2PtEjvOUBI2S2qXCuL/+BUdQCJkjw
-	1QzZ60+E6fS2YDyyM2WWcwZyPt6D0zFSrzvXrtWrClBGqP1Y9Js/LvwO6vaGbtO1/eLnZR3KpGSnQ
-	oZK5QEWJsd469BXVXZrYQeL5/s3bUpLk14ODkvZ06c56Z2kabdwOj+71ZSvlBDybIwYu1UAyxha2r
-	T7FPtT/4OqSoJMyOlAnHZ4etjQq6Mef26hcsOUErr4zQGcTuQkHXLpTGnZodr12HsVznHYjP7fg6Y
-	5UhUNu8rg==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gvoEC-0003Lu-2r; Mon, 18 Feb 2019 19:05:20 +0000
-Date: Mon, 18 Feb 2019 11:05:19 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Rapoport <rppt@linux.ibm.com>, Rong Chen <rong.a.chen@intel.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	linux-kernel@vger.kernel.org,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>, LKP <lkp@01.org>,
-	Oscar Salvador <osalvador@suse.de>
-Subject: Re: [LKP] efad4e475c [ 40.308255] Oops: 0000 [#1] PREEMPT SMP PTI
-Message-ID: <20190218190519.GV12668@bombadil.infradead.org>
-References: <20190218085510.GC7251@dhcp22.suse.cz>
- <4c75d424-2c51-0d7d-5c28-78c15600e93c@intel.com>
- <20190218103013.GK4525@dhcp22.suse.cz>
- <20190218140515.GF25446@rapoport-lnx>
- <20190218152050.GS4525@dhcp22.suse.cz>
- <20190218152213.GT4525@dhcp22.suse.cz>
- <20190218164813.GG25446@rapoport-lnx>
- <20190218170558.GV4525@dhcp22.suse.cz>
- <20190218175726.GU12668@bombadil.infradead.org>
- <20190218181155.GC4525@dhcp22.suse.cz>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=lnCZINN7;
+       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=0wtsBdExeMA1wwCJ28I4aSi9QBIDjm+ySXCh9WlH+r8=;
+        b=lnCZINN7IoVMhyN6Ibb/qlSwbfdgcKLoKqRCpyFvlLWtuAoP/FCJcQKLFGQi09gDVr
+         5DiPNsJ3wLufD+iHIhNZDCwwyRCLWiwKRGn/GJIg8q191GC4x6c+6wVVnjJ1WaSYzq9O
+         3x4YrPPt0p1oh4zkAc1KgwK83gxLOg25m+qlcqCvbwwptQv/6HSlZVPVC36c+OTBDIBy
+         APQe2ue7roT6A2u6aQFmTgeF65aUI+pCdpn/VkyjDeN3Lu2FSg8S8Dqg0Li9uFHFoFEt
+         Kjpz3ydKeddO0GqHPTLYFF+2YmEsV0f+vPa64ELLx8sRS1MhTdY5T/XF3M1qgBM3LpeO
+         eB8A==
+X-Google-Smtp-Source: AHgI3IYgK3DVojWmklhiIeoLq404ESnMMVIaR2vGDGMXORI8El0uFkQrhGihzkrV0E3C0Mg6kZr77A==
+X-Received: by 2002:a02:c943:: with SMTP id u3mr13451152jao.96.1550519381443;
+        Mon, 18 Feb 2019 11:49:41 -0800 (PST)
+Received: from google.com ([2620:15c:183:0:a0c3:519e:9276:fc96])
+        by smtp.gmail.com with ESMTPSA id x17sm5606036ioa.6.2019.02.18.11.49.40
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 18 Feb 2019 11:49:40 -0800 (PST)
+Date: Mon, 18 Feb 2019 12:49:38 -0700
+From: Yu Zhao <yuzhao@google.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>,
+	"Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Nick Piggin <npiggin@gmail.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-arch@vger.kernel.org, linux-mm@kvack.org,
+	mark.rutland@arm.com
+Subject: Re: [PATCH] arm64: mm: enable per pmd page table lock
+Message-ID: <20190218194938.GA184109@google.com>
+References: <20190214211642.2200-1-yuzhao@google.com>
+ <20190218151223.GB16091@fuggles.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190218181155.GC4525@dhcp22.suse.cz>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <20190218151223.GB16091@fuggles.cambridge.arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 18, 2019 at 07:11:55PM +0100, Michal Hocko wrote:
-> On Mon 18-02-19 09:57:26, Matthew Wilcox wrote:
-> > On Mon, Feb 18, 2019 at 06:05:58PM +0100, Michal Hocko wrote:
-> > > +	end_pfn = min(start_pfn + nr_pages,
-> > > +			zone_end_pfn(page_zone(pfn_to_page(start_pfn))));
-> > >  
-> > >  	/* Check the starting page of each pageblock within the range */
-> > > -	for (; page < end_page; page = next_active_pageblock(page)) {
-> > > -		if (!is_pageblock_removable_nolock(page))
-> > > +	for (; start_pfn < end_pfn; start_pfn = next_active_pageblock(start_pfn)) {
-> > > +		if (!is_pageblock_removable_nolock(start_pfn))
-> > 
-> > If you have a zone which contains pfns that run from ULONG_MAX-n to ULONG_MAX,
-> > end_pfn is going to wrap around to 0 and this loop won't execute.
+On Mon, Feb 18, 2019 at 03:12:23PM +0000, Will Deacon wrote:
+> [+Mark]
 > 
-> Is this a realistic situation to bother?
-
-How insane do you think hardware manufacturers are ... ?  I don't know
-of one today, but I wouldn't bet on something like that never existing.
-
-> > I think
-> > you should use:
+> On Thu, Feb 14, 2019 at 02:16:42PM -0700, Yu Zhao wrote:
+> > Switch from per mm_struct to per pmd page table lock by enabling
+> > ARCH_ENABLE_SPLIT_PMD_PTLOCK. This provides better granularity for
+> > large system.
 > > 
-> > 	max_pfn = min(start_pfn + nr_pages,
-> > 			zone_end_pfn(page_zone(pfn_to_page(start_pfn)))) - 1;
+> > I'm not sure if there is contention on mm->page_table_lock. Given
+> > the option comes at no cost (apart from initializing more spin
+> > locks), why not enable it now.
 > > 
-> > 	for (; start_pfn <= max_pfn; ...)
+> > Signed-off-by: Yu Zhao <yuzhao@google.com>
+> > ---
+> >  arch/arm64/Kconfig               |  3 +++
+> >  arch/arm64/include/asm/pgalloc.h | 12 +++++++++++-
+> >  arch/arm64/include/asm/tlb.h     |  5 ++++-
+> >  3 files changed, 18 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> > index a4168d366127..104325a1ffc3 100644
+> > --- a/arch/arm64/Kconfig
+> > +++ b/arch/arm64/Kconfig
+> > @@ -872,6 +872,9 @@ config ARCH_WANT_HUGE_PMD_SHARE
+> >  config ARCH_HAS_CACHE_LINE_SIZE
+> >  	def_bool y
+> >  
+> > +config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+> > +	def_bool y
+> > +
+> >  config SECCOMP
+> >  	bool "Enable seccomp to safely compute untrusted bytecode"
+> >  	---help---
+> > diff --git a/arch/arm64/include/asm/pgalloc.h b/arch/arm64/include/asm/pgalloc.h
+> > index 52fa47c73bf0..dabba4b2c61f 100644
+> > --- a/arch/arm64/include/asm/pgalloc.h
+> > +++ b/arch/arm64/include/asm/pgalloc.h
+> > @@ -33,12 +33,22 @@
+> >  
+> >  static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+> >  {
+> > -	return (pmd_t *)__get_free_page(PGALLOC_GFP);
+> > +	struct page *page;
+> > +
+> > +	page = alloc_page(PGALLOC_GFP);
+> > +	if (!page)
+> > +		return NULL;
+> > +	if (!pgtable_pmd_page_ctor(page)) {
+> > +		__free_page(page);
+> > +		return NULL;
+> > +	}
+> > +	return page_address(page);
 > 
-> I do not really care strongly, but we have more places were we do
-> start_pfn + nr_pages and then use it as pfn < end_pfn construct. I
-> suspect we would need to make a larger audit and make the code
-> consistent so unless there are major concerns I would stick with what
-> I have for now and leave the rest for the cleanup. Does that sound
-> reasonable?
+> I'm a bit worried as to how this interacts with the page-table code in
+> arch/arm64/mm/mmu.c when pgd_pgtable_alloc is used as the allocator. It
+> looks like that currently always calls pgtable_page_ctor(), regardless of
+> level. Do we now need a separate allocator function for the PMD level?
 
-Yes, I think so.  There are a number of other places where we can wrap
-around from ULONG_MAX to 0 fairly easily (eg page offsets in a file on
-32-bit machines).  I started thinking about this with the XArray and
-rapidly convinced myself we have a problem throughout Linux.
+Thanks for reminding me, I never noticed this. The short answer is
+no.
+
+I guess pgtable_page_ctor() is used on all pud/pmd/pte entries
+there because it's also compatible with pud, and pmd too without
+this patch. So your concern is valid. Thanks again.
+
+Why my answer is no? Because I don't think the ctor matters for
+pgd_pgtable_alloc(). The ctor is only required for userspace page
+tables, and that's why we don't have it in pte_alloc_one_kernel().
+AFAICT, none of the pgds (efi_mm.pgd, tramp_pg_dir and init_mm.pgd)
+pre-populated by pgd_pgtable_alloc() is. (I doubt we pre-populate
+userspace page tables in any other arch).
+
+So to avoid future confusion, we might just remove the ctor from
+pgd_pgtable_alloc().
 
