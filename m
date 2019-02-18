@@ -1,105 +1,84 @@
-Date: Mon, 01 Oct 2007 17:49:45 +0400
-From: "Vegas VIP Kasino" <congenital@certifiedmail.com>
-Message-ID: <78640391.39599358@embarcadero.com>
-Subject: Willkommensbonus - 555 Euro
+Message-ID: <0102ffa4$0102fe78$8f1eac55@rbeaten>
+From: "Delbert Maurer" <rbeaten@refractron.com>
+Subject: Man Lebt nur einmal - probiers aus !  may be somewhat  -- You're not 
+Date: Mon, 31 Sep 2007 17:57:21 +0300
 MIME-Version: 1.0
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
-Return-Path: <congenital@certifiedmail.com>
-To: owner-linux-mm@kvack.org
+Content-Type: multipart/alternative;
+	boundary="----=_NextPart_000_0007_0102FFA4.0102FE0C"
+Return-Path: <rbeaten@refractron.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<html>
+This is a multi-part message in MIME format.
 
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+------=_NextPart_000_0007_0102FFA4.0102FE0C
+Content-Type: text/plain;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
 
-<title>Die besten Spieler </title>
+Verpassen Sie nichts am Lebem - Sie werden fuhlen was unsere Kunden bestati=
+gen!
 
-<style>
-<!--
- /* Style Definitions */
- p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:windowtext;
-	mso-ansi-language:EN-US;
-	mso-fareast-language:EN-US;}
-a:link, span.MsoHyperlink
-	{color:blue;}
-a:visited, span.MsoHyperlinkFollowed
-	{color:purple;
-	text-decoration:underline;
-	text-underline:single;}
-p
-	{mso-margin-top-alt:auto;
-	margin-right:0cm;
-	mso-margin-bottom-alt:auto;
-	margin-left:0cm;
-	mso-pagination:widow-orphan;
-	font-size:12.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";
-	color:black;}
-@page Section1
-	{size:595.3pt 841.9pt;
-	margin:2.0cm 42.5pt 2.0cm 3.0cm;
-	mso-header-margin:35.4pt;
-	mso-footer-margin:35.4pt;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
--->
-</style>
+Preise die keine Konkurrenz kennen 
 
-</head>
+- keine versteckte Kosten
+- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
+- Bequem und diskret online bestellen.
+- Kein peinlicher Arztbesuch erforderlich
+- Kostenlose, arztliche Telefon-Beratung
+- Visa verifizierter Onlineshop
+- Diskrete Verpackung und Zahlung
 
-<body lang=DE link=blue vlink=purple style='tab-interval:35.4pt'>
+Originalmedikamente
+Ciiaaaaaalis 10 Pack. 27,00 Euro
+Viiaaaagra 10 Pack. 21,00 Euro
 
-<div class=Section1>
+Vier Dosen gibt's bei jeder Bestellung umsonst
+http://probablelive.cn
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Die besten Spieler sind in Vegas und die besten Bonusse 
-finden Sie nur bei Vegas 
-VIP Casino!
-<o:p></o:p></span></p>
+(bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
+------=_NextPart_000_0007_0102FFA4.0102FE0C
+Content-Type: text/html;
+	charset="iso-8859-2"
+Content-Transfer-Encoding: quoted-printable
 
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-200% f&uuml;r Ihre erste Einzahlung, 100% f&uuml;r Ihre zweite 
-und dritte Einzahlung und als Kr&ouml;nung einen 155% Bonus 
-f&uuml;r Ihre vierte Einzahlung!
-<o:p></o:p></span></p>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-2">
+<META content=3D"MSHTML 4.72.3155.0" name=3DGENERATOR>
+<STYLE></STYLE>
+</HEAD>
+<BODY>
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Meine Frau und ich h=
+aben Viiaaaagra am letzten Wochenende ausprobiert. Sie fand, mein bestes St=
+&#252;ck w&#228;re in letzter Zeit nicht ganz auf der H&#246;he gewesen. Al=
+so dachten wir, wir probieren es einfach einmal.Es gibt nur ein Wort, dass =
+das Gef&#252;hl beschreibt: Wahnsinn. Seit ich zwanzig war, konnte ich nich=
+t mehr so lang und so oft. Was soll ich sagen? Gute Arbeit, Viiaaaagra!</st=
+rong></p><p><strong>Warum nehme ich Ciiaaaaaalis? Es ist einfach ein angene=
+hmens Gef&#252;hl. Man brauch sich nicht auf die Err. ..ektion zu konzentri=
+eren. Beim Sex ist man viel entspannter, mann kann auch mal die Muskeln im =
+Genitalbereich lockern, ohne das die Err. ..ektion im Glied nachlasst. Dadu=
+rch ist eine lange Verz&#246;gerung der Ejakulation m&#246;glich. Man ist b=
+eim Sex generell lockerer und entspannter, und kommt auch nicht mehr so sch=
+nell ausser Athem, weil man eben locker und entspannt ist, ausser nat&#252;=
+rlich der kleine Freund :-)<br>
+</strong><strong><br>Verpassen Sie nichts am Lebem - Sie werden fuhlen was =
+unsere Kunden bestatigen!</strong></p><p>Preise die keine Konkurrenz kennen=
+ <p>
+- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung<br>- Kostenl=
+ose, arztliche Telefon-Beratung<br>- Kein langes Warten - Auslieferung inne=
+rhalb von 2-3 Tagen<br>- Bequem und diskret online bestellen.<br>- Kein pei=
+nlicher Arztbesuch erforderlich<br>- Visa verifizierter Onlineshop</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://probablelive.cn" target=3D"_blank">Vier Dosen gibt's bei jeder Best=
+ellung umsonst</a><br></strong>(bitte warten Sie einen Moment bis die Seite=
+ vollst&auml;ndig geladen wird) </p></body>
+</BODY></HTML>
 
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Das ergibt insgesamt einen Willkommensbonus von 555 &#8364;/$!
-<o:p></o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-<o:p>&nbsp;</o:p></span></p>
-
-<p class=MsoNormal><span lang=DE style='mso-ansi-language:DE'>
-Dieses und vieles mehr erwartet Sie im fabelhaften Vegas 
-VIP Casino, der beste Platz zum spielen!
-<o:p></o:p></span></p>
-
-<p><a href="http://www.vegassuoerslots.com/lang-de/">
-http://www.vegassuoerslots.com/lang-de/</a>
-</p>
-
-</div>
-
-</body>
-
-</html>
+------=_NextPart_000_0007_0102FFA4.0102FE0C--
