@@ -2,215 +2,158 @@ Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CE4E3C4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 17:06:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 893B3C4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 17:23:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8BE8C20C01
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 17:06:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8BE8C20C01
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 51EDA217D9
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 17:23:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51EDA217D9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3FC1A8E0004; Mon, 18 Feb 2019 12:06:03 -0500 (EST)
+	id DD6D28E0004; Mon, 18 Feb 2019 12:23:32 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 382AD8E0002; Mon, 18 Feb 2019 12:06:03 -0500 (EST)
+	id D5F958E0002; Mon, 18 Feb 2019 12:23:32 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 224568E0004; Mon, 18 Feb 2019 12:06:03 -0500 (EST)
+	id C28768E0004; Mon, 18 Feb 2019 12:23:32 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B91B68E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 12:06:02 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id y91so7397878edy.21
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 09:06:02 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 644F38E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 12:23:32 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id o9so904507edh.10
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 09:23:32 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=0EfH6/OKpVLKE1GqQnLiRuXeHikcAL2GqJlnk6PA4Qo=;
-        b=VcDI+0pVfrDCzPAt2Byo3drF0DQg1S5u4srkqAE73AlOa5A7A5pbA7s2xrE/OBHsLP
-         0v19Ykf+8Ita/XGp9F/6P9t+/NbMV6/1GE9DIiLicMNxAcHgtu++hUbjbi9z3IS4esaO
-         1fT9+BEE8hG64GVul3F/fzsd8COZA0Q/VwkRO0vJqpGENyyI3/m7QU4fQ2y0haxHl6Z2
-         CpVlCAiw7W90dCBIyXQ4k/aIJFKCRT/wWsDgd6DQlrZ0e+jXUnse85GFJ3q0SVT47FCf
-         87KC+yWVYB7aaLaDg6gqkqDgvDV+MyCGJ2suKZsr+7XwyF38zhWuEeP1w/uKfy7VltGL
-         aywA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAuZJ+r4D36oDJyeQFWPZGCzvaF54ugO9fjJbqytgFjSAKQ5yeQ47
-	4SssuQ1z4hiX+4JyVRtBBBXbycABhRkgq5zi/vyNeLz8/xCxnieIk850BOl0RZAQMkcN3a+FHx+
-	46Q2XLFptkvS7Zh2ViV1VkhZNz1H8xFfAOHeujQbfCvPyedjTgDouXuI537Mle2k=
-X-Received: by 2002:a50:b32f:: with SMTP id q44mr19960086edd.70.1550509562302;
-        Mon, 18 Feb 2019 09:06:02 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Iap+dfeM8tBFMzxDIYjYkv4KHrAZUPaIVi1MEbQdUG3U/DJ3P/N8PJ6mHO6ABUZA0/BGfeT
-X-Received: by 2002:a50:b32f:: with SMTP id q44mr19960020edd.70.1550509561258;
-        Mon, 18 Feb 2019 09:06:01 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550509561; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=1flPHUUAFedhAd2fMzIDDL+MwERnyOqY+Bv7YRR5bhA=;
+        b=fd5oltJQVvmpNaWJHM8xRMSaq31VivY5cAWKpcrQduhLYPWDbiiEklLKhvGAAlw56s
+         j0ZRRw57GBUfXhG5pDxz+RdRkzndpWcyKiw8OaxH4CWbj/UjJXeliKlvMO8QIuiBdc+G
+         GlTnP9XYsebwoD1vGlvTC73XtusMudsEw3bAz79vAd9tn7j/Jyv9KgsdZF2rjYM15bQu
+         PM/6/7HFVEseYPJk+eXSgKu9894ENHFpcM+kYiVnQzjdN6VOp+g7uiqE5SNVkvsfIFSL
+         CS9bh/qKk9/WSowlnIbVsv+6Ge5bgJCRXd8bFMa1hoW9JNcUDhbI4DbJGrY5CEN7lm8V
+         IjIA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: AHQUAub/SDcQeQ/ROdVKL/2XGqvNN7j7ClIxXL1apvK0lHr7CLAAw9gO
+	2BxOMhHP3KHNmaKiKIqIILEP0+gHKMjKtpGFeaVERjxBitULos4G438sOudwsFqc5xWIU04erLB
+	D4BPbQ7peV+QHPAH4W5pWF0ypbSNVgSVDzcnrtGTi9rTXYgRG19eF2zC5LfMZQtdJzg==
+X-Received: by 2002:a17:906:bb08:: with SMTP id jz8mr16794519ejb.181.1550510611946;
+        Mon, 18 Feb 2019 09:23:31 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYtDsyG18FTzwXr+YxTbVoHHaCEG1TL7rRSaqAKmalkcKSw22/bnO1dPoQq6LwZLssYyA2J
+X-Received: by 2002:a17:906:bb08:: with SMTP id jz8mr16794469ejb.181.1550510610970;
+        Mon, 18 Feb 2019 09:23:30 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550510610; cv=none;
         d=google.com; s=arc-20160816;
-        b=mYOvPVCQsVkaZf45XXI5wwZOTZ2HScBBi8iTUTnnZH6dgfe8m1GpR5W0G543l6D/Om
-         uMRH79uznNMZr6S3We6c5EUcXBBl68PaqwbMZ/r6pJKUt6VfFJy0V94Pofrmw/TQspO5
-         MaTTwhgSZ2MF0FdNCCTQMM/Ax0b729JRAy1YAm3CIx5jkhd2E08+rrJNpAOntFI4Bmca
-         lqFA73J5tuBy9d7UFwjPlQpP55XyDXMAnCJQT4E7pl3sjkXmVy0Yk4JmU+iHuSUSNRfK
-         +xSCrbcuXFuWtvrKcA2tQE+goyZ4cGdNHGshlZNL/1hYrfDtDcjsVUlHWRGfl3By8p9X
-         CJgA==
+        b=gpNMts7Jv66bTJ0xn4qsG3Hu0VqQs8lNrYVHB2oh8KW6JNFkhiCVEiC0vG6K5+f/BE
+         R6UUrcCVtBMl8QOywTWtxQQAfTko0KrDrh2UOwTtb/PmsrbTQfLEJQE2ms76/i6VU916
+         NA/AlYNmvs8B8x0kzuC42Z8c99J/PF+oWe0G2VSBwoDvOX4Ew+7QyGpHN0q8Ui8x/5Ne
+         I8PlXP2wC37Nqx1qpIFOpD15z3l5yFoBmGYN7/JZkKMEPZrQY90Us1dEISbrZ8ErWLQl
+         Jd5lDPsYFHkY7hwvUoJ/9jd5++iQVEzI9E5DngI78QHx/X+5575+lwmh7n9tvs5CDkTm
+         RgNQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=0EfH6/OKpVLKE1GqQnLiRuXeHikcAL2GqJlnk6PA4Qo=;
-        b=xG3+DZ6m3qFGMzTd+5irgnrdblnHgcObVWojfIVCcStFEiC1qPBPxjvl8hUgH80Gy0
-         f5mEDYUTrTn8sfjAcdEMtr3w84LrErSjJDclfSufTt3KFsJ7GsGL3Bw/+dg3rI6+nhIU
-         LNyhxIHeU5FTA/rJL/lfrAdPoMx7FAvx4/bfA6XdBRoOTLdQMYqVv8tKuJEzJZXtMnwX
-         s8sLYk6FCLv0ovSnOtp1+L0b9pfDHBQaZ33c4HDo0iyT8HWYO1R0KiiJWO3KYQ2Bq7pT
-         KxQhzEQ8BdnFWtdn30x2F2gxH5ObQUHs+Zknz5e6cO/4XdapSI7WhIAq+CS7LuoBE4RA
-         MfBg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=1flPHUUAFedhAd2fMzIDDL+MwERnyOqY+Bv7YRR5bhA=;
+        b=BN0JE/r+w/oAfY2bPFYuPthJsirtgpJ9a8hVUNmJmFk1f7wmqmwkyNwrkwAF4FkYCN
+         /aIR0NJBZyK6iOGjHEl9kJDC5o4Fk3cUWEEei6PjfvrBCxyafpki2lxZTARnygxdj8ZJ
+         C/yI8Ul1g5QyqTOXi81ietw6wjndwH7njpAMH+m/slnusLazbquLMCuw8PU/913yQIvj
+         vRsIPISYYkQ7/hJQJannO6nKcviv8kGAaphEjyuknpcRGXr4cIFkGb3Q2v+ia0n8qjqu
+         DLHxyWNRPEJv+CnYz1JI/FwdKgC6i5mIaN/L6doHAYLYaAOdUcYjCnUNSNUEPZUc9VOq
+         zqAw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v6si191396edc.154.2019.02.18.09.06.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Feb 2019 09:06:01 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id j3si514396eda.21.2019.02.18.09.22.37
+        for <linux-mm@kvack.org>;
+        Mon, 18 Feb 2019 09:23:30 -0800 (PST)
+Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 7AA8EADD3;
-	Mon, 18 Feb 2019 17:06:00 +0000 (UTC)
-Date: Mon, 18 Feb 2019 18:05:58 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Rong Chen <rong.a.chen@intel.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	linux-kernel@vger.kernel.org,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>, LKP <lkp@01.org>,
-	Oscar Salvador <osalvador@suse.de>
-Subject: Re: [LKP] efad4e475c [ 40.308255] Oops: 0000 [#1] PREEMPT SMP PTI
-Message-ID: <20190218170558.GV4525@dhcp22.suse.cz>
-References: <20190218052823.GH29177@shao2-debian>
- <20190218070844.GC4525@dhcp22.suse.cz>
- <20190218085510.GC7251@dhcp22.suse.cz>
- <4c75d424-2c51-0d7d-5c28-78c15600e93c@intel.com>
- <20190218103013.GK4525@dhcp22.suse.cz>
- <20190218140515.GF25446@rapoport-lnx>
- <20190218152050.GS4525@dhcp22.suse.cz>
- <20190218152213.GT4525@dhcp22.suse.cz>
- <20190218164813.GG25446@rapoport-lnx>
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 70A19A78;
+	Mon, 18 Feb 2019 09:22:36 -0800 (PST)
+Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 9CA853F675;
+	Mon, 18 Feb 2019 09:22:33 -0800 (PST)
+Subject: Re: [PATCH 01/13] arm64: mm: Add p?d_large() definitions
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: x86@kernel.org, Arnd Bergmann <arnd@arndb.de>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
+ <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
+ Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
+ James Morse <james.morse@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
+ linux-arm-kernel@lists.infradead.org
+References: <20190215170235.23360-1-steven.price@arm.com>
+ <20190215170235.23360-2-steven.price@arm.com>
+ <20190218112922.GT32477@hirez.programming.kicks-ass.net>
+ <fe36ed1c-b90d-8062-f7a9-e52d940733c4@arm.com>
+ <20190218142951.GA10145@lakrids.cambridge.arm.com>
+ <20190218150657.GU32494@hirez.programming.kicks-ass.net>
+ <eb7e0203-db08-743b-dbed-a7032b352ded@arm.com>
+ <20190218170451.GB10145@lakrids.cambridge.arm.com>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <c27d9f26-0213-3706-8bd9-ca71d20fbf06@arm.com>
+Date: Mon, 18 Feb 2019 17:22:32 +0000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190218164813.GG25446@rapoport-lnx>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190218170451.GB10145@lakrids.cambridge.arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 18-02-19 18:48:14, Mike Rapoport wrote:
-> On Mon, Feb 18, 2019 at 04:22:13PM +0100, Michal Hocko wrote:
-[...]
-> > Thinking about it some more, is it possible that we are overflowing by 1
-> > here?
+On 18/02/2019 17:04, Mark Rutland wrote:
+> On Mon, Feb 18, 2019 at 03:30:38PM +0000, Steven Price wrote:
+>> On 18/02/2019 15:06, Peter Zijlstra wrote:
+>>> On Mon, Feb 18, 2019 at 02:29:52PM +0000, Mark Rutland wrote:
+>>>> I think that Peter means p?d_huge(x) should imply p?d_large(x), e.g.
+>>>>
+>>>> #define pmd_large(x) \
+>>>> 	(pmd_sect(x) || pmd_huge(x) || pmd_trans_huge(x))
+>>>>
+>>>> ... which should work regardless of CONFIG_HUGETLB_PAGE.
+>>>
+>>> Yep, that.
+>>
+>> I'm not aware of a situation where pmd_huge(x) is true but pmd_sect(x)
+>> isn't. Equally for pmd_huge(x) and pmd_trans_huge(x).
+>>
+>> What am I missing?
 > 
-> Looks like that, the end_pfn is actually the first pfn in the next section.
-
-Thanks for the confirmation. I guess it also exaplains why nobody has
-noticed this off-by-one. Most people seem to use VMEMMAP SPARSE model
-and we are safe there.
-
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index 124e794867c5..6618b9d3e53a 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -1234,10 +1234,10 @@ bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
-> >  {
-> >  	struct page *page = pfn_to_page(start_pfn);
-> >  	unsigned long end_pfn = min(start_pfn + nr_pages, zone_end_pfn(page_zone(page)));
-> > -	struct page *end_page = pfn_to_page(end_pfn);
-> > +	struct page *end_page = pfn_to_page(end_pfn - 1);
-> >  
-> >  	/* Check the starting page of each pageblock within the range */
-> > -	for (; page < end_page; page = next_active_pageblock(page)) {
-> > +	for (; page <= end_page; page = next_active_pageblock(page)) {
-> >  		if (!is_pageblock_removable_nolock(page))
-> >  			return false;
-> >  		cond_resched();
+> Having dug for a bit, I think you're right in asserting that pmd_sect()
+> should cover those.
 > 
-> Works with your fix, but I think mine is more intuitive ;-)
+> I had worried that wouldn't cater for contiguous pmd entries, but those
+> have to be contiguous section entries, so they get picked up.
+> 
+> That said, do we have any special handling for contiguous PTEs? We use
+> those in kernel mappings regardless of hugetlb support, and I didn't
+> spot a pte_large() helper.
 
-I would rather go and rework this to pfns. What about this instead.
-Slightly larger but arguably cleared code?
+There's no special handling for contiguous PTEs because the page walk
+code doesn't care - each PTE is valid individually even if it is part of
+a contiguous group. So the walker can descend all levels in this case.
+pte_large() if it existed would therefore always return 0.
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 124e794867c5..a799a0bdbf34 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1188,11 +1188,13 @@ static inline int pageblock_free(struct page *page)
- 	return PageBuddy(page) && page_order(page) >= pageblock_order;
- }
- 
--/* Return the start of the next active pageblock after a given page */
--static struct page *next_active_pageblock(struct page *page)
-+/* Return the pfn of the start of the next active pageblock after a given pfn */
-+static unsigned long next_active_pageblock(unsigned long pfn)
- {
-+	struct page *page = pfn_to_page(pfn);
-+
- 	/* Ensure the starting page is pageblock-aligned */
--	BUG_ON(page_to_pfn(page) & (pageblock_nr_pages - 1));
-+	BUG_ON(pfn & (pageblock_nr_pages - 1));
- 
- 	/* If the entire pageblock is free, move to the end of free page */
- 	if (pageblock_free(page)) {
-@@ -1200,16 +1202,16 @@ static struct page *next_active_pageblock(struct page *page)
- 		/* be careful. we don't have locks, page_order can be changed.*/
- 		order = page_order(page);
- 		if ((order < MAX_ORDER) && (order >= pageblock_order))
--			return page + (1 << order);
-+			return pfn + (1 << order);
- 	}
- 
--	return page + pageblock_nr_pages;
-+	return pfn + pageblock_nr_pages;
- }
- 
--static bool is_pageblock_removable_nolock(struct page *page)
-+static bool is_pageblock_removable_nolock(unsigned long pfn)
- {
-+	struct page *page = pfn_to_page(pfn);
- 	struct zone *zone;
--	unsigned long pfn;
- 
- 	/*
- 	 * We have to be careful here because we are iterating over memory
-@@ -1232,13 +1234,14 @@ static bool is_pageblock_removable_nolock(struct page *page)
- /* Checks if this range of memory is likely to be hot-removable. */
- bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
- {
--	struct page *page = pfn_to_page(start_pfn);
--	unsigned long end_pfn = min(start_pfn + nr_pages, zone_end_pfn(page_zone(page)));
--	struct page *end_page = pfn_to_page(end_pfn);
-+	unsigned long end_pfn;
-+
-+	end_pfn = min(start_pfn + nr_pages,
-+			zone_end_pfn(page_zone(pfn_to_page(start_pfn))));
- 
- 	/* Check the starting page of each pageblock within the range */
--	for (; page < end_page; page = next_active_pageblock(page)) {
--		if (!is_pageblock_removable_nolock(page))
-+	for (; start_pfn < end_pfn; start_pfn = next_active_pageblock(start_pfn)) {
-+		if (!is_pageblock_removable_nolock(start_pfn))
- 			return false;
- 		cond_resched();
- 	}
--- 
-Michal Hocko
-SUSE Labs
+The pte_entry() callback obviously might go looking for the contiguous
+bit so that it can annotate the output correctly but that's different
+from a 'large' page. The code in arch/arm64/mm/dump.c simply looks for
+the PTE_CONT bit being set to do this annotation.
+
+Steve
 
