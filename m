@@ -1,54 +1,77 @@
-Date: Mon, 31 Sep 2007 09:14:53 +0200
-From: "Irwin Hatcher" <harmony.capehart@cox.net>
-Reply-To: harmony.capehart@cox.net
-Message-ID: <776227545.87531845072173@cox.net>
-Subject: Probieren Sie es - Mann Lebt nur einmal  to summarise some  -- who've faced the 
+From: "Lane Hayden" <harold611@email.com>
+Subject: Haben Sie wieder Spass am Leben!   achieving nation-wide  -- who've faced the 
+Date: Mon, 31 Sep 2007 10:27:38 +0100
+Message-ID: <00faffa4$00fafe78$f04ca957@harold611>
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-  boundary="----------A86EDAF05AF215A"
-Return-Path: <harmony.capehart@cox.net>
+	boundary="----=_NextPart_000_000E_00FAFFA4.00FAFE0C"
+Return-Path: <harold611@email.com>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-------------A86EDAF05AF215A
-Content-Type: text/plain; charset=iso-8859-1
+This is a multi-part message in MIME format.
+
+------=_NextPart_000_000E_00FAFFA4.00FAFE0C
+Content-Type: text/plain;
+	charset="windows-1250"
 Content-Transfer-Encoding: 7bit
 
 Sie leben nur einmal - warum dann nicht was neues ausprobieren?
 
 Preise die keine Konkurrenz kennen 
 
+- Visa verifizierter Onlineshop
+- Kostenlose, arztliche Telefon-Beratung
 - Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen
 - Bequem und diskret online bestellen.
-- Kostenlose, arztliche Telefon-Beratung
-- Kein peinlicher Arztbesuch erforderlich
-- Visa verifizierter Onlineshop
 - Diskrete Verpackung und Zahlung
+- Kein peinlicher Arztbesuch erforderlich
 - keine versteckte Kosten
 
 Originalmedikamente
 Ciiaaaaaalis 10 Pack. 27,00 Euro
 Viiaaaagra 10 Pack. 21,00 Euro
 
-Vier Dosen gibt's bei jeder Bestellung umsonst
-http://letthere.cn
+Jetzt bestellen - und vier Pillen umsonst erhalten
+http://teethspeak.cn
 
 (bitte warten Sie einen Moment bis die Seite vollstandig geladen wird)
-------------A86EDAF05AF215A
-Content-Type: text/html; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+------=_NextPart_000_000E_00FAFFA4.00FAFE0C
+Content-Type: text/html;
+	charset="windows-1250"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <HTML><HEAD><TITLE></TITLE>
-</HEAD>
+<META content=3D"text/html; charset=3Dwindows-1250" http-equiv=3DContent-Type>
+<META content=3D"MSHTML 5.50.4133.2400" name=3DGENERATOR></HEAD>
 <BODY>
-
-<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-</head><body><p>Meinung von unserem Kunden:<br><strong>Als wir Liebe gemacht haben, f&#252;hlte ich mich wieder wie ein Neunzehnj&#228;hriger. "Er" war so hart, ich h&#228;tte N&#228;gel damit einklopfen k&#246;nnen. Meiner Frau sagt, ich h&#228;tte sie noch nie so lang und so hart geliebt. Sie ist ganz versessen auf mich. Und ich brauche wohl bald einen Nachf&#252;llpack.</strong></p><p><strong>Ich bin 28 Jahre alt und habe keine Err. ..ektionsprobleme. Ich wollte Viiaaaagra einfach nur so probieren. Es funktioniert, aber die Durchblutung ist st&#228;rker als sonst und es f&#252;hlt sich an, als w&#252;rde ich mit einem Dildo v&#246;geln und nicht mit meinem Schwanz. Ich hatte ziemliche Probleme, wieder runterzukommen. Aber ich w&#252;rde es wohl wieder tun ...<br>
-</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausprobieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
-- Bequem und diskret online bestellen.<br>- Visa verifizierter Onlineshop<br>- Kein peinlicher Arztbesuch erforderlich<br>- Kein langes Warten - Auslieferung innerhalb von 2-3 Tagen<br>- Kostenlose, arztliche Telefon-Beratung<br>- keine versteckte Kosten<br>- Diskrete Verpackung und Zahlung</p>
-<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong><br>
-  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href="http://letthere.cn" target="_blank">Vier Dosen gibt's bei jeder Bestellung umsonst</a><br></strong>(bitte warten Sie einen Moment bis die Seite vollst&auml;ndig geladen wird) </p></body>
-
+<head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso=
+-8859-1">
+</head><body><p>Meinung von unserem Kunden:<br><strong>Ich glaube, ich habe=
+ bis jetzt Gl&#252;ck gehabt (Ich klopfe auf Holz.), denn ich hatte bis jet=
+zt noch nie Nebenwirkungen durch Viiaaaagra - au&#223;er einer brettharten =
+Latte, und das f&#252;r Stunden.</strong></p><p><strong>Meine Frau und ich =
+haben Viiaaaagra am letzten Wochenende ausprobiert. Sie fand, mein bestes S=
+t&#252;ck w&#228;re in letzter Zeit nicht ganz auf der H&#246;he gewesen. A=
+lso dachten wir, wir probieren es einfach einmal.Es gibt nur ein Wort, dass=
+ das Gef&#252;hl beschreibt: Wahnsinn. Seit ich zwanzig war, konnte ich nic=
+ht mehr so lang und so oft. Was soll ich sagen? Gute Arbeit, Viiaaaagra!<br=
+>
+</strong><strong><br>Sie leben nur einmal - warum dann nicht was neues ausp=
+robieren?</strong></p><p>Preise die keine Konkurrenz kennen <p>
+- Kostenlose, arztliche Telefon-Beratung<br>- Diskrete Verpackung und Zahlu=
+ng<br>- Kein peinlicher Arztbesuch erforderlich<br>- Kein langes Warten - A=
+uslieferung innerhalb von 2-3 Tagen<br>- Bequem und diskret online bestelle=
+n.<br>- Visa verifizierter Onlineshop<br>- keine versteckte Kosten</p>
+<p>Originalmedikamente<br><strong>Ciiaaaaaalis 10 Pack. 27,00 Euro</strong>=
+<br>
+  <strong>Viiaaaagra 10 Pack. 21,00 Euro</strong><br><br><strong><a href=3D=
+"http://teethspeak.cn" target=3D"_blank">Jetzt bestellen - und vier Pillen =
+umsonst erhalten</a><br></strong>(bitte warten Sie einen Moment bis die Sei=
+te vollst&auml;ndig geladen wird) </p></body>
 </BODY></HTML>
-------------A86EDAF05AF215A--
+
+------=_NextPart_000_000E_00FAFFA4.00FAFE0C--
