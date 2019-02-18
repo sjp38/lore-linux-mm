@@ -1,29 +1,47 @@
-Subject: Re: [parisc-linux] Re: parisc scatterlist doesn't want page/offset
-Date: Fri, 16 Nov 2001 17:31:22 +0000 (GMT)
-In-Reply-To: <200111161644.JAA26017@puffin.external.hp.com> from "Grant Grundler" at Nov 16, 2001 09:44:57 AM
+From: NeedPcParts.com@kvack.org
+Date: Fri, 16 Nov 2001 15:58:51
+Subject: You have to see this to believe it...
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <E164mpm-0004a2-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Message-Id: <200111161607435.SM01732@mail.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Grant Grundler <grundler@puffin.external.hp.com>
-Cc: Matthew Wilcox <willy@debian.org>, "David S. Miller" <davem@redhat.com>, linux-mm@kvack.org, parisc-linux@lists.parisc-linux.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Until page/offset completely replaces address, I see a net increase
-> in cycles for parisc (probably most archs) with only a tangible benefit
-> for i386. Seems like the burden should be on the i386 folks to not
-> impact other arches.
-> My main gripe is adding this to 2.4 seems like the wrong time/place.
-> I'm happy to revisit this in 2.5.
+I would like to introduce you to our company, www.NeedPcParts.com
 
-Its a bad impact on x86 so unfortunately it does need doing and I agree with
-Dave - DaveM rarely implements something that is x86 beneficial but harms 
-his beloved sparc64 without good reason.
+We sell everything Computer & Network related.
 
-Alan
+>From A: Drives to Zip Drives
+
+>From a single Computer Cable to a Custom Built System.
+
+If its Computer related we have it and at the very best price around.
+
+We have been in business for 10 Years, Let us show you why our customers love us soooo much...
+
+We offer 2 year Warranty on all CPU & Motherboard Combo's 
+
+We offer Lifetime Warranty on all Memory
+
+We will Custom build any Server or System you want for a $45 Flat Fee. & Include a 2 Year Parts & Labor Warranty!!!
+
+We do not charge a handling fee when shipping, We ship 99% of all items within 24 Hrs. We Ship Via UPS.
+
+Thank you for your time.
+
+Contact us Emailto:sales@NeedPcParts.com
+
+Call Toll Free : 1-800-361-5448
+
+Website: www.NeedPcParts.com
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
