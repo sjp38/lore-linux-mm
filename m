@@ -2,178 +2,273 @@ Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B8C7C10F01
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 18:20:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D88F0C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 18:31:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E9B042146E
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 18:20:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9B042146E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 962B021773
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 18:31:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 962B021773
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 76AFB8E0005; Mon, 18 Feb 2019 13:20:32 -0500 (EST)
+	id 282B78E0003; Mon, 18 Feb 2019 13:31:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 71BE78E0002; Mon, 18 Feb 2019 13:20:32 -0500 (EST)
+	id 20A5C8E0002; Mon, 18 Feb 2019 13:31:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 60C6C8E0005; Mon, 18 Feb 2019 13:20:32 -0500 (EST)
+	id 085EB8E0003; Mon, 18 Feb 2019 13:31:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 375968E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:20:32 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id a65so15544848qkf.19
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 10:20:32 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CDF9B8E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:31:57 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id b40so1999164qte.1
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 10:31:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=XYhCdaRsobAyr1YQNmdqqfI6DqZjGWBF6zNtGe5tfPM=;
-        b=SR24vufVMNX5oe7FBIX0XsqLUbYQ56+5XujBHxSlt592TGb6S/K3MQn+vY5brp2EfC
-         Zsaop9vI6y1mUxzR+oEf4XXe96F0AfW/tqh4Y15MdOATnlG9XgY/3TB4i0Ny56YA+fq+
-         foz3zop5oX+uyJFYVvvl6JSiTftPFUz01zbuklDVAhTTLZdp0u/epkagPnf+YRCxZc+t
-         ACTcGP/W35sS2YS/q48EitfZhdt1bb2YXRDkeNNb9Ehu0dGrzh0Lv0v4yjXenTePZJh/
-         nC0wLzjwoGiLLrXnVPNU+yN9jWBetguKTjdTxrHuiw1B9Gkry13of6yDmLMdV149MJG1
-         flLw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAubMZnY8/pGO/3/Snj5S9NvK/jVD2vWtrH1AXQ6gPSXVVEMXYc0X
-	xaQ9OR8dcZKhMIg2g35ILXrWImokiMnSRSyaW7h9vQf52pfeKOcxCCRfl+HI9fOhODfM+Rm5TpJ
-	kwYTcaAeetv3FERELLNyB2AYL7GgM+ExtY+jFntFq37Yf0wwMkrWhFBjrjAhsBqq9ag==
-X-Received: by 2002:ae9:ec0f:: with SMTP id h15mr18306290qkg.100.1550514031994;
-        Mon, 18 Feb 2019 10:20:31 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IafmaQ/w5M4BJ1qicCEhAYIEgHZZWrNiC7SPCoJ3OjpNLsOcxE0rnJRb9mLcaTKzuXDRgV/
-X-Received: by 2002:ae9:ec0f:: with SMTP id h15mr18306246qkg.100.1550514031320;
-        Mon, 18 Feb 2019 10:20:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550514031; cv=none;
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=/CqTnhJcvsyBRODsiJzC5lOHCfRLwh2bQ5MoCsBltvo=;
+        b=ULRlF9hE9nL/Q18qDTbhcYPSLO95k5STPveZPBJbEdKiBZHgpLWV1I6fixCt6RT9LT
+         a5+dTjjn/kI6e6+Xr8bslX/sCFcLpGxqrEfabPSokBYxDTqYcaS1Qi6LN+UnCuo+NveD
+         fzaK/LjJpW875JK827jUn4y1pkpHHrXA1nR4Qb5eQC4D/coGEGuYTXcqBpzj+nKYCtc1
+         R936/FXXS7NiINvpaw7Ea7NnBlz+KAIU0Of9Hphes4uszmFI0WStM8X1zWwzmGA1AuUv
+         OE4iLl/E4u3QOb03QeglseUTbzpMuY4h1zmjyxmJyLB/0OCWWWv4y5p+j3fZLKQ3uhJd
+         1j/w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAubrtvT51oFcuTU8UC0kNN3aDWV1AbXyGgT/sXNzJLOOvxy2pLo2
+	uJoaKq5LjOsmp8khM+VhbLxE4fNzIy81D0BikSdgPRmwk1dzgpRJKedUGu0eErlZC+hK3+iJWlM
+	suy7j+Q3TiPWlXVfPYb6Z7CrrtODgb4KGfqcfwmW7fToT4xiGWtV4mU39DghP5Xnpsw==
+X-Received: by 2002:a37:d492:: with SMTP id s18mr16846903qks.343.1550514717528;
+        Mon, 18 Feb 2019 10:31:57 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZo6hk0nAForbwpxQwR846mY4T5H+Fy5GU5/UeGiMaL7K/E6QMBWmcaC6Hp4/n/mBgXWlQO
+X-Received: by 2002:a37:d492:: with SMTP id s18mr16846860qks.343.1550514716761;
+        Mon, 18 Feb 2019 10:31:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550514716; cv=none;
         d=google.com; s=arc-20160816;
-        b=w8pjIcE3yQ4Sm/GT2gBL8T5Yeeb4avIJXNVRdQt+vXCdkGlDgpzbAwkcGWMSy1C3yg
-         oM6/+JB8HoqTaBK0ICnst/xr5/JKPR9ltDhvnpHod31YfcB8JdaHvt0tqi5SxTuJP74T
-         HruMCznN3Gdn1ay1Dl7M/nE8GV8pYpfV3axRkM8pjB5vlMbV9/mLvbGub8WPS2LBm9xi
-         QTE8bAdP0UCHLvRPTqcFd9gOKTC3ELQlMIeABTOz8g3kqVUekkC6/AND5BK5cNRm2X4Z
-         mdO2V5eef0Msdn+5RakqxKS4BpSsAqR8QdLYnjojLSruSn1tvkLQ2VE2dxaunjN4qghL
-         9HUw==
+        b=WgYiKxAzLbOO8CrNKa4ouH5GI4mCw+Kq4ecAtELyHoQSyHHtUm7r7mneuO51JMT5PM
+         5/gqka3aks5GyRPHDllX4sj+Bf3UR+ADy1mJhMDbdxfXMtlIfBAX0WRMyw0aS36785JM
+         SFR+dTOYJv+cqcyLuPzbIsxe1gGaNHFE8YjVHDwt4/Yi40nJipXgG8jnN5XFvXZEBEY6
+         FWG+Jf2lqis4yLkkfuxcQC4qGv40tklQA2uE5b4ghCbG3BswRLE9vnK9r2KqJZgxEbrP
+         V5IPoqIMVNNWkZK70RE1Git4PwZZtMfUq8sH4oW89Jlq09kBTVnDOSLlDaglG8DeHpb1
+         H0eQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=XYhCdaRsobAyr1YQNmdqqfI6DqZjGWBF6zNtGe5tfPM=;
-        b=Bl7noE2Xo06MN5sbbguGQZStEZbQMm5YIXW5dJ1tKSQpKW8zK5nbR0wTE0cCxPCWaw
-         6raoSNIf1jyh4I3PU6a8/qF5lydybLdiUi7Y0ZCGYDDNAjtQwX4ONtsjt21NtwK5WEXk
-         CNnj+rW0Uplx+5R4YAKcodw8uT38GNhiX142F6GqCoCrfyJQxmYo8kw+6MLQDELeSkXL
-         rYS9IhN6aespy9Y0AyE9uUHHC3CCf1w4GNxtTOP519Xg7SSXBO1ytX3KS8Ms8CtqdfnU
-         jecdiJDK6TGztCRUdxF+uDaj8A+On0rY5lll1gLn+WO4z+zNGihIl02O9m+3Bonv2j7V
-         TBzg==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=/CqTnhJcvsyBRODsiJzC5lOHCfRLwh2bQ5MoCsBltvo=;
+        b=bIlrrqEE3/2+FTkOtJ66cbHJwU67xjF3XBUKGlDCv1J/t/mp4SjZwSE45Wg/6tuH3f
+         iEpWpZi1R6IVgYko0KaSsZxvy8fdQ6eRx4IE+Tynq6S0918HwQJW271arQZBk0O/RQbI
+         oSdP1MVsaaQKm4f4Fin2tEsYi6g5l3vBFl3jdJ7kNB2NlRk+mlsjMewZ910xvWUIvCo3
+         jaCUoSacEj/IgLNch2nIG18wVnIAENgFXHqiqMfs6dvvvto4kxcjt8tpHyw7k+l5o0D4
+         I6qGoBbKlo9tXMo+dk0vaiuC6tLYoVSlBtGhaEyqt5Nf8TC4ucNP5lLN/rTB1XpGScEZ
+         G++Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w27si2283168qth.1.2019.02.18.10.20.31
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id r48si4105596qtr.9.2019.02.18.10.31.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Feb 2019 10:20:31 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 18 Feb 2019 10:31:56 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 684C810F85;
-	Mon, 18 Feb 2019 18:20:30 +0000 (UTC)
-Received: from redhat.com (ovpn-121-173.rdu2.redhat.com [10.10.121.173])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 88BDF5D706;
-	Mon, 18 Feb 2019 18:20:28 +0000 (UTC)
-Date: Mon, 18 Feb 2019 13:20:25 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Peter Xu <peterx@redhat.com>, Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	Arnaldo Carvalho de Melo <acme@kernel.org>,
-	Alexander Shishkin <alexander.shishkin@linux.intel.com>,
-	Jiri Olsa <jolsa@redhat.com>, Namhyung Kim <namhyung@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Matthew Wilcox <mawilcox@microsoft.com>,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>, kvm@vger.kernel.org
-Subject: Re: [RFC PATCH 0/4] Restore change_pte optimization to its former
- glory
-Message-ID: <20190218182025.GA3470@redhat.com>
-References: <20190131183706.20980-1-jglisse@redhat.com>
- <20190201235738.GA12463@redhat.com>
- <20190211190931.GA3908@redhat.com>
- <20190211200200.GA30128@redhat.com>
- <20190218160411.GA3142@redhat.com>
- <20190218174505.GD30645@redhat.com>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1IITHsn131958
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:31:56 -0500
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qr06f5v6e-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 13:31:55 -0500
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 18 Feb 2019 18:31:53 -0000
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 18 Feb 2019 18:31:50 -0000
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1IIVn9926607702
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Mon, 18 Feb 2019 18:31:50 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id D4A7EAE058;
+	Mon, 18 Feb 2019 18:31:49 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 901C9AE045;
+	Mon, 18 Feb 2019 18:31:48 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.207.239])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Mon, 18 Feb 2019 18:31:48 +0000 (GMT)
+Date: Mon, 18 Feb 2019 20:31:45 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+        Matthew Wilcox <willy@infradead.org>,
+        Oscar Salvador <OSalvador@suse.com>, linux-mm@kvack.org,
+        LKML <linux-kernel@vger.kernel.org>, lkp@01.org,
+        Michal Hocko <mhocko@suse.com>, rong.a.chen@intel.com
+Subject: Re: [RFC PATCH] mm, memory_hotplug: fix off-by-one in
+ is_pageblock_removable
+References: <20190218052823.GH29177@shao2-debian>
+ <20190218181544.14616-1-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190218174505.GD30645@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Mon, 18 Feb 2019 18:20:30 +0000 (UTC)
+In-Reply-To: <20190218181544.14616-1-mhocko@kernel.org>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19021818-0008-0000-0000-000002C1E991
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19021818-0009-0000-0000-0000222E1935
+Message-Id: <20190218183144.GI25446@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-18_14:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902180137
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 18, 2019 at 12:45:05PM -0500, Andrea Arcangeli wrote:
-> On Mon, Feb 18, 2019 at 11:04:13AM -0500, Jerome Glisse wrote:
-> > So i run 2 exact same VMs side by side (copy of same COW image) and
-> > built the same kernel tree inside each (that is the only important
-> > workload that exist ;)) but the change_pte did not have any impact:
-> > 
-> > before  mean  {real: 1358.250977, user: 16650.880859, sys: 839.199524, npages: 76855.390625}
-> > before  stdev {real:    6.744010, user:   108.863762, sys:   6.840437, npages:  1868.071899}
-> > after   mean  {real: 1357.833740, user: 16685.849609, sys: 839.646973, npages: 76210.601562}
-> > after   stdev {real:    5.124797, user:    78.469360, sys:   7.009164, npages:  2468.017578}
-> > without mean  {real: 1358.501343, user: 16674.478516, sys: 837.791992, npages: 76225.203125}
-> > without stdev {real:    5.541104, user:    97.998367, sys:   6.715869, npages:  1682.392578}
-> > 
-> > Above is time taken by make inside each VM for all yes config. npages
-> > is the number of page shared reported on the host at the end of the
-> > build.
+On Mon, Feb 18, 2019 at 07:15:44PM +0100, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Did you set /sys/kernel/mm/ksm/sleep_millisecs to 0?
-
-No but i have increase the pages_to_scan to 10000 and during the kernel
-build i see the number of page that are shared increase steadily so it
-is definitly merging thing.
-
+> Rong Chen has reported the following boot crash
+> [   40.305212] PGD 0 P4D 0
+> [   40.308255] Oops: 0000 [#1] PREEMPT SMP PTI
+> [   40.313055] CPU: 1 PID: 239 Comm: udevd Not tainted 5.0.0-rc4-00149-gefad4e4 #1
+> [   40.321348] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
+> [   40.330813] RIP: 0010:page_mapping+0x12/0x80
+> [   40.335709] Code: 5d c3 48 89 df e8 0e ad 02 00 85 c0 75 da 89 e8 5b 5d c3 0f 1f 44 00 00 53 48 89 fb 48 8b 43 08 48 8d 50 ff a8 01 48 0f 45 da <48> 8b 53 08 48 8d 42 ff 83 e2 01 48 0f 44 c3 48 83 38 ff 74 2f 48
+> [   40.356704] RSP: 0018:ffff88801fa87cd8 EFLAGS: 00010202
+> [   40.362714] RAX: ffffffffffffffff RBX: fffffffffffffffe RCX: 000000000000000a
+> [   40.370798] RDX: fffffffffffffffe RSI: ffffffff820b9a20 RDI: ffff88801e5c0000
+> [   40.378830] RBP: 6db6db6db6db6db7 R08: ffff88801e8bb000 R09: 0000000001b64d13
+> [   40.386902] R10: ffff88801fa87cf8 R11: 0000000000000001 R12: ffff88801e640000
+> [   40.395033] R13: ffffffff820b9a20 R14: ffff88801f145258 R15: 0000000000000001
+> [   40.403138] FS:  00007fb2079817c0(0000) GS:ffff88801dd00000(0000) knlGS:0000000000000000
+> [   40.412243] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [   40.418846] CR2: 0000000000000006 CR3: 000000001fa82000 CR4: 00000000000006a0
+> [   40.426951] Call Trace:
+> [   40.429843]  __dump_page+0x14/0x2c0
+> [   40.433947]  is_mem_section_removable+0x24c/0x2c0
+> [   40.439327]  removable_show+0x87/0xa0
+> [   40.443613]  dev_attr_show+0x25/0x60
+> [   40.447763]  sysfs_kf_seq_show+0xba/0x110
+> [   40.452363]  seq_read+0x196/0x3f0
+> [   40.456282]  __vfs_read+0x34/0x180
+> [   40.460233]  ? lock_acquire+0xb6/0x1e0
+> [   40.464610]  vfs_read+0xa0/0x150
+> [   40.468372]  ksys_read+0x44/0xb0
+> [   40.472129]  ? do_syscall_64+0x1f/0x4a0
+> [   40.476593]  do_syscall_64+0x5e/0x4a0
+> [   40.480809]  ? trace_hardirqs_off_thunk+0x1a/0x1c
+> [   40.486195]  entry_SYSCALL_64_after_hwframe+0x49/0xbe
 > 
-> It would also help to remove the checksum check from mm/ksm.c:
+> and bisected it down to efad4e475c31 ("mm, memory_hotplug:
+> is_mem_section_removable do not pass the end of a zone"). The reason for
+> the crash is that the mapping is garbage for poisoned (uninitialized) page.
+> This shouldn't happen as all pages in the zone's boundary should be
+> initialized. Later debugging revealed that the actual problem is an
+> off-by-one when evaluating the end_page. start_pfn + nr_pages resp.
+> zone_end_pfn refers to a pfn after the range and as such it might belong
+> to a differen memory section. This along with CONFIG_SPARSEMEM then
+> makes the loop condition completely bogus because a pointer arithmetic
+> doesn't work for pages from two different sections in that memory model.
 > 
-> -	if (rmap_item->oldchecksum != checksum) {
-> -		rmap_item->oldchecksum = checksum;
-> -		return;
-> -	}
-
-Will try with that.
-
+> Fix the issue by reworking is_pageblock_removable to be pfn based and
+> only use struct page where necessary. This makes the code slightly
+> easier to follow and we will remove the problematic pointer arithmetic
+> completely.
 > 
-> One way or another, /sys/kernel/mm/ksm/pages_shared and/or
-> pages_sharing need to change significantly to be sure we're exercising
-> the COW/merging code that uses change_pte. KSM is smart enough to
-> merge only not frequently changing pages, and with the default KSM
-> code this probably works too well for a kernel build.
-> 
-> > Should we still restore change_pte() ? It does not hurt, but it does
-> > not seems to help in anyway. Maybe you have a better benchmark i could
-> > run ?
-> 
-> We could also try a microbenchmark based on
-> ltp/testcases/kernel/mem/ksm/ksm02.c that already should trigger a
-> merge flood and a COW flood during its internal processing.
+> Fixes: efad4e475c31 ("mm, memory_hotplug: is_mem_section_removable do not pass the end of a zone")
+> Reported-by: <rong.a.chen@intel.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Will try that.
+Acked-by: Mike Rapoport <rppt@linux.ibm.com>
 
-Cheers,
-Jérôme
+> ---
+>  mm/memory_hotplug.c | 27 +++++++++++++++------------
+>  1 file changed, 15 insertions(+), 12 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 124e794867c5..1ad28323fb9f 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1188,11 +1188,13 @@ static inline int pageblock_free(struct page *page)
+>  	return PageBuddy(page) && page_order(page) >= pageblock_order;
+>  }
+>  
+> -/* Return the start of the next active pageblock after a given page */
+> -static struct page *next_active_pageblock(struct page *page)
+> +/* Return the pfn of the start of the next active pageblock after a given pfn */
+> +static unsigned long next_active_pageblock(unsigned long pfn)
+>  {
+> +	struct page *page = pfn_to_page(pfn);
+> +
+>  	/* Ensure the starting page is pageblock-aligned */
+> -	BUG_ON(page_to_pfn(page) & (pageblock_nr_pages - 1));
+> +	BUG_ON(pfn & (pageblock_nr_pages - 1));
+>  
+>  	/* If the entire pageblock is free, move to the end of free page */
+>  	if (pageblock_free(page)) {
+> @@ -1200,16 +1202,16 @@ static struct page *next_active_pageblock(struct page *page)
+>  		/* be careful. we don't have locks, page_order can be changed.*/
+>  		order = page_order(page);
+>  		if ((order < MAX_ORDER) && (order >= pageblock_order))
+> -			return page + (1 << order);
+> +			return pfn + (1 << order);
+>  	}
+>  
+> -	return page + pageblock_nr_pages;
+> +	return pfn + pageblock_nr_pages;
+>  }
+>  
+> -static bool is_pageblock_removable_nolock(struct page *page)
+> +static bool is_pageblock_removable_nolock(unsigned long pfn)
+>  {
+> +	struct page *page = pfn_to_page(pfn);
+>  	struct zone *zone;
+> -	unsigned long pfn;
+>  
+>  	/*
+>  	 * We have to be careful here because we are iterating over memory
+> @@ -1232,13 +1234,14 @@ static bool is_pageblock_removable_nolock(struct page *page)
+>  /* Checks if this range of memory is likely to be hot-removable. */
+>  bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
+>  {
+> -	struct page *page = pfn_to_page(start_pfn);
+> -	unsigned long end_pfn = min(start_pfn + nr_pages, zone_end_pfn(page_zone(page)));
+> -	struct page *end_page = pfn_to_page(end_pfn);
+> +	unsigned long end_pfn, pfn;
+> +
+> +	end_pfn = min(start_pfn + nr_pages,
+> +			zone_end_pfn(page_zone(pfn_to_page(start_pfn))));
+>  
+>  	/* Check the starting page of each pageblock within the range */
+> -	for (; page < end_page; page = next_active_pageblock(page)) {
+> -		if (!is_pageblock_removable_nolock(page))
+> +	for (pfn = start_pfn; pfn < end_pfn; pfn = next_active_pageblock(pfn)) {
+> +		if (!is_pageblock_removable_nolock(pfn))
+>  			return false;
+>  		cond_resched();
+>  	}
+> -- 
+> 2.20.1
+> 
+
+-- 
+Sincerely yours,
+Mike.
 
