@@ -2,214 +2,198 @@ Return-Path: <SRS0=YQJ0=QZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 19F35C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 10:29:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 59C2AC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 10:30:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BAB78214DA
-	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 10:29:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BAB78214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 236882173C
+	for <linux-mm@archiver.kernel.org>; Mon, 18 Feb 2019 10:30:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 236882173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2B7638E0003; Mon, 18 Feb 2019 05:29:41 -0500 (EST)
+	id B69C18E0004; Mon, 18 Feb 2019 05:30:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2666A8E0002; Mon, 18 Feb 2019 05:29:41 -0500 (EST)
+	id B18358E0002; Mon, 18 Feb 2019 05:30:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 12F018E0003; Mon, 18 Feb 2019 05:29:41 -0500 (EST)
+	id A2EAF8E0004; Mon, 18 Feb 2019 05:30:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DF1AD8E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 05:29:40 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id y31so16517818qty.9
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 02:29:40 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B4438E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 05:30:16 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id j5so3314215edt.17
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 02:30:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=j9GE4pe0PP93FBq78MGaBMKwU5DddFSd6gUYB3CmTtA=;
-        b=LrOTIx5IWWIrMBye6QGqQAEG+hisJQn2fCvw7ujLo5DeiwlxOA4z5Abjc6/zDdHq83
-         S9H1aWn1o+f1BT1kM4CgKaU/wXhE5PZEFh8a27Fc0hSLrhi8Bj0rhfy+23Ogf8GVN6K0
-         Cut/KfOU1NIXl5mgt4fCVt1/FWSANCNYpC3zUng1VrJhoLmFUMI3L54vVoAdCDt1ohK2
-         60T0qEBGoR2zahvnnLLnl1gBVSbxGVMvc2AeWRjCNcXS0o8CwY/S0gPTF/ePDpHCrPJ7
-         tDqoM6wZ8hzveGOUH2AL9zkffw3uU6PfdMdpihwfCe1vFq4OIOmfu/LFqAaoIMVRNYrF
-         HCPw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuZpVXwjxbm+29LqY6j4DLXw0046j/IF7JI+zX5b/eIkVNRWGpoJ
-	Chlo3fWbH6zWW1839gOO928jdSeoiwfx72hpwiF34ydxmyoPIrccPi9BSD4uoN4VD1JMDrV8zYu
-	EO4YP737jnLkE+HhE/jMXwVo3oyICf6y0vZt8xI51e9FyYb96B5xx4qGZEFPkpDg4CA==
-X-Received: by 2002:a37:6a42:: with SMTP id f63mr16165348qkc.224.1550485780633;
-        Mon, 18 Feb 2019 02:29:40 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZpNwusqX6NYyqQ3Z681I2z1mlV8qoKZYcAHtE40Hr3miReUJUfqlV3u8iNtEJ3yGwlkEoT
-X-Received: by 2002:a37:6a42:: with SMTP id f63mr16165316qkc.224.1550485780033;
-        Mon, 18 Feb 2019 02:29:40 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550485780; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=zvFBH/qsp0Q6R/L2EVrkA4gUC2/IJsA+J/6xWUDqGYE=;
+        b=IdTyqZpr9JC7Bm8pVgxHIKDZeaa0x+nLjdjIR5B3wui8u4IWwZsuiogeuknSE2Npw2
+         8v/H1L8M29ujVr4nlYxRjg3YxD9H6t1dAhS8nPBIM0DNe+YG+IoRDzr7nyfhKvWm+83L
+         3xDBtQTCTCpeWRgGGOfjsP3iTudEHYeAQsdFJFNhEt8CXlqP1Q5HQCsJZiIxw1gK/PNX
+         MhNmDozJJGzAG3YvLWU3suNTnrzb0wfnKzZ1BsOZI2QO6xpBjqnZ0lE1GWyouPcQN7uv
+         LGi++JKiFmxsSYpRyNtnPG/IktcdZBBl60J1709CNDePv32lSN5a9qF1DEWT9e8g/iIy
+         RQIQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuZBnr0esX3drezkC2cOXB4QKHwsgZYNhZ+V4kCQ961XUxJEvYdH
+	rbOzB/LJmz+UAhkvKhIaShdsvtkGTj8rlSh3//S4u1H+gnOMznECFZCq1a6uE90W8pBs1DrQYNJ
+	evCWIHqC9qWYydjVhqfBkhu98cpPZEXviKaFKpjf/phG4dHchUv0+RLIpu+F7gwQ=
+X-Received: by 2002:a50:b744:: with SMTP id g62mr18798953ede.14.1550485815812;
+        Mon, 18 Feb 2019 02:30:15 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IY+oUcnwjkC/E/kEihE8/Lc+r/oAKeAJjTsh2eAKET0JOdFZfm1BnbhVLllwkDRGXN/fR3t
+X-Received: by 2002:a50:b744:: with SMTP id g62mr18798879ede.14.1550485814616;
+        Mon, 18 Feb 2019 02:30:14 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550485814; cv=none;
         d=google.com; s=arc-20160816;
-        b=F8RPv5p9MBH4ttKoVQj0XhvKFPif8KmRf+q6/p9fSu9Lsz3jKLlR6Iok2RtyNpRpMM
-         JGgGj6cffgen6o5Yv1+mTSm0mr4hMlzEBBmy3a4/y6XE1/AY3pjSwme7bDGI7hdgWr/B
-         QnJzM5pP6nLMsL3V0Nr9hppK6lPZkqYV47j93rkWaKEAyB3XOGwpF/W2PeI9E0yu0+yr
-         pvbChm90u1LXZ7MDBAg/HCrXrNFE9DKBXmLlgO7TnBYzwwMkNK+xEBMXQn/M3hR7k/ZH
-         2oM6lSQty0n5gYf1xyTlHFj60Qtcw3G8I5Jhqfac7W66dsohzq23s3buar/TRGheCC7e
-         ERgw==
+        b=y+WkM2L0tUVWNVRBqMjQoROaa95uleb9kskWd7yke3E9lIhDll0iRRuXsNoU/Bnuti
+         +JOm351bVP3WPdtyJWvc3I301ELlHQJ7J2Kxc5SO8uwpnJjpL1qfm/rAqcr7A+Y+vqjM
+         rWXFjoBkcZktQ4Y7gkReNhMwMdMv3ZZLcD4YbMpOq+Bgj+i06xj9xJC2znRuOX37k3Fm
+         Z64ngyy+gH2/aB6kqXgxa0xzZIse7dE3Yq2uFZoL1JhaWWrvtEa5Ao/9tKvu2+iquzr4
+         EjKkFZMjwb0gtEyNIXcqZgl6g29Tj4l4Vsm20jmqh+Z1i4xQXaRPhpfApKfpcU3UBJa5
+         pfuw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=j9GE4pe0PP93FBq78MGaBMKwU5DddFSd6gUYB3CmTtA=;
-        b=rMUdKo2lxpnjwJUUgJYGSPBB6jXNSZjmVZDihaehXANVHgjypGRVjVhWJohfCcSmlC
-         LQp+Ay1Z8EujkiMGvJkyLhJhuZO8O9FY5T4YornnxwxyNJJy3/5WCziZ8GWjZaicOePr
-         uwfCoGCkFn96sC6sTYFW4HCWlerTZGNZ/xSP27PUpiemFxcwSDJug0i4xwTHfHYylBLC
-         KxneSVrpBfkZVnUMW+WbJF+cTbue49P6egyvs1FcRrpmGiK0i5d1PwR0DYD5CqY0D5zF
-         2tGN985suAlSwUdeqG8OTWZm+5k6XsIcM1tQMsx6pvWH78q2cRPnLG9bTM4dErr5xYB0
-         zy/Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=zvFBH/qsp0Q6R/L2EVrkA4gUC2/IJsA+J/6xWUDqGYE=;
+        b=jYXoFc+1JAw+GTRIA9VUjqVwOeYkFV1zyFeFFIZwrTZMpV9wlXLbrJhXoylpmT6TPC
+         7mo06nCFDYdGUSRn904hTsvdMcAKYXejpA+pcUx7h59c2Nw2p/gQxsutuEyy0t5bJ5Y+
+         L5o9J7+zr6fMZ8EipdI2ggOc/QrAxIVypL5spRuk9hYH9mQQJE5/oSLBSOx+Cg83aFwJ
+         2SuIwPy7iArzgj0C8cKyUdKb5ELlq1mdkmX7X6RCyDlWieRFrBEWZ/gWJMPOAv2KsCms
+         KWPC40YqxJIp2W6ZM5z2tRnqx386mFzeSqEO4DcUaSXSfETbVjBElggEjNPmkroiaU9o
+         gc2Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id f35si3570514qte.129.2019.02.18.02.29.39
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z2-v6si1567126ejn.222.2019.02.18.02.30.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Feb 2019 02:29:40 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Mon, 18 Feb 2019 02:30:14 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1IAL1SV096577
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 05:29:39 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2qqrhmehg4-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 05:29:39 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 18 Feb 2019 10:29:37 -0000
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 18 Feb 2019 10:29:32 -0000
-Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1IATVL944957846
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Mon, 18 Feb 2019 10:29:31 GMT
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id BFDD311C04C;
-	Mon, 18 Feb 2019 10:29:31 +0000 (GMT)
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id E723011C054;
-	Mon, 18 Feb 2019 10:29:30 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.207.239])
-	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Mon, 18 Feb 2019 10:29:30 +0000 (GMT)
-Date: Mon, 18 Feb 2019 12:29:29 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, linux-api@vger.kernel.org,
-        hughd@google.com, viro@zeniv.linux.org.uk,
-        torvalds@linux-foundation.org
-Subject: Re: mremap vs sysctl_max_map_count
-References: <20190218083326.xsnx7cx2lxurbmux@d104.suse.de>
- <a11a10b5-4a31-2537-7b14-83f4b22e5f6c@suse.cz>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 09A9BAC97;
+	Mon, 18 Feb 2019 10:30:14 +0000 (UTC)
+Date: Mon, 18 Feb 2019 11:30:13 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Rong Chen <rong.a.chen@intel.com>
+Cc: Pavel Tatashin <pasha.tatashin@soleen.com>,
+	linux-kernel@vger.kernel.org,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>, LKP <lkp@01.org>,
+	Oscar Salvador <osalvador@suse.de>
+Subject: Re: [LKP] efad4e475c [ 40.308255] Oops: 0000 [#1] PREEMPT SMP PTI
+Message-ID: <20190218103013.GK4525@dhcp22.suse.cz>
+References: <20190218052823.GH29177@shao2-debian>
+ <20190218070844.GC4525@dhcp22.suse.cz>
+ <20190218085510.GC7251@dhcp22.suse.cz>
+ <4c75d424-2c51-0d7d-5c28-78c15600e93c@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a11a10b5-4a31-2537-7b14-83f4b22e5f6c@suse.cz>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19021810-0016-0000-0000-00000257B7CF
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19021810-0017-0000-0000-000032B1F5BA
-Message-Id: <20190218102928.GA25446@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-18_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902180079
+In-Reply-To: <4c75d424-2c51-0d7d-5c28-78c15600e93c@intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 18, 2019 at 10:57:18AM +0100, Vlastimil Babka wrote:
-> On 2/18/19 9:33 AM, Oscar Salvador wrote:
-> > 
-> > Hi all,
-> > 
-> > I would like to bring up a topic that comes from an issue a customer of ours
-> > is facing with the mremap syscall + hitting the max_map_count threshold:
-> > 
-> > When passing the MREMAP_FIXED flag, mremap() calls mremap_to() which does the
-> > following:
-> > 
-> > 1) it unmaps the region where we want to put the new map:
-> >    (new_addr, new_addr + new_len] [1]
-> > 2) IFF old_len > new_len, it unmaps the region:
-> >    (old_addr + new_len, (old_addr + new_len) + (old_len - new_len)] [2]
-> > 
-> > Now, having gone through steps 1) and 2), we eventually call move_vma() to do
-> > the actual move.
-> > 
-> > move_vma() checks if we are at least 4 maps below max_map_count, otherwise
-> > it bails out with -ENOMEM [3].
-> > The problem is that we might have already unmapped the vma's in steps 1) and 2),
-> > so it is not possible for userspace to figure out the state of the vma's after
-> > it gets -ENOMEM.
-> > 
-> > - Did new_addr got unmaped?
-> > - Did part of the old_addr got unmaped?
-> > 
-> > Because of that, it gets tricky for userspace to clean up properly on error
-> > path.
-> > 
-> > While it is true that we can return -ENOMEM for more reasons
-> > (e.g: see vma_to_resize()->may_expand_vm()), I think that we might be able to
-> > pre-compute the number of maps that we are going add/release during the first
-> > two do_munmaps(), and check whether we are 4 maps below the threshold
-> > (as move_vma() does).
-> > Should not be the case, we can bail out early before we unmap anything, so we
-> > make sure the vma's are left untouched in case we are going to be short of maps.
-> > 
-> > I am not sure if that is realistically doable, or there are limitations
-> > I overlooked, or we simply do not want to do that.
+On Mon 18-02-19 18:01:39, Rong Chen wrote:
 > 
-> IMHO it makes sense to do all such resource limit checks upfront. It
-> should all be protected by mmap_sem and thus stable, right? Even if it
-> was racy, I'd think it's better to breach the limit a bit due to a race
-> than bail out in the middle of operation. Being also resilient against
-> "real" ENOMEM's due to e.g. failure to alocate a vma would be much
-> harder perhaps (but maybe it's already mostly covered by the
-> too-small-to-fail in page allocator), but I'd try with the artificial
-> limits at least.
+> On 2/18/19 4:55 PM, Michal Hocko wrote:
+> > [Sorry for an excessive quoting in the previous email]
+> > [Cc Pavel - the full report is http://lkml.kernel.org/r/20190218052823.GH29177@shao2-debian[]
+> > 
+> > On Mon 18-02-19 08:08:44, Michal Hocko wrote:
+> > > On Mon 18-02-19 13:28:23, kernel test robot wrote:
+> > [...]
+> > > > [   40.305212] PGD 0 P4D 0
+> > > > [   40.308255] Oops: 0000 [#1] PREEMPT SMP PTI
+> > > > [   40.313055] CPU: 1 PID: 239 Comm: udevd Not tainted 5.0.0-rc4-00149-gefad4e4 #1
+> > > > [   40.321348] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
+> > > > [   40.330813] RIP: 0010:page_mapping+0x12/0x80
+> > > > [   40.335709] Code: 5d c3 48 89 df e8 0e ad 02 00 85 c0 75 da 89 e8 5b 5d c3 0f 1f 44 00 00 53 48 89 fb 48 8b 43 08 48 8d 50 ff a8 01 48 0f 45 da <48> 8b 53 08 48 8d 42 ff 83 e2 01 48 0f 44 c3 48 83 38 ff 74 2f 48
+> > > > [   40.356704] RSP: 0018:ffff88801fa87cd8 EFLAGS: 00010202
+> > > > [   40.362714] RAX: ffffffffffffffff RBX: fffffffffffffffe RCX: 000000000000000a
+> > > > [   40.370798] RDX: fffffffffffffffe RSI: ffffffff820b9a20 RDI: ffff88801e5c0000
+> > > > [   40.378830] RBP: 6db6db6db6db6db7 R08: ffff88801e8bb000 R09: 0000000001b64d13
+> > > > [   40.386902] R10: ffff88801fa87cf8 R11: 0000000000000001 R12: ffff88801e640000
+> > > > [   40.395033] R13: ffffffff820b9a20 R14: ffff88801f145258 R15: 0000000000000001
+> > > > [   40.403138] FS:  00007fb2079817c0(0000) GS:ffff88801dd00000(0000) knlGS:0000000000000000
+> > > > [   40.412243] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> > > > [   40.418846] CR2: 0000000000000006 CR3: 000000001fa82000 CR4: 00000000000006a0
+> > > > [   40.426951] Call Trace:
+> > > > [   40.429843]  __dump_page+0x14/0x2c0
+> > > > [   40.433947]  is_mem_section_removable+0x24c/0x2c0
+> > > This looks like we are stumbling over an unitialized struct page again.
+> > > Something this patch should prevent from. Could you try to apply [1]
+> > > which will make __dump_page more robust so that we do not blow up there
+> > > and give some more details in return.
+> > > 
+> > > Btw. is this reproducible all the time?
+> > And forgot to ask whether this is reproducible with pending mmotm
+> > patches in linux-next.
+> 
+> 
+> Do you mean the below patch? I can reproduce the problem too.
 
-The mremap_to() is called with mmap_sem hold, so there won't be a race.
+Yes, thanks for the swift response. The patch has just added a debugging
+output
+[    0.013697] Early memory node ranges
+[    0.013701]   node   0: [mem 0x0000000000001000-0x000000000009efff]
+[    0.013706]   node   0: [mem 0x0000000000100000-0x000000001ffdffff]
+[    0.013711] zeroying 0-1
 
-But it seems mremap_to() is not the only path to call do_munmap(). There is
-also an unmap in shrinking remap and possible move_vma() even with
-~MREMAP_FIXED.
+This is the first pfn.
 
-Maybe it'd make sense to check the limits right after taking the mmap_sem?
+[    0.013715] zeroying 9f-100
+
+this is [mem 0x9f000, 0xfffff] so it fills up the whole hole between the
+above two ranges. This is definitely good.
+
+[    0.013722] zeroying 1ffe0-1ffe0
+
+this is a single page at 0x1ffe0000 right after the zone end.
+
+[    0.013727] Zeroed struct page in unavailable ranges: 98 pages
+
+Hmm, so this is getting really interesting. The whole zone range should
+be covered. So this is either some off-by-one or I something that I am
+missing right now. Could you apply the following on top please? We
+definitely need to see what pfn this is.
+
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 124e794867c5..59bcfd934e37 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1232,12 +1232,14 @@ static bool is_pageblock_removable_nolock(struct page *page)
+ /* Checks if this range of memory is likely to be hot-removable. */
+ bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
+ {
+-	struct page *page = pfn_to_page(start_pfn);
++	struct page *page = pfn_to_page(start_pfn), *first_page;
+ 	unsigned long end_pfn = min(start_pfn + nr_pages, zone_end_pfn(page_zone(page)));
+ 	struct page *end_page = pfn_to_page(end_pfn);
  
-> > Before investing more time and giving it a shoot, I just wanted to bring
-> > this upstream to get feedback on this matter.
-> > 
-> > Thanks
-> > 
-> > [1] https://github.com/torvalds/linux/blob/master/mm/mremap.c#L519
-> > [2] https://github.com/torvalds/linux/blob/master/mm/mremap.c#L523
-> > [3] https://github.com/torvalds/linux/blob/master/mm/mremap.c#L338
-> > 
-> 
-
+ 	/* Check the starting page of each pageblock within the range */
+-	for (; page < end_page; page = next_active_pageblock(page)) {
++	for (first_page = page; page < end_page; page = next_active_pageblock(page)) {
++		if (PagePoisoned(page))
++			pr_info("Unexpected poisoned page %px pfn:%lx\n", page, start_pfn + page-first_page);
+ 		if (!is_pageblock_removable_nolock(page))
+ 			return false;
+ 		cond_resched();
 -- 
-Sincerely yours,
-Mike.
+Michal Hocko
+SUSE Labs
 
