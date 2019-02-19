@@ -2,586 +2,172 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,FROM_EXCESS_BASE64,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 71CC8C10F02
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 10:34:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72B5CC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 10:46:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 05F6B2146E
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 10:34:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2E42D21773
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 10:46:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ZUS+Ui6o"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 05F6B2146E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="YpoYatti"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E42D21773
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A8BEA8E0015; Tue, 19 Feb 2019 05:33:15 -0500 (EST)
+	id B91588E0004; Tue, 19 Feb 2019 05:46:06 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A14BE8E0014; Tue, 19 Feb 2019 05:33:15 -0500 (EST)
+	id B42E58E0002; Tue, 19 Feb 2019 05:46:06 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 88D6C8E0015; Tue, 19 Feb 2019 05:33:15 -0500 (EST)
+	id A56B88E0004; Tue, 19 Feb 2019 05:46:06 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 561908E0014
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 05:33:15 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id v12so3547525itv.9
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 02:33:15 -0800 (PST)
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 35CB38E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 05:46:06 -0500 (EST)
+Received: by mail-lf1-f72.google.com with SMTP id c5so2212644lfi.7
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 02:46:06 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:user-agent:date:from
-         :to:cc:subject:references:mime-version;
-        bh=snNhn5zveF6dfV/zpZ0PO6Eh5zozpyzs0qjQhpCNol8=;
-        b=rIoHJzYyM9Q4VyYbPHDywgC6vIdHO8lXp2ZNsQGC8Pn/AqgkWXMHuBvArDhFJouNF+
-         prCRz/PoVQWqvUDOc+EmP6W5TMqOO3TuiJybxbh0PnyjhQA0FCLZgCZbfdTuwr3YebHN
-         31cR5DddytUul9LuxzA3Y9gwXuAKBtFTPlGerku8krBgYs4xItUgA1FDPW+vWac00jif
-         RYBLVsdyPM70vHjHHMUPLw+amsmS/ovCpWuCm09DUxAnOIhpVJexo+NStyo2X0bXT0XI
-         XSHuAeWkuAOTCAdPBk7lE+A2ouMX1a4oouM5X3hPK8XTQC6rv9EG6moDcHnMAAb3u+8+
-         AbUA==
-X-Gm-Message-State: AHQUAuYyhgiYvhTbUBrXFsOHbcWbjmCo26OviGvr0zHiiAlJ5NTtutgA
-	c39nFn9xuTdw0A7EVL02mwNlVBN46TT5qf/CMTyxYVNMEsP9ETvh7X07ngXAjfGvENleYo/IIDy
-	lQkROrRHGyceDNhl3XJx3ka3n9qn32EGSFrMB/ItrRs+g0/lH+OdMgZYKTL8GMPZ4Ug==
-X-Received: by 2002:a6b:c30d:: with SMTP id t13mr1249174iof.66.1550572395091;
-        Tue, 19 Feb 2019 02:33:15 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbKSspiftGE3teg4crPxeTwJXO04IgqPNdKXq0RlQ3ae/BjulIPNQy9py+1TfL73Vc4zGyq
-X-Received: by 2002:a6b:c30d:: with SMTP id t13mr1249132iof.66.1550572394109;
-        Tue, 19 Feb 2019 02:33:14 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550572394; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=ffG50zcYRZxWfUGn5WkhVM3jBYqv2vEwRvPWaUtideQ=;
+        b=M1XRYCGCgzw5HHRe70gQSUN/cXkkhWnJBXdxdcgFn/RKSK9RzKyzFTafqFV4fmWWZz
+         JJbN5FSXRC5lnuyb0a6m+k4Xg5Wqprcm21vMalh+PQ9sM0bPT3q1/ncx926wZ2a5Yq7J
+         eS9TKvloq/nK3+CTIlG41PApSz6cKUGVQFwQ+/GCYlVqa7jsUE9hT1sz/HGpcGFdLjdn
+         qe0+5z3u6/1Ifxrow4+D4NOx7itktRIIH+11giEzeqNIz/WqRRzlkIMGNnElDY/RHwQo
+         dfE84mSDm6YSUbr9/8DCYcSIBerV4JLGc6OqkPxwkTDfvUrbptzitbJkm7qyoL4p2zua
+         VKLg==
+X-Gm-Message-State: AHQUAuZxUY25i/cMmqOXrjcdd7Q8zo+OEJWou36VNu0PQTZLFzuHu914
+	grJmvmmQ6iKV+fU30kEMgiRJOFfO9G1KLitn6MsYmcJp3C5HC9b0ltP2oCbGPSn2I3Vuz9Tn1IE
+	C60B6iBbXa1iLT246In3ltrxqF1C9K4DMLOlwRWYSYnXSwKDwMwipd6zwnisNTA+9gWLN8xS70A
+	E5Kuwg6hrQhXhFL4nva3uVPGEw8PAiDB3Z0IkJ1QSzUGDaCKuAh67M6627Ge/7IwjL6lyZunTHC
+	Dbvt4+n2unAkNd1xkZfQKsACQHUiS64IEPD95PArVNg1VxbKmGz850+K0vJyXGtRx2fMWZnA7qT
+	tat3CTntl3yYtF9L86OR/qr2BunkPeDG0N2z55w0T/+LeDhwtROrp8I1uRBFVXnFuaXX162x7RF
+	t
+X-Received: by 2002:a19:260e:: with SMTP id m14mr17359274lfm.158.1550573165193;
+        Tue, 19 Feb 2019 02:46:05 -0800 (PST)
+X-Received: by 2002:a19:260e:: with SMTP id m14mr17359208lfm.158.1550573164070;
+        Tue, 19 Feb 2019 02:46:04 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550573164; cv=none;
         d=google.com; s=arc-20160816;
-        b=oJ/AMFrhh8jizrCiZwpoJ6sRWsGCLRuqAtyZFofOf840UEHBW/SMc++Du3fvl+40TD
-         f5m9gKebSvFU9Zg4+XFiTm4Ui1w9TACUH1UlAmI8jgsAPjemCnXI07OwQVffu3DhP9gB
-         CyhV1NGvW5N5IiUPP+1gVsgTIWd1Tk0JV728l3orxAe9yBQcOfBny1w+/SqHp1tqY/wE
-         TuOr4BoLCTZpjmZ9DdCFWkEtEtriBA6BNhuSFfUyTdigxvTmWuf4cYe65VJkNPrekQ/7
-         JfGVMk1bMCLRzICGiRtitUyVLOMRyAHP67ZqNXTNutbzePVPfBqYJf266AFBJJL2tBrD
-         2Mlw==
+        b=jyTwWlaUzEGlVuUAorYD6o1K5aU1K+jYgaH80TpiiT/BWGgr7Uw2/4Z4RmR0okN8//
+         Rnza8Zay5x8+NyYX3sIL5PsrQRK/EudOS4/Zkgcu6185XxMtudJ4cWsDfhH1xLQipBB6
+         hbJpM+kYiIffILXXCJ/vecix6I2MupG7X6goB6IS0ehn8CBzf4CKMs5VOC5DJ/vJc62P
+         SkDFN5Kcf06J7IO1WxblbBOFhaiqV4P9iJ7rVegnsGQIbrkbx0p3yIkywqJ4Gvz8hqiO
+         k7d/t+UaZeG9eX0fvShS+gRrraF8yHQ1SHOhxK7tLevVgiNN8uQrqSkTbnoOYLlWxh0b
+         9hwA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:subject:cc:to:from:date:user-agent
-         :message-id:dkim-signature;
-        bh=snNhn5zveF6dfV/zpZ0PO6Eh5zozpyzs0qjQhpCNol8=;
-        b=cj8jHsMT3KJGeSI9rKxZfd1dXHlmyKiezXvVGj4MVrYUWiBvlg5/X8bhgAFoMsylxD
-         wExx+4RmxMkY5AxVmUX6bEIPS4cHopwmKjwxH+/l6RAXcOEpbg76wiyXjbyps/3WLbCV
-         iEzugzJxDghOOwWu9/8Yhi3ocd7I3KvcWnGeSG8bfnKlTVdW4IjOZBc3t3KhiWbNb0lh
-         QQ5atVPPLfYVcp/elnr/aP0BiqwfzztqiE13qR6qBWVec+87KoThXj4rYBk5X79XLcaB
-         UH/gbOkEoWWaZyLliM9lk+OrWE+CFPR8scLRx3Y/wMB7Xvg3erQjdn05XDPboYZ45KTq
-         XlbQ==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=ffG50zcYRZxWfUGn5WkhVM3jBYqv2vEwRvPWaUtideQ=;
+        b=gm5JGeI18YboD1k689oWgxb/B/afgXmAhv7CpxB62bg5tXe6iR5WpE8+KyhtzVawqb
+         s2RIcS/XLbVcmmwjCbByj9eZjmlI240dBjJBwW6leqeW5Dn32NSKBwrgcAn/B2EBTfFU
+         Mkt0Ae7al5H7YvBwAsH/Cp8CkBSrxZAdtc0C/x6NGbkwzBdMC4OjpzgZnyT91oi6cK3D
+         6RPdna7Lknokr2LyxnOl7cLB+A5Nw1kvrJENMNiJGoATZ6WHppU0Tt7JxtgJOPc2693p
+         57D7ggCbUtIIdLktOOOKHPnSxqQ9jwcQZjE2bjzIB94cDDnz7UQ0Xn8Ha6LoNNnntJ+x
+         pVjg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=ZUS+Ui6o;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id y67si4618310jaa.118.2019.02.19.02.33.13
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=YpoYatti;
+       spf=pass (google.com: domain of ufo19890607@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=ufo19890607@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q8-v6sor9327054ljg.29.2019.02.19.02.46.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 19 Feb 2019 02:33:14 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (Google Transport Security);
+        Tue, 19 Feb 2019 02:46:04 -0800 (PST)
+Received-SPF: pass (google.com: domain of ufo19890607@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=ZUS+Ui6o;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=Content-Type:MIME-Version:References:
-	Subject:Cc:To:From:Date:Message-Id:Sender:Reply-To:Content-Transfer-Encoding:
-	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
-	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=snNhn5zveF6dfV/zpZ0PO6Eh5zozpyzs0qjQhpCNol8=; b=ZUS+Ui6ozcYG4zjSGGs0zJGTlR
-	MDJjRipekQBdKE9nJVKI5mG1id4d8nCwV+LiX1RawROqHIKsIwA7W9KgYpT9pFmEdcO7nLRJ4jdWp
-	X7A7Kkfcg9K5k+pt05pGCgtWfLBSV9ck1tgUOTJQfGOkrNScQenZxXgIGSc8oHGfFXSBEwMEukF3u
-	sTdvaPBXqCdsQxCjkmNjPcBpcy3QIcDXhQgWT7QX+3UegePh7l3wOetqF8uW5CMeOSj8F3Evl/drH
-	OTwSTWV2XLKnawMQ+W69R+rPqkE9Z4VTFeMXKFI3VCT+o3mNjM0H4mkGA60/GUgiYAK7a8vW7jBDO
-	qBeaOyWA==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gw2ho-0000dm-DP; Tue, 19 Feb 2019 10:32:52 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 0)
-	id 6E6102852059F; Tue, 19 Feb 2019 11:32:48 +0100 (CET)
-Message-Id: <20190219103233.564804918@infradead.org>
-User-Agent: quilt/0.65
-Date: Tue, 19 Feb 2019 11:32:00 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-To: will.deacon@arm.com,
- aneesh.kumar@linux.vnet.ibm.com,
- akpm@linux-foundation.org,
- npiggin@gmail.com
-Cc: linux-arch@vger.kernel.org,
- linux-mm@kvack.org,
- linux-kernel@vger.kernel.org,
- peterz@infradead.org,
- linux@armlinux.org.uk,
- heiko.carstens@de.ibm.com,
- riel@surriel.com,
- "David S. Miller" <davem@davemloft.net>,
- Michal Simek <monstr@monstr.eu>,
- Helge Deller <deller@gmx.de>,
- Greentime Hu <green.hu@gmail.com>,
- Richard Henderson <rth@twiddle.net>,
- Ley Foon Tan <lftan@altera.com>,
- Jonas Bonn <jonas@southpole.se>,
- Mark Salter <msalter@redhat.com>,
- Richard Kuo <rkuo@codeaurora.org>,
- Vineet Gupta <vgupta@synopsys.com>,
- Paul Burton <paul.burton@mips.com>,
- Max Filippov <jcmvbkbc@gmail.com>,
- Guan Xuetao <gxt@pku.edu.cn>
-Subject: [PATCH v6 12/18] arch/tlb: Clean up simple architectures
-References: <20190219103148.192029670@infradead.org>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=YpoYatti;
+       spf=pass (google.com: domain of ufo19890607@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=ufo19890607@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=ffG50zcYRZxWfUGn5WkhVM3jBYqv2vEwRvPWaUtideQ=;
+        b=YpoYattijyPWHezIgZMKDwdjebSn69PKDuhJxtXkwpjt/p8HH2X1x+3YGadInP2Dx1
+         rGlMK8oPorD/BJVjvzjPYOn/gp6hSvmVGAZ956FJHnKdzavF59LNoVdN9YDgc/JBqRM/
+         DMoBFHlW/537VF0CeNabpK9+6W2AJ8K4ziSdeZh7zDDz34Oj9HlH7hYsMJzwv5j8UTKF
+         /3gTZkXUKflREJJyEeTWV2M6GWGI/Tu8iuRyL3QeSNPeVcOHvR0lDn28auo4wrHXAkc4
+         BFFliD+xepgc6tV+e4S7WKF07D5iNbCZwn3KyN38V83wZKBoOPwgJ6KE42M8l09V7GU2
+         d6Pg==
+X-Google-Smtp-Source: AHgI3IZ+FYcQpqLOs3r6vs6rfw+yWXTt3gr7z2oiY8vq1ixrrl1/gx3aW8UGINQJJL3tc1uFpnVxZoP13f0D7A/hf1Y=
+X-Received: by 2002:a2e:965a:: with SMTP id z26mr15089257ljh.59.1550573163554;
+ Tue, 19 Feb 2019 02:46:03 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+References: <1550278564-81540-1-git-send-email-yang.shi@linux.alibaba.com> <20190218210504.GT50184@devbig004.ftw2.facebook.com>
+In-Reply-To: <20190218210504.GT50184@devbig004.ftw2.facebook.com>
+From: =?UTF-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>
+Date: Tue, 19 Feb 2019 18:45:52 +0800
+Message-ID: <CAHCio2g-S6snHsh84r0Wp1RQW1CR3t_eyUUjcdDaxnUHWTcdFw@mail.gmail.com>
+Subject: Re: [PATCH] doc: cgroup: correct the wrong information about measure
+ of memory pressure
+To: Tejun Heo <tj@kernel.org>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, hannes@cmpxchg.org, corbet@lwn.net, 
+	cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For the architectures that do not implement their own tlb_flush() but
-do already use the generic mmu_gather, there are two options:
+Hi TeJun
+I've built the 5.0.0-rc6 kernel with psi option, but I cannot find any
+cgroup.controllers when I mounted cgroup2.
 
- 1) the platform has an efficient flush_tlb_range() and
-    asm-generic/tlb.h doesn't need any overrides at all.
+[root@bogon /]# uname -r
+[root@bogon /]# 5.0.0-rc6+
+[root@bogon /]# mount -t cgroup2 none cgroup2/
+[root@bogon /]# cat cgroup2/cgroup.controllers
+[root@bogon /]
+[root@bogon /]# cat cgroup2/cgroup.subtree_control
+[root@bogon /]#
 
- 2) the platform lacks an efficient flush_tlb_range() and
-    we select MMU_GATHER_NO_RANGE to minimize full invalidates.
+What's wrong with this kernel? Or maybe I lost some mount option?
 
-Convert all 'simple' architectures to one of these two forms.
+Thanks
+Yuzhoujian
 
-alpha:	    has no range invalidate -> 2
-arc:	    already used flush_tlb_range() -> 1
-c6x:	    has no range invalidate -> 2
-hexagon:    has an efficient flush_tlb_range() -> 1
-            (flush_tlb_mm() is in fact a full range invalidate,
-	     so no need to shoot down everything)
-m68k:	    has inefficient flush_tlb_range() -> 2
-microblaze: has no flush_tlb_range() -> 2
-mips:	    has efficient flush_tlb_range() -> 1
-	    (even though it currently seems to use flush_tlb_mm())
-nds32:	    already uses flush_tlb_range() -> 1
-nios2:	    has inefficient flush_tlb_range() -> 2
-	    (no limit on range iteration)
-openrisc:   has inefficient flush_tlb_range() -> 2
-	    (no limit on range iteration)
-parisc:	    already uses flush_tlb_range() -> 1
-sparc32:    already uses flush_tlb_range() -> 1
-unicore32:  has inefficient flush_tlb_range() -> 2
-	    (no limit on range iteration)
-xtensa:	    has efficient flush_tlb_range() -> 1
-
-Note this also fixes a bug in the existing code for a number
-platforms. Those platforms that did:
-
-  tlb_end_vma() -> if (!full_mm) flush_tlb_*()
-  tlb_flush -> if (full_mm) flush_tlb_mm()
-
-missed the case of shift_arg_pages(), which doesn't have @fullmm set,
-nor calls into tlb_*vma(), but still frees page-tables and thus needs
-an invalidate. The new code handles this by detecting a non-empty
-range, and either issuing the matching range invalidate or a full
-invalidate, depending on the capabilities.
-
-
-Cc: Nick Piggin <npiggin@gmail.com>
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: Michal Simek <monstr@monstr.eu>
-Cc: Helge Deller <deller@gmx.de>
-Cc: Greentime Hu <green.hu@gmail.com>
-Cc: Richard Henderson <rth@twiddle.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Ley Foon Tan <lftan@altera.com>
-Cc: Jonas Bonn <jonas@southpole.se>
-Cc: Mark Salter <msalter@redhat.com>
-Cc: Richard Kuo <rkuo@codeaurora.org>
-Cc: Vineet Gupta <vgupta@synopsys.com>
-Cc: Paul Burton <paul.burton@mips.com>
-Cc: Max Filippov <jcmvbkbc@gmail.com>
-Cc: Guan Xuetao <gxt@pku.edu.cn>
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
----
- arch/alpha/Kconfig                |    1 +
- arch/alpha/include/asm/tlb.h      |    6 ------
- arch/arc/include/asm/tlb.h        |   23 -----------------------
- arch/c6x/Kconfig                  |    1 +
- arch/c6x/include/asm/tlb.h        |    2 --
- arch/h8300/include/asm/tlb.h      |    2 --
- arch/hexagon/include/asm/tlb.h    |   12 ------------
- arch/m68k/Kconfig                 |    1 +
- arch/m68k/include/asm/tlb.h       |   14 --------------
- arch/microblaze/Kconfig           |    1 +
- arch/microblaze/include/asm/tlb.h |    9 ---------
- arch/mips/include/asm/tlb.h       |    8 --------
- arch/nds32/include/asm/tlb.h      |   10 ----------
- arch/nios2/Kconfig                |    1 +
- arch/nios2/include/asm/tlb.h      |    8 ++++----
- arch/openrisc/Kconfig             |    1 +
- arch/openrisc/include/asm/tlb.h   |    8 ++------
- arch/parisc/include/asm/tlb.h     |   13 -------------
- arch/sparc/include/asm/tlb_32.h   |   13 -------------
- arch/unicore32/Kconfig            |    1 +
- arch/unicore32/include/asm/tlb.h  |    7 +++----
- arch/xtensa/include/asm/tlb.h     |   17 -----------------
- 22 files changed, 16 insertions(+), 143 deletions(-)
-
---- a/arch/alpha/Kconfig
-+++ b/arch/alpha/Kconfig
-@@ -36,6 +36,7 @@ config ALPHA
- 	select ODD_RT_SIGACTION
- 	select OLD_SIGSUSPEND
- 	select CPU_NO_EFFICIENT_FFS if !ALPHA_EV67
-+	select MMU_GATHER_NO_RANGE
- 	help
- 	  The Alpha is a 64-bit general-purpose processor designed and
- 	  marketed by the Digital Equipment Corporation of blessed memory,
---- a/arch/alpha/include/asm/tlb.h
-+++ b/arch/alpha/include/asm/tlb.h
-@@ -2,12 +2,6 @@
- #ifndef _ALPHA_TLB_H
- #define _ALPHA_TLB_H
- 
--#define tlb_start_vma(tlb, vma)			do { } while (0)
--#define tlb_end_vma(tlb, vma)			do { } while (0)
--#define __tlb_remove_tlb_entry(tlb, pte, addr)	do { } while (0)
--
--#define tlb_flush(tlb)				flush_tlb_mm((tlb)->mm)
--
- #include <asm-generic/tlb.h>
- 
- #define __pte_free_tlb(tlb, pte, address)		pte_free((tlb)->mm, pte)
---- a/arch/arc/include/asm/tlb.h
-+++ b/arch/arc/include/asm/tlb.h
-@@ -9,29 +9,6 @@
- #ifndef _ASM_ARC_TLB_H
- #define _ASM_ARC_TLB_H
- 
--#define tlb_flush(tlb)				\
--do {						\
--	if (tlb->fullmm)			\
--		flush_tlb_mm((tlb)->mm);	\
--} while (0)
--
--/*
-- * This pair is called at time of munmap/exit to flush cache and TLB entries
-- * for mappings being torn down.
-- * 1) cache-flush part -implemented via tlb_start_vma( ) for VIPT aliasing D$
-- * 2) tlb-flush part - implemted via tlb_end_vma( ) flushes the TLB range
-- *
-- * Note, read http://lkml.org/lkml/2004/1/15/6
-- */
--
--#define tlb_end_vma(tlb, vma)						\
--do {									\
--	if (!tlb->fullmm)						\
--		flush_tlb_range(vma, vma->vm_start, vma->vm_end);	\
--} while (0)
--
--#define __tlb_remove_tlb_entry(tlb, ptep, address)
--
- #include <linux/pagemap.h>
- #include <asm-generic/tlb.h>
- 
---- a/arch/c6x/Kconfig
-+++ b/arch/c6x/Kconfig
-@@ -19,6 +19,7 @@ config C6X
- 	select GENERIC_CLOCKEVENTS
- 	select MODULES_USE_ELF_RELA
- 	select ARCH_NO_COHERENT_DMA_MMAP
-+	select MMU_GATHER_NO_RANGE if MMU
- 
- config MMU
- 	def_bool n
---- a/arch/c6x/include/asm/tlb.h
-+++ b/arch/c6x/include/asm/tlb.h
-@@ -2,8 +2,6 @@
- #ifndef _ASM_C6X_TLB_H
- #define _ASM_C6X_TLB_H
- 
--#define tlb_flush(tlb) flush_tlb_mm((tlb)->mm)
--
- #include <asm-generic/tlb.h>
- 
- #endif /* _ASM_C6X_TLB_H */
---- a/arch/h8300/include/asm/tlb.h
-+++ b/arch/h8300/include/asm/tlb.h
-@@ -2,8 +2,6 @@
- #ifndef __H8300_TLB_H__
- #define __H8300_TLB_H__
- 
--#define tlb_flush(tlb)	do { } while (0)
--
- #include <asm-generic/tlb.h>
- 
- #endif
---- a/arch/hexagon/include/asm/tlb.h
-+++ b/arch/hexagon/include/asm/tlb.h
-@@ -22,18 +22,6 @@
- #include <linux/pagemap.h>
- #include <asm/tlbflush.h>
- 
--/*
-- * We don't need any special per-pte or per-vma handling...
-- */
--#define tlb_start_vma(tlb, vma)				do { } while (0)
--#define tlb_end_vma(tlb, vma)				do { } while (0)
--#define __tlb_remove_tlb_entry(tlb, ptep, address)	do { } while (0)
--
--/*
-- * .. because we flush the whole mm when it fills up
-- */
--#define tlb_flush(tlb)		flush_tlb_mm((tlb)->mm)
--
- #include <asm-generic/tlb.h>
- 
- #endif
---- a/arch/m68k/Kconfig
-+++ b/arch/m68k/Kconfig
-@@ -27,6 +27,7 @@ config M68K
- 	select OLD_SIGSUSPEND3
- 	select OLD_SIGACTION
- 	select ARCH_DISCARD_MEMBLOCK
-+	select MMU_GATHER_NO_RANGE if MMU
- 
- config CPU_BIG_ENDIAN
- 	def_bool y
---- a/arch/m68k/include/asm/tlb.h
-+++ b/arch/m68k/include/asm/tlb.h
-@@ -2,20 +2,6 @@
- #ifndef _M68K_TLB_H
- #define _M68K_TLB_H
- 
--/*
-- * m68k doesn't need any special per-pte or
-- * per-vma handling..
-- */
--#define tlb_start_vma(tlb, vma)	do { } while (0)
--#define tlb_end_vma(tlb, vma)	do { } while (0)
--#define __tlb_remove_tlb_entry(tlb, ptep, address)	do { } while (0)
--
--/*
-- * .. because we flush the whole mm when it
-- * fills up.
-- */
--#define tlb_flush(tlb)		flush_tlb_mm((tlb)->mm)
--
- #include <asm-generic/tlb.h>
- 
- #endif /* _M68K_TLB_H */
---- a/arch/microblaze/Kconfig
-+++ b/arch/microblaze/Kconfig
-@@ -40,6 +40,7 @@ config MICROBLAZE
- 	select TRACING_SUPPORT
- 	select VIRT_TO_BUS
- 	select CPU_NO_EFFICIENT_FFS
-+	select MMU_GATHER_NO_RANGE if MMU
- 
- # Endianness selection
- choice
---- a/arch/microblaze/include/asm/tlb.h
-+++ b/arch/microblaze/include/asm/tlb.h
-@@ -11,16 +11,7 @@
- #ifndef _ASM_MICROBLAZE_TLB_H
- #define _ASM_MICROBLAZE_TLB_H
- 
--#define tlb_flush(tlb)	flush_tlb_mm((tlb)->mm)
--
- #include <linux/pagemap.h>
--
--#ifdef CONFIG_MMU
--#define tlb_start_vma(tlb, vma)		do { } while (0)
--#define tlb_end_vma(tlb, vma)		do { } while (0)
--#define __tlb_remove_tlb_entry(tlb, pte, address) do { } while (0)
--#endif
--
- #include <asm-generic/tlb.h>
- 
- #endif /* _ASM_MICROBLAZE_TLB_H */
---- a/arch/mips/include/asm/tlb.h
-+++ b/arch/mips/include/asm/tlb.h
-@@ -5,14 +5,6 @@
- #include <asm/cpu-features.h>
- #include <asm/mipsregs.h>
- 
--#define tlb_end_vma(tlb, vma) do { } while (0)
--#define __tlb_remove_tlb_entry(tlb, ptep, address) do { } while (0)
--
--/*
-- * .. because we flush the whole mm when it fills up.
-- */
--#define tlb_flush(tlb) flush_tlb_mm((tlb)->mm)
--
- #define _UNIQUE_ENTRYHI(base, idx)					\
- 		(((base) + ((idx) << (PAGE_SHIFT + 1))) |		\
- 		 (cpu_has_tlbinv ? MIPS_ENTRYHI_EHINV : 0))
---- a/arch/nds32/include/asm/tlb.h
-+++ b/arch/nds32/include/asm/tlb.h
-@@ -4,16 +4,6 @@
- #ifndef __ASMNDS32_TLB_H
- #define __ASMNDS32_TLB_H
- 
--#define tlb_end_vma(tlb,vma)				\
--	do { 						\
--		if(!tlb->fullmm)			\
--			flush_tlb_range(vma, vma->vm_start, vma->vm_end); \
--	} while (0)
--
--#define __tlb_remove_tlb_entry(tlb, pte, addr) do { } while (0)
--
--#define tlb_flush(tlb)	flush_tlb_mm((tlb)->mm)
--
- #include <asm-generic/tlb.h>
- 
- #define __pte_free_tlb(tlb, pte, addr)	pte_free((tlb)->mm, pte)
---- a/arch/nios2/Kconfig
-+++ b/arch/nios2/Kconfig
-@@ -23,6 +23,7 @@ config NIOS2
- 	select USB_ARCH_HAS_HCD if USB_SUPPORT
- 	select CPU_NO_EFFICIENT_FFS
- 	select ARCH_DISCARD_MEMBLOCK
-+	select MMU_GATHER_NO_RANGE if MMU
- 
- config GENERIC_CSUM
- 	def_bool y
---- a/arch/nios2/include/asm/tlb.h
-+++ b/arch/nios2/include/asm/tlb.h
-@@ -11,12 +11,12 @@
- #ifndef _ASM_NIOS2_TLB_H
- #define _ASM_NIOS2_TLB_H
- 
--#define tlb_flush(tlb)	flush_tlb_mm((tlb)->mm)
--
- extern void set_mmu_pid(unsigned long pid);
- 
--#define tlb_end_vma(tlb, vma)	do { } while (0)
--#define __tlb_remove_tlb_entry(tlb, ptep, address)	do { } while (0)
-+/*
-+ * NIOS32 does have flush_tlb_range(), but it lacks a limit and fallback to
-+ * full mm invalidation. So use flush_tlb_mm() for everything.
-+ */
- 
- #include <linux/pagemap.h>
- #include <asm-generic/tlb.h>
---- a/arch/openrisc/Kconfig
-+++ b/arch/openrisc/Kconfig
-@@ -35,6 +35,7 @@ config OPENRISC
- 	select OMPIC if SMP
- 	select ARCH_WANT_FRAME_POINTERS
- 	select GENERIC_IRQ_MULTI_HANDLER
-+	select MMU_GATHER_NO_RANGE if MMU
- 
- config CPU_BIG_ENDIAN
- 	def_bool y
---- a/arch/openrisc/include/asm/tlb.h
-+++ b/arch/openrisc/include/asm/tlb.h
-@@ -20,14 +20,10 @@
- #define __ASM_OPENRISC_TLB_H__
- 
- /*
-- * or32 doesn't need any special per-pte or
-- * per-vma handling..
-+ * OpenRISC doesn't have an efficient flush_tlb_range() so use flush_tlb_mm()
-+ * for everything.
-  */
--#define tlb_start_vma(tlb, vma) do { } while (0)
--#define tlb_end_vma(tlb, vma) do { } while (0)
--#define __tlb_remove_tlb_entry(tlb, ptep, address) do { } while (0)
- 
--#define tlb_flush(tlb) flush_tlb_mm((tlb)->mm)
- #include <linux/pagemap.h>
- #include <asm-generic/tlb.h>
- 
---- a/arch/parisc/include/asm/tlb.h
-+++ b/arch/parisc/include/asm/tlb.h
-@@ -2,19 +2,6 @@
- #ifndef _PARISC_TLB_H
- #define _PARISC_TLB_H
- 
--#define tlb_flush(tlb)			\
--do {	if ((tlb)->fullmm)		\
--		flush_tlb_mm((tlb)->mm);\
--} while (0)
--
--#define tlb_end_vma(tlb, vma)	\
--do {	if (!(tlb)->fullmm)	\
--		flush_tlb_range(vma, vma->vm_start, vma->vm_end); \
--} while (0)
--
--#define __tlb_remove_tlb_entry(tlb, pte, address) \
--	do { } while (0)
--
- #include <asm-generic/tlb.h>
- 
- #define __pmd_free_tlb(tlb, pmd, addr)	pmd_free((tlb)->mm, pmd)
---- a/arch/sparc/include/asm/tlb_32.h
-+++ b/arch/sparc/include/asm/tlb_32.h
-@@ -2,19 +2,6 @@
- #ifndef _SPARC_TLB_H
- #define _SPARC_TLB_H
- 
--#define tlb_end_vma(tlb, vma) \
--do {								\
--	flush_tlb_range(vma, vma->vm_start, vma->vm_end);	\
--} while (0)
--
--#define __tlb_remove_tlb_entry(tlb, pte, address) \
--	do { } while (0)
--
--#define tlb_flush(tlb) \
--do {								\
--	flush_tlb_mm((tlb)->mm);				\
--} while (0)
--
- #include <asm-generic/tlb.h>
- 
- #endif /* _SPARC_TLB_H */
---- a/arch/unicore32/Kconfig
-+++ b/arch/unicore32/Kconfig
-@@ -20,6 +20,7 @@ config UNICORE32
- 	select GENERIC_IOMAP
- 	select MODULES_USE_ELF_REL
- 	select NEED_DMA_MAP_STATE
-+	select MMU_GATHER_NO_RANGE if MMU
- 	help
- 	  UniCore-32 is 32-bit Instruction Set Architecture,
- 	  including a series of low-power-consumption RISC chip
---- a/arch/unicore32/include/asm/tlb.h
-+++ b/arch/unicore32/include/asm/tlb.h
-@@ -12,10 +12,9 @@
- #ifndef __UNICORE_TLB_H__
- #define __UNICORE_TLB_H__
- 
--#define tlb_start_vma(tlb, vma)				do { } while (0)
--#define tlb_end_vma(tlb, vma)				do { } while (0)
--#define __tlb_remove_tlb_entry(tlb, ptep, address)	do { } while (0)
--#define tlb_flush(tlb) flush_tlb_mm((tlb)->mm)
-+/*
-+ * unicore32 lacks an efficient flush_tlb_range(), use flush_tlb_mm().
-+ */
- 
- #define __pte_free_tlb(tlb, pte, addr)				\
- 	do {							\
---- a/arch/xtensa/include/asm/tlb.h
-+++ b/arch/xtensa/include/asm/tlb.h
-@@ -14,23 +14,6 @@
- #include <asm/cache.h>
- #include <asm/page.h>
- 
--#if (DCACHE_WAY_SIZE <= PAGE_SIZE)
--
--# define tlb_end_vma(tlb,vma)			do { } while (0)
--
--#else
--
--# define tlb_end_vma(tlb, vma)						      \
--	do {								      \
--		if (!tlb->fullmm)					      \
--			flush_tlb_range(vma, vma->vm_start, vma->vm_end);     \
--	} while(0)
--
--#endif
--
--#define __tlb_remove_tlb_entry(tlb,pte,addr)	do { } while (0)
--#define tlb_flush(tlb)				flush_tlb_mm((tlb)->mm)
--
- #include <asm-generic/tlb.h>
- 
- #define __pte_free_tlb(tlb, pte, address)	pte_free((tlb)->mm, pte)
-
+Tejun Heo <tj@kernel.org> =E4=BA=8E2019=E5=B9=B42=E6=9C=8819=E6=97=A5=E5=91=
+=A8=E4=BA=8C =E4=B8=8A=E5=8D=8810:32=E5=86=99=E9=81=93=EF=BC=9A
+>
+> On Sat, Feb 16, 2019 at 08:56:04AM +0800, Yang Shi wrote:
+> > Since PSI has implemented some kind of measure of memory pressure, the
+> > statement about lack of such measure is not true anymore.
+> >
+> > Cc: Tejun Heo <tj@kernel.org>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Jonathan Corbet <corbet@lwn.net>
+> > Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> > ---
+> >  Documentation/admin-guide/cgroup-v2.rst | 3 +--
+> >  1 file changed, 1 insertion(+), 2 deletions(-)
+> >
+> > diff --git a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/ad=
+min-guide/cgroup-v2.rst
+> > index 7bf3f12..9a92013 100644
+> > --- a/Documentation/admin-guide/cgroup-v2.rst
+> > +++ b/Documentation/admin-guide/cgroup-v2.rst
+> > @@ -1310,8 +1310,7 @@ network to a file can use all available memory bu=
+t can also operate as
+> >  performant with a small amount of memory.  A measure of memory
+> >  pressure - how much the workload is being impacted due to lack of
+> >  memory - is necessary to determine whether a workload needs more
+> > -memory; unfortunately, memory pressure monitoring mechanism isn't
+> > -implemented yet.
+> > +memory.
+>
+> Maybe refer to PSI?
+>
+> Thanks.
+>
+> --
+> tejun
 
