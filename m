@@ -2,180 +2,248 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
+	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A3595C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 06:17:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0C3ADC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 07:13:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 474D8217D7
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 06:17:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 474D8217D7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 772CF206BA
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 07:13:56 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="rIluS3pB";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="CsHp1jPz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 772CF206BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AAAE98E0003; Tue, 19 Feb 2019 01:17:19 -0500 (EST)
+	id EA0F38E0003; Tue, 19 Feb 2019 02:13:54 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A59E98E0002; Tue, 19 Feb 2019 01:17:19 -0500 (EST)
+	id E4F0B8E0002; Tue, 19 Feb 2019 02:13:54 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 94A3C8E0003; Tue, 19 Feb 2019 01:17:19 -0500 (EST)
+	id CEF7C8E0003; Tue, 19 Feb 2019 02:13:54 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B01F8E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 01:17:19 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id b3so8081353edi.0
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 22:17:19 -0800 (PST)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A383A8E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 02:13:54 -0500 (EST)
+Received: by mail-qt1-f197.google.com with SMTP id o34so18788000qtf.19
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 23:13:54 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=WuBBpiawBTW3ikxXPnSeC2+iCdDq3+vlMxJlDEHi9y8=;
-        b=omfeCqDQ33e0us3vkBHKFas3/DV9OGnaacaz1mpiFI5uiQ5wt3U4YKP2dh0VD1G92j
-         BcAYFGjnLFRc9UI0IABRSqeU8M6aHqaUdXV21mEIybERi7lqKEzl7lQGj/+9/IETy7KN
-         +6WuLYhgIiPEplseUyed2RZRIwfpf2IQgavdYtqCjOPXiAFSu33xbZbvshEiNbL5yg9G
-         I1tqroQrEeYzCguflGAb3uD4SjjOsf/tlcGcRP7CYtYD7OELM1ffgjCLH9ZBqWSnQA5i
-         qi3yXr5I7bTo5QwJgZeg6/1Oc4m1h5d1ffHrpM5c6juEdcvPpZT4ql6+kE6aZcNHZTr2
-         zS5A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: AHQUAuZFlGksmXiKPOVAx09kbwcx+aKQw6p/N9yccZdfDv15jKTpIk2L
-	pJxx/dQE2Wwj8gAqgL8//VmBu4u1xbuZv5Bw70Few3PYXyBeq20kzr/rcr9Yor+MJGcoRvpKUcI
-	/mqV46lS75SXA5GLlEHttHXOgS1vs/uKtIKciozSgmQwdk8la1RigzX8QeZoQkStaMg==
-X-Received: by 2002:a50:b699:: with SMTP id d25mr18995108ede.110.1550557038770;
-        Mon, 18 Feb 2019 22:17:18 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ibm4CpcLhlKZ5dvKs+dq0kNQns5Fegpm0igITxWilRT9frgyb96D4mIjrvFf8kkVP+dPD05
-X-Received: by 2002:a50:b699:: with SMTP id d25mr18995045ede.110.1550557037900;
-        Mon, 18 Feb 2019 22:17:17 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550557037; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=ZPpCqQtFwqciHf/SkNd587ZGZa/yYn3cppiHex2bE04=;
+        b=hkXGxr99TBF3vojz+d3599UElg3Vh0YpfjEY5btg9+D62GK6wIEwqbr3Ls6DMNwmDY
+         mVjTMrWLDi1Udr3Ptqgaw/49c3iAKatsyTkLA4F3hgayo7Fk0qS3aYYp4R35zc7SdZDe
+         pLnKXaUhw7HpGutTdXjDdmCl2k6UVlib1YvTa85XdBrQBycV+AxpeVgC9Z560nH3h1BL
+         YbBdyHcpCp29tn00icu0eYNy2HlBPw+4179uSX8CZYd5k2RvX7JvG37AmUJZRS83Jk2k
+         u0fnh83QAeIokyQaLaAksuUTFpLzoI1n+oUitnEZcoc+f6qTg8G8CBziXprpAhzOFVWl
+         IIcg==
+X-Gm-Message-State: AHQUAubbNxqfywq70NMgPDFDJHGP8GqyPndMXlFpRutpOrBraj6SB1p1
+	ax3h4lDfXX3VJYqbpCA0I0iRFFEa7f75PUGijdcNepML7wosSDCO9z2u1oy9x0FKv/h8vZ4lWPm
+	mHYDBBi9AlXYxBN6ofJefe/GXkk+7L7JcxQbMZQJ4+SrjevUoGvzjbjf5Ju4jIzqt8Q==
+X-Received: by 2002:aed:221c:: with SMTP id n28mr4559937qtc.21.1550560434295;
+        Mon, 18 Feb 2019 23:13:54 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZ0Xu8dphI+/c1K34l4hviDzoaXItuEyR0KrGfrqMrDXrrWu9WF+11n33EPZtO1KIZfKno7
+X-Received: by 2002:aed:221c:: with SMTP id n28mr4559916qtc.21.1550560433590;
+        Mon, 18 Feb 2019 23:13:53 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550560433; cv=none;
         d=google.com; s=arc-20160816;
-        b=nHAQOmWLfNKHnbniHH6EfcJbi2xmQTnAyuX/nPezomA3Ncy1L7X4FMCT57J3h81iUf
-         W2Wy+5af98fVxV6PoTrwKMtJ7yxDTXrVGWwPpyu/n30lEgivUoyMssya+Ywer81nTaP6
-         G1G3fTrZa1EkuWfYU9s5DE3OoWJuMXY1D+MPkpYpapbYUVS+uOybix2UBCenAX9nYTUm
-         rX9TYww+PQvEZfH+Fx2F55IHPcnZfEwjwPklgP4Cl9GpPCwc/WoZp2CKKNgmagq+agGJ
-         RfnbieNiOkAOsLbUqI7c5sZue1FUt2H9Ouk3j3/xiQT8B/6ZO3NmzCUpEZ0YCrRYH91j
-         d+pw==
+        b=CnKPp1Hl5QozWx0Aj9iyHssAXTuwq1XHeoWo1bg+tdU1A9ViY7lxIeIvQp7oX5Tjow
+         R2wNMI9H1fkxL1Pz3y7jJtdgplKf3efZQ8wFHHFi8F7gdQkjC+wu1g/6Apf+954nIOMk
+         elElUj74adV3jKCEwSyEI0fnfYQ3lI1zJnsHw5rplekcycU+KiRNT6LEC6C0VTybX0TK
+         3uLEQ+hQ5IhobWgPYBXJo1PWGodBJGuyxtkzhlpM2BGe8aa0mACthMFzOqClZy2Xa1c1
+         4/AIR/dXdBCjNSIUcC9CDw0qhaVjTCVUQnxngfOwFay7KEoRDwwlpq8npjxatnMHkBXl
+         RAzA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=WuBBpiawBTW3ikxXPnSeC2+iCdDq3+vlMxJlDEHi9y8=;
-        b=wHGlhw5+fdFaUP1iNPWqICJ7eqnZ0brXeTHn/I6UEwiC8/seau3lQ/q6cdnuXXLkpa
-         JWvuW5wTR/lKSmsPfdN6ItPOHjerpQRgwXSztrZOfnPHuYv/pICH9CjEnPcB9BfqAQ2h
-         2q3cyWdeNqX0hc5FhLJfwkEFJBOUeTtLw340MAF6+irXZ4tWWToKFo+7E0XLetIci1Cu
-         1h/pAnKEtQSsdf9t8a6+NlXO3/s590WkXHitPTmzeJDbD7yEaqbrC51vgxTbIytoB4JP
-         9YKrQwwotdxe75Tt4Wxp+seF34BTzyrEUIY6uwRN9CMFSL4iIhwN5FdNULNt4WCOfjpA
-         HTbQ==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:message-id:date:thread-index:thread-topic:subject
+         :cc:to:from:dkim-signature:dkim-signature;
+        bh=ZPpCqQtFwqciHf/SkNd587ZGZa/yYn3cppiHex2bE04=;
+        b=HR4uHUMPkgaZcUskVbGjwR+hOi0++edRVWQIFA/pZ7u1PW9JTyJm5XCtm+FHCqVIxB
+         RDgXnO7xZVNyfqHGhaLlK8W3FtyhPDfGqhcMzCxrMsl1fl8p2eQNZ4RaqfwPj7UTARSf
+         J/Ut4MU0ltOjY2CsUyjqRhalGnFtbqpDZXwanuGv2XK/QYdoh6b1NRQEcjceqpdflqnP
+         iQBzec5hXVgZsTiCOjh6gdSFZttTc/TxM8zM7ot257DrV58mFN/fFvxphJqp+Hy2z6Xy
+         TBqV9mPOMPTAOqCM0aAm+bcT+4eNAmR0U0Ne0nMjx7L1wa3o8lo1YbeXcQN94ix9TlZW
+         f8dA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g18si1722595ejt.134.2019.02.18.22.17.17
-        for <linux-mm@kvack.org>;
-        Mon, 18 Feb 2019 22:17:17 -0800 (PST)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=rIluS3pB;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=CsHp1jPz;
+       spf=pass (google.com: domain of prvs=79538942c9=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=79538942c9=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id i185si2072674qkf.56.2019.02.18.23.13.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Feb 2019 23:13:53 -0800 (PST)
+Received-SPF: pass (google.com: domain of prvs=79538942c9=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id DFFB1EBD;
-	Mon, 18 Feb 2019 22:17:15 -0800 (PST)
-Received: from [10.162.40.139] (p8cg001049571a15.blr.arm.com [10.162.40.139])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 3CF8E3F575;
-	Mon, 18 Feb 2019 22:17:09 -0800 (PST)
-Subject: Re: [PATCH v2 1/3] arm64: mm: use appropriate ctors for page tables
-To: Yu Zhao <yuzhao@google.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>,
- Will Deacon <will.deacon@arm.com>,
- "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
- Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@gmail.com>,
- Peter Zijlstra <peterz@infradead.org>,
- Joel Fernandes <joel@joelfernandes.org>,
- "Kirill A . Shutemov" <kirill@shutemov.name>,
- Mark Rutland <mark.rutland@arm.com>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Chintan Pandya <cpandya@codeaurora.org>, Jun Yao <yaojun8558363@gmail.com>,
- Laura Abbott <labbott@redhat.com>, linux-arm-kernel@lists.infradead.org,
- linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org,
- linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>
-References: <20190214211642.2200-1-yuzhao@google.com>
- <20190218231319.178224-1-yuzhao@google.com>
- <863acc9a-53fb-86ad-4521-828ee8d9c222@arm.com>
- <20190219053205.GA124985@google.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <8f9b0bfb-b787-fa3e-7322-73a56a618aa8@arm.com>
-Date: Tue, 19 Feb 2019 11:47:12 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
-MIME-Version: 1.0
-In-Reply-To: <20190219053205.GA124985@google.com>
-Content-Type: text/plain; charset=utf-8
+       dkim=pass header.i=@fb.com header.s=facebook header.b=rIluS3pB;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=CsHp1jPz;
+       spf=pass (google.com: domain of prvs=79538942c9=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=79538942c9=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1J7DQXD014220;
+	Mon, 18 Feb 2019 23:13:52 -0800
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : content-type : content-id :
+ content-transfer-encoding : mime-version; s=facebook;
+ bh=ZPpCqQtFwqciHf/SkNd587ZGZa/yYn3cppiHex2bE04=;
+ b=rIluS3pBCUVF5hKeCA7vI6ppuC92uQFFG+nppgIG9vqpy+X0IbLEzsZ3FfusZxTSYl+1
+ hinYCrl9HiS3SLt7oixqVbpNe10kqx4O6IiYai6FmBmg/oKUpIKt8iEiZ2KpgDO2DwzQ
+ oGbxDFfqi8Avt/4K5laPUKduMRIzqcuvo58= 
+Received: from maileast.thefacebook.com ([199.201.65.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2qrct481ur-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Mon, 18 Feb 2019 23:13:51 -0800
+Received: from frc-mbx01.TheFacebook.com (2620:10d:c0a1:f82::25) by
+ frc-hub05.TheFacebook.com (2620:10d:c021:18::175) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1531.3; Mon, 18 Feb 2019 23:13:51 -0800
+Received: from frc-hub04.TheFacebook.com (2620:10d:c021:18::174) by
+ frc-mbx01.TheFacebook.com (2620:10d:c0a1:f82::25) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1531.3; Mon, 18 Feb 2019 23:13:50 -0800
+Received: from NAM01-SN1-obe.outbound.protection.outlook.com (192.168.183.28)
+ by o365-in.thefacebook.com (192.168.177.74) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1531.3
+ via Frontend Transport; Mon, 18 Feb 2019 23:13:50 -0800
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=ZPpCqQtFwqciHf/SkNd587ZGZa/yYn3cppiHex2bE04=;
+ b=CsHp1jPzknxBCvMAuWW6cF12gUT60uFB1BrIRGXUrL+az31kMF8gvZXBSwv7b70jBfIyL0rfqcTsPnXK+sc7oJ/0KFleyPMk7sObOx+JSx/v11WOaJDV89tRGDOEICPOS7vLPGtO0z8thG3jOv18sDE7UAlwPbT1ckFVdJvzAQU=
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
+ BYASPR01MB0012.namprd15.prod.outlook.com (52.135.241.97) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1622.16; Tue, 19 Feb 2019 07:13:33 +0000
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::ecc7:1a8c:289f:df92]) by BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::ecc7:1a8c:289f:df92%3]) with mapi id 15.20.1601.016; Tue, 19 Feb 2019
+ 07:13:33 +0000
+From: Roman Gushchin <guro@fb.com>
+To: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
+CC: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        "riel@surriel.com"
+	<riel@surriel.com>,
+        "dchinner@redhat.com" <dchinner@redhat.com>,
+        "guroan@gmail.com" <guroan@gmail.com>,
+        Kernel Team <Kernel-team@fb.com>,
+        "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+Subject: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
+Thread-Topic: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
+Thread-Index: AQHUyCKfeT5lZyV8PESiIPUMxsb/VQ==
+Date: Tue, 19 Feb 2019 07:13:33 +0000
+Message-ID: <20190219071329.GA7827@castle.DHCP.thefacebook.com>
+Accept-Language: en-US
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: BYAPR08CA0064.namprd08.prod.outlook.com
+ (2603:10b6:a03:117::41) To BYAPR15MB2631.namprd15.prod.outlook.com
+ (2603:10b6:a03:152::24)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:180::1:753b]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 72a1185d-9415-4e27-7c68-08d69639c1fe
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:BYASPR01MB0012;
+x-ms-traffictypediagnostic: BYASPR01MB0012:
+x-ms-exchange-purlcount: 4
+x-microsoft-exchange-diagnostics: 1;BYASPR01MB0012;20:Yu5iKlZpalGPZ8L2Wfw3VpYg4kYT/hZyZ/0tTuDyIBY8pwfPzkIkNHks0aClkoUJCp5nXuSj8vJ987G6E3J3EjfxtN0X99ZlZQx1gVqgfyCkcj6N6dxuyB5lY5VC1j1WngP5GtP813V6RT/hQqj9NPeHEBfLMtNOIWR1n7PwGvI=
+x-microsoft-antispam-prvs: <BYASPR01MB0012127E36085186001A66F0BE7C0@BYASPR01MB0012.namprd15.prod.outlook.com>
+x-forefront-prvs: 09538D3531
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(136003)(366004)(396003)(346002)(376002)(199004)(189003)(256004)(81166006)(486006)(6486002)(33896004)(966005)(5660300002)(97736004)(5640700003)(6436002)(71190400001)(8676002)(71200400001)(2351001)(476003)(478600001)(7736002)(14454004)(33656002)(25786009)(105586002)(6116002)(46003)(106356001)(4326008)(6506007)(386003)(2501003)(305945005)(102836004)(316002)(186003)(99286004)(53936002)(14444005)(1076003)(54906003)(8936002)(52116002)(86362001)(81156014)(68736007)(6916009)(6306002)(6512007)(9686003)(2906002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYASPR01MB0012;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: uIU+CNNbUdwhKtBS8tZjFlEk8yKH3GiMuGviIYegZ8kV4wkBM1aXNtcyY9JM/jTEC49LVuszv4WjM0+1pOQAg5RvMlxGhak5eG9FOFFOZHTsGf99vf9OWfX9QJzihDQd1iBPK/WE49pe7htNuH3aOwDR4j7qjPpLmEJ00BGobDTXey8vJYXfI/Z/2nM+XJfad2rGln1La9o+e52sz7KIiysHIj4beZig7V7gDtRdrR+O3kbRupD2PDd9YDDTYTE92JZaCjm74OUJfEZnc2uEqrBzhyH5KKD5aSL3iy963C/CVvnYYKPtiNDOoSTm9rfYFE484hko2QkFw+g3tSLoyVXFK+AW9GRwXCnTkpwD+vddRk5LD0CCghgSm6fO9Kd/GKBjI0VqsxXZpEITC0gc9RN+RAjQb6FA/ZMnTqTiT3k=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <CE84E415D6706A4A9AF4B0CD01403B7C@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-MS-Exchange-CrossTenant-Network-Message-Id: 72a1185d-9415-4e27-7c68-08d69639c1fe
+X-MS-Exchange-CrossTenant-originalarrivaltime: 19 Feb 2019 07:13:32.5392
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYASPR01MB0012
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-19_05:,,
+ signatures=0
+X-Proofpoint-Spam-Reason: safe
+X-FB-Internal: Safe
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-+ Matthew Wilcox
+Sorry, once more, now with fsdevel@ in cc, asked by Dave.
+--
 
-On 02/19/2019 11:02 AM, Yu Zhao wrote:
-> On Tue, Feb 19, 2019 at 09:51:01AM +0530, Anshuman Khandual wrote:
->>
->>
->> On 02/19/2019 04:43 AM, Yu Zhao wrote:
->>> For pte page, use pgtable_page_ctor(); for pmd page, use
->>> pgtable_pmd_page_ctor() if not folded; and for the rest (pud,
->>> p4d and pgd), don't use any.
->> pgtable_page_ctor()/dtor() is not optional for any level page table page
->> as it determines the struct page state and zone statistics.
-> 
-> This is not true. pgtable_page_ctor() is only meant for user pte
-> page. The name isn't perfect (we named it this way before we had
-> split pmd page table lock, and never bothered to change it).
-> 
-> The commit cccd843f54be ("mm: mark pages in use for page tables")
-> clearly states so:
->   Note that only pages currently accounted as NR_PAGETABLES are
->   tracked as PageTable; this does not include pgd/p4d/pud/pmd pages.
+Recent reverts of memcg leak fixes [1, 2] reintroduced the problem
+with accumulating of dying memory cgroups. This is a serious problem:
+on most of our machines we've seen thousands on dying cgroups, and
+the corresponding memory footprint was measured in hundreds of megabytes.
+The problem was also independently discovered by other companies.
 
-I think the commit is the following one and it does say so. But what is
-the rationale of tagging only PTE page as PageTable and updating the zone
-stat but not doing so for higher level page table pages ? Are not they
-used as page table pages ? Should not they count towards NR_PAGETABLE ?
+The fixes were reverted due to xfs regression investigated by Dave Chinner.
+Simultaneously we've seen a very small (0.18%) cpu regression on some hosts=
+,
+which caused Rik van Riel to propose a patch [3], which aimed to fix the
+regression. The idea is to accumulate small memory pressure and apply it
+periodically, so that we don't overscan small shrinker lists. According
+to Jan Kara's data [4], Rik's patch partially fixed the regression,
+but not entirely.
 
-1d40a5ea01d53251c ("mm: mark pages in use for page tables")
-> 
-> I'm sure if we go back further, we can find similar stories: we
-> don't set PageTable on page tables other than pte; and we don't
-> account page tables other than pte. I don't have any objection if
-> you want change these two. But please make sure they are consistent
-> across all archs.
+The path forward isn't entirely clear now, and the status quo isn't accepta=
+ble
+due to memcg leak bug. Dave and Michal's position is to focus on dying memo=
+ry
+cgroup case and apply some artificial memory pressure on corresponding slab=
+s
+(probably, during cgroup deletion process). This approach can theoretically
+be less harmful for the subtle scanning balance, and not cause any regressi=
+ons.
 
-pgtable_page_ctor/dtor() use across arch is not consistent and there is a need
-for generalization which has been already acknowledged earlier. But for now we
-can atleast fix this on arm64.
+In my opinion, it's not necessarily true. Slab objects can be shared betwee=
+n
+cgroups, and often can't be reclaimed on cgroup removal without an impact o=
+n the
+rest of the system. Applying constant artificial memory pressure precisely =
+only
+on objects accounted to dying cgroups is challenging and will likely
+cause a quite significant overhead. Also, by "forgetting" of some slab obje=
+cts
+under light or even moderate memory pressure, we're wasting memory, which c=
+an be
+used for something useful. Dying cgroups are just making this problem more
+obvious because of their size.
 
-https://lore.kernel.org/lkml/1547619692-7946-1-git-send-email-anshuman.khandual@arm.com/
+So, using "natural" memory pressure in a way, that all slabs objects are sc=
+anned
+periodically, seems to me as the best solution. The devil is in details, an=
+d how
+to do it without causing any regressions, is an open question now.
 
-> 
->> We should not skip it for any page table page.
-> 
-> In fact, calling it on pmd/pud/p4d is peculiar, and may even be
-> considered wrong. AFAIK, no other arch does so.
+Also, completely re-parenting slabs to parent cgroup (not only shrinker lis=
+ts)
+is a potential option to consider.
 
-Why would it be considered wrong ? IIUC archs have their own understanding
-of this and there are different implementations. But doing something for
-PTE page and skipping for others is plain inconsistent.
+It will be nice to discuss the problem on LSF/MM, agree on general path and
+make a potential list of benchmarks, which can be used to prove the solutio=
+n.
 
-> 
->> As stated before pgtable_pmd_page_ctor() is not a replacement for
->> pgtable_page_ctor().
-> 
-> pgtable_pmd_page_ctor() must be used on user pmd. For kernel pmd,
-> it's okay to use pgtable_page_ctor() instead only because kernel
-> doesn't have thp.
-
-The only extra thing to be done for THP is initializing page->pmd_huge_pte
-apart from calling pgtable_page_ctor(). Right not it just works on arm64
-may be because page->pmd_huge_pte never gets accessed before it's init and
-no path checks for it when not THP. Its better to init/reset pmd_huge_pte.
+[1] https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/comm=
+it/?id=3Da9a238e83fbb0df31c3b9b67003f8f9d1d1b6c96
+[2] https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/comm=
+it/?id=3D69056ee6a8a3d576ed31e38b3b14c70d6c74edcc
+[3] https://lkml.org/lkml/2019/1/28/1865
+[4] https://lkml.org/lkml/2019/2/8/336
 
