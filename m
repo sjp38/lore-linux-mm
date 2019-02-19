@@ -2,400 +2,217 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 03EC9C4360F
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 15:27:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F19EFC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 15:53:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A6B0421736
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 15:27:51 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="P+6GFnyV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6B0421736
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id BB8C621738
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 15:53:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BB8C621738
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E16F08E0006; Tue, 19 Feb 2019 10:27:47 -0500 (EST)
+	id 550A88E0003; Tue, 19 Feb 2019 10:53:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D9EA48E0002; Tue, 19 Feb 2019 10:27:47 -0500 (EST)
+	id 4FEDC8E0002; Tue, 19 Feb 2019 10:53:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CB5558E0006; Tue, 19 Feb 2019 10:27:47 -0500 (EST)
+	id 3EF128E0003; Tue, 19 Feb 2019 10:53:28 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 74CE78E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 10:27:47 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id b9so9394630wrw.14
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 07:27:47 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D676C8E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 10:53:27 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id u12so525344edo.5
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 07:53:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references;
-        bh=c98WFQKqSGewnmjGR+VAUu2jdbTDTi2eXPqlfHCbeCU=;
-        b=p/Ao3ZV5IKKLWFNfBrF33yaxhRZBcDwq7gN6J338Rhnj3L9ya5cJLMhKVILeRRSv6y
-         d0SG80E1p7jn20OLGeQnrGal/OEuziT9/bPF1mPfIwMnCEKjBPiGZp0O0SXnPk4d0tsk
-         SGR3KGps8c1c+Rz/AgEj8DLopUHzsP/08oLE1XubQ5QHVPI4hnOxHeQAnLhrdaVrSl5A
-         e+Ge41/YaHBtMBGau3Id7rMIT7M5pgcZorvgImqoi5Z35+mBVcVRHp2A5DvZzVNa7vSp
-         NPFVqdseU0mF0hDl+k4YWVz9+gYZXxh1KdjjbAmx11QqvsT/B7HMx3p1gEcbqmh23ArQ
-         +ncg==
-X-Gm-Message-State: AHQUAubXnGx1Ypg7wVL6iPq3lz8Pggj9JeZi+1Eb5CvWehXfADhIu1uk
-	ooHFA8vnGoIIAlJPMITJgaYD5z3gfoWQN7Up7X27A9DWybREDFrCVrnrG1d2WnPYnzygcNZ9Mxe
-	DzbSJdOeJhMESaBtkmAfSdH2dX/prHJoT/tToJF8ArBX1UrKw2TtO9vFBkDTw0rzW0mwb+HQChP
-	uy9Hbz4AP2dgV9aX8wDiA8cko3Owzo/dq8H1QGM4ymtR47bRsrUsQdI88IphBkceyMXJrGC+Vb7
-	DbmOzLN+tlQ4P7v+/hv9KdBy47JONzKeQ6T/9X+zrQyrO25NQDAAo9UAsqmpfUX68dELZjDDkQN
-	Xbhe1M/8qTK45N0B/26G3H2VBuMnJL7LdLR7U1VrJZ6ryDfTN+Vv/uqW+RR1rXFWDxht+cI75yf
-	s
-X-Received: by 2002:a5d:5585:: with SMTP id i5mr22050387wrv.239.1550590066976;
-        Tue, 19 Feb 2019 07:27:46 -0800 (PST)
-X-Received: by 2002:a5d:5585:: with SMTP id i5mr22050323wrv.239.1550590065782;
-        Tue, 19 Feb 2019 07:27:45 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550590065; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=DLY6qCQGXLnojyXzXLr99CiHL/CJASETf8/VYzNhFVc=;
+        b=EW7kyq/LHmeWlSFBZPQpDt+E4dOxVhzxqT8hK4P66Ef+dtwQfeMg++28xozTdNUY3o
+         lxBni4gx8s8xPIz+sNaPBEG4hejTSpd86RT4quwAEAoo7LGDvV2wTl6rZsQOxonbqm8k
+         q+oG46uNp7WLRdbPC1kPrF+JkxaLdqWRKj/dSDY7Ad/YdZxh85UyCy8SIGhkooz9eUph
+         1ciAcSYwZm2Bz86y+KH8HnZB+YIu74hLjwSU8/i/K3weIGTF+fL+ieOIS+Jn7sOPhQQN
+         mzwJX+JRvM0SuRj59FBQQhwaaky4kJkrJXbXCfxP0wtUCz5YYLPblda7fApBP3jtWTzg
+         ui/A==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: AHQUAuZ2fqyKICJWnti2qTXAmFSxGSzrjacl0f6DW4bp4dw3qGfCP+NT
+	BHb67Rj6Wn/wQbdMlM4vwsW3v+kuu7EAoyqTON1q37dgx+/1LkeY1pBI9a8dBWiLyFqATAh4iEE
+	dg8pBqjXU/G42ASHccxD+UdEAtkyXhs2bOhxUXbWOyecm3VXNC0qZXdNAeIq8ZRY=
+X-Received: by 2002:a17:906:29cd:: with SMTP id y13mr20550315eje.35.1550591607380;
+        Tue, 19 Feb 2019 07:53:27 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZpXSwctTS5XroGviiHSM4ZujBaZ24vE/b3OCsX0AhmCUQxbl+9HPH9HmR3WHtYk24jLmp0
+X-Received: by 2002:a17:906:29cd:: with SMTP id y13mr20550248eje.35.1550591606019;
+        Tue, 19 Feb 2019 07:53:26 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550591606; cv=none;
         d=google.com; s=arc-20160816;
-        b=shWkQQAukN6GagwPAz3ePH33ZrulDVPUcM/90XKge5QSh0K3ijNfSgTY0HNTPIpO7H
-         BWc23ei5YfBIeOMrSTaXy1h/acKQ4uQqOi0nk8P22LSkwc7pTdzZI2k3yynraSxX0lrR
-         cb101yjVIBiamppjB2o0sk748X5hR33SiRR8PLbFGkoZiVgDp6wtqbWktIV4IxQa82Hc
-         nmmcjFu6rf1CJWogUsYUxxJLH4xGMrn6uLvbT3jo/y6hB+S8AWEPMy9pTHyQ749YYN+k
-         h7BMRlowJ1f/zlZeh0YuInpIjncoQHpuKqLwbhuFI7RBMGZ9q1Vdi/07zJVmro2UMcnK
-         Xe2A==
+        b=NZIVJw7iXGRrF9ZW26wfWFBSm+ypIUvE2D9FERhoYtSa1x6e62n3JaKi7n0WFcD1Dy
+         BZpO9ieDKynfvhT/EWzwt0ITy8UY6NWGlT7cgSH+kd8D3Vu1oVZIvKCAWcFLOFnB7xLX
+         PzdLOHOOyt7SCIDE6nBpTMXd6U4sHMG0pRSg2uMfq2rIIPDbo2l5DQKuAxYc1hvvb8bF
+         M6T+p4QlZRJ41ydjA/5HHP/YsXgT+zu7hGGB3vXkyZ5hMgE8odUz4H2+jY4Png29bpcD
+         Se2Je4lfilUyNSDl48Z2t73vfQsoH0s/OgQlSRQfQ3be9IB+kNZzkKhS/kuEaALwKfWh
+         sfwQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from
-         :dkim-signature;
-        bh=c98WFQKqSGewnmjGR+VAUu2jdbTDTi2eXPqlfHCbeCU=;
-        b=iumqHM1F5NsjO6/op2J2Fs24R3/3ntxR2Y8OjUFU36k/rxc7/N5JOdHJmaF2rgmjnd
-         OMnWsi8Ksf9/wLBSshLP+y5YE3HOb8SfQhdcztHc7zYUITTvDi+BitxSxVXMmP6AJPVn
-         pNsoTdrd3eOUZEBbrxSUdqxMpAeKm0H1YWGIEgeozJ+yUotpSZ+LDqj9/T6ac/NxoJUU
-         +yL5U7Ci3odbVDs9EIBactgy24TPpyNDpRb05h0S4AFE6xfGQrnUKLhKUAx7WRom63C7
-         S5Q10DVuOrSf+fLUHV0FBUfzQvaa7I2uOcaUx0H/B1b0oXzMQ3EHiAcL96ptTZqwipVJ
-         z7Jg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=DLY6qCQGXLnojyXzXLr99CiHL/CJASETf8/VYzNhFVc=;
+        b=RG2fnXK3CriccYN5w2LS6KeKh/aCN6U/bVL5M+44ELGt/H3+rm9ZGs6bU5DxUOYaH8
+         YiloIfUQ4BQ7pKQ4Zty/x/wvH7eyzjovKssqlmthMFcQf/LdUPlFlHNBs/L56ln7pVGP
+         RhznwNhmeWogUjLSoTQBTdR7IYqSoPZ+khVP0l7Zbki25lnDj0gwszKYv7SD7eoDVngx
+         Pk8ErQ9psQ5UlCni/gJn4UyTMsKRTovTqTIyLlEOb5jLdSHwna/Zo8WyR4W8N5hsjcus
+         FUXNTjxV2gREGQu+pp2YtdOaQTqQ3Z6Nj0o0AfxnIYA1jzvZkBuLQdrhUC2F4Ep2CVGe
+         uOgA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=P+6GFnyV;
-       spf=pass (google.com: domain of righi.andrea@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=righi.andrea@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f16sor1836289wmb.3.2019.02.19.07.27.45
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Feb 2019 07:27:45 -0800 (PST)
-Received-SPF: pass (google.com: domain of righi.andrea@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
+        by mx.google.com with ESMTP id i6si2702455edk.125.2019.02.19.07.53.25
+        for <linux-mm@kvack.org>;
+        Tue, 19 Feb 2019 07:53:26 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) client-ip=2620:113:80c0:5::2222;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=P+6GFnyV;
-       spf=pass (google.com: domain of righi.andrea@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=righi.andrea@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=c98WFQKqSGewnmjGR+VAUu2jdbTDTi2eXPqlfHCbeCU=;
-        b=P+6GFnyVpg2KZGAIvcNuVcwUz8RKDcIJqgGs+wbGQMM/EqhXUxwX0boLM2h38zYuKH
-         JF9igYIFbiaVwv+rzAwyq7wRD9ltKKasUpaIRHZ6Hm2O5/Y18QXHx7oGN9B++3bG5TTM
-         iR4i8+mu3M4JEDaNSPlMQK2UhFh8TXwA2SoNePLRKuB/mRqi8wRVmNegc4+Pp+gcgwyn
-         IpeueEJ9cFjHGFbFu8O9LTE1svbaOhLrjToACAJNmeAqYoklqRiHW/iaaCY6LQjEd4BB
-         ulyYxlxqpdpIOshBcPLOp2qUuAOuOawp/lApQMoTcO9XLjXxH1feNEUAYwYmLn9G2FEL
-         uRtQ==
-X-Google-Smtp-Source: AHgI3IZ5u7DQFM6uWNRQR5JFQTc+Kv+c+ywfGCH879D8R7gLQYbXK7hv5L2JhfRHOL0qscx2Es6Q+Q==
-X-Received: by 2002:a1c:1902:: with SMTP id 2mr3384191wmz.150.1550590065159;
-        Tue, 19 Feb 2019 07:27:45 -0800 (PST)
-Received: from xps-13.homenet.telecomitalia.it (host117-125-dynamic.33-79-r.retail.telecomitalia.it. [79.33.125.117])
-        by smtp.gmail.com with ESMTPSA id v6sm29029503wrd.88.2019.02.19.07.27.43
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Feb 2019 07:27:44 -0800 (PST)
-From: Andrea Righi <righi.andrea@gmail.com>
-To: Josef Bacik <josef@toxicpanda.com>,
-	Tejun Heo <tj@kernel.org>
-Cc: Li Zefan <lizefan@huawei.com>,
-	Paolo Valente <paolo.valente@linaro.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Jens Axboe <axboe@kernel.dk>,
-	Vivek Goyal <vgoyal@redhat.com>,
-	Dennis Zhou <dennis@kernel.org>,
-	cgroups@vger.kernel.org,
-	linux-block@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH 3/3] blkcg: implement sync() isolation
-Date: Tue, 19 Feb 2019 16:27:12 +0100
-Message-Id: <20190219152712.9855-4-righi.andrea@gmail.com>
-X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190219152712.9855-1-righi.andrea@gmail.com>
-References: <20190219152712.9855-1-righi.andrea@gmail.com>
+       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: by suse.de (Postfix, from userid 1000)
+	id D6F964317; Tue, 19 Feb 2019 16:53:24 +0100 (CET)
+Date: Tue, 19 Feb 2019 16:53:24 +0100
+From: Oscar Salvador <osalvador@suse.de>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, linux-api@vger.kernel.org,
+	hughd@google.com, viro@zeniv.linux.org.uk,
+	torvalds@linux-foundation.org
+Subject: Re: mremap vs sysctl_max_map_count
+Message-ID: <20190219155320.tkfkwvqk53tfdojt@d104.suse.de>
+References: <20190218083326.xsnx7cx2lxurbmux@d104.suse.de>
+ <a11a10b5-4a31-2537-7b14-83f4b22e5f6c@suse.cz>
+ <20190218111535.dxkm7w7c2edgl2lh@kshutemo-mobl1>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190218111535.dxkm7w7c2edgl2lh@kshutemo-mobl1>
+User-Agent: NeoMutt/20170421 (1.8.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Keep track of the inodes that have been dirtied by each blkcg cgroup and
-make sure that a blkcg issuing a sync() can trigger the writeback + wait
-of only those pages that belong to the cgroup itself.
+On Mon, Feb 18, 2019 at 02:15:35PM +0300, Kirill A. Shutemov wrote:
+> On Mon, Feb 18, 2019 at 10:57:18AM +0100, Vlastimil Babka wrote:
+> > IMHO it makes sense to do all such resource limit checks upfront. It
+> > should all be protected by mmap_sem and thus stable, right? Even if it
+> > was racy, I'd think it's better to breach the limit a bit due to a race
+> > than bail out in the middle of operation. Being also resilient against
+> > "real" ENOMEM's due to e.g. failure to alocate a vma would be much
+> > harder perhaps (but maybe it's already mostly covered by the
+> > too-small-to-fail in page allocator), but I'd try with the artificial
+> > limits at least.
+> 
+> There's slight chance of false-postive -ENOMEM with upfront approach:
+> unmapping can reduce number of VMAs so in some cases upfront check would
+> fail something that could succeed otherwise.
+> 
+> We could check also what number of VMA unmap would free (if any). But it
+> complicates the picture and I don't think worth it in the end.
 
-This behavior is enabled only when io.sync_isolation is enabled in the
-cgroup, otherwise the old behavior is applied: sync() triggers the
-writeback of any dirty page.
+I came up with an approach which tries to check how many vma's are we going
+to split and the number of vma's that we are going to free.
+I did several tests and it worked for me, but I am not sure if I overlooked
+something due to false assumptions.
+I am also not sure either if the extra code is worth, but from my POV
+it could avoid such cases where we unmap regions but move_vma()
+is not going to succeed at all.
 
-Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
----
- block/blk-cgroup.c         | 47 ++++++++++++++++++++++++++++++++++
- fs/fs-writeback.c          | 52 +++++++++++++++++++++++++++++++++++---
- fs/inode.c                 |  1 +
- include/linux/blk-cgroup.h | 22 ++++++++++++++++
- include/linux/fs.h         |  4 +++
- mm/page-writeback.c        |  1 +
- 6 files changed, 124 insertions(+), 3 deletions(-)
 
-diff --git a/block/blk-cgroup.c b/block/blk-cgroup.c
-index fb3c39eadf92..c6ddf9eeab37 100644
---- a/block/blk-cgroup.c
-+++ b/block/blk-cgroup.c
-@@ -1422,6 +1422,53 @@ void blkcg_stop_wb_wait_on_bdi(struct backing_dev_info *bdi)
- 	rcu_read_unlock();
- 	synchronize_rcu();
- }
-+
-+/**
-+ * blkcg_set_mapping_dirty - set owner of a dirty mapping
-+ * @mapping: target address space
-+ *
-+ * Set the current blkcg as the owner of the address space @mapping (the first
-+ * blkcg that dirties @mapping becomes the owner).
-+ */
-+void blkcg_set_mapping_dirty(struct address_space *mapping)
-+{
-+	struct blkcg *curr_blkcg, *blkcg;
-+
-+	if (mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK) ||
-+	    mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
-+		return;
-+
-+	rcu_read_lock();
-+	curr_blkcg = blkcg_from_current();
-+	blkcg = blkcg_from_mapping(mapping);
-+	if (curr_blkcg != blkcg) {
-+		if (blkcg)
-+			css_put(&blkcg->css);
-+		css_get(&curr_blkcg->css);
-+		rcu_assign_pointer(mapping->i_blkcg, curr_blkcg);
-+	}
-+	rcu_read_unlock();
-+}
-+
-+/**
-+ * blkcg_set_mapping_dirty - clear the owner of a dirty mapping
-+ * @mapping: target address space
-+ *
-+ * Unset the owner of @mapping when it becomes clean.
-+ */
-+
-+void blkcg_set_mapping_clean(struct address_space *mapping)
-+{
-+	struct blkcg *blkcg;
-+
-+	rcu_read_lock();
-+	blkcg = rcu_dereference(mapping->i_blkcg);
-+	if (blkcg) {
-+		css_put(&blkcg->css);
-+		RCU_INIT_POINTER(mapping->i_blkcg, NULL);
-+	}
-+	rcu_read_unlock();
-+}
- #endif
- 
- /**
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 77c039a0ec25..d003d0593f41 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -58,6 +58,9 @@ struct wb_writeback_work {
- 
- 	struct list_head list;		/* pending work list */
- 	struct wb_completion *done;	/* set if the caller waits */
-+#ifdef CONFIG_CGROUP_WRITEBACK
-+	struct blkcg *blkcg;
-+#endif
- };
- 
- /*
-@@ -916,6 +919,29 @@ static int __init cgroup_writeback_init(void)
- }
- fs_initcall(cgroup_writeback_init);
- 
-+static void blkcg_set_sync_domain(struct wb_writeback_work *work)
-+{
-+	rcu_read_lock();
-+	work->blkcg = blkcg_from_current();
-+	rcu_read_unlock();
-+}
-+
-+static bool blkcg_same_sync_domain(struct wb_writeback_work *work,
-+				   struct address_space *mapping)
-+{
-+	struct blkcg *blkcg;
-+
-+	if (!work->blkcg || work->blkcg == &blkcg_root)
-+		return true;
-+	if (!test_bit(BLKCG_SYNC_ISOLATION, &work->blkcg->flags))
-+		return true;
-+	rcu_read_lock();
-+	blkcg = blkcg_from_mapping(mapping);
-+	rcu_read_unlock();
-+
-+	return blkcg == work->blkcg;
-+}
-+
- #else	/* CONFIG_CGROUP_WRITEBACK */
- 
- static void bdi_down_write_wb_switch_rwsem(struct backing_dev_info *bdi) { }
-@@ -959,6 +985,15 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
- 	}
+It is not yet complete (sanity checks are missing), but I wanted to show it
+to see whether it is something that is worth spending time with:
+
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 3320616ed93f..f504c29d2af4 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -494,6 +494,51 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+ 	return vma;
  }
  
-+static void blkcg_set_sync_domain(struct wb_writeback_work *work)
++static int pre_compute_maps(unsigned long addr, unsigned long len)
 +{
-+}
++	struct mm_struct *mm = current->mm;
++	struct vm_area_struct *vma, *vma_end;
++	unsigned long end;
++	int maps_needed = 0;
 +
-+static bool blkcg_same_sync_domain(struct wb_writeback_work *work,
-+				   struct address_space *mapping)
-+{
-+	return true;
-+}
- #endif	/* CONFIG_CGROUP_WRITEBACK */
- 
- /*
-@@ -1131,7 +1166,7 @@ static int move_expired_inodes(struct list_head *delaying_queue,
- 	LIST_HEAD(tmp);
- 	struct list_head *pos, *node;
- 	struct super_block *sb = NULL;
--	struct inode *inode;
-+	struct inode *inode, *next;
- 	int do_sb_sort = 0;
- 	int moved = 0;
- 
-@@ -1141,11 +1176,12 @@ static int move_expired_inodes(struct list_head *delaying_queue,
- 		expire_time = jiffies - (dirtytime_expire_interval * HZ);
- 		older_than_this = &expire_time;
- 	}
--	while (!list_empty(delaying_queue)) {
--		inode = wb_inode(delaying_queue->prev);
-+	list_for_each_entry_safe(inode, next, delaying_queue, i_io_list) {
- 		if (older_than_this &&
- 		    inode_dirtied_after(inode, *older_than_this))
- 			break;
-+		if (!blkcg_same_sync_domain(work, inode->i_mapping))
-+			continue;
- 		list_move(&inode->i_io_list, &tmp);
- 		moved++;
- 		if (flags & EXPIRE_DIRTY_ATIME)
-@@ -1560,6 +1596,15 @@ static long writeback_sb_inodes(struct super_block *sb,
- 			break;
- 		}
- 
++	end = addr + len;
++
++	vma = find_vma(mm, addr);
++	if (!vma)
++		return 0;
++	vma_end = find_vma(mm, end);
++
++	if (addr >= vma->vm_start && end <= vma->vm_end) {
 +		/*
-+		 * Only write out inodes that belong to the blkcg that issued
-+		 * the sync().
++		 * Possible outcomes when dealing with a single vma:
++		 * the vma will be entirely removed: map_count will be decremented by 1
++		 * it needs to be split in 2 before unmapping: map_count not changed
++		 * it needs to be split in 3 before unmapping: map_count incremented by 1
 +		 */
-+		if (!blkcg_same_sync_domain(work, inode->i_mapping)) {
-+			redirty_tail(inode, wb);
-+			continue;
++		if (addr > vma->vm_start && end < vma->vm_end)
++			maps_needed++;
++		else if (addr == vma->vm_start && end == vma->vm_end)
++			maps_needed--;
++	} else {
++		struct vm_area_struct *tmp = vma;
++		int vmas;
++
++		if (addr > tmp->vm_start)
++			vmas = -1;
++		else
++			vmas = 0;
++
++		while (tmp != vma_end) {
++			if (end >= tmp->vm_end)
++				vmas++;
++			tmp = tmp->vm_next;
 +		}
++		maps_needed -= vmas;
++	}
 +
- 		/*
- 		 * Don't bother with new inodes or inodes being freed, first
- 		 * kind does not need periodic writeout yet, and for the latter
-@@ -2447,6 +2492,7 @@ void sync_inodes_sb(struct super_block *sb)
- 		return;
- 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
- 
-+	blkcg_set_sync_domain(&work);
- 	blkcg_start_wb_wait_on_bdi(bdi);
- 
- 	/* protect against inode wb switch, see inode_switch_wbs_work_fn() */
-diff --git a/fs/inode.c b/fs/inode.c
-index 73432e64f874..d60a2042d39a 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -564,6 +564,7 @@ static void evict(struct inode *inode)
- 		bd_forget(inode);
- 	if (S_ISCHR(inode->i_mode) && inode->i_cdev)
- 		cd_forget(inode);
-+	blkcg_set_mapping_clean(&inode->i_data);
- 
- 	remove_inode_hash(inode);
- 
-diff --git a/include/linux/blk-cgroup.h b/include/linux/blk-cgroup.h
-index 6ac5aa049334..a2bcc83c8c3e 100644
---- a/include/linux/blk-cgroup.h
-+++ b/include/linux/blk-cgroup.h
-@@ -441,6 +441,15 @@ extern void blkcg_destroy_blkgs(struct blkcg *blkcg);
- 
- #ifdef CONFIG_CGROUP_WRITEBACK
- 
-+static inline struct blkcg *blkcg_from_mapping(struct address_space *mapping)
-+{
-+	WARN_ON_ONCE(!rcu_read_lock_held());
-+	return rcu_dereference(mapping->i_blkcg);
++	return maps_needed;
 +}
 +
-+void blkcg_set_mapping_dirty(struct address_space *mapping);
-+void blkcg_set_mapping_clean(struct address_space *mapping);
-+
- /**
-  * blkcg_cgwb_get - get a reference for blkcg->cgwb_list
-  * @blkcg: blkcg of interest
-@@ -474,6 +483,19 @@ void blkcg_stop_wb_wait_on_bdi(struct backing_dev_info *bdi);
+ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
+ 		unsigned long new_addr, unsigned long new_len, bool *locked,
+ 		struct vm_userfaultfd_ctx *uf,
+@@ -516,6 +561,24 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
+ 	if (addr + old_len > new_addr && new_addr + new_len > addr)
+ 		goto out;
  
- #else
- 
-+static inline struct blkcg *blkcg_from_mapping(struct address_space *mapping)
-+{
-+	return NULL;
-+}
++	/*
++	 * Worst-scenario case is when a vma gets split in 3 before unmaping it.
++	 * So, that would mean 2 (1 for new_addr and 1 for addr) more maps to
++	 * the ones we already hold.
++	 * If that is the case, let us check further if we are going to free
++	 * enough to go beyond the check in move_vma().
++	 */
++	if ((mm->map_count + 2) >= sysctl_max_map_count - 3) {
++		int maps_needed = 0;
 +
-+static inline void blkcg_set_mapping_dirty(struct address_space *mapping)
-+{
-+}
++		maps_needed += pre_compute_maps(new_addr, new_len);
++		if (old_len > new_len)
++			maps_needed += pre_compute_maps(addr + new_len, old_len - new_len);
 +
-+static inline void blkcg_set_mapping_clean(struct address_space *mapping)
-+{
-+}
++		if ((mm->map_count + maps_needed) >= sysctl_max_map_count - 3)
++			return -ENOMEM;
++	}
 +
- static inline void blkcg_cgwb_get(struct blkcg *blkcg) { }
- 
- static inline void blkcg_cgwb_put(struct blkcg *blkcg)
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 29d8e2cfed0e..502a2b94f183 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -414,6 +414,7 @@ int pagecache_write_end(struct file *, struct address_space *mapping,
-  * @nrpages: Number of page entries, protected by the i_pages lock.
-  * @nrexceptional: Shadow or DAX entries, protected by the i_pages lock.
-  * @writeback_index: Writeback starts here.
-+ * @i_blkcg: blkcg owner (that dirtied the address_space)
-  * @a_ops: Methods.
-  * @flags: Error bits and flags (AS_*).
-  * @wb_err: The most recent error which has occurred.
-@@ -432,6 +433,9 @@ struct address_space {
- 	unsigned long		nrexceptional;
- 	pgoff_t			writeback_index;
- 	const struct address_space_operations *a_ops;
-+#ifdef CONFIG_CGROUP_WRITEBACK
-+	struct blkcg __rcu	*i_blkcg;
-+#endif
- 	unsigned long		flags;
- 	errseq_t		wb_err;
- 	spinlock_t		private_lock;
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 7d1010453fb9..a58071ee5f1c 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2410,6 +2410,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- 		inode_attach_wb(inode, page);
- 		wb = inode_to_wb(inode);
- 
-+		blkcg_set_mapping_dirty(mapping);
- 		__inc_lruvec_page_state(page, NR_FILE_DIRTY);
- 		__inc_zone_page_state(page, NR_ZONE_WRITE_PENDING);
- 		__inc_node_page_state(page, NR_DIRTIED);
+ 	ret = do_munmap(mm, new_addr, new_len, uf_unmap_early);
+ 	if (ret)
+ 		goto out;
+Thanks
 -- 
-2.17.1
+Oscar Salvador
+SUSE L3
 
