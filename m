@@ -2,218 +2,172 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F25AC4360F
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 04:10:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E6571C10F00
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 04:16:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C8074217D7
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 04:10:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8074217D7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id AE96B21773
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 04:16:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AE96B21773
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3DDFA8E0003; Mon, 18 Feb 2019 23:10:06 -0500 (EST)
+	id 4760D8E0003; Mon, 18 Feb 2019 23:16:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 38D328E0002; Mon, 18 Feb 2019 23:10:06 -0500 (EST)
+	id 3FDF18E0002; Mon, 18 Feb 2019 23:16:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 255118E0003; Mon, 18 Feb 2019 23:10:06 -0500 (EST)
+	id 29EEB8E0003; Mon, 18 Feb 2019 23:16:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BC4558E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 23:10:05 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id f2so3017575edm.18
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 20:10:05 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D4C6F8E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 23:16:54 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id p20so14004059plr.22
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 20:16:54 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=gTy9Mri9rrGHj3cxK1Z2aZifsCldPVJoy5cjVpIz4jY=;
-        b=Stau8mssBC20McKijoAKf+2vWE+SCD3w2MByMLN0DkeE2mODrcHXb/oMrZfOvkgrP4
-         PaRIM1F861GquLyYsYRLqd60dKH1avBfxx/BasfoJXVihlT6dVlVVV9f+5llXSEP/iEF
-         i8Ym67E2TbrAAiaeGhdG5/LcFLgWKdcoZlS5Oqqt55DfMwWBll/lVm/WkScmGJwBayEO
-         QVtnowrvB60B+uUvCP7SDtQauh0E5m7321EMNlMHhskzMtAb/WuXAyc5N5VzJvBmu5AN
-         7btccBKG/86fAJEj21Gd4NwaddLTG7zqjLVk48/adyRsDbsgzWsybFcqEzigPC/fqS5M
-         ndfg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: AHQUAuZwfsZcSW4EZR91JK9wpP73tWvsEwM0Fa9xYrDPfdeM/CMU7k2+
-	TIT/oKCTGIU4MMAzYsnHcvDyzR+rqaV5LCyFtaGhy9+OrxsTThVpyy2K+jhTS2bHClHn4NheOlG
-	3ixCmrE38zAsWWbeM/lHOAigqOrBC8bNGuUlncv+00wCvAbzYmlkqJq81+2PogdrVMQ==
-X-Received: by 2002:a50:9927:: with SMTP id k36mr21673714edb.31.1550549405307;
-        Mon, 18 Feb 2019 20:10:05 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYO/7vISD9gYcc5313LBZa2DG1OYvSgWSqhqtqdfaf4GwZQu6AK/fyu8C7EeSt3HmAytxBk
-X-Received: by 2002:a50:9927:: with SMTP id k36mr21673664edb.31.1550549404285;
-        Mon, 18 Feb 2019 20:10:04 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550549404; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=DGrXzDdhAyqxNhRnyUd0mci9tW2F1GiN1ZUTb3CrkdM=;
+        b=rhqJju1d6lPX4AYkMWUC18fr8eBgUQ2qjI0ZS/KChTWTEjRERPZUuaZJfTZCMezmWo
+         rKPGnbb7PHWhsh9gSz73kX+KAKzHJ7GhWCx7DBO54YgxxXfnr8f3atluu3bSbq6dAZdK
+         kf+20cpLzSGe+ptyEUtQXWyLgEvGBmebExgUuFylBufyzeR5VHohLQGMyNTnb3VVdvDi
+         vmVkzpRGlr4GZDw2AXoaavf3NmAn+VHbCtf/s2cQowpo4GuwZcC+4sCwjjpxd3+F71qU
+         02o5M4v9MsKROetHDN5tuHnYw3X+R2yFciayfoLuqmK4KSWKhhFoeLFDr4aw0eGpDCmA
+         Yv5A==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.139 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: AHQUAuYpjX+gUryUbxBQkXBhVuP6gR/K0DZpGr6lsEWgR7vKpQOUIAGh
+	TYDs2R8R74PYOBYXcmZWJCWnzVNojYJeW4I02RmQ1TeMXTk+8ZnsqzJuJfXNHg7Wv3QkuSIw4SG
+	4+NUrV+fglAd0W0IObAAk8KdmnMFn3QEfOiy96e4Q70BP80tWgS6VflQoXwjld3w=
+X-Received: by 2002:a63:8b43:: with SMTP id j64mr21837992pge.332.1550549814485;
+        Mon, 18 Feb 2019 20:16:54 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYnVwB6RMJatyMOOUJlWz7fUHtzuaeQGE7bZkjCt6IFU8gus3t8RMIjEZQ6MhKqIz/dHK6r
+X-Received: by 2002:a63:8b43:: with SMTP id j64mr21837958pge.332.1550549813755;
+        Mon, 18 Feb 2019 20:16:53 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550549813; cv=none;
         d=google.com; s=arc-20160816;
-        b=0YYhFXqxS+b5ZjEi50za4YSedSyayny4Dzc1IiZRbfR7AFn7ia1LjWY7V2MqQNT/VX
-         XNt/3KRec7I527lRQQyOyMqC6PBUPa/9FGp3troUoFD1AKk816Wo/ihYYJ9gWgwR0p1N
-         P5xUWSKkhhzOHssBarXSchHW2aLihBRBvTc7+pD4hV3sewNslm5h2xkyMOnqJxxbPiac
-         lj20OoBTrWOj7aEn9CBUN3c5qtvz+6yo+wOxTbfH1Bpo4BESCu0YmkMG633cW9zImahV
-         7/xv45OvBkjcRelcVnJxv14rMGNRZKiKqmPZgUc2e9feDbTxOir3JXHV3hSpOk48XxAR
-         9X2w==
+        b=IVCOZK4GlyF70YWKeXh/pTwWMqPRyoa7ER+xJz+sJq0IoM4Bf7mkc5rn83w3OIZyXt
+         nD+XFQrWkGOX/PPAXk6m3burdiwMPnHgvfIbpBxuoBnjC1zONI4qfN1E4YlQpnWZ9Chl
+         MaiAAsQk2VBZNB5vzhaTCTkOBV6KY8AxJRR82FIWHsmaSpjugGIskcjlB6CbN6QD6uvx
+         Tf1RwUmhrk+Yw3MjPH38t7kh793846z6msV+xSaDlC1uvr+iKT9k78F6reQxwvofsjQu
+         rc4OQTLPg509wSeIuWefnwW3kZRwMDDot0em1BnaA6OZT7sX9p/mGIQRMglL/tK59WWN
+         ipNw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=gTy9Mri9rrGHj3cxK1Z2aZifsCldPVJoy5cjVpIz4jY=;
-        b=zNz+U4zHTsKRKVtpcEJiVGzzlGhQbpUGiLzyEXmWgJcjJsXqG3aLrgky/gvAAv9mE7
-         9vAaZec95GZ2phah4JtnKv2VZko7D1bsNF+3ddF9Ej2eszBgpEM7hXLdM2IjaQoAbZVn
-         y5I44RSzUVNEiv4Aowt3k+svzL4scfrAMShaA8nlcxTDwl2Isyl5dMo834jkPwfsTK24
-         sQW4zvznIPto3/ZQ3aGpcZjEZWEmc4jVs2Cf9BJqM0/hlVQrPxnmttgZ/bYBSPDkauPC
-         gWS4DyROOwqZIrDJrEqPrhxNyyioyHubD5pdDFvSmQXW4f+Taey0elPCxMjW8irFW4TY
-         fAmA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=DGrXzDdhAyqxNhRnyUd0mci9tW2F1GiN1ZUTb3CrkdM=;
+        b=rXcczGBoNsM9AmSYss/ku5/UT686y2IUU2Sa/jijnK1d+K11eEFMNlVd8Jvf9BBiST
+         ymQ4ki++Dh8U53xh37lZnOvJ+E6ctZGBHqB455dyArtrbWqDVcck5sku3kOKgF9ub7nt
+         +pDdnV+GBghSzANMBEzW/pC9hSRWc72VuCBqaxsGoA5I/aKeLbIy1h2FYqzyYepnqQm7
+         a+qcHiHzKV/PCMA0j0icIRnTzr4IUpS4F33mZxJVbbDn2SejbjkVLr7EuBmM832ZpU1x
+         2QJDlqzSQ6/5D+YSE99iwaK+QUk5TfzgTiv/gPIyDUjWegINedWhLtKIcKYYyPQj161x
+         A2cA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id s36si2408896eda.294.2019.02.18.20.10.03
+       spf=neutral (google.com: 150.101.137.139 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ipmail02.adl2.internode.on.net (ipmail02.adl2.internode.on.net. [150.101.137.139])
+        by mx.google.com with ESMTP id 64si143146plk.172.2019.02.18.20.16.52
         for <linux-mm@kvack.org>;
-        Mon, 18 Feb 2019 20:10:04 -0800 (PST)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+        Mon, 18 Feb 2019 20:16:53 -0800 (PST)
+Received-SPF: neutral (google.com: 150.101.137.139 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.139;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 0E469EBD;
-	Mon, 18 Feb 2019 20:10:01 -0800 (PST)
-Received: from [10.162.40.139] (p8cg001049571a15.blr.arm.com [10.162.40.139])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 5C51B3F675;
-	Mon, 18 Feb 2019 20:09:56 -0800 (PST)
-Subject: Re: [PATCH] arm64: mm: enable per pmd page table lock
-To: Yu Zhao <yuzhao@google.com>, Will Deacon <will.deacon@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>,
- "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
- Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@gmail.com>,
- Peter Zijlstra <peterz@infradead.org>,
- Joel Fernandes <joel@joelfernandes.org>,
- "Kirill A . Shutemov" <kirill@shutemov.name>,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- linux-arch@vger.kernel.org, linux-mm@kvack.org, mark.rutland@arm.com
-References: <20190214211642.2200-1-yuzhao@google.com>
- <20190218151223.GB16091@fuggles.cambridge.arm.com>
- <20190218194938.GA184109@google.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <885bcfa8-1085-d454-540d-4511f5f3886e@arm.com>
-Date: Tue, 19 Feb 2019 09:39:59 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=neutral (google.com: 150.101.137.139 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
+  by ipmail02.adl2.internode.on.net with ESMTP; 19 Feb 2019 14:46:51 +1030
+Received: from dave by dastard with local (Exim 4.80)
+	(envelope-from <david@fromorbit.com>)
+	id 1gvwpu-0004Pm-Je; Tue, 19 Feb 2019 15:16:50 +1100
+Date: Tue, 19 Feb 2019 15:16:50 +1100
+From: Dave Chinner <david@fromorbit.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Adam Borowski <kilobyte@angband.pl>, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org,
+	Marcin Slusarz <marcin.slusarz@intel.com>
+Subject: Re: tmpfs fails fallocate(more than DRAM)
+Message-ID: <20190219041650.GB15503@dastard>
+References: <20190218133423.tdzawczn4yjdzjqf@angband.pl>
+ <20190218202534.btgdyr5p3rxoqot7@angband.pl>
+ <alpine.LSU.2.11.1902181745010.1241@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20190218194938.GA184109@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1902181745010.1241@eggly.anvils>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 02/19/2019 01:19 AM, Yu Zhao wrote:
-> On Mon, Feb 18, 2019 at 03:12:23PM +0000, Will Deacon wrote:
->> [+Mark]
->>
->> On Thu, Feb 14, 2019 at 02:16:42PM -0700, Yu Zhao wrote:
->>> Switch from per mm_struct to per pmd page table lock by enabling
->>> ARCH_ENABLE_SPLIT_PMD_PTLOCK. This provides better granularity for
->>> large system.
->>>
->>> I'm not sure if there is contention on mm->page_table_lock. Given
->>> the option comes at no cost (apart from initializing more spin
->>> locks), why not enable it now.
->>>
->>> Signed-off-by: Yu Zhao <yuzhao@google.com>
->>> ---
->>>  arch/arm64/Kconfig               |  3 +++
->>>  arch/arm64/include/asm/pgalloc.h | 12 +++++++++++-
->>>  arch/arm64/include/asm/tlb.h     |  5 ++++-
->>>  3 files changed, 18 insertions(+), 2 deletions(-)
->>>
->>> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
->>> index a4168d366127..104325a1ffc3 100644
->>> --- a/arch/arm64/Kconfig
->>> +++ b/arch/arm64/Kconfig
->>> @@ -872,6 +872,9 @@ config ARCH_WANT_HUGE_PMD_SHARE
->>>  config ARCH_HAS_CACHE_LINE_SIZE
->>>  	def_bool y
->>>  
->>> +config ARCH_ENABLE_SPLIT_PMD_PTLOCK
->>> +	def_bool y
->>> +
->>>  config SECCOMP
->>>  	bool "Enable seccomp to safely compute untrusted bytecode"
->>>  	---help---
->>> diff --git a/arch/arm64/include/asm/pgalloc.h b/arch/arm64/include/asm/pgalloc.h
->>> index 52fa47c73bf0..dabba4b2c61f 100644
->>> --- a/arch/arm64/include/asm/pgalloc.h
->>> +++ b/arch/arm64/include/asm/pgalloc.h
->>> @@ -33,12 +33,22 @@
->>>  
->>>  static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
->>>  {
->>> -	return (pmd_t *)__get_free_page(PGALLOC_GFP);
->>> +	struct page *page;
->>> +
->>> +	page = alloc_page(PGALLOC_GFP);
->>> +	if (!page)
->>> +		return NULL;
->>> +	if (!pgtable_pmd_page_ctor(page)) {
->>> +		__free_page(page);
->>> +		return NULL;
->>> +	}
->>> +	return page_address(page);
->>
->> I'm a bit worried as to how this interacts with the page-table code in
->> arch/arm64/mm/mmu.c when pgd_pgtable_alloc is used as the allocator. It
->> looks like that currently always calls pgtable_page_ctor(), regardless of
->> level. Do we now need a separate allocator function for the PMD level?> 
-> Thanks for reminding me, I never noticed this. The short answer is
-> no.
+On Mon, Feb 18, 2019 at 07:35:01PM -0800, Hugh Dickins wrote:
+> On Mon, 18 Feb 2019, Adam Borowski wrote:
+> > I searched a bit for references that would suggest failed fallocates need to
+> > be undone, and I can't seem to find any.  Neither POSIX nor our man pages
+> > say a word about semantics of interrupted fallocate, and both glibc's and
+> > FreeBSD's fallback emulation don't rollback.
 > 
-> I guess pgtable_page_ctor() is used on all pud/pmd/pte entries
-> there because it's also compatible with pud, and pmd too without
-> this patch. So your concern is valid. Thanks again.
-
-pgtable_page_ctor() acts on a given page used as page table at any level
-which sets appropriate page type (page flag PG_table) and increments the
-zone stat for NR_PAGETABLE. pgtable_page_dtor() exactly does the inverse.
-
-These two complimentary operations are required for every level page table
-pages for their proper initialization, identification in buddy and zone
-statistics. Hence these need to be called for all level page table pages.
-
-pgtable_pmd_page_ctor()/pgtable_pmd_page_dtor() on the other hand just
-init/free page table lock on the page for !THP cases and additionally
-init page->pmd_huge_pte (deposited page table page) for THP cases.
-Some archs seem to be calling pgtable_pmd_page_ctor() in place of
-pgtable_page_ctor(). Wondering would not that approach skip page flag
-and accounting requirements.
-
+> To me it was self-evident: with a few awkward exceptions (awkward because
+> they would have a difficult job to undo, and awkward because they argue
+> against me!), a system call either succeeds or fails, or reports partial
+> success.  If fallocate() says it failed (and is not allowed to report
+> partial success), then it should not have allocated.  Especially in the
+> case of RAM, when filling it up makes it rather hard to unfill (another
+> persistent problem with tmpfs is the way it can occupy all of memory,
+> and the OOM killer go about killing a thousand processes, but none of
+> them help because the memory is occupied by a tmpfs, not by a process).
 > 
-> Why my answer is no? Because I don't think the ctor matters for
-> pgd_pgtable_alloc(). The ctor is only required for userspace page
-> tables, and that's why we don't have it in pte_alloc_one_kernel().
+> Now that you question it (did I not do so at the time? I thought I did),
+> I try fallocate() on btrfs and ext4 and xfs.  btrfs and xfs behave as I
+> expect above, failing outright with ENOSPC if it will not fit;
 
-At present on arm64 certain kernel page table page allocations call
-pgtable_pmd_page_ctor() and some dont. The series which I had posted
-make sure that all kernel and user page table page allocations go through
-pgtable_page_ctor()/dtor(). These constructs are required for kernel
-page table pages as well for accurate init and accounting not just for
-user space. The series just skips vmemmap struct page mapping from this
-as that would require generic sparse vmemmap allocation/free functions
-which I believe should also be changed going forward as well.
+If only it were that simple. :/
 
-> AFAICT, none of the pgds (efi_mm.pgd, tramp_pg_dir and init_mm.pgd)
-> pre-populated by pgd_pgtable_alloc() is. (I doubt we pre-populate
-> userspace page tables in any other arch).
-> 
-> So to avoid future confusion, we might just remove the ctor from
-> pgd_pgtable_alloc().
+XFS can do partial allocation and fail - it all depends on how many
+extent allocations are required before ENOSPC is actually hit. e.g.
+if you ask for 10GB and there is only 5GB free, it should fail
+straight away. However, if there's 20GB free in 1GB chunks, it will
+loop allocating 1GB extents. If something else is allocating at the
+same time, the fallocate could get to, say, 8GB allocated and then
+hit ENOSPC.
 
-No. Instead we should just make sure the that those pages go through
-dtor() destructor path when getting freed and the clean up series
-does that.
+In which case, we'll return the ENOSPC error, but we'll also leave
+the 8GB of space already allocated to the file there. i.e. it
+doesn't clean up after itself.
+
+The reason for this is that we don't know after we've performed
+allocations what regions of the preallocated range were actually
+allocated by the preallocation. i.e. fallocate can be run over a
+range that already contains some extents - it simply skips over
+regions that are already allocated. hence we don't know what we are
+supposed to clean up, and so we leave the corpse lying around for
+someone else to deal with (e.g. by sparsifying the file again).
+
+> whereas
+> ext4 proceeds to fill up the filesystem, leaving it full when it says
+> that it failed.
+
+This is much the same behaviour as XFS - you see it more easily with
+ext4 because it has much smaller maximum extent size (128MB) than
+XFS (8GB) and so needs to iterate multiple allocations sooner than
+XFS or btrfs need to.
+
+I'm not sure what btrfs does
+
+> Looks like I had a choice of models to follow: the
+> ext4 model would have been easier to follow, but risked OOM.
+
+fallocate() gives you the rope to choose what is best for the
+filesystem - it doesn't specify behaviour on failure precisely
+because it can be very difficult (not to mention complex!) for
+filesystems to unwind partial failures....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
