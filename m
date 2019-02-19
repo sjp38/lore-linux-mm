@@ -2,630 +2,266 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BE21DC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 22:40:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 62341C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 23:26:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4DD632147A
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 22:40:59 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amarulasolutions.com header.i=@amarulasolutions.com header.b="n0IDXJLK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4DD632147A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amarulasolutions.com
+	by mail.kernel.org (Postfix) with ESMTP id 1C1062147A
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 23:26:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C1062147A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D6DCE8E0003; Tue, 19 Feb 2019 17:40:58 -0500 (EST)
+	id A3F318E0003; Tue, 19 Feb 2019 18:26:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D476A8E0002; Tue, 19 Feb 2019 17:40:58 -0500 (EST)
+	id 9EE5A8E0002; Tue, 19 Feb 2019 18:26:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C33488E0003; Tue, 19 Feb 2019 17:40:58 -0500 (EST)
+	id 8DD0D8E0003; Tue, 19 Feb 2019 18:26:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A0168E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 17:40:58 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id m7so9738542wrn.15
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 14:40:58 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 656DB8E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 18:26:40 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id f70so1046653qke.8
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 15:26:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=oYrZRH7vmI0qzivYIlXDqOjRqLiHNfBbq7RJC/89DBQ=;
-        b=fYnTlnC7rrNKDTeLxeuejy6TMoyr9j5WBk2yIhuCCDyR7B51Ff+x4xin9NEhh9WneG
-         MyinNHkqXePVHsMHNScGpbAJXH+keuAcVq9m07ApCMPhqE5kaN8tEvwnN6JDjyhXyJmv
-         MkPBgJlcsFkjCreSK6eLC9CBBrS0X0v5dNv5u3uNsDEihtWo/KqsP4ao7nXMbgP/eRyz
-         CSpESBuwLT+IVbuTzonfJFOfJKF1dqtu/nX+TE7siO3haVQHRJq/C8lws+DKROr9m45a
-         3E/vXCqchxCk2u1GDG5N001d2RReFlgTz7SbqUX+bOA01dnPFf2Riutr46tYbCwIijbH
-         CJHw==
-X-Gm-Message-State: AHQUAuYv8kUfmn64uLqdRfQYZ61nfLiNLvA7IuhcWVZW69w+yzLil6HR
-	2f+CL89k+owEA17b+BpSsWtuyL+u7uIdUriHcEX+HeZjdRAePbVk/Ur2X15K3igdOhm7MVTMppX
-	WPWTBq4l+TjaL4AnYZZKzDw48oQkjYOMPrM0qm6eXFb6VlfuNsaQ+0F1pLX6T27sz6F+Nj3NGom
-	AxKsYkT8JrAL948WwkfuQ6TdO+Z0uPdyVTsvp7TsdGkdVSSjhLB3ySn19kmfcmZZxdx5TWrVw/3
-	nFDW3Bq/zsjfwfem456d3FHgFIVeQCgYlzFMLjDh6WTjv8CLC3J8IrRJ+5KfukRiHYm22+y8U9b
-	2upOcaxwC+91Net7BGxRieXBZPlH7mv1y8VmeQtKoEy+34pIUzWT9ltVQedgJDVZlpvwSGMka84
-	4
-X-Received: by 2002:a5d:668b:: with SMTP id l11mr21659439wru.116.1550616057837;
-        Tue, 19 Feb 2019 14:40:57 -0800 (PST)
-X-Received: by 2002:a5d:668b:: with SMTP id l11mr21659395wru.116.1550616056387;
-        Tue, 19 Feb 2019 14:40:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550616056; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=meFASeVm8AgDUCXNN7Y8QzAbvDPsmwGcXRRsijRK3Ro=;
+        b=cyCdWyo7c0su9qv474sJcK4HzKgY0SWXHOx+Uq1tYaRUeHO8+eLkamXxwhcCd+O3wT
+         sLv0AM4+ZARcpukwcztiSCIeny1ZRFy74aFwoxwp0NktxtwtxqWLX9qpDkBhThCqLDBG
+         a+D87YVJOj9SNADvY3H3N+m//iDw7FUQYK7u8SQkFZH0ZESyI8Tgp+7wzj2LRReuPilm
+         4soHkFyUApN9rrJjc0JIFobZtJwKlEkztnzvE/QpWWEMOsh5hmbrhtQHbnmH1salV7v7
+         VqGUoZQJzgAwkXgeCRalXBD0JHUw9fddTw4tdW4QqSQ0Lhf+t8hBaWtzRWTfUmLha9G5
+         chSw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dchinner@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dchinner@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAuZhr8rXTqW0q1Ek2u8WwWPZjHCurHPLEpVOHnc89v6S8DhmFYXs
+	u5I3M8hUSD59wJfCVbR1rWq2qLSEBaFEFveLT9U22R08tV+Xa5YobSFEgJxQLRbwZjWlPg2rpEW
+	R91zgGxStX6z/7XUnZv625ToEkDtrh+Wcd7Nl/ADaAOZjPywY5/aYWkq0PKhO3Ga8sg==
+X-Received: by 2002:a0c:a326:: with SMTP id u35mr23918580qvu.190.1550618800124;
+        Tue, 19 Feb 2019 15:26:40 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib5jRo6hau3VluRxCb4BZax3HgE2zhvku9+SGnJ/g9cG3K99l30VUhW0SmAoq6zZT7TwxIF
+X-Received: by 2002:a0c:a326:: with SMTP id u35mr23918541qvu.190.1550618799066;
+        Tue, 19 Feb 2019 15:26:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550618799; cv=none;
         d=google.com; s=arc-20160816;
-        b=wPIytIu2fqAXshLLZASARncMv+Y0hFbwm3Ji4HdzylQ9TPTbPDjuKDXPuQG4ZxeWhC
-         aTPQ2LlvUVwD9Bi+Ab9wbgyygpK+y6YzIL5BoGfdvtydBB7yujDiQtAHhBXI5h0gnmLF
-         5SAqhI6+eHd+dLZRfE5mRictgskAEMQj0IkKAKL/gCmzpDDlhyWrGYDaGXAsOQrozvM8
-         fTdUKaem9SNacgf784wh+HsbFswqeniha8A5PK44rBNVv9Dprg0Fn9xCnVKaU3mH6u8y
-         ICesQOiPIktsVObqTYF2d50tyADCkUCIaxxZgyA3o5kypsE+aDlFZc16g4O0GVfFAP2J
-         hNTw==
+        b=UndKmQ2hzJJ3KPrtvXq8g+zNCVRvyTQ/OyVOAUcEbROnp5ySDLyZKpVp18sPR084UL
+         a4bDRB0SzK+p1YHTCq3EC+x80nLTjlHTP4/F6WHrl6Sr4aQwI86qXyuc3yO2F701rQ/6
+         vN3W6YvHZwL3KGlas8fjoOckljDi/cKnbMs2P77CrxB+FhZ1FmhcBFpUbnFa7GOFmrC+
+         F8CXkf2tgB8NSKSl/R6fbFZgqtpnqunlOPihNKf0+L5gmH2AJ8bQkfl2Hdd4I8wC0bn+
+         TPd54epEF/y91y+GydlnIi+zN6AVrKLhfS5iqchjEH/5JkaQX7/dMWRcxdDsVrIjWhAT
+         yFBA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=oYrZRH7vmI0qzivYIlXDqOjRqLiHNfBbq7RJC/89DBQ=;
-        b=xOGibc45uakgW1giK7k6+rBDP8DPfFtnetZrxazILgZX3GovH6CRlsU5yh5b9YXgN2
-         0cgt4Ausj/HYethxCgXfG2z/S3NyGeKO2i0ANcF0GP3WenHgiSFvQ4tKit1B6vx+0LtW
-         0lTWY4jtUsJrJ1/GU6QPQMFazg7qpVj7K2fXh4FIicQT/MiwlvB0HuVVCQ3aWnJ9KNwH
-         6hhi6Ryunf+cFuLNLzoa8UxHGCU434ea6rRi3+i6YLi8l3VVCOKJ42BX6VBAGUYiLFEE
-         /yEWyvtB8mGAPgW8eWoRDGxl1VofP8qJPu8NXBqZCbksJwF0VFN3gCD3vznXXDwTlmZj
-         oLiA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=meFASeVm8AgDUCXNN7Y8QzAbvDPsmwGcXRRsijRK3Ro=;
+        b=qoFPeVzwMWTvcIhKR+0oibtTFTsFjfg5FJimAc5r4+bRE/TLKRo4KdocT1mOU+sNUZ
+         veAAN19wCgZ0PW0uGbGCQk6X/00Hy/X3IVyYM7KX9bCDCniFyndah+u6w559e32/Z/t5
+         Jrv9nRxjOFi+/Ko+UFkPnLc3vZCpW/ttIHTfXnIh7e/rZrDvfwALxy45ellRBPLmfI4P
+         Ah81WVL+jrIPE7K+Ye0y5u25OvIWtFDWBs+KM3e/tTBVKyMQ3OAijUPC1E2OOtYc1wBl
+         AuG01tCOEmSOT5ElNSO9RYhKWTewBUUTL8+BIG/M8oezY9ndhGTOboDXGnuvp7mKnbPc
+         dAwA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amarulasolutions.com header.s=google header.b=n0IDXJLK;
-       spf=pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andrea.parri@amarulasolutions.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d4sor2527718wmf.22.2019.02.19.14.40.56
+       spf=pass (google.com: domain of dchinner@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dchinner@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o34si148209qva.1.2019.02.19.15.26.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Feb 2019 14:40:56 -0800 (PST)
-Received-SPF: pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amarulasolutions.com header.s=google header.b=n0IDXJLK;
-       spf=pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andrea.parri@amarulasolutions.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=amarulasolutions.com; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=oYrZRH7vmI0qzivYIlXDqOjRqLiHNfBbq7RJC/89DBQ=;
-        b=n0IDXJLKEdhZXu5EHNKrdIoJO22oA9tijO3Aiy1R0Jtyuxy1fGl3dK9JJNebTgld9j
-         C6qWj0Wo3ooqk9EX5X8OY3RDXhZypXVCkEOZiHAwjSvCAesTXFfUB+HxtrfR3amiZt7s
-         GqlaTtu/M1FppfhuLRCv3NjR+SU6pG2SURdWs=
-X-Google-Smtp-Source: AHgI3Iagz7S1ugpWM7JilxPV18h7OIhH/EJmdH7CcS+wmHdBoMw44PebHxqqP9J9wsrVQjZdvGIGag==
-X-Received: by 2002:a1c:ca01:: with SMTP id a1mr4630352wmg.143.1550616055515;
-        Tue, 19 Feb 2019 14:40:55 -0800 (PST)
-Received: from andrea ([89.22.71.151])
-        by smtp.gmail.com with ESMTPSA id x6sm5903541wmg.0.2019.02.19.14.40.51
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Feb 2019 14:40:54 -0800 (PST)
-Date: Tue, 19 Feb 2019 23:40:46 +0100
-From: Andrea Parri <andrea.parri@amarulasolutions.com>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
-	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
-	Minchan Kim <minchan@kernel.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Chen <tim.c.chen@linux.intel.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	David Rientjes <rientjes@google.com>,
-	Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>,
-	Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>,
-	Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [PATCH -mm -V8] mm, swap: fix race between swapoff and some swap
- operations
-Message-ID: <20190219224046.GA2759@andrea>
-References: <20190218070142.5105-1-ying.huang@intel.com>
+        Tue, 19 Feb 2019 15:26:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of dchinner@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of dchinner@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dchinner@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id AEA9413A4C;
+	Tue, 19 Feb 2019 23:26:37 +0000 (UTC)
+Received: from rh (ovpn-116-82.phx2.redhat.com [10.3.116.82])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 2656D66082;
+	Tue, 19 Feb 2019 23:26:36 +0000 (UTC)
+Received: from [::1] (helo=rh)
+	by rh with esmtps (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
+	(Exim 4.90_1)
+	(envelope-from <dchinner@redhat.com>)
+	id 1gwEmU-0005Zu-A5; Wed, 20 Feb 2019 10:26:30 +1100
+Date: Wed, 20 Feb 2019 10:26:27 +1100
+From: Dave Chinner <dchinner@redhat.com>
+To: Rik van Riel <riel@surriel.com>
+Cc: Roman Gushchin <guro@fb.com>,
+	"lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"mhocko@kernel.org" <mhocko@kernel.org>,
+	"guroan@gmail.com" <guroan@gmail.com>,
+	Kernel Team <Kernel-team@fb.com>,
+	"hannes@cmpxchg.org" <hannes@cmpxchg.org>
+Subject: Re: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
+Message-ID: <20190219232627.GZ31397@rh>
+References: <20190219003140.GA5660@castle.DHCP.thefacebook.com>
+ <20190219020448.GY31397@rh>
+ <7f66dd5242ab4d305f43d85de1a8e514fc47c492.camel@surriel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190218070142.5105-1-ying.huang@intel.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <7f66dd5242ab4d305f43d85de1a8e514fc47c492.camel@surriel.com>
+User-Agent: Mutt/1.9.1 (2017-09-22)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Tue, 19 Feb 2019 23:26:38 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 18, 2019 at 03:01:42PM +0800, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+On Tue, Feb 19, 2019 at 12:31:10PM -0500, Rik van Riel wrote:
+> On Tue, 2019-02-19 at 13:04 +1100, Dave Chinner wrote:
+> > On Tue, Feb 19, 2019 at 12:31:45AM +0000, Roman Gushchin wrote:
+> > > Sorry, resending with the fixed to/cc list. Please, ignore the
+> > > first letter.
+> > 
+> > Please resend again with linux-fsdevel on the cc list, because this
+> > isn't a MM topic given the regressions from the shrinker patches
+> > have all been on the filesystem side of the shrinkers....
 > 
-> When swapin is performed, after getting the swap entry information from
-> the page table, system will swap in the swap entry, without any lock held
-> to prevent the swap device from being swapoff.  This may cause the race
-> like below,
+> It looks like there are two separate things going on here.
 > 
-> CPU 1				CPU 2
-> -----				-----
-> 				do_swap_page
-> 				  swapin_readahead
-> 				    __read_swap_cache_async
-> swapoff				      swapcache_prepare
->   p->swap_map = NULL		        __swap_duplicate
-> 					  p->swap_map[?] /* !!! NULL pointer access */
-> 
-> Because swapoff is usually done when system shutdown only, the race may
-> not hit many people in practice.  But it is still a race need to be fixed.
-> 
-> To fix the race, get_swap_device() is added to check whether the specified
-> swap entry is valid in its swap device.  If so, it will keep the swap
-> entry valid via preventing the swap device from being swapoff, until
-> put_swap_device() is called.
-> 
-> Because swapoff() is very rare code path, to make the normal path runs
-> as fast as possible, rcu_read_lock/unlock() and synchronize_rcu()
-> instead of reference count is used to implement get/put_swap_device().
-> From get_swap_device() to put_swap_device(), RCU reader side is
-> locked, so synchronize_rcu() in swapoff() will wait until
-> put_swap_device() is called.
-> 
-> In addition to swap_map, cluster_info, etc. data structure in the struct
-> swap_info_struct, the swap cache radix tree will be freed after swapoff,
-> so this patch fixes the race between swap cache looking up and swapoff
-> too.
-> 
-> Races between some other swap cache usages and swapoff are fixed too
-> via calling synchronize_rcu() between clearing PageSwapCache() and
-> freeing swap cache data structure.
-> 
-> Fixes: 235b62176712 ("mm/swap: add cluster lock")
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> Not-Nacked-by: Hugh Dickins <hughd@google.com>
-> Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Tim Chen <tim.c.chen@linux.intel.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Jérôme Glisse <jglisse@redhat.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Dave Jiang <dave.jiang@intel.com>
-> Cc: Aaron Lu <aaron.lu@intel.com>
-> Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
-> Cc: Andrea Parri <andrea.parri@amarulasolutions.com>
+> The first are an MM issues, one of potentially leaking memory
+> by not scanning slabs with few items on them,
 
-Reviewed-by: Andrea Parri <andrea.parri@amarulasolutions.com>
+We don't leak memory. Slabs with very few freeable items on them
+just don't get scanned when there is only light memory pressure.
+That's /by design/ and it is behaviour we've tried hard over many
+years to preserve. Once memory pressure ramps up, they'll be
+scanned just like all the other slabs.
 
-  Andrea
+e.g. commit 0b1fb40a3b12 ("mm: vmscan: shrink all slab objects if
+tight on memory") makes this commentary:
 
+    [....] That said, this
+    patch shouldn't change the vmscan behaviour if the memory pressure is
+    low, but if we are tight on memory, we will do our best by trying to
+    reclaim all available objects, which sounds reasonable.
 
+Which is essentially how we've tried to implement shrinker reclaim
+for a long, long time (bugs notwithstanding).
+
+> and having
+> such slabs stay around forever after the cgroup they were
+> created for has disappeared,
+
+That's a cgroup referencing and teardown problem, not a memory
+reclaim algorithm problem. To treat it as a memory reclaim problem
+smears memcg internal implementation bogosities all over the
+independent reclaim infrastructure. It violates the concepts of
+isolation, modularity, independence, abstraction layering, etc.
+
+> and the other of various other
+> bugs with shrinker invocation behavior (like the nr_deferred
+> fixes you posted a patch for). I believe these are MM topics.
+
+Except they interact directly with external shrinker behaviour. the
+conditions of deferral and the problems it is solving are a direct
+response to shrinker implementation constraints (e.g. GFP_NOFS
+deadlock avoidance for filesystems). i.e. we can't talk about the
+deferal algorithm without considering why work is deferred, how much
+work should be deferred, when it may be safe/best to execute the
+deferred work, etc.
+
+This all comes back to the fact that modifying the shrinker
+algorithms requires understanding what the shrinker implementations
+do and the constraints they operate under. It is not a "purely mm"
+discussion, and treating it as such results regressions like the
+ones we've recently seen.
+
+> The second is the filesystem (and maybe other) shrinker
+> functions' behavior being somewhat fragile and depending
+> on closely on current MM behavior, potentially up to
+> and including MM bugs.
 > 
-> Changelog:
+> The lack of a contract between the MM and the shrinker
+> callbacks is a recurring issue, and something we may
+> want to discuss in a joint session.
 > 
-> v8:
-> 
-> - Use swp_swap_info() to cleanup the code per Daniel's comments
-> 
-> - Use rcu_read_lock/unlock and synchronize_rcu() per Andrea
->   Arcangeli's comments
-> 
-> - Added Fixes tag per Michal Hocko's comments
-> 
-> v7:
-> 
-> - Rebased on patch: "mm, swap: bounds check swap_info accesses to avoid NULL derefs"
-> 
-> v6:
-> 
-> - Add more comments to get_swap_device() to make it more clear about
->   possible swapoff or swapoff+swapon.
-> 
-> v5:
-> 
-> - Replace RCU with stop_machine()
-> 
-> v4:
-> 
-> - Use synchronize_rcu() in enable_swap_info() to reduce overhead of
->   normal paths further.
-> 
-> v3:
-> 
-> - Re-implemented with RCU to reduce the overhead of normal paths
-> 
-> v2:
-> 
-> - Re-implemented with SRCU to reduce the overhead of normal paths.
-> 
-> - Avoid to check whether the swap device has been swapoff in
->   get_swap_device().  Because we can check the origin of the swap
->   entry to make sure the swap device hasn't bee swapoff.
-> ---
->  include/linux/swap.h |  13 +++-
->  mm/memory.c          |   2 +-
->  mm/swap_state.c      |  16 ++++-
->  mm/swapfile.c        | 148 +++++++++++++++++++++++++++++++++----------
->  4 files changed, 140 insertions(+), 39 deletions(-)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 649529be91f2..f2ddaf299e15 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -175,8 +175,9 @@ enum {
->  	SWP_PAGE_DISCARD = (1 << 10),	/* freed swap page-cluster discards */
->  	SWP_STABLE_WRITES = (1 << 11),	/* no overwrite PG_writeback pages */
->  	SWP_SYNCHRONOUS_IO = (1 << 12),	/* synchronous IO is efficient */
-> +	SWP_VALID	= (1 << 13),	/* swap is valid to be operated on? */
->  					/* add others here before... */
-> -	SWP_SCANNING	= (1 << 13),	/* refcount in scan_swap_map */
-> +	SWP_SCANNING	= (1 << 14),	/* refcount in scan_swap_map */
->  };
->  
->  #define SWAP_CLUSTER_MAX 32UL
-> @@ -460,7 +461,7 @@ extern unsigned int count_swap_pages(int, int);
->  extern sector_t map_swap_page(struct page *, struct block_device **);
->  extern sector_t swapdev_block(int, pgoff_t);
->  extern int page_swapcount(struct page *);
-> -extern int __swap_count(struct swap_info_struct *si, swp_entry_t entry);
-> +extern int __swap_count(swp_entry_t entry);
->  extern int __swp_swapcount(swp_entry_t entry);
->  extern int swp_swapcount(swp_entry_t entry);
->  extern struct swap_info_struct *page_swap_info(struct page *);
-> @@ -470,6 +471,12 @@ extern int try_to_free_swap(struct page *);
->  struct backing_dev_info;
->  extern int init_swap_address_space(unsigned int type, unsigned long nr_pages);
->  extern void exit_swap_address_space(unsigned int type);
-> +extern struct swap_info_struct *get_swap_device(swp_entry_t entry);
-> +
-> +static inline void put_swap_device(struct swap_info_struct *si)
-> +{
-> +	rcu_read_unlock();
-> +}
->  
->  #else /* CONFIG_SWAP */
->  
-> @@ -576,7 +583,7 @@ static inline int page_swapcount(struct page *page)
->  	return 0;
->  }
->  
-> -static inline int __swap_count(struct swap_info_struct *si, swp_entry_t entry)
-> +static inline int __swap_count(swp_entry_t entry)
->  {
->  	return 0;
->  }
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 34ced1369883..9c0743c17c6c 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2719,7 +2719,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
->  		struct swap_info_struct *si = swp_swap_info(entry);
->  
->  		if (si->flags & SWP_SYNCHRONOUS_IO &&
-> -				__swap_count(si, entry) == 1) {
-> +				__swap_count(entry) == 1) {
->  			/* skip swapcache */
->  			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma,
->  							vmf->address);
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index 85245fdec8d9..61453f1faf72 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -310,8 +310,13 @@ struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
->  			       unsigned long addr)
->  {
->  	struct page *page;
-> +	struct swap_info_struct *si;
->  
-> +	si = get_swap_device(entry);
-> +	if (!si)
-> +		return NULL;
->  	page = find_get_page(swap_address_space(entry), swp_offset(entry));
-> +	put_swap_device(si);
->  
->  	INC_CACHE_INFO(find_total);
->  	if (page) {
-> @@ -354,8 +359,8 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
->  			struct vm_area_struct *vma, unsigned long addr,
->  			bool *new_page_allocated)
->  {
-> -	struct page *found_page, *new_page = NULL;
-> -	struct address_space *swapper_space = swap_address_space(entry);
-> +	struct page *found_page = NULL, *new_page = NULL;
-> +	struct swap_info_struct *si;
->  	int err;
->  	*new_page_allocated = false;
->  
-> @@ -365,7 +370,12 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
->  		 * called after lookup_swap_cache() failed, re-calling
->  		 * that would confuse statistics.
->  		 */
-> -		found_page = find_get_page(swapper_space, swp_offset(entry));
-> +		si = get_swap_device(entry);
-> +		if (!si)
-> +			break;
-> +		found_page = find_get_page(swap_address_space(entry),
-> +					   swp_offset(entry));
-> +		put_swap_device(si);
->  		if (found_page)
->  			break;
->  
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index cca8420b12db..8ec80209a726 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -1078,12 +1078,11 @@ swp_entry_t get_swap_page_of_type(int type)
->  static struct swap_info_struct *__swap_info_get(swp_entry_t entry)
->  {
->  	struct swap_info_struct *p;
-> -	unsigned long offset, type;
-> +	unsigned long offset;
->  
->  	if (!entry.val)
->  		goto out;
-> -	type = swp_type(entry);
-> -	p = swap_type_to_swap_info(type);
-> +	p = swp_swap_info(entry);
->  	if (!p)
->  		goto bad_nofile;
->  	if (!(p->flags & SWP_USED))
-> @@ -1186,6 +1185,63 @@ static unsigned char __swap_entry_free_locked(struct swap_info_struct *p,
->  	return usage;
->  }
->  
-> +/*
-> + * Check whether swap entry is valid in the swap device.  If so,
-> + * return pointer to swap_info_struct, and keep the swap entry valid
-> + * via preventing the swap device from being swapoff, until
-> + * put_swap_device() is called.  Otherwise return NULL.
-> + *
-> + * Notice that swapoff or swapoff+swapon can still happen before the
-> + * rcu_read_lock() in get_swap_device() or after the rcu_read_unlock()
-> + * in put_swap_device() if there isn't any other way to prevent
-> + * swapoff, such as page lock, page table lock, etc.  The caller must
-> + * be prepared for that.  For example, the following situation is
-> + * possible.
-> + *
-> + *   CPU1				CPU2
-> + *   do_swap_page()
-> + *     ...				swapoff+swapon
-> + *     __read_swap_cache_async()
-> + *       swapcache_prepare()
-> + *         __swap_duplicate()
-> + *           // check swap_map
-> + *     // verify PTE not changed
-> + *
-> + * In __swap_duplicate(), the swap_map need to be checked before
-> + * changing partly because the specified swap entry may be for another
-> + * swap device which has been swapoff.  And in do_swap_page(), after
-> + * the page is read from the swap device, the PTE is verified not
-> + * changed with the page table locked to check whether the swap device
-> + * has been swapoff or swapoff+swapon.
-> + */
-> +struct swap_info_struct *get_swap_device(swp_entry_t entry)
-> +{
-> +	struct swap_info_struct *si;
-> +	unsigned long offset;
-> +
-> +	if (!entry.val)
-> +		goto out;
-> +	si = swp_swap_info(entry);
-> +	if (!si)
-> +		goto bad_nofile;
-> +
-> +	rcu_read_lock();
-> +	if (!(si->flags & SWP_VALID))
-> +		goto unlock_out;
-> +	offset = swp_offset(entry);
-> +	if (offset >= si->max)
-> +		goto unlock_out;
-> +
-> +	return si;
-> +bad_nofile:
-> +	pr_err("%s: %s%08lx\n", __func__, Bad_file, entry.val);
-> +out:
-> +	return NULL;
-> +unlock_out:
-> +	rcu_read_unlock();
-> +	return NULL;
-> +}
-> +
->  static unsigned char __swap_entry_free(struct swap_info_struct *p,
->  				       swp_entry_t entry, unsigned char usage)
->  {
-> @@ -1357,11 +1413,18 @@ int page_swapcount(struct page *page)
->  	return count;
->  }
->  
-> -int __swap_count(struct swap_info_struct *si, swp_entry_t entry)
-> +int __swap_count(swp_entry_t entry)
->  {
-> +	struct swap_info_struct *si;
->  	pgoff_t offset = swp_offset(entry);
-> +	int count = 0;
->  
-> -	return swap_count(si->swap_map[offset]);
-> +	si = get_swap_device(entry);
-> +	if (si) {
-> +		count = swap_count(si->swap_map[offset]);
-> +		put_swap_device(si);
-> +	}
-> +	return count;
->  }
->  
->  static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
-> @@ -1386,9 +1449,11 @@ int __swp_swapcount(swp_entry_t entry)
->  	int count = 0;
->  	struct swap_info_struct *si;
->  
-> -	si = __swap_info_get(entry);
-> -	if (si)
-> +	si = get_swap_device(entry);
-> +	if (si) {
->  		count = swap_swapcount(si, entry);
-> +		put_swap_device(si);
-> +	}
->  	return count;
->  }
->  
-> @@ -2332,9 +2397,9 @@ static int swap_node(struct swap_info_struct *p)
->  	return bdev ? bdev->bd_disk->node_id : NUMA_NO_NODE;
->  }
->  
-> -static void _enable_swap_info(struct swap_info_struct *p, int prio,
-> -				unsigned char *swap_map,
-> -				struct swap_cluster_info *cluster_info)
-> +static void setup_swap_info(struct swap_info_struct *p, int prio,
-> +			    unsigned char *swap_map,
-> +			    struct swap_cluster_info *cluster_info)
->  {
->  	int i;
->  
-> @@ -2359,7 +2424,11 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
->  	}
->  	p->swap_map = swap_map;
->  	p->cluster_info = cluster_info;
-> -	p->flags |= SWP_WRITEOK;
-> +}
-> +
-> +static void _enable_swap_info(struct swap_info_struct *p)
-> +{
-> +	p->flags |= SWP_WRITEOK | SWP_VALID;
->  	atomic_long_add(p->pages, &nr_swap_pages);
->  	total_swap_pages += p->pages;
->  
-> @@ -2386,7 +2455,17 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
->  	frontswap_init(p->type, frontswap_map);
->  	spin_lock(&swap_lock);
->  	spin_lock(&p->lock);
-> -	 _enable_swap_info(p, prio, swap_map, cluster_info);
-> +	setup_swap_info(p, prio, swap_map, cluster_info);
-> +	spin_unlock(&p->lock);
-> +	spin_unlock(&swap_lock);
-> +	/*
-> +	 * Guarantee swap_map, cluster_info, etc. fields are used
-> +	 * between get/put_swap_device() only if SWP_VALID bit is set
-> +	 */
-> +	synchronize_rcu();
-> +	spin_lock(&swap_lock);
-> +	spin_lock(&p->lock);
-> +	_enable_swap_info(p);
->  	spin_unlock(&p->lock);
->  	spin_unlock(&swap_lock);
->  }
-> @@ -2395,7 +2474,8 @@ static void reinsert_swap_info(struct swap_info_struct *p)
->  {
->  	spin_lock(&swap_lock);
->  	spin_lock(&p->lock);
-> -	_enable_swap_info(p, p->prio, p->swap_map, p->cluster_info);
-> +	setup_swap_info(p, p->prio, p->swap_map, p->cluster_info);
-> +	_enable_swap_info(p);
->  	spin_unlock(&p->lock);
->  	spin_unlock(&swap_lock);
->  }
-> @@ -2498,6 +2578,17 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
->  
->  	reenable_swap_slots_cache_unlock();
->  
-> +	spin_lock(&swap_lock);
-> +	spin_lock(&p->lock);
-> +	p->flags &= ~SWP_VALID;		/* mark swap device as invalid */
-> +	spin_unlock(&p->lock);
-> +	spin_unlock(&swap_lock);
-> +	/*
-> +	 * wait for swap operations protected by get/put_swap_device()
-> +	 * to complete
-> +	 */
-> +	synchronize_rcu();
-> +
->  	flush_work(&p->discard_work);
->  
->  	destroy_swap_extents(p);
-> @@ -3263,17 +3354,11 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
->  	unsigned char has_cache;
->  	int err = -EINVAL;
->  
-> -	if (non_swap_entry(entry))
-> -		goto out;
-> -
-> -	p = swp_swap_info(entry);
-> +	p = get_swap_device(entry);
->  	if (!p)
-> -		goto bad_file;
-> -
-> -	offset = swp_offset(entry);
-> -	if (unlikely(offset >= p->max))
->  		goto out;
->  
-> +	offset = swp_offset(entry);
->  	ci = lock_cluster_or_swap_info(p, offset);
->  
->  	count = p->swap_map[offset];
-> @@ -3319,11 +3404,9 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
->  unlock_out:
->  	unlock_cluster_or_swap_info(p, ci);
->  out:
-> +	if (p)
-> +		put_swap_device(p);
->  	return err;
-> -
-> -bad_file:
-> -	pr_err("swap_dup: %s%08lx\n", Bad_file, entry.val);
-> -	goto out;
->  }
->  
->  /*
-> @@ -3415,6 +3498,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
->  	struct page *list_page;
->  	pgoff_t offset;
->  	unsigned char count;
-> +	int ret = 0;
->  
->  	/*
->  	 * When debugging, it's easier to use __GFP_ZERO here; but it's better
-> @@ -3422,15 +3506,15 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
->  	 */
->  	page = alloc_page(gfp_mask | __GFP_HIGHMEM);
->  
-> -	si = swap_info_get(entry);
-> +	si = get_swap_device(entry);
->  	if (!si) {
->  		/*
->  		 * An acceptable race has occurred since the failing
-> -		 * __swap_duplicate(): the swap entry has been freed,
-> -		 * perhaps even the whole swap_map cleared for swapoff.
-> +		 * __swap_duplicate(): the swap device may be swapoff
->  		 */
->  		goto outer;
->  	}
-> +	spin_lock(&si->lock);
->  
->  	offset = swp_offset(entry);
->  
-> @@ -3448,9 +3532,8 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
->  	}
->  
->  	if (!page) {
-> -		unlock_cluster(ci);
-> -		spin_unlock(&si->lock);
-> -		return -ENOMEM;
-> +		ret = -ENOMEM;
-> +		goto out;
->  	}
->  
->  	/*
-> @@ -3502,10 +3585,11 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
->  out:
->  	unlock_cluster(ci);
->  	spin_unlock(&si->lock);
-> +	put_swap_device(si);
->  outer:
->  	if (page)
->  		__free_page(page);
-> -	return 0;
-> +	return ret;
->  }
->  
->  /*
-> -- 
-> 2.20.1
-> 
+> Some reflections on the shrinker/MM interaction:
+> - Since all memory (in a zone) could potentially be in
+>   shrinker pools, shrinkers MUST eventually free some
+>   memory.
+
+Which they cannot guarantee because all the objects they track may
+be in use. As such, shrinkers have never been asked to guarantee
+that they can free memory - they've only ever been asked to scan a
+number of objects and attempt to free those it can during the scan.
+
+> - Shrinkers should not block kswapd from making progress.
+>   If kswapd got stuck in NFS inode writeback, and ended up
+>   not being able to free clean pages to receive network
+>   packets, that might cause a deadlock.
+
+Same can happen if kswapd got stuck on dirty page writeback from
+pageout(). i.e. pageout() can only run from kswapd and it issues IO,
+which can then block in the IO submission path waiting for IO to
+make progress, which may require substantial amounts of memory
+allocation.
+
+Yes, we can try to not block kswapd as much as possible just like
+page reclaim does, but the fact is kswapd is the only context where
+it is safe to do certain blocking operations to ensure memory
+reclaim can actually make progress.
+
+i.e. the rules for blocking kswapd need to be consistent across both
+page reclaim and shrinker reclaim, and right now page reclaim can
+and does block kswapd when it is necessary for forwards progress....
+
+> - The MM should be able to deal with shrinkers doing
+>   nothing at this call, but having some work pending 
+>   (eg. waiting on IO completion), without getting a false
+>   OOM kill. How can we do this best?
+
+By integrating shrinkers into the same feedback loops as page
+reclaim. i.e. to allow individual shrinker instance state to be
+visible to the backoff/congestion decisions that the main page
+reclaim loops make.
+
+i.e. the problem here is that shrinkers only feedback to the main
+loop is "how many pages were freed" as a whole. They aren't seen as
+individual reclaim instances like zones for apge reclaim, they are
+just a huge amorphous blob that "frees some pages". i.e. They sit off to
+the side and run their own game between main loop scans and have no
+capability to run individual backoffs, schedule kswapd to do future
+work, don't have watermarks to provide reclaim goals, can't
+communicate progress to the main control algorithm, etc.
+
+IOWs, the first step we need to take here is to get rid of
+the shrink_slab() abstraction and make shrinkers a first class
+reclaim citizen....
+
+> - Related to the above: stalling in the shrinker code is
+>   unpredictable, and can take an arbitrarily long amount
+>   of time. Is there a better way we can make reclaimers
+>   wait for in-flight work to be completed?
+
+Look at it this way: what do you need to do to implement the main
+zone reclaim loops as individual shrinker instances? Complex
+shrinker implementations have to deal with all the same issues as
+the page reclaim loops (including managing cross-cache dependencies
+and balancing). If we can't answer this question, then we can't
+answer the questions that are being asked.
+
+So, at this point, I have to ask: if we need the same functionality
+for both page reclaim and shrinkers, then why shouldn't the goal be
+to make page reclaim just another set of opaque shrinker
+implementations?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+dchinner@redhat.com
 
