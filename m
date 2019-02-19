@@ -6,77 +6,77 @@ X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 927DAC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 10:33:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D32DC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 10:33:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4EEA920818
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 10:33:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C464120818
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 10:33:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="rGxa/fcU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4EEA920818
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="SIfwrom3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C464120818
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C39158E000C; Tue, 19 Feb 2019 05:33:04 -0500 (EST)
+	id 114048E000D; Tue, 19 Feb 2019 05:33:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B75318E000D; Tue, 19 Feb 2019 05:33:04 -0500 (EST)
+	id 09F968E0005; Tue, 19 Feb 2019 05:33:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9C6AB8E000C; Tue, 19 Feb 2019 05:33:04 -0500 (EST)
+	id E0D358E000E; Tue, 19 Feb 2019 05:33:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 70C4E8E0005
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A12CC8E0005
 	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 05:33:04 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id x9so3661440ite.1
+Received: by mail-it1-f199.google.com with SMTP id q184so3601500itd.6
         for <linux-mm@kvack.org>; Tue, 19 Feb 2019 02:33:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:message-id:user-agent:date:from
          :to:cc:subject:references:mime-version;
-        bh=Xzoq3822VPftHOSX/XRMpwACoEFrdDki2itBY3y0uPM=;
-        b=I8utZwxFWg8E5YtVmxug3SqvVYm0QUAGSf5CJmlH27RZbtQBjaban+BW61vJkXTADz
-         I579WsJzOQWH//qZuT5oLTbcNuvhlpKtLuv/XDJmIIdl3gGs4RSD6n0xng3opf94ykC6
-         lMjL+xIQuq9MJFrn4VnGFhZLR0FjiEbmw3Hura/+NV8Teg7jrcW6JLagNciL0V8oKQUl
-         knngt6GAcCcqrS3AlusY/h5TYMXKrgJEjZtbYp0+euucoGNxGVTvQ/A1aKMlGtiz8cpi
-         tKTd35PvxYRqfE0d+L/GoFpVa2MByQDp1bVoXPlIPi+I5ZXT/1W7qoQ5HkKMQuU0nIOm
-         UE1g==
-X-Gm-Message-State: AHQUAubUNZxRws125k62iUOf0GuVgQsVWOmR9UJs/bYvHklfnPg0Je9f
-	i1BwRubLidvmxg7WtRL+KqnGdWhlWhuw6xU1ujxCQXWK3Z6D8i1GZ7pVlN+PZrOLjddFi0O00Wm
-	HS6kL375sONms6N5duJNZqtdB0lLIWdsaJMkFGV9H2gUsaRM8kqosFtGXr9NzhSU1bQ==
-X-Received: by 2002:a24:7a84:: with SMTP id a126mr1692943itc.21.1550572384246;
+        bh=V0TX/f/KtNWlhMwyKupZ8SV8wHyavqNWTt2wqgtfDyM=;
+        b=m3FoLYk4AUFqhdpKDWewO6KfBf0ZNna4roIutrRtW4JV4T9TZ2Lkav/E2pe7eu4wwh
+         /W91ZuJx/L4YLafGFRUk0u2RCUj3YO4954hTaYVV6T3YdKX0GZbPwdPMcNAJHvkYdhrK
+         Bsau+ox0QL/z3VscUFKzQsTjlvf/G/0DuEfqlFcT5HyRRtyJyriFjX5HqeLduVSchJzF
+         rSVP/V6V+Zis/GmDKOTJhPh1A40BnouIDmuhcUtSQWhiI2Al/M2N/l5qbthn+R4QVeRl
+         z14l+QfmLP5AldEbXbOrEIfSebiQ8JGIUQG2NvsPT1Y9W7NUe2/tF/5S2FbGSwHEWHgW
+         +Iwg==
+X-Gm-Message-State: AHQUAubbIcuvG90dtLvqEZ2eXiauskSSF0n8sH3W686c6p4jp/VKNcQM
+	T9pLXeabGhCjlTqHqfLijs0y9jswJt4lklBnZgiJMqdWSfpUJlKCcJrUHyCyY03IsiPegG3l2Gc
+	/6Q2k2CI1jHKcusILdhPYcBfWqD/t4V8wq747A0kHBXXnV1Avnjl2mvu1hl8kn4btDA==
+X-Received: by 2002:a5e:a60f:: with SMTP id q15mr16999378ioi.140.1550572384448;
         Tue, 19 Feb 2019 02:33:04 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IY8kjb6ZMJr+sqIHOfDsfhc9MfhGR5itqlPHPu5ASV7XzRdX0UlxSMRDvs9B3B/uTKI0/gE
-X-Received: by 2002:a24:7a84:: with SMTP id a126mr1692914itc.21.1550572383624;
+X-Google-Smtp-Source: AHgI3Ib74F302Q9qrTyzPbSScVlUi/KKQ+v24cbBiREkLKUBiRTP465uf80C/4whlnz7/nRm55YM
+X-Received: by 2002:a5e:a60f:: with SMTP id q15mr16999324ioi.140.1550572383627;
         Tue, 19 Feb 2019 02:33:03 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1550572383; cv=none;
         d=google.com; s=arc-20160816;
-        b=G1LB0dmu39nmtNaFq1KySITvaCXEIQ+6J58LL05zGw81bxI+HX/Z/opiXhQ+9yIIxe
-         I4JduuhRDr+h+KLwGnKuBetLjQVfUU5+2Fk/y7NOZQQ1O2RsFFjH4KUT5dQm6HdOPv/6
-         IFL4Bslg/yoqY6KYPRlxDx1uq1ZOwgtVJrSu0b8lc70e4leVUmKw4Y2lBaIyJ9BS6XjX
-         gcW5Ms0IwF19wHEW5LR+Ahb6KhXonRGneKAYMO+FwqCo+4hx4wiYwCfxuftYIccd13rA
-         lVTpzLzstZHl/C/cV6T9Jnk76csm2sLRDXE18ECrT7RxfBS7lQJpGK0WpT9CtcR7mJwn
-         js7A==
+        b=zzDri4zikNzjkLkclxQxApyFdHA06b7aPggRiSP4nOytpHkf+JICntSPhKfv4Gxznz
+         Oq0v06v6ikcugTa0hqTWmwIgSr1NEuwzX22EnMIdUWskIz7ojzHQByRdHqwChIfzLcf8
+         D122XGiK5U1NJjHqdZ9zA560U4qotN+9DqhUHTbQWyHA4KJsnP+hDNtB7cdZimXIQ5Rq
+         ouCSsM0QpnX4LK/ywPFOLTx2U2ug8XmWt9JRV+7xRUv2yuVJxFEWDIc4nW2I1gncXD95
+         Jkf18d+ydiCWRqrPDdjLWBXWyRvC2tww5cuzG7kJ7K9Qp6eDKZq20O4hi4P1NJN55n+U
+         ovCQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:subject:cc:to:from:date:user-agent
          :message-id:dkim-signature;
-        bh=Xzoq3822VPftHOSX/XRMpwACoEFrdDki2itBY3y0uPM=;
-        b=R0oGGq5DYfRZcOsiQv55Ccj+trjTBbLWcCddDhj+i0STic0O9RJMS4Bwm1iNvN1ujk
-         nCdoYF+LFlM8WtiPmZJHH61I52nz8bJcNEL8oQIUpstXMKjMqhfCbtmHcZV0Cu/baiKO
-         dTGpUWCvNzmlUxj53Lj5FP8TG849JX8cP8mujEd5KkuiTTJZzxaBSMAPJcUbJNOyKzuM
-         N36iQ80irnRxTWy0OBWIVDCiLM9VtDQgM1ZcS8GxTCw1ZW/GkIkof6VdAvhJDOySIMdL
-         /AZFeIZbxE8fCFoYdEZ7jENrDTQsR2MQQE1wvjpbNM/gxCjRNRh5ZSrGxfA7kItVT5lp
-         KSkw==
+        bh=V0TX/f/KtNWlhMwyKupZ8SV8wHyavqNWTt2wqgtfDyM=;
+        b=L8p+OwejRFZqTDPwDG4Py7YcpfgmHIfEAVUs+mMy6abkP1XHIdSQ0voUVGjKKJ2TrN
+         Y5ZlEGz4oh7hc7k1ajBgsIbiJQiENH6aAIMHLOfdxOKLd5OIcnznu8XyN34xwR2/S9Dq
+         ht8tqobL/12fKbuCqv8MDObUTETXOmhH+sMCEo7aprNpzK5GnsvsyFGYDWyjTrhW8fWy
+         AOyrvHn/ks9lgzM6Fqkzfuv7fK1UAVXflKqWfi6M2e4tEgKtI7OSQbPZOMlevX4YztwM
+         9o00o5sDYo3g86T3T0lkRCVZxE7kmJ9D1bH+T7SsTkHIk1gyYpYJB3xgwoJzHaoCHUJe
+         3FIA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b="rGxa/fcU";
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=SIfwrom3;
        spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
 Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id j197si1036771ita.49.2019.02.19.02.33.03
+        by mx.google.com with ESMTPS id h13si1058492itj.69.2019.02.19.02.33.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Tue, 19 Feb 2019 02:33:03 -0800 (PST)
 Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b="rGxa/fcU";
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=SIfwrom3;
        spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=merlin.20170209; h=Content-Type:MIME-Version:References:
@@ -84,20 +84,20 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
 	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=Xzoq3822VPftHOSX/XRMpwACoEFrdDki2itBY3y0uPM=; b=rGxa/fcUPtcZpXT5CV7qV8y0/4
-	M/Fj8EB0WmOLN0suzx92w6QVbQn4Wkx4dbJUZdJLuz3GpgbNguH9ijZ6m5p97OIOA3FVErUQ64h3I
-	R76XxI/m15st9xBUJqAvMoXQDJ/Eb2so7FbudtAIogDG48JEWxB6lYHPFgR4xj1bEfJdow8fcIZZR
-	UwXo0Tkr9omxjLd1HoVT/OFxOd2Til3bkNtbnw63ae6nzQqBp42O8MYSSDyOx9VoYxmq2DYw2oIpN
-	rAFeiMneF2AxjVtYwN6R+/aHONB3UdZAXoswzn2foFmmUWJkJqdOPvFQRl3YiBepiDCvEYDekTVM9
-	op1RG5Rg==;
+	bh=V0TX/f/KtNWlhMwyKupZ8SV8wHyavqNWTt2wqgtfDyM=; b=SIfwrom3v2nHsuKsYhUOG0SKab
+	jb6QGizrwe2d7JlbxgCw+LRNgAsRaDClw/UfCxVi0OXpnMff0bqYwwpDBdy6MqcEIzqdY1DIb7f2y
+	zLeXGDAm++tCNxJuxTxQOYm3fvDXRdqsQ567ouApiB6LlzKoB/IFYZWmwcTHFATWRsce8kHSONGMV
+	SO1WeW+gidPBqUAoMHPOah48QVYUZ/KFtg31qSiaYwdt29icvV8ToLGhxQqBt2Z0MKzrBPJVFORIU
+	INOZvD2WYBfB7rG1A69pV8B5+N+Fj/LkQPBrYwFXXx8VAgA5Ie4HCAgIKScwIgtNFZywCpX/eeBlq
+	LGEDzkOQ==;
 Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
 	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gw2hn-0000dj-UE; Tue, 19 Feb 2019 10:32:52 +0000
+	id 1gw2hp-0000dx-9V; Tue, 19 Feb 2019 10:32:53 +0000
 Received: by hirez.programming.kicks-ass.net (Postfix, from userid 0)
-	id 59AEA285202C8; Tue, 19 Feb 2019 11:32:48 +0100 (CET)
-Message-Id: <20190219103233.207580251@infradead.org>
+	id 795F8285205A2; Tue, 19 Feb 2019 11:32:48 +0100 (CET)
+Message-Id: <20190219103233.752135076@infradead.org>
 User-Agent: quilt/0.65
-Date: Tue, 19 Feb 2019 11:31:54 +0100
+Date: Tue, 19 Feb 2019 11:32:03 +0100
 From: Peter Zijlstra <peterz@infradead.org>
 To: will.deacon@arm.com,
  aneesh.kumar@linux.vnet.ibm.com,
@@ -110,7 +110,7 @@ Cc: linux-arch@vger.kernel.org,
  linux@armlinux.org.uk,
  heiko.carstens@de.ibm.com,
  riel@surriel.com
-Subject: [PATCH v6 06/18] asm-generic/tlb: Conditionally provide tlb_migrate_finish()
+Subject: [PATCH v6 15/18] asm-generic/tlb: Remove arch_tlb*_mmu()
 References: <20190219103148.192029670@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -120,27 +120,140 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Needed for ia64 -- alternatively we drop the entire hook.
+Now that all architectures are converted to the generic code, remove
+the arch hooks.
 
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@gmail.com>
+Acked-by: Will Deacon <will.deacon@arm.com>
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 ---
- include/asm-generic/tlb.h |    2 ++
- 1 file changed, 2 insertions(+)
+ mm/mmu_gather.c |   93 +++++++++++++++++++++++++-------------------------------
+ 1 file changed, 42 insertions(+), 51 deletions(-)
 
---- a/include/asm-generic/tlb.h
-+++ b/include/asm-generic/tlb.h
-@@ -539,6 +539,8 @@ static inline void tlb_end_vma(struct mm
+--- a/mm/mmu_gather.c
++++ b/mm/mmu_gather.c
+@@ -93,33 +93,6 @@ bool __tlb_remove_page_size(struct mmu_g
  
- #endif /* CONFIG_MMU */
+ #endif /* HAVE_MMU_GATHER_NO_GATHER */
  
-+#ifndef tlb_migrate_finish
- #define tlb_migrate_finish(mm) do {} while (0)
+-void arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
+-				unsigned long start, unsigned long end)
+-{
+-	tlb->mm = mm;
+-
+-	/* Is it from 0 to ~0? */
+-	tlb->fullmm     = !(start | (end+1));
+-
+-#ifndef CONFIG_HAVE_MMU_GATHER_NO_GATHER
+-	tlb->need_flush_all = 0;
+-	tlb->local.next = NULL;
+-	tlb->local.nr   = 0;
+-	tlb->local.max  = ARRAY_SIZE(tlb->__pages);
+-	tlb->active     = &tlb->local;
+-	tlb->batch_count = 0;
+-#endif
+-
+-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+-	tlb->batch = NULL;
+-#endif
+-#ifdef CONFIG_HAVE_MMU_GATHER_PAGE_SIZE
+-	tlb->page_size = 0;
+-#endif
+-
+-	__tlb_reset_range(tlb);
+-}
+-
+ void tlb_flush_mmu_free(struct mmu_gather *tlb)
+ {
+ #ifdef CONFIG_HAVE_RCU_TABLE_FREE
+@@ -136,27 +109,6 @@ void tlb_flush_mmu(struct mmu_gather *tl
+ 	tlb_flush_mmu_free(tlb);
+ }
+ 
+-/* tlb_finish_mmu
+- *	Called at the end of the shootdown operation to free up any resources
+- *	that were required.
+- */
+-void arch_tlb_finish_mmu(struct mmu_gather *tlb,
+-		unsigned long start, unsigned long end, bool force)
+-{
+-	if (force) {
+-		__tlb_reset_range(tlb);
+-		__tlb_adjust_range(tlb, start, end - start);
+-	}
+-
+-	tlb_flush_mmu(tlb);
+-
+-	/* keep the page table cache within bounds */
+-	check_pgt_cache();
+-#ifndef CONFIG_HAVE_MMU_GATHER_NO_GATHER
+-	tlb_batch_list_free(tlb);
+-#endif
+-}
+-
+ #endif /* HAVE_GENERIC_MMU_GATHER */
+ 
+ #ifdef CONFIG_HAVE_RCU_TABLE_FREE
+@@ -258,10 +210,40 @@ void tlb_remove_table(struct mmu_gather
+ void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
+ 			unsigned long start, unsigned long end)
+ {
+-	arch_tlb_gather_mmu(tlb, mm, start, end);
++	tlb->mm = mm;
++
++	/* Is it from 0 to ~0? */
++	tlb->fullmm     = !(start | (end+1));
++
++#ifndef CONFIG_HAVE_MMU_GATHER_NO_GATHER
++	tlb->need_flush_all = 0;
++	tlb->local.next = NULL;
++	tlb->local.nr   = 0;
++	tlb->local.max  = ARRAY_SIZE(tlb->__pages);
++	tlb->active     = &tlb->local;
++	tlb->batch_count = 0;
 +#endif
++
++#ifdef CONFIG_HAVE_RCU_TABLE_FREE
++	tlb->batch = NULL;
++#endif
++#ifdef CONFIG_HAVE_MMU_GATHER_PAGE_SIZE
++	tlb->page_size = 0;
++#endif
++
++	__tlb_reset_range(tlb);
+ 	inc_tlb_flush_pending(tlb->mm);
+ }
  
- #endif /* _ASM_GENERIC__TLB_H */
++/**
++ * tlb_finish_mmu - finish an mmu_gather structure
++ * @tlb: the mmu_gather structure to finish
++ * @start: start of the region that will be removed from the page-table
++ * @end: end of the region that will be removed from the page-table
++ *
++ * Called at the end of the shootdown operation to free up any resources that
++ * were required.
++ */
+ void tlb_finish_mmu(struct mmu_gather *tlb,
+ 		unsigned long start, unsigned long end)
+ {
+@@ -272,8 +254,17 @@ void tlb_finish_mmu(struct mmu_gather *t
+ 	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
+ 	 * forcefully if we detect parallel PTE batching threads.
+ 	 */
+-	bool force = mm_tlb_flush_nested(tlb->mm);
++	if (mm_tlb_flush_nested(tlb->mm)) {
++		__tlb_reset_range(tlb);
++		__tlb_adjust_range(tlb, start, end - start);
++	}
+ 
+-	arch_tlb_finish_mmu(tlb, start, end, force);
++	tlb_flush_mmu(tlb);
++
++	/* keep the page table cache within bounds */
++	check_pgt_cache();
++#ifndef CONFIG_HAVE_MMU_GATHER_NO_GATHER
++	tlb_batch_list_free(tlb);
++#endif
+ 	dec_tlb_flush_pending(tlb->mm);
+ }
 
 
