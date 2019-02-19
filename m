@@ -2,175 +2,169 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT,USER_IN_DEF_DKIM_WL autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 421ACC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 05:32:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C445FC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 05:38:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E88BB21900
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 05:32:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7FBEC217D7
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 05:38:03 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="gc35xBK2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E88BB21900
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="IrVyG7M7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7FBEC217D7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 661398E0004; Tue, 19 Feb 2019 00:32:09 -0500 (EST)
+	id 1A0998E0004; Tue, 19 Feb 2019 00:38:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 60F448E0002; Tue, 19 Feb 2019 00:32:09 -0500 (EST)
+	id 153BD8E0002; Tue, 19 Feb 2019 00:38:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4FE4D8E0004; Tue, 19 Feb 2019 00:32:09 -0500 (EST)
+	id 0417B8E0004; Tue, 19 Feb 2019 00:38:02 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 296E18E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 00:32:09 -0500 (EST)
-Received: by mail-it1-f197.google.com with SMTP id i65so2635323ite.3
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 21:32:09 -0800 (PST)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CA0798E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 00:38:02 -0500 (EST)
+Received: by mail-ot1-f71.google.com with SMTP id j23so16986919otl.6
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 21:38:02 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=N3a1F+phTWNP4vUdqbdRG2LlbC8gmOfizcSGQCqcX2o=;
-        b=YkjArOKnpgzOIa1/kAYCS7CYRSBnzJ9W1fKG4MaWyC+xBekE0FIGr42cuW4NGT2U7f
-         2vQvgFPLsn3BLlZDQ+EFuAfSc1jBidhdKw99UiXpuNwjTKs6Po0Now94NfTc0bE4w9fO
-         UdBUp8144MDul+QjgW/LVpaP1UbCfaXusWUhsml9Ql5I7h6gs+rFdgZmRb8GRYd0wSmd
-         +DjxTfTWRu86vS/zyLYzzqJBN0YTKGkw5mX9tthWjUT4xxn7YNANL24QsVOkpPWN/09z
-         ZJO3FrETPIlXKVxxspsBArIOi7G7l5ndn6vJooXC1WNTxxEU/CEnkG9aKXieFzqvznNM
-         RpmQ==
-X-Gm-Message-State: AHQUAuaWzaRJXlJCvm9FlYzYgNHNpFqwd+gdFLH+W8O8q3OYvxRH+UCr
-	p3zx1gug5A8BN+kLOBgWArPhXdHUy9L5K4FtyZvTo0+GyiWM9veR+1D8Xc7ZfUldaW8qVHI8tul
-	Yrt2qhDaplF4x4GphRTd/d2HyYKySoHnCB188+M9YvEfMpAnw2KdtIk4vSLQZukWmJjE8iyXwSk
-	yeH7ACeGaWpcON0IaK/UcyngR/zIZpGJewfi610prgcgDQbMTcG6sAQjXGIhDEVGuTUKME5iJiZ
-	GLvEpaQeYY2lkavYFhPLF0R+SGUI2hO6LgVOpjtL/OlDChnfRuKS+yjm/xV1qoR6sg62ISHUdNc
-	cEY7SpMnhnqiR1oKrhanyONkZjcweYWMvTLgCWbY2nIudjWfvexLJDbnx5+KFQo3ko8PdkkhIxc
+         :message-id:user-agent:mime-version;
+        bh=7TgetPiKYsdjnOAeKC/fO5fqwlcjUzyiQLqeYUXldYM=;
+        b=bnQ2NQPMbIKSjd7tTUp/iqEjDkJz3bDsPTb4aVtXdnaiObyb/PJF7XyKpJhkhbabuA
+         is/BbuudXiL7oJ2B50guku0XFoSdUMTaMrEMTlugP6U0w5J7lydekYK/9vudsgjHRIqW
+         e74zGs0ox5dD/MB7bnMV1zFFfmRjNHYupR7C0QDZG3ROiZ3cz83SRUlea6RkVwbx7Fo9
+         M2LWd60PBbgkOKelmbdRDAZFGYNwLy/YVc+3QG1ttwifSrPzEAsyS5E267Zm0JEMj+ul
+         PigO6TU9tzYrGyjPTGRJdGWWJ2+OGW4SQ6+UDjCxVnA5j4ztHSGugYyNKYMgsJXT/Spj
+         7p9w==
+X-Gm-Message-State: AHQUAuZbkXZtVMtXSqq5fkbCA1tEHOTaPGbjYxgeA0oq1HHTzVEOACMn
+	vk0Zf5ylbV+hTQbe+RSnP1bxugIQzXeD91zZAxvlVDgxgf6K50XuLoKJp/xSDt9hRI99KsC60Q4
+	Q4zK5hnS2mym8dtKaPg9Ja6p+9unyC11Su0/Q5fvD/cdrldH68mFxJ3HRicBj2jQaQGqf+dD5JD
+	PuXiQwq1oENvraPPi0uakF53Nzz0S+HaWbdijgBGiybHXo1tK0+O5hLtZi9cmsDb8l6R9ydR/Lc
+	CLw6PKTsNa4tb8NJ0SaD9GxN4cv4+eVzY9puzKJyFAt2ICQO14AesWMoCEaUcx73Dpgk9bOfyW0
+	NRlE+dFOtJeNRDm+GqnnUOztgqWonvNC7OsBqu4Zr//+ibqOnRSxjyDDaavtduS6igfR+kQq4UP
 	4
-X-Received: by 2002:a24:26c4:: with SMTP id v187mr1450493itv.54.1550554328862;
-        Mon, 18 Feb 2019 21:32:08 -0800 (PST)
-X-Received: by 2002:a24:26c4:: with SMTP id v187mr1450477itv.54.1550554328261;
-        Mon, 18 Feb 2019 21:32:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550554328; cv=none;
+X-Received: by 2002:a05:6808:211:: with SMTP id l17mr1501198oie.166.1550554682566;
+        Mon, 18 Feb 2019 21:38:02 -0800 (PST)
+X-Received: by 2002:a05:6808:211:: with SMTP id l17mr1501178oie.166.1550554681870;
+        Mon, 18 Feb 2019 21:38:01 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550554681; cv=none;
         d=google.com; s=arc-20160816;
-        b=GzHvv0W0UnappmHZZs+8OtUy6lZO4rYGhIc2qjmpkjImKnyQfZv3QJSk0Fy9bOLzGM
-         TIMUT3WrHpcKKZfN/9tRs8/k6AFva467s9iA2flen8zc5XRwthhUB+YZ79swxPEv5139
-         bW85b32O64SFhk/qdlA9nYUZkEzBLU0Tgp3PE6GW9TADilyZJ+xqIdCnhrwa3K2HY9Uc
-         4rPF0QDx3G1cYN5MQJSQSeoXpt92VYIeAWnT6Suao0gC74gYygffjDaHylsmfBCydT6u
-         8t4gqX69er6O0YFgr8mEWS1WfdFI3qYuy9Ej+GBqy4933Rv0XgW17wXRAVKOqVEaCbkK
-         XzTQ==
+        b=Fw18nLtDoqvars+4RGtrIRIytE81pGQcB2QIXpmaJ4eL4kLe6MTSVqPCjTtpizJ+re
+         QpF2Qhjyrfdzv3AcQwwpdTKO40Cci8NAr22DkTz7lqouhkSinWJ1pDVLiT7V8T5bEVVe
+         9KWM/QemS6K5jLYNQHhTitTs2j79D/9FaObs1sgHmO5OWkssAlck1xdkq+U1NpdEfxY6
+         fJFsxoH3U0W0ud1Vx+JIxGscCwbxfrv45wxV/gXSUj5UTkCovaqE7zp64bBvjCtRFAA9
+         eshHymr9LZwSGRta7M8APzWzPecUNAh4mrBaRqxy4St/7w8Ux70ve1DXuye4avvu3uFV
+         ugTQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=N3a1F+phTWNP4vUdqbdRG2LlbC8gmOfizcSGQCqcX2o=;
-        b=0I66xTMGx4TahhnXC6tQELcBdovndXPFSXAKnjwlb6PnDPDepRPO1cl4j2U56N2wiX
-         oLUpkT+Lpkw6nAnI4zPSoz5IhIJ3Oo3ddknyGDC60Gd5Euv/CdujBB940mbjPDZT298V
-         uvoq++z02v6G/tHkUhtb6EGO+D8soggvoa4f4EKsSlbseQxnkrkgLiyixzetP6y6D/H2
-         E9gd8ybtMrpC39ODylYkCHCBJIqghY5CtjJTRNxFsSXrFVEjKGtIuPqFNUMnr5mBk/GR
-         +t4T1BTRIGuuX6MZ7PbsMxUUfj/vbcVsilZijprWLl3Tpz/QKGHZ7LOsvtBKs70klAMo
-         Vm9g==
+        h=mime-version:user-agent:message-id:subject:cc:to:from:date
+         :dkim-signature;
+        bh=7TgetPiKYsdjnOAeKC/fO5fqwlcjUzyiQLqeYUXldYM=;
+        b=EuFvKlslEYesifjulQDIxLfayvaSAQCck1OIwjM+5lqBAoVxfGHsdvw6JfumMGu+QF
+         /ECrp8gIWmofq4VNJXPrk9Czcvsf9bhNcXYFIV8Qrbuskz8uTA+sntVCYWv5GFLXPl8g
+         hN6erEGMfX01Wmov2oESMqyIWZ2VlkfwCkIGQk5uiXznbw/h23hVRxcmWpwmAY42EGsc
+         O0mIXWC+vSu2tom/KNfwhqzG6gJbkd3UyLDSDApQgwzZCrBcV9GP1eQSBp+V1W+IXXdW
+         ovvgLwnWqpTx1ZekrIg6ghAvvX5uiZfmeyN8t1kXZxUXLDTs+0VJspDt9nkNpUBlk7ip
+         10tw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=gc35xBK2;
-       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=IrVyG7M7;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k9sor7935908ioc.50.2019.02.18.21.32.08
+        by mx.google.com with SMTPS id q20sor8076885otl.111.2019.02.18.21.38.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 18 Feb 2019 21:32:08 -0800 (PST)
-Received-SPF: pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 18 Feb 2019 21:38:01 -0800 (PST)
+Received-SPF: pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=gc35xBK2;
-       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=IrVyG7M7;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=N3a1F+phTWNP4vUdqbdRG2LlbC8gmOfizcSGQCqcX2o=;
-        b=gc35xBK2JBhKjw035oTY1u93BDW82QcWBUDh0TI0DviPy3CeCAzv7UjcT9TBy+JNXD
-         lXsqfikYlopTFD18nTHjmmRrxttVYtwzVpdrcmcShD2mF0FD+Y2mPGor4BJ+JyWMkPEF
-         4WDiECLbmuY+tNd3wpir2eUCE5HFOoUVxhvpG6f8UjS7IMrSRDbkoXfZbnvCnf1E+xpy
-         Gb2iaVw9vsJrlo8mFuMRiG9pQMgi2y9rMP6W/VBNr1Pq8BIMegopo5fRM5cCHHRzONVc
-         O/Xlf5nReRAxB9UeaX5jp8SO8MCBrq7et2MGGu2s6g7pXO7MPqGB0DajNG+e+Z61lxQj
-         25UA==
-X-Google-Smtp-Source: AHgI3IZ5ltUtXza7ruJZojlSoyiNc3n4l7gI2q26hEETIjvCNdzWMCapc6G79N9F+MyPSvpcyvD6wQ==
-X-Received: by 2002:a6b:4a09:: with SMTP id w9mr17157160iob.260.1550554327823;
-        Mon, 18 Feb 2019 21:32:07 -0800 (PST)
-Received: from google.com ([2620:15c:183:0:a0c3:519e:9276:fc96])
-        by smtp.gmail.com with ESMTPSA id k26sm6197007iol.14.2019.02.18.21.32.06
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 18 Feb 2019 21:32:07 -0800 (PST)
-Date: Mon, 18 Feb 2019 22:32:05 -0700
-From: Yu Zhao <yuzhao@google.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	"Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Nick Piggin <npiggin@gmail.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Chintan Pandya <cpandya@codeaurora.org>,
-	Jun Yao <yaojun8558363@gmail.com>,
-	Laura Abbott <labbott@redhat.com>,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-	linux-arch@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH v2 1/3] arm64: mm: use appropriate ctors for page tables
-Message-ID: <20190219053205.GA124985@google.com>
-References: <20190214211642.2200-1-yuzhao@google.com>
- <20190218231319.178224-1-yuzhao@google.com>
- <863acc9a-53fb-86ad-4521-828ee8d9c222@arm.com>
+        h=date:from:to:cc:subject:message-id:user-agent:mime-version;
+        bh=7TgetPiKYsdjnOAeKC/fO5fqwlcjUzyiQLqeYUXldYM=;
+        b=IrVyG7M7DlLpaywnYWIxg3ulWcftgdss9wryWV/2BvZLja/i4ljxEZHrgKal4VbLAE
+         vKDmRu9QPzRujb5aUjCeADBl+RGEmWx/8Ka9B0ZGksJ3/zkIZjNe/DyR2+RFxrpGlwag
+         gQT+PNpzA2LVvRjERFfyhlsCghH+RfA1shAvkfU9AoRANWn1WWmVwMOIvzOzwqQ9yrnn
+         HqrD4fLNqeGnJPCgm5a/LK+ImEFnUCrD8C2SvYqGGBxIvN1CFps9mVyOl1bLT78AALQy
+         +jHGbQB/SuAK//WF0YPJ3ZFiUMePIJ4C7iEMBTvnUDKEm9NzVmEksLmxkuyIZZkk8c9w
+         W6xQ==
+X-Google-Smtp-Source: AHgI3IbmXH6vefHGSLsDWVj3usIfcJ+vdeCsDimIXsoxb9GUBNQc1zai148VCOMdqT2Nj1BO1MpAyw==
+X-Received: by 2002:a05:6830:1648:: with SMTP id h8mr8856727otr.50.1550554681150;
+        Mon, 18 Feb 2019 21:38:01 -0800 (PST)
+Received: from eggly.attlocal.net (172-10-233-147.lightspeed.sntcca.sbcglobal.net. [172.10.233.147])
+        by smtp.gmail.com with ESMTPSA id n8sm6528310otl.40.2019.02.18.21.37.59
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 18 Feb 2019 21:38:00 -0800 (PST)
+Date: Mon, 18 Feb 2019 21:37:52 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+X-X-Sender: hugh@eggly.anvils
+To: Andrew Morton <akpm@linux-foundation.org>
+cc: "Darrick J. Wong" <darrick.wong@oracle.com>, 
+    Hugh Dickins <hughd@google.com>, Matej Kupljen <matej.kupljen@gmail.com>, 
+    linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, 
+    linux-mm@kvack.org
+Subject: [PATCH] tmpfs: fix link accounting when a tmpfile is linked in
+Message-ID: <alpine.LSU.2.11.1902182134370.7035@eggly.anvils>
+User-Agent: Alpine 2.11 (LSU 23 2013-08-11)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <863acc9a-53fb-86ad-4521-828ee8d9c222@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 19, 2019 at 09:51:01AM +0530, Anshuman Khandual wrote:
-> 
-> 
-> On 02/19/2019 04:43 AM, Yu Zhao wrote:
-> > For pte page, use pgtable_page_ctor(); for pmd page, use
-> > pgtable_pmd_page_ctor() if not folded; and for the rest (pud,
-> > p4d and pgd), don't use any.
-> pgtable_page_ctor()/dtor() is not optional for any level page table page
-> as it determines the struct page state and zone statistics.
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
 
-This is not true. pgtable_page_ctor() is only meant for user pte
-page. The name isn't perfect (we named it this way before we had
-split pmd page table lock, and never bothered to change it).
+tmpfs has a peculiarity of accounting hard links as if they were separate
+inodes: so that when the number of inodes is limited, as it is by default,
+a user cannot soak up an unlimited amount of unreclaimable dcache memory
+just by repeatedly linking a file.
 
-The commit cccd843f54be ("mm: mark pages in use for page tables")
-clearly states so:
-  Note that only pages currently accounted as NR_PAGETABLES are
-  tracked as PageTable; this does not include pgd/p4d/pud/pmd pages.
+But when v3.11 added O_TMPFILE, and the ability to use linkat() on the fd,
+we missed accommodating this new case in tmpfs: "df -i" shows that an
+extra "inode" remains accounted after the file is unlinked and the fd
+closed and the actual inode evicted.  If a user repeatedly links tmpfiles
+into a tmpfs, the limit will be hit (ENOSPC) even after they are deleted.
 
-I'm sure if we go back further, we can find similar stories: we
-don't set PageTable on page tables other than pte; and we don't
-account page tables other than pte. I don't have any objection if
-you want change these two. But please make sure they are consistent
-across all archs.
+Just skip the extra reservation from shmem_link() in this case: there's
+a sense in which this first link of a tmpfile is then cheaper than a
+hard link of another file, but the accounting works out, and there's
+still good limiting, so no need to do anything more complicated.
 
-> We should not skip it for any page table page.
+Fixes: f4e0c30c191 ("allow the temp files created by open() to be linked to")
+Reported-by: Matej Kupljen <matej.kupljen@gmail.com>
+Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
 
-In fact, calling it on pmd/pud/p4d is peculiar, and may even be
-considered wrong. AFAIK, no other arch does so.
+ mm/shmem.c |   10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
-> As stated before pgtable_pmd_page_ctor() is not a replacement for
-> pgtable_page_ctor().
-
-pgtable_pmd_page_ctor() must be used on user pmd. For kernel pmd,
-it's okay to use pgtable_page_ctor() instead only because kernel
-doesn't have thp.
+--- 5.0-rc7/mm/shmem.c	2019-01-06 19:15:45.764805103 -0800
++++ linux/mm/shmem.c	2019-02-18 13:56:48.388032606 -0800
+@@ -2854,10 +2854,14 @@ static int shmem_link(struct dentry *old
+ 	 * No ordinary (disk based) filesystem counts links as inodes;
+ 	 * but each new link needs a new dentry, pinning lowmem, and
+ 	 * tmpfs dentries cannot be pruned until they are unlinked.
++	 * But if an O_TMPFILE file is linked into the tmpfs, the
++	 * first link must skip that, to get the accounting right.
+ 	 */
+-	ret = shmem_reserve_inode(inode->i_sb);
+-	if (ret)
+-		goto out;
++	if (inode->i_nlink) {
++		ret = shmem_reserve_inode(inode->i_sb);
++		if (ret)
++			goto out;
++	}
+ 
+ 	dir->i_size += BOGO_DIRENT_SIZE;
+ 	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
 
