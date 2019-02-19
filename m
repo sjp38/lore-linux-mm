@@ -2,139 +2,131 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85DCBC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 14:21:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9DB7DC10F00
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 14:45:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 28D512177E
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 14:21:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5C95A2146E
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 14:45:03 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="DI5wJc2e"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28D512177E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Bg+NNfXr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C95A2146E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8A0978E0003; Tue, 19 Feb 2019 09:21:52 -0500 (EST)
+	id D4CA68E0003; Tue, 19 Feb 2019 09:45:02 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 852398E0002; Tue, 19 Feb 2019 09:21:52 -0500 (EST)
+	id CD2708E0002; Tue, 19 Feb 2019 09:45:02 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 741B58E0003; Tue, 19 Feb 2019 09:21:52 -0500 (EST)
+	id B4EFC8E0003; Tue, 19 Feb 2019 09:45:02 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 47F7E8E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 09:21:52 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id 203so17148485qke.7
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 06:21:52 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BBAF8E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 09:45:02 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id e5so14421053pgc.16
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 06:45:02 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=SuinsLioWt1rjcu5p59zjSsV4YSlCeYn22JJHhD/fME=;
-        b=btW1fcRHCxpflQR+LUKdMN4kRNPwCtnjEhXGxSuo4OQ91OdGX858h1qSXJ5sVSquoG
-         55EeC6XEu/yjjQnDPaxPPiUL+Bcw3C4g2upjVZKUc5FLYu02N5Xe79/uf5y60/G7oaWA
-         l04x/HbeHtx0iEYiB5ba+kQI9+dmJMSZwK80V3xRLXTuaXVvCiIrjrKGaWs8Wt+8I7/W
-         LmpBnFQvx4tvt9yWF1XS7AZQQsHErUMnq89ysu6OvGUG2DbAbHMiRTtnEpEftNj4q2Fc
-         Cpzjp/tX5CkyPhl+vgay9QRxMLwgfeBgQPULwmAiuSz31VGObeXrqz5r0JWsZX7GKrJt
-         sULw==
-X-Gm-Message-State: AHQUAuYL9QtX1NM64fHrvRvB37vmPzNGPQxHtopxXqZDgTFbBgL55WNw
-	Of9dJvDZG0wxxSbkBezy/4ubxYjEP3wmujeVMMHunO+NJLNQLMVxIH8ZeehdH/0Lp6XN64pkJAZ
-	IT2CGc405lMDHI+ko4DRdoWeKGgwRrIhElOxcHWRz0mvhdpP4uRy7GPOhAmz10DE=
-X-Received: by 2002:ac8:22d1:: with SMTP id g17mr4533002qta.30.1550586111950;
-        Tue, 19 Feb 2019 06:21:51 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbEn9wFNKAtXHnxdYoWHlR06Xjz5aL7txa0mtsENY/oMWoDzAh1mxEcOqzFZDZ9G6kJoyiv
-X-Received: by 2002:ac8:22d1:: with SMTP id g17mr4532965qta.30.1550586111332;
-        Tue, 19 Feb 2019 06:21:51 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550586111; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=21DHr+RSj+xLDKfUOmmwQEe9U8Yhv3wyd3vmDfQBbJ8=;
+        b=TaPYu76Fy88R7Kb1s7aZats02fk6BMNjdVM1n4mwJWBib41ML/CC3E0kw208HzS63b
+         RpfvlBd3HHb/oKwsMJtD4JBkmY8lLbIXaTQklyjqQAm3GuoypHjtRpy6tBZdy+//W39/
+         QpfH4PGWsQPICdtH1XKBUEwNqkNbIcwUNRoCB37nxPEPwy9NPBUgbcGZi5z1cfX5sp0g
+         cpj/draQeSv/fdpX8mDITFrk5GOka9axI8BtpMT9C9AjXcsJJPU8F5nu1k+qCd5mn5SV
+         5MOK0mVR3+Ihm3nyOwcdl9HU78wXPlPM7SLMLI7dOScpScxRr2GDBIYkYdJ/lNApFQyo
+         ObZg==
+X-Gm-Message-State: AHQUAubGhrkmYL4kuRcuTJLf8E5zfb1w09zNsTLo60z5zSAcXDdMJvjQ
+	vF7HobmyxvvtAfsuY8fSLu7dHtKgoiUn2EmNNLxI9VXIEPiiQyFECPsDyO7B++vsETZlI96Qvc1
+	4aJNda2bbMZ0MsAvzIlm+eUxdx5bUlzBMe6e7Pf48kbX7tId8vWvO+DPdInWsSe3Tog==
+X-Received: by 2002:a17:902:3143:: with SMTP id w61mr31934626plb.253.1550587501954;
+        Tue, 19 Feb 2019 06:45:01 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZdw1TAYVpoXPX93VYeCxU/obbnYfVqR0miqxeRFoxe3iIF/kyomoNa5318KjL1Da8fHhOO
+X-Received: by 2002:a17:902:3143:: with SMTP id w61mr31934547plb.253.1550587500887;
+        Tue, 19 Feb 2019 06:45:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550587500; cv=none;
         d=google.com; s=arc-20160816;
-        b=TJPkcqslRCzPpQc8XM8pXn7/sHMESVYxt94q3Dv/QzsyVmFL1Ocm7UsXlNj35lQhQh
-         Ywb5LRjGglb/OmSHCllcakwGVaMb6XXGS81h3NsbNeFXRj4lv4ltHmj7MugX27jbMB2d
-         Z0okSO9G7BX1ctwTuv0xxWo2u7dRXWqE2q0hKi8q/CT1kYz8OF9ydaUvGvcHOWhWbVIe
-         Sii8b7umAHqOC2rYzVqBaq+ba60agcvrLZNKCRoqagerfiA7ZXnYx4wGI0jyqr5Bvjhf
-         31mDTxXWH1KLppt5npKUYMNTovJf+yYual2XIhhPhREMRGTRfdIbXNbq9c9DNPM3hJKh
-         OXYQ==
+        b=cbfSZhrOAjYE9IneRXHH7sS/97PeMKWyH74bLeA2XsVVr6jpPPcEeUP9ID6Iz8cUU+
+         1B5XLIUG8tCNQW8oxrbjto5e4InQXpaR8gxSGQRshJG6RazNwT6fLSIw1N25eko3B9Jd
+         VVntGfRZHD8eJyAzKZvzQ7kfkSL+41pNo0JtryEq9EPGPbSUQC7sSQ34mMNCwELL7Rvw
+         EBDj6UYI8g9RtBZfeiDcqzZIS8QYjjL64qUuLA2i4hAijsszrE4EGLagfDGY3VhNzorE
+         3wYEZZ4gSJY0bIqLlSZq4u1r3H6GaPOfzkEKAuyGyKMF6ux7FhHFpZce2KjZ2vE9laUD
+         aObA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=SuinsLioWt1rjcu5p59zjSsV4YSlCeYn22JJHhD/fME=;
-        b=DAJv99AJLBum+CO9sqonZmfBMGAAKckJ8+KhLe7bqYwzRH8pH/apC9pJ+gIt5chEEP
-         qY/kswnKwHBX7NsxjYyqeYGQrzcTe9tc3bIkeR5y5NSJu/FNxLPw5ctkCKzXiEP8A22x
-         Jf7WMEJU0sS1mFaS2PsTZcqSp/UxauDsPifANnJtuzBTiZmTYZuS2pIUMNYuXrUUj+I3
-         V0g3UrBohoGY+t4tGJ2GmO/6dFByDlUHl4y2LBrP1mTLwxl6sUXwooCsVu2Px5YdLfHt
-         X3kmXef9cuCVjd+E6I/o4MonTie9ZS4pUM2QU66/rnMxoijZktfwFGR9rNV9PWM29rnK
-         d69g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=21DHr+RSj+xLDKfUOmmwQEe9U8Yhv3wyd3vmDfQBbJ8=;
+        b=cibHrFMU8IE2A20R9HXmNw3WH3hJG94n7pYW7vd6KWx9mZ3Ux+uZO3QNXmqfQeZxxp
+         Ge0MJtjd9TGNIXVecXN4tnDzzXFb3s7d68Hq+vvQgnf9IeSt7ygxlYsUrAK52551MyKU
+         +NE/aBZ2A2Khv+bqkh72/pV3Zy7os7toNz5XtUf5uK/0z+DlKEbEYT/MHnO1QnjybMya
+         soPhAvPDkw/KxQ46YN/nBN6+2HZODt5ZUPHx6XOzOnX3U9MdTcWOzO4kRT9Qwq8v+pm0
+         Jpg74WVhAvhZywZmsFQWS4eXyvBXY9/ysfyDxZe81pfr/Rsx4G7Vwyb65F7gAqzBZMbW
+         ItQg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=DI5wJc2e;
-       spf=pass (google.com: domain of 01000169062262ea-777bfd38-e0f9-4e9c-806f-1c64e507ea2c-000000@amazonses.com designates 54.240.9.30 as permitted sender) smtp.mailfrom=01000169062262ea-777bfd38-e0f9-4e9c-806f-1c64e507ea2c-000000@amazonses.com
-Received: from a9-30.smtp-out.amazonses.com (a9-30.smtp-out.amazonses.com. [54.240.9.30])
-        by mx.google.com with ESMTPS id c49si2795226qte.328.2019.02.19.06.21.51
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Bg+NNfXr;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id d25si15972005pgd.88.2019.02.19.06.45.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 19 Feb 2019 06:21:51 -0800 (PST)
-Received-SPF: pass (google.com: domain of 01000169062262ea-777bfd38-e0f9-4e9c-806f-1c64e507ea2c-000000@amazonses.com designates 54.240.9.30 as permitted sender) client-ip=54.240.9.30;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 19 Feb 2019 06:45:00 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=DI5wJc2e;
-       spf=pass (google.com: domain of 01000169062262ea-777bfd38-e0f9-4e9c-806f-1c64e507ea2c-000000@amazonses.com designates 54.240.9.30 as permitted sender) smtp.mailfrom=01000169062262ea-777bfd38-e0f9-4e9c-806f-1c64e507ea2c-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1550586110;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=SuinsLioWt1rjcu5p59zjSsV4YSlCeYn22JJHhD/fME=;
-	b=DI5wJc2eChYpCIRQ7nkjOvHufGqv7BBhBmcKsP59o1MASZlgKRlndE0xG/8oYQ6c
-	Gi/ndD5mICxp0b0Atx8ap/q+/+W1xhaOSMOc1HjcQ7NSXWLig0HtKQNibRa0JXnd7CB
-	VG+NrEZUr5nZ56q+vdqJlkYdToXCN7PQd2kyh5pE=
-Date: Tue, 19 Feb 2019 14:21:50 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Michal Hocko <mhocko@kernel.org>
-cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
-Subject: Re: Memory management facing a 400Gpbs network link
-In-Reply-To: <20190219122609.GN4525@dhcp22.suse.cz>
-Message-ID: <01000169062262ea-777bfd38-e0f9-4e9c-806f-1c64e507ea2c-000000@email.amazonses.com>
-References: <01000168e2f54113-485312aa-7e08-4963-af92-803f8c7d21e6-000000@email.amazonses.com> <20190219122609.GN4525@dhcp22.suse.cz>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Bg+NNfXr;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=21DHr+RSj+xLDKfUOmmwQEe9U8Yhv3wyd3vmDfQBbJ8=; b=Bg+NNfXr8pMNxktAjX0ExkyVv
+	lOVOoBcOoNUemoyU0nqmdAKULhDXV51CARXuwixN51/frSvDKHAQyC9gWmOcQUKqwf2LBzaECW/v9
+	5T6e7ypytKZM1hjJQ5+vIH+M8S3EH0yWq0te02Qz3+j4NRy0KO+Vj8f+QrbUEO4qRquWe2sd0K4uM
+	29InieQC7y/wRfX+gkc/3SA8hQLf7Dk4jUEnQIR7wCmC+fR3QcDWxZGBHnuSnL5fxuP5FEtyfNNWs
+	wYYKgm3NuUkjYL6QAE0DtVmUV+Le0h5If2nKRN/8DgwColGlvf/ZNYAjJDstbSPcDoTIROfGBfSDm
+	4VliQC82g==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gw6di-0007i1-S2; Tue, 19 Feb 2019 14:44:54 +0000
+Date: Tue, 19 Feb 2019 06:44:54 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Meelis Roos <mroos@linux.ee>, "Theodore Y. Ts'o" <tytso@mit.edu>,
+	linux-alpha@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
+	linux-block@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: ext4 corruption on alpha with 4.20.0-09062-gd8372ba8ce28
+Message-ID: <20190219144454.GB12668@bombadil.infradead.org>
+References: <fb63a4d0-d124-21c8-7395-90b34b57c85a@linux.ee>
+ <1c26eab4-3277-9066-5dce-6734ca9abb96@linux.ee>
+ <076b8b72-fab0-ea98-f32f-f48949585f9d@linux.ee>
+ <20190216174536.GC23000@mit.edu>
+ <e175b885-082a-97c1-a0be-999040a06443@linux.ee>
+ <20190218120209.GC20919@quack2.suse.cz>
+ <4e015688-8633-d1a0-308b-ba2a78600544@linux.ee>
+ <20190219132026.GA28293@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.02.19-54.240.9.30
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190219132026.GA28293@quack2.suse.cz>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 19 Feb 2019, Michal Hocko wrote:
+On Tue, Feb 19, 2019 at 02:20:26PM +0100, Jan Kara wrote:
+> Thanks for information. Yeah, that makes somewhat more sense. Can you ever
+> see the failure if you disable CONFIG_TRANSPARENT_HUGEPAGE? Because your
+> findings still seem to indicate that there' some problem with page
+> migration and Alpha (added MM list to CC).
 
-> On Tue 12-02-19 18:25:50, Cristopher Lameter wrote:
-> > 400G Infiniband will become available this year. This means that the data
-> > ingest speeds can be higher than the bandwidth of the processor
-> > interacting with its own memory.
-> >
-> > For example a single hardware thread is limited to 20Gbyte/sec whereas the
-> > network interface provides 50Gbytes/sec. These rates can only be obtained
-> > currently with pinned memory.
-> >
-> > How can we evolve the memory management subsystem to operate at higher
-> > speeds with more the comforts of paging and system calls that we are used
-> > to?
->
-> Realistically, is there anything we _can_ do when the HW is the
-> bottleneck?
-
-Well the hardware is one problem. The problem that a single core cannot
-handle the full memory bandwidth can be solved by spreading the
-processing of the data to multiple processors. So I think the memory
-subsystem could be aware of that? How do we load balance between cores so
-that we can handle the full bandwidth?
-
-The other is that the memory needs to be pinned and all sorts of special
-measures and tuning needs to be done to make this actually work. Is there
-any way to simplify this?
-
-Also the need for page pinning becomes a problem since the majority of the
-memory of a system would need to be pinned. Actually the application seems
-to be doing the memory management then?
+Could
+https://lore.kernel.org/linux-mm/20190219123212.29838-1-larper@axis.com/T/#u
+be relevant?
 
