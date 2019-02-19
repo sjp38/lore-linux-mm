@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BB31C4360F
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 20:05:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 50F74C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 20:06:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5EF0321738
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 20:05:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5EF0321738
+	by mail.kernel.org (Postfix) with ESMTP id 063BE21738
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 20:06:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 063BE21738
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 075668E000C; Tue, 19 Feb 2019 15:05:57 -0500 (EST)
+	id A38AA8E0003; Tue, 19 Feb 2019 15:06:09 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 024DC8E0002; Tue, 19 Feb 2019 15:05:56 -0500 (EST)
+	id 9E84B8E0002; Tue, 19 Feb 2019 15:06:09 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E7F608E000C; Tue, 19 Feb 2019 15:05:56 -0500 (EST)
+	id 8D8908E0003; Tue, 19 Feb 2019 15:06:09 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BFCF88E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 15:05:56 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id k37so21085645qtb.20
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 12:05:56 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 65F9C8E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 15:06:09 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id b6so620398qkg.4
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 12:06:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=1rXUTed8CnGwTcmPq0oCfhnLKbGw3aW6rBbzJhdygy8=;
-        b=OvinrxoLH6511Q1lB4R3vQOdYyQNLHNoCC+L8/RhkpARDfZmD7L5x0qaFc0yHZpW3j
-         Wz0kkEp3ekfpIvspAikNPUOoj73Ci9z5fYC2ULMNuFZlWwUJkhJTeabfvl0ZyW/oeFBd
-         mhToYWYkzz9Y8nKKvnQDskQOIQbbbvLRaMNt+vOvXJcoaUZbT7hDMooq1PN8S3xKryYl
-         eP0BziNwD2qpYDo3Mtu0ernPk8T5UIHv9QrXkle5v6wgRTNicCyqj8F8dY+NS7jx5D4b
-         +L+gVy5m3rk9HOKpt2nBA1FB1BjYToQ9KAeIasfAlT6ZN0FU4YhFWpGOLI7ePFOdeMCd
-         BZXw==
+        bh=7aZ3rlOSOpqeHvTkHcjlxdFQmNAzoKPyodvuVEMV8wI=;
+        b=hX0ZqLMYXyi4ZDnVaAmsq/AxV8owcBNFD4R8uEoVdAWNE+dmKxm91fq8e6VPnztUux
+         CKlYWvH8q0UNlGJpesPGES2uJwAGnCWpcffhz7JTcRZDoPTrX3lvt6GKjSsL4SEXFNiH
+         NpzLpMllW1RbywFZcR63Em0HgsY9csAaQKNFN7CduqVFtGiMqNclQN5BSQIp4tHGBK3A
+         L5y2fm+sXVOBAMbeBO4IH2DPkwkvSLcb5ElaHQH3NgKF9rj6Uhs2gmWqlYbe0h3d8ONZ
+         iJ+24LDaxV+B/NbwLedPURL1eqXrEVuvu69VSyd0aJT2NCJRMQtEITqJq/vNHhqGJx28
+         EPHQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAub2ii0luO2O+lJfGRPSPufJulmJGCO1gfSeW+SmMgbcISjGiMKg
-	vuNunTbRORBIHDC91bHxTTdAIuPf7t0+4JUSsJPfFlBZHUsg+xpOjXyKaAv/PfHL0KR/LxbpOFP
-	WSglIjMguqvfCLFQDXYj60s8vFcMncecMarJwiL473OQ86kch6ie/NlsXpoQb5HvaBg==
-X-Received: by 2002:ae9:f712:: with SMTP id s18mr21289866qkg.83.1550606756572;
-        Tue, 19 Feb 2019 12:05:56 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZTmRlwxO6eLrs5XFaoipVg3Usx61wFfpSW8neSkhankA3qBVcSfi/CYl40/27QjW9JYuPd
-X-Received: by 2002:ae9:f712:: with SMTP id s18mr21289643qkg.83.1550606753137;
-        Tue, 19 Feb 2019 12:05:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550606753; cv=none;
+X-Gm-Message-State: AHQUAuZVjw+otmSWknjPZwQEeMaF50IbWbkhP7F1AXPgj1IRPaPmDorM
+	wmepD7GwUutYF4RcpeXaw+udIVOJRysDK/7gN9GHJAd8x0DD6+iCv3JCDgHxScrS4sp1pEQK/6N
+	X8MTBNHT1Kx7VHh8TkZNINrSWoXS3l+4EwWJEgnv+/8ObSuUmxBmkr+LdLQX5othP2A==
+X-Received: by 2002:a37:884:: with SMTP id 126mr22559083qki.56.1550606769172;
+        Tue, 19 Feb 2019 12:06:09 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbssxnD7/Ql4h4gTxERe3lmGDj8lD97l9MH38ttWWza8pK8jPHIKaXp5MIVkuRHfMH57U/K
+X-Received: by 2002:a37:884:: with SMTP id 126mr22558678qki.56.1550606763179;
+        Tue, 19 Feb 2019 12:06:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550606763; cv=none;
         d=google.com; s=arc-20160816;
-        b=YaewFunTXgzL4shZLZKm44noUWnwnHyWzsdBpwHyjBfnn+rwxY7m6lCLS+c4euDcvc
-         vYpLz05f7eEt+3lwPTP7tpy13R4Wjbd8wme5uTW91U5OTp7yurh+C/G2GOZN2Nx3Pylw
-         ce3EtABmaAn4VoSwn8tBK0QdNB4G12CyGJBzMR2V1jGstC5//wWGWGGviQP0BbaXlXNm
-         euHeBC+XMecVgsF8sBVh8Tqu5AqV2YLIUIO+DHD3V3d/E85uES9w8aJcPC8tk4VY3KU0
-         jxob19nByyRdeku8a4FvjyzaYFhHXGmFifBFDO41bzYA5oTp2wWsvemQ9x/+80TnSDLQ
-         uvUA==
+        b=Z8kOomHu7tCgjM47k9/I4yripPbhTD2slZzljY0fZ/dPK7qIuhG2hNHS+C3UVYla+H
+         zP6nJ3E6+flAMdsWQDb3ASdwB/q+UuH6tTpGTLCcjHTZU+Ohh4tuOdXHbmnpUi3EVpvF
+         CwvYPDSawbV0Pv02w1s5smJ0ZErT74dAoZtnRppG7kZ7aSiAS8f1toRTDyOLAbMhqc8i
+         nzlQzLkTTywZXtI5PsY09hMcqKyd39hxxNPGDFtIP/YrsodLblSFeJeK903b1Qwy5tjK
+         UMfKaPM9//EX1lDEYW69b2aKv2HOiTunKseU4pQVOZLYlteYvBvZGpxnSdR4kBzG40M0
+         +3BA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=1rXUTed8CnGwTcmPq0oCfhnLKbGw3aW6rBbzJhdygy8=;
-        b=th+JWHhY0ksHW64edDGzHY5J3lfFR7Jp6MiswbpE//4icwjMJ/Vrxb/U5gl1/P/DiM
-         V4K+RV6E6Z8iG9bP0x4SX29byr515tjPvb/EUbB7o+URj4xq+SuhTQNE/LjO+99cVGqv
-         C6owOXQ/OuraxT/3w8o8XGgG1JcFFb+gGGM9+2EL/J6qjtfxCAkqWRDA2cdrf15asg4X
-         olDWwAvuGIJAUWQOkggDbOA+8xKP/BGZzp3bsdwEgrrtGRMEQmOvRY5nJPfoUcFBC82/
-         cVG+TjkBj2qASgf7XHWF6PNyVvyCjl720aggTgs8+T820Q/5tO4m/VHVp46ZyKeYDxo3
-         +hEQ==
+        bh=7aZ3rlOSOpqeHvTkHcjlxdFQmNAzoKPyodvuVEMV8wI=;
+        b=H1caZn/YnZCnAi+wgqjmItCfZR9dC7Q8pFTOeQDWDUuj/NOJb5bcxCYXTUaS2knLzj
+         D7UC4/Z8taHYq7zwssfP1MoUxLsH8bEpyyxMXWhDxZwhHcsu8cC/teH6tXMdKBKWBgkH
+         TCGd7zW9JVwo3B9uXlEgEuX+EcHIpZWk0qU1fBq3btYTP8HbsElT/dmQl9Ifn5OWEEP1
+         bpOL0lwh20eM/I/iRRnKtGUsdY018zPCSfOVLqOmcaxY4/01uYa5QamDlaHezVC30jvn
+         Dlee0GmZ00al1Y8Bpzn4xmFWXR+d358ZnDGokxj9KSkB5ggjlNJB1auET1IB/57J29As
+         bNPQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b21si1399457qvd.134.2019.02.19.12.05.52
+        by mx.google.com with ESMTPS id m39si3264294qtf.226.2019.02.19.12.06.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Feb 2019 12:05:53 -0800 (PST)
+        Tue, 19 Feb 2019 12:06:03 -0800 (PST)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
@@ -81,11 +81,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0D706C074132;
-	Tue, 19 Feb 2019 20:05:52 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 30C07C074F05;
+	Tue, 19 Feb 2019 20:06:02 +0000 (UTC)
 Received: from localhost.localdomain.com (ovpn-122-134.rdu2.redhat.com [10.10.122.134])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id C1DEA6013C;
-	Tue, 19 Feb 2019 20:05:30 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 3E7616013D;
+	Tue, 19 Feb 2019 20:05:52 +0000 (UTC)
 From: jglisse@redhat.com
 To: linux-mm@kvack.org,
 	Andrew Morton <akpm@linux-foundation.org>
@@ -111,16 +111,16 @@ Cc: linux-kernel@vger.kernel.org,
 	dri-devel@lists.freedesktop.org,
 	linux-rdma@vger.kernel.org,
 	Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH v5 8/9] mm/mmu_notifier: mmu_notifier_range_update_to_read_only() helper
-Date: Tue, 19 Feb 2019 15:04:29 -0500
-Message-Id: <20190219200430.11130-9-jglisse@redhat.com>
+Subject: [PATCH v5 9/9] mm/mmu_notifier: set MMU_NOTIFIER_USE_CHANGE_PTE flag where appropriate v2
+Date: Tue, 19 Feb 2019 15:04:30 -0500
+Message-Id: <20190219200430.11130-10-jglisse@redhat.com>
 In-Reply-To: <20190219200430.11130-1-jglisse@redhat.com>
 References: <20190219200430.11130-1-jglisse@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Tue, 19 Feb 2019 20:05:52 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Tue, 19 Feb 2019 20:06:02 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -129,10 +129,21 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jérôme Glisse <jglisse@redhat.com>
 
-Helper to test if a range is updated to read only (it is still valid
-to read from the range). This is useful for device driver or anyone
-who wish to optimize out update when they know that they already have
-the range map read only.
+When notifying change for a range use MMU_NOTIFIER_USE_CHANGE_PTE flag
+for page table update that use set_pte_at_notify() and where the we are
+going either from read and write to read only with same pfn or read only
+to read and write with new pfn.
+
+Note that set_pte_at_notify() itself should only be use in rare cases
+ie we do not want to use it when we are updating a significant range of
+virtual addresses and thus a significant number of pte. Instead for
+those cases the event provided to mmu notifer invalidate_range_start()
+callback should be use for optimization.
+
+Changes since v1:
+    - Use the new unsigned flags field in struct mmu_notifier_range
+    - Use the new flags parameter to mmu_notifier_range_init()
+    - Explicitly list all the patterns where we can use change_pte()
 
 Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
 Cc: Christian König <christian.koenig@amd.com>
@@ -157,50 +168,122 @@ Cc: dri-devel@lists.freedesktop.org
 Cc: linux-rdma@vger.kernel.org
 Cc: Arnd Bergmann <arnd@arndb.de>
 ---
- include/linux/mmu_notifier.h |  4 ++++
- mm/mmu_notifier.c            | 10 ++++++++++
- 2 files changed, 14 insertions(+)
+ include/linux/mmu_notifier.h | 34 ++++++++++++++++++++++++++++++++--
+ mm/ksm.c                     | 11 ++++++-----
+ mm/memory.c                  |  5 +++--
+ 3 files changed, 41 insertions(+), 9 deletions(-)
 
 diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index 0379956fff23..b6c004bd9f6a 100644
+index b6c004bd9f6a..0230a4b06b46 100644
 --- a/include/linux/mmu_notifier.h
 +++ b/include/linux/mmu_notifier.h
-@@ -259,6 +259,8 @@ extern void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *r,
- 				  bool only_end);
- extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end);
-+extern bool
-+mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *range);
+@@ -40,6 +40,26 @@ enum mmu_notifier_event {
+ 	MMU_NOTIFY_SOFT_DIRTY,
+ };
  
- static inline bool
- mmu_notifier_range_blockable(const struct mmu_notifier_range *range)
-@@ -568,6 +570,8 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
- {
++/*
++ * @MMU_NOTIFIER_RANGE_BLOCKABLE: can the mmu notifier range_start/range_end
++ * callback block or not ? If set then the callback can block.
++ *
++ * @MMU_NOTIFIER_USE_CHANGE_PTE: only set when the page table it updated with
++ * the set_pte_at_notify() the valid patterns for this are:
++ *      - pte read and write to read only same pfn
++ *      - pte read only to read and write (pfn can change or stay the same)
++ *      - pte read only to read only with different pfn
++ * It is illegal to set in any other circumstances.
++ *
++ * Note that set_pte_at_notify() should not be use outside of the above cases.
++ * When updating a range in batch (like write protecting a range) it is better
++ * to rely on invalidate_range_start() and struct mmu_notifier_range to infer
++ * the kind of update that is happening (as an example you can look at the
++ * mmu_notifier_range_update_to_read_only() function).
++ */
++#define MMU_NOTIFIER_RANGE_BLOCKABLE (1 << 0)
++#define MMU_NOTIFIER_USE_CHANGE_PTE (1 << 1)
++
+ #ifdef CONFIG_MMU_NOTIFIER
+ 
+ /*
+@@ -55,8 +75,6 @@ struct mmu_notifier_mm {
+ 	spinlock_t lock;
+ };
+ 
+-#define MMU_NOTIFIER_RANGE_BLOCKABLE (1 << 0)
+-
+ struct mmu_notifier_range {
+ 	struct vm_area_struct *vma;
+ 	struct mm_struct *mm;
+@@ -268,6 +286,12 @@ mmu_notifier_range_blockable(const struct mmu_notifier_range *range)
+ 	return (range->flags & MMU_NOTIFIER_RANGE_BLOCKABLE);
  }
  
-+#define mmu_notifier_range_update_to_read_only(r) false
-+
- #define ptep_clear_flush_young_notify ptep_clear_flush_young
- #define pmdp_clear_flush_young_notify pmdp_clear_flush_young
- #define ptep_clear_young_notify ptep_test_and_clear_young
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index abd88c466eb2..ee36068077b6 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -395,3 +395,13 @@ void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
- 	mmdrop(mm);
- }
- EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
-+
-+bool
-+mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *range)
++static inline bool
++mmu_notifier_range_use_change_pte(const struct mmu_notifier_range *range)
 +{
-+	if (!range->vma || range->event != MMU_NOTIFY_PROTECTION_VMA)
-+		return false;
-+	/* Return true if the vma still have the read flag set. */
-+	return range->vma->vm_flags & VM_READ;
++	return (range->flags & MMU_NOTIFIER_USE_CHANGE_PTE);
 +}
-+EXPORT_SYMBOL_GPL(mmu_notifier_range_update_to_read_only);
++
+ static inline void mmu_notifier_release(struct mm_struct *mm)
+ {
+ 	if (mm_has_notifiers(mm))
+@@ -509,6 +533,12 @@ mmu_notifier_range_blockable(const struct mmu_notifier_range *range)
+ 	return true;
+ }
+ 
++static inline bool
++mmu_notifier_range_use_change_pte(const struct mmu_notifier_range *range)
++{
++	return false;
++}
++
+ static inline int mm_has_notifiers(struct mm_struct *mm)
+ {
+ 	return 0;
+diff --git a/mm/ksm.c b/mm/ksm.c
+index b782fadade8f..41e51882f999 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -1066,9 +1066,9 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
+ 
+ 	BUG_ON(PageTransCompound(page));
+ 
+-	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, mm,
+-				pvmw.address,
+-				pvmw.address + PAGE_SIZE);
++	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR,
++				MMU_NOTIFIER_USE_CHANGE_PTE, vma, mm,
++				pvmw.address, pvmw.address + PAGE_SIZE);
+ 	mmu_notifier_invalidate_range_start(&range);
+ 
+ 	if (!page_vma_mapped_walk(&pvmw))
+@@ -1155,8 +1155,9 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
+ 	if (!pmd)
+ 		goto out;
+ 
+-	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, mm, addr,
+-				addr + PAGE_SIZE);
++	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR,
++				MMU_NOTIFIER_USE_CHANGE_PTE,
++				vma, mm, addr, addr + PAGE_SIZE);
+ 	mmu_notifier_invalidate_range_start(&range);
+ 
+ 	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
+diff --git a/mm/memory.c b/mm/memory.c
+index 45dbc174a88c..cb71d3ff1b97 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2282,8 +2282,9 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
+ 
+ 	__SetPageUptodate(new_page);
+ 
+-	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, mm,
+-				vmf->address & PAGE_MASK,
++	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR,
++				MMU_NOTIFIER_USE_CHANGE_PTE,
++				vma, mm, vmf->address & PAGE_MASK,
+ 				(vmf->address & PAGE_MASK) + PAGE_SIZE);
+ 	mmu_notifier_invalidate_range_start(&range);
+ 
 -- 
 2.17.2
 
