@@ -2,191 +2,178 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BFA60C10F00
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 21:19:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 217FCC10F00
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 21:29:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6D6FC2147A
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 21:19:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="mw3KCraA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D6FC2147A
+	by mail.kernel.org (Postfix) with ESMTP id CA62C2086C
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 21:29:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA62C2086C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 068938E0003; Tue, 19 Feb 2019 16:19:22 -0500 (EST)
+	id 6A2C88E0003; Tue, 19 Feb 2019 16:29:00 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F2FD78E0002; Tue, 19 Feb 2019 16:19:21 -0500 (EST)
+	id 628188E0002; Tue, 19 Feb 2019 16:29:00 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DF9EA8E0003; Tue, 19 Feb 2019 16:19:21 -0500 (EST)
+	id 4A3008E0003; Tue, 19 Feb 2019 16:29:00 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AAF188E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 16:19:21 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id b21so14522995otl.7
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 13:19:21 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 050D48E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 16:29:00 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id y8so15254131pgk.2
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 13:28:59 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=ivTKQNMtP2X3qCK3twrbZPzFwkoeeZNha+qut1LdGoU=;
-        b=kdW/A2u+krQ+rGuwj4J56IbTETSrknEIvECinSNl16hVnO9dgjMWq9jmwXdkWVEAb1
-         5pmo0CJE7Qfp1t5RfmDuq8AzKHP6NT8T1fisJ+s2AmUYEA2vUKnoaHzJ6MWfZo92AOtl
-         aEZxaT3Ho3NslOd6xFLaPfpq2+gquDKnD20k1l8i8/YCkPAkrWMsZ6ldPfmKVejC/Szw
-         U1iznjwIWUsMUMoi888VKBs04+YUs3GgqyGX3aCYvG9uUNk0Kh2GhuJOblwv+dPZ7Yhq
-         nX5LdVbpbwFYLpdB+SdyLW1jE0NJobY5YXK0SXQ0VDUI6NAZO2bkYCASsnOMMLxFMy+O
-         zTeg==
-X-Gm-Message-State: AHQUAuaUqkX//0b4UaHjWJgQ3rQVH8Fho2CgCXouSeF97KQZmiJFGn5p
-	BCHgfM9yfg0OWZnsp5Mw7gAoJMvsLuyauLKLtiz3Zh+/b8WOP4e/IVLHnaHokZS/jh/D4tFxVM+
-	8DzaQ/ullExW5eCy6ORU9YiHW7wxYI/zzXh1XnnFwN5mHf6KavZnkg3mxmIEAmH5svi/UPmn9k+
-	GCSlwQfQPSmO746yfv7+5JbhKy0jI5Fa8cGs0Tht0EWMj1apaNvRqHKChKT2Ce3lihIth5M/MTk
-	e0ZJqjKAw6NO1iOqSqvetU2l/BmLkDt7tQKXDaOWPBgRyGHNZIMY24jPI71vCBYtbDBGrl3gghr
-	hwPWZ4Nw058mZTJgW4HI0q78kp6lKNgBponbgFKM1gl8+ImRMzMf7fFk/GF2G3YUyv8FnPSWDiS
-	J
-X-Received: by 2002:a05:6830:125a:: with SMTP id s26mr10886667otp.74.1550611161387;
-        Tue, 19 Feb 2019 13:19:21 -0800 (PST)
-X-Received: by 2002:a05:6830:125a:: with SMTP id s26mr10886639otp.74.1550611160694;
-        Tue, 19 Feb 2019 13:19:20 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550611160; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=h3DN7rTQwSJfE0WI6OTDL21MwaqgNZsJo64dcNsIU8Y=;
+        b=JCon8VTcG1AQC4E6uTirADbaE43THlvEXxaSHAXD9LCg3F/gOfQvgd7xzrOoOP8+A2
+         t8P1EC1Xty4pXrPJcnBtQg+0AzUZYvKs2XFywEBE8UUtQAyfpqhkB30Icsk62GVNH/6x
+         QwxDmgAmCx/w5cvw9Fph5gj8NaQo6fZH3daemNyCloSZDsGf7hgTTFSdovEXQp3RPWeR
+         scg4vkCmzUkYeZtOO0KbYHuEI2t1TZOi0bu2vk0hZ0NENmTHcWfiakaaPCuCO3DVWd2+
+         laLlUGcyJ9R+gAYODNdww2D75T3rk77hFhUpYqDBYk7Skt3NvcASi3mzMu7kFAUOu9+I
+         so1A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuY9T/sa4b501OxRROZX541OykVpcFSB7WYSBDPPJbaZrKwnxPHN
+	P1JfSiK1oEgcqo27KLG5hH2MkFV4EXyfG3MLONGo15KpAFgKzlG8BKaMeI2Oeby23mxTB1QgQRq
+	N4qFsWun4e94iQ3fyXeguORThtdeyyzMpBLz0lc26hr73gBlWpCN2RNMZjTyWTkZLlw==
+X-Received: by 2002:a17:902:29c9:: with SMTP id h67mr33189523plb.111.1550611739655;
+        Tue, 19 Feb 2019 13:28:59 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ibt6XApDaEFNXibkT9oSrlqzwe7OaSl0YNuAxJglnAhUo7V76rs4HD6PaMqa0o6NJBRgAED
+X-Received: by 2002:a17:902:29c9:: with SMTP id h67mr33189480plb.111.1550611738960;
+        Tue, 19 Feb 2019 13:28:58 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550611738; cv=none;
         d=google.com; s=arc-20160816;
-        b=kIj6tW8k8lo/TX+RCmhR9UaCifiV3ZBLHaayht1qtfLyOigrSIXSJyiliStR6Sj9WR
-         iVMqA+qysrHo0u6uMbUcy2CeHgXePqjpaPfv46NEJ2+7QsS7q/VyPAg7ohOtd25UmGMf
-         QmR5ACZ4zeLdtc1xVHtruUfR70BSSVp8K5AiEU9gWNZYvJ0Phlm1IJLShnvPhvSCH4oQ
-         /eBG1pjOfGKk6MH+t2GOgN+lcHEGtSNMM6NsPJOHAME4E6bj8Y53Y9kZKpMIRQ0Wpkr7
-         prA8Xj+uVX1C8Ma0KGRjdHUOElwfav1sU089nTc9CvelL8BtUZkjqKURHTfdA8ZpZUxV
-         3fcw==
+        b=zEWvTG7SgFREubYUprtMs/Ylhc2FegkA7PVfjysERl9kxYBFBRmHWknCudqmKkqO03
+         7NU6LplNZYDDNiU1032ufe9chApuu90jBp44FsVTT05Amjy9/Zn+5gFhP9YM4fc3fmo2
+         TL6aIFX3p+sFyhRPnGRJGAADeef0LfkjkE1HrEogPKBHB7i6xnqbgy0376mjXKN3i+A0
+         PJ+6znhq8ku/FChaqdprTQeTDShdtC0uM2sAKiSozwNoI5WQY7F8diuRuFy7eHaBpjBQ
+         MQcPAAEd2NhuqQA52O7cA0Q8nxbbCHEhGyEtdY9Xc03SFbnA4Rctbh7nZ6iDqhz7xic9
+         Sm/A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=ivTKQNMtP2X3qCK3twrbZPzFwkoeeZNha+qut1LdGoU=;
-        b=tzha4qefhmUK5Ky4IOprdY8dlC8m/SsY5aB/ZZmEceBS4zKLJcljBYhVcGXAv1x0Pp
-         c7qymRnclTbWPfoui4ORzvx2RZIKAqhw//ePFf6EKIDCsRojOfAF1br4Ik/1t8JaWt5w
-         +B4YnTT8g3xv0htGG+Hlgoh2tPJICCd83HB2FSCRzoiXBSjtF7fdMqCYIdXf2tvMi56o
-         dqSULEcaq2n9DYEsm6HL4Jq+NgpndkB5zNlijRHBJ3ZPt3MiDRlPPuqGsIEX1jPQXCP1
-         R8Aa60sV735VIqxA8CpCvtyhKyRLHsmXByc3r7gXx41LMQ55440dShaBd5a88U0qThGN
-         VzuA==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from;
+        bh=h3DN7rTQwSJfE0WI6OTDL21MwaqgNZsJo64dcNsIU8Y=;
+        b=nYZTLsAFH5mBTAvv5Yau65EAaowuV9Ms15d2wIbtucXzQvh2/spHfcEpJAQsJjebek
+         F1ZwGZadGVuAsHiNMl1JwiNY/0mQNbTAtOVcXeZhVGP6N4oDdkGVqt/DG7gW8giorLTt
+         MsEwdYtwH0N3CMauLlp0FzV0FBYLLmyvK+TryRTSpupen1GJm8b61VCmE1nfW2h0TxdO
+         0Ld9k2KUXIYH6iSLvxN+f8JqM32LdUwgg16NOD8jXkPNVBjhh55WLuX0Ajl7Ys/cp1UF
+         Ygy3RRLnyrg+RzjvE3evoL8vczyTByNaWoFSPTkvK+FWvzTr/N+aor1Yf3HBDbdPz1FI
+         PTMQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=mw3KCraA;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b17sor5337775otq.136.2019.02.19.13.19.20
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id l38si4716819pgb.399.2019.02.19.13.28.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Feb 2019 13:19:20 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Feb 2019 13:28:58 -0800 (PST)
+Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=mw3KCraA;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=ivTKQNMtP2X3qCK3twrbZPzFwkoeeZNha+qut1LdGoU=;
-        b=mw3KCraAh6U31DL397Vc95iRYXQapjrxWfVJNHMKSffaMwJrRHlKsIkWehqf1oB1rB
-         6We2AazkMPhkraX7atDrshsNSGfNReBFNVXTQ9l61c0z/6PnNYd8K2VR4n7la7Upv2Ag
-         jqnknScKG+/99v4FDg+RcEU0Xnc9flzu8A39Wcr/qCGXj6+m1cif5A/UvdD6nR4GoN8c
-         l7y73quixJ1jqGTnxyOfRh65KvtD/vrgVinwbUwjkocUhTW2VpUD/Fbt5Qerk5kl+enS
-         gWeky1JxEobjI6fci9qZcPPGtxRlAXPug2eETyzHVLoQXHuEwDq6hCe2Ju7Ek056pfIw
-         jymA==
-X-Google-Smtp-Source: AHgI3IbgJChOmrYGePyVfdKLtY6nJfYpTxrsBj/auowQtodHJ+dFuWWDIrwwUilMXIUwWa8TcHS8qqUI681XOYGd2G0=
-X-Received: by 2002:a9d:7a87:: with SMTP id l7mr11513781otn.98.1550611159926;
- Tue, 19 Feb 2019 13:19:19 -0800 (PST)
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 19 Feb 2019 13:28:58 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,388,1544515200"; 
+   d="scan'208";a="321696263"
+Received: from orsmsx108.amr.corp.intel.com ([10.22.240.6])
+  by fmsmga005.fm.intel.com with ESMTP; 19 Feb 2019 13:28:57 -0800
+Received: from orsmsx112.amr.corp.intel.com ([169.254.3.70]) by
+ ORSMSX108.amr.corp.intel.com ([169.254.2.157]) with mapi id 14.03.0415.000;
+ Tue, 19 Feb 2019 13:28:56 -0800
+From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
+To: "bp@alien8.de" <bp@alien8.de>
+CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"peterz@infradead.org" <peterz@infradead.org>,
+	"linux-integrity@vger.kernel.org" <linux-integrity@vger.kernel.org>,
+	"ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "tglx@linutronix.de"
+	<tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>,
+	"nadav.amit@gmail.com" <nadav.amit@gmail.com>, "Dock, Deneen T"
+	<deneen.t.dock@intel.com>, "pavel@ucw.cz" <pavel@ucw.cz>,
+	"linux-security-module@vger.kernel.org"
+	<linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>,
+	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com"
+	<hpa@zytor.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>,
+	"mingo@redhat.com" <mingo@redhat.com>, "linux_dti@icloud.com"
+	<linux_dti@icloud.com>, "luto@kernel.org" <luto@kernel.org>,
+	"will.deacon@arm.com" <will.deacon@arm.com>,
+	"kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>,
+	"rjw@rjwysocki.net" <rjw@rjwysocki.net>
+Subject: Re: [PATCH v2 14/20] mm: Make hibernate handle unmapped pages
+Thread-Topic: [PATCH v2 14/20] mm: Make hibernate handle unmapped pages
+Thread-Index: AQHUt2sViQgi+Bs0HkOgKSmVUNQOKqXnnOgAgACunoA=
+Date: Tue, 19 Feb 2019 21:28:55 +0000
+Message-ID: <07ea2a4a9f1771f7bad82ad8fe5ee9483b79d115.camel@intel.com>
+References: <20190129003422.9328-1-rick.p.edgecombe@intel.com>
+	 <20190129003422.9328-15-rick.p.edgecombe@intel.com>
+	 <20190219110400.GA19514@zn.tnic>
+In-Reply-To: <20190219110400.GA19514@zn.tnic>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [10.54.75.11]
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <D2C7ED715E2C204FA4910F9B0DA68816@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-References: <20190219200430.11130-1-jglisse@redhat.com> <CAPcyv4gq23RXk3BTqP2O+gi3FGE85NSGXD8bdLk+_cgtZrn+Kg@mail.gmail.com>
- <20190219203032.GC3959@redhat.com> <CAPcyv4gUFSA6u77dGA6XxO41217zQ27DNteiHRG515Gtm_uGgg@mail.gmail.com>
- <20190219205751.GD3959@redhat.com>
-In-Reply-To: <20190219205751.GD3959@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 19 Feb 2019 13:19:09 -0800
-Message-ID: <CAPcyv4hCNSsk5EP7+BcnVp-zJjQyQ701U3QXkQyUteQZr-ZumA@mail.gmail.com>
-Subject: Re: [PATCH v5 0/9] mmu notifier provide context informations
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-	=?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>, 
-	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Jani Nikula <jani.nikula@linux.intel.com>, 
-	Rodrigo Vivi <rodrigo.vivi@intel.com>, Jan Kara <jack@suse.cz>, 
-	Andrea Arcangeli <aarcange@redhat.com>, Peter Xu <peterx@redhat.com>, 
-	Felix Kuehling <Felix.Kuehling@amd.com>, Jason Gunthorpe <jgg@mellanox.com>, 
-	Ross Zwisler <zwisler@kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, 
-	=?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, 
-	Michal Hocko <mhocko@kernel.org>, Ralph Campbell <rcampbell@nvidia.com>, 
-	John Hubbard <jhubbard@nvidia.com>, KVM list <kvm@vger.kernel.org>, 
-	Maling list - DRI developers <dri-devel@lists.freedesktop.org>, linux-rdma <linux-rdma@vger.kernel.org>, 
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 19, 2019 at 12:58 PM Jerome Glisse <jglisse@redhat.com> wrote:
->
-> On Tue, Feb 19, 2019 at 12:40:37PM -0800, Dan Williams wrote:
-> > On Tue, Feb 19, 2019 at 12:30 PM Jerome Glisse <jglisse@redhat.com> wro=
-te:
-> > >
-> > > On Tue, Feb 19, 2019 at 12:15:55PM -0800, Dan Williams wrote:
-> > > > On Tue, Feb 19, 2019 at 12:04 PM <jglisse@redhat.com> wrote:
-> > > > >
-> > > > > From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> > > > >
-> > > > > Since last version [4] i added the extra bits needed for the chan=
-ge_pte
-> > > > > optimization (which is a KSM thing). Here i am not posting users =
-of
-> > > > > this, they will be posted to the appropriate sub-systems (KVM, GP=
-U,
-> > > > > RDMA, ...) once this serie get upstream. If you want to look at u=
-sers
-> > > > > of this see [5] [6]. If this gets in 5.1 then i will be submittin=
-g
-> > > > > those users for 5.2 (including KVM if KVM folks feel comfortable =
-with
-> > > > > it).
-> > > >
-> > > > The users look small and straightforward. Why not await acks and
-> > > > reviewed-by's for the users like a typical upstream submission and
-> > > > merge them together? Is all of the functionality of this
-> > > > infrastructure consumed by the proposed users? Last time I checked =
-it
-> > > > was only a subset.
-> > >
-> > > Yes pretty much all is use, the unuse case is SOFT_DIRTY and CLEAR
-> > > vs UNMAP. Both of which i intend to use. The RDMA folks already ack
-> > > the patches IIRC, so did radeon and amdgpu. I believe the i915 folks
-> > > were ok with it too. I do not want to merge things through Andrew
-> > > for all of this we discussed that in the past, merge mm bits through
-> > > Andrew in one release and bits that use things in the next release.
-> >
-> > Ok, I was trying to find the links to the acks on the mailing list,
-> > those references would address my concerns. I see no reason to rush
-> > SOFT_DIRTY and CLEAR ahead of the upstream user.
->
-> I intend to post user for those in next couple weeks for 5.2 HMM bits.
-> So user for this (CLEAR/UNMAP/SOFTDIRTY) will definitly materialize in
-> time for 5.2.
->
-> ACKS AMD/RADEON https://lkml.org/lkml/2019/2/1/395
-> ACKS RDMA https://lkml.org/lkml/2018/12/6/1473
-
-Nice, thanks!
-
-> For KVM Andrea Arcangeli seems to like the whole idea to restore the
-> change_pte optimization but i have not got ACK from Radim or Paolo,
-> however given the small performance improvement figure i get with it
-> i do not see while they would not ACK.
-
-Sure, but no need to push ahead without that confirmation, right? At
-least for the piece that KVM cares about, maybe that's already covered
-in the infrastructure RDMA and RADEON are using?
+T24gVHVlLCAyMDE5LTAyLTE5IGF0IDEyOjA0ICswMTAwLCBCb3Jpc2xhdiBQZXRrb3Ygd3JvdGU6
+DQo+IE9uIE1vbiwgSmFuIDI4LCAyMDE5IGF0IDA0OjM0OjE2UE0gLTA4MDAsIFJpY2sgRWRnZWNv
+bWJlIHdyb3RlOg0KPiA+IEZvciBhcmNoaXRlY3R1cmVzIHdpdGggQ09ORklHX0FSQ0hfSEFTX1NF
+VF9BTElBUywgcGFnZXMgY2FuIGJlIHVubWFwcGVkDQo+ID4gYnJpZWZseSBvbiB0aGUgZGlyZWN0
+bWFwLCBldmVuIHdoZW4gQ09ORklHX0RFQlVHX1BBR0VBTExPQyBpcyBub3QNCj4gPiBjb25maWd1
+cmVkLiBTbyB0aGlzIGNoYW5nZXMga2VybmVsX21hcF9wYWdlcyBhbmQga2VybmVsX3BhZ2VfcHJl
+c2VudCB0byBiZQ0KPiANCj4gcy90aGlzIGNoYW5nZXMvY2hhbmdlLw0KPiANCj4gRnJvbSBEb2N1
+bWVudGF0aW9uL3Byb2Nlc3Mvc3VibWl0dGluZy1wYXRjaGVzLnJzdDoNCj4gDQo+ICAiRGVzY3Jp
+YmUgeW91ciBjaGFuZ2VzIGluIGltcGVyYXRpdmUgbW9vZCwgZS5nLiAibWFrZSB4eXp6eSBkbyBm
+cm90eiINCj4gICBpbnN0ZWFkIG9mICJbVGhpcyBwYXRjaF0gbWFrZXMgeHl6enkgZG8gZnJvdHoi
+IG9yICJbSV0gY2hhbmdlZCB4eXp6eQ0KPiAgIHRvIGRvIGZyb3R6IiwgYXMgaWYgeW91IGFyZSBn
+aXZpbmcgb3JkZXJzIHRvIHRoZSBjb2RlYmFzZSB0byBjaGFuZ2UNCj4gICBpdHMgYmVoYXZpb3Vy
+LiINCj4gDQo+IEFsc28sIHBsZWFzZSBlbmQgZnVuY3Rpb24gbmFtZXMgd2l0aCBwYXJlbnRoZXNl
+cy4NClllcywgZ290Y2hhLg0KDQo+ID4gZGVmaW5lZCB3aGVuIENPTkZJR19BUkNIX0hBU19TRVRf
+QUxJQVMgaXMgZGVmaW5lZCBhcyB3ZWxsLiBJdCBhbHNvIGNoYW5nZXMNCj4gPiBwbGFjZXMgKHBh
+Z2VfYWxsb2MuYykgd2hlcmUgdGhvc2UgZnVuY3Rpb25zIGFyZSBhc3N1bWVkIHRvIG9ubHkgYmUN
+Cj4gPiBpbXBsZW1lbnRlZCB3aGVuIENPTkZJR19ERUJVR19QQUdFQUxMT0MgaXMgZGVmaW5lZC4N
+Cj4gDQo+IFRoZSBjb21taXQgbWVzc2FnZSBkb2Vzbid0IG5lZWQgdG8gc2F5ICJ3aGF0IiB5b3Un
+cmUgZG9pbmcgLSB0aGF0IHNob3VsZA0KPiBiZSBvYnZpb3VzIGZyb20gdGhlIGRpZmYgYmVsb3cu
+IEl0IHNob3VsZCByYXRoZXIgc2F5ICJ3aHkiIHlvdSdyZSBkb2luZw0KPiBpdC4NCk9rLCBzb3Jy
+eS4gSSdsbCBjaGFuZ2UgdGhpcyB0byBiZSBtb3JlIGNvbmNpc2UuDQoNCj4gPiBTbyBub3cgd2hl
+biBDT05GSUdfQVJDSF9IQVNfU0VUX0FMSUFTPXksIGhpYmVybmF0ZSB3aWxsIGhhbmRsZSBub3Qg
+cHJlc2VudA0KPiA+IHBhZ2Ugd2hlbiBzYXZpbmcuIFByZXZpb3VzbHkgdGhpcyB3YXMgYWxyZWFk
+eSBkb25lIHdoZW4NCj4gDQo+IHBhZ2VzDQo+IA0KPiA+IENPTkZJR19ERUJVR19QQUdFQUxMT0Mg
+d2FzIGNvbmZpZ3VyZWQuIEl0IGRvZXMgbm90IGFwcGVhciB0byBoYXZlIGEgYmlnDQo+ID4gaGli
+ZXJuYXRpbmcgcGVyZm9ybWFuY2UgaW1wYWN0Lg0KPiANCj4gQ29tbWVudCBvdmVyIHNhZmVfY29w
+eV9wYWdlDQpPaCwgeWVzIHlvdSBhcmUgcmlnaHQuDQoNCj4gPiBCZWZvcmU6DQo+ID4gWyAgICA0
+LjY3MDkzOF0gUE06IFdyb3RlIDE3MTk5NiBrYnl0ZXMgaW4gMC4yMSBzZWNvbmRzICg4MTkuMDIg
+TUIvcykNCj4gPiANCj4gPiBBZnRlcjoNCj4gPiBbICAgIDQuNTA0NzE0XSBQTTogV3JvdGUgMTc4
+OTMyIGtieXRlcyBpbiAwLjIyIHNlY29uZHMgKDgxMy4zMiBNQi9zKQ0KPiANCj4gSUlOTSwgdGhh
+dCdzIGxpa2UgMTczNCBwYWdlcyBtb3JlLiBIb3cgYW0gSSB0byB1bmRlcnN0YW5kIHRoaXMgbnVt
+YmVyPw0KPiANCj4gQ29kZSBoYXMgY2FsbGVkIHNldF9hbGlhc19udl9ub2ZsdXNoKCkgb24gdGhl
+bSBhbmQgc2FmZV9jb3B5X3BhZ2UoKSBub3cNCj4gbWFwcyB0aGVtIG9uZSBieSBvbmUgdG8gY29w
+eSB0aGVtIHRvIHRoZSBoaWJlcm5hdGlvbiBpbWFnZT8NCj4gDQo+IFRoeC4NCj4gDQpUaGVzZSBh
+cmUgZnJvbSBsb2dzIGhpYmVybmF0ZSBnZW5lcmF0ZXMuIFRoZSBjb25jZXJuIHdhcyB0aGF0IGhp
+YmVybmF0ZSBjb3VsZCBiZQ0Kc2xpZ2h0bHkgc2xvd2VyIGJlY2F1c2Ugb2YgdGhlIGNoZWNraW5n
+IG9mIHdoZXRoZXIgdGhlIHBhZ2VzIGFyZSBtYXBwZWQuIFRoZQ0KYmFuZHdpZHRoIG51bWJlciBj
+YW4gYmUgdXNlZCB0byBjb21wYXJlLCA4MTkuMDItPjgxMy4zMiBNQi9zLiBTb21lIHJhbmRvbW5l
+c3MNCm11c3QgaGF2ZSByZXN1bHRlZCBpbiBkaWZmZXJlbnQgYW1vdW50cyBvZiBtZW1vcnkgdXNl
+ZCBiZXR3ZWVuIHRlc3RzLiBJIGNhbiBqdXN0DQpyZW1vdmUgdGhlIGxvZyBsaW5lcyBhbmQgaW5j
+bHVkZSB0aGUgYmFuZHdpZHRoIG51bWJlcnMuDQoNClRoYW5rcywNCg0KUmljaw0K
 
