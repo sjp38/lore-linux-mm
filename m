@@ -2,137 +2,205 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_NEOMUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7498EC10F00
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 14:59:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 39435C10F00
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 15:24:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 310E021773
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 14:59:32 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="QvwpZODS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 310E021773
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id CED192146E
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 15:24:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CED192146E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A0BBE8E0003; Tue, 19 Feb 2019 09:59:31 -0500 (EST)
+	id 3E0EF8E0003; Tue, 19 Feb 2019 10:24:13 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9BB0E8E0002; Tue, 19 Feb 2019 09:59:31 -0500 (EST)
+	id 38F038E0002; Tue, 19 Feb 2019 10:24:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8AAE28E0003; Tue, 19 Feb 2019 09:59:31 -0500 (EST)
+	id 27ED48E0003; Tue, 19 Feb 2019 10:24:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 492768E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 09:59:31 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id t26so14410947pgu.18
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 06:59:31 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C09098E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 10:24:12 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id i20so825875edv.21
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 07:24:12 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:user-agent;
-        bh=bbQyydwGTTirw3UzuZQPM7i19iX5dNbackQGV5c/VjU=;
-        b=BLOXZ7TFHAtOx9UKnc4Tg0HSvlrlVgC+OAbHtW5AXlt5TuPiUcILO1GSx+m09CCmLR
-         JZLHk89Nl3eoHfd2Id3MnFd0n+lZSxXg//EnoM8OYhgHH9A3M1wjrE+sNaB45Uigy2Af
-         sKkpO2xNg5o24luWx/BmEXyH3Bf/BNNQn4gzYEQ+7qgJeezYLKVuWSl6idIPRDxDTHDw
-         jQO/QPwwRM/OeWFUvh5GjFsOBbqxYDsUozQxIXP9NJzWLi7n/kHmA4AmmDRWW7Covuar
-         xafjatSoNiZADUoiwX+99rPAobfMWBqwh6jLi4ZykDJSLTYT/T99rU1eeUhuL6WEGEiR
-         Ksug==
-X-Gm-Message-State: AHQUAubMV9H4Ki95LaHgG5irxvccFy58y1Rvx5JhDAimA5KtasvajN4j
-	RYoeJ5MgGMVi/bsrMIoQT7aGR4qd3an76wPUlb93W/RgXU6nyBQYH3EYc72PU43cL37i1NKPdHr
-	/XsJOe8aZOYg5n6F8crLvJgmeUYdxS+weaKNyLooD31z+UPtMXAnKD82XONkIaTPaIlQzZYoPNa
-	FdsCr3E4MEK2DoQ94kzGY+706XHndHnQD92JyTxrWwTwfae7fV1RIVbDBHn6sWO3S4jwl4yT88I
-	f8qVhcovjUiiVnGKE0Lodq/aAi0AolepKrpLNMw57VgdS+8XEfGe3M+vO96la9+16KH2AJZ/0qP
-	xqFSh6XHr1z0RYrpWj5Z7+fXhkTP2ellUn8ZOe9aod+rtpoe0bWQLv6Q0T75DUYx4kfPin75EtK
-	m
-X-Received: by 2002:a62:53c5:: with SMTP id h188mr18398002pfb.190.1550588370956;
-        Tue, 19 Feb 2019 06:59:30 -0800 (PST)
-X-Received: by 2002:a62:53c5:: with SMTP id h188mr18397946pfb.190.1550588370230;
-        Tue, 19 Feb 2019 06:59:30 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550588370; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=WiIHODcroN22izO5RjtcWo4Sx9laeX2psmXfDMgWKOQ=;
+        b=DVddXf5EGYGrZdAQrzDk9xPuDiaPG3dK+O5AZOvzaKYmJKXjsDK3IOd3mcAQYZYIo9
+         jsnY+8F6W5Pz0sNZWlX991VYMyzo5dHGkNdZ5Yfi7UfoFY5M08SzhMRUzC4x0D6VqHFA
+         8xa92eCf6OH9yhgobhzS11ptKyowp65uhYUoO9Gk3nmK6mNpozi4lmu+d5isVIf7WIzw
+         6+YhLJUmtmFclCYRBJbD0RPkyHPDAWOt5UIXkS43ADAOR7eAxng5suDGT0OCFnlLqODQ
+         M3q+9ppXsEJN2gLXZeEp137/sxso/PnfyMm5hFPcCNK2ia9JgTVpoquDVSCz1wBhPdDP
+         Od6g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: AHQUAub8u88aWMG6U+5H5X35eFVqcsNIPKjGQ+bph1HuauPEx843XuqJ
+	eaIbuCm7Mv2rURXhSUheSrJs2dGvIBE3k7b0JKWdK1zL2AnwbMweIjSi59FsMEBNi3XQQWPf+WP
+	sjgHxPSwPOhcsAeBS7B1i6rk2ZqCNgfGpFb2YfseRYnUmeZhEdITF2KaVvygAR7acfA==
+X-Received: by 2002:a50:ad4b:: with SMTP id z11mr23284535edc.157.1550589852220;
+        Tue, 19 Feb 2019 07:24:12 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IY5K2gfkTA+0kgVyBYx53wG7MQsBKQwOXCm1bvFiLQzhsOT5LZLM2zPrN1O30jS/VdroruU
+X-Received: by 2002:a50:ad4b:: with SMTP id z11mr23284485edc.157.1550589851149;
+        Tue, 19 Feb 2019 07:24:11 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550589851; cv=none;
         d=google.com; s=arc-20160816;
-        b=P4QmPgRxlEnDcovwChL/6hSp6LCsw3gKfiSad2DFF5avj07ZTR1mWcfsN9MEIUhvI9
-         rVtmLdp6EQWJbrvNyGO4Jf07sEINsfjxT7P3XPgs3nqLVMWnArH/VGlZa0pxFirTNlwC
-         JMd7Yo/1sTyGO4hOzhgPodl5Ab2Gd3KQL3tH4Q9ArnNQSDXrKWyp6b+zM/XHluK/tgco
-         kceHVF3hDifHL/lxL01achvcO7+dAekKgwUaz3M0/UfSjFzbNBVHXx9kB7pptuAcbD9f
-         6bWxavWDAWVH5+2fwijllDAkChcOP6Q9LIMRgjoGJx6MuzBccwgAf+GssY6UN87v04FY
-         1rHw==
+        b=w8w8+N/AtVtl8KS5k88s2WefPkyITyci3HaRr5mt10+K7nMOJ1PGTXhwPpgRrC7sld
+         qw72NjOmPolPI8N8j4HBAyeyqxtFNoH33Df/FGvYYnZ4FSx6Hy4W0s/vpCq/MSkF1Zbq
+         Mr9q+7SQ5K9bmu36So+BwCOBVDb2kHcUQvEVljvCg9FIMvb0iJbMByn05FdHDWJhhVCj
+         ojHktWKQg8sI+YeacFeq2UpYviGOtpqnDElXtYEM7530ur+YbccpUQwT9Jz0eTuoiRhw
+         91Q3rV/2leUbXhRKzU3mXaKq/lPjhHQNONntlKEUxqcj1adtVTiR9aPcUNH9UNQVpk28
+         kQHg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=bbQyydwGTTirw3UzuZQPM7i19iX5dNbackQGV5c/VjU=;
-        b=AF8rN6gdUIYJrGOj23M6e7TKbxBgmtJMo0o0nggL7wvG4OrGQpPpf28qJDKmQyL/bL
-         aSZXwGow54Sp+soDMD4/ZU7nzMZ29IhQGOrf4JF0QPylPbqIcLUzMb+C0sL8eWE/SqLi
-         l9MeSd9zMgRPb08f+yS4f2gwLpBqDN+PPjQP8bNThCJL3CxkimS5Pu6gh30/2GVIvSRI
-         oML4J53/FYvNYv2sdYaDH3vRMbOVS3vNLCvoUKmkJZZBFapbdOe4bJ8xLo+RC30/ZfCE
-         q5jVIBim6ZDcF6jAJjGCHvbkNROnF7sfJQ4ti8U5GZwuvlSlGHmo6iwN82YuH+6rZxPs
-         J2IQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:openpgp:from:references:cc:to:subject;
+        bh=WiIHODcroN22izO5RjtcWo4Sx9laeX2psmXfDMgWKOQ=;
+        b=02G05p+kgPnGz2I6WcGGzH73dvcHsNDB7pzGRwSo1bxzzjQ+LEo87NJxvEVNSt57Am
+         CTMGmpy0eW4142gn39IU6gQzcfahiP6O5nh3At5DClZA/8CctPUx5CfUr8BFnPGvQEx4
+         pvSpzI+UU5pCTpgI56oQmDeKccKp75Bl8S8wG6EYtihammrqP6AU5PFXi9wS9wpZMUjN
+         Lehe7YnNiLg+7r7iCbrmk5rhc/X9r71wwbeVY/vcxRtj/yOUTevkau/Vcf+3b3qQu5Ns
+         ok72ikvqLiR/54hEdahOqZQvcX4Vpn3xq4Q4WOGy7CH5zopa0ZZxWl27VwoD65cAX0Eg
+         Onyw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=QvwpZODS;
-       spf=neutral (google.com: 209.85.220.41 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id u23sor9788111pgk.1.2019.02.19.06.59.29
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x25si7604615edb.0.2019.02.19.07.24.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Feb 2019 06:59:30 -0800 (PST)
-Received-SPF: neutral (google.com: 209.85.220.41 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.41;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=QvwpZODS;
-       spf=neutral (google.com: 209.85.220.41 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
-         :user-agent;
-        bh=bbQyydwGTTirw3UzuZQPM7i19iX5dNbackQGV5c/VjU=;
-        b=QvwpZODSOJ2StdYW8IfVo9SDX33D5VsDBx9qA5dRZydxW/loh8hW1FWcucykiNKNG1
-         hX+1Y3+rE/N90tPoyq12ks0nhJaQOUl7Knw7vCV4QAm4H6hKzkMLbk66sotvbMgoc/Bj
-         m0gGX+Q4cFmGVfIaMakXqUcfg1Pu88UUAPPGSELkrC7m9B5/OYoSaOMGb1TqDBrDjEkO
-         23tHpTQ4Mu5lxElyJpPwXJUQv4HgyVEowqVWzNYfAv6f30uQrACorOuiFI36hmtAq6el
-         ZkIMMPxgT8FgrNJGQ9GYv0P5YSmSam38aYe36tPmXi4rzjzuIPVE0Ey5d4VAUH5rNAcM
-         Qdxw==
-X-Google-Smtp-Source: AHgI3IZhBLBIl7gr45g4/ywjr+kx/11oegon7QkE1zbhG8r+ngTxBEesExphcdFsaEuh4bQjyvi9Sw==
-X-Received: by 2002:a63:ed03:: with SMTP id d3mr24010990pgi.275.1550588369155;
-        Tue, 19 Feb 2019 06:59:29 -0800 (PST)
-Received: from kshutemo-mobl1.localdomain ([192.55.54.44])
-        by smtp.gmail.com with ESMTPSA id p6sm23767707pfp.15.2019.02.19.06.59.28
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Feb 2019 06:59:28 -0800 (PST)
-Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
-	id DCC843002B2; Tue, 19 Feb 2019 17:59:24 +0300 (+03)
-Date: Tue, 19 Feb 2019 17:59:24 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: [LSF/MM ATTEND] MM track: Memory encryption, THP
-Message-ID: <20190219145924.olggllneomorpenu@kshutemo-mobl1>
+        Tue, 19 Feb 2019 07:24:11 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 5B46DAEB7;
+	Tue, 19 Feb 2019 15:24:10 +0000 (UTC)
+Subject: Re: [PATCH v10 2/3] mm: Move buddy list manipulations into helpers
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Dave Hansen
+ <dave.hansen@linux.intel.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, keith.busch@intel.com
+References: <154899811208.3165233.17623209031065121886.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <154899812264.3165233.5219320056406926223.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Message-ID: <4672701b-6775-6efd-0797-b6242591419e@suse.cz>
+Date: Tue, 19 Feb 2019 16:24:09 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: NeoMutt/20180716
+In-Reply-To: <154899812264.3165233.5219320056406926223.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On 2/1/19 6:15 AM, Dan Williams wrote:
+> In preparation for runtime randomization of the zone lists, take all
+> (well, most of) the list_*() functions in the buddy allocator and put
+> them in helper functions. Provide a common control point for injecting
+> additional behavior when freeing pages.
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-I would like to attend upcoming summit.
+Here's another fixlet to fold into mm-move-buddy-list-manipulations-into-helpers.patch
+This time not critical.
 
-I was not very active in generic memory managment field last year. I hope
-it will change this year.
+----8<----
+From 05aaff61f62f86e646c4a2581fe2ff63ff66a199 Mon Sep 17 00:00:00 2001
+From: Vlastimil Babka <vbabka@suse.cz>
+Date: Tue, 19 Feb 2019 16:20:33 +0100
+Subject: [PATCH] mm: Move buddy list manipulations into helpers-fix2
 
-I'm still interested in moving THP forward and I see there is a number of
-THP-related topics proposed for the summit. I would like to participate in
-the discussion (and hopefully contribute something).
+del_page_from_free_area() migratetype parameter is unused, remove it.
 
-The other topic I would like to discuss is memory encryption and userspace
-APIs for it. See Dave's topic proposal[1].
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ include/linux/mmzone.h |  2 +-
+ mm/page_alloc.c        | 14 ++++----------
+ 2 files changed, 5 insertions(+), 11 deletions(-)
 
-[1] https://lore.kernel.org/linux-mm/788d7050-f6bb-b984-69d9-504056e6c5a6@intel.com
-
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index da5321c747f8..2fd4247262e9 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -143,7 +143,7 @@ static inline struct page *get_page_from_free_area(struct free_area *area,
+ }
+ 
+ static inline void del_page_from_free_area(struct page *page,
+-		struct free_area *area, int migratetype)
++		struct free_area *area)
+ {
+ 	list_del(&page->lru);
+ 	__ClearPageBuddy(page);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 37ed14ad0b59..d2b6d5245568 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -901,8 +901,7 @@ static inline void __free_one_page(struct page *page,
+ 		if (page_is_guard(buddy))
+ 			clear_page_guard(zone, buddy, order, migratetype);
+ 		else
+-			del_page_from_free_area(buddy, &zone->free_area[order],
+-					migratetype);
++			del_page_from_free_area(buddy, &zone->free_area[order]);
+ 		combined_pfn = buddy_pfn & pfn;
+ 		page = page + (combined_pfn - pfn);
+ 		pfn = combined_pfn;
+@@ -2173,7 +2172,7 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+ 		page = get_page_from_free_area(area, migratetype);
+ 		if (!page)
+ 			continue;
+-		del_page_from_free_area(page, area, migratetype);
++		del_page_from_free_area(page, area);
+ 		expand(zone, page, order, current_order, area, migratetype);
+ 		set_pcppage_migratetype(page, migratetype);
+ 		return page;
+@@ -3144,7 +3143,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
+ 
+ 	/* Remove page from free list */
+ 
+-	del_page_from_free_area(page, area, mt);
++	del_page_from_free_area(page, area);
+ 
+ 	/*
+ 	 * Set the pageblock if the isolated page is at least half of a
+@@ -8507,9 +8506,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	pfn = start_pfn;
+ 	while (pfn < end_pfn) {
+-		struct free_area *area;
+-		int mt;
+-
+ 		if (!pfn_valid(pfn)) {
+ 			pfn++;
+ 			continue;
+@@ -8528,13 +8524,11 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 		BUG_ON(page_count(page));
+ 		BUG_ON(!PageBuddy(page));
+ 		order = page_order(page);
+-		area = &zone->free_area[order];
+ #ifdef CONFIG_DEBUG_VM
+ 		pr_info("remove from free list %lx %d %lx\n",
+ 			pfn, 1 << order, end_pfn);
+ #endif
+-		mt = get_pageblock_migratetype(page);
+-		del_page_from_free_area(page, area, mt);
++		del_page_from_free_area(page, &zone->free_area[order]);
+ 		for (i = 0; i < (1 << order); i++)
+ 			SetPageReserved((page+i));
+ 		pfn += (1 << order);
 -- 
- Kirill A. Shutemov
+2.20.1
 
