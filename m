@@ -2,180 +2,172 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE632C4360F
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 12:33:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 34920C4360F
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 12:47:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3AF7A2146F
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 12:33:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3AF7A2146F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axis.com
+	by mail.kernel.org (Postfix) with ESMTP id CF7BD2146E
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 12:47:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF7BD2146E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D159C8E0003; Tue, 19 Feb 2019 07:33:53 -0500 (EST)
+	id 6780C8E0003; Tue, 19 Feb 2019 07:47:23 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C74288E0002; Tue, 19 Feb 2019 07:33:53 -0500 (EST)
+	id 6287C8E0002; Tue, 19 Feb 2019 07:47:23 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B180B8E0003; Tue, 19 Feb 2019 07:33:53 -0500 (EST)
+	id 518858E0003; Tue, 19 Feb 2019 07:47:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B7BD8E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 07:33:53 -0500 (EST)
-Received: by mail-lf1-f69.google.com with SMTP id i203so2300789lfg.10
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 04:33:53 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EB4418E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 07:47:22 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id i20so624776edv.21
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 04:47:22 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=mmnpFmKUxANUL/kLhFIKB50P+1U0QzpgwHLTzVifXS8=;
-        b=A4ialgNQCNfnuPIWYGqcaib2wrwpM9Ri5bAP0Su07Gf1qgyOOK2qU9yaMSqgPjybsu
-         6t8oFg6gTlMXwbA6eqgSqd/W+g2uLYVdj8EEmB+O0Jvy4DdJo1iF2IcwxAroqJ7oksPe
-         qf7oI/RlNZVhv7Gez99KzwfficqZANip4ZCjlBF8VHwMY5E14Izd6upOzrrc5ehn8rb4
-         9NIbWJOlcR/kRVzc8qPkqva7WqFfEG6s0tWzrF+B3qWpPtmeGoPc6rEmxGaKMXQLYH+l
-         cP3bXs/FDG/fSjZu8m6ZTYLY+4YHkJpr5HoI6qxzGbW2JXgaCYhoteKdIXNg7dH8mlSb
-         dJVg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of lars.persson@axis.com designates 195.60.68.11 as permitted sender) smtp.mailfrom=lars.persson@axis.com
-X-Gm-Message-State: AHQUAubvypsKnXnqLWl1WOr8bOwFaVTjZNiePsPp3dqzekgwYsROEMqL
-	7/UAyol+D5ukkkvL19EMKx9CVll3yw8U2sSHbDtrzGYlTS2UPZnI6BRHf9lZehA2B1VxT01USVA
-	wFXOU9nMP2178hVRtS9DT5HfUOVp5HQeybWIpM7K+YQ0A4S9PzPwifQQMmmAbT9kxsQ==
-X-Received: by 2002:a2e:9786:: with SMTP id y6-v6mr17042975lji.53.1550579632394;
-        Tue, 19 Feb 2019 04:33:52 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaeN2C+0v09I4pbhjAW2BLWoLdkAFG+II4TfJa8n5QiiuzVImlijkj2M5IEGLk7KT5kG3d0
-X-Received: by 2002:a2e:9786:: with SMTP id y6-v6mr17042920lji.53.1550579631266;
-        Tue, 19 Feb 2019 04:33:51 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550579631; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=pl2Jew+HCjZONhrpijigbZKFKNok/pGd4kFDCcyID4I=;
+        b=CUlk37CIYSjv97m9AMW1y7vEfqvTICqLTyaCyLsr7bxwU7ZWmY/mCWA7EIA6uStIWH
+         zPrgf0fZJMPfX9j7Kr0F9gb+JYCd31wTWWThT8iWpof7zaO4G8pX/BDkfvuWWclEoNeq
+         5aZkMsUGmYhncQzvueeD7QxMky79+zUtUE6FQAdXzru4r49A/MmWCZ8AJeEgeeBXNYf/
+         CV39A+hk7GnRb1nav0K9xAoflmYOInd15ichb0DSSZF90jnLwcU2zwIuSb9AFPIFEFnO
+         cQX4R89RYD7/pBNkJ/tYJv43yeOStfXp/hxHarm7UvLAIG3UkajhMu8XC2KgZzfLcGOO
+         Y2UQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
+X-Gm-Message-State: AHQUAuZxs+/fQDCZKRrdEP6vTgV1Ode+7ZrRaB36UKQ/odeFj++lRvkh
+	wH+hPY6aFLCUzim+A+MYI5JZEzdBDeSuq5fdkmZ59w7XQWTktA9CaZkQEqiHVSUH4Qf6nIxyywf
+	F6P6Q6w6RzxdnjT2Y7HPc5mgWxQI7tTmON6JGfIQsM1JxLqwD+iHdeFKRDswQ2wS32Q==
+X-Received: by 2002:a50:ad31:: with SMTP id y46mr22665882edc.97.1550580442443;
+        Tue, 19 Feb 2019 04:47:22 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbqOMbuticANtuv6TEP2zPJhuS9RLu+UCr4aXr/MFvVl47Jv0qOqopoB4VYum3oM3ec86Fz
+X-Received: by 2002:a50:ad31:: with SMTP id y46mr22665826edc.97.1550580441530;
+        Tue, 19 Feb 2019 04:47:21 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550580441; cv=none;
         d=google.com; s=arc-20160816;
-        b=VvyFdo8qhC54/eCPO2Gk/wI3j8I35OWJXIn6Wt8wYQBnu5lDnuwuZEUxNYqdhvQDgP
-         ZlS4jUFkh8kYD7mSdCkBsRgIS9Y8vrgTLUUegjAa///AZQye0/Az50wdRPzmC9nhilyR
-         VuDZRJxwYp/IiuDts+aPdI8hWrrREqoXzwuGX/4O3/SBnYVCiCLEuj0ShXZ8p5gsUQm0
-         +psl9PVtNG/YOqxPPymQVdupvlPbDstOx/vAhdddmiT7SRQblUiXfMbHp7G9zI7V4n8a
-         eAZDi6mDjIJpPITMo7N1job3UbJCtZbYOixtwDzM0icxz9LsSz1/OVHqWR5kmTXIr2LB
-         Dtdg==
+        b=hIL4EMCKT9ogXG9I0PxniWeidM8UyiLLwHDRx6Ta5SQlY6uTX8AvxkmzFK4lv4M3/G
+         13XX2nKgw2QCb07uBmSnh7zO/66SUzMth4edNsnLVEDO06BHl+ZP6yxuQB4J+F6wvoaR
+         wagIZZr4YhKX4s2E1yFkb1ypZEK9ft0+0AWOo7TnCafATCF4LKU+seiWFYdct1HqK8E7
+         +y0/G6C2zjyqrawboo8jbS0KQHUxA0beJPKMvCd2pnlk45Iw2kxttN9rWuTiPS26aB8R
+         Bftd/hZCqkBqUfSB31djAmQcHrsW76s8Pv0rVfnhabtCRY2mIwz8YE6tA8qmpUk+uGiK
+         obsA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=mmnpFmKUxANUL/kLhFIKB50P+1U0QzpgwHLTzVifXS8=;
-        b=e6mJTTZQcp8VZYtFZD0qiLj6tAfO+x/SxueyTkuOAI++Ia9N17OLP+sjRCx7/KSqUi
-         NYsnbZVBaq+sNhvNN6R5bXZNaOhyl8z46xHgreWYfx5DfDqEG/HzZgOCFD6q0g0Jxh8f
-         WLqpT4eF5NaskODiOslDVQ10kB+W2QB2KKu0v4jPqbx2HZYthbiLhxneDBlyFDQCAYC7
-         Z9vb5V0syaIRP532Tc0WctgYQju6xA7yxZRtIsVyXSgZswd2tXnwvC3E+NcxIjUMqFDQ
-         lZbCuX1ppg83Xp2sSkxyjWUfY5fDxJpsaBWJtRj36RiYP/hTC3YsKtZr5VqzIg9cnILN
-         AKGg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=pl2Jew+HCjZONhrpijigbZKFKNok/pGd4kFDCcyID4I=;
+        b=0RnS3mTFwuZCf1oD0Tl+sFPQnaOm5LpIVZ+xv0heSYyWstbXy6wC0jz5yqPDj06JQI
+         3tI50ntD+JtY0RawaApmmSKlT4PLz6BeRTchkPkuTMBLqRDwCC8veKzOEZVm0UD+8P/I
+         PMVqJMktE8HPy+Ic4ocFFIehFzcxe7y/d8Dy977YbYF9GSKFQMcFecbsMoXzIi83Lky3
+         rD0OiJ5968Vgb0m5JtBUg4wh/VwiR2ELn3Lf9RgYa+jjHbAkKJmi96lRdCGmTeXfYPUN
+         a1sGwdhEK8UPBzK+4BT/vc3BBCXQy4ZbJDmBMrE+TTn/TPt3M3yFilIMOQuzCPPxMnuV
+         vf3A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of lars.persson@axis.com designates 195.60.68.11 as permitted sender) smtp.mailfrom=lars.persson@axis.com
-Received: from bastet.se.axis.com (bastet.se.axis.com. [195.60.68.11])
-        by mx.google.com with ESMTPS id p9-v6si9334578ljh.81.2019.02.19.04.33.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Feb 2019 04:33:51 -0800 (PST)
-Received-SPF: pass (google.com: domain of lars.persson@axis.com designates 195.60.68.11 as permitted sender) client-ip=195.60.68.11;
+       spf=pass (google.com: domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id j16si1997176ejv.102.2019.02.19.04.47.21
+        for <linux-mm@kvack.org>;
+        Tue, 19 Feb 2019 04:47:21 -0800 (PST)
+Received-SPF: pass (google.com: domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of lars.persson@axis.com designates 195.60.68.11 as permitted sender) smtp.mailfrom=lars.persson@axis.com
-Received: from localhost (localhost [127.0.0.1])
-	by bastet.se.axis.com (Postfix) with ESMTP id D4D25184D9;
-	Tue, 19 Feb 2019 13:33:50 +0100 (CET)
-X-Axis-User: NO
-X-Axis-NonUser: YES
-X-Virus-Scanned: Debian amavisd-new at bastet.se.axis.com
-Received: from bastet.se.axis.com ([IPv6:::ffff:127.0.0.1])
-	by localhost (bastet.se.axis.com [::ffff:127.0.0.1]) (amavisd-new, port 10024)
-	with LMTP id wdBCkFgbkWvd; Tue, 19 Feb 2019 13:33:48 +0100 (CET)
-Received: from boulder03.se.axis.com (boulder03.se.axis.com [10.0.8.17])
-	by bastet.se.axis.com (Postfix) with ESMTPS id 45382184D4;
-	Tue, 19 Feb 2019 13:33:48 +0100 (CET)
-Received: from boulder03.se.axis.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 141331E06E;
-	Tue, 19 Feb 2019 13:33:48 +0100 (CET)
-Received: from boulder03.se.axis.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 089711E06A;
-	Tue, 19 Feb 2019 13:33:48 +0100 (CET)
-Received: from thoth.se.axis.com (unknown [10.0.2.173])
-	by boulder03.se.axis.com (Postfix) with ESMTP;
-	Tue, 19 Feb 2019 13:33:47 +0100 (CET)
-Received: from pc32929-1845.se.axis.com (pc32929-1845.se.axis.com [10.88.129.17])
-	by thoth.se.axis.com (Postfix) with ESMTP id F02401C76;
-	Tue, 19 Feb 2019 13:33:47 +0100 (CET)
-Received: by pc32929-1845.se.axis.com (Postfix, from userid 20456)
-	id EBF60409B8; Tue, 19 Feb 2019 13:33:47 +0100 (CET)
-From: Lars Persson <lars.persson@axis.com>
-To: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Cc: linux-mips@vger.kernel.org,
-	Lars Persson <larper@axis.com>
-Subject: [PATCH] mm: migrate: add missing flush_dcache_page for non-mapped page migrate
-Date: Tue, 19 Feb 2019 13:32:12 +0100
-Message-Id: <20190219123212.29838-1-larper@axis.com>
-X-Mailer: git-send-email 2.11.0
-X-TM-AS-GCONF: 00
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.003504, version=1.2.4
+       spf=pass (google.com: domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 566D9EBD;
+	Tue, 19 Feb 2019 04:47:20 -0800 (PST)
+Received: from fuggles.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 887213F720;
+	Tue, 19 Feb 2019 04:47:18 -0800 (PST)
+Date: Tue, 19 Feb 2019 12:47:16 +0000
+From: Will Deacon <will.deacon@arm.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org,
+	npiggin@gmail.com, linux-arch@vger.kernel.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, linux@armlinux.org.uk,
+	heiko.carstens@de.ibm.com, riel@surriel.com
+Subject: Re: [PATCH v6 05/18] asm-generic/tlb: Provide generic tlb_flush()
+ based on flush_tlb_mm()
+Message-ID: <20190219124716.GB8501@fuggles.cambridge.arm.com>
+References: <20190219103148.192029670@infradead.org>
+ <20190219103233.148854086@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190219103233.148854086@infradead.org>
+User-Agent: Mutt/1.11.1+86 (6f28e57d73f2) ()
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Our MIPS 1004Kc SoCs were seeing random userspace crashes with SIGILL
-and SIGSEGV that could not be traced back to a userspace code
-bug. They had all the magic signs of an I/D cache coherency issue.
+On Tue, Feb 19, 2019 at 11:31:53AM +0100, Peter Zijlstra wrote:
+> When an architecture does not have (an efficient) flush_tlb_range(),
+> but instead always uses full TLB invalidates, the current generic
+> tlb_flush() is sub-optimal, for it will generate extra flushes in
+> order to keep the range small.
+> 
+> But if we cannot do range flushes, that is a moot concern. Optionally
+> provide this simplified default.
+> 
+> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+> ---
+>  include/asm-generic/tlb.h |   41 ++++++++++++++++++++++++++++++++++++++++-
+>  1 file changed, 40 insertions(+), 1 deletion(-)
+> 
+> --- a/include/asm-generic/tlb.h
+> +++ b/include/asm-generic/tlb.h
+> @@ -114,7 +114,8 @@
+>   *    returns the smallest TLB entry size unmapped in this range.
+>   *
+>   * If an architecture does not provide tlb_flush() a default implementation
+> - * based on flush_tlb_range() will be used.
+> + * based on flush_tlb_range() will be used, unless MMU_GATHER_NO_RANGE is
+> + * specified, in which case we'll default to flush_tlb_mm().
+>   *
+>   * Additionally there are a few opt-in features:
+>   *
+> @@ -140,6 +141,9 @@
+>   *  the page-table pages. Required if you use HAVE_RCU_TABLE_FREE and your
+>   *  architecture uses the Linux page-tables natively.
+>   *
+> + *  MMU_GATHER_NO_RANGE
+> + *
+> + *  Use this if your architecture lacks an efficient flush_tlb_range().
+>   */
+>  #define HAVE_GENERIC_MMU_GATHER
+>  
+> @@ -302,12 +306,45 @@ static inline void __tlb_reset_range(str
+>  	 */
+>  }
+>  
+> +#ifdef CONFIG_MMU_GATHER_NO_RANGE
+> +
+> +#if defined(tlb_flush) || defined(tlb_start_vma) || defined(tlb_end_vma)
+> +#error MMU_GATHER_NO_RANGE relies on default tlb_flush(), tlb_start_vma() and tlb_end_vma()
+> +#endif
+> +
+> +/*
+> + * When an architecture does not have efficient means of range flushing TLBs
+> + * there is no point in doing intermediate flushes on tlb_end_vma() to keep the
+> + * range small. We equally don't have to worry about page granularity or other
+> + * things.
+> + *
+> + * All we need to do is issue a full flush for any !0 range.
+> + */
+> +static inline void tlb_flush(struct mmu_gather *tlb)
+> +{
+> +	if (tlb->end)
+> +		flush_tlb_mm(tlb->mm);
+> +}
 
-Now recently we noticed that the /proc/sys/vm/compact_memory interface
-was quite efficient at provoking this class of userspace crashes.
+I guess another way we could handle these architectures is by
+unconditionally resetting tlb->fullmm to 1, but this works too.
 
-Studying the code in mm/migrate.c there is a distinction made between
-migrating a page that is mapped at the instant of migration and one
-that is not mapped. Our problem turned out to be the non-mapped pages.
+Acked-by: Will Deacon <will.deacon@arm.com>
 
-For the non-mapped page the code performs a copy of the page content
-and all relevant meta-data of the page without doing the required
-D-cache maintenance. This leaves dirty data in the D-cache of the CPU
-and on the 1004K cores this data is not visible to the I-cache. A
-subsequent page-fault that triggers a mapping of the page will happily
-serve the process with potentially stale code.
-
-What about ARM then, this bug should have seen greater exposure? Well
-ARM became immune to this flaw back in 2010, see commit c01778001a4f
-("ARM: 6379/1: Assume new page cache pages have dirty D-cache").
-
-My proposed fix moves the D-cache maintenance inside move_to_new_page
-to make it common for both cases.
-
-Signed-off-by: Lars Persson <larper@axis.com>
----
- mm/migrate.c | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
-
-diff --git a/mm/migrate.c b/mm/migrate.c
-index d4fd680be3b0..80fc19e610b5 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -248,10 +248,8 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
- 				pte = swp_entry_to_pte(entry);
- 			} else if (is_device_public_page(new)) {
- 				pte = pte_mkdevmap(pte);
--				flush_dcache_page(new);
- 			}
--		} else
--			flush_dcache_page(new);
-+		}
- 
- #ifdef CONFIG_HUGETLB_PAGE
- 		if (PageHuge(new)) {
-@@ -995,6 +993,13 @@ static int move_to_new_page(struct page *newpage, struct page *page,
- 		 */
- 		if (!PageMappingFlags(page))
- 			page->mapping = NULL;
-+
-+		if (unlikely(is_zone_device_page(newpage))) {
-+			if (is_device_public_page(newpage))
-+				flush_dcache_page(newpage);
-+		} else
-+			flush_dcache_page(newpage);
-+
- 	}
- out:
- 	return rc;
--- 
-2.11.0
+Will
 
