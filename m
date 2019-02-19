@@ -2,198 +2,241 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-6.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT,USER_IN_DEF_DKIM_WL autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 55980C4360F
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 21:30:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B246C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 22:28:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0C87921479
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 21:30:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C87921479
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 089C02083B
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 22:28:33 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="R3OKPtUj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 089C02083B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9D2ED8E0004; Tue, 19 Feb 2019 16:30:48 -0500 (EST)
+	id 64DCB8E0003; Tue, 19 Feb 2019 17:28:33 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 98F1E8E0002; Tue, 19 Feb 2019 16:30:48 -0500 (EST)
+	id 5D4B58E0002; Tue, 19 Feb 2019 17:28:33 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 84A3D8E0004; Tue, 19 Feb 2019 16:30:48 -0500 (EST)
+	id 44E818E0003; Tue, 19 Feb 2019 17:28:33 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BC2D8E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 16:30:48 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id b6so821612qkg.4
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 13:30:48 -0800 (PST)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 161158E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 17:28:33 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id q141so7101189itc.2
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 14:28:33 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=fo6JVnvUDOer6RG7RmKUqWZEBs/Ae/uZfSRiwK8Zn2w=;
-        b=h0hbIFAPxTVNB7tx4KpRFhIRy/+C3IElDoloEYeBsjYMTWpg2V8ldCfM6DV7mRNLuP
-         3ddXYOciLq1+fj9mnR9NDZA1oOKY+tm0JG3QqtnJiKckHOm5W2EBlQXY1UZRmRojAvJ+
-         qHcoRfXEu+cQW/RMu3urMHRunVL4ioXCZz5hPifyluLJ6cf9fRklwIi2KtGTCp9EB14v
-         fp0oqQQtDw030QL3bqVvLY8wcyY3xzIS2QS9tXvIF+K0Jg5tDQZHVWgs1sWPqqo7awwu
-         UZPgbDaBOR8XkVYvJ11sFa/WCjH+YRdabmifoYUIIdJ5llud6Sk1emw624WmAvO2fj+3
-         BrxQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZIMAorKS4tMZTo0EOT2i/lQK8ukwqVMXtvSabfIEcEzRZiNDER
-	dytAiVLSeVainLBzvQeCkIhiygZ++ytaCoRqYnFSUOkfntIqLqRKyyselKeVroNGWoAQ5twSgqN
-	xIBTCiWKZGbdcCZCl9wO6hBv1KDNkWKz2vlYkBlNDqbnXtUOnv07n3i0MLsjerz+3+A==
-X-Received: by 2002:a37:7847:: with SMTP id t68mr21668670qkc.254.1550611848110;
-        Tue, 19 Feb 2019 13:30:48 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ia2D3NFaAlIMQP2GOfAzju/jLyt8kOGDdy7oEGx43dsidNfbvi/o4OpmV1swoLBqOmG2/v4
-X-Received: by 2002:a37:7847:: with SMTP id t68mr21668630qkc.254.1550611847530;
-        Tue, 19 Feb 2019 13:30:47 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550611847; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=BKRd5AyyK61scsjgCwEIyTQj0eRdMqLiIZW6sZLtvKI=;
+        b=MbfSvbJFcR7st89keUJm42ixrDT76lMOZT7IwuWKl+YKE6C+T+o6XDb30WLYZWCxoY
+         pGOo+603pcoLF03lNabsVIp63Qb2QEOk5P0BCfpwEIp3GeBYFKUCDqWmGP5y7cjdq/s/
+         Io7O1u6ViTu6PRchmhkmso+TjAojFyzxo8hOCKEOg22EODXDtTL7g3c9frTTw9sh9x7e
+         Ol14ltGVHiICJBQutSQpr3URq3Aaek02/AATMKzKtCTIwFtVtqunSt19ymQhyUw2NyNz
+         2kwnJ73q1l4QWug6SquAcIf2BhblBvP5uXUQXPlkzQr1VF/DacIhlOG/8fEEEWyNq5dr
+         jMWQ==
+X-Gm-Message-State: AHQUAuZByYJB40Gyub4wRnUdsvD+bglV8ITA9nBAsdcCI+wj6yMd4a7m
+	RVRbiNgOLQaLpAEAQiSLdCsTLJkbWmJTaNKrsah6WluJyfQTe3FFBErj6Wp3Dyw8PI5tnneAO8T
+	3euswSuOW6MGDsPThRCAxBjXRa91kM73SJdzU0k8FmLcOF58I7r+hNQfKq2s7L6cv0+9KgLuTz2
+	o5/nB2d8aRvlGsdVFAqYbOCsgfiaxySrb600+MoKhC9Z0HuYi/jwotyLU88S3K54HIE5fQUsqLR
+	+HyxjmXtKtingCjMot5KMXP7bOaVA0t21off2YC4qRM1aYRLTzngEuq04uSBRQIUApI+wLCQoGj
+	vRDU40cnDs5r6nc7dddL/LEDcpbsHKjZbE2V6D6oB6EsmJaAWt1SC8fWAnRwIztIXSJ1KeCX9t7
+	q
+X-Received: by 2002:a02:9d05:: with SMTP id n5mr17468909jak.53.1550615312789;
+        Tue, 19 Feb 2019 14:28:32 -0800 (PST)
+X-Received: by 2002:a02:9d05:: with SMTP id n5mr17468870jak.53.1550615311871;
+        Tue, 19 Feb 2019 14:28:31 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550615311; cv=none;
         d=google.com; s=arc-20160816;
-        b=PdFOdSzByTA8QC53I0v/B7TpKWM5TbS96hdBq/9morHAwRufrBbCv+AowI1/dbzxoh
-         b2TnvptvUTydPUyArHO7h1yVW8ZZnnAeShd3Zv8rRlGdMm7S7SxZM5SaHA1MDKdN9YK1
-         NMXZSZwV8XJPaLBNAKKhWnNV08Xo/BxOQgqbj5iMg+6rnrbtM8ni2Rx5msxK35yRKGaI
-         AL/5YxPyAyG0gB5QUqIEg65vptCtkAh/PUEMf1Qf9xiv1uMEulZ20Q12mTXL+ZfKjfzu
-         xKmtKWRpsLVWesXDJE2s6TeOXAp2X9I0dp3f54RM3rSolIvMu1OdXAOJC+v+CI6dYePg
-         tIXQ==
+        b=EWwvIdSj0QffXFs7wik8U53aAc503U+rS3oY7lLpN7QxoG5TiOed+Whlh++JyNa0zx
+         TziU6k0PLnc26iMb/mR1Sn+xusbzxMyOO7doeKRelyQw7W9XnmxlJC/dzXzo49izj9CE
+         JJpaSeFVKteWBlzJJWcn51yFGxl8RNG/XgE/b5CivODmYyxR34Ggl0TTRB5FdVUJ+eHg
+         eKEYjHccdxpqFt15SpiVge+E4LQh3mUGKtPbz9N5Hl5DRwETBmGMFk2fM/cNYtItJ6GS
+         hCawDgcEFApCUvngqfSu/ITcMHIs2gLRxqfTgZNyFJVycPE3f1URrCEupZvLEVhMOiEB
+         OOOA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=fo6JVnvUDOer6RG7RmKUqWZEBs/Ae/uZfSRiwK8Zn2w=;
-        b=amobAc+TKoEs3dnDPrj/k22HsnKLIlvMS3iXjqZzQyzT7FIfaIBKsKLcoxruEHy0ry
-         pFiiLT2cMm6NECD+QFlQ3S89wKMJ2uUuSCDgPN46zWKYtHgim70BNqHHMR3tuyX9QYgy
-         Jk6yhxM9bPFG7sb7wL85p2+aDpR2a7kfp4S6+bARgAxOllI9/44OBIqAC3/QMCQBonD7
-         MCp3xM+r0a5MNH5oJ3PT3SWCHDfvCpQBtwXOQWicds8VTuQuD9wxpz9uprFQOpY/lBz8
-         QVOYFwq2O/3OBjplpSXGunNhHKLvPMyofvmdNmW7OsjncryJATUVr8mo1RSlBPgjm1q3
-         LHaw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=BKRd5AyyK61scsjgCwEIyTQj0eRdMqLiIZW6sZLtvKI=;
+        b=GKkAZwFL5QoE1KzQv/loTPtfxz6LVWK8jT+O9Y+6jXUMJxb2gUwHKwFIYltmJuKhRB
+         X6xUPLFxRARaoAx9Csa/qApu4IJo5L3baozmJEKyF+/Az6bFdxc2Bn+NjINAI3buMKoX
+         IQ4qnePNIB6454oD7CTKxnqjY3Twg8KiXXZR3/vvy2WNzzf/nayhJHR8q1lR1NZ5VkxA
+         CA2aTk8BcKVn5MJhbU7GxfuiZAXjn+e1icCNxmhdEIfyBiO0YVz8muIu4LwtjorE/WE+
+         mfC3gyuneIiht9pduHIp1zA8uV/ijG13drDBvC+fy5Q7mYiaJGk1g+4XBn7Y1EQh+wxZ
+         99oQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p40si5236681qtj.154.2019.02.19.13.30.47
+       dkim=pass header.i=@google.com header.s=20161025 header.b=R3OKPtUj;
+       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f190sor6491697itc.14.2019.02.19.14.28.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Feb 2019 13:30:47 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 19 Feb 2019 14:28:31 -0800 (PST)
+Received-SPF: pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 332EDC007325;
-	Tue, 19 Feb 2019 21:30:46 +0000 (UTC)
-Received: from redhat.com (ovpn-122-134.rdu2.redhat.com [10.10.122.134])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id C5FB060BE8;
-	Tue, 19 Feb 2019 21:30:35 +0000 (UTC)
-Date: Tue, 19 Feb 2019 16:30:33 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>,
+       dkim=pass header.i=@google.com header.s=20161025 header.b=R3OKPtUj;
+       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=BKRd5AyyK61scsjgCwEIyTQj0eRdMqLiIZW6sZLtvKI=;
+        b=R3OKPtUjdUCZIw87Ibh7o6aDdAs0vzWVIYWa5QAOcfBzDwH9bZwB+EMnz4kD8GjLlO
+         byuTLz068rv/8UpFmomNkA4F4LazeVxgTT4/8YauHoiHT/N30hqQyGyrqRq7lP839w1Z
+         xyDCyrTEk6k5IAPeXlsi0VIkvd/U3VBXp1IW4pQqwjy4zV/sX62Y1Pu9oKWITE2S6JII
+         HrAjqloWBN8iimotuNw6TR/VjQUi+wWOEX6ZyU1BioayAjydUtOWhh9SA6Z0o6n8tEEg
+         16JWBcqysj262OGcUGjZX+euq4nF0UxoMkEep/xaEeg9hHjDGaDpqUi0VdnoWZRHfscJ
+         OxZg==
+X-Google-Smtp-Source: AHgI3IYDrRq/fljAVOdA83+8pvwWb7QsvvWaKeFJSwJZsRzEaSegd5cU0sMDfnBu0WjxoCa4wTZy0w==
+X-Received: by 2002:a24:9d81:: with SMTP id f123mr4298178itd.55.1550615311324;
+        Tue, 19 Feb 2019 14:28:31 -0800 (PST)
+Received: from google.com ([2620:15c:183:0:a0c3:519e:9276:fc96])
+        by smtp.gmail.com with ESMTPSA id t5sm6916976ioi.43.2019.02.19.14.28.30
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 19 Feb 2019 14:28:30 -0800 (PST)
+Date: Tue, 19 Feb 2019 15:28:28 -0700
+From: Yu Zhao <yuzhao@google.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	"Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
-	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
-	Jani Nikula <jani.nikula@linux.intel.com>,
-	Rodrigo Vivi <rodrigo.vivi@intel.com>, Jan Kara <jack@suse.cz>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Peter Xu <peterx@redhat.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Ross Zwisler <zwisler@kernel.org>,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>, KVM list <kvm@vger.kernel.org>,
-	Maling list - DRI developers <dri-devel@lists.freedesktop.org>,
-	linux-rdma <linux-rdma@vger.kernel.org>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-	Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCH v5 0/9] mmu notifier provide context informations
-Message-ID: <20190219213032.GE3959@redhat.com>
-References: <20190219200430.11130-1-jglisse@redhat.com>
- <CAPcyv4gq23RXk3BTqP2O+gi3FGE85NSGXD8bdLk+_cgtZrn+Kg@mail.gmail.com>
- <20190219203032.GC3959@redhat.com>
- <CAPcyv4gUFSA6u77dGA6XxO41217zQ27DNteiHRG515Gtm_uGgg@mail.gmail.com>
- <20190219205751.GD3959@redhat.com>
- <CAPcyv4hCNSsk5EP7+BcnVp-zJjQyQ701U3QXkQyUteQZr-ZumA@mail.gmail.com>
+	Nick Piggin <npiggin@gmail.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Chintan Pandya <cpandya@codeaurora.org>,
+	Jun Yao <yaojun8558363@gmail.com>,
+	Laura Abbott <labbott@redhat.com>,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-arch@vger.kernel.org, linux-mm@kvack.org,
+	Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v2 1/3] arm64: mm: use appropriate ctors for page tables
+Message-ID: <20190219222828.GA68281@google.com>
+References: <20190214211642.2200-1-yuzhao@google.com>
+ <20190218231319.178224-1-yuzhao@google.com>
+ <863acc9a-53fb-86ad-4521-828ee8d9c222@arm.com>
+ <20190219053205.GA124985@google.com>
+ <8f9b0bfb-b787-fa3e-7322-73a56a618aa8@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPcyv4hCNSsk5EP7+BcnVp-zJjQyQ701U3QXkQyUteQZr-ZumA@mail.gmail.com>
+In-Reply-To: <8f9b0bfb-b787-fa3e-7322-73a56a618aa8@arm.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Tue, 19 Feb 2019 21:30:46 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 19, 2019 at 01:19:09PM -0800, Dan Williams wrote:
-> On Tue, Feb 19, 2019 at 12:58 PM Jerome Glisse <jglisse@redhat.com> wrote:
-> >
-> > On Tue, Feb 19, 2019 at 12:40:37PM -0800, Dan Williams wrote:
-> > > On Tue, Feb 19, 2019 at 12:30 PM Jerome Glisse <jglisse@redhat.com> wrote:
-> > > >
-> > > > On Tue, Feb 19, 2019 at 12:15:55PM -0800, Dan Williams wrote:
-> > > > > On Tue, Feb 19, 2019 at 12:04 PM <jglisse@redhat.com> wrote:
-> > > > > >
-> > > > > > From: Jérôme Glisse <jglisse@redhat.com>
-> > > > > >
-> > > > > > Since last version [4] i added the extra bits needed for the change_pte
-> > > > > > optimization (which is a KSM thing). Here i am not posting users of
-> > > > > > this, they will be posted to the appropriate sub-systems (KVM, GPU,
-> > > > > > RDMA, ...) once this serie get upstream. If you want to look at users
-> > > > > > of this see [5] [6]. If this gets in 5.1 then i will be submitting
-> > > > > > those users for 5.2 (including KVM if KVM folks feel comfortable with
-> > > > > > it).
-> > > > >
-> > > > > The users look small and straightforward. Why not await acks and
-> > > > > reviewed-by's for the users like a typical upstream submission and
-> > > > > merge them together? Is all of the functionality of this
-> > > > > infrastructure consumed by the proposed users? Last time I checked it
-> > > > > was only a subset.
-> > > >
-> > > > Yes pretty much all is use, the unuse case is SOFT_DIRTY and CLEAR
-> > > > vs UNMAP. Both of which i intend to use. The RDMA folks already ack
-> > > > the patches IIRC, so did radeon and amdgpu. I believe the i915 folks
-> > > > were ok with it too. I do not want to merge things through Andrew
-> > > > for all of this we discussed that in the past, merge mm bits through
-> > > > Andrew in one release and bits that use things in the next release.
-> > >
-> > > Ok, I was trying to find the links to the acks on the mailing list,
-> > > those references would address my concerns. I see no reason to rush
-> > > SOFT_DIRTY and CLEAR ahead of the upstream user.
-> >
-> > I intend to post user for those in next couple weeks for 5.2 HMM bits.
-> > So user for this (CLEAR/UNMAP/SOFTDIRTY) will definitly materialize in
-> > time for 5.2.
-> >
-> > ACKS AMD/RADEON https://lkml.org/lkml/2019/2/1/395
-> > ACKS RDMA https://lkml.org/lkml/2018/12/6/1473
+On Tue, Feb 19, 2019 at 11:47:12AM +0530, Anshuman Khandual wrote:
+> + Matthew Wilcox
 > 
-> Nice, thanks!
+> On 02/19/2019 11:02 AM, Yu Zhao wrote:
+> > On Tue, Feb 19, 2019 at 09:51:01AM +0530, Anshuman Khandual wrote:
+> >>
+> >>
+> >> On 02/19/2019 04:43 AM, Yu Zhao wrote:
+> >>> For pte page, use pgtable_page_ctor(); for pmd page, use
+> >>> pgtable_pmd_page_ctor() if not folded; and for the rest (pud,
+> >>> p4d and pgd), don't use any.
+> >> pgtable_page_ctor()/dtor() is not optional for any level page table page
+> >> as it determines the struct page state and zone statistics.
+> > 
+> > This is not true. pgtable_page_ctor() is only meant for user pte
+> > page. The name isn't perfect (we named it this way before we had
+> > split pmd page table lock, and never bothered to change it).
+> > 
+> > The commit cccd843f54be ("mm: mark pages in use for page tables")
+> > clearly states so:
+> >   Note that only pages currently accounted as NR_PAGETABLES are
+> >   tracked as PageTable; this does not include pgd/p4d/pud/pmd pages.
 > 
-> > For KVM Andrea Arcangeli seems to like the whole idea to restore the
-> > change_pte optimization but i have not got ACK from Radim or Paolo,
-> > however given the small performance improvement figure i get with it
-> > i do not see while they would not ACK.
+> I think the commit is the following one and it does say so. But what is
+> the rationale of tagging only PTE page as PageTable and updating the zone
+> stat but not doing so for higher level page table pages ? Are not they
+> used as page table pages ? Should not they count towards NR_PAGETABLE ?
 > 
-> Sure, but no need to push ahead without that confirmation, right? At
-> least for the piece that KVM cares about, maybe that's already covered
-> in the infrastructure RDMA and RADEON are using?
+> 1d40a5ea01d53251c ("mm: mark pages in use for page tables")
 
-The change_pte() for KVM is just one bit flag on top of the rest. So
-i don't see much value in saving this last patch. I will be working
-with KVM folks to merge KVM bits in 5.2. If they do not want that then
-removing that extra flags is not much work.
+Well, I was just trying to clarify how the ctor is meant to be used.
+The rational behind it is probably another topic.
 
-But if you prefer than Andrew can drop the last patch in the serie.
+For starters, the number of pmd/pud/p4d/pgd is at least two orders
+of magnitude less than the number of pte, which makes them almost
+negligible. And some archs use kmem for them, so it's infeasible to
+SetPageTable on or account them in the way the ctor does on those
+archs.
 
-Cheers,
-Jérôme
+But, as I said, it's not something can't be changed. It's just not
+the concern of this patch.
+
+> > 
+> > I'm sure if we go back further, we can find similar stories: we
+> > don't set PageTable on page tables other than pte; and we don't
+> > account page tables other than pte. I don't have any objection if
+> > you want change these two. But please make sure they are consistent
+> > across all archs.
+> 
+> pgtable_page_ctor/dtor() use across arch is not consistent and there is a need
+> for generalization which has been already acknowledged earlier. But for now we
+> can atleast fix this on arm64.
+> 
+> https://lore.kernel.org/lkml/1547619692-7946-1-git-send-email-anshuman.khandual@arm.com/
+
+This is again not true. Please stop making claims not backed up by
+facts. And the link is completely irrelevant to the ctor.
+
+I just checked *all* arches. Only four arches call the ctor outside
+pte_alloc_one(). They are arm, arm64, ppc and s390. The last two do
+so not because they want to SetPageTable on or account pmd/pud/p4d/
+pgd, but because they have to work around something, as arm/arm64
+do.
+
+> 
+> > 
+> >> We should not skip it for any page table page.
+> > 
+> > In fact, calling it on pmd/pud/p4d is peculiar, and may even be
+> > considered wrong. AFAIK, no other arch does so.
+> 
+> Why would it be considered wrong ? IIUC archs have their own understanding
+> of this and there are different implementations. But doing something for
+> PTE page and skipping for others is plain inconsistent.
+
+Allocating memory that will never be used is wrong. Please look into
+the ctor and find out what exactly it does under different configs.
+
+And why I said "may"? Because we know there is only negligible number
+of pmd/pud/p4d, so the memory allocated may be considered negligible
+as well.
+
+> 
+> > 
+> >> As stated before pgtable_pmd_page_ctor() is not a replacement for
+> >> pgtable_page_ctor().
+> > 
+> > pgtable_pmd_page_ctor() must be used on user pmd. For kernel pmd,
+> > it's okay to use pgtable_page_ctor() instead only because kernel
+> > doesn't have thp.
+> 
+> The only extra thing to be done for THP is initializing page->pmd_huge_pte
+> apart from calling pgtable_page_ctor(). Right not it just works on arm64
+> may be because page->pmd_huge_pte never gets accessed before it's init and
+> no path checks for it when not THP. Its better to init/reset pmd_huge_pte.
+
+This is not the reason. Arm64 gets by with calling
+pgtable_page_ctor() on pmd because it only does so on efi_mm. efi_mm
+is not user mm, therefore doesn't involve thp.
 
