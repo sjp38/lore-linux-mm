@@ -6,180 +6,255 @@ X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
 	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA194C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 17:23:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BE739C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 17:23:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A94FF2083B
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 17:23:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6F8BB2083B
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 17:23:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="DeIcy5m6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A94FF2083B
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="aF0T3QOn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F8BB2083B
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7A8708E0002; Tue, 19 Feb 2019 12:23:19 -0500 (EST)
+	id C3F6E8E0009; Tue, 19 Feb 2019 12:23:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7079F8E0008; Tue, 19 Feb 2019 12:23:19 -0500 (EST)
+	id B9FAD8E0008; Tue, 19 Feb 2019 12:23:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5A9C08E0002; Tue, 19 Feb 2019 12:23:19 -0500 (EST)
+	id A15E78E0009; Tue, 19 Feb 2019 12:23:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F3AB78E0008
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 12:23:18 -0500 (EST)
-Received: by mail-wm1-f71.google.com with SMTP id q126so970561wme.7
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 09:23:18 -0800 (PST)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 39BD58E0008
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 12:23:21 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id s5so9253767wrp.17
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 09:23:21 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:message-id:in-reply-to:references
          :from:subject:to:cc:date;
-        bh=RqJsxIhTANQKnqRZhq3GM2+DKQlwq3Vr2BGgpdQ32hQ=;
-        b=ZzMV+oUHrMfvQi4SVuw7RPRUYdngYI+5FAjwmCnYnp1khFnzfvyFzDmP0Gm+2Pc6ad
-         m1Jn7QnBBwHPz4rlPSHr5pY/kchWAUayzgoKqdbI5fGGmxHcYGgYEKmVMpwMccG4oriN
-         04ht0bX0K9T9zxkwQ/BHjMciddl4OI6jy2KbPAv1+iWBNoUKwJJI0UFyMvxPVM8Fvl+d
-         /MCpQ54tg9TilEcuYMtPE+5nkh31pA301Nnd2k/53QsvrrdpVetfL5u6LXkWwN8kQQXF
-         f0ymRd6rcnF7sE/Pk/EfY/Uc99tNaTgN3qnGE8E7YSGX7UASjLnqkt57oEIZRJLoO8ig
-         qmSA==
-X-Gm-Message-State: AHQUAuaPqtDXBm09j3gOwC5A7BXyUzjoqnUe6lwhsbTVF9eVFcA5vRVA
-	YL2AFHLSoe/3q3gpmwbynsxSEpnigAJyp7J1WYZUzmk/ZefZ4u21x/vS6jeOAZQNI7/93pzFGSc
-	q0kzFkKCQ27AwQ5ClgqgoWt56qRU/A2K+JGqC/j6G00YNYgvmZu4lrOZlBZCaLacu1g==
-X-Received: by 2002:a1c:7511:: with SMTP id o17mr3559824wmc.42.1550596998499;
-        Tue, 19 Feb 2019 09:23:18 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZCqUe91RsuhoZ635R0k7KRV2tzLJzL6xBKUqYmf/W3D+UwEn11cTeg272zwY94abgJtuiz
-X-Received: by 2002:a1c:7511:: with SMTP id o17mr3559775wmc.42.1550596997493;
-        Tue, 19 Feb 2019 09:23:17 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550596997; cv=none;
+        bh=Jv4JVBbRhfA3gyIP1EYU/TxFEfL2VMG+F/ri6hG6mlk=;
+        b=QXakC02qSsvZm1AeDiKCAQ0fi7k94IQuCPXVTPeDj7z3leJqc6DRolxs5ub40pKg3w
+         3vaTYHqQGYSpoOUtPtBGHgl9hQegi3YcfcHhDl9F18KZY0VD5rcSIZ4aH5ktlm6w0dmP
+         W3/KHGg6T0fhwpdU1EQGNX2P1Ui9qlZu8fD9KNUfkYMb6cbArH4bUnoqkNTH32MSoABQ
+         I31zD/Oexn1rQQ0SnyiATa2utO0oRbJeq4I8rc2ILrCqQrMBROG39psySBAZ9roj8mhL
+         pXP0jqJRQa59FGdUHThkmWujmkn5W/M/beNjKIGd6fyKPXmMPRMl1UO3fK4BsMr6x12o
+         aHdg==
+X-Gm-Message-State: AHQUAuY0sbi+mY6hiFSNi8XFSWUPDuK4mmwQTPU0/IMb2UufQXmNzdIt
+	c6mTgw5DqG7qbslE67PQkrrR4iYjATYuOd2apWHAZJfNJIVC4MSOTmdvvIrEtBDTZHfMxL1hTND
+	J5dbytG0VnwPySkgHOwArxHiadnYVDe58u+N3L+DOXfjcw4GUb4XLY3iNmjedPKNxyw==
+X-Received: by 2002:adf:b646:: with SMTP id i6mr22254774wre.262.1550597000748;
+        Tue, 19 Feb 2019 09:23:20 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IacvXQHs8do7PtUQnJDJfBlZEnFg5xShTWUmx6GcIpWcOwy3yxl8sMykxfeHZge56PX1u4I
+X-Received: by 2002:adf:b646:: with SMTP id i6mr22254725wre.262.1550596999768;
+        Tue, 19 Feb 2019 09:23:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550596999; cv=none;
         d=google.com; s=arc-20160816;
-        b=EOnwA4r/++ecA0HOahs75Q+ooAp1ckIx2L3+5VAMqQanpbTt1/XBTc7xjdxZ76bDde
-         4vl7JIHg5rjtGixXLAi4TjWdBVep1N4NbgcIcLHGylPkCk2joCVArPvrDlBGsuT2IC90
-         S0SpGUXN/TrkeCMTE8wz2D3zDjgsW1wg/ETYuvu8lBRjEvSyVkszA37r0DfKfE7B5tv3
-         9gwKwD9IxUP7KP5T0B0JcmWiDakfqDcZUi9i6iBD1oneLh2bPSCAvqOMmpqINP5Vp95n
-         IBSUnCQ1Iof2vnSwUyDN6kNri3ogZm4ThHDzcsLnguHvt08eXsS0SuQxYl8IL4XIrgaa
-         nkww==
+        b=eiHdbf8calKGkO2ujfJJehf0MxPT+RmKId0JQIVhWCepS1/9/O4HZbpdA5FGTNYBmc
+         8NZc8yPcp2vMRu0IB0dUUOhb5PRi46u2TitW9iLTtWopJosAyG622kpmtS+a7Ec9ak75
+         /tgSVB0VIJ7OuIV+HeMnx0U1WkleU9NTvKiTwe7R1BJg68glpMqyjXQa8+cPMfeJRJNr
+         Ycd3ZpwQBfxO8e31Gmpr8JSs7NfUOURB5lm5MBkqIG/2rVw9hBLdp9v8Pp3o09qIrG6k
+         P5vV73pi8MPXQX6VR7bQDUhgdWURtjbUjIjU2PmfYVNF+eDVn6R6n+YgPTf3WcI9bmK+
+         6H9Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=date:cc:to:subject:from:references:in-reply-to:message-id
          :dkim-signature;
-        bh=RqJsxIhTANQKnqRZhq3GM2+DKQlwq3Vr2BGgpdQ32hQ=;
-        b=T7bcTcvsuc0EA17RHj4L4uEqP3KjL8FppQPJkTBG4u+l3TOHIPCUxYvOOV86xtARIO
-         GN+V4bCpnrqIpbYxIm79QhioLqlOTwWiOkMEzq0IuvyWPNm+obRFkAX8EE5wA+zPMZU9
-         vsncMkz8wXkkrwtgyrrhXwLwgWBMVKpOlF1nikK03gLgh13pFMGFr1+FpLoa44dbiuqT
-         yzsvnGXbYr8Gj9q3d8AiumoBt0eqsM7gCkWZ3VQJfof+bVQNquPkSIGUxMVA0US7Wl0D
-         l7ov9cClqd65CdGdc0e0FYLbnh1oV9dyCfKBDQ5JMX/NACgxuQg1fz5vskWbdR09KkQj
-         vhLg==
+        bh=Jv4JVBbRhfA3gyIP1EYU/TxFEfL2VMG+F/ri6hG6mlk=;
+        b=GavkRj+C1DPHZFTPVdb2qgQNTIlYmvV41VGdHee62zpd6f46xpFVPVXm+qH+zDMoDZ
+         Uo72FHBeWQ9XxX8TyUc83tG7MoBYH++SH0qjtFTiIlvCDfzIKOnhaeopdD++O8337NLG
+         i8MD+5gjHJc6Ow1Gq8gWiD9Cmn1z+QoF8U+KX+k67FlB45fumq8e3s4aG/B+34tjn5aN
+         8Wi/G97TA4nQvKBtCqJGHZlzqHCavJ+UZziG8klhWuUjnTmtek98ZbxUxmZYrTFN4F9z
+         1jFHR8r83yPMXWPy3CZXvK1qWosgGzX8MKaRHFmSaAa736TdVKhQYt3m6B+DI2PqhAJr
+         0c2g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=DeIcy5m6;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=aF0T3QOn;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id p185si1868763wme.188.2019.02.19.09.23.17
+        by mx.google.com with ESMTPS id n3si1836126wmh.25.2019.02.19.09.23.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Feb 2019 09:23:17 -0800 (PST)
+        Tue, 19 Feb 2019 09:23:19 -0800 (PST)
 Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=DeIcy5m6;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=aF0T3QOn;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 443ncz2CDBz9v4wg;
-	Tue, 19 Feb 2019 18:23:15 +0100 (CET)
+	by localhost (Postfix) with ESMTP id 443nd13SlVz9v4wh;
+	Tue, 19 Feb 2019 18:23:17 +0100 (CET)
 Authentication-Results: localhost; dkim=pass
 	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=DeIcy5m6; dkim-adsp=pass;
+	header.d=c-s.fr header.i=@c-s.fr header.b=aF0T3QOn; dkim-adsp=pass;
 	dkim-atps=neutral
 X-Virus-Scanned: Debian amavisd-new at c-s.fr
 Received: from pegase1.c-s.fr ([192.168.12.234])
 	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id CpEQ0pBH1KSX; Tue, 19 Feb 2019 18:23:15 +0100 (CET)
+	with ESMTP id z64kTG7dNlcw; Tue, 19 Feb 2019 18:23:17 +0100 (CET)
 Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 443ncz12hqz9v4wf;
-	Tue, 19 Feb 2019 18:23:15 +0100 (CET)
+	by pegase1.c-s.fr (Postfix) with ESMTP id 443nd12Ljjz9v4wf;
+	Tue, 19 Feb 2019 18:23:17 +0100 (CET)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1550596995; bh=RqJsxIhTANQKnqRZhq3GM2+DKQlwq3Vr2BGgpdQ32hQ=;
+	t=1550596997; bh=Jv4JVBbRhfA3gyIP1EYU/TxFEfL2VMG+F/ri6hG6mlk=;
 	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
-	b=DeIcy5m6M9wZSKEodSFq/7LxoFd+RwflVuC7e9pIaf5A4sLTdV+IovFCpLtsjQACt
-	 loLCSLdw72urjv816h9J4pZK1G1ePq00eTG5KUdOWNc200bArr6smG9T8/IY8q4Ley
-	 PhbLP/uxG1CE95fSdKO7k6PvHs/jTgd9H/ZB6eQo=
+	b=aF0T3QOn8yGPZr6IFDElhGbGr/VoMO6mCmlKI6jNFM9Qdog2yFGH0s/P8D6Ar94AI
+	 Qjq7crncHc1zDoznvtPGtj/Riko/lE89rVwNOlc+P/hEh//fv8QMfyzgAHiDgtFu7y
+	 pkiWOojNjzKmExJ2CQRq19MknrgXXM7ilApNjnjY=
 Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id C10178B7FE;
-	Tue, 19 Feb 2019 18:23:16 +0100 (CET)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id EA8828B7FE;
+	Tue, 19 Feb 2019 18:23:18 +0100 (CET)
 X-Virus-Scanned: amavisd-new at c-s.fr
 Received: from messagerie.si.c-s.fr ([127.0.0.1])
 	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id ZTiqLc4V9f7e; Tue, 19 Feb 2019 18:23:16 +0100 (CET)
+	with ESMTP id 0MSO2AGC11U1; Tue, 19 Feb 2019 18:23:18 +0100 (CET)
 Received: from po16846vm.idsi0.si.c-s.fr (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 913578B7F9;
-	Tue, 19 Feb 2019 18:23:16 +0100 (CET)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id A1DFD8B7F9;
+	Tue, 19 Feb 2019 18:23:18 +0100 (CET)
 Received: by po16846vm.idsi0.si.c-s.fr (Postfix, from userid 0)
-	id 6E4BF6E81D; Tue, 19 Feb 2019 17:23:16 +0000 (UTC)
-Message-Id: <7f8dfeeb13b54f9518f78d9c8550a3769d144fc3.1550596242.git.christophe.leroy@c-s.fr>
+	id 739186E81D; Tue, 19 Feb 2019 17:23:18 +0000 (UTC)
+Message-Id: <4256ccd5f58f58f13ff06bfcf86fab06d52a86d2.1550596242.git.christophe.leroy@c-s.fr>
 In-Reply-To: <cover.1550596242.git.christophe.leroy@c-s.fr>
 References: <cover.1550596242.git.christophe.leroy@c-s.fr>
 From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH v6 5/6] kasan: allow architectures to provide an outline
- readiness check
+Subject: [PATCH v6 6/6] powerpc/32: enable CONFIG_KASAN for book3s hash
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>
 Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
-Date: Tue, 19 Feb 2019 17:23:16 +0000 (UTC)
+Date: Tue, 19 Feb 2019 17:23:18 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Daniel Axtens <dja@axtens.net>
+The challenge with book3s/32 is that the hash table management
+has to be set up before being able to use KASAN.
 
-In powerpc (as I understand it), we spend a lot of time in boot
-running in real mode before MMU paging is initalised. During
-this time we call a lot of generic code, including printk(). If
-we try to access the shadow region during this time, things fail.
+This patch adds a kasan_arch_is_ready() helper to defer
+the activation of KASAN until paging is ready.
 
-My attempts to move early init before the first printk have not
-been successful. (Both previous RFCs for ppc64 - by 2 different
-people - have needed this trick too!)
+This limits KASAN to KASAN_MINIMAL mode. The downside of it
+is that the 603, which doesn't use hash table, also gets
+downgraded to KASAN_MINIMAL because this is no way to
+activate full support dynamically because that's compiled-in.
 
-So, allow architectures to define a kasan_arch_is_ready()
-hook that bails out of check_memory_region_inline() unless the
-arch has done all of the init.
-
-Link: https://lore.kernel.org/patchwork/patch/592820/ # ppc64 hash series
-Link: https://patchwork.ozlabs.org/patch/795211/      # ppc radix series
-Originally-by: Balbir Singh <bsingharora@gmail.com>
-Cc: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Signed-off-by: Daniel Axtens <dja@axtens.net>
-[check_return_arch_not_ready() ==> static inline kasan_arch_is_ready()]
 Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 ---
- include/linux/kasan.h | 4 ++++
- mm/kasan/generic.c    | 3 +++
- 2 files changed, 7 insertions(+)
+ arch/powerpc/Makefile                 |  2 ++
+ arch/powerpc/include/asm/kasan.h      | 13 +++++++++++++
+ arch/powerpc/mm/kasan/kasan_init_32.c | 27 +++++++++++++++++++++++++--
+ 3 files changed, 40 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-index b40ea104dd36..b91c40af9f31 100644
---- a/include/linux/kasan.h
-+++ b/include/linux/kasan.h
-@@ -14,6 +14,10 @@ struct task_struct;
- #include <asm/kasan.h>
- #include <asm/pgtable.h>
+diff --git a/arch/powerpc/Makefile b/arch/powerpc/Makefile
+index f0738099e31e..06d085558d21 100644
+--- a/arch/powerpc/Makefile
++++ b/arch/powerpc/Makefile
+@@ -428,11 +428,13 @@ endif
+ endif
  
-+#ifndef kasan_arch_is_ready
-+static inline bool kasan_arch_is_ready(void)	{ return true; }
-+#endif
+ ifdef CONFIG_KASAN
++ifndef CONFIG_PPC_BOOK3S_32
+ prepare: kasan_prepare
+ 
+ kasan_prepare: prepare0
+        $(eval KASAN_SHADOW_OFFSET = $(shell awk '{if ($$2 == "KASAN_SHADOW_OFFSET") print $$3;}' include/generated/asm-offsets.h))
+ endif
++endif
+ 
+ # Check toolchain versions:
+ # - gcc-4.6 is the minimum kernel-wide version so nothing required.
+diff --git a/arch/powerpc/include/asm/kasan.h b/arch/powerpc/include/asm/kasan.h
+index 0bc9148f5d87..97b5ccf0702f 100644
+--- a/arch/powerpc/include/asm/kasan.h
++++ b/arch/powerpc/include/asm/kasan.h
+@@ -16,6 +16,7 @@
+ 
+ #include <asm/page.h>
+ #include <asm/pgtable-types.h>
++#include <linux/jump_label.h>
+ 
+ #define KASAN_SHADOW_SCALE_SHIFT	3
+ 
+@@ -34,5 +35,17 @@
+ void kasan_early_init(void);
+ void kasan_init(void);
+ 
++extern struct static_key_false powerpc_kasan_enabled_key;
 +
- extern unsigned char kasan_early_shadow_page[PAGE_SIZE];
- extern pte_t kasan_early_shadow_pte[PTRS_PER_PTE];
- extern pmd_t kasan_early_shadow_pmd[PTRS_PER_PMD];
-diff --git a/mm/kasan/generic.c b/mm/kasan/generic.c
-index ccb6207276e3..696c2f5b902b 100644
---- a/mm/kasan/generic.c
-+++ b/mm/kasan/generic.c
-@@ -170,6 +170,9 @@ static __always_inline void check_memory_region_inline(unsigned long addr,
- 						size_t size, bool write,
- 						unsigned long ret_ip)
++static inline bool kasan_arch_is_ready(void)
++{
++	if (!IS_ENABLED(CONFIG_BOOK3S_32))
++		return true;
++	if (static_branch_likely(&powerpc_kasan_enabled_key))
++		return true;
++	return false;
++}
++#define kasan_arch_is_ready kasan_arch_is_ready
++
+ #endif /* __ASSEMBLY */
+ #endif
+diff --git a/arch/powerpc/mm/kasan/kasan_init_32.c b/arch/powerpc/mm/kasan/kasan_init_32.c
+index 495c908d6ee6..f24f8f56d450 100644
+--- a/arch/powerpc/mm/kasan/kasan_init_32.c
++++ b/arch/powerpc/mm/kasan/kasan_init_32.c
+@@ -9,6 +9,9 @@
+ #include <linux/vmalloc.h>
+ #include <asm/pgalloc.h>
+ 
++/* Used by BOOK3S_32 only */
++DEFINE_STATIC_KEY_FALSE(powerpc_kasan_enabled_key);
++
+ void __init kasan_early_init(void)
  {
-+	if (!kasan_arch_is_ready())
+ 	unsigned long addr = KASAN_SHADOW_START;
+@@ -21,7 +24,7 @@ void __init kasan_early_init(void)
+ 	BUILD_BUG_ON(KASAN_SHADOW_START & ~PGDIR_MASK);
+ 
+ 	if (early_mmu_has_feature(MMU_FTR_HPTE_TABLE))
+-		panic("KASAN not supported with Hash MMU\n");
 +		return;
+ 
+ 	for (i = 0; i < PTRS_PER_PTE; i++)
+ 		__set_pte_at(&init_mm, (unsigned long)kasan_early_shadow_page,
+@@ -32,6 +35,22 @@ void __init kasan_early_init(void)
+ 		next = pgd_addr_end(addr, end);
+ 		pmd_populate_kernel(&init_mm, pmd, kasan_early_shadow_pte);
+ 	} while (pmd++, addr = next, addr != end);
 +
- 	if (unlikely(size == 0))
- 		return;
++	if (IS_ENABLED(CONFIG_PPC_BOOK3S_32)) {
++		jump_label_init();
++		static_branch_enable(&powerpc_kasan_enabled_key);
++	}
++}
++
++static void __init kasan_late_init(void)
++{
++	unsigned long addr;
++	phys_addr_t pa = __pa(kasan_early_shadow_page);
++
++	for (addr = KASAN_SHADOW_START; addr < KASAN_SHADOW_END; addr += PAGE_SIZE)
++		map_kernel_page(addr, pa, PAGE_KERNEL_RO);
++
++	static_branch_enable(&powerpc_kasan_enabled_key);
+ }
+ 
+ static void __ref *kasan_get_one_page(void)
+@@ -113,6 +132,9 @@ void __init kasan_init(void)
+ {
+ 	struct memblock_region *reg;
+ 
++	if (early_mmu_has_feature(MMU_FTR_HPTE_TABLE))
++		kasan_late_init();
++
+ 	for_each_memblock(memory, reg) {
+ 		int ret = kasan_init_region(__va(reg->base), reg->size);
+ 
+@@ -120,7 +142,8 @@ void __init kasan_init(void)
+ 			panic("kasan: kasan_init_region() failed");
+ 	}
+ 
+-	kasan_remap_early_shadow_ro();
++	if (!early_mmu_has_feature(MMU_FTR_HPTE_TABLE))
++		kasan_remap_early_shadow_ro();
+ 
+ 	clear_page(kasan_early_shadow_page);
  
 -- 
 2.13.3
