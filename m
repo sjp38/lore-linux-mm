@@ -2,268 +2,180 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0FCA2C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 05:58:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A3595C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 06:17:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AE626206B6
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 05:58:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Ds0m1BM2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AE626206B6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 474D8217D7
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 06:17:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 474D8217D7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B4898E0003; Tue, 19 Feb 2019 00:58:57 -0500 (EST)
+	id AAAE98E0003; Tue, 19 Feb 2019 01:17:19 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 363118E0002; Tue, 19 Feb 2019 00:58:57 -0500 (EST)
+	id A59E98E0002; Tue, 19 Feb 2019 01:17:19 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 253A98E0003; Tue, 19 Feb 2019 00:58:57 -0500 (EST)
+	id 94A3C8E0003; Tue, 19 Feb 2019 01:17:19 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D829E8E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 00:58:56 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id e34so13643888pgm.1
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 21:58:56 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B01F8E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 01:17:19 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id b3so8081353edi.0
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 22:17:19 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=cS1DH879CcIl+bs6b1wVapY22RVLC7csNXI6tVxFYVA=;
-        b=iOQE0b0GCYdWXOZ29IZDNj4/J0w9DbS5arx7+KNNLLSAl7lLaOgfo8PkRx20rWgrkd
-         jCVzkL1Csj9nRC2ebQAZSYPzyds2CiyJbGb3hsKRdiktwmToCMPjaGvKbRGuvDgi0eMX
-         N67Bk9GrbCljKD6elAbE/mcbDhc2erXYLEk6ctKuJWZdrSebarpsDqU0K5Uvnv2bWpqj
-         L+oYggX7K1qfpsQQs5/OpOjalXJcPe0jkcipaNPAOamIuRUh3BymK/aBaCq8iFsNRnqH
-         hBL3XW1APHflqnlkE/loNjzlguXbtb8TrNz4bspBA/FT1nR/zRmjD/9BEZ6bVZ6LfkEi
-         OrIw==
-X-Gm-Message-State: AHQUAua+mfyK2zo5GG8UIYsc6Zgy9vAhoGLtQDxQMwVudmyez1YA3Se1
-	/eFgBdebYvdnGsodaEnIGwOqUPWh9c22nSIq3X9+E+Ayvd0y6eLi1rlcXe5ezR1rXhAL3rCqNtd
-	MSBYQ45rQqj3H/mWMhGwmXcjQJK45AkGyPLYJV8ZH7YkQvd16R9S9WxxVajhllUBiAg==
-X-Received: by 2002:a63:981:: with SMTP id 123mr22464070pgj.444.1550555936390;
-        Mon, 18 Feb 2019 21:58:56 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaxA/6MA98yRrf875REy+BPSPTpWGA7QraXtnnvQ2Y1//IHk8OUd7OTF972H6enEhfAkIC7
-X-Received: by 2002:a63:981:: with SMTP id 123mr22464025pgj.444.1550555935468;
-        Mon, 18 Feb 2019 21:58:55 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550555935; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=WuBBpiawBTW3ikxXPnSeC2+iCdDq3+vlMxJlDEHi9y8=;
+        b=omfeCqDQ33e0us3vkBHKFas3/DV9OGnaacaz1mpiFI5uiQ5wt3U4YKP2dh0VD1G92j
+         BcAYFGjnLFRc9UI0IABRSqeU8M6aHqaUdXV21mEIybERi7lqKEzl7lQGj/+9/IETy7KN
+         +6WuLYhgIiPEplseUyed2RZRIwfpf2IQgavdYtqCjOPXiAFSu33xbZbvshEiNbL5yg9G
+         I1tqroQrEeYzCguflGAb3uD4SjjOsf/tlcGcRP7CYtYD7OELM1ffgjCLH9ZBqWSnQA5i
+         qi3yXr5I7bTo5QwJgZeg6/1Oc4m1h5d1ffHrpM5c6juEdcvPpZT4ql6+kE6aZcNHZTr2
+         zS5A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: AHQUAuZFlGksmXiKPOVAx09kbwcx+aKQw6p/N9yccZdfDv15jKTpIk2L
+	pJxx/dQE2Wwj8gAqgL8//VmBu4u1xbuZv5Bw70Few3PYXyBeq20kzr/rcr9Yor+MJGcoRvpKUcI
+	/mqV46lS75SXA5GLlEHttHXOgS1vs/uKtIKciozSgmQwdk8la1RigzX8QeZoQkStaMg==
+X-Received: by 2002:a50:b699:: with SMTP id d25mr18995108ede.110.1550557038770;
+        Mon, 18 Feb 2019 22:17:18 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ibm4CpcLhlKZ5dvKs+dq0kNQns5Fegpm0igITxWilRT9frgyb96D4mIjrvFf8kkVP+dPD05
+X-Received: by 2002:a50:b699:: with SMTP id d25mr18995045ede.110.1550557037900;
+        Mon, 18 Feb 2019 22:17:17 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550557037; cv=none;
         d=google.com; s=arc-20160816;
-        b=nXTWb/BpYf0AlIP+qyZJEOZhDtjVmy5F3E5XmlVubk51rda/M6KhUWiUT4HfJCd9BY
-         x9n7O94/FE7uo1OmeHC0W/TMh0x2MFWuIoS8ARqC2Zs13060i3rSxTtVSqCKPpDaJgbo
-         hh7wp07iR9kSVWUcDTmt4+lH/KyFmIAlp7J9JF7ZoOY07Mngm/Wd6MH9j5be+zcm2VmH
-         T0NIB74kt2iF+8XxZH3WdWpRyXd5cdC2P757U1Rtl4NCiMRB8aZBvGf3U2L8Fxa0tLB3
-         buZsrXAtzmnORVfVjfEfBJayhwoYLEQ1GoioaSP9GqqsT+BE2vERXkp7PFQjhL2qmgU2
-         vpCQ==
+        b=nHAQOmWLfNKHnbniHH6EfcJbi2xmQTnAyuX/nPezomA3Ncy1L7X4FMCT57J3h81iUf
+         W2Wy+5af98fVxV6PoTrwKMtJ7yxDTXrVGWwPpyu/n30lEgivUoyMssya+Ywer81nTaP6
+         G1G3fTrZa1EkuWfYU9s5DE3OoWJuMXY1D+MPkpYpapbYUVS+uOybix2UBCenAX9nYTUm
+         rX9TYww+PQvEZfH+Fx2F55IHPcnZfEwjwPklgP4Cl9GpPCwc/WoZp2CKKNgmagq+agGJ
+         RfnbieNiOkAOsLbUqI7c5sZue1FUt2H9Ouk3j3/xiQT8B/6ZO3NmzCUpEZ0YCrRYH91j
+         d+pw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=cS1DH879CcIl+bs6b1wVapY22RVLC7csNXI6tVxFYVA=;
-        b=eERNS8usXcgWdczWuI1Bsz4LZ/ZwXCrYPZQ/RtFpqSZdr3efp0FRsVFAHGBSWUFUws
-         rJ0ZHhYyg0IvVpLICQ05zrqwtnujjtAsuRdG4mriFgYY0zSzCnxuWSkL9DAIWlo1a5Xd
-         9IVOIKYP+iw+NZ431cLWrzwynEuXRxK08M0/HUCVi/rzwOweirYOLU4g9QCryLkf1ta6
-         bd/YWOigsVA4OsjLl6k196c3Cy0fniR1ut1pH2u9QBeWUAkbbaqZq0SiLMLGbVfI4FoQ
-         lov5LBEt5cGBuSyardLUZ4DIif7PbdfUmydFayCdHtA5rrVqzqJXDPzWhhxZOMx5jAq0
-         57mg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=WuBBpiawBTW3ikxXPnSeC2+iCdDq3+vlMxJlDEHi9y8=;
+        b=wHGlhw5+fdFaUP1iNPWqICJ7eqnZ0brXeTHn/I6UEwiC8/seau3lQ/q6cdnuXXLkpa
+         JWvuW5wTR/lKSmsPfdN6ItPOHjerpQRgwXSztrZOfnPHuYv/pICH9CjEnPcB9BfqAQ2h
+         2q3cyWdeNqX0hc5FhLJfwkEFJBOUeTtLw340MAF6+irXZ4tWWToKFo+7E0XLetIci1Cu
+         1h/pAnKEtQSsdf9t8a6+NlXO3/s590WkXHitPTmzeJDbD7yEaqbrC51vgxTbIytoB4JP
+         9YKrQwwotdxe75Tt4Wxp+seF34BTzyrEUIY6uwRN9CMFSL4iIhwN5FdNULNt4WCOfjpA
+         HTbQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Ds0m1BM2;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id u5si1471865plm.225.2019.02.18.21.58.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Feb 2019 21:58:55 -0800 (PST)
-Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g18si1722595ejt.134.2019.02.18.22.17.17
+        for <linux-mm@kvack.org>;
+        Mon, 18 Feb 2019 22:17:17 -0800 (PST)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Ds0m1BM2;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1J4YG05071284;
-	Tue, 19 Feb 2019 04:34:16 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=cS1DH879CcIl+bs6b1wVapY22RVLC7csNXI6tVxFYVA=;
- b=Ds0m1BM2QxOJ1KJN0N2goUBwoMP5EWX5pR1QMMZWCWHcyBitekTTRFXRCiKgxpndQ1Un
- RRAiGkbatWXNAL4DP/KgNlgRq7IATMm1yAyKf0S2YDmzy9DXSro7CSBvWoXesIF+mDHT
- ooieNsOjgRKOiJH07uyN9+0nPTwTJiaNnzIhF691mzfwe6D4JZdcrWv3Dg5p0kbHpEjW
- PJzjEHU9mwz4vq1K06m55ivhHwspKi5kBZrfnQwk6+0fQaumzjYydlj0xEZIc8K5M63n
- uZO4tQZNwtfJ64qTcUNR1UF/SQDl7dBL0NAMMiTkGKoJ2ceP7w+DtmAvr1+JJhTI6F2y Uw== 
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by userp2120.oracle.com with ESMTP id 2qpb5r8qn7-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 19 Feb 2019 04:34:16 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1J4YADm022085
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 19 Feb 2019 04:34:11 GMT
-Received: from abhmp0015.oracle.com (abhmp0015.oracle.com [141.146.116.21])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1J4YAHO025021;
-	Tue, 19 Feb 2019 04:34:10 GMT
-Received: from localhost (/67.169.218.210)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 18 Feb 2019 20:34:10 -0800
-Date: Mon, 18 Feb 2019 20:34:08 -0800
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-        Matej Kupljen <matej.kupljen@gmail.com>, linux-kernel@vger.kernel.org,
-        linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: tmpfs inode leakage when opening file with O_TMP_FILE
-Message-ID: <20190219043408.GG6503@magnolia>
-References: <CAHMF36F4JN44Y-yMnxw36A8cO0yVUQhAkvJDcj_gbWbsuUAA5A@mail.gmail.com>
- <20190214154402.5d204ef2aa109502761ab7a0@linux-foundation.org>
- <20190215002631.GB6474@magnolia>
- <alpine.LSU.2.11.1902150159100.5680@eggly.anvils>
- <alpine.LSU.2.11.1902181945240.1821@eggly.anvils>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id DFFB1EBD;
+	Mon, 18 Feb 2019 22:17:15 -0800 (PST)
+Received: from [10.162.40.139] (p8cg001049571a15.blr.arm.com [10.162.40.139])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 3CF8E3F575;
+	Mon, 18 Feb 2019 22:17:09 -0800 (PST)
+Subject: Re: [PATCH v2 1/3] arm64: mm: use appropriate ctors for page tables
+To: Yu Zhao <yuzhao@google.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>,
+ Will Deacon <will.deacon@arm.com>,
+ "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@gmail.com>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Joel Fernandes <joel@joelfernandes.org>,
+ "Kirill A . Shutemov" <kirill@shutemov.name>,
+ Mark Rutland <mark.rutland@arm.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Chintan Pandya <cpandya@codeaurora.org>, Jun Yao <yaojun8558363@gmail.com>,
+ Laura Abbott <labbott@redhat.com>, linux-arm-kernel@lists.infradead.org,
+ linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org,
+ linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>
+References: <20190214211642.2200-1-yuzhao@google.com>
+ <20190218231319.178224-1-yuzhao@google.com>
+ <863acc9a-53fb-86ad-4521-828ee8d9c222@arm.com>
+ <20190219053205.GA124985@google.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <8f9b0bfb-b787-fa3e-7322-73a56a618aa8@arm.com>
+Date: Tue, 19 Feb 2019 11:47:12 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1902181945240.1821@eggly.anvils>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9171 signatures=668683
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902190034
+In-Reply-To: <20190219053205.GA124985@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 18, 2019 at 08:23:20PM -0800, Hugh Dickins wrote:
-> On Fri, 15 Feb 2019, Hugh Dickins wrote:
-> > On Thu, 14 Feb 2019, Darrick J. Wong wrote:
-> > > > On Mon, 11 Feb 2019 15:18:11 +0100 Matej Kupljen <matej.kupljen@gmail.com> wrote:
-> > > > > 
-> > > > > it seems that when opening file on file system that is mounted on
-> > > > > tmpfs with the O_TMPFILE flag and using linkat call after that, it
-> > > > > uses 2 inodes instead of 1.
-> ...
-> > > 
-> > > Heh, tmpfs and its weird behavior where each new link counts as a new
-> > > inode because "each new link needs a new dentry, pinning lowmem, and
-> > > tmpfs dentries cannot be pruned until they are unlinked."
-> > 
-> > That's very much a peculiarity of tmpfs, so agreed: it's what I expect
-> > to be the cause, but I've not actually tracked it through and fixed yet.
-> ...
-> > 
-> > > I /think/ the proper fix is to change shmem_link to decrement ifree only
-> > > if the inode has nonzero nlink, e.g.
-> > > 
-> > > 	/*
-> > > 	 * No ordinary (disk based) filesystem counts links as inodes;
-> > > 	 * but each new link needs a new dentry, pinning lowmem, and
-> > > 	 * tmpfs dentries cannot be pruned until they are unlinked.  If
-> > > 	 * we're linking an O_TMPFILE file into the tmpfs we can skip
-> > > 	 * this because there's still only one link to the inode.
-> > > 	 */
-> > > 	if (inode->i_nlink > 0) {
-> > > 		ret = shmem_reserve_inode(inode->i_sb);
-> > > 		if (ret)
-> > > 			goto out;
-> > > 	}
-> > > 
-> > > Says me who was crawling around poking at O_TMPFILE behavior all morning.
-> > > Not sure if that's right; what happens to the old dentry?
-> 
-> Not sure what you mean by "what happens to the old dentry?"
-> But certainly the accounting feels a bit like a shell game,
-> and my attempts to explain it have not satisfied even me.
-> 
-> The way I'm finding it helpful to think, is to imagine tmpfs'
-> count of inodes actually to be implemented as a count of dentries.
-> And the 1 for the last remaining goes away in the shmem_free_inode()
-> at the end of shmem_evict_inode().  Does that answer "what happens"?
-> 
-> Since applying the patch, I have verified (watching "dentry" and
-> "shmem_inode_cache" in /proc/slabinfo) that doing Matej's sequence
-> repeatedly does not leak any "df -i" nor dentries nor inodes.
-> 
-> > 
-> > I'm relieved to see your "/think/" above and "Not sure" there :)
-> > Me too.  It is so easy to get these counting things wrong, especially
-> > when distributed between the generic and the specific file system.
-> > 
-> > I'm not going to attempt a pronouncement until I've had time to
-> > sink properly into it at the weekend, when I'll follow your guide
-> > and work it through - thanks a lot for getting this far, Darrick.
-> 
-> I have now sunk into it, and sure that I agree with your patch,
-> filled out below (I happen to have changed "inode->i_nlink > 0" to
-> "inode->i_nlink" just out of some personal preference at the time).
-> One can argue that it's not technically quite the right place, but
-> it is the place where we can detect the condition without getting
-> into unnecessary further complications, and does the job well enough.
-> 
-> May I change "Suggested-by: Darrick J. Wong <darrick.wong@oracle.com>"
-> to your "Signed-off-by" before sending on to Andrew "From" you?
++ Matthew Wilcox
 
-That's fine with me!
+On 02/19/2019 11:02 AM, Yu Zhao wrote:
+> On Tue, Feb 19, 2019 at 09:51:01AM +0530, Anshuman Khandual wrote:
+>>
+>>
+>> On 02/19/2019 04:43 AM, Yu Zhao wrote:
+>>> For pte page, use pgtable_page_ctor(); for pmd page, use
+>>> pgtable_pmd_page_ctor() if not folded; and for the rest (pud,
+>>> p4d and pgd), don't use any.
+>> pgtable_page_ctor()/dtor() is not optional for any level page table page
+>> as it determines the struct page state and zone statistics.
+> 
+> This is not true. pgtable_page_ctor() is only meant for user pte
+> page. The name isn't perfect (we named it this way before we had
+> split pmd page table lock, and never bothered to change it).
+> 
+> The commit cccd843f54be ("mm: mark pages in use for page tables")
+> clearly states so:
+>   Note that only pages currently accounted as NR_PAGETABLES are
+>   tracked as PageTable; this does not include pgd/p4d/pud/pmd pages.
 
-> Thanks!
-> Hugh
-> 
-> [PATCH] tmpfs: fix link accounting when a tmpfile is linked in
-> 
-> tmpfs has a peculiarity of accounting hard links as if they were separate
-> inodes: so that when the number of inodes is limited, as it is by default,
-> a user cannot soak up an unlimited amount of unreclaimable dcache memory
-> just by repeatedly linking a file.
-> 
-> But when v3.11 added O_TMPFILE, and the ability to use linkat() on the fd,
-> we missed accommodating this new case in tmpfs: "df -i" shows that an
-> extra "inode" remains accounted after the file is unlinked and the fd
-> closed and the actual inode evicted.  If a user repeatedly links tmpfiles
-> into a tmpfs, the limit will be hit (ENOSPC) even after they are deleted.
-> 
-> Just skip the extra reservation from shmem_link() in this case: there's
-> a sense in which this first link of a tmpfile is then cheaper than a
-> hard link of another file, but the accounting works out, and there's
-> still good limiting, so no need to do anything more complicated.
-> 
-> Fixes: f4e0c30c191 ("allow the temp files created by open() to be linked to")
-> Reported-by: Matej Kupljen <matej.kupljen@gmail.com>
-> Suggested-by: Darrick J. Wong <darrick.wong@oracle.com>
+I think the commit is the following one and it does say so. But what is
+the rationale of tagging only PTE page as PageTable and updating the zone
+stat but not doing so for higher level page table pages ? Are not they
+used as page table pages ? Should not they count towards NR_PAGETABLE ?
 
-Or if you prefer:
-
-Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
-
---D
-
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
+1d40a5ea01d53251c ("mm: mark pages in use for page tables")
 > 
->  mm/shmem.c |   10 +++++++---
->  1 file changed, 7 insertions(+), 3 deletions(-)
+> I'm sure if we go back further, we can find similar stories: we
+> don't set PageTable on page tables other than pte; and we don't
+> account page tables other than pte. I don't have any objection if
+> you want change these two. But please make sure they are consistent
+> across all archs.
+
+pgtable_page_ctor/dtor() use across arch is not consistent and there is a need
+for generalization which has been already acknowledged earlier. But for now we
+can atleast fix this on arm64.
+
+https://lore.kernel.org/lkml/1547619692-7946-1-git-send-email-anshuman.khandual@arm.com/
+
 > 
-> --- 5.0-rc7/mm/shmem.c	2019-01-06 19:15:45.764805103 -0800
-> +++ linux/mm/shmem.c	2019-02-18 13:56:48.388032606 -0800
-> @@ -2854,10 +2854,14 @@ static int shmem_link(struct dentry *old
->  	 * No ordinary (disk based) filesystem counts links as inodes;
->  	 * but each new link needs a new dentry, pinning lowmem, and
->  	 * tmpfs dentries cannot be pruned until they are unlinked.
-> +	 * But if an O_TMPFILE file is linked into the tmpfs, the
-> +	 * first link must skip that, to get the accounting right.
->  	 */
-> -	ret = shmem_reserve_inode(inode->i_sb);
-> -	if (ret)
-> -		goto out;
-> +	if (inode->i_nlink) {
-> +		ret = shmem_reserve_inode(inode->i_sb);
-> +		if (ret)
-> +			goto out;
-> +	}
->  
->  	dir->i_size += BOGO_DIRENT_SIZE;
->  	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
+>> We should not skip it for any page table page.
+> 
+> In fact, calling it on pmd/pud/p4d is peculiar, and may even be
+> considered wrong. AFAIK, no other arch does so.
+
+Why would it be considered wrong ? IIUC archs have their own understanding
+of this and there are different implementations. But doing something for
+PTE page and skipping for others is plain inconsistent.
+
+> 
+>> As stated before pgtable_pmd_page_ctor() is not a replacement for
+>> pgtable_page_ctor().
+> 
+> pgtable_pmd_page_ctor() must be used on user pmd. For kernel pmd,
+> it's okay to use pgtable_page_ctor() instead only because kernel
+> doesn't have thp.
+
+The only extra thing to be done for THP is initializing page->pmd_huge_pte
+apart from calling pgtable_page_ctor(). Right not it just works on arm64
+may be because page->pmd_huge_pte never gets accessed before it's init and
+no path checks for it when not THP. Its better to init/reset pmd_huge_pte.
 
