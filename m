@@ -2,174 +2,145 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CFB6C10F00
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 17:31:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06C52C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 17:36:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4B3062147C
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 17:31:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B3062147C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=surriel.com
+	by mail.kernel.org (Postfix) with ESMTP id C77C92147A
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 17:36:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C77C92147A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 88C1F8E0004; Tue, 19 Feb 2019 12:31:17 -0500 (EST)
+	id 68CA58E0004; Tue, 19 Feb 2019 12:36:26 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 812228E0003; Tue, 19 Feb 2019 12:31:17 -0500 (EST)
+	id 63A028E0003; Tue, 19 Feb 2019 12:36:26 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6B3088E0004; Tue, 19 Feb 2019 12:31:17 -0500 (EST)
+	id 52AF38E0004; Tue, 19 Feb 2019 12:36:26 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F34A8E0003
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 12:31:17 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id k37so20625396qtb.20
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 09:31:17 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EF7CE8E0003
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 12:36:25 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id v1so893488eds.7
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 09:36:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version:sender;
-        bh=JfAbn7URI4XKUXlOlR+nmdBhUcAX5rxFO4+plh1nF4E=;
-        b=MPXKlxnGYhkOZtK+4xqhvP4F7DtTmsmBEs8jED1anREhqNHyUfYj1+HpiILK0pPWve
-         fkNDNkUfLVDjPyEm3chK1pJpKaeHZYC4aZOLZ/RUPefAdiZx0JmS3iIuLgLvTnPX9SYH
-         U2YPjjd98xr7W55jphhwIkbyNsY4h1GOrIrQhgsaVwNsy+y6O8kwI1k9wvFJjU4RSDzZ
-         0MZKTPorQdRM5QUJA/5nbnSHgo7ltEAUhtaYwtOrFk806vUs2TtcY+d5gbubhnimIKNI
-         qUBZcY5Sc/Uki7h4rP16DggLWeEcL9s3CIgLsPNGDRWZ4ODG2cGjk7SX+8cpBCuv46q6
-         6KDQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-X-Gm-Message-State: AHQUAuagV4CRiePrj0h7PYP+CJo9A+r2ocAQNBRU9lXcO+2TUpv5v73k
-	b/WvNYnv8mU4FBgdLFKFvgwsy5a+KhatUtajDNeP1ECOQnKWPzOR5sjmQJhItu9vV2NCqOXHgLP
-	+tTAKL3Os96RSqrYFHzxnII+hWNDTFmDMk8jUmAREalHp9AI7b11SN9YxX85bjqWp8w==
-X-Received: by 2002:a37:9d96:: with SMTP id g144mr21677791qke.192.1550597476994;
-        Tue, 19 Feb 2019 09:31:16 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYkJUuueQbASQNrwEc44C5YyEp31NLrINjG7bFb7UUGkXwCaymuxjrTV6ztUwcXyZPgk2VW
-X-Received: by 2002:a37:9d96:: with SMTP id g144mr21677752qke.192.1550597476459;
-        Tue, 19 Feb 2019 09:31:16 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550597476; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=QpL3NTsbAmlZhe7p1z6akf/rO4amyQ0rsiujX3+2bWU=;
+        b=OOqWQZe7mFhP8GcTweB4WgK3vvbA1o5X+878pSXJq15r2lYmCO3LDNcTEv866FmCrh
+         Q92Y6rZPH1aYEnrVZFrRCTOLfWSZpahJPRo2jx6QC9mXHtBehcgDaV2zDFIFZR/F+J8j
+         IBP6AzTpbqAL75D5ZCGRrT0PDj49f+nFBCS4tUS4uxeBWT8ffeDXXWeCFTTrT17soREU
+         ZUF/lUuRHhzh8JHzulyspczq+ZsED8z0CZAvwJH5MMAzT3lDiPbCJLBin4BOTAxvKXwK
+         +AGE3N/H3xSaCmWWyn3+/7ahw1J2wC8h/8MgbiqxCKqhl1InJZvJgi5MBbbWnac1BV0b
+         hLqg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuag1PS0Ld9wlB2HkxdT5EAqk9qKmUdjkSoTsXaToPZt9uMr2LSD
+	k/aJ8gpuc+EkvrztY6O8U189IzM0MgSUpSRxPJx0SGRSxBhws25gyCg9yI8Ar3uz4lLnkiHSZnq
+	B4rJRL8v+QBhKm4s0jijJnwkmmdWMNjhGuEWt+4kb79aOK+v7E4d0Um3u/aGXe7s=
+X-Received: by 2002:a50:b3c9:: with SMTP id t9mr24335528edd.270.1550597785494;
+        Tue, 19 Feb 2019 09:36:25 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbwZRTXUMTw6Co5/2XF8BCSHrrN41ibB3KMHj53h6LZHYzhoR6S4rL2emIzWrWUz84tYOtE
+X-Received: by 2002:a50:b3c9:: with SMTP id t9mr24335476edd.270.1550597784489;
+        Tue, 19 Feb 2019 09:36:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550597784; cv=none;
         d=google.com; s=arc-20160816;
-        b=Z0G9oG5qvLbZ70MsP3Ns8ZGABecFXqMfDyvnSG6zPoz2GgIvzPQO4O+5b4x881M6+I
-         5/Urm3ghKPF9nbtft1pOGwKtvhFgzm/qj84hNxqUB0QBfi/aoGSnSpAlnOwF9JJpzC5j
-         pcFdANWApqhV/VBry8Wu3u4t+erEA/QQj8R60erswCCncLkOIz2kulnoD12JKTB7ojpZ
-         WQBbgl6JNl4boH6XOQT1Lhc9Ba3ZXTH91jPp0Hj0Vi7tDPk9CZA8J0jp1E4oH3pF4zkc
-         eS3799z16dfQrZSFEQpjQfcChLl5w6+fLxmlBsKkfujwmCV6XXScs3O4YDll4UepQVvI
-         TlRQ==
+        b=wFxGzjzaqo9ZuiVrXGSjggKIzhZtzYEURnnXFCsUcEQqEiFjD6/y+QWgStuESfCYu8
+         RFTktHbSZG7+MqG2D0stAiY6L5H2TqqbRCOSA2nYapiJqCRasmsVXJkmRS/E73hiIJug
+         V5NlD+7B8s8pGXc9pNU9EPnpE2yZrbeRhcZTTTWKNyZrm0TDBBx+8DDaiTFYdHsuAp1f
+         Fg67kTi7DULPTvkIUKwDEXMxuTpQ0TMmisi6aRTlrjDUfk2z3Y81ifQkc6z7Yb2OniT/
+         cDuagm6xAJJ7KLot9X38hsK01m1EI4jQOWUU9nEKL4XAjx1ClPC46X1i8tWNuoLxxOPp
+         lCUA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=sender:mime-version:references:in-reply-to:date:cc:to:from:subject
-         :message-id;
-        bh=JfAbn7URI4XKUXlOlR+nmdBhUcAX5rxFO4+plh1nF4E=;
-        b=XFkFqqPQ7cPRswbZe/5DmE5TxB7dd0gruMS7m/IoDqn7tYJeS+RlGArKGEkjxD/t1N
-         9jXt398++VUkVr67LFdO467aaGyvd1KHSSz3Ogzh+lROy6oxkxp1Cc5bzjPyy5NH7K3L
-         f0QVXJJ/VPs/8uqP7oObIWpAOrsvYNAXG7WKkhLMftfF+Xuy7cQvbzzCpX0Is0HkDsAm
-         qgeAf9QeT2fhWmoDv7RDJ1s0DLQJwDgVjUgw4DKgVJDuTsQKgUjoSH52ImPfMGUXuXYD
-         HSaadm3XSlcUvDR/GqR8KC11x9ZP/8Y46eNqE8I7j9lP/LsfOcSi4LDmkCZwg+zh1eCX
-         hjVg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=QpL3NTsbAmlZhe7p1z6akf/rO4amyQ0rsiujX3+2bWU=;
+        b=NXrAR287YI/llsyeYORjc+lRXOSk4dIx5qUH3jqq8Vwa3LRnUdAGum5jNCYJ+uZigD
+         h9kbO0lDDyuAziEP0En0dZqNF55oq9qjxGaMjpUNkHp2yC4JMXr+Q2V4mOev/qH2ckPV
+         QLb7LfiVA8xbPpop1H1YRja/JAvuQEHy4hDpTpiu1pctp/aunP7xFuUwEFlS14Zfppf+
+         Gqp5YBIIkOhIeLLvFFoWf5/aVMOX90AJSYP/7sSM5KSFfImD/v18fFCVrdtZBuJT5fsp
+         yrg06PRyJwiBQfyhDDml2Dn/o8zflYgkeAdmOTw3B0QV1KAgyYcY0BS8WO1C89am0nRQ
+         6o+Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id n28si1570988qtb.353.2019.02.19.09.31.14
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h20si3234445ejj.209.2019.02.19.09.36.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Feb 2019 09:31:14 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) client-ip=96.67.55.147;
+        Tue, 19 Feb 2019 09:36:24 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from imladris.surriel.com ([96.67.55.152])
-	by shelob.surriel.com with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
-	(Exim 4.91)
-	(envelope-from <riel@shelob.surriel.com>)
-	id 1gw9Ec-0005jj-VB; Tue, 19 Feb 2019 12:31:10 -0500
-Message-ID: <7f66dd5242ab4d305f43d85de1a8e514fc47c492.camel@surriel.com>
-Subject: Re: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
-From: Rik van Riel <riel@surriel.com>
-To: Dave Chinner <dchinner@redhat.com>, Roman Gushchin <guro@fb.com>
-Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
-  "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org"
- <mhocko@kernel.org>,  "guroan@gmail.com" <guroan@gmail.com>, Kernel Team
- <Kernel-team@fb.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>
-Date: Tue, 19 Feb 2019 12:31:10 -0500
-In-Reply-To: <20190219020448.GY31397@rh>
-References: <20190219003140.GA5660@castle.DHCP.thefacebook.com>
-	 <20190219020448.GY31397@rh>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-ZN1a6GHCKW49z7h4uIVW"
-X-Mailer: Evolution 3.28.5 (3.28.5-1.fc28) 
-Mime-Version: 1.0
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 124A8AEC7;
+	Tue, 19 Feb 2019 17:36:24 +0000 (UTC)
+Date: Tue, 19 Feb 2019 18:36:22 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Christopher Lameter <cl@linux.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+Subject: Re: Memory management facing a 400Gpbs network link
+Message-ID: <20190219173622.GQ4525@dhcp22.suse.cz>
+References: <01000168e2f54113-485312aa-7e08-4963-af92-803f8c7d21e6-000000@email.amazonses.com>
+ <20190219122609.GN4525@dhcp22.suse.cz>
+ <01000169062262ea-777bfd38-e0f9-4e9c-806f-1c64e507ea2c-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <01000169062262ea-777bfd38-e0f9-4e9c-806f-1c64e507ea2c-000000@email.amazonses.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue 19-02-19 14:21:50, Cristopher Lameter wrote:
+> On Tue, 19 Feb 2019, Michal Hocko wrote:
+> 
+> > On Tue 12-02-19 18:25:50, Cristopher Lameter wrote:
+> > > 400G Infiniband will become available this year. This means that the data
+> > > ingest speeds can be higher than the bandwidth of the processor
+> > > interacting with its own memory.
+> > >
+> > > For example a single hardware thread is limited to 20Gbyte/sec whereas the
+> > > network interface provides 50Gbytes/sec. These rates can only be obtained
+> > > currently with pinned memory.
+> > >
+> > > How can we evolve the memory management subsystem to operate at higher
+> > > speeds with more the comforts of paging and system calls that we are used
+> > > to?
+> >
+> > Realistically, is there anything we _can_ do when the HW is the
+> > bottleneck?
+> 
+> Well the hardware is one problem. The problem that a single core cannot
+> handle the full memory bandwidth can be solved by spreading the
+> processing of the data to multiple processors. So I think the memory
+> subsystem could be aware of that? How do we load balance between cores so
+> that we can handle the full bandwidth?
 
---=-ZN1a6GHCKW49z7h4uIVW
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Isn't that something that poeple already do from userspace?
 
-On Tue, 2019-02-19 at 13:04 +1100, Dave Chinner wrote:
-> On Tue, Feb 19, 2019 at 12:31:45AM +0000, Roman Gushchin wrote:
-> > Sorry, resending with the fixed to/cc list. Please, ignore the
-> > first letter.
->=20
-> Please resend again with linux-fsdevel on the cc list, because this
-> isn't a MM topic given the regressions from the shrinker patches
-> have all been on the filesystem side of the shrinkers....
+> The other is that the memory needs to be pinned and all sorts of special
+> measures and tuning needs to be done to make this actually work. Is there
+> any way to simplify this?
+> 
+> Also the need for page pinning becomes a problem since the majority of the
+> memory of a system would need to be pinned. Actually the application seems
+> to be doing the memory management then?
 
-It looks like there are two separate things going on here.
-
-The first are an MM issues, one of potentially leaking memory
-by not scanning slabs with few items on them, and having
-such slabs stay around forever after the cgroup they were
-created for has disappeared, and the other of various other
-bugs with shrinker invocation behavior (like the nr_deferred
-fixes you posted a patch for). I believe these are MM topics.
-
-
-The second is the filesystem (and maybe other) shrinker
-functions' behavior being somewhat fragile and depending
-on closely on current MM behavior, potentially up to
-and including MM bugs.
-
-The lack of a contract between the MM and the shrinker
-callbacks is a recurring issue, and something we may
-want to discuss in a joint session.
-
-Some reflections on the shrinker/MM interaction:
-- Since all memory (in a zone) could potentially be in
-  shrinker pools, shrinkers MUST eventually free some
-  memory.
-- Shrinkers should not block kswapd from making progress.
-  If kswapd got stuck in NFS inode writeback, and ended up
-  not being able to free clean pages to receive network
-  packets, that might cause a deadlock.
-- The MM should be able to deal with shrinkers doing
-  nothing at this call, but having some work pending=20
-  (eg. waiting on IO completion), without getting a false
-  OOM kill. How can we do this best?
-- Related to the above: stalling in the shrinker code is
-  unpredictable, and can take an arbitrarily long amount
-  of time. Is there a better way we can make reclaimers
-  wait for in-flight work to be completed?
-
---=20
-All Rights Reversed.
-
---=-ZN1a6GHCKW49z7h4uIVW
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlxsPV4ACgkQznnekoTE
-3oOKuAgAiEP51kop8udkWuqVr6/o8OMvMRWwU4NG2GhUe3HfRiumDSZFRzdR+wjP
-6vTWsK6QbQH5pCMAJy3SX+8pynS4BNO7Bl7LbJU9E1tSZ9HW///tCfSMA9JtmR64
-ZKnc+ZpJRl5X047kFmbp7uBy+50Tt8bBIWhsK+fTRehMnSF2drdL7qI1HAh2CIb3
-WWHm8VIemiH611kKXvjkedcPPDgCTuJCj8jrtfZswV6dpq9TS1gjW4syzzx5Bpts
-7Z7Ou9PF9pGOu/fXQzvzE90dIK9nDdFZySQm4TP2kdfNz93Cx7ZV59+jKIYcZf31
-OgbrldQQlbReupqCp+yljNyx0+OXXg==
-=4KFD
------END PGP SIGNATURE-----
-
---=-ZN1a6GHCKW49z7h4uIVW--
+I am sorry but this still sounds too vague. There are certainly
+possibilities to handle part the MM functionality in the userspace.
+But why should we discuss that at the MM track. Do you envision any
+in kernel changes that would be needed?
+-- 
+Michal Hocko
+SUSE Labs
 
