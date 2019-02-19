@@ -2,126 +2,131 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 16B2FC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 03:08:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C754C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 03:21:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 952CC2064C
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 03:08:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 952CC2064C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id C4E152147C
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 03:21:47 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ozlabs.org header.i=@ozlabs.org header.b="Gu8tRS7r"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4E152147C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ozlabs.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DD1448E0003; Mon, 18 Feb 2019 22:08:57 -0500 (EST)
+	id 625978E0003; Mon, 18 Feb 2019 22:21:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D7F298E0002; Mon, 18 Feb 2019 22:08:57 -0500 (EST)
+	id 5D53C8E0002; Mon, 18 Feb 2019 22:21:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C20D18E0003; Mon, 18 Feb 2019 22:08:57 -0500 (EST)
+	id 4E9EF8E0003; Mon, 18 Feb 2019 22:21:47 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FB3A8E0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 22:08:57 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id d62so7980831edd.19
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 19:08:57 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C7CD8E0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2019 22:21:47 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id h70so15209853pfd.11
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 19:21:47 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=BQpYoTi/BO7c3Ih1NH4UHv0k5Uk2px89X9AFWSAol00=;
-        b=s9N2AJDsb2xMVEljUY9zkfcjQ9004xf7Ji9pzWYmWnqFvFVaLPoG5JQi8zy3h2hAem
-         EooGw5zqSU8S4YmAhx+uEAHluT6pBABXsG/vN3UwzBeVLmXFWhJYLy9w2mLdB6mdKV3E
-         yC4cxKssj0fodHioifTlo9hQ7pqNZ74GPbBAkGdFG9lDzf+5pLkapJfR97xSwK1usblV
-         DmqN394NNQ+arPao2t86yXlYpVO3xjJfjIqZzQg5pCmTjKYqxXrgNjQGy0w1YQNxZjil
-         6lc1+jTXzPp12TrIiVNpcfY/wRq/Fm//PYgr8amOkKVtfJJgSpNGr7kR4ydo/zctGygI
-         yg+w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: AHQUAuZ8rB0CYxQZaZqe9A/0tjTkEIOhebjCkMtYGTv8Isru33+Jl8xM
-	d2bpgHsR0Q6dGXbFIbnQWgR6zv5aHvIxAkqTm2qZ/4pzOBMJiHsRj8Q29d/c/FFx3vBapliIy7c
-	rCBVd5ubs1F0xmg1KF3NMgsEIRELMhKxDd5wl5UwGc0usRtwvYw+4uP3NrFIvHY/Sow==
-X-Received: by 2002:a17:906:6043:: with SMTP id p3mr18415210ejj.72.1550545737049;
-        Mon, 18 Feb 2019 19:08:57 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZKYlOY5TelaCYXyUiD23nwv3LPVPV6MEWl+B8AAtF/dsz28A3oQ3s3N446euJCq+bC141Y
-X-Received: by 2002:a17:906:6043:: with SMTP id p3mr18415176ejj.72.1550545736114;
-        Mon, 18 Feb 2019 19:08:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550545736; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=rw3Hl9r5ZuPciGC8lJMpl2mvDvpsTvOb1Q1/wdK/J0w=;
+        b=kNg7N3zjf3qKE3F6JN6mDy7KXKx0riTAsPhLqS85KOP5j6YOFzH6Dpbh+AIkozp0L3
+         N+3MU0+QZHFKY9Jr6kdcIVsAsXeUsMdLLciIM9C67RYXpZvjhaQWHgvZ9RRgaoWNw4ln
+         XBMB+nHbKdIZ5VvfRX9K9FBi4rziS29TH3YdaduLeSg20/Te6SHTF8HpPgByEJI9GeGY
+         /VG5WLQjUExY3/EDKkPAxbgPYWhIjmiC7Nb4UICivlhYduavSCFEh2S/PQBJuNyqLGVp
+         gDanIOeEeJTV3VLEWM1pg784vKi0y0wCkhHe7i91B6Mz9y7HGASOLVyRmD4VFb9UKRdW
+         GDKQ==
+X-Gm-Message-State: AHQUAuaeRPocQoQpE44MJrpXGRj44xGSFLf3iwlU0+HvgH2Dh3Dst6tS
+	mgxS6ZsQOpOkFBXVAvXelHGn7HXO3Y9xLwEPQJUsgedoNv6aCOkd0YiUjsx/3YUjSAVVkKtq2Ce
+	WYUVZ9vzqohxC9KuWdgOvuHbT3osgi3GJzPGq2pGeDeNPrvkJ6TVePraFu6rc0L8s3Q==
+X-Received: by 2002:aa7:8508:: with SMTP id v8mr27278760pfn.14.1550546506699;
+        Mon, 18 Feb 2019 19:21:46 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYvFh1tjiirv3Wx3SFt/ZWUOipxPXHPyHPv6IHFOA2n+yDRsOWye0MwhEPE/iaxklDPTACQ
+X-Received: by 2002:aa7:8508:: with SMTP id v8mr27278708pfn.14.1550546505764;
+        Mon, 18 Feb 2019 19:21:45 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550546505; cv=none;
         d=google.com; s=arc-20160816;
-        b=V6K3+eIankpFuBmHT5kvJ04mvMlJctKLj7mjUKj7ws1+pL2uzqcwbTD63PGA8oqnAG
-         zyrI3dk3K5f+jTRgbEYGYw9YJeOi33lk9yo4dBL9OdgmsyX/QYADDonRghnO20nEWcW4
-         Qkh/OcGCE2FoQ0k8AB0iuYv2i51eeoWlhDU0i47rBLLovCIPvbakPcVd8YOrpO6lQpZg
-         qxLfha+mJ81XY+c199l0OQtDy3zM7TQ+IkGxsjouo1698nT7JtOYR/LzJ40pI05KdkRs
-         4xQxksE/YO3tfADXCAheggyZ/xUTcRIQCu5ivicx/L5DqOcY+WpoNhYQ759D3StVuRlZ
-         yWHA==
+        b=z8vVOYt/o5+RdPcY9pfjHtOo4MyT7tOPp5U+Q79+G/GwVY0d4z9wjmjNB3bsY8Tosa
+         eOiH79koVgQJZivLLHyuH1n0/oHdPzHgeJbVwZOzHBT9t9F9dJuZ5/zikk3e+T2/mbbJ
+         Lu+mbwjXk3EhDy+FOGOw6UjgnZytX6e3GvHb4aLPN3FBbcxOuXQfxxO00TfK6UBNrYou
+         AtliQdik4J2Cdmk/75xV3JfN58oSgVHjgOgLu67NqdLI9QGH2ADubPVnzu6aVJPTRAqZ
+         asJVs/CNrUZeHka42WrJ7hVm+qsOKqF3gwthl8pBaSRBbKR37b2OYAO4GpwLyhH8N89x
+         FiSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=BQpYoTi/BO7c3Ih1NH4UHv0k5Uk2px89X9AFWSAol00=;
-        b=BlwTabppPOjrWlFahWDtdWYvx9LO/Mk6jL8p2Bfr/YRDiYZ0hsU/UmntzchAuhr7O2
-         ura7aJ/jrZJbHNfJVQ/8cP1O24xu+lbk3ugmJawt02bxs9EPNYP2OFWTMVaBIybvVdDK
-         cnDjV9wfwSNCybzhdmkEkcFWYtxF65Y9cGw80VSIUn+vEDNNVO/SZSkQQRyK2CPZqCXD
-         4q+sKujeycnAUhohUniUhdKa/SqsZVyujdf+TNqhk1th+GP0jf169A57AVu8+rNIgTDg
-         5QrZwyTOhXXihGNbKj3IRC/EyOxFXiEgqzt5pwxZIYRTYiYKPcYUxrHZQmsI8NXTy2OC
-         tn2Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=rw3Hl9r5ZuPciGC8lJMpl2mvDvpsTvOb1Q1/wdK/J0w=;
+        b=YCjOM5E3RPOoxq8ci87rDXeJfdTqW4mqo6pvOSV/bjP1xFyj3w0i0dWeSVL0jANWFG
+         M21zm/zVQYfkiku1tO8UIn6URfzmCsfAotAF/YJmluvf8ISX7TD0nDXeV0OvqGRpQnKP
+         x5RRswM12xPypPEGsRljTLsq5bJBLkA4f+YZ23ogJjdgvkgZk8Upwrbm2GF6X41G+qrn
+         QOKQjZ760LfAwKYPoOdEu04YMuWk3RxFFdpUKUmIwRTfu2WHZukdv69FplQhn7GE26C+
+         yVGV2VUNrHwwLDHeiU3BpxAPsg1EkN4Wba5GSLbgu2wm4UbJZLkzl/K5hLSQTWFMErl9
+         Sbjg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p1si6288441eja.16.2019.02.18.19.08.55
-        for <linux-mm@kvack.org>;
-        Mon, 18 Feb 2019 19:08:56 -0800 (PST)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@ozlabs.org header.s=201707 header.b=Gu8tRS7r;
+       spf=pass (google.com: domain of paulus@ozlabs.org designates 203.11.71.1 as permitted sender) smtp.mailfrom=paulus@ozlabs.org
+Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
+        by mx.google.com with ESMTPS id q2si13944205pgv.124.2019.02.18.19.21.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 18 Feb 2019 19:21:45 -0800 (PST)
+Received-SPF: pass (google.com: domain of paulus@ozlabs.org designates 203.11.71.1 as permitted sender) client-ip=203.11.71.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4CB1480D;
-	Mon, 18 Feb 2019 19:08:54 -0800 (PST)
-Received: from [10.162.40.139] (p8cg001049571a15.blr.arm.com [10.162.40.139])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 0EB4C3F575;
-	Mon, 18 Feb 2019 19:08:50 -0800 (PST)
-Subject: Re: [PATCH] arm64: mm: enable per pmd page table lock
-To: Yu Zhao <yuzhao@google.com>, Catalin Marinas <catalin.marinas@arm.com>,
- Will Deacon <will.deacon@arm.com>
-Cc: "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
- Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@gmail.com>,
- Peter Zijlstra <peterz@infradead.org>,
- Joel Fernandes <joel@joelfernandes.org>,
- "Kirill A . Shutemov" <kirill@shutemov.name>,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- linux-arch@vger.kernel.org, linux-mm@kvack.org
-References: <20190214211642.2200-1-yuzhao@google.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <f67b5468-2144-c51f-6cf0-ea7ece93b502@arm.com>
-Date: Tue, 19 Feb 2019 08:38:54 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@ozlabs.org header.s=201707 header.b=Gu8tRS7r;
+       spf=pass (google.com: domain of paulus@ozlabs.org designates 203.11.71.1 as permitted sender) smtp.mailfrom=paulus@ozlabs.org
+Received: by ozlabs.org (Postfix, from userid 1003)
+	id 443Qxz4drrz9sDL; Tue, 19 Feb 2019 14:21:43 +1100 (AEDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=ozlabs.org; s=201707;
+	t=1550546503; bh=C4HLRcI4ypCgdGuAUaWYJlccB1gE29ZZS2GrzcNQN90=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=Gu8tRS7rJAFvgDvEDp81cn1xylOlkuDzmL4CtPcfDyOg2uMuaOcv4rZyEGZR7NyzL
+	 958zm0atvwfeQgHGkWrR3/ZVcHfKSX6dNzw3dLCO6idaGwOy6D5imZS/SLY6uxEkjZ
+	 OgXG+jWFgIJkqYg7CiNMvkEQRAk1S/+Q1ab59lOddnU3TjH4a1FfGZz4gyQhFZPk3y
+	 6OPkQymMisT2ueB+CIvpVwk5SpZVu6y9op65eLo+Wx/R0cV5Xtz/ri6PpGH3ohBQvR
+	 lpGL/drQryVYhBucwTTVlelN9e+fxP6uAUeOSUKTe7yc/nlYv/+WpKiUvWcrqL1Psm
+	 Hyya9yfN3sz8w==
+Date: Tue, 19 Feb 2019 14:21:40 +1100
+From: Paul Mackerras <paulus@ozlabs.org>
+To: Bharata B Rao <bharata@linux.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org,
+	linux-mm@kvack.org, paulus@au1.ibm.com, benh@linux.ibm.com,
+	aneesh.kumar@linux.vnet.ibm.com, jglisse@redhat.com,
+	linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com
+Subject: Re: [RFC PATCH v3 3/4] kvmppc: H_SVM_INIT_START and H_SVM_INIT_DONE
+ hcalls
+Message-ID: <20190219032140.GA5353@blackberry>
+References: <20190130060726.29958-1-bharata@linux.ibm.com>
+ <20190130060726.29958-4-bharata@linux.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20190214211642.2200-1-yuzhao@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190130060726.29958-4-bharata@linux.ibm.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 02/15/2019 02:46 AM, Yu Zhao wrote:
-> Switch from per mm_struct to per pmd page table lock by enabling
-> ARCH_ENABLE_SPLIT_PMD_PTLOCK. This provides better granularity for
-> large system.
+On Wed, Jan 30, 2019 at 11:37:25AM +0530, Bharata B Rao wrote:
+> H_SVM_INIT_START: Initiate securing a VM
+> H_SVM_INIT_DONE: Conclude securing a VM
 > 
-> I'm not sure if there is contention on mm->page_table_lock. Given
-> the option comes at no cost (apart from initializing more spin
-> locks), why not enable it now.
-> 
+> During early guest init, these hcalls will be issued by UV.
+> As part of these hcalls, [un]register memslots with UV.
 
-This has similar changes to what I had posted part of the general page table
-page accounting clean up series on arm64 last month.
+That last sentence is a bit misleading as it implies that
+H_SVM_INIT_DONE causes us to unregister the memslots with the UV,
+which is not the case.  Shouldn't it be "As part of H_SVM_INIT_START,
+register all existing memslots with the UV"?
 
-https://www.spinics.net/lists/arm-kernel/msg701954.html
- 
+Also, do we subsequently communicate changes in the memslots to the
+UV?
+
+Paul.
 
