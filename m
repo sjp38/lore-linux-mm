@@ -4,79 +4,79 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AC360C4360F
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 10:34:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76A96C10F00
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 10:34:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 66BBB2146E
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 10:34:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 27A2320818
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 10:34:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="dFYG6VAK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66BBB2146E
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="aCYhZeoV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 27A2320818
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 360328E0016; Tue, 19 Feb 2019 05:33:11 -0500 (EST)
+	id 61CC08E000F; Tue, 19 Feb 2019 05:33:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 24A068E0014; Tue, 19 Feb 2019 05:33:11 -0500 (EST)
+	id 35BBD8E0015; Tue, 19 Feb 2019 05:33:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0C7598E0015; Tue, 19 Feb 2019 05:33:11 -0500 (EST)
+	id 1D6838E000F; Tue, 19 Feb 2019 05:33:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CB0AD8E000F
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D3EBE8E0014
 	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 05:33:10 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id r136so3617111ith.3
+Received: by mail-it1-f197.google.com with SMTP id r136so3617113ith.3
         for <linux-mm@kvack.org>; Tue, 19 Feb 2019 02:33:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:message-id:user-agent:date:from
          :to:cc:subject:references:mime-version;
-        bh=1m499lCoWZDawBwduH5mia3SdJ+bH6wWKMriVQsCXbM=;
-        b=r9bdsjddWNi8uFJYe+VD6ZwE0oy4Ct02+0kHrRh1hR2JmXOU7HbphzzEZvPeag15lD
-         IWdrauKsd0EDAC1QtccaQs4OjZQKUbgnupgwsdneRTJE5uXASWojtN1eKgfWaQUQJDvf
-         /rJbIz8tshnx+KRNPPZ6lQ5CJMhBZct3pyAPvn5d0u5ASMt8Oiq3mlkWYBU2cSn5gExP
-         95zfiAe+fKr7RCnvq0mKafb/iayo3mNrMqu+NwoP4mhs3gxSHkuI2HC5k+uwP0GbJQMr
-         NygTt2ijycJY29EaB/ZEj31Uwq0yOrv2NfljRoaiUqGcCwmPqa6LhEsQbiOOPHU8nNme
-         X9+Q==
-X-Gm-Message-State: AHQUAuaJH6/V7uocT6EmDqhMyit88HuNJ2s1N9e681zIcYQjmUmN617A
-	ABijOrHQ2N/wXkJGLnlHei+9Jsly9Ns+c2VImaWM0GRN00B4DaGdXsROiX3EJY145+ZwBj3dAei
-	Z2FiU39Bzbp334loVdJFZZ1DJIcl1tJuGJI8xJqy1IStcPngNB2lVKpRjDc65L+JqIQ==
-X-Received: by 2002:a5d:9859:: with SMTP id p25mr17205174ios.64.1550572390625;
+        bh=HSnqaAxiObsayZ4+EIHUMu5Su7NmTQDCZqQQgYiGzgI=;
+        b=MotpxFN8HHmIZYDdjsFnPDLMMVgqdAzWfvoKT36+fvnABfmFvFuF9P8SNRvnZ3ChSd
+         PYRdP0wHlvy85CmJTHdCvlV8SrtFhlshuxOhNIpO/ETfkaa7iyKn4+rwfnUmrI9p0qgw
+         l+2IhbrMo21/nfgX1JK4gs3WFBEExLmVdR1Kcy6EDCWdlpLxKnFheiD3PAEEuA63gRq4
+         ftG1HgcDdcqmMrIdf0G43O/EneuTTUGdTjGKyhEow2JnUHRa5G7pJuIbt3d466nWqvbA
+         duZYN2190P8a/IuoVqTK0Su8hAxvaClwC8WJ5QJVbVDbKhTcEEJUJTkYZif4+Ep8eK92
+         o39Q==
+X-Gm-Message-State: AHQUAuZi3YkjwZQuGIzrQ8gq3sBLjXftw3PAJrib40CpoAHcylOVi3xn
+	cNwkyc+ch0Ar+4wPQuZHbDJfwAcqQc5V+rkv2Owh39SGdHTgTH3kBWktZUCm1R4zd3GDszztHvM
+	gkGEojPaRfQyaZJV4HhfuXJXLRqrADJq8dwBeDtdox2b5sL0sK6qAFAGY727FHs0cSA==
+X-Received: by 2002:a24:9a84:: with SMTP id l126mr2140823ite.77.1550572390605;
         Tue, 19 Feb 2019 02:33:10 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IafoTH0tLlWd4OgtYCNJfm/nUJ3Pe67ChS1fsPucXmhpgeJpuJR8gIVfKBfmzTcySZa7OhN
-X-Received: by 2002:a5d:9859:: with SMTP id p25mr17204977ios.64.1550572385480;
+X-Google-Smtp-Source: AHgI3IbNFmVDCzvkVAtNNscp1jPgXOvSEg702iUZYY/4WoTHlN4fVN0gZxagDnIS3n86JvAS/atj
+X-Received: by 2002:a24:9a84:: with SMTP id l126mr2140623ite.77.1550572385433;
         Tue, 19 Feb 2019 02:33:05 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1550572385; cv=none;
         d=google.com; s=arc-20160816;
-        b=ddYpFCDnBqHUyN9l/O/BzNt8c7scApofzRtnoVcjVIw9cH1BbBdBtkE4DI4qGhSZjh
-         fBwNfWZfUmB4K30SvMF0NTMjJOtyCoquHKu/fKl5iriwXE0MDL2uLZA4IF6kKmW+xS9/
-         ao6gEK1CZSHO7Ut9cTecsm1kNd+N6msE6sgPkH53kHltcjgC9N8cyKlW2k55UdJ4wnIp
-         YLYGjiFZs6gPnKyRYuv/OrmlKJZKxVSC3OSm33L0tVwZCKYmca9FogxsrkedC2wa+rkV
-         JEuAgWKONG7z2KDjCA+Naiyr6iPLKsUBTo5TDJijIrD4MW3we+4L9o35KluyirslS5/e
-         HPtw==
+        b=S8uZlJ5ffHKfPdRcf81L/qJ2JsI43UVzdPsvbJxIYLCxSzWbS6UqEiSwBe7A0/Q6Ev
+         NtSsAGHYBNMAZAAylGUr8uFrWZ5QUc08qKpZWP7/tBrDllaIH0Yl86/IsFcw3iu8T3ck
+         US0Ge551kkzbkaIiMAzSiiB9sOCTDcCPgupueM+WoiZzZhYCJMox0aEsTWhV1qdlNUdo
+         NHnXe2SmSHVszfxVfn7AKkJNn+jk6Dqt+1eC+5NuhD1Yea9jF1eBqRKB7yLxVV1+N5Wb
+         WmwHsNkoFEJ8u6IkGS+Z+bqBvrBFBNaJKx4+1EfiZrqsy9sqtJoNnjRRiKNkGCCpvOjv
+         WGJg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:subject:cc:to:from:date:user-agent
          :message-id:dkim-signature;
-        bh=1m499lCoWZDawBwduH5mia3SdJ+bH6wWKMriVQsCXbM=;
-        b=dAt5vnqankL+ccJ3LHPovde8J6afamVjdlPGJYBvhuuKfM8KaZP3b+9TYMtn1HAwts
-         7pecgs5cquHIqCW7JGKFHSTwbtMRN2T2n+S5HF5f2+Lfk2m/izMDgUJcgmp5F2+aOTbx
-         lAVidvxtwho/cxh/Dkb3NYYRkUk+/zm9JDnCgL8hte+PymLxJ1DGfLgmDOvIH5lzflRs
-         0xc7eS11y/SxThT1lIzoo2/LSK4icTZ339f/KvfU2y0n7UbQD4Wq9nkpB3hm5ev+hy83
-         KpBu1kokwlhEqWhBHky4omfVJhQFABJSQ4NPjrqgfO7YtPeUlmV6npo2vV/CDykNtk1M
-         xXyg==
+        bh=HSnqaAxiObsayZ4+EIHUMu5Su7NmTQDCZqQQgYiGzgI=;
+        b=xjTa6PwA811IPe4Odc2/LWlIrTCv/iaaK0I5OhqPJaUdQVTXZ8VXTiVgc39UF6w01S
+         0MJMoFFVHU5drNvw9axKCxt8bBlAgBsqe9xX72ZwyQnEpGfv2g+FSWglwRgYgBYk2LtY
+         U2pI9vO5AYYGCu6gqVzw2ngl06Eeu+PsMRsxW4jF5WiK/SXYLSPtdUVqueAHgxTOU1JU
+         +k0pH2sEZZLOOyQ4ox2LxQyYiB63exPTwG8+gZZAxy4mOGWBryy5XDHrxkILhgtSyCoa
+         TchrM9mFjn7RqRe0YOQfC8lRyFP9lqv7E+RefHo8NpZ0KhqwGjgX4/9C7RG9JoorExcg
+         cNPg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=dFYG6VAK;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=aCYhZeoV;
        spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
 Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id i12si1038753itb.82.2019.02.19.02.33.05
+        by mx.google.com with ESMTPS id m1si3385621iol.45.2019.02.19.02.33.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Tue, 19 Feb 2019 02:33:05 -0800 (PST)
 Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=dFYG6VAK;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=aCYhZeoV;
        spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=merlin.20170209; h=Content-Type:MIME-Version:References:
@@ -84,20 +84,20 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
 	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=1m499lCoWZDawBwduH5mia3SdJ+bH6wWKMriVQsCXbM=; b=dFYG6VAK1LK+4vkgXN0vUIsqq6
-	5fk4Ykx9noitYB0eJyqW1qO8Q7PGgAjnssomkzP9XeppAeiW2TEx0TrfM5DUMHDs1xdWzFGndumss
-	PniHG02dFakkjoWJu6EbacmsGYQzXCHGEB6c4TTk33Da1gvaTUvQAIq2l+MiB2Z69fS6ceTTT8jDN
-	1AaBvXf0V+ZrjSUR7QrGlwOPBXx0t6bzYA+uUhrNnu0mTnDu3bNz9MWr643UYdj1T4Ux+2RqnDlJ9
-	goOlZiJE9FufW0cR0uBywsIk1rJhozVPoroSLqKLnkhutKAr4Nt7bBCTZ8rOqR/Q3yTc+OjFKP27U
-	4gfRfKdQ==;
+	bh=HSnqaAxiObsayZ4+EIHUMu5Su7NmTQDCZqQQgYiGzgI=; b=aCYhZeoVURRtBIdPipMvux7sXW
+	gVhr0Ovtnm18dasYNLzI8HAMEG++W76a0Ivj72FuyNR5Lo63KtxQFy34ba0q041yuOqtDZSwnzONp
+	X0i0+b3fFvsdpgh2sGoqC48i6/f+sBdj508q79pbSxbLYQ/dNzqR4QjdIYtyNVXizs6LvB5rixh6A
+	NexhvRk+nyniGMRDD7MkCe5dcoRgO4Vy+5wIAhbLUSaYkCyOIpjVt8ib+mqpBnRmWS2B7E+7aVxbV
+	HcHLmf3HrcWQu0ji6gbLFl6pNMefd4pBGVtfxrd16o3Cu2rsKQ2HtemosuSJgibQl3CsDwi4xeViy
+	d1gOnspQ==;
 Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
 	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gw2hn-0000di-I4; Tue, 19 Feb 2019 10:32:52 +0000
+	id 1gw2hm-0000dV-0G; Tue, 19 Feb 2019 10:32:50 +0000
 Received: by hirez.programming.kicks-ass.net (Postfix, from userid 0)
-	id 550AC285202C6; Tue, 19 Feb 2019 11:32:48 +0100 (CET)
-Message-Id: <20190219103233.148854086@infradead.org>
+	id 481DD285202C1; Tue, 19 Feb 2019 11:32:48 +0100 (CET)
+Message-Id: <20190219103232.912967090@infradead.org>
 User-Agent: quilt/0.65
-Date: Tue, 19 Feb 2019 11:31:53 +0100
+Date: Tue, 19 Feb 2019 11:31:49 +0100
 From: Peter Zijlstra <peterz@infradead.org>
 To: will.deacon@arm.com,
  aneesh.kumar@linux.vnet.ibm.com,
@@ -110,7 +110,7 @@ Cc: linux-arch@vger.kernel.org,
  linux@armlinux.org.uk,
  heiko.carstens@de.ibm.com,
  riel@surriel.com
-Subject: [PATCH v6 05/18] asm-generic/tlb: Provide generic tlb_flush() based on flush_tlb_mm()
+Subject: [PATCH v6 01/18] asm-generic/tlb: Provide a comment
 References: <20190219103148.192029670@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -120,95 +120,165 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When an architecture does not have (an efficient) flush_tlb_range(),
-but instead always uses full TLB invalidates, the current generic
-tlb_flush() is sub-optimal, for it will generate extra flushes in
-order to keep the range small.
+Write a comment explaining some of this..
 
-But if we cannot do range flushes, that is a moot concern. Optionally
-provide this simplified default.
-
+Cc: Nick Piggin <npiggin@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: Will Deacon <will.deacon@arm.com>
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 ---
- include/asm-generic/tlb.h |   41 ++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 40 insertions(+), 1 deletion(-)
+ include/asm-generic/tlb.h |  119 ++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 116 insertions(+), 3 deletions(-)
 
 --- a/include/asm-generic/tlb.h
 +++ b/include/asm-generic/tlb.h
-@@ -114,7 +114,8 @@
-  *    returns the smallest TLB entry size unmapped in this range.
-  *
-  * If an architecture does not provide tlb_flush() a default implementation
-- * based on flush_tlb_range() will be used.
-+ * based on flush_tlb_range() will be used, unless MMU_GATHER_NO_RANGE is
-+ * specified, in which case we'll default to flush_tlb_mm().
-  *
-  * Additionally there are a few opt-in features:
-  *
-@@ -140,6 +141,9 @@
-  *  the page-table pages. Required if you use HAVE_RCU_TABLE_FREE and your
-  *  architecture uses the Linux page-tables natively.
-  *
-+ *  MMU_GATHER_NO_RANGE
+@@ -22,6 +22,118 @@
+ 
+ #ifdef CONFIG_MMU
+ 
++/*
++ * Generic MMU-gather implementation.
 + *
-+ *  Use this if your architecture lacks an efficient flush_tlb_range().
++ * The mmu_gather data structure is used by the mm code to implement the
++ * correct and efficient ordering of freeing pages and TLB invalidations.
++ *
++ * This correct ordering is:
++ *
++ *  1) unhook page
++ *  2) TLB invalidate page
++ *  3) free page
++ *
++ * That is, we must never free a page before we have ensured there are no live
++ * translations left to it. Otherwise it might be possible to observe (or
++ * worse, change) the page content after it has been reused.
++ *
++ * The mmu_gather API consists of:
++ *
++ *  - tlb_gather_mmu() / tlb_finish_mmu(); start and finish a mmu_gather
++ *
++ *    Finish in particular will issue a (final) TLB invalidate and free
++ *    all (remaining) queued pages.
++ *
++ *  - tlb_start_vma() / tlb_end_vma(); marks the start / end of a VMA
++ *
++ *    Defaults to flushing at tlb_end_vma() to reset the range; helps when
++ *    there's large holes between the VMAs.
++ *
++ *  - tlb_remove_page() / __tlb_remove_page()
++ *  - tlb_remove_page_size() / __tlb_remove_page_size()
++ *
++ *    __tlb_remove_page_size() is the basic primitive that queues a page for
++ *    freeing. __tlb_remove_page() assumes PAGE_SIZE. Both will return a
++ *    boolean indicating if the queue is (now) full and a call to
++ *    tlb_flush_mmu() is required.
++ *
++ *    tlb_remove_page() and tlb_remove_page_size() imply the call to
++ *    tlb_flush_mmu() when required and has no return value.
++ *
++ *  - tlb_remove_check_page_size_change()
++ *
++ *    call before __tlb_remove_page*() to set the current page-size; implies a
++ *    possible tlb_flush_mmu() call.
++ *
++ *  - tlb_flush_mmu() / tlb_flush_mmu_tlbonly() / tlb_flush_mmu_free()
++ *
++ *    tlb_flush_mmu_tlbonly() - does the TLB invalidate (and resets
++ *                              related state, like the range)
++ *
++ *    tlb_flush_mmu_free() - frees the queued pages; make absolutely
++ *			     sure no additional tlb_remove_page()
++ *			     calls happen between _tlbonly() and this.
++ *
++ *    tlb_flush_mmu() - the above two calls.
++ *
++ *  - mmu_gather::fullmm
++ *
++ *    A flag set by tlb_gather_mmu() to indicate we're going to free
++ *    the entire mm; this allows a number of optimizations.
++ *
++ *    - We can ignore tlb_{start,end}_vma(); because we don't
++ *      care about ranges. Everything will be shot down.
++ *
++ *    - (RISC) architectures that use ASIDs can cycle to a new ASID
++ *      and delay the invalidation until ASID space runs out.
++ *
++ *  - mmu_gather::need_flush_all
++ *
++ *    A flag that can be set by the arch code if it wants to force
++ *    flush the entire TLB irrespective of the range. For instance
++ *    x86-PAE needs this when changing top-level entries.
++ *
++ * And requires the architecture to provide and implement tlb_flush().
++ *
++ * tlb_flush() may, in addition to the above mentioned mmu_gather fields, make
++ * use of:
++ *
++ *  - mmu_gather::start / mmu_gather::end
++ *
++ *    which provides the range that needs to be flushed to cover the pages to
++ *    be freed.
++ *
++ *  - mmu_gather::freed_tables
++ *
++ *    set when we freed page table pages
++ *
++ *  - tlb_get_unmap_shift() / tlb_get_unmap_size()
++ *
++ *    returns the smallest TLB entry size unmapped in this range
++ *
++ * Additionally there are a few opt-in features:
++ *
++ *  HAVE_RCU_TABLE_FREE
++ *
++ *  This provides tlb_remove_table(), to be used instead of tlb_remove_page()
++ *  for page directores (__p*_free_tlb()). This provides separate freeing of
++ *  the page-table pages themselves in a semi-RCU fashion (see comment below).
++ *  Useful if your architecture doesn't use IPIs for remote TLB invalidates
++ *  and therefore doesn't naturally serialize with software page-table walkers.
++ *
++ *  When used, an architecture is expected to provide __tlb_remove_table()
++ *  which does the actual freeing of these pages.
++ *
++ *  HAVE_RCU_TABLE_INVALIDATE
++ *
++ *  This makes HAVE_RCU_TABLE_FREE call tlb_flush_mmu_tlbonly() before freeing
++ *  the page-table pages. Required if you use HAVE_RCU_TABLE_FREE and your
++ *  architecture uses the Linux page-tables natively.
++ *
++ */
++#define HAVE_GENERIC_MMU_GATHER
++
+ #ifdef CONFIG_HAVE_RCU_TABLE_FREE
+ /*
+  * Semi RCU freeing of the page directories.
+@@ -89,14 +201,17 @@ struct mmu_gather_batch {
   */
- #define HAVE_GENERIC_MMU_GATHER
+ #define MAX_GATHER_BATCH_COUNT	(10000UL/MAX_GATHER_BATCH)
  
-@@ -302,12 +306,45 @@ static inline void __tlb_reset_range(str
- 	 */
- }
- 
-+#ifdef CONFIG_MMU_GATHER_NO_RANGE
-+
-+#if defined(tlb_flush) || defined(tlb_start_vma) || defined(tlb_end_vma)
-+#error MMU_GATHER_NO_RANGE relies on default tlb_flush(), tlb_start_vma() and tlb_end_vma()
-+#endif
-+
+-/* struct mmu_gather is an opaque type used by the mm code for passing around
 +/*
-+ * When an architecture does not have efficient means of range flushing TLBs
-+ * there is no point in doing intermediate flushes on tlb_end_vma() to keep the
-+ * range small. We equally don't have to worry about page granularity or other
-+ * things.
-+ *
-+ * All we need to do is issue a full flush for any !0 range.
-+ */
-+static inline void tlb_flush(struct mmu_gather *tlb)
-+{
-+	if (tlb->end)
-+		flush_tlb_mm(tlb->mm);
-+}
++ * struct mmu_gather is an opaque type used by the mm code for passing around
+  * any data needed by arch specific code for tlb_remove_page.
+  */
+ struct mmu_gather {
+ 	struct mm_struct	*mm;
 +
-+static inline void
-+tlb_update_vma_flags(struct mmu_gather *tlb, struct vm_area_struct *vma) { }
-+
-+#define tlb_end_vma tlb_end_vma
-+static inline void tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma) { }
-+
-+#else /* CONFIG_MMU_GATHER_NO_RANGE */
-+
- #ifndef tlb_flush
- 
- #if defined(tlb_start_vma) || defined(tlb_end_vma)
- #error Default tlb_flush() relies on default tlb_start_vma() and tlb_end_vma()
+ #ifdef CONFIG_HAVE_RCU_TABLE_FREE
+ 	struct mmu_table_batch	*batch;
  #endif
- 
-+/*
-+ * When an architecture does not provide its own tlb_flush() implementation
-+ * but does have a reasonably efficient flush_vma_range() implementation
-+ * use that.
-+ */
- static inline void tlb_flush(struct mmu_gather *tlb)
- {
- 	if (tlb->fullmm || tlb->need_flush_all) {
-@@ -348,6 +385,8 @@ tlb_update_vma_flags(struct mmu_gather *
- 
- #endif
- 
-+#endif /* CONFIG_MMU_GATHER_NO_RANGE */
 +
- static inline void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
- {
- 	if (!tlb->end)
+ 	unsigned long		start;
+ 	unsigned long		end;
+ 	/*
+@@ -131,8 +246,6 @@ struct mmu_gather {
+ 	int page_size;
+ };
+ 
+-#define HAVE_GENERIC_MMU_GATHER
+-
+ void arch_tlb_gather_mmu(struct mmu_gather *tlb,
+ 	struct mm_struct *mm, unsigned long start, unsigned long end);
+ void tlb_flush_mmu(struct mmu_gather *tlb);
 
 
