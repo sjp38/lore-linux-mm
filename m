@@ -2,248 +2,166 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
-	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-11.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0C3ADC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 07:13:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72992C10F00
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 07:23:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 772CF206BA
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 07:13:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2ED7D21903
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 07:23:26 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="rIluS3pB";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="CsHp1jPz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 772CF206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="TUZD2SJn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2ED7D21903
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EA0F38E0003; Tue, 19 Feb 2019 02:13:54 -0500 (EST)
+	id C27C58E0003; Tue, 19 Feb 2019 02:23:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E4F0B8E0002; Tue, 19 Feb 2019 02:13:54 -0500 (EST)
+	id BFDDA8E0002; Tue, 19 Feb 2019 02:23:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CEF7C8E0003; Tue, 19 Feb 2019 02:13:54 -0500 (EST)
+	id AC69B8E0003; Tue, 19 Feb 2019 02:23:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A383A8E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 02:13:54 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id o34so18788000qtf.19
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 23:13:54 -0800 (PST)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FAC18E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 02:23:25 -0500 (EST)
+Received: by mail-ot1-f70.google.com with SMTP id 42so7734068otv.5
+        for <linux-mm@kvack.org>; Mon, 18 Feb 2019 23:23:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=ZPpCqQtFwqciHf/SkNd587ZGZa/yYn3cppiHex2bE04=;
-        b=hkXGxr99TBF3vojz+d3599UElg3Vh0YpfjEY5btg9+D62GK6wIEwqbr3Ls6DMNwmDY
-         mVjTMrWLDi1Udr3Ptqgaw/49c3iAKatsyTkLA4F3hgayo7Fk0qS3aYYp4R35zc7SdZDe
-         pLnKXaUhw7HpGutTdXjDdmCl2k6UVlib1YvTa85XdBrQBycV+AxpeVgC9Z560nH3h1BL
-         YbBdyHcpCp29tn00icu0eYNy2HlBPw+4179uSX8CZYd5k2RvX7JvG37AmUJZRS83Jk2k
-         u0fnh83QAeIokyQaLaAksuUTFpLzoI1n+oUitnEZcoc+f6qTg8G8CBziXprpAhzOFVWl
-         IIcg==
-X-Gm-Message-State: AHQUAubbNxqfywq70NMgPDFDJHGP8GqyPndMXlFpRutpOrBraj6SB1p1
-	ax3h4lDfXX3VJYqbpCA0I0iRFFEa7f75PUGijdcNepML7wosSDCO9z2u1oy9x0FKv/h8vZ4lWPm
-	mHYDBBi9AlXYxBN6ofJefe/GXkk+7L7JcxQbMZQJ4+SrjevUoGvzjbjf5Ju4jIzqt8Q==
-X-Received: by 2002:aed:221c:: with SMTP id n28mr4559937qtc.21.1550560434295;
-        Mon, 18 Feb 2019 23:13:54 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ0Xu8dphI+/c1K34l4hviDzoaXItuEyR0KrGfrqMrDXrrWu9WF+11n33EPZtO1KIZfKno7
-X-Received: by 2002:aed:221c:: with SMTP id n28mr4559916qtc.21.1550560433590;
-        Mon, 18 Feb 2019 23:13:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550560433; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=IB+siECYR5IIMpiyXWF2nXOjV0iGgr1gIiWvp15AgwU=;
+        b=c7Qx6CnKe7MqrFA4iZ4ojy15M6AoZpa1bsCSnWFomxkQNSlLCQR9thdjqMwtaVHupb
+         u18I90EArCsNP0U7TpffAk9vapccVhJ/NwYM1ee5iQIb0Ua1Ih7d44ujRtcxUgk9T87V
+         pbWalOkH1cFkiq42zylV4BRE2uR2jsF36pSWkahdD1jp3Mu1Sgvzy7m24mzjVwzroOEc
+         7PmPIM5RxSh+1tXE5klqNX694z9ENbWDFELsoMNjJtTre9l5Y4VzEsajPFFWFy3wIQ52
+         G0+z+e+eODoNKypqFgIhV61I+oyV48/acC1hN9N/uMkhG5EYYR2AYfux3fnRpCP4CzpJ
+         refA==
+X-Gm-Message-State: AHQUAuaiLGHdGH/PiMt61iAPXRkRKcRCv6a36S6A+mcGZNXD6eX8Fdk3
+	pH+25WM3TiyLDh75Qi8UJNGK+CK891gmXZ3dQOxqKglGmC4Mpc8Icec8MzfzyDLsMGGZvcMw+/p
+	tCnNLqIrDODj4zolxK4pyJDBAc29RDFJDo3cUXRZG4w6KQ3Fbx68FRbEpGGQHOJ5mlbuiX9Sp/6
+	LfnURfCFH0XUf1STJ1MAgjgGqppu5vLJhelD0/hFWBlZ6hw0GY5SUHLwdD/sSMq31jYf0JFWYxw
+	fiBpI7mZXESkecKgMF1VefEIMa4ADV0lknSvcwuz7htifpo4wcpWWsPwIjcuroa55U9RkRBp/Ce
+	xSFqBjnMAtx00yYnW+GPiXkUKI5HASmVNwLE33cbRKcwCI90aNNTrakxyTTrOQ9zyT9crtW93ul
+	M
+X-Received: by 2002:a05:6830:1d8:: with SMTP id r24mr86507ota.264.1550561005248;
+        Mon, 18 Feb 2019 23:23:25 -0800 (PST)
+X-Received: by 2002:a05:6830:1d8:: with SMTP id r24mr86486ota.264.1550561004589;
+        Mon, 18 Feb 2019 23:23:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550561004; cv=none;
         d=google.com; s=arc-20160816;
-        b=CnKPp1Hl5QozWx0Aj9iyHssAXTuwq1XHeoWo1bg+tdU1A9ViY7lxIeIvQp7oX5Tjow
-         R2wNMI9H1fkxL1Pz3y7jJtdgplKf3efZQ8wFHHFi8F7gdQkjC+wu1g/6Apf+954nIOMk
-         elElUj74adV3jKCEwSyEI0fnfYQ3lI1zJnsHw5rplekcycU+KiRNT6LEC6C0VTybX0TK
-         3uLEQ+hQ5IhobWgPYBXJo1PWGodBJGuyxtkzhlpM2BGe8aa0mACthMFzOqClZy2Xa1c1
-         4/AIR/dXdBCjNSIUcC9CDw0qhaVjTCVUQnxngfOwFay7KEoRDwwlpq8npjxatnMHkBXl
-         RAzA==
+        b=geM3Rd8mv2H/QAPW2FotY01OnEqKmYXHXxJyDkhHzkY4fAYjGnV68YMEqGgFy3xhH1
+         +r9gzYEsA4FSZDYTT8JIb6r4d+Vx+UYmkSwXuZJ8GZgqVr9GH0BD8ELpWAjlyXgZKEMB
+         VpayOGcQtc3RZ8NyPTJ57u42D+NeHRIWPxnZ78IFENJOqKDD3IYqDibEQ36kuvMbVyOX
+         bliH3jSpXjLJrAE61iBJ24qu5916f6NLKfvc9S0FMseo9RrhITd8KqA/5sjBLMlm/wdv
+         O+4v0Lj2xeEyGfg8NYpQ1N+iNX0Ohzoo0dtnX0fdzsHAjjI8/fIgRjmgIRsLW8xsZU/h
+         biaw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:message-id:date:thread-index:thread-topic:subject
-         :cc:to:from:dkim-signature:dkim-signature;
-        bh=ZPpCqQtFwqciHf/SkNd587ZGZa/yYn3cppiHex2bE04=;
-        b=HR4uHUMPkgaZcUskVbGjwR+hOi0++edRVWQIFA/pZ7u1PW9JTyJm5XCtm+FHCqVIxB
-         RDgXnO7xZVNyfqHGhaLlK8W3FtyhPDfGqhcMzCxrMsl1fl8p2eQNZ4RaqfwPj7UTARSf
-         J/Ut4MU0ltOjY2CsUyjqRhalGnFtbqpDZXwanuGv2XK/QYdoh6b1NRQEcjceqpdflqnP
-         iQBzec5hXVgZsTiCOjh6gdSFZttTc/TxM8zM7ot257DrV58mFN/fFvxphJqp+Hy2z6Xy
-         TBqV9mPOMPTAOqCM0aAm+bcT+4eNAmR0U0Ne0nMjx7L1wa3o8lo1YbeXcQN94ix9TlZW
-         f8dA==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=IB+siECYR5IIMpiyXWF2nXOjV0iGgr1gIiWvp15AgwU=;
+        b=liHb3y0vei/U5MySPMq07JSOtVYnNYjaAgE8fIf9oR2RqPHizK0p1gfd2VowVrGPIW
+         bQFQfhP++Y9AO7nNgOyrVAqbB+MMA90o3T55HhveiOQBX6x+37k1B9Z2NMAVXk1EDWpy
+         +yXK6UhQSW8saNtCQcX8DXur0MmEeTzD4Ubpvbkr79i5+ogIei3ZYwPjMxUxgwxrmQEw
+         xwO1oSPSA5easS+eiLUoMkZuzWAHkwO/qoU3Ea/LyDfosqGHc0CLehkHsooETKzomtU2
+         TkUw8pXX9vv2bzvm/IgvImpJGyqKsK/Sbz5cB7mAo0XfpwWFVjdSEiAaGXR9OXgGoDEA
+         OIFw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=rIluS3pB;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=CsHp1jPz;
-       spf=pass (google.com: domain of prvs=79538942c9=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=79538942c9=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id i185si2072674qkf.56.2019.02.18.23.13.53
+       dkim=pass header.i=@google.com header.s=20161025 header.b=TUZD2SJn;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u16sor8122759oiv.13.2019.02.18.23.23.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Feb 2019 23:13:53 -0800 (PST)
-Received-SPF: pass (google.com: domain of prvs=79538942c9=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        (Google Transport Security);
+        Mon, 18 Feb 2019 23:23:24 -0800 (PST)
+Received-SPF: pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=rIluS3pB;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=CsHp1jPz;
-       spf=pass (google.com: domain of prvs=79538942c9=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=79538942c9=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1J7DQXD014220;
-	Mon, 18 Feb 2019 23:13:52 -0800
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : content-type : content-id :
- content-transfer-encoding : mime-version; s=facebook;
- bh=ZPpCqQtFwqciHf/SkNd587ZGZa/yYn3cppiHex2bE04=;
- b=rIluS3pBCUVF5hKeCA7vI6ppuC92uQFFG+nppgIG9vqpy+X0IbLEzsZ3FfusZxTSYl+1
- hinYCrl9HiS3SLt7oixqVbpNe10kqx4O6IiYai6FmBmg/oKUpIKt8iEiZ2KpgDO2DwzQ
- oGbxDFfqi8Avt/4K5laPUKduMRIzqcuvo58= 
-Received: from maileast.thefacebook.com ([199.201.65.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2qrct481ur-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Mon, 18 Feb 2019 23:13:51 -0800
-Received: from frc-mbx01.TheFacebook.com (2620:10d:c0a1:f82::25) by
- frc-hub05.TheFacebook.com (2620:10d:c021:18::175) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1531.3; Mon, 18 Feb 2019 23:13:51 -0800
-Received: from frc-hub04.TheFacebook.com (2620:10d:c021:18::174) by
- frc-mbx01.TheFacebook.com (2620:10d:c0a1:f82::25) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1531.3; Mon, 18 Feb 2019 23:13:50 -0800
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (192.168.183.28)
- by o365-in.thefacebook.com (192.168.177.74) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1531.3
- via Frontend Transport; Mon, 18 Feb 2019 23:13:50 -0800
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=ZPpCqQtFwqciHf/SkNd587ZGZa/yYn3cppiHex2bE04=;
- b=CsHp1jPzknxBCvMAuWW6cF12gUT60uFB1BrIRGXUrL+az31kMF8gvZXBSwv7b70jBfIyL0rfqcTsPnXK+sc7oJ/0KFleyPMk7sObOx+JSx/v11WOaJDV89tRGDOEICPOS7vLPGtO0z8thG3jOv18sDE7UAlwPbT1ckFVdJvzAQU=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYASPR01MB0012.namprd15.prod.outlook.com (52.135.241.97) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1622.16; Tue, 19 Feb 2019 07:13:33 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::ecc7:1a8c:289f:df92]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::ecc7:1a8c:289f:df92%3]) with mapi id 15.20.1601.016; Tue, 19 Feb 2019
- 07:13:33 +0000
-From: Roman Gushchin <guro@fb.com>
-To: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>
-CC: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "riel@surriel.com"
-	<riel@surriel.com>,
-        "dchinner@redhat.com" <dchinner@redhat.com>,
-        "guroan@gmail.com" <guroan@gmail.com>,
-        Kernel Team <Kernel-team@fb.com>,
-        "hannes@cmpxchg.org" <hannes@cmpxchg.org>
-Subject: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
-Thread-Topic: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
-Thread-Index: AQHUyCKfeT5lZyV8PESiIPUMxsb/VQ==
-Date: Tue, 19 Feb 2019 07:13:33 +0000
-Message-ID: <20190219071329.GA7827@castle.DHCP.thefacebook.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: BYAPR08CA0064.namprd08.prod.outlook.com
- (2603:10b6:a03:117::41) To BYAPR15MB2631.namprd15.prod.outlook.com
- (2603:10b6:a03:152::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:180::1:753b]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 72a1185d-9415-4e27-7c68-08d69639c1fe
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:BYASPR01MB0012;
-x-ms-traffictypediagnostic: BYASPR01MB0012:
-x-ms-exchange-purlcount: 4
-x-microsoft-exchange-diagnostics: 1;BYASPR01MB0012;20:Yu5iKlZpalGPZ8L2Wfw3VpYg4kYT/hZyZ/0tTuDyIBY8pwfPzkIkNHks0aClkoUJCp5nXuSj8vJ987G6E3J3EjfxtN0X99ZlZQx1gVqgfyCkcj6N6dxuyB5lY5VC1j1WngP5GtP813V6RT/hQqj9NPeHEBfLMtNOIWR1n7PwGvI=
-x-microsoft-antispam-prvs: <BYASPR01MB0012127E36085186001A66F0BE7C0@BYASPR01MB0012.namprd15.prod.outlook.com>
-x-forefront-prvs: 09538D3531
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(136003)(366004)(396003)(346002)(376002)(199004)(189003)(256004)(81166006)(486006)(6486002)(33896004)(966005)(5660300002)(97736004)(5640700003)(6436002)(71190400001)(8676002)(71200400001)(2351001)(476003)(478600001)(7736002)(14454004)(33656002)(25786009)(105586002)(6116002)(46003)(106356001)(4326008)(6506007)(386003)(2501003)(305945005)(102836004)(316002)(186003)(99286004)(53936002)(14444005)(1076003)(54906003)(8936002)(52116002)(86362001)(81156014)(68736007)(6916009)(6306002)(6512007)(9686003)(2906002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYASPR01MB0012;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: uIU+CNNbUdwhKtBS8tZjFlEk8yKH3GiMuGviIYegZ8kV4wkBM1aXNtcyY9JM/jTEC49LVuszv4WjM0+1pOQAg5RvMlxGhak5eG9FOFFOZHTsGf99vf9OWfX9QJzihDQd1iBPK/WE49pe7htNuH3aOwDR4j7qjPpLmEJ00BGobDTXey8vJYXfI/Z/2nM+XJfad2rGln1La9o+e52sz7KIiysHIj4beZig7V7gDtRdrR+O3kbRupD2PDd9YDDTYTE92JZaCjm74OUJfEZnc2uEqrBzhyH5KKD5aSL3iy963C/CVvnYYKPtiNDOoSTm9rfYFE484hko2QkFw+g3tSLoyVXFK+AW9GRwXCnTkpwD+vddRk5LD0CCghgSm6fO9Kd/GKBjI0VqsxXZpEITC0gc9RN+RAjQb6FA/ZMnTqTiT3k=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <CE84E415D6706A4A9AF4B0CD01403B7C@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@google.com header.s=20161025 header.b=TUZD2SJn;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=IB+siECYR5IIMpiyXWF2nXOjV0iGgr1gIiWvp15AgwU=;
+        b=TUZD2SJnIeXFVhzdcKWhm4U//GslWQDFT0ndoaKYqvy5Pp5fla6hp2/GZSts3pCYB/
+         gv6n9j8oKv43JVGhYBoq2RtsXVv91eQg8mVjyD5SkCFZ9jjGEpA9i1cf6HWFRU/ptuTo
+         WhVW5skwf6mLtZHh0JuKhqYL8XSM+efSAuR5UR5cWOfdHwnzvrZVsxS5DjZHg7Z5hWch
+         Cx3QXUjv3QUFpzn3aFg1CTfQVezmMg99pfOi3ZkUQRwfkDJDWJjmsUGgn3dNICyvlBvD
+         iRCs3qHQoqB7A3DfhdAujU3qkn/L+8/3zJPqt0ghKAu8zbYQfDI7whDmqadkwjolPs9/
+         OFNQ==
+X-Google-Smtp-Source: AHgI3IbSlYnqTF2XEQcKXpeVYysnSj6+N68KP6i2pmo9Ku7KV6WqCJzRA1Th7km08dOF3N7fwmjtUQ==
+X-Received: by 2002:aca:aa55:: with SMTP id t82mr1707844oie.29.1550561003715;
+        Mon, 18 Feb 2019 23:23:23 -0800 (PST)
+Received: from eggly.attlocal.net (172-10-233-147.lightspeed.sntcca.sbcglobal.net. [172.10.233.147])
+        by smtp.gmail.com with ESMTPSA id u65sm7128614oib.5.2019.02.18.23.23.22
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 18 Feb 2019 23:23:22 -0800 (PST)
+Date: Mon, 18 Feb 2019 23:23:14 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+X-X-Sender: hugh@eggly.anvils
+To: Al Viro <viro@zeniv.linux.org.uk>
+cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
+    "Darrick J. Wong" <darrick.wong@oracle.com>, 
+    Matej Kupljen <matej.kupljen@gmail.com>, linux-kernel@vger.kernel.org, 
+    linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH] tmpfs: fix link accounting when a tmpfile is linked in
+In-Reply-To: <20190219054807.GX2217@ZenIV.linux.org.uk>
+Message-ID: <alpine.LSU.2.11.1902182311410.7559@eggly.anvils>
+References: <alpine.LSU.2.11.1902182134370.7035@eggly.anvils> <20190219054807.GX2217@ZenIV.linux.org.uk>
+User-Agent: Alpine 2.11 (LSU 23 2013-08-11)
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 72a1185d-9415-4e27-7c68-08d69639c1fe
-X-MS-Exchange-CrossTenant-originalarrivaltime: 19 Feb 2019 07:13:32.5392
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYASPR01MB0012
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-19_05:,,
- signatures=0
-X-Proofpoint-Spam-Reason: safe
-X-FB-Internal: Safe
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Sorry, once more, now with fsdevel@ in cc, asked by Dave.
---
+On Tue, 19 Feb 2019, Al Viro wrote:
+> On Mon, Feb 18, 2019 at 09:37:52PM -0800, Hugh Dickins wrote:
+> > From: "Darrick J. Wong" <darrick.wong@oracle.com>
+> > 
+> > tmpfs has a peculiarity of accounting hard links as if they were separate
+> > inodes: so that when the number of inodes is limited, as it is by default,
+> > a user cannot soak up an unlimited amount of unreclaimable dcache memory
+> > just by repeatedly linking a file.
+> > 
+> > But when v3.11 added O_TMPFILE, and the ability to use linkat() on the fd,
+> > we missed accommodating this new case in tmpfs: "df -i" shows that an
+> > extra "inode" remains accounted after the file is unlinked and the fd
+> > closed and the actual inode evicted.  If a user repeatedly links tmpfiles
+> > into a tmpfs, the limit will be hit (ENOSPC) even after they are deleted.
+> > 
+> > Just skip the extra reservation from shmem_link() in this case: there's
+> > a sense in which this first link of a tmpfile is then cheaper than a
+> > hard link of another file, but the accounting works out, and there's
+> > still good limiting, so no need to do anything more complicated.
+> > 
+> > Fixes: f4e0c30c191 ("allow the temp files created by open() to be linked to")
+> > Reported-by: Matej Kupljen <matej.kupljen@gmail.com>
+> > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> > Signed-off-by: Hugh Dickins <hughd@google.com>
+> 
+> FWIW, Acked-by: Al Viro <viro@zeniv.linux.org.uk>
 
-Recent reverts of memcg leak fixes [1, 2] reintroduced the problem
-with accumulating of dying memory cgroups. This is a serious problem:
-on most of our machines we've seen thousands on dying cgroups, and
-the corresponding memory footprint was measured in hundreds of megabytes.
-The problem was also independently discovered by other companies.
+It's Worth A Lot, thanks Al. And I apologize for the cheeky "Fixes"
+line, when a fair view would blame me for earlier adding the
+weirdness fixed.
 
-The fixes were reverted due to xfs regression investigated by Dave Chinner.
-Simultaneously we've seen a very small (0.18%) cpu regression on some hosts=
-,
-which caused Rik van Riel to propose a patch [3], which aimed to fix the
-regression. The idea is to accumulate small memory pressure and apply it
-periodically, so that we don't overscan small shrinker lists. According
-to Jan Kara's data [4], Rik's patch partially fixed the regression,
-but not entirely.
+> 
+> Or I can drop it into vfs.git - up to you.
 
-The path forward isn't entirely clear now, and the status quo isn't accepta=
-ble
-due to memcg leak bug. Dave and Michal's position is to focus on dying memo=
-ry
-cgroup case and apply some artificial memory pressure on corresponding slab=
-s
-(probably, during cgroup deletion process). This approach can theoretically
-be less harmful for the subtle scanning balance, and not cause any regressi=
-ons.
+Andrew usually gathers the mm/shmem.c mods (unless it's you doing an
+fs-wide sweep), so I was pointing it towards him; and I don't think it's
+in dire need of a last minute rush to 5.0, though no harm in there either.
+I'll say leave it to Andrew - and leave it to him to say the reverse :)
 
-In my opinion, it's not necessarily true. Slab objects can be shared betwee=
-n
-cgroups, and often can't be reclaimed on cgroup removal without an impact o=
-n the
-rest of the system. Applying constant artificial memory pressure precisely =
-only
-on objects accounted to dying cgroups is challenging and will likely
-cause a quite significant overhead. Also, by "forgetting" of some slab obje=
-cts
-under light or even moderate memory pressure, we're wasting memory, which c=
-an be
-used for something useful. Dying cgroups are just making this problem more
-obvious because of their size.
-
-So, using "natural" memory pressure in a way, that all slabs objects are sc=
-anned
-periodically, seems to me as the best solution. The devil is in details, an=
-d how
-to do it without causing any regressions, is an open question now.
-
-Also, completely re-parenting slabs to parent cgroup (not only shrinker lis=
-ts)
-is a potential option to consider.
-
-It will be nice to discuss the problem on LSF/MM, agree on general path and
-make a potential list of benchmarks, which can be used to prove the solutio=
-n.
-
-[1] https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/comm=
-it/?id=3Da9a238e83fbb0df31c3b9b67003f8f9d1d1b6c96
-[2] https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/comm=
-it/?id=3D69056ee6a8a3d576ed31e38b3b14c70d6c74edcc
-[3] https://lkml.org/lkml/2019/1/28/1865
-[4] https://lkml.org/lkml/2019/2/8/336
+Thanks,
+Hugh
 
