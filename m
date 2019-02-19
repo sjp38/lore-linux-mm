@@ -2,197 +2,181 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
-	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 295EFC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 16:21:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 51614C10F00
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 16:28:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CC38C2147A
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 16:21:55 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="l/7T3zcx";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="TD8z8YyE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC38C2147A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id E8200217D9
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 16:28:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8200217D9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=acm.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 69E0E8E0003; Tue, 19 Feb 2019 11:21:55 -0500 (EST)
+	id 5D30E8E0003; Tue, 19 Feb 2019 11:28:24 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 623368E0002; Tue, 19 Feb 2019 11:21:55 -0500 (EST)
+	id 5839C8E0002; Tue, 19 Feb 2019 11:28:24 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 49E1E8E0003; Tue, 19 Feb 2019 11:21:55 -0500 (EST)
+	id 47E5D8E0003; Tue, 19 Feb 2019 11:28:24 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 018D18E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 11:21:54 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id 11so11269510pgd.19
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 08:21:54 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 094498E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 11:28:24 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id f125so14637408pgc.20
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 08:28:23 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=+ziz4oSsS1e0CJ3WZgMyqljT7cHtXezRCNfHi9IV6vE=;
-        b=nRX15Gz8dIKZIAUxmHcqK9EpE+9Ce9M6cM8ACaw0gU1zrjtHQA43+xeE9VATDR5Pt+
-         7Qwvk1AGJOCtixu42sNuD49J6NarsOxUwMN+vLaMe57PcWttAlynHKTlVXM1N35/VKiN
-         3ujZgqyBRYHUbcWgGocMefu/U+ZRVJDDQ+nm49O0k9KmoN+TizBIn5U1/8/NMfXIpqG3
-         qdRqob8OjoX2YCgNa/z6EHEP6u/gacMvkSBzYQZ+zJZJ9Wx6R9iTU4YpBDbpxalbfFgV
-         BCkAtDMhNYFtMnVcn+09lfUrWA3cBbIoicW39wPPQooajk4A5O1QY7wzT9KhR5zDhNpu
-         vAng==
-X-Gm-Message-State: AHQUAuZuifIhs13y1lrk3b8XIElDsbOKIMxAAKA1up1KU1p+75IMNY3S
-	nZcqOWCUvx6VXebkBsQyDGxXfzSHRmXiKnM1Udgp7IcHFGRv997fp836OnAb7c9IA+rvZOmpVCO
-	YFp5dhl0a8SYwYLF0QkZrI4UK4k+jdc3OY27KWXR+jEbwhBye3BPeCjMQvNzsAwCWqQ==
-X-Received: by 2002:a17:902:c5:: with SMTP id a63mr32222939pla.267.1550593314551;
-        Tue, 19 Feb 2019 08:21:54 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ia998XmIQY5CnBmY4NgZ7x/+H5cZHoUQutY7v7r+rIRC4hfh7DQgAhegifhqcTnnHcSoA/s
-X-Received: by 2002:a17:902:c5:: with SMTP id a63mr32222898pla.267.1550593313908;
-        Tue, 19 Feb 2019 08:21:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550593313; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=ZhUEzJ11ce3cQzbjIxeMP4LPtiXWa6qX61ZXbLMs8l0=;
+        b=ujlIcEOzskgryVajoNps3KgiQ+TSyMPLaBWVXUL/QHn/xEBDiyGTQfwG35PpqZn6fv
+         rtH4p/rwJACAJCiJxCdewLi7F2Q/0hik23erWzX4krTJmbGXMAVaRWrwIlkdFqSOliQn
+         aSSUZBxSOKw8Op6M0acbnVhybu/c3FJG14EhcrlDouEt3qGdrgrFuG/g+FGLSeJjxCVp
+         W7DBK7uSJU1gqOR19noo68ebrnB8nO/SGNZ/MX97bp2MnQWwpaUNSetoEV+WKqE7Tg/h
+         0a4fgYx5ff3HnuPBs4RmsDkffoI1pbzEKJBmpgtkoxDr5BVx4X2TNq5bmyfmY590tXwg
+         zarQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bart.vanassche@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bart.vanassche@gmail.com
+X-Gm-Message-State: AHQUAua5vodXzbZ2Wza4oQeE9aDcxIWccYvm/K239Kzata3CvDs14LFN
+	3woas3YjlzV+S2UfHhnfRjyjzqfwZVKx087CBEUSxVZ3rC34lQI5rckh3o1JpfIq73LwZzNRzYe
+	mi5RKiwAMMLOyYoNBYnPdsFr9fjloE+MXrxPMb4DIufQ6+Ed+HMVAnsJASlyM3XOtRrHOS2zzNG
+	BJZkJypr8Z4Jv3d31EXPOpjGXUZ60BU6n1VSFr/zfwIbR98GHba1keutXr99eXVLGKPEUMWTXy7
+	rMxGIfnd6ik+qAFSEQJTvmU3nB90HucEDMCa8pxudfDYKacKcImo1Lw3g2V12CkXvprJ/QM06Rl
+	E9A07LK/stfl+veGJno92z+cp8t6JcGt/QuI+LzM4kJHSczBZIhpVTrvagq5E6D2Yxh+8q8zjw=
+	=
+X-Received: by 2002:a17:902:12e:: with SMTP id 43mr31988118plb.31.1550593703643;
+        Tue, 19 Feb 2019 08:28:23 -0800 (PST)
+X-Received: by 2002:a17:902:12e:: with SMTP id 43mr31988061plb.31.1550593702812;
+        Tue, 19 Feb 2019 08:28:22 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550593702; cv=none;
         d=google.com; s=arc-20160816;
-        b=NSh2E+dle/hPUehmJYfI1Zywoyak2O0o+pY+C4PhdSJ3gm/Gp8PcNDOfxb03P/FEwX
-         0Je98IQbcWzGd7463pJMZkrMP0p9HJpl/ov7cJ326B016kntNbqO3DLzMynbWfumNPJW
-         ml+sFr3ZazSsj4ne4daey3bxAHOl6euyCjxG4CNstKT4p+cpy3hm0kpAlkOpWedN0ktd
-         w211uY55602KgOTFD6tc8jVQumosypgk/v6FB4DiD2ip+rtiueO85PrbyUZQvPULDKSE
-         SySPoG0YJZ7UfWtPKzQLVD8lKLZDXffE2lT6JHNYci5lvVF3u7T/fzgK+b0xyxGsPnmJ
-         KZpw==
+        b=zVGYToBL+BBPIVn8nZv2umGIzOe6TmABmJfa/W8CfroSt/uxlPASYpNlvOuydA50bs
+         fBwb+9lmUVCtqhjQNOFy1cXPIliskrtRCdYEOuECJg+phb87bB8kM2LB6G65oLBlYwmO
+         RcQSxNRigogMGSFu6NBji1gtT5HHy46q4xMjRkjkbNHYXKNNa33CH1Ce4lOiRnZ+lDuY
+         pkOeIPyBM5VSvPwOtrRxPYcjFPHEBEZz89/rdpwIlzt4t2n1xLsTtHoPv+rDh1dTLHXb
+         e8LMoMlOjg4DH8cIO8CQ1DldRROz3Ci+WRunJOL5NEjkjN/2YVUyWMZqQ/A+oU6E7+J3
+         L/EA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=+ziz4oSsS1e0CJ3WZgMyqljT7cHtXezRCNfHi9IV6vE=;
-        b=nKYKOy+flI8YtqcYHks1pxJwjtLn2uVHlc3gpEN/ft4jTWjAal/BD1wmozbGqTWsBb
-         jrPo+yJkwf6ynJG2s2mtyEglO+2LkCjNNDggmDOgxy3ALb+rMgMxHGKEnUjP7Ug5LdK1
-         H0a25S41gwl+h78JSnYk1U/PoKCsKtu+2NJlvrwXC/zn8sx/nZco6+JlOK3G0/7xJpfB
-         +iQ4An6JIfR06zo7Q8bax/RyqWz+0S/a/N3BLNcT4pJjAuEA5Mh8v2VnuhkwkYax10QC
-         YEJ5QEqd5qZ9kw+7fgF0IW5mMTvPoDLzkIGGnNS4f8lIAfZPj+JwIiHFM98xsp+yY3gq
-         u12g==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=ZhUEzJ11ce3cQzbjIxeMP4LPtiXWa6qX61ZXbLMs8l0=;
+        b=dtJ8m8aL1/sER5n8scyC1bH7/bXJdYx9AV+UNk/s7JmYN9yvRLg70lEF/lvmAGEOq+
+         YqJzdTykXSKoDtzAKL6D5nwoMN2KpLrmeUrZ2ekufWdLpS6IQZzKxvb0wqulOWB9K3K8
+         K7buZOki+munDQ9yI2G8xHORAmMPqbNJa0TpLxZuUliS5kyIAnSyByrLcShhoOaBdnl3
+         2w9t3olvk1nzVxuwbSjZwHeSKYJncHGCmw+2OZviYORFbD8aXd+fGwswIY63C08CX3aM
+         i/YuqFUqcHDlczUVOmrMGnpwylSUMrU2sZawg3fluRR5gSIKOFJPpPQ5+VU0RXE44n+x
+         1f0Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="l/7T3zcx";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=TD8z8YyE;
-       spf=pass (google.com: domain of prvs=79538942c9=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=79538942c9=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id p4si11259931pli.159.2019.02.19.08.21.53
+       spf=pass (google.com: domain of bart.vanassche@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bart.vanassche@gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f98sor2667070plb.66.2019.02.19.08.28.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Feb 2019 08:21:53 -0800 (PST)
-Received-SPF: pass (google.com: domain of prvs=79538942c9=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        (Google Transport Security);
+        Tue, 19 Feb 2019 08:28:22 -0800 (PST)
+Received-SPF: pass (google.com: domain of bart.vanassche@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="l/7T3zcx";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=TD8z8YyE;
-       spf=pass (google.com: domain of prvs=79538942c9=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=79538942c9=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0044012.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1JGHSHi029003;
-	Tue, 19 Feb 2019 08:21:51 -0800
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=+ziz4oSsS1e0CJ3WZgMyqljT7cHtXezRCNfHi9IV6vE=;
- b=l/7T3zcxNHGxLEw5Ru78lBeXoDlzsjrsfo/g96viWsQ96276Qd6fXQVKamEcSBCNNlBk
- wulieyZJZJg7KYJYTdNlhbhPmuPlxQw4gJQnv2K1fUVcU2NgYEjiWkbxJWkIrph9Tg53
- 0capRUVD/Yd6U0u1bENAbl/p185kWyldfDs= 
-Received: from mail.thefacebook.com ([199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2qrmh185we-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Tue, 19 Feb 2019 08:21:51 -0800
-Received: from prn-mbx02.TheFacebook.com (2620:10d:c081:6::16) by
- prn-hub02.TheFacebook.com (2620:10d:c081:35::126) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1531.3; Tue, 19 Feb 2019 08:21:51 -0800
-Received: from prn-hub06.TheFacebook.com (2620:10d:c081:35::130) by
- prn-mbx02.TheFacebook.com (2620:10d:c081:6::16) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1531.3; Tue, 19 Feb 2019 08:21:50 -0800
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.30) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1531.3
- via Frontend Transport; Tue, 19 Feb 2019 08:21:50 -0800
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=+ziz4oSsS1e0CJ3WZgMyqljT7cHtXezRCNfHi9IV6vE=;
- b=TD8z8YyEX4OGOKBWKwnW/WRynRvlW7PFKf9A6VZtR/ahdP/Nob/XBGJu//je/tLGOLyRDHisDX4tuYwIncCr2bFKncJkkgyPBilFrp1osQpua41mOk3rvmdx2C76s8ZvZQ3b81X1YdEpptFalrbHgu2CMegzjLcc4989TAMqOWs=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB2744.namprd15.prod.outlook.com (20.179.157.149) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1622.16; Tue, 19 Feb 2019 16:21:49 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::ecc7:1a8c:289f:df92]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::ecc7:1a8c:289f:df92%3]) with mapi id 15.20.1601.016; Tue, 19 Feb 2019
- 16:21:49 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Michal Hocko <mhocko@kernel.org>
-CC: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: [LSF/MM ATTEND] MM track: dying memory cgroups and slab reclaim
- issue, memcg, THP
-Thread-Topic: [LSF/MM ATTEND] MM track: dying memory cgroups and slab reclaim
- issue, memcg, THP
-Thread-Index: AQHUyG83zDFivMD0sEySAs+j+iI3IQ==
-Date: Tue, 19 Feb 2019 16:21:49 +0000
-Message-ID: <20190219162145.GA10999@tower.DHCP.thefacebook.com>
-References: <20190219071329.GA7827@castle.DHCP.thefacebook.com>
- <20190219092323.GH4525@dhcp22.suse.cz>
-In-Reply-To: <20190219092323.GH4525@dhcp22.suse.cz>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: BYAPR02CA0019.namprd02.prod.outlook.com
- (2603:10b6:a02:ee::32) To BYAPR15MB2631.namprd15.prod.outlook.com
- (2603:10b6:a03:152::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::7:9af6]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 5ecef25e-2ced-48a3-ec3c-08d6968659b4
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:BYAPR15MB2744;
-x-ms-traffictypediagnostic: BYAPR15MB2744:
-x-microsoft-exchange-diagnostics: 1;BYAPR15MB2744;20:P7PmOlMJdTnEeEnUFcJYgjM0Iz12hORTzKYLlmWihAul10/rkpuhDklYkWC/tVGdYJ6KfqPO+7nsVT4qYORJbCM7w7h8wDHRJ/a1uWcCRkdKsnELPuO7A8SXPLJoNsaW8K8fXdan+accKfqt2dkeeR3Zig/73C83KvJny1cpkHA=
-x-microsoft-antispam-prvs: <BYAPR15MB2744124EBAA8B14E59AE820ABE7C0@BYAPR15MB2744.namprd15.prod.outlook.com>
-x-forefront-prvs: 09538D3531
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(376002)(346002)(39860400002)(396003)(366004)(136003)(199004)(189003)(105586002)(7736002)(99286004)(305945005)(46003)(52116002)(97736004)(33656002)(106356001)(4744005)(8936002)(71200400001)(14444005)(256004)(8676002)(81156014)(81166006)(71190400001)(1076003)(14454004)(76176011)(6116002)(478600001)(86362001)(486006)(11346002)(6512007)(446003)(68736007)(6486002)(476003)(186003)(4326008)(386003)(54906003)(102836004)(5660300002)(53936002)(316002)(6506007)(2906002)(25786009)(9686003)(6436002)(6916009)(33896004);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2744;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: FDorRq4HrsTCIjVrLmMz2+y3INzVWGKzQvP71Z/35RYHNGY6vkzgOdJ06MtHvaQPj7AfVTG1Gpf8Q04ounjj5P07is8XjFmUnhnSG2nyki0He4JdHRmNKVaWcbsiAYRsDvWJvkJilj40kBgecx4nocW6yYmAD67f5Rdrfn+pc5CSJkdaVXYEMH8tRWsc5JBMKtgo8u6jsmwNxF/eCBGmQ/VJHIEx4A1N090WqlqX+Psq6OdnSnM6eTbs+zO5e6FeNTs3fo4tgkYJJANTgJFF3AyLfnXselpFobDsqETF31r/LEg+16ZUpPkbl4DFeyAQc5d4W1hfeSyNzPqUvh1OpPYomzlquc7PhO9/aEsD9QJNYrwLPR9DAlvyahL/c8UBvPt77jTYE0pjEPmkShOc5QjZ35E8ybejiOgCRc44wAg=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <9F78E47B3254E34084E082B17B68C938@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 5ecef25e-2ced-48a3-ec3c-08d6968659b4
-X-MS-Exchange-CrossTenant-originalarrivaltime: 19 Feb 2019 16:21:49.1935
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2744
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-19_11:,,
- signatures=0
-X-Proofpoint-Spam-Reason: safe
-X-FB-Internal: Safe
+       spf=pass (google.com: domain of bart.vanassche@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=bart.vanassche@gmail.com
+X-Google-Smtp-Source: AHgI3IYcr+ifN0s1shU8ycdfyzx2FN9lPp8b9RER92vD0tlqUpLtYLgg6ra1ovZN7NoPo2lKtLSG0Q==
+X-Received: by 2002:a17:902:147:: with SMTP id 65mr31872306plb.116.1550593702320;
+        Tue, 19 Feb 2019 08:28:22 -0800 (PST)
+Received: from ?IPv6:2620:15c:2cd:203:5cdc:422c:7b28:ebb5? ([2620:15c:2cd:203:5cdc:422c:7b28:ebb5])
+        by smtp.gmail.com with ESMTPSA id u186sm24387204pfu.51.2019.02.19.08.28.20
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 19 Feb 2019 08:28:20 -0800 (PST)
+Message-ID: <1550593699.31902.115.camel@acm.org>
+Subject: Re: [dm-devel] [PATCH V15 00/18] block: support multi-page bvec
+From: Bart Van Assche <bvanassche@acm.org>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@kernel.dk>, Mike Snitzer <snitzer@redhat.com>, 
+ linux-mm@kvack.org, dm-devel@redhat.com, Christoph Hellwig <hch@lst.de>,
+ Sagi Grimberg <sagi@grimberg.me>, "Darrick J . Wong"
+ <darrick.wong@oracle.com>, Omar Sandoval <osandov@fb.com>,
+ cluster-devel@redhat.com, linux-ext4@vger.kernel.org, Kent Overstreet
+ <kent.overstreet@gmail.com>, Boaz Harrosh <ooo@electrozaur.com>, Gao Xiang
+ <gaoxiang25@huawei.com>, Coly Li <colyli@suse.de>,
+ linux-raid@vger.kernel.org,  Bob Peterson <rpeterso@redhat.com>,
+ linux-bcache@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, 
+ Dave Chinner <dchinner@redhat.com>, David Sterba <dsterba@suse.com>,
+ linux-block@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>,
+ linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, 
+ linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org
+Date: Tue, 19 Feb 2019 08:28:19 -0800
+In-Reply-To: <20190217131128.GB7296@ming.t460p>
+References: <20190215111324.30129-1-ming.lei@redhat.com>
+	 <c52b6a8b-d1d4-67ff-f81c-371d09cc6d5b@kernel.dk>
+	 <1550250855.31902.102.camel@acm.org> <20190217131128.GB7296@ming.t460p>
+Content-Type: text/plain; charset="UTF-7"
+X-Mailer: Evolution 3.26.2-1 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 19, 2019 at 10:23:23AM +0100, Michal Hocko wrote:
-> Hi Roman,
-> you were not explicit here, but is this meant to be also an ATTEND
-> request as well? MM track presumably?
+On Sun, 2019-02-17 at 21:11 +-0800, Ming Lei wrote:
++AD4 The following patch should fix this issue:
++AD4 
++AD4 
++AD4 diff --git a/block/blk-merge.c b/block/blk-merge.c
++AD4 index bed065904677..066b66430523 100644
++AD4 --- a/block/blk-merge.c
++AD4 +-+-+- b/block/blk-merge.c
++AD4 +AEAAQA -363,13 +-363,15 +AEAAQA static unsigned int +AF8AXw-blk+AF8-recalc+AF8-rq+AF8-segments(struct request+AF8-queue +ACo-q,
++AD4  	struct bio+AF8-vec bv, bvprv +AD0 +AHs NULL +AH0AOw
++AD4  	int prev +AD0 0+ADs
++AD4  	unsigned int seg+AF8-size, nr+AF8-phys+AF8-segs+ADs
++AD4 -	unsigned front+AF8-seg+AF8-size +AD0 bio-+AD4-bi+AF8-seg+AF8-front+AF8-size+ADs
++AD4 +-	unsigned front+AF8-seg+AF8-size+ADs
++AD4  	struct bio +ACo-fbio, +ACo-bbio+ADs
++AD4  	struct bvec+AF8-iter iter+ADs
++AD4  
++AD4  	if (+ACE-bio)
++AD4  		return 0+ADs
++AD4  
++AD4 +-	front+AF8-seg+AF8-size +AD0 bio-+AD4-bi+AF8-seg+AF8-front+AF8-size+ADs
++AD4 +-
++AD4  	switch (bio+AF8-op(bio)) +AHs
++AD4  	case REQ+AF8-OP+AF8-DISCARD:
++AD4  	case REQ+AF8-OP+AF8-SECURE+AF8-ERASE:
 
-Yes, please.
+Hi Ming,
 
-I'd be interested in discussing the problem described above, as well
-as any other memcg- and THP/hugepages related topics.
+With this patch applied test nvmeof-mp/002 fails as follows:
 
-Thank you!
++AFs  694.700400+AF0 kernel BUG at lib/sg+AF8-pool.c:103+ACE
++AFs  694.705932+AF0 invalid opcode: 0000 +AFsAIw-1+AF0 PREEMPT SMP KASAN
++AFs  694.708297+AF0 CPU: 2 PID: 349 Comm: kworker/2:1H Tainted: G    B             5.0.0-rc6-dbg+- +ACM-2
++AFs  694.711730+AF0 Hardware name: QEMU Standard PC (i440FX +- PIIX, 1996), BIOS 1.10.2-1 04/01/2014
++AFs  694.715113+AF0 Workqueue: kblockd blk+AF8-mq+AF8-run+AF8-work+AF8-fn
++AFs  694.716894+AF0 RIP: 0010:sg+AF8-alloc+AF8-table+AF8-chained+-0xe5/0xf0
++AFs  694.758222+AF0 Call Trace:
++AFs  694.759645+AF0  nvme+AF8-rdma+AF8-queue+AF8-rq+-0x2aa/0xcc0 +AFs-nvme+AF8-rdma+AF0
++AFs  694.764915+AF0  blk+AF8-mq+AF8-try+AF8-issue+AF8-directly+-0x2a5/0x4b0
++AFs  694.771779+AF0  blk+AF8-insert+AF8-cloned+AF8-request+-0x11e/0x1c0
++AFs  694.778417+AF0  dm+AF8-mq+AF8-queue+AF8-rq+-0x3d1/0x770
++AFs  694.793400+AF0  blk+AF8-mq+AF8-dispatch+AF8-rq+AF8-list+-0x5fc/0xb10
++AFs  694.798386+AF0  blk+AF8-mq+AF8-sched+AF8-dispatch+AF8-requests+-0x2f7/0x300
++AFs  694.803180+AF0  +AF8AXw-blk+AF8-mq+AF8-run+AF8-hw+AF8-queue+-0xd6/0x180
++AFs  694.808933+AF0  blk+AF8-mq+AF8-run+AF8-work+AF8-fn+-0x27/0x30
++AFs  694.810315+AF0  process+AF8-one+AF8-work+-0x4f1/0xa40
++AFs  694.813178+AF0  worker+AF8-thread+-0x67/0x5b0
++AFs  694.814487+AF0  kthread+-0x1cf/0x1f0
++AFs  694.819134+AF0  ret+AF8-from+AF8-fork+-0x24/0x30
 
-Roman
+The code in sg+AF8-pool.c that triggers the BUG() statement is as follows:
+
+int sg+AF8-alloc+AF8-table+AF8-chained(struct sg+AF8-table +ACo-table, int nents,
+		struct scatterlist +ACo-first+AF8-chunk)
++AHs
+	int ret+ADs
+
+	BUG+AF8-ON(+ACE-nents)+ADs
++AFs ... +AF0
+
+Bart.
 
