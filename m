@@ -2,213 +2,191 @@ Return-Path: <SRS0=Z+ZU=Q2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AC10AC10F00
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 17:23:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 23128C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 17:23:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 43C2A2083B
-	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 17:23:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DA9922083B
+	for <linux-mm@archiver.kernel.org>; Tue, 19 Feb 2019 17:23:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="QDqw8lsp"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 43C2A2083B
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="UKna5p+M"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA9922083B
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E37788E0003; Tue, 19 Feb 2019 12:23:09 -0500 (EST)
+	id 55F888E0004; Tue, 19 Feb 2019 12:23:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DBDED8E0002; Tue, 19 Feb 2019 12:23:09 -0500 (EST)
+	id 449908E0002; Tue, 19 Feb 2019 12:23:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C88408E0003; Tue, 19 Feb 2019 12:23:09 -0500 (EST)
+	id 2EB1C8E0004; Tue, 19 Feb 2019 12:23:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6946F8E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 12:23:09 -0500 (EST)
-Received: by mail-wr1-f72.google.com with SMTP id e14so9237093wrt.12
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 09:23:09 -0800 (PST)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C79328E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 12:23:10 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id z13so5878922wrp.5
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 09:23:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:from:subject:to:cc
-         :date;
-        bh=16mOsQibzOyuKGmlufxdiVA6zEatWjg8A75/MDif08w=;
-        b=uODjsgI58slRQAaovu4cs7cEEHMaTOstiDFsQl4VDfQU1uIcP+Xt2PYz5VfIpjrCtJ
-         EPyyCVbpuAzHXLYuLUzyUKXxm5AbPKBJyyGYy0+z1MbfVICVWdOQfqYxqInJBXqv2mqb
-         /oL76clEw4v6M06RJXdEeCo6ton8WG23wH0qAoQ7A8RY/1gde4afmmu97cRxVlDxRr1j
-         v6at5Bm/snbY+gfGV7eTz1ghrTune8vF1+JB5eQ73tf5Qdgs9U7KlHWYd/DulHanVRGA
-         +iY1EPtQo/ZSd+542YOxX1Fj0zqgc6VqZcYPqm52j9nNZlZ2U2oxy5ln7kpR4VmZ8Odw
-         tiug==
-X-Gm-Message-State: AHQUAuZ6JDm/vfn3ndf/oFRyeuZxpBiMVGA7klojl2cElOXb1LugbGNC
-	YQ8rVPnFc/4ZgWvMPopc/S5GjEyZmB8qrzmGJrJA8Yqj5OY42ivJaabEnqbyKzixad30d36DqN+
-	hWunbJcodvDAvNMOspRR+RmCngXzHBZzZYN8fNpYNrPOJrSlYpMISCmBbC2Q57kfYkw==
-X-Received: by 2002:a1c:44c3:: with SMTP id r186mr3679363wma.63.1550596988887;
-        Tue, 19 Feb 2019 09:23:08 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZVKW70lhGjwtkPfBloRmlG0SS3903HXf4W22Moj31Hx4kE++olSQ427eksRZJyoqfvT2bC
-X-Received: by 2002:a1c:44c3:: with SMTP id r186mr3679313wma.63.1550596987688;
-        Tue, 19 Feb 2019 09:23:07 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550596987; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:in-reply-to:references
+         :from:subject:to:cc:date;
+        bh=um9yCYwOJ1SkZMPifhMErWXIPjN8RMbQWLCsWKAg55E=;
+        b=qWXSir8PMxQu3g3ABVOUEUvFpQRihSKklEApuzGEVTqW+y8WA7e1nVClDnhYGc8gwl
+         +PXH8utP3nOtDoCGKK/fX9y7zXQGJjvITAPh5z46keoc1dqrWXwvK6RXC2c4j6JbQduA
+         CZCcAz8/V0Dfox8ztOf4YM6SQjbcjQHut8mLnVObFPW3eIlJ556YQX8g/CNplJFpQ+YN
+         V2/QyebhtchOUbpwOeMbxVnoB9viM+dVpw8nnJm6ghF6nI1QMM7PejtzOinD9KnfXx/Y
+         Pm7QeRsxxlqAIkBzoKiw2hcihofTKB1QGNpR6Fy8wDozKKH+gcSWKiM2xa4srcJDYOr6
+         1lwg==
+X-Gm-Message-State: AHQUAuZdiVu4rt365wgt7qR/95y3k5FHzLBghgjuZLJ2AK2s0tdj9cdH
+	yKTd/ccD9oiRK3eR74yVTouT02cIP8cAcwLjjvFQ43sWWZ4AudUQEx3MlKx67FWWhNHx4Mh+rn+
+	lD+fyHOFHkq+ZvdfE3TpmY3csWRhOqTQJkkOw+p3n19gE1UZ1YxfBf7gEXYQMGYN1ww==
+X-Received: by 2002:adf:9e47:: with SMTP id v7mr22268427wre.190.1550596990241;
+        Tue, 19 Feb 2019 09:23:10 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IazzgEvSUQEtY7LL46gmQUoogRfF5jgplawqya5gu175ymsrKzul6qQ2riltZxGuOx0kTIW
+X-Received: by 2002:adf:9e47:: with SMTP id v7mr22268384wre.190.1550596989306;
+        Tue, 19 Feb 2019 09:23:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550596989; cv=none;
         d=google.com; s=arc-20160816;
-        b=xpfGvER3WDP10rr4KNcUg3P7DcuNx85vGMswL3GadkKEI0LgxLxHUg0eELVKkvH/iz
-         Sb6JUw2pFpjqz3V8tGMBGUJSS3TuVPEBl7/8bK8DtqMFZUwSyjNWVnfuQ9x3dV2GAYYJ
-         AlUvxtD4Qeusj8vjmALS3NeWsA3fwWyYjMC69cO5943EZs9v/it95X5CQxoSBkJ/Rjt7
-         MOMf96MCuH43Pivd7hATcNSm4gsHnfBLq/oZXy+x0GQIYMEFns2PUBXZvzBHN1y9yc4J
-         b64PWNmaQopbjzpqRIJ4GjAMgXhTjGPCVK6fVafRVz6Q1XgQ2TkzcE7ufWHKkNAD4ICT
-         g/nw==
+        b=L2YqYRCKHdo83p0YIjvZe2qvNa/cwqXT2bMtRWhhve2w6AZ2cDDfthevYTI/fVCG85
+         04/cAHrYGkW4WFw+MsnmS9hkguYxGfJrzbhEicjrfhKbHs6zfwydSUdifUFyqWGcjc3b
+         RK4+nTyuWsXvH7xMSBdcKpZpikPMZSGzcJ997ZValbf07ojQnu+EvL/pYXd6PY2DxjQL
+         V4wbpUFQ0BqPMAR8WJAunPXyjeG1v+OodLs05GRLcw7j4H9NbByF5TKqQ4xbjIjyB9l1
+         +arHSUl6ljxVxXXQd9suwq6jcT86wLM6+0feytu8pH3cPECGRQ6eglOWL9v4xs7iWK6R
+         anjA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=date:cc:to:subject:from:message-id:dkim-signature;
-        bh=16mOsQibzOyuKGmlufxdiVA6zEatWjg8A75/MDif08w=;
-        b=bykFt9Z5uWs1FncqYvfta3rem0szkXuQB8Q3OQpZLgXDn4uIPsfRVQ4rfoqQNaCENY
-         Vr8TmE5b14Vqv+PvEjkV6O+a9BnRxvtF1jTYL7PKqHWNqIYg2Yz+r/hNh9U0xPp9YhhU
-         AV8eUPfrl/sBkoZ3V0avPQzsTA1v96SJzTLYxrsd2zixKRiouIU2vAmTRQ7O/Fd6oCgV
-         xGT9Irv1FASePUb+6L9LstoPOui7e4HQALG5gNLAIs71EW3fDuHKSDTT7ApB6iaRvBq/
-         CGu4vAUBuIJZf6SzR573x55K0HaNdH00/aENYd1GLDu/AaHZYrIHYl9RtbN++e85eH43
-         kHRg==
+        h=date:cc:to:subject:from:references:in-reply-to:message-id
+         :dkim-signature;
+        bh=um9yCYwOJ1SkZMPifhMErWXIPjN8RMbQWLCsWKAg55E=;
+        b=Gls+37nI60yPOhjpz0jS/xoECsde8o3bs+yHVqU4cgRzdKUe2CDoBKYQQBFYkyC3fd
+         Lc+gcMHOd0xFtTHVy+/xzy2cEyj2W53fmBD++dd6bDrBzvd4c6CZPNEUgYn/TqxE0r1h
+         pUFEFqdaK5IMN5BqlvNPgqd+6dWxhQ0zvJwZ4vVhNxqMSu7x2nGluW3AI+RccPlEm0Ke
+         OwZjrvmAVGyC10FJ9DtH9tkoGmYBIuIhsmO/2dbG+zKhRP4YTG0lv14Lz2HHx5RGxb0n
+         qViskzWNGSdfehk/3fw9qxqkmIjVSK20rur+X81o1/+DSVXEFBKJQibOtZT3t90bsNws
+         Itsw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=QDqw8lsp;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=UKna5p+M;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from pegase1.c-s.fr ([93.17.236.30])
-        by mx.google.com with ESMTPS id n18si1346920wrx.314.2019.02.19.09.23.07
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id n2si1800876wmi.149.2019.02.19.09.23.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Feb 2019 09:23:07 -0800 (PST)
+        Tue, 19 Feb 2019 09:23:09 -0800 (PST)
 Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=QDqw8lsp;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=UKna5p+M;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 443ncn3pcGz9v4wg;
-	Tue, 19 Feb 2019 18:23:05 +0100 (CET)
+	by localhost (Postfix) with ESMTP id 443ncq1Y0Rz9v4wh;
+	Tue, 19 Feb 2019 18:23:07 +0100 (CET)
 Authentication-Results: localhost; dkim=pass
 	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=QDqw8lsp; dkim-adsp=pass;
+	header.d=c-s.fr header.i=@c-s.fr header.b=UKna5p+M; dkim-adsp=pass;
 	dkim-atps=neutral
 X-Virus-Scanned: Debian amavisd-new at c-s.fr
 Received: from pegase1.c-s.fr ([192.168.12.234])
 	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id 29MNh-RSs4TH; Tue, 19 Feb 2019 18:23:05 +0100 (CET)
+	with ESMTP id 5pShGomqr3uf; Tue, 19 Feb 2019 18:23:07 +0100 (CET)
 Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 443ncn25p7z9v4wf;
-	Tue, 19 Feb 2019 18:23:05 +0100 (CET)
+	by pegase1.c-s.fr (Postfix) with ESMTP id 443ncq0LHYz9v4wf;
+	Tue, 19 Feb 2019 18:23:07 +0100 (CET)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1550596985; bh=16mOsQibzOyuKGmlufxdiVA6zEatWjg8A75/MDif08w=;
-	h=From:Subject:To:Cc:Date:From;
-	b=QDqw8lspfArU8pC6Zsu6V60jBblcrtfo1iG1+2NlOLuNtQTgR8aOlUWSvXB03S4hU
-	 gTY9fNshHtqw+378+7NQvD/fcPzzOdtD2gSl26Ys9jtiUdO7xLDFkHwIE5HJfKlWEx
-	 odOIlDHrl6sUnLVra2hedOP2WelQgsj7/EsEIjqo=
+	t=1550596987; bh=um9yCYwOJ1SkZMPifhMErWXIPjN8RMbQWLCsWKAg55E=;
+	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
+	b=UKna5p+MS8RXPp9xPoQwFfi6FnUmsVZC46q+/SXqCjiHhfWDEHY1fuAfUl10D5Bi3
+	 /vXvh22F8XGovC16LyB47MF2/KhQyk/BnG0e5z35tqtbvHneQuT0HodSwxFoGqFEk5
+	 PFurz5vgUBLmY4XfyoQ2buu8m06OuGyP+zBA0uEE=
 Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id E29858B7FE;
-	Tue, 19 Feb 2019 18:23:06 +0100 (CET)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id A77F78B7FE;
+	Tue, 19 Feb 2019 18:23:08 +0100 (CET)
 X-Virus-Scanned: amavisd-new at c-s.fr
 Received: from messagerie.si.c-s.fr ([127.0.0.1])
 	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id o-2HJ7YHlKai; Tue, 19 Feb 2019 18:23:06 +0100 (CET)
+	with ESMTP id XNx_RUqqrE9o; Tue, 19 Feb 2019 18:23:08 +0100 (CET)
 Received: from po16846vm.idsi0.si.c-s.fr (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 94FB78B7F9;
-	Tue, 19 Feb 2019 18:23:06 +0100 (CET)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 743128B7F9;
+	Tue, 19 Feb 2019 18:23:08 +0100 (CET)
 Received: by po16846vm.idsi0.si.c-s.fr (Postfix, from userid 0)
-	id 5FAF96E81D; Tue, 19 Feb 2019 17:23:06 +0000 (UTC)
-Message-Id: <cover.1550596242.git.christophe.leroy@c-s.fr>
+	id 5715C6E81D; Tue, 19 Feb 2019 17:23:08 +0000 (UTC)
+Message-Id: <906bdd0dde64a05b7a1d399ee57a0c3a34a094b8.1550596242.git.christophe.leroy@c-s.fr>
+In-Reply-To: <cover.1550596242.git.christophe.leroy@c-s.fr>
+References: <cover.1550596242.git.christophe.leroy@c-s.fr>
 From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH v6 0/6] KASAN for powerpc/32
+Subject: [PATCH v6 1/6] powerpc/mm: prepare kernel for KAsan on PPC32
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>
 Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
-Date: Tue, 19 Feb 2019 17:23:06 +0000 (UTC)
+Date: Tue, 19 Feb 2019 17:23:08 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This serie adds KASAN support to powerpc/32
+In kernel/cputable.c, explicitly use memcpy() in order
+to allow GCC to replace it with __memcpy() when KASAN is
+selected.
 
-Tested on nohash/32 (8xx) and book3s/32 (mpc832x ie 603).
-Boot tested on qemu mac99
+Since commit 400c47d81ca38 ("powerpc32: memset: only use dcbz once cache is
+enabled"), memset() can be used before activation of the cache,
+so no need to use memset_io() for zeroing the BSS.
 
-Changes in v6:
-- Fixed oops on module loading (due to access to RO shadow zero area).
-- Added support for hash book3s/32, thanks to Daniel's patch to differ KASAN activation.
-- Reworked handling of optimised string functions (dedicated patch for it)
-- Reordered some files to ease adding of book3e/64 support.
+Acked-by: Dmitry Vyukov <dvyukov@google.com>
+Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
+---
+ arch/powerpc/kernel/cputable.c | 13 ++++++++++---
+ arch/powerpc/kernel/setup_32.c |  6 ++----
+ 2 files changed, 12 insertions(+), 7 deletions(-)
 
-Changes in v5:
-- Added KASAN_SHADOW_OFFSET in Makefile, otherwise we fallback to KASAN_MINIMAL
-and some stuff like stack instrumentation is not performed
-- Moved calls to kasan_early_init() in head.S because stack instrumentation
-in machine_init was performed before the call to kasan_early_init()
-- Mapping kasan_early_shadow_page RW in kasan_early_init() and
-remaping RO later in kasan_init()
-- Allocating a big memblock() for shadow area, falling back to PAGE_SIZE blocks in case of failure.
-
-Changes in v4:
-- Comments from Andrey (DISABLE_BRANCH_PROFILING, Activation of reports)
-- Proper initialisation of shadow area in kasan_init()
-- Panic in case Hash table is required.
-- Added comments in patch one to explain why *t = *s becomes memcpy(t, s, ...)
-- Call of kasan_init_tags()
-
-Changes in v3:
-- Removed the printk() in kasan_early_init() to avoid build failure (see https://github.com/linuxppc/issues/issues/218)
-- Added necessary changes in asm/book3s/32/pgtable.h to get it work on powerpc 603 family
-- Added a few KASAN_SANITIZE_xxx.o := n to successfully boot on powerpc 603 family
-
-Changes in v2:
-- Rebased.
-- Using __set_pte_at() to build the early table.
-- Worked around and got rid of the patch adding asm/page.h in asm/pgtable-types.h
-    ==> might be fixed independently but not needed for this serie.
-
-For book3s/32 we have to stick to KASAN_MINIMAL because Hash table
-management is not active early enough at the time being.
-
-Christophe Leroy (6):
-  powerpc/mm: prepare kernel for KAsan on PPC32
-  powerpc/32: Move early_init() in a separate file
-  powerpc: prepare string/mem functions for KASAN
-  powerpc/32: Add KASAN support
-  kasan: allow architectures to provide an outline readiness check
-  powerpc/32: enable CONFIG_KASAN for book3s hash
-
- arch/powerpc/Kconfig                          |   1 +
- arch/powerpc/Makefile                         |   9 ++
- arch/powerpc/include/asm/book3s/32/pgtable.h  |   2 +
- arch/powerpc/include/asm/highmem.h            |  10 +-
- arch/powerpc/include/asm/kasan.h              |  51 ++++++++
- arch/powerpc/include/asm/nohash/32/pgtable.h  |   2 +
- arch/powerpc/include/asm/setup.h              |   5 +
- arch/powerpc/include/asm/string.h             |  26 +++-
- arch/powerpc/kernel/Makefile                  |  11 +-
- arch/powerpc/kernel/asm-offsets.c             |   4 +
- arch/powerpc/kernel/cputable.c                |  13 +-
- arch/powerpc/kernel/early_32.c                |  36 ++++++
- arch/powerpc/kernel/head_32.S                 |   3 +
- arch/powerpc/kernel/head_40x.S                |   3 +
- arch/powerpc/kernel/head_44x.S                |   3 +
- arch/powerpc/kernel/head_8xx.S                |   3 +
- arch/powerpc/kernel/head_fsl_booke.S          |   3 +
- arch/powerpc/kernel/prom_init_check.sh        |  10 +-
- arch/powerpc/kernel/setup-common.c            |   2 +
- arch/powerpc/kernel/setup_32.c                |  28 -----
- arch/powerpc/lib/Makefile                     |  16 ++-
- arch/powerpc/lib/copy_32.S                    |  13 +-
- arch/powerpc/lib/mem_64.S                     |   8 +-
- arch/powerpc/lib/memcpy_64.S                  |   4 +-
- arch/powerpc/mm/Makefile                      |   1 +
- arch/powerpc/mm/kasan/Makefile                |   5 +
- arch/powerpc/mm/kasan/kasan_init_32.c         | 170 ++++++++++++++++++++++++++
- arch/powerpc/mm/mem.c                         |   4 +
- arch/powerpc/mm/ptdump/dump_linuxpagetables.c |   8 ++
- arch/powerpc/purgatory/Makefile               |   3 +
- arch/powerpc/xmon/Makefile                    |   1 +
- include/linux/kasan.h                         |   4 +
- mm/kasan/generic.c                            |   3 +
- 33 files changed, 412 insertions(+), 53 deletions(-)
- create mode 100644 arch/powerpc/include/asm/kasan.h
- create mode 100644 arch/powerpc/kernel/early_32.c
- create mode 100644 arch/powerpc/mm/kasan/Makefile
- create mode 100644 arch/powerpc/mm/kasan/kasan_init_32.c
-
+diff --git a/arch/powerpc/kernel/cputable.c b/arch/powerpc/kernel/cputable.c
+index 1eab54bc6ee9..cd12f362b61f 100644
+--- a/arch/powerpc/kernel/cputable.c
++++ b/arch/powerpc/kernel/cputable.c
+@@ -2147,7 +2147,11 @@ void __init set_cur_cpu_spec(struct cpu_spec *s)
+ 	struct cpu_spec *t = &the_cpu_spec;
+ 
+ 	t = PTRRELOC(t);
+-	*t = *s;
++	/*
++	 * use memcpy() instead of *t = *s so that GCC replaces it
++	 * by __memcpy() when KASAN is active
++	 */
++	memcpy(t, s, sizeof(*t));
+ 
+ 	*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;
+ }
+@@ -2161,8 +2165,11 @@ static struct cpu_spec * __init setup_cpu_spec(unsigned long offset,
+ 	t = PTRRELOC(t);
+ 	old = *t;
+ 
+-	/* Copy everything, then do fixups */
+-	*t = *s;
++	/*
++	 * Copy everything, then do fixups. Use memcpy() instead of *t = *s
++	 * so that GCC replaces it by __memcpy() when KASAN is active
++	 */
++	memcpy(t, s, sizeof(*t));
+ 
+ 	/*
+ 	 * If we are overriding a previous value derived from the real
+diff --git a/arch/powerpc/kernel/setup_32.c b/arch/powerpc/kernel/setup_32.c
+index 947f904688b0..5e761eb16a6d 100644
+--- a/arch/powerpc/kernel/setup_32.c
++++ b/arch/powerpc/kernel/setup_32.c
+@@ -73,10 +73,8 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
+ {
+ 	unsigned long offset = reloc_offset();
+ 
+-	/* First zero the BSS -- use memset_io, some platforms don't have
+-	 * caches on yet */
+-	memset_io((void __iomem *)PTRRELOC(&__bss_start), 0,
+-			__bss_stop - __bss_start);
++	/* First zero the BSS */
++	memset(PTRRELOC(&__bss_start), 0, __bss_stop - __bss_start);
+ 
+ 	/*
+ 	 * Identify the CPU type and fix up code sections
 -- 
 2.13.3
 
