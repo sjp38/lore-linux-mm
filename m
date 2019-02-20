@@ -2,154 +2,148 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 52E90C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 14:52:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 10407C10F0B
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 15:03:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EEBBF2146E
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 14:52:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EEBBF2146E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kernel.crashing.org
+	by mail.kernel.org (Postfix) with ESMTP id A77AC21904
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 15:03:02 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="qZiFOjmG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A77AC21904
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 84A318E001E; Wed, 20 Feb 2019 09:52:01 -0500 (EST)
+	id 18E618E001F; Wed, 20 Feb 2019 10:03:02 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7F9B08E0002; Wed, 20 Feb 2019 09:52:01 -0500 (EST)
+	id 117CF8E0002; Wed, 20 Feb 2019 10:03:02 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 70FBC8E001E; Wed, 20 Feb 2019 09:52:01 -0500 (EST)
+	id EF8538E001F; Wed, 20 Feb 2019 10:03:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 477BF8E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 09:52:01 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id i63so11172077itb.0
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 06:52:01 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A1EA18E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 10:03:01 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id o67so445758pfa.20
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 07:03:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=la6SAN/rh+9VRfJ8pRNH9BXqosPKB/OETVQHuy06bnI=;
-        b=udz0BAArZ9JHoybX4i1CdHzim6c0FW4hjA2goW512dKhje50xWA8TiYPdADVPvDbtn
-         2GGq8rG3HldLjwubJZFJ9W5k8Vaxf2fk/mEvw0WvyO2HRK66zED9BlkwYYjT8WcDcZY1
-         Y779muNglqHN+IOJ8owibYQXZ0BcHXTiXglKT3HU7AFI8ATFfU0T7Zfucw9FmzbRug4N
-         wAZ+P1Z/etUtF/sezhYBt8qbl72n1TukXDZRfF7KGkJyEym4/RY+3JjXgKQtAeqdmOJ/
-         U1Ga/LGWN5RMgFgOYFK9Ahf8VqClLUNvjgCvh9D7FH2xcnceHablPnfZ4zW0+7m+SDcB
-         RzSw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of segher@kernel.crashing.org designates 63.228.1.57 as permitted sender) smtp.mailfrom=segher@kernel.crashing.org
-X-Gm-Message-State: AHQUAuaRq6Mw1QEUGoGYeoheMBB8iOsfAq8XzMKP7kU5r1TQV/bnaBL5
-	GbsZYKB0V/Ugk1ggbSfz1Bidtiio04sPWPl8KRWxIYWeQKstTKMrcv0g8RzEWO2ZQa0DUM+u92j
-	teDeYATL6PHFAAzWVHs6YKnhc63OhmGpOMs4OrLZlrqs5WJ64cqXp4W+++0J3eQAZqQ==
-X-Received: by 2002:a24:5015:: with SMTP id m21mr4838726itb.2.1550674321010;
-        Wed, 20 Feb 2019 06:52:01 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib+Kf5EyiGoE1Nm4ZKHzdVV6o2Al6h2eP+By+Z0b3Tj6/+YN76smvkB5XIOdFYcQw00P+N1
-X-Received: by 2002:a24:5015:: with SMTP id m21mr4838684itb.2.1550674320246;
-        Wed, 20 Feb 2019 06:52:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550674320; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=oZBfBU4jWxNSshmOOtCHrGGSxVl/3qP/1xb30w4GIow=;
+        b=diYWzh3bM/nXRoj3IWyEzwXWasbEYt1YFPBQW/mYxVbUkriiD52gxvvls+wQh179xc
+         NIf5tJXUOPij125GnWYggDOKeKKAzWtGkv3a1myr6ZdI3hgqjWyVNzR44r/lL7mVWNt0
+         /OeyxUz3MAVbePVVKlCoI1Qks6KQ+kXz12qFvvoVslpvZa3maGD7XeFtonJ3R2+CsWBI
+         GLzzm8zSxjUcpawL/cHpke6pmocyCsskGqknCnUQoJY0asU3a/2Qacj6bR4R02ALJX8i
+         NC27gLEbO7mHUGMjgqiZ4fzDTjjpIQHhg6V6WwCyLvUnWx3Xay+BWy3hN4wV1Oduhccr
+         G7lg==
+X-Gm-Message-State: AHQUAubK7dqXUeqDbrpxw7yi9ccgTqesB37ppeoXwRPxgEC0OAGnjvaW
+	0d55M+8iJSqSvqILQbsZRUAb6A+YxW9NROZgm+MxPZ8o2YyyiPSHA9y5xtz2EWUmM2dVKKLGUFP
+	4Gro3DThEZNlrqwA1c06tv5+Y1JY9RYQn/j4/XXxTHbWqqOzLfIPo1x+iqcyTry+QHw==
+X-Received: by 2002:a63:4665:: with SMTP id v37mr30175593pgk.425.1550674981097;
+        Wed, 20 Feb 2019 07:03:01 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYQbnT5VOMqsBWAwKIpynpqvnBciRhXUde4c67Ybk8H5J3Yc5OH4hoaw72ySt0F82Ork655
+X-Received: by 2002:a63:4665:: with SMTP id v37mr30175506pgk.425.1550674980029;
+        Wed, 20 Feb 2019 07:03:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550674980; cv=none;
         d=google.com; s=arc-20160816;
-        b=epvN1d7aryFv0aIIs44qxWOaltq9O3+AMTVRzUAKrnUt2Zb5CrqONnMhZ4Gusb9lJs
-         exdQR3aIimMGvvpwG+PMTGErfOqGBVmmX7iFWeXNwreUJ7SxUF7iR/iNYdZQM4bzqZdW
-         d2X9dJAMLY4iCXa1Fv9EeoJSTg0YlxuCpPOYqyR7eQtqoAivQz/2QGJ/UlDr/pUVpFLQ
-         QE6TzsiFqR4N6CIQ2suF3O+ua+hiwt1PqwNLJNZFTZfLbPsWRs5VXDRWkH4E0lDyvRHr
-         l3KyFMXvjmOrPqXkVOlIFICRPtP2UY5pW4kMWorfjLMxC0eOpggebrPT2CYnzbvPT1AX
-         fAaA==
+        b=PnffKQYxYz61N2vONJvoF4ruOfYPL3a7szgHCypwK05MU3Ml6cAoWWU8deaA1zphdN
+         TrREq7H8BVvO2X+7ZeQkRVAQTWYMPPJVqzTkmxAvm3kuVGjlg5CZo9tOrLQvYsuxyyfg
+         bpAReJAgRKzggg0oBL6agF0DySWroVvo6aDU1wzz583+RKu6fyRPmMD4XbqJpJ+P1YDX
+         dyfwQoNnvhgumaiK0Ju6a7uJa3isKo+09CWe0YXHGOUrmNaSkuq389+Ded60h5pEtuXf
+         nK0NfMd75pnzBLJgCKsAiVrw0kIWGSkXIUNiRP5sB8N1H5UT22qtpyfeTxu8HIPF12dM
+         kwVQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=la6SAN/rh+9VRfJ8pRNH9BXqosPKB/OETVQHuy06bnI=;
-        b=ZDflbEick/+Oq8L9hqPEqZJh56221eAKrzvWgwM4V9BjEXozbPb/9NRbbJgq1paege
-         ksSE7UcS29P7qqX+WNHNPEcCrZjXXdSlmeZIu3lcwVQ7I/KzZs0Hh+Qqy8cU0R5KjE+0
-         m52Yl58kO1sfVYEdCTTO85NVLwghrdAVC9Va0SuvH9HC5kr4dW8Xx+y5G8GAUElIuj7X
-         4Tjx/zqaEJK82W//MIOO9GGVbuJHL5TsBTOk0pItbWBzi5Y2IPUcjIbtDoFXYcPUJA+u
-         PERWVxtAhLMjtn8w8SnBYNdEcnu3djcK9BJSwRetCo4gDAfYMqFT11sYJRPmTf4CJKOl
-         HaEw==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=oZBfBU4jWxNSshmOOtCHrGGSxVl/3qP/1xb30w4GIow=;
+        b=Nl4Q893776+4fOeqipD9K+U+Kf3UQ4qL7clau+auYmhpfOCGG35zl0nkHKOMvrXRoU
+         VKnkFqamnLaXIImtwHWwkPmLs/6IbGbdt7YNLIdQV9sIe9Bjx0TwuYS6LiNjBIFfxL0l
+         aRUYeSJ6KgIlANFUdxqw7Bjxe3VdBRNcEVywDULQKH+SnnxaRtZG2m5GXQuCkdKbMWN+
+         AEIicT7c9O7qPWNPDEZQpuAQcjX8bTZxOj/9OE/JvHx8I7bjE9KDdhEgoCxdwN6z2JYT
+         MQSE4jDVmrxSTI110MlJuRrULYvlZU83AynOyC53IVPDcxzXnSBSF6VHdzvKyXwGG3rp
+         +gyQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of segher@kernel.crashing.org designates 63.228.1.57 as permitted sender) smtp.mailfrom=segher@kernel.crashing.org
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id p16si2974246itk.125.2019.02.20.06.51.59
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qZiFOjmG;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id k62si18623601pfc.208.2019.02.20.07.02.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Feb 2019 06:52:00 -0800 (PST)
-Received-SPF: pass (google.com: domain of segher@kernel.crashing.org designates 63.228.1.57 as permitted sender) client-ip=63.228.1.57;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 20 Feb 2019 07:03:00 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of segher@kernel.crashing.org designates 63.228.1.57 as permitted sender) smtp.mailfrom=segher@kernel.crashing.org
-Received: from gate.crashing.org (localhost.localdomain [127.0.0.1])
-	by gate.crashing.org (8.14.1/8.14.1) with ESMTP id x1KEpYL4023289;
-	Wed, 20 Feb 2019 08:51:34 -0600
-Received: (from segher@localhost)
-	by gate.crashing.org (8.14.1/8.14.1/Submit) id x1KEpPRx023288;
-	Wed, 20 Feb 2019 08:51:25 -0600
-X-Authentication-Warning: gate.crashing.org: segher set sender to segher@kernel.crashing.org using -f
-Date: Wed, 20 Feb 2019 08:51:25 -0600
-From: Segher Boessenkool <segher@kernel.crashing.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Balbir Singh <bsingharora@gmail.com>, erhard_f@mailbox.org, jack@suse.cz,
-        linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org,
-        linux-mm@kvack.org, aneesh.kumar@linux.vnet.ibm.com
-Subject: Re: [PATCH] powerpc/64s: Fix possible corruption on big endian due to pgd/pud_present()
-Message-ID: <20190220145112.GW14180@gate.crashing.org>
-References: <20190214062339.7139-1-mpe@ellerman.id.au> <20190216105511.GA31125@350D> <20190216142206.GE14180@gate.crashing.org> <20190217062333.GC31125@350D> <87ef86dd9v.fsf@concordia.ellerman.id.au> <20190217215556.GH31125@350D> <87imxhrkdt.fsf@concordia.ellerman.id.au> <20190219201539.GT14180@gate.crashing.org> <87sgwi7lo1.fsf@concordia.ellerman.id.au>
-Mime-Version: 1.0
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qZiFOjmG;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=oZBfBU4jWxNSshmOOtCHrGGSxVl/3qP/1xb30w4GIow=; b=qZiFOjmGGXLVTNULdyIQOXN6j
+	qkQrNwxu5hyCOtMVdQ3zUyEW8qoQaD05FL0B+v8rv8OS5B5Inv+lLU0GITzVKL3d8/w5GQxV2lrdL
+	HIdeMo1PpxLAtqhg+CmHpPmiULTPbmeJXR0/ydG3/rxopoY7aA9SwOP4wElpS1FRulpa26wYdKbLs
+	g2pTzTNz1zwloHDjfcWLkjauRC7zQlFHyVJjibJPIJaKzifpuy95SOmRHPXloeWUTZ1zlP9kOiC7Q
+	hhFYP7riOX85dKjb75YnVopzw7RBdtOtIXyqTZ1k3lxOcOtKDVHXVw71d6Bwbg/vzC6ULoPGhsIBs
+	RCeOIDBBQ==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gwTOf-0005pU-N1; Wed, 20 Feb 2019 15:02:53 +0000
+Date: Wed, 20 Feb 2019 07:02:53 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, aneesh.kumar@linux.vnet.ibm.com,
+	akpm@linux-foundation.org, npiggin@gmail.com,
+	linux-arch@vger.kernel.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, linux@armlinux.org.uk,
+	heiko.carstens@de.ibm.com, riel@surriel.com, tony.luck@intel.com
+Subject: Re: [PATCH v6 06/18] asm-generic/tlb: Conditionally provide
+ tlb_migrate_finish()
+Message-ID: <20190220150253.GH12668@bombadil.infradead.org>
+References: <20190219103148.192029670@infradead.org>
+ <20190219103233.207580251@infradead.org>
+ <20190219124738.GD8501@fuggles.cambridge.arm.com>
+ <20190219134147.GZ32494@hirez.programming.kicks-ass.net>
+ <20190220144705.GH7523@fuggles.cambridge.arm.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87sgwi7lo1.fsf@concordia.ellerman.id.au>
-User-Agent: Mutt/1.4.2.3i
+In-Reply-To: <20190220144705.GH7523@fuggles.cambridge.arm.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2019 at 10:18:38PM +1100, Michael Ellerman wrote:
-> Segher Boessenkool <segher@kernel.crashing.org> writes:
-> > On Mon, Feb 18, 2019 at 11:49:18AM +1100, Michael Ellerman wrote:
-> >> Balbir Singh <bsingharora@gmail.com> writes:
-> >> > Fair enough, my point was that the compiler can help out. I'll see what
-> >> > -Wconversion finds on my local build :)
-> >> 
-> >> I get about 43MB of warnings here :)
-> >
-> > Yes, -Wconversion complains about a lot of things that are idiomatic C.
-> > There is a reason -Wconversion is not in -Wall or -Wextra.
+On Wed, Feb 20, 2019 at 02:47:05PM +0000, Will Deacon wrote:
+> On Tue, Feb 19, 2019 at 02:41:47PM +0100, Peter Zijlstra wrote:
+> > On Tue, Feb 19, 2019 at 12:47:38PM +0000, Will Deacon wrote:
+> > > Fine for now, but I agree that we should drop the hook altogether. AFAICT,
+> > > this only exists to help an ia64 optimisation which looks suspicious to
+> > > me since it uses:
+> > > 
+> > >     mm == current->active_mm && atomic_read(&mm->mm_users) == 1
+> > > 
+> > > to identify a "single-threaded fork()" and therefore perform only local TLB
+> > > invalidation. Even if this was the right thing to do, it's not clear to me
+> > > that tlb_migrate_finish() is called on the right CPU anyway.
+> > > 
+> > > So I'd be keen to remove this hook before it spreads, but in the meantime:
+> > 
+> > Agreed :-)
+> > 
+> > The obvious slash and kill patch ... untested
 > 
-> Actually a lot of those go away when I add -Wno-sign-conversion.
-> 
-> And what's left seems mostly reasonable, they all indicate the
-> possibility of a bug I think.
-> 
-> In fact this works and would have caught the bug:
-> 
-> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> index d8c8d7c9df15..3114e3f368e2 100644
-> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> @@ -904,7 +904,12 @@ static inline int pud_none(pud_t pud)
->  
->  static inline int pud_present(pud_t pud)
->  {
-> +	__diag_push();
-> +	__diag_warn(GCC, 8, "-Wconversion", "ulong -> int");
-> +
->  	return !!(pud_raw(pud) & cpu_to_be64(_PAGE_PRESENT));
-> +
-> +	__diag_pop();
->  }
->  
->  extern struct page *pud_page(pud_t pud);
-> 
-> 
-> 
-> Obviously we're not going to instrument every function like that. But we
-> could start instrumenting particular files.
+> I'm also unable to test this, unfortunately. Can we get it into next after
+> the merge window and see if anybody reports issues?
 
-So you want to instrument the functions that you know are buggy, using some
-weird incantations to catch only those errors you already know about?
-
-(I am worried this does not scale, in many dimensions).
-
-
-Segher
+While I do have a pair of Itanium systems in my basement, neither are
+sn2 machines, which was the only sub-architecture that implemented
+tlb_migrate_finish().  I see NASA decomissioned Columbia in 2013, and
+I imagine most sn2 machines have been similarly scrapped.
 
