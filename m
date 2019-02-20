@@ -2,361 +2,141 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C2F0DC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 04:33:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C868C4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 04:38:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 659DF21773
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 04:33:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 659DF21773
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id CDA4921773
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 04:38:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDA4921773
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 030A48E0003; Tue, 19 Feb 2019 23:33:47 -0500 (EST)
+	id 66CE58E0003; Tue, 19 Feb 2019 23:38:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F23138E0002; Tue, 19 Feb 2019 23:33:46 -0500 (EST)
+	id 61DCD8E0002; Tue, 19 Feb 2019 23:38:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DC3B08E0003; Tue, 19 Feb 2019 23:33:46 -0500 (EST)
+	id 50DB28E0003; Tue, 19 Feb 2019 23:38:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AD4C68E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 23:33:46 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id d134so1545840qkc.17
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 20:33:46 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EE9A68E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 23:38:39 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id v1so1510150eds.7
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 20:38:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=StqX4vTxF6oIn78jh7pzc2MrCGJV+926WhCu9FYXIxk=;
-        b=sCqYeTZ5nDySfQrwkYVjM955m950nFXibxacsKaaQ5x+gSeq+GAdz8WtHjgyNp4LUc
-         pHteM+AQBiy9UzR8qV7PqICQ2OzhxIGHgv1AkVaqmVmzn15SnFfZWBlkwyXlzatfAFxU
-         2Oi/fNms+ojRob7DFpuuzSz0/Txk9I7IroE2hJuYn32y8B8whmgIIFS5JGEXd/Wmxke4
-         bftHef4YAQKgilEl4i3f0yXqH/bB4EqnCv9Lr2FZ+E4tznQy2OOYoTt7InC2qf49TOvo
-         8rvg/wSKl8iXgELmZdbYhwgB1+9fEd8RP2iAOU+mcLQ13rcgQD0pFv38GYCfWb3qDbPw
-         UBfw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dchinner@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dchinner@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZQ1QhkzhaG+LhBcVBsAdzsD+5GuGBsAuN0vRO3AIqxiQjD6Gkx
-	He80GAwrnWPH6bNwVIz34bMxp5RpBz9Y63DSBYxWdCsdf1fA1e39r7jHnQ7F340Q61yFxqo07Ao
-	PoXWW44GVj3sc2qio6C9wctwlCJUZB1s8yTbaSTbZYm2M/BYrT9VbYpeD41eORysX4A==
-X-Received: by 2002:a37:9a13:: with SMTP id c19mr19590820qke.48.1550637226400;
-        Tue, 19 Feb 2019 20:33:46 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZLxK0HBkv/xNlUREW7YDPHECfONWaO/39LSZ8PlV/j25lRd7zB/0ucodFK4lTqwQu/WaoZ
-X-Received: by 2002:a37:9a13:: with SMTP id c19mr19590785qke.48.1550637225431;
-        Tue, 19 Feb 2019 20:33:45 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550637225; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=Cj0KznzWs5dqkkWAOilS7Mp4dDpFdC0jZuz+w76rPWY=;
+        b=DCyE3ID0IOxctU8QzC981PhKJPLH6NMerft9UPe+gU35GLlnXpA4xar7oyrN0yI0ut
+         ontAQ8zIV3XF28ZiXAsa8qUbW0qtYFLCHqYVGlP7NxRRpCRwJ6CcUCSrOengWxnOBq+z
+         lojAHi+Kpz3l92gfRtumZPhIMZ+0aAD9eJSWiMk6zVmCcjqD58mGm6zwS2JrMGp9zjBC
+         zwu/xCVoq/Qxbd3uQdjFn5ggIQF/lcrD+4jPmpvyoaMLX/UAuHWA/9T5Ruq63qDqrmCt
+         KhRNjslQO1wZ4cW7aVjxW+bD0qUKDVxRe1gwq2mo++7aRTTRy8tWHm6PD73DqOMPPBCR
+         D6Wg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: AHQUAuZ4lqMonMYbLGW9/kt7n6R21mCOpvoqqNsFilfQg1Kh7emYD3K8
+	aNYqZhrf4DH6BfD8egGPYSA9u3peZk5JwSJaiJiQTYWfHHBftVrFA8KcJthRBd9mIGB66vwwksa
+	GqCv8YhhWtig6yFFVccI8YMh7VtvLNzUdsuDYeDtEMJJHX1Ra+jHtnpKGn0qtHXwh4A==
+X-Received: by 2002:a17:906:3749:: with SMTP id e9mr23116989ejc.194.1550637519468;
+        Tue, 19 Feb 2019 20:38:39 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZnLB0gVr+9KSQM7K0HVeC3m/01TrlXlB4UDa2Q1X7JhploZ6QfK2Jvke0fpyrYpbV9asD2
+X-Received: by 2002:a17:906:3749:: with SMTP id e9mr23116962ejc.194.1550637518684;
+        Tue, 19 Feb 2019 20:38:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550637518; cv=none;
         d=google.com; s=arc-20160816;
-        b=FDxjmU8/cisgTGdbRJItDeKbN7Bjir3TWX4Z5joBUTu0CbP/8iTIwFxtMYuPYMJ1DJ
-         rMCcTxMLjNVgV4miQrpjaU1ouud3wNbTPbpuU3VeL4t3T5nvDRle6lxtl3WLDQnYjSs2
-         cYlHMayfD/WmKCFaEkjHCqztp1HWz++7mCDlnxjMwEnRHdQmLxof6/3LzLsfgHWSg6qV
-         7AAt9TRh2UInoSvFzBmjqxDkN2LJVQ8ZWBT/CD4eLkC5Uf2oAXJKkJEm9/F163cpoI3c
-         dVF4TfYz0DJr0UfjaxsxZkzJhlM4l3GFaTyxbiRqNKD+7JMMJM6m0ri/wJUwbadyr6xI
-         1G1g==
+        b=WH7UGhWxUQ22BfUAkWg0BIs4gUHv5q1bLUBoCHaDNCgQzuq609P0/nomQH5fza2G/a
+         wHNkbqyXajT2w3J6lq2ki8SNLEVzR1VtfeiFL2K4AnYYu0fWLGPuLR9CH/GWOe3LZY8f
+         85gmuUyuFCEHbE4wU1aLOAZRbPtdpQX+sY5Lv2u8CrYHeYDYIo7QeyGWtchoH6i37OGA
+         Q3uGyTFz+LnGXv3GeNg7Lhzz7qNXQdZQ31yIc+d5QW07dd0D+m6grrQLeiryzso9f9dV
+         TbgzsLtAJptqdTAT/Kr24jmXK3vOUbt9vGOJoeslp7oGlIbgI1u8x+YQWBbJkLn44V0i
+         0N+A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=StqX4vTxF6oIn78jh7pzc2MrCGJV+926WhCu9FYXIxk=;
-        b=rzhAbsbqchSsFpTZ4G+cJarzyOpayowUnODuG08Y0vuwP75LRIFXL6ywLGeMnqJAGN
-         cprRJ2XELIyZbWKPF+Rupc+vw4ZFqn6bNMWE9NS0rC9FnpPKG0YiigHw5rhvqjzYM3CH
-         BeKThXpJzPBYi/st19HdZJAbgeT6FDKx+muJoL/fXsJkG3pyYBV82QDASy0DrBFskZf7
-         dirpGi4hNFKqW6fykuuc1Dy8S2ILoywDkc38EIHkOeOWcRVCPXNGhcIPQVIgZmaDBXux
-         vSYlXHEJqkf5gDVrdyrHzV5p6BBv9PhKphCXRJzlVcSsneuViiiGdO4NypTd8Ju4KDXi
-         35+Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=Cj0KznzWs5dqkkWAOilS7Mp4dDpFdC0jZuz+w76rPWY=;
+        b=AMeS1TLCBvVQ5ol8/Q6yCnAjcWTZu7uxlUP4fGlx8qoA9JiQbyEbyJlXUBqPMC2StE
+         XWqIvXBIaB0DaYXNdVVzzpfdjb/6/CwgfgP2wqjEH+ElmDhonbvizwRbPICYEzoee4kE
+         WNQ/bMRI0PZRtw3L9JSywyIPTFcguMIq+Jogf+Et2IhdGJOhMoIl+2jvA2HuaiNo8shb
+         Meryc/mw2bygyeibNd5TkjCWQsiMVV38zVB4AO/gZAavlGZlgdYbis85ahzDyEt9Unxt
+         21RDeb0UkjwhqzYPEYoJgKU38t+DXjRcn/NrGXfTjHbjPMb1K+zApdArEfvLCDY0eJxg
+         QKuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dchinner@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dchinner@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r21si7647533qtn.351.2019.02.19.20.33.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Feb 2019 20:33:45 -0800 (PST)
-Received-SPF: pass (google.com: domain of dchinner@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id u33si2002262edm.37.2019.02.19.20.38.38
+        for <linux-mm@kvack.org>;
+        Tue, 19 Feb 2019 20:38:38 -0800 (PST)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dchinner@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dchinner@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id D938B89AC6;
-	Wed, 20 Feb 2019 04:33:43 +0000 (UTC)
-Received: from rh (ovpn-116-82.phx2.redhat.com [10.3.116.82])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id EFE175D6AA;
-	Wed, 20 Feb 2019 04:33:42 +0000 (UTC)
-Received: from [::1] (helo=rh)
-	by rh with esmtps (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
-	(Exim 4.90_1)
-	(envelope-from <dchinner@redhat.com>)
-	id 1gwJZg-0005pP-BB; Wed, 20 Feb 2019 15:33:36 +1100
-Date: Wed, 20 Feb 2019 15:33:32 +1100
-From: Dave Chinner <dchinner@redhat.com>
-To: Rik van Riel <riel@surriel.com>
-Cc: Roman Gushchin <guro@fb.com>,
-	"lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"mhocko@kernel.org" <mhocko@kernel.org>,
-	"guroan@gmail.com" <guroan@gmail.com>,
-	Kernel Team <Kernel-team@fb.com>,
-	"hannes@cmpxchg.org" <hannes@cmpxchg.org>
-Subject: Re: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
-Message-ID: <20190220043332.GA31397@rh>
-References: <20190219003140.GA5660@castle.DHCP.thefacebook.com>
- <20190219020448.GY31397@rh>
- <7f66dd5242ab4d305f43d85de1a8e514fc47c492.camel@surriel.com>
- <20190219232627.GZ31397@rh>
- <9446a6a8a6d60cf5727d348d34969ba1e67e1c58.camel@surriel.com>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 35A33A78;
+	Tue, 19 Feb 2019 20:38:37 -0800 (PST)
+Received: from [10.162.40.115] (p8cg001049571a15.blr.arm.com [10.162.40.115])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 49C113F720;
+	Tue, 19 Feb 2019 20:38:33 -0800 (PST)
+Subject: Re: [RFC PATCH 01/31] mm: migrate: Add exchange_pages to exchange two
+ lists of pages.
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Zi Yan <ziy@nvidia.com>, Vlastimil Babka <vbabka@suse.cz>,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko <mhocko@kernel.org>,
+ "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Mel Gorman <mgorman@techsingularity.net>, John Hubbard
+ <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>,
+ Nitin Gupta <nigupta@nvidia.com>, David Nellans <dnellans@nvidia.com>
+References: <20190215220856.29749-1-zi.yan@sent.com>
+ <20190215220856.29749-2-zi.yan@sent.com>
+ <20190217112943.GP12668@bombadil.infradead.org>
+ <65A1FFA0-531C-4078-9704-3F44819C3C07@nvidia.com>
+ <2630a452-8c53-f109-1748-36b98076c86e@suse.cz>
+ <53690FCD-B0BA-4619-8DF1-B9D721EE1208@nvidia.com>
+ <20190218175224.GT12668@bombadil.infradead.org>
+ <C84D2490-B6C6-4C7C-870F-945E31719728@nvidia.com>
+ <1ce6ae99-4865-df62-5f20-cb07ebb95327@arm.com>
+ <20190219125619.GA12668@bombadil.infradead.org>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <749d5674-9e85-1fe9-4a3b-1d6ad06948b4@arm.com>
+Date: Wed, 20 Feb 2019 10:08:36 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9446a6a8a6d60cf5727d348d34969ba1e67e1c58.camel@surriel.com>
-User-Agent: Mutt/1.9.1 (2017-09-22)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Wed, 20 Feb 2019 04:33:44 +0000 (UTC)
+In-Reply-To: <20190219125619.GA12668@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 19, 2019 at 09:06:07PM -0500, Rik van Riel wrote:
-> On Wed, 2019-02-20 at 10:26 +1100, Dave Chinner wrote:
-> > On Tue, Feb 19, 2019 at 12:31:10PM -0500, Rik van Riel wrote:
-> > > On Tue, 2019-02-19 at 13:04 +1100, Dave Chinner wrote:
-> > > > On Tue, Feb 19, 2019 at 12:31:45AM +0000, Roman Gushchin wrote:
-> > > > > Sorry, resending with the fixed to/cc list. Please, ignore the
-> > > > > first letter.
-> > > > 
-> > > > Please resend again with linux-fsdevel on the cc list, because
-> > > > this
-> > > > isn't a MM topic given the regressions from the shrinker patches
-> > > > have all been on the filesystem side of the shrinkers....
-> > > 
-> > > It looks like there are two separate things going on here.
-> > > 
-> > > The first are an MM issues, one of potentially leaking memory
-> > > by not scanning slabs with few items on them,
-> > 
-> > We don't leak memory. Slabs with very few freeable items on them
-> > just don't get scanned when there is only light memory pressure.
-> > That's /by design/ and it is behaviour we've tried hard over many
-> > years to preserve. Once memory pressure ramps up, they'll be
-> > scanned just like all the other slabs.
+
+
+On 02/19/2019 06:26 PM, Matthew Wilcox wrote:
+> On Tue, Feb 19, 2019 at 01:12:07PM +0530, Anshuman Khandual wrote:
+>> But the location of this temp page matters as well because you would like to
+>> saturate the inter node interface. It needs to be either of the nodes where
+>> the source or destination page belongs. Any other node would generate two
+>> internode copy process which is not what you intend here I guess.
+> That makes no sense.  It should be allocated on the local node of the CPU
+> performing the copy.  If the CPU is in node A, the destination is in node B
+> and the source is in node C, then you're doing 4k worth of reads from node C,
+> 4k worth of reads from node B, 4k worth of writes to node C followed by
+> 4k worth of writes to node B.  Eventually the 4k of dirty cachelines on
+> node A will be written back from cache to the local memory (... or not,
+> if that page gets reused for some other purpose first).
 > 
-> That may have been fine before cgroups, but when
-> a system can have (tens of) thousands of slab
-> caches, we DO want to scan slab caches with few
-> freeable items in them.
-> 
-> The threshold for "few items" is 4096, not some
-> actually tiny number. That can add up to a lot
-> of memory if a system has hundreds of cgroups.
+> If you allocate the page on node B or node C, that's an extra 4k of writes
+> to be sent across the inter-node link.
 
-That doesn't sound right. The threshold is supposed to be low single
-digits based on the amount of pressure on the page cache, and it's
-accumulated by deferral until the batch threshold (128) is exceeded.
-
-Ohhhhh. The penny just dropped - this whole sorry saga has be
-triggered because people are chasing a regression nobody has
-recognised as a regression because they don't actually understand
-how the shrinker algorithms are /supposed/ to work.
-
-And I'm betting that it's been caused by some other recent FB
-shrinker change.....
-
-Yup, there it is:
-
-commit 9092c71bb724dba2ecba849eae69e5c9d39bd3d2
-Author: Josef Bacik <jbacik@fb.com>
-Date:   Wed Jan 31 16:16:26 2018 -0800
-
-    mm: use sc->priority for slab shrink targets
-
-....
-    We don't need to know exactly how many pages each shrinker represents,
-    it's objects are all the information we need.  Making this change allows
-    us to place an appropriate amount of pressure on the shrinker pools for
-    their relative size.
-....
-
--       delta = (4 * nr_scanned) / shrinker->seeks;
--       delta *= freeable;
--       do_div(delta, nr_eligible + 1);
-+       delta = freeable >> priority;
-+       delta *= 4;
-+       do_div(delta, shrinker->seeks);
-
-
-So, prior to this change:
-
-	delta ~= (4 * nr_scanned * freeable) / nr_eligible
-
-IOWs, the ratio of nr_scanned:nr_eligible determined the resolution
-of scan, and that meant delta could (and did!) have values in the
-single digit range.
-
-The current code introduced by the above patch does:
-
-	delta ~= (freeable >> priority) * 4
-
-Which, as you state, has a threshold of freeable > 4096 to trigger
-scanning under low memory pressure.
-
-So, that's the original regression that people are trying to fix
-(root cause analysis FTW).  It was introduced in 4.16-rc1. The
-attempts to fix this regression (i.e. the lack of low free object
-shrinker scanning) were introduced into 4.18-rc1, which caused even
-worse regressions and lead us directly to this point.
-
-Ok, now I see where the real problem people are chasing is, I'll go
-write a patch to fix it.
-
-> Roman's patch, which reclaimed small slabs extra
-> aggressively, introduced issues, but reclaiming
-> small slabs at the same pressure/object as large
-> slabs seems like the desired behavior.
-
-It's still broken. Both of your patches do the wrong thing because
-they don't address the resolution and accumulation regression and
-instead add another layer of heuristics over the top of the delta
-calculation to hide the lack of resolution.
-
-> > That's a cgroup referencing and teardown problem, not a memory
-> > reclaim algorithm problem. To treat it as a memory reclaim problem
-> > smears memcg internal implementation bogosities all over the
-> > independent reclaim infrastructure. It violates the concepts of
-> > isolation, modularity, independence, abstraction layering, etc.
-> 
-> You are overlooking the fact that an inode loaded
-> into memory by one cgroup (which is getting torn
-> down) may be in active use by processes in other
-> cgroups.
-
-No I am not. I am fully aware of this problem (have been since memcg
-day one because of the list_lru tracking issues Glauba and I had to
-sort out when we first realised shared inodes could occur). Sharing
-inodes across cgroups also causes "complexity" in things like cgroup
-writeback control (which cgroup dirty list tracks and does writeback
-of shared inodes?) and so on. Shared inodes across cgroups are
-considered the exception rather than the rule, and they are treated
-in many places with algorithms that assert "this is rare, if it's
-common we're going to be in trouble"....
-
-> > > The second is the filesystem (and maybe other) shrinker
-> > > functions' behavior being somewhat fragile and depending
-> > > on closely on current MM behavior, potentially up to
-> > > and including MM bugs.
-> > > 
-> > > The lack of a contract between the MM and the shrinker
-> > > callbacks is a recurring issue, and something we may
-> > > want to discuss in a joint session.
-> > > 
-> > > Some reflections on the shrinker/MM interaction:
-> > > - Since all memory (in a zone) could potentially be in
-> > >   shrinker pools, shrinkers MUST eventually free some
-> > >   memory.
-> > 
-> > Which they cannot guarantee because all the objects they track may
-> > be in use. As such, shrinkers have never been asked to guarantee
-> > that they can free memory - they've only ever been asked to scan a
-> > number of objects and attempt to free those it can during the scan.
-> 
-> Shrinkers may not be able to free memory NOW, and that
-> is ok, but shrinkers need to guarantee that they can
-> free memory eventually.
-
-If the memory the shrinker tracks is in use, they can't free
-anything. Hence there is no guarantee a shrinker can free anything
-from it's cache now or in the future. i.e. it can return freeable =
-0 as much as it wants, and the memory reclaim infrastructure just
-has to deal with the fact it can't free any memory.
-
-This is where page reclaim would trigger the OOM killer, but that
-still won't guarantee a shrinker can free anything.......
-
-> > > - The MM should be able to deal with shrinkers doing
-> > >   nothing at this call, but having some work pending 
-> > >   (eg. waiting on IO completion), without getting a false
-> > >   OOM kill. How can we do this best?
-> > 
-> > By integrating shrinkers into the same feedback loops as page
-> > reclaim. i.e. to allow individual shrinker instance state to be
-> > visible to the backoff/congestion decisions that the main page
-> > reclaim loops make.
-> > 
-> > i.e. the problem here is that shrinkers only feedback to the main
-> > loop is "how many pages were freed" as a whole. They aren't seen as
-> > individual reclaim instances like zones for apge reclaim, they are
-> > just a huge amorphous blob that "frees some pages". i.e. They sit off
-> > to
-> > the side and run their own game between main loop scans and have no
-> > capability to run individual backoffs, schedule kswapd to do future
-> > work, don't have watermarks to provide reclaim goals, can't
-> > communicate progress to the main control algorithm, etc.
-> > 
-> > IOWs, the first step we need to take here is to get rid of
-> > the shrink_slab() abstraction and make shrinkers a first class
-> > reclaim citizen....
-> 
-> I completely agree with that. The main reclaim loop
-> should be able to make decisions like "there is plenty
-> of IO in flight already, I should wait for some to
-> complete instead of starting more", which requires the
-> kind of visibility you have outlined.
-> 
-> I guess we should find some whiteboard time at LSF/MM
-> to work out the details, after we have a general discussion
-> on this in one of the sessions.
-
-I won't be at LSFMM. The location is absolutely awful in terms of
-travel - ~6 days travel time for a 3 day conference is just not
-worthwhile.
-
-> Given the need for things like lockless data structures
-> in some subsystems, I imagine we would want to do a lot
-> of the work here with callbacks, rather than standardized
-> data structures.
-
-Just another ops structure.... :P
-
-> > > - Related to the above: stalling in the shrinker code is
-> > >   unpredictable, and can take an arbitrarily long amount
-> > >   of time. Is there a better way we can make reclaimers
-> > >   wait for in-flight work to be completed?
-> > 
-> > Look at it this way: what do you need to do to implement the main
-> > zone reclaim loops as individual shrinker instances? Complex
-> > shrinker implementations have to deal with all the same issues as
-> > the page reclaim loops (including managing cross-cache dependencies
-> > and balancing). If we can't answer this question, then we can't
-> > answer the questions that are being asked.
-> > 
-> > So, at this point, I have to ask: if we need the same functionality
-> > for both page reclaim and shrinkers, then why shouldn't the goal be
-> > to make page reclaim just another set of opaque shrinker
-> > implementations?
-> 
-> I suspect each LRU could be implemented as a shrinker
-> today, with some combination of function pointers and
-> data pointers (in case of LRUs, to the lruvec) as control
-> data structures.
-.....
-> The logic of which cgroups we should reclaim memory from
-> right now, and which we should skip for now, is already
-> handled outside of the code that calls both the LRU and
-> the slab shrinking code.
-> 
-> In short, I see no real obstacle to unifying the two.
-
-Neither do I, except that it's a huge amount of work and there's no
-guarantee we'll be able to make any better than what we have now....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-dchinner@redhat.com
+Thats right there will be an extra remote write. My assumption was that the CPU
+performing the copy belongs to either node B or node C.
 
