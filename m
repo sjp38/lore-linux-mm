@@ -2,872 +2,334 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
+	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 73181C4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 05:31:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C6064C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 05:31:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 045802147A
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 05:31:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 045802147A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 710E42147A
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 05:31:52 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="C01coSkU";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="YL5eGtR5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 710E42147A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ED5818E000A; Wed, 20 Feb 2019 00:30:53 -0500 (EST)
+	id 0F0C18E000B; Wed, 20 Feb 2019 00:31:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E84D88E0007; Wed, 20 Feb 2019 00:30:53 -0500 (EST)
+	id 09FE88E0007; Wed, 20 Feb 2019 00:31:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CFB868E000A; Wed, 20 Feb 2019 00:30:53 -0500 (EST)
+	id ED06D8E000B; Wed, 20 Feb 2019 00:31:51 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 789B68E0007
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 00:30:53 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id x11so4327801pln.5
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 21:30:53 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BCE7A8E0007
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 00:31:51 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id b40so6523109qte.1
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 21:31:51 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=G6qFF34jvp7B/jaouoa8JH/Iz152R2NLNSGE57Ro2dY=;
-        b=jQizX2hcNUWPTdH/AV0h6NQqQUXugX8DUv6nnstxToaVkFGC7Q+ChI4vcfM023QzVI
-         muJPf1MX4uvcI6WyQ1MHHUrBwpXqShVWTWXMVSbVVIvhJ+IH8twuPwOkdv4ZiKHwMHjk
-         dtdwrvsQM7q6XI/1T0hT8Ywuo8cKO7t+3IrbQRSRd8M4ANmktkVeAkFGupPQUhDZl/rC
-         wJPNyzY+L1jk89UZ/u16HO/nJX0shwa8F2Crsoiofk8lA/J6rjSbVBY3TCEDi91aTUp9
-         PVeK+wZbcbOmLDGO4Q7uChACSvzwFxymDtWaUCUj6XkekbV+rivyghFoSWrW5hZbvpRi
-         FuYg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuZYtCuitGhHsscPchE07HHHAQy1AIRRidB6QL0xlGBr282aSTHt
-	LY+CRiIBeWj98hVofzO1wahPFaegNo/8QMo1sdkqdHUznpDjbM/xpKpcBPlRcjcv9ZnF+m+KMzp
-	AbhRcunNADmhHQVoJb1X3m13+2Hs4+zqrFEwglgyGM7pH1sTTLhG4ZEt0XpBDKXEgvQ==
-X-Received: by 2002:a65:6383:: with SMTP id h3mr4943199pgv.11.1550640653073;
-        Tue, 19 Feb 2019 21:30:53 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IY+c6QEQEx55FSIvM7rKTlosxsSBWLISKygwA65CK45Ojha+TykyPgXp8X2kB8uI996zbjD
-X-Received: by 2002:a65:6383:: with SMTP id h3mr4943069pgv.11.1550640650845;
-        Tue, 19 Feb 2019 21:30:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550640650; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=2xJZ/YKKSXbrpB9nIObxvJGHP/f0BJ+7rmocOG9ikCw=;
+        b=Ie3k3yoxY+8qOc2k/Zbo2H0NhUvqtOic48ul4amn1QMzdZYZ0oI7UcrCkockPjEmn5
+         tj0z4PtIzzGBsD51L7A4Lbujy1LxEegEJJpMCTH/X9kaIOzOzOuTxqY4f7WulPTIz/vW
+         pn4vPdw72bXE8IyFK+TVqLVe572O4Gx19SqmuurS9QtfuULZjTbt6Ealf34N+VaJDOvS
+         s9WYRHgPHkJEIif9MufXc7vGpEjU6YqGcGuAQ3d7VCfgBXwzSl4jeXH2FBQlqwOnGZX6
+         zu/d9vEqH3Z2XfS79YP2/EyKmomYZfxlDTxtIkbE7PWWvhkWKDkjCDJUZItEYtx8IE4l
+         hLPg==
+X-Gm-Message-State: AHQUAuZ8Cje5Lnn6gGSLrkAk9yaNZ68dolNAv/91OT/tD/XBZeYgGssx
+	xtTccuB1GZraezP+pZmPCRpy5JB2xji6CLy1kcdQ7Qh2fPyLzCkcdFB359pIQQ1iSJlVQvVfr/1
+	dWfVcSWvyLVYOFePAGm5RZH5XB240OFAG/o5RGlBloZ0qNgmnKnujExO+BhcnEoURVQ==
+X-Received: by 2002:a37:96c4:: with SMTP id y187mr22406033qkd.149.1550640711468;
+        Tue, 19 Feb 2019 21:31:51 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaEmpiive/aUigM+fCMJWm0PKnmeVFUwxi25UqF5sxbYTLaQ+mA5G+I3w0KsAVZ50zNXXsY
+X-Received: by 2002:a37:96c4:: with SMTP id y187mr22406000qkd.149.1550640710659;
+        Tue, 19 Feb 2019 21:31:50 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550640710; cv=none;
         d=google.com; s=arc-20160816;
-        b=SzI522FzCrPHtgtM0LzOCW6APLwDVVldUoSOoL3bHKoA+ln46zUYQpgQyLu59BAQuv
-         l+677qz3MCkBRC9mkQKE9+ABhypT4G6PPxW+TjPMGTSHy6z65hIHoDbaZ9HHB8W2KKN4
-         PGgLhr1ye/6KOG/qHpzLA0WJ/BSpuTAn8JuUEqUdpOsTqfFjtIJt3gilqN2xuydIcZtd
-         1n2t/hIVDEnXMKvi+lR1PzfAOnBVLHlKECCpN429mWZXReGebHxv8ifBIgQ0++3Wd+o8
-         rX/CGGNWaT2fRcieOgF8mo9DPYJXgUkW03ZdiImlPMb3moK81KoRhr7Ujq2X/Ir5zAFY
-         c4kQ==
+        b=RTDCMRZ23J64hMiBN+2yv0p6TQ6t+Ejuc+7XUIh9ZP6LxikehH73XcNFtB6Ngc6CEF
+         U6JB+Uxn8joAy3kXHPdiLlNtpaXn7yI1oB4bF/NsPGo1NAGGzksnhJ174//mUcwbdn62
+         o0HC5188EQwDtK9eR/w34MphrUO9lrEVjcceG4OZCWioDM9lYMPFf5VpO2mNyEYqD19+
+         A45R2IzMHomdIucILXLZMlqm65dVtII7XOVERALSLMpnU7KwTFfGVpXeURA1zURfyrX3
+         wra2tQrw4xAAQTrVQHjT1+UhoOwH3looMQ0G9yZWQnGYL8klVDoqIsWtBo8zxJYMFdbP
+         6erw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=G6qFF34jvp7B/jaouoa8JH/Iz152R2NLNSGE57Ro2dY=;
-        b=mSlTS2Yd4aNaJBm1wDUnpDiY6+W5xGnev1i5Kj5aMmhZLVqUzOcDenLg1Tecr7qj21
-         Ig9NWtgZHflWryiu/hfR24q7L4zvQ0uVsRtbs00Digi1Z/hTOd54MfiYXHzKd/dxLl/3
-         ao5okFZqi9xfUpdDnHnjlyxZ0akWOqj1WjLd1QQE2+lDFk/ANE6M3TJc3FJdSy6Y1fok
-         Hv2QU9ktJOt2zsOd7BrY/YDP1XaIWtJjhWzbysbVsdXUz9g3mb1BYvtDlna7pfdkwTYW
-         XxP+AaVFc0Cpu98OWUHlHkX3QJ3bzwJ/9P1N44Hklh95LE5KFlcB6/heH6ztARFhPbk+
-         atsA==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=2xJZ/YKKSXbrpB9nIObxvJGHP/f0BJ+7rmocOG9ikCw=;
+        b=o9bIj/WmAJzbv6Ca3IwJqWCaySRnWJIWyJjqBvE2BMnhh+NQpJSuSxi0eFcQppkrf3
+         6wdUd4d5eMXatD3uxZkpzfYNDkVoXTjyLpu0sYGaGmQKj19Olt8HtDAJ24lS0Y/7L2Rc
+         7zWkSqR7EmN22ZGXy+HP6UkSEOU+5CQysa+41IPRgzLgBgS16CdopK+e1UfiImPdEbtv
+         QxLceZic2OeT/yfNIHEMXVVyVhEV8PMzT4If06sq7mBWwrIBCbiRplKkqv731bntYnMQ
+         HgbGh7/dNyXmfBoNMYO5zNna96FUAWuPOX0bF+9GfW+/le3M+SP5azBiI7M3+5+rksAY
+         XFfw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id t3si6328884plq.430.2019.02.19.21.30.50
+       dkim=pass header.i=@fb.com header.s=facebook header.b=C01coSkU;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=YL5eGtR5;
+       spf=pass (google.com: domain of prvs=795499e935=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=795499e935=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id s17si4239724qve.22.2019.02.19.21.31.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Feb 2019 21:30:50 -0800 (PST)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        Tue, 19 Feb 2019 21:31:50 -0800 (PST)
+Received-SPF: pass (google.com: domain of prvs=795499e935=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga002.fm.intel.com ([10.253.24.26])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 19 Feb 2019 21:30:50 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,388,1544515200"; 
-   d="scan'208";a="144924910"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga002.fm.intel.com with ESMTP; 19 Feb 2019 21:30:49 -0800
-From: ira.weiny@intel.com
-To: John Hubbard <jhubbard@nvidia.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
-	"David S. Miller" <davem@davemloft.net>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Rich Felker <dalias@libc.org>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Ralf Baechle <ralf@linux-mips.org>,
-	Paul Burton <paul.burton@mips.com>,
-	James Hogan <jhogan@kernel.org>
-Cc: Ira Weiny <ira.weiny@intel.com>,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-mips@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org,
-	linux-s390@vger.kernel.org,
-	linux-sh@vger.kernel.org,
-	sparclinux@vger.kernel.org,
-	kvm-ppc@vger.kernel.org,
-	kvm@vger.kernel.org,
-	linux-fpga@vger.kernel.org,
-	dri-devel@lists.freedesktop.org,
-	linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org,
-	linux-scsi@vger.kernel.org,
-	devel@driverdev.osuosl.org,
-	virtualization@lists.linux-foundation.org,
-	netdev@vger.kernel.org,
-	linux-fbdev@vger.kernel.org,
-	xen-devel@lists.xenproject.org,
-	devel@lists.orangefs.org,
-	ceph-devel@vger.kernel.org,
-	rds-devel@oss.oracle.com
-Subject: [RESEND PATCH 3/7] mm/gup: Change GUP fast to use flags rather than a write 'bool'
-Date: Tue, 19 Feb 2019 21:30:36 -0800
-Message-Id: <20190220053040.10831-4-ira.weiny@intel.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190220053040.10831-1-ira.weiny@intel.com>
-References: <20190220053040.10831-1-ira.weiny@intel.com>
+       dkim=pass header.i=@fb.com header.s=facebook header.b=C01coSkU;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=YL5eGtR5;
+       spf=pass (google.com: domain of prvs=795499e935=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=795499e935=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0148460.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1K5VXFG019982;
+	Tue, 19 Feb 2019 21:31:35 -0800
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=2xJZ/YKKSXbrpB9nIObxvJGHP/f0BJ+7rmocOG9ikCw=;
+ b=C01coSkU3mWXO6Lft1lajjHOkzb6MphJb7sVPfKen0j4t529qW5PZow+YX7V6WeSXSOT
+ +LGvVZt+ls8LmFrXADiYk1/hSPRajJHzXJTE4MaeVsBhVNNEHhhO6g/ViE8J75i8doYu
+ db1GiDDQGZWLZEy0DRzHAPfvjUjHRLE5r/o= 
+Received: from maileast.thefacebook.com ([199.201.65.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2qrx0grdhs-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Tue, 19 Feb 2019 21:31:34 -0800
+Received: from frc-mbx01.TheFacebook.com (2620:10d:c0a1:f82::25) by
+ frc-hub05.TheFacebook.com (2620:10d:c021:18::175) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1531.3; Tue, 19 Feb 2019 21:31:03 -0800
+Received: from frc-hub02.TheFacebook.com (2620:10d:c021:18::172) by
+ frc-mbx01.TheFacebook.com (2620:10d:c0a1:f82::25) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1531.3; Tue, 19 Feb 2019 21:31:03 -0800
+Received: from NAM05-BY2-obe.outbound.protection.outlook.com (192.168.183.28)
+ by o365-in.thefacebook.com (192.168.177.72) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1531.3
+ via Frontend Transport; Tue, 19 Feb 2019 21:31:03 -0800
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=2xJZ/YKKSXbrpB9nIObxvJGHP/f0BJ+7rmocOG9ikCw=;
+ b=YL5eGtR5uL9NqoZa8XAFTZDu2V0NEtKyRfC761NT7YKZXZnCKAAqbm6vCalsEKuIod4FYjfbbvFR9whYLHybziQOB7xqaIknxXYSBiuaGpwrBgQPVQ3pJIM3a3jGccUEMbJjuTnS4YXjO29D47XetwV3YjMpfdEKv2LVmTg9n1c=
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
+ BYAPR15MB3382.namprd15.prod.outlook.com (20.179.59.15) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1622.16; Wed, 20 Feb 2019 05:31:01 +0000
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::ecc7:1a8c:289f:df92]) by BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::ecc7:1a8c:289f:df92%3]) with mapi id 15.20.1601.016; Wed, 20 Feb 2019
+ 05:31:01 +0000
+From: Roman Gushchin <guro@fb.com>
+To: Dave Chinner <dchinner@redhat.com>
+CC: Rik van Riel <riel@surriel.com>,
+        "lsf-pc@lists.linux-foundation.org"
+	<lsf-pc@lists.linux-foundation.org>,
+        "linux-mm@kvack.org"
+	<linux-mm@kvack.org>,
+        "mhocko@kernel.org" <mhocko@kernel.org>,
+        "guroan@gmail.com" <guroan@gmail.com>,
+        Kernel Team <Kernel-team@fb.com>,
+        "hannes@cmpxchg.org" <hannes@cmpxchg.org>
+Subject: Re: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
+Thread-Topic: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
+Thread-Index: AQHUx+p7YU4wmFXyC0Kxxb6WvO6kKqXmXyYAgAEC0wCAAGNEgIAALJyAgAApMACAABAIgA==
+Date: Wed, 20 Feb 2019 05:31:01 +0000
+Message-ID: <20190220053052.GA13267@castle.DHCP.thefacebook.com>
+References: <20190219003140.GA5660@castle.DHCP.thefacebook.com>
+ <20190219020448.GY31397@rh>
+ <7f66dd5242ab4d305f43d85de1a8e514fc47c492.camel@surriel.com>
+ <20190219232627.GZ31397@rh>
+ <9446a6a8a6d60cf5727d348d34969ba1e67e1c58.camel@surriel.com>
+ <20190220043332.GA31397@rh>
+In-Reply-To: <20190220043332.GA31397@rh>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: MWHPR19CA0095.namprd19.prod.outlook.com
+ (2603:10b6:320:1f::33) To BYAPR15MB2631.namprd15.prod.outlook.com
+ (2603:10b6:a03:152::24)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:180::1:69b7]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 375f7409-a942-42ac-d302-08d696f4994b
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:BYAPR15MB3382;
+x-ms-traffictypediagnostic: BYAPR15MB3382:
+x-microsoft-exchange-diagnostics: 1;BYAPR15MB3382;20:coqyegDqGb0SdDYrAhL9EoDK0BJ1TAv8VlgSZaCdHxacZT4Kf62Mh/ga3XDz6eYuVxDwxMly/WrDgaTcw0UWGV3bZSrbvxStzalvMfa/7YjxLo44TdFasNWDKzACOiXjuWsUYm8uxTKXmqjVQ168TL6fIGD4RyEoL9JLEaSpP9U=
+x-microsoft-antispam-prvs: <BYAPR15MB3382461B92B7E201F3A5DF15BE7D0@BYAPR15MB3382.namprd15.prod.outlook.com>
+x-forefront-prvs: 0954EE4910
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(979002)(136003)(346002)(39860400002)(376002)(366004)(396003)(189003)(199004)(186003)(46003)(25786009)(68736007)(6506007)(476003)(486006)(14454004)(71190400001)(478600001)(71200400001)(6116002)(11346002)(93886005)(86362001)(446003)(8676002)(386003)(81166006)(5660300002)(81156014)(102836004)(105586002)(106356001)(1076003)(33656002)(6436002)(14444005)(2906002)(305945005)(6486002)(9686003)(256004)(6512007)(97736004)(7736002)(6246003)(54906003)(53936002)(52116002)(229853002)(99286004)(33896004)(316002)(76176011)(8936002)(4326008)(6916009)(969003)(989001)(999001)(1009001)(1019001);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3382;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: fhcJl0hxIjHarWsLVdY6RP00mNanGTIUyrhY3dTdheVoM3FRu4y7PnzLGS46bNSiF8ptSruRbSZmcPkslA1SOWrONVv1ikzsFy+ylVR8wDXmXAD9abO0J9id/nuuSN+57oJOnSe2vmHHIocnLYT2sSm8iMMUIBE+67vHPnqW70jfQGffc+37lW0BGUSltN/7MOZPb87f9qtXisyzlvKc43xiaaY23rCHopPIzxtPTImv9QlAb7pzUsY6qvFx5GJB3ZUv6+ZMB0HewwD3c16C5HwCMfS/v/D86OVNmloRgbbj4KSBmkRKQbe7VokB+gWids4HfVqKUSH1chMShB9cOcbUgLLi0oOccoiySbGDxK/iU9HpmVdoGz10cuKPVCP1KXxCuXl0iJmfc4CBSb344VYLC9Myp1iatoGCna0c3hs=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <469A818F5B365942A73522A54FE28095@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+X-MS-Exchange-CrossTenant-Network-Message-Id: 375f7409-a942-42ac-d302-08d696f4994b
+X-MS-Exchange-CrossTenant-originalarrivaltime: 20 Feb 2019 05:31:00.0028
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3382
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-20_05:,,
+ signatures=0
+X-Proofpoint-Spam-Reason: safe
+X-FB-Internal: Safe
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Ira Weiny <ira.weiny@intel.com>
+On Wed, Feb 20, 2019 at 03:33:32PM +1100, Dave Chinner wrote:
+> On Tue, Feb 19, 2019 at 09:06:07PM -0500, Rik van Riel wrote:
+> > On Wed, 2019-02-20 at 10:26 +1100, Dave Chinner wrote:
+> > > On Tue, Feb 19, 2019 at 12:31:10PM -0500, Rik van Riel wrote:
+> > > > On Tue, 2019-02-19 at 13:04 +1100, Dave Chinner wrote:
+> > > > > On Tue, Feb 19, 2019 at 12:31:45AM +0000, Roman Gushchin wrote:
+> > > > > > Sorry, resending with the fixed to/cc list. Please, ignore the
+> > > > > > first letter.
+> > > > >=20
+> > > > > Please resend again with linux-fsdevel on the cc list, because
+> > > > > this
+> > > > > isn't a MM topic given the regressions from the shrinker patches
+> > > > > have all been on the filesystem side of the shrinkers....
+> > > >=20
+> > > > It looks like there are two separate things going on here.
+> > > >=20
+> > > > The first are an MM issues, one of potentially leaking memory
+> > > > by not scanning slabs with few items on them,
+> > >=20
+> > > We don't leak memory. Slabs with very few freeable items on them
+> > > just don't get scanned when there is only light memory pressure.
+> > > That's /by design/ and it is behaviour we've tried hard over many
+> > > years to preserve. Once memory pressure ramps up, they'll be
+> > > scanned just like all the other slabs.
+> >=20
+> > That may have been fine before cgroups, but when
+> > a system can have (tens of) thousands of slab
+> > caches, we DO want to scan slab caches with few
+> > freeable items in them.
+> >=20
+> > The threshold for "few items" is 4096, not some
+> > actually tiny number. That can add up to a lot
+> > of memory if a system has hundreds of cgroups.
+>=20
+> That doesn't sound right. The threshold is supposed to be low single
+> digits based on the amount of pressure on the page cache, and it's
+> accumulated by deferral until the batch threshold (128) is exceeded.
+>=20
+> Ohhhhh. The penny just dropped - this whole sorry saga has be
+> triggered because people are chasing a regression nobody has
+> recognised as a regression because they don't actually understand
+> how the shrinker algorithms are /supposed/ to work.
+>=20
+> And I'm betting that it's been caused by some other recent FB
+> shrinker change.....
+>=20
+> Yup, there it is:
+>=20
+> commit 9092c71bb724dba2ecba849eae69e5c9d39bd3d2
+> Author: Josef Bacik <jbacik@fb.com>
+> Date:   Wed Jan 31 16:16:26 2018 -0800
+>=20
+>     mm: use sc->priority for slab shrink targets
+>=20
+> ....
+>     We don't need to know exactly how many pages each shrinker represents=
+,
+>     it's objects are all the information we need.  Making this change all=
+ows
+>     us to place an appropriate amount of pressure on the shrinker pools f=
+or
+>     their relative size.
+> ....
+>=20
+> -       delta =3D (4 * nr_scanned) / shrinker->seeks;
+> -       delta *=3D freeable;
+> -       do_div(delta, nr_eligible + 1);
+> +       delta =3D freeable >> priority;
+> +       delta *=3D 4;
+> +       do_div(delta, shrinker->seeks);
+>=20
+>=20
+> So, prior to this change:
+>=20
+> 	delta ~=3D (4 * nr_scanned * freeable) / nr_eligible
+>=20
+> IOWs, the ratio of nr_scanned:nr_eligible determined the resolution
+> of scan, and that meant delta could (and did!) have values in the
+> single digit range.
+>=20
+> The current code introduced by the above patch does:
+>=20
+> 	delta ~=3D (freeable >> priority) * 4
+>=20
+> Which, as you state, has a threshold of freeable > 4096 to trigger
+> scanning under low memory pressure.
+>=20
+> So, that's the original regression that people are trying to fix
+> (root cause analysis FTW).  It was introduced in 4.16-rc1. The
+> attempts to fix this regression (i.e. the lack of low free object
+> shrinker scanning) were introduced into 4.18-rc1, which caused even
+> worse regressions and lead us directly to this point.
+>=20
+> Ok, now I see where the real problem people are chasing is, I'll go
+> write a patch to fix it.
 
-To facilitate additional options to get_user_pages_fast() change the
-singular write parameter to be gup_flags.
+Sounds good, I'll check if it can prevent the memcg leak.
+If it will work, we're fine.
 
-This patch does not change any functionality.  New functionality will
-follow in subsequent patches.
+>=20
+> > Roman's patch, which reclaimed small slabs extra
+> > aggressively, introduced issues, but reclaiming
+> > small slabs at the same pressure/object as large
+> > slabs seems like the desired behavior.
+>=20
+> It's still broken. Both of your patches do the wrong thing because
+> they don't address the resolution and accumulation regression and
+> instead add another layer of heuristics over the top of the delta
+> calculation to hide the lack of resolution.
+>=20
+> > > That's a cgroup referencing and teardown problem, not a memory
+> > > reclaim algorithm problem. To treat it as a memory reclaim problem
+> > > smears memcg internal implementation bogosities all over the
+> > > independent reclaim infrastructure. It violates the concepts of
+> > > isolation, modularity, independence, abstraction layering, etc.
+> >=20
+> > You are overlooking the fact that an inode loaded
+> > into memory by one cgroup (which is getting torn
+> > down) may be in active use by processes in other
+> > cgroups.
+>=20
+> No I am not. I am fully aware of this problem (have been since memcg
+> day one because of the list_lru tracking issues Glauba and I had to
+> sort out when we first realised shared inodes could occur). Sharing
+> inodes across cgroups also causes "complexity" in things like cgroup
+> writeback control (which cgroup dirty list tracks and does writeback
+> of shared inodes?) and so on. Shared inodes across cgroups are
+> considered the exception rather than the rule, and they are treated
+> in many places with algorithms that assert "this is rare, if it's
+> common we're going to be in trouble"....
 
-Some of the get_user_pages_fast() call sites were unchanged because they
-already passed FOLL_WRITE or 0 for the write parameter.
+No, even if sharing inodes can be advertised as a bad practice and
+may lead to some sub-optimal results, it shouldn't trigger obvious
+kernel issues like memory leaks. Otherwise it becomes a security concern.
 
-Signed-off-by: Ira Weiny <ira.weiny@intel.com>
----
- arch/mips/mm/gup.c                         | 11 ++++++-----
- arch/powerpc/kvm/book3s_64_mmu_hv.c        |  4 ++--
- arch/powerpc/kvm/e500_mmu.c                |  2 +-
- arch/powerpc/mm/mmu_context_iommu.c        |  4 ++--
- arch/s390/kvm/interrupt.c                  |  2 +-
- arch/s390/mm/gup.c                         | 12 ++++++------
- arch/sh/mm/gup.c                           | 11 ++++++-----
- arch/sparc/mm/gup.c                        |  9 +++++----
- arch/x86/kvm/paging_tmpl.h                 |  2 +-
- arch/x86/kvm/svm.c                         |  2 +-
- drivers/fpga/dfl-afu-dma-region.c          |  2 +-
- drivers/gpu/drm/via/via_dmablit.c          |  3 ++-
- drivers/infiniband/hw/hfi1/user_pages.c    |  3 ++-
- drivers/misc/genwqe/card_utils.c           |  2 +-
- drivers/misc/vmw_vmci/vmci_host.c          |  2 +-
- drivers/misc/vmw_vmci/vmci_queue_pair.c    |  6 ++++--
- drivers/platform/goldfish/goldfish_pipe.c  |  3 ++-
- drivers/rapidio/devices/rio_mport_cdev.c   |  4 +++-
- drivers/sbus/char/oradax.c                 |  2 +-
- drivers/scsi/st.c                          |  3 ++-
- drivers/staging/gasket/gasket_page_table.c |  4 ++--
- drivers/tee/tee_shm.c                      |  2 +-
- drivers/vfio/vfio_iommu_spapr_tce.c        |  3 ++-
- drivers/vhost/vhost.c                      |  2 +-
- drivers/video/fbdev/pvr2fb.c               |  2 +-
- drivers/virt/fsl_hypervisor.c              |  2 +-
- drivers/xen/gntdev.c                       |  2 +-
- fs/orangefs/orangefs-bufmap.c              |  2 +-
- include/linux/mm.h                         |  4 ++--
- kernel/futex.c                             |  2 +-
- lib/iov_iter.c                             |  7 +++++--
- mm/gup.c                                   | 10 +++++-----
- mm/util.c                                  |  8 ++++----
- net/ceph/pagevec.c                         |  2 +-
- net/rds/info.c                             |  2 +-
- net/rds/rdma.c                             |  3 ++-
- 36 files changed, 81 insertions(+), 65 deletions(-)
+Also, in practice, it's common to have a main workload and a couple
+of supplementary processes (e.g. monitoring) in sibling cgroups,
+which are sharing some inodes (e.g. logs).
 
-diff --git a/arch/mips/mm/gup.c b/arch/mips/mm/gup.c
-index 0d14e0d8eacf..4c2b4483683c 100644
---- a/arch/mips/mm/gup.c
-+++ b/arch/mips/mm/gup.c
-@@ -235,7 +235,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
-  * get_user_pages_fast() - pin user pages in memory
-  * @start:	starting user address
-  * @nr_pages:	number of pages from start to pin
-- * @write:	whether pages will be written to
-+ * @gup_flags:	flags modifying pin behaviour
-  * @pages:	array that receives pointers to the pages pinned.
-  *		Should be at least nr_pages long.
-  *
-@@ -247,8 +247,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
-  * requested. If nr_pages is 0 or negative, returns 0. If no pages
-  * were pinned, returns -errno.
-  */
--int get_user_pages_fast(unsigned long start, int nr_pages, int write,
--			struct page **pages)
-+int get_user_pages_fast(unsigned long start, int nr_pages,
-+			unsigned int gup_flags, struct page **pages)
- {
- 	struct mm_struct *mm = current->mm;
- 	unsigned long addr, len, end;
-@@ -273,7 +273,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none(pgd))
- 			goto slow;
--		if (!gup_pud_range(pgd, addr, next, write, pages, &nr))
-+		if (!gup_pud_range(pgd, addr, next, gup_flags & FOLL_WRITE,
-+				   pages, &nr))
- 			goto slow;
- 	} while (pgdp++, addr = next, addr != end);
- 	local_irq_enable();
-@@ -289,7 +290,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	pages += nr;
- 
- 	ret = get_user_pages_unlocked(start, (end - start) >> PAGE_SHIFT,
--				      pages, write ? FOLL_WRITE : 0);
-+				      pages, gup_flags);
- 
- 	/* Have to be a bit careful with return values */
- 	if (nr > 0) {
-diff --git a/arch/powerpc/kvm/book3s_64_mmu_hv.c b/arch/powerpc/kvm/book3s_64_mmu_hv.c
-index bd2dcfbf00cd..8fcb0a921e46 100644
---- a/arch/powerpc/kvm/book3s_64_mmu_hv.c
-+++ b/arch/powerpc/kvm/book3s_64_mmu_hv.c
-@@ -582,7 +582,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
- 	/* If writing != 0, then the HPTE must allow writing, if we get here */
- 	write_ok = writing;
- 	hva = gfn_to_hva_memslot(memslot, gfn);
--	npages = get_user_pages_fast(hva, 1, writing, pages);
-+	npages = get_user_pages_fast(hva, 1, writing ? FOLL_WRITE : 0, pages);
- 	if (npages < 1) {
- 		/* Check if it's an I/O mapping */
- 		down_read(&current->mm->mmap_sem);
-@@ -1175,7 +1175,7 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
- 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
- 		goto err;
- 	hva = gfn_to_hva_memslot(memslot, gfn);
--	npages = get_user_pages_fast(hva, 1, 1, pages);
-+	npages = get_user_pages_fast(hva, 1, FOLL_WRITE, pages);
- 	if (npages < 1)
- 		goto err;
- 	page = pages[0];
-diff --git a/arch/powerpc/kvm/e500_mmu.c b/arch/powerpc/kvm/e500_mmu.c
-index 24296f4cadc6..e0af53fd78c5 100644
---- a/arch/powerpc/kvm/e500_mmu.c
-+++ b/arch/powerpc/kvm/e500_mmu.c
-@@ -783,7 +783,7 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
- 	if (!pages)
- 		return -ENOMEM;
- 
--	ret = get_user_pages_fast(cfg->array, num_pages, 1, pages);
-+	ret = get_user_pages_fast(cfg->array, num_pages, FOLL_WRITE, pages);
- 	if (ret < 0)
- 		goto free_pages;
- 
-diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
-index a712a650a8b6..acb0990c8364 100644
---- a/arch/powerpc/mm/mmu_context_iommu.c
-+++ b/arch/powerpc/mm/mmu_context_iommu.c
-@@ -190,7 +190,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
- 	for (i = 0; i < entries; ++i) {
- 		cur_ua = ua + (i << PAGE_SHIFT);
- 		if (1 != get_user_pages_fast(cur_ua,
--					1/* pages */, 1/* iswrite */, &page)) {
-+					1/* pages */, FOLL_WRITE, &page)) {
- 			ret = -EFAULT;
- 			for (j = 0; j < i; ++j)
- 				put_page(pfn_to_page(mem->hpas[j] >>
-@@ -209,7 +209,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
- 			if (mm_iommu_move_page_from_cma(page))
- 				goto populate;
- 			if (1 != get_user_pages_fast(cur_ua,
--						1/* pages */, 1/* iswrite */,
-+						1/* pages */, FOLL_WRITE,
- 						&page)) {
- 				ret = -EFAULT;
- 				for (j = 0; j < i; ++j)
-diff --git a/arch/s390/kvm/interrupt.c b/arch/s390/kvm/interrupt.c
-index fcb55b02990e..69d9366b966c 100644
---- a/arch/s390/kvm/interrupt.c
-+++ b/arch/s390/kvm/interrupt.c
-@@ -2278,7 +2278,7 @@ static int kvm_s390_adapter_map(struct kvm *kvm, unsigned int id, __u64 addr)
- 		ret = -EFAULT;
- 		goto out;
- 	}
--	ret = get_user_pages_fast(map->addr, 1, 1, &map->page);
-+	ret = get_user_pages_fast(map->addr, 1, FOLL_WRITE, &map->page);
- 	if (ret < 0)
- 		goto out;
- 	BUG_ON(ret != 1);
-diff --git a/arch/s390/mm/gup.c b/arch/s390/mm/gup.c
-index 2809d11c7a28..0a6faf3d9960 100644
---- a/arch/s390/mm/gup.c
-+++ b/arch/s390/mm/gup.c
-@@ -265,7 +265,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
-  * get_user_pages_fast() - pin user pages in memory
-  * @start:	starting user address
-  * @nr_pages:	number of pages from start to pin
-- * @write:	whether pages will be written to
-+ * @gup_flags:	flags modifying pin behaviour
-  * @pages:	array that receives pointers to the pages pinned.
-  *		Should be at least nr_pages long.
-  *
-@@ -277,22 +277,22 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
-  * requested. If nr_pages is 0 or negative, returns 0. If no pages
-  * were pinned, returns -errno.
-  */
--int get_user_pages_fast(unsigned long start, int nr_pages, int write,
--			struct page **pages)
-+int get_user_pages_fast(unsigned long start, int nr_pages,
-+			unsigned int gup_flags, struct page **pages)
- {
- 	int nr, ret;
- 
- 	might_sleep();
- 	start &= PAGE_MASK;
--	nr = __get_user_pages_fast(start, nr_pages, write, pages);
-+	nr = __get_user_pages_fast(start, nr_pages, gup_flags & FOLL_WRITE,
-+				   pages);
- 	if (nr == nr_pages)
- 		return nr;
- 
- 	/* Try to get the remaining pages with get_user_pages */
- 	start += nr << PAGE_SHIFT;
- 	pages += nr;
--	ret = get_user_pages_unlocked(start, nr_pages - nr, pages,
--				      write ? FOLL_WRITE : 0);
-+	ret = get_user_pages_unlocked(start, nr_pages - nr, pages, gup_flags);
- 	/* Have to be a bit careful with return values */
- 	if (nr > 0)
- 		ret = (ret < 0) ? nr : ret + nr;
-diff --git a/arch/sh/mm/gup.c b/arch/sh/mm/gup.c
-index 3e27f6d1f1ec..277c882f7489 100644
---- a/arch/sh/mm/gup.c
-+++ b/arch/sh/mm/gup.c
-@@ -204,7 +204,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
-  * get_user_pages_fast() - pin user pages in memory
-  * @start:	starting user address
-  * @nr_pages:	number of pages from start to pin
-- * @write:	whether pages will be written to
-+ * @gup_flags:	flags modifying pin behaviour
-  * @pages:	array that receives pointers to the pages pinned.
-  *		Should be at least nr_pages long.
-  *
-@@ -216,8 +216,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
-  * requested. If nr_pages is 0 or negative, returns 0. If no pages
-  * were pinned, returns -errno.
-  */
--int get_user_pages_fast(unsigned long start, int nr_pages, int write,
--			struct page **pages)
-+int get_user_pages_fast(unsigned long start, int nr_pages,
-+			unsigned int gup_flags, struct page **pages)
- {
- 	struct mm_struct *mm = current->mm;
- 	unsigned long addr, len, end;
-@@ -241,7 +241,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none(pgd))
- 			goto slow;
--		if (!gup_pud_range(pgd, addr, next, write, pages, &nr))
-+		if (!gup_pud_range(pgd, addr, next, gup_flags & FOLL_WRITE,
-+				   pages, &nr))
- 			goto slow;
- 	} while (pgdp++, addr = next, addr != end);
- 	local_irq_enable();
-@@ -261,7 +262,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 
- 		ret = get_user_pages_unlocked(start,
- 			(end - start) >> PAGE_SHIFT, pages,
--			write ? FOLL_WRITE : 0);
-+			gup_flags);
- 
- 		/* Have to be a bit careful with return values */
- 		if (nr > 0) {
-diff --git a/arch/sparc/mm/gup.c b/arch/sparc/mm/gup.c
-index aee6dba83d0e..1e770a517d4a 100644
---- a/arch/sparc/mm/gup.c
-+++ b/arch/sparc/mm/gup.c
-@@ -245,8 +245,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	return nr;
- }
- 
--int get_user_pages_fast(unsigned long start, int nr_pages, int write,
--			struct page **pages)
-+int get_user_pages_fast(unsigned long start, int nr_pages,
-+			unsigned int gup_flags, struct page **pages)
- {
- 	struct mm_struct *mm = current->mm;
- 	unsigned long addr, len, end;
-@@ -303,7 +303,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 		next = pgd_addr_end(addr, end);
- 		if (pgd_none(pgd))
- 			goto slow;
--		if (!gup_pud_range(pgd, addr, next, write, pages, &nr))
-+		if (!gup_pud_range(pgd, addr, next, gup_flags & FOLL_WRITE,
-+				   pages, &nr))
- 			goto slow;
- 	} while (pgdp++, addr = next, addr != end);
- 
-@@ -324,7 +325,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 
- 		ret = get_user_pages_unlocked(start,
- 			(end - start) >> PAGE_SHIFT, pages,
--			write ? FOLL_WRITE : 0);
-+			gup_flags);
- 
- 		/* Have to be a bit careful with return values */
- 		if (nr > 0) {
-diff --git a/arch/x86/kvm/paging_tmpl.h b/arch/x86/kvm/paging_tmpl.h
-index 6bdca39829bc..08715034e315 100644
---- a/arch/x86/kvm/paging_tmpl.h
-+++ b/arch/x86/kvm/paging_tmpl.h
-@@ -140,7 +140,7 @@ static int FNAME(cmpxchg_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
- 	pt_element_t *table;
- 	struct page *page;
- 
--	npages = get_user_pages_fast((unsigned long)ptep_user, 1, 1, &page);
-+	npages = get_user_pages_fast((unsigned long)ptep_user, 1, FOLL_WRITE, &page);
- 	/* Check if the user is doing something meaningless. */
- 	if (unlikely(npages != 1))
- 		return -EFAULT;
-diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
-index f13a3a24d360..173596a020cb 100644
---- a/arch/x86/kvm/svm.c
-+++ b/arch/x86/kvm/svm.c
-@@ -1803,7 +1803,7 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
- 		return NULL;
- 
- 	/* Pin the user virtual address. */
--	npinned = get_user_pages_fast(uaddr, npages, write ? FOLL_WRITE : 0, pages);
-+	npinned = get_user_pages_fast(uaddr, npages, FOLL_WRITE, pages);
- 	if (npinned != npages) {
- 		pr_err("SEV: Failure locking %lu pages.\n", npages);
- 		goto err;
-diff --git a/drivers/fpga/dfl-afu-dma-region.c b/drivers/fpga/dfl-afu-dma-region.c
-index e18a786fc943..c438722bf4e1 100644
---- a/drivers/fpga/dfl-afu-dma-region.c
-+++ b/drivers/fpga/dfl-afu-dma-region.c
-@@ -102,7 +102,7 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
- 		goto unlock_vm;
- 	}
- 
--	pinned = get_user_pages_fast(region->user_addr, npages, 1,
-+	pinned = get_user_pages_fast(region->user_addr, npages, FOLL_WRITE,
- 				     region->pages);
- 	if (pinned < 0) {
- 		ret = pinned;
-diff --git a/drivers/gpu/drm/via/via_dmablit.c b/drivers/gpu/drm/via/via_dmablit.c
-index 345bda4494e1..0c8b09602910 100644
---- a/drivers/gpu/drm/via/via_dmablit.c
-+++ b/drivers/gpu/drm/via/via_dmablit.c
-@@ -239,7 +239,8 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
- 	if (NULL == vsg->pages)
- 		return -ENOMEM;
- 	ret = get_user_pages_fast((unsigned long)xfer->mem_addr,
--			vsg->num_pages, vsg->direction == DMA_FROM_DEVICE,
-+			vsg->num_pages,
-+			vsg->direction == DMA_FROM_DEVICE ? FOLL_WRITE : 0,
- 			vsg->pages);
- 	if (ret != vsg->num_pages) {
- 		if (ret < 0)
-diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
-index 24b592c6522e..78ccacaf97d0 100644
---- a/drivers/infiniband/hw/hfi1/user_pages.c
-+++ b/drivers/infiniband/hw/hfi1/user_pages.c
-@@ -105,7 +105,8 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
- {
- 	int ret;
- 
--	ret = get_user_pages_fast(vaddr, npages, writable, pages);
-+	ret = get_user_pages_fast(vaddr, npages, writable ? FOLL_WRITE : 0,
-+				  pages);
- 	if (ret < 0)
- 		return ret;
- 
-diff --git a/drivers/misc/genwqe/card_utils.c b/drivers/misc/genwqe/card_utils.c
-index 25265fd0fd6e..89cff9d1012b 100644
---- a/drivers/misc/genwqe/card_utils.c
-+++ b/drivers/misc/genwqe/card_utils.c
-@@ -603,7 +603,7 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
- 	/* pin user pages in memory */
- 	rc = get_user_pages_fast(data & PAGE_MASK, /* page aligned addr */
- 				 m->nr_pages,
--				 m->write,		/* readable/writable */
-+				 m->write ? FOLL_WRITE : 0,	/* readable/writable */
- 				 m->page_list);	/* ptrs to pages */
- 	if (rc < 0)
- 		goto fail_get_user_pages;
-diff --git a/drivers/misc/vmw_vmci/vmci_host.c b/drivers/misc/vmw_vmci/vmci_host.c
-index 997f92543dd4..422d08da3244 100644
---- a/drivers/misc/vmw_vmci/vmci_host.c
-+++ b/drivers/misc/vmw_vmci/vmci_host.c
-@@ -242,7 +242,7 @@ static int vmci_host_setup_notify(struct vmci_ctx *context,
- 	/*
- 	 * Lock physical page backing a given user VA.
- 	 */
--	retval = get_user_pages_fast(uva, 1, 1, &context->notify_page);
-+	retval = get_user_pages_fast(uva, 1, FOLL_WRITE, &context->notify_page);
- 	if (retval != 1) {
- 		context->notify_page = NULL;
- 		return VMCI_ERROR_GENERIC;
-diff --git a/drivers/misc/vmw_vmci/vmci_queue_pair.c b/drivers/misc/vmw_vmci/vmci_queue_pair.c
-index 264f4ed8eef2..c5396ee32e51 100644
---- a/drivers/misc/vmw_vmci/vmci_queue_pair.c
-+++ b/drivers/misc/vmw_vmci/vmci_queue_pair.c
-@@ -666,7 +666,8 @@ static int qp_host_get_user_memory(u64 produce_uva,
- 	int err = VMCI_SUCCESS;
- 
- 	retval = get_user_pages_fast((uintptr_t) produce_uva,
--				     produce_q->kernel_if->num_pages, 1,
-+				     produce_q->kernel_if->num_pages,
-+				     FOLL_WRITE,
- 				     produce_q->kernel_if->u.h.header_page);
- 	if (retval < (int)produce_q->kernel_if->num_pages) {
- 		pr_debug("get_user_pages_fast(produce) failed (retval=%d)",
-@@ -678,7 +679,8 @@ static int qp_host_get_user_memory(u64 produce_uva,
- 	}
- 
- 	retval = get_user_pages_fast((uintptr_t) consume_uva,
--				     consume_q->kernel_if->num_pages, 1,
-+				     consume_q->kernel_if->num_pages,
-+				     FOLL_WRITE,
- 				     consume_q->kernel_if->u.h.header_page);
- 	if (retval < (int)consume_q->kernel_if->num_pages) {
- 		pr_debug("get_user_pages_fast(consume) failed (retval=%d)",
-diff --git a/drivers/platform/goldfish/goldfish_pipe.c b/drivers/platform/goldfish/goldfish_pipe.c
-index 321bc673c417..cef0133aa47a 100644
---- a/drivers/platform/goldfish/goldfish_pipe.c
-+++ b/drivers/platform/goldfish/goldfish_pipe.c
-@@ -274,7 +274,8 @@ static int pin_user_pages(unsigned long first_page,
- 		*iter_last_page_size = last_page_size;
- 	}
- 
--	ret = get_user_pages_fast(first_page, requested_pages, !is_write,
-+	ret = get_user_pages_fast(first_page, requested_pages,
-+				  !is_write ? FOLL_WRITE : 0,
- 				  pages);
- 	if (ret <= 0)
- 		return -EFAULT;
-diff --git a/drivers/rapidio/devices/rio_mport_cdev.c b/drivers/rapidio/devices/rio_mport_cdev.c
-index cbe467ff1aba..f681b3e9e970 100644
---- a/drivers/rapidio/devices/rio_mport_cdev.c
-+++ b/drivers/rapidio/devices/rio_mport_cdev.c
-@@ -868,7 +868,9 @@ rio_dma_transfer(struct file *filp, u32 transfer_mode,
- 
- 		pinned = get_user_pages_fast(
- 				(unsigned long)xfer->loc_addr & PAGE_MASK,
--				nr_pages, dir == DMA_FROM_DEVICE, page_list);
-+				nr_pages,
-+				dir == DMA_FROM_DEVICE ? FOLL_WRITE : 0,
-+				page_list);
- 
- 		if (pinned != nr_pages) {
- 			if (pinned < 0) {
-diff --git a/drivers/sbus/char/oradax.c b/drivers/sbus/char/oradax.c
-index 6516bc3cb58b..790aa148670d 100644
---- a/drivers/sbus/char/oradax.c
-+++ b/drivers/sbus/char/oradax.c
-@@ -437,7 +437,7 @@ static int dax_lock_page(void *va, struct page **p)
- 
- 	dax_dbg("uva %p", va);
- 
--	ret = get_user_pages_fast((unsigned long)va, 1, 1, p);
-+	ret = get_user_pages_fast((unsigned long)va, 1, FOLL_WRITE, p);
- 	if (ret == 1) {
- 		dax_dbg("locked page %p, for VA %p", *p, va);
- 		return 0;
-diff --git a/drivers/scsi/st.c b/drivers/scsi/st.c
-index 7ff22d3f03e3..871b25914c07 100644
---- a/drivers/scsi/st.c
-+++ b/drivers/scsi/st.c
-@@ -4918,7 +4918,8 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
- 
-         /* Try to fault in all of the necessary pages */
-         /* rw==READ means read from drive, write into memory area */
--	res = get_user_pages_fast(uaddr, nr_pages, rw == READ, pages);
-+	res = get_user_pages_fast(uaddr, nr_pages, rw == READ ? FOLL_WRITE : 0,
-+				  pages);
- 
- 	/* Errors and no page mapped should return here */
- 	if (res < nr_pages)
-diff --git a/drivers/staging/gasket/gasket_page_table.c b/drivers/staging/gasket/gasket_page_table.c
-index 26755d9ca41d..f67fdf1d3817 100644
---- a/drivers/staging/gasket/gasket_page_table.c
-+++ b/drivers/staging/gasket/gasket_page_table.c
-@@ -486,8 +486,8 @@ static int gasket_perform_mapping(struct gasket_page_table *pg_tbl,
- 			ptes[i].dma_addr = pg_tbl->coherent_pages[0].paddr +
- 					   off + i * PAGE_SIZE;
- 		} else {
--			ret = get_user_pages_fast(page_addr - offset, 1, 1,
--						  &page);
-+			ret = get_user_pages_fast(page_addr - offset, 1,
-+						  FOLL_WRITE, &page);
- 
- 			if (ret <= 0) {
- 				dev_err(pg_tbl->device,
-diff --git a/drivers/tee/tee_shm.c b/drivers/tee/tee_shm.c
-index 0b9ab1d0dd45..49fd7312e2aa 100644
---- a/drivers/tee/tee_shm.c
-+++ b/drivers/tee/tee_shm.c
-@@ -273,7 +273,7 @@ struct tee_shm *tee_shm_register(struct tee_context *ctx, unsigned long addr,
- 		goto err;
- 	}
- 
--	rc = get_user_pages_fast(start, num_pages, 1, shm->pages);
-+	rc = get_user_pages_fast(start, num_pages, FOLL_WRITE, shm->pages);
- 	if (rc > 0)
- 		shm->num_pages = rc;
- 	if (rc != num_pages) {
-diff --git a/drivers/vfio/vfio_iommu_spapr_tce.c b/drivers/vfio/vfio_iommu_spapr_tce.c
-index c424913324e3..a4b10bb4086b 100644
---- a/drivers/vfio/vfio_iommu_spapr_tce.c
-+++ b/drivers/vfio/vfio_iommu_spapr_tce.c
-@@ -532,7 +532,8 @@ static int tce_iommu_use_page(unsigned long tce, unsigned long *hpa)
- 	enum dma_data_direction direction = iommu_tce_direction(tce);
- 
- 	if (get_user_pages_fast(tce & PAGE_MASK, 1,
--			direction != DMA_TO_DEVICE, &page) != 1)
-+			direction != DMA_TO_DEVICE ? FOLL_WRITE : 0,
-+			&page) != 1)
- 		return -EFAULT;
- 
- 	*hpa = __pa((unsigned long) page_address(page));
-diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
-index 24a129fcdd61..72685b1659ff 100644
---- a/drivers/vhost/vhost.c
-+++ b/drivers/vhost/vhost.c
-@@ -1700,7 +1700,7 @@ static int set_bit_to_user(int nr, void __user *addr)
- 	int bit = nr + (log % PAGE_SIZE) * 8;
- 	int r;
- 
--	r = get_user_pages_fast(log, 1, 1, &page);
-+	r = get_user_pages_fast(log, 1, FOLL_WRITE, &page);
- 	if (r < 0)
- 		return r;
- 	BUG_ON(r != 1);
-diff --git a/drivers/video/fbdev/pvr2fb.c b/drivers/video/fbdev/pvr2fb.c
-index 8a53d1de611d..41390c8e0f67 100644
---- a/drivers/video/fbdev/pvr2fb.c
-+++ b/drivers/video/fbdev/pvr2fb.c
-@@ -686,7 +686,7 @@ static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
- 	if (!pages)
- 		return -ENOMEM;
- 
--	ret = get_user_pages_fast((unsigned long)buf, nr_pages, true, pages);
-+	ret = get_user_pages_fast((unsigned long)buf, nr_pages, FOLL_WRITE, pages);
- 	if (ret < nr_pages) {
- 		nr_pages = ret;
- 		ret = -EINVAL;
-diff --git a/drivers/virt/fsl_hypervisor.c b/drivers/virt/fsl_hypervisor.c
-index 8ba726e600e9..6446bcab4185 100644
---- a/drivers/virt/fsl_hypervisor.c
-+++ b/drivers/virt/fsl_hypervisor.c
-@@ -244,7 +244,7 @@ static long ioctl_memcpy(struct fsl_hv_ioctl_memcpy __user *p)
- 
- 	/* Get the physical addresses of the source buffer */
- 	num_pinned = get_user_pages_fast(param.local_vaddr - lb_offset,
--		num_pages, param.source != -1, pages);
-+		num_pages, param.source != -1 ? FOLL_WRITE : 0, pages);
- 
- 	if (num_pinned != num_pages) {
- 		/* get_user_pages() failed */
-diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
-index 5efc5eee9544..7b47f1e6aab4 100644
---- a/drivers/xen/gntdev.c
-+++ b/drivers/xen/gntdev.c
-@@ -852,7 +852,7 @@ static int gntdev_get_page(struct gntdev_copy_batch *batch, void __user *virt,
- 	unsigned long xen_pfn;
- 	int ret;
- 
--	ret = get_user_pages_fast(addr, 1, writeable, &page);
-+	ret = get_user_pages_fast(addr, 1, writeable ? FOLL_WRITE : 0, &page);
- 	if (ret < 0)
- 		return ret;
- 
-diff --git a/fs/orangefs/orangefs-bufmap.c b/fs/orangefs/orangefs-bufmap.c
-index 443bcd8c3c19..5a7c4fda682f 100644
---- a/fs/orangefs/orangefs-bufmap.c
-+++ b/fs/orangefs/orangefs-bufmap.c
-@@ -269,7 +269,7 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
- 
- 	/* map the pages */
- 	ret = get_user_pages_fast((unsigned long)user_desc->ptr,
--			     bufmap->page_count, 1, bufmap->page_array);
-+			     bufmap->page_count, FOLL_WRITE, bufmap->page_array);
- 
- 	if (ret < 0)
- 		return ret;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 05a105d9d4c3..8e1f3cd7482a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1537,8 +1537,8 @@ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
- long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
- 		    struct page **pages, unsigned int gup_flags);
- 
--int get_user_pages_fast(unsigned long start, int nr_pages, int write,
--			struct page **pages);
-+int get_user_pages_fast(unsigned long start, int nr_pages,
-+			unsigned int gup_flags, struct page **pages);
- 
- /* Container for pinned pfns / pages */
- struct frame_vector {
-diff --git a/kernel/futex.c b/kernel/futex.c
-index fdd312da0992..e10209946f8b 100644
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -546,7 +546,7 @@ get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, enum futex_a
- 	if (unlikely(should_fail_futex(fshared)))
- 		return -EFAULT;
- 
--	err = get_user_pages_fast(address, 1, 1, &page);
-+	err = get_user_pages_fast(address, 1, FOLL_WRITE, &page);
- 	/*
- 	 * If write access is not required (eg. FUTEX_WAIT), try
- 	 * and get read-only access.
-diff --git a/lib/iov_iter.c b/lib/iov_iter.c
-index be4bd627caf0..6dbae0692719 100644
---- a/lib/iov_iter.c
-+++ b/lib/iov_iter.c
-@@ -1280,7 +1280,9 @@ ssize_t iov_iter_get_pages(struct iov_iter *i,
- 			len = maxpages * PAGE_SIZE;
- 		addr &= ~(PAGE_SIZE - 1);
- 		n = DIV_ROUND_UP(len, PAGE_SIZE);
--		res = get_user_pages_fast(addr, n, iov_iter_rw(i) != WRITE, pages);
-+		res = get_user_pages_fast(addr, n,
-+				iov_iter_rw(i) != WRITE ?  FOLL_WRITE : 0,
-+				pages);
- 		if (unlikely(res < 0))
- 			return res;
- 		return (res == n ? len : res * PAGE_SIZE) - *start;
-@@ -1361,7 +1363,8 @@ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
- 		p = get_pages_array(n);
- 		if (!p)
- 			return -ENOMEM;
--		res = get_user_pages_fast(addr, n, iov_iter_rw(i) != WRITE, p);
-+		res = get_user_pages_fast(addr, n,
-+				iov_iter_rw(i) != WRITE ?  FOLL_WRITE : 0, p);
- 		if (unlikely(res < 0)) {
- 			kvfree(p);
- 			return res;
-diff --git a/mm/gup.c b/mm/gup.c
-index 681388236106..6f32d36b3c5b 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1863,7 +1863,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
-  * get_user_pages_fast() - pin user pages in memory
-  * @start:	starting user address
-  * @nr_pages:	number of pages from start to pin
-- * @write:	whether pages will be written to
-+ * @gup_flags:	flags modifying pin behaviour
-  * @pages:	array that receives pointers to the pages pinned.
-  *		Should be at least nr_pages long.
-  *
-@@ -1875,8 +1875,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
-  * requested. If nr_pages is 0 or negative, returns 0. If no pages
-  * were pinned, returns -errno.
-  */
--int get_user_pages_fast(unsigned long start, int nr_pages, int write,
--			struct page **pages)
-+int get_user_pages_fast(unsigned long start, int nr_pages,
-+			unsigned int gup_flags, struct page **pages)
- {
- 	unsigned long addr, len, end;
- 	int nr = 0, ret = 0;
-@@ -1894,7 +1894,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 
- 	if (gup_fast_permitted(start, nr_pages)) {
- 		local_irq_disable();
--		gup_pgd_range(addr, end, write ? FOLL_WRITE : 0, pages, &nr);
-+		gup_pgd_range(addr, end, gup_flags, pages, &nr);
- 		local_irq_enable();
- 		ret = nr;
- 	}
-@@ -1905,7 +1905,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 		pages += nr;
- 
- 		ret = get_user_pages_unlocked(start, nr_pages - nr, pages,
--				write ? FOLL_WRITE : 0);
-+					      gup_flags);
- 
- 		/* Have to be a bit careful with return values */
- 		if (nr > 0) {
-diff --git a/mm/util.c b/mm/util.c
-index 1ea055138043..01ffe145c62b 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -306,7 +306,7 @@ EXPORT_SYMBOL_GPL(__get_user_pages_fast);
-  * get_user_pages_fast() - pin user pages in memory
-  * @start:	starting user address
-  * @nr_pages:	number of pages from start to pin
-- * @write:	whether pages will be written to
-+ * @gup_flags:	flags modifying pin behaviour
-  * @pages:	array that receives pointers to the pages pinned.
-  *		Should be at least nr_pages long.
-  *
-@@ -327,10 +327,10 @@ EXPORT_SYMBOL_GPL(__get_user_pages_fast);
-  * get_user_pages_fast simply falls back to get_user_pages.
-  */
- int __weak get_user_pages_fast(unsigned long start,
--				int nr_pages, int write, struct page **pages)
-+				int nr_pages, unsigned int gup_flags,
-+				struct page **pages)
- {
--	return get_user_pages_unlocked(start, nr_pages, pages,
--				       write ? FOLL_WRITE : 0);
-+	return get_user_pages_unlocked(start, nr_pages, pages, gup_flags);
- }
- EXPORT_SYMBOL_GPL(get_user_pages_fast);
- 
-diff --git a/net/ceph/pagevec.c b/net/ceph/pagevec.c
-index d3736f5bffec..74cafc0142ea 100644
---- a/net/ceph/pagevec.c
-+++ b/net/ceph/pagevec.c
-@@ -27,7 +27,7 @@ struct page **ceph_get_direct_page_vector(const void __user *data,
- 	while (got < num_pages) {
- 		rc = get_user_pages_fast(
- 		    (unsigned long)data + ((unsigned long)got * PAGE_SIZE),
--		    num_pages - got, write_page, pages + got);
-+		    num_pages - got, write_page ? FOLL_WRITE : 0, pages + got);
- 		if (rc < 0)
- 			break;
- 		BUG_ON(rc == 0);
-diff --git a/net/rds/info.c b/net/rds/info.c
-index e367a97a18c8..03f6fd56d237 100644
---- a/net/rds/info.c
-+++ b/net/rds/info.c
-@@ -193,7 +193,7 @@ int rds_info_getsockopt(struct socket *sock, int optname, char __user *optval,
- 		ret = -ENOMEM;
- 		goto out;
- 	}
--	ret = get_user_pages_fast(start, nr_pages, 1, pages);
-+	ret = get_user_pages_fast(start, nr_pages, FOLL_WRITE, pages);
- 	if (ret != nr_pages) {
- 		if (ret > 0)
- 			nr_pages = ret;
-diff --git a/net/rds/rdma.c b/net/rds/rdma.c
-index 182ab8430594..b340ed4fc43a 100644
---- a/net/rds/rdma.c
-+++ b/net/rds/rdma.c
-@@ -158,7 +158,8 @@ static int rds_pin_pages(unsigned long user_addr, unsigned int nr_pages,
- {
- 	int ret;
- 
--	ret = get_user_pages_fast(user_addr, nr_pages, write, pages);
-+	ret = get_user_pages_fast(user_addr, nr_pages, write ? FOLL_WRITE : 0,
-+				  pages);
- 
- 	if (ret >= 0 && ret < nr_pages) {
- 		while (ret--)
--- 
-2.20.1
+Thanks!
 
