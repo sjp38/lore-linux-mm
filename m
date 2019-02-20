@@ -2,253 +2,159 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 46821C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 22:40:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 694B6C10F07
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 22:44:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E8AE220851
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 22:40:33 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="eeREBfQx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8AE220851
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 2F7D32089F
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 22:44:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F7D32089F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7FE7E8E0041; Wed, 20 Feb 2019 17:40:33 -0500 (EST)
+	id BF3748E0042; Wed, 20 Feb 2019 17:44:22 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7AE758E0002; Wed, 20 Feb 2019 17:40:33 -0500 (EST)
+	id BA2F98E0002; Wed, 20 Feb 2019 17:44:22 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 69CBC8E0041; Wed, 20 Feb 2019 17:40:33 -0500 (EST)
+	id AB9BC8E0042; Wed, 20 Feb 2019 17:44:22 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B9858E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 17:40:33 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id h2so16046482ywm.11
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 14:40:33 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A8058E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 17:44:22 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id 202so17885793pgb.6
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 14:44:22 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=3YmVsn1xjix5KcAoIKQqJBJt7OBuvYd0dgjyNItw0t0=;
-        b=r11sd6LNoqg07C8mXV1LjhDEAv2UB/67YWHY2R/EsaKEuwJda1UYcNwoJidihDUQn8
-         N5C5pKDo7KNVY8BmfMdBSeu+aSd4sTYlpz6MXB7JsVGw14mKW76gcMEjxFJAMRiroKCY
-         eI8aorbS3qsg1Idf8+Vrv4EUmGtUjxe6m4s694BJJVbUhdkczbfmw/rfgmyHx+91f+Oy
-         Zca9mNZgI4RClLFPqul7ZxQdzuX5dFnDxRhHJYJcjubvpua3LFlyNmkTcIc63qyfXVKm
-         WdM55MEghN4r9Lgah6SJpYWqAKUbNRacJDNAXYGkS4AdcU1nvtAFmMSFj++JRFg2ph7j
-         A5QQ==
-X-Gm-Message-State: AHQUAuZkVrqxZmI07moHrrtLenzsVqCfeUqFhquocE0vxSoA7AezkXTA
-	1ZGQsxzD0va7aCoPua2gMeCS6C+LKaK+p+6iwiUOW2zcfsVKI9FHu8+wA/rvpxtUM/edlC/s152
-	SZ9LAIPykvOqXvrhrOj7LIJ5bfNVfyeUPoaXHTUaCvCVjogzPykqH8l5+k+VM/4Quqw==
-X-Received: by 2002:a81:29cc:: with SMTP id p195mr29079281ywp.32.1550702432854;
-        Wed, 20 Feb 2019 14:40:32 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaOI1iCciIXnv24EmTKZmYFAacEf49kpvd42gCZ2LwIwldOQR7smo1cjRkzqKOceeCGe//J
-X-Received: by 2002:a81:29cc:: with SMTP id p195mr29079243ywp.32.1550702432235;
-        Wed, 20 Feb 2019 14:40:32 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550702432; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=ADSnTAmMBLbb+CaaBT5R+wPVABqgRHBEqnFu1otGO/0=;
+        b=IzsD7NoZnrPUQ5Ji4sRyHVA8s99wCRmptTE1OBCUivBB6sjRWxE+sundC9YbYq0sQP
+         NOeBJ1x0+QjFtP+cmEh4MbP5C8WVg3VuZv52OtDbYgn6J6X1u/uW7c5iLrZSa3zi9g3T
+         spvvqapXJAIuqh/rFWSZdlfa1rzpz5AYD9a5U7g8KDI8NlwFJVDdQZoglHywQJlby+fH
+         +kXprl035gmpFvuvQ5JAYWDUGiF29VrKA/4ZJpeFLPUnkfE0xXNjJi9t81Js+wrOYceM
+         1x9gkzPnU9KTg+pn9NlGei/OfzxxghaUZtCaeIlhshQa+9VVwwXUmb3kAJGXqVhho4jK
+         iVaA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuaZU/YP6wBn/oHg51dJ7GaQjArQ2RSzF0sbioD6ZQUb++TFM096
+	QY6Uyp3TGTnjVHO/7efT12BhbQvVZZxDK9g6F35MUC+Y+fxsPBBswsDIWX1TbVUwk24hU6O8kSH
+	4l7nfcSPtsIycsfDsWmhaAsZ1vJ6kAWhQpkv6rs4YlnfvIvJoZAPwL5F6fRPheAOBpA==
+X-Received: by 2002:a62:61c4:: with SMTP id v187mr12846575pfb.133.1550702661967;
+        Wed, 20 Feb 2019 14:44:21 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia2pWagOM14NxsJxKLAFykDf0AZBSlzEFgccJagyt28G2q+fwNyH7uIlhfkS0nJ4E8CI7xA
+X-Received: by 2002:a62:61c4:: with SMTP id v187mr12846540pfb.133.1550702661217;
+        Wed, 20 Feb 2019 14:44:21 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550702661; cv=none;
         d=google.com; s=arc-20160816;
-        b=ILnnUX4b9RT4wNgO2Lvfxt95b1uLPQaOICKRMyEXWc7cAFxtnjoIdXcwHDAtR9st4D
-         1nzRphdxmAQY2z5tRTGudIMZA/kO1X3+xGO6+8ShNKyUEVIDWGMd6px0ZFaFY5Snp6S+
-         FTlyRGgxxRizop8evXEca+Wyo9o/0HwBruERqbWzwJ0C5A/dzuCiNeK3YqZaUi10frNN
-         ni7bgN6P7NHn6qv6X/CjmnF0AmQ2dx6EYck8KlkfBeG9mGFltuE4AUVrmyhQ+bifJABH
-         MFbotVkgQlocyYnTNG9ZnKMiOptHOTfAuIMCT3tGIKxRUwzzHY4Cdr4aBrbAqVDqIaeQ
-         TJ9Q==
+        b=cmUPFXly7AeojowtqVAl2Wjb/OJHGYDQa7l+SxEyj+P443uOI/JcGRz1lwfEVk6NYM
+         HvouOiTHCO+JYUD/S+1o5xXT5Zv8TdIXLZYCt5zKJx3gUjVyhf7gx9Vm36/jyasUBt4c
+         GPN3Cbk6sDordYnZg2yLZXV2wQJloA6az1UiTaIJe/50KmLeK0zj0YD1gouklzBIgDwP
+         AKRXKB2FgqdEVBYvciQI7gVyBawj8KPOH6qC19GmQ28NBNZEfT6xHv2/esMFt5WK+zkY
+         oULkmndqHtPVYKYhhW8XAWrCq724UVX3r04uNiOFfPk/5nn31g8C9kQztphSgaRIsQMU
+         l3Fw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=3YmVsn1xjix5KcAoIKQqJBJt7OBuvYd0dgjyNItw0t0=;
-        b=QuqxUTIjSaY9dTFLXHfUpvbAY7+8Ep9koP92GT/mNYhRPX20+UbnmGw340dp12zpCJ
-         noG7MQHcFdY+kBsuFXqv/cZvU9x+PPCGPY7fjnIR0t78C/Au95+t94VlEHTZP2Oy+X8d
-         GcOPpoj+3HU6rPY6O/gz9uTQ8dB0CijASd29RHBnbgx6syH27MvXrrcc6hoL3YB0KRDp
-         RCWNnz+m7Tf60B6E5J4A/zw2q/ywfd8kk78W+8MWgYuo0HLphUhMGbB1QiNLTaFN+KVu
-         dVPpOVGieYyzJApuvNV/8RWE3AprC+JsP7FjyvQPsOV0Ada4tn1Yh40feHsnrtGCVB4/
-         KkcA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=ADSnTAmMBLbb+CaaBT5R+wPVABqgRHBEqnFu1otGO/0=;
+        b=IfmLsjnIUNbiU24vQ9C/ji1/oJXYCbxbDFF0EnsG4guQ44/ncxqMsDSLJyahufZzdI
+         rTmY7via0KXjurYzccsChAk986HbFLOhG/k8NPlS+53i5xjqkOaXidV+/4vOWaWT+fhk
+         huQM4GdccXJYB9Nfl07WE7sEJx5FJFhMbpbP9fIofUBffUALzrSMPBxE/UzxEkJd/uRx
+         uSwiJPBnaYGvmnfhr8y2jsV6dGMwhszKwEKT0GSq/MYcAfQnGwpWl5kP3MQgF7eVtgXp
+         RJ7N1ATMpy5yC41AvtWswboVMzFgG5pbCV7jaQ/cD9IvxpXEjMK2ZYNA4deFENO9pMZJ
+         hrYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=eeREBfQx;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id s5si3057519ybk.465.2019.02.20.14.40.31
+       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id f6si18362106pgo.58.2019.02.20.14.44.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Feb 2019 14:40:32 -0800 (PST)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        Wed, 20 Feb 2019 14:44:21 -0800 (PST)
+Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=eeREBfQx;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c6dd7650000>; Wed, 20 Feb 2019 14:40:37 -0800
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Wed, 20 Feb 2019 14:40:31 -0800
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Wed, 20 Feb 2019 14:40:31 -0800
-Received: from [10.2.169.124] (172.20.13.39) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Wed, 20 Feb
- 2019 22:40:30 +0000
-Subject: Re: [PATCH 10/10] mm/hmm: add helpers for driver to safely take the
- mmap_sem
-To: Jerome Glisse <jglisse@redhat.com>
-CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, Andrew Morton
-	<akpm@linux-foundation.org>, Ralph Campbell <rcampbell@nvidia.com>
-References: <20190129165428.3931-1-jglisse@redhat.com>
- <20190129165428.3931-11-jglisse@redhat.com>
- <16e62992-c937-6b05-ae37-a287294c0005@nvidia.com>
- <20190220221933.GB29398@redhat.com>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <41888fd2-6154-4f85-7949-7a59c434d047@nvidia.com>
-Date: Wed, 20 Feb 2019 14:40:20 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 Feb 2019 14:44:20 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,392,1544515200"; 
+   d="scan'208";a="145942736"
+Received: from unknown (HELO localhost.localdomain) ([10.232.112.69])
+  by fmsmga004.fm.intel.com with ESMTP; 20 Feb 2019 14:44:20 -0800
+Date: Wed, 20 Feb 2019 15:44:19 -0700
+From: Keith Busch <keith.busch@intel.com>
+To: "Rafael J. Wysocki" <rafael@kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	Linux API <linux-api@vger.kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Dan Williams <dan.j.williams@intel.com>
+Subject: Re: [PATCHv6 07/10] acpi/hmat: Register processor domain to its
+ memory
+Message-ID: <20190220224419.GC5478@localhost.localdomain>
+References: <20190214171017.9362-1-keith.busch@intel.com>
+ <20190214171017.9362-8-keith.busch@intel.com>
+ <CAJZ5v0gjv0DZvYMTPBLnUmMtu8=g0zFd4x-cpP11Kzv+6XCwUw@mail.gmail.com>
+ <9ab5d6ba-4cb6-a6f1-894d-d79b77c8bc21@intel.com>
+ <CAJZ5v0izS-MBcC3ZsRKK59zWcJOMQ672sRuv_GCVrsYR36Wa8w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20190220221933.GB29398@redhat.com>
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1550702437; bh=3YmVsn1xjix5KcAoIKQqJBJt7OBuvYd0dgjyNItw0t0=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=eeREBfQx4+0jbaUJhdAhoJoIvh9Nufbr8sMxBdLSkwJdNk+Ks9zyMef+LAUWNxe6r
-	 2zNEUqxO4yy5q8/vke3L+xNRj6XwRQOMygozBpIm3P6oMaH0Kuk15c47J2AIjmKq2C
-	 jCuAGJrGnawuDBDz6E2+ea0lgGFum7T1Xe5l/1wNk43fJUwOCacNnVWS2OlZP8d2BI
-	 l785uPOCmKr8DqE8oAOo9SjVO8IvoVXnj7EBbCOOQ/U6xcEeNT57l+LkaeQkN7UG1p
-	 AIcqNfmVm+2Qom+LSOllG1JrSBn7nOOQ+SK45rFGR06w5v7kgUiVQszV0pz86UfEPR
-	 8aBaYo6ECp7Ew==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJZ5v0izS-MBcC3ZsRKK59zWcJOMQ672sRuv_GCVrsYR36Wa8w@mail.gmail.com>
+User-Agent: Mutt/1.9.1 (2017-09-22)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/20/19 2:19 PM, Jerome Glisse wrote:
-> On Wed, Feb 20, 2019 at 01:59:13PM -0800, John Hubbard wrote:
->> On 1/29/19 8:54 AM, jglisse@redhat.com wrote:
->>> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
->>>
->>> The device driver context which holds reference to mirror and thus to
->>> core hmm struct might outlive the mm against which it was created. To
->>> avoid every driver to check for that case provide an helper that check
->>> if mm is still alive and take the mmap_sem in read mode if so. If the
->>> mm have been destroy (mmu_notifier release call back did happen) then
->>> we return -EINVAL so that calling code knows that it is trying to do
->>> something against a mm that is no longer valid.
->>>
->>> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
->>> Cc: Andrew Morton <akpm@linux-foundation.org>
->>> Cc: Ralph Campbell <rcampbell@nvidia.com>
->>> Cc: John Hubbard <jhubbard@nvidia.com>
->>> ---
->>>    include/linux/hmm.h | 50 ++++++++++++++++++++++++++++++++++++++++++-=
---
->>>    1 file changed, 47 insertions(+), 3 deletions(-)
->>>
->>> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
->>> index b3850297352f..4a1454e3efba 100644
->>> --- a/include/linux/hmm.h
->>> +++ b/include/linux/hmm.h
->>> @@ -438,6 +438,50 @@ struct hmm_mirror {
->>>    int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct =
-*mm);
->>>    void hmm_mirror_unregister(struct hmm_mirror *mirror);
->>> +/*
->>> + * hmm_mirror_mm_down_read() - lock the mmap_sem in read mode
->>> + * @mirror: the HMM mm mirror for which we want to lock the mmap_sem
->>> + * Returns: -EINVAL if the mm is dead, 0 otherwise (lock taken).
->>> + *
->>> + * The device driver context which holds reference to mirror and thus =
-to core
->>> + * hmm struct might outlive the mm against which it was created. To av=
-oid every
->>> + * driver to check for that case provide an helper that check if mm is=
- still
->>> + * alive and take the mmap_sem in read mode if so. If the mm have been=
- destroy
->>> + * (mmu_notifier release call back did happen) then we return -EINVAL =
-so that
->>> + * calling code knows that it is trying to do something against a mm t=
-hat is
->>> + * no longer valid.
->>> + */
->>
->> Hi Jerome,
->>
->> Are you thinking that, throughout the HMM API, there is a problem that
->> the mm may have gone away, and so driver code needs to be littered with
->> checks to ensure that mm is non-NULL? If so, why doesn't HMM take a
->> reference on mm->count?
->>
->> This solution here cannot work. I think you'd need refcounting in order
->> to avoid this kind of problem. Just doing a check will always be open to
->> races (see below).
->>
->>
->>> +static inline int hmm_mirror_mm_down_read(struct hmm_mirror *mirror)
->>> +{
->>> +	struct mm_struct *mm;
->>> +
->>> +	/* Sanity check ... */
->>> +	if (!mirror || !mirror->hmm)
->>> +		return -EINVAL;
->>> +	/*
->>> +	 * Before trying to take the mmap_sem make sure the mm is still
->>> +	 * alive as device driver context might outlive the mm lifetime.
->>> +	 *
->>> +	 * FIXME: should we also check for mm that outlive its owning
->>> +	 * task ?
->>> +	 */
->>> +	mm =3D READ_ONCE(mirror->hmm->mm);
->>> +	if (mirror->hmm->dead || !mm)
->>> +		return -EINVAL;
->>> +
->>
->> Nothing really prevents mirror->hmm->mm from changing to NULL right here=
-.
->=20
-> This is really just to catch driver mistake, if driver does not call
-> hmm_mirror_unregister() then the !mm will never be true ie the
-> mirror->hmm->mm can not go NULL until the last reference to hmm_mirror
-> is gone.
+On Wed, Feb 20, 2019 at 11:21:45PM +0100, Rafael J. Wysocki wrote:
+> On Wed, Feb 20, 2019 at 11:11 PM Dave Hansen <dave.hansen@intel.com> wrote:
+> > On 2/20/19 2:02 PM, Rafael J. Wysocki wrote:
+> > >> diff --git a/drivers/acpi/hmat/Kconfig b/drivers/acpi/hmat/Kconfig
+> > >> index c9637e2e7514..08e972ead159 100644
+> > >> --- a/drivers/acpi/hmat/Kconfig
+> > >> +++ b/drivers/acpi/hmat/Kconfig
+> > >> @@ -2,6 +2,7 @@
+> > >>  config ACPI_HMAT
+> > >>         bool "ACPI Heterogeneous Memory Attribute Table Support"
+> > >>         depends on ACPI_NUMA
+> > >> +       select HMEM_REPORTING
+> > > If you want to do this here, I'm not sure that defining HMEM_REPORTING
+> > > as a user-selectable option is a good idea.  In particular, I don't
+> > > really think that setting ACPI_HMAT without it makes a lot of sense.
+> > > Apart from this, the patch looks reasonable to me.
+> >
+> > I guess the question is whether we would want to allow folks to consume
+> > the HMAT inside the kernel while not reporting it out via
+> > HMEM_REPORTING.  We have some in-kernel users of the HMAT lined up like
+> > mitigations for memory-side caches.
+> >
+> > It's certainly possible that folks would want to consume those
+> > mitigations without anything in sysfs.  They might not even want or need
+> > NUMA support itself, for instance.
+> >
+> > So, what should we do?
+> >
+> > config HMEM_REPORTING
+> >         bool # no user-visible prompt
+> >         default y if ACPI_HMAT
+> >
+> > So folks can override in their .config, but they don't see a prompt?
+> 
+> Maybe it would be better to make HMEM_REPORTING do "select ACPI_HMAT if ACPI".
+> 
+> The mitigations could then do that too if they depend on HMAT and
+> ACPI_HMAT need not be user-visible at all.
 
-In that case, then this again seems unnecessary, and in fact undesirable.
-If the driver code has a bug, then let's let the backtrace from a NULL
-dereference just happen, loud and clear.
-
-This patch, at best, hides bugs. And it adds code that should simply be
-unnecessary, so I don't like it. :)  Let's make it go away.
-
->=20
->>
->>> +	down_read(&mm->mmap_sem);
->>> +	return 0;
->>> +}
->>> +
->>
->> ...maybe better to just drop this patch from the series, until we see a
->> pattern of uses in the calling code.
->=20
-> It use by nouveau now.
-
-Maybe you'd have to remove that use case in a couple steps, depending on th=
-e
-order that patches are going in.
-
-
-thanks,
---=20
-John Hubbard
-NVIDIA
+That sounds okay, though it would create unreachable code if !ACPI since
+that's the only user for the new reporting interfaces.
 
