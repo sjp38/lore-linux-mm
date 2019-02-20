@@ -2,170 +2,159 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 04966C10F01
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 13:44:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E302C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 13:57:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B78F720880
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 13:44:58 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ORPlDrRI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B78F720880
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id DFE6E2183F
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 13:57:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DFE6E2183F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4D76D8E0017; Wed, 20 Feb 2019 08:44:58 -0500 (EST)
+	id 541DA8E0018; Wed, 20 Feb 2019 08:57:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 45C9E8E0002; Wed, 20 Feb 2019 08:44:58 -0500 (EST)
+	id 4F0138E0002; Wed, 20 Feb 2019 08:57:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2FDD88E0017; Wed, 20 Feb 2019 08:44:58 -0500 (EST)
+	id 3DF2D8E0018; Wed, 20 Feb 2019 08:57:05 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E2AD18E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 08:44:57 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id g197so3574352pfb.15
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 05:44:57 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D9F948E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 08:57:04 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id f2so5086748edm.18
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 05:57:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=RUB2frUU7NuwNJE/JAugdb4Jo4DDQEbUbHsxvIgWYSw=;
-        b=uQdAFNAUhdHp8wRjkVndY+LobfRY7NLPAC4uxvQQ7WOU+oTFC+X2QzOYRECujF+hDN
-         BjUXfQKPp2+aSQoIbPzsmsVtOWc2CZCFfEKQkNPstPzzvDxL5Y+RLiN3exa9iSulUsZ1
-         0o5CX4l4htmsiaDAPUyt9vJeKblytfhhWPQP9gFDc5RohlX++97oGJGbrnx5lAY1sNSA
-         MNJGP4h9sEO2ZjZ3aL1NT2sTkANtHWpzyVlufGPRUL8y42lxfVrSSHFGQzk7pyH09PwX
-         gX4z/X7kMQeb/aEgAmIlR9AgLJf71Whrnwrh2dC8iUL2PA5o3YGvFrEJmvUGHNe5KHFl
-         5Gqg==
-X-Gm-Message-State: AHQUAuYR591j/yiOqknL4m8CBRvNQuN18HgMVvMgsnVohoM4vAEM9y1d
-	ZjnrCV2FLC7OBmukU+khe0k5pAM3pKbX5ttbQTWpHW2KBz0x1Ff6hKifn1HkZdHpS8TGpN8RoKi
-	ufK/FTF3VRZCax5SR7ta6si9HhzY9B6KBYz6EB5vWHS52unCkPZYw4qtzRX+yFoYQ3w==
-X-Received: by 2002:a62:53c7:: with SMTP id h190mr21977512pfb.204.1550670297546;
-        Wed, 20 Feb 2019 05:44:57 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYquVkDD2PXj6uE4Sz4qm1lbr+Ne3LH1dVwmZDLR9R0k3F2CZc/I4kSkEkRHWPt/B8EszX4
-X-Received: by 2002:a62:53c7:: with SMTP id h190mr21977474pfb.204.1550670296779;
-        Wed, 20 Feb 2019 05:44:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550670296; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=B37FiqXGXeIJE2pVGB5cKjlrAip8k10+Ff50K8Po8jI=;
+        b=rIpT6KLd6I0YSibNeTbnb+7aE6+F9PhiRH9V2aFbSekLjOdSPLrcviyA476ndpyQ9c
+         CaV3dBGnthHMTYfEtu8MOhcee7ziBcrt+1sZfA2DwwzFgopAniAKblRb3DCpM2m3rRuw
+         LWw0F5P/o3PX4i9rGeWfHOiMLlUinIcEAMKOph10w3kz+O4j7GBo+QcnPwY2sk2n6jVD
+         UvVvkkB3nFtC/dah8SQnVhYfYmuKBDGcUsisPzmsbfZ3cV9SRjDwUDKHMocvr0P8H8Z5
+         FlrmgpMeMz4Yn0w3GyukiX6xMH3dGq+wju//ccEbYkK7+C42oVh9vkO/VbSEuqKNt1N5
+         /auQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: AHQUAub5xuPAOzalXCUPBSAC2fj/NXB8YruCnIy5a1gFyPUEPb0n7uqd
+	dYMjsdm3E49RaGwMQRpZJr2yFYsO9UvbmRa8z3lwrFlX6UU7JA5xsabf22CsODPbtiJNk9vOp/O
+	QMjlcbm9Y+Y0FfK0YuzHRUTh5pds7C5DoktmYzrhTyQbayw0ZBTd0Bmu9FLflgfUVkQ==
+X-Received: by 2002:a17:906:4988:: with SMTP id p8mr24131811eju.75.1550671024418;
+        Wed, 20 Feb 2019 05:57:04 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbhWkLt7sH126gvjdxR4iynVHd9WWUkfV1wB6H9B5pL72D+ihtK6HonzgWksA6Sl7K+l2bz
+X-Received: by 2002:a17:906:4988:: with SMTP id p8mr24131772eju.75.1550671023400;
+        Wed, 20 Feb 2019 05:57:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550671023; cv=none;
         d=google.com; s=arc-20160816;
-        b=gymhP5XSZUdn2HBzHAMvpo4fpK+gcXF8Rm0TiONx6Jlz+uM8ajROJN6q8aq23LWBDu
-         J6pZsmGDTg+asyEmoqxixvto0IkrdN8kWQwGhhYNH5y4HSbKjSL7vgEnlSJOWCdgq4j9
-         9SO2iRhrta61I6BpJhWX14l0g94dUvIPZ/7VqmZ3FunwInKAv7gPiRXSaS1HjwhTOTFS
-         DMs5nnXSClQZrMw7flwdTbC5MnJq5fTD1iurUoTlaT7C1z4ZAnYzYK7QWe1+e0iy1AAB
-         fO8o7oFvYrhRvIXy9xoW7stNSaXyAXPe99mdBYJ67GKNZG8BYFU3rS8/80YVUygiTqdA
-         p+wg==
+        b=J2z/EdQWBXkQvYmkDVe+ykerOQ3CcsJeUNkYrmg6wbyKKwH/T6ZAhgjmVvucHCTwgX
+         1hCoXRsSBJWfJs35gyfI9sCvu741N61aGZAaN0lFnH1vSN/u22loOlCCnpyhAyPsVgcM
+         YY7SCirp/D6QbbUiaunwe+uHNayJRhm/SuyTtWTalr8wi6U7D/7Rk1HNwfZzTDk6Btwu
+         hmjH+MyS0qRRpfosvjg2GgOT8YbMj+o9VLsoNhHqGE8vzjoTBfFXCHaSW+m2avYxjZzd
+         lCPtmynMM7ai0E7JBlOYz+zL6zQYbOApJCtX1skPxuAUhyFn0waqWRx1k8cuVJu8kPKW
+         MYJw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=RUB2frUU7NuwNJE/JAugdb4Jo4DDQEbUbHsxvIgWYSw=;
-        b=W7csFZb4hIKhWJQjiUZfzDOD7z5Q9rsKBB1CoLwGZbxSa51BdVn/Rr/PQ1dwO7kptn
-         dw5Lkuj8w7QwQIrAbc3B/ClGL53ZF1lz2jWL0O9+K1pLaICiCs8ImyHfZavJ7os+rOSu
-         Xyug1vL62yBs22CGC64aqIJPAjNDzg8JSwa6KQqYbCa4oGIjP0yNPaHuNhgZUnSk6xdw
-         kr9mV5rONaveTaXGcLWg5rx0aXXJC7eD4g3+UJRQhYACRoVBmL6/FfDUE2J8RrkB8Q3M
-         rGmXYgtwOiPSqvcKejyPeUqWisc4a+T77r/T9Bsev6XdYbuKBxKzRov5UKh5abAU7nAZ
-         l+Pg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=B37FiqXGXeIJE2pVGB5cKjlrAip8k10+Ff50K8Po8jI=;
+        b=S1JKEKLMNWjMU0j2GkK4EjthnG9xti7pWSjc7rudv8Rxyp21YA2jM8FsGvPzOiX404
+         OESVUvvul6yC+4Q9Hm82w+SD2iUGvjH/6McR6WlRA6NinQzOzezY2kozr0X22THT1W6C
+         FB+BGGcAOCxbFgiemti76xvxa26c9Kf6+Ok8EpMXTB++19rh9ZqOWJkhSAxzDzYv1rla
+         lVfUxwIX3N91w7LQv3T8FwNdl6OQn5C+/YXoU7HQBPpUgrF2JUk2lWqXIGH0OpcpKuLC
+         o7Xchf81L7iW8nO7ToRJArJtjUglS8bMpJ3mHSkDNaV/asEsuk45uhcWErZsgX0I3uPY
+         IMLQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ORPlDrRI;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a2si9043078pga.476.2019.02.20.05.44.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 20 Feb 2019 05:44:56 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id z3si1679025edc.221.2019.02.20.05.57.03
+        for <linux-mm@kvack.org>;
+        Wed, 20 Feb 2019 05:57:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ORPlDrRI;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=RUB2frUU7NuwNJE/JAugdb4Jo4DDQEbUbHsxvIgWYSw=; b=ORPlDrRIncIEgDpBIoRn0pv/O
-	OWaymA+60UkjBiy1sG7/Gquj0ik20o3WUiwtN19IREtGqCbMb3K7O+isXK5Cy+6cjj3qZvuL+ST6g
-	kEpEfKxrqLYkmSDLkJGv27mHHBGCfWzyEPhDWD/erKpljWiB0Zh2tJmcxw79SSuRuKhkyTqAJBH/v
-	8EmYf+wEM5Me83XrbXVpLOME9VSdlG8vszwlplW72LU+KE8Mc5cJnsi8DpIYwlszFYoK/ze2GzKLa
-	8nb6XaziINVVHnqLBxSBqkVIa3OwpjVHKrf4feTn8pJaoQRg/15HLyQTyJbjWSq8Z/sUwGY6LDnvP
-	AkimOjmPw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gwSBD-0003DN-1W; Wed, 20 Feb 2019 13:44:55 +0000
-Date: Wed, 20 Feb 2019 05:44:54 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: William Kucharski <william.kucharski@oracle.com>
-Cc: lsf-pc@lists.linux-foundation.org, Linux-MM <linux-mm@kvack.org>,
-	linux-fsdevel@vger.kernel.org
-Subject: Re: [LSF/MM TOPIC ][LSF/MM ATTEND] Read-only Mapping of Program Text
- using Large THP Pages
-Message-ID: <20190220134454.GF12668@bombadil.infradead.org>
-References: <379F21DD-006F-4E33-9BD5-F81F9BA75C10@oracle.com>
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4327DEBD;
+	Wed, 20 Feb 2019 05:57:02 -0800 (PST)
+Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 42E883F690;
+	Wed, 20 Feb 2019 05:56:59 -0800 (PST)
+Subject: Re: [PATCH 03/13] mm: Add generic p?d_large() macros
+To: "Liang, Kan" <kan.liang@linux.intel.com>,
+ Peter Zijlstra <peterz@infradead.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>,
+ James Morse <james.morse@arm.com>, Arnd Bergmann <arnd@arndb.de>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Catalin Marinas <catalin.marinas@arm.com>, x86@kernel.org,
+ Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
+ Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
+ kirill@shutemov.name, Thomas Gleixner <tglx@linutronix.de>,
+ linux-arm-kernel@lists.infradead.org
+References: <20190215170235.23360-1-steven.price@arm.com>
+ <20190215170235.23360-4-steven.price@arm.com>
+ <20190218113134.GU32477@hirez.programming.kicks-ass.net>
+ <aad21496-a86b-ca91-70b7-0c23ea6fefd3@arm.com>
+ <8a74c111-b099-8d18-5fb0-422909a1367a@linux.intel.com>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <f8bdd4b9-e078-c1fc-9b15-1ed7a844e673@arm.com>
+Date: Wed, 20 Feb 2019 13:56:57 +0000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <379F21DD-006F-4E33-9BD5-F81F9BA75C10@oracle.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <8a74c111-b099-8d18-5fb0-422909a1367a@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2019 at 04:17:13AM -0700, William Kucharski wrote:
-> At present, the conventional methodology of reading a single base PAGE and
-> using readahead to fill in additional pages isn't useful as the entire (in my
-> prototype) PMD page needs to be read in before the page can be mapped (and at
-> that point it is unclear whether readahead of additional PMD sized pages would
-> be of benefit or too costly.
+On 19/02/2019 03:44, Liang, Kan wrote:
+> 
+> 
+> On 2/18/2019 9:19 AM, Steven Price wrote:
+>> On 18/02/2019 11:31, Peter Zijlstra wrote:
+>>> On Fri, Feb 15, 2019 at 05:02:24PM +0000, Steven Price wrote:
+>>>> From: James Morse <james.morse@arm.com>
+>>>>
+>>>> Exposing the pud/pgd levels of the page tables to walk_page_range()
+>>>> means
+>>>> we may come across the exotic large mappings that come with large areas
+>>>> of contiguous memory (such as the kernel's linear map).
+>>>>
+>>>> For architectures that don't provide p?d_large() macros, provided a
+>>>> does nothing default.
+>>>
+>>> Kan was going to fix that for all archs I think..
+>>
+> 
+> Yes, I'm still working on a generic function to retrieve page size.
+> The generic p?d_large() issue has been fixed. However, I found that the
+> pgd_page() is not generic either. I'm still working on it.
+> I will update you on the other thread when all issues are fixed.
+> 
+> 
+> 
+>> The latest series I can find from Kan is still x86 specific. I'm happy
+>> to rebase onto something else if Kan has an implementation already
+>> (please point me in the right direction). Otherwise Kan is obviously
+>> free to base on these changes.
+>>
+> 
+> My implementation is similar as yours. I'm happy to re-base on your
+> changes.
+> 
+> Could you please also add a generic p4d_large()?
 
-I remember discussing readahead with Kirill in the past.  Here's my
-understanding of how it works today and why it probably doesn't work any
-more once we have THPs.  We mark some page partway to the current end of
-the readahead window with the ReadAhead page flag.  Once we get to it,
-we trigger more readahead and change the location of the page with the
-ReadAhead flag.  Our current RA window is on the order of 256kB.
+Sure, I'll include that in the next posting.
 
-With THPs, we're mapping 2MB at a time.  We don't get a warning every
-256kB that we're getting close to the end of our RA window.  We only get
-to know every 2MB.  So either we can increase the RA window from 256kB
-to 2MB, or we have to manage without RA at all.
+Thanks,
 
-Most systems these days have SSDs, so the whole concept of RA probably
-needs to be rethought.  We should try to figure out if we care about
-the performance of rotating rust, and other high-latency systems like
-long-distance networking and USB sticks.  (I was going to say network
-filesystems in general, but then I remembered clameter's example of
-400Gbps networks being faster than DRAM, so local networks clearly aren't
-a problem any more).
-
-Maybe there's scope for a session on readahead in general, but I don't
-know who'd bring data and argue for what actions based on it.
-
-> Additionally, there are no good interfaces at present to tell filesystem layers
-> that content is desired in chunks larger than a hardcoded limit of 64K, or to
-> to read disk blocks in chunks appropriate for PMD sized pages.
-
-Right!  It's actually slightly worse than that.  The VFS allocates
-pages on behalf of the filesystem and tells the filesystem to read them.
-So there's no way to allow the filesystem to say "Actually, I'd rather
-read in 32kB chunks because that's how big my compression blocks are".
-See page_cache_read() and __do_page_cache_readahead().
-
-I've mentioned in the past my preferred interface for solving this is to
-have a new address space operation called ->populate().  The VFS would
-call this from both of the above functions, allowing a filesystem to
-allocate, say, an order-3 page and place it in i_pages before starting
-IO on it.  I haven't done any work towards this, though.  And my opinion
-on it might change after having written some code.
-
-That interface would need to have some hint from the VFS as to what
-range of file offsets it's looking for, and which page is the critical
-one.  Maybe that's as simple as passing in pgoff and order, where pgoff is
-not necessarily aligned to 1<<order.  Or maybe we want to explicitly
-pass in start, end, critical.
-
-I'm in favour of William attending LSFMM, for whatever my opinion
-is worth.  Also Kirill, of course.
+Steve
 
