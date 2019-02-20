@@ -2,156 +2,127 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 51845C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 13:18:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4898BC10F01
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 13:27:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0CD1320855
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 13:18:55 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="4yN4rfLs"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CD1320855
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id DFBF820C01
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 13:27:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DFBF820C01
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C8ADF8E0014; Wed, 20 Feb 2019 08:18:54 -0500 (EST)
+	id 494288E0015; Wed, 20 Feb 2019 08:27:39 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C13068E0002; Wed, 20 Feb 2019 08:18:54 -0500 (EST)
+	id 4501A8E0002; Wed, 20 Feb 2019 08:27:39 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AB4788E0014; Wed, 20 Feb 2019 08:18:54 -0500 (EST)
+	id 333E08E0015; Wed, 20 Feb 2019 08:27:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FAC88E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 08:18:54 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id x134so18709129pfd.18
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 05:18:54 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E2CD08E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 08:27:38 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id d16so3672406edv.22
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 05:27:38 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=Y7DcWWRY60AZNcq/ZNtKYL+KAnYE/zZmQ1+Tla5ZDNw=;
-        b=ilG9+7Yz2D5GGUiizhtlhGXund1V9Duqf6atgoU5fYDEYAQW3Kycw5K+C6u676kpWQ
-         9mRIDEQLDHAJxjoV+wy4wfdCVC1fUfg9NR9cmwpQcN+vPrRpcu63l2El+0+gEyjH5In4
-         5w3FzKRrXLUvZ7JouWuldypa5zAxVfhwi+CH8ersZRMRljT1Iyly+KUx4lGOyRlTXvDd
-         hVN4XzYPm6myqFluKjyAyPCVhJ4FNkZzVi4PPgcaGIX+0acQxKq2pwwfXZTgP7IhR0UW
-         sROWA0Wav/cMDTCnG8yupMy5HxGvVFFwsWxow/A/CJuu5Rqva+zbC/IP2u3D7r4hHOXN
-         AQQQ==
-X-Gm-Message-State: AHQUAubp99yhfp4PO0EsXbd4J2rjAE5nNTO7PyWdN1I9Dqg0Tceb5Ytp
-	TDn9THf2OTogwvLsuwWCvNzj6S5fol0+6q4dzD4awi4Lgt1JSntFb9EGJNYEP+CZbY6EkrwK3c3
-	+r+Dpf7krg9K+5DDMcUvsR3DXXoO1CT0/Xnhr9GpwTD45QTzsOafW4OfED802ycGpiA==
-X-Received: by 2002:a62:f5c8:: with SMTP id b69mr29210346pfm.128.1550668734138;
-        Wed, 20 Feb 2019 05:18:54 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZhGN9U9zdQ6Pzg0KIp17/zxFejOrSC4hTGSp88o0Mqbe2rrvxTBbJo2B87Cmxi/ALe8eGJ
-X-Received: by 2002:a62:f5c8:: with SMTP id b69mr29210289pfm.128.1550668733308;
-        Wed, 20 Feb 2019 05:18:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550668733; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=c/wB29NlHCvEw+lV5GZl1mOg3Zd+Lh0sWLkBTG4z+HQ=;
+        b=VwvAzKNcf5ZbEEfjN6VK5hKVixM6gsqL2Ky6odOIbR6twvEE1ONpFM/9ah1W+Ucer6
+         t+PlK6z8dBH1zGizMQXZtGn7WvjK5wmbGm2GC7CHhZirjaODC5Nd0HYmFcxmVpfGQ9Ld
+         8lFl5fpvSb8/NxSrT5wMBp+gtjK//tLU76Bp8KgjgikNpOiA3rl/Jr77l6BwLd9guWM8
+         zhs/xDFrD/MxdtQ/+7NC+rl35bMRPtLlUmbMHztEcHuDFmsjh3zizTHBGg6uwCNtlUal
+         rdisad3cHtCwa/F6JiDDEdHXnp1+Mr3Zokdfdb8awgLje254D6NiCStm37epHMHswkIK
+         jISQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuZS4bL5eiSNOPTsWXaMr2QlMF+HFiKwbnoyAU5d05SjuMzBxdC6
+	y9bMbE0fQZN7RGveyYWFio7D+/fOz2LLrq1X9Hd/HC22fJzbzWdl7qQNReOpRLob/v0qTCAvh3G
+	GBaoZW+lc/g0fvfucvPai8iB4GOsvQV2SK0k8q/uTuxYn82i2IIvLNNom/61TYOQ=
+X-Received: by 2002:a17:906:d18f:: with SMTP id c15-v6mr23589243ejz.140.1550669258398;
+        Wed, 20 Feb 2019 05:27:38 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaEN6nUr8sP7EELL7kp3On8P2VqpjxLTPG7LAhFfI0UGSMma6M6aed3jC6yNllVvUnJKpSj
+X-Received: by 2002:a17:906:d18f:: with SMTP id c15-v6mr23589204ejz.140.1550669257415;
+        Wed, 20 Feb 2019 05:27:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550669257; cv=none;
         d=google.com; s=arc-20160816;
-        b=obEkHJl8qGdL79ThlMX0xL9CRsaaG/h/6s8IlABOK52a5W7qCXdM4w1GBxmRKpMElF
-         BUmnDEr/Ty9t5mJykBB8PKgcPxrOSToxsRcUs/Lf3qmL0QC90Nl4yk1dahWSYuMIO8j+
-         9lthpmkaa+vPOO0hE0kTcRTkdVVnBMyp7QkbY46/xulWBdBPlAWhGmtT+SMGP+jZS3ZZ
-         DOdSsilNc00ibow+MxmJpLmcjeJEmKEzI+xVhn2kiZon3NwSNvlcODk2xrnreHu8aH9b
-         UlsCvq69suBVAz4A+VO1RoOVfqh9vaEe0VPe1rvKsHqyBAuVLKZDVG2hZHguM0l+Uw1X
-         A3Qg==
+        b=lbDIf2T0lzl0I1tISOry1HobgymSJ3uF5TrUW6OG4Qv/UDizdeqtpXG/Z9Es1m/Qu6
+         7NRuHQGir6jSjbYDzzuJ+4DpDecqTEFGUAiR4yT+dnZnP2Ic7HzCSlRkpPMVXW8o+37R
+         x9gNPWzTirFiVxVIrIrYsKmH5XCNnbzzhdc3juQ0HcTSO0FWK4YyOjxQViZl91bCf4I1
+         McyrxRLWvVJBJUZ8pTvheLzR+j1I7bJg/dtvwAA5KZnGrDjskQ9BuzS10144jiAg5RY7
+         X3eDJL6soCKK4rFBA97kX/LMILWeQ/q2HQ9NFF79HuW+OymJxcY3cxNLjJAmR78LMzKW
+         bUHg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=Y7DcWWRY60AZNcq/ZNtKYL+KAnYE/zZmQ1+Tla5ZDNw=;
-        b=fWV4RJpquRghjejetd0AFdfOi36oW3sTeXZf3meL2AdVWtX8V2i4sIeK+53nCdhJsz
-         dqChoIsb6ngx3+9oLe6pUyDZiTx9YLTHaXTwa1FKs+dQE8PmBrA71pAaz3XDzZo9YmDv
-         gMod80l13X69WDgSsR7uwkrX8CUu70lw7mX+OOFf83vjAbzb/+dwKxX9RsVu7ZAYyqLL
-         qmxtmufn5XBtysh/4o8SRo8i6uGy0XgZq2Ja1ynvDvfsBV99FQdrWkzd3d1Fbf7/G+/z
-         WgZ1uiCt3U87e+bvvyyVq0e0ccZSu+Z6AbcOT+UbI/FXlwuep+HO0AuhP2apQKrH+gu2
-         tA2w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=c/wB29NlHCvEw+lV5GZl1mOg3Zd+Lh0sWLkBTG4z+HQ=;
+        b=kuh0Uz/4cflcEiMnIVD/yLR9r6JDoeWVZpe0ikrJPJCbF9zUxUrRENwgnRu+3arkwL
+         vcIzaO7aNqeR0TyhSMP4jCY7BbSCYtJ3OWlXi8To/cm0WjNNhvJbRFV2zH2Oqs37D9s1
+         0wH1XU1QOv+k5b6+PPmh2r92Ryd8ljAzm1Mce/uAeBk/0sF61/LsBcIDN3/pUJD/bzNm
+         p4dsbbBeYzPlcyueuIL0rJ9LuxW/miNsJA1puRsv3EkQwYEP3NLBOBeshWxi7/XH2Aw+
+         Z0cvhPkyCE0F8RAi5tpZeZ1tBQoZTqTsIZB+h2THKG1RxxoSU/DguXTUDfsG9jnlwGXz
+         WnOw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=4yN4rfLs;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id c131si2620740pga.358.2019.02.20.05.18.53
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y8si1901402edp.247.2019.02.20.05.27.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Feb 2019 05:18:53 -0800 (PST)
-Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Wed, 20 Feb 2019 05:27:37 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=4yN4rfLs;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1KDIpTt099379;
-	Wed, 20 Feb 2019 13:18:51 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=Y7DcWWRY60AZNcq/ZNtKYL+KAnYE/zZmQ1+Tla5ZDNw=;
- b=4yN4rfLs5f2b3gTrHZ7RU+TzPeKIjVqGddBB3NfHzVaT8ja7BtVBwVh1Hq7QPFDJY75g
- CKHIg47hXAhAyPMfQsKSAGf2Bx/alkNk5hvvUfQAp8z49l8zHlwcGv5f9TYQaSL6Q8EM
- 2V43ir5DtiXZHy8rXA9nL67R95umRll2OWx4wKtrmnTvkYPx/eUrYt8kV3Wvf8sjsuvw
- 9M4ta9yaMJMiMXwt2S+ZLblUb+O2I4aQkuiUUcvI0olWgWHESO2pyNmpjwObeSeMYd3s
- +pV+oIeUjKsLM1Z01B4k2+Sm6aoNPWDNqvciwmD70wZXHABAANRruxDHm39Q/KHs8hF4 JQ== 
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2130.oracle.com with ESMTP id 2qp9xu1fqs-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 20 Feb 2019 13:18:51 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1KDImPf016366
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 20 Feb 2019 13:18:48 GMT
-Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x1KDImlm029396;
-	Wed, 20 Feb 2019 13:18:48 GMT
-Received: from [192.168.0.110] (/73.243.10.6)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 20 Feb 2019 05:18:48 -0800
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.2\))
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id E36B9B648;
+	Wed, 20 Feb 2019 13:27:36 +0000 (UTC)
+Date: Wed, 20 Feb 2019 14:27:34 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: William Kucharski <william.kucharski@oracle.com>
+Cc: lsf-pc@lists.linux-foundation.org, Linux-MM <linux-mm@kvack.org>,
+	linux-fsdevel@vger.kernel.org
 Subject: Re: [LSF/MM TOPIC ][LSF/MM ATTEND] Read-only Mapping of Program Text
  using Large THP Pages
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20190220121016.GZ4525@dhcp22.suse.cz>
-Date: Wed, 20 Feb 2019 06:18:47 -0700
-Cc: lsf-pc@lists.linux-foundation.org, Linux-MM <linux-mm@kvack.org>,
-        linux-fsdevel@vger.kernel.org
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <E419EE42-B9DC-4612-8B40-5AEBB9CCDD93@oracle.com>
+Message-ID: <20190220132734.GC4525@dhcp22.suse.cz>
 References: <379F21DD-006F-4E33-9BD5-F81F9BA75C10@oracle.com>
  <20190220121016.GZ4525@dhcp22.suse.cz>
-To: Michal Hocko <mhocko@kernel.org>
-X-Mailer: Apple Mail (2.3445.104.2)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9172 signatures=668683
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902200097
+ <E419EE42-B9DC-4612-8B40-5AEBB9CCDD93@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <E419EE42-B9DC-4612-8B40-5AEBB9CCDD93@oracle.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed 20-02-19 06:18:47, William Kucharski wrote:
+> 
+> 
+> > On Feb 20, 2019, at 5:10 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > 
+> > On Wed 20-02-19 04:17:13, William Kucharski wrote:
+> >> For the past year or so I have been working on further developing my original
+> >> prototype support of mapping read-only program text using large THP pages.
+> > 
+> > Song Liu has already proposed THP on FS topic already [1]
+> > 
+> > [1] http://lkml.kernel.org/r/77A00946-D70D-469D-963D-4C4EA20AE4FA@fb.com
+> > and I assume this is essentially leading to the same discussion, right?
+> > So we can merge this requests.
+> 
+> Different approaches but the same basic issue, yes.
 
+OK, I will mark it as a separate topic then.
 
-> On Feb 20, 2019, at 5:10 AM, Michal Hocko <mhocko@kernel.org> wrote:
->=20
-> On Wed 20-02-19 04:17:13, William Kucharski wrote:
->> For the past year or so I have been working on further developing my =
-original
->> prototype support of mapping read-only program text using large THP =
-pages.
->=20
-> Song Liu has already proposed THP on FS topic already [1]
->=20
-> [1] =
-http://lkml.kernel.org/r/77A00946-D70D-469D-963D-4C4EA20AE4FA@fb.com
-> and I assume this is essentially leading to the same discussion, =
-right?
-> So we can merge this requests.
-
-Different approaches but the same basic issue, yes.
+-- 
+Michal Hocko
+SUSE Labs
 
