@@ -2,297 +2,251 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A00D5C10F00
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 02:47:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8A9E6C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 03:18:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 53EF72146F
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 02:47:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 53EF72146F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id C70E72146E
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 03:18:15 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Tyn7BiG8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C70E72146E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EFE1A8E0003; Tue, 19 Feb 2019 21:47:28 -0500 (EST)
+	id 489468E0003; Tue, 19 Feb 2019 22:18:15 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EAFC58E0002; Tue, 19 Feb 2019 21:47:28 -0500 (EST)
+	id 4371A8E0002; Tue, 19 Feb 2019 22:18:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D9D968E0003; Tue, 19 Feb 2019 21:47:28 -0500 (EST)
+	id 325B98E0003; Tue, 19 Feb 2019 22:18:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 985928E0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 21:47:28 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id t1so1775451plo.20
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 18:47:28 -0800 (PST)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B5028E0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2019 22:18:15 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id i65so8419788ite.3
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 19:18:15 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=n5cNIIdpJQZZLTtkresoNTM1yUQaK9aX8XarVlSWpQg=;
-        b=mtPz4sXN7EhV4kN/Z/jRxhuiUh3RovGmja3ELJ1Hv03c3dIihe8raDf06Q7IHK3okJ
-         jXIcbOVGk8SpV29pAtpb7HjeuxJXkeb/oukvRblxmN09NqHE1/zJ7GHh60G2efiX/2dk
-         /RnQWzCN599fYsDatEAQHW1HC6EXwc9ciYj0bGZbit810VvBUa8oJMRbVpVNdU7WbA2g
-         ZFmpUlchM2sT3iZ5lmK/IOVY5Ko7nfBrTn+Nx0LPU0N+5QEduqSAdgCJlHf10tXhuZ8J
-         ChVD9gNiqA568Q0VVbTH9+7+s++H4IfQPn7/9UWeNfVS43rxgl8r7QOAs1xFSO9bg/ss
-         bOnQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.136 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: AHQUAuaNZGtXjCWckLt9YxNlJ66du0LHHw3udRODDKEVLx8OIIbCjpPI
-	Z39Uf8ENHxwRePNJ1HFQ9GU4+wD8qMYMnh9YarIa4tdPJlsQ6JraIJDcmobj0USV0nrG7jTkyWm
-	9+to3RKht/ksmJs41Kj8FUzlZn4MQyCCrS8r7aMuNyxD3sSoyhg1gSHBSn2ji/Uc=
-X-Received: by 2002:a62:33c1:: with SMTP id z184mr32380717pfz.104.1550630848209;
-        Tue, 19 Feb 2019 18:47:28 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbI7jUR5wmTY8CAEZfU58dQ2G9dCz9gdwgn2YkyD6oxkgAxkL5G9BFfeZoZb5x65dXGd9G+
-X-Received: by 2002:a62:33c1:: with SMTP id z184mr32380649pfz.104.1550630847003;
-        Tue, 19 Feb 2019 18:47:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550630846; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=32bcuaoahH33j0wWVyMCNI5ixNjBiXmnOLsdDYTzfyo=;
+        b=Yip/TOIgs8KtcmCpZuAQN6ASCJQR1IkFmNsSn64E29WlYNgr/ysX6vPtZr85BXKrEd
+         QiFq7qr/3JayXdRbeHb8rTJi0hoHCt+lVbTMZBGsljgmCbFzDJoseW6aIUQCvL5YcY0U
+         a4RPtkITRWVQeo+rL6/KAX/VAWzLqd9L5HdQg0koBWVv0tUemsP6hB1SgrhCvdhZ+WIU
+         ZPG0x7FxTDDts/V6cBsxjyuuE01O9vavSq1gSUSn3E9QR4k9vhmOBYxQAlQ9smYa1dhI
+         9U76N0XaCSqtD8Y77r2ig/BudkpMqdsyVNSKJKYd475JHFzv8fdQGQUg6sskZ+0RiItP
+         cdEg==
+X-Gm-Message-State: AHQUAuae7ZaXIvZI1lJYXfGuoCqay46YQjXEyS3fHoLfjLAdT1X/zNGr
+	UEc9sUU3puophmWFsTtwlclLllxvn5D5DTy3NUHI0354Bna5lPqKO9dG3p9gGnbHtUctZq2V99o
+	BFy8n1DDEiWQ077vYD9z40LucNPY7fLXvTUJM436VmGnFmSJynzI3BBMmLj/ZIKVwyQ==
+X-Received: by 2002:a02:4f05:: with SMTP id c5mr17847824jab.27.1550632694723;
+        Tue, 19 Feb 2019 19:18:14 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IY4z+zDSixOFfmVH5bqD8kE1NMZf/ZSueBdYuotDb69rqRhic8o+VzDeTvHplXln7jAdTVZ
+X-Received: by 2002:a02:4f05:: with SMTP id c5mr17847804jab.27.1550632693741;
+        Tue, 19 Feb 2019 19:18:13 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550632693; cv=none;
         d=google.com; s=arc-20160816;
-        b=eRGVsLGDZdDDpDfvaVY8d6nKORUwFlvyCilaR81FlD1P3FIhS5QoGAre+CdE5/cuXB
-         lUEsJy3KoRGWC4mjiEpaJ4hJ4Il+ZogeOjAso4QJy83XUoh/QLOYqUL15W3KoAQ+n4Dg
-         HzTmmTBh6zXCpC7IILCwykVBybtnz0uS0DDvTtzbLHrvCbb6O0wG6HSacBh7WiHUz96p
-         wDXMMpa+NJVcC7MSF2pNX9eMqELQ96+Ecxq7RpraMEsvOjsBWA+leJDTyrMP/ECVCU98
-         LglRKn4Ofcn/lF/ZsA0gVD7WoLzgUNpEGu1DWrASRWH+2E0Px3B03RDpgixHeB31M/Ic
-         I2Pg==
+        b=yw9QI/yjgl4xwMJCUtFebAj7jms8vKZ3W2toYqHrW9HZHLcrEj5A9e8Vpuq5Ovo8I0
+         CE9qSAWDjxls9FAU1ozTqbIUG0Uths5q3uPjgzVth8+LptK+oe1KshUcY0ry0vjcu3BL
+         Jufm6Dl+BF53V9C02uwZOFyBY13tBZ9KchDvx1Ne0ijoUT2tp+QajIUMw0nTM7DOybrF
+         SK9ToGpYPIqOWD78fRX8WXHNaOY5uDrWjYfkfnPTK26uzZciNxBnRhvqukeIBcTQFopL
+         mkpCYJ/tbaOCHQbFM0iGLDc8Cliyybn04a2u0g1p0IkALxNl9+yTuSXDNvw1+MxZ2VcD
+         QQug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=n5cNIIdpJQZZLTtkresoNTM1yUQaK9aX8XarVlSWpQg=;
-        b=I8BvB4jBKWUBFZPG5nmSVC6+MGj96EUJdpXB4ija3omQ3aV/x012taewQo9Cpf1rZg
-         Ww8rH20M5roQnNJ5AlVrOD3/1Cu1Pf3NE9O5Ioh+uwJ4hU6ypEHxf4GZA2H36dacA+c5
-         l7a7sZ5esVSQYpOaoaqOey0JgQgBlMRISwzU82HX+xhYl31WAwkjFquRp2u1z8EAOtyq
-         iIz2OBOhScL9vWJ+AH7bqjd0EebqGOMjACYdfeMtpoij6M4R2H5Iq/JrTLySqdCnu15P
-         tHUS4B8kR3z119+5YYxLBTNYT0c57XqsAQv9RN1shuJjquB6Y1y8LWQDFaePudsPQknb
-         AzEw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=32bcuaoahH33j0wWVyMCNI5ixNjBiXmnOLsdDYTzfyo=;
+        b=TFk/NgpKfo4XEg4mIcAHFJ6VgXn9qGG/9e2gdPtSgxlLcqEelS4LTEsZka+9/EGPHk
+         wXzo9j/RUZGdoGh7do0chfp8/CrgHSdKCYLezdB4KWXUP93M9fmBpwCOlP3gPVOUjYjh
+         qP+gLf+gga3RSDgweJYgZERzqP2E8GqDLI5nCGnlVpiJsF7OfeogTo0rVbKjD6saKm2i
+         RcwV6zrX02dfMuu/Pxdqu1FgJB7UrEXeqZJLkN69923FZLjV35TT7vWeHemEyMUIAu/o
+         0G/Z/XMWFq0xk5mGujf6uGPd/6RchE5VGNmcVIlW07LIdljXUPiSSsZLWzqb5hN/qVWI
+         kSkA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 150.101.137.136 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ipmail01.adl6.internode.on.net (ipmail01.adl6.internode.on.net. [150.101.137.136])
-        by mx.google.com with ESMTP id i33si18437238pld.329.2019.02.19.18.47.25
-        for <linux-mm@kvack.org>;
-        Tue, 19 Feb 2019 18:47:26 -0800 (PST)
-Received-SPF: neutral (google.com: 150.101.137.136 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.136;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Tyn7BiG8;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id u137si2494144itb.128.2019.02.19.19.18.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Feb 2019 19:18:13 -0800 (PST)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 150.101.137.136 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
-  by ipmail01.adl6.internode.on.net with ESMTP; 20 Feb 2019 13:17:24 +1030
-Received: from dave by dastard with local (Exim 4.80)
-	(envelope-from <david@fromorbit.com>)
-	id 1gwHut-0005t2-Pn; Wed, 20 Feb 2019 13:47:23 +1100
-Date: Wed, 20 Feb 2019 13:47:23 +1100
-From: Dave Chinner <david@fromorbit.com>
-To: Roman Gushchin <guro@fb.com>
-Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"riel@surriel.com" <riel@surriel.com>,
-	"dchinner@redhat.com" <dchinner@redhat.com>,
-	"guroan@gmail.com" <guroan@gmail.com>,
-	Kernel Team <Kernel-team@fb.com>,
-	"hannes@cmpxchg.org" <hannes@cmpxchg.org>
-Subject: Re: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
-Message-ID: <20190220024723.GA20682@dastard>
-References: <20190219071329.GA7827@castle.DHCP.thefacebook.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Tyn7BiG8;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1K34U6n011239;
+	Wed, 20 Feb 2019 03:18:10 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=32bcuaoahH33j0wWVyMCNI5ixNjBiXmnOLsdDYTzfyo=;
+ b=Tyn7BiG8/A40YcwI4i8IRdUH+1PXf22ovxARqulC0VqgxjPjT7z/NtpL0uM25bJ5obwm
+ tHwPAwGUQ0DmO/p7IVR1ErgfvNiE8QEpcnYeGYfGXVq8Hx71kaxmaU0xa6e1gR0swk/8
+ kibezuxv09Fv8wfsD+5ZR4ng+dVig5dU+W2BhWEaFnwgdJYwBevFVGqEO6PgKibQfTd5
+ n94tHTvem3TYdz3Ct3utU728FXuwREk4OD1oMtA0prGTfJz3484S9WoHGQfTVbYGJMk1
+ sdUZsf1XB6NHYzhQy7zClgsAcnErDQSRQv0iYFZGwMX/sPjhDDFByYe6pS4ioBkS6YAD bg== 
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by aserp2130.oracle.com with ESMTP id 2qp81e75cy-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 20 Feb 2019 03:18:10 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1K3I8iv016532
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 20 Feb 2019 03:18:08 GMT
+Received: from abhmp0020.oracle.com (abhmp0020.oracle.com [141.146.116.26])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x1K3I79I023976;
+	Wed, 20 Feb 2019 03:18:07 GMT
+Received: from [192.168.1.164] (/50.38.38.67)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 19 Feb 2019 19:18:07 -0800
+Subject: Re: [RFC PATCH 00/31] Generating physically contiguous memory after
+ page allocation
+To: Zi Yan <ziy@nvidia.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        Dave Hansen <dave.hansen@linux.intel.com>,
+        Michal Hocko <mhocko@kernel.org>,
+        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Vlastimil Babka <vbabka@suse.cz>,
+        Mel Gorman <mgorman@techsingularity.net>,
+        John Hubbard
+ <jhubbard@nvidia.com>,
+        Mark Hairgrove <mhairgrove@nvidia.com>,
+        Nitin Gupta <nigupta@nvidia.com>, David Nellans <dnellans@nvidia.com>
+References: <20190215220856.29749-1-zi.yan@sent.com>
+ <f4cf53a3-359b-8c66-ed15-112b3cf0f475@oracle.com>
+ <FDDDB4C8-C5B5-46B0-9682-33AC063F7A46@nvidia.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <5395a183-063f-d409-b957-51a8d02854b2@oracle.com>
+Date: Tue, 19 Feb 2019 19:18:05 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190219071329.GA7827@castle.DHCP.thefacebook.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+In-Reply-To: <FDDDB4C8-C5B5-46B0-9682-33AC063F7A46@nvidia.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9172 signatures=668683
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1902200019
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 19, 2019 at 07:13:33AM +0000, Roman Gushchin wrote:
-> Sorry, once more, now with fsdevel@ in cc, asked by Dave.
-> --
+On 2/19/19 6:33 PM, Zi Yan wrote:
+> On 19 Feb 2019, at 17:42, Mike Kravetz wrote:
 > 
-> Recent reverts of memcg leak fixes [1, 2] reintroduced the problem
-> with accumulating of dying memory cgroups. This is a serious problem:
-> on most of our machines we've seen thousands on dying cgroups, and
-> the corresponding memory footprint was measured in hundreds of megabytes.
-> The problem was also independently discovered by other companies.
+>> On 2/15/19 2:08 PM, Zi Yan wrote:
+>>
+>> Thanks for working on this issue!
+>>
+>> I have not yet had a chance to take a look at the code.  However, I do have
+>> some general questions/comments on the approach.
 > 
-> The fixes were reverted due to xfs regression investigated by Dave Chinner.
-
-Context: it wasn't one regression that I investigated. We had
-multiple bug reports with different regressions, and I saw evidence
-on my own machines that something wasn't right because of the change
-in the IO patterns in certain benchmarks. Some of the problems were
-caused by the first patch, some were caused by the second patch.
-
-This also affects ext4 (i.e. it's a general problem, not an XFS
-problem) as has been reported a couple of times, including this one
-overnight:
-
-https://lore.kernel.org/lkml/4113759.4IQ3NfHFaI@stwm.de/
-
-> Simultaneously we've seen a very small (0.18%) cpu regression on some hosts,
-> which caused Rik van Riel to propose a patch [3], which aimed to fix the
-> regression. The idea is to accumulate small memory pressure and apply it
-> periodically, so that we don't overscan small shrinker lists. According
-> to Jan Kara's data [4], Rik's patch partially fixed the regression,
-> but not entirely.
-
-Rik's patch was buggy and made an invalid assumptions about how a
-cache with a small number of freeable objects is a "small cache", so
-any comaprisons made with it are essentially worthless.
-
-More details about the problems with the patch and approach here:
-
-https://lore.kernel.org/stable/20190131224905.GN31397@rh/
-
-> The path forward isn't entirely clear now, and the status quo isn't acceptable
-> due to memcg leak bug. Dave and Michal's position is to focus on dying memory
-> cgroup case and apply some artificial memory pressure on corresponding slabs
-> (probably, during cgroup deletion process). This approach can theoretically
-> be less harmful for the subtle scanning balance, and not cause any regressions.
-
-I outlined the dying memcg problem in patch[0] of the revert series:
-
-https://lore.kernel.org/linux-mm/20190130041707.27750-1-david@fromorbit.com/
-
-It basically documents the solution I proposed for dying memcg
-cleanup:
-
-dgc> e.g. add a garbage collector via a background workqueue that sits on
-dgc> the dying memcg calling something like:
-dgc> 
-dgc> void drop_slab_memcg(struct mem_cgroup *dying_memcg)
-dgc> {
-dgc>         unsigned long freed;
-dgc> 
-dgc>         do {
-dgc>                 struct mem_cgroup *memcg = NULL;
-dgc> 
-dgc>                 freed = 0;
-dgc>                 memcg = mem_cgroup_iter(dying_memcg, NULL, NULL);
-dgc>                 do {
-dgc>                         freed += shrink_slab_memcg(GFP_KERNEL, 0, memcg, 0);
-dgc>                 } while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
-dgc>         } while (freed > 0);
-dgc> }
-
-This is a pretty trivial piece of code and doesn't requiring
-changing the core memory reclaim code at all.
-
-> In my opinion, it's not necessarily true. Slab objects can be shared between
-> cgroups, and often can't be reclaimed on cgroup removal without an impact on the
-> rest of the system.
-
-I've already pointed out that it is preferable for shared objects
-to stay in cache, not face expedited reclaim:
-
-https://lore.kernel.org/linux-mm/20190131221904.GL4205@dastard/
-
-dgc> However, the memcg reaper *doesn't need to be perfect* to solve the
-dgc> "takes too long to clean up dying memcgs". Even if it leaves shared
-dgc> objects behind (which we want to do!), it still trims those memcgs
-dgc> down to /just the shared objects still in use/.  And given that
-dgc> objects shared by memcgs are in the minority (according to past
-dgc> discussions about the difficulies of accounting them correctly) I
-dgc> think this is just fine.
-dgc> 
-dgc> Besides, those reamining shared objects are the ones we want to
-dgc> naturally age out under memory pressure, but otherwise the memcgs
-dgc> will have been shaken clean of all other objects accounted to them.
-dgc> i.e. the "dying memcg" memory footprint goes down massively and the
-dgc> "long term buildup" of dying memcgs basically goes away.
-
-This all seems like pretty desirable cross-memcg working set
-maintenance behaviour to me...
-
-> Applying constant artificial memory pressure precisely only
-> on objects accounted to dying cgroups is challenging and will likely
-> cause a quite significant overhead.
-
-I don't know where you got that from - the above example is clearly
-a once-off cleanup.
-
-And executing it via a workqueue in the async memcg cleanup path
-(which already runs through multiple work queues to run and wait for
-different stages of cleanup) is not complex or challenging, nor is
-it likely to add additional overhead because it means we will avoid
-the long term shrinker scanning overhead that cleanup currently
-requires.
-
-> Also, by "forgetting" of some slab objects
-> under light or even moderate memory pressure, we're wasting memory, which can be
-> used for something useful.
-
-Cached memory is not "forgotten" or "wasted memory". If the scan is
-too small and not used, it is deferred to the next shrinker
-invocation. This batching behaviour is intentionally done for scan
-efficiency purposes. Don't take my word for it, read the discussion
-that went along with commit 0b1fb40a3b12 ("mm: vmscan: shrink all
-slab objects if tight on memory")
-
-https://lore.kernel.org/lkml/20140115012541.ad302526.akpm@linux-foundation.org/
-
-From Andrew:
-
-akpm> Actually, the intent of batching is to limit the number of calls to
-akpm> ->scan().  At least, that was the intent when I wrote it!  This is a
-akpm> good principle and we should keep doing it.  If we're going to send the
-akpm> CPU away to tread on a pile of cold cachelines, we should make sure
-akpm> that it does a good amount of work while it's there.
-
-IOWs, the "small scan" proposals defeat existing shrinker efficiency
-optimisations. This change in behaviour is where the CPU usage
-regressions in "small cache" scanning comes from.  As Andrew said:
-scan batching is a good principle and we should keep doing it.
-
-> Dying cgroups are just making this problem more
-> obvious because of their size.
-
-Dying cgroups see this as a problem only because they have extremely
-poor life cycle management. Expediting dying memcg cache cleanup is
-the way to fix this and that does not need us to change global memory
-reclaim behaviour.
-
-> So, using "natural" memory pressure in a way, that all slabs objects are scanned
-> periodically, seems to me as the best solution. The devil is in details, and how
-> to do it without causing any regressions, is an open question now.
+> Thanks for replying. The code is very intrusive and has a lot of hacks, so it is
+> OK for us to discuss the general idea first. :)
 > 
-> Also, completely re-parenting slabs to parent cgroup (not only shrinker lists)
-> is a potential option to consider.
+> 
+>>> Patch structure
+>>> ----
+>>>
+>>> The patchset I developed to generate physically contiguous memory/arbitrary
+>>> sized pages merely moves pages around. There are three components in this
+>>> patchset:
+>>>
+>>> 1) a new page migration mechanism, called exchange pages, that exchanges the
+>>> content of two in-use pages instead of performing two back-to-back page
+>>> migration. It saves on overheads and avoids page reclaim and memory compaction
+>>> in the page allocation path, although it is not strictly required if enough
+>>> free memory is available in the system.
+>>>
+>>> 2) a new mechanism that utilizes both page migration and exchange pages to
+>>> produce physically contiguous memory/arbitrary sized pages without allocating
+>>> any new pages, unlike what khugepaged does. It works on per-VMA basis, creating
+>>> physically contiguous memory out of each VMA, which is virtually contiguous.
+>>> A simple range tree is used to ensure no two VMAs are overlapping with each
+>>> other in the physical address space.
+>>
+>> This appears to be a new approach to generating contiguous areas.  Previous
+>> attempts had relied on finding a contiguous area that can then be used for
+>> various purposes including user mappings.  Here, you take an existing mapping
+>> and make it contiguous.  [RFC PATCH 04/31] mm: add mem_defrag functionality
+>> talks about creating a (VPN, PFN) anchor pair for each vma and then using
+>> this pair as the base for creating a contiguous area.
+>>
+>> I'm curious, how 'fixed' is the anchor?  As you know, there could be a
+>> non-movable page in the PFN range.  As a result, you will not be able to
+>> create a contiguous area starting at that PFN.  In such a case, do we try
+>> another PFN?  I know this could result in much page shuffling.  I'm just
+>> trying to figure out how we satisfy a user who really wants a contiguous
+>> area.  Is there some method to keep trying?
+> 
+> Good question. The anchor is determined on a per-VMA basis, which can be changed
+> easily,
+> but in this patchiest, I used a very simple strategy — making all VMAs not
+> overlapping
+> in the physical address space to get maximum overall contiguity and not changing
+> anchors
+> even if non-moveable pages are encountered when generating physically contiguous
+> pages.
+> 
+> Basically, first VMA1 in the virtual address space has its anchor as
+> (VMA1_start_VPN, ZONE_start_PFN),
+> second VMA1 has its anchor as (VMA2_start_VPN, ZONE_start_PFN + VMA1_size), and
+> so on.
+> This makes all VMA not overlapping in physical address space during contiguous
+> memory
+> generation. When there is a non-moveable page, the anchor will not be changed,
+> because
+> no matter whether we assign a new anchor or not, the contiguous pages stops at
+> the non-moveable page. If we are trying to get a new anchor, more effort is
+> needed to
+> avoid overlapping new anchor with existing contiguous pages. Any overlapping will
+> nullify the existing contiguous pages.
+> 
+> To satisfy a user who wants a contiguous area with N pages, the minimal distance
+> between
+> any two non-moveable pages should be bigger than N pages in the system memory.
+> Otherwise,
+> nothing would work. If there is such an area (PFN1, PFN1+N) in the physical
+> address space,
+> you can set the anchor to (VPN_USER, PFN1) and use exchange_pages() to generate
+> a contiguous
+> area with N pages. Instead, alloc_contig_pages(PFN1, PFN1+N, …) could also work,
+> but
+> only at page allocation time. It also requires the system has N free pages when
+> alloc_contig_pages() are migrating the pages in (PFN1, PFN1+N) away, or you need
+> to swap
+> pages to make the space.
+> 
+> Let me know if this makes sense to you.
+> 
 
-That should be done once the memcg gc thread has shrunk the caches
-down to just the shared objects (which we want to keep in cache!)
-that reference the dying memcg. That will get rid of all the
-remaining references and allow the memcg to be reclaimed completely.
+Yes, that is how I expected the implementation would work.  Thank you.
 
-> It will be nice to discuss the problem on LSF/MM, agree on general path and
-> make a potential list of benchmarks, which can be used to prove the solution.
-
-In reality, it comes down to this - should we:
-
-	a) add a small amount of code into the subsystem to perform
-	expedited reaping of subsystem owned objects and test against
-	the known, specific reproducing workload; or
-
-	b) change global memory reclaim algorithms in a way that
-	affects every linux machine and workload in some way,
-	resulting in us having to revalidate and rebalance memory
-	reclaim for a large number of common workloads across all
-	filesystems and subsystems that use shrinkers, on a wide
-	range of different storage hardware and on both headless and
-	desktop machines.
-
-And when we look at it this way, if we end up with option b) as the
-preferred solution then we've well and truly jumped the shark.  The
-validation effort required for option b) is way out of proportion
-with the small niche of machines and environments affected by the
-dying memcg problem and the risk of regressions for users outside
-these memcg-heavy environments is extremely high (as has already
-been proven).
-
-Cheers,
-
-Dave
+Another high level question.  One of the benefits of this approach is
+that exchanging pages does not require N free pages as you describe
+above.  This assumes that the vma which we are trying to make contiguous
+is already populated.  If it is not populated, then you also need to
+have N free pages.  Correct?  If this is true, then is the expected use
+case to first populate a vma, and then try to make contiguous?  I would
+assume that if it is not populated and a request to make contiguous is
+given, we should try to allocate/populate the vma with contiguous pages
+at that time?
 -- 
-Dave Chinner
-david@fromorbit.com
+Mike Kravetz
 
