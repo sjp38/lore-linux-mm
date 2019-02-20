@@ -2,142 +2,114 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0BBD9C10F01
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 10:00:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96F51C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 10:01:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CA73020C01
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 10:00:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA73020C01
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=I-love.SAKURA.ne.jp
+	by mail.kernel.org (Postfix) with ESMTP id 5D37620C01
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 10:01:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5D37620C01
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 642F68E0004; Wed, 20 Feb 2019 05:00:30 -0500 (EST)
+	id E098A8E0005; Wed, 20 Feb 2019 05:01:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5F1498E0002; Wed, 20 Feb 2019 05:00:30 -0500 (EST)
+	id DB9338E0002; Wed, 20 Feb 2019 05:01:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4B8B28E0004; Wed, 20 Feb 2019 05:00:30 -0500 (EST)
+	id CD1418E0005; Wed, 20 Feb 2019 05:01:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 09EA58E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 05:00:30 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id 11so13112928pgd.19
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 02:00:29 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 75D458E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 05:01:08 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id s50so9695874edd.11
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 02:01:08 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=3DcssLqZvpgTU7uImXqBrwY6Uy9wX1ccjQtb2KtXQQM=;
-        b=lgrXY6r2nF9ADA1Fpe76xSNsZEpk6BTBE+/5erEnOY9FqK2GhLLTfiwx6IYswUb4sH
-         Ry2K+/QYRgNqLWm1oK2c8FQOjlk4yzyoX5nWnpM+otIus5gydIut22KnuJ+DlyPBfxpC
-         goxBWX1g4yIYbu3U5IYieNpoma34zm8hqNd/uiw+jD8t71CvhMsMHnhuwYrx0qWFY0v7
-         pOUsutIJI3/4uxY3iq7PbuaTi3GdFIi6s80p7j+u5/4hC0rf1AcCGsGMbkBVNcMGQaui
-         Bi2L7ZqkNOcpaMZfEqOR4a4GZOH5YhWHxe8tSxhZbJKGc2qs1Qa3Gz0nz3KQfWbZCXys
-         2tQw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: AHQUAuZJc4Y7DlM/MfPZ9oFg9bQpQOIMB3zgyVLf/0MXT7eDLp1rtEnv
-	FSW7uu5hUbERzdWm+ZDVbXE4FqjYbf4pdOVhLktfG+4iRUualSO6jsplZr5zdo0Xd/SyBGD9A+B
-	s1PBi/GgnvcK8gMMzkItHrZtqvJk5iknS6zwwzEd4iKwfoPle/iAsj3X7qxtMk8ZGfA==
-X-Received: by 2002:a17:902:2468:: with SMTP id m37mr35953701plg.314.1550656829418;
-        Wed, 20 Feb 2019 02:00:29 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbD/H8rZeadaUucW1aLdLPpa9kpFUios1MX1/luJEh25x1KcUPm2xZs+7ylvE92CKA+0mGG
-X-Received: by 2002:a17:902:2468:: with SMTP id m37mr35953642plg.314.1550656828660;
-        Wed, 20 Feb 2019 02:00:28 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550656828; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=kIbaayqcTqDxXJiR9NKrX8YM4v1xIloPcs5M9fysmUA=;
+        b=WVXUr/D5Vhz4FAnMmdqwCy0AawzIaB8hOGgV1CEY86tkp5cJGz36ilrdfBFISAChv3
+         4/IkLmq/J3PreM4/2pMh94y+0XwTNnYVLOv5vva8PH8dzG0RGPvnKXXyB1oKCrALroWn
+         g/7M5SD6nMiIUu+X9ctq9ReNfUnvQYb7Xn3QdKdaFL2gr2jSaCgdtrKyjKTKqMyg8CFA
+         90+5f0YPgIDnTqN/Vo4TSls7VSdJlto5lHqU1aOt3R28GOIqjp7hW2TQ3kIiBSeUu/4Z
+         u2XC83+WgLSAJ1tuyP0olLUJBJviAS1SQWezAREwckW564K2YHpwxUbLiN5RsdkgfWYW
+         7eyw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuatT3qQnyotwzJvI0IqjvZpiwkts2PhEja4zQ18thMPtGdTcqaD
+	e3iyk8Ww4QoPFZOJ4ox5M2qoEcPvw7x199dJ2Carzn55BCh6X2VgS26ZOPfyO2QrSxoB2qkvgk7
+	tvIAom77KEQNlVZ9XzjKlqNy2WNQmHm+OZxKE/l71cMGRWmoR5MTBck/JUDeNEc8=
+X-Received: by 2002:a50:d98a:: with SMTP id w10mr27731077edj.81.1550656868036;
+        Wed, 20 Feb 2019 02:01:08 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYn575RPzJp0m8pOO7q7j3atpDHSNQ96NYCSQQnS8GFC3whnd3Clv2LMj1hxf0o2YDFiYTJ
+X-Received: by 2002:a50:d98a:: with SMTP id w10mr27731033edj.81.1550656867282;
+        Wed, 20 Feb 2019 02:01:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550656867; cv=none;
         d=google.com; s=arc-20160816;
-        b=FVzFoU6fHLUT1zuU9acDgvQFmlKJuCsgSVswv0xgT/JSpLiRpRdjzcSUpmfLToPni/
-         dzudqD9j6gg5dszWutXECxcABEM1m1hcczODaHoHE5f2nCvaztxZoAfN8FSojhhUxmRH
-         v8sD+XzDd6h8tzQzKcmBWIsOOxD59gnxGo+vm+MYO1mCsyjXNrOe//gFMZdO+jZV4oqa
-         DQJlA5k7ffHXN+8f6RWFIEqY6Zx3SY5LLUH4zo8sTpf3neiYyd7hrRBiACTtWEGDTPkQ
-         UYkIrQf2xZD6qSOe7orQmexD5+Q+n5UEEgJT6F9twNJKlmZ7bJHLhJ0Ft9sREnnXrXc0
-         hW7Q==
+        b=tbVLQok1ksdey8NUtoLypHPAbtjwJmsW4hP+XAh0AqcEX4jq7vmwgGvn74hRTqprd9
+         b/WwR32TvvXsC9d2yyJb0yyDw88TxWunZROBBz6HiYaH7JgrXtpBLd2z2XyMGabxtga4
+         kqzzRTx1R2dWchPL/NXDUAqhTJrC8QLt1Su6aVQ7g2KUxYGvvZb0TSKaYhLww0vCnnbt
+         PJCAISNh8QpWTMhHTJLqFVEuIoN35LMnJh2JC+OGwZUBj5UIJ3fBRilHP87PBewDFuiG
+         iGNdbOiqwbqSEk+F0FoVq8bcw7649eMc3yNyLuAPhjuzIU/rDuys7A1Fo3zJgbKly5TM
+         V28A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=3DcssLqZvpgTU7uImXqBrwY6Uy9wX1ccjQtb2KtXQQM=;
-        b=XTOPlIPf2JdgoLJxIkLMgbPTWxRxeXsX5GeqLagINThYNM0dYXfc7sye4fimyL+I6G
-         HRM2/VC5s1iN/oU7sUWcDdDodyo14H4kVJ0EB2474mzFDkR9f+c52DxgS0D+zkoqi50c
-         l3EPNWs2ZkRMjUP0jzdaL3+XDb3r+0SICjUIykrHRvuC+AtDn82+Wpnx0dDknCsofznB
-         tDUVZFuLHHtfiXOGRQVYPy4a8wFIJL75LfyE3SGJZcWjLIzKicLpPIf5zrjFaCJ5h+2H
-         yUBFqN5i7T2GZNwY9tGDkTiJsLq5vSH3JUjQiA0kcGc49UNl/yOL9+EnfDqPAv5frGqL
-         19Tg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=kIbaayqcTqDxXJiR9NKrX8YM4v1xIloPcs5M9fysmUA=;
+        b=OIMpPi0IBn1mPrjByc3TJS1bOK5nkk7q2r8Wl6t/nM4Ndg+6TcCGTMl2hTYxpdpYoZ
+         +WVqioF4BXFl369JXpL6HndDbqhR+d/zZ7GVjbdO5rg9Ae7OmrW84f1muGsSf0x4zUzM
+         +M7F7Fv9Ek71TlEMlf1xWA/9te9j4hp6u5nJVQVX8qtX4iMFky9noN9segqhDnH3x5nY
+         AAPPs22QYXWg81XPOjTm1YpwalvY27wFH7UdfmouZpfQrUZZAh5PpcD2FfIs9e0KPEbY
+         RP1JvZR4CQAE6bGCWPDTQIML5ZNkqArA17IfskWeLibyuaGLCIaZvarYVdOBC+sIRYIF
+         eMJg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id j2si13663370plk.220.2019.02.20.02.00.28
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o36si805339edc.220.2019.02.20.02.01.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Feb 2019 02:00:28 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+        Wed, 20 Feb 2019 02:01:07 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav108.sakura.ne.jp (fsav108.sakura.ne.jp [27.133.134.235])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x1KA0NXt077981;
-	Wed, 20 Feb 2019 19:00:23 +0900 (JST)
-	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
-Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav108.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav108.sakura.ne.jp);
- Wed, 20 Feb 2019 19:00:23 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav108.sakura.ne.jp)
-Received: from [192.168.1.8] (softbank126126163036.bbtec.net [126.126.163.36])
-	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x1KA0HD8077948
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
-	Wed, 20 Feb 2019 19:00:23 +0900 (JST)
-	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
-Subject: Re: [PATCH] mm/oom: added option 'oom_dump_task_cmdline'
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id D36D9B624;
+	Wed, 20 Feb 2019 10:01:06 +0000 (UTC)
+Date: Wed, 20 Feb 2019 11:01:05 +0100
+From: Michal Hocko <mhocko@kernel.org>
 To: "Bujnak, Stepan" <stepan@pex.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org,
-        Jonathan Corbet <corbet@lwn.net>, mcgrof@kernel.org,
-        hannes@cmpxchg.org
+Cc: linux-mm@kvack.org, Jonathan Corbet <corbet@lwn.net>, mcgrof@kernel.org,
+	hannes@cmpxchg.org
+Subject: Re: [PATCH] mm/oom: added option 'oom_dump_task_cmdline'
+Message-ID: <20190220100105.GW4525@dhcp22.suse.cz>
 References: <20190220032245.2413-1-stepan@pex.com>
  <20190220064939.GT4525@dhcp22.suse.cz>
  <CAFZe2nQW3mUGgSVndzmPirz7BkVUCEyjt=hgxqFn=bntrCsC8A@mail.gmail.com>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <0dfa8928-4baa-124f-2dd5-e45af28427e8@I-love.SAKURA.ne.jp>
-Date: Wed, 20 Feb 2019 19:00:19 +0900
-User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <CAFZe2nQW3mUGgSVndzmPirz7BkVUCEyjt=hgxqFn=bntrCsC8A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/02/20 17:37, Bujnak, Stepan wrote:
->>> @@ -404,9 +406,18 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
->>>       pr_info("[  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name\n");
->>>       rcu_read_lock();
->>>       for_each_process(p) {
->>> +             char *name, *cmd = NULL;
->>> +
->>>               if (oom_unkillable_task(p, memcg, nodemask))
->>>                       continue;
->>>
->>> +             /*
->>> +              * This needs to be done before calling find_lock_task_mm()
->>> +              * since both grab a task lock which would result in deadlock.
->>> +              */
->>> +             if (sysctl_oom_dump_task_cmdline)
->>> +                     cmd = kstrdup_quotable_cmdline(p, GFP_KERNEL);
->>> +
->>>               task = find_lock_task_mm(p);
->>>               if (!task) {
->>>                       /*
->> You are trying to allocate from the OOM context. That is a big no no.
->> Not to mention that this is deadlock prone because get_cmdline needs
->> mmap_sem and the allocating context migh hold the lock already. So the
->> patch is simply wrong.
->>
+On Wed 20-02-19 09:37:56, Bujnak, Stepan wrote:
+> On Wed, Feb 20, 2019 at 7:49 AM Michal Hocko <mhocko@kernel.org> wrote:
+[...]
+> > You are trying to allocate from the OOM context. That is a big no no.
+> > Not to mention that this is deadlock prone because get_cmdline needs
+> > mmap_sem and the allocating context migh hold the lock already. So the
+> > patch is simply wrong.
+> >
 > 
 > Thanks for the notes. I understand how allocating from OOM context
 > is a problem. However I still believe that this would be helpful
@@ -146,10 +118,13 @@ On 2019/02/20 17:37, Bujnak, Stepan wrote:
 > which allocates the buffer on heap I called get_cmdline() directly
 > passing it stack-allocated buffer of certain size e.g. 256?
 
-You made triple errors. First is that doing GFP_KERNEL allocation inside
-rcu_read_lock()/rcu_read_unlock() is not permitted. Second is that doing
-GFP_KERNEL allocation with oom_lock held is not permitted. Third is that
-somebody might be already holding p->mm->mmap_sem for write when
-get_cmdline() tries to hold it for read. That is, your patch can't work
-(even if you update your patch to use static buffer).
+No it wouldn't because get_cmdline take mmap_sem lock as already pointed
+out.
+
+Please also note that the cmd line might be considered security/privacy
+sensitive information and dumping it to the log sounds like a bad idea
+in general.
+-- 
+Michal Hocko
+SUSE Labs
 
