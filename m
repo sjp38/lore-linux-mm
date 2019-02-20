@@ -2,169 +2,294 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,FSL_HELO_FAKE,HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT,
+	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 13355C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 20:22:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DFFF5C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 20:22:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C774F2146E
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 20:22:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 914A22146E
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 20:22:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="A2BulD4L"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C774F2146E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="geWMICWp"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 914A22146E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 57E398E002E; Wed, 20 Feb 2019 15:22:34 -0500 (EST)
+	id 35BD48E002F; Wed, 20 Feb 2019 15:22:49 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 556648E0002; Wed, 20 Feb 2019 15:22:34 -0500 (EST)
+	id 30BEA8E0002; Wed, 20 Feb 2019 15:22:49 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 41F988E002E; Wed, 20 Feb 2019 15:22:34 -0500 (EST)
+	id 223508E002F; Wed, 20 Feb 2019 15:22:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1849C8E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 15:22:34 -0500 (EST)
-Received: by mail-yb1-f200.google.com with SMTP id l14so16115737ybq.7
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 12:22:34 -0800 (PST)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ED9D18E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 15:22:48 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id j3so12839060itf.5
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 12:22:48 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=xaPm9bOl46WttgSnpiat/PG46CKSbX8nCiFiaT9SwHE=;
-        b=PD2IwYKHs0siKO4oaTcKTPc+ou+lQlm0wQjzZLb+AZt9EvMyw1jZ1P8hrS6YAPY3KQ
-         q9AhAJSYFKajxdxmPHJxIREiWWBC2oKy619LIdBxIygbD59RrrWA/3Bn/1QzfFE3aiGr
-         szz+g7ecI3lAugKddQJUr8fUprXcHEA0uRvxaKTndZhaIxcRvDDzPhNU3MfVYcUjVs6h
-         nZYcyn7Kju00x8BpY+oAtQ8oqC9PYd8fadSHw3MEdQ1auLm0QqSPUPNRNuCI3bhrm1Yt
-         KILESY45Q76VwxS7KXi/APZI96k/cr9+CXO9sWfNe09W0TtHQcO/yk1PV47x219k9Y5p
-         ixxg==
-X-Gm-Message-State: AHQUAuaVqiMvOet9tpd8QQaiVKH+IYxkEjeZgsH/V3IygXHxfh3IZrEv
-	XwINI33zMA8+DT6EyvLuTijeY9JYtzJLnG5AwjIm7TZWxpU8hpCmpTwI4a2Jacwr1AG2vOV5LyQ
-	K1iwi8t5DvU2esXKTDBu0C+klloQckDHvBShn7T/yGwpsr3uuL7SBuGv06M4O+dESKw==
-X-Received: by 2002:a25:c050:: with SMTP id c77mr29504403ybf.459.1550694153776;
-        Wed, 20 Feb 2019 12:22:33 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaMfIWE9QXy+Dk3U32q8uBcntHlHD3v8SdIbzBacd0BzT1kIjuWwwDJ0ZrQEDejTbqiMzEQ
-X-Received: by 2002:a25:c050:: with SMTP id c77mr29504350ybf.459.1550694153069;
-        Wed, 20 Feb 2019 12:22:33 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550694153; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=66Ke7E27wbc1VrqcktMRXfyv/CVpPFUGEc9h69ihMvs=;
+        b=n9vqLFbw7xhy+AAEg0oFfipYjTV+a7/szzrPkPAEIQxIoK8oK3DRQb52/TDj2vvW2F
+         +8eKOl07B6hIpirMY7ccrf+ygKgKgt9HjNpfIjC0tg2v0FmEPsvw5/aAmN1Uoyjx8jVj
+         6hShsKgyyGIlf6zdj+Z5k947zRU2jRKJwmH1PrqF5c6KFMj9AcV6mGq0OHQ0VjmTxkw3
+         faNxfUu4+ycBNacVAhEfi8FVNIXtc/Y08NmPAzBV+pmhmZYHJTuuJ0UFbJ71s7tJsJBe
+         LXekLeE4SCNfvdE2nqDi5gkYtrjbZG92bDPhONMt1tGJ/9m2ahNk3Ty7Biv8mheKjXlA
+         RY6g==
+X-Gm-Message-State: AHQUAuZ0NFbswI/PmgB8uqlv+rwKtyiMiujdkQDrJLIR/PMC3D7g8P/f
+	2NoJLGse2aC1vLURNspA688o6FnxHvvGrx9jODyV4L86NmYNSxuxOyS3UmC5a/jR7mypJt960AT
+	1LFr3EX1SPq3fx2t63WA/JVV9co65mKqkQR+MBzMUoIvbe6eAiGdXKZEhDEf124hMl5f9xuVZKA
+	R3YR483Fc7g3gEtNaYZz52ZxVWLvpt09UbTFxwjdOQp2XFrvQN0J0a0zwbV4YQYph/28oVriRXC
+	0cVbzdIahYGMuaEAgAGYOf1Et8K9B/XyEwQYGGnh961mjYf0Ytzxlpe5Cte9tWVo4/bj/72QgcX
+	CkTftHD0Wy/MXCx5Em5XUoNBMGtxp+7F5aRprDsHoMghDqT1UdHMyLBZAz5sGI+/ilwMlO5NFWU
+	U
+X-Received: by 2002:a02:8c3c:: with SMTP id l57mr20896517jak.73.1550694168739;
+        Wed, 20 Feb 2019 12:22:48 -0800 (PST)
+X-Received: by 2002:a02:8c3c:: with SMTP id l57mr20896492jak.73.1550694167968;
+        Wed, 20 Feb 2019 12:22:47 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550694167; cv=none;
         d=google.com; s=arc-20160816;
-        b=jWIJOsygDSqpbcNlWQ3H5u/2qLcHrHj2SvVjfbTNwgldYgNJ7dtBAHx57+XB3RIBn+
-         9cpnnJrqU6gWx5CY4Fkr/DrBYjlFLrVe7E0bzRyGa5uyVRp0wd1uKUJplmO5yqjpIKLr
-         VsiR5mlgWqlqEaXzQBd5q92VeMytlXlLXV/gDRZmjfjyjIcl8pULvWdE12eutpg3mfQA
-         CzAakUAZMEOKzp87RN5VzUfN3lKkpi4alrVwalNWfEeaugqiSClhwH8j9n4rjzu2af6t
-         7Ea/KhtP44+5I5W2jpDcT6PWFgmXq8wM8LSvD4PT8dXhNoQTFwmAalsngwIw3OzHRo8Y
-         r75Q==
+        b=ZBKBpxbmpxS/sHIyDjATULV7OYY/XErFzgeLr0isEH3DLEo8jBQkHPrBKqbc+5cpau
+         I2buR2sU23p3O7/4srIqJiigbMGJlWE0nuObYnC5Nvg1EsD7jrl0/NCAPDHKZxHCsMh3
+         ckxIhcv26QK8Yy14NaP0fMLOcI90oOkvzjTsq7qxu8lgnvNhzeX0QCn9EtiZ1aRVr8Lf
+         TrrTesTphl4fBwe5ojD8fWG/EOLGnI8QkX8Rdt8Hl1Ibn9QY+GuDTYUKuvVoNvNySkyw
+         8DdP8UJv1ahbH6Tv41xjFlDHnzqWWd+6GPGujCBjm4bbbXfxA/EWSR+SuThiBt0EJUi5
+         Gs9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=xaPm9bOl46WttgSnpiat/PG46CKSbX8nCiFiaT9SwHE=;
-        b=z4pGul9X4aSIROul8y1y+dKu8q5gJYsBrOEL7xVQ/Z5EI7fuOVf2ByW1oq4fu+Bjwu
-         ANHO4O0N3TOlWgBhvUcY+38ie0yVxMHEevrchVjPyrI+B7WbCDsRcXHAjutSQjH01+I8
-         i8H9OvH1KwG8d96x7FBkD5/I3gHNlky58cLXn4X7rU8/5Ks4q9iv2ubQfbzlcyVOAJrF
-         RZfEwHREc02fjXj+cd/QcYjoAn19bD9KZnKWfBUN1O4HDJ076tSETVhQ1Cplj33JeKe/
-         tDMz3neuq6vojIBlu7+5ObyOg7qLmz5JrRCoTibUe50ZL8HEIvrh53ZyA0OVnNdfqxSp
-         +FUQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=66Ke7E27wbc1VrqcktMRXfyv/CVpPFUGEc9h69ihMvs=;
+        b=MWUBU027hzvXZKy0ErmGCQsLx1ZBtIhhzUmy2r4cR0+qhYl5bBD5hhQTr4P0Ng0WjQ
+         xTb7gyK5FPAurqF9SS7qKUcDlCfpo4HX33P4fLWSBcQPV0ycwCpsI/TxRM9XVVNZN1mB
+         8Xu+U5aZ83te8VYGokrn8lTYeGUS9Qlba5Jnx/eyKeDztc5n2p89Q1n0hSZWHuBCfJhG
+         eFChx1RSZlPkgEhaqPs+Jd/rocY/BeQg5KHNS0PPXCWvSKEq934JnbV2IMNDxVtfCsAC
+         RLmZHZhwpPrW6fsygk2ZgW2k6CQ2WMXsq4M3TKYqxFl22sTg8T06i50KGv/pftm7T4Rs
+         DzhA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=A2BulD4L;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id q11si13030753ywi.448.2019.02.20.12.22.32
+       dkim=pass header.i=@google.com header.s=20161025 header.b=geWMICWp;
+       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d188sor10187096ite.10.2019.02.20.12.22.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Feb 2019 12:22:33 -0800 (PST)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        (Google Transport Security);
+        Wed, 20 Feb 2019 12:22:47 -0800 (PST)
+Received-SPF: pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=A2BulD4L;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c6db70d0000>; Wed, 20 Feb 2019 12:22:37 -0800
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Wed, 20 Feb 2019 12:22:31 -0800
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Wed, 20 Feb 2019 12:22:31 -0800
-Received: from [10.2.169.124] (10.124.1.5) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Wed, 20 Feb
- 2019 20:22:30 +0000
-Subject: Re: [PATCH 4/6] mm/gup: track gup-pinned pages
-To: Ira Weiny <ira.weiny@intel.com>, <john.hubbard@gmail.com>
-CC: Andrew Morton <akpm@linux-foundation.org>, <linux-mm@kvack.org>, Al Viro
-	<viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>, Christoph
- Hellwig <hch@infradead.org>, Christopher Lameter <cl@linux.com>, Dan Williams
-	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dennis
- Dalessandro <dennis.dalessandro@intel.com>, Doug Ledford
-	<dledford@redhat.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
-	<jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>, Matthew Wilcox
-	<willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Mike Rapoport
-	<rppt@linux.ibm.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Ralph
- Campbell <rcampbell@nvidia.com>, Tom Talpey <tom@talpey.com>, LKML
-	<linux-kernel@vger.kernel.org>, <linux-fsdevel@vger.kernel.org>
-References: <20190204052135.25784-1-jhubbard@nvidia.com>
- <20190204052135.25784-5-jhubbard@nvidia.com>
- <20190220192405.GA12114@iweiny-DESK2.sc.intel.com>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <2c7f6914-71ab-c3a0-d043-b25e1d55a9ce@nvidia.com>
-Date: Wed, 20 Feb 2019 12:22:19 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       dkim=pass header.i=@google.com header.s=20161025 header.b=geWMICWp;
+       spf=pass (google.com: domain of yuzhao@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=yuzhao@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=66Ke7E27wbc1VrqcktMRXfyv/CVpPFUGEc9h69ihMvs=;
+        b=geWMICWpgJnSV1zU7/uendmGRR3pkA3XSbiRWKoXJuUhyXv6fDtHlyiAf5B44CLFx5
+         uuYcXoSzsvduXFHSao3q7nW8inTPczfYFYQh8iA24WQIQY249DIuhKL97ofFtuFetJS+
+         ZH3AV30s4r1lJqByQ/WeFTukPYA1WxG4wTh2tMFIdkIXEzokrHxnEIy78m1JzY835rL9
+         ECntYu5aIJ/Z3YRyjbyV2/Wmy657P6dFY+kNlz9cDkBuFoR1ocK3DGBhlWRPN8CAjh7j
+         +JSqntkxRJktrMOX+u1jrXUTVMh1ANrkh3QZDnjNhSDQSTVL4Utbua8WAfoFlEHUk2yr
+         2FJg==
+X-Google-Smtp-Source: AHgI3IaCh6zrF4Pd5EWFap5bohM+OrY6h+PowTxsOX6YudliX0BShK+1A0JUsxRz5WDNcbH2i0v/ig==
+X-Received: by 2002:a05:660c:54d:: with SMTP id w13mr6181600itk.50.1550694167405;
+        Wed, 20 Feb 2019 12:22:47 -0800 (PST)
+Received: from google.com ([2620:15c:183:0:a0c3:519e:9276:fc96])
+        by smtp.gmail.com with ESMTPSA id c19sm8331863ioh.4.2019.02.20.12.22.45
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 20 Feb 2019 12:22:46 -0800 (PST)
+Date: Wed, 20 Feb 2019 13:22:44 -0700
+From: Yu Zhao <yuzhao@google.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	"Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Nick Piggin <npiggin@gmail.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Chintan Pandya <cpandya@codeaurora.org>,
+	Jun Yao <yaojun8558363@gmail.com>,
+	Laura Abbott <labbott@redhat.com>,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-arch@vger.kernel.org, linux-mm@kvack.org,
+	Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v2 1/3] arm64: mm: use appropriate ctors for page tables
+Message-ID: <20190220202244.GA80497@google.com>
+References: <20190214211642.2200-1-yuzhao@google.com>
+ <20190218231319.178224-1-yuzhao@google.com>
+ <863acc9a-53fb-86ad-4521-828ee8d9c222@arm.com>
+ <20190219053205.GA124985@google.com>
+ <8f9b0bfb-b787-fa3e-7322-73a56a618aa8@arm.com>
+ <20190219222828.GA68281@google.com>
+ <f7e4db43-b836-4ac2-1aea-922be585d8b1@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20190220192405.GA12114@iweiny-DESK2.sc.intel.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1550694157; bh=xaPm9bOl46WttgSnpiat/PG46CKSbX8nCiFiaT9SwHE=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=A2BulD4LCH07dOSBUhThGzWNUfUExCrX+0oDsuP3ymsZCyxIxxPfpkJbxYf5+eg0z
-	 V/yOVnEg66OS94CZ/nrMqTwXu9rRqooR+mHf1aclv97tGTs1FAC9SG+Z4m4ghWkGJ6
-	 6ab0eiOUU5O5OH5Mu989C3llz2w3BtQvtW7rj1UsQowRcWcFYcQvDnSOqZQF+Mrbxb
-	 OK+1MKgx9135oeKn4nvT7FcIDf5VCCncUPKP9Zikx7Iyaul7JxpBqBDtx8iNUcjnsl
-	 qOoNwE3nNIPHS1dN1sEjEu1na9B1iTpQSpra9ZE8xvszPKMarxCVqjghfgRtpBUO98
-	 c133tkaCAR8tA==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f7e4db43-b836-4ac2-1aea-922be585d8b1@arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/20/19 11:24 AM, Ira Weiny wrote:
-> On Sun, Feb 03, 2019 at 09:21:33PM -0800, john.hubbard@gmail.com wrote:
->> From: John Hubbard <jhubbard@nvidia.com>
-> [snip]
->> + *
->> + * Locking: the lockless algorithm described in page_cache_gup_pin_speculative()
->> + * and page_cache_gup_pin_speculative() provides safe operation for
+On Wed, Feb 20, 2019 at 03:57:59PM +0530, Anshuman Khandual wrote:
 > 
-> Did you mean:
 > 
-> page_cache_gup_pin_speculative and __ page_cache_get_speculative __?
+> On 02/20/2019 03:58 AM, Yu Zhao wrote:
+> > On Tue, Feb 19, 2019 at 11:47:12AM +0530, Anshuman Khandual wrote:
+> >> + Matthew Wilcox
+> >>
+> >> On 02/19/2019 11:02 AM, Yu Zhao wrote:
+> >>> On Tue, Feb 19, 2019 at 09:51:01AM +0530, Anshuman Khandual wrote:
+> >>>>
+> >>>>
+> >>>> On 02/19/2019 04:43 AM, Yu Zhao wrote:
+> >>>>> For pte page, use pgtable_page_ctor(); for pmd page, use
+> >>>>> pgtable_pmd_page_ctor() if not folded; and for the rest (pud,
+> >>>>> p4d and pgd), don't use any.
+> >>>> pgtable_page_ctor()/dtor() is not optional for any level page table page
+> >>>> as it determines the struct page state and zone statistics.
+> >>>
+> >>> This is not true. pgtable_page_ctor() is only meant for user pte
+> >>> page. The name isn't perfect (we named it this way before we had
+> >>> split pmd page table lock, and never bothered to change it).
+> >>>
+> >>> The commit cccd843f54be ("mm: mark pages in use for page tables")
+> >>> clearly states so:
+> >>>   Note that only pages currently accounted as NR_PAGETABLES are
+> >>>   tracked as PageTable; this does not include pgd/p4d/pud/pmd pages.
+> >>
+> >> I think the commit is the following one and it does say so. But what is
+> >> the rationale of tagging only PTE page as PageTable and updating the zone
+> >> stat but not doing so for higher level page table pages ? Are not they
+> >> used as page table pages ? Should not they count towards NR_PAGETABLE ?
+> >>
+> >> 1d40a5ea01d53251c ("mm: mark pages in use for page tables")
+> > 
+> > Well, I was just trying to clarify how the ctor is meant to be used.
+> > The rational behind it is probably another topic.
+> > 
+> > For starters, the number of pmd/pud/p4d/pgd is at least two orders
+> > of magnitude less than the number of pte, which makes them almost
+> > negligible. And some archs use kmem for them, so it's infeasible to
+> > SetPageTable on or account them in the way the ctor does on those
+> > archs.
+> > 
 > 
-> Just found this while looking at your branch.
+> I understand the kmem cases which are definitely problematic and should
+> be fixed. IIRC there is a mechanism to custom init pages allocated for
+> slab cache with a ctor function which in turn can call pgtable_page_ctor().
+> But destructor helper support for slab has been dropped I guess.
 > 
-> Sorry,
-> Ira
 > 
+> > But, as I said, it's not something can't be changed. It's just not
+> > the concern of this patch.
+> 
+> Using pgtable_pmd_page_ctor() during PMD level pgtable page allocation
+> as suggested in the patch breaks pmd_alloc_one() changes as per the
+> previous proposal. Hence we all would need some agreement here.
+> 
+> https://www.spinics.net/lists/arm-kernel/msg701960.html
 
-Hi Ira,
+A proposal that requires all page tables to go through a same set of
+ctors on all archs is not only inefficient (for kernel page tables)
+but also infeasible (for arches use kmem for page tables). I've
+explained this clearly.
 
-Yes, thanks for catching that. I've changed it in the git repo now, and it will
-show up when the next spin of this patchset goes out.
+The generalized page table functions must recognize the differences
+on different levels and between user and kernel page tables, and
+provide unified api that is capable of handling the differences.
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+The change below is not helping at all.
+
+> 
+> We can still accommodate the split PMD ptlock feature in pmd_alloc_one().
+> A possible solution can be like this above and over the previous series.
+> 
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index a4168d366127..c02abb2a69f7 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -9,6 +9,7 @@ config ARM64
+>         select ACPI_SPCR_TABLE if ACPI
+>         select ACPI_PPTT if ACPI
+>         select ARCH_CLOCKSOURCE_DATA
+> +       select ARCH_ENABLE_SPLIT_PMD_PTLOCK if HAVE_ARCH_TRANSPARENT_HUGEPAGE
+>         select ARCH_HAS_DEBUG_VIRTUAL
+>         select ARCH_HAS_DEVMEM_IS_ALLOWED
+>         select ARCH_HAS_DMA_COHERENT_TO_PFN
+> diff --git a/arch/arm64/include/asm/pgalloc.h b/arch/arm64/include/asm/pgalloc.h
+> index a02a4d1d967d..258e09fb3ce2 100644
+> --- a/arch/arm64/include/asm/pgalloc.h
+> +++ b/arch/arm64/include/asm/pgalloc.h
+> @@ -37,13 +37,29 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t pte);
+>  
+>  static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+>  {
+> -       return (pmd_t *)pte_alloc_one_virt(mm);
+> +       pgtable_t ptr;
+> +
+> +       ptr = pte_alloc_one(mm);
+> +       if (!ptr)
+> +               return 0;
+> +
+> +#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && USE_SPLIT_PMD_PTLOCKS
+> +       ptr->pmd_huge_pte = NULL;
+> +#endif
+> +       return (pmd_t *)page_to_virt(ptr);
+>  }
+>  
+>  static inline void pmd_free(struct mm_struct *mm, pmd_t *pmdp)
+>  {
+> +       struct page *page;
+> +
+>         BUG_ON((unsigned long)pmdp & (PAGE_SIZE-1));
+> -       pte_free(mm, virt_to_page(pmdp));
+> +       page = virt_to_page(pmdp);
+> +
+> +#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && USE_SPLIT_PMD_PTLOCKS
+> +       VM_BUG_ON_PAGE(page->pmd_huge_pte, page);
+> +#endif
+> +       pte_free(mm, page);
+>  }
+> 
+> 
+> > 
+> >>>
+> >>> I'm sure if we go back further, we can find similar stories: we
+> >>> don't set PageTable on page tables other than pte; and we don't
+> >>> account page tables other than pte. I don't have any objection if
+> >>> you want change these two. But please make sure they are consistent
+> >>> across all archs.
+> >>
+> >> pgtable_page_ctor/dtor() use across arch is not consistent and there is a need
+> >> for generalization which has been already acknowledged earlier. But for now we
+> >> can atleast fix this on arm64.
+> >>
+> >> https://lore.kernel.org/lkml/1547619692-7946-1-git-send-email-anshuman.khandual@arm.com/
+> > 
+> > This is again not true. Please stop making claims not backed up by
+> > facts. And the link is completely irrelevant to the ctor.
+> > 
+> > I just checked *all* arches. Only four arches call the ctor outside
+> > pte_alloc_one(). They are arm, arm64, ppc and s390. The last two do
+> > so not because they want to SetPageTable on or account pmd/pud/p4d/
+> > pgd, but because they have to work around something, as arm/arm64
+> > do.
+> 
+> That reaffirms the fact that pgtable_page_ctor()/dtor() are getting used
+> not in a consistent manner.
+
+Now it's getting absurd. I'll just stop before this turns into
+complete nonsense.
 
