@@ -2,199 +2,253 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 03EF5C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 22:29:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 46821C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 22:40:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AE4DB20836
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 22:29:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AE4DB20836
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id E8AE220851
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 22:40:33 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="eeREBfQx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8AE220851
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 56ECB8E0040; Wed, 20 Feb 2019 17:29:30 -0500 (EST)
+	id 7FE7E8E0041; Wed, 20 Feb 2019 17:40:33 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 51D708E0002; Wed, 20 Feb 2019 17:29:30 -0500 (EST)
+	id 7AE758E0002; Wed, 20 Feb 2019 17:40:33 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3E6FF8E0040; Wed, 20 Feb 2019 17:29:30 -0500 (EST)
+	id 69CBC8E0041; Wed, 20 Feb 2019 17:40:33 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 11F948E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 17:29:30 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id q3so24804056qtq.15
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 14:29:30 -0800 (PST)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B9858E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 17:40:33 -0500 (EST)
+Received: by mail-yw1-f71.google.com with SMTP id h2so16046482ywm.11
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 14:40:33 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=k/Or7kyaTHDahUXrrf+0V8eHt+W9JWeSIhEpCOohXwk=;
-        b=MN2VHOeuKPLIEChzSew/yia6bmRNWfGHmy6f07ks0O65T7G+jGCdtnNnEng9AC41ab
-         2vzBm0v+x0y59OUR8iiOIGSb32E/zu7kPWZrbbJs7knCIZzCj6MIsjbq1KZaNLOcvzpi
-         saU1TsYHvnAIyR4avSMHcA5MgjAzk8J0QgVzJYTIyDyhGfnlQIfn4hvkkaay59Fhql9g
-         6S2GR+0L8lJUiVLkjpEtCZn6XMFy1hT/a9i8tbnIM6lqJm3/ICXjUxpug0y7+lk6jzt5
-         0Xcbit7BYli4bCyTBd4PN3gAo7weOg8FGOoboCSUMKgl2OxLQB79SqObLPfJRsqGhfq3
-         7ypg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAubxBGTgiU754GgiY8uH5t2SwhH+z+HDqfLgO6S/Im8ySXseFDji
-	TPB3eVSDw7UQAnzV9LyFlPTjEm1/gbAt+jN0BRJmCX/VXZ+eO64cRglevyRNPuDY68vypIZWIWN
-	DYaM8Qsk2s/szRQ4pCUyZONk3HqPxzyHq+tOF1Vu3NRodQ2L5dLYqqGdjuiF0NNsSxg==
-X-Received: by 2002:a0c:9acb:: with SMTP id k11mr26901546qvf.197.1550701769811;
-        Wed, 20 Feb 2019 14:29:29 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbxzbyYuRrn747HJ6Wx2tzs7fTawCOt4CcMtk/C4As5jIz7lLRtHZWBkt2c2e+Ln8EuEI7D
-X-Received: by 2002:a0c:9acb:: with SMTP id k11mr26901528qvf.197.1550701769193;
-        Wed, 20 Feb 2019 14:29:29 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550701769; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=3YmVsn1xjix5KcAoIKQqJBJt7OBuvYd0dgjyNItw0t0=;
+        b=r11sd6LNoqg07C8mXV1LjhDEAv2UB/67YWHY2R/EsaKEuwJda1UYcNwoJidihDUQn8
+         N5C5pKDo7KNVY8BmfMdBSeu+aSd4sTYlpz6MXB7JsVGw14mKW76gcMEjxFJAMRiroKCY
+         eI8aorbS3qsg1Idf8+Vrv4EUmGtUjxe6m4s694BJJVbUhdkczbfmw/rfgmyHx+91f+Oy
+         Zca9mNZgI4RClLFPqul7ZxQdzuX5dFnDxRhHJYJcjubvpua3LFlyNmkTcIc63qyfXVKm
+         WdM55MEghN4r9Lgah6SJpYWqAKUbNRacJDNAXYGkS4AdcU1nvtAFmMSFj++JRFg2ph7j
+         A5QQ==
+X-Gm-Message-State: AHQUAuZkVrqxZmI07moHrrtLenzsVqCfeUqFhquocE0vxSoA7AezkXTA
+	1ZGQsxzD0va7aCoPua2gMeCS6C+LKaK+p+6iwiUOW2zcfsVKI9FHu8+wA/rvpxtUM/edlC/s152
+	SZ9LAIPykvOqXvrhrOj7LIJ5bfNVfyeUPoaXHTUaCvCVjogzPykqH8l5+k+VM/4Quqw==
+X-Received: by 2002:a81:29cc:: with SMTP id p195mr29079281ywp.32.1550702432854;
+        Wed, 20 Feb 2019 14:40:32 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaOI1iCciIXnv24EmTKZmYFAacEf49kpvd42gCZ2LwIwldOQR7smo1cjRkzqKOceeCGe//J
+X-Received: by 2002:a81:29cc:: with SMTP id p195mr29079243ywp.32.1550702432235;
+        Wed, 20 Feb 2019 14:40:32 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550702432; cv=none;
         d=google.com; s=arc-20160816;
-        b=puQzUcV7HRN9hchi+yX7gBGfE+p+hWf1cZSv+V5yKj7yE1KIS2zJ8yMGp5o+sRec+O
-         tGBIzA3q7YclMFcGavWcGK6tDjoTyx2Br2sbWoYEOYKrau9hoF6bYsEEidLfbvTDuQbo
-         vu8iyeE3pxKwOpSh8BBbc9a2tYpNe9oYWDnnVAipDmcaNb09IgxUUgIXDIlbakbchWRN
-         GQrdxHzomiZ/BCqoGUyzXFw6Mh9xXHZPnrYw1joQMquZN+QhvUU6g8Z1uoZJIy8Dwerd
-         ADnS+pow454EJXP/40k1Aae1BiTE++iSsex84bHxh/KLU9MRcC+EC2KZrzwU4YOAybk8
-         cbRQ==
+        b=ILnnUX4b9RT4wNgO2Lvfxt95b1uLPQaOICKRMyEXWc7cAFxtnjoIdXcwHDAtR9st4D
+         1nzRphdxmAQY2z5tRTGudIMZA/kO1X3+xGO6+8ShNKyUEVIDWGMd6px0ZFaFY5Snp6S+
+         FTlyRGgxxRizop8evXEca+Wyo9o/0HwBruERqbWzwJ0C5A/dzuCiNeK3YqZaUi10frNN
+         ni7bgN6P7NHn6qv6X/CjmnF0AmQ2dx6EYck8KlkfBeG9mGFltuE4AUVrmyhQ+bifJABH
+         MFbotVkgQlocyYnTNG9ZnKMiOptHOTfAuIMCT3tGIKxRUwzzHY4Cdr4aBrbAqVDqIaeQ
+         TJ9Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=k/Or7kyaTHDahUXrrf+0V8eHt+W9JWeSIhEpCOohXwk=;
-        b=QTtA+LMAZudUkjXBVDyhraexiGkq+TM1LzeOBeIUbwlGqlDUDfxeHewd5ZBySS8UTm
-         qLQnHqnFi6JzdYhb+i4Zf14xPAvx+a7eP8GlVGfaAWOMY4PDYIBszISeJynKSSUErVdY
-         xg4+iNWCGC6Ib2uUcEz9yU0NDRRoQe46xy5u/1CnIann8cSNATwRbss4O5qBcc6Vt0Lj
-         labNArJCePekmZmkpT992kTgTocq6h+W/dkkKMnXTfYX7v1hehkS+ofs3ux6LvpTZYZo
-         1bPSDcaJweQniIS55hIkwTr6sYPaJOnf6ngHWr6Hi7rFy04HUpM8wZxK9sEFoxdkdC6R
-         dxPg==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=3YmVsn1xjix5KcAoIKQqJBJt7OBuvYd0dgjyNItw0t0=;
+        b=QuqxUTIjSaY9dTFLXHfUpvbAY7+8Ep9koP92GT/mNYhRPX20+UbnmGw340dp12zpCJ
+         noG7MQHcFdY+kBsuFXqv/cZvU9x+PPCGPY7fjnIR0t78C/Au95+t94VlEHTZP2Oy+X8d
+         GcOPpoj+3HU6rPY6O/gz9uTQ8dB0CijASd29RHBnbgx6syH27MvXrrcc6hoL3YB0KRDp
+         RCWNnz+m7Tf60B6E5J4A/zw2q/ywfd8kk78W+8MWgYuo0HLphUhMGbB1QiNLTaFN+KVu
+         dVPpOVGieYyzJApuvNV/8RWE3AprC+JsP7FjyvQPsOV0Ada4tn1Yh40feHsnrtGCVB4/
+         KkcA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b51si918255qtc.224.2019.02.20.14.29.28
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=eeREBfQx;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id s5si3057519ybk.465.2019.02.20.14.40.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Feb 2019 14:29:29 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 20 Feb 2019 14:40:32 -0800 (PST)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 1A1E6368E7;
-	Wed, 20 Feb 2019 22:29:28 +0000 (UTC)
-Received: from redhat.com (ovpn-121-220.rdu2.redhat.com [10.10.121.220])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 87C871001DC1;
-	Wed, 20 Feb 2019 22:29:26 +0000 (UTC)
-Date: Wed, 20 Feb 2019 17:29:24 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Haggai Eran <haggaie@mellanox.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
-	Leon Romanovsky <leonro@mellanox.com>,
-	Doug Ledford <dledford@redhat.com>,
-	Artemy Kovalyov <artemyko@mellanox.com>,
-	Moni Shoua <monis@mellanox.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Kaike Wan <kaike.wan@intel.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Aviad Yehezkel <aviadye@mellanox.com>
-Subject: Re: [PATCH 1/1] RDMA/odp: convert to use HMM for ODP
-Message-ID: <20190220222924.GE29398@redhat.com>
-References: <20190129165839.4127-1-jglisse@redhat.com>
- <20190129165839.4127-2-jglisse@redhat.com>
- <f48ed64f-22fe-c366-6a0e-1433e72b9359@mellanox.com>
- <20190212161123.GA4629@redhat.com>
- <20190220222020.GE8415@mellanox.com>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=eeREBfQx;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c6dd7650000>; Wed, 20 Feb 2019 14:40:37 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Wed, 20 Feb 2019 14:40:31 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Wed, 20 Feb 2019 14:40:31 -0800
+Received: from [10.2.169.124] (172.20.13.39) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Wed, 20 Feb
+ 2019 22:40:30 +0000
+Subject: Re: [PATCH 10/10] mm/hmm: add helpers for driver to safely take the
+ mmap_sem
+To: Jerome Glisse <jglisse@redhat.com>
+CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, Andrew Morton
+	<akpm@linux-foundation.org>, Ralph Campbell <rcampbell@nvidia.com>
+References: <20190129165428.3931-1-jglisse@redhat.com>
+ <20190129165428.3931-11-jglisse@redhat.com>
+ <16e62992-c937-6b05-ae37-a287294c0005@nvidia.com>
+ <20190220221933.GB29398@redhat.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <41888fd2-6154-4f85-7949-7a59c434d047@nvidia.com>
+Date: Wed, 20 Feb 2019 14:40:20 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190220222020.GE8415@mellanox.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Wed, 20 Feb 2019 22:29:28 +0000 (UTC)
+In-Reply-To: <20190220221933.GB29398@redhat.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1550702437; bh=3YmVsn1xjix5KcAoIKQqJBJt7OBuvYd0dgjyNItw0t0=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=eeREBfQx4+0jbaUJhdAhoJoIvh9Nufbr8sMxBdLSkwJdNk+Ks9zyMef+LAUWNxe6r
+	 2zNEUqxO4yy5q8/vke3L+xNRj6XwRQOMygozBpIm3P6oMaH0Kuk15c47J2AIjmKq2C
+	 jCuAGJrGnawuDBDz6E2+ea0lgGFum7T1Xe5l/1wNk43fJUwOCacNnVWS2OlZP8d2BI
+	 l785uPOCmKr8DqE8oAOo9SjVO8IvoVXnj7EBbCOOQ/U6xcEeNT57l+LkaeQkN7UG1p
+	 AIcqNfmVm+2Qom+LSOllG1JrSBn7nOOQ+SK45rFGR06w5v7kgUiVQszV0pz86UfEPR
+	 8aBaYo6ECp7Ew==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2019 at 10:20:27PM +0000, Jason Gunthorpe wrote:
-> On Tue, Feb 12, 2019 at 11:11:24AM -0500, Jerome Glisse wrote:
-> > This is what serialize programming the hw and any concurrent CPU page
-> > table invalidation. This is also one of the thing i want to improve
-> > long term as mlx5_ib_update_xlt() can do memory allocation and i would
-> > like to avoid that ie make mlx5_ib_update_xlt() and its sub-functions
-> > as small and to the points as possible so that they could only fail if
-> > the hardware is in bad state not because of memory allocation issues.
-> 
-> How can the translation table memory consumption be dynamic (ie use
-> tables sized huge pages until the OS breaks into 4k pages) if the
-> tables are pre-allocated?
+On 2/20/19 2:19 PM, Jerome Glisse wrote:
+> On Wed, Feb 20, 2019 at 01:59:13PM -0800, John Hubbard wrote:
+>> On 1/29/19 8:54 AM, jglisse@redhat.com wrote:
+>>> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>>>
+>>> The device driver context which holds reference to mirror and thus to
+>>> core hmm struct might outlive the mm against which it was created. To
+>>> avoid every driver to check for that case provide an helper that check
+>>> if mm is still alive and take the mmap_sem in read mode if so. If the
+>>> mm have been destroy (mmu_notifier release call back did happen) then
+>>> we return -EINVAL so that calling code knows that it is trying to do
+>>> something against a mm that is no longer valid.
+>>>
+>>> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>>> Cc: Ralph Campbell <rcampbell@nvidia.com>
+>>> Cc: John Hubbard <jhubbard@nvidia.com>
+>>> ---
+>>>    include/linux/hmm.h | 50 ++++++++++++++++++++++++++++++++++++++++++-=
+--
+>>>    1 file changed, 47 insertions(+), 3 deletions(-)
+>>>
+>>> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+>>> index b3850297352f..4a1454e3efba 100644
+>>> --- a/include/linux/hmm.h
+>>> +++ b/include/linux/hmm.h
+>>> @@ -438,6 +438,50 @@ struct hmm_mirror {
+>>>    int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct =
+*mm);
+>>>    void hmm_mirror_unregister(struct hmm_mirror *mirror);
+>>> +/*
+>>> + * hmm_mirror_mm_down_read() - lock the mmap_sem in read mode
+>>> + * @mirror: the HMM mm mirror for which we want to lock the mmap_sem
+>>> + * Returns: -EINVAL if the mm is dead, 0 otherwise (lock taken).
+>>> + *
+>>> + * The device driver context which holds reference to mirror and thus =
+to core
+>>> + * hmm struct might outlive the mm against which it was created. To av=
+oid every
+>>> + * driver to check for that case provide an helper that check if mm is=
+ still
+>>> + * alive and take the mmap_sem in read mode if so. If the mm have been=
+ destroy
+>>> + * (mmu_notifier release call back did happen) then we return -EINVAL =
+so that
+>>> + * calling code knows that it is trying to do something against a mm t=
+hat is
+>>> + * no longer valid.
+>>> + */
+>>
+>> Hi Jerome,
+>>
+>> Are you thinking that, throughout the HMM API, there is a problem that
+>> the mm may have gone away, and so driver code needs to be littered with
+>> checks to ensure that mm is non-NULL? If so, why doesn't HMM take a
+>> reference on mm->count?
+>>
+>> This solution here cannot work. I think you'd need refcounting in order
+>> to avoid this kind of problem. Just doing a check will always be open to
+>> races (see below).
+>>
+>>
+>>> +static inline int hmm_mirror_mm_down_read(struct hmm_mirror *mirror)
+>>> +{
+>>> +	struct mm_struct *mm;
+>>> +
+>>> +	/* Sanity check ... */
+>>> +	if (!mirror || !mirror->hmm)
+>>> +		return -EINVAL;
+>>> +	/*
+>>> +	 * Before trying to take the mmap_sem make sure the mm is still
+>>> +	 * alive as device driver context might outlive the mm lifetime.
+>>> +	 *
+>>> +	 * FIXME: should we also check for mm that outlive its owning
+>>> +	 * task ?
+>>> +	 */
+>>> +	mm =3D READ_ONCE(mirror->hmm->mm);
+>>> +	if (mirror->hmm->dead || !mm)
+>>> +		return -EINVAL;
+>>> +
+>>
+>> Nothing really prevents mirror->hmm->mm from changing to NULL right here=
+.
+>=20
+> This is really just to catch driver mistake, if driver does not call
+> hmm_mirror_unregister() then the !mm will never be true ie the
+> mirror->hmm->mm can not go NULL until the last reference to hmm_mirror
+> is gone.
 
-The idea is to have HMM handle DMA mapping so from the DMA
-mapping page table (wether you have an IOMMU or not) you
-can build the device page table (leveraging contiguous DMA
-address into huge dma page for the hardware). This can happen
-before calling mlx5_ib_update_xlt(). Then mlx5_ib_update_xlt()
-would only need to program the hardware.
+In that case, then this again seems unnecessary, and in fact undesirable.
+If the driver code has a bug, then let's let the backtrace from a NULL
+dereference just happen, loud and clear.
 
-> > > 
-> > > > +
-> > > > +static uint64_t odp_hmm_flags[HMM_PFN_FLAG_MAX] = {
-> > > > +	ODP_READ_BIT,	/* HMM_PFN_VALID */
-> > > > +	ODP_WRITE_BIT,	/* HMM_PFN_WRITE */
-> > > > +	ODP_DEVICE_BIT,	/* HMM_PFN_DEVICE_PRIVATE */
-> > > It seems that the mlx5_ib code in this patch currently ignores the 
-> > > ODP_DEVICE_BIT (e.g., in umem_dma_to_mtt). Is that okay? Or is it 
-> > > handled implicitly by the HMM_PFN_SPECIAL case?
-> > 
-> > This is because HMM except a bit for device memory as same API is
-> > use for GPU which have device memory. I can add a comment explaining
-> > that it is not use for ODP but there just to comply with HMM API.
-> > 
-> > > 
-> > > > @@ -327,9 +287,10 @@ void put_per_mm(struct ib_umem_odp *umem_odp)
-> > > >  	up_write(&per_mm->umem_rwsem);
-> > > >  
-> > > >  	WARN_ON(!RB_EMPTY_ROOT(&per_mm->umem_tree.rb_root));
-> > > > -	mmu_notifier_unregister_no_release(&per_mm->mn, per_mm->mm);
-> > > > +	hmm_mirror_unregister(&per_mm->mirror);
-> > > >  	put_pid(per_mm->tgid);
-> > > > -	mmu_notifier_call_srcu(&per_mm->rcu, free_per_mm);
-> > > > +
-> > > > +	kfree(per_mm);
-> > > >  }
-> > > Previously the per_mm struct was released through call srcu, but now it 
-> > > is released immediately. Is it safe? I saw that hmm_mirror_unregister 
-> > > calls mmu_notifier_unregister_no_release, so I don't understand what 
-> > > prevents concurrently running invalidations from accessing the released 
-> > > per_mm struct.
-> > 
-> > Yes it is safe, the hmm struct has its own refcount and mirror holds a
-> > reference on it, the mm struct itself has a reference on the mm
-> > struct.
-> 
-> The issue here is that that hmm_mirror_unregister() must be a strong
-> fence that guarentees no callback is running or will run after
-> return. mmu_notifier_unregister did not provide that.
-> 
-> I think I saw locking in hmm that was doing this..
+This patch, at best, hides bugs. And it adds code that should simply be
+unnecessary, so I don't like it. :)  Let's make it go away.
 
-So pattern is:
-    hmm_mirror_register(mirror);
+>=20
+>>
+>>> +	down_read(&mm->mmap_sem);
+>>> +	return 0;
+>>> +}
+>>> +
+>>
+>> ...maybe better to just drop this patch from the series, until we see a
+>> pattern of uses in the calling code.
+>=20
+> It use by nouveau now.
 
-    // Safe for driver to call within HMM with mirror no matter what
+Maybe you'd have to remove that use case in a couple steps, depending on th=
+e
+order that patches are going in.
 
-    hmm_mirror_unregister(mirror)
 
-    // Driver must no stop calling within HMM, it would be a use after
-    // free scenario
-
-Cheers,
-Jérôme
+thanks,
+--=20
+John Hubbard
+NVIDIA
 
