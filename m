@@ -2,135 +2,179 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CBAB2C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 14:10:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6EEA5C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 14:43:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 955CA2183F
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 14:10:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 955CA2183F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 2EA3A2146E
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 14:43:51 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="EchB4eEV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2EA3A2146E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1672A8E001B; Wed, 20 Feb 2019 09:10:53 -0500 (EST)
+	id 851AA8E001C; Wed, 20 Feb 2019 09:43:49 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0EEEE8E0002; Wed, 20 Feb 2019 09:10:53 -0500 (EST)
+	id 801B68E0002; Wed, 20 Feb 2019 09:43:49 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F21A68E001B; Wed, 20 Feb 2019 09:10:52 -0500 (EST)
+	id 6F02E8E001C; Wed, 20 Feb 2019 09:43:49 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9523D8E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 09:10:52 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id s50so9974352edd.11
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 06:10:52 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 301CD8E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 09:43:49 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id f5so16938828pgh.14
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 06:43:49 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=CiGghaBUIBt+eWRIFaZstE7zzkTaR0bhR77TOKp0CKM=;
-        b=TvotQPzFmYsRaghZHApnPpuFD00HPuONXLwLLJuVw4ZkPTngFu7llTTRTdAgHKAtl8
-         y1QLbrVDjqC9lRBx6YEBog3gqyaALjt/mz40ReraBe3UV2fQCIHbtAPn2BHYI+VAsBhk
-         Z77sqq1O22mEtiqPnsbt5yJ9RUUUk/OV9DLQFQ6G2hoeT84cpndWIUdWwSnZiMacvUa+
-         Kku19GASSjai1G2Pn0H/P11sAEvXiijQuvW7Fw4atjjnaFsozlk+B2eyoCW8gHqICbGw
-         XwwXT59/59rvhO2NxwfVl7u1HKmdcZjwKSCwZQDoe5UNOEiN511ser/8iRK4XoMdZs35
-         RuGw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: AHQUAuaXH6ls9ycoTkyZyDP6PWFZZytvdkvFpPt38BniiRNyyxKRJo5Z
-	JOTSdyoFbMGlVBXsVItVo9oXD/uvbem3s10f0L3CXEO3qp/oUi7Ljqt16GzjzCXd5hv3+qrTazP
-	8WawNnsDrAKdesxAoEGMqoAnrHfLk0b0Aix8yGaawCF5qj8jM4ZeWI3Z6RtJbjF6Ccg==
-X-Received: by 2002:a50:b2e1:: with SMTP id p88mr27030793edd.254.1550671852182;
-        Wed, 20 Feb 2019 06:10:52 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbXcpR8uOmyOr2yrEKCjKNw76Zcih9wH1KolVleYr2cca6eJU2fozChxRXi2RwZ5rx6Fk+A
-X-Received: by 2002:a50:b2e1:: with SMTP id p88mr27030763edd.254.1550671851426;
-        Wed, 20 Feb 2019 06:10:51 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550671851; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=i98cd3xlCj3svhnpAqR71Miyup2egVRF9MfpNdGm1OQ=;
+        b=g84jOChlewoHogDQ9OdivgMqroUfdnQVyRUy+XeWPFthh3aIfaUHPGxI9yYz86NI5S
+         RTDjlx1juG2UCs+cJ9/tOpUER+OQqAzmC3fICAQI4ZMB2dTWWjXnSb+hp1myU5mFVEBT
+         A/Ca66AuVpHwueIX6j6/jKkDCkGU0BY+oGAXlfE5VZi9706+/pchpmtMxQB3BewbnR4B
+         Lbmb4vbBDk9NQrOtHQFENW4Pj5ztYWNPQSOwzDdZgg+wZ6X33bLgtKpzpTzQGhhHAYHZ
+         +nhrqjC1Twc+YgWYt2Tl/DnKmhG9cD1tkbia1tWgtmJHOEhJl/QAQ8hjCcaF8huCpgO1
+         O3DA==
+X-Gm-Message-State: AHQUAubW0eCfY6HX4EGlJBEYVjEHu0/TVNFwfQ0jGgSvm7tzTYlAWF7q
+	IrDEplBaTbOY+s3c5dSXEcgAdjI4MNN8+KLzds6xJZ0klffrXRiYvwOaaoe2xP7YA00dIMhWmWP
+	vB9/bO3DSyzcOfQAeanbcOV86IrXUZqwravu6D+oT4gYO5N1geWAZUOJErMdhokWt3g==
+X-Received: by 2002:a17:902:7608:: with SMTP id k8mr36363594pll.245.1550673828766;
+        Wed, 20 Feb 2019 06:43:48 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYzmA1d+MhX9yt5VRdTRB77Y0/lj2v7OhchlySduIjjUTYXu/ZqpZLX7PYfodXIfJOlXquP
+X-Received: by 2002:a17:902:7608:: with SMTP id k8mr36363544pll.245.1550673827894;
+        Wed, 20 Feb 2019 06:43:47 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550673827; cv=none;
         d=google.com; s=arc-20160816;
-        b=V30Zs/GPwBGWH+IrkuGcl+i5NhMrk5UCZObNLW62CLnoqdWIyjsUHweqhOY//vcyw/
-         +6AqIvmpcVc++2GCDB9kvbhhhpjTMd0hplw92d8AQMjUNqdMa0HCblPwF8OnB5Ks6XWa
-         5HNoS3QTeQUDfPlWJa7xyE9FvNis70rhCMQQkW2oY+ZpMFJI8NtSvOrjN81Yyv3uE1xl
-         5joaE/iNEf6x56QTbvrBPYxEsEEImdsefW9/izO4dNFFO/6lb61kp7f8PO0UX7jAF5uR
-         Q/MzpqrXpauaNDk+wV6n0ZfPFVeYBfmGZ5EUnZMW25UJJtPKPp9bXUG/QPh8PZRIjVr6
-         A4cg==
+        b=E5VdoKfqnhYqTLlc7QbwRZzwFtTP8MBoRwJkwZy+kaVfJasQEI8RI5loaWj49JMCkV
+         K9PVlJiv+YUqtKg6q2k0tvtK76MIj0R5PbWmg4A93893QGEwYm3R0RGaJCVjRCqGeXP8
+         Rw8PjdxU/sqyNMYhB1ol1P7+RF4m6kwKmg5Ij1evFZmSnOzZBgC/R3rQ8Sf2wVWxlD1Z
+         AxFwDBwwMUrRF8saks6wBeg29WhA+EcBuGSOaADYWFSihIWrKdV0FQQLxQsGtvHL6MqV
+         m+5ABNl9sCsmCrXRCwV4iOvXa6p5+RwBfuJNwgNJd8/BazjrqSxCML4gQilU51qvYkEg
+         hy8g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=CiGghaBUIBt+eWRIFaZstE7zzkTaR0bhR77TOKp0CKM=;
-        b=ZF6scW28bZ1dvntGTHPxYkh4U1NDQIXSWanq1BGlKMFUclcJ8D4MZz00yLahK0jUml
-         VKlYc2ADZF9CAxM9ppyI6hSzl6CtHA56Sa36aQoivKt0gIh9usQZK3B42DGLr28NSC3K
-         O3c9lctT/9phEoYjpLMAuwOBs2eu1eX2StjKPTBq3cManWGyFsYestTVeJUV5Ue+0Tpv
-         QYwlOTjuqJNVzb5QjIBJabyi9ixeb75mnyBeNyXMArLw8FnIZnX/JriTQ4LcK7l2pQEV
-         K/1LDdRnXkkSS5QlFsc3IJj0FQps5XBsFKLLBitY9mxT9RD9cODA9z02XqR5FuRxBRBA
-         JPXw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=i98cd3xlCj3svhnpAqR71Miyup2egVRF9MfpNdGm1OQ=;
+        b=Z809gJIe33aEOa1YEHCdmzuanyDqBFfkqZFyBWdbpfXKk1x4Mc+r1C0kLSuZ+SGB2x
+         PoMxnt2/ZTWF764jkMH22dyL6WQhEcbQf7YjrXsIw5lpydEBDxyh7RmHAp9L3gFyyCOU
+         lwTP1ouV9EvqmePZn+EQCMRC4ZkE36bRRCKixZsr3RA5vRJf725VpxoZF4s+W9FSgPJw
+         EviTqydX6MPWxQu9P21k8ezhgtznkO9NDTDpx5dGk/BSW5R6AIDBTpcaAU2mpxULlcBK
+         k8wfjcVQTxV59WiZ8G/8Y4PGKUYmFAYiHXr+9kc/0vBFzyYw4copCS2ev1suXcFyozOv
+         9Qrw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p21si3059455eda.281.2019.02.20.06.10.50
-        for <linux-mm@kvack.org>;
-        Wed, 20 Feb 2019 06:10:51 -0800 (PST)
-Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=EchB4eEV;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id d133si19593631pfd.163.2019.02.20.06.43.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 20 Feb 2019 06:43:47 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 35BEAEBD;
-	Wed, 20 Feb 2019 06:10:50 -0800 (PST)
-Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 5E0F83F690;
-	Wed, 20 Feb 2019 06:10:47 -0800 (PST)
-Subject: Re: [PATCH 06/13] mm: pagewalk: Add 'depth' parameter to pte_hole
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=EchB4eEV;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=i98cd3xlCj3svhnpAqR71Miyup2egVRF9MfpNdGm1OQ=; b=EchB4eEVC5NuPeSwZ351dtv4J
+	l/kWZw3bmNT2Aj2FviPzD6eKtBLTOxpeDKzzDqQRvyDsi6kiugCoDWaIharWau4u/vX/Fl8DYUyB6
+	AZBOnpwJRW5V49DzdjrlROS6NvOvGLP13qL4ufn88z5lB7J7iRabT7oPZDfAgb9maSXUbn/pef17W
+	/iP7u7Wes12HdtLRMod3nKPcOX8Co+KR8lsgJ8PfWDNS11WlftR3eLt9v+GIC8xmtGmQOPdIl9jkn
+	yNsyHTzg4HJPwKT4BdagaisDUmg34dY76aTv9MQfgDuHBr3fZHE6SktBNL2s+ArDKjMBFj6Wb5Y1E
+	8ZNjTIaEw==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gwT6A-0006me-9M; Wed, 20 Feb 2019 14:43:46 +0000
+Date: Wed, 20 Feb 2019 06:43:46 -0800
+From: Matthew Wilcox <willy@infradead.org>
 To: William Kucharski <william.kucharski@oracle.com>
-Cc: "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>,
- Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Peter Zijlstra <peterz@infradead.org>,
- Catalin Marinas <catalin.marinas@arm.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
- <will.deacon@arm.com>, linux-kernel <linux-kernel@vger.kernel.org>,
- Linux-MM <linux-mm@kvack.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
- <jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>,
- "H. Peter Anvin" <hpa@zytor.com>, James Morse <james.morse@arm.com>,
- Thomas Gleixner <tglx@linutronix.de>, linux-arm-kernel@lists.infradead.org
-References: <20190215170235.23360-1-steven.price@arm.com>
- <20190215170235.23360-7-steven.price@arm.com>
- <52690905-1755-46BD-940B-1EE4CEA5F795@oracle.com>
-From: Steven Price <steven.price@arm.com>
-Message-ID: <76ce9f9b-eb0d-6ad5-9f57-ff3a8fa6b074@arm.com>
-Date: Wed, 20 Feb 2019 14:10:45 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+Cc: lsf-pc@lists.linux-foundation.org, Linux-MM <linux-mm@kvack.org>,
+	linux-fsdevel@vger.kernel.org, linux-nvme@lists.infradead.org,
+	linux-block@vger.kernel.org
+Subject: Re: Read-only Mapping of Program Text using Large THP Pages
+Message-ID: <20190220144345.GG12668@bombadil.infradead.org>
+References: <379F21DD-006F-4E33-9BD5-F81F9BA75C10@oracle.com>
+ <20190220134454.GF12668@bombadil.infradead.org>
+ <07B3B085-C844-4A13-96B1-3DB0F1AF26F5@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <52690905-1755-46BD-940B-1EE4CEA5F795@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <07B3B085-C844-4A13-96B1-3DB0F1AF26F5@oracle.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 20/02/2019 11:35, William Kucharski wrote:
-> 
-> 
->> On Feb 15, 2019, at 10:02 AM, Steven Price <Steven.Price@arm.com> wrote:
->>
->> The pte_hole() callback is called at multiple levels of the page tables.
->> Code dumping the kernel page tables needs to know what at what depth
->> the missing entry is. Add this is an extra parameter to pte_hole().
->> When the depth isn't know (e.g. processing a vma) then -1 is passed.
->>
->> Note that depth starts at 0 for a PGD so that PUD/PMD/PTE retain their
->> natural numbers as levels 2/3/4.
-> 
-> Nit: Could you add a comment noting this for anyone wondering how to
-> calculate the level numbers in the future?
 
-Good point! I'll expand the comment in the header file.
+[adding linux-nvme and linux-block for opinions on the critical-page-first
+idea in the second and third paragraphs below]
 
-Thanks,
+On Wed, Feb 20, 2019 at 07:07:29AM -0700, William Kucharski wrote:
+> > On Feb 20, 2019, at 6:44 AM, Matthew Wilcox <willy@infradead.org> wrote:
+> > That interface would need to have some hint from the VFS as to what
+> > range of file offsets it's looking for, and which page is the critical
+> > one.  Maybe that's as simple as passing in pgoff and order, where pgoff is
+> > not necessarily aligned to 1<<order.  Or maybe we want to explicitly
+> > pass in start, end, critical.
+> 
+> The order is especially important, as I think it's vital that the FS can
+> tell the difference between a caller wanting 2M in PAGESIZE pages
+> (something that could be satisfied by taking multiple trips through the
+> existing readahead) or needing to transfer ALL the content for a 2M page
+> as the fault can't be satisfied until the operation is complete.
 
-Steve
+There's an open question here (at least in my mind) whether it's worth
+transferring the critical page first and creating a temporary PTE mapping
+for just that one page, then filling in the other 511 pages around it
+and replacing it with a PMD-sized mapping.  We've had similar discussions
+around this with zeroing freshly-allocated PMD pages, but I'm not aware
+of anyone showing any numbers.  The only reason this might be a win
+is that we wouldn't have to flush remote CPUs when replacing the PTE
+mapping with a PMD mapping because they would both map to the same page.
+
+It might be a complete loss because IO systems are generally set up for
+working well with large contiguous IOs rather than returning a page here,
+12 pages there and then 499 pages there.  To a certain extent we fixed
+that in NVMe; where SCSI required transferring bytes in order across the
+wire, an NVMe device is provided with a list of pages and can transfer
+bytes in whatever way makes most sense for it.  What NVMe doesn't have
+is a way for the host to tell the controller "Here's a 2MB sized I/O;
+bytes 40960 to 45056 are most important to me; please give me a completion
+event once those bytes are valid and then another completion event once
+the entire I/O is finished".
+
+I have no idea if hardware designers would be interested in adding that
+kind of complexity, but this is why we also have I/O people at the same
+meeting, so we can get these kinds of whole-stack discussions going.
+
+> It also
+> won't be long before reading 1G at a time to map PUD-sized pages becomes
+> more important, plus the need to support various sizes in-between for
+> architectures like ARM that support them (see the non-standard size THP
+> discussion for more on that.)
+
+The critical-page-first notion becomes even more interesting at these
+larger sizes.  If a memory system is capable of, say, 40GB/s, it can
+only handle 40 1GB page faults per second, and each individual page
+fault takes 25ms.  That's rotating rust latencies ;-)
+
+> I'm also hoping the conference would have enough "mixer" time that MM folks
+> can have a nice discussion with the FS folks to get their input - or at the
+> very least these mail threads will get that ball rolling.
+
+Yes, there are both joint sessions (sometimes plenary with all three
+streams, sometimes two streams) and plenty of time allocated to
+inter-session discussions.  There's usually substantial on-site meal
+and coffee breaks during which many important unscheduled discussions
+take place.
 
