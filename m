@@ -2,194 +2,224 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 92B44C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 05:27:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 77B61C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 05:30:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 49E222147A
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 05:27:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Z9tOmuxL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49E222147A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 3417521848
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 05:30:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3417521848
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D75298E0003; Wed, 20 Feb 2019 00:27:56 -0500 (EST)
+	id AB55B8E0003; Wed, 20 Feb 2019 00:30:51 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CFD4F8E0002; Wed, 20 Feb 2019 00:27:56 -0500 (EST)
+	id A8ABE8E0002; Wed, 20 Feb 2019 00:30:51 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BA00A8E0003; Wed, 20 Feb 2019 00:27:56 -0500 (EST)
+	id 97A998E0003; Wed, 20 Feb 2019 00:30:51 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DBF78E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 00:27:56 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id i22so3714495eds.20
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 21:27:56 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F1EB8E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 00:30:51 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id v16so16610035plo.17
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2019 21:30:51 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=HEt47EOnYKZ4MXWE/vYh02pa3+mUHK/A4nFJgOZDUAM=;
-        b=FSBpfI1yp/M0mTQWdDXE1f43C/IJnPi5o4aIQV523FmSLonTapfmRRIPy/+hGYqNFY
-         Q+gIl0IQxK0UxjGCQ+4Kt1jMp7R2dHDxQd60JWdbxRuWadrBavFjsQonGdQuC8yum50X
-         kUSYgT2bo4/rGoPdM/lsZXo7Iu73h0xllEjBPW5vve+Y+HpgXwdKGpOkEKT8o+e1ApXX
-         0vrIBaONShNEvhEyzYzwPIglcEq3DKlfONPrhyr4mowpk7N4HNGU+BjsZ1rtYfgOeUFt
-         8JaElb/fCSqHSuw/BkcYj1bdJC3wrrEKE6QvimRTu00mlb1xZspr/GYZXOXQfyUSq9og
-         LhCw==
-X-Gm-Message-State: AHQUAuao9dmwY7xz0xSfBaNyjxftHWZOZ3PjJRiIDD7svtApc7Vn3GXj
-	V2jvCf4qu9AEAl+KwNpBo5e6E9T0hL7zyoF/ZtynMYgKZJZswPQzDLxt5CVpA68B2RuYlPD4FT6
-	m8+bMoIl3zq6cKfCUpDs/GlKlrlkKig3/RlHVBdW7ndwEFK9sRc794i/AX5jfS0QYPg==
-X-Received: by 2002:a50:bdc6:: with SMTP id z6mr26106716edh.64.1550640475821;
-        Tue, 19 Feb 2019 21:27:55 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZrJib5WiiSihh3HY4g3FWtlGq1I5OrCW2C9E0ZErJGGvWe+qT0vu8IKh36SDaqkJEdKtKn
-X-Received: by 2002:a50:bdc6:: with SMTP id z6mr26106677edh.64.1550640474978;
-        Tue, 19 Feb 2019 21:27:54 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550640474; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=2ZpTCwRzqlFeaNIz1GWMrPpbTW4msiUVmURzvofW+UI=;
+        b=N8USTaKU/KFuT+NcFE9isE1eR5531OHiWuQ/2KgKY/9f90HMqr7Up6cjuo557FoXBW
+         VWXOzNXCrcff+kclcIm0khzjjmHlrh41y+ztI1/Wak9Oaylzffdz6EpyLyAkU1Nf2OwW
+         4Pbr5HS+Ugs6JAUNXS7ANI0yBN0/EYjeOkYpI8FVkjCfC7AVuDfdZMzTXLnQHqRHVYF/
+         qGBOkB0qgVDuKvfWd8CXtCHET2hSqPQC3UI+3kepb3iLtCkZMqkYZoyTsgS1/lZpJEm3
+         7o5V0wDGOacEFnywZMghGic1GHHsCYYJUyWugeT51eLDzi07NvjmeNiKHnXJWHWcoWzz
+         3mKg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuZ7MYubMaQscvieSv7Apf4MgC0wA1WbMqNgfoofFcgmgk4PZXM8
+	krEI32PsFy6U61r1T3w5O/YqDQs4jp8oPKIelOQc+udXX1OVySOKOun1gb1pF4gHjHWx3GRV3Ea
+	10L8OMslw0bb/ue11CwkebSpHHeRaDDCsxF5ZsvyP2uLQ3f6d/AANF9pxhOtgJxSt+g==
+X-Received: by 2002:a63:ea52:: with SMTP id l18mr27641516pgk.317.1550640650723;
+        Tue, 19 Feb 2019 21:30:50 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZFZl7VuAegGRWobtZlhXVo2/PJ1Hff57EvPF1IWqH0Edtac5RCmd0+Z3cpe9Z7JLvHr1lz
+X-Received: by 2002:a63:ea52:: with SMTP id l18mr27641450pgk.317.1550640649621;
+        Tue, 19 Feb 2019 21:30:49 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550640649; cv=none;
         d=google.com; s=arc-20160816;
-        b=nfYKiZZD5Hexe2cHLYDhOGTLzaKz672svghS8X6jHUzVtwdT6njl3EGvaL3z22jnu9
-         J3F4LIqD7lahyKWwLaE8h+yvBHXWbJDUY9dbOn7SWFfX8RZdUYeoaLN/MNtHi2662l9z
-         GFcRY4fxi7DoC1Fw59QmnKfExl+tyNfWegkObcN7PsjJDTUzb9Jf3c+FzqDxUBU3Gvis
-         lQmRPDgFxy7FBPaLUBAuHWjCcQG3Q2nrQ15L0akPslSnSLgggGSPYDoXO/BBqQICNilV
-         A2ATQVU+ccIKJhJWx6MZsASEoSUkKtvH7cOTNIx+rB/to53Rq8euDmqHuitzDl8k/gSf
-         oIaQ==
+        b=j4JkI12Q1Ae7to9rcTH/RxgOxY7FNr8+c0CZJX2ZmhWXv2KN927VIsYBSSB4FPqEcz
+         /udh9vNhj4o0bGJoIm0ZfisqlDdPvcaDwRLlmQGxG+wlGDVu/I4cJ6RcMfWl2DgZkVFV
+         X3+IWYng/4D7uurw6bbq/ZPBmmk5qekHIM2RNxKP8nHPPe4yuMl1qtUPA7va8yOG2P9y
+         vAZfrDUWswHTqP9uPLDAPGAjqbl0XAzqe1pkL8oh77Irc+hrYkbxKkkN7yfj+fE+6Mqo
+         /hMM+Sva4e78phEJjqraicJWzwe0f4hsPZm5Grf8qsoV9qI9+THHAcijaMVs61oSkp2l
+         zpWg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=HEt47EOnYKZ4MXWE/vYh02pa3+mUHK/A4nFJgOZDUAM=;
-        b=AQHYV3Jd/09jyYLD5RftHefGQJWrSPExWB87oD5Dv1WliEQ6ojJhK4Z2S60DU+gG/f
-         Cbgpq2HtnMsve9G9PPPHpW1AF/4LRw/IhMvt2dPhcu9Ks7iv0+thlWLrpdGqZnk5Af0n
-         E8l2rLNpTfTeF1r/7DYYfELFOrbo37dBo6Sfygi46LjIXzv1FdfYQ9i1UZicS20N0mTE
-         ixPcLIVqTxZqxE4AUMKxRKgFO5sJIc2Iu1PRiTSj0h7rdF2DeVeoLJ1GsdeOuHkUUywZ
-         mTpw5bAwrngBNpIUcTbnI7G/earRwKy8WnaHQ+ZG+TKaaxRiQDgAKz8GpPh1eDAml2lq
-         S9bA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=2ZpTCwRzqlFeaNIz1GWMrPpbTW4msiUVmURzvofW+UI=;
+        b=chCxA8qES90azCSKarpS+1cLXCYBa49zty470veBLyN1biRg3xpLgdHYjYJWVtUsyG
+         wfpuqScsCCr/vWoQ9JGiXHx0yqRowPbpvDfL2tCaIISIhhf6UzVyH8D9YfOb1Q9WllcG
+         CBN/33BqfzSf4ekVs+vkFdyPxff2/gKn834Agx9sKzoqof4Z0XE5xI7ZJaXFdOkDJRfI
+         u+md7Z61VuqmdNqoT4C5CKGZtNwg8ATyHE9R2NA5/XewyjSnjTcIa9///jEzWaYgowO2
+         xUY9Vcz8/PCc7cSd99NZnzRfq+ADuf+MkGSFXItoguolin9ihquobCYk0LUPQ0UQybbO
+         K57Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Z9tOmuxL;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id 96si5653990edr.430.2019.02.19.21.27.54
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id t3si6328884plq.430.2019.02.19.21.30.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Feb 2019 21:27:54 -0800 (PST)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Tue, 19 Feb 2019 21:30:49 -0800 (PST)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Z9tOmuxL;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1K5Nqdn107694;
-	Wed, 20 Feb 2019 05:27:50 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=HEt47EOnYKZ4MXWE/vYh02pa3+mUHK/A4nFJgOZDUAM=;
- b=Z9tOmuxLWUCmkmrJFR9VF5Ybr4S4jGecXjdNM/mdvR8AHFAm53oBJicYJfPBeSZWCVLS
- /xBRM1NhX0pkAs97n4S/yYBaBy70hxhSqAhC+/yNehQ2SdXQFJCSab29/wA1DYk35hic
- ikjY3QwuuOqiNWqEtRZWITuCpqt2ewTiZWd8ZenBd6rV7pLQ/I6YaVCF9/HmV+Y0k2F8
- Ili+FDRhfmUBe1GnX3nD+FJ+UUGEr2dq7hJ+K2L3ETm7l9fI5SCrxBwFG/x9sNVCZKL9
- y3KZ/JBvj/CcbLXU4ZQKqQOalxs1WSZCWTBP2vxmpeB+5OToShcM5i3uFQcXdIkueBfa Cw== 
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by aserp2130.oracle.com with ESMTP id 2qp81e7g12-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 20 Feb 2019 05:27:50 +0000
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x1K5Rnp9026050
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 20 Feb 2019 05:27:49 GMT
-Received: from abhmp0015.oracle.com (abhmp0015.oracle.com [141.146.116.21])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x1K5Rm9x015235;
-	Wed, 20 Feb 2019 05:27:49 GMT
-Received: from [192.168.1.164] (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 19 Feb 2019 21:27:48 -0800
-Subject: Re: [RFC PATCH 00/31] Generating physically contiguous memory after
- page allocation
-To: Zi Yan <ziy@nvidia.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        Michal Hocko <mhocko@kernel.org>,
-        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Vlastimil Babka <vbabka@suse.cz>,
-        Mel Gorman <mgorman@techsingularity.net>,
-        John Hubbard
- <jhubbard@nvidia.com>,
-        Mark Hairgrove <mhairgrove@nvidia.com>,
-        Nitin Gupta <nigupta@nvidia.com>, David Nellans <dnellans@nvidia.com>
-References: <20190215220856.29749-1-zi.yan@sent.com>
- <f4cf53a3-359b-8c66-ed15-112b3cf0f475@oracle.com>
- <FDDDB4C8-C5B5-46B0-9682-33AC063F7A46@nvidia.com>
- <5395a183-063f-d409-b957-51a8d02854b2@oracle.com>
- <EB22370B-C5FB-435A-A8D0-95159E403B83@nvidia.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <a92b785c-b6c9-146c-428b-b5b6f527d28c@oracle.com>
-Date: Tue, 19 Feb 2019 21:27:47 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga002.fm.intel.com ([10.253.24.26])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 19 Feb 2019 21:30:49 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,388,1544515200"; 
+   d="scan'208";a="144924899"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga002.fm.intel.com with ESMTP; 19 Feb 2019 21:30:48 -0800
+From: ira.weiny@intel.com
+To: John Hubbard <jhubbard@nvidia.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	"David S. Miller" <davem@davemloft.net>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Rich Felker <dalias@libc.org>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Ralf Baechle <ralf@linux-mips.org>,
+	Paul Burton <paul.burton@mips.com>,
+	James Hogan <jhogan@kernel.org>
+Cc: Ira Weiny <ira.weiny@intel.com>,
+	linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org,
+	linux-mips@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org,
+	linux-s390@vger.kernel.org,
+	linux-sh@vger.kernel.org,
+	sparclinux@vger.kernel.org,
+	kvm-ppc@vger.kernel.org,
+	kvm@vger.kernel.org,
+	linux-fpga@vger.kernel.org,
+	dri-devel@lists.freedesktop.org,
+	linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org,
+	linux-scsi@vger.kernel.org,
+	devel@driverdev.osuosl.org,
+	virtualization@lists.linux-foundation.org,
+	netdev@vger.kernel.org,
+	linux-fbdev@vger.kernel.org,
+	xen-devel@lists.xenproject.org,
+	devel@lists.orangefs.org,
+	ceph-devel@vger.kernel.org,
+	rds-devel@oss.oracle.com
+Subject: [RESEND PATCH 0/7] Add FOLL_LONGTERM to GUP fast and use it
+Date: Tue, 19 Feb 2019 21:30:33 -0800
+Message-Id: <20190220053040.10831-1-ira.weiny@intel.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-In-Reply-To: <EB22370B-C5FB-435A-A8D0-95159E403B83@nvidia.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9172 signatures=668683
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902200037
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/19/19 9:19 PM, Zi Yan wrote:
-> On 19 Feb 2019, at 19:18, Mike Kravetz wrote:
->> Another high level question.  One of the benefits of this approach is
->> that exchanging pages does not require N free pages as you describe
->> above.  This assumes that the vma which we are trying to make contiguous
->> is already populated.  If it is not populated, then you also need to
->> have N free pages.  Correct?  If this is true, then is the expected use
->> case to first populate a vma, and then try to make contiguous?  I would
->> assume that if it is not populated and a request to make contiguous is
->> given, we should try to allocate/populate the vma with contiguous pages
->> at that time?
-> 
-> Yes, I assume the pages within the VMA are already populated but not contiguous
-> yet.
-> 
-> My approach considers memory contiguity as an on-demand resource. In some phases
-> of an application, accelerators or RDMA controllers would process/transfer data
-> in one
-> or more VMAs, at which time contiguous memory can help reduce address translation
-> overheads or lift certain constraints. And different VMAs could be processed at
-> different program phases, thus it might be hard to get contiguous memory for all
-> these VMAs at the allocation time using alloc_contig_pages(). My approach can
-> help get contiguous memory later, when the demand comes.
-> 
-> For some cases, you definitely can use alloc_contig_pages() to give users
-> a contiguous area at page allocation time, if you know the user is going to use
-> this
-> area for accelerator data processing or as a RDMA buffer and the area size is
-> fixed.
-> 
-> In addition, we can also use khugepaged approach, having a daemon periodically
-> scan VMAs and use alloc_contig_pages() to convert non-contiguous pages in a VMA
-> to contiguous pages, but it would require N free pages during the conversion.
-> 
-> In sum, my approach complements alloc_contig_pages() and provides more flexibility.
-> It is not trying to replaces alloc_contig_pages().
+From: Ira Weiny <ira.weiny@intel.com>
 
-Thank you for the explanation.  That makes sense.  I have mostly been
-thinking about contiguous memory from an allocation perspective and did
-not really consider other use cases.
+Resending these as I had only 1 minor comment which I believe we have covered
+in this series.  I was anticipating these going through the mm tree as they
+depend on a cleanup patch there and the IB changes are very minor.  But they
+could just as well go through the IB tree.
+
+NOTE: This series depends on my clean up patch to remove the write parameter
+from gup_fast_permitted()[1]
+
+HFI1, qib, and mthca, use get_user_pages_fast() due to it performance
+advantages.  These pages can be held for a significant time.  But
+get_user_pages_fast() does not protect against mapping of FS DAX pages.
+
+Introduce FOLL_LONGTERM and use this flag in get_user_pages_fast() which
+retains the performance while also adding the FS DAX checks.  XDP has also
+shown interest in using this functionality.[2]
+
+In addition we change get_user_pages() to use the new FOLL_LONGTERM flag and
+remove the specialized get_user_pages_longterm call.
+
+[1] https://lkml.org/lkml/2019/2/11/237
+[2] https://lkml.org/lkml/2019/2/11/1789
+
+Ira Weiny (7):
+  mm/gup: Replace get_user_pages_longterm() with FOLL_LONGTERM
+  mm/gup: Change write parameter to flags in fast walk
+  mm/gup: Change GUP fast to use flags rather than a write 'bool'
+  mm/gup: Add FOLL_LONGTERM capability to GUP fast
+  IB/hfi1: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
+  IB/qib: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
+  IB/mthca: Use the new FOLL_LONGTERM flag to get_user_pages_fast()
+
+ arch/mips/mm/gup.c                          |  11 +-
+ arch/powerpc/kvm/book3s_64_mmu_hv.c         |   4 +-
+ arch/powerpc/kvm/e500_mmu.c                 |   2 +-
+ arch/powerpc/mm/mmu_context_iommu.c         |   4 +-
+ arch/s390/kvm/interrupt.c                   |   2 +-
+ arch/s390/mm/gup.c                          |  12 +-
+ arch/sh/mm/gup.c                            |  11 +-
+ arch/sparc/mm/gup.c                         |   9 +-
+ arch/x86/kvm/paging_tmpl.h                  |   2 +-
+ arch/x86/kvm/svm.c                          |   2 +-
+ drivers/fpga/dfl-afu-dma-region.c           |   2 +-
+ drivers/gpu/drm/via/via_dmablit.c           |   3 +-
+ drivers/infiniband/core/umem.c              |   5 +-
+ drivers/infiniband/hw/hfi1/user_pages.c     |   5 +-
+ drivers/infiniband/hw/mthca/mthca_memfree.c |   3 +-
+ drivers/infiniband/hw/qib/qib_user_pages.c  |   8 +-
+ drivers/infiniband/hw/qib/qib_user_sdma.c   |   2 +-
+ drivers/infiniband/hw/usnic/usnic_uiom.c    |   9 +-
+ drivers/media/v4l2-core/videobuf-dma-sg.c   |   6 +-
+ drivers/misc/genwqe/card_utils.c            |   2 +-
+ drivers/misc/vmw_vmci/vmci_host.c           |   2 +-
+ drivers/misc/vmw_vmci/vmci_queue_pair.c     |   6 +-
+ drivers/platform/goldfish/goldfish_pipe.c   |   3 +-
+ drivers/rapidio/devices/rio_mport_cdev.c    |   4 +-
+ drivers/sbus/char/oradax.c                  |   2 +-
+ drivers/scsi/st.c                           |   3 +-
+ drivers/staging/gasket/gasket_page_table.c  |   4 +-
+ drivers/tee/tee_shm.c                       |   2 +-
+ drivers/vfio/vfio_iommu_spapr_tce.c         |   3 +-
+ drivers/vfio/vfio_iommu_type1.c             |   3 +-
+ drivers/vhost/vhost.c                       |   2 +-
+ drivers/video/fbdev/pvr2fb.c                |   2 +-
+ drivers/virt/fsl_hypervisor.c               |   2 +-
+ drivers/xen/gntdev.c                        |   2 +-
+ fs/orangefs/orangefs-bufmap.c               |   2 +-
+ include/linux/mm.h                          |  17 +-
+ kernel/futex.c                              |   2 +-
+ lib/iov_iter.c                              |   7 +-
+ mm/gup.c                                    | 220 ++++++++++++--------
+ mm/gup_benchmark.c                          |   5 +-
+ mm/util.c                                   |   8 +-
+ net/ceph/pagevec.c                          |   2 +-
+ net/rds/info.c                              |   2 +-
+ net/rds/rdma.c                              |   3 +-
+ 44 files changed, 232 insertions(+), 180 deletions(-)
 
 -- 
-Mike Kravetz
+2.20.1
 
