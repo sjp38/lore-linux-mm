@@ -2,115 +2,180 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F053AC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 12:10:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0AFD7C4360F
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 12:24:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B8A1220C01
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 12:10:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B8A1220C01
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id A1FC72147A
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 12:24:29 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="P5wIHcJw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A1FC72147A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 40C118E000C; Wed, 20 Feb 2019 07:10:23 -0500 (EST)
+	id 056528E000D; Wed, 20 Feb 2019 07:24:29 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3BA498E0002; Wed, 20 Feb 2019 07:10:23 -0500 (EST)
+	id 006C08E0002; Wed, 20 Feb 2019 07:24:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 25DA28E000C; Wed, 20 Feb 2019 07:10:23 -0500 (EST)
+	id E5F3D8E000D; Wed, 20 Feb 2019 07:24:28 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D02598E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 07:10:22 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id a21so8732277eda.3
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 04:10:22 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A6F5D8E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 07:24:28 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id m3so18684704pfj.14
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 04:24:28 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=TRVIr/34CoaA+vI61Sv9WDyhWA1WE0yjWzyS05PQWmE=;
-        b=Ls5CH3k6IgFC03J/MT7RPswS2T3bRMd+2shPZLWpdHx6uVfR0Kh52Xhfg02gNF4HlQ
-         Y/OGSEzl9svYwt9Sk/BfUJH06QnXjj2r4cP2DHbRSbV5DjBWloF917oiHQURknpKCVNd
-         HYxvc8KlIKWqO1up8qdJzR2dLoI8D4TQkVQ/ftWnb1H5Tj7yWm2KYCuPTol2OZf5RUPt
-         UgwyEixxgdZW8iaB2u2mr8y/OZoyDgzWB1CTJguAcnwGLIYGuuK2YcjVNfxc8BoE49xa
-         RB4RYNfejea1Md0Dcgbsjamz5kJcn3UFFBL35lfpiN78MaMft3rOrgRzNhNi67Q3AlqI
-         QWXA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAuYcC4DXiZyJwRYBvOulNzWeSs0MERxHYHFlwhOzUPKmn0QtYgKV
-	U5gMOLfLgLIC1uyfuUiGn94Dpz3abuSDi932V48H+d1u1RiyroW7YtVjS/U3mmHI4kfRffAAQOH
-	MLI1Ql9902ABkq5rxEMxO0ResVpD+qzWYI4XkmwLt0GLjFCBOzepKXo4uaMN1DBo=
-X-Received: by 2002:a17:906:1ec5:: with SMTP id m5mr22267084ejj.159.1550664622383;
-        Wed, 20 Feb 2019 04:10:22 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaUd49speO1iTUY20ZtuR6ailvc0amYiCwxXpCiHSOhzv2nj7C3UJGkgO6P6YZVV5v8lCme
-X-Received: by 2002:a17:906:1ec5:: with SMTP id m5mr22267029ejj.159.1550664621354;
-        Wed, 20 Feb 2019 04:10:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550664621; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=me4pNO26rwyoESSLvYT67P6JAcOIH6WaRv2PXlW5qoc=;
+        b=K4fQoLG7u/0kY0JjAQOreg5/Zw62NexMuEcB06MqZ9jyXfbl27G+9sEpyChaDzXvKE
+         MZzDzTQ3CdWQCf2doTEBbRYOrHtH1gddJkEnDrkn1xwn0xox6fwJyuSJbHDsQaVXUdFF
+         BU7IS7l1Lf77yX75zOpTUPGpD0mpTWSm/+vb4roQ/5pPCy9Amdq3zzgUNpA/cmNrPTPj
+         20sej1KQSVD97BQ/mRekJ1yQxFkinkZ0XEUWB7/gmhdEbt/iBANy17o0xrFXZPHoDFYG
+         n3GRRVY4jleOlREmybff25H7J4VBbe+DjP9G69Vc47yAFvQptwmP8WfVu4GFLbkN/6a6
+         9CsA==
+X-Gm-Message-State: AHQUAuZGT1RZ63DZLT4xH0vJMzTBzXFNgRwOws2pSSyiXWeYYVka7HF8
+	IZzPHviXtRnFS7HGfy0WYKiUgxXcbIpYFoq+WnJkfRhlWqnBvhdyz+YarPur7xV4d3e/+tsrXY3
+	s+fmb2CM/F215gaukPQcQxnSxiF4Q8pGwlGNN+ufswasoJr7OP/2HD8IblxRF5u+fow==
+X-Received: by 2002:a63:ed03:: with SMTP id d3mr28590136pgi.275.1550665468248;
+        Wed, 20 Feb 2019 04:24:28 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaRhhRcaZv0XuhX9dOpynOGdOr6Y90DVYHMFKpBL76x8pugtGsQ4kg28x+yifGcRds42KLW
+X-Received: by 2002:a63:ed03:: with SMTP id d3mr28590001pgi.275.1550665465791;
+        Wed, 20 Feb 2019 04:24:25 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550665465; cv=none;
         d=google.com; s=arc-20160816;
-        b=Pr5htqyo4LYbWCzM2USCiqW6aPDIYWTmDvEh3jUG8JiphOGnf05drhZfbeh1yXaU5B
-         oA9ipNEzjPl4kyMjvPuCHnTSNrj9L/k3pOb2XKaLXsww7VfS2YeDKhNGJSUpKBpXmyOA
-         RzHISs1ONWeu+ch+7Tgx8GLfnCXjj4zl1o2Eg3R8pzekpqZB+Yuxp7KlxFsdtbikr2UN
-         W+MDi26g/VbBXxiQwNcYN4YctbrPtmz/iAiA0xWdXlQmfnMbdSjHNCJthWxq+Ysk+6aJ
-         I+DSs1upugXXCXV9D/jxW4807S6LmlYShZZdPjxmhU6bjrmj8JXt0MRqzEZ3jMRJbe+x
-         t0iQ==
+        b=hoTSGO81Pz1sYHPFAVyf8DQi23QVtsurjWiFWHmfTqUaDi8vSOUCJwyNgWX6TQx9jk
+         QVINP0TuePNK3TKqr/j/6D3qdr8nrHdiRgJfqfqEX4KWnsJe8Dpb1svK/vq4gXbETfwa
+         DGrK45C88+4G2/1M0/VOP4Ep65tzgYkSI81iIXTUoREnVpQljeH5Msdx5QCph/4N3/oY
+         FYHGBy5w90oq7vV984NJz1663p9Uwy0YuW4IIO8uJl9eX6m/atKVLT7UraluoaYTjGa9
+         OBNHykfRDJSVpV5hA1AkBE2Qp36jckYJl36fq23jDBSU7vOE09tgUdOWNxwYwVkaiIqh
+         QXaA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=TRVIr/34CoaA+vI61Sv9WDyhWA1WE0yjWzyS05PQWmE=;
-        b=Bv2XF5U+oljJBrL6YSi3c6W+u/87ApJhkAWVFlbBDny5pNBXohDjxBoX1gsV1i8u09
-         DO5XrHhBYdbC8v9yob23NtSlWljgHHgzx4PzmHO2BuvwNosPDnM8vb7xiOYI1QLs+6MW
-         9GfothLwpyEG/WXaj3Xi3Wj0cxJs/uAKThrNcb21xzBtaODYrDJeofnTEtrCFRj0Z3lU
-         2qWeM0pnQzTg1DFTZ3WenFjqIrrhFgtBNVy6Vk9XP8zuLCiA+wm7qWJXLrniXCBTnaTW
-         E9xDIBRqUES5AEe5mtGcZ+RhquyJqfwd1vnNbWTiOfH3Il/e08RLRviuQ20i4n2Ea2q9
-         3lyQ==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=me4pNO26rwyoESSLvYT67P6JAcOIH6WaRv2PXlW5qoc=;
+        b=zZd0bT06FuDxUBGaYfTs61YKXG7Qoh2LrP8Nu7ZOUymPMOXdhyYwkqHDxSUdkKD4Q8
+         lj+n43FXB51x+PVHmRbY8NTAhlMKAvDT3P/btogo6hrei9cb0TSEvle7+vTJAB9/f3qd
+         VRMhAyDgPFHGubYjD2ciWaaQlPacO6jHV+/yOzcbJwqg92lkgifwN5bNtsH2N8qQemdj
+         psGazL7HphXvjAdzt+T95AkwViHQoa13cweLZut+6cYtV4Ld4g4R6AmLu6V0vWeXAoir
+         Iq1c8OztCsBREl4mprXZkad3MzytTz3XlnBJPqfb8B9TXPoqaDo7b//313bpK2JGZbe7
+         cQIw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g18si64006edh.385.2019.02.20.04.10.21
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=P5wIHcJw;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id f12si17674143pgo.562.2019.02.20.04.24.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Feb 2019 04:10:21 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 20 Feb 2019 04:24:25 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id C39D0ACC8;
-	Wed, 20 Feb 2019 12:10:20 +0000 (UTC)
-Date: Wed, 20 Feb 2019 13:10:16 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: William Kucharski <william.kucharski@oracle.com>
-Cc: lsf-pc@lists.linux-foundation.org, Linux-MM <linux-mm@kvack.org>,
-	linux-fsdevel@vger.kernel.org
-Subject: Re: [LSF/MM TOPIC ][LSF/MM ATTEND] Read-only Mapping of Program Text
- using Large THP Pages
-Message-ID: <20190220121016.GZ4525@dhcp22.suse.cz>
-References: <379F21DD-006F-4E33-9BD5-F81F9BA75C10@oracle.com>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=P5wIHcJw;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=me4pNO26rwyoESSLvYT67P6JAcOIH6WaRv2PXlW5qoc=; b=P5wIHcJw++x9NBZ+COTzGh5uI
+	YibiVWkfYoz45QhgxupEDHHGRevMJLd7+co34jvYWdWb3NkRTngZAbsO7DYJQ/CQP5ogcC4GGj1br
+	fqFne0WaVqvADch1gbehMTxtnFx2gz1SS6zn/ql2C87/qbg2Ap8bHfobT4Rva4HavgBFbx3limBsB
+	BlfAuCeIApATr/hPBMgdrj6F7JO8r/p1TKGdBANQMYMOgrLH6Yqxhu9cRDorGto6rS/+huOrGn/us
+	Fx805Y5J2150xDmc0YtM77Uh2CnlNeP0wcjzWsAVlADl5ZBwG6vH6k1h3L3LoPgj9OD3xNhYyIoWn
+	XWJYFP7GQ==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gwQvC-0004yo-Rs; Wed, 20 Feb 2019 12:24:18 +0000
+Date: Wed, 20 Feb 2019 04:24:18 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Yu Zhao <yuzhao@google.com>, Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	"Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Nick Piggin <npiggin@gmail.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Chintan Pandya <cpandya@codeaurora.org>,
+	Jun Yao <yaojun8558363@gmail.com>,
+	Laura Abbott <labbott@redhat.com>,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-arch@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH v2 1/3] arm64: mm: use appropriate ctors for page tables
+Message-ID: <20190220122418.GE12668@bombadil.infradead.org>
+References: <20190214211642.2200-1-yuzhao@google.com>
+ <20190218231319.178224-1-yuzhao@google.com>
+ <863acc9a-53fb-86ad-4521-828ee8d9c222@arm.com>
+ <20190219053205.GA124985@google.com>
+ <8f9b0bfb-b787-fa3e-7322-73a56a618aa8@arm.com>
+ <20190219222828.GA68281@google.com>
+ <f7e4db43-b836-4ac2-1aea-922be585d8b1@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <379F21DD-006F-4E33-9BD5-F81F9BA75C10@oracle.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <f7e4db43-b836-4ac2-1aea-922be585d8b1@arm.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 20-02-19 04:17:13, William Kucharski wrote:
-> For the past year or so I have been working on further developing my original
-> prototype support of mapping read-only program text using large THP pages.
+On Wed, Feb 20, 2019 at 03:57:59PM +0530, Anshuman Khandual wrote:
+> On 02/20/2019 03:58 AM, Yu Zhao wrote:
+> > On Tue, Feb 19, 2019 at 11:47:12AM +0530, Anshuman Khandual wrote:
+> >> On 02/19/2019 11:02 AM, Yu Zhao wrote:
+> >>> On Tue, Feb 19, 2019 at 09:51:01AM +0530, Anshuman Khandual wrote:
+> >>>> On 02/19/2019 04:43 AM, Yu Zhao wrote:
+> >>>>> For pte page, use pgtable_page_ctor(); for pmd page, use
+> >>>>> pgtable_pmd_page_ctor() if not folded; and for the rest (pud,
+> >>>>> p4d and pgd), don't use any.
+> >>>> pgtable_page_ctor()/dtor() is not optional for any level page table page
+> >>>> as it determines the struct page state and zone statistics.
+> >>>
+> >>> This is not true. pgtable_page_ctor() is only meant for user pte
+> >>> page. The name isn't perfect (we named it this way before we had
+> >>> split pmd page table lock, and never bothered to change it).
+> >>>
+> >>> The commit cccd843f54be ("mm: mark pages in use for page tables")
+> >>> clearly states so:
+> >>>   Note that only pages currently accounted as NR_PAGETABLES are
+> >>>   tracked as PageTable; this does not include pgd/p4d/pud/pmd pages.
+> >>
+> >> I think the commit is the following one and it does say so. But what is
+> >> the rationale of tagging only PTE page as PageTable and updating the zone
+> >> stat but not doing so for higher level page table pages ? Are not they
+> >> used as page table pages ? Should not they count towards NR_PAGETABLE ?
+> >>
+> >> 1d40a5ea01d53251c ("mm: mark pages in use for page tables")
+> > 
+> > Well, I was just trying to clarify how the ctor is meant to be used.
+> > The rational behind it is probably another topic.
+> > 
+> > For starters, the number of pmd/pud/p4d/pgd is at least two orders
+> > of magnitude less than the number of pte, which makes them almost
+> > negligible. And some archs use kmem for them, so it's infeasible to
+> > SetPageTable on or account them in the way the ctor does on those
+> > archs.
+> 
+> I understand the kmem cases which are definitely problematic and should
+> be fixed. IIRC there is a mechanism to custom init pages allocated for
+> slab cache with a ctor function which in turn can call pgtable_page_ctor().
+> But destructor helper support for slab has been dropped I guess.
 
-Song Liu has already proposed THP on FS topic already [1]
-
-[1] http://lkml.kernel.org/r/77A00946-D70D-469D-963D-4C4EA20AE4FA@fb.com
-and I assume this is essentially leading to the same discussion, right?
-So we can merge this requests.
--- 
-Michal Hocko
-SUSE Labs
+You can't put a spinlock in the struct page if the page is allocated
+through slab.  Slab uses basically all of struct page for its own
+purposes.  I tried to make that clear with the new layout of struct
+page where everything's in a union discriminated by what the page is
+allocated for.
 
