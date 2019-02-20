@@ -2,207 +2,170 @@ Return-Path: <SRS0=8949=Q3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 04952C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 13:33:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 04966C10F01
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 13:44:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A991420C01
-	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 13:32:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B78F720880
+	for <linux-mm@archiver.kernel.org>; Wed, 20 Feb 2019 13:44:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=nxp.com header.i=@nxp.com header.b="u2xEIFPS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A991420C01
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nxp.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ORPlDrRI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B78F720880
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4B7458E0016; Wed, 20 Feb 2019 08:32:59 -0500 (EST)
+	id 4D76D8E0017; Wed, 20 Feb 2019 08:44:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 48CFE8E0002; Wed, 20 Feb 2019 08:32:59 -0500 (EST)
+	id 45C9E8E0002; Wed, 20 Feb 2019 08:44:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 37D448E0016; Wed, 20 Feb 2019 08:32:59 -0500 (EST)
+	id 2FDD88E0017; Wed, 20 Feb 2019 08:44:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D5B1A8E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 08:32:58 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id s50so9929835edd.11
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 05:32:58 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E2AD18E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 08:44:57 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id g197so3574352pfb.15
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 05:44:57 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:accept-language:content-language
-         :content-transfer-encoding:mime-version;
-        bh=AB4rRS8rcRqh7jm65JECv60j93qZmlgVAseiSxW41zQ=;
-        b=Ta9ryRfwS342QH7ZIen/Xdk78+KXu9FT/bYwpLA0dpuBmBpBXvILEFWgDTFHzLAq2o
-         bKdpsoc4/6DyMdtxvRfWOt4s79Z0NS6xmJNbt0hq7Py/q7A3uEG/8DYVdQNEngJXL2Y/
-         ddIVYQV5Qx8db248zKLjJC0WbeVf+TlXXsh694C/4E8hDin8J7gbK2U/HKPFdyAiMz9n
-         D+s2AAOUf/7Xz9E6t+avqrbFW/C4lB/0iIkjHT0eY/ZXBPUqKilTT+0mUlIAw+W6ldTR
-         wM9GrxHk9UBq/gAgmM2f+J1BVVqvv668oLIUXf6OJUVOzqwIBjulV5fjq/CQ1iqfkgpK
-         bp7w==
-X-Gm-Message-State: AHQUAuYHLxocHPVmTSanXuMHozP9aCXjv01G18QE4JN8wgW2GCD8i2P7
-	JVzFvG4q51iZzHJPSLmoE2WFjyNASddSYpRyIL0wwE2Di0KjoKoSfKgr16lJWpVtj9cyeXStdnx
-	DtPMplbyfQkG9cwCyGq6FfTuKqq9k9YWmS+/N0HhusrX2puytRtrzZixAqTKU4zHItQ==
-X-Received: by 2002:a50:a53d:: with SMTP id y58mr19721714edb.282.1550669578142;
-        Wed, 20 Feb 2019 05:32:58 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZddi51wzZydyd5SK59PXad0r38lnjjVIc+NB2eJNmZ0RWGa+UOcxJ8+4jjJiuZZk5qu3yg
-X-Received: by 2002:a50:a53d:: with SMTP id y58mr19721662edb.282.1550669577172;
-        Wed, 20 Feb 2019 05:32:57 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550669577; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=RUB2frUU7NuwNJE/JAugdb4Jo4DDQEbUbHsxvIgWYSw=;
+        b=uQdAFNAUhdHp8wRjkVndY+LobfRY7NLPAC4uxvQQ7WOU+oTFC+X2QzOYRECujF+hDN
+         BjUXfQKPp2+aSQoIbPzsmsVtOWc2CZCFfEKQkNPstPzzvDxL5Y+RLiN3exa9iSulUsZ1
+         0o5CX4l4htmsiaDAPUyt9vJeKblytfhhWPQP9gFDc5RohlX++97oGJGbrnx5lAY1sNSA
+         MNJGP4h9sEO2ZjZ3aL1NT2sTkANtHWpzyVlufGPRUL8y42lxfVrSSHFGQzk7pyH09PwX
+         gX4z/X7kMQeb/aEgAmIlR9AgLJf71Whrnwrh2dC8iUL2PA5o3YGvFrEJmvUGHNe5KHFl
+         5Gqg==
+X-Gm-Message-State: AHQUAuYR591j/yiOqknL4m8CBRvNQuN18HgMVvMgsnVohoM4vAEM9y1d
+	ZjnrCV2FLC7OBmukU+khe0k5pAM3pKbX5ttbQTWpHW2KBz0x1Ff6hKifn1HkZdHpS8TGpN8RoKi
+	ufK/FTF3VRZCax5SR7ta6si9HhzY9B6KBYz6EB5vWHS52unCkPZYw4qtzRX+yFoYQ3w==
+X-Received: by 2002:a62:53c7:: with SMTP id h190mr21977512pfb.204.1550670297546;
+        Wed, 20 Feb 2019 05:44:57 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYquVkDD2PXj6uE4Sz4qm1lbr+Ne3LH1dVwmZDLR9R0k3F2CZc/I4kSkEkRHWPt/B8EszX4
+X-Received: by 2002:a62:53c7:: with SMTP id h190mr21977474pfb.204.1550670296779;
+        Wed, 20 Feb 2019 05:44:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550670296; cv=none;
         d=google.com; s=arc-20160816;
-        b=ldYgrDYsermQQcnJO4Ptt0wmJb1z28iB3q4MuKuYNqV0D8wzrkv+e5Nb91hFOGUtmn
-         1ufjueQlv6nCbP5YMJIcCqvYElzsxQUwS13/WZAt/unUIiOsBJxN04cUSFKjf+mQeja/
-         ynv/Lx2WDB2Y7BE+n8Z6l8RTiYygtQcJYI+A0Bvyb3VhVhL/9bn//YkNemRIxjvUquss
-         kzDk8Ar/SjEHIGaqogBOIa4R/80zbV4icWZSH1B/meLugmfsc7kmPx888CHKQOH2+0d5
-         zraZhITxTdQtxZhYlVENmFxVdSIx4LWgu2hWrIkfNJQqwpnja1e+2BhVqf23l9f98fID
-         h+Wg==
+        b=gymhP5XSZUdn2HBzHAMvpo4fpK+gcXF8Rm0TiONx6Jlz+uM8ajROJN6q8aq23LWBDu
+         J6pZsmGDTg+asyEmoqxixvto0IkrdN8kWQwGhhYNH5y4HSbKjSL7vgEnlSJOWCdgq4j9
+         9SO2iRhrta61I6BpJhWX14l0g94dUvIPZ/7VqmZ3FunwInKAv7gPiRXSaS1HjwhTOTFS
+         DMs5nnXSClQZrMw7flwdTbC5MnJq5fTD1iurUoTlaT7C1z4ZAnYzYK7QWe1+e0iy1AAB
+         fO8o7oFvYrhRvIXy9xoW7stNSaXyAXPe99mdBYJ67GKNZG8BYFU3rS8/80YVUygiTqdA
+         p+wg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:message-id:date:thread-index:thread-topic:subject
-         :cc:to:from:dkim-signature;
-        bh=AB4rRS8rcRqh7jm65JECv60j93qZmlgVAseiSxW41zQ=;
-        b=xxQoMI9XtyvTflvwXCrJyflQu1aPoDtkhUR6iT6pY3mOSfYfUIAb6dcVCRa+2tEz2i
-         aCf4icK5xhBgzFvp2GUasTgvfsLtOOlW5jQYr6pj4eCrqghy5R6RjJcqqQX4gG/QFMyY
-         b2nARhWnEs50onSTqMlOE+rgzqP88j2eS0EzdOsQiMbvWb4uKSNwEA9kS/8Np6YUMG0f
-         0sgMId8B7Ur7/F5+pArC9GeTFOEj35jpDIyyKorj0I5oR8x2VUHX7BxRxpHYEL9IHKn+
-         XU5dZSYvs9c7ueyvpXzO9RpYpvbpwVE6dbIJ06t6dfmbiFNh+TDG7HC+gXlGqqh3yb0U
-         yU6Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=RUB2frUU7NuwNJE/JAugdb4Jo4DDQEbUbHsxvIgWYSw=;
+        b=W7csFZb4hIKhWJQjiUZfzDOD7z5Q9rsKBB1CoLwGZbxSa51BdVn/Rr/PQ1dwO7kptn
+         dw5Lkuj8w7QwQIrAbc3B/ClGL53ZF1lz2jWL0O9+K1pLaICiCs8ImyHfZavJ7os+rOSu
+         Xyug1vL62yBs22CGC64aqIJPAjNDzg8JSwa6KQqYbCa4oGIjP0yNPaHuNhgZUnSk6xdw
+         kr9mV5rONaveTaXGcLWg5rx0aXXJC7eD4g3+UJRQhYACRoVBmL6/FfDUE2J8RrkB8Q3M
+         rGmXYgtwOiPSqvcKejyPeUqWisc4a+T77r/T9Bsev6XdYbuKBxKzRov5UKh5abAU7nAZ
+         l+Pg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nxp.com header.s=selector1 header.b=u2xEIFPS;
-       spf=pass (google.com: domain of peng.fan@nxp.com designates 40.107.8.74 as permitted sender) smtp.mailfrom=peng.fan@nxp.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
-Received: from EUR04-VI1-obe.outbound.protection.outlook.com (mail-eopbgr80074.outbound.protection.outlook.com. [40.107.8.74])
-        by mx.google.com with ESMTPS id p12si97151eda.232.2019.02.20.05.32.56
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ORPlDrRI;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id a2si9043078pga.476.2019.02.20.05.44.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 20 Feb 2019 05:32:57 -0800 (PST)
-Received-SPF: pass (google.com: domain of peng.fan@nxp.com designates 40.107.8.74 as permitted sender) client-ip=40.107.8.74;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 20 Feb 2019 05:44:56 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nxp.com header.s=selector1 header.b=u2xEIFPS;
-       spf=pass (google.com: domain of peng.fan@nxp.com designates 40.107.8.74 as permitted sender) smtp.mailfrom=peng.fan@nxp.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nxp.com; s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=AB4rRS8rcRqh7jm65JECv60j93qZmlgVAseiSxW41zQ=;
- b=u2xEIFPS8+pMWFQ2jemXREHKkxicUSv8BrBZhUqTO8HM8MrQRrZjK++txhO4HIW6k6eDwPHK5Zs4zQp5KtgK0EfF6WvGdkRwoH7qzR5QkaTWfiP4QQWn0nODL3s4k0Jq/M0Rjf2U+BpAQ1lCSvcPQKN+pTifm+fyHN3iBiX+K1M=
-Received: from DB7PR04MB4490.eurprd04.prod.outlook.com (52.135.138.16) by
- DB7PR04MB5355.eurprd04.prod.outlook.com (20.178.85.212) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1622.19; Wed, 20 Feb 2019 13:32:55 +0000
-Received: from DB7PR04MB4490.eurprd04.prod.outlook.com
- ([fe80::fd45:a391:7591:1aa5]) by DB7PR04MB4490.eurprd04.prod.outlook.com
- ([fe80::fd45:a391:7591:1aa5%6]) with mapi id 15.20.1622.020; Wed, 20 Feb 2019
- 13:32:55 +0000
-From: Peng Fan <peng.fan@nxp.com>
-To: "dennis@kernel.org" <dennis@kernel.org>, "tj@kernel.org" <tj@kernel.org>,
-	"cl@linux.com" <cl@linux.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, "van.freenix@gmail.com"
-	<van.freenix@gmail.com>, Peng Fan <peng.fan@nxp.com>
-Subject: [RFC] percpu: use nr_groups as check condition
-Thread-Topic: [RFC] percpu: use nr_groups as check condition
-Thread-Index: AQHUySDJI5EsBnYxBEew8wybkHZ3fg==
-Date: Wed, 20 Feb 2019 13:32:55 +0000
-Message-ID: <20190220134353.24456-1-peng.fan@nxp.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-mailer: git-send-email 2.16.4
-x-clientproxiedby: HK0PR03CA0071.apcprd03.prod.outlook.com
- (2603:1096:203:52::35) To DB7PR04MB4490.eurprd04.prod.outlook.com
- (2603:10a6:5:35::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=peng.fan@nxp.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [119.31.174.71]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: cf8672d9-3cdc-4b76-23e2-08d69737eb69
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605104)(4618075)(2017052603328)(7153060)(7193020);SRVR:DB7PR04MB5355;
-x-ms-traffictypediagnostic: DB7PR04MB5355:
-x-microsoft-exchange-diagnostics:
- =?iso-8859-1?Q?1;DB7PR04MB5355;23:/Arm5YerdDf8qMusZYcWzIflAOzz2gdyXsc7cFy?=
- =?iso-8859-1?Q?3Ec74l1BO1KiWfYLGfmSO1KwhqqSyXoV4ABFC+b7ciO9p80Pt84sS2Mvr2?=
- =?iso-8859-1?Q?nK3FA4QJ6o1nw1C8MvBvXEQo0u2uQQUmWv9zbvQyI37xDkT8yUI0mwo7YU?=
- =?iso-8859-1?Q?XNRQElJXzHpwpiKzUtbhWqTDXl8R2LOYXIsFeTw0Tu9ptfw1Typw1hclH1?=
- =?iso-8859-1?Q?jLkyipfznI5TBK4EOfpfBkLtqr4HqWG3j9A6IR8ZLfdhcWaszz1ZCTJMaf?=
- =?iso-8859-1?Q?knbHNoq2OV1OrNEyQG0NX0kb/RruK+190uSNFkB1z1Wq1ImRKG3zI/wZDy?=
- =?iso-8859-1?Q?l7TnuvIMXvHJ67UMwprbR96yaZCCQa8nDusZpf5SwtlnIFsGTNx0xpfM0B?=
- =?iso-8859-1?Q?2mQtOZjnB4bhlJDDFnHtqRC4ygS3CvzqS2gPbXwAdkYdi4ot8ATiz7QMoW?=
- =?iso-8859-1?Q?jprs5Yqg4i69V/9voBr0KH5DK/mNp/D0EXRqUN6yQh6cShrazTUIlTSse6?=
- =?iso-8859-1?Q?QMul8VmcaOEnBo9EcU/Kmnq/inz+MVwIj61WypkEeyXcYYPN19qKtSK7QQ?=
- =?iso-8859-1?Q?jV52574vfn9Gu7mwKi5IuZ0nBkHhDNJdIHwPr+ovuZeJCquEoiIZ8Rz7bc?=
- =?iso-8859-1?Q?QYLnmqcdR7SotK08y9CBw00NmOrgvsSz89WhDlJxbpxBGlXSERq5Bwe/Xk?=
- =?iso-8859-1?Q?49U7idEHRWsc3uNCAo+E2IsT8FW5VhkAqgdXKqdcSlcz3ibWfG1rgrpkSl?=
- =?iso-8859-1?Q?4TueE3TakcQny0GcNaJVwUf0JAg2+qMZZyN65t+NbX7yT9KrDjeNWoD91I?=
- =?iso-8859-1?Q?43tFajYx9ZGCXHiGogN9XVlH3TYYpr2HZd51hXep9V974YuknhsLq7Rxkd?=
- =?iso-8859-1?Q?cOuLWFrPOh7oXtwJE9NiteviGQn6SLD86irszqXhQdNEFURiKYjaKvrtI2?=
- =?iso-8859-1?Q?3fjAfpBarWgVGWpfDUEF5yZqR0yybLRliE9rux7BEP9IgVqNcygqvauKHD?=
- =?iso-8859-1?Q?+6MNwH3LCf5e0VPv7G4B26thG6lPIu6NT3RGI4ylO5qdfwRJL3KgWw47IP?=
- =?iso-8859-1?Q?Iqffzq32KUbd4rF+2eYUK9q0APruBChEfp6N32jjO7Uqc2OV10fKZ/kRVf?=
- =?iso-8859-1?Q?RmAUoCehfrWjZbJtbfGtUyVgjNEGi0uAY+kKc2bEHgrthETGIXc86MZ81/?=
- =?iso-8859-1?Q?0zda/MXzePECMPXc4+tHTkI22rywGaIWsAsitbJcLlc+cmWech+h9R5TtF?=
- =?iso-8859-1?Q?0fF3w9gObLM4JnIsjjLqUhnBL7SMiX6vzDDJC/3jMV/T1wbfZSoKPJM02i?=
- =?iso-8859-1?Q?5E=3D?=
-x-microsoft-antispam-prvs:
- <DB7PR04MB5355BAFB97F3E3F808CCAF1E887D0@DB7PR04MB5355.eurprd04.prod.outlook.com>
-x-forefront-prvs: 0954EE4910
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(39860400002)(376002)(396003)(346002)(136003)(366004)(199004)(189003)(25786009)(486006)(97736004)(52116002)(44832011)(478600001)(316002)(110136005)(6512007)(99286004)(26005)(105586002)(54906003)(66066001)(7736002)(4326008)(2501003)(186003)(3846002)(68736007)(6116002)(53936002)(14454004)(305945005)(71190400001)(71200400001)(81156014)(81166006)(8936002)(50226002)(2616005)(36756003)(4744005)(86362001)(2906002)(6486002)(102836004)(106356001)(1076003)(6436002)(476003)(256004)(14444005)(8676002)(386003)(6506007)(2201001)(5660300002);DIR:OUT;SFP:1101;SCL:1;SRVR:DB7PR04MB5355;H:DB7PR04MB4490.eurprd04.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: nxp.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- 12G8hzUO9t/sGSUMFCVA8yQEo5oM7tZOJoDbTLauX3KmMLNju8Oi04pMFt20GWCiskHNMBrYgZOrAVl9e/WQ7RocAtSCuzwmwQhh4nip1XzjyCAbadscMZWCHcid0XY51hk4374gkE9SiA58OAm9t/EVXKwXhiNKQ6U9qbBcP58mr3ScLRHzuerYOCZioLBD0oTRYJRoz757CCI/SyEGC1vgx8x/4G9bXsNyIhwjPb1QfzzNSq4DmkC8Ycz7QOVe1D1BZydpp9ksXpWoaRHSYJHFV7Lcain5jFtK8f021eVGGr0cAl9NUanAJxUsQ6ITWPPj9Pnw14ACk3evcnTv+uJEJsDgMyayYAZoGhvRUMSwpZsHVSxawtXaWV4gi/1HasYHJ+Q61oPsg30J8mFYPcVO0rWOTY0u83vtSSzA7/A=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ORPlDrRI;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=RUB2frUU7NuwNJE/JAugdb4Jo4DDQEbUbHsxvIgWYSw=; b=ORPlDrRIncIEgDpBIoRn0pv/O
+	OWaymA+60UkjBiy1sG7/Gquj0ik20o3WUiwtN19IREtGqCbMb3K7O+isXK5Cy+6cjj3qZvuL+ST6g
+	kEpEfKxrqLYkmSDLkJGv27mHHBGCfWzyEPhDWD/erKpljWiB0Zh2tJmcxw79SSuRuKhkyTqAJBH/v
+	8EmYf+wEM5Me83XrbXVpLOME9VSdlG8vszwlplW72LU+KE8Mc5cJnsi8DpIYwlszFYoK/ze2GzKLa
+	8nb6XaziINVVHnqLBxSBqkVIa3OwpjVHKrf4feTn8pJaoQRg/15HLyQTyJbjWSq8Z/sUwGY6LDnvP
+	AkimOjmPw==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gwSBD-0003DN-1W; Wed, 20 Feb 2019 13:44:55 +0000
+Date: Wed, 20 Feb 2019 05:44:54 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: William Kucharski <william.kucharski@oracle.com>
+Cc: lsf-pc@lists.linux-foundation.org, Linux-MM <linux-mm@kvack.org>,
+	linux-fsdevel@vger.kernel.org
+Subject: Re: [LSF/MM TOPIC ][LSF/MM ATTEND] Read-only Mapping of Program Text
+ using Large THP Pages
+Message-ID: <20190220134454.GF12668@bombadil.infradead.org>
+References: <379F21DD-006F-4E33-9BD5-F81F9BA75C10@oracle.com>
 MIME-Version: 1.0
-X-OriginatorOrg: nxp.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: cf8672d9-3cdc-4b76-23e2-08d69737eb69
-X-MS-Exchange-CrossTenant-originalarrivaltime: 20 Feb 2019 13:32:51.5592
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-id: 686ea1d3-bc2b-4c6f-a92c-d99c5c301635
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DB7PR04MB5355
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.011615, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <379F21DD-006F-4E33-9BD5-F81F9BA75C10@oracle.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-group_cnt array is defined with NR_CPUS entries, but normally
-nr_groups will not reach up to NR_CPUS. So there is no issue
-to the current code.
+On Wed, Feb 20, 2019 at 04:17:13AM -0700, William Kucharski wrote:
+> At present, the conventional methodology of reading a single base PAGE and
+> using readahead to fill in additional pages isn't useful as the entire (in my
+> prototype) PMD page needs to be read in before the page can be mapped (and at
+> that point it is unclear whether readahead of additional PMD sized pages would
+> be of benefit or too costly.
 
-Checking other parts of pcpu_build_alloc_info, use nr_groups as
-check condition, so make it consistent to use 'group < nr_groups'
-as for loop check. In case we do have nr_groups equals with NR_CPUS,
-we could also avoid memory access out of bounds.
+I remember discussing readahead with Kirill in the past.  Here's my
+understanding of how it works today and why it probably doesn't work any
+more once we have THPs.  We mark some page partway to the current end of
+the readahead window with the ReadAhead page flag.  Once we get to it,
+we trigger more readahead and change the location of the page with the
+ReadAhead flag.  Our current RA window is on the order of 256kB.
 
-Signed-off-by: Peng Fan <peng.fan@nxp.com>
----
- mm/percpu.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+With THPs, we're mapping 2MB at a time.  We don't get a warning every
+256kB that we're getting close to the end of our RA window.  We only get
+to know every 2MB.  So either we can increase the RA window from 256kB
+to 2MB, or we have to manage without RA at all.
 
-diff --git a/mm/percpu.c b/mm/percpu.c
-index db86282fd024..c5c750781628 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -2384,7 +2384,7 @@ static struct pcpu_alloc_info * __init pcpu_build_all=
-oc_info(
- 	ai->atom_size =3D atom_size;
- 	ai->alloc_size =3D alloc_size;
-=20
--	for (group =3D 0, unit =3D 0; group_cnt[group]; group++) {
-+	for (group =3D 0, unit =3D 0; group < nr_groups; group++) {
- 		struct pcpu_group_info *gi =3D &ai->groups[group];
-=20
- 		/*
---=20
-2.16.4
+Most systems these days have SSDs, so the whole concept of RA probably
+needs to be rethought.  We should try to figure out if we care about
+the performance of rotating rust, and other high-latency systems like
+long-distance networking and USB sticks.  (I was going to say network
+filesystems in general, but then I remembered clameter's example of
+400Gbps networks being faster than DRAM, so local networks clearly aren't
+a problem any more).
+
+Maybe there's scope for a session on readahead in general, but I don't
+know who'd bring data and argue for what actions based on it.
+
+> Additionally, there are no good interfaces at present to tell filesystem layers
+> that content is desired in chunks larger than a hardcoded limit of 64K, or to
+> to read disk blocks in chunks appropriate for PMD sized pages.
+
+Right!  It's actually slightly worse than that.  The VFS allocates
+pages on behalf of the filesystem and tells the filesystem to read them.
+So there's no way to allow the filesystem to say "Actually, I'd rather
+read in 32kB chunks because that's how big my compression blocks are".
+See page_cache_read() and __do_page_cache_readahead().
+
+I've mentioned in the past my preferred interface for solving this is to
+have a new address space operation called ->populate().  The VFS would
+call this from both of the above functions, allowing a filesystem to
+allocate, say, an order-3 page and place it in i_pages before starting
+IO on it.  I haven't done any work towards this, though.  And my opinion
+on it might change after having written some code.
+
+That interface would need to have some hint from the VFS as to what
+range of file offsets it's looking for, and which page is the critical
+one.  Maybe that's as simple as passing in pgoff and order, where pgoff is
+not necessarily aligned to 1<<order.  Or maybe we want to explicitly
+pass in start, end, critical.
+
+I'm in favour of William attending LSFMM, for whatever my opinion
+is worth.  Also Kirill, of course.
 
