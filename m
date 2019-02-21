@@ -2,170 +2,165 @@ Return-Path: <SRS0=vS5V=Q4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D957C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 01:22:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 83CE7C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 01:55:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E71D12086D
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 01:22:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E71D12086D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 386C32086C
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 01:55:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="rX3Kwr1X"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 386C32086C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D7F618E0054; Wed, 20 Feb 2019 20:22:53 -0500 (EST)
+	id C4D9D8E0055; Wed, 20 Feb 2019 20:55:17 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C65788E0002; Wed, 20 Feb 2019 20:22:53 -0500 (EST)
+	id BFCAA8E0002; Wed, 20 Feb 2019 20:55:17 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ADFDA8E0054; Wed, 20 Feb 2019 20:22:53 -0500 (EST)
+	id B13568E0055; Wed, 20 Feb 2019 20:55:17 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8260D8E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 20:22:53 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id d13so24978692qth.6
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 17:22:53 -0800 (PST)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 857D38E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 20:55:17 -0500 (EST)
+Received: by mail-qk1-f199.google.com with SMTP id a199so4108848qkb.23
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 17:55:17 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=DdNsBAsE5yh9vKBSWGYssGXDEeXdUI7+ToEzejghKHA=;
-        b=mVkre4/r2NQ5XelamCAVffOVWvalqXsTUGm6jYP/Au4CMZDoS+cIKOds2O+R2llm0o
-         MkDXy9mRf2fsay63e1lI19piJjjzYo2UFuhkEb6cZ9kuf9XpcUtlfO1gBFvb3EWNKc+K
-         AqN/4VXO227yBOhtflZxLbvWY9hXOCGUHr8GMxGU6hbU39YKGAtgJ+L4KAT8sJFNtXps
-         VlwbvbL19x05ZB9XckIp0iMm5Oo5eBRShuk4J8Tlz6NsCuK0dsbP3Y3U0GI1gu18egxU
-         5x+xJgMAg2amVwtT3L78/muZ4/EJLmykZCEp5aJDl9gfMR3PvWcuh485/VhyOQ3eREIa
-         90Pw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAubfw9ccjvW3SJZykijNDRHT5IHDOjufsm2kB/RDOgcxGAJxpefc
-	Jh5R+O8RSSxJUKeLjq45P8ghYQBUxCoYOS+/FFKW+JegZeqELFb8gOlTcjbjhzTtibrIdoqW9fL
-	Z98UNF8joLzSMhJUqYP8X6746Q7wus6PBbqW7Pk79l0M4+ZUyGF81zAd9UWL9ieTPpA==
-X-Received: by 2002:a05:620a:123b:: with SMTP id v27mr25556623qkj.29.1550712173320;
-        Wed, 20 Feb 2019 17:22:53 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Iak87PI6cpJSynN+uzfsQRKrPQqvG9oK26BjVdkunwVnEcFgsuKJr8E9M33wXVReGmx/YA1
-X-Received: by 2002:a05:620a:123b:: with SMTP id v27mr25556604qkj.29.1550712172892;
-        Wed, 20 Feb 2019 17:22:52 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550712172; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=YM0Wn0jbNjB6y9zmP7dH8GmfHqq62eVgozcbKGDoac8=;
+        b=GQ9AAOJ9ytZS9aUidVs69SWvJd+yCqocL3FQUuLFS7Ys9i9w4GqhiZHPYewKc1phZd
+         jpDozZu+R+FXQwVyYMO8OGz413FewiFHhaNifF79l4i5H8aE1LWi9BxzEiqWuNF4rse6
+         KFggnJ459LGl7GQEc410sHGCt+cKoQT4u/p/9y6TN4pwae2UYoeot/u58EmuQMNxqRCW
+         ok+yXInLJtV4i1NFZFSTknEPzhegPDyzkQ0qLPeIvm3JedNkBtnOPmWB3ZsPedDd1jyH
+         JU81zXsuGl6L+CZn5+/Lcalq7Y80wunAaRCsJI+F/gL+u/J+xMXl6GscIwRG8s83OLtR
+         ASuQ==
+X-Gm-Message-State: AHQUAuZNKPZIh0NsjFno0B/yanRP1nomfLKPThCR96ribiJdwICKARlF
+	nTIkqN7RR+xrP5AZ0C2tTjAyvEpTsFLRBXH1Gsl/O6EbYu37CYWpW3nnLFgIy3r3wdMwtgxwsvH
+	oBK/RNqsgMMe3z4id9iNdqE732qQzpyqiUhVOP8gwZ2ilIbShmyKRYdfAR9X0URbe2wcJkXEsWB
+	gAuGMSdenFIAVnVy3I3QyUg9k3tTXt4kZOoC1zyfTqTZpIWVMi58UB+Hs56ux0uIB4LtHMdS5Pk
+	de+x3iwnqv9cv1He2bEPAnP8tLxJ78TiPu7b3IMb6k1Z+UomXSNBZs2d1lvnsvX+j4pQYRkDOFl
+	7oCrUJBu7x4u62nrkTBykftk84cMTeUPE68lKuGT/tKHPTzcEh4f4ieFMHVfh5Kxa7zCKCwU3b1
+	6
+X-Received: by 2002:ac8:2ff1:: with SMTP id m46mr3002040qta.267.1550714117243;
+        Wed, 20 Feb 2019 17:55:17 -0800 (PST)
+X-Received: by 2002:ac8:2ff1:: with SMTP id m46mr3002013qta.267.1550714116589;
+        Wed, 20 Feb 2019 17:55:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550714116; cv=none;
         d=google.com; s=arc-20160816;
-        b=Y/DsBANHUJsfO6uz0EJUvPaxS//5wLJewRnsKJvwmfLMD1c7OmsEJE8IN9fLRVNuXZ
-         jNVMe3WivnEqsmbV4/IoETdJihT4Du4M3Fh1gpZW2BM02A7NMfmPSx2NNOhVsqLJ56Sw
-         KopicMm50MFUO0coj4VCsO6PlQXof3uTKVi4qDoPxxSvmabG3S5G8XgWI6P/+BZBwjhs
-         qE5O8kv31nT+ICYYahuxG+gH1Xfsp6FcLOf/wrfm2DN2gFB1ipdbrqbCPhBSk+mprq0Y
-         c4i4xwZpqmNsADIh06bYiJVlz/7FT73y1fFuOaozVrIDu/1hDgNhIfWgWZBwkC/uwBIU
-         ghtg==
+        b=PRXnK1y0nChKGsGZArEShzOpvz+5D8XsJJKvsfkC7B6SA/7tWTCmE/WdQT2YPaSSFn
+         3l9jOmc/6H32mEg0HN30VX62NocVNPqWU25qf4tNZ8sfpd/TVmbbJ6U0HfpO7PuO1mKw
+         Lbx+SehbyYw6S2QP8VSHIaghzhFY0gxxxQeC69U1OvHZh1FGi7ZU6r54lZEMakQ0Qkj9
+         vCvomevNUoPWu6Bd+Ns3DvLvoDVqza2cVlxZhrkXVo/lAfzEUgfNA1kOyIL5qO7g+SSF
+         D/yU/rkyFYnFrKfX0opcSrlaeY8Qw0GzgO7nyCog1SSI99PaxWghDDJfH0xfLUSJcBUl
+         pqQg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=DdNsBAsE5yh9vKBSWGYssGXDEeXdUI7+ToEzejghKHA=;
-        b=iD9zngrqy4bV2+JAPOL4LpYxHmO7UnIkJmeNFDUf0t/UFptCRIxiZZCR1WMkDJiupO
-         ASWSvpw9sr9moDiIXBJgWxaPltoyY39gfA1M+9LfuCFi79N5qiYrOEhVDUT+P2EPSIQU
-         +rxNKkQ3y+ls3KQrBZ2SpiRpJhG/Ni4/ZAVhdyycX/++xEXQwEqC297dkTEEc7olgH4o
-         ejDr+PwvLwuyqjK+Jen/LGj2h9RlwKJQyrvFN1HoMyq5tsKYpuzptjpjeu8q84Ix1euZ
-         6sGv7Dyi8TRkT8tx+9WVTqGES2NxXL2OTkCiZSaOBXuMwPxPbMvQfY/Ca2ZqExbym1rr
-         5dBw==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=YM0Wn0jbNjB6y9zmP7dH8GmfHqq62eVgozcbKGDoac8=;
+        b=eE3AgrwesUNqOu8bD8JQtVhcX8d3wtUVSCoCsJz3HtHq2i/s86hslXO1ZhT8caSjBU
+         sT0Xk7SukhlkLyVCyRDoLTb7TmIYSI9AqESOQ1vayYl5C/8/3WAnVxElR9XvVK7eKWJv
+         ALu+IvBMlzz16JfOp2TJEioNdVnCkzM3Cgo0xerU59IXLC9bGRDyLCXBCz57g7n//XnG
+         gwQSb24G54dQqpzAaOLTxHphl35CDmWTRGkMFrIWKmBvNUPgqhLG7YhPq76/ZHVGPanH
+         yFSr5wz2Yt39o0pgbrbHeYzNMqUpR12peQn6POQyCLV3adJ0ILbzOallyG/IVDVoJahN
+         keNg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o6si245353qtq.127.2019.02.20.17.22.52
+       dkim=pass header.i=@lca.pw header.s=google header.b=rX3Kwr1X;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l6sor23847212qve.32.2019.02.20.17.55.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Feb 2019 17:22:52 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Wed, 20 Feb 2019 17:55:16 -0800 (PST)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 349DD307D911;
-	Thu, 21 Feb 2019 01:22:52 +0000 (UTC)
-Received: from localhost.localdomain.com (ovpn-120-249.rdu2.redhat.com [10.10.120.249])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id B468F60BF2;
-	Thu, 21 Feb 2019 01:22:50 +0000 (UTC)
-From: jglisse@redhat.com
-To: Paolo Bonzini <pbonzini@redhat.com>,
-	=?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>,
-	kvm@vger.kernel.org
-Cc: linux-mm@kvack.org,
+       dkim=pass header.i=@lca.pw header.s=google header.b=rX3Kwr1X;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=YM0Wn0jbNjB6y9zmP7dH8GmfHqq62eVgozcbKGDoac8=;
+        b=rX3Kwr1XpKa35TGbIbHweo+w6hrnkhnOFGhfI5p39p72tXevCMi9+XmIjeHA5GTUDk
+         IlrqVmrC2yjHRh0uRCohxLlIqqROxJTrgoTiFA0MqIQgFG9HlfCtSFmDdFJPbiPOPBUD
+         3/AjVqXTHZb2aMWyeGyBf+9Eo82YZGJGeZAAlE33V0QyAOeegzmGIsxw4cXIWZU2+5uY
+         6TfxxYS0uNtGQ13azntRmgLRayZbTfsVkF4DA0nRb0I4r9ZA/W2LuCdCH0XJLO7ILAIr
+         t8lNdQm9UQWHPZVNl4behZYdRMNC5RU98PRRIppuIEpN4ujQHMSdsdURVGlVJBJRALxb
+         qFDw==
+X-Google-Smtp-Source: AHgI3IYucRujwkaTloIv/EFjGFEC/zNXpiIkUATN/kinrnMMB1vkS/LJTzdNHqtwt+yrsxX+aVIZUA==
+X-Received: by 2002:a0c:987a:: with SMTP id e55mr8103237qvd.21.1550714116320;
+        Wed, 20 Feb 2019 17:55:16 -0800 (PST)
+Received: from ovpn-120-150.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id s8sm6657974qtb.70.2019.02.20.17.55.15
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Feb 2019 17:55:15 -0800 (PST)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: dave@stgolabs.net,
+	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Peter Xu <peterx@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: [PATCH v2 1/1] kvm/mmu_notifier: re-enable the change_pte() optimization.
-Date: Wed, 20 Feb 2019 20:22:27 -0500
-Message-Id: <20190221012227.13236-2-jglisse@redhat.com>
-In-Reply-To: <20190221012227.13236-1-jglisse@redhat.com>
-References: <20190221012227.13236-1-jglisse@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Thu, 21 Feb 2019 01:22:52 +0000 (UTC)
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH -next] mm/debug: add a cast to u64 for atomic64_read()
+Date: Wed, 20 Feb 2019 20:55:07 -0500
+Message-Id: <20190221015507.92299-1-cai@lca.pw>
+X-Mailer: git-send-email 2.17.2 (Apple Git-113)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jérôme Glisse <jglisse@redhat.com>
+atomic64_read() on ppc64le returns "long int", so fix the same way as
+the commit d549f545e690 ("drm/virtio: use %llu format string form
+atomic64_t") by adding a cast to u64, which makes it work on all arches.
 
-Since changes to mmu notifier the change_pte() optimization was lost
-for kvm. This re-enable it, when ever a pte is going from read and
-write to read only with same pfn, or from read only to read and write
-with different pfn.
+In file included from ./include/linux/printk.h:7,
+                 from ./include/linux/kernel.h:15,
+                 from mm/debug.c:9:
+mm/debug.c: In function 'dump_mm':
+./include/linux/kern_levels.h:5:18: warning: format '%llx' expects
+argument of type 'long long unsigned int', but argument 19 has type
+'long int' [-Wformat=]
+ #define KERN_SOH "\001"  /* ASCII Start Of Header */
+                  ^~~~~~
+./include/linux/kern_levels.h:8:20: note: in expansion of macro
+'KERN_SOH'
+ #define KERN_EMERG KERN_SOH "0" /* system is unusable */
+                    ^~~~~~~~
+./include/linux/printk.h:297:9: note: in expansion of macro 'KERN_EMERG'
+  printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
+         ^~~~~~~~~~
+mm/debug.c:133:2: note: in expansion of macro 'pr_emerg'
+  pr_emerg("mm %px mmap %px seqnum %llu task_size %lu\n"
+  ^~~~~~~~
+mm/debug.c:140:17: note: format string is defined here
+   "pinned_vm %llx data_vm %lx exec_vm %lx stack_vm %lx\n"
+              ~~~^
+              %lx
 
-It is safe to update the secondary MMUs, because the primary MMU
-pte invalidate must have already happened with a ptep_clear_flush()
-before set_pte_at_notify() is invoked (and thus before change_pte()
-callback).
-
-Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Peter Xu <peterx@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+Fixes: 70f8a3ca68d3 ("mm: make mm->pinned_vm an atomic64 counter")
+Signed-off-by: Qian Cai <cai@lca.pw>
 ---
- virt/kvm/kvm_main.c | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ mm/debug.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index 629760c0fb95..0f979f02bf1c 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -369,6 +369,14 @@ static int kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
- 	int need_tlb_flush = 0, idx;
- 	int ret;
- 
-+	/*
-+	 * Nothing to do when using change_pte() which will be call for each
-+	 * individual pte update at the right time. See mmu_notifier.h for more
-+	 * informations.
-+	 */
-+	if (mmu_notifier_range_use_change_pte(range))
-+		return 0;
-+
- 	idx = srcu_read_lock(&kvm->srcu);
- 	spin_lock(&kvm->mmu_lock);
- 	/*
-@@ -399,6 +407,14 @@ static void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
- {
- 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
- 
-+	/*
-+	 * Nothing to do when using change_pte() which will be call for each
-+	 * individual pte update at the right time. See mmu_notifier.h for more
-+	 * informations.
-+	 */
-+	if (mmu_notifier_range_use_change_pte(range))
-+		return;
-+
- 	spin_lock(&kvm->mmu_lock);
- 	/*
- 	 * This sequence increase will notify the kvm page fault that
+diff --git a/mm/debug.c b/mm/debug.c
+index c0b31b6c3877..45d9eb77b84e 100644
+--- a/mm/debug.c
++++ b/mm/debug.c
+@@ -168,7 +168,7 @@ void dump_mm(const struct mm_struct *mm)
+ 		mm_pgtables_bytes(mm),
+ 		mm->map_count,
+ 		mm->hiwater_rss, mm->hiwater_vm, mm->total_vm, mm->locked_vm,
+-		atomic64_read(&mm->pinned_vm),
++		(u64)atomic64_read(&mm->pinned_vm),
+ 		mm->data_vm, mm->exec_vm, mm->stack_vm,
+ 		mm->start_code, mm->end_code, mm->start_data, mm->end_data,
+ 		mm->start_brk, mm->brk, mm->start_stack,
 -- 
-2.17.2
+2.17.2 (Apple Git-113)
 
