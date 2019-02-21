@@ -3,75 +3,75 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74C7AC00319
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C9B5FC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 35E9620818
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35E9620818
+	by mail.kernel.org (Postfix) with ESMTP id 90ADF20818
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90ADF20818
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 086CD8E00CE; Thu, 21 Feb 2019 18:51:05 -0500 (EST)
+	id DA47B8E00CF; Thu, 21 Feb 2019 18:51:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 00F698E00CD; Thu, 21 Feb 2019 18:51:04 -0500 (EST)
+	id D7FCE8E00CD; Thu, 21 Feb 2019 18:51:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E1C9F8E00CE; Thu, 21 Feb 2019 18:51:04 -0500 (EST)
+	id BF4FF8E00CF; Thu, 21 Feb 2019 18:51:05 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 986438E00CD
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 18:51:04 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id f5so325065pgh.14
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 15:51:04 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EC3E8E00CD
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 18:51:05 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id z1so310456pln.11
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 15:51:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=PGQf8pkpnNe3t3IPgvET7mlJMbEiHMZ/T85JdFzL/O4=;
-        b=pTS8J/oZ1jAsZ+pLc02hYzEHwg0dinEv5c2K/518NigOsrT5YycEkQrJ4mqZlWPAhV
-         q5VrqHnOSNW5YGlWFrPVT+7X0KtdvjVxEuMGneUDtidrOEKUacV+yJMAXhTK6XZGFtd8
-         guUykyLMEQZS8g/utKE7DealomAFEmg2pbBpVbgF5K23luk6U8d7fOp/PhxNrhzT9Cgp
-         uJpzLC3e602t8ACQgBC5IoKD++MzJWoCGUjN03rJRiUW2q7vbQJczA+VTZUv/fYTxibE
-         XBpxTAvdCm+lRxy/GAOUA/nBbcyfvqTj2lFcHEm6syKMHqar2ddhNPIirzW1VHQyx8vA
-         qP6g==
+        bh=g3nO4xFM3yb0X+OIqTEtEp6LbffMj61RqStKCNeSSiM=;
+        b=qc74dj2/rpjaBZkFInegxLpCxx0xwQUBjOsZPGs+vreArroybHmRQl2MChKYU2RHnG
+         Y8I8lHtawJAFkKbC/A0hoOdinKgjaiTEHNG1XeDpE0MWxuWUFiuxXInWbahIrrG4tGYQ
+         11KZPlQ19tXVoan33VI4zOHYeRjEnC0whfxkflER9RWp8SaIC1yDbXLDZW4UGO/I7Zv5
+         I7t5F6NfGwZkQHygCflZtZTxjFBdKouXj481httBqD9UYg8gFU+jaue/obrWPAf/Y5xI
+         UJs1XJmvUGG2CPvPrxop86kaa7q05N5zkLzSjo8Xuw4Mo6j/7xMZYaZIGOzYs9jnfAey
+         LPLg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAub7cMpHZJkqidyKsFF2/klklwKtn3qPVUQrRhtCJ1/lejvhR8So
-	hrFWfi24kHratfKsUxdrB0dvVq8BeXA1RgKv7V3tQsatR/OiQYzyD2UXxi9p6iwohIn3gRBltji
-	NVwnmYq8XIKxm4PAbAhG5LcTpHtfpKsaizkmX/tG6cCTHdBfRko8/fSwnI2CR5Lpvrg==
-X-Received: by 2002:a17:902:9307:: with SMTP id bc7mr1176530plb.234.1550793064269;
+X-Gm-Message-State: AHQUAubKru3RhpeIf28FfrYGmmoQffGZTazXFyB4qLjBW0fJQb4e+re5
+	hyZiBMtUHQe05waD3LxMjTau4nWVAY4HoqTK5orx0gZg+tCoJJlhRuWCvSeQDzYFXVB+jk+IUfL
+	xlftb/ThVhbztWVQMu2iyAdiaQQMUKE72RCsOUl2Y4rA1gVpqYkU8lva+wVQ08L5QAA==
+X-Received: by 2002:a62:1706:: with SMTP id 6mr1159670pfx.28.1550793065191;
+        Thu, 21 Feb 2019 15:51:05 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZCAJe8wv9av38zzUAyLBCZF+ONqaV9cES9443A74+6g0x6M3sLe6DiIDyx/3gL2H00lzwK
+X-Received: by 2002:a62:1706:: with SMTP id 6mr1159630pfx.28.1550793064314;
         Thu, 21 Feb 2019 15:51:04 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYP74AcN7Op67i66gEMSRRXSZkZoE36A/ZgIIIIW1uMdNx+Do2/FZevRvVmFc0QRc7o2srl
-X-Received: by 2002:a17:902:9307:: with SMTP id bc7mr1176484plb.234.1550793063357;
-        Thu, 21 Feb 2019 15:51:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550793063; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1550793064; cv=none;
         d=google.com; s=arc-20160816;
-        b=TVDPNJD5tN58OVutl2htWP1QYamRXkYufzC5yimsVn09GKaGBDbleRXIyuiwHPLtSl
-         aBs8lp2Nvm3i87P6w8meRvbgR+UHtwG5qOO4lea9UzyNrJcP1eHyhHJCLevybXDYmCbY
-         ptU09V7IKcfLFMZKkg5Egn5H0i0rPTTCBidlMNYkwOdkcNG8vbD7osfFXRVk9pCCnOIg
-         oeg7Ph2DZFZLe1a301gveYkzTWKJWk32hcLL8NaBsBes7lmVmtN5mTdbLRmQ/RlUHzfR
-         g+W38F0PBkMZdmODV/7ZGEQGQWAdWtgJ3VgVBJv0qIN+ZE9K1FO8/TTV4Ho8KZfeDrl1
-         J9Ew==
+        b=H41EPtIrkcZnimSVk+Yh+PI/kn0Eo1QuDDN+9oiZYm5SNLtqUDRWoe3XRpc1vSHoAK
+         /I4WqCROyiGpZR/rAUohJOIXGyj8mMxQFj34+UpE5FjVPyeGe49vYNSZXU/TIiXjbn8I
+         LUFF75ainLzeZ2OFuaCNzPppQCrOHcChM9HGy4Wlg3YD2nvDKSaaTo6oGNIWAe7Ida0m
+         ajpv5l/RAprBKkLbFuPhmO60Tm8Kf8s+sZ72oOgLCFeFO32nT/+mmgs17UZ5bU14K6n9
+         MD7VltI9lP1y2L3pKYC66tFYpNU1wuB3zY36uDoIv9kKFkMVs/6ApXUScSOjWey7u4i1
+         L2VQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=PGQf8pkpnNe3t3IPgvET7mlJMbEiHMZ/T85JdFzL/O4=;
-        b=uyEfw7pDGh/wEW336zMVxeg13ZFfQ0fn21L7ShGFo741OIaSHkUPwkFLzd0q8bd47y
-         TrbRzMgw1GkiKfPubS3OzN4aJbzK0Q/vZsi0wzrNNOicp/GA+OiKLjtbFWkqNW1AJ5d4
-         UUg08YIenkmSlCwQJWKcXrY5Usu5AHNGsSU9ppBRzrEAVx81Hl4rf/I+8Fgsg7kh5bpv
-         LC3tASfnXRQdYzkCXBiq05eEuvTCRD8gjgXJD8h693aeTYY+HPVAH4FC1egdIEuotPsy
-         vpop33Lrr8y7Qolu72GDisOrP2IEcgVsTVvKNuxzuhGffJ1KgG4Z/JnkqYfm9FvrRgP2
-         jlCA==
+        bh=g3nO4xFM3yb0X+OIqTEtEp6LbffMj61RqStKCNeSSiM=;
+        b=y+XoCBuIevFusM2JCkc0dIM0akiKMaIvTFjVXp6BaXNsishs8IvX1xC80SNNZBo2un
+         4jIIdIAVhJrJWGVfdOsM4SCoDMPvfP2/GEjfPUwq1+EYLH0ay3czCs61Aqnyzy1uMgvY
+         cRYIEiv7G5ewCC6zOKnOrIFsOyoPa2fv7e4h583tKqvJ4JXgrkU1x/HPwymxKTbjXqlv
+         uv0Q8Lj+9dfpBS+zHF53t1RyYEChI1oT/xQdU25sLzsDmNXTy9PPKdL0SlLgF4MK+lKc
+         qKNYpvLpu3O394LJE/HC+YtjJWJ5OH5YlUBSFPT/jbzisry6j0o6Czyr4G232CNZ0KRF
+         OTSA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id c4si238494pfn.83.2019.02.21.15.51.03
+        by mx.google.com with ESMTPS id c4si238494pfn.83.2019.02.21.15.51.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 15:51:03 -0800 (PST)
+        Thu, 21 Feb 2019 15:51:04 -0800 (PST)
 Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
@@ -79,12 +79,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Feb 2019 15:51:02 -0800
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Feb 2019 15:51:03 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,397,1544515200"; 
-   d="scan'208";a="322394912"
+   d="scan'208";a="322394918"
 Received: from linksys13920.jf.intel.com (HELO rpedgeco-DESK5.jf.intel.com) ([10.54.75.11])
-  by fmsmga005.fm.intel.com with ESMTP; 21 Feb 2019 15:51:01 -0800
+  by fmsmga005.fm.intel.com with ESMTP; 21 Feb 2019 15:51:02 -0800
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
 To: Andy Lutomirski <luto@kernel.org>,
 	Ingo Molnar <mingo@redhat.com>
@@ -110,11 +110,10 @@ Cc: linux-kernel@vger.kernel.org,
 	Kees Cook <keescook@chromium.org>,
 	Dave Hansen <dave.hansen@intel.com>,
 	Masami Hiramatsu <mhiramat@kernel.org>,
-	Jessica Yu <jeyu@kernel.org>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v3 10/20] x86/module: Avoid breaking W^X while loading modules
-Date: Thu, 21 Feb 2019 15:44:41 -0800
-Message-Id: <20190221234451.17632-11-rick.p.edgecombe@intel.com>
+Subject: [PATCH v3 11/20] x86/jump-label: Remove support for custom poker
+Date: Thu, 21 Feb 2019 15:44:42 -0800
+Message-Id: <20190221234451.17632-12-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
 References: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
@@ -126,123 +125,89 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-When modules and BPF filters are loaded, there is a time window in
-which some memory is both writable and executable. An attacker that has
-already found another vulnerability (e.g., a dangling pointer) might be
-able to exploit this behavior to overwrite kernel code. This patch
-prevents having writable executable PTEs in this stage.
+There are only two types of poking: early and breakpoint based. The use
+of a function pointer to perform poking complicates the code and is
+probably inefficient due to the use of indirect branches.
 
-In addition, avoiding having W+X mappings can also slightly simplify the
-patching of modules code on initialization (e.g., by alternatives and
-static-key), as would be done in the next patch. This was actually the
-main motivation for this patch.
-
-To avoid having W+X mappings, set them initially as RW (NX) and after
-they are set as RO set them as X as well. Setting them as executable is
-done as a separate step to avoid one core in which the old PTE is cached
-(hence writable), and another which sees the updated PTE (executable),
-which would break the W^X protection.
-
+Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Kees Cook <keescook@chromium.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Dave Hansen <dave.hansen@intel.com>
 Cc: Masami Hiramatsu <mhiramat@kernel.org>
-Cc: Jessica Yu <jeyu@kernel.org>
-Suggested-by: Thomas Gleixner <tglx@linutronix.de>
-Suggested-by: Andy Lutomirski <luto@amacapital.net>
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/kernel/alternative.c | 28 +++++++++++++++++++++-------
- arch/x86/kernel/module.c      |  2 +-
- include/linux/filter.h        |  1 +
- kernel/module.c               |  5 +++++
- 4 files changed, 28 insertions(+), 8 deletions(-)
+ arch/x86/kernel/jump_label.c | 26 ++++++++++----------------
+ 1 file changed, 10 insertions(+), 16 deletions(-)
 
-diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
-index cfe5bfe06f9d..b75bfeda021e 100644
---- a/arch/x86/kernel/alternative.c
-+++ b/arch/x86/kernel/alternative.c
-@@ -667,15 +667,29 @@ void __init alternative_instructions(void)
-  * handlers seeing an inconsistent instruction while you patch.
-  */
- void *__init_or_module text_poke_early(void *addr, const void *opcode,
--					      size_t len)
-+				       size_t len)
- {
- 	unsigned long flags;
--	local_irq_save(flags);
--	memcpy(addr, opcode, len);
--	local_irq_restore(flags);
--	sync_core();
--	/* Could also do a CLFLUSH here to speed up CPU recovery; but
--	   that causes hangs on some VIA CPUs. */
-+
-+	if (boot_cpu_has(X86_FEATURE_NX) &&
-+	    is_module_text_address((unsigned long)addr)) {
-+		/*
-+		 * Modules text is marked initially as non-executable, so the
-+		 * code cannot be running and speculative code-fetches are
-+		 * prevented. Just change the code.
-+		 */
-+		memcpy(addr, opcode, len);
-+	} else {
-+		local_irq_save(flags);
-+		memcpy(addr, opcode, len);
-+		local_irq_restore(flags);
-+		sync_core();
-+
-+		/*
-+		 * Could also do a CLFLUSH here to speed up CPU recovery; but
-+		 * that causes hangs on some VIA CPUs.
-+		 */
-+	}
- 	return addr;
- }
+diff --git a/arch/x86/kernel/jump_label.c b/arch/x86/kernel/jump_label.c
+index e7d8c636b228..e631c358f7f4 100644
+--- a/arch/x86/kernel/jump_label.c
++++ b/arch/x86/kernel/jump_label.c
+@@ -37,7 +37,6 @@ static void bug_at(unsigned char *ip, int line)
  
-diff --git a/arch/x86/kernel/module.c b/arch/x86/kernel/module.c
-index b052e883dd8c..cfa3106faee4 100644
---- a/arch/x86/kernel/module.c
-+++ b/arch/x86/kernel/module.c
-@@ -87,7 +87,7 @@ void *module_alloc(unsigned long size)
- 	p = __vmalloc_node_range(size, MODULE_ALIGN,
- 				    MODULES_VADDR + get_module_load_offset(),
- 				    MODULES_END, GFP_KERNEL,
--				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
-+				    PAGE_KERNEL, 0, NUMA_NO_NODE,
- 				    __builtin_return_address(0));
- 	if (p && (kasan_module_alloc(p, size) < 0)) {
- 		vfree(p);
-diff --git a/include/linux/filter.h b/include/linux/filter.h
-index d531d4250bff..b9f93e62db96 100644
---- a/include/linux/filter.h
-+++ b/include/linux/filter.h
-@@ -694,6 +694,7 @@ static inline void bpf_prog_unlock_ro(struct bpf_prog *fp)
- static inline void bpf_jit_binary_lock_ro(struct bpf_binary_header *hdr)
+ static void __ref __jump_label_transform(struct jump_entry *entry,
+ 					 enum jump_label_type type,
+-					 void *(*poker)(void *, const void *, size_t),
+ 					 int init)
  {
- 	set_memory_ro((unsigned long)hdr, hdr->pages);
-+	set_memory_x((unsigned long)hdr, hdr->pages);
- }
+ 	union jump_code_union jmp;
+@@ -50,14 +49,6 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
+ 	jmp.offset = jump_entry_target(entry) -
+ 		     (jump_entry_code(entry) + JUMP_LABEL_NOP_SIZE);
  
- static inline void bpf_jit_binary_unlock_ro(struct bpf_binary_header *hdr)
-diff --git a/kernel/module.c b/kernel/module.c
-index 2ad1b5239910..ae1b77da6a20 100644
---- a/kernel/module.c
-+++ b/kernel/module.c
-@@ -1950,8 +1950,13 @@ void module_enable_ro(const struct module *mod, bool after_init)
+-	/*
+-	 * As long as only a single processor is running and the code is still
+-	 * not marked as RO, text_poke_early() can be used; Checking that
+-	 * system_state is SYSTEM_BOOTING guarantees it.
+-	 */
+-	if (system_state == SYSTEM_BOOTING)
+-		poker = text_poke_early;
+-
+ 	if (type == JUMP_LABEL_JMP) {
+ 		if (init) {
+ 			expect = default_nop; line = __LINE__;
+@@ -80,16 +71,19 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
+ 		bug_at((void *)jump_entry_code(entry), line);
+ 
+ 	/*
+-	 * Make text_poke_bp() a default fallback poker.
++	 * As long as only a single processor is running and the code is still
++	 * not marked as RO, text_poke_early() can be used; Checking that
++	 * system_state is SYSTEM_BOOTING guarantees it. It will be set to
++	 * SYSTEM_SCHEDULING before other cores are awaken and before the
++	 * code is write-protected.
+ 	 *
+ 	 * At the time the change is being done, just ignore whether we
+ 	 * are doing nop -> jump or jump -> nop transition, and assume
+ 	 * always nop being the 'currently valid' instruction
+-	 *
+ 	 */
+-	if (poker) {
+-		(*poker)((void *)jump_entry_code(entry), code,
+-			 JUMP_LABEL_NOP_SIZE);
++	if (init || system_state == SYSTEM_BOOTING) {
++		text_poke_early((void *)jump_entry_code(entry), code,
++				JUMP_LABEL_NOP_SIZE);
  		return;
+ 	}
  
- 	frob_text(&mod->core_layout, set_memory_ro);
-+	frob_text(&mod->core_layout, set_memory_x);
-+
- 	frob_rodata(&mod->core_layout, set_memory_ro);
-+
- 	frob_text(&mod->init_layout, set_memory_ro);
-+	frob_text(&mod->init_layout, set_memory_x);
-+
- 	frob_rodata(&mod->init_layout, set_memory_ro);
+@@ -101,7 +95,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
+ 			       enum jump_label_type type)
+ {
+ 	mutex_lock(&text_mutex);
+-	__jump_label_transform(entry, type, NULL, 0);
++	__jump_label_transform(entry, type, 0);
+ 	mutex_unlock(&text_mutex);
+ }
  
- 	if (after_init)
+@@ -131,5 +125,5 @@ __init_or_module void arch_jump_label_transform_static(struct jump_entry *entry,
+ 			jlstate = JL_STATE_NO_UPDATE;
+ 	}
+ 	if (jlstate == JL_STATE_UPDATE)
+-		__jump_label_transform(entry, type, text_poke_early, 1);
++		__jump_label_transform(entry, type, 1);
+ }
 -- 
 2.17.1
 
