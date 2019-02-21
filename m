@@ -4,90 +4,89 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 34F06C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 16:08:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E22CAC00319
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 16:25:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EE6E12083E
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 16:08:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EE6E12083E
+	by mail.kernel.org (Postfix) with ESMTP id A859F2077B
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 16:25:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A859F2077B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8BC178E0092; Thu, 21 Feb 2019 11:08:10 -0500 (EST)
+	id 246418E0093; Thu, 21 Feb 2019 11:25:23 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 86B2D8E0002; Thu, 21 Feb 2019 11:08:10 -0500 (EST)
+	id 1F5B88E0002; Thu, 21 Feb 2019 11:25:23 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 781CF8E0092; Thu, 21 Feb 2019 11:08:10 -0500 (EST)
+	id 0BDF98E0093; Thu, 21 Feb 2019 11:25:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BCB18E0002
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 11:08:10 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id k1so27050099qta.2
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 08:08:10 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D215A8E0002
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 11:25:22 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id y6so3548893qke.1
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 08:25:22 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=HMjCfQFzQ6fnd4OCrw+qWPIQWummTH7x+ymeNcIMDbo=;
-        b=jCIbQ7eNQkH17mzpDILJVBQImYlWFCNdlF5YiypWrrwu7oLes0OOVbGzlMp4dzzZw+
-         Hhy0TxTBitJSUSm6Bef0PQ5gCQh00zLtPQTJPptdGfUdSdbifI1y3IYBhPuXePrq6SNA
-         kXIiTyrvWAmP1EyqsohYsZ6xU3WuDk9uYTpoPUQgs4N9QyeXMYbJbgZ1sSNhIEe7RzNO
-         4IcaSHWE+ueYD+KF1fMIoW6D3o5GI+6jSK8GxfOeOMV0bnar0ZhJtCYaFKwGoBbvgz0W
-         72wS28ZkffYxIEJMLfTiAzPsYANfI6LNEpujzH/Z5ED5pJctmZW/RONkDXDUOgjcWmPR
-         3Viw==
+         :in-reply-to:user-agent;
+        bh=HHQY5veNASjO2pod73NRL7AN3uY1YlFiiKItnbJX9p4=;
+        b=GLVNFrrgj7ZYkwh3c8h0mXsVuQN4u5q2PpVq0RX84pOQ5b/h6JMmgy/D1EArzG5M2z
+         HHkdWafUW4IcvCkN5ut71faHMLN7esaQTVhwtKWB7At71GSVScIqEZdmlQDP2XxciUg+
+         9bktHAyL9nv2N9uueyJsrIptJKCklIcg3jHAGZ2SF1cKYkW6sXpjwWJXmCSXiHlFrCDn
+         R+QBSe0cRx6jRylWKfSpVMo7kI/on/2TFMOVNbru/3ZZA3ngu5WPcwcpWFJBYn/phOef
+         ekdwl2dFlrs9oXy2bi+t/brHB6fwqkb+qqpHkad9XSyn9rWqyDkDhl9yD8pQCF7+6YHt
+         E2cg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuaVyQxQQ4vKGEbR1CIMKnvY/FBIjEOlxpNfLMTYfFnqaCn7UsLw
-	H662XHlHrvwa80434bvokd2LSMhNiKcAoHXjyHeX1KdooLadpQ7U63dNuif0/YU5gttAdQbb1FK
-	u4g+hclZBaOM/XxgPTU9UWAtimNw0Dqy9dbrxDoWBhFOfmJewV/C/0FDga258p+NOuA==
-X-Received: by 2002:a37:d409:: with SMTP id l9mr30147554qki.211.1550765290058;
-        Thu, 21 Feb 2019 08:08:10 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbtysctfuaA1Vb00LGxUNfYoio3yqwhaPavzedHOwDY+KSWeL6KiXLh5OQrqsFyMpfThYU2
-X-Received: by 2002:a37:d409:: with SMTP id l9mr30147493qki.211.1550765289541;
-        Thu, 21 Feb 2019 08:08:09 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550765289; cv=none;
+X-Gm-Message-State: AHQUAua+yukL7LRTVV4xwCqwx9MFgXcvr6RiKtKPbmNNxRa6VG8mIPKW
+	gwDm5HFB7tUUAPxIEtMUEMy77M6xcNjGt9hvtPSgFN9NuJm7ovCjhDPLrBr7awUm7zh/Go/kCAV
+	NGBJ64NI/LqdpmloO1E5QDeIKZKsyl+6/V1CypGaIbHOhGhrBMCaQtXUqki5h4qcLBA==
+X-Received: by 2002:a37:61d3:: with SMTP id v202mr10256162qkb.217.1550766322478;
+        Thu, 21 Feb 2019 08:25:22 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IalVrR95l0U1OeLlfV1NHfBTV/+xDLf3uguY//xBluqkK29UR5cgjvZiP+L1J0YhdeP50zG
+X-Received: by 2002:a37:61d3:: with SMTP id v202mr10256106qkb.217.1550766321584;
+        Thu, 21 Feb 2019 08:25:21 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550766321; cv=none;
         d=google.com; s=arc-20160816;
-        b=qACkePsgUqqszpfCyyx8rkjVl33syzMKARvDpRy7gzfRYDY7Ne05b09e7dGD34/8kD
-         ntlrT0aQ2TiLIEgyP0OMYrSJZy4/y4wckzQfJBCZMBLk4vXUJti+DAtvo1IA7D+vzzyt
-         80Y+Z2uSmRDD8xJjOh/j/mdQVp+QdzoDvVO8SC+1f7IhrF0WDL610uMd6JFyirqtg8EJ
-         nWBY/kIXb6bDUFt3RJFgxoIb3iMewt8NWVcRxP9lxwGfIc8Ho1OS7C2bZb5fscaXvpqQ
-         4e6/5Lry8T3VoOKDhz5rXL8FbJjNZ1xQVVIMjnows/4flvblWVQtOC55wA8B4NGWn4JB
-         1T9w==
+        b=LR52Z3XbuDI5VZ8rNyofFbi4hWexzHni0hfn9QbEPunR+nXMPUPFXzb5W3/BYyYlrn
+         ew2gVsjPxwQjW3oZtKbUgWDfj8+PaqBuHsAGQ8npQAsmSXsAGFuvCOIl5OpvJFhVRVWA
+         Q+CrhEGwA4li3DohpcLOBxEQzGWa+oPdXITXA0mMMUlnwitpUYqr+sBsEobiC8Ck0fgG
+         WKHildqpPCtQ6GEx9UKipoOZwLCiR5GRmRWyyQsCv47iv6chA/zjgy12NnUA4xQvB6zV
+         lm43/JWTQ1aOuI5fPwoC5SBs1Q7aJDr1drUW8tPEmt6c7iweNEp8iBIzQDG7lF9gYLvh
+         zEUQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=HMjCfQFzQ6fnd4OCrw+qWPIQWummTH7x+ymeNcIMDbo=;
-        b=RUuGv9TI5eCCOo5psmK33KrsZ2UpCqRR9ay3Y90WAUApyX7b07mF3466+eMSHiSQwz
-         NBLtGRNCViN+fcoxwoURIRu/Dh9QpgDxdQMOEClV2l/QgwmD82gn3YVaVnyvSEI++Q+I
-         gzE/VIS8ZFLuYAsm3JIjwI9VdrJerSk4t2ck6DdQnxHsq7hPnvs6ZjDnO4UkkDpVaC3F
-         4R/EMwqETw0C4QsuyFjN3Z2HtND0+dH9wikpKGh7taT0/Bx44/AlZc4FqLhA05vlKpKD
-         N39Q/b6uj5GnWo9IEtbUMsFjsvdNkD4yvA39Ub7YzUHrsjR+UwF0WFa/5j584BJbUD+7
-         CK3w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=HHQY5veNASjO2pod73NRL7AN3uY1YlFiiKItnbJX9p4=;
+        b=WXpHmzAn6e/vO1K0Lo9wQcDVFCqcFqL5brw8jdA0jy0wE65DSTdAd9tGPGNoUNYvTW
+         Ic44UeY1xxuRb9u/DZ6MTtBZOlUjoJqd7k4yYuLtpYoeYiS9CjuSmfbYoE70lEtkn0Vq
+         /HhJGU/CXF5faMdILezkHP1OQVkTi9cIio0rpF1qEIjcU8Et8vvtfxRdf1IYbuTzyHAW
+         R13M1cq0JzOdhDbH9WRnnAflL0nfFUFeVzNrX2F+YRDeCsbXH0XyIu1SAu0aUIRIuUiw
+         NbwY6HbFvNPKfDqVEM4dLNIm8eXUMgrPE3Ej+9G7uEo0gG+c1SfPK5/MqVUWlN3ZOLtP
+         ZRGg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f2si2871519qve.19.2019.02.21.08.08.09
+        by mx.google.com with ESMTPS id y82si369287qkb.123.2019.02.21.08.25.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 08:08:09 -0800 (PST)
+        Thu, 21 Feb 2019 08:25:21 -0800 (PST)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 8E50F3001D5F;
-	Thu, 21 Feb 2019 16:08:08 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id E50913086275;
+	Thu, 21 Feb 2019 16:25:19 +0000 (UTC)
 Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 1988260C18;
-	Thu, 21 Feb 2019 16:07:59 +0000 (UTC)
-Date: Thu, 21 Feb 2019 11:07:58 -0500
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id F341D282E4;
+	Thu, 21 Feb 2019 16:25:12 +0000 (UTC)
+Date: Thu, 21 Feb 2019 11:25:11 -0500
 From: Jerome Glisse <jglisse@redhat.com>
 To: Peter Xu <peterx@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
@@ -103,78 +102,128 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	Mike Rapoport <rppt@linux.vnet.ibm.com>,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>,
-	Pavel Emelyanov <xemul@parallels.com>,
-	Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH v2 06/26] userfaultfd: wp: add helper for writeprotect
- check
-Message-ID: <20190221160757.GF2813@redhat.com>
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v2 07/26] userfaultfd: wp: hook userfault handler to
+ write protection fault
+Message-ID: <20190221162510.GG2813@redhat.com>
 References: <20190212025632.28946-1-peterx@redhat.com>
- <20190212025632.28946-7-peterx@redhat.com>
+ <20190212025632.28946-8-peterx@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190212025632.28946-7-peterx@redhat.com>
+In-Reply-To: <20190212025632.28946-8-peterx@redhat.com>
 User-Agent: Mutt/1.10.0 (2018-05-17)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Thu, 21 Feb 2019 16:08:08 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Thu, 21 Feb 2019 16:25:20 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 10:56:12AM +0800, Peter Xu wrote:
-> From: Shaohua Li <shli@fb.com>
+On Tue, Feb 12, 2019 at 10:56:13AM +0800, Peter Xu wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> add helper for writeprotect check. Will use it later.
+> There are several cases write protection fault happens. It could be a
+> write to zero page, swaped page or userfault write protected
+> page. When the fault happens, there is no way to know if userfault
+> write protect the page before. Here we just blindly issue a userfault
+> notification for vma with VM_UFFD_WP regardless if app write protects
+> it yet. Application should be ready to handle such wp fault.
 > 
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Pavel Emelyanov <xemul@parallels.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Shaohua Li <shli@fb.com>
+> v1: From: Shaohua Li <shli@fb.com>
+> 
+> v2: Handle the userfault in the common do_wp_page. If we get there a
+> pagetable is present and readonly so no need to do further processing
+> until we solve the userfault.
+> 
+> In the swapin case, always swapin as readonly. This will cause false
+> positive userfaults. We need to decide later if to eliminate them with
+> a flag like soft-dirty in the swap entry (see _PAGE_SWP_SOFT_DIRTY).
+> 
+> hugetlbfs wouldn't need to worry about swapouts but and tmpfs would
+> be handled by a swap entry bit like anonymous memory.
+> 
+> The main problem with no easy solution to eliminate the false
+> positives, will be if/when userfaultfd is extended to real filesystem
+> pagecache. When the pagecache is freed by reclaim we can't leave the
+> radix tree pinned if the inode and in turn the radix tree is reclaimed
+> as well.
+
+For real file system my generic page write protection patchset might
+be of use. See my last year posting of it. I intend to repost it in
+next few weeks as i am making steady progress on a cleaned and updated
+version of it.
+
+> 
+> The estimation is that full accuracy and lack of false positives could
+> be easily provided only to anonymous memory (as long as there's no
+> fork or as long as MADV_DONTFORK is used on the userfaultfd anonymous
+> range) tmpfs and hugetlbfs, it's most certainly worth to achieve it
+> but in a later incremental patch.
+> 
+> v3: Add hooking point for THP wrprotect faults.
+> 
+> CC: Shaohua Li <shli@fb.com>
 > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 > Signed-off-by: Peter Xu <peterx@redhat.com>
 
-Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
+I have some comments on this patch.
 
 > ---
->  include/linux/userfaultfd_k.h | 10 ++++++++++
->  1 file changed, 10 insertions(+)
+>  mm/memory.c | 12 +++++++++++-
+>  1 file changed, 11 insertions(+), 1 deletion(-)
 > 
-> diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
-> index 37c9eba75c98..38f748e7186e 100644
-> --- a/include/linux/userfaultfd_k.h
-> +++ b/include/linux/userfaultfd_k.h
-> @@ -50,6 +50,11 @@ static inline bool userfaultfd_missing(struct vm_area_struct *vma)
->  	return vma->vm_flags & VM_UFFD_MISSING;
->  }
->  
-> +static inline bool userfaultfd_wp(struct vm_area_struct *vma)
-> +{
-> +	return vma->vm_flags & VM_UFFD_WP;
-> +}
-> +
->  static inline bool userfaultfd_armed(struct vm_area_struct *vma)
+> diff --git a/mm/memory.c b/mm/memory.c
+> index e11ca9dd823f..00781c43407b 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2483,6 +2483,11 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 >  {
->  	return vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP);
-> @@ -94,6 +99,11 @@ static inline bool userfaultfd_missing(struct vm_area_struct *vma)
->  	return false;
->  }
+>  	struct vm_area_struct *vma = vmf->vma;
 >  
-> +static inline bool userfaultfd_wp(struct vm_area_struct *vma)
-> +{
-> +	return false;
-> +}
+> +	if (userfaultfd_wp(vma)) {
+> +		pte_unmap_unlock(vmf->pte, vmf->ptl);
+> +		return handle_userfault(vmf, VM_UFFD_WP);
+> +	}
 > +
->  static inline bool userfaultfd_armed(struct vm_area_struct *vma)
+>  	vmf->page = vm_normal_page(vma, vmf->address, vmf->orig_pte);
+>  	if (!vmf->page) {
+>  		/*
+> @@ -2800,6 +2805,8 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
+>  	inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
+>  	dec_mm_counter_fast(vma->vm_mm, MM_SWAPENTS);
+>  	pte = mk_pte(page, vma->vm_page_prot);
+> +	if (userfaultfd_wp(vma))
+> +		vmf->flags &= ~FAULT_FLAG_WRITE;
+
+This looks wrong to me by clearing FAULT_FLAG_WRITE you disable the
+call to do_wp_page() which would have handled the userfault write
+protect fault. It seems to me that you want to disable below code
+path to happen so it would be better to change below
+
+From
+>  	if ((vmf->flags & FAULT_FLAG_WRITE) && reuse_swap_page(page, NULL)) {
+
+To
+>  	if (!userfaultfd_wp(vma) && (vmf->flags & FAULT_FLAG_WRITE) && reuse_swap_page(page, NULL)) {
+
+
+>  		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
+>  		vmf->flags &= ~FAULT_FLAG_WRITE;
+> @@ -3684,8 +3691,11 @@ static inline vm_fault_t create_huge_pmd(struct vm_fault *vmf)
+>  /* `inline' is required to avoid gcc 4.1.2 build error */
+>  static inline vm_fault_t wp_huge_pmd(struct vm_fault *vmf, pmd_t orig_pmd)
 >  {
->  	return false;
+> -	if (vma_is_anonymous(vmf->vma))
+> +	if (vma_is_anonymous(vmf->vma)) {
+> +		if (userfaultfd_wp(vmf->vma))
+> +			return handle_userfault(vmf, VM_UFFD_WP);
+>  		return do_huge_pmd_wp_page(vmf, orig_pmd);
+> +	}
+>  	if (vmf->vma->vm_ops->huge_fault)
+>  		return vmf->vma->vm_ops->huge_fault(vmf, PE_SIZE_PMD);
+>  
 > -- 
 > 2.17.1
 > 
