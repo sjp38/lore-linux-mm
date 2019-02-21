@@ -3,95 +3,98 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA011C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 19:36:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B50CC00319
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 19:47:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 60DBE2077B
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 19:36:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60DBE2077B
+	by mail.kernel.org (Postfix) with ESMTP id D7DCE2081B
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 19:47:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D7DCE2081B
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C17BD8E00A5; Thu, 21 Feb 2019 14:36:28 -0500 (EST)
+	id 7F1FC8E00A9; Thu, 21 Feb 2019 14:47:17 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BC73A8E009E; Thu, 21 Feb 2019 14:36:28 -0500 (EST)
+	id 7A11B8E009E; Thu, 21 Feb 2019 14:47:17 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A8FFB8E00A5; Thu, 21 Feb 2019 14:36:28 -0500 (EST)
+	id 6B6348E00A9; Thu, 21 Feb 2019 14:47:17 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 63E6C8E009E
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 14:36:28 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id b4so21047551plb.9
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 11:36:28 -0800 (PST)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B7888E009E
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 14:47:17 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id 17so12974290pgw.12
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 11:47:17 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=Gb8z2lgqAiC6F+nD5n7Rzkgz8EGwT9MRBrddIqujyME=;
-        b=HmYZQq/8A3Xv0jCsQoOnZBN4ysjYeuWp/T64qpD+L4tJoAhUp/ZrjDhFriJFBZUt4f
-         aBHROBwJLSL+YhQ+kpiXBeg60Ca7lecF4RHc+4NyAq5VN5p2a/iUtF8jaRIOY+KnSSJ7
-         Jnx3fQ6F4X49VuokzHN5vZcGP2pEFYwa21e8CMTyrr3LYkECLkTolBLFa1zCZ7ggUMfB
-         xtVtDcUMrM0fZU7pt1e5nDK6+h5SvrNzR8E8uyTS8u4JWkgexiaSyLgIQrxeEFKM1tAa
-         0ZSUgAjQxi1AjlHrmWYpMqATV0L8RzUbZRSLCSEsn3zxkWFBXosUgOKQAk75hrmMj31A
-         1XFw==
+        bh=2Bd3yzDftsxFwBxfrvgbnKXass4MT1o7R2tEYBN9pRo=;
+        b=g/NphweYanZeUWtyJkJ8h5Xajg49kSzAK1rcxbVMP0iT9yUpeHXGAH3NPlQ9pGjWEX
+         DjAo0mKntV4l49FMw0KRmycYZHV1plznNa3/Is+9/w1j1uBKERncEcSC9umPZaL6elNv
+         FlLqKY7ZAIQtQiY2FvgrnYGIiCaQHhAM4b12jqTS+ByMQcCqUxoPWv7KDchKX3uQ+6sD
+         vRL3WkmBAPiVN9ukC2V+ji0xCqca+Ppf4ojB0Lhhy461/cKIGjaRkF1XpmBr03Z8Ygq2
+         d1oah6iMotqdQ9jAbfWkeiP6pwcxHzDmKgdfvNlCTHxgU/BX+J5fiR/3p8CNU7Zg3bt8
+         MfnQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: AHQUAuYzISWB8e53Ex4Vgvvo2Vqoff1ywimcYGXfqOKpdn2aJSRaj1qq
-	CoaewyVu1+XucdSQjzYVr6asbc23tQ6YsD6D4x9GhOcXbsvwMhjwDX3y9Zx7CCf38Xqu5q0D6z6
-	lc79kF8rhL4T0Rl+HgwlRK/3ub1fnWgZ04/Gzov2ltk4toTFvqKj7svTeIn67U9KhQw==
-X-Received: by 2002:a63:b242:: with SMTP id t2mr121216pgo.451.1550777787940;
-        Thu, 21 Feb 2019 11:36:27 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaiTWGDMXTQ0mscpeLoQGFvfj6PpiS9yDLmBVMcquh7reLYiocVBsg0of9M0YQv7EBp4mdU
-X-Received: by 2002:a63:b242:: with SMTP id t2mr121163pgo.451.1550777786910;
-        Thu, 21 Feb 2019 11:36:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550777786; cv=none;
+X-Gm-Message-State: AHQUAuYzKpfBfSur6FH16m9r9o0IXAOGPJGNM/StTBthOi3LEh7dfHEY
+	RaUi+Ql5M9UGDcVGlc1WL6VnckM+gfMKMRXadeGBz4v2gvcgGW4XXNhIBDf9XoW8jfRvu99Yhki
+	Fwco9zsRamu2OAt44MbNJw2YGQV0S9TxzEJsquxZRoGuEfiDHh+3Pvln5lFbRdUbgJQ==
+X-Received: by 2002:a17:902:9a09:: with SMTP id v9mr187644plp.225.1550778436835;
+        Thu, 21 Feb 2019 11:47:16 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Iacvs1pD1uoGllDtBXLE1Kv/nwwD7HSJUihlg3dNsZpjr2vUWgowTq4EepqN7VJ0sQB/fvI
+X-Received: by 2002:a17:902:9a09:: with SMTP id v9mr187583plp.225.1550778435844;
+        Thu, 21 Feb 2019 11:47:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550778435; cv=none;
         d=google.com; s=arc-20160816;
-        b=MMJ59PDYfouuBqlY1F2LrzVyVhHfH57lNpxQWCLd96DqZevxhpMfy3NBrveqGg8yVZ
-         fk7YO7ZAetRSsVMHgydIAniWRkEloVZP5LIi+geJUzUoR3/uPjW8YRghewLtczNhm7Sv
-         ckK1CJvDA2IDxzY5NCgQjwvBnOjjkTteNk9w2oILj5ciEakVESb/smHY71LmgRIwrIdQ
-         gfCS0vBbpe5GgVvGiM1KURPehWe0bERg64D2OzvU7foV1y74WO4qBdI+cTwddG7MNgl2
-         vRMOKshWyDJUAaZbr1FscBb4ssMiL5ZXigYYlniWIAKu97jqdYcBzYXlMJo+Z1tOACPZ
-         9n9w==
+        b=D5Rq6XlwFKAY04Mqrvaufn8plJuZXAk2REk8kjMdGSqKEHLUjv1j4LgfLIdpw+dxXg
+         O2OoVcJGODqC7fRC2U5cO6wQELr9QanVOZgsbA2Wod9sXd7S0jrybNHKEADZg+d4M0T3
+         uxMggBUeJq56iNvLcS9G3wfJbETKEFEHs9VkNr0osP9gTR984A8LWda4aOt9qSHVs2O4
+         y4Ur8ac05UOGHyNK3pYNBOOYeqLd2yUkrQ6379R1w5vQuSh4QDPb8p1ahLpXbs4X2lIT
+         kyxkRTnPWeZv9qAXQscr71Elvg8JbvuH2CSEDaH/zP22/J6/QpeTomD1HqXCvXPbBXtC
+         /amw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date;
-        bh=Gb8z2lgqAiC6F+nD5n7Rzkgz8EGwT9MRBrddIqujyME=;
-        b=UpgqkhjV9/ZnHrd0zj3OqHx+fGMxdOMRUtU6ZMVIEguWpAW4YZO+r+xDxPLshaQAC7
-         rhuG0g2yEkbg71kygqZQFBlFLr2pRylFV7txlFg3NXtsd+CozduLZXyOBW49taXRs6QU
-         ozWJPhubNO7lzQhULdCkfbIKRY+MWJ1CIObfdClnf/Xlc4DKx2Qsz6aUOg7V9Mu2cVec
-         LTQxEYfQzguY+pkOvU3a80q/yXuEI0wls5ZqSthPOJiDlPDi7Vh+eYClm69rEhE4Bbpa
-         5ooDQXNbgkSVuAjtvincpMNMA7B6GNIuNL3APcT1gb+WZC/aplvj4DrjI+w4roORBBQw
-         o04g==
+        bh=2Bd3yzDftsxFwBxfrvgbnKXass4MT1o7R2tEYBN9pRo=;
+        b=WbZYMAY3Bk+6aNVqITpCBTWj9hlQcGDkpgnCVT1FU1TtOVBUiX4TjOAcR0MO4kdHsB
+         LT0vvNq0E7qVJSohpaF1WTMA7xSclWKR79n0NWlQ71HltYts6v9rkifGbErfA6kDQo7v
+         CAci8vLcA1OdDrvkU4+NnzfMdUG8X1BNLJ/J7KsnfeuSCM/vldYeVSNmyBD5iA3/IwQQ
+         U3OOX4/+fTDCh5uCT2u/JgYxLMIo0839AwwIbU6zRCIilo29//C29sy7mZOu++B5FTUR
+         NTGSMpKiHKZiQMuLAz4w/Lgwf7lIBoVZBjubYyf0NdJ3WUiaMcGcEHdLd5vqg1L5SN3G
+         0DZw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id h3si16837141pgl.468.2019.02.21.11.36.26
+        by mx.google.com with ESMTPS id k19si20991058pfi.258.2019.02.21.11.47.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 11:36:26 -0800 (PST)
+        Thu, 21 Feb 2019 11:47:15 -0800 (PST)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id E44E33B90;
-	Thu, 21 Feb 2019 19:36:25 +0000 (UTC)
-Date: Thu, 21 Feb 2019 11:36:24 -0800
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 0E0D93BD2;
+	Thu, 21 Feb 2019 19:47:15 +0000 (UTC)
+Date: Thu, 21 Feb 2019 11:47:13 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-To: syzbot <syzbot+ca95b2b7aef9e7cbd6ab@syzkaller.appspotmail.com>
-Cc: amir73il@gmail.com, darrick.wong@oracle.com, david@fromorbit.com,
- hannes@cmpxchg.org, hughd@google.com, jrdr.linux@gmail.com,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- syzkaller-bugs@googlegroups.com, willy@infradead.org, Jan Kara
- <jack@suse.cz>
-Subject: Re: BUG: unable to handle kernel NULL pointer dereference in
- __generic_file_write_iter
-Message-Id: <20190221113624.284fe267e73752639186a563@linux-foundation.org>
-In-Reply-To: <0000000000001aab8b0582689e11@google.com>
-References: <0000000000001aab8b0582689e11@google.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko
+ <mhocko@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrea
+ Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov"
+ <kirill.shutemov@linux.intel.com>, Mel Gorman
+ <mgorman@techsingularity.net>, Davidlohr Bueso <dave@stgolabs.net>,
+ stable@vger.kernel.org
+Subject: Re: [PATCH] huegtlbfs: fix races and page leaks during migration
+Message-Id: <20190221114713.ee2a38267f75ef1a2fd6de44@linux-foundation.org>
+In-Reply-To: <7534d322-d782-8ac6-1c8d-a8dc380eb3ab@oracle.com>
+References: <803d2349-8911-0b47-bc5b-4f2c6cc3f928@oracle.com>
+	<20190212221400.3512-1-mike.kravetz@oracle.com>
+	<20190220220910.265bff9a7695540ee4121b80@linux-foundation.org>
+	<7534d322-d782-8ac6-1c8d-a8dc380eb3ab@oracle.com>
 X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -102,110 +105,78 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Feb 2019 06:52:04 -0800 syzbot <syzbot+ca95b2b7aef9e7cbd6ab@syzkaller.appspotmail.com> wrote:
+On Thu, 21 Feb 2019 11:11:06 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-> Hello,
 > 
-> syzbot found the following crash on:
+> Sorry for the churn.  As I find and fix one issue I seem to discover another.
+> There is still at least one more issue with private pages when COW comes into
+> play.  I continue to work that.  I wanted to send this patch earlier as it
+> is pretty easy to hit the bugs if you try.  If you would prefer another
+> approach, let me know.
 > 
-> HEAD commit:    4aa9fc2a435a Revert "mm, memory_hotplug: initialize struct..
-> git tree:       upstream
-> console output: https://syzkaller.appspot.com/x/log.txt?x=1101382f400000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=4fceea9e2d99ac20
-> dashboard link: https://syzkaller.appspot.com/bug?extid=ca95b2b7aef9e7cbd6ab
-> compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-> 
-> Unfortunately, I don't have any reproducer for this crash yet.
 
-Not understanding.  That seems to be saying that we got a NULL pointer
-deref in __generic_file_write_iter() at
+No probs, the bug doesn't seem to be causing a lot of bother out there
+and it's cc:stable; there's time to get this right ;)
 
-                written = generic_perform_write(file, from, iocb->ki_pos);
+Here's the delta I queued:
 
-which isn't possible.
+--- a/mm/hugetlb.c~huegtlbfs-fix-races-and-page-leaks-during-migration-update
++++ a/mm/hugetlb.c
+@@ -3729,6 +3729,7 @@ static vm_fault_t hugetlb_no_page(struct
+ 	pte_t new_pte;
+ 	spinlock_t *ptl;
+ 	unsigned long haddr = address & huge_page_mask(h);
++	bool new_page = false;
+ 
+ 	/*
+ 	 * Currently, we are forced to kill the process in the event the
+@@ -3790,6 +3791,7 @@ retry:
+ 		}
+ 		clear_huge_page(page, address, pages_per_huge_page(h));
+ 		__SetPageUptodate(page);
++		new_page = true;
+ 
+ 		if (vma->vm_flags & VM_MAYSHARE) {
+ 			int err = huge_add_to_page_cache(page, mapping, idx);
+@@ -3861,8 +3863,9 @@ retry:
+ 
+ 	spin_unlock(ptl);
+ 
+-	/* May already be set if not newly allocated page */
+-	set_page_huge_active(page);
++	/* Make newly allocated pages active */
++	if (new_page)
++		set_page_huge_active(page);
+ 
+ 	unlock_page(page);
+ out:
+--- a/mm/migrate.c~huegtlbfs-fix-races-and-page-leaks-during-migration-update
++++ a/mm/migrate.c
+@@ -1315,6 +1315,16 @@ static int unmap_and_move_huge_page(new_
+ 		lock_page(hpage);
+ 	}
+ 
++	/*
++	 * Check for pages which are in the process of being freed.  Without
++	 * page_mapping() set, hugetlbfs specific move page routine will not
++	 * be called and we could leak usage counts for subpools.
++	 */
++	if (page_private(hpage) && !page_mapping(hpage)) {
++		rc = -EBUSY;
++		goto out_unlock;
++	}
++
+ 	if (PageAnon(hpage))
+ 		anon_vma = page_get_anon_vma(hpage);
+ 
+@@ -1345,6 +1355,7 @@ put_anon:
+ 		put_new_page = NULL;
+ 	}
+ 
++out_unlock:
+ 	unlock_page(hpage);
+ out:
+ 	if (rc != -EAGAIN)
+_
 
-I'm not seeing recent changes in there which could have caused this.  Help.
-
-
-> IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+ca95b2b7aef9e7cbd6ab@syzkaller.appspotmail.com
-> 
-> BUG: unable to handle kernel NULL pointer dereference at 0000000000000000
-> #PF error: [INSTR]
-> PGD a7ea0067 P4D a7ea0067 PUD 81535067 PMD 0
-> Oops: 0010 [#1] PREEMPT SMP KASAN
-> CPU: 0 PID: 15924 Comm: syz-executor0 Not tainted 5.0.0-rc4+ #50
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-> Google 01/01/2011
-> RIP: 0010:          (null)
-> Code: Bad RIP value.
-> RSP: 0018:ffff88804c3d7858 EFLAGS: 00010246
-> RAX: 0000000000000000 RBX: ffffffff885aeb60 RCX: 000000000000005b
-> RDX: 0000000000000000 RSI: ffff88807ec22930 RDI: ffff8880a59bdcc0
-> RBP: ffff88804c3d79b8 R08: 0000000000000000 R09: ffff88804c3d7910
-> R10: ffff8880835ca200 R11: 0000000000000000 R12: 000000000000005b
-> R13: ffff88804c3d7c98 R14: dffffc0000000000 R15: 0000000000000000
-> FS:  00007f3456db4700(0000) GS:ffff8880ae600000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: ffffffffffffffd6 CR3: 00000000814ac000 CR4: 00000000001406f0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> Call Trace:
->   __generic_file_write_iter+0x25e/0x630 mm/filemap.c:3333
->   ext4_file_write_iter+0x37a/0x1410 fs/ext4/file.c:266
->   call_write_iter include/linux/fs.h:1862 [inline]
->   new_sync_write fs/read_write.c:474 [inline]
->   __vfs_write+0x764/0xb40 fs/read_write.c:487
->   vfs_write+0x20c/0x580 fs/read_write.c:549
->   ksys_write+0x105/0x260 fs/read_write.c:598
->   __do_sys_write fs/read_write.c:610 [inline]
->   __se_sys_write fs/read_write.c:607 [inline]
->   __x64_sys_write+0x73/0xb0 fs/read_write.c:607
->   do_syscall_64+0x1a3/0x800 arch/x86/entry/common.c:290
->   entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> RIP: 0033:0x458089
-> Code: 6d b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7  
-> 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff  
-> ff 0f 83 3b b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00
-> RSP: 002b:00007f3456db3c78 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
-> RAX: ffffffffffffffda RBX: 0000000000000003 RCX: 0000000000458089
-> RDX: 000000000000005b RSI: 0000000020000240 RDI: 0000000000000003
-> RBP: 000000000073bf00 R08: 0000000000000000 R09: 0000000000000000
-> R10: 0000000000000000 R11: 0000000000000246 R12: 00007f3456db46d4
-> R13: 00000000004c7450 R14: 00000000004dce68 R15: 00000000ffffffff
-> Modules linked in:
-> CR2: 0000000000000000
-> ---[ end trace 5cac9d2c75a59916 ]---
-> kobject: 'loop5' (000000004426a409): kobject_uevent_env
-> RIP: 0010:          (null)
-> Code: Bad RIP value.
-> RSP: 0018:ffff88804c3d7858 EFLAGS: 00010246
-> RAX: 0000000000000000 RBX: ffffffff885aeb60 RCX: 000000000000005b
-> kobject: 'loop5' (000000004426a409): fill_kobj_path: path  
-> = '/devices/virtual/block/loop5'
-> RDX: 0000000000000000 RSI: ffff88807ec22930 RDI: ffff8880a59bdcc0
-> kobject: 'loop2' (00000000b82e0c58): kobject_uevent_env
-> kobject: 'loop2' (00000000b82e0c58): fill_kobj_path: path  
-> = '/devices/virtual/block/loop2'
-> RBP: ffff88804c3d79b8 R08: 0000000000000000 R09: ffff88804c3d7910
-> R10: ffff8880835ca200 R11: 0000000000000000 R12: 000000000000005b
-> R13: ffff88804c3d7c98 R14: dffffc0000000000 R15: 0000000000000000
-> kobject: 'loop5' (000000004426a409): kobject_uevent_env
-> FS:  00007f3456db4700(0000) GS:ffff8880ae600000(0000) knlGS:0000000000000000
-> kobject: 'loop5' (000000004426a409): fill_kobj_path: path  
-> = '/devices/virtual/block/loop5'
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 00000000022029a0 CR3: 00000000814ac000 CR4: 00000000001406f0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> 
-> 
-> ---
-> This bug is generated by a bot. It may contain errors.
-> See https://goo.gl/tpsmEJ for more information about syzbot.
-> syzbot engineers can be reached at syzkaller@googlegroups.com.
-> 
-> syzbot will keep track of this bug report. See:
-> https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with  
-> syzbot.
 
