@@ -2,169 +2,194 @@ Return-Path: <SRS0=vS5V=Q4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6ADE2C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 01:08:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AD6DEC10F07
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 01:22:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 11DB52084F
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 01:08:56 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="q0w+laaM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11DB52084F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 57E512086D
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 01:22:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57E512086D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 803F88E0052; Wed, 20 Feb 2019 20:08:56 -0500 (EST)
+	id AE0EE8E0053; Wed, 20 Feb 2019 20:22:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7DA378E0002; Wed, 20 Feb 2019 20:08:56 -0500 (EST)
+	id A8F928E0002; Wed, 20 Feb 2019 20:22:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6F1E38E0052; Wed, 20 Feb 2019 20:08:56 -0500 (EST)
+	id 957778E0053; Wed, 20 Feb 2019 20:22:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 414168E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 20:08:56 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id 203so4071932qke.7
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 17:08:56 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6888E8E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 20:22:52 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id i66so4100614qke.21
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 17:22:52 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=LgKFH1mGi8c00OC5CaAghfF2/QymbWXD9Kas2gMOlVs=;
-        b=tZOps5WFmyP1uaL/wP4/3Iy84eKSZJo99Czb0lDSvH0mIVlVkvlixsm9eP7OzKLa0Y
-         bPHEAiB03kVaAcYH3ZLv7SWkGCwROPM4nhNZeE2gRnRRSE2utJmPa0jZJsMwR1XjIkUE
-         n4reTSWyNbV2/3H1t+tUkrOzVCyqDWtNio/VPz7iFeBR1WsNkmYYOVAnLA/arWq/79zt
-         KZB+QIE4PfJk6OG2Osz4nQQYXCI4nCXoxVnmP7/DASP/Lj42+afqXC44Fru2sRgMw17C
-         W5RFtUVLWFzbRIz9GXbHBCodJbq7ndFo2lZ/g35CPGo2JntPNLMXgXRCJsMDQD0+AKEv
-         r+uw==
-X-Gm-Message-State: AHQUAuaBEENOCv1BuCmh4DKo9sEVi5MQuMpM1D7OKVUqLnGuVg3mY0yJ
-	QKZYNPDmnw4HsXK1C/CzBD9c47XFDEcs1J+Kxil4yxVxluj0IzvGove64wESfY0IIOh8kDfBOma
-	jyojeRlw5mKBq83R5vzf4Gbo3Y6wZFFc4iOXuvofyHay9Ye+TzfqwvNgXKdJBLzlmjEAfQoY/6H
-	xs8l6+MucHmCSvCs3EnAuw3Apl2z2/nu0AFslARL26//0LHhA3bbMGYo5yYVGjssAOOU30Bl57/
-	LqYFCSOdpACWNwGgWLFmgpin33Xark5Tq0t1a/tDUhzPCpHrxDW9WgwK+NNkXuCpeYsKqg7O2qq
-	pzTRq0vT9Tfo9uFO8MtWhQxhkH85z8E/OOhCImbQfl4IlSrFuznyBCNSoBfpUL9y0PCDVbm4hM7
-	C
-X-Received: by 2002:ac8:2a7b:: with SMTP id l56mr29820330qtl.270.1550711336009;
-        Wed, 20 Feb 2019 17:08:56 -0800 (PST)
-X-Received: by 2002:ac8:2a7b:: with SMTP id l56mr29820305qtl.270.1550711335400;
-        Wed, 20 Feb 2019 17:08:55 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550711335; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=xMqOPzBoApQvxosqcRE2NLvJ4nK6olAuOVWHYAVPIUI=;
+        b=OPnC/iJF/k/r/DbvoD6spUbwWaKmepS9AALZ0PBbNA3oCpsTV4+VM/Ql8DvkvxbSey
+         OL5GdexBf2r3cO4vOEyhrowuPrT/1POs2Nfozr/XTZucpr5KOy4M/8kzMlciYzXFkSV0
+         0qjsnoMwcOH2RlXZH4cNJF9a7ZrJX1JGZkSx44rPP/3o6GCWu5vHLcjQH4GPCP4JLQTn
+         NFnr+5oIa/JosDrlcLlhYP9IWIV3O4cfIDyC8++KmyszjsxoHe944E/y7aTgNCDHRVZ2
+         JckLJk6qjYvmO30N2e7l/PQO3BWax+58UDm7ZXlXOaeKndPBBWMPrYg1/bgcTqbXX5/5
+         V3Gg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAua/mwgGtfxIui41VTcIAFsLCPgV8PaK30VAcjduq74EdsdDI1gz
+	OF1aDaCp5/hgTpq95tZjHt9doVlk+a4swlWrMPobq1NL1zR5+UOImezTo5E5Mvyw07YgyqIVtrl
+	PUFyhTt+iZpodCPrucX2ZOajPd7f9gG+ZkYxZ7KvD6JRctBn2uiv1DJgjnx0CKfpGPA==
+X-Received: by 2002:a0c:d165:: with SMTP id c34mr27873164qvh.64.1550712172123;
+        Wed, 20 Feb 2019 17:22:52 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ibuk8Qw1+TRPBUes5/NVqjpzFohaSYSFLbw+AmUvQzWSc/aEM16FOveA5bZ0V8hLfyVe80U
+X-Received: by 2002:a0c:d165:: with SMTP id c34mr27873138qvh.64.1550712171436;
+        Wed, 20 Feb 2019 17:22:51 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550712171; cv=none;
         d=google.com; s=arc-20160816;
-        b=gkiaW5w4TMZ4osvavZsXAl4iMiYh4o8n740H4d99K0bFzt5kDU/jA6vDT8q4ydP76F
-         hMDko7dSklRRAa3wWpqf4VS3vQjQInPSlXznKkIJ9mmRCCUehcymh25ar1s4jbEzXDFq
-         +irVp/gFfLgrXI90wyNqumkswKxROWf++rr0NB1BUOqLWqfcv519SHMQLVScvpxSfuDY
-         pJHGF+KSxJxn5Gv4gaAT5KXk2V7l6ceOscpv20uGjoz6hQBmuES/8ym/vUubThpSHGfX
-         Odl5n2auxE5sH0JCGfW7WDJGhc2UYnNvKBUY9iYDN2rX/Jh4Pm45iRnBt65Auj93RbeM
-         RxIQ==
+        b=db6NiY+JBh1JGN5I+mA8WKDhs+JLl8Zd88owdNb6iNqoMKVgmXLzHL5LeuOQKrjAgf
+         KzxYlx44fPLgm9C3d1Xmndgm/VMh7AFwEW+5SFQcIN+cMAJPxYuCDQD+NPgKZCJomHse
+         RUGhdaX6B5l6l7yjcXS9c0lt16102RDsACwPubKHhSuF4kqfTsMdAxPKywxMQ5s+WmAq
+         bjKMHr9Q8vbrxKKvzGjjJY6Ah244rQAH/twF6g71SPzgpaWHeLLEj1rPQXFPbVx+ymGP
+         a5ZKDN4OikS4qm9KwcxJAemLUMF4d9SPWupmOX0WK6KTjx0DY6NnjSBlA2oMUrHhz3JK
+         BIgw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=LgKFH1mGi8c00OC5CaAghfF2/QymbWXD9Kas2gMOlVs=;
-        b=groed3OK2pF9RONUIzl9S85cfhDCvMANvOT5Ne62iaL0lw1eK22xUxEUsQWBgdzgC6
-         XtK0/XSj3dwNLRkf8xwCmjuiCNDoFIvuvwyhDdgLzCqIV6+GNGg2Ukn39aWMMpKgAfaU
-         xkPF6CEEtlCI5PFBhTz2kl3pJVN16VjoC3ZGBtltQDK8tKCDlwrn4ngwUBBo3PaXB2HN
-         zst+kfc03q1QXaY8YRhVLBv6jFdtvSgSnD6Wjyev3yyYTO7U2OhLJ5A+XqREpJUT9B9B
-         ZrUb+7/WbY4zBVc4zVPrmtzGdgt6f+AewoN4MhFK64nBtmSWuruJcMdlswGQkYZbQOIZ
-         +vTQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=xMqOPzBoApQvxosqcRE2NLvJ4nK6olAuOVWHYAVPIUI=;
+        b=erOqe5ExSLzmwnV5k39iIFaGMKANE36cOlBhSuovj2dVC1uUgPbFQteoMJgoar9fiW
+         FuRLBp4AAxCHh3CXnOZxdocTQf5wUhfuIJU68PJA3EzoRsPDQgUIWb9KiEzNEbM5DNP5
+         3m9YvWGPPt0AwlVaX2lrobtkEGKADFHOlvl3zkUton2SLTKLjA+7D3K3iSyXmKX9aZ1s
+         /zHcELBgAlEvAz3wKzDZINW6yYZBlIj2iMr07ixv8sySr7sRW/km1SZBLF2Gf1JxkUW6
+         usurpmTScGxLkaytVEfrHBdU9ZoovIiwO60dpYfF9j5rpvZxgdqFH+qCMv4RILOVoDL2
+         5uyg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=q0w+laaM;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h22sor24122921qtc.28.2019.02.20.17.08.55
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r1si6446469qte.11.2019.02.20.17.22.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Feb 2019 17:08:55 -0800 (PST)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=q0w+laaM;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:to:cc:subject:date:message-id;
-        bh=LgKFH1mGi8c00OC5CaAghfF2/QymbWXD9Kas2gMOlVs=;
-        b=q0w+laaMsCEL6A/1PgH9jnG3QJWlLo2ITG/6YD8f0I8tidgiTjb55RhFpOgRi5d4Q/
-         eT9p0ByZyVxZfv+gJfoIPxKRY1D3YUzfPd9P0i1XuFuHzN6qL78Y8YB8pTqoJk8sSCFB
-         aNJ1VrSsuADQOKM6i0dWqp9tzeIjPUnu4UhZphutYwoL2kCZ5D5Go01kask6o1Qlbm6S
-         92c0Np3OLeAvbBn04jFr9TyDxZK0IJ/LoKwIm8IC9Xatgs22GmUb/ZE1Hg2zFESqfxQx
-         YjccqC3vaWYYeRe3XaKN2Ix+KtN7e1QU5/sAPaJnh1iUBm1GI/brMx1IMJg9fO1bD+Ry
-         ovsw==
-X-Google-Smtp-Source: AHgI3IYy3raoHx+Iskr/hYqAnmynUTEF231M3/+3RbDjlKaPoI058zx9Wua90jyIaG1/0a69PKV0dQ==
-X-Received: by 2002:ac8:35f8:: with SMTP id l53mr30259475qtb.15.1550711335043;
-        Wed, 20 Feb 2019 17:08:55 -0800 (PST)
-Received: from ovpn-120-150.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id q184sm10504681qkb.23.2019.02.20.17.08.53
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Feb 2019 17:08:54 -0800 (PST)
-From: Qian Cai <cai@lca.pw>
-To: akpm@linux-foundation.org
-Cc: dave@stgolabs.net,
-	linux-mm@kvack.org,
+        Wed, 20 Feb 2019 17:22:51 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 8002A81DE9;
+	Thu, 21 Feb 2019 01:22:50 +0000 (UTC)
+Received: from localhost.localdomain.com (ovpn-120-249.rdu2.redhat.com [10.10.120.249])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 3889360BF2;
+	Thu, 21 Feb 2019 01:22:46 +0000 (UTC)
+From: jglisse@redhat.com
+To: Paolo Bonzini <pbonzini@redhat.com>,
+	=?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>,
+	kvm@vger.kernel.org
+Cc: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org,
-	Qian Cai <cai@lca.pw>
-Subject: [PATCH -next] mm/debug: use lx% for atomic64_read() on ppc64le
-Date: Wed, 20 Feb 2019 20:08:19 -0500
-Message-Id: <20190221010819.92039-1-cai@lca.pw>
-X-Mailer: git-send-email 2.17.2 (Apple Git-113)
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Peter Xu <peterx@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: [PATCH v2 0/1]  Restore change_pte optimization
+Date: Wed, 20 Feb 2019 20:22:26 -0500
+Message-Id: <20190221012227.13236-1-jglisse@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Thu, 21 Feb 2019 01:22:50 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-atomic64_read() on ppc64le returns "long int" while "long long" seems on
-all other arches, so deal the special case for ppc64le.
+From: Jérôme Glisse <jglisse@redhat.com>
 
-In file included from ./include/linux/printk.h:7,
-                 from ./include/linux/kernel.h:15,
-                 from mm/debug.c:9:
-mm/debug.c: In function 'dump_mm':
-./include/linux/kern_levels.h:5:18: warning: format '%llx' expects
-argument of type 'long long unsigned int', but argument 19 has type
-'long int' [-Wformat=]
- #define KERN_SOH "\001"  /* ASCII Start Of Header */
-                  ^~~~~~
-./include/linux/kern_levels.h:8:20: note: in expansion of macro
-'KERN_SOH'
- #define KERN_EMERG KERN_SOH "0" /* system is unusable */
-                    ^~~~~~~~
-./include/linux/printk.h:297:9: note: in expansion of macro 'KERN_EMERG'
-  printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
-         ^~~~~~~~~~
-mm/debug.c:133:2: note: in expansion of macro 'pr_emerg'
-  pr_emerg("mm %px mmap %px seqnum %llu task_size %lu\n"
-  ^~~~~~~~
-mm/debug.c:140:17: note: format string is defined here
-   "pinned_vm %llx data_vm %lx exec_vm %lx stack_vm %lx\n"
-              ~~~^
-              %lx
+This patch is on top of my patchset to add context information to
+mmu notifier [1] you can find a branch with everything [2]. It has
+been tested with qemu/KVM building kernel within the guest and also
+running a benchmark which the result are given below.
 
-Fixes: 70f8a3ca68d3 ("mm: make mm->pinned_vm an atomic64 counter")
-Signed-off-by: Qian Cai <cai@lca.pw>
----
- mm/debug.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+The change_pte() callback is impaired by the range invalidation call-
+back within KVM as the range invalidation callback as those do fully
+invalidate the secondary mmu. This means that there is a window between
+the range_start callback and the change_pte callback where the secondary
+mmu for the address is empty. Guest can fault on that address during
+that window.
 
-diff --git a/mm/debug.c b/mm/debug.c
-index c0b31b6c3877..e4ec3d68833e 100644
---- a/mm/debug.c
-+++ b/mm/debug.c
-@@ -137,7 +137,12 @@ void dump_mm(const struct mm_struct *mm)
- 		"mmap_base %lu mmap_legacy_base %lu highest_vm_end %lu\n"
- 		"pgd %px mm_users %d mm_count %d pgtables_bytes %lu map_count %d\n"
- 		"hiwater_rss %lx hiwater_vm %lx total_vm %lx locked_vm %lx\n"
--		"pinned_vm %llx data_vm %lx exec_vm %lx stack_vm %lx\n"
-+#ifdef __powerpc64__
-+		"pinned_vm %lx "
-+#else
-+		"pinned_vm %llx "
-+#endif
-+		"data_vm %lx exec_vm %lx stack_vm %lx\n"
- 		"start_code %lx end_code %lx start_data %lx end_data %lx\n"
- 		"start_brk %lx brk %lx start_stack %lx\n"
- 		"arg_start %lx arg_end %lx env_start %lx env_end %lx\n"
+That window can last for some times if the kernel code which is
+doing the invalidation is interrupted or if they are other mmu
+listener for the process that might sleep within their range_start
+callback.
+
+With this patch KVM will ignore the range_start and range_end call-
+back and will rely solely on the change_pte callback to update the
+secondary mmu. This means that the secondary mmu never have an empty
+entry for the address between range_start and range_end and hence
+the guest will not have a chance to fault.
+
+This optimization is not valid for all the mmu notifier cases and
+thanks to the patchset that add context informations to the mmu
+notifier [1] we can now identify within KVM when it is safe to rely
+on this optimization.
+
+Roughly it is safe when:
+    - going from read only to read and write (same or different pfn)
+    - going from read and write to read only same pfn
+    - going from read only to read only different pfn
+
+Longer explaination in [1] and [3].
+
+Running ksm02 from ltp gives the following results:
+
+before  mean  {real: 675.460632, user: 857.771423, sys: 215.929657, npages: 4773.066895}
+before  stdev {real:  37.035435, user:   4.395942, sys:   3.976172, npages:  675.352783}
+after   mean  {real: 672.515503, user: 855.817322, sys: 200.902710, npages: 4899.000000}
+after   stdev {real:  37.340954, user:   4.051633, sys:   3.894153, npages:  742.413452}
+
+Roughly 7%-8% less time spent in the kernel. So we are saving few
+cycles (this is with KSM enabled on the host and ksm sleep set to
+0). Dunno how this translate to real workload.
+
+
+Note that with the context information further optimization are now
+possible within KVM. For instance you can find out if a range is
+updated to read only (ie no pfn change just protection change) and
+update the secondary mmu accordingly.
+
+You can also identify munmap()/mremap() syscall and only free up the
+resources you have allocated for the range (like freeing up secondary
+page table for the range or data structure) when it is an munmap or
+a mremap. Today my understanding is that kvm_unmap_hva_range() will
+free up resources always assuming it is an munmap of some sort. So
+for mundane invalidation (like migration, reclaim, mprotect, fork,
+...) KVM is freeing up potential mega bytes of structure that it will
+have to re-allocate shortly there after (see [4] for WIP example).
+
+Cheers,
+Jérôme
+
+[1] https://lkml.org/lkml/2019/2/19/752
+[2] https://cgit.freedesktop.org/~glisse/linux/log/?h=mmu-notifier-v05
+[3] https://lkml.org/lkml/2019/2/19/754
+[4] https://cgit.freedesktop.org/~glisse/linux/log/?h=wip-kvm-mmu-notifier-opti
+
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Peter Xu <peterx@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+
+Jérôme Glisse (1):
+  kvm/mmu_notifier: re-enable the change_pte() optimization.
+
+ virt/kvm/kvm_main.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
 -- 
-2.17.2 (Apple Git-113)
+2.17.2
 
