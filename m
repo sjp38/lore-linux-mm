@@ -2,178 +2,215 @@ Return-Path: <SRS0=vS5V=Q4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4B99EC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 01:58:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6799CC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 02:36:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EB4022086D
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 01:58:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F26D22086C
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 02:36:52 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="NTBxFLX5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB4022086D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="RRDQaL2Y"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F26D22086C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 78FEC8E0056; Wed, 20 Feb 2019 20:58:45 -0500 (EST)
+	id 63B818E0057; Wed, 20 Feb 2019 21:36:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 73F0C8E0002; Wed, 20 Feb 2019 20:58:45 -0500 (EST)
+	id 5C3878E0002; Wed, 20 Feb 2019 21:36:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 608558E0056; Wed, 20 Feb 2019 20:58:45 -0500 (EST)
+	id 4B2D48E0057; Wed, 20 Feb 2019 21:36:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 324788E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 20:58:45 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id k37so25246815qtb.20
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 17:58:45 -0800 (PST)
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D19CE8E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 21:36:51 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id 202so2660912ljj.10
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 18:36:51 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=SNMyx3mvyEhumH87qacwojMOgIg98VYddiiEUf2zBNE=;
-        b=Na0ouralECNAx3l5CX8SQoGZRlkh9tCYnUqo/Rz1D+9xcYNilNz1sOyWGr1MtKO6Nd
-         fJdzFQi0JtIukThI670mli3tG13xbrQJ9KyQXibUSq0beX+hjfwW9Hk++loT+m+wZDNS
-         SKfifJuxFrvDSq2njdFU97/DzDxKbDx89SOewY31lbad/Og+kcfjsTVGH8XKzY8nKtlX
-         nfENLdZ30pzEiKfQclefMpxlGum/QYToIWvhX8f1aEwspP5L8GuXgW+hIhu4C8GXWnk+
-         /URYOsZ6eLVogHA+iXb/Fnyq+Jwt3jxJQBKTKlBBJXaFOKzDdkZa1+j8CB+Gwl8MGHv2
-         ErvA==
-X-Gm-Message-State: AHQUAuaofo2hvY7IB579asuAe+WqCu/mQ+Tuvd+hEdOptOgYJ7OcXuFm
-	mzPrfHyvaIJkZ6J1+6fqPbx/7OfewtrSFCenjfg3t26pPPe5j/bXQuqkkYpljlBwImXIRTBHZFh
-	v9xHUKEa10LN+nC9W+vlO6u/BSloZ4zfq68fbctATlu33y3g16DQ+UTuSh0uzu+ROAnIhZpkMWB
-	3fyWac5m0ZYaTDmcuNh7gNEt0ZKhXqCRCB0ibpxsABRXD98czgA9BgshRMV99v2x2I+wdhfaDuF
-	gYPw8JP8mM1Vh5kxbZzJlhY8Te1ny3RRJ2Ktl6V6n/0NgNzZ9vwLm6/u74nj+wvrqcJuocQVyuc
-	+B8ZtTc+yNqCGImZUIci4xUXvg17tkEMNw+KulbifFLQeaCARPHCrOFy8BmTJEbr7SryM7cZPrz
-	t
-X-Received: by 2002:a37:a4c1:: with SMTP id n184mr13973243qke.229.1550714324903;
-        Wed, 20 Feb 2019 17:58:44 -0800 (PST)
-X-Received: by 2002:a37:a4c1:: with SMTP id n184mr13973222qke.229.1550714324340;
-        Wed, 20 Feb 2019 17:58:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550714324; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=IhT33+ZuZhnclLJtzrgLTvsh568OJwgxzHtt6EZoeoE=;
+        b=CMLDzBk5avdG6jEQuzj/LUh76kJiD7BdKwwdM1j8Mn2K6F//zpphpmxWrP2wE770lv
+         2o0/iqkks+8ZK3WAN7C0xrKUJ5OXGlX4DYlhylOCiLmjAH5ToRZ0LzS77JjWC8U6fxQy
+         Byot0dfub4KQDZt5i3K6HOK8wBEzN1m3UykYJGeQncWL19gV2qYpYs08dtsFhBuE3r74
+         dPTTWxGTBLVaK47prkbdXbLy/gwqkF29HBVQzEo0W18X0xLnWA4YxfjwGDjNEFcb+hWZ
+         7pVt8EdaQsq9GSY1cntW7TQQa4XD4et6mcT7F9NwpKnY7JUs7hxpX1Xxr2ZP866Ih6cm
+         VKOw==
+X-Gm-Message-State: AHQUAuZz347mOy25latineMFC6AbJzT0t3xXvtmOcj8cBy1Kkq2CThSc
+	NvTdKv2IKZnAQ+iNMVjCyj0xtaGhYZT3pMNaK1gyjN7HRAy1qYO3jHrpGvIsxatbEgU4wg6ComM
+	zZNybQrit9coyRXhyde7Z3r9mGHveK0WqLNs6MjP3hm0Ieuhd5BN/HZ0x8g0v0AWX1kp/KCglDD
+	Rf5XVD8y1na5CzOyEFmqOAA3oBj+yxVS7p5XEl8hA+XSei2Lu9G1a7ePsendzrAmcDfvHC0nsxO
+	Tn0vbt8n+WrQJRMeYAZOXpaMEiI053idk+cQhvWE0qzyZkmuCbgs6m8eJug+XRk18H1EOn3NfBi
+	BsE97rbT397UR4SYzVT2FMhuMJRSnTDAyFdTKE0NFd8cbo1vHb1S7pLWXxZPsP3ItYsCbJZZ2Qb
+	N
+X-Received: by 2002:a19:cf4f:: with SMTP id f76mr21991644lfg.125.1550716610861;
+        Wed, 20 Feb 2019 18:36:50 -0800 (PST)
+X-Received: by 2002:a19:cf4f:: with SMTP id f76mr21991591lfg.125.1550716609394;
+        Wed, 20 Feb 2019 18:36:49 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550716609; cv=none;
         d=google.com; s=arc-20160816;
-        b=eoBaK5LbgL5Mwt43E3//Yx1chmE5FHvdB7Xg9ZQMLCs94bLvhqXlwpNBICdtUmPlra
-         YGR0+XBfaoX4L0AJF+Etl6HyqyKCohODlxOpLtlQUkcwFweBlh2CwV9iyOq0bx21KAoF
-         h0wQEXYA6yg6toSZSyR+YYRJToluULoAaeGxrmVWJaBsvEsdS44xrlvUnwLTVnKfHftY
-         DNOL88+ccqjlLEMDOUc2qlhLVg+YhiPzH1iG83rm7MUMnoKdOgeamhfBDCvu5iEmXcr5
-         BkNU2Ab+ma38IM+GpulMIyUTWYoALEfmor9mSlgyc5az7is2Fk1Tpom48PS41OkRAHjp
-         qiWQ==
+        b=tMFI5gtP4hQVxpOpiYZFPsj/bvbJ4QVIp6shts9bu2i5SMNmB3I0ymsWmAYL7wES7q
+         njiNurhrUIdqytYKpUb6zrJ6rIVZ0M3Ap38qLAEWM7FiPjgCDj75a8yd8951sK59s+6I
+         o+V9tdDIUMQwrnLHDl3n6XUpj9RSUBrNle00vGR23t+VRDFjs6KflXSUa0THzZTX/E8h
+         mJWYP/mIthqXpXJe5tBYTtcb7HpyIcScMzFD11jg+8UZzpSwPdRXJ5pZ14NJchuc97Jk
+         dena0Ajw9oZu32qU57HtqBKhrC5FsEzWktLf0xn8h4E/zh/GeuVOOvEYih1oxnJ3Sawd
+         wGyA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=SNMyx3mvyEhumH87qacwojMOgIg98VYddiiEUf2zBNE=;
-        b=gdY+5xzIrPI6s8S77zQepUEwRxwVIS5QHOgW0If5HTfsE9wKdeFJwZTJpxuJJiHNlF
-         j9YaLfWyA2U/mJEsdBWvpPPHMdEnoXWSTwub9z4L64wMRtfqWt4WvSKt7UMecisRNfSE
-         NLP+9qjXeeOFpavs9tUT+b5gG1jS6tsL10MYOv4m12WcdPIkTsXqWXnuGoL0EmJT7AwM
-         5F9MgH22CZIqkssMqmBDFPjbeJhcyf6VNMVWiHkJ2arPqswheUBJJUE0IZgrL8RTP0Cr
-         1I820+h+kGaT0eW20wxhDY6kWmAoWhKbE16OdsXYGJ4RIdgMhH30ECi/KCh22CarP6Ci
-         TaCA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=IhT33+ZuZhnclLJtzrgLTvsh568OJwgxzHtt6EZoeoE=;
+        b=yfN1VLT2pk2vMAcJ1WWXY/BoWWMKZehu7yz+czD5bwXFSVhf/Tm767pIHcpTLXkV2a
+         ueRhqBuWbKCv0Zt27e1tfM0duQNkRJs+dD/eF9h7n4bgilKrGccWzTpR0+amcf1y9OcW
+         hhfjzygOg205ct3ttXF6tKaI8GhJpmkNTyElU31tSd3bUJ95nIq8KIJPPl8mal6hPy8x
+         yyTpr/TpnR7tG6qsgOAF2PemkoCj2gMALAkS06o/9MX4dHuA3qC/clewycyz/qcCbHXU
+         TvdbC1HBtOXzO2K9uy74thX8/W6bN/v6HAlIgvFHVzpSZ696jmNhaOuXSLB3XXfuxXZY
+         BRaw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=NTBxFLX5;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RRDQaL2Y;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a81sor11921041qkg.130.2019.02.20.17.58.44
+        by mx.google.com with SMTPS id q190sor7160283ljb.7.2019.02.20.18.36.49
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Feb 2019 17:58:44 -0800 (PST)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 20 Feb 2019 18:36:49 -0800 (PST)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=NTBxFLX5;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RRDQaL2Y;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=SNMyx3mvyEhumH87qacwojMOgIg98VYddiiEUf2zBNE=;
-        b=NTBxFLX54Jn7ha8lCrCA3BheJXv+WNR8+OH7uJxY9EhKMfBmTmbsoe7IZmi8E6WW8F
-         UT4G5hX8+DwG/9EgN0iICC+cCYpHnzbjwC3uL/Z8BH7jUZBB19cCSFNhRHW6DONg4I6S
-         aS0LVN2zgZ0YozT9v4xbVmiU819eWcKd2iuaxfKYwFRzZIBAFpQ7CGsWDHIy4Z6vGjSG
-         tSvqRnOzuoCVyUmJ/FH4oA2rv88o+e6xFtv9fRb/Z5HAKTqvEcuURdu77IcMBhabfQxN
-         1lZDBelOExgawckUYHLW7WS/4rT5k2mOxr76RpRhgLnZDef2ehQLHZPpZsfcyTH5K2ix
-         uu8w==
-X-Google-Smtp-Source: AHgI3IaLeqr5GDP9UozyfNZgGbyilkHrQUQOpmLrsV6q4ZPweAJHmgyumamCgnJ1wwj2aQQ7o4RAaw==
-X-Received: by 2002:ae9:e702:: with SMTP id m2mr18772286qka.279.1550714324094;
-        Wed, 20 Feb 2019 17:58:44 -0800 (PST)
-Received: from ovpn-120-150.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id s21sm14198665qki.94.2019.02.20.17.58.43
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Feb 2019 17:58:43 -0800 (PST)
-Subject: Re: [PATCH -next] mm/debug: use lx% for atomic64_read() on ppc64le
-To: akpm@linux-foundation.org
-Cc: dave@stgolabs.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <20190221010819.92039-1-cai@lca.pw>
-From: Qian Cai <cai@lca.pw>
-Message-ID: <6c48d33a-083c-68bf-f94d-3d901453a198@lca.pw>
-Date: Wed, 20 Feb 2019 20:58:42 -0500
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.3.3
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=IhT33+ZuZhnclLJtzrgLTvsh568OJwgxzHtt6EZoeoE=;
+        b=RRDQaL2Yr6th/tcc24ot1sRaI12xLnsOT26YVojzv6FLlBcPV4BZH7qKQYvXQRy0Ml
+         xgHyh6bj9Xh4TnWOM//4cBWzFemxAhb+kUIo9tDssoivn0Hz/a7DNF7QkegBx20FAGCg
+         YrkJeugdrrurdNvVCq5U1ghRK5uazu7WJejHQMyH1vDR0zb8y17em07zw1XqXQITvj8d
+         Uf+f//sKtQqL8efMFlzW9j7KhEfvhhELp4ufj6w5q4pFpnciIRQPovl0FYOKzk9JzEti
+         ZDqfX/rsuBnEGNqhZ3nCqJTwA7Q1wucr7yMhsychbrwxfUa5c4tLfu9P7jCmXg/ZYdVn
+         gtfQ==
+X-Google-Smtp-Source: AHgI3IahDoLmYSzyXftmcGNCvk1lLmWsiwGhF2S+3m4XfLJICiUO5nC5rltmz2rH5SPgMvCWKXFIHyOjBjhd24YBdDM=
+X-Received: by 2002:a2e:9b99:: with SMTP id z25mr13905243lji.106.1550716608824;
+ Wed, 20 Feb 2019 18:36:48 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190221010819.92039-1-cai@lca.pw>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20190215024104.GA26331@jordon-HP-15-Notebook-PC>
+In-Reply-To: <20190215024104.GA26331@jordon-HP-15-Notebook-PC>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Thu, 21 Feb 2019 08:11:02 +0530
+Message-ID: <CAFqt6zbchvoD-MdEF2T52eOPQ2x4gZ4G-72oZkW5f_RiT1nXpA@mail.gmail.com>
+Subject: Re: [PATCH v4 0/9] mm: Use vm_map_pages() and vm_map_pages_zero() API
+To: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
+	Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@surriel.com>, 
+	Stephen Rothwell <sfr@canb.auug.org.au>, rppt@linux.vnet.ibm.com, 
+	Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, 
+	iamjoonsoo.kim@lge.com, treding@nvidia.com, Kees Cook <keescook@chromium.org>, 
+	Marek Szyprowski <m.szyprowski@samsung.com>, stefanr@s5r6.in-berlin.de, hjc@rock-chips.com, 
+	Heiko Stuebner <heiko@sntech.de>, airlied@linux.ie, oleksandr_andrushchenko@epam.com, 
+	joro@8bytes.org, pawel@osciak.com, Kyungmin Park <kyungmin.park@samsung.com>, 
+	mchehab@kernel.org, Boris Ostrovsky <boris.ostrovsky@oracle.com>, 
+	Juergen Gross <jgross@suse.com>
+Cc: linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, 
+	linux-arm-kernel@lists.infradead.org, linux1394-devel@lists.sourceforge.net, 
+	dri-devel@lists.freedesktop.org, linux-rockchip@lists.infradead.org, 
+	xen-devel@lists.xen.org, iommu@lists.linux-foundation.org, 
+	linux-media@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Please ignore this patch.
+On Fri, Feb 15, 2019 at 8:06 AM Souptick Joarder <jrdr.linux@gmail.com> wrote:
+>
+> Previouly drivers have their own way of mapping range of
+> kernel pages/memory into user vma and this was done by
+> invoking vm_insert_page() within a loop.
+>
+> As this pattern is common across different drivers, it can
+> be generalized by creating new functions and use it across
+> the drivers.
+>
+> vm_map_pages() is the API which could be used to map
+> kernel memory/pages in drivers which has considered vm_pgoff.
+>
+> vm_map_pages_zero() is the API which could be used to map
+> range of kernel memory/pages in drivers which has not considered
+> vm_pgoff. vm_pgoff is passed default as 0 for those drivers.
+>
+> We _could_ then at a later "fix" these drivers which are using
+> vm_map_pages_zero() to behave according to the normal vm_pgoff
+> offsetting simply by removing the _zero suffix on the function
+> name and if that causes regressions, it gives us an easy way to revert.
+>
+> Tested on Rockchip hardware and display is working fine, including talking
+> to Lima via prime.
+>
+> v1 -> v2:
+>         Few Reviewed-by.
+>
+>         Updated the change log in [8/9]
+>
+>         In [7/9], vm_pgoff is treated in V4L2 API as a 'cookie'
+>         to select a buffer, not as a in-buffer offset by design
+>         and it always want to mmap a whole buffer from its beginning.
+>         Added additional changes after discussing with Marek and
+>         vm_map_pages() could be used instead of vm_map_pages_zero().
+>
+> v2 -> v3:
+>         Corrected the documentation as per review comment.
+>
+>         As suggested in v2, renaming the interfaces to -
+>         *vm_insert_range() -> vm_map_pages()* and
+>         *vm_insert_range_buggy() -> vm_map_pages_zero()*.
+>         As the interface is renamed, modified the code accordingly,
+>         updated the change logs and modified the subject lines to use the
+>         new interfaces. There is no other change apart from renaming and
+>         using the new interface.
+>
+>         Patch[1/9] & [4/9], Tested on Rockchip hardware.
+>
+> v3 -> v4:
+>         Fixed build warnings on patch [8/9] reported by kbuild test robot.
+>
+> Souptick Joarder (9):
+>   mm: Introduce new vm_map_pages() and vm_map_pages_zero() API
+>   arm: mm: dma-mapping: Convert to use vm_map_pages()
+>   drivers/firewire/core-iso.c: Convert to use vm_map_pages_zero()
+>   drm/rockchip/rockchip_drm_gem.c: Convert to use vm_map_pages()
+>   drm/xen/xen_drm_front_gem.c: Convert to use vm_map_pages()
+>   iommu/dma-iommu.c: Convert to use vm_map_pages()
+>   videobuf2/videobuf2-dma-sg.c: Convert to use vm_map_pages()
+>   xen/gntdev.c: Convert to use vm_map_pages()
+>   xen/privcmd-buf.c: Convert to use vm_map_pages_zero()
 
-On 2/20/19 8:08 PM, Qian Cai wrote:
-> atomic64_read() on ppc64le returns "long int" while "long long" seems on
-> all other arches, so deal the special case for ppc64le.
-> 
-> In file included from ./include/linux/printk.h:7,
->                  from ./include/linux/kernel.h:15,
->                  from mm/debug.c:9:
-> mm/debug.c: In function 'dump_mm':
-> ./include/linux/kern_levels.h:5:18: warning: format '%llx' expects
-> argument of type 'long long unsigned int', but argument 19 has type
-> 'long int' [-Wformat=]
->  #define KERN_SOH "\001"  /* ASCII Start Of Header */
->                   ^~~~~~
-> ./include/linux/kern_levels.h:8:20: note: in expansion of macro
-> 'KERN_SOH'
->  #define KERN_EMERG KERN_SOH "0" /* system is unusable */
->                     ^~~~~~~~
-> ./include/linux/printk.h:297:9: note: in expansion of macro 'KERN_EMERG'
->   printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
->          ^~~~~~~~~~
-> mm/debug.c:133:2: note: in expansion of macro 'pr_emerg'
->   pr_emerg("mm %px mmap %px seqnum %llu task_size %lu\n"
->   ^~~~~~~~
-> mm/debug.c:140:17: note: format string is defined here
->    "pinned_vm %llx data_vm %lx exec_vm %lx stack_vm %lx\n"
->               ~~~^
->               %lx
-> 
-> Fixes: 70f8a3ca68d3 ("mm: make mm->pinned_vm an atomic64 counter")
-> Signed-off-by: Qian Cai <cai@lca.pw>
-> ---
->  mm/debug.c | 7 ++++++-
->  1 file changed, 6 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/debug.c b/mm/debug.c
-> index c0b31b6c3877..e4ec3d68833e 100644
-> --- a/mm/debug.c
-> +++ b/mm/debug.c
-> @@ -137,7 +137,12 @@ void dump_mm(const struct mm_struct *mm)
->  		"mmap_base %lu mmap_legacy_base %lu highest_vm_end %lu\n"
->  		"pgd %px mm_users %d mm_count %d pgtables_bytes %lu map_count %d\n"
->  		"hiwater_rss %lx hiwater_vm %lx total_vm %lx locked_vm %lx\n"
-> -		"pinned_vm %llx data_vm %lx exec_vm %lx stack_vm %lx\n"
-> +#ifdef __powerpc64__
-> +		"pinned_vm %lx "
-> +#else
-> +		"pinned_vm %llx "
-> +#endif
-> +		"data_vm %lx exec_vm %lx stack_vm %lx\n"
->  		"start_code %lx end_code %lx start_data %lx end_data %lx\n"
->  		"start_brk %lx brk %lx start_stack %lx\n"
->  		"arg_start %lx arg_end %lx env_start %lx env_end %lx\n"
-> 
+If no further comment, is it fine to take these patches to -mm
+tree for regression ?
+
+>
+>  arch/arm/mm/dma-mapping.c                          | 22 ++----
+>  drivers/firewire/core-iso.c                        | 15 +---
+>  drivers/gpu/drm/rockchip/rockchip_drm_gem.c        | 17 +----
+>  drivers/gpu/drm/xen/xen_drm_front_gem.c            | 18 ++---
+>  drivers/iommu/dma-iommu.c                          | 12 +---
+>  drivers/media/common/videobuf2/videobuf2-core.c    |  7 ++
+>  .../media/common/videobuf2/videobuf2-dma-contig.c  |  6 --
+>  drivers/media/common/videobuf2/videobuf2-dma-sg.c  | 22 ++----
+>  drivers/xen/gntdev.c                               | 11 ++-
+>  drivers/xen/privcmd-buf.c                          |  8 +--
+>  include/linux/mm.h                                 |  4 ++
+>  mm/memory.c                                        | 81 ++++++++++++++++++++++
+>  mm/nommu.c                                         | 14 ++++
+>  13 files changed, 134 insertions(+), 103 deletions(-)
+>
+> --
+> 1.9.1
+>
 
