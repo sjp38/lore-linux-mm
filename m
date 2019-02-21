@@ -2,168 +2,153 @@ Return-Path: <SRS0=vS5V=Q4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9E601C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 22:59:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B0F72C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:05:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4948D20838
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 22:59:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 55BE420838
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:05:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="h2wee1T3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4948D20838
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="UB3Pt/TA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55BE420838
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DCB588E00BC; Thu, 21 Feb 2019 17:59:40 -0500 (EST)
+	id E88698E00BD; Thu, 21 Feb 2019 18:05:29 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D7A9B8E00B5; Thu, 21 Feb 2019 17:59:40 -0500 (EST)
+	id E38638E00B5; Thu, 21 Feb 2019 18:05:29 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C6AD78E00BC; Thu, 21 Feb 2019 17:59:40 -0500 (EST)
+	id D014A8E00BD; Thu, 21 Feb 2019 18:05:29 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 87D078E00B5
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 17:59:40 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id a5so254493pfn.2
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 14:59:40 -0800 (PST)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A58128E00B5
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 18:05:29 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id q141so256799itc.2
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 15:05:29 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=jm4drYWQ+zzE9+IfJHgzMjeQ4vONzj9va9RWmBRBNa8=;
-        b=s1I0jxsvqOtGEIy6+jC6MxdSKP7eUtseynbPAFF7g4//CQTDbF/gD4rnU/nAIFWN4V
-         qe0sF8RQXiQAXfflWwLPv/mEA2PoxiJKlS+SmVARvHUxdrfzQ26hZc9Gtdb24jAV6qI4
-         nFJMKHgWd3hngKaIyMJmIy2+ZABD+VKLFpVrM1Gp5DOsec6IUIPCcRCZsPyk/hhvUBai
-         Lr8/JY/SyOa+fKgSuKeSvg4+wGuBT/gP2aAJRYU+sVqtH2STalZc9f0WcNH4Y9TxNGhO
-         srxC+JQvYP7AQccp1B9KvZ/VuEesuLDX78kAbCWR/4XTqRRVr9m76A1AQaS74F0kqcq+
-         fHGg==
-X-Gm-Message-State: AHQUAuZ1sUpb+8Yyuo1dGHcCiNrBtGMy2AjjGUIxO7da/5uQYTpNy1YD
-	eYUbPYUXDJ5O4oguYSolJWpqmk2HNaJ+f7iO3zqvoCxqW9gIMAT48uChjkotQGeUjD9fVVJq+be
-	y9oLz3H8BkMVdbppzaiuq0b+Su8Dcs75rg+44bkr1N1iGtsxvLvS3Nx7BTkFlmYJ4D/3DIxWH5y
-	XISGHDeJv/lOElt/oBcrB4cZhTkGg+cLBqb2SSeuUz8SCjfk3SRbWmUPaFPnSoRfiYJyxOUGK6s
-	2bblwHlYsNkowlViDsb/t4tekkGcnKQyKccXqLqYQ7oEmgKeMKb0PlOQiqwxS6kqlAMcuA75Z+e
-	jfGHtc6sKd2uheBodTtvajDT1vqIhrjRHCMFbEikhZbA0AxQE5eXwfoJPulOwa7jmbouwD7Ybjl
-	U
-X-Received: by 2002:a62:b2c3:: with SMTP id z64mr914060pfl.149.1550789980163;
-        Thu, 21 Feb 2019 14:59:40 -0800 (PST)
-X-Received: by 2002:a62:b2c3:: with SMTP id z64mr914023pfl.149.1550789979450;
-        Thu, 21 Feb 2019 14:59:39 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550789979; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=M18y1j6N0BCPC6Qvm+oCd9cTgbTHzAhsGLH6qTZCOZg=;
+        b=kSTk0e6AfhenqyBIZTf6esXQGwSicww4nfeNiO+vxjdwU2JIre5BfHNsPj0uEHz3GF
+         3lj+VuZMAfG83bsJGLnYlgQadQvnq0+DrFZwNURCQIAdcNdbS2i/DI5tpFReQruZIJoD
+         vpRXyKgQnnOTyNL86y6LgsDKZWck5ilSvfme3zXCWpe6eptfXyuE9vRL1fGDTaw1PXyS
+         UEAIXB68K9yhdZODjeYG/6ge0PeBk4ChxwbGUBtwQWiKIl5Q/PeII8To/4OBRbe3+9Il
+         EZOJ250dEMRiebc9X0ZNkVbe1ciPMX8bX5ovyeFHPpwvfh5SYpP4kFWuSB2zj23q0x9Y
+         YsSQ==
+X-Gm-Message-State: AHQUAub4PPew9ozFY7k5hOf2GjWO4RMNjuSlF4C3mpYMu08kDN1VhvIA
+	3lQySeLRsleIzogP4JKQqyOPudK3y1SbK1zIYMfP+knIUjbWbaQfx7zKhYwp0cTu53UsrhkXaWZ
+	sXe5fI59YXmGznDzjteMTMXanri0Vq4IQK1E96QcQI19PRx5e7neF6soo0QSwDkR71S5gm1J/Vf
+	E3Ye66XSki+lkYBB6oLp13CmPOyN9Yioyqpomj2o8cVz+YUD9nQYwtvGBh4CO5zpEDoSGB1v21R
+	NlBcZZ7YttA1v6CHWP/OyvY2+ESBJV0v0NToaFhIawsJ1X3HN6LzZe+HqxsLxSNeuPUYKFhZTC5
+	XYFzbIJ56bMB/JqDj+VJAHfbP8kK6UgKnTaykMPlcptzafEOFcSZgGLng87AfSW5StV0pyL7Oo8
+	R
+X-Received: by 2002:a6b:f70a:: with SMTP id k10mr716405iog.68.1550790329414;
+        Thu, 21 Feb 2019 15:05:29 -0800 (PST)
+X-Received: by 2002:a6b:f70a:: with SMTP id k10mr716351iog.68.1550790328638;
+        Thu, 21 Feb 2019 15:05:28 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550790328; cv=none;
         d=google.com; s=arc-20160816;
-        b=riUpvjRb/B0FLoeS4fjb14WvL4ds3FkLF3NmFvZHdfuD8tASQCI2yzk0NsfaIhtoza
-         qzxv+D1hk38ELHZCetq0dkP00ltgvome1Zz9oCailaYkqlQVcJnufl6bf64w9L4su3xq
-         9b3h82otyf7Hi7S4DJCTslRO+xnqZbESYDd3/ONJqfN+grwxPsUiDjSQyUAgtIDsraZL
-         SFbcPoLnAzo9wnj/VqUI39waTXeQVdn6JNkrUPGKzoVL0boD+BALH9cq0ezj1A1Clrpa
-         Z8OXxPfCDvRbq8mSul1f+F6hFAglE4Og4xtOMxlhJ6Mc2//Wt37666FJO+12yiPdWUas
-         Udnw==
+        b=oOUFVJyPkNYrvj+cw3YX8FCOeeJ+tsu1PDbzHl3WZRrt7gSS6pkOkTTag89M7E7kky
+         dETti5pD0m/PnvmKGTiggi51lwguMZ/wqRuIEbIV90gVyVwe+9tWHsUpTbslrtIRN13K
+         p9/dwXQrRyqi6wWIQxRmG+KSAzzqjhWK02G5eehSLW98Gf/O61kZU5TtqJKnfwWTg+oC
+         50/65dyu2emtA/gguWscDXPgfABc3KIKCSX3NPrx0K1Uqs7bkZ5VLK6j2p5NnaC93Jpj
+         VSNCvpv8A8ZE21OHKWGUlVqrQkIRKLYImi+rnZUdlZSC0F72RdJDfGTS+eQ+CCC6fP70
+         cgog==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=jm4drYWQ+zzE9+IfJHgzMjeQ4vONzj9va9RWmBRBNa8=;
-        b=It+10ej0F0LwbzBYTcnMNnCJx7wPPIolNg0oHeMZQkPpEG2TSHqeWyn4b/dIgq2nwP
-         f6SG3rRHaBgARqRKD6cBcPU7cCyGJnQTIPS+n3YgqLjDlpkf/dGwu2PDeuAdSnf/QR6t
-         qFO4eok0ZYRhmUjsEZDroSVA5DYQ20QJNX5+QNS4H2G0TH/lqQ7Us/DJXXzSOzR5Vqid
-         FDr+7r9KBIPQzI3AcCswP4rJ9wQxqmwVDZzrsnUV4HEdQEKfa1K70DbNvQystGklJv5C
-         LEP0zwiO6KGx1y0kc+nMaoLtDAmAvLcUDx7coB4Y7j2so+fcZw1MOitCSEYsuItbTVUM
-         SmvA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=M18y1j6N0BCPC6Qvm+oCd9cTgbTHzAhsGLH6qTZCOZg=;
+        b=MGE0l2zPxofSE2v3b+Igru9giX9Vhiba3pTesT89Adg6OnOIJAyBwe815JlgeGnXHe
+         1ccLXqu08pi/JZw/0l0nDgup9qYSpFZFI/k2eYomHyp8wx0wxs8F8VVk5YiiulBeU8By
+         n6eSPaoGiDHvndIk85CcDnP47/6z5TOIb+/giz6gcLXr5m2Mal3nb8cVpnNmr+Wf8WsN
+         x58urh3bwOWV2FfmNR3/yB0goIOU7Be9ZWte/DFxChUWh92O8JrqCCqr1qrgh9SCuTZj
+         tyO4f9UIykgKrYb4cqfhCQssR8BdsyJ39er0dDPkwWPYjZifrIfRJXnKRz8tKjF8LMtS
+         M32g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=h2wee1T3;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@google.com header.s=20161025 header.b="UB3Pt/TA";
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f79sor220290pff.7.2019.02.21.14.59.39
+        by mx.google.com with SMTPS id b62sor305515itb.21.2019.02.21.15.05.28
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 21 Feb 2019 14:59:39 -0800 (PST)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 21 Feb 2019 15:05:28 -0800 (PST)
+Received-SPF: pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=h2wee1T3;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@google.com header.s=20161025 header.b="UB3Pt/TA";
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=jm4drYWQ+zzE9+IfJHgzMjeQ4vONzj9va9RWmBRBNa8=;
-        b=h2wee1T3eGM7ZVK2rCHeA0MksTAWEdnnUQlZEjY6Nlo1cu/C8sqy7azb72EjNcNoWU
-         cEnMESLt3SGZWKBCuZR6z7OL8sHYesnkkTLScD9Q5TFkMoOvbi5cw1Gz6ZN6TNI6y8d3
-         yMmTGCgAJbTTJa3XBaq7UT7OXd/e41RzfdLSuRFKgXkeU0DFEIHfGSE6wKscwianDAiJ
-         T6ZPxieoyZl5iDocO7tBfLWFffG0i/8jMOlbM9vCDNzXrlQv0qTaCZ6wvnOfiiVOU9Qk
-         87OT3PYApUgzK7JXn4HMf8LKmG/MkK2eNriTfmimehoY2mSo1a1ZARJwFq+sWuPzEQdM
-         EVDQ==
-X-Google-Smtp-Source: AHgI3IaaCNIIKr9l7A5Za3rx8mLVdG6YZR82ClTb05TH/Gm3hk65KOSMHslLnj3J1fKmPLTrg1Xg4g==
-X-Received: by 2002:a62:4299:: with SMTP id h25mr897328pfd.165.1550789978923;
-        Thu, 21 Feb 2019 14:59:38 -0800 (PST)
-Received: from ziepe.ca (S010614cc2056d97f.ed.shawcable.net. [174.3.196.123])
-        by smtp.gmail.com with ESMTPSA id c7sm126868pfa.24.2019.02.21.14.59.37
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 21 Feb 2019 14:59:38 -0800 (PST)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1gwxJZ-0002fH-9d; Thu, 21 Feb 2019 15:59:37 -0700
-Date: Thu, 21 Feb 2019 15:59:37 -0700
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Haggai Eran <haggaie@mellanox.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
-	Leon Romanovsky <leonro@mellanox.com>,
-	Doug Ledford <dledford@redhat.com>,
-	Artemy Kovalyov <artemyko@mellanox.com>,
-	Moni Shoua <monis@mellanox.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Kaike Wan <kaike.wan@intel.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Aviad Yehezkel <aviadye@mellanox.com>
-Subject: Re: [PATCH 1/1] RDMA/odp: convert to use HMM for ODP
-Message-ID: <20190221225937.GS17500@ziepe.ca>
-References: <20190129165839.4127-1-jglisse@redhat.com>
- <20190129165839.4127-2-jglisse@redhat.com>
- <f48ed64f-22fe-c366-6a0e-1433e72b9359@mellanox.com>
- <20190212161123.GA4629@redhat.com>
- <20190220222020.GE8415@mellanox.com>
- <20190220222924.GE29398@redhat.com>
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=M18y1j6N0BCPC6Qvm+oCd9cTgbTHzAhsGLH6qTZCOZg=;
+        b=UB3Pt/TAhv5IjOxRvaiLS/aDHOu0BHqJAaVmztbR3nDBwQMq68zY37bNnLJk5cpjAB
+         iu8TAGjqmYJIfj38mb/ku00WfoC93c+VgT8uJQj/x00JD7K0ssTVyNK5UuR0CHPIk+0H
+         kezIq4fbNbZgHihpQAvGp5Q0s3N7D5gskOGd8xCaqoI/byLj11Zt7v+dlCHPr5szjucw
+         MA0hqIUv+SEGGAop89a+I9fQMRbx4WSL0d+AgoeABwVuu92wu6NxTqswkAFcHvV21zXf
+         2H3I6QmWyznNZx5eJuWCSKJAqBev3Auc0bRFN5Nld84Vsg+CkrftiMbGKsI5J5B3YU+B
+         PqAQ==
+X-Google-Smtp-Source: AHgI3IbosYKaCWed927UbZANAkfOS+LE0FELNMJEJrToVmfVRIFOE2T7F4QzFVFavvoelT2LUgzH5iMTCu9TzmoXe+E=
+X-Received: by 2002:a24:2ec2:: with SMTP id i185mr637247ita.62.1550790327967;
+ Thu, 21 Feb 2019 15:05:27 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190220222924.GE29398@redhat.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+References: <20190221222123.GC6474@magnolia>
+In-Reply-To: <20190221222123.GC6474@magnolia>
+From: Hugh Dickins <hughd@google.com>
+Date: Thu, 21 Feb 2019 15:05:01 -0800
+Message-ID: <CANsGZ6Zb0hLWZH3Tnx83hrgnSchsr06HNT9ZE4F0Z=kt3PRS3Q@mail.gmail.com>
+Subject: Re: [PATCH] tmpfs: fix uninitialized return value in shmem_link
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matej Kupljen <matej.kupljen@gmail.com>, 
+	linux-kernel <linux-kernel@vger.kernel.org>, 
+	Linux-FSDevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	David Rientjes <rientjes@google.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2019 at 05:29:24PM -0500, Jerome Glisse wrote:
-> > > 
-> > > Yes it is safe, the hmm struct has its own refcount and mirror holds a
-> > > reference on it, the mm struct itself has a reference on the mm
-> > > struct.
-> > 
-> > The issue here is that that hmm_mirror_unregister() must be a strong
-> > fence that guarentees no callback is running or will run after
-> > return. mmu_notifier_unregister did not provide that.
-> > 
-> > I think I saw locking in hmm that was doing this..
-> 
-> So pattern is:
->     hmm_mirror_register(mirror);
-> 
->     // Safe for driver to call within HMM with mirror no matter what
-> 
->     hmm_mirror_unregister(mirror)
-> 
->     // Driver must no stop calling within HMM, it would be a use after
->     // free scenario
+On Thu, Feb 21, 2019 at 2:21 PM Darrick J. Wong <darrick.wong@oracle.com> wrote:
+>
+> From: Darrick J. Wong <darrick.wong@oracle.com>
+>
+> When we made the shmem_reserve_inode call in shmem_link conditional, we
+> forgot to update the declaration for ret so that it always has a known
+> value.  Dan Carpenter pointed out this deficiency in the original patch.
+>
+> Fixes: "tmpfs: fix link accounting when a tmpfile is linked in"
+> Reported-by: dan.carpenter@oracle.com
+> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 
-This statement is the opposite direction
+Gosh, yes indeed: thanks Dan and Darrick, I'm very sorry for not noticing that.
+Acked-by: Hugh Dickins <hughd@google.com>
+(and sorry if this mail is garbled: it's from gmail, I cannot use
+alpine at the moment).
 
-I want to know that HMM doesn't allow any driver callbacks to be
-running after unregister - because I am going to kfree mirror and
-other memory touched by the driver callbacks.
-
-Jason
+> ---
+>  mm/shmem.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 0905215fb016..2c012eee133d 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -2848,7 +2848,7 @@ static int shmem_create(struct inode *dir, struct dentry *dentry, umode_t mode,
+>  static int shmem_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
+>  {
+>         struct inode *inode = d_inode(old_dentry);
+> -       int ret;
+> +       int ret = 0;
+>
+>         /*
+>          * No ordinary (disk based) filesystem counts links as inodes;
 
