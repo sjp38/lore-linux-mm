@@ -2,181 +2,167 @@ Return-Path: <SRS0=vS5V=Q4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,UNPARSEABLE_RELAY,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B50CC00319
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 19:47:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ED09DC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 19:54:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D7DCE2081B
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 19:47:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D7DCE2081B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id B4DC02081B
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 19:54:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B4DC02081B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7F1FC8E00A9; Thu, 21 Feb 2019 14:47:17 -0500 (EST)
+	id 57B2D8E00AF; Thu, 21 Feb 2019 14:54:57 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A11B8E009E; Thu, 21 Feb 2019 14:47:17 -0500 (EST)
+	id 529F18E009E; Thu, 21 Feb 2019 14:54:57 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6B6348E00A9; Thu, 21 Feb 2019 14:47:17 -0500 (EST)
+	id 43F378E00AF; Thu, 21 Feb 2019 14:54:57 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B7888E009E
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 14:47:17 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id 17so12974290pgw.12
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 11:47:17 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 0434E8E009E
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 14:54:57 -0500 (EST)
+Received: by mail-pg1-f200.google.com with SMTP id o24so11639835pgh.5
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 11:54:56 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=2Bd3yzDftsxFwBxfrvgbnKXass4MT1o7R2tEYBN9pRo=;
-        b=g/NphweYanZeUWtyJkJ8h5Xajg49kSzAK1rcxbVMP0iT9yUpeHXGAH3NPlQ9pGjWEX
-         DjAo0mKntV4l49FMw0KRmycYZHV1plznNa3/Is+9/w1j1uBKERncEcSC9umPZaL6elNv
-         FlLqKY7ZAIQtQiY2FvgrnYGIiCaQHhAM4b12jqTS+ByMQcCqUxoPWv7KDchKX3uQ+6sD
-         vRL3WkmBAPiVN9ukC2V+ji0xCqca+Ppf4ojB0Lhhy461/cKIGjaRkF1XpmBr03Z8Ygq2
-         d1oah6iMotqdQ9jAbfWkeiP6pwcxHzDmKgdfvNlCTHxgU/BX+J5fiR/3p8CNU7Zg3bt8
-         MfnQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: AHQUAuYzKpfBfSur6FH16m9r9o0IXAOGPJGNM/StTBthOi3LEh7dfHEY
-	RaUi+Ql5M9UGDcVGlc1WL6VnckM+gfMKMRXadeGBz4v2gvcgGW4XXNhIBDf9XoW8jfRvu99Yhki
-	Fwco9zsRamu2OAt44MbNJw2YGQV0S9TxzEJsquxZRoGuEfiDHh+3Pvln5lFbRdUbgJQ==
-X-Received: by 2002:a17:902:9a09:: with SMTP id v9mr187644plp.225.1550778436835;
-        Thu, 21 Feb 2019 11:47:16 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Iacvs1pD1uoGllDtBXLE1Kv/nwwD7HSJUihlg3dNsZpjr2vUWgowTq4EepqN7VJ0sQB/fvI
-X-Received: by 2002:a17:902:9a09:: with SMTP id v9mr187583plp.225.1550778435844;
-        Thu, 21 Feb 2019 11:47:15 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550778435; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=wB4SX18yKj2OZqs2LeBLT+5cJhYt1dxSO5d2eYYYHPs=;
+        b=d5jVIPfRuRx3Dd8cliMaX11H2yj8/WfowbxJxHFQewSW9CAMrMgpOMMeTnMdUbYHNa
+         D++y6oMFd4pZtTxb92ng7EPU2SYyO3WE1UCN5vfwPcDR5gsEN7mecaUk2zUtMxNvWI8+
+         NQnwCsHejddpoV0CvfeCC28XXFktOB8KGqk8h5YnMEPbxjHcu/LLgTJEs14a3Iu3icef
+         FzWX2rW4jUoL2ROJfW4UqRR57FCiXWZiIfu3R97/YQ+9CjaBUCXsSGcr8MV/JGRCo+Yg
+         ulR1apjjYQpkVa05JiVKxzdOzArc2OKWnvCPw+QvGMZmBQlWJnRpqBSUi6jWeA0grROM
+         janQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: AHQUAuZjBuCvMdWLoIuHBSUbTC73VbKuz66QDKlomUP6uT0ItUK8IK90
+	/cxWbm4FWeRKIEv0NSdCddR3yFVYfGrA9ajvUaoWkPKQGpMhAVi9vGEKMW82Pz6jbIJGkXVW2e6
+	AxgNfNRgTMSa+b8ZnkXmRlHaTT7yIE/kstrwRvwUsSo/6G8Y2/Pzy45F3Df7ksReJ+Q==
+X-Received: by 2002:a63:f412:: with SMTP id g18mr224834pgi.444.1550778896673;
+        Thu, 21 Feb 2019 11:54:56 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaFMXRVoqxktYki9G5g/pRNetfNNe6JpsTqlUgRJN6GVMdoBqOzn6tIBxPQwQjaHzzNESFk
+X-Received: by 2002:a63:f412:: with SMTP id g18mr224801pgi.444.1550778895906;
+        Thu, 21 Feb 2019 11:54:55 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550778895; cv=none;
         d=google.com; s=arc-20160816;
-        b=D5Rq6XlwFKAY04Mqrvaufn8plJuZXAk2REk8kjMdGSqKEHLUjv1j4LgfLIdpw+dxXg
-         O2OoVcJGODqC7fRC2U5cO6wQELr9QanVOZgsbA2Wod9sXd7S0jrybNHKEADZg+d4M0T3
-         uxMggBUeJq56iNvLcS9G3wfJbETKEFEHs9VkNr0osP9gTR984A8LWda4aOt9qSHVs2O4
-         y4Ur8ac05UOGHyNK3pYNBOOYeqLd2yUkrQ6379R1w5vQuSh4QDPb8p1ahLpXbs4X2lIT
-         kyxkRTnPWeZv9qAXQscr71Elvg8JbvuH2CSEDaH/zP22/J6/QpeTomD1HqXCvXPbBXtC
-         /amw==
+        b=BIOYcllo+VH6GGJ9VQfhMwicBhiN8iLERkbzzop9R5MRtOrNBefQB4z3Exw36NP8uA
+         mO80a+U1mw/nhpiJLW84WUPheFHuw8gYcROWoJfsLoqWJ/Pu8OrIMs8Nta7jX7v0lGIF
+         uJnyZPNa014zjLt1jGJJ7A1aFTjA4CWBy4UBDWO2WJXxrbvX4L/833SWeS4ygQI9zj7d
+         XYc/lzwqovr2HvtsZ1O02sOHJl31vagZ4+NA9raUJ6IkA7vQUQIaRZ7qDSzs7HjwQ8y6
+         O0WuVYk9SDoVD5h3W5vhBb9YF87AFohzOYqFPtIN7MvirNRLXiXRZg4y/y73BCR2kgtX
+         eirQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=2Bd3yzDftsxFwBxfrvgbnKXass4MT1o7R2tEYBN9pRo=;
-        b=WbZYMAY3Bk+6aNVqITpCBTWj9hlQcGDkpgnCVT1FU1TtOVBUiX4TjOAcR0MO4kdHsB
-         LT0vvNq0E7qVJSohpaF1WTMA7xSclWKR79n0NWlQ71HltYts6v9rkifGbErfA6kDQo7v
-         CAci8vLcA1OdDrvkU4+NnzfMdUG8X1BNLJ/J7KsnfeuSCM/vldYeVSNmyBD5iA3/IwQQ
-         U3OOX4/+fTDCh5uCT2u/JgYxLMIo0839AwwIbU6zRCIilo29//C29sy7mZOu++B5FTUR
-         NTGSMpKiHKZiQMuLAz4w/Lgwf7lIBoVZBjubYyf0NdJ3WUiaMcGcEHdLd5vqg1L5SN3G
-         0DZw==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=wB4SX18yKj2OZqs2LeBLT+5cJhYt1dxSO5d2eYYYHPs=;
+        b=Y19GPDQoNy2SqUR7YW8WAvrIk+41898JjwP82kAlctyfATDktRVPpZwoknqN13ramN
+         FrRWBavGCysw2KPa+OweKWVSCoZUEowk9zY3mO5s0DWuMHfo+08bUFm2DsQtgQyPrwMI
+         Xq3W2nF97xORzRvi0s0DQBbZZS6T3TOwbqxHFJLLGCS5OIE7uWNBTHz4+V4Kz0uGmI12
+         CIHRF9HOrQyUxP1TSlImUJy9xaBT9cQmtBmNxG6Y7EWzYZ3rbZCc8m6UTrji28tTbWbT
+         RZ5i3y0YoR/sI6RPo/3gF0q29mHoRA/VxIY0Cw3R718pDxLUnaPn9l34K0oniIi0xd/M
+         orXQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k19si20991058pfi.258.2019.02.21.11.47.15
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-42.freemail.mail.aliyun.com (out30-42.freemail.mail.aliyun.com. [115.124.30.42])
+        by mx.google.com with ESMTPS id f20si23337468plr.419.2019.02.21.11.54.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 11:47:15 -0800 (PST)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        Thu, 21 Feb 2019 11:54:55 -0800 (PST)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) client-ip=115.124.30.42;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 0E0D93BD2;
-	Thu, 21 Feb 2019 19:47:15 +0000 (UTC)
-Date: Thu, 21 Feb 2019 11:47:13 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko
- <mhocko@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrea
- Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov"
- <kirill.shutemov@linux.intel.com>, Mel Gorman
- <mgorman@techsingularity.net>, Davidlohr Bueso <dave@stgolabs.net>,
- stable@vger.kernel.org
-Subject: Re: [PATCH] huegtlbfs: fix races and page leaks during migration
-Message-Id: <20190221114713.ee2a38267f75ef1a2fd6de44@linux-foundation.org>
-In-Reply-To: <7534d322-d782-8ac6-1c8d-a8dc380eb3ab@oracle.com>
-References: <803d2349-8911-0b47-bc5b-4f2c6cc3f928@oracle.com>
-	<20190212221400.3512-1-mike.kravetz@oracle.com>
-	<20190220220910.265bff9a7695540ee4121b80@linux-foundation.org>
-	<7534d322-d782-8ac6-1c8d-a8dc380eb3ab@oracle.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R551e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=7;SR=0;TI=SMTPD_---0TKsBKHK_1550778890;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TKsBKHK_1550778890)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Fri, 22 Feb 2019 03:54:52 +0800
+Subject: Re: [PATCH] doc: cgroup: correct the wrong information about measure
+ of memory pressure
+To: =?UTF-8?B?56a56Iif6ZSu?= <ufo19890607@gmail.com>,
+ Tejun Heo <tj@kernel.org>
+Cc: hannes@cmpxchg.org, corbet@lwn.net, cgroups@vger.kernel.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1550278564-81540-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190218210504.GT50184@devbig004.ftw2.facebook.com>
+ <CAHCio2g-S6snHsh84r0Wp1RQW1CR3t_eyUUjcdDaxnUHWTcdFw@mail.gmail.com>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <3edd7008-d568-f9b1-a991-bd0ee88f6c52@linux.alibaba.com>
+Date: Thu, 21 Feb 2019 11:54:46 -0800
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
+MIME-Version: 1.0
+In-Reply-To: <CAHCio2g-S6snHsh84r0Wp1RQW1CR3t_eyUUjcdDaxnUHWTcdFw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Feb 2019 11:11:06 -0800 Mike Kravetz <mike.kravetz@oracle.com> wrote:
 
-> 
-> Sorry for the churn.  As I find and fix one issue I seem to discover another.
-> There is still at least one more issue with private pages when COW comes into
-> play.  I continue to work that.  I wanted to send this patch earlier as it
-> is pretty easy to hit the bugs if you try.  If you would prefer another
-> approach, let me know.
-> 
 
-No probs, the bug doesn't seem to be causing a lot of bother out there
-and it's cc:stable; there's time to get this right ;)
+On 2/19/19 2:45 AM, 禹舟键 wrote:
+> Hi TeJun
+> I've built the 5.0.0-rc6 kernel with psi option, but I cannot find any
+> cgroup.controllers when I mounted cgroup2.
+>
+> [root@bogon /]# uname -r
+> [root@bogon /]# 5.0.0-rc6+
+> [root@bogon /]# mount -t cgroup2 none cgroup2/
+> [root@bogon /]# cat cgroup2/cgroup.controllers
+> [root@bogon /]
+> [root@bogon /]# cat cgroup2/cgroup.subtree_control
+> [root@bogon /]#
+>
+> What's wrong with this kernel? Or maybe I lost some mount option?
 
-Here's the delta I queued:
+I'm not sure what you did before you mounted cgroup2, but if you have 
+legacy controllers mounted, you have to unmount them, otherwise 
+cgroup.controllers would show up as empty. Or you can pass 
+"cgroup_no_v1=" in your kernel parameter.
 
---- a/mm/hugetlb.c~huegtlbfs-fix-races-and-page-leaks-during-migration-update
-+++ a/mm/hugetlb.c
-@@ -3729,6 +3729,7 @@ static vm_fault_t hugetlb_no_page(struct
- 	pte_t new_pte;
- 	spinlock_t *ptl;
- 	unsigned long haddr = address & huge_page_mask(h);
-+	bool new_page = false;
- 
- 	/*
- 	 * Currently, we are forced to kill the process in the event the
-@@ -3790,6 +3791,7 @@ retry:
- 		}
- 		clear_huge_page(page, address, pages_per_huge_page(h));
- 		__SetPageUptodate(page);
-+		new_page = true;
- 
- 		if (vma->vm_flags & VM_MAYSHARE) {
- 			int err = huge_add_to_page_cache(page, mapping, idx);
-@@ -3861,8 +3863,9 @@ retry:
- 
- 	spin_unlock(ptl);
- 
--	/* May already be set if not newly allocated page */
--	set_page_huge_active(page);
-+	/* Make newly allocated pages active */
-+	if (new_page)
-+		set_page_huge_active(page);
- 
- 	unlock_page(page);
- out:
---- a/mm/migrate.c~huegtlbfs-fix-races-and-page-leaks-during-migration-update
-+++ a/mm/migrate.c
-@@ -1315,6 +1315,16 @@ static int unmap_and_move_huge_page(new_
- 		lock_page(hpage);
- 	}
- 
-+	/*
-+	 * Check for pages which are in the process of being freed.  Without
-+	 * page_mapping() set, hugetlbfs specific move page routine will not
-+	 * be called and we could leak usage counts for subpools.
-+	 */
-+	if (page_private(hpage) && !page_mapping(hpage)) {
-+		rc = -EBUSY;
-+		goto out_unlock;
-+	}
-+
- 	if (PageAnon(hpage))
- 		anon_vma = page_get_anon_vma(hpage);
- 
-@@ -1345,6 +1355,7 @@ put_anon:
- 		put_new_page = NULL;
- 	}
- 
-+out_unlock:
- 	unlock_page(hpage);
- out:
- 	if (rc != -EAGAIN)
-_
+Yang
 
+>
+> Thanks
+> Yuzhoujian
+>
+> Tejun Heo <tj@kernel.org> 于2019年2月19日周二 上午10:32写道：
+>> On Sat, Feb 16, 2019 at 08:56:04AM +0800, Yang Shi wrote:
+>>> Since PSI has implemented some kind of measure of memory pressure, the
+>>> statement about lack of such measure is not true anymore.
+>>>
+>>> Cc: Tejun Heo <tj@kernel.org>
+>>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>>> Cc: Jonathan Corbet <corbet@lwn.net>
+>>> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+>>> ---
+>>>   Documentation/admin-guide/cgroup-v2.rst | 3 +--
+>>>   1 file changed, 1 insertion(+), 2 deletions(-)
+>>>
+>>> diff --git a/Documentation/admin-guide/cgroup-v2.rst b/Documentation/admin-guide/cgroup-v2.rst
+>>> index 7bf3f12..9a92013 100644
+>>> --- a/Documentation/admin-guide/cgroup-v2.rst
+>>> +++ b/Documentation/admin-guide/cgroup-v2.rst
+>>> @@ -1310,8 +1310,7 @@ network to a file can use all available memory but can also operate as
+>>>   performant with a small amount of memory.  A measure of memory
+>>>   pressure - how much the workload is being impacted due to lack of
+>>>   memory - is necessary to determine whether a workload needs more
+>>> -memory; unfortunately, memory pressure monitoring mechanism isn't
+>>> -implemented yet.
+>>> +memory.
+>> Maybe refer to PSI?
+>>
+>> Thanks.
+>>
+>> --
+>> tejun
 
