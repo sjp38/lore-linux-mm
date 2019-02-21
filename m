@@ -4,90 +4,90 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3153BC00319
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 17:21:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 34568C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 17:29:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EC5BE2083E
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 17:21:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC5BE2083E
+	by mail.kernel.org (Postfix) with ESMTP id F1973206B6
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 17:29:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F1973206B6
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A0C5E8E0098; Thu, 21 Feb 2019 12:21:51 -0500 (EST)
+	id 8F5188E0099; Thu, 21 Feb 2019 12:29:25 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9BBA48E0094; Thu, 21 Feb 2019 12:21:51 -0500 (EST)
+	id 8A3D68E0094; Thu, 21 Feb 2019 12:29:25 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 85D6D8E0098; Thu, 21 Feb 2019 12:21:51 -0500 (EST)
+	id 7B94C8E0099; Thu, 21 Feb 2019 12:29:25 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 57E238E0094
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 12:21:51 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id s65so5767832qke.16
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 09:21:51 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 543458E0094
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 12:29:25 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id s65so5785461qke.16
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 09:29:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=0moq+XKICKm8hsjptuPeSWP5N31hUE6YTU9vK+JWGG8=;
-        b=gI515ih6jJ5l5uToc7fwbDmwUqwqb8GXBUyuvCSGlkNVFBRbKpSByK009pDR4OUSw4
-         aTLxSHlY8ijLKyyETeROcbU8VlYq2NDZNM1bMNtToZjmM/uBt61wsdT6zn0wMG3VBIFa
-         NvMBwDg88F7nvyPF8QUFMTJCgXDNYP8eGxmJIPbAjbaUlG1FhQrqNqZJUvoRep0s57Fh
-         cZ1rj47wESndvvliNdy9zNgUfNRE7sNtf1fmBpgl8bTukoK+ElXZqDDGF3XP+Td6VRFY
-         vkpFXMzQODhERJI63GQlEjOhRafk8Sa41ZWjo8DCagvhU7PwxB4i9Zbr+B2ciuSMRrYt
-         g4Hw==
+        bh=x/4y1SGuU3vIP01EEV+kQVo89592aksYPviWLqsRfRw=;
+        b=oPQy2D1LDWUUyffiOCqjN6iG3Fnc1Iwpo/1a2/imX5XeWCQYSLHt/pUFcKIF5XYZfA
+         ykl0ZbYNfdQwfb88tKve1n0wwlnRGKel2kXTZlY4pYsel2mEVw0svEXSJ5ZDS5bMqn8l
+         bk9kNhNxeQTiEzPM4VZAcprG8kgcL6y0je1NbX7Glj4P7mP3naHS41ljIcGm+FrhmL9K
+         7GN58Mt0QgWZupy1btKiUDO2cZM9ed1dLlb/k+akVhvoaL+zyvwxEzwlKFCiFSxy4gkO
+         kooxj2uM4u3HCv1dCSKbcobwPqxEoAfsP8DVu16fdY780WkPYGoemeUJwixB2ea47WP4
+         d4fw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAualPsoq9jM6tRFJDvZQAROh7NGdhnq52B5Fv86SI6ZPiNDrpJd/
-	nNELVfCktNFYAtv0LLl7+lmYRz33d8tudujZ2+R7Gdf8prVXEgMoCSI0Qbx3ccXzRrhDJypxPQf
-	4OT1tB4nZ5BJoULcZ6MNOguvFyg/uYZjMXGN4XBg6Ij03c6htndik1/zQgzNnF5ZUqg==
-X-Received: by 2002:a0c:d791:: with SMTP id z17mr30241034qvi.149.1550769711126;
-        Thu, 21 Feb 2019 09:21:51 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib8NjnbpmuWIWwyo4lzOkOrEz56ofhT44DyKfYMKrOfSrJ2lsirq4HKHfVeAjWdh67bmpVN
-X-Received: by 2002:a0c:d791:: with SMTP id z17mr30240987qvi.149.1550769710476;
-        Thu, 21 Feb 2019 09:21:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550769710; cv=none;
+X-Gm-Message-State: AHQUAubZ2ZIOEX/htwptn49EQ91imnLSygUyDgs8Rfahbj9BHWDP67uS
+	hA3TImaLhm/lMDQdV3xJZgA/cVa+pInTxl+8ZP2XbGgkx09NVLGBSHOOl1ang6UE9+X4H1NLZM5
+	u9PPWkH6QfT7r2Ou3LuHgnlEU33FbsJ9dwmmeuLximJiNdEE8oRe4dLE9kMNp6gx6sQ==
+X-Received: by 2002:aed:3964:: with SMTP id l91mr32519881qte.33.1550770165107;
+        Thu, 21 Feb 2019 09:29:25 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib0OEOnTzpO2XKiWmdMIG2ctm3Ky5n2cxYWDqz4yJ59ORmjRj8A+yflMl3fTLuA+9bvw+vl
+X-Received: by 2002:aed:3964:: with SMTP id l91mr32519852qte.33.1550770164604;
+        Thu, 21 Feb 2019 09:29:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550770164; cv=none;
         d=google.com; s=arc-20160816;
-        b=qAJoDJBRJHyW0MBHqfEM2ftBlyfb+ZIBEW6AF0cCiO8+lE5wbKd0iRc+6qVlowUB3A
-         hJdcTm++9xMv9lr/lbcTRfE88no6GsOfyrHGA1/+PE/Kf2TzZNMI6Ju7jKfhytxVPQhg
-         Xy1b6JWnzN33bXYgQttZPQNRfRmQfcSg4A61Z8ZZUVb//CPj/JxlNuACRssBlV6ZWj2/
-         BXJ0JLoL9Lagi5NHe+g5dLRJYmb+wExE7rQ0QdOxNbUZ0B3PuZhwgCbvnxVY69ngYdVr
-         63TgIflIBJChLebk7Gif6eR0kVwUSvUmx9d5UUAcsJ4DxMqkATgJl+gQqBTMdE0tMdql
-         reXA==
+        b=oZEWepfv4NYDd/xXg42WZz5pRrbgkqw+Kur2Ji9skM/j2GXVZa6ywvX/aBCVQDUSuW
+         U2AhsYfum9vXh67USvZh/J8KUrGBmJyeR3VTxSdneECb4hiP329xhsTaHF+ceUBqSmUh
+         uKCj8N+bJTv1TU30iIhE5H20P3Eoknj4Uo9/lE+tJ3KBl7pVabmHyIjsDhMLP00PHndr
+         zWbGOk7PWlpgG1pOoXZ0lmt47XZ+cKPK11t+X/lVrXIn6e4zg9MSwkFHM1+nnDoEsayA
+         M6UHt5lIz0MQLVmzDDbPA5SBm2mbGa3Vwhpo7D0z+4mYzqhUsinotFZkzQkovQ8xH7hz
+         qEIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date;
-        bh=0moq+XKICKm8hsjptuPeSWP5N31hUE6YTU9vK+JWGG8=;
-        b=lduCt/oAQTkpWlvuIk3qNh6387b8/58wW2p7l8TBGpqzZyjRm/tcncIpftYtx5UGHj
-         HEhHn696YzLUo9/1JcLOI7ChX1s/14XCtCzM5yxVMBg+oEBWsz8rU7roXk8740iDIk/a
-         cbm+7yz7sE3myI3zWaQcV1DZPr04WCuCM/i9M37I9J8KzFegaK50JJ/zNHKIhgVt1Ml1
-         lRXXnxlz1GaySYrmMWqZNKwevf3OxYFqgDMOjSzhfYZFRImX/RB5AI3h1WzVkOBKqPAJ
-         FSca4YMv9rTb72mtiaibceVE32CVtijGByNLy+xe58oDYpN5bi6GT6BUyYzorvAIYGCK
-         BeQw==
+        bh=x/4y1SGuU3vIP01EEV+kQVo89592aksYPviWLqsRfRw=;
+        b=us8jc/+svZrMVPmbBv3oUt+F8ol+qMN62nwoewFZhKl185PQMbjaBDbjRK7cvm3ey5
+         Dpg5kj3btBJgBaqgLUX3vlAC39MYPGCEOuzHToJFJeZhxLdwf0Hy0rJYTh2OkXlhmI1z
+         x23gbASQXLVQS/71/p4w+MiigLjUrLh0LcOYHZm8f6vDS+TXteJTLcNpCTjGKbXI7Bkq
+         3CRzqtZqLMsr8ft+/bGnE6LLF+8bfPdiBaH2oXpWDzOk02NemZI+XbMtHLefg7VI3BjK
+         RxpDvdouOuZ4izMSbN3n8LC6SsaP9c7oXNM6vicQBr46Xn8ggF5I7okByMqzuye6inHq
+         C38Q==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m21si8561883qtq.125.2019.02.21.09.21.50
+        by mx.google.com with ESMTPS id g35si4805492qvg.175.2019.02.21.09.29.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 09:21:50 -0800 (PST)
+        Thu, 21 Feb 2019 09:29:24 -0800 (PST)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 8F853C04BD53;
-	Thu, 21 Feb 2019 17:21:49 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id A128430821BE;
+	Thu, 21 Feb 2019 17:29:23 +0000 (UTC)
 Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id A9B035D9D4;
-	Thu, 21 Feb 2019 17:21:43 +0000 (UTC)
-Date: Thu, 21 Feb 2019 12:21:41 -0500
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 79F0319C58;
+	Thu, 21 Feb 2019 17:29:21 +0000 (UTC)
+Date: Thu, 21 Feb 2019 12:29:19 -0500
 From: Jerome Glisse <jglisse@redhat.com>
 To: Peter Xu <peterx@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
@@ -104,95 +104,96 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v2 09/26] userfaultfd: wp: userfaultfd_pte/huge_pmd_wp()
- helpers
-Message-ID: <20190221172141.GI2813@redhat.com>
+Subject: Re: [PATCH v2 10/26] userfaultfd: wp: add UFFDIO_COPY_MODE_WP
+Message-ID: <20190221172919.GJ2813@redhat.com>
 References: <20190212025632.28946-1-peterx@redhat.com>
- <20190212025632.28946-10-peterx@redhat.com>
+ <20190212025632.28946-11-peterx@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190212025632.28946-10-peterx@redhat.com>
+In-Reply-To: <20190212025632.28946-11-peterx@redhat.com>
 User-Agent: Mutt/1.10.0 (2018-05-17)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 21 Feb 2019 17:21:49 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Thu, 21 Feb 2019 17:29:23 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 10:56:15AM +0800, Peter Xu wrote:
+On Tue, Feb 12, 2019 at 10:56:16AM +0800, Peter Xu wrote:
 > From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> Implement helpers methods to invoke userfaultfd wp faults more
-> selectively: not only when a wp fault triggers on a vma with
-> vma->vm_flags VM_UFFD_WP set, but only if the _PAGE_UFFD_WP bit is set
-> in the pagetable too.
+> This allows UFFDIO_COPY to map pages wrprotected.
 > 
 > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 > Signed-off-by: Peter Xu <peterx@redhat.com>
 
+Minor nitpick down below, but in any case:
+
 Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 
 > ---
->  include/linux/userfaultfd_k.h | 27 +++++++++++++++++++++++++++
->  1 file changed, 27 insertions(+)
+>  fs/userfaultfd.c                 |  5 +++--
+>  include/linux/userfaultfd_k.h    |  2 +-
+>  include/uapi/linux/userfaultfd.h | 11 +++++-----
+>  mm/userfaultfd.c                 | 36 ++++++++++++++++++++++----------
+>  4 files changed, 35 insertions(+), 19 deletions(-)
 > 
-> diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
-> index 38f748e7186e..c6590c58ce28 100644
-> --- a/include/linux/userfaultfd_k.h
-> +++ b/include/linux/userfaultfd_k.h
-> @@ -14,6 +14,8 @@
->  #include <linux/userfaultfd.h> /* linux/include/uapi/linux/userfaultfd.h */
->  
->  #include <linux/fcntl.h>
-> +#include <linux/mm.h>
-> +#include <asm-generic/pgtable_uffd.h>
->  
->  /*
->   * CAREFUL: Check include/uapi/asm-generic/fcntl.h when defining
-> @@ -55,6 +57,18 @@ static inline bool userfaultfd_wp(struct vm_area_struct *vma)
->  	return vma->vm_flags & VM_UFFD_WP;
->  }
->  
-> +static inline bool userfaultfd_pte_wp(struct vm_area_struct *vma,
-> +				      pte_t pte)
-> +{
-> +	return userfaultfd_wp(vma) && pte_uffd_wp(pte);
-> +}
-> +
-> +static inline bool userfaultfd_huge_pmd_wp(struct vm_area_struct *vma,
-> +					   pmd_t pmd)
-> +{
-> +	return userfaultfd_wp(vma) && pmd_uffd_wp(pmd);
-> +}
-> +
->  static inline bool userfaultfd_armed(struct vm_area_struct *vma)
+
+[...]
+
+> diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+> index d59b5a73dfb3..73a208c5c1e7 100644
+> --- a/mm/userfaultfd.c
+> +++ b/mm/userfaultfd.c
+> @@ -25,7 +25,8 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
+>  			    struct vm_area_struct *dst_vma,
+>  			    unsigned long dst_addr,
+>  			    unsigned long src_addr,
+> -			    struct page **pagep)
+> +			    struct page **pagep,
+> +			    bool wp_copy)
 >  {
->  	return vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP);
-> @@ -104,6 +118,19 @@ static inline bool userfaultfd_wp(struct vm_area_struct *vma)
->  	return false;
->  }
+>  	struct mem_cgroup *memcg;
+>  	pte_t _dst_pte, *dst_pte;
+> @@ -71,9 +72,9 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
+>  	if (mem_cgroup_try_charge(page, dst_mm, GFP_KERNEL, &memcg, false))
+>  		goto out_release;
 >  
-> +static inline bool userfaultfd_pte_wp(struct vm_area_struct *vma,
-> +				      pte_t pte)
-> +{
-> +	return false;
-> +}
-> +
-> +static inline bool userfaultfd_huge_pmd_wp(struct vm_area_struct *vma,
-> +					   pmd_t pmd)
-> +{
-> +	return false;
-> +}
-> +
-> +
->  static inline bool userfaultfd_armed(struct vm_area_struct *vma)
->  {
->  	return false;
-> -- 
-> 2.17.1
-> 
+> -	_dst_pte = mk_pte(page, dst_vma->vm_page_prot);
+> -	if (dst_vma->vm_flags & VM_WRITE)
+> -		_dst_pte = pte_mkwrite(pte_mkdirty(_dst_pte));
+> +	_dst_pte = pte_mkdirty(mk_pte(page, dst_vma->vm_page_prot));
+> +	if (dst_vma->vm_flags & VM_WRITE && !wp_copy)
+> +		_dst_pte = pte_mkwrite(_dst_pte);
+
+I like parenthesis around around and :) ie:
+    (dst_vma->vm_flags & VM_WRITE) && !wp_copy
+
+I feel it is easier to read.
+
+[...]
+
+> @@ -416,11 +418,13 @@ static __always_inline ssize_t mfill_atomic_pte(struct mm_struct *dst_mm,
+>  	if (!(dst_vma->vm_flags & VM_SHARED)) {
+>  		if (!zeropage)
+>  			err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
+> -					       dst_addr, src_addr, page);
+> +					       dst_addr, src_addr, page,
+> +					       wp_copy);
+>  		else
+>  			err = mfill_zeropage_pte(dst_mm, dst_pmd,
+>  						 dst_vma, dst_addr);
+>  	} else {
+> +		VM_WARN_ON(wp_copy); /* WP only available for anon */
+
+Don't you want to return with error here ?
+
+>  		if (!zeropage)
+>  			err = shmem_mcopy_atomic_pte(dst_mm, dst_pmd,
+>  						     dst_vma, dst_addr,
+
+[...]
 
