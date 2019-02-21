@@ -3,75 +3,75 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F385EC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B9F29C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AC67220818
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC67220818
+	by mail.kernel.org (Postfix) with ESMTP id 7468720818
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7468720818
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C94C78E00C9; Thu, 21 Feb 2019 18:50:59 -0500 (EST)
+	id 1E60D8E00CA; Thu, 21 Feb 2019 18:51:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C20658E00B5; Thu, 21 Feb 2019 18:50:59 -0500 (EST)
+	id 196668E00B5; Thu, 21 Feb 2019 18:51:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A93F08E00C9; Thu, 21 Feb 2019 18:50:59 -0500 (EST)
+	id EB8A38E00CA; Thu, 21 Feb 2019 18:51:00 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 65F3C8E00B5
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 18:50:59 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id o24so341999pgh.5
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 15:50:59 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EBE48E00B5
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 18:51:00 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id w17so275180plp.23
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 15:51:00 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=n3xL8tglsp1p5h94RExQEs/it39xNrHdfjkbRBXvvQk=;
-        b=a8qP9JNkxW6mE1TkD97X9oaPgFseWbt1CqlkyOIkIMEGKBXmmXDtNRfaCbeNAyqnCS
-         16VZBpc3SgbDpw6dEq92js7WdJN+4GwCOegynfEQUvQtdjNKIR4BQ0hKYRSw4seOw9ij
-         kvre3dbV1e2ZRGOVs3szKlisPkr847wYsCvuGU6W2i1bDybczuaEmD9H2EuNS8oA/+8I
-         ZrVm65cty5I6yfA3lagCntzd6brC2ecJwlu/pYsEkngUpr7ol8Iye8vhAaSH824IWAS6
-         Juy8r+VnYnlXyVTuVqxRjs1cZeZahX7psltUAnNuuSLcHsECf2yfedC2dW4xr53u0FdD
-         OhbQ==
+        bh=O07umIFKOz6W0sIx5craaaoizFYzAP28pSU0DhhenOc=;
+        b=s/JFMiPuGuttCeHK23zYPp/I3XYGBJnLBM6ZOJge3tT+ACiDpnpdou6wEB8F0qLfMD
+         HvVudWsVACz7YHM/scOWrTAEgJCZZXmtXOls62qDW2RbQ5I0OsoippU3HNspn19iKNRR
+         +D8cNXpMuWSjEF3/pG0q3V7eVD2S1891w6dir30dXM12Re4xAw6vugwMokKJBZBBfCbE
+         aopsApij0yv2dPqCHlrCNxUbUei4uFJk96P0DxaVJBAouyCjADC+sUqOHBmXF3EbfKQw
+         9tk+NWA83MmZf23K5Sj1eh1XCfOjqVI+JZhUB0uOwEMjlMXmOfr+0VjMbpeZidD6HkFf
+         9FyQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAubQW0fAGeoUOu44KVqOc8g7t30Nl88St+25CW023Xw7E+GtJu2h
-	mhBnoKpzXn9IXhHUsUT42/Myf8JZwIdQqpehiit+0ye1suLA3bPLC3zMZu6R+0dpfzQWZVA9ldS
-	5TR0RHMd/wJPdM4NBPIItq8H8RkMmKQBbcGYtHqsk0LXxJ7xh+N/2bRbXYw0l4ks2vA==
-X-Received: by 2002:a65:64d9:: with SMTP id t25mr1106496pgv.244.1550793059067;
+X-Gm-Message-State: AHQUAuaNz9F+u+0PbrcDKEZr7Z10kwgYToIhD66tfN3aIkpXjrj09hVB
+	SXh6T0AAoYGGUzP1vp2/kmGiPilSKYkhbtCL1m6gZ2w2OmADRoyvVOTwicQApZZ/k5WZt1/SDYw
+	HtYTlAkpKGY4eeezjfrxcIOUOQdf5/sjVrO6pM/m4ek3cr8j6T/KT+Hl+eeQzk/0DOQ==
+X-Received: by 2002:a17:902:147:: with SMTP id 65mr1204263plb.116.1550793060287;
+        Thu, 21 Feb 2019 15:51:00 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbM0GVCwzA+o1hG/p+gTmrk93c6qhHYYnlcIeRoPmO5s7BDbOJlrIGXBPjgMyRal8w5ulYP
+X-Received: by 2002:a17:902:147:: with SMTP id 65mr1204206plb.116.1550793059362;
         Thu, 21 Feb 2019 15:50:59 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbaKAPGGw6sB/35DUn1+d5SdF5gAuKmAWisRKNsL7808JH/c1VgbbwbiKVjfGkxw7j04PqZ
-X-Received: by 2002:a65:64d9:: with SMTP id t25mr1106450pgv.244.1550793058260;
-        Thu, 21 Feb 2019 15:50:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550793058; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1550793059; cv=none;
         d=google.com; s=arc-20160816;
-        b=yPwcHBeU57cd2gL+64uQg3udGhlotSVjMtotzWls9o1COdh+fTZ+VyBAkVD/k0JzBX
-         ZV+ZFmUTorr+Gzv6NZCtboklMNLCl4knSvANWAe6jM1GeQVsGwCHKv3gI63lQHNwc7Jt
-         P1EK4JJNvfooujOBl6el8W1ZyAWpGPn6rlTTy1uCmpJlWgHGSlLwbKOhiBDvdV5qtbI4
-         AoY+vMR56b6aGBb0ok6kr98ILDV75suWU1NygUeybraQRlSgnCmBeu+NmpIEqtVEKfzh
-         1HQ+w/KgU3BJRtMLkAqGcy+ah8eefaQgY6xpMaelUfOCwIg2lqwIldL+bcY6leiepz3+
-         HUQA==
+        b=mb+G4VVdpIDTa1b8kvYO6+Axtgm+iP28/wHKLnHAwuP45F0ginG4BEpnUy095mmHdo
+         8HSFK/FfI6G7TPfiAYAHh58RV7LgG6GZVDHEBeHdrXZ2HRAnpFroV2M87r0DoEq3fWik
+         P1BZ4BZ+wxL/+NwIQjRMLu53hE/+TZ1jhZj4VMBXHiC+6u6BlgE15cGOGBBM8xRm3pxm
+         q+dAmNei9KswcXGc1+zkSYizMT19HYn5typHAhhRPQJFGoTVXGX6gv9SPj5qFeZBFbj3
+         xwCwPTJafigJRvPAGbvBU6vWxqMmGaeFmc8LFoSSVctlplmVDxSfLBvsYRhCdoGWcZoK
+         jOmQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=n3xL8tglsp1p5h94RExQEs/it39xNrHdfjkbRBXvvQk=;
-        b=jCErq1psP2RrUjjkhqcBj67TONXjuzzv7fddgMHfSYpTUdoAAJ551bcmux6RuE002Q
-         4RPcPveqtHg9cEapXrJBZ8iu3MbNxfZNkfmtbewJHnmQRD97MT0gT0XGvITE5Smpaeg2
-         vCJeS8UKnBbobnUAP3/MeW9+LUegESCyUf3sIsZB1JgmZcQm+Q4L/YHLv+S7DnFjtamG
-         ksU5tL64lHc9srI+31CnQKfVphiCnN3YBhRsVcLHlSp9KpjkeIaRXiPMrrkWYRYYLgMf
-         MXwIH0W5uHSGdkIGBqUirWylEFNyArv5FQ37sVrWfY9CaRYNyokX16VcFhd2V6oFmbDM
-         QtmQ==
+        bh=O07umIFKOz6W0sIx5craaaoizFYzAP28pSU0DhhenOc=;
+        b=xWTIgFoGJZqpmcBdDJfNm9Nw7IJ6pceg8zHdqBBClNhVwXBGiESAC9WQClgHks4pol
+         51YLxcHENhiXWhE6AQENMUJN+NDgQwJIJgWFTbB/qnZQlT4V3ee+WbPSGkZNXSuCaNKT
+         sh6I7lNtm/UNnOxOMDkgn9tdUeGAWgknLkKi9NuKH6Z9yfaG2kSbWqNrAra7YKxrBtfv
+         gh1AY6ApT4PGo5LIUHzFCaNb91ByN76L4h7BJrS42vfsTQLknZqlKGODWJHYs/UP+Mk2
+         29wy84Fo8ZwSu53lQL77Yb50UBBPhGj/fIpB+kD9GasP69upnetjmfzzEuSd3Zlx4WVE
+         dgkQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id c4si238494pfn.83.2019.02.21.15.50.58
+        by mx.google.com with ESMTPS id c4si238494pfn.83.2019.02.21.15.50.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 15:50:58 -0800 (PST)
+        Thu, 21 Feb 2019 15:50:59 -0800 (PST)
 Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
@@ -79,12 +79,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Feb 2019 15:50:57 -0800
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Feb 2019 15:50:58 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,397,1544515200"; 
-   d="scan'208";a="322394827"
+   d="scan'208";a="322394832"
 Received: from linksys13920.jf.intel.com (HELO rpedgeco-DESK5.jf.intel.com) ([10.54.75.11])
-  by fmsmga005.fm.intel.com with ESMTP; 21 Feb 2019 15:50:56 -0800
+  by fmsmga005.fm.intel.com with ESMTP; 21 Feb 2019 15:50:57 -0800
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
 To: Andy Lutomirski <luto@kernel.org>,
 	Ingo Molnar <mingo@redhat.com>
@@ -109,10 +109,11 @@ Cc: linux-kernel@vger.kernel.org,
 	Nadav Amit <namit@vmware.com>,
 	Kees Cook <keescook@chromium.org>,
 	Dave Hansen <dave.hansen@intel.com>,
+	Masami Hiramatsu <mhiramat@kernel.org>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v3 05/20] x86/alternative: Initialize temporary mm for patching
-Date: Thu, 21 Feb 2019 15:44:36 -0800
-Message-Id: <20190221234451.17632-6-rick.p.edgecombe@intel.com>
+Subject: [PATCH v3 06/20] x86/alternative: Use temporary mm for text poking
+Date: Thu, 21 Feb 2019 15:44:37 -0800
+Message-Id: <20190221234451.17632-7-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
 References: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
@@ -124,149 +125,199 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-To prevent improper use of the PTEs that are used for text patching, the
-next patches will use a temporary mm struct. Initailize it by copying
-the init mm.
+text_poke() can potentially compromise security as it sets temporary
+PTEs in the fixmap. These PTEs might be used to rewrite the kernel code
+from other cores accidentally or maliciously, if an attacker gains the
+ability to write onto kernel memory.
 
-The address that will be used for patching is taken from the lower area
-that is usually used for the task memory. Doing so prevents the need to
-frequently synchronize the temporary-mm (e.g., when BPF programs are
-installed), since different PGDs are used for the task memory.
+Moreover, since remote TLBs are not flushed after the temporary PTEs are
+removed, the time-window in which the code is writable is not limited if
+the fixmap PTEs - maliciously or accidentally - are cached in the TLB.
+To address these potential security hazards, use a temporary mm for
+patching the code.
 
-Finally, randomize the address of the PTEs to harden against exploits
-that use these PTEs.
+Finally, text_poke() is also not conservative enough when mapping pages,
+as it always tries to map 2 pages, even when a single one is sufficient.
+So try to be more conservative, and do not map more than needed.
 
+Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Kees Cook <keescook@chromium.org>
 Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Masami Hiramatsu <mhiramat@kernel.org>
 Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Reviewed-by: Masami Hiramatsu <mhiramat@kernel.org>
-Tested-by: Masami Hiramatsu <mhiramat@kernel.org>
-Suggested-by: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/include/asm/pgtable.h       |  3 +++
- arch/x86/include/asm/text-patching.h |  2 ++
- arch/x86/kernel/alternative.c        |  3 +++
- arch/x86/mm/init_64.c                | 36 ++++++++++++++++++++++++++++
- init/main.c                          |  3 +++
- 5 files changed, 47 insertions(+)
+ arch/x86/include/asm/fixmap.h |   2 -
+ arch/x86/kernel/alternative.c | 108 +++++++++++++++++++++++++++-------
+ arch/x86/xen/mmu_pv.c         |   2 -
+ 3 files changed, 86 insertions(+), 26 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 40616e805292..e8f630d9a2ed 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -1021,6 +1021,9 @@ static inline void __meminit init_trampoline_default(void)
- 	/* Default trampoline pgd value */
- 	trampoline_pgd_entry = init_top_pgt[pgd_index(__PAGE_OFFSET)];
- }
-+
-+void __init poking_init(void);
-+
- # ifdef CONFIG_RANDOMIZE_MEMORY
- void __meminit init_trampoline(void);
- # else
-diff --git a/arch/x86/include/asm/text-patching.h b/arch/x86/include/asm/text-patching.h
-index f8fc8e86cf01..a75eed841eed 100644
---- a/arch/x86/include/asm/text-patching.h
-+++ b/arch/x86/include/asm/text-patching.h
-@@ -39,5 +39,7 @@ extern void *text_poke_kgdb(void *addr, const void *opcode, size_t len);
- extern int poke_int3_handler(struct pt_regs *regs);
- extern void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
- extern int after_bootmem;
-+extern __ro_after_init struct mm_struct *poking_mm;
-+extern __ro_after_init unsigned long poking_addr;
- 
- #endif /* _ASM_X86_TEXT_PATCHING_H */
+diff --git a/arch/x86/include/asm/fixmap.h b/arch/x86/include/asm/fixmap.h
+index 50ba74a34a37..9da8cccdf3fb 100644
+--- a/arch/x86/include/asm/fixmap.h
++++ b/arch/x86/include/asm/fixmap.h
+@@ -103,8 +103,6 @@ enum fixed_addresses {
+ #ifdef CONFIG_PARAVIRT
+ 	FIX_PARAVIRT_BOOTMAP,
+ #endif
+-	FIX_TEXT_POKE1,	/* reserve 2 pages for text_poke() */
+-	FIX_TEXT_POKE0, /* first page is last, because allocation is backward */
+ #ifdef	CONFIG_X86_INTEL_MID
+ 	FIX_LNW_VRTC,
+ #endif
 diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
-index 12fddbc8c55b..ae05fbb50171 100644
+index ae05fbb50171..cfe5bfe06f9d 100644
 --- a/arch/x86/kernel/alternative.c
 +++ b/arch/x86/kernel/alternative.c
-@@ -678,6 +678,9 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
- 	return addr;
- }
+@@ -11,6 +11,7 @@
+ #include <linux/stop_machine.h>
+ #include <linux/slab.h>
+ #include <linux/kdebug.h>
++#include <linux/mmu_context.h>
+ #include <asm/text-patching.h>
+ #include <asm/alternative.h>
+ #include <asm/sections.h>
+@@ -683,41 +684,104 @@ __ro_after_init unsigned long poking_addr;
  
-+__ro_after_init struct mm_struct *poking_mm;
-+__ro_after_init unsigned long poking_addr;
-+
  static void *__text_poke(void *addr, const void *opcode, size_t len)
  {
++	bool cross_page_boundary = offset_in_page(addr) + len > PAGE_SIZE;
++	struct page *pages[2] = {NULL};
++	temp_mm_state_t prev;
  	unsigned long flags;
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index bccff68e3267..125c8c48aa24 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -53,6 +53,7 @@
- #include <asm/init.h>
- #include <asm/uv/uv.h>
- #include <asm/setup.h>
-+#include <asm/text-patching.h>
- 
- #include "mm_internal.h"
- 
-@@ -1383,6 +1384,41 @@ unsigned long memory_block_size_bytes(void)
- 	return memory_block_size_probed;
- }
- 
-+/*
-+ * Initialize an mm_struct to be used during poking and a pointer to be used
-+ * during patching.
-+ */
-+void __init poking_init(void)
-+{
+-	char *vaddr;
+-	struct page *pages[2];
+-	int i;
++	pte_t pte, *ptep;
 +	spinlock_t *ptl;
-+	pte_t *ptep;
-+
-+	poking_mm = copy_init_mm();
-+	BUG_ON(!poking_mm);
-+
++	pgprot_t pgprot;
+ 
+ 	/*
+-	 * While boot memory allocator is runnig we cannot use struct
+-	 * pages as they are not yet initialized.
++	 * While boot memory allocator is running we cannot use struct pages as
++	 * they are not yet initialized. There is no way to recover.
+ 	 */
+ 	BUG_ON(!after_bootmem);
+ 
+ 	if (!core_kernel_text((unsigned long)addr)) {
+ 		pages[0] = vmalloc_to_page(addr);
+-		pages[1] = vmalloc_to_page(addr + PAGE_SIZE);
++		if (cross_page_boundary)
++			pages[1] = vmalloc_to_page(addr + PAGE_SIZE);
+ 	} else {
+ 		pages[0] = virt_to_page(addr);
+ 		WARN_ON(!PageReserved(pages[0]));
+-		pages[1] = virt_to_page(addr + PAGE_SIZE);
++		if (cross_page_boundary)
++			pages[1] = virt_to_page(addr + PAGE_SIZE);
+ 	}
+-	BUG_ON(!pages[0]);
 +	/*
-+	 * Randomize the poking address, but make sure that the following page
-+	 * will be mapped at the same PMD. We need 2 pages, so find space for 3,
-+	 * and adjust the address if the PMD ends after the first one.
++	 * If something went wrong, crash and burn since recovery paths are not
++	 * implemented.
 +	 */
-+	poking_addr = TASK_UNMAPPED_BASE;
-+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE))
-+		poking_addr += (kaslr_get_random_long("Poking") & PAGE_MASK) %
-+			(TASK_SIZE - TASK_UNMAPPED_BASE - 3 * PAGE_SIZE);
++	BUG_ON(!pages[0] || (cross_page_boundary && !pages[1]));
 +
-+	if (((poking_addr + PAGE_SIZE) & ~PMD_MASK) == 0)
-+		poking_addr += PAGE_SIZE;
+ 	local_irq_save(flags);
+-	set_fixmap(FIX_TEXT_POKE0, page_to_phys(pages[0]));
+-	if (pages[1])
+-		set_fixmap(FIX_TEXT_POKE1, page_to_phys(pages[1]));
+-	vaddr = (char *)fix_to_virt(FIX_TEXT_POKE0);
+-	memcpy(&vaddr[(unsigned long)addr & ~PAGE_MASK], opcode, len);
+-	clear_fixmap(FIX_TEXT_POKE0);
+-	if (pages[1])
+-		clear_fixmap(FIX_TEXT_POKE1);
+-	local_flush_tlb();
+-	sync_core();
+-	/* Could also do a CLFLUSH here to speed up CPU recovery; but
+-	   that causes hangs on some VIA CPUs. */
+-	for (i = 0; i < len; i++)
+-		BUG_ON(((char *)addr)[i] != ((char *)opcode)[i]);
 +
 +	/*
-+	 * We need to trigger the allocation of the page-tables that will be
-+	 * needed for poking now. Later, poking may be performed in an atomic
-+	 * section, which might cause allocation to fail.
++	 * Map the page without the global bit, as TLB flushing is done with
++	 * flush_tlb_mm_range(), which is intended for non-global PTEs.
++	 */
++	pgprot = __pgprot(pgprot_val(PAGE_KERNEL) & ~_PAGE_GLOBAL);
++
++	/*
++	 * The lock is not really needed, but this allows to avoid open-coding.
 +	 */
 +	ptep = get_locked_pte(poking_mm, poking_addr, &ptl);
-+	BUG_ON(!ptep);
++
++	/*
++	 * This must not fail; preallocated in poking_init().
++	 */
++	VM_BUG_ON(!ptep);
++
++	pte = mk_pte(pages[0], pgprot);
++	set_pte_at(poking_mm, poking_addr, ptep, pte);
++
++	if (cross_page_boundary) {
++		pte = mk_pte(pages[1], pgprot);
++		set_pte_at(poking_mm, poking_addr + PAGE_SIZE, ptep + 1, pte);
++	}
++
++	/*
++	 * Loading the temporary mm behaves as a compiler barrier, which
++	 * guarantees that the PTE will be set at the time memcpy() is done.
++	 */
++	prev = use_temporary_mm(poking_mm);
++
++	kasan_disable_current();
++	memcpy((u8 *)poking_addr + offset_in_page(addr), opcode, len);
++	kasan_enable_current();
++
++	/*
++	 * Ensure that the PTE is only cleared after the instructions of memcpy
++	 * were issued by using a compiler barrier.
++	 */
++	barrier();
++
++	pte_clear(poking_mm, poking_addr, ptep);
++	if (cross_page_boundary)
++		pte_clear(poking_mm, poking_addr + PAGE_SIZE, ptep + 1);
++
++	/*
++	 * Loading the previous page-table hierarchy requires a serializing
++	 * instruction that already allows the core to see the updated version.
++	 * Xen-PV is assumed to serialize execution in a similar manner.
++	 */
++	unuse_temporary_mm(prev);
++
++	/*
++	 * Flushing the TLB might involve IPIs, which would require enabled
++	 * IRQs, but not if the mm is not used, as it is in this point.
++	 */
++	flush_tlb_mm_range(poking_mm, poking_addr, poking_addr +
++			   (cross_page_boundary ? 2 : 1) * PAGE_SIZE,
++			   PAGE_SHIFT, false);
++
++	/*
++	 * If the text does not match what we just wrote then something is
++	 * fundamentally screwy; there's nothing we can really do about that.
++	 */
++	BUG_ON(memcmp(addr, opcode, len));
++
 +	pte_unmap_unlock(ptep, ptl);
-+}
-+
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
- /*
-  * Initialise the sparsemem vmemmap using huge-pages at the PMD level.
-diff --git a/init/main.c b/init/main.c
-index e2e80ca3165a..f5947ba53bb4 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -496,6 +496,8 @@ void __init __weak thread_stack_cache_init(void)
- 
- void __init __weak mem_encrypt_init(void) { }
- 
-+void __init __weak poking_init(void) { }
-+
- bool initcall_debug;
- core_param(initcall_debug, initcall_debug, bool, 0644);
- 
-@@ -730,6 +732,7 @@ asmlinkage __visible void __init start_kernel(void)
- 	taskstats_init_early();
- 	delayacct_init();
- 
-+	poking_init();
- 	check_bugs();
- 
- 	acpi_subsystem_init();
+ 	local_irq_restore(flags);
+ 	return addr;
+ }
+diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
+index 0f4fe206dcc2..82b181fcefe5 100644
+--- a/arch/x86/xen/mmu_pv.c
++++ b/arch/x86/xen/mmu_pv.c
+@@ -2319,8 +2319,6 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
+ #elif defined(CONFIG_X86_VSYSCALL_EMULATION)
+ 	case VSYSCALL_PAGE:
+ #endif
+-	case FIX_TEXT_POKE0:
+-	case FIX_TEXT_POKE1:
+ 		/* All local page mappings */
+ 		pte = pfn_pte(phys, prot);
+ 		break;
 -- 
 2.17.1
 
