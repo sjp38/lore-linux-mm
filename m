@@ -6,72 +6,72 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DA8D1C00319
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 12201C4360F
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A12C720818
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A12C720818
+	by mail.kernel.org (Postfix) with ESMTP id CED1920818
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CED1920818
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6C5558E00D7; Thu, 21 Feb 2019 18:51:13 -0500 (EST)
+	id 6F0508E00D8; Thu, 21 Feb 2019 18:51:14 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 686E58E00D4; Thu, 21 Feb 2019 18:51:13 -0500 (EST)
+	id 69FB18E00D4; Thu, 21 Feb 2019 18:51:14 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 517F18E00D4; Thu, 21 Feb 2019 18:51:13 -0500 (EST)
+	id 4F08D8E00D8; Thu, 21 Feb 2019 18:51:14 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1380E8E00D7
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 18:51:13 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id e5so317773pgc.16
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 15:51:13 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B5708E00D4
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 18:51:14 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id i5so365869pfi.1
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 15:51:14 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=twme+qjq33jZ13XlnvG7AH24qCU88X9Kbd4vP+8UtMM=;
-        b=jkjOW7PuA7kEOZIyp1Gp5zgjQvaJdpFUXnf7M3tUVt7zpXc/2YrN5IEWR8bKW5ARUd
-         pAAYpd37fNyh5Z5qBn8NAUUG01uwI8hi1F4eCBqc9Kw2d1aOoko+HaVziTDrz1LOo3Wm
-         ceU8I1L25q6k1Et6n0m0bxsmOcxzLRKSZS/Gh3cJZa1cj79LRfoVe80bcOsHcbmf2mYv
-         whS8Pxnwsx2ALMEGWHX+u2mvWl0qTckFEzPi1awVH7bT6xoE2J3+YiRlHLq9UtCzG9if
-         84o7ra7JmV4p8tfuFzLQ1JcdEhujuSos7bJTOHkdeI/8aOgEImPzidkt0TaTJkJ0RZS8
-         iZmQ==
+        bh=5kZP+xlzcd2ctLk3fWzs8E8qpboYLOQ3hu5nUlPFhXg=;
+        b=Rk7mzY5dhDixxuVJtJ3okppgsAEBClKUd/WCzUaumRgb9NjSb1Nq/BgMc+1zecyLps
+         LqyCu8+abQhqOjCQ5z+NmPeTLDWdo4Uihxt0xUQxYvJ0H8pbWCCgl84Crr9WjoAMXXac
+         jVYsK2LFA40AdySwx9uUE0rhlCc2a/GuKtn7iPQPSFOPdmvF81gSH1Cix0t4rQVwkO8j
+         AsBL01rB79GdQogCw2YE8ilzTm+LmKZjYVWBwwoiqePryNQpHaPIzQruSbPToCmEvrBm
+         tnUepfczgkh+ynqqP0OWaiDoBFIyc47vkEFC9JFNMkdAuOfZgeyR8eOiAtxXm3nRD1wx
+         i9Uw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuYky4wvv96Ovr+m35lLYgaviKMSSt/6wMaMOgbXTULBcIvjlYWb
-	OIX6u+lIxlroX7W23XlCXnyGmL6xbL9DuNI3DFa8Ah+lLV1QjlujYJZrU+gI/ZeKdGlrq5AuR2T
-	MAqhPoRtMekf2oGQ0Dd5rH7/bYAWjfdoc/TcTWPaLIi9dmgcMkUhg+DI+Z7wJrzFRdA==
-X-Received: by 2002:a17:902:22a:: with SMTP id 39mr1165244plc.153.1550793072747;
-        Thu, 21 Feb 2019 15:51:12 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ibpo/e/BOv/b9u2I/sWFfsKnNdZ2w17bAMSK6+hSXNn6ZU9OBTFIuf1fKRK31r4wfU1g4Ok
-X-Received: by 2002:a17:902:22a:: with SMTP id 39mr1165213plc.153.1550793072043;
-        Thu, 21 Feb 2019 15:51:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550793072; cv=none;
+X-Gm-Message-State: AHQUAubmSLACWh4GBfaYDjaG1VDu5Mfitquqv2BtOf7xCc5vQ2Zb57qP
+	23UUgSIZCeW1yyTbJ8CTHXt65LxLs+lAB60KmrEyABrWZjd5SgFrBWrcsYQNqDK6od2sKcXYgi7
+	X2JyeZ/8ev6gKdD7SlvK1nDuBK+xpyRfloTuYYKseoEqY5uRMx6CfI/lFjxpQ/9vYYw==
+X-Received: by 2002:a62:1706:: with SMTP id 6mr1160085pfx.28.1550793073726;
+        Thu, 21 Feb 2019 15:51:13 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaDRrRRuMDaYgrQdoghqF6ZHULz6c7YiyQOLIBpti3E2m02F8V5+UWbvEIvLQhyjSwMPCzR
+X-Received: by 2002:a62:1706:: with SMTP id 6mr1160046pfx.28.1550793073025;
+        Thu, 21 Feb 2019 15:51:13 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550793073; cv=none;
         d=google.com; s=arc-20160816;
-        b=s68qqi6et1GOSTdhMVXRtbJLClJJ8gcA9xFoOZ5HK88A7gzhn/kxt7PctpudzW9Scq
-         7cJj3FAhhddJvXKJpwkwQ7eRF47+5s2P6Yfg3hPWfpFo12yK3Fj8bfL9H+XEtSNaYTqh
-         9kc4UyX4rJW30LB3kLJ3cDAsSlXiKS0TYtNSViF6oMMJ/61WxGU6YPUYOxdUDPo6a8T9
-         MSU/FIiDjjNJK7P3lpg26C5US8FZV2oeLtK5BcR9CimEkgnBUIwCo7M/EBWyNuch6CPi
-         sWn1Nju02m00IyGzpYukPGgSSXpjJLjC0aKiIKfAfwIpWx4C4m3f3unUdNClq2+y/nQ5
-         h8mw==
+        b=jUV+lHtqcPJERQnxMZOmd/5zqQEE9Gw9TWcGA/ZzB0Hl90bKrQqDzjZy+PFjvZSoAS
+         08KlCdy5Fsh7mqqShYmhbq4u9e1pHWVcUnC2uRPDhcPIi65OtDzZ6923PdpiwpttIbv6
+         SOhQQ5n4g3deYhWrk58TLkPGJB5tah+APXnWG4cmd4CPDmoyHTflOnVG6MTuQ8kSaFYP
+         kN6udCwwRO/JW39G4V5IHVKBTQUFGzlm08XJoKPEPUtZotuu9TdniRLu6gjm+mXLEOGC
+         dmSv8/ijKElcvbLJTUIH03V53cASuUjlXC2bYFNrItf1tyQzJqbVe4veu1IjmL8ukg3k
+         E0GQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=twme+qjq33jZ13XlnvG7AH24qCU88X9Kbd4vP+8UtMM=;
-        b=IC/sokXqB6InHv2ZQWuMKi7tPcmCAHGmc1wmrq4knvxsZc7EhgzOY9fFGslquhGf8C
-         3+KUYjl7nte1ooaz9/IBfwFS6OhIWvo3VuPwphBYqKc4OsuCwcoKifIFmdtlUARjT4Ib
-         3R+yxPf33mdV+1I4sQhNpYmaTGWrvImKjohFyjov1Bsa/q423lpgGm+Dq1yr8fmngrCA
-         I9l+S6Kdswl1GTKaJKlsiQyI+bLznA0GlSf1okI6J8cQGCsudfjlnL5Q3675lqzf1HM3
-         3eqnGr1S7B5RROw7qaOIWv9jNBbiT36vASOLYHZ9+JBPBHkQ35+pzikZmIj9LSgbevQJ
-         EPaw==
+        bh=5kZP+xlzcd2ctLk3fWzs8E8qpboYLOQ3hu5nUlPFhXg=;
+        b=ikywDyiYXw/4KpVp2vgn7sYblVRfoS9guQ0jGPJy1xL6R2DrNxKoOMq7Yzq0fPoWro
+         TZXjEOwsESyg3oNuCxZLen6ngPPC74Y86XamEYan0W8L5YU4/98RCPGi2afLSZSDbSsl
+         jAIMjx+0A0al+s/vCcXNbWYAgqOdXe+tIWrsyEHS95ykWKUhwL/laS7YxiVFqkSwQh3P
+         7sgUfeprQmWwiLy39Vlo6BnmsEsbqbk1DR3GU9tgK9S3PZjCnaqd+Fbj5Txi5E+v/t2o
+         vOoqd085dFFLqNwq5ROVFAjy+kfdRDgHuDwMk5/7eRhJK+Y8921YIaY6xBTXN2eECiTJ
+         kUvg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id c4si238494pfn.83.2019.02.21.15.51.11
+        by mx.google.com with ESMTPS id c4si238494pfn.83.2019.02.21.15.51.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 15:51:12 -0800 (PST)
+        Thu, 21 Feb 2019 15:51:13 -0800 (PST)
 Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
@@ -79,12 +79,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Feb 2019 15:51:11 -0800
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Feb 2019 15:51:12 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,397,1544515200"; 
-   d="scan'208";a="322394963"
+   d="scan'208";a="322394969"
 Received: from linksys13920.jf.intel.com (HELO rpedgeco-DESK5.jf.intel.com) ([10.54.75.11])
-  by fmsmga005.fm.intel.com with ESMTP; 21 Feb 2019 15:51:10 -0800
+  by fmsmga005.fm.intel.com with ESMTP; 21 Feb 2019 15:51:11 -0800
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
 To: Andy Lutomirski <luto@kernel.org>,
 	Ingo Molnar <mingo@redhat.com>
@@ -106,11 +106,12 @@ Cc: linux-kernel@vger.kernel.org,
 	ard.biesheuvel@linaro.org,
 	kristen@linux.intel.com,
 	deneen.t.dock@intel.com,
-	Rick Edgecombe <rick.p.edgecombe@intel.com>,
-	Masami Hiramatsu <mhiramat@kernel.org>
-Subject: [PATCH v3 19/20] x86/kprobes: Use vmalloc special flag
-Date: Thu, 21 Feb 2019 15:44:50 -0800
-Message-Id: <20190221234451.17632-20-rick.p.edgecombe@intel.com>
+	Nadav Amit <namit@vmware.com>,
+	Masami Hiramatsu <mhiramat@kernel.org>,
+	Rick Edgecombe <rick.p.edgecombe@intel.com>
+Subject: [PATCH v3 20/20] x86/alternative: Comment about module removal races
+Date: Thu, 21 Feb 2019 15:44:51 -0800
+Message-Id: <20190221234451.17632-21-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
 References: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
@@ -120,41 +121,34 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Use new flag VM_FLUSH_RESET_PERMS for handling freeing of special
-permissioned memory in vmalloc and remove places where memory was set NX
-and RW before freeing which is no longer needed.
+From: Nadav Amit <namit@vmware.com>
+
+Add a comment to clarify that users of text_poke() must ensure that
+no races with module removal take place.
 
 Cc: Masami Hiramatsu <mhiramat@kernel.org>
+Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/kernel/kprobes/core.c | 7 +------
- 1 file changed, 1 insertion(+), 6 deletions(-)
+ arch/x86/kernel/alternative.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-diff --git a/arch/x86/kernel/kprobes/core.c b/arch/x86/kernel/kprobes/core.c
-index 98c671e89889..8b56935d7b53 100644
---- a/arch/x86/kernel/kprobes/core.c
-+++ b/arch/x86/kernel/kprobes/core.c
-@@ -434,6 +434,7 @@ void *alloc_insn_page(void)
- 	if (!page)
- 		return NULL;
- 
-+	set_vm_flush_reset_perms(page);
- 	/*
- 	 * First make the page read-only, and only then make it executable to
- 	 * prevent it from being W+X in between.
-@@ -452,12 +453,6 @@ void *alloc_insn_page(void)
- /* Recover page to RW mode before releasing it */
- void free_insn_page(void *page)
+diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
+index c63707e7ed3d..a1335b9486bf 100644
+--- a/arch/x86/kernel/alternative.c
++++ b/arch/x86/kernel/alternative.c
+@@ -809,6 +809,11 @@ static void *__text_poke(void *addr, const void *opcode, size_t len)
+  * It means the size must be writable atomically and the address must be aligned
+  * in a way that permits an atomic write. It also makes sure we fit on a single
+  * page.
++ *
++ * Note that the caller must ensure that if the modified code is part of a
++ * module, the module would not be removed during poking. This can be achieved
++ * by registering a module notifier, and ordering module removal and patching
++ * trough a mutex.
+  */
+ void *text_poke(void *addr, const void *opcode, size_t len)
  {
--	/*
--	 * First make the page non-executable, and only then make it writable to
--	 * prevent it from being W+X in between.
--	 */
--	set_memory_nx((unsigned long)page, 1);
--	set_memory_rw((unsigned long)page, 1);
- 	module_memfree(page);
- }
- 
 -- 
 2.17.1
 
