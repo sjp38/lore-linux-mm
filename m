@@ -6,72 +6,72 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 510F1C00319
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C10FAC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0B6FD2083B
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B6FD2083B
+	by mail.kernel.org (Postfix) with ESMTP id 78D9220818
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78D9220818
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0384B8E00D0; Thu, 21 Feb 2019 18:51:07 -0500 (EST)
+	id CE2098E00D1; Thu, 21 Feb 2019 18:51:07 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 011968E00CD; Thu, 21 Feb 2019 18:51:06 -0500 (EST)
+	id C91888E00CD; Thu, 21 Feb 2019 18:51:07 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CE0CF8E00D0; Thu, 21 Feb 2019 18:51:06 -0500 (EST)
+	id BA80D8E00D1; Thu, 21 Feb 2019 18:51:07 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E67C8E00CD
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 18:51:06 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id 134so310674pfx.21
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 15:51:06 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 75FFA8E00CD
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 18:51:07 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id 71so288861plf.19
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 15:51:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=IakGIipbE34Dq5lbcoYo7VqYScdEo+qlyfphRgvUc/Y=;
-        b=pgpgf8+Xt0PSvRqWGUHwCjEuWBby3naKUPnUD8DIUs0PK4qC9JDZGHC+5lI23N6JGD
-         9/fp4yWTlejC9q0nJAEaUG7DwunLYbG1NcZkA6SPBS1TYWPOpgJxj5QWY9TjRsHvKOBd
-         XH/dPY49yOF7Y5jJ5oGRjuU8p6WrJjKYzEOJif2Xurz/nUkeYgnBkMptP7gP8xJhBD2o
-         H0V1A+ESbAynHlB0bNH44js9sS+kzpeX1FLELYI24N3UxE4zFU5VSrnBcArvT45mE+aG
-         eF/uji8gDotIgWNQxiDSATB4VjTpQxCC890s55JL4NKppLb9QR2qccQ3ZqKvPUB0xowc
-         d2EA==
+        bh=vnm0CR07Tfw1GDwsiV5/vDSm+bo6LLBKcYWCZj/kFdA=;
+        b=LYgo6yrPWj8QKgdLzpY3WuV17bZmEjoMajvlWGB7URp2ylu+mI+Z82HNkBnEVyathR
+         s3VPxzWNz+Y8Hn5MS19HJLPDSN6gRR4hJyb5bxJXiaQrQ6/zXrGdd6tTDGMc+Be7LcbK
+         sM/SVbxMHNGcY+qx473EJmJOd2C4WdU1ZNe0pKp804fmfz/3il0CyvlPKi75OFW/lH8z
+         OB1MzxyHfkFrL8PLUInSczxfzJAbFhBFvPhP/MwNP5pSV+04dhvGNt3kDNzTSqHD6koB
+         kO8yzoWlI4BWvQT4x75HQEyzbHzOSf9so1aPcE7f9Xh/zqVbv7f87h627qWUUefPXn+/
+         NQzA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuaE7mPucmh7mgGxmZQmiAAc+6fqD/3UZGqvPmU+HIMHvhJGDfJC
-	HbMXvWb+Ad7GopADSVeTKg2LfSwfFqAKVYEEYLPrHCV0+PFsl54umJibyvzotVn3dOOwhcC4aOM
-	Zk0igkvmh5YtCzMFg3XQsPnM8xdZLenqTJo+XhkN1tpl19ul5PaISCiRPtx0LaUxARQ==
-X-Received: by 2002:a17:902:bd43:: with SMTP id b3mr1208840plx.186.1550793066127;
+X-Gm-Message-State: AHQUAuavLhU0rNKACrghMgppwog1tsSml7z0cy3oeVaERbDDvYjjVDjs
+	zii6iW4GNkNpkfLuW3z7BB6h1W6NuYBqrW30kkxtUfP4h+I0OyG2oRiQ0W2yzNpyPBdXkxbziT/
+	mQuW05Fg6w4fwkef4ZNlbxfjzRSURnfnQbB7IdCQUKHkMep4+RcPwuFWNRFRq3Qpttw==
+X-Received: by 2002:a63:1061:: with SMTP id 33mr1080586pgq.226.1550793067145;
+        Thu, 21 Feb 2019 15:51:07 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ibl/1xtYG/hbpzNFXT5P+tY412bDqklpIoR4/gD6rEhtq+sCc01WkFh+dBYQU+j0SY5EqWX
+X-Received: by 2002:a63:1061:: with SMTP id 33mr1080543pgq.226.1550793066351;
         Thu, 21 Feb 2019 15:51:06 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZQBgw5v+QGB6Wdf3A8wLZeijmmQhZGRmC1nIKcfesKwL97VAFIMBa4zn3wwh4QuPh9tLzO
-X-Received: by 2002:a17:902:bd43:: with SMTP id b3mr1208802plx.186.1550793065408;
-        Thu, 21 Feb 2019 15:51:05 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550793065; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1550793066; cv=none;
         d=google.com; s=arc-20160816;
-        b=EQDYDUWeeytH40O4EyraQQMz4Y21R3Rd/n09Uo77Gha0LBEG6k9vm4EOLEowmtdHHy
-         fbA75wHRj8DytczFzBFY9/P7goHpubpN69gHX5eh8qEm9ALKlceyCm6j/fDLpOX19T28
-         JglrBluZ4ab9O+7ukbFRG4lVjV/eRdHhGJ5xJDQkIaVaz5cZDJbPgC0fKjYzPMFb9wNZ
-         d8Po7xjqzYX9/YBvNBpxgRYxt/lQzjUwIXmNCNr7ieaKNbRux4wr6ubWBKeKZWKhue/o
-         aUkPYqEoUiN0mwUG2FVP2jznwJf/t6ZgCYu7U7bGQuVAOoPnpgYnfisV2dY4az/jSjnv
-         VQjQ==
+        b=ReMGZ0v+tP5coROaTk8Uvp4tVvRSfrA8c3EYz4YGnVsPdWH2y+8c6sD+3s1PhxNlPD
+         lEm60rey2r4RQuHFyTNJYILWsPnk8BV0xyTV+IUCH72XnEY6vg9u3+YSxbjzBOCO2WHT
+         rQxPHV7sSby73jj7nId+B86QbLYP9Q45PMiG1E2Em6+2GddC5VqLfe+FZVLlUd0lgIuQ
+         rJGCRRbs6R5uFekwugBEj/gFtlFtxANEf3vF4qoToHzVsgHXwp0Bh5IFvDBHCcTEqigY
+         5VNl0MUdm2aN6GNscskeC/fOY/Gh/YB0VpxZ/1hlSVbAJoktdXJ8xpq+r7ce4WWOL0y+
+         8CrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=IakGIipbE34Dq5lbcoYo7VqYScdEo+qlyfphRgvUc/Y=;
-        b=SEn1cgHHFLy6L8l5OGHwCYhS2aWM7D2cs1XOY4A1bgLQLQIw1h0eQTafcizcdRqbxl
-         YIPtJauWVy8+7ZBa0pIGK4VC6xrhel/BO4t+QgP6v0isyb4Jv1LSC9Tiw4QYs4aJiTZu
-         Fu8XKyCzVc5FQjo2+S6tABRUlUdVw+0TKDV9WM+hZpLxxLr2dk1LYKZ7sqq6tuCnHPxJ
-         yijIR+FSeo94iC49Y3mUXx2xI2SIw68yI9FMokiOPzTyD2uw4rlfnZu6YDhhcI56i8Vi
-         S7JPgBzQU2uX6gpV15dfsNrhE0bIvQeGvBaJaTKOQuRySLO7m9vxzxYraIFgdAvfP8DO
-         18gQ==
+        bh=vnm0CR07Tfw1GDwsiV5/vDSm+bo6LLBKcYWCZj/kFdA=;
+        b=AYnz1cuz0nSWPv0id/4ShPz5bBYtUv/YzwoF89hKRzaNwMnAETJ0by5howa/imY5+k
+         u8ULBwxRjnoeGcbMYXfsl1HVCKNQOOHfHeTxwXyHg9I9XdJTjrNtEGJmmrQ6Js2U7XfM
+         BzgNVsP28nADcv7SQSbesARLrbhG1jTBQ0QAy9QysyueeYIUV02s05gJA9F0jNiUndIU
+         H5x2uQJKeG9PBciN2B9LtTHAHN2mUFIp40jJ/CoQBhNNyLr/tf0yWl93o4QVnUDOOp0l
+         0WL4e0WuDMzWGl9NZrGBFIH/U9MyfQO2nYgjyc5oCir/D18qza3Fu8yZCrVGXtRB5ZyH
+         3voA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id c4si238494pfn.83.2019.02.21.15.51.05
+        by mx.google.com with ESMTPS id c4si238494pfn.83.2019.02.21.15.51.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 15:51:05 -0800 (PST)
+        Thu, 21 Feb 2019 15:51:06 -0800 (PST)
 Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
@@ -82,9 +82,9 @@ Received: from fmsmga005.fm.intel.com ([10.253.24.32])
   by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Feb 2019 15:51:05 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,397,1544515200"; 
-   d="scan'208";a="322394921"
+   d="scan'208";a="322394927"
 Received: from linksys13920.jf.intel.com (HELO rpedgeco-DESK5.jf.intel.com) ([10.54.75.11])
-  by fmsmga005.fm.intel.com with ESMTP; 21 Feb 2019 15:51:03 -0800
+  by fmsmga005.fm.intel.com with ESMTP; 21 Feb 2019 15:51:05 -0800
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
 To: Andy Lutomirski <luto@kernel.org>,
 	Ingo Molnar <mingo@redhat.com>
@@ -106,14 +106,10 @@ Cc: linux-kernel@vger.kernel.org,
 	ard.biesheuvel@linaro.org,
 	kristen@linux.intel.com,
 	deneen.t.dock@intel.com,
-	Nadav Amit <namit@vmware.com>,
-	Kees Cook <keescook@chromium.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Masami Hiramatsu <mhiramat@kernel.org>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v3 12/20] x86/alternative: Remove the return value of text_poke_*()
-Date: Thu, 21 Feb 2019 15:44:43 -0800
-Message-Id: <20190221234451.17632-13-rick.p.edgecombe@intel.com>
+Subject: [PATCH v3 13/20] x86/mm/cpa: Add set_direct_map_ functions
+Date: Thu, 21 Feb 2019 15:44:44 -0800
+Message-Id: <20190221234451.17632-14-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
 References: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
@@ -123,94 +119,130 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Nadav Amit <namit@vmware.com>
+Add two new functions set_direct_map_default_noflush() and
+set_direct_map_invalid_noflush() for setting the direct map alias for the
+page to its default valid permissions and to an invalid state that cannot
+be cached in a TLB, respectively. These functions do not flush the TLB.
 
-The return value of text_poke_early() and text_poke_bp() is useless.
-Remove it.
+Note, __kernel_map_pages() does something similar but flushes the TLB and
+doesn't reset the permission bits to default on all architectures.
 
+Also add an ARCH config ARCH_HAS_SET_DIRECT_MAP for specifying whether
+these have an actual implementation or a default empty one.
+
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Masami Hiramatsu <mhiramat@kernel.org>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Signed-off-by: Nadav Amit <namit@vmware.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/include/asm/text-patching.h |  4 ++--
- arch/x86/kernel/alternative.c        | 11 ++++-------
- 2 files changed, 6 insertions(+), 9 deletions(-)
+ arch/Kconfig                      |  4 ++++
+ arch/x86/Kconfig                  |  1 +
+ arch/x86/include/asm/set_memory.h |  3 +++
+ arch/x86/mm/pageattr.c            | 14 +++++++++++---
+ include/linux/set_memory.h        | 10 ++++++++++
+ 5 files changed, 29 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/include/asm/text-patching.h b/arch/x86/include/asm/text-patching.h
-index a75eed841eed..c90678fd391a 100644
---- a/arch/x86/include/asm/text-patching.h
-+++ b/arch/x86/include/asm/text-patching.h
-@@ -18,7 +18,7 @@ static inline void apply_paravirt(struct paravirt_patch_site *start,
- #define __parainstructions_end	NULL
- #endif
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 4cfb6de48f79..79a9ec371964 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -249,6 +249,10 @@ config ARCH_HAS_FORTIFY_SOURCE
+ config ARCH_HAS_SET_MEMORY
+ 	bool
  
--extern void *text_poke_early(void *addr, const void *opcode, size_t len);
-+extern void text_poke_early(void *addr, const void *opcode, size_t len);
++# Select if arch has all set_direct_map_invalid/default() functions
++config ARCH_HAS_SET_DIRECT_MAP
++	bool
++
+ # Select if arch init_task must go in the __init_task_data section
+ config ARCH_TASK_STRUCT_ON_STACK
+        bool
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 26387c7bf305..291c6566cf88 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -66,6 +66,7 @@ config X86
+ 	select ARCH_HAS_UACCESS_FLUSHCACHE	if X86_64
+ 	select ARCH_HAS_UACCESS_MCSAFE		if X86_64 && X86_MCE
+ 	select ARCH_HAS_SET_MEMORY
++	select ARCH_HAS_SET_DIRECT_MAP
+ 	select ARCH_HAS_STRICT_KERNEL_RWX
+ 	select ARCH_HAS_STRICT_MODULE_RWX
+ 	select ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
+diff --git a/arch/x86/include/asm/set_memory.h b/arch/x86/include/asm/set_memory.h
+index 07a25753e85c..ae7b909dc242 100644
+--- a/arch/x86/include/asm/set_memory.h
++++ b/arch/x86/include/asm/set_memory.h
+@@ -85,6 +85,9 @@ int set_pages_nx(struct page *page, int numpages);
+ int set_pages_ro(struct page *page, int numpages);
+ int set_pages_rw(struct page *page, int numpages);
  
- /*
-  * Clear and restore the kernel write-protection flag on the local CPU.
-@@ -37,7 +37,7 @@ extern void *text_poke_early(void *addr, const void *opcode, size_t len);
- extern void *text_poke(void *addr, const void *opcode, size_t len);
- extern void *text_poke_kgdb(void *addr, const void *opcode, size_t len);
- extern int poke_int3_handler(struct pt_regs *regs);
--extern void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
-+extern void text_poke_bp(void *addr, const void *opcode, size_t len, void *handler);
- extern int after_bootmem;
- extern __ro_after_init struct mm_struct *poking_mm;
- extern __ro_after_init unsigned long poking_addr;
-diff --git a/arch/x86/kernel/alternative.c b/arch/x86/kernel/alternative.c
-index b75bfeda021e..c63707e7ed3d 100644
---- a/arch/x86/kernel/alternative.c
-+++ b/arch/x86/kernel/alternative.c
-@@ -264,7 +264,7 @@ static void __init_or_module add_nops(void *insns, unsigned int len)
- 
- extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
- extern s32 __smp_locks[], __smp_locks_end[];
--void *text_poke_early(void *addr, const void *opcode, size_t len);
-+void text_poke_early(void *addr, const void *opcode, size_t len);
- 
- /*
-  * Are we looking at a near JMP with a 1 or 4-byte displacement.
-@@ -666,8 +666,8 @@ void __init alternative_instructions(void)
-  * instructions. And on the local CPU you need to be protected again NMI or MCE
-  * handlers seeing an inconsistent instruction while you patch.
-  */
--void *__init_or_module text_poke_early(void *addr, const void *opcode,
--				       size_t len)
-+void __init_or_module text_poke_early(void *addr, const void *opcode,
-+				      size_t len)
- {
- 	unsigned long flags;
- 
-@@ -690,7 +690,6 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
- 		 * that causes hangs on some VIA CPUs.
- 		 */
- 	}
--	return addr;
++int set_direct_map_invalid_noflush(struct page *page);
++int set_direct_map_default_noflush(struct page *page);
++
+ extern int kernel_set_to_readonly;
+ void set_kernel_text_rw(void);
+ void set_kernel_text_ro(void);
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index 4f8972311a77..fff9c91ad177 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -2209,8 +2209,6 @@ int set_pages_rw(struct page *page, int numpages)
+ 	return set_memory_rw(addr, numpages);
  }
  
- __ro_after_init struct mm_struct *poking_mm;
-@@ -892,7 +891,7 @@ int poke_int3_handler(struct pt_regs *regs)
-  *	  replacing opcode
-  *	- sync cores
-  */
--void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
-+void text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
- {
- 	unsigned char int3 = 0xcc;
- 
-@@ -934,7 +933,5 @@ void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
- 	 * the writing of the new instruction.
- 	 */
- 	bp_patching_in_progress = false;
+-#ifdef CONFIG_DEBUG_PAGEALLOC
 -
--	return addr;
+ static int __set_pages_p(struct page *page, int numpages)
+ {
+ 	unsigned long tempaddr = (unsigned long) page_address(page);
+@@ -2249,6 +2247,17 @@ static int __set_pages_np(struct page *page, int numpages)
+ 	return __change_page_attr_set_clr(&cpa, 0);
  }
  
++int set_direct_map_invalid_noflush(struct page *page)
++{
++	return __set_pages_np(page, 1);
++}
++
++int set_direct_map_default_noflush(struct page *page)
++{
++	return __set_pages_p(page, 1);
++}
++
++#ifdef CONFIG_DEBUG_PAGEALLOC
+ void __kernel_map_pages(struct page *page, int numpages, int enable)
+ {
+ 	if (PageHighMem(page))
+@@ -2282,7 +2291,6 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
+ }
+ 
+ #ifdef CONFIG_HIBERNATION
+-
+ bool kernel_page_present(struct page *page)
+ {
+ 	unsigned int level;
+diff --git a/include/linux/set_memory.h b/include/linux/set_memory.h
+index 2a986d282a97..82477e934b1a 100644
+--- a/include/linux/set_memory.h
++++ b/include/linux/set_memory.h
+@@ -10,6 +10,16 @@
+ 
+ #ifdef CONFIG_ARCH_HAS_SET_MEMORY
+ #include <asm/set_memory.h>
++#ifndef CONFIG_ARCH_HAS_SET_DIRECT_MAP
++static inline int set_direct_map_invalid_noflush(struct page *page)
++{
++	return 0;
++}
++static inline int set_direct_map_default_noflush(struct page *page)
++{
++	return 0;
++}
++#endif
+ #else
+ static inline int set_memory_ro(unsigned long addr, int numpages) { return 0; }
+ static inline int set_memory_rw(unsigned long addr, int numpages) { return 0; }
 -- 
 2.17.1
 
