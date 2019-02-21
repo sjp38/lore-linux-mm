@@ -2,159 +2,291 @@ Return-Path: <SRS0=vS5V=Q4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0EC82C4360F
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 00:16:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 671A2C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 00:25:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AC8C12089F
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 00:16:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC8C12089F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 0EFF120855
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 00:25:20 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="I6tgQuog"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0EFF120855
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1EB728E004C; Wed, 20 Feb 2019 19:16:03 -0500 (EST)
+	id 89A1E8E004D; Wed, 20 Feb 2019 19:25:20 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 19A338E0002; Wed, 20 Feb 2019 19:16:03 -0500 (EST)
+	id 849F68E0002; Wed, 20 Feb 2019 19:25:20 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 08AD18E004C; Wed, 20 Feb 2019 19:16:03 -0500 (EST)
+	id 739718E004D; Wed, 20 Feb 2019 19:25:20 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D228B8E0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 19:16:02 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id r24so25001439qtj.13
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 16:16:02 -0800 (PST)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 47A158E0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2019 19:25:20 -0500 (EST)
+Received: by mail-yb1-f199.google.com with SMTP id g19so16836570ybe.2
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2019 16:25:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=ZLL1n403Rasb5zF0daZZEyDJvNxP46Um6LbxkczYVNU=;
-        b=Eer4XFFtfvVnMSkD67+uWg1Bndcb867dltFztG69YU5lSFXwO7OK3A9Pv7oADjqIi8
-         bGsiQx885g188q1EsMYd5YeaOxX5yoaioQDc785UhmAcPr340XMWtSsGAAtMS1Dzl5vQ
-         Wei9lqxNc0m91pZwHSxywgmLJK1vAjAyLJlYy3k0WyRLaxfBo5CHazbEQAi0LrP5WPpk
-         hlgNrKqFHvs6uYdn6ezJDe4qv9osTWgpQnF5Ahce8j5OYY6T30laPB39DstnJ6uyM00Y
-         UpPD9t7rz6z5l7SzPO4rPajQgGn3+dGhM08uX1E6mVi4uS8VxR2U1OLhEKSxEFUPmYgF
-         pzSw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZ/wVWoPpjIPz7dBlGYkTKryWP5+Bs1hu5EuS6jlHL/gL3yTfHX
-	VMhF6rtBR7iorQ92SWjxDCZhTeHC5znFt5n3gNIwvQlAdFU1uHCc/sgmGeFlWMmCibDeutsfl/b
-	/tcE04uxuPAZczy8VYcRKaLYHG40tjjTRWoHEpcV3hwh31dUS001AXo6+ixqhIZqIOg==
-X-Received: by 2002:a0c:e74c:: with SMTP id g12mr27733956qvn.10.1550708162542;
-        Wed, 20 Feb 2019 16:16:02 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ibbsm/3DMcRAIWbLZm0D7r49DIbl82OiQa2qm6Q69Ry0F4qYycTSpWBFkyn/7YuqAFp4eCo
-X-Received: by 2002:a0c:e74c:: with SMTP id g12mr27733937qvn.10.1550708161995;
-        Wed, 20 Feb 2019 16:16:01 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550708161; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=dFWrCIETKXjg1FNqFb1me5bCDn/NW3Z/3TsvBhl4xRU=;
+        b=XCjssGqiypSBWJ43u125XNDV4/5jZzSVuWpXErnNhZsUbUKv4rJvTAKia0Tz4I5LOM
+         Ve++mLhHBrN/4nXOOIoKVdC3GGIvEx2zfqvg+4PadlGaHuxswTa6bqrKpFips/RcDR4v
+         +5kOv9QcweXRclEN1sz9lPEMH1Ef3sLmIaL45H+S59kijA0O5e5e52tjcfRriKRzIMVo
+         ybFwZ+LdqdzhL/mAnbJw8BQsf6g119Wx/aAb0zXIrO8zHLdnBGGrvXnpdlnZyhodCo5C
+         AOf3rI6GkVzKhRnzpM+JG1bLhckxD/AbFygxd0s1ECac1q6K6IAtmQl4z+ue+pih+L5M
+         e87A==
+X-Gm-Message-State: AHQUAuar5jXw2JVhyBeBVqVgjDKgxlumvkfwmerVT4LV43aWTNZUjpXz
+	srg0mf8dhXzMMWvC6+IQbGxutrILF40gAh8uhzgnJEVbY9a98RWTqjUJptRcMVCRNlP8EczjDJv
+	i3wK5fNTqBL4b5/T6W2cyE3/ehSLw687rrH6miK/rwK2D8SfeS0N3Zhof2uqFavenyw==
+X-Received: by 2002:a5b:542:: with SMTP id r2mr32108277ybp.174.1550708719968;
+        Wed, 20 Feb 2019 16:25:19 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZjXidPzyN+G58epem/rHOC8g7jNvKViaD+H+1Cd1oefLX9O0qeTt6kL2PMJ9+ihaWyvXGX
+X-Received: by 2002:a5b:542:: with SMTP id r2mr32108246ybp.174.1550708719251;
+        Wed, 20 Feb 2019 16:25:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550708719; cv=none;
         d=google.com; s=arc-20160816;
-        b=PPEk1+VPUmGl1cn1jFRemgdQmzzFd1oiAAoNGo/PFqwLnTZ3+UjxxNr60auwUYBMVe
-         ZsJTFzEMME9k1ELnx4uN1VgbNDeliTc2iTaqOe6S4E/m4GI1+p/CiA9Up36ZvHQ7DhHf
-         dd/bzhCke5w1Ku43EN4NlFMOe2cgJop6K8sEdENcDLWBpalKewAwQGnfsCL3xFO2HrCP
-         nt5fQGIkHENHXpyBbdTmlIqiPy5HiCG2WCIhNGzZGW3Ory1xpuCgorAVPuSDqKp9vVYC
-         N1f6PjSObryMbV0kpdpty+1SfDsGmWyFhNw6k9kSDD6cj5vl8qmyc4ZSnhL47Ed3Eg11
-         7YKQ==
+        b=V6hIQ+MmZNg8J9nKSd64bu61QuHIhaPe3/QHmuCq4S/vW+TY/ERnrUMkQTT3NLfoLy
+         fZAx30BAwekCIcY28aZvzMjvxSXDkC+jkGzUyjAuWsadi6vnVVQ639IwlHqdvj1Nnswx
+         ecfZtIbW52XwDu/c+YSlo7vqXfBPYZxJ2LuA5mOB9CEd4h6XUgWlzBVFzpj99B+mG2Av
+         PTgw7j8bhKlMci49lXYvIBukxp7KDA2SefMeIgkV1eT4Z+y8Y+1RmC8vgBARDt2E5ym6
+         dK+CgBhWAyeApHBhxCHZypKJCVLlx7BlDuyHSUHZGMCnTDO4EpARDBJbxcFt0CzM4zMA
+         cV5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=ZLL1n403Rasb5zF0daZZEyDJvNxP46Um6LbxkczYVNU=;
-        b=KfOr/lMC9PmBaw3HgoV+0LX3hahICPbVVo8hOhGVC8i7pi1AFoHw/ZT44tmR4pMFKk
-         2pAdWCROAS8UAQoSTWkt50psF5ky3a+BznDNDqPDXTP6sBsVhEabqZCYZdICmRwIxJrL
-         6B0Pd2QXRAutVWAh09wMZ3BgtWwxYNl7RtLyGzaQxwdpml0TIAbNiak38Ze2vDw0Aazt
-         Iw7K2gh8rR+Ue6DeunKfU3ylT/LIeiqfzxX8VvacZPipiAtbBY2NtIGkfvyodIG0C0X+
-         hBOZXF8kk8otxjL+BOo5cdan6Of6Su1NZ3VWJF72B0Nevf5WgDkpdEFGJgN4bwqXLc4p
-         1YWw==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=dFWrCIETKXjg1FNqFb1me5bCDn/NW3Z/3TsvBhl4xRU=;
+        b=rk+sifFCm3ohm7es/JaTKWZIWY6d2c8LZq+cYVZ8BOsEWyIkyIO6oeQtohl+7/ZGHJ
+         5DQ4o1I+J4w+abdNCWcQzW0RPvH7IPRYz7p5kmcYA3MPnaXhWj40J2LpDDyUpNmVO15g
+         U1G9mKDKRW2MdDEezeAttVNc5DS6/8GiOO+wAwWnf6POM3lE9/1UFbSrV3nEIqgTbXOp
+         M6nW0y18rKw1UGeRgYiJgJHy1z6Yb+fqNzbNkDoSbN1LuwyOwcozoz+3WxOgp1tdkevS
+         MeSK6W8mCpgx9aUIzWmWDN8QuHL7HgAbZD6u0XdA5WWFDnE4seuSyZ8u/Ou/LWmop6Ai
+         KPaQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r4si2628995qtp.159.2019.02.20.16.16.01
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=I6tgQuog;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id p81si12376871ywp.149.2019.02.20.16.25.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Feb 2019 16:16:01 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 20 Feb 2019 16:25:19 -0800 (PST)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 066AAC03BD4B;
-	Thu, 21 Feb 2019 00:16:01 +0000 (UTC)
-Received: from redhat.com (ovpn-120-249.rdu2.redhat.com [10.10.120.249])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id E41B65D9D4;
-	Thu, 21 Feb 2019 00:15:59 +0000 (UTC)
-Date: Wed, 20 Feb 2019 19:15:57 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 01/10] mm/hmm: use reference counting for HMM struct
-Message-ID: <20190221001557.GA24489@redhat.com>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=I6tgQuog;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c6deff40000>; Wed, 20 Feb 2019 16:25:24 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Wed, 20 Feb 2019 16:25:18 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Wed, 20 Feb 2019 16:25:18 -0800
+Received: from [10.2.169.124] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Thu, 21 Feb
+ 2019 00:25:17 +0000
+Subject: Re: [PATCH 03/10] mm/hmm: improve and rename hmm_vma_get_pfns() to
+ hmm_range_snapshot()
+To: <jglisse@redhat.com>, <linux-mm@kvack.org>
+CC: <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
+	Ralph Campbell <rcampbell@nvidia.com>
 References: <20190129165428.3931-1-jglisse@redhat.com>
- <20190129165428.3931-2-jglisse@redhat.com>
- <1373673d-721e-a7a2-166f-244c16f236a3@nvidia.com>
- <20190220235933.GD11325@redhat.com>
- <dd448c6f-5ed7-ceb4-ca5e-c7650473a47c@nvidia.com>
+ <20190129165428.3931-4-jglisse@redhat.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <cc2d909c-37c6-4239-7755-4383a8eca0df@nvidia.com>
+Date: Wed, 20 Feb 2019 16:25:07 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <dd448c6f-5ed7-ceb4-ca5e-c7650473a47c@nvidia.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 21 Feb 2019 00:16:01 +0000 (UTC)
+In-Reply-To: <20190129165428.3931-4-jglisse@redhat.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1550708724; bh=dFWrCIETKXjg1FNqFb1me5bCDn/NW3Z/3TsvBhl4xRU=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=I6tgQuog86qv6gu1dhnEdEk72Zm7NdftP96EfqGPweBvT2ZUu31lvTrE6mpAj2CeU
+	 lJNcCeXEtXq5OvEdGjKH3Bb/Bsf2JTGPDQyQONBhJaKYOyB/jeDQkFaQr9e6d4q6Z7
+	 Pr6P3iDGF5ALPBiard7zbm7SlHWArESTa/lntDBqxSQyGr6JScpdcGtDj47E3YXsSu
+	 xAP1iDj84rART96QHRN+EfzXH4oNGPfo4HqyWhrZ8C9FE8lUZV6kzc5wcFDB6nLTWW
+	 ZaoK4pBYw77SrwAguTS83eIJjkcQod+vtV9mR5K3tADcokFTAL7+K09uAcMTOQMNtw
+	 twK/pe5LbPkOQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2019 at 04:06:50PM -0800, John Hubbard wrote:
-> On 2/20/19 3:59 PM, Jerome Glisse wrote:
-> > On Wed, Feb 20, 2019 at 03:47:50PM -0800, John Hubbard wrote:
-> > > On 1/29/19 8:54 AM, jglisse@redhat.com wrote:
-> > > > From: Jérôme Glisse <jglisse@redhat.com>
-> > > > 
-> > > > Every time i read the code to check that the HMM structure does not
-> > > > vanish before it should thanks to the many lock protecting its removal
-> > > > i get a headache. Switch to reference counting instead it is much
-> > > > easier to follow and harder to break. This also remove some code that
-> > > > is no longer needed with refcounting.
-> > > 
-> > > Hi Jerome,
-> > > 
-> > > That is an excellent idea. Some review comments below:
-> > > 
-> > > [snip]
-> > > 
-> > > >    static int hmm_invalidate_range_start(struct mmu_notifier *mn,
-> > > >    			const struct mmu_notifier_range *range)
-> > > >    {
-> > > >    	struct hmm_update update;
-> > > > -	struct hmm *hmm = range->mm->hmm;
-> > > > +	struct hmm *hmm = hmm_get(range->mm);
-> > > > +	int ret;
-> > > >    	VM_BUG_ON(!hmm);
-> > > > +	/* Check if hmm_mm_destroy() was call. */
-> > > > +	if (hmm->mm == NULL)
-> > > > +		return 0;
-> > > 
-> > > Let's delete that NULL check. It can't provide true protection. If there
-> > > is a way for that to race, we need to take another look at refcounting.
-> > 
-> > I will do a patch to delete the NULL check so that it is easier for
-> > Andrew. No need to respin.
-> 
-> (Did you miss my request to make hmm_get/hmm_put symmetric, though?)
+On 1/29/19 8:54 AM, jglisse@redhat.com wrote:
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>=20
+> Rename for consistency between code, comments and documentation. Also
+> improves the comments on all the possible returns values. Improve the
+> function by returning the number of populated entries in pfns array.
+>=20
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> ---
+>   include/linux/hmm.h |  4 ++--
+>   mm/hmm.c            | 23 ++++++++++-------------
+>   2 files changed, 12 insertions(+), 15 deletions(-)
+>=20
 
-Went over my mail i do not see anything about symmetric, what do you
-mean ?
+Hi Jerome,
 
-Cheers,
-Jérôme
+After applying the entire patchset, I still see a few hits of the old name,
+in Documentation:
+
+$ git grep -n hmm_vma_get_pfns
+Documentation/vm/hmm.rst:192:  int hmm_vma_get_pfns(struct vm_area_struct *=
+vma,
+Documentation/vm/hmm.rst:205:The first one (hmm_vma_get_pfns()) will only f=
+etch=20
+present CPU page table
+Documentation/vm/hmm.rst:224:      ret =3D hmm_vma_get_pfns(vma, &range, st=
+art,=20
+end, pfns);
+include/linux/hmm.h:145: * HMM pfn value returned by hmm_vma_get_pfns() or=
+=20
+hmm_vma_fault() will be:
+
+
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index bd6e058597a6..ddf49c1b1f5e 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -365,11 +365,11 @@ void hmm_mirror_unregister(struct hmm_mirror *mirro=
+r);
+>    * table invalidation serializes on it.
+>    *
+>    * YOU MUST CALL hmm_vma_range_done() ONCE AND ONLY ONCE EACH TIME YOU =
+CALL
+> - * hmm_vma_get_pfns() WITHOUT ERROR !
+> + * hmm_range_snapshot() WITHOUT ERROR !
+>    *
+>    * IF YOU DO NOT FOLLOW THE ABOVE RULE THE SNAPSHOT CONTENT MIGHT BE IN=
+VALID !
+>    */
+> -int hmm_vma_get_pfns(struct hmm_range *range);
+> +long hmm_range_snapshot(struct hmm_range *range);
+>   bool hmm_vma_range_done(struct hmm_range *range);
+>  =20
+>  =20
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 74d69812d6be..0d9ecd3337e5 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -706,23 +706,19 @@ static void hmm_pfns_special(struct hmm_range *rang=
+e)
+>   }
+>  =20
+>   /*
+> - * hmm_vma_get_pfns() - snapshot CPU page table for a range of virtual a=
+ddresses
+> - * @range: range being snapshotted
+> + * hmm_range_snapshot() - snapshot CPU page table for a range
+> + * @range: range
+>    * Returns: -EINVAL if invalid argument, -ENOMEM out of memory, -EPERM =
+invalid
+
+Channeling Mike Rapoport, that should be @Return: instead of Returns: , but=
+...
+
+
+> - *          vma permission, 0 success
+> + *          permission (for instance asking for write and range is read =
+only),
+> + *          -EAGAIN if you need to retry, -EFAULT invalid (ie either no =
+valid
+> + *          vma or it is illegal to access that range), number of valid =
+pages
+> + *          in range->pfns[] (from range start address).
+
+...actually, that's a little hard to spot that we're returning number of va=
+lid=20
+pages. How about:
+
+  * @Returns: number of valid pages in range->pfns[] (from range start
+  *           address). This may be zero. If the return value is negative,
+  *           then one of the following values may be returned:
+  *
+  *           -EINVAL  range->invalid is set, or range->start or range->end
+  *                    are not valid.
+  *           -EPERM   For example, asking for write, when the range is
+  *      	      read-only
+  *           -EAGAIN  Caller needs to retry
+  *           -EFAULT  Either no valid vma exists for this range, or it is
+  *                    illegal to access the range
+
+(caution: my white space might be wrong with respect to tabs)
+
+>    *
+>    * This snapshots the CPU page table for a range of virtual addresses. =
+Snapshot
+>    * validity is tracked by range struct. See hmm_vma_range_done() for fu=
+rther
+>    * information.
+> - *
+> - * The range struct is initialized here. It tracks the CPU page table, b=
+ut only
+> - * if the function returns success (0), in which case the caller must th=
+en call
+> - * hmm_vma_range_done() to stop CPU page table update tracking on this r=
+ange.
+> - *
+> - * NOT CALLING hmm_vma_range_done() IF FUNCTION RETURNS 0 WILL LEAD TO S=
+ERIOUS
+> - * MEMORY CORRUPTION ! YOU HAVE BEEN WARNED !
+>    */
+> -int hmm_vma_get_pfns(struct hmm_range *range)
+> +long hmm_range_snapshot(struct hmm_range *range)
+>   {
+>   	struct vm_area_struct *vma =3D range->vma;
+>   	struct hmm_vma_walk hmm_vma_walk;
+> @@ -776,6 +772,7 @@ int hmm_vma_get_pfns(struct hmm_range *range)
+>   	hmm_vma_walk.fault =3D false;
+>   	hmm_vma_walk.range =3D range;
+>   	mm_walk.private =3D &hmm_vma_walk;
+> +	hmm_vma_walk.last =3D range->start;
+>  =20
+>   	mm_walk.vma =3D vma;
+>   	mm_walk.mm =3D vma->vm_mm;
+> @@ -792,9 +789,9 @@ int hmm_vma_get_pfns(struct hmm_range *range)
+>   	 * function return 0).
+>   	 */
+>   	range->hmm =3D hmm;
+> -	return 0;
+> +	return (hmm_vma_walk.last - range->start) >> PAGE_SHIFT;
+>   }
+> -EXPORT_SYMBOL(hmm_vma_get_pfns);
+> +EXPORT_SYMBOL(hmm_range_snapshot);
+>  =20
+>   /*
+>    * hmm_vma_range_done() - stop tracking change to CPU page table over a=
+ range
+>=20
+
+Otherwise, looks good.
+
+thanks,
+--=20
+John Hubbard
+NVIDIA
 
