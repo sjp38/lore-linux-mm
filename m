@@ -6,72 +6,72 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0C1A6C00319
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 36462C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C743920818
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C743920818
+	by mail.kernel.org (Postfix) with ESMTP id E838420818
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 23:51:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E838420818
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0D9958E00CC; Thu, 21 Feb 2019 18:51:03 -0500 (EST)
+	id 8EE1F8E00B5; Thu, 21 Feb 2019 18:51:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 00D7B8E00B5; Thu, 21 Feb 2019 18:51:02 -0500 (EST)
+	id 872388E00CD; Thu, 21 Feb 2019 18:51:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E66E58E00CC; Thu, 21 Feb 2019 18:51:02 -0500 (EST)
+	id 78C238E00B5; Thu, 21 Feb 2019 18:51:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F29B8E00B5
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 18:51:02 -0500 (EST)
-Received: by mail-pf1-f200.google.com with SMTP id r9so334898pfb.13
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 15:51:02 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 371998E00CD
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 18:51:03 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id o67so313706pfa.20
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 15:51:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=hQkTPFjoHK3661xQlHVp+31XY04uuglTGuhGFhn0F6E=;
-        b=mR6TEWM2MVJXRRDczJqHDvFIhbGXFJ3l7l1kjC5cJTtR0GmxqhbOMilTKTRLwtLdyz
-         BLpWsQ+5apSXej1VtU9fmgxnEYXLQp0FkYFK4RTZFnij63oHidE4z58ARKYH4rej6bbh
-         k+acyq3nyVqXU29xsH3LrrqOdAhjeR4f8gRfo8FAUMl2956XxK9UVCwzcA4wcAolwzRx
-         tn7ZppuuCYMaqHo2s/Mn914L7tq5bIL4yzJBbwAn9dc1pM3oa4mjjlvXtfsg3Qif1jUC
-         ckrQgbzPqFELRLrg8VUUyhyYXC5TUzt1MJnClIZIavaJF3AqCSDbgJ4w/l3GQ2mlKxaD
-         yV8Q==
+        bh=3G8hdtdnz6A4RGh5p5LJ2XCAn2wTvpUmINy+UI0phGA=;
+        b=TWdRv2dLceYFqmzfPIpAAjvt0yjTrujvvJceCM/B5ZYvbgjG+suaWVTuTB/bJ6vrYN
+         EXt0AFNqNKcUR7j2JlckmAJd6+n2xcvLMvXmjM5HZcVcpCrYEVegcsEs2FEUZUxgIenl
+         ha3vfhpn9GHzM+1O1qu8t4WlUU90YEHNSatA7Q/PxuwLOw9rnDh10eLWDqGxmg5GcepT
+         ep7JMiCHDzcBdjaUFfpM9N4aYq55Dz1wgxpDc10dfoxnFUCe30LnhO6CyBq3HuN/bpDN
+         OCr34NWUXQwsgbbd3HfAsCg4PieX2zBVZscFOKrPHw9k9eGXRxdu8cLpbbcB3eESj7Bz
+         cM6g==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuZns1GfzuS/N5wVbNWbqf9SXBg1RjPbFdQzZrXYfzyGhajUfQCZ
-	a2EMHdwfi1XAfLMNvp4XZgjpe7Qsd8/AJmOYS6FwpWQN2IPLIROwwfh4H8Ja0YrOD6cGNIl+Oll
-	AOl4Cuc3cfg5/iBkKYFAr0qAn19ubbEAsz6l5JhZHAoTI4eQXIYtmENY2E3BGAPM+Iw==
-X-Received: by 2002:a63:5b1f:: with SMTP id p31mr1107463pgb.56.1550793062309;
+X-Gm-Message-State: AHQUAuaoELtUW8a/Fp/9cCLfpEkSF8y+/kCN+N9Sf32oRq+lREQ/0LG9
+	xuDf6IjyRZmNvK7p+cxKk9YsSlfrCBesH+mSbwj2dlEBSM2ydAxaz5sKiRBJ7vD4VXXSoIaTZZQ
+	ulFbtDqZsKEX1NUt4bHz+Z8uVKbbM72UKztpihZ26Ca3Os+JbuJzX5viVIAMmNOgLBA==
+X-Received: by 2002:a63:cf01:: with SMTP id j1mr1076303pgg.342.1550793062887;
         Thu, 21 Feb 2019 15:51:02 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbsQu4L3cnlUlXL60gc/3X48ZYGQfx5SOQnlm4DR41RHTOIC3RswgNfDZ/t9DiRBB5IvH8J
-X-Received: by 2002:a63:5b1f:: with SMTP id p31mr1107407pgb.56.1550793061190;
-        Thu, 21 Feb 2019 15:51:01 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550793061; cv=none;
+X-Google-Smtp-Source: AHgI3IYrwJja9IeGg3jIRfbsQEviRqy255Ilib6t5yAWInYpd7qvnpxA3tYQmb1E9SosmdfjR8WD
+X-Received: by 2002:a63:cf01:: with SMTP id j1mr1076279pgg.342.1550793062212;
+        Thu, 21 Feb 2019 15:51:02 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550793062; cv=none;
         d=google.com; s=arc-20160816;
-        b=h8K/h1cQ3wDqh2meH5Fg3G65y1WiUmCXmWDCCW3SrTGrIhhAVzaSc1iqzubgMJBjVq
-         J5PnilR0Xk4OdaS6k6deZr+jUFt3XUk5rB35eyV8dr5N/c1TmuMKEe8ILgBNVIiEEkQZ
-         UTxhM9D4+mysTxO9L9iYesLVXKlEudRVLptOGETcBqchS+kdil5CZ6Lgd/0obvLNKgJ8
-         ExG8qHc0Mamap/MoXNmjFjSsBtbWQXQJSMke4m4RugcRER7WMYjkcXKFH32V+vs0e/YR
-         As/yMNUFvAl3cRfdrKhL2rYSlNwEPXyEIqsmXWn/VsnneytdUxLwnvnPVw7W0+ANotlm
-         Bi3A==
+        b=lUg9IIzzcVI6NafLALPr2Y1BlLVTjoA+Ftcv0GVVAnARtt15MASuo3s1Wm/U2e9c/0
+         pr/MkE/dGHrJqMkca94QLMMSbB2J2cXAjbHStKxdkpAEktXlHDzbN/qM4jBgXLt3j6kN
+         6ZlScDNh6nEyLYTiDOUyYupmUvS0Bu2yKmc70ajXxXPZQCmBlcVWnXcZM60e7+xeXD8u
+         ZOq6/W9UhUQJUoNqLuvIigwZOuHv5dIYyRs/beKZ8j5CsSPzbfT28uRkYx3KqxQkBdqC
+         1PkKlp0gQ/b7IFl6bK0nZ8Wy7H/MwpEiaeAa5577s+uCuRHpSO+IHfmJMpd9JI3rVZ3f
+         6O8Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=hQkTPFjoHK3661xQlHVp+31XY04uuglTGuhGFhn0F6E=;
-        b=WbnsL/gUPcS0zFReJDo//9ffiw+Uxz4OX0kJnRybnbze9WR0RdNq8d53zPy5TnurB/
-         Rq31OuLjatRRutyJjHOJc5JpTxpxEEYmZlasF1VvH093g/A4GBbtiuYCgjOw2iw8X/BC
-         K5XURfo8Kwi3gPPBrBJVI623FI6bwkEIr5XXliuv+HSd2EskIf6e6h/Rp/wkZk2ii+05
-         M58/evWxZv/puL6D+NpDhriS58N5uNkTBEMZ1XV1oEvHkIuEVmWZtXptry75r1mEr9u5
-         JPqKYJ80S8MNuspvyg2h2SU2TjGQVjGZCc1bBLVJwuGRYKO8DsPOIqrO+IyAZjdb8hmV
-         wo1w==
+        bh=3G8hdtdnz6A4RGh5p5LJ2XCAn2wTvpUmINy+UI0phGA=;
+        b=gTOIlaioUm4rOFSU+TaKs35O4tJtmBfjgsWvqb1PD8RoRr/icyTC0UGZFCrpe+jqkT
+         orr3C1GIUcrRLe1tUyd+iT4nURxI3T6rYO1n3qdTgA2aWkl+XGE5huIximirEtV0irZl
+         k2f0WjDpkTyAw+UfcXXSRwkYWlx4JjgeooiOt/txSKfQdtYVeLk2aMXlyJ0cDdAl/gmM
+         UurVlOsy0hFA/HVl7tRrpCLvhGBx/0qdPUYgHjlRLVWbZGnPuSBv0IiHBBQJ0dGLJeWG
+         v1GOkWGRZrx4eueVtiwyVUG0Cs6r9n6RnZhmGMxxOnb3lBcIUdbJ1OJEToH/cLH2FbJ7
+         Hyqw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id c4si238494pfn.83.2019.02.21.15.51.01
+        by mx.google.com with ESMTPS id c4si238494pfn.83.2019.02.21.15.51.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 15:51:01 -0800 (PST)
+        Thu, 21 Feb 2019 15:51:02 -0800 (PST)
 Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
@@ -79,12 +79,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Feb 2019 15:51:00 -0800
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 Feb 2019 15:51:01 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,397,1544515200"; 
-   d="scan'208";a="322394844"
+   d="scan'208";a="322394901"
 Received: from linksys13920.jf.intel.com (HELO rpedgeco-DESK5.jf.intel.com) ([10.54.75.11])
-  by fmsmga005.fm.intel.com with ESMTP; 21 Feb 2019 15:50:59 -0800
+  by fmsmga005.fm.intel.com with ESMTP; 21 Feb 2019 15:51:00 -0800
 From: Rick Edgecombe <rick.p.edgecombe@intel.com>
 To: Andy Lutomirski <luto@kernel.org>,
 	Ingo Molnar <mingo@redhat.com>
@@ -108,9 +108,9 @@ Cc: linux-kernel@vger.kernel.org,
 	deneen.t.dock@intel.com,
 	Nadav Amit <namit@vmware.com>,
 	Rick Edgecombe <rick.p.edgecombe@intel.com>
-Subject: [PATCH v3 08/20] x86/ftrace: Set trampoline pages as executable
-Date: Thu, 21 Feb 2019 15:44:39 -0800
-Message-Id: <20190221234451.17632-9-rick.p.edgecombe@intel.com>
+Subject: [PATCH v3 09/20] x86/kprobes: Set instruction page as executable
+Date: Thu, 21 Feb 2019 15:44:40 -0800
+Message-Id: <20190221234451.17632-10-rick.p.edgecombe@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
 References: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
@@ -122,52 +122,62 @@ List-ID: <linux-mm.kvack.org>
 
 From: Nadav Amit <namit@vmware.com>
 
-Since alloc_module() will not set the pages as executable soon, set
-ftrace trampoline pages as executable after they are allocated.
+This patch is a preparatory patch for a following patch that makes
+module allocated pages non-executable. The patch sets the page as
+executable after allocation.
 
-For the time being, do not change ftrace to use the text_poke()
-interface. As a result, ftrace still breaks W^X.
+While at it, do some small cleanup of what appears to be unnecessary
+masking.
 
-Reviewed-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+Acked-by: Masami Hiramatsu <mhiramat@kernel.org>
 Signed-off-by: Nadav Amit <namit@vmware.com>
 Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
 ---
- arch/x86/kernel/ftrace.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
+ arch/x86/kernel/kprobes/core.c | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/kernel/ftrace.c b/arch/x86/kernel/ftrace.c
-index 8257a59704ae..13c8249b197f 100644
---- a/arch/x86/kernel/ftrace.c
-+++ b/arch/x86/kernel/ftrace.c
-@@ -742,6 +742,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
- 	unsigned long end_offset;
- 	unsigned long op_offset;
- 	unsigned long offset;
-+	unsigned long npages;
- 	unsigned long size;
- 	unsigned long retq;
- 	unsigned long *ptr;
-@@ -774,6 +775,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
- 		return 0;
+diff --git a/arch/x86/kernel/kprobes/core.c b/arch/x86/kernel/kprobes/core.c
+index 4ba75afba527..98c671e89889 100644
+--- a/arch/x86/kernel/kprobes/core.c
++++ b/arch/x86/kernel/kprobes/core.c
+@@ -431,8 +431,20 @@ void *alloc_insn_page(void)
+ 	void *page;
  
- 	*tramp_size = size + RET_SIZE + sizeof(void *);
-+	npages = DIV_ROUND_UP(*tramp_size, PAGE_SIZE);
- 
- 	/* Copy ftrace_caller onto the trampoline memory */
- 	ret = probe_kernel_read(trampoline, (void *)start_offset, size);
-@@ -818,6 +820,12 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
- 	/* ALLOC_TRAMP flags lets us know we created it */
- 	ops->flags |= FTRACE_OPS_FL_ALLOC_TRAMP;
- 
+ 	page = module_alloc(PAGE_SIZE);
+-	if (page)
+-		set_memory_ro((unsigned long)page & PAGE_MASK, 1);
++	if (!page)
++		return NULL;
++
 +	/*
-+	 * Module allocation needs to be completed by making the page
-+	 * executable. The page is still writable, which is a security hazard,
-+	 * but anyhow ftrace breaks W^X completely.
++	 * First make the page read-only, and only then make it executable to
++	 * prevent it from being W+X in between.
 +	 */
-+	set_memory_x((unsigned long)trampoline, npages);
- 	return (unsigned long)trampoline;
- fail:
- 	tramp_free(trampoline, *tramp_size);
++	set_memory_ro((unsigned long)page, 1);
++
++	/*
++	 * TODO: Once additional kernel code protection mechanisms are set, ensure
++	 * that the page was not maliciously altered and it is still zeroed.
++	 */
++	set_memory_x((unsigned long)page, 1);
+ 
+ 	return page;
+ }
+@@ -440,8 +452,12 @@ void *alloc_insn_page(void)
+ /* Recover page to RW mode before releasing it */
+ void free_insn_page(void *page)
+ {
+-	set_memory_nx((unsigned long)page & PAGE_MASK, 1);
+-	set_memory_rw((unsigned long)page & PAGE_MASK, 1);
++	/*
++	 * First make the page non-executable, and only then make it writable to
++	 * prevent it from being W+X in between.
++	 */
++	set_memory_nx((unsigned long)page, 1);
++	set_memory_rw((unsigned long)page, 1);
+ 	module_memfree(page);
+ }
+ 
 -- 
 2.17.1
 
