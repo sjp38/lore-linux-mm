@@ -6,75 +6,75 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B201C4360F
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 17:21:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3153BC00319
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 17:21:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CAE4B2083B
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 17:21:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CAE4B2083B
+	by mail.kernel.org (Postfix) with ESMTP id EC5BE2083E
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 17:21:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC5BE2083E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 43FA28E0097; Thu, 21 Feb 2019 12:21:02 -0500 (EST)
+	id A0C5E8E0098; Thu, 21 Feb 2019 12:21:51 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3EE978E0094; Thu, 21 Feb 2019 12:21:02 -0500 (EST)
+	id 9BBA48E0094; Thu, 21 Feb 2019 12:21:51 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2DEFC8E0097; Thu, 21 Feb 2019 12:21:02 -0500 (EST)
+	id 85D6D8E0098; Thu, 21 Feb 2019 12:21:51 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 06CA38E0094
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 12:21:02 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id n197so5856971qke.0
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 09:21:01 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 57E238E0094
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 12:21:51 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id s65so5767832qke.16
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 09:21:51 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=nXeAYBts04iFkSlkSco8/j4vHRwfDq3uv7fd6ETKjP8=;
-        b=k0nRjdGh1c+IeOXDhx4XmArzuI/TJL6Ypum0MefLYytMVGaVkoevD8vxHiPkqtHhgQ
-         cSGOdt8nvuCXo9SGZlQl6jCOQzeUsMM6/BRaX7v4Zm8Wwz5pk1N9s7o0Gq3idTeRM09d
-         Mko/xn35YT/9l90xzJ4mOcoqh5KOW2P0AuBBYcloyv3sKgR8MEBHsfmMNMhl8rgROVIC
-         j4WREqf0NGF3F2pNusnEi85Tv/2beTVhOAy9ZAFQuZUWeVg/6Jqeo3fME449CdDW4Nma
-         u9F7pOwB52NGE1LJ+9oxZT2tiJY4b7sinhF1d29UgKo6Bs5JBZnbp/kCV7g1MGKUnTh9
-         IBSw==
+        bh=0moq+XKICKm8hsjptuPeSWP5N31hUE6YTU9vK+JWGG8=;
+        b=gI515ih6jJ5l5uToc7fwbDmwUqwqb8GXBUyuvCSGlkNVFBRbKpSByK009pDR4OUSw4
+         aTLxSHlY8ijLKyyETeROcbU8VlYq2NDZNM1bMNtToZjmM/uBt61wsdT6zn0wMG3VBIFa
+         NvMBwDg88F7nvyPF8QUFMTJCgXDNYP8eGxmJIPbAjbaUlG1FhQrqNqZJUvoRep0s57Fh
+         cZ1rj47wESndvvliNdy9zNgUfNRE7sNtf1fmBpgl8bTukoK+ElXZqDDGF3XP+Td6VRFY
+         vkpFXMzQODhERJI63GQlEjOhRafk8Sa41ZWjo8DCagvhU7PwxB4i9Zbr+B2ciuSMRrYt
+         g4Hw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuYrIQEAmoRd1mZ15IQEpKh+WwTt6IbimGjzeDwT+mAhNPggQWuI
-	cwtI8PgS3eyRKFg3tMMlKtmJnFW5OH7XzDi+PiF9vgVUpYr13FQ7F1dWVteOVXMKrBA74IUF64E
-	IIfU03HdWwMHwE4he4VC8kypHMxOH/wfmnFSVk/9SiDq+aG3sO3S1LbKNBDbfnEVPbw==
-X-Received: by 2002:a37:c09a:: with SMTP id v26mr21373039qkv.80.1550769661535;
-        Thu, 21 Feb 2019 09:21:01 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbMQgoWY+IZ2DIUPXhllnXavylfhFlHnlTDHdZ4WxidLWOIuPFGuynmDa9265MES+4Kh0V1
-X-Received: by 2002:a37:c09a:: with SMTP id v26mr21372963qkv.80.1550769660274;
-        Thu, 21 Feb 2019 09:21:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550769660; cv=none;
+X-Gm-Message-State: AHQUAualPsoq9jM6tRFJDvZQAROh7NGdhnq52B5Fv86SI6ZPiNDrpJd/
+	nNELVfCktNFYAtv0LLl7+lmYRz33d8tudujZ2+R7Gdf8prVXEgMoCSI0Qbx3ccXzRrhDJypxPQf
+	4OT1tB4nZ5BJoULcZ6MNOguvFyg/uYZjMXGN4XBg6Ij03c6htndik1/zQgzNnF5ZUqg==
+X-Received: by 2002:a0c:d791:: with SMTP id z17mr30241034qvi.149.1550769711126;
+        Thu, 21 Feb 2019 09:21:51 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib8NjnbpmuWIWwyo4lzOkOrEz56ofhT44DyKfYMKrOfSrJ2lsirq4HKHfVeAjWdh67bmpVN
+X-Received: by 2002:a0c:d791:: with SMTP id z17mr30240987qvi.149.1550769710476;
+        Thu, 21 Feb 2019 09:21:50 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550769710; cv=none;
         d=google.com; s=arc-20160816;
-        b=lN7cSnzHza2Uy4zbShOVhl3/9nCtjVQkqp19C/aU2SrxkWqnEGFR7zkpAiGi9WZVA9
-         lHuyFFZTxU2aTnQSBBO0HMW54dLYV+ZvDmyUkl6cwYCxnzMaVPznHuZQ+qouQYRLHPvd
-         LaxBd3rGgem3L7vU9LKqTMN9mMRTD/7tVlEeheXcACEgdQvkkzTHidw8rRpNY006CzB+
-         0PQZRUZb/C+VQmuHz3RlwARxQeR3gSF2p/dq1PPXFQkN16nGsyuZsgC+wW0EHOfNJ8FH
-         lFtVw8u60tsZNzr3JB2s17IT8hXAgBqeytIcZlzX7hJWpfkresge1Sokph2ArtCdJ7wV
-         ynkw==
+        b=qAJoDJBRJHyW0MBHqfEM2ftBlyfb+ZIBEW6AF0cCiO8+lE5wbKd0iRc+6qVlowUB3A
+         hJdcTm++9xMv9lr/lbcTRfE88no6GsOfyrHGA1/+PE/Kf2TzZNMI6Ju7jKfhytxVPQhg
+         Xy1b6JWnzN33bXYgQttZPQNRfRmQfcSg4A61Z8ZZUVb//CPj/JxlNuACRssBlV6ZWj2/
+         BXJ0JLoL9Lagi5NHe+g5dLRJYmb+wExE7rQ0QdOxNbUZ0B3PuZhwgCbvnxVY69ngYdVr
+         63TgIflIBJChLebk7Gif6eR0kVwUSvUmx9d5UUAcsJ4DxMqkATgJl+gQqBTMdE0tMdql
+         reXA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date;
-        bh=nXeAYBts04iFkSlkSco8/j4vHRwfDq3uv7fd6ETKjP8=;
-        b=pNsvSiarm9qD0a0eplgD0orNy8BL4RGgrVdAgrSTfRB6sE+gUMZonqmvJ/LTg6oYAR
-         gOhpbyvz5L4CRBCJk8DDje6e8mqyHE23vmqNVOSEC/2dTe2AjwyVy8VJMUQxQ9RN/FmX
-         ZOobZMg7AKnU/AjLg40n2aXvI/YiMOcWDnA5I5tbqLPyPdmjx6oGohe+1LUD+M9XE4PG
-         vOZ+0/rKU3hjqUwq+DagetUyC4Ju8R1+rtFCnBH9rZE0C5XQD2L9m1wGEi/7wqIMHxaM
-         8rmjPPjEHAuDPvxY6OMOrFqBVRYNo05ce9AcsFsOGtHUBY5B3VlMr1H3izgXdEDeq2/l
-         GmCg==
+        bh=0moq+XKICKm8hsjptuPeSWP5N31hUE6YTU9vK+JWGG8=;
+        b=lduCt/oAQTkpWlvuIk3qNh6387b8/58wW2p7l8TBGpqzZyjRm/tcncIpftYtx5UGHj
+         HEhHn696YzLUo9/1JcLOI7ChX1s/14XCtCzM5yxVMBg+oEBWsz8rU7roXk8740iDIk/a
+         cbm+7yz7sE3myI3zWaQcV1DZPr04WCuCM/i9M37I9J8KzFegaK50JJ/zNHKIhgVt1Ml1
+         lRXXnxlz1GaySYrmMWqZNKwevf3OxYFqgDMOjSzhfYZFRImX/RB5AI3h1WzVkOBKqPAJ
+         FSca4YMv9rTb72mtiaibceVE32CVtijGByNLy+xe58oDYpN5bi6GT6BUyYzorvAIYGCK
+         BeQw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n2si502161qkk.32.2019.02.21.09.21.00
+        by mx.google.com with ESMTPS id m21si8561883qtq.125.2019.02.21.09.21.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 09:21:00 -0800 (PST)
+        Thu, 21 Feb 2019 09:21:50 -0800 (PST)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
@@ -82,12 +82,12 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 2793D30821A0;
-	Thu, 21 Feb 2019 17:20:59 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 8F853C04BD53;
+	Thu, 21 Feb 2019 17:21:49 +0000 (UTC)
 Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 9DAC55D9D3;
-	Thu, 21 Feb 2019 17:20:52 +0000 (UTC)
-Date: Thu, 21 Feb 2019 12:20:50 -0500
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id A9B035D9D4;
+	Thu, 21 Feb 2019 17:21:43 +0000 (UTC)
+Date: Thu, 21 Feb 2019 12:21:41 -0500
 From: Jerome Glisse <jglisse@redhat.com>
 To: Peter Xu <peterx@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
@@ -104,296 +104,94 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v2 08/26] userfaultfd: wp: add WP pagetable tracking to
- x86
-Message-ID: <20190221172050.GH2813@redhat.com>
+Subject: Re: [PATCH v2 09/26] userfaultfd: wp: userfaultfd_pte/huge_pmd_wp()
+ helpers
+Message-ID: <20190221172141.GI2813@redhat.com>
 References: <20190212025632.28946-1-peterx@redhat.com>
- <20190212025632.28946-9-peterx@redhat.com>
+ <20190212025632.28946-10-peterx@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190212025632.28946-9-peterx@redhat.com>
+In-Reply-To: <20190212025632.28946-10-peterx@redhat.com>
 User-Agent: Mutt/1.10.0 (2018-05-17)
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Thu, 21 Feb 2019 17:20:59 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 21 Feb 2019 17:21:49 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 10:56:14AM +0800, Peter Xu wrote:
+On Tue, Feb 12, 2019 at 10:56:15AM +0800, Peter Xu wrote:
 > From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> Accurate userfaultfd WP tracking is possible by tracking exactly which
-> virtual memory ranges were writeprotected by userland. We can't relay
-> only on the RW bit of the mapped pagetable because that information is
-> destroyed by fork() or KSM or swap. If we were to relay on that, we'd
-> need to stay on the safe side and generate false positive wp faults
-> for every swapped out page.
+> Implement helpers methods to invoke userfaultfd wp faults more
+> selectively: not only when a wp fault triggers on a vma with
+> vma->vm_flags VM_UFFD_WP set, but only if the _PAGE_UFFD_WP bit is set
+> in the pagetable too.
 > 
 > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 > Signed-off-by: Peter Xu <peterx@redhat.com>
 
-So i thought about this some more and the only alternative i see is
-definining a new swap type to preserve the pte write bit when swapping,
-and storing the original pte write within ksm stable_node. This would
-solve false positive for swap and ksm.
-
-But i do not see this as a better alternative to storing the wp status
-as bit in the pte. So:
-
 Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 
 > ---
->  arch/x86/Kconfig                     |  1 +
->  arch/x86/include/asm/pgtable.h       | 52 ++++++++++++++++++++++++++++
->  arch/x86/include/asm/pgtable_64.h    |  8 ++++-
->  arch/x86/include/asm/pgtable_types.h |  9 +++++
->  include/asm-generic/pgtable.h        |  1 +
->  include/asm-generic/pgtable_uffd.h   | 51 +++++++++++++++++++++++++++
->  init/Kconfig                         |  5 +++
->  7 files changed, 126 insertions(+), 1 deletion(-)
->  create mode 100644 include/asm-generic/pgtable_uffd.h
+>  include/linux/userfaultfd_k.h | 27 +++++++++++++++++++++++++++
+>  1 file changed, 27 insertions(+)
 > 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index 68261430fe6e..cb43bc008675 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -209,6 +209,7 @@ config X86
->  	select USER_STACKTRACE_SUPPORT
->  	select VIRT_TO_BUS
->  	select X86_FEATURE_NAMES		if PROC_FS
-> +	select HAVE_ARCH_USERFAULTFD_WP		if USERFAULTFD
+> diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
+> index 38f748e7186e..c6590c58ce28 100644
+> --- a/include/linux/userfaultfd_k.h
+> +++ b/include/linux/userfaultfd_k.h
+> @@ -14,6 +14,8 @@
+>  #include <linux/userfaultfd.h> /* linux/include/uapi/linux/userfaultfd.h */
 >  
->  config INSTRUCTION_DECODER
->  	def_bool y
-> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-> index 2779ace16d23..6863236e8484 100644
-> --- a/arch/x86/include/asm/pgtable.h
-> +++ b/arch/x86/include/asm/pgtable.h
-> @@ -23,6 +23,7 @@
->  
->  #ifndef __ASSEMBLY__
->  #include <asm/x86_init.h>
+>  #include <linux/fcntl.h>
+> +#include <linux/mm.h>
 > +#include <asm-generic/pgtable_uffd.h>
 >  
->  extern pgd_t early_top_pgt[PTRS_PER_PGD];
->  int __init __early_make_pgtable(unsigned long address, pmdval_t pmd);
-> @@ -293,6 +294,23 @@ static inline pte_t pte_clear_flags(pte_t pte, pteval_t clear)
->  	return native_make_pte(v & ~clear);
+>  /*
+>   * CAREFUL: Check include/uapi/asm-generic/fcntl.h when defining
+> @@ -55,6 +57,18 @@ static inline bool userfaultfd_wp(struct vm_area_struct *vma)
+>  	return vma->vm_flags & VM_UFFD_WP;
 >  }
 >  
-> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +static inline int pte_uffd_wp(pte_t pte)
+> +static inline bool userfaultfd_pte_wp(struct vm_area_struct *vma,
+> +				      pte_t pte)
 > +{
-> +	return pte_flags(pte) & _PAGE_UFFD_WP;
+> +	return userfaultfd_wp(vma) && pte_uffd_wp(pte);
 > +}
 > +
-> +static inline pte_t pte_mkuffd_wp(pte_t pte)
+> +static inline bool userfaultfd_huge_pmd_wp(struct vm_area_struct *vma,
+> +					   pmd_t pmd)
 > +{
-> +	return pte_set_flags(pte, _PAGE_UFFD_WP);
+> +	return userfaultfd_wp(vma) && pmd_uffd_wp(pmd);
 > +}
 > +
-> +static inline pte_t pte_clear_uffd_wp(pte_t pte)
-> +{
-> +	return pte_clear_flags(pte, _PAGE_UFFD_WP);
-> +}
-> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
-> +
->  static inline pte_t pte_mkclean(pte_t pte)
+>  static inline bool userfaultfd_armed(struct vm_area_struct *vma)
 >  {
->  	return pte_clear_flags(pte, _PAGE_DIRTY);
-> @@ -372,6 +390,23 @@ static inline pmd_t pmd_clear_flags(pmd_t pmd, pmdval_t clear)
->  	return native_make_pmd(v & ~clear);
+>  	return vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP);
+> @@ -104,6 +118,19 @@ static inline bool userfaultfd_wp(struct vm_area_struct *vma)
+>  	return false;
 >  }
 >  
-> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +static inline int pmd_uffd_wp(pmd_t pmd)
+> +static inline bool userfaultfd_pte_wp(struct vm_area_struct *vma,
+> +				      pte_t pte)
 > +{
-> +	return pmd_flags(pmd) & _PAGE_UFFD_WP;
+> +	return false;
 > +}
 > +
-> +static inline pmd_t pmd_mkuffd_wp(pmd_t pmd)
+> +static inline bool userfaultfd_huge_pmd_wp(struct vm_area_struct *vma,
+> +					   pmd_t pmd)
 > +{
-> +	return pmd_set_flags(pmd, _PAGE_UFFD_WP);
+> +	return false;
 > +}
 > +
-> +static inline pmd_t pmd_clear_uffd_wp(pmd_t pmd)
-> +{
-> +	return pmd_clear_flags(pmd, _PAGE_UFFD_WP);
-> +}
-> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
 > +
->  static inline pmd_t pmd_mkold(pmd_t pmd)
+>  static inline bool userfaultfd_armed(struct vm_area_struct *vma)
 >  {
->  	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
-> @@ -1351,6 +1386,23 @@ static inline pmd_t pmd_swp_clear_soft_dirty(pmd_t pmd)
->  #endif
->  #endif
->  
-> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +static inline pte_t pte_swp_mkuffd_wp(pte_t pte)
-> +{
-> +	return pte_set_flags(pte, _PAGE_SWP_UFFD_WP);
-> +}
-> +
-> +static inline int pte_swp_uffd_wp(pte_t pte)
-> +{
-> +	return pte_flags(pte) & _PAGE_SWP_UFFD_WP;
-> +}
-> +
-> +static inline pte_t pte_swp_clear_uffd_wp(pte_t pte)
-> +{
-> +	return pte_clear_flags(pte, _PAGE_SWP_UFFD_WP);
-> +}
-> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
-> +
->  #define PKRU_AD_BIT 0x1
->  #define PKRU_WD_BIT 0x2
->  #define PKRU_BITS_PER_PKEY 2
-> diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-> index 9c85b54bf03c..e0c5d29b8685 100644
-> --- a/arch/x86/include/asm/pgtable_64.h
-> +++ b/arch/x86/include/asm/pgtable_64.h
-> @@ -189,7 +189,7 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
->   *
->   * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2| 1|0| <- bit number
->   * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U| W|P| <- bit names
-> - * | TYPE (59-63) | ~OFFSET (9-58)  |0|0|X|X| X| X|X|SD|0| <- swp entry
-> + * | TYPE (59-63) | ~OFFSET (9-58)  |0|0|X|X| X| X|F|SD|0| <- swp entry
->   *
->   * G (8) is aliased and used as a PROT_NONE indicator for
->   * !present ptes.  We need to start storing swap entries above
-> @@ -197,9 +197,15 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
->   * erratum where they can be incorrectly set by hardware on
->   * non-present PTEs.
->   *
-> + * SD Bits 1-4 are not used in non-present format and available for
-> + * special use described below:
-> + *
->   * SD (1) in swp entry is used to store soft dirty bit, which helps us
->   * remember soft dirty over page migration
->   *
-> + * F (2) in swp entry is used to record when a pagetable is
-> + * writeprotected by userfaultfd WP support.
-> + *
->   * Bit 7 in swp entry should be 0 because pmd_present checks not only P,
->   * but also L and G.
->   *
-> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-> index d6ff0bbdb394..8cebcff91e57 100644
-> --- a/arch/x86/include/asm/pgtable_types.h
-> +++ b/arch/x86/include/asm/pgtable_types.h
-> @@ -32,6 +32,7 @@
->  
->  #define _PAGE_BIT_SPECIAL	_PAGE_BIT_SOFTW1
->  #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_SOFTW1
-> +#define _PAGE_BIT_UFFD_WP	_PAGE_BIT_SOFTW2 /* userfaultfd wrprotected */
->  #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
->  #define _PAGE_BIT_DEVMAP	_PAGE_BIT_SOFTW4
->  
-> @@ -100,6 +101,14 @@
->  #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
->  #endif
->  
-> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +#define _PAGE_UFFD_WP		(_AT(pteval_t, 1) << _PAGE_BIT_UFFD_WP)
-> +#define _PAGE_SWP_UFFD_WP	_PAGE_USER
-> +#else
-> +#define _PAGE_UFFD_WP		(_AT(pteval_t, 0))
-> +#define _PAGE_SWP_UFFD_WP	(_AT(pteval_t, 0))
-> +#endif
-> +
->  #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
->  #define _PAGE_NX	(_AT(pteval_t, 1) << _PAGE_BIT_NX)
->  #define _PAGE_DEVMAP	(_AT(u64, 1) << _PAGE_BIT_DEVMAP)
-> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-> index 05e61e6c843f..f49afe951711 100644
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -10,6 +10,7 @@
->  #include <linux/mm_types.h>
->  #include <linux/bug.h>
->  #include <linux/errno.h>
-> +#include <asm-generic/pgtable_uffd.h>
->  
->  #if 5 - defined(__PAGETABLE_P4D_FOLDED) - defined(__PAGETABLE_PUD_FOLDED) - \
->  	defined(__PAGETABLE_PMD_FOLDED) != CONFIG_PGTABLE_LEVELS
-> diff --git a/include/asm-generic/pgtable_uffd.h b/include/asm-generic/pgtable_uffd.h
-> new file mode 100644
-> index 000000000000..643d1bf559c2
-> --- /dev/null
-> +++ b/include/asm-generic/pgtable_uffd.h
-> @@ -0,0 +1,51 @@
-> +#ifndef _ASM_GENERIC_PGTABLE_UFFD_H
-> +#define _ASM_GENERIC_PGTABLE_UFFD_H
-> +
-> +#ifndef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +static __always_inline int pte_uffd_wp(pte_t pte)
-> +{
-> +	return 0;
-> +}
-> +
-> +static __always_inline int pmd_uffd_wp(pmd_t pmd)
-> +{
-> +	return 0;
-> +}
-> +
-> +static __always_inline pte_t pte_mkuffd_wp(pte_t pte)
-> +{
-> +	return pte;
-> +}
-> +
-> +static __always_inline pmd_t pmd_mkuffd_wp(pmd_t pmd)
-> +{
-> +	return pmd;
-> +}
-> +
-> +static __always_inline pte_t pte_clear_uffd_wp(pte_t pte)
-> +{
-> +	return pte;
-> +}
-> +
-> +static __always_inline pmd_t pmd_clear_uffd_wp(pmd_t pmd)
-> +{
-> +	return pmd;
-> +}
-> +
-> +static __always_inline pte_t pte_swp_mkuffd_wp(pte_t pte)
-> +{
-> +	return pte;
-> +}
-> +
-> +static __always_inline int pte_swp_uffd_wp(pte_t pte)
-> +{
-> +	return 0;
-> +}
-> +
-> +static __always_inline pte_t pte_swp_clear_uffd_wp(pte_t pte)
-> +{
-> +	return pte;
-> +}
-> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
-> +
-> +#endif /* _ASM_GENERIC_PGTABLE_UFFD_H */
-> diff --git a/init/Kconfig b/init/Kconfig
-> index c9386a365eea..892d61ddf2eb 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -1424,6 +1424,11 @@ config ADVISE_SYSCALLS
->  	  applications use these syscalls, you can disable this option to save
->  	  space.
->  
-> +config HAVE_ARCH_USERFAULTFD_WP
-> +	bool
-> +	help
-> +	  Arch has userfaultfd write protection support
-> +
->  config MEMBARRIER
->  	bool "Enable membarrier() system call" if EXPERT
->  	default y
+>  	return false;
 > -- 
 > 2.17.1
 > 
