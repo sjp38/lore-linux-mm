@@ -2,609 +2,252 @@ Return-Path: <SRS0=vS5V=Q4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65AFFC4360F
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 08:57:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 546DFC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 09:08:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 05A202086C
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 08:57:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 05A202086C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 0D5A22086C
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 09:08:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D5A22086C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 98BEF8E0066; Thu, 21 Feb 2019 03:57:13 -0500 (EST)
+	id 984128E0067; Thu, 21 Feb 2019 04:08:02 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 915318E0002; Thu, 21 Feb 2019 03:57:13 -0500 (EST)
+	id 933908E0002; Thu, 21 Feb 2019 04:08:02 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7B6C88E0066; Thu, 21 Feb 2019 03:57:13 -0500 (EST)
+	id 7FAEA8E0067; Thu, 21 Feb 2019 04:08:02 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 457DA8E0002
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 03:57:13 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id 35so26078562qtq.5
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 00:57:13 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FF4F8E0002
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 04:08:02 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id s8so11536196qth.18
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 01:08:02 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to;
-        bh=14bYZtKMigx9EHqPJ470Acq0cD9Oji2LlrICIAPduo8=;
-        b=SaVothfydknnilRIq32FQI78P8q1l7U9OBoScZ+16FySOlY/yvkZlBxfgB8yBEqqIT
-         ByNBgc3FAqqNSn2td0U+63RNSd+MXDeRs31t03VaX7NkhVAvHA7kulydrV2v2jWLuLrr
-         wktxv8Swg3KirdobNalLDdKfT0ITIwJPdB9/B2oYFs/kie25T3QrCO2BnuPGG9KA/xWO
-         Sh8WCeWF+44aZpuaWDHebzHb0YaNGVXpWn8ctQHE9vcaFkug72VYyXMjbvj5OMRRQK5h
-         eaBuDTokohBC/IHwmntpGM5HfSyGzErDK7eBni39oHe9vk1myF5D25a3Ailo3mdtMJyP
-         QmHQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuasXoVYPEv5C4daQwZjRFQnEE6t8H0jNw9be1qlIGGM2VozpF+S
-	zSekTYYXyckSXZrGfqsDCaF3HjhE818isbC4QblO1GI7vTgT7WsnK0JysZGWjXY8nh4swEmZeEk
-	TfsSlL2ozukn0Re7kr52objHkRRucUglwz/oUlBW4bJYq50xRczMT3ltsZjSM1XQ2AA==
-X-Received: by 2002:a37:8882:: with SMTP id k124mr27385786qkd.1.1550739433012;
-        Thu, 21 Feb 2019 00:57:13 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYvLgMyXPa6TJKBFDelYpVRrAvQMW6bxAxBAMO3dTXw8gj4lrSzul2QClFUtUqHZQGftVSn
-X-Received: by 2002:a37:8882:: with SMTP id k124mr27385738qkd.1.1550739431405;
-        Thu, 21 Feb 2019 00:57:11 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550739431; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=m5u9A8ghRuS228Hywlqaerk+ira0HfmP2NU+LeoBgfU=;
+        b=tqj/2Z6WYLd2j0k2B0Pl2DiDj/osoqPICCi0VmmJPehgG/y3A0tuOCIqpo1fj67qkN
+         9FUCKjvxVe4ANI83aGRL/Ysd7UMS5V0CMZFAmOrRnyIPrCtibcxqOuk6Qh93fOKHQZLN
+         QvKRtFeS5PfR4e4w+ur3L3veMukg92czfXLjjhVQOkKCi1XrQEfkgGEJyrHFxtQY37VH
+         clvufoULMQdOqNjxOCAX6LRyVq/VfE8lwHIEH1orzd44OK7VJbC2WxW9RB/SfFKbGCRX
+         6edWVcXCycoqXHVZSOxnsfbAVQiXATBbxiiQLNa/91F23hDwJmTIIor1UXLHPMwWfBfZ
+         SubA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuZ9vQBm/ZOD4nvMu5k5sk6KobcLsQRD+iZT2lUYWEQS5kR4PSwE
+	U/77afLAn40sLCKdPokTGTAvwdiXraRwSFaicJ0mSiT0duNCptKKQGFEVISRVWtw+FP0kjUF0xz
+	Tps/ytg9p3LzA0vzwlCkX3X0wwudU5BK9BJGVPNavxdGvvD1qhFVdAFowCVkBWqM95A==
+X-Received: by 2002:a37:96c4:: with SMTP id y187mr26842914qkd.149.1550740082046;
+        Thu, 21 Feb 2019 01:08:02 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbfAdP37ZWjOr75PMqZ5aabBap7wQ/DC6HTjYATVAM+QfSs/47yKjaPY4gtjap+ecUIigWQ
+X-Received: by 2002:a37:96c4:: with SMTP id y187mr26842889qkd.149.1550740081385;
+        Thu, 21 Feb 2019 01:08:01 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550740081; cv=none;
         d=google.com; s=arc-20160816;
-        b=zjYxUJR+IHd5rf0f8zXN68yKNh4s172YvtzTCrB65FKdVsDhVUYpyzo692gYJj3faW
-         9kjxgpT8k8lZCFn8stNkTIAtMZHJ1sxRJ+Jm2egxaqQEOC4dh0Fz/F4jhAe54hlAZZXK
-         gxiRoez2IBczv+wHLWMM/A8ee2s8g50vGn7DtCUMbr9TwOVhAatpOAaHlIR+LwoD5cmp
-         QYGW66geo8IHv3elt2CuKM3nJ71/TXWpjG0O7WQ5BtHF8bMxNcyC2Cq8SJYkKzz27ue0
-         +04Ur1+xBPD+m9aa3VLqnG2XVWgsh3ez2DNMYhUe21ajJZbd3bArGvkynGmuGT2rsrV9
-         UBLA==
+        b=PzRmPdN7aqEy6Z46xPqsxhbxnaIcRYlbriSf+EjmA/w90aPKipVmlRefeigPfR4JBM
+         X85kUXvLsE1X0Oha5sVE/+1Wd4HhXdxpbwcYpUtkicABGhuftRO2iv5OUItPOjbS41Pb
+         tqbyHFNzGExnkTFUeFt+QxGhiBnxa2vqmmi6gqZ8Ua7cVuDoi5ha7Mmx0UJY2kOakW18
+         jjFf7WoWb4/itDTd3M2d+RtY6QLhQAwNgkSJU2Wx6L6XbsTy5mt6ug25SDZCrin8BaCY
+         fOWalv4VWvIQza0XQY9RGBu8P4kpv+kHI+KhBmf/unD3+rAwBqfrAh2Q9jH5IPOtB0Fr
+         z3fw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:message-id:date:subject:cc:to:from;
-        bh=14bYZtKMigx9EHqPJ470Acq0cD9Oji2LlrICIAPduo8=;
-        b=t9OsxdlKBvA8I0FzxjYQJXdQjI5udLP5JqI4//2M5wkCawbBYBYZvtxc1gDIbEJqIm
-         JSLhRT/3oBMqzOdWvVhv4I45vpqeqQe5T0yGnCLjSKSYmLoy+QDSSXsaVm/2S5lWH8I4
-         r6caszgpppeNcLcIcNh4hmxBVDk8JqHXF/SBQ56QHKTGCeP01UrOMS2jrKzsHmcyigta
-         r7VGqG5aTWcB9w5JYBC4MzpWAUzOE/R2az6/J578zIwFkLag8o9pOvuwLYJqnpRKy/Bx
-         dpw8GdQnvRcxXk6d52AbjDpPOEyyuEUUqmgCkEcT7aalufaH6wPa2X2lysmktfV2CVln
-         ScNA==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=m5u9A8ghRuS228Hywlqaerk+ira0HfmP2NU+LeoBgfU=;
+        b=bDJAvBeOqREnyAbD7P5t5C+sZ7/vjhexwp4F7+KCRiU70RG3VS95BOd5tM1ihCGJHd
+         EIstnJ+yYEX8PBownjWCx8HEuFPeZzNMtkd7scRgIC6lpOa2uyvx77feRNDy9DYEulvj
+         +k/4OoY9pWKcjpmaLGlnG9J+Ox80CcYi3wKMxupAIPsJv1jhNsZSwCPtoQ6zZVGXf805
+         UkvyfuY2EjxkvLTvWlX68VazFHmuFuuQE+MrHdDJ6n+QPg0NeaTDiCSlHRTKjTwxWlPG
+         J3zWBgmeqfJingsmH+rL/sSzOG6smGk/7JmrIpOpjm5wFjDz/TcNyHTYFsosqUgHhx0N
+         Dj9A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h1si2754330qkg.29.2019.02.21.00.57.11
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id e5si4557696qkd.22.2019.02.21.01.08.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 00:57:11 -0800 (PST)
-Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 21 Feb 2019 01:08:01 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 972073001565;
-	Thu, 21 Feb 2019 08:57:09 +0000 (UTC)
-Received: from xz-x1.nay.redhat.com (dhcp-14-116.nay.redhat.com [10.66.14.116])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id B1D6E1001DC1;
-	Thu, 21 Feb 2019 08:56:58 +0000 (UTC)
-From: Peter Xu <peterx@redhat.com>
-To: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Cc: Peter Xu <peterx@redhat.com>,
-	David Hildenbrand <david@redhat.com>,
-	Hugh Dickins <hughd@google.com>,
-	Maya Gokhale <gokhale2@llnl.gov>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Martin Cracauer <cracauer@cons.org>,
-	Shaohua Li <shli@fb.com>,
-	Marty McFadden <mcfadden8@llnl.gov>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: [PATCH v2.1 04/26] mm: allow VM_FAULT_RETRY for multiple times
-Date: Thu, 21 Feb 2019 16:56:56 +0800
-Message-Id: <20190221085656.18529-1-peterx@redhat.com>
-In-Reply-To: <20190212025632.28946-5-peterx@redhat.com>
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Thu, 21 Feb 2019 08:57:10 +0000 (UTC)
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1L96Jfm108480
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 04:08:00 -0500
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2qsqgv43t4-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 04:08:00 -0500
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 21 Feb 2019 09:07:58 -0000
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 21 Feb 2019 09:07:56 -0000
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1L97tnk21823630
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Thu, 21 Feb 2019 09:07:55 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 3CFD2AE051;
+	Thu, 21 Feb 2019 09:07:55 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id AC4DFAE045;
+	Thu, 21 Feb 2019 09:07:54 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.84])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Thu, 21 Feb 2019 09:07:54 +0000 (GMT)
+Date: Thu, 21 Feb 2019 11:07:53 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: "James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>,
+        Helge Deller <deller@gmx.de>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-parisc@vger.kernel.org,
+        linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v2] parisc: use memblock_alloc() instead of custom
+ get_memblock()
+References: <1549984572-10867-1-git-send-email-rppt@linux.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1549984572-10867-1-git-send-email-rppt@linux.ibm.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19022109-0008-0000-0000-000002C31B7F
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19022109-0009-0000-0000-0000222F5556
+Message-Id: <20190221090752.GA32004@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-21_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902210068
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The idea comes from a discussion between Linus and Andrea [1].
+Any comments on this?
 
-Before this patch we only allow a page fault to retry once.  We
-achieved this by clearing the FAULT_FLAG_ALLOW_RETRY flag when doing
-handle_mm_fault() the second time.  This was majorly used to avoid
-unexpected starvation of the system by looping over forever to handle
-the page fault on a single page.  However that should hardly happen,
-and after all for each code path to return a VM_FAULT_RETRY we'll
-first wait for a condition (during which time we should possibly yield
-the cpu) to happen before VM_FAULT_RETRY is really returned.
+On Tue, Feb 12, 2019 at 05:16:12PM +0200, Mike Rapoport wrote:
+> The get_memblock() function implements custom bottom-up memblock allocator.
+> Setting 'memblock_bottom_up = true' before any memblock allocation is done
+> allows replacing get_memblock() calls with memblock_alloc().
+> 
+> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> ---
+> v2: fix allocation alignment
+> 
+>  arch/parisc/mm/init.c | 52 +++++++++++++++++++--------------------------------
+>  1 file changed, 19 insertions(+), 33 deletions(-)
+> 
+> diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
+> index 059187a..d0b1662 100644
+> --- a/arch/parisc/mm/init.c
+> +++ b/arch/parisc/mm/init.c
+> @@ -79,36 +79,6 @@ static struct resource sysram_resources[MAX_PHYSMEM_RANGES] __read_mostly;
+>  physmem_range_t pmem_ranges[MAX_PHYSMEM_RANGES] __read_mostly;
+>  int npmem_ranges __read_mostly;
+>  
+> -/*
+> - * get_memblock() allocates pages via memblock.
+> - * We can't use memblock_find_in_range(0, KERNEL_INITIAL_SIZE) here since it
+> - * doesn't allocate from bottom to top which is needed because we only created
+> - * the initial mapping up to KERNEL_INITIAL_SIZE in the assembly bootup code.
+> - */
+> -static void * __init get_memblock(unsigned long size)
+> -{
+> -	static phys_addr_t search_addr __initdata;
+> -	phys_addr_t phys;
+> -
+> -	if (!search_addr)
+> -		search_addr = PAGE_ALIGN(__pa((unsigned long) &_end));
+> -	search_addr = ALIGN(search_addr, size);
+> -	while (!memblock_is_region_memory(search_addr, size) ||
+> -		memblock_is_region_reserved(search_addr, size)) {
+> -		search_addr += size;
+> -	}
+> -	phys = search_addr;
+> -
+> -	if (phys)
+> -		memblock_reserve(phys, size);
+> -	else
+> -		panic("get_memblock() failed.\n");
+> -
+> -	memset(__va(phys), 0, size);
+> -
+> -	return __va(phys);
+> -}
+> -
+>  #ifdef CONFIG_64BIT
+>  #define MAX_MEM         (~0UL)
+>  #else /* !CONFIG_64BIT */
+> @@ -321,6 +291,13 @@ static void __init setup_bootmem(void)
+>  			max_pfn = start_pfn + npages;
+>  	}
+>  
+> +	/*
+> +	 * We can't use memblock top-down allocations because we only
+> +	 * created the initial mapping up to KERNEL_INITIAL_SIZE in
+> +	 * the assembly bootup code.
+> +	 */
+> +	memblock_set_bottom_up(true);
+> +
+>  	/* IOMMU is always used to access "high mem" on those boxes
+>  	 * that can support enough mem that a PCI device couldn't
+>  	 * directly DMA to any physical addresses.
+> @@ -442,7 +419,10 @@ static void __init map_pages(unsigned long start_vaddr,
+>  		 */
+>  
+>  		if (!pmd) {
+> -			pmd = (pmd_t *) get_memblock(PAGE_SIZE << PMD_ORDER);
+> +			pmd = memblock_alloc(PAGE_SIZE << PMD_ORDER,
+> +					     PAGE_SIZE << PMD_ORDER);
+> +			if (!pmd)
+> +				panic("pmd allocation failed.\n");
+>  			pmd = (pmd_t *) __pa(pmd);
+>  		}
+>  
+> @@ -461,7 +441,10 @@ static void __init map_pages(unsigned long start_vaddr,
+>  
+>  			pg_table = (pte_t *)pmd_address(*pmd);
+>  			if (!pg_table) {
+> -				pg_table = (pte_t *) get_memblock(PAGE_SIZE);
+> +				pg_table = memblock_alloc(PAGE_SIZE,
+> +							  PAGE_SIZE);
+> +				if (!pg_table)
+> +					panic("page table allocation failed\n");
+>  				pg_table = (pte_t *) __pa(pg_table);
+>  			}
+>  
+> @@ -700,7 +683,10 @@ static void __init pagetable_init(void)
+>  	}
+>  #endif
+>  
+> -	empty_zero_page = get_memblock(PAGE_SIZE);
+> +	empty_zero_page = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+> +	if (!empty_zero_page)
+> +		panic("zero page allocation failed.\n");
+> +
+>  }
+>  
+>  static void __init gateway_init(void)
+> -- 
+> 2.7.4
+> 
 
-This patch removes the restriction by keeping the
-FAULT_FLAG_ALLOW_RETRY flag when we receive VM_FAULT_RETRY.  It means
-that the page fault handler now can retry the page fault for multiple
-times if necessary without the need to generate another page fault
-event.  Meanwhile we still keep the FAULT_FLAG_TRIED flag so page
-fault handler can still identify whether a page fault is the first
-attempt or not.
-
-Then we'll have these combinations of fault flags (only considering
-ALLOW_RETRY flag and TRIED flag):
-
-  - ALLOW_RETRY and !TRIED:  this means the page fault allows to
-                             retry, and this is the first try
-
-  - ALLOW_RETRY and TRIED:   this means the page fault allows to
-                             retry, and this is not the first try
-
-  - !ALLOW_RETRY and !TRIED: this means the page fault does not allow
-                             to retry at all
-
-  - !ALLOW_RETRY and TRIED:  this is forbidden and should never be used
-
-In existing code we have multiple places that has taken special care
-of the first condition above by checking against (fault_flags &
-FAULT_FLAG_ALLOW_RETRY).  This patch introduces a simple helper to
-detect the first retry of a page fault by checking against
-both (fault_flags & FAULT_FLAG_ALLOW_RETRY) and !(fault_flag &
-FAULT_FLAG_TRIED) because now even the 2nd try will have the
-ALLOW_RETRY set, then use that helper in all existing special paths.
-One example is in __lock_page_or_retry(), now we'll drop the mmap_sem
-only in the first attempt of page fault and we'll keep it in follow up
-retries, so old locking behavior will be retained.
-
-This will be a nice enhancement for current code [2] at the same time
-a supporting material for the future userfaultfd-writeprotect work,
-since in that work there will always be an explicit userfault
-writeprotect retry for protected pages, and if that cannot resolve the
-page fault (e.g., when userfaultfd-writeprotect is used in conjunction
-with swapped pages) then we'll possibly need a 3rd retry of the page
-fault.  It might also benefit other potential users who will have
-similar requirement like userfault write-protection.
-
-GUP code is not touched yet and will be covered in follow up patch.
-
-Please read the thread below for more information.
-
-[1] https://lkml.org/lkml/2017/11/2/833
-[2] https://lkml.org/lkml/2018/12/30/64
-
-Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
-Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Peter Xu <peterx@redhat.com>
----
-
- arch/alpha/mm/fault.c           |  2 +-
- arch/arc/mm/fault.c             |  1 -
- arch/arm/mm/fault.c             |  3 ---
- arch/arm64/mm/fault.c           |  5 -----
- arch/hexagon/mm/vm_fault.c      |  1 -
- arch/ia64/mm/fault.c            |  1 -
- arch/m68k/mm/fault.c            |  3 ---
- arch/microblaze/mm/fault.c      |  1 -
- arch/mips/mm/fault.c            |  1 -
- arch/nds32/mm/fault.c           |  1 -
- arch/nios2/mm/fault.c           |  3 ---
- arch/openrisc/mm/fault.c        |  1 -
- arch/parisc/mm/fault.c          |  2 --
- arch/powerpc/mm/fault.c         |  6 ------
- arch/riscv/mm/fault.c           |  5 -----
- arch/s390/mm/fault.c            |  5 +----
- arch/sh/mm/fault.c              |  1 -
- arch/sparc/mm/fault_32.c        |  1 -
- arch/sparc/mm/fault_64.c        |  1 -
- arch/um/kernel/trap.c           |  1 -
- arch/unicore32/mm/fault.c       |  6 +-----
- arch/x86/mm/fault.c             |  2 --
- arch/xtensa/mm/fault.c          |  1 -
- drivers/gpu/drm/ttm/ttm_bo_vm.c | 12 +++++++++---
- include/linux/mm.h              | 12 +++++++++++-
- mm/filemap.c                    |  2 +-
- mm/shmem.c                      |  2 +-
- 27 files changed, 25 insertions(+), 57 deletions(-)
-
-diff --git a/arch/alpha/mm/fault.c b/arch/alpha/mm/fault.c
-index 8a2ef90b4bfc..6a02c0fb36b9 100644
---- a/arch/alpha/mm/fault.c
-+++ b/arch/alpha/mm/fault.c
-@@ -169,7 +169,7 @@ do_page_fault(unsigned long address, unsigned long mmcsr,
- 		else
- 			current->min_flt++;
- 		if (fault & VM_FAULT_RETRY) {
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-+			flags |= FAULT_FLAG_TRIED;
- 
- 			 /* No need to up_read(&mm->mmap_sem) as we would
- 			 * have already released it in __lock_page_or_retry
-diff --git a/arch/arc/mm/fault.c b/arch/arc/mm/fault.c
-index dc5f1b8859d2..664e18a8749f 100644
---- a/arch/arc/mm/fault.c
-+++ b/arch/arc/mm/fault.c
-@@ -167,7 +167,6 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
- 			}
- 
- 			if (fault & VM_FAULT_RETRY) {
--				flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 				flags |= FAULT_FLAG_TRIED;
- 				goto retry;
- 			}
-diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
-index c41c021bbe40..7910b4b5205d 100644
---- a/arch/arm/mm/fault.c
-+++ b/arch/arm/mm/fault.c
-@@ -342,9 +342,6 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
- 					regs, addr);
- 		}
- 		if (fault & VM_FAULT_RETRY) {
--			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
--			* of starvation. */
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 			goto retry;
- 		}
-diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index a38ff8c49a66..d1d3c98f9ffb 100644
---- a/arch/arm64/mm/fault.c
-+++ b/arch/arm64/mm/fault.c
-@@ -523,12 +523,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
- 			return 0;
- 		}
- 
--		/*
--		 * Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk of
--		 * starvation.
--		 */
- 		if (mm_flags & FAULT_FLAG_ALLOW_RETRY) {
--			mm_flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			mm_flags |= FAULT_FLAG_TRIED;
- 			goto retry;
- 		}
-diff --git a/arch/hexagon/mm/vm_fault.c b/arch/hexagon/mm/vm_fault.c
-index be10b441d9cc..576751597e77 100644
---- a/arch/hexagon/mm/vm_fault.c
-+++ b/arch/hexagon/mm/vm_fault.c
-@@ -115,7 +115,6 @@ void do_page_fault(unsigned long address, long cause, struct pt_regs *regs)
- 			else
- 				current->min_flt++;
- 			if (fault & VM_FAULT_RETRY) {
--				flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 				flags |= FAULT_FLAG_TRIED;
- 				goto retry;
- 			}
-diff --git a/arch/ia64/mm/fault.c b/arch/ia64/mm/fault.c
-index 62c2d39d2bed..9de95d39935e 100644
---- a/arch/ia64/mm/fault.c
-+++ b/arch/ia64/mm/fault.c
-@@ -189,7 +189,6 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
- 		else
- 			current->min_flt++;
- 		if (fault & VM_FAULT_RETRY) {
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 
- 			 /* No need to up_read(&mm->mmap_sem) as we would
-diff --git a/arch/m68k/mm/fault.c b/arch/m68k/mm/fault.c
-index d9808a807ab8..b1b2109e4ab4 100644
---- a/arch/m68k/mm/fault.c
-+++ b/arch/m68k/mm/fault.c
-@@ -162,9 +162,6 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
- 		else
- 			current->min_flt++;
- 		if (fault & VM_FAULT_RETRY) {
--			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
--			 * of starvation. */
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 
- 			/*
-diff --git a/arch/microblaze/mm/fault.c b/arch/microblaze/mm/fault.c
-index 4fd2dbd0c5ca..05a4847ac0bf 100644
---- a/arch/microblaze/mm/fault.c
-+++ b/arch/microblaze/mm/fault.c
-@@ -236,7 +236,6 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
- 		else
- 			current->min_flt++;
- 		if (fault & VM_FAULT_RETRY) {
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 
- 			/*
-diff --git a/arch/mips/mm/fault.c b/arch/mips/mm/fault.c
-index 92374fd091d2..9953b5b571df 100644
---- a/arch/mips/mm/fault.c
-+++ b/arch/mips/mm/fault.c
-@@ -178,7 +178,6 @@ static void __kprobes __do_page_fault(struct pt_regs *regs, unsigned long write,
- 			tsk->min_flt++;
- 		}
- 		if (fault & VM_FAULT_RETRY) {
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 
- 			/*
-diff --git a/arch/nds32/mm/fault.c b/arch/nds32/mm/fault.c
-index 9f6e477b9e30..32259afc751a 100644
---- a/arch/nds32/mm/fault.c
-+++ b/arch/nds32/mm/fault.c
-@@ -242,7 +242,6 @@ void do_page_fault(unsigned long entry, unsigned long addr,
- 				      1, regs, addr);
- 		}
- 		if (fault & VM_FAULT_RETRY) {
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 
- 			/* No need to up_read(&mm->mmap_sem) as we would
-diff --git a/arch/nios2/mm/fault.c b/arch/nios2/mm/fault.c
-index 5939434a31ae..9dd1c51acc22 100644
---- a/arch/nios2/mm/fault.c
-+++ b/arch/nios2/mm/fault.c
-@@ -158,9 +158,6 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long cause,
- 		else
- 			current->min_flt++;
- 		if (fault & VM_FAULT_RETRY) {
--			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
--			 * of starvation. */
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 
- 			/*
-diff --git a/arch/openrisc/mm/fault.c b/arch/openrisc/mm/fault.c
-index 873ecb5d82d7..ff92c5674781 100644
---- a/arch/openrisc/mm/fault.c
-+++ b/arch/openrisc/mm/fault.c
-@@ -185,7 +185,6 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long address,
- 		else
- 			tsk->min_flt++;
- 		if (fault & VM_FAULT_RETRY) {
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 
- 			 /* No need to up_read(&mm->mmap_sem) as we would
-diff --git a/arch/parisc/mm/fault.c b/arch/parisc/mm/fault.c
-index 29422eec329d..7d3e96a9a7ab 100644
---- a/arch/parisc/mm/fault.c
-+++ b/arch/parisc/mm/fault.c
-@@ -327,8 +327,6 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
- 		else
- 			current->min_flt++;
- 		if (fault & VM_FAULT_RETRY) {
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
--
- 			/*
- 			 * No need to up_read(&mm->mmap_sem) as we would
- 			 * have already released it in __lock_page_or_retry
-diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
-index aaa853e6592f..c831cb3ce03f 100644
---- a/arch/powerpc/mm/fault.c
-+++ b/arch/powerpc/mm/fault.c
-@@ -583,13 +583,7 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
- 	 * case.
- 	 */
- 	if (unlikely(fault & VM_FAULT_RETRY)) {
--		/* We retry only once */
- 		if (flags & FAULT_FLAG_ALLOW_RETRY) {
--			/*
--			 * Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
--			 * of starvation.
--			 */
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 			if (is_user && signal_pending(current))
- 				return 0;
-diff --git a/arch/riscv/mm/fault.c b/arch/riscv/mm/fault.c
-index 4fc8d746bec3..aad2c0557d2f 100644
---- a/arch/riscv/mm/fault.c
-+++ b/arch/riscv/mm/fault.c
-@@ -154,11 +154,6 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
- 				      1, regs, addr);
- 		}
- 		if (fault & VM_FAULT_RETRY) {
--			/*
--			 * Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
--			 * of starvation.
--			 */
--			flags &= ~(FAULT_FLAG_ALLOW_RETRY);
- 			flags |= FAULT_FLAG_TRIED;
- 
- 			/*
-diff --git a/arch/s390/mm/fault.c b/arch/s390/mm/fault.c
-index aba1dad1efcd..4e8c066964a9 100644
---- a/arch/s390/mm/fault.c
-+++ b/arch/s390/mm/fault.c
-@@ -513,10 +513,7 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
- 				fault = VM_FAULT_PFAULT;
- 				goto out_up;
- 			}
--			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
--			 * of starvation. */
--			flags &= ~(FAULT_FLAG_ALLOW_RETRY |
--				   FAULT_FLAG_RETRY_NOWAIT);
-+			flags &= ~FAULT_FLAG_RETRY_NOWAIT;
- 			flags |= FAULT_FLAG_TRIED;
- 			down_read(&mm->mmap_sem);
- 			goto retry;
-diff --git a/arch/sh/mm/fault.c b/arch/sh/mm/fault.c
-index baf5d73df40c..cd710e2d7c57 100644
---- a/arch/sh/mm/fault.c
-+++ b/arch/sh/mm/fault.c
-@@ -498,7 +498,6 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
- 				      regs, address);
- 		}
- 		if (fault & VM_FAULT_RETRY) {
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 
- 			/*
-diff --git a/arch/sparc/mm/fault_32.c b/arch/sparc/mm/fault_32.c
-index a2c83104fe35..6735cd1c09b9 100644
---- a/arch/sparc/mm/fault_32.c
-+++ b/arch/sparc/mm/fault_32.c
-@@ -261,7 +261,6 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
- 				      1, regs, address);
- 		}
- 		if (fault & VM_FAULT_RETRY) {
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 
- 			/* No need to up_read(&mm->mmap_sem) as we would
-diff --git a/arch/sparc/mm/fault_64.c b/arch/sparc/mm/fault_64.c
-index cad71ec5c7b3..28d5b4d012c6 100644
---- a/arch/sparc/mm/fault_64.c
-+++ b/arch/sparc/mm/fault_64.c
-@@ -459,7 +459,6 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
- 				      1, regs, address);
- 		}
- 		if (fault & VM_FAULT_RETRY) {
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 
- 			/* No need to up_read(&mm->mmap_sem) as we would
-diff --git a/arch/um/kernel/trap.c b/arch/um/kernel/trap.c
-index 09baf37b65b9..c63fc292aea0 100644
---- a/arch/um/kernel/trap.c
-+++ b/arch/um/kernel/trap.c
-@@ -99,7 +99,6 @@ int handle_page_fault(unsigned long address, unsigned long ip,
- 			else
- 				current->min_flt++;
- 			if (fault & VM_FAULT_RETRY) {
--				flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 				flags |= FAULT_FLAG_TRIED;
- 
- 				goto retry;
-diff --git a/arch/unicore32/mm/fault.c b/arch/unicore32/mm/fault.c
-index 3611f19234a1..fdf577956f5f 100644
---- a/arch/unicore32/mm/fault.c
-+++ b/arch/unicore32/mm/fault.c
-@@ -260,12 +260,8 @@ static int do_pf(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
- 			tsk->maj_flt++;
- 		else
- 			tsk->min_flt++;
--		if (fault & VM_FAULT_RETRY) {
--			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
--			* of starvation. */
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-+		if (fault & VM_FAULT_RETRY)
- 			goto retry;
--		}
- 	}
- 
- 	up_read(&mm->mmap_sem);
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 248ff0a28ecd..d842c3e02a50 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -1483,9 +1483,7 @@ void do_user_addr_fault(struct pt_regs *regs,
- 	if (unlikely(fault & VM_FAULT_RETRY)) {
- 		bool is_user = flags & FAULT_FLAG_USER;
- 
--		/* Retry at most once */
- 		if (flags & FAULT_FLAG_ALLOW_RETRY) {
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 			if (is_user && signal_pending(tsk))
- 				return;
-diff --git a/arch/xtensa/mm/fault.c b/arch/xtensa/mm/fault.c
-index 792dad5e2f12..7cd55f2d66c9 100644
---- a/arch/xtensa/mm/fault.c
-+++ b/arch/xtensa/mm/fault.c
-@@ -128,7 +128,6 @@ void do_page_fault(struct pt_regs *regs)
- 		else
- 			current->min_flt++;
- 		if (fault & VM_FAULT_RETRY) {
--			flags &= ~FAULT_FLAG_ALLOW_RETRY;
- 			flags |= FAULT_FLAG_TRIED;
- 
- 			 /* No need to up_read(&mm->mmap_sem) as we would
-diff --git a/drivers/gpu/drm/ttm/ttm_bo_vm.c b/drivers/gpu/drm/ttm/ttm_bo_vm.c
-index a1d977fbade5..5fac635f72a5 100644
---- a/drivers/gpu/drm/ttm/ttm_bo_vm.c
-+++ b/drivers/gpu/drm/ttm/ttm_bo_vm.c
-@@ -61,9 +61,10 @@ static vm_fault_t ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
- 
- 	/*
- 	 * If possible, avoid waiting for GPU with mmap_sem
--	 * held.
-+	 * held.  We only do this if the fault allows retry and this
-+	 * is the first attempt.
- 	 */
--	if (vmf->flags & FAULT_FLAG_ALLOW_RETRY) {
-+	if (fault_flag_allow_retry_first(vmf->flags)) {
- 		ret = VM_FAULT_RETRY;
- 		if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT)
- 			goto out_unlock;
-@@ -136,7 +137,12 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
- 		if (err != -EBUSY)
- 			return VM_FAULT_NOPAGE;
- 
--		if (vmf->flags & FAULT_FLAG_ALLOW_RETRY) {
-+		/*
-+		 * If the fault allows retry and this is the first
-+		 * fault attempt, we try to release the mmap_sem
-+		 * before waiting
-+		 */
-+		if (fault_flag_allow_retry_first(vmf->flags)) {
- 			if (!(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
- 				ttm_bo_get(bo);
- 				up_read(&vmf->vma->vm_mm->mmap_sem);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 80bb6408fe73..4e11c9639f1b 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -341,11 +341,21 @@ extern pgprot_t protection_map[16];
- #define FAULT_FLAG_ALLOW_RETRY	0x04	/* Retry fault if blocking */
- #define FAULT_FLAG_RETRY_NOWAIT	0x08	/* Don't drop mmap_sem and wait when retrying */
- #define FAULT_FLAG_KILLABLE	0x10	/* The fault task is in SIGKILL killable region */
--#define FAULT_FLAG_TRIED	0x20	/* Second try */
-+#define FAULT_FLAG_TRIED	0x20	/* We've tried once */
- #define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
- #define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
- #define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
- 
-+/*
-+ * Returns true if the page fault allows retry and this is the first
-+ * attempt of the fault handling; false otherwise.
-+ */
-+static inline bool fault_flag_allow_retry_first(unsigned int flags)
-+{
-+	return (flags & FAULT_FLAG_ALLOW_RETRY) &&
-+	    (!(flags & FAULT_FLAG_TRIED));
-+}
-+
- #define FAULT_FLAG_TRACE \
- 	{ FAULT_FLAG_WRITE,		"WRITE" }, \
- 	{ FAULT_FLAG_MKWRITE,		"MKWRITE" }, \
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 9f5e323e883e..a2b5c53166de 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1351,7 +1351,7 @@ EXPORT_SYMBOL_GPL(__lock_page_killable);
- int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
- 			 unsigned int flags)
- {
--	if (flags & FAULT_FLAG_ALLOW_RETRY) {
-+	if (fault_flag_allow_retry_first(flags)) {
- 		/*
- 		 * CAUTION! In this case, mmap_sem is not released
- 		 * even though return 0.
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 6ece1e2fe76e..06fd5e79e1c9 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1949,7 +1949,7 @@ static vm_fault_t shmem_fault(struct vm_fault *vmf)
- 			DEFINE_WAIT_FUNC(shmem_fault_wait, synchronous_wake_function);
- 
- 			ret = VM_FAULT_NOPAGE;
--			if ((vmf->flags & FAULT_FLAG_ALLOW_RETRY) &&
-+			if (fault_flag_allow_retry_first(flags) &&
- 			   !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
- 				/* It's polite to up mmap_sem if we can */
- 				up_read(&vma->vm_mm->mmap_sem);
 -- 
-2.17.1
+Sincerely yours,
+Mike.
 
