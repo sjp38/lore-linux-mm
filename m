@@ -2,153 +2,177 @@ Return-Path: <SRS0=vS5V=Q4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DDBA3C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 18:25:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 40388C00319
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 18:28:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A73512083E
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 18:25:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A73512083E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=surriel.com
+	by mail.kernel.org (Postfix) with ESMTP id 0815A20818
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 18:28:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0815A20818
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 34D538E00A6; Thu, 21 Feb 2019 13:25:01 -0500 (EST)
+	id 82C4F8E00A7; Thu, 21 Feb 2019 13:28:35 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2FD0E8E00A5; Thu, 21 Feb 2019 13:25:01 -0500 (EST)
+	id 7DB4A8E00A5; Thu, 21 Feb 2019 13:28:35 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 213058E00A6; Thu, 21 Feb 2019 13:25:01 -0500 (EST)
+	id 6CB138E00A7; Thu, 21 Feb 2019 13:28:35 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E5AE08E00A5
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 13:25:00 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id b187so5982389qkf.3
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 10:25:00 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 41B178E00A5
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 13:28:35 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id p5so27431300qtp.3
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 10:28:35 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version:sender;
-        bh=wmfr8FacwMoJUV00LvUw0BsowycJx3sCnzcuQcWz/Lo=;
-        b=K95ivi7S/wtHgAWxOTOoJI9Vd2dMM8IG+9fR6B+ou299cJPsyN46CjqxFQtR6lLfOe
-         chGID7K7xtF/z0UkV9HlPuB85VsnOMXvJy0OcudaJen/9OuFG9n+Z3VwbnXlcOYIOS+d
-         C3jb87zsgITnGp+KJyHEfmbpHjmiJij+HmfZqv9kQmJ6OykmxtszEmSQSjH0IcdygwjM
-         gdAA8NWLsRI7feEN7Dt5KQp0L93V6N7XVyF4FkBUrVT6d45bPCzDXDywuCb8SvRnqCSD
-         hKw36tsLxazcdzB/z0A7x40Hr9tkfhOvDCKew9Fpwm+mcjSt891G+DcXXj2DSIbOjdMR
-         JEHg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-X-Gm-Message-State: AHQUAuYLhExzvvyDcR7PVk1mPL1XXe18ODZuyfzXjffGRskmkCDkBN9M
-	VXuLUZhirQGMfUreAKb1WGSdKaSpeiodojLxpJqwCCT+3pnbtcfqUEQ4Su/7fIVYrOZ9gG27jtD
-	+FlOY4wajDXS9s08ejhBHpOqrkafgqa67GPKfpF4+1+YM2Y0JIpU7eE7PbcxppP8A3g==
-X-Received: by 2002:a0c:9848:: with SMTP id e8mr11390874qvd.80.1550773500733;
-        Thu, 21 Feb 2019 10:25:00 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYqfRlJVxjWK7vl1eSuVxEviDcOWcs6K4cKsnQaHO1YQboE9m5g/8IjMtLzb/4KxT2jXnmg
-X-Received: by 2002:a0c:9848:: with SMTP id e8mr11390847qvd.80.1550773500194;
-        Thu, 21 Feb 2019 10:25:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550773500; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=BwwjM13bvkzDkzIha8/+5iNh/bZZ+kObCZSJEZOW+Rk=;
+        b=BOKQyMPyy4lg7OlklDRjpn9KmfgHjXlvaYqnD3k5dTiC1N9MaFfS4uFxwH75mtm2zL
+         6RhAFSb6IoDnXJ3MjSsY26SLhpE1cjkvP13/4HHGovNEbpu48GRDUrJlCcfM0s/wwbH8
+         x03iTCP++65Wi1cKnOTTEdq8fqJ1YqhbXSx52I/M9Q4l4S6vnWFJ9Tb/2WiFxNqZ7yyE
+         1++WizhVdsTxAjhhLzrp9Dm6FXRL7O+GhbIj7+7+QllMuhoFk6YavI2yx2VfbRmG6sW5
+         1SM+1evZs178oWLze49fKUJbkpw7OSPLEVe1w2NMukPpmRSTj/qtzXPpxU+N/BwH3Z6m
+         o4Rw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAuZeDV/lGVwqawFLoX05ltqgNx3dkCasYftJFnsIMvN2alcttK9U
+	UOLCfR2cCM2+pBLvJx1+CHZhquUYW5tbLAiuTGD0bEtR78x74ksN6+awRL6fXz/AizXon0+3Oy6
+	pCSm/AH/SfEU3cYtneaYLENgdFa+l3eOEREPpAhOL23EpT8+2G1LblJcV7Tggazmo9Q==
+X-Received: by 2002:a0c:a9d7:: with SMTP id c23mr8680765qvb.24.1550773715017;
+        Thu, 21 Feb 2019 10:28:35 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaZB4aZQ0REDY8x78JnYe5a+Ph2cgg1DLgggN+d5xB9L31sYoLkq4x1+Bqtx+sbhoIOpLVI
+X-Received: by 2002:a0c:a9d7:: with SMTP id c23mr8680735qvb.24.1550773714476;
+        Thu, 21 Feb 2019 10:28:34 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550773714; cv=none;
         d=google.com; s=arc-20160816;
-        b=Yz9p/pwp3b7Be9LBJZ0TzAtqpBuYu25fGNsgCjVPn9Zv3+YpQ71EFao1TM3QQnNt2v
-         vrOxVz7JrUfmrA76/qJCYt/d3qrsINeVJ0SCgJCezi+tldsc3sZo387HYdaHoHYo5GGY
-         3hsWY878EFqZLfnYQLGFq8hmiYvP1+dv3SjdUcHwdcq2alpxI7vMUO4ep46HwraAT929
-         oiahqmjMYpl1BfDiDgBkd5ZA8hB+JO9tDmKpEjNZED8vKcQ8Tt9AzGlkCWB4t7WzMp5Y
-         a2a9cIVVsDKFXib84gpxYhh8Ikt+ogRQdSJv6nhscR5PCqDY5sK87aHc1GNE5zzxfgdn
-         awKg==
+        b=NXCb40rrsrYnIOqqYHVeM1IILaHn/dQm7yePYqybfJG+VJjcPkmdly3bQDvD/EVcXw
+         76cerfUDcFAwvjJ+jUHFXHpY5puPgwUuKNR3/maurKoq0sI7BHBYvH89H+BtAtT4EonE
+         KzvnuWfCe5XZd51vUj1nx57gq36kbqb7eJ+12uusLpdRSF0NKv1ZmGrnm3zGmytyvt6A
+         kC/8pBTfMsEHQBV5IE0+iYyoJY0oCsXKBRnZCJIw5NrkyyPi38t+KhXDimxMCWcsdamd
+         0G1VqddEKhLpSWeHFGm8mobnbxVrBO/+Uqhp+LfAktKNYUTCA+34Q4AA4okNOKY62A7T
+         CL2w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=sender:mime-version:references:in-reply-to:date:cc:to:from:subject
-         :message-id;
-        bh=wmfr8FacwMoJUV00LvUw0BsowycJx3sCnzcuQcWz/Lo=;
-        b=1E64ESF0j0ydFV9vM4mK8BQCPl1VpWTxM62CyBy2cnCyCq80dpUDMJ1Jjsh1KNocBF
-         B+omL+7pzO89oJpC6ogNPjYZ2Gnf57ymWpA/PrJQSygn+QoXmjjAyorA13Sqf5eaKOqK
-         SrtuaB/H5RxnYFxxyzxOZWK7Yk0YiDsHmq2myNC6EhTr/4O7kfEx6wykD01VAZwORhix
-         aLFWpyn6WQw6GYtcOVKvl3ykQpZU1QU0hdx7H4X5dI6g303Uz+dMGqMSggOnHRzbcyOT
-         L/N66SLtteI69JPm+tqOQoQ2DCtjY+o83X5pf++ehNIStb2x3aqF/EsjC6/4mERBihbi
-         SfMQ==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=BwwjM13bvkzDkzIha8/+5iNh/bZZ+kObCZSJEZOW+Rk=;
+        b=Sd4K3F1RPlh4koyWp4+/5S7PkvUQ20zPSDV09z/xDObj2ksJEKMgiz2DHnBcRptj1s
+         Ir76hn32vzJibsmYOZ/jS97lhvnuIwuC6mgvXA7kp1An7+8N+TpVW6sLjkbuctl+62vi
+         CCXG1EuQnq0m9qKcU5VxsKIffYIONnSv8odwBAz6KXzBTCWioX3TLp1mvtPVFJ3oOUUN
+         2V9K3uSU1+HfAzGascQScPbOllKlgh3fDTjVvNGi5CaQCRiT1Pq7LS+pypTQW0/xDvmC
+         VQoUBJUeTUQc4WyYQ9QNN4//5kOWtyXYF8N4cCIhq9LPoRLbqcbxpX9belZ5x3/mAKBL
+         ILkA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id c32si251326qtc.169.2019.02.21.10.24.58
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i14si1428qkg.219.2019.02.21.10.28.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 10:24:58 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) client-ip=96.67.55.147;
+        Thu, 21 Feb 2019 10:28:34 -0800 (PST)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from imladris.surriel.com ([96.67.55.152])
-	by shelob.surriel.com with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
-	(Exim 4.91)
-	(envelope-from <riel@shelob.surriel.com>)
-	id 1gwt1m-0001IZ-Ap; Thu, 21 Feb 2019 13:24:58 -0500
-Message-ID: <3057d2336e88897309756a9c0e10727856589965.camel@surriel.com>
-Subject: Re: [Lsf-pc] Memory management facing a 400Gpbs network link
-From: Rik van Riel <riel@surriel.com>
-To: Christopher Lameter <cl@linux.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, lsf-pc@lists.linux-foundation.org
-Date: Thu, 21 Feb 2019 13:24:57 -0500
-In-Reply-To: <010001691144c94b-c935fd1d-9c90-40a5-9763-2c05ef0df7f4-000000@email.amazonses.com>
-References: 
-	<01000168e2f54113-485312aa-7e08-4963-af92-803f8c7d21e6-000000@email.amazonses.com>
-	 <20190219122609.GN4525@dhcp22.suse.cz>
-	 <01000169062262ea-777bfd38-e0f9-4e9c-806f-1c64e507ea2c-000000@email.amazonses.com>
-	 <20190219173622.GQ4525@dhcp22.suse.cz>
-	 <0100016906fdc80b-4471de43-3f22-45ec-8f77-f2ff1b76d9fe-000000@email.amazonses.com>
-	 <20190219191325.GS4525@dhcp22.suse.cz>
-	 <0100016907829c4c-7593c8e2-1e01-4be4-8eec-a8aa3de00c18-000000@email.amazonses.com>
-	 <20190220083157.GV4525@dhcp22.suse.cz>
-	 <010001691144c94b-c935fd1d-9c90-40a5-9763-2c05ef0df7f4-000000@email.amazonses.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-cM7bD1nFXBXadBEnK7oO"
-X-Mailer: Evolution 3.28.5 (3.28.5-1.fc28) 
-Mime-Version: 1.0
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9EE1B5AFE3;
+	Thu, 21 Feb 2019 18:28:33 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.236])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 590065D704;
+	Thu, 21 Feb 2019 18:28:27 +0000 (UTC)
+Date: Thu, 21 Feb 2019 13:28:25 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	David Hildenbrand <david@redhat.com>,
+	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+	Marty McFadden <mcfadden8@llnl.gov>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v2 21/26] userfaultfd: wp: add the writeprotect API to
+ userfaultfd ioctl
+Message-ID: <20190221182825.GA4198@redhat.com>
+References: <20190212025632.28946-1-peterx@redhat.com>
+ <20190212025632.28946-22-peterx@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190212025632.28946-22-peterx@redhat.com>
+User-Agent: Mutt/1.10.0 (2018-05-17)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Thu, 21 Feb 2019 18:28:33 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Feb 12, 2019 at 10:56:27AM +0800, Peter Xu wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> 
+> v1: From: Shaohua Li <shli@fb.com>
+> 
+> v2: cleanups, remove a branch.
+> 
+> [peterx writes up the commit message, as below...]
+> 
+> This patch introduces the new uffd-wp APIs for userspace.
+> 
+> Firstly, we'll allow to do UFFDIO_REGISTER with write protection
+> tracking using the new UFFDIO_REGISTER_MODE_WP flag.  Note that this
+> flag can co-exist with the existing UFFDIO_REGISTER_MODE_MISSING, in
+> which case the userspace program can not only resolve missing page
+> faults, and at the same time tracking page data changes along the way.
+> 
+> Secondly, we introduced the new UFFDIO_WRITEPROTECT API to do page
+> level write protection tracking.  Note that we will need to register
+> the memory region with UFFDIO_REGISTER_MODE_WP before that.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> [peterx: remove useless block, write commit message, check against
+>  VM_MAYWRITE rather than VM_WRITE when register]
+> Signed-off-by: Peter Xu <peterx@redhat.com>
 
---=-cM7bD1nFXBXadBEnK7oO
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+I am not an expert with userfaultfd code but it looks good to me so:
 
-On Thu, 2019-02-21 at 18:15 +0000, Christopher Lameter wrote:
+Also see my question down below, just a minor one.
 
-> B) Provide fast memory in the NIC
->=20
->    Since the NIC is at capacity limits when it comes to pushing data
->    from the NIC into memory the obvious solution is to not go to main
->    memory but provide faster on NIC memory that can then be accessed
->    from the host as needed. Now the applications creates I/O
-> bottlenecks
->    when accessing their data or they need to implement complicated
->    transfer mechanisms to retrieve and store data onto the NIC
-> memory.
+Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 
-Don't Intel and AMD both have High Bandwidth Memory
-available?
+> ---
+>  fs/userfaultfd.c                 | 82 +++++++++++++++++++++++++-------
+>  include/uapi/linux/userfaultfd.h | 11 +++++
+>  2 files changed, 77 insertions(+), 16 deletions(-)
+> 
 
-Is it possible to place your network buffer in HBM,
-and process the data from there?
+[...]
 
---=20
-All Rights Reversed.
+> diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
+> index 297cb044c03f..1b977a7a4435 100644
+> --- a/include/uapi/linux/userfaultfd.h
+> +++ b/include/uapi/linux/userfaultfd.h
+> @@ -52,6 +52,7 @@
+>  #define _UFFDIO_WAKE			(0x02)
+>  #define _UFFDIO_COPY			(0x03)
+>  #define _UFFDIO_ZEROPAGE		(0x04)
+> +#define _UFFDIO_WRITEPROTECT		(0x06)
+>  #define _UFFDIO_API			(0x3F)
 
---=-cM7bD1nFXBXadBEnK7oO
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlxu7PoACgkQznnekoTE
-3oMKBwf/Vuaa+Er8IEtq9p3gu8N/rkg1G6f+4aqOD0vr1fEER4lEWBaB7hwI1pzg
-Ho/EwTNhnR6/9d1NhFBDNld2VyLZA/7VMh5MCBT13U2VKKe8njReZLJGinpkNZKl
-i4d0Uvv0AGD01MeuTv6LpEzxVthEsxJN2qtR9w0r+m3DggKTxe8riBwWM0dh6V7i
-xpqAAZQ6PwFLgs+AKzSpy+wp82XDJsKwF5ZjkNrw7KNC9H2qwyP6NGC25OHFtSYk
-EBD6KBirQVzYJTyuPAoVOUnjoioIO8lecq+OMLIr0g004yePCAU+nm4uJ3HFIjhN
-fEPd0JiN3MK7j3a8n4AiG5r3i2UR7Q==
-=33Hu
------END PGP SIGNATURE-----
-
---=-cM7bD1nFXBXadBEnK7oO--
+What did happen to ioctl 0x05 ? :)
 
