@@ -2,214 +2,258 @@ Return-Path: <SRS0=vS5V=Q4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
-	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-2.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_MUTT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 67291C4360F
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 22:46:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A3B8C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 22:58:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0DF2B207E0
-	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 22:46:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DCF3B20838
+	for <linux-mm@archiver.kernel.org>; Thu, 21 Feb 2019 22:58:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="IdKDj3yG";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="bT+crDcB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0DF2B207E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="LKQiBzvh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DCF3B20838
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7DF328E00BA; Thu, 21 Feb 2019 17:46:52 -0500 (EST)
+	id 89C058E00BB; Thu, 21 Feb 2019 17:58:44 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 78F428E00B5; Thu, 21 Feb 2019 17:46:52 -0500 (EST)
+	id 84A1B8E00B5; Thu, 21 Feb 2019 17:58:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 630618E00BA; Thu, 21 Feb 2019 17:46:52 -0500 (EST)
+	id 711668E00BB; Thu, 21 Feb 2019 17:58:44 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 336FE8E00B5
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 17:46:52 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id t15so147544otk.4
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 14:46:52 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FA938E00B5
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 17:58:44 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id t6so233485pgp.10
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 14:58:44 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=oT+xA3GC6kP7R1nN3FaXPR31Q9urTPB1nHHEH1EnIV8=;
-        b=HdcLrAaAYEuNG/9qAHY9FINbfskUbSJCTaLcAtyaO6qHOISM/hq7CCHDeunwlqg9BG
-         n6ErlPc/bs3iF5jYLBrzg8neJdr/dAvquyu7XTQoDSiFR3KLJ0flaoLz6vI9j5d9oPrr
-         zLuWnIxT16e5WjlrSCNcyd2JubT9/KQ8VRLOG4FTPzUr8pmN/bH5ksLV6+sVbXZQMnxQ
-         bSS+4gQl4eyIWxm1tdq1N0SG1X9PtYgINgLgSlgS+WvHKc3bkYMLB8VPgh9AwIotfmu9
-         2RSd5N32S9sTG5kubyJiMfJg/axJDL4WcOTD/GcUd+l7NCe6afnIPW3omzJ2XDXlznAG
-         Epow==
-X-Gm-Message-State: AHQUAuYhrCVZCcqU3DpG/wSgWHs9q1+VhCZBnL0L/hKfIwBS9FGVtRVP
-	D8VSFjRl7MDQUWRLHOh3Nw44A413Agam2fNMhDMOYz2vyVj2qP1h+eWraAS0xg68j4mzsRmXmkI
-	95Rw6SEC/TG2rFkPsilTOdCB6JRfW2mSAThMpABHUXPr4lS5+87BOMcMIGZ26k9Dkpw==
-X-Received: by 2002:aca:edd7:: with SMTP id l206mr591167oih.11.1550789211830;
-        Thu, 21 Feb 2019 14:46:51 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYALwgVA2se1kWnVK1YlxGnp+r4/I7WlkITZlIai9mnp2Vaei9HVN0RlYsErSnSZ72lWR4C
-X-Received: by 2002:aca:edd7:: with SMTP id l206mr591129oih.11.1550789210980;
-        Thu, 21 Feb 2019 14:46:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550789210; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=R36KJKYkI+XeO5y2M/BarkvhDc6qEC6qBgMCjbDeY2A=;
+        b=PyDJo/WY6Zsae6VhSxspLeb5EKzc+Fnu4qQAp53IgG+ZOUyZlw16mPVxVq2NFx+33F
+         oQxQxVysWlJnVa6XmXVOU7umM9QVwDcegX1lsUtW4kLB1Cnuhy+Yjllkj1+uZGWciy5d
+         Kr9pAvbxJF8+K/l2k6Ex2TjOkHny7y6/C5J1KHjFiV4ixtBiaSGJRRk4eVwyzYSRY+Wn
+         6WsMEGapmI9+XxbJsoYWayWSn3YzX1hst8nP679Z131vHxWir7cmKmhPjp/hyI7tKXSL
+         RIVlrEl/Of1/j6WCru93B+yR6EZTAAkAi4NJlICHssKiuHQTQdx64exXnojCJf7Hb8wq
+         ycTw==
+X-Gm-Message-State: AHQUAua4tiQtvsSNPqNcgYl13sewgzs5HHZ5yJhVPASJbu8UZ9yqZs60
+	grJcIZ22HgAhyZl47uD1YD7bCj4BIJi/usDn0fb2LHEPzyYIfmmniV5nSREvkVD3mOKhwhU03b2
+	yOoM3Jen0U/jUYc5BLX4dEFBHllbS/aoIdOIQxHe0xRic8FztR/ug/zvLPkfBJp6Otw==
+X-Received: by 2002:a62:138f:: with SMTP id 15mr894970pft.219.1550789923719;
+        Thu, 21 Feb 2019 14:58:43 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia4pbX6IoZIbB3egynBEOUngjTQ8DLd+tuZ9gC+xbLCmEcVMFVzGepR4DObUkIhAaUlKxfs
+X-Received: by 2002:a62:138f:: with SMTP id 15mr894927pft.219.1550789922777;
+        Thu, 21 Feb 2019 14:58:42 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550789922; cv=none;
         d=google.com; s=arc-20160816;
-        b=HtEwG99R6NvO3TCldOHy516q3rhyhIDe2OjN++rXeWPSfwkt3rNqhofrgdmEfBh/Ub
-         Gn29eWziXhyeQxbzImbs/y1UwdKywikUVbsTnM2d65lUFWaFUZiLtKzMt/H719AmDoct
-         J6VEd9Y2AKgrcIHArmVbUWJmRq7zXQdmMhiGFzd17ZjwWbbYVYYJq4+goUqguZUBHz9r
-         VhKNhjInsSpl7bNTN+Sejq1oPAPdjsbIzJXdh1WXemgx1CIwEsZ5lLV55sy9eLbPpRXt
-         6B6BQigk48k+OdP44M8AKgfbp/EkkAf5wJ183oYsLm5EkMTm1tQWPVH1fVdRAIFg4P+G
-         qK7w==
+        b=ohD9aJwaXRul9vsdd+ymtRm3/qq6pT8FNnpNDCUzDr3DiF1wNlUG+/NxZ9hhgyaPr+
+         /2jQm4jX8K3/2AzvHxbS381K1wG2qVCSSCi/MXJB936OTYwhhtE/+AIUyhRODHtwPX6l
+         Q+qETr1TF6BZ42z4/aO746/7sF12kH6p3Jso2XbwDqR3XiBsoXXkRysFRQlJmLmvJNYc
+         F1y3obY1iYFpXV36EXjpTcFbK0UhyfugXmFSfiASXA3XP78cPwYg5pwXarb+rku2f9FO
+         TW4YPxuhdv7l1kcGv8vXm4Vx6BUALP3Y3lGtFUyldh9WBgrNpsfOzcsvgKVO0j0boUQd
+         dzhw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=oT+xA3GC6kP7R1nN3FaXPR31Q9urTPB1nHHEH1EnIV8=;
-        b=mUQQBe+P1GhoQo6SnUzE7q1QoAEEH7lCMzgk/qtrxJtlUoxpONqzqI2Km4j0bvqfS8
-         Yt4CDCCgOVcIndO0/GpGLDAsXNgATRtbIvDWHhZZxl79Vh0Pz7YBINfoP6VEoqSWLz6n
-         uv4lhTtnV1WVEkuQYTGps587OSiq0ebbz5c9T+j1Vhw/F/c3cMdFdfMS120GWbarM2ut
-         AVNUzDKli1/JXbKz1mCuuB3miLyAt0oY1qMjjiGPq/jdOllODquinPJ7jw0zH3eyTjKH
-         30hsAjz0QV7tYdjbfjz55m5yXT9g3AqBO4cwGHvSPXpNSH+jiyXVZC2uJw67FfvhW0JA
-         qofw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=R36KJKYkI+XeO5y2M/BarkvhDc6qEC6qBgMCjbDeY2A=;
+        b=ZcWJkjYeHMWvcydgtArZ96gq4Uoij7Hyz7IjFp0bqUvHkQ94fUfZKj14qrfmsZOYNa
+         +17mzgqTzZLh+GuqDkLU+MfAqwfeuJ2pj0CaihVsnpAEwJmigAnBjf4FRJuNeySnYVAW
+         /SMzqTr4L9i0KEJwqrVcVTbdGiPPGL7Ulnr93iSLKnbLQXdrYfFcZ6U4SNShUx1FzdpC
+         nxfljFjJpXMPV0KKjAvvecY7oA8SqxEN0KKmkmaJt4TOPZSW+kH0ul3s0LTRAOYsnF22
+         99ZXRXcW4/EoLXlDSMJaZJPs0y1li/D0OnOEjZ9G6TPaYb0xwuvOvSoEJ5shpRkif0VG
+         YM2A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=IdKDj3yG;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=bT+crDcB;
-       spf=pass (google.com: domain of prvs=795511d7f6=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=795511d7f6=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id g2si59961otj.44.2019.02.21.14.46.50
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=LKQiBzvh;
+       spf=pass (google.com: domain of larry.bassel@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=larry.bassel@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id b66si132560pfj.106.2019.02.21.14.58.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 14:46:50 -0800 (PST)
-Received-SPF: pass (google.com: domain of prvs=795511d7f6=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        Thu, 21 Feb 2019 14:58:42 -0800 (PST)
+Received-SPF: pass (google.com: domain of larry.bassel@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=IdKDj3yG;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=bT+crDcB;
-       spf=pass (google.com: domain of prvs=795511d7f6=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=795511d7f6=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0148460.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1LMYaKu013394;
-	Thu, 21 Feb 2019 14:46:47 -0800
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=oT+xA3GC6kP7R1nN3FaXPR31Q9urTPB1nHHEH1EnIV8=;
- b=IdKDj3yG8mt0+0XwSTL/enI4wetn5K21WvNfN1RXYFHsQDqyAN7V5gAg5kCRG4vPTD3E
- TNqLy6Oy8xFwFXdoG/2ccCJjlPSCAiRxw+SSiZQlK8cxj2XtqD8uJP9nq8FNxPL/UlDk
- 9Xdn3Et08UA9HenIcQOWgH5TeLDbBeXFd4c= 
-Received: from maileast.thefacebook.com ([199.201.65.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2qt2bkrkar-7
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Thu, 21 Feb 2019 14:46:47 -0800
-Received: from frc-hub02.TheFacebook.com (2620:10d:c021:18::172) by
- frc-hub06.TheFacebook.com (2620:10d:c021:18::176) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1531.3; Thu, 21 Feb 2019 14:46:21 -0800
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (192.168.183.28)
- by o365-in.thefacebook.com (192.168.177.72) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1531.3
- via Frontend Transport; Thu, 21 Feb 2019 14:46:21 -0800
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=oT+xA3GC6kP7R1nN3FaXPR31Q9urTPB1nHHEH1EnIV8=;
- b=bT+crDcBV8JbAs2Vwg3Akah0KUW6PbYl3nyo+ISrO/l3NqKwmNsmNbQQrvzRuHLPyjeVSpi0pLJ+5KAL1TZpDB6E8XLqHuEp2wUlWsRYTo2s0Veii0qDpX0i1om//jQ3ncEaFZKnt/HCywVn/fLqsWnbund+md/BPXBtyW520fk=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB2599.namprd15.prod.outlook.com (20.179.155.160) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1622.20; Thu, 21 Feb 2019 22:46:20 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::ecc7:1a8c:289f:df92]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::ecc7:1a8c:289f:df92%3]) with mapi id 15.20.1643.016; Thu, 21 Feb 2019
- 22:46:20 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Dave Chinner <david@fromorbit.com>
-CC: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
-        "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "riel@surriel.com"
-	<riel@surriel.com>,
-        "dchinner@redhat.com" <dchinner@redhat.com>,
-        "guroan@gmail.com" <guroan@gmail.com>,
-        Kernel Team <Kernel-team@fb.com>,
-        "hannes@cmpxchg.org" <hannes@cmpxchg.org>
-Subject: Re: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
-Thread-Topic: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
-Thread-Index: AQHUyCKda3Qt+ClMVUers5iRNki+jqXn/PCAgAAzK4CAABr9gIACkyWA
-Date: Thu, 21 Feb 2019 22:46:19 +0000
-Message-ID: <20190221224616.GB24252@tower.DHCP.thefacebook.com>
-References: <20190219071329.GA7827@castle.DHCP.thefacebook.com>
- <20190220024723.GA20682@dastard> <20190220055031.GA23020@dastard>
- <20190220072707.GB23020@dastard>
-In-Reply-To: <20190220072707.GB23020@dastard>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: BYAPR01CA0060.prod.exchangelabs.com (2603:10b6:a03:94::37)
- To BYAPR15MB2631.namprd15.prod.outlook.com (2603:10b6:a03:152::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::6:b358]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 2dc6c074-f0fa-46a4-b346-08d6984e6575
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600110)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:BYAPR15MB2599;
-x-ms-traffictypediagnostic: BYAPR15MB2599:
-x-microsoft-exchange-diagnostics: 1;BYAPR15MB2599;20:pKJEt33BUVS9bIyGxbz7qu0lEZkLkxf/S8YuSKDEOdx3r4YXR+KTlQbs5UZr/P9fogX5UCJGOtJtup+IlODBpe2txYJWz/bH4MwOy5ddl+9Jf06iTzzGDiwiIpD7NPWO8Wn0oz/RuPwinmFRz+doyOGEuaSHThuLABRMI5DlMX0=
-x-microsoft-antispam-prvs: <BYAPR15MB25990D339B3F159CCBAA8BA1BE7E0@BYAPR15MB2599.namprd15.prod.outlook.com>
-x-forefront-prvs: 09555FB1AD
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(346002)(376002)(366004)(136003)(39860400002)(396003)(189003)(199004)(97736004)(6246003)(86362001)(186003)(9686003)(102836004)(76176011)(229853002)(81156014)(8676002)(71200400001)(6512007)(106356001)(316002)(7736002)(52116002)(99286004)(6486002)(2906002)(305945005)(53936002)(8936002)(6436002)(33896004)(81166006)(71190400001)(25786009)(4744005)(33656002)(54906003)(386003)(446003)(93886005)(46003)(11346002)(14454004)(1076003)(6116002)(4326008)(6916009)(476003)(256004)(6506007)(486006)(105586002)(5660300002)(68736007)(478600001);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2599;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: AjMjlhevrMBIzdRhfyw5m8qCu9ubCXvobnqFRQZidjvtIjYhdwblPJmcE7qW4cHXqssCEDTqlAhMw5wXmrK1DGKsDIWDFjj6X5UP5Ny3tVtG5xCmswJYHlXLoqPcr7vkdIdCZ9xbbSTemQQArbTLEzhW+pF2HwcSUEkQn8689NyY0DLg05XEqrWpdiXRp1Tg84SHmirVHoXX1nKAJUBxkhqaNIVx/4sIN/+FABOhOKWBx5LpB8AFtpUZvZg1HYjIJi1JJcCBWeSm4hBsr25YYeMLmV78E+NVN9cud4hqYSOokAnG06zdywMXxu0w6AG3gzouigUnEH3cNx8Hlzd2QhC168kfNhjl4DTgg1WvvAX4YNBRwhywLIH7fnkWHgYGEG84i5aOjA965uGCqhxRq1rxHLgbEU8T4fRa4lmGRvk=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <20451F9179FAF341ADFC9FE07EBE7BBE@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=LKQiBzvh;
+       spf=pass (google.com: domain of larry.bassel@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=larry.bassel@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1LMsQuS039998;
+	Thu, 21 Feb 2019 22:58:42 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ content-transfer-encoding : in-reply-to; s=corp-2018-07-02;
+ bh=R36KJKYkI+XeO5y2M/BarkvhDc6qEC6qBgMCjbDeY2A=;
+ b=LKQiBzvhvTb9uIopbEAwULVGyu6QmvstAp7zCQyyKETNhF1OOVhJonkeYn6qn8DeCBI2
+ 08gqc87+bCzKpo5/3rEvdrCBInHB064IKWsvYNH20G0JAhV/gDUE8ByZ+l8Nu57M2Nti
+ bSwaTiydBGaDLld42xiLDrSlmrdp155A360QdurKQr41GjubZXq+NQmjtv01svUzzulp
+ 3sKjMB6jeGPejeWJ6q/IWaAKEU1fXRnkDi0e1WAQ4d9zIKHMEohGpAMPs+PY+gzdAGju
+ l6Yyf3iApm81wURDSKLUbtZhWMLkr0fAKVowNSGSJMXzwMzt0ut59Km1HvqT/H48mOac Wg== 
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by userp2130.oracle.com with ESMTP id 2qp9xubb6e-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 21 Feb 2019 22:58:41 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1LMwaSa014176
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 21 Feb 2019 22:58:36 GMT
+Received: from abhmp0004.oracle.com (abhmp0004.oracle.com [141.146.116.10])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1LMwZ17027803;
+	Thu, 21 Feb 2019 22:58:36 GMT
+Received: from ubuette (/75.80.107.76)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 21 Feb 2019 14:58:35 -0800
+Date: Thu, 21 Feb 2019 14:58:27 -0800
+From: Larry Bassel <larry.bassel@oracle.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Larry Bassel <larry.bassel@oracle.com>, linux-nvdimm@lists.01.org,
+        linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: question about page tables in DAX/FS/PMEM case
+Message-ID: <20190221225827.GA2764@ubuette>
+References: <20190220230622.GI19341@ubuette>
+ <20190221204141.GB5201@redhat.com>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 2dc6c074-f0fa-46a4-b346-08d6984e6575
-X-MS-Exchange-CrossTenant-originalarrivaltime: 21 Feb 2019 22:46:19.1964
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2599
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-21_14:,,
- signatures=0
-X-Proofpoint-Spam-Reason: safe
-X-FB-Internal: Safe
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190221204141.GB5201@redhat.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9174 signatures=668684
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=980 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1902210156
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2019 at 06:27:07PM +1100, Dave Chinner wrote:
-> On Wed, Feb 20, 2019 at 04:50:31PM +1100, Dave Chinner wrote:
-> > I'm just going to fix the original regression in the shrinker
-> > algorithm by restoring the gradual accumulation behaviour, and this
-> > whole series of problems can be put to bed.
->=20
-> Something like this lightly smoke tested patch below. It may be
-> slightly more agressive than the original code for really small
-> freeable values (i.e. < 100) but otherwise should be roughly
-> equivalent to historic accumulation behaviour.
->=20
+[adding linux-mm]
+
+On 21 Feb 19 15:41, Jerome Glisse wrote:
+> On Wed, Feb 20, 2019 at 03:06:22PM -0800, Larry Bassel wrote:
+> > I'm working on sharing page tables in the DAX/XFS/PMEM/PMD case.
+> > 
+> > If multiple processes would use the identical page of PMDs corresponding
+> > to a 1 GiB address range of DAX/XFS/PMEM/PMDs, presumably one can instead
+> > of populating a new PUD, just atomically increment a refcount and point
+> > to the same PUD in the next level above.
+
+Thanks for your feedback. Some comments/clarification below.
+
+> 
+> I think page table sharing was discuss several time in the past and
+> the complexity involve versus the benefit were not clear. For 1GB
+> of virtual address you need:
+>     #pte pages = 1G/(512 * 2^12)       = 512 pte pages
+>     #pmd pages = 1G/(512 * 512 * 2^12) = 1   pmd pages
+> 
+> So if we were to share the pmd directory page we would be saving a
+> total of 513 pages for every page table or ~2MB. This goes up with
+> the number of process that map the same range ie if 10 process map
+> the same range and share the same pmd than you are saving 9 * 2MB
+> 18MB of memory. This seems relatively modest saving.
+
+The file blocksize = page size in what I am working on would
+be 2 MiB (sharing puds/pages of pmds), I'm not trying to
+support sharing pmds/pages of ptes. And yes, the savings in this
+case is actually even less than in your example (but see my example below).
+
+> 
+> AFAIK there is no hardware benefit from sharing the page table
+> directory within different page table. So the only benefit is the
+> amount of memory we save.
+
+Yes, in our use case (high end Oracle database using DAX/XFS/PMEM/PMD)
+the main benefit would be memory savings:
+
+A future system might have 6 TiB of PMEM on it and
+there might be 10000 processes each mapping all of this 6 TiB.
+Here the savings would be approximately
+(6 TiB / 2 MiB) * 8 bytes (page table size) * 10000 = 240 GiB
+(and these page tables themselves would be in non-PMEM (ordinary RAM)).
+
+> 
+> See below for comments on complexity to achieve this.
+> 
+[trim]
+> > 
+> > If I have a mmap of a DAX/FS/PMEM file and I take
+> > a page (either pte or PMD sized) fault on access to this file,
+> > the page table(s) are set up in dax_iomap_fault() in fs/dax.c (correct?).
+> 
+> Not exactly the page table are allocated long before dax_iomap_fault()
+> get calls. They are allocated by the handle_mm_fault() and its childs
+> functions.
+
+Yes, I misstated this, the fault is handled there which may well
+alter the PUD (in my case), but the original page tables are set up earlier.
+
+> 
+> > 
+> > If the process later munmaps this file or exits but there are still
+> > other users of the shared page of PMDs, I would need to
+> > detect that this has happened and act accordingly (#3 above)
+> > 
+> > Where will these page table entries be torn down?
+> > In the same code where any other page table is torn down?
+> > If this is the case, what would the cleanest way of telling that these
+> > page tables (PMDs, etc.) correspond to a DAX/FS/PMEM mapping
+> > (look at the physical address pointed to?) so that
+> > I could do the right thing here.
+> > 
+> > I understand that I may have missed something obvious here.
+> > 
+> 
+> They are many issues here are the one i can think of:
+>     - finding a pmd/pud to share, you need to walk the reverse mapping
+>       of the range you are mapping and to find if any process or other
+>       virtual address already as a pud or pmd you can reuse. This can
+>       take more time than allocating page directory pages.
+>     - if one process munmap some portion of a share pud you need to
+>       break the sharing this means that munmap (or mremap) would need
+>       to handle this page table directory sharing case first
+>     - many code path in the kernel might need update to understand this
+>       share page table thing (mprotect, userfaultfd, ...)
+>     - the locking rules is bound to be painfull
+>     - this might not work on all architecture as some architecture do
+>       associate information with page table directory and that can not
+>       always be share (it would need to be enabled arch by arch)
+
+Yes, some architectures don't support DAX at all (note again that
+I'm not trying to share non-DAX page table here).
+
+> 
+> The nice thing:
+>     - unmapping for migration, when you unmap a share pud/pmd you can
+>       decrement mapcount by share pud/pmd count this could speedup
+>       migration
+
+A followup question: the kernel does sharing of page tables for hugetlbfs
+(also 2 MiB pages), why aren't the above issues relevant there as well
+(or are they but we support it anyhow)?
+
+> 
+> This is what i could think of on the top of my head but there might be
+> other thing. I believe the question is really a benefit versus cost and
+> to me at least the complexity cost outweight the benefit one for now.
+> Kirill Shutemov proposed rework on how we do page table and this kind of
+> rework might tip the balance the other way. So my suggestion would be to
+> look into how the page table management can be change in a beneficial
+> way that could also achieve the page table sharing.
+> 
 > Cheers,
->=20
-> Dave.
-> --=20
-> Dave Chinner
-> david@fromorbit.com
->=20
-> mm: fix shrinker scan accumulation regression
->=20
-> From: Dave Chinner <dchinner@redhat.com>
+> Jérôme
 
-JFYI: I'm testing this patch in our environment for fixing
-the memcg memory leak.
+Thanks.
 
-It will take a couple of days to get reliable results.
-
-Thanks!
+Larry
 
