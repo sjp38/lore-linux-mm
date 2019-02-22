@@ -3,74 +3,74 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 493A2C10F0B
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 17:43:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E32C1C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 17:43:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 14E242070D
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 17:43:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 14E242070D
+	by mail.kernel.org (Postfix) with ESMTP id AC2AE2070D
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 17:43:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC2AE2070D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6D67D8E0120; Fri, 22 Feb 2019 12:43:28 -0500 (EST)
+	id 901EF8E011D; Fri, 22 Feb 2019 12:43:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5F1B68E011D; Fri, 22 Feb 2019 12:43:28 -0500 (EST)
+	id 6D4468E011E; Fri, 22 Feb 2019 12:43:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 353698E0120; Fri, 22 Feb 2019 12:43:28 -0500 (EST)
+	id 488978E011F; Fri, 22 Feb 2019 12:43:28 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B15398E011F
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AB9988E011E
 	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 12:43:27 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id v27-v6so486064ljv.1
+Received: by mail-lf1-f69.google.com with SMTP id y13so568120lfg.14
         for <linux-mm@kvack.org>; Fri, 22 Feb 2019 09:43:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=0J6EKeVNPV4DTtVCERPQrtxws2K83/Ht9c8m80Bex9g=;
-        b=ZHiIu497LY0GWjTageawQWF0tFYzPVZw+V5IgA4Y3hqUPdnOZwgHFXGk99tLrKHs5J
-         NIUR+jWjb0cSjivTxjAHvjQ9hUidT8uVawu90rMzUfD/wLXg4Elc7DnAYj7gzM3Bucwh
-         bp3Sv+ED+LWIaxqZ4vHhPECKm+xD47TZSIPHkneD5L9uR4A7YbjWgFYg8o80hsk/0/a7
-         nhXTSbwzyjDBbBY1pcCEyBrJIX5P/MtvvpKm54eB2aI/EDr+LKfo1ScalGo3AK+/92xZ
-         LMrzOCstJVgrB9CVzt2MwgZqps2zmQZaj8s4L3sP352zMKOZl7tQHqnqiH92BNuoudZ5
-         Lyiw==
+        bh=l3573FcQI2TMlFRaIikWxGtlWdg1rVzxjrfhnZoKb7g=;
+        b=IBnjw7rb4myGr9sRmdf1tGcTjK6igQ7Z6C21LeKKOrM0+MashEf9fClOTBIa5aW3Jq
+         vzhK+nNTy4tj3SJ2b1K3/JnHBQTLCdz32chWmXNEKlklg315Tl8g7xVoQTR8Ap+PC7aW
+         2OfDobfygZ5rTu0xkY55i3vnqLJFXLUKQ1ysVPJeCyIXm6cwzV/oTEvy4Sf4joagrGwC
+         66Wn2thQa1Q1OMskR4LQJ4UL36+RHtqsb/sQaqsExrasbK4DQVyPD9VRrErwq0qwdqGk
+         knJmPxKbwYRKuWyIex2VV7/B2kqq/H3DWPklfedP97ClT7UD1k+hn8Jocc/IcvqxCT4q
+         vXtA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: AHQUAuYbzB6Wg0JVIl8Q46Op5WLDsKvEYvFZ51bhBK3wVFialc+U6jSh
-	8x4/km68egLs2hfiNFslo49XCxxWTk/2AaxRUgm2NdtORHo+6ZcZi/vkHMNhcjgljmicSwOuRT3
-	j2ib7/FSWAr7KfpC8hNIpioOlU0hvd6PmfMyI89eYQPTIJhoQTaFQokgIvNMcaVOFXw==
-X-Received: by 2002:ac2:415a:: with SMTP id c26mr3381224lfi.62.1550857406944;
+X-Gm-Message-State: AHQUAub4zENceu7dzGuhXdeIQkZ8imsEItOZ9C/RQAJSNvSAvOyXljUv
+	zv/PVLRydMMJGH1SKT3iJS8fLVXUcO/rJYU2RfLftUDhT4yUVFIE2C5tfu0/Jrmg1lQ/pItiRDy
+	40xe3i/qqkaNzVkYx6vs5kZs9idZlY+W8VuE2f0U9sUrl3xERZAjUJS1fs620JTASbA==
+X-Received: by 2002:a2e:8446:: with SMTP id u6-v6mr3043012ljh.74.1550857406958;
         Fri, 22 Feb 2019 09:43:26 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZFfbb5wBqJLaAvfQsdXWbVbYIfYP5XPDtfDOWNeQyoyM09W/df90wUdNSOw8mcLEiD8ZDS
-X-Received: by 2002:ac2:415a:: with SMTP id c26mr3381153lfi.62.1550857405546;
+X-Google-Smtp-Source: AHgI3IbjDxC20x9E8o+QZDVnP78BS4Q1bYCJ0HZ4cgTJwnGcC3pcwysCK5uIn8Q0HVWYscJTpDuk
+X-Received: by 2002:a2e:8446:: with SMTP id u6-v6mr3042959ljh.74.1550857405548;
         Fri, 22 Feb 2019 09:43:25 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1550857405; cv=none;
         d=google.com; s=arc-20160816;
-        b=nAwIo4mqvi3/mqWRBoPqmY7plTpvYgyVKsoaH6eCQZdLq/O3+P1DGIPT3xO2q4efGF
-         l/nr1os9grrB2c7nEW6JUSRwPHMNTennalEI5eFnkF0iRlPTONQ5s2tv82VojgVsV6++
-         XzQwOyOMsvsNte9Y5BqvcbRABKma+zh1kIJGYE78C9i3NbZ9X2JfeW5MrVvJGuid2SEj
-         hfgXNQIngt2ec9KZ5UVu3Y+IS8HFfdixi5VPtwZ1V7mvQSAZnu/lnfYvBrDNvh+a7DPT
-         aN00Cf7Yum6rPLPDJTkqJLJwWYiAMzF8IftSUNNe/slbZLxqPVfNkK4k+a/j6At+eoA3
-         OkuQ==
+        b=qTDUesPjdwGOzbaXe/Onsf7xmcf+HiOt4IXi+RLEr54d8V0slk3ONI33wMpCzapYq3
+         REu0CYOLwsx1C3KAtcMB6Q50vv+VWy28MFmB16LB+ygn6rip1MO5JFYjrjBWkIvppDd+
+         Bz4NsUHoIY97tcciB1a9s7eGqFwBEIAsQmH2HQv09aD17HC6C+pTEVDX2diDAEw5VV9D
+         y2+/G9Pp3Qu2r5Qww129vlgJfxsunDBybqpqJzyo7h2bGYx1ZhEvlNvrm2+btOadppUS
+         EAHOrEUD6p04eKqjPpIFq3H5yd9MpsW2xY4RIvSouGaJFwULXDShj4Ihw3rIORrrtQBT
+         UrDw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=0J6EKeVNPV4DTtVCERPQrtxws2K83/Ht9c8m80Bex9g=;
-        b=W0qKdmCu4Uoerm/TLmq/UAl6O/wjSbBIw81Gi5XTfmYDE3LpyOlHDinpeB0Yv5CP1f
-         /kLcBzeBde58JTtr1A/qkB5brJYcNcOnh4vfBSXbvlLTUdm8l3DZVpPvsrdXWu3+vndz
-         lztPiwdYO7Zpps8eC9WMKOsaMuTMANPs7OigPIdeoKTKW8ETtVBv4SDZi2uq2MreMIr/
-         aWjz//jg9bmZGm87CnG8P+y/JPltRcz56QUKNhaAkOIs1TE8+/ZeSde5TTsFefPvewEW
-         JqkDTeS4atq8Y77V7PtYtBd15dS9IMBaGgFoFneXeMxq51YgBJQypLS7XFEuA5nA7QnH
-         6kyQ==
+        bh=l3573FcQI2TMlFRaIikWxGtlWdg1rVzxjrfhnZoKb7g=;
+        b=iAOCzdNgs6cYlv+5GHrQQPzxWlvG921AW2kdDvEwL1tq9fMC8j8Zl243sfdlAODs80
+         F2Eq9OSflAeT1/tZENPhLLD8SwKwTFgnuNRl8sqq8e8HHvfIhzSOLxytK6NP08Rk0Ka6
+         ipTEygxwJDrF6x6LspkyZjmsZz4XcV+r3XB2pTHDxWZLnuTgIQY4e/7Jp39uQ4aReFv4
+         iL9LDcnUX0e1eD/ZzelUVn1CzgR8aZVxTBiJZrmAZIIKnnWTFWKV61tPSNIS1tQvCWqF
+         OgJ7mm3mogmXD6pagIigxRjKR+36FXUAtwPQtOd/4JvqTym/xjwGcVrk2HJ2USSjVbG4
+         SkyQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
 Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id 1-v6si1488654lji.133.2019.02.22.09.43.25
+        by mx.google.com with ESMTPS id m4si1537939lfh.59.2019.02.22.09.43.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 22 Feb 2019 09:43:25 -0800 (PST)
@@ -81,7 +81,7 @@ Authentication-Results: mx.google.com;
 Received: from [172.16.25.12] (helo=i7.sw.ru)
 	by relay.sw.ru with esmtp (Exim 4.91)
 	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1gxEr3-00010r-J9; Fri, 22 Feb 2019 20:43:21 +0300
+	id 1gxEr3-00010r-FQ; Fri, 22 Feb 2019 20:43:21 +0300
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org,
@@ -92,9 +92,9 @@ Cc: linux-mm@kvack.org,
 	Vlastimil Babka <vbabka@suse.cz>,
 	Rik van Riel <riel@surriel.com>,
 	Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 5/5] mm/vmscan: don't forcely shrink active anon lru list
-Date: Fri, 22 Feb 2019 20:43:37 +0300
-Message-Id: <20190222174337.26390-5-aryabinin@virtuozzo.com>
+Subject: [PATCH 4/5] mm/vmscan: remove unused lru_pages argument
+Date: Fri, 22 Feb 2019 20:43:36 +0300
+Message-Id: <20190222174337.26390-4-aryabinin@virtuozzo.com>
 X-Mailer: git-send-email 2.19.2
 In-Reply-To: <20190222174337.26390-1-aryabinin@virtuozzo.com>
 References: <20190222174337.26390-1-aryabinin@virtuozzo.com>
@@ -106,16 +106,8 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-shrink_node_memcg() always forcely shrink active anon list.
-This doesn't seem like correct behavior. If system/memcg has no swap, it's
-absolutely pointless to rebalance anon lru lists.
-And in case we did scan the active anon list above, it's unclear why would
-we need this additional force scan. If there are cases when we want more
-aggressive scan of the anon lru we should just change the scan target
-in get_scan_count() (and better explain such cases in the comments).
-
-Remove this force shrink and let get_scan_count() to decide how
-much of active anon we want to shrink.
+The argument 'unsigned long *lru_pages' passed around with no purpose,
+remove it.
 
 Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -124,39 +116,100 @@ Cc: Vlastimil Babka <vbabka@suse.cz>
 Cc: Rik van Riel <riel@surriel.com>
 Cc: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/vmscan.c | 12 ++----------
- 1 file changed, 2 insertions(+), 10 deletions(-)
+ mm/vmscan.c | 17 +++++------------
+ 1 file changed, 5 insertions(+), 12 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 07f74e9507b6..efd10d6b9510 100644
+index 2d081a32c6a8..07f74e9507b6 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2563,8 +2563,8 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
- 			 sc->priority == DEF_PRIORITY);
+@@ -2257,8 +2257,7 @@ enum scan_balance {
+  * nr[2] = file inactive pages to scan; nr[3] = file active pages to scan
+  */
+ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+-			   struct scan_control *sc, unsigned long *nr,
+-			   unsigned long *lru_pages)
++			   struct scan_control *sc, unsigned long *nr)
+ {
+ 	int swappiness = mem_cgroup_swappiness(memcg);
+ 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+@@ -2409,7 +2408,6 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 	fraction[1] = fp;
+ 	denominator = ap + fp + 1;
+ out:
+-	*lru_pages = 0;
+ 	for_each_evictable_lru(lru) {
+ 		int file = is_file_lru(lru);
+ 		unsigned long lruvec_size;
+@@ -2525,7 +2523,6 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 			BUG();
+ 		}
  
- 	blk_start_plug(&plug);
--	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
--					nr[LRU_INACTIVE_FILE]) {
-+	while (nr[LRU_ACTIVE_ANON] || nr[LRU_INACTIVE_ANON] ||
-+		nr[LRU_ACTIVE_FILE] || nr[LRU_INACTIVE_FILE]) {
- 		unsigned long nr_anon, nr_file, percentage;
- 		unsigned long nr_scanned;
- 
-@@ -2636,14 +2636,6 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
+-		*lru_pages += lruvec_size;
+ 		nr[lru] = scan;
  	}
- 	blk_finish_plug(&plug);
- 	sc->nr_reclaimed += nr_reclaimed;
--
--	/*
--	 * Even if we did not try to evict anon pages at all, we want to
--	 * rebalance the anon lru active/inactive ratio.
--	 */
--	if (inactive_list_is_low(lruvec, false, memcg, sc, true))
--		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
--				   sc, LRU_ACTIVE_ANON);
  }
+@@ -2534,7 +2531,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+  * This is a basic per-node page freer.  Used by both kswapd and direct reclaim.
+  */
+ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memcg,
+-			      struct scan_control *sc, unsigned long *lru_pages)
++			      struct scan_control *sc)
+ {
+ 	struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);
+ 	unsigned long nr[NR_LRU_LISTS];
+@@ -2546,7 +2543,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
+ 	struct blk_plug plug;
+ 	bool scan_adjusted;
  
- /* Use reclaim/compaction for costly allocs or under memory pressure */
+-	get_scan_count(lruvec, memcg, sc, nr, lru_pages);
++	get_scan_count(lruvec, memcg, sc, nr);
+ 
+ 	/* Record the original scan target for proportional adjustments later */
+ 	memcpy(targets, nr, sizeof(nr));
+@@ -2751,7 +2748,6 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			.pgdat = pgdat,
+ 			.priority = sc->priority,
+ 		};
+-		unsigned long node_lru_pages = 0;
+ 		struct mem_cgroup *memcg;
+ 
+ 		memset(&sc->nr, 0, sizeof(sc->nr));
+@@ -2761,7 +2757,6 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 
+ 		memcg = mem_cgroup_iter(root, NULL, &reclaim);
+ 		do {
+-			unsigned long lru_pages;
+ 			unsigned long reclaimed;
+ 			unsigned long scanned;
+ 
+@@ -2798,8 +2793,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 
+ 			reclaimed = sc->nr_reclaimed;
+ 			scanned = sc->nr_scanned;
+-			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
+-			node_lru_pages += lru_pages;
++			shrink_node_memcg(pgdat, memcg, sc);
+ 
+ 			if (sc->may_shrinkslab) {
+ 				shrink_slab(sc->gfp_mask, pgdat->node_id,
+@@ -3332,7 +3326,6 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
+ 		.may_swap = !noswap,
+ 		.may_shrinkslab = 1,
+ 	};
+-	unsigned long lru_pages;
+ 
+ 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+ 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+@@ -3349,7 +3342,7 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
+ 	 * will pick up pages from other mem cgroup's as well. We hack
+ 	 * the priority and make it zero.
+ 	 */
+-	shrink_node_memcg(pgdat, memcg, &sc, &lru_pages);
++	shrink_node_memcg(pgdat, memcg, &sc);
+ 
+ 	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
+ 
 -- 
 2.19.2
 
