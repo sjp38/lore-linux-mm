@@ -6,88 +6,88 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6680EC4360F
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 15:16:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC138C10F00
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 15:17:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 264302086A
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 15:16:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 264302086A
+	by mail.kernel.org (Postfix) with ESMTP id 887D420823
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 15:17:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 887D420823
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BB0E38E0111; Fri, 22 Feb 2019 10:16:00 -0500 (EST)
+	id 1ED578E0112; Fri, 22 Feb 2019 10:17:17 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B61458E0109; Fri, 22 Feb 2019 10:16:00 -0500 (EST)
+	id 1C1A48E0109; Fri, 22 Feb 2019 10:17:17 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A511A8E0111; Fri, 22 Feb 2019 10:16:00 -0500 (EST)
+	id 0D7478E0112; Fri, 22 Feb 2019 10:17:17 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B6108E0109
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:16:00 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id d134so1698273qkc.17
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 07:16:00 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D56FF8E0109
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:17:16 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id e1so2258009qth.23
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 07:17:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=5umS1UuQJWtrOLB/NdFl5MpqO6iQoL46ncF0W32P3Fc=;
-        b=WSRfQG6ZjnEAwQc0tshew3Mljj5aBnfKL0SatAujgx2Fh/r+orr2UFkhDL2h5sQQf3
-         s1at5g6Xp3Z8gWTDRk5LLSR+plELqzBLL0JBLl2KNPVbMejsDaR+jZg16dxbc7lD1Qvw
-         HqwHUvIAxdVYfyBc1qjR694iIu2Iub1XCvxD3tMWKhcD1o5i1kIZhZl1L9QdATfaMYHd
-         PGalYK2AWLeXjr33MlRxTLftu4O+Cjap00FdyBORhQKKgJKsV+Nv5ODVfBuSHcyWD1hg
-         aG4JgZekBQeQ9X5DUyawABe3dvz6Fn53toYjXW5CY2gxw3LmDLrOCDLQJuFnKksnSdpJ
-         SskA==
+        bh=KKsXW0jnkjvHI4KB4+q2o3adHOvgtei/ego8Zgdus2Y=;
+        b=SE33FWG+hsAhRg5uGVSAhbCKqaz7iM0Oe7RHOUWrbCFznRFw5SJwpEr1x4ntLRaKcE
+         jV/ER86SixRhPyLuyYHXOwlEL7Bh8dcbdjqd2h3A+pe4DdeLnyOz8pwBxchOQRwZOB6U
+         s4T8W3M6XDyb2EuhXD/0YjUf7L4/tDtRtzOaetf5j+r8lDbYkSPNysaRElJMVuaqP3uI
+         sYz4w2JDCUqMTR3tTnGJW9/XFKe4+dZ7munjoWuNBZPgbfxhuXq0XkhhoJUfoJzOioV9
+         7MSiefF/t5y2j9MzA0En4adeweyUe7Jgbz/gS+bp38s/WDhrmWaI+4CoLe/iz54tb0G0
+         +ipw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuby+SJSY2rEEBCFGPl+fqJLAxDO7YZJJsHl+/+dc6dLYDsljEau
-	AApTsKj6o+emRYWf1lPts3AY2V26sRLsL1SOU1bHwaaWD0g4AXQ0be6sNvJl6S3KH+V8WYKsd4t
-	meWpMDXMm7Vkv02K8+hea/8HH30e4b8AkRpPh5asjLbeW9vozW52+mXWJcwRKW+0wBQ==
-X-Received: by 2002:ac8:3770:: with SMTP id p45mr3471763qtb.275.1550848560217;
-        Fri, 22 Feb 2019 07:16:00 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZcl/95jHDkszu0iA+jnsrHg80YZRxbAqPRfEbAgI9JsaFrfdHSynIze5Gt3VMiE9Y3eSR9
-X-Received: by 2002:ac8:3770:: with SMTP id p45mr3471716qtb.275.1550848559534;
-        Fri, 22 Feb 2019 07:15:59 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550848559; cv=none;
+X-Gm-Message-State: AHQUAuaE0Gklb4mF+5PBFEl1ODEC0RHzJ1TJ5PCtliJ6ux9XyWLp4bLG
+	BQbxhHywAjePyh8uBlkSIqkySoYtR9N5A2pxl1Pnx6753bUNuHFgkBLUKKfeMTKPlmCRoS4HxmY
+	mrdV4nwakOveb86MK71JFLJaj0rKwlrSSkqSM9kPCqagyBP9RFiNwOLUaYYGPjESJKQ==
+X-Received: by 2002:a37:4804:: with SMTP id v4mr3313876qka.104.1550848636634;
+        Fri, 22 Feb 2019 07:17:16 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IazyO1o8NvrwLORPYzT/v/cBBjYoQtrxE9BIdQGNlaAUyxhVQMXgVvFozYivZxN3kbgIdXn
+X-Received: by 2002:a37:4804:: with SMTP id v4mr3313823qka.104.1550848635909;
+        Fri, 22 Feb 2019 07:17:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550848635; cv=none;
         d=google.com; s=arc-20160816;
-        b=CpE6kKeotOFjmP/eVLqAI3ULgZbA0CMLfARTEUludmX6mSPaToJPqpuknDbBPsqgmR
-         DiTr3lEYhWBR+7WwyJ0jtSOfQ32ll+mmeBAF7vynscdBHXuSViH3QJhP7W3De0qpBZRc
-         1UfBlXo+3XBpvQMSGYthS0vJcasRRagEKT6gquRfuofM1Iw/qrH3UskxWJdfLwyTSh1c
-         hKwqIrh+7HoLaNGJJ6OQL+zK+J8nJ7Sq9Ua1uhFaIUU4KmKuW7TzWAoTtYiJ8QYPhDbY
-         he6X0Gfea4FX2bONS/2G8GPTfdoMJVdmM3YNPorQR4LzBp99wPnyukFfjlOAdtyweFVC
-         WPrQ==
+        b=GHNPLDayiZNHDJ6ahawtoNTagBhKsTKBJyRrAOwjSMpalxGXIULGx7g6SIcSji4Zwf
+         ymBgV44SPXmtU/XLKM60xmXR3rf05WyVszMgEBn15FYUZZ7FkLRfArrYHPLf8rImhjXW
+         2zDLAL4GNMQ09ccb2TdBZeW4cguU1O1xS24tQT7LOHOzZeKaDfXU28kamQ95xkiIGIp+
+         HO+Nzvo8EZSwj6GnopJh8waDPtYajJn0sw8wOxcpcDlVr8GEF/ChbURVonFBm09IiMYL
+         uwp/aii6g/zk/m0raueyOzgx4/X5er0rB2SAPWKJSOr1ulQmx06GY+yIhKF3ajQBQoRO
+         qyQA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date;
-        bh=5umS1UuQJWtrOLB/NdFl5MpqO6iQoL46ncF0W32P3Fc=;
-        b=ZAULcA+ay46APDqVH5fwTmRbNa32Cw/3a+bdcIZlGAX1qKHI1BtdBt7dJQKm0Z5R4v
-         PnGBcsIxGXmDwdNBLjUjAROZvkymWHZ/JAbi/4empbLRS7Zpg8CQSi9SZwW84SPALB0g
-         TjKe5wLSbUE97kz4aqzgwCJMX/7PmI7H2CA3aKQJtd9wGTiyqseDlHxeae2rahL4r9ZK
-         sYCl8d+8218qw437IcqwtzSYTblBxz7tql6FzNSSghQf4O+9NP4uvrZvLFwa49mmakEp
-         brJAvcnIwrFRlgAbeiG8SoRgCXuAjpBLrdl+N3SsxzA/kZrSkDUMwjbqfa8bPoZcbBd+
-         P3dQ==
+        bh=KKsXW0jnkjvHI4KB4+q2o3adHOvgtei/ego8Zgdus2Y=;
+        b=bCTMO9z/jxBLa52xHDrBO9yLpFafsOJ0FvuNNZnzU8WCIK0BgSypd2nutJyWil/dfL
+         DsGwYxKtpoGd5sAxOJ0kNw9nvBRPlkITFzRKF6xMLd5LpU+cSCBXZ1IhCsnMRsPynjpv
+         3zXK2HSyeT5ZUJJ4S814jsqMElTspnBLChdcVbcg/vONQHI5s1KpIbyhFbsZzSAElA2q
+         Lv99Eakm1yhyuxIf//5vCzUq5TnsJ8G7/nUt/DqRDV8PTO3HnwoefFMfAX0V7XQ1FLWq
+         1j/5jqFaKKHC9gGHzK3j+2meiNTFEeBHNAGiCFHhoLy0EB2X5xuipAQ7JffoYPjP7lHT
+         50VQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h4si1054552qve.14.2019.02.22.07.15.59
+        by mx.google.com with ESMTPS id t29si787368qvc.4.2019.02.22.07.17.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Feb 2019 07:15:59 -0800 (PST)
+        Fri, 22 Feb 2019 07:17:15 -0800 (PST)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 8BA6881E0D;
-	Fri, 22 Feb 2019 15:15:57 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id DEDBE3002F3C;
+	Fri, 22 Feb 2019 15:17:14 +0000 (UTC)
 Received: from redhat.com (ovpn-126-14.rdu2.redhat.com [10.10.126.14])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 3B3EA60BF1;
-	Fri, 22 Feb 2019 15:15:49 +0000 (UTC)
-Date: Fri, 22 Feb 2019 10:15:47 -0500
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 583195D9E2;
+	Fri, 22 Feb 2019 15:17:09 +0000 (UTC)
+Date: Fri, 22 Feb 2019 10:17:07 -0500
 From: Jerome Glisse <jglisse@redhat.com>
 To: Peter Xu <peterx@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
@@ -104,133 +104,160 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v2 10/26] userfaultfd: wp: add UFFDIO_COPY_MODE_WP
-Message-ID: <20190222151546.GC7783@redhat.com>
+Subject: Re: [PATCH v2 12/26] userfaultfd: wp: apply _PAGE_UFFD_WP bit
+Message-ID: <20190222151707.GD7783@redhat.com>
 References: <20190212025632.28946-1-peterx@redhat.com>
- <20190212025632.28946-11-peterx@redhat.com>
- <20190221172919.GJ2813@redhat.com>
- <20190222071106.GI8904@xz-x1>
+ <20190212025632.28946-13-peterx@redhat.com>
+ <20190221174401.GL2813@redhat.com>
+ <20190222073135.GJ8904@xz-x1>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190222071106.GI8904@xz-x1>
+In-Reply-To: <20190222073135.GJ8904@xz-x1>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Fri, 22 Feb 2019 15:15:58 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Fri, 22 Feb 2019 15:17:15 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 22, 2019 at 03:11:06PM +0800, Peter Xu wrote:
-> On Thu, Feb 21, 2019 at 12:29:19PM -0500, Jerome Glisse wrote:
-> > On Tue, Feb 12, 2019 at 10:56:16AM +0800, Peter Xu wrote:
-> > > From: Andrea Arcangeli <aarcange@redhat.com>
+On Fri, Feb 22, 2019 at 03:31:35PM +0800, Peter Xu wrote:
+> On Thu, Feb 21, 2019 at 12:44:02PM -0500, Jerome Glisse wrote:
+> > On Tue, Feb 12, 2019 at 10:56:18AM +0800, Peter Xu wrote:
+> > > Firstly, introduce two new flags MM_CP_UFFD_WP[_RESOLVE] for
+> > > change_protection() when used with uffd-wp and make sure the two new
+> > > flags are exclusively used.  Then,
 > > > 
-> > > This allows UFFDIO_COPY to map pages wrprotected.
+> > >   - For MM_CP_UFFD_WP: apply the _PAGE_UFFD_WP bit and remove _PAGE_RW
+> > >     when a range of memory is write protected by uffd
 > > > 
-> > > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> > >   - For MM_CP_UFFD_WP_RESOLVE: remove the _PAGE_UFFD_WP bit and recover
+> > >     _PAGE_RW when write protection is resolved from userspace
+> > > 
+> > > And use this new interface in mwriteprotect_range() to replace the old
+> > > MM_CP_DIRTY_ACCT.
+> > > 
+> > > Do this change for both PTEs and huge PMDs.  Then we can start to
+> > > identify which PTE/PMD is write protected by general (e.g., COW or soft
+> > > dirty tracking), and which is for userfaultfd-wp.
+> > > 
+> > > Since we should keep the _PAGE_UFFD_WP when doing pte_modify(), add it
+> > > into _PAGE_CHG_MASK as well.  Meanwhile, since we have this new bit, we
+> > > can be even more strict when detecting uffd-wp page faults in either
+> > > do_wp_page() or wp_huge_pmd().
+> > > 
 > > > Signed-off-by: Peter Xu <peterx@redhat.com>
 > > 
-> > Minor nitpick down below, but in any case:
+> > Few comments but still:
 > > 
 > > Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
+> 
+> Thanks!
+> 
 > > 
 > > > ---
-> > >  fs/userfaultfd.c                 |  5 +++--
-> > >  include/linux/userfaultfd_k.h    |  2 +-
-> > >  include/uapi/linux/userfaultfd.h | 11 +++++-----
-> > >  mm/userfaultfd.c                 | 36 ++++++++++++++++++++++----------
-> > >  4 files changed, 35 insertions(+), 19 deletions(-)
+> > >  arch/x86/include/asm/pgtable_types.h |  2 +-
+> > >  include/linux/mm.h                   |  5 +++++
+> > >  mm/huge_memory.c                     | 14 +++++++++++++-
+> > >  mm/memory.c                          |  4 ++--
+> > >  mm/mprotect.c                        | 12 ++++++++++++
+> > >  mm/userfaultfd.c                     |  8 ++++++--
+> > >  6 files changed, 39 insertions(+), 6 deletions(-)
 > > > 
+> > > diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+> > > index 8cebcff91e57..dd9c6295d610 100644
+> > > --- a/arch/x86/include/asm/pgtable_types.h
+> > > +++ b/arch/x86/include/asm/pgtable_types.h
+> > > @@ -133,7 +133,7 @@
+> > >   */
+> > >  #define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_PCD | _PAGE_PWT |		\
+> > >  			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
+> > > -			 _PAGE_SOFT_DIRTY | _PAGE_DEVMAP)
+> > > +			 _PAGE_SOFT_DIRTY | _PAGE_DEVMAP | _PAGE_UFFD_WP)
+> > >  #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
+> > 
+> > This chunk needs to be in the earlier arch specific patch.
+> 
+> Indeed.  I'll move it over.
+> 
 > > 
 > > [...]
 > > 
-> > > diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-> > > index d59b5a73dfb3..73a208c5c1e7 100644
-> > > --- a/mm/userfaultfd.c
-> > > +++ b/mm/userfaultfd.c
-> > > @@ -25,7 +25,8 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
-> > >  			    struct vm_area_struct *dst_vma,
-> > >  			    unsigned long dst_addr,
-> > >  			    unsigned long src_addr,
-> > > -			    struct page **pagep)
-> > > +			    struct page **pagep,
-> > > +			    bool wp_copy)
-> > >  {
-> > >  	struct mem_cgroup *memcg;
-> > >  	pte_t _dst_pte, *dst_pte;
-> > > @@ -71,9 +72,9 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
-> > >  	if (mem_cgroup_try_charge(page, dst_mm, GFP_KERNEL, &memcg, false))
-> > >  		goto out_release;
+> > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > > index 8d65b0f041f9..817335b443c2 100644
+> > > --- a/mm/huge_memory.c
+> > > +++ b/mm/huge_memory.c
+> > 
+> > [...]
+> > 
+> > > @@ -2198,6 +2208,8 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+> > >  				entry = pte_mkold(entry);
+> > >  			if (soft_dirty)
+> > >  				entry = pte_mksoft_dirty(entry);
+> > > +			if (uffd_wp)
+> > > +				entry = pte_mkuffd_wp(entry);
+> > >  		}
+> > >  		pte = pte_offset_map(&_pmd, addr);
+> > >  		BUG_ON(!pte_none(*pte));
+> > 
+> > Reading that code and i thought i would be nice if we could define a
+> > pte_mask that we can or instead of all those if () entry |= ... but
+> > that is just some dumb optimization and does not have any bearing on
+> > the present patch. Just wanted to say that outloud.
+> 
+> (I agree; though I'll just concentrate on the series for now)
+> 
+> > 
+> > 
+> > > diff --git a/mm/mprotect.c b/mm/mprotect.c
+> > > index a6ba448c8565..9d4433044c21 100644
+> > > --- a/mm/mprotect.c
+> > > +++ b/mm/mprotect.c
+> > > @@ -46,6 +46,8 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+> > >  	int target_node = NUMA_NO_NODE;
+> > >  	bool dirty_accountable = cp_flags & MM_CP_DIRTY_ACCT;
+> > >  	bool prot_numa = cp_flags & MM_CP_PROT_NUMA;
+> > > +	bool uffd_wp = cp_flags & MM_CP_UFFD_WP;
+> > > +	bool uffd_wp_resolve = cp_flags & MM_CP_UFFD_WP_RESOLVE;
 > > >  
-> > > -	_dst_pte = mk_pte(page, dst_vma->vm_page_prot);
-> > > -	if (dst_vma->vm_flags & VM_WRITE)
-> > > -		_dst_pte = pte_mkwrite(pte_mkdirty(_dst_pte));
-> > > +	_dst_pte = pte_mkdirty(mk_pte(page, dst_vma->vm_page_prot));
-> > > +	if (dst_vma->vm_flags & VM_WRITE && !wp_copy)
-> > > +		_dst_pte = pte_mkwrite(_dst_pte);
+> > >  	/*
+> > >  	 * Can be called with only the mmap_sem for reading by
+> > > @@ -117,6 +119,14 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+> > >  			if (preserve_write)
+> > >  				ptent = pte_mk_savedwrite(ptent);
+> > >  
+> > > +			if (uffd_wp) {
+> > > +				ptent = pte_wrprotect(ptent);
+> > > +				ptent = pte_mkuffd_wp(ptent);
+> > > +			} else if (uffd_wp_resolve) {
+> > > +				ptent = pte_mkwrite(ptent);
+> > > +				ptent = pte_clear_uffd_wp(ptent);
+> > > +			}
+> > > +
+> > >  			/* Avoid taking write faults for known dirty pages */
+> > >  			if (dirty_accountable && pte_dirty(ptent) &&
+> > >  					(pte_soft_dirty(ptent) ||
+> > > @@ -301,6 +311,8 @@ unsigned long change_protection(struct vm_area_struct *vma, unsigned long start,
+> > >  {
+> > >  	unsigned long pages;
+> > >  
+> > > +	BUG_ON((cp_flags & MM_CP_UFFD_WP_ALL) == MM_CP_UFFD_WP_ALL);
 > > 
-> > I like parenthesis around around and :) ie:
-> >     (dst_vma->vm_flags & VM_WRITE) && !wp_copy
-> > 
-> > I feel it is easier to read.
+> > Don't you want to abort and return here if both flags are set ?
 > 
-> Yeah another one. Though this line will be changed in follow up
-> patches, will fix anyways.
+> Here I would slightly prefer BUG_ON() because current code (any
+> userspace syscalls) cannot trigger this without changing the kernel
+> (currently the only kernel user of these two flags will be
+> mwriteprotect_range but it'll definitely only pass one flag in).  This
+> line will be only useful when we add new kernel code (or writting new
+> kernel drivers) and it can be used to detect programming errors. In
+> that case IMHO BUG_ON() would be more straightforward.
 > 
-> > 
-> > [...]
-> > 
-> > > @@ -416,11 +418,13 @@ static __always_inline ssize_t mfill_atomic_pte(struct mm_struct *dst_mm,
-> > >  	if (!(dst_vma->vm_flags & VM_SHARED)) {
-> > >  		if (!zeropage)
-> > >  			err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
-> > > -					       dst_addr, src_addr, page);
-> > > +					       dst_addr, src_addr, page,
-> > > +					       wp_copy);
-> > >  		else
-> > >  			err = mfill_zeropage_pte(dst_mm, dst_pmd,
-> > >  						 dst_vma, dst_addr);
-> > >  	} else {
-> > > +		VM_WARN_ON(wp_copy); /* WP only available for anon */
-> > 
-> > Don't you want to return with error here ?
-> 
-> Makes sense to me.  Does this looks good to you to be squashed into
-> current patch?
-> 
-> diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-> index 73a208c5c1e7..f3ea09f412d4 100644
-> --- a/mm/userfaultfd.c
-> +++ b/mm/userfaultfd.c
-> @@ -73,7 +73,7 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
->                 goto out_release;
->  
->         _dst_pte = pte_mkdirty(mk_pte(page, dst_vma->vm_page_prot));
-> -       if (dst_vma->vm_flags & VM_WRITE && !wp_copy)
-> +       if ((dst_vma->vm_flags & VM_WRITE) && !wp_copy)
->                 _dst_pte = pte_mkwrite(_dst_pte);
->  
->         dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
-> @@ -424,7 +424,10 @@ static __always_inline ssize_t mfill_atomic_pte(struct mm_struct *dst_mm,
->                         err = mfill_zeropage_pte(dst_mm, dst_pmd,
->                                                  dst_vma, dst_addr);
->         } else {
-> -               VM_WARN_ON(wp_copy); /* WP only available for anon */
-> +               if (unlikely(wp_copy))
-> +                       /* TODO: WP currently only available for anon */
-> +                       return -EINVAL;
-> +
->                 if (!zeropage)
->                         err = shmem_mcopy_atomic_pte(dst_mm, dst_pmd,
->                                                      dst_vma, dst_addr,
 
-I would keep a the VM_WARN_ON or maybe a ONCE variant so that we at
-least have a chance to be inform if for some reasons that code path
-is taken. With that my r-b stands.
+Ok i agree.
 
 Cheers,
 Jérôme
