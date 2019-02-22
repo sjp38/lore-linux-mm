@@ -2,162 +2,120 @@ Return-Path: <SRS0=SgWF=Q5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9569C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 15:36:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88AB2C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 15:36:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 76DE220700
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 15:36:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 76DE220700
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 3DBB820700
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 15:36:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="DZ2PMD3v"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DBB820700
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2A2118E0115; Fri, 22 Feb 2019 10:36:26 -0500 (EST)
+	id DED598E0116; Fri, 22 Feb 2019 10:36:44 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 251808E0109; Fri, 22 Feb 2019 10:36:26 -0500 (EST)
+	id D748C8E0109; Fri, 22 Feb 2019 10:36:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 13FE28E0115; Fri, 22 Feb 2019 10:36:26 -0500 (EST)
+	id BC5B08E0117; Fri, 22 Feb 2019 10:36:44 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E331D8E0109
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:36:25 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id u13so795814qkj.13
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 07:36:25 -0800 (PST)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EEBC8E0109
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:36:44 -0500 (EST)
+Received: by mail-qk1-f197.google.com with SMTP id v67so1736365qkl.22
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 07:36:44 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=RWseMIZ6VEO+YkmkUuk06YfiztvL53XmsCsIhfSt5K8=;
-        b=MNd3mksRWqQD6RKa6mfogFjSL+aLU3vJXFz/YUZbd74sXedlZzO2mX9yt5yCMIcd4H
-         hHhcBvi6/+/a+xS6DDs3TteYO0/wcUxitY5xdplySZOrhKTc9aKo/TKYqZazLvBWDnKp
-         dD/TQnixnyEpmMUoYDoxhD6VfCiMPXSDW8xsBsL5fgU+JiOBflCxjA3yX0a2g3FIOw/Q
-         repSy92sZijwXruc0hhQDbz09N7SPK40hGaEdBda+LW+vZa45g2GAW40CyRM6Z7VO+NP
-         akgYkX2CsZqPVAzxNJZoMAvAakv0el/pX6IuuSgoSZsGSN64/zc7UV80OijP9GPifTjg
-         1emw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAubpp+HEoXkoOsYK09ws5SJTb1MQVIMtXsXM7kWxJytR03aO0Ofd
-	VDrOM/X+cXJwUoL0C8+Ea7LnoWNtQlxhI66nstmzMyF9UNxHg7vRdk54w6MnMdqCAMm7LlKpr7A
-	XqtMOkzisdakhJGRtBpLmBs/9hpIJ6xFje0kZ+25Gu2qJRYdl/HuGwAHnQ468z2hKEw==
-X-Received: by 2002:a0c:ae78:: with SMTP id z53mr3493324qvc.235.1550849785734;
-        Fri, 22 Feb 2019 07:36:25 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaZakk95Sq0iTIU9xRAktsXkcsVWtY/Vg2TjCBQwSud2PpFCBjEVIcFhgvAe1XjD0Lyvgjn
-X-Received: by 2002:a0c:ae78:: with SMTP id z53mr3493284qvc.235.1550849785203;
-        Fri, 22 Feb 2019 07:36:25 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550849785; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version
+         :feedback-id;
+        bh=eA9TxLOANw/lp9h2GPXgTjx5TpnmBtqllhHuKUoL8wI=;
+        b=LZSKH3katVl/HgzTYM3tNFFcacNr2iCIzBGxbnREqh9i5zF8LZOFZh/+TyTzyxdz+0
+         /mks+n5mmfdgC1ej8zxKx1f8cm6IBVH5hRP2+FxNeLDDpJhIczJIYMJqwxDNttSxgCzN
+         h0pKlvfQTh1Lsq/ZJHmMOIDDgUgBr8uDRZh6fhzy1GMhHIaB7TapM9ZHDFrhUynKlS2S
+         02oMDrlNPJCdzxHnlucYzbq8DOjME/j+TFhF20Ddpmuf+X1Tafs+2jvMIYp0Pg57AdPu
+         tluMAvq/6jpA0xdYX65pu9qtVHvbWoyvtW9iWzvig2bFMupYGnOPVRh24HunvaZtZzdD
+         P1nw==
+X-Gm-Message-State: AHQUAubO3BRo7jvs3zhpPi+XK4kl2vIU6RlR5gc1gNq8nVnoLAYVUY2N
+	LSVQyUMKMLoZDd8t/2KNvh/CF6gc7Ucwxv9ZKq8HXGEm9toEJ3VoH7/thJZSgcHbv02IyX4FScy
+	gFHULhy0NKO/Tn3klyjStTJfZjW3wYEXCzJuLlxOerrieQUoVbnUuYbO7HDQzFvs=
+X-Received: by 2002:a0c:c60c:: with SMTP id v12mr3551625qvi.29.1550849804383;
+        Fri, 22 Feb 2019 07:36:44 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYwxV2k9qdnmCQPmqLarOrkazOr6nSzG9feOyTLIRPGJhoDWCUbeaZLf/EPTT5UoLmH6Vgf
+X-Received: by 2002:a0c:c60c:: with SMTP id v12mr3551561qvi.29.1550849803446;
+        Fri, 22 Feb 2019 07:36:43 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550849803; cv=none;
         d=google.com; s=arc-20160816;
-        b=PeRXuYUqtB3ICfyoZU3Q8TpqP8Yow+DXapyFie67zqAYBjZ+nLmw9ZMJTo2FOEXC3S
-         d2ChSAO7oY2C4MPTVi17swxlwE1Q+mdddSEbIGAmMb1Gy3mLbF6ERH0oPcODgJRy0UOi
-         FsfqWCXZV1koVvYKsRJ2C+zD9eG7aSEaHRUBfbLbUFuqIEB9+PYwudPvUVkNldCfoDpA
-         m4JQjLTMS/JTmoEwaW1XDa3mPwGoptxcUzbXQQW174DdpdD8LxPztcv8mrZfmNFbEJ22
-         Zw2S5q6w4CxwOt6BGhfgFVY3+GFxl9Bj2MRcGrR8ZpfP2NRyQtulVekqpPaX0OID6rFs
-         A10w==
+        b=wF9clw1vYYN2ynTh1dLKpo3L6pQ1kRkkn1Ta2gqlSJ1rdyQGWmeLdMorJsLTTuXtEH
+         1mSlXt6oqgOu2YcE4L56pDOQL2H6/DyBso+vBCqHDbXB6pM5LLpAIyGVj2dRGAeMUIz3
+         DZXoHVqJXKeK1heeieDvnQgPqpzy7/8N8UZB3ABHJ4SEPsUwdxiAWzkYwM/2E7LEH+Sh
+         THK3X/swrTXtINngevEr64Bx5U3q9vV93UYU5I4DXoWr/92I2LBzmatFV8DiP4f1UMMg
+         WhnUi8SMOKO2rgwC4KYJFAJbXWd9lzkk18Iri895s4W4BjDXcmFi/sYk4EhLcnUySAg4
+         kAxA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=RWseMIZ6VEO+YkmkUuk06YfiztvL53XmsCsIhfSt5K8=;
-        b=w0+s3fwCYIIUyw0BAbMSeqNUf0ivXFOnAvvA8ENChpRavg72FBLl+KXcgu1Dh47l4x
-         SVMRzW8cXMtjuZYcAqSVrcP2tG0ReP6iEFbYkmJ7v5LSnlMLsJpc47ezgcP3M6tTOXk9
-         JPdVDHfmNmnv0NanmrILgQUQHIulLNvqp2pwuLBO6D20n33+ZR4gLtkIQeUm19IiYmHo
-         Cuv4TGKoAe2tF5AVG0cvX9csc7aMFRZ6bQBEVkISXb7XwOs0uisSgZ3c+/GMXcmZ185O
-         08admXfgF81BMnMno3g3pqEbcEzjgcydlWD/ocerL+xzX3zgPkb0BvHw55yVy8T6b5ko
-         u8nw==
+        h=feedback-id:mime-version:user-agent:references:message-id
+         :in-reply-to:subject:cc:to:from:date:dkim-signature;
+        bh=eA9TxLOANw/lp9h2GPXgTjx5TpnmBtqllhHuKUoL8wI=;
+        b=Npj2mIyeuYwFnRWrBKH4aaxAWn2teAk/xnye3ySap5ZIHFGSiRVH4sMVWxr1otf9si
+         zDNpj43nef7Lfp5cbnQaTqxugJFkPcNmwb4FuPNAREmzKYNgE7nNU1EQ/MFXevVdZWeu
+         cmAON+y1UctqAD8ZBwjoLLwkkEJdeaXqWtoKP1SSLZmRYBeq3KCWF+I6Bru2K1eFGXuS
+         67HgJBoI7i4zerh9/4WBc3VW5oXwgYUIKMHZFflsPpkGAlbLDQOXWZHlsuG7RLTr0eB5
+         qN9EoftWnF1THRrYd6GYKPTqF0OvsE1KGhvQjBd+QvC6PuIXd1kAVv0QQXSs266yaOR6
+         f8/w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x2si1062220qkh.65.2019.02.22.07.36.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Feb 2019 07:36:25 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=DZ2PMD3v;
+       spf=pass (google.com: domain of 0100016915da021c-63475bd3-9a4f-4a88-a42e-e47dab17fa00-000000@amazonses.com designates 54.240.9.37 as permitted sender) smtp.mailfrom=0100016915da021c-63475bd3-9a4f-4a88-a42e-e47dab17fa00-000000@amazonses.com
+Received: from a9-37.smtp-out.amazonses.com (a9-37.smtp-out.amazonses.com. [54.240.9.37])
+        by mx.google.com with ESMTPS id k14si57092qkj.20.2019.02.22.07.36.43
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 22 Feb 2019 07:36:43 -0800 (PST)
+Received-SPF: pass (google.com: domain of 0100016915da021c-63475bd3-9a4f-4a88-a42e-e47dab17fa00-000000@amazonses.com designates 54.240.9.37 as permitted sender) client-ip=54.240.9.37;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5508D820FF;
-	Fri, 22 Feb 2019 15:36:24 +0000 (UTC)
-Received: from redhat.com (ovpn-126-14.rdu2.redhat.com [10.10.126.14])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id E8EBD611D1;
-	Fri, 22 Feb 2019 15:36:17 +0000 (UTC)
-Date: Fri, 22 Feb 2019 10:36:15 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Peter Xu <peterx@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	David Hildenbrand <david@redhat.com>,
-	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
-	Marty McFadden <mcfadden8@llnl.gov>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v2 15/26] userfaultfd: wp: drop _PAGE_UFFD_WP properly
- when fork
-Message-ID: <20190222153615.GF7783@redhat.com>
-References: <20190212025632.28946-1-peterx@redhat.com>
- <20190212025632.28946-16-peterx@redhat.com>
- <20190221180631.GO2813@redhat.com>
- <20190222090919.GM8904@xz-x1>
+       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=DZ2PMD3v;
+       spf=pass (google.com: domain of 0100016915da021c-63475bd3-9a4f-4a88-a42e-e47dab17fa00-000000@amazonses.com designates 54.240.9.37 as permitted sender) smtp.mailfrom=0100016915da021c-63475bd3-9a4f-4a88-a42e-e47dab17fa00-000000@amazonses.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1550849803;
+	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
+	bh=0Td44XtvSayPcNqe+eB45iGCcZ7zke8ZoEd5cO88Y3U=;
+	b=DZ2PMD3vBl07Y+EYZwcNIF59Nt/XbhwL68jK8dXc7+fRXzbaaxHB4/RvDo9sCXB/
+	SEsYjQ5Eo/MiSzXcI8Atvvw4pIPRqhxyHq/6P7mClNQGAFE0G0MDMbTZLIlOJg4JwKM
+	qATFnrG5CD0piRoKW7JTx5Q8aRl+2BCjZRMFKth4=
+Date: Fri, 22 Feb 2019 15:36:42 +0000
+From: Christopher Lameter <cl@linux.com>
+X-X-Sender: cl@nuc-kabylake
+To: Qian Cai <cai@lca.pw>
+cc: axboe@kernel.dk, viro@zeniv.linux.org.uk, hare@suse.com, bcrl@kvack.org, 
+    linux-aio@kvack.org, Linux-MM <linux-mm@kvack.org>
+Subject: Re: io_submit with slab free object overwritten
+In-Reply-To: <4a56fc9f-27f7-5cb5-feed-a4e33f05a5d1@lca.pw>
+Message-ID: <0100016915da021c-63475bd3-9a4f-4a88-a42e-e47dab17fa00-000000@email.amazonses.com>
+References: <4a56fc9f-27f7-5cb5-feed-a4e33f05a5d1@lca.pw>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190222090919.GM8904@xz-x1>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Fri, 22 Feb 2019 15:36:24 +0000 (UTC)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Type: text/plain; charset=US-ASCII
+X-SES-Outgoing: 2019.02.22-54.240.9.37
+Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.008507, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 22, 2019 at 05:09:19PM +0800, Peter Xu wrote:
-> On Thu, Feb 21, 2019 at 01:06:31PM -0500, Jerome Glisse wrote:
-> > On Tue, Feb 12, 2019 at 10:56:21AM +0800, Peter Xu wrote:
-> > > UFFD_EVENT_FORK support for uffd-wp should be already there, except
-> > > that we should clean the uffd-wp bit if uffd fork event is not
-> > > enabled.  Detect that to avoid _PAGE_UFFD_WP being set even if the VMA
-> > > is not being tracked by VM_UFFD_WP.  Do this for both small PTEs and
-> > > huge PMDs.
-> > > 
-> > > Signed-off-by: Peter Xu <peterx@redhat.com>
-> > 
-> > This patch must be earlier in the serie, before the patch that introduce
-> > the userfaultfd API so that bisect can not end up on version where this
-> > can happen.
-> 
-> Yes it should be now? Since the API will be introduced until patch
-> 21/26 ("userfaultfd: wp: add the writeprotect API to userfaultfd
-> ioctl").
+On Fri, 22 Feb 2019, Qian Cai wrote:
 
-No i was confuse when reading this patch i had the feeling it was
-after the ioctl ignore my comment.
+> [23424.121182] BUG aio_kiocb (Tainted: G    B   W    L   ): Poison overwritten
 
-> 
-> > 
-> > Otherwise the patch itself is:
-> > 
-> > Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
-> 
-> Unless I found anything I've missed above... I'll temporarily pick
-> this R-b for now then.
+> [23424.121322] Object 00000000e207f30b: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> 6b 6b 6b  kkkkkkkkkkkkkkkk
+> [23424.121326] Object 00000000a7a45634: 6b 6b 6b 6b 6b 6b 6b 6b ff ff ff ff 6b
+> 6b 6b 6b  kkkkkkkk....kkkk
 
-It is fine, the patch ordering was my confusion.
-
-Cheers,
-Jérôme
+Looks like a decrement of a counter after free. You can find the field by
+calculating the offset from the beginning of the object and then use the
+struct definition to find that.
 
