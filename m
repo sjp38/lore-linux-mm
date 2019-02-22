@@ -4,73 +4,72 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E61C1C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 17:43:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76923C4360F
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 17:43:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7743720700
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 17:43:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7743720700
+	by mail.kernel.org (Postfix) with ESMTP id 428EF20700
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 17:43:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 428EF20700
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F3AB58E0121; Fri, 22 Feb 2019 12:43:27 -0500 (EST)
+	id 258AF8E0108; Fri, 22 Feb 2019 12:43:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EC5EA8E0108; Fri, 22 Feb 2019 12:43:27 -0500 (EST)
+	id 1CA9E8E011D; Fri, 22 Feb 2019 12:43:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DD86B8E0120; Fri, 22 Feb 2019 12:43:27 -0500 (EST)
+	id F383F8E0120; Fri, 22 Feb 2019 12:43:27 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7479A8E0108
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8249E8E011D
 	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 12:43:27 -0500 (EST)
-Received: by mail-lf1-f71.google.com with SMTP id g17so566430lfh.19
+Received: by mail-lf1-f72.google.com with SMTP id j16so557570lfk.1
         for <linux-mm@kvack.org>; Fri, 22 Feb 2019 09:43:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=npWLHy5QXMb4vE/qvQv7Q6UWWDaG70gQpg05ucqiQ+w=;
-        b=pxvtBtVAfrV2wUz5A7YZYN+9qUnckZVSRvSy+QXNXm25Mp1mht+glTIhYSXJv9rXFa
-         EYu5fBdYeDHgcNRxjb4/NIvMtpoRclyZgjcTeCdqwMiq9avGh/e5SRCQCF/UA1Be66F9
-         PV1jX4QbWood/1/SsDQeupjZ4YLCUNYeMGGbpM9G0IdXvbEitszt9vPCEFt/zvjOPLaD
-         W85iAC4NVURhFdQwymvOSgzjf9SYoe9UFV2fUnNk3riwtYMwEQAhRR1El8qHfryvUWu2
-         NIOCVsUrU77LLIz8dnJzwrpZ6mnEnDwGfmsnsWMFrOpKrgVYn23eF34qoWoq2YD5Qy5U
-         KxXA==
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=yKRXvErt07o5tp+Ch7j9nKCwXPl5/sL18WaRQ7Sr6og=;
+        b=aIIN+9XUE1GtKKa3YNbOZhiNHv0zzzZOcEX3ZvHF8gxduM/nfYheIVBd7Ex+ypWvN9
+         DuMk17c0+mWEKp7F+2kDQ9BkNAXkZE0w4taxAv1TNdK2E5uFAepeYvTN1+wQBbk9bYBD
+         hAt0a8oW/yixQq6bS3aMgpfK4iNwG13xb/WmzTlAXlobDKOQs/nrt5wBLvKa2kVNzeCq
+         /cOTNJTV+WwBYmvEn/wxXvqVqt+tOc4L6GM5Ag7VSY90OCJT+8nCO+sv4FkZf/tu9/cD
+         akVPk77S/Z3i87LDRiPiaNhDvY5pM+l4lwSeOw4BK9uBunmeiWrUp/4Xzyq9pRjxt2YN
+         8g5A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: AHQUAublqTcay6ZomQriPgGBo+A+1PbY4CJ9+nY+HjrK+aYuzq6BP9Mp
-	cc5pq8BU7c8OnMCSavl3v3uqqGyHHWcayVvWF+ukF3oeB+8uDEpP6QHA3Lg5t107aYVnGxR5jc7
-	UVydw5i8aSMI/7emJfPtOOybFnowbcm7kjxWAOKer5OyviD6b6v1y2tZKrjmfrJ1LPA==
-X-Received: by 2002:a19:7507:: with SMTP id y7mr3368573lfe.140.1550857406657;
+X-Gm-Message-State: AHQUAualVoSiSbGoLeduQznKxrnHGgzyTh5HtjVqHXLtgGvDxqM0AxlC
+	gUgMOyehL5nJlZFQruIBq4+3+deyJff6pxYWEEiAPUosvXTRwGtQ+bWsqt54DhYmLH9HreHjxvi
+	/5PsX3x8AAh1Ocrvw8gJJP7kDWqLD2HhQx+FpO7KO0pNF6HVEFzgIrWkMZInJKaTz/Q==
+X-Received: by 2002:a2e:81c7:: with SMTP id s7mr3180431ljg.146.1550857406777;
         Fri, 22 Feb 2019 09:43:26 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYz1kbH+cjXTEZOecSkdDW7bH+1Hjd7KClIh68j3rEATdcuwi6/M3c8djdF308jH/0Pqvm5
-X-Received: by 2002:a19:7507:: with SMTP id y7mr3368521lfe.140.1550857405558;
+X-Google-Smtp-Source: AHgI3IYGFtVnCNHV7XIZYvmXrEazVU4rbeDuzbgnbYKROwapK9H5KcoVTWIe9ANLAIpLhJMaYIuU
+X-Received: by 2002:a2e:81c7:: with SMTP id s7mr3180370ljg.146.1550857405547;
         Fri, 22 Feb 2019 09:43:25 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1550857405; cv=none;
         d=google.com; s=arc-20160816;
-        b=icjCi2ff91Ogohkc5aqRgUvo+1J3XLp4nF+4Tf4nK8xyfE8+WTkPCopEQ3Pc/EO4zg
-         tiYPpyKRgiMwcB52xCVocDuTNuI6ll3uXD88oK3pWc13Hfgdf7oEDGxiT33OtOyr5+io
-         3yujAVCDYFxiS91IILsognUurPei68eqAEKE9HjHhvTKuOQe7cFrael+YPvgfGFuVTeb
-         WtbTlYVesj5zDBmLCPx1u8zJNUqcgkwtNCRRbkJ49FqKbIGIAv2SHlax63Y1EwC6VkEg
-         /dnmEr3VfP8Pi+nXbd8PLGmmbkW53D2fzIv1te0pCWjz8N1xafaNR6HDuorxmF5oyIvq
-         U4tw==
+        b=btENr6MlNZbAfTRQ3jqSTO6pb8FmNIAlcvRJ8YVrcuAOv9wVkwkcpo3Jkcg1hO5PwI
+         CtM02uEZQ7NC8MmGRnH8kSJgrYk0OoN53LgcDMMFsRhWifE39y0pjy8/babr28ZoLzHq
+         uvrKIqPq5faJ87UswsPQz7l60X5/OLtF2l35rf9pRm+p1AuL8jYdWa8Ezt76Q+2Ey1wQ
+         4vla1aIEFlp/5C4DxIygX6JUaynbH0Hy/DHqFFb2xu+6E9kEqrbwLoqCMJ20+/Vr2bAS
+         w77XoKfrdYgyW2ZTMqJLqCm9T2iSOVwl8rLy9bnz6mrtW77pHbCyRKdzuUiVsdvWsq8u
+         oIPg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=npWLHy5QXMb4vE/qvQv7Q6UWWDaG70gQpg05ucqiQ+w=;
-        b=B0AeH0Q5ULEstH2M8zwR7VXvEa578LfQH0wunoTwMVf9ZEaiAPVqcm7oACu54JGBqR
-         GPQp01O3mXphwxIOn8wcyAYdsLBbiRmXD23ZQjI8HYhK5v+G6ItxdAKnj8BLCZrfkpji
-         uj4a0KQhKMv3nQZj4nwdZQHImiqzu9gfgrCM0gC0xW3uvfVXDoF2KRW9AJx9x16tfX5c
-         rA3tAOEKNrBxcbXihnS0V+UPSMZGSIYW7ZCXqsq3uaObuCaD83Q5xy3XelbkuLgxYTYe
-         4t7AvhvyOZqSHPhNk3x3tCeOLPp72BULEiU15qwY6LTbmfOnhHRW98jowKMPyxnb8WOk
-         LNNQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=yKRXvErt07o5tp+Ch7j9nKCwXPl5/sL18WaRQ7Sr6og=;
+        b=z7REJeiDOpbh7X9DIRV/26Re76ped6gr7XREo7DD2+Iztw0D3UqwcBKrXemUn55HOw
+         yTNk+jbX1s6jDYeopthOLu/IWBVuJFcSmrFhJWUNvjac9COPNEUZPh0cMAi3euwAvMk7
+         B3JGBkvACEbJrrEuNoAtxYeDsbqF/AbWQfWGjjjlqmWn1rb+PZpfe0FhdVNV8dp82qjK
+         ZrVEV+LDVPijPLglCfXn5/l9IyViRUDZJF/6HiGRVbBqtjeLPxpknW2oxc5XzL74qPHE
+         3+Kna2ah9aneD7CsuG+9MnTUUorKMzW79PWzu6Yq9YAPwrXekFWl8ngzakLytJC1L7NQ
+         ltRg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
 Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id t5si1627833lft.124.2019.02.22.09.43.25
+        by mx.google.com with ESMTPS id j12si1580157lji.90.2019.02.22.09.43.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 22 Feb 2019 09:43:25 -0800 (PST)
@@ -81,7 +80,7 @@ Authentication-Results: mx.google.com;
 Received: from [172.16.25.12] (helo=i7.sw.ru)
 	by relay.sw.ru with esmtp (Exim 4.91)
 	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1gxEr3-00010r-Bv; Fri, 22 Feb 2019 20:43:21 +0300
+	id 1gxEr3-00010r-5K; Fri, 22 Feb 2019 20:43:21 +0300
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org,
@@ -92,12 +91,10 @@ Cc: linux-mm@kvack.org,
 	Vlastimil Babka <vbabka@suse.cz>,
 	Rik van Riel <riel@surriel.com>,
 	Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 3/5] mm/compaction: pass pgdat to too_many_isolated() instead of zone
-Date: Fri, 22 Feb 2019 20:43:35 +0300
-Message-Id: <20190222174337.26390-3-aryabinin@virtuozzo.com>
+Subject: [PATCH 1/5] mm/workingset: remove unused @mapping argument in workingset_eviction()
+Date: Fri, 22 Feb 2019 20:43:33 +0300
+Message-Id: <20190222174337.26390-1-aryabinin@virtuozzo.com>
 X-Mailer: git-send-email 2.19.2
-In-Reply-To: <20190222174337.26390-1-aryabinin@virtuozzo.com>
-References: <20190222174337.26390-1-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -106,8 +103,8 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-too_many_isolated() in mm/compaction.c looks only at node state,
-so it makes more sense to change argument to pgdat instead of zone.
+workingset_eviction() doesn't use and never did use the @mapping argument.
+Remove it.
 
 Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -116,56 +113,56 @@ Cc: Vlastimil Babka <vbabka@suse.cz>
 Cc: Rik van Riel <riel@surriel.com>
 Cc: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/compaction.c | 19 +++++++++----------
- 1 file changed, 9 insertions(+), 10 deletions(-)
+ include/linux/swap.h | 2 +-
+ mm/vmscan.c          | 2 +-
+ mm/workingset.c      | 3 +--
+ 3 files changed, 3 insertions(+), 4 deletions(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index a3305f13a138..b2d02aba41d8 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -738,16 +738,16 @@ isolate_freepages_range(struct compact_control *cc,
- }
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 649529be91f2..fc50e21b3b88 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -307,7 +307,7 @@ struct vma_swap_readahead {
+ };
  
- /* Similar to reclaim, but different enough that they don't share logic */
--static bool too_many_isolated(struct zone *zone)
-+static bool too_many_isolated(pg_data_t *pgdat)
+ /* linux/mm/workingset.c */
+-void *workingset_eviction(struct address_space *mapping, struct page *page);
++void *workingset_eviction(struct page *page);
+ void workingset_refault(struct page *page, void *shadow);
+ void workingset_activation(struct page *page);
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index ac4806f0f332..a9852ed7b97f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -952,7 +952,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
+ 		 */
+ 		if (reclaimed && page_is_file_cache(page) &&
+ 		    !mapping_exiting(mapping) && !dax_mapping(mapping))
+-			shadow = workingset_eviction(mapping, page);
++			shadow = workingset_eviction(page);
+ 		__delete_from_page_cache(page, shadow);
+ 		xa_unlock_irqrestore(&mapping->i_pages, flags);
+ 
+diff --git a/mm/workingset.c b/mm/workingset.c
+index dcb994f2acc2..0906137760c5 100644
+--- a/mm/workingset.c
++++ b/mm/workingset.c
+@@ -215,13 +215,12 @@ static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
+ 
+ /**
+  * workingset_eviction - note the eviction of a page from memory
+- * @mapping: address space the page was backing
+  * @page: the page being evicted
+  *
+  * Returns a shadow entry to be stored in @mapping->i_pages in place
+  * of the evicted @page so that a later refault can be detected.
+  */
+-void *workingset_eviction(struct address_space *mapping, struct page *page)
++void *workingset_eviction(struct page *page)
  {
- 	unsigned long active, inactive, isolated;
- 
--	inactive = node_page_state(zone->zone_pgdat, NR_INACTIVE_FILE) +
--			node_page_state(zone->zone_pgdat, NR_INACTIVE_ANON);
--	active = node_page_state(zone->zone_pgdat, NR_ACTIVE_FILE) +
--			node_page_state(zone->zone_pgdat, NR_ACTIVE_ANON);
--	isolated = node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE) +
--			node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON);
-+	inactive = node_page_state(pgdat, NR_INACTIVE_FILE) +
-+			node_page_state(pgdat, NR_INACTIVE_ANON);
-+	active = node_page_state(pgdat, NR_ACTIVE_FILE) +
-+			node_page_state(pgdat, NR_ACTIVE_ANON);
-+	isolated = node_page_state(pgdat, NR_ISOLATED_FILE) +
-+			node_page_state(pgdat, NR_ISOLATED_ANON);
- 
- 	return isolated > (inactive + active) / 2;
- }
-@@ -774,8 +774,7 @@ static unsigned long
- isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 			unsigned long end_pfn, isolate_mode_t isolate_mode)
- {
--	struct zone *zone = cc->zone;
--	pg_data_t *pgdat = zone->zone_pgdat;
-+	pg_data_t *pgdat = cc->zone->zone_pgdat;
- 	unsigned long nr_scanned = 0, nr_isolated = 0;
- 	struct lruvec *lruvec;
- 	unsigned long flags = 0;
-@@ -791,7 +790,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 	 * list by either parallel reclaimers or compaction. If there are,
- 	 * delay for some time until fewer pages are isolated
- 	 */
--	while (unlikely(too_many_isolated(zone))) {
-+	while (unlikely(too_many_isolated(pgdat))) {
- 		/* async migration should just abort */
- 		if (cc->mode == MIGRATE_ASYNC)
- 			return 0;
+ 	struct pglist_data *pgdat = page_pgdat(page);
+ 	struct mem_cgroup *memcg = page_memcg(page);
 -- 
 2.19.2
 
