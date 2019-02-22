@@ -2,98 +2,99 @@ Return-Path: <SRS0=SgWF=Q5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 360F2C10F00
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 15:12:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 282A8C4360F
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 15:13:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F10C22075C
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 15:12:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F10C22075C
+	by mail.kernel.org (Postfix) with ESMTP id E232E20657
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 15:13:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E232E20657
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8599A8E010F; Fri, 22 Feb 2019 10:12:09 -0500 (EST)
+	id B17EF8E0110; Fri, 22 Feb 2019 10:13:32 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E0318E0109; Fri, 22 Feb 2019 10:12:09 -0500 (EST)
+	id AEC248E0109; Fri, 22 Feb 2019 10:13:32 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6A9078E010F; Fri, 22 Feb 2019 10:12:09 -0500 (EST)
+	id 9B6198E0110; Fri, 22 Feb 2019 10:13:32 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E98C8E0109
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:12:09 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id s8so2255443qth.18
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 07:12:09 -0800 (PST)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D71B8E0109
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:13:32 -0500 (EST)
+Received: by mail-qt1-f200.google.com with SMTP id k1so2343016qta.2
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 07:13:32 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=7aB/mHvzoTyiwek2wCX+dYKp7fcLL5P9GD+fSb71sn4=;
-        b=mPPlnywAeKI8obhLKju1uGWjJaSvTJ2YDS4Q9pXYS6BNjwJ3VlTQpBotKOPenzDu0z
-         jyFKuT0cJsoQyslCTW6mlvHInJx2KvxT1H5kpJsAapcdktmmLJwvwUFbH4/kkc1EBtR3
-         C6wV1QwY8HD7EcjxaefOeKlR6pWag/QGOmz2H1L1xX93q0n48sUTZPsPqznKGD1024CD
-         I3NIOCptQyN6p1We0DnAp6h0Xqg1+sT0rxujn4z7a9boLitvcVckIlTwD2BpwaVZE2E7
-         xMD6AV8QRmT0RQiU9oRy/2e188bf4BhhgJEC4FGDWaCim2dKvLCqc1MvOjd2k96KyPAJ
-         nuTg==
+        bh=86GNuUi5MmL/QA1x+urEpcsAgX5gpfVoujKfw1+RC/Q=;
+        b=T40yJUOzkJ1x+UYeoniGGFNuelCwc4ihdTqyrK47Fwus3o903oE02J54LFT7OqgJKT
+         3E+ogzWfXAUK88eX/Mr37dmACdY+WH5bx7LSOKG1rhAPWCugfrYYkkwKffUC5cn8MZi7
+         syiAoMJl65bk2NaOytWxmy4uO2mlT56bJNMyi28xDWg8wAXa7WTWQmw4vT5kwcm4zsW6
+         Gy1AqoQAdkzgCFditZZZ2qUlnCA4B0GtHvJaDiAz6EgOUR0Z8HQLX3KMvQ1L9ZEd3eE7
+         0grMfjez1cfR5LdfFomTpbsCCb9It4yjNm4gKcNeyTE6xPo0YLkeshVVaXFMbcnIiEqr
+         P3bg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZ3KhryXXccWe8Nknc5dnLuu6Vvex6m9K8Myd3ibxCBtijf0J+e
-	EIdiduvJAbBHx9gT2eeDBkMb40z96sx0+gUdZB8REGMsNDlHnMbba32iGIHqMK2jS/Mpp0kK0Uq
-	LRoILA9s/ulCAQ4T3qFE4MJOUJq3RRXZPs1m5uXMcHaYVptqhW+IjVOOizBq7mJGjKA==
-X-Received: by 2002:ac8:3fd4:: with SMTP id v20mr3366056qtk.188.1550848328932;
-        Fri, 22 Feb 2019 07:12:08 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IamXpQbLwJa2d7ul1cw6DKNKPueTgLmsPehlOjCDL+PKa6ie4OhRVsPWnq1L2Jk+2eMpReh
-X-Received: by 2002:ac8:3fd4:: with SMTP id v20mr3365980qtk.188.1550848327835;
-        Fri, 22 Feb 2019 07:12:07 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550848327; cv=none;
+X-Gm-Message-State: AHQUAuZVw1b/g08zXmgSNmYYCwJbteC/ZPLvHzN/MtOt7LMB6SATPYRk
+	GY7T70d6+vZcI3M3XgvYNBMyRASQWICtbib+txRG6UNSpmvAiZn3SinwfiIkMB9nvQnKNIr5DzX
+	JsIyXYrN9Qbj/vx4ScBKKcWj1dKbhv6EP8vFSVEALcJtF7xhuY6WrasxmbBbuEy/OGw==
+X-Received: by 2002:a37:4d52:: with SMTP id a79mr3301578qkb.75.1550848412221;
+        Fri, 22 Feb 2019 07:13:32 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZ8Ger1Z90l7uQEqeeymCxvZ58NF3L+lNuaWk/52inveFQxTol7jTzHEyKi/WQaH0LBj8GJ
+X-Received: by 2002:a37:4d52:: with SMTP id a79mr3301516qkb.75.1550848411368;
+        Fri, 22 Feb 2019 07:13:31 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550848411; cv=none;
         d=google.com; s=arc-20160816;
-        b=suoYJgoC0ncUXcUFXPIALwpwOuP4IAUr7a4v30wLR6RsuaWtNyjQYz0Dn8yNlgQIgg
-         0elIDf/josvcN94/2QddYUgRPUaVE71q5TKgcUz/cKHrGycHoSz1Mne1NHz8kUH9KTHM
-         89MiUjgbc1nYMNBKs/k5n/1lVylJQ+1Mvl4Ym9oJgGusDZdQennXntLv6D5gGkhWg7hi
-         FBdYKcTiIp7ulQhkDa6f4mC8I62SBxgdxksfp8+mzwCCYWD1LDqT30hpTl2XbCoaK78e
-         M/4tcn0+HIRN9AR09obgyj97PJgAamExWRReDVwfGtKaIsRZk0rzbGiTs1YJ91IfNFc/
-         O/lw==
+        b=gyo5z5/nb5kQS8ttR8Cs9gOvRqYLiDcL37vCDYGFBI7M0YXcU/H3GWHGoX1fRUOx64
+         SzYsOzeuu5y9KVSH48NiL/cmyThn+VUKEkGDTFzSgQHRdsDiR6im/u/UQTYm86ykVQCU
+         OQRQu0fSDCIkw+/pB+3AkAve82ZCUWYNgpcmvTWUFk1W9TTX5MgrnX9XZ6pEVseHs/I1
+         h6K8oNn885bT4eWaQ/Li1e75M2gW7nZGnh3a9WQ9SCRw/PjBIVl6qW/NR0Q2nuDgSW6I
+         oFEyzUDrNaRe1q/VHoY0EVfFsYk4y3cFvD6IlgWNjTT1uibiPJjUPhv4/XDzalKRpnp8
+         tWCw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date;
-        bh=7aB/mHvzoTyiwek2wCX+dYKp7fcLL5P9GD+fSb71sn4=;
-        b=X7A22psZTFWZlavfjGbOAW8UIt/RMUn23tCI4jnRWaiYw66p/bbFDBMakcPRz4FD8x
-         BHqIRZX2JM52OVYSkuQiaQ0hexaTdWU459+lb7TGKuf/cEVOeWiVIHQfWclN0IgDT8fC
-         VS+h3fFNAPWzIls0BmE2b/fZxT9ICD1iet9pPv1BHjUAeu+WfCBfXPbd0RxY7t1sruwl
-         zocDlmtYbz4pLfK3553e1IaE2mEPGLU84nHJn+TmxfkWoUKob6KT4tTi9KTxpxXaPwpD
-         N3VyiY6LVuiFF4BIPr+CtED7e2KSia3aNwU/XdIMuvC8O+tURl9Md9ERAy31wbtwFvLy
-         +6QQ==
+        bh=86GNuUi5MmL/QA1x+urEpcsAgX5gpfVoujKfw1+RC/Q=;
+        b=vHnA07pXwP3uBg6d9QyuSnFjl1p0UNQ5fzlchQ6ST+EwzSMV7QaxefdLU6Y2ukdyLd
+         Sv6Adh0GnT4NbJvCi3JtWrydArI7oT3ZzIbw2OhVQmTYqhjBu+SJK245165mmHMgXo7a
+         qXq6qmapnXPAS6tEkE4W5FyatfWNbluVuYp0px3rvNd5WvWpUVV+MOvgqL/Z5b2DyYcX
+         SYM/mtm9u91Yviouy7pkUBdReIZzTgr/lZHN/05PrkaQtlzFteysBMsVPironsod/9lz
+         xiGM/v9dx8EMvxEK7YcNNVDR9mB1hz0luTyzUDcQx8YbMZABfPoHz5vB/Yj19r2NXUtE
+         jZWA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g14si1002322qvj.193.2019.02.22.07.12.07
+        by mx.google.com with ESMTPS id 17si534677qvo.189.2019.02.22.07.13.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Feb 2019 07:12:07 -0800 (PST)
+        Fri, 22 Feb 2019 07:13:31 -0800 (PST)
 Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 82267308FF29;
-	Fri, 22 Feb 2019 15:12:06 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 427E43097088;
+	Fri, 22 Feb 2019 15:13:30 +0000 (UTC)
 Received: from redhat.com (ovpn-126-14.rdu2.redhat.com [10.10.126.14])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 1C70B5D9CA;
-	Fri, 22 Feb 2019 15:11:59 +0000 (UTC)
-Date: Fri, 22 Feb 2019 10:11:58 -0500
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id F20E4600CD;
+	Fri, 22 Feb 2019 15:13:23 +0000 (UTC)
+Date: Fri, 22 Feb 2019 10:13:22 -0500
 From: Jerome Glisse <jglisse@redhat.com>
 To: Peter Xu <peterx@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	David Hildenbrand <david@redhat.com>,
 	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
 	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
 	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
 	Marty McFadden <mcfadden8@llnl.gov>,
 	Andrea Arcangeli <aarcange@redhat.com>,
@@ -103,107 +104,70 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v2.1 04/26] mm: allow VM_FAULT_RETRY for multiple times
-Message-ID: <20190222151101.GA7783@redhat.com>
-References: <20190212025632.28946-5-peterx@redhat.com>
- <20190221085656.18529-1-peterx@redhat.com>
- <20190221155311.GD2813@redhat.com>
- <20190222042544.GD8904@xz-x1>
+Subject: Re: [PATCH v2 05/26] mm: gup: allow VM_FAULT_RETRY for multiple times
+Message-ID: <20190222151321.GB7783@redhat.com>
+References: <20190212025632.28946-1-peterx@redhat.com>
+ <20190212025632.28946-6-peterx@redhat.com>
+ <20190221160612.GE2813@redhat.com>
+ <20190222044105.GE8904@xz-x1>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190222042544.GD8904@xz-x1>
+In-Reply-To: <20190222044105.GE8904@xz-x1>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Fri, 22 Feb 2019 15:12:06 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Fri, 22 Feb 2019 15:13:30 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 22, 2019 at 12:25:44PM +0800, Peter Xu wrote:
-> On Thu, Feb 21, 2019 at 10:53:11AM -0500, Jerome Glisse wrote:
-> > On Thu, Feb 21, 2019 at 04:56:56PM +0800, Peter Xu wrote:
-> > > The idea comes from a discussion between Linus and Andrea [1].
-
-[...]
-
-> > > diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> > > index 248ff0a28ecd..d842c3e02a50 100644
-> > > --- a/arch/x86/mm/fault.c
-> > > +++ b/arch/x86/mm/fault.c
-> > > @@ -1483,9 +1483,7 @@ void do_user_addr_fault(struct pt_regs *regs,
-> > >  	if (unlikely(fault & VM_FAULT_RETRY)) {
-> > >  		bool is_user = flags & FAULT_FLAG_USER;
-> > >  
-> > > -		/* Retry at most once */
-> > >  		if (flags & FAULT_FLAG_ALLOW_RETRY) {
-> > > -			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-> > >  			flags |= FAULT_FLAG_TRIED;
-> > >  			if (is_user && signal_pending(tsk))
-> > >  				return;
+On Fri, Feb 22, 2019 at 12:41:05PM +0800, Peter Xu wrote:
+> On Thu, Feb 21, 2019 at 11:06:55AM -0500, Jerome Glisse wrote:
+> > On Tue, Feb 12, 2019 at 10:56:11AM +0800, Peter Xu wrote:
+> > > This is the gup counterpart of the change that allows the VM_FAULT_RETRY
+> > > to happen for more than once.
+> > > 
+> > > Signed-off-by: Peter Xu <peterx@redhat.com>
 > > 
-> > So here you have a change in behavior, it can retry indefinitly for as
-> > long as they are no signal. Don't you want so test for FAULT_FLAG_TRIED ?
+> > Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 > 
-> These first five patches do want to allow the page fault to retry as
-> much as needed.  "indefinitely" seems to be a scary word, but IMHO
-> this is fine for page faults since otherwise we'll simply crash the
-> program or even crash the system depending on the fault context, so it
-> seems to be nowhere worse.
+> Thanks for the r-b, Jerome!
 > 
-> For userspace programs, if anything really really go wrong (so far I
-> still cannot think a valid scenario in a bug-free system, but just
-> assuming...) and it loops indefinitely, IMHO it'll just hang the buggy
-> process itself rather than coredump, and the admin can simply kill the
-> process to retake the resources since we'll still detect signals.
+> Though I plan to change this patch a bit because I just noticed that I
+> didn't touch up the hugetlbfs path for GUP.  Though it was not needed
+> for now because hugetlbfs is not yet supported but I think maybe I'd
+> better do that as well in this same patch to make follow up works
+> easier on hugetlb, and the patch will be more self contained.  The new
+> version will simply squash below change into current patch:
 > 
-> Or did I misunderstood the question?
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index e3c738bde72e..a8eace2d5296 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -4257,8 +4257,10 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>                                 fault_flags |= FAULT_FLAG_ALLOW_RETRY |
+>                                         FAULT_FLAG_RETRY_NOWAIT;
+>                         if (flags & FOLL_TRIED) {
+> -                               VM_WARN_ON_ONCE(fault_flags &
+> -                                               FAULT_FLAG_ALLOW_RETRY);
+> +                               /*
+> +                                * Note: FAULT_FLAG_ALLOW_RETRY and
+> +                                * FAULT_FLAG_TRIED can co-exist
+> +                                */
+>                                 fault_flags |= FAULT_FLAG_TRIED;
+>                         }
+>                         ret = hugetlb_fault(mm, vma, vaddr, fault_flags);
+> 
+> I'd say this change is straightforward (it's the same as the
+> faultin_page below but just for hugetlbfs).  Please let me know if you
+> still want to offer the r-b with above change squashed (I'll be more
+> than glad to take it!), or I'll just wait for your review comment when
+> I post the next version.
 
-No i think you are right, it is fine to keep retrying while they are
-no signal maybe just add a comment that says so in so many words :)
-So people do not see that as a potential issue.
-
-> > [...]
-> > 
-> > > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > > index 80bb6408fe73..4e11c9639f1b 100644
-> > > --- a/include/linux/mm.h
-> > > +++ b/include/linux/mm.h
-> > > @@ -341,11 +341,21 @@ extern pgprot_t protection_map[16];
-> > >  #define FAULT_FLAG_ALLOW_RETRY	0x04	/* Retry fault if blocking */
-> > >  #define FAULT_FLAG_RETRY_NOWAIT	0x08	/* Don't drop mmap_sem and wait when retrying */
-> > >  #define FAULT_FLAG_KILLABLE	0x10	/* The fault task is in SIGKILL killable region */
-> > > -#define FAULT_FLAG_TRIED	0x20	/* Second try */
-> > > +#define FAULT_FLAG_TRIED	0x20	/* We've tried once */
-> > >  #define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
-> > >  #define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
-> > >  #define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
-> > >  
-> > > +/*
-> > > + * Returns true if the page fault allows retry and this is the first
-> > > + * attempt of the fault handling; false otherwise.
-> > > + */
-> > 
-> > You should add why it returns false if it is not the first try ie to
-> > avoid starvation.
-> 
-> How about:
-> 
->         Returns true if the page fault allows retry and this is the
->         first attempt of the fault handling; false otherwise.  This is
->         mostly used for places where we want to try to avoid taking
->         the mmap_sem for too long a time when waiting for another
->         condition to change, in which case we can try to be polite to
->         release the mmap_sem in the first round to avoid potential
->         starvation of other processes that would also want the
->         mmap_sem.
-> 
-> ?
-
-Looks perfect to me.
+Looks good i should have thought of hugetlbfs. You can keep my r-b.
 
 Cheers,
 Jérôme
