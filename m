@@ -2,174 +2,223 @@ Return-Path: <SRS0=SgWF=Q5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CB0DC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 04:37:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D163C10F00
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 04:41:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 24F7B2086A
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 04:37:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24F7B2086A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lge.com
+	by mail.kernel.org (Postfix) with ESMTP id DB93E2086A
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 04:41:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB93E2086A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 994778E00E7; Thu, 21 Feb 2019 23:37:39 -0500 (EST)
+	id 796428E00EC; Thu, 21 Feb 2019 23:41:24 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 943B88E00D4; Thu, 21 Feb 2019 23:37:39 -0500 (EST)
+	id 745808E00EB; Thu, 21 Feb 2019 23:41:24 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 859DD8E00E7; Thu, 21 Feb 2019 23:37:39 -0500 (EST)
+	id 634A78E00EC; Thu, 21 Feb 2019 23:41:24 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 438EF8E00D4
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 23:37:39 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id j13so767172pll.15
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 20:37:39 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 36E0B8E00EB
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2019 23:41:24 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id m37so1071935qte.10
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 20:41:24 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=sMzbtLXxmUkTmnmDuOn/8WkbA9/hakMSs7eQaMVhfII=;
-        b=te6SVW7VnZzgBQc+yOuBAOcd+95gzQwyO4sErZ3I1Lg2Yl1tS6tSwFGGXd3H0Bt5Hw
-         CX6Ve5GWXBepW088kmLeAjhBm3/cyzL0gNgs7xPBOtm8ZDAcLtlyXoY75mmDKkos4YX/
-         2fgxI7ys33SKrvQ5UzZGJ+eR7WMqmN2WTV3gFjsD0d4bxrkG9/YMRuvpaa+vBRKThvv6
-         /ImLj2yBQQJT2v438d2A7b6A5TeDGuuzASI6fYTAlYpoKBDawAP3e/M7twhM+xD6EwEe
-         hlqJd9NEBBe5v/IK+aTLbnUE0DCIVmpJYVvl/CAkB6RcF6vyIcPlmYbUDAnCXuHUxv9V
-         ubiA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of junil0814.lee@lge.com designates 156.147.23.52 as permitted sender) smtp.mailfrom=junil0814.lee@lge.com
-X-Gm-Message-State: AHQUAuYMuFt5dFLy7PgwnyaB3uIiZ5IQT5DcLvaHUlUYmQQ6g0db+Fud
-	FHvk7ZoziTo3c72G85xM3CyPN6M6SNHstfGXt/KBx/PmWwD1BAE0WlHuiVzgfpalAeZSfukumI/
-	fY1tDTodZJnDYlfAz0EkTCRYpCPiMD+62Jdb6Ogeg8OPgCuQdA/1xxLNbgwj19lBMNQ==
-X-Received: by 2002:a63:43c1:: with SMTP id q184mr2101401pga.110.1550810258849;
-        Thu, 21 Feb 2019 20:37:38 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaQz6guoEpz56L7/8iEIYYVVuzf0rGyyrGPLddzIq5GEJKrCh0ihGVNBC2NJqt4N6pbE1qA
-X-Received: by 2002:a63:43c1:: with SMTP id q184mr2101346pga.110.1550810257881;
-        Thu, 21 Feb 2019 20:37:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550810257; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=A6oIXHz//kYOZuJmbHpBjorBwR5DrWlG/N0u8kGWRzQ=;
+        b=e0pHXSdBXt2l/UkjRvlVFjKGvMfp29UHFWAUTUFzo3Xm9NmJJZq0X5ZTf0nvXIUM0N
+         ZYY29G7V4SjHU6cDg3T7cYxAOTLuwYl5djXvbVvvShgrqNzWfG5qirncmlSBZU+xzJhH
+         9hVskN2E2gXebI45XyH5YF3gVpr8iOnem2XaBTcCapHtN0oD78Z8cuC5zbXx2iPIO+XF
+         0imHMyoWp6oyVOpH7BPu6ShuEQbKGL0xZ8qHc7W/+EDqzhIdLzSQcUF5OMlezlcNvdjt
+         Xaiig0o4rzr+GtA/5gWrVVly8JFx+JhLmO4gaBGhjARIB/Xq++gmx/ZX1PnSqOfgJoZL
+         QwaQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAuaHBsXZ6dzuW0EOr9lzeiIohfkVMCophv+94zfafg856xvxOzuw
+	fZegfPgroOMQRorNY2qoAH9xb5ZeBELwH58DqslLYY60Mh0hvqYiNPNsklT1ot8oqT2QewXLX/V
+	aaAcz7ToofRDGNN8zEiQkCf9d7m8GHbuSJeOk7wyhPb0Y5RVkNtdUJHmQ4L0bX5dayA==
+X-Received: by 2002:aed:3ef9:: with SMTP id o54mr1607439qtf.149.1550810483992;
+        Thu, 21 Feb 2019 20:41:23 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib8O55+iDO2eysDRqvrGivGGk6i7XKCyJ1kz05KCUB8+WU9yLUtnBlFBc6KQuW2kZGm4uQk
+X-Received: by 2002:aed:3ef9:: with SMTP id o54mr1607370qtf.149.1550810482409;
+        Thu, 21 Feb 2019 20:41:22 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550810482; cv=none;
         d=google.com; s=arc-20160816;
-        b=miNzHLkchRoXOiNzPyyWcNv2vv5NSXFNH5arQVxBxs5SMIkfReBzSC6uWQbu5ziE7n
-         s3bWoPC82Nu9s3CtOVm+MdF5X76SRaUGmitaYCmvKzb2MzW2jm1T51IuB0rJ8I7lHyEJ
-         +otfnik6zKxrL9dhMekIb18nooQ68+wVtAXpMOEYKy+8SMlbQJc7cVPX+PejJuprJZk4
-         3LKRl5MZPUm6jjgnXQnqr19Zc7rsSGzJUhEj42+CJSM7b9PnGinBuWfVP58ahRIo29RI
-         eBDIU/TjeMq+U72rn5qm4UzzBToJYd1FJ81oZVK1pQyXpo8X53XL/paD6eMxKudb31U1
-         8IyQ==
+        b=cwQJwl9pSykQdMlMeTxDCjaUOzazdNlqxPvqAEQ6eCT0JtXeb7kp6Qmnwneyz70eAW
+         sIEKcZnvUj7+hzjc8EeBWzb636FVC6VOB2Y5V3qr7s1F+118Xonv3CntvA6mtZXPAw9l
+         1pd1v0XBkgu/W/Ckxjrv7bhhYDjORHy6PWt7IC+pcyaCok6MIKOw21BdAtte5nEbXXOM
+         MZNvv+gkLzU/jXAdBz5lwcGI9iLikPN+oiseM/2JOFj1V/HN8Jzb0WKjB1DeEnokhUxq
+         yLqinfVWQT1X+Icf7KkLdmMGnG1Mx1qJ+1yxl0DpSlP99vzYdrwNzsiKj+7+3OlkL9HB
+         9HaQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=sMzbtLXxmUkTmnmDuOn/8WkbA9/hakMSs7eQaMVhfII=;
-        b=KdpZJTCS0Y6DlKYAcFwBB3rFrTQ8a8S+cy7xGNbQY5/9ZvQzM1j1oVTcyC7C0GNpqx
-         HuRUgsk7mw9ukDwgtAJH7AB3UQz/n7i/d4nZ97qugTzevbGOaAsPwKM/eCA9hC7v4QcP
-         wxf3550axO5UTDAXKdbhXX8XnSIYfnP/261GIZaCySXKhl7CFBcTCSe/A7y0+4BNA665
-         VfSSA4zu5P4BdIE5QoFfJM2Bz9E4PJ8PY4TCk3XeJJEWY/t67T6/+oBWduwD5+j6u7ej
-         ZAOjzD0kyKfekvDFpBeXII9DjClRu1XN7pTO2aIWgb7OC0jHy76GWRLpC2F3SJ1/FFTn
-         UiYQ==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=A6oIXHz//kYOZuJmbHpBjorBwR5DrWlG/N0u8kGWRzQ=;
+        b=blSooIfrav5sJfCAoKkAfGgPeTIZxybyPzxx0dl0aXeTJdvmhatcXAOg9RxwSuggwK
+         KWTLZ2zmBvF5aNbzj6yBNsGQuIYXHbxoorLx9OpZBbQSJwnjHHzZ0hOM/AV/giZHFVTh
+         VQTiwWI1eCP0HaFKhKhdAm6txcsuIMc7TiMX59h06PpR6Mjzr+pMjEScNOQe1Z0QmPDv
+         Yr2Zq0X8qf2WDkKQe+71RnKUqmiBfFL53ELb2q2LUFpCKOQyXR3finds3W/AmsHqq0V8
+         CY7jxOAneg2uyMT0r3gXuhz+X+UgSRtec2Sw0r4nfASl5ya0n4v4JPzdq2GgfY1nmrAb
+         anuQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of junil0814.lee@lge.com designates 156.147.23.52 as permitted sender) smtp.mailfrom=junil0814.lee@lge.com
-Received: from lgeamrelo11.lge.com (lgeamrelo12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id q15si416875pgg.570.2019.02.21.20.37.37
-        for <linux-mm@kvack.org>;
-        Thu, 21 Feb 2019 20:37:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of junil0814.lee@lge.com designates 156.147.23.52 as permitted sender) client-ip=156.147.23.52;
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f36si263667qtk.149.2019.02.21.20.41.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Feb 2019 20:41:22 -0800 (PST)
+Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of junil0814.lee@lge.com designates 156.147.23.52 as permitted sender) smtp.mailfrom=junil0814.lee@lge.com
-Received: from unknown (HELO lgeamrelo02.lge.com) (156.147.1.126)
-	by 156.147.23.52 with ESMTP; 22 Feb 2019 13:37:36 +0900
-X-Original-SENDERIP: 156.147.1.126
-X-Original-MAILFROM: junil0814.lee@lge.com
-Received: from unknown (HELO localhost.localdomain) (10.168.178.220)
-	by 156.147.1.126 with ESMTP; 22 Feb 2019 13:37:35 +0900
-X-Original-SENDERIP: 10.168.178.220
-X-Original-MAILFROM: junil0814.lee@lge.com
-From: Junil Lee <junil0814.lee@lge.com>
-To: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org,
-	willy@infradead.org,
-	mhocko@suse.com,
-	pasha.tatashin@oracle.com,
-	kirill.shutemov@linux.intel.com,
-	jrdr.linux@gmail.com,
-	dan.j.williams@intel.com,
-	alexander.h.duyck@linux.intel.com,
-	andreyknvl@google.com,
-	arunks@codeaurora.org,
-	keith.busch@intel.com,
-	guro@fb.com,
-	hannes@cmpxchg.org,
-	rientjes@google.com,
-	penguin-kernel@I-love.SAKURA.ne.jp,
-	shakeelb@google.com,
-	yuzhoujian@didichuxing.com,
-	Junil Lee <junil0814.lee@lge.com>
-Subject: [PATCH] mm, oom: OOM killer use rss size without shmem
-Date: Fri, 22 Feb 2019 13:37:33 +0900
-Message-Id: <1550810253-152925-1-git-send-email-junil0814.lee@lge.com>
-X-Mailer: git-send-email 2.6.2
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 40FDD81F11;
+	Fri, 22 Feb 2019 04:41:21 +0000 (UTC)
+Received: from xz-x1 (ovpn-12-57.pek2.redhat.com [10.72.12.57])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 4704567676;
+	Fri, 22 Feb 2019 04:41:10 +0000 (UTC)
+Date: Fri, 22 Feb 2019 12:41:05 +0800
+From: Peter Xu <peterx@redhat.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	David Hildenbrand <david@redhat.com>,
+	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+	Marty McFadden <mcfadden8@llnl.gov>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v2 05/26] mm: gup: allow VM_FAULT_RETRY for multiple times
+Message-ID: <20190222044105.GE8904@xz-x1>
+References: <20190212025632.28946-1-peterx@redhat.com>
+ <20190212025632.28946-6-peterx@redhat.com>
+ <20190221160612.GE2813@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190221160612.GE2813@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Fri, 22 Feb 2019 04:41:21 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The oom killer use get_mm_rss() function to estimate how free memory
-will be reclaimed when the oom killer select victim task.
+On Thu, Feb 21, 2019 at 11:06:55AM -0500, Jerome Glisse wrote:
+> On Tue, Feb 12, 2019 at 10:56:11AM +0800, Peter Xu wrote:
+> > This is the gup counterpart of the change that allows the VM_FAULT_RETRY
+> > to happen for more than once.
+> > 
+> > Signed-off-by: Peter Xu <peterx@redhat.com>
+> 
+> Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 
-However, the returned rss size by get_mm_rss() function was changed from
-"mm, shmem: add internal shmem resident memory accounting" commit.
-This commit makes the get_mm_rss() return size including SHMEM pages.
+Thanks for the r-b, Jerome!
 
-The oom killer can't get free memory from SHMEM pages directly after
-kill victim process, it leads to mis-calculate victim points.
+Though I plan to change this patch a bit because I just noticed that I
+didn't touch up the hugetlbfs path for GUP.  Though it was not needed
+for now because hugetlbfs is not yet supported but I think maybe I'd
+better do that as well in this same patch to make follow up works
+easier on hugetlb, and the patch will be more self contained.  The new
+version will simply squash below change into current patch:
 
-Therefore, make new API as get_mm_rss_wo_shmem() which returns the rss
-value excluding SHMEM_PAGES.
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index e3c738bde72e..a8eace2d5296 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4257,8 +4257,10 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+                                fault_flags |= FAULT_FLAG_ALLOW_RETRY |
+                                        FAULT_FLAG_RETRY_NOWAIT;
+                        if (flags & FOLL_TRIED) {
+-                               VM_WARN_ON_ONCE(fault_flags &
+-                                               FAULT_FLAG_ALLOW_RETRY);
++                               /*
++                                * Note: FAULT_FLAG_ALLOW_RETRY and
++                                * FAULT_FLAG_TRIED can co-exist
++                                */
+                                fault_flags |= FAULT_FLAG_TRIED;
+                        }
+                        ret = hugetlb_fault(mm, vma, vaddr, fault_flags);
 
-Signed-off-by: Junil Lee <junil0814.lee@lge.com>
----
- include/linux/mm.h | 6 ++++++
- mm/oom_kill.c      | 4 ++--
- 2 files changed, 8 insertions(+), 2 deletions(-)
+I'd say this change is straightforward (it's the same as the
+faultin_page below but just for hugetlbfs).  Please let me know if you
+still want to offer the r-b with above change squashed (I'll be more
+than glad to take it!), or I'll just wait for your review comment when
+I post the next version.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 2d483db..bca3acc 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1701,6 +1701,12 @@ static inline int mm_counter(struct page *page)
- 	return mm_counter_file(page);
- }
- 
-+static inline unsigned long get_mm_rss_wo_shmem(struct mm_struct *mm)
-+{
-+	return get_mm_counter(mm, MM_FILEPAGES) +
-+		get_mm_counter(mm, MM_ANONPAGES);
-+}
-+
- static inline unsigned long get_mm_rss(struct mm_struct *mm)
- {
- 	return get_mm_counter(mm, MM_FILEPAGES) +
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 3a24848..e569737 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -230,7 +230,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
- 	 * The baseline for the badness score is the proportion of RAM that each
- 	 * task's rss, pagetable and swap space use.
- 	 */
--	points = get_mm_rss(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS) +
-+	points = get_mm_rss_wo_shmem(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS) +
- 		mm_pgtables_bytes(p->mm) / PAGE_SIZE;
- 	task_unlock(p);
- 
-@@ -419,7 +419,7 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
- 
- 		pr_info("[%7d] %5d %5d %8lu %8lu %8ld %8lu         %5hd %s\n",
- 			task->pid, from_kuid(&init_user_ns, task_uid(task)),
--			task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
-+			task->tgid, task->mm->total_vm, get_mm_rss_wo_shmem(task->mm),
- 			mm_pgtables_bytes(task->mm),
- 			get_mm_counter(task->mm, MM_SWAPENTS),
- 			task->signal->oom_score_adj, task->comm);
+Thanks,
+
+> 
+> > ---
+> >  mm/gup.c | 17 +++++++++++++----
+> >  1 file changed, 13 insertions(+), 4 deletions(-)
+> > 
+> > diff --git a/mm/gup.c b/mm/gup.c
+> > index fa75a03204c1..ba387aec0d80 100644
+> > --- a/mm/gup.c
+> > +++ b/mm/gup.c
+> > @@ -528,7 +528,10 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+> >  	if (*flags & FOLL_NOWAIT)
+> >  		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
+> >  	if (*flags & FOLL_TRIED) {
+> > -		VM_WARN_ON_ONCE(fault_flags & FAULT_FLAG_ALLOW_RETRY);
+> > +		/*
+> > +		 * Note: FAULT_FLAG_ALLOW_RETRY and FAULT_FLAG_TRIED
+> > +		 * can co-exist
+> > +		 */
+> >  		fault_flags |= FAULT_FLAG_TRIED;
+> >  	}
+> >  
+> > @@ -943,17 +946,23 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
+> >  		/* VM_FAULT_RETRY triggered, so seek to the faulting offset */
+> >  		pages += ret;
+> >  		start += ret << PAGE_SHIFT;
+> > +		lock_dropped = true;
+> >  
+> > +retry:
+> >  		/*
+> >  		 * Repeat on the address that fired VM_FAULT_RETRY
+> > -		 * without FAULT_FLAG_ALLOW_RETRY but with
+> > +		 * with both FAULT_FLAG_ALLOW_RETRY and
+> >  		 * FAULT_FLAG_TRIED.
+> >  		 */
+> >  		*locked = 1;
+> > -		lock_dropped = true;
+> >  		down_read(&mm->mmap_sem);
+> >  		ret = __get_user_pages(tsk, mm, start, 1, flags | FOLL_TRIED,
+> > -				       pages, NULL, NULL);
+> > +				       pages, NULL, locked);
+> > +		if (!*locked) {
+> > +			/* Continue to retry until we succeeded */
+> > +			BUG_ON(ret != 0);
+> > +			goto retry;
+> > +		}
+> >  		if (ret != 1) {
+> >  			BUG_ON(ret > 1);
+> >  			if (!pages_done)
+> > -- 
+> > 2.17.1
+> > 
+
 -- 
-2.6.2
+Peter Xu
 
