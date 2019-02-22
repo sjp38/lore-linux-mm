@@ -2,139 +2,185 @@ Return-Path: <SRS0=SgWF=Q5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F1CD7C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:48:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 26A51C10F00
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:56:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B76012070B
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:48:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B76012070B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id E256C2075C
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:56:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E256C2075C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=surriel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5456D8E012C; Fri, 22 Feb 2019 13:48:31 -0500 (EST)
+	id 826408E012D; Fri, 22 Feb 2019 13:56:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4F5228E0123; Fri, 22 Feb 2019 13:48:31 -0500 (EST)
+	id 7D52A8E0123; Fri, 22 Feb 2019 13:56:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 396A38E012C; Fri, 22 Feb 2019 13:48:31 -0500 (EST)
+	id 6EC208E012D; Fri, 22 Feb 2019 13:56:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E767D8E0123
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 13:48:30 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id j13so2163338pll.15
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:48:30 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 462598E0123
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 13:56:21 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id y6so2280818qke.1
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:56:21 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=/eSseL3F9ekfkN4+acQPnKUV3WUrZ1thPceUqMBGnQE=;
-        b=XKbZXxceA37fb1s7HR9sIqxKn4JXAHsp7SfhWrMMlId6mOFZjY6BjQbP2iQJM7G+IN
-         YcAx7SeJbKNQWN/RO2gG21JC/3h/j2l3EioON6622MiHQK59WJmf6+yT85rtS43L2o2U
-         QwcF4Pg6YxMQAW7Qv+i+8qiXXNAUHNzqK9km7/+DHz4k1c1YjdpJ36EIXsY1M3U+EM7J
-         ZA960m5KEwN0ObYL24b/N/JrjhggwBq0SjuJAH7VjG/pUsaxlTfeTa6vZzMFWVKbspz1
-         HpaVGxdWSgrC087RNGFq6ajQ2LzsaTg2wvfxRIr/sLwVY/hOZW8rWI8JJKRKRr2r+VON
-         DasQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuaVUsVsIDCuJXUmL8m8HlHktREhRJhPSGpFOCt2pBfvasp1S97Q
-	xy55J8DT5K2AhgLxtnxTZfLnUf3BFgGM3xlo2/nTNN8ma7veu6hq3yrtQhIG3MOSactOxHXBVwU
-	V54paGJo2H+4o1I5rVuiPYz35+rBL88SjeYbYheu7iGcJrYTSeEsyW39V9lBSaUW8vQ==
-X-Received: by 2002:a63:c40a:: with SMTP id h10mr5374821pgd.131.1550861310472;
-        Fri, 22 Feb 2019 10:48:30 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaxSKzPj3u2WtV1oKEzNQm0PnXPbxKEAAmtBRSONJ4LCyyb6EkB+k7EhGg72NvPP9oLF7Ka
-X-Received: by 2002:a63:c40a:: with SMTP id h10mr5374775pgd.131.1550861309476;
-        Fri, 22 Feb 2019 10:48:29 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550861309; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version:sender;
+        bh=2CYdQPsOMc1PG7mbT5ICeMhdtQOIdRtv1XXJNQE7gFg=;
+        b=O3wqiAr+R/bFjQfcCr2hTuPwHP7GkjE5N4FIMAu7Pur4SiFM45yMV3ZmB1SCS2iXEf
+         vduOLEbD/Ph2ACc7KK5tPpC7QgdYZnNNBy3cPLQONVT6mQK8Ee7+SLpLMVY6qb+LnxSf
+         9Lh/tvbO4gj+1XiF9uShADfnhUA5D2TB+y2Vhe+K9Ud8t2kr/3m0jTSPaEaU14gAP7/l
+         zIMP7P6dPyx0YyinndvYJCapLHGpM9RszPcqpWf9UYeozLmSCvLrISYywqMIp5JxRq+1
+         jRsNWqXflruRqONvGecG1NyE7fCZafkzvoDn3ZjcjgvJtTNaTFFo6OviaCtKbLd7d9eX
+         mZ+A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
+X-Gm-Message-State: AHQUAuakf9cyZ03sGHl+iJVlItW4MhrfjMCI59KpIkwMfpayWJabkqwy
+	STLH0TKkJEbx0DVZXmDd2el7bhxlUSzkNsS1j58fD9nfsKLU/FCleAbCY9pX+ixDVzvhm0RHJpR
+	YJ7PyTX5+jZBl/R41kaeZMcM+DEKZp3VOCOkKeJVHXF1Comi92OYMx1vBebY5bbkXxQ==
+X-Received: by 2002:ac8:266d:: with SMTP id v42mr4238490qtv.116.1550861781004;
+        Fri, 22 Feb 2019 10:56:21 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaWd0OkmKMcbKPgPjwmjKDA6K5d43ZCxsi9GpgOWFKP5JRJmpok8mhty1+I3tPBobUKQakZ
+X-Received: by 2002:ac8:266d:: with SMTP id v42mr4238425qtv.116.1550861780086;
+        Fri, 22 Feb 2019 10:56:20 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550861780; cv=none;
         d=google.com; s=arc-20160816;
-        b=UwBwto5/VwUU2CJocX6o5s9WdJEpl/Dq0V6JweZBFtxbnXzA/qo1c0DH8V6IoQR+pW
-         h5INfHxjBrpsuUofz5MCl4z0JlPJnSBvYwoq6sjVnAtaY8g61tzio1cXcFRFs59bTtkX
-         aGV6tJlJG6qKYiW2mE95tnQkW+lVT8+0vY7mAchpLD4RruaDczoXVHUhWns9gli/wCD5
-         Ll00bmbejgB0miv/Eq3+D8WPnw9B1jL3l9whhOIZ/dxaPnngrIa3UtaU0ILOn7NIc0Le
-         EGn3bMVke7vz2Sp3YUl92F7RQwjuYzIp6SCW0MRFx7C+RerHs1M7+vs1TYvAYxAazEFo
-         cEmg==
+        b=rSpL3vf7jah1q+xOiz0v8jRtRv+2YO4i+ddwLsr95FocYuktgRJI3DWiKKUVeqTRXv
+         tHpU0yNcglDsb+Bm95s0Iwa2mTynPUWJbnakgRGD7BmV72Ed3MZbqPEyDOf5sRBEHUvP
+         UbBQCcNFjRBv/1hI62aR2UDaxhZWgpTek7E35KoyNZf8B7Z8af13Zcu11+bfOIAtxgaa
+         WYG8SL72+uKxdyK79cMWkAQ3+qGSVvDS7xGtGN2GITDyAYrX0gTsYW/vvLyHpwtpSEfU
+         AijzFDpxZuTJG+T4zRLPGUi2gXqKDmwhRhNSLwESwYgY4JoL3SeNZXHxldIaKP6oeHli
+         fSoQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=/eSseL3F9ekfkN4+acQPnKUV3WUrZ1thPceUqMBGnQE=;
-        b=fkvuyB/XBZg2HZD9s8B3x1ifES4dXa3leqnoLY8TJnHtr9Q1JnTwlwL0DG6orSH1hy
-         rEY+WO0FZwWx0ecUuevGrry5lX56CdfkDhr1hl7LscWYYf5gNK1WMXMmJXgv87ed+aqG
-         agAmOt6xO4VgK/O0fY3BE+jW20IAdl1qhRrNu692r68hdRLQo6seH3J/FDyp4YuDTyQd
-         Z6TcT2mI2Hw7jVNRgCePpl7iGoQJMaW/eBF2kPU0cPBX+6RP1s4fPfsxUD3hmDMZTN3j
-         sJ2qrwauWyxsIHe+DTSe1jVeSaLICuCQuIVY620CCjdgImYutpLeXR/m2Cnzi/s8frHJ
-         2CqA==
+        h=sender:mime-version:references:in-reply-to:date:cc:to:from:subject
+         :message-id;
+        bh=2CYdQPsOMc1PG7mbT5ICeMhdtQOIdRtv1XXJNQE7gFg=;
+        b=uWI119t0BkygrT2cRw0gVlU6hR0pUVwORaEdj1bGT+I3fD9Sbsuohri2QkF0MR71Au
+         LIBAFqCfqWzh0kyF9evt3XLy1C8pj1ffqAHFMG2bwSgrrnMtryCkm5XzpRwSBTCSTOJj
+         qRljvkY1we42M+7KZnsmR73k2HH4Oq938WCik85aVZeIL73/YqZb9ySGtV7oXLkyK3xZ
+         MkFD9JIkHa6HaEUcBnh4r4wd4uWXYpmGmXchdzSW1jG26QZZx+ZoKik+kS2EzX+xohRL
+         c3nnT1h/IpDyEOJ2ePzYOxJIFGWL22yAnd2QNI7aVM6S10x3SQyvDcO8TglXx7Zh5eH1
+         cAbw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id i12si1850677pgq.466.2019.02.22.10.48.29
+       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
+Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
+        by mx.google.com with ESMTPS id c2si1465211qtd.26.2019.02.22.10.56.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Feb 2019 10:48:29 -0800 (PST)
-Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        Fri, 22 Feb 2019 10:56:18 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) client-ip=96.67.55.147;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from fmsmga007.fm.intel.com ([10.253.24.52])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Feb 2019 10:48:28 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,400,1544515200"; 
-   d="scan'208";a="124469968"
-Received: from unknown (HELO localhost.localdomain) ([10.232.112.69])
-  by fmsmga007.fm.intel.com with ESMTP; 22 Feb 2019 10:48:28 -0800
-Date: Fri, 22 Feb 2019 11:48:31 -0700
-From: Keith Busch <keith.busch@intel.com>
-To: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	ACPI Devel Maling List <linux-acpi@vger.kernel.org>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	Linux API <linux-api@vger.kernel.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCHv6 07/10] acpi/hmat: Register processor domain to its
- memory
-Message-ID: <20190222184831.GF10237@localhost.localdomain>
-References: <20190214171017.9362-1-keith.busch@intel.com>
- <20190214171017.9362-8-keith.busch@intel.com>
- <CAJZ5v0gjv0DZvYMTPBLnUmMtu8=g0zFd4x-cpP11Kzv+6XCwUw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJZ5v0gjv0DZvYMTPBLnUmMtu8=g0zFd4x-cpP11Kzv+6XCwUw@mail.gmail.com>
-User-Agent: Mutt/1.9.1 (2017-09-22)
+       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
+Received: from imladris.surriel.com ([96.67.55.152])
+	by shelob.surriel.com with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
+	(Exim 4.91)
+	(envelope-from <riel@shelob.surriel.com>)
+	id 1gxFzZ-0005ky-Qo; Fri, 22 Feb 2019 13:56:13 -0500
+Message-ID: <f39cf989bc4c39c6065cd0896c99e20c63316b3b.camel@surriel.com>
+Subject: Re: [PATCH RFC] mm/vmscan: try to protect active working set of
+ cgroup from reclaim.
+From: Rik van Riel <riel@surriel.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton
+	 <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner
+	 <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka
+	 <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Roman Gushchin
+	 <guro@fb.com>, Shakeel Butt <shakeelb@google.com>
+Date: Fri, 22 Feb 2019 13:56:13 -0500
+In-Reply-To: <20190222175825.18657-1-aryabinin@virtuozzo.com>
+References: <20190222175825.18657-1-aryabinin@virtuozzo.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-zrqnWZMPMJ+zyetOZuRD"
+X-Mailer: Evolution 3.28.5 (3.28.5-1.fc28) 
+Mime-Version: 1.0
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 20, 2019 at 11:02:01PM +0100, Rafael J. Wysocki wrote:
-> On Thu, Feb 14, 2019 at 6:10 PM Keith Busch <keith.busch@intel.com> wrote:
-> >  config ACPI_HMAT
-> >         bool "ACPI Heterogeneous Memory Attribute Table Support"
-> >         depends on ACPI_NUMA
-> > +       select HMEM_REPORTING
-> 
-> If you want to do this here, I'm not sure that defining HMEM_REPORTING
-> as a user-selectable option is a good idea.  In particular, I don't
-> really think that setting ACPI_HMAT without it makes a lot of sense.
-> Apart from this, the patch looks reasonable to me.
 
-I'm trying to implement based on the feedback, but I'm a little confused.
+--=-zrqnWZMPMJ+zyetOZuRD
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-As I have it at the moment, HMEM_REPORTING is not user-prompted, so
-another option needs to turn it on. I have ACPI_HMAT do that here.
+On Fri, 2019-02-22 at 20:58 +0300, Andrey Ryabinin wrote:
+> In a presence of more than 1 memory cgroup in the system our reclaim
+> logic is just suck. When we hit memory limit (global or a limit on
+> cgroup with subgroups) we reclaim some memory from all cgroups.
+> This is sucks because, the cgroup that allocates more often always
+> wins.
+> E.g. job that allocates a lot of clean rarely used page cache will
+> push
+> out of memory other jobs with active relatively small all in memory
+> working set.
+>=20
+> To prevent such situations we have memcg controls like low/max, etc
+> which
+> are supposed to protect jobs or limit them so they to not hurt
+> others.
+> But memory cgroups are very hard to configure right because it
+> requires
+> precise knowledge of the workload which may vary during the
+> execution.
+> E.g. setting memory limit means that job won't be able to use all
+> memory
+> in the system for page cache even if the rest the system is idle.
+> Basically our current scheme requires to configure every single
+> cgroup
+> in the system.
+>=20
+> I think we can do better. The idea proposed by this patch is to
+> reclaim
+> only inactive pages and only from cgroups that have big
+> (!inactive_is_low()) inactive list. And go back to shrinking active
+> lists
+> only if all inactive lists are low.
 
-So when you say it's a bad idea to make HMEM_REPORTING user selectable,
-isn't it already not user selectable?
+Your general idea seems like a good one, but
+the logic in the code seems a little convoluted
+to me.
 
-If I do it the other way around, that's going to make HMEM_REPORTING
-complicated if a non-ACPI implementation wants to report HMEM
-properties.
+I wonder if we can simplify things a little, by
+checking (when we enter page reclaim) whether
+the pgdat has enough inactive pages based on
+the node_page_state statistics, and basing our
+decision whether or not to scan the active lists
+off that.
+
+As it stands, your patch seems like the kind of
+code that makes perfect sense today, but which
+will confuse people who look at the code two
+years from now.
+
+If the code could be made a little more explicit,
+great. If there are good reasons to do things in
+the fallback way your current patch does it, the
+code could use some good comments explaining why :)
+
+--=20
+All Rights Reversed.
+
+--=-zrqnWZMPMJ+zyetOZuRD
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAlxwRc0ACgkQznnekoTE
+3oOzJgf+IxsPL5yIB5u027UvllE62JRrGLEE5jT6pUWMuilQAYqXRs4OJ+dUXeJG
+ZFT/XqnrA8OQ+HtA9yZ7qvu8O4QxQvrHA2DD3Xvc62SyuMQn+07JT6oreNsXSAJR
+j4M3bvj8SGycS81sImxx7q5TYB+QSpBsYOzHYultqY4gO6xiAiCU4+FNuO9V1OoI
+jVLuIp0aMmbMhE9lEWzMLPfPBMH3uZFELmPXTJDlE6G8Cd1CTAzFj41Po99yYN0w
+BtdHFWSU2cmSg/aKVJCGgVoC93EiL6m7DcuYJWQtgWVJ+tVxVwPIZ/ICHRbC0deo
+19rUK2TX7FzIBhReWch3aVNGDnokBg==
+=VKDb
+-----END PGP SIGNATURE-----
+
+--=-zrqnWZMPMJ+zyetOZuRD--
 
