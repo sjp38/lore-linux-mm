@@ -2,152 +2,155 @@ Return-Path: <SRS0=SgWF=Q5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D8AFC10F00
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:22:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D94AC43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:32:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0CCB8207E0
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:22:55 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="b267o0z6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CCB8207E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id 57E97206B6
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:32:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57E97206B6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9777E8E012A; Fri, 22 Feb 2019 13:22:55 -0500 (EST)
+	id E53538E012B; Fri, 22 Feb 2019 13:32:26 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9001D8E0123; Fri, 22 Feb 2019 13:22:55 -0500 (EST)
+	id DDA9B8E0123; Fri, 22 Feb 2019 13:32:26 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7A0C58E012A; Fri, 22 Feb 2019 13:22:55 -0500 (EST)
+	id C576E8E012B; Fri, 22 Feb 2019 13:32:26 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EDA18E0123
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 13:22:55 -0500 (EST)
-Received: by mail-yb1-f197.google.com with SMTP id h73so1956251ybg.8
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:22:55 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F0248E0123
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 13:32:26 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id a5so2431343pfn.2
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:32:26 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=/1iRUWXUez0vQmzuA6ScUoUTtthAjz8oJPlMkoBcgCo=;
-        b=FXgmLSwH7MUrkYiVSRfP2zi0HW2L4UN1HodRMOew8l72atu2S6TeN0htDcUMD4vmpA
-         zWVLuqtEjpZ18MqsdEFqrwiSY0l6xCXimVj30aKVNmRwypnorNeLTmc45MKneUz9N86r
-         qFHPuB1t+g7TMLVYD7ZrECDH4vmWr9AyKULU5pbbJIOeh0aTfm0ZERDB/EMCWAT8zU6A
-         Sa2BoAJSeCMjqKtlBt5FPJc0aVDcRTfzA5Jz3OKxLbqaukaCk3siksF7jB0wHnqmEiIm
-         nOOLPmWoPsqBV1lps2NCgkblZsIU+HqT+49W2E1bpM3kVUtJJFEU5Q5UibCTUPcPx58u
-         1Yng==
-X-Gm-Message-State: AHQUAuZHFU2AE7T4cVSsHhMlWRf8VbHNSzUYIQlRA4+nHgPdEIArJWvw
-	Zu+JwegYlvK1U5jA9Wayj11zqAxwgfy5mr5uJS8XuKktjPHsSGT4/GoXn1Vg+0jcDAVtsM3bClG
-	2HSWT3kadSSo4T2qYPbrIrE+o9FiEr6xlPTYJuQyxiSQBVd71LY3pu3rOz6q0GtUVBKLFUTEBUD
-	J7J91G1GJBW802aD0hMcpwGnBugyfzcJtPu6Gj8sPAZiOuF1Kg+C/710B20oE1RJY1qQvU49Bxe
-	4F+fX+XQV2dSK3F0OAi4XoBQrWN9G02shrdOUWaNgpSlXpxPtONBcpOSvbWhsyF0ZsWce6qdqOJ
-	tjPvvaFpxrubIaen7wASoMXgVLDBKq+aUCLMle4uCEZYSalzCxNwNrWD9HqSnuxa+R3O8+NAwfc
-	p
-X-Received: by 2002:a25:9703:: with SMTP id d3mr4485408ybo.407.1550859774993;
-        Fri, 22 Feb 2019 10:22:54 -0800 (PST)
-X-Received: by 2002:a25:9703:: with SMTP id d3mr4485356ybo.407.1550859774241;
-        Fri, 22 Feb 2019 10:22:54 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550859774; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=+kp26HJxE9BUMgrXUICUhq3fE0bJad6rfE/JOWKAD2o=;
+        b=Me7T3B0UI77kOFHsSgJBiV5amq+FQtkqI+U/YkPSLMkQpwkpKwmoNJUXqhUogeDLeE
+         EKewwefIGzWAEOjLOjrBjBvczQ1eYPZL9w8mQ1zljWlU44AOk29pSgArsejUh+12qgg9
+         OdKxE1MbVUL49cJsNWrL6h1LJqj3m+0Y03c2eG3eCY5aGlyv89rTREuDGKfLZqvAejQQ
+         ARWENdSGXmGoIe+MOKVzI4FjyOsc6NfcKZzlE5YIT+eXlfl2ptfockt6ib/kNKc0Bft7
+         QA55lD3RHTi4J8JOU5CYfkKSpxAt9VNHNRnz6bJu5zJ7b7xdHXzWvuLUass+xWcwB+A6
+         fkRQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAub51NmQ6vbFtSvQhXFabTqWtaf+2ft6aCqcZIF4MbQww+0YP3Hq
+	vTFCvDTS7LSBSpjdFWSX+KIVauGaNOhJl8hAeprpAGgdYkJMiF+3M96gUgMxY470OIrxlI6CcgX
+	qxai4yB6qSLkvjhEBKAifkx5DhVc33fQPxAkWfepfwLFQjD5FDNn/dscJdmGIJBMJMA==
+X-Received: by 2002:a63:6244:: with SMTP id w65mr5152506pgb.300.1550860346181;
+        Fri, 22 Feb 2019 10:32:26 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia0kmZVYctwJSXKFRb7F1UwkpW3wPA7Qp396IIrUyebRy8UavenMDyEye46fRSTn5FEuo1i
+X-Received: by 2002:a63:6244:: with SMTP id w65mr5152436pgb.300.1550860345224;
+        Fri, 22 Feb 2019 10:32:25 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550860345; cv=none;
         d=google.com; s=arc-20160816;
-        b=u4rq3jACKZmgyvl5wWoGhMxwRXR2p64S9jmAqgfglvxrdgEH4i2UWbxeWJkrNliANS
-         2wq4NT09hw+YmIcVY83VrUchd8z2KYdV18GC9j9ZzJ3ev/wSjIgKwOMAuasjQkVa+OS6
-         WGBojjSqwLRDi8MKaI8heBl7Rq3HixqJhBAb5krwh42CICsK5cMv1nVdem5rmxWaPt+X
-         lzkZ2/Xhj5yt/AuAlUPys0KOrsIRkof9gEx3x1/dEkqz1hUt/1/IusGVSriKGmsEgrIK
-         IdWG4Kntq4HwDwpeBrOyqpZrB8g57NYLrVNzbB0YOvt0I2MdEamS0TrcqDA4vbU5Asnd
-         Tx4Q==
+        b=saEuu3qSiFH6OXR9FY5XSygQgGQHcGFgiKLGMcEW6dLt2+k2FaFRK5DMc+hd7j24Oe
+         cD7bb0stCsp6wKbViNP5YY3JXOpaKxU/dKMLGwjPDflq8I2FwrrhUzbaCNpDYa1jhrGv
+         LhGnjbaGOJl6ERopvvjfd8CdHVQNq5pTOOpub+gfJ4N8ZN209UoiRaTuMygB3od/p4La
+         +XT/tvg4q01Wdl871PiY+Db2P6pI7OrHNVaHjoTCR0tYRhWR+UgHGct2LBtHDxk3wf06
+         rZ5JXXavVI9AksaXlhvXu0J2PCVUrsQGXzbt7P+BKDibcVUafkeYorgVZzNwyidXjzAJ
+         Y6mA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=/1iRUWXUez0vQmzuA6ScUoUTtthAjz8oJPlMkoBcgCo=;
-        b=U15603HVDiu2ifZgyxzoQ+LeB92z4AJJwOKvdsVv7ug/7DhgvAUyw51onHYiizOPGJ
-         Pf9JBgH5Wd70ScyneuVbmowR5w2octZeXHmiQKP5SX5s0NhxpNPPBQke4wcsx25o9lAQ
-         moevJYKBTZPgGsbMG+JEply/cxB9A2JA1kKkT6+riS7XMa5MD19/DkFx96AGsKJIjAxo
-         ea0uvryV8sU9HPKympnXEQo5RhYR1Utm/eFjqeL38pWpfK4z8HhCjRBSPEHD9yuTJjpm
-         XUnph+6seatfXRK90ajop90Cb4eTvSBAeTDchYFsGIktQfOgSkQ1efvI9wyEkRFeWqz+
-         Ufng==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from;
+        bh=+kp26HJxE9BUMgrXUICUhq3fE0bJad6rfE/JOWKAD2o=;
+        b=E2krr7giJsjMEAP/xlDkNcuJB1P99JmMr1m4R2QGpbVPnSgQtpv3mL3ryLzSJLPq0w
+         +cX7+CHbcO+jC+QGmnvKSFehWJPA7HsJQwZR3jmOjeI33vpXsH7UNs2Zqrz7/3Yq+boA
+         eKur/5EJJDiCsaJyZklZDAMgtFixlB5cwclSMbCN+iBJxcimwekGvTv9eICXNv0+qKQT
+         l76SdNe/on9J//otNhdYK1f+zDfCK1oSz7ifY/bM6wfDuJYst6qy0kgzOyPm9+kiKea4
+         rb+4MOU2hVAso5G2YT6PXbputjdHjgaV0eRo+PLCxPMiW6561MrNMT/vkh2zMJjQoLin
+         nM5g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=b267o0z6;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l73sor442423ywc.64.2019.02.22.10.22.51
+       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id j70si1978907pge.271.2019.02.22.10.32.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Feb 2019 10:22:51 -0800 (PST)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Feb 2019 10:32:25 -0800 (PST)
+Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=b267o0z6;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=/1iRUWXUez0vQmzuA6ScUoUTtthAjz8oJPlMkoBcgCo=;
-        b=b267o0z6qksczZ6tdLwpa3oMpBghC7VNreLZWEEy860EODd2+i/QjS4nWyY/ryDODy
-         a5G8IZp8wvWZSWhb7LkpNdYs8nPu3EkOMlFPeqdRA++vk8m1TL08DMGGvBd6ZgP9Rpca
-         6uBxZmBrK0rW0yNb2CK8KhQs3FNIRWoyUwECysD6/T4pXlFsnJTz6wcq8L5GoBjcEu7I
-         RoN+qZym0HIiSVeQtM0NP3F50AmXJmjmn609rEXS5ph0WTJkbe8D0l5DG8rP0GWSIYfU
-         3F7gjmpDG5rf9TUjQfVAHmOLn1pXQ6iCoXcwdNB7bCIG/6Kbwc3dgPl6o4khb+jF1Z84
-         fbSg==
-X-Google-Smtp-Source: AHgI3IaeDDfPbp7vXQTiAzbg0tyYv6REAy+eU0RB6B1ee5L/C1zIpSF2uD275SBiZWz5/J1nf8/SGg==
-X-Received: by 2002:a81:36ca:: with SMTP id d193mr4536619ywa.388.1550859771539;
-        Fri, 22 Feb 2019 10:22:51 -0800 (PST)
-Received: from localhost ([2620:10d:c091:200::1:cd3d])
-        by smtp.gmail.com with ESMTPSA id c124sm683685ywe.12.2019.02.22.10.22.50
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 22 Feb 2019 10:22:50 -0800 (PST)
-Date: Fri, 22 Feb 2019 13:22:49 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>,
-	Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@surriel.com>,
-	Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 5/5] mm/vmscan: don't forcely shrink active anon lru list
-Message-ID: <20190222182249.GC15440@cmpxchg.org>
-References: <20190222174337.26390-1-aryabinin@virtuozzo.com>
- <20190222174337.26390-5-aryabinin@virtuozzo.com>
+       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Feb 2019 10:32:24 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,400,1544515200"; 
+   d="scan'208";a="117054389"
+Received: from orsmsx107.amr.corp.intel.com ([10.22.240.5])
+  by orsmga007.jf.intel.com with ESMTP; 22 Feb 2019 10:32:24 -0800
+Received: from orsmsx153.amr.corp.intel.com (10.22.226.247) by
+ ORSMSX107.amr.corp.intel.com (10.22.240.5) with Microsoft SMTP Server (TLS)
+ id 14.3.408.0; Fri, 22 Feb 2019 10:32:23 -0800
+Received: from orsmsx112.amr.corp.intel.com ([169.254.3.70]) by
+ ORSMSX153.amr.corp.intel.com ([169.254.12.140]) with mapi id 14.03.0415.000;
+ Fri, 22 Feb 2019 10:32:23 -0800
+From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
+To: "bp@alien8.de" <bp@alien8.de>
+CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"peterz@infradead.org" <peterz@infradead.org>,
+	"linux-integrity@vger.kernel.org" <linux-integrity@vger.kernel.org>,
+	"ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "tglx@linutronix.de"
+	<tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>,
+	"nadav.amit@gmail.com" <nadav.amit@gmail.com>, "Dock, Deneen T"
+	<deneen.t.dock@intel.com>, "linux-security-module@vger.kernel.org"
+	<linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>,
+	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com"
+	<hpa@zytor.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>,
+	"mingo@redhat.com" <mingo@redhat.com>, "linux_dti@icloud.com"
+	<linux_dti@icloud.com>, "luto@kernel.org" <luto@kernel.org>,
+	"will.deacon@arm.com" <will.deacon@arm.com>,
+	"kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+Subject: Re: [PATCH v3 00/20] Merge text_poke fixes and executable lockdowns
+Thread-Topic: [PATCH v3 00/20] Merge text_poke fixes and executable lockdowns
+Thread-Index: AQHUykBH6Cl4tgVNiUeaovpifCvY+6XshO+AgAAmmIA=
+Date: Fri, 22 Feb 2019 18:32:22 +0000
+Message-ID: <33968a3c7cc750f3d1cabf062f5fb25fd176e816.camel@intel.com>
+References: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
+	 <20190222161419.GB30766@zn.tnic>
+In-Reply-To: <20190222161419.GB30766@zn.tnic>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [10.54.75.11]
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <6AFE1C37A3162E43A5884A3972E03B3D@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190222174337.26390-5-aryabinin@virtuozzo.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 22, 2019 at 08:43:37PM +0300, Andrey Ryabinin wrote:
-> shrink_node_memcg() always forcely shrink active anon list.
-> This doesn't seem like correct behavior. If system/memcg has no swap, it's
-> absolutely pointless to rebalance anon lru lists.
-> And in case we did scan the active anon list above, it's unclear why would
-> we need this additional force scan. If there are cases when we want more
-> aggressive scan of the anon lru we should just change the scan target
-> in get_scan_count() (and better explain such cases in the comments).
-> 
-> Remove this force shrink and let get_scan_count() to decide how
-> much of active anon we want to shrink.
-
-This change breaks the anon pre-aging.
-
-The idea behind this is that the VM maintains a small batch of anon
-reclaim candidates with recent access information. On every reclaim,
-even when we just trim cache, which is the most common reclaim mode,
-but also when we just swapped out some pages and shrunk the inactive
-anon list, at the end of it we make sure that the list of potential
-anon candidates is refilled for the next reclaim cycle.
-
-The comments for this are above inactive_list_is_low() and the
-age_active_anon() call from kswapd.
-
-Re: no swap, you are correct. We should gate that rebalancing on
-total_swap_pages, just like age_active_anon() does.
+T24gRnJpLCAyMDE5LTAyLTIyIGF0IDE3OjE0ICswMTAwLCBCb3Jpc2xhdiBQZXRrb3Ygd3JvdGU6
+DQo+IE9uIFRodSwgRmViIDIxLCAyMDE5IGF0IDAzOjQ0OjMxUE0gLTA4MDAsIFJpY2sgRWRnZWNv
+bWJlIHdyb3RlOg0KPiA+IENoYW5nZXMgdjIgdG8gdjM6DQo+ID4gIC0gRml4IGNvbW1pdCBtZXNz
+YWdlcyBhbmQgY29tbWVudHMgW0JvcmlzXQ0KPiA+ICAtIFJlbmFtZSBWTV9IQVNfU1BFQ0lBTF9Q
+RVJNUyBbQm9yaXNdDQo+ID4gIC0gUmVtb3ZlIHVubmVjZXNzYXJ5IGxvY2FsIHZhcmlhYmxlcyBb
+Qm9yaXNdDQo+ID4gIC0gUmVuYW1lIHNldF9hbGlhc18qKCkgZnVuY3Rpb25zIFtCb3JpcywgQW5k
+eV0NCj4gPiAgLSBTYXZlL3Jlc3RvcmUgRFIgcmVnaXN0ZXJzIHdoZW4gdXNpbmcgdGVtcG9yYXJ5
+IG1tDQo+ID4gIC0gTW92ZSBsaW5lIGRlbGV0aW9uIGZyb20gcGF0Y2ggMTAgdG8gcGF0Y2ggMTcN
+Cj4gDQo+IEluIHlvdXIgcHJldmlvdXMgc3VibWlzc2lvbiB0aGVyZSB3YXMgYSBwYXRjaCBjYWxs
+ZWQNCj4gDQo+IFN1YmplY3Q6IFtQQVRDSCB2MiAwMS8yMF0gRml4ICJ4ODYvYWx0ZXJuYXRpdmVz
+OiBMb2NrZGVwLWVuZm9yY2UgdGV4dF9tdXRleCBpbg0KPiB0ZXh0X3Bva2UqKCkiDQo+IA0KPiBX
+aGF0IGhhcHBlbmVkIHRvIGl0Pw0KPiANCj4gSXQgZGlkIGludHJvZHVjZSBhIGZ1bmN0aW9uIHRl
+eHRfcG9rZV9rZ2RiKCksIGEuby4sIGFuZCBJIHNlZSB0aGlzDQo+IGZ1bmN0aW9uIGluIHRoZSBk
+aWZmIGNvbnRleHRzIGluIHNvbWUgb2YgdGhlIHBhdGNoZXMgaW4gdGhpcyBzdWJtaXNzaW9uDQo+
+IHNvIGl0IGxvb2tzIHRvIG1lIGxpa2UgeW91IG1pc3NlZCB0aGF0IGZpcnN0IHBhdGNoIHdoZW4g
+c3VibWl0dGluZyB2Mz8NCj4gDQo+IE9yIGFtICpJKiBtaXNzaW5nIHNvbWV0aGluZz8NCj4gDQo+
+IFRoeC4NCj4gDQpPaCwgeW91IGFyZSByaWdodCEgU29ycnkgYWJvdXQgdGhhdC4gSSdsbCBqdXN0
+IHNlbmQgYSBuZXcgdmVyc2lvbiB3aXRoIGZpeGVzIGZvcg0Kb3RoZXIgY29tbWVudHMgaW5zdGVh
+ZCBvZiBhIHJlc2VuZCBvZiB0aGlzIG9uZS4NCg0KVGhhbmtzLA0KDQpSaWNrDQo=
 
