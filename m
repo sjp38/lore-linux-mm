@@ -2,151 +2,268 @@ Return-Path: <SRS0=SgWF=Q5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D3F58C10F00
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 19:21:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 28542C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 19:26:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 90A5720700
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 19:21:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C5AA82070B
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 19:26:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="zXesRFfy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90A5720700
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="fqlXLAeF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C5AA82070B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2BBB08E0122; Fri, 22 Feb 2019 14:21:52 -0500 (EST)
+	id 4DC018E0134; Fri, 22 Feb 2019 14:26:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 26AA18E00B1; Fri, 22 Feb 2019 14:21:52 -0500 (EST)
+	id 489EB8E0123; Fri, 22 Feb 2019 14:26:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 182C28E0122; Fri, 22 Feb 2019 14:21:52 -0500 (EST)
+	id 352DB8E0134; Fri, 22 Feb 2019 14:26:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E12178E00B1
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 14:21:51 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id g24so1440933otq.22
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 11:21:51 -0800 (PST)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B5AC8E0123
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 14:26:12 -0500 (EST)
+Received: by mail-yb1-f198.google.com with SMTP id h73so2062808ybg.8
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 11:26:12 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=HEh1PpN8MZdEODahk7HJYfWRejKVe1bP2E3naiVJUf8=;
-        b=ikttCN9cLXb7/lZHM/cEPI1RFj+bwEooM2iISdNvwKvk8IFgoOdISxpxhthhwqsIzE
-         j9YNjFopHKrJPzymPgzop9JwnExfRFqb7aXbqcDF1D0Ii/Geg2Nu2T5NosX8GiD1V2+e
-         eFok8tZGrme/tf8lokoK/MuiO9OiL5yymabtGrMJs5PG9bSqVybLTw4u7jXI9ObzPcA4
-         yu2w3d9D9TajqYE+51QxCufwzw4ZSBPciZj+XAUYDgohQKq74ll1bLcG+tRUi1wowVP2
-         oMSths+TB5859jhSUcErExle/HhIuHD2NGRMup2fcc5/arDxQE6BoJAemsP3qLyOfRQ0
-         mnNA==
-X-Gm-Message-State: AHQUAuaz87xRLeW6sJtqF4kmnIC6jtEJmeGeeq8ehzJ+GngvYeDg9XLW
-	pum6TzwLYA7/eWPjeBEY4UKDFPaTwr2ftX18XqvCY67vR96SYC2ZaObubZzrxRtPfzGdDs/b/15
-	lzIppW9mi52ABO4ZBcruIh3EBPymlfCZ0ag9uH0vaLANNgCqkOA74GWefE/NCXu8Ljo5sndaba/
-	g/UfbZxi5bBdSWZhSFjcVKqyhtditEE4x1QcbcCxjc3BKfaRtw8QcXqdInMAjoZM0IiWNB8SfCO
-	GufoLA403a9X40H/TRZKJHVkO4p2ft51nuVoSaMXql8WP6RkeQxam0J+m6Rl6rL7YtVS7IyuqYA
-	UN25pcXH/IkmeSPr+bktidDVdxiNUQ+wrLXOyuCjc8E+2D2zix0Vl6kfiVow6JuJNBcKLUBJpeS
-	M
-X-Received: by 2002:a9d:7390:: with SMTP id j16mr3537559otk.231.1550863311561;
-        Fri, 22 Feb 2019 11:21:51 -0800 (PST)
-X-Received: by 2002:a9d:7390:: with SMTP id j16mr3537504otk.231.1550863310646;
-        Fri, 22 Feb 2019 11:21:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550863310; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=moXzvZWQOYM4BGU5mDrtuh+EjDOFrbKUSqkEdU832nI=;
+        b=FJ5s92Hb9okzg5m05GVAyXmd5PdwKjDF+mEUvpk4m0PUhRWyB46OvQqohXZpuwDwTW
+         PKfWgg3NIfg50RAz3/czNbvnvenA47jXUqaGczxBYkyuQtiUnTLt1Wgj4zIlwI8RCCP2
+         1XkX+YfLEJ5ORSDBUTfwPrR3RMkJ3klgiBk/VRPBjtrdFYyR3bhk5f0KjcuBslk2gGIK
+         90qqDFJR9HXlaPFEBmMIiCTehoKrTuJa/waFa5/tDgUW/2QCH8VCZ7iyvwTG3IpUTkoT
+         xmna64MhWyRZTzzHtXrWzUitWWnBcAYYn9zJUN3aWwU3piWLVv1x6kpknzyI/C9ZTAVS
+         lo2g==
+X-Gm-Message-State: AHQUAubxnUqV3qf5zOYoRqRrQWfw0TUjJv5bQ+8rPVEU2MH/pvhyAZ/a
+	VHft1K02ODoQ0E27xEt/uPm72IWC4RkFeSURxPiYnEbZrZnuoK5iq/g9HDgcn8mLryEBU341lLh
+	SJZFWvBrTbai5gHyh7NZjPA44yU8sWReWyKzTNZNwwON4AJEBbG09CKkc4WVLmvHvcQ==
+X-Received: by 2002:a0d:c683:: with SMTP id i125mr4659473ywd.471.1550863571718;
+        Fri, 22 Feb 2019 11:26:11 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYaJr4vvK1AlKWdG4S/PS4326XRYEqpWrx8HF/S4VV3G+/AixXNS/08Cx31x5uQmS2WEEru
+X-Received: by 2002:a0d:c683:: with SMTP id i125mr4659429ywd.471.1550863570981;
+        Fri, 22 Feb 2019 11:26:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550863570; cv=none;
         d=google.com; s=arc-20160816;
-        b=uzLfBlUSPEdVBTgemq+8I0eRR/k4fzJ1MnRysXuDD7QOeJrpFRyjq+unTMJma9r2Cg
-         HiLyVLxaQwdW7VtvVMmgVdbhmMGSbKeOQPQKmV35Qi3w/Zi0v4QBoM9TuzQqGg/SbmJX
-         UdVRZGlRVU/eEck4NNxIH2wqwBcdHfAlWLVa9KqY3zrAgFh7SsiL6oPYJVOBpUJ3ilq4
-         BxzHXXfqIgTlk0j43fwYb8lmAuU6YFSjBJIP8b8K60Dc23YjITPcXk9FTGIc6EX6ZXEU
-         fA8v+4XPtyhjovFQfPF3bMVntaVEtDTJWgrhYOTMOZ/c61Im1qzcn/0eqS5qmXNNN8VW
-         vI5w==
+        b=zG/BGZ+rDr/viAnOaaYVy4bjfYkUzQBd9loffft+AZpI7WRe49JR/Tvdi3FmTQ+NUY
+         /dcXVwTFN6chJhyM7EWs4mtSKItVDixR8j/xUWRsmyVtW3zZEdHyXGnm1UNmHTtK4zD0
+         4U3z5OjnORRlTYzaoh7iCzBfQrylgvXIq/0I/X3O0OwolwI17lnPHG1h2hLvm4gyZzsg
+         8j+9uijD9hE5jPv8b0cOAahYSa3w+LOytZRMqH75He+Hi89YZsWEAbBaZCen7eAd3Sl0
+         /XmsYOIWjmxegFRypbj0AX0p28TU1GKFUyKdp1PKwL1KmKxpRruwI154P8s/4y5yLUk5
+         NlLg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=HEh1PpN8MZdEODahk7HJYfWRejKVe1bP2E3naiVJUf8=;
-        b=S/Pj0npOXl2ramn23c8sgVvwgdrtIu+W8iRcY0hqW8tdBuwnZx4IWhDy9pFWemAD7B
-         58MV4xMk9BsDTGP/vRQVcAgXY1wMsdKUn6lDs5WG2jhzdjGLKecJ8GlTcGIx5nJOZFpU
-         sEvP1Txp/ZcmC5TMSKQXtfnSyuMbVDO9GRN/O8CRl5dn/0cudxdMgnqe4udifNkkm+1V
-         ZBxtHSPgMOSU+/EkFWmWylJ29BSXjsyivv6IsgBQ8eS9OTa8o1rRFAKahVu/FQzTUCnf
-         vflxr2Erhb5JOvSIscNDaRZ3x8ljZ220YktRMfoky2feu99RBh3oRpudmeKgE+LyZN8b
-         YnFQ==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=moXzvZWQOYM4BGU5mDrtuh+EjDOFrbKUSqkEdU832nI=;
+        b=uc1rnmvEcDjfVasWsNJ8ynjErlCcYmypbCgiC1Y9yX0Nad3E0cucIbnd9rjRCGG1M0
+         dMvy0qMtg+R+nVt382GH41ZXAyMbZPV2emnMK3IcqMupFvF6ZkNjwldtPLKvL8ZMrdBq
+         LAmXoe3nU0Z0gIz0frg8eDT5LKlIZ2SAsxuE5rdc/E5Sgp11S8PH+Nvp6hR/IANnU4K7
+         WoJHyQt5Nlo0tp1molpd9T3zJ/LjtkA3qyTMCqisq3IYeYmcYewYY9h0Npr4+9vIr/7m
+         IKelBiG9lfxPUs1nnFIIngbgQi5qA43uaXQXIyun/9D+1nWz0ABfBrF5ODeIgwzOAxYJ
+         IytQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=zXesRFfy;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r130sor1097653oie.102.2019.02.22.11.21.49
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=fqlXLAeF;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id c79si1402691ywa.394.2019.02.22.11.26.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Feb 2019 11:21:49 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Feb 2019 11:26:10 -0800 (PST)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=zXesRFfy;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=HEh1PpN8MZdEODahk7HJYfWRejKVe1bP2E3naiVJUf8=;
-        b=zXesRFfyjpqvIH8VP1xf1g80dCuBgVRRUkhCYDPpHLePIzmXKJ7sgzrOgJPsRIfRG6
-         nJ/mxqOXn2qC/yBY+wf5StldKufB5l4Pt7OLHD3LdnAfMtrBYffP1jllN16rYAndqMpL
-         /0bN/tGDiow85dPXI++3sBxvyiZ/sEZRUqBJb+cNowmwtTA6MWt8DB1zbChG8/2lLdr5
-         MumJXC6d98+tU0xLk+xrqDwYrhIQuFYD7SChKWRCWIH82Qi/eE4ws3TL05qVCZzWa2cO
-         4oETD5m1fGNc/AE1KaTFOMgDqajwXGsar3u56lNojHz21SzqbDI16F1VcopdbbwVGpEb
-         Lw+A==
-X-Google-Smtp-Source: AHgI3Iaw+mm3X+7iHZPF7QY6qOMX3Smk7WLYRYr2Q3MhrxIWq1RoC3N33E90+AHMtwL3PkXea/PKpphVypI1nVnlj7M=
-X-Received: by 2002:aca:32c3:: with SMTP id y186mr3360644oiy.118.1550863309451;
- Fri, 22 Feb 2019 11:21:49 -0800 (PST)
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=fqlXLAeF;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c704cda0000>; Fri, 22 Feb 2019 11:26:18 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Fri, 22 Feb 2019 11:26:10 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Fri, 22 Feb 2019 11:26:10 -0800
+Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Fri, 22 Feb
+ 2019 19:26:09 +0000
+Subject: Re: [PATCH v5 4/9] mm/mmu_notifier: contextual information for event
+ enums
+To: <jglisse@redhat.com>, <linux-mm@kvack.org>, Andrew Morton
+	<akpm@linux-foundation.org>
+CC: <linux-kernel@vger.kernel.org>, =?UTF-8?Q?Christian_K=c3=b6nig?=
+	<christian.koenig@amd.com>, Joonas Lahtinen
+	<joonas.lahtinen@linux.intel.com>, Jani Nikula <jani.nikula@linux.intel.com>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>, Jan Kara <jack@suse.cz>, Andrea
+ Arcangeli <aarcange@redhat.com>, Peter Xu <peterx@redhat.com>, Felix Kuehling
+	<Felix.Kuehling@amd.com>, Jason Gunthorpe <jgg@mellanox.com>, Ross Zwisler
+	<zwisler@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Paolo Bonzini
+	<pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+	Michal Hocko <mhocko@kernel.org>, John Hubbard <jhubbard@nvidia.com>,
+	<kvm@vger.kernel.org>, <dri-devel@lists.freedesktop.org>,
+	<linux-rdma@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>
+References: <20190219200430.11130-1-jglisse@redhat.com>
+ <20190219200430.11130-5-jglisse@redhat.com>
+From: Ralph Campbell <rcampbell@nvidia.com>
+Message-ID: <49d6489c-31b4-511b-2504-bc7aa5d44673@nvidia.com>
+Date: Fri, 22 Feb 2019 11:26:09 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.3.0
 MIME-Version: 1.0
-References: <20190214171017.9362-1-keith.busch@intel.com> <20190214171017.9362-8-keith.busch@intel.com>
- <CAJZ5v0gjv0DZvYMTPBLnUmMtu8=g0zFd4x-cpP11Kzv+6XCwUw@mail.gmail.com> <20190222184831.GF10237@localhost.localdomain>
-In-Reply-To: <20190222184831.GF10237@localhost.localdomain>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 22 Feb 2019 11:21:37 -0800
-Message-ID: <CAPcyv4jpP0CP-QxWDc_E1QwL736PLwh8ZPrnKJzVnYrAk++93g@mail.gmail.com>
-Subject: Re: [PATCHv6 07/10] acpi/hmat: Register processor domain to its memory
-To: Keith Busch <keith.busch@intel.com>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dave Hansen <dave.hansen@intel.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190219200430.11130-5-jglisse@redhat.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1550863578; bh=moXzvZWQOYM4BGU5mDrtuh+EjDOFrbKUSqkEdU832nI=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
+	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=fqlXLAeFhKwY6TP5GVtaWTaO7QF5ITIk6dsvNamSzXK2iReHcI9lZ48Mb//cmCY+/
+	 uE9tA19tSn/+Zff+czY5HVk72LmXFOcALM8hJsBblpMTqXmiFrLaj4OApAI0MzsJm5
+	 doxUuI5qDGBijzL0lkZ/Ty/4kBR4a+UnNNjo/VipTYUYpmS5u7ZhEK9XQzG8PfMC1l
+	 Z5jjm5ohCfsTVOtJSgQmxG2Z3yV1mY5c/3iK80E71ric2ItAwo/93XNgi8M5cRSCxG
+	 vEGxe86P2ADW6EFrJFBNO+PFsNeQup4EKbWkuuBPZIWnfPBnjIQOWF+YKbbl3HT7EL
+	 gCgol5oBcGR8Q==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 22, 2019 at 10:48 AM Keith Busch <keith.busch@intel.com> wrote:
->
-> On Wed, Feb 20, 2019 at 11:02:01PM +0100, Rafael J. Wysocki wrote:
-> > On Thu, Feb 14, 2019 at 6:10 PM Keith Busch <keith.busch@intel.com> wrote:
-> > >  config ACPI_HMAT
-> > >         bool "ACPI Heterogeneous Memory Attribute Table Support"
-> > >         depends on ACPI_NUMA
-> > > +       select HMEM_REPORTING
-> >
-> > If you want to do this here, I'm not sure that defining HMEM_REPORTING
-> > as a user-selectable option is a good idea.  In particular, I don't
-> > really think that setting ACPI_HMAT without it makes a lot of sense.
-> > Apart from this, the patch looks reasonable to me.
->
-> I'm trying to implement based on the feedback, but I'm a little confused.
->
-> As I have it at the moment, HMEM_REPORTING is not user-prompted, so
-> another option needs to turn it on. I have ACPI_HMAT do that here.
->
-> So when you say it's a bad idea to make HMEM_REPORTING user selectable,
-> isn't it already not user selectable?
->
-> If I do it the other way around, that's going to make HMEM_REPORTING
-> complicated if a non-ACPI implementation wants to report HMEM
-> properties.
 
-Agree. If a platform supports these HMEM properties then they should
-be reported. ACPI_HMAT is that opt-in for ACPI based platforms, and
-other archs can do something similar. It's not clear that one would
-ever want to opt-in to HMAT support and opt-out of reporting any of it
-to userspace.
+On 2/19/19 12:04 PM, jglisse@redhat.com wrote:
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>=20
+> CPU page table update can happens for many reasons, not only as a result
+
+s/update/updates
+s/happens/happen
+
+> of a syscall (munmap(), mprotect(), mremap(), madvise(), ...) but also
+> as a result of kernel activities (memory compression, reclaim, migration,
+> ...).
+>=20
+> This patch introduce a set of enums that can be associated with each of
+
+s/introduce/introduces
+
+> the events triggering a mmu notifier. Latter patches take advantages of
+> those enum values.
+
+s/advantages/advantage
+
+>=20
+>      - UNMAP: munmap() or mremap()
+>      - CLEAR: page table is cleared (migration, compaction, reclaim, ...)
+>      - PROTECTION_VMA: change in access protections for the range
+>      - PROTECTION_PAGE: change in access protections for page in the rang=
+e
+>      - SOFT_DIRTY: soft dirtyness tracking
+>=20
+
+s/dirtyness/dirtiness
+
+> Being able to identify munmap() and mremap() from other reasons why the
+> page table is cleared is important to allow user of mmu notifier to
+> update their own internal tracking structure accordingly (on munmap or
+> mremap it is not longer needed to track range of virtual address as it
+> becomes invalid).
+>=20
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Christian K=C3=B6nig <christian.koenig@amd.com>
+> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+> Cc: Jani Nikula <jani.nikula@linux.intel.com>
+> Cc: Rodrigo Vivi <rodrigo.vivi@intel.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Peter Xu <peterx@redhat.com>
+> Cc: Felix Kuehling <Felix.Kuehling@amd.com>
+> Cc: Jason Gunthorpe <jgg@mellanox.com>
+> Cc: Ross Zwisler <zwisler@kernel.org>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Paolo Bonzini <pbonzini@redhat.com>
+> Cc: Radim Kr=C4=8Dm=C3=A1=C5=99 <rkrcmar@redhat.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Christian Koenig <christian.koenig@amd.com>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: kvm@vger.kernel.org
+> Cc: dri-devel@lists.freedesktop.org
+> Cc: linux-rdma@vger.kernel.org
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> ---
+>   include/linux/mmu_notifier.h | 30 ++++++++++++++++++++++++++++++
+>   1 file changed, 30 insertions(+)
+>=20
+> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+> index c8672c366f67..2386e71ac1b8 100644
+> --- a/include/linux/mmu_notifier.h
+> +++ b/include/linux/mmu_notifier.h
+> @@ -10,6 +10,36 @@
+>   struct mmu_notifier;
+>   struct mmu_notifier_ops;
+>  =20
+> +/**
+> + * enum mmu_notifier_event - reason for the mmu notifier callback
+> + * @MMU_NOTIFY_UNMAP: either munmap() that unmap the range or a mremap()=
+ that
+> + * move the range
+
+I would say something about the VMA for the notifier range
+is being deleted.
+MMU notifier clients can then use this case to remove any policy or
+access counts associated with the range.
+Just changing the PTE to "no access" as in the CLEAR case
+doesn't mean a policy which prefers device private memory
+over system memory should be cleared.
+
+> + *
+> + * @MMU_NOTIFY_CLEAR: clear page table entry (many reasons for this like
+> + * madvise() or replacing a page by another one, ...).
+> + *
+> + * @MMU_NOTIFY_PROTECTION_VMA: update is due to protection change for th=
+e range
+> + * ie using the vma access permission (vm_page_prot) to update the whole=
+ range
+> + * is enough no need to inspect changes to the CPU page table (mprotect(=
+)
+> + * syscall)
+> + *
+> + * @MMU_NOTIFY_PROTECTION_PAGE: update is due to change in read/write fl=
+ag for
+> + * pages in the range so to mirror those changes the user must inspect t=
+he CPU
+> + * page table (from the end callback).
+> + *
+> + * @MMU_NOTIFY_SOFT_DIRTY: soft dirty accounting (still same page and sa=
+me
+> + * access flags). User should soft dirty the page in the end callback to=
+ make
+> + * sure that anyone relying on soft dirtyness catch pages that might be =
+written
+> + * through non CPU mappings.
+> + */
+> +enum mmu_notifier_event {
+> +	MMU_NOTIFY_UNMAP =3D 0,
+> +	MMU_NOTIFY_CLEAR,
+> +	MMU_NOTIFY_PROTECTION_VMA,
+> +	MMU_NOTIFY_PROTECTION_PAGE,
+> +	MMU_NOTIFY_SOFT_DIRTY,
+> +};
+> +
+>   #ifdef CONFIG_MMU_NOTIFIER
+>  =20
+>   /*
+>=20
 
