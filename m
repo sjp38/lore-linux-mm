@@ -2,236 +2,247 @@ Return-Path: <SRS0=SgWF=Q5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BF34C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 12:54:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BF617C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 12:55:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 00E35207E0
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 12:54:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 55D9D2075C
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 12:55:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ngTaPZFj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00E35207E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (1024-bit key) header.d=nxp.com header.i=@nxp.com header.b="eEaSYh5J"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55D9D2075C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nxp.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A968D8E0103; Fri, 22 Feb 2019 07:53:55 -0500 (EST)
+	id 00C0E8E0104; Fri, 22 Feb 2019 07:55:45 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9FCD08E00FD; Fri, 22 Feb 2019 07:53:55 -0500 (EST)
+	id EFECA8E00FD; Fri, 22 Feb 2019 07:55:44 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8738E8E0103; Fri, 22 Feb 2019 07:53:55 -0500 (EST)
+	id D9F838E0104; Fri, 22 Feb 2019 07:55:44 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 29CFB8E00FD
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 07:53:55 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id t133so484371wmg.4
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 04:53:55 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 81C7A8E00FD
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 07:55:44 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id 29so888665eds.12
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 04:55:44 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=xP0EP9+s7jJBuNL20aZNoIWDJO0QH7KitwsXHnWrFcE=;
-        b=LB2PVQNc6yRtATHH0t12jbWnTs1K/uBRD5sSMxl4JH/5TRvUtr/3vlDF/1SYiNcLYz
-         gyKXflPoPQN4N23UGjpmw3P2XH/HIiSJEOg+FxhOtQsISKiR1GUdJ8GcluNgUi63guCW
-         A8frtC3A9st8v95r58OCDFdT6KyXE0ABpUUnFX5QHCAxRjtpNYS116x6nftWdpr78g8X
-         pl8r4Q/Bt20M5a1b0anJ4IgUnSbhMRyEQPc8fBQdXFEsN1dbqD/1pgpFrrOTpI0FmdwH
-         rmfkdwwLNepsqeeqDNoPYcS+TxyBmu8WiKd6mZ49JSEttL6K3NdjHIdBphSi9PdWYeNM
-         GVcg==
-X-Gm-Message-State: AHQUAubzOFcS4Fq9am3FmSyqW2BVEPS39cfHy7Mh5Uv/7ftQYfB6tKee
-	la+9AvJOosSwkQWzvEcn2nbw6cHeXExd9IZgPDBoks+hDmk0J0t8LiYXCK6x0SSz/vRVLMZKHRu
-	xEgqT07CBFlJP8LjBJYJY5eYvhX542qSMh0eJZo8WzkfXRfYtad+/7ZygRZeeDc3PXb8ySBtmZt
-	Jmmv57YHf31JUFMBOsccz9iEnpTd/Ofl2ZeMb5/Ub3xVv4spz0gAajAYEMNqanMwxcibC1p5zY6
-	knPgBPf18u29x1CBczdj8O81ILKosu6diltRHG423PpGpzE/b1WJSt2GldGLJpwc9ZCBd/Xqocf
-	hO2zpNfL0m6EQWrcQNYe8Z9vUHqJlzMmtrs8t8Qd0oVttTfm0nZQEIgCBE3X0ZZLD0chuFsM0gy
-	E
-X-Received: by 2002:adf:a49c:: with SMTP id g28mr2764869wrb.147.1550840034702;
-        Fri, 22 Feb 2019 04:53:54 -0800 (PST)
-X-Received: by 2002:adf:a49c:: with SMTP id g28mr2764815wrb.147.1550840033717;
-        Fri, 22 Feb 2019 04:53:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550840033; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-transfer-encoding:mime-version;
+        bh=6gPp4lUAnE0sOQp1CA1ZM31buOCC28HSLxLZkDETCE8=;
+        b=ZOymT6GYeOa7K64fLjQAYypXbSergE638wqkTvwuCNAqqJaPzCpCqKgl7ZEMr3MCJF
+         kLwBRYs8CeIUgXRFX6mPpSoB5gCyDgwyuiVl44fBidP4adusMHioMhtHWlft8cm1Yjaa
+         X8k15U+3NF2qB+Sfly3t3924shQdMIKEpXujwQYVDhCXAPCxwmUc3BhGxlEq4e9Qw7Yh
+         oQkwbB4cL/F/1JWWcrAWgQj6uXUq7J54DuHXbZn662NTdAQQF1+aobxD5pmLZZD559cz
+         2T+HfzHscBbeHEGAZqZp3RF8ql3HjO7Hkfrp3BYUcFhrxj7zzIjBf7tIvJtwnd+1fp29
+         kHHA==
+X-Gm-Message-State: AHQUAua40pLjY5BAscDXBMDsdf+vNvRYO+AmcsmI7Zo8+2j+1NED5aJ5
+	pkna9dxaleVVIRmF5E5FlNMLLmpKZ/KCWeNF5Pgsx8vQiq/DHTpQxcfYtVwYliGWRn3Gm/tNlSY
+	s/BXN5OccB7XHRrSnyfqwlDpqbCzskpQjugfcUkveE8W7FyAyZnXexI/6tQp9JvdWpQ==
+X-Received: by 2002:a17:906:1c4b:: with SMTP id l11mr2810226ejg.20.1550840144045;
+        Fri, 22 Feb 2019 04:55:44 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaOOCy0F+1dIZPITj4g2+mwV+jAoZnsM6zfL5FFlym7nAQBHuy14O2heaPzFNzpFTTpRjka
+X-Received: by 2002:a17:906:1c4b:: with SMTP id l11mr2810185ejg.20.1550840143129;
+        Fri, 22 Feb 2019 04:55:43 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550840143; cv=none;
         d=google.com; s=arc-20160816;
-        b=s3kEaMiPxTazeMFZ2O3JM9wq+DZ+/Q2Tm/OiBgR9LKF2UM8Ozgdryj1o4dClZ6nMLg
-         RPsxP2LBfZblv744PhXzu6v9xTY6LvaxNHmz6X3I3uwk40M1ZTSsoHk4YrIU71TkCct6
-         cbj71kvRTWoFPZTNkGaZ+vY5XUquvEwPojVVx0WsO/PYMItcSXsT8pyMin6PzNPzm2dz
-         prCmsZOg3AnFMiVJqxt591UZnc71mhNv/fFnzpV6KzxJAWaETkzZLm24GonJm/NvQSlS
-         tpggItIezFq5UZLavqH7cgZtm4O3/r2n7uDR7zjmVeVDFuM8zmZyVwSYJeYaxw/da063
-         Nz4g==
+        b=CY4af7M62DaCT9LI1VOR73RtWO7+4I5oBdh1PHlPqJzZJZ3XYRLOtryW46JJR27wOQ
+         6ZbbHCI3qoCOej/qOXkD3cA31sBW5quLFm9OJ0WOWHESom7lc7+udAeSW/OzgHogasNL
+         VAyyKcFgF8dlrpQuEExJpIGtdo1Y6JEw9Iv7aDBJXnoJ7BH0MHF7ERhIGByxWuVqfhy9
+         r28afZOhKWFNirFbpwYjCEER3dAa88qR/iwP1r0uXD3uv7yPl8Fe/OhjgpYIC4HM5Tmh
+         pnGosZH6PkQFBUSFmYUs7AEnzz0LlKVeKXvUE7hcs6xjediVaBogoO54U6WO4meOP7ct
+         eL1Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=xP0EP9+s7jJBuNL20aZNoIWDJO0QH7KitwsXHnWrFcE=;
-        b=mPruH/AEOgELi3+i67373M6LMc7Gh26m7IOFPPvC99vMJGDQ9m7hAYLYL0k+LjR7XX
-         +1k+6ik3HT3cTu8Td8voG5203FAJ6GywPQ/Hug4+EpYyP7SksJm64IdZxy+zmoA/GdeI
-         evnTXc3OSF/+ZXZidDDlHru9ufbb/LODp7Fi+jo8gzAhK9qQX2ACTZR93r+sq56nOeUE
-         e8trR7vmKPnEfe6rC6qYBVrm1XAKAk/XNZhOgkGOejTvwI5hTvyKz6WDVaiofiL8tPVK
-         BZbfAmkjCZj9HHDdVtKH3jJOiZV5QLHpuZY0clrZdxAK9bTVdwri56DPQ44UZOqiqC1X
-         YQwQ==
+        h=mime-version:content-transfer-encoding:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=6gPp4lUAnE0sOQp1CA1ZM31buOCC28HSLxLZkDETCE8=;
+        b=ld2Ryv7GxDHkU1KvuuzLrBqL8eGjwI72YZFgaxGIJ97Jtdsq+Map9Nf4DqkA1dfjwE
+         T0LY7sMeoGSok8KZRE9QNiRN/95A3ZrkQkXKY4L1/ctdgHQ9gcL7UT6jmkx0Y6ZtfIpI
+         foadj7M1Umw9wUo5LP9xZUyKYwDSUhxKU2cbjMXEDHoepjrAsse2BMY/YhHOqJm5BCeL
+         JirRjnISuQo/XVakNpPgeAtkYoWcjAxuGMM3e8zFJSXqRlTu2Ci+lCij0ywOS8riH7H5
+         B3h2oZluzHl40n4ZvzEi3M7Hz3tOM+a7Q5/2u9rUtdyJ3Z1b/qQ5LyRkrv8YiuJMJk1e
+         kysA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ngTaPZFj;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o4sor871565wmb.9.2019.02.22.04.53.53
+       dkim=pass header.i=@nxp.com header.s=selector1 header.b=eEaSYh5J;
+       spf=pass (google.com: domain of peng.fan@nxp.com designates 40.107.2.85 as permitted sender) smtp.mailfrom=peng.fan@nxp.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
+Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20085.outbound.protection.outlook.com. [40.107.2.85])
+        by mx.google.com with ESMTPS id y32si190758edb.236.2019.02.22.04.55.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Feb 2019 04:53:53 -0800 (PST)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ngTaPZFj;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=xP0EP9+s7jJBuNL20aZNoIWDJO0QH7KitwsXHnWrFcE=;
-        b=ngTaPZFjbMr8UVnv+XHv855CtRTNvKpoDmCRTtKsyfuCSVAX1fHkkeEopamnkFNUkO
-         2AxeqdOMs5OS1aAzAdqqAMH6oIYxxx7HXZvCiuu5mGrP4+JLSS3N1MvyfwgLIUpYg7XA
-         36WRCDQmvGeM5dFPaSlrAtGT6lqE+t1iYacqOuNf0WL0AvYMXookG0ZRXOCwQj/yAJ64
-         Ava6JpCXLFI/teW898eqAG2k52RXgpD4kz9ufk+Lk99Zo8v2WsRFs8gVa3BZjwmle1GK
-         pfRIrNVVanNCc8AEbJlDtvFhw5/QlKpS67K/2EsIOQEy8hvKVuwcPksCJr25OCE/XBBn
-         QqYg==
-X-Google-Smtp-Source: AHgI3IYWY7Ghxi/h12hQKyhtNx7Svt8SN9NDulSxokwzQOKjvHqoGwEA6m30t17PvUiKofsiFVoIUA==
-X-Received: by 2002:a7b:c457:: with SMTP id l23mr2410289wmi.2.1550840033285;
-        Fri, 22 Feb 2019 04:53:53 -0800 (PST)
-Received: from andreyknvl0.muc.corp.google.com ([2a00:79e0:15:13:8ce:d7fa:9f4c:492])
-        by smtp.gmail.com with ESMTPSA id o14sm808209wrp.34.2019.02.22.04.53.51
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Feb 2019 04:53:52 -0800 (PST)
-From: Andrey Konovalov <andreyknvl@google.com>
-To: Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kees Cook <keescook@chromium.org>,
-	Kate Stewart <kstewart@linuxfoundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Ingo Molnar <mingo@kernel.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Shuah Khan <shuah@kernel.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	linux-arm-kernel@lists.infradead.org,
-	linux-doc@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-arch@vger.kernel.org,
-	linux-kselftest@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Chintan Pandya <cpandya@codeaurora.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>
-Subject: [PATCH v10 12/12] selftests, arm64: add a selftest for passing tagged pointers to kernel
-Date: Fri, 22 Feb 2019 13:53:24 +0100
-Message-Id: <8c08cda0dfdef1b062695241a6f6594487eaa3cb.1550839937.git.andreyknvl@google.com>
-X-Mailer: git-send-email 2.21.0.rc0.258.g878e2cd30e-goog
-In-Reply-To: <cover.1550839937.git.andreyknvl@google.com>
-References: <cover.1550839937.git.andreyknvl@google.com>
+        Fri, 22 Feb 2019 04:55:43 -0800 (PST)
+Received-SPF: pass (google.com: domain of peng.fan@nxp.com designates 40.107.2.85 as permitted sender) client-ip=40.107.2.85;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@nxp.com header.s=selector1 header.b=eEaSYh5J;
+       spf=pass (google.com: domain of peng.fan@nxp.com designates 40.107.2.85 as permitted sender) smtp.mailfrom=peng.fan@nxp.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nxp.com; s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=6gPp4lUAnE0sOQp1CA1ZM31buOCC28HSLxLZkDETCE8=;
+ b=eEaSYh5JzEr8UXCSGYlqtXjId2EW7S1XAIovDg3y0FmfFI3v0E/UCultZAYE5jWVwFdtnj1wo8BUO70wsjpgDmepyDkS5wYoJ7R+QmmhJ7a7P9g9WozmcWUzvsaTXHJyN6p2dN2Ah1DKi5m9xSPJpffbN1F3z5SPkXhlmDUAcO4=
+Received: from AM0PR04MB4481.eurprd04.prod.outlook.com (52.135.147.15) by
+ AM0PR04MB4307.eurprd04.prod.outlook.com (52.134.92.138) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1643.16; Fri, 22 Feb 2019 12:55:41 +0000
+Received: from AM0PR04MB4481.eurprd04.prod.outlook.com
+ ([fe80::a51f:134d:b530:f185]) by AM0PR04MB4481.eurprd04.prod.outlook.com
+ ([fe80::a51f:134d:b530:f185%5]) with mapi id 15.20.1643.018; Fri, 22 Feb 2019
+ 12:55:41 +0000
+From: Peng Fan <peng.fan@nxp.com>
+To: Mike Rapoport <rppt@linux.ibm.com>, Vlastimil Babka <vbabka@suse.cz>,
+	Catalin Marinas <catalin.marinas@arm.com>
+CC: Andrew Morton <akpm@linux-foundation.org>, "labbott@redhat.com"
+	<labbott@redhat.com>, "mhocko@suse.com" <mhocko@suse.com>,
+	"iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "rppt@linux.vnet.ibm.com"
+	<rppt@linux.vnet.ibm.com>, "m.szyprowski@samsung.com"
+	<m.szyprowski@samsung.com>, "rdunlap@infradead.org" <rdunlap@infradead.org>,
+	"andreyknvl@google.com" <andreyknvl@google.com>, "linux-mm@kvack.org"
+	<linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>, "van.freenix@gmail.com"
+	<van.freenix@gmail.com>, Catalin Marinas <catalin.marinas@arm.com>
+Subject: RE: [PATCH] mm/cma: cma_declare_contiguous: correct err handling
+Thread-Topic: [PATCH] mm/cma: cma_declare_contiguous: correct err handling
+Thread-Index: AQHUxGM3TWg8yAT7z0a/qrCp1B+TP6Xfwa8AgAedZYCAAA4lgIAEY/Hw
+Date: Fri, 22 Feb 2019 12:55:41 +0000
+Message-ID:
+ <AM0PR04MB448139C6E264579818E94CF6887F0@AM0PR04MB4481.eurprd04.prod.outlook.com>
+References: <20190214125704.6678-1-peng.fan@nxp.com>
+ <20190214123824.fe95cc2e603f75382490bfb4@linux-foundation.org>
+ <b78470e8-b204-4a7e-f9cc-eff9c609f480@suse.cz>
+ <20190219174610.GA32749@rapoport-lnx>
+In-Reply-To: <20190219174610.GA32749@rapoport-lnx>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [119.31.174.68]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: afcfcf43-85ce-4b06-b806-08d698c50d0c
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600110)(711020)(4605104)(4618075)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7153060)(7193020);SRVR:AM0PR04MB4307;
+x-ms-traffictypediagnostic: AM0PR04MB4307:
+x-microsoft-exchange-diagnostics:
+ =?gb2312?B?MTtBTTBQUjA0TUI0MzA3OzIzOk1ydVQwd0JuTHdSTXhDYlMwVzVtVXprWUpr?=
+ =?gb2312?B?aFhmTHppdDFaWVdZaldCcnhvVHFieWJPMzlHUm9PQWVkekdPMXFFNnB6VWZI?=
+ =?gb2312?B?Sm4wT0lkQUcxOVBPT2c1TlBoM3lkNStRZTZlaGZHVUtnSDBLaDA5ZzBTcnRp?=
+ =?gb2312?B?ZDM2ekNDb0hYZEVZdUUrUHlIWDBDL1BpMW0vZ0FTckhZNUluZ1RPbHJQd1RU?=
+ =?gb2312?B?WWxhb0FNakV1Q09oMURXQWZVT1NkL1g2Qld2dENLOVBkT01uN2o1bk4xaGtD?=
+ =?gb2312?B?Z0JUd0ZQd1Z5cmR3Z3l1bTc1WTB2SmxXWGZUN21BWWJWcjk0dFJ5Y1ZabFJF?=
+ =?gb2312?B?cjJlMkxWL2pKYllyK2hKMkk1Zml4K1J0NXlEUnE4eEs2b01nMUo1WGYzblJ1?=
+ =?gb2312?B?dXZWbWI2eHFTdkVFditucEV1bUx5YW53emNWelZkQ0o1U2w1UlluNFdxWFEv?=
+ =?gb2312?B?RFQvblBsRVhHd2RBWEpoYll2WHY3V1NsU3lSYUFwMXBReVU0eFJuOTJJZDV4?=
+ =?gb2312?B?U0RXcFBNeEdTZlFkWEY1eU5tdEkyc0RKUDdxVXE4VTUxejRzTGVFVnRoR2ND?=
+ =?gb2312?B?YzFLMkEyY0pFbnF5cUFkSENLWFRYazBzUE1acTY5ZTJpQUFpWkxNbEwwa2Va?=
+ =?gb2312?B?NmZwMUxjS0tDYkM5VVJ2ZEYzeTdTN0c0QVUramZrTXArV3lUMVVBVnVqVHMr?=
+ =?gb2312?B?djlERUF3ZUd2OUdJNUpKL05Zd0xuNURXV1NhVEREUlpPMm9NV21yM2o0VzNm?=
+ =?gb2312?B?bjdxRHlENHJhbGtuNGRUYXRSRmlaVjZhRE9UZHhGSkxKcDhWQlVZTHU5eEZ6?=
+ =?gb2312?B?blNmaXlEdzZTZkcvUklqQlJwTFJneXNhVlZ6MVp0SXpqV0dBRHg5cWs3MDNI?=
+ =?gb2312?B?a3FmZnlGOWxKbjRnVy96ajFPZDhxWVM3UHpMQlhHTk9MK25Ybm1OU0hVaDNm?=
+ =?gb2312?B?SStLa2RQbUtRSmdNZmNqMGtQSklkcVVtc1hjbFd5aVZTV21BNkRVTi9JM1Ex?=
+ =?gb2312?B?VkpoOWpQTmFuZ3JrSnQ1VnJ0NC85MW93QTF1U3JUcFloQ2t5bFBKTjVIVlZB?=
+ =?gb2312?B?NGU0VTV2UmVYTzZmQ2plejliK2Y4cXFHQVhxOE01T2p6S2FlTEF5OS83dGJQ?=
+ =?gb2312?B?NVMxQkI5a1RHVnRtREk2NVUvS0lvQjVjQ2J3TUpDTE1SWCtCbTgrR1IrZDZi?=
+ =?gb2312?B?SytDcDVhbDdZZFNETXBlTGo0YWlKbUZGTDJqbzk0bnBuNVhBVDAxWStmTVRi?=
+ =?gb2312?B?azlpL2lRam9GTHhFcmNVeWpCaC9MZS9EWUdDYkdpTnpkYWFXQ1c4dDRKU0hx?=
+ =?gb2312?B?bklTRWhacnlwbHppaHZBVlRnRHRkdUljcUFPR2V6eTdhS1F6aWZjQytvZ0Jx?=
+ =?gb2312?B?YXUvR2IzdXR1SGlmV0V5QjBFN3FkM0I0NXNzQ3JQYXNxVGxXV3NIVUthSWgy?=
+ =?gb2312?B?U21uR1hJNEZ5T0ZKUmRoNXBKZDRjMmV5eU1ZVTZaOExqb0w5T1BZN2V2Q3V3?=
+ =?gb2312?B?V2h5dXhNVVB1U2lqaFp0NlNGZmhKdDcvd3QxNnhFMlpQb2FiY1RGVEFpclBa?=
+ =?gb2312?B?bmtwUlJWbTd4S1FKUnR0YXIxNXZyRjFqNC9IOE02Nno5NkhlcVY1OG56ZmE4?=
+ =?gb2312?B?OEQwWlA5UzEvS20yY294UUJZanRBbE1sT084RW1TSjJQZ2xIa1grZXY0S1FJ?=
+ =?gb2312?B?UlpBU1F4UXQ4ei9COEpNaUc5SFM4MFY5RU1vTlZCM093UElNMjVoUnpERGE3?=
+ =?gb2312?B?cndqOUJrVjdHd0ltS2FtS1p5RmRDWGtnS2x2VW05b3JWVk5EVTZWd2c1MGxS?=
+ =?gb2312?Q?vI+OZyT9dsyQo?=
+x-microsoft-antispam-prvs:
+ <AM0PR04MB430723EE53F7D81E51F7AF01887F0@AM0PR04MB4307.eurprd04.prod.outlook.com>
+x-forefront-prvs: 09565527D6
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(136003)(396003)(366004)(39860400002)(346002)(376002)(199004)(189003)(13464003)(81156014)(486006)(86362001)(7416002)(81166006)(68736007)(44832011)(6246003)(53936002)(93886005)(99286004)(316002)(25786009)(4326008)(7696005)(105586002)(106356001)(256004)(14454004)(66066001)(74316002)(7736002)(476003)(8936002)(446003)(305945005)(11346002)(2906002)(97736004)(478600001)(8676002)(71200400001)(71190400001)(14444005)(6116002)(26005)(5660300002)(6346003)(102836004)(186003)(53546011)(6506007)(9686003)(55016002)(3846002)(76176011)(229853002)(110136005)(6436002)(54906003)(33656002);DIR:OUT;SFP:1101;SCL:1;SRVR:AM0PR04MB4307;H:AM0PR04MB4481.eurprd04.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: nxp.com does not designate
+ permitted sender hosts)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=peng.fan@nxp.com; 
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ wpI9PIClwJ1IO4j3nV4F253funUrXweflRcrLBg7ae5ObYEoB255rrPlcdfQbMDm0esdE9rNIUU0IOgUWJwNKJ3xM4PvbV6Iy6E9/dMVEhQcKh9F3vvenmtWe9nHAFtOABoJZ+1+wMBmV7BMnvc1bJw3sNLLr7seM4jbbl2sP7KOpY1LdjLHZIcVT2/naG6AjB/jlSMHHRy3pE2H/cpEZSG5P1up0Nxz+oQH4FqFkRNmVn914vDjMRrFFQwuptdxGRp9HI/Mv3FsJbsZzco49RKvjs/ZVXyUUjAkW3snA+o+d2uRiyvPyA30QhmDGfTmkEHfkDPB/e19V8q8jX5bKQOuZA/RJytOFotbhmE0ZdNxfhPhwPqOqyeExarktVss3/uByIFaKKh9f/z3RKxxTAu5i88mR2z9OozfVc7fM1M=
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+X-OriginatorOrg: nxp.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: afcfcf43-85ce-4b06-b806-08d698c50d0c
+X-MS-Exchange-CrossTenant-originalarrivaltime: 22 Feb 2019 12:55:41.3569
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 686ea1d3-bc2b-4c6f-a92c-d99c5c301635
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: AM0PR04MB4307
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch adds a simple test, that calls the uname syscall with a
-tagged user pointer as an argument. Without the kernel accepting tagged
-user pointers the test fails with EFAULT.
-
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
----
- tools/testing/selftests/arm64/.gitignore      |  1 +
- tools/testing/selftests/arm64/Makefile        | 11 +++++++++++
- .../testing/selftests/arm64/run_tags_test.sh  | 12 ++++++++++++
- tools/testing/selftests/arm64/tags_test.c     | 19 +++++++++++++++++++
- 4 files changed, 43 insertions(+)
- create mode 100644 tools/testing/selftests/arm64/.gitignore
- create mode 100644 tools/testing/selftests/arm64/Makefile
- create mode 100755 tools/testing/selftests/arm64/run_tags_test.sh
- create mode 100644 tools/testing/selftests/arm64/tags_test.c
-
-diff --git a/tools/testing/selftests/arm64/.gitignore b/tools/testing/selftests/arm64/.gitignore
-new file mode 100644
-index 000000000000..e8fae8d61ed6
---- /dev/null
-+++ b/tools/testing/selftests/arm64/.gitignore
-@@ -0,0 +1 @@
-+tags_test
-diff --git a/tools/testing/selftests/arm64/Makefile b/tools/testing/selftests/arm64/Makefile
-new file mode 100644
-index 000000000000..a61b2e743e99
---- /dev/null
-+++ b/tools/testing/selftests/arm64/Makefile
-@@ -0,0 +1,11 @@
-+# SPDX-License-Identifier: GPL-2.0
-+
-+# ARCH can be overridden by the user for cross compiling
-+ARCH ?= $(shell uname -m 2>/dev/null || echo not)
-+
-+ifneq (,$(filter $(ARCH),aarch64 arm64))
-+TEST_GEN_PROGS := tags_test
-+TEST_PROGS := run_tags_test.sh
-+endif
-+
-+include ../lib.mk
-diff --git a/tools/testing/selftests/arm64/run_tags_test.sh b/tools/testing/selftests/arm64/run_tags_test.sh
-new file mode 100755
-index 000000000000..745f11379930
---- /dev/null
-+++ b/tools/testing/selftests/arm64/run_tags_test.sh
-@@ -0,0 +1,12 @@
-+#!/bin/sh
-+# SPDX-License-Identifier: GPL-2.0
-+
-+echo "--------------------"
-+echo "running tags test"
-+echo "--------------------"
-+./tags_test
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+else
-+	echo "[PASS]"
-+fi
-diff --git a/tools/testing/selftests/arm64/tags_test.c b/tools/testing/selftests/arm64/tags_test.c
-new file mode 100644
-index 000000000000..1452ed7d33f9
---- /dev/null
-+++ b/tools/testing/selftests/arm64/tags_test.c
-@@ -0,0 +1,19 @@
-+// SPDX-License-Identifier: GPL-2.0
-+
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <stdint.h>
-+#include <sys/utsname.h>
-+
-+#define SHIFT_TAG(tag)		((uint64_t)(tag) << 56)
-+#define SET_TAG(ptr, tag)	(((uint64_t)(ptr) & ~SHIFT_TAG(0xff)) | \
-+					SHIFT_TAG(tag))
-+
-+int main(void)
-+{
-+	struct utsname utsname;
-+	void *ptr = &utsname;
-+	void *tagged_ptr = (void *)SET_TAG(ptr, 0x42);
-+	int err = uname(tagged_ptr);
-+	return err;
-+}
--- 
-2.21.0.rc0.258.g878e2cd30e-goog
+DQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogTWlrZSBSYXBvcG9ydCBb
+bWFpbHRvOnJwcHRAbGludXguaWJtLmNvbV0NCj4gU2VudDogMjAxOcTqMtTCMjDI1SAxOjQ2DQo+
+IFRvOiBWbGFzdGltaWwgQmFia2EgPHZiYWJrYUBzdXNlLmN6Pg0KPiBDYzogQW5kcmV3IE1vcnRv
+biA8YWtwbUBsaW51eC1mb3VuZGF0aW9uLm9yZz47IFBlbmcgRmFuDQo+IDxwZW5nLmZhbkBueHAu
+Y29tPjsgbGFiYm90dEByZWRoYXQuY29tOyBtaG9ja29Ac3VzZS5jb207DQo+IGlhbWpvb25zb28u
+a2ltQGxnZS5jb207IHJwcHRAbGludXgudm5ldC5pYm0uY29tOw0KPiBtLnN6eXByb3dza2lAc2Ft
+c3VuZy5jb207IHJkdW5sYXBAaW5mcmFkZWFkLm9yZzsNCj4gYW5kcmV5a252bEBnb29nbGUuY29t
+OyBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7DQo+IHZh
+bi5mcmVlbml4QGdtYWlsLmNvbTsgQ2F0YWxpbiBNYXJpbmFzIDxjYXRhbGluLm1hcmluYXNAYXJt
+LmNvbT4NCj4gU3ViamVjdDogUmU6IFtQQVRDSF0gbW0vY21hOiBjbWFfZGVjbGFyZV9jb250aWd1
+b3VzOiBjb3JyZWN0IGVyciBoYW5kbGluZw0KPiANCj4gT24gVHVlLCBGZWIgMTksIDIwMTkgYXQg
+MDU6NTU6MzNQTSArMDEwMCwgVmxhc3RpbWlsIEJhYmthIHdyb3RlOg0KPiA+IE9uIDIvMTQvMTkg
+OTozOCBQTSwgQW5kcmV3IE1vcnRvbiB3cm90ZToNCj4gPiA+IE9uIFRodSwgMTQgRmViIDIwMTkg
+MTI6NDU6NTEgKzAwMDAgUGVuZyBGYW4gPHBlbmcuZmFuQG54cC5jb20+DQo+IHdyb3RlOg0KPiA+
+ID4NCj4gPiA+PiBJbiBjYXNlIGNtYV9pbml0X3Jlc2VydmVkX21lbSBmYWlsZWQsIG5lZWQgdG8g
+ZnJlZSB0aGUgbWVtYmxvY2sNCj4gPiA+PiBhbGxvY2F0ZWQgYnkgbWVtYmxvY2tfcmVzZXJ2ZSBv
+ciBtZW1ibG9ja19hbGxvY19yYW5nZS4NCj4gPiA+Pg0KPiA+ID4+IC4uLg0KPiA+ID4+DQo+ID4g
+Pj4gLS0tIGEvbW0vY21hLmMNCj4gPiA+PiArKysgYi9tbS9jbWEuYw0KPiA+ID4+IEBAIC0zNTMs
+MTIgKzM1MywxNCBAQCBpbnQgX19pbml0DQo+IGNtYV9kZWNsYXJlX2NvbnRpZ3VvdXMocGh5c19h
+ZGRyX3QNCj4gPiA+PiBiYXNlLA0KPiA+ID4+DQo+ID4gPj4gIAlyZXQgPSBjbWFfaW5pdF9yZXNl
+cnZlZF9tZW0oYmFzZSwgc2l6ZSwgb3JkZXJfcGVyX2JpdCwgbmFtZSwNCj4gcmVzX2NtYSk7DQo+
+ID4gPj4gIAlpZiAocmV0KQ0KPiA+ID4+IC0JCWdvdG8gZXJyOw0KPiA+ID4+ICsJCWdvdG8gZnJl
+ZV9tZW07DQo+ID4gPj4NCj4gPiA+PiAgCXByX2luZm8oIlJlc2VydmVkICVsZCBNaUIgYXQgJXBh
+XG4iLCAodW5zaWduZWQgbG9uZylzaXplIC8gU1pfMU0sDQo+ID4gPj4gIAkJJmJhc2UpOw0KPiA+
+ID4+ICAJcmV0dXJuIDA7DQo+ID4gPj4NCj4gPiA+PiArZnJlZV9tZW06DQo+ID4gPj4gKwltZW1i
+bG9ja19mcmVlKGJhc2UsIHNpemUpOw0KPiA+ID4+ICBlcnI6DQo+ID4gPj4gIAlwcl9lcnIoIkZh
+aWxlZCB0byByZXNlcnZlICVsZCBNaUJcbiIsICh1bnNpZ25lZCBsb25nKXNpemUgLyBTWl8xTSk7
+DQo+ID4gPj4gIAlyZXR1cm4gcmV0Ow0KPiA+ID4NCj4gPiA+IFRoaXMgZG9lc24ndCBsb29rIHJp
+Z2h0IHRvIG1lLiAgSW4gdGhlIGBmaXhlZD09dHJ1ZScgY2FzZSB3ZSBkaWRuJ3QNCj4gPiA+IGFj
+dHVhbGx5IGFsbG9jYXRlIGFueXRoaW5nIGFuZCBpbiB0aGUgYGZpeGVkPT1mYWxzZScgY2FzZSwg
+dGhlDQo+ID4gPiBhbGxvY2F0ZWQgbWVtb3J5IGlzIGF0IGBhZGRyJywgbm90IGF0IGBiYXNlJy4N
+Cj4gPg0KPiA+IEkgdGhpbmsgaXQncyBvayBhcyB0aGUgZml4ZWQ9PXRydWUgcGF0aCBoYXMgIm1l
+bWJsb2NrX3Jlc2VydmUoKSIsIGJ1dA0KPiA+IGJldHRlciBsZWF2ZSB0aGlzIHRvIHRoZSBtZW1i
+bG9jayBtYWludGFpbmVyIDopDQo+IA0KPiBBcyBQZW5nIEZhbiBub3RlZCBpbiB0aGUgb3RoZXIg
+ZS1tYWlsLCBmaXhlZD09dHJ1ZSBoYXMgbWVtYmxvY2tfcmVzZXJ2ZSgpDQo+IGFuZCBmaXhlZD09
+ZmFsc2UgcmVzZXRzIGJhc2UgPSBhZGRyLCBzbyB0aGlzIGlzIE9rLg0KPiANCj4gPiBUaGVyZSdz
+IGFsc28gJ2ttZW1sZWFrX2lnbm9yZV9waHlzKGFkZHIpJyB3aGljaCBzaG91bGQgcHJvYmFibHkg
+YmUNCj4gPiB1bmRvbmUgKG9yIG5vdCBjYWxsZWQgYXQgYWxsKSBpbiB0aGUgZmFpbHVyZSBjYXNl
+LiBCdXQgaXQgc2VlbXMgdG8gYmUNCj4gPiBtaXNzaW5nIGZyb20gdGhlIGZpeGVkPT10cnVlIHBh
+dGg/DQo+IA0KPiBXZWxsLCBtZW1ibG9jayBhbmQga21lbWxlYWsgaW50ZXJhY3Rpb24gZG9lcyBu
+b3Qgc2VlbSB0byBoYXZlIGNsZWFyDQo+IHNlbWFudGljcyBhbnl3YXkuIG1lbWJsb2NrX2ZyZWUo
+KSBjYWxscyBrbWVtbGVha19mcmVlX3BhcnRfcGh5cygpIHdoaWNoDQo+IGRvZXMgbm90IHNlZW0g
+dG8gY2FyZSBhYm91dCBpZ25vcmVkIG9iamVjdHMuDQo+IEFzIGZvciB0aGUgZml4ZWQ9PXRydWUg
+cGF0aCwgbWVtYmxvY2tfcmVzZXJ2ZSgpIGRvZXMgbm90IHJlZ2lzdGVyIHRoZSBhcmVhDQo+IHdp
+dGgga21lbWxlYWssIHNvIHRoZXJlIHdvdWxkIGJlIG5vIG9iamVjdCB0byBmcmVlIGluIG1lbWJs
+b2NrX2ZyZWUoKS4NCj4gQUZBSVUsIGttZW1sZWFrIHNpbXBseSBpZ25vcmVzIHRoaXMuDQoNCkkg
+YWxzbyBnbyB0aHJvdWdoIHRoZSBtZW1ibG9ja19mcmVlIGZsb3csIGFuZCBhZ3JlZSB3aXRoIE1p
+a2UNCm1lbWJsb2NrX2ZyZWUgDQogICAgLT4ga21lbWxlYWtfZnJlZV9wYXJ0X3BoeXMgDQogICAg
+ICAgICAgLT4ga21lbWxlYWtfZnJlZV9wYXJ0DQogICAgICAgICAgICAgICAgIHwtPiBkZWxldGVf
+b2JqZWN0X3BhcnQNCiAgICAgICAgICAgICAgICAgICAgICAgICB8LT4gb2JqZWN0ID0gZmluZF9h
+bmRfcmVtb3ZlX29iamVjdChwdHIsIDEpOw0KDQptZW1ibG9ja19yZXNlcnZlIG5vdCByZWdpc3Rl
+ciB0aGUgYXJlYSBpbiBrbWVtbGVhaywgc28gZmluZF9hbmRfcmVtb3ZlX29iamVjdA0Kd2lsbCBu
+b3QgYmUgYWJsZSB0byBmaW5kIGEgdmFsaWQgYXJlYSBhbmQganVzdCByZXR1cm4uDQoNCldoYXQg
+c2hvdWxkIEkgZG8gbmV4dCB3aXRoIHRoaXMgcGF0Y2g/DQoNClRoYW5rcywNClBlbmcuDQoNCj4g
+DQo+IENhdGFsaW4sIGNhbiB5b3UgY29tbWVudCBwbGVhc2U/DQo+IA0KPiAtLQ0KPiBTaW5jZXJl
+bHkgeW91cnMsDQo+IE1pa2UuDQoNCg==
 
