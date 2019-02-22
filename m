@@ -2,155 +2,139 @@ Return-Path: <SRS0=SgWF=Q5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D94AC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:32:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F1CD7C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:48:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 57E97206B6
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:32:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57E97206B6
+	by mail.kernel.org (Postfix) with ESMTP id B76012070B
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:48:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B76012070B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E53538E012B; Fri, 22 Feb 2019 13:32:26 -0500 (EST)
+	id 5456D8E012C; Fri, 22 Feb 2019 13:48:31 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DDA9B8E0123; Fri, 22 Feb 2019 13:32:26 -0500 (EST)
+	id 4F5228E0123; Fri, 22 Feb 2019 13:48:31 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C576E8E012B; Fri, 22 Feb 2019 13:32:26 -0500 (EST)
+	id 396A38E012C; Fri, 22 Feb 2019 13:48:31 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F0248E0123
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 13:32:26 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id a5so2431343pfn.2
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:32:26 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E767D8E0123
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 13:48:30 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id j13so2163338pll.15
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:48:30 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=+kp26HJxE9BUMgrXUICUhq3fE0bJad6rfE/JOWKAD2o=;
-        b=Me7T3B0UI77kOFHsSgJBiV5amq+FQtkqI+U/YkPSLMkQpwkpKwmoNJUXqhUogeDLeE
-         EKewwefIGzWAEOjLOjrBjBvczQ1eYPZL9w8mQ1zljWlU44AOk29pSgArsejUh+12qgg9
-         OdKxE1MbVUL49cJsNWrL6h1LJqj3m+0Y03c2eG3eCY5aGlyv89rTREuDGKfLZqvAejQQ
-         ARWENdSGXmGoIe+MOKVzI4FjyOsc6NfcKZzlE5YIT+eXlfl2ptfockt6ib/kNKc0Bft7
-         QA55lD3RHTi4J8JOU5CYfkKSpxAt9VNHNRnz6bJu5zJ7b7xdHXzWvuLUass+xWcwB+A6
-         fkRQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAub51NmQ6vbFtSvQhXFabTqWtaf+2ft6aCqcZIF4MbQww+0YP3Hq
-	vTFCvDTS7LSBSpjdFWSX+KIVauGaNOhJl8hAeprpAGgdYkJMiF+3M96gUgMxY470OIrxlI6CcgX
-	qxai4yB6qSLkvjhEBKAifkx5DhVc33fQPxAkWfepfwLFQjD5FDNn/dscJdmGIJBMJMA==
-X-Received: by 2002:a63:6244:: with SMTP id w65mr5152506pgb.300.1550860346181;
-        Fri, 22 Feb 2019 10:32:26 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ia0kmZVYctwJSXKFRb7F1UwkpW3wPA7Qp396IIrUyebRy8UavenMDyEye46fRSTn5FEuo1i
-X-Received: by 2002:a63:6244:: with SMTP id w65mr5152436pgb.300.1550860345224;
-        Fri, 22 Feb 2019 10:32:25 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550860345; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=/eSseL3F9ekfkN4+acQPnKUV3WUrZ1thPceUqMBGnQE=;
+        b=XKbZXxceA37fb1s7HR9sIqxKn4JXAHsp7SfhWrMMlId6mOFZjY6BjQbP2iQJM7G+IN
+         YcAx7SeJbKNQWN/RO2gG21JC/3h/j2l3EioON6622MiHQK59WJmf6+yT85rtS43L2o2U
+         QwcF4Pg6YxMQAW7Qv+i+8qiXXNAUHNzqK9km7/+DHz4k1c1YjdpJ36EIXsY1M3U+EM7J
+         ZA960m5KEwN0ObYL24b/N/JrjhggwBq0SjuJAH7VjG/pUsaxlTfeTa6vZzMFWVKbspz1
+         HpaVGxdWSgrC087RNGFq6ajQ2LzsaTg2wvfxRIr/sLwVY/hOZW8rWI8JJKRKRr2r+VON
+         DasQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuaVUsVsIDCuJXUmL8m8HlHktREhRJhPSGpFOCt2pBfvasp1S97Q
+	xy55J8DT5K2AhgLxtnxTZfLnUf3BFgGM3xlo2/nTNN8ma7veu6hq3yrtQhIG3MOSactOxHXBVwU
+	V54paGJo2H+4o1I5rVuiPYz35+rBL88SjeYbYheu7iGcJrYTSeEsyW39V9lBSaUW8vQ==
+X-Received: by 2002:a63:c40a:: with SMTP id h10mr5374821pgd.131.1550861310472;
+        Fri, 22 Feb 2019 10:48:30 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaxSKzPj3u2WtV1oKEzNQm0PnXPbxKEAAmtBRSONJ4LCyyb6EkB+k7EhGg72NvPP9oLF7Ka
+X-Received: by 2002:a63:c40a:: with SMTP id h10mr5374775pgd.131.1550861309476;
+        Fri, 22 Feb 2019 10:48:29 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550861309; cv=none;
         d=google.com; s=arc-20160816;
-        b=saEuu3qSiFH6OXR9FY5XSygQgGQHcGFgiKLGMcEW6dLt2+k2FaFRK5DMc+hd7j24Oe
-         cD7bb0stCsp6wKbViNP5YY3JXOpaKxU/dKMLGwjPDflq8I2FwrrhUzbaCNpDYa1jhrGv
-         LhGnjbaGOJl6ERopvvjfd8CdHVQNq5pTOOpub+gfJ4N8ZN209UoiRaTuMygB3od/p4La
-         +XT/tvg4q01Wdl871PiY+Db2P6pI7OrHNVaHjoTCR0tYRhWR+UgHGct2LBtHDxk3wf06
-         rZ5JXXavVI9AksaXlhvXu0J2PCVUrsQGXzbt7P+BKDibcVUafkeYorgVZzNwyidXjzAJ
-         Y6mA==
+        b=UwBwto5/VwUU2CJocX6o5s9WdJEpl/Dq0V6JweZBFtxbnXzA/qo1c0DH8V6IoQR+pW
+         h5INfHxjBrpsuUofz5MCl4z0JlPJnSBvYwoq6sjVnAtaY8g61tzio1cXcFRFs59bTtkX
+         aGV6tJlJG6qKYiW2mE95tnQkW+lVT8+0vY7mAchpLD4RruaDczoXVHUhWns9gli/wCD5
+         Ll00bmbejgB0miv/Eq3+D8WPnw9B1jL3l9whhOIZ/dxaPnngrIa3UtaU0ILOn7NIc0Le
+         EGn3bMVke7vz2Sp3YUl92F7RQwjuYzIp6SCW0MRFx7C+RerHs1M7+vs1TYvAYxAazEFo
+         cEmg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from;
-        bh=+kp26HJxE9BUMgrXUICUhq3fE0bJad6rfE/JOWKAD2o=;
-        b=E2krr7giJsjMEAP/xlDkNcuJB1P99JmMr1m4R2QGpbVPnSgQtpv3mL3ryLzSJLPq0w
-         +cX7+CHbcO+jC+QGmnvKSFehWJPA7HsJQwZR3jmOjeI33vpXsH7UNs2Zqrz7/3Yq+boA
-         eKur/5EJJDiCsaJyZklZDAMgtFixlB5cwclSMbCN+iBJxcimwekGvTv9eICXNv0+qKQT
-         l76SdNe/on9J//otNhdYK1f+zDfCK1oSz7ifY/bM6wfDuJYst6qy0kgzOyPm9+kiKea4
-         rb+4MOU2hVAso5G2YT6PXbputjdHjgaV0eRo+PLCxPMiW6561MrNMT/vkh2zMJjQoLin
-         nM5g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=/eSseL3F9ekfkN4+acQPnKUV3WUrZ1thPceUqMBGnQE=;
+        b=fkvuyB/XBZg2HZD9s8B3x1ifES4dXa3leqnoLY8TJnHtr9Q1JnTwlwL0DG6orSH1hy
+         rEY+WO0FZwWx0ecUuevGrry5lX56CdfkDhr1hl7LscWYYf5gNK1WMXMmJXgv87ed+aqG
+         agAmOt6xO4VgK/O0fY3BE+jW20IAdl1qhRrNu692r68hdRLQo6seH3J/FDyp4YuDTyQd
+         Z6TcT2mI2Hw7jVNRgCePpl7iGoQJMaW/eBF2kPU0cPBX+6RP1s4fPfsxUD3hmDMZTN3j
+         sJ2qrwauWyxsIHe+DTSe1jVeSaLICuCQuIVY620CCjdgImYutpLeXR/m2Cnzi/s8frHJ
+         2CqA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
+       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id j70si1978907pge.271.2019.02.22.10.32.25
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id i12si1850677pgq.466.2019.02.22.10.48.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Feb 2019 10:32:25 -0800 (PST)
-Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        Fri, 22 Feb 2019 10:48:29 -0800 (PST)
+Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
+       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-Result: UNSCANNABLE
 X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Feb 2019 10:32:24 -0800
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Feb 2019 10:48:28 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,400,1544515200"; 
-   d="scan'208";a="117054389"
-Received: from orsmsx107.amr.corp.intel.com ([10.22.240.5])
-  by orsmga007.jf.intel.com with ESMTP; 22 Feb 2019 10:32:24 -0800
-Received: from orsmsx153.amr.corp.intel.com (10.22.226.247) by
- ORSMSX107.amr.corp.intel.com (10.22.240.5) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Fri, 22 Feb 2019 10:32:23 -0800
-Received: from orsmsx112.amr.corp.intel.com ([169.254.3.70]) by
- ORSMSX153.amr.corp.intel.com ([169.254.12.140]) with mapi id 14.03.0415.000;
- Fri, 22 Feb 2019 10:32:23 -0800
-From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-To: "bp@alien8.de" <bp@alien8.de>
-CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"peterz@infradead.org" <peterz@infradead.org>,
-	"linux-integrity@vger.kernel.org" <linux-integrity@vger.kernel.org>,
-	"ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "tglx@linutronix.de"
-	<tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>,
-	"nadav.amit@gmail.com" <nadav.amit@gmail.com>, "Dock, Deneen T"
-	<deneen.t.dock@intel.com>, "linux-security-module@vger.kernel.org"
-	<linux-security-module@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com"
-	<hpa@zytor.com>, "kristen@linux.intel.com" <kristen@linux.intel.com>,
-	"mingo@redhat.com" <mingo@redhat.com>, "linux_dti@icloud.com"
-	<linux_dti@icloud.com>, "luto@kernel.org" <luto@kernel.org>,
-	"will.deacon@arm.com" <will.deacon@arm.com>,
-	"kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
-Subject: Re: [PATCH v3 00/20] Merge text_poke fixes and executable lockdowns
-Thread-Topic: [PATCH v3 00/20] Merge text_poke fixes and executable lockdowns
-Thread-Index: AQHUykBH6Cl4tgVNiUeaovpifCvY+6XshO+AgAAmmIA=
-Date: Fri, 22 Feb 2019 18:32:22 +0000
-Message-ID: <33968a3c7cc750f3d1cabf062f5fb25fd176e816.camel@intel.com>
-References: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
-	 <20190222161419.GB30766@zn.tnic>
-In-Reply-To: <20190222161419.GB30766@zn.tnic>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [10.54.75.11]
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <6AFE1C37A3162E43A5884A3972E03B3D@intel.com>
-Content-Transfer-Encoding: base64
+   d="scan'208";a="124469968"
+Received: from unknown (HELO localhost.localdomain) ([10.232.112.69])
+  by fmsmga007.fm.intel.com with ESMTP; 22 Feb 2019 10:48:28 -0800
+Date: Fri, 22 Feb 2019 11:48:31 -0700
+From: Keith Busch <keith.busch@intel.com>
+To: "Rafael J. Wysocki" <rafael@kernel.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	Linux API <linux-api@vger.kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Dan Williams <dan.j.williams@intel.com>
+Subject: Re: [PATCHv6 07/10] acpi/hmat: Register processor domain to its
+ memory
+Message-ID: <20190222184831.GF10237@localhost.localdomain>
+References: <20190214171017.9362-1-keith.busch@intel.com>
+ <20190214171017.9362-8-keith.busch@intel.com>
+ <CAJZ5v0gjv0DZvYMTPBLnUmMtu8=g0zFd4x-cpP11Kzv+6XCwUw@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJZ5v0gjv0DZvYMTPBLnUmMtu8=g0zFd4x-cpP11Kzv+6XCwUw@mail.gmail.com>
+User-Agent: Mutt/1.9.1 (2017-09-22)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gRnJpLCAyMDE5LTAyLTIyIGF0IDE3OjE0ICswMTAwLCBCb3Jpc2xhdiBQZXRrb3Ygd3JvdGU6
-DQo+IE9uIFRodSwgRmViIDIxLCAyMDE5IGF0IDAzOjQ0OjMxUE0gLTA4MDAsIFJpY2sgRWRnZWNv
-bWJlIHdyb3RlOg0KPiA+IENoYW5nZXMgdjIgdG8gdjM6DQo+ID4gIC0gRml4IGNvbW1pdCBtZXNz
-YWdlcyBhbmQgY29tbWVudHMgW0JvcmlzXQ0KPiA+ICAtIFJlbmFtZSBWTV9IQVNfU1BFQ0lBTF9Q
-RVJNUyBbQm9yaXNdDQo+ID4gIC0gUmVtb3ZlIHVubmVjZXNzYXJ5IGxvY2FsIHZhcmlhYmxlcyBb
-Qm9yaXNdDQo+ID4gIC0gUmVuYW1lIHNldF9hbGlhc18qKCkgZnVuY3Rpb25zIFtCb3JpcywgQW5k
-eV0NCj4gPiAgLSBTYXZlL3Jlc3RvcmUgRFIgcmVnaXN0ZXJzIHdoZW4gdXNpbmcgdGVtcG9yYXJ5
-IG1tDQo+ID4gIC0gTW92ZSBsaW5lIGRlbGV0aW9uIGZyb20gcGF0Y2ggMTAgdG8gcGF0Y2ggMTcN
-Cj4gDQo+IEluIHlvdXIgcHJldmlvdXMgc3VibWlzc2lvbiB0aGVyZSB3YXMgYSBwYXRjaCBjYWxs
-ZWQNCj4gDQo+IFN1YmplY3Q6IFtQQVRDSCB2MiAwMS8yMF0gRml4ICJ4ODYvYWx0ZXJuYXRpdmVz
-OiBMb2NrZGVwLWVuZm9yY2UgdGV4dF9tdXRleCBpbg0KPiB0ZXh0X3Bva2UqKCkiDQo+IA0KPiBX
-aGF0IGhhcHBlbmVkIHRvIGl0Pw0KPiANCj4gSXQgZGlkIGludHJvZHVjZSBhIGZ1bmN0aW9uIHRl
-eHRfcG9rZV9rZ2RiKCksIGEuby4sIGFuZCBJIHNlZSB0aGlzDQo+IGZ1bmN0aW9uIGluIHRoZSBk
-aWZmIGNvbnRleHRzIGluIHNvbWUgb2YgdGhlIHBhdGNoZXMgaW4gdGhpcyBzdWJtaXNzaW9uDQo+
-IHNvIGl0IGxvb2tzIHRvIG1lIGxpa2UgeW91IG1pc3NlZCB0aGF0IGZpcnN0IHBhdGNoIHdoZW4g
-c3VibWl0dGluZyB2Mz8NCj4gDQo+IE9yIGFtICpJKiBtaXNzaW5nIHNvbWV0aGluZz8NCj4gDQo+
-IFRoeC4NCj4gDQpPaCwgeW91IGFyZSByaWdodCEgU29ycnkgYWJvdXQgdGhhdC4gSSdsbCBqdXN0
-IHNlbmQgYSBuZXcgdmVyc2lvbiB3aXRoIGZpeGVzIGZvcg0Kb3RoZXIgY29tbWVudHMgaW5zdGVh
-ZCBvZiBhIHJlc2VuZCBvZiB0aGlzIG9uZS4NCg0KVGhhbmtzLA0KDQpSaWNrDQo=
+On Wed, Feb 20, 2019 at 11:02:01PM +0100, Rafael J. Wysocki wrote:
+> On Thu, Feb 14, 2019 at 6:10 PM Keith Busch <keith.busch@intel.com> wrote:
+> >  config ACPI_HMAT
+> >         bool "ACPI Heterogeneous Memory Attribute Table Support"
+> >         depends on ACPI_NUMA
+> > +       select HMEM_REPORTING
+> 
+> If you want to do this here, I'm not sure that defining HMEM_REPORTING
+> as a user-selectable option is a good idea.  In particular, I don't
+> really think that setting ACPI_HMAT without it makes a lot of sense.
+> Apart from this, the patch looks reasonable to me.
+
+I'm trying to implement based on the feedback, but I'm a little confused.
+
+As I have it at the moment, HMEM_REPORTING is not user-prompted, so
+another option needs to turn it on. I have ACPI_HMAT do that here.
+
+So when you say it's a bad idea to make HMEM_REPORTING user selectable,
+isn't it already not user selectable?
+
+If I do it the other way around, that's going to make HMEM_REPORTING
+complicated if a non-ACPI implementation wants to report HMEM
+properties.
 
