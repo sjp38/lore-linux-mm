@@ -2,277 +2,236 @@ Return-Path: <SRS0=SgWF=Q5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 07327C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 22:40:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BBF9BC4360F
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 22:42:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A8A8020645
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 22:40:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 78E20206C0
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 22:42:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=kernel-dk.20150623.gappssmtp.com header.i=@kernel-dk.20150623.gappssmtp.com header.b="HbHibLcx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A8A8020645
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kernel.dk
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="Nc3wStqM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78E20206C0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D4BB98E0143; Fri, 22 Feb 2019 17:40:16 -0500 (EST)
+	id 188A18E0142; Fri, 22 Feb 2019 17:42:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CFA528E0141; Fri, 22 Feb 2019 17:40:16 -0500 (EST)
+	id 138608E0141; Fri, 22 Feb 2019 17:42:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BC28C8E0143; Fri, 22 Feb 2019 17:40:16 -0500 (EST)
+	id F41BA8E0142; Fri, 22 Feb 2019 17:42:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 91B6A8E0141
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 17:40:16 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id x9so3218346ite.1
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 14:40:16 -0800 (PST)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CDCD98E0141
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 17:42:10 -0500 (EST)
+Received: by mail-yb1-f198.google.com with SMTP id 124so2417992ybl.10
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 14:42:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=r5Zyr386b7jk621VkWpXMjOaEfMie198787q47pcEnM=;
-        b=GzdsTX8oRz5/kxY8Q1QB3/V3gAEBCv2r/B0sQ4OOny04IV89zX43DKk96IEj4bkgX1
-         aoQrxhS8TfB5iFK3PqKBIBKX1dMZf8xhMDJHvHzTQJlW8u+L+0ZMr1yt7OKPxUs/eDvx
-         D9ygh/aHqYZWF3SfJUiczTP1wHuYRjgZKSA+VpTOZNUsgmYLer8rB/Z3PthBj8ejKs4W
-         ZTJbE2WKRFSdbd5XI/hGgCGmXCv8M8Gz5aQvce0dKpHBPCmBLtb3wG0N9SVFZVkxkGZG
-         vJJ9yZCNuA9b0sVaRl/jBq9dhWdRRzrXBfCcM6ofpeFLjBN6BeeLFSw1ZqfIS3Gao3Di
-         45uw==
-X-Gm-Message-State: AHQUAuagBjW0la/H3QnM0ukuCHFRAbMoXKJPA3AP7V7TI9wVpsTqIPOd
-	PT/P4tCyI6dc2wxuV/kyJfRHYYiaygYDDRsxxKrj/8BooXJOLh5FAdlHmYxn7BjqOjmbqYyinXa
-	lndPj4R/dDzI8hhLjTHLjCdrj1gCYUmGuL3PyXshCuWqme/WJRcOzHaLNCJ979PvN8CLNin93Nd
-	8w62LnJOJ10k1WXkHkvAW6/XtzNAQfY37GL/CJ8EeYczRczNy0+95anFRDaRpwX320rPXJcGmeW
-	PfQsZ7X0ZdAmKcVtQbv8CjovJfSlkYZRpJwaIgnJPS7mHiN32aS72VzGCfxWTVx60fbscDNiIWB
-	Qsi+/wwtbjI7SqwyLw3dBVF9RQIfcdDONCrPa+wcCr+XAstvTBhYPcVudvq0kDLc9XDEdVeBhzA
-	Y
-X-Received: by 2002:a24:4211:: with SMTP id i17mr4013796itb.157.1550875216373;
-        Fri, 22 Feb 2019 14:40:16 -0800 (PST)
-X-Received: by 2002:a24:4211:: with SMTP id i17mr4013765itb.157.1550875215461;
-        Fri, 22 Feb 2019 14:40:15 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550875215; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=mtXo/OgTrDWenFtgKz94DgciMW8dOaQHFFYZnjJ+Qp0=;
+        b=Y9yeZweJX3N0kM2ycQIYSTdQJMjWjsFbYj7FAvgOW1q89ku6GFgL6uMs94gzgxAD2u
+         o921jvPra1EkWsRWB5ODkAhK8ddPqDfAS6qH9XkGWS/kfNv+2dd4rza02J6T4TRYu0Br
+         sAqcVGEBYckWcCzZPADocnBZi74gtit6VRsxDhFhRl/VJcNBkL7+RgN9i+eNr0wuszOA
+         ElWQsDR2b8Ls+iaPbZh//UcQrCPmGAnd0URnl8Rv6n6tPOv+ZwdyNV/CJLQDpfU3NHFl
+         xBpIYJ5QsO8ywDhraxlJT5tQXWM021TioN5FEk+3896plgeAaEzMW2sqidEvkaAg4QQR
+         bMnA==
+X-Gm-Message-State: AHQUAuaJA9ueKI50ncBawm68Ly7acIBYtVliHQeifVk+NQVV6M8Uordh
+	4hlE5G668kyESKrw+ruT7qm8GUxr/lLi7Wckh609gVBl18ENHSWRfJXrtvNIccH/aEmSsug54Wq
+	L1+TpJImuBsHLHGjIUuaVdKOcAPQM707zL7voNOjYR46oNlINKTKRi9GBva2UOfToig==
+X-Received: by 2002:a81:71c5:: with SMTP id m188mr5375202ywc.353.1550875330519;
+        Fri, 22 Feb 2019 14:42:10 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib7HRJanOk73hMiQxWzUZDgrb2kkK9c2PI53iX91hHzNpY9qNS4SrYjEVEAp61NUJo9XezH
+X-Received: by 2002:a81:71c5:: with SMTP id m188mr5375161ywc.353.1550875329721;
+        Fri, 22 Feb 2019 14:42:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550875329; cv=none;
         d=google.com; s=arc-20160816;
-        b=y9+cjcap+yxrisx88qAYBpvnUIyxB6AcdCqAb6uREBoPK6J+Y0XVjfDRjqt2EnWiNU
-         YHdZZDX5Sbt75AVoF8UlAcdQ55OCcwHUMSJoDiW1BOEiq5ATUTWxfibtiDnWfuMB5M5C
-         l/jLFRi28YRbMLHthEDJCoOA006fxn4fFaWaEuTeV9r1sDamzaco1FDLIMC/NY6qBfuF
-         pLZdm1//Wrhnez+kORoHYNUtCy/ibLG3ssd++V8L9Jv44fKlJh13KKMerm+w/nh3LjD+
-         n7+50IzXbVTdf+OnjfHjgIZKUDRL/1SceG4paBHEOr4eZmN5ttrE/k0CcGljkKGuYJUI
-         9AbA==
+        b=AtptKMBOXRfNOqNwXC1KxqnYpaRwzKwdGSOcOMOAAN2jJ1SO/qyGSQHl0DXJa+ROeW
+         fYpDnzcjv2ocl8SAQqzyM6VAN001PrxYZzZ3IYoNBVzGnlRdcfgxx2a8+zb/nbBhCmec
+         f3IXWiy62bYQl/1dIqhv6qRe+5nwwfreJYfF9jVRel/oliHFwEJIw/K0+rcLNAa52bnn
+         9wInOD5HbnvKy+CtlUSZBBYf/Q66sLEPhy/pKEFpz8v0uGgGunB28UGUWWxoQEGJpSWr
+         nZ/2m4adJ+XdJWSRQHDWYO8M3nHp6u46wyqAalUwO7ylVz6/bdp5Ng3stWAhBblCWAS0
+         Ee+g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=r5Zyr386b7jk621VkWpXMjOaEfMie198787q47pcEnM=;
-        b=oEBb+XSOQ1hBTlZwXB9ldjg1Ul4OX4p0dCRp3pP6U7FeJrGk12XaLnXkoGISLHHIKy
-         OyBBfEbgm06gw+P2fz4uy9BTxKoi+uO11A7N5VKk9yV6tFK2N8P6bp1L+EfMVgCduxZX
-         HtgaMnd2B7uoPg4G1KZ8o2UjIseTDq/Y+DEj8eEOt7hobqCkrA25ITq6eaNjilJ/MQBe
-         BypRiU69aGp0+wzUUQRgf9qJU5CU5Oa4Gpht4Fha+xIHPXVu5Loz+d8Ktjg5Q53apmH2
-         J8+73ET3oIy7BAowA/HLOTyfni406zQ4bqSSV1HBKyvokv6GmL+LPPhvhvF8rVRqjbEh
-         5gDA==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=mtXo/OgTrDWenFtgKz94DgciMW8dOaQHFFYZnjJ+Qp0=;
+        b=x4VrlCSRpm6dtOTMMRebZvrNLBsleLOuqvbD+S9fEDwialBBlZxU/xZ1hF5AhitXDb
+         OF9AT2cMote3dbPBDvpcI2BxwFYqT+1WN3BN4mpWvIT0/MurF6VccThJlPJzlgSLWjMH
+         NXRlSduj7HlNy8/dKmVlFHZ/Qzw98LZU2FiOfKC1hI2Jr54HfPkeqB7I3hGlpGVCQOqE
+         S+UfHBnEOHPQQi4wqJ7C/c+cZIyoNgsv/wtsqHDbiDJMi/7P0k8b1uQrfpfPjuiaKXWD
+         HfQUpiB1DlL+gqYOr6y92XgXla6w5ITv1cVOIBBoKn14UVQTmS7N9ClZps4t4gQbFAsv
+         /FwA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=HbHibLcx;
-       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.41 as permitted sender) smtp.mailfrom=axboe@kernel.dk
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id x17sor1525845iog.24.2019.02.22.14.40.15
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Nc3wStqM;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id j66si1235852ywc.423.2019.02.22.14.42.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Feb 2019 14:40:15 -0800 (PST)
-Received-SPF: pass (google.com: domain of axboe@kernel.dk designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=HbHibLcx;
-       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.41 as permitted sender) smtp.mailfrom=axboe@kernel.dk
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=kernel-dk.20150623.gappssmtp.com; s=20150623;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=r5Zyr386b7jk621VkWpXMjOaEfMie198787q47pcEnM=;
-        b=HbHibLcxI4Fm/sA7Me0oZMOKBt3DBOt41H2ngTU64GnBRu0TNEa8fXa4Tu2T9K8KUr
-         mfIRnZlwzOoVF6hbLRYIjTa+fudwydJ4VYVHXCOK7Jjk8Br7Bg+GT+KKs5s3E28/aHfu
-         Bf4IBuscavU9fN8SeA5xn+SoF0YP+4/ZVidAomH9pxRKv655L0b1X0H2ONMYiBflSa1g
-         8nlWC8b5L47oT6OsSWiLzxAkk5WB1mRTErQtBwRie3hiSVDL3pxmuo1GAh7dbYi+gfa/
-         wpSdSuTY7J8LuF04kkm4Ky6PCB5bXZjGRky0PrEJ+Bk+rZWdn25ES5yoAF5+Ou1R1vVw
-         5g5Q==
-X-Google-Smtp-Source: AHgI3IaAwxYR+AbLBr7aIm6Es0df9t4IpdfSMQ3gSxZjyr6YyUp4xE3ZOiX2iB3fanFIGsBKiQiPsA==
-X-Received: by 2002:a6b:d904:: with SMTP id r4mr3425982ioc.98.1550875214456;
-        Fri, 22 Feb 2019 14:40:14 -0800 (PST)
-Received: from [172.19.131.32] ([8.46.76.24])
-        by smtp.gmail.com with ESMTPSA id v5sm1115216iof.39.2019.02.22.14.40.06
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Feb 2019 14:40:13 -0800 (PST)
-Subject: Re: io_submit with slab free object overwritten
-To: Qian Cai <cai@lca.pw>
-Cc: viro@zeniv.linux.org.uk, hare@suse.com, bcrl@kvack.org,
- linux-aio@kvack.org, Linux-MM <linux-mm@kvack.org>
-References: <4a56fc9f-27f7-5cb5-feed-a4e33f05a5d1@lca.pw>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <cd3bac6a-02b2-351e-3f81-322c2e0ca03e@kernel.dk>
-Date: Fri, 22 Feb 2019 15:40:00 -0700
+        Fri, 22 Feb 2019 14:42:09 -0800 (PST)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Nc3wStqM;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c707abe0000>; Fri, 22 Feb 2019 14:42:06 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Fri, 22 Feb 2019 14:42:08 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Fri, 22 Feb 2019 14:42:08 -0800
+Received: from rcampbell-dev.nvidia.com (172.20.13.39) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Fri, 22 Feb
+ 2019 22:42:08 +0000
+Subject: Re: [PATCH v5 8/9] mm/mmu_notifier:
+ mmu_notifier_range_update_to_read_only() helper
+To: <jglisse@redhat.com>, <linux-mm@kvack.org>, Andrew Morton
+	<akpm@linux-foundation.org>
+CC: <linux-kernel@vger.kernel.org>, =?UTF-8?Q?Christian_K=c3=b6nig?=
+	<christian.koenig@amd.com>, Joonas Lahtinen
+	<joonas.lahtinen@linux.intel.com>, Jani Nikula <jani.nikula@linux.intel.com>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>, Jan Kara <jack@suse.cz>, Andrea
+ Arcangeli <aarcange@redhat.com>, Peter Xu <peterx@redhat.com>, Felix Kuehling
+	<Felix.Kuehling@amd.com>, Jason Gunthorpe <jgg@mellanox.com>, Ross Zwisler
+	<zwisler@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Paolo Bonzini
+	<pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+	Michal Hocko <mhocko@kernel.org>, John Hubbard <jhubbard@nvidia.com>,
+	<kvm@vger.kernel.org>, <dri-devel@lists.freedesktop.org>,
+	<linux-rdma@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>
+References: <20190219200430.11130-1-jglisse@redhat.com>
+ <20190219200430.11130-9-jglisse@redhat.com>
+From: Ralph Campbell <rcampbell@nvidia.com>
+Message-ID: <9da5e3b9-7f4a-49ee-bf80-024e5aed20a1@nvidia.com>
+Date: Fri, 22 Feb 2019 14:42:08 -0800
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+ Thunderbird/60.3.0
 MIME-Version: 1.0
-In-Reply-To: <4a56fc9f-27f7-5cb5-feed-a4e33f05a5d1@lca.pw>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20190219200430.11130-9-jglisse@redhat.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1550875326; bh=mtXo/OgTrDWenFtgKz94DgciMW8dOaQHFFYZnjJ+Qp0=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
+	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=Nc3wStqMc92w+r1iPlq9rgZ+vhAdWvC7XW8dkhwHHCmx+cNeaVKN6yWaoSYkFGqvT
+	 uhymWbKVsZcyJTFIgkUtdKMW/Tsuv33gN/wOITb98h85ko32ucaIGihP8IVsWu63e+
+	 RLiXSb3H/jUiJzFLcXYhasBMoZ4g7EP2Tp1xfl0aq1qDPn4bEwy8XsCtD5FknLXjCx
+	 S/Ipg5VGk57i+O7iRu0wRw+y7pSIDnIzcLzfrQz7q0vQ0X4njJ7g8SGd51l5tKEN25
+	 Wioa0sixuhaYxOZPKygwhRvB0YPxY2SUyYImiqOF25igrTWAzBCLUYZ2vfJlAi2rRs
+	 M8uWU0XGYlSmQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/21/19 10:40 PM, Qian Cai wrote:
-> This is only reproducible on linux-next (20190221), as v5.0-rc7 is fine. Running
-> two LTP tests and then reboot will trigger this on ppc64le (CONFIG_IO_URING=n
-> and CONFIG_SHUFFLE_PAGE_ALLOCATOR=y).
-> 
-> # fgetxattr02
-> # io_submit01
-> # systemctl reboot
-> 
-> There is a 32-bit (with all ones) overwritten of free slab objects (poisoned).
-> 
-> [23424.121182] BUG aio_kiocb (Tainted: G    B   W    L   ): Poison overwritten
-> [23424.121189]
-> -----------------------------------------------------------------------------
-> [23424.121189]
-> [23424.121197] INFO: 0x000000009f1f5145-0x00000000841e301b. First byte 0xff
-> instead of 0x6b
-> [23424.121205] INFO: Allocated in io_submit_one+0x9c/0xb20 age=0 cpu=7 pid=12174
-> [23424.121212]  __slab_alloc+0x34/0x60
-> [23424.121217]  kmem_cache_alloc+0x504/0x5c0
-> [23424.121221]  io_submit_one+0x9c/0xb20
-> [23424.121224]  sys_io_submit+0xe0/0x350
-> [23424.121227]  system_call+0x5c/0x70
-> [23424.121231] INFO: Freed in aio_complete+0x31c/0x410 age=0 cpu=7 pid=12174
-> [23424.121234]  kmem_cache_free+0x4bc/0x540
-> [23424.121237]  aio_complete+0x31c/0x410
-> [23424.121240]  blkdev_bio_end_io+0x238/0x3e0
-> [23424.121243]  bio_endio.part.3+0x214/0x330
-> [23424.121247]  brd_make_request+0x2d8/0x314 [brd]
-> [23424.121250]  generic_make_request+0x220/0x510
-> [23424.121254]  submit_bio+0xc8/0x1f0
-> [23424.121256]  blkdev_direct_IO+0x36c/0x610
-> [23424.121260]  generic_file_read_iter+0xbc/0x230
-> [23424.121263]  blkdev_read_iter+0x50/0x80
-> [23424.121266]  aio_read+0x138/0x200
-> [23424.121269]  io_submit_one+0x7c4/0xb20
-> [23424.121272]  sys_io_submit+0xe0/0x350
-> [23424.121275]  system_call+0x5c/0x70
-> [23424.121278] INFO: Slab 0x00000000841158ec objects=85 used=85 fp=0x
-> (null) flags=0x13fffc000000200
-> [23424.121282] INFO: Object 0x000000007e677ed8 @offset=5504 fp=0x00000000e42bdf6f
-> [23424.121282]
-> [23424.121287] Redzone 000000005483b8fc: bb bb bb bb bb bb bb bb bb bb bb bb bb
-> bb bb bb  ................
-> [23424.121291] Redzone 00000000b842fe53: bb bb bb bb bb bb bb bb bb bb bb bb bb
-> bb bb bb  ................
-> [23424.121295] Redzone 00000000deb0d052: bb bb bb bb bb bb bb bb bb bb bb bb bb
-> bb bb bb  ................
-> [23424.121299] Redzone 0000000014045233: bb bb bb bb bb bb bb bb bb bb bb bb bb
-> bb bb bb  ................
-> [23424.121302] Redzone 00000000dd5d6c16: bb bb bb bb bb bb bb bb bb bb bb bb bb
-> bb bb bb  ................
-> [23424.121306] Redzone 00000000538b5478: bb bb bb bb bb bb bb bb bb bb bb bb bb
-> bb bb bb  ................
-> [23424.121310] Redzone 000000001f7fb704: bb bb bb bb bb bb bb bb bb bb bb bb bb
-> bb bb bb  ................
-> [23424.121314] Redzone 0000000000e0484d: bb bb bb bb bb bb bb bb bb bb bb bb bb
-> bb bb bb  ................
-> [23424.121318] Object 000000007e677ed8: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-> 6b 6b 6b  kkkkkkkkkkkkkkkk
-> [23424.121322] Object 00000000e207f30b: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-> 6b 6b 6b  kkkkkkkkkkkkkkkk
-> [23424.121326] Object 00000000a7a45634: 6b 6b 6b 6b 6b 6b 6b 6b ff ff ff ff 6b
-> 6b 6b 6b  kkkkkkkk....kkkk
-> [23424.121330] Object 00000000c85d951d: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-> 6b 6b 6b  kkkkkkkkkkkkkkkk
-> [23424.121334] Object 000000003104522f: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-> 6b 6b 6b  kkkkkkkkkkkkkkkk
-> [23424.121338] Object 00000000cfcdd820: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-> 6b 6b 6b  kkkkkkkkkkkkkkkk
-> [23424.121342] Object 00000000dded4924: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-> 6b 6b 6b  kkkkkkkkkkkkkkkk
-> [23424.121346] Object 00000000ff6687a4: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-> 6b 6b 6b  kkkkkkkkkkkkkkkk
-> [23424.121350] Object 00000000df3d67f6: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-> 6b 6b 6b  kkkkkkkkkkkkkkkk
-> [23424.121354] Object 00000000ddc188d1: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-> 6b 6b 6b  kkkkkkkkkkkkkkkk
-> [23424.121358] Object 000000002cee751a: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-> 6b 6b 6b  kkkkkkkkkkkkkkkk
-> [23424.121362] Object 00000000a994f007: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-> 6b 6b a5  kkkkkkkkkkkkkkk.
-> [23424.121366] Redzone 000000009f3d62e2: bb bb bb bb bb bb bb bb
->          ........
-> [23424.121370] Padding 00000000e5ccead8: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-> 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> [23424.121374] Padding 000000002b0c1778: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-> 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> [23424.121378] Padding 00000000c67656c7: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-> 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> [23424.121382] Padding 0000000078348c5a: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-> 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> [23424.121386] Padding 00000000f3297820: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-> 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> [23424.121390] Padding 00000000e55789f4: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-> 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> [23424.121394] Padding 00000000d0fbb94c: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-> 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> [23424.121397] Padding 00000000bcb27a87: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-> 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> [23424.121743] CPU: 7 PID: 12174 Comm: vgs Tainted: G    B   W    L
-> 5.0.0-rc7-next-20190221+ #7
-> [23424.121758] Call Trace:
-> [23424.121762] [c0000004ce5bf7b0] [c0000000007deb8c] dump_stack+0xb0/0xf4
-> (unreliable)
-> [23424.121770] [c0000004ce5bf7f0] [c00000000037d310] print_trailer+0x250/0x278
-> [23424.121775] [c0000004ce5bf880] [c00000000036d578]
-> check_bytes_and_report+0x138/0x160
-> [23424.121779] [c0000004ce5bf920] [c00000000036fac8] check_object+0x348/0x3e0
-> [23424.121784] [c0000004ce5bf990] [c00000000036fd18]
-> alloc_debug_processing+0x1b8/0x2c0
-> [23424.121788] [c0000004ce5bfa30] [c000000000372d14] ___slab_alloc+0xbb4/0xfa0
-> [23424.121792] [c0000004ce5bfb60] [c000000000373134] __slab_alloc+0x34/0x60
-> [23424.121802] [c0000004ce5bfb90] [c000000000373664] kmem_cache_alloc+0x504/0x5c0
-> [23424.121812] [c0000004ce5bfc20] [c000000000476a9c] io_submit_one+0x9c/0xb20
-> [23424.121824] [c0000004ce5bfd50] [c000000000477f10] sys_io_submit+0xe0/0x350
-> [23424.121832] [c0000004ce5bfe20] [c00000000000b000] system_call+0x5c/0x70
-> [23424.121836] FIX aio_kiocb: Restoring 0x000000009f1f5145-0x00000000841e301b=0x6b
-> [23424.121836]
-> [23424.121840] FIX aio_kiocb: Marking all objects used
 
-Can you try this one? We only need to write it for polled, and for polled
-the caller is the one that will reap the iocb. Hence it's safe to write
-it after submission if we are marked polled.
+On 2/19/19 12:04 PM, jglisse@redhat.com wrote:
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>=20
+> Helper to test if a range is updated to read only (it is still valid
+> to read from the range). This is useful for device driver or anyone
+> who wish to optimize out update when they know that they already have
+> the range map read only.
+>=20
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Christian K=C3=B6nig <christian.koenig@amd.com>
+> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+> Cc: Jani Nikula <jani.nikula@linux.intel.com>
+> Cc: Rodrigo Vivi <rodrigo.vivi@intel.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Peter Xu <peterx@redhat.com>
+> Cc: Felix Kuehling <Felix.Kuehling@amd.com>
+> Cc: Jason Gunthorpe <jgg@mellanox.com>
+> Cc: Ross Zwisler <zwisler@kernel.org>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Paolo Bonzini <pbonzini@redhat.com>
+> Cc: Radim Kr=C4=8Dm=C3=A1=C5=99 <rkrcmar@redhat.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Christian Koenig <christian.koenig@amd.com>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: kvm@vger.kernel.org
+> Cc: dri-devel@lists.freedesktop.org
+> Cc: linux-rdma@vger.kernel.org
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> ---
+>   include/linux/mmu_notifier.h |  4 ++++
+>   mm/mmu_notifier.c            | 10 ++++++++++
+>   2 files changed, 14 insertions(+)
+>=20
+> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+> index 0379956fff23..b6c004bd9f6a 100644
+> --- a/include/linux/mmu_notifier.h
+> +++ b/include/linux/mmu_notifier.h
+> @@ -259,6 +259,8 @@ extern void __mmu_notifier_invalidate_range_end(struc=
+t mmu_notifier_range *r,
+>   				  bool only_end);
+>   extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
+>   				  unsigned long start, unsigned long end);
+> +extern bool
+> +mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *=
+range);
+>  =20
+>   static inline bool
+>   mmu_notifier_range_blockable(const struct mmu_notifier_range *range)
+> @@ -568,6 +570,8 @@ static inline void mmu_notifier_mm_destroy(struct mm_=
+struct *mm)
+>   {
+>   }
+>  =20
+> +#define mmu_notifier_range_update_to_read_only(r) false
+> +
+>   #define ptep_clear_flush_young_notify ptep_clear_flush_young
+>   #define pmdp_clear_flush_young_notify pmdp_clear_flush_young
+>   #define ptep_clear_young_notify ptep_test_and_clear_young
+> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+> index abd88c466eb2..ee36068077b6 100644
+> --- a/mm/mmu_notifier.c
+> +++ b/mm/mmu_notifier.c
+> @@ -395,3 +395,13 @@ void mmu_notifier_unregister_no_release(struct mmu_n=
+otifier *mn,
+>   	mmdrop(mm);
+>   }
+>   EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
+> +
+> +bool
+> +mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *=
+range)
+> +{
+> +	if (!range->vma || range->event !=3D MMU_NOTIFY_PROTECTION_VMA)
+> +		return false;
+> +	/* Return true if the vma still have the read flag set. */
+> +	return range->vma->vm_flags & VM_READ;
+> +}
+> +EXPORT_SYMBOL_GPL(mmu_notifier_range_update_to_read_only);
+>=20
 
+Don't you have to check for !WRITE & READ?
+mprotect() can change the permissions from R/O to RW and
+end up calling mmu_notifier_range_init() and=20
+mmu_notifier_invalidate_range_start()/end().
 
-diff --git a/fs/block_dev.c b/fs/block_dev.c
-index 0e3155e817cc..f78fc7bf2225 100644
---- a/fs/block_dev.c
-+++ b/fs/block_dev.c
-@@ -419,11 +419,17 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
- 
- 		nr_pages = iov_iter_npages(iter, BIO_MAX_PAGES);
- 		if (!nr_pages) {
--			if (iocb->ki_flags & IOCB_HIPRI)
-+			bool polled = false;
-+
-+			if (iocb->ki_flags & IOCB_HIPRI) {
- 				bio_set_polled(bio, iocb);
-+				polled = true;
-+			}
- 
- 			qc = submit_bio(bio);
--			WRITE_ONCE(iocb->ki_cookie, qc);
-+
-+			if (polled)
-+				WRITE_ONCE(iocb->ki_cookie, qc);
- 			break;
- 		}
- 
+I'm not sure how useful this is since only applies to the
+MMU_NOTIFY_PROTECTION_VMA case.
+Anyway, you can add
 
--- 
-Jens Axboe
+Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
 
