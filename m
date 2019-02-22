@@ -3,146 +3,162 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A103AC43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 13:59:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B7D4C10F00
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 14:12:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5EE982075A
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 13:59:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5EE982075A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 22D38206B7
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 14:12:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 22D38206B7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ECDDC8E010C; Fri, 22 Feb 2019 08:59:38 -0500 (EST)
+	id A31718E010D; Fri, 22 Feb 2019 09:12:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E7EDD8E0109; Fri, 22 Feb 2019 08:59:38 -0500 (EST)
+	id 9E0F78E0109; Fri, 22 Feb 2019 09:12:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D940F8E010C; Fri, 22 Feb 2019 08:59:38 -0500 (EST)
+	id 8A84C8E010D; Fri, 22 Feb 2019 09:12:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AEE388E0109
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 08:59:38 -0500 (EST)
-Received: by mail-ua1-f70.google.com with SMTP id g10so652092uan.2
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 05:59:38 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F1FA8E0109
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 09:12:18 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id b6so1607404qkg.4
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 06:12:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:organization
-         :mime-version:content-transfer-encoding;
-        bh=HrfXKKXiTUZHq6RqizgvYdNg5kks1CArbC2sBZOnnMg=;
-        b=VIu1WiLLMWw5gvbqRfB2Gs/J+JOkaauxxxIKYAqrpcLee44xHhlvfOhW1FYzIYaPlO
-         PwPlkk0ltUyxiVIu5m+gFjMlxv0GbD5UZsY2Nf89dltzWbYZ7hQNd3fpB6oiOZf1c6vE
-         7nJ5ulmLDdJfSEpw/y0znKiUoGRaBzlwE/8l0TTyJe/zo2F60YmD8ybFAS8w3i0NLolp
-         KuEXTYp6GacgpO50UOTaJNddZ0EtIM8BUcP+IPyjT3EPo/rFzKEnVnEOpS3acdK6Pctz
-         DyrnwbOajLK4pU6oVRxkCIZWuOPUWELXvAyA9kcf6xgOVrcfPRa9ZnPKRJ2T+mQoqVrd
-         lw+g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-X-Gm-Message-State: AHQUAuYjIu3E0+QUYjqGRjw/98t8F5Yh3173T8RBq/b67r7jpZAGACKH
-	VY5R0BBwZSA03ITBq9lPYiUGqHecnU0p2WgO5C2SGjIlX/ftS/umRmD/eFVT+lF/ldDURtKKGME
-	vXaVK99ibZ3sWrejzIKVmIhrohJQG7pkGfjFnHj9f/puJAZwQvpvjmbGBvRhFYMP2kg==
-X-Received: by 2002:a67:330f:: with SMTP id z15mr2242604vsz.9.1550843978403;
-        Fri, 22 Feb 2019 05:59:38 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaN8nmaaWF0wuy7s4QI+jBTJq2NkQg2bL4mvK+HpQeGK4IZZbj5FLaxEvPwr0oGo9qGAZ3K
-X-Received: by 2002:a67:330f:: with SMTP id z15mr2242575vsz.9.1550843977605;
-        Fri, 22 Feb 2019 05:59:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550843977; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:reply-to
+         :subject:references:to:cc:from:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-transfer-encoding;
+        bh=70IeNMGv9bVYgBQiOSgo2GSk5LjWHRMltVvShjCHCJw=;
+        b=HPVuFRCI7t4kg8ka3bqiTUKf05sHSOlWqoVS4FRyP0ujdalj47qIduAPxxuN+E6iFU
+         Cro9h/pqg3FUA88xolFhvID8aWwRJGId9/AkyO6oQ5rHYXb+CBQbD5SwNp06QTD9VL4H
+         v2Z/k8+XkQlAS8aqRD6HngOVGxTmMnSukCFIQwY516NEF0zRspu2JSHlfpQ3+SgXN5c/
+         an1IlVKFIzxfjyqlmofYY9rY172rDsuE8WXg2QkyvtAR6wAXTRh8woUtNhkA4HfNbrxn
+         q3qmbpOrfX1GbC+PneWBnOsiCL4Ckp53Rsm/r45i1mrf0HZtm7Ku9PZo7fYyw+IO2zam
+         ruQA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of lwoodman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=lwoodman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAuYFQNCNiV3UgpGlVig9/xQTbyVV5yoII8Gj6KhFKU0HdInuwF0o
+	sG0RSmz54x/ClrOmXkkiOtr48rw8/TYj0GQ+2/croozbusnob53/rZrYI506sxso8ijGUtUplJn
+	P+twBYhAfNZBmeq2ErNaQp86eSlBVY4W7Wl4J6XbS+WQMOzTVo43gHDdkOU8DoCoqRQ==
+X-Received: by 2002:a0c:891a:: with SMTP id 26mr3282798qvp.163.1550844738169;
+        Fri, 22 Feb 2019 06:12:18 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZ0FypdP+Bzl1m/46SKIB/FsjLnHzXiIefWcxr1nfe2roo32BMR2b6eRCVg54M6j810maer
+X-Received: by 2002:a0c:891a:: with SMTP id 26mr3282761qvp.163.1550844737447;
+        Fri, 22 Feb 2019 06:12:17 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550844737; cv=none;
         d=google.com; s=arc-20160816;
-        b=OBbqe2j9tk6lhOLwfH5H7MZQZTzpdKPhbLR+N3W/RszeRiPcw0e09KpWaGDF8YphRM
-         MF5oNnzaaITXg0Yc/t1ZGT03rT0PR5xW4FbE99+fv9oOrUvdVh+tEHfSSEi4r6AA2rJC
-         JFjPNHev/CIOBcv3SvsFvT+naLgKSDZsNLQfgQ2aGXjr1XJ1s4D6XkEXiITMHDLtC9Do
-         9WITcwyO4ffLF0h2QSLV0LcrhefVmsl/ZLu+5GetPMPsf5tKC947VrGSa7GGmTIR5ugR
-         /ZW1ggxA8IqZayPNoyNY1ftgy7N+SyyC5TBtfPyt0MiNYmJp5sMDOkHALoVXtEZtAEpz
-         ctXg==
+        b=ENHAsqD7V3+xfH0qf2MGxpDdM96iOlSHiOVu1rXcNDsJqpLlXh97dEl4IwULZa83/h
+         +V/oRRhlY04i0s4m6zc37gn3dmIJKCGp07s3psvNWn4Cu/Iy/D5IgUERfJ/YUEV29/0K
+         tqCsvVArwtqnnrHqMVfGAE3E1DJpwVjrkG/pmfNh0NvnGDaS7g4j9sUJXfRKiD7lSK/U
+         cDItN9XOFUlWW/29X6KFboq/whxbMDkUOxC/cF5sEZAH4wGF/MT7X57GJWrX1OZ0noXg
+         itvwro4iB7sjWy6sgcov4ABf70AZrfWST69VNK0fEukbeO4lxrIaC8Hppi7TlpAAYOYi
+         DpsQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:organization:references
-         :in-reply-to:message-id:subject:cc:to:from:date;
-        bh=HrfXKKXiTUZHq6RqizgvYdNg5kks1CArbC2sBZOnnMg=;
-        b=zlNgOtzqPi3WHM2mZVIh/DzeCLgiD06dORKPL2d6mNeXVz9Z2TEjm7/Sxb471UKfIO
-         r5wrql1Fu+/Jux6jaBZWKf7rCm0fXHlM4P2Hr8IUdN22BPfoI7RyRdBcLG5hSTx45t70
-         HGRZCNQ8mdL7OCinfGdWbacva6Yax0LTUKwiElvjVLUmHAoPCZAaVMNHUUGFHXamwR65
-         /phuvY/Tb7U77rUonGqdixsfs07TQzEYPuhnImJenE8DjA+/cb75j7H9srCYx4k5L6QD
-         W9C/todYOTRsWPSRX1F8LsBApp11clQAxfpQbEfjYz3VLSdlK5MPZnrrwN6VEqHcsjAE
-         2KkQ==
+        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
+         :message-id:organization:from:cc:to:references:subject:reply-to;
+        bh=70IeNMGv9bVYgBQiOSgo2GSk5LjWHRMltVvShjCHCJw=;
+        b=vnjwZucoH1iIa/AkF3z5t01qtjwnLeUeauFZXeuhjQUyZnsqGUVJJ0yifOcWewryG3
+         gStcuekp76ZFB6mEbkR77GVGU9+lbgHdUvvqyz6bbhmH/AkLUnCOLOlC0Y39NTwm7oS2
+         HpP9MUaAouuZ3BPwRq6Y/zQLZ9AszYSvo7whGHxXbN1FaSGTtBNm/uhyhYDwbO0ZH5Lk
+         i7rpcMtMkY3YCMSFBfaftfg2hv8pRSkP8Fax8SGjHre5xpS77DcurbFQo03T/iTJ5USU
+         Nip4ZrocKT+haf/atj8msrykWeaY7BCYVe/zqRER1RiuQ3Y1TzPeh+jzM9/XRvElerkF
+         x4qg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id g133si714782vsd.297.2019.02.22.05.59.37
+       spf=pass (google.com: domain of lwoodman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=lwoodman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a63si1035697qke.67.2019.02.22.06.12.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Feb 2019 05:59:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
+        Fri, 22 Feb 2019 06:12:17 -0800 (PST)
+Received-SPF: pass (google.com: domain of lwoodman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from DGGEMS410-HUB.china.huawei.com (unknown [172.30.72.58])
-	by Forcepoint Email with ESMTP id 14334D59F46AF89BE186;
-	Fri, 22 Feb 2019 21:59:32 +0800 (CST)
-Received: from localhost (10.47.85.38) by DGGEMS410-HUB.china.huawei.com
- (10.3.19.210) with Microsoft SMTP Server id 14.3.408.0; Fri, 22 Feb 2019
- 21:59:26 +0800
-Date: Fri, 22 Feb 2019 13:59:18 +0000
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-To: Mike Rapoport <rppt@linux.ibm.com>
-CC: <lsf-pc@lists.linux-foundation.org>, <linux-mm@kvack.org>
-Subject: Re: [LSF/MM TOPIC]: mm documentation
-Message-ID: <20190222135918.00000486@huawei.com>
-In-Reply-To: <20190128070421.GA2470@rapoport-lnx>
-References: <20190128070421.GA2470@rapoport-lnx>
-Organization: Huawei
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; i686-w64-mingw32)
+       spf=pass (google.com: domain of lwoodman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=lwoodman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id A2E2DA70E;
+	Fri, 22 Feb 2019 14:12:16 +0000 (UTC)
+Received: from lwoodman.boston.csb (ovpn-124-89.rdu2.redhat.com [10.10.124.89])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id EE0AE5D704;
+	Fri, 22 Feb 2019 14:12:15 +0000 (UTC)
+Reply-To: lwoodman@redhat.com
+Subject: Re: [LSF/MM ATTEND ] memory reclaim with NUMA rebalancing
+References: <20190130174847.GD18811@dhcp22.suse.cz>
+ <87h8dpnwxg.fsf@linux.ibm.com>
+ <01000168c431dbc5-65c68c0c-e853-4dda-9eef-8a9346834e59-000000@email.amazonses.com>
+To: Christopher Lameter <cl@linux.com>,
+ "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org,
+ linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>,
+ linux-nvme@lists.infradead.org
+From: Larry Woodman <lwoodman@redhat.com>
+Organization: Red Hat
+Message-ID: <d491fcc4-97c1-168e-e1c5-1106ea77f080@redhat.com>
+Date: Fri, 22 Feb 2019 09:12:15 -0500
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101
+ Thunderbird/45.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+In-Reply-To: <01000168c431dbc5-65c68c0c-e853-4dda-9eef-8a9346834e59-000000@email.amazonses.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.47.85.38]
-X-CFilter-Loop: Reflected
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000353, version=1.2.4
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Fri, 22 Feb 2019 14:12:16 +0000 (UTC)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jan 2019 09:04:22 +0200
-Mike Rapoport <rppt@linux.ibm.com> wrote:
+On 02/06/2019 02:03 PM, Christopher Lameter wrote:
+> On Thu, 31 Jan 2019, Aneesh Kumar K.V wrote:
+>
+>> I would be interested in this topic too. I would like to
+>> understand the API and how it can help exploit the different type of
+>> devices we have on OpenCAPI.
+Same here, we/RedHat have quite a bit of experience running on several
+large system
+(32TB/128nodes/1024CPUs).  Some of these systems have NVRAM and can operated
+in memory mode as well as storage mode.
 
-> Hi,
-> 
-> At the last Plumbers plenary there was a discussion about the
-> documentation and one of the questions to the panel was "Is it better
-> to have outdated documentation or no documentation at all?" And, not
-> surprisingly, they've answered, "No documentation is better than
-> outdated".
-> 
-> The mm documentation is, well, not entirely up to date. We can opt for
-> dropping the outdated parts, which would generate a nice negative
-> diffstat, but identifying the outdated documentation requires nearly
-> as much effort as updating it, so I think that making and keeping
-> the docs up to date would be a better option.
-> 
-> I'd like to discuss what can be done process-wise to improve the
-> situation.
-> 
-> Some points I had in mind:
-> 
-> * Pay more attention to docs during review
-> * Set an expectation level for docs accompanying a changeset
-> * Add automation to aid spotting inconsistencies between the code and
->   the docs
-> * Spend some cycles to review and update the existing docs
-> * Spend some more cycles to add new documentation
-> 
-> I'd appreciate a discussion about how we can get to the second edition
-> of "Understanding the Linux Virtual Memory Manager", what are the gaps
-> (although they are too many), and what would be the best way to close
-> these gaps.
-> 
+Larry
 
-As a recent newbie in mm code...
-
-Even though it is perhaps in need of a refresh the existence of that
-book is still useful and a great deal better than many other areas
-of the kernel.  I would love to see a new version, but can fully
-appreciate the immense effort involved.
-
-Jonathan
+> So am I. We may want to rethink the whole NUMA API and the way we handle
+> different types of memory with their divergent performance
+> characteristics.
+>
+> We need some way to allow a better selection of memory from the kernel
+> without creating too much complexity. We have new characteristics to
+> cover:
+>
+> 1. Persistence (NVRAM) or generally a storage device that allows access to
+>    the medium via a RAM like interface.
+>
+> 2. Coprocessor memory that can be shuffled back and forth to a device
+>    (HMM).
+>
+> 3. On Device memory (important since PCIe limitations are currently a
+>    problem and Intel is stuck on PCIe3 and devices start to bypass the
+>    processor to gain performance)
+>
+> 4. High Density RAM (GDDR f.e.) with different caching behavior
+>    and/or different cacheline sizes.
+>
+> 5. Modifying access characteristics by reserving slice of a cache (f.e.
+>    L3) for a specific memory region.
+>
+> 6. SRAM support (high speed memory on the processor itself or by using
+>    the processor cache to persist a cacheline)
+>
+> And then the old NUMA stuff where only the latency to memory varies. But
+> that was a particular solution targeted at scaling SMP system through
+> interconnects. This was a mostly symmetric approach. The use of
+> accellerators etc etc and the above characteristics lead to more complex
+> assymmetric memory approaches that may be difficult to manage and use from
+> kernel space.
+>
 
