@@ -2,152 +2,152 @@ Return-Path: <SRS0=SgWF=Q5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 749F0C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:20:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D8AFC10F00
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:22:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3591F206B6
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:20:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0CCB8207E0
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:22:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="GN1D41yy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3591F206B6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="b267o0z6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CCB8207E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C60C28E0129; Fri, 22 Feb 2019 13:20:21 -0500 (EST)
+	id 9777E8E012A; Fri, 22 Feb 2019 13:22:55 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C35FF8E0123; Fri, 22 Feb 2019 13:20:21 -0500 (EST)
+	id 9001D8E0123; Fri, 22 Feb 2019 13:22:55 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B4C418E0129; Fri, 22 Feb 2019 13:20:21 -0500 (EST)
+	id 7A0C58E012A; Fri, 22 Feb 2019 13:22:55 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B68C8E0123
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 13:20:21 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id s12so1390987oth.14
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:20:21 -0800 (PST)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EDA18E0123
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 13:22:55 -0500 (EST)
+Received: by mail-yb1-f197.google.com with SMTP id h73so1956251ybg.8
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:22:55 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=UiFqq9fKUY52GYBPs9UIqyS4mptDo3CU893hKHjGS74=;
-        b=kOY1jABPw8jau95SukzCM8qaTZF9OoA4lEPGeGMmt3+w/8owlm5JnY9TJeKt22tSp0
-         fay9TXqOuVbnNXx7c78smBBa9AaIay4JtFsrQVw9hxACgH1wT5W96v+jkwZ6ADg9Jx04
-         qR9mzYbf0GZaznH8ylcezbHywe23L1cjpqCoiF3t5yHSUjQ8yUGmbqaoFiO7pLMUSe7K
-         RI3NzXT/qSToU0Fd6ChG4so+240+9kX8xoLFGSGgLSNcMS6SPvqYq3bMAUmRs1yR3x3B
-         OwnrEPankaPyYMcl5eej6UZUVFKya2lRbH09f37x6cu7ksXT2f403Igwa26tzld5U+z6
-         o1mA==
-X-Gm-Message-State: AHQUAuZM2TmtZUk4qRBVsp+jrFc6kCoplCpicwjOarGdtCAX8uoPvLx1
-	FzNW+FGCGTbzZTWJXC4q/PbLWkXjQJ5kr0VVS+/pbx8fTUjXsmMDzjGJa6KnWsPa7/w3w6ULNx9
-	3hzIjeeZwyPEBmbZxB7aJEV9OFnac7mjmJREdYF7E28X4Hjy1vjg0SY0Y6ffTgTfjkk4blZtGbg
-	bP0RqxOLIaEAVyF3+Ku83mXvZfiMPyJ6okqP3DJlCz4UbfgQYD7jU4yeEVn4LGcLR3nbDt5grpj
-	IwfbuYNPBeQmLI7rBrRxFX09njQIODqRRBUMOlYUmCkofzQI78A4impCnkAH0MTq6m8XZuHzbM7
-	Jd8bR5v5h3hEyw+UA0OZg+OOScP/w0OW2/CsRno7ZfCUbwmXkQQ0jxUx6BziVFgC8TSxRXUZkbP
-	O
-X-Received: by 2002:aca:b104:: with SMTP id a4mr3336067oif.133.1550859621242;
-        Fri, 22 Feb 2019 10:20:21 -0800 (PST)
-X-Received: by 2002:aca:b104:: with SMTP id a4mr3336030oif.133.1550859620363;
-        Fri, 22 Feb 2019 10:20:20 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550859620; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=/1iRUWXUez0vQmzuA6ScUoUTtthAjz8oJPlMkoBcgCo=;
+        b=FXgmLSwH7MUrkYiVSRfP2zi0HW2L4UN1HodRMOew8l72atu2S6TeN0htDcUMD4vmpA
+         zWVLuqtEjpZ18MqsdEFqrwiSY0l6xCXimVj30aKVNmRwypnorNeLTmc45MKneUz9N86r
+         qFHPuB1t+g7TMLVYD7ZrECDH4vmWr9AyKULU5pbbJIOeh0aTfm0ZERDB/EMCWAT8zU6A
+         Sa2BoAJSeCMjqKtlBt5FPJc0aVDcRTfzA5Jz3OKxLbqaukaCk3siksF7jB0wHnqmEiIm
+         nOOLPmWoPsqBV1lps2NCgkblZsIU+HqT+49W2E1bpM3kVUtJJFEU5Q5UibCTUPcPx58u
+         1Yng==
+X-Gm-Message-State: AHQUAuZHFU2AE7T4cVSsHhMlWRf8VbHNSzUYIQlRA4+nHgPdEIArJWvw
+	Zu+JwegYlvK1U5jA9Wayj11zqAxwgfy5mr5uJS8XuKktjPHsSGT4/GoXn1Vg+0jcDAVtsM3bClG
+	2HSWT3kadSSo4T2qYPbrIrE+o9FiEr6xlPTYJuQyxiSQBVd71LY3pu3rOz6q0GtUVBKLFUTEBUD
+	J7J91G1GJBW802aD0hMcpwGnBugyfzcJtPu6Gj8sPAZiOuF1Kg+C/710B20oE1RJY1qQvU49Bxe
+	4F+fX+XQV2dSK3F0OAi4XoBQrWN9G02shrdOUWaNgpSlXpxPtONBcpOSvbWhsyF0ZsWce6qdqOJ
+	tjPvvaFpxrubIaen7wASoMXgVLDBKq+aUCLMle4uCEZYSalzCxNwNrWD9HqSnuxa+R3O8+NAwfc
+	p
+X-Received: by 2002:a25:9703:: with SMTP id d3mr4485408ybo.407.1550859774993;
+        Fri, 22 Feb 2019 10:22:54 -0800 (PST)
+X-Received: by 2002:a25:9703:: with SMTP id d3mr4485356ybo.407.1550859774241;
+        Fri, 22 Feb 2019 10:22:54 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550859774; cv=none;
         d=google.com; s=arc-20160816;
-        b=N8TubUJRjx/VwescRn1QQr5vzEa6OBollqWzp5YIo5prbdmlA1CR7Ihqt8AXrRwHUv
-         4tLrWChBNTNmesNlBTMd56FXG+BoyJaam9exm5x789w+Ywkt+KLCwihVD7FH4NDeeII5
-         l05wLl+o9V07+/3Dr01rqLoXDlJCQmT39xvHjBYaW7OhwJRGUDujWJ48teeBw9mw2RFf
-         wUW/5fe2iAdjtibOt+qMZ6Kh+C9BbtnxqrPNkhFOOCstykyWt6pa7yy/7bNdDYUbNlpV
-         HG2V1w3SsJBCLLcxyDMsVgp5FJjt6cm1y25Wvf2oGumtskBnIUGTMKP9ySayQ12vdNfH
-         7XDw==
+        b=u4rq3jACKZmgyvl5wWoGhMxwRXR2p64S9jmAqgfglvxrdgEH4i2UWbxeWJkrNliANS
+         2wq4NT09hw+YmIcVY83VrUchd8z2KYdV18GC9j9ZzJ3ev/wSjIgKwOMAuasjQkVa+OS6
+         WGBojjSqwLRDi8MKaI8heBl7Rq3HixqJhBAb5krwh42CICsK5cMv1nVdem5rmxWaPt+X
+         lzkZ2/Xhj5yt/AuAlUPys0KOrsIRkof9gEx3x1/dEkqz1hUt/1/IusGVSriKGmsEgrIK
+         IdWG4Kntq4HwDwpeBrOyqpZrB8g57NYLrVNzbB0YOvt0I2MdEamS0TrcqDA4vbU5Asnd
+         Tx4Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=UiFqq9fKUY52GYBPs9UIqyS4mptDo3CU893hKHjGS74=;
-        b=yXQLCMwpsE+y0LaQiG+s6o2hZkoVWY2lu3HiX43UxDXA74dBoD9XY/IM6FyKSEYMDQ
-         yxjpopQYSRAE+wHfGVck3bsXnUO/DE50hoW5IYK4hqrn0hjPQKHGQHRaqfhD4JZgKa/5
-         QQYMJJVfVPu4A20Ycl5Rmh4k2rbCFequWIIqQuRMRGebnJ+f18HsKGNU+5sNYxQEn2kX
-         gkyjxlRCTW0hEYm4Y1viWOkWacQoADS8osmh7UReol5fW5gMqZbrb2U1YqfNkQBswD1c
-         Jy0FmnX69PUwlhVP3xWaMtcdRWkmZCePUh57FD6Q1UbRkHihmJLhjbXROyVPfN3riM1n
-         TMqg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=/1iRUWXUez0vQmzuA6ScUoUTtthAjz8oJPlMkoBcgCo=;
+        b=U15603HVDiu2ifZgyxzoQ+LeB92z4AJJwOKvdsVv7ug/7DhgvAUyw51onHYiizOPGJ
+         Pf9JBgH5Wd70ScyneuVbmowR5w2octZeXHmiQKP5SX5s0NhxpNPPBQke4wcsx25o9lAQ
+         moevJYKBTZPgGsbMG+JEply/cxB9A2JA1kKkT6+riS7XMa5MD19/DkFx96AGsKJIjAxo
+         ea0uvryV8sU9HPKympnXEQo5RhYR1Utm/eFjqeL38pWpfK4z8HhCjRBSPEHD9yuTJjpm
+         XUnph+6seatfXRK90ajop90Cb4eTvSBAeTDchYFsGIktQfOgSkQ1efvI9wyEkRFeWqz+
+         Ufng==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=GN1D41yy;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=b267o0z6;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e127sor1164374oib.70.2019.02.22.10.20.20
+        by mx.google.com with SMTPS id l73sor442423ywc.64.2019.02.22.10.22.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 22 Feb 2019 10:20:20 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 22 Feb 2019 10:22:51 -0800 (PST)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=GN1D41yy;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=b267o0z6;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=UiFqq9fKUY52GYBPs9UIqyS4mptDo3CU893hKHjGS74=;
-        b=GN1D41yy989ENSk/QaWlIPSo80f0ecxNC50ye26M8YOCiIc0C43TXgsMFGuWz7RT+H
-         bK3/xGZRWd47wfLf5VW9mIyR4zdpAyw9YG/d+HfKhwkEX7fXuf0krOAuXKTivczfMkQ9
-         fEMRPqKfupripK8WyiBo1CmsL4GFk6waMmOKGxI7xkkaGoTK1vpaup1DPcJUPkqS1don
-         f3zBOuFxwizTC/RJH8GLJwomUdcCeRGZdv4Iy0Ys9vzRe16gSgojWFC+3KEv05eUpDei
-         8gNzcU4aCFXVYdFo7/ml34OOOgzIPqNts2RVdBtBY36x548tTuxpPdW/MxZkK6O3ZjS1
-         GNeQ==
-X-Google-Smtp-Source: AHgI3IZ3GjohG8ZeA76M7eOjYWudq1T/tMGFoHWrlRHyeUncjvHws5E6JvWGfIvPEESyBMwC3C4GI6y40ZeIw13ln24=
-X-Received: by 2002:aca:32c3:: with SMTP id y186mr3201069oiy.118.1550859619873;
- Fri, 22 Feb 2019 10:20:19 -0800 (PST)
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=/1iRUWXUez0vQmzuA6ScUoUTtthAjz8oJPlMkoBcgCo=;
+        b=b267o0z6qksczZ6tdLwpa3oMpBghC7VNreLZWEEy860EODd2+i/QjS4nWyY/ryDODy
+         a5G8IZp8wvWZSWhb7LkpNdYs8nPu3EkOMlFPeqdRA++vk8m1TL08DMGGvBd6ZgP9Rpca
+         6uBxZmBrK0rW0yNb2CK8KhQs3FNIRWoyUwECysD6/T4pXlFsnJTz6wcq8L5GoBjcEu7I
+         RoN+qZym0HIiSVeQtM0NP3F50AmXJmjmn609rEXS5ph0WTJkbe8D0l5DG8rP0GWSIYfU
+         3F7gjmpDG5rf9TUjQfVAHmOLn1pXQ6iCoXcwdNB7bCIG/6Kbwc3dgPl6o4khb+jF1Z84
+         fbSg==
+X-Google-Smtp-Source: AHgI3IaeDDfPbp7vXQTiAzbg0tyYv6REAy+eU0RB6B1ee5L/C1zIpSF2uD275SBiZWz5/J1nf8/SGg==
+X-Received: by 2002:a81:36ca:: with SMTP id d193mr4536619ywa.388.1550859771539;
+        Fri, 22 Feb 2019 10:22:51 -0800 (PST)
+Received: from localhost ([2620:10d:c091:200::1:cd3d])
+        by smtp.gmail.com with ESMTPSA id c124sm683685ywe.12.2019.02.22.10.22.50
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 22 Feb 2019 10:22:50 -0800 (PST)
+Date: Fri, 22 Feb 2019 13:22:49 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>,
+	Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@surriel.com>,
+	Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 5/5] mm/vmscan: don't forcely shrink active anon lru list
+Message-ID: <20190222182249.GC15440@cmpxchg.org>
+References: <20190222174337.26390-1-aryabinin@virtuozzo.com>
+ <20190222174337.26390-5-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
-References: <20190214171017.9362-1-keith.busch@intel.com> <20190214171017.9362-7-keith.busch@intel.com>
- <29336223-b86e-3aca-ee5a-276d1c404b96@inria.fr> <20190222180944.GD10237@localhost.localdomain>
-In-Reply-To: <20190222180944.GD10237@localhost.localdomain>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 22 Feb 2019 10:20:08 -0800
-Message-ID: <CAPcyv4itkDiPYAqkT4e0i8nQXKAEZCUQsFk8jACEJ__tZwUh3Q@mail.gmail.com>
-Subject: Re: [PATCHv6 06/10] node: Add memory-side caching attributes
-To: Keith Busch <keith.busch@intel.com>
-Cc: Brice Goglin <Brice.Goglin@inria.fr>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux ACPI <linux-acpi@vger.kernel.org>, 
-	Linux MM <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Rafael Wysocki <rafael@kernel.org>, 
-	Dave Hansen <dave.hansen@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190222174337.26390-5-aryabinin@virtuozzo.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 22, 2019 at 10:09 AM Keith Busch <keith.busch@intel.com> wrote:
->
-> On Fri, Feb 22, 2019 at 11:12:38AM +0100, Brice Goglin wrote:
-> > Le 14/02/2019 =C3=A0 18:10, Keith Busch a =C3=A9crit :
-> > > +What:              /sys/devices/system/node/nodeX/memory_side_cache/=
-indexY/size
-> > > +Date:              December 2018
-> > > +Contact:   Keith Busch <keith.busch@intel.com>
-> > > +Description:
-> > > +           The size of this memory side cache in bytes.
-> >
-> >
-> > Hello Keith,
-> >
-> > CPU-side cache size is reported in kilobytes:
-> >
-> > $ cat
-> > /sys/devices/system/cpu/cpu0/cache/index*/size
-> >
-> > 32K
-> > 32K
-> > 256K
-> > 4096K
-> >
-> > Can you do the same of memory-side caches instead of reporting bytes?
->
-> Ok, will do.
+On Fri, Feb 22, 2019 at 08:43:37PM +0300, Andrey Ryabinin wrote:
+> shrink_node_memcg() always forcely shrink active anon list.
+> This doesn't seem like correct behavior. If system/memcg has no swap, it's
+> absolutely pointless to rebalance anon lru lists.
+> And in case we did scan the active anon list above, it's unclear why would
+> we need this additional force scan. If there are cases when we want more
+> aggressive scan of the anon lru we should just change the scan target
+> in get_scan_count() (and better explain such cases in the comments).
+> 
+> Remove this force shrink and let get_scan_count() to decide how
+> much of active anon we want to shrink.
 
-Ugh, please no. Don't optimize sysfs for human consumption. That 'K'
-now needs to be parsed.
+This change breaks the anon pre-aging.
+
+The idea behind this is that the VM maintains a small batch of anon
+reclaim candidates with recent access information. On every reclaim,
+even when we just trim cache, which is the most common reclaim mode,
+but also when we just swapped out some pages and shrunk the inactive
+anon list, at the end of it we make sure that the list of potential
+anon candidates is refilled for the next reclaim cycle.
+
+The comments for this are above inactive_list_is_low() and the
+age_active_anon() call from kswapd.
+
+Re: no swap, you are correct. We should gate that rebalancing on
+total_swap_pages, just like age_active_anon() does.
 
