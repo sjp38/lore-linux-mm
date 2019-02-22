@@ -2,236 +2,188 @@ Return-Path: <SRS0=SgWF=Q5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BBF9BC4360F
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 22:42:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D5A5C10F00
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 22:54:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 78E20206C0
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 22:42:11 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="Nc3wStqM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78E20206C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id D74C220651
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 22:54:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D74C220651
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 188A18E0142; Fri, 22 Feb 2019 17:42:11 -0500 (EST)
+	id 5EF5E8E0144; Fri, 22 Feb 2019 17:54:54 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 138608E0141; Fri, 22 Feb 2019 17:42:11 -0500 (EST)
+	id 575828E0141; Fri, 22 Feb 2019 17:54:54 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F41BA8E0142; Fri, 22 Feb 2019 17:42:10 -0500 (EST)
+	id 3F06E8E0144; Fri, 22 Feb 2019 17:54:54 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CDCD98E0141
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 17:42:10 -0500 (EST)
-Received: by mail-yb1-f198.google.com with SMTP id 124so2417992ybl.10
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 14:42:10 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E3CB08E0141
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 17:54:53 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id t26so2726221pgu.18
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 14:54:53 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=mtXo/OgTrDWenFtgKz94DgciMW8dOaQHFFYZnjJ+Qp0=;
-        b=Y9yeZweJX3N0kM2ycQIYSTdQJMjWjsFbYj7FAvgOW1q89ku6GFgL6uMs94gzgxAD2u
-         o921jvPra1EkWsRWB5ODkAhK8ddPqDfAS6qH9XkGWS/kfNv+2dd4rza02J6T4TRYu0Br
-         sAqcVGEBYckWcCzZPADocnBZi74gtit6VRsxDhFhRl/VJcNBkL7+RgN9i+eNr0wuszOA
-         ElWQsDR2b8Ls+iaPbZh//UcQrCPmGAnd0URnl8Rv6n6tPOv+ZwdyNV/CJLQDpfU3NHFl
-         xBpIYJ5QsO8ywDhraxlJT5tQXWM021TioN5FEk+3896plgeAaEzMW2sqidEvkaAg4QQR
-         bMnA==
-X-Gm-Message-State: AHQUAuaJA9ueKI50ncBawm68Ly7acIBYtVliHQeifVk+NQVV6M8Uordh
-	4hlE5G668kyESKrw+ruT7qm8GUxr/lLi7Wckh609gVBl18ENHSWRfJXrtvNIccH/aEmSsug54Wq
-	L1+TpJImuBsHLHGjIUuaVdKOcAPQM707zL7voNOjYR46oNlINKTKRi9GBva2UOfToig==
-X-Received: by 2002:a81:71c5:: with SMTP id m188mr5375202ywc.353.1550875330519;
-        Fri, 22 Feb 2019 14:42:10 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib7HRJanOk73hMiQxWzUZDgrb2kkK9c2PI53iX91hHzNpY9qNS4SrYjEVEAp61NUJo9XezH
-X-Received: by 2002:a81:71c5:: with SMTP id m188mr5375161ywc.353.1550875329721;
-        Fri, 22 Feb 2019 14:42:09 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550875329; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=Ud2LBeXQliSDG2UaPkh84A4l57TzOut1Zflu97IJJWU=;
+        b=toiv3Y3SLwPDepOxGMzyZyBuO095yyZL7MHPTTZj6lfTYepBVy0vjRauZV50O1Vy18
+         QisUmKUUQJ++naw+75ykior6t70h+k1zG/hFYGO/u8klpSJrydixtE/J5aQfT89nneCq
+         5dPF3xlb1XPTqvxZR+yfwJ2KSeZuPoYLJF52XubVX/KN57kXyg+/lH2kylGcwDMz7ajV
+         kIyrRty96FJ3d2D4wUvZ9sniu4bkLSyyW5PYl0rIuUbrUPypZpb4SCtrcvEywuyks58i
+         bCOt8CZtYx4ihGZaMt2t06LIHNY+2/abwBTY/6z1wdxqeZm+uC+WDmoToCT2JHxmAeHY
+         HxCQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAubCrKw5tZoe7LMpVVr4Lf+UktyeF1hzm1VNiU3aaPL572+ubdj7
+	ESVTlEwbBHyprglJQz84gQObqjjNk3oZGQ7LOaK/WhqAa7NpKnsiPjLhGkw8F77J5/ttm3zwCR2
+	69UShL/GxFZsnttAGR13wTSrRflntfKjxRPO/VPFCKJLp0jZedWN4AcnKGVtnZgXcBA==
+X-Received: by 2002:a63:2706:: with SMTP id n6mr6025790pgn.352.1550876093560;
+        Fri, 22 Feb 2019 14:54:53 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZ0OLYV2VblyUKIEE4aiuYeA7qO9nYE7R9d0EsnsCg5BpvpsWTMs8EGElGPjsuGmuNdBHH0
+X-Received: by 2002:a63:2706:: with SMTP id n6mr6025741pgn.352.1550876092625;
+        Fri, 22 Feb 2019 14:54:52 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550876092; cv=none;
         d=google.com; s=arc-20160816;
-        b=AtptKMBOXRfNOqNwXC1KxqnYpaRwzKwdGSOcOMOAAN2jJ1SO/qyGSQHl0DXJa+ROeW
-         fYpDnzcjv2ocl8SAQqzyM6VAN001PrxYZzZ3IYoNBVzGnlRdcfgxx2a8+zb/nbBhCmec
-         f3IXWiy62bYQl/1dIqhv6qRe+5nwwfreJYfF9jVRel/oliHFwEJIw/K0+rcLNAa52bnn
-         9wInOD5HbnvKy+CtlUSZBBYf/Q66sLEPhy/pKEFpz8v0uGgGunB28UGUWWxoQEGJpSWr
-         nZ/2m4adJ+XdJWSRQHDWYO8M3nHp6u46wyqAalUwO7ylVz6/bdp5Ng3stWAhBblCWAS0
-         Ee+g==
+        b=zgR7GSiqrKGDSCdHOKYxXN592A0DyyyYk7RRcjvb5AubM/iTdqW6NJcr4nKJD+oZqz
+         YZJMxajykVzjCc0Q2onxffozDeNOPCpOfLsqh+hLQM2BuPgJgM/WlcJP8LG781YBje5U
+         ilMLQlhzZ5vafNNm3NC49FVfJYCFv5gJQsLiGB87/xgvT+kOSpwT/zgZR2xzxzhHAc20
+         8weFzBxFwCOH85UkM/U2B5iS9FPhnF5oipcDIpmFX7B0j+Qgi0n8Dc7/T6zpcqox9oQs
+         xKrj+fTCKMrgEi0Zg5vOkHxHbwC3uGt1VGCwNnqMP3hSYNsbZmC6baYcwa2E/KeMR4hg
+         uenA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=mtXo/OgTrDWenFtgKz94DgciMW8dOaQHFFYZnjJ+Qp0=;
-        b=x4VrlCSRpm6dtOTMMRebZvrNLBsleLOuqvbD+S9fEDwialBBlZxU/xZ1hF5AhitXDb
-         OF9AT2cMote3dbPBDvpcI2BxwFYqT+1WN3BN4mpWvIT0/MurF6VccThJlPJzlgSLWjMH
-         NXRlSduj7HlNy8/dKmVlFHZ/Qzw98LZU2FiOfKC1hI2Jr54HfPkeqB7I3hGlpGVCQOqE
-         S+UfHBnEOHPQQi4wqJ7C/c+cZIyoNgsv/wtsqHDbiDJMi/7P0k8b1uQrfpfPjuiaKXWD
-         HfQUpiB1DlL+gqYOr6y92XgXla6w5ITv1cVOIBBoKn14UVQTmS7N9ClZps4t4gQbFAsv
-         /FwA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=Ud2LBeXQliSDG2UaPkh84A4l57TzOut1Zflu97IJJWU=;
+        b=w3AIJ9tkrUKY3NWr69lB+HE3u9St8PJY0e7a9M0fQTsA0xf0CgH9nUOImCaI8Ouyhp
+         d3zCa4XLB781vi4PAmAZLj9du1Pfy2+7GI9aGG06r7IdidgedpZZrEhVjodlVFJ4J1e+
+         O2O/nlI8ubXZ0fzjXfGh32oYPNRfG9NrlqKiEavoOEiCwMfZz0xz5mymQMP/Ak1TI19i
+         pIZgPUiHwca5CVqtxrsYNEX3nPDmSRX2VLndgAMslqH5g50MNvIh3Uvl5j/Rx9fa5zsR
+         sj2hBJ7SAy2iuG4zBPVid7m92u8q0VRk6nd+zrGZnBjwZFNcSUbd2d4r1YN07b9+y5TU
+         7GUw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Nc3wStqM;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id j66si1235852ywc.423.2019.02.22.14.42.09
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id q77si2499424pfi.220.2019.02.22.14.54.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Feb 2019 14:42:09 -0800 (PST)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Fri, 22 Feb 2019 14:54:52 -0800 (PST)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Nc3wStqM;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c707abe0000>; Fri, 22 Feb 2019 14:42:06 -0800
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Fri, 22 Feb 2019 14:42:08 -0800
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Fri, 22 Feb 2019 14:42:08 -0800
-Received: from rcampbell-dev.nvidia.com (172.20.13.39) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Fri, 22 Feb
- 2019 22:42:08 +0000
-Subject: Re: [PATCH v5 8/9] mm/mmu_notifier:
- mmu_notifier_range_update_to_read_only() helper
-To: <jglisse@redhat.com>, <linux-mm@kvack.org>, Andrew Morton
-	<akpm@linux-foundation.org>
-CC: <linux-kernel@vger.kernel.org>, =?UTF-8?Q?Christian_K=c3=b6nig?=
-	<christian.koenig@amd.com>, Joonas Lahtinen
-	<joonas.lahtinen@linux.intel.com>, Jani Nikula <jani.nikula@linux.intel.com>,
-	Rodrigo Vivi <rodrigo.vivi@intel.com>, Jan Kara <jack@suse.cz>, Andrea
- Arcangeli <aarcange@redhat.com>, Peter Xu <peterx@redhat.com>, Felix Kuehling
-	<Felix.Kuehling@amd.com>, Jason Gunthorpe <jgg@mellanox.com>, Ross Zwisler
-	<zwisler@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Paolo Bonzini
-	<pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>, John Hubbard <jhubbard@nvidia.com>,
-	<kvm@vger.kernel.org>, <dri-devel@lists.freedesktop.org>,
-	<linux-rdma@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>
-References: <20190219200430.11130-1-jglisse@redhat.com>
- <20190219200430.11130-9-jglisse@redhat.com>
-From: Ralph Campbell <rcampbell@nvidia.com>
-Message-ID: <9da5e3b9-7f4a-49ee-bf80-024e5aed20a1@nvidia.com>
-Date: Fri, 22 Feb 2019 14:42:08 -0800
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Feb 2019 14:54:52 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,401,1544515200"; 
+   d="scan'208";a="120100398"
+Received: from ray.jf.intel.com (HELO [10.7.201.17]) ([10.7.201.17])
+  by orsmga008.jf.intel.com with ESMTP; 22 Feb 2019 14:54:50 -0800
+Subject: Re: [PATCH v10 00/12] arm64: untag user pointers passed to the kernel
+To: Andrey Konovalov <andreyknvl@google.com>,
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+ <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
+ Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>,
+ Kate Stewart <kstewart@linuxfoundation.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>,
+ "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+ Shuah Khan <shuah@kernel.org>, Vincenzo Frascino
+ <vincenzo.frascino@arm.com>, linux-arm-kernel@lists.infradead.org,
+ linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
+ linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>,
+ Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>,
+ Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+ Jacob Bramley <Jacob.Bramley@arm.com>,
+ Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+ Chintan Pandya <cpandya@codeaurora.org>,
+ Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+ Dave Martin <Dave.Martin@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>,
+ Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+References: <cover.1550839937.git.andreyknvl@google.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <2ad5f897-25c0-90cf-f54f-827876873a0a@intel.com>
+Date: Fri, 22 Feb 2019 14:54:51 -0800
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.3.0
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <20190219200430.11130-9-jglisse@redhat.com>
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; charset="utf-8"; format=flowed
+In-Reply-To: <cover.1550839937.git.andreyknvl@google.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1550875326; bh=mtXo/OgTrDWenFtgKz94DgciMW8dOaQHFFYZnjJ+Qp0=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
-	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
-	 X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=Nc3wStqMc92w+r1iPlq9rgZ+vhAdWvC7XW8dkhwHHCmx+cNeaVKN6yWaoSYkFGqvT
-	 uhymWbKVsZcyJTFIgkUtdKMW/Tsuv33gN/wOITb98h85ko32ucaIGihP8IVsWu63e+
-	 RLiXSb3H/jUiJzFLcXYhasBMoZ4g7EP2Tp1xfl0aq1qDPn4bEwy8XsCtD5FknLXjCx
-	 S/Ipg5VGk57i+O7iRu0wRw+y7pSIDnIzcLzfrQz7q0vQ0X4njJ7g8SGd51l5tKEN25
-	 Wioa0sixuhaYxOZPKygwhRvB0YPxY2SUyYImiqOF25igrTWAzBCLUYZ2vfJlAi2rRs
-	 M8uWU0XGYlSmQ==
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 2/22/19 4:53 AM, Andrey Konovalov wrote:
+> The following testing approaches has been taken to find potential issues
+> with user pointer untagging:
+> 
+> 1. Static testing (with sparse [3] and separately with a custom static
+>    analyzer based on Clang) to track casts of __user pointers to integer
+>    types to find places where untagging needs to be done.
 
-On 2/19/19 12:04 PM, jglisse@redhat.com wrote:
-> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
->=20
-> Helper to test if a range is updated to read only (it is still valid
-> to read from the range). This is useful for device driver or anyone
-> who wish to optimize out update when they know that they already have
-> the range map read only.
->=20
-> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> Cc: Christian K=C3=B6nig <christian.koenig@amd.com>
-> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-> Cc: Jani Nikula <jani.nikula@linux.intel.com>
-> Cc: Rodrigo Vivi <rodrigo.vivi@intel.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Peter Xu <peterx@redhat.com>
-> Cc: Felix Kuehling <Felix.Kuehling@amd.com>
-> Cc: Jason Gunthorpe <jgg@mellanox.com>
-> Cc: Ross Zwisler <zwisler@kernel.org>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Paolo Bonzini <pbonzini@redhat.com>
-> Cc: Radim Kr=C4=8Dm=C3=A1=C5=99 <rkrcmar@redhat.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Christian Koenig <christian.koenig@amd.com>
-> Cc: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> Cc: kvm@vger.kernel.org
-> Cc: dri-devel@lists.freedesktop.org
-> Cc: linux-rdma@vger.kernel.org
-> Cc: Arnd Bergmann <arnd@arndb.de>
-> ---
->   include/linux/mmu_notifier.h |  4 ++++
->   mm/mmu_notifier.c            | 10 ++++++++++
->   2 files changed, 14 insertions(+)
->=20
-> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-> index 0379956fff23..b6c004bd9f6a 100644
-> --- a/include/linux/mmu_notifier.h
-> +++ b/include/linux/mmu_notifier.h
-> @@ -259,6 +259,8 @@ extern void __mmu_notifier_invalidate_range_end(struc=
-t mmu_notifier_range *r,
->   				  bool only_end);
->   extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
->   				  unsigned long start, unsigned long end);
-> +extern bool
-> +mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *=
-range);
->  =20
->   static inline bool
->   mmu_notifier_range_blockable(const struct mmu_notifier_range *range)
-> @@ -568,6 +570,8 @@ static inline void mmu_notifier_mm_destroy(struct mm_=
-struct *mm)
->   {
->   }
->  =20
-> +#define mmu_notifier_range_update_to_read_only(r) false
-> +
->   #define ptep_clear_flush_young_notify ptep_clear_flush_young
->   #define pmdp_clear_flush_young_notify pmdp_clear_flush_young
->   #define ptep_clear_young_notify ptep_test_and_clear_young
-> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-> index abd88c466eb2..ee36068077b6 100644
-> --- a/mm/mmu_notifier.c
-> +++ b/mm/mmu_notifier.c
-> @@ -395,3 +395,13 @@ void mmu_notifier_unregister_no_release(struct mmu_n=
-otifier *mn,
->   	mmdrop(mm);
->   }
->   EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
-> +
-> +bool
-> +mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *=
-range)
-> +{
-> +	if (!range->vma || range->event !=3D MMU_NOTIFY_PROTECTION_VMA)
-> +		return false;
-> +	/* Return true if the vma still have the read flag set. */
-> +	return range->vma->vm_flags & VM_READ;
-> +}
-> +EXPORT_SYMBOL_GPL(mmu_notifier_range_update_to_read_only);
->=20
+First of all, it's really cool that you took this approach.  Sounds like
+there was a lot of systematic work to fix up the sites in the existing
+codebase.
 
-Don't you have to check for !WRITE & READ?
-mprotect() can change the permissions from R/O to RW and
-end up calling mmu_notifier_range_init() and=20
-mmu_notifier_invalidate_range_start()/end().
-
-I'm not sure how useful this is since only applies to the
-MMU_NOTIFY_PROTECTION_VMA case.
-Anyway, you can add
-
-Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+But, isn't this a _bit_ fragile going forward?  Folks can't just "make
+sparse" to find issues with missing untags.  This seems like something
+where we would ideally add an __tagged annotation (or something) to the
+source tree and then have sparse rules that can look for missed untags.
 
