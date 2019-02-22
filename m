@@ -4,188 +4,212 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E394C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:56:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3F857C4360F
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 19:01:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F12DC2075C
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 18:56:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E0B2720657
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 19:01:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="IA6OBonZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F12DC2075C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="YPy7Q3OM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E0B2720657
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 825DD8E012E; Fri, 22 Feb 2019 13:56:56 -0500 (EST)
+	id 84B5F8E012F; Fri, 22 Feb 2019 14:01:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7D4F08E0123; Fri, 22 Feb 2019 13:56:56 -0500 (EST)
+	id 821478E0123; Fri, 22 Feb 2019 14:01:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 69E3A8E012E; Fri, 22 Feb 2019 13:56:56 -0500 (EST)
+	id 6E9F78E012F; Fri, 22 Feb 2019 14:01:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A1588E0123
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 13:56:56 -0500 (EST)
-Received: by mail-yb1-f199.google.com with SMTP id n187so2000612ybc.19
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 10:56:56 -0800 (PST)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FBF48E0123
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 14:01:04 -0500 (EST)
+Received: by mail-yb1-f198.google.com with SMTP id o8so2035511ybp.1
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 11:01:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=xkL/KUG2ty/qt3b6CfHyrEo1gt0Q/082URYwQd1dfDY=;
-        b=rXR9AVYMyD87w38chuQAsl7RVUi7OUL+SxUwZImSSLOqnDVc9ucmur6HLBeLnHj/Us
-         JUnFLc07ZIiXG8ABKVVqHhAx77P7DLbK02+NQqSX8QTEF8dwPBpb7YcpuVh9TnwIaM9S
-         NwarxerfHWhVDIGcZKw6AJoURrv0wwGZeb0QEQU9+DEgwM9xxyIcccgeLJImzEYu4BhF
-         sfOocIEQGdlRqfOaq75hQLE0x5ZoOqaJULd3wuyuq3Yx4SduRPQTgSbcOOuRVM6ayr64
-         Y5GTE4D/IxL4sgJiQrsOLp8vIeKmxQqRpHwZjTcFerH/p+1Qh+3UsFYAD0E2kYk94NG1
-         mmhQ==
-X-Gm-Message-State: AHQUAua418E6J826M2D89WnGgZpbnNXiR6jd7veyDmdXCB2Kq3URTbFA
-	aQSidQRIwRaGXeir7DpBEZpEJqyv89LkqnPn4bXSCQfKdXBgDkAog5benCPwHWUzQsr6oI0+LWT
-	GclQyPlRSYCmA6CclopOBLh3qK02RiMCDpjdbl/A+3lMF277RzvxhrOauJyQGoHI18A==
-X-Received: by 2002:a5b:44a:: with SMTP id s10mr4683888ybp.248.1550861815943;
-        Fri, 22 Feb 2019 10:56:55 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYqqBgbV2V5gxkuEhk6idng7xR6aNgUlnosJVTUt8VwR5dG4NbtYVWj39a1iZb9UsUVjUUC
-X-Received: by 2002:a5b:44a:: with SMTP id s10mr4683852ybp.248.1550861815091;
-        Fri, 22 Feb 2019 10:56:55 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550861815; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=x3ep/Gi+sTbOk9gLW6cFVFGUmrcJKXma0tiO4b4QgOg=;
+        b=gjP9bBuOH+kb9IFZLU/+kbbdVWFkj0yufSJi5lwETQYfMs4WGzzinffHD0HeduVMow
+         r5M1pOIc1vJ3hMFErydW3XY8iOVrZxKU8+4J+pEW9hjr+I5PXvHsfW848IbFW+dDDwi+
+         ctUXeVj9/kit1qdKASaa450t/y2DdJN4LLogAT5pSqPo42xJfbRL6uGlEOEx+Wz/zbdI
+         M4M2vz4yvUC3c0j14B+y2pQ47VuJsE13Ah3RWLXKX4q5oZNAaJ9++wWu044SjwXTg43I
+         79F8IAmhERf0dUMupVjukte3duBbyA7xgM48+Ks6J35vfM4XxefEebZyjiroqHYMJerv
+         GPHA==
+X-Gm-Message-State: AHQUAub62AgatIOaOf7zewiuLtbkfqv/B02cOB4OkIj/GwPAT7htySPa
+	Spri/iGRmYmCduPtuKq7SGAaCdbvafg0x58Z6X3ASJiPxKbjcDYgDJUK39lyZjgVoIAodZhZIFf
+	BTR7tiKsu64cFDXzWvW/to8I+W23DZ9f6208LAQMDtQyBw6cJadGRU2vnV7L9o1XJdA==
+X-Received: by 2002:a25:9c42:: with SMTP id x2mr4438381ybo.199.1550862063933;
+        Fri, 22 Feb 2019 11:01:03 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYt4ovSV1LD/JDxcP2IumvVdvRGDk1jLJxM3k3wJBeyfl+XPuuQS7OGk22epPcEOsl9uqrG
+X-Received: by 2002:a25:9c42:: with SMTP id x2mr4438305ybo.199.1550862063077;
+        Fri, 22 Feb 2019 11:01:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550862063; cv=none;
         d=google.com; s=arc-20160816;
-        b=zYWwmVKnhA+Bd0lq/rsteuuLaV6f19oask3jl+lRTpknikzgyW+HjI+e+gA8xlNGH6
-         MFygXT0hAuTKA3xeI9MSp0wl4zzQOpXyclRpTgYDOqdGcWrtixwdF+hyjPaRSPJw0YYA
-         yYtiatlfuswdO/tiQUAXZXiqm0p+c2arTDLiuruPLdlxK+JiyO9RDZltRhHig6vzol51
-         KeVigSMLxtbg19NNZzXpA9caiW3lwTx1nywsbXoYj+/WjmiHWCGRt8KXPm62e9jemF9q
-         nVz64MD53g0penizVweyyOzmkVGhwq5A1MBX6aAGgnPZOmR6MhCS75gN+DTHc/rLpjo8
-         CwhA==
+        b=D4jk7PDmmQpkWqcm3JXHutMzqqZngeJOtj/yD3Gy53sF37oKu1gt5SBKuVj07KKTDf
+         7VaLcme3S4/n8Qhy8hiaakrc4OleLmeBblNPeAW9jSZDxa+kbxDRrA+j3vU8c0cIe6HB
+         SA4o2LafCZKkkiq0Mz5xXaXzjGlbFpRYMUFlAHy8bv9Bq+1quGTsnOFgMyJ/ZsknjkxJ
+         D1Ms1bDEGwJzqBADcrqLkDxKNleTlm/Qk0PiDZ5ahVcnjFKxQURrm6IPIijwtfo6iwYe
+         WuefEgq98nbce0/OKI2enTIx/vVJt0vXFgnnWXsw3hE60xhNhTFnrZrYTAJJo6bsNKxk
+         I7oA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=xkL/KUG2ty/qt3b6CfHyrEo1gt0Q/082URYwQd1dfDY=;
-        b=i+wkOneIwyZNFYhkNJ9yhhbHHM9ZZlzQ4qMRJcLB0Rl71/pvW/pjuxYVci/m+9rQMV
-         gR/gaSpiCyAAe8btV8yx3UeqFpfFWwOhZTVe0h6HYRdwONCSOMTpqfk06KIHsPFj2rtf
-         FRJWYPcutvaGS6z16PTkJZdd7px0RGGZb2Fp3ilBMM8SAMS5A4spBBKm7zyGRY9495Q5
-         2cE8mWeXI8qdWxJin7sQYXBJPi4koZjYx0xd1uqGez3Vvn+lNOpCqibpDvT6z+uv7mTJ
-         V4E9J+UfBUInYriEhsrjrD7hmIXBs0KRZLUaRVasFov/fUINOHYWnqzse925Nz17JrnO
-         iBWQ==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=x3ep/Gi+sTbOk9gLW6cFVFGUmrcJKXma0tiO4b4QgOg=;
+        b=UlYMS7wwZy7xWrYK0yMIvLjw46ylHtzAYTN2u+f2/DyVFHQc0beQCBhi5eNtPqB2N/
+         uAf76IKCmz3kjGSSQr5sUgRMX8it4QSXOIR4r+AAW/LL1V1VkRjrGzAcgKOZFxTeIPCz
+         sgy20JM+DwTZArDqNFRjeI57BciTlg25bqUzQVGMU2a5Kf4fEBKsrNUPRafbGXz82ijx
+         F0MW9bgObfSSuXifQEaKGeUOM+Jwx8JqUTtJKqrL+ujMDw9e9EYmedAfMlPROvbCrvZG
+         qtmYIjvUUxsIzKWuyQg5H/KpA5TzP3k6c6RSKWb4sBX0f93+uweGAOxwYbJtLv2h+9JI
+         MMkg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=IA6OBonZ;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id c13si1258901ybl.108.2019.02.22.10.56.54
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=YPy7Q3OM;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id l1si1314070ywm.40.2019.02.22.11.01.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Feb 2019 10:56:55 -0800 (PST)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Fri, 22 Feb 2019 11:01:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=IA6OBonZ;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1MIrVEf071475;
-	Fri, 22 Feb 2019 18:56:40 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=xkL/KUG2ty/qt3b6CfHyrEo1gt0Q/082URYwQd1dfDY=;
- b=IA6OBonZz6DXwAbe7D5ZQnlvUglPV/S+Wp72sxqWu/RSQWCdnVfhACLvuzwCCDMYxbY6
- iZpJugaJVyRdOMD3Qv03g2g8tMpHoAjSYUiBuezyqVUt7PSZwlg+izMSYDWIL+RcaY+M
- XwqKRFcgUvBBVylQZYCrLfq1hIQvLLu0oLh/XC8avT5VdvQZ9EGeEp2NWyw6GwHtAD5M
- nipz+C0CPsCRV8WFwVaoZyhPaYbBZSywFFIJA7/pdwzcYMQYYigkQo2jpGDjiv6dffZa
- 0zI6Dwe8nFpYALMlHPtioF29rU9AshKtu7MikELFqwcmtKODW1RGwXf8IdPOd/DEvt2f Zw== 
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by aserp2130.oracle.com with ESMTP id 2qp81es377-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 22 Feb 2019 18:56:40 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1MIucnZ006901
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 22 Feb 2019 18:56:39 GMT
-Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1MIucic030285;
-	Fri, 22 Feb 2019 18:56:38 GMT
-Received: from [192.168.1.164] (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 22 Feb 2019 10:56:38 -0800
-Subject: Re: [PATCH v3] mm/hugetlb: Fix unsigned overflow in
- __nr_hugepages_store_common()
-To: Jing Xiangfeng <jingxiangfeng@huawei.com>, mhocko@kernel.org,
-        akpm@linux-foundation.org
-Cc: hughd@google.com, linux-mm@kvack.org, n-horiguchi@ah.jp.nec.com,
-        aarcange@redhat.com, kirill.shutemov@linux.intel.com,
-        linux-kernel@vger.kernel.org
-References: <1550844088-67888-1-git-send-email-jingxiangfeng@huawei.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <9258d571-26d0-f9ad-a60e-0449ac8dd5f9@oracle.com>
-Date: Fri, 22 Feb 2019 10:56:36 -0800
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=YPy7Q3OM;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c7046eb0002>; Fri, 22 Feb 2019 11:01:00 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Fri, 22 Feb 2019 11:01:02 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Fri, 22 Feb 2019 11:01:02 -0800
+Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1395.4; Fri, 22 Feb
+ 2019 19:01:01 +0000
+Subject: Re: [PATCH v5 1/9] mm/mmu_notifier: helper to test if a range
+ invalidation is blockable
+To: <jglisse@redhat.com>, <linux-mm@kvack.org>, Andrew Morton
+	<akpm@linux-foundation.org>
+CC: <linux-kernel@vger.kernel.org>, =?UTF-8?Q?Christian_K=c3=b6nig?=
+	<christian.koenig@amd.com>, Joonas Lahtinen
+	<joonas.lahtinen@linux.intel.com>, Jani Nikula <jani.nikula@linux.intel.com>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>, Jan Kara <jack@suse.cz>, Andrea
+ Arcangeli <aarcange@redhat.com>, Peter Xu <peterx@redhat.com>, Felix Kuehling
+	<Felix.Kuehling@amd.com>, Jason Gunthorpe <jgg@mellanox.com>, Ross Zwisler
+	<zwisler@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Paolo Bonzini
+	<pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+	Michal Hocko <mhocko@kernel.org>, John Hubbard <jhubbard@nvidia.com>,
+	<kvm@vger.kernel.org>, <dri-devel@lists.freedesktop.org>,
+	<linux-rdma@vger.kernel.org>, <linux-fsdevel@vger.kernel.org>, Arnd Bergmann
+	<arnd@arndb.de>
+References: <20190219200430.11130-1-jglisse@redhat.com>
+ <20190219200430.11130-2-jglisse@redhat.com>
+From: Ralph Campbell <rcampbell@nvidia.com>
+Message-ID: <db289f99-3b47-1af6-cbfb-a15155c382c6@nvidia.com>
+Date: Fri, 22 Feb 2019 11:01:01 -0800
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+ Thunderbird/60.3.0
 MIME-Version: 1.0
-In-Reply-To: <1550844088-67888-1-git-send-email-jingxiangfeng@huawei.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20190219200430.11130-2-jglisse@redhat.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9175 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902220129
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1550862060; bh=x3ep/Gi+sTbOk9gLW6cFVFGUmrcJKXma0tiO4b4QgOg=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
+	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=YPy7Q3OMR8x41jv2A+iuoBr/NEseguMVKb+xW4/BDY4vP1uynrzZVXtz7+vwpM0pz
+	 Z/LQ2s6yAsC0aqxH7hKB6PjUog2hYAlv4K8t1r3RbU01x874oUNH2UqLURkDAJsU7s
+	 B7DLZ1FeBqXJzAZTTCj0VKnGkHzhW11xY3osITv6Eb92BvzgpmCb2rltVgZb2g+XA6
+	 AE8qO3v6CnAX5iQGjGqzGCJU4mfd1LX4fPrNL8V+VZffI4zZg8m1uA9BlgARC/LKio
+	 ufrKrUUb7kcM/5Tr73O5hPzWqT1VfVbH8kLc2sf8I6ExkxpreHxsqNxyggmViUJIdD
+	 uMbIo5Ay2VvHQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/22/19 6:01 AM, Jing Xiangfeng wrote:
-Thanks, just a couple small changes.
 
-> User can change a node specific hugetlb count. i.e.
-> /sys/devices/system/node/node1/hugepages/hugepages-2048kB
-
-Please make that,
-/sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages
-
-> the calculated value of count is a total number of huge pages. It could
-> be overflow when a user entering a crazy high value. If so, the total
-> number of huge pages could be a small value which is not user expect.
-> We can simply fix it by setting count to ULONG_MAX, then it goes on. This
-> may be more in line with user's intention of allocating as many huge pages
-> as possible.
-> 
-> Signed-off-by: Jing Xiangfeng <jingxiangfeng@huawei.com>
+On 2/19/19 12:04 PM, jglisse@redhat.com wrote:
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>=20
+> Simple helpers to test if range invalidation is blockable. Latter
+> patches use cocinnelle to convert all direct dereference of range->
+> blockable to use this function instead so that we can convert the
+> blockable field to an unsigned for more flags.
+>=20
+> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Christian K=C3=B6nig <christian.koenig@amd.com>
+> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+> Cc: Jani Nikula <jani.nikula@linux.intel.com>
+> Cc: Rodrigo Vivi <rodrigo.vivi@intel.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Peter Xu <peterx@redhat.com>
+> Cc: Felix Kuehling <Felix.Kuehling@amd.com>
+> Cc: Jason Gunthorpe <jgg@mellanox.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Ross Zwisler <zwisler@kernel.org>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Paolo Bonzini <pbonzini@redhat.com>
+> Cc: Radim Kr=C4=8Dm=C3=A1=C5=99 <rkrcmar@redhat.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Christian Koenig <christian.koenig@amd.com>
+> Cc: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: kvm@vger.kernel.org
+> Cc: dri-devel@lists.freedesktop.org
+> Cc: linux-rdma@vger.kernel.org
+> Cc: linux-fsdevel@vger.kernel.org
+> Cc: Arnd Bergmann <arnd@arndb.de>
 > ---
->  mm/hugetlb.c | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index afef616..18fa7d7 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2423,7 +2423,10 @@ static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,
->  		 * per node hstate attribute: adjust count to global,
->  		 * but restrict alloc/free to the specified node.
->  		 */
-> +		unsigned long old_count = count;
->  		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
+>   include/linux/mmu_notifier.h | 11 +++++++++++
+>   1 file changed, 11 insertions(+)
+>=20
+> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+> index 4050ec1c3b45..e630def131ce 100644
+> --- a/include/linux/mmu_notifier.h
+> +++ b/include/linux/mmu_notifier.h
+> @@ -226,6 +226,12 @@ extern void __mmu_notifier_invalidate_range_end(stru=
+ct mmu_notifier_range *r,
+>   extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
+>   				  unsigned long start, unsigned long end);
+>  =20
+> +static inline bool
+> +mmu_notifier_range_blockable(const struct mmu_notifier_range *range)
+> +{
+> +	return range->blockable;
+> +}
+> +
+>   static inline void mmu_notifier_release(struct mm_struct *mm)
+>   {
+>   	if (mm_has_notifiers(mm))
+> @@ -455,6 +461,11 @@ static inline void _mmu_notifier_range_init(struct m=
+mu_notifier_range *range,
+>   #define mmu_notifier_range_init(range, mm, start, end) \
+>   	_mmu_notifier_range_init(range, start, end)
+>  =20
+> +static inline bool
+> +mmu_notifier_range_blockable(const struct mmu_notifier_range *range)
+> +{
+> +	return true;
+> +}
+>  =20
+>   static inline int mm_has_notifiers(struct mm_struct *mm)
+>   {
 
-Also, adding a comment here about checking for overflow would help people
-reading the code.  Something like,
-
-		/*
-		 * If user specified count causes overflow, set to
-		 * largest possible value.
-		 */
-
--- 
-Mike Kravetz
-
-> +		if (count < old_count)
-> +			count = ULONG_MAX;
->  		init_nodemask_of_node(nodes_allowed, nid);
->  	} else
->  		nodes_allowed = &node_states[N_MEMORY];
-> 
+Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
 
