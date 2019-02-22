@@ -2,153 +2,172 @@ Return-Path: <SRS0=SgWF=Q5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
 	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C552EC10F00
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 16:14:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 36979C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 16:19:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 81E2A20700
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 16:14:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E351220700
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 16:19:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=alien8.de header.i=@alien8.de header.b="a9NwRp86"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81E2A20700
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=alien8.de
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="RUnN8r6q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E351220700
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 20ED08E011A; Fri, 22 Feb 2019 11:14:29 -0500 (EST)
+	id 7B13C8E011B; Fri, 22 Feb 2019 11:19:48 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1B6298E0109; Fri, 22 Feb 2019 11:14:29 -0500 (EST)
+	id 762428E0109; Fri, 22 Feb 2019 11:19:48 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 08AE08E011A; Fri, 22 Feb 2019 11:14:29 -0500 (EST)
+	id 64FBF8E011B; Fri, 22 Feb 2019 11:19:48 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A165C8E0109
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 11:14:28 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id p3so1187690wrs.7
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 08:14:28 -0800 (PST)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B3888E0109
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 11:19:48 -0500 (EST)
+Received: by mail-yw1-f70.google.com with SMTP id r8so1660328ywh.10
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 08:19:48 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=TtW/o2236hee295y0l38KlKQhr9G4t9UGeyqpVmzjfk=;
-        b=Ql+FOA6lTk6B0BZGcbZKeYmTMqPlOUO4FW6bAiInn8xoGNWSXov/jp9RKQI00mjHvB
-         v2PQMjHIHb0wwEa+zsFh6GSDhlOF9S6Vw8ZBrll9q2TIXUFo4BX3Gyaikf4yX0OdlVdK
-         YxRUqS6i1r8p17HztbJ3RUTqMGooiUTfbjxnOd4D4rRo/SjbEwQVRZVDLcazBWcoGGEJ
-         QGIzAXJmIKNOF8UR2LSTtSK9sAwg0MH8Zwijn5XxWdPFYPkniljyHchbcHTFXLI8VJEi
-         BwdXneDv2ngSGCLXPCYWEnan/wvsnCWCRARqUD1ipdgMBecnXQGwN7kcLsvpTNygHgHj
-         GE6g==
-X-Gm-Message-State: AHQUAuYpSQ/v0tpzR3oTVELPCpL0eTUNtfX0HuKL26gKjjD9xvd/YVc8
-	6yaRTLSu2Qt/aTdRQFct372dvnx+xEfLg8GfyfvJ9/gYwmpW51mIX/dm5oqAFGyJULducpO+fsq
-	hyb17Qc7wO4b68KxcINviTjIrFLvVn4qpYH33pMifiUzLcYqK9D+ApBY6KgszLSfygA==
-X-Received: by 2002:a1c:c013:: with SMTP id q19mr2758113wmf.93.1550852068123;
-        Fri, 22 Feb 2019 08:14:28 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZU2fLvs+U6T84Amw8chvCsxCv9BtifpQfBLa1vlsYaoLAmqTgnff+nTyNBMhNgP2yqdvH4
-X-Received: by 2002:a1c:c013:: with SMTP id q19mr2758071wmf.93.1550852067322;
-        Fri, 22 Feb 2019 08:14:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550852067; cv=none;
+        bh=p/eSOvpEPOdnBZfZTBhWwFR1RxWxC5GEtCoFlgWry3E=;
+        b=Ntl0lzkf1ggJW1O4u1IiTwizU057UOvNCqMo7sNADWXYdTqfdNbiy07UgWUC8ksCM8
+         lQZiFbDg9v2JMuUfNz5qkKQRj6M4Evn4LOXxW2fcSwKwIhYoB7T4eejlXCVmVH0o3zzs
+         s+Yj8ifaK173Vj2H/SUR5WXr8AlvNWlUzcpiYyowG8/u0geQSYlyVDIRoy5g61+acLWL
+         /UQX27cHhMXHA3c9Nu6cYljH+02yx2R0kiOSFbEfnP20svH2P+VKLUFAaWEbB9j8z8cW
+         Zlu/HOqu/85ncbl7FsbHkTVq7q7BlG+GPyIyZE7sGTAlpGGHzuqQRXnpPTvzvdrH0MEX
+         A81w==
+X-Gm-Message-State: AHQUAubMn/v2b+VFV4zKuSXio+HmMelMDJqpOd9jv3HLuhY7sO4TZkOk
+	WR1rsZJ00AYnB/RL/nJHyVfsFueCulXsvAx3HbGZAJJEW3tbYsi7j6IUNGzJkyQVRbT4Ih+sVqk
+	8FpN7t6NVOSZrFW/0U0yNOKmRGjtEYHGnmhLea0LOo2lLWKgFk/pAMGDaQqmH/0nRvjdUjXJTYH
+	WtvyuCpHT26e3Nvx+xrr10cXGmHXzld+Snt7uln/9x4+JBTmPrmjNJpXFmEs9lgB/jQZQX8S8Mx
+	WQ0uvJWgqRPdSy35tpktddLM7wbmfhtunvTKdfr65fxl3V8sm46PnV3CX18katg5JjNpohGBW2o
+	5N0OmbWhQFnubyt+0mYTHfstVRHjPN2W26y5Z+0aVK3kKF4PwKAnBQHgFkE/s+i/652gXG6Rp7o
+	E
+X-Received: by 2002:a25:c886:: with SMTP id y128mr4057878ybf.250.1550852387887;
+        Fri, 22 Feb 2019 08:19:47 -0800 (PST)
+X-Received: by 2002:a25:c886:: with SMTP id y128mr4057812ybf.250.1550852386969;
+        Fri, 22 Feb 2019 08:19:46 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550852386; cv=none;
         d=google.com; s=arc-20160816;
-        b=g7OZ8g4lsl7R48uRpAUNF9WrqDqd35a+QbMrnZAts6aM2J+yIpl+m0JBaifAyAMbh6
-         SSUDbomul7LtVu+p8gQKDnUyuzDW1ajIefkm+0JYZ/3Ni3lBHqTCmKQbDtzhV/inLq6E
-         8vwp+9fnJ/flD+l7fHCqokH/xJiyfxqNZAtsukczvMhg6KlSsGtHi4+rP8SZJe3hWdKi
-         vN+lQxN9raz1wgjUyzHEjLmRFDIdqpfkhmWMkSv4DeCoHjnyXF94a3Q/iH+uqcHxVfYJ
-         AtEnw/yNL10mYpdNjKU0yn8qBKFvq9VAI224zG/R3HW1Dys89IwaEnWWBtNjnPLuVwdM
-         e9ow==
+        b=rbWGVEtdgZZNoFxaPYXGbJwTAfef7t7fop2mICSP4gA8oNzp/E3+iTScFwpTTmm4c7
+         k1D33wmDtjoGYwR9OEpwpnGIapIkU03zw51boMgms8vQDRohYEOoGD9DDh+T3EZ2Ggt5
+         w31fwCHKUasDmLQImTEMk3Ugj1kklu+ja9Sh1iaFx8XR8EpZqXWYtih8jLJuc43g+IzB
+         RNEygkG31a+Je4ENFMLYT3BUZxM95iSALeai0Dz9NChaF3JToLL0+NLJFBCnrjQvePTH
+         n7wi21TVlCNuaMCoRmbfSnq5B/6dJh/GUnFUITmH5dAKc5uJ9/zqgBUXoOG6i+i4IsrE
+         ObxQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=TtW/o2236hee295y0l38KlKQhr9G4t9UGeyqpVmzjfk=;
-        b=pMC0ZTyGEs6U7K7r7iS+TYltV6lKEp85ZuU6NdZUW13t7LPDUvIzgGng/5TZEuIrT+
-         kFxk49RT/rPVW8aUfFhZ2maw/KY9Ny/xGH/EZe7CdZ1PrzvNqJt6MAiPmZzEaxfLwX7d
-         IOlrM17yy9PhP3YirX9JLd0gPK9WEzB7oiDSZxs9M+XjxgwLjjSFPJbnZF3iiAwTjGak
-         uD065XCJfOnh2ebArrLjlEiP3hzgp8IVewuXCo3fF+/Fvn8exLkeALZcjdqujouKOLBQ
-         6XceoFUeFeSMbZnl11yuY50qICiLk72fTsN5rJ7/jLGZuvSMgIpFK0NzfUzWrc3gbG7/
-         RPFA==
+        bh=p/eSOvpEPOdnBZfZTBhWwFR1RxWxC5GEtCoFlgWry3E=;
+        b=Gw3GavlBUildMqkMzKXS8OdiMGA3Fn2kKWvZxnugpU26wD5ifQRVfM+UQc2lD3QBJb
+         0qR5yJp1wtViPpGALry5uRB/K4gYMTvJEbIkyNOrsz65NPJ/NCRElyqlok/EEMS9CgMK
+         WoTYuGD5BhKHulncKTZWEx8XjD14TGewoZzcaMEWn82oGxsIk0zyus17T/b95OJU/jJ8
+         +jBmkTzIVbCIsOvl36qKnjB/WdtPJK0NGGSZ6qL6KlUeQb0T3iZcwZCWeV4bHV9Yr7bO
+         7kLQN6shglGqaesgsZT2RXn9Wb6EErtvpK7Stm8ID/K+moFGPMvpnr+6OzCTBCQy9czT
+         mdlw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b=a9NwRp86;
-       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTPS id b22si1147981wmb.128.2019.02.22.08.14.27
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=RUnN8r6q;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 128sor931748ybm.149.2019.02.22.08.19.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Feb 2019 08:14:27 -0800 (PST)
-Received-SPF: pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) client-ip=5.9.137.197;
+        (Google Transport Security);
+        Fri, 22 Feb 2019 08:19:44 -0800 (PST)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@alien8.de header.s=dkim header.b=a9NwRp86;
-       spf=pass (google.com: domain of bp@alien8.de designates 5.9.137.197 as permitted sender) smtp.mailfrom=bp@alien8.de;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alien8.de
-Received: from zn.tnic (p200300EC2BCB3900F0C56855832FAB14.dip0.t-ipconnect.de [IPv6:2003:ec:2bcb:3900:f0c5:6855:832f:ab14])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.skyhub.de (SuperMail on ZX Spectrum 128k) with ESMTPSA id 69EC41EC0324;
-	Fri, 22 Feb 2019 17:14:26 +0100 (CET)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=alien8.de; s=dkim;
-	t=1550852066;
-	h=from:from:reply-to:subject:subject:date:date:message-id:message-id:
-	 to:to:cc:cc:mime-version:mime-version:content-type:content-type:
-	 content-transfer-encoding:in-reply-to:in-reply-to:  references:references;
-	bh=TtW/o2236hee295y0l38KlKQhr9G4t9UGeyqpVmzjfk=;
-	b=a9NwRp86cR2AQFYae8KVR4Yy4+lZE3yv+GWVs72qb7oHaM6m4WF14MUq1S8WN/i+S/W1+t
-	kFGXOo6Nsaa2ObF3jQSUmyu73h1eCiA/LTtjnDrZFdJwViQEin2xP1OQy+L88nRo/VTmiN
-	N/L0FcMuJpPh+Cqm16wWUjYndvyN9bQ=
-Date: Fri, 22 Feb 2019 17:14:19 +0100
-From: Borislav Petkov <bp@alien8.de>
-To: Rick Edgecombe <rick.p.edgecombe@intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>,
-	linux-kernel@vger.kernel.org, x86@kernel.org, hpa@zytor.com,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Nadav Amit <nadav.amit@gmail.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Peter Zijlstra <peterz@infradead.org>, linux_dti@icloud.com,
-	linux-integrity@vger.kernel.org,
-	linux-security-module@vger.kernel.org, akpm@linux-foundation.org,
-	kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
-	will.deacon@arm.com, ard.biesheuvel@linaro.org,
-	kristen@linux.intel.com, deneen.t.dock@intel.com
-Subject: Re: [PATCH v3 00/20] Merge text_poke fixes and executable lockdowns
-Message-ID: <20190222161419.GB30766@zn.tnic>
-References: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=RUnN8r6q;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=p/eSOvpEPOdnBZfZTBhWwFR1RxWxC5GEtCoFlgWry3E=;
+        b=RUnN8r6qzpBx09mG1/K52QKdmWaNXQKvvE84vAqjXIG/ZVaVcq+f95dgkj4qB8ww1O
+         inRD9jCX/m2epxKCQbp3T9kd7YA+hm1MLH0waZGi9Ah2KVreVUs9Vt0o1nGGZu6S0eNE
+         2uoUMjRjeDl7cf86+GgxER3fdSGS8eW4jheYlCKyRL/MSnFjGKsQCBXhz33N1cl0NkF0
+         OYPlWuIvyhdjuYjdcmrXhFKHzi0idXa5EkaWv0sDKA0bgXep1vJbWRyMVAvDZbmOpk+n
+         JP/CHme3+owY86MfPRvgpB5sR9EPLLhEk/58YkhjOfPcfe+QWiHYI6GX5JMMfqaqQQ3e
+         TDvQ==
+X-Google-Smtp-Source: AHgI3Iaiq/NJn/9xzBub2fgaaUyU2LJQjR9GHmHHPQnoJWWBd+CAnW5eiv/igAntO8Mk8UxSIjD2wQ==
+X-Received: by 2002:a25:1907:: with SMTP id 7mr4077408ybz.14.1550852384186;
+        Fri, 22 Feb 2019 08:19:44 -0800 (PST)
+Received: from localhost ([2620:10d:c091:200::1:cd3d])
+        by smtp.gmail.com with ESMTPSA id o4sm557182ywe.102.2019.02.22.08.19.42
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 22 Feb 2019 08:19:43 -0800 (PST)
+Date: Fri, 22 Feb 2019 11:19:42 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Junil Lee <junil0814.lee@lge.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, akpm@linux-foundation.org,
+	willy@infradead.org, pasha.tatashin@oracle.com,
+	kirill.shutemov@linux.intel.com, jrdr.linux@gmail.com,
+	dan.j.williams@intel.com, alexander.h.duyck@linux.intel.com,
+	andreyknvl@google.com, arunks@codeaurora.org, keith.busch@intel.com,
+	guro@fb.com, rientjes@google.com,
+	penguin-kernel@i-love.sakura.ne.jp, shakeelb@google.com,
+	yuzhoujian@didichuxing.com
+Subject: Re: [PATCH] mm, oom: OOM killer use rss size without shmem
+Message-ID: <20190222161942.GA12288@cmpxchg.org>
+References: <1550810253-152925-1-git-send-email-junil0814.lee@lge.com>
+ <20190222071001.GA10588@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190221234451.17632-1-rick.p.edgecombe@intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190222071001.GA10588@dhcp22.suse.cz>
+User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 21, 2019 at 03:44:31PM -0800, Rick Edgecombe wrote:
-> Changes v2 to v3:
->  - Fix commit messages and comments [Boris]
->  - Rename VM_HAS_SPECIAL_PERMS [Boris]
->  - Remove unnecessary local variables [Boris]
->  - Rename set_alias_*() functions [Boris, Andy]
->  - Save/restore DR registers when using temporary mm
->  - Move line deletion from patch 10 to patch 17
+On Fri, Feb 22, 2019 at 08:10:01AM +0100, Michal Hocko wrote:
+> On Fri 22-02-19 13:37:33, Junil Lee wrote:
+> > The oom killer use get_mm_rss() function to estimate how free memory
+> > will be reclaimed when the oom killer select victim task.
+> > 
+> > However, the returned rss size by get_mm_rss() function was changed from
+> > "mm, shmem: add internal shmem resident memory accounting" commit.
+> > This commit makes the get_mm_rss() return size including SHMEM pages.
+> 
+> This was actually the case even before eca56ff906bdd because SHMEM was
+> just accounted to MM_FILEPAGES so this commit hasn't changed much
+> really.
+> 
+> Besides that we cannot really rule out SHMEM pages simply. They are
+> backing MAP_ANON|MAP_SHARED which might be unmapped and freed during the
+> oom victim exit. Moreover this is essentially the same as file backed
+> pages or even MAP_PRIVATE|MAP_ANON pages. Bothe can be pinned by other
+> processes e.g. via private pages via CoW mappings and file pages by
+> filesystem or simply mlocked by another process. So this really gross
+> evaluation will never be perfect. We would basically have to do exact
+> calculation of the freeable memory of each process and that is just not
+> feasible.
+> 
+> That being said, I do not think the patch is an improvement in that
+> direction. It just turnes one fuzzy evaluation by another that even
+> misses a lot of memory potentially.
 
-In your previous submission there was a patch called
+You make good points.
 
-Subject: [PATCH v2 01/20] Fix "x86/alternatives: Lockdep-enforce text_mutex in text_poke*()"
+I think it's also worth noting that while the OOM killer is ultimately
+about freeing memory, the victim algorithm is not about finding the
+*optimal* amount of memory to free, but to kill the thing that is most
+likely to have put the system into trouble. We're not going for
+killing the smallest tasks until we're barely back over the line and
+operational again, but instead we're finding the biggest offender to
+stop the most likely source of unsustainable allocations. That's why
+our metric is called "badness score", and not "freeable" or similar.
 
-What happened to it?
-
-It did introduce a function text_poke_kgdb(), a.o., and I see this
-function in the diff contexts in some of the patches in this submission
-so it looks to me like you missed that first patch when submitting v3?
-
-Or am *I* missing something?
-
-Thx.
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+So even if a good chunk of the biggest task are tmpfs pages that
+aren't necessarily freed upon kill, from a heuristics POV it's still
+the best candidate to kill.
 
