@@ -2,240 +2,168 @@ Return-Path: <SRS0=SgWF=Q5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 51FF5C43381
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 05:40:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 194C7C43381
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 06:11:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BA2A8207E0
-	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 05:40:34 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="bsCv/zif"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA2A8207E0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id D326E20823
+	for <linux-mm@archiver.kernel.org>; Fri, 22 Feb 2019 06:11:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D326E20823
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 152FA8E00EE; Fri, 22 Feb 2019 00:40:34 -0500 (EST)
+	id 5A71D8E00EF; Fri, 22 Feb 2019 01:11:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 125BE8E00ED; Fri, 22 Feb 2019 00:40:34 -0500 (EST)
+	id 52D6D8E00ED; Fri, 22 Feb 2019 01:11:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F09528E00EF; Fri, 22 Feb 2019 00:40:33 -0500 (EST)
+	id 3F5888E00EF; Fri, 22 Feb 2019 01:11:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B3DDE8E00EE
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 00:40:33 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id 35so1158248qty.12
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 21:40:33 -0800 (PST)
+Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 114448E00ED
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2019 01:11:40 -0500 (EST)
+Received: by mail-vk1-f199.google.com with SMTP id 202so592837vkv.11
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2019 22:11:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:subject:to:cc:message-id
-         :date:user-agent:mime-version:content-language
-         :content-transfer-encoding;
-        bh=4QJgJCZtxo4Y2NcbSVp9xBe5sX3FZcLo2gFUcbausxA=;
-        b=uC/rLdXKf74yO6nFaGQsgCkdINwwZ0KYdjZcXUHMODN9fW7UVpiTHn0yNWtGa2OhER
-         pZn8GaQXuN6IpOiQ7iUu3gZMpPuYugcR/spdWIUqRUiRPevwbNKB7HfV5CrMq8BhpXdp
-         CwdfcALRD2DcvIRnaoP8WQ9t09aObfKxOWlgd4IH6AnqVrMWuMvu0qDO2mnlGSYkdM5j
-         GaT2PEZV06C1mnHWxDcC6+0q0bYp2/ewE9bb/RdSxPM7ZI9kSVIjw1ubYSIwYCfXjrSM
-         uXK32Zw9mFoWXkNA6OOkhMwpr3hoUtAMEXjRpWvMjuRUo3LitFXPxZZEYLYxBPKsX6ZT
-         CZig==
-X-Gm-Message-State: AHQUAubXo8qy/xPpF/7jczRHNCldG/1KZxowxkM+sirjhSgve8Ai5V9K
-	zN+eAeISflCMsk7/veCkW5n4mYEFnj7vZ77QPQk41dhpmcGFzXAlDs0U6I+LcTVH2MSQJk7REhP
-	VZzQyH32jaUKS32eB59KChWFhdDVkqCLmohm47LzO6ck90ZMTgi6bmV61kQvJG5qbttzOToMCDb
-	oWyrrIx8d3fZ1IHGyq3HwD8wT7UVV2UdIqxDG09qyd8Qso8emjo0yG4obReLP+5q51i/AQ4cbeo
-	dYUfmAwNt95dDg6HpSGfWsEeO8z/GsRj8GICPy4eXEXXycMlVJ3ATB0XCwWpfVJ/V23N0vPfoM+
-	JOeJnmOtrhQ900mrlPb0eprwwN5UbQghhPjeIzi0JLzxP743yDgPsX4Yqqd9K2SxkEtSn+pm7XD
-	j
-X-Received: by 2002:ac8:2c92:: with SMTP id 18mr1678844qtw.269.1550814033481;
-        Thu, 21 Feb 2019 21:40:33 -0800 (PST)
-X-Received: by 2002:ac8:2c92:: with SMTP id 18mr1678809qtw.269.1550814032557;
-        Thu, 21 Feb 2019 21:40:32 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550814032; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:cc:from:message-id:date:user-agent:mime-version
+         :in-reply-to:content-transfer-encoding;
+        bh=PH+w8D88mpOCj0IHX3DGEpE117Jqo6S1Yk/E/Yw6UJU=;
+        b=eWMcmGdfivnGBrykZ7OluXKSfjB3khSoW9/NWS/pjFBwmABuuk4KV7mA5oWcB+fpE9
+         AqNMtEHdQ75DU02WGqgfj7BiNaeMwo4gLAP6eSpR2F4Jc0iFN9fPIhx0GPeAMw+Zrk15
+         bEYmPgAw1jLnOoVc0+NfumlNMHjrV2HmpA1kXnv8hUty7IhkshdUXMx41kVcOXl0nQOv
+         vhtpIRQUaXWZ/8oiLtXtppAWoGs9iVrmRBZSil0uD/CqrwZG19uQbne5CJpjikW2nVBp
+         fpPGHw/g4LsUdN7I+ugErx/iCeMRRoLA6npT7O6ozAniuViSwdze79vMLXHLHNg41ag9
+         1Peg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jingxiangfeng@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jingxiangfeng@huawei.com
+X-Gm-Message-State: AHQUAuaABHZ9A9yfjkmkLa9wqPES3kKHk9Z8FBMasViLbv0iO9dF6D64
+	6W6/tuaYpx+p+WLsKkXeYYCC7drtqNWgMcB/5ckEWTVJk0xk5BQvd766pwOe1dOjLmSaqLBBsvE
+	CpGxl2Ypv+mFYCe3QgqfruAe4NCnH/yQFi9RiNR8hKTQiON7mZmRVfC62gO4UCfrzhA==
+X-Received: by 2002:a67:fdd8:: with SMTP id l24mr1331350vsq.236.1550815899684;
+        Thu, 21 Feb 2019 22:11:39 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Iap7L1FtqJIWyDsm+leGFfPFsJN1mQMVP8yqvf+LR0hh8zryYKSYWVEAFgi5MuTMkhw9Kxx
+X-Received: by 2002:a67:fdd8:: with SMTP id l24mr1331322vsq.236.1550815898721;
+        Thu, 21 Feb 2019 22:11:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550815898; cv=none;
         d=google.com; s=arc-20160816;
-        b=V/hiUjlJhs5m8495JFyhwrYzqZZ4I7WIHYSKpAGMSPxQ1mI041aKyA6uenhaGV2/7J
-         WcZ4Qg1ZghAuMX6xWx6HdmQNsokI7AEl4AizprQfJMnEvMVgeF9d+gMUuMe48M8UpkTO
-         /y1O+xP13uc1LugHDSBmpPX9tQnESZwoiGrFUtbWaNdWWohKZULc90+DOzC/H3/EJRfw
-         avFIRhZnNc39gXcWf2gnjQzJpy8FI6fA6YowkJcgq9E3ks/65AZFmu23ng7aIs87gHYJ
-         xmFinpF1YYkmnWo8QIsFfuDfepygtWSDHY8Or2tkSfY7/hvzbuQAWPvUHHL0qBoueYwU
-         WSWQ==
+        b=qDEj7nXCE8Ne3dXpBRe2nY8SYQiSUQDk5hJwWMPPmGn1nuNOf2SDWNtb6Jv6xyimhe
+         r/1bCepILOyg63E9I+c4tXOG8MwqP0XjROH6nS2gltSMUzEmy2ChK/mmGQmhGUgDAqdA
+         ZMCqpKM03fXennYyxS5lU0Zj8oAg09gvbLRbUonRJJjSFbbFo0nxz4fDhzJTA2EzFE7A
+         tDlkbtEInimZEE9uuL0R9wMOQZ7hS7T/CvJ177jCG89lK7mSbij0FMNG1K682TBrnGxL
+         9wSvDdi3KWf3gkc0G468lECtRMUdAtGGXZ57qR2KI7LbV54zI5RZqrxqt6P36W2MXllx
+         ouNQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:mime-version:user-agent
-         :date:message-id:cc:to:subject:from:dkim-signature;
-        bh=4QJgJCZtxo4Y2NcbSVp9xBe5sX3FZcLo2gFUcbausxA=;
-        b=eYuZpqWOUpz6R9Nz/RHNOBKbSbkojEHdBAEamFOGysuTEQJbhxRNbSTonoab8EF9MP
-         XTpKCUNq5n2+icZm98c0ElWkwpTtAHRJSCLB0i2e8DmRuNhpkWLszvpn7uVdE221JJNF
-         MWzDliN/C6LRqylu58fEY4fX4V6Ds8ETZaqr6RQWKjjvfiPorXUxWnA7PQCbEqcKOTDQ
-         0BK8IXFg2zyhjE5fsYn8TrAPRsz87mVjG8Ybc5KChVfRM1wf+DPxHcPmp3uIMoZjnrNl
-         FfvyufemLxGRt1brbVmut7ZcW9SknPF3hx/K15kwvwFvS78/x57oFnoaPkZEDxcOFZ5O
-         BA0Q==
+        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
+         :message-id:from:cc:references:to:subject;
+        bh=PH+w8D88mpOCj0IHX3DGEpE117Jqo6S1Yk/E/Yw6UJU=;
+        b=S5MoBleim0ZEhdMexghdB1bnjklmqxR04KGlUKKgTlcdXiw5SZcj+yqsE88TRIqJ9g
+         oVvY042hGR2cA6Bl4bt9CGgjc8xbuwdAtyQinGuEClXfncNF+yepV01lYkkpcXcMHNc1
+         EneTTbdgFGLNuiWlfgZ6kmaDogYDSz4VrBpY13VSHloQrt6HOCEfq/1BGheWTRt9unp3
+         aVZYgYcCCG/b5lBA5ji3nNoG5IVU+Ku9D6ZcHSw0UiU/AFyQKxYmXBR5S9IJ8asAK7L1
+         A95A7z7IRhX4+h4P7Q5W94P38APOfIuIZSlkJqvt3wjzx1Dj2lA1DSBbknhvYaeVu7jV
+         zSsw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b="bsCv/zif";
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n28sor618078qtn.18.2019.02.21.21.40.32
+       spf=pass (google.com: domain of jingxiangfeng@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jingxiangfeng@huawei.com
+Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
+        by mx.google.com with ESMTPS id j5si127920vkh.7.2019.02.21.22.11.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Feb 2019 21:40:32 -0800 (PST)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b="bsCv/zif";
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.41 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:subject:to:cc:message-id:date:user-agent:mime-version
-         :content-language:content-transfer-encoding;
-        bh=4QJgJCZtxo4Y2NcbSVp9xBe5sX3FZcLo2gFUcbausxA=;
-        b=bsCv/zifuSwnrCCz8c5D3ihd2KbwGZ2y9kQBBp6usMSS6gV4LkhrR3OvevBy+n1/Ms
-         pqhrabPPvSkVb/3oexWFGu8xZ/OjGM+McZOLDM77SnpE3wte1nCiGgb7yfg2l/a+svPD
-         XHwczuaj/cOrly8CiR93fcFIWF06gJkqi2MXMW1LYYFxCgdu+rMYxyHOyTHg9dmq4jMu
-         +b6jDd7/4xeZc7a93RObJlyLwcHlgE9uXNU9FdXNChrCpjKmH9PMXjd2dp4MGqUr21QA
-         mXCt7tqWACX8J6eSQHENSYqcMPaRsKW6lV1vth8tAv5zvukvSMly7ebD/IoUKE3UG0Pa
-         QusA==
-X-Google-Smtp-Source: AHgI3IacwmlW+vOQ82PzIbOPMcSmg76AT3Kf5HuFPefaJ3DKwJP6zdvrKvBy9QH+KgaE5Zk/UsLlsw==
-X-Received: by 2002:ac8:188d:: with SMTP id s13mr1779521qtj.256.1550814031611;
-        Thu, 21 Feb 2019 21:40:31 -0800 (PST)
-Received: from ovpn-120-150.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id k66sm310075qkc.25.2019.02.21.21.40.30
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Feb 2019 21:40:31 -0800 (PST)
-From: Qian Cai <cai@lca.pw>
-Subject: io_submit with slab free object overwritten
-To: axboe@kernel.dk
-Cc: viro@zeniv.linux.org.uk, hare@suse.com, bcrl@kvack.org,
- linux-aio@kvack.org, Linux-MM <linux-mm@kvack.org>
-Message-ID: <4a56fc9f-27f7-5cb5-feed-a4e33f05a5d1@lca.pw>
-Date: Fri, 22 Feb 2019 00:40:29 -0500
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.3.3
+        Thu, 21 Feb 2019 22:11:38 -0800 (PST)
+Received-SPF: pass (google.com: domain of jingxiangfeng@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of jingxiangfeng@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jingxiangfeng@huawei.com
+Received: from DGGEMS410-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id 88AC1DF5FCAF9ACBD1FC;
+	Fri, 22 Feb 2019 14:11:34 +0800 (CST)
+Received: from [127.0.0.1] (10.184.39.28) by DGGEMS410-HUB.china.huawei.com
+ (10.3.19.210) with Microsoft SMTP Server id 14.3.408.0; Fri, 22 Feb 2019
+ 14:11:30 +0800
+Subject: Re: [PATCH] mm/hugetlb: Fix unsigned overflow in
+ __nr_hugepages_store_common()
+To: Mike Kravetz <mike.kravetz@oracle.com>, Michal Hocko <mhocko@kernel.org>
+References: <1550323872-119049-1-git-send-email-jingxiangfeng@huawei.com>
+ <20190218092750.GF4525@dhcp22.suse.cz>
+ <7ec68c26-3caf-0446-9c93-461025c51c01@oracle.com>
+CC: <akpm@linux-foundation.org>, <hughd@google.com>,
+	<n-horiguchi@ah.jp.nec.com>, <aarcange@redhat.com>,
+	<kirill.shutemov@linux.intel.com>, <linux-kernel@vger.kernel.org>,
+	<linux-mm@kvack.org>
+From: Jing Xiangfeng <jingxiangfeng@huawei.com>
+Message-ID: <5C6F9258.3000904@huawei.com>
+Date: Fri, 22 Feb 2019 14:10:32 +0800
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:38.0) Gecko/20100101
+ Thunderbird/38.1.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <7ec68c26-3caf-0446-9c93-461025c51c01@oracle.com>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.184.39.28]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is only reproducible on linux-next (20190221), as v5.0-rc7 is fine. Running
-two LTP tests and then reboot will trigger this on ppc64le (CONFIG_IO_URING=n
-and CONFIG_SHUFFLE_PAGE_ALLOCATOR=y).
+On 2019/2/20 7:45, Mike Kravetz wrote:
+> On 2/18/19 1:27 AM, Michal Hocko wrote:
+>> On Sat 16-02-19 21:31:12, Jingxiangfeng wrote:
+>>> From: Jing Xiangfeng <jingxiangfeng@huawei.com>
+>>>
+>>> We can use the following command to dynamically allocate huge pages:
+>>> 	echo NR_HUGEPAGES > /proc/sys/vm/nr_hugepages
+>>> The count in  __nr_hugepages_store_common() is parsed from /proc/sys/vm/nr_hugepages,
+>>> The maximum number of count is ULONG_MAX,
+>>> the operation 'count += h->nr_huge_pages - h->nr_huge_pages_node[nid]' overflow and count will be a wrong number.
+>>
+>> Could you be more specific of what is the runtime effect on the
+>> overflow? I haven't checked closer but I would assume that we will
+>> simply shrink the pool size because count will become a small number.
+>>
+> 
+> Well, the first thing to note is that this code only applies to case where
+> someone is changing a node specific hugetlb count.  i.e.
+> /sys/devices/system/node/node1/hugepages/hugepages-2048kB
+> In this case, the calculated value of count is a maximum or minimum total
+> number of huge pages.  However, only the number of huge pages on the specified
+> node is adjusted to try and achieve this maximum or minimum.
+> 
+> So, in the case of overflow the number of huge pages on the specified node
+> could be reduced.  I say 'could' because it really is dependent on previous
+> values.  In some situations the node specific value will be increased.
+> 
+> Minor point is that the description in the commit message does not match
+> the code changed.
+> 
+Thanks for your reply.as you said, the case is where someone is changing a node
+specific hugetlb count when CONFIG_NUMA is enable. I will modify the commit message.
 
-# fgetxattr02
-# io_submit01
-# systemctl reboot
-
-There is a 32-bit (with all ones) overwritten of free slab objects (poisoned).
-
-[23424.121182] BUG aio_kiocb (Tainted: G    B   W    L   ): Poison overwritten
-[23424.121189]
------------------------------------------------------------------------------
-[23424.121189]
-[23424.121197] INFO: 0x000000009f1f5145-0x00000000841e301b. First byte 0xff
-instead of 0x6b
-[23424.121205] INFO: Allocated in io_submit_one+0x9c/0xb20 age=0 cpu=7 pid=12174
-[23424.121212]  __slab_alloc+0x34/0x60
-[23424.121217]  kmem_cache_alloc+0x504/0x5c0
-[23424.121221]  io_submit_one+0x9c/0xb20
-[23424.121224]  sys_io_submit+0xe0/0x350
-[23424.121227]  system_call+0x5c/0x70
-[23424.121231] INFO: Freed in aio_complete+0x31c/0x410 age=0 cpu=7 pid=12174
-[23424.121234]  kmem_cache_free+0x4bc/0x540
-[23424.121237]  aio_complete+0x31c/0x410
-[23424.121240]  blkdev_bio_end_io+0x238/0x3e0
-[23424.121243]  bio_endio.part.3+0x214/0x330
-[23424.121247]  brd_make_request+0x2d8/0x314 [brd]
-[23424.121250]  generic_make_request+0x220/0x510
-[23424.121254]  submit_bio+0xc8/0x1f0
-[23424.121256]  blkdev_direct_IO+0x36c/0x610
-[23424.121260]  generic_file_read_iter+0xbc/0x230
-[23424.121263]  blkdev_read_iter+0x50/0x80
-[23424.121266]  aio_read+0x138/0x200
-[23424.121269]  io_submit_one+0x7c4/0xb20
-[23424.121272]  sys_io_submit+0xe0/0x350
-[23424.121275]  system_call+0x5c/0x70
-[23424.121278] INFO: Slab 0x00000000841158ec objects=85 used=85 fp=0x
-(null) flags=0x13fffc000000200
-[23424.121282] INFO: Object 0x000000007e677ed8 @offset=5504 fp=0x00000000e42bdf6f
-[23424.121282]
-[23424.121287] Redzone 000000005483b8fc: bb bb bb bb bb bb bb bb bb bb bb bb bb
-bb bb bb  ................
-[23424.121291] Redzone 00000000b842fe53: bb bb bb bb bb bb bb bb bb bb bb bb bb
-bb bb bb  ................
-[23424.121295] Redzone 00000000deb0d052: bb bb bb bb bb bb bb bb bb bb bb bb bb
-bb bb bb  ................
-[23424.121299] Redzone 0000000014045233: bb bb bb bb bb bb bb bb bb bb bb bb bb
-bb bb bb  ................
-[23424.121302] Redzone 00000000dd5d6c16: bb bb bb bb bb bb bb bb bb bb bb bb bb
-bb bb bb  ................
-[23424.121306] Redzone 00000000538b5478: bb bb bb bb bb bb bb bb bb bb bb bb bb
-bb bb bb  ................
-[23424.121310] Redzone 000000001f7fb704: bb bb bb bb bb bb bb bb bb bb bb bb bb
-bb bb bb  ................
-[23424.121314] Redzone 0000000000e0484d: bb bb bb bb bb bb bb bb bb bb bb bb bb
-bb bb bb  ................
-[23424.121318] Object 000000007e677ed8: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-6b 6b 6b  kkkkkkkkkkkkkkkk
-[23424.121322] Object 00000000e207f30b: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-6b 6b 6b  kkkkkkkkkkkkkkkk
-[23424.121326] Object 00000000a7a45634: 6b 6b 6b 6b 6b 6b 6b 6b ff ff ff ff 6b
-6b 6b 6b  kkkkkkkk....kkkk
-[23424.121330] Object 00000000c85d951d: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-6b 6b 6b  kkkkkkkkkkkkkkkk
-[23424.121334] Object 000000003104522f: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-6b 6b 6b  kkkkkkkkkkkkkkkk
-[23424.121338] Object 00000000cfcdd820: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-6b 6b 6b  kkkkkkkkkkkkkkkk
-[23424.121342] Object 00000000dded4924: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-6b 6b 6b  kkkkkkkkkkkkkkkk
-[23424.121346] Object 00000000ff6687a4: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-6b 6b 6b  kkkkkkkkkkkkkkkk
-[23424.121350] Object 00000000df3d67f6: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-6b 6b 6b  kkkkkkkkkkkkkkkk
-[23424.121354] Object 00000000ddc188d1: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-6b 6b 6b  kkkkkkkkkkkkkkkk
-[23424.121358] Object 000000002cee751a: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-6b 6b 6b  kkkkkkkkkkkkkkkk
-[23424.121362] Object 00000000a994f007: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-6b 6b a5  kkkkkkkkkkkkkkk.
-[23424.121366] Redzone 000000009f3d62e2: bb bb bb bb bb bb bb bb
-         ........
-[23424.121370] Padding 00000000e5ccead8: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-5a 5a 5a  ZZZZZZZZZZZZZZZZ
-[23424.121374] Padding 000000002b0c1778: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-5a 5a 5a  ZZZZZZZZZZZZZZZZ
-[23424.121378] Padding 00000000c67656c7: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-5a 5a 5a  ZZZZZZZZZZZZZZZZ
-[23424.121382] Padding 0000000078348c5a: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-5a 5a 5a  ZZZZZZZZZZZZZZZZ
-[23424.121386] Padding 00000000f3297820: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-5a 5a 5a  ZZZZZZZZZZZZZZZZ
-[23424.121390] Padding 00000000e55789f4: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-5a 5a 5a  ZZZZZZZZZZZZZZZZ
-[23424.121394] Padding 00000000d0fbb94c: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-5a 5a 5a  ZZZZZZZZZZZZZZZZ
-[23424.121397] Padding 00000000bcb27a87: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-5a 5a 5a  ZZZZZZZZZZZZZZZZ
-[23424.121743] CPU: 7 PID: 12174 Comm: vgs Tainted: G    B   W    L
-5.0.0-rc7-next-20190221+ #7
-[23424.121758] Call Trace:
-[23424.121762] [c0000004ce5bf7b0] [c0000000007deb8c] dump_stack+0xb0/0xf4
-(unreliable)
-[23424.121770] [c0000004ce5bf7f0] [c00000000037d310] print_trailer+0x250/0x278
-[23424.121775] [c0000004ce5bf880] [c00000000036d578]
-check_bytes_and_report+0x138/0x160
-[23424.121779] [c0000004ce5bf920] [c00000000036fac8] check_object+0x348/0x3e0
-[23424.121784] [c0000004ce5bf990] [c00000000036fd18]
-alloc_debug_processing+0x1b8/0x2c0
-[23424.121788] [c0000004ce5bfa30] [c000000000372d14] ___slab_alloc+0xbb4/0xfa0
-[23424.121792] [c0000004ce5bfb60] [c000000000373134] __slab_alloc+0x34/0x60
-[23424.121802] [c0000004ce5bfb90] [c000000000373664] kmem_cache_alloc+0x504/0x5c0
-[23424.121812] [c0000004ce5bfc20] [c000000000476a9c] io_submit_one+0x9c/0xb20
-[23424.121824] [c0000004ce5bfd50] [c000000000477f10] sys_io_submit+0xe0/0x350
-[23424.121832] [c0000004ce5bfe20] [c00000000000b000] system_call+0x5c/0x70
-[23424.121836] FIX aio_kiocb: Restoring 0x000000009f1f5145-0x00000000841e301b=0x6b
-[23424.121836]
-[23424.121840] FIX aio_kiocb: Marking all objects used
+>> Is there any reason to report an error in that case? We do not report
+>> errors when we cannot allocate the requested number of huge pages so why
+>> is this case any different?
+> 
+> Another issue to consider is that h->nr_huge_pages is an unsigned long,
+> and h->nr_huge_pages_node[] is an unsigned int.  The sysfs store routines
+> treat them both as unsigned longs.  Ideally, the store routines should
+> distinguish between the two.
+> 
+> In reality, an actual overflow is unlikely.  If my math is correct (not
+> likely) it would take something like 8 Petabytes to overflow the node specific
+> counts.
+> 
+> In the case of a user entering a crazy high value and causing an overflow,
+> an error return might not be out of line.  Another option would be to simply
+> set count to ULONG_MAX if we detect overflow (or UINT_MAX if we are paranoid)
+> and continue on.  This may be more in line with user's intention of allocating
+> as many huge pages as possible.
+> 
+> Thoughts?
+> 
+It is better to set count to ULONG_MAX if we detect overflow, and continue to
+allocate as many huge pages as possible.
+I will send v2 soon.
 
