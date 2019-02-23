@@ -7,112 +7,110 @@ X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 00939C4360F
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Feb 2019 21:06:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D4DDAC4360F
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Feb 2019 21:08:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B60AB206B6
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Feb 2019 21:06:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 85B4320861
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Feb 2019 21:08:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="eQzxQo36"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B60AB206B6
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="g2LsDnod"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 85B4320861
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2307A8E00F3; Sat, 23 Feb 2019 16:06:33 -0500 (EST)
+	id 318438E0135; Sat, 23 Feb 2019 16:08:29 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1DE1F8E009E; Sat, 23 Feb 2019 16:06:33 -0500 (EST)
+	id 2A07C8E009E; Sat, 23 Feb 2019 16:08:29 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 07E258E00F3; Sat, 23 Feb 2019 16:06:33 -0500 (EST)
+	id 167908E0135; Sat, 23 Feb 2019 16:08:29 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B9E648E009E
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2019 16:06:32 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id d3so4226733pgv.23
-        for <linux-mm@kvack.org>; Sat, 23 Feb 2019 13:06:32 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BFF618E009E
+	for <linux-mm@kvack.org>; Sat, 23 Feb 2019 16:08:28 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id 134so4579483pfx.21
+        for <linux-mm@kvack.org>; Sat, 23 Feb 2019 13:08:28 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=SQ1yPE5Qkg9aesvtfDz6XanO/ZO/iK7Im7EOP2WHw7s=;
-        b=J+mQtuCkzW7XeORTXlJc5AskoFskmgA9rW0saJgfAu3GcQGVT7LpLHhExEwQovGcia
-         NKlg6+hZbdVlt1IBwT2tkvEAt2Rfp7cdl180N3FXt+OKAtWImL00S3NV8ui9piJmxY6W
-         CeQTa8aJgCGEhR+yYT+/Yq/oSK2GuYjJ2+H9P2NdU9G61u4YNdKjyqBcT3xsZ7WFr1+f
-         8RjXUZUkC2kbDq/xrl39Byc4fzyCvaTr2rEhIdtfEoOfAckS2MsaukhLVH4CsRVbxH9I
-         jUhuzQ+zv5u1dcxRociECPi8mnKm62s0F7YSsEuG1jjm5rGBixPlorZiIiT7WGmZwMrO
-         XjuA==
-X-Gm-Message-State: AHQUAuav76E0eR+jsAWE4Z+39WBEQuTswzaofyVUAZGlFvOK0iu/H5bh
-	lchxb/Qz8DRSZk5oDLQfk9ZHySTTtmeQ05i6XK1vEvPQAxB7MM7+QPhLGVrAqfJ0n9lKGgl1XYH
-	lT/xZY348ZAm869FRGSe0V/kfMbBXwhoQSFIFHCqQpdXplwIhHyJzri6sHc16yGs0Bw==
-X-Received: by 2002:a62:2f87:: with SMTP id v129mr10963788pfv.220.1550955992334;
-        Sat, 23 Feb 2019 13:06:32 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYmBeIAIwkFOInflCx/LUllyMRL3Di4HvLiVzdBEZRZsJqknBlaEVAy5Wb9NZ9ZTBPcUXQQ
-X-Received: by 2002:a62:2f87:: with SMTP id v129mr10963742pfv.220.1550955991605;
-        Sat, 23 Feb 2019 13:06:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550955991; cv=none;
+        bh=B/69q48IzpEQVci5fIhxJN7maI1Yg/iL/VXTR3BJv3k=;
+        b=F6aeJi0OqADE0z6Mhox24RWfNrp/8imVakHCS/u2dMoVJiTTmKwYG5T/fGkGBqva5Y
+         zxTCgQufH4E1fFxCxDyNYVKWuW+aIb0HfgaZIw56EDQvScZa3bbF1cupMjPkHKf29vFW
+         Y0JFiCTbbr8zqmpKEXIImO84G8kOBzq7yEaOGDafM3GLEs56Bf8SmwBPT22TE+4L5ig/
+         kl8zrLLnxV8AmIywXVLa+hTqYxdC7qxD1KxXSnIvq/5Ma4/wlBV49qzwa5255cOAC9AM
+         nyIl5X/iL58cZsJynZIj9HOZE0mw7snn4sR4nSFFYywNtMdqQ19oiESBD50qb4vRLcQW
+         kJ5g==
+X-Gm-Message-State: AHQUAubii4De3XDkbl/FqSsIQasc9tmkKKD3nroJiAmRh4KlkPNmkDTz
+	fNmeCAcLUMxQnLHT+744XwyKu/TsjmJjZ8bxrnDrOpSHHh9jAveLpwfWHJW76iuPtLjaUis/FLo
+	XRRYtQA80mlNC8Dn3MC2359feN5g9wTdJAre/qo44rMxydsNWY3rk91BzNkxfCeNqbw==
+X-Received: by 2002:a62:6ec3:: with SMTP id j186mr11412030pfc.89.1550956108363;
+        Sat, 23 Feb 2019 13:08:28 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZqzPw09jXxnqiRfPCqkcpS+PQRsdKrovxJG4poJco1Tag7AQLwPKonLGYc5r0Qag1DTOxr
+X-Received: by 2002:a62:6ec3:: with SMTP id j186mr11411964pfc.89.1550956107476;
+        Sat, 23 Feb 2019 13:08:27 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550956107; cv=none;
         d=google.com; s=arc-20160816;
-        b=GYU3hqT8P5BzofolQypSHZjJeZ/CZQOgtR8t4U90yGPSOvNtsjd5kQMkzZixKMZL8b
-         7ZZOiJIZN2EpHyIjsgmpBGgqBUxGN3pKzW5m9uALHtb1eegZnqsEdgw3rpLZbFeB26fd
-         zxdY6fHwZRl6BNsdGnYZ2B5dfcT2lnprkpVTHofajOzR84OSg2fL4y6bfsDLgXHM4ciS
-         Ln1R7Gn5mYRwMvv3rB5tZfKxifn+u0D6Z7yvD2myoxc+drl6IV4FmVMO2phW9nxOMDui
-         /n41xOE89vmBktxJwPWSHnlCrZTLy6qyjsl6MMpTZlUz1ckJYhYQULFb6iZHTZKjq5Mt
-         jwwA==
+        b=wrU+Wk3dKrYcJQf4bNZblGFKIPpgTydcCs7/wQwgEKo/Y3SGtRwoi3uh6KxCGCDwzu
+         lwhY1p9rptV3oPCm7bP7aAh7ZcLnNok+nxLbJTsV0k/NDlzNaoYcxFqHvkr7zFOqUTSS
+         BUChT+rCjewWuoE6ugvdNiqIibWI13nSctx3TEj1cQrrN0GFTaSdlPvbp0QmvGaPbO81
+         J+xn43ZNV9jWf8ZczpAsF+SVRzi7XDuDCsrAOlwJXVWckNlgGn+lkz2wq9rCpGZHIEOL
+         45YsnRXCheVPFkxE4G2z5O8Tq+pSvphdw9lx/WfIlxCoox8XZ9Q2yye0aoXk5qDLqY4W
+         kWow==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=SQ1yPE5Qkg9aesvtfDz6XanO/ZO/iK7Im7EOP2WHw7s=;
-        b=T3yJBg8MWKvNWhr3KhGkIq5LkSZ0eUhPGrb5jtpK00cWCX3yPVGWa2pFx2BRqPgVek
-         764xgaJ8LRm1fTxvtepDvDyUT+769L4gggLgIPg92D4ZqT6CpK/5Gsjy/PcqXEgu7tB8
-         Q/2H3tJYgAFluZATZOjGjHaDX5cfVVMyNod5FhxvAD2EBl2ikNzJohGrkc20CXnAsLN1
-         niKbzBTUZFsONFrMBWnPl1iAYr5LCN3xOG5HNMRS7Z0T/0ruSPoAuktReQrsiM/V9XU6
-         8ue5W9K30zDh67bCk99tkXCNIP2aY4MvgnCKYRHp5gTmm+Bni+s4il5hnKjg1gzz2td9
-         y6uQ==
+        bh=B/69q48IzpEQVci5fIhxJN7maI1Yg/iL/VXTR3BJv3k=;
+        b=qtBmWzTPjgewRKymfugvN54Ta2kAEcFFjFOaS6UvvdI/k5JNO7zEP1Wq9HGYWHzd8G
+         0MFodCxQWP/hdxHlqtYYRwj+tMoG3GBWVCF1j3MofSuvyR1JNz9kPL9XoEigzuybsYi1
+         pgBGx18uKWzVC6wQcdZEDs0W2nlD3LU/mjpT3EvVnd8rzPtDEPuT65xjjJFcZw3aCq7T
+         AP4jQLrduckYJbtjhDb5/Sk2IS2SxjnH4IXCzvoRqUy1v40QWSKALYbfWUCCghNOXUMI
+         uj1XmDS887Ehn6Q86vY+xXFh6d0vuk+bbfyAUc8ZkrQNor9Yhu0f4hL+soTR0WlmbeSj
+         UfBg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=eQzxQo36;
+       dkim=pass header.i=@kernel.org header.s=default header.b=g2LsDnod;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 11si4569687pfh.90.2019.02.23.13.06.31
+        by mx.google.com with ESMTPS id 68si4506953pga.497.2019.02.23.13.08.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 23 Feb 2019 13:06:31 -0800 (PST)
+        Sat, 23 Feb 2019 13:08:27 -0800 (PST)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=eQzxQo36;
+       dkim=pass header.i=@kernel.org header.s=default header.b=g2LsDnod;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id D639E206B6;
-	Sat, 23 Feb 2019 21:06:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 0405D20861;
+	Sat, 23 Feb 2019 21:08:25 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1550955991;
-	bh=lTVWDCH3qnV7+hTgTeFUMJNVNvCL+05npWikEVY3b8w=;
+	s=default; t=1550956107;
+	bh=mpb9MU/ezaiRyvGhc3PViVUm6a8DFRWtxx5dhnJKjx4=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=eQzxQo36i1d4gtsovUJJeHgsW020MhK1Zeg38H2aLs73CdvS970ZXjKrsYBSqBnpY
-	 smv89mDr3fNTSPS28dx7Ch9ny/FmXB+ITooAGA4FmCn7qcNIP2eK6hTmbnyAQibi6y
-	 sOz7rMezSBMkgGt5SPCg/DiRc/j+qddFXa4ukNvo=
+	b=g2LsDnodEXEfpwqgtM9Wj0hYDH19phf1h3ANe5Mo1Hl07+otMJyk1nKJtnlaTZ1t9
+	 9+KYz7BL7oknaz5o0CZTU6jLia+Z8+2YS5tw0yNtYbN1+AC1cqZ+N48//sligfbZtB
+	 M3DWCGaC1QQg6Zt7C3OQuktha4ix7Qt3rV6zYWg4=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Mikhail Zaslonko <zaslonko@linux.ibm.com>,
-	Michal Hocko <mhocko@suse.com>,
+Cc: Michal Hocko <mhocko@suse.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
 	Heiko Carstens <heiko.carstens@de.ibm.com>,
 	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.20 67/72] mm, memory_hotplug: test_pages_in_a_zone do not pass the end of zone
-Date: Sat, 23 Feb 2019 16:04:17 -0500
-Message-Id: <20190223210422.199966-67-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 60/65] mm, memory_hotplug: is_mem_section_removable do not pass the end of a zone
+Date: Sat, 23 Feb 2019 16:06:35 -0500
+Message-Id: <20190223210640.200911-60-sashal@kernel.org>
 X-Mailer: git-send-email 2.19.1
-In-Reply-To: <20190223210422.199966-1-sashal@kernel.org>
-References: <20190223210422.199966-1-sashal@kernel.org>
+In-Reply-To: <20190223210640.200911-1-sashal@kernel.org>
+References: <20190223210640.200911-1-sashal@kernel.org>
 MIME-Version: 1.0
 X-Patchwork-Hint: Ignore
 Content-Transfer-Encoding: 8bit
@@ -122,25 +120,43 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+From: Michal Hocko <mhocko@suse.com>
 
-[ Upstream commit 24feb47c5fa5b825efb0151f28906dfdad027e61 ]
+[ Upstream commit efad4e475c312456edb3c789d0996d12ed744c13 ]
 
-If memory end is not aligned with the sparse memory section boundary,
-the mapping of such a section is only partly initialized.  This may lead
-to VM_BUG_ON due to uninitialized struct pages access from
-test_pages_in_a_zone() function triggered by memory_hotplug sysfs
-handlers.
+Patch series "mm, memory_hotplug: fix uninitialized pages fallouts", v2.
 
-Here are the the panic examples:
- CONFIG_DEBUG_VM_PGFLAGS=y
- kernel parameter mem=2050M
- --------------------------
- page:000003d082008000 is uninitialized and poisoned
+Mikhail Zaslonko has posted fixes for the two bugs quite some time ago
+[1].  I have pushed back on those fixes because I believed that it is
+much better to plug the problem at the initialization time rather than
+play whack-a-mole all over the hotplug code and find all the places
+which expect the full memory section to be initialized.
+
+We have ended up with commit 2830bf6f05fb ("mm, memory_hotplug:
+initialize struct pages for the full memory section") merged and cause a
+regression [2][3].  The reason is that there might be memory layouts
+when two NUMA nodes share the same memory section so the merged fix is
+simply incorrect.
+
+In order to plug this hole we really have to be zone range aware in
+those handlers.  I have split up the original patch into two.  One is
+unchanged (patch 2) and I took a different approach for `removable'
+crash.
+
+[1] http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com
+[2] https://bugzilla.redhat.com/show_bug.cgi?id=1666948
+[3] http://lkml.kernel.org/r/20190125163938.GA20411@dhcp22.suse.cz
+
+This patch (of 2):
+
+Mikhail has reported the following VM_BUG_ON triggered when reading sysfs
+removable state of a memory block:
+
+ page:000003d08300c000 is uninitialized and poisoned
  page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
  Call Trace:
-   test_pages_in_a_zone+0xde/0x160
-   show_valid_zones+0x5c/0x190
+   is_mem_section_removable+0xb4/0x190
+   show_mem_removable+0x9a/0xd8
    dev_attr_show+0x34/0x70
    sysfs_kf_seq_show+0xc8/0x148
    seq_read+0x204/0x480
@@ -149,46 +165,44 @@ Here are the the panic examples:
    ksys_read+0x5a/0xb0
    system_call+0xdc/0x2d8
  Last Breaking-Event-Address:
-   test_pages_in_a_zone+0xde/0x160
+   is_mem_section_removable+0xb4/0x190
  Kernel panic - not syncing: Fatal exception: panic_on_oops
 
-Fix this by checking whether the pfn to check is within the zone.
+The reason is that the memory block spans the zone boundary and we are
+stumbling over an unitialized struct page.  Fix this by enforcing zone
+range in is_mem_section_removable so that we never run away from a zone.
 
-[mhocko@suse.com: separated this change from http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com]
-Link: http://lkml.kernel.org/r/20190128144506.15603-3-mhocko@kernel.org
-
-[mhocko@suse.com: separated this change from
-http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com]
+Link: http://lkml.kernel.org/r/20190128144506.15603-2-mhocko@kernel.org
 Signed-off-by: Michal Hocko <mhocko@suse.com>
-Signed-off-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+Reported-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+Debugged-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+Tested-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
 Tested-by: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
 Reviewed-by: Oscar Salvador <osalvador@suse.de>
-Tested-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
 Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
 Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/memory_hotplug.c | 3 +++
- 1 file changed, 3 insertions(+)
+ mm/memory_hotplug.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 5ce0d929ff482..488aa11495d22 100644
+index c6119ad3561ea..34cde04f346d9 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -1275,6 +1275,9 @@ int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
- 				i++;
- 			if (i == MAX_ORDER_NR_PAGES || pfn + i >= end_pfn)
- 				continue;
-+			/* Check if we got outside of the zone */
-+			if (zone && !zone_spans_pfn(zone, pfn + i))
-+				return 0;
- 			page = pfn_to_page(pfn + i);
- 			if (zone && page_zone(page) != zone)
- 				return 0;
+@@ -1258,7 +1258,8 @@ static bool is_pageblock_removable_nolock(struct page *page)
+ bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
+ {
+ 	struct page *page = pfn_to_page(start_pfn);
+-	struct page *end_page = page + nr_pages;
++	unsigned long end_pfn = min(start_pfn + nr_pages, zone_end_pfn(page_zone(page)));
++	struct page *end_page = pfn_to_page(end_pfn);
+ 
+ 	/* Check the starting page of each pageblock within the range */
+ 	for (; page < end_page; page = next_active_pageblock(page)) {
 -- 
 2.19.1
 
