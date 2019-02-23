@@ -2,175 +2,207 @@ Return-Path: <SRS0=E+cj=Q6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54A51C43381
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Feb 2019 13:42:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C432DC43381
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Feb 2019 21:06:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1EDFB20675
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Feb 2019 13:42:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1EDFB20675
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 5EF7F2085A
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Feb 2019 21:06:32 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ponZaQTL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5EF7F2085A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 85AF08E014F; Sat, 23 Feb 2019 08:42:31 -0500 (EST)
+	id C8F568E00EB; Sat, 23 Feb 2019 16:06:30 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 809918E014D; Sat, 23 Feb 2019 08:42:31 -0500 (EST)
+	id C3E648E009E; Sat, 23 Feb 2019 16:06:30 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6D1788E014F; Sat, 23 Feb 2019 08:42:31 -0500 (EST)
+	id B54CA8E00EB; Sat, 23 Feb 2019 16:06:30 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CE058E014D
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2019 08:42:31 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id a5so4023729pfn.2
-        for <linux-mm@kvack.org>; Sat, 23 Feb 2019 05:42:31 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 729108E009E
+	for <linux-mm@kvack.org>; Sat, 23 Feb 2019 16:06:30 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id f18so3077880pfd.1
+        for <linux-mm@kvack.org>; Sat, 23 Feb 2019 13:06:30 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=HTsI+/Mownet+K33ms74eIwTvzNXgOgLCWjmZnuLzaE=;
-        b=I/y5V6UzVzgxVWCr540hRNv/smZ64s6rXjDOFxgqEeeyukx7Uz0kYlaK3IvvuvG/BJ
-         6C3NRzeIb3p87BSxeYK7X1s5ciUqjSOrQW6ztBEGWOI1wIRidBugqw2D9JzROueRJF/W
-         LzesqCiM2qVBi2ZIJIYWAd5AhrAmBnmQz5svBy6p94+FUAJkI4wWWGGuk9t4jjZLraJY
-         COqH4pe6vFscQnUMsJWe8LzJH8F9w9B9u1MdhxiUFmhXhC5TUj1Xxq1GpcWVI3TJ81NK
-         MzXh2pbDDRmnV/OJE2RsmfqkPKl4PdyVBLZax0KdBmx6EzUWiyuerpax4FYiqKlOP0sK
-         8p7g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuahytkO0rxZwAtIdJLJIPOXYoqVAl1ALOLv9Kbidxq43kCNk7D8
-	Fd1+H1pawtMxksjy4Vm0HD04mSQFndpiuD2G45QEwDSiwz/yXENBUSLWH2+CDqPATnMm5+roGQx
-	/Q4n2brusbf/NmngO2lCtdTpZ5nXe4l6n0pSJi0Oy/YAopLhO8GSRPbaKVWVdYf8kHQ==
-X-Received: by 2002:a63:5359:: with SMTP id t25mr8225018pgl.99.1550929350772;
-        Sat, 23 Feb 2019 05:42:30 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYVo+ByhP3KAsTmi01i88eRLiQsX2p1vaBgdQOvDMFT8PlivhhiBjl070TRXJf/oK8gFVIE
-X-Received: by 2002:a63:5359:: with SMTP id t25mr8224967pgl.99.1550929349731;
-        Sat, 23 Feb 2019 05:42:29 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550929349; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=YjbH8sfLVmvNV7CqV9ejhmKaBHFUbMHUnvwo+SYKC6k=;
+        b=O7k2LfSkcs6Aotfn0RyCLJbZly3y+vgCR3CJO3mTR6er5ky91Tn29iGe6c3w584ZXy
+         VRVWq4vCqfxRwJcJ2VzUM6QfSFxlt+j+gelaKpO1OxGWm7uPjpLtlQsHPC7IpJPXIJKb
+         lrABVkMeJyJByx8kwmt3L8hUy5OvtxNhikPigqropD9bFAX9/kZEtybtOEdOYDRIH/go
+         2T2za+hUIHa6VMkY6o6KdhvxOEhqvBI5nfSl3y2UgTvfgBb0k7NU19txHZFWA5YCs8hP
+         YCKmamL4pq8cCdmFO3AjstdbXYPooGluSBegvb5WpLIx92QDODOR7R/npxdQuWs7hVja
+         Wj1A==
+X-Gm-Message-State: AHQUAuaV58nnZCjciwSr7GB47r157HF1GMqAl16yXXPo7CxekbJ1srMa
+	dQNfKfRoy80e2xLOTy4Oj610UEL27BZdk0Q7gW9Y2wZyGFk2ENRytbrwkRsCMQ6nrFewADwxxLI
+	nbQxO6sF9sqiBY8jYHn+SrbaRvp0T9nZ0ZakdFf7PQc6XgJpOGWyVoWfpQFYZUjcrfw==
+X-Received: by 2002:a62:4d81:: with SMTP id a123mr11296166pfb.122.1550955989968;
+        Sat, 23 Feb 2019 13:06:29 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IailA23cFqQ/t7x2lXBFXFnjhLLo560vfNKLjqvxO7OsQbrfBS7Q2Uow7SLQZN4k/UV3F5M
+X-Received: by 2002:a62:4d81:: with SMTP id a123mr11296104pfb.122.1550955989067;
+        Sat, 23 Feb 2019 13:06:29 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550955989; cv=none;
         d=google.com; s=arc-20160816;
-        b=DEiqXNFQOBVA/AlDg67fgCZcpX1BzrxqP3wHXbmwlPiIt5rpvrKVojsEeipfnYpjIg
-         8mT7yxRFFLJoPfc79/FpvWSxJiWbOIGIHZ7Gva+EvEz6Vdjyo9V1+8GcmbZZ5XNrT5Bi
-         iWGrGZFjkqYi03oKf2T8caCb5cEJl84uzZyz9r7KzWoN+Zt5QI8W4LQobo5mSd8tK/mX
-         phMy7DCGIV/+wK6AuN+zkzKRX2CcHbPa3PEsYujI4tY985O4bvwsYWL1E/U9x8CdrKPt
-         TPtiS0LcG8C3YwOmL3iMfZ0vWcD3WK5DyzmvBe3GvhnpkoyxDEIQ8kxKp9G5thN2SDj4
-         K1OA==
+        b=FmpzHv31OW+rr000T0CWvUrJloG0GI9DdKnOV0oOxLS2t5bAU8JqEajjmRt2hWXKsM
+         w2PWwQ0/oXNuq1Z4mGVoGlrNv5JPT7brso2Ei5XsJ/r5xMa/2sJdWV9Vg9b/x6c7EkLp
+         j0rU0xo0IUtuS/qHna13yACnhn22s+lncKwQj7YI2XZXQgn1FwPNxuVlkMFvWLQO9bJj
+         VK/4+3d4KQ9jMmXWiix31VpQ5AnSGQSWuG47Q0kqgs5z9/ve4l4MxOGlsUqw9K1/ONCB
+         w/Ai9OU0XfE1q6pYCEbqKM5ptegYt08TsAxIU8TJNQS8kkcd4m+6KAhbGkREcK4KKRn2
+         wlHw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=HTsI+/Mownet+K33ms74eIwTvzNXgOgLCWjmZnuLzaE=;
-        b=S2LuX+f2I+R2vp6KDtoy4mqlm3YAWu0ph8owFD8j9TM87KftIPiMWUjedb2MVyqUdp
-         GJOHRr129BJnHq2GNvRxUNtTI1VGfFD/VGFE53IUqmbkvYjCRfdYXLRFmQJh5VEuIdNd
-         0wo1Yn7SWyiRk6gGh7DUZPPSCjq/bcFd9/oH0YzaO8WloKCMndsmG2KhIWNBIVdfEH50
-         MEaE45Y+ewsaVfMRk9TN3vZP5Ugtb+0VC6FEcBeKmfmDmBIb2t28GV8g6iVth9xR27WA
-         5bPrzMfTTRjXRTOkuKA4uhBBzVotH0xTIpYF0ZDOSeFS3Xzhk9i6KFPQ7Wyq+W5CCZiL
-         zMaA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=YjbH8sfLVmvNV7CqV9ejhmKaBHFUbMHUnvwo+SYKC6k=;
+        b=iE3dYGwuEPlFWlaH+A/AvRlWwFXF506Tv196ozpbbrRik8E1oGj8Qu025RblLcId1s
+         p2sOZYmxMRxK899QwZJdJW6a1lHBSg/D/CF8gLB/PvfCbfNRKjZvRF76op9oFdPt0hME
+         WgAZ0EXvsdnKbjPtxmgYpx3LSijDYcRdiPG92BKua4i5dJ1h9cOcvVTu/kWmKyWwxyZt
+         zFcc0mPUh5nYVkc4lBFKl1e8+9inZ2shZXqCnIJAVGVkix3CP6/loKFGJY3LYtaGpc6t
+         /8ms92k1Z5EIOCp+jggaNOisSVsuIYd9RppnSTrpROtBqGHINAYwh5fnXhzcsCfuURjv
+         i7kQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id r1si3820837pfb.118.2019.02.23.05.42.29
+       dkim=pass header.i=@kernel.org header.s=default header.b=ponZaQTL;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id e67si4690130plb.107.2019.02.23.13.06.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 23 Feb 2019 05:42:29 -0800 (PST)
-Received-SPF: pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        Sat, 23 Feb 2019 13:06:29 -0800 (PST)
+Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of fengguang.wu@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Feb 2019 05:42:28 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,403,1544515200"; 
-   d="scan'208";a="135739557"
-Received: from xiaqing-mobl.ccr.corp.intel.com (HELO wfg-t570.sh.intel.com) ([10.254.208.151])
-  by FMSMGA003.fm.intel.com with ESMTP; 23 Feb 2019 05:42:27 -0800
-Received: from wfg by wfg-t570.sh.intel.com with local (Exim 4.89)
-	(envelope-from <fengguang.wu@intel.com>)
-	id 1gxXZS-00010q-Pu; Sat, 23 Feb 2019 21:42:26 +0800
-Date: Sat, 23 Feb 2019 21:42:26 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org,
-	linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>,
-	linux-nvme@lists.infradead.org
-Subject: Re: [LSF/MM ATTEND ] memory reclaim with NUMA rebalancing
-Message-ID: <20190223134226.spesmpw6qnnfyvrr@wfg-t540p.sh.intel.com>
-References: <20190130174847.GD18811@dhcp22.suse.cz>
- <87h8dpnwxg.fsf@linux.ibm.com>
- <20190223132748.awedzeybi6bjz3c5@wfg-t540p.sh.intel.com>
+       dkim=pass header.i=@kernel.org header.s=default header.b=ponZaQTL;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 5F9692085A;
+	Sat, 23 Feb 2019 21:06:27 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1550955988;
+	bh=PpIK6yquttwIJH9K5kARyEyZ6ohka8ntz+E7xLYgmTY=;
+	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
+	b=ponZaQTLFaHwBjs2Qd5fxIirvtTI2xNK/KIcjdbpHdaZga54V2a5XpRS5hww8UIeB
+	 YenAfWCjr5BzKaUSPxU7OFLZ7bqEpEK8EXcNN38n2UwnwmA837g/fPXWlyFyn2cqpj
+	 ExCjjGnxaTx7tbruSXchgJq4L4Wiz7wehfYep8J4=
+From: Sasha Levin <sashal@kernel.org>
+To: linux-kernel@vger.kernel.org,
+	stable@vger.kernel.org
+Cc: Michal Hocko <mhocko@suse.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Sasha Levin <sashal@kernel.org>,
+	linux-mm@kvack.org
+Subject: [PATCH AUTOSEL 4.20 66/72] mm, memory_hotplug: is_mem_section_removable do not pass the end of a zone
+Date: Sat, 23 Feb 2019 16:04:16 -0500
+Message-Id: <20190223210422.199966-66-sashal@kernel.org>
+X-Mailer: git-send-email 2.19.1
+In-Reply-To: <20190223210422.199966-1-sashal@kernel.org>
+References: <20190223210422.199966-1-sashal@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20190223132748.awedzeybi6bjz3c5@wfg-t540p.sh.intel.com>
-User-Agent: NeoMutt/20170609 (1.8.3)
+X-Patchwork-Hint: Ignore
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Feb 23, 2019 at 09:27:48PM +0800, Fengguang Wu wrote:
->On Thu, Jan 31, 2019 at 12:19:47PM +0530, Aneesh Kumar K.V wrote:
->>Michal Hocko <mhocko@kernel.org> writes:
->>
->>> Hi,
->>> I would like to propose the following topic for the MM track. Different
->>> group of people would like to use NVIDMMs as a low cost & slower memory
->>> which is presented to the system as a NUMA node. We do have a NUMA API
->>> but it doesn't really fit to "balance the memory between nodes" needs.
->>> People would like to have hot pages in the regular RAM while cold pages
->>> might be at lower speed NUMA nodes. We do have NUMA balancing for
->>> promotion path but there is notIhing for the other direction. Can we
->>> start considering memory reclaim to move pages to more distant and idle
->>> NUMA nodes rather than reclaim them? There are certainly details that
->>> will get quite complicated but I guess it is time to start discussing
->>> this at least.
->>
->>I would be interested in this topic too. I would like to understand
->
->So do me. I'd be glad to take in the discussions if can attend the slot.
->
->>the API and how it can help exploit the different type of devices we
->>have on OpenCAPI.
->>
->>IMHO there are few proposals related to this which we could discuss together
->>
->>1. HMAT series which want to expose these devices as Numa nodes
->>2. The patch series from Dave Hansen which just uses Pmem as Numa node.
->>3. The patch series from Fengguang Wu which does prevent default
->>allocation from these numa nodes by excluding them from zone list.
->>4. The patch series from Jerome Glisse which doesn't expose these as
->>numa nodes.
->>
->>IMHO (3) is suggesting that we really don't want them as numa nodes. But
->>since Numa is the only interface we currently have to present them as
->>memory and control the allocation and migration we are forcing
->>ourselves to Numa nodes and then excluding them from default allocation.
->
->Regarding (3), we actually made a default policy choice for
->"separating fallback zonelists for PMEM/DRAM nodes" for the
->typical use scenarios.
->
->In long term, it's better to not build such assumption into kernel.
->There may well be workloads that are cost sensitive rather than
->performance sensitive. Suppose people buy a machine with tiny DRAM
->and large PMEM. In which case the suitable policy may be to
->
->1) prefer (but not bind) slab etc. kernel pages in DRAM
->2) allocate LRU etc. pages from either DRAM or PMEM node
+From: Michal Hocko <mhocko@suse.com>
 
-The point is not separating fallback zonelists for DRAM and PMEM in
-this case.
+[ Upstream commit efad4e475c312456edb3c789d0996d12ed744c13 ]
 
->In summary, kernel may offer flexibility for different policies for
->use by different users. PMEM has different characteristics comparing
->to DRAM, users may or may not be treated differently than DRAM through
->policies.
->
->Thanks,
->Fengguang
+Patch series "mm, memory_hotplug: fix uninitialized pages fallouts", v2.
+
+Mikhail Zaslonko has posted fixes for the two bugs quite some time ago
+[1].  I have pushed back on those fixes because I believed that it is
+much better to plug the problem at the initialization time rather than
+play whack-a-mole all over the hotplug code and find all the places
+which expect the full memory section to be initialized.
+
+We have ended up with commit 2830bf6f05fb ("mm, memory_hotplug:
+initialize struct pages for the full memory section") merged and cause a
+regression [2][3].  The reason is that there might be memory layouts
+when two NUMA nodes share the same memory section so the merged fix is
+simply incorrect.
+
+In order to plug this hole we really have to be zone range aware in
+those handlers.  I have split up the original patch into two.  One is
+unchanged (patch 2) and I took a different approach for `removable'
+crash.
+
+[1] http://lkml.kernel.org/r/20181105150401.97287-2-zaslonko@linux.ibm.com
+[2] https://bugzilla.redhat.com/show_bug.cgi?id=1666948
+[3] http://lkml.kernel.org/r/20190125163938.GA20411@dhcp22.suse.cz
+
+This patch (of 2):
+
+Mikhail has reported the following VM_BUG_ON triggered when reading sysfs
+removable state of a memory block:
+
+ page:000003d08300c000 is uninitialized and poisoned
+ page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+ Call Trace:
+   is_mem_section_removable+0xb4/0x190
+   show_mem_removable+0x9a/0xd8
+   dev_attr_show+0x34/0x70
+   sysfs_kf_seq_show+0xc8/0x148
+   seq_read+0x204/0x480
+   __vfs_read+0x32/0x178
+   vfs_read+0x82/0x138
+   ksys_read+0x5a/0xb0
+   system_call+0xdc/0x2d8
+ Last Breaking-Event-Address:
+   is_mem_section_removable+0xb4/0x190
+ Kernel panic - not syncing: Fatal exception: panic_on_oops
+
+The reason is that the memory block spans the zone boundary and we are
+stumbling over an unitialized struct page.  Fix this by enforcing zone
+range in is_mem_section_removable so that we never run away from a zone.
+
+Link: http://lkml.kernel.org/r/20190128144506.15603-2-mhocko@kernel.org
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+Reported-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+Debugged-by: Mikhail Zaslonko <zaslonko@linux.ibm.com>
+Tested-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Tested-by: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Sasha Levin <sashal@kernel.org>
+---
+ mm/memory_hotplug.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 21d94b5677e81..5ce0d929ff482 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1234,7 +1234,8 @@ static bool is_pageblock_removable_nolock(struct page *page)
+ bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
+ {
+ 	struct page *page = pfn_to_page(start_pfn);
+-	struct page *end_page = page + nr_pages;
++	unsigned long end_pfn = min(start_pfn + nr_pages, zone_end_pfn(page_zone(page)));
++	struct page *end_page = pfn_to_page(end_pfn);
+ 
+ 	/* Check the starting page of each pageblock within the range */
+ 	for (; page < end_page; page = next_active_pageblock(page)) {
+-- 
+2.19.1
 
