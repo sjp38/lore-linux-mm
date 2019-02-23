@@ -2,153 +2,169 @@ Return-Path: <SRS0=E+cj=Q6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E7CD4C43381
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Feb 2019 06:35:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 73F1AC10F0B
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Feb 2019 13:27:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 868EA20652
-	for <linux-mm@archiver.kernel.org>; Sat, 23 Feb 2019 06:35:56 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="rjb+/2w2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 868EA20652
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 15CFE2086C
+	for <linux-mm@archiver.kernel.org>; Sat, 23 Feb 2019 13:27:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15CFE2086C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E0B5E8E014B; Sat, 23 Feb 2019 01:35:55 -0500 (EST)
+	id 706D98E014E; Sat, 23 Feb 2019 08:27:54 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D8FF48E0141; Sat, 23 Feb 2019 01:35:55 -0500 (EST)
+	id 6B5D58E014D; Sat, 23 Feb 2019 08:27:54 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C32178E014B; Sat, 23 Feb 2019 01:35:55 -0500 (EST)
+	id 5577D8E014E; Sat, 23 Feb 2019 08:27:54 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D8798E0141
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2019 01:35:55 -0500 (EST)
-Received: by mail-ot1-f71.google.com with SMTP id u24so1820721otk.13
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2019 22:35:55 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 113268E014D
+	for <linux-mm@kvack.org>; Sat, 23 Feb 2019 08:27:54 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id o24so3715836pgh.5
+        for <linux-mm@kvack.org>; Sat, 23 Feb 2019 05:27:54 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=yhOgIfVhgUxGNA3/y93NZzblYSFJxAnLZ4az1Uovz+g=;
-        b=LYl+zglgEF/Ycj4kl19L3ImRNhCrFgrpZps1TwDw5vMLRvaR2Xsc/tQJe36vOfpKwH
-         MPC2mdBXCQqSwisUN0IG7bzHbtCWygZpK3ztCTL840CY3FPP65Yi0GbibAOQBbUEdN90
-         pQlHJjS1niY+nlTHCasiS5gzX+DKPlJwxsuVDCwIDBnfRw64a2dT3202A3CI8d99Mwko
-         kB4PlzHnWGy1nBkhXJqcW4oZA8vWDDSz0/md2e9IWwFz+SPMT6StAPjyqQxe+2OQyRKH
-         SG1cWTevtT5Er114w3sXnduqWUSBIEgDF9yyFUVwFBy3eW2GRo0O3SWSiWJvN7C5GStB
-         MXPw==
-X-Gm-Message-State: AHQUAuaM9f4ovyVgj+KgOVElUL6Fx6kwghPnpECSZ4C1xFatD0ZyrlRg
-	dzqC9OHXrZYuhkZf4M5t2OdbpgwoDugB2ZYlniDrEv9o/PfeqATkJr3JVhCI+xxRpt/9t8iKn5M
-	5TKNH3KNBVdxbM4m0iBIcsy/AxyKU/9u0lyAPJBOsEUYCLLnPeXk6N6a7+mnOHAT7suXWx1ho2Y
-	ncuC0ffdohMtB6CS/HMIL+mTjA/ZGiDF7XKSSjd00fgyFrvCMGGdiRGbCekpwicgJreXDoMvrXG
-	6pgj6Q96mPMbOlVEoNL1W4B2TXuBUh6GaxJF1Vp3ciEhmxM8HOKci7sUZX5lB3pn1su0OhLPSVR
-	f9kmzjiaKXSmlqM4joivS11no1vK+GVyWUZZWhZZ8JCh30uBqY/3E6dbfQtBBPBAL2jabLYsLM4
-	R
-X-Received: by 2002:aca:b7c4:: with SMTP id h187mr5011397oif.112.1550903755226;
-        Fri, 22 Feb 2019 22:35:55 -0800 (PST)
-X-Received: by 2002:aca:b7c4:: with SMTP id h187mr5011371oif.112.1550903754487;
-        Fri, 22 Feb 2019 22:35:54 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1550903754; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=xfeCRzpqKVfmRtcBUM7dvs52nVHBKG/RDM1btAzuTcw=;
+        b=DO5hGFRq6VKwlfaEBaS+uW45Jr2zIFm3jtRtSrNpipiZYrnQTkqrumndCuojy122jw
+         LtrueZTRJice3NcnMMRI0z7I6E6uzXiPVmGQHOcizSP+zHj0khp8AZhBufEnp3nISNuS
+         mtRMC1PQZKgWpu0gVVwMWqIBH+DX4xK1CtUa9+Z8pjFN643nFlLQS55KlurxA2O6cBaT
+         ihxILpOTyRLKRkpWa6rLn9vRj/ev2sZECzomwHvpmaMjcLwXaVBIxSvEG4jaaxUe4L5U
+         0hcUHlVN/BAX8t+f5xj+F3FHPFnL1ajlcrw2sb10coRJxWnCbjNlfoYFcvhSJBiXVBZI
+         rdWg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fengguang.wu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuZTOX9+Ba5Kg+ZZ0Lkub8HDFbOlAv9PY3GLwycF7fyvxlMNd/Xt
+	FK42ZnrbIsY7cdD5vdqUuMVn7mhhLTj/nivHQUhdW2mLoJSk14Uzv4WOmmrKqFcOFE7ys9Wr7qy
+	vxQ/AKzAZ1ouOa9lu5bCk29Qh03WN8VyOlcjKC6L+hYbyJbre09i+Nu5vYCWUj0DV5A==
+X-Received: by 2002:a62:4d81:: with SMTP id a123mr9675543pfb.122.1550928473547;
+        Sat, 23 Feb 2019 05:27:53 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaIMENpd2Vp0S3nq2qvabnaQGtbrK4U9wWpNJHmcIB+Ixbvwa/nS6qZYFc9rX7e8VsSoBxA
+X-Received: by 2002:a62:4d81:: with SMTP id a123mr9675455pfb.122.1550928472293;
+        Sat, 23 Feb 2019 05:27:52 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1550928472; cv=none;
         d=google.com; s=arc-20160816;
-        b=rUq/bBovwivDtpLDGt42SPudJDwOMlryNtBWhDnBQg1P2Yjo2gqHV5eBE102bL6lof
-         gTeK4pe2+bPUzEWR7r3TQw8QgAxPl4OONdd6z9K4DD5PwY2nqd9G6UScBBjb+QaS6hnc
-         0fE0ZSuNoi0xkza+soGFc6xY4fAltlpL5X2rDIKkzb2I+wysCE6kHr/7yyIkB0NZqd4t
-         phjitvRP/CAnTIQgzZEe5l0vb6e8AvRqr1lBN3CIfA4sq+Sbp0LnXSmudGAnWQ/eL5me
-         z+j5smnPlZ2s1YKmi8hNXapvfDuasvbqH47g2F6cJmpclQcmN8FlEIsU5BK2JBwNZZEb
-         wsjw==
+        b=VXVVTLVKAVO3hKf31MI0Cu4WpBh28vXXoVkAHfOgwh8L8MbAYC+l2T/a62igcsw+A8
+         hFMrcSECHRRZUbbohbpGp+A3XF47IxbPKj0F+8e9r/k01WedE9iSdIggWeTLGq5vdGkf
+         uAlszD/mPkOsWQNPaX2a73SUIHkRKF/XEo7LZ1uMku0RgJPdw6Zn72uFCQ+yl4PRQ/Vo
+         6ndiN4Qqu7wKf72RBoYVRyvGzxtrjFeK8mm+hJYtysMypuJz/cu+K2B2jBmgH68XN0Wd
+         gEXaE6BkR38KlS5eBESUQ/1PKy87hfsM8AnDSCbw7KG7kjitA/l3qIgNavub1ny+jr0d
+         rV1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=yhOgIfVhgUxGNA3/y93NZzblYSFJxAnLZ4az1Uovz+g=;
-        b=xTA9RX5qFQyF/K6dH39MfPfn8X82ynn/hwCeymxm8U6oNBQp8/lvkG0KA0WLinYpeY
-         Gk0PsagbddzJxHwBI/wQkLuakPVoN4d2OEVQlFiYEtjo4qULKvjdyaBKSwHOlEqXllV1
-         LayE2wCzmPS+1LNYdq3sCWY2Ts/GA8QIQdBqfPrjwfKegn2beo+bdVtUmy/fIg898Q8m
-         4i4yv/AhXcpPNru2ZrapN+jvM7DbHNAHFyNkhLZH4/Nkq8vtdWOdMW3nGcY1kdheyKZx
-         olQ2/V2lFF9p9LKTlCXrhhATF3ouoIt1Ua8y4cAd0ZKzWH8ywGJVYQNBuPp710uTmA4R
-         /UZg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=xfeCRzpqKVfmRtcBUM7dvs52nVHBKG/RDM1btAzuTcw=;
+        b=bh55aHHuls5wmTpvpWc7eQZl/qTWOOvBajfMlr0tCCpDOveayzlml07qmuW1o8MsG1
+         wImDzXh5yRtqf6fo2j/8iyJIQ57yS3k+vXQaJgFJCwX/FVszLZ0utCFWjRgS47FegaoW
+         Yfj+Ck3AxlQvG4lIC+FhkAQsb64/gXrP5XgZmpxYQk8rjFRwcitOtr8tN8wYA/R6bWO1
+         +rLl6yf13V5Pnh9nZXi/YNbGW3aDPy94pFSdvsD9OzSQ+hZt+YqwSDc2lf8sJ7nO/FMm
+         zJTtC+Pwy9skPdWdvig2mr7UKFBkmvz4E7vKJw4UQ6JVkBNS/riWyMobTVREZclnW09O
+         7+5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="rjb+/2w2";
-       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c8sor1897093oto.81.2019.02.22.22.35.54
+       spf=pass (google.com: domain of fengguang.wu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id s80si3763640pgs.165.2019.02.23.05.27.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Feb 2019 22:35:54 -0800 (PST)
-Received-SPF: pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 23 Feb 2019 05:27:52 -0800 (PST)
+Received-SPF: pass (google.com: domain of fengguang.wu@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="rjb+/2w2";
-       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=yhOgIfVhgUxGNA3/y93NZzblYSFJxAnLZ4az1Uovz+g=;
-        b=rjb+/2w2PubEGHI9lliFmVPoFeNasdkJCgxE/2BySo9p4LpVxc8wZn+GyDpMxmmfUF
-         0Pti/QbQ1y61AV9qVdT62xQelKgS5bn7luAnZKkc/J9x80tajd4eBFtPnGFqm/j4Gr+H
-         u6NyvXrZ+FKzzU4mGJInLoR0QVTc/SPdqZsJ3v1QZ272YkjBnP0zUSdT1syIAMcDDcb9
-         Q8yq31NXt9uvXpbqdtJLyaLVGIUD3h0McapYgi1EfQhynpA3mbhNzueTag3g2R34h6Tt
-         SjmE7USfjl2LgKC2jGG5y+7hk9mGNfunxYrq4PJ7+MDcMNRU2wuMLmyAMHHWPG+kkwqt
-         VClA==
-X-Google-Smtp-Source: AHgI3Ib7kGGQwRjZumRNBfzx4tHBxgD5HSybVQ45ClMb0XYFBia3t/NURMgVbTKpAkpjL+nJ7awQsg==
-X-Received: by 2002:a9d:4b13:: with SMTP id q19mr5304066otf.304.1550903753684;
-        Fri, 22 Feb 2019 22:35:53 -0800 (PST)
-Received: from eggly.attlocal.net (172-10-233-147.lightspeed.sntcca.sbcglobal.net. [172.10.233.147])
-        by smtp.gmail.com with ESMTPSA id c24sm1510112otl.67.2019.02.22.22.35.52
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 22 Feb 2019 22:35:52 -0800 (PST)
-Date: Fri, 22 Feb 2019 22:35:32 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-X-X-Sender: hugh@eggly.anvils
-To: Linus Torvalds <torvalds@linux-foundation.org>
-cc: "Darrick J. Wong" <darrick.wong@oracle.com>, 
-    Andrew Morton <akpm@linux-foundation.org>, 
-    Matej Kupljen <matej.kupljen@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>, 
-    Dan Carpenter <dan.carpenter@oracle.com>, linux-kernel@vger.kernel.org, 
-    linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Subject: [PATCH] tmpfs: fix uninitialized return value in shmem_link
-In-Reply-To: <20190221222123.GC6474@magnolia>
-Message-ID: <alpine.LSU.2.11.1902222222570.1594@eggly.anvils>
-References: <20190221222123.GC6474@magnolia>
-User-Agent: Alpine 2.11 (LSU 23 2013-08-11)
+       spf=pass (google.com: domain of fengguang.wu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=fengguang.wu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga003.fm.intel.com ([10.253.24.29])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Feb 2019 05:27:50 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,403,1544515200"; 
+   d="scan'208";a="135737996"
+Received: from xiaqing-mobl.ccr.corp.intel.com (HELO wfg-t570.sh.intel.com) ([10.254.208.151])
+  by FMSMGA003.fm.intel.com with ESMTP; 23 Feb 2019 05:27:49 -0800
+Received: from wfg by wfg-t570.sh.intel.com with local (Exim 4.89)
+	(envelope-from <fengguang.wu@intel.com>)
+	id 1gxXLI-0000tT-Of; Sat, 23 Feb 2019 21:27:48 +0800
+Date: Sat, 23 Feb 2019 21:27:48 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, lsf-pc@lists.linux-foundation.org,
+	linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>,
+	linux-nvme@lists.infradead.org
+Subject: Re: [LSF/MM ATTEND ] memory reclaim with NUMA rebalancing
+Message-ID: <20190223132748.awedzeybi6bjz3c5@wfg-t540p.sh.intel.com>
+References: <20190130174847.GD18811@dhcp22.suse.cz>
+ <87h8dpnwxg.fsf@linux.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <87h8dpnwxg.fsf@linux.ibm.com>
+User-Agent: NeoMutt/20170609 (1.8.3)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
+On Thu, Jan 31, 2019 at 12:19:47PM +0530, Aneesh Kumar K.V wrote:
+>Michal Hocko <mhocko@kernel.org> writes:
+>
+>> Hi,
+>> I would like to propose the following topic for the MM track. Different
+>> group of people would like to use NVIDMMs as a low cost & slower memory
+>> which is presented to the system as a NUMA node. We do have a NUMA API
+>> but it doesn't really fit to "balance the memory between nodes" needs.
+>> People would like to have hot pages in the regular RAM while cold pages
+>> might be at lower speed NUMA nodes. We do have NUMA balancing for
+>> promotion path but there is notIhing for the other direction. Can we
+>> start considering memory reclaim to move pages to more distant and idle
+>> NUMA nodes rather than reclaim them? There are certainly details that
+>> will get quite complicated but I guess it is time to start discussing
+>> this at least.
+>
+>I would be interested in this topic too. I would like to understand
 
-When we made the shmem_reserve_inode call in shmem_link conditional, we
-forgot to update the declaration for ret so that it always has a known
-value.  Dan Carpenter pointed out this deficiency in the original patch.
+So do me. I'd be glad to take in the discussions if can attend the slot.
 
-Fixes: 1062af920c07 ("tmpfs: fix link accounting when a tmpfile is linked in")
-Reported-by: Dan Carpenter <dan.carpenter@oracle.com>
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
- mm/shmem.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+>the API and how it can help exploit the different type of devices we
+>have on OpenCAPI.
+>
+>IMHO there are few proposals related to this which we could discuss together
+>
+>1. HMAT series which want to expose these devices as Numa nodes
+>2. The patch series from Dave Hansen which just uses Pmem as Numa node.
+>3. The patch series from Fengguang Wu which does prevent default
+>allocation from these numa nodes by excluding them from zone list.
+>4. The patch series from Jerome Glisse which doesn't expose these as
+>numa nodes.
+>
+>IMHO (3) is suggesting that we really don't want them as numa nodes. But
+>since Numa is the only interface we currently have to present them as
+>memory and control the allocation and migration we are forcing
+>ourselves to Numa nodes and then excluding them from default allocation.
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 0905215fb016..2c012eee133d 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2848,7 +2848,7 @@ static int shmem_create(struct inode *dir, struct dentry *dentry, umode_t mode,
- static int shmem_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
- {
- 	struct inode *inode = d_inode(old_dentry);
--	int ret;
-+	int ret = 0;
- 
- 	/*
- 	 * No ordinary (disk based) filesystem counts links as inodes;
+Regarding (3), we actually made a default policy choice for
+"separating fallback zonelists for PMEM/DRAM nodes" for the
+typical use scenarios.
+
+In long term, it's better to not build such assumption into kernel.
+There may well be workloads that are cost sensitive rather than
+performance sensitive. Suppose people buy a machine with tiny DRAM
+and large PMEM. In which case the suitable policy may be to
+
+1) prefer (but not bind) slab etc. kernel pages in DRAM
+2) allocate LRU etc. pages from either DRAM or PMEM node
+
+In summary, kernel may offer flexibility for different policies for
+use by different users. PMEM has different characteristics comparing
+to DRAM, users may or may not be treated differently than DRAM through
+policies.
+
+Thanks,
+Fengguang
 
