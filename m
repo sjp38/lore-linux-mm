@@ -2,121 +2,187 @@ Return-Path: <SRS0=MSKp=Q7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 91394C43381
-	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 11:41:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 806E7C4360F
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 12:34:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E5B720663
-	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 11:41:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 34D122084D
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 12:34:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="IOkatBRQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E5B720663
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="cE+GB6xt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34D122084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 73D628E015E; Sun, 24 Feb 2019 06:41:28 -0500 (EST)
+	id C468F8E015D; Sun, 24 Feb 2019 07:34:29 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6C5DB8E015D; Sun, 24 Feb 2019 06:41:28 -0500 (EST)
+	id BCF188E015B; Sun, 24 Feb 2019 07:34:29 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 58DAD8E015E; Sun, 24 Feb 2019 06:41:28 -0500 (EST)
+	id A70268E015D; Sun, 24 Feb 2019 07:34:29 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 25B3E8E015D
-	for <linux-mm@kvack.org>; Sun, 24 Feb 2019 06:41:28 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id e4so5502824pfh.14
-        for <linux-mm@kvack.org>; Sun, 24 Feb 2019 03:41:28 -0800 (PST)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 625B58E015B
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2019 07:34:29 -0500 (EST)
+Received: by mail-pl1-f198.google.com with SMTP id x5so9536plv.17
+        for <linux-mm@kvack.org>; Sun, 24 Feb 2019 04:34:29 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=kurBAzCOK3m5IGucKu0DWpuJ0RmeW0Ui+49xTU/hQEc=;
-        b=SzNyoVmGxNWGENPkIy0Z5SRwK1H/Nypw0Aw6eAxgIAWk0HDP5zAj0lwE1T8LUbSbmL
-         YJjOsre7G2dvYX/UU/DfLJhq3Q3uyum0s7xtRIy6pqj0u+L/2tiIVLKk1XtOlQlygftD
-         s9Hypal48fydfKByouraMWYUpRlaw+sL39AbkW1rvzkNZyzT7VjJAQlp9DnzGbA3XCpt
-         hD4gRwEnt6XX/vQKRQ6IAiJKcSbCu+UwsheDKlXaUsimRIuFxJqmKbr+LRBfp/HyxMnh
-         iqW+O2PFstLbyyFKnVgxt++aF5PX6FhHLyXtVKwwP9orXovveNe8xMqoIOI1aA2PgP4g
-         qPKA==
-X-Gm-Message-State: AHQUAuamb4P8h8j4deNKeZS3PT0M8DBmBUXUp0CTGY9MZo0yaA4VvNBX
-	YBu0JNWbI5SfqpdlsNQFHBKLftKcRafJr5yFYNXUqVK72WSO6XrD01tc4Wm9xaSf/zU3wE4zi9k
-	NaawsXWCuSA3kgGYg8ra5EZS7F2RuYmO7e9rSWhbbADAi7SAlWG90cHWYhlgzyrMmLA==
-X-Received: by 2002:a17:902:8f82:: with SMTP id z2mr13555023plo.163.1551008487701;
-        Sun, 24 Feb 2019 03:41:27 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib380hYKLnWFW0mwR3TrT3pIyIRVwwcUlq7HMhD8Rn5HMPA788aIYvymd78DmMrjUsq5Pbq
-X-Received: by 2002:a17:902:8f82:: with SMTP id z2mr13554984plo.163.1551008486971;
-        Sun, 24 Feb 2019 03:41:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551008486; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=IofwoUpnukhHD5Lom+sSlZv54BEm4R4tYJZvLTxZCAY=;
+        b=efBFyp2CthGvK3C/I0WAQtvU/WB6DIfwlW8jVSqLoXGibpUn7yASSdtr9OGj89a2wd
+         dk681ffvvsXLoABv60YOnYlXIMsbv+Zpmb6fCA6AsJvofPZNP6hHKZvgnZie20HrZPeu
+         meCIOXUoIWEE/rfMOdeWil+afRUQpuSlp4b85v8//jmfRlNT41E+1tQdG+MziWH7zfrI
+         72MstcUqWPQ1n+7jjxaqQm2CKkMyvNuKwBU8cgaFeG2y5CW/R8KenaZE8IaWNt4oC47N
+         ETmQs4XjW5XqIrgHrev7PhwyXUKXRPTR2PwT01YSBjO6HHcnd8IBgIJ2mAs19Q3dNvg7
+         Sq9g==
+X-Gm-Message-State: AHQUAuaGjMiq2cqkytXtvu2LgbvJJYbTNPxOBrOTp4vS0/WtEBrDzziS
+	eqLUhk5AbPCT28zoiGAp+SdR67nVanoQReUllPR6EFp/uKbpnTHS7Vy1ikE5Og4VvxAXwztbZXd
+	+DoXBTsV2mTLPulX9frFlf0NGSj4p9lVW1m5nPdBdjuXGjNQq/dbzui6eeXoRB6gfcm4G+bAwh9
+	NX53/Sc+0W/2Nck/tx61SG/wnQ21/bj+T9gDpkQGO/al2AC7mwpcLg+jzVoyI6UnJE3YcmnuI87
+	Hc++WsDaLWo0PiHxBAP44QcKLwAH7jXCYMDTZn2a5AD68ez753j6PG5e9pRGZutgKAhlIs0KtnM
+	FlXUtv3JqZ0dakrh9P20T1zSVLShtbaD9Qt75WaYojgMlz7EYOppNSsCk7iMn7iFd5kEWzaa6so
+	y
+X-Received: by 2002:a63:2ccb:: with SMTP id s194mr12748792pgs.214.1551011668954;
+        Sun, 24 Feb 2019 04:34:28 -0800 (PST)
+X-Received: by 2002:a63:2ccb:: with SMTP id s194mr12748673pgs.214.1551011667575;
+        Sun, 24 Feb 2019 04:34:27 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551011667; cv=none;
         d=google.com; s=arc-20160816;
-        b=DNBrIYvSsBcnse8maxDMrPisE6pq/KFDS+tVY9E+g9w8t5lL2bkl60WMcCtDgESE4+
-         7QojlR2aRC4fHKOJB5u/Q9A1jQUMIhPIMB5jj1dTTK0MgNQaDVkrIlT61q3PfHmZJP0x
-         3gyBEDQDVn/E7oLndFCasXLu+SLne/FJPfpgUBOzvyrD8TCRsuBGp+cVXuD6m/6BSFdt
-         RKLj1O5wHXOUiB01Naqe9VUMEIZHTd6qiuJScJmkdHZVNaYOOtZP90wRVuChL8D/9MQH
-         Vt8PrGS6JvouvQRJYLWHuFdRUKn6YlzN0HpY3HUgSh11yr6u5j7Sx8sB1taMW7M2ocBk
-         M9Tw==
+        b=gAQYun2y2wjdddN+nz/CyPVZSrp9TFLFzKE518GDIPUDV/oa4yPI1y6OSl7y5HKV5P
+         NtTVUL7CLPYy8Ob6kgGP1RF6dO+dzTUWqk68LqzCMXXUMCFWxSNaP0bSDRzuuUOrRSZO
+         xtY8CI7oCqCzjAiInhI9ztPSt/bU3CJMvUYKUnPoICs7BYE+IaYTK6fWica8OQINZgpy
+         /mKK2AnGpK9T9p53umoi3+nG4gQGb3KZKQlVBTNqnOusYPAyVbuis0U7WBBb24vsdQ68
+         z0pMfcrol4zyIr1fNzAMlPa4ydNF37f0B2slhG+d1IDUSy/1PwQj2qn4f1dZZm/2HDPu
+         WgIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=kurBAzCOK3m5IGucKu0DWpuJ0RmeW0Ui+49xTU/hQEc=;
-        b=SsKDAJ77XE3dAyaKRpTpYJu6RaibBwsZM4B349VRch61TYIVgAeExdIdhU7O08ijDZ
-         GbktoLPVacqtcRbd6hCEDw2G+yXqRwNY9WmxyWsPPqmdOqYbFT0atC/TwjShVa/Zg5+N
-         9BZxRtaCSm4tKkVqvJukQFpWqmZ7rvxVYkUtyGxdW9aahSCHVGmD4Q6x2w520aJuklKS
-         Q/xVMEo1zOMOhE3T5B0FsmRII8SzsphUp3X1jI6RL/5uA2niH1znmsAugy8SSffuUgiF
-         2Vl3vqc+ZI2Mo63Q1ToYhMqSwd614DcQixH/4xvBp/UllsFK0lTdlxFRSo4eqzSSekMA
-         M1Nw==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=IofwoUpnukhHD5Lom+sSlZv54BEm4R4tYJZvLTxZCAY=;
+        b=NRw+en6Pbu61k+qbcrNfgQDVsIKpbTZaTC7LVtO8Y6OnVjNkOabLSG0+MB6CnAdNGy
+         zSJpP+l5alWhOFWMFF1nUkRRxrQT0jTpjHyX+nGM71r8jTF3dUn9PmNGX9EE422yQq4J
+         QEDOxRjwW1so0niqPqN5tJQEW1nBa27ZSUGffWbuARadoBFAv9hVRHCuvpJIXehiosYg
+         WlbtS1PEvXJ0J4gMsEFqsPlL/41J2vL8TH/T6H9mDrETV9A21XltBHav9NnMrP1vwyTu
+         hSMAsz69vD+FsA2RdrMkJPhgL4opxzgOKZ+RdNn5hO9TkAlufK+srfFpcawjoOnmMjIq
+         zx5w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=IOkatBRQ;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 198.137.202.133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
-        by mx.google.com with ESMTPS id a143si6267447pfd.24.2019.02.24.03.41.26
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cE+GB6xt;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b9sor9935514pla.72.2019.02.24.04.34.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 24 Feb 2019 03:41:26 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 198.137.202.133 as permitted sender) client-ip=198.137.202.133;
+        (Google Transport Security);
+        Sun, 24 Feb 2019 04:34:27 -0800 (PST)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=IOkatBRQ;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 198.137.202.133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=kurBAzCOK3m5IGucKu0DWpuJ0RmeW0Ui+49xTU/hQEc=; b=IOkatBRQIYT//uGu2Erw6DlMr
-	9bPD3EaMl0Yk7KZTOS/9Cn/ez9I07jo2MsJF3Kx3X7KT3hMfsmaVVQPyK5U4NMLua9UUpB38KMCUL
-	c7Pj4aYDYyLfEfseQ0MYEG8u0fL6wKbx/Kxza8ql6LzasQ7EVAOpevSHml69EPscazTLbvre0IZvi
-	P1OEbmnKaUqfNgeCIVJXDiTOaEXr9TQrKl8SMeVkta048Mh9bV4hjnPNZlw7N/vCE6fgPc5fxfxsq
-	a1cXCkVuc7ZcScjMiE4y6F4edKY/+xixa+FMh8scgtm2tgUu/3rFhqgE0FT08pqN4PlNldoYcjP3q
-	VgxmPDSVw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gxs51-0007pN-1b; Sun, 24 Feb 2019 11:36:23 +0000
-Date: Sun, 24 Feb 2019 03:36:22 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: Gerhard Wiesinger <lists@wiesinger.com>
-Cc: arm@lists.fedoraproject.org, Maxime Ripard <maxime.ripard@bootlin.com>,
-	Chen-Yu Tsai <wens@csie.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-mm@kvack.org, Florian Fainelli <f.fainelli@gmail.com>,
-	filbar@centrum.cz
-Subject: Re: Banana Pi-R1 stabil
-Message-ID: <20190224113622.GF24889@bombadil.infradead.org>
-References: <7b20af72-76ea-a7b1-9939-ca378dc0ed83@wiesinger.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <7b20af72-76ea-a7b1-9939-ca378dc0ed83@wiesinger.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cE+GB6xt;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=IofwoUpnukhHD5Lom+sSlZv54BEm4R4tYJZvLTxZCAY=;
+        b=cE+GB6xtHZOovXvIRtQuHIi4BXrBkV/809xXhQhyqY+Y8dpT40VE+KkpGF3CJTn8Pb
+         B3ji3dgo5mmiU6ThZgIS/VVkvGLvgx/mrqrHncYlpzPZD4O/Pf8yM3XgBcP9Ab1ldvpD
+         liq0uisXEblFwagMgK0FeNQiTIU65+NpCxXOAvEe5W3scuxMhTv0mBn4WPCSlB9slsp4
+         kENdWSCWZx0DjL8rrnXlKGLPO/Kxfc3glrtT46N/kwBEWHhPeIEgoshTNTddWWGXBS3W
+         v5uo1b8o5UXskMju4HkwXAqi5D9kdboBZp1iVtWgJ45Dt/cDiqqGyG7OcpBzDwgTRXO2
+         XNhg==
+X-Google-Smtp-Source: AHgI3IZtgIHa4u4QsONmKsC8s7teLj7KUuAEy8OSe7nq6FfrFdBZ9etnX7dc6bSBaVB11shNbDMJ7g==
+X-Received: by 2002:a17:902:2a66:: with SMTP id i93mr13853538plb.128.1551011667204;
+        Sun, 24 Feb 2019 04:34:27 -0800 (PST)
+Received: from mylaptop.redhat.com ([209.132.188.80])
+        by smtp.gmail.com with ESMTPSA id v6sm9524634pgb.2.2019.02.24.04.34.18
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 24 Feb 2019 04:34:26 -0800 (PST)
+From: Pingfan Liu <kernelfans@gmail.com>
+To: x86@kernel.org,
+	linux-mm@kvack.org
+Cc: Pingfan Liu <kernelfans@gmail.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	Borislav Petkov <bp@alien8.de>,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mel Gorman <mgorman@suse.de>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Andi Kleen <ak@linux.intel.com>,
+	Petr Tesarik <ptesarik@suse.cz>,
+	Michal Hocko <mhocko@suse.com>,
+	Stephen Rothwell <sfr@canb.auug.org.au>,
+	Jonathan Corbet <corbet@lwn.net>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	Daniel Vacek <neelx@redhat.com>,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH 0/6] make memblock allocator utilize the node's fallback info
+Date: Sun, 24 Feb 2019 20:34:03 +0800
+Message-Id: <1551011649-30103-1-git-send-email-kernelfans@gmail.com>
+X-Mailer: git-send-email 2.7.4
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Feb 24, 2019 at 09:04:57AM +0100, Gerhard Wiesinger wrote:
-> I guess it has something to do with virtual memory.
+There are NUMA machines with memory-less node. At present page allocator builds the
+full fallback info by build_zonelists(). But memblock allocator does not utilize
+this info. And for memory-less node, memblock allocator just falls back "node 0",
+without utilizing the nearest node. Unfortunately, the percpu section is allocated 
+by memblock, which is accessed frequently after bootup.
 
-No, it's a NULL pointer dereference in the voltage regulator code.
-Nothing to do with virtual memory.
+This series aims to improve the performance of per cpu section on memory-less node
+by feeding node's fallback info to memblock allocator on x86, like we do for page
+allocator. On other archs, it requires independent effort to setup node to cpumask
+map ahead.
+
+
+CC: Thomas Gleixner <tglx@linutronix.de>
+CC: Ingo Molnar <mingo@redhat.com>
+CC: Borislav Petkov <bp@alien8.de>
+CC: "H. Peter Anvin" <hpa@zytor.com>
+CC: Dave Hansen <dave.hansen@linux.intel.com>
+CC: Vlastimil Babka <vbabka@suse.cz>
+CC: Mike Rapoport <rppt@linux.vnet.ibm.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: Mel Gorman <mgorman@suse.de>
+CC: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+CC: Andy Lutomirski <luto@kernel.org>
+CC: Andi Kleen <ak@linux.intel.com>
+CC: Petr Tesarik <ptesarik@suse.cz>
+CC: Michal Hocko <mhocko@suse.com>
+CC: Stephen Rothwell <sfr@canb.auug.org.au>
+CC: Jonathan Corbet <corbet@lwn.net>
+CC: Nicholas Piggin <npiggin@gmail.com>
+CC: Daniel Vacek <neelx@redhat.com>
+CC: linux-kernel@vger.kernel.org
+
+Pingfan Liu (6):
+  mm/numa: extract the code of building node fall back list
+  mm/memblock: make full utilization of numa info
+  x86/numa: define numa_init_array() conditional on CONFIG_NUMA
+  x86/numa: concentrate the code of setting cpu to node map
+  x86/numa: push forward the setup of node to cpumask map
+  x86/numa: build node fallback info after setting up node to cpumask
+    map
+
+ arch/x86/include/asm/topology.h |  4 ---
+ arch/x86/kernel/setup.c         |  2 ++
+ arch/x86/kernel/setup_percpu.c  |  3 --
+ arch/x86/mm/numa.c              | 40 +++++++++++-------------
+ include/linux/memblock.h        |  3 ++
+ mm/memblock.c                   | 68 ++++++++++++++++++++++++++++++++++++++---
+ mm/page_alloc.c                 | 48 +++++++++++++++++------------
+ 7 files changed, 114 insertions(+), 54 deletions(-)
+
+-- 
+2.7.4
 
