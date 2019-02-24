@@ -8,100 +8,100 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B7189C43381
-	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 12:35:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 92532C43381
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 12:35:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 64195206B6
-	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 12:35:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 49799206B6
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 12:35:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="iY5qksCI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 64195206B6
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="jxyl5I/2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49799206B6
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 149B08E0163; Sun, 24 Feb 2019 07:35:09 -0500 (EST)
+	id 013028E0164; Sun, 24 Feb 2019 07:35:17 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0D2868E015B; Sun, 24 Feb 2019 07:35:09 -0500 (EST)
+	id F03138E015B; Sun, 24 Feb 2019 07:35:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EDDD78E0163; Sun, 24 Feb 2019 07:35:08 -0500 (EST)
+	id D7D8B8E0164; Sun, 24 Feb 2019 07:35:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AA6788E015B
-	for <linux-mm@kvack.org>; Sun, 24 Feb 2019 07:35:08 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id y8so5038545pgk.2
-        for <linux-mm@kvack.org>; Sun, 24 Feb 2019 04:35:08 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 91C108E015B
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2019 07:35:16 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id y1so5047501pgo.0
+        for <linux-mm@kvack.org>; Sun, 24 Feb 2019 04:35:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=0NMCKN566TqKrSROT1OL4y1pVAJFuioGBAgJ45OiBK4=;
-        b=XarrJZHyy/y1+dSYeddp7SoSf/D/Wc6lRqYL234m9qr3isR+ri7qx7Bn9H7Tz5X2dU
-         Xplps9YlGWPS+Q8CeWqMThwSOju/Yki83bNbDJhw+D2NnbCi4ZUePCH5vtwdORienaN7
-         FPP64aigF7bNgCEDqfqdwyNZlbgZRw8fY32Bk/TnujarhBTsn6EJn2EFWKcT/zYsldKv
-         1cgULRQb3Fy9HGzrOGQDeDi31S8IOLlXjMlQ+wtilX0oXs4u6WXWVDPiA3eoPdBMeYt9
-         dhHWHjw8vSaU+5B/5SyqivmQtJ7Ow5RTW5WB6Hlp5Rcd9XtLh0u3ilRq1M3X8qfDgQSX
-         L1vA==
-X-Gm-Message-State: AHQUAuZWJh+UjbauvVTg7xS1NEF70tupCUgXzBsy3rEJTkK71Q3t7bbj
-	B1ioyyMadrA2iY9tmP6QU4v3ZzvKKnOF0+LIKxGMBw5+6x1goSIYXOREFy99rXO7bA/3DXh1zI3
-	cwbRlH5/RF/JEjbYA9xJtgP+jisVu59gUka1TEFM9B9luuc+drxiwaegWBPcvQ5od6UfnxRyNhv
-	AcT9PHX5khre23f7bYTITpMFrRkrZ03HwICRpUUDiIqQ4fgMWxxK6H3IM8sdO6Qp7q/smJ1f/yl
-	5IERjwXFVX1x9u9qimhKgl3uWxKmrG0jvwKX7dq0RedR/2zifNS7gzs+ScuzOCz0A93lp+FwKRW
-	9Q7m7BvMqbrymk9AdQPP6vsn0NtC/zZPUO2iitkQLUlZsrGGjvjT9Y1NxxiMuOHFOmS8pncWRC7
-	n
-X-Received: by 2002:a63:dc54:: with SMTP id f20mr12941757pgj.410.1551011708362;
-        Sun, 24 Feb 2019 04:35:08 -0800 (PST)
-X-Received: by 2002:a63:dc54:: with SMTP id f20mr12941628pgj.410.1551011707060;
-        Sun, 24 Feb 2019 04:35:07 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551011707; cv=none;
+        bh=eww4YGVNqaj9wRyOutY/EPgdrl5kM4y1BOCar4JSDOY=;
+        b=HuX+3YsVseV7IVwiUlzO6ZccRqn630ICH5lm1WHgwb3bvAn6J/1HpX+rz4smgqTBrH
+         gIpIjvo4elecrobzgTp0ulwi81OQAWt94r5bPJ0e6oknMf4iOib/aY/7TUAV23IBUl0z
+         GsVtcu0XFCZcDPxzyetsFZ5y0CQyeX1I+M/Ku+gseMlk1WYTqQWFQSV9DYsy12cpUbtm
+         DbEcrto7c9EV4LSgjrSm+sIGQmmQzySWC6165rj2DOCPAPNru6A6Ad5VM+9syAXEaRRf
+         hbsntEdFJptpitS0Uxun6N3SpKTToH5yOMG1u/Frlxb3JcjZUWu0I7pFFL+mYKCcElAV
+         KQRQ==
+X-Gm-Message-State: AHQUAuala+VwX4aI/mkni2NmE3AQ1TJQSjdjLZfKCZdybE7MgWJr8mYZ
+	lGySzuJRUe7FnoDtGr6szI6UhfzxvdKXpBbZyIAgwN43B/iBGA7osiDnLPAnW1zkeSUQMKii/gA
+	IhOph1GMFsIc9t7popr02qfjyeFx7btRfX/C2LJG/RVvczQBWX3VrVMTh1a4u08LVRZbQXPCcsU
+	wY0pT/xDOGJgm5qd+l5C7DS9EZ1hjSTIfk52Wro7IDoQyv8UoR4XstUGeulm/94xXE8qIvRSMsb
+	HVkUJrwEEn8rMy5YEwUCQEwy1f0HRx/sVc8UTg1g9hHMaOLP/mYqHW2SiiNpVnLGKOdZC4TdX1j
+	cHWu56SIx586RKeA1Nw6uC99JHIVvlEbRiJjIRT4T4V2MHx95MoDhnM56V76ekmtxzJ64hOuO4O
+	c
+X-Received: by 2002:a62:7042:: with SMTP id l63mr13555122pfc.1.1551011716267;
+        Sun, 24 Feb 2019 04:35:16 -0800 (PST)
+X-Received: by 2002:a62:7042:: with SMTP id l63mr13555028pfc.1.1551011715244;
+        Sun, 24 Feb 2019 04:35:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551011715; cv=none;
         d=google.com; s=arc-20160816;
-        b=cO3erMlHc3MXkKAA7HuA4sVF05Z6B3iRPx6X6R0EGilFYon1PDaO7zojq5w6UIV+V0
-         v8FmyZjprq5ffaMFTH9VJ8qOJwy5kNQZbLwvoKzBqzyCjTNlPzRe5NwmgS8rM7Cyczw9
-         ZDMwhqrpSmCsjqYZyicW7HzqH2PANWzY6b+LNAK5++3Y+moMhZtmTbGwYdRpguFgq108
-         fTe2gBAgUmGwd0zPGb3VJMECXsrIIJGABfMFjWxSj+ZbuJbodWJ5kgDhOlLTmQg9nyW4
-         A9+IXoNLOatgDPXD/+DS5UGEm9SfWsPEcfoqLBSLrZ+AWpAdgTUcG1E/xK7WB70xaWdf
-         lF3g==
+        b=nqal2r0QEJ+fnM2rcmLkh0HHUGOxuUJF+KijHEVtB2ooOn0l3nxq/NtuPHAkjowOqf
+         zXBNqeZVTFZyFEZcIbhXA9Asjc5KUuOwRW/lfA2OJn8nSLHv5Q5xZ4lsoUJCItMsz8M+
+         PFyQTbU+TihkfrtqRhewqOO8cQX8K+admBz7P3YtR18U+dKEluWPA3erSOP4ltszG05A
+         Nt3lzZeLvXjCo/nbV0ztNAWe044x2vHRP2iHskxHAqVCZkTxids153UMUY8UAIUG1XSu
+         JiHvzcRiEaqBVa9ZO4uZ7uluAiOV1JnFy2KBlYQhgS4Y7onzEqNSvTqL6tvDNzYfF/o5
+         l+Gw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=0NMCKN566TqKrSROT1OL4y1pVAJFuioGBAgJ45OiBK4=;
-        b=Sil0US3Z6J8WndL/F7m+wsJy35Eqdq+Vgc5JEFOOtps2ULZLstYyFP27LHHQAIPYdR
-         hHF5Bq36Zv82ld2xpefWFJyiqk5hhDfFZoJm8eXYIQbqRbFwTlsHS5QMSlMmEb7s1vjo
-         BtRG1EWV5ozIuE4tXozz2uaMx/8AFK5UsEsRXFEUMyrYNthMq3o4LAOJdSeuiVrYhtVe
-         cPWdHohf4JbXIkWxrkF7Bh6z4F3kMHrRwvcs/nL1On5gnfkzwjfrfKI8tmm/+2Y82cE/
-         o3+vnWfHdstvOL6fuW6K+6wIo6tDHxRXwk5NQVAWPFBa0q0d3OC7QzAH4syyP3MwvJ9c
-         ZLVA==
+        bh=eww4YGVNqaj9wRyOutY/EPgdrl5kM4y1BOCar4JSDOY=;
+        b=yWkIGSLpP2Wx76ue9JLME5lbfXFc1+2NaJxegqdqDHi+aNexuS7DF3BT29gZ//8IzZ
+         0/+FcUzHsoYBNhl0x9faES1LFZeCyFfEDnHScsuQcJ1mxA42yUkHYyYYF38IHpWUlKKV
+         f3RZnMeKHbh3h839Rvgk6WOujjwcIVBneGbYSTwiY4fG/CZD0VaXroulKlBOZF0M+rpZ
+         cuZYLKBz9flB2thQRSImQAIwANF6lL07cW/T72eDMArcAZeP4iwSPUulB4gJk/L4tdOX
+         fz44POlGuQNl5vhexqES9HtYggtcU6Ujz12PnGrBuSLhD6NxASR5/Ry0HjN6PiX6M3/A
+         fnZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iY5qksCI;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="jxyl5I/2";
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r14sor9815696pgf.79.2019.02.24.04.35.06
+        by mx.google.com with SMTPS id s2sor9934344plq.22.2019.02.24.04.35.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 24 Feb 2019 04:35:07 -0800 (PST)
+        Sun, 24 Feb 2019 04:35:15 -0800 (PST)
 Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iY5qksCI;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="jxyl5I/2";
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=0NMCKN566TqKrSROT1OL4y1pVAJFuioGBAgJ45OiBK4=;
-        b=iY5qksCIMpNU389QUSs7IU3yhYB8G0qeGuofPuj7VOiuoUKF3lEIfU0EIj4vIyZGxy
-         lfGuvV+dKLpk9vmJOA8iGOZeVGx1R5OoJTYMgUmJp3746nRHEl0S2MLvX5k033Nv//84
-         mDo14vacdwcpGP4nPjXiBuFbH4AHdrcqN6IsJBRmpNv+fK1FORzwuFvX/wZKblimKkQP
-         H9XH3K4Eom4q4IXXZbXjw3E4kEAZerpxutrYN0lNUcpo3BsJCUHJTK9TcTLXrimeAne8
-         2Oy7y5IfhCi+Y+NMgXPpNQ304JNgsNYrJ6xo/gzm0wA6P/YV5Mayp/k+DBLWEA96+TmJ
-         7LjQ==
-X-Google-Smtp-Source: AHgI3IYKZHrDENP+56CRPPar4fsatj4I/ajY/II4jFQQaKk4J3r7faH8maH7gEv4Z3POa7YL/eMOUg==
-X-Received: by 2002:a63:d814:: with SMTP id b20mr13029128pgh.312.1551011706824;
-        Sun, 24 Feb 2019 04:35:06 -0800 (PST)
+        bh=eww4YGVNqaj9wRyOutY/EPgdrl5kM4y1BOCar4JSDOY=;
+        b=jxyl5I/2HwfMWNaGOrGaBhrL0uom2+tVm75LY7sjNFlCLVt1Go95qKPHLyi+GivV/u
+         /sy5MtB0kqC+sTReLVH7GmkIel6oG0y1x6r1Lmhc1EoQh+cg/uF+sJresUakl6SVRV/1
+         cTXRXIIBjjf9mRXZI0M+YNTQayY5rZ2b6BpxoBR50Nia9aEr6CBuDB5fWfCuSgYt6IW+
+         PdxNFA4nMAKZ0cT+jBGYPINhrJX9eqoryn3YxU/a2AxGLEhkAiKEPXJhKkJoYqpYIC3b
+         C3mEcaPRCcbof5Eb6rM7kyW/QctbaiggK2iK8lp9FmvWRo1miJ4jRP4yDJ6PLJNQOI1N
+         8zCQ==
+X-Google-Smtp-Source: AHgI3IYnsiekbeLSFtIgzri2SnnfjeNt2qRN/KWI9yLMZxIuOKs3/2jqj0gP3wC81SLZ/uMG63ce5A==
+X-Received: by 2002:a17:902:f24:: with SMTP id 33mr13818923ply.65.1551011715029;
+        Sun, 24 Feb 2019 04:35:15 -0800 (PST)
 Received: from mylaptop.redhat.com ([209.132.188.80])
-        by smtp.gmail.com with ESMTPSA id v6sm9524634pgb.2.2019.02.24.04.34.59
+        by smtp.gmail.com with ESMTPSA id v6sm9524634pgb.2.2019.02.24.04.35.07
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 24 Feb 2019 04:35:06 -0800 (PST)
+        Sun, 24 Feb 2019 04:35:14 -0800 (PST)
 From: Pingfan Liu <kernelfans@gmail.com>
 To: x86@kernel.org,
 	linux-mm@kvack.org
@@ -125,9 +125,9 @@ Cc: Pingfan Liu <kernelfans@gmail.com>,
 	Nicholas Piggin <npiggin@gmail.com>,
 	Daniel Vacek <neelx@redhat.com>,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 5/6] x86/numa: push forward the setup of node to cpumask map
-Date: Sun, 24 Feb 2019 20:34:08 +0800
-Message-Id: <1551011649-30103-6-git-send-email-kernelfans@gmail.com>
+Subject: [PATCH 6/6] x86/numa: build node fallback info after setting up node to cpumask map
+Date: Sun, 24 Feb 2019 20:34:09 +0800
+Message-Id: <1551011649-30103-7-git-send-email-kernelfans@gmail.com>
 X-Mailer: git-send-email 2.7.4
 In-Reply-To: <1551011649-30103-1-git-send-email-kernelfans@gmail.com>
 References: <1551011649-30103-1-git-send-email-kernelfans@gmail.com>
@@ -137,11 +137,10 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-At present the node to cpumask map is set up until the secondary
-cpu boot up. But it is too late for the purpose of building node fall back
-list at early boot stage. Considering that init_cpu_to_node() already owns
-cpu to node map, it is a good place to set up node to cpumask map too. So
-do it by calling numa_add_cpu(cpu) in init_cpu_to_node().
+After the previous patches, on x86, it is safe to call
+memblock_build_node_order() after init_cpu_to_node(), which has set up node
+to cpumask map. So calling memblock_build_node_order() to feed memblock with
+numa node fall back info.
 
 Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
 CC: Thomas Gleixner <tglx@linutronix.de>
@@ -164,83 +163,21 @@ CC: Nicholas Piggin <npiggin@gmail.com>
 CC: Daniel Vacek <neelx@redhat.com>
 CC: linux-kernel@vger.kernel.org
 ---
- arch/x86/include/asm/topology.h | 4 ----
- arch/x86/kernel/setup_percpu.c  | 3 ---
- arch/x86/mm/numa.c              | 5 ++++-
- 3 files changed, 4 insertions(+), 8 deletions(-)
+ arch/x86/kernel/setup.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/arch/x86/include/asm/topology.h b/arch/x86/include/asm/topology.h
-index 453cf38..fad77c7 100644
---- a/arch/x86/include/asm/topology.h
-+++ b/arch/x86/include/asm/topology.h
-@@ -73,8 +73,6 @@ static inline const struct cpumask *cpumask_of_node(int node)
- }
- #endif
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index 3d872a5..3ec1a6e 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -1245,6 +1245,8 @@ void __init setup_arch(char **cmdline_p)
+ 	prefill_possible_map();
  
--extern void setup_node_to_cpumask_map(void);
--
- #define pcibus_to_node(bus) __pcibus_to_node(bus)
+ 	init_cpu_to_node();
++	/* node to cpumask map is ready */
++	memblock_build_node_order();
  
- extern int __node_distance(int, int);
-@@ -96,8 +94,6 @@ static inline int early_cpu_to_node(int cpu)
- 	return 0;
- }
- 
--static inline void setup_node_to_cpumask_map(void) { }
--
- #endif
- 
- #include <asm-generic/topology.h>
-diff --git a/arch/x86/kernel/setup_percpu.c b/arch/x86/kernel/setup_percpu.c
-index e8796fc..206fa43 100644
---- a/arch/x86/kernel/setup_percpu.c
-+++ b/arch/x86/kernel/setup_percpu.c
-@@ -283,9 +283,6 @@ void __init setup_per_cpu_areas(void)
- 	early_per_cpu_ptr(x86_cpu_to_node_map) = NULL;
- #endif
- 
--	/* Setup node to cpumask map */
--	setup_node_to_cpumask_map();
--
- 	/* Setup cpu initialized, callin, callout masks */
- 	setup_cpu_local_masks();
- 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index c8dd7af..8d73e2273 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -110,7 +110,7 @@ void numa_clear_node(int cpu)
-  * Note: cpumask_of_node() is not valid until after this is done.
-  * (Use CONFIG_DEBUG_PER_CPU_MAPS to check this.)
-  */
--void __init setup_node_to_cpumask_map(void)
-+static void __init setup_node_to_cpumask_map(void)
- {
- 	unsigned int node;
- 
-@@ -738,6 +738,7 @@ void __init init_cpu_to_node(void)
- 	BUG_ON(cpu_to_apicid == NULL);
- 	rr = first_node(node_online_map);
- 
-+	setup_node_to_cpumask_map();
- 	for_each_possible_cpu(cpu) {
- 		int node = numa_cpu_node(cpu);
- 
-@@ -750,6 +751,7 @@ void __init init_cpu_to_node(void)
- 		 */
- 		if (node == NUMA_NO_NODE) {
- 			numa_set_node(cpu, rr);
-+			numa_add_cpu(cpu);
- 			rr = next_node_in(rr, node_online_map);
- 			continue;
- 		}
-@@ -758,6 +760,7 @@ void __init init_cpu_to_node(void)
- 			init_memory_less_node(node);
- 
- 		numa_set_node(cpu, node);
-+		numa_add_cpu(cpu);
- 	}
- }
+ 	io_apic_init_mappings();
  
 -- 
 2.7.4
