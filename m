@@ -5,98 +5,98 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1896DC00319
-	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 20:00:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D505C43381
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 20:07:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AD4412054F
-	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 20:00:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD4412054F
+	by mail.kernel.org (Postfix) with ESMTP id 1F0BB20651
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 20:07:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F0BB20651
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C1218E0157; Sun, 24 Feb 2019 15:00:03 -0500 (EST)
+	id AF4AF8E0168; Sun, 24 Feb 2019 15:07:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 049168E0156; Sun, 24 Feb 2019 15:00:02 -0500 (EST)
+	id A7BB38E0167; Sun, 24 Feb 2019 15:07:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E2C668E0157; Sun, 24 Feb 2019 15:00:02 -0500 (EST)
+	id 96C4B8E0168; Sun, 24 Feb 2019 15:07:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AC0078E0156
-	for <linux-mm@kvack.org>; Sun, 24 Feb 2019 15:00:02 -0500 (EST)
-Received: by mail-ot1-f71.google.com with SMTP id t15so4069952otk.4
-        for <linux-mm@kvack.org>; Sun, 24 Feb 2019 12:00:02 -0800 (PST)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6760C8E0167
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2019 15:07:16 -0500 (EST)
+Received: by mail-oi1-f197.google.com with SMTP id s18so3168015oie.19
+        for <linux-mm@kvack.org>; Sun, 24 Feb 2019 12:07:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:mime-version
          :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=yfmUSwBalOdjcvnqS+eLnkmWA+LNz1+spq3jB7NTkvA=;
-        b=gorqn7TDk0EdNQvYEWcNRtGB/ZjzKznXDLNtW2+u4hOF8C6EQQaHwiTUp1a+WLiXQJ
-         I5jf8jIkrETE4B6JQiBmVL3eVPGDIT5+oz+veqLyIEc6XnSBBn/x0O9htkUTwrK+JNC9
-         ogcUSZncyGd0l6xJ/Xyh76w89+3YylxuSvf0kREQeM5Rp8ifdpQTlzO2aEd0qHso7xqL
-         R9tJE/zqaD6MnKVhqIVgHpI3HH/XeegX0NUroycM/lB5i87zMW1o4subD5CS06PZN9lC
-         rI2aSHztey2dC+JpPj0JRXjg23iUa0b3sH8svuDGJ7l+mwZyvzfge4QIljpOyk2a5LFB
-         d0rQ==
+        bh=Y0IqkcdgngY/YGpOiQL7ywzKAqFIW/9T4EnT6V1cf8g=;
+        b=iFKZziyknNgbM1Yr027s5kbqlpkeV0DAshTQxQ95DcxrwSvvACoji8z7X4v+gEAgCR
+         GZwJow1gVPY9zhybLiBwkxxwM83o55r6mGI9D2uO2VKr8wUexmlBwoQdR6Wsp4oFMXRg
+         S1n3DoLoo9eg9qjVANbMH+4ztZpVVnVoc8NqhOa3ajN7LoHa4c85PP80HP12gSWBfYBA
+         /9gBHognderQskJeSkDM59wWaR3u84lItXnSMdTy4ZiKzkwJU5hdkn0v3PHIUjZUTm9p
+         VQI+Vt62vytwWZetfhW7SVfrtQ9QgvULm3ZhegiN4nQKiNSZ0qITtoi0lb+UTa7Fz7xK
+         u3XQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAuaOAUouNb9H1FUZKQLTeBhNy64N4jD3IdZeTYzMEyrcpsAUYAjE
-	jeqtgSDZOHVTAlu40amSnLM3b7SvMS/S8U/1Ym+feWubzwzWjhVvItPkqqXSOKyn33wORqA5lox
-	g1NG7w4S93THfdwug5waNjQhIDMdZceG6vzb+bwTXdkTqkehj4/TNm49u9tK9B8Hp6VG1rqQzaa
-	m/bT6MeYXDXP8UlnDBijdvMMd11ElZA0j7+fmyHdgT45Ga2qVoEUgzT8yryVTdqkuINsbalTeMr
-	23oiYNOCQvEUCbN+sMqIk0uGsnHDvIR5IXUiGau59fJgBzuVnyQ0fTEW4gawp9gxpgjJmdhlabI
-	M4iuc7ZDinNM+M6hmJL3PTPIfMkDOSmUzDHHra1DlmEOBcIO7CVKm6vkWJGvbgozUMpQCaRFOg=
+X-Gm-Message-State: AHQUAuYxEC19n/MHOe85RdVsd8JASiXjCVJ1lcMYjiaL0GZARDS7oQPg
+	RGt5ZxwLq/fezycSDOWTU4eBG62Z2sBz5Mh/nGNh3j0umOYTDe3+eBSa/nys6nEIPY7e9cjJjql
+	/gbAaU3S78IwemysOnkm1kxFIDoGev45GpiVRp836Bgct4eNtp1JOR24p97Apj6ZS3f1rI/KAy2
+	4seGmsCupVOvksu/bOJPBoOo7vNCkXFgJpiUgk+tbtC8tRkRbNYC7Uadsq6gFo2ErY3ahRCpOGG
+	c7rrgFpSEOftvuDqTr0BN8bU7Xf8P97SxVgeX+nhQ8uzoVZgPv65mSrRQCk0ela1dleqp2sBmH6
+	H0ruIlQ680qNqyXT819oIENpho5AIGF/LT5JeZ2VlPJukcbgorogE+hMQZuhn5nnpaPL5gGI8Q=
 	=
-X-Received: by 2002:aca:4fc6:: with SMTP id d189mr9055275oib.78.1551038402245;
-        Sun, 24 Feb 2019 12:00:02 -0800 (PST)
-X-Received: by 2002:aca:4fc6:: with SMTP id d189mr9055248oib.78.1551038401271;
-        Sun, 24 Feb 2019 12:00:01 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551038401; cv=none;
+X-Received: by 2002:a9d:7b49:: with SMTP id f9mr9233651oto.211.1551038836073;
+        Sun, 24 Feb 2019 12:07:16 -0800 (PST)
+X-Received: by 2002:a9d:7b49:: with SMTP id f9mr9233616oto.211.1551038835194;
+        Sun, 24 Feb 2019 12:07:15 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551038835; cv=none;
         d=google.com; s=arc-20160816;
-        b=zJfYd8l0m+J14PYltV/uuISnAdGKdngTtn8NXMxCpC/6jhmPycj2defXJmVzJMIez5
-         PXtEf06wi1p2JNVTLydq8gBZK/nESiVqx1B2L9mmKuRX0PqsmNXnuMo7kQlfzk+BJdEL
-         IbnIGmpW8+SfX8nD8oG4daTXWmf+nwWKntR/jGbkdxDA22xeMmaaX/8+Hj/E49Mc2a4K
-         HVUP/P4+Jhz2mYmXuBIdurD86+V38WhV9h60m95LJfpPWyNjU2H8FJPJ4Abepd15lZBW
-         Y3YYR9/svFG4iob+ieJNzC0Q+hlurrLH0eBnsYgtfN5yOKRI6V2ewb+qjhojNPsnHkLr
-         E35g==
+        b=LETaLEQM03MYYxOltX5rtFDmY2xUWaUbueVgo3uPNf4FHaJELAPs0bwJo4HuqEQRsB
+         HbxkBtYCI3gbFob7fLU4GH2LsRXbNjtgNx133PnqMT6BHnS9vH0kjkTlJ5fO6LGfYQKD
+         P06sOkGUto7nLb2Guxqj2fTefOqwhJsQ+XNRP/rU5aEEWP4tzRcAPZgEPEQiJX/ecMRz
+         KuR9LB8MX/rjhYAMN05AYPHqAEiKryVwH8h10Pbx7NcpfWoeIY6Ctn4ETR0NVgHBAlDl
+         d66ubNvC2NG7F78FemNGf8et5QyKpuo/KBf3ztKJE8D2qkU+Oio2WJxcPdCtyR9jmCxm
+         YqTA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version;
-        bh=yfmUSwBalOdjcvnqS+eLnkmWA+LNz1+spq3jB7NTkvA=;
-        b=PVPyDrG98Gu5YzifZknDeo5JoZoscFu0/ZPjZBhvj/WoqyX5FmVExvwcN+cRB3xRyL
-         BErk7tyAS0VtQ9RPi0eqFsvpBUWtCqdCdRj0mlwRSCHSiy9LDnpGaXxpObm0I61QO1cl
-         04YhOKb+1zV9GeT2durTfp1zi8BrWpY+fKosDySduY+4UNs5RUyhy4Z/qbHPXFmClNOR
-         hk1Bf2oGoiOwS9x1V9KYMwAxTvxoA62tRU2HOroLKpQcl105kKJ3MkATM5OlFYHEANr6
-         ygukwRqxWIhZCMNzt17MJVnYfSnBDAMi2LjhaFgIxZBNYDUiVYs1Chgs55P5q1PTSFBh
-         Xu4g==
+        bh=Y0IqkcdgngY/YGpOiQL7ywzKAqFIW/9T4EnT6V1cf8g=;
+        b=HaqBajKLKHk06RYID+oXncXvsSdiwb1jKNyN6UOM4Q9WJ3DhDiZVzmcnR3V3WsrAbj
+         jbxU81ERFv+Az8p9rRWWGmzqypFMCK8nFwo9Ku9kgzp57nrYxAP21na7FEy2EbM6HkX3
+         tyHIUKdWyECCwekRiiePgq/OZhfiGYccAyiemuJY0omE8sre5tregLjgDCEtx+C+JOR/
+         1QMxki1UaqOmbUzHKz+esxRSIvw7krBYDGuYsqiRRct2UQxJM4QbzDHHcCtJY8Fr6+fY
+         ueOOOsW0eNxyDbO5/UnQ5kMHBWSqgVnbuYC24+LLaqCge0+kknVerCpTuzB9dRtR94ML
+         460w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m14sor3424558oic.64.2019.02.24.12.00.01
+        by mx.google.com with SMTPS id g25sor3898095otl.124.2019.02.24.12.07.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 24 Feb 2019 12:00:01 -0800 (PST)
+        Sun, 24 Feb 2019 12:07:15 -0800 (PST)
 Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: AHgI3IajckkE8zgs0EwI+0F1B+CSm/jwmndJErK8z8W0UaJ1/0fcfqbWZT7nvhPg+1vQsEYlYetS/ppMMl631GzTYqU=
-X-Received: by 2002:aca:c141:: with SMTP id r62mr8543843oif.160.1551038400097;
- Sun, 24 Feb 2019 12:00:00 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaHNS0WJfmSh2GiAwYr+yAYriNEsAvhKyb20CHj7QW3/rrWdSxXlK3Ty5fEaxR2f/Qsz2WXeKqI25AUWRh0+Lk=
+X-Received: by 2002:a9d:7cd3:: with SMTP id r19mr9880945otn.139.1551038834827;
+ Sun, 24 Feb 2019 12:07:14 -0800 (PST)
 MIME-Version: 1.0
 References: <20190214171017.9362-1-keith.busch@intel.com> <20190214171017.9362-8-keith.busch@intel.com>
- <CAJZ5v0gjv0DZvYMTPBLnUmMtu8=g0zFd4x-cpP11Kzv+6XCwUw@mail.gmail.com> <20190222184831.GF10237@localhost.localdomain>
-In-Reply-To: <20190222184831.GF10237@localhost.localdomain>
+ <CAJZ5v0gjv0DZvYMTPBLnUmMtu8=g0zFd4x-cpP11Kzv+6XCwUw@mail.gmail.com>
+ <20190222184831.GF10237@localhost.localdomain> <CAPcyv4jpP0CP-QxWDc_E1QwL736PLwh8ZPrnKJzVnYrAk++93g@mail.gmail.com>
+In-Reply-To: <CAPcyv4jpP0CP-QxWDc_E1QwL736PLwh8ZPrnKJzVnYrAk++93g@mail.gmail.com>
 From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Sun, 24 Feb 2019 20:59:45 +0100
-Message-ID: <CAJZ5v0hfQ5HWT0kfaOxSbpJvdqotsMWVBCZ6wiL4Tnuy+O5O7Q@mail.gmail.com>
+Date: Sun, 24 Feb 2019 21:07:03 +0100
+Message-ID: <CAJZ5v0gyEJ59qSno_MKjr97zeYaLp=v1=ZYz1twM1eZJCP_DTw@mail.gmail.com>
 Subject: Re: [PATCHv6 07/10] acpi/hmat: Register processor domain to its memory
-To: Keith Busch <keith.busch@intel.com>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>, 
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Keith Busch <keith.busch@intel.com>, "Rafael J. Wysocki" <rafael@kernel.org>, 
 	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
 	ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
 	Linux Memory Management List <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dave Hansen <dave.hansen@intel.com>, 
-	Dan Williams <dan.j.williams@intel.com>
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dave Hansen <dave.hansen@intel.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -104,60 +104,45 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 22, 2019 at 7:48 PM Keith Busch <keith.busch@intel.com> wrote:
+On Fri, Feb 22, 2019 at 8:21 PM Dan Williams <dan.j.williams@intel.com> wrote:
 >
-> On Wed, Feb 20, 2019 at 11:02:01PM +0100, Rafael J. Wysocki wrote:
-> > On Thu, Feb 14, 2019 at 6:10 PM Keith Busch <keith.busch@intel.com> wrote:
-> > >  config ACPI_HMAT
-> > >         bool "ACPI Heterogeneous Memory Attribute Table Support"
-> > >         depends on ACPI_NUMA
-> > > +       select HMEM_REPORTING
+> On Fri, Feb 22, 2019 at 10:48 AM Keith Busch <keith.busch@intel.com> wrote:
 > >
-> > If you want to do this here, I'm not sure that defining HMEM_REPORTING
-> > as a user-selectable option is a good idea.  In particular, I don't
-> > really think that setting ACPI_HMAT without it makes a lot of sense.
-> > Apart from this, the patch looks reasonable to me.
+> > On Wed, Feb 20, 2019 at 11:02:01PM +0100, Rafael J. Wysocki wrote:
+> > > On Thu, Feb 14, 2019 at 6:10 PM Keith Busch <keith.busch@intel.com> wrote:
+> > > >  config ACPI_HMAT
+> > > >         bool "ACPI Heterogeneous Memory Attribute Table Support"
+> > > >         depends on ACPI_NUMA
+> > > > +       select HMEM_REPORTING
+> > >
+> > > If you want to do this here, I'm not sure that defining HMEM_REPORTING
+> > > as a user-selectable option is a good idea.  In particular, I don't
+> > > really think that setting ACPI_HMAT without it makes a lot of sense.
+> > > Apart from this, the patch looks reasonable to me.
+> >
+> > I'm trying to implement based on the feedback, but I'm a little confused.
+> >
+> > As I have it at the moment, HMEM_REPORTING is not user-prompted, so
+> > another option needs to turn it on. I have ACPI_HMAT do that here.
+> >
+> > So when you say it's a bad idea to make HMEM_REPORTING user selectable,
+> > isn't it already not user selectable?
+> >
+> > If I do it the other way around, that's going to make HMEM_REPORTING
+> > complicated if a non-ACPI implementation wants to report HMEM
+> > properties.
 >
-> I'm trying to implement based on the feedback, but I'm a little confused.
->
-> As I have it at the moment, HMEM_REPORTING is not user-prompted, so
-> another option needs to turn it on. I have ACPI_HMAT do that here.
->
-> So when you say it's a bad idea to make HMEM_REPORTING user selectable,
-> isn't it already not user selectable?
+> Agree. If a platform supports these HMEM properties then they should
+> be reported.
 
-I thought that HMEM_REPORTING was user-prompted initially, by bad if it wasn't.
+Well, I'm not sure if everybody is in agreement on that.
 
-> If I do it the other way around, that's going to make HMEM_REPORTING
-> complicated if a non-ACPI implementation wants to report HMEM
-> properties.
+> ACPI_HMAT is that opt-in for ACPI based platforms, and
+> other archs can do something similar. It's not clear that one would
+> ever want to opt-in to HMAT support and opt-out of reporting any of it
+> to userspace.
 
-But the mitigations that Dave was talking about get in the way, don't they?
-
-Say there is another Kconfig option,CACHE_MITIGATIONS, to enable them.
-Then you want ACPI_HMAT to be set when that it set and you also want
-ACPI_HMAT to be set when HMEM_REPORTING and ACPI_NUMA are both set.
-
-OTOH, you may not want HMEM_REPORTING to be set when CACHE_MITIGATIONS
-is set, but that causes ACPI_HMAT to be set and which means that
-ACPI_HMAT alone will not be sufficient to determine the
-HMEM_REPORTING value.
-
-Now, if you prompt for HMEM_REPORTING and make it depend on ACPI_NUMA,
-then ACPI_HMAT can be selected by that (regardless of the
-CACHE_MITIGATIONS value).
-
-And if someone wants to use HMEM_REPORTING without ACPI_NUMA, it can
-be made depend on whatever new option is there for that non-ACPI
-mechanism.
-
-There might be a problem if someone wanted to enable the alternative
-way of HMEM_REPORTING if ACPI_NUMA was set (in which case HMAT would
-have to be ignored even if it was present), but in that case there
-would need to be an explicit way to choose between HMAT and non-HMAT
-anyway.
-
-In any case, I prefer providers to be selected by consumers and not
-the other way around, in case there are multiple consumers for one
-provider.
+In my view, ACPI_HMAT need not be an opt-in in the first place.  The
+only reason to avoid compiling HMAT parsing it would be if there were
+no users of it in the kernel IMO.
 
