@@ -8,100 +8,100 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DE3E7C43381
-	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 12:35:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B7189C43381
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 12:35:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 92F6C206B6
-	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 12:35:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 64195206B6
+	for <linux-mm@archiver.kernel.org>; Sun, 24 Feb 2019 12:35:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="lsZNpX90"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92F6C206B6
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="iY5qksCI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 64195206B6
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 454838E0162; Sun, 24 Feb 2019 07:35:01 -0500 (EST)
+	id 149B08E0163; Sun, 24 Feb 2019 07:35:09 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 404A88E015B; Sun, 24 Feb 2019 07:35:01 -0500 (EST)
+	id 0D2868E015B; Sun, 24 Feb 2019 07:35:09 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2A72A8E0162; Sun, 24 Feb 2019 07:35:01 -0500 (EST)
+	id EDDD78E0163; Sun, 24 Feb 2019 07:35:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D53688E015B
-	for <linux-mm@kvack.org>; Sun, 24 Feb 2019 07:35:00 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id f10so5021237pgp.13
-        for <linux-mm@kvack.org>; Sun, 24 Feb 2019 04:35:00 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id AA6788E015B
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2019 07:35:08 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id y8so5038545pgk.2
+        for <linux-mm@kvack.org>; Sun, 24 Feb 2019 04:35:08 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=VUSACWx8owSCA/d69ivl0fhPuKN1EhNSteFOcIuEGZ0=;
-        b=huF1uVMaH/FHH4MNc56nPvS/Vjk6iiVW170tZZpFzHO+J9z/ebIVMsx+FHY7A6uC31
-         UTP3c/jBcM9n5016P1GK7RXswmZsxx431oB5BmmM3vX3Q6dwbFiTc4VA8NGcMqkryMQS
-         NM+Nk13dv5eShXUCUq8QpG7jnyf7cR0Rmnaz3YT+vGzqiXtVPMRbaCRrsKxxGsquc+7l
-         7Ld+lwhoqlmxHTB4516SXlA09ehCedQWkOzWRDKaXmJ1lzCYktBnQ8lcteQTkZO2y1Z9
-         uLFZLmfEPmC5B4Wu67LnFURQvCQUCnQ9fuEd1NdmYE20Utq5h6OT5IWOWGksdvR7eyt0
-         3bqw==
-X-Gm-Message-State: AHQUAuZkmeJUFevqswA2i9AMkoAG5eyXRjGRxPK/SQcyNHWmKTp29JFy
-	/qn10XlC8aGP8mTWEKEt701RbNV0zWtMniMkWCGjz//YpxolosDH4e2KTY0GTJ75JsoYQnh7+WW
-	qm33Dq79py0dNCbgT7sMoQkurTKQxI31OcngEhrWZIERHhWE7gDOCO0+cdVf9l4Cfx//xsnDYkw
-	846oVFfLJ9tzBO5gQ69qogMUq4JdsG+Ja0VEjSo0woBcJuTflpuO5cKJDzx37glZe9Ukx6TTOZh
-	hW/GkzsS/+CuI8A9cCltzF6hwznQuREIvM4vc+aUJLp+zCW7is6dwI6vT8Kw+ECOpn0RSFmGxLY
-	aZPwmtEKLzxLBVIaLsau4Sg7gFjGCNmi0F9isNQS5U9jmepP3MUBQs0vURpQr8Xr3fPZsPDnV+m
-	D
-X-Received: by 2002:a62:e204:: with SMTP id a4mr12697307pfi.225.1551011700467;
-        Sun, 24 Feb 2019 04:35:00 -0800 (PST)
-X-Received: by 2002:a62:e204:: with SMTP id a4mr12697186pfi.225.1551011699258;
-        Sun, 24 Feb 2019 04:34:59 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551011699; cv=none;
+        bh=0NMCKN566TqKrSROT1OL4y1pVAJFuioGBAgJ45OiBK4=;
+        b=XarrJZHyy/y1+dSYeddp7SoSf/D/Wc6lRqYL234m9qr3isR+ri7qx7Bn9H7Tz5X2dU
+         Xplps9YlGWPS+Q8CeWqMThwSOju/Yki83bNbDJhw+D2NnbCi4ZUePCH5vtwdORienaN7
+         FPP64aigF7bNgCEDqfqdwyNZlbgZRw8fY32Bk/TnujarhBTsn6EJn2EFWKcT/zYsldKv
+         1cgULRQb3Fy9HGzrOGQDeDi31S8IOLlXjMlQ+wtilX0oXs4u6WXWVDPiA3eoPdBMeYt9
+         dhHWHjw8vSaU+5B/5SyqivmQtJ7Ow5RTW5WB6Hlp5Rcd9XtLh0u3ilRq1M3X8qfDgQSX
+         L1vA==
+X-Gm-Message-State: AHQUAuZWJh+UjbauvVTg7xS1NEF70tupCUgXzBsy3rEJTkK71Q3t7bbj
+	B1ioyyMadrA2iY9tmP6QU4v3ZzvKKnOF0+LIKxGMBw5+6x1goSIYXOREFy99rXO7bA/3DXh1zI3
+	cwbRlH5/RF/JEjbYA9xJtgP+jisVu59gUka1TEFM9B9luuc+drxiwaegWBPcvQ5od6UfnxRyNhv
+	AcT9PHX5khre23f7bYTITpMFrRkrZ03HwICRpUUDiIqQ4fgMWxxK6H3IM8sdO6Qp7q/smJ1f/yl
+	5IERjwXFVX1x9u9qimhKgl3uWxKmrG0jvwKX7dq0RedR/2zifNS7gzs+ScuzOCz0A93lp+FwKRW
+	9Q7m7BvMqbrymk9AdQPP6vsn0NtC/zZPUO2iitkQLUlZsrGGjvjT9Y1NxxiMuOHFOmS8pncWRC7
+	n
+X-Received: by 2002:a63:dc54:: with SMTP id f20mr12941757pgj.410.1551011708362;
+        Sun, 24 Feb 2019 04:35:08 -0800 (PST)
+X-Received: by 2002:a63:dc54:: with SMTP id f20mr12941628pgj.410.1551011707060;
+        Sun, 24 Feb 2019 04:35:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551011707; cv=none;
         d=google.com; s=arc-20160816;
-        b=G8wuJFLzZjiBusv75ZsMU2T/G18KjNLEjQQmdvjJsPwR2gANiJCO2UWVYf54gyXJ0S
-         nkKSfc4D/Ux0EWAM5H2tX0ryFFk0vBPrUxX/0BxsKAwrdANdHNaMylAISQlhxPWKezKe
-         tk/rpCkKDF9ow8iJ0XcqRMDJuS+t6nFm+tDzHRpkhm+hb5T7+INFbKtKevt2/wCZDQaK
-         CMqvp/Bx2yEqe227A8DE5eYbici5Pux4N0F7+uir57gjVnMv1yArlO4G18gjJqzoAKex
-         eyKGtcvORBUOFlW5oAf0w1X94DsE7QP94+B27+72H8HQ7H9AJmZzAwtyq3JNRN/D1L2A
-         N8Fw==
+        b=cO3erMlHc3MXkKAA7HuA4sVF05Z6B3iRPx6X6R0EGilFYon1PDaO7zojq5w6UIV+V0
+         v8FmyZjprq5ffaMFTH9VJ8qOJwy5kNQZbLwvoKzBqzyCjTNlPzRe5NwmgS8rM7Cyczw9
+         ZDMwhqrpSmCsjqYZyicW7HzqH2PANWzY6b+LNAK5++3Y+moMhZtmTbGwYdRpguFgq108
+         fTe2gBAgUmGwd0zPGb3VJMECXsrIIJGABfMFjWxSj+ZbuJbodWJ5kgDhOlLTmQg9nyW4
+         A9+IXoNLOatgDPXD/+DS5UGEm9SfWsPEcfoqLBSLrZ+AWpAdgTUcG1E/xK7WB70xaWdf
+         lF3g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=VUSACWx8owSCA/d69ivl0fhPuKN1EhNSteFOcIuEGZ0=;
-        b=PKveg7zSZ2mn3zFK0qz7iMQ+qs2qrKYrokyu6ZFFUPABCQdfJgqDDFCIqCcgG1nY8W
-         NV3Ofk1zriVqULU+ogrzP+YgGPD7GXkFlXTdQM2JnGuvRhQJvYEWI/akWtN+BeK7o2+m
-         PVQxsA1IvZV34dc1mEH9IEHuRgJyEtye5BwrQlHLCIpp5nJN+uzvvIiKhZ0m8dvOaX9F
-         o9bXxEpaJGlZpfXeaGjHl9NSwsyGmuuOYPRSAZR5DuduDsFPLGFsG1+CDppvbUB6WW/5
-         k23KI+8VZ2ZWZjcYz40GlqWDin+Fe3AR2jWx8Gg1PwI3Sqp0scuJ2vCRPs8n4pPakb4J
-         7GnA==
+        bh=0NMCKN566TqKrSROT1OL4y1pVAJFuioGBAgJ45OiBK4=;
+        b=Sil0US3Z6J8WndL/F7m+wsJy35Eqdq+Vgc5JEFOOtps2ULZLstYyFP27LHHQAIPYdR
+         hHF5Bq36Zv82ld2xpefWFJyiqk5hhDfFZoJm8eXYIQbqRbFwTlsHS5QMSlMmEb7s1vjo
+         BtRG1EWV5ozIuE4tXozz2uaMx/8AFK5UsEsRXFEUMyrYNthMq3o4LAOJdSeuiVrYhtVe
+         cPWdHohf4JbXIkWxrkF7Bh6z4F3kMHrRwvcs/nL1On5gnfkzwjfrfKI8tmm/+2Y82cE/
+         o3+vnWfHdstvOL6fuW6K+6wIo6tDHxRXwk5NQVAWPFBa0q0d3OC7QzAH4syyP3MwvJ9c
+         ZLVA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lsZNpX90;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iY5qksCI;
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s76sor10687754pfa.68.2019.02.24.04.34.59
+        by mx.google.com with SMTPS id r14sor9815696pgf.79.2019.02.24.04.35.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 24 Feb 2019 04:34:59 -0800 (PST)
+        Sun, 24 Feb 2019 04:35:07 -0800 (PST)
 Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=lsZNpX90;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iY5qksCI;
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=VUSACWx8owSCA/d69ivl0fhPuKN1EhNSteFOcIuEGZ0=;
-        b=lsZNpX90ShPlWQ2zhfCCGLs4i3irzO/qGpdGtyiAVLlwhyAM9bJBwH1VpoF5hjkhUd
-         8EUw47B2VpHPlhkSiDW/2Aqy47CseX4XJEnfPB8suhAPn4E9PESpAclo8hmmoUf1/T1g
-         PrwAKcR6kJXWz4z7/qi+m31N9ImyTGhf5MdYqOZGPpeRwD/M0cvl+lZm7cLWMOZUwhdw
-         5miumxFV+4Y0Zwjui1NQfNcIczbjE0QoMSvg8smGI+VZ6rCei0hywyQi4dC+iLKOn7da
-         vVtpQ1jmIK8mo6jkDkO0Gf9ToiAbrWv9SUSRbzXqbxZuWck6rc+HUwYfsGRG2RnYWdQe
-         +rYQ==
-X-Google-Smtp-Source: AHgI3IZ+KhDfYa4kZE1/ENHjM5rMoFfQUz/8SRp5zyphLnw8+HWtaHY6Dz/ZQLwOtrZah70pozY1yQ==
-X-Received: by 2002:a62:b508:: with SMTP id y8mr13857223pfe.140.1551011699044;
-        Sun, 24 Feb 2019 04:34:59 -0800 (PST)
+        bh=0NMCKN566TqKrSROT1OL4y1pVAJFuioGBAgJ45OiBK4=;
+        b=iY5qksCIMpNU389QUSs7IU3yhYB8G0qeGuofPuj7VOiuoUKF3lEIfU0EIj4vIyZGxy
+         lfGuvV+dKLpk9vmJOA8iGOZeVGx1R5OoJTYMgUmJp3746nRHEl0S2MLvX5k033Nv//84
+         mDo14vacdwcpGP4nPjXiBuFbH4AHdrcqN6IsJBRmpNv+fK1FORzwuFvX/wZKblimKkQP
+         H9XH3K4Eom4q4IXXZbXjw3E4kEAZerpxutrYN0lNUcpo3BsJCUHJTK9TcTLXrimeAne8
+         2Oy7y5IfhCi+Y+NMgXPpNQ304JNgsNYrJ6xo/gzm0wA6P/YV5Mayp/k+DBLWEA96+TmJ
+         7LjQ==
+X-Google-Smtp-Source: AHgI3IYKZHrDENP+56CRPPar4fsatj4I/ajY/II4jFQQaKk4J3r7faH8maH7gEv4Z3POa7YL/eMOUg==
+X-Received: by 2002:a63:d814:: with SMTP id b20mr13029128pgh.312.1551011706824;
+        Sun, 24 Feb 2019 04:35:06 -0800 (PST)
 Received: from mylaptop.redhat.com ([209.132.188.80])
-        by smtp.gmail.com with ESMTPSA id v6sm9524634pgb.2.2019.02.24.04.34.51
+        by smtp.gmail.com with ESMTPSA id v6sm9524634pgb.2.2019.02.24.04.34.59
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 24 Feb 2019 04:34:58 -0800 (PST)
+        Sun, 24 Feb 2019 04:35:06 -0800 (PST)
 From: Pingfan Liu <kernelfans@gmail.com>
 To: x86@kernel.org,
 	linux-mm@kvack.org
@@ -125,9 +125,9 @@ Cc: Pingfan Liu <kernelfans@gmail.com>,
 	Nicholas Piggin <npiggin@gmail.com>,
 	Daniel Vacek <neelx@redhat.com>,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 4/6] x86/numa: concentrate the code of setting cpu to node map
-Date: Sun, 24 Feb 2019 20:34:07 +0800
-Message-Id: <1551011649-30103-5-git-send-email-kernelfans@gmail.com>
+Subject: [PATCH 5/6] x86/numa: push forward the setup of node to cpumask map
+Date: Sun, 24 Feb 2019 20:34:08 +0800
+Message-Id: <1551011649-30103-6-git-send-email-kernelfans@gmail.com>
 X-Mailer: git-send-email 2.7.4
 In-Reply-To: <1551011649-30103-1-git-send-email-kernelfans@gmail.com>
 References: <1551011649-30103-1-git-send-email-kernelfans@gmail.com>
@@ -137,9 +137,11 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Both numa_init_array() and init_cpu_to_node() aim at setting up the cpu to
-node map, so combining them. And the coming patch will set up node to
-cpumask map in the combined function.
+At present the node to cpumask map is set up until the secondary
+cpu boot up. But it is too late for the purpose of building node fall back
+list at early boot stage. Considering that init_cpu_to_node() already owns
+cpu to node map, it is a good place to set up node to cpumask map too. So
+do it by calling numa_add_cpu(cpu) in init_cpu_to_node().
 
 Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
 CC: Thomas Gleixner <tglx@linutronix.de>
@@ -162,80 +164,84 @@ CC: Nicholas Piggin <npiggin@gmail.com>
 CC: Daniel Vacek <neelx@redhat.com>
 CC: linux-kernel@vger.kernel.org
 ---
- arch/x86/mm/numa.c | 39 +++++++++++++--------------------------
- 1 file changed, 13 insertions(+), 26 deletions(-)
+ arch/x86/include/asm/topology.h | 4 ----
+ arch/x86/kernel/setup_percpu.c  | 3 ---
+ arch/x86/mm/numa.c              | 5 ++++-
+ 3 files changed, 4 insertions(+), 8 deletions(-)
 
+diff --git a/arch/x86/include/asm/topology.h b/arch/x86/include/asm/topology.h
+index 453cf38..fad77c7 100644
+--- a/arch/x86/include/asm/topology.h
++++ b/arch/x86/include/asm/topology.h
+@@ -73,8 +73,6 @@ static inline const struct cpumask *cpumask_of_node(int node)
+ }
+ #endif
+ 
+-extern void setup_node_to_cpumask_map(void);
+-
+ #define pcibus_to_node(bus) __pcibus_to_node(bus)
+ 
+ extern int __node_distance(int, int);
+@@ -96,8 +94,6 @@ static inline int early_cpu_to_node(int cpu)
+ 	return 0;
+ }
+ 
+-static inline void setup_node_to_cpumask_map(void) { }
+-
+ #endif
+ 
+ #include <asm-generic/topology.h>
+diff --git a/arch/x86/kernel/setup_percpu.c b/arch/x86/kernel/setup_percpu.c
+index e8796fc..206fa43 100644
+--- a/arch/x86/kernel/setup_percpu.c
++++ b/arch/x86/kernel/setup_percpu.c
+@@ -283,9 +283,6 @@ void __init setup_per_cpu_areas(void)
+ 	early_per_cpu_ptr(x86_cpu_to_node_map) = NULL;
+ #endif
+ 
+-	/* Setup node to cpumask map */
+-	setup_node_to_cpumask_map();
+-
+ 	/* Setup cpu initialized, callin, callout masks */
+ 	setup_cpu_local_masks();
+ 
 diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index bfe6732..c8dd7af 100644
+index c8dd7af..8d73e2273 100644
 --- a/arch/x86/mm/numa.c
 +++ b/arch/x86/mm/numa.c
-@@ -599,30 +599,6 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
- 	return 0;
- }
- 
--#ifdef CONFIG_NUMA
--/*
-- * There are unfortunately some poorly designed mainboards around that
-- * only connect memory to a single CPU. This breaks the 1:1 cpu->node
-- * mapping. To avoid this fill in the mapping for all possible CPUs,
-- * as the number of CPUs is not known yet. We round robin the existing
-- * nodes.
-- */
--static void __init numa_init_array(void)
--{
--	int rr, i;
--
--	rr = first_node(node_online_map);
--	for (i = 0; i < nr_cpu_ids; i++) {
--		if (early_cpu_to_node(i) != NUMA_NO_NODE)
--			continue;
--		numa_set_node(i, rr);
--		rr = next_node_in(rr, node_online_map);
--	}
--}
--#else
--static void __init numa_init_array(void) {}
--#endif
--
- static int __init numa_init(int (*init_func)(void))
+@@ -110,7 +110,7 @@ void numa_clear_node(int cpu)
+  * Note: cpumask_of_node() is not valid until after this is done.
+  * (Use CONFIG_DEBUG_PER_CPU_MAPS to check this.)
+  */
+-void __init setup_node_to_cpumask_map(void)
++static void __init setup_node_to_cpumask_map(void)
  {
- 	int i;
-@@ -675,7 +651,6 @@ static int __init numa_init(int (*init_func)(void))
- 		if (!node_online(nid))
- 			numa_clear_node(i);
- 	}
--	numa_init_array();
+ 	unsigned int node;
  
- 	return 0;
- }
-@@ -758,14 +733,26 @@ void __init init_cpu_to_node(void)
- {
- 	int cpu;
- 	u16 *cpu_to_apicid = early_per_cpu_ptr(x86_cpu_to_apicid);
-+	int rr;
- 
+@@ -738,6 +738,7 @@ void __init init_cpu_to_node(void)
  	BUG_ON(cpu_to_apicid == NULL);
-+	rr = first_node(node_online_map);
+ 	rr = first_node(node_online_map);
  
++	setup_node_to_cpumask_map();
  	for_each_possible_cpu(cpu) {
  		int node = numa_cpu_node(cpu);
  
--		if (node == NUMA_NO_NODE)
-+		/*
-+		 * There are unfortunately some poorly designed mainboards
-+		 * around that only connect memory to a single CPU. This
-+		 * breaks the 1:1 cpu->node mapping. To avoid this fill in
-+		 * the mapping for all possible CPUs, as the number of CPUs
-+		 * is not known yet. We round robin the existing nodes.
-+		 */
-+		if (node == NUMA_NO_NODE) {
-+			numa_set_node(cpu, rr);
-+			rr = next_node_in(rr, node_online_map);
+@@ -750,6 +751,7 @@ void __init init_cpu_to_node(void)
+ 		 */
+ 		if (node == NUMA_NO_NODE) {
+ 			numa_set_node(cpu, rr);
++			numa_add_cpu(cpu);
+ 			rr = next_node_in(rr, node_online_map);
  			continue;
-+		}
- 
- 		if (!node_online(node))
+ 		}
+@@ -758,6 +760,7 @@ void __init init_cpu_to_node(void)
  			init_memory_less_node(node);
+ 
+ 		numa_set_node(cpu, node);
++		numa_add_cpu(cpu);
+ 	}
+ }
+ 
 -- 
 2.7.4
 
