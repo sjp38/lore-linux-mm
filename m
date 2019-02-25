@@ -2,304 +2,207 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 595C9C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:49:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C047C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:57:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 047AA20842
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:49:16 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="uFzyzm8M"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 047AA20842
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
+	by mail.kernel.org (Postfix) with ESMTP id 45D4A20663
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:57:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45D4A20663
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7FD1C8E0181; Mon, 25 Feb 2019 08:48:49 -0500 (EST)
+	id A66DE8E0012; Mon, 25 Feb 2019 08:57:50 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7D86A8E011F; Mon, 25 Feb 2019 08:48:49 -0500 (EST)
+	id A15F08E000C; Mon, 25 Feb 2019 08:57:50 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6286B8E0181; Mon, 25 Feb 2019 08:48:49 -0500 (EST)
+	id 905928E0012; Mon, 25 Feb 2019 08:57:50 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 086608E011F
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 08:48:49 -0500 (EST)
-Received: by mail-wm1-f72.google.com with SMTP id q24so334330wmq.9
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 05:48:48 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 372958E000C
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 08:57:50 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id o25so3826973edr.0
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 05:57:50 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:in-reply-to:references
-         :from:subject:to:cc:date;
-        bh=eNCDjVYIgy6lNbk859Vm+9SPMgCX7rafzT3Fmt9o26w=;
-        b=MuucZRQQKYJs7QFUX7owjtRsJYyfMwmTMlogM5FcnEFviZTAdL0bJcfET/cQ+E6TSz
-         fq7ALmpKcfzBJawWLVHjBSH2Y6Zw+QwBKCyFaD9MixYLa0l6G81PgPnrMPSlsTGUctix
-         JfMmyfWAR8vmdhc/ovWpcNOJNrwWHNxKmOsJ5m51A+MvKFZWKeysWtXG0zg0PsmkbvHd
-         FHHTbgJJ9qUSUalbNzS2+xYw/w9fcl2aY9EOqiBjDZjO9u5DCBrx/lj5lZJtw9t5YyrU
-         o13VYtnhi4TjMCJ/+9gjNVXRO0zM0Hqbu8N1uMLuyLT2yTBsXPuj08zm4nW6EAcuc4oj
-         G0Ug==
-X-Gm-Message-State: AHQUAuYHQiwCQv/I7gNQOSUfFeho0l/jsyB9KBdfGe7fWGb2HhPtPj9+
-	rniBbZTtPr2EqwScxtqT9L5CfgCCC8Yp+D/szaj97c5zNUie2tcdeC7tKw6R8rEflKt+FtXYarl
-	CSNE6mY1L15u7z+Y8+8NkVvGkgTSc8K4SO+IIMYST1wYQZLHzgGAEzckJMY7XU5sXmA==
-X-Received: by 2002:a1c:dc07:: with SMTP id t7mr11117114wmg.90.1551102528493;
-        Mon, 25 Feb 2019 05:48:48 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaZ1u5DMaHe8oIFAWfeFGfQ4AD0GuzDAwl6UrXCzwDL2zHVUWjHRjeaN7gdQjeubXMuy07x
-X-Received: by 2002:a1c:dc07:: with SMTP id t7mr11117078wmg.90.1551102527574;
-        Mon, 25 Feb 2019 05:48:47 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551102527; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=ZGNWv11U5FZX035jwnoCr5uhsJllKNTcKRrOHg1n6q8=;
+        b=qFeAHQEZ5othwPEkAgQA9YdfU/YgXuP0FZlo7Cv3cS8ps4zo5sjKFgkxt5JJ//bn4P
+         LgZcXLZm6lI/CLFeYaM8JF2BYhpZf6714u0UMGk4YuX06Sq7NYlxDT4QvjzrpfkBCUEW
+         IvdGIqWdt4k9OIe5gANp9WtYnoh8JBD8mOzOk4j4itCYF4HfiBrei1uXCJgZ+V7jiwlM
+         a+rsS04FYCD3dklLZwUB8PY/W+xA420GkelD8GXdUTdq/DR6D1DQPETGTZrhYkJ9nvzF
+         V6GRCyZzRlk/Esvv29adG1uxLqKkEZTFZiwj4m/669dZccfeodxpYiEj7dyOypjBm2d4
+         d1wQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: AHQUAuYSxexegIWyI1C5UFYD3ZiCvqHEi2GjiCoxAWnPicI0zY97PYQ6
+	TJhuMA0BTIZ46CkUryrgeXNSg9RcWIszsKS+jUiCkEgmYG0UpaBP12SmYRgoro3AL7jXHSLE7qu
+	QiJ8h7TbFal0a6Kbo58fhpEdaRaf48Twv3nlN41mrOzFHDeJJdYQyerqmcQICDNsMlQ==
+X-Received: by 2002:a17:906:23f1:: with SMTP id j17mr13096011ejg.188.1551103069747;
+        Mon, 25 Feb 2019 05:57:49 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZCpvsX4U7WpSHMjrHGcmHW6IHuseoJ2/GKbmRsEV/eQ8BHYHTJ26HeUhQkDzEViNeYPawz
+X-Received: by 2002:a17:906:23f1:: with SMTP id j17mr13095957ejg.188.1551103068819;
+        Mon, 25 Feb 2019 05:57:48 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551103068; cv=none;
         d=google.com; s=arc-20160816;
-        b=OQbzfGVjaW219EoVQ5LCuuiFOuWrasfNgWlvlWg93KWT1GmoLqh4ToCwNrNe3dPI/F
-         RQbqzhBqWL/XIqCyYg/bxCMzwlLALIW2liRUu4dFNCkigGMVgXVlJLFxw4oe9AeEgdFq
-         DecTBHvbTrLROmiCDqblwmd+VY8BPhcegEWabWOZyHXnEEO5tIPv6sGM4jeRLJyJKdYT
-         4p82N8mz117JyhiJ90lEr7cgilvHFDNjpRc8obZ6AaAA7IONgoM9o1AY6knkJiMOrO1F
-         Om625uBT5UqCljrR86cn8Z6a3n8ARkPl/bDEtCVwtnxV+L8mf+pWjK/Z6QSuR5F/9kL7
-         xk3w==
+        b=bC2hXdsQibsIpd/9zyZNzepC2WEnAmBu+RtV05qAoDeI6xLQ8RyJTCvqWtMw2IR02r
+         PP2OO2+WKZGR/mhNn7j08wRZR893suuH6uDgARoFzh2XRvmxB1+dnCIr6SgKEOzSV/1o
+         t7+OMptdghVzwXKCUxUg7LA9bB/G72s5LsA24TczlF0ID2EjRpB6K6oz71kV25KjCDma
+         sWXviSUtZBpNu3gGXGyJNwpldKrzDI6/A3yl20zk2lKr6y5SgRryThZ/WGZ780WKVPeR
+         lvZ0go/vZWqf29roZtTqqZXbLkoucVPJyr9/8VntR+xcbZbFB124wd4NVm5gww6tHVAv
+         h61Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=date:cc:to:subject:from:references:in-reply-to:message-id
-         :dkim-signature;
-        bh=eNCDjVYIgy6lNbk859Vm+9SPMgCX7rafzT3Fmt9o26w=;
-        b=YOU0Iiyrrwf3HgWdZ+HjiBpIsKLeq7qI6CVWiVwE1hUwV1+StoHgwG4rrmll2n7Azi
-         54BdiKLOXKn0TXtWV22ylf3jiDYYVtkTApIbxSXx1KnHsKLyfemABQZLaXzG/bHnYrtN
-         REQvD3DJSl5BRRemKMn7SwxxW/lXfytz6zlGbUju/AhRfiu2qsGqBrxlywqkZlC1/1is
-         4fdmGU6cp14inlBYHIADM6/I1bQLCaib0HQJR3mw0Aa9ORT7ObAZanPbdrTbU1jVxBJk
-         W7rcdZ98OdCjlBNQ71a2QDEh0N8CSZMDTNYBWiU5mZnicJjIVoEkX9KZrWj9I72gMUdN
-         OX+A==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=ZGNWv11U5FZX035jwnoCr5uhsJllKNTcKRrOHg1n6q8=;
+        b=iGB5LSgT9VaEORprK07I6CypdcWCqb22HBLBiBZJMN6LoWPWGFbATsYMzCO646uz/S
+         du2UFYDRgu8iH5m7J36OC1aQBdRfEkX+P7pclHdNKT+xHLcfEmdQReiTPmQf+ag5FKc4
+         gGlAFS+5NNeANepL4Kzk80ITnaJB2+A9g8b0a6XIGooVbqRbKScycdfKdo+FQ36o3w+/
+         TCVXUY/oVIbgYiseZ8MCIHTJXkppiZx7C00QSo+lABWiFOO2RtNa86pep0+p/wi+037Y
+         dHyG6sDdWbGRqahlTApEXDG3fhTjcnXWf8xuzEtMpPLQJfTUDQZ7yBlhqKnUl0bNGVOh
+         Lk6A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=uFzyzm8M;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id h9si6392853wrq.2.2019.02.25.05.48.47
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s17si2528956ejq.87.2019.02.25.05.57.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 05:48:47 -0800 (PST)
-Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
+        Mon, 25 Feb 2019 05:57:48 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=uFzyzm8M;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 447NZf0NwtzB09b4;
-	Mon, 25 Feb 2019 14:48:42 +0100 (CET)
-Authentication-Results: localhost; dkim=pass
-	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=uFzyzm8M; dkim-adsp=pass;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at c-s.fr
-Received: from pegase1.c-s.fr ([192.168.12.234])
-	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id kBscLWewVmDX; Mon, 25 Feb 2019 14:48:41 +0100 (CET)
-Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 447NZd6KrLzB09Zn;
-	Mon, 25 Feb 2019 14:48:41 +0100 (CET)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1551102521; bh=eNCDjVYIgy6lNbk859Vm+9SPMgCX7rafzT3Fmt9o26w=;
-	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
-	b=uFzyzm8MHshOvTiqr+SoqqSnIL/1hRd+UvKp2q3wxh2kEzVYT66d+sUcACOqTy5uH
-	 Wxoj5wDCoJH6zMR9yF2vYt4Qu/Unq/UhpeNTYVtrHYPJX34Mvy7qNtF1Qt0XHQM1XM
-	 Ig53qS3xB5renN+INmF1bcyWWukiLMvkf6ppJwQ4=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 3E2CB8B844;
-	Mon, 25 Feb 2019 14:48:46 +0100 (CET)
-X-Virus-Scanned: amavisd-new at c-s.fr
-Received: from messagerie.si.c-s.fr ([127.0.0.1])
-	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id VlpQTLdF9oug; Mon, 25 Feb 2019 14:48:46 +0100 (CET)
-Received: from po16846vm.idsi0.si.c-s.fr (po15451.idsi0.si.c-s.fr [172.25.231.2])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 110A78B81D;
-	Mon, 25 Feb 2019 14:48:46 +0100 (CET)
-Received: by po16846vm.idsi0.si.c-s.fr (Postfix, from userid 0)
-	id 976CC6F20E; Mon, 25 Feb 2019 13:48:46 +0000 (UTC)
-Message-Id: <dc2c2eb871dbf1d025b6aa32d325f8aedb85df53.1551098215.git.christophe.leroy@c-s.fr>
-In-Reply-To: <cover.1551098214.git.christophe.leroy@c-s.fr>
-References: <cover.1551098214.git.christophe.leroy@c-s.fr>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH v7 11/11] powerpc/32s: set up an early static hash table for
- KASAN.
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
-Date: Mon, 25 Feb 2019 13:48:46 +0000 (UTC)
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id AE224AD23;
+	Mon, 25 Feb 2019 13:57:47 +0000 (UTC)
+Subject: Re: [PATCH RFC] mm/vmscan: try to protect active working set of
+ cgroup from reclaim.
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
+ Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>,
+ Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>
+References: <20190222175825.18657-1-aryabinin@virtuozzo.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <cac00e0f-5d90-7e20-e0d1-ad831a32d36d@suse.cz>
+Date: Mon, 25 Feb 2019 14:57:46 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
+MIME-Version: 1.0
+In-Reply-To: <20190222175825.18657-1-aryabinin@virtuozzo.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KASAN requires early activation of hash table, before memblock()
-functions are available.
+On 2/22/19 6:58 PM, Andrey Ryabinin wrote:
+> In a presence of more than 1 memory cgroup in the system our reclaim
+> logic is just suck. When we hit memory limit (global or a limit on
+> cgroup with subgroups) we reclaim some memory from all cgroups.
+> This is sucks because, the cgroup that allocates more often always wins.
+> E.g. job that allocates a lot of clean rarely used page cache will push
+> out of memory other jobs with active relatively small all in memory
+> working set.
+> 
+> To prevent such situations we have memcg controls like low/max, etc which
+> are supposed to protect jobs or limit them so they to not hurt others.
+> But memory cgroups are very hard to configure right because it requires
+> precise knowledge of the workload which may vary during the execution.
+> E.g. setting memory limit means that job won't be able to use all memory
+> in the system for page cache even if the rest the system is idle.
+> Basically our current scheme requires to configure every single cgroup
+> in the system.
+> 
+> I think we can do better. The idea proposed by this patch is to reclaim
+> only inactive pages and only from cgroups that have big
+> (!inactive_is_low()) inactive list. And go back to shrinking active lists
+> only if all inactive lists are low.
 
-This patch implements an early hash_table statically defined in
-__initdata.
+Perhaps going this direction could also make page cache side-channel
+attacks harder?
+Quoting [1]:
 
-During early boot, a single page table is used. For hash32, when doing
-the final init, one page table is allocated for each PGD entry because
-of the _PAGE_HASHPTE flag which can't be common to several virt pages.
+"On Linux, we are only able
+to evict pages efficiently because we can trick the page re-
+placement algorithm into believing our target page would be
+the best choice for eviction. The reason for this lies in the
+fact that Linux uses a global page replacement algorithm,
+i.e., an algorithm which does not distinguish between dif-
+ferent processes. Global page replacement algorithms have
+been known for decades to allow one process to perform a
+denial-of-service on other processes"
 
-Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
----
- arch/powerpc/kernel/head_32.S         | 40 ++++++++++++++++++++++++++---------
- arch/powerpc/mm/kasan/kasan_init_32.c | 32 ++++++++++++++++++++++++----
- arch/powerpc/mm/mmu_decl.h            |  1 +
- 3 files changed, 59 insertions(+), 14 deletions(-)
-
-diff --git a/arch/powerpc/kernel/head_32.S b/arch/powerpc/kernel/head_32.S
-index e644aab2cf5b..1d881047ce76 100644
---- a/arch/powerpc/kernel/head_32.S
-+++ b/arch/powerpc/kernel/head_32.S
-@@ -160,6 +160,10 @@ __after_mmu_off:
- 	bl	flush_tlbs
- 
- 	bl	initial_bats
-+	bl	load_segment_registers
-+#ifdef CONFIG_KASAN
-+	bl	early_hash_table
-+#endif
- #if defined(CONFIG_BOOTX_TEXT)
- 	bl	setup_disp_bat
- #endif
-@@ -205,7 +209,7 @@ __after_mmu_off:
-  */
- turn_on_mmu:
- 	mfmsr	r0
--	ori	r0,r0,MSR_DR|MSR_IR
-+	ori	r0,r0,MSR_DR|MSR_IR|MSR_RI
- 	mtspr	SPRN_SRR1,r0
- 	lis	r0,start_here@h
- 	ori	r0,r0,start_here@l
-@@ -881,11 +885,24 @@ _ENTRY(__restore_cpu_setup)
- 	blr
- #endif /* !defined(CONFIG_PPC_BOOK3S_32) */
- 
--
- /*
-  * Load stuff into the MMU.  Intended to be called with
-  * IR=0 and DR=0.
-  */
-+#ifdef CONFIG_KASAN
-+early_hash_table:
-+	sync			/* Force all PTE updates to finish */
-+	isync
-+	tlbia			/* Clear all TLB entries */
-+	sync			/* wait for tlbia/tlbie to finish */
-+	TLBSYNC			/* ... on all CPUs */
-+	/* Load the SDR1 register (hash table base & size) */
-+	lis	r6, early_Hash - PAGE_OFFSET@h
-+	ori	r6, r6, 3	/* 256kB table */
-+	mtspr	SPRN_SDR1, r6
-+	blr
-+#endif
-+
- load_up_mmu:
- 	sync			/* Force all PTE updates to finish */
- 	isync
-@@ -897,14 +914,6 @@ load_up_mmu:
- 	tophys(r6,r6)
- 	lwz	r6,_SDR1@l(r6)
- 	mtspr	SPRN_SDR1,r6
--	li	r0,16		/* load up segment register values */
--	mtctr	r0		/* for context 0 */
--	lis	r3,0x2000	/* Ku = 1, VSID = 0 */
--	li	r4,0
--3:	mtsrin	r3,r4
--	addi	r3,r3,0x111	/* increment VSID */
--	addis	r4,r4,0x1000	/* address of next segment */
--	bdnz	3b
- 
- /* Load the BAT registers with the values set up by MMU_init.
-    MMU_init takes care of whether we're on a 601 or not. */
-@@ -926,6 +935,17 @@ BEGIN_MMU_FTR_SECTION
- END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
- 	blr
- 
-+load_segment_registers:
-+	li	r0, 16		/* load up segment register values */
-+	mtctr	r0		/* for context 0 */
-+	lis	r3, 0x2000	/* Ku = 1, VSID = 0 */
-+	li	r4, 0
-+3:	mtsrin	r3, r4
-+	addi	r3, r3, 0x111	/* increment VSID */
-+	addis	r4, r4, 0x1000	/* address of next segment */
-+	bdnz	3b
-+	blr
-+
- /*
-  * This is where the main kernel code starts.
-  */
-diff --git a/arch/powerpc/mm/kasan/kasan_init_32.c b/arch/powerpc/mm/kasan/kasan_init_32.c
-index b7c0fdd88c8e..0058bf606fbd 100644
---- a/arch/powerpc/mm/kasan/kasan_init_32.c
-+++ b/arch/powerpc/mm/kasan/kasan_init_32.c
-@@ -60,10 +60,13 @@ static int __ref kasan_init_region(void *start, size_t size)
- 	unsigned long k_cur;
- 	pmd_t *pmd;
- 	void *block = NULL;
--	int ret = kasan_init_shadow_page_tables(k_start, k_end);
- 
--	if (ret)
--		return ret;
-+	if (!early_mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
-+		int ret = kasan_init_shadow_page_tables(k_start, k_end);
-+
-+		if (ret)
-+			return ret;
-+	}
- 
- 	if (!slab_is_available())
- 		block = memblock_alloc(k_end - k_start, PAGE_SIZE);
-@@ -94,6 +97,13 @@ void __init kasan_init(void)
- 	int ret;
- 	struct memblock_region *reg;
- 
-+	if (early_mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
-+		ret = kasan_init_shadow_page_tables(KASAN_SHADOW_START, KASAN_SHADOW_END);
-+
-+		if (ret)
-+			panic("kasan: kasan_init_shadow_page_tables() failed");
-+	}
-+
- 	for_each_memblock(memory, reg) {
- 		phys_addr_t base = reg->base;
- 		phys_addr_t top = min(base + reg->size, total_lowmem);
-@@ -132,6 +142,20 @@ void *module_alloc(unsigned long size)
- }
- #endif
- 
-+#ifdef CONFIG_PPC_BOOK3S_32
-+u8 __initdata early_Hash[256 << 10] __aligned(256 << 10) = {0};
-+
-+static void __init kasan_early_hash_table(void)
-+{
-+	modify_instruction_site(&patch__hash_page_A0, 0xffff, __pa(early_Hash) >> 16);
-+	modify_instruction_site(&patch__flush_hash_A0, 0xffff, __pa(early_Hash) >> 16);
-+
-+	Hash = (struct hash_pte *)early_Hash;
-+}
-+#else
-+static void __init kasan_early_hash_table(void) {}
-+#endif
-+
- void __init kasan_early_init(void)
- {
- 	unsigned long addr = KASAN_SHADOW_START;
-@@ -149,5 +173,5 @@ void __init kasan_early_init(void)
- 	} while (pmd++, addr = next, addr != end);
- 
- 	if (early_mmu_has_feature(MMU_FTR_HPTE_TABLE))
--		WARN(1, "KASAN not supported on hash 6xx");
-+		kasan_early_hash_table();
- }
-diff --git a/arch/powerpc/mm/mmu_decl.h b/arch/powerpc/mm/mmu_decl.h
-index d726ff776054..525f7640ff40 100644
---- a/arch/powerpc/mm/mmu_decl.h
-+++ b/arch/powerpc/mm/mmu_decl.h
-@@ -106,6 +106,7 @@ extern unsigned int rtas_data, rtas_size;
- struct hash_pte;
- extern struct hash_pte *Hash, *Hash_end;
- extern unsigned long Hash_size, Hash_mask;
-+extern u8 early_Hash[];
- 
- #endif /* CONFIG_PPC32 */
- 
--- 
-2.13.3
+[1] https://arxiv.org/abs/1901.01161
 
