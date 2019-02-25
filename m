@@ -2,108 +2,107 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,UNWANTED_LANGUAGE_BODY,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08EA4C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:30:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E7B5C4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:30:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF36C20C01
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:30:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2EC4A2084D
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:30:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="j01UzZa+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF36C20C01
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="TSJgbO39"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2EC4A2084D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5E45E8E0015; Mon, 25 Feb 2019 15:30:45 -0500 (EST)
+	id C73CA8E0016; Mon, 25 Feb 2019 15:30:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5945F8E000C; Mon, 25 Feb 2019 15:30:45 -0500 (EST)
+	id C26578E000C; Mon, 25 Feb 2019 15:30:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 482798E0015; Mon, 25 Feb 2019 15:30:45 -0500 (EST)
+	id B16EF8E0016; Mon, 25 Feb 2019 15:30:47 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 061DF8E000C
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 15:30:45 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id y1so7873156pgo.0
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 12:30:44 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 71AD48E000C
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 15:30:47 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id 71so8053922plf.19
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 12:30:47 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=omgUtD5TBe/L2nj/vYLxBbkyge+zjnwluovkZCUWzAA=;
-        b=SufsNJ3DMQL1V8Mb5jTvO8Bw7qWubWpXYmnUdHDmWDJxv7jhkFDsqohCfqvAb3rmdt
-         WJostYdguERHkg+5CYZpD+Ke3/aCOfW0ZTXKTc58u65nPmp7b4s3c+xnAeLzO6+7UzvV
-         eQNXKQ1oVHxvYwaPp6Ez1LM/HCDH7pBLQ1MHw9xzyWyitpKLA7YBnMtTcSnRO5VsHfnC
-         KF/A+DscgZZy/NpVnrBtjk6+unvHns/lOV5B/1k4hBzGmNAQQzw8RZFCVzZczB6YdGDO
-         CZ/cfvfUFwg9B0zW/2rPLteNrlw6BVvjCzjNOgOX/Zu3OifNAySUXKd++0aiZkS7qbBK
-         WPzg==
-X-Gm-Message-State: AHQUAua3Jt9+DY4gWZAI3YdPQLF+WQF7OmGcNkjHKfOYgDaOm39Zv3yC
-	fYd898pua1Q30Tm2apkS7VyR73atssCW2gXpe7tZVLpHWXfGojOAZ7go19FbMnQv9Nverx6VLXE
-	rzshsUYM8nJtB8yr3iYVBgzxQrUv0KI4HyQeebFr3nSIMQgf+QuYnNhSc8A3N7ksYKOXuz6xxB9
-	opmZr4/5FPFTuXEzGq0yZzJU0qClkmZx+djq9sCxjcyD6wW/QeKqMf5sEfd25kFDsp0lJPsz3SN
-	LTulTIf6fho+nO/3DqWzHMI/s05Wkf4Q7Dml3pwcsEm8R8GJkh/DJZ9ObJc994YBMbn8LD5uRIN
-	QNzPxO8jSwmQ4wqcmesHUcIHbunU/cRuOE8dddOpCedw5yvRnI5d01RNsA3F0GqaU/r5lEp+zCy
-	w
-X-Received: by 2002:a63:6a08:: with SMTP id f8mr20980296pgc.165.1551126644647;
-        Mon, 25 Feb 2019 12:30:44 -0800 (PST)
-X-Received: by 2002:a63:6a08:: with SMTP id f8mr20980231pgc.165.1551126643615;
-        Mon, 25 Feb 2019 12:30:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551126643; cv=none;
+        bh=Yaq3RFczd2qZjXsU2QljCDi4OLq0Yre6ksGO/t1/+qE=;
+        b=b7kjkzYJrpvwPXNQ3lNbnqNO06Ym9nT9r+czEqS5qssDr308woIaoZmZ31VM+9OTZR
+         1fAfLYyBa/ci0pW70kfbeyI/v6rHsKWZkgHqIg3Obem+yepRI87lVY97Ir05/DIOCtdl
+         VC9zUuT5ASryN/XJx8BWYnhGZXvIcHS+U79T5DKzPlMuTuG/4XPe5vJH4UoSDZRhREGe
+         FSoc5ZGWqWGmjGdPhuQ7RVGFCtsucmjsBWAcvb10FkoaC1PUglbSStogd/c9wC9V0Wiv
+         FcQKbnV3qVFeB93T+MzLj+sMwhXgC4TynbWoLQ1Ie/CtfdDVXKw8cFX2nruh+mzL8X4N
+         cM5w==
+X-Gm-Message-State: AHQUAuaqB6ysYAB5/sNmHZ1wPjIXiv9vFV1IAPOdIaT2cA5hTNAhv2Vn
+	haZo1aL2N4wIVHiP8hJ7laF8dqFViedFaf+I77lVFATHmEXob+dBDXrH7Sag1nHVQiPMILDqD5r
+	RulcmIBFh6ROSpdSCLzHrLwVYOd/wcfyCPV+LLfi6C+5VxMgkiwSgu0TLZJYqG+bKktwHz5fNKp
+	dgLpbUc9nKXn58YL16Vnw6DZLmr++4qe6w17kZCNI6T9XVkg6v1eaVM+tdZ0/gXcPwwxohqKwvi
+	nKsGOQKV4CMDsWEQQpmi9xvAqr5wz6fzZFmZHL5Kvi5dpjKLyOCExPReNOUif2JSxaTgxVgOTvW
+	LvneuYTDR0GeuftWoDxYizZBmNNEXtmvuWRDYXCr1Ib9ji5BSC+sy3woUCFwmfWMs4PmPRgRnZ8
+	J
+X-Received: by 2002:a63:2a89:: with SMTP id q131mr20177647pgq.216.1551126647136;
+        Mon, 25 Feb 2019 12:30:47 -0800 (PST)
+X-Received: by 2002:a63:2a89:: with SMTP id q131mr20177590pgq.216.1551126646083;
+        Mon, 25 Feb 2019 12:30:46 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551126646; cv=none;
         d=google.com; s=arc-20160816;
-        b=qLXL0SQFX+216qhqVxo2OnUd/8Tirr5StMzpyb/rVIXZFv0DwYhNl2wA8e10QOFLG3
-         QwSBlof0AILcdFKgN7aQXezGn030aH+yhtFhUZ7mJBzJTrr8IEkuhqkjOSUcTw30qdPO
-         nrbTNfpLEcSzWlmegzB0pWLK6LAtwXoDIGG+dUKnZaszynrySjYrkZW0CD3zap4lrNne
-         8UjrdXiMJ1d2TUymkXeBQvfVZ6Ax+lX0/otN5TThGhmjMWWZxao/i1594jYE5a+zxnu/
-         j/Z/Rx6pY5oJ7NI827cK1i8Gsrzcyw+aItoJFv1ystS8pqi+pjeO6Ykg+7LFo+EJ1RsI
-         kJPw==
+        b=eQXPwmDJXESYLlUO8+VQZrCeJRkNgR24CeHM7Ltweej7H7AMY7YA+e4yt4GRowBuS9
+         hXK0IOFj1jgZ0tua0aXExSrPecr+NHtXRhUpfrUOOFpcjnfCC4MXYA+6B79HuL797awZ
+         O5wUyWkMC2I+Uc3gEWzR+HKRZFdF1NBb8zs8KECxEIqNLiLzyX9IvPwjo92ig7TViXwz
+         vVo5mEynHoe039Yt+c+gemW87lvYD766gI5EUSUZjXRJBOE/yEbSUR3H+fhqIGDc+sy7
+         Xq0O+m2sPcD5w1K0PuEJoUpR3+G6jNzp58hXa8b5UBZ4BJ16K3bkVX2OvfmI0RlvilGh
+         czfQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=omgUtD5TBe/L2nj/vYLxBbkyge+zjnwluovkZCUWzAA=;
-        b=cu+qJPM2yDUTDhbnJeP2trm539eqcNJ4focvQgN9Fk8u0F0QrYgnM3kBrAi/Q1TlIL
-         wrP+br2OjgBwu9egzC1JVKQeKB5H6ZE4f0gW8eqZtZ+UZ1gfLWudBSwYuRVuM5PNQyKo
-         XcFcevlNeik6wUlQLxt0cH4pPrwE0+L0EmI+Em5eSeLjV3jF7NyAELlkbgugSRpuvYA4
-         AN8ZcZwVmplygdtLvEc+9lbWVgBL7ZG1CpNTG54nQ508aYiHert1qCBEPXLe0L8V6Hn8
-         v390e9nehpJiC6yCl2E7RjP0FDYpYhBdfsWFTPVHaig0xBhcap6T7h/TgRlAvSmcaCOJ
-         ZWFw==
+        bh=Yaq3RFczd2qZjXsU2QljCDi4OLq0Yre6ksGO/t1/+qE=;
+        b=Ru9W+71tpjsRXDwXNx6lozymJZKH59hxEFbC1BQzvps8ubXLHhr6MY6+ImqxrG1ubd
+         7Jc51X0F56PGX81djcwKYR6lSSLWrlVcn5g6BNmKh9f5nj77L2/nFCTIEOfQD1Psy/NW
+         erNwKtK218f5gcjBoDfgzdjxtVoKQMmMSO3JF9WEzcFZiZwNsc4B90V2EnLqJXaeg5Gh
+         6fCZ604bZDHmlFCf8AxovBkIAdy4qyfNF+jB5COLkD+DrmkPRmg+Q4pQM7QHfCX5qMP+
+         S+T6BOJSrB/KbP3hSyO3Yka8kPfZKqJ4oTq1n0oRjvmB6i4JLhvSIoBKcFNoiIeypZfL
+         oqUw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=j01UzZa+;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TSJgbO39;
        spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r21sor15622978pgl.58.2019.02.25.12.30.43
+        by mx.google.com with SMTPS id w16sor3476663plp.55.2019.02.25.12.30.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 25 Feb 2019 12:30:43 -0800 (PST)
+        Mon, 25 Feb 2019 12:30:46 -0800 (PST)
 Received-SPF: pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=j01UzZa+;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TSJgbO39;
        spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=omgUtD5TBe/L2nj/vYLxBbkyge+zjnwluovkZCUWzAA=;
-        b=j01UzZa+id2m/gN68bYEvZ2TcacRml0G75125G0/K1Kc15uFzc3+eHRhm1GmJEPo+e
-         bPF9giJM+jYKBhNa9ilvHZMTDP415am/itTmB4YZk2mpSNJEgaB0ac9bgWe526icGmQ3
-         5pNWwng9d1sC54oP81jbGJcHQNydL1WDOFZZETK9SecOJ2m56LI8c00vPW/5g0fuHn3A
-         WFMDwylnTqVdmI9DCdMcsUyQosnLd6M3xVfIF2TCJvR7ojKoeO7R5cWZYoJu8ZJsLTno
-         m6fH64U8YFtpe+mEei0jx39diwnfLPvE9aPYSSOIP3ARIIKMXV9eizsPB8doAiOD73xn
-         4Yww==
-X-Google-Smtp-Source: AHgI3IbE9OLfOBUyZf9WhRChQMHXzfN8ZG5LJLKgkPJ0+6R2i4vCAr2MYtrIjYsBQogBmMKSDHzM9A==
-X-Received: by 2002:a63:8bc8:: with SMTP id j191mr19599469pge.234.1551126643113;
-        Mon, 25 Feb 2019 12:30:43 -0800 (PST)
+        bh=Yaq3RFczd2qZjXsU2QljCDi4OLq0Yre6ksGO/t1/+qE=;
+        b=TSJgbO39yugGnx2PvUuojmqyvwSgSNGTJgLuDP4aR9Ku68PHWYHKfPXvKsMTnVEd12
+         rKIDl+o7PtIwVK1mi5iwJraWvAHszmY/koNoOrj7tA2VHmAwoF80g7XJ6ZdOsp6qzHru
+         wmwygNQnR5dcE7pTgQaSjIf1qfXkKiCp69fRYfod5v+8NNf/RbanTq7/ThUASfXkJA1i
+         e1AAKUhq5sYU+VTgKVC5zvKTqdXEja24wetM3a866iRV7hHOsVa5k2QACx64uaXCD8oD
+         hvZt/Z4nCWu7WOnjNQ8vsT95fv6hO1x0M6B2WXB1ddE63owJguDeUBctEhpK/FDBu5ha
+         lU/g==
+X-Google-Smtp-Source: AHgI3IZuz86KzJNateQzLeGXd+kLin0VH/37xJYSq9ecmdFKTb6a8cwLDn3FBagE6uMysI09FNqIPg==
+X-Received: by 2002:a17:902:8348:: with SMTP id z8mr22713865pln.151.1551126645554;
+        Mon, 25 Feb 2019 12:30:45 -0800 (PST)
 Received: from tower.thefacebook.com ([2620:10d:c090:200::2:d960])
-        by smtp.gmail.com with ESMTPSA id s4sm6189885pfe.16.2019.02.25.12.30.41
+        by smtp.gmail.com with ESMTPSA id s4sm6189885pfe.16.2019.02.25.12.30.44
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 25 Feb 2019 12:30:42 -0800 (PST)
+        Mon, 25 Feb 2019 12:30:44 -0800 (PST)
 From: Roman Gushchin <guroan@gmail.com>
 X-Google-Original-From: Roman Gushchin <guro@fb.com>
 To: linux-mm@kvack.org
@@ -112,9 +111,9 @@ Cc: linux-kernel@vger.kernel.org,
 	Johannes Weiner <hannes@cmpxchg.org>,
 	kernel-team@fb.com,
 	Roman Gushchin <guro@fb.com>
-Subject: [PATCH 1/3] mm: refactor __vunmap() to avoid duplicated call to find_vm_area()
-Date: Mon, 25 Feb 2019 12:30:35 -0800
-Message-Id: <20190225203037.1317-2-guro@fb.com>
+Subject: [PATCH 3/3] mm: show number of vmalloc pages in /proc/meminfo
+Date: Mon, 25 Feb 2019 12:30:37 -0800
+Message-Id: <20190225203037.1317-4-guro@fb.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190225203037.1317-1-guro@fb.com>
 References: <20190225203037.1317-1-guro@fb.com>
@@ -126,147 +125,99 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-__vunmap() calls find_vm_area() twice without an obvious reason:
-first directly to get the area pointer, second indirectly by calling
-remove_vm_area(), which is again searching for the area.
+Vmalloc() is getting more and more used these days (kernel stacks,
+bpf and percpu allocator are new top users), and the total %
+of memory consumed by vmalloc() can be pretty significant
+and changes dynamically.
 
-To remove this redundancy, let's split remove_vm_area() into
-__remove_vm_area(struct vmap_area *), which performs the actual area
-removal, and remove_vm_area(const void *addr) wrapper, which can
-be used everywhere, where it has been used before.
+/proc/meminfo is the best place to display this information:
+its top goal is to show top consumers of the memory.
 
-On my test setup, I've got 5-10% speed up on vfree()'ing 1000000
-of 4-pages vmalloc blocks.
-
-Perf report before:
-  22.64%  cat      [kernel.vmlinux]  [k] free_pcppages_bulk
-  10.30%  cat      [kernel.vmlinux]  [k] __vunmap
-   9.80%  cat      [kernel.vmlinux]  [k] find_vmap_area
-   8.11%  cat      [kernel.vmlinux]  [k] vunmap_page_range
-   4.20%  cat      [kernel.vmlinux]  [k] __slab_free
-   3.56%  cat      [kernel.vmlinux]  [k] __list_del_entry_valid
-   3.46%  cat      [kernel.vmlinux]  [k] smp_call_function_many
-   3.33%  cat      [kernel.vmlinux]  [k] kfree
-   3.32%  cat      [kernel.vmlinux]  [k] free_unref_page
-
-Perf report after:
-  23.01%  cat      [kernel.kallsyms]  [k] free_pcppages_bulk
-   9.46%  cat      [kernel.kallsyms]  [k] __vunmap
-   9.15%  cat      [kernel.kallsyms]  [k] vunmap_page_range
-   6.17%  cat      [kernel.kallsyms]  [k] __slab_free
-   5.61%  cat      [kernel.kallsyms]  [k] kfree
-   4.86%  cat      [kernel.kallsyms]  [k] bad_range
-   4.67%  cat      [kernel.kallsyms]  [k] free_unref_page_commit
-   4.24%  cat      [kernel.kallsyms]  [k] __list_del_entry_valid
-   3.68%  cat      [kernel.kallsyms]  [k] free_unref_page
-   3.65%  cat      [kernel.kallsyms]  [k] __list_add_valid
-   3.19%  cat      [kernel.kallsyms]  [k] __purge_vmap_area_lazy
-   3.10%  cat      [kernel.kallsyms]  [k] find_vmap_area
-   3.05%  cat      [kernel.kallsyms]  [k] rcu_cblist_dequeue
+Since the VmallocUsed field in /proc/meminfo is not in use
+for quite a long time (it has been defined to 0 by the
+commit a5ad88ce8c7f ("mm: get rid of 'vmalloc_info' from
+/proc/meminfo")), let's reuse it for showing the actual
+physical memory consumption of vmalloc().
 
 Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Matthew Wilcox <willy@infradead.org>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/vmalloc.c | 47 +++++++++++++++++++++++++++--------------------
- 1 file changed, 27 insertions(+), 20 deletions(-)
+ fs/proc/meminfo.c       |  2 +-
+ include/linux/vmalloc.h |  2 ++
+ mm/vmalloc.c            | 10 ++++++++++
+ 3 files changed, 13 insertions(+), 1 deletion(-)
 
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 568d90e17c17..465ea0153b2a 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -120,7 +120,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 	show_val_kb(m, "Committed_AS:   ", committed);
+ 	seq_printf(m, "VmallocTotal:   %8lu kB\n",
+ 		   (unsigned long)VMALLOC_TOTAL >> 10);
+-	show_val_kb(m, "VmallocUsed:    ", 0ul);
++	show_val_kb(m, "VmallocUsed:    ", vmalloc_nr_pages());
+ 	show_val_kb(m, "VmallocChunk:   ", 0ul);
+ 	show_val_kb(m, "Percpu:         ", pcpu_nr_pages());
+ 
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 398e9c95cd61..0b497408272b 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -63,10 +63,12 @@ extern void vm_unmap_aliases(void);
+ 
+ #ifdef CONFIG_MMU
+ extern void __init vmalloc_init(void);
++extern unsigned long vmalloc_nr_pages(void);
+ #else
+ static inline void vmalloc_init(void)
+ {
+ }
++static inline unsigned long vmalloc_nr_pages(void) { return 0; }
+ #endif
+ 
+ extern void *vmalloc(unsigned long size);
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index b7455d4c8c12..8f0179895fb5 100644
+index f1f19d1105c4..3a1872ee8294 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -1477,6 +1477,24 @@ struct vm_struct *find_vm_area(const void *addr)
- 	return NULL;
- }
+@@ -340,6 +340,13 @@ static unsigned long cached_align;
  
-+static struct vm_struct *__remove_vm_area(struct vmap_area *va)
+ static unsigned long vmap_area_pcpu_hole;
+ 
++static atomic_long_t nr_vmalloc_pages;
++
++unsigned long vmalloc_nr_pages(void)
 +{
-+	struct vm_struct *vm = va->vm;
-+
-+	might_sleep();
-+
-+	spin_lock(&vmap_area_lock);
-+	va->vm = NULL;
-+	va->flags &= ~VM_VM_AREA;
-+	va->flags |= VM_LAZY_FREE;
-+	spin_unlock(&vmap_area_lock);
-+
-+	kasan_free_shadow(vm);
-+	free_unmap_vmap_area(va);
-+
-+	return vm;
++	return atomic_long_read(&nr_vmalloc_pages);
 +}
 +
- /**
-  * remove_vm_area - find and remove a continuous kernel virtual area
-  * @addr:	    base address
-@@ -1489,31 +1507,20 @@ struct vm_struct *find_vm_area(const void *addr)
-  */
- struct vm_struct *remove_vm_area(const void *addr)
+ static struct vmap_area *__find_vmap_area(unsigned long addr)
  {
-+	struct vm_struct *vm = NULL;
- 	struct vmap_area *va;
+ 	struct rb_node *n = vmap_area_root.rb_node;
+@@ -1566,6 +1573,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
+ 			BUG_ON(!page);
+ 			__free_pages(page, 0);
+ 		}
++		atomic_long_sub(area->nr_pages, &nr_vmalloc_pages);
  
--	might_sleep();
--
- 	va = find_vmap_area((unsigned long)addr);
--	if (va && va->flags & VM_VM_AREA) {
--		struct vm_struct *vm = va->vm;
--
--		spin_lock(&vmap_area_lock);
--		va->vm = NULL;
--		va->flags &= ~VM_VM_AREA;
--		va->flags |= VM_LAZY_FREE;
--		spin_unlock(&vmap_area_lock);
--
--		kasan_free_shadow(vm);
--		free_unmap_vmap_area(va);
-+	if (va && va->flags & VM_VM_AREA)
-+		vm = __remove_vm_area(va);
- 
--		return vm;
--	}
--	return NULL;
-+	return vm;
- }
- 
- static void __vunmap(const void *addr, int deallocate_pages)
- {
- 	struct vm_struct *area;
-+	struct vmap_area *va;
- 
- 	if (!addr)
- 		return;
-@@ -1522,17 +1529,18 @@ static void __vunmap(const void *addr, int deallocate_pages)
- 			addr))
- 		return;
- 
--	area = find_vm_area(addr);
--	if (unlikely(!area)) {
-+	va = find_vmap_area((unsigned long)addr);
-+	if (unlikely(!va || !(va->flags & VM_VM_AREA))) {
- 		WARN(1, KERN_ERR "Trying to vfree() nonexistent vm area (%p)\n",
- 				addr);
- 		return;
+ 		kvfree(area->pages);
  	}
- 
-+	area = va->vm;
- 	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
- 	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
- 
--	remove_vm_area(addr);
-+	__remove_vm_area(va);
- 	if (deallocate_pages) {
- 		int i;
- 
-@@ -1547,7 +1555,6 @@ static void __vunmap(const void *addr, int deallocate_pages)
+@@ -1742,12 +1750,14 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 		if (unlikely(!page)) {
+ 			/* Successfully allocated i pages, free them in __vunmap() */
+ 			area->nr_pages = i;
++			atomic_long_add(area->nr_pages, &nr_vmalloc_pages);
+ 			goto fail;
+ 		}
+ 		area->pages[i] = page;
+ 		if (gfpflags_allow_blocking(gfp_mask|highmem_mask))
+ 			cond_resched();
  	}
++	atomic_long_add(area->nr_pages, &nr_vmalloc_pages);
  
- 	kfree(area);
--	return;
- }
- 
- static inline void __vfree_deferred(const void *addr)
+ 	if (map_vm_area(area, prot, pages))
+ 		goto fail;
 -- 
 2.20.1
 
