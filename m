@@ -2,197 +2,209 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 90076C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:34:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9801CC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:42:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4A7FF20663
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:34:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A7FF20663
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 5220C2087C
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:42:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5220C2087C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E63C28E0010; Mon, 25 Feb 2019 10:34:04 -0500 (EST)
+	id ED3398E000F; Mon, 25 Feb 2019 10:42:07 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E13338E000D; Mon, 25 Feb 2019 10:34:04 -0500 (EST)
+	id E827F8E000D; Mon, 25 Feb 2019 10:42:07 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CDBC58E0010; Mon, 25 Feb 2019 10:34:04 -0500 (EST)
+	id DA6048E000F; Mon, 25 Feb 2019 10:42:07 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B7438E000D
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:34:04 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id w16so8042412pfn.3
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:34:04 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 9842F8E000D
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:42:07 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id g197so8035623pfb.15
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:42:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=vkgH9+6AH4vkTAGEO3gO1nUMRgBUguP9BwVrAM4Qy1o=;
-        b=iCiuL2//xL8Sif0EgdxAh/I2wu6R7zbQpWQB5CK7rZjovzueWweqdDzVyxfGgSHU0X
-         UB+bDu+ce1S77ekIW4+dwyhqEaKaXntLMdPm40N254tDABTLzSe+eAFUe741DtH2GW/D
-         w6k73RfuYBBkMMU4ACXnmROP3vHtd9kiY+ZN6/kv2f/eV87L4Vtk9CKwFWtxD0/xke+c
-         uCITy58D4aKeS43ocw/yyHYHCEnpA6SdcGjI3b0vPIbQcz78p5/xeWX/I/rGhwgtTaj1
-         5hkI+E4XCKCidtkVNaVgY1gxVR+XZliWHh1PgLRA7OYxOrMPmBkgIo45w59yzm1D3lXt
-         IrXQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuYpUKqAV4i/kNgJZ3juOEUaJLAZfqPlISFCKFH1rCunSdFQgD51
-	+qDZp0LTK7DVikBxJ32cQFX5DrSL9XpO1jL/mh+g6+6UqbaBtKJkTgNw2i3HOBRvzit1Yj59XQq
-	4TR7QOxehXDe9q3YNEbUp9dJDkaLKmOTAtsU5vqouDD31XVWXDsG7PSJ2C/6TpTAujg==
-X-Received: by 2002:a63:4247:: with SMTP id p68mr10802261pga.30.1551108844170;
-        Mon, 25 Feb 2019 07:34:04 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbmaCl+SgFr1pGf7zWJ91rSIZ5T1STQMNhQo2fFazkd25mynNpIfy4HwHQftxHfZILqjQe4
-X-Received: by 2002:a63:4247:: with SMTP id p68mr10802199pga.30.1551108843270;
-        Mon, 25 Feb 2019 07:34:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551108843; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=AcE+sZK0A2LB1q0joW9FegtnHXodVSESC6wTlQL+cBE=;
+        b=sh5A9+NATk82mt3R3tOD9uclzPRIFPW8PcXOdsnSZn8mKcmwTg4tBF52zySJeHoIq6
+         imfOaE/+AMy20vknYrIqApb2PvLfkEZ+USoqYlnnUOzdWOZ0YHyBAZrKM2r6/MLdH/Oh
+         SYrRcH5ObpQCHc4j/URFqvWtaO+fWtDdMlaY6pp8ofraWHMwpWSpHAatgXQybEgLA1+L
+         HIfQG46z7ByaXl7vvzNyR2m+1aEy6sXXos1PYtk6W165e4gqOAtqyJYmiI2wdQuJjsdc
+         b7F2CmiwORxgGeOciOC8R7aalPu87LcnGWz4d2iGcsSAE9xvcD96PIK2ooxZr8r3ivcK
+         Nwaw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuYuXdPYRRRaZ9eI/OaIazz4lbdKJ3fcc/5dUmi06WkkhsCpu+Mk
+	A4S0YVjCUieBPSHQPf9lr2QHXKoAVOGg/GAu8ttX9xVVIYufvVi4uECnNEjcKrzJwWxJEzNOPS5
+	vonh4ZRSpTPFwNjkaKYQpcjjCd11JvdF+YbN33mmn6rdLU2s1BhgRfaivqgdS6wD/YA==
+X-Received: by 2002:a17:902:850a:: with SMTP id bj10mr20890132plb.91.1551109327294;
+        Mon, 25 Feb 2019 07:42:07 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZjUbXEX42Jug4p8nnHCUV+b3UCevxq4PTIxypz2/eS72OgxvqAfo2w9emzhSJWa7Jg9gfi
+X-Received: by 2002:a17:902:850a:: with SMTP id bj10mr20890062plb.91.1551109326240;
+        Mon, 25 Feb 2019 07:42:06 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551109326; cv=none;
         d=google.com; s=arc-20160816;
-        b=niqMpzXE20yShncIyPup2vGY/Obt5xJ1QG8mUepJOjV+OOULOPoW4KAFbymsMwEM2K
-         n83aSXznzNjSmmRT7EZmub3TDSCQDx72mz81uD7Ob/cl6p+uMS2bvV52Dnre+tE0XF13
-         LfONAAFBQN07EJPZ4JGnLb2davyfyKErD2YeDwtKOj0UJDBA8G3vULURrtYBWzo2Ag58
-         7EjU1F0JOOATFK0frTv4QV+Ah9sYpXehYOYjFe2oFvlIz+ahtQMJpxeQtlWuIOBAUsGQ
-         0tIYcH8zDh0yffqOxkCIePd7mgQrJ+njVSBWfpgnCDnyO+YXtFqqHnCP98I7v0vfpXgc
-         AQjQ==
+        b=mFf8SSjs1Qr1fMV3QXTVXK53YH8wNj8iHMf0TI84ZnNzbt7LaTY1jorvrWzipUyUT1
+         qHuXEriIefNCnv05/FUcVHqlb6EsF0zPs5JNTFDMhAT/opf+waCEUFtdJ1LOQjvINiMr
+         2Qq9P2RQLUFlsdQe5COE9VBhWsWOsPLntRv5k1mQl14VZQxkQ55YQ+OeMxMMVAUq4CPt
+         GubR4IgpqNzHkztRhRD/XRGBJcHpwKGw3KqXfpOCxTe1iP1SxioffGD9+vYhdZgYeH78
+         kwarxLLqZYOM/3xO69YesCv7blruPGguUqdm6xSvNdySL4fDlh2c6wIc1gfpKMsFlJIA
+         ti1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=vkgH9+6AH4vkTAGEO3gO1nUMRgBUguP9BwVrAM4Qy1o=;
-        b=PNFzQwYMxumY1pv3LTQrZMn6Fpt5Oi41CFvsGVA60v5DXKqRf1XGAjz7+MdrSOacE2
-         ydfayTuMXJICuoT45gNXftN/rr/+9iSJM6qsXxS184NuzY1dpEkoqO5KL36baGvqJkL9
-         8mS6T9TS1DRRQBceQ6WVKECJyIqA9vbzUvqTLYa3d+yvwPkCFoomhEvboj5+auR+MYvY
-         4SUk+O8QL/TTjVyQLaBaNBTi+xtM07nY0brdOYcEFzjcsscOAzKsMz/aeaE75tWm8T5i
-         6S5JzNO01hlBnZf2+TfAe62nitbPFMs5tEwZH5/QpqO3xEBXVK7oIUxIxl4iwXqmEgow
-         oxvQ==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=AcE+sZK0A2LB1q0joW9FegtnHXodVSESC6wTlQL+cBE=;
+        b=f2gGuw7Mvkl3Ee/ZPMYV7xm2pfp/q70pFSbzeOscDpTd8WPqjnBQjbdMkWw2gQ69sP
+         A3w6zWAxB5yH27ijdDe6cXzqXHtMyksZrVpBXU9vCFtiQIVwtAhOhYigZfm4g6aQ0BbO
+         +Wx1nx/e2IYJVRlyTRqQ/Dy1EdexTpeJJBnCedzPd73VAyDgCy2m7tRA42tuoDeDFL5W
+         59zxz9ZHFl/ZU523oJblvvHjklR9Hr98Zrv6VcrWSUmd8vQxHC/QNjjF5n0ns/97rgZQ
+         Img5G1TxKKY9EjiDrtXzgRzTFLtNTyvMujK3A9s2FXhI4drTBN646Ipo+zRMGIEbiB0A
+         e5Qw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id y9si9271203pgv.134.2019.02.25.07.34.03
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 1si776143plv.228.2019.02.25.07.42.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 07:34:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        Mon, 25 Feb 2019 07:42:06 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Feb 2019 07:34:02 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,411,1544515200"; 
-   d="scan'208";a="137037992"
-Received: from mmshuai-mobl.amr.corp.intel.com (HELO [10.254.87.252]) ([10.254.87.252])
-  by orsmga002.jf.intel.com with ESMTP; 25 Feb 2019 07:34:02 -0800
-Subject: Re: [PATCH 2/6] mm/memblock: make full utilization of numa info
-To: Pingfan Liu <kernelfans@gmail.com>, x86@kernel.org, linux-mm@kvack.org
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>,
- Mike Rapoport <rppt@linux.vnet.ibm.com>,
- Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>,
- Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andy Lutomirski <luto@kernel.org>,
- Andi Kleen <ak@linux.intel.com>, Petr Tesarik <ptesarik@suse.cz>,
- Michal Hocko <mhocko@suse.com>, Stephen Rothwell <sfr@canb.auug.org.au>,
- Jonathan Corbet <corbet@lwn.net>, Nicholas Piggin <npiggin@gmail.com>,
- Daniel Vacek <neelx@redhat.com>, linux-kernel@vger.kernel.org
-References: <1551011649-30103-1-git-send-email-kernelfans@gmail.com>
- <1551011649-30103-3-git-send-email-kernelfans@gmail.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- mQINBE6HMP0BEADIMA3XYkQfF3dwHlj58Yjsc4E5y5G67cfbt8dvaUq2fx1lR0K9h1bOI6fC
- oAiUXvGAOxPDsB/P6UEOISPpLl5IuYsSwAeZGkdQ5g6m1xq7AlDJQZddhr/1DC/nMVa/2BoY
- 2UnKuZuSBu7lgOE193+7Uks3416N2hTkyKUSNkduyoZ9F5twiBhxPJwPtn/wnch6n5RsoXsb
- ygOEDxLEsSk/7eyFycjE+btUtAWZtx+HseyaGfqkZK0Z9bT1lsaHecmB203xShwCPT49Blxz
- VOab8668QpaEOdLGhtvrVYVK7x4skyT3nGWcgDCl5/Vp3TWA4K+IofwvXzX2ON/Mj7aQwf5W
- iC+3nWC7q0uxKwwsddJ0Nu+dpA/UORQWa1NiAftEoSpk5+nUUi0WE+5DRm0H+TXKBWMGNCFn
- c6+EKg5zQaa8KqymHcOrSXNPmzJuXvDQ8uj2J8XuzCZfK4uy1+YdIr0yyEMI7mdh4KX50LO1
- pmowEqDh7dLShTOif/7UtQYrzYq9cPnjU2ZW4qd5Qz2joSGTG9eCXLz5PRe5SqHxv6ljk8mb
- ApNuY7bOXO/A7T2j5RwXIlcmssqIjBcxsRRoIbpCwWWGjkYjzYCjgsNFL6rt4OL11OUF37wL
- QcTl7fbCGv53KfKPdYD5hcbguLKi/aCccJK18ZwNjFhqr4MliQARAQABtEVEYXZpZCBDaHJp
- c3RvcGhlciBIYW5zZW4gKEludGVsIFdvcmsgQWRkcmVzcykgPGRhdmUuaGFuc2VuQGludGVs
- LmNvbT6JAjgEEwECACIFAlQ+9J0CGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEGg1
- lTBwyZKwLZUP/0dnbhDc229u2u6WtK1s1cSd9WsflGXGagkR6liJ4um3XCfYWDHvIdkHYC1t
- MNcVHFBwmQkawxsYvgO8kXT3SaFZe4ISfB4K4CL2qp4JO+nJdlFUbZI7cz/Td9z8nHjMcWYF
- IQuTsWOLs/LBMTs+ANumibtw6UkiGVD3dfHJAOPNApjVr+M0P/lVmTeP8w0uVcd2syiaU5jB
- aht9CYATn+ytFGWZnBEEQFnqcibIaOrmoBLu2b3fKJEd8Jp7NHDSIdrvrMjYynmc6sZKUqH2
- I1qOevaa8jUg7wlLJAWGfIqnu85kkqrVOkbNbk4TPub7VOqA6qG5GCNEIv6ZY7HLYd/vAkVY
- E8Plzq/NwLAuOWxvGrOl7OPuwVeR4hBDfcrNb990MFPpjGgACzAZyjdmYoMu8j3/MAEW4P0z
- F5+EYJAOZ+z212y1pchNNauehORXgjrNKsZwxwKpPY9qb84E3O9KYpwfATsqOoQ6tTgr+1BR
- CCwP712H+E9U5HJ0iibN/CDZFVPL1bRerHziuwuQuvE0qWg0+0SChFe9oq0KAwEkVs6ZDMB2
- P16MieEEQ6StQRlvy2YBv80L1TMl3T90Bo1UUn6ARXEpcbFE0/aORH/jEXcRteb+vuik5UGY
- 5TsyLYdPur3TXm7XDBdmmyQVJjnJKYK9AQxj95KlXLVO38lcuQINBFRjzmoBEACyAxbvUEhd
- GDGNg0JhDdezyTdN8C9BFsdxyTLnSH31NRiyp1QtuxvcqGZjb2trDVuCbIzRrgMZLVgo3upr
- MIOx1CXEgmn23Zhh0EpdVHM8IKx9Z7V0r+rrpRWFE8/wQZngKYVi49PGoZj50ZEifEJ5qn/H
- Nsp2+Y+bTUjDdgWMATg9DiFMyv8fvoqgNsNyrrZTnSgoLzdxr89FGHZCoSoAK8gfgFHuO54B
- lI8QOfPDG9WDPJ66HCodjTlBEr/Cwq6GruxS5i2Y33YVqxvFvDa1tUtl+iJ2SWKS9kCai2DR
- 3BwVONJEYSDQaven/EHMlY1q8Vln3lGPsS11vSUK3QcNJjmrgYxH5KsVsf6PNRj9mp8Z1kIG
- qjRx08+nnyStWC0gZH6NrYyS9rpqH3j+hA2WcI7De51L4Rv9pFwzp161mvtc6eC/GxaiUGuH
- BNAVP0PY0fqvIC68p3rLIAW3f97uv4ce2RSQ7LbsPsimOeCo/5vgS6YQsj83E+AipPr09Caj
- 0hloj+hFoqiticNpmsxdWKoOsV0PftcQvBCCYuhKbZV9s5hjt9qn8CE86A5g5KqDf83Fxqm/
- vXKgHNFHE5zgXGZnrmaf6resQzbvJHO0Fb0CcIohzrpPaL3YepcLDoCCgElGMGQjdCcSQ+Ci
- FCRl0Bvyj1YZUql+ZkptgGjikQARAQABiQIfBBgBAgAJBQJUY85qAhsMAAoJEGg1lTBwyZKw
- l4IQAIKHs/9po4spZDFyfDjunimEhVHqlUt7ggR1Hsl/tkvTSze8pI1P6dGp2XW6AnH1iayn
- yRcoyT0ZJ+Zmm4xAH1zqKjWplzqdb/dO28qk0bPso8+1oPO8oDhLm1+tY+cOvufXkBTm+whm
- +AyNTjaCRt6aSMnA/QHVGSJ8grrTJCoACVNhnXg/R0g90g8iV8Q+IBZyDkG0tBThaDdw1B2l
- asInUTeb9EiVfL/Zjdg5VWiF9LL7iS+9hTeVdR09vThQ/DhVbCNxVk+DtyBHsjOKifrVsYep
- WpRGBIAu3bK8eXtyvrw1igWTNs2wazJ71+0z2jMzbclKAyRHKU9JdN6Hkkgr2nPb561yjcB8
- sIq1pFXKyO+nKy6SZYxOvHxCcjk2fkw6UmPU6/j/nQlj2lfOAgNVKuDLothIxzi8pndB8Jju
- KktE5HJqUUMXePkAYIxEQ0mMc8Po7tuXdejgPMwgP7x65xtfEqI0RuzbUioFltsp1jUaRwQZ
- MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
- hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
- vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
-Message-ID: <0371b80b-3b4c-2377-307f-2001153edd19@intel.com>
-Date: Mon, 25 Feb 2019 07:34:03 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1PFZPcb134949
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:42:05 -0500
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qvjbfb62g-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:42:05 -0500
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 25 Feb 2019 15:42:02 -0000
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 25 Feb 2019 15:41:55 -0000
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1PFfspS4980780
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Mon, 25 Feb 2019 15:41:54 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 6BC0111C04C;
+	Mon, 25 Feb 2019 15:41:54 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 7A68D11C052;
+	Mon, 25 Feb 2019 15:41:52 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.205.26])
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Mon, 25 Feb 2019 15:41:52 +0000 (GMT)
+Date: Mon, 25 Feb 2019 17:41:50 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        David Hildenbrand <david@redhat.com>, Hugh Dickins <hughd@google.com>,
+        Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>,
+        Pavel Emelyanov <xemul@virtuozzo.com>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+        Marty McFadden <mcfadden8@llnl.gov>,
+        Andrea Arcangeli <aarcange@redhat.com>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        Denis Plotnikov <dplotnikov@virtuozzo.com>,
+        Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>,
+        "Kirill A . Shutemov" <kirill@shutemov.name>,
+        "Dr . David Alan Gilbert" <dgilbert@redhat.com>,
+        Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>
+Subject: Re: [PATCH v2 06/26] userfaultfd: wp: add helper for writeprotect
+ check
+References: <20190212025632.28946-1-peterx@redhat.com>
+ <20190212025632.28946-7-peterx@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1551011649-30103-3-git-send-email-kernelfans@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190212025632.28946-7-peterx@redhat.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19022515-0016-0000-0000-0000025AAE04
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19022515-0017-0000-0000-000032B50C16
+Message-Id: <20190225154149.GA24917@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-25_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902250114
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/24/19 4:34 AM, Pingfan Liu wrote:
-> +/*
-> + * build_node_order() relies on cpumask_of_node(), hence arch should 
-> + * set up cpumask before calling this func.
-> + */
+On Tue, Feb 12, 2019 at 10:56:12AM +0800, Peter Xu wrote:
+> From: Shaohua Li <shli@fb.com>
+> 
+> add helper for writeprotect check. Will use it later.
+> 
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Pavel Emelyanov <xemul@parallels.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Kirill A. Shutemov <kirill@shutemov.name>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Shaohua Li <shli@fb.com>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Peter Xu <peterx@redhat.com>
 
-Whenever I see comments like this, I wonder what happens if the arch
-doesn't do this?  Do we just crash in early boot in wonderful new ways?
- Or do we get a nice message telling us?
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
 
-> +void __init memblock_build_node_order(void)
+> ---
+>  include/linux/userfaultfd_k.h | 10 ++++++++++
+>  1 file changed, 10 insertions(+)
+> 
+> diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
+> index 37c9eba75c98..38f748e7186e 100644
+> --- a/include/linux/userfaultfd_k.h
+> +++ b/include/linux/userfaultfd_k.h
+> @@ -50,6 +50,11 @@ static inline bool userfaultfd_missing(struct vm_area_struct *vma)
+>  	return vma->vm_flags & VM_UFFD_MISSING;
+>  }
+> 
+> +static inline bool userfaultfd_wp(struct vm_area_struct *vma)
 > +{
-> +	int nid, i;
-> +	nodemask_t used_mask;
-> +
-> +	node_fallback = memblock_alloc(MAX_NUMNODES * sizeof(int *),
-> +		sizeof(int *));
-> +	for_each_online_node(nid) {
-> +		node_fallback[nid] = memblock_alloc(
-> +			num_online_nodes() * sizeof(int), sizeof(int));
-> +		for (i = 0; i < num_online_nodes(); i++)
-> +			node_fallback[nid][i] = NUMA_NO_NODE;
-> +	}
-> +
-> +	for_each_online_node(nid) {
-> +		nodes_clear(used_mask);
-> +		node_set(nid, used_mask);
-> +		build_node_order(node_fallback[nid], num_online_nodes(),
-> +			nid, &used_mask);
-> +	}
+> +	return vma->vm_flags & VM_UFFD_WP;
 > +}
+> +
+>  static inline bool userfaultfd_armed(struct vm_area_struct *vma)
+>  {
+>  	return vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP);
+> @@ -94,6 +99,11 @@ static inline bool userfaultfd_missing(struct vm_area_struct *vma)
+>  	return false;
+>  }
+> 
+> +static inline bool userfaultfd_wp(struct vm_area_struct *vma)
+> +{
+> +	return false;
+> +}
+> +
+>  static inline bool userfaultfd_armed(struct vm_area_struct *vma)
+>  {
+>  	return false;
+> -- 
+> 2.17.1
+> 
 
-This doesn't get used until patch 6 as far as I can tell.  Was there a
-reason to define it here?
+-- 
+Sincerely yours,
+Mike.
 
