@@ -2,93 +2,94 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ADF9DC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 12:01:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CEE3C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 12:10:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 622A9213A2
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 12:01:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 622A9213A2
+	by mail.kernel.org (Postfix) with ESMTP id 2D458213A2
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 12:10:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D458213A2
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 013038E0006; Mon, 25 Feb 2019 07:01:04 -0500 (EST)
+	id A6A078E015A; Mon, 25 Feb 2019 07:10:51 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F03638E0004; Mon, 25 Feb 2019 07:01:03 -0500 (EST)
+	id A19968E0005; Mon, 25 Feb 2019 07:10:51 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DCC6D8E0006; Mon, 25 Feb 2019 07:01:03 -0500 (EST)
+	id 8E1418E015A; Mon, 25 Feb 2019 07:10:51 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CBFA8E0004
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:01:03 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id i22so3809364eds.20
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 04:01:03 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 347F58E0005
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:10:51 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id f2so3745709edm.18
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 04:10:51 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=OcLkOmbGB8vzK34XQ0qmhuZVp2as2xwj/HHqx6/a+K4=;
-        b=TsaRJyO1O6fzT2V77asuxtx5Ct8rIIsNWu8C8Z4m9Rh4nNOLYGyLvWz0RTnu9RhlW2
-         13D8/bJxrjvn9W9TKjCv6aucnpwBj/3qescDpB0HT9hQh8VyOHf65KWaMMHSCDHOz8bt
-         SO3MdIInLKWgj4ebFoZEbx07k00Ut6wWdNhBT3Ntj1opS2BubRXRe1Ydsc/EEqTy+RtM
-         ZtLg9ZnAuhcHOAFblbLYU8nzaAvxnvQpJH+RvHMFVJBn+GKE3bjQ+/NkXIPCg9DT8pK7
-         WNLSsFNbfv4mUy4XnvjRsOH1f/VHvSPlkvfXXtTi5RNkk2O3QG6bMXeMie5KQCrzFrD4
-         usSQ==
+        bh=dpOrLdNjkim1QwZfRwH6+S2/fe/XfM/GCADpNn+cbM8=;
+        b=DGUp1wh5XSIEqXtn00akta3EsshAWT0grgbLMtk+ceKW32hDsVNnPw8YnfSagqmZ3J
+         2BkXe8F0e84QGVDnrRFonZbmZPZdpr4cIeMFqAMI3OQnaZxNn8zED1VqLVEQxaBDm3nr
+         h7MLAffN2jL5lqh3loE81o4IlzzhfZqMdmgRsDP+I2z32SpPaQrWcegoSGyTwJlfXR5e
+         eUf8JBkzhdV6lYx1HXftS+lCfe+0jQrDT5eW2wcgLjes6ZbiIoo/isJkpfuHci5oZQPi
+         SeHTvoQGLqUIqssNHFl9Fe0kPA9bKvLe2fQqWYX/5prAS2KTwC5bTOSkjdsz3ANK2V5z
+         EX+A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: AHQUAuYi3EbhTlShzUqwjteUlDKEDIgm6BYJYd9Y81tJ3uhZCQDbG6/N
-	O+CUCBXxE7r1HAWeQjSQXvuj3JEn9tAnMCi3FBWshRnuevASUPbu+ATGGHtf1jO5JlQ49l423el
-	eE6KKpa8ye00MLK6rC5TuXgRNf/CRy8lBZLpfw75PSw1QI//m2SRRA3eyP9bq7xPQNg==
-X-Received: by 2002:a50:b4db:: with SMTP id x27mr14423660edd.90.1551096063069;
-        Mon, 25 Feb 2019 04:01:03 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaqA6A3psVawBM7L/J00nwgybEydvrCYGTkkU3ceEpZHuY5d2SHvjFEyKy9xWFUHF1EFqud
-X-Received: by 2002:a50:b4db:: with SMTP id x27mr14423571edd.90.1551096061809;
-        Mon, 25 Feb 2019 04:01:01 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551096061; cv=none;
+X-Gm-Message-State: AHQUAuYwWnuV0wz9OC2Y2mif6IxeBIc7f0+C8Bu2NpTkdFvAjIa723Cu
+	y3+PZEcUsy8JEQQxPt17EFtaIDEZeqdyJlzUM97gGp4N0uMTwcg7yCbnmawO6HT34h0sjCybimq
+	cbupreBMzgHTgMrVMEpzNq4McXIXXh8OB5QT7B11dyNj18TVtwFME3tBLUeWyuUEAgw==
+X-Received: by 2002:a17:906:28c4:: with SMTP id p4mr12933010ejd.63.1551096650776;
+        Mon, 25 Feb 2019 04:10:50 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaENNt6rWq2uUAbMQSFaHY+bGqPBX+/RmhoKLLNzhZONzkxxd96xKH8qeHyKqcRk7KHCmKK
+X-Received: by 2002:a17:906:28c4:: with SMTP id p4mr12932956ejd.63.1551096649605;
+        Mon, 25 Feb 2019 04:10:49 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551096649; cv=none;
         d=google.com; s=arc-20160816;
-        b=dYuBKAvkHNA61qSbFltJW8ollvtqxdm5+mAGHAQKClmf6huzAyaxOQDeskFpKKavRA
-         C5+EkCfAYj5ewTxDbaGl1aDVmiP9PNqbRT2IXdYuFe559W80xLwa/lcTadTX0MWQ0Zlt
-         eTqEDzeufO0o/11hBeGWdie/8XNLxn0lMpQxcWizpFgyjUIHlsjMCcKbRyuu5VkRGPkd
-         BMpXZOQNlWFHGMnz2habIent4YALajYURZEkJchtWeu7gawFsBC+VpYU1vOIsXn+BuC8
-         v6tAvCqCGPgAMw9r0U6wEgsSKWVh8AmSllk7JwASCFBIMhfEkBpw1lQG6Re/oAczcp9F
-         qBjQ==
+        b=wd/f91diYUhmdNB/Y549X6GA+n3X8C8jWyYoY0A/TMomPe2VKdnv27CECHmFGGCTRo
+         TaPzQcen7V9EjHNjutSPoP3B8lH++mPtHl9d0qBIhbtRZjjbsNRQsrcLECp7Ead8DkGn
+         eUv5sMaCWVoiSkq0Vj41rKkJdlzIVvk3N2QrmDv50fJfBTrDXZAezNjhrPiaPtH/3O2/
+         TLNwiwsP/tvfq+POChArU6kOZrlw/widzNrq1m4vqxSBP38Bhe4TX3xUYXnI2Rd5YaJ/
+         Hh2gCJoDrUGl4mZaXwcan0tExeOTR5ShI0ZItxhc/D9JzQSMLceNRHd7INCeGuFqZwm6
+         oERg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=OcLkOmbGB8vzK34XQ0qmhuZVp2as2xwj/HHqx6/a+K4=;
-        b=ncRoaUjnPV9UrHdRUZ43iKUygU31wsISWNWmTPWOLvNSjgdnpTU1w14LxECRLS2KVT
-         XrpWVP6eDLssi4MFo695OKR33cvQIZl6ihqVharvAbtppvUTXVzB+NMfY8kwZXpnJvil
-         UDzIG+3OKPQvopFbgu+ZmoFKMNWhiSIC2szXxvp9K2AhkRCr9UnPYra9kGHIp2J8oG/u
-         MgEQwLCnPeGGsvnYZOtIUMUoW5npNRRQ8A71P7s1to73LLlFi8GaQ/vQald4s5n548K5
-         ufEuMB0hgiXK1pGMYoNB5Elp67Nrnx1xC1Znb32jwOYy5DdMEmN/xZEQHCaDWfL5AZnb
-         Q1Sg==
+        bh=dpOrLdNjkim1QwZfRwH6+S2/fe/XfM/GCADpNn+cbM8=;
+        b=ciE8rOWq4QULc3i5IZwmytpYeVukJ9uvG+LYejXN1Y+fUTchnfDhCv2flk9YOf+GRi
+         RtuZwF9E5ZjtT5e7As2RZDUGqBcZXvcW46sL7iiWD44eCrwHrzo7oG/u2Ot7Os+sNmFg
+         9L4rdXlrWe3KEFW/NUmvjOTgfHIFiKCxYKhZZY/jD+weHb6B0qBXbo7qefS6pJZ7Qjsl
+         pbLKqQ/t6yaIhPrBgn+vlEkfUNIlSITR1mhzekuF3/8aUM7Gl+v7Dzpf4dKTM6NWGiSd
+         QX+i/uQG4BvG9rdP3hTUrnkikH9YG9gkfyKd7R9yzORcD0vIEnis1BND5peM4WuQLX+c
+         vK6A==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f55si1248735ede.435.2019.02.25.04.01.01
+        by mx.google.com with ESMTPS id p25si3236984ejq.180.2019.02.25.04.10.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 04:01:01 -0800 (PST)
+        Mon, 25 Feb 2019 04:10:49 -0800 (PST)
 Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id D6158B000;
-	Mon, 25 Feb 2019 12:01:00 +0000 (UTC)
-Subject: Re: [PATCH 1/5] mm/workingset: remove unused @mapping argument in
- workingset_eviction()
+	by mx1.suse.de (Postfix) with ESMTP id 2EEC3AEE8;
+	Mon, 25 Feb 2019 12:10:49 +0000 (UTC)
+Subject: Re: [PATCH 2/5] mm: remove zone_lru_lock() function access ->lru_lock
+ directly
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>,
  Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
  Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
  Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>
 References: <20190222174337.26390-1-aryabinin@virtuozzo.com>
+ <20190222174337.26390-2-aryabinin@virtuozzo.com>
 From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
 Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
@@ -151,12 +152,12 @@ Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
  5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
  hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
  Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
-Message-ID: <e56aea36-f454-a75f-5f83-4150b87c9c15@suse.cz>
-Date: Mon, 25 Feb 2019 13:01:00 +0100
+Message-ID: <d7bdecc2-5e64-a3a6-e62c-3feec00972f2@suse.cz>
+Date: Mon, 25 Feb 2019 13:10:48 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.5.0
 MIME-Version: 1.0
-In-Reply-To: <20190222174337.26390-1-aryabinin@virtuozzo.com>
+In-Reply-To: <20190222174337.26390-2-aryabinin@virtuozzo.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -166,70 +167,26 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+s/function/and/ on the subject?
+
 On 2/22/19 6:43 PM, Andrey Ryabinin wrote:
-> workingset_eviction() doesn't use and never did use the @mapping argument.
-> Remove it.
+> We have common pattern to access lru_lock from a page pointer:
+> 	zone_lru_lock(page_zone(page))
+> 
+> Which is silly, because it unfolds to this:
+> 	&NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)]->zone_pgdat->lru_lock
+> while we can simply do
+> 	&NODE_DATA(page_to_nid(page))->lru_lock
+
+Heh, well spotted.
+
+> 
+> Remove zone_lru_lock() function, since it's only complicate things.
+> Use 'page_pgdat(page)->lru_lock' pattern instead.
 > 
 > Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Rik van Riel <riel@surriel.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> ---
->  include/linux/swap.h | 2 +-
->  mm/vmscan.c          | 2 +-
->  mm/workingset.c      | 3 +--
->  3 files changed, 3 insertions(+), 4 deletions(-)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 649529be91f2..fc50e21b3b88 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -307,7 +307,7 @@ struct vma_swap_readahead {
->  };
->  
->  /* linux/mm/workingset.c */
-> -void *workingset_eviction(struct address_space *mapping, struct page *page);
-> +void *workingset_eviction(struct page *page);
->  void workingset_refault(struct page *page, void *shadow);
->  void workingset_activation(struct page *page);
->  
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index ac4806f0f332..a9852ed7b97f 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -952,7 +952,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
->  		 */
->  		if (reclaimed && page_is_file_cache(page) &&
->  		    !mapping_exiting(mapping) && !dax_mapping(mapping))
-> -			shadow = workingset_eviction(mapping, page);
-> +			shadow = workingset_eviction(page);
->  		__delete_from_page_cache(page, shadow);
->  		xa_unlock_irqrestore(&mapping->i_pages, flags);
->  
-> diff --git a/mm/workingset.c b/mm/workingset.c
-> index dcb994f2acc2..0906137760c5 100644
-> --- a/mm/workingset.c
-> +++ b/mm/workingset.c
-> @@ -215,13 +215,12 @@ static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
->  
->  /**
->   * workingset_eviction - note the eviction of a page from memory
-> - * @mapping: address space the page was backing
->   * @page: the page being evicted
->   *
->   * Returns a shadow entry to be stored in @mapping->i_pages in place
 
-The line above still references @mapping, I guess kerneldoc build will
-complain?
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
->   * of the evicted @page so that a later refault can be detected.
->   */
-> -void *workingset_eviction(struct address_space *mapping, struct page *page)
-> +void *workingset_eviction(struct page *page)
->  {
->  	struct pglist_data *pgdat = page_pgdat(page);
->  	struct mem_cgroup *memcg = page_memcg(page);
-> 
+Thanks.
 
