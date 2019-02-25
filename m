@@ -2,139 +2,166 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2FF6EC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 19:54:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B61BBC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:11:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C924D2084D
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 19:54:14 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="F2Z1siwE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C924D2084D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 813DC2087C
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:11:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 813DC2087C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 340AC8E000D; Mon, 25 Feb 2019 14:54:14 -0500 (EST)
+	id 09D438E000D; Mon, 25 Feb 2019 15:11:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2CA268E000C; Mon, 25 Feb 2019 14:54:14 -0500 (EST)
+	id 04D308E000C; Mon, 25 Feb 2019 15:11:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1BB748E000D; Mon, 25 Feb 2019 14:54:14 -0500 (EST)
+	id EA4E98E000D; Mon, 25 Feb 2019 15:11:27 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A092A8E000C
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 14:54:13 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id z15so1607602ljz.7
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 11:54:13 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A32C68E000C
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 15:11:27 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id 27so3157268pgv.14
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 12:11:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=NMjSLSh3kp6WB7h5Y9AuNjxZZ/9KcGlk9e4LZplkaBE=;
-        b=nv/Yvx3HM3nl4rndexy2RsTpFegiy3Z6MOndqFiKiCa9ex0Qfz4X97ly58+YNiqwPu
-         WKxiKJdl6e8/v6/94a0livIjgrU92r8XUr/hxPnjS8drdqc4ASBVgvqB2wxQRN1hH46/
-         94fe5gl6w/VjcTkPUU3bOj5QosL5eu91U7aUzS+byEY384QczxYoGtmCTqmjy8xQGSHM
-         hIDGRwrrfuRSN0RmB7NWpm8kyNMldCrm4IOlkiQXQ/5AjJWIZzV6ql3Jcttg/8s1ycQV
-         08z830pRRS3yf1lSEq4/Os2TRa0B8SpztwgK6F2/oqU00JDJ/F915JBmJ7iEynPn3NzJ
-         Ulmg==
-X-Gm-Message-State: AHQUAubW3ygMS3qUBZflxjjzssgPcJLYp7sgdAb6nVf1OqyF3YFgoW2c
-	ovd1mAhESc5GR/0fjcIqEAPAJV6bS7KvoZjim9BcDJwtLxN8+C4j85UvUa7aZesSpFf4rAz3pha
-	OQGqa9yjzKWEtoNRdK6Ewn2XJk8stUTP19UvZwBK3V2YqqSpYK5ZwG8IxBglAVZE14OcmwzqpdS
-	E9K52Tkn1a2RMDgSHXcfWPU+H9IFHK2uORqKnO/+fBajTP4GHayGN7TUgSwviUH6oPt3JJkPc3Z
-	MyI5BjF1tYNSswWkFPQeGQ+SVTsSqJROYryRREdJ5r9YcNCQN4Bi0r5MVo0xeM6Uw1UeB1RDMs4
-	Y5+wbXIR6EHLi/vybNjNBViN3UvBAd/DS4VQJcaFp9feuNIpjh81o62J44Gg2Z/XcLMzmnRRBWK
-	F
-X-Received: by 2002:ac2:52b7:: with SMTP id r23mr12000829lfm.66.1551124452877;
-        Mon, 25 Feb 2019 11:54:12 -0800 (PST)
-X-Received: by 2002:ac2:52b7:: with SMTP id r23mr12000788lfm.66.1551124451799;
-        Mon, 25 Feb 2019 11:54:11 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551124451; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=fdfJqYf6fQiL8j/rxMjQKxwFPpwZJcqxwtIDtcFiAh0=;
+        b=AioN/YaQ7hI2+iQYXtbvjAkD9VCQwLyJOnwHRx3FZ4zT5U5qAAjhqW7u6IhJyjlqVU
+         fOf0F4hd4XNbJ9jHTU57J0gR3Z+CxOmnw6+m39b1sLIL5LBctwyp/Kp5/iKGrCp3k5Hd
+         GycIpfv2KrNNP7YHm7P2zhp2Ze9Eo91nbdyhsxqzHpimpaNajzDHSlltpV8x+GwTHkhU
+         oMbvC6Hl7raAaZkIvA5/WRlDt/fWxY2526hJqTqnj/y2egKhXJPyXFd2wMjxTigIcU63
+         4WIrp734iOio3Q1qtpVnH1d4QKeIIanu++JYg/f0H1kwpksjwBbX4q/Y769NGVGYXdki
+         tvBg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.131 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: AHQUAub5yMtxhxz3fZyiAe/FgC/4xYX2YSkrIi/XNLRwbqEsiAlsl1HR
+	Fcv8vOhws1xNp4kLZ67ot7PkQmk3bqZq84bcAz+Q1X2aEcAM8Aw+NSJI9YyJirAm3+mPUewW4rU
+	bklGKyvJETIVO+ItfxkyxFLbvB0JpdyixBk51oJNgl6OAXvGll7TIG/DiX8jkxgQ=
+X-Received: by 2002:a62:59d0:: with SMTP id k77mr21919893pfj.211.1551125487321;
+        Mon, 25 Feb 2019 12:11:27 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IamJyBngcH/hjP8iSOoU93+v7rScFJ2OioqWJQB5/ajZeOT4e+n2X+toeohasj4HM9v4K5g
+X-Received: by 2002:a62:59d0:: with SMTP id k77mr21919805pfj.211.1551125486255;
+        Mon, 25 Feb 2019 12:11:26 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551125486; cv=none;
         d=google.com; s=arc-20160816;
-        b=iBVyvTipEy40jAV+LDtbsDM943XR70DOCTxKh2Zu6p06CfbkSnGSbfgj2pN6YlDpHI
-         6Eqf3rur2UMR+LxT31SNjuco9cto87uq1H0CX/BesqXG9JEavUuA5zqiN3X6IolSmDTz
-         NJStAIU/SNDYwB9Q/t39huoQJkRYlh8nPKLlG67aQdLqwXOtXx0sBIzNMTnoy7ooD8cr
-         UNYLk4Tzfkcl44NOoNBEcOvcBfOy3mf+ceX3L4TlrBw5FCp//xc3EWK9rtsMU29UFaaz
-         p/ILsGaDW9ruzaKdEa2x5qF0kkGhf60XOMhWs1Uwn3ycIfHBYq2nEsA6FGqpCohWkyt9
-         ZpOw==
+        b=v/Rzdj7J4vKolr5CNiFesd2XqJ0YxuBJrhfaroDX7bnWfyD56/ixFnueYWagcPnNly
+         D7sSnywv16JRk+ohn2q0zYuLDBfNobRlKQPRUH05ERLtiCkIRTIYaBebzgS41UL2xNRp
+         cZ7kIh3WWi4Do4uivj1LHWZIcrF0cclX6JKfE3W/slxhxU1C+hT5kvrsNCAa7R4NDITy
+         td98KsIFSMac9cMOb2634tWCvGrRcoo9BEb9Q6YdqmaKsrkOlqsfrrbIcn5TdVMpK8FV
+         eqdcOhs/jPmE7q9notu85jP6rCZuzWvhV0tYN1j5BrZ8J+EXrUAm+paF5wPul3huZZGm
+         HTqw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=NMjSLSh3kp6WB7h5Y9AuNjxZZ/9KcGlk9e4LZplkaBE=;
-        b=GB3tT8viHX1CyIqwabsSHkw+ur//CA1MKfi+kib0vut0GTu73UUamGBDPVt5oX2ior
-         CF//WzJP6H3R2fpHPSq/VbyX0oF8JP9FqnEA2TOk3XmBeRuIYvixSHYKkyUntaS3x8Su
-         rrVj1tWetvluxC95/asc+Z3KckrlryizZl0qoeXwqBChU8AtOaFZKzVeFPdsU6ucRRAD
-         7yultatHxgz1zBBWnq5026/O/UZ2o9aLjYfRpmYf+WovE152uWStVmdrnqv4rzGyxUqF
-         JKmXF5rDU3PNyuVwgPSO265nFt5F6/XZsnruzQOM1DC/geShRelxyAq8EFi+ef7gb8XQ
-         7iDw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=fdfJqYf6fQiL8j/rxMjQKxwFPpwZJcqxwtIDtcFiAh0=;
+        b=Ip0t5HYwg8FWSbcvMMsfKpCsP0YxPVvYV1T6WqF3CLKcM2M/qUiPL0aT0O+XRYyUfY
+         Ae4YZyFPGSP/nfL6d08glYiaWMXWbFqueg1nVDdx4u2a7oqkPnV0/QNgGqpcSf6mIsxi
+         IXTtROoBQuDQqW6lAI+Clsfbih32SX+BYUH6XGzGjKCjGS1tTuRe3/t8qVQlfawNb1j/
+         mCIm+EoDx9+ndczllNb2c/P0Zl/NTBeDWsB0yLuKkZlZe6htt9wyyxjzNCTr+snX3g3o
+         +TmB8yJ6iQzJEjF4gCZtRkaAhErRUan/atQoGCy2lsdi1F7GpzWUScPxNLdsT8u5aPN5
+         P27w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=F2Z1siwE;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u9sor2655508lfc.15.2019.02.25.11.54.11
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 25 Feb 2019 11:54:11 -0800 (PST)
-Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=neutral (google.com: 150.101.137.131 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id p4si10582172pli.159.2019.02.25.12.11.25
+        for <linux-mm@kvack.org>;
+        Mon, 25 Feb 2019 12:11:26 -0800 (PST)
+Received-SPF: neutral (google.com: 150.101.137.131 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.131;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=F2Z1siwE;
-       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linux-foundation.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=NMjSLSh3kp6WB7h5Y9AuNjxZZ/9KcGlk9e4LZplkaBE=;
-        b=F2Z1siwEJ5qc+oOUttqdscrbgsALxm3T8O/vOxq1if/vkdiJLNLY86YME4c917bI82
-         VuttugCNtmEi6CzrZCyPzZLzA/YktR8+oMz8EO3tK0dR1oz/n0g5BVMz298PkeUDRdxt
-         hV4MfN7wOXi0TdMHZ+OTZiDno30IadTVuUOOI=
-X-Google-Smtp-Source: AHgI3IapoHIcHCHo5wutBsjXetCTBIHah/G5TZae4FiPu8Df/YCy41ktIOGwLBk+1QV3iWm4XYqQiQ==
-X-Received: by 2002:a19:2396:: with SMTP id j144mr10440738lfj.159.1551124450291;
-        Mon, 25 Feb 2019 11:54:10 -0800 (PST)
-Received: from mail-lf1-f54.google.com (mail-lf1-f54.google.com. [209.85.167.54])
-        by smtp.gmail.com with ESMTPSA id u15sm1560110lja.73.2019.02.25.11.54.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 11:54:09 -0800 (PST)
-Received: by mail-lf1-f54.google.com with SMTP id n15so7830271lfe.5
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 11:54:09 -0800 (PST)
-X-Received: by 2002:ac2:415a:: with SMTP id c26mr11947222lfi.62.1551124448787;
- Mon, 25 Feb 2019 11:54:08 -0800 (PST)
+       spf=neutral (google.com: 150.101.137.131 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
+  by ipmail07.adl2.internode.on.net with ESMTP; 26 Feb 2019 06:41:23 +1030
+Received: from dave by dastard with local (Exim 4.80)
+	(envelope-from <david@fromorbit.com>)
+	id 1gyMaw-0005N6-L2; Tue, 26 Feb 2019 07:11:22 +1100
+Date: Tue, 26 Feb 2019 07:11:22 +1100
+From: Dave Chinner <david@fromorbit.com>
+To: Ming Lei <ming.lei@redhat.com>
+Cc: "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org,
+	Jens Axboe <axboe@kernel.dk>,
+	Vitaly Kuznetsov <vkuznets@redhat.com>,
+	Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+	Aaron Lu <aaron.lu@intel.com>, Christopher Lameter <cl@linux.com>,
+	Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org,
+	linux-block@vger.kernel.org
+Subject: Re: [PATCH] xfs: allocate sector sized IO buffer via page_frag_alloc
+Message-ID: <20190225201122.GF23020@dastard>
+References: <20190225040904.5557-1-ming.lei@redhat.com>
+ <20190225043648.GE23020@dastard>
+ <20190225084623.GA8397@ming.t460p>
 MIME-Version: 1.0
-References: <20190221222123.GC6474@magnolia> <alpine.LSU.2.11.1902222222570.1594@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1902222222570.1594@eggly.anvils>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 25 Feb 2019 11:53:52 -0800
-X-Gmail-Original-Message-ID: <CAHk-=wgO3MPjPpf_ARyW6zpwwPZtxXYQgMLbmj2bnbOLnR+6Cg@mail.gmail.com>
-Message-ID: <CAHk-=wgO3MPjPpf_ARyW6zpwwPZtxXYQgMLbmj2bnbOLnR+6Cg@mail.gmail.com>
-Subject: Re: [PATCH] tmpfs: fix uninitialized return value in shmem_link
-To: Hugh Dickins <hughd@google.com>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Matej Kupljen <matej.kupljen@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>, 
-	Dan Carpenter <dan.carpenter@oracle.com>, 
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, 
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190225084623.GA8397@ming.t460p>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 22, 2019 at 10:35 PM Hugh Dickins <hughd@google.com> wrote:
->
-> When we made the shmem_reserve_inode call in shmem_link conditional, we
-> forgot to update the declaration for ret so that it always has a known
-> value.  Dan Carpenter pointed out this deficiency in the original patch.
+On Mon, Feb 25, 2019 at 04:46:25PM +0800, Ming Lei wrote:
+> On Mon, Feb 25, 2019 at 03:36:48PM +1100, Dave Chinner wrote:
+> > On Mon, Feb 25, 2019 at 12:09:04PM +0800, Ming Lei wrote:
+> > > XFS uses kmalloc() to allocate sector sized IO buffer.
+> > ....
+> > > Use page_frag_alloc() to allocate the sector sized buffer, then the
+> > > above issue can be fixed because offset_in_page of allocated buffer
+> > > is always sector aligned.
+> > 
+> > Didn't we already reject this approach because page frags cannot be
+> 
+> I remembered there is this kind of issue mentioned, but just not found
+> the details, so post out the patch for restarting the discussion.
 
-Applied.
+As previously discussed, the only solution that fits all use cases
+we have to support are a slab caches that do not break object
+alignment when slab debug options are turned on.
 
-Side note: how come gcc didn't warn about this? Yes, we disable that
-warning for some cases because of lots of false positives, but I
-thought the *default* setup still had it.
+> > reused and that pages allocated to the frag pool are pinned in
+> > memory until all fragments allocated on the page have been freed?
+> 
+> Yes, that is one problem. But if one page is consumed, sooner or later,
+> all fragments will be freed, then the page becomes available again.
 
-Is it just that the goto ends up confusing gcc enough that it never notices?
+Ah, no, your assumption about how metadata caching in XFS works is
+flawed. Some metadata ends up being cached for the life of the
+filesystem because it is so frequently referenced it never gets
+reclaimed. AG headers, btree root blocks, etc.  And the XFS metadata
+cache hangs on to such metadata even under extreme memory pressure
+because if we reclaim it then any filesystem operation will need to
+reallocate that memory to clean dirty pages and that is the very
+last thing we want to do under extreme memory pressure conditions.
 
-                Linus
+If allocation cannot reuse holes in pages (i.e. works as a proper
+slab cache) then we are going to blow out the amount of memory that
+the XFS metadata cache uses very badly on filesystems where block
+size != page size. 
+
+> > i.e. when we consider 64k page machines and 4k block sizes (i.e.
+> > default config), every single metadata allocation is a sub-page
+> > allocation and so will use this new page frag mechanism. IOWs, it
+> > will result in fragmenting memory severely and typical memory
+> > reclaim not being able to fix it because the metadata that pins each
+> > page is largely unreclaimable...
+> 
+> It can be an issue in case of IO timeout & retry.
+
+This makes no sense to me. Exactly how does filesystem memory
+allocation affect IO timeouts and any retries the filesystem might
+issue?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
