@@ -2,162 +2,130 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C047C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:57:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 66F11C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 14:55:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 45D4A20663
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:57:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45D4A20663
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 06E602146F
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 14:55:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kiMnI9cn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06E602146F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A66DE8E0012; Mon, 25 Feb 2019 08:57:50 -0500 (EST)
+	id 558F38E000D; Mon, 25 Feb 2019 09:55:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A15F08E000C; Mon, 25 Feb 2019 08:57:50 -0500 (EST)
+	id 508AA8E000B; Mon, 25 Feb 2019 09:55:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 905928E0012; Mon, 25 Feb 2019 08:57:50 -0500 (EST)
+	id 3AB3D8E000D; Mon, 25 Feb 2019 09:55:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 372958E000C
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 08:57:50 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id o25so3826973edr.0
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 05:57:50 -0800 (PST)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D971E8E000B
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 09:55:07 -0500 (EST)
+Received: by mail-wm1-f71.google.com with SMTP id v8so1492323wmj.1
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 06:55:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=ZGNWv11U5FZX035jwnoCr5uhsJllKNTcKRrOHg1n6q8=;
-        b=qFeAHQEZ5othwPEkAgQA9YdfU/YgXuP0FZlo7Cv3cS8ps4zo5sjKFgkxt5JJ//bn4P
-         LgZcXLZm6lI/CLFeYaM8JF2BYhpZf6714u0UMGk4YuX06Sq7NYlxDT4QvjzrpfkBCUEW
-         IvdGIqWdt4k9OIe5gANp9WtYnoh8JBD8mOzOk4j4itCYF4HfiBrei1uXCJgZ+V7jiwlM
-         a+rsS04FYCD3dklLZwUB8PY/W+xA420GkelD8GXdUTdq/DR6D1DQPETGTZrhYkJ9nvzF
-         V6GRCyZzRlk/Esvv29adG1uxLqKkEZTFZiwj4m/669dZccfeodxpYiEj7dyOypjBm2d4
-         d1wQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: AHQUAuYSxexegIWyI1C5UFYD3ZiCvqHEi2GjiCoxAWnPicI0zY97PYQ6
-	TJhuMA0BTIZ46CkUryrgeXNSg9RcWIszsKS+jUiCkEgmYG0UpaBP12SmYRgoro3AL7jXHSLE7qu
-	QiJ8h7TbFal0a6Kbo58fhpEdaRaf48Twv3nlN41mrOzFHDeJJdYQyerqmcQICDNsMlQ==
-X-Received: by 2002:a17:906:23f1:: with SMTP id j17mr13096011ejg.188.1551103069747;
-        Mon, 25 Feb 2019 05:57:49 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZCpvsX4U7WpSHMjrHGcmHW6IHuseoJ2/GKbmRsEV/eQ8BHYHTJ26HeUhQkDzEViNeYPawz
-X-Received: by 2002:a17:906:23f1:: with SMTP id j17mr13095957ejg.188.1551103068819;
-        Mon, 25 Feb 2019 05:57:48 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551103068; cv=none;
+        h=x-gm-message-state:dkim-signature:cc:subject:to:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=FnueZ7IgA8rCLeU7Gwwu1v68InYcHlydtHfzBGaNhqg=;
+        b=IwU7XWU3B7clpqS9w6Du8bZLPd1U685FXDVdZ9FK2o18YHpcsNBieAXLsBtwEZN49/
+         80zW/1DQAQAa4krohdMvAvSZDFiTZXeyuswuup7u6vo7g1Gpz0wBGU5SkI/zSsH9ZlaA
+         d/1pbT9fCPHmik9x8u29YjG+Smk+ul8V8d6AfvluuZxNZt1Soz5Oedt6Cw2eoKa7/ZVP
+         lBVAcsNx/MbqBqQRVC1ecnBE/nf+5L/rKazNtoT53qwqrWZAdaEYD0c/sx3q4sGmwO4N
+         ghQjh5wEWEyo5Qbv73Vg0f0sVTEdrAukyppuTrTb7SNkorvVVknfVVG+WbVrUoZ/RIEV
+         B7rQ==
+X-Gm-Message-State: AHQUAuZ1PdyD1dPQl7kTIccmts7e9I6mUx5ILis/aSBQVLWR+njzJZYq
+	Nz47RVaMr5h43B2BA4Q2Y/IoTuLZxdR5000BG8+uZABP8jaTrGYY2MCpbqbBRtrvXUA90QE/K4Y
+	P25tp2b6+g5C4t1mjqM4xqWmkg8L85yAHzRw7GRIyl+PHd6lgrAkmqVRlXliS4XeUZRoQilI45H
+	NO+CDwpcc/RG5GK4mtn1iXzW/cCkHAFPcYYq1xc29iIbtkrwiE4IKe/rVhYCkpPZyQDnVhgP7fb
+	cE+r0+lRxjuQ1Bnu6AGd/E+WQoHuw51qnKOlOA+x66KlBDhO8tqSzbSLHc70VIr6wz4ObZZTpEs
+	lc8NXH9dSU9BAo5LEOl2lHh5nTqYUeT/kKKZQsDLSthI+eIoYc/KzpHSJYbZHfeYE7tGrhqLv9U
+	D
+X-Received: by 2002:a1c:d183:: with SMTP id i125mr10446912wmg.30.1551106507315;
+        Mon, 25 Feb 2019 06:55:07 -0800 (PST)
+X-Received: by 2002:a1c:d183:: with SMTP id i125mr10446863wmg.30.1551106506204;
+        Mon, 25 Feb 2019 06:55:06 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551106506; cv=none;
         d=google.com; s=arc-20160816;
-        b=bC2hXdsQibsIpd/9zyZNzepC2WEnAmBu+RtV05qAoDeI6xLQ8RyJTCvqWtMw2IR02r
-         PP2OO2+WKZGR/mhNn7j08wRZR893suuH6uDgARoFzh2XRvmxB1+dnCIr6SgKEOzSV/1o
-         t7+OMptdghVzwXKCUxUg7LA9bB/G72s5LsA24TczlF0ID2EjRpB6K6oz71kV25KjCDma
-         sWXviSUtZBpNu3gGXGyJNwpldKrzDI6/A3yl20zk2lKr6y5SgRryThZ/WGZ780WKVPeR
-         lvZ0go/vZWqf29roZtTqqZXbLkoucVPJyr9/8VntR+xcbZbFB124wd4NVm5gww6tHVAv
-         h61Q==
+        b=Dy5i2WonGQVXgY4oyZ1rJ46vR2T+NHGEwEmp7qevAMT4jP5vNr0LXbnBuVI1jJrdG3
+         R9cn7Uk708vDRvuyXxa+OH7BRFlFP6OWZbbo2iVdfk4IR+CWYR0VwMR/orUr1doGRVOS
+         DC2Pn1mL+NWizIpLm+VUg6ohThzGh/m/Ikv0yzz/H3M89/vqKO+M//FHWBnhW8ewNlTR
+         QMhSLfMMYauRnGsOoUuIZmeuPfPP28Yku5VneBG4fqLOoNEQ1zILTxgXEwCb/KivygFI
+         RKxlAcYO0w528T0iObBe5zMMw7T4FC0Mex3wbuRCHJObRQjgureu2S2RJsBqqrGfi8/q
+         o+dw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=ZGNWv11U5FZX035jwnoCr5uhsJllKNTcKRrOHg1n6q8=;
-        b=iGB5LSgT9VaEORprK07I6CypdcWCqb22HBLBiBZJMN6LoWPWGFbATsYMzCO646uz/S
-         du2UFYDRgu8iH5m7J36OC1aQBdRfEkX+P7pclHdNKT+xHLcfEmdQReiTPmQf+ag5FKc4
-         gGlAFS+5NNeANepL4Kzk80ITnaJB2+A9g8b0a6XIGooVbqRbKScycdfKdo+FQ36o3w+/
-         TCVXUY/oVIbgYiseZ8MCIHTJXkppiZx7C00QSo+lABWiFOO2RtNa86pep0+p/wi+037Y
-         dHyG6sDdWbGRqahlTApEXDG3fhTjcnXWf8xuzEtMpPLQJfTUDQZ7yBlhqKnUl0bNGVOh
-         Lk6A==
+         :user-agent:date:message-id:from:references:to:subject:cc
+         :dkim-signature;
+        bh=FnueZ7IgA8rCLeU7Gwwu1v68InYcHlydtHfzBGaNhqg=;
+        b=D36UnI5aA7Bem8SwsgRDXrC9Pgb9tTE4qRAsroiBCmcr1vCeHMpypRynk7Ht8sUEtw
+         +aN+bxvD9ENuXVu2+HDoBPNzRefexR7su06LB+587NpzfL4pdi51AIGmlz1gpInEVJ/B
+         VOaBvIHyP7r3ZrJR+P2i9uQYU1OzdCisjZ6V6RRVqvlTjeMa9QHMxE23RZwR72hUiNFb
+         I/K2nbVJ9SUTuxo8K8U0QOU2JU4Yf4c4/twbj9gMXZtRDEnfMTsT7PUaxV1xflh832vy
+         pbnR6pSfSNnnHJSz/QWUBQclALO2WcCm1X7/a/95mX5mB1xxO7vMCPAy/he6NHyuMD33
+         PIUg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s17si2528956ejq.87.2019.02.25.05.57.48
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kiMnI9cn;
+       spf=pass (google.com: domain of mtk.manpages@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mtk.manpages@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d2sor6291617wrj.29.2019.02.25.06.55.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 05:57:48 -0800 (PST)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Mon, 25 Feb 2019 06:55:06 -0800 (PST)
+Received-SPF: pass (google.com: domain of mtk.manpages@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id AE224AD23;
-	Mon, 25 Feb 2019 13:57:47 +0000 (UTC)
-Subject: Re: [PATCH RFC] mm/vmscan: try to protect active working set of
- cgroup from reclaim.
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>,
- Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
- Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>,
- Roman Gushchin <guro@fb.com>, Shakeel Butt <shakeelb@google.com>
-References: <20190222175825.18657-1-aryabinin@virtuozzo.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <cac00e0f-5d90-7e20-e0d1-ad831a32d36d@suse.cz>
-Date: Mon, 25 Feb 2019 14:57:46 +0100
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kiMnI9cn;
+       spf=pass (google.com: domain of mtk.manpages@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mtk.manpages@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=cc:subject:to:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=FnueZ7IgA8rCLeU7Gwwu1v68InYcHlydtHfzBGaNhqg=;
+        b=kiMnI9cnaFC+hPmjq5tlaHrWWeVu0An8EuJG3iO5RC3aOLJQcE22McBXepYR1KFlrX
+         6FOpAh7X3wmrN/cwFhDZQQ3inp1WUMlfd91fTdoHet4VXKjt3zRswPbcvxdwB4VP9gPz
+         aSFDv2zemKltI8/JIHnWqxkK5Q0e3NyRAfERuoc3gGxRwjiVjpAVG5FP8kP6I7OBpEtW
+         FGuo06wjBQXuZppltnY1ysSh/aDxqrbiY9kElHt5ImM8LlrbvsA0z7weVCLa9M5izYId
+         xuaOVyynNTRaGAFSzOvri3pyyhnROsW9lxcKGPFmMclAhhxqtcrkEcus3Vab4aravkhc
+         W/Qg==
+X-Google-Smtp-Source: AHgI3IZVbhN223HxIrmHpDYhC1vNbII4YQzzRx7nERZ/9nQW80Z5Szvsa9KpxSDk/BK6NkQEI3BAUQ==
+X-Received: by 2002:a05:6000:10ce:: with SMTP id b14mr13691963wrx.221.1551106505650;
+        Mon, 25 Feb 2019 06:55:05 -0800 (PST)
+Received: from [10.0.21.20] ([95.157.63.22])
+        by smtp.gmail.com with ESMTPSA id e7sm11403783wrw.35.2019.02.25.06.55.04
+        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Feb 2019 06:55:04 -0800 (PST)
+Cc: mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-mm@kvack.org,
+ "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>,
+ Linus Torvalds <torvalds@linux-foundation.org>,
+ Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>,
+ linux-arch@vger.kernel.org, Benjamin Herrenschmidt
+ <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>,
+ Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org,
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+ <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org,
+ linux-api@vger.kernel.org
+Subject: Re: [PATCH] mmap.2: describe the 5level paging hack
+To: Jann Horn <jannh@google.com>
+References: <20190211163653.97742-1-jannh@google.com>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Message-ID: <f89de711-d73b-96be-75b6-0e9054022708@gmail.com>
+Date: Mon, 25 Feb 2019 15:55:04 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-In-Reply-To: <20190222175825.18657-1-aryabinin@virtuozzo.com>
+In-Reply-To: <20190211163653.97742-1-jannh@google.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -167,42 +135,80 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/22/19 6:58 PM, Andrey Ryabinin wrote:
-> In a presence of more than 1 memory cgroup in the system our reclaim
-> logic is just suck. When we hit memory limit (global or a limit on
-> cgroup with subgroups) we reclaim some memory from all cgroups.
-> This is sucks because, the cgroup that allocates more often always wins.
-> E.g. job that allocates a lot of clean rarely used page cache will push
-> out of memory other jobs with active relatively small all in memory
-> working set.
+On 2/11/19 5:36 PM, Jann Horn wrote:
+> The manpage is missing information about the compatibility hack for
+> 5-level paging that went in in 4.14, around commit ee00f4a32a76 ("x86/mm:
+> Allow userspace have mappings above 47-bit"). Add some information about
+> that.
 > 
-> To prevent such situations we have memcg controls like low/max, etc which
-> are supposed to protect jobs or limit them so they to not hurt others.
-> But memory cgroups are very hard to configure right because it requires
-> precise knowledge of the workload which may vary during the execution.
-> E.g. setting memory limit means that job won't be able to use all memory
-> in the system for page cache even if the rest the system is idle.
-> Basically our current scheme requires to configure every single cgroup
-> in the system.
+> While I don't think any hardware supporting this is shipping yet (?), I
+> think it's useful to try to write a manpage for this API, partly to
+> figure out how usable that API actually is, and partly because when this
+> hardware does ship, it'd be nice if distro manpages had information about
+> how to use it.
 > 
-> I think we can do better. The idea proposed by this patch is to reclaim
-> only inactive pages and only from cgroups that have big
-> (!inactive_is_low()) inactive list. And go back to shrinking active lists
-> only if all inactive lists are low.
+> Signed-off-by: Jann Horn <jannh@google.com>
+> ---
+> This patch goes on top of the patch "[PATCH] mmap.2: fix description of
+> treatment of the hint" that I just sent, but I'm not sending them in a
+> series because I want the first one to go in, and I think this one might
+> be a bit more controversial.
+> 
+> It would be nice if the architecture maintainers and mm folks could have
+> a look at this and check that what I wrote is right - I only looked at
+> the source for this, I haven't tried it.
+> 
+>  man2/mmap.2 | 15 +++++++++++++++
+>  1 file changed, 15 insertions(+)
+> 
+> diff --git a/man2/mmap.2 b/man2/mmap.2
+> index 8556bbfeb..977782fa8 100644
+> --- a/man2/mmap.2
+> +++ b/man2/mmap.2
+> @@ -67,6 +67,8 @@ is NULL,
+>  then the kernel chooses the (page-aligned) address
+>  at which to create the mapping;
+>  this is the most portable method of creating a new mapping.
+> +On Linux, in this case, the kernel may limit the maximum address that can be
+> +used for allocations to a legacy limit for compatibility reasons.
+>  If
+>  .I addr
+>  is not NULL,
+> @@ -77,6 +79,19 @@ or equal to the value specified by
+>  and attempt to create the mapping there.
+>  If another mapping already exists there, the kernel picks a new
+>  address, independent of the hint.
+> +However, if a hint above the architecture's legacy address limit is provided
+> +(on x86-64: above 0x7ffffffff000, on arm64: above 0x1000000000000, on ppc64 with
+> +book3s: above 0x7fffffffffff or 0x3fffffffffff, depending on page size), the
+> +kernel is permitted to allocate mappings beyond the architecture's legacy
+> +address limit. The availability of such addresses is hardware-dependent.
+> +Therefore, if you want to be able to use the full virtual address space of
+> +hardware that supports addresses beyond the legacy range, you need to specify an
+> +address above that limit; however, for security reasons, you should avoid
+> +specifying a fixed valid address outside the compatibility range,
+> +since that would reduce the value of userspace address space layout
+> +randomization. Therefore, it is recommended to specify an address
+> +.I beyond
+> +the end of the userspace address space.
+>  .\" Before Linux 2.6.24, the address was rounded up to the next page
+>  .\" boundary; since 2.6.24, it is rounded down!
+>  The address of the new mapping is returned as the result of the call.
+>
 
-Perhaps going this direction could also make page cache side-channel
-attacks harder?
-Quoting [1]:
+Hi Jann,
 
-"On Linux, we are only able
-to evict pages efficiently because we can trick the page re-
-placement algorithm into believing our target page would be
-the best choice for eviction. The reason for this lies in the
-fact that Linux uses a global page replacement algorithm,
-i.e., an algorithm which does not distinguish between dif-
-ferent processes. Global page replacement algorithms have
-been known for decades to allow one process to perform a
-denial-of-service on other processes"
+A few comments came in on this patch. Is there anything from
+those comments that should be rolled into the text?
 
-[1] https://arxiv.org/abs/1901.01161
+Thanks,
+
+Michael
+
+
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
