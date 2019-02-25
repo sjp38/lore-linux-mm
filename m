@@ -3,115 +3,115 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0BA2FC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 21:15:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1695BC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 21:19:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B12DD2173C
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 21:15:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B12DD2173C
+	by mail.kernel.org (Postfix) with ESMTP id C3B8F21841
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 21:19:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C3B8F21841
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4D7738E0005; Mon, 25 Feb 2019 16:15:45 -0500 (EST)
+	id 612508E0005; Mon, 25 Feb 2019 16:19:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4882C8E0004; Mon, 25 Feb 2019 16:15:45 -0500 (EST)
+	id 5BD9D8E0004; Mon, 25 Feb 2019 16:19:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 350198E0005; Mon, 25 Feb 2019 16:15:45 -0500 (EST)
+	id 45F428E0005; Mon, 25 Feb 2019 16:19:47 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E0388E0004
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 16:15:45 -0500 (EST)
-Received: by mail-ot1-f69.google.com with SMTP id a1so5649364otl.9
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 13:15:45 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 05A908E0004
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 16:19:47 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id b15so8697118pfo.12
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 13:19:46 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:references:mime-version:content-disposition:in-reply-to
          :user-agent:message-id;
-        bh=zNIt1w0//dOO8aUTURjCJG9RIaTCJCXg0q9hQnAG69I=;
-        b=fwq8nFGOTOcP+2ICJL2+f9zHG986JR+Gc7o8z39JoXMoTT9elOXfMdv7DAg8XI3R1H
-         mh2qz7Au+wzM4G5P9lTkhySCNRokSZf5CW4kxRK5Sc2Ggw84lHekMYnYZDlxIfxFjcAD
-         wkyHVC4SzPb+0Tc7jA6Xez+QyoO6OKoslo53NNq7h9ddzxcw2yOCJ90I6Ek7qj8StKQR
-         0sur7H0DtopVMOvYcCXHSp8p/wZCCBh9pjClzZZWBGd8GZMON+sjQLsId1Y8nLySAciT
-         iOW/08UAmNmjI92XcGFXX4ExekKMbUqftPNjbV8WZ3c4k1Mt+HB2xHgw9miAQJ6XH1Ws
-         TIpw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuY4opbs1rQz5W3sLUC9y95y7uZFDOuJjiHtGCeH8d9zjGVSmGkE
-	W1JBUI94epoxhc18b+6fBP9t8N6wauPwVxdlxaJlXYZTx8jfZkrhYaR9W4+GuWuqscmXmarDFtp
-	Uqc/lje1ebJydN3t4x2iPTsNwC26W1vpxBHdgkxXdTr0EB0hH0JG9hejBeCO9X8QXEw==
-X-Received: by 2002:a9d:4c02:: with SMTP id l2mr13153124otf.56.1551129344805;
-        Mon, 25 Feb 2019 13:15:44 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ib/sSgDSHF8TJJlUniqOyAVEWF/vWWeC8LeZqV2eyngXpGyeD4K3cPoW/sVcWD/yEn1mTjf
-X-Received: by 2002:a9d:4c02:: with SMTP id l2mr13153078otf.56.1551129343980;
-        Mon, 25 Feb 2019 13:15:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551129343; cv=none;
+        bh=06RUFWyhr1JNydZFm84M0rLC/o49Iji8GKyu9CLEckU=;
+        b=JQIHssNU5a4tIjnRcgObM0S1CPprwDamrK+gvosWgJ5JEXIsMs3yBfE3dqi5EBIe2t
+         r4wSI/3RgEz9f7u3TirMOBjnZiU823R1s+Kv+4B7NE43YyT8ylCHW6AgdTS23Q6sNbLb
+         Wn/yDMXPy6bddeWUy0ZR0lWRoFpdKh8oEXddQSqjsruZ1h8qAhO7KFCwjfFPzpg8aiU8
+         7UBsyluYLNSwDV21rf53jAQ+Uop0b0lrA48JTHTjUC5ysX/FSm8o4LjVbonEkeY5JCan
+         mq28nFylLBU5qpQE53LXKMOyFmqDCpoWahS0T/q4iFWAouv+jYW520G/rczWEGqi/aV9
+         nNww==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuY9GAxrKGjjntzFA6jbeERL1r2zJov10mLiz1ZmBBEeVUaK3jlJ
+	Gy3vEKOI8IPUWxvqUpOosZyPGxKjX6mERCdZRz3tVkE4F+G+++F9qLeRfaaxLcZlMRAMwlpqe/X
+	lSRsFMg0lgjElJPYULFByVDM5UCFGBlznjcvtjfDKp+EsHYf7wmfWzRjJ2wi1DAA3Xg==
+X-Received: by 2002:a65:438a:: with SMTP id m10mr8437136pgp.191.1551129586670;
+        Mon, 25 Feb 2019 13:19:46 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia5cPjUdgFapmjBUyBEmNySI4+EQiDFCaP2qm/0X8hdk93R08QS2dltCMC8hTOAACSlrBfT
+X-Received: by 2002:a65:438a:: with SMTP id m10mr8437069pgp.191.1551129585760;
+        Mon, 25 Feb 2019 13:19:45 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551129585; cv=none;
         d=google.com; s=arc-20160816;
-        b=fqvV5HcjqlpCW72kIkC0oTPG7nmAMc/TRbCEfR96NggGjqQkvOXsYqxxtWPoTCqFuM
-         g5AnWkdNyKSv5JjuP9SjVfq2sp7elZEGWMg+XyI7K6DGpuRMfq8JUvRUUFNdJeXThoYd
-         aewcBnDtTZlQHqZX7J+gzj8ZDQcU1uRtD6akFo4h49+2JK7oyKoAxdz3WGj0U2qPZzJ7
-         2/Q0xAr33z3JouzXA91X9B4bh7HcRQGMv6BBVJScTHcOplyTaPrBXgiXodyUPpiPpPKe
-         s3pzK8p+Te+WkLtbkMEQlSi87F2gXMo0FJcFhLfieWJYlSM8igXp/SZ881AQ6nNMLni0
-         2YIw==
+        b=FgS+f7QbyK/1qx2P1OVXruCLaOkiW4sMIB1R8nuxPsNoa6IdLMA7a+E6Ma8s2xp4pI
+         HKLQPrIhvvjbywwdYOx4szli5W4Jc2CGTRwIqNZyLubPs/ePk9d229VbRL81jMhnYtdY
+         Hi3puy7vH4aL78f3PY98mph3FCV22Wbc/cRdGpZtqSQj7VQxSxXKSAg/z0SD8fS0O/6M
+         37sLQ7V84eewJV2rSzRUhXlzeuBzjaF1bTqE3tN7IjIDRGAH2uArKgZDYNwKbIgquu+J
+         P7+j6Q5+9/YNoedn72TS21hre4tIzBH4qPnhkJ9zi6p2YYJb/3/XQvWW/vfQjHV0lYx5
+         jEYw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:user-agent:in-reply-to:content-disposition:mime-version
          :references:subject:cc:to:from:date;
-        bh=zNIt1w0//dOO8aUTURjCJG9RIaTCJCXg0q9hQnAG69I=;
-        b=hrO3ffqMCQ3myqk44eb6pguAe8CknnjxEvaso5N80BIzi+w54YawnW6bIdzHG/oWKa
-         BtMTwF+UewdpBg1g4CIw+c/iESoPNrNBEbYCVyQCJxxIWb6kZJAiDUvIm+A+ZM8FmajH
-         C9qM/Nsv47fK9DENBrQIAw40wU9d8PPIGW2/eFgLc1/xbCRpvCDqtEYSZa7T3wb3xTtw
-         Lvmn2SOd1k2SKuQVk1cHQXz5lkjylHFPkzk7n0fP0zZ1YULY7cmxnQMXP6sWqmFP5jKD
-         81SE1JPQH9PJJXgGydjslTF9uq/Q9iM7iL8npUGshqV/c8p5KuTx7anGnWGjAGr9iE80
-         4qxw==
+        bh=06RUFWyhr1JNydZFm84M0rLC/o49Iji8GKyu9CLEckU=;
+        b=tljn2j/ckkLapINq9ft5MaY+qkqyTbWl7M2CaEsN/CpuBuMyJ0LZQWg/5kPYAOEV/n
+         M33aRPB0FLFryGcm0o9l+VfQfW1ItnWlRGV48tfWp/tqHsUquB30LQ9AH0pOKDoba7r7
+         i0RZLYTuSuM1Lg5IVjtPhTd6frvwpeUYKuYN/Saos3GXU2JT9cN4hYrQN8uBJTk1HpWl
+         nqy/r+JnsffHaJ9+k1ThfcFIPX8Ko6PU4OiXyKF/m0R+wSYZzBnzEhKUEUgG9Ejl4M6L
+         +xknwlLrxxEmy1S0B3yRMxaMU2edqW7iE/MUlHadELlLkoucoa2aCiRSJIpl2RqdXaYt
+         sM7w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id l137si4178378oih.111.2019.02.25.13.15.43
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id d141si5190058pfd.81.2019.02.25.13.19.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 13:15:43 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Mon, 25 Feb 2019 13:19:45 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1PL536O046300
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 16:15:43 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2qvnk97kpp-1
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1PL4pmk016148
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 16:19:45 -0500
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qvnu56dbv-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 16:15:43 -0500
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 16:19:44 -0500
 Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 25 Feb 2019 21:15:41 -0000
+	Mon, 25 Feb 2019 21:19:41 -0000
 Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 25 Feb 2019 21:15:34 -0000
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1PLFXV332243892
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 25 Feb 2019 21:15:34 GMT
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id DC04CA4062;
-	Mon, 25 Feb 2019 21:15:33 +0000 (GMT)
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 0BDA3A4054;
-	Mon, 25 Feb 2019 21:15:31 +0000 (GMT)
+	Mon, 25 Feb 2019 21:19:37 -0000
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1PLJa0l23920710
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Mon, 25 Feb 2019 21:19:36 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id CBC0311C04A;
+	Mon, 25 Feb 2019 21:19:36 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 2C6C211C04C;
+	Mon, 25 Feb 2019 21:19:34 +0000 (GMT)
 Received: from rapoport-lnx (unknown [9.148.204.243])
-	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Mon, 25 Feb 2019 21:15:30 +0000 (GMT)
-Date: Mon, 25 Feb 2019 23:15:28 +0200
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Mon, 25 Feb 2019 21:19:34 +0000 (GMT)
+Date: Mon, 25 Feb 2019 23:19:32 +0200
 From: Mike Rapoport <rppt@linux.ibm.com>
 To: Peter Xu <peterx@redhat.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>,
-        Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        David Hildenbrand <david@redhat.com>, Hugh Dickins <hughd@google.com>,
+        Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>,
         Pavel Emelyanov <xemul@virtuozzo.com>,
         Johannes Weiner <hannes@cmpxchg.org>,
         Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
@@ -122,28 +122,26 @@ Cc: Jerome Glisse <jglisse@redhat.com>, linux-mm@kvack.org,
         Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>,
         "Kirill A . Shutemov" <kirill@shutemov.name>,
         "Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v2 23/26] userfaultfd: wp: don't wake up when doing write
- protect
+Subject: Re: [PATCH v2 24/26] userfaultfd: wp: UFFDIO_REGISTER_MODE_WP
+ documentation update
 References: <20190212025632.28946-1-peterx@redhat.com>
- <20190212025632.28946-24-peterx@redhat.com>
- <20190221183653.GV2813@redhat.com>
- <20190225085846.GE13653@xz-x1>
+ <20190212025632.28946-25-peterx@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190225085846.GE13653@xz-x1>
+In-Reply-To: <20190212025632.28946-25-peterx@redhat.com>
 User-Agent: Mutt/1.5.24 (2015-08-30)
 X-TM-AS-GCONF: 00
-x-cbid: 19022521-0016-0000-0000-0000025AC7EF
+x-cbid: 19022521-0020-0000-0000-0000031B21BF
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19022521-0017-0000-0000-000032B5271F
-Message-Id: <20190225211528.GF10454@rapoport-lnx>
+x-cbparentid: 19022521-0021-0000-0000-0000216C845B
+Message-Id: <20190225211930.GG10454@rapoport-lnx>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-25_11:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
  malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=845 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1902250151
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -151,116 +149,90 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 25, 2019 at 04:58:46PM +0800, Peter Xu wrote:
-> On Thu, Feb 21, 2019 at 01:36:54PM -0500, Jerome Glisse wrote:
-> > On Tue, Feb 12, 2019 at 10:56:29AM +0800, Peter Xu wrote:
-> > > It does not make sense to try to wake up any waiting thread when we're
-> > > write-protecting a memory region.  Only wake up when resolving a write
-> > > protected page fault.
-> > > 
-> > > Signed-off-by: Peter Xu <peterx@redhat.com>
-> > 
-> > I am bit confuse here, see below.
-> > 
-> > > ---
-> > >  fs/userfaultfd.c | 13 ++++++++-----
-> > >  1 file changed, 8 insertions(+), 5 deletions(-)
-> > > 
-> > > diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-> > > index 81962d62520c..f1f61a0278c2 100644
-> > > --- a/fs/userfaultfd.c
-> > > +++ b/fs/userfaultfd.c
-> > > @@ -1771,6 +1771,7 @@ static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
-> > >  	struct uffdio_writeprotect uffdio_wp;
-> > >  	struct uffdio_writeprotect __user *user_uffdio_wp;
-> > >  	struct userfaultfd_wake_range range;
-> > > +	bool mode_wp, mode_dontwake;
-> > >  
-> > >  	if (READ_ONCE(ctx->mmap_changing))
-> > >  		return -EAGAIN;
-> > > @@ -1789,18 +1790,20 @@ static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
-> > >  	if (uffdio_wp.mode & ~(UFFDIO_WRITEPROTECT_MODE_DONTWAKE |
-> > >  			       UFFDIO_WRITEPROTECT_MODE_WP))
-> > >  		return -EINVAL;
-> > > -	if ((uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_WP) &&
-> > > -	     (uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE))
+On Tue, Feb 12, 2019 at 10:56:30AM +0800, Peter Xu wrote:
+> From: Martin Cracauer <cracauer@cons.org>
 > 
-> [1]
+> Adds documentation about the write protection support.
 > 
-> > > +
-> > > +	mode_wp = uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_WP;
-> > > +	mode_dontwake = uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE;
-> > > +
-> > > +	if (mode_wp && mode_dontwake)
-> 
-> [2]
-> 
-> > >  		return -EINVAL;
-> > 
-> > I am confuse by the logic here. DONTWAKE means do not wake any waiting
-> > thread right ? So if the patch header it seems to me the logic should
-> > be:
-> >     if (mode_wp && !mode_dontwake)
-> >         return -EINVAL;
-> 
-> This should be the most common case when we want to write protect a
-> page (or a set of pages).  I'll explain more details below...
-> 
-> > 
-> > At very least this part does seems to mean the opposite of what the
-> > commit message says.
-> 
-> Let me paste the matrix to be clear on these flags:
-> 
->   |------+-------------------------+------------------------------|
->   |      | dontwake=0              | dontwake=1                   |
->   |------+-------------------------+------------------------------|
->   | wp=0 | (a) resolve pf, do wake | (b) resolve pf only, no wake |
->   | wp=1 | (c) wp page range       | (d) invalid                  |
->   |------+-------------------------+------------------------------|
-> 
-> Above check at [1] was checking against case (d) in the matrix.  It is
-> indeed an invalid condition because when we want to write protect a
-> page we should not try to wake up any thread, so the donewake
-> parameter is actually useless (we'll always do that).  And above [2]
-> is simply rewritting [1] with the new variables.
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> [peterx: rewrite in rst format; fixups here and there]
+> Signed-off-by: Peter Xu <peterx@redhat.com>
 
-I think (c) is "wp range and wake the thread", and (d) is "wp and DONT
-wake".
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
 
- 
-> > 
-> > >  
-> > >  	ret = mwriteprotect_range(ctx->mm, uffdio_wp.range.start,
-> > > -				  uffdio_wp.range.len, uffdio_wp.mode &
-> > > -				  UFFDIO_WRITEPROTECT_MODE_WP,
-> > > +				  uffdio_wp.range.len, mode_wp,
-> > >  				  &ctx->mmap_changing);
-> > >  	if (ret)
-> > >  		return ret;
-> > >  
-> > > -	if (!(uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE)) {
-> > > +	if (!mode_wp && !mode_dontwake) {
-> > 
-> > This part match the commit message :)
-> 
-> Here is what the patch really want to change: before this patch we'll
-> even call wake_userfault() below for case (c) while it doesn't really
-> make too much sense IMHO.  After this patch we'll only do the wakeup
-> for (a,b).
+Peter, can you please also update the man pages (1, 2)?
 
-Waking up the thread after the last region is write-protected would make
-sense. Not much savings for lots of ranges, though.
- 
-> > 
-> > >  		range.start = uffdio_wp.range.start;
-> > >  		range.len = uffdio_wp.range.len;
-> > >  		wake_userfault(ctx, &range);
+[1] http://man7.org/linux/man-pages/man2/userfaultfd.2.html
+[2] http://man7.org/linux/man-pages/man2/ioctl_userfaultfd.2.html
+
+> ---
+>  Documentation/admin-guide/mm/userfaultfd.rst | 51 ++++++++++++++++++++
+>  1 file changed, 51 insertions(+)
 > 
-> Thanks,
+> diff --git a/Documentation/admin-guide/mm/userfaultfd.rst b/Documentation/admin-guide/mm/userfaultfd.rst
+> index 5048cf661a8a..c30176e67900 100644
+> --- a/Documentation/admin-guide/mm/userfaultfd.rst
+> +++ b/Documentation/admin-guide/mm/userfaultfd.rst
+> @@ -108,6 +108,57 @@ UFFDIO_COPY. They're atomic as in guaranteeing that nothing can see an
+>  half copied page since it'll keep userfaulting until the copy has
+>  finished.
+> 
+> +Notes:
+> +
+> +- If you requested UFFDIO_REGISTER_MODE_MISSING when registering then
+> +  you must provide some kind of page in your thread after reading from
+> +  the uffd.  You must provide either UFFDIO_COPY or UFFDIO_ZEROPAGE.
+> +  The normal behavior of the OS automatically providing a zero page on
+> +  an annonymous mmaping is not in place.
+> +
+> +- None of the page-delivering ioctls default to the range that you
+> +  registered with.  You must fill in all fields for the appropriate
+> +  ioctl struct including the range.
+> +
+> +- You get the address of the access that triggered the missing page
+> +  event out of a struct uffd_msg that you read in the thread from the
+> +  uffd.  You can supply as many pages as you want with UFFDIO_COPY or
+> +  UFFDIO_ZEROPAGE.  Keep in mind that unless you used DONTWAKE then
+> +  the first of any of those IOCTLs wakes up the faulting thread.
+> +
+> +- Be sure to test for all errors including (pollfd[0].revents &
+> +  POLLERR).  This can happen, e.g. when ranges supplied were
+> +  incorrect.
+> +
+> +Write Protect Notifications
+> +---------------------------
+> +
+> +This is equivalent to (but faster than) using mprotect and a SIGSEGV
+> +signal handler.
+> +
+> +Firstly you need to register a range with UFFDIO_REGISTER_MODE_WP.
+> +Instead of using mprotect(2) you use ioctl(uffd, UFFDIO_WRITEPROTECT,
+> +struct *uffdio_writeprotect) while mode = UFFDIO_WRITEPROTECT_MODE_WP
+> +in the struct passed in.  The range does not default to and does not
+> +have to be identical to the range you registered with.  You can write
+> +protect as many ranges as you like (inside the registered range).
+> +Then, in the thread reading from uffd the struct will have
+> +msg.arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WP set. Now you send
+> +ioctl(uffd, UFFDIO_WRITEPROTECT, struct *uffdio_writeprotect) again
+> +while pagefault.mode does not have UFFDIO_WRITEPROTECT_MODE_WP set.
+> +This wakes up the thread which will continue to run with writes. This
+> +allows you to do the bookkeeping about the write in the uffd reading
+> +thread before the ioctl.
+> +
+> +If you registered with both UFFDIO_REGISTER_MODE_MISSING and
+> +UFFDIO_REGISTER_MODE_WP then you need to think about the sequence in
+> +which you supply a page and undo write protect.  Note that there is a
+> +difference between writes into a WP area and into a !WP area.  The
+> +former will have UFFD_PAGEFAULT_FLAG_WP set, the latter
+> +UFFD_PAGEFAULT_FLAG_WRITE.  The latter did not fail on protection but
+> +you still need to supply a page when UFFDIO_REGISTER_MODE_MISSING was
+> +used.
+> +
+>  QEMU/KVM
+>  ========
 > 
 > -- 
-> Peter Xu
+> 2.17.1
 > 
 
 -- 
