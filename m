@@ -2,94 +2,93 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30A8CC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 11:46:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ADF9DC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 12:01:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B6DB12147C
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 11:46:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6DB12147C
+	by mail.kernel.org (Postfix) with ESMTP id 622A9213A2
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 12:01:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 622A9213A2
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2B4478E0007; Mon, 25 Feb 2019 06:46:51 -0500 (EST)
+	id 013038E0006; Mon, 25 Feb 2019 07:01:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 265008E0004; Mon, 25 Feb 2019 06:46:51 -0500 (EST)
+	id F03638E0004; Mon, 25 Feb 2019 07:01:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 137FD8E0007; Mon, 25 Feb 2019 06:46:51 -0500 (EST)
+	id DCC6D8E0006; Mon, 25 Feb 2019 07:01:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AE0CA8E0004
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 06:46:50 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id j5so3751509edt.17
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 03:46:50 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CBFA8E0004
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:01:03 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id i22so3809364eds.20
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 04:01:03 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=tFwUwEqGb1rXwUYXN4mNnP93vKgOIcKRDgrGO7DYd+M=;
-        b=Gy0nZWoKNSbRvtDjoGCWR/N/aunh/HShvZNFnJzvQfLoURZ/z9L++bSSWf7ld3kG8g
-         6vdIsKuatL+SHkHBw1TJ2uU69hGEjQfVZDySYmtexmG1odBqz5ja8YG5xck2bllgIUiP
-         1xF0osCvprab6EX8Mdnmrrfs/BQA1vpsjpSJPXXkZHaxvQm17H3FhS5xZGwCzvvzCMSr
-         fkLZQoXB4RM/7pmO1QgIaKBc29+3iSdNclczF8nuQF7zFDZAolyOkXu9ZjBISGN5cG3b
-         Ums38A6APKsycrAS7j+07/VLfRIJQRMZKwKS60ZfTyTYCdZHp76qmGp6izxjE6MmE9vJ
-         BGRA==
+        bh=OcLkOmbGB8vzK34XQ0qmhuZVp2as2xwj/HHqx6/a+K4=;
+        b=TsaRJyO1O6fzT2V77asuxtx5Ct8rIIsNWu8C8Z4m9Rh4nNOLYGyLvWz0RTnu9RhlW2
+         13D8/bJxrjvn9W9TKjCv6aucnpwBj/3qescDpB0HT9hQh8VyOHf65KWaMMHSCDHOz8bt
+         SO3MdIInLKWgj4ebFoZEbx07k00Ut6wWdNhBT3Ntj1opS2BubRXRe1Ydsc/EEqTy+RtM
+         ZtLg9ZnAuhcHOAFblbLYU8nzaAvxnvQpJH+RvHMFVJBn+GKE3bjQ+/NkXIPCg9DT8pK7
+         WNLSsFNbfv4mUy4XnvjRsOH1f/VHvSPlkvfXXtTi5RNkk2O3QG6bMXeMie5KQCrzFrD4
+         usSQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: AHQUAuaZJDCXNoS5+7gTOMzqkG52/HG3bcLcoaul7kcYsbduwLTqS2rT
-	Tm0vqZCfC9+KIu8UIghRwbIAGtrMkh3asIhSilwV5dcZ+TnBa7eYG4XoewTbBe9W6zQL12CTt1u
-	w2qC9lwM57rro6h7/Zf16+OpC7OygCcQWXTeFKLe0HevFHghrAPVgX1Fq/q+6LIIGWg==
-X-Received: by 2002:a17:906:128c:: with SMTP id k12mr12924533ejb.77.1551095210246;
-        Mon, 25 Feb 2019 03:46:50 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZEHYDyAhgbM682u5T4qzOvlkvTaEBU8CdLWo/OL4MZdP/0q30q2v1FvZvihqCKopvqbnkL
-X-Received: by 2002:a17:906:128c:: with SMTP id k12mr12924477ejb.77.1551095209142;
-        Mon, 25 Feb 2019 03:46:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551095209; cv=none;
+X-Gm-Message-State: AHQUAuYi3EbhTlShzUqwjteUlDKEDIgm6BYJYd9Y81tJ3uhZCQDbG6/N
+	O+CUCBXxE7r1HAWeQjSQXvuj3JEn9tAnMCi3FBWshRnuevASUPbu+ATGGHtf1jO5JlQ49l423el
+	eE6KKpa8ye00MLK6rC5TuXgRNf/CRy8lBZLpfw75PSw1QI//m2SRRA3eyP9bq7xPQNg==
+X-Received: by 2002:a50:b4db:: with SMTP id x27mr14423660edd.90.1551096063069;
+        Mon, 25 Feb 2019 04:01:03 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaqA6A3psVawBM7L/J00nwgybEydvrCYGTkkU3ceEpZHuY5d2SHvjFEyKy9xWFUHF1EFqud
+X-Received: by 2002:a50:b4db:: with SMTP id x27mr14423571edd.90.1551096061809;
+        Mon, 25 Feb 2019 04:01:01 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551096061; cv=none;
         d=google.com; s=arc-20160816;
-        b=Zljiu2w1NRvEGtQCD/colgzPjmQD3RAHNuLVkv9yl3lsm1J8KrxBtQp9lDRXaX+NPU
-         zSFAUpuEzCDlfZE+zMc/it6R0f7KGLJosQLPGx9rdxoIF7CTwgM2YmcgE2/t4oJEoL/o
-         FYEH7o9MvMUXQEZLPJ3dgk0R5Iq7GYqtLC0awkqrE9M751Q97M9Djx7mpbe1RqpJtnTg
-         y8RsTS2uLLDGwV8HPHCQDWka6zIx3VRhMuxi6xx0Bh62VcCE41StHGLs8GFsDHT8hsAU
-         +3PUsRAtA+KPs8R6muN0ypRKq1Sub/xlx+tL9zqDhWLwNxUuRy5zq4D6TUE16BwUj094
-         Bdww==
+        b=dYuBKAvkHNA61qSbFltJW8ollvtqxdm5+mAGHAQKClmf6huzAyaxOQDeskFpKKavRA
+         C5+EkCfAYj5ewTxDbaGl1aDVmiP9PNqbRT2IXdYuFe559W80xLwa/lcTadTX0MWQ0Zlt
+         eTqEDzeufO0o/11hBeGWdie/8XNLxn0lMpQxcWizpFgyjUIHlsjMCcKbRyuu5VkRGPkd
+         BMpXZOQNlWFHGMnz2habIent4YALajYURZEkJchtWeu7gawFsBC+VpYU1vOIsXn+BuC8
+         v6tAvCqCGPgAMw9r0U6wEgsSKWVh8AmSllk7JwASCFBIMhfEkBpw1lQG6Re/oAczcp9F
+         qBjQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=tFwUwEqGb1rXwUYXN4mNnP93vKgOIcKRDgrGO7DYd+M=;
-        b=EDk6QoDqDPzSwGkXEW7HZFpqaGvI80nhNnO93NplaiKjuS0Uuz8PG7ZHpJut0RgXjt
-         O79wFDRy399UG1GOO0y8LOj78n69JDqDoInPWmeJfvDrnavmt41NnHGY/AqtDWBkMXgu
-         9oe4ZiUmtw288qE4C9+QO2Jzuhx9uUzca5Dlh715iJ7/v4rKHD5hEAA/0LA5NXjyJLO3
-         +mBUBuAEL+PaGfG3r5KPaHDk0hcKEa2P4bi4eW8AOUYJE+8Vi2r81bQIZ2c0dyS72OZX
-         IYYlxc6qMI/tX3HGPZgGYxeJbm8l2e4RtELyL0zdKukAbDm6k0zu5Qky+W28RSmdwGmt
-         yjbw==
+        bh=OcLkOmbGB8vzK34XQ0qmhuZVp2as2xwj/HHqx6/a+K4=;
+        b=ncRoaUjnPV9UrHdRUZ43iKUygU31wsISWNWmTPWOLvNSjgdnpTU1w14LxECRLS2KVT
+         XrpWVP6eDLssi4MFo695OKR33cvQIZl6ihqVharvAbtppvUTXVzB+NMfY8kwZXpnJvil
+         UDzIG+3OKPQvopFbgu+ZmoFKMNWhiSIC2szXxvp9K2AhkRCr9UnPYra9kGHIp2J8oG/u
+         MgEQwLCnPeGGsvnYZOtIUMUoW5npNRRQ8A71P7s1to73LLlFi8GaQ/vQald4s5n548K5
+         ufEuMB0hgiXK1pGMYoNB5Elp67Nrnx1xC1Znb32jwOYy5DdMEmN/xZEQHCaDWfL5AZnb
+         Q1Sg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 47si298713edz.370.2019.02.25.03.46.48
+        by mx.google.com with ESMTPS id f55si1248735ede.435.2019.02.25.04.01.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 03:46:49 -0800 (PST)
+        Mon, 25 Feb 2019 04:01:01 -0800 (PST)
 Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 5AF9BAFFB;
-	Mon, 25 Feb 2019 11:46:48 +0000 (UTC)
-Subject: Re: [RFC PATCH] mm,mremap: Bail out earlier in mremap_to under map
- pressure
-To: "Kirill A. Shutemov" <kirill@shutemov.name>,
- Oscar Salvador <osalvador@suse.de>
+	by mx1.suse.de (Postfix) with ESMTP id D6158B000;
+	Mon, 25 Feb 2019 12:01:00 +0000 (UTC)
+Subject: Re: [PATCH 1/5] mm/workingset: remove unused @mapping argument in
+ workingset_eviction()
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>,
+ Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- linux-api@vger.kernel.org, hughd@google.com, joel@joelfernandes.org,
- jglisse@redhat.com, yang.shi@linux.alibaba.com, mgorman@techsingularity.net
-References: <20190221085406.10852-1-osalvador@suse.de>
- <20190222130125.apa2ysnahgfuj2vx@kshutemo-mobl1>
+ Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
+ Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>
+References: <20190222174337.26390-1-aryabinin@virtuozzo.com>
 From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
 Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
@@ -152,12 +151,12 @@ Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
  5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
  hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
  Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
-Message-ID: <cfc53e5a-a403-a732-69d2-1f96b8416f6d@suse.cz>
-Date: Mon, 25 Feb 2019 12:46:46 +0100
+Message-ID: <e56aea36-f454-a75f-5f83-4150b87c9c15@suse.cz>
+Date: Mon, 25 Feb 2019 13:01:00 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.5.0
 MIME-Version: 1.0
-In-Reply-To: <20190222130125.apa2ysnahgfuj2vx@kshutemo-mobl1>
+In-Reply-To: <20190222174337.26390-1-aryabinin@virtuozzo.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -167,57 +166,70 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/22/19 2:01 PM, Kirill A. Shutemov wrote:
-> On Thu, Feb 21, 2019 at 09:54:06AM +0100, Oscar Salvador wrote:
->> When using mremap() syscall in addition to MREMAP_FIXED flag,
->> mremap() calls mremap_to() which does the following:
->>
->> 1) unmaps the destination region where we are going to move the map
->> 2) If the new region is going to be smaller, we unmap the last part
->>    of the old region
->>
->> Then, we will eventually call move_vma() to do the actual move.
->>
->> move_vma() checks whether we are at least 4 maps below max_map_count
->> before going further, otherwise it bails out with -ENOMEM.
->> The problem is that we might have already unmapped the vma's in steps
->> 1) and 2), so it is not possible for userspace to figure out the state
->> of the vma's after it gets -ENOMEM, and it gets tricky for userspace
->> to clean up properly on error path.
->>
->> While it is true that we can return -ENOMEM for more reasons
->> (e.g: see may_expand_vm() or move_page_tables()), I think that we can
->> avoid this scenario in concret if we check early in mremap_to() if the
->> operation has high chances to succeed map-wise.
->>
->> Should not be that the case, we can bail out before we even try to unmap
->> anything, so we make sure the vma's are left untouched in case we are likely
->> to be short of maps.
->>
->> The thumb-rule now is to rely on the worst-scenario case we can have.
->> That is when both vma's (old region and new region) are going to be split
->> in 3, so we get two more maps to the ones we already hold (one per each).
->> If current map count + 2 maps still leads us to 4 maps below the threshold,
->> we are going to pass the check in move_vma().
->>
->> Of course, this is not free, as it might generate false positives when it is
->> true that we are tight map-wise, but the unmap operation can release several
->> vma's leading us to a good state.
->>
->> Because of that I am sending this as a RFC.
->> Another approach was also investigated [1], but it may be too much hassle
->> for what it brings.
+On 2/22/19 6:43 PM, Andrey Ryabinin wrote:
+> workingset_eviction() doesn't use and never did use the @mapping argument.
+> Remove it.
 > 
-> I believe we don't need the check in move_vma() with this patch. Or do we?
+> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Rik van Riel <riel@surriel.com>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> ---
+>  include/linux/swap.h | 2 +-
+>  mm/vmscan.c          | 2 +-
+>  mm/workingset.c      | 3 +--
+>  3 files changed, 3 insertions(+), 4 deletions(-)
+> 
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 649529be91f2..fc50e21b3b88 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -307,7 +307,7 @@ struct vma_swap_readahead {
+>  };
+>  
+>  /* linux/mm/workingset.c */
+> -void *workingset_eviction(struct address_space *mapping, struct page *page);
+> +void *workingset_eviction(struct page *page);
+>  void workingset_refault(struct page *page, void *shadow);
+>  void workingset_activation(struct page *page);
+>  
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index ac4806f0f332..a9852ed7b97f 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -952,7 +952,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
+>  		 */
+>  		if (reclaimed && page_is_file_cache(page) &&
+>  		    !mapping_exiting(mapping) && !dax_mapping(mapping))
+> -			shadow = workingset_eviction(mapping, page);
+> +			shadow = workingset_eviction(page);
+>  		__delete_from_page_cache(page, shadow);
+>  		xa_unlock_irqrestore(&mapping->i_pages, flags);
+>  
+> diff --git a/mm/workingset.c b/mm/workingset.c
+> index dcb994f2acc2..0906137760c5 100644
+> --- a/mm/workingset.c
+> +++ b/mm/workingset.c
+> @@ -215,13 +215,12 @@ static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
+>  
+>  /**
+>   * workingset_eviction - note the eviction of a page from memory
+> - * @mapping: address space the page was backing
+>   * @page: the page being evicted
+>   *
+>   * Returns a shadow entry to be stored in @mapping->i_pages in place
 
-move_vma() can be also called directly from SYSCALL_DEFINE5(mremap) for
-the non-MMAP_FIXED case. So unless there's further refactoring, the
-check is still needed.
+The line above still references @mapping, I guess kerneldoc build will
+complain?
 
->>
->> [1] https://lore.kernel.org/lkml/20190219155320.tkfkwvqk53tfdojt@d104.suse.de/
->>
->> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+>   * of the evicted @page so that a later refault can be detected.
+>   */
+> -void *workingset_eviction(struct address_space *mapping, struct page *page)
+> +void *workingset_eviction(struct page *page)
+>  {
+>  	struct pglist_data *pgdat = page_pgdat(page);
+>  	struct mem_cgroup *memcg = page_memcg(page);
+> 
 
