@@ -2,196 +2,231 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 007A2C10F00
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:03:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CBA17C4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:07:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9A2EB2087C
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:03:16 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="XHlgJWUe"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A2EB2087C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 85F482087C
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:07:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 85F482087C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3CBF88E000F; Mon, 25 Feb 2019 10:03:16 -0500 (EST)
+	id 502AC8E000F; Mon, 25 Feb 2019 10:07:41 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 354C58E000B; Mon, 25 Feb 2019 10:03:16 -0500 (EST)
+	id 4B1E58E000B; Mon, 25 Feb 2019 10:07:41 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 244C28E000F; Mon, 25 Feb 2019 10:03:16 -0500 (EST)
+	id 37C0B8E000F; Mon, 25 Feb 2019 10:07:41 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EBE978E000B
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:03:15 -0500 (EST)
-Received: by mail-oi1-f197.google.com with SMTP id f125so4087937oib.4
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:03:15 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D23138E000B
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:07:40 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id o27so4049377edc.14
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:07:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=JwnbB+HBTo5JOYnPid93hiHgo2MFCSC5v/rN5mqU928=;
-        b=YnwfWN6pDL7ZU3KcuQoKQUZXWAZA/jAQawsE2u/WzGq9FZavIKZaj10bVHu9+WM/iU
-         V/mqOJ6nZUHRaR8v7higG31b7XEXvQsz4hfchWYwLpOS+YyRaJkRSTIi4F1XOnoeTs/e
-         oBZ4xC4LdN2ptAH8pL5W+mHLWs144lG2FaLv6cZpyLO1NE0o4ZKWzLV6C0KmqVIiNSRW
-         49Yy1wfwQr/a/yX6U/+9fNtwjyhUlMapvSlSF99R2ZEPvBVD4v7mo6XQa/Pz3CsIaeb8
-         LB73arv+gFcyyvVuGXIfVYR4s6tFZZu8nlz0P9ayu3NLAV164p28bFo9fy5ZmMGIMRtp
-         GmrQ==
-X-Gm-Message-State: AHQUAub5br4EeRA2DNd/BOe/bSGSmPlT35ZNlGnDI9v2y4ys9Mj5gBp2
-	3iGRYryma4kxmME68z0PB/ETJDGFhC7X4pOEABN0SgmyVRdvXbLgE1mg2a9eFvVdPFW3rdFm6t0
-	x+EDDJebDS1foLPRX4C1CR/kpU/N858iXdfcqKrGmwzZ85kLlvECpqohbfiGF6BqloWa422w0wa
-	HnCVDNq97Vkm08Z2bKAaT070nEiTOFoLPpmkwkx5J7ULgtGXn7GuHXH/cw3OQtqIGl5W4Oiutvr
-	1P77zr9qAxnoUTJM7nl3vCdjEQUAwLVGGlTYguAimL1gERRx16kLTvz8tRR+BmmS0zDKUmcm0se
-	prWSFxiCnAlltpVmtTFiYc+NaSMz2T49LYbWV7zVWJw0q+zUGNu61hjl1ZbcRRLqwVgeMBLUXf/
-	m
-X-Received: by 2002:a9d:7cd3:: with SMTP id r19mr12331427otn.139.1551106995660;
-        Mon, 25 Feb 2019 07:03:15 -0800 (PST)
-X-Received: by 2002:a9d:7cd3:: with SMTP id r19mr12331367otn.139.1551106994732;
-        Mon, 25 Feb 2019 07:03:14 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551106994; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=R+1uhVxMjR+Jpgjffk3mRfEKxsS2cHV+rlE1X1aMvSE=;
+        b=M4aVnZgSmIJOEn0HioNmTSQiojVzkxmgwbQo+AhHm2PelUQmvuL0EvjTNbk3xGAIvR
+         Gw1CmSrRdnrwjZoAfeZJ/uBWeTppyL/5xkOP6htcOxtPWuvL6Sk34LN0OO5m+ShxGjXX
+         TdPYdzFtAeq9QH+PlLlMFU73B4MWBjPtB9dTjYovqR9BZb/aNzZ8gDehvCPYGikrUraa
+         Nhh1xYlfF/okjKESgfdPsHDwNqSsvQMNPmmah5Nyqwbm9dSmwZ/B5VdN0Hn+lfVb3s6M
+         HfOTHCrp4r8jP4Vq24CUIzhMD8/jGwf15hvR1UQmj++tlUBlA9Qjf1LZF7e3ptpmvwrf
+         4fuw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: AHQUAuZHtJ4WJHiJCEYA84i1Oy5MydhqL4pPQsQXu51U7SWuyUy0IeKe
+	QhiP05K8YqyCZVyvVqJK7pefhfxLe5+RCJa3nzLo+bGX0KsqOlzBP+Q+tEWyc8id+/11nDhwepK
+	lc4V7pqdCFyn34gvmMJDK0bj0qY0bF1I77jgQTdimW8VEzR61LuuezE1rVhtHHvNoUA==
+X-Received: by 2002:a50:aa83:: with SMTP id q3mr4175418edc.63.1551107260395;
+        Mon, 25 Feb 2019 07:07:40 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYg6QD7oFrGmIghkwR3UhKCZDNOmoOKY136E+N7/Dy5/Esc3WFbMQaN5YPYiIZ3a4ZAnqJA
+X-Received: by 2002:a50:aa83:: with SMTP id q3mr4175352edc.63.1551107259336;
+        Mon, 25 Feb 2019 07:07:39 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551107259; cv=none;
         d=google.com; s=arc-20160816;
-        b=tpnPgv1cFTf15XVwfXITsCouHInWYUWceVZ511TWH+q+GPb541YBThYrXENoDUleNq
-         YK3lKDQWtdrOXGmKkSKKXiMjOH1tK9ul+xeE7XLJgBbD8UGWisrTf+sUc5ow7kSbILFs
-         AMDPfIYjNkrxcxgYSwdEc3m2LBbu9Vs9cv2xUVYlKh1amxxpz9JTR0zbugBKoOn62FLS
-         W+h+7BM2dGFB/YW8MoCgG+ObE/EOawWMILSDLZWUxP6Uy0gC+H0FvAedeQvduPdJSIfk
-         BoKIQpBq85DeBCP52tyLL1fZfTAxr49k2JitumH4a0av/90Qokn1Odg/ZDIGgMG20qxW
-         a/9g==
+        b=inj0LKsu/wcXLFsp7m0wk1yG2grxO+BwzKrDPVnNZVv2QzpCFzCmGPHCnY7eMXNyVN
+         5sz62x7dlWoo/hgUlQOwESvvwVlPCkcYGnya7+3NiXixGvAN98xToBmsjrbeqQAxmY4Y
+         0dZbR7TT8WdZwAo7QmCakPv+/gI6ByXJJTCyIiIdaNwRhTLqw1HhOSds74b7IU8hCtlP
+         RiiDNF9EAwxQX8p53Z+57W1PNJ2QLupH0xHgf/+C3RBfsgiSHzI1cbMo/r7k+hH/51Zz
+         Ml4FNlKaGM1FjJYCu8b43c8Hma0DpC9f0qEtBLNBowYf06wRB8QfuTNhNerfCrerX3AD
+         1rpw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=JwnbB+HBTo5JOYnPid93hiHgo2MFCSC5v/rN5mqU928=;
-        b=yFOsY2o3aZSDkXwNihWe2Zdf6jdPG6nIevscy4Khiy3z9QL8JtmB4c90t2CkogVrfH
-         t4DjJM4+Hd9mXTVmQvJqhROU3q1fTP3dP6kUCHDSOJ22mKtR6q5jF9qZAZO01N49lBc3
-         B+tDU+i2kd+w6quQAJ2yhM3wRwSkr5Zu8TaAkIfX9D33WC0+eFEH5XCgcdDzyAQXInnG
-         TtuoSWphP0pWKx3SvOJBvgW5bTw3eMV4aeUACa9FyGWefD3+VGHwezNHrWbs+gJ4ZWSW
-         hO6r26FXvl2tAo9cAY/6ygmW4SapiMfLp+swu0nzk1PJ0XdMLYLDm01PC5Rkbcu1mpgq
-         wF9A==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=R+1uhVxMjR+Jpgjffk3mRfEKxsS2cHV+rlE1X1aMvSE=;
+        b=PKJyTg58v34mO6Uv2RFxzCy+HBcqsBx1P1nRg4TzF8tES5447PTmXoql/qfri8Ys4G
+         gHDY0sDR68cRBWHyPCV+v0wgFCzKaPWusb8HrBiyn87/jb4ZTbp8jXFfs34AXHxFoKYG
+         aDB/bKuNFq3iPXeJzsdHsziC0hq1m2O2AMgy83VytZnqdn0D28tsavj7rlS9DlXd45qZ
+         cOwYgovPg208Gm7uT6YOF6B9ncnCcgyy/j7MAPmO818pl5tym3H7fxV9KapHEJvy929L
+         mbGZlaBiIsYkU2xL0v3Db8YCFjRxiKTPeKjWP9Prj7eIpB31fDZWILdbstMCfEALkmdh
+         lx4w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=XHlgJWUe;
-       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u6sor5579198oig.6.2019.02.25.07.03.14
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x17si3337487ejc.315.2019.02.25.07.07.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 25 Feb 2019 07:03:14 -0800 (PST)
-Received-SPF: pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Feb 2019 07:07:39 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=XHlgJWUe;
-       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=JwnbB+HBTo5JOYnPid93hiHgo2MFCSC5v/rN5mqU928=;
-        b=XHlgJWUeDDx6lbpgfLUpQ5yfIUQFGfn1m5PPc7WGIHxyFHF+3HA8RToeR0IuWQTMN/
-         kYElrj1fN+IeqNdYbRmwAUaB69TMayM5wuJbTEp24VE214/mWT/xDQYPvVYUSWfRQwnl
-         fFIUceO+1YK3XJ2mLjULUlLksCg2bDUakUQlebnlDuQrL8KoWT/ebZaWCIN28a/ZX14f
-         1k+xNyO59W4t8NvqK0KE5I1SiObcarSGLwfUlexah9T49wYpQMcpDFBnbY4Kvmw3FkUG
-         rOYZg6DISvirJp/NrEBe7juXNrVkyxgfErqbej4PyY9Rhl/X1qK92yYxIAR+i25QecJ/
-         n1MQ==
-X-Google-Smtp-Source: AHgI3IakbtGYqM+ewKVAew/Zusknu3ALNnxN/Nf80/TGijJe/f7sNVo+lxNRjjn8bKcLJ2BEIUj2PsijmEUfhphmvns=
-X-Received: by 2002:aca:3806:: with SMTP id f6mr10857802oia.47.1551106993935;
- Mon, 25 Feb 2019 07:03:13 -0800 (PST)
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 36034AEA3;
+	Mon, 25 Feb 2019 15:07:38 +0000 (UTC)
+Subject: Re: [PATCH] mm: migrate: add missing flush_dcache_page for non-mapped
+ page migrate
+To: Lars Persson <lars.persson@axis.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+Cc: linux-mips@vger.kernel.org, Lars Persson <larper@axis.com>
+References: <20190219123212.29838-1-larper@axis.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <65ed6463-b61f-81ff-4fcc-27f4071a28da@suse.cz>
+Date: Mon, 25 Feb 2019 16:07:37 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-References: <20190211163653.97742-1-jannh@google.com> <f89de711-d73b-96be-75b6-0e9054022708@gmail.com>
-In-Reply-To: <f89de711-d73b-96be-75b6-0e9054022708@gmail.com>
-From: Jann Horn <jannh@google.com>
-Date: Mon, 25 Feb 2019 16:02:48 +0100
-Message-ID: <CAG48ez2h6eavM9YWXYa69OLY7mFFKn1KN=roH2dZJCi7PSSmuQ@mail.gmail.com>
-Subject: Re: [PATCH] mmap.2: describe the 5level paging hack
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: linux-man <linux-man@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, 
-	Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, 
-	Thomas Gleixner <tglx@linutronix.de>, linux-arch <linux-arch@vger.kernel.org>, 
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, 
-	Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, 
-	Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, 
-	linux-arm-kernel@lists.infradead.org, Linux API <linux-api@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190219123212.29838-1-larper@axis.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 25, 2019 at 3:55 PM Michael Kerrisk (man-pages)
-<mtk.manpages@gmail.com> wrote:
-> On 2/11/19 5:36 PM, Jann Horn wrote:
-> > The manpage is missing information about the compatibility hack for
-> > 5-level paging that went in in 4.14, around commit ee00f4a32a76 ("x86/mm:
-> > Allow userspace have mappings above 47-bit"). Add some information about
-> > that.
-> >
-> > While I don't think any hardware supporting this is shipping yet (?), I
-> > think it's useful to try to write a manpage for this API, partly to
-> > figure out how usable that API actually is, and partly because when this
-> > hardware does ship, it'd be nice if distro manpages had information about
-> > how to use it.
-> >
-> > Signed-off-by: Jann Horn <jannh@google.com>
-> > ---
-> > This patch goes on top of the patch "[PATCH] mmap.2: fix description of
-> > treatment of the hint" that I just sent, but I'm not sending them in a
-> > series because I want the first one to go in, and I think this one might
-> > be a bit more controversial.
-> >
-> > It would be nice if the architecture maintainers and mm folks could have
-> > a look at this and check that what I wrote is right - I only looked at
-> > the source for this, I haven't tried it.
-> >
-> >  man2/mmap.2 | 15 +++++++++++++++
-> >  1 file changed, 15 insertions(+)
-> >
-> > diff --git a/man2/mmap.2 b/man2/mmap.2
-> > index 8556bbfeb..977782fa8 100644
-> > --- a/man2/mmap.2
-> > +++ b/man2/mmap.2
-> > @@ -67,6 +67,8 @@ is NULL,
-> >  then the kernel chooses the (page-aligned) address
-> >  at which to create the mapping;
-> >  this is the most portable method of creating a new mapping.
-> > +On Linux, in this case, the kernel may limit the maximum address that can be
-> > +used for allocations to a legacy limit for compatibility reasons.
-> >  If
-> >  .I addr
-> >  is not NULL,
-> > @@ -77,6 +79,19 @@ or equal to the value specified by
-> >  and attempt to create the mapping there.
-> >  If another mapping already exists there, the kernel picks a new
-> >  address, independent of the hint.
-> > +However, if a hint above the architecture's legacy address limit is provided
-> > +(on x86-64: above 0x7ffffffff000, on arm64: above 0x1000000000000, on ppc64 with
-> > +book3s: above 0x7fffffffffff or 0x3fffffffffff, depending on page size), the
-> > +kernel is permitted to allocate mappings beyond the architecture's legacy
-> > +address limit. The availability of such addresses is hardware-dependent.
-> > +Therefore, if you want to be able to use the full virtual address space of
-> > +hardware that supports addresses beyond the legacy range, you need to specify an
-> > +address above that limit; however, for security reasons, you should avoid
-> > +specifying a fixed valid address outside the compatibility range,
-> > +since that would reduce the value of userspace address space layout
-> > +randomization. Therefore, it is recommended to specify an address
-> > +.I beyond
-> > +the end of the userspace address space.
-> >  .\" Before Linux 2.6.24, the address was rounded up to the next page
-> >  .\" boundary; since 2.6.24, it is rounded down!
-> >  The address of the new mapping is returned as the result of the call.
-> >
->
-> Hi Jann,
->
-> A few comments came in on this patch. Is there anything from
-> those comments that should be rolled into the text?
+On 2/19/19 1:32 PM, Lars Persson wrote:
+> Our MIPS 1004Kc SoCs were seeing random userspace crashes with SIGILL
+> and SIGSEGV that could not be traced back to a userspace code
+> bug. They had all the magic signs of an I/D cache coherency issue.
+> 
+> Now recently we noticed that the /proc/sys/vm/compact_memory interface
+> was quite efficient at provoking this class of userspace crashes.
+> 
+> Studying the code in mm/migrate.c there is a distinction made between
+> migrating a page that is mapped at the instant of migration and one
+> that is not mapped. Our problem turned out to be the non-mapped pages.
+> 
+> For the non-mapped page the code performs a copy of the page content
+> and all relevant meta-data of the page without doing the required
+> D-cache maintenance. This leaves dirty data in the D-cache of the CPU
+> and on the 1004K cores this data is not visible to the I-cache. A
+> subsequent page-fault that triggers a mapping of the page will happily
+> serve the process with potentially stale code.
+> 
+> What about ARM then, this bug should have seen greater exposure? Well
+> ARM became immune to this flaw back in 2010, see commit c01778001a4f
+> ("ARM: 6379/1: Assume new page cache pages have dirty D-cache").
+> 
+> My proposed fix moves the D-cache maintenance inside move_to_new_page
+> to make it common for both cases.
+> 
+> Signed-off-by: Lars Persson <larper@axis.com>
 
-Hi!
+What about CC stable and a Fixes tag, would it be applicable here?
 
-Yeah, I think all the feedback on the patch were good points, and I'll
-have to integrate that into my patch.
+> ---
+>  mm/migrate.c | 11 ++++++++---
+>  1 file changed, 8 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index d4fd680be3b0..80fc19e610b5 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -248,10 +248,8 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
+>  				pte = swp_entry_to_pte(entry);
+>  			} else if (is_device_public_page(new)) {
+>  				pte = pte_mkdevmap(pte);
+> -				flush_dcache_page(new);
+>  			}
+> -		} else
+> -			flush_dcache_page(new);
+> +		}
+>  
+>  #ifdef CONFIG_HUGETLB_PAGE
+>  		if (PageHuge(new)) {
+> @@ -995,6 +993,13 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+>  		 */
+>  		if (!PageMappingFlags(page))
+>  			page->mapping = NULL;
+> +
+> +		if (unlikely(is_zone_device_page(newpage))) {
+> +			if (is_device_public_page(newpage))
+> +				flush_dcache_page(newpage);
+> +		} else
+> +			flush_dcache_page(newpage);
+> +
+>  	}
+>  out:
+>  	return rc;
+> 
 
