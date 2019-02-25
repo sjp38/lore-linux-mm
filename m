@@ -2,242 +2,268 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8833BC10F00
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 21:14:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0BA2FC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 21:15:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 434052146F
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 21:14:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 434052146F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id B12DD2173C
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 21:15:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B12DD2173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E279A8E0005; Mon, 25 Feb 2019 16:14:26 -0500 (EST)
+	id 4D7738E0005; Mon, 25 Feb 2019 16:15:45 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DD86B8E0004; Mon, 25 Feb 2019 16:14:26 -0500 (EST)
+	id 4882C8E0004; Mon, 25 Feb 2019 16:15:45 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CA01A8E0005; Mon, 25 Feb 2019 16:14:26 -0500 (EST)
+	id 350198E0005; Mon, 25 Feb 2019 16:15:45 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AB4C8E0004
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 16:14:26 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id m37so10376480qte.10
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 13:14:26 -0800 (PST)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E0388E0004
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 16:15:45 -0500 (EST)
+Received: by mail-ot1-f69.google.com with SMTP id a1so5649364otl.9
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 13:15:45 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=CqNDToLpCJDIRJoWRt/hrt5tJUNrn2ICUnR3vjEsZA0=;
-        b=rKRPkXwXkvNDRaD9/zRymIl93y/IUkDkvdV4yXtDWJWLaTY2b4JNHUWgaguLRPHJje
-         sPt+hT/2Dv8dGT55c40q7qgdYXf+9zwBi2gXU/K0gLd+hzpkTRBbY+J3EbCqrGs2UN0+
-         wtIBfklSd2nCTGkOBSM3GknKXq0WRjVXEsg9WBGb6Lr1xjSMj0fmmSmTK3RSb5jvmMtt
-         XyB2CurYP1DaMDHJ1ymNvFwHNjAunkDoqoUFPyZfqolcF8lO4AItrHNIfJq99Uq5s1or
-         c/sWDlKF9NWiQ1XcuwZ0ZFNzKal91ufJ6egcMswer953JrnOBRq3jk5nsc2EHvusr4+l
-         Lm7g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAubnINWdO5Dh30GkkYlryzEAkjKh9/BMSf+oiNYh9FxHBL8h25BD
-	N4mQjDiz52xfaC8nVvKQ4qjNS5X6C4XkIunC6VXfyb+c6uIpCZcxDEp4+Cu0yZgs/8y2K4qcW18
-	+/W1thzjUhTZBeDnwMMUOQXJgA0dNdlbT7Su7t/pBzjE+nv/sFl2XwA6o18Xk7EGmQQ==
-X-Received: by 2002:ac8:393a:: with SMTP id s55mr15579857qtb.70.1551129266343;
-        Mon, 25 Feb 2019 13:14:26 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbubkTyoJl/x3ONhEBw34xPwh9lfpFdwnR5e8/8KMhCVselMgpByr7/MrjZf1JBON8D56F9
-X-Received: by 2002:ac8:393a:: with SMTP id s55mr15579796qtb.70.1551129265312;
-        Mon, 25 Feb 2019 13:14:25 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551129265; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=zNIt1w0//dOO8aUTURjCJG9RIaTCJCXg0q9hQnAG69I=;
+        b=fwq8nFGOTOcP+2ICJL2+f9zHG986JR+Gc7o8z39JoXMoTT9elOXfMdv7DAg8XI3R1H
+         mh2qz7Au+wzM4G5P9lTkhySCNRokSZf5CW4kxRK5Sc2Ggw84lHekMYnYZDlxIfxFjcAD
+         wkyHVC4SzPb+0Tc7jA6Xez+QyoO6OKoslo53NNq7h9ddzxcw2yOCJ90I6Ek7qj8StKQR
+         0sur7H0DtopVMOvYcCXHSp8p/wZCCBh9pjClzZZWBGd8GZMON+sjQLsId1Y8nLySAciT
+         iOW/08UAmNmjI92XcGFXX4ExekKMbUqftPNjbV8WZ3c4k1Mt+HB2xHgw9miAQJ6XH1Ws
+         TIpw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuY4opbs1rQz5W3sLUC9y95y7uZFDOuJjiHtGCeH8d9zjGVSmGkE
+	W1JBUI94epoxhc18b+6fBP9t8N6wauPwVxdlxaJlXYZTx8jfZkrhYaR9W4+GuWuqscmXmarDFtp
+	Uqc/lje1ebJydN3t4x2iPTsNwC26W1vpxBHdgkxXdTr0EB0hH0JG9hejBeCO9X8QXEw==
+X-Received: by 2002:a9d:4c02:: with SMTP id l2mr13153124otf.56.1551129344805;
+        Mon, 25 Feb 2019 13:15:44 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib/sSgDSHF8TJJlUniqOyAVEWF/vWWeC8LeZqV2eyngXpGyeD4K3cPoW/sVcWD/yEn1mTjf
+X-Received: by 2002:a9d:4c02:: with SMTP id l2mr13153078otf.56.1551129343980;
+        Mon, 25 Feb 2019 13:15:43 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551129343; cv=none;
         d=google.com; s=arc-20160816;
-        b=0MH5pp4XS0e60sfblnw8aj/4n+qWFhY8V1mqbkpiOL7mKxQI+CK74Fpz+nbmmY+01K
-         wEZEO7m8+kzUIoouKxvmnNPuNjsdRllbKpYMp0XWseSPL+Yp2/Vx8+4e9tbmIEK441X9
-         ktvWWuXNCmp+Sxfb7uD308K8HOhrpZnNSt/YYQX45r2bsw7gktzq6rED8lTlGon0RM8F
-         BrbJZy59kEtqzwxKWsLmF2RyoqrB6MDF9B0+rUyBeyp89QhK5EpEMH8mNKBEGKhMl4vB
-         xBSUwRMdAKldYXriZ4sMW0qtUl/H33y+U13k2f/lAJBaysOm4+an5v5UA9/EDE6wsdcl
-         GnYA==
+        b=fqvV5HcjqlpCW72kIkC0oTPG7nmAMc/TRbCEfR96NggGjqQkvOXsYqxxtWPoTCqFuM
+         g5AnWkdNyKSv5JjuP9SjVfq2sp7elZEGWMg+XyI7K6DGpuRMfq8JUvRUUFNdJeXThoYd
+         aewcBnDtTZlQHqZX7J+gzj8ZDQcU1uRtD6akFo4h49+2JK7oyKoAxdz3WGj0U2qPZzJ7
+         2/Q0xAr33z3JouzXA91X9B4bh7HcRQGMv6BBVJScTHcOplyTaPrBXgiXodyUPpiPpPKe
+         s3pzK8p+Te+WkLtbkMEQlSi87F2gXMo0FJcFhLfieWJYlSM8igXp/SZ881AQ6nNMLni0
+         2YIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=CqNDToLpCJDIRJoWRt/hrt5tJUNrn2ICUnR3vjEsZA0=;
-        b=h8z22EJDZTXQNIvqXog4cSxTTdGC9JQEeh7h6oq8vGaQzdP/Hn+okmy8gefH61X4N5
-         gtiLDUiK1DlMwaxYezDSDVHgBnudooDvfgiaWq4I4/g/MQzI6hkSZ/NI6FDt6OxFjqRU
-         CxWRS7kClxgbYHPZYyzOQkg9N9Z3l0iXabwjphC7U3YaW1H0GY8FTg1T+myWitgTlgYr
-         cOQIheqP8IHyFH3GcDAR6wX4DQTMzFrBkNsr35l/lGz/1uS3r8ohHV28QueqlrDADkrv
-         IOTFVgWWeFr1X+MIedD9w4HjdrrW0iUuILvlCHkuIKC3LcHEEepJFi5Y/EjtqBYp5osj
-         UQ+w==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=zNIt1w0//dOO8aUTURjCJG9RIaTCJCXg0q9hQnAG69I=;
+        b=hrO3ffqMCQ3myqk44eb6pguAe8CknnjxEvaso5N80BIzi+w54YawnW6bIdzHG/oWKa
+         BtMTwF+UewdpBg1g4CIw+c/iESoPNrNBEbYCVyQCJxxIWb6kZJAiDUvIm+A+ZM8FmajH
+         C9qM/Nsv47fK9DENBrQIAw40wU9d8PPIGW2/eFgLc1/xbCRpvCDqtEYSZa7T3wb3xTtw
+         Lvmn2SOd1k2SKuQVk1cHQXz5lkjylHFPkzk7n0fP0zZ1YULY7cmxnQMXP6sWqmFP5jKD
+         81SE1JPQH9PJJXgGydjslTF9uq/Q9iM7iL8npUGshqV/c8p5KuTx7anGnWGjAGr9iE80
+         4qxw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h29si1032377qvc.103.2019.02.25.13.14.25
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l137si4178378oih.111.2019.02.25.13.15.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 13:14:25 -0800 (PST)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 25 Feb 2019 13:15:43 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 675C5316499B;
-	Mon, 25 Feb 2019 21:14:24 +0000 (UTC)
-Received: from [10.36.116.61] (ovpn-116-61.ams2.redhat.com [10.36.116.61])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 983995D9D1;
-	Mon, 25 Feb 2019 21:14:22 +0000 (UTC)
-Subject: Re: [PATCH v2] mm/memory-hotplug: Add sysfs hot-remove trigger
-To: Michal Hocko <mhocko@kernel.org>, Robin Murphy <robin.murphy@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- gregkh@linuxfoundation.org, rafael@kernel.org, akpm@linux-foundation.org,
- osalvador@suse.de
-References: <49ef5e6c12f5ede189419d4dcced5dc04957c34d.1549906631.git.robin.murphy@arm.com>
- <20190212083310.GM15609@dhcp22.suse.cz>
- <faca65d7-6d4b-7e4f-5b36-4fdf3710b0e3@arm.com>
- <20190212151146.GA15609@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <1ea6a40d-be86-6ccc-c728-fa8effbd5a8e@redhat.com>
-Date: Mon, 25 Feb 2019 22:14:21 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1PL536O046300
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 16:15:43 -0500
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2qvnk97kpp-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 16:15:43 -0500
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 25 Feb 2019 21:15:41 -0000
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 25 Feb 2019 21:15:34 -0000
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1PLFXV332243892
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 25 Feb 2019 21:15:34 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id DC04CA4062;
+	Mon, 25 Feb 2019 21:15:33 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 0BDA3A4054;
+	Mon, 25 Feb 2019 21:15:31 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.204.243])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Mon, 25 Feb 2019 21:15:30 +0000 (GMT)
+Date: Mon, 25 Feb 2019 23:15:28 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Peter Xu <peterx@redhat.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org, David Hildenbrand <david@redhat.com>,
+        Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
+        Pavel Emelyanov <xemul@virtuozzo.com>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+        Marty McFadden <mcfadden8@llnl.gov>,
+        Andrea Arcangeli <aarcange@redhat.com>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        Denis Plotnikov <dplotnikov@virtuozzo.com>,
+        Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>,
+        "Kirill A . Shutemov" <kirill@shutemov.name>,
+        "Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v2 23/26] userfaultfd: wp: don't wake up when doing write
+ protect
+References: <20190212025632.28946-1-peterx@redhat.com>
+ <20190212025632.28946-24-peterx@redhat.com>
+ <20190221183653.GV2813@redhat.com>
+ <20190225085846.GE13653@xz-x1>
 MIME-Version: 1.0
-In-Reply-To: <20190212151146.GA15609@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Mon, 25 Feb 2019 21:14:24 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190225085846.GE13653@xz-x1>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19022521-0016-0000-0000-0000025AC7EF
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19022521-0017-0000-0000-000032B5271F
+Message-Id: <20190225211528.GF10454@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-25_11:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=845 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902250151
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 12.02.19 16:11, Michal Hocko wrote:
-> On Tue 12-02-19 14:54:36, Robin Murphy wrote:
->> On 12/02/2019 08:33, Michal Hocko wrote:
->>> On Mon 11-02-19 17:50:46, Robin Murphy wrote:
->>>> ARCH_MEMORY_PROBE is a useful thing for testing and debugging hotplug,
->>>> but being able to exercise the (arguably trickier) hot-remove path would
->>>> be even more useful. Extend the feature to allow removal of offline
->>>> sections to be triggered manually to aid development.
->>>>
->>>> Since process dictates the new sysfs entry be documented, let's also
->>>> document the existing probe entry to match - better 13-and-a-half years
->>>> late than never, as they say...
->>>
->>> The probe sysfs is quite dubious already TBH. Apart from testing, is
->>> anybody using it for something real? Do we need to keep an API for
->>> something testing only? Why isn't a customer testing module enough for
->>> such a purpose?
->>
->> From the arm64 angle, beyond "conventional" servers where we can hopefully
->> assume ACPI, I can imagine there being embedded/HPC setups (not all as
->> esoteric as that distributed-memory dRedBox thing), as well as virtual
->> machines, that are DT-based with minimal runtime firmware. I'm none too keen
->> on the idea either, but if such systems want to support physical hotplug
->> then driving it from userspace might be the only reasonable approach. I'm
->> just loath to actually document it as anything other than a developer
->> feature so as not to give the impression that I consider it anything other
->> than a last resort for production use.
+On Mon, Feb 25, 2019 at 04:58:46PM +0800, Peter Xu wrote:
+> On Thu, Feb 21, 2019 at 01:36:54PM -0500, Jerome Glisse wrote:
+> > On Tue, Feb 12, 2019 at 10:56:29AM +0800, Peter Xu wrote:
+> > > It does not make sense to try to wake up any waiting thread when we're
+> > > write-protecting a memory region.  Only wake up when resolving a write
+> > > protected page fault.
+> > > 
+> > > Signed-off-by: Peter Xu <peterx@redhat.com>
+> > 
+> > I am bit confuse here, see below.
+> > 
+> > > ---
+> > >  fs/userfaultfd.c | 13 ++++++++-----
+> > >  1 file changed, 8 insertions(+), 5 deletions(-)
+> > > 
+> > > diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> > > index 81962d62520c..f1f61a0278c2 100644
+> > > --- a/fs/userfaultfd.c
+> > > +++ b/fs/userfaultfd.c
+> > > @@ -1771,6 +1771,7 @@ static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
+> > >  	struct uffdio_writeprotect uffdio_wp;
+> > >  	struct uffdio_writeprotect __user *user_uffdio_wp;
+> > >  	struct userfaultfd_wake_range range;
+> > > +	bool mode_wp, mode_dontwake;
+> > >  
+> > >  	if (READ_ONCE(ctx->mmap_changing))
+> > >  		return -EAGAIN;
+> > > @@ -1789,18 +1790,20 @@ static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
+> > >  	if (uffdio_wp.mode & ~(UFFDIO_WRITEPROTECT_MODE_DONTWAKE |
+> > >  			       UFFDIO_WRITEPROTECT_MODE_WP))
+> > >  		return -EINVAL;
+> > > -	if ((uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_WP) &&
+> > > -	     (uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE))
 > 
-> This doesn't sound convicing to add an user API.
+> [1]
 > 
->> I do note that my x86 distro kernel
->> has ARCH_MEMORY_PROBE enabled despite it being "for testing".
+> > > +
+> > > +	mode_wp = uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_WP;
+> > > +	mode_dontwake = uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE;
+> > > +
+> > > +	if (mode_wp && mode_dontwake)
 > 
-> Yeah, there have been mistakes done in the API land & hotplug in the
-> past.
+> [2]
 > 
->>> In other words, why do we have to add an API that has to be maintained
->>> for ever for a testing only purpose?
->>
->> There's already half the API being maintained, though, so adding the
->> corresponding other half alongside it doesn't seem like that great an
->> overhead, regardless of how it ends up getting used.
+> > >  		return -EINVAL;
+> > 
+> > I am confuse by the logic here. DONTWAKE means do not wake any waiting
+> > thread right ? So if the patch header it seems to me the logic should
+> > be:
+> >     if (mode_wp && !mode_dontwake)
+> >         return -EINVAL;
 > 
-> As already said above. The hotplug user API is not something to follow
-> for the future development. So no, we are half broken let's continue is
-> not a reasonable argument.
+> This should be the most common case when we want to write protect a
+> page (or a set of pages).  I'll explain more details below...
 > 
->> Ultimately, though,
->> it's a patch I wrote because I needed it, and if everyone else is adamant
->> that it's not useful enough then fair enough - it's at least in the list
->> archives now so I can sleep happy that I've done my "contributing back" bit
->> as best I could :)
+> > 
+> > At very least this part does seems to mean the opposite of what the
+> > commit message says.
 > 
-> I am not saing this is not useful. It is. But I do not think we want to
-> make it an official api without a strong usecase. And then we should
-> think twice to make the api both useable and reasonable. A kernel module
-> for playing sounds like more than sufficient.
+> Let me paste the matrix to be clear on these flags:
 > 
+>   |------+-------------------------+------------------------------|
+>   |      | dontwake=0              | dontwake=1                   |
+>   |------+-------------------------+------------------------------|
+>   | wp=0 | (a) resolve pf, do wake | (b) resolve pf only, no wake |
+>   | wp=1 | (c) wp page range       | (d) invalid                  |
+>   |------+-------------------------+------------------------------|
+> 
+> Above check at [1] was checking against case (d) in the matrix.  It is
+> indeed an invalid condition because when we want to write protect a
+> page we should not try to wake up any thread, so the donewake
+> parameter is actually useless (we'll always do that).  And above [2]
+> is simply rewritting [1] with the new variables.
 
-I'm late for the party, I consider this very useful for testing, but I
-agree that this should not be an official API.
+I think (c) is "wp range and wake the thread", and (d) is "wp and DONT
+wake".
 
-The memory API is already very messed up. We have the "removable"
-attribute which does not mean that memory is removable. It means that
-memory can be offlined and eventually "unplugged/removed" if the HW
-supports it (e.g. a DIMM, otherwise it will never go).
+ 
+> > 
+> > >  
+> > >  	ret = mwriteprotect_range(ctx->mm, uffdio_wp.range.start,
+> > > -				  uffdio_wp.range.len, uffdio_wp.mode &
+> > > -				  UFFDIO_WRITEPROTECT_MODE_WP,
+> > > +				  uffdio_wp.range.len, mode_wp,
+> > >  				  &ctx->mmap_changing);
+> > >  	if (ret)
+> > >  		return ret;
+> > >  
+> > > -	if (!(uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE)) {
+> > > +	if (!mode_wp && !mode_dontwake) {
+> > 
+> > This part match the commit message :)
+> 
+> Here is what the patch really want to change: before this patch we'll
+> even call wake_userfault() below for case (c) while it doesn't really
+> make too much sense IMHO.  After this patch we'll only do the wakeup
+> for (a,b).
 
-You would be introducing "remove", which would sometimes not work when
-"removable" indicates "true" (because your API only works if memory has
-already been offlined). I would much rather want to see some of the mess
-get cleaned up than new stuff getting added that might not be needed
-besides for testing. Yes, not your fault, but an API that keeps getting
-more confusing.
-
-I am really starting to strongly dislike the "removable" attribute.
+Waking up the thread after the last region is write-protected would make
+sense. Not much savings for lots of ranges, though.
+ 
+> > 
+> > >  		range.start = uffdio_wp.range.start;
+> > >  		range.len = uffdio_wp.range.len;
+> > >  		wake_userfault(ctx, &range);
+> 
+> Thanks,
+> 
+> -- 
+> Peter Xu
+> 
 
 -- 
-
-Thanks,
-
-David / dhildenb
+Sincerely yours,
+Mike.
 
