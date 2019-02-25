@@ -4,109 +4,109 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 72327C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:48:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BF1D6C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:58:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1C16720651
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:48:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C16720651
+	by mail.kernel.org (Postfix) with ESMTP id 520B320643
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:58:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 520B320643
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BC1718E000F; Mon, 25 Feb 2019 10:48:57 -0500 (EST)
+	id B45A58E000F; Mon, 25 Feb 2019 10:58:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B71168E000D; Mon, 25 Feb 2019 10:48:57 -0500 (EST)
+	id AF42F8E000D; Mon, 25 Feb 2019 10:58:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A12178E000F; Mon, 25 Feb 2019 10:48:57 -0500 (EST)
+	id 9BCA98E000F; Mon, 25 Feb 2019 10:58:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 77A798E000D
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:48:57 -0500 (EST)
-Received: by mail-io1-f72.google.com with SMTP id e1so8033186iod.23
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:48:57 -0800 (PST)
+Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BB918E000D
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:58:58 -0500 (EST)
+Received: by mail-vk1-f198.google.com with SMTP id g9so5912342vke.8
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:58:58 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:references:mime-version:content-disposition:in-reply-to
          :user-agent:message-id;
-        bh=weTdM/V3iVoJsU3g4MlBKDdofewL+Rfrk2MgpnHE2BU=;
-        b=YNPthHoJQkOoN4KIWcQjspIRfIzVPynExJK9Xojk0kqVMINq/jYDQnwMGjC0p3L46r
-         MbCi2QY8zInJosID9/Q0VU3ZTcESKNu3N+sW8a4QKVILyg0u1x9azeMSghlGk3cIo4Su
-         Ok+zUMkxApQ0seLJbtIXACvFgLw6yfb4/U4NlpuSwdntlC3Av/s0knbv0S4H29ORJvmD
-         7EDiCdLt7MoMUQl5Np4UDVkwJsRtBMCtKsNFITbD9WHiAB9qAgNzS4fSPSPiwX3I3fPn
-         NmRTLvL6xmBOoZwhP0BnsNdEjIIih0ADhGGz+0CIplkVeLb60xPgGI00gLv3AcxIDWrn
-         OVfQ==
+        bh=M0q/NHG3GPuaNv4kZ1uSoV0T6Tx87yXaO+LrbOUNaTc=;
+        b=WJeL+pGH16rQpdez4XVmj2YFrBxcAKW/gmBWE5kK8SQyqjPhmJ2e8caVo3zNItOR7u
+         nxTsYjKHvUzPK6mfuFq7Ncoiq7WzkSR+z6RKWL+MAhnVcr9yxXrQG44zv7CQdt4a5DIc
+         B/2HGxtd/cl0GhP9yKBH6LHEPtNwcxqp5Ajkcw5Rei4NpRKiyOi1NlAsmm1toUNZYVlK
+         Y2vUWa5nHn6NEKsjgcv7/DtSstve08o32IAjdzhXsMwPfSGdad6W3ExRZV1d7HWGcZdn
+         wsPuhafgS90rrst5yL4NuhRjk2rshF7U6YnJsXt9RP2IBhYhKS1ZUMmRNn8xIZ+GsrRR
+         JLow==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuYBDTJ8WjIP+iCT2at8+b6t7ZAA7dBrR7EyCUBa+5lnQ4q7fC8B
-	CFVh9qnGhUCHAKEoYxh4irHMNddjN8elySz9bzRUniuLH4E9TbPDB7cZ2IZ2BDZC/mFrQCPvENJ
-	OWBKuZz8L/wmGs9XC3qik2TuPInt3T8Ie6pdPR2Ve26VYMK8RjOR0HFYgUqzxBRtU0A==
-X-Received: by 2002:a24:5f4d:: with SMTP id r74mr9443421itb.178.1551109737237;
-        Mon, 25 Feb 2019 07:48:57 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IavRy1HdlkYMMGVit39n//hZxPU8tkE/oPbl3NH7J8J2JGJWar38y3MQqFeeOJM94KQR0ib
-X-Received: by 2002:a24:5f4d:: with SMTP id r74mr9443372itb.178.1551109736166;
-        Mon, 25 Feb 2019 07:48:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551109736; cv=none;
+X-Gm-Message-State: AHQUAuZMNTFgegF/kYvbOL/EAh04Zy7pN2sTlPTDxUvdikzfu+AeUqIV
+	QqoHJwLYCw+GVtIp8aYJha5VD5lXWpGsx8gAAF51rRkQPnrY0wO77e8Q41GcDqVX+W85TU1Uz9V
+	FjYsLfJDfF3NUPNziczzKDGImyaa//MITzwB8kGiJwKs2+LU+v2IPnJNz0OR1UP90Mg==
+X-Received: by 2002:a67:7a04:: with SMTP id v4mr9593556vsc.127.1551110338102;
+        Mon, 25 Feb 2019 07:58:58 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZmIW5xssNO+N35NKYl8s0Hg1DmmWaCiNHBPQza2VeUjRNXNVqMYC1ThGCc43kc+m48c3a5
+X-Received: by 2002:a67:7a04:: with SMTP id v4mr9593500vsc.127.1551110337194;
+        Mon, 25 Feb 2019 07:58:57 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551110337; cv=none;
         d=google.com; s=arc-20160816;
-        b=hmG3tlo//lA3KSm2m1a/dQmnNfAPftmOGoaLXd0eNe7td1ght2DIda8AsTnIJMUAaV
-         dKe5ExuMLR1j2ENL3mfeQf1W1t9a6NKBXcIwrfvTJ9YS9OS0ngwRSWTxe2FXBDR91tif
-         EI3M+lzTS5h44+Mj0qoA8K0VXGSHY3tuRswAtnqPvkq2N4F1Mf9gtlSKBYs2t97MPXoI
-         31g0TKa5OKsu+SHUhSWkErHDttT6TbQTunngZHgWgcf0LaFaNbvKvi1TtivYBLvDtZ/x
-         B+Dk82VXUkp1hOHKEx4cA+vt5q77GZDw+OApHwGJAtP5ypsIiHPfsi5d2NUVjxeWnR/R
-         1VuQ==
+        b=Dm9IuHkCIjT4DypMbvWXL6Z4ne6RRF/BhsKWulsTh0uurk9ZMHCtpEkTAbLujoQ+h0
+         keRWieGoo8avNl/OjhDa88BaTjqUBZeq/SCIdY165mV557Cfdq5TcZS14NErY1RAaX8L
+         CTNqb4pCDYX36Gbf5QCdJW5Z6zr5PDE8RoEKEfivDfGDeo4ra2F0X175xLKzdq5zYM9L
+         WG4H2oo+2O/rslmbPCCvisRhpupQ/KjjUhU8fYlIxBdAKfb9mNIumP/P00M2gIKa3kT3
+         J/lraWJWil5ztlEwbT1UtTVfDbv1cx6mwdv5qwNAl0BvLL01EGDeK224RV0EOJQSRQAh
+         r/QQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:user-agent:in-reply-to:content-disposition:mime-version
          :references:subject:cc:to:from:date;
-        bh=weTdM/V3iVoJsU3g4MlBKDdofewL+Rfrk2MgpnHE2BU=;
-        b=dyZnLxgCdCQ42QOJ0nRGtCzjnUPcBaAYrnkk6Lp4EheV4ynziY6OtHDz4LEk2eRCnu
-         uE/AAZgjjfej8Hi3TzL/r7yzJezK93ijJ4lrLrqcIe3l72OkpOJEEXAS9MO0+AS4nWj0
-         G/KvxcBiTGAifPQWe6ov6guqHV6BuM2qACiRH0EE0H0XQ/MwmEB6zZtZxbhTV+zk598G
-         uuZaJcapSrADN1aI4Ccd98CF/fue1wm4telJXJOHjs+ao+IRVk9OGsvpeCOfKZ67wQTD
-         KqumlzFLtkYwMpJsM7tJukIasvI6n0o7VBS4IGrR7mRNU+0cj+lfF1fPlO2peSClHcLI
-         rkSg==
+        bh=M0q/NHG3GPuaNv4kZ1uSoV0T6Tx87yXaO+LrbOUNaTc=;
+        b=VLdzOn+JU8OdaLng7tFWjN+tg+jqtetf22tBLA+bTocnmu2ypykb7UapZl0M4JmEdC
+         ytdqyYjdhl65Zxi1leGTNm52up22vQa+X7Lfof080rX5AHWZk724jToLL3kuCgFev5Wf
+         +V1HSDhbPLexi7UWzXiGfIu3ImihMRBZs0T/q6E3ocBce0fSzPIDL+3sYevhqrWPzv1o
+         DjlbisQ8J6OT9MAPXx2lPV5wvJ+aIgjr8DM1v4Gu/ZiHTQ6AC5XfsNtAmpZIQIWOj0wB
+         zI4TjBLk5CoZquADGH9N1CTaEXhGXLRfppWO9ZVxHGpagRscrCergU3pjCjZGozbM7fV
+         w4kw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id x8si4621785ion.146.2019.02.25.07.48.56
+        by mx.google.com with ESMTPS id g13si507136vsd.45.2019.02.25.07.58.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 07:48:56 -0800 (PST)
+        Mon, 25 Feb 2019 07:58:57 -0800 (PST)
 Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1PFiswv056790
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:48:55 -0500
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2qvjwahk8d-1
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1PFwqe6043049
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:58:56 -0500
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qvhu8du8k-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:48:54 -0500
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:58:55 -0500
 Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Mon, 25 Feb 2019 15:48:52 -0000
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
-	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	Mon, 25 Feb 2019 15:58:46 -0000
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 25 Feb 2019 15:48:46 -0000
-Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1PFmj6D62980160
+	Mon, 25 Feb 2019 15:58:41 -0000
+Received: from d06av24.portsmouth.uk.ibm.com (d06av24.portsmouth.uk.ibm.com [9.149.105.60])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1PFwfi132637032
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Mon, 25 Feb 2019 15:48:45 GMT
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 5CF59AE045;
-	Mon, 25 Feb 2019 15:48:45 +0000 (GMT)
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 9A3AFAE04D;
-	Mon, 25 Feb 2019 15:48:43 +0000 (GMT)
+	Mon, 25 Feb 2019 15:58:41 GMT
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id E2DE542045;
+	Mon, 25 Feb 2019 15:58:40 +0000 (GMT)
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 0DF2C4204C;
+	Mon, 25 Feb 2019 15:58:39 +0000 (GMT)
 Received: from rapoport-lnx (unknown [9.148.205.26])
-	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Mon, 25 Feb 2019 15:48:43 +0000 (GMT)
-Date: Mon, 25 Feb 2019 17:48:41 +0200
+	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Mon, 25 Feb 2019 15:58:38 +0000 (GMT)
+Date: Mon, 25 Feb 2019 17:58:37 +0200
 From: Mike Rapoport <rppt@linux.ibm.com>
 To: Peter Xu <peterx@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
@@ -122,296 +122,228 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
         Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>,
         "Kirill A . Shutemov" <kirill@shutemov.name>,
         "Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v2 08/26] userfaultfd: wp: add WP pagetable tracking to
- x86
+Subject: Re: [PATCH v2 10/26] userfaultfd: wp: add UFFDIO_COPY_MODE_WP
 References: <20190212025632.28946-1-peterx@redhat.com>
- <20190212025632.28946-9-peterx@redhat.com>
+ <20190212025632.28946-11-peterx@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190212025632.28946-9-peterx@redhat.com>
+In-Reply-To: <20190212025632.28946-11-peterx@redhat.com>
 User-Agent: Mutt/1.5.24 (2015-08-30)
 X-TM-AS-GCONF: 00
-x-cbid: 19022515-0020-0000-0000-0000031B085B
+x-cbid: 19022515-0028-0000-0000-0000034CCDF5
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19022515-0021-0000-0000-0000216C69DE
-Message-Id: <20190225154841.GC24917@rapoport-lnx>
+x-cbparentid: 19022515-0029-0000-0000-0000240B1DE9
+Message-Id: <20190225155836.GD24917@rapoport-lnx>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-25_08:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
  malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=940 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902250115
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902250117
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 12, 2019 at 10:56:14AM +0800, Peter Xu wrote:
+On Tue, Feb 12, 2019 at 10:56:16AM +0800, Peter Xu wrote:
 > From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> Accurate userfaultfd WP tracking is possible by tracking exactly which
-> virtual memory ranges were writeprotected by userland. We can't relay
-> only on the RW bit of the mapped pagetable because that information is
-> destroyed by fork() or KSM or swap. If we were to relay on that, we'd
-> need to stay on the safe side and generate false positive wp faults
-> for every swapped out page.
+> This allows UFFDIO_COPY to map pages wrprotected.
+                                       write protected please :)
 > 
 > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 > Signed-off-by: Peter Xu <peterx@redhat.com>
 
+Except for two additional nits below
+
 Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
 
 > ---
->  arch/x86/Kconfig                     |  1 +
->  arch/x86/include/asm/pgtable.h       | 52 ++++++++++++++++++++++++++++
->  arch/x86/include/asm/pgtable_64.h    |  8 ++++-
->  arch/x86/include/asm/pgtable_types.h |  9 +++++
->  include/asm-generic/pgtable.h        |  1 +
->  include/asm-generic/pgtable_uffd.h   | 51 +++++++++++++++++++++++++++
->  init/Kconfig                         |  5 +++
->  7 files changed, 126 insertions(+), 1 deletion(-)
->  create mode 100644 include/asm-generic/pgtable_uffd.h
+>  fs/userfaultfd.c                 |  5 +++--
+>  include/linux/userfaultfd_k.h    |  2 +-
+>  include/uapi/linux/userfaultfd.h | 11 +++++-----
+>  mm/userfaultfd.c                 | 36 ++++++++++++++++++++++----------
+>  4 files changed, 35 insertions(+), 19 deletions(-)
 > 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index 68261430fe6e..cb43bc008675 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -209,6 +209,7 @@ config X86
->  	select USER_STACKTRACE_SUPPORT
->  	select VIRT_TO_BUS
->  	select X86_FEATURE_NAMES		if PROC_FS
-> +	select HAVE_ARCH_USERFAULTFD_WP		if USERFAULTFD
+> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> index b397bc3b954d..3092885c9d2c 100644
+> --- a/fs/userfaultfd.c
+> +++ b/fs/userfaultfd.c
+> @@ -1683,11 +1683,12 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
+>  	ret = -EINVAL;
+>  	if (uffdio_copy.src + uffdio_copy.len <= uffdio_copy.src)
+>  		goto out;
+> -	if (uffdio_copy.mode & ~UFFDIO_COPY_MODE_DONTWAKE)
+> +	if (uffdio_copy.mode & ~(UFFDIO_COPY_MODE_DONTWAKE|UFFDIO_COPY_MODE_WP))
+>  		goto out;
+>  	if (mmget_not_zero(ctx->mm)) {
+>  		ret = mcopy_atomic(ctx->mm, uffdio_copy.dst, uffdio_copy.src,
+> -				   uffdio_copy.len, &ctx->mmap_changing);
+> +				   uffdio_copy.len, &ctx->mmap_changing,
+> +				   uffdio_copy.mode);
+>  		mmput(ctx->mm);
+>  	} else {
+>  		return -ESRCH;
+> diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
+> index c6590c58ce28..765ce884cec0 100644
+> --- a/include/linux/userfaultfd_k.h
+> +++ b/include/linux/userfaultfd_k.h
+> @@ -34,7 +34,7 @@ extern vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason);
 > 
->  config INSTRUCTION_DECODER
->  	def_bool y
-> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-> index 2779ace16d23..6863236e8484 100644
-> --- a/arch/x86/include/asm/pgtable.h
-> +++ b/arch/x86/include/asm/pgtable.h
-> @@ -23,6 +23,7 @@
+>  extern ssize_t mcopy_atomic(struct mm_struct *dst_mm, unsigned long dst_start,
+>  			    unsigned long src_start, unsigned long len,
+> -			    bool *mmap_changing);
+> +			    bool *mmap_changing, __u64 mode);
+>  extern ssize_t mfill_zeropage(struct mm_struct *dst_mm,
+>  			      unsigned long dst_start,
+>  			      unsigned long len,
+> diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
+> index 48f1a7c2f1f0..297cb044c03f 100644
+> --- a/include/uapi/linux/userfaultfd.h
+> +++ b/include/uapi/linux/userfaultfd.h
+> @@ -203,13 +203,14 @@ struct uffdio_copy {
+>  	__u64 dst;
+>  	__u64 src;
+>  	__u64 len;
+> +#define UFFDIO_COPY_MODE_DONTWAKE		((__u64)1<<0)
+>  	/*
+> -	 * There will be a wrprotection flag later that allows to map
+> -	 * pages wrprotected on the fly. And such a flag will be
+> -	 * available if the wrprotection ioctl are implemented for the
+> -	 * range according to the uffdio_register.ioctls.
+> +	 * UFFDIO_COPY_MODE_WP will map the page wrprotected on the
+> +	 * fly. UFFDIO_COPY_MODE_WP is available only if the
+> +	 * wrprotection ioctl are implemented for the range according
+
+                             ^ is
+
+> +	 * to the uffdio_register.ioctls.
+>  	 */
+> -#define UFFDIO_COPY_MODE_DONTWAKE		((__u64)1<<0)
+> +#define UFFDIO_COPY_MODE_WP			((__u64)1<<1)
+>  	__u64 mode;
 > 
->  #ifndef __ASSEMBLY__
->  #include <asm/x86_init.h>
-> +#include <asm-generic/pgtable_uffd.h>
+>  	/*
+> diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+> index d59b5a73dfb3..73a208c5c1e7 100644
+> --- a/mm/userfaultfd.c
+> +++ b/mm/userfaultfd.c
+> @@ -25,7 +25,8 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
+>  			    struct vm_area_struct *dst_vma,
+>  			    unsigned long dst_addr,
+>  			    unsigned long src_addr,
+> -			    struct page **pagep)
+> +			    struct page **pagep,
+> +			    bool wp_copy)
+>  {
+>  	struct mem_cgroup *memcg;
+>  	pte_t _dst_pte, *dst_pte;
+> @@ -71,9 +72,9 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
+>  	if (mem_cgroup_try_charge(page, dst_mm, GFP_KERNEL, &memcg, false))
+>  		goto out_release;
 > 
->  extern pgd_t early_top_pgt[PTRS_PER_PGD];
->  int __init __early_make_pgtable(unsigned long address, pmdval_t pmd);
-> @@ -293,6 +294,23 @@ static inline pte_t pte_clear_flags(pte_t pte, pteval_t clear)
->  	return native_make_pte(v & ~clear);
+> -	_dst_pte = mk_pte(page, dst_vma->vm_page_prot);
+> -	if (dst_vma->vm_flags & VM_WRITE)
+> -		_dst_pte = pte_mkwrite(pte_mkdirty(_dst_pte));
+> +	_dst_pte = pte_mkdirty(mk_pte(page, dst_vma->vm_page_prot));
+> +	if (dst_vma->vm_flags & VM_WRITE && !wp_copy)
+> +		_dst_pte = pte_mkwrite(_dst_pte);
+> 
+>  	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
+>  	if (dst_vma->vm_file) {
+> @@ -399,7 +400,8 @@ static __always_inline ssize_t mfill_atomic_pte(struct mm_struct *dst_mm,
+>  						unsigned long dst_addr,
+>  						unsigned long src_addr,
+>  						struct page **page,
+> -						bool zeropage)
+> +						bool zeropage,
+> +						bool wp_copy)
+>  {
+>  	ssize_t err;
+> 
+> @@ -416,11 +418,13 @@ static __always_inline ssize_t mfill_atomic_pte(struct mm_struct *dst_mm,
+>  	if (!(dst_vma->vm_flags & VM_SHARED)) {
+>  		if (!zeropage)
+>  			err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
+> -					       dst_addr, src_addr, page);
+> +					       dst_addr, src_addr, page,
+> +					       wp_copy);
+>  		else
+>  			err = mfill_zeropage_pte(dst_mm, dst_pmd,
+>  						 dst_vma, dst_addr);
+>  	} else {
+> +		VM_WARN_ON(wp_copy); /* WP only available for anon */
+>  		if (!zeropage)
+>  			err = shmem_mcopy_atomic_pte(dst_mm, dst_pmd,
+>  						     dst_vma, dst_addr,
+> @@ -438,7 +442,8 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+>  					      unsigned long src_start,
+>  					      unsigned long len,
+>  					      bool zeropage,
+> -					      bool *mmap_changing)
+> +					      bool *mmap_changing,
+> +					      __u64 mode)
+>  {
+>  	struct vm_area_struct *dst_vma;
+>  	ssize_t err;
+> @@ -446,6 +451,7 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+>  	unsigned long src_addr, dst_addr;
+>  	long copied;
+>  	struct page *page;
+> +	bool wp_copy;
+> 
+>  	/*>  	 * Sanitize the command parameters:
+> @@ -502,6 +508,14 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+>  	    dst_vma->vm_flags & VM_SHARED))
+>  		goto out_unlock;
+> 
+> +	/*
+> +	 * validate 'mode' now that we know the dst_vma: don't allow
+> +	 * a wrprotect copy if the userfaultfd didn't register as WP.
+> +	 */
+> +	wp_copy = mode & UFFDIO_COPY_MODE_WP;
+> +	if (wp_copy && !(dst_vma->vm_flags & VM_UFFD_WP))
+> +		goto out_unlock;
+> +
+>  	/*
+>  	 * If this is a HUGETLB vma, pass off to appropriate routine
+>  	 */
+
+I think for hugetlb we should return an error if wp_copy==true.
+It might be worth adding wp_copy parameter to __mcopy_atomic_hugetlb() in
+advance and return the error from there, in a hope it will also support
+UFFD_WP some day :)
+
+> @@ -557,7 +571,7 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+>  		BUG_ON(pmd_trans_huge(*dst_pmd));
+> 
+>  		err = mfill_atomic_pte(dst_mm, dst_pmd, dst_vma, dst_addr,
+> -				       src_addr, &page, zeropage);
+> +				       src_addr, &page, zeropage, wp_copy);
+>  		cond_resched();
+> 
+>  		if (unlikely(err == -ENOENT)) {
+> @@ -604,14 +618,14 @@ static __always_inline ssize_t __mcopy_atomic(struct mm_struct *dst_mm,
+> 
+>  ssize_t mcopy_atomic(struct mm_struct *dst_mm, unsigned long dst_start,
+>  		     unsigned long src_start, unsigned long len,
+> -		     bool *mmap_changing)
+> +		     bool *mmap_changing, __u64 mode)
+>  {
+>  	return __mcopy_atomic(dst_mm, dst_start, src_start, len, false,
+> -			      mmap_changing);
+> +			      mmap_changing, mode);
 >  }
 > 
-> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +static inline int pte_uffd_wp(pte_t pte)
-> +{
-> +	return pte_flags(pte) & _PAGE_UFFD_WP;
-> +}
-> +
-> +static inline pte_t pte_mkuffd_wp(pte_t pte)
-> +{
-> +	return pte_set_flags(pte, _PAGE_UFFD_WP);
-> +}
-> +
-> +static inline pte_t pte_clear_uffd_wp(pte_t pte)
-> +{
-> +	return pte_clear_flags(pte, _PAGE_UFFD_WP);
-> +}
-> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
-> +
->  static inline pte_t pte_mkclean(pte_t pte)
+>  ssize_t mfill_zeropage(struct mm_struct *dst_mm, unsigned long start,
+>  		       unsigned long len, bool *mmap_changing)
 >  {
->  	return pte_clear_flags(pte, _PAGE_DIRTY);
-> @@ -372,6 +390,23 @@ static inline pmd_t pmd_clear_flags(pmd_t pmd, pmdval_t clear)
->  	return native_make_pmd(v & ~clear);
+> -	return __mcopy_atomic(dst_mm, start, 0, len, true, mmap_changing);
+> +	return __mcopy_atomic(dst_mm, start, 0, len, true, mmap_changing, 0);
 >  }
-> 
-> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +static inline int pmd_uffd_wp(pmd_t pmd)
-> +{
-> +	return pmd_flags(pmd) & _PAGE_UFFD_WP;
-> +}
-> +
-> +static inline pmd_t pmd_mkuffd_wp(pmd_t pmd)
-> +{
-> +	return pmd_set_flags(pmd, _PAGE_UFFD_WP);
-> +}
-> +
-> +static inline pmd_t pmd_clear_uffd_wp(pmd_t pmd)
-> +{
-> +	return pmd_clear_flags(pmd, _PAGE_UFFD_WP);
-> +}
-> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
-> +
->  static inline pmd_t pmd_mkold(pmd_t pmd)
->  {
->  	return pmd_clear_flags(pmd, _PAGE_ACCESSED);
-> @@ -1351,6 +1386,23 @@ static inline pmd_t pmd_swp_clear_soft_dirty(pmd_t pmd)
->  #endif
->  #endif
-> 
-> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +static inline pte_t pte_swp_mkuffd_wp(pte_t pte)
-> +{
-> +	return pte_set_flags(pte, _PAGE_SWP_UFFD_WP);
-> +}
-> +
-> +static inline int pte_swp_uffd_wp(pte_t pte)
-> +{
-> +	return pte_flags(pte) & _PAGE_SWP_UFFD_WP;
-> +}
-> +
-> +static inline pte_t pte_swp_clear_uffd_wp(pte_t pte)
-> +{
-> +	return pte_clear_flags(pte, _PAGE_SWP_UFFD_WP);
-> +}
-> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
-> +
->  #define PKRU_AD_BIT 0x1
->  #define PKRU_WD_BIT 0x2
->  #define PKRU_BITS_PER_PKEY 2
-> diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-> index 9c85b54bf03c..e0c5d29b8685 100644
-> --- a/arch/x86/include/asm/pgtable_64.h
-> +++ b/arch/x86/include/asm/pgtable_64.h
-> @@ -189,7 +189,7 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
->   *
->   * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2| 1|0| <- bit number
->   * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U| W|P| <- bit names
-> - * | TYPE (59-63) | ~OFFSET (9-58)  |0|0|X|X| X| X|X|SD|0| <- swp entry
-> + * | TYPE (59-63) | ~OFFSET (9-58)  |0|0|X|X| X| X|F|SD|0| <- swp entry
->   *
->   * G (8) is aliased and used as a PROT_NONE indicator for
->   * !present ptes.  We need to start storing swap entries above
-> @@ -197,9 +197,15 @@ extern void sync_global_pgds(unsigned long start, unsigned long end);
->   * erratum where they can be incorrectly set by hardware on
->   * non-present PTEs.
->   *
-> + * SD Bits 1-4 are not used in non-present format and available for
-> + * special use described below:
-> + *
->   * SD (1) in swp entry is used to store soft dirty bit, which helps us
->   * remember soft dirty over page migration
->   *
-> + * F (2) in swp entry is used to record when a pagetable is
-> + * writeprotected by userfaultfd WP support.
-> + *
->   * Bit 7 in swp entry should be 0 because pmd_present checks not only P,
->   * but also L and G.
->   *
-> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-> index d6ff0bbdb394..8cebcff91e57 100644
-> --- a/arch/x86/include/asm/pgtable_types.h
-> +++ b/arch/x86/include/asm/pgtable_types.h
-> @@ -32,6 +32,7 @@
-> 
->  #define _PAGE_BIT_SPECIAL	_PAGE_BIT_SOFTW1
->  #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_SOFTW1
-> +#define _PAGE_BIT_UFFD_WP	_PAGE_BIT_SOFTW2 /* userfaultfd wrprotected */
->  #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
->  #define _PAGE_BIT_DEVMAP	_PAGE_BIT_SOFTW4
-> 
-> @@ -100,6 +101,14 @@
->  #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
->  #endif
-> 
-> +#ifdef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +#define _PAGE_UFFD_WP		(_AT(pteval_t, 1) << _PAGE_BIT_UFFD_WP)
-> +#define _PAGE_SWP_UFFD_WP	_PAGE_USER
-> +#else
-> +#define _PAGE_UFFD_WP		(_AT(pteval_t, 0))
-> +#define _PAGE_SWP_UFFD_WP	(_AT(pteval_t, 0))
-> +#endif
-> +
->  #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
->  #define _PAGE_NX	(_AT(pteval_t, 1) << _PAGE_BIT_NX)
->  #define _PAGE_DEVMAP	(_AT(u64, 1) << _PAGE_BIT_DEVMAP)
-> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-> index 05e61e6c843f..f49afe951711 100644
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -10,6 +10,7 @@
->  #include <linux/mm_types.h>
->  #include <linux/bug.h>
->  #include <linux/errno.h>
-> +#include <asm-generic/pgtable_uffd.h>
-> 
->  #if 5 - defined(__PAGETABLE_P4D_FOLDED) - defined(__PAGETABLE_PUD_FOLDED) - \
->  	defined(__PAGETABLE_PMD_FOLDED) != CONFIG_PGTABLE_LEVELS
-> diff --git a/include/asm-generic/pgtable_uffd.h b/include/asm-generic/pgtable_uffd.h
-> new file mode 100644
-> index 000000000000..643d1bf559c2
-> --- /dev/null
-> +++ b/include/asm-generic/pgtable_uffd.h
-> @@ -0,0 +1,51 @@
-> +#ifndef _ASM_GENERIC_PGTABLE_UFFD_H
-> +#define _ASM_GENERIC_PGTABLE_UFFD_H
-> +
-> +#ifndef CONFIG_HAVE_ARCH_USERFAULTFD_WP
-> +static __always_inline int pte_uffd_wp(pte_t pte)
-> +{
-> +	return 0;
-> +}
-> +
-> +static __always_inline int pmd_uffd_wp(pmd_t pmd)
-> +{
-> +	return 0;
-> +}
-> +
-> +static __always_inline pte_t pte_mkuffd_wp(pte_t pte)
-> +{
-> +	return pte;
-> +}
-> +
-> +static __always_inline pmd_t pmd_mkuffd_wp(pmd_t pmd)
-> +{
-> +	return pmd;
-> +}
-> +
-> +static __always_inline pte_t pte_clear_uffd_wp(pte_t pte)
-> +{
-> +	return pte;
-> +}
-> +
-> +static __always_inline pmd_t pmd_clear_uffd_wp(pmd_t pmd)
-> +{
-> +	return pmd;
-> +}
-> +
-> +static __always_inline pte_t pte_swp_mkuffd_wp(pte_t pte)
-> +{
-> +	return pte;
-> +}
-> +
-> +static __always_inline int pte_swp_uffd_wp(pte_t pte)
-> +{
-> +	return 0;
-> +}
-> +
-> +static __always_inline pte_t pte_swp_clear_uffd_wp(pte_t pte)
-> +{
-> +	return pte;
-> +}
-> +#endif /* CONFIG_HAVE_ARCH_USERFAULTFD_WP */
-> +
-> +#endif /* _ASM_GENERIC_PGTABLE_UFFD_H */
-> diff --git a/init/Kconfig b/init/Kconfig
-> index c9386a365eea..892d61ddf2eb 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -1424,6 +1424,11 @@ config ADVISE_SYSCALLS
->  	  applications use these syscalls, you can disable this option to save
->  	  space.
-> 
-> +config HAVE_ARCH_USERFAULTFD_WP
-> +	bool
-> +	help
-> +	  Arch has userfaultfd write protection support
-> +
->  config MEMBARRIER
->  	bool "Enable membarrier() system call" if EXPERT
->  	default y
 > -- 
 > 2.17.1
 > 
