@@ -2,93 +2,96 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B806EC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 12:17:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1942CC4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:16:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7D1B42173C
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 12:17:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D1B42173C
+	by mail.kernel.org (Postfix) with ESMTP id 9A5AE2147C
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:16:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A5AE2147C
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 18BB48E017C; Mon, 25 Feb 2019 07:17:12 -0500 (EST)
+	id 1104F8E000D; Mon, 25 Feb 2019 08:16:06 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 114008E0005; Mon, 25 Feb 2019 07:17:12 -0500 (EST)
+	id 0BF968E000C; Mon, 25 Feb 2019 08:16:06 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F20238E017C; Mon, 25 Feb 2019 07:17:11 -0500 (EST)
+	id ECA418E000D; Mon, 25 Feb 2019 08:16:05 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 94A1E8E0005
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:17:11 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id x47so3760980eda.8
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 04:17:11 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9804A8E000C
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 08:16:05 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id e46so3941802ede.9
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 05:16:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=4TmrxKv/+PhElmFrBpDhmc/2QFR1UwspXGgp2t0OT4I=;
-        b=YlXIiFJtmZ7Lvjya6E73CvE6SSS3U/KZuCxOQSddLUUz44HJQdrTf8JEzog7N17iCW
-         4fHITJ2j+cHSBXeGSYjEwY7d0vhxlQh8L3uvHjayauYOhwxQkvNW/FbhvujfGngmZaJY
-         JodthGChC3yf7fpPnn2QitReFlO2K/uLlynwI7Yaaw+RHUBITrTfCEJG/HDS4F4LoFuE
-         a6JU0M7ELWzNQ++CjSBDdQsILecfhuaC2h58mkhVCLoUtst+osKfO+R/SS1GwTWxMa8Q
-         QsaEqQ/f0gtY4a4T0SErIKplbFmQbUiOXEIk9RloxTjKkNALjd0wZNjeaSbpgDE1GfhK
-         MLeA==
+        bh=qEJefqNOuwWrZppH/MSXxxd/1ImLs314sw615w/W89Q=;
+        b=tfCjfMKvUP8tNrn0hLIyn5wViZWQnZCPb1bVcYKlpN2/SlhJbWmG9w0Bf3PuqyXB8Z
+         o+gsnQurGMngPbIbsB2sIYonTWyWnDD51eZ3ye7ydx4Jh/e4HrjtDjUAOt5k6Se5oiba
+         aX8XwXp9afpQXarQ9+jcekYqfDm9ktE0CAaMb14l7FcAmIUt3EbUachq/UmFJwiGjtLK
+         HcAEWDT5ulf+v4YvR4iMG0+KFL3nvubWe4coW3J5Pow7m4wEHm+Bvfed0C8cYHlxIW/w
+         y9SYZwEQcz0/a9L5DdPql0KhdFn4vdQ2gQ/XHf7Ik0sGHZgkZFla++pZmXM0x4oUvccc
+         3fMA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: AHQUAuZSmZYWt9k9+w/NsRch4Y4IZMORaAc62jpGAGufm5DO5Sr13Xxf
-	8BFfAPl9T8lO22Go2ImnEHicJXsGgj0NuSg/4y+WbVOQ7pfhVvtXTUdRcx6URydq5GRCCoQBxZD
-	bZm80odSWbdUFQ1UfXasEY5MkLBRgjRwlXpeQhvbPNPMx268UBTcurvbVRGIewjoTgQ==
-X-Received: by 2002:a50:86cf:: with SMTP id 15mr14187929edu.239.1551097031128;
-        Mon, 25 Feb 2019 04:17:11 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZI98fNjJM4bIA5KM8/6oNvtMWTItVjHhf0HZ4cUvmrV5ywLt2YxYLlGP111sCPip1XfvSA
-X-Received: by 2002:a50:86cf:: with SMTP id 15mr14187895edu.239.1551097030413;
-        Mon, 25 Feb 2019 04:17:10 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551097030; cv=none;
+X-Gm-Message-State: AHQUAuat5nQZFaXYl2ZFgn+8QeMFa39RSDBb5RzvNDzaYiDhe1PBxzha
+	DbWI1C63OkLz6L52zW1pPdfcRCj/ZszOufala6RkW9HHVsdvRQs3v3Mdc8OTssKj1L/FaHv/KIj
+	mYbIet29iSh9ivbEXBYrTNHZRovBEWdImBUdWJULnzcGuGqrOcN5d/aSVZORqjo/nvw==
+X-Received: by 2002:a50:893d:: with SMTP id e58mr14242097ede.266.1551100565018;
+        Mon, 25 Feb 2019 05:16:05 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbVLOepshVvmbPJuJ3o7nBt5ubo7KfHI+zatFuuoD2KH5rAbaA0HvKv3CDReI9zGH5CVmz9
+X-Received: by 2002:a50:893d:: with SMTP id e58mr14242034ede.266.1551100563984;
+        Mon, 25 Feb 2019 05:16:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551100563; cv=none;
         d=google.com; s=arc-20160816;
-        b=EWstJok35pRdA0YAkJiKhAPG0Y4zLLkmh4JOaWPkKUYwR07Bo9kE7v2VwumRa49i5D
-         cNUisNuSo1PeAebwOOQW9fyXPKxq06hw0kpkxDC95+wJDIWcMNjGxSZyw3E2VdM7iry7
-         JGmswFJcR+UwP4E351/Cr7nd1OyH8WgguVap2iTWbl6ik7i7h/8ki3kB1v/nPwmggh00
-         EN8Qws+NPfbl90Lnc3kkH7pz+7zor6KDAdHFEkXcWaMWiPTYeRYQ8sx+SHXaleoI4bs4
-         LGCrnWdlHwGu17wCoRMVYP5lwGL6T9l0NLZytGoMOT/PomjvSWZv2mhxU1ohCRB0+y0U
-         1Q8Q==
+        b=WgZQvnCGZavUVxEXu6m/2w1dGfoz9iu2GrwQCKl/x05NKwffJ6gFAD+Ge7SgUjT6H/
+         OlMnhOHh64j7AfA5LO6W6uTvMzQav2lpfqTAVwphV3G5ZF9Mx3L439r73ZYt2BLstA5L
+         mu9SeXOr9Y47EqYL2nQX/OhM/yGW/yepHQN+yYwV5dZMczShbiUhB/fbJ8Gx0sYhY/3P
+         t/gImtZyKrBlTVEscDKBn7n4P9t+9sLWZsYYp24mjluDyxmRVqPyU8Q5p9fe4z9WHzOw
+         qEomClUlJ7WtbtmQzTeTl25T0nUIoJl9c4Bi+cF/tZEWoZfDeFgsWMjE4yaqkW79vRCk
+         yfpw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=4TmrxKv/+PhElmFrBpDhmc/2QFR1UwspXGgp2t0OT4I=;
-        b=LU/Xz8uR94v2KC8/KOTaGmH3KhgRq592HPDpdpb+pJxsZbebZQuMKTdPElOmGGM6XS
-         jTH/pHuuP52GzOBZaqhF+/4DFqxRLZarzM60dghKpoRn4OTLferaOlEhkWYSura6vrCi
-         uLfTPF3KcxqbwFyGZ6yt3aEGWZEO1JIoI5UGTShYJFFFY8gv3ZsI3MmYtPF4aE3LccXX
-         NZWVlHlBpIn/W6LePIIDZ4ZR07egX3u0IaKjwn4FERUeC/Q+ye52N0uzxVXcj5YKCtap
-         V9vhD9tEy+3GaDUdSJ6QGFgeo3bgv6FMGTfopVp44ADXjLMWFYgLvZfUnerStGvd5IFK
-         ctuA==
+        bh=qEJefqNOuwWrZppH/MSXxxd/1ImLs314sw615w/W89Q=;
+        b=XZ6C6HCQ4hdsYP10hsAnqhQs89ZPygNV19QkRQhDGW30YkXev0yN7lvYwftquXyZ8x
+         L9Ug+PpQwPfwNDQpok9uoxOtTgQfMypmUcwH83O5znJTTlEyqLv/otQ9daguPAdnJmnF
+         /vchhQYbebWeobzEGTNmPAUXassK8MQ4ytvfk0wX1GVsORTulZRs24m2n/fAbttLpOI8
+         BwrOnyKPAlapPHHd12EehGK6krasA4bY8nQ2FJ1Oq+6qyyZQ6yIfuqKyGsnESLK313eH
+         EL7UL27G4eAfeVkS0W/E8KUqwFm81ATZXNW0SovKwscqw39wiLfpx/rkKDwYw+gVpfzR
+         ShAQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m33si3718232ede.445.2019.02.25.04.17.10
+        by mx.google.com with ESMTPS id m10si1383408ejb.232.2019.02.25.05.16.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 04:17:10 -0800 (PST)
+        Mon, 25 Feb 2019 05:16:03 -0800 (PST)
 Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id F3F9DAF15;
-	Mon, 25 Feb 2019 12:17:09 +0000 (UTC)
-Subject: Re: [PATCH 4/5] mm/vmscan: remove unused lru_pages argument
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>,
- Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
- Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>
-References: <20190222174337.26390-1-aryabinin@virtuozzo.com>
- <20190222174337.26390-4-aryabinin@virtuozzo.com>
+	by mx1.suse.de (Postfix) with ESMTP id 16473AF6F;
+	Mon, 25 Feb 2019 13:16:03 +0000 (UTC)
+Subject: Re: [PATCH] xfs: allocate sector sized IO buffer via page_frag_alloc
+To: Dave Chinner <david@fromorbit.com>, Ming Lei <ming.lei@redhat.com>
+Cc: "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org,
+ Jens Axboe <axboe@kernel.dk>, Vitaly Kuznetsov <vkuznets@redhat.com>,
+ Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>,
+ Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ Aaron Lu <aaron.lu@intel.com>, Christopher Lameter <cl@linux.com>,
+ Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org,
+ linux-block@vger.kernel.org
+References: <20190225040904.5557-1-ming.lei@redhat.com>
+ <20190225043648.GE23020@dastard>
 From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
 Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
@@ -151,12 +154,12 @@ Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
  5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
  hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
  Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
-Message-ID: <a660af7a-5af6-ac9e-f72d-ed4841e15120@suse.cz>
-Date: Mon, 25 Feb 2019 13:17:09 +0100
+Message-ID: <5ad2ef83-8b3a-0a15-d72e-72652b807aad@suse.cz>
+Date: Mon, 25 Feb 2019 14:15:59 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.5.0
 MIME-Version: 1.0
-In-Reply-To: <20190222174337.26390-4-aryabinin@virtuozzo.com>
+In-Reply-To: <20190225043648.GE23020@dastard>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -166,19 +169,34 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/22/19 6:43 PM, Andrey Ryabinin wrote:
-> The argument 'unsigned long *lru_pages' passed around with no purpose,
-> remove it.
+On 2/25/19 5:36 AM, Dave Chinner wrote:
+> On Mon, Feb 25, 2019 at 12:09:04PM +0800, Ming Lei wrote:
+>> XFS uses kmalloc() to allocate sector sized IO buffer.
+> ....
+>> Use page_frag_alloc() to allocate the sector sized buffer, then the
+>> above issue can be fixed because offset_in_page of allocated buffer
+>> is always sector aligned.
 > 
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Didn't we already reject this approach because page frags cannot be
+> reused and that pages allocated to the frag pool are pinned in
+> memory until all fragments allocated on the page have been freed?
 
-With what Johannes has said,
+I don't know if you did, but it's certainly true., Also I don't think
+there's any specified alignment guarantee for page_frag_alloc().
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+What about kmem_cache_create() with align parameter? That *should* be
+guaranteed regardless of whatever debugging is enabled - if not, I would
+consider it a bug.
 
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Rik van Riel <riel@surriel.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
+> i.e. when we consider 64k page machines and 4k block sizes (i.e.
+> default config), every single metadata allocation is a sub-page
+> allocation and so will use this new page frag mechanism. IOWs, it
+> will result in fragmenting memory severely and typical memory
+> reclaim not being able to fix it because the metadata that pins each
+> page is largely unreclaimable...
+> 
+> Cheers,
+> 
+> Dave.
+> 
 
