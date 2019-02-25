@@ -2,173 +2,232 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.2 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
+	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A5010C4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 03:17:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0C4C1C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 04:03:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 46214213F2
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 03:17:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ACEF12084D
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 04:03:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="WoKWNFpe"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 46214213F2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="np9MPOvo";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="HykAhdwb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ACEF12084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 961568E016B; Sun, 24 Feb 2019 22:17:49 -0500 (EST)
+	id 484078E016C; Sun, 24 Feb 2019 23:03:34 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9106A8E016A; Sun, 24 Feb 2019 22:17:49 -0500 (EST)
+	id 435498E016A; Sun, 24 Feb 2019 23:03:34 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D9668E016B; Sun, 24 Feb 2019 22:17:49 -0500 (EST)
+	id 323B48E016C; Sun, 24 Feb 2019 23:03:34 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 354AD8E016A
-	for <linux-mm@kvack.org>; Sun, 24 Feb 2019 22:17:49 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id 38so6352351pld.6
-        for <linux-mm@kvack.org>; Sun, 24 Feb 2019 19:17:49 -0800 (PST)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0707D8E016A
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2019 23:03:34 -0500 (EST)
+Received: by mail-yb1-f200.google.com with SMTP id t128so6073420ybf.11
+        for <linux-mm@kvack.org>; Sun, 24 Feb 2019 20:03:33 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=3hqHXO72C1pMmktCE8lDSqZjAXGOL5gPjm/u1LuEqsY=;
-        b=cXnz69xkiuAzzSIOAAkM6J1gkc9UAYX6Y65pWjR4jnQjrsOYgRhL8mcKOYV9yCDvN+
-         tDpUiz6I4nhbixSyi8zYBdsQ14uCNu0yDRvBaITw7UK25a3HR2WDT9u1FGdW/eibTF10
-         0v3MRU/VDyc5Al3W/BZbW4K6DoLVPLXVIfTxFV/RgUGldc+/4RtyxCn5ciYzM0dhnZNY
-         d9075Iz4p/WPhYXXsQIUOD2qltkJTQVkmlE0iLKpLPdCUvaHdRuSM9Eo19u1z83aFbvQ
-         B8qHwcxt/pTMeBN7ilADYf0zlttZP+Sa8Dq4GmmnyRHcV2YMOLU8XNWPNSDfA1RC1whU
-         qKXA==
-X-Gm-Message-State: AHQUAuaWYiFEiyjWZC1Krn0lUOZSAXDvtVslFcar5yylZVYtCBtVnGZc
-	0S2We1mezcB44QUdIDFoPPCSjox4uDaW/iy1SirEebgv9NVL5Raf5j4x+Ad9FgON0IzXxFjDOte
-	28kZ/nsCQoOyZsabTjOa2bC8WP8l5fyxiOArc9wlHBxhm1ERTB8j0t8muq5HHf1IH4wEpLyNMn9
-	WiiClm/MFS/8TZjmadQcQZmC64u5vMHsAzIri3/bsaKipNNYPWtlRyBB6/IUwXlfg/kVCxUg+Lj
-	M6eO8bB4Pz6hc8Yz25L0ZwPqJnCbMYMuE6Y3/WyEAdxNiuiCUTg5wBU26W5Ih4xWIdg/Ef3Dpvs
-	iOqRrZeal076WdgVNoqzIBjzdwEfwIBzD0o4pGT97FWs0We4iBzZEcH+AjkBbyzTZboiad5IIH8
-	m
-X-Received: by 2002:a63:f718:: with SMTP id x24mr17032491pgh.107.1551064668715;
-        Sun, 24 Feb 2019 19:17:48 -0800 (PST)
-X-Received: by 2002:a63:f718:: with SMTP id x24mr17032390pgh.107.1551064667671;
-        Sun, 24 Feb 2019 19:17:47 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551064667; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=9VXJhSq638uSY01btt4oIi9Ht1j0U/kKJbU9l37MQP8=;
+        b=MGWLJ5jkkJfy5uTw/iDtXZ1daDRQpa0qfWchdFalW0677nqbn2kEJ7H5djbsHe1h1p
+         hI0KktJNiItvBfNZpb8V7RHc/nhHqsJmlsdn3WAC/P51sCT6g6TbaVTcyqniG28u4JLG
+         RtRfklopBoGkYKUSn5DPJR1kqIFA4g7+Se4MeBavsiCrXj3A5vgEvsVU7FNBaenCtXK/
+         TW+qTpZRC6ARRzYN4zr7SC+LCoyWK8JNzLBUupHWV05E2Ecc9xWtt/E6mmRBVkAAs5Wy
+         ser6MaZkUcETpg/gDu5ZB1CCMkWky8jbLpCUyQhcR571CB0NbHVfWaJEqAPRRQYkGpOC
+         DScA==
+X-Gm-Message-State: AHQUAuaJsXTuF8TQ8pvqn2BAZm25et4/abcG8k1ekxd4YXj6GvuoCsOy
+	npxwolv6Q096WnN+54fCnbbsG+MCszUzUG5uVQyj45WN65jJD0tPUwafUnpaLkCEBDOWZT1wMFo
+	0O2ot9Zc8+kSs7KZZ8SeGN64zgf8dhJd/CdmYe6YC16B35EFJU58gPd1TPz1dewl5ww==
+X-Received: by 2002:a81:5252:: with SMTP id g79mr12197371ywb.420.1551067413667;
+        Sun, 24 Feb 2019 20:03:33 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ibrty1Pnyl6dpe1Fn6kGV3VXMpXvW0Mox92/+R7xJ5bj5deuG6Ik85uhkPs4YCu62GfFq0W
+X-Received: by 2002:a81:5252:: with SMTP id g79mr12197335ywb.420.1551067412814;
+        Sun, 24 Feb 2019 20:03:32 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551067412; cv=none;
         d=google.com; s=arc-20160816;
-        b=WUmgl6/I2fBXAiWnJeZ7a/jXvVRUJYb/vvsJwysfK9GtuS/CFARwbUmXcdVT0+BVlD
-         DR3KLkjz9uYeRNCMjrZklX5TY1X1XvB7qCWBkPuFZTKiwvNbY2svrRjRMhFfFcTjWuTW
-         j7ShdMBETziRoPlikB3OFzON3Bh9eSlf3oD0DnHkeGy6ld3P9Y2DS5M4AwiE3v7Dva0Z
-         pGHjwuSP8OZq7fkFZl/H8qtN4gCQLQOpu9LO6iK3Um7kPITVhUS+jQE26dTCy16Ep9LI
-         +NbwEvvXeAgVdvdAMP1/wt/m20MoqH+IBMCnoHk9cJ3LWXoLJoxs/tbJ4sSxpJjnxkk2
-         Cjbw==
+        b=quLuvQVqcMqgPqyN/P71N8A7tuI7dE1k9upZqytG97Q/fxLXfak3Xd/j24BxsF8KfY
+         QkAYDW7ASw1YcLFno4uk+Xeu27/ZtYkhL8nqOaiEhZ4sjPr4vPDkFDhbScYt3nyxDjag
+         5svgKXxI744e6fllt4h5R9XlHimYu1m3SOEo/P/p5cDkO7FZbc5robEb+PuLibZ0A9qH
+         xlc0JzY9KncbJ0m4ho/GsxWk81+dB6uWdq2ex0Df43m/ut0auTFxubD95rFGlxiTyGl0
+         laD/6lPamLo0jOq+GwQaLrRt/4GDWxTSsRJ9CJCERgEMJvtu2vhQNcO096Va7mK+v8WS
+         3Umg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=3hqHXO72C1pMmktCE8lDSqZjAXGOL5gPjm/u1LuEqsY=;
-        b=t3jPKn1memAWrL3jioMAMLzoqGARm7Q3HXJ9zBhNG6Sy7tXRslJO6tduPt1iEx6ffY
-         DlHBM16sZxm5iklVb9rQpWvleaQD+xCvU0iMbr2MojAPwtYoLvJ6ZpU2QB83gcWuBD3L
-         OkueXdErvsNpjV1+Tfw233anIgIiJyOhr/aG+dZG+drMdR2UpMcYuvoO8pJVs2dO8K2l
-         Nhkrxf4bwntDlc0YGQOxshnvCXnU90pgGwznr9sp5fB/WQNkK5/08/fDuXnH+VxWgIkl
-         h2fbYHpAiULVYfwynavei6OnBK+stSBM7RuzIHxg+AW5hSVY+1W61b7b8GnlLwt0xhCk
-         iWqg==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=9VXJhSq638uSY01btt4oIi9Ht1j0U/kKJbU9l37MQP8=;
+        b=mmuLc0Woe3cVsR0VJUnkQS6ERykNwmsMGx5tiCRnz7cZ7zwx4qTp8h95Uz/90+NpMU
+         HQCM0/Gr0Yc0taPv2pYqHOGdNr/GY4YxKZj/lOsANvlVs+0A6qVQeXkkqmjdFRihfoUB
+         OL/dTGT1bTGa+eAqX0SUNYHanWfkQl7+ilgxGcaVysiUlQZHCtWICChnoW9tHqInONkE
+         9BPk+Wmd3ubkK7YE/vpOxUNennWl77uQg0H4k6tR4nQFp1MOOBUVC6XWIUJuHsi+vWvO
+         VGYeXFZtWchPK8a77d1rZ1THvUxs11DWKUjl9PKg3oo0gKXxm1QyuNI58KRXIRXpc718
+         Yihg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=WoKWNFpe;
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c24sor12133010pgw.44.2019.02.24.19.17.47
+       dkim=pass header.i=@fb.com header.s=facebook header.b=np9MPOvo;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=HykAhdwb;
+       spf=pass (google.com: domain of prvs=7959fd5ab7=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=7959fd5ab7=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id u203si4479571ybb.171.2019.02.24.20.03.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 24 Feb 2019 19:17:47 -0800 (PST)
-Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 24 Feb 2019 20:03:32 -0800 (PST)
+Received-SPF: pass (google.com: domain of prvs=7959fd5ab7=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=WoKWNFpe;
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=3hqHXO72C1pMmktCE8lDSqZjAXGOL5gPjm/u1LuEqsY=;
-        b=WoKWNFpeqO+9fJm+2Yykir+w7q1YpgJzrgrV1TLQpDdpFmIRO1Yb3HtpcNunjefWyi
-         XrGUEdpzhQus31HR1KKKggztb5ep5ykid5pc/fHos8M3Qy/Ps8+Blv6tBCVl62WqgC0a
-         0cf/NA5ognbk8avb0S5nsdadfj7+dxgThg2P04Ig7eagYQ1zU9NTNpWbJ8LFhObHmAni
-         /CG2wPPAcPTYl02+k3+y8p39P3RjArvOZRwaFAvkG183MdeYw9VOQFxYGWlPXZEXbmkd
-         f3X+Ca9qpXCk+FqSuj/QKHlzViXfMOCf3wKPN7brAcmBf8AZc6Tjqlx6xGZSQBIy1F2t
-         LmEg==
-X-Google-Smtp-Source: AHgI3IarpUOFmYuEpyRHfr1TTUj3VJC5J9dXE2KcUUmtr5uYHVHSVePdSPA9VM7bLBhpyy9RGPODUQ==
-X-Received: by 2002:a62:864c:: with SMTP id x73mr17991591pfd.49.1551064667030;
-        Sun, 24 Feb 2019 19:17:47 -0800 (PST)
-Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
-        by smtp.gmail.com with ESMTPSA id 10sm15814929pfq.146.2019.02.24.19.17.45
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 24 Feb 2019 19:17:46 -0800 (PST)
-Date: Sun, 24 Feb 2019 19:17:45 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-X-X-Sender: rientjes@chino.kir.corp.google.com
-To: Mike Kravetz <mike.kravetz@oracle.com>
-cc: Jing Xiangfeng <jingxiangfeng@huawei.com>, mhocko@kernel.org, 
-    akpm@linux-foundation.org, hughd@google.com, linux-mm@kvack.org, 
-    n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, 
-    kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v4] mm/hugetlb: Fix unsigned overflow in
- __nr_hugepages_store_common()
-In-Reply-To: <388cbbf5-7086-1d04-4c49-049021504b9d@oracle.com>
-Message-ID: <alpine.DEB.2.21.1902241913000.34632@chino.kir.corp.google.com>
-References: <1550885529-125561-1-git-send-email-jingxiangfeng@huawei.com> <388cbbf5-7086-1d04-4c49-049021504b9d@oracle.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       dkim=pass header.i=@fb.com header.s=facebook header.b=np9MPOvo;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=HykAhdwb;
+       spf=pass (google.com: domain of prvs=7959fd5ab7=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=7959fd5ab7=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0044008.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1P3reIR023590;
+	Sun, 24 Feb 2019 20:03:24 -0800
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=9VXJhSq638uSY01btt4oIi9Ht1j0U/kKJbU9l37MQP8=;
+ b=np9MPOvoQyG/AJGmofvkwiM5gawrGD0XuZ4KR8oeM6gQXWOUZya5YWlu8o9IMcrZX1JT
+ OIJHWf0dVnK8ANfV7ql7SPEnlmyr7Vcg5BrnctV1hw1ZuxwlEzU5EynHSDzQUS2pMEGw
+ 5+45J9DDK4xukIINKTqTp0lzUmjUn63pAKU= 
+Received: from maileast.thefacebook.com ([199.201.65.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2qv1n7rvj5-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Sun, 24 Feb 2019 20:03:24 -0800
+Received: from frc-hub05.TheFacebook.com (2620:10d:c021:18::175) by
+ frc-hub06.TheFacebook.com (2620:10d:c021:18::176) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1531.3; Sun, 24 Feb 2019 20:03:22 -0800
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (192.168.183.28)
+ by o365-in.thefacebook.com (192.168.177.75) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1531.3
+ via Frontend Transport; Sun, 24 Feb 2019 20:03:22 -0800
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=9VXJhSq638uSY01btt4oIi9Ht1j0U/kKJbU9l37MQP8=;
+ b=HykAhdwbmtZW4BHsne4dZjXEy6PxlTSsCGWIecUiWo/C1E9VwzT9NIVI1fozuJ1eOItVvgmWTyIYtI9DzBldR2db5UIfZ230Q3tN3dpPkQifsamLMBk6pBLtSOgi5L+kkv9LKU/2rAYoe/i+m4txxQCUOW+ozpYAFn60aMQ2MHQ=
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
+ BYAPR15MB2981.namprd15.prod.outlook.com (20.178.237.206) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1643.14; Mon, 25 Feb 2019 04:03:02 +0000
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::ecc7:1a8c:289f:df92]) by BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::ecc7:1a8c:289f:df92%3]) with mapi id 15.20.1643.019; Mon, 25 Feb 2019
+ 04:03:02 +0000
+From: Roman Gushchin <guro@fb.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+CC: Andrew Morton <akpm@linux-foundation.org>,
+        "linux-mm@kvack.org"
+	<linux-mm@kvack.org>,
+        "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        "Michal
+ Hocko" <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>,
+        Rik van Riel
+	<riel@surriel.com>,
+        Mel Gorman <mgorman@techsingularity.net>,
+        Shakeel Butt
+	<shakeelb@google.com>
+Subject: Re: [PATCH RFC] mm/vmscan: try to protect active working set of
+ cgroup from reclaim.
+Thread-Topic: [PATCH RFC] mm/vmscan: try to protect active working set of
+ cgroup from reclaim.
+Thread-Index: AQHUythGXfYU+8xM1EWrupNuYl99T6Xv6EsA
+Date: Mon, 25 Feb 2019 04:03:02 +0000
+Message-ID: <20190225040255.GA31684@castle.DHCP.thefacebook.com>
+References: <20190222175825.18657-1-aryabinin@virtuozzo.com>
+In-Reply-To: <20190222175825.18657-1-aryabinin@virtuozzo.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: CO1PR15CA0113.namprd15.prod.outlook.com
+ (2603:10b6:101:21::33) To BYAPR15MB2631.namprd15.prod.outlook.com
+ (2603:10b6:a03:152::24)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:180::1:48a8]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 747cab16-d65c-408a-d269-08d69ad6232f
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:BYAPR15MB2981;
+x-ms-traffictypediagnostic: BYAPR15MB2981:
+x-microsoft-exchange-diagnostics: 1;BYAPR15MB2981;20:cyW9EMFGVr2b9hSimsQRdBf1alZ46+mrTr+EdveVeIjoBKIJFX5gOUWAyXsqpKHqIJa9aH6fCsUlCSaVqzDnhvMb+ouoUVDswUOTSzjmn9l3tTR0izk7xG6tnU5Q8unVVyuuq340IpShTxGOlpNDZCDNfH0snC8XT8RmhjJHXZs=
+x-microsoft-antispam-prvs: <BYAPR15MB2981FB98010419B1728664C3BE7A0@BYAPR15MB2981.namprd15.prod.outlook.com>
+x-forefront-prvs: 095972DF2F
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(366004)(396003)(136003)(346002)(376002)(39860400002)(199004)(189003)(54906003)(6486002)(476003)(102836004)(97736004)(446003)(25786009)(316002)(6436002)(486006)(8676002)(6346003)(68736007)(478600001)(6116002)(14444005)(11346002)(33656002)(6506007)(386003)(6246003)(14454004)(256004)(105586002)(6916009)(71190400001)(2906002)(106356001)(71200400001)(46003)(7416002)(99286004)(229853002)(305945005)(76176011)(1076003)(7736002)(81166006)(86362001)(8936002)(5660300002)(4326008)(186003)(53936002)(6512007)(9686003)(81156014)(52116002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2981;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: 2YhvqzFLlJ1YPRaSxBh6b1SOmZAMLl/jZJSd6NtQuayeT96j7fpSQWpYKgSsYUyCoT4B1Wl3AIigVs/0+Gl2WwRxVXKeNEGe8h43OUqqj1BtUW3nebuontb2gcVmgCF20cn8eNK+10phCfSfgu35bTh8carfj0J4F7PrLS90p2U05UdFkTNWVvwjrV5f0OCFVSwvMvhMcBH7BZQrkr6MySYy+jeV3i9k3y1ZKbMxJoWsMnqHW4L/ssHJoFt0JXQhBLuWR0uHHTiseEddcxihQ4jbdqYPYQe35W0mfVwDWvzqFDMBI+CPhRAxSQxTMqRP63iSFH1FXc7RFheN3CXCVb8crB/e/0Qo6edjefG9L5VojVUB0Tkgp/7YdBwge9e+VaaKlod4DU6pcFNOFyn11DsJbxefdlREXzNDqxLLy8E=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <4241B12B98BA0240BC935A05E777030C@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+X-MS-Exchange-CrossTenant-Network-Message-Id: 747cab16-d65c-408a-d269-08d69ad6232f
+X-MS-Exchange-CrossTenant-originalarrivaltime: 25 Feb 2019 04:03:01.5123
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2981
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-25_02:,,
+ signatures=0
+X-Proofpoint-Spam-Reason: safe
+X-FB-Internal: Safe
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 24 Feb 2019, Mike Kravetz wrote:
+On Fri, Feb 22, 2019 at 08:58:25PM +0300, Andrey Ryabinin wrote:
+> In a presence of more than 1 memory cgroup in the system our reclaim
+> logic is just suck. When we hit memory limit (global or a limit on
+> cgroup with subgroups) we reclaim some memory from all cgroups.
+> This is sucks because, the cgroup that allocates more often always wins.
+> E.g. job that allocates a lot of clean rarely used page cache will push
+> out of memory other jobs with active relatively small all in memory
+> working set.
+>=20
+> To prevent such situations we have memcg controls like low/max, etc which
+> are supposed to protect jobs or limit them so they to not hurt others.
+> But memory cgroups are very hard to configure right because it requires
+> precise knowledge of the workload which may vary during the execution.
+> E.g. setting memory limit means that job won't be able to use all memory
+> in the system for page cache even if the rest the system is idle.
+> Basically our current scheme requires to configure every single cgroup
+> in the system.
+>=20
+> I think we can do better. The idea proposed by this patch is to reclaim
+> only inactive pages and only from cgroups that have big
+> (!inactive_is_low()) inactive list. And go back to shrinking active lists
+> only if all inactive lists are low.
 
-> > User can change a node specific hugetlb count. i.e.
-> > /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages
-> > the calculated value of count is a total number of huge pages. It could
-> > be overflow when a user entering a crazy high value. If so, the total
-> > number of huge pages could be a small value which is not user expect.
-> > We can simply fix it by setting count to ULONG_MAX, then it goes on. This
-> > may be more in line with user's intention of allocating as many huge pages
-> > as possible.
-> > 
-> > Signed-off-by: Jing Xiangfeng <jingxiangfeng@huawei.com>
-> 
-> Thank you.
-> 
-> Acked-by: Mike Kravetz <mike.kravetz@oracle.com>
-> 
-> > ---
-> >  mm/hugetlb.c | 7 +++++++
-> >  1 file changed, 7 insertions(+)
-> > 
-> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > index afef616..6688894 100644
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -2423,7 +2423,14 @@ static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,
-> >  		 * per node hstate attribute: adjust count to global,
-> >  		 * but restrict alloc/free to the specified node.
-> >  		 */
-> > +		unsigned long old_count = count;
-> >  		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
-> > +		/*
-> > +		 * If user specified count causes overflow, set to
-> > +		 * largest possible value.
-> > +		 */
-> > +		if (count < old_count)
-> > +			count = ULONG_MAX;
-> >  		init_nodemask_of_node(nodes_allowed, nid);
-> >  	} else
-> >  		nodes_allowed = &node_states[N_MEMORY];
-> > 
+Hi Andrey!
 
-Looks like this fixes the overflow issue, but isn't there already a 
-possible underflow since we don't hold hugetlb_lock?  Even if 
-count == 0, what prevents h->nr_huge_pages_node[nid] being greater than 
-h->nr_huge_pages here?  I think the per hstate values need to be read with 
-READ_ONCE() and stored on the stack to do any sane bounds checking.
+It's definitely an interesting idea! However, let me bring some concerns:
+1) What's considered active and inactive depends on memory pressure inside
+a cgroup. Actually active pages in one cgroup (e.g. just deleted) can be co=
+lder
+than inactive pages in an other (e.g. a memory-hungry cgroup with a tight
+memory.max).
+
+Also a workload inside a cgroup can to some extend control what's going
+to the active LRU. So it opens a way to get more memory unfairly by
+artificially promoting more pages to the active LRU. So a cgroup
+can get an unfair advantage over other cgroups.
+
+Generally speaking, now we have a way to measure the memory pressure
+inside a cgroup. So, in theory, it should be possible to balance
+scanning effort based on memory pressure.
+
+Thanks!
 
