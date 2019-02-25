@@ -2,182 +2,189 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D112C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 12:13:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 41048C10F00
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 12:16:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 56A3A20842
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 12:13:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 56A3A20842
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id F252721734
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 12:16:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="dcvMx2nn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F252721734
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E5FE88E0179; Mon, 25 Feb 2019 07:13:49 -0500 (EST)
+	id 7D0008E017B; Mon, 25 Feb 2019 07:16:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E0DEE8E0005; Mon, 25 Feb 2019 07:13:49 -0500 (EST)
+	id 7566F8E0005; Mon, 25 Feb 2019 07:16:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CFC3D8E0179; Mon, 25 Feb 2019 07:13:49 -0500 (EST)
+	id 5F74E8E017B; Mon, 25 Feb 2019 07:16:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A3628E0005
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:13:49 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id u12so3834072edo.5
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 04:13:49 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A3F38E0005
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:16:08 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id u8so3466100pfm.6
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 04:16:08 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=4rbGb4zmzP5sK/nyb5C4jtOGvXqVNprnXsd7Kg+u3YI=;
-        b=lShhPGogt/KbX9qL8U1eOzYzTRQV+bf2itlGZhfZpEE8YsO8EIPY1ien8zRG4p9SZs
-         RWVfK9Zi9WtufwuypusM6d3CB/HCSJXZn3q0S/uGwGZSZm5ppXZivm3kj2+YxyNxQHSd
-         qT2LcmmBwbyGaHGMCdaZHJIt8n/QY9XV6wOcr15fLahOaLXXwC++k2xOH+4UI6DYP52W
-         JD/Qr39EHobCcUfXx24Zy5HRVoNNpVaXP8PEBAS3waX8Y1/Uxenam6s2lQWU0bzN+6sg
-         U8TejX2yLzLSRFixhnurGcHs8QOcpWDWbldDkwv0//JVy9cCnBA1+UBv/Kmmk2z0ypRR
-         B3Ew==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: AHQUAuYo4+VS2ev4QUAKCcvocWF2RoKg9Yo/JwAOt9Jz05WOHXRyEdSn
-	yXjr/RUmVMsDFNZK1bY8C0BFjf6kJhBMPDYJs0zc4j5pBISj+56LJZsU/C2yJSjclb0fRtHWwoM
-	F9ZZape5NTZeFPazuSg5lpXFqARBrK2khFDBwLMkyAkIywnVO8ybReuOFQDAhvKVfGQ==
-X-Received: by 2002:a17:906:3496:: with SMTP id g22mr12813184ejb.193.1551096829060;
-        Mon, 25 Feb 2019 04:13:49 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZFxpzd+2TD3VGbXaqm3ErSxZdEhsSYBXfaftzxJQyWNO2nNnELVFyDR9U1Rv+nsU5agTYx
-X-Received: by 2002:a17:906:3496:: with SMTP id g22mr12813149ejb.193.1551096828319;
-        Mon, 25 Feb 2019 04:13:48 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551096828; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=QoHK3PgkDfCguINsmSF+2MuDz+h6HTxyVRXfDqtpRZg=;
+        b=CoNo5It6tKIsI4iaOjb3Z3C5XxeunA2gjMiyOiAPsTrucRtSeBLCP4iEKboiZZjnES
+         VNudT+TAhSw7aiD6n4kQNf8u6roO9aB7+BxF67Ym2w4G8kIX5elOX2xw8hq6lC0/9oyc
+         fBTY7dG6F/XbtWMsZLEFvbVl/PB2mZKWnsOSLaDWKNGJexheVbMICzcIOORWdVYHn/QN
+         rfe4FEZiJuB7U14vnghkacrUVsSPY+ThgwJy3v19gjMyUhxE8sOEGi+4c/z4oygG0yy3
+         zwlsVdvm1D40hCEV5+SpLRlKnsdEvzqQGMGywVimH2qVAnhwz00wAY8B6ii5R5g/0Z5f
+         goKg==
+X-Gm-Message-State: AHQUAuaMfmSIu9KLqooTtcQJAJu2iev5EU4yR+egEfm+I+V7p+e05uVD
+	I/9V6ohAgpifxoT/03te+IE3HfLZwtvDkiTehV3lqPFscr3BPV2+UNGzqaXcyY+W7p7reW+EurX
+	YyM0rOdZnrDXtOD+nfld1MlePK6AUw+nA1oKtFxxOyG33avd5FgdhPjCn+oCfek3x3GY2DZdM6q
+	zxecLOBgEDbwXei8XVuERlkg30t4INnrwcmBnPZF9hhsu0UfqUDczZk6G2B5koLtSCib3jiCZHm
+	IviA3Yl3eV3yin4NXH8+8WRYmfCoSbLcfBvZuW5rE23DDpBeU2+aVf65M7zVosej++KpgdprISG
+	RQwap37rqgJSis317eq+fNMBxGEzQP7QCchvQ9ExszL3veijGm8Geh9uiWvs1zqGv4re+BKIZHg
+	Y
+X-Received: by 2002:a62:e40d:: with SMTP id r13mr5465307pfh.11.1551096967550;
+        Mon, 25 Feb 2019 04:16:07 -0800 (PST)
+X-Received: by 2002:a62:e40d:: with SMTP id r13mr5465240pfh.11.1551096966496;
+        Mon, 25 Feb 2019 04:16:06 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551096966; cv=none;
         d=google.com; s=arc-20160816;
-        b=kclIBoHonYfANoXW64gWcXrbHZ7Uy+ke1SVabihXkSQktK/P+nM7ZkBZbPV6v9K9LK
-         Z5BA+pg47G40Xn7zqssIXSAAa10yKHS+YiDa1IQaEv0IqpmXCNJ1tLjLuAyaUHZkhwxY
-         e9nuAEzWwRyYr58AKkfVA8AA8Hh+TASZv0F064wXDk95WcEzOX4wFKxE720lNfqu+tQo
-         2ZtwRiWyRjxzi8fi6MwDeH6LTjKw9HFiZnvusB/w8odkkWTlYpPYxKQsHo2f+nkGNsjv
-         ewenTmHwDP/CS3ShQKsjgGxelZrSKu1fYDslwYWFyriur+XiBnQT3kSUFcGP1S26/11o
-         nFUw==
+        b=qEvRBK2PyfG3PyeCsZHwnlpMwsIn/Y/CZw0lypkyZp8jufeDeJ7/IkJIKHvU2SdF1J
+         Ui9sD5iZpkZZCL+9mQ1dThiRYGKh/dlVpGSWODMTgLLPjz1teZng7sFX9AhLg6SG6Pm5
+         tCT7CO1zF0kHBR0S1PLadF0kEK12Wri4ZfsNpwIpqoCwtf1FPlU3KjNswJjcSFqEj7M9
+         sRxIj9gcOHpeOXp19+TP9B5uZeuDvYOetIGnULNRo5zRb2sWvSsSJ57ceD4POItyOiQO
+         y0JnWv5itMu2SDrCUtte5rECmqUTRn3IIMHXRh8xaLLf0JwwKNdSh3guKv2KkYXjsnqv
+         MfKQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=4rbGb4zmzP5sK/nyb5C4jtOGvXqVNprnXsd7Kg+u3YI=;
-        b=I9UU5exqcYUYgSlWFERSEJ8K94sUpneydbvOVK4gvVrgeevKSoxvhU8N3fDgFHb2N5
-         y2j8ugsDd5dHs5yCeFryUOShyer0jF5q058p8wvXgmz7r603lMNq3qOgnZ5zW22tsxJr
-         lWkiO2J1KRx/GfrkBwWmD4x3CZj5YTvaQXmtNxLwKpTmeFzk9XjZu1lLV8Q7BlF+T/Vq
-         tz4f5Up5wLPtk/XWMGBHcX4VZISi9y758uzm8tFZfJkUY95sYtOEMYeE9ea+M0i7ep36
-         CeoDDDNgRWVhdnSQie+5R8+tIYQGzqpNX4qA5U7lcuRyuMb7HYiFqLdJC90Hry/5zKcS
-         iZ1w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=QoHK3PgkDfCguINsmSF+2MuDz+h6HTxyVRXfDqtpRZg=;
+        b=Wjt0qU75jMOJJ9hNSrPdUMYRPvhhY7zSknpneIhYZT4XrOqJTAgof9L3VW+droJnP0
+         JJ2QjkvGDKJYLFdpN87y1KkgcXbZRg+cKlmfnnTkLlhEeCPjSnjvLLDFOhL2nuzWivJz
+         15E35JiVGcjKWJA0RIBcqe6XDv+lSxzGYnMs25fmi5crTILQKW1dbpCjyk8NCMBEZTFU
+         Jb3AyarHuyDQFrjxr7j1BLEo8f7HVEDkjyEkjv6NkKm5IadPFFJWvFqPGB/Tra15XZG8
+         iDLGXwv4qlyo/b+taKOAPLLZBcUYrji5sDMHjwCU2bRW38DJc7i7Bv9jc0IaJ5z3lG69
+         swgg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c40si3681234edc.134.2019.02.25.04.13.48
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=dcvMx2nn;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i35sor6922525plg.40.2019.02.25.04.16.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 04:13:48 -0800 (PST)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Mon, 25 Feb 2019 04:16:06 -0800 (PST)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E3700ADE2;
-	Mon, 25 Feb 2019 12:13:47 +0000 (UTC)
-Subject: Re: [PATCH 3/5] mm/compaction: pass pgdat to too_many_isolated()
- instead of zone
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>,
- Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
- Rik van Riel <riel@surriel.com>, Mel Gorman <mgorman@techsingularity.net>
-References: <20190222174337.26390-1-aryabinin@virtuozzo.com>
- <20190222174337.26390-3-aryabinin@virtuozzo.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <bba16844-44e1-398e-3f4f-49de6fd2ac6f@suse.cz>
-Date: Mon, 25 Feb 2019 13:13:47 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=dcvMx2nn;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=QoHK3PgkDfCguINsmSF+2MuDz+h6HTxyVRXfDqtpRZg=;
+        b=dcvMx2nnQUb9KYZws9peECQMeHPpL5aFu9AtR8QIYHJRPARWGWWLtCeJWg2lkjFExc
+         +Yu9GZq2U/OUigzY7nhXv/N12yv7ZDnTQVXvXdoRpfC5IPwdNBlCKHAT9hHWBgQltGbm
+         6J1mi3qweufoa7wFeQ6aJOEODl611JN3aFUwBbMNoegswcIM9ZKNAYWbC7SHM/oxs+xJ
+         sML5p6lFAMh6zDGafz4iDkkp5h/bYb0pcfDQSeTWEdasAm58VHoNgKjj4DktD1XZRzSP
+         Y6k1fNzfrebGzArL8N+Awr5NHTiUcSeCD8YvhAa3LYe8LjSBouDhGiD3BUQWP4/VKnON
+         cIVA==
+X-Google-Smtp-Source: AHgI3Iae/hpdKws0On9nrGt+ofyS6R3GDjkkiVtcw6MZEHcEu3RLsH4W58bju8+OLMI5bulx6+MHGA==
+X-Received: by 2002:a17:902:6b03:: with SMTP id o3mr20151663plk.126.1551096965898;
+        Mon, 25 Feb 2019 04:16:05 -0800 (PST)
+Received: from kshutemo-mobl1.localdomain ([192.55.54.41])
+        by smtp.gmail.com with ESMTPSA id h64sm16611921pfc.142.2019.02.25.04.16.04
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Feb 2019 04:16:04 -0800 (PST)
+Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
+	id 97A8B301717; Mon, 25 Feb 2019 15:16:01 +0300 (+03)
+Date: Mon, 25 Feb 2019 15:16:01 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, linux-api@vger.kernel.org,
+	hughd@google.com, joel@joelfernandes.org, jglisse@redhat.com,
+	yang.shi@linux.alibaba.com, mgorman@techsingularity.net
+Subject: Re: [RFC PATCH] mm,mremap: Bail out earlier in mremap_to under map
+ pressure
+Message-ID: <20190225121601.k4g7cabebeemthae@kshutemo-mobl1>
+References: <20190221085406.10852-1-osalvador@suse.de>
+ <20190222130125.apa2ysnahgfuj2vx@kshutemo-mobl1>
+ <cfc53e5a-a403-a732-69d2-1f96b8416f6d@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20190222174337.26390-3-aryabinin@virtuozzo.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cfc53e5a-a403-a732-69d2-1f96b8416f6d@suse.cz>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/22/19 6:43 PM, Andrey Ryabinin wrote:
-> too_many_isolated() in mm/compaction.c looks only at node state,
-> so it makes more sense to change argument to pgdat instead of zone.
+On Mon, Feb 25, 2019 at 12:46:46PM +0100, Vlastimil Babka wrote:
+> On 2/22/19 2:01 PM, Kirill A. Shutemov wrote:
+> > On Thu, Feb 21, 2019 at 09:54:06AM +0100, Oscar Salvador wrote:
+> >> When using mremap() syscall in addition to MREMAP_FIXED flag,
+> >> mremap() calls mremap_to() which does the following:
+> >>
+> >> 1) unmaps the destination region where we are going to move the map
+> >> 2) If the new region is going to be smaller, we unmap the last part
+> >>    of the old region
+> >>
+> >> Then, we will eventually call move_vma() to do the actual move.
+> >>
+> >> move_vma() checks whether we are at least 4 maps below max_map_count
+> >> before going further, otherwise it bails out with -ENOMEM.
+> >> The problem is that we might have already unmapped the vma's in steps
+> >> 1) and 2), so it is not possible for userspace to figure out the state
+> >> of the vma's after it gets -ENOMEM, and it gets tricky for userspace
+> >> to clean up properly on error path.
+> >>
+> >> While it is true that we can return -ENOMEM for more reasons
+> >> (e.g: see may_expand_vm() or move_page_tables()), I think that we can
+> >> avoid this scenario in concret if we check early in mremap_to() if the
+> >> operation has high chances to succeed map-wise.
+> >>
+> >> Should not be that the case, we can bail out before we even try to unmap
+> >> anything, so we make sure the vma's are left untouched in case we are likely
+> >> to be short of maps.
+> >>
+> >> The thumb-rule now is to rely on the worst-scenario case we can have.
+> >> That is when both vma's (old region and new region) are going to be split
+> >> in 3, so we get two more maps to the ones we already hold (one per each).
+> >> If current map count + 2 maps still leads us to 4 maps below the threshold,
+> >> we are going to pass the check in move_vma().
+> >>
+> >> Of course, this is not free, as it might generate false positives when it is
+> >> true that we are tight map-wise, but the unmap operation can release several
+> >> vma's leading us to a good state.
+> >>
+> >> Because of that I am sending this as a RFC.
+> >> Another approach was also investigated [1], but it may be too much hassle
+> >> for what it brings.
+> > 
+> > I believe we don't need the check in move_vma() with this patch. Or do we?
 > 
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> move_vma() can be also called directly from SYSCALL_DEFINE5(mremap) for
+> the non-MMAP_FIXED case. So unless there's further refactoring, the
+> check is still needed.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Okay, makes sense.
 
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Rik van Riel <riel@surriel.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
+> >>
+> >> [1] https://lore.kernel.org/lkml/20190219155320.tkfkwvqk53tfdojt@d104.suse.de/
+> >>
+> >> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+-- 
+ Kirill A. Shutemov
 
