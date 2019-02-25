@@ -3,162 +3,227 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 70A59C4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 16:51:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 08265C10F00
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 16:57:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3877E20C01
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 16:51:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3877E20C01
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id B75C32083D
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 16:57:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B75C32083D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BE14D8E0010; Mon, 25 Feb 2019 11:51:11 -0500 (EST)
+	id 5742E8E0010; Mon, 25 Feb 2019 11:57:32 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B90A08E000E; Mon, 25 Feb 2019 11:51:11 -0500 (EST)
+	id 4FCBB8E000E; Mon, 25 Feb 2019 11:57:32 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A7F7A8E0010; Mon, 25 Feb 2019 11:51:11 -0500 (EST)
+	id 39DC88E0010; Mon, 25 Feb 2019 11:57:32 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 656118E000E
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 11:51:11 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id d3so7377051pgv.23
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 08:51:11 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D0E7A8E000E
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 11:57:31 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id a9so4224919edy.13
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 08:57:31 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=jfEoQJT/Fn8gB9Ej7ChqP19uBo96vax3O9WfrvyIdT8=;
-        b=NMRwoZMoDPcETR3tYmXon+xAkV3BhiWKCaIwKgEywnN3XLBNcs1FhCQmL6jHjhwu+R
-         dAd9y7fF02rlnk1rj0TNosdkdhNG1pYMvMLzyMPWkqmXG3EkpkZppmbWdd2ZJkDeFK8a
-         0iIwLO9/3c1gWmrmDefjGK+Ka281BeLWpblQInunGrle95XRxxdUIcCNopNM7w9Su44J
-         rPy0elUkLt1t8eFFHtEakp5whcODuWgz6zTfYpaLeoi+LOmIkPskSPW21KMkmNMx47fu
-         +CwwWBECwzSPdRkhVemuPMbVAL2V9nS/xQBDv/GbbsZeL0yEdvhkbSYr84EGwJdBG+Hx
-         1kaA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAubOtWGbNPFgxORhqPLOqIfLE4IYW0NLwy1CfVDwb1DrP1oiteqK
-	Dtm7fxym6ThihKh1kLFd2JdPMqJoLDsHAH2vu019Ub0H90QPGPlDo/MHsvJJ58Ae9CmPXkpQars
-	0AKoEoz/cTbwptEnivfxX+jc/JcfNvkS8k9AlGwgCzmnpEOmsDCg4jMig9bRLcKCSeQ==
-X-Received: by 2002:a63:e451:: with SMTP id i17mr19924215pgk.413.1551113471076;
-        Mon, 25 Feb 2019 08:51:11 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbQM3DapQpftInKMue0xl+WXXAMMD2hJd9D0FwgvWp9YA9rHH9XsI2rOW9k/dPBElqeOGS0
-X-Received: by 2002:a63:e451:: with SMTP id i17mr19924162pgk.413.1551113470119;
-        Mon, 25 Feb 2019 08:51:10 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551113470; cv=none;
+        bh=yAWOqVwPS1JiQWbex88iVewnn0kxHb5cGa4KE98GC2g=;
+        b=dIXiIT7JW3Uoq6C2sUsRUP+yKF7W2XTpH0MNzL8l8Bml4s4bvk0kc/oiaAMHFye074
+         RIRWIy5mEJTDyAloZwhD/4pd1R10nrw8wHUNWf0b4yqFJ3LJprik4d4SzF3FpOs/zpfD
+         84CcByNUccdG5EFSRYl/I0094P3xdDxQ0TDtW/LGLUXsbmYQM8RxukK7sAtm1jcdSj2l
+         +ZCnhpf2LxJUFNURJ3VO7557QQz5T4vQOS9RcAntdV9XSlnLvmiNAGd0LtG3aY6yirPx
+         zise/e9fzuDFqgeWc8+qm9/3Dnq1jYKAnkCkfR2tV0h5aR/IDwH3hDnPEYHsiluMQtNE
+         ODEA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: AHQUAub8UCKun3Xs1qjd706T3/rcgI4neN5oNxCrKH+EjolD2lto7QSr
+	a3+TaWeGuQkWpiNwzAMkep4TeqLzfITLe+roKR4OSteGZB9qrmrabFpvjfF79T5dRVFoKyGnP+R
+	3ddy39BUKzOqh67tukcqJ8kFLWtubdSO8w57Tp6e37FkmT4bJJ7PELmbxq3ceDouSmw==
+X-Received: by 2002:a17:906:970a:: with SMTP id k10mr13989913ejx.102.1551113851375;
+        Mon, 25 Feb 2019 08:57:31 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbVbSMc0xWZkJMUIhLzYC7n/NvUmBQfXqGDcPPQK4OfcNoaNupPOlIWonyE4UnHf+17AuOe
+X-Received: by 2002:a17:906:970a:: with SMTP id k10mr13989856ejx.102.1551113850149;
+        Mon, 25 Feb 2019 08:57:30 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551113850; cv=none;
         d=google.com; s=arc-20160816;
-        b=BwGDz8Jgcncd3RAYN5zMyNkANJcqBnywrCb+9/8fS0FMoEqO37Pnmyc0qk3dpxAVXj
-         HUsCmq4BSR4aF2YQrrESBnd/Jh0zJvrUcXvcHk/0ySsTRliALkhUYNkUyJYNFq06wpWh
-         5DcmflVeiWI6SxtGEZ2T0ONFLADHqTOPI2bjzDMRWpfoyV6Kvdobxge7yO4l66KYV7eU
-         cZGPtWA9OOCt36MrOBhdzh5KzT6L2nrs7d5eieGqbsl7N68iIw6Ho53voASwmwDmuzSZ
-         bjKHBkiJPGT40Yz+EV2lNRrF6NYWp5GTx7f7zEKiqupaIQC/RFmIpKYRwbLaBHozmr5I
-         I68Q==
+        b=g7Q/id07rRkOXhb9zUGClUh0y5GpYPS6ES69C/Knay3JmLmPEo4UtLiJRtWAVyAs0s
+         J3DPOky+5VYCb+fj1i0UgqR9mEpfEzk0xizaxQnFFypFbmMX7KDyX/F5lpiITx7Wmu9x
+         Ml6/jsrbQCDrrcq2q0jVyzR1UExEPRSQylZyZXrd7PwovFlQ+8xjPLe0J0a7aLHSfgIF
+         COIMAg29R2jEqjC3k7ASqAutmBKvjau/iR0Zv/DTo/BHsVUZwpy7U/PZy1o2EM4Hi/Fc
+         WbvEFmJlNBansmFXr4Yy/vZv5eZdwCVux7pZoKztYj0BrpOFJOEz6Oq9e6xceNcBvy7p
+         MZfQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=jfEoQJT/Fn8gB9Ej7ChqP19uBo96vax3O9WfrvyIdT8=;
-        b=MEBznC542aUu83n/tZph09Bv57wEaQOw2a7KEctniF0Xltlvsauuf6E8w05b5b8VVQ
-         g4DIsPNE2BuXwqQEGndaK8ae0BGaCTBVkKzywMnnb6PPB+ZQifEqxLHY2sNv3KVrexOG
-         0xWaRUOlp/8cWZbeiXXEFXYOvcnH6Em9C3qlnTvyTUKESItlaW93GIxnAoFtwvHXFNJz
-         oejVbulJKtosWlvcxqEOSCSzBmsa1z5vXsP8grrpfb71MI6yLDnwzag1rLxOSvdq7Ys2
-         B0+YUYS/p0ZEtcN7pSeAHkp9x2gKGBADMMW7/UdBHC3LQUY3+5fTWLQGpZiv03S0yEjH
-         pj8A==
+        bh=yAWOqVwPS1JiQWbex88iVewnn0kxHb5cGa4KE98GC2g=;
+        b=YeaO4Ix1I2tVQQALO/V8v82w6Ev1O1BT/ZUBWGZlDiO5S6UOaG4lvbJOgh3l96JCPY
+         jJCQ6SfSoNDA4BiFoEmKOArgUNH818kJRWGUHjb3kwsi5L2hMf1mQnyn3wARaIOhWsbr
+         pEY2+wgwLW8sYBc29Z/a3fqd+hVQcIGHhJ62dwstx9Eatds5inrXlFhQ8T9k8ZBeWzOw
+         cqeAxEDUpP1YX2O7cOTYriN9U6pvPqHuRRCL852JlsmHip8Ioy/KjUSdSiOp9pj3lGI6
+         ICiTOXLXdlgIZMsqtWgQwsxy9RspjHUnh3sQvD7Bt3hydG8OMK7+gWT1znVkhulSBQzy
+         vNAw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id e2si10409767pgm.568.2019.02.25.08.51.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 08:51:10 -0800 (PST)
-Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a57si3990551edd.310.2019.02.25.08.57.29
+        for <linux-mm@kvack.org>;
+        Mon, 25 Feb 2019 08:57:30 -0800 (PST)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Feb 2019 08:51:09 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,411,1544515200"; 
-   d="scan'208";a="323239250"
-Received: from unknown (HELO localhost.localdomain) ([10.232.112.69])
-  by fmsmga005.fm.intel.com with ESMTP; 25 Feb 2019 08:51:08 -0800
-Date: Mon, 25 Feb 2019 09:51:18 -0700
-From: Keith Busch <keith.busch@intel.com>
-To: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	ACPI Devel Maling List <linux-acpi@vger.kernel.org>,
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 896D180D;
+	Mon, 25 Feb 2019 08:57:28 -0800 (PST)
+Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 8F15B3F703;
+	Mon, 25 Feb 2019 08:57:23 -0800 (PST)
+Date: Mon, 25 Feb 2019 16:57:21 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Cc: Evgenii Stepanov <eugenis@google.com>, nd <nd@arm.com>,
+	Kevin Brodsky <Kevin.Brodsky@arm.com>,
+	Dave P Martin <Dave.Martin@arm.com>,
+	Mark Rutland <Mark.Rutland@arm.com>,
+	Kate Stewart <kstewart@linuxfoundation.org>,
+	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>,
+	Will Deacon <Will.Deacon@arm.com>,
 	Linux Memory Management List <linux-mm@kvack.org>,
-	Linux API <linux-api@vger.kernel.org>,
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+	Chintan Pandya <cpandya@codeaurora.org>,
+	Vincenzo Frascino <Vincenzo.Frascino@arm.com>,
+	Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>,
+	linux-arch <linux-arch@vger.kernel.org>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kees Cook <keescook@chromium.org>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Kostya Serebryany <kcc@google.com>,
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCHv6 07/10] acpi/hmat: Register processor domain to its
- memory
-Message-ID: <20190225165118.GK10237@localhost.localdomain>
-References: <20190214171017.9362-1-keith.busch@intel.com>
- <20190214171017.9362-8-keith.busch@intel.com>
- <CAJZ5v0gjv0DZvYMTPBLnUmMtu8=g0zFd4x-cpP11Kzv+6XCwUw@mail.gmail.com>
- <20190222184831.GF10237@localhost.localdomain>
- <CAJZ5v0hfQ5HWT0kfaOxSbpJvdqotsMWVBCZ6wiL4Tnuy+O5O7Q@mail.gmail.com>
+	LKML <linux-kernel@vger.kernel.org>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Robin Murphy <Robin.Murphy@arm.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Subject: Re: [RFC][PATCH 0/3] arm64 relaxed ABI
+Message-ID: <20190225165720.GA79300@arrakis.emea.arm.com>
+References: <20181210143044.12714-1-vincenzo.frascino@arm.com>
+ <CAAeHK+xPZ-Z9YUAq=3+hbjj4uyJk32qVaxZkhcSAHYC4mHAkvQ@mail.gmail.com>
+ <20181212150230.GH65138@arrakis.emea.arm.com>
+ <CAAeHK+zxYJDJ7DJuDAOuOMgGvckFwMAoVUTDJzb6MX3WsXhRTQ@mail.gmail.com>
+ <20181218175938.GD20197@arrakis.emea.arm.com>
+ <20181219125249.GB22067@e103592.cambridge.arm.com>
+ <9bbacb1b-6237-f0bb-9bec-b4cf8d42bfc5@arm.com>
+ <CAFKCwrhH5R3e5ntX0t-gxcE6zzbCNm06pzeFfYEN2K13c5WLTg@mail.gmail.com>
+ <20190212180223.GD199333@arrakis.emea.arm.com>
+ <ac8f4e3b-84b8-6067-6a7a-fac7dc48daea@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJZ5v0hfQ5HWT0kfaOxSbpJvdqotsMWVBCZ6wiL4Tnuy+O5O7Q@mail.gmail.com>
-User-Agent: Mutt/1.9.1 (2017-09-22)
+In-Reply-To: <ac8f4e3b-84b8-6067-6a7a-fac7dc48daea@arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Feb 24, 2019 at 08:59:45PM +0100, Rafael J. Wysocki wrote:
-> On Fri, Feb 22, 2019 at 7:48 PM Keith Busch <keith.busch@intel.com> wrote:
-> > If I do it the other way around, that's going to make HMEM_REPORTING
-> > complicated if a non-ACPI implementation wants to report HMEM
-> > properties.
-> 
-> But the mitigations that Dave was talking about get in the way, don't they?
-> 
-> Say there is another Kconfig option,CACHE_MITIGATIONS, to enable them.
-> Then you want ACPI_HMAT to be set when that it set and you also want
-> ACPI_HMAT to be set when HMEM_REPORTING and ACPI_NUMA are both set.
-> 
-> OTOH, you may not want HMEM_REPORTING to be set when CACHE_MITIGATIONS
-> is set, but that causes ACPI_HMAT to be set and which means that
-> ACPI_HMAT alone will not be sufficient to determine the
-> HMEM_REPORTING value.
+Hi Szabolcs,
 
-I can't think of when we'd want to suppress reporting these attributes
-to user space, but I can split HMAT enabling so it doesn't depend on
-HMEM_REPORTING just in case there really is an in-kernel user that
-definitely does not want the same attributes exported.
+Thanks for looking into this. Comments below.
 
-> Now, if you prompt for HMEM_REPORTING and make it depend on ACPI_NUMA,
-> then ACPI_HMAT can be selected by that (regardless of the
-> CACHE_MITIGATIONS value).
-> 
-> And if someone wants to use HMEM_REPORTING without ACPI_NUMA, it can
-> be made depend on whatever new option is there for that non-ACPI
-> mechanism.
-> 
-> There might be a problem if someone wanted to enable the alternative
-> way of HMEM_REPORTING if ACPI_NUMA was set (in which case HMAT would
-> have to be ignored even if it was present), but in that case there
-> would need to be an explicit way to choose between HMAT and non-HMAT
-> anyway.
-> 
-> In any case, I prefer providers to be selected by consumers and not
-> the other way around, in case there are multiple consumers for one
-> provider.
+On Tue, Feb 19, 2019 at 06:38:31PM +0000, Szabolcs Nagy wrote:
+> i think these rules work for the cases i care about, a more
+> tricky question is when/how to check for the new syscall abi
+> and when/how the TCR_EL1.TBI0 setting may be turned off.
 
-Well, the HMEM_REPORTING fundamentally has no dependency on any of these
-things and I've put some effort into making this part provider agnostic.
-I will change it if this concern is gating acceptance, but I don't
-think it's as intuitive for generic interfaces to be the selector for
-implementation specific providers.
+I don't think turning TBI0 off is critical (it's handy for PAC with
+52-bit VA but then it's short-lived if you want more security features
+like MTE).
+
+> consider the following cases (tb == top byte):
+> 
+> binary 1: user tb = any, syscall tb = 0
+>   tbi is on, "legacy binary"
+> 
+> binary 2: user tb = any, syscall tb = any
+>   tbi is on, "new binary using tb"
+>   for backward compat it needs to check for new syscall abi.
+> 
+> binary 3: user tb = 0, syscall tb = 0
+>   tbi can be off, "new binary",
+>   binary is marked to indicate unused tb,
+>   kernel may turn tbi off: additional pac bits.
+> 
+> binary 4: user tb = mte, syscall tb = mte
+>   like binary 3, but with mte, "new binary using mte"
+>   does it have to check for new syscall abi?
+>   or MTE HWCAP would imply it?
+>   (is it possible to use mte without new syscall abi?)
+
+I think MTE HWCAP should imply it.
+
+> in userspace we want most binaries to be like binary 3 and 4
+> eventually, i.e. marked as not-relying-on-tbi, if a dso is
+> loaded that is unmarked (legacy or new tb user), then either
+> the load fails (e.g. if mte is already used? or can we turn
+> mte off at runtime?) or tbi has to be enabled (prctl? does
+> this work with pac? or multi-threads?).
+
+We could enable it via prctl. That's the plan for MTE as well (in
+addition maybe to some ELF flag).
+
+> as for checking the new syscall abi: i don't see much semantic
+> difference between AT_HWCAP and AT_FLAGS (either way, the user
+> has to check a feature flag before using the feature of the
+> underlying system and it does not matter much if it's a syscall
+> abi feature or cpu feature), but i don't see anything wrong
+> with AT_FLAGS if the kernel prefers that.
+
+The AT_FLAGS is aimed at capturing binary 2 case above, i.e. the
+relaxation of the syscall ABI to accept tb = any. The MTE support will
+have its own AT_HWCAP, likely in addition to AT_FLAGS. Arguably,
+AT_FLAGS is either redundant here if MTE implies it (and no harm in
+keeping it around) or the meaning is different: a tb != 0 may be checked
+by the kernel against the allocation tag (i.e. get_user() could fail,
+the tag is not entirely ignored).
+
+> the discussion here was mostly about binary 2,
+
+That's because passing tb != 0 into the syscall ABI is the main blocker
+here that needs clearing out before merging the MTE support. There is,
+of course, a variation of binary 1 for MTE:
+
+binary 5: user tb = mte, syscall tb = 0
+
+but this requires a lot of C lib changes to support properly.
+
+> but for
+> me the open question is if we can make binary 3/4 work.
+> (which requires some elf binary marking, that is recognised
+> by the kernel and dynamic loader, and efficient handling of
+> the TBI0 bit, ..if it's not possible, then i don't see how
+> mte will be deployed).
+
+If we ignore binary 3, we can keep TBI0 = 1 permanently, whether we have
+MTE or not.
+
+> and i guess on the kernel side the open question is if the
+> rules 1/2/3/4 can be made to work in corner cases e.g. when
+> pointers embedded into structs are passed down in ioctl.
+
+We've been trying to track these down since last summer and we came to
+the conclusion that it should be (mostly) fine for the non-weird memory
+described above.
+
+-- 
+Catalin
 
