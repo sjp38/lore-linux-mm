@@ -2,145 +2,271 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,UNWANTED_LANGUAGE_BODY,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6144EC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:26:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 08EA4C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:30:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 290DD20842
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:26:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 290DD20842
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id AF36C20C01
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:30:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="j01UzZa+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF36C20C01
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AF24C8E0014; Mon, 25 Feb 2019 15:26:37 -0500 (EST)
+	id 5E45E8E0015; Mon, 25 Feb 2019 15:30:45 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AA0448E000C; Mon, 25 Feb 2019 15:26:37 -0500 (EST)
+	id 5945F8E000C; Mon, 25 Feb 2019 15:30:45 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 98F7A8E0014; Mon, 25 Feb 2019 15:26:37 -0500 (EST)
+	id 482798E0015; Mon, 25 Feb 2019 15:30:45 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BB468E000C
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 15:26:37 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id 17so7824590pgw.12
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 12:26:37 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 061DF8E000C
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 15:30:45 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id y1so7873156pgo.0
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 12:30:44 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=VMsyBcHItgRY2FgAMjIuw5zaUnGVohMGMAMl4BYxVk4=;
-        b=hgKxI3uN2DBrnbLDNcLnigRSzALXzwBNILQTwmn8Rih27YNf+8ZrrLXN3kxS3fM2Ix
-         vV52r89sisQJnVCIJasDCOAPDwcQIhn1+NWQq/KwNqFj8SOu2JVZyYbPy+Klr90hW2XV
-         rEQXFbp905FBdnf4ThHtWkDv6qqeZ32PBrmcJmQp4IW2sNG56Tzi0cNL1Jwr18NzL3gD
-         YE9Z3Ak4Q1NdGJVL7zfBP+WJVt6dY8UoodhAMG0+Cgmxmn2c+sZ099NJUJ7i1qhMb4r6
-         OQO77AhMo9xom1kLUW2W3fJj7zfImR3lcJZAVJzqUL6rIoC7tkfbb5vfMCAvbaOZwXOI
-         GFsQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.145 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: AHQUAuZ/RsSW0Rnz0qGw+i4BKhzXryEpyLEmUCY46gRVvELAdY6LKWyq
-	SNbEPMOustZiurjBnsm1twYPFeWkZfPXj2gemk9+V1mVqfDo5rcsrnseWeY8zUvZHEexT/Awu3P
-	UvSk099ZAg6UFkBrxgIKdGVmLxDyQ8Xb/G+mTupn/6nUqPomtnIaxIVdb50/u6dc=
-X-Received: by 2002:a17:902:2aa8:: with SMTP id j37mr21402435plb.226.1551126396954;
-        Mon, 25 Feb 2019 12:26:36 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYwiEOdG6S/4wLTk3ofE2Z3G0isl2mjkDpbcj/ewinSTaTmkWkOEQlLQQijoGktZW+9Fayr
-X-Received: by 2002:a17:902:2aa8:: with SMTP id j37mr21402356plb.226.1551126395705;
-        Mon, 25 Feb 2019 12:26:35 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551126395; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=omgUtD5TBe/L2nj/vYLxBbkyge+zjnwluovkZCUWzAA=;
+        b=SufsNJ3DMQL1V8Mb5jTvO8Bw7qWubWpXYmnUdHDmWDJxv7jhkFDsqohCfqvAb3rmdt
+         WJostYdguERHkg+5CYZpD+Ke3/aCOfW0ZTXKTc58u65nPmp7b4s3c+xnAeLzO6+7UzvV
+         eQNXKQ1oVHxvYwaPp6Ez1LM/HCDH7pBLQ1MHw9xzyWyitpKLA7YBnMtTcSnRO5VsHfnC
+         KF/A+DscgZZy/NpVnrBtjk6+unvHns/lOV5B/1k4hBzGmNAQQzw8RZFCVzZczB6YdGDO
+         CZ/cfvfUFwg9B0zW/2rPLteNrlw6BVvjCzjNOgOX/Zu3OifNAySUXKd++0aiZkS7qbBK
+         WPzg==
+X-Gm-Message-State: AHQUAua3Jt9+DY4gWZAI3YdPQLF+WQF7OmGcNkjHKfOYgDaOm39Zv3yC
+	fYd898pua1Q30Tm2apkS7VyR73atssCW2gXpe7tZVLpHWXfGojOAZ7go19FbMnQv9Nverx6VLXE
+	rzshsUYM8nJtB8yr3iYVBgzxQrUv0KI4HyQeebFr3nSIMQgf+QuYnNhSc8A3N7ksYKOXuz6xxB9
+	opmZr4/5FPFTuXEzGq0yZzJU0qClkmZx+djq9sCxjcyD6wW/QeKqMf5sEfd25kFDsp0lJPsz3SN
+	LTulTIf6fho+nO/3DqWzHMI/s05Wkf4Q7Dml3pwcsEm8R8GJkh/DJZ9ObJc994YBMbn8LD5uRIN
+	QNzPxO8jSwmQ4wqcmesHUcIHbunU/cRuOE8dddOpCedw5yvRnI5d01RNsA3F0GqaU/r5lEp+zCy
+	w
+X-Received: by 2002:a63:6a08:: with SMTP id f8mr20980296pgc.165.1551126644647;
+        Mon, 25 Feb 2019 12:30:44 -0800 (PST)
+X-Received: by 2002:a63:6a08:: with SMTP id f8mr20980231pgc.165.1551126643615;
+        Mon, 25 Feb 2019 12:30:43 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551126643; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ar4qopDu0fVvfRqTUQiybehh1lVmIkh2nQ2IWcsUhNy/iIYTtxbaXPmFi7ZmW1xjRO
-         MhpGP1ixEAH1nY/aDPknXKNuKtaMO2bYm905QhUuYRJNrKjysjGXCys5V7v8YC08uDmY
-         /+5hZY73sLbdJaAhbNC4/t04KFEiAImle/nXeRNf+nDO/3VVksfOxLhTypjfIh8I31ro
-         I2TWOZ7+KzZ07NqhDvLfCBCUMr+1PyoBaCYkkRFb9wqqd2SfgQBD2z+gPqbqP2CNrC4N
-         RK2BJFpEsDSNouuy43jQlIcyqxPeaAwWA41DJu8JYeFdNIZWH8dP+SJ8lmNQQCsQosGF
-         VTvg==
+        b=qLXL0SQFX+216qhqVxo2OnUd/8Tirr5StMzpyb/rVIXZFv0DwYhNl2wA8e10QOFLG3
+         QwSBlof0AILcdFKgN7aQXezGn030aH+yhtFhUZ7mJBzJTrr8IEkuhqkjOSUcTw30qdPO
+         nrbTNfpLEcSzWlmegzB0pWLK6LAtwXoDIGG+dUKnZaszynrySjYrkZW0CD3zap4lrNne
+         8UjrdXiMJ1d2TUymkXeBQvfVZ6Ax+lX0/otN5TThGhmjMWWZxao/i1594jYE5a+zxnu/
+         j/Z/Rx6pY5oJ7NI827cK1i8Gsrzcyw+aItoJFv1ystS8pqi+pjeO6Ykg+7LFo+EJ1RsI
+         kJPw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=VMsyBcHItgRY2FgAMjIuw5zaUnGVohMGMAMl4BYxVk4=;
-        b=mlZ2Y9iQk6V2FKdGHaQbNPARvNjLjyRKLrhaQkwh5Gs6Yb0JE8ElHrvAkheq6plhb6
-         xK82gm8eB3rrcOobuokEplGbz+th4VPxXL7owNdJjNgpkSO+DFnTi2mbKdnxmVSI9I2u
-         FV6HhEgmJ0xv3VtvhpQzxPeITpEt4daEoPFbjSPPq2H+BK38DbvSez0zSBdqu0WgcpEB
-         JxJ2HI2O9j3SLKWMpbDzL4F5BFKgEVTzI/jtI3MLUaxNWoTqSFwTd3MqVKnymbac+C6H
-         ZQWvXTvq9QJiA4RM7iIgnipxE8ig3gd5q3m/G7TD2aHfnail+ZggyDPAtDyFn0A82i6D
-         jO0g==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=omgUtD5TBe/L2nj/vYLxBbkyge+zjnwluovkZCUWzAA=;
+        b=cu+qJPM2yDUTDhbnJeP2trm539eqcNJ4focvQgN9Fk8u0F0QrYgnM3kBrAi/Q1TlIL
+         wrP+br2OjgBwu9egzC1JVKQeKB5H6ZE4f0gW8eqZtZ+UZ1gfLWudBSwYuRVuM5PNQyKo
+         XcFcevlNeik6wUlQLxt0cH4pPrwE0+L0EmI+Em5eSeLjV3jF7NyAELlkbgugSRpuvYA4
+         AN8ZcZwVmplygdtLvEc+9lbWVgBL7ZG1CpNTG54nQ508aYiHert1qCBEPXLe0L8V6Hn8
+         v390e9nehpJiC6yCl2E7RjP0FDYpYhBdfsWFTPVHaig0xBhcap6T7h/TgRlAvSmcaCOJ
+         ZWFw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 150.101.137.145 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id f22si9631219pgv.578.2019.02.25.12.26.34
-        for <linux-mm@kvack.org>;
-        Mon, 25 Feb 2019 12:26:35 -0800 (PST)
-Received-SPF: neutral (google.com: 150.101.137.145 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.145;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=j01UzZa+;
+       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r21sor15622978pgl.58.2019.02.25.12.30.43
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 25 Feb 2019 12:30:43 -0800 (PST)
+Received-SPF: pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 150.101.137.145 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
-  by ipmail06.adl6.internode.on.net with ESMTP; 26 Feb 2019 06:56:34 +1030
-Received: from dave by dastard with local (Exim 4.80)
-	(envelope-from <david@fromorbit.com>)
-	id 1gyMpa-0005O6-Rn; Tue, 26 Feb 2019 07:26:30 +1100
-Date: Tue, 26 Feb 2019 07:26:30 +1100
-From: Dave Chinner <david@fromorbit.com>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Ming Lei <ming.lei@redhat.com>,
-	"Darrick J . Wong" <darrick.wong@oracle.com>,
-	linux-xfs@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
-	Vitaly Kuznetsov <vkuznets@redhat.com>,
-	Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>,
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-	Aaron Lu <aaron.lu@intel.com>, Christopher Lameter <cl@linux.com>,
-	Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org,
-	linux-block@vger.kernel.org
-Subject: Re: [PATCH] xfs: allocate sector sized IO buffer via page_frag_alloc
-Message-ID: <20190225202630.GG23020@dastard>
-References: <20190225040904.5557-1-ming.lei@redhat.com>
- <20190225043648.GE23020@dastard>
- <5ad2ef83-8b3a-0a15-d72e-72652b807aad@suse.cz>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=j01UzZa+;
+       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=omgUtD5TBe/L2nj/vYLxBbkyge+zjnwluovkZCUWzAA=;
+        b=j01UzZa+id2m/gN68bYEvZ2TcacRml0G75125G0/K1Kc15uFzc3+eHRhm1GmJEPo+e
+         bPF9giJM+jYKBhNa9ilvHZMTDP415am/itTmB4YZk2mpSNJEgaB0ac9bgWe526icGmQ3
+         5pNWwng9d1sC54oP81jbGJcHQNydL1WDOFZZETK9SecOJ2m56LI8c00vPW/5g0fuHn3A
+         WFMDwylnTqVdmI9DCdMcsUyQosnLd6M3xVfIF2TCJvR7ojKoeO7R5cWZYoJu8ZJsLTno
+         m6fH64U8YFtpe+mEei0jx39diwnfLPvE9aPYSSOIP3ARIIKMXV9eizsPB8doAiOD73xn
+         4Yww==
+X-Google-Smtp-Source: AHgI3IbE9OLfOBUyZf9WhRChQMHXzfN8ZG5LJLKgkPJ0+6R2i4vCAr2MYtrIjYsBQogBmMKSDHzM9A==
+X-Received: by 2002:a63:8bc8:: with SMTP id j191mr19599469pge.234.1551126643113;
+        Mon, 25 Feb 2019 12:30:43 -0800 (PST)
+Received: from tower.thefacebook.com ([2620:10d:c090:200::2:d960])
+        by smtp.gmail.com with ESMTPSA id s4sm6189885pfe.16.2019.02.25.12.30.41
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 25 Feb 2019 12:30:42 -0800 (PST)
+From: Roman Gushchin <guroan@gmail.com>
+X-Google-Original-From: Roman Gushchin <guro@fb.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+	Matthew Wilcox <willy@infradead.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	kernel-team@fb.com,
+	Roman Gushchin <guro@fb.com>
+Subject: [PATCH 1/3] mm: refactor __vunmap() to avoid duplicated call to find_vm_area()
+Date: Mon, 25 Feb 2019 12:30:35 -0800
+Message-Id: <20190225203037.1317-2-guro@fb.com>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190225203037.1317-1-guro@fb.com>
+References: <20190225203037.1317-1-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5ad2ef83-8b3a-0a15-d72e-72652b807aad@suse.cz>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 25, 2019 at 02:15:59PM +0100, Vlastimil Babka wrote:
-> On 2/25/19 5:36 AM, Dave Chinner wrote:
-> > On Mon, Feb 25, 2019 at 12:09:04PM +0800, Ming Lei wrote:
-> >> XFS uses kmalloc() to allocate sector sized IO buffer.
-> > ....
-> >> Use page_frag_alloc() to allocate the sector sized buffer, then the
-> >> above issue can be fixed because offset_in_page of allocated buffer
-> >> is always sector aligned.
-> > 
-> > Didn't we already reject this approach because page frags cannot be
-> > reused and that pages allocated to the frag pool are pinned in
-> > memory until all fragments allocated on the page have been freed?
-> 
-> I don't know if you did, but it's certainly true., Also I don't think
-> there's any specified alignment guarantee for page_frag_alloc().
+__vunmap() calls find_vm_area() twice without an obvious reason:
+first directly to get the area pointer, second indirectly by calling
+remove_vm_area(), which is again searching for the area.
 
-We did, and the alignment guarantee would have come from all
-fragments having an aligned size.
+To remove this redundancy, let's split remove_vm_area() into
+__remove_vm_area(struct vmap_area *), which performs the actual area
+removal, and remove_vm_area(const void *addr) wrapper, which can
+be used everywhere, where it has been used before.
 
-> What about kmem_cache_create() with align parameter? That *should* be
-> guaranteed regardless of whatever debugging is enabled - if not, I would
-> consider it a bug.
+On my test setup, I've got 5-10% speed up on vfree()'ing 1000000
+of 4-pages vmalloc blocks.
 
-Yup, that's pretty much what was decided. The sticking point was
-whether is should be block layer infrastructure (because the actual
-memory buffer alignment is a block/device driver requirement not
-visible to the filesystem) or whether "sector size alignement is
-good enough for everyone".
+Perf report before:
+  22.64%  cat      [kernel.vmlinux]  [k] free_pcppages_bulk
+  10.30%  cat      [kernel.vmlinux]  [k] __vunmap
+   9.80%  cat      [kernel.vmlinux]  [k] find_vmap_area
+   8.11%  cat      [kernel.vmlinux]  [k] vunmap_page_range
+   4.20%  cat      [kernel.vmlinux]  [k] __slab_free
+   3.56%  cat      [kernel.vmlinux]  [k] __list_del_entry_valid
+   3.46%  cat      [kernel.vmlinux]  [k] smp_call_function_many
+   3.33%  cat      [kernel.vmlinux]  [k] kfree
+   3.32%  cat      [kernel.vmlinux]  [k] free_unref_page
 
-Cheers,
+Perf report after:
+  23.01%  cat      [kernel.kallsyms]  [k] free_pcppages_bulk
+   9.46%  cat      [kernel.kallsyms]  [k] __vunmap
+   9.15%  cat      [kernel.kallsyms]  [k] vunmap_page_range
+   6.17%  cat      [kernel.kallsyms]  [k] __slab_free
+   5.61%  cat      [kernel.kallsyms]  [k] kfree
+   4.86%  cat      [kernel.kallsyms]  [k] bad_range
+   4.67%  cat      [kernel.kallsyms]  [k] free_unref_page_commit
+   4.24%  cat      [kernel.kallsyms]  [k] __list_del_entry_valid
+   3.68%  cat      [kernel.kallsyms]  [k] free_unref_page
+   3.65%  cat      [kernel.kallsyms]  [k] __list_add_valid
+   3.19%  cat      [kernel.kallsyms]  [k] __purge_vmap_area_lazy
+   3.10%  cat      [kernel.kallsyms]  [k] find_vmap_area
+   3.05%  cat      [kernel.kallsyms]  [k] rcu_cblist_dequeue
 
-Dave.
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Matthew Wilcox <willy@infradead.org>
+---
+ mm/vmalloc.c | 47 +++++++++++++++++++++++++++--------------------
+ 1 file changed, 27 insertions(+), 20 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index b7455d4c8c12..8f0179895fb5 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1477,6 +1477,24 @@ struct vm_struct *find_vm_area(const void *addr)
+ 	return NULL;
+ }
+ 
++static struct vm_struct *__remove_vm_area(struct vmap_area *va)
++{
++	struct vm_struct *vm = va->vm;
++
++	might_sleep();
++
++	spin_lock(&vmap_area_lock);
++	va->vm = NULL;
++	va->flags &= ~VM_VM_AREA;
++	va->flags |= VM_LAZY_FREE;
++	spin_unlock(&vmap_area_lock);
++
++	kasan_free_shadow(vm);
++	free_unmap_vmap_area(va);
++
++	return vm;
++}
++
+ /**
+  * remove_vm_area - find and remove a continuous kernel virtual area
+  * @addr:	    base address
+@@ -1489,31 +1507,20 @@ struct vm_struct *find_vm_area(const void *addr)
+  */
+ struct vm_struct *remove_vm_area(const void *addr)
+ {
++	struct vm_struct *vm = NULL;
+ 	struct vmap_area *va;
+ 
+-	might_sleep();
+-
+ 	va = find_vmap_area((unsigned long)addr);
+-	if (va && va->flags & VM_VM_AREA) {
+-		struct vm_struct *vm = va->vm;
+-
+-		spin_lock(&vmap_area_lock);
+-		va->vm = NULL;
+-		va->flags &= ~VM_VM_AREA;
+-		va->flags |= VM_LAZY_FREE;
+-		spin_unlock(&vmap_area_lock);
+-
+-		kasan_free_shadow(vm);
+-		free_unmap_vmap_area(va);
++	if (va && va->flags & VM_VM_AREA)
++		vm = __remove_vm_area(va);
+ 
+-		return vm;
+-	}
+-	return NULL;
++	return vm;
+ }
+ 
+ static void __vunmap(const void *addr, int deallocate_pages)
+ {
+ 	struct vm_struct *area;
++	struct vmap_area *va;
+ 
+ 	if (!addr)
+ 		return;
+@@ -1522,17 +1529,18 @@ static void __vunmap(const void *addr, int deallocate_pages)
+ 			addr))
+ 		return;
+ 
+-	area = find_vm_area(addr);
+-	if (unlikely(!area)) {
++	va = find_vmap_area((unsigned long)addr);
++	if (unlikely(!va || !(va->flags & VM_VM_AREA))) {
+ 		WARN(1, KERN_ERR "Trying to vfree() nonexistent vm area (%p)\n",
+ 				addr);
+ 		return;
+ 	}
+ 
++	area = va->vm;
+ 	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
+ 	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
+ 
+-	remove_vm_area(addr);
++	__remove_vm_area(va);
+ 	if (deallocate_pages) {
+ 		int i;
+ 
+@@ -1547,7 +1555,6 @@ static void __vunmap(const void *addr, int deallocate_pages)
+ 	}
+ 
+ 	kfree(area);
+-	return;
+ }
+ 
+ static inline void __vfree_deferred(const void *addr)
 -- 
-Dave Chinner
-david@fromorbit.com
+2.20.1
 
