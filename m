@@ -2,289 +2,197 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A313FC4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:33:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 90076C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:34:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5AD1520663
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:33:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AD1520663
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 4A7FF20663
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:34:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A7FF20663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E8C818E000F; Mon, 25 Feb 2019 10:33:00 -0500 (EST)
+	id E63C28E0010; Mon, 25 Feb 2019 10:34:04 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E3B7A8E000D; Mon, 25 Feb 2019 10:33:00 -0500 (EST)
+	id E13338E000D; Mon, 25 Feb 2019 10:34:04 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D032F8E000F; Mon, 25 Feb 2019 10:33:00 -0500 (EST)
+	id CDBC58E0010; Mon, 25 Feb 2019 10:34:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A78B48E000D
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:33:00 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id k37so9503275qtb.20
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:33:00 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B7438E000D
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:34:04 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id w16so8042412pfn.3
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:34:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=OH7zh/1la59JJXt9ZdA9U/7KQ3b3HUF0+A2oWHCX8ow=;
-        b=Oav0Prlup5oKggnh6b7TXVvExk3DN761pYbfiXmKV84KwkGnxUdC/LyePQ726Nq11s
-         YsO6gfrK3vKCQ30pCETiZsbx2g/pox+ERXO6nroQ88TcIFXeVdPrzuuqeHT1WtySJGH8
-         K2XjtIpTuNMw28nt1B0j50Vf4kx9PSQDWya7jwhbdCOpA5pdKazwZy6szD2H1G6lhi6U
-         8p02BE/1fpTSliwTYCuhhDbJUsKxDCCHViW0pYz6dW5GbPm4NdlZbOgLK6rfyBd5uaQb
-         /U+HPdL7MgjuDVVEF2OTor56IlQJuFCxkGoDInGXXNpZyQdPAhN8xwUyiM0/eeq33G4X
-         BRTA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAubJml1HHiDFp0oOqUM9+KgXLMGIE76R6xNvw5zsOQlVN6iuVw2T
-	EXUPY5l2B+VpNkAEWIbI6l+twgk229tGzaTSN2p6B83X1fGpS+/07bjHM0q1yXcLpOt/noogbzQ
-	NBskf6IozcsUqatBQAQJPTgqmc5/C4Qhgrq3KhQsOKkpq5aYwfpJqwwqTIv7qEJqJpg==
-X-Received: by 2002:a0c:891a:: with SMTP id 26mr14341585qvp.163.1551108780429;
-        Mon, 25 Feb 2019 07:33:00 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbVCWDwb0qaqTp0GHRtzgtNFRVKhDWa0e741vnDY0TtVf/DTHfnkeb9+p0rD3IKXwOeGSMm
-X-Received: by 2002:a0c:891a:: with SMTP id 26mr14341531qvp.163.1551108779552;
-        Mon, 25 Feb 2019 07:32:59 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551108779; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=vkgH9+6AH4vkTAGEO3gO1nUMRgBUguP9BwVrAM4Qy1o=;
+        b=iCiuL2//xL8Sif0EgdxAh/I2wu6R7zbQpWQB5CK7rZjovzueWweqdDzVyxfGgSHU0X
+         UB+bDu+ce1S77ekIW4+dwyhqEaKaXntLMdPm40N254tDABTLzSe+eAFUe741DtH2GW/D
+         w6k73RfuYBBkMMU4ACXnmROP3vHtd9kiY+ZN6/kv2f/eV87L4Vtk9CKwFWtxD0/xke+c
+         uCITy58D4aKeS43ocw/yyHYHCEnpA6SdcGjI3b0vPIbQcz78p5/xeWX/I/rGhwgtTaj1
+         5hkI+E4XCKCidtkVNaVgY1gxVR+XZliWHh1PgLRA7OYxOrMPmBkgIo45w59yzm1D3lXt
+         IrXQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuYpUKqAV4i/kNgJZ3juOEUaJLAZfqPlISFCKFH1rCunSdFQgD51
+	+qDZp0LTK7DVikBxJ32cQFX5DrSL9XpO1jL/mh+g6+6UqbaBtKJkTgNw2i3HOBRvzit1Yj59XQq
+	4TR7QOxehXDe9q3YNEbUp9dJDkaLKmOTAtsU5vqouDD31XVWXDsG7PSJ2C/6TpTAujg==
+X-Received: by 2002:a63:4247:: with SMTP id p68mr10802261pga.30.1551108844170;
+        Mon, 25 Feb 2019 07:34:04 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbmaCl+SgFr1pGf7zWJ91rSIZ5T1STQMNhQo2fFazkd25mynNpIfy4HwHQftxHfZILqjQe4
+X-Received: by 2002:a63:4247:: with SMTP id p68mr10802199pga.30.1551108843270;
+        Mon, 25 Feb 2019 07:34:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551108843; cv=none;
         d=google.com; s=arc-20160816;
-        b=kpDQIB1nd3H2hqR4fNs6rsHW8w2BjCOEGXAnCBpfqqFMChVsyvuAuD8mf0MaSvnlId
-         4pyjYKXS64lXv+eG+Xl1LGXc4KTER0w7F6aYwGeKpLuwT6GKEOABwfsgKWh+N5RKd+2n
-         ZYL9egskmP5133lm1sCSWtx+Zqq9bdkxNs99HsNO3woMmVvhV45XATIbN9+I7Dfe8Snm
-         smtH/rbxrK9/6SPJiI4r8Mr0EC4s8B6C05EUcUzkNKv5MnfXA0KXMJj/XHiZcRyNsqNG
-         IQV73BK5QEEWoeF/cTdcWEVnxaewiJNn6PdLQjKq9cIqzx1SVKtY0rBfwgfLrzBI5tbT
-         Ak2w==
+        b=niqMpzXE20yShncIyPup2vGY/Obt5xJ1QG8mUepJOjV+OOULOPoW4KAFbymsMwEM2K
+         n83aSXznzNjSmmRT7EZmub3TDSCQDx72mz81uD7Ob/cl6p+uMS2bvV52Dnre+tE0XF13
+         LfONAAFBQN07EJPZ4JGnLb2davyfyKErD2YeDwtKOj0UJDBA8G3vULURrtYBWzo2Ag58
+         7EjU1F0JOOATFK0frTv4QV+Ah9sYpXehYOYjFe2oFvlIz+ahtQMJpxeQtlWuIOBAUsGQ
+         0tIYcH8zDh0yffqOxkCIePd7mgQrJ+njVSBWfpgnCDnyO+YXtFqqHnCP98I7v0vfpXgc
+         AQjQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=OH7zh/1la59JJXt9ZdA9U/7KQ3b3HUF0+A2oWHCX8ow=;
-        b=IG8VwI43jgJYN/DCycX4LAcoAeN/3VQbyiXv9aBLgidCH2DY/jO1ZvuxmSEZfI9LZ7
-         R9lctZsSVSfwGsPPN/KpR1vUZE5bygV8NreeQNFIgz/5nV4Rm7ToAm+AcayWdSa9sdC/
-         bKguYAMoMgKuYN2rbjIf6ptnnsB45IY95dlh+08bqiC8mfq5L0wIcmx292phFiWGQ2Be
-         sZ4Nbzs2sDFz+GDvYKEJBOmqvkNOo1LWdjZ8rkrJMqO2XzMwBm4i3CFHxkwHIDbFkOJL
-         HHAhaF8GPG7TUBsaykpmRD9IOwOHwYYiTxKk0MOiFYea4eVQC8eY7OCsGm8yBnEeJ/75
-         zB/A==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=vkgH9+6AH4vkTAGEO3gO1nUMRgBUguP9BwVrAM4Qy1o=;
+        b=PNFzQwYMxumY1pv3LTQrZMn6Fpt5Oi41CFvsGVA60v5DXKqRf1XGAjz7+MdrSOacE2
+         ydfayTuMXJICuoT45gNXftN/rr/+9iSJM6qsXxS184NuzY1dpEkoqO5KL36baGvqJkL9
+         8mS6T9TS1DRRQBceQ6WVKECJyIqA9vbzUvqTLYa3d+yvwPkCFoomhEvboj5+auR+MYvY
+         4SUk+O8QL/TTjVyQLaBaNBTi+xtM07nY0brdOYcEFzjcsscOAzKsMz/aeaE75tWm8T5i
+         6S5JzNO01hlBnZf2+TfAe62nitbPFMs5tEwZH5/QpqO3xEBXVK7oIUxIxl4iwXqmEgow
+         oxvQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x51si3891064qvh.104.2019.02.25.07.32.59
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id y9si9271203pgv.134.2019.02.25.07.34.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 07:32:59 -0800 (PST)
-Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 25 Feb 2019 07:34:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id F1A49300207F;
-	Mon, 25 Feb 2019 15:32:57 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.236])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 54E9C60140;
-	Mon, 25 Feb 2019 15:32:41 +0000 (UTC)
-Date: Mon, 25 Feb 2019 10:32:39 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-To: Peter Xu <peterx@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	David Hildenbrand <david@redhat.com>,
-	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
-	Pavel Emelyanov <xemul@virtuozzo.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
-	Marty McFadden <mcfadden8@llnl.gov>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Denis Plotnikov <dplotnikov@virtuozzo.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Mel Gorman <mgorman@suse.de>,
-	"Kirill A . Shutemov" <kirill@shutemov.name>,
-	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v2 14/26] userfaultfd: wp: handle COW properly for uffd-wp
-Message-ID: <20190225153239.GB3336@redhat.com>
-References: <20190212025632.28946-1-peterx@redhat.com>
- <20190212025632.28946-15-peterx@redhat.com>
- <20190221180423.GN2813@redhat.com>
- <20190222084603.GK8904@xz-x1>
- <20190222153508.GE7783@redhat.com>
- <20190225071336.GC28121@xz-x1>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Feb 2019 07:34:02 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,411,1544515200"; 
+   d="scan'208";a="137037992"
+Received: from mmshuai-mobl.amr.corp.intel.com (HELO [10.254.87.252]) ([10.254.87.252])
+  by orsmga002.jf.intel.com with ESMTP; 25 Feb 2019 07:34:02 -0800
+Subject: Re: [PATCH 2/6] mm/memblock: make full utilization of numa info
+To: Pingfan Liu <kernelfans@gmail.com>, x86@kernel.org, linux-mm@kvack.org
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+ Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andy Lutomirski <luto@kernel.org>,
+ Andi Kleen <ak@linux.intel.com>, Petr Tesarik <ptesarik@suse.cz>,
+ Michal Hocko <mhocko@suse.com>, Stephen Rothwell <sfr@canb.auug.org.au>,
+ Jonathan Corbet <corbet@lwn.net>, Nicholas Piggin <npiggin@gmail.com>,
+ Daniel Vacek <neelx@redhat.com>, linux-kernel@vger.kernel.org
+References: <1551011649-30103-1-git-send-email-kernelfans@gmail.com>
+ <1551011649-30103-3-git-send-email-kernelfans@gmail.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <0371b80b-3b4c-2377-307f-2001153edd19@intel.com>
+Date: Mon, 25 Feb 2019 07:34:03 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190225071336.GC28121@xz-x1>
-User-Agent: Mutt/1.10.0 (2018-05-17)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Mon, 25 Feb 2019 15:32:58 +0000 (UTC)
+In-Reply-To: <1551011649-30103-3-git-send-email-kernelfans@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 25, 2019 at 03:13:36PM +0800, Peter Xu wrote:
-> On Fri, Feb 22, 2019 at 10:35:09AM -0500, Jerome Glisse wrote:
-> > On Fri, Feb 22, 2019 at 04:46:03PM +0800, Peter Xu wrote:
-> > > On Thu, Feb 21, 2019 at 01:04:24PM -0500, Jerome Glisse wrote:
-> > > > On Tue, Feb 12, 2019 at 10:56:20AM +0800, Peter Xu wrote:
-> > > > > This allows uffd-wp to support write-protected pages for COW.
-> > 
-> > [...]
-> > 
-> > > > > diff --git a/mm/mprotect.c b/mm/mprotect.c
-> > > > > index 9d4433044c21..ae93721f3795 100644
-> > > > > --- a/mm/mprotect.c
-> > > > > +++ b/mm/mprotect.c
-> > > > > @@ -77,14 +77,13 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-> > > > >  		if (pte_present(oldpte)) {
-> > > > >  			pte_t ptent;
-> > > > >  			bool preserve_write = prot_numa && pte_write(oldpte);
-> > > > > +			struct page *page;
-> > > > >  
-> > > > >  			/*
-> > > > >  			 * Avoid trapping faults against the zero or KSM
-> > > > >  			 * pages. See similar comment in change_huge_pmd.
-> > > > >  			 */
-> > > > >  			if (prot_numa) {
-> > > > > -				struct page *page;
-> > > > > -
-> > > > >  				page = vm_normal_page(vma, addr, oldpte);
-> > > > >  				if (!page || PageKsm(page))
-> > > > >  					continue;
-> > > > > @@ -114,6 +113,46 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-> > > > >  					continue;
-> > > > >  			}
-> > > > >  
-> > > > > +			/*
-> > > > > +			 * Detect whether we'll need to COW before
-> > > > > +			 * resolving an uffd-wp fault.  Note that this
-> > > > > +			 * includes detection of the zero page (where
-> > > > > +			 * page==NULL)
-> > > > > +			 */
-> > > > > +			if (uffd_wp_resolve) {
-> > > > > +				/* If the fault is resolved already, skip */
-> > > > > +				if (!pte_uffd_wp(*pte))
-> > > > > +					continue;
-> > > > > +				page = vm_normal_page(vma, addr, oldpte);
-> > > > > +				if (!page || page_mapcount(page) > 1) {
-> > > > 
-> > > > This is wrong, if you allow page to be NULL then you gonna segfault
-> > > > in wp_page_copy() down below. Are you sure you want to test for
-> > > > special page ? For anonymous memory this should never happens ie
-> > > > anon page always are regular page. So if you allow userfaulfd to
-> > > > write protect only anonymous vma then there is no point in testing
-> > > > here beside maybe a BUG_ON() just in case ...
-> > > 
-> > > It's majorly for zero pages where page can be NULL.  Would this be
-> > > clearer:
-> > > 
-> > >   if (is_zero_pfn(pte_pfn(old_pte)) || (page && page_mapcount(page)))
-> > > 
-> > > ?
-> > > 
-> > > Now we treat zero pages as normal COW pages so we'll do COW here even
-> > > for zero pages.  I think maybe we can do special handling on all over
-> > > the places for zero pages (e.g., we don't write protect a PTE if we
-> > > detected that this is the zero PFN) but I'm uncertain on whether
-> > > that's what we want, so I chose to start with current solution at
-> > > least to achieve functionality first.
-> > 
-> > You can keep the vm_normal_page() in that case but split the if
-> > between page == NULL and page != NULL with mapcount > 1. As other-
-> > wise you will segfault below.
-> 
-> Could I ask what's the segfault you mentioned?  My understanding is
-> that below code has taken page==NULL into consideration already, e.g.,
-> we only do get_page() if page!=NULL, and inside wp_page_copy() it has
-> similar considerations.
+On 2/24/19 4:34 AM, Pingfan Liu wrote:
+> +/*
+> + * build_node_order() relies on cpumask_of_node(), hence arch should 
+> + * set up cpumask before calling this func.
+> + */
 
-In my memory wp_page_copy() would have freak out on NULL page but
-i check that code again and it is fine. So yes you can take that
-branch for NULL page too. Sorry i trusted my memory too much.
+Whenever I see comments like this, I wonder what happens if the arch
+doesn't do this?  Do we just crash in early boot in wonderful new ways?
+ Or do we get a nice message telling us?
 
+> +void __init memblock_build_node_order(void)
+> +{
+> +	int nid, i;
+> +	nodemask_t used_mask;
+> +
+> +	node_fallback = memblock_alloc(MAX_NUMNODES * sizeof(int *),
+> +		sizeof(int *));
+> +	for_each_online_node(nid) {
+> +		node_fallback[nid] = memblock_alloc(
+> +			num_online_nodes() * sizeof(int), sizeof(int));
+> +		for (i = 0; i < num_online_nodes(); i++)
+> +			node_fallback[nid][i] = NUMA_NO_NODE;
+> +	}
+> +
+> +	for_each_online_node(nid) {
+> +		nodes_clear(used_mask);
+> +		node_set(nid, used_mask);
+> +		build_node_order(node_fallback[nid], num_online_nodes(),
+> +			nid, &used_mask);
+> +	}
+> +}
 
-> > > > > +					struct vm_fault vmf = {
-> > > > > +						.vma = vma,
-> > > > > +						.address = addr & PAGE_MASK,
-> > > > > +						.page = page,
-> > > > > +						.orig_pte = oldpte,
-> > > > > +						.pmd = pmd,
-> > > > > +						/* pte and ptl not needed */
-> > > > > +					};
-> > > > > +					vm_fault_t ret;
-> > > > > +
-> > > > > +					if (page)
-> > > > > +						get_page(page);
-> > > > > +					arch_leave_lazy_mmu_mode();
-> > > > > +					pte_unmap_unlock(pte, ptl);
-> > > > > +					ret = wp_page_copy(&vmf);
-> > > > > +					/* PTE is changed, or OOM */
-> > > > > +					if (ret == 0)
-> > > > > +						/* It's done by others */
-> > > > > +						continue;
-> > > > > +					else if (WARN_ON(ret != VM_FAULT_WRITE))
-> > > > > +						return pages;
-> > > > > +					pte = pte_offset_map_lock(vma->vm_mm,
-> > > > > +								  pmd, addr,
-> > > > > +								  &ptl);
-> > > > 
-> > > > Here you remap the pte locked but you are not checking if the pte is
-> > > > the one you expect ie is it pointing to the copied page and does it
-> > > > have expect uffd_wp flag. Another thread might have raced between the
-> > > > time you called wp_page_copy() and the time you pte_offset_map_lock()
-> > > > I have not check the mmap_sem so maybe you are protected by it as
-> > > > mprotect is taking it in write mode IIRC, if so you should add a
-> > > > comments at very least so people do not see this as a bug.
-> > > 
-> > > Thanks for spotting this.  With nornal uffd-wp page fault handling
-> > > path we're only with read lock held (and I would suspect it's racy
-> > > even with write lock...).  I agree that there can be a race right
-> > > after the COW has done.
-> > > 
-> > > Here IMHO we'll be fine as long as it's still a present PTE, in other
-> > > words, we should be able to tolerate PTE changes as long as it's still
-> > > present otherwise we'll need to retry this single PTE (e.g., the page
-> > > can be quickly marked as migrating swap entry, or even the page could
-> > > be freed beneath us).  Do you think below change look good to you to
-> > > be squashed into this patch?
-> > 
-> > Ok, but below if must be after arch_enter_lazy_mmu_mode(); not before.
-> 
-> Oops... you are right. :)
-> 
-> Thanks,
-> 
-> > 
-> > > 
-> > > diff --git a/mm/mprotect.c b/mm/mprotect.c
-> > > index 73a65f07fe41..3423f9692838 100644
-> > > --- a/mm/mprotect.c
-> > > +++ b/mm/mprotect.c
-> > > @@ -73,6 +73,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,                                                              
-> > >         flush_tlb_batched_pending(vma->vm_mm);
-> > >         arch_enter_lazy_mmu_mode();
-> > >         do {
-> > > +retry_pte:
-> > >                 oldpte = *pte;
-> > >                 if (pte_present(oldpte)) {
-> > >                         pte_t ptent;
-> > > @@ -149,6 +150,13 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,                                                           
-> > >                                         pte = pte_offset_map_lock(vma->vm_mm,
-> > >                                                                   pmd, addr,
-> > >                                                                   &ptl);
-> > > +                                       if (!pte_present(*pte))
-> > > +                                               /*
-> > > +                                                * This PTE could have
-> > > +                                                * been modified when COW;
-> > > +                                                * retry it
-> > > +                                                */
-> > > +                                               goto retry_pte;
-> > >                                         arch_enter_lazy_mmu_mode();
-> > >                                 }
-> > >                         }
-> 
-> -- 
-> Peter Xu
+This doesn't get used until patch 6 as far as I can tell.  Was there a
+reason to define it here?
 
