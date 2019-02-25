@@ -2,228 +2,227 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08265C10F00
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 16:57:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E1826C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 17:12:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B75C32083D
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 16:57:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B75C32083D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 7DAC820C01
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 17:12:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DAC820C01
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5742E8E0010; Mon, 25 Feb 2019 11:57:32 -0500 (EST)
+	id BF87B8E0010; Mon, 25 Feb 2019 12:12:30 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4FCBB8E000E; Mon, 25 Feb 2019 11:57:32 -0500 (EST)
+	id B80418E000E; Mon, 25 Feb 2019 12:12:30 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 39DC88E0010; Mon, 25 Feb 2019 11:57:32 -0500 (EST)
+	id A210E8E0010; Mon, 25 Feb 2019 12:12:30 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D0E7A8E000E
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 11:57:31 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id a9so4224919edy.13
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 08:57:31 -0800 (PST)
+Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 266E38E000E
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 12:12:30 -0500 (EST)
+Received: by mail-ua1-f70.google.com with SMTP id g9so2240830ual.8
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 09:12:30 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=yAWOqVwPS1JiQWbex88iVewnn0kxHb5cGa4KE98GC2g=;
-        b=dIXiIT7JW3Uoq6C2sUsRUP+yKF7W2XTpH0MNzL8l8Bml4s4bvk0kc/oiaAMHFye074
-         RIRWIy5mEJTDyAloZwhD/4pd1R10nrw8wHUNWf0b4yqFJ3LJprik4d4SzF3FpOs/zpfD
-         84CcByNUccdG5EFSRYl/I0094P3xdDxQ0TDtW/LGLUXsbmYQM8RxukK7sAtm1jcdSj2l
-         +ZCnhpf2LxJUFNURJ3VO7557QQz5T4vQOS9RcAntdV9XSlnLvmiNAGd0LtG3aY6yirPx
-         zise/e9fzuDFqgeWc8+qm9/3Dnq1jYKAnkCkfR2tV0h5aR/IDwH3hDnPEYHsiluMQtNE
-         ODEA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: AHQUAub8UCKun3Xs1qjd706T3/rcgI4neN5oNxCrKH+EjolD2lto7QSr
-	a3+TaWeGuQkWpiNwzAMkep4TeqLzfITLe+roKR4OSteGZB9qrmrabFpvjfF79T5dRVFoKyGnP+R
-	3ddy39BUKzOqh67tukcqJ8kFLWtubdSO8w57Tp6e37FkmT4bJJ7PELmbxq3ceDouSmw==
-X-Received: by 2002:a17:906:970a:: with SMTP id k10mr13989913ejx.102.1551113851375;
-        Mon, 25 Feb 2019 08:57:31 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbVbSMc0xWZkJMUIhLzYC7n/NvUmBQfXqGDcPPQK4OfcNoaNupPOlIWonyE4UnHf+17AuOe
-X-Received: by 2002:a17:906:970a:: with SMTP id k10mr13989856ejx.102.1551113850149;
-        Mon, 25 Feb 2019 08:57:30 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551113850; cv=none;
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=tXshP6GgEDaLoJOwuV/eunafrh75iPJdSmazWkCwvIk=;
+        b=DgPw5SyX875PNE9ukovHlnM/BOH14YsIQpY+YXbhj0L/iK7uvlBKXhqs7dwugvmvI8
+         vS810Zw94hWr+sC02J0FR1tXi/6NXB6gPRT2DnrR9svH14MbK3ZmYFnGDTIcZYBojBCq
+         VJcL/zzHgqLiSkEzuj0Ty9BrfqX8x8f7+6P0I2LffRKG8eIkYE9mKOHZr2Xf+48Wdbe8
+         0MYPWZa2eMUG3D1DxMhygOHNTf9ubOs9WhRnM85yZa22UTgDOuymVQz0HBNsCvdJcC2a
+         8vF3Oc8Hg6MjsXkJxCY7X0wGdCo2FbGux8jdOKpWkzjIC0S7wxO7k3oKs0qwaTRuPKXc
+         hhkA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuaHubEzYj43EyWBng6JP7o73vkPeQgoNnW+d4Wwo0eyhJsWkU+e
+	dUcBwnSMiu+pwZ8FPww5YPOBQ3nx8MolpxMAYWvP0pf5jAizmOYoV0Iny4Ti6LWyMdoBy5c4qdu
+	GJr0O7gZXv5QRohwjL7xGVbWXNDpSkKQjwD1/1el+MyY1cG7LRLF3aJWTxjWnDze0zg==
+X-Received: by 2002:a67:f409:: with SMTP id p9mr9717523vsn.213.1551114749785;
+        Mon, 25 Feb 2019 09:12:29 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbobFtn5HkPwMsQWgo37CgqcZ0zMphGPHuTUv/Nivr97D4RMVjxHUV8stQfjUMZ8DX9r4PO
+X-Received: by 2002:a67:f409:: with SMTP id p9mr9717488vsn.213.1551114749120;
+        Mon, 25 Feb 2019 09:12:29 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551114749; cv=none;
         d=google.com; s=arc-20160816;
-        b=g7Q/id07rRkOXhb9zUGClUh0y5GpYPS6ES69C/Knay3JmLmPEo4UtLiJRtWAVyAs0s
-         J3DPOky+5VYCb+fj1i0UgqR9mEpfEzk0xizaxQnFFypFbmMX7KDyX/F5lpiITx7Wmu9x
-         Ml6/jsrbQCDrrcq2q0jVyzR1UExEPRSQylZyZXrd7PwovFlQ+8xjPLe0J0a7aLHSfgIF
-         COIMAg29R2jEqjC3k7ASqAutmBKvjau/iR0Zv/DTo/BHsVUZwpy7U/PZy1o2EM4Hi/Fc
-         WbvEFmJlNBansmFXr4Yy/vZv5eZdwCVux7pZoKztYj0BrpOFJOEz6Oq9e6xceNcBvy7p
-         MZfQ==
+        b=0aUG+UbijJXDXk8kYtJ+fCaDSNaiBrd8fYK006aCtqwkapTaanNA1n/6e6JmvtjHZX
+         Azwrjf7HZ3I+JtuBe9dGokVPOluLKodFTEVXrlE28l8DtpwA8KeG1y+MycI+ZkS05GB0
+         6mTVO2KTJoSybnxPGiTm1F8y1NS7Lh9aLQWGQ3Np8lghuUfJwq5pUrvsk/7XGk91tsp3
+         JMqbHDKpTt16iB3JdqnVG+HMljEZnYHdju+tqimWZr4fsmfSa3tcexVJrYY+tvlSHSOI
+         WvrtGD8Xidhn85HZfjT0T5m6jEv+7C12jbfzbaTxuQczpN25mnRR2xSpsqpswIIC48ap
+         UaCQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=yAWOqVwPS1JiQWbex88iVewnn0kxHb5cGa4KE98GC2g=;
-        b=YeaO4Ix1I2tVQQALO/V8v82w6Ev1O1BT/ZUBWGZlDiO5S6UOaG4lvbJOgh3l96JCPY
-         jJCQ6SfSoNDA4BiFoEmKOArgUNH818kJRWGUHjb3kwsi5L2hMf1mQnyn3wARaIOhWsbr
-         pEY2+wgwLW8sYBc29Z/a3fqd+hVQcIGHhJ62dwstx9Eatds5inrXlFhQ8T9k8ZBeWzOw
-         cqeAxEDUpP1YX2O7cOTYriN9U6pvPqHuRRCL852JlsmHip8Ioy/KjUSdSiOp9pj3lGI6
-         ICiTOXLXdlgIZMsqtWgQwsxy9RspjHUnh3sQvD7Bt3hydG8OMK7+gWT1znVkhulSBQzy
-         vNAw==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=tXshP6GgEDaLoJOwuV/eunafrh75iPJdSmazWkCwvIk=;
+        b=fAFzNhvbMQ88zQl8ZwOv8cRbkfoqktGXB9LSLDsVEOCXMTyZSyCgC0gOqbn3pfOYW3
+         jUKPytpR52VWrZrEq0dmUar9r1S3x6ta67ZvWfR+OV5ORaX7TrHXtp21vL3ke15TWdrd
+         xp5zZCPwJwubAc0ah4MUVNmibybIgw0ixMZoE4p0aVtaeU/igpNbeqUzMf4LZMFLAqov
+         XL0XQskxqOaKu5IiaCNal8JQUWbM6LvWmcp4UyDA/c0b6mTPhWu/EYNGCFF/6MxU+yGI
+         mTRCxXb5bIuwqy9Ll4AKtDPgmzESuGWbh7a98/Ql1qvw6KeUwqkjQCHqrDS3jAJlaLvr
+         bV7g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id a57si3990551edd.310.2019.02.25.08.57.29
-        for <linux-mm@kvack.org>;
-        Mon, 25 Feb 2019 08:57:30 -0800 (PST)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id h5si1735080vso.61.2019.02.25.09.12.28
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Feb 2019 09:12:29 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 896D180D;
-	Mon, 25 Feb 2019 08:57:28 -0800 (PST)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 8F15B3F703;
-	Mon, 25 Feb 2019 08:57:23 -0800 (PST)
-Date: Mon, 25 Feb 2019 16:57:21 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Cc: Evgenii Stepanov <eugenis@google.com>, nd <nd@arm.com>,
-	Kevin Brodsky <Kevin.Brodsky@arm.com>,
-	Dave P Martin <Dave.Martin@arm.com>,
-	Mark Rutland <Mark.Rutland@arm.com>,
-	Kate Stewart <kstewart@linuxfoundation.org>,
-	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>,
-	Will Deacon <Will.Deacon@arm.com>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
-	Chintan Pandya <cpandya@codeaurora.org>,
-	Vincenzo Frascino <Vincenzo.Frascino@arm.com>,
-	Shuah Khan <shuah@kernel.org>, Ingo Molnar <mingo@kernel.org>,
-	linux-arch <linux-arch@vger.kernel.org>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kees Cook <keescook@chromium.org>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	Kostya Serebryany <kcc@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Robin Murphy <Robin.Murphy@arm.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [RFC][PATCH 0/3] arm64 relaxed ABI
-Message-ID: <20190225165720.GA79300@arrakis.emea.arm.com>
-References: <20181210143044.12714-1-vincenzo.frascino@arm.com>
- <CAAeHK+xPZ-Z9YUAq=3+hbjj4uyJk32qVaxZkhcSAHYC4mHAkvQ@mail.gmail.com>
- <20181212150230.GH65138@arrakis.emea.arm.com>
- <CAAeHK+zxYJDJ7DJuDAOuOMgGvckFwMAoVUTDJzb6MX3WsXhRTQ@mail.gmail.com>
- <20181218175938.GD20197@arrakis.emea.arm.com>
- <20181219125249.GB22067@e103592.cambridge.arm.com>
- <9bbacb1b-6237-f0bb-9bec-b4cf8d42bfc5@arm.com>
- <CAFKCwrhH5R3e5ntX0t-gxcE6zzbCNm06pzeFfYEN2K13c5WLTg@mail.gmail.com>
- <20190212180223.GD199333@arrakis.emea.arm.com>
- <ac8f4e3b-84b8-6067-6a7a-fac7dc48daea@arm.com>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1PH9MkL180935
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 12:12:28 -0500
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2qvjwap04b-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 12:12:28 -0500
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 25 Feb 2019 17:12:26 -0000
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 25 Feb 2019 17:12:20 -0000
+Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1PHCJg534013366
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Mon, 25 Feb 2019 17:12:19 GMT
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 41269A4055;
+	Mon, 25 Feb 2019 17:12:19 +0000 (GMT)
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 6BCCCA4040;
+	Mon, 25 Feb 2019 17:12:17 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.205.26])
+	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Mon, 25 Feb 2019 17:12:17 +0000 (GMT)
+Date: Mon, 25 Feb 2019 19:12:15 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        David Hildenbrand <david@redhat.com>, Hugh Dickins <hughd@google.com>,
+        Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>,
+        Pavel Emelyanov <xemul@virtuozzo.com>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+        Marty McFadden <mcfadden8@llnl.gov>,
+        Andrea Arcangeli <aarcange@redhat.com>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        Denis Plotnikov <dplotnikov@virtuozzo.com>,
+        Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>,
+        "Kirill A . Shutemov" <kirill@shutemov.name>,
+        "Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v2 09/26] userfaultfd: wp: userfaultfd_pte/huge_pmd_wp()
+ helpers
+References: <20190212025632.28946-1-peterx@redhat.com>
+ <20190212025632.28946-10-peterx@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ac8f4e3b-84b8-6067-6a7a-fac7dc48daea@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190212025632.28946-10-peterx@redhat.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19022517-0012-0000-0000-000002F9FF50
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19022517-0013-0000-0000-00002131A072
+Message-Id: <20190225171214.GE24917@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-25_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902250126
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Szabolcs,
-
-Thanks for looking into this. Comments below.
-
-On Tue, Feb 19, 2019 at 06:38:31PM +0000, Szabolcs Nagy wrote:
-> i think these rules work for the cases i care about, a more
-> tricky question is when/how to check for the new syscall abi
-> and when/how the TCR_EL1.TBI0 setting may be turned off.
-
-I don't think turning TBI0 off is critical (it's handy for PAC with
-52-bit VA but then it's short-lived if you want more security features
-like MTE).
-
-> consider the following cases (tb == top byte):
+On Tue, Feb 12, 2019 at 10:56:15AM +0800, Peter Xu wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> binary 1: user tb = any, syscall tb = 0
->   tbi is on, "legacy binary"
+> Implement helpers methods to invoke userfaultfd wp faults more
+> selectively: not only when a wp fault triggers on a vma with
+> vma->vm_flags VM_UFFD_WP set, but only if the _PAGE_UFFD_WP bit is set
+> in the pagetable too.
 > 
-> binary 2: user tb = any, syscall tb = any
->   tbi is on, "new binary using tb"
->   for backward compat it needs to check for new syscall abi.
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Peter Xu <peterx@redhat.com>
+
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
+
+> ---
+>  include/linux/userfaultfd_k.h | 27 +++++++++++++++++++++++++++
+>  1 file changed, 27 insertions(+)
 > 
-> binary 3: user tb = 0, syscall tb = 0
->   tbi can be off, "new binary",
->   binary is marked to indicate unused tb,
->   kernel may turn tbi off: additional pac bits.
+> diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
+> index 38f748e7186e..c6590c58ce28 100644
+> --- a/include/linux/userfaultfd_k.h
+> +++ b/include/linux/userfaultfd_k.h
+> @@ -14,6 +14,8 @@
+>  #include <linux/userfaultfd.h> /* linux/include/uapi/linux/userfaultfd.h */
 > 
-> binary 4: user tb = mte, syscall tb = mte
->   like binary 3, but with mte, "new binary using mte"
->   does it have to check for new syscall abi?
->   or MTE HWCAP would imply it?
->   (is it possible to use mte without new syscall abi?)
-
-I think MTE HWCAP should imply it.
-
-> in userspace we want most binaries to be like binary 3 and 4
-> eventually, i.e. marked as not-relying-on-tbi, if a dso is
-> loaded that is unmarked (legacy or new tb user), then either
-> the load fails (e.g. if mte is already used? or can we turn
-> mte off at runtime?) or tbi has to be enabled (prctl? does
-> this work with pac? or multi-threads?).
-
-We could enable it via prctl. That's the plan for MTE as well (in
-addition maybe to some ELF flag).
-
-> as for checking the new syscall abi: i don't see much semantic
-> difference between AT_HWCAP and AT_FLAGS (either way, the user
-> has to check a feature flag before using the feature of the
-> underlying system and it does not matter much if it's a syscall
-> abi feature or cpu feature), but i don't see anything wrong
-> with AT_FLAGS if the kernel prefers that.
-
-The AT_FLAGS is aimed at capturing binary 2 case above, i.e. the
-relaxation of the syscall ABI to accept tb = any. The MTE support will
-have its own AT_HWCAP, likely in addition to AT_FLAGS. Arguably,
-AT_FLAGS is either redundant here if MTE implies it (and no harm in
-keeping it around) or the meaning is different: a tb != 0 may be checked
-by the kernel against the allocation tag (i.e. get_user() could fail,
-the tag is not entirely ignored).
-
-> the discussion here was mostly about binary 2,
-
-That's because passing tb != 0 into the syscall ABI is the main blocker
-here that needs clearing out before merging the MTE support. There is,
-of course, a variation of binary 1 for MTE:
-
-binary 5: user tb = mte, syscall tb = 0
-
-but this requires a lot of C lib changes to support properly.
-
-> but for
-> me the open question is if we can make binary 3/4 work.
-> (which requires some elf binary marking, that is recognised
-> by the kernel and dynamic loader, and efficient handling of
-> the TBI0 bit, ..if it's not possible, then i don't see how
-> mte will be deployed).
-
-If we ignore binary 3, we can keep TBI0 = 1 permanently, whether we have
-MTE or not.
-
-> and i guess on the kernel side the open question is if the
-> rules 1/2/3/4 can be made to work in corner cases e.g. when
-> pointers embedded into structs are passed down in ioctl.
-
-We've been trying to track these down since last summer and we came to
-the conclusion that it should be (mostly) fine for the non-weird memory
-described above.
+>  #include <linux/fcntl.h>
+> +#include <linux/mm.h>
+> +#include <asm-generic/pgtable_uffd.h>
+> 
+>  /*
+>   * CAREFUL: Check include/uapi/asm-generic/fcntl.h when defining
+> @@ -55,6 +57,18 @@ static inline bool userfaultfd_wp(struct vm_area_struct *vma)
+>  	return vma->vm_flags & VM_UFFD_WP;
+>  }
+> 
+> +static inline bool userfaultfd_pte_wp(struct vm_area_struct *vma,
+> +				      pte_t pte)
+> +{
+> +	return userfaultfd_wp(vma) && pte_uffd_wp(pte);
+> +}
+> +
+> +static inline bool userfaultfd_huge_pmd_wp(struct vm_area_struct *vma,
+> +					   pmd_t pmd)
+> +{
+> +	return userfaultfd_wp(vma) && pmd_uffd_wp(pmd);
+> +}
+> +
+>  static inline bool userfaultfd_armed(struct vm_area_struct *vma)
+>  {
+>  	return vma->vm_flags & (VM_UFFD_MISSING | VM_UFFD_WP);
+> @@ -104,6 +118,19 @@ static inline bool userfaultfd_wp(struct vm_area_struct *vma)
+>  	return false;
+>  }
+> 
+> +static inline bool userfaultfd_pte_wp(struct vm_area_struct *vma,
+> +				      pte_t pte)
+> +{
+> +	return false;
+> +}
+> +
+> +static inline bool userfaultfd_huge_pmd_wp(struct vm_area_struct *vma,
+> +					   pmd_t pmd)
+> +{
+> +	return false;
+> +}
+> +
+> +
+>  static inline bool userfaultfd_armed(struct vm_area_struct *vma)
+>  {
+>  	return false;
+> -- 
+> 2.17.1
+> 
 
 -- 
-Catalin
+Sincerely yours,
+Mike.
 
