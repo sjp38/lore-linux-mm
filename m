@@ -2,269 +2,212 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 79355C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 18:19:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 51AAFC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 18:20:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0F1062084D
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 18:19:38 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="G3MyQXf6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F1062084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 15B332084D
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 18:20:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15B332084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 537358E000A; Mon, 25 Feb 2019 13:19:38 -0500 (EST)
+	id BEEE38E000B; Mon, 25 Feb 2019 13:20:07 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4E6798E0009; Mon, 25 Feb 2019 13:19:38 -0500 (EST)
+	id B9D7A8E0009; Mon, 25 Feb 2019 13:20:07 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3D61E8E000A; Mon, 25 Feb 2019 13:19:38 -0500 (EST)
+	id A8C548E000B; Mon, 25 Feb 2019 13:20:07 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 15D018E0009
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 13:19:38 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id y70so8066315itc.5
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:19:38 -0800 (PST)
+Received: from mail-ua1-f72.google.com (mail-ua1-f72.google.com [209.85.222.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 778498E0009
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 13:20:07 -0500 (EST)
+Received: by mail-ua1-f72.google.com with SMTP id w13so2315096uaa.21
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:20:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:from:to:cc:references
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=MDhQ7hiB83vmUIdrFI1EFKPrSwA180BCDucKL8o87Lk=;
-        b=kk1TUZ5a1YeGYEyS74hKN/gTdn2wxDqdrpex/RvH6PGFUYedylY74jYI9C2kiv9Jrc
-         /WilIWB52F8J7kMF183SXfRql/JuwEfee5EUUEQgTlT1QnXuTkHCAY4YycG9TlBuwGXa
-         6JETqWU5KBnDmQJiNQhBnflOoglmNIi4awcjwgY9McHPMqm2xWtuWQMQk3EwcdL9ucth
-         PBKzN4yu3Ee4PgansXutfDSighbRNlVqhYL8XcLRSjmIh17IOZaO0KlIxkknoP8OdlKP
-         l0X5dIPnqXVjuC4rJX8C4ffh4nvZPxXW/S5KZjU5eYk9trKUuZU8P7ZF8al15omc472W
-         zsZA==
-X-Gm-Message-State: AHQUAuYe7Lz46TT2EErmQ64deAUNXWNU9SmhzdCcHtfLtjLRB6mjFPkk
-	8x4hZdk7b7A8i5mv2b4AVSu6MJ2g0VIaVamsIUq0OMVAEyt37Nb3oLONbisKehvcoto3AiZy739
-	21S1aXcsnX56ccE3QNar9hsLUAvTYajB/fXEk6zFYAbDelR51HRr5dujvlb6MqdjOGw==
-X-Received: by 2002:a24:2546:: with SMTP id g67mr103932itg.18.1551118777729;
-        Mon, 25 Feb 2019 10:19:37 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZxw3H0IMw+Jgco67zljLejfLUHRgUzUFVOEinDIeY9XicZ/EpSGEymP01wVbSE1pfF730T
-X-Received: by 2002:a24:2546:: with SMTP id g67mr103894itg.18.1551118776771;
-        Mon, 25 Feb 2019 10:19:36 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551118776; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=T6IALUrplkpdOQzDQbmAdnHUOIXzH+ng67ITmAcupqo=;
+        b=U2lwHruyKGP46M4UYX34Y/VQwYSVXLjUsqgq7VmTlW+0U7Cv0b4gS0SykXqHfJSRB8
+         E+9en4rje8w3MkOP00usbwrv6xrHRo77t0LYt5fR2nzKX59B/jBlTRSVx2eOi2hFeI8s
+         Y+ax7+yOBfEyEPCMhksqMN3vPNwHXX2AkgVz2j0/BNVJxYm0O2lycBmxMSe3jR60NW26
+         z+9My4TMrDIeBaWuN7vDSJeGfeqhiNw7eBwjhi9H/LvZovX5lXjWPft1/CyyOicB7pkd
+         ZL6yK+ubpv3Z/Nppn0qUuBJ6C3cqUbs75rtDogXjB2e7eZe87Og64CHT6nIA+Jaa4VHM
+         cbpQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuYdAoeTzQgGP25d4+ubdgiyv5dZ4qgsnPcj+isyVsVX1XtzBfoQ
+	f7n2mLSQ/p3LZFV3jyiqJjUaqxbS7hIctYKakXzg76t4/M6n91PwAUSW8BUXLaF9OcDtEtE6EqE
+	0r3viMtkqUk1QucN/+HdTENcyqyGGcrsmFqIngp0XiDUl7XZqcsaVJXNa2MhUGmwBHA==
+X-Received: by 2002:a67:fa8e:: with SMTP id f14mr1763640vsq.126.1551118807179;
+        Mon, 25 Feb 2019 10:20:07 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZZXkHVb3CPutdwRo35isCUZqi4eKTRt0JuvAfuaxI/EjYO5JFUel+u4ZDSXI/uq8Hix9N8
+X-Received: by 2002:a67:fa8e:: with SMTP id f14mr1763575vsq.126.1551118806046;
+        Mon, 25 Feb 2019 10:20:06 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551118806; cv=none;
         d=google.com; s=arc-20160816;
-        b=EOCwXBiA10+oxcH5JTR0c1o35AGR5m/JMqacGrJ52RK+RIbiIyt0cgCyjdqfb2VzcK
-         KMhFVJ32a1G4SLOIA833b3MlGDFwwFZ23i44auxIWER8tayq1U1GFOm3pD7JieUF1W+K
-         9J0Q/6b4OZQM/LOPJuFvP6tIx00tI0Kr+YwsSK6tbahoKYG7NftuRZ5XyDfQ20tDopws
-         f+hr3udVlhdY2dmvB9wQHhrHrdkBG6KZOz44PaysoWbdkJRkLwYVgpz40Jerd4Xlxrs7
-         SUu6htZbJq2iI3e4WVHRInVpXP6dbVID2a8Cgx/1QrjjgSKtojTuiyyeCUDByn9DowI2
-         6l1g==
+        b=oEunly4jRXU3TMILOdPdL1GT3H8BtSS89cR9N5Ss/+CCPvgC9thTor1bTao+CB7GGx
+         Jvg1IoUp4bi67EIXYCcgmta5UiIToNmoEIADxYQBHsBcgd3i2BIvqWgI2fba4Xktsxz6
+         hBsJE9sB/PRR+T24uutLq8U0KIMou+9yBoyUu0Aof/kDO3SWe6opb8fMVUV03raW/D/e
+         TUwweEAdGddn8KAQLsPH4jDpOsdrxL0RcUSSyn5NaaMrO7H9SuMTAXKmxuubUStD5o0I
+         Rs/5ubwx97I5F21aO1vWHVX0qEnI83hn4bBfkgLkUradzw96hxm9wK1B68SpAq/hXLxQ
+         vg2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:from:subject
-         :dkim-signature;
-        bh=MDhQ7hiB83vmUIdrFI1EFKPrSwA180BCDucKL8o87Lk=;
-        b=NWiknyeP5YaaK5hQIbbGu5HPVbvm9GmFaiubF9LF2HXmY4RzPCuiN0ulXc9T88/9h/
-         ILLqUwQ6RqTulMz6peuWNtZFCcxrMwswS+8IzDwrIcGhLKp2XAQ2h86+JX6fS8zUPZYU
-         QAao/z6Kz3/QeIwWCtPFfGcjqMTrcUkcE7MWhjN2wOICtMKkP6piyLMLW7O+qJyXyPHe
-         Rn/zSLoWy30kNGLeO5Y8Tl9I+np8lO1eR50m4OgBxl6NiwiW0VRMKa0huNGXuBi5hseC
-         3S4bxLhD76eq3voiI+q2VdsJPv3IK02TLLgPrnYiJisLjJ/4tsnHKgvNkc43+3HNfjq3
-         mElQ==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=T6IALUrplkpdOQzDQbmAdnHUOIXzH+ng67ITmAcupqo=;
+        b=DJjPdSMiDYt/NeiVb83gCeDEAz7ZZOeNeq6ZgZ2sYK9+5xkquE7V8UR8cN/lKVPypu
+         eC7PAQEUOjLJh8bgdhchuQHU/T4jnXNGoamjqEb3SSedFPyYsGCZgWxzl8d8uaLDK/42
+         hmJCxNpv8iIsufBb4bqjVcDrMOeKKhWFXy6rFUSu+zEIMc8LQ5BvNnsqZhKEdVRm/sF2
+         MfP7vEFbTFwUeSM5VW/z5Lr72lQ6Fl4MRAGt9dYbbr/T49Mwn9DUfL/NM6aEOFYlhtWg
+         dJdIsdtyP7NHGAPuLjZVRZvIG5meNZRs5iNbAoAR4zh4wKdZJyR+z+kHxRTS83Of88UW
+         zzNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=G3MyQXf6;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id w4si4754191ioc.91.2019.02.25.10.19.36
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id q20si1675583vsm.316.2019.02.25.10.20.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 10:19:36 -0800 (PST)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Mon, 25 Feb 2019 10:20:05 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=G3MyQXf6;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1PIJ5g3150947;
-	Mon, 25 Feb 2019 18:19:24 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : from : to :
- cc : references : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=MDhQ7hiB83vmUIdrFI1EFKPrSwA180BCDucKL8o87Lk=;
- b=G3MyQXf6+uo6xTbtLPRsXhmCHsT3b6XYp3jkb+9FgL2CduMCbiWpeHcc4JyocBkMKdWA
- DiyVMpk4H58UUqii5KsXmjbStDRw+UTZHAHDhe2PqaL5p3SVArHUt+9vqfvS/cAYiKvO
- zq6U9nvvvWdXrainkMAMcltwSvj9exyTHa5AeouTDxPEnI5fvwB6IWbHEbDGLktn/nTU
- N45P1QFZs8Cpwq0OZy5HpNRMU4YZhQvOlm6z3NmriGZ5Vecx2+qAfUTx8qzVYqVYvg4a
- 4IUWjHxlug0Udbhu8KTkNMizcGQL6Reu8z5sbAExw85UYA5WZ0wZ7LRjPDJTE+TjLzrF OA== 
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp2130.oracle.com with ESMTP id 2qtwktytsm-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 25 Feb 2019 18:19:24 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x1PIJHJW022181
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 25 Feb 2019 18:19:18 GMT
-Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1PIJGA1003121;
-	Mon, 25 Feb 2019 18:19:16 GMT
-Received: from [192.168.1.164] (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 25 Feb 2019 10:19:15 -0800
-Subject: Re: [PATCH v4] mm/hugetlb: Fix unsigned overflow in
- __nr_hugepages_store_common()
-From: Mike Kravetz <mike.kravetz@oracle.com>
-To: David Rientjes <rientjes@google.com>
-Cc: Jing Xiangfeng <jingxiangfeng@huawei.com>, mhocko@kernel.org,
-        akpm@linux-foundation.org, hughd@google.com, linux-mm@kvack.org,
-        n-horiguchi@ah.jp.nec.com, aarcange@redhat.com,
-        kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
-References: <1550885529-125561-1-git-send-email-jingxiangfeng@huawei.com>
- <388cbbf5-7086-1d04-4c49-049021504b9d@oracle.com>
- <alpine.DEB.2.21.1902241913000.34632@chino.kir.corp.google.com>
- <8c167be7-06fa-a8c0-8ee7-0bfad41eaba2@oracle.com>
-Message-ID: <13400ee2-3d3b-e5d6-2d78-a770820417de@oracle.com>
-Date: Mon, 25 Feb 2019 10:19:14 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1PIBw8R114465
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 13:20:05 -0500
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2qvjrcsrt0-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 13:20:05 -0500
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Mon, 25 Feb 2019 18:20:03 -0000
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 25 Feb 2019 18:19:57 -0000
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1PIJuHh31129848
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Mon, 25 Feb 2019 18:19:56 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 6F55D11C052;
+	Mon, 25 Feb 2019 18:19:56 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 67EF411C05C;
+	Mon, 25 Feb 2019 18:19:52 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.205.26])
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Mon, 25 Feb 2019 18:19:52 +0000 (GMT)
+Date: Mon, 25 Feb 2019 20:19:49 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        David Hildenbrand <david@redhat.com>, Hugh Dickins <hughd@google.com>,
+        Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>,
+        Pavel Emelyanov <xemul@virtuozzo.com>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+        Marty McFadden <mcfadden8@llnl.gov>,
+        Andrea Arcangeli <aarcange@redhat.com>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        Denis Plotnikov <dplotnikov@virtuozzo.com>,
+        Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>,
+        "Kirill A . Shutemov" <kirill@shutemov.name>,
+        "Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v2 15/26] userfaultfd: wp: drop _PAGE_UFFD_WP properly
+ when fork
+References: <20190212025632.28946-1-peterx@redhat.com>
+ <20190212025632.28946-16-peterx@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <8c167be7-06fa-a8c0-8ee7-0bfad41eaba2@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9178 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902250134
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190212025632.28946-16-peterx@redhat.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19022518-4275-0000-0000-00000313CC8D
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19022518-4276-0000-0000-0000382209B5
+Message-Id: <20190225181947.GG24917@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-25_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902250133
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On 2/24/19 7:17 PM, David Rientjes wrote:
->> On Sun, 24 Feb 2019, Mike Kravetz wrote:
->>>> @@ -2423,7 +2423,14 @@ static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,
->>>>  		 * per node hstate attribute: adjust count to global,
->>>>  		 * but restrict alloc/free to the specified node.
->>>>  		 */
->>>> +		unsigned long old_count = count;
->>>>  		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
->>>> +		/*
->>>> +		 * If user specified count causes overflow, set to
->>>> +		 * largest possible value.
->>>> +		 */
->>>> +		if (count < old_count)
->>>> +			count = ULONG_MAX;
->>>>  		init_nodemask_of_node(nodes_allowed, nid);
->>>>  	} else
->>>>  		nodes_allowed = &node_states[N_MEMORY];
->>>>
->>
->> Looks like this fixes the overflow issue, but isn't there already a 
->> possible underflow since we don't hold hugetlb_lock?  Even if 
->> count == 0, what prevents h->nr_huge_pages_node[nid] being greater than 
->> h->nr_huge_pages here?  I think the per hstate values need to be read with 
->> READ_ONCE() and stored on the stack to do any sane bounds checking.
+On Tue, Feb 12, 2019 at 10:56:21AM +0800, Peter Xu wrote:
+> UFFD_EVENT_FORK support for uffd-wp should be already there, except
+> that we should clean the uffd-wp bit if uffd fork event is not
+> enabled.  Detect that to avoid _PAGE_UFFD_WP being set even if the VMA
+> is not being tracked by VM_UFFD_WP.  Do this for both small PTEs and
+> huge PMDs.
 > 
-> Yes, without holding the lock there is the potential for issues.  Looking
-> back to when the node specific code was added there is a comment about
-> "re-use/share as much of the existing global hstate attribute initialization
-> and handling".  I suspect that is the reason for these calculations outside
-> the lock.
+> Signed-off-by: Peter Xu <peterx@redhat.com>
+
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
+
+> ---
+>  mm/huge_memory.c | 8 ++++++++
+>  mm/memory.c      | 8 ++++++++
+>  2 files changed, 16 insertions(+)
 > 
-> As you mention above, nr_huge_pages_node[nid] could be greater than
-> nr_huge_pages.  This is true even if we do READ_ONCE().  So, the code would
-> need to test for this condition and 'fix up' values or re-read.  It is just
-> racy without holding the lock.
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 817335b443c2..fb2234cb595a 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -938,6 +938,14 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+>  	ret = -EAGAIN;
+>  	pmd = *src_pmd;
 > 
-> If that is too ugly, then we could just add code for the node specific
-> adjustments.  set_max_huge_pages() is only called from here.  It would be
-> pretty easy to modify set_max_huge_pages() to take the node specific value
-> and do calculations/adjustments under the lock.
-
-Ok, what about just moving the calculation/check inside the lock as in the
-untested patch below?
-
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- mm/hugetlb.c | 34 ++++++++++++++++++++++++++--------
- 1 file changed, 26 insertions(+), 8 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 1c5219193b9e..5afa77dc7bc8 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2274,7 +2274,7 @@ static int adjust_pool_surplus(struct hstate *h,
-nodemask_t *nodes_allowed,
- }
-
- #define persistent_huge_pages(h) (h->nr_huge_pages - h->surplus_huge_pages)
--static int set_max_huge_pages(struct hstate *h, unsigned long count,
-+static int set_max_huge_pages(struct hstate *h, unsigned long count, int nid,
- 						nodemask_t *nodes_allowed)
- {
- 	unsigned long min_count, ret;
-@@ -2289,6 +2289,23 @@ static int set_max_huge_pages(struct hstate *h, unsigned
-long count,
- 		goto decrease_pool;
- 	}
-
-+	spin_lock(&hugetlb_lock);
-+
-+	/*
-+	 * Check for a node specific request.  Adjust global count, but
-+	 * restrict alloc/free to the specified node.
-+	 */
-+	if (nid != NUMA_NO_NODE) {
-+		unsigned long old_count = count;
-+		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
-+		/*
-+		 * If user specified count causes overflow, set to
-+		 * largest possible value.
-+		 */
-+		if (count < old_count)
-+			count = ULONG_MAX;
-+	}
-+
- 	/*
- 	 * Increase the pool size
- 	 * First take pages out of surplus state.  Then make up the
-@@ -2300,7 +2317,6 @@ static int set_max_huge_pages(struct hstate *h, unsigned
-long count,
- 	 * pool might be one hugepage larger than it needs to be, but
- 	 * within all the constraints specified by the sysctls.
- 	 */
--	spin_lock(&hugetlb_lock);
- 	while (h->surplus_huge_pages && count > persistent_huge_pages(h)) {
- 		if (!adjust_pool_surplus(h, nodes_allowed, -1))
- 			break;
-@@ -2421,16 +2437,18 @@ static ssize_t __nr_hugepages_store_common(bool
-obey_mempolicy,
- 			nodes_allowed = &node_states[N_MEMORY];
- 		}
- 	} else if (nodes_allowed) {
-+		/* Node specific request */
-+		init_nodemask_of_node(nodes_allowed, nid);
-+	} else {
- 		/*
--		 * per node hstate attribute: adjust count to global,
--		 * but restrict alloc/free to the specified node.
-+		 * Node specific request, but we could not allocate
-+		 * node mask.  Pass in ALL nodes, and clear nid.
- 		 */
--		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
--		init_nodemask_of_node(nodes_allowed, nid);
--	} else
-+		nid = NUMA_NO_NODE;
- 		nodes_allowed = &node_states[N_MEMORY];
-+	}
-
--	err = set_max_huge_pages(h, count, nodes_allowed);
-+	err = set_max_huge_pages(h, count, nid, nodes_allowed);
- 	if (err)
- 		goto out;
+> +	/*
+> +	 * Make sure the _PAGE_UFFD_WP bit is cleared if the new VMA
+> +	 * does not have the VM_UFFD_WP, which means that the uffd
+> +	 * fork event is not enabled.
+> +	 */
+> +	if (!(vma->vm_flags & VM_UFFD_WP))
+> +		pmd = pmd_clear_uffd_wp(pmd);
+> +
+>  #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+>  	if (unlikely(is_swap_pmd(pmd))) {
+>  		swp_entry_t entry = pmd_to_swp_entry(pmd);
+> diff --git a/mm/memory.c b/mm/memory.c
+> index b5d67bafae35..c2035539e9fd 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -788,6 +788,14 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+>  		pte = pte_mkclean(pte);
+>  	pte = pte_mkold(pte);
+> 
+> +	/*
+> +	 * Make sure the _PAGE_UFFD_WP bit is cleared if the new VMA
+> +	 * does not have the VM_UFFD_WP, which means that the uffd
+> +	 * fork event is not enabled.
+> +	 */
+> +	if (!(vm_flags & VM_UFFD_WP))
+> +		pte = pte_clear_uffd_wp(pte);
+> +
+>  	page = vm_normal_page(vma, addr, pte);
+>  	if (page) {
+>  		get_page(page);
+> -- 
+> 2.17.1
+> 
 
 -- 
-2.17.2
+Sincerely yours,
+Mike.
 
