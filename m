@@ -4,154 +4,425 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DD658C43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:48:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BC95CC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:48:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9D3D420842
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:48:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5EF0520842
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:48:53 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="InB4Rtmw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D3D420842
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="nvwKIEsb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5EF0520842
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4A3038E0156; Mon, 25 Feb 2019 08:48:43 -0500 (EST)
+	id 9D5548E0167; Mon, 25 Feb 2019 08:48:43 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 42B258E011F; Mon, 25 Feb 2019 08:48:43 -0500 (EST)
+	id 9354F8E0155; Mon, 25 Feb 2019 08:48:43 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3407A8E0156; Mon, 25 Feb 2019 08:48:43 -0500 (EST)
+	id 802488E011F; Mon, 25 Feb 2019 08:48:43 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D1A638E011F
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 08:48:42 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id s5so4757659wrp.17
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 05:48:42 -0800 (PST)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 10E688E0155
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 08:48:43 -0500 (EST)
+Received: by mail-wm1-f71.google.com with SMTP id t133so1446475wmg.4
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 05:48:43 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:message-id:in-reply-to:references
          :from:subject:to:cc:date;
-        bh=x5Dwfe9pBn0jiYAytmPEco/+5u9wkUq+xY/xh4B++1o=;
-        b=m/f5p6N/lFjEWzOdUgcaB9/2mrGydahbxMi0oeEEGqFBrmJ9O0B1ypIQsiu4uBwy41
-         FMEovepkO7X52Nl/qzQQWquxFw5Udn+9fkCqtcvjgs+0Ss6mDnq24KsQlrHLMUMkxoy1
-         srN8RUwlI/MKtvmO94+EsgdLZq19j2mpM/4tNDBO95FiW4nq4bgsBJse///e9hL1aWXf
-         Oo33eAatOePXNQBn+wdaVBEkp/Ta48HDYOhj2lIzfQO1QwLFcYEter0HnLDkOhz6WW/f
-         GUlsM0cFxf4rjC5v3JoAp5kOpmEj6Ca5by8D4o/tYTF0c3wdPuNmUuvf28dMEVAfU9BU
-         Ucmw==
-X-Gm-Message-State: AHQUAuYCrQF2K/0j2v3JiEiTCj+KEby8gN6SBoOo8oV4Sks5ZPe31SQ4
-	cPe2XzLFIWDSzu9f7OWAm9RsBYaeq1ZNlRl0O6KiJO7BCyUbs6lFwVbY1Ja1YTa51TjF1/q/U5m
-	3PssJwgr33UrtrDtdA0QHdr7RaMTnUxDTI7jDRJIrx0Z2RL7XNFJ0g620mBOkahV0Iw==
-X-Received: by 2002:adf:c3c5:: with SMTP id d5mr12192470wrg.308.1551102522350;
+        bh=aZargV6nO712fK9s1js2k48oU87IFWvTxERGiBvMagQ=;
+        b=lvx3RdHqjEtnxm5LfB1K1I9pzl3kChJXGfs8dfjU7T1mTqslitBfKrngzJRPN0cUpC
+         dmTVsaYYQkXayc3AER9JqehhcvOOcCYxMHO1GxwnLnaT/I9MtA8gK1FNsHHgjElKXV+R
+         ocjxX1D7+OK0/VAEmD2mG5o+oZhOqW+CUoURLv3x6i61gs4TRKqMUleSSGVGceOS+U37
+         2uBf8tEath/kr0JXD9DYrZQ49jrucW38vDa4imNU2qkMJ8HFt4jVuJxiQxspKJCvzMSe
+         0Plx8MjXRP7IVtU0FdKvj3mF43QdGZdK9/RctKYpmSTmc2HtXjjfDuLbFBAhU5jCHGwh
+         Jtvg==
+X-Gm-Message-State: AHQUAubcxLUcbTCDkDGw1WZTb/niro6oO/TAZqUtVKZSEsI1NJiwPfYB
+	LQkTSgH48aEMRis7kNjWMMMyZEwwzHea4R4t2tBs3mKPKw1wWAPA/9LL84jZ+hW2oOVRyTekWuO
+	vN5Dy8ydwFxld2RnMMCTXSyiGr+czl+QAcTvy0s44XqcU50+iTo8WzMnruhzjgW/XLw==
+X-Received: by 2002:a5d:6983:: with SMTP id g3mr13105531wru.286.1551102522573;
         Mon, 25 Feb 2019 05:48:42 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYXN2ri3Rf891Em7SWT6ECyNvgxa4cRkaLeA/5XdmRtkyXTW+SlgxXfnbprjRnTlCgDcdpY
-X-Received: by 2002:adf:c3c5:: with SMTP id d5mr12192432wrg.308.1551102521473;
+X-Google-Smtp-Source: AHgI3IbfR9maQtx1dKpMZr5AfY/DcuElkwUFh2EnmsNRkvewBfZAxd3gpJQXtdp9caJyw0kdfPPz
+X-Received: by 2002:a5d:6983:: with SMTP id g3mr13105474wru.286.1551102521332;
         Mon, 25 Feb 2019 05:48:41 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1551102521; cv=none;
         d=google.com; s=arc-20160816;
-        b=K0pi1oBF8gPxDG/uBwAG1nGhGATZGhhfjUXL/qUaDxtCtdYweBX762waBxZq7WFiW+
-         Lt+LOeqPHOzEJ63or+5FdnQa26NSPzqkO8YZrWBsajzUztRI6NrRO3xo1diSm1N/Bgly
-         D9bCN7z2RIVbjAdJhvt7gAbdbr53yiPPeSh+OrjjtZkWK+Co0KV72jJO+cq3Hzxun5Rt
-         1TpiLVaZFkZaagE+OzrzFRIJ5YIom7ORVvPfmFQJORqGTQJRyVNl8C3l8O6ECXexr6pm
-         k/niKWRTWYDHcFcRGZECTdQjjedPsuarrOsIN78rJBSscmZ28Mt8WikHOn8/ws38EW87
-         nMxQ==
+        b=OA4KFn8aPNaJ1oA8LUofkfA70cp9QZuK+7ai2mQ3z+8TX3w89Llv+W2FMf3OghqHHn
+         4hxsA6gYHdWRoObR3gulQoQSJVuCYDhR2T6G0yaJIXI9a6NtK6gDADLvm7v9ldNS6B+5
+         A7eSn8RWJynaf0DTKeTDxajQdjsYo9qE0Wk+tRq04qXQFRxhN4Lj+4zIdaR0qCIwDtSK
+         Gn8A3d0gF/ITwHMNJJodHpsuItne3DmXDQDCQLn6ANfwwQ2XrrPSNyPtzRjLTAtrwekU
+         XiASf+x3cQa6go3KZN15DPRELPsev4Kpu+4QzLdwsBNyr0xL1iTnI093fdlOt+Bv144O
+         hZgw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=date:cc:to:subject:from:references:in-reply-to:message-id
          :dkim-signature;
-        bh=x5Dwfe9pBn0jiYAytmPEco/+5u9wkUq+xY/xh4B++1o=;
-        b=HYK0zlb0DlH/IMXejusc9zXSRsl2EB2Lb+jeJiHX4r782OaKo9SYWGEli0JFPzJMIr
-         XNdM6YlKl9veUMfdTDE0Fw9av7P43gX+1+SoyZeP7Bj/5mzYaqY4HuNe4leRJ4YqetWJ
-         wYvUVw03LqZLe27Uph0JnS7rq6OSIB61ZUdHpxmKi4kZIjsg9dmsEEiPWfvM29PtmoOP
-         ydb9OoK/YRVnzGZHAIDcn4blViplEADJAAshOfq25MiClwk6xMnZfpnQMFNgMkMd0rd4
-         3ELKTpB76wnAygQ6gFvBBphviGFQv8HzLRYKaLB6MmLuRrq6E6F+OFB+OisrRniTfiqn
-         GwbQ==
+        bh=aZargV6nO712fK9s1js2k48oU87IFWvTxERGiBvMagQ=;
+        b=D6CkBnXZkvAbsGwZ/Dt8vgy9MExEIwWoQQ0IqUCXhSxEdhd/Foux5O94zUFut3EmIA
+         VjbAaP0mVsl6veVGk0yjT4VzudFH3p61Po10z8zJUp0aLxzYmVWp75PFaMQOAwDXlpQr
+         8f70v3l1xazHtoYokp0APRNJPoi2+hZ7MER2W3t6lDCO7OpTP0ZxIsRCjhIRM1+7Dv4t
+         dwZriGU+qxJ+4q/QclUX5+zVSvPdsvCmhz0fhoyUScN0gj02nd/KNTulSO3LxX3sL9gm
+         dg66koMQFfJnPWZnHVjvn1/BlCH5dlWy8MZJwg0i7s9PFbeu7zZ8i3vAet5ScmydIEE0
+         Mxgw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=InB4Rtmw;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=nvwKIEsb;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id f17si3261647wmh.24.2019.02.25.05.48.41
+        by mx.google.com with ESMTPS id v13si6090371wrw.391.2019.02.25.05.48.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 25 Feb 2019 05:48:41 -0800 (PST)
 Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=InB4Rtmw;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=nvwKIEsb;
        spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
 Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 447NZW6sbhzB09Zx;
+	by localhost (Postfix) with ESMTP id 447NZW66ZMzB09Zw;
 	Mon, 25 Feb 2019 14:48:35 +0100 (CET)
 Authentication-Results: localhost; dkim=pass
 	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=InB4Rtmw; dkim-adsp=pass;
+	header.d=c-s.fr header.i=@c-s.fr header.b=nvwKIEsb; dkim-adsp=pass;
 	dkim-atps=neutral
 X-Virus-Scanned: Debian amavisd-new at c-s.fr
 Received: from pegase1.c-s.fr ([192.168.12.234])
 	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id KITX66fVEf2E; Mon, 25 Feb 2019 14:48:35 +0100 (CET)
+	with ESMTP id qw8s9DifD9YA; Mon, 25 Feb 2019 14:48:35 +0100 (CET)
 Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 447NZW5p8YzB09Zr;
+	by pegase1.c-s.fr (Postfix) with ESMTP id 447NZW5105zB09Zn;
 	Mon, 25 Feb 2019 14:48:35 +0100 (CET)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1551102515; bh=x5Dwfe9pBn0jiYAytmPEco/+5u9wkUq+xY/xh4B++1o=;
+	t=1551102515; bh=aZargV6nO712fK9s1js2k48oU87IFWvTxERGiBvMagQ=;
 	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
-	b=InB4RtmwYoK6LQaYlrN8w0doKaOvX/dKEXYejh8RpF/WfWvvN1AmsYBpLQeY0du5P
-	 mHTbB12/X5l5xY+VNueAh7CFB1/SwNTNFtQdGnGXnLuESiXoeAUK33+mwiqOqM8RnU
-	 C0HCq8V7Zb6ojSSYHw8fSFHia6p5TXhYZ5xCE+ss=
+	b=nvwKIEsbciM206cBDTafGGQNmyOLTokA6n0J4QnMc0jMUQpXLEZD4rSeEjnl91+0m
+	 BWsgKxEWPDfwyrT8zlv8rNGG0GeqzBKz6G4kLYZwW6kC0inkehDgZ+sh3G5UNm7nMh
+	 LSiLq89GRl2+dOFrBX19hzAh8NFa/Af2UBuM3X/A=
 Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 110048B849;
-	Mon, 25 Feb 2019 14:48:40 +0100 (CET)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 063918B844;
+	Mon, 25 Feb 2019 14:48:37 +0100 (CET)
 X-Virus-Scanned: amavisd-new at c-s.fr
 Received: from messagerie.si.c-s.fr ([127.0.0.1])
 	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id qbr4j7dF2fny; Mon, 25 Feb 2019 14:48:40 +0100 (CET)
+	with ESMTP id P6_LQaMFCa2m; Mon, 25 Feb 2019 14:48:36 +0100 (CET)
 Received: from po16846vm.idsi0.si.c-s.fr (po15451.idsi0.si.c-s.fr [172.25.231.2])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id CD30F8B847;
-	Mon, 25 Feb 2019 14:48:39 +0100 (CET)
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id AE13A8B81D;
+	Mon, 25 Feb 2019 14:48:36 +0100 (CET)
 Received: by po16846vm.idsi0.si.c-s.fr (Postfix, from userid 0)
-	id 67C2A6F20E; Mon, 25 Feb 2019 13:48:40 +0000 (UTC)
-Message-Id: <db6c87c67a3a1dc07ec6f9c304428ce156b278cd.1551098214.git.christophe.leroy@c-s.fr>
+	id 49F0C6F20E; Mon, 25 Feb 2019 13:48:37 +0000 (UTC)
+Message-Id: <42ee601ffe33df4652808b09caae6824edf1b667.1551098214.git.christophe.leroy@c-s.fr>
 In-Reply-To: <cover.1551098214.git.christophe.leroy@c-s.fr>
 References: <cover.1551098214.git.christophe.leroy@c-s.fr>
 From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH v7 05/11] powerpc/32: use memset() instead of memset_io() to
- zero BSS
+Subject: [PATCH v7 02/11] powerpc: prepare string/mem functions for KASAN
 To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>
 Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
-Date: Mon, 25 Feb 2019 13:48:40 +0000 (UTC)
+Date: Mon, 25 Feb 2019 13:48:37 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Since commit 400c47d81ca38 ("powerpc32: memset: only use dcbz once cache is
-enabled"), memset() can be used before activation of the cache,
-so no need to use memset_io() for zeroing the BSS.
+CONFIG_KASAN implements wrappers for memcpy() memmove() and memset()
+Those wrappers are doing the verification then call respectively
+__memcpy() __memmove() and __memset(). The arches are therefore
+expected to rename their optimised functions that way.
 
-Acked-by: Dmitry Vyukov <dvyukov@google.com>
+For files on which KASAN is inhibited, #defines are used to allow
+them to directly call optimised versions of the functions without
+going through the KASAN wrappers.
+
+See 393f203f5fd5 ("x86_64: kasan: add interceptors for
+memset/memmove/memcpy functions") for details.
+
+Other string / mem functions do not (yet) have kasan wrappers,
+we therefore have to fallback to the generic versions when
+KASAN is active, otherwise KASAN checks will be skipped.
+
 Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
 ---
- arch/powerpc/kernel/early_32.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ arch/powerpc/include/asm/kasan.h       | 15 +++++++++++++++
+ arch/powerpc/include/asm/string.h      | 32 +++++++++++++++++++++++++++++---
+ arch/powerpc/kernel/prom_init_check.sh | 10 +++++++++-
+ arch/powerpc/lib/Makefile              | 11 ++++++++---
+ arch/powerpc/lib/copy_32.S             | 15 +++++++++------
+ arch/powerpc/lib/mem_64.S              | 10 ++++++----
+ arch/powerpc/lib/memcpy_64.S           |  4 ++--
+ 7 files changed, 78 insertions(+), 19 deletions(-)
+ create mode 100644 arch/powerpc/include/asm/kasan.h
 
-diff --git a/arch/powerpc/kernel/early_32.c b/arch/powerpc/kernel/early_32.c
-index 99a3d82588e7..3482118ffe76 100644
---- a/arch/powerpc/kernel/early_32.c
-+++ b/arch/powerpc/kernel/early_32.c
-@@ -21,10 +21,8 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
+diff --git a/arch/powerpc/include/asm/kasan.h b/arch/powerpc/include/asm/kasan.h
+new file mode 100644
+index 000000000000..2efd0e42cfc9
+--- /dev/null
++++ b/arch/powerpc/include/asm/kasan.h
+@@ -0,0 +1,15 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef __ASM_KASAN_H
++#define __ASM_KASAN_H
++
++#ifdef CONFIG_KASAN
++#define _GLOBAL_KASAN(fn)	.weak fn ; _GLOBAL(__##fn) ; _GLOBAL(fn)
++#define _GLOBAL_KASAN_TOC(fn)	.weak fn ; _GLOBAL_TOC(__##fn) ; _GLOBAL_TOC(fn)
++#define EXPORT_SYMBOL_KASAN(fn)	EXPORT_SYMBOL(__##fn) ; EXPORT_SYMBOL(fn)
++#else
++#define _GLOBAL_KASAN(fn)	_GLOBAL(fn)
++#define _GLOBAL_KASAN_TOC(fn)	_GLOBAL_TOC(fn)
++#define EXPORT_SYMBOL_KASAN(fn)	EXPORT_SYMBOL(fn)
++#endif
++
++#endif
+diff --git a/arch/powerpc/include/asm/string.h b/arch/powerpc/include/asm/string.h
+index 1647de15a31e..9bf6dffb4090 100644
+--- a/arch/powerpc/include/asm/string.h
++++ b/arch/powerpc/include/asm/string.h
+@@ -4,14 +4,17 @@
+ 
+ #ifdef __KERNEL__
+ 
++#ifndef CONFIG_KASAN
+ #define __HAVE_ARCH_STRNCPY
+ #define __HAVE_ARCH_STRNCMP
++#define __HAVE_ARCH_MEMCHR
++#define __HAVE_ARCH_MEMCMP
++#define __HAVE_ARCH_MEMSET16
++#endif
++
+ #define __HAVE_ARCH_MEMSET
+ #define __HAVE_ARCH_MEMCPY
+ #define __HAVE_ARCH_MEMMOVE
+-#define __HAVE_ARCH_MEMCMP
+-#define __HAVE_ARCH_MEMCHR
+-#define __HAVE_ARCH_MEMSET16
+ #define __HAVE_ARCH_MEMCPY_FLUSHCACHE
+ 
+ extern char * strcpy(char *,const char *);
+@@ -27,7 +30,27 @@ extern int memcmp(const void *,const void *,__kernel_size_t);
+ extern void * memchr(const void *,int,__kernel_size_t);
+ extern void * memcpy_flushcache(void *,const void *,__kernel_size_t);
+ 
++void *__memset(void *s, int c, __kernel_size_t count);
++void *__memcpy(void *to, const void *from, __kernel_size_t n);
++void *__memmove(void *to, const void *from, __kernel_size_t n);
++
++#if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
++/*
++ * For files that are not instrumented (e.g. mm/slub.c) we
++ * should use not instrumented version of mem* functions.
++ */
++#define memcpy(dst, src, len) __memcpy(dst, src, len)
++#define memmove(dst, src, len) __memmove(dst, src, len)
++#define memset(s, c, n) __memset(s, c, n)
++
++#ifndef __NO_FORTIFY
++#define __NO_FORTIFY /* FORTIFY_SOURCE uses __builtin_memcpy, etc. */
++#endif
++
++#endif
++
+ #ifdef CONFIG_PPC64
++#ifndef CONFIG_KASAN
+ #define __HAVE_ARCH_MEMSET32
+ #define __HAVE_ARCH_MEMSET64
+ 
+@@ -49,8 +72,11 @@ static inline void *memset64(uint64_t *p, uint64_t v, __kernel_size_t n)
  {
- 	unsigned long offset = reloc_offset();
+ 	return __memset64(p, v, n * 8);
+ }
++#endif
+ #else
++#ifndef CONFIG_KASAN
+ #define __HAVE_ARCH_STRLEN
++#endif
  
--	/* First zero the BSS -- use memset_io, some platforms don't have
--	 * caches on yet */
--	memset_io((void __iomem *)PTRRELOC(&__bss_start), 0,
--			__bss_stop - __bss_start);
-+	/* First zero the BSS */
-+	memset(PTRRELOC(&__bss_start), 0, __bss_stop - __bss_start);
+ extern void *memset16(uint16_t *, uint16_t, __kernel_size_t);
+ #endif
+diff --git a/arch/powerpc/kernel/prom_init_check.sh b/arch/powerpc/kernel/prom_init_check.sh
+index 667df97d2595..181fd10008ef 100644
+--- a/arch/powerpc/kernel/prom_init_check.sh
++++ b/arch/powerpc/kernel/prom_init_check.sh
+@@ -16,8 +16,16 @@
+ # If you really need to reference something from prom_init.o add
+ # it to the list below:
  
- 	/*
- 	 * Identify the CPU type and fix up code sections
++grep "^CONFIG_KASAN=y$" .config >/dev/null
++if [ $? -eq 0 ]
++then
++	MEM_FUNCS="__memcpy __memset"
++else
++	MEM_FUNCS="memcpy memset"
++fi
++
+ WHITELIST="add_reloc_offset __bss_start __bss_stop copy_and_flush
+-_end enter_prom memcpy memset reloc_offset __secondary_hold
++_end enter_prom $MEM_FUNCS reloc_offset __secondary_hold
+ __secondary_hold_acknowledge __secondary_hold_spinloop __start
+ strcmp strcpy strlcpy strlen strncmp strstr kstrtobool logo_linux_clut224
+ reloc_got2 kernstart_addr memstart_addr linux_banner _stext
+diff --git a/arch/powerpc/lib/Makefile b/arch/powerpc/lib/Makefile
+index 79396e184bca..47a4de434c22 100644
+--- a/arch/powerpc/lib/Makefile
++++ b/arch/powerpc/lib/Makefile
+@@ -8,9 +8,14 @@ ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
+ CFLAGS_REMOVE_code-patching.o = $(CC_FLAGS_FTRACE)
+ CFLAGS_REMOVE_feature-fixups.o = $(CC_FLAGS_FTRACE)
+ 
+-obj-y += string.o alloc.o code-patching.o feature-fixups.o
++obj-y += alloc.o code-patching.o feature-fixups.o
+ 
+-obj-$(CONFIG_PPC32)	+= div64.o copy_32.o crtsavres.o strlen_32.o
++ifndef CONFIG_KASAN
++obj-y	+=	string.o memcmp_$(BITS).o
++obj-$(CONFIG_PPC32)	+= strlen_32.o
++endif
++
++obj-$(CONFIG_PPC32)	+= div64.o copy_32.o crtsavres.o
+ 
+ obj-$(CONFIG_FUNCTION_ERROR_INJECTION)	+= error-inject.o
+ 
+@@ -34,7 +39,7 @@ obj64-$(CONFIG_KPROBES_SANITY_TEST)	+= test_emulate_step.o \
+ 					   test_emulate_step_exec_instr.o
+ 
+ obj-y			+= checksum_$(BITS).o checksum_wrappers.o \
+-			   string_$(BITS).o memcmp_$(BITS).o
++			   string_$(BITS).o
+ 
+ obj-y			+= sstep.o ldstfp.o quad.o
+ obj64-y			+= quad.o
+diff --git a/arch/powerpc/lib/copy_32.S b/arch/powerpc/lib/copy_32.S
+index ba66846fe973..fc4fa7246200 100644
+--- a/arch/powerpc/lib/copy_32.S
++++ b/arch/powerpc/lib/copy_32.S
+@@ -14,6 +14,7 @@
+ #include <asm/ppc_asm.h>
+ #include <asm/export.h>
+ #include <asm/code-patching-asm.h>
++#include <asm/kasan.h>
+ 
+ #define COPY_16_BYTES		\
+ 	lwz	r7,4(r4);	\
+@@ -68,6 +69,7 @@ CACHELINE_BYTES = L1_CACHE_BYTES
+ LG_CACHELINE_BYTES = L1_CACHE_SHIFT
+ CACHELINE_MASK = (L1_CACHE_BYTES-1)
+ 
++#ifndef CONFIG_KASAN
+ _GLOBAL(memset16)
+ 	rlwinm.	r0 ,r5, 31, 1, 31
+ 	addi	r6, r3, -4
+@@ -81,6 +83,7 @@ _GLOBAL(memset16)
+ 	sth	r4, 4(r6)
+ 	blr
+ EXPORT_SYMBOL(memset16)
++#endif
+ 
+ /*
+  * Use dcbz on the complete cache lines in the destination
+@@ -91,7 +94,7 @@ EXPORT_SYMBOL(memset16)
+  * We therefore skip the optimised bloc that uses dcbz. This jump is
+  * replaced by a nop once cache is active. This is done in machine_init()
+  */
+-_GLOBAL(memset)
++_GLOBAL_KASAN(memset)
+ 	cmplwi	0,r5,4
+ 	blt	7f
+ 
+@@ -150,7 +153,7 @@ _GLOBAL(memset)
+ 9:	stbu	r4,1(r6)
+ 	bdnz	9b
+ 	blr
+-EXPORT_SYMBOL(memset)
++EXPORT_SYMBOL_KASAN(memset)
+ 
+ /*
+  * This version uses dcbz on the complete cache lines in the
+@@ -163,12 +166,12 @@ EXPORT_SYMBOL(memset)
+  * We therefore jump to generic_memcpy which doesn't use dcbz. This jump is
+  * replaced by a nop once cache is active. This is done in machine_init()
+  */
+-_GLOBAL(memmove)
++_GLOBAL_KASAN(memmove)
+ 	cmplw	0,r3,r4
+ 	bgt	backwards_memcpy
+ 	/* fall through */
+ 
+-_GLOBAL(memcpy)
++_GLOBAL_KASAN(memcpy)
+ 1:	b	generic_memcpy
+ 	patch_site	1b, patch__memcpy_nocache
+ 
+@@ -242,8 +245,8 @@ _GLOBAL(memcpy)
+ 	stbu	r0,1(r6)
+ 	bdnz	40b
+ 65:	blr
+-EXPORT_SYMBOL(memcpy)
+-EXPORT_SYMBOL(memmove)
++EXPORT_SYMBOL_KASAN(memcpy)
++EXPORT_SYMBOL_KASAN(memmove)
+ 
+ generic_memcpy:
+ 	srwi.	r7,r5,3
+diff --git a/arch/powerpc/lib/mem_64.S b/arch/powerpc/lib/mem_64.S
+index 3c3be02f33b7..aa02a0abf96c 100644
+--- a/arch/powerpc/lib/mem_64.S
++++ b/arch/powerpc/lib/mem_64.S
+@@ -13,6 +13,7 @@
+ #include <asm/ppc_asm.h>
+ #include <asm/export.h>
+ 
++#ifndef CONFIG_KASAN
+ _GLOBAL(__memset16)
+ 	rlwimi	r4,r4,16,0,15
+ 	/* fall through */
+@@ -29,8 +30,9 @@ _GLOBAL(__memset64)
+ EXPORT_SYMBOL(__memset16)
+ EXPORT_SYMBOL(__memset32)
+ EXPORT_SYMBOL(__memset64)
++#endif
+ 
+-_GLOBAL(memset)
++_GLOBAL_KASAN(memset)
+ 	neg	r0,r3
+ 	rlwimi	r4,r4,8,16,23
+ 	andi.	r0,r0,7			/* # bytes to be 8-byte aligned */
+@@ -95,9 +97,9 @@ _GLOBAL(memset)
+ 10:	bflr	31
+ 	stb	r4,0(r6)
+ 	blr
+-EXPORT_SYMBOL(memset)
++EXPORT_SYMBOL_KASAN(memset)
+ 
+-_GLOBAL_TOC(memmove)
++_GLOBAL_TOC_KASAN(memmove)
+ 	cmplw	0,r3,r4
+ 	bgt	backwards_memcpy
+ 	b	memcpy
+@@ -138,4 +140,4 @@ _GLOBAL(backwards_memcpy)
+ 	beq	2b
+ 	mtctr	r7
+ 	b	1b
+-EXPORT_SYMBOL(memmove)
++EXPORT_SYMBOL_KASAN(memmove)
+diff --git a/arch/powerpc/lib/memcpy_64.S b/arch/powerpc/lib/memcpy_64.S
+index 273ea67e60a1..2d5358cee711 100644
+--- a/arch/powerpc/lib/memcpy_64.S
++++ b/arch/powerpc/lib/memcpy_64.S
+@@ -18,7 +18,7 @@
+ #endif
+ 
+ 	.align	7
+-_GLOBAL_TOC(memcpy)
++_GLOBAL_TOC_KASAN(memcpy)
+ BEGIN_FTR_SECTION
+ #ifdef __LITTLE_ENDIAN__
+ 	cmpdi	cr7,r5,0
+@@ -229,4 +229,4 @@ END_FTR_SECTION_IFCLR(CPU_FTR_UNALIGNED_LD_STD)
+ 4:	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)	/* return dest pointer */
+ 	blr
+ #endif
+-EXPORT_SYMBOL(memcpy)
++EXPORT_SYMBOL_KASAN(memcpy)
 -- 
 2.13.3
 
