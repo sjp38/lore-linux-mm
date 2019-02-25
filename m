@@ -2,201 +2,224 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1942CC4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:16:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0938EC43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:48:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9A5AE2147C
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:16:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A5AE2147C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 4350B20842
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 13:48:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="RgxNuD2D"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4350B20842
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1104F8E000D; Mon, 25 Feb 2019 08:16:06 -0500 (EST)
+	id CDEBC8E00FD; Mon, 25 Feb 2019 08:48:38 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0BF968E000C; Mon, 25 Feb 2019 08:16:06 -0500 (EST)
+	id C8E768E000C; Mon, 25 Feb 2019 08:48:38 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ECA418E000D; Mon, 25 Feb 2019 08:16:05 -0500 (EST)
+	id BA3948E00FD; Mon, 25 Feb 2019 08:48:38 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9804A8E000C
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 08:16:05 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id e46so3941802ede.9
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 05:16:05 -0800 (PST)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 662C88E000C
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 08:48:38 -0500 (EST)
+Received: by mail-wr1-f69.google.com with SMTP id z13so4853554wrp.5
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 05:48:38 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=qEJefqNOuwWrZppH/MSXxxd/1ImLs314sw615w/W89Q=;
-        b=tfCjfMKvUP8tNrn0hLIyn5wViZWQnZCPb1bVcYKlpN2/SlhJbWmG9w0Bf3PuqyXB8Z
-         o+gsnQurGMngPbIbsB2sIYonTWyWnDD51eZ3ye7ydx4Jh/e4HrjtDjUAOt5k6Se5oiba
-         aX8XwXp9afpQXarQ9+jcekYqfDm9ktE0CAaMb14l7FcAmIUt3EbUachq/UmFJwiGjtLK
-         HcAEWDT5ulf+v4YvR4iMG0+KFL3nvubWe4coW3J5Pow7m4wEHm+Bvfed0C8cYHlxIW/w
-         y9SYZwEQcz0/a9L5DdPql0KhdFn4vdQ2gQ/XHf7Ik0sGHZgkZFla++pZmXM0x4oUvccc
-         3fMA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: AHQUAuat5nQZFaXYl2ZFgn+8QeMFa39RSDBb5RzvNDzaYiDhe1PBxzha
-	DbWI1C63OkLz6L52zW1pPdfcRCj/ZszOufala6RkW9HHVsdvRQs3v3Mdc8OTssKj1L/FaHv/KIj
-	mYbIet29iSh9ivbEXBYrTNHZRovBEWdImBUdWJULnzcGuGqrOcN5d/aSVZORqjo/nvw==
-X-Received: by 2002:a50:893d:: with SMTP id e58mr14242097ede.266.1551100565018;
-        Mon, 25 Feb 2019 05:16:05 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbVLOepshVvmbPJuJ3o7nBt5ubo7KfHI+zatFuuoD2KH5rAbaA0HvKv3CDReI9zGH5CVmz9
-X-Received: by 2002:a50:893d:: with SMTP id e58mr14242034ede.266.1551100563984;
-        Mon, 25 Feb 2019 05:16:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551100563; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:from:subject:to:cc
+         :date;
+        bh=MVl4Uuz0Q0Ct5tPndvP+CTSwLp9vJb9UC6aIVeNIuZk=;
+        b=JX+FRm4+kk19OexKhZfKmEFNLoCLRcYSUe4KfR/tnGsa9suornnfPLeam6rv2Q5A94
+         C/2lABGaOhwqxEda5DPqvH8nH0yY9fS1AI7Sx5L1GO8b1Nz/6gzAhWcRNqZIa5bTj1RP
+         JqS2ZJaRzloiCvSN08EqQzMFMmlGs4Bm5+WT7J7WbIorVAcffTgiibd/M1Vwf6OH5wBl
+         qtSDxnG9AanBjlT9S77lRAJJzB0U+MnllbaOXxuE/+5H/7OWcqZHZwxCX+CRcRQpRHWs
+         zduCTnE3xTNh/AL5MFcBnfGOV+fyGXmq6UZiTGxqRduYMvrA3bTRVRN+Ai0SUcyHyyAR
+         hJNA==
+X-Gm-Message-State: AHQUAuYw3uyiRr6gq7LBobJrAalmdD0m6SJzDX+3dWNuxcD21CF2o0p9
+	8Wd1fHcTwKB2XcO5lRfZBamvOHpByMzCHcFFfjn0pTRKkgl+fbA13NqAY39/E1k90GlyzB7chzk
+	Dq5/d9XI11w9VLNeo9zSdQTAf7kdTVSA+bxlqVTk1/Klu2lnhORpw1jpaeIy6jmHPBA==
+X-Received: by 2002:a7b:c4cb:: with SMTP id g11mr4065111wmk.84.1551102517728;
+        Mon, 25 Feb 2019 05:48:37 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IawbuVVeZRtrW4exM0bGrPGWrwm136JIIzUYZWqFDdbqeoRY4CPtX5qf0NH7Y9gpI9hOjr8
+X-Received: by 2002:a7b:c4cb:: with SMTP id g11mr4065063wmk.84.1551102516540;
+        Mon, 25 Feb 2019 05:48:36 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551102516; cv=none;
         d=google.com; s=arc-20160816;
-        b=WgZQvnCGZavUVxEXu6m/2w1dGfoz9iu2GrwQCKl/x05NKwffJ6gFAD+Ge7SgUjT6H/
-         OlMnhOHh64j7AfA5LO6W6uTvMzQav2lpfqTAVwphV3G5ZF9Mx3L439r73ZYt2BLstA5L
-         mu9SeXOr9Y47EqYL2nQX/OhM/yGW/yepHQN+yYwV5dZMczShbiUhB/fbJ8Gx0sYhY/3P
-         t/gImtZyKrBlTVEscDKBn7n4P9t+9sLWZsYYp24mjluDyxmRVqPyU8Q5p9fe4z9WHzOw
-         qEomClUlJ7WtbtmQzTeTl25T0nUIoJl9c4Bi+cF/tZEWoZfDeFgsWMjE4yaqkW79vRCk
-         yfpw==
+        b=vcyYC++xyN4jK1rTErK1QOlC4NJlXmVi3WdVHc7NPDkJz3G2PMfkdSJyfZ9FJDBp4j
+         Nbs3Mhn0rjfwo7/IIcbykLnonzPcyw65c1bRt10QF5him21Vrw2ZnERJMUmXKO17dfZ9
+         K3Eb33CuojPi7nDOSiyViPki3WFXkN2kQQAl81s+vtgIVlOUJNyivNPd3IyqrOkF/DOT
+         jjv81Nj0pKwn2aKslJL3z+GYTELwP2HIzaRxce3gF01aYO8lSThiVPidr6YK/OqmgcXB
+         /55gulystptnfaHlrT8wmMtSFgg7RRuagYq9hfwvhOYKTzxOlimyxhJv1OXMlIEuLlEE
+         1fNA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=qEJefqNOuwWrZppH/MSXxxd/1ImLs314sw615w/W89Q=;
-        b=XZ6C6HCQ4hdsYP10hsAnqhQs89ZPygNV19QkRQhDGW30YkXev0yN7lvYwftquXyZ8x
-         L9Ug+PpQwPfwNDQpok9uoxOtTgQfMypmUcwH83O5znJTTlEyqLv/otQ9daguPAdnJmnF
-         /vchhQYbebWeobzEGTNmPAUXassK8MQ4ytvfk0wX1GVsORTulZRs24m2n/fAbttLpOI8
-         BwrOnyKPAlapPHHd12EehGK6krasA4bY8nQ2FJ1Oq+6qyyZQ6yIfuqKyGsnESLK313eH
-         EL7UL27G4eAfeVkS0W/E8KUqwFm81ATZXNW0SovKwscqw39wiLfpx/rkKDwYw+gVpfzR
-         ShAQ==
+        h=date:cc:to:subject:from:message-id:dkim-signature;
+        bh=MVl4Uuz0Q0Ct5tPndvP+CTSwLp9vJb9UC6aIVeNIuZk=;
+        b=Vq/k4D4XMIYBKvD6CbHqRobY5bnJILivgZNFfPOTpiI9raMbGsKb2UsV2HI84s1YwG
+         pjJ6BUTNY5yJXgJ3oE/hrOhuI1RSyEI+R6gRRUSJWGadLoqJcNfty/4XPJJfbACh9Te8
+         q5J33iIPkTf2MtFLGh19h6D9Y92w6VU2K0nJc1RIyJkA0hOLeXh03owvE49WUFgPpRSX
+         u9Utc1SumHp3zHZOW6yjtW74qiXiaLx9hnIHfAEmAiQ93p2P9gr19tr77d8uUMp1aDLd
+         de1qrb5VjooYZcVaR/xYrU4j+Lnq+qtTXoGQ6U18+nE36Lpt5WuZ2FJRApSIIsMebRIu
+         tZqw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m10si1383408ejb.232.2019.02.25.05.16.03
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=RgxNuD2D;
+       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id y8si6076806wrp.254.2019.02.25.05.48.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 05:16:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 25 Feb 2019 05:48:36 -0800 (PST)
+Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 16473AF6F;
-	Mon, 25 Feb 2019 13:16:03 +0000 (UTC)
-Subject: Re: [PATCH] xfs: allocate sector sized IO buffer via page_frag_alloc
-To: Dave Chinner <david@fromorbit.com>, Ming Lei <ming.lei@redhat.com>
-Cc: "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org,
- Jens Axboe <axboe@kernel.dk>, Vitaly Kuznetsov <vkuznets@redhat.com>,
- Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>,
- Alexander Duyck <alexander.h.duyck@linux.intel.com>,
- Aaron Lu <aaron.lu@intel.com>, Christopher Lameter <cl@linux.com>,
- Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org,
- linux-block@vger.kernel.org
-References: <20190225040904.5557-1-ming.lei@redhat.com>
- <20190225043648.GE23020@dastard>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <5ad2ef83-8b3a-0a15-d72e-72652b807aad@suse.cz>
-Date: Mon, 25 Feb 2019 14:15:59 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
-MIME-Version: 1.0
-In-Reply-To: <20190225043648.GE23020@dastard>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=RgxNuD2D;
+       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
+Received: from localhost (mailhub1-int [192.168.12.234])
+	by localhost (Postfix) with ESMTP id 447NZQ72CPzB09Zp;
+	Mon, 25 Feb 2019 14:48:30 +0100 (CET)
+Authentication-Results: localhost; dkim=pass
+	reason="1024-bit key; insecure key"
+	header.d=c-s.fr header.i=@c-s.fr header.b=RgxNuD2D; dkim-adsp=pass;
+	dkim-atps=neutral
+X-Virus-Scanned: Debian amavisd-new at c-s.fr
+Received: from pegase1.c-s.fr ([192.168.12.234])
+	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
+	with ESMTP id l8Y9FFZEQK7W; Mon, 25 Feb 2019 14:48:30 +0100 (CET)
+Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
+	by pegase1.c-s.fr (Postfix) with ESMTP id 447NZQ5mr9zB09Zn;
+	Mon, 25 Feb 2019 14:48:30 +0100 (CET)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
+	t=1551102510; bh=MVl4Uuz0Q0Ct5tPndvP+CTSwLp9vJb9UC6aIVeNIuZk=;
+	h=From:Subject:To:Cc:Date:From;
+	b=RgxNuD2DQ9JcxU789XmAy6kJmEfV1+5moSrWKVVM2pNi8Eb/e/U6MpssZcMpZJXxb
+	 Rjng5hsV9ki06eAOyW0NkGR1H9/yHACnNmTVidods/D620FhaGCwjyL1dAaKG3+uyD
+	 FQSUKtmK1pn3We2GQTYvIErlTWZ3q0CNbSDAIMgE=
+Received: from localhost (localhost [127.0.0.1])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 27A498B844;
+	Mon, 25 Feb 2019 14:48:35 +0100 (CET)
+X-Virus-Scanned: amavisd-new at c-s.fr
+Received: from messagerie.si.c-s.fr ([127.0.0.1])
+	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
+	with ESMTP id V5LYI8tcdbaW; Mon, 25 Feb 2019 14:48:35 +0100 (CET)
+Received: from po16846vm.idsi0.si.c-s.fr (po15451.idsi0.si.c-s.fr [172.25.231.2])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id EE1378B81D;
+	Mon, 25 Feb 2019 14:48:34 +0100 (CET)
+Received: by po16846vm.idsi0.si.c-s.fr (Postfix, from userid 0)
+	id 5577F6F20E; Mon, 25 Feb 2019 13:48:35 +0000 (UTC)
+Message-Id: <cover.1551098214.git.christophe.leroy@c-s.fr>
+From: Christophe Leroy <christophe.leroy@c-s.fr>
+Subject: [PATCH v7 00/11] KASAN for powerpc/32
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
+Date: Mon, 25 Feb 2019 13:48:35 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/25/19 5:36 AM, Dave Chinner wrote:
-> On Mon, Feb 25, 2019 at 12:09:04PM +0800, Ming Lei wrote:
->> XFS uses kmalloc() to allocate sector sized IO buffer.
-> ....
->> Use page_frag_alloc() to allocate the sector sized buffer, then the
->> above issue can be fixed because offset_in_page of allocated buffer
->> is always sector aligned.
-> 
-> Didn't we already reject this approach because page frags cannot be
-> reused and that pages allocated to the frag pool are pinned in
-> memory until all fragments allocated on the page have been freed?
+This series adds KASAN support to powerpc/32
 
-I don't know if you did, but it's certainly true., Also I don't think
-there's any specified alignment guarantee for page_frag_alloc().
+Tested on nohash/32 (8xx) and book3s/32 (mpc832x ie 603).
+Boot tested on qemu mac99
 
-What about kmem_cache_create() with align parameter? That *should* be
-guaranteed regardless of whatever debugging is enabled - if not, I would
-consider it a bug.
+Changes in v7:
+- split in several smaller patches
+- prom_init now has its own string functions
+- full deactivation of powerpc-optimised string functions when KASAN is active
+- shadow area now at a fixed place on very top of kernel virtual space.
+- Early static hash table for hash book3s/32.
+- Full support of both inline and outline instrumentation for both hash and nohash ppc32
+- Earlier full activation of kasan.
 
-> i.e. when we consider 64k page machines and 4k block sizes (i.e.
-> default config), every single metadata allocation is a sub-page
-> allocation and so will use this new page frag mechanism. IOWs, it
-> will result in fragmenting memory severely and typical memory
-> reclaim not being able to fix it because the metadata that pins each
-> page is largely unreclaimable...
-> 
-> Cheers,
-> 
-> Dave.
-> 
+Changes in v6:
+- Fixed oops on module loading (due to access to RO shadow zero area).
+- Added support for hash book3s/32, thanks to Daniel's patch to differ KASAN activation.
+- Reworked handling of optimised string functions (dedicated patch for it)
+- Reordered some files to ease adding of book3e/64 support.
+
+Changes in v5:
+- Added KASAN_SHADOW_OFFSET in Makefile, otherwise we fallback to KASAN_MINIMAL
+and some stuff like stack instrumentation is not performed
+- Moved calls to kasan_early_init() in head.S because stack instrumentation
+in machine_init was performed before the call to kasan_early_init()
+- Mapping kasan_early_shadow_page RW in kasan_early_init() and
+remaping RO later in kasan_init()
+- Allocating a big memblock() for shadow area, falling back to PAGE_SIZE blocks in case of failure.
+
+Changes in v4:
+- Comments from Andrey (DISABLE_BRANCH_PROFILING, Activation of reports)
+- Proper initialisation of shadow area in kasan_init()
+- Panic in case Hash table is required.
+- Added comments in patch one to explain why *t = *s becomes memcpy(t, s, ...)
+- Call of kasan_init_tags()
+
+Changes in v3:
+- Removed the printk() in kasan_early_init() to avoid build failure (see https://github.com/linuxppc/issues/issues/218)
+- Added necessary changes in asm/book3s/32/pgtable.h to get it work on powerpc 603 family
+- Added a few KASAN_SANITIZE_xxx.o := n to successfully boot on powerpc 603 family
+
+Changes in v2:
+- Rebased.
+- Using __set_pte_at() to build the early table.
+- Worked around and got rid of the patch adding asm/page.h in asm/pgtable-types.h
+    ==> might be fixed independently but not needed for this serie.
+
+Christophe Leroy (11):
+  powerpc/32: Move early_init() in a separate file
+  powerpc: prepare string/mem functions for KASAN
+  powerpc/prom_init: don't use string functions from lib/
+  powerpc/mm: don't use direct assignation during early boot.
+  powerpc/32: use memset() instead of memset_io() to zero BSS
+  powerpc/32: make KVIRT_TOP dependant on FIXMAP_START
+  powerpc/32: prepare shadow area for KASAN
+  powerpc: disable KASAN instrumentation on early/critical files.
+  powerpc/32: Add KASAN support
+  powerpc/32s: move hash code patching out of MMU_init_hw()
+  powerpc/32s: set up an early static hash table for KASAN.
+
+ arch/powerpc/Kconfig                         |   6 +
+ arch/powerpc/include/asm/book3s/32/pgtable.h |   2 +-
+ arch/powerpc/include/asm/fixmap.h            |   5 +
+ arch/powerpc/include/asm/kasan.h             |  39 +++++
+ arch/powerpc/include/asm/nohash/32/pgtable.h |   2 +-
+ arch/powerpc/include/asm/string.h            |  32 +++-
+ arch/powerpc/kernel/Makefile                 |  14 +-
+ arch/powerpc/kernel/cputable.c               |  13 +-
+ arch/powerpc/kernel/early_32.c               |  36 +++++
+ arch/powerpc/kernel/head_32.S                |  46 ++++--
+ arch/powerpc/kernel/head_40x.S               |   3 +
+ arch/powerpc/kernel/head_44x.S               |   3 +
+ arch/powerpc/kernel/head_8xx.S               |   3 +
+ arch/powerpc/kernel/head_fsl_booke.S         |   3 +
+ arch/powerpc/kernel/prom_init.c              | 213 +++++++++++++++++++++------
+ arch/powerpc/kernel/prom_init_check.sh       |  12 +-
+ arch/powerpc/kernel/setup-common.c           |   3 +
+ arch/powerpc/kernel/setup_32.c               |  28 ----
+ arch/powerpc/lib/Makefile                    |  19 ++-
+ arch/powerpc/lib/copy_32.S                   |  15 +-
+ arch/powerpc/lib/mem_64.S                    |  10 +-
+ arch/powerpc/lib/memcpy_64.S                 |   4 +-
+ arch/powerpc/mm/Makefile                     |   7 +
+ arch/powerpc/mm/init_32.c                    |   1 +
+ arch/powerpc/mm/kasan/Makefile               |   5 +
+ arch/powerpc/mm/kasan/kasan_init_32.c        | 177 ++++++++++++++++++++++
+ arch/powerpc/mm/mem.c                        |   4 +
+ arch/powerpc/mm/mmu_decl.h                   |   2 +
+ arch/powerpc/mm/ppc_mmu_32.c                 |  34 +++--
+ arch/powerpc/mm/ptdump/ptdump.c              |   8 +
+ arch/powerpc/platforms/powermac/Makefile     |   6 +
+ arch/powerpc/purgatory/Makefile              |   3 +
+ arch/powerpc/xmon/Makefile                   |   1 +
+ 33 files changed, 640 insertions(+), 119 deletions(-)
+ create mode 100644 arch/powerpc/include/asm/kasan.h
+ create mode 100644 arch/powerpc/kernel/early_32.c
+ create mode 100644 arch/powerpc/mm/kasan/Makefile
+ create mode 100644 arch/powerpc/mm/kasan/kasan_init_32.c
+
+-- 
+2.13.3
 
