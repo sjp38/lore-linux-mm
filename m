@@ -2,209 +2,163 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6982CC43381
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 16:49:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 70A59C4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 16:51:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 254F820842
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 16:49:30 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="o+sIwtjm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 254F820842
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 3877E20C01
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 16:51:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3877E20C01
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 68AB88E000F; Mon, 25 Feb 2019 11:49:30 -0500 (EST)
+	id BE14D8E0010; Mon, 25 Feb 2019 11:51:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 63A778E000D; Mon, 25 Feb 2019 11:49:30 -0500 (EST)
+	id B90A08E000E; Mon, 25 Feb 2019 11:51:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5029F8E000F; Mon, 25 Feb 2019 11:49:30 -0500 (EST)
+	id A7F7A8E0010; Mon, 25 Feb 2019 11:51:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 20C278E000D
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 11:49:30 -0500 (EST)
-Received: by mail-yw1-f72.google.com with SMTP id r8so6705144ywh.10
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 08:49:30 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 656118E000E
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 11:51:11 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id d3so7377051pgv.23
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 08:51:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=2DavdlfEcPUnZ5zlrCm/gMnuNXvBK6a6jQ40MXyfRN4=;
-        b=nVkWvLIYx9j/9UdRur9ifBoBQrWbevQ/xMm1m0SbPEZAORf+XcEySVt+xJgFCwgyNq
-         3K23nkUgLy4nNzUmwSGRw+P5ljRYiJS5igeCvYOHH7NuYrHdQcOnQ1rqJXn1/4lbNx8R
-         XjMi0ntfsXhhnGVS6RiPueYEpr6vtyoHNDtMsXKHodhvJC3QLXWWyPR/sk2VeCDUj/0e
-         gS9d2mPPOhnVZTok9wwtsTWSaP/hIXYYxBrX6OyMuz6PfCi2d4UvxwnOoqogCDSBZCMF
-         cZdTeygHzF54jd/VvkKFkrrM+llM0jRi7dZBTb5Ic/ByzBrp8KcXMn5Dyt3GN2r+nljw
-         Pq8w==
-X-Gm-Message-State: AHQUAuaB2sxc4CZml/JE2sXCHEE8s92FxMdawl2Zspjuuvpk0wRkOcAa
-	Pin3xZxxoDWKneYBpqNEHth+c/ddCcOaFmope/+lyhdLo2UjU4pB3Ob8JFRSD2PQJQjTazthjqo
-	egDIhwzkCo7C5xULz7POehiclpSaUOOuhkRP4sBzy6I4/IlNff79Lje9TEOrzmt2ZgQ==
-X-Received: by 2002:a25:770f:: with SMTP id s15mr14725660ybc.47.1551113369719;
-        Mon, 25 Feb 2019 08:49:29 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYFaRGIeeAI3YDEnwTQ4SRP72Qm43Nhge5necpxaUpP11CYjPV9Y8UuCng55D89PQ9MWOjT
-X-Received: by 2002:a25:770f:: with SMTP id s15mr14725605ybc.47.1551113368815;
-        Mon, 25 Feb 2019 08:49:28 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551113368; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=jfEoQJT/Fn8gB9Ej7ChqP19uBo96vax3O9WfrvyIdT8=;
+        b=NMRwoZMoDPcETR3tYmXon+xAkV3BhiWKCaIwKgEywnN3XLBNcs1FhCQmL6jHjhwu+R
+         dAd9y7fF02rlnk1rj0TNosdkdhNG1pYMvMLzyMPWkqmXG3EkpkZppmbWdd2ZJkDeFK8a
+         0iIwLO9/3c1gWmrmDefjGK+Ka281BeLWpblQInunGrle95XRxxdUIcCNopNM7w9Su44J
+         rPy0elUkLt1t8eFFHtEakp5whcODuWgz6zTfYpaLeoi+LOmIkPskSPW21KMkmNMx47fu
+         +CwwWBECwzSPdRkhVemuPMbVAL2V9nS/xQBDv/GbbsZeL0yEdvhkbSYr84EGwJdBG+Hx
+         1kaA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAubOtWGbNPFgxORhqPLOqIfLE4IYW0NLwy1CfVDwb1DrP1oiteqK
+	Dtm7fxym6ThihKh1kLFd2JdPMqJoLDsHAH2vu019Ub0H90QPGPlDo/MHsvJJ58Ae9CmPXkpQars
+	0AKoEoz/cTbwptEnivfxX+jc/JcfNvkS8k9AlGwgCzmnpEOmsDCg4jMig9bRLcKCSeQ==
+X-Received: by 2002:a63:e451:: with SMTP id i17mr19924215pgk.413.1551113471076;
+        Mon, 25 Feb 2019 08:51:11 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbQM3DapQpftInKMue0xl+WXXAMMD2hJd9D0FwgvWp9YA9rHH9XsI2rOW9k/dPBElqeOGS0
+X-Received: by 2002:a63:e451:: with SMTP id i17mr19924162pgk.413.1551113470119;
+        Mon, 25 Feb 2019 08:51:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551113470; cv=none;
         d=google.com; s=arc-20160816;
-        b=KL53Bc3JKBVJt/nGBJdJiZjtLE47x7w7dT7eOK+E+EGOfkf4/94os83SHjmXDh6Gvf
-         U8o0fsWc0nz3g9VTt5HiQjeO9blNRBCpQLy7HED3uOa7byJpEnzdImvvnig6q4Ur136M
-         b2Yn1a5LLkg5D7mmtkOq9TdXcCWnWz3cTvWvfktxloiX+RKYUx83uqIhoYNx8wU2e3jg
-         WEsI2wEN+I1G9x5pyBA0on4TLHMLRwZVqgYwDxlMZ/8zlQyq9Wp+zZVgb0IJBCjVMbUM
-         +1hDQ/+ww7A8QAAMoM5Hsk5Ugxbe6IIhwBG3mncZWsYW/c6Gd7mO97NWU4NAvImhDiUE
-         BZhA==
+        b=BwGDz8Jgcncd3RAYN5zMyNkANJcqBnywrCb+9/8fS0FMoEqO37Pnmyc0qk3dpxAVXj
+         HUsCmq4BSR4aF2YQrrESBnd/Jh0zJvrUcXvcHk/0ySsTRliALkhUYNkUyJYNFq06wpWh
+         5DcmflVeiWI6SxtGEZ2T0ONFLADHqTOPI2bjzDMRWpfoyV6Kvdobxge7yO4l66KYV7eU
+         cZGPtWA9OOCt36MrOBhdzh5KzT6L2nrs7d5eieGqbsl7N68iIw6Ho53voASwmwDmuzSZ
+         bjKHBkiJPGT40Yz+EV2lNRrF6NYWp5GTx7f7zEKiqupaIQC/RFmIpKYRwbLaBHozmr5I
+         I68Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=2DavdlfEcPUnZ5zlrCm/gMnuNXvBK6a6jQ40MXyfRN4=;
-        b=NdSOABpADopOTBKTCwU2r6dP+SFBeetaub++XnOIEaXsBO//Jh/cKzWjAFgm+JMplZ
-         OTIkjxdF7fPrX8g2LMEWbDUiXLqRdMqx1mSPCz+aNtvk7TVOpwAtjeroAKGZfQ06fi/R
-         vjDxf2JjdfyO/0oSKJ9QcIqeZN3ZCjzGhrBWfGeiTng5wsQrOh7rx9k6X9dYFVbLMmZD
-         mHLWYp26R/qWV4qnaY9QgCRwTZkXyJyDELHgwLzxiZQ2v/hpk9Ap3hj1GkfZykSeE/Hy
-         o+z7UE8+DcfjACNp5Pe1msNIixiHE8UA/VUYow39TeTZPsxDWcMuel0JeoWHwwej+HmE
-         CgrA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=jfEoQJT/Fn8gB9Ej7ChqP19uBo96vax3O9WfrvyIdT8=;
+        b=MEBznC542aUu83n/tZph09Bv57wEaQOw2a7KEctniF0Xltlvsauuf6E8w05b5b8VVQ
+         g4DIsPNE2BuXwqQEGndaK8ae0BGaCTBVkKzywMnnb6PPB+ZQifEqxLHY2sNv3KVrexOG
+         0xWaRUOlp/8cWZbeiXXEFXYOvcnH6Em9C3qlnTvyTUKESItlaW93GIxnAoFtwvHXFNJz
+         oejVbulJKtosWlvcxqEOSCSzBmsa1z5vXsP8grrpfb71MI6yLDnwzag1rLxOSvdq7Ys2
+         B0+YUYS/p0ZEtcN7pSeAHkp9x2gKGBADMMW7/UdBHC3LQUY3+5fTWLQGpZiv03S0yEjH
+         pj8A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=o+sIwtjm;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id k185si5809918ywg.357.2019.02.25.08.49.28
+       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id e2si10409767pgm.568.2019.02.25.08.51.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 08:49:28 -0800 (PST)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Mon, 25 Feb 2019 08:51:10 -0800 (PST)
+Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=o+sIwtjm;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1PGi1fu068593;
-	Mon, 25 Feb 2019 16:49:15 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=2DavdlfEcPUnZ5zlrCm/gMnuNXvBK6a6jQ40MXyfRN4=;
- b=o+sIwtjme3BGl5X7m88crmOr9mM+RYVdMKlB5tRKJTyW5GSs+1NPVHbFVM3kq82d+0Re
- OWptQ8ccl8MWYxNUxkjbYtdRTdoEfgyRgVr7zeaVTS+WDza8nuslcA3KDwxVmmrz9mUv
- y8mFGi8SqFhqTj8QxDHTbHFBDZi9dYoseBr8RyxbuppSJEicGyZdWOWxdhb5LyCF84LJ
- Jo8AeKK02wVuZQ5ctcs9HfVxSbGzQwUhzEXYqvoD12ANXZlbM3q30jxmwkVk+wGb8RAh
- KeE0Dn5ySuuz7nVIqy72r8JhOzbN2VAXj89i8qO1EorP9nG5dQnvAeCEggaOHDcp8M80 hg== 
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by aserp2130.oracle.com with ESMTP id 2qtupdyg7h-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 25 Feb 2019 16:49:15 +0000
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id x1PGn9mB026766
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 25 Feb 2019 16:49:10 GMT
-Received: from abhmp0007.oracle.com (abhmp0007.oracle.com [141.146.116.13])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1PGn78D019409;
-	Mon, 25 Feb 2019 16:49:08 GMT
-Received: from [192.168.1.164] (/50.38.38.67)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 25 Feb 2019 08:49:07 -0800
-Subject: Re: [PATCH v4] mm/hugetlb: Fix unsigned overflow in
- __nr_hugepages_store_common()
-To: David Rientjes <rientjes@google.com>
-Cc: Jing Xiangfeng <jingxiangfeng@huawei.com>, mhocko@kernel.org,
-        akpm@linux-foundation.org, hughd@google.com, linux-mm@kvack.org,
-        n-horiguchi@ah.jp.nec.com, aarcange@redhat.com,
-        kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
-References: <1550885529-125561-1-git-send-email-jingxiangfeng@huawei.com>
- <388cbbf5-7086-1d04-4c49-049021504b9d@oracle.com>
- <alpine.DEB.2.21.1902241913000.34632@chino.kir.corp.google.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <8c167be7-06fa-a8c0-8ee7-0bfad41eaba2@oracle.com>
-Date: Mon, 25 Feb 2019 08:49:06 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
+       spf=pass (google.com: domain of keith.busch@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Feb 2019 08:51:09 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,411,1544515200"; 
+   d="scan'208";a="323239250"
+Received: from unknown (HELO localhost.localdomain) ([10.232.112.69])
+  by fmsmga005.fm.intel.com with ESMTP; 25 Feb 2019 08:51:08 -0800
+Date: Mon, 25 Feb 2019 09:51:18 -0700
+From: Keith Busch <keith.busch@intel.com>
+To: "Rafael J. Wysocki" <rafael@kernel.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	ACPI Devel Maling List <linux-acpi@vger.kernel.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	Linux API <linux-api@vger.kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Dan Williams <dan.j.williams@intel.com>
+Subject: Re: [PATCHv6 07/10] acpi/hmat: Register processor domain to its
+ memory
+Message-ID: <20190225165118.GK10237@localhost.localdomain>
+References: <20190214171017.9362-1-keith.busch@intel.com>
+ <20190214171017.9362-8-keith.busch@intel.com>
+ <CAJZ5v0gjv0DZvYMTPBLnUmMtu8=g0zFd4x-cpP11Kzv+6XCwUw@mail.gmail.com>
+ <20190222184831.GF10237@localhost.localdomain>
+ <CAJZ5v0hfQ5HWT0kfaOxSbpJvdqotsMWVBCZ6wiL4Tnuy+O5O7Q@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.21.1902241913000.34632@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9178 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902250123
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJZ5v0hfQ5HWT0kfaOxSbpJvdqotsMWVBCZ6wiL4Tnuy+O5O7Q@mail.gmail.com>
+User-Agent: Mutt/1.9.1 (2017-09-22)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/24/19 7:17 PM, David Rientjes wrote:
-> On Sun, 24 Feb 2019, Mike Kravetz wrote:
+On Sun, Feb 24, 2019 at 08:59:45PM +0100, Rafael J. Wysocki wrote:
+> On Fri, Feb 22, 2019 at 7:48 PM Keith Busch <keith.busch@intel.com> wrote:
+> > If I do it the other way around, that's going to make HMEM_REPORTING
+> > complicated if a non-ACPI implementation wants to report HMEM
+> > properties.
 > 
->>> User can change a node specific hugetlb count. i.e.
->>> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages
->>> the calculated value of count is a total number of huge pages. It could
->>> be overflow when a user entering a crazy high value. If so, the total
->>> number of huge pages could be a small value which is not user expect.
->>> We can simply fix it by setting count to ULONG_MAX, then it goes on. This
->>> may be more in line with user's intention of allocating as many huge pages
->>> as possible.
->>>
->>> Signed-off-by: Jing Xiangfeng <jingxiangfeng@huawei.com>
->>
->> Thank you.
->>
->> Acked-by: Mike Kravetz <mike.kravetz@oracle.com>
->>
->>> ---
->>>  mm/hugetlb.c | 7 +++++++
->>>  1 file changed, 7 insertions(+)
->>>
->>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->>> index afef616..6688894 100644
->>> --- a/mm/hugetlb.c
->>> +++ b/mm/hugetlb.c
->>> @@ -2423,7 +2423,14 @@ static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,
->>>  		 * per node hstate attribute: adjust count to global,
->>>  		 * but restrict alloc/free to the specified node.
->>>  		 */
->>> +		unsigned long old_count = count;
->>>  		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
->>> +		/*
->>> +		 * If user specified count causes overflow, set to
->>> +		 * largest possible value.
->>> +		 */
->>> +		if (count < old_count)
->>> +			count = ULONG_MAX;
->>>  		init_nodemask_of_node(nodes_allowed, nid);
->>>  	} else
->>>  		nodes_allowed = &node_states[N_MEMORY];
->>>
+> But the mitigations that Dave was talking about get in the way, don't they?
 > 
-> Looks like this fixes the overflow issue, but isn't there already a 
-> possible underflow since we don't hold hugetlb_lock?  Even if 
-> count == 0, what prevents h->nr_huge_pages_node[nid] being greater than 
-> h->nr_huge_pages here?  I think the per hstate values need to be read with 
-> READ_ONCE() and stored on the stack to do any sane bounds checking.
+> Say there is another Kconfig option,CACHE_MITIGATIONS, to enable them.
+> Then you want ACPI_HMAT to be set when that it set and you also want
+> ACPI_HMAT to be set when HMEM_REPORTING and ACPI_NUMA are both set.
+> 
+> OTOH, you may not want HMEM_REPORTING to be set when CACHE_MITIGATIONS
+> is set, but that causes ACPI_HMAT to be set and which means that
+> ACPI_HMAT alone will not be sufficient to determine the
+> HMEM_REPORTING value.
 
-Yes, without holding the lock there is the potential for issues.  Looking
-back to when the node specific code was added there is a comment about
-"re-use/share as much of the existing global hstate attribute initialization
-and handling".  I suspect that is the reason for these calculations outside
-the lock.
+I can't think of when we'd want to suppress reporting these attributes
+to user space, but I can split HMAT enabling so it doesn't depend on
+HMEM_REPORTING just in case there really is an in-kernel user that
+definitely does not want the same attributes exported.
 
-As you mention above, nr_huge_pages_node[nid] could be greater than
-nr_huge_pages.  This is true even if we do READ_ONCE().  So, the code would
-need to test for this condition and 'fix up' values or re-read.  It is just
-racy without holding the lock.
+> Now, if you prompt for HMEM_REPORTING and make it depend on ACPI_NUMA,
+> then ACPI_HMAT can be selected by that (regardless of the
+> CACHE_MITIGATIONS value).
+> 
+> And if someone wants to use HMEM_REPORTING without ACPI_NUMA, it can
+> be made depend on whatever new option is there for that non-ACPI
+> mechanism.
+> 
+> There might be a problem if someone wanted to enable the alternative
+> way of HMEM_REPORTING if ACPI_NUMA was set (in which case HMAT would
+> have to be ignored even if it was present), but in that case there
+> would need to be an explicit way to choose between HMAT and non-HMAT
+> anyway.
+> 
+> In any case, I prefer providers to be selected by consumers and not
+> the other way around, in case there are multiple consumers for one
+> provider.
 
-If that is too ugly, then we could just add code for the node specific
-adjustments.  set_max_huge_pages() is only called from here.  It would be
-pretty easy to modify set_max_huge_pages() to take the node specific value
-and do calculations/adjustments under the lock.
--- 
-Mike Kravetz
+Well, the HMEM_REPORTING fundamentally has no dependency on any of these
+things and I've put some effort into making this part provider agnostic.
+I will change it if this concern is gating acceptance, but I don't
+think it's as intuitive for generic interfaces to be the selector for
+implementation specific providers.
 
