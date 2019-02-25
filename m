@@ -2,231 +2,145 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CBA17C4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:07:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D7C8C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:13:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 85F482087C
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:07:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 85F482087C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 63DD520842
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:13:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 63DD520842
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 502AC8E000F; Mon, 25 Feb 2019 10:07:41 -0500 (EST)
+	id 01C7D8E000F; Mon, 25 Feb 2019 10:13:35 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4B1E58E000B; Mon, 25 Feb 2019 10:07:41 -0500 (EST)
+	id F0E148E000B; Mon, 25 Feb 2019 10:13:34 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 37C0B8E000F; Mon, 25 Feb 2019 10:07:41 -0500 (EST)
+	id DFD998E000F; Mon, 25 Feb 2019 10:13:34 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D23138E000B
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:07:40 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id o27so4049377edc.14
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:07:40 -0800 (PST)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B8ACA8E000B
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:13:34 -0500 (EST)
+Received: by mail-yb1-f198.google.com with SMTP id y63so7066766yby.6
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:13:34 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=R+1uhVxMjR+Jpgjffk3mRfEKxsS2cHV+rlE1X1aMvSE=;
-        b=M4aVnZgSmIJOEn0HioNmTSQiojVzkxmgwbQo+AhHm2PelUQmvuL0EvjTNbk3xGAIvR
-         Gw1CmSrRdnrwjZoAfeZJ/uBWeTppyL/5xkOP6htcOxtPWuvL6Sk34LN0OO5m+ShxGjXX
-         TdPYdzFtAeq9QH+PlLlMFU73B4MWBjPtB9dTjYovqR9BZb/aNzZ8gDehvCPYGikrUraa
-         Nhh1xYlfF/okjKESgfdPsHDwNqSsvQMNPmmah5Nyqwbm9dSmwZ/B5VdN0Hn+lfVb3s6M
-         HfOTHCrp4r8jP4Vq24CUIzhMD8/jGwf15hvR1UQmj++tlUBlA9Qjf1LZF7e3ptpmvwrf
-         4fuw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: AHQUAuZHtJ4WJHiJCEYA84i1Oy5MydhqL4pPQsQXu51U7SWuyUy0IeKe
-	QhiP05K8YqyCZVyvVqJK7pefhfxLe5+RCJa3nzLo+bGX0KsqOlzBP+Q+tEWyc8id+/11nDhwepK
-	lc4V7pqdCFyn34gvmMJDK0bj0qY0bF1I77jgQTdimW8VEzR61LuuezE1rVhtHHvNoUA==
-X-Received: by 2002:a50:aa83:: with SMTP id q3mr4175418edc.63.1551107260395;
-        Mon, 25 Feb 2019 07:07:40 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYg6QD7oFrGmIghkwR3UhKCZDNOmoOKY136E+N7/Dy5/Esc3WFbMQaN5YPYiIZ3a4ZAnqJA
-X-Received: by 2002:a50:aa83:: with SMTP id q3mr4175352edc.63.1551107259336;
-        Mon, 25 Feb 2019 07:07:39 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551107259; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=mLOpBX/5F2G/oYRLBjL46VTONps8ne40eaQPtNsdmSA=;
+        b=TdWFZAp0BtnKhX//KLaFtFHcr2qBl8JWYk7UtffpIXwIJRFy6lhBM2L5EnsNKut7cj
+         Wann07QYXMUkOvIdFWdNiWjH8xuYAZhpTmt39WdyVdo8K0jL45UFRBLXYY6Sike+A0a7
+         c4hneeuGuOeCLjEHEg+0VUW0sf5doSffcOw/hq9KflWacx0vOW2gZJYkWAChByoCOH6Z
+         ysssXlX1kSqurN3U4FOT3VuIVzoLqcaq9Oc+hgtgr5QFAAZFAgeodU18eeTKM+tzguoX
+         CvA4qu1n74ZDcajQ6UUMVU3r7Za4WPdPWZACWO3pUISVrRphMPbIaGQ6l+PAK9ppgD4h
+         s56Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuboi1HNgXm1ZL52ZM6vn9EcM9rJsDL+yoCJOH8aN02XDycQg1kp
+	5lQvYMcP/dSM3SgnFZJG64LXDUgOLvNuU3+PaqmwRriwBTJoWUn5qgXM/YBUZIbWJgKwU7gHqrp
+	fJi5oSVACMeLnZ/iZrRTFRBiUJ9XJIm6m8f09KHwdPgJ347N4f+SWuYfg64PJZSlBTx7zuqT0+6
+	Gn1bKR/SLoJXqLO8ho474X8F6ti494aa/z0/Yt2jBReqdNUs+ahrDYqYtO0d0/39cA3IKb7Jh35
+	xJ3YdmQ7N9jLpIRUN8wlIt1pjkzeyitk5tYg5rRseX2AcooAoK83PZVSg0NRVCjdtqQ6ltX4+Y0
+	MlqO6Rx4nXXxQeX/Suv6jjJInA7mZ4G5JAOB+TzPD9Lhh4cHi3/esCcHlyIKjBu+LP6Z+4o2ow=
+	=
+X-Received: by 2002:a81:4c8:: with SMTP id 191mr13569014ywe.322.1551107614453;
+        Mon, 25 Feb 2019 07:13:34 -0800 (PST)
+X-Received: by 2002:a81:4c8:: with SMTP id 191mr13568959ywe.322.1551107613718;
+        Mon, 25 Feb 2019 07:13:33 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551107613; cv=none;
         d=google.com; s=arc-20160816;
-        b=inj0LKsu/wcXLFsp7m0wk1yG2grxO+BwzKrDPVnNZVv2QzpCFzCmGPHCnY7eMXNyVN
-         5sz62x7dlWoo/hgUlQOwESvvwVlPCkcYGnya7+3NiXixGvAN98xToBmsjrbeqQAxmY4Y
-         0dZbR7TT8WdZwAo7QmCakPv+/gI6ByXJJTCyIiIdaNwRhTLqw1HhOSds74b7IU8hCtlP
-         RiiDNF9EAwxQX8p53Z+57W1PNJ2QLupH0xHgf/+C3RBfsgiSHzI1cbMo/r7k+hH/51Zz
-         Ml4FNlKaGM1FjJYCu8b43c8Hma0DpC9f0qEtBLNBowYf06wRB8QfuTNhNerfCrerX3AD
-         1rpw==
+        b=ihWLi47U8JBFaMi8hCySXozBs+dH8WZrajQ1agPMAYPkeysWquijCR03knS2o4yiGT
+         UtBPm63ej9Hk93Kxtrnm3Ic+k7ioPcuCL/ibGVOsBiJgFKrV+GUOv9PPy//DRpqAx6i2
+         N15Vry4rx2vfVlNjdZAhU8Wl+TOOWtpzuAiIIhQ/QzFfdSYeu1Jc77mMJlvLG9Nif0qg
+         qc97+mZfg9s0OqDpDyHlGzpmAvpO3CUzx4+scAdlGMQ1ASMrPA3Wi2Viykr9Ko+ttIIv
+         FLDJ2oOxqWot2HOPLjx/joB/yEXiOiruSKmDLfF4QA/LrzcoijTY3hsGp47jfmGUkqrr
+         TqNw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=R+1uhVxMjR+Jpgjffk3mRfEKxsS2cHV+rlE1X1aMvSE=;
-        b=PKJyTg58v34mO6Uv2RFxzCy+HBcqsBx1P1nRg4TzF8tES5447PTmXoql/qfri8Ys4G
-         gHDY0sDR68cRBWHyPCV+v0wgFCzKaPWusb8HrBiyn87/jb4ZTbp8jXFfs34AXHxFoKYG
-         aDB/bKuNFq3iPXeJzsdHsziC0hq1m2O2AMgy83VytZnqdn0D28tsavj7rlS9DlXd45qZ
-         cOwYgovPg208Gm7uT6YOF6B9ncnCcgyy/j7MAPmO818pl5tym3H7fxV9KapHEJvy929L
-         mbGZlaBiIsYkU2xL0v3Db8YCFjRxiKTPeKjWP9Prj7eIpB31fDZWILdbstMCfEALkmdh
-         lx4w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=mLOpBX/5F2G/oYRLBjL46VTONps8ne40eaQPtNsdmSA=;
+        b=IwiDlhv0VJwpfzACcazn57nB/0JP9FpsgvRRBvsd0/FyPVsro+ZiRW99VIkb43oDQH
+         4V+LeoVYRe8jqQmGb8Iblvpo9qHeru3l99pXMyGNyqGpNyt/V+2g8eDlpcB/DGWjN7xM
+         779D2Lzr5DoZgVflKGiCV1ZrdOID7Kn3fdKWajGQ/cywEx8rObE0JGMNSsC3b2DuGe1N
+         ew63TQiKoimciYv1sUo4J6ENPAVOCOWJLK0ENGdsBvN/E2p4ZEBmxcFCU4fPdBoYXU9y
+         bjPEOHT/a4DEBdDhmpalKNDKQbv8921cnMf8wZ5zI+KHV3P1x+XZdubsnm16Q1lhhike
+         wInA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x17si3337487ejc.315.2019.02.25.07.07.39
+       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 187sor4429154ybv.168.2019.02.25.07.13.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 07:07:39 -0800 (PST)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Mon, 25 Feb 2019 07:13:33 -0800 (PST)
+Received-SPF: pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 36034AEA3;
-	Mon, 25 Feb 2019 15:07:38 +0000 (UTC)
-Subject: Re: [PATCH] mm: migrate: add missing flush_dcache_page for non-mapped
- page migrate
-To: Lars Persson <lars.persson@axis.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-Cc: linux-mips@vger.kernel.org, Lars Persson <larper@axis.com>
-References: <20190219123212.29838-1-larper@axis.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <65ed6463-b61f-81ff-4fcc-27f4071a28da@suse.cz>
-Date: Mon, 25 Feb 2019 16:07:37 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: AHgI3IbBIanNK2b3dpslqnh41Yv7lJlDw1srmmXUhrXwKis2NIknvuv1xT3UKPK34/bm430n1JCdCw==
+X-Received: by 2002:a25:2044:: with SMTP id g65mr14459634ybg.406.1551107613278;
+        Mon, 25 Feb 2019 07:13:33 -0800 (PST)
+Received: from dennisz-mbp.dhcp.thefacebook.com ([2620:10d:c091:200::1:8bb9])
+        by smtp.gmail.com with ESMTPSA id g39sm3766859ywk.50.2019.02.25.07.13.31
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Feb 2019 07:13:32 -0800 (PST)
+Date: Mon, 25 Feb 2019 10:13:30 -0500
+From: Dennis Zhou <dennis@kernel.org>
+To: Peng Fan <peng.fan@nxp.com>
+Cc: "dennis@kernel.org" <dennis@kernel.org>,
+	"tj@kernel.org" <tj@kernel.org>, "cl@linux.com" <cl@linux.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"van.freenix@gmail.com" <van.freenix@gmail.com>
+Subject: Re: [PATCH 1/2] percpu: km: remove SMP check
+Message-ID: <20190225151330.GA49611@dennisz-mbp.dhcp.thefacebook.com>
+References: <20190224132518.20586-1-peng.fan@nxp.com>
 MIME-Version: 1.0
-In-Reply-To: <20190219123212.29838-1-larper@axis.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190224132518.20586-1-peng.fan@nxp.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/19/19 1:32 PM, Lars Persson wrote:
-> Our MIPS 1004Kc SoCs were seeing random userspace crashes with SIGILL
-> and SIGSEGV that could not be traced back to a userspace code
-> bug. They had all the magic signs of an I/D cache coherency issue.
+On Sun, Feb 24, 2019 at 01:13:43PM +0000, Peng Fan wrote:
+> percpu-km could only be selected by NEED_PER_CPU_KM which
+> depends on !SMP, so CONFIG_SMP will be false when choose percpu-km.
 > 
-> Now recently we noticed that the /proc/sys/vm/compact_memory interface
-> was quite efficient at provoking this class of userspace crashes.
-> 
-> Studying the code in mm/migrate.c there is a distinction made between
-> migrating a page that is mapped at the instant of migration and one
-> that is not mapped. Our problem turned out to be the non-mapped pages.
-> 
-> For the non-mapped page the code performs a copy of the page content
-> and all relevant meta-data of the page without doing the required
-> D-cache maintenance. This leaves dirty data in the D-cache of the CPU
-> and on the 1004K cores this data is not visible to the I-cache. A
-> subsequent page-fault that triggers a mapping of the page will happily
-> serve the process with potentially stale code.
-> 
-> What about ARM then, this bug should have seen greater exposure? Well
-> ARM became immune to this flaw back in 2010, see commit c01778001a4f
-> ("ARM: 6379/1: Assume new page cache pages have dirty D-cache").
-> 
-> My proposed fix moves the D-cache maintenance inside move_to_new_page
-> to make it common for both cases.
-> 
-> Signed-off-by: Lars Persson <larper@axis.com>
-
-What about CC stable and a Fixes tag, would it be applicable here?
-
+> Signed-off-by: Peng Fan <peng.fan@nxp.com>
 > ---
->  mm/migrate.c | 11 ++++++++---
->  1 file changed, 8 insertions(+), 3 deletions(-)
+>  mm/percpu-km.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index d4fd680be3b0..80fc19e610b5 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -248,10 +248,8 @@ static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,
->  				pte = swp_entry_to_pte(entry);
->  			} else if (is_device_public_page(new)) {
->  				pte = pte_mkdevmap(pte);
-> -				flush_dcache_page(new);
->  			}
-> -		} else
-> -			flush_dcache_page(new);
-> +		}
+> diff --git a/mm/percpu-km.c b/mm/percpu-km.c
+> index 0f643dc2dc65..66e5598be876 100644
+> --- a/mm/percpu-km.c
+> +++ b/mm/percpu-km.c
+> @@ -27,7 +27,7 @@
+>   *   chunk size is not aligned.  percpu-km code will whine about it.
+>   */
 >  
->  #ifdef CONFIG_HUGETLB_PAGE
->  		if (PageHuge(new)) {
-> @@ -995,6 +993,13 @@ static int move_to_new_page(struct page *newpage, struct page *page,
->  		 */
->  		if (!PageMappingFlags(page))
->  			page->mapping = NULL;
-> +
-> +		if (unlikely(is_zone_device_page(newpage))) {
-> +			if (is_device_public_page(newpage))
-> +				flush_dcache_page(newpage);
-> +		} else
-> +			flush_dcache_page(newpage);
-> +
->  	}
->  out:
->  	return rc;
+> -#if defined(CONFIG_SMP) && defined(CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK)
+> +#if defined(CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK)
+>  #error "contiguous percpu allocation is incompatible with paged first chunk"
+>  #endif
+>  
+> -- 
+> 2.16.4
 > 
+
+Hi,
+
+I think keeping CONFIG_SMP makes this easier to remember dependencies
+rather than having to dig into the config. So this is a NACK from me.
+
+Thanks,
+Dennis
 
