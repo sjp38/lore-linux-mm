@@ -2,97 +2,99 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E2D36C4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 06:19:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AAB37C10F00
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 06:46:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8CA822084D
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 06:19:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8CA822084D
+	by mail.kernel.org (Postfix) with ESMTP id 5D9F220842
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 06:46:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5D9F220842
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD7428E0170; Mon, 25 Feb 2019 01:19:24 -0500 (EST)
+	id DF8938E0171; Mon, 25 Feb 2019 01:46:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A850E8E016E; Mon, 25 Feb 2019 01:19:24 -0500 (EST)
+	id DA5058E016E; Mon, 25 Feb 2019 01:46:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 925C68E0170; Mon, 25 Feb 2019 01:19:24 -0500 (EST)
+	id C6C9D8E0171; Mon, 25 Feb 2019 01:46:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6164B8E016E
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 01:19:24 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id f24so8447733qte.4
-        for <linux-mm@kvack.org>; Sun, 24 Feb 2019 22:19:24 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C9AC8E016E
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 01:46:01 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id q15so7065806qki.14
+        for <linux-mm@kvack.org>; Sun, 24 Feb 2019 22:46:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=DKEzyQ08gWiFm9CUn9ucdBXwqG2HfKtivQ/gA+QfZ/s=;
-        b=OGEXMQIrUWmlsQ+yJNcr6+wT3S8nVojHxkkBl4jjcnd7XhNGlNiJk8gdWqSGJNgBet
-         HzlFC+elSMZ9HS+pMp5ck6HFB0Gm+b+iUktqtC0DWcHbYLEC2G3W/xfGySxYK2qAMdtX
-         Gem5ycZWWr74By+nbHRkK9WlqdwMe+S3DOp9nZDQmNxiErEd/NQsk3hrls11Svzu0PTU
-         utKx+WW0eKX0qiqcN9RHyRzfsIIV5wKAyXu5JkNNWsheVFZ/C13c4xuUCC8L9qZ1PikB
-         TREk8GtK3SJwAJeog8DBZEVlEKFIM43pWSkQcBVQ1EPWIBJHqYqzMQCTmu5wN2kHvvXD
-         QBjA==
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=SGgl74KwDCNZUxJJfTpLF78nO9GYxxc1iiiQS3g4Llg=;
+        b=jyDq1mIYah9V6ZqsLsSI0D3ODCOAz8AETrBTaqGe13RkPY3FYxMRwwdQTDgZji1+dc
+         bIy1Akq643YYXppyhWzhBMYNHkwAyBkswMzG8iy/bLOLTVmsOXPC/DeJvdalY/ce67Wb
+         ylZiazQ8HznIN6ybRAXf30LGkOvfS5Eum13WTTwXjJUHoJEQC0MiJWIdYHaSLu8SlsMR
+         cIhJCewOsFFO5yTYMlLlVazNCVTEpVIhxhY2sH4WeuA4i/8fHDPw2vLGHyTndHMjw3hi
+         Xg1ngk2RrQHWukRczgKOUKgJCfXLwLvuUmqkX51mrF0GEDVFFljDMnRVGS02gP4mGNPd
+         rwkg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuYw12OXXB9+3GVu6aZ1Smxujh4g6ri7pIFK9wFitYC5oJN4pmGs
-	e+ws4vF/zkaJZaW2f3VswUE8a2F93FlPs+IDM7u92QJ9kwv3KwPB9pJRJBwzjyUgTpxI8vwdTib
-	OmuLu/TuaSsT2U9owOD3zZAD8Dk4d3ttqkOqFRKpqkherbv2nMZ3ZRN9nyxr3o4VDbA==
-X-Received: by 2002:ac8:1659:: with SMTP id x25mr12506429qtk.291.1551075564146;
-        Sun, 24 Feb 2019 22:19:24 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYctZU6ckJ41pVTcQSxHGhl1f1F2vdEJIkDciEWNDdBM4RtN7WuLmoNprJqSomwyWC1qVtU
-X-Received: by 2002:ac8:1659:: with SMTP id x25mr12506400qtk.291.1551075563285;
-        Sun, 24 Feb 2019 22:19:23 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551075563; cv=none;
+X-Gm-Message-State: AHQUAubPw0u+GsoqiFZavty/qQOXA2spxCwivPdpjOI1LYVYCWKj0huy
+	Eo7j6Z6Xe9jk2baaiRCf+FVSpiZqaK4hHF2YHr1EfVW2qBQ+Rrx/fac6rZCKMAxq4UPu79MTH8I
+	OeU+rQ78sWToK7jTRypNKJebbnkqBj4W6yDs/mA334QgRcuce37foVeRWOYiM9XsCNg==
+X-Received: by 2002:a37:4ca:: with SMTP id 193mr11445148qke.21.1551077161302;
+        Sun, 24 Feb 2019 22:46:01 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYeWsF8zcPsy8cN9DWdXy031Af3t3fiR4mv4pk3SNLsbKy3Rm7mVtwj+Tt01mFgiAohuK5d
+X-Received: by 2002:a37:4ca:: with SMTP id 193mr11445121qke.21.1551077160492;
+        Sun, 24 Feb 2019 22:46:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551077160; cv=none;
         d=google.com; s=arc-20160816;
-        b=gzndXyliqf8xrYGOdwd4l7fftlhzermddmICFMpX1ftuNjFqkXzFHTLdJ51s4th6Ww
-         ZYs6S9xXj4PXaJhzMrai1unQuQKZX6UmzASvQYHfVFE+d+paIp0NpIrFCOTfCy4JIBpn
-         QS7df2fyfUQTcLXccjGsYH7P1cb6JD7aY29oSlIblXM6/voBGMZ2UPv/xUGu1Kw6w1yL
-         RjcX4bcr5lashsdc5b5cMtPq1yt2SII3szblAy/iAAHDw6aiEVe3WwjH/Vik3jCUWSNe
-         nn6zvj90eQmS6q+m0OchAcsDPu9P7kq3BV/I+IRW7mxDubdpRhO2zaZlGr/Si0R5J1Z/
-         CHPg==
+        b=Z+0EUQKdhbs1G4ACcTHDF/6wSKhr8DFc/7+2M+sX03xiy5oUjFRsvAQvin3rhjSpZ0
+         lM8ykTJQvyFcGxfivSg9VJLxL+FH/zIOX9UOmKVGL6hMF+Z94x+CDHuWPUON0yKimnoS
+         MUYY5Fv6bX1638vutmXGd36rhIidfKaGau3U07qwhcy+mdBq3qtLVdFzpV81oT6WO8QP
+         UM1Zv3xCnTk3ixvfhUeIhvkNmWo3+uVmXWselF61ACeAatVsPhcCc2FGhUZjhePcrnn6
+         J2/D/Q6A5XXdq0I1iBn5LeRpsQ7Dj6HpcOnflM/63pZC/EfuslBE9f+h3xvseO/ok3eh
+         3duA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=DKEzyQ08gWiFm9CUn9ucdBXwqG2HfKtivQ/gA+QfZ/s=;
-        b=rUgxyKju96C7QKPSux7mjn/mogKpm/wUkfNjvD0o9qec6JngJcS3imdY7z619A2VLI
-         SWYJZtijeyi8PMYlGVro9DL3hTc3NZY6dZQK/CYgp488vO6LoZ65d0GrcwZFbEQllX0d
-         mrKH3KSlklXxMx6npuMT9T/ge80QLXhXdEtrfkrs36LOKYQhJAjggZezguy929K7LPAY
-         kGusUCCkfX8SkQnRV7YEn/8VjxumbbmlFxn9FPBMt7K/i1I+u9NOfyZyo56VR9guhlQW
-         CcRfe2qvY2caqpE9Wm9cIytwdYMW5ZMcMjSButTtrWJ+ETsdP3fHEniftFrmofzWfxBw
-         at3w==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=SGgl74KwDCNZUxJJfTpLF78nO9GYxxc1iiiQS3g4Llg=;
+        b=XW4z9Gt2xwl+EcAAy5BhyzjcfHWavVSZGTXnXh3SAO/+wVxqyqQGYgUgNipXtsy1r2
+         tBImVJC4J5MSN37GbCqc8+pTyGtHUXmiZtlQwIF9lvLfa6EERu845uTt5vi7OILnqC/L
+         35OmikQwQfLUMpsJJ0hzIa7HheLAUeRPrwEZV/6TFyo58SgN+fA4z3TpcbwJGEVRRgqS
+         i9Zz94VrmZjrtX+jLrMFJuTw/Px34heWLtkQiy005DxqS9L36XoKq8sK4ShpssRAKDES
+         nY/1U+6Jzyvj7wG0WcWlF83pIq8zPElFL34tByOLjVVlN2Py0n81DpbGx7B7yuFt4rqr
+         m4EQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p31si1645163qvc.25.2019.02.24.22.19.23
+        by mx.google.com with ESMTPS id g8si233321qve.127.2019.02.24.22.46.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 24 Feb 2019 22:19:23 -0800 (PST)
+        Sun, 24 Feb 2019 22:46:00 -0800 (PST)
 Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0E51630013E6;
-	Mon, 25 Feb 2019 06:19:22 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9008F5945F;
+	Mon, 25 Feb 2019 06:45:59 +0000 (UTC)
 Received: from xz-x1 (ovpn-12-105.pek2.redhat.com [10.72.12.105])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 321E310027D9;
-	Mon, 25 Feb 2019 06:19:11 +0000 (UTC)
-Date: Mon, 25 Feb 2019 14:19:09 +0800
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id B8ACB5C221;
+	Mon, 25 Feb 2019 06:45:50 +0000 (UTC)
+Date: Mon, 25 Feb 2019 14:45:47 +0800
 From: Peter Xu <peterx@redhat.com>
 To: Jerome Glisse <jglisse@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	David Hildenbrand <david@redhat.com>,
 	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
 	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
 	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
 	Marty McFadden <mcfadden8@llnl.gov>,
 	Andrea Arcangeli <aarcange@redhat.com>,
@@ -102,75 +104,140 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
 	Mel Gorman <mgorman@suse.de>,
 	"Kirill A . Shutemov" <kirill@shutemov.name>,
 	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH v2.1 04/26] mm: allow VM_FAULT_RETRY for multiple times
-Message-ID: <20190225061835.GA28121@xz-x1>
-References: <20190212025632.28946-5-peterx@redhat.com>
- <20190221085656.18529-1-peterx@redhat.com>
- <20190221155311.GD2813@redhat.com>
- <20190222042544.GD8904@xz-x1>
- <20190222151101.GA7783@redhat.com>
+Subject: Re: [PATCH v2 10/26] userfaultfd: wp: add UFFDIO_COPY_MODE_WP
+Message-ID: <20190225064547.GB28121@xz-x1>
+References: <20190212025632.28946-1-peterx@redhat.com>
+ <20190212025632.28946-11-peterx@redhat.com>
+ <20190221172919.GJ2813@redhat.com>
+ <20190222071106.GI8904@xz-x1>
+ <20190222151546.GC7783@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190222151101.GA7783@redhat.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190222151546.GC7783@redhat.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Mon, 25 Feb 2019 06:19:22 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Mon, 25 Feb 2019 06:45:59 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 22, 2019 at 10:11:58AM -0500, Jerome Glisse wrote:
-> On Fri, Feb 22, 2019 at 12:25:44PM +0800, Peter Xu wrote:
-> > On Thu, Feb 21, 2019 at 10:53:11AM -0500, Jerome Glisse wrote:
-> > > On Thu, Feb 21, 2019 at 04:56:56PM +0800, Peter Xu wrote:
-> > > > The idea comes from a discussion between Linus and Andrea [1].
-> 
-> [...]
-> 
-> > > > diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> > > > index 248ff0a28ecd..d842c3e02a50 100644
-> > > > --- a/arch/x86/mm/fault.c
-> > > > +++ b/arch/x86/mm/fault.c
-> > > > @@ -1483,9 +1483,7 @@ void do_user_addr_fault(struct pt_regs *regs,
-> > > >  	if (unlikely(fault & VM_FAULT_RETRY)) {
-> > > >  		bool is_user = flags & FAULT_FLAG_USER;
-> > > >  
-> > > > -		/* Retry at most once */
-> > > >  		if (flags & FAULT_FLAG_ALLOW_RETRY) {
-> > > > -			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-> > > >  			flags |= FAULT_FLAG_TRIED;
-> > > >  			if (is_user && signal_pending(tsk))
-> > > >  				return;
+On Fri, Feb 22, 2019 at 10:15:47AM -0500, Jerome Glisse wrote:
+> On Fri, Feb 22, 2019 at 03:11:06PM +0800, Peter Xu wrote:
+> > On Thu, Feb 21, 2019 at 12:29:19PM -0500, Jerome Glisse wrote:
+> > > On Tue, Feb 12, 2019 at 10:56:16AM +0800, Peter Xu wrote:
+> > > > From: Andrea Arcangeli <aarcange@redhat.com>
+> > > > 
+> > > > This allows UFFDIO_COPY to map pages wrprotected.
+> > > > 
+> > > > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> > > > Signed-off-by: Peter Xu <peterx@redhat.com>
 > > > 
-> > > So here you have a change in behavior, it can retry indefinitly for as
-> > > long as they are no signal. Don't you want so test for FAULT_FLAG_TRIED ?
+> > > Minor nitpick down below, but in any case:
+> > > 
+> > > Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
+> > > 
+> > > > ---
+> > > >  fs/userfaultfd.c                 |  5 +++--
+> > > >  include/linux/userfaultfd_k.h    |  2 +-
+> > > >  include/uapi/linux/userfaultfd.h | 11 +++++-----
+> > > >  mm/userfaultfd.c                 | 36 ++++++++++++++++++++++----------
+> > > >  4 files changed, 35 insertions(+), 19 deletions(-)
+> > > > 
+> > > 
+> > > [...]
+> > > 
+> > > > diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+> > > > index d59b5a73dfb3..73a208c5c1e7 100644
+> > > > --- a/mm/userfaultfd.c
+> > > > +++ b/mm/userfaultfd.c
+> > > > @@ -25,7 +25,8 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
+> > > >  			    struct vm_area_struct *dst_vma,
+> > > >  			    unsigned long dst_addr,
+> > > >  			    unsigned long src_addr,
+> > > > -			    struct page **pagep)
+> > > > +			    struct page **pagep,
+> > > > +			    bool wp_copy)
+> > > >  {
+> > > >  	struct mem_cgroup *memcg;
+> > > >  	pte_t _dst_pte, *dst_pte;
+> > > > @@ -71,9 +72,9 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
+> > > >  	if (mem_cgroup_try_charge(page, dst_mm, GFP_KERNEL, &memcg, false))
+> > > >  		goto out_release;
+> > > >  
+> > > > -	_dst_pte = mk_pte(page, dst_vma->vm_page_prot);
+> > > > -	if (dst_vma->vm_flags & VM_WRITE)
+> > > > -		_dst_pte = pte_mkwrite(pte_mkdirty(_dst_pte));
+> > > > +	_dst_pte = pte_mkdirty(mk_pte(page, dst_vma->vm_page_prot));
+> > > > +	if (dst_vma->vm_flags & VM_WRITE && !wp_copy)
+> > > > +		_dst_pte = pte_mkwrite(_dst_pte);
+> > > 
+> > > I like parenthesis around around and :) ie:
+> > >     (dst_vma->vm_flags & VM_WRITE) && !wp_copy
+> > > 
+> > > I feel it is easier to read.
 > > 
-> > These first five patches do want to allow the page fault to retry as
-> > much as needed.  "indefinitely" seems to be a scary word, but IMHO
-> > this is fine for page faults since otherwise we'll simply crash the
-> > program or even crash the system depending on the fault context, so it
-> > seems to be nowhere worse.
+> > Yeah another one. Though this line will be changed in follow up
+> > patches, will fix anyways.
 > > 
-> > For userspace programs, if anything really really go wrong (so far I
-> > still cannot think a valid scenario in a bug-free system, but just
-> > assuming...) and it loops indefinitely, IMHO it'll just hang the buggy
-> > process itself rather than coredump, and the admin can simply kill the
-> > process to retake the resources since we'll still detect signals.
+> > > 
+> > > [...]
+> > > 
+> > > > @@ -416,11 +418,13 @@ static __always_inline ssize_t mfill_atomic_pte(struct mm_struct *dst_mm,
+> > > >  	if (!(dst_vma->vm_flags & VM_SHARED)) {
+> > > >  		if (!zeropage)
+> > > >  			err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
+> > > > -					       dst_addr, src_addr, page);
+> > > > +					       dst_addr, src_addr, page,
+> > > > +					       wp_copy);
+> > > >  		else
+> > > >  			err = mfill_zeropage_pte(dst_mm, dst_pmd,
+> > > >  						 dst_vma, dst_addr);
+> > > >  	} else {
+> > > > +		VM_WARN_ON(wp_copy); /* WP only available for anon */
+> > > 
+> > > Don't you want to return with error here ?
 > > 
-> > Or did I misunderstood the question?
+> > Makes sense to me.  Does this looks good to you to be squashed into
+> > current patch?
+> > 
+> > diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+> > index 73a208c5c1e7..f3ea09f412d4 100644
+> > --- a/mm/userfaultfd.c
+> > +++ b/mm/userfaultfd.c
+> > @@ -73,7 +73,7 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
+> >                 goto out_release;
+> >  
+> >         _dst_pte = pte_mkdirty(mk_pte(page, dst_vma->vm_page_prot));
+> > -       if (dst_vma->vm_flags & VM_WRITE && !wp_copy)
+> > +       if ((dst_vma->vm_flags & VM_WRITE) && !wp_copy)
+> >                 _dst_pte = pte_mkwrite(_dst_pte);
+> >  
+> >         dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
+> > @@ -424,7 +424,10 @@ static __always_inline ssize_t mfill_atomic_pte(struct mm_struct *dst_mm,
+> >                         err = mfill_zeropage_pte(dst_mm, dst_pmd,
+> >                                                  dst_vma, dst_addr);
+> >         } else {
+> > -               VM_WARN_ON(wp_copy); /* WP only available for anon */
+> > +               if (unlikely(wp_copy))
+> > +                       /* TODO: WP currently only available for anon */
+> > +                       return -EINVAL;
+> > +
+> >                 if (!zeropage)
+> >                         err = shmem_mcopy_atomic_pte(dst_mm, dst_pmd,
+> >                                                      dst_vma, dst_addr,
 > 
-> No i think you are right, it is fine to keep retrying while they are
-> no signal maybe just add a comment that says so in so many words :)
-> So people do not see that as a potential issue.
+> I would keep a the VM_WARN_ON or maybe a ONCE variant so that we at
+> least have a chance to be inform if for some reasons that code path
+> is taken. With that my r-b stands.
 
-Sure thing.  I don't know whether commenting this on all the
-architectures is good...  I'll try to add some comments above
-FAULT_FLAG_* deinitions to explain this.
-
-Thanks!
+Yeah *ONCE() is good to me too (both can avoid DOS attack from
+userspace) and I don't have strong opinion on whether we should fail
+on this specific ioctl if it happens.  For now I'll just take the
+advise and the r-b together.  Thanks,
 
 -- 
 Peter Xu
