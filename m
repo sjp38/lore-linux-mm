@@ -3,93 +3,92 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DC3DC4360F
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:24:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 063B9C43381
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:25:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 297CB20C01
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:24:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 297CB20C01
+	by mail.kernel.org (Postfix) with ESMTP id B491520C01
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 15:25:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B491520C01
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D33DD8E0010; Mon, 25 Feb 2019 10:24:06 -0500 (EST)
+	id 542698E000F; Mon, 25 Feb 2019 10:25:06 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D09DB8E000B; Mon, 25 Feb 2019 10:24:06 -0500 (EST)
+	id 5191E8E000B; Mon, 25 Feb 2019 10:25:06 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BF9498E0010; Mon, 25 Feb 2019 10:24:06 -0500 (EST)
+	id 4095C8E000F; Mon, 25 Feb 2019 10:25:06 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 790578E000B
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:24:06 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id b4so7515102plb.9
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:24:06 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F28128E000B
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 10:25:05 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id e4so7996394pfh.14
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 07:25:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=cvLPglrmlarCn3NwbDyxd0R3IaiIIM60KqvXteZiwNo=;
-        b=RU2awEpTQoTRUxtKYOR1aE5hu2y7UiM2CndqlRN5/V/TTwGSgRvrX6hbL80p7UxRnb
-         45hQCG9XBATZzurb3VT32W0FGqAkTQJHmbT0stPcZD0vExFVSf+JPGjdGu0Dcnp1TIH0
-         r3+l0NY6hDMhfhjg/xVoByWuWz40WPM4Tj8HO5xiLzZmJUFCMaT+M8YhTaArBK/iTtHL
-         A5N2xzdFr7ijNXM+NLW0EzfgxClotgnv5n5C3UldhsBOPfhuNMTyNtSc6cTk2rhC23ml
-         2Pr32uCCPSWvijA8ogu3HCD+AmFRlqAWjzcdWcBZGhJaxxvTkEOZjRICgm6ozzcsohJ/
-         2MqA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuYdQY0GFZbFxTxYzpRtgz3Xio2tm0V4yiSQvud9XxVfcpgmIvHJ
-	T8feCdW3VSaq94Lc8cgM6y2LAsRRGjdP2UdtAL8uZZz/ab6PAyTQrNd604rKdVfhmWu2JYU3GwT
-	vHODNthjp0EsG3hzJ/+/cGWTTVmvfxHwe2w17rh/t/zXkuBm3eiQ0ljv6p5n19LjgyA==
-X-Received: by 2002:aa7:9289:: with SMTP id j9mr21073117pfa.130.1551108246099;
-        Mon, 25 Feb 2019 07:24:06 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbL7q9JIxVHUY3vRc4cbdjaMPfDSER3JO4ecTmkfxlZrrR1p96OkWK6yCNBa7JZI5oR63rd
-X-Received: by 2002:aa7:9289:: with SMTP id j9mr21073064pfa.130.1551108245242;
-        Mon, 25 Feb 2019 07:24:05 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551108245; cv=none;
+        bh=nxIsJNw7RRxMQ1oqlNtoLW3tv/e6SWN7i3/mkPSHw10=;
+        b=EtfWxiDXcs9P1GvwjYLci3KXqM0ogyroJhXNipB/D34tPfKQdQZVvOTqRYBTWlB7iN
+         XJ+aFcO427ZSLwnYwIy/BudyUxfkYMeGavj3EtletJO5P5VmRUXXKmjY2PRtMbPcrdYx
+         NYiTMjYYr7g3PzviSpSkV3RnzMwrKKrPYiLi8gvQ4IvudWvLU46f7qzURX6H6iQW8Onn
+         2xCvyo15i3LbDzmOtMetUdyccC1+zLfHeZe1mHRDiKbvOrLkvIfcQ+Ht5l2yyfCjASSj
+         kYeLQptHlZ03XNYRgLFZfiPPRrskIGiUVCa1uQp2HPk95gjOBIHUN7xbrdVFGr9GFWUA
+         lodg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAuabXyIu4fUG5M9wFyQpKRGSV++6zUm/iuKw07dufmlTQeR8z1os
+	wUv1aNOsCdZ4KpEND3CARc1CPmc34Jfpb9Q76P+mPR57H8Nc9SEWIyjUDs3LKhlnWV7Rwr44YUY
+	j/G/6okLr/8ekBR3jSxQZiqVVdUSkcDMu9yurxLviSndTWzbeZTeA2VeavSnXf/D4wA==
+X-Received: by 2002:a63:6184:: with SMTP id v126mr19566953pgb.277.1551108305675;
+        Mon, 25 Feb 2019 07:25:05 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbBY36NobyjlAJHHFHHd34AFtidUTRKO3b78ddfyjt0NQldAIKbDPRUVeRWvbJVlJnkqxZM
+X-Received: by 2002:a63:6184:: with SMTP id v126mr19566880pgb.277.1551108304789;
+        Mon, 25 Feb 2019 07:25:04 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551108304; cv=none;
         d=google.com; s=arc-20160816;
-        b=wHvuSixOzp/+tcLy1c3mniR1/N3kHjGLpo1aU9lHCgyeNq+9cgn2IW1YQoqmVmjTMQ
-         4JrGs2iVA6wGObdPDnbifNMbZdmM4379CUPUb8Lx4nhql5mSn/UAZ52kDEN+Zu1UJ+i8
-         0SyqN+Z9ZMl/ysldMqdI++vTqE/rnVvxwkuT0ZWTjSCCxZwNJIW9RFcGiwlL1NQzuszs
-         RpWhan7zbjQAybp9Fje/6CloygN7dOWHwTzQPHDZZQoRf553/1Fx/BjYk/GCh98BsE9d
-         FJhX3x1jOP9LOBb8mEXFcJocu8Bc4N8KN/3qNCajAb7iCANBaKmAYyFHykrwcbiEIn27
-         HpCQ==
+        b=RG58TP/NOOO2PO9SrM5QulqcprkZdzAWENl1sR3anzaWPimZDaeKGfNPFuhgHWthvv
+         Zr0irPLW5XmfXAdJel/D6PrEbdQKF5it/sUYtXvUXkgS5+cerZDTmSTp7TZRcxv8ZrTe
+         cEDBl7OW5j3wmDo+QXzKmVx6wK5vpJJGSS0n3bSjWtjnM0lgU2L07dpiBMJyxvZLV3nU
+         FrwXtKobtqaLmgzYpoSMhODF5aXsuOYZcqVXhAualqQtgi8eaviQH3yL7iMtvqdVPeUm
+         q5sG1LPLsbt33a4QAhIqW64HahCcwUBm52O0hjbMgGNcfJqGCll2OyTruL6NmOsxlUlL
+         70EA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=cvLPglrmlarCn3NwbDyxd0R3IaiIIM60KqvXteZiwNo=;
-        b=lhGF28Y+tN3JWZ9ixYSj/cwe9wwTDRmtqv0OvjeeoZ9DtPMfzNcVNCGYSZhq123odh
-         UiQaL/gNI6QGKqROfAOnFaI5JUI0qWVWXvHvNoNIXYVESLxeALKt3Icedgw2+7yKcHLq
-         QI/J2t5vY+fREx+fZH3TJCqkcJfKKjLWIll4Q9CSMYzcOAOicRWQAqIA0Yuk4gx2ad+j
-         A64hHZUWNQnNzsSSGHHP9sNRqiXOUYXvinHKHBSXSqfbkEpYxLDbS75YxRBwVmw3yQ6S
-         dcBVv5on2QTEavPR4TdNgTIv6CJ44wg6nKNtxBy7BWOZRqLVLpQQFluIO5ZZC6c+C9I4
-         SrPw==
+        bh=nxIsJNw7RRxMQ1oqlNtoLW3tv/e6SWN7i3/mkPSHw10=;
+        b=s0hBo+GwRjG7SNJP0QsPmxUAP3Q5nos/sN2nKGtxSKZL5GlgA/sAO5YTEaloRgQOwC
+         gLpqP+6mO3QdRKCFmT1UAyS5VSN1iQYAsqoZrFN3w+/Hshg8zE9aWVA+XVenST1ISYJV
+         IYCg+GraB5umZKqdLNVC1xCKMdWGN80P+cPw2n0hO9uAP0Tu+uc8gZ6RN100It9/X589
+         FTuqfIRB6nUFBmJcEbxO6eSB+sASqB6dEojf4MJH+EsDeHvg7rpxPLyNxHhDc4Ps6RGI
+         Bt4BNPQ9l02doAe8KgS5OF0Ib2vjnqHu+t0wJw3HguVaNhlQ4Bfb+6G2UDcGDlBmq9YQ
+         cDDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id f11si5441742pgs.291.2019.02.25.07.24.05
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id b17si9516206pls.181.2019.02.25.07.25.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 07:24:05 -0800 (PST)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+        Mon, 25 Feb 2019 07:25:04 -0800 (PST)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Feb 2019 07:24:04 -0800
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Feb 2019 07:25:04 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,411,1544515200"; 
-   d="scan'208";a="141463618"
+   d="scan'208";a="141463807"
 Received: from mmshuai-mobl.amr.corp.intel.com (HELO [10.254.87.252]) ([10.254.87.252])
-  by orsmga001.jf.intel.com with ESMTP; 25 Feb 2019 07:23:59 -0800
-Subject: Re: [PATCH 3/6] x86/numa: define numa_init_array() conditional on
- CONFIG_NUMA
+  by orsmga001.jf.intel.com with ESMTP; 25 Feb 2019 07:25:03 -0800
+Subject: Re: [PATCH 4/6] x86/numa: concentrate the code of setting cpu to node
+ map
 To: Pingfan Liu <kernelfans@gmail.com>, x86@kernel.org, linux-mm@kvack.org
 Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
  Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
@@ -102,7 +101,7 @@ Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
  Jonathan Corbet <corbet@lwn.net>, Nicholas Piggin <npiggin@gmail.com>,
  Daniel Vacek <neelx@redhat.com>, linux-kernel@vger.kernel.org
 References: <1551011649-30103-1-git-send-email-kernelfans@gmail.com>
- <1551011649-30103-4-git-send-email-kernelfans@gmail.com>
+ <1551011649-30103-5-git-send-email-kernelfans@gmail.com>
 From: Dave Hansen <dave.hansen@intel.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=dave.hansen@intel.com; keydata=
@@ -148,15 +147,15 @@ Autocrypt: addr=dave.hansen@intel.com; keydata=
  MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
  hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
  vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
-Message-ID: <8f703c5f-44c7-3a96-487e-3bdf46ee41b0@intel.com>
-Date: Mon, 25 Feb 2019 07:23:59 -0800
+Message-ID: <7a57c49a-f88b-f678-fedd-2f775f09040b@intel.com>
+Date: Mon, 25 Feb 2019 07:25:03 -0800
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <1551011649-30103-4-git-send-email-kernelfans@gmail.com>
+In-Reply-To: <1551011649-30103-5-git-send-email-kernelfans@gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -164,45 +163,21 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On 2/24/19 4:34 AM, Pingfan Liu wrote:
-> +#ifdef CONFIG_NUMA
->  /*
->   * There are unfortunately some poorly designed mainboards around that
->   * only connect memory to a single CPU. This breaks the 1:1 cpu->node
-> @@ -618,6 +619,9 @@ static void __init numa_init_array(void)
->  		rr = next_node_in(rr, node_online_map);
+> -#else
+> -static void __init numa_init_array(void) {}
+> -#endif
+> -
+>  static int __init numa_init(int (*init_func)(void))
+>  {
+>  	int i;
+> @@ -675,7 +651,6 @@ static int __init numa_init(int (*init_func)(void))
+>  		if (!node_online(nid))
+>  			numa_clear_node(i);
 >  	}
+> -	numa_init_array();
+>  
+>  	return 0;
 >  }
-> +#else
-> +static void __init numa_init_array(void) {}
-> +#endif
 
-What functional effect does this #ifdef have?
-
-Let's look at the code:
-
-> static void __init numa_init_array(void)
-> {
->         int rr, i;
-> 
->         rr = first_node(node_online_map);
->         for (i = 0; i < nr_cpu_ids; i++) {
->                 if (early_cpu_to_node(i) != NUMA_NO_NODE)
->                         continue;
->                 numa_set_node(i, rr);
->                 rr = next_node_in(rr, node_online_map);
->         }
-> }
-
-and "play compiler" for a bit.
-
-The first iteration will see early_cpu_to_node(i)==1 because:
-
-static inline int early_cpu_to_node(int cpu)
-{
-        return 0;
-}
-
-if CONFIG_NUMA=n.
-
-In other words, I'm not sure this patch does *anything*.
+Huh, and now the (stub) code that was just added gets removed?
 
