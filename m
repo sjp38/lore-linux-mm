@@ -2,231 +2,167 @@ Return-Path: <SRS0=DsBj=RA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F2296C10F00
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:30:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4DA98C4360F
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:34:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AEEBE2084D
-	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:30:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0D6162084D
+	for <linux-mm@archiver.kernel.org>; Mon, 25 Feb 2019 20:34:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="J8lIBzK4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AEEBE2084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="reFt6qLk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D6162084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5E4358E0017; Mon, 25 Feb 2019 15:30:50 -0500 (EST)
+	id 8048B8E0018; Mon, 25 Feb 2019 15:34:48 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 594DC8E000C; Mon, 25 Feb 2019 15:30:50 -0500 (EST)
+	id 78D0B8E000C; Mon, 25 Feb 2019 15:34:48 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 45F058E0017; Mon, 25 Feb 2019 15:30:50 -0500 (EST)
+	id 62E538E0018; Mon, 25 Feb 2019 15:34:48 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0520D8E000C
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 15:30:50 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id 38so8078768pld.6
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 12:30:49 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 15A888E000C
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 15:34:48 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id t6so7844427pgp.10
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 12:34:48 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=JDU7hPspNg25hPl2OvBKS7YvtxIGkNRnjLg+s4xyhDM=;
-        b=W1sCskCGbKMTp/svdWUKRBvenMcXm3YvDbqeNwAQeMS+TW3PX/Zl+10ACymnO93wa2
-         u8zrl0bRjZKlTDxoDXE0lKNhN7lcvgoikqT/2ZTIs4mZ1uPTfMub1bnWeXNnsMdz3H8w
-         rcllnwbFXOgI2lBElpvzS+VLH6s+w9d6rT9OIbJJiwmZxtb7+wOrPdkDAsmGeec6TeID
-         T7ndDE+UT9neLtDaJzPvbYXZ8y+jChmsotjz5uhSq5E0M6gjkszoh/xsUaYdrfxZjdab
-         2aseKBWY1BtFwG9S8rX5JekouRB3Zsm85Slk4beltk4T0a9iikaoFHQJ0e6T43SjCZsK
-         ERNg==
-X-Gm-Message-State: AHQUAuai9gahEbUVW6qQ4C51yyFb/XVxRPQFDaaQrUzMGxs1TAh5iepi
-	mLAKtAqDOv5xlXTwMkNcn59r2iq25a0UnJsZ1WhF6QVezI3dSVIC0naNsY/Wwzr37OCP0IXZr/u
-	s3bOfo2uJQbYQ1gtJUQLbST6MuBW3e20eQ74d6AQKCcxy08jrpeLfhXrNZoXRn+8YjrJ01VEgir
-	EhAjndcd7vwLwlcbkJPOikJ4jAY1R5pXU52EFU0STpKgC01S5JFR5VGU+wgn/pjwHPbutUTwS8d
-	x54xwpv19fXKW7NUQDsS+NS9gNXRjlMDW1Yx0LvmA6rGSZ2c7IqTl9BBnAJ/BkDW5r8/OIi05XP
-	OtmMEdagTGdVdmhutvTfeQq/2eOZlawO47jJWo+X+Rp96ITZ9/MsorNvRJONjPta+FnmV+Nb5Zk
-	Y
-X-Received: by 2002:a17:902:7242:: with SMTP id c2mr21781460pll.245.1551126648202;
-        Mon, 25 Feb 2019 12:30:48 -0800 (PST)
-X-Received: by 2002:a17:902:7242:: with SMTP id c2mr21781229pll.245.1551126644878;
-        Mon, 25 Feb 2019 12:30:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551126644; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=FmHMOey5zYjBqir8BQ2Fm5h9ilU4HwTBdoph5KPL7ck=;
+        b=c56gOuXn1Rfy1QC0pzFMWUP7Mw7cZrbjdIfPZeVnEKwkE407L8dJ2TnI6hW2HOVev5
+         n9dpJ57rt5Gu31qfd7r32Gl43xFjRzSRZXhFLjKx3hfoEoRI5k3fJzGBholwopsFQczB
+         Oc/vTd7pDfNQjyUQpEZXA+1pg4JoFSAK1Lo452rHhiSGrmLRbgn/HnmkTh0glJ9//EtV
+         Ig9jHDbQOOckBYEQ/5lLrcOYAtWhE2lFE5jWh+vlnnE6ZsmEoxak0m2Qx9dK6igI2afC
+         oe163W7VO8NpOPMUavooWl2L3LZ1s981UeaKkNNHkqWXcM4rPIJrJK912u5YLIm1fJ51
+         r72A==
+X-Gm-Message-State: AHQUAuaC6nXGbY5pMgYz3TpH6qaRhcvjeMNEnZNpbH5PA1mhbMQtq059
+	FLjFqUeFLgYYyWBn3rR1t5aYm+iDqe+okITsuS8Tb5OeaH3c6MZ8dXTQCmjB9E0sz1hCjOx66J4
+	/efS0Gt8jp0oXkUlgiIu2lRV4wVCLqRq6XB3xpgmSwpwAsqObaQjQ0tvYbPhWSpXfAsyZJ004qQ
+	yBZYS0AXx4i3J9DgoNzbErpcrdgSB4H9WNQE2zKgUT6RCA4M/sXJ3TIfJlwxbLYatElCEX3HR4e
+	rg1RwYqLV0A0ygqTRPn2fUQ41r8RAmDIdkzFOteDI7IZlzoFDwT6x+JCTEl6kjvWvs1ScwZomOu
+	B72dQaTQcwYuYcS3LdDWVqCKudPS7DA2piNyVNHSb4AbJ7zyf9HiBq6uBmNrsxbsdjYguVQzSgw
+	c
+X-Received: by 2002:a63:2c0e:: with SMTP id s14mr1270217pgs.132.1551126887717;
+        Mon, 25 Feb 2019 12:34:47 -0800 (PST)
+X-Received: by 2002:a63:2c0e:: with SMTP id s14mr1270163pgs.132.1551126886782;
+        Mon, 25 Feb 2019 12:34:46 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551126886; cv=none;
         d=google.com; s=arc-20160816;
-        b=YWLtdyGMoa/PsDogRFcWcAAAsINhByqrk2T0Vw2Y5yiEVBJSeo5uO1JG9Y4aeGFNCQ
-         nUl3ZwJpfyHHFWIWxaphmBQjRNp2TaQJqJXxYshh5OTvJcTUncimG3Pzr+Aa6RGOr5XU
-         8TYczE8vIdRNpr8gSXiPTFNxl+149jfp2HuWNCbzuvdmJmPP/VnC5lytjLF1yoQm4Oj8
-         dNKwc1iBM72Z7LHaCpURWp3cutCGJV2rvTIRE2UYmdmLoAmRAit2CyAakDZ2O6idDdbp
-         NRJQq//nt7qxlTXvsTIuYuPTRmHmJk31zcC0+StyJfpaLHufArFln+ux3VJaMP2smuzq
-         zMTw==
+        b=WFh3FRAmkeOntaCFaMNYs1DLnpw/UQmEYGZOyDMA3NNS9NeoM7D1fTtSWb548pFNye
+         ket/95wjcCkwf5yuDF0oMLmC/i8l8FbtwQGufRDv15Q1O7ibBmO80eARhxM63QdqOm0/
+         KbTc78YW6i06Bq8265DRIektZ2IzWA6mLLf0ZCqnWamnnTAyjF1elrSUJkpYgnDTU6Bt
+         tAL17TIVDV1W0MJu7wEwEXdkNb6ATvfyPPxpa3lOPDNB9FFng/sPUN1TXxD2PaJHDtua
+         +Q+xFNDtO3tOSAOzNNIWBkZJgztiJLpLeL22Fgp/RBW6jVaVYaVGnkyrUM9oBHMjsY2K
+         ivKQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=JDU7hPspNg25hPl2OvBKS7YvtxIGkNRnjLg+s4xyhDM=;
-        b=SubEaSc+j6oon7m6KNXB2aWF3dBXjoUAqRD6h+JcH2cysRqwTjAJy0WPb3T/IuKuzM
-         HM0wovKM2mdCd9AgBawyaRcj7KaBgEyFnfWszYif14m03zUF8mEiivcZmKMaYT3Qn1pd
-         waVHiQt8kr2PMGUnROPzX6Pk4N6AebW5R4zgZUs7UFZ6Gyz7TH0N1bwL7zsf9hMhCLzS
-         ngT5zyJpKGo2YMAn8Giwoi9rjM1+p0cGAhJv/tAqPYyZKvHiNxNCSl41VfQfuhfNZN7g
-         lINZKlZ4zPiHIoZrcQYiujPRlNVwV59BCvkk0CsPSF8HO+ea4YtqP/zUGstpnZpmLcp2
-         z3kA==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=FmHMOey5zYjBqir8BQ2Fm5h9ilU4HwTBdoph5KPL7ck=;
+        b=LXbJs3rY3tDlKu8ZGs0k/DUUJBCaYRiRn4o9Z6iihyI2LyF772jNTE20IN9KeaJyJb
+         NY8VCgjnm5Db8Jokqi/YF7iJ/G6kON92Kv7vj2R5GChRtcV2d0bcBKC0anKvxTqH/XYZ
+         ZpR47aeuF1mota1k8Yd8Yixq9Bn0IQ0Y/B9dHm20Qh/RQ0DRcjlInOLG1JEmN0+mgwLl
+         OpuicwA30eVbREAluAmhuwDe0BR/GY89OMYOuCQWEzgH32z0C2scAeK15V0Ck1Z4sCVp
+         185qplVTeed55D9fdy8aU36q+wQLE0b2rFS5OycAiq28narSgmq7Q6NAK2tWA5odyge0
+         /9Eg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=J8lIBzK4;
-       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=reFt6qLk;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w7sor6858677plz.53.2019.02.25.12.30.44
+        by mx.google.com with SMTPS id b1sor15531426pgt.72.2019.02.25.12.34.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 25 Feb 2019 12:30:44 -0800 (PST)
-Received-SPF: pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 25 Feb 2019 12:34:46 -0800 (PST)
+Received-SPF: pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=J8lIBzK4;
-       spf=pass (google.com: domain of guroan@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=guroan@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=reFt6qLk;
+       spf=pass (google.com: domain of hughd@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=hughd@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=JDU7hPspNg25hPl2OvBKS7YvtxIGkNRnjLg+s4xyhDM=;
-        b=J8lIBzK4OGjvyRLjyJ+K5FObPBndm+0ToM32Stvzi+qPGf0dK7DMb6YKcWHEJk15VI
-         jjWzfZB48rp8XU62MCONpYbeMnpSC+ukUGhNelx/qceEx/NAoeEFW1txjnVcRmrVu7iQ
-         ZPJxLzSpuRkjRsmthUHap8hJWs4A+PNiDmZPa7noyHzHTbM2NRLV0ZAvOQyCXhAJfDW4
-         7fwjC9R9Xn9G/wakNy2rfVXDMoyjf/TQAvQNSytbqFCE+f2e/uFJKS3Abzcwf8bIOb8V
-         OJTDbZ9MNzunNpPuJ94ypgYbFj2Y0gQTfHPStBmF3IvVlNT374CDfU9284rKLf4F2Qpm
-         N59A==
-X-Google-Smtp-Source: AHgI3Ibqg5a8LKjDQQHis1IjRnXTK+LyQiMK038WjKg7XCtvXxwlfbV648hzZIlvDGKgU82xIQurdA==
-X-Received: by 2002:a17:902:e090:: with SMTP id cb16mr21482907plb.32.1551126644333;
-        Mon, 25 Feb 2019 12:30:44 -0800 (PST)
-Received: from tower.thefacebook.com ([2620:10d:c090:200::2:d960])
-        by smtp.gmail.com with ESMTPSA id s4sm6189885pfe.16.2019.02.25.12.30.43
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 25 Feb 2019 12:30:43 -0800 (PST)
-From: Roman Gushchin <guroan@gmail.com>
-X-Google-Original-From: Roman Gushchin <guro@fb.com>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org,
-	Matthew Wilcox <willy@infradead.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	kernel-team@fb.com,
-	Roman Gushchin <guro@fb.com>
-Subject: [PATCH 2/3] mm: separate memory allocation and actual work in alloc_vmap_area()
-Date: Mon, 25 Feb 2019 12:30:36 -0800
-Message-Id: <20190225203037.1317-3-guro@fb.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190225203037.1317-1-guro@fb.com>
-References: <20190225203037.1317-1-guro@fb.com>
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=FmHMOey5zYjBqir8BQ2Fm5h9ilU4HwTBdoph5KPL7ck=;
+        b=reFt6qLkikr9MV68tRlb6/U2JuvM9MZ/xzIst8WXo2yxanz2wdmpZf05dcf0bLx8er
+         MBn4Ws5i620Rle3Zk+XgZb4UNrUa1zbCocRizS/ESBMQgucJespj897PEvYrT6HHxRt2
+         xiAChdipZi7OZmIgTZ6wS5pS8jtmufH8qJKevVWtqWcmY1PJaqUNjNLzKGSuKUTmZXD0
+         C6k3eKIX+OGC7OtYmWmGwpuAj2AHPc3lZSOn1mEI7+LLr2W7jS50bv5LRUMgXrU9gEiJ
+         vQB35q+afCKz3T9efbDrfY90Jph3/DWI59rp4+Wg+FeOCcloJyGf6As2LPWDnHczSYYv
+         9kfg==
+X-Google-Smtp-Source: AHgI3IZ5cqwWWpP7deEcZ3lfdJVt2ZgT9Xp/tfF1Yd4X2yc1J58P0kYnE1LQfquVg9af5N14t/Gzog==
+X-Received: by 2002:a63:d442:: with SMTP id i2mr20511933pgj.246.1551126885979;
+        Mon, 25 Feb 2019 12:34:45 -0800 (PST)
+Received: from [100.112.89.103] ([104.133.8.103])
+        by smtp.gmail.com with ESMTPSA id m64sm25530706pfi.149.2019.02.25.12.34.44
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 25 Feb 2019 12:34:45 -0800 (PST)
+Date: Mon, 25 Feb 2019 12:34:21 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+X-X-Sender: hugh@eggly.anvils
+To: Linus Torvalds <torvalds@linux-foundation.org>
+cc: Hugh Dickins <hughd@google.com>, 
+    "Darrick J. Wong" <darrick.wong@oracle.com>, 
+    Andrew Morton <akpm@linux-foundation.org>, 
+    Matej Kupljen <matej.kupljen@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>, 
+    Dan Carpenter <dan.carpenter@oracle.com>, 
+    Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, 
+    linux-fsdevel <linux-fsdevel@vger.kernel.org>, 
+    Linux-MM <linux-mm@kvack.org>
+Subject: Re: [PATCH] tmpfs: fix uninitialized return value in shmem_link
+In-Reply-To: <CAHk-=wgO3MPjPpf_ARyW6zpwwPZtxXYQgMLbmj2bnbOLnR+6Cg@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1902251214220.8973@eggly.anvils>
+References: <20190221222123.GC6474@magnolia> <alpine.LSU.2.11.1902222222570.1594@eggly.anvils> <CAHk-=wgO3MPjPpf_ARyW6zpwwPZtxXYQgMLbmj2bnbOLnR+6Cg@mail.gmail.com>
+User-Agent: Alpine 2.11 (LSU 23 2013-08-11)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-alloc_vmap_area() is allocating memory for the vmap_area, and
-performing the actual lookup of the vm area and vmap_area
-initialization.
+On Mon, 25 Feb 2019, Linus Torvalds wrote:
+> On Fri, Feb 22, 2019 at 10:35 PM Hugh Dickins <hughd@google.com> wrote:
+> >
+> > When we made the shmem_reserve_inode call in shmem_link conditional, we
+> > forgot to update the declaration for ret so that it always has a known
+> > value.  Dan Carpenter pointed out this deficiency in the original patch.
+> 
+> Applied.
 
-This prevents us from using a pre-allocated memory for the map_area
-structure, which can be used in some cases to minimize the number
-of required memory allocations.
+Thanks.  And I apologize for letting that slip through: Darrick sent
+the patch fragment, I dressed it up, and more or less tricked him into
+taking ownership of the bug, when it's I who should have been more careful.
 
-Let's keep the memory allocation part in alloc_vmap_area() and
-separate everything else into init_vmap_area().
+But I'm glad it confirmed your rc8 instinct, rather than messing final :)
 
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Matthew Wilcox <willy@infradead.org>
----
- mm/vmalloc.c | 50 +++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 33 insertions(+), 17 deletions(-)
+> 
+> Side note: how come gcc didn't warn about this? Yes, we disable that
+> warning for some cases because of lots of false positives, but I
+> thought the *default* setup still had it.
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 8f0179895fb5..f1f19d1105c4 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -395,16 +395,10 @@ static void purge_vmap_area_lazy(void);
- 
- static BLOCKING_NOTIFIER_HEAD(vmap_notify_list);
- 
--/*
-- * Allocate a region of KVA of the specified size and alignment, within the
-- * vstart and vend.
-- */
--static struct vmap_area *alloc_vmap_area(unsigned long size,
--				unsigned long align,
--				unsigned long vstart, unsigned long vend,
--				int node, gfp_t gfp_mask)
-+static int init_vmap_area(struct vmap_area *va, unsigned long size,
-+			  unsigned long align, unsigned long vstart,
-+			  unsigned long vend, int node, gfp_t gfp_mask)
- {
--	struct vmap_area *va;
- 	struct rb_node *n;
- 	unsigned long addr;
- 	int purged = 0;
-@@ -416,11 +410,6 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 
- 	might_sleep();
- 
--	va = kmalloc_node(sizeof(struct vmap_area),
--			gfp_mask & GFP_RECLAIM_MASK, node);
--	if (unlikely(!va))
--		return ERR_PTR(-ENOMEM);
--
- 	/*
- 	 * Only scan the relevant parts containing pointers to other objects
- 	 * to avoid false negatives.
-@@ -516,7 +505,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	BUG_ON(va->va_start < vstart);
- 	BUG_ON(va->va_end > vend);
- 
--	return va;
-+	return 0;
- 
- overflow:
- 	spin_unlock(&vmap_area_lock);
-@@ -538,8 +527,35 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit())
- 		pr_warn("vmap allocation for size %lu failed: use vmalloc=<size> to increase size\n",
- 			size);
--	kfree(va);
--	return ERR_PTR(-EBUSY);
-+
-+	return -EBUSY;
-+}
-+
-+/*
-+ * Allocate a region of KVA of the specified size and alignment, within the
-+ * vstart and vend.
-+ */
-+static struct vmap_area *alloc_vmap_area(unsigned long size,
-+					 unsigned long align,
-+					 unsigned long vstart,
-+					 unsigned long vend,
-+					 int node, gfp_t gfp_mask)
-+{
-+	struct vmap_area *va;
-+	int ret;
-+
-+	va = kmalloc_node(sizeof(struct vmap_area),
-+			gfp_mask & GFP_RECLAIM_MASK, node);
-+	if (unlikely(!va))
-+		return ERR_PTR(-ENOMEM);
-+
-+	ret = init_vmap_area(va, size, align, vstart, vend, node, gfp_mask);
-+	if (ret) {
-+		kfree(va);
-+		return ERR_PTR(ret);
-+	}
-+
-+	return va;
- }
- 
- int register_vmap_purge_notifier(struct notifier_block *nb)
--- 
-2.20.1
+I thought so too, and have been puzzled by it.  If I try removing the
+initialization of inode from the next function, shmem_unlink(), I do
+get the expected warning for that.
+
+> 
+> Is it just that the goto ends up confusing gcc enough that it never notices?
+
+Since the goto route did have ret properly initialized, I don't see
+why it might have been confusing, but what do I know...
+
+I thought it might be because outside the goto route, ret was used
+for nothing but the return value.  But that's disproved: I tried a
+very silly "inode->i_flags = ret;" just after d_instantiate(),
+and still no warning when ret is uninitialized.
+
+Seems like a gcc bug? But I don't have a decent recent gcc to hand
+to submit a proper report, hope someone else can shed light on it.
+
+Hugh
 
