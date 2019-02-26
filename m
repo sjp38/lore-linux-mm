@@ -2,253 +2,180 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C60FC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 11:12:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A861C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 11:13:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CA7772146F
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 11:12:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA7772146F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id BC6AF2146F
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 11:13:03 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="S/1urR1/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC6AF2146F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 305A98E0003; Tue, 26 Feb 2019 06:12:13 -0500 (EST)
+	id 5D36A8E0004; Tue, 26 Feb 2019 06:13:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2B5E48E0001; Tue, 26 Feb 2019 06:12:13 -0500 (EST)
+	id 574DF8E0001; Tue, 26 Feb 2019 06:13:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 17F3B8E0003; Tue, 26 Feb 2019 06:12:13 -0500 (EST)
+	id 43C678E0004; Tue, 26 Feb 2019 06:13:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CE8358E0001
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 06:12:12 -0500 (EST)
-Received: by mail-pg1-f199.google.com with SMTP id 17so9353740pgw.12
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 03:12:12 -0800 (PST)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E47E38E0001
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 06:13:02 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id x15so665229wmc.1
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 03:13:02 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent:message-id;
-        bh=YxHXkrEV7ESPBwEfQscaIAoOG80d5js6lj4v7Hk+Q8E=;
-        b=LbU3/tX5pMhbD4LcULafQkmBlykUAU71/OevnDZ4M8VrFi67+MBGb2SNDwKmE4/P0r
-         bB37RLywJ8hOIwWAVXe2TbrFY7OQ+49oMINfgu169DlPj0yaj91YaIVfmUVhoiPqdxZ6
-         xHqxG9bpxEFJ3VNPJMTU1RR5rbVfuVd4kxq/IqludekLx49BaZ+CPnCynxprFqVN2D8l
-         gZLH33XgyJ0d8mQpK5id5/oJFOKwhNMulqaspGrDuB2YtJwfz/QfERFCYRCB1sAB94WD
-         NwXNq2tn8EaeJlIGDmfycpRI+3TbvXAQSaNgNhUYYicNRPIQTkKzaClqYaczdSbZN4Ch
-         sAKg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAubvOIaquv6fxPY9Id2Er/yMXUN7gAIT1pIQKEiUYl09nilkPWmH
-	5tm02aTV6YirriF0ts0QeuGmPxkcdHwRH2PBiat/Q76IHzdfncL6vHPX/gIIN/o/x+52az5GgXB
-	mOmmcAw0QKz9DKAW4ahhgDKWyDBVOBKv9I0JObILo5SwpigrSrZKes+COTXsjdtYEEQ==
-X-Received: by 2002:a62:445a:: with SMTP id r87mr25028713pfa.13.1551179532353;
-        Tue, 26 Feb 2019 03:12:12 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IayeRedoHbu91Ii1A7Zza5kOm3WhSADBTt/oquA2QTrkeO1rEAyENFdSc/x9zof6bCEkRLM
-X-Received: by 2002:a62:445a:: with SMTP id r87mr25028634pfa.13.1551179531246;
-        Tue, 26 Feb 2019 03:12:11 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551179531; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=QHqS9FYiG1zBoxmbf0V7JRLtAFvidK6oH6Is4fIvoJ4=;
+        b=AgMYh20raWZ4nX3KdSXqbBmfb/nzVFLCYnlijR8xnjQ2DxxxVbPeJ5my/M2ecY04wZ
+         A7sTXKQmoEjFTdwFZAz4IbG9xfaD9Mdaj/SFuQ3s4d+h6kIuv7vo3wSVv7VcWl9Ga+wJ
+         NGQtBUHfKkj6gdDn8H8KcxkDctFtFavtUAs2uyPKzyxakHB2yI+zmxhG9TIr1BKsJt/K
+         jlZH99V4JDUtMU+0hHSaKXvYEI5Rt6hvvRnlb9ckPAPwrnRYrYKJyOr/SoJFx6xO1RJt
+         JOwVeQuvp1c4SYJ4A1DkaHRv1Mipq7LFoAc6SmrquT9X6qAlsKTLgxfyzJpbX01ajiWQ
+         dBIA==
+X-Gm-Message-State: AHQUAuYOYH2EBzUArOnj/HfZTJKXqP0C1MB0tKOSaMn6mOKPFZITJ1IE
+	+0SA0HsTQLhe2qSz0u95ZOVGnpSxPIUwOuk6xCzzaNNYopGD7ZkfYI+b2Wgc+yeE5SleVcPFoWC
+	nHNOIciNoMECzDpxZ1BmlxlMNEnBMzi79X900+ZEwtmrZyJrjwdbZgzPSS9+2uA1zWN5sOSkXBV
+	G8yJTWGm28KDbR6DSPGoXqxcBSIKN+NQmjF85g330iC0j5jjAYUlSzdq2JxZjCOoUoO0JLNNkZr
+	t/BFjoia6k6JVtyf0QPVs2IhhpEop6wFJ0UXFCkAzcmMDbH2OipnKOcvCA/5zklG7dNPl9cMSby
+	0QKoKY//mwPBTZpZIuFVGMk2Py3Qp6h58Lq/zo5ky+0dWjLeefLCio7QYWOUlntbucLhgThDn1R
+	+
+X-Received: by 2002:adf:e98c:: with SMTP id h12mr16928513wrm.302.1551179582497;
+        Tue, 26 Feb 2019 03:13:02 -0800 (PST)
+X-Received: by 2002:adf:e98c:: with SMTP id h12mr16928439wrm.302.1551179581555;
+        Tue, 26 Feb 2019 03:13:01 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551179581; cv=none;
         d=google.com; s=arc-20160816;
-        b=PbpSXs7s+tLy/HPT+UBo0+kX3NOo0D7BB3dCoBOXhgN2sv2fjGlLO+LahQ4dmXiJ8p
-         ccpkI5PvQkTo8h0QHMMMGBfRRHiwNhZXv0YgDuCOxCBKrTvCyDEVRVfrvs4LeWzQ3Luj
-         F2gY6a7oGQOAg4CHhDryHKQNNAgUSkrPN0WXbof+CZExZpySVHTH5F0UjSIy9OLxceyN
-         1fP4uzpdx2YHHOeUU0z3whTztGFfD6htB6V9k+6c3zYA1ycGSQ41AQ8riUnhAz20lehe
-         65ZneJwd6sH1tX2AGOpl5R64CA3FAsqMK+q3RKCZ3y3w0I2XC3+JwNPT+X3Qgj3JUDLY
-         EEnw==
+        b=ymfKPuni2kcItSLbVfaJRKKWHwQ2hm5TJ/CFj4ktrAAkXv0bAeIVoLog1fSo0jUtVf
+         Y5kpIlqAOBMVzpLSXKsnNhN9MpwdeKRRHGNJ7JawDHwGkrNKejZfm8jKyp2WLT1XUr3v
+         d0Ti6HUaL4EPkdpawD/WjDDyfpCuocFOgBFJ9Hjn0ZT+qRwsiXmrr5ctT7Lp7amNRIGx
+         PDUU6ztXg3ZPSLlleeFEn9pGgTIMYo9KdIq2tnzMMVXW7dUsu8FKTlAHx8gXf6zyiX9J
+         jJj97ORCN06v6OkjOEIQUehp2eue082klE5BlXSO0jFOz2D6oM7SKRNrVp7Ru2vHlnWY
+         1V9g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:subject:cc:to:from:date;
-        bh=YxHXkrEV7ESPBwEfQscaIAoOG80d5js6lj4v7Hk+Q8E=;
-        b=t/6L7awqNgFYsx4P29aBjBlZ4dJuFVM0+LKellPQuFfbzZ6cHMBK+d7Zw1iSPIFAAY
-         ZxDLIoRZk9KO/k8a0aqhII5n3O9cVLef8VU2p0TxkMzbVJ5yw80mH81+DMEQUQBfM51m
-         9t93yciaRMAaD4rZaCjqap/Qq5OpleKGF59FoMnXkUiRL1M40I7Dg1/82RSPtAut5w6q
-         AFOTyW9nbo4mWCI5FARQi4jZ8bEz3Ut/ZQdWqGEfbXPoDmvWnJm24aq/Rsg9BGLBdP+E
-         06w+990eC80wfUgZu+JywJZ4tr/O+gseXLRirLX+9RBpKf2oMsSOeUTaw2EnKCh2jfox
-         MN1Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=QHqS9FYiG1zBoxmbf0V7JRLtAFvidK6oH6Is4fIvoJ4=;
+        b=i6+I1M5hK1LcuRgFf8StXOzS5h0WuZtG0JPIAy/s77A0nYkqlcxZyxI9xUiGivDem7
+         sUMaLxAbry3sJCFSvMVn4qr1DXx5lsJJ3RR7tNxvY1t1SO/b9rH5gcaqa7YhMtddU9qu
+         gvCGkyMPZb14AosmFAMLla5TGTl+fnW67ANKErmVmrBIbseeHMJkB1XRzmxbbkf17MCi
+         k/dMSA9wCtIildbykPg+uoGBmWYjjtaKrasz/GQPqbbtyIift5nh9eMuSF14KW78JvU9
+         vwtEwI/IVz8fPxjCMC2XNFdgNbqJJRBFTpDNWAV4LfscJVYVsRDpq+Y9JtQzHLL+pjsQ
+         othg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t24si11246199pgv.141.2019.02.26.03.12.10
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="S/1urR1/";
+       spf=pass (google.com: domain of tom.leiming@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=tom.leiming@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x4sor7049048wmk.14.2019.02.26.03.13.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Feb 2019 03:12:11 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        (Google Transport Security);
+        Tue, 26 Feb 2019 03:13:01 -0800 (PST)
+Received-SPF: pass (google.com: domain of tom.leiming@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1QBBhxU053101
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 06:12:10 -0500
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qw3n4tq4w-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 06:12:09 -0500
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 26 Feb 2019 11:12:07 -0000
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 26 Feb 2019 11:12:02 -0000
-Received: from d06av24.portsmouth.uk.ibm.com (d06av24.portsmouth.uk.ibm.com [9.149.105.60])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1QBC1eB31064226
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Tue, 26 Feb 2019 11:12:01 GMT
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 74FAB42041;
-	Tue, 26 Feb 2019 11:12:01 +0000 (GMT)
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 6BB7542042;
-	Tue, 26 Feb 2019 11:12:00 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.84])
-	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Tue, 26 Feb 2019 11:12:00 +0000 (GMT)
-Date: Tue, 26 Feb 2019 13:11:58 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Peng Fan <peng.fan@nxp.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>,
-        Catalin Marinas <catalin.marinas@arm.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        "labbott@redhat.com" <labbott@redhat.com>,
-        "mhocko@suse.com" <mhocko@suse.com>,
-        "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>,
-        "rppt@linux.vnet.ibm.com" <rppt@linux.vnet.ibm.com>,
-        "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>,
-        "rdunlap@infradead.org" <rdunlap@infradead.org>,
-        "andreyknvl@google.com" <andreyknvl@google.com>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-        "van.freenix@gmail.com" <van.freenix@gmail.com>
-Subject: Re: [PATCH] mm/cma: cma_declare_contiguous: correct err handling
-References: <20190214125704.6678-1-peng.fan@nxp.com>
- <20190214123824.fe95cc2e603f75382490bfb4@linux-foundation.org>
- <b78470e8-b204-4a7e-f9cc-eff9c609f480@suse.cz>
- <20190219174610.GA32749@rapoport-lnx>
- <AM0PR04MB448139C6E264579818E94CF6887F0@AM0PR04MB4481.eurprd04.prod.outlook.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="S/1urR1/";
+       spf=pass (google.com: domain of tom.leiming@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=tom.leiming@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=QHqS9FYiG1zBoxmbf0V7JRLtAFvidK6oH6Is4fIvoJ4=;
+        b=S/1urR1/rCTfMI1kbuJXJVXFlPl3G6THigx/0Jl7udoDmkpi0LLp4elqtSaij71S0w
+         DM/045jwfOAxNjQJFtqBG8+M6eo45azAxkNwkFpJtBETXpO160FfKt0FIZJrVUQln3fm
+         NcCR/KpQHaP+QM9rZHjN5akaMlmm7nBhlvEwwY/8SExGZsAtR7BCpUuRfyWPUYMTcyUC
+         bUf20RQw5vhu2QBReLIhpMWz6gnfCgOIIYuYP6R8IYIGEYrT8NKX69I5JndO4l6RZuLi
+         FVgwenrihVyYPnNSodd0OBe7qFYgZJefpalW3heqhStIGDL04vhYyH8Cek4NrTuMlTwH
+         +h+A==
+X-Google-Smtp-Source: AHgI3IbJHz73B55lSuZB2tgChvWyG+f3SNNJuU9R8d5KDwOBP8Iye0XxT6ZxlngQszFhVsJ56xW2KpcEMqMJWS1vYZk=
+X-Received: by 2002:a1c:eb1a:: with SMTP id j26mr2173623wmh.43.1551179581180;
+ Tue, 26 Feb 2019 03:13:01 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AM0PR04MB448139C6E264579818E94CF6887F0@AM0PR04MB4481.eurprd04.prod.outlook.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19022611-0028-0000-0000-0000034D2B68
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19022611-0029-0000-0000-0000240B7E14
-Message-Id: <20190226111158.GF11981@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-26_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902260084
+References: <20190225040904.5557-1-ming.lei@redhat.com> <20190225043648.GE23020@dastard>
+ <5ad2ef83-8b3a-0a15-d72e-72652b807aad@suse.cz> <20190225202630.GG23020@dastard>
+ <20190226022249.GA17747@ming.t460p> <20190226030214.GI23020@dastard>
+ <20190226032737.GA11592@bombadil.infradead.org> <20190226045826.GJ23020@dastard>
+ <20190226093302.GA24879@ming.t460p> <a641feb8-ceb2-2dac-27aa-7b1df10f5ae5@suse.cz>
+In-Reply-To: <a641feb8-ceb2-2dac-27aa-7b1df10f5ae5@suse.cz>
+From: Ming Lei <tom.leiming@gmail.com>
+Date: Tue, 26 Feb 2019 19:12:49 +0800
+Message-ID: <CACVXFVMX=WpTRBbDTSibfXkTZxckk3ootetbE+rkJtHhsZkRAw@mail.gmail.com>
+Subject: Re: [PATCH] xfs: allocate sector sized IO buffer via page_frag_alloc
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Ming Lei <ming.lei@redhat.com>, Dave Chinner <david@fromorbit.com>, 
+	Matthew Wilcox <willy@infradead.org>, "Darrick J . Wong" <darrick.wong@oracle.com>, 
+	"open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, 
+	Vitaly Kuznetsov <vkuznets@redhat.com>, Dave Chinner <dchinner@redhat.com>, 
+	Christoph Hellwig <hch@lst.de>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, 
+	Aaron Lu <aaron.lu@intel.com>, Christopher Lameter <cl@linux.com>, 
+	Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	linux-block <linux-block@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, 
+	David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 22, 2019 at 12:55:41PM +0000, Peng Fan wrote:
-> 
-> 
-> > -----Original Message-----
-> > From: Mike Rapoport [mailto:rppt@linux.ibm.com]
-> > Sent: 2019年2月20日 1:46
-> > To: Vlastimil Babka <vbabka@suse.cz>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>; Peng Fan
-> > <peng.fan@nxp.com>; labbott@redhat.com; mhocko@suse.com;
-> > iamjoonsoo.kim@lge.com; rppt@linux.vnet.ibm.com;
-> > m.szyprowski@samsung.com; rdunlap@infradead.org;
-> > andreyknvl@google.com; linux-mm@kvack.org; linux-kernel@vger.kernel.org;
-> > van.freenix@gmail.com; Catalin Marinas <catalin.marinas@arm.com>
-> > Subject: Re: [PATCH] mm/cma: cma_declare_contiguous: correct err handling
-> > 
-> > On Tue, Feb 19, 2019 at 05:55:33PM +0100, Vlastimil Babka wrote:
-> > > On 2/14/19 9:38 PM, Andrew Morton wrote:
-> > > > On Thu, 14 Feb 2019 12:45:51 +0000 Peng Fan <peng.fan@nxp.com>
-> > wrote:
-> > > >
-> > > >> In case cma_init_reserved_mem failed, need to free the memblock
-> > > >> allocated by memblock_reserve or memblock_alloc_range.
-> > > >>
-> > > >> ...
-> > > >>
-> > > >> --- a/mm/cma.c
-> > > >> +++ b/mm/cma.c
-> > > >> @@ -353,12 +353,14 @@ int __init
-> > cma_declare_contiguous(phys_addr_t
-> > > >> base,
-> > > >>
-> > > >>  	ret = cma_init_reserved_mem(base, size, order_per_bit, name,
-> > res_cma);
-> > > >>  	if (ret)
-> > > >> -		goto err;
-> > > >> +		goto free_mem;
-> > > >>
-> > > >>  	pr_info("Reserved %ld MiB at %pa\n", (unsigned long)size / SZ_1M,
-> > > >>  		&base);
-> > > >>  	return 0;
-> > > >>
-> > > >> +free_mem:
-> > > >> +	memblock_free(base, size);
-> > > >>  err:
-> > > >>  	pr_err("Failed to reserve %ld MiB\n", (unsigned long)size / SZ_1M);
-> > > >>  	return ret;
-> > > >
-> > > > This doesn't look right to me.  In the `fixed==true' case we didn't
-> > > > actually allocate anything and in the `fixed==false' case, the
-> > > > allocated memory is at `addr', not at `base'.
-> > >
-> > > I think it's ok as the fixed==true path has "memblock_reserve()", but
-> > > better leave this to the memblock maintainer :)
-> > 
-> > As Peng Fan noted in the other e-mail, fixed==true has memblock_reserve()
-> > and fixed==false resets base = addr, so this is Ok.
-> > 
-> > > There's also 'kmemleak_ignore_phys(addr)' which should probably be
-> > > undone (or not called at all) in the failure case. But it seems to be
-> > > missing from the fixed==true path?
-> > 
-> > Well, memblock and kmemleak interaction does not seem to have clear
-> > semantics anyway. memblock_free() calls kmemleak_free_part_phys() which
-> > does not seem to care about ignored objects.
-> > As for the fixed==true path, memblock_reserve() does not register the area
-> > with kmemleak, so there would be no object to free in memblock_free().
-> > AFAIU, kmemleak simply ignores this.
-> 
-> I also go through the memblock_free flow, and agree with Mike
-> memblock_free 
->     -> kmemleak_free_part_phys 
->           -> kmemleak_free_part
->                  |-> delete_object_part
->                          |-> object = find_and_remove_object(ptr, 1);
-> 
-> memblock_reserve not register the area in kmemleak, so find_and_remove_object
-> will not be able to find a valid area and just return.
-> 
-> What should I do next with this patch?
- 
-I'd suggest to wait for Catalin to review it.
+On Tue, Feb 26, 2019 at 6:07 PM Vlastimil Babka <vbabka@suse.cz> wrote:
+>
+> On 2/26/19 10:33 AM, Ming Lei wrote:
+> > On Tue, Feb 26, 2019 at 03:58:26PM +1100, Dave Chinner wrote:
+> >> On Mon, Feb 25, 2019 at 07:27:37PM -0800, Matthew Wilcox wrote:
+> >>> On Tue, Feb 26, 2019 at 02:02:14PM +1100, Dave Chinner wrote:
+> >>>>> Or what is the exact size of sub-page IO in xfs most of time? For
+> >>>>
+> >>>> Determined by mkfs parameters. Any power of 2 between 512 bytes and
+> >>>> 64kB needs to be supported. e.g:
+> >>>>
+> >>>> # mkfs.xfs -s size=512 -b size=1k -i size=2k -n size=8k ....
+> >>>>
+> >>>> will have metadata that is sector sized (512 bytes), filesystem
+> >>>> block sized (1k), directory block sized (8k) and inode cluster sized
+> >>>> (32k), and will use all of them in large quantities.
+> >>>
+> >>> If XFS is going to use each of these in large quantities, then it doesn't
+> >>> seem unreasonable for XFS to create a slab for each type of metadata?
+> >>
+> >>
+> >> Well, that is the question, isn't it? How many other filesystems
+> >> will want to make similar "don't use entire pages just for 4k of
+> >> metadata" optimisations as 64k page size machines become more
+> >> common? There are others that have the same "use slab for sector
+> >> aligned IO" which will fall foul of the same problem that has been
+> >> reported for XFS....
+> >>
+> >> If nobody else cares/wants it, then it can be XFS only. But it's
+> >> only fair we address the "will it be useful to others" question
+> >> first.....
+> >
+> > This kind of slab cache should have been global, just like interface of
+> > kmalloc(size).
+> >
+> > However, the alignment requirement depends on block device's block size,
+> > then it becomes hard to implement as genera interface, for example:
+> >
+> >       block size: 512, 1024, 2048, 4096
+> >       slab size: 512*N, 0 < N < PAGE_SIZE/512
+> >
+> > For 4k page size, 28(7*4) slabs need to be created, and 64k page size
+> > needs to create 127*4 slabs.
+> >
+>
+> Where does the '*4' multiplier come from?
 
-I think it's also worth making the changelog more elaborate and include the
-details we've discussed in this thread.
+The buffer needs to be device block size aligned for dio, and now the block
+size can be 512, 1024, 2048 and 4096.
 
-> Thanks,
-> Peng.
-> 
-> > 
-> > Catalin, can you comment please?
-> > 
-> > --
-> > Sincerely yours,
-> > Mike.
-> 
-
--- 
-Sincerely yours,
-Mike.
+Thanks,
+Ming Lei
 
