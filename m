@@ -2,149 +2,311 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DF43EC10F0B
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 11:57:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C642C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 11:59:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9A9C821852
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 11:57:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A9C821852
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axis.com
+	by mail.kernel.org (Postfix) with ESMTP id 4501621852
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 11:59:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4501621852
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 163CC8E0003; Tue, 26 Feb 2019 06:57:45 -0500 (EST)
+	id D715E8E0003; Tue, 26 Feb 2019 06:58:59 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0C5DF8E0001; Tue, 26 Feb 2019 06:57:45 -0500 (EST)
+	id D21568E0001; Tue, 26 Feb 2019 06:58:59 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E82718E0003; Tue, 26 Feb 2019 06:57:44 -0500 (EST)
+	id BC2E08E0003; Tue, 26 Feb 2019 06:58:59 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 73D998E0001
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 06:57:44 -0500 (EST)
-Received: by mail-lj1-f197.google.com with SMTP id u13so2209119ljj.13
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 03:57:44 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FD328E0001
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 06:58:59 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id x134so10275693pfd.18
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 03:58:59 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=DzA8XlhpCqjkpGRFyb9davwCKEonlhrFSYuD0gjjfiE=;
-        b=S0P3lixEW/2hraufa78G9SoUkpH8aTc2SlBPt0kvtcBDpY0Oi9W2WdNU3SYYnUuSMO
-         nHcA4Yi7c9ffx/kv4UKPMHhLISc4HtBs616k0yWO0PLj6Ed8NmwrujW+tixJt0pvg2v3
-         FyblE+OZiNzKcB/4yWQBmbAB/0klCuoPxPEHm5zKH4s22NCxS9yMQr8n5r5L43QkF0GV
-         JOx1iIdjYGwq7ZpmHN8XokfxYkd/dOxluM0cLb4blC7V//K29rJ3bZ8U5EDDsLByVLVN
-         KTh8MfYoAPFaVrbV455obzl3EMOYBP+WtfGXvl0mWW4PnP8lun/WDTAfvtVaOwo/iI81
-         0dKQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of lars.persson@axis.com designates 195.60.68.11 as permitted sender) smtp.mailfrom=lars.persson@axis.com
-X-Gm-Message-State: AHQUAuasfiuopo24z3c/3tccyxfntnLdux5biHBKryFmuCdbg1pxKRdv
-	J9e4hgC4u3MBlcVbcfRDg7RT9vDLqnoEFIMkX0ecPUPPd+jvMTehgm3q8lJGOHzi5Y34jBf9UiZ
-	jPUfciSmDHuYOaIStH2CjkrRsb+vCBKRDVmiwd4Nb9/+Hk7L0T/cqMsg7ZecgKjvytg==
-X-Received: by 2002:ac2:5227:: with SMTP id i7mr1217770lfl.24.1551182263852;
-        Tue, 26 Feb 2019 03:57:43 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZEx8x+e0nPxPoVKmrzdzpqzYpURzn70PENZSy+ZZUy1qtJvnZinEX4LS2VVYjj3X3IGxRQ
-X-Received: by 2002:ac2:5227:: with SMTP id i7mr1217727lfl.24.1551182262755;
-        Tue, 26 Feb 2019 03:57:42 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551182262; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=8DjPxbDx0/UpaVBElzkElXeOMCcBl75Zr/zeSSEP1pM=;
+        b=er2f77k1xgBnWm+BMAjgYUY9D82musnxI+pX6u5duUw6Tk/Q7P2o7d57XEfRiJMar+
+         aHofflTuhhY7Jq/QzE7qhQPYKvA4rEhFeqRjAgvB+TVU9DQPxCkGDb+5+J1QV8V3+DgX
+         zfE95HVkcXRaf285Jnh6GeeIXarjh9oNKjASZBeUsv5B6+6XHJhyzR5uzvsJKvn+xHfI
+         hVkQYu2+1+ittCW5KVMDNjH+vQKECBN45dlhLclb4JMRF8NfNDfEAgfKFHnOsJB/nvKu
+         ++dMGlErTGFsg+fq5NuS3rK4NNEGjpTwPA1+AaF6Y5TcxVSOFgiYY7JwOmw0laPCFGBW
+         AZKA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuZv+9CPA56eK/xzNikTZz9AYE9/dq319TTDMEfhQ0zBTQINRT7O
+	yxXM8UlHJNxdLsDDmuwb50O41pZG80JoIMM3OPI54BrSin7KnJbK9eC1ZWRUDC61hcu7p0lTRVj
+	bRnNORdX0PCCiCLoM3djvkZY/IzapboXJ1Pm23ZFww4bUzm91FpYmuxYQ98hGqd7lUg==
+X-Received: by 2002:a65:6489:: with SMTP id e9mr24042552pgv.260.1551182339188;
+        Tue, 26 Feb 2019 03:58:59 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZMHWWUIZ42KtnrMYDmJrXWVh+wFBDoGoGK+7/sPozYIiY2sA4Oznwqag3KCfyp4p99AxFX
+X-Received: by 2002:a65:6489:: with SMTP id e9mr24042490pgv.260.1551182338202;
+        Tue, 26 Feb 2019 03:58:58 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551182338; cv=none;
         d=google.com; s=arc-20160816;
-        b=wu2TN0GVBAG4GWHO5mDHXa1AJ19XwByRJ2KoTv6rRuH/nGbK1PgSfVSkNitrSTl2gw
-         am7wGBQh9hl1uARkJXRxi9+5SvN+bLVO5bIcaUPX9pDwLGN4YG3BZewCTC5Ry+ITAifv
-         fHe/weXLML9xfpH00FuBdyiGutcfW0ymPhuRCu7wOibb2srPha5b0g+chLuzJN+aYChz
-         KeI2LzpBl52AYd/E5k/aUeXyqixTcyEN26vA8/pq4vqDr/5o9sq42zEsdZPTZ24S9d/+
-         IhWWLTv2iZewmdcu4pRxqgxu64bVpgUTTSML/V1z8vgh0qElKhFTH51xuHJRarB5wvuE
-         ewPA==
+        b=Hm+ROyX705sSNpxAlygS85I6ksqwvtM9k5cpY5g0PwNl+iYWomiqTmJv2XgqlskW6x
+         rNMsGf3bLAv+iFV8BKduSYRua7tgWMayfR0Dts31s6LROaVAtQiNz1jdJcAtPWijW5wJ
+         wG5E8Tp8NFc6VOObst3D+P3bfaVnJJ6F5sNf45uLOWL2Ioqb6tTF1xnzQwCHYuFnRw8p
+         gTo238jkGXXF5vv9UDkLNMhUvFJb+0rsoYWPOOM5kl5e5nH6AYN+0aOrlelUgvW8uBCy
+         rLsz52XZRBKGBfZ3vpEGz4TF6eA8vRCCvQMIxWv+iCHhYMMeiReohV9A03vTkeY3nViU
+         dfdw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=DzA8XlhpCqjkpGRFyb9davwCKEonlhrFSYuD0gjjfiE=;
-        b=gO7T/AwlM1c/RXnyo63D3vvQ/mrc3RE9gtKAxC+gwjlpInIuvVdyv+M7Vjxkfhyl87
-         Big3jGJORIgBQOMSu7Cb7Hfj3xdfmZxpqnzHyCM5zHw+K9YS34aR1Uo4SFT3HhTj/7BB
-         U7HWfI+J3axEaAEAw9doFAx+nc702LMm2RODqQAXPGMMIjn1XqBP7ZYYiV7/a5qC6Z43
-         Vps80Yq/ygzlNm1PxOxW0RgMdwPLM7h9PNaV3n+P+d4bk44GLfEBvsu4dsSmGJ3rKu36
-         6EadYHpi4P9UpxPrknsg3lZYS/w8oduEUevLxhkQBv1ZZMOCzD1WgNi43Z+cAjXIKWUX
-         zoBg==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=8DjPxbDx0/UpaVBElzkElXeOMCcBl75Zr/zeSSEP1pM=;
+        b=Lrl9Ideq/0H3zIHLWOeT2qR+4L/md2yosZLj4yXJ6fjJLuzGWK9qsZ64hbQdLZSsHr
+         e9k7c8LOmZHY7iVl+8VxLsTsrDGdJOn2ZTWhh5SShJpnnqgwS1jh9sqTzmYc1MXqOj50
+         /l9xC986ERobwcgXegp9bkdUPw/m5YHN9TS9i9SKt0FDnQ3Feh+u3ZaXPmkJesrv9qIz
+         VlxglTss5U7mzZQCVQ48ZiO08MV1/NRUma8kaYRHAL2jY7q1dfozG2Ny49mQFHn4T+bi
+         MRvb+I111I36Z8RgUb69O+wpAQAMTbm9OEzjQ0a1mnBSzmuj6xmjUmghbmHRaQ+Z7Tpq
+         MrzQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of lars.persson@axis.com designates 195.60.68.11 as permitted sender) smtp.mailfrom=lars.persson@axis.com
-Received: from bastet.se.axis.com (bastet.se.axis.com. [195.60.68.11])
-        by mx.google.com with ESMTPS id a7si8685942lfh.121.2019.02.26.03.57.42
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id b9si11622530plr.66.2019.02.26.03.58.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Feb 2019 03:57:42 -0800 (PST)
-Received-SPF: pass (google.com: domain of lars.persson@axis.com designates 195.60.68.11 as permitted sender) client-ip=195.60.68.11;
+        Tue, 26 Feb 2019 03:58:58 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of lars.persson@axis.com designates 195.60.68.11 as permitted sender) smtp.mailfrom=lars.persson@axis.com
-Received: from localhost (localhost [127.0.0.1])
-	by bastet.se.axis.com (Postfix) with ESMTP id 423691846D;
-	Tue, 26 Feb 2019 12:57:42 +0100 (CET)
-X-Axis-User: NO
-X-Axis-NonUser: YES
-X-Virus-Scanned: Debian amavisd-new at bastet.se.axis.com
-Received: from bastet.se.axis.com ([IPv6:::ffff:127.0.0.1])
-	by localhost (bastet.se.axis.com [::ffff:127.0.0.1]) (amavisd-new, port 10024)
-	with LMTP id U9yypqn2ZoG4; Tue, 26 Feb 2019 12:57:41 +0100 (CET)
-Received: from boulder03.se.axis.com (boulder03.se.axis.com [10.0.8.17])
-	by bastet.se.axis.com (Postfix) with ESMTPS id B3628180B3;
-	Tue, 26 Feb 2019 12:57:41 +0100 (CET)
-Received: from boulder03.se.axis.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 85E5D1E07B;
-	Tue, 26 Feb 2019 12:57:41 +0100 (CET)
-Received: from boulder03.se.axis.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 79B971E079;
-	Tue, 26 Feb 2019 12:57:41 +0100 (CET)
-Received: from thoth.se.axis.com (unknown [10.0.2.173])
-	by boulder03.se.axis.com (Postfix) with ESMTP;
-	Tue, 26 Feb 2019 12:57:41 +0100 (CET)
-Received: from XBOX04.axis.com (xbox04.axis.com [10.0.5.18])
-	by thoth.se.axis.com (Postfix) with ESMTP id 6D96076A;
-	Tue, 26 Feb 2019 12:57:41 +0100 (CET)
-Received: from [10.88.41.2] (10.0.5.60) by XBOX04.axis.com (10.0.5.18) with
- Microsoft SMTP Server (TLS) id 15.0.1365.1; Tue, 26 Feb 2019 12:57:41 +0100
-Subject: Re: [PATCH] mm: migrate: add missing flush_dcache_page for non-mapped
- page migrate
-To: Vlastimil Babka <vbabka@suse.cz>, Lars Persson <larper@axis.com>,
-	<linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>
-CC: <linux-mips@vger.kernel.org>
-References: <20190219123212.29838-1-larper@axis.com>
- <65ed6463-b61f-81ff-4fcc-27f4071a28da@suse.cz>
- <ed4dd065-5e1b-dc20-2778-6d0a727914a8@axis.com>
- <2de280a9-e82a-876c-e13b-a2e48d89700a@suse.cz>
-From: Lars Persson <lars.persson@axis.com>
-Message-ID: <24af691e-03ab-d79a-ddbd-7057dcf46826@axis.com>
-Date: Tue, 26 Feb 2019 12:57:37 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1QBsfBO095899
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 06:58:57 -0500
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qw3fr5s0r-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 06:58:57 -0500
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Tue, 26 Feb 2019 11:58:55 -0000
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 26 Feb 2019 11:58:48 -0000
+Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1QBwlTR32505948
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Tue, 26 Feb 2019 11:58:47 GMT
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id A8096A4055;
+	Tue, 26 Feb 2019 11:58:47 +0000 (GMT)
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 24D46A404D;
+	Tue, 26 Feb 2019 11:58:46 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.84])
+	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Tue, 26 Feb 2019 11:58:46 +0000 (GMT)
+Date: Tue, 26 Feb 2019 13:58:44 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Pingfan Liu <kernelfans@gmail.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>,
+        Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
+        "H. Peter Anvin" <hpa@zytor.com>,
+        Dave Hansen <dave.hansen@linux.intel.com>,
+        Vlastimil Babka <vbabka@suse.cz>,
+        Mike Rapoport <rppt@linux.vnet.ibm.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+        Andy Lutomirski <luto@kernel.org>, Andi Kleen <ak@linux.intel.com>,
+        Petr Tesarik <ptesarik@suse.cz>, Michal Hocko <mhocko@suse.com>,
+        Stephen Rothwell <sfr@canb.auug.org.au>,
+        Jonathan Corbet <corbet@lwn.net>, Nicholas Piggin <npiggin@gmail.com>,
+        Daniel Vacek <neelx@redhat.com>, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 2/6] mm/memblock: make full utilization of numa info
+References: <1551011649-30103-1-git-send-email-kernelfans@gmail.com>
+ <1551011649-30103-3-git-send-email-kernelfans@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <2de280a9-e82a-876c-e13b-a2e48d89700a@suse.cz>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-ClientProxiedBy: XBOX04.axis.com (10.0.5.18) To XBOX04.axis.com (10.0.5.18)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1551011649-30103-3-git-send-email-kernelfans@gmail.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-TM-AS-GCONF: 00
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.171532, version=1.2.4
+x-cbid: 19022611-0016-0000-0000-0000025B0F93
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19022611-0017-0000-0000-000032B57194
+Message-Id: <20190226115844.GG11981@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-26_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902260089
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Sun, Feb 24, 2019 at 08:34:05PM +0800, Pingfan Liu wrote:
+> There are numa machines with memory-less node. When allocating memory for
+> the memory-less node, memblock allocator falls back to 'Node 0' without fully
+> utilizing the nearest node. This hurts the performance, especially for per
+> cpu section. Suppressing this defect by building the full node fall back
+> info for memblock allocator, like what we have done for page allocator.
 
+Is it really necessary to build full node fallback info for memblock and
+then rebuild it again for the page allocator?
 
-On 2/26/19 11:07 AM, Vlastimil Babka wrote:
-> On 2/26/19 9:40 AM, Lars Persson wrote:
->>> What about CC stable and a Fixes tag, would it be applicable here?
->>>
->>
->> Yes this is candidate for stable so let's add:
->> Cc: <stable@vger.kernel.org>
->>
->> I do not find a good candidate for a Fixes tag.
+I think it should be possible to split parts of build_all_zonelists_init()
+that do not touch per-cpu areas into a separate function and call that
+function after topology detection. Then it would be possible to use
+local_memory_node() when calling memblock.
+ 
+> Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
+> CC: Thomas Gleixner <tglx@linutronix.de>
+> CC: Ingo Molnar <mingo@redhat.com>
+> CC: Borislav Petkov <bp@alien8.de>
+> CC: "H. Peter Anvin" <hpa@zytor.com>
+> CC: Dave Hansen <dave.hansen@linux.intel.com>
+> CC: Vlastimil Babka <vbabka@suse.cz>
+> CC: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: Mel Gorman <mgorman@suse.de>
+> CC: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> CC: Andy Lutomirski <luto@kernel.org>
+> CC: Andi Kleen <ak@linux.intel.com>
+> CC: Petr Tesarik <ptesarik@suse.cz>
+> CC: Michal Hocko <mhocko@suse.com>
+> CC: Stephen Rothwell <sfr@canb.auug.org.au>
+> CC: Jonathan Corbet <corbet@lwn.net>
+> CC: Nicholas Piggin <npiggin@gmail.com>
+> CC: Daniel Vacek <neelx@redhat.com>
+> CC: linux-kernel@vger.kernel.org
+> ---
+>  include/linux/memblock.h |  3 +++
+>  mm/memblock.c            | 68 ++++++++++++++++++++++++++++++++++++++++++++----
+>  2 files changed, 66 insertions(+), 5 deletions(-)
 > 
-> How bout a version range where the bug needs to be fixed then?
+> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> index 64c41cf..ee999c5 100644
+> --- a/include/linux/memblock.h
+> +++ b/include/linux/memblock.h
+> @@ -342,6 +342,9 @@ void *memblock_alloc_try_nid_nopanic(phys_addr_t size, phys_addr_t align,
+>  void *memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align,
+>  			     phys_addr_t min_addr, phys_addr_t max_addr,
+>  			     int nid);
+> +extern int build_node_order(int *node_oder_array, int sz,
+> +	int local_node, nodemask_t *used_mask);
+> +void memblock_build_node_order(void);
+> 
+>  static inline void * __init memblock_alloc(phys_addr_t size,  phys_addr_t align)
+>  {
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index 022d4cb..cf78850 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -1338,6 +1338,47 @@ phys_addr_t __init memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t ali
+>  	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
+>  }
+> 
+> +static int **node_fallback __initdata;
+> +
+> +/*
+> + * build_node_order() relies on cpumask_of_node(), hence arch should set up
+> + * cpumask before calling this func.
+> + */
+> +void __init memblock_build_node_order(void)
+> +{
+> +	int nid, i;
+> +	nodemask_t used_mask;
+> +
+> +	node_fallback = memblock_alloc(MAX_NUMNODES * sizeof(int *),
+> +		sizeof(int *));
+> +	for_each_online_node(nid) {
+> +		node_fallback[nid] = memblock_alloc(
+> +			num_online_nodes() * sizeof(int), sizeof(int));
+> +		for (i = 0; i < num_online_nodes(); i++)
+> +			node_fallback[nid][i] = NUMA_NO_NODE;
+> +	}
+> +
+> +	for_each_online_node(nid) {
+> +		nodes_clear(used_mask);
+> +		node_set(nid, used_mask);
+> +		build_node_order(node_fallback[nid], num_online_nodes(),
+> +			nid, &used_mask);
+> +	}
+> +}
+> +
+> +static void __init memblock_free_node_order(void)
+> +{
+> +	int nid;
+> +
+> +	if (!node_fallback)
+> +		return;
+> +	for_each_online_node(nid)
+> +		memblock_free(__pa(node_fallback[nid]),
+> +			num_online_nodes() * sizeof(int));
+> +	memblock_free(__pa(node_fallback), MAX_NUMNODES * sizeof(int *));
+> +	node_fallback = NULL;
+> +}
+> +
+>  /**
+>   * memblock_alloc_internal - allocate boot memory block
+>   * @size: size of memory block to be allocated in bytes
+> @@ -1370,6 +1411,7 @@ static void * __init memblock_alloc_internal(
+>  {
+>  	phys_addr_t alloc;
+>  	void *ptr;
+> +	int node;
+>  	enum memblock_flags flags = choose_memblock_flags();
+> 
+>  	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
+> @@ -1397,11 +1439,26 @@ static void * __init memblock_alloc_internal(
+>  		goto done;
+> 
+>  	if (nid != NUMA_NO_NODE) {
+> -		alloc = memblock_find_in_range_node(size, align, min_addr,
+> -						    max_addr, NUMA_NO_NODE,
+> -						    flags);
+> -		if (alloc && !memblock_reserve(alloc, size))
+> -			goto done;
+> +		if (!node_fallback) {
+> +			alloc = memblock_find_in_range_node(size, align,
+> +					min_addr, max_addr,
+> +					NUMA_NO_NODE, flags);
+> +			if (alloc && !memblock_reserve(alloc, size))
+> +				goto done;
+> +		} else {
+> +			int i;
+> +			for (i = 0; i < num_online_nodes(); i++) {
+> +				node = node_fallback[nid][i];
+> +				/* fallback list has all memory nodes */
+> +				if (node == NUMA_NO_NODE)
+> +					break;
+> +				alloc = memblock_find_in_range_node(size,
+> +						align, min_addr, max_addr,
+> +						node, flags);
+> +				if (alloc && !memblock_reserve(alloc, size))
+> +					goto done;
+> +			}
+> +		}
+>  	}
+> 
+>  	if (min_addr) {
+> @@ -1969,6 +2026,7 @@ unsigned long __init memblock_free_all(void)
+> 
+>  	reset_all_zones_managed_pages();
+> 
+> +	memblock_free_node_order();
+>  	pages = free_low_memory_core_early();
+>  	totalram_pages_add(pages);
+> 
+> -- 
+> 2.7.4
 > 
 
-The distinction between mapped and non-mapped old page was introduced in 2ebba6b7e1d9 ("mm: unmapped page migration avoid unmap+remap overhead") so at least it applies to stable 4.4+.
-
-Before that patch there was always a call to remove_migration_ptes() but I cannot conclude if those earlier versions actually will reach the flush_dcache_page call if the old page was unmapped.
+-- 
+Sincerely yours,
+Mike.
 
