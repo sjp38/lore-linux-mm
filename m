@@ -2,611 +2,421 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2EF1DC10F0B
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 06:49:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DAC93C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 06:50:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C2EA620684
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 06:49:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C2EA620684
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 823BE213A2
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 06:50:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 823BE213A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5282A8E0003; Tue, 26 Feb 2019 01:49:12 -0500 (EST)
+	id 219F08E0002; Tue, 26 Feb 2019 01:50:46 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4D9018E0002; Tue, 26 Feb 2019 01:49:12 -0500 (EST)
+	id 1CA7E8E0004; Tue, 26 Feb 2019 01:50:46 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3C7C78E0003; Tue, 26 Feb 2019 01:49:12 -0500 (EST)
+	id 0C5198E0002; Tue, 26 Feb 2019 01:50:46 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E28E68E0002
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 01:49:11 -0500 (EST)
-Received: by mail-pf1-f199.google.com with SMTP id k10so9785777pfi.5
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 22:49:11 -0800 (PST)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D31748E0002
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 01:50:45 -0500 (EST)
+Received: by mail-io1-f70.google.com with SMTP id z22so9739364iog.5
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 22:50:45 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=TREPXbHUIJP1ya86Erf88SaPjpxZDAB6xa3+6w6uDTM=;
-        b=GnMgalwmEI23L7e2aPdDw0FBHlpwxP/9kvAGSRB5rwNXFDuElJEm+8Ed3kMQfG6eQR
-         ClfcLLKoZufQgjHBdvBOwL6MucgyNKsX6+1EEIrzbug0x3vZbcz7/qmsDuyco+E6NW1c
-         U1u6hIWirqcCOrDhTPp5+hv4XPrachHXQ/Qyuw715IHK06C1c8etelyCZAl0ytnVz8lm
-         ceSVfOJ2qzi1kPCn5Q0r8LVePlMIkHCQ0KK1pax/QebrXDaN9kr+LxBmZCt/c1yH9Iad
-         jrqlHb/gJn8r1O1kyXXS+5ImPleX79GVY2La3s9BYUhQpd/k/ly2WrxdYkVFNqltkRxX
-         tsmA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAua0dT2+X2niY6lizBjGw5qYoylEaC+bedph6YkLBjtavEs+BOCm
-	SDB6nNMD+21tkLBMtfF/LXAy6UWDIBSWOetUcWjNajAWxPGqslp+jWdgl55HZoumOfFZJDrb/Vt
-	JoB1v/nOi6ygF+QgwygKw0YaLfRx4WOFf9d+hdCmIoZnsyo0Oo8s+dXNEIh2IrsvxRA==
-X-Received: by 2002:a63:6bc1:: with SMTP id g184mr19378302pgc.25.1551163751522;
-        Mon, 25 Feb 2019 22:49:11 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbCEzZt6yjcY2KdJI6dNJMgbbcBlXz5GNRlcbPb6qOaxdHo+D5JPgjOab/04e4PQf45abva
-X-Received: by 2002:a63:6bc1:: with SMTP id g184mr19378238pgc.25.1551163750164;
-        Mon, 25 Feb 2019 22:49:10 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551163750; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=5hIKqkzIXsxkF8udtGIyRHxwK0fkgaeAkIRrb/6h2l4=;
+        b=aW8GTMIwgRYNPXpd2ys0peBqQ9mQcb3vet9G3bwRyaR/0o6wlD6RJntMTpxck7t+GL
+         XmSMHkweqVyFVZoPczPxyg87nOcUTyORtjIvj/exSKyGnRsd7sXVZPUt8HGeSZTEQA52
+         3ukTvyndwH5cbirSD8RH+QL69mwDdRPgyeL4pLkG68cJr94Woy8UMnis0D1/ZkdFlfBS
+         waaxNwJ2DNxwLiwPSTX4+TE/rp2Mib8mUS5ne9ko/45TtChIqDX95zT4luaIZvrCsaMX
+         /DLTDKYS+SDRZSOBWTcGfsIecL/R18Wfcft2LdcGyLNv/KoTjjMflUp3/3HK9JWKQRa0
+         g8kg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuZtnaTPwsdmp4mbhfInUGp8QYmOKuwEyzl2j4HMMPhQPRyn+zBz
+	6sFM3ToSds1obmHvt/4RrGmmBerglziqi01+o+KLaYR6Vx1IFkkrR1GKdV4863GAl8AquMk28Px
+	D0ynCOeoEzRDaqBYcIgirm0ug8iylHKBqBoAvg7sakrSzjCtkZx8y00YVJCDKmyGv4w==
+X-Received: by 2002:a24:6fce:: with SMTP id x197mr351378itb.108.1551163845605;
+        Mon, 25 Feb 2019 22:50:45 -0800 (PST)
+X-Google-Smtp-Source: APXvYqyt/2+JZO4bVTxvwwacF/RzS2IDi9TRADxhCgszA+ScapJKl3yK7VDJV30OwCQS0pljk2xz
+X-Received: by 2002:a24:6fce:: with SMTP id x197mr351345itb.108.1551163844482;
+        Mon, 25 Feb 2019 22:50:44 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551163844; cv=none;
         d=google.com; s=arc-20160816;
-        b=i3Emz0DuCwErQEvbXUCOOOMyjRAeU0Wzb29gi0adY7PWDdgW09oyb/gamK71DuC3Jt
-         fPYsMQFgckRsAyI4PqaXRJq/0cJxNaD8xHV2H3aJhrv+IscOfjX92Fb1ncffr6YmVlFR
-         xEiQ2uYA2146giCzCUpM8D5MXbHip54b8/3HHcyWmhudNAugwZAkJuWWN0MFwZ23KecL
-         3oPOt/lMaoYKw97BgyPFqZbUJimOOhTqoIbkMAuYKo3ty/n157LrwDqInIP9sJKko00G
-         9sDvRZ4Re+HZVVQTfNhnXU+nbHaZOZkY13tMkCNfy+RelyhJ8EYDnMOcSsV9VoHI1olf
-         SA8w==
+        b=B2MquDemtkmO7gZt186eeOCsq4PcuwWpRB/3865L+5iUU5b0S2VXkqhPycS64nvrW0
+         3pWyHXkX6IMNIHroszAK0zSC3qfIBE4G4smJNNEc9WrrzY0F0WTEfSB1Hhy0PtYKStf9
+         2KLMphwnttgXAYEGPqRrt1C1/OkeG0P+Olu6h9kxFda5/zwgzcZ3lAceGdF7hdNYYKp7
+         /tplGCDbCpuZZCRKUW2DkzQ5zSqF79qtOxsJIu/BZ6+Lv5jxKSxmNalIZoBVROVZRXk1
+         6+bjK5cR6U2kSUC1YIqFDJ3qfMhqEM68tRhXbxZzAa/zhZ1tNrW5S55XxtEWWjP3N/cj
+         ubyA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:message-id
-         :in-reply-to:date:references:subject:cc:cc:to:from;
-        bh=TREPXbHUIJP1ya86Erf88SaPjpxZDAB6xa3+6w6uDTM=;
-        b=O/OD17E9VBvgKeRcCmaj3Mju073wlr9aybJrdsvpq0zONPpLvFQVc3mHhGqDmIfVOI
-         5pZ5TAOebdAPjc3Kizm/KixU2rWsVhs1CfE4pj5sAJjBLG/2Xyu75TJEwL4+eUM//a5C
-         4JMa4FzEJx3LCJQlyUqsPqAkXe2XcXhsxoZmA6Q8PijfD2orRh+YXnrrv59qKIh9KVdU
-         Ym0MrsGAYzbZnHxEGCWR4/wSYHCVe12eos6hdFgqmGfm/eKywVOYWqsfda2jA7j/i0YA
-         pGqMrcfG4ZdfZcJR8kaVcjc8wk9sQL/FvhIuQIPqkDQNFf4OowSBxXy8aTSgWGOmoa1y
-         5m/Q==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=5hIKqkzIXsxkF8udtGIyRHxwK0fkgaeAkIRrb/6h2l4=;
+        b=RevdeaX2aKVrM9OLSkivsQxMuFRNcAz+CHGMJLSEXPmm6mBULaNp5e5xXurhNFnqvK
+         DObU+Adsx/v+WhmRoHnqOH9rY3xOY57cL/bdU1dehYdqRyJlq+j6Rj1w0Y1GVY9Kx7W0
+         Pg0DIowSxU2ymy2+crkdcAZhGlwTfn5ixC59orIeHSvqnMOZKq0oO6JGLVM6LSAoXEzH
+         Qe/IcP8MT6Ji1xp/E2ZAcPJTnbCHr9RF0eMPMbgVJorT5L9Pwlrd7y/Jy7rWzSKGW7zt
+         9TObXSTdUkF5SvRBeolzMgMlz9GGVN43qNBVrBh0dgw6NY4RmnboElQn5BP2UQSlN2jy
+         1C0Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id l94si12087942plb.209.2019.02.25.22.49.10
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id i33si5527902jaf.85.2019.02.25.22.50.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 22:49:10 -0800 (PST)
-Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        Mon, 25 Feb 2019 22:50:44 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga002.fm.intel.com ([10.253.24.26])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Feb 2019 22:49:09 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,414,1544515200"; 
-   d="scan'208";a="146574445"
-Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.151])
-  by fmsmga002.fm.intel.com with ESMTP; 25 Feb 2019 22:49:05 -0800
-From: "Huang\, Ying" <ying.huang@intel.com>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>,  Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: <linux-mm@kvack.org>,  <linux-kernel@vger.kernel.org>,  Hugh Dickins
- <hughd@google.com>,  "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
-  Minchan Kim <minchan@kernel.org>,  "Johannes Weiner"
- <hannes@cmpxchg.org>,  Tim Chen <tim.c.chen@linux.intel.com>,  "Mel
- Gorman" <mgorman@techsingularity.net>,  =?utf-8?B?SsOpcsO0bWU=?= Glisse
- <jglisse@redhat.com>,  Michal Hocko <mhocko@suse.com>,  David Rientjes
- <rientjes@google.com>,  Rik van Riel <riel@redhat.com>,  Jan Kara
- <jack@suse.cz>,  Dave Jiang <dave.jiang@intel.com>,  Aaron Lu
- <aaron.lu@intel.com>,  Andrea Parri <andrea.parri@amarulasolutions.com>
-Subject: Re: [PATCH -mm -V8] mm, swap: fix race between swapoff and some swap operations
-References: <20190218070142.5105-1-ying.huang@intel.com>
-Date: Tue, 26 Feb 2019 14:49:05 +0800
-In-Reply-To: <20190218070142.5105-1-ying.huang@intel.com> (Ying Huang's
-	message of "Mon, 18 Feb 2019 15:01:42 +0800")
-Message-ID: <87mumjt57i.fsf@yhuang-dev.intel.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1Q6haXf042590
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 01:50:43 -0500
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2qvyr028gx-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 01:50:43 -0500
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Tue, 26 Feb 2019 06:50:41 -0000
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 26 Feb 2019 06:50:36 -0000
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1Q6oa1d34406624
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Tue, 26 Feb 2019 06:50:36 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id E7E2511C052;
+	Tue, 26 Feb 2019 06:50:35 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 888F911C054;
+	Tue, 26 Feb 2019 06:50:34 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.84])
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Tue, 26 Feb 2019 06:50:34 +0000 (GMT)
+Date: Tue, 26 Feb 2019 08:50:32 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        David Hildenbrand <david@redhat.com>, Hugh Dickins <hughd@google.com>,
+        Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>,
+        Pavel Emelyanov <xemul@virtuozzo.com>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+        Marty McFadden <mcfadden8@llnl.gov>,
+        Andrea Arcangeli <aarcange@redhat.com>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        Denis Plotnikov <dplotnikov@virtuozzo.com>,
+        Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>,
+        "Kirill A . Shutemov" <kirill@shutemov.name>,
+        "Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v2 25/26] userfaultfd: selftests: refactor statistics
+References: <20190212025632.28946-1-peterx@redhat.com>
+ <20190212025632.28946-26-peterx@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190212025632.28946-26-peterx@redhat.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19022606-0008-0000-0000-000002C4F493
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19022606-0009-0000-0000-000022313C59
+Message-Id: <20190226065032.GC5873@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-26_05:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902260051
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Daniel and Andrea,
+On Tue, Feb 12, 2019 at 10:56:31AM +0800, Peter Xu wrote:
+> Introduce uffd_stats structure for statistics of the self test, at the
+> same time refactor the code to always pass in the uffd_stats for either
+> read() or poll() typed fault handling threads instead of using two
+> different ways to return the statistic results.  No functional change.
+> 
+> With the new structure, it's very easy to introduce new statistics.
+> 
+> Signed-off-by: Peter Xu <peterx@redhat.com>
 
-"Huang, Ying" <ying.huang@intel.com> writes:
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
 
-> From: Huang Ying <ying.huang@intel.com>
->
-> When swapin is performed, after getting the swap entry information from
-> the page table, system will swap in the swap entry, without any lock held
-> to prevent the swap device from being swapoff.  This may cause the race
-> like below,
->
-> CPU 1				CPU 2
-> -----				-----
-> 				do_swap_page
-> 				  swapin_readahead
-> 				    __read_swap_cache_async
-> swapoff				      swapcache_prepare
->   p->swap_map = NULL		        __swap_duplicate
-> 					  p->swap_map[?] /* !!! NULL pointer access */
->
-> Because swapoff is usually done when system shutdown only, the race may
-> not hit many people in practice.  But it is still a race need to be fixed.
->
-> To fix the race, get_swap_device() is added to check whether the specified
-> swap entry is valid in its swap device.  If so, it will keep the swap
-> entry valid via preventing the swap device from being swapoff, until
-> put_swap_device() is called.
->
-> Because swapoff() is very rare code path, to make the normal path runs
-> as fast as possible, rcu_read_lock/unlock() and synchronize_rcu()
-> instead of reference count is used to implement get/put_swap_device().
-> From get_swap_device() to put_swap_device(), RCU reader side is
-> locked, so synchronize_rcu() in swapoff() will wait until
-> put_swap_device() is called.
->
-> In addition to swap_map, cluster_info, etc. data structure in the struct
-> swap_info_struct, the swap cache radix tree will be freed after swapoff,
-> so this patch fixes the race between swap cache looking up and swapoff
-> too.
->
-> Races between some other swap cache usages and swapoff are fixed too
-> via calling synchronize_rcu() between clearing PageSwapCache() and
-> freeing swap cache data structure.
->
-> Fixes: 235b62176712 ("mm/swap: add cluster lock")
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> Not-Nacked-by: Hugh Dickins <hughd@google.com>
-> Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Tim Chen <tim.c.chen@linux.intel.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Jérôme Glisse <jglisse@redhat.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Dave Jiang <dave.jiang@intel.com>
-> Cc: Aaron Lu <aaron.lu@intel.com>
-> Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
-> Cc: Andrea Parri <andrea.parri@amarulasolutions.com>
->
-> Changelog:
->
-> v8:
->
-> - Use swp_swap_info() to cleanup the code per Daniel's comments
->
-> - Use rcu_read_lock/unlock and synchronize_rcu() per Andrea
->   Arcangeli's comments
->
-> - Added Fixes tag per Michal Hocko's comments
-
-Do you have time to take a look at this patch?
-
-Best Regards,
-Huang, Ying
-
-> v7:
->
-> - Rebased on patch: "mm, swap: bounds check swap_info accesses to avoid NULL derefs"
->
-> v6:
->
-> - Add more comments to get_swap_device() to make it more clear about
->   possible swapoff or swapoff+swapon.
->
-> v5:
->
-> - Replace RCU with stop_machine()
->
-> v4:
->
-> - Use synchronize_rcu() in enable_swap_info() to reduce overhead of
->   normal paths further.
->
-> v3:
->
-> - Re-implemented with RCU to reduce the overhead of normal paths
->
-> v2:
->
-> - Re-implemented with SRCU to reduce the overhead of normal paths.
->
-> - Avoid to check whether the swap device has been swapoff in
->   get_swap_device().  Because we can check the origin of the swap
->   entry to make sure the swap device hasn't bee swapoff.
 > ---
->  include/linux/swap.h |  13 +++-
->  mm/memory.c          |   2 +-
->  mm/swap_state.c      |  16 ++++-
->  mm/swapfile.c        | 148 +++++++++++++++++++++++++++++++++----------
->  4 files changed, 140 insertions(+), 39 deletions(-)
->
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 649529be91f2..f2ddaf299e15 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -175,8 +175,9 @@ enum {
->  	SWP_PAGE_DISCARD = (1 << 10),	/* freed swap page-cluster discards */
->  	SWP_STABLE_WRITES = (1 << 11),	/* no overwrite PG_writeback pages */
->  	SWP_SYNCHRONOUS_IO = (1 << 12),	/* synchronous IO is efficient */
-> +	SWP_VALID	= (1 << 13),	/* swap is valid to be operated on? */
->  					/* add others here before... */
-> -	SWP_SCANNING	= (1 << 13),	/* refcount in scan_swap_map */
-> +	SWP_SCANNING	= (1 << 14),	/* refcount in scan_swap_map */
->  };
->  
->  #define SWAP_CLUSTER_MAX 32UL
-> @@ -460,7 +461,7 @@ extern unsigned int count_swap_pages(int, int);
->  extern sector_t map_swap_page(struct page *, struct block_device **);
->  extern sector_t swapdev_block(int, pgoff_t);
->  extern int page_swapcount(struct page *);
-> -extern int __swap_count(struct swap_info_struct *si, swp_entry_t entry);
-> +extern int __swap_count(swp_entry_t entry);
->  extern int __swp_swapcount(swp_entry_t entry);
->  extern int swp_swapcount(swp_entry_t entry);
->  extern struct swap_info_struct *page_swap_info(struct page *);
-> @@ -470,6 +471,12 @@ extern int try_to_free_swap(struct page *);
->  struct backing_dev_info;
->  extern int init_swap_address_space(unsigned int type, unsigned long nr_pages);
->  extern void exit_swap_address_space(unsigned int type);
-> +extern struct swap_info_struct *get_swap_device(swp_entry_t entry);
+>  tools/testing/selftests/vm/userfaultfd.c | 76 +++++++++++++++---------
+>  1 file changed, 49 insertions(+), 27 deletions(-)
+> 
+> diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
+> index 5d1db824f73a..e5d12c209e09 100644
+> --- a/tools/testing/selftests/vm/userfaultfd.c
+> +++ b/tools/testing/selftests/vm/userfaultfd.c
+> @@ -88,6 +88,12 @@ static char *area_src, *area_src_alias, *area_dst, *area_dst_alias;
+>  static char *zeropage;
+>  pthread_attr_t attr;
+> 
+> +/* Userfaultfd test statistics */
+> +struct uffd_stats {
+> +	int cpu;
+> +	unsigned long missing_faults;
+> +};
 > +
-> +static inline void put_swap_device(struct swap_info_struct *si)
+>  /* pthread_mutex_t starts at page offset 0 */
+>  #define area_mutex(___area, ___nr)					\
+>  	((pthread_mutex_t *) ((___area) + (___nr)*page_size))
+> @@ -127,6 +133,17 @@ static void usage(void)
+>  	exit(1);
+>  }
+> 
+> +static void uffd_stats_reset(struct uffd_stats *uffd_stats,
+> +			     unsigned long n_cpus)
 > +{
-> +	rcu_read_unlock();
+> +	int i;
+> +
+> +	for (i = 0; i < n_cpus; i++) {
+> +		uffd_stats[i].cpu = i;
+> +		uffd_stats[i].missing_faults = 0;
+> +	}
 > +}
->  
->  #else /* CONFIG_SWAP */
->  
-> @@ -576,7 +583,7 @@ static inline int page_swapcount(struct page *page)
+> +
+>  static int anon_release_pages(char *rel_area)
+>  {
+>  	int ret = 0;
+> @@ -469,8 +486,8 @@ static int uffd_read_msg(int ufd, struct uffd_msg *msg)
 >  	return 0;
 >  }
->  
-> -static inline int __swap_count(struct swap_info_struct *si, swp_entry_t entry)
-> +static inline int __swap_count(swp_entry_t entry)
+> 
+> -/* Return 1 if page fault handled by us; otherwise 0 */
+> -static int uffd_handle_page_fault(struct uffd_msg *msg)
+> +static void uffd_handle_page_fault(struct uffd_msg *msg,
+> +				   struct uffd_stats *stats)
 >  {
->  	return 0;
+>  	unsigned long offset;
+> 
+> @@ -485,18 +502,19 @@ static int uffd_handle_page_fault(struct uffd_msg *msg)
+>  	offset = (char *)(unsigned long)msg->arg.pagefault.address - area_dst;
+>  	offset &= ~(page_size-1);
+> 
+> -	return copy_page(uffd, offset);
+> +	if (copy_page(uffd, offset))
+> +		stats->missing_faults++;
 >  }
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 34ced1369883..9c0743c17c6c 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2719,7 +2719,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
->  		struct swap_info_struct *si = swp_swap_info(entry);
->  
->  		if (si->flags & SWP_SYNCHRONOUS_IO &&
-> -				__swap_count(si, entry) == 1) {
-> +				__swap_count(entry) == 1) {
->  			/* skip swapcache */
->  			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma,
->  							vmf->address);
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index 85245fdec8d9..61453f1faf72 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -310,8 +310,13 @@ struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
->  			       unsigned long addr)
+> 
+>  static void *uffd_poll_thread(void *arg)
 >  {
->  	struct page *page;
-> +	struct swap_info_struct *si;
->  
-> +	si = get_swap_device(entry);
-> +	if (!si)
-> +		return NULL;
->  	page = find_get_page(swap_address_space(entry), swp_offset(entry));
-> +	put_swap_device(si);
->  
->  	INC_CACHE_INFO(find_total);
->  	if (page) {
-> @@ -354,8 +359,8 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
->  			struct vm_area_struct *vma, unsigned long addr,
->  			bool *new_page_allocated)
->  {
-> -	struct page *found_page, *new_page = NULL;
-> -	struct address_space *swapper_space = swap_address_space(entry);
-> +	struct page *found_page = NULL, *new_page = NULL;
-> +	struct swap_info_struct *si;
->  	int err;
->  	*new_page_allocated = false;
->  
-> @@ -365,7 +370,12 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
->  		 * called after lookup_swap_cache() failed, re-calling
->  		 * that would confuse statistics.
->  		 */
-> -		found_page = find_get_page(swapper_space, swp_offset(entry));
-> +		si = get_swap_device(entry);
-> +		if (!si)
-> +			break;
-> +		found_page = find_get_page(swap_address_space(entry),
-> +					   swp_offset(entry));
-> +		put_swap_device(si);
->  		if (found_page)
+> -	unsigned long cpu = (unsigned long) arg;
+> +	struct uffd_stats *stats = (struct uffd_stats *)arg;
+> +	unsigned long cpu = stats->cpu;
+>  	struct pollfd pollfd[2];
+>  	struct uffd_msg msg;
+>  	struct uffdio_register uffd_reg;
+>  	int ret;
+>  	char tmp_chr;
+> -	unsigned long userfaults = 0;
+> 
+>  	pollfd[0].fd = uffd;
+>  	pollfd[0].events = POLLIN;
+> @@ -526,7 +544,7 @@ static void *uffd_poll_thread(void *arg)
+>  				msg.event), exit(1);
 >  			break;
->  
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index cca8420b12db..8ec80209a726 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -1078,12 +1078,11 @@ swp_entry_t get_swap_page_of_type(int type)
->  static struct swap_info_struct *__swap_info_get(swp_entry_t entry)
->  {
->  	struct swap_info_struct *p;
-> -	unsigned long offset, type;
-> +	unsigned long offset;
->  
->  	if (!entry.val)
->  		goto out;
-> -	type = swp_type(entry);
-> -	p = swap_type_to_swap_info(type);
-> +	p = swp_swap_info(entry);
->  	if (!p)
->  		goto bad_nofile;
->  	if (!(p->flags & SWP_USED))
-> @@ -1186,6 +1185,63 @@ static unsigned char __swap_entry_free_locked(struct swap_info_struct *p,
->  	return usage;
->  }
->  
-> +/*
-> + * Check whether swap entry is valid in the swap device.  If so,
-> + * return pointer to swap_info_struct, and keep the swap entry valid
-> + * via preventing the swap device from being swapoff, until
-> + * put_swap_device() is called.  Otherwise return NULL.
-> + *
-> + * Notice that swapoff or swapoff+swapon can still happen before the
-> + * rcu_read_lock() in get_swap_device() or after the rcu_read_unlock()
-> + * in put_swap_device() if there isn't any other way to prevent
-> + * swapoff, such as page lock, page table lock, etc.  The caller must
-> + * be prepared for that.  For example, the following situation is
-> + * possible.
-> + *
-> + *   CPU1				CPU2
-> + *   do_swap_page()
-> + *     ...				swapoff+swapon
-> + *     __read_swap_cache_async()
-> + *       swapcache_prepare()
-> + *         __swap_duplicate()
-> + *           // check swap_map
-> + *     // verify PTE not changed
-> + *
-> + * In __swap_duplicate(), the swap_map need to be checked before
-> + * changing partly because the specified swap entry may be for another
-> + * swap device which has been swapoff.  And in do_swap_page(), after
-> + * the page is read from the swap device, the PTE is verified not
-> + * changed with the page table locked to check whether the swap device
-> + * has been swapoff or swapoff+swapon.
-> + */
-> +struct swap_info_struct *get_swap_device(swp_entry_t entry)
-> +{
-> +	struct swap_info_struct *si;
-> +	unsigned long offset;
+>  		case UFFD_EVENT_PAGEFAULT:
+> -			userfaults += uffd_handle_page_fault(&msg);
+> +			uffd_handle_page_fault(&msg, stats);
+>  			break;
+>  		case UFFD_EVENT_FORK:
+>  			close(uffd);
+> @@ -545,28 +563,27 @@ static void *uffd_poll_thread(void *arg)
+>  			break;
+>  		}
+>  	}
+> -	return (void *)userfaults;
 > +
-> +	if (!entry.val)
-> +		goto out;
-> +	si = swp_swap_info(entry);
-> +	if (!si)
-> +		goto bad_nofile;
-> +
-> +	rcu_read_lock();
-> +	if (!(si->flags & SWP_VALID))
-> +		goto unlock_out;
-> +	offset = swp_offset(entry);
-> +	if (offset >= si->max)
-> +		goto unlock_out;
-> +
-> +	return si;
-> +bad_nofile:
-> +	pr_err("%s: %s%08lx\n", __func__, Bad_file, entry.val);
-> +out:
 > +	return NULL;
-> +unlock_out:
-> +	rcu_read_unlock();
+>  }
+> 
+>  pthread_mutex_t uffd_read_mutex = PTHREAD_MUTEX_INITIALIZER;
+> 
+>  static void *uffd_read_thread(void *arg)
+>  {
+> -	unsigned long *this_cpu_userfaults;
+> +	struct uffd_stats *stats = (struct uffd_stats *)arg;
+>  	struct uffd_msg msg;
+> 
+> -	this_cpu_userfaults = (unsigned long *) arg;
+> -	*this_cpu_userfaults = 0;
+> -
+>  	pthread_mutex_unlock(&uffd_read_mutex);
+>  	/* from here cancellation is ok */
+> 
+>  	for (;;) {
+>  		if (uffd_read_msg(uffd, &msg))
+>  			continue;
+> -		(*this_cpu_userfaults) += uffd_handle_page_fault(&msg);
+> +		uffd_handle_page_fault(&msg, stats);
+>  	}
+> -	return (void *)NULL;
+> +
 > +	return NULL;
-> +}
+>  }
+> 
+>  static void *background_thread(void *arg)
+> @@ -582,13 +599,12 @@ static void *background_thread(void *arg)
+>  	return NULL;
+>  }
+> 
+> -static int stress(unsigned long *userfaults)
+> +static int stress(struct uffd_stats *uffd_stats)
+>  {
+>  	unsigned long cpu;
+>  	pthread_t locking_threads[nr_cpus];
+>  	pthread_t uffd_threads[nr_cpus];
+>  	pthread_t background_threads[nr_cpus];
+> -	void **_userfaults = (void **) userfaults;
+> 
+>  	finished = 0;
+>  	for (cpu = 0; cpu < nr_cpus; cpu++) {
+> @@ -597,12 +613,13 @@ static int stress(unsigned long *userfaults)
+>  			return 1;
+>  		if (bounces & BOUNCE_POLL) {
+>  			if (pthread_create(&uffd_threads[cpu], &attr,
+> -					   uffd_poll_thread, (void *)cpu))
+> +					   uffd_poll_thread,
+> +					   (void *)&uffd_stats[cpu]))
+>  				return 1;
+>  		} else {
+>  			if (pthread_create(&uffd_threads[cpu], &attr,
+>  					   uffd_read_thread,
+> -					   &_userfaults[cpu]))
+> +					   (void *)&uffd_stats[cpu]))
+>  				return 1;
+>  			pthread_mutex_lock(&uffd_read_mutex);
+>  		}
+> @@ -639,7 +656,8 @@ static int stress(unsigned long *userfaults)
+>  				fprintf(stderr, "pipefd write error\n");
+>  				return 1;
+>  			}
+> -			if (pthread_join(uffd_threads[cpu], &_userfaults[cpu]))
+> +			if (pthread_join(uffd_threads[cpu],
+> +					 (void *)&uffd_stats[cpu]))
+>  				return 1;
+>  		} else {
+>  			if (pthread_cancel(uffd_threads[cpu]))
+> @@ -910,11 +928,11 @@ static int userfaultfd_events_test(void)
+>  {
+>  	struct uffdio_register uffdio_register;
+>  	unsigned long expected_ioctls;
+> -	unsigned long userfaults;
+>  	pthread_t uffd_mon;
+>  	int err, features;
+>  	pid_t pid;
+>  	char c;
+> +	struct uffd_stats stats = { 0 };
+> 
+>  	printf("testing events (fork, remap, remove): ");
+>  	fflush(stdout);
+> @@ -941,7 +959,7 @@ static int userfaultfd_events_test(void)
+>  			"unexpected missing ioctl for anon memory\n"),
+>  			exit(1);
+> 
+> -	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, NULL))
+> +	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &stats))
+>  		perror("uffd_poll_thread create"), exit(1);
+> 
+>  	pid = fork();
+> @@ -957,13 +975,13 @@ static int userfaultfd_events_test(void)
+> 
+>  	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
+>  		perror("pipe write"), exit(1);
+> -	if (pthread_join(uffd_mon, (void **)&userfaults))
+> +	if (pthread_join(uffd_mon, NULL))
+>  		return 1;
+> 
+>  	close(uffd);
+> -	printf("userfaults: %ld\n", userfaults);
+> +	printf("userfaults: %ld\n", stats.missing_faults);
+> 
+> -	return userfaults != nr_pages;
+> +	return stats.missing_faults != nr_pages;
+>  }
+> 
+>  static int userfaultfd_sig_test(void)
+> @@ -975,6 +993,7 @@ static int userfaultfd_sig_test(void)
+>  	int err, features;
+>  	pid_t pid;
+>  	char c;
+> +	struct uffd_stats stats = { 0 };
+> 
+>  	printf("testing signal delivery: ");
+>  	fflush(stdout);
+> @@ -1006,7 +1025,7 @@ static int userfaultfd_sig_test(void)
+>  	if (uffd_test_ops->release_pages(area_dst))
+>  		return 1;
+> 
+> -	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, NULL))
+> +	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, &stats))
+>  		perror("uffd_poll_thread create"), exit(1);
+> 
+>  	pid = fork();
+> @@ -1032,6 +1051,7 @@ static int userfaultfd_sig_test(void)
+>  	close(uffd);
+>  	return userfaults != 0;
+>  }
 > +
->  static unsigned char __swap_entry_free(struct swap_info_struct *p,
->  				       swp_entry_t entry, unsigned char usage)
+>  static int userfaultfd_stress(void)
 >  {
-> @@ -1357,11 +1413,18 @@ int page_swapcount(struct page *page)
->  	return count;
->  }
->  
-> -int __swap_count(struct swap_info_struct *si, swp_entry_t entry)
-> +int __swap_count(swp_entry_t entry)
->  {
-> +	struct swap_info_struct *si;
->  	pgoff_t offset = swp_offset(entry);
-> +	int count = 0;
->  
-> -	return swap_count(si->swap_map[offset]);
-> +	si = get_swap_device(entry);
-> +	if (si) {
-> +		count = swap_count(si->swap_map[offset]);
-> +		put_swap_device(si);
-> +	}
-> +	return count;
->  }
->  
->  static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
-> @@ -1386,9 +1449,11 @@ int __swp_swapcount(swp_entry_t entry)
->  	int count = 0;
->  	struct swap_info_struct *si;
->  
-> -	si = __swap_info_get(entry);
-> -	if (si)
-> +	si = get_swap_device(entry);
-> +	if (si) {
->  		count = swap_swapcount(si, entry);
-> +		put_swap_device(si);
-> +	}
->  	return count;
->  }
->  
-> @@ -2332,9 +2397,9 @@ static int swap_node(struct swap_info_struct *p)
->  	return bdev ? bdev->bd_disk->node_id : NUMA_NO_NODE;
->  }
->  
-> -static void _enable_swap_info(struct swap_info_struct *p, int prio,
-> -				unsigned char *swap_map,
-> -				struct swap_cluster_info *cluster_info)
-> +static void setup_swap_info(struct swap_info_struct *p, int prio,
-> +			    unsigned char *swap_map,
-> +			    struct swap_cluster_info *cluster_info)
->  {
->  	int i;
->  
-> @@ -2359,7 +2424,11 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
->  	}
->  	p->swap_map = swap_map;
->  	p->cluster_info = cluster_info;
-> -	p->flags |= SWP_WRITEOK;
-> +}
+>  	void *area;
+> @@ -1040,7 +1060,7 @@ static int userfaultfd_stress(void)
+>  	struct uffdio_register uffdio_register;
+>  	unsigned long cpu;
+>  	int err;
+> -	unsigned long userfaults[nr_cpus];
+> +	struct uffd_stats uffd_stats[nr_cpus];
+> 
+>  	uffd_test_ops->allocate_area((void **)&area_src);
+>  	if (!area_src)
+> @@ -1169,8 +1189,10 @@ static int userfaultfd_stress(void)
+>  		if (uffd_test_ops->release_pages(area_dst))
+>  			return 1;
+> 
+> +		uffd_stats_reset(uffd_stats, nr_cpus);
 > +
-> +static void _enable_swap_info(struct swap_info_struct *p)
-> +{
-> +	p->flags |= SWP_WRITEOK | SWP_VALID;
->  	atomic_long_add(p->pages, &nr_swap_pages);
->  	total_swap_pages += p->pages;
->  
-> @@ -2386,7 +2455,17 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
->  	frontswap_init(p->type, frontswap_map);
->  	spin_lock(&swap_lock);
->  	spin_lock(&p->lock);
-> -	 _enable_swap_info(p, prio, swap_map, cluster_info);
-> +	setup_swap_info(p, prio, swap_map, cluster_info);
-> +	spin_unlock(&p->lock);
-> +	spin_unlock(&swap_lock);
-> +	/*
-> +	 * Guarantee swap_map, cluster_info, etc. fields are used
-> +	 * between get/put_swap_device() only if SWP_VALID bit is set
-> +	 */
-> +	synchronize_rcu();
-> +	spin_lock(&swap_lock);
-> +	spin_lock(&p->lock);
-> +	_enable_swap_info(p);
->  	spin_unlock(&p->lock);
->  	spin_unlock(&swap_lock);
->  }
-> @@ -2395,7 +2474,8 @@ static void reinsert_swap_info(struct swap_info_struct *p)
->  {
->  	spin_lock(&swap_lock);
->  	spin_lock(&p->lock);
-> -	_enable_swap_info(p, p->prio, p->swap_map, p->cluster_info);
-> +	setup_swap_info(p, p->prio, p->swap_map, p->cluster_info);
-> +	_enable_swap_info(p);
->  	spin_unlock(&p->lock);
->  	spin_unlock(&swap_lock);
->  }
-> @@ -2498,6 +2578,17 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
->  
->  	reenable_swap_slots_cache_unlock();
->  
-> +	spin_lock(&swap_lock);
-> +	spin_lock(&p->lock);
-> +	p->flags &= ~SWP_VALID;		/* mark swap device as invalid */
-> +	spin_unlock(&p->lock);
-> +	spin_unlock(&swap_lock);
-> +	/*
-> +	 * wait for swap operations protected by get/put_swap_device()
-> +	 * to complete
-> +	 */
-> +	synchronize_rcu();
-> +
->  	flush_work(&p->discard_work);
->  
->  	destroy_swap_extents(p);
-> @@ -3263,17 +3354,11 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
->  	unsigned char has_cache;
->  	int err = -EINVAL;
->  
-> -	if (non_swap_entry(entry))
-> -		goto out;
-> -
-> -	p = swp_swap_info(entry);
-> +	p = get_swap_device(entry);
->  	if (!p)
-> -		goto bad_file;
-> -
-> -	offset = swp_offset(entry);
-> -	if (unlikely(offset >= p->max))
->  		goto out;
->  
-> +	offset = swp_offset(entry);
->  	ci = lock_cluster_or_swap_info(p, offset);
->  
->  	count = p->swap_map[offset];
-> @@ -3319,11 +3404,9 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
->  unlock_out:
->  	unlock_cluster_or_swap_info(p, ci);
->  out:
-> +	if (p)
-> +		put_swap_device(p);
->  	return err;
-> -
-> -bad_file:
-> -	pr_err("swap_dup: %s%08lx\n", Bad_file, entry.val);
-> -	goto out;
->  }
->  
->  /*
-> @@ -3415,6 +3498,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
->  	struct page *list_page;
->  	pgoff_t offset;
->  	unsigned char count;
-> +	int ret = 0;
->  
->  	/*
->  	 * When debugging, it's easier to use __GFP_ZERO here; but it's better
-> @@ -3422,15 +3506,15 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
->  	 */
->  	page = alloc_page(gfp_mask | __GFP_HIGHMEM);
->  
-> -	si = swap_info_get(entry);
-> +	si = get_swap_device(entry);
->  	if (!si) {
->  		/*
->  		 * An acceptable race has occurred since the failing
-> -		 * __swap_duplicate(): the swap entry has been freed,
-> -		 * perhaps even the whole swap_map cleared for swapoff.
-> +		 * __swap_duplicate(): the swap device may be swapoff
->  		 */
->  		goto outer;
+>  		/* bounce pass */
+> -		if (stress(userfaults))
+> +		if (stress(uffd_stats))
+>  			return 1;
+> 
+>  		/* unregister */
+> @@ -1213,7 +1235,7 @@ static int userfaultfd_stress(void)
+> 
+>  		printf("userfaults:");
+>  		for (cpu = 0; cpu < nr_cpus; cpu++)
+> -			printf(" %lu", userfaults[cpu]);
+> +			printf(" %lu", uffd_stats[cpu].missing_faults);
+>  		printf("\n");
 >  	}
-> +	spin_lock(&si->lock);
->  
->  	offset = swp_offset(entry);
->  
-> @@ -3448,9 +3532,8 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
->  	}
->  
->  	if (!page) {
-> -		unlock_cluster(ci);
-> -		spin_unlock(&si->lock);
-> -		return -ENOMEM;
-> +		ret = -ENOMEM;
-> +		goto out;
->  	}
->  
->  	/*
-> @@ -3502,10 +3585,11 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
->  out:
->  	unlock_cluster(ci);
->  	spin_unlock(&si->lock);
-> +	put_swap_device(si);
->  outer:
->  	if (page)
->  		__free_page(page);
-> -	return 0;
-> +	return ret;
->  }
->  
->  /*
+> 
+> -- 
+> 2.17.1
+> 
+
+-- 
+Sincerely yours,
+Mike.
 
