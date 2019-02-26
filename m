@@ -2,235 +2,250 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.5 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E22FC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 06:41:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 419A2C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 06:44:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A535F2147C
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 06:41:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A535F2147C
+	by mail.kernel.org (Postfix) with ESMTP id EA4D7213A2
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 06:44:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA4D7213A2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 04C508E0003; Tue, 26 Feb 2019 01:41:51 -0500 (EST)
+	id 83A738E0004; Tue, 26 Feb 2019 01:44:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F3D2F8E0002; Tue, 26 Feb 2019 01:41:50 -0500 (EST)
+	id 7E9338E0002; Tue, 26 Feb 2019 01:44:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E04C68E0003; Tue, 26 Feb 2019 01:41:50 -0500 (EST)
+	id 68A098E0004; Tue, 26 Feb 2019 01:44:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 88E288E0002
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 01:41:50 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id d16so4917073edv.22
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 22:41:50 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AB4D8E0002
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 01:44:03 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id u12so4984643edo.5
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 22:44:02 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:references:mime-version:content-disposition:in-reply-to
          :user-agent:message-id;
-        bh=n6M6nvES4BgxT3A/U7TDsRBVRTBiZKsJPixJQmsgfB4=;
-        b=V2/QIT6DdybPnntM7nm3DSBaOMZOVIPPm/INUpqauusE6ZzAmV7wFN3WtTxnr2+p5a
-         CCxNCuZvsjSsaprnuvYBOPD50lA5/qPaA5sXnqKwSrj4lyN5YJfzBIzxSQKwo8zoicvw
-         YSgcCmlMgK/dPh6ZSLs7xuWp151YUCjgr22QB2hNm6SVtLRQ5/u7xwzn38ILPnR2FiM/
-         5RO5L8mIXqx9U5yxj/dsGshse5xEHizhWYEDIy6qzsrfKBfv9aMdlbcHsg1uyfRFY+tB
-         LIaKoaMZVcgKnj0I2k4IYNlJA7XjnHQuJPIJ4Jez4nfYhjn0oDkyVCr68uSqvDeWcnrv
-         41NA==
+        bh=hvjYjwHw9BhznjaBKo6VPFZdw85WBC+PsabC7jzHKXw=;
+        b=hQvt9P+rrlieLj0wC1XtAkfkwqEykFMy3do68F19HvVJaNtNSMtYZc55ijjtxsVNxm
+         OcYN3e4BNH/C3ncdJ3UE4WMa9r3MJ0FYrqkg8Vq3rV0QC/iHV5zLWYp33bC2b7YjdBuc
+         4FPiYaQ2zt16xBKwgGCM/Lgu8gpwfAIH3K8eaS1H5/iCjimk5R2vfvurSV377UnTM5KI
+         f42/moOCrCwX6j7H88xGXQCZk4XQ27ZtgxUCFON2zZltlMUV9AQeV4xM7n45O6LzYZxJ
+         Rl/GhPQou3crr1HrdNh5TparyZZLJI7M63XkiWhNZUYIo2UAmzP8qc9DKzB/m5WrRaUd
+         cQog==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuZO633Txrh/VyWyakB89ZdZyDdDeaF4nYo9bHByTRYMxAMQCLkc
-	ndozs0G/bZYYJStTtDmSy++cWVTVWZhrbSbp0ESZRNDuKFKq5OOi3pRtguqb6XVMg3qg+vidjt+
-	wa8mzLt3gyjqWlzln2wUgcWyMjygmtm10hydxEyt2qc1nphuWfr0S5JpzEJtxL0FXWg==
-X-Received: by 2002:a50:ac58:: with SMTP id w24mr17089699edc.287.1551163310097;
-        Mon, 25 Feb 2019 22:41:50 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ8lUMgvykEiLDvWKD/Bbhfrr8cUi7DQFZqxWglXWRsQQpqmmH8C1MYotB0o9yE3N0SYVYc
-X-Received: by 2002:a50:ac58:: with SMTP id w24mr17089645edc.287.1551163309054;
-        Mon, 25 Feb 2019 22:41:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551163309; cv=none;
+X-Gm-Message-State: AHQUAuZPvt8KC8h088KbA8FmQ+GU3A1p9okHXoHQiz/G4v9EX5PU7c7C
+	EcptJOQNmHm/cZoiREs9Iml3CV+m6rl6Qy9iss5cxR66ulBWc45B/zPwBEw6MM/NbPvYrQHtB0L
+	rVgQE+IekitTIaqsWPiqw4ygMSlMuHOFGYluPisVdMD7JvcWxTW/dwzXkVB5Cq7wsKQ==
+X-Received: by 2002:a17:906:49d9:: with SMTP id w25mr13947518ejv.52.1551163442560;
+        Mon, 25 Feb 2019 22:44:02 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbU1YrmOC0WO3zgfH1pPs/c8pu5MBYAHh8GSmhZTuAPB2IxwIuPV3G34HXNgzuylo5+rJyM
+X-Received: by 2002:a17:906:49d9:: with SMTP id w25mr13947484ejv.52.1551163441731;
+        Mon, 25 Feb 2019 22:44:01 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551163441; cv=none;
         d=google.com; s=arc-20160816;
-        b=eoG7lss4X1pA19rB3ivAWcpow4dCXcVUm3xdHImGvhGG4r0scNp6OhJjB86sh3XqVA
-         IdTTPaRBKVWcJazocFk+a8nIFNamWlUXop0m0zrAU5dBMGgPaochtCnKM63Xo3RkPkxj
-         9Vdkaf09CsYk/jaya6Yui/i13LrXLy0ooANaLjDhvWXkktM40FFnvAoLFa8+wWEwpTvW
-         dXSIggarEjdBuhXj3fC6bRpTQrG33KU5QKUZMiQ2kRJOSxQ7FINoLr6K+SxJEQgAg94a
-         OAmtwkG1h71NvT8RrnFZevf3bCvFW948YPH+SPyruumZtbbHSK5VuoEmeL21Tr+GfZk6
-         AEsQ==
+        b=flDW0F9BDdiGFRwfZzMJ7bdrLvGgv0c+4KNC0MOjXLW55mT04gwoRaPdo0WR/LjyYR
+         r9UcVnCeC9EI3jWV3wy/BPTr2zEdCPNqKBZtaTlYTu9v4erJI0RxwiB2k13LIBHgx2J4
+         F9u9K7aKG9FjiplTj4OGbhST/m+4zMdB774QwVqIDINvmRlXSPrkrVcSsa04LS4sPuCX
+         gdgIlGz7RMeUWeuMuhWkEypo1RYlkjylalpc+KL4ZExdSKDSorzYQgSKp/fNBLhCA0pS
+         vgoUkZ9zl0gUGIt9rFol6XU7j55DCKyT1wf2z1szXitpLhRrTaDjFjKDdm776UP/MKaw
+         WpQQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:user-agent:in-reply-to:content-disposition:mime-version
          :references:subject:cc:to:from:date;
-        bh=n6M6nvES4BgxT3A/U7TDsRBVRTBiZKsJPixJQmsgfB4=;
-        b=PG9XUGZOa83i1VXYIx4M1A4tAUal311c3sWE4kVTbnJfJeouAW+QTFloi9V57Dgp4q
-         MAwR/zK2Y2lTgvisKRkp801+kVAKKJlwV3Q4D+x36enWovJxGWYcD3s78nz+kFXYb9Pb
-         M7Xz9KDOmi/ydg77iUace9BdD3RFTlERFjJ1euCAQCzIqxQrEnmnCn17Jz2S7hH95yer
-         Z2oZik6ZN2vOOsh7dz3OdBOhs5p20ZaSXPoP0rLNh32ddKRJWamgVnB289R8c+MShjI3
-         gjndYAppdA8yTBHF5899gNWqHDPo7cdAIqSsCDw5Gfd7f0mbjEHxqIVWF0KZQ78Jxlis
-         ki8g==
+        bh=hvjYjwHw9BhznjaBKo6VPFZdw85WBC+PsabC7jzHKXw=;
+        b=Ytzbm7Dtpu6alIRxK6ohc912+ySG6hSvVBAXBfR+lCqIthXbAOXvgnslTKYZHuHS3D
+         wvzGNI8rzYFzH0u+kFT8SSYiXq+3hjZkKn96AHClUBG8Fkdu8bGhxyE0i6C4jaHEX7mc
+         fqJrwh9FDgnaCxVuYxQw9h07PwhumVGdgMJPeBCilWjrOrpR8ruAYLRVBcM0aO0qvYGy
+         w90qS0UXg7N3XX44CKOH4pgc55Z27IQXI2RxDD1A/WX9dNwHvD2VVDoxuRtCus1Lnup7
+         biVpKJMYe4bGVk+jDaDmuJokgvwNKtAv3ysY8KOL1EvAtSyeAkHWKYzFT26kYidFtZke
+         oKNw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id m23si485186eje.334.2019.02.25.22.41.48
+        by mx.google.com with ESMTPS id x9si33928edx.107.2019.02.25.22.44.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Feb 2019 22:41:49 -0800 (PST)
+        Mon, 25 Feb 2019 22:44:01 -0800 (PST)
 Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
 Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1Q6fk5V166785
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 01:41:47 -0500
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2qvym2t6b3-1
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1Q6havW172896
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 01:44:00 -0500
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2qvym2t97h-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 01:41:47 -0500
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 01:44:00 -0500
 Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 26 Feb 2019 06:40:38 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	Tue, 26 Feb 2019 06:43:58 -0000
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 26 Feb 2019 06:40:35 -0000
-Received: from d06av24.portsmouth.uk.ibm.com (d06av24.portsmouth.uk.ibm.com [9.149.105.60])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1Q6eZ5055705656
+	Tue, 26 Feb 2019 06:43:52 -0000
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1Q6hoQX25296898
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Tue, 26 Feb 2019 06:40:35 GMT
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 08DF042047;
-	Tue, 26 Feb 2019 06:40:35 +0000 (GMT)
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 64E6B42042;
-	Tue, 26 Feb 2019 06:40:34 +0000 (GMT)
+	Tue, 26 Feb 2019 06:43:51 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id E114011C04A;
+	Tue, 26 Feb 2019 06:43:50 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 7BF4511C052;
+	Tue, 26 Feb 2019 06:43:49 +0000 (GMT)
 Received: from rapoport-lnx (unknown [9.148.8.84])
-	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Tue, 26 Feb 2019 06:40:34 +0000 (GMT)
-Date: Tue, 26 Feb 2019 08:40:32 +0200
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Tue, 26 Feb 2019 06:43:49 +0000 (GMT)
+Date: Tue, 26 Feb 2019 08:43:47 +0200
 From: Mike Rapoport <rppt@linux.ibm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <lkp@intel.com>,
-        Christophe Leroy <christophe.leroy@c-s.fr>, kbuild-all@01.org,
+To: Peter Xu <peterx@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        David Hildenbrand <david@redhat.com>, Hugh Dickins <hughd@google.com>,
+        Maya Gokhale <gokhale2@llnl.gov>, Jerome Glisse <jglisse@redhat.com>,
+        Pavel Emelyanov <xemul@virtuozzo.com>,
         Johannes Weiner <hannes@cmpxchg.org>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Linux Memory Management List <linux-mm@kvack.org>
-Subject: Re: [mmotm:master 342/391] arch/powerpc/kernel/setup_32.c:176:21:
- error: redefinition of 'alloc_stack'
-References: <201902261214.GfZVc99M%fengguang.wu@intel.com>
+        Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+        Marty McFadden <mcfadden8@llnl.gov>,
+        Andrea Arcangeli <aarcange@redhat.com>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        Denis Plotnikov <dplotnikov@virtuozzo.com>,
+        Mike Rapoport <rppt@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>,
+        "Kirill A . Shutemov" <kirill@shutemov.name>,
+        "Dr . David Alan Gilbert" <dgilbert@redhat.com>,
+        Rik van Riel <riel@redhat.com>
+Subject: Re: [PATCH v2 20/26] userfaultfd: wp: support write protection for
+ userfault vma range
+References: <20190212025632.28946-1-peterx@redhat.com>
+ <20190212025632.28946-21-peterx@redhat.com>
+ <20190225205233.GC10454@rapoport-lnx>
+ <20190226060627.GG13653@xz-x1>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201902261214.GfZVc99M%fengguang.wu@intel.com>
+In-Reply-To: <20190226060627.GG13653@xz-x1>
 User-Agent: Mutt/1.5.24 (2015-08-30)
 X-TM-AS-GCONF: 00
-x-cbid: 19022606-0020-0000-0000-0000031B4837
+x-cbid: 19022606-0028-0000-0000-0000034D0EEF
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19022606-0021-0000-0000-0000216CAC14
-Message-Id: <20190226064032.GA5873@rapoport-lnx>
+x-cbparentid: 19022606-0029-0000-0000-0000240B6098
+Message-Id: <20190226064347.GB5873@rapoport-lnx>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-26_05:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
  malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
  mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902260050
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902260051
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 26, 2019 at 12:24:17PM +0800, kbuild test robot wrote:
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   896e6c5ee0c0ead9790f7ac202a672132bacbf66
-> commit: 7b6550d180d48e250049759362b5cc2cf02544c9 [342/391] powerpc: use memblock functions returning virtual address
-> config: powerpc-allnoconfig (attached as .config)
-> compiler: powerpc-linux-gnu-gcc (Debian 8.2.0-11) 8.2.0
-> reproduce:
->         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout 7b6550d180d48e250049759362b5cc2cf02544c9
->         # save the attached .config to linux build tree
->         GCC_VERSION=8.2.0 make.cross ARCH=powerpc 
+On Tue, Feb 26, 2019 at 02:06:27PM +0800, Peter Xu wrote:
+> On Mon, Feb 25, 2019 at 10:52:34PM +0200, Mike Rapoport wrote:
+> > On Tue, Feb 12, 2019 at 10:56:26AM +0800, Peter Xu wrote:
+> > > From: Shaohua Li <shli@fb.com>
+> > > 
+> > > Add API to enable/disable writeprotect a vma range. Unlike mprotect,
+> > > this doesn't split/merge vmas.
+> > > 
+> > > Cc: Andrea Arcangeli <aarcange@redhat.com>
+> > > Cc: Rik van Riel <riel@redhat.com>
+> > > Cc: Kirill A. Shutemov <kirill@shutemov.name>
+> > > Cc: Mel Gorman <mgorman@suse.de>
+> > > Cc: Hugh Dickins <hughd@google.com>
+> > > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > > Signed-off-by: Shaohua Li <shli@fb.com>
+> > > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> > > [peterx:
+> > >  - use the helper to find VMA;
+> > >  - return -ENOENT if not found to match mcopy case;
+> > >  - use the new MM_CP_UFFD_WP* flags for change_protection
+> > >  - check against mmap_changing for failures]
+> > > Signed-off-by: Peter Xu <peterx@redhat.com>
+> > > ---
+> > >  include/linux/userfaultfd_k.h |  3 ++
+> > >  mm/userfaultfd.c              | 54 +++++++++++++++++++++++++++++++++++
+> > >  2 files changed, 57 insertions(+)
+> > > 
+> > > diff --git a/include/linux/userfaultfd_k.h b/include/linux/userfaultfd_k.h
+> > > index 765ce884cec0..8f6e6ed544fb 100644
+> > > --- a/include/linux/userfaultfd_k.h
+> > > +++ b/include/linux/userfaultfd_k.h
+> > > @@ -39,6 +39,9 @@ extern ssize_t mfill_zeropage(struct mm_struct *dst_mm,
+> > >  			      unsigned long dst_start,
+> > >  			      unsigned long len,
+> > >  			      bool *mmap_changing);
+> > > +extern int mwriteprotect_range(struct mm_struct *dst_mm,
+> > > +			       unsigned long start, unsigned long len,
+> > > +			       bool enable_wp, bool *mmap_changing);
+> > > 
+> > >  /* mm helpers */
+> > >  static inline bool is_mergeable_vm_userfaultfd_ctx(struct vm_area_struct *vma,
+> > > diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+> > > index fefa81c301b7..529d180bb4d7 100644
+> > > --- a/mm/userfaultfd.c
+> > > +++ b/mm/userfaultfd.c
+> > > @@ -639,3 +639,57 @@ ssize_t mfill_zeropage(struct mm_struct *dst_mm, unsigned long start,
+> > >  {
+> > >  	return __mcopy_atomic(dst_mm, start, 0, len, true, mmap_changing, 0);
+> > >  }
+> > > +
+> > > +int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
+> > > +			unsigned long len, bool enable_wp, bool *mmap_changing)
+> > > +{
+> > > +	struct vm_area_struct *dst_vma;
+> > > +	pgprot_t newprot;
+> > > +	int err;
+> > > +
+> > > +	/*
+> > > +	 * Sanitize the command parameters:
+> > > +	 */
+> > > +	BUG_ON(start & ~PAGE_MASK);
+> > > +	BUG_ON(len & ~PAGE_MASK);
+> > > +
+> > > +	/* Does the address range wrap, or is the span zero-sized? */
+> > > +	BUG_ON(start + len <= start);
+> > 
+> > I'd replace these BUG_ON()s with
+> > 
+> > 	if (WARN_ON())
+> > 		 return -EINVAL;
 > 
-> All errors (new ones prefixed by >>):
-> 
-> >> arch/powerpc/kernel/setup_32.c:176:21: error: redefinition of 'alloc_stack'
->     static void *__init alloc_stack(void)
->                         ^~~~~~~~~~~
->    arch/powerpc/kernel/setup_32.c:165:21: note: previous definition of 'alloc_stack' was here
->     static void *__init alloc_stack(void)
->                         ^~~~~~~~~~~
-> >> arch/powerpc/kernel/setup_32.c:165:21: error: 'alloc_stack' defined but not used [-Werror=unused-function]
->    cc1: all warnings being treated as errors
-> 
-> vim +/alloc_stack +176 arch/powerpc/kernel/setup_32.c
-> 
->    164	
->  > 165	static void *__init alloc_stack(void)
->    166	{
->    167		void *ptr = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
->    168	
->    169		if (!ptr)
->    170			panic("cannot allocate %d bytes for stack at %pS\n",
->    171			      THREAD_SIZE, (void *)_RET_IP_);
->    172	
->    173		return ptr;
->    174	}
->    175	
->  > 176	static void *__init alloc_stack(void)
->    177	{
->    178		void *ptr = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
->    179	
->    180		if (!ptr)
->    181			panic("cannot allocate %d bytes for stack at %pS\n",
->    182			      THREAD_SIZE, (void *)_RET_IP_);
->    183	
->    184		return ptr;
->    185	}
->    186	
+> I believe BUG_ON() is used because these parameters should have been
+> checked in userfaultfd_writeprotect() already by the common
+> validate_range() even before calling mwriteprotect_range().  So I'm
+> fine with the WARN_ON() approach but I'd slightly prefer to simply
+> keep the patch as is to keep Jerome's r-b if you won't disagree. :)
 
-The fix is below: 
+Right, userfaultfd_writeprotect() should check these parameters and if it
+didn't it was a bug indeed. But still, it's not severe enough to crash the
+kernel.
 
-From e2228b90baf0b443650c2f391a4acb3beb688bea Mon Sep 17 00:00:00 2001
-From: Mike Rapoport <rppt@linux.ibm.com>
-Date: Tue, 26 Feb 2019 08:36:20 +0200
-Subject: [PATCH] powerpc: remove duplicated alloc_stack() function
+I hope Jerome wouldn't mind to keep his r-b with s/BUG_ON/WARN_ON ;-)
 
-The patch "powerpc: use memblock functions returning virtual address" was
-applied in both powerpc and mmotm trees and as a result function
-alloc_stack() sneaked twice into arch/powerpc/kernel/setup_32.c
+With this change you can also add 
 
-Remove one of the copies.
-
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- arch/powerpc/kernel/setup_32.c | 11 -----------
- 1 file changed, 11 deletions(-)
-
-diff --git a/arch/powerpc/kernel/setup_32.c b/arch/powerpc/kernel/setup_32.c
-index 40e9d99..4a65e08 100644
---- a/arch/powerpc/kernel/setup_32.c
-+++ b/arch/powerpc/kernel/setup_32.c
-@@ -173,17 +173,6 @@ static void *__init alloc_stack(void)
- 	return ptr;
- }
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
  
--static void *__init alloc_stack(void)
--{
--	void *ptr = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
--
--	if (!ptr)
--		panic("cannot allocate %d bytes for stack at %pS\n",
--		      THREAD_SIZE, (void *)_RET_IP_);
--
--	return ptr;
--}
--
- void __init irqstack_early_init(void)
- {
- 	unsigned int i;
+> Thanks,
+> 
+> -- 
+> Peter Xu
+> 
+
 -- 
-2.7.4
+Sincerely yours,
+Mike.
 
