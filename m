@@ -5,100 +5,89 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F565C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 10:06:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2BF36C4360F
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 10:07:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CC7752173C
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 10:06:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC7752173C
+	by mail.kernel.org (Postfix) with ESMTP id DB81E217F5
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 10:07:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB81E217F5
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4E22E8E0003; Tue, 26 Feb 2019 05:06:18 -0500 (EST)
+	id 83B898E0004; Tue, 26 Feb 2019 05:07:30 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 46A9E8E0001; Tue, 26 Feb 2019 05:06:18 -0500 (EST)
+	id 7ECF18E0001; Tue, 26 Feb 2019 05:07:30 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2BE848E0003; Tue, 26 Feb 2019 05:06:18 -0500 (EST)
+	id 6B9F78E0004; Tue, 26 Feb 2019 05:07:30 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C2AE08E0001
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 05:06:17 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id e46so5273615ede.9
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 02:06:17 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 16C518E0001
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 05:07:30 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id 29so5120040eds.12
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 02:07:30 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=fPjyG/sj84TjOhFrLomGnIeWnO77IwIcYYljQwFkCkg=;
-        b=YOdTem3Gp9K5i97oX46C3pIH7l+XgLvYZqsKTJCc1o/8HRPeFelQa2uT0BB0GFIHS2
-         Ly6WxifCJQXhjfB2EULyKEqk4Aj9P3AsFeZjFh3XTGtxCPL861eqI7sbqJmRFLd2OPgO
-         OXLG2JSjmGxu2UYEGyMQFVgfoXHjditVG5Ao1PFj/SfMVriCh6DhJVK/cxb05Nfz87TR
-         +PMk75h1LrT4wTW8YceOuHP+03IAyY33jdWlU1ECqm9MXvDm6Ex+v7B/MO/nQDiQuBBM
-         58BCrnuR5yuSFk1BQMMBZm5eDuw9O5sgdgsRApMtyxZSPrB8DLRFp120N21CyVG+az8j
-         h5eg==
+        bh=1b6xNAWxDGGX6L/KBuSPcEjzYvreuqljgyVnBXfYKV0=;
+        b=M0vunvH+iGcbZJmiT4vvdHN6wry1pL2soWSOJE6bVp3vwNlCIVEZ4XwHnMJm7EI9u1
+         VSosZKtqdL9MGfHLVIXwO99cLoNLpkGQxlfMpG2sCPhA+S4buIax6T9NTJeEbbzZQGyr
+         tzikQDmCX+VELoZjiZPLf7LW7jFg1LQRgBGx1WVud17ieiu3UqODOvU0jqz2nBnPmofU
+         1S9kyIOFvPeJzUAIi+x+UoprefGjPSETjvYew/Gj9eInW0P7y94CNych6Xzkq9sP3hqa
+         uz3TJE97U/YXQyk0seLi6cw3dGbGwXhwA5t9XGiLQDymFh0O/nJaEG28SuXnWjs+D8zG
+         peHg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: AHQUAuYAmKlKUqvlIWc+2KzI20SCokid3TmzFUeATWjXLNV4IeNCdFYF
-	t14Xiu02rj6IlXtqpaCgCT50gFBB/JdJAD+hWyJxVRuYKkxXcHsS/RbB/LN5Z8FdJ0UED+s6BFL
-	bue2RTNeBD8B5S8R+sQKPtOGc2ar5E+qF4iiC39YizRLNBnG8HYXzubMUZszvP2gDqw==
-X-Received: by 2002:a17:906:90da:: with SMTP id v26mr16405531ejw.146.1551175577349;
-        Tue, 26 Feb 2019 02:06:17 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYTM5aw82jpi1CzzClsivSlUkby9k7tI30sELPUeR2idfvu6LWDgqso1dTkV5nhH+KiHfzS
-X-Received: by 2002:a17:906:90da:: with SMTP id v26mr16405462ejw.146.1551175575969;
-        Tue, 26 Feb 2019 02:06:15 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551175575; cv=none;
+X-Gm-Message-State: AHQUAuYLoEf8vMpbv5g69lzoBo46qI/fn7lcXiZCo8p6c515h7wYyS9V
+	k9jjYEeahVvB7aL4OPYEf5Mze/0MTD1VbD0wkc1YbCrO4oZJMuadeZAbQey+s287yt+nk3NRvKY
+	OYY9hLnaXAuqhiRXrIz8lrnJnCcSidr8s/eb9JGF7tSk9SOznfRn+0HZfZhNm9OGPpQ==
+X-Received: by 2002:a50:893d:: with SMTP id e58mr17819373ede.266.1551175649648;
+        Tue, 26 Feb 2019 02:07:29 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZ4BlKns32f7tbxHaiLC8s8GhqfhiZjdRlEsWikHMY2ZRh8UD7KNYxOOBAnoJjeZ8gtv99n
+X-Received: by 2002:a50:893d:: with SMTP id e58mr17819323ede.266.1551175648836;
+        Tue, 26 Feb 2019 02:07:28 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551175648; cv=none;
         d=google.com; s=arc-20160816;
-        b=V57i2d+XaHdD17XxB7+WrThXcHa64FUhsSVELAw+9Be3OaUUscW/PCGvdkrP4J/KvI
-         JKBmO0R5sObVaJy5vXa1YQuEuaKaLi6Dsg/YuRzXKdHeWfqVhULKTZXOpfMeiTxYNQow
-         8V4LuujoMI8SDjkTDkEy07qdU/CZVo7Bu3KEUw2dJKmRF5eDVlAumq39Fn+x3pN8nuOT
-         O3y7L6RWDnlmGuq+qg9pOmsLmV5vWB7ieljMcEuA2j/LGAoMagl6S1lar6KUohYmvGTQ
-         vkoZls6z5j7I23IAuyoxspVp5FBfl6UDAT6ABJEmDNHUGq+vQ0Qz73AWlQzCMGMxWlZ0
-         Nnyw==
+        b=U7hFHXAFdNfQ24MOw25EswSl99eCJFyiA6g9WSkiGb0nAt3Po/QFLES+zMXuVkNcza
+         WrUV7R8lqZVszl1wVBDqT1APcicxFKo7shvD2FA9Oihtm3MyFmdPZGh/hl2FlLQFYShN
+         KS8wH0B9r0/ov38gtmkcd/uLxxKgmVI/sXmKsUU85ATta/dGj0h359NrXmSsuVzKo+Uu
+         nf7hv42ArOByI9V44KuSLUOwQPAwuQEHvz4D3oAZ7ROMUQYwwt8SBuGjoUM4fIlt5kFt
+         CWjp4FYuVCQSwOBOTeVqdhBijUA69EEwy4XSrHUxZU2Bw+UOkuUJZxMgYSSKLcQ286vm
+         jaGw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=fPjyG/sj84TjOhFrLomGnIeWnO77IwIcYYljQwFkCkg=;
-        b=IWgnoSQw2NQqqxOy4bB+SAKeWNlhqi9tHPULVyaMhrcxUAkeQZkGeRvRhnSLevn0sM
-         2HiVQgiRQtm9ha2DY+yynayecORXNdiCJex/zD6WMTRuvjvt4esXJqKacNBn9pQ+5QZ+
-         CtbsIS5fBavOJrtlY7XcqtlPysobL0DrzzTKgb9FP5P2CHET2iBTgJ+lX0Gv3HVrpdSv
-         XceIzRd+9PBMkDPMCo3cNBmiWJ+wyMSoSdzkMaM1QpdZPbwhIqiilfWSGq7gD3OsmyPZ
-         BHmU+UakGoBr/EoE93dL64Hft39GCnnBDF76uDVLkOzcVAQwIFTYfrliMtWqzXfXWkgr
-         xdDQ==
+        bh=1b6xNAWxDGGX6L/KBuSPcEjzYvreuqljgyVnBXfYKV0=;
+        b=MSjEHRFuRck2PhbGMOYnq561nIeYvcNHNxWKsI5cjDBhZIhv/GxJ5KUEIkVJudKbt5
+         DEF4Ag9FXiGKQclXpyq0SaDqOnnmD9YgwzrOYMsLY2m9pjDP5COC1epASwT7a6rR+Xjn
+         rOGYlc8IOKwbSJIo0dblGiNBQgxBW6uWMtqT3aI2UWnPK63VD8Tmp9rRgj45e+wuLBqw
+         b3Hpf9xixlki1g6nSzTLpG+ex8apIGIhRw0hz+fKR6juy8KbK2vF3WQD+6noptwGWnrN
+         +HWr3dbRX5kzjo7HW6GV2O9yWnY9Rjc2MrnB4cAihb+q4VbFQ+ARAMpFspoIvCne7wKw
+         EjsQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gw24si4140114ejb.142.2019.02.26.02.06.15
+        by mx.google.com with ESMTPS id s19si1494422ejf.252.2019.02.26.02.07.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Feb 2019 02:06:15 -0800 (PST)
+        Tue, 26 Feb 2019 02:07:28 -0800 (PST)
 Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id F1A58AEA9;
-	Tue, 26 Feb 2019 10:06:14 +0000 (UTC)
-Subject: Re: [PATCH] xfs: allocate sector sized IO buffer via page_frag_alloc
-To: Ming Lei <ming.lei@redhat.com>, Dave Chinner <david@fromorbit.com>
-Cc: Matthew Wilcox <willy@infradead.org>,
- "Darrick J . Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org,
- Jens Axboe <axboe@kernel.dk>, Vitaly Kuznetsov <vkuznets@redhat.com>,
- Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>,
- Alexander Duyck <alexander.h.duyck@linux.intel.com>,
- Aaron Lu <aaron.lu@intel.com>, Christopher Lameter <cl@linux.com>,
- Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org,
- linux-block@vger.kernel.org, Christoph Lameter <cl@linux.com>,
- Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
- Joonsoo Kim <iamjoonsoo.kim@lge.com>
-References: <20190225040904.5557-1-ming.lei@redhat.com>
- <20190225043648.GE23020@dastard>
- <5ad2ef83-8b3a-0a15-d72e-72652b807aad@suse.cz>
- <20190225202630.GG23020@dastard> <20190226022249.GA17747@ming.t460p>
- <20190226030214.GI23020@dastard>
- <20190226032737.GA11592@bombadil.infradead.org>
- <20190226045826.GJ23020@dastard> <20190226093302.GA24879@ming.t460p>
+	by mx1.suse.de (Postfix) with ESMTP id 3489CAEA9;
+	Tue, 26 Feb 2019 10:07:28 +0000 (UTC)
+Subject: Re: [PATCH] mm: migrate: add missing flush_dcache_page for non-mapped
+ page migrate
+To: Lars Persson <lars.persson@axis.com>, Lars Persson <larper@axis.com>,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mips@vger.kernel.org
+References: <20190219123212.29838-1-larper@axis.com>
+ <65ed6463-b61f-81ff-4fcc-27f4071a28da@suse.cz>
+ <ed4dd065-5e1b-dc20-2778-6d0a727914a8@axis.com>
 From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
 Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
@@ -161,12 +150,12 @@ Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
  5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
  hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
  Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
-Message-ID: <a641feb8-ceb2-2dac-27aa-7b1df10f5ae5@suse.cz>
-Date: Tue, 26 Feb 2019 11:06:12 +0100
+Message-ID: <2de280a9-e82a-876c-e13b-a2e48d89700a@suse.cz>
+Date: Tue, 26 Feb 2019 11:07:27 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.5.0
 MIME-Version: 1.0
-In-Reply-To: <20190226093302.GA24879@ming.t460p>
+In-Reply-To: <ed4dd065-5e1b-dc20-2778-6d0a727914a8@axis.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -176,65 +165,14 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/26/19 10:33 AM, Ming Lei wrote:
-> On Tue, Feb 26, 2019 at 03:58:26PM +1100, Dave Chinner wrote:
->> On Mon, Feb 25, 2019 at 07:27:37PM -0800, Matthew Wilcox wrote:
->>> On Tue, Feb 26, 2019 at 02:02:14PM +1100, Dave Chinner wrote:
->>>>> Or what is the exact size of sub-page IO in xfs most of time? For
->>>>
->>>> Determined by mkfs parameters. Any power of 2 between 512 bytes and
->>>> 64kB needs to be supported. e.g:
->>>>
->>>> # mkfs.xfs -s size=512 -b size=1k -i size=2k -n size=8k ....
->>>>
->>>> will have metadata that is sector sized (512 bytes), filesystem
->>>> block sized (1k), directory block sized (8k) and inode cluster sized
->>>> (32k), and will use all of them in large quantities.
->>>
->>> If XFS is going to use each of these in large quantities, then it doesn't
->>> seem unreasonable for XFS to create a slab for each type of metadata?
+On 2/26/19 9:40 AM, Lars Persson wrote:
+>> What about CC stable and a Fixes tag, would it be applicable here?
 >>
->>
->> Well, that is the question, isn't it? How many other filesystems
->> will want to make similar "don't use entire pages just for 4k of
->> metadata" optimisations as 64k page size machines become more
->> common? There are others that have the same "use slab for sector
->> aligned IO" which will fall foul of the same problem that has been
->> reported for XFS....
->>
->> If nobody else cares/wants it, then it can be XFS only. But it's
->> only fair we address the "will it be useful to others" question
->> first.....
 > 
-> This kind of slab cache should have been global, just like interface of
-> kmalloc(size).
+> Yes this is candidate for stable so let's add:
+> Cc: <stable@vger.kernel.org>
 > 
-> However, the alignment requirement depends on block device's block size,
-> then it becomes hard to implement as genera interface, for example:
-> 
-> 	block size: 512, 1024, 2048, 4096
-> 	slab size: 512*N, 0 < N < PAGE_SIZE/512
-> 
-> For 4k page size, 28(7*4) slabs need to be created, and 64k page size
-> needs to create 127*4 slabs.
->
+> I do not find a good candidate for a Fixes tag.
 
-Where does the '*4' multiplier come from?
-
-So I wonder how hard would it actually be (+CC slab maintainers) to just
-guarantee generic kmalloc() alignment for power-of-two sizes. If we can
-do that for kmem_cache_create() then the code should be already there.
-AFAIK the alignment happens anyway (albeit not guaranteed) in the
-non-debug cases, and if guaranteeing alignment for certain debugging
-configurations (that need some space before the object) means larger
-memory overhead, then the cost should still be bearable since its
-non-standard configuration where the point is to catch bug and not have
-peak performance?
-
-> But, specific file system may only use some of them, and it depends
-> on meta data size.
-> 
-> Thanks,
-> Ming
-> 
+How bout a version range where the bug needs to be fixed then?
 
