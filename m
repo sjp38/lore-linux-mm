@@ -6,105 +6,105 @@ X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
 	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C8AC6C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 14:35:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C9349C10F0B
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 14:39:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 81F6320C01
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 14:35:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 84C5E2173C
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 14:39:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="XRKcLkoJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81F6320C01
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="qrniw8KQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 84C5E2173C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 23D1C8E0004; Tue, 26 Feb 2019 09:35:54 -0500 (EST)
+	id 2100A8E0003; Tue, 26 Feb 2019 09:39:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E96C8E0001; Tue, 26 Feb 2019 09:35:54 -0500 (EST)
+	id 1C0438E0001; Tue, 26 Feb 2019 09:39:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 08A628E0004; Tue, 26 Feb 2019 09:35:54 -0500 (EST)
+	id 0AE508E0003; Tue, 26 Feb 2019 09:39:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B164F8E0001
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 09:35:53 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id n24so9670119pgm.17
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 06:35:53 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B89708E0001
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 09:39:20 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id q21so10574631pfi.17
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 06:39:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=AUt4iAfRYbk6BwjoCKxvIK1Q45AuJd2RFSG+AdGqGGc=;
-        b=LJpN7Rnc8Q/Y8+OPUgHVQqm54+RA3GBEkKY41otNq8iEqRDFoJ2FIDzPcaQiRwMGiN
-         sMEDPlHLGvQA/W3IRRGKxln9V9zyGQF3zQdvdTyRY7Tjh4Do0mt2NykAIZre7/UVVjVI
-         TphfqH0iVD7P//7DSRI0FPw3Vi8EDcvBVL82kNKr2GMfRwUmV3yt38ak6Cn6Co32DEG7
-         5H+zVCJsjq6v9iB0Pl6rhEOpDPSv21bRugdRd5f9WLVvDUL3tWNehG6RznHynrPQnZNK
-         Mx5NYvHoHrmrdQ+D4Tzv9VPGvT+dGW+1iSjAumIg901xy422XJOMeGCbhCQAkvwmZv8u
-         hgFQ==
-X-Gm-Message-State: AHQUAubSkVxidgSTK0rfDLu2dsme/kHmpWrQJnGpiMMagUikizdb9KjX
-	2eYubvLpHArNOlLTaMzxYxekSR2jMKaY8vJKn5wTpvQCmX+n+BXa3yjAp8lHvXxSMdpfUCPVb/q
-	QeyhM5cPhwcBKyG1Mo9d1d+iqPYVDchdDwONb+/CEQi0VDQ4WzzfTrDAz/gVNGL2jxQA06F6wOB
-	ns0EMAiXoINDUPsWPZ+4tKY1ra536kq08+3NaTFEQDV3nip1reDoeIC7iPLoaFDSg3OmJyP/P6q
-	4NavpJTxk9ucEVCQor7rffvjNthzEtfNI2XJV1cnHsh3BlPcOM2D7uIzRXdDlbXD/7sYjvNNjju
-	4zXyqy6tyWGeFD8lEreaI9Au52vW++C8qn3BuEap7coYMvBPelLeSFY+zUAbM0w600+t7KPF859
-	d
-X-Received: by 2002:a63:6e8d:: with SMTP id j135mr22602pgc.160.1551191753334;
-        Tue, 26 Feb 2019 06:35:53 -0800 (PST)
-X-Received: by 2002:a63:6e8d:: with SMTP id j135mr22543pgc.160.1551191752426;
-        Tue, 26 Feb 2019 06:35:52 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551191752; cv=none;
+        bh=dfiBLpo8ppzHN31Df3pK9Pue7IUmmemEwHEq/+qIHW8=;
+        b=XnSu4/eUaW8NbYf0r6+nZAaYSleAId5OymZkn93JE+z3IjcKevuVAOQKrqlvW4aEmu
+         5gigBRUTFkCgJ7oCJvmz1NQ2uAiu9+KeRUYQ8vma97rNzn1AVta3z/a/Mxvj7kCV/Kna
+         O4HCnUa4xVx5g5r+g43qI+ju23MI0kDzcyGECew4Nzn9RhdMMPtPfdgn3rGpmHd83oHd
+         05iUWL5xGEeQEyTBdoaG2vP2ATxKS69EoXlFed30NO9KRwNKqJj/Tqvb4eLjStNSmIH9
+         Lk2gzBIgN2gF4rZ9ifOEqMlt9tCMEsgcze55rhqrx8sEwyljhLhhnxTZ/0k9nzERtoEY
+         +Cuw==
+X-Gm-Message-State: AHQUAuY5FqbTFg5Zryef0suqQuRo7nHo3P0ZKjX1pkrimOx2ueMysgFm
+	vysk+5m2u4T8/WAZImBIcz7q1OAOJZ9y2evCTbCgVKgGRkw+ECHn9Gt+X7Ms9X6IL0cbGTwH/Lc
+	7C8TQppKNAZlMxjmRcsIq1qVav1D/P/VIYJHo+davaKAQIutERwtTHlfCvniqakmrTM15+HN4rW
+	n4H/6yckqadk1g8URDLu1jZGGPjEjguDnSjc3mIV3leHchtlylKdV1BncAQiHZ4RCMRzwID1H57
+	/iaEWBzeK48xCdP3FCv4XHoVqtB4dqQPFXZjhvBEH820bgSlsUHyKabcvC3mGz+VuWNCC+kKjcS
+	Iw655rEpZnNsohZU5+UBWMBcOYIAsm87UkiMJyfFrZCw0+WXwhug1MJbqQs7dvq4GnMa7TLBSIY
+	U
+X-Received: by 2002:a62:cf81:: with SMTP id b123mr26808630pfg.29.1551191960287;
+        Tue, 26 Feb 2019 06:39:20 -0800 (PST)
+X-Received: by 2002:a62:cf81:: with SMTP id b123mr26808570pfg.29.1551191959423;
+        Tue, 26 Feb 2019 06:39:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551191959; cv=none;
         d=google.com; s=arc-20160816;
-        b=j8NqG8sMc61CQMn7OUgpLStzM5p82vC0wyWGaI0V9NEjP0482mFjZO1S2c67S00Mdb
-         lnSHcyZDt7FBdAqHZYDAFkPpWhA6n77XG1EjeNnRwI43BrVjxO3xvxMWSZb6pvHxy8pg
-         SbdKBX1gONcrlsEH6oHhPiRCNp+TMo2ba34lfxs90Uj72dy2USUkdGPRQH0zk7cAJ55i
-         H28UZKEorsZLBvkAild1JBJUFiATevT6njOh322/Y1bc65iJ3P4u8xz3F38iIW1+UQcv
-         QGJW8Tnqo4zRCsAeS3Cui/tSHrVYBDn7YQm8l5u5sdLT+nkc+2hRmAa6mO2yV4iQxW2Q
-         IsXQ==
+        b=XKWFcmpiS0oGV/T4EVX3xhXTIXVoEtofylSkR98FZuTaM5i3B8Uupj10TsLGpSHOp6
+         ktYqql7hvWXdXBMcnlqfJ77pYzlSH2xZZEifQpRx4MCbusu7PXnOyxKLGr5TuWcxVFGD
+         jqotvBupkzJjbxahqXX3ki5htX2VIRofS89TU6z2XoGUnZPXxcBCUfr3OrczVE0dZbsa
+         dOq+HXB58tOKxjT/GtedaRQXDjVDh5B7n/7LHJB9WgM/q9q5o/0Ag4kn43sMrQFhM5AQ
+         yFTxcwglHgFb86KD7ThrqGizrsaPy3zJ2NwL5j38RRkDQQr+ijtCN0gcAW1KH+PA/X2F
+         sl2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=AUt4iAfRYbk6BwjoCKxvIK1Q45AuJd2RFSG+AdGqGGc=;
-        b=q3rR6tllgSIF7NUp21zelSHU3tDWk7WDCT+28YAiRl5EEPMKGaNkHGJh+95/5XcO0o
-         O9GcT6COLGCpEwm+ntmhxIZRpaxKq+ZbPyzn/fLnMuRsQbN6B5Agq7AUCL2XoDq5y/TZ
-         yxF3rwCJHpvG0Fb64xuOw9Eewy+ArMZ9RumzkY5K6RCPL/uQMrG916rEqt43FPmyXAoq
-         ETqY/bh27DdO6iF9FxutlBl5U9LPW4zv//JxheTmTIcQcHgnwNgkP0gI9UMK2VUogMpJ
-         AUE8cXUD5K7wVdZkq+HoxkBIRudLxtfRUqH+VPKf4YGceaXqVpHmYcuI3Oo1LLUZbKIU
-         gJDg==
+        bh=dfiBLpo8ppzHN31Df3pK9Pue7IUmmemEwHEq/+qIHW8=;
+        b=d8DAI4SFic4oK0rv+yHU5a4q/azEYR61DIpeygMwHUKgot8KZ/HSAUmyGjLlNj1bwZ
+         DHnLAjG7mKn3tbTlc2KhCsk4L18JZ9X5ihyhTD45er8Gh88figRH3chJvLflYH9W986H
+         gGce9zGDNgws2P/4bIiWeOWLlB5BjXUkMpAUFE2oWZ7ZjqDrk+UmH1yEcpPQrZYICSsN
+         tGjg8Wwc+r3CQ4HGMq64wO8eroUaGi/mAdGWtN8aa/9VnpPeJ930RR1w7afRTrgtNj4z
+         iJHdjuVQemu9hepvq+zo/QKkhogITOEkBOu+887puiNOrF/PH8+H+D+j6Z8KSh4unLc7
+         i7fw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=XRKcLkoJ;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=qrniw8KQ;
        spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q16sor20600113pfi.33.2019.02.26.06.35.52
+        by mx.google.com with SMTPS id d8sor18839834pgc.51.2019.02.26.06.39.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 26 Feb 2019 06:35:52 -0800 (PST)
+        Tue, 26 Feb 2019 06:39:19 -0800 (PST)
 Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=XRKcLkoJ;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=qrniw8KQ;
        spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=AUt4iAfRYbk6BwjoCKxvIK1Q45AuJd2RFSG+AdGqGGc=;
-        b=XRKcLkoJARsdGGCLNMsEu1Vu8sk3uYCwX73ehOf3+cVLv75cO4w/3UTqMluqhaIGyh
-         cCy4xvROzeQSaFXI2Iu8ow09wzrfeUVrM4ZBHYRiwLLWx0shcllKfcDdFKilrD1Kr8Mf
-         pLE8gRxiLBO8WSSp7OrsZFKA+euo20XGdvScqo95ZZCUwpBjOnXMacjezDCcsLkt/Mth
-         pHEFCvychKIJQf6QLymBizZy5Tzkwkra5iyXKKlgGp2QSjfkxadk85kayKTWgP4jHqma
-         lYOKPh4aOy50Vdd3ysijeaTRxrjd48CuRB+UX9PdLo8hQkWNFjb25zGeU7TCq+mn7l5N
-         FWRw==
-X-Google-Smtp-Source: AHgI3IbiQNlPq53/tUpD5IAq8EfXkU5pkBI8V4LoDzop7lQaXJ2OSriJDpc1tkZELm721YxkXsfJtn4Ts8mziEe1cTs=
-X-Received: by 2002:a62:6383:: with SMTP id x125mr25941741pfb.239.1551191751796;
- Tue, 26 Feb 2019 06:35:51 -0800 (PST)
+        bh=dfiBLpo8ppzHN31Df3pK9Pue7IUmmemEwHEq/+qIHW8=;
+        b=qrniw8KQBsnVcBdkLwXYTHP1tzALWjLL3wqY47zLDB86u7VpyXqsBCFNMPUvx2rcQ5
+         tleEIn43VcQEIxdaz5Lq3qoXKxfo59ovHYPtXDa7JwcKInE8AMfYDGNxNizwMWMWQjde
+         EhSO6jW2VXILtMDY8JQSd+bipZZVCQ+CR0EOZ2zJgqQHGK2gbFfefcVUCOF/9F/FdN4j
+         khe0Gzu8tDmq3gffWUNVCHAG7gYifd/AMvfrRv8bNWrE6v7GDGV6bjcxEvsAriDj0zwX
+         9ukzSjG/hOjO6EfG3Aixqm8fiGMNQyIAiftpSDpkdyIWPy343s9BUOUiQ9YAblVGHraC
+         nJQA==
+X-Google-Smtp-Source: AHgI3IbzQ3IeJ3DdtureLg8xHbfzWl4k26RcwSMIdPdFZQbQ2oXfH0JWdLJfU9vlDhlDrZoE5TP5lbkNIdumuA65DBY=
+X-Received: by 2002:a65:6651:: with SMTP id z17mr23465185pgv.95.1551191958932;
+ Tue, 26 Feb 2019 06:39:18 -0800 (PST)
 MIME-Version: 1.0
-References: <cover.1550839937.git.andreyknvl@google.com> <a958e202cdbe6e1bac8a37b7f3d9881d1b22993d.1550839937.git.andreyknvl@google.com>
- <a38275b0-f6cd-20e1-3c48-544846586a16@intel.com>
-In-Reply-To: <a38275b0-f6cd-20e1-3c48-544846586a16@intel.com>
+References: <cover.1550839937.git.andreyknvl@google.com> <8343cd77ca301df15839796f3b446b75ce5ffbbf.1550839937.git.andreyknvl@google.com>
+ <73f2f3fe-9a66-22a1-5aae-c282779a75f5@intel.com>
+In-Reply-To: <73f2f3fe-9a66-22a1-5aae-c282779a75f5@intel.com>
 From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 26 Feb 2019 15:35:40 +0100
-Message-ID: <CAAeHK+wLm7zSUC8dJv3LgdyvpkBN8u_24ene6b91PgM570VWbQ@mail.gmail.com>
-Subject: Re: [PATCH v10 06/12] fs, arm64: untag user pointers in copy_mount_options
+Date: Tue, 26 Feb 2019 15:39:08 +0100
+Message-ID: <CAAeHK+yQU8khtOoyDKqmHterCa16P7oWe9AMiPnrxE+Gyb_7aw@mail.gmail.com>
+Subject: Re: [PATCH v10 07/12] fs, arm64: untag user pointers in fs/userfaultfd.c
 To: Dave Hansen <dave.hansen@intel.com>
 Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, 
 	Mark Rutland <mark.rutland@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
@@ -129,32 +129,18 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Feb 23, 2019 at 12:03 AM Dave Hansen <dave.hansen@intel.com> wrote:
+On Sat, Feb 23, 2019 at 12:06 AM Dave Hansen <dave.hansen@intel.com> wrote:
 >
 > On 2/22/19 4:53 AM, Andrey Konovalov wrote:
-> > --- a/fs/namespace.c
-> > +++ b/fs/namespace.c
-> > @@ -2730,7 +2730,7 @@ void *copy_mount_options(const void __user * data)
-> >        * the remainder of the page.
-> >        */
-> >       /* copy_from_user cannot cross TASK_SIZE ! */
-> > -     size = TASK_SIZE - (unsigned long)data;
-> > +     size = TASK_SIZE - (unsigned long)untagged_addr(data);
-> >       if (size > PAGE_SIZE)
-> >               size = PAGE_SIZE;
+> > userfaultfd_register() and userfaultfd_unregister() use provided user
+> > pointers for vma lookups, which can only by done with untagged pointers.
 >
-> I would have thought that copy_from_user() *is* entirely capable of
-> detecting and returning an error in the case that its arguments cross
-> TASK_SIZE.  It will fail and return an error, but that's what it's
-> supposed to do.
->
-> I'd question why this code needs to be doing its own checking in the
-> first place.  Is there something subtle going on?
+> So, we have to patch all these sites before the tagged values get to the
+> point of hitting the vma lookup functions.  Dumb question: Why don't we
+> just patch the vma lookup functions themselves instead of all of these
+> callers?
 
-The comment above exact_copy_from_user() states:
-
-Some copy_from_user() implementations do not return the exact number of
-bytes remaining to copy on a fault.  But copy_mount_options() requires that.
-Note that this function differs from copy_from_user() in that it will oops
-on bad values of `to', rather than returning a short copy.
+That might be a working approach as well. We'll still need to fix up
+places where the vma fields are accessed directly. Catalin, what do
+you think?
 
