@@ -2,225 +2,203 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CAFA5C4360F
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 06:21:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8796BC4360F
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 06:25:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8B71F2173C
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 06:21:14 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="UvtjQlyB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B71F2173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 4E1F12173C
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 06:25:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E1F12173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F51A8E0003; Tue, 26 Feb 2019 01:21:14 -0500 (EST)
+	id DA9F68E0003; Tue, 26 Feb 2019 01:25:10 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A2438E0002; Tue, 26 Feb 2019 01:21:14 -0500 (EST)
+	id D4DE28E0002; Tue, 26 Feb 2019 01:25:10 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 191BA8E0003; Tue, 26 Feb 2019 01:21:14 -0500 (EST)
+	id C63008E0003; Tue, 26 Feb 2019 01:25:10 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C7F0E8E0002
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 01:21:13 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id e2so9071829pln.12
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 22:21:13 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CCE08E0002
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 01:25:10 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id e31so11245793qtb.22
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 22:25:10 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=ZC0yZ2p1o7PK0cgDcV+7uVagcrLRoIilQ0DOICYuriA=;
-        b=Nfg5UpRum2VSU+ZXQXE3B0dg9f5uBA5jFpddSdqEncc2pmNsWmTn3cKt425NTQAvMI
-         FaLBKnq3BNWLLWbVTN4ZMuffS2CqVY/immX2VBehe49fRxFe088QEx750dXqbKVz/wq7
-         9/KzMRchz4S08aGN37ziYkmoUwIlhTqdoIWm8BdWJL91KpfYRMmgJr+Ow8mwlezfhSB+
-         CZxI7eZSx505QSgY8TVndCYx7qIHvb96CcjwYPVcQvKRsPrKtL3Mn8HZgNcky7PzkytZ
-         rFQGNu8myqJSATAR87WfGeV3Nw1xkuMyp0aN/29agwQfSjvhz/AlEzG0LTc2nyFArZrC
-         tYEg==
-X-Gm-Message-State: AHQUAuZ9tBk6jomTFxGTRA7XIsQ39+F5wQnkx3WIqeaQH6hZGAgK5yfX
-	h2EjlDzV1yBcN12s9UViKkh2p65XPRCTQbz4zV2HPwPFJ7lJlh+KRPVyGtWpVXXtwLCSYuCaLre
-	FjrK5s/pZY5+eWcngkisQ1zd+mxWuy7oIsvZM+1UJPa0QqpgQkQlinuyDeRBZtouj7jINcmRbXn
-	j6lATDR2R2t22g2O34OAjaxcXnB3GuSjYe5VU50Vi5+ursul8gCz6Q5WuFd2uzxkWvQMSvywh4Q
-	BBjDOknX0y3kva0u/RXp6hSZ/z08FUZXnpcUhYdzye+nb+EXxYtsSRA+YAploCUwYTU7nXCr8gS
-	TNxN4ekXh1Uq8netemAc96FCjaQFkLFuEsSXOKD05V//T/DVEvFAar6KAKd0Xt27yKDmu3x8SgA
-	+
-X-Received: by 2002:a17:902:112c:: with SMTP id d41mr24600187pla.177.1551162073499;
-        Mon, 25 Feb 2019 22:21:13 -0800 (PST)
-X-Received: by 2002:a17:902:112c:: with SMTP id d41mr24600131pla.177.1551162072552;
-        Mon, 25 Feb 2019 22:21:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551162072; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=AGeyhIWuilZzjypRYSbv3jefgHfFwWqZZzzYkiNDc00=;
+        b=FpbNfHkC0fLNPzaFrXvDW/whCWci9NAb7TsvDuCRy7nS3eBRUTX1lGRAvWMZcAGN+c
+         uSemGlh8TxfNBtmfxhmcTVhpNiLkmsPWs0k8V31nKv9JUMbxonfrh25pJeRI91r8Thdo
+         BZguuR+NMfZzxcvxDTBrgQ8A8JZaRXkbAJEx+kv+KB40AGlF6J5vxAh4UudhNoWRMGk/
+         o9pYThKipeTx+0osj8/ztifuzK3J3d7TU5yKW0LjTJd4bYlldzZYDUu2wIF/f8j76v4F
+         FB6Sv0rgpuinJrUJPSFrR0XlPQSJ6Ev7AFrZflQZGzwMS6YwNz62u1gTA3dXt3rmR5GP
+         GXOA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: AHQUAuaiGQE91gJBAFrbtNF2xV0Gx9H8djJIFoEJTVUSzHZ+VE2i7wnT
+	iV3KBjmhyoSU50X7dadxb9h7Wf7pMMfd8oT//qmZqhXFYJtSlhf8hrUdUNEMS1hUUwVIN5e6ohg
+	zrR8YsEMyUb48+b62NJAHMAlg6ej0tXjZ/x9Qr1k/8KXqBrdSHW/BX4dXeNacXh7/sA==
+X-Received: by 2002:ac8:4141:: with SMTP id e1mr16242255qtm.96.1551162310371;
+        Mon, 25 Feb 2019 22:25:10 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaCfStZiOdSffUmD+/6APbTM4SoGdFbKlsZTRoCwd7AexuYSeXvWwP6D19F8pir94nQGEdV
+X-Received: by 2002:ac8:4141:: with SMTP id e1mr16242228qtm.96.1551162309618;
+        Mon, 25 Feb 2019 22:25:09 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551162309; cv=none;
         d=google.com; s=arc-20160816;
-        b=DsMwlRZ5pMwCH3y4z2ujcBHvlgkJzG+yuLMcXhehdm9r3qofqpWtqQmxLD2xQ21n96
-         B14xRK1dxlnfYCv5KWOgRypJ+lCDouIXawNLE4+WFhmpLXpxYFwTc3G+jzjrEQnVT6cn
-         t2Yg+NmfuLRgzIr9trHWMTdVvu2cyy1y/evhJxdKWKnqh2W0NYxjhlbVRExpmXjhIEsZ
-         TiuBCxQ9bkWZKP4EvL5ZTQZwo8Z4IN8VHj0Sb8yxjMbKLpj+twut9eYjZxSbis9w0/O7
-         2v6BaNJ5Odd4nRbtD4QA39xBE6s/0GezYC1+BYd8F0SzKfBujhTrUhSM+0sY7EqpnuWl
-         0ujw==
+        b=1C5fMxnZA7XUBQPEtClWEJtLq7u6X//XsFsn1rcsJEKouIUIp6sGzo4CZoWwDk5ztM
+         I0MRW5QVB2prQzhWnPp0m0sEHkvhgfzG3c2nP2NMJ5GZDdsLLZzDylkA3KP284oEdi9Z
+         8EZvEffQuJsVaQDFW5qLTdaowl7EvUAsOlbQl7KGaIcJZiU8HrHvBYzmF0gD3zow/ZyA
+         ZxbEL2XCUk4az/+58b5gs0gB/PnqPpToZELRFAPcuJHQxxWMH2taWOW/1LqoCWQX0hrx
+         CA1fPOhYyih2mW+CKStVk3VFYWAtGsaRp9WHi4jjjLTAvoluMfKwpS9IWIEq+dmpY3EH
+         yIyw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=ZC0yZ2p1o7PK0cgDcV+7uVagcrLRoIilQ0DOICYuriA=;
-        b=WE/lMKO+r7bqWWnaqctJ9Kno9zqexyN4EI6b3gO3zCa/pwLe2OGZaWzXA25fIaeI2J
-         ZCYj5L4SHsr5Pi1/quOuRBi1mXCwuiUU+ud6MOKa03P27SwL9IFIzfWw89zKhAldAAN3
-         Puc8MG5Ysjlq8EnKbPwWxBFNUZiap3uEWX7vdKrTsTVEsXB+BtwGCEpESxAqrBXRYLse
-         aFSkWwsg0GvwO/pV/jnNcjzgSc5EYX00042xW45qg6wASRVOtyohHAhCVIGJOHLcntLo
-         yQuZt6lvYWjHlpH6GRhqkj0ZB3dmxpQ/0a0qS8+R5Y8KMRK1QpW5YMG7AM/FUKHQnWBn
-         SBFg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=AGeyhIWuilZzjypRYSbv3jefgHfFwWqZZzzYkiNDc00=;
+        b=dSLyYCVjVzW5d0gXXxGdnCvKwXrSvk1+zfJa3HPYG+vclLLWnzXQgVVsWK82NTRE0q
+         Zrb6MT4mDZa5A1Kx9nFgqGdzC1aN95pjj9QMwRNhYQ9hQLsTGqPeXodeLz+b3YH58Iqe
+         PffDO1bsYGSteFBjjv2Y8RDrtS+E4+PVyaeQ5Sce6iq79n/SeG2EnT/+1F6H/4Hn6vg7
+         iBEYuYKvwmCjBKO0z5DVlCsdwBdPxTuDa/h3hnW6mTPUzwTXhWusaII/3mg7T7VH0Sql
+         D+Zdb9rMuVN6CrdQDB2LjUmu5+qBVgG5S36tvWVD0ZjT9fADLSBjXhLG8pBZUYMexN/3
+         vvaw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=UvtjQlyB;
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j62sor16680037pgd.27.2019.02.25.22.21.12
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p15si2680045qki.224.2019.02.25.22.25.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 25 Feb 2019 22:21:12 -0800 (PST)
-Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Feb 2019 22:25:09 -0800 (PST)
+Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=UvtjQlyB;
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=ZC0yZ2p1o7PK0cgDcV+7uVagcrLRoIilQ0DOICYuriA=;
-        b=UvtjQlyBI8sGvZ+mtUypgYWfiM98aNOpcvsZ8mtinlWzpV/NlGaoXWyn/WjvxAfA59
-         zAdDo0sD97UFxswOh43IvwfhYQP7qjifbFevHav7hjl2P87uTmlzYq5IhoAgEkb6VY39
-         dCWy6S5SW0aQviJWTfnukBXNmPr4fdfAY7NkghkxKNoRM5jVvvR160FhAglpE2Yv68BF
-         fWZ4JdnaGo/0YqSZ580IGTSzTe8ohUF0SBvfMTnRTwNdYoBruo5CtHXbefzYckQ7spAP
-         71St2dWIfiR99SCOdKu2K3GtaacTrAC/DefyOE8C8wh3LT86GGN2quiQcug5cJfphyD9
-         AxRA==
-X-Google-Smtp-Source: AHgI3IZhbJhlwudXVxVukpMgxn+FsTefaDGt47Wq8ZxiVq90yeWCKdR/Yp4JOJS211sGlFN/LNUTrw==
-X-Received: by 2002:a63:e206:: with SMTP id q6mr2648856pgh.87.1551162072022;
-        Mon, 25 Feb 2019 22:21:12 -0800 (PST)
-Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
-        by smtp.gmail.com with ESMTPSA id b26sm14893340pfo.33.2019.02.25.22.21.10
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 25 Feb 2019 22:21:10 -0800 (PST)
-Date: Mon, 25 Feb 2019 22:21:10 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-X-X-Sender: rientjes@chino.kir.corp.google.com
-To: Jing Xiangfeng <jingxiangfeng@huawei.com>
-cc: Mike Kravetz <mike.kravetz@oracle.com>, mhocko@kernel.org, 
-    Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, 
-    linux-mm@kvack.org, n-horiguchi@ah.jp.nec.com, 
-    Andrea Arcangeli <aarcange@redhat.com>, kirill.shutemov@linux.intel.com, 
-    linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v4] mm/hugetlb: Fix unsigned overflow in
- __nr_hugepages_store_common()
-In-Reply-To: <5C74A2DA.1030304@huawei.com>
-Message-ID: <alpine.DEB.2.21.1902252220310.40851@chino.kir.corp.google.com>
-References: <1550885529-125561-1-git-send-email-jingxiangfeng@huawei.com> <388cbbf5-7086-1d04-4c49-049021504b9d@oracle.com> <alpine.DEB.2.21.1902241913000.34632@chino.kir.corp.google.com> <8c167be7-06fa-a8c0-8ee7-0bfad41eaba2@oracle.com>
- <13400ee2-3d3b-e5d6-2d78-a770820417de@oracle.com> <alpine.DEB.2.21.1902251116180.167839@chino.kir.corp.google.com> <5C74A2DA.1030304@huawei.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 801D7307DAB7;
+	Tue, 26 Feb 2019 06:25:07 +0000 (UTC)
+Received: from xz-x1 (dhcp-14-116.nay.redhat.com [10.66.14.116])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id C36AA60865;
+	Tue, 26 Feb 2019 06:24:54 +0000 (UTC)
+Date: Tue, 26 Feb 2019 14:24:52 +0800
+From: Peter Xu <peterx@redhat.com>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	David Hildenbrand <david@redhat.com>,
+	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+	Marty McFadden <mcfadden8@llnl.gov>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v2 23/26] userfaultfd: wp: don't wake up when doing write
+ protect
+Message-ID: <20190226062424.GH13653@xz-x1>
+References: <20190212025632.28946-1-peterx@redhat.com>
+ <20190212025632.28946-24-peterx@redhat.com>
+ <20190225210934.GE10454@rapoport-lnx>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20190225210934.GE10454@rapoport-lnx>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Tue, 26 Feb 2019 06:25:08 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Feb 2019, Jing Xiangfeng wrote:
-
-> On 2019/2/26 3:17, David Rientjes wrote:
-> > On Mon, 25 Feb 2019, Mike Kravetz wrote:
+On Mon, Feb 25, 2019 at 11:09:35PM +0200, Mike Rapoport wrote:
+> On Tue, Feb 12, 2019 at 10:56:29AM +0800, Peter Xu wrote:
+> > It does not make sense to try to wake up any waiting thread when we're
+> > write-protecting a memory region.  Only wake up when resolving a write
+> > protected page fault.
 > > 
-> >> Ok, what about just moving the calculation/check inside the lock as in the
-> >> untested patch below?
-> >>
-> >> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> >> ---
-> >>  mm/hugetlb.c | 34 ++++++++++++++++++++++++++--------
-> >>  1 file changed, 26 insertions(+), 8 deletions(-)
-> >>
-> >> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> >> index 1c5219193b9e..5afa77dc7bc8 100644
-> >> --- a/mm/hugetlb.c
-> >> +++ b/mm/hugetlb.c
-> >> @@ -2274,7 +2274,7 @@ static int adjust_pool_surplus(struct hstate *h,
-> >> nodemask_t *nodes_allowed,
-> >>  }
-> >>
-> >>  #define persistent_huge_pages(h) (h->nr_huge_pages - h->surplus_huge_pages)
-> >> -static int set_max_huge_pages(struct hstate *h, unsigned long count,
-> >> +static int set_max_huge_pages(struct hstate *h, unsigned long count, int nid,
-> >>  						nodemask_t *nodes_allowed)
-> >>  {
-> >>  	unsigned long min_count, ret;
-> >> @@ -2289,6 +2289,23 @@ static int set_max_huge_pages(struct hstate *h, unsigned
-> >> long count,
-> >>  		goto decrease_pool;
-> >>  	}
-> >>
-> >> +	spin_lock(&hugetlb_lock);
-> >> +
-> >> +	/*
-> >> +	 * Check for a node specific request.  Adjust global count, but
-> >> +	 * restrict alloc/free to the specified node.
-> >> +	 */
-> >> +	if (nid != NUMA_NO_NODE) {
-> >> +		unsigned long old_count = count;
-> >> +		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
-> >> +		/*
-> >> +		 * If user specified count causes overflow, set to
-> >> +		 * largest possible value.
-> >> +		 */
-> >> +		if (count < old_count)
-> >> +			count = ULONG_MAX;
-> >> +	}
-> >> +
-> >>  	/*
-> >>  	 * Increase the pool size
-> >>  	 * First take pages out of surplus state.  Then make up the
-> >> @@ -2300,7 +2317,6 @@ static int set_max_huge_pages(struct hstate *h, unsigned
-> >> long count,
-> >>  	 * pool might be one hugepage larger than it needs to be, but
-> >>  	 * within all the constraints specified by the sysctls.
-> >>  	 */
-> >> -	spin_lock(&hugetlb_lock);
-> >>  	while (h->surplus_huge_pages && count > persistent_huge_pages(h)) {
-> >>  		if (!adjust_pool_surplus(h, nodes_allowed, -1))
-> >>  			break;
-> >> @@ -2421,16 +2437,18 @@ static ssize_t __nr_hugepages_store_common(bool
-> >> obey_mempolicy,
-> >>  			nodes_allowed = &node_states[N_MEMORY];
-> >>  		}
-> >>  	} else if (nodes_allowed) {
-> >> +		/* Node specific request */
-> >> +		init_nodemask_of_node(nodes_allowed, nid);
-> >> +	} else {
-> >>  		/*
-> >> -		 * per node hstate attribute: adjust count to global,
-> >> -		 * but restrict alloc/free to the specified node.
-> >> +		 * Node specific request, but we could not allocate
-> >> +		 * node mask.  Pass in ALL nodes, and clear nid.
-> >>  		 */
-> >> -		count += h->nr_huge_pages - h->nr_huge_pages_node[nid];
-> >> -		init_nodemask_of_node(nodes_allowed, nid);
-> >> -	} else
-> >> +		nid = NUMA_NO_NODE;
-> >>  		nodes_allowed = &node_states[N_MEMORY];
-> >> +	}
-> >>
-> >> -	err = set_max_huge_pages(h, count, nodes_allowed);
-> >> +	err = set_max_huge_pages(h, count, nid, nodes_allowed);
-> >>  	if (err)
-> >>  		goto out;
-> >>
+> > Signed-off-by: Peter Xu <peterx@redhat.com>
+> > ---
+> >  fs/userfaultfd.c | 13 ++++++++-----
+> >  1 file changed, 8 insertions(+), 5 deletions(-)
 > > 
-> > Looks good; Jing, could you test that this fixes your case?
+> > diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> > index 81962d62520c..f1f61a0278c2 100644
+> > --- a/fs/userfaultfd.c
+> > +++ b/fs/userfaultfd.c
+> > @@ -1771,6 +1771,7 @@ static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
+> >  	struct uffdio_writeprotect uffdio_wp;
+> >  	struct uffdio_writeprotect __user *user_uffdio_wp;
+> >  	struct userfaultfd_wake_range range;
+> > +	bool mode_wp, mode_dontwake;
+> > 
+> >  	if (READ_ONCE(ctx->mmap_changing))
+> >  		return -EAGAIN;
+> > @@ -1789,18 +1790,20 @@ static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
+> >  	if (uffdio_wp.mode & ~(UFFDIO_WRITEPROTECT_MODE_DONTWAKE |
+> >  			       UFFDIO_WRITEPROTECT_MODE_WP))
+> >  		return -EINVAL;
+> > -	if ((uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_WP) &&
+> > -	     (uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE))
+> > +
+> > +	mode_wp = uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_WP;
+> > +	mode_dontwake = uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE;
+> > +
+> > +	if (mode_wp && mode_dontwake)
+> >  		return -EINVAL;
 > 
-> Yes, I have tested this patch, it can also fix my case.
+> This actually means the opposite of the commit message text ;-)
+> 
+> Is any dependency of _WP and _DONTWAKE needed at all?
 
-Great!
+So this is indeed confusing at least, because both you and Jerome have
+asked the same question... :)
 
-Reported-by: Jing Xiangfeng <jingxiangfeng@huawei.com>
-Tested-by: Jing Xiangfeng <jingxiangfeng@huawei.com>
-Acked-by: David Rientjes <rientjes@google.com>
+My understanding is that we don't have any reason to wake up any
+thread when we are write-protecting a range, in that sense the flag
+UFFDIO_WRITEPROTECT_MODE_DONTWAKE is already meaningless in the
+UFFDIO_WRITEPROTECT ioctl context.  So before everything here's how
+these flags are defined:
+
+struct uffdio_writeprotect {
+	struct uffdio_range range;
+	/* !WP means undo writeprotect. DONTWAKE is valid only with !WP */
+#define UFFDIO_WRITEPROTECT_MODE_WP		((__u64)1<<0)
+#define UFFDIO_WRITEPROTECT_MODE_DONTWAKE	((__u64)1<<1)
+	__u64 mode;
+};
+
+To make it clear, we simply define it as "DONTWAKE is valid only with
+!WP".  When with that, "mode_wp && mode_dontwake" is indeed a
+meaningless flag combination.  Though please note that it does not
+mean that the operation ("don't wake up the thread") is meaningless -
+that's what we'll do no matter what when WP==1.  IMHO it's only about
+the interface not the behavior.
+
+I don't have a good way to make this clearer because firstly we'll
+need the WP flag to mark whether we're protecting or unprotecting the
+pages.  Later on, we need DONTWAKE for page fault handling case to
+mark that we don't want to wake up the waiting thread now.  So both
+the flags have their reason to stay so far.  Then with all these in
+mind what I can think of is only to forbid using DONTWAKE in WP case,
+and that's how above definition comes (I believe, because it was
+defined that way even before I started to work on it and I think it
+makes sense).
+
+Thanks,
+
+-- 
+Peter Xu
 
