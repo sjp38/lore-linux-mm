@@ -2,304 +2,229 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F348EC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 17:23:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1086FC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 17:27:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A1AE921848
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 17:23:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C1B0F217F9
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 17:27:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="TbTml2UO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A1AE921848
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="TJ8CrHqJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C1B0F217F9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C2F2F8E000A; Tue, 26 Feb 2019 12:22:55 -0500 (EST)
+	id 40AC78E0004; Tue, 26 Feb 2019 12:27:48 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B14C08E000E; Tue, 26 Feb 2019 12:22:55 -0500 (EST)
+	id 3BB708E0001; Tue, 26 Feb 2019 12:27:48 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9198A8E000A; Tue, 26 Feb 2019 12:22:55 -0500 (EST)
+	id 2D24F8E0004; Tue, 26 Feb 2019 12:27:48 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 28F938E000E
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 12:22:55 -0500 (EST)
-Received: by mail-wr1-f70.google.com with SMTP id e14so6490763wrt.12
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 09:22:55 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E39BF8E0001
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 12:27:47 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id b12so10035802pgj.7
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 09:27:47 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:in-reply-to:references
-         :from:subject:to:cc:date;
-        bh=CUXrFBKhYBz+mCNccGBkdNShdaiuJr/Xy6eAIyQykWk=;
-        b=DlN6T2xj2jCmbk0EmoEdxSWuCGXnetzM+W3CQZ+c6ykar6PLIfrykEO3DiS1FniTY4
-         PWVaYjpOel5gioHCxfJ37kUBoDRRLSHdl0SR97gTrGbMoksKeFLt/OWzB/9IgJPZ4iYm
-         1F4mq2uNYx1qRq5mfCWAZIW8yA2uet3Ahhzm+CzRe7Csw6qGnZX/9BXrtN+OGuO7Hv9M
-         Yl/l8+xzSzXMpb0jzHUw3I+H0KQ3rXSOrsCMEqK8KL4RokBoo90W0xD5HHpxoQST/Dop
-         +yeTzBDwdLs9WLlNOCbSuG70be2z2dWrRBEY0+RSclVCqsus6Qglbyjs8/8KaU1bV1oy
-         dxaw==
-X-Gm-Message-State: AHQUAuaJUY6KWYwuRWGKGS2iD19dkOGf2Jh+XdfPaTr4kRMDYEm0ACDU
-	JlILu+CiMP1Os34d922KEQdxP0nrC9VWDHvgdr7s3CLePRa13Itbba2KyEcmCpWZY+kH0hN86eO
-	jb7dSsmFTqJuku0Ks0r95PIA8sO5EJN5mF02iTUHmWY8frwaK9qjRiANW+q27YVn8kw==
-X-Received: by 2002:a05:6000:50:: with SMTP id k16mr12816121wrx.153.1551201774676;
-        Tue, 26 Feb 2019 09:22:54 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbPpdYMXLHbRoCPEwxGY+zbANs/9kXEMIL6v8PcHh72PUD7cG8HYKQe/GKdqVJ/GZxApcVJ
-X-Received: by 2002:a05:6000:50:: with SMTP id k16mr12816059wrx.153.1551201773578;
-        Tue, 26 Feb 2019 09:22:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551201773; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=/vBKQukGrCv9pM+rvi3dEGIzlDrNEuaOu5R8ALF3dKY=;
+        b=tFKK8OVxIjC5IYupjvq2HtL0Qqcq1KRUduVbyGFA/C3gzgOrpOUK2nR2pVVuO2tfq/
+         DhaJf4wFIXuYEx+836nPr1BPf8iAHZ5deQ828o4uRlprDqaVgmLdIDnt8VEPSSN3RRLQ
+         iDcyHjZE+vsU/LrR4jPit4uoQZcmWlPQEEAVryOq6LP71tCbkMuz4qYUbRy8bWJTBtcQ
+         BkfEagmdLJ+AcaiI7tUNjNhGwGea5h5BK/2Gez+n377byJhEBf7CQZVKtCJ6MfOX2lyF
+         44PdnAz4H03E5eKgZyrxqpfiJYSEyJeYozpYhrU6xtOb2eH00oqQuUHm0ueEIrvrj3Fe
+         zDnw==
+X-Gm-Message-State: AHQUAub1c6NnGrHBbpquv2nsjF/lusgZKIVDaOuo41kSsLdHqfKRJ3ca
+	B7VdZOrmMElffaC5F5a7F0QP/HDrgmqqnUeIEChEyb4WYDEqHJRrSDSpdFL4oue/R695UBuxyln
+	lakMUlhT2aFNmpcES3W/KWniphsZ9HENn5RYpZ9z4dPi3hgh49xf+oDvvpd2DmZCa9Q==
+X-Received: by 2002:a65:63c1:: with SMTP id n1mr25090004pgv.339.1551202067597;
+        Tue, 26 Feb 2019 09:27:47 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZMU8qcdyyl8W1LPdVg+Aq9cMhbQo2EPGsSZiiBH1jRI2L6Cpz3PjHucMgCr75WQy3Fdz95
+X-Received: by 2002:a65:63c1:: with SMTP id n1mr25089939pgv.339.1551202066440;
+        Tue, 26 Feb 2019 09:27:46 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551202066; cv=none;
         d=google.com; s=arc-20160816;
-        b=uABUv6B77v5jC+dbfmfjSTjBQQomVA/ykPKrSI8GeBejtBExBArOkAkBalY3HwoQSn
-         zmU+jkeqwME/o4tWv5vl7s7TaYXQBb0ackNlICZ9SxhoOu3AD7YwH3D2BiEx6GBwU99N
-         L1cdjHssdSpJuSYPXE0MyhXU53+KD9136VXhbfU7JV7+iYAadlHKT7bJWFLOnDV92kEw
-         UEtdlrTyDhbgHU7FMk1iXJRw385H7GmaWcQr9L0Bmi7ghyVg4eJm/U7Q3xZaDFZcnjs7
-         mdPG5Wd/E47nMH1uWGI11zU4nrDKq3zj4crC+xaS9VFYVrs0xGj0yvvLPAj7AEO6dnsF
-         AwTQ==
+        b=paoipLLn0CaYm4+MZviF0mzZEkiX4OTxfP+tJW43XYj+qbuRbRZPdQHLNuZQCxiK+d
+         kqn2xskV8WnQJce5Yxt1jP5MGSgaBJQvZ99VHWaPl+R5CPKzeNzVG9r9Eeb206gqVBgA
+         219LNyandHA5eeChvElneiBvms3o3rgpumi6QiinIwmhlAbnW/9unpOJWepnf8l1IJTC
+         SKT44GsufjZL8inGyB7QWdUZ4bbU+f20WgNLcSRbDBVXBv7+saRb6TD3sh48GY9SVe7f
+         AF1JNUHsgcjll9b3otXcR6reAA1Vjvi7cq7glyP982xCFVvrQL7UgT2dfg7KTWrm4kSk
+         hw6g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=date:cc:to:subject:from:references:in-reply-to:message-id
-         :dkim-signature;
-        bh=CUXrFBKhYBz+mCNccGBkdNShdaiuJr/Xy6eAIyQykWk=;
-        b=KlMgX56LXuzYOLW6yCdo5UQDc/qaF2wGeu6FiuDFIW9mN+cYEOz9oTmEkT07xAseeT
-         7rxzVMXE+/VATiNu7EFA9O1ptIhGYGcYswZr8uAUNK9nwsef3/G4+W+AKDYE7t15Wjrx
-         i/VsgSlYRkEdeQ7fYGcDiiS96TMCOxJ1g8onuKl8NP8G00faedFF1q+1PzHwmdZ7G8RB
-         5AHz8gxQZpkzJlJpEljML1nrNJAdmfPakYYelhIJg2aPGezhXosl+UFwVa56yZDsYPP2
-         GKFw0gzzAxYEmVMFr9YprAsZJGjH8lhTuWesqmRDGrBddu6azTHX3JMBMIwjDkGtAO6I
-         DzMA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=/vBKQukGrCv9pM+rvi3dEGIzlDrNEuaOu5R8ALF3dKY=;
+        b=LOxALwEBHsA8h+kP5TBv+WIDVrK5C3rBxaZvxmYpM8JhcLFvxDgZQOGcF5eUB6ElsR
+         hiOmSMbQUtJi8XPr/gHp51pz7bkY96CtG5jrLYsA1ZNgX7RTjBW3Ez2Sx9q6hxh6yOMH
+         pMW6gsDBy5AytZHE4LM5nif/elF8JHbNmBWvIDmO2Sm0It8wo9XwLb3mg0d5oy7uzS21
+         aXaPhozqqW4XxlqJuwFeIB0K5OMZcNKghPIdDnuOazyCu8+2XPyYufLv5kmYa7ucYfNx
+         Zgeg31uar7PHd6BDzNNqKn1CtrDYsGYcA1kZu29AM3/5lYc0L7zZ2AHuY8u20cBmD3Ie
+         P8wQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=TbTml2UO;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id n16si8519588wrx.115.2019.02.26.09.22.53
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=TJ8CrHqJ;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id i12si13316490pfj.236.2019.02.26.09.27.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Feb 2019 09:22:53 -0800 (PST)
-Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 26 Feb 2019 09:27:45 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=TbTml2UO;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 4485HH3l0jz9vJLc;
-	Tue, 26 Feb 2019 18:22:51 +0100 (CET)
-Authentication-Results: localhost; dkim=pass
-	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=TbTml2UO; dkim-adsp=pass;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at c-s.fr
-Received: from pegase1.c-s.fr ([192.168.12.234])
-	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id roTJiIgRYxfx; Tue, 26 Feb 2019 18:22:51 +0100 (CET)
-Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 4485HH2dx4z9vJLY;
-	Tue, 26 Feb 2019 18:22:51 +0100 (CET)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1551201771; bh=CUXrFBKhYBz+mCNccGBkdNShdaiuJr/Xy6eAIyQykWk=;
-	h=In-Reply-To:References:From:Subject:To:Cc:Date:From;
-	b=TbTml2UOrOMFk5cVLsf04ffiKDLFYoUnVi3gyaj3KDWMfZqtgY5b8p5lzHRktEiO6
-	 Mxaisx+5+S9KEBMqEEo6/ibLk3DY0hE4ywewiZCPL+Yt47jyX9XqKNrx9rKBTS1rjL
-	 yOvR023jksF7QaXyz6cIAukt7ZLGOCOv10+4TeMM=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 028DF8B97A;
-	Tue, 26 Feb 2019 18:22:53 +0100 (CET)
-X-Virus-Scanned: amavisd-new at c-s.fr
-Received: from messagerie.si.c-s.fr ([127.0.0.1])
-	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id fSpD_c9jC6vE; Tue, 26 Feb 2019 18:22:52 +0100 (CET)
-Received: from po16846vm.idsi0.si.c-s.fr (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id B11228B96A;
-	Tue, 26 Feb 2019 18:22:52 +0100 (CET)
-Received: by po16846vm.idsi0.si.c-s.fr (Postfix, from userid 0)
-	id 854736F7A6; Tue, 26 Feb 2019 17:22:52 +0000 (UTC)
-Message-Id: <d25f9dea2afed63d30ed4894f0a9b129040f51e1.1551161392.git.christophe.leroy@c-s.fr>
-In-Reply-To: <cover.1551161392.git.christophe.leroy@c-s.fr>
-References: <cover.1551161392.git.christophe.leroy@c-s.fr>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Subject: [PATCH v8 11/11] powerpc/32s: set up an early static hash table for
- KASAN.
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Nicholas Piggin <npiggin@gmail.com>, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com, linux-mm@kvack.org
-Date: Tue, 26 Feb 2019 17:22:52 +0000 (UTC)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=TJ8CrHqJ;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=/vBKQukGrCv9pM+rvi3dEGIzlDrNEuaOu5R8ALF3dKY=; b=TJ8CrHqJSZFzh3fhiNsEw34O9
+	wUQytjFB5jM547+jQnJaJqoIACqi4GWE6tMJHv07Xv+x/CwhRbCts6GsgSLSLuGd6cGGE6yYVCGO0
+	j/XqC6uq7EbAB0Lg6mSvlASqPbnoC9UPTzAuln7FsW8q9bUBgGIw8n2KZyLU+FZNgP+eFIaqqTa2s
+	zjeYkSIaA2T3eNF6x0eIuDmsIVkM9u2h4Q+2MMcz8/dNPa3PUOWuUGFZm2dYlNQD6H+I3UaI7tlSZ
+	KbAgPDrwkD7+Bnj8WhqJaKBfHn10YlaFPpLDaCY4yR+GOdkPoTHXpe8ibxkOc7jbCvtWzhTH7mp7g
+	eGzb9Gm8w==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gygW8-0002Kq-Uv; Tue, 26 Feb 2019 17:27:44 +0000
+Date: Tue, 26 Feb 2019 09:27:44 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, mgorman@suse.de
+Subject: Re: Truncate regression due to commit 69b6c1319b6
+Message-ID: <20190226172744.GH11592@bombadil.infradead.org>
+References: <20190226165628.GB24711@quack2.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190226165628.GB24711@quack2.suse.cz>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KASAN requires early activation of hash table, before memblock()
-functions are available.
+On Tue, Feb 26, 2019 at 05:56:28PM +0100, Jan Kara wrote:
+> after some peripeties, I was able to bisect down to a regression in
+> truncate performance caused by commit 69b6c1319b6 "mm: Convert truncate to
+> XArray".
 
-This patch implements an early hash_table statically defined in
-__initdata.
+[...]
 
-During early boot, a single page table is used. For hash32, when doing
-the final init, one page table is allocated for each PGD entry because
-of the _PAGE_HASHPTE flag which can't be common to several virt pages.
+> I've gathered also perf profiles but from the first look they don't show
+> anything surprising besides xas_load() and xas_store() taking up more time
+> than original counterparts did. I'll try to dig more into this but any idea
+> is appreciated.
 
-Signed-off-by: Christophe Leroy <christophe.leroy@c-s.fr>
----
- arch/powerpc/kernel/head_32.S         | 40 ++++++++++++++++++++++++++---------
- arch/powerpc/mm/kasan/kasan_init_32.c | 32 ++++++++++++++++++++++++----
- arch/powerpc/mm/mmu_decl.h            |  1 +
- 3 files changed, 59 insertions(+), 14 deletions(-)
+Well, that's a short and sweet little commit.  Stripped of comment
+changes, it's just:
 
-diff --git a/arch/powerpc/kernel/head_32.S b/arch/powerpc/kernel/head_32.S
-index e644aab2cf5b..65c9e8819da1 100644
---- a/arch/powerpc/kernel/head_32.S
-+++ b/arch/powerpc/kernel/head_32.S
-@@ -160,6 +160,10 @@ __after_mmu_off:
- 	bl	flush_tlbs
+-       struct radix_tree_node *node;
+-       void **slot;
++       XA_STATE(xas, &mapping->i_pages, index);
  
- 	bl	initial_bats
-+	bl	load_segment_registers
-+#ifdef CONFIG_KASAN
-+	bl	early_hash_table
-+#endif
- #if defined(CONFIG_BOOTX_TEXT)
- 	bl	setup_disp_bat
- #endif
-@@ -205,7 +209,7 @@ __after_mmu_off:
+-       if (!__radix_tree_lookup(&mapping->i_pages, index, &node, &slot))
++       xas_set_update(&xas, workingset_update_node);
++       if (xas_load(&xas) != entry)
+                return;
+-       if (*slot != entry)
+-               return;
+-       __radix_tree_replace(&mapping->i_pages, node, slot, NULL,
+-                            workingset_update_node);
++       xas_store(&xas, NULL);
+
+I have a few reactions to this:
+
+1. I'm concerned that the XArray may generally be slower than the radix
+tree was.  I didn't notice that in my testing, but maybe I didn't do
+the right tests.
+
+2. The setup overhead of the XA_STATE might be a problem.
+If so, we can do some batching in order to improve things.
+I suspect your test is calling __clear_shadow_entry through the
+truncate_exceptional_pvec_entries() path, which is already a batch.
+Maybe something like patch [1] at the end of this mail.
+
+3. Perhaps we can actually get rid of truncate_exceptional_pvec_entries().
+It seems a little daft for page_cache_delete_batch() to skip value
+entries, only for truncate_exceptional_pvec_entries() to erase them in
+a second pass.  Truncation is truncation, and perhaps we can handle all
+of it in one place?
+
+4. Now that calling through a function pointer is expensive, thanks to
+Spectre/Meltdown/..., I've been considering removing the general-purpose
+update function, which is only used by the page cache.  Instead move parts
+of workingset.c into the XArray code and use a bit in the xa_flags to
+indicate that the node should be tracked on an LRU if it contains only
+value entries.
+
+[1]
+
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 798e7ccfb030..9384f48eff2a 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -31,23 +31,23 @@
+  * lock.
   */
- turn_on_mmu:
- 	mfmsr	r0
--	ori	r0,r0,MSR_DR|MSR_IR
-+	ori	r0,r0,MSR_DR|MSR_IR|MSR_RI
- 	mtspr	SPRN_SRR1,r0
- 	lis	r0,start_here@h
- 	ori	r0,r0,start_here@l
-@@ -881,11 +885,24 @@ _ENTRY(__restore_cpu_setup)
- 	blr
- #endif /* !defined(CONFIG_PPC_BOOK3S_32) */
- 
--
- /*
-  * Load stuff into the MMU.  Intended to be called with
-  * IR=0 and DR=0.
-  */
-+#ifdef CONFIG_KASAN
-+early_hash_table:
-+	sync			/* Force all PTE updates to finish */
-+	isync
-+	tlbia			/* Clear all TLB entries */
-+	sync			/* wait for tlbia/tlbie to finish */
-+	TLBSYNC			/* ... on all CPUs */
-+	/* Load the SDR1 register (hash table base & size) */
-+	lis	r6, early_hash - PAGE_OFFSET@h
-+	ori	r6, r6, 3	/* 256kB table */
-+	mtspr	SPRN_SDR1, r6
-+	blr
-+#endif
-+
- load_up_mmu:
- 	sync			/* Force all PTE updates to finish */
- 	isync
-@@ -897,14 +914,6 @@ load_up_mmu:
- 	tophys(r6,r6)
- 	lwz	r6,_SDR1@l(r6)
- 	mtspr	SPRN_SDR1,r6
--	li	r0,16		/* load up segment register values */
--	mtctr	r0		/* for context 0 */
--	lis	r3,0x2000	/* Ku = 1, VSID = 0 */
--	li	r4,0
--3:	mtsrin	r3,r4
--	addi	r3,r3,0x111	/* increment VSID */
--	addis	r4,r4,0x1000	/* address of next segment */
--	bdnz	3b
- 
- /* Load the BAT registers with the values set up by MMU_init.
-    MMU_init takes care of whether we're on a 601 or not. */
-@@ -926,6 +935,17 @@ BEGIN_MMU_FTR_SECTION
- END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
- 	blr
- 
-+load_segment_registers:
-+	li	r0, 16		/* load up segment register values */
-+	mtctr	r0		/* for context 0 */
-+	lis	r3, 0x2000	/* Ku = 1, VSID = 0 */
-+	li	r4, 0
-+3:	mtsrin	r3, r4
-+	addi	r3, r3, 0x111	/* increment VSID */
-+	addis	r4, r4, 0x1000	/* address of next segment */
-+	bdnz	3b
-+	blr
-+
- /*
-  * This is where the main kernel code starts.
-  */
-diff --git a/arch/powerpc/mm/kasan/kasan_init_32.c b/arch/powerpc/mm/kasan/kasan_init_32.c
-index 42f8534ce3ea..8c25c1e8c2c8 100644
---- a/arch/powerpc/mm/kasan/kasan_init_32.c
-+++ b/arch/powerpc/mm/kasan/kasan_init_32.c
-@@ -60,10 +60,13 @@ static int __ref kasan_init_region(void *start, size_t size)
- 	unsigned long k_cur;
- 	pmd_t *pmd;
- 	void *block = NULL;
--	int ret = kasan_init_shadow_page_tables(k_start, k_end);
- 
--	if (ret)
--		return ret;
-+	if (!early_mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
-+		int ret = kasan_init_shadow_page_tables(k_start, k_end);
-+
-+		if (ret)
-+			return ret;
-+	}
- 
- 	if (!slab_is_available())
- 		block = memblock_alloc(k_end - k_start, PAGE_SIZE);
-@@ -94,6 +97,13 @@ void __init kasan_init(void)
- 	int ret;
- 	struct memblock_region *reg;
- 
-+	if (early_mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
-+		ret = kasan_init_shadow_page_tables(KASAN_SHADOW_START, KASAN_SHADOW_END);
-+
-+		if (ret)
-+			panic("kasan: kasan_init_shadow_page_tables() failed");
-+	}
-+
- 	for_each_memblock(memory, reg) {
- 		phys_addr_t base = reg->base;
- 		phys_addr_t top = min(base + reg->size, total_lowmem);
-@@ -132,6 +142,20 @@ void *module_alloc(unsigned long size)
- }
- #endif
- 
-+#ifdef CONFIG_PPC_BOOK3S_32
-+u8 __initdata early_hash[256 << 10] __aligned(256 << 10) = {0};
-+
-+static void __init kasan_early_hash_table(void)
-+{
-+	modify_instruction_site(&patch__hash_page_A0, 0xffff, __pa(early_hash) >> 16);
-+	modify_instruction_site(&patch__flush_hash_A0, 0xffff, __pa(early_hash) >> 16);
-+
-+	Hash = (struct hash_pte *)early_hash;
-+}
-+#else
-+static void __init kasan_early_hash_table(void) {}
-+#endif
-+
- void __init kasan_early_init(void)
+ static inline void __clear_shadow_entry(struct address_space *mapping,
+-				pgoff_t index, void *entry)
++		struct xa_state *xas, void *entry)
  {
- 	unsigned long addr = KASAN_SHADOW_START;
-@@ -149,5 +173,5 @@ void __init kasan_early_init(void)
- 	} while (pmd++, addr = next, addr != end);
- 
- 	if (early_mmu_has_feature(MMU_FTR_HPTE_TABLE))
--		WARN(1, "KASAN not supported on hash 6xx");
-+		kasan_early_hash_table();
+-	XA_STATE(xas, &mapping->i_pages, index);
+-
+-	xas_set_update(&xas, workingset_update_node);
+-	if (xas_load(&xas) != entry)
++	if (xas_load(xas) != entry)
+ 		return;
+-	xas_store(&xas, NULL);
++	xas_store(xas, NULL);
+ 	mapping->nrexceptional--;
  }
-diff --git a/arch/powerpc/mm/mmu_decl.h b/arch/powerpc/mm/mmu_decl.h
-index d726ff776054..31fce3914ddc 100644
---- a/arch/powerpc/mm/mmu_decl.h
-+++ b/arch/powerpc/mm/mmu_decl.h
-@@ -106,6 +106,7 @@ extern unsigned int rtas_data, rtas_size;
- struct hash_pte;
- extern struct hash_pte *Hash, *Hash_end;
- extern unsigned long Hash_size, Hash_mask;
-+extern u8 early_hash[];
  
- #endif /* CONFIG_PPC32 */
+ static void clear_shadow_entry(struct address_space *mapping, pgoff_t index,
+ 			       void *entry)
+ {
+-	xa_lock_irq(&mapping->i_pages);
+-	__clear_shadow_entry(mapping, index, entry);
+-	xa_unlock_irq(&mapping->i_pages);
++	XA_STATE(xas, &mapping->i_pages, index);
++	xas_set_update(&xas, workingset_update_node);
++
++	xas_lock_irq(&xas);
++	__clear_shadow_entry(mapping, &xas, entry);
++	xas_unlock_irq(&xas);
+ }
  
--- 
-2.13.3
+ /*
+@@ -59,9 +59,12 @@ static void truncate_exceptional_pvec_entries(struct address_space *mapping,
+ 				struct pagevec *pvec, pgoff_t *indices,
+ 				pgoff_t end)
+ {
++	XA_STATE(xas, &mapping->i_pages, 0);
+ 	int i, j;
+ 	bool dax, lock;
+ 
++	xas_set_update(&xas, workingset_update_node);
++
+ 	/* Handled by shmem itself */
+ 	if (shmem_mapping(mapping))
+ 		return;
+@@ -95,7 +98,8 @@ static void truncate_exceptional_pvec_entries(struct address_space *mapping,
+ 			continue;
+ 		}
+ 
+-		__clear_shadow_entry(mapping, index, page);
++		xas_set(&xas, index);
++		__clear_shadow_entry(mapping, &xas, page);
+ 	}
+ 
+ 	if (lock)
 
