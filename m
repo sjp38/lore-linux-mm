@@ -2,133 +2,122 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7206FC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 15:16:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5ADF1C10F0B
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 15:19:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2DE2B217F5
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 15:16:46 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="XFaZe+eB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2DE2B217F5
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	by mail.kernel.org (Postfix) with ESMTP id 16458217F5
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 15:19:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 16458217F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C78188E0004; Tue, 26 Feb 2019 10:16:45 -0500 (EST)
+	id B8C958E0003; Tue, 26 Feb 2019 10:18:59 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C278F8E0001; Tue, 26 Feb 2019 10:16:45 -0500 (EST)
+	id B3C198E0001; Tue, 26 Feb 2019 10:18:59 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B65BF8E0004; Tue, 26 Feb 2019 10:16:45 -0500 (EST)
+	id A2CAD8E0003; Tue, 26 Feb 2019 10:18:59 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CEF88E0001
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 10:16:45 -0500 (EST)
-Received: by mail-qt1-f200.google.com with SMTP id k1so12578156qta.2
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 07:16:45 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 609988E0001
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 10:18:59 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id i22so5587134eds.20
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 07:18:59 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=X2seorhdvcHK99S5+CZ0PfSjlsaYtBE8rlm40X4z7cc=;
-        b=OlQxx+RKdrDVtguWFb8N+qKCfDengGdR1pc1VEiUSmqcwo+zsjy5GTQYN0w8GcaVl+
-         OXMsgp99B1jme+Zfpfr3ekYh4t2gOfqyXQcmodnI05fksoUTw9sWuMaTIa3I1HLhxJ6B
-         YwShaVUsCb1/Zl8ElMrXsOcj7iYkr7xcBy+R+RpypNptXTR1E1PUPqTeTqGufLiSRU8o
-         GXzo9ixD8YGTWfVLeAEypGyxrdBGbrpM1F1GFRZ4eoCKNNgdnEVSVWAgPCgtRS6T1Op6
-         WgfhYHezSsAWmvAg6yLgWtp5/CcBiy6pXIZPWy9srgGFZJklvyEzCWs5wgxdTP6VpH13
-         SFjA==
-X-Gm-Message-State: AHQUAuZRnmwFmPFSPK4ip+wCF0dgFRD+GVbNwnAsBvXZMUABuVMIjkSA
-	VUkVJ//wwnqW8kYn7sn5HTDtEPR1s48pN+EVSrY2KHQFAzYJnbbwi4pvXMC2vRaGuUFGwFLJggm
-	20OLokmgxuddtwOcfSgcjs3TLvQrM/AADo7O6udNUrWk0g5nZVAUDHXc0NxtctT0=
-X-Received: by 2002:a0c:bb98:: with SMTP id i24mr18735853qvg.129.1551194205384;
-        Tue, 26 Feb 2019 07:16:45 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IaJoZnVxt6P1lw1fur7CANnN1i2+XHXRHPK50sbEvtSgH5mOpoYSD1lwYZVQFoFzldZMsWs
-X-Received: by 2002:a0c:bb98:: with SMTP id i24mr18735805qvg.129.1551194204755;
-        Tue, 26 Feb 2019 07:16:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551194204; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=E4MiummIsEE1YGegSpOnKlBAnyoDMiTgwf6og2xdTF8=;
+        b=Zhv5UwqJEMy8qQ5kUVtqjfaLCqrzfgQkqwAsvoCJ82notW4qrHG9JaWAOhrpxbSKP9
+         hdocOCY+/8mVrApHVydG7TuHgL2txFLnyblQmNDF3YWqUkUvxxfftkvtfYmi8lwP/wwv
+         4Pvpf1JodWm+idV6LwyWfxGx+aAgQZCCqDqffns8KNPGz73F1iiV9X5QUFcskf/Fs8sM
+         OjU0Wi1mo+Fvle61tMw0QBTB6yaf6EeBO3j+1W35qP8GBp15r3PCCwdwTd+htIBuEjZd
+         hK5H/De+OcSY6ypx19O/+DFKor3dqSBcL3zOKIaZHUvb23V6/na9pj5WMAF04lEJwkXZ
+         nGWg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuYiiffCj+uNVzExAnC3PZJOZ+mD97ot59rypPZ45F9xzHzEfv5A
+	kyv43cGkQ7M6O432OXakCYC1pKCRkcQaYifEbJ6wWMZwiNM78zy/pxEd5z002/hdmKuNmW3/y4G
+	iNUkr/jJAXli6kX/3S8+Vd+6C1lhLnuGFte8+7xWgfMNZxtNPHVk8VHrZLqmbnfo=
+X-Received: by 2002:a17:906:2a86:: with SMTP id l6mr16044901eje.186.1551194338935;
+        Tue, 26 Feb 2019 07:18:58 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbZBkJtpdibvgApVjl975+7WE74pq45MQJUKwo7a3kmwkZwkGqcEpy8hlGbRq2CC4gy7xAs
+X-Received: by 2002:a17:906:2a86:: with SMTP id l6mr16044857eje.186.1551194338102;
+        Tue, 26 Feb 2019 07:18:58 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551194338; cv=none;
         d=google.com; s=arc-20160816;
-        b=XTYkAh8AQ3Ntpip0K/yIMd6Fn25NsngknZxIK/D+Q1BpREyvifE5rTsKgOmRoYK5R7
-         VLb+HY13qLN9dOHXSwQ3+z5tfqktBjDmVsHUS+LqYxDUqXRWmAL6Qm9/G2g7zZgYwF1K
-         bbKCom6UJ+Ei97Ylu7M1WVvh2PkrZSUIZmlaEqUWhBISzdd9a0rkJKVPyJR0kjJnlKQW
-         8VSzUVhmqrFlrutl4nw4EkZU40rt37Q46ci8flxDMDb+pkMWCfTAWqR8HzrNOXVkhJzX
-         b61qiqX4T3EHqiUUSiysTZEyFfUbJdWuM5xMxsuGSqaDo4FSsL8LwHm5AGR2Xu0/Y3XE
-         UUXg==
+        b=pIJkJrCYHZ7tMpDlWwcu7XaWKSpmgX0ybT/hJpdMBBk8+HmNWNWwqb1aqmtIrDzeyX
+         3FF65xeD7Wq9p4TSfz6adlf4xG125vRTQMxreBPqHARNRoa3e3Z51iv1F+88E4FQGy/N
+         NtJnUNfCNnyFR4anotNvnVzj/XbhBM2wsGlvEG9nqJwzbGRzTW3ZYg/UNSKyQ9AvkyBV
+         Rv3qg/c0bXe9r3DOyckh7wJtQuTYeeFQyPpLqvXfzHhuT4iQ+SXMOV2Q7lBj9NoHox49
+         q/74j/GwTOlD2RNgn6pZhCaSNuB1gEN267Pm6tvjw/5iOkJsRxZ3KpqGnNeB66yhh04f
+         cOBg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=X2seorhdvcHK99S5+CZ0PfSjlsaYtBE8rlm40X4z7cc=;
-        b=Uapn59l8J7mRppO2eb+t5gajmqffZ2VoRuiX8bCzoZfjkoNkn7GkxkokNn/6oGNvBI
-         IA3kHGyYFJE33RvbB4WIn694ii9qFN7CSB3WrGELqU6sIs/BAT+MzNsvJPAeTMDH2z63
-         Pa7uvvSuB/2eCZfA5s0tqQa1GqS1h4Mk+Ybs7nI7sJ6+CgG5YC7i9Hl2mq1X2ZLdvZF6
-         624lvvmC+GDRXpHIyRqMK4QfeiGelWsJ/Jk0Lx5ZV6OReSMsTC3JDaKuye2e0R4peMs4
-         N0NKsJrCT0bYIbxV+a/A19C3BzP/RvPCinGsU7Ak5w6fJltjftOOryK5SHlgjTJmDTci
-         k6pQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=E4MiummIsEE1YGegSpOnKlBAnyoDMiTgwf6og2xdTF8=;
+        b=ifXmUzPsQftWl92v9NQ996WV9+e79jOSVzyGQ0Ps++WWA9HFrseZjv/xzyXEEDXha6
+         Gk+q09F5abzOQEN9S7/nyXhZJkTN0ex1Gk3v+UQQx6REmBdDH2ySrJv4HSt9C/iHDENF
+         8aCYigSd4ob+8NRSnp8+9ueFgYNSbwCg7C7l1YhzMV4EiVzw/2SzBkCZQs5F4B7f+XYd
+         C03NEMPYK7SaAJJSuaodO6LD2b0mgBs9NDMCTb3RFRrD5i85L0sjPrEO88SAI+dQsONc
+         cSCr2gq4/YrxhIbxsd58ek4emaEOV0aaDKlE6/HUCT5+AdrCXlxvzIUZ1Q/zL8Rgcj0X
+         6O3w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=XFaZe+eB;
-       spf=pass (google.com: domain of 010001692a612815-46229701-ea3f-4a89-8f88-0c74194ba257-000000@amazonses.com designates 54.240.9.54 as permitted sender) smtp.mailfrom=010001692a612815-46229701-ea3f-4a89-8f88-0c74194ba257-000000@amazonses.com
-Received: from a9-54.smtp-out.amazonses.com (a9-54.smtp-out.amazonses.com. [54.240.9.54])
-        by mx.google.com with ESMTPS id s7si1058198qtk.82.2019.02.26.07.16.44
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z40si1402805edz.338.2019.02.26.07.18.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 26 Feb 2019 07:16:44 -0800 (PST)
-Received-SPF: pass (google.com: domain of 010001692a612815-46229701-ea3f-4a89-8f88-0c74194ba257-000000@amazonses.com designates 54.240.9.54 as permitted sender) client-ip=54.240.9.54;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Feb 2019 07:18:58 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=XFaZe+eB;
-       spf=pass (google.com: domain of 010001692a612815-46229701-ea3f-4a89-8f88-0c74194ba257-000000@amazonses.com designates 54.240.9.54 as permitted sender) smtp.mailfrom=010001692a612815-46229701-ea3f-4a89-8f88-0c74194ba257-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1551194204;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=zk6autZDYWCridaZ1j6pE4L9X3qVCRB7mf1shVksySU=;
-	b=XFaZe+eBN7TnCrRANRHetCBj0w20GfUpVaApTi/OaerR928UaWZN3r9O3ctFhYPq
-	NV+cNIy/ZieVZEQLCWoBHg6XvuwWSK586i8D/J7UM8R34qAPbH6xsbSg8FfpzwqNL7U
-	E1HPo6AoBciq9dlUFK92xUBa8H8E/E9qwTAio4Jo=
-Date: Tue, 26 Feb 2019 15:16:44 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Dennis Zhou <dennis@kernel.org>
-cc: Peng Fan <peng.fan@nxp.com>, "tj@kernel.org" <tj@kernel.org>, 
-    "linux-mm@kvack.org" <linux-mm@kvack.org>, 
-    "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
-    "van.freenix@gmail.com" <van.freenix@gmail.com>
-Subject: Re: [PATCH 1/2] percpu: km: remove SMP check
-In-Reply-To: <20190225151330.GA49611@dennisz-mbp.dhcp.thefacebook.com>
-Message-ID: <010001692a612815-46229701-ea3f-4a89-8f88-0c74194ba257-000000@email.amazonses.com>
-References: <20190224132518.20586-1-peng.fan@nxp.com> <20190225151330.GA49611@dennisz-mbp.dhcp.thefacebook.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 51C31AE83;
+	Tue, 26 Feb 2019 15:18:57 +0000 (UTC)
+Date: Tue, 26 Feb 2019 16:18:56 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Robin Murphy <robin.murphy@arm.com>
+Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org,
+	rafael@kernel.org, akpm@linux-foundation.org, osalvador@suse.de
+Subject: Re: [PATCH v2] mm/memory-hotplug: Add sysfs hot-remove trigger
+Message-ID: <20190226151856.GE10588@dhcp22.suse.cz>
+References: <49ef5e6c12f5ede189419d4dcced5dc04957c34d.1549906631.git.robin.murphy@arm.com>
+ <20190212083310.GM15609@dhcp22.suse.cz>
+ <faca65d7-6d4b-7e4f-5b36-4fdf3710b0e3@arm.com>
+ <20190212151146.GA15609@dhcp22.suse.cz>
+ <1ea6a40d-be86-6ccc-c728-fa8effbd5a8e@redhat.com>
+ <8793f49d-756f-960d-9b26-7eaedfccd90e@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.02.26-54.240.9.54
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8793f49d-756f-960d-9b26-7eaedfccd90e@arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Feb 2019, Dennis Zhou wrote:
+On Tue 26-02-19 15:12:40, Robin Murphy wrote:
+[...]
+> The back of my mind is still ticking over trying to think up a really nice
+> design for a self-contained debugfs or module-parameter interface completely
+> independent of ARCH_MEMORY_PROBE - I'll probably keep using this hack
+> locally to finish off the arm64 hot-remove stuff, but once that's done (or
+> if inspiration strikes in the meantime) then I'll try to come back with a
+> prototype of the developer interface that I'd find most useful.
 
-> > @@ -27,7 +27,7 @@
-> >   *   chunk size is not aligned.  percpu-km code will whine about it.
-> >   */
-> >
-> > -#if defined(CONFIG_SMP) && defined(CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK)
-> > +#if defined(CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK)
-> >  #error "contiguous percpu allocation is incompatible with paged first chunk"
-> >  #endif
-> >
-> > --
-> > 2.16.4
-> >
->
-> Hi,
->
-> I think keeping CONFIG_SMP makes this easier to remember dependencies
-> rather than having to dig into the config. So this is a NACK from me.
+Would it make more sense to add a module to the testing machinery?
 
-But it simplifies the code and makes it easier to read.
-
+-- 
+Michal Hocko
+SUSE Labs
 
