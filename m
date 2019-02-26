@@ -2,194 +2,179 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 73D87C4360F
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 17:35:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FA74C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 17:53:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 302A9217F9
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 17:35:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 302A9217F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 287052173C
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 17:53:09 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="pHhDDlrw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 287052173C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C1BFC8E0005; Tue, 26 Feb 2019 12:35:28 -0500 (EST)
+	id BE87C8E0003; Tue, 26 Feb 2019 12:53:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BCC518E0001; Tue, 26 Feb 2019 12:35:28 -0500 (EST)
+	id B97E08E0001; Tue, 26 Feb 2019 12:53:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ABB788E0005; Tue, 26 Feb 2019 12:35:28 -0500 (EST)
+	id AAFC78E0003; Tue, 26 Feb 2019 12:53:08 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 687D58E0001
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 12:35:28 -0500 (EST)
-Received: by mail-pl1-f197.google.com with SMTP id f65so6127851plb.3
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 09:35:28 -0800 (PST)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DD8A8E0001
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 12:53:08 -0500 (EST)
+Received: by mail-qt1-f199.google.com with SMTP id 35so13025235qtq.5
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 09:53:08 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=m7Wf7aBTdCGILIB8xwuObJnMXu7RJtqKkPHrgLhmMQs=;
-        b=EcHtjUauinsbbvVngwnALHCQjpeSt20ANy7SxS58VMhnNo4FyoLJDPD+QlEW88UhvW
-         +xO6qmTTiTBI61QybcMCgk8A7XxgATPNYNn9cvQN+Trpet/3vP2XJi/v+TQIk0/mc9+6
-         5nLInfbkvRbBGceNcShk3D5ZljgmMKElB2IG5Pg+XCD7RuHEK+ApkQe9gr7w48/34dHL
-         dEu++VfWKIf+G+fWyLn8LW3NKLLxDrrLs859c9hRuQ1vAfGtsHeBdTOz4McHI8ilHTaH
-         BTfvOUC67MZ1jgyJ8mrZ/6f2QbFhdzaWqT7Js8bY8PqOXft7/Hfvsi/RH9unUau+AHbt
-         WRzQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAua9XH6K86GW987NQHDIMAz1agT6H11OJOhwgxcP6DOmkpyDepnB
-	011R0/HS3udBdkchtJPJbcW/S58C85gxm0UL3LDL7uRYWBGokgzXpquHm26+UqHzIkHl3uIL7DF
-	CnHrDJyArLYFAQwbg2jKXrMRl1ThPo9FNMPdIpxwmwjFPgJ8fRMWhrbhrdGhgne3iyw==
-X-Received: by 2002:a17:902:20e2:: with SMTP id v31mr27512890plg.307.1551202528091;
-        Tue, 26 Feb 2019 09:35:28 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbDYsvRhVrP1ouF84EZwQ30GUxQMCBffLwu/GxcSd1zC9XPhFSzLUul9DuvTTeZXrur6v6s
-X-Received: by 2002:a17:902:20e2:: with SMTP id v31mr27512811plg.307.1551202527116;
-        Tue, 26 Feb 2019 09:35:27 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551202527; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=ZkICak7TAx1ec5dXU49ZvGdr7QE9uYcfKqHMH7L8rEU=;
+        b=dIxSJtdtFiO3GGtgp2gr8ffDbGQBrHeXQUlOIdc0fVGRDyN0r99537rrSFYsD1nzrg
+         bB8X7HgMHAeiIll5CY8935xwjTzvqpdV5Ozibqhte1/9sLsRqjRi+LboDm9C9kcIb1FR
+         3bK6MNXfd0HxWU/C32gb/fpXE3wwx2+j5gi6Fx7v12sRxvp3CK/oY3fUiQ6LrhTQw/vU
+         fsLLSFGJ6l8AdaIc+eBQ6eN0ZZISYrlbTOb+DfnazRT0FK5H4Lr8a+4+dmalLvgQ5c60
+         VsYIUjNq0Im78aOu0Py4XxAvq3jN0VymBO5TM82CfRzXPCKhY9GIACTH71Otaf+LDP+U
+         8MLQ==
+X-Gm-Message-State: AHQUAuaWkGzmFphwZbqRSMtyFRFW2DkDqV2zMNM5AUo3bU55pp9eio9m
+	btYqQGweakuFl8vNd0lPBWICmM32cGwQdDxXxkZTlQ02aqnkzLIXL5aRLIypHek/M3xsSSpPYLJ
+	7ogUabMuNn0NekRo/GDfiy0s7+ZBdmkpM2Wx3XWyF1fr84QSnLHWrhINgGizrcOgqlpuwoHEklA
+	3FO6dndI67da1Qo1p+3eaHL5K0csuK9yvU22Ok3660Ms0yPzi1R/r0iI0x6zS9xYbKvezvsYjM6
+	ZKpqird4mgiJXcBLogJfd/TEueZq+EZzQHH3FrxJkG0S4SegsD5hkFnU7xV8h9vXPteEAg0GMVj
+	WexrpNLyU6Qc80JLYWXrJ95Wv+6DEQjVCIkOeQF3Sur/WE8jybWcQPdj+aYX5dR24vZT9UdjgEn
+	4
+X-Received: by 2002:ac8:31cd:: with SMTP id i13mr18851864qte.77.1551203588210;
+        Tue, 26 Feb 2019 09:53:08 -0800 (PST)
+X-Received: by 2002:ac8:31cd:: with SMTP id i13mr18851816qte.77.1551203587331;
+        Tue, 26 Feb 2019 09:53:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551203587; cv=none;
         d=google.com; s=arc-20160816;
-        b=gjPR0ubeA3dWIc+nlxWllcH9rWANbvhT10Q3iAn4eKTfbqdMoQbY1ByoDnWu/1EtxU
-         j4XnUGJzQzwJ2OKyiDVZRe4vqo7NK4Hv0kHkne9Jvk0k3hCE8McArn5vkhACpZQQKOS/
-         glaONmsJYryAOyhBju81j1f+1yLrQ5xloYeg5DnNf2hzzkXGz1FUeampxdQflxPrzRZ2
-         vBI7mTKls22skx47FCIXO9MnOjjav1NPHghNnvi2h4ZgWu3N3YMWShqHLULtpIihbuEW
-         JOtj2OUnnfwR8Zet8rgO3iTnBSgF2IgLDVyX9Iw9eBqwTFqua/KK43Qa5tzb1zjJy7UP
-         RdRQ==
+        b=SkoI9C1aJ+ETbp5SbpYuGyH888STLDaX9QLIgPIX7yQK34f+Je5+AguuI813c2G8HK
+         BwQ1cvToS2eFYRVw+lmCBfJeucvgV/iO/scOdlUbWkrqHkO/HeAitaIxqEllChg6upxl
+         sKYdDCxZ7ZwbSIieTikyqtfPfQpuidKAHutmCw3g9dmz8ks5vn0MrYEma01LGO2zhYWQ
+         Ig/eHWHJ+qTpOEoo+5C0HRiDURAa8NxlaXEA2bb8SUM3zDiGMlscWyUak8ijJBeVZZXe
+         /DNGOggAKgQJ7btID+teIJLMmno8YkGVAEZ5SJVCDgE1T4kLKUvZa40EAXiStwz1tD6f
+         SJ+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=m7Wf7aBTdCGILIB8xwuObJnMXu7RJtqKkPHrgLhmMQs=;
-        b=MKrak0dxH+vUe05m8y1xtFpI6q9OMmfEPfL6VCrG8gZnr+LyZlR2sE586nQvmNEhgA
-         zGKiEu4RDHsctpiXdm0yF7liWYnK0CvN2+PTo4ctxswNbo9AGJfs3kMGDhfJ++MQZp7U
-         drp01afpHDiWHWmfnHZaPx36RrlOUKFux+ooI2SDs8MuZBAnt7TW0o8G6NVvCJatUYVR
-         zMJ4DB4PoaOAs7ythEox4k0Fx/F8qS5NFXT40R2sV1ZoOtGg7As0VafCiPk7+LmpOyAi
-         N0iTYmOcuWWDSM5nmr9VazTRX7rPHhz+e+II+Denbica4fsXItTUCBJejFkdr8msES/n
-         82Qg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=ZkICak7TAx1ec5dXU49ZvGdr7QE9uYcfKqHMH7L8rEU=;
+        b=GL4Cj9MNS73ChP3NlVBlDyQaeo1aBKfhP59ZGu1luhYYb091x7ZhfPahlA1gfVtT9o
+         JKkrJk4gOC7KES22Wi45jJwJ1SRCphsB7QEte+PGq8QPtVjjIqEs/HAz4+QIU7QG1AD2
+         yxZnvjjbRQ41VIrkwBGDmLMD5WuOXGcEkyRclS6g6mKuO2Quyll2CdNju6pmRjY62x2O
+         ehN9X+ZLDCnTz/aWmmYiJhoMNsyNR+VYsciKhHTnkJF2zJwBW09drcHTUpzkNtALpJ/H
+         HSEQKipeWQgkevqfvbfZANI1F4veblZSeUsryuFGTCuvQ9Dl8+KfixUyIFDn+ql6vxc5
+         f2tw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id y4si10760312plb.370.2019.02.26.09.35.26
+       dkim=pass header.i=@lca.pw header.s=google header.b=pHhDDlrw;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m34sor8640289qtc.49.2019.02.26.09.53.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Feb 2019 09:35:27 -0800 (PST)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        (Google Transport Security);
+        Tue, 26 Feb 2019 09:53:07 -0800 (PST)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 26 Feb 2019 09:35:26 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,416,1544515200"; 
-   d="scan'208";a="141812367"
-Received: from clr-a1e54e448e8f449b8e005ba5c22473eb.jf.intel.com (HELO [10.7.201.133]) ([10.7.201.133])
-  by orsmga001.jf.intel.com with ESMTP; 26 Feb 2019 09:35:26 -0800
-Subject: Re: [PATCH v10 00/12] arm64: untag user pointers passed to the kernel
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>,
- Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
- Robin Murphy <robin.murphy@arm.com>, Kees Cook <keescook@chromium.org>,
- Kate Stewart <kstewart@linuxfoundation.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>,
- "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
- Shuah Khan <shuah@kernel.org>, Vincenzo Frascino
- <vincenzo.frascino@arm.com>, Linux ARM
- <linux-arm-kernel@lists.infradead.org>,
- "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>,
- Linux Memory Management List <linux-mm@kvack.org>,
- linux-arch <linux-arch@vger.kernel.org>,
- "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
- LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>,
- Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>,
- Lee Smith <Lee.Smith@arm.com>,
- Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
- Jacob Bramley <Jacob.Bramley@arm.com>,
- Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
- Chintan Pandya <cpandya@codeaurora.org>,
- Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
- Dave Martin <Dave.Martin@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>,
- Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-References: <cover.1550839937.git.andreyknvl@google.com>
- <2ad5f897-25c0-90cf-f54f-827876873a0a@intel.com>
- <CAAeHK+xCi2MxaykYWCz9mwbOzNpjrFcHex7B-VXektNNWBT+Hw@mail.gmail.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <6abc8c6a-c7aa-72ec-8a4e-7dcfeb9ea09b@intel.com>
-Date: Tue, 26 Feb 2019 09:35:26 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.4.0
-MIME-Version: 1.0
-In-Reply-To: <CAAeHK+xCi2MxaykYWCz9mwbOzNpjrFcHex7B-VXektNNWBT+Hw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+       dkim=pass header.i=@lca.pw header.s=google header.b=pHhDDlrw;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=ZkICak7TAx1ec5dXU49ZvGdr7QE9uYcfKqHMH7L8rEU=;
+        b=pHhDDlrw3D+nSh6skybCkY4mB9y43AKu3jhqmC4jv8qBDcl57hCDJoIfgs2faI+pZi
+         sMtBf1NSdIsLKGqmH+LGR5DMx4JOKeLMq+l3IbcT+zlShc0QwsUMDrnucDOfeuvL3HNt
+         4j/i0uwuE+9Met4KozGWPLv80lHRD1nkCEy5bzLs6rnc69eoZOvRcT5Zsy2k4tzdd+Nl
+         CQWDBs1QODUkZERXYvI/fZtl0Z6aH+bEq1JKT5A/L3G5RzT1/S9pnwJ7ejCLllf69WCI
+         bgcH0kuD1VU8Ids8C7yPk45aSFmdY2nyZGp0qdQdDJUsPiLEZAPB+ItdQkSv2FZH0uqa
+         iXPA==
+X-Google-Smtp-Source: AHgI3Ia/fYrVyZqKSVJ4Wu+J06ao2h0XxWES227To9xOiH8WoqAJB/xYQ2K9aXAT7Ic22YaFPpNJrQ==
+X-Received: by 2002:aed:35f0:: with SMTP id d45mr19594144qte.179.1551203587036;
+        Tue, 26 Feb 2019 09:53:07 -0800 (PST)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id g24sm9607135qtc.61.2019.02.26.09.53.06
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Feb 2019 09:53:06 -0800 (PST)
+Message-ID: <1551203585.6911.47.camel@lca.pw>
+Subject: Re: [PATCH] mm/hotplug: fix an imbalance with DEBUG_PAGEALLOC
+From: Qian Cai <cai@lca.pw>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+Date: Tue, 26 Feb 2019 12:53:05 -0500
+In-Reply-To: <20190226142352.GC10588@dhcp22.suse.cz>
+References: <20190225191710.48131-1-cai@lca.pw>
+	 <20190226123521.GZ10588@dhcp22.suse.cz>
+	 <4d4d3140-6d83-6d22-efdb-370351023aea@lca.pw>
+	 <20190226142352.GC10588@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/26/19 9:18 AM, Andrey Konovalov wrote:
->> This seems like something
->> where we would ideally add an __tagged annotation (or something) to the
->> source tree and then have sparse rules that can look for missed untags.
-> This has been suggested before, search for __untagged here [1].
-> However there are many places in the kernel where a __user pointer is
-> casted into unsigned long and passed further. I'm not sure if it's
-> possible apply a __tagged/__untagged kind of attribute to non-pointer
-> types, is it?
+On Tue, 2019-02-26 at 15:23 +0100, Michal Hocko wrote:
+> On Tue 26-02-19 09:16:30, Qian Cai wrote:
+> > 
+> > 
+> > On 2/26/19 7:35 AM, Michal Hocko wrote:
+> > > On Mon 25-02-19 14:17:10, Qian Cai wrote:
+> > > > When onlining memory pages, it calls kernel_unmap_linear_page(),
+> > > > However, it does not call kernel_map_linear_page() while offlining
+> > > > memory pages. As the result, it triggers a panic below while onlining on
+> > > > ppc64le as it checks if the pages are mapped before unmapping,
+> > > > Therefore, let it call kernel_map_linear_page() when setting all pages
+> > > > as reserved.
+> > > 
+> > > This really begs for much more explanation. All the pages should be
+> > > unmapped as they get freed AFAIR. So why do we need a special handing
+> > > here when this path only offlines free pages?
+> > > 
+> > 
+> > It sounds like this is exact the point to explain the imbalance. When
+> > offlining,
+> > every page has already been unmapped and marked reserved. When onlining, it
+> > tries to free those reserved pages via __online_page_free(). Since those
+> > pages
+> > are order 0, it goes free_unref_page() which in-turn call
+> > kernel_unmap_linear_page() again without been mapped first.
 > 
-> [1] https://patchwork.kernel.org/patch/10581535/
+> How is this any different from an initial page being freed to the
+> allocator during the boot?
+> 
 
-I believe we have sparse checking __GFP_* flags.  We also have a gfp_t
-for them and I'm unsure whether the sparse support is tied to _that_ or
-whether it's just by tagging the type itself as being part of a discrete
-address space.
+As least for IBM POWER8, it does this during the boot,
+
+early_setup
+  early_init_mmu
+    harsh__early_init_mmu
+      htab_initialize [1]
+        htab_bolt_mapping [2]
+
+where it effectively map all memblock regions just like
+kernel_map_linear_page(), so later mem_init() -> memblock_free_all() will unmap
+them just fine.
+
+[1]
+for_each_memblock(memory, reg) {
+	base = (unsigned long)__va(reg->base);
+	size = reg->size;
+
+	DBG("creating mapping for region: %lx..%lx (prot: %lx)\n",
+		base, size, prot);
+
+	BUG_ON(htab_bolt_mapping(base, base + size, __pa(base),
+		prot, mmu_linear_psize, mmu_kernel_ssize));
+	}
+
+[2] linear_map_hash_slots[paddr >> PAGE_SHIFT] = ret | 0x80;
+
 
