@@ -2,311 +2,194 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C642C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 11:59:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C25B3C10F0B
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 12:04:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4501621852
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 11:59:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4501621852
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 8A8CA21852
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 12:04:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A8CA21852
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D715E8E0003; Tue, 26 Feb 2019 06:58:59 -0500 (EST)
+	id 111BC8E0003; Tue, 26 Feb 2019 07:04:37 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D21568E0001; Tue, 26 Feb 2019 06:58:59 -0500 (EST)
+	id 0C1DB8E0001; Tue, 26 Feb 2019 07:04:37 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BC2E08E0003; Tue, 26 Feb 2019 06:58:59 -0500 (EST)
+	id F40FD8E0003; Tue, 26 Feb 2019 07:04:36 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FD328E0001
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 06:58:59 -0500 (EST)
-Received: by mail-pf1-f198.google.com with SMTP id x134so10275693pfd.18
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 03:58:59 -0800 (PST)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 876FB8E0001
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 07:04:36 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id v4so2199855ljc.21
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 04:04:36 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=8DjPxbDx0/UpaVBElzkElXeOMCcBl75Zr/zeSSEP1pM=;
-        b=er2f77k1xgBnWm+BMAjgYUY9D82musnxI+pX6u5duUw6Tk/Q7P2o7d57XEfRiJMar+
-         aHofflTuhhY7Jq/QzE7qhQPYKvA4rEhFeqRjAgvB+TVU9DQPxCkGDb+5+J1QV8V3+DgX
-         zfE95HVkcXRaf285Jnh6GeeIXarjh9oNKjASZBeUsv5B6+6XHJhyzR5uzvsJKvn+xHfI
-         hVkQYu2+1+ittCW5KVMDNjH+vQKECBN45dlhLclb4JMRF8NfNDfEAgfKFHnOsJB/nvKu
-         ++dMGlErTGFsg+fq5NuS3rK4NNEGjpTwPA1+AaF6Y5TcxVSOFgiYY7JwOmw0laPCFGBW
-         AZKA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuZv+9CPA56eK/xzNikTZz9AYE9/dq319TTDMEfhQ0zBTQINRT7O
-	yxXM8UlHJNxdLsDDmuwb50O41pZG80JoIMM3OPI54BrSin7KnJbK9eC1ZWRUDC61hcu7p0lTRVj
-	bRnNORdX0PCCiCLoM3djvkZY/IzapboXJ1Pm23ZFww4bUzm91FpYmuxYQ98hGqd7lUg==
-X-Received: by 2002:a65:6489:: with SMTP id e9mr24042552pgv.260.1551182339188;
-        Tue, 26 Feb 2019 03:58:59 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZMHWWUIZ42KtnrMYDmJrXWVh+wFBDoGoGK+7/sPozYIiY2sA4Oznwqag3KCfyp4p99AxFX
-X-Received: by 2002:a65:6489:: with SMTP id e9mr24042490pgv.260.1551182338202;
-        Tue, 26 Feb 2019 03:58:58 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551182338; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=hTPoWQq2MfU4/cCivmJBNRwRs7kGpqA5Ff9iQJutTlQ=;
+        b=rq03oJeq82Q259ghcO58Rb2RgJBsSj4btI173GQOKIt0HST8aN4hZH3UId4lgOgyBI
+         HQmUH9CjiLyPvGjW5xmLb2St2WQeGBjjV4XNRNgYvOcFJMOqwJm57QLa93SGVrTXNHkZ
+         YGF93tTP80jUVfSu0dJSHt0nuCD/dtPwv/ALWwZKrH9dObK1eCMnw4RmkWwvm3zIfZQJ
+         nk+hqs9Ru+aoyvPAoVmZVd+qeiiCxf56eB5A3w1VQ6Ia6GPZk8+LJlbGdyhHDZkVU5Ew
+         sB0TZXkQBSbuaETQvq+mubslQo8Q1I6lqXYWSuaG/Cs0mzNapvZQX7nkRdpuX2vIgnyO
+         8bbw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: AHQUAuYC1TlF5lPrv6X42TQNqq2acvacp51+lo3/6UxrdjtMtZvu12HP
+	qZCHSOpQSJlLnb5hic/mtqFQh6LKYkHTaaMr7dMR7YHRO6Gr+L/hM1pQk9K490R9KrQuf+bjYHr
+	WObLbAHfu326+ieLIQ/YzpyXv8zvv7vAdewC+nIy0mGJW670qCncmMcqGhNprWU4ErQ==
+X-Received: by 2002:a2e:880a:: with SMTP id x10mr12367111ljh.12.1551182675915;
+        Tue, 26 Feb 2019 04:04:35 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZouu2BJAOpzXTAa0H5wIUVVxJ0G5JORs87N/LT5E61+t3thdmq2E0JefHk+usIGJcuD95y
+X-Received: by 2002:a2e:880a:: with SMTP id x10mr12367060ljh.12.1551182674797;
+        Tue, 26 Feb 2019 04:04:34 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551182674; cv=none;
         d=google.com; s=arc-20160816;
-        b=Hm+ROyX705sSNpxAlygS85I6ksqwvtM9k5cpY5g0PwNl+iYWomiqTmJv2XgqlskW6x
-         rNMsGf3bLAv+iFV8BKduSYRua7tgWMayfR0Dts31s6LROaVAtQiNz1jdJcAtPWijW5wJ
-         wG5E8Tp8NFc6VOObst3D+P3bfaVnJJ6F5sNf45uLOWL2Ioqb6tTF1xnzQwCHYuFnRw8p
-         gTo238jkGXXF5vv9UDkLNMhUvFJb+0rsoYWPOOM5kl5e5nH6AYN+0aOrlelUgvW8uBCy
-         rLsz52XZRBKGBfZ3vpEGz4TF6eA8vRCCvQMIxWv+iCHhYMMeiReohV9A03vTkeY3nViU
-         dfdw==
+        b=xVAJ2zEmgfemQ5RXnuDU8SBtUOrumysxuXfuMhsGkchbSGUxvSni94lMvtWoihj1W3
+         uEgzz8z+GZxQxgDVQddN34/9+EiVmd1/MtlJF3pMjQg7AU1gfGomTqO/4F+wvxjQD6iN
+         SxqnJ8Nlto2DYCXsUR05lx7H2kjFxdixW8UO3xp3/gfqbgmblzGSOHcvLNfvyyW/c/LS
+         YX+buOTTD6VDCP3YvkZryoU3zduO+x9oMHEI8dUqtABvaI6FQw4ObgVC+3VeuU6oXkG1
+         t0K3faCM2CP25NZTnYA5oT1UsiApu8msBukttU7KbsSvQACDI2NPPV86quNEGjKooaM+
+         QnLw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=8DjPxbDx0/UpaVBElzkElXeOMCcBl75Zr/zeSSEP1pM=;
-        b=Lrl9Ideq/0H3zIHLWOeT2qR+4L/md2yosZLj4yXJ6fjJLuzGWK9qsZ64hbQdLZSsHr
-         e9k7c8LOmZHY7iVl+8VxLsTsrDGdJOn2ZTWhh5SShJpnnqgwS1jh9sqTzmYc1MXqOj50
-         /l9xC986ERobwcgXegp9bkdUPw/m5YHN9TS9i9SKt0FDnQ3Feh+u3ZaXPmkJesrv9qIz
-         VlxglTss5U7mzZQCVQ48ZiO08MV1/NRUma8kaYRHAL2jY7q1dfozG2Ny49mQFHn4T+bi
-         MRvb+I111I36Z8RgUb69O+wpAQAMTbm9OEzjQ0a1mnBSzmuj6xmjUmghbmHRaQ+Z7Tpq
-         MrzQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=hTPoWQq2MfU4/cCivmJBNRwRs7kGpqA5Ff9iQJutTlQ=;
+        b=vtTGxL6OLkA4/qUIReSHG/oL0J1p2EBsfIXNXSNgCUNwwns7mJa8Oh+81DQz7Kkxiv
+         z3io+BEGwO69fxe6+K5QyCDvPRfeoYlthuFs1qFAOnzdyn8vY578QlavTdaY5CADtiYw
+         MJO1jfsBpvB1SiuOy9Qtc7Fo1bHv5RGRwqKTA6yvJJW9NVDCIX43JY+aUwXv6TclqGEj
+         4jHKF37WW/SOjNet7wI4eFCc3Lesov663Cu6xMKq+DLbtDaGqCFbtTGmJh6cr8J7t7uU
+         Njpam1JzvbYy3hw1r1JbTdppWcK07+VKc/LVvik/C0j0xo86pVklb+iuTz98fQ3Oid2p
+         cF9g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id b9si11622530plr.66.2019.02.26.03.58.58
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id w17si8646836lfe.74.2019.02.26.04.04.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Feb 2019 03:58:58 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Tue, 26 Feb 2019 04:04:34 -0800 (PST)
+Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1QBsfBO095899
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 06:58:57 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qw3fr5s0r-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 06:58:57 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 26 Feb 2019 11:58:55 -0000
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 26 Feb 2019 11:58:48 -0000
-Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1QBwlTR32505948
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Tue, 26 Feb 2019 11:58:47 GMT
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id A8096A4055;
-	Tue, 26 Feb 2019 11:58:47 +0000 (GMT)
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 24D46A404D;
-	Tue, 26 Feb 2019 11:58:46 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.84])
-	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Tue, 26 Feb 2019 11:58:46 +0000 (GMT)
-Date: Tue, 26 Feb 2019 13:58:44 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Pingfan Liu <kernelfans@gmail.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>,
-        Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
-        "H. Peter Anvin" <hpa@zytor.com>,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        Vlastimil Babka <vbabka@suse.cz>,
-        Mike Rapoport <rppt@linux.vnet.ibm.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-        Andy Lutomirski <luto@kernel.org>, Andi Kleen <ak@linux.intel.com>,
-        Petr Tesarik <ptesarik@suse.cz>, Michal Hocko <mhocko@suse.com>,
-        Stephen Rothwell <sfr@canb.auug.org.au>,
-        Jonathan Corbet <corbet@lwn.net>, Nicholas Piggin <npiggin@gmail.com>,
-        Daniel Vacek <neelx@redhat.com>, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 2/6] mm/memblock: make full utilization of numa info
-References: <1551011649-30103-1-git-send-email-kernelfans@gmail.com>
- <1551011649-30103-3-git-send-email-kernelfans@gmail.com>
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.12]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <aryabinin@virtuozzo.com>)
+	id 1gybTB-0007VM-To; Tue, 26 Feb 2019 15:04:22 +0300
+Subject: Re: [PATCH 5/5] mm/vmscan: don't forcely shrink active anon lru list
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>,
+ Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@surriel.com>,
+ Mel Gorman <mgorman@techsingularity.net>
+References: <20190222174337.26390-1-aryabinin@virtuozzo.com>
+ <20190222174337.26390-5-aryabinin@virtuozzo.com>
+ <20190222182249.GC15440@cmpxchg.org>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <ea0f769b-29e6-8787-7b18-cb7b24c1cda3@virtuozzo.com>
+Date: Tue, 26 Feb 2019 15:04:40 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1551011649-30103-3-git-send-email-kernelfans@gmail.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19022611-0016-0000-0000-0000025B0F93
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19022611-0017-0000-0000-000032B57194
-Message-Id: <20190226115844.GG11981@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-26_08:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902260089
+In-Reply-To: <20190222182249.GC15440@cmpxchg.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Feb 24, 2019 at 08:34:05PM +0800, Pingfan Liu wrote:
-> There are numa machines with memory-less node. When allocating memory for
-> the memory-less node, memblock allocator falls back to 'Node 0' without fully
-> utilizing the nearest node. This hurts the performance, especially for per
-> cpu section. Suppressing this defect by building the full node fall back
-> info for memblock allocator, like what we have done for page allocator.
+On 2/22/19 9:22 PM, Johannes Weiner wrote:
+> On Fri, Feb 22, 2019 at 08:43:37PM +0300, Andrey Ryabinin wrote:
+>> shrink_node_memcg() always forcely shrink active anon list.
+>> This doesn't seem like correct behavior. If system/memcg has no swap, it's
+>> absolutely pointless to rebalance anon lru lists.
+>> And in case we did scan the active anon list above, it's unclear why would
+>> we need this additional force scan. If there are cases when we want more
+>> aggressive scan of the anon lru we should just change the scan target
+>> in get_scan_count() (and better explain such cases in the comments).
+>>
+>> Remove this force shrink and let get_scan_count() to decide how
+>> much of active anon we want to shrink.
+> 
+> This change breaks the anon pre-aging.
+> 
+> The idea behind this is that the VM maintains a small batch of anon
+> reclaim candidates with recent access information. On every reclaim,
+> even when we just trim cache, which is the most common reclaim mode,
+> but also when we just swapped out some pages and shrunk the inactive
+> anon list, at the end of it we make sure that the list of potential
+> anon candidates is refilled for the next reclaim cycle.
+> 
+> The comments for this are above inactive_list_is_low() and the
+> age_active_anon() call from kswapd.
+> 
+> Re: no swap, you are correct. We should gate that rebalancing on
+> total_swap_pages, just like age_active_anon() does.
+> 
 
-Is it really necessary to build full node fallback info for memblock and
-then rebuild it again for the page allocator?
 
-I think it should be possible to split parts of build_all_zonelists_init()
-that do not touch per-cpu areas into a separate function and call that
-function after topology detection. Then it would be possible to use
-local_memory_node() when calling memblock.
+I think we should leave anon aging only for !SCAN_FILE cases.
+At least aging was definitely invented for the SCAN_FRACT mode which was the
+main mode at the time it was added by the commit:
+
+	556adecba110bf5f1db6c6b56416cfab5bcab698
+	Author: Rik van Riel <riel@redhat.com>
+	Date:   Sat Oct 18 20:26:34 2008 -0700
+
+	    vmscan: second chance replacement for anonymous pages
+
+
+Later we've got more of the SCAN_FILE mode usage, commit:
+
+e9868505987a03a26a3979f27b82911ccc003752
+Author: Rik van Riel <riel@redhat.com>
+Date:   Tue Dec 11 16:01:10 2012 -0800
+
+    mm,vmscan: only evict file pages when we have plenty
+
+
+and I think would be reasonable to  avoid the anon aging in the SCAN_FILE case.
+Because if workload generates enough inactive file pages we never go to the SCAN_FRACT,
+so aging is just as useless as with no swap case.
+
+So, how about something like bellow on top of the patch?
+
+---
+ mm/vmscan.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index efd10d6b9510..6c63adfee37b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2525,6 +2525,15 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
  
-> Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-> CC: Thomas Gleixner <tglx@linutronix.de>
-> CC: Ingo Molnar <mingo@redhat.com>
-> CC: Borislav Petkov <bp@alien8.de>
-> CC: "H. Peter Anvin" <hpa@zytor.com>
-> CC: Dave Hansen <dave.hansen@linux.intel.com>
-> CC: Vlastimil Babka <vbabka@suse.cz>
-> CC: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: Mel Gorman <mgorman@suse.de>
-> CC: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> CC: Andy Lutomirski <luto@kernel.org>
-> CC: Andi Kleen <ak@linux.intel.com>
-> CC: Petr Tesarik <ptesarik@suse.cz>
-> CC: Michal Hocko <mhocko@suse.com>
-> CC: Stephen Rothwell <sfr@canb.auug.org.au>
-> CC: Jonathan Corbet <corbet@lwn.net>
-> CC: Nicholas Piggin <npiggin@gmail.com>
-> CC: Daniel Vacek <neelx@redhat.com>
-> CC: linux-kernel@vger.kernel.org
-> ---
->  include/linux/memblock.h |  3 +++
->  mm/memblock.c            | 68 ++++++++++++++++++++++++++++++++++++++++++++----
->  2 files changed, 66 insertions(+), 5 deletions(-)
-> 
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index 64c41cf..ee999c5 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -342,6 +342,9 @@ void *memblock_alloc_try_nid_nopanic(phys_addr_t size, phys_addr_t align,
->  void *memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align,
->  			     phys_addr_t min_addr, phys_addr_t max_addr,
->  			     int nid);
-> +extern int build_node_order(int *node_oder_array, int sz,
-> +	int local_node, nodemask_t *used_mask);
-> +void memblock_build_node_order(void);
-> 
->  static inline void * __init memblock_alloc(phys_addr_t size,  phys_addr_t align)
->  {
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 022d4cb..cf78850 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1338,6 +1338,47 @@ phys_addr_t __init memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t ali
->  	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
->  }
-> 
-> +static int **node_fallback __initdata;
-> +
-> +/*
-> + * build_node_order() relies on cpumask_of_node(), hence arch should set up
-> + * cpumask before calling this func.
-> + */
-> +void __init memblock_build_node_order(void)
-> +{
-> +	int nid, i;
-> +	nodemask_t used_mask;
-> +
-> +	node_fallback = memblock_alloc(MAX_NUMNODES * sizeof(int *),
-> +		sizeof(int *));
-> +	for_each_online_node(nid) {
-> +		node_fallback[nid] = memblock_alloc(
-> +			num_online_nodes() * sizeof(int), sizeof(int));
-> +		for (i = 0; i < num_online_nodes(); i++)
-> +			node_fallback[nid][i] = NUMA_NO_NODE;
-> +	}
-> +
-> +	for_each_online_node(nid) {
-> +		nodes_clear(used_mask);
-> +		node_set(nid, used_mask);
-> +		build_node_order(node_fallback[nid], num_online_nodes(),
-> +			nid, &used_mask);
-> +	}
-> +}
-> +
-> +static void __init memblock_free_node_order(void)
-> +{
-> +	int nid;
-> +
-> +	if (!node_fallback)
-> +		return;
-> +	for_each_online_node(nid)
-> +		memblock_free(__pa(node_fallback[nid]),
-> +			num_online_nodes() * sizeof(int));
-> +	memblock_free(__pa(node_fallback), MAX_NUMNODES * sizeof(int *));
-> +	node_fallback = NULL;
-> +}
-> +
->  /**
->   * memblock_alloc_internal - allocate boot memory block
->   * @size: size of memory block to be allocated in bytes
-> @@ -1370,6 +1411,7 @@ static void * __init memblock_alloc_internal(
->  {
->  	phys_addr_t alloc;
->  	void *ptr;
-> +	int node;
->  	enum memblock_flags flags = choose_memblock_flags();
-> 
->  	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
-> @@ -1397,11 +1439,26 @@ static void * __init memblock_alloc_internal(
->  		goto done;
-> 
->  	if (nid != NUMA_NO_NODE) {
-> -		alloc = memblock_find_in_range_node(size, align, min_addr,
-> -						    max_addr, NUMA_NO_NODE,
-> -						    flags);
-> -		if (alloc && !memblock_reserve(alloc, size))
-> -			goto done;
-> +		if (!node_fallback) {
-> +			alloc = memblock_find_in_range_node(size, align,
-> +					min_addr, max_addr,
-> +					NUMA_NO_NODE, flags);
-> +			if (alloc && !memblock_reserve(alloc, size))
-> +				goto done;
-> +		} else {
-> +			int i;
-> +			for (i = 0; i < num_online_nodes(); i++) {
-> +				node = node_fallback[nid][i];
-> +				/* fallback list has all memory nodes */
-> +				if (node == NUMA_NO_NODE)
-> +					break;
-> +				alloc = memblock_find_in_range_node(size,
-> +						align, min_addr, max_addr,
-> +						node, flags);
-> +				if (alloc && !memblock_reserve(alloc, size))
-> +					goto done;
-> +			}
-> +		}
->  	}
-> 
->  	if (min_addr) {
-> @@ -1969,6 +2026,7 @@ unsigned long __init memblock_free_all(void)
-> 
->  	reset_all_zones_managed_pages();
-> 
-> +	memblock_free_node_order();
->  	pages = free_low_memory_core_early();
->  	totalram_pages_add(pages);
-> 
-> -- 
-> 2.7.4
-> 
-
+ 		nr[lru] = scan;
+ 	}
++
++	/*
++	 * Even if we did not try to evict anon pages at all, we want to
++	 * rebalance the anon lru active/inactive ratio to maintain
++	 * enough reclaim candidates for the next reclaim cycle.
++	 */
++	if (scan_balance != SCAN_FILE && inactive_list_is_low(lruvec,
++						false, memcg, sc, false))
++		nr[LRU_ACTIVE_ANON] += SWAP_CLUSTER_MAX;
+ }
+ 
+ /*
 -- 
-Sincerely yours,
-Mike.
+2.19.2
+
+
+
 
