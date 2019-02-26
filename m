@@ -2,170 +2,213 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 14C80C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 20:45:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2E40BC43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 20:57:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CE0FC21873
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 20:45:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE0FC21873
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id 92A57218A1
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 20:57:02 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="key not found in DNS" (0-bit key) header.d=szeredi.hu header.i=@szeredi.hu header.b="mdcyZhjW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92A57218A1
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=szeredi.hu
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7E6B68E0003; Tue, 26 Feb 2019 15:45:56 -0500 (EST)
+	id 287588E0003; Tue, 26 Feb 2019 15:57:02 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7944C8E0001; Tue, 26 Feb 2019 15:45:56 -0500 (EST)
+	id 20CED8E0001; Tue, 26 Feb 2019 15:57:02 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6830C8E0003; Tue, 26 Feb 2019 15:45:56 -0500 (EST)
+	id 0FDE28E0003; Tue, 26 Feb 2019 15:57:02 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 26A3E8E0001
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 15:45:56 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id y1so10459811pgo.0
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 12:45:56 -0800 (PST)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D2FD58E0001
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 15:57:01 -0500 (EST)
+Received: by mail-it1-f198.google.com with SMTP id h3so3282517itb.4
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 12:57:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=BTHbR4e02YAu/p3GqWhqWuWcW/tE3O+ocT8mTIwfhEY=;
-        b=Tob78FtyT9OI1fkNBEtj1kgZZ2K2/c6AtsuMtDqqhD87JmtyYych0w1KR0IZ4fu+m0
-         VJ9zNpAT8/14V87m60YNkGzvr0Wp1qryC8bgPDMwglvu8fcBgUOg1zFIDHk0QKVJEPul
-         /nnOsyqwt+q7yhoRh4qT6+/RUw1TL+DbQ6ITF3PhsvLL8Mczew2A8VA1YXnyffZDTXWF
-         NGk2SncQMzl9qkHwUzpLqWihCf261IHFlLqTbJJDKBSQFoNHmF5L3b4vHFXDnxeKPUqv
-         eI66glN6rKTZ+KjnprtLD5yB0xHZJf11RnS0/qq8NSbM9i3VvTST0sLGk5jJ0Es6CKkx
-         rv8A==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.139 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: AHQUAuZWto5uiATaZmSz51F3n4xRZMQ7ftM3DGH588XGMa36TxobSO7H
-	cmc8ruGSi6qEZBwsXD1ke2T1Um8RsMrzZZf6DxjdMPnLPgxzgPNzE58nCCpRLb9WhNp/cWESLkc
-	wgEXbO+nFALx6eB3HbiIMyd41nbIF/YRQfHK/UNnjlIBnOsTL0uPdbmjz0jD4TG0=
-X-Received: by 2002:a62:138f:: with SMTP id 15mr27863052pft.219.1551213955582;
-        Tue, 26 Feb 2019 12:45:55 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IamDcPk7fpk896jSPh3GYv85XOMLZlrEF/qBHZb+PzNL9UKRwaCbiy2M4IV64L3vfZHsGQA
-X-Received: by 2002:a62:138f:: with SMTP id 15mr27862979pft.219.1551213954414;
-        Tue, 26 Feb 2019 12:45:54 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551213954; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=55zzPnyrnWUFKeC9LCdS8dxBYexmrWxKcTLd2Z5DwnA=;
+        b=NvG482G14XjDOqX/Ltb0s7fTesSg2pC6UN1HaTz4MDtCe5nizC4uwW7vvTqmwFgZ8f
+         gUFo7tQU4CW895T7OXXl1PszzOxUWJNGbsoPjpUImFynfGKPJNX7gOvvOifmtBGNyfd6
+         5EsJ5M2YcENfalpKXVduJUT3jjvhbImh3QTdkQfl8trRR+dTrSkDPDOf9goX9jPuzULU
+         vjxHzsGti9CLT5OsCw3bI+Ahgz2NNceMK6G8XzwTnMCWCBesqtrsZxiu9AITQQtIz5G5
+         8qU8htsgOKd2nlDA0+Hlu7c54AtvdmWDvQZcksgMMrjDQpclMQ4X1XgkjZUJup73bQ2Z
+         7dWg==
+X-Gm-Message-State: AHQUAubhbifjaBRpoXo0tbDKtbzRmOMOJ9MLNekN7Ab4r6WqXB5yh+7j
+	akicUuvKkQ39vvqLyvW5/pV8/Tce4QNm88G9tIi6C1Ak0zdP9dqSO5Sf0en9m4Eysqc+bbuxfT4
+	dC3MvJll+G58eXMFc6FTI8J3Lmk7WZwkFTMCG+s1pVGLvigBWgzFOdnWkI+cmku/z6VelPN37C7
+	fDtyhb/khsIzs/1A3W/gDed8yO5RHCl793u/Wfmx0RlNlRDoY8MUqQCKx1xuWUhbirUDg9ikxtG
+	E9I+ESaTugk1SD7GABR/DPjDGl+jQ6UTHXi4ZmVjj7B8IcveWKxeLqaKyRs9j0kGhvKFyZcIzB9
+	VztUtwV5nJJB2c12KrrT8fJbdNCewGOCgGXnN0HUdnbjT3ZLHj7V2K/joKvn5hVkwd8Q3EcIoK+
+	T
+X-Received: by 2002:a02:4fc7:: with SMTP id r68mr1819140jad.69.1551214621527;
+        Tue, 26 Feb 2019 12:57:01 -0800 (PST)
+X-Received: by 2002:a02:4fc7:: with SMTP id r68mr1819098jad.69.1551214620569;
+        Tue, 26 Feb 2019 12:57:00 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551214620; cv=none;
         d=google.com; s=arc-20160816;
-        b=o/VyQGdFjRJwkIqYWnBXHZHI3cLA9vjuuimL8/hxAIBfZfqwcqpFjpoQjaVRxWUBOz
-         WM2yw358IJhHGE39Oub6yS93mjxmGUcQ928ejwcyrr3kF/rdXp4nIhdPhKTSX0rVcEz3
-         5i0GKhOdkIiOQ6hzyGIT8Vy4r9MW/52AaLqPcclTxu+GtjodbtyNAEHXPJqEl3TnbvoX
-         HaIGlA8O/AhhyJAKVXI9WRjtpmkk/j3/J/JEjPLyx98kqijK3oBTxSdqYq7iII1f7gtv
-         NwgwoinZPepy4XOORkbnKj4v+ZJplNp9Zw74wU7fEpZD2EKkdzesoU1E6m5berfX77ei
-         80WQ==
+        b=yzFSmqWdLpVULE7YjKMFv5jlkfp9kqKNrkU5PEifo+Cfgaef8itZ5jRn1tqKjrPxzz
+         KnMdPDjkbCph5Mk76NsAi8yh4cQ5rTJtDaE67y2IF0mkZ8T64sYxSxyTz/gfXYTKjEtj
+         AfBqba3ZjTyBAZJqfxkEko0THCv2OHppaA5fQY3SD/k3WoQdUv/8Fnpgg7OFCJeHDxKE
+         uDCD29VbOo09xSpTp3sDO3bh2J797nIGvfXpNufvbbUX0/z6YuonuNyZgaYbBHKq5m2D
+         eU3TGisUaGCLL/X+5TKUTXAR4DLBDgrb+/MDtxGr1g7g5nCZuGKUxZlBeaV+5nJqvDhb
+         1heQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=BTHbR4e02YAu/p3GqWhqWuWcW/tE3O+ocT8mTIwfhEY=;
-        b=EVEPQ9n32fIifP4LbDbVaQP6vXxwv9ZohJ4mtb3xjKgeaZFaMZaK2KNAKy+38DX5aL
-         7d0Ji+BeBWw9i3pzx6wfYASD7ZYNxj3e9Y3pCQPcGd3lxKyZiDChWhndwg2vhVgMjbOy
-         KF3/uHczwPGZZStA2yeQSBQmgsRYdMRDAF+LYiAUeyXao9auCOlodxYioX3cxDc23nay
-         SDCve4KuEC2A4CgibWPt/fMPAT0Jnp3+nYpeI2RUZIYlg48N+lE3uLYaARDjXv6+5Ffv
-         heKdRKYggMeUUi0XeKfOHXWhrEFkbGjek39wbWZXUUa04gTe67UIYMxsYFG0CbPraVN1
-         uYjA==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=55zzPnyrnWUFKeC9LCdS8dxBYexmrWxKcTLd2Z5DwnA=;
+        b=N09QMGZ6LklOiLmZO9IX6sEoeUChMF3+Q0HanU482LIa5Qrq3gKiSGqZSJALxElrc6
+         /8I5oq09X3pDjfu9hWfvUqtaQoaek5Ogc2K0xo8K0LbGz+ZpxHnwsBaJ0OC0etNcn1o8
+         /sCLwItDdpOZ9M+Sjp9Q22ivvcjTzm0zg8rdJh926IP+s65+qOUg/0mR5cXu5U/7gdce
+         K2TOefNLOSUI3tj4VEiktynyvPFp7vmo31+ectjp+jJpH5K/0XbYyvOrmvp4N3Hc7Vjg
+         AkfbaIXnv/XcW2woNkRIT3aRJK5z0K2ceRA0wjdIMpX0xHmxdpjTZX0WnKkF3PhU3kSK
+         tpRA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 150.101.137.139 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ipmail02.adl2.internode.on.net (ipmail02.adl2.internode.on.net. [150.101.137.139])
-        by mx.google.com with ESMTP id 71si2868789plf.436.2019.02.26.12.45.53
-        for <linux-mm@kvack.org>;
-        Tue, 26 Feb 2019 12:45:54 -0800 (PST)
-Received-SPF: neutral (google.com: 150.101.137.139 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.139;
+       dkim=temperror (no key for signature) header.i=@szeredi.hu header.s=google header.b=mdcyZhjW;
+       spf=pass (google.com: domain of miklos@szeredi.hu designates 209.85.220.65 as permitted sender) smtp.mailfrom=miklos@szeredi.hu
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 2sor32263221jae.14.2019.02.26.12.57.00
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 26 Feb 2019 12:57:00 -0800 (PST)
+Received-SPF: pass (google.com: domain of miklos@szeredi.hu designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 150.101.137.139 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
-  by ipmail02.adl2.internode.on.net with ESMTP; 27 Feb 2019 07:15:51 +1030
-Received: from dave by dastard with local (Exim 4.80)
-	(envelope-from <david@fromorbit.com>)
-	id 1gyjbq-0006v4-Kr; Wed, 27 Feb 2019 07:45:50 +1100
-Date: Wed, 27 Feb 2019 07:45:50 +1100
-From: Dave Chinner <david@fromorbit.com>
-To: Ming Lei <ming.lei@redhat.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>,
-	"Darrick J . Wong" <darrick.wong@oracle.com>,
-	linux-xfs@vger.kernel.org, Jens Axboe <axboe@kernel.dk>,
-	Vitaly Kuznetsov <vkuznets@redhat.com>,
-	Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>,
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-	Aaron Lu <aaron.lu@intel.com>, Christopher Lameter <cl@linux.com>,
-	Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org,
-	linux-block@vger.kernel.org
-Subject: Re: [PATCH] xfs: allocate sector sized IO buffer via page_frag_alloc
-Message-ID: <20190226204550.GK23020@dastard>
-References: <20190225040904.5557-1-ming.lei@redhat.com>
- <20190225043648.GE23020@dastard>
- <5ad2ef83-8b3a-0a15-d72e-72652b807aad@suse.cz>
- <20190225202630.GG23020@dastard>
- <20190226022249.GA17747@ming.t460p>
- <20190226030214.GI23020@dastard>
- <20190226032737.GA11592@bombadil.infradead.org>
- <20190226045826.GJ23020@dastard>
- <20190226093302.GA24879@ming.t460p>
+       dkim=temperror (no key for signature) header.i=@szeredi.hu header.s=google header.b=mdcyZhjW;
+       spf=pass (google.com: domain of miklos@szeredi.hu designates 209.85.220.65 as permitted sender) smtp.mailfrom=miklos@szeredi.hu
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=szeredi.hu; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=55zzPnyrnWUFKeC9LCdS8dxBYexmrWxKcTLd2Z5DwnA=;
+        b=mdcyZhjWJjftBkGRV2mvYiILAmnTaifmwHApKVZ2WZbrS0kxeDt9L/aDZ1N6QOyJeS
+         oF+kue/daQbFXT8OOCwn+rl5lbqNjU0sLj4ANhwqqVqK5GRIrEJ1LJ0RubrW31fSNUay
+         x0x1JLrR5yuOY/oCfsi6E84kEKQtK4YYn0NNA=
+X-Google-Smtp-Source: AHgI3IZmF7nfO5kmw057DHQOL02MSH5lHz74DKKtDOoVypP0k6dhL852D+FKOmOg/b9wdFvROK/LSNveGsL6mNcn5I4=
+X-Received: by 2002:a02:4084:: with SMTP id n126mr12956042jaa.78.1551214619865;
+ Tue, 26 Feb 2019 12:56:59 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190226093302.GA24879@ming.t460p>
-User-Agent: Mutt/1.5.21 (2010-09-15)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+References: <87o998m0a7.fsf@vostro.rath.org> <CAJfpegtQic0v+9G7ODXEzgUPAGOz+3Ay28uxqbafZGMJdqL-zQ@mail.gmail.com>
+ <87ef9omb5f.fsf@vostro.rath.org> <CAJfpegu_qxcaQToDpSmcW_ncLb_mBX6f75RTEn6zbsihqcg=Rw@mail.gmail.com>
+ <87ef9nighv.fsf@thinkpad.rath.org> <CAJfpegtiXDgSBWN8MRubpAdJFxy95X21nO_yycCZhpvKLVePRA@mail.gmail.com>
+ <87zhs7fbkg.fsf@thinkpad.rath.org> <8736ovcn9q.fsf@vostro.rath.org>
+ <CAJfpegvjntcpwDYf3z_3Z1D5Aq=isB3ByP3_QSoG6zx-sxB84w@mail.gmail.com>
+ <877ee4vgr4.fsf@vostro.rath.org> <878sy3h7gr.fsf@vostro.rath.org>
+ <CAJfpeguCJnGrzCtHREq9d5uV-=g9JBmrX_c===giZB7FxWCcgw@mail.gmail.com>
+ <CAJfpegu-QU-A0HORYjcrx3fM5FKGUop0x6k10A526ZV=p0CEuw@mail.gmail.com> <87bm2ymgnt.fsf@vostro.rath.org>
+In-Reply-To: <87bm2ymgnt.fsf@vostro.rath.org>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 26 Feb 2019 21:56:48 +0100
+Message-ID: <CAJfpegu+_Qc1LRJgBAU=4jHPkUGPdYnJBxvSvQ6Lx+1_Dj2R=g@mail.gmail.com>
+Subject: Re: [fuse-devel] fuse: trying to steal weird page
+To: Nikolaus Rath <Nikolaus@rath.org>
+Cc: linux-mm@kvack.org
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000005, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 26, 2019 at 05:33:04PM +0800, Ming Lei wrote:
-> On Tue, Feb 26, 2019 at 03:58:26PM +1100, Dave Chinner wrote:
-> > On Mon, Feb 25, 2019 at 07:27:37PM -0800, Matthew Wilcox wrote:
-> > > On Tue, Feb 26, 2019 at 02:02:14PM +1100, Dave Chinner wrote:
-> > > > > Or what is the exact size of sub-page IO in xfs most of time? For
-> > > > 
-> > > > Determined by mkfs parameters. Any power of 2 between 512 bytes and
-> > > > 64kB needs to be supported. e.g:
-> > > > 
-> > > > # mkfs.xfs -s size=512 -b size=1k -i size=2k -n size=8k ....
-> > > > 
-> > > > will have metadata that is sector sized (512 bytes), filesystem
-> > > > block sized (1k), directory block sized (8k) and inode cluster sized
-> > > > (32k), and will use all of them in large quantities.
-> > > 
-> > > If XFS is going to use each of these in large quantities, then it doesn't
-> > > seem unreasonable for XFS to create a slab for each type of metadata?
-> > 
-> > 
-> > Well, that is the question, isn't it? How many other filesystems
-> > will want to make similar "don't use entire pages just for 4k of
-> > metadata" optimisations as 64k page size machines become more
-> > common? There are others that have the same "use slab for sector
-> > aligned IO" which will fall foul of the same problem that has been
-> > reported for XFS....
-> > 
-> > If nobody else cares/wants it, then it can be XFS only. But it's
-> > only fair we address the "will it be useful to others" question
-> > first.....
-> 
-> This kind of slab cache should have been global, just like interface of
-> kmalloc(size).
-> 
-> However, the alignment requirement depends on block device's block size,
-> then it becomes hard to implement as genera interface, for example:
-> 
-> 	block size: 512, 1024, 2048, 4096
-> 	slab size: 512*N, 0 < N < PAGE_SIZE/512
-> 
-> For 4k page size, 28(7*4) slabs need to be created, and 64k page size
-> needs to create 127*4 slabs.
+On Tue, Feb 26, 2019 at 9:35 PM Nikolaus Rath <Nikolaus@rath.org> wrote:
+>
+> [ Moving fuse-devel and linux-fsdevel to Bcc ]
+>
+> Hello linux-mm people,
+>
+> I am posting this here as advised by Miklos (see below). In short, I
+> have a workload that reliably produces kernel messages of the form:
+>
+> [ 2562.773181] fuse: trying to steal weird page
+> [ 2562.773187] page=3D<something> index=3D<something> flags=3D17ffffc0000=
+0ad, count=3D1, mapcount=3D0, mapping=3D (null)
+>
+> What are the implications of this message? Is something activelly going
+> wrong (aka do I need to worry about data integrity)?
 
-IDGI. Where's the 7/127 come from?
+Fuse is careful and basically just falls back on page copy, so it
+definitely shouldn't affect data integrity.
 
-We only require sector alignment at most, so as long as each slab
-object is aligned to it's size, we only need one slab for each block
-size.
+The more interesting question is: how can page_cache_pipe_buf_steal()
+return a dirty page?  The logic in remove_mapping() should prevent
+that, but something is apparently slipping through...
 
-Cheers,
+>
+> Is there something I can do to help debugging (and hopefully fixing)
+> this?
+>
+> This is with kernel 4.18 (from Ubuntu cosmic).
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+One thought: have you tried reproducing with a recent vanilla
+(non-ubuntu) kernel?
+
+Thanks,
+Miklos
+
+
+>
+> Best,
+> -Nikolaus
+>
+>
+> On Feb 26 2019, Miklos Szeredi <miklos@szeredi.hu> wrote:
+> > On Tue, Feb 26, 2019 at 1:57 PM Miklos Szeredi <miklos@szeredi.hu> wrot=
+e:
+> >>
+> >> On Mon, Feb 25, 2019 at 10:41 PM Nikolaus Rath <Nikolaus@rath.org> wro=
+te:
+> >> >
+> >> > On Feb 12 2019, Nikolaus Rath <Nikolaus@rath.org> wrote:
+> >> > > On Feb 12 2019, Miklos Szeredi <miklos@szeredi.hu> wrote:
+> >> > >> On Sun, Feb 10, 2019 at 11:05 PM Nikolaus Rath <Nikolaus@rath.org=
+> wrote:
+> >> > >>
+> >> > >>> Bad news. I can now reliably reproduce the issue again.
+> >> > >>
+> >> > >> A reliable reproducer is always good news.   Are the messages exa=
+ctly
+> >> > >> the same as last time (value of flags, etc)?
+> >> > >
+> >> > > The flags, count, mapcount and mapping values are always the same.=
+ The
+> >> > > page and index is varying. So the general format is:
+> >> > >
+> >> > > [ 2562.773181] fuse: trying to steal weird page
+> >> > > [ 2562.773187] page=3D<something> index=3D<something>
+> >> > > flags=3D17ffffc00000ad, count=3D1, mapcount=3D0, mapping=3D (null)
+> >> >
+> >> > Is there anything else I can do to help debugging this?
+> >>
+> >> Could you please try the attached patch?
+> >
+> > Looking more, it's very unlikely to help.  remove_mapping() should
+> > already ensure that the page count is 1.
+> >
+> > I think this bug report needs to be forwarded to the
+> > <linux-mm@kvack.org> mailing list as this appears to be  a race
+> > somewhere in the memory management subsystem and fuse is only making
+> > it visible due to its sanity checking in the page stealing code.
+> >
+> > Thanks,
+> > Miklos
+> >
+> >
+> > --
+> > fuse-devel mailing list
+> > To unsubscribe or subscribe, visit https://lists.sourceforge.net/lists/=
+listinfo/fuse-devel
+>
+>
+> --
+> GPG Fingerprint: ED31 791B 2C5C 1613 AF38 8B8A D113 FCAC 3C4E 599F
+>
+>              =C2=BBTime flies like an arrow, fruit flies like a Banana.=
+=C2=AB
 
