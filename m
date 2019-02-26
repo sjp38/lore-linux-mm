@@ -2,181 +2,177 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D94A8C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 15:30:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A5FD4C10F0B
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 15:36:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9BEC42184D
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 15:30:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="Cwuh9Bn4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9BEC42184D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	by mail.kernel.org (Postfix) with ESMTP id 71C372173C
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 15:36:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 71C372173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2A9358E0003; Tue, 26 Feb 2019 10:30:41 -0500 (EST)
+	id 05B8D8E0003; Tue, 26 Feb 2019 10:36:37 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 259E08E0001; Tue, 26 Feb 2019 10:30:41 -0500 (EST)
+	id F26818E0001; Tue, 26 Feb 2019 10:36:36 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 170178E0003; Tue, 26 Feb 2019 10:30:41 -0500 (EST)
+	id DEFA28E0003; Tue, 26 Feb 2019 10:36:36 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DFD758E0001
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 10:30:40 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id k1so12619438qta.2
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 07:30:40 -0800 (PST)
+Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C9818E0001
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 10:36:36 -0500 (EST)
+Received: by mail-lf1-f71.google.com with SMTP id m10so2391863lfk.6
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 07:36:36 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=RXpuypGPaxLuzfXK4JIKNMVV6wX+/Dvo+AtpUQerBu8=;
-        b=mpS33g9FDfRiIJM6nfpFpqdCufHhIto3JGYKx8G35sOJE7sKCdnCVJk0ecJ1fvlmVx
-         S78calby7s5yH/Z4uDDXEZ0aZ3Tgm7Kpdm/E48qSnm5KKfXZEq7/Rvo3KUUIMyN9w8Jp
-         hRTOb0WTD3n/q4ESAOBJ5z06gHBiIUwIL8soQVx+m0uC/uKJ7EiDtJ4pXzZ96x/hHYsY
-         U9Jab3/f2rLlR65PNY47PiACAYcdFIaKgbsZKcuCtB6h/ERODj+0LGqKpdt9rvn8dv4p
-         0k7w14lVBA6Wp/55gR0FhKWbxmMaDKvGQoUi0k2eXlJxbni3a4qi6UGJGtbXe7iiaXbh
-         GuOg==
-X-Gm-Message-State: AHQUAuZQogJyEZfEyKVtzukaPX/304pRaZwaaVuROP+h1TiaT4arlWoW
-	xGrLas9EP2fNzCkjPnpZq5YQAHJ4H6Cn3Vhg4rQDCMp/+6HfCDFM8G8JOmq23zR7PGEMEnca7eD
-	zatMgPwsvhk1z/x/27o6S367l0Nrtno2FkCRMS27ppVhMX5uKU022PT2m9MJ4edk=
-X-Received: by 2002:ac8:38d5:: with SMTP id g21mr17870719qtc.237.1551195040557;
-        Tue, 26 Feb 2019 07:30:40 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYyiyflKkdQTXTghHHgnSGRHYPehXm5KUzDk57vIEoUbmY2gwUrqmQOS11MaH19GIryLK4v
-X-Received: by 2002:ac8:38d5:: with SMTP id g21mr17870675qtc.237.1551195039835;
-        Tue, 26 Feb 2019 07:30:39 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551195039; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=FmbORR29glRjvUF2UWvHeAnkgEj5K+ItpJ8AFL4loS8=;
+        b=KV3N53Q1Ko4Mnuz1e23XXslApVL/HMpL0ymoWwGI42DQN19f2mEd07CQyHjTWRxCKl
+         MgutgVCDEa5/bl2h6391B3WQJ9WmxWg++/dehGk8Y3oBBN5iR+qTGDUfR447kqq6C7gQ
+         A6OBsk0Jh84VoUTr4Ly+/HoJJOyhYSPOYdRpeS+nzIA+3r0TKYK6CkyI0s6spj7jbuFp
+         DV2m1NQc5rAfCtGMy2o4WlIyVY63F7IeDTLhFlGAvC5xjV+Q0b/qdy6OSXPFXIJ/BJu0
+         0eaYmFyHqZ2MxhhwPK7fmFA9GSH66KdKAEHRIHF96EfWl7BtSn9PskJpskoOHRplfazI
+         gl3A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: AHQUAuZvtts/vAXRhCmXdwMI1/uXPXoytWXxXVB6Y4SFYFkueGbslSG6
+	HJgG2kQT9nLOLDtGraDh6Xtgj6xVBrokBtKNT3B37z8Eh5bZc2ruOq5B41gO93KoKAYVqfF4AjS
+	Df28P1nuvMoGqkvGva3bNzrPfpUqIaQnatQ/XUf6Ehe04N5ei2dIuRKq5qfTbXDb0yQ==
+X-Received: by 2002:ac2:42c1:: with SMTP id n1mr12309404lfl.45.1551195395781;
+        Tue, 26 Feb 2019 07:36:35 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib/rDuFnb5jLqq7fI/+Wd5PXsiNWJpMdvwavbkV3S5qfuK8bR+YunhHsEY3WNM/6jobLC+7
+X-Received: by 2002:ac2:42c1:: with SMTP id n1mr12309360lfl.45.1551195394521;
+        Tue, 26 Feb 2019 07:36:34 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551195394; cv=none;
         d=google.com; s=arc-20160816;
-        b=M9rnbnw9+9iDmEi1VBd5A6lE4Ui6/78oWw3AsD5ES+mhBG1CfgSENt2LlRiIWHjzAD
-         a+fjWbyZAC4R+hGyRfPdV278GpbFAO4LBDwheWaCmkUWMtfFihNBPPR4BSbivg27oxfA
-         U/FlmKG5DDrudxebXeC8noe9B7psXGDyxofZk4gUsXlh4WWBi6zmGH8FeN08g3L6ihb/
-         iK6JqjhCERtEBfreNBkp9TWAz58drgVeiFWOelJuyylq3JKT3NSBTFXNumCItj3H8B/Y
-         1uy3ClenhqzBd7AyF3gKmUaQWSC9dbqWjR9TBGW0gUqCUzclpBCFAGmdNDHoZWFTeaDf
-         BcwA==
+        b=s5grvwpe0dmH7TrS/WJlX+ue7AtQpe4TaZfi+QStuzwmBIXctaKZSKH14erHsaAE/0
+         8DVk50kLO3+7ezqodTXJ1oM93b0wJ7VfT66rdpfKGUxG7C3755gLbxGb3YNzK+zAwQLP
+         A7ScTnYtWJkqKtVEMPhPpqD9lA/uNpat+RmQD16rYARDAs8DM+FkwdwutEemEkDjFXlj
+         +BSU6gUUNQR3pw/26Ea/WUI58y28CwTuP30UXRsVYZV+XLUcKrGhs8k+1fWYH+dWwmSg
+         dH/GKhLmyLRFUV9OJirFuGp0Xuit6NmkFzAnwif6VEJk1b0WpvShNYOLWyJwSkvnWL0+
+         fR8Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=RXpuypGPaxLuzfXK4JIKNMVV6wX+/Dvo+AtpUQerBu8=;
-        b=aJWTBXH97ibQ5kY0Fa8R6zMgExv6FinK2KQhKYdA12MFVKmemgkKG2yOwQH24Ta1tE
-         Gd+Ur7tBpfAlmuKuKcvGSdUucAEafKf0iNZiVP7FdPHjKLgBrsE/uaKp+sJWJKemxqmO
-         RzfQmwpK+qsvR7xWfzbhzHKjPc035cXYu2zlSC2b7xHOITLLvWWS+jQyGSqIz+Wmbmwk
-         m/oQJbcXpRiVeJxjjwNpKyjyG3FQ25YUGklWkomml3TGUNEX3st5DA0jbRu/lv0KpeE/
-         Xydtk6yLiTr36EaznIhwN79vm0d2hs/zV5LkiCNMYATk1w2E9LtbQaK3Pu+JL7tF8qHO
-         KB4w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=FmbORR29glRjvUF2UWvHeAnkgEj5K+ItpJ8AFL4loS8=;
+        b=rp9BGJiVXan/eXDQo2BmGIbAci0VMNmToDCYA045/w0txMm1tDajVP5lUWNyCD93nm
+         yznzDl8oJS4WjrsVzgHTJxd0dYHhsIUmyCbQ8sHBJOw4+Bau2P+3CnF6WHJwko7LjM/E
+         8ljiublPTsJbMfcg/t6R/QauL8rqJe5Kv7yKAyUUW8HZlk+WCQNX/VDkr/tG5IU4a57R
+         YP8KrzHQf6eMbGS5AdbS2Ld7U/54wzn9yNQTtkOXzMqAjXMcyFsIRS8iVoqMRDtTw78I
+         h0WeeJtOVZ+04busEIOwtzwY7lCTaQLifGeAras29/aL/o/uACJvEtQDR+qfMk1qLQE+
+         wsnQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=Cwuh9Bn4;
-       spf=pass (google.com: domain of 010001692a6de63c-e2304a50-263c-49c5-a9fd-675cfb7094f5-000000@amazonses.com designates 54.240.9.31 as permitted sender) smtp.mailfrom=010001692a6de63c-e2304a50-263c-49c5-a9fd-675cfb7094f5-000000@amazonses.com
-Received: from a9-31.smtp-out.amazonses.com (a9-31.smtp-out.amazonses.com. [54.240.9.31])
-        by mx.google.com with ESMTPS id g11si749609qtc.86.2019.02.26.07.30.39
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id d13si12190lfi.9.2019.02.26.07.36.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 26 Feb 2019 07:30:39 -0800 (PST)
-Received-SPF: pass (google.com: domain of 010001692a6de63c-e2304a50-263c-49c5-a9fd-675cfb7094f5-000000@amazonses.com designates 54.240.9.31 as permitted sender) client-ip=54.240.9.31;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Feb 2019 07:36:34 -0800 (PST)
+Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug header.b=Cwuh9Bn4;
-       spf=pass (google.com: domain of 010001692a6de63c-e2304a50-263c-49c5-a9fd-675cfb7094f5-000000@amazonses.com designates 54.240.9.31 as permitted sender) smtp.mailfrom=010001692a6de63c-e2304a50-263c-49c5-a9fd-675cfb7094f5-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=ug7nbtf4gccmlpwj322ax3p6ow6yfsug; d=amazonses.com; t=1551195039;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=77D7T9rT28LezgnI2F/Twf1vqeCxGWnkTDI0cd2LU9M=;
-	b=Cwuh9Bn4YOPwc2G8avlvb5V/KpMzxNjiYRZ1hYABExxhazCjWYiVSX+UHzSMKyQ1
-	t4e4Rr+n3WKwVxJi9PsH29vdbsKLRAUAnjunUVA1v1G7OIP8hdgR4+hy6PyNLlxPkg4
-	oj7KrZdC1aWUP08xzNIwp4HY7tQ1ugjnmcis6dNI=
-Date: Tue, 26 Feb 2019 15:30:39 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Ming Lei <ming.lei@redhat.com>
-cc: Matthew Wilcox <willy@infradead.org>, Ming Lei <tom.leiming@gmail.com>, 
-    Vlastimil Babka <vbabka@suse.cz>, Dave Chinner <david@fromorbit.com>, 
-    "Darrick J . Wong" <darrick.wong@oracle.com>, 
-    "open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>, 
-    Jens Axboe <axboe@kernel.dk>, Vitaly Kuznetsov <vkuznets@redhat.com>, 
-    Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>, 
-    Alexander Duyck <alexander.h.duyck@linux.intel.com>, 
-    Aaron Lu <aaron.lu@intel.com>, 
-    Linux FS Devel <linux-fsdevel@vger.kernel.org>, 
-    linux-mm <linux-mm@kvack.org>, linux-block <linux-block@vger.kernel.org>, 
-    Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, 
-    Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] xfs: allocate sector sized IO buffer via
- page_frag_alloc
-In-Reply-To: <20190226134247.GA30942@ming.t460p>
-Message-ID: <010001692a6de63c-e2304a50-263c-49c5-a9fd-675cfb7094f5-000000@email.amazonses.com>
-References: <20190226022249.GA17747@ming.t460p> <20190226030214.GI23020@dastard> <20190226032737.GA11592@bombadil.infradead.org> <20190226045826.GJ23020@dastard> <20190226093302.GA24879@ming.t460p> <a641feb8-ceb2-2dac-27aa-7b1df10f5ae5@suse.cz>
- <CACVXFVMX=WpTRBbDTSibfXkTZxckk3ootetbE+rkJtHhsZkRAw@mail.gmail.com> <20190226121209.GC11592@bombadil.infradead.org> <20190226123545.GA6163@ming.t460p> <20190226130230.GD11592@bombadil.infradead.org> <20190226134247.GA30942@ming.t460p>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.12]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <aryabinin@virtuozzo.com>)
+	id 1gyemJ-0000Cx-2M; Tue, 26 Feb 2019 18:36:19 +0300
+Subject: Re: [PATCH RFC] mm/vmscan: try to protect active working set of
+ cgroup from reclaim.
+To: Roman Gushchin <guro@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
+ Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@surriel.com>,
+ Mel Gorman <mgorman@techsingularity.net>, Shakeel Butt <shakeelb@google.com>
+References: <20190222175825.18657-1-aryabinin@virtuozzo.com>
+ <20190225040255.GA31684@castle.DHCP.thefacebook.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <88207884-c643-eb2c-a784-6a7b11d0e7c7@virtuozzo.com>
+Date: Tue, 26 Feb 2019 18:36:38 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.02.26-54.240.9.31
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+In-Reply-To: <20190225040255.GA31684@castle.DHCP.thefacebook.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Feb 2019, Ming Lei wrote:
 
-> Then something like the following patch should work for all fs, could
-> anyone comment on this approach?
 
-Note that various subsystems have similar implementations. Have a look at
+On 2/25/19 7:03 AM, Roman Gushchin wrote:
+> On Fri, Feb 22, 2019 at 08:58:25PM +0300, Andrey Ryabinin wrote:
+>> In a presence of more than 1 memory cgroup in the system our reclaim
+>> logic is just suck. When we hit memory limit (global or a limit on
+>> cgroup with subgroups) we reclaim some memory from all cgroups.
+>> This is sucks because, the cgroup that allocates more often always wins.
+>> E.g. job that allocates a lot of clean rarely used page cache will push
+>> out of memory other jobs with active relatively small all in memory
+>> working set.
+>>
+>> To prevent such situations we have memcg controls like low/max, etc which
+>> are supposed to protect jobs or limit them so they to not hurt others.
+>> But memory cgroups are very hard to configure right because it requires
+>> precise knowledge of the workload which may vary during the execution.
+>> E.g. setting memory limit means that job won't be able to use all memory
+>> in the system for page cache even if the rest the system is idle.
+>> Basically our current scheme requires to configure every single cgroup
+>> in the system.
+>>
+>> I think we can do better. The idea proposed by this patch is to reclaim
+>> only inactive pages and only from cgroups that have big
+>> (!inactive_is_low()) inactive list. And go back to shrinking active lists
+>> only if all inactive lists are low.
+> 
+> Hi Andrey!
+> 
+> It's definitely an interesting idea! However, let me bring some concerns:
+> 1) What's considered active and inactive depends on memory pressure inside
+> a cgroup.
 
-drivers/dma/dmaengine.c
+There is no such dependency. High memory pressure may be generated both
+by active and inactive pages. We also can have a cgroup creating no pressure
+with almost only active (or only inactive) pages.
 
-struct dmaengine_unmap_pool {
-        struct kmem_cache *cache;
-        const char *name;
-        mempool_t *pool;
-        size_t size;
-};
+> Actually active pages in one cgroup (e.g. just deleted) can be colder
+> than inactive pages in an other (e.g. a memory-hungry cgroup with a tight
+> memory.max).
+> 
 
-#define __UNMAP_POOL(x) { .size = x, .name = "dmaengine-unmap-"
-__stringify(x) }
-static struct dmaengine_unmap_pool unmap_pool[] = {
-        __UNMAP_POOL(2),
-        #if IS_ENABLED(CONFIG_DMA_ENGINE_RAID)
-        __UNMAP_POOL(16),
-        __UNMAP_POOL(128),
-        __UNMAP_POOL(256),
-        #endif
-};
+Well, yes, this is a drawback of having per-memcg lrus.
 
-Or drivers/md/dm-bufio.c:
+> Also a workload inside a cgroup can to some extend control what's going
+> to the active LRU. So it opens a way to get more memory unfairly by
+> artificially promoting more pages to the active LRU. So a cgroup
+> can get an unfair advantage over other cgroups.
+> 
 
-struct dm_bufio_client {
-        struct mutex lock;
+Unfair is usually a negative term, but in this case it's very much depends on definition of what is "fair".
 
-        struct list_head lru[LIST_SIZE];
-        unsigned long n_buffers[LIST_SIZE];
+If fair means to put equal reclaim pressure on all cgroups, than yes, the patch
+increases such unfairness, but such unfairness is a good thing.
+Obviously it's more valuable to keep in memory actively used page than the page that not used.
 
-        struct block_device *bdev;
-        unsigned block_size;
-        s8 sectors_per_block_bits;
-        void (*alloc_callback)(struct dm_buffer *);
-        void (*write_callback)(struct dm_buffer *);
+> Generally speaking, now we have a way to measure the memory pressure
+> inside a cgroup. So, in theory, it should be possible to balance
+> scanning effort based on memory pressure.
+> 
 
-        struct kmem_cache *slab_buffer;
-        struct kmem_cache *slab_cache;
-        struct dm_io_client *dm_io;
+Simply by design, the inactive pages are the first candidates to reclaim.
+Any decision that doesn't take into account inactive pages probably would be wrong.
 
-        struct list_head reserved_buffers;
-        unsigned need_reserved_buffers;
-
-        unsigned minimum_buffers;
-
-        struct rb_root buffer_tree;
-        wait_queue_head_t free_buffer_wait;
-
-        sector_t start;
-
-        int async_write_error;
-
-        struct list_head client_list;
-        struct shrinker shrinker;
-};
+E.g. cgroup A with active job loading a big and active working set which creates high memory pressure
+and cgroup B - idle (no memory pressure) with a huge not used cache.
+It's definitely preferable to reclaim from B rather than from A.
 
