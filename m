@@ -2,242 +2,157 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 361C4C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 13:43:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 03602C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 13:52:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E59AC20863
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 13:43:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E59AC20863
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id AF8DF217F9
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 13:52:03 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="j7BI8t9w"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF8DF217F9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8129B8E0003; Tue, 26 Feb 2019 08:43:18 -0500 (EST)
+	id 3293D8E0003; Tue, 26 Feb 2019 08:52:03 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7C25A8E0001; Tue, 26 Feb 2019 08:43:18 -0500 (EST)
+	id 2B1308E0001; Tue, 26 Feb 2019 08:52:03 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 68A848E0003; Tue, 26 Feb 2019 08:43:18 -0500 (EST)
+	id 152888E0003; Tue, 26 Feb 2019 08:52:03 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 395268E0001
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 08:43:18 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id f70so10286704qke.8
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 05:43:18 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C2C8B8E0001
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 08:52:02 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id 71so9819794plf.19
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 05:52:02 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=5mMzx/V+dR+di3hpAXkGPrfAlwNFownHeXp7yqIOXR0=;
-        b=teyhtQlKLe6jjZgsz9R6S1KYCtlm1DPT5urBc1B9xFIKABwxWgwUBrX8A2xXiGJMDp
-         WEvoyZi+dYyFDAAuJegZxrBIUror2//Lj0wfb/4jKjqShjdbqpLQRk2fun3EtmnagzId
-         ewbEIE2Ucb+x7YXQoA+g9mML3pOxSuAyPhneH2O4zIBkpsTEvhixxNdQnAnzN+B8BPaR
-         O8U907lT+jDCT7QdlnduIafez7xkDKxKs6a6QAe4B/epWp06EJQs6qGBsRgXml+r9nkS
-         mzGtxwchzVVpSC70hbi6RNhrZHw5ebG2hRxhtJ0r9OQfVWFmfllrGMR/QutlaaeKG2Cq
-         XbOw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: AHQUAuZ3caUMnai9bt2nFPu9+T7TU+/AQsH6irwJOyCr9pSRx5Z6yMya
-	NAv8xq05v0jsnzGFeMsdQBaYl67UI3O152lzWYtLcoYARW7UkNleqG92vs6cvg4SBsg7sBQ1e46
-	snTUm7d4Yn/SG2iRltgX40kWzbovUBXMv2Wz3fJc/2u6Lz2KizzQ8CHtcdOaUsaUXTw==
-X-Received: by 2002:a0c:93ab:: with SMTP id f40mr18223187qvf.59.1551188597930;
-        Tue, 26 Feb 2019 05:43:17 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IawYQDhoHtC8vNCbwLq///aUvLDK/lk7mDL7jdwWntoYc3YPt3BDjeKLFyz3Hr6CNCrD4Wl
-X-Received: by 2002:a0c:93ab:: with SMTP id f40mr18223142qvf.59.1551188597213;
-        Tue, 26 Feb 2019 05:43:17 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551188597; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=lLK3BfRxB+qG/aPDalW8MkM3Flr+0berjH+y6Qs1Co4=;
+        b=dZpnWDByMgxFpeoo04nOJikDVv28pJjzT0HsD3Pns8UTfBIoKYziVdjP1LBZp2iqJh
+         /A/LE6plpI60U4bq0EB2PYCcYslcooIH63js882ILegiQjLHklLht4ARCf7u4+0naX5u
+         VCJcRvGcX77g1NB5p8BoMblRX/gFhkh0IHVocWlTKpV5tHAGXc9LwvF8alDSx+uXiIFf
+         H5IwQGehT9Fdk/502hsuuhKcqLFPi0x206Xtm8YQjdymKy7crWyNvZP8dtYSKGH2Tstd
+         mcGtsClbcCNt0A/CVIC9qxijBmXn89CYWGdaSM7yCYwmCUfZQcz8lBPkQ6uXHb4xYRia
+         YRXQ==
+X-Gm-Message-State: AHQUAubAxSwX4/AtW1Cmt2vXkF/QzkfMeM9v4izawqqWCofh5/5r3zhj
+	LCp1HcRENt9hshX7ztPvAnwv+aoANZhuBb/bKPD8bCzY1E9wNSrUEkC/iDK0IaKLWOhrA0ECNC3
+	/aPsZdzOMomsXX1DYGvLUhZ7UTpkTc8dOobLE9uFd7TedE+dy5a9g47ued3wBACp31jERWWgl3u
+	RjmPZesMoeRM1tCDWN2l5RrmADzynZLdPdekt2WLSXMzlIX/FAlkpqAExftA4TyQsxVnrTTEY0P
+	MXyjTixzp+LIQeqnGAlZhtw11gmNO2xi1abRHRuTgxPSAXoks579EhZbOAqg9rEjooJMuamTt+k
+	N59xqE80GwjJq0IGAeb+WWEMBygFqSmzliFIsG+xovmBO5kbkiE5cJYaiRI65BkXGf3cJ4nO5vq
+	Z
+X-Received: by 2002:a62:458a:: with SMTP id n10mr26827484pfi.136.1551189122416;
+        Tue, 26 Feb 2019 05:52:02 -0800 (PST)
+X-Received: by 2002:a62:458a:: with SMTP id n10mr26827413pfi.136.1551189121347;
+        Tue, 26 Feb 2019 05:52:01 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551189121; cv=none;
         d=google.com; s=arc-20160816;
-        b=Bf9D9wiGtZWwwgg2sMHEPYZ1+wetUMWb7FoBcE2/69yW6qb0q2ERyEtdP/lzmSxjVu
-         8t86i4c9TqKfbczA3xCDilGTw0KOq61GQM67WAR2YF8hS00inOLNFEbMWEy7PX0l0tYN
-         CgrHRJ9xYQK0EmPLcgloYi+ZkfGGn1p5QhbN7lVY1Zj0sbaNBz8VRXRtS7u0WtE6GPyj
-         P688/4Dc4oOly77qY/TOix965eEoe5JNgQ8/OJug9WS98SD3/9cbirEEPY0BZoT4okvE
-         e/ThF5J6crfJG0BAzFpjDc3qRTTM7GYcpTcOk46BaSx6SxdHfbZoNhUrbl1sqV3Qjwpq
-         ZNQg==
+        b=afqgqmHsevKTpxmlSgRHnkQYS2F+Dju57XHuEe1mkpyYovhgjqWSB4MvbPwoEO2XQD
+         SnurNQTzMMzoizUeeakzsSOn9QsqybBd9VNmK3gRo9mM5/abYHtcSnO6Qunesq+jV3Kr
+         fuU26+QmH2B0ZC4lNuHuieCDINn9FUUzTzEbIctxFw8GKxb+Hl6bmwonciqv+XzuhhbY
+         pvOqs/6zUuPDcDMmDxbG9kyxzwjrvK1ZGcR+RoAucglGIMnhH4LnU6pD532beD+e8Fhy
+         mQUBLaJhoHIuMbzmoaSm2hLlkj1Y5c/QF4j9iB7QCrsrhPgyKWTJ2IT2NyC2xukuEZBQ
+         mMcg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=5mMzx/V+dR+di3hpAXkGPrfAlwNFownHeXp7yqIOXR0=;
-        b=sDzB8QOQuHx44pVi4VReMfNzmWpXWnte96b5yXYQ23MgGvggOP0FHPlxq9rtgAk60F
-         3mYo7KfUn2CHmYMlytKLI/XJLLCqT90E8WIPJtoXlDOaObaxmNUXwwj266sbrqg8LQVY
-         oPuU6p+aIH2Y2CKGhNDvNsN4FD61gQcSraJPHX9YO0d0cwaQ8q+NSmmgDyvtOnABFePm
-         WOhGmEUN4O3umBwBFhmVyEptia0imaDF4ovidUtTzISNRHyvBRhSSNJfdNHpi3psZuJN
-         Xxt8nYOcbwm8Xd5xC7iIww8p/ULFMPbpVdWEKwvkTzVuoNU2hK+vT/SUfHLZug68sTXY
-         kS2Q==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=lLK3BfRxB+qG/aPDalW8MkM3Flr+0berjH+y6Qs1Co4=;
+        b=oRJLZM7hGcus5ZssEqzKheMaCasCc+60vSANmi7jm9XkqnQxBW2bkiJ2F5Qqs/AQ3s
+         rN2wkhG0e4AuKB9cF4Gc29w44f7Ezd68mfHqKuawJBMfObNlV/sV4SeAkuLa+cHzFocm
+         Wi71ozU7Ep5dUaMCiJylUiRdROtememlIYN546zTNm2ugko6xuua2/fFwwljBdO0ksbJ
+         2TS/oyNIW+XjrJm5QX1mGcnNxhxBhReCmDdvhR+J/pTjcQL6TIDEqZF707eQcPI/OhvI
+         849mpLIffRWYdx3RmFjbwp5TJHhTuoKBXkf3Dus04V1flr91Hk4fQ6cg3L6s2W1dlo9U
+         VS6g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m11si2825963qkk.267.2019.02.26.05.43.16
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=j7BI8t9w;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y191sor19138683pgd.38.2019.02.26.05.52.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Feb 2019 05:43:17 -0800 (PST)
-Received-SPF: pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 26 Feb 2019 05:52:01 -0800 (PST)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ming.lei@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=ming.lei@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id D712F30BC133;
-	Tue, 26 Feb 2019 13:43:15 +0000 (UTC)
-Received: from ming.t460p (ovpn-8-17.pek2.redhat.com [10.72.8.17])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 09CFD5D9D2;
-	Tue, 26 Feb 2019 13:42:53 +0000 (UTC)
-Date: Tue, 26 Feb 2019 21:42:48 +0800
-From: Ming Lei <ming.lei@redhat.com>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Ming Lei <tom.leiming@gmail.com>, Vlastimil Babka <vbabka@suse.cz>,
-	Dave Chinner <david@fromorbit.com>,
-	"Darrick J . Wong" <darrick.wong@oracle.com>,
-	"open list:XFS FILESYSTEM" <linux-xfs@vger.kernel.org>,
-	Jens Axboe <axboe@kernel.dk>,
-	Vitaly Kuznetsov <vkuznets@redhat.com>,
-	Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>,
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-	Aaron Lu <aaron.lu@intel.com>, Christopher Lameter <cl@linux.com>,
-	Linux FS Devel <linux-fsdevel@vger.kernel.org>,
-	linux-mm <linux-mm@kvack.org>,
-	linux-block <linux-block@vger.kernel.org>,
-	Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] xfs: allocate sector sized IO buffer via page_frag_alloc
-Message-ID: <20190226134247.GA30942@ming.t460p>
-References: <20190226022249.GA17747@ming.t460p>
- <20190226030214.GI23020@dastard>
- <20190226032737.GA11592@bombadil.infradead.org>
- <20190226045826.GJ23020@dastard>
- <20190226093302.GA24879@ming.t460p>
- <a641feb8-ceb2-2dac-27aa-7b1df10f5ae5@suse.cz>
- <CACVXFVMX=WpTRBbDTSibfXkTZxckk3ootetbE+rkJtHhsZkRAw@mail.gmail.com>
- <20190226121209.GC11592@bombadil.infradead.org>
- <20190226123545.GA6163@ming.t460p>
- <20190226130230.GD11592@bombadil.infradead.org>
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=j7BI8t9w;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=lLK3BfRxB+qG/aPDalW8MkM3Flr+0berjH+y6Qs1Co4=;
+        b=j7BI8t9wmBNjRxMmV65x2O7XXA+jv1wklMcOpP7+aNgJlnbw1zPeSxFQgpNtoX+ZQI
+         eFiIM9jI3sNGzA5n+wH4wuWRC/q/55iO+ZiS1yyE9iPZHjuvooh5aY65vllpzR2Lhd1w
+         1o+hEWiT6fXCAXIEA2kZtlt7BqYXmoB0rghGS6otU5i5zZWL0nqH+6lJkvGSlNnlM2j6
+         32Lddsc15Z787TELQglsClmm9TuUA1tSuHxRQPvHqbg8eZOhkBeJJUc0Rex09C6qMTk7
+         Nd+Sq9tSgm9rKrF8IXOhPCyuQbaLbyewkMjixgzPKefrg0wP0+hjAGxwzymwqHK2/Z3T
+         NKvQ==
+X-Google-Smtp-Source: AHgI3IZd3zVBbQWjyMgY+Z7Oz13Tb3/AGplZ85+WwAk1xAZ1FVZY2VVm5+hCThgyvG4lEVLuRwnWFQ==
+X-Received: by 2002:a63:4b0a:: with SMTP id y10mr24504308pga.66.1551189120787;
+        Tue, 26 Feb 2019 05:52:00 -0800 (PST)
+Received: from kshutemo-mobl1.localdomain ([192.55.54.41])
+        by smtp.gmail.com with ESMTPSA id c18sm3626873pfo.44.2019.02.26.05.51.59
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Feb 2019 05:52:00 -0800 (PST)
+Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
+	id B569930064D; Tue, 26 Feb 2019 16:51:56 +0300 (+03)
+Date: Tue, 26 Feb 2019 16:51:56 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: n-horiguchi@ah.jp.nec.com, akpm@linux-foundation.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com,
+	hughd@google.com, mhocko@kernel.org
+Subject: Re: [PATCH] mm: hwpoison: fix thp split handing in
+ soft_offline_in_use_page()
+Message-ID: <20190226135156.mifspmbdyr6m3hff@kshutemo-mobl1>
+References: <1551179880-65331-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190226130230.GD11592@bombadil.infradead.org>
-User-Agent: Mutt/1.9.1 (2017-09-22)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Tue, 26 Feb 2019 13:43:16 +0000 (UTC)
+In-Reply-To: <1551179880-65331-1-git-send-email-zhongjiang@huawei.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 26, 2019 at 05:02:30AM -0800, Matthew Wilcox wrote:
-> On Tue, Feb 26, 2019 at 08:35:46PM +0800, Ming Lei wrote:
-> > On Tue, Feb 26, 2019 at 04:12:09AM -0800, Matthew Wilcox wrote:
-> > > On Tue, Feb 26, 2019 at 07:12:49PM +0800, Ming Lei wrote:
-> > > > The buffer needs to be device block size aligned for dio, and now the block
-> > > > size can be 512, 1024, 2048 and 4096.
-> > > 
-> > > Why does the block size make a difference?  This requirement is due to
-> > > some storage devices having shoddy DMA controllers.  Are you saying there
-> > > are devices which can't even do 512-byte aligned I/O?
-> > 
-> > Direct IO requires that, see do_blockdev_direct_IO().
-> > 
-> > This issue can be triggered when running xfs over loop/dio. We could
-> > fallback to buffered IO under this situation, but not sure it is the
-> > only case.
+On Tue, Feb 26, 2019 at 07:18:00PM +0800, zhong jiang wrote:
+> From: zhongjiang <zhongjiang@huawei.com>
 > 
-> Wait, we're imposing a ridiculous amount of complexity on XFS for no
-> reason at all?  We should just change this to 512-byte alignment.  Tying
-> it to the blocksize of the device never made any sense.
+> When soft_offline_in_use_page() runs on a thp tail page after pmd is plit,
 
-OK, that is fine since we can fallback to buffered IO for loop in case of
-unaligned dio.
+s/plit/split/
 
-Then something like the following patch should work for all fs, could
-anyone comment on this approach?
+> we trigger the following VM_BUG_ON_PAGE():
+> 
+> Memory failure: 0x3755ff: non anonymous thp
+> __get_any_page: 0x3755ff: unknown zero refcount page type 2fffff80000000
+> Soft offlining pfn 0x34d805 at process virtual address 0x20fff000
+> page:ffffea000d360140 count:0 mapcount:0 mapping:0000000000000000 index:0x1
+> flags: 0x2fffff80000000()
+> raw: 002fffff80000000 ffffea000d360108 ffffea000d360188 0000000000000000
+> raw: 0000000000000001 0000000000000000 00000000ffffffff 0000000000000000
+> page dumped because: VM_BUG_ON_PAGE(page_ref_count(page) == 0)
+> ------------[ cut here ]------------
+> kernel BUG at ./include/linux/mm.h:519!
+> 
+> soft_offline_in_use_page() passed refcount and page lock from tail page to
+> head page, which is not needed because we can pass any subpage to
+> split_huge_page().
 
---
+I don't see a description of what is going wrong and why change will fixed
+it. From the description, it appears as it's cosmetic-only change.
 
-diff --git a/block/blk-lib.c b/block/blk-lib.c
-index 5f2c429d4378..76f09f23a410 100644
---- a/block/blk-lib.c
-+++ b/block/blk-lib.c
-@@ -405,3 +405,44 @@ int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
- 	return ret;
- }
- EXPORT_SYMBOL(blkdev_issue_zeroout);
-+
-+static struct kmem_cache *sector_buf_slabs[(PAGE_SIZE >> 9) - 1];
-+
-+void *blk_alloc_sec_buf(unsigned size, gfp_t flags)
-+{
-+	int idx;
-+
-+	size = round_up(size, 512);
-+	if (size >= PAGE_SIZE)
-+		return NULL;
-+
-+	idx = (size >> 9) - 1;
-+	if (!sector_buf_slabs[idx])
-+		return NULL;
-+	return kmem_cache_alloc(sector_buf_slabs[idx], flags);
-+}
-+EXPORT_SYMBOL_GPL(blk_alloc_sec_buf);
-+
-+void blk_free_sec_buf(void *buf, int size)
-+{
-+	size = round_up(size, 512);
-+	if (size >= PAGE_SIZE)
-+		return;
-+
-+	return kmem_cache_free(sector_buf_slabs[(size >> 9) - 1], buf);
-+}
-+EXPORT_SYMBOL_GPL(blk_free_sec_buf);
-+
-+void __init blk_sector_buf_init(void)
-+{
-+	unsigned size;
-+
-+	for (size = 512; size < PAGE_SIZE; size += 512) {
-+		char name[16];
-+		int idx = (size >> 9) - 1;
-+
-+		snprintf(name, 16, "blk_sec_buf-%u", size);
-+		sector_buf_slabs[idx] = kmem_cache_create(name, size, 512,
-+							  SLAB_PANIC, NULL);
-+	}
-+}
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index faed9d9eb84c..a4117e526715 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -1657,6 +1657,9 @@ extern int bdev_read_page(struct block_device *, sector_t, struct page *);
- extern int bdev_write_page(struct block_device *, sector_t, struct page *,
- 						struct writeback_control *);
- 
-+extern void *blk_alloc_sec_buf(unsigned size, gfp_t flags);
-+extern void blk_free_sec_buf(void *buf, int size);
-+
- #ifdef CONFIG_BLK_DEV_ZONED
- bool blk_req_needs_zone_write_lock(struct request *rq);
- void __blk_req_zone_write_lock(struct request *rq);
-@@ -1755,6 +1758,15 @@ static inline int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
- 	return 0;
- }
- 
-+static inline void *blk_alloc_sec_buf(unsigned size, gfp_t flags)
-+{
-+	return NULL;
-+}
-+
-+static inline void blk_free_sec_buf(void *buf, int size)
-+{
-+}
-+
- #endif /* CONFIG_BLOCK */
- 
- static inline void blk_wake_io_task(struct task_struct *waiter)
+Please elaborate.
 
-Thanks,
-Ming
+-- 
+ Kirill A. Shutemov
 
