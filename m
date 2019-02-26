@@ -2,217 +2,192 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7DCDCC43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 00:03:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 14148C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 00:03:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 26D6A217F4
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 00:03:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C2A3F218AE
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 00:03:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=nxp.com header.i=@nxp.com header.b="s41aAhII"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26D6A217F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nxp.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="PJJsUkox"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C2A3F218AE
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B5F408E000B; Mon, 25 Feb 2019 19:03:33 -0500 (EST)
+	id 6313E8E000C; Mon, 25 Feb 2019 19:03:40 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AE83D8E000A; Mon, 25 Feb 2019 19:03:33 -0500 (EST)
+	id 5B7CE8E000A; Mon, 25 Feb 2019 19:03:40 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 963E58E000B; Mon, 25 Feb 2019 19:03:33 -0500 (EST)
+	id 4596E8E000C; Mon, 25 Feb 2019 19:03:40 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 360A48E000A
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 19:03:33 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id x13so2399073edq.11
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 16:03:33 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B8858E000A
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2019 19:03:40 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id k5so10869113qte.0
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2019 16:03:40 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-transfer-encoding:mime-version;
-        bh=kxFG8RQ9hka4RTgxcsh1TzkSvs6PxfxwPqqIkAuNfdA=;
-        b=Y+SZD3o9HOMEW/muRK+KbJklo6tFUwMvxCqMM8Is5XrgDZD/wUglTCUc/CCHvfs/A3
-         V6Rz/dhxHzn5Ey04GJ242abNjlgYJunhyOXl9Gi3TnqMgIG+ZmA3bHV+VL6Mh5I5Bc3E
-         D82kMQtcKk7nel4bokigyKxEWr2PiJyWR8HN1WOxAmL+F3JfSh7OnjG/OBGDrZiXRkDd
-         Y9J7x7FK3qai/8/Wcxf9ARRl55WQnjwvgS77ZmahLwgUw90mBMr3L9uiNKmEir91WrY5
-         jFGYPjWRRowIKzxqDAH5YFOYOk7jDZtwBoO8i1EP8aRwACIox3gpX+FYIZjPnd8wZpRu
-         DmOw==
-X-Gm-Message-State: AHQUAuYD6SXEYxE64+lsimIxMfuoX2Kzf1hYHUH1tPohcVdz/z8P2hHT
-	XYn89SYxA0T8j+9Duam1uPTB6GKPfE40OU3rhnQGEJzA/1YrmLjrDIMb0WbnIgWzd3Pd02I8gjh
-	dmFHhMQZSJhiniraBFJeSBRzVy4I7bY0btxlbiSmI1aA+gidAKH1/0oPSBR1HLKj67w==
-X-Received: by 2002:a05:6402:547:: with SMTP id i7mr5366296edx.228.1551139412756;
-        Mon, 25 Feb 2019 16:03:32 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IahPvR3R/1MNo88b1F02nPBPBULoAqIB2oq0JZ2wDfiDw0RdiTaRjcrTTMzhVT2GkkFeeCD
-X-Received: by 2002:a05:6402:547:: with SMTP id i7mr5366248edx.228.1551139411559;
-        Mon, 25 Feb 2019 16:03:31 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551139411; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=nTyz3nhhRJAnQKCmBEdqx7AWOxz2VXU5sIgb32iHM/w=;
+        b=FGznf5fiaiWRo7Buf8sKUXTj574P+HWpB8HnIcEdjmFmZMOKFSvLwDBMbZZlz9M18+
+         Wj2hzVv4OTPus1SpsYAXSfc/df1a90RB6Hs8LFzFekpMFIvCU0liiE+MG1DSE0PipGuF
+         AVn7jUPqldZJu0rBMElSNwyw7L5jFSpwDAiiT6ALd5rHiro2yMGCs5YVpFZPwOnVkvVd
+         olz0qk+OqlZmloJrHF4a6gChAh2nSpOSeIGNnjxuV8ZzGLdv8zot2sF7zYvWY0UO8k8x
+         DLOE8qJ+QlB/k2+6fznWaAUScPe1uoc9v4hbsSKkOFf1CDza/uJNJ20gDSCq3hbK8gzi
+         kjQQ==
+X-Gm-Message-State: AHQUAuY/WERY/XhdtT39djLn0gbasIZ5suPP2yoieg27LxwS4ULJrL0a
+	RC54eY/MMD9dkEGxTxKWpvIOnam4SMZS8JDqCTl3sloI9LfunLiQ4AV09dFfmfMah7psIGG7jOg
+	Zhd9rUyspcPTPgFzpxd2b2LiV1mOlkoBcqYT1wuf+8XFa2/iLfp9k/EkI3CdfYMZ9ukiqLanY2r
+	U8BoJFJKYVXmc/bBYNMdWAhT1+vk+G7LIlJy+Nfcu3E5QNY67LTF5PGdB4A7kKGjH8LaR/wGYc2
+	kVhIF1L/1LIOMUfo3duLrSefKHblkVXn+5n+zOVZLpX+0PQ3KABkrgN+zmmpqLzMDUX/lzYDc4y
+	sqc4G96uwU9H+yog4hASxWsDeUIVdw5dkkMATPRl8GQRSR3DnEM9i86Wf2JLsGuxaAdiha6GH+u
+	y
+X-Received: by 2002:ac8:1851:: with SMTP id n17mr170247qtk.42.1551139419845;
+        Mon, 25 Feb 2019 16:03:39 -0800 (PST)
+X-Received: by 2002:ac8:1851:: with SMTP id n17mr170188qtk.42.1551139418662;
+        Mon, 25 Feb 2019 16:03:38 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551139418; cv=none;
         d=google.com; s=arc-20160816;
-        b=RNYGWPM+us1JvbIn4vYA4P23/8zNWgOOVxhqVLWdzW4vDFNxskAx9QH8zTZZoRSQVn
-         chFyyUtKPhqHBLstlUmpr2aNEpTu2q8/iL/m417q2752iikcg9z0+MEmKHDNnLqaKID5
-         govtx2aDTXK4915klLv4X3U4tFq0XSOWOyJBfKKZrN9Dsa8NljRyKwXAp5/zBnraDzWw
-         W3yAE+jb+fElPmgTUN/zJvJk2uUCcQoT+vpCjNq/AWKBF3FJc9DBejHcYU0vmubX36GI
-         /GKtM5N7CsbcVMstV9mbeE/lcuYmekqvRLXJQY+NbiqkcijwB0jOWq4m2q+9o5p8v5/V
-         /4Vg==
+        b=cAI04tII9Jyn9z0FTpiljdaeXEI13kYZu9FfN3z9Zz/3/W1GyGyL7AVkU2Dse1IN45
+         BgZQPar1Ixzdbne9aekBvTSzw2gdODqaCvkkC3lj9PM1+kQYWCt++2B6v7BjszAPJunj
+         F1WbKXWNdzQjaxNQsNb+RlkoSH4N2XwieW1E1vymtRVZpUETPkpGptawB+/g5jRIjfu/
+         xVm/OaDINeRNPgJ8bS+8UaAoExfGso/GkGBczOctso7afwfP0HIDRYOOm3/6oMay0e9x
+         MMKLxwl9xlZwR1N+jjLV2Kn2Uzx/ws0gaUig4dULXQngjYDIGZeOboxs1mf5K10mnZjv
+         4PEA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=kxFG8RQ9hka4RTgxcsh1TzkSvs6PxfxwPqqIkAuNfdA=;
-        b=wJmV6YMjmy4QuOofYyj2HPN4zANICczRDyH/ml1hV/AuI2ooTZ33fvth6BjacXrOUU
-         An5XQJ8ay8lajHCHyF7kFuoYAOMHel3iwR+VoAs+SZH9exNsYM5ETedbVFfLdyHvMrAM
-         aifTcygHjzweRMmDRFVA2NQ0SVPBYoM7qcrO0l/ySusKlHZqXN213e8aB3QUE3JF6JFE
-         XpYE5N8iBJvdyB5qVnNdWPEtDvwWb5iR9Qso965OBrweOVdhFktVcCnD2cVM6mroslSc
-         JS0Tg5zjdlW6yBYDnmUQeBbJXwkL6pnkqIHQyn1ZFkVdz5zVjjfYtDB9eet0kDGkhHxf
-         hSFw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=nTyz3nhhRJAnQKCmBEdqx7AWOxz2VXU5sIgb32iHM/w=;
+        b=oyXJsLd4Z+Hpf2w/cNTo56iVqsI5FJhodnWru/uuqQ5hAGqP6apsZXmES2Rb8b4biT
+         ixkRfeGOavCQb5yW8zDn3Er4i+jvCJy7j4Totg3h3buDka4xNdk3ZOH7w0Bwt0R78uCD
+         edfE3Y6NkpBkdE9yF/MN0u4x0LAh6CWeLDy5ueeQ3BWBBl5XNer9x+onO+mu6GVS4ZN3
+         12KQnpdMaNnNOhzLZZtZBRFdkvdJ0cJOphzB7sZvU69GHZzkUsp9jje2bitQ9psAmqoN
+         5uumwULJSvqXAWTxqWEqTdQ1CnG3zfYIyY5B+KEzfV1K3aa4eO0jBJgtnQlnLTHZa7VE
+         EkiQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nxp.com header.s=selector1 header.b=s41aAhII;
-       spf=pass (google.com: domain of peng.fan@nxp.com designates 40.107.8.74 as permitted sender) smtp.mailfrom=peng.fan@nxp.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
-Received: from EUR04-VI1-obe.outbound.protection.outlook.com (mail-eopbgr80074.outbound.protection.outlook.com. [40.107.8.74])
-        by mx.google.com with ESMTPS id s7si390786eju.171.2019.02.25.16.03.31
+       dkim=pass header.i=@lca.pw header.s=google header.b=PJJsUkox;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b27sor13591458qte.63.2019.02.25.16.03.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 25 Feb 2019 16:03:31 -0800 (PST)
-Received-SPF: pass (google.com: domain of peng.fan@nxp.com designates 40.107.8.74 as permitted sender) client-ip=40.107.8.74;
+        (Google Transport Security);
+        Mon, 25 Feb 2019 16:03:38 -0800 (PST)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nxp.com header.s=selector1 header.b=s41aAhII;
-       spf=pass (google.com: domain of peng.fan@nxp.com designates 40.107.8.74 as permitted sender) smtp.mailfrom=peng.fan@nxp.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nxp.com; s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=kxFG8RQ9hka4RTgxcsh1TzkSvs6PxfxwPqqIkAuNfdA=;
- b=s41aAhIIyeaWKsZeAzIzhQsgod324XA4IOLMcukreJqgij9gUsTkGJ42o+8CoOJ2aFIvzJnYgTFh7b8Du4FZvg1MSXf1TfCbasue9oSYYXiLrs0b6q9bPyNUJgwxya20NmB4KgMKvU6EpHuNMeu0LYNPAlnb0+CGsvW/2MH30mM=
-Received: from AM0PR04MB4481.eurprd04.prod.outlook.com (52.135.147.15) by
- AM0PR04MB4466.eurprd04.prod.outlook.com (52.135.147.23) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1643.15; Tue, 26 Feb 2019 00:03:29 +0000
-Received: from AM0PR04MB4481.eurprd04.prod.outlook.com
- ([fe80::a51f:134d:b530:f185]) by AM0PR04MB4481.eurprd04.prod.outlook.com
- ([fe80::a51f:134d:b530:f185%5]) with mapi id 15.20.1643.019; Tue, 26 Feb 2019
- 00:03:29 +0000
-From: Peng Fan <peng.fan@nxp.com>
-To: "dennis@kernel.org" <dennis@kernel.org>
-CC: "tj@kernel.org" <tj@kernel.org>, "cl@linux.com" <cl@linux.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, "van.freenix@gmail.com"
-	<van.freenix@gmail.com>
-Subject: RE: [PATCH 2/2] percpu: km: no need to consider pcpu_group_offsets[0]
-Thread-Topic: [PATCH 2/2] percpu: km: no need to consider
- pcpu_group_offsets[0]
-Thread-Index: AQHUzELI99orDQmet0qADTSfLzpSUaXwoZQAgACSBtA=
-Date: Tue, 26 Feb 2019 00:03:29 +0000
-Message-ID:
- <AM0PR04MB44817CD1D11F83C23A0D1486887B0@AM0PR04MB4481.eurprd04.prod.outlook.com>
-References: <20190224132518.20586-1-peng.fan@nxp.com>
- <20190224132518.20586-2-peng.fan@nxp.com>
- <20190225151616.GB49611@dennisz-mbp.dhcp.thefacebook.com>
-In-Reply-To: <20190225151616.GB49611@dennisz-mbp.dhcp.thefacebook.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=peng.fan@nxp.com; 
-x-originating-ip: [119.31.174.68]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: f6b305ad-8528-4b36-0906-08d69b7dd6d9
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(4618075)(2017052603328)(7153060)(7193020);SRVR:AM0PR04MB4466;
-x-ms-traffictypediagnostic: AM0PR04MB4466:
-x-microsoft-exchange-diagnostics:
- =?gb2312?B?MTtBTTBQUjA0TUI0NDY2OzIzOnMvSUdGbFNPNjFHQnRQMW1hOG52ODFmcXFy?=
- =?gb2312?B?NVNac001OHBlQ0lydkVmOTBHQnEvMEdpTDFkL3dxL0xYUzMvSEhPMWJ4RjFK?=
- =?gb2312?B?eDZvdC90NG1TTFZGU3lHaENnWEhaTDA1ZXo0a0RWcW9GMDFybmpkS2U4YUFR?=
- =?gb2312?B?ZlpSSFZBMkYycnIvY3dpekpJdUIxaXNDWkZueUh3dlhDam1XNlRyMWx4czBt?=
- =?gb2312?B?RkhvZkpVK0IrOHZNSXFnVEc5UXM0OStsNW81d003clVSb2RTYWkwSVZOcFdi?=
- =?gb2312?B?cGc0aHhZdnZUZU91U2QrVDBUYmduT0w1WWRxNVZCSXJUVGRiN3dRSnY2c3BB?=
- =?gb2312?B?YWpTRmlGQVZRTHdsdHZMajFJS1dQSncvd3gwdHNLUzFlTTBndnBXMytpcXcr?=
- =?gb2312?B?OGlxSDFSUHdxYUFQeCt0SHJFd2swZEdHbjFTbTB0ZUdrc0RtL1l5akpuSkJ2?=
- =?gb2312?B?d0h5WUJGZFNXUWNXWU11YjRhUFJyUzNleHc3Rnk2bWNWdDR0aG8yVlluUHhh?=
- =?gb2312?B?MmJ5S2xyQWRLYkVERjBjVXlQQU12WkNJUmZZQWs0UmxKZzM5aW1DaFpqR1hQ?=
- =?gb2312?B?OTBqMlBiWTRBanJKQ3kySmdqdEExRERGNFVBTW5nT1JMa3lma3Q3RWZTdmZ1?=
- =?gb2312?B?N3l4Nk8zdWhxcmF1b3RzeE9Cbkluemo5NkNmT1JBRjN4VmNrNkwvSk45RTFE?=
- =?gb2312?B?bDgzamgyMzFSVmVGUEpNMkZrTE4rb3BtOUJQU243anJlc0dyMGJReEQ0cnRS?=
- =?gb2312?B?RXB2aVlrWmxXbVNuRUExK0Y0dUw1OERBNm1od1lPNDJac2JyMzN3Slo0c1JF?=
- =?gb2312?B?cVdrKzVsQ0lLbVN2NTB5NXNOaDc3TmhrV2xEa0pYKzlYYnBxWm93K3FMRHhI?=
- =?gb2312?B?OENpQnZiRkxhaStFNlBlNU9OVzAyZkpUcEc4N3hPMldUM1hmUjNvN05NVUtZ?=
- =?gb2312?B?ZkpJOWllUnphTXMwb1pnQ3VvSHFsSVlnMjVidk1nVWFQa0E0bTFVVHp2WFdX?=
- =?gb2312?B?VVVnUzV3RFJ3MHRjUGhSTitndUZCMTBwdUlsNWM5b3BCVExNc1JySGhYWDZN?=
- =?gb2312?B?czBIK0hra21IMEhuQUowbDN4VDJxUkJUVytxL1kwbVg4cnptczk3WHVsS05D?=
- =?gb2312?B?RnUyeWdCMGtnU2FyR1ppVlRlc2h0cVA4d2hFVXdwSitCL0NrMlI1cG0rUGFz?=
- =?gb2312?B?K2V0V0luYlpWMUd4VWpXSksxa0Z5SlRJbW5Id1J6dXFJR2VhVWpZcktsdG85?=
- =?gb2312?B?TlZYd2xVL0JyRlFhSHBSVmFEUlJVSGlZdzR6K2lxZ3JFSk4yTTRBV1NWWHgr?=
- =?gb2312?B?QW5Lbkc0R1YxNi9qWjlpL3hCUGt4WktFOGdNZDBPMmhFVTlRSVQ1SnQrd1hF?=
- =?gb2312?B?K1lXU0Vland2Z0RWNklWZHZ3clRPWEJzSmtucDkya1ErRXEvR09GanZyck9T?=
- =?gb2312?B?RHl4aDdyQ2RFcGZOeDU3Sm90MXErS3FEZlZJTTFDSVAwVk1qa0JMd0JOemFi?=
- =?gb2312?B?WkZpM2o1MlBmOTBGZVhKRHJuS0xsL21pbkIvTmdFbnYzWUJiTWYvdDIyc1Vr?=
- =?gb2312?B?VXFVaUM1cEw2bjFoUkVWekVKenNFc3ArUFFUSktmbURIN25wM0ZoOFRkL2Zp?=
- =?gb2312?B?aEVXaWlLbXlRMEZDMUJlZlBacHJhL3BwZkV2TmMvYllhRndMeHlabEJzN0NR?=
- =?gb2312?B?bm9weFRtQUtpaDB0ckxFS05obTlVTGh0NHlwa2k1NXI0L2UrYmZMRU5oTStm?=
- =?gb2312?B?STZqWFdISWEyalZNNTRLSWw0U01KKzVkdjFJSnc1Um1YMGRnQWJqQ2VaSU42?=
- =?gb2312?B?NFliWnBubFY1WERnSjF5Yi9vRS8yT3Q1TXdDU3FiL3ZwMXd5RjQ0K1p4NHFS?=
- =?gb2312?Q?XFtGs6rFRw4=3D?=
-x-microsoft-antispam-prvs:
- <AM0PR04MB446627766CA9D78467076758887B0@AM0PR04MB4466.eurprd04.prod.outlook.com>
-x-forefront-prvs: 096029FF66
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(376002)(346002)(366004)(396003)(39860400002)(136003)(13464003)(199004)(189003)(1730700003)(74316002)(81156014)(8676002)(2906002)(33656002)(54906003)(97736004)(26005)(14454004)(55016002)(9686003)(229853002)(106356001)(478600001)(53936002)(105586002)(5640700003)(6436002)(99286004)(256004)(14444005)(305945005)(7736002)(316002)(6916009)(6246003)(71190400001)(71200400001)(81166006)(2501003)(6506007)(66066001)(476003)(68736007)(486006)(446003)(52536013)(76176011)(86362001)(11346002)(186003)(25786009)(5660300002)(7696005)(53546011)(3846002)(2351001)(6116002)(102836004)(44832011)(8936002)(4326008);DIR:OUT;SFP:1101;SCL:1;SRVR:AM0PR04MB4466;H:AM0PR04MB4481.eurprd04.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: nxp.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- ljtzM3sJkRB7ebWkPl8fyk+GRoV3lgKgLPmkNIF8hCqDO3zjSGCnuejYtw5Y+qh/Xe8stiv0xl7DWQJBW0PaWy1K+U0Av2g+SYd/UvWeMsE4uffOFNV+wdQycaVAwHfaPHUfKEYjjDbTOPM2KSxAcB+eK0aJC9M9oQlOoJKjO5bkRDtqRXMfSC0M7hrRPNrw2QyGNZer04yRVSwTcY9SsET/h8OWwTsqPxYpMLrADdHQS6rCVwoSdpkORkEpYy9QmKluGO2sW4MYxpMtsQomZun1BN7NxVyJ5Wfd9WV/i9vGMguDAaPk3Ce4fBTzuk8ucdPbFnU2VFFlPWFzfBJs+CGVV5GSGW1ZKK5NU+BlSg8nbmve09h9x31v1PLUTiIrUVFSMAgcti0kk4mBQEUOqb9HPEK0NJlBA46dQ3PVKL4=
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+       dkim=pass header.i=@lca.pw header.s=google header.b=PJJsUkox;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=nTyz3nhhRJAnQKCmBEdqx7AWOxz2VXU5sIgb32iHM/w=;
+        b=PJJsUkox6+CF/dkHN/mWvihVRBMQXaHtCiEK3yJYAb26Tnfg3gdEmPvv/P7OJSRryw
+         EwoaelNhNXnt48CV6HmkElLK/lu0JFMFftzxEkZbHBXWOO/u4FrvWRouZOm2jiDUMDK+
+         8t6zAp0mzvSZYCxIae8QNfmbe1iV1FXNJ+J6XXCXi6wiK2VDHqFxNAAYEWH5XEqm7Nsn
+         9wcxN8A9r66KZTvMxvKt0fX1Fv/jQrIRUNQVcBefS6kjMtPnlv8uLO8iwOeIprTMyG/u
+         cyc70TkE9lmuapdwSWKEFkF9aSaZB1N1gFpyD/yCaAdnI18EaAm9qdFR8A0Z/GXzDCEq
+         6BCw==
+X-Google-Smtp-Source: AHgI3IY3Rv9382UHR/eB55SAV2oFmZhY4NP5S3bSRzOz/Z3hwV7neRHhA0HwE0IAIdN7HevRouSW8Q==
+X-Received: by 2002:ac8:1e15:: with SMTP id n21mr16392133qtl.342.1551139418281;
+        Mon, 25 Feb 2019 16:03:38 -0800 (PST)
+Received: from ovpn-120-150.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id z140sm6241992qka.81.2019.02.25.16.03.37
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Feb 2019 16:03:37 -0800 (PST)
+Subject: Re: [PATCH] tmpfs: fix uninitialized return value in shmem_link
+To: Linus Torvalds <torvalds@linux-foundation.org>,
+ Hugh Dickins <hughd@google.com>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Matej Kupljen <matej.kupljen@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>,
+ Dan Carpenter <dan.carpenter@oracle.com>,
+ Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+ linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+References: <20190221222123.GC6474@magnolia>
+ <alpine.LSU.2.11.1902222222570.1594@eggly.anvils>
+ <CAHk-=wgO3MPjPpf_ARyW6zpwwPZtxXYQgMLbmj2bnbOLnR+6Cg@mail.gmail.com>
+ <alpine.LSU.2.11.1902251214220.8973@eggly.anvils>
+ <CAHk-=whP-9yPAWuJDwA6+rQ-9owuYZgmrMA9AqO3EGJVefe8vg@mail.gmail.com>
+ <CAHk-=wiwAXaRXjHxasNMy5DHEMiui5XBTL3aO1i6Ja04qhY4gA@mail.gmail.com>
+From: Qian Cai <cai@lca.pw>
+Message-ID: <86649ee4-9794-77a3-502c-f4cd10019c36@lca.pw>
+Date: Mon, 25 Feb 2019 19:03:36 -0500
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
+ Gecko/20100101 Thunderbird/60.3.3
 MIME-Version: 1.0
-X-OriginatorOrg: nxp.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: f6b305ad-8528-4b36-0906-08d69b7dd6d9
-X-MS-Exchange-CrossTenant-originalarrivaltime: 26 Feb 2019 00:03:29.6618
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 686ea1d3-bc2b-4c6f-a92c-d99c5c301635
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: AM0PR04MB4466
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000004, version=1.2.4
+In-Reply-To: <CAHk-=wiwAXaRXjHxasNMy5DHEMiui5XBTL3aO1i6Ja04qhY4gA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-SGkgRGVubmlzLA0KDQo+IC0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+IEZyb206IGRlbm5p
-c0BrZXJuZWwub3JnIFttYWlsdG86ZGVubmlzQGtlcm5lbC5vcmddDQo+IFNlbnQ6IDIwMTnE6jLU
-wjI1yNUgMjM6MTYNCj4gVG86IFBlbmcgRmFuIDxwZW5nLmZhbkBueHAuY29tPg0KPiBDYzogdGpA
-a2VybmVsLm9yZzsgY2xAbGludXguY29tOyBsaW51eC1tbUBrdmFjay5vcmc7DQo+IGxpbnV4LWtl
-cm5lbEB2Z2VyLmtlcm5lbC5vcmc7IHZhbi5mcmVlbml4QGdtYWlsLmNvbQ0KPiBTdWJqZWN0OiBS
-ZTogW1BBVENIIDIvMl0gcGVyY3B1OiBrbTogbm8gbmVlZCB0byBjb25zaWRlcg0KPiBwY3B1X2dy
-b3VwX29mZnNldHNbMF0NCj4gDQo+IE9uIFN1biwgRmViIDI0LCAyMDE5IGF0IDAxOjEzOjUwUE0g
-KzAwMDAsIFBlbmcgRmFuIHdyb3RlOg0KPiA+IHBlcmNwdS1rbSBpcyB1c2VkIG9uIFVQIHN5c3Rl
-bXMgd2hpY2ggb25seSBoYXMgb25lIGdyb3VwLCBzbyB0aGUgZ3JvdXANCj4gPiBvZmZzZXQgd2ls
-bCBiZSBhbHdheXMgMCwgdGhlcmUgaXMgbm8gbmVlZCB0byBzdWJ0cmFjdA0KPiA+IHBjcHVfZ3Jv
-dXBfb2Zmc2V0c1swXSB3aGVuIGFzc2lnbmluZyBjaHVuay0+YmFzZV9hZGRyDQo+ID4NCj4gPiBT
-aWduZWQtb2ZmLWJ5OiBQZW5nIEZhbiA8cGVuZy5mYW5AbnhwLmNvbT4NCj4gPiAtLS0NCj4gPiAg
-bW0vcGVyY3B1LWttLmMgfCAyICstDQo+ID4gIDEgZmlsZSBjaGFuZ2VkLCAxIGluc2VydGlvbigr
-KSwgMSBkZWxldGlvbigtKQ0KPiA+DQo+ID4gZGlmZiAtLWdpdCBhL21tL3BlcmNwdS1rbS5jIGIv
-bW0vcGVyY3B1LWttLmMgaW5kZXgNCj4gPiA2NmU1NTk4YmU4NzYuLjg4NzJjMjFhNDg3YiAxMDA2
-NDQNCj4gPiAtLS0gYS9tbS9wZXJjcHUta20uYw0KPiA+ICsrKyBiL21tL3BlcmNwdS1rbS5jDQo+
-ID4gQEAgLTY3LDcgKzY3LDcgQEAgc3RhdGljIHN0cnVjdCBwY3B1X2NodW5rICpwY3B1X2NyZWF0
-ZV9jaHVuayhnZnBfdA0KPiBnZnApDQo+ID4gIAkJcGNwdV9zZXRfcGFnZV9jaHVuayhudGhfcGFn
-ZShwYWdlcywgaSksIGNodW5rKTsNCj4gPg0KPiA+ICAJY2h1bmstPmRhdGEgPSBwYWdlczsNCj4g
-PiAtCWNodW5rLT5iYXNlX2FkZHIgPSBwYWdlX2FkZHJlc3MocGFnZXMpIC0gcGNwdV9ncm91cF9v
-ZmZzZXRzWzBdOw0KPiA+ICsJY2h1bmstPmJhc2VfYWRkciA9IHBhZ2VfYWRkcmVzcyhwYWdlcyk7
-DQo+ID4NCj4gPiAgCXNwaW5fbG9ja19pcnFzYXZlKCZwY3B1X2xvY2ssIGZsYWdzKTsNCj4gPiAg
-CXBjcHVfY2h1bmtfcG9wdWxhdGVkKGNodW5rLCAwLCBucl9wYWdlcywgZmFsc2UpOw0KPiA+IC0t
-DQo+ID4gMi4xNi40DQo+ID4NCj4gDQo+IFdoaWxlIEkgZG8gdGhpbmsgeW91J3JlIHJpZ2h0LCBj
-cmVhdGluZyBhIGNodW5rIGlzIG5vdCBhIHBhcnQgb2YgdGhlDQo+IGNyaXRpY2FsIHBhdGggYW5k
-IHN1YnRyYWN0aW5nIDAgaXMgaW5jcmVkaWJseSBtaW5vciBvdmVyaGVhZC4gU28gSSdkDQo+IHJh
-dGhlciBrZWVwIHRoZSBjb2RlIGFzIGlzIHRvIG1haW50YWluIGNvbnNpc3RlbmN5IGJldHdlZW4g
-cGVyY3B1LXZtLmMNCj4gYW5kIHBlcmNwdS1rbS5jLg0KDQpUaGF0J3Mgb2sgdG8ga2VlcCBjb25z
-aXN0ZW5jeSwgc2luY2UgeW91IHByZWZlciB0aGF0Lg0KDQpUaGFua3MsDQpQZW5nLg0KDQo+IA0K
-PiBUaGFua3MsDQo+IERlbm5pcw0K
+
+
+On 2/25/19 6:58 PM, Linus Torvalds wrote:
+> On Mon, Feb 25, 2019 at 2:34 PM Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+>>
+>> On Mon, Feb 25, 2019 at 12:34 PM Hugh Dickins <hughd@google.com> wrote:
+>>>
+>>> Seems like a gcc bug? But I don't have a decent recent gcc to hand
+>>> to submit a proper report, hope someone else can shed light on it.
+>>
+>> I don't have a _very_ recent gcc either [..]
+> 
+> Well, that was quick. Yup, it's considered a gcc bug.
+> 
+> Sadly, it's just a different version of a really old bug:
+> 
+>     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=18501
+> 
+> which goes back to 2004.
+> 
+> Which I guess means we should not expect this to be fixed in gcc any time soon.
+> 
+> The *good* news (I guess) is that if we have other situations with
+> that pattern, and that lack of warning, it really is because gcc will
+> have generated code as if it was initialized (to the value that we
+> tested it must have been in the one basic block where it *was*
+> initialized).
+> 
+> So it won't leak random kernel data, and with the common error
+> condition case (like in this example - checking that we didn't have an
+> error) it will actually end up doing the right thing.
+> 
+> Entirely by mistake, and without a warniing, but still.. It could have
+> been much worse. Basically at least for this pattern, "lack of
+> warning" ends up meaning "it got initialized to the expected value".
+> 
+> Of course, that's just gcc. I have no idea what llvm ends up doing.
+> 
+
+Clang 7.0:
+
+# clang  -O2 -S -Wall /tmp/test.c
+/tmp/test.c:46:6: warning: variable 'ret' is used uninitialized whenever 'if'
+condition is false [-Wsometimes-uninitialized]
+        if (inode->i_nlink) {
+            ^~~~~~~~~~~~~~
+/tmp/test.c:60:9: note: uninitialized use occurs here
+        return ret;
+               ^~~
+/tmp/test.c:46:2: note: remove the 'if' if its condition is always true
+        if (inode->i_nlink) {
+        ^~~~~~~~~~~~~~~~~~~~
+/tmp/test.c:37:9: note: initialize the variable 'ret' to silence this warning
+        int ret;
+               ^
+                = 0
+1 warning generated.
 
