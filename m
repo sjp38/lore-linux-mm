@@ -2,154 +2,192 @@ Return-Path: <SRS0=HICI=RB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C913C43381
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 23:07:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B56F9C43381
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 23:17:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3A5C2218CD
-	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 23:07:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 72F63218DE
+	for <linux-mm@archiver.kernel.org>; Tue, 26 Feb 2019 23:17:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="ywXTDDJ+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A5C2218CD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ns64+bku"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72F63218DE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 94E7A8E0003; Tue, 26 Feb 2019 18:07:40 -0500 (EST)
+	id 108158E0003; Tue, 26 Feb 2019 18:17:54 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8FD8B8E0001; Tue, 26 Feb 2019 18:07:40 -0500 (EST)
+	id 0E0A58E0001; Tue, 26 Feb 2019 18:17:54 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7C5F58E0003; Tue, 26 Feb 2019 18:07:40 -0500 (EST)
+	id F10818E0003; Tue, 26 Feb 2019 18:17:53 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 485848E0001
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 18:07:40 -0500 (EST)
-Received: by mail-it1-f200.google.com with SMTP id v125so3419995itc.4
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 15:07:40 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 959608E0001
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2019 18:17:53 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id m25so2257218edd.6
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 15:17:53 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=KtH8YR8boDh/kFz1GRhF//TXEVdCzcoFIHHXCarlfc4=;
-        b=Lo35x5DDHogFBzlBv0kq8DLrNAW3Jwg1QlRFe0pZj4VVXhp9oxSjz7b2N4aFPzptef
-         1kLRdUDf2QfeSKzE7vLeOhrG9cCdSxX14WTROsXKBeHR5wB059mUNklIFxiImuH3/R5U
-         iasQHRW6jZ8TYv55PJHrQXIlMzxjJa8smf+g+rc+gfprKcysfP44yR/edFo82/dTz+Q5
-         3CFD0++FgeQE5fmXenusrkMIi4PGFzV34o4JF5xJigBoImIpsyDq2JZyybAfp8BpZEZB
-         pfBu7n8Lk+tAwoQf70tkgfATRO36aiHFEQqAFhxbFXTRZyLoZz5Gn/yK9sM517gNjG2Y
-         1KNw==
-X-Gm-Message-State: APjAAAWeUhGa+NvDxPPZTfk5q0RFUokLze8unXXFZoTr7TpkAHsvVyk6
-	7aiPjNzcG31vmlX2QQy/PcuvApad02zr5AhsD/pxIY0PS6kNlqQfpCKVaKId49q7ypnpfhVSmhb
-	dNF3v1n1ZSBbQLp2TofcLEXwb4+R/i6yJ9sAL9ykfhkKzjxyKrAw1Yb/GdhIfrQu7Mw==
-X-Received: by 2002:a24:d55:: with SMTP id 82mr2619162itx.21.1551222459989;
-        Tue, 26 Feb 2019 15:07:39 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbOzTwTy6OSkqSmUVFCuPJ6/BUrUzOEiqbuQzu5PxurYC8Q1Iv//58NzKHFgoQuKdQST1J/
-X-Received: by 2002:a24:d55:: with SMTP id 82mr2619119itx.21.1551222459092;
-        Tue, 26 Feb 2019 15:07:39 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551222459; cv=none;
+        bh=F/ZWUspDnO9H+N1b+3KaSbEisQ9DROKLGDc6Wk9zF/Q=;
+        b=QBq8GAJt14Xyv93aFCr7dUQux1LIyxV6XZyFdR7t2RgDsMHs8yJ7JdBxCX5wKgKZxl
+         hX56Xwd5l0SOk5oPqY/y98YFsehjPXypFTr3F3mppdYgaZ4jTxhKriLgQm3Mo3nJWI5F
+         yRip+i2wTYT/g3W3oFkxt5ztTPXrAqzLb3OR7gVX7FMpUjRiDSwwn4Vpas8Kur0bAsZm
+         WrjtDdOXLsfbgDOCq5hB8iGlT6oCruI5oxk9b/g8iP5dW/uanANXjLIiRoqGi2dlzgVQ
+         T1LnWPALyGta/taePpK+FqlaStwf0hUUxGjDjdT6a9bhRT2olIRHcyfGZu8qbswHXLZd
+         wrxw==
+X-Gm-Message-State: AHQUAuYjqXBXgo6KKBMw8bPGrY/FN6vRAuqSnvuvr0mT9A5lU6UAs56t
+	0DrPAj2AZql7jWPuJxmPgXB9k4WSY1JT7tsLSfrRQOD66cQa6RFgqiRL1OEFIKnNNCz6sOTeL9G
+	k0EgYukJbif0OnkAdxRG5FXTyfr/t/XWmFXZSWmAApHXyRKP1jaJQ+Jp+JWMRH1rCwBm4sblYg4
+	DBwj9fZEqajsWTa9CWtvn1OIzhArfMZr2O7VjxYJzzO4+9t74/sq3RVBFWoT46OlQHc5J8Ke89V
+	LUszB5QRZgcZ+d5bNp3KtGW1Y3G9XNHPI7wWwgoDByVMCc8WC4fiT6yL6RRMJbmJ808Go4VCHrJ
+	+XGz6AU+wUhRBD/LtUqJm1EE6vPUKoO64pDGNNLID4Cn8tpDvrUh2up1mAn341sLtiE8HVzExdA
+	o
+X-Received: by 2002:aa7:d58e:: with SMTP id r14mr10174762edq.39.1551223073045;
+        Tue, 26 Feb 2019 15:17:53 -0800 (PST)
+X-Received: by 2002:aa7:d58e:: with SMTP id r14mr10174723edq.39.1551223072022;
+        Tue, 26 Feb 2019 15:17:52 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551223072; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ghc2qico1ZAq6H+aqCgDWoAo48WEJyD192dxD+GN9WSAPiNyCvRXVVcmxi5QgfACWu
-         SdqyKO6cR3TyvpN658vKUNUesmP6PU+eYcDAV4dBLft+4xm1gUblMtAx0guFNSzOfMiG
-         hgVRLamu4Zh6nYuBJ3N5bsU9276kZnOKtt1aQ94uE6Y3gjraXzy7DtQ9bR/7Yw1SMCXM
-         uxQgdQZZpS77F9kow5EiWx+EZx4w4C46q9AzH9a8LsAR03nzGkOmakfe9jCrSXwVpMk6
-         9cFCLyKu1p/gdGOsc705dKTmV4jcqGvVBdXuRQN8x0nV+8eyC6TEDBLSSXdoSOdTFcRp
-         tW5g==
+        b=G7j6Qtjcicfz+Q/Csu7kdVvgwlCcNAbXracPAwy+gEm1+MqjkYmQkPYL0uvD3rFh57
+         DJOy4lYyfgS+Z3P+xMAU4TwLWQVk1mqsdbZufrvVoVBOoD/9L76y7Sp9xdxOxaFr7naT
+         6itWwai8iaaPAtiftH5Tb6/hMRjQT1F7dkQ2Opu+DXKI+I0b7WOeVFsyeXsDiHJQUX93
+         tMGJAGXTg4MInWNIKPg8CT8416Ie/TCENw7SB5TCqZdhrdBUwJwVYhdNvNVBZbiJuLtf
+         wAaO8O4COjHvLpb86VkKaw6zEkyEaLcEzL7rvB23pZ96ancHMa7rT+B8d1qm3gyV171z
+         BN9Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=KtH8YR8boDh/kFz1GRhF//TXEVdCzcoFIHHXCarlfc4=;
-        b=pGrNi/GoXschsPzejfI3NhPrYIZQQapEA62zxHecrX/HZ5DUv8AHZgnvNhIQYUViFW
-         f0svHrIANq0WOi4hhaRBpb3QXAYfzEd1JHDpVksXPzB0esGIKVW0J1rxLohph+s1BVYo
-         M8DlqLPTUVwQVLg2Ub2H0DFkFl01SiM+b6u43il+laDusAeRQEfW01/Yv/xdv/kh/sJH
-         dI4Jbej+nST8Xr5y0JMbFlzFmHXtzC0+dYLtrZbiHiQCf1wfmS8HeswQZBMc9uPF9Wo0
-         MBIAbexY7SC8ZT/qDy9Plox7ixNtn+lbZEkoL7D95kalXcPS0TLFsK2hN8TFE4OKqIb7
-         kSpw==
+        bh=F/ZWUspDnO9H+N1b+3KaSbEisQ9DROKLGDc6Wk9zF/Q=;
+        b=nqXQWO+2SYpa0MEeKu6mCcehqczo0v0SGxoxOeso7xBCQjA8PaRvCDWlm6Z86mbpST
+         h/+DZgt3c7IDK5w+Gop4w2coFTGNPOAIxtK6o8VB92JlSG7nmSlxuonw/I3SJQiVTI7t
+         nDMlUWKGL/9FA/wTuCYirCZHI6u8LkChKZyVuBpDe2cLTE1J6y4ZMGhKC4G/Nyf4aPio
+         cznbgKVdiLJb052oO18SsGkq9BGQOlfkfGBCzmwJk3AKizP0YMej5mjEv7v7vZAEhatY
+         rrV+D3SVUdLzFvM1ucuocRseYBXsBzTBQfkTrhEKCts73t8aZSEZpfsCXoGud6cLMUpR
+         8Z8g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=ywXTDDJ+;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id h133si258284itb.59.2019.02.26.15.07.38
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ns64+bku;
+       spf=pass (google.com: domain of luc.vanoostenryck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=luc.vanoostenryck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e18sor7718275ede.16.2019.02.26.15.17.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Feb 2019 15:07:39 -0800 (PST)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        (Google Transport Security);
+        Tue, 26 Feb 2019 15:17:52 -0800 (PST)
+Received-SPF: pass (google.com: domain of luc.vanoostenryck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=ywXTDDJ+;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1QN4hQt191453;
-	Tue, 26 Feb 2019 23:07:29 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=KtH8YR8boDh/kFz1GRhF//TXEVdCzcoFIHHXCarlfc4=;
- b=ywXTDDJ+9PL6p7HMdSiuoZmX6q4G/nkhtacmd9Yut7q+4vGkYlqezV5kw7P5cet8D64G
- aHECJqVxlWTAZ88yA3hQNfSOnkwvsTNRYYWXfFLfwNYmmvpqivJ7xKZLV333CTQKSL1N
- lkjz3+OkpggCvSm+Ipiq4UWESkyiJc58XH/BvanvWj0TfzUt6DTr4xWy7GI7nxt6VYS+
- QZ1h1UYtZtfAXfgX+huMFska8XsvrwT8mNlQIh0dBPdhmEnCs4ScUD0/6uT6TGPg68Gz
- s/n09CY6/qAPR2zBcQ1YjcwWZDcC1zddrdY4FXzah50rMlzCWcrUHSuclBlBokxPRj2c bw== 
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by userp2120.oracle.com with ESMTP id 2qtxtrqjke-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 26 Feb 2019 23:07:29 +0000
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1QN7Mdu015611
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 26 Feb 2019 23:07:22 GMT
-Received: from abhmp0006.oracle.com (abhmp0006.oracle.com [141.146.116.12])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x1QN78VO017915;
-	Tue, 26 Feb 2019 23:07:08 GMT
-Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 26 Feb 2019 15:07:07 -0800
-Date: Tue, 26 Feb 2019 18:07:29 -0500
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>,
-        Andrea Arcangeli <aarcange@redhat.com>,
-        Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
-        "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
-        Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>,
-        Tim Chen <tim.c.chen@linux.intel.com>,
-        Mel Gorman <mgorman@techsingularity.net>,
-        =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-        Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>,
-        Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>,
-        Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>,
-        Andrea Parri <andrea.parri@amarulasolutions.com>
-Subject: Re: [PATCH -mm -V8] mm, swap: fix race between swapoff and some swap
- operations
-Message-ID: <20190226230729.bz2ukzlub3rbdoqp@ca-dmjordan1.us.oracle.com>
-References: <20190218070142.5105-1-ying.huang@intel.com>
- <87mumjt57i.fsf@yhuang-dev.intel.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ns64+bku;
+       spf=pass (google.com: domain of luc.vanoostenryck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=luc.vanoostenryck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=F/ZWUspDnO9H+N1b+3KaSbEisQ9DROKLGDc6Wk9zF/Q=;
+        b=Ns64+bkuLm12DoKtMqYvm9spiyuFy91esqRW620Tr8a7c6yO/zBoKktXkM25pJWO7N
+         KYZHrHySgbKp0ukEqgvOhVKztZuddf20j5XWcS8omSkG42v0aRxVNYrlBxPtJ5MKsME7
+         ICL0xa9DMOfylbdIxpEwAZmOFNWw8UhcTBw6asiXQj4RekvDc6+JweuyVSjAgI3eHELu
+         vrpNWsBvdmFuFoBrNOxVtfbPgEBXp3J4Y4DdxNVAhdJW9HKxxO6kJVWQ6cQR3MOt6yFp
+         sJZMlrFYPfy5nxUdukFrBbjcMPSYdZIfmqc7x6DDDKYm9VEv7xqnU2PBR6i514uULX4k
+         dhBw==
+X-Google-Smtp-Source: AHgI3IY1BbDU8p0Py+W8Y6W1UeY89PQP3LwkVqNuoCAqT9ACsIxnL06lQwM6hryAvvVGWelTdqrUAA==
+X-Received: by 2002:a50:ca41:: with SMTP id e1mr3769377edi.73.1551223071600;
+        Tue, 26 Feb 2019 15:17:51 -0800 (PST)
+Received: from ltop.local ([2a02:a03f:4034:3c00:69ad:1253:f4b5:5458])
+        by smtp.gmail.com with ESMTPSA id fy6sm2459233ejb.52.2019.02.26.15.17.49
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Feb 2019 15:17:50 -0800 (PST)
+Date: Wed, 27 Feb 2019 00:17:49 +0100
+From: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Dave Hansen <dave.hansen@intel.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Kees Cook <keescook@chromium.org>,
+	Kate Stewart <kstewart@linuxfoundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Ingo Molnar <mingo@kernel.org>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Shuah Khan <shuah@kernel.org>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	linux-arch <linux-arch@vger.kernel.org>,
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Chintan Pandya <cpandya@codeaurora.org>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v10 00/12] arm64: untag user pointers passed to the kernel
+Message-ID: <20190226231747.z3lc6yr6xmrw5q2z@ltop.local>
+References: <cover.1550839937.git.andreyknvl@google.com>
+ <2ad5f897-25c0-90cf-f54f-827876873a0a@intel.com>
+ <CAAeHK+xCi2MxaykYWCz9mwbOzNpjrFcHex7B-VXektNNWBT+Hw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87mumjt57i.fsf@yhuang-dev.intel.com>
-User-Agent: NeoMutt/20180323-268-5a959c
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9179 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 lowpriorityscore=0
- mlxlogscore=794 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902260155
+In-Reply-To: <CAAeHK+xCi2MxaykYWCz9mwbOzNpjrFcHex7B-VXektNNWBT+Hw@mail.gmail.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 26, 2019 at 02:49:05PM +0800, Huang, Ying wrote:
-> Do you have time to take a look at this patch?
+On Tue, Feb 26, 2019 at 06:18:25PM +0100, Andrey Konovalov wrote:
+> On Fri, Feb 22, 2019 at 11:55 PM Dave Hansen <dave.hansen@intel.com> wrote:
+> >
+> > On 2/22/19 4:53 AM, Andrey Konovalov wrote:
+> > > The following testing approaches has been taken to find potential issues
+> > > with user pointer untagging:
+> > >
+> > > 1. Static testing (with sparse [3] and separately with a custom static
+> > >    analyzer based on Clang) to track casts of __user pointers to integer
+> > >    types to find places where untagging needs to be done.
+> >
+> > First of all, it's really cool that you took this approach.  Sounds like
+> > there was a lot of systematic work to fix up the sites in the existing
+> > codebase.
+> >
+> > But, isn't this a _bit_ fragile going forward?  Folks can't just "make
+> > sparse" to find issues with missing untags.
+> 
+> Yes, this static approach can only be used as a hint to find some
+> places where untagging is needed, but certainly not all.
+> 
+> > This seems like something
+> > where we would ideally add an __tagged annotation (or something) to the
+> > source tree and then have sparse rules that can look for missed untags.
+> 
+> This has been suggested before, search for __untagged here [1].
+> However there are many places in the kernel where a __user pointer is
+> casted into unsigned long and passed further. I'm not sure if it's
+> possible apply a __tagged/__untagged kind of attribute to non-pointer
+> types, is it?
+> 
+> [1] https://patchwork.kernel.org/patch/10581535/
 
-Hi Ying, is this handling all places where swapoff might cause a task to read
-invalid data?  For example, why don't other reads of swap_map (for example
-swp_swapcount, page_swapcount, swap_entry_free) need to be synchronized like
-this?
+It's something that should need to be added to sparse since it's
+different from what sparse already have (the existing __bitwise and
+concept of address-space doesn't seem to do the job here).
+
+-- Luc Van Oostenryck
 
