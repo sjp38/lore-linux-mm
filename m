@@ -2,171 +2,186 @@ Return-Path: <SRS0=x8zE=RC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2901EC4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 20:12:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E875C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 20:47:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D8D92218A1
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 20:12:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9CF0321850
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 20:47:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="His8f3pj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D8D92218A1
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="X0dP0ili"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9CF0321850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 721588E0003; Wed, 27 Feb 2019 15:12:23 -0500 (EST)
+	id E0BFB8E0003; Wed, 27 Feb 2019 15:47:24 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6D0598E0001; Wed, 27 Feb 2019 15:12:23 -0500 (EST)
+	id DBBB18E0001; Wed, 27 Feb 2019 15:47:24 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 598B88E0003; Wed, 27 Feb 2019 15:12:23 -0500 (EST)
+	id CD1F98E0003; Wed, 27 Feb 2019 15:47:24 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E34E8E0001
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 15:12:23 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id o56so14962141qto.9
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:12:23 -0800 (PST)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E9328E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 15:47:24 -0500 (EST)
+Received: by mail-yw1-f71.google.com with SMTP id i2so14304546ywb.1
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:47:24 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=ZTxkyP7MX2AvS9u1TFjA+FXPrStBYSRU8F/HnJNz8r8=;
-        b=AO3vwLWXjMJvOXByFk8L+dSl4HQ/h938EzLCxG4jqgLn0jiIU1ljzRjRdA5hpVutej
-         ZTV9aUgK6rqsB9S46Vt/bFEFTMhAjRFUp4jGM/Fjgvz6EFFcrqBZX/KkANY3jFIAvl2n
-         808172xeDeqNgOzC5dyzBGw8mtY2AnrDz0UdKPCJCSUXKGy7jGLarQ//y+zkTvbbADoI
-         jy4TlG4MyXzjnMxJhkRz9/skP1BVmHCAtsIz7gh0oGlXYGAghfkBxtqqFma8ulRoJywC
-         s2504KL6WrOw7LZXPfddd9/VuGRDTEL513yvvh4j/mNyRd9hQLqlkOT4B+e270bGYd94
-         iuNw==
-X-Gm-Message-State: APjAAAXuGv03yOATtExKodFKpr2aF19aEvsYIaLc84TpIN1lwJJpWLb4
-	P/YJMHDY3ygiFM2niaWVQunPgMT7M7XNRMZEk9XVtiJOZqy7Ybf1PQBzsbkzjDLOzAr/+zwX7ko
-	WfGEGaA8sQlTbsCim9v6NqESmtal8yHuikUbUCD0TrrAe1xSaKI5u51wii4n+4Hb9+Vmw5CTHL5
-	3jDKkna32K1/ddXZCZsJdDM6t8F8y+lH++MHmnDGmfeIk6wtSnqLh6qbA8hjMl7TgdzPs4pF2bK
-	P5dNi9dR7LQXubKUL++p22IT2Iz1N23JIPfi223EGsqLxgtC4+A6IiVKEhUjqze/TSnqB3x0Di8
-	UwLUEPoUKxtv5fqGThRCQTBy+Znw9pVcJcf5VwFCZJ6NXLWW/U/NYdLC57E6XSsiXY6+GjMzzyG
-	Y
-X-Received: by 2002:a0c:88c9:: with SMTP id 9mr3393071qvo.178.1551298342874;
-        Wed, 27 Feb 2019 12:12:22 -0800 (PST)
-X-Received: by 2002:a0c:88c9:: with SMTP id 9mr3392995qvo.178.1551298341736;
-        Wed, 27 Feb 2019 12:12:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551298341; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=fysy4W1JsLJNGtNiqBcR+gaIGLkCCRdCGseNbvSiG5A=;
+        b=AWiZ/4m5yILfoVxQf14subl1XE4u3RKF9TlEyLj1r95UbemNsCuRO75JPxNp2IdtOs
+         umW8ntXVE42w8bGsX4DU6IGFQTYQrKm7Q4rEnjdidR9aYBX9SrmEst9cBsjXva+ZksDs
+         nEZsd+bIvZ2P7x1vhBTFLK2TMMhU8wZCsHYJjYj6FsNP+irRXtN34YJzZHoc7ar7+coC
+         FxAbgwe+yyQS2Xbx80gGLhw5Fg/2pbXdzkD3sXeq3Y82HbOM59eg9SvTstVAoKMX+vw5
+         CHxARolrj93vFSibs/SX62Z/bqjIby5Jegus/eCHOET7xPAB/2MCk4KADI0c5ax+JmMl
+         W/7w==
+X-Gm-Message-State: AHQUAuZ8lxXhAfsymgXFoh2HceugQ0/R77ofAcBDww0f9C33skpUjcsE
+	qZeblut3kObTfFuKdgAT2AMCFQQRjHbPUlSQcXY7I7xDoEYgaqxxFXkq2C30gYsR90zFIUK0vnR
+	HRLcpswQKDBffHLZsYrQljJY4xN2taJ6WFO8w8OuZ/BA6LTEWtTEHDTTTEuBy9/U9mA==
+X-Received: by 2002:a81:4ed6:: with SMTP id c205mr2802943ywb.13.1551300444274;
+        Wed, 27 Feb 2019 12:47:24 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaIvllgghGhYWcP0gSprWEb9AMgBNCDYlGp5YkWvoUewt/7kOqDHfb1mo2fgAqnTSSkclVL
+X-Received: by 2002:a81:4ed6:: with SMTP id c205mr2802899ywb.13.1551300443323;
+        Wed, 27 Feb 2019 12:47:23 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551300443; cv=none;
         d=google.com; s=arc-20160816;
-        b=cGyNatKmPGWl07oktRQkZ9dK0p0+s7swhV9B6OY6s1s7qKjvL4pvnpz8jcNDXXXO9T
-         0Nr1LCOItdgd6P3EwkW2EOeAPHTSttfSL6mTCMUpYULSFXsI3TyH8TR8+Sq2M+Y0i8QS
-         UNJjPTt4dhuuHqlXOqJyIvpEHNT36W8nvmsFg9iZLKObp0QZVE8SD8neBJlKnl/TeS8X
-         VkErm1T4XblEhoTqqt1g2GV0ZIny5jxKDVxWeax3AtL5lPegiQMJHUHqMoLGBk+lp8I4
-         jb30vYNU97OqsJzy3YDKe0q6gghJrbBg2j/N3Ggy+YIDWerEq8sumoIfQtEpg3RBaLij
-         b7GA==
+        b=Ys0qYspTlN4LClVcuy4tQRTDAIfQsV1vn/ckqMz7JlNSPfn4x7WGGmvN3ELc9l3WdD
+         aZZ6zbHS0s98v5f9aWSrTpWVAfD2ILFsVvujONTq9FsVc/MMLQOEDnX9wbP6O7GQykFF
+         ddU1pnII7mm7blETqpffjeH8JFCX8A1+0dSWnE4ZuMW07+P42l8YYYitG8/geKUsGcpv
+         A1PvHrJO9edBKP8ZijifKeGzQoNuclkyQaqGm5xq2dY3l16u6b2aOEAPM4cogvkQEbmz
+         ye3DMyCzvWL2YhC4xwKHYLqNjXNVbSDd/Fi3MO0UAi3GYwzAGZlIBXMlyh0nOkb4bq1R
+         hF1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=ZTxkyP7MX2AvS9u1TFjA+FXPrStBYSRU8F/HnJNz8r8=;
-        b=sF0NmzRrPc8qp13wjF3TlA1bNrqe7jsVO9FwlNvueAZ7oPYYYt7aJQG5yJbHX3XZxS
-         6H0rXlg59/rXF3msX/TybQEBwLyE6SkKkgQzyh8PVpYQECAyiJjeiJcbpUqG+ByrTheb
-         UeyN9maMmmu0CNzFjk8CAEsdo69asc6954hM7zGVkf61ZL2JN95FGLIhcNGHO74WK8xH
-         0MA3r02/ujG3mfLpV/mOi02RsLMigYuNr8wWuhBCH1JqPxxLD6yQdYpRg7A+OlIgJNrh
-         Aj4BFsJ+38MjJy146R4DLRt6dRaP0B3ZaN9mfRU81Jfc1HXNKmz6HnLY+e6ngkaHhVIT
-         KpHg==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=fysy4W1JsLJNGtNiqBcR+gaIGLkCCRdCGseNbvSiG5A=;
+        b=fdk0guPhPQLczJeBUith+OR1b19dYHBjNtHB+u4/Dg86TtcnFJnAe9u8eUxJPBmKX3
+         0LFBdu+ulp+Ru5e9+mCebjJ/O2eVwKnSHTx4Uwd2rhHDmCAgXqwsZtqIcD1xfBzm6N4i
+         n9HcEct544S9PBHo56lT3L9/YWYQDEgLRQmjop6xo+eLAdJRQdTePWI5SaPR4YoFnt0M
+         Q9NvCryQwjsxLTMiuhXrq3xNp8DAQDEyUHCEp6Gh7hwAqndqeKid7driCy42Rf2xFMYB
+         FUzYS6I/UYh/d3FQyZUyYG0Cy6HBzhfJVnqRgAwYPMLELsTTPogykkZexxTrOoFJpPq6
+         ssgQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=His8f3pj;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u1sor10431978qka.119.2019.02.27.12.12.21
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=X0dP0ili;
+       spf=pass (google.com: domain of jonathanh@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jonathanh@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id j125si9268124ywb.159.2019.02.27.12.47.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Feb 2019 12:12:21 -0800 (PST)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=His8f3pj;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=ZTxkyP7MX2AvS9u1TFjA+FXPrStBYSRU8F/HnJNz8r8=;
-        b=His8f3pjjg9z3yTcOTRS1nqVxgQzrIguuuVsWBVL9CXK3UYQ+fzUxfi/AfrtujyIs6
-         uzXXVHJdJPn3mnbJ2HTUxZZaDtfY/i/2e1DUzDvgz4A26v0JWTRC7QngEnIFoCDg0CKC
-         tduYVbavNEPNgMwlpMB/wuI1isdNpLgtzAUF3Yzd/LwxWdCRcgnFLk5h4aC89WKG4Cz9
-         YH2n1geJfgZZBMTri2o73/gMeF9Ydbwj5hBGCn0zV23fYaSNcK6K4fNzUUzINaovRQ6s
-         5hpgG5OUaRWMGzv4XMpOcigjpgRZc5Eyvlj1gJctIOjxzl7+rRlAv01/nM3jr+57V8c8
-         CqAw==
-X-Google-Smtp-Source: AHgI3IZpEx4+Dk35xm0gudLF7+nvka/QYL7y/lhNAmqZvg4YCx2SGwWvIS0FRcp9tH1jhVAiK0vMBg==
-X-Received: by 2002:a37:4f45:: with SMTP id d66mr3695557qkb.81.1551298341321;
-        Wed, 27 Feb 2019 12:12:21 -0800 (PST)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id o51sm7294040qta.24.2019.02.27.12.12.19
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Feb 2019 12:12:20 -0800 (PST)
-Message-ID: <1551298338.7087.5.camel@lca.pw>
-Subject: Re: [PATCH] tmpfs: fix uninitialized return value in shmem_link
-From: Qian Cai <cai@lca.pw>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, "Darrick J. Wong"
- <darrick.wong@oracle.com>,  Andrew Morton <akpm@linux-foundation.org>,
- Matej Kupljen <matej.kupljen@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>,
- Dan Carpenter <dan.carpenter@oracle.com>, Linux List Kernel Mailing
- <linux-kernel@vger.kernel.org>, linux-fsdevel
- <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
-Date: Wed, 27 Feb 2019 15:12:18 -0500
-In-Reply-To: <1551276580.7087.1.camel@lca.pw>
-References: <20190221222123.GC6474@magnolia>
-	 <alpine.LSU.2.11.1902222222570.1594@eggly.anvils>
-	 <CAHk-=wgO3MPjPpf_ARyW6zpwwPZtxXYQgMLbmj2bnbOLnR+6Cg@mail.gmail.com>
-	 <alpine.LSU.2.11.1902251214220.8973@eggly.anvils>
-	 <CAHk-=whP-9yPAWuJDwA6+rQ-9owuYZgmrMA9AqO3EGJVefe8vg@mail.gmail.com>
-	 <CAHk-=wiwAXaRXjHxasNMy5DHEMiui5XBTL3aO1i6Ja04qhY4gA@mail.gmail.com>
-	 <86649ee4-9794-77a3-502c-f4cd10019c36@lca.pw>
-	 <CAHk-=wggjLsi-1BmDHqWAJPzBvTD_-MQNo5qQ9WCuncnyWPROg@mail.gmail.com>
-	 <1551276580.7087.1.camel@lca.pw>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Wed, 27 Feb 2019 12:47:23 -0800 (PST)
+Received-SPF: pass (google.com: domain of jonathanh@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=X0dP0ili;
+       spf=pass (google.com: domain of jonathanh@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jonathanh@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c76f7630000>; Wed, 27 Feb 2019 12:47:31 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Wed, 27 Feb 2019 12:47:22 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Wed, 27 Feb 2019 12:47:22 -0800
+Received: from [10.26.11.186] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 27 Feb
+ 2019 20:47:12 +0000
+Subject: Re: [PATCH V15 14/18] block: enable multipage bvecs
+To: Marek Szyprowski <m.szyprowski@samsung.com>, Ming Lei
+	<ming.lei@redhat.com>, Jens Axboe <axboe@kernel.dk>
+CC: <linux-block@vger.kernel.org>, <linux-kernel@vger.kernel.org>,
+	<linux-mm@kvack.org>, Theodore Ts'o <tytso@mit.edu>, Omar Sandoval
+	<osandov@fb.com>, Sagi Grimberg <sagi@grimberg.me>, Dave Chinner
+	<dchinner@redhat.com>, Kent Overstreet <kent.overstreet@gmail.com>, Mike
+ Snitzer <snitzer@redhat.com>, <dm-devel@redhat.com>, Alexander Viro
+	<viro@zeniv.linux.org.uk>, <linux-fsdevel@vger.kernel.org>,
+	<linux-raid@vger.kernel.org>, David Sterba <dsterba@suse.com>,
+	<linux-btrfs@vger.kernel.org>, "Darrick J . Wong" <darrick.wong@oracle.com>,
+	<linux-xfs@vger.kernel.org>, Gao Xiang <gaoxiang25@huawei.com>, Christoph
+ Hellwig <hch@lst.de>, <linux-ext4@vger.kernel.org>, Coly Li <colyli@suse.de>,
+	<linux-bcache@vger.kernel.org>, Boaz Harrosh <ooo@electrozaur.com>, Bob
+ Peterson <rpeterso@redhat.com>, <cluster-devel@redhat.com>, Ulf Hansson
+	<ulf.hansson@linaro.org>, "linux-mmc@vger.kernel.org"
+	<linux-mmc@vger.kernel.org>, 'Linux Samsung SOC'
+	<linux-samsung-soc@vger.kernel.org>, Krzysztof Kozlowski <krzk@kernel.org>,
+	Adrian Hunter <adrian.hunter@intel.com>, Bartlomiej Zolnierkiewicz
+	<b.zolnierkie@samsung.com>, linux-tegra <linux-tegra@vger.kernel.org>
+References: <20190215111324.30129-1-ming.lei@redhat.com>
+ <20190215111324.30129-15-ming.lei@redhat.com>
+ <CGME20190221084301eucas1p11e8841a62b4b1da3cccca661b6f4c29d@eucas1p1.samsung.com>
+ <6c9ae4de-c56f-a2b3-2542-da7d8b95601d@samsung.com>
+From: Jon Hunter <jonathanh@nvidia.com>
+Message-ID: <0dbbee64-5c6b-0374-4360-6dc218c70d58@nvidia.com>
+Date: Wed, 27 Feb 2019 20:47:09 +0000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
+MIME-Version: 1.0
+In-Reply-To: <6c9ae4de-c56f-a2b3-2542-da7d8b95601d@samsung.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1551300451; bh=fysy4W1JsLJNGtNiqBcR+gaIGLkCCRdCGseNbvSiG5A=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
+	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=X0dP0iliVFercVqWdMyW/NR2Nhm0eLApUzdqUyISSWUx2H+DKhUu/OKtqWe2+3ZuT
+	 au4eOklUFmE4Gr2obXchzT8IXOfMhcyX4FkEsLxzHW0xgKT/h6CV7784HRm5efp90O
+	 La7tft6R64o+psxbqoi6GCRY4KpDinbyuM578z8ZIBlOABzOuvOkGz6q77lXYGVw0F
+	 i4IUbygeJkCCpZ0U5/kCdyLBwxOPIqZvceHCPKG8aMbmcU8ubwJyoq9ClYgVHYmDHM
+	 dxcWgdcM3oW54O+MFPY5/ZPt1Zh31nOGXIQBPU0L01WBNStNQbbLPLk/T1RrJziyxj
+	 hseLr65aHTomg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-02-27 at 09:09 -0500, Qian Cai wrote:
-> On Mon, 2019-02-25 at 16:07 -0800, Linus Torvalds wrote:
-> > On Mon, Feb 25, 2019 at 4:03 PM Qian Cai <cai@lca.pw> wrote:
-> > > > 
-> > > > Of course, that's just gcc. I have no idea what llvm ends up doing.
-> > > 
-> > > Clang 7.0:
-> > > 
-> > > # clang  -O2 -S -Wall /tmp/test.c
-> > > /tmp/test.c:46:6: warning: variable 'ret' is used uninitialized whenever
-> > > 'if'
-> > > condition is false [-Wsometimes-uninitialized]
-> > 
-> > Ok, good.
-> > 
-> > Do we have any clang builds in any of the zero-day robot
-> > infrastructure or something? Should we?
-> > 
-> > And maybe this was how Dan noticed the problem in the first place? Or
-> > is it just because of his eagle-eyes?
-> > 
+
+On 21/02/2019 08:42, Marek Szyprowski wrote:
+> Dear All,
 > 
-> BTW, even clang is able to generate warnings in your sample code, it does not
-> generate any warnings when compiling the buggy shmem.o via "make CC=clang".
-> Here is the objdump for arm64 (with KASAN_SW_TAGS inline).
+> On 2019-02-15 12:13, Ming Lei wrote:
+>> This patch pulls the trigger for multi-page bvecs.
+>>
+>> Reviewed-by: Omar Sandoval <osandov@fb.com>
+>> Signed-off-by: Ming Lei <ming.lei@redhat.com>
 > 
+> Since Linux next-20190218 I've observed problems with block layer on one
+> of my test devices (Odroid U3 with EXT4 rootfs on SD card). Bisecting
+> this issue led me to this change. This is also the first linux-next
+> release with this change merged. The issue is fully reproducible and can
+> be observed in the following kernel log:
+> 
+> sdhci: Secure Digital Host Controller Interface driver
+> sdhci: Copyright(c) Pierre Ossman
+> s3c-sdhci 12530000.sdhci: clock source 2: mmc_busclk.2 (100000000 Hz)
+> s3c-sdhci 12530000.sdhci: Got CD GPIO
+> mmc0: SDHCI controller on samsung-hsmmc [12530000.sdhci] using ADMA
+> mmc0: new high speed SDHC card at address aaaa
+> mmcblk0: mmc0:aaaa SL16G 14.8 GiB
+I have also noticed some failures when writing to an eMMC device on one
+of our Tegra boards. We have a simple eMMC write/read test and it is
+currently failing because the data written does not match the source.
 
-Ah, thanks to the commit 6e8d666e9253 ("Disable "maybe-uninitialized" warning
-globally"), it will no longer generate this type of warnings until using "make
-W=1" due to the commit a76bcf557ef4 ("Kbuild: enable -Wmaybe-uninitialized
-warning for 'make W=1'"). Anyway, the generated code is the same using clang
-with and without this patch.
+I did not seem the same crash as reported here, however, in our case the
+rootfs is NFS mounted and so probably would not. However, the bisect
+points to this commit and reverting on top of -next fixes the issues.
 
-    d_instantiate(dentry, inode);
-4eec:       94000000        bl      0 <d_instantiate>
-            ret = shmem_reserve_inode(inode->i_sb);
-4ef0:       2a1f03e0        mov     w0, wzr             <---- ret = 0
-    return ret;
+Cheers
+Jon
 
+-- 
+nvpublic
 
