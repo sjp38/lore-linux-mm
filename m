@@ -2,211 +2,372 @@ Return-Path: <SRS0=x8zE=RC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
-	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D65D0C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 18:54:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76B12C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 18:58:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 911292184A
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 18:54:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 911292184A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=gmx.de
+	by mail.kernel.org (Postfix) with ESMTP id 0E40720C01
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 18:58:21 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (4096-bit key) header.d=wiesinger.com header.i=@wiesinger.com header.b="s1QnbUN4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E40720C01
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=wiesinger.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 07D038E0003; Wed, 27 Feb 2019 13:54:31 -0500 (EST)
+	id A1A6C8E0003; Wed, 27 Feb 2019 13:58:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 02E278E0001; Wed, 27 Feb 2019 13:54:30 -0500 (EST)
+	id 9C7788E0001; Wed, 27 Feb 2019 13:58:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E38208E0003; Wed, 27 Feb 2019 13:54:30 -0500 (EST)
+	id 890C08E0003; Wed, 27 Feb 2019 13:58:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ED678E0001
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 13:54:30 -0500 (EST)
-Received: by mail-wm1-f70.google.com with SMTP id v8so2220597wmj.1
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 10:54:30 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 2DC518E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 13:58:21 -0500 (EST)
+Received: by mail-wm1-f70.google.com with SMTP id a19so1942602wmm.0
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 10:58:21 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=neay3KzO/S4ugf+8x4cTPJN9LtmPH0IK8I8RVM9JxL8=;
-        b=K6hH304IyhdsqaJq6bBO0tZuR5VWTl2ZYT6uytJRbjy3dDKdaLQl+ZXmXGvcqrYNtV
-         331UrkMp7/+q2Y6En4X0HO5ywyc9IkgiqHWlHb35ja8XDb+RzNGL+uCXqVfy+zLpYJsY
-         HLys6Ddsy+Xkd1/vmRmg2jDr8IxBSNHUX4UWU13TDOc8laLi/oCKMdWTZbvg8L5QiwK4
-         gfWUUCBI7dXaYbTb329w9iVnOHMAwUMPU3U9MzT7rN66KjMAMapIv2OOKT8dCGDpkSjQ
-         Bn2xpCuIclN2TaLNxJvqPF7kJpKa7Axav8aqi4GubNEyM6GUfkNfT3qNXhEBf8wWKZqh
-         IRWA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of deller@gmx.de designates 212.227.17.20 as permitted sender) smtp.mailfrom=deller@gmx.de
-X-Gm-Message-State: APjAAAWO93/qED/1WeOjUKC1gm+J2uRPxZW+ihaNIu1MC6LJZQ40NzqS
-	X4Jfg3NQGycx4Fy3+bb+5Ukf9tBI28Yx/81YgqcBwonBhd2ntHDFFDrWZN7E8rs6J+873+iT2Wo
-	7qDUlDeRGjlIvJWlnvpVgTPc1kITR0kV/TGGBCbqm7NDrWOkRHiDhcAMcYszPbKdbUw==
-X-Received: by 2002:a5d:5585:: with SMTP id i5mr3633437wrv.239.1551293670102;
-        Wed, 27 Feb 2019 10:54:30 -0800 (PST)
-X-Google-Smtp-Source: APXvYqx9sCOG93io+a5IKCqhnFan7fTKyzuKbpK2faVA7TUQ6w/NvZf7GiKw61BIynNiL57K56FZ
-X-Received: by 2002:a5d:5585:: with SMTP id i5mr3633389wrv.239.1551293669086;
-        Wed, 27 Feb 2019 10:54:29 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551293669; cv=none;
+        h=x-gm-message-state:dkim-filter:dkim-signature:from:subject:to:cc
+         :references:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=k9V2EgLm96FQo9l0q1BS4cpzhTR+vgKHSwE2UpAjRrc=;
+        b=WrvyBORUQuxplsCRapnnbvL819ixOaWoSWKDE234irn7bn/eL1LpD7d/b3q7PhCaQt
+         LmUkxXHzXz2dufO68Vfx4fXCvCBR47Pic8cHU3vu9nvW331MB8iyoyUXoqHuJPhvKQrQ
+         zo6Wj5Ln+STQKto71y+7ZMnWUTo2iGNVgTf90USN4d6m5z0W+EmHlaCyjZYsT9uO0zH6
+         GZxDnO0o/gyiBBhnQk7tLZIr3OnWTkA9DH1xYfGsRQ9xgpzoAoR37N1X1yZU09k937td
+         BD3gotHl595MWMJbWmuVOFEwGHJxjru97wqx/mzjS/J0NLlD7q7pUga0wqzejNDQ65sO
+         tHfg==
+X-Gm-Message-State: AHQUAuavlzbxIpO/aTpbtcg5pBkSiCOgxDitdP8O0lWSAWMOtPjgfiWy
+	efo3U9iGQcs/52l/XOis4n9+I6JLae8jUR7DmnkPLcEbf6eJvXh/vfBSIZQCxr7/4kfFLKj/OC+
+	0BZID0ADva0iuEU31R8cgQvU4GEvrSsaQDlUzGlu+H0bj2TswpG5ljRXG5QBJsCEMaQ==
+X-Received: by 2002:a1c:dc0a:: with SMTP id t10mr442731wmg.101.1551293900592;
+        Wed, 27 Feb 2019 10:58:20 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia3h35ifNnISS5bThYAjh2u4UfvKdqRkMb7cHOdNcdw/ZztibFvRf7m9m4SXbwKnM2af8c8
+X-Received: by 2002:a1c:dc0a:: with SMTP id t10mr442669wmg.101.1551293899247;
+        Wed, 27 Feb 2019 10:58:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551293899; cv=none;
         d=google.com; s=arc-20160816;
-        b=v08VcA0EttwUpBaspLRb05IKfqSW2qHrxktB7l+jutN3ICjtf07VgEmfF+bT9VOsUO
-         z/HObYVoKowh5K3zABTC4dgN4zGxpsdfk5oFp20XCfMHaqvmMjgE/7kcRJZz/1Mwfe2Y
-         jUzZ5m04Dvi3BU5D6E17XY4722WXZ21l+2x146m2Gl8jVCOsjH1pux/PAe7tLR6oEt1/
-         N4WKR9eaKZiN3hV0JGh9Y7wMdXuoKarDdFC4awSjTF1t1tzxi7vOHimAw7R2ZnTzdkYJ
-         2+UQFBDXdw88bxRzOi0NqPdP86MUs9obiatJWV2SCmBY4aQkwVoABrcMqDxq81MQ5H/G
-         IYgQ==
+        b=LU6j4eCn4EY7U47vMsT6AhVQBkIO4ohOgfaVUfdRdlq5iDeuzBp2iZERWgQzbq5wu6
+         C23wXpWtit3UrDq65PWvPemekjUYz/jyLm2IpZ39y6KKtrSHY6OTRr/KDwkDdxzuQPK2
+         CHjhNnB3lCpAprUAWn+fOJr6VVHhh/6F+yoeSaRYdZZWBBM2eAsWE0EjcgnxbtVM4pvn
+         +/2WLZmBQkC+PXol2/UnYbFZHVu6jjnYpY3DEz6E5MeldRPLf00z2GvXQJV2ihbOX5ul
+         dKzsAcDd641k5hqmFCdpSvm5ozZA5Jy0TL86Kfncy74qLpKgngUhV2rmxjcaZSDzEazV
+         JcQA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=neay3KzO/S4ugf+8x4cTPJN9LtmPH0IK8I8RVM9JxL8=;
-        b=OuWSPjXBOWZ9Q8c0r3ywGKDo1RpiSAkKUaBdD+IrrVUPX5IwbHLhmKTznXs7/WmgNg
-         SVSxz5Uq61jNmkvj31BzCItdp9GMmJEfAVdW6hEEjR1YYB/2v7rfXpOZDukyYJT5+iZF
-         h2ajIXnj4iW48fL0YXjhtBsatKWZ3OyMaaaXQoWQqMa8H6zJXuj8JbSk80iYqAXAUhrs
-         6UgkwiRTsgQZPzkJ9No5R0aYLMFgGEsYRYUw0RHYgdid6svHw2Fcw7i2uTtSY6pobzBY
-         umGWwLRzA1irYzIb0Z7uxQmLte6S2N0tvufsOhFB0zYoiUrGoUgrkJgAqlhwjAhtfp4C
-         FxyQ==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:subject:from
+         :dkim-signature:dkim-filter;
+        bh=k9V2EgLm96FQo9l0q1BS4cpzhTR+vgKHSwE2UpAjRrc=;
+        b=u+mNDvZfTsM5/sG/7cRX9Qi+XivqpV6bLfTKepFwK4UN5D8KSjpy6pC6MoJtE9svDb
+         DQpqZTu+9Jqs9iRt86yCeRzRYylt5rgE8HfHMYJzIkOzcjcQ21Wza1Rc2jmlFZfj9q8b
+         9dd9cxc0oxxAQE9M14Uvz67s2MjQkiP7UJgS+WH+HHPwf8Di73AwTszcXRjKFM5Uj8O7
+         b+zgcuInlZ/1f47bdD7u90lCjglmwLDW+lDgJmhVkP/05uzJaTb/F4eIE0ekWhIREt+y
+         2VPaGZgK6h4WDyVGq1JRLf68nqL4bkZrD7PPVTzNU6mMjmUReyn3aeB52KQ2L1xNIakO
+         XSgg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of deller@gmx.de designates 212.227.17.20 as permitted sender) smtp.mailfrom=deller@gmx.de
-Received: from mout.gmx.net (mout.gmx.net. [212.227.17.20])
-        by mx.google.com with ESMTPS id w10si11215707wrm.437.2019.02.27.10.54.28
+       dkim=pass header.i=@wiesinger.com header.s=default header.b=s1QnbUN4;
+       spf=pass (google.com: domain of lists@wiesinger.com designates 46.36.37.179 as permitted sender) smtp.mailfrom=lists@wiesinger.com
+Received: from vps01.wiesinger.com (vps01.wiesinger.com. [46.36.37.179])
+        by mx.google.com with ESMTPS id o184si1750976wma.89.2019.02.27.10.58.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Feb 2019 10:54:29 -0800 (PST)
-Received-SPF: pass (google.com: domain of deller@gmx.de designates 212.227.17.20 as permitted sender) client-ip=212.227.17.20;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 27 Feb 2019 10:58:18 -0800 (PST)
+Received-SPF: pass (google.com: domain of lists@wiesinger.com designates 46.36.37.179 as permitted sender) client-ip=46.36.37.179;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of deller@gmx.de designates 212.227.17.20 as permitted sender) smtp.mailfrom=deller@gmx.de
-Received: from [192.168.20.60] ([92.116.177.218]) by mail.gmx.com (mrgmx103
- [212.227.17.168]) with ESMTPSA (Nemesis) id 0MPlMc-1gu6XT2w54-0054hD; Wed, 27
- Feb 2019 19:54:25 +0100
-Subject: Re: [PATCH v3 15/34] parisc: mm: Add p?d_large() definitions
-To: Steven Price <steven.price@arm.com>, linux-mm@kvack.org
-Cc: Andy Lutomirski <luto@kernel.org>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>, Arnd Bergmann <arnd@arndb.de>,
- Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>,
- James Morse <james.morse@arm.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
- <jglisse@redhat.com>, Peter Zijlstra <peterz@infradead.org>,
- Thomas Gleixner <tglx@linutronix.de>, Will Deacon <will.deacon@arm.com>,
- x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- Mark Rutland <Mark.Rutland@arm.com>, "Liang, Kan"
- <kan.liang@linux.intel.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>,
- linux-parisc@vger.kernel.org
-References: <20190227170608.27963-1-steven.price@arm.com>
- <20190227170608.27963-16-steven.price@arm.com>
-From: Helge Deller <deller@gmx.de>
-Openpgp: preference=signencrypt
-Autocrypt: addr=deller@gmx.de; keydata=
- xsBNBFDPIPYBCAC6PdtagIE06GASPWQJtfXiIzvpBaaNbAGgmd3Iv7x+3g039EV7/zJ1do/a
- y9jNEDn29j0/jyd0A9zMzWEmNO4JRwkMd5Z0h6APvlm2D8XhI94r/8stwroXOQ8yBpBcP0yX
- +sqRm2UXgoYWL0KEGbL4XwzpDCCapt+kmarND12oFj30M1xhTjuFe0hkhyNHkLe8g6MC0xNg
- KW3x7B74Rk829TTAtj03KP7oA+dqsp5hPlt/hZO0Lr0kSAxf3kxtaNA7+Z0LLiBqZ1nUerBh
- OdiCasCF82vQ4/y8rUaKotXqdhGwD76YZry9AQ9p6ccqKaYEzWis078Wsj7p0UtHoYDbABEB
- AAHNHEhlbGdlIERlbGxlciA8ZGVsbGVyQGdteC5kZT7CwJIEEwECADwCGwMGCwkIBwMCBhUI
- AgkKCwQWAgMBAh4BAheAFiEE9M/0wAvkPPtRU6Boh8nBUbUeOGQFAlrHzIICGQEACgkQh8nB
- UbUeOGT1GAgAt+EeoHB4DbAx+pZoGbBYp6ZY8L6211n8fSi7wiwgM5VppucJ+C+wILoPkqiU
- +ZHKlcWRbttER2oBUvKOt0+yDfAGcoZwHS0P+iO3HtxR81h3bosOCwek+TofDXl+TH/WSQJa
- iaitof6iiPZLygzUmmW+aLSSeIAHBunpBetRpFiep1e5zujCglKagsW78Pq0DnzbWugGe26A
- 288JcK2W939bT1lZc22D9NhXXRHfX2QdDdrCQY7UsI6g/dAm1d2ldeFlGleqPMdaaQMcv5+E
- vDOur20qjTlenjnR/TFm9tA1zV+K7ePh+JfwKc6BSbELK4EHv8J8WQJjfTphakYLVM7ATQRQ
- zyD2AQgA2SJJapaLvCKdz83MHiTMbyk8yj2AHsuuXdmB30LzEQXjT3JEqj1mpvcEjXrX1B3h
- +0nLUHPI2Q4XWRazrzsseNMGYqfVIhLsK6zT3URPkEAp7R1JxoSiLoh4qOBdJH6AJHex4CWu
- UaSXX5HLqxKl1sq1tO8rq2+hFxY63zbWINvgT0FUEME27Uik9A5t8l9/dmF0CdxKdmrOvGMw
- T770cTt76xUryzM3fAyjtOEVEglkFtVQNM/BN/dnq4jDE5fikLLs8eaJwsWG9k9wQUMtmLpL
- gRXeFPRRK+IT48xuG8rK0g2NOD8aW5ThTkF4apznZe74M7OWr/VbuZbYW443QQARAQABwsBf
- BBgBAgAJBQJQzyD2AhsMAAoJEIfJwVG1HjhkNTgH/idWz2WjLE8DvTi7LvfybzvnXyx6rWUs
- 91tXUdCzLuOtjqWVsqBtSaZynfhAjlbqRlrFZQ8i8jRyJY1IwqgvHP6PO9s+rIxKlfFQtqhl
- kR1KUdhNGtiI90sTpi4aeXVsOyG3572KV3dKeFe47ALU6xE5ZL5U2LGhgQkbjr44I3EhPWc/
- lJ/MgLOPkfIUgjRXt0ZcZEN6pAMPU95+u1N52hmqAOQZvyoyUOJFH1siBMAFRbhgWyv+YE2Y
- ZkAyVDL2WxAedQgD/YCCJ+16yXlGYGNAKlvp07SimS6vBEIXk/3h5Vq4Hwgg0Z8+FRGtYZyD
- KrhlU0uMP9QTB5WAUvxvGy8=
-Message-ID: <fa3072ba-f02b-fee5-dc16-d575a5308d4b@gmx.de>
-Date: Wed, 27 Feb 2019 19:54:22 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       dkim=pass header.i=@wiesinger.com header.s=default header.b=s1QnbUN4;
+       spf=pass (google.com: domain of lists@wiesinger.com designates 46.36.37.179 as permitted sender) smtp.mailfrom=lists@wiesinger.com
+Received: from wiesinger.com (wiesinger.com [84.113.44.87])
+	by vps01.wiesinger.com (Postfix) with ESMTPS id 30B399F294;
+	Wed, 27 Feb 2019 19:58:17 +0100 (CET)
+Received: from [192.168.0.14] ([192.168.0.14])
+	(authenticated bits=0)
+	by wiesinger.com (8.15.2/8.15.2) with ESMTPSA id x1RIwEJ7020957
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
+	Wed, 27 Feb 2019 19:58:15 +0100
+DKIM-Filter: OpenDKIM Filter v2.11.0 wiesinger.com x1RIwEJ7020957
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=wiesinger.com;
+	s=default; t=1551293895;
+	bh=k9V2EgLm96FQo9l0q1BS4cpzhTR+vgKHSwE2UpAjRrc=;
+	h=From:Subject:To:Cc:References:Date:In-Reply-To:From;
+	b=s1QnbUN4fRYJIGa6ezZZ+UnTCx3fw/hjMGmbaKOgSC72VITdIzJDLnSWb3ai+cFgK
+	 1umlI9UiV0A9kL7hyOWGRGb3bsHKBB2W9PaAghQ2KfNyo0jhQX2XlPL5IBQe5BIStZ
+	 RbyBEINZATmchaySIHxqdjItCGHUkqdIyiZmN5fRtTIrH1tRORR2kwwT3dP/aXkCGA
+	 IIRg10h1zMY/uREuAgoVdDK/k2JUqhv8uE1XrKqj/Xe66LHXEmrc2s9KiMUMqAYd0X
+	 JNZ1FgIjTQPz+o6/NsYgCbNWzTb2hx2V3hre1zh7nV8IAlPLc961gByL+HRpT1g9hn
+	 I8S7HInr5yDOVa8OqsCeffIN9vnmlgXgGlDFGCjXlNrl3kqSEUAk7nPDf44QGS/ckI
+	 u/QRKRN+kCPbvTTtQN/RAldp65mftDxCFDPM4EAi6DSox0dCO0lgW99Yj5rTl8VZjV
+	 n0hiHN4CqgCYR5qYbjJHql3qm9RrfA+aAzw/jhPbd9YHUTukp1IwA67bbS8bPl6O7+
+	 7+sv63X39mE9S6Tns8D17iMIWzg3RHeEiDpeZXA8Muh8736EE2Gun/KGaD7TOdIK7t
+	 HG7oQo4XHWle1y35snQpOHBzXcreclq2zTPv8RD3EthGInZ9YWaa46V2M1OpFbdRyl
+	 w1s960iHnpC2PTni7LGG1n/Y=
+From: Gerhard Wiesinger <lists@wiesinger.com>
+Subject: Re: Banana Pi-R1 stabil
+To: Maxime Ripard <maxime.ripard@bootlin.com>
+Cc: arm@lists.fedoraproject.org, Chen-Yu Tsai <wens@csie.org>,
+        LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+        Florian Fainelli <f.fainelli@gmail.com>, filbar@centrum.cz
+References: <7b20af72-76ea-a7b1-9939-ca378dc0ed83@wiesinger.com>
+ <20190227092023.nvr34byfjranujfm@flea>
+Message-ID: <5f63a2c6-abcb-736f-d382-18e8cea31b65@wiesinger.com>
+Date: Wed, 27 Feb 2019 19:58:14 +0100
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.2
 MIME-Version: 1.0
-In-Reply-To: <20190227170608.27963-16-steven.price@arm.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20190227092023.nvr34byfjranujfm@flea>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Provags-ID: V03:K1:GVERcQi2HwefwpmfHh/gl3DFsRldSfy2pf2hJBcZTGIy3DVEKKP
- iI0xMty44p8fvwZbS6tsPODCGUwOfyenBilXMM44uOd9qK46YCPdIsjllMaR1EK2XX2ukac
- VLlKFN3HVFeyP3BpD3oHrWIH9wBGPA9L46C+g2TckhBhGxaGg47rYbM+w4wT1jfG47lx+08
- 4XbF3H3dqbUxhLoEsZxrA==
-X-UI-Out-Filterresults: notjunk:1;V03:K0:I17FZP7GeCA=:20s2XPNDi2rIeeD4TKdf7S
- XStYTqQmB7W1BoMbCZlSLPjFn/L5Exg6hSBbQ9RJ2c6Nr9Db9gE1YVMLZpA9xiQtfFxGWI6FV
- izt+wCTUCCEzacex+ajK4zhL8YOJ939t6aKYewciyDLqQfmqIwhReescv5kPVbAfpTv7xoLSW
- nFJ/w8glvICJ0WP8covqOiSRCdx07jbXQmCxO1hlZm+BiAraLoUhvrPtZGvIkKaM+mzNODeig
- aS5Fssved6V57ePHgJ9WYik+AOcf8P80swmdBNuYmI1a139q28uvjidJC7demxm6SbKFWfcN1
- DPKTk+JckiyRsHJhtQl1y8jX1uEZ3LqJ4HjS3e6yVMr9a6oXfnmyGjAD8v2ZHulAH4zhs3TJG
- xcESTTxmnUDIhvhx86WoPY6f7igNgcIOosc8ju/2q6eBI4mIVGNusIRwB895HZf0yNTd+mKX1
- zZe4uPNT+Q2Lb1PnJAfjyV4BKlOckIndJmRm1xy68itf5dcbGiQoze6YtzQtyt7xLsErQBoa0
- hO4w4RYnSFAkmEznz834741Sr/5LNoxO7BpV+R29GeCjXvReG1WaRVOZejW5vrERbBeg5Ujxj
- JrcED3jhQt53+rApp3I5Rh8qyfWW0Vh4gugEhqbuIbDJbKG/tCptd5sVGepF3vUnNh0Y4xe+k
- YMY947PEN2DV7bf+JnMxPYUAtlSqTxr/GP4liACn+ji3Hv5ceEsNAzbvrFvKrlR7yOpjocCWi
- TkweZT2GLZMAly1wEEY0OyrH6lnntkPyVl+8iuGqG7rFxXJ9sJlREisA5TSuK1gOgS/S6WXXR
- NFQ1C7N3wKSvA2bt5GaF5gzelNESKWEr5TsSkf6fGNrUiZwFcE6JKQ0XbyILdlGdHGViywYUL
- UF+vUg/wlOCW9cxuNPqMH4Sf/jnS121HU6celPN1nrEZbqELTQj2BkQ6crLCDIMkkYaS5NbKQ
- s+3KzNAA1L0Tq5PaFHKgoItIiSa3FAMe6ha3HpGg54SXHk1GmZdifGx+5J0wn1lWEfWYimbI1
- 38SV8Us5P9BcIJZCo2HOG0E=
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 27.02.19 18:05, Steven Price wrote:
-> walk_page_range() is going to be allowed to walk page tables other than
-> those of user space. For this it needs to know when it has reached a
-> 'leaf' entry in the page tables. This information is provided by the
-> p?d_large() functions/macros.
-> 
-> For parisc, we don't support large pages, so add stubs returning 0.
+On 27.02.2019 10:20, Maxime Ripard wrote:
+> On Sun, Feb 24, 2019 at 09:04:57AM +0100, Gerhard Wiesinger wrote:
+>> Hello,
+>>
+>> I've 3 Banana Pi R1, one running with self compiled kernel
+>> 4.7.4-200.BPiR1.fc24.armv7hl and old Fedora 25 which is VERY STABLE, the 2
+>> others are running with Fedora 29 latest, kernel 4.20.10-200.fc29.armv7hl. I
+>> tried a lot of kernels between of around 4.11
+>> (kernel-4.11.10-200.fc25.armv7hl) until 4.20.10 but all had crashes without
+>> any output on the serial console or kernel panics after a short time of
+>> period (minutes, hours, max. days)
+>>
+>> Latest known working and stable self compiled kernel: kernel
+>> 4.7.4-200.BPiR1.fc24.armv7hl:
+>>
+>> https://www.wiesinger.com/opensource/fedora/kernel/BananaPi-R1/
+>>
+>> With 4.8.x the DSA b53 switch infrastructure has been introduced which
+>> didn't work (until ca8931948344c485569b04821d1f6bcebccd376b and kernel
+>> 4.18.x):
+>>
+>> https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/drivers/net/dsa/b53?h=v4.20.12
+>>
+>> https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/log/drivers/net/dsa/b53?h=v4.20.12
+>>
+>> https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit/drivers/net/dsa/b53?h=v4.20.12&id=ca8931948344c485569b04821d1f6bcebccd376b
+>>
+>> I has been fixed with kernel 4.18.x:
+>>
+>> https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/log/drivers/net/dsa/b53?h=linux-4.18.y
+>>
+>>
+>> So current status is, that kernel crashes regularly, see some samples below.
+>> It is typically a "Unable to handle kernel paging request at virtual addres"
+>>
+>> Another interesting thing: A Banana Pro works well (which has also an
+>> Allwinner A20 in the same revision) running same Fedora 29 and latest
+>> kernels (e.g. kernel 4.20.10-200.fc29.armv7hl.).
+>>
+>> Since it happens on 2 different devices and with different power supplies
+>> (all with enough power) and also the same type which works well on the
+>> working old kernel) a hardware issue is very unlikely.
+>>
+>> I guess it has something to do with virtual memory.
+>>
+>> Any ideas?
+>> [47322.960193] Unable to handle kernel paging request at virtual addres 5675d0
+> That line is a bit suspicious
+>
+> Anyway, cpufreq is known to cause those kind of errors when the
+> voltage / frequency association is not correct.
+>
+> Given the stack trace and that the BananaPro doesn't have cpufreq
+> enabled, my first guess would be that it's what's happening. Could you
+> try using the performance governor and see if it's more stable?
+>
+> If it is, then using this:
+> https://github.com/ssvb/cpuburn-arm/blob/master/cpufreq-ljt-stress-test
+>
+> will help you find the offending voltage-frequency couple.
+>
+> Maxime
+>
+For me it looks like they have all the same config regarding cpu 
+governor (Banana Pro, old kernel stable one, new kernel unstable ones)
 
-We do support huge pages on parisc, but not yet on those levels.
-So, you may add
+They all have the ondemand governor set:
 
-Acked-by: Helge Deller <deller@gmx.de> # parisc
- 
-Helge
+I set on the 2 unstable "new kernel Banana Pi R1":
 
-> CC: "James E.J. Bottomley" <jejb@parisc-linux.org>
-> CC: Helge Deller <deller@gmx.de>
-> CC: linux-parisc@vger.kernel.org
-> Signed-off-by: Steven Price <steven.price@arm.com>
-> ---
->  arch/parisc/include/asm/pgtable.h | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/arch/parisc/include/asm/pgtable.h b/arch/parisc/include/asm/pgtable.h
-> index c7bb74e22436..1f38c85a9530 100644
-> --- a/arch/parisc/include/asm/pgtable.h
-> +++ b/arch/parisc/include/asm/pgtable.h
-> @@ -302,6 +302,7 @@ extern unsigned long *empty_zero_page;
->  #endif
->  #define pmd_bad(x)	(!(pmd_flag(x) & PxD_FLAG_VALID))
->  #define pmd_present(x)	(pmd_flag(x) & PxD_FLAG_PRESENT)
-> +#define pmd_large(x)	(0)
->  static inline void pmd_clear(pmd_t *pmd) {
->  #if CONFIG_PGTABLE_LEVELS == 3
->  	if (pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
-> @@ -324,6 +325,7 @@ static inline void pmd_clear(pmd_t *pmd) {
->  #define pgd_none(x)     (!pgd_val(x))
->  #define pgd_bad(x)      (!(pgd_flag(x) & PxD_FLAG_VALID))
->  #define pgd_present(x)  (pgd_flag(x) & PxD_FLAG_PRESENT)
-> +#define pgd_large(x)	(0)
->  static inline void pgd_clear(pgd_t *pgd) {
->  #if CONFIG_PGTABLE_LEVELS == 3
->  	if(pgd_flag(*pgd) & PxD_FLAG_ATTACHED)
-> @@ -342,6 +344,7 @@ static inline void pgd_clear(pgd_t *pgd) {
->  static inline int pgd_none(pgd_t pgd)		{ return 0; }
->  static inline int pgd_bad(pgd_t pgd)		{ return 0; }
->  static inline int pgd_present(pgd_t pgd)	{ return 1; }
-> +static inline int pgd_large(pgd_t pgd)		{ return 0; }
->  static inline void pgd_clear(pgd_t * pgdp)	{ }
->  #endif
->  
-> 
+# Set to max performance
+echo "performance" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+echo "performance" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
+
+Running some stress tests are ok (I did that already in the past, but 
+without setting maximum performance governor).
+
+Let's see if it helps.
+
+Thnx.
+
+Ciao,
+
+Gerhard
+
+# Banana Pro: Stable
+
+./cpu_freq.sh
+/sys/devices/system/cpu/cpu0/cpufreq/affected_cpus: 0 1
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq: 960000
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq: 960000
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq: 144000
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_transition_latency: 244144
+/sys/devices/system/cpu/cpu0/cpufreq/related_cpus: 0 1
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies: 
+144000 312000 528000 720000 864000 912000 960000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors: 
+conservative userspace powersave ondemand performance schedutil
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq: 960000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_driver: cpufreq-dt
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor: ondemand
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq: 960000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq: 144000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed: <unsupported>
+/sys/devices/system/cpu/cpu1/cpufreq/affected_cpus: 0 1
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_cur_freq: 912000
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_max_freq: 960000
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_min_freq: 144000
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_transition_latency: 244144
+/sys/devices/system/cpu/cpu1/cpufreq/related_cpus: 0 1
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_available_frequencies: 
+144000 312000 528000 720000 864000 912000 960000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_available_governors: 
+conservative userspace powersave ondemand performance schedutil
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_cur_freq: 912000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_driver: cpufreq-dt
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_governor: ondemand
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_max_freq: 960000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq: 144000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_setspeed: <unsupported>
+
+# Banana Pi R1: The one which is running kernel 4.7.4 and stable
+./cpu_freq.sh
+/sys/devices/system/cpu/cpu0/cpufreq/affected_cpus: 0 1
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq: 144000
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq: 960000
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq: 144000
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_transition_latency: 244144
+/sys/devices/system/cpu/cpu0/cpufreq/related_cpus: 0 1
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies: 
+144000 312000 528000 720000 864000 912000 960000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors: 
+conservative userspace powersave schedutil ondemand performance
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq: 312000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_driver: cpufreq-dt
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor: ondemand
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq: 960000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq: 144000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed: <unsupported>
+/sys/devices/system/cpu/cpu1/cpufreq/affected_cpus: 0 1
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_cur_freq: 720000
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_max_freq: 960000
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_min_freq: 144000
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_transition_latency: 244144
+/sys/devices/system/cpu/cpu1/cpufreq/related_cpus: 0 1
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_available_frequencies: 
+144000 312000 528000 720000 864000 912000 960000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_available_governors: 
+conservative userspace powersave schedutil ondemand performance
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_cur_freq: 720000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_driver: cpufreq-dt
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_governor: ondemand
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_max_freq: 960000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq: 144000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_setspeed: <unsupported>
+
+# Non Stable, Banana Pi R1 #1
+./cpu_freq.sh
+/sys/devices/system/cpu/cpu0/cpufreq/affected_cpus: 0 1
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq: 912000
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq: 960000
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq: 144000
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_transition_latency: 244144
+/sys/devices/system/cpu/cpu0/cpufreq/related_cpus: 0 1
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies: 
+144000 312000 528000 720000 864000 912000 960000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors: 
+conservative userspace powersave ondemand performance schedutil
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq: 912000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_driver: cpufreq-dt
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor: ondemand
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq: 960000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq: 144000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed: <unsupported>
+/sys/devices/system/cpu/cpu1/cpufreq/affected_cpus: 0 1
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_cur_freq: 960000
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_max_freq: 960000
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_min_freq: 144000
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_transition_latency: 244144
+/sys/devices/system/cpu/cpu1/cpufreq/related_cpus: 0 1
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_available_frequencies: 
+144000 312000 528000 720000 864000 912000 960000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_available_governors: 
+conservative userspace powersave ondemand performance schedutil
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_cur_freq: 912000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_driver: cpufreq-dt
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_governor: ondemand
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_max_freq: 960000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq: 144000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_setspeed: <unsupported>
+
+# Non Stable, Banana Pi R1 #2
+
+./cpu_freq.sh
+/sys/devices/system/cpu/cpu0/cpufreq/affected_cpus: 0 1
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq: 912000
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq: 960000
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq: 144000
+/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_transition_latency: 244144
+/sys/devices/system/cpu/cpu0/cpufreq/related_cpus: 0 1
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies: 
+144000 312000 528000 720000 864000 912000 960000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors: 
+conservative userspace powersave ondemand performance schedutil
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq: 912000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_driver: cpufreq-dt
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor: ondemand
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq: 960000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq: 144000
+/sys/devices/system/cpu/cpu0/cpufreq/scaling_setspeed: <unsupported>
+/sys/devices/system/cpu/cpu1/cpufreq/affected_cpus: 0 1
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_cur_freq: 960000
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_max_freq: 960000
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_min_freq: 144000
+/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_transition_latency: 244144
+/sys/devices/system/cpu/cpu1/cpufreq/related_cpus: 0 1
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_available_frequencies: 
+144000 312000 528000 720000 864000 912000 960000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_available_governors: 
+conservative userspace powersave ondemand performance schedutil
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_cur_freq: 912000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_driver: cpufreq-dt
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_governor: ondemand
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_max_freq: 960000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq: 144000
+/sys/devices/system/cpu/cpu1/cpufreq/scaling_setspeed: <unsupported>
+
+cat cpu_freq.sh
+#!/bin/sh
+
+MAX_CPU=2
+let MAX_CPU_1=MAX_CPU-1
+
+CPUS=`seq 0 ${MAX_CPU_1}`
+
+for CPU in ${CPUS}; do
+   for i in /sys/devices/system/cpu/cpu${CPU}/cpufreq/*; do
+     if [ -f $i ]; then
+       echo $i: `cat $i`
+     fi
+   done
+done
 
