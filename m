@@ -2,222 +2,227 @@ Return-Path: <SRS0=x8zE=RC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BFDF4C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 14:09:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05D28C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 14:35:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 57E812083D
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 14:09:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 66DC1217F5
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 14:35:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="dDkDuv5m"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57E812083D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (1024-bit key) header.d=nxp.com header.i=@nxp.com header.b="XQ2F1o0t"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66DC1217F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nxp.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DFEEB8E0003; Wed, 27 Feb 2019 09:09:44 -0500 (EST)
+	id B062A8E0003; Wed, 27 Feb 2019 09:34:59 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D843D8E0001; Wed, 27 Feb 2019 09:09:44 -0500 (EST)
+	id A8B048E0001; Wed, 27 Feb 2019 09:34:59 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C4CDB8E0003; Wed, 27 Feb 2019 09:09:44 -0500 (EST)
+	id 906368E0003; Wed, 27 Feb 2019 09:34:59 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9566C8E0001
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 09:09:44 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id z198so13288527qkb.15
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 06:09:44 -0800 (PST)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 37B7F8E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 09:34:59 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id i20so7017445edv.21
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 06:34:59 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=JDwKNo4Q1ugW00DDQqC89MJQTNZtVSoArGLMFxH2zRs=;
-        b=TxFckvG+ertO5OmRrX+zkjJuTCtyRXnc1pT4xIqajimOSeI7cpZpASh+ZBK9Donk0b
-         QHNdhO2nOaTctoDT9kJi1BScAhBwuuepUbOhhhNj9+vaITE433WsqHibJPa7t7Avg9Nj
-         BewjQLHPC5VhmyHxK6Fve8FMBTq8jtVRQ71BEUvYyk2MLgW6WtFWct7trCnKALLMdC7F
-         9X0DFWYzu1H/GhozdTqlYCGOpmOEAJcwr4NFjhdaQNLqugR08NvJskNwOLzr1F2AFx6q
-         AL9Ne9cUa2ZMjnFf/gNS3sDuKykDKlc6LPG6KV/+vQKMZmqJmFlg+ZWdFSYT0riMXKE/
-         iYaQ==
-X-Gm-Message-State: AHQUAuawf2MDIKByVHoi9tlm1Vz39bvPU7eyVmMtF1sUnAS5k9AGTOmL
-	nTNq2YzF7P0aYnnsT9blKDHq4nW5ypKmvDIySo+vzoiny5SH8QCqeVoWZDk13ijiTPATvZ0bA4j
-	An1Fx3hPGU7MHUNOhe4tPM32T5Hzda3iqmCEHFi1C4wGVPncKXbWJD1VcyZ76vUNU7r5Aw1WV2h
-	JlMhUgD7R4tO6kd75JDbd9XY6t+MqNmXOFABSzrsSMrnFw0/juiu2Lwg7jrTw08zhdF+j3grWC4
-	6NkvqzoNNDcwXvS+PPl8odbgqNA5wfgsfd3Z1F+oblfHdzUC/4CwYFFHfEUVkZkVOWhIR1qXS5h
-	dm+ccTxVzT6UsdtI876LJXzxzSIZY4qyRlOBva9LAOQ6/+N2ylEmmN3Hy0039oq8L2qjmNfWw99
-	A
-X-Received: by 2002:ac8:1a64:: with SMTP id q33mr1833222qtk.274.1551276584298;
-        Wed, 27 Feb 2019 06:09:44 -0800 (PST)
-X-Received: by 2002:ac8:1a64:: with SMTP id q33mr1833127qtk.274.1551276583132;
-        Wed, 27 Feb 2019 06:09:43 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551276583; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:accept-language:content-language
+         :content-transfer-encoding:mime-version;
+        bh=ydPKA5bYPG4oJWewMmo9KXUQqkLI9/V32BgyLDEghQg=;
+        b=lBGqnz4eS+72ClaNg8/SbEo3f1E3RqIBtwqstUjkUgX9TN+MGp7RSLgDVpPO14fml0
+         Hy4gERtx5x9CpL2kkJfg+3jAuSn1OcgsFnwkZbP+qguoZ964is4NQzFAC+IeALVUZ5Yw
+         AoINB88UiTlGEWyIowPRQWEdjMhJ2EyXHes2HiHhaccleawGgxWJcQ/xnE3Ocxqhhjip
+         an6BbEf9Q8W4oGwq11XEneQTkrUsgjuVqNNzG4vxcWm/gr0jHCc5vfeOj6i/5wnHjvTk
+         CdmPvrcfDARR6X3gZ86PH/RQOSImxAP92BjZfIVK5SA+ASBwcu/tXBW19SGI5z+pcjdZ
+         2Qjg==
+X-Gm-Message-State: AHQUAuYECljNRX+hIA7zEBG+UkMxpqpH1mjBDMwERqnTbciZ3QXOpqhy
+	67708YhNOGLJ/PPSelLBgf2rhsnB29PrcZ+TnoHXa155qrOjFPRv5sZByJ5IUNbgAIzbF6ehCEg
+	4mII3g2mrZU1BnCo9sjqbaHrvTtqH4wVLtWZCkc2kj84TDnKNCvmf0o4wa7EQe1i99g==
+X-Received: by 2002:a50:9012:: with SMTP id b18mr2676431eda.30.1551278098469;
+        Wed, 27 Feb 2019 06:34:58 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbSH7qzukT6KMLIomIw+ziwtawXvqQtSmd6qxbWWILu9z0xCMJ7qhP4kXnhuRNu6JOR6NNf
+X-Received: by 2002:a50:9012:: with SMTP id b18mr2676369eda.30.1551278097418;
+        Wed, 27 Feb 2019 06:34:57 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551278097; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ny7L3JMXpd2aPp3EqDUkAGvuPjScIxKMAEWLF882d3+UW10Z3dc1TJisvZmFeiQE+h
-         hFjwP0FmDTgDo7tn8QWzqN99hjS2dv8YhI761sCH/1IK+TmS1NERRO7mW/sqGKxaz1ig
-         I47sEtuvQM4bv0bpikE8BLz+c/2b2Cx/lWgYBu+GY4CM4O1acKmnHatAxWOFWWnH4OZ0
-         zqz8g5lt8YE3UnnWwaOk0ie4S4ZtAW3fCZePLrvTRW2ScD73icuWhywuvNw70Xmq9KPp
-         6NuCqYiAFazi8Ljd4jq6hUz/hQ2tKRlqdzAj5jMQDR/yeiommQZ90Rg5iu/5236uNUjk
-         T6Lg==
+        b=gF6VDIa4Q6oBuLAaoSgbhx+oJOZ7JmkGPxdQpTOgFb0miFJxkKJezPktMy6rW/oNsN
+         KohP9klgaWwIyAvGKGWBEHVLKnH27INdbhYOMCzmPiL1xZK5IQwKlIDnaJc6xkHpQfgV
+         na66OA9tNDxJt8LFPdR3Ed6DVAfqGvjULk6hjYbrCxdPel9B1uJMD/ppz+1BK7AZz29G
+         UXaK5We6WJOfFjhqNztAU4OWQi0rebR8RPxSypj09i4+6vIB2NfrlQoCHlqvDxl/Sm/v
+         yfsFMwiUTIpITrbjn8kI7EOYdP0ibuobQ1ef1smnshMl4s8qmrRBbPQFRNf+0je+x3eV
+         cICQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=JDwKNo4Q1ugW00DDQqC89MJQTNZtVSoArGLMFxH2zRs=;
-        b=tFcNJ2TBqBfXhWWSuPDS5jiyIlK/n7YiXij99fTK5VXXwGuFl+rTXIuNYxzY8Jzrpz
-         YeDrVU6NXEudfOqO8f6eyAzdpTwZZI67h3ZMFUrjRuwq+xZ4GwdivQXZ0YR13Wniuuoq
-         zKYHTLH0ElZFRadky2YT8m51CHtnFIUrjNJfBXzlNKx3IM8fkIyo85KcAynq99mJ2eec
-         /3ONIvCQKruOMetm0WXQ8oOQ5kDXmuLIaaovwDm8fYCy/BS/OxMvxsGhXrd8A2tEpx7d
-         Y1dg7RJs87cc7ySZM0Fst27cQsA3qtZPjLEvryoIbpey14o1g30AKBDw/BNPaWweWUR8
-         jEHA==
+        h=mime-version:content-transfer-encoding:content-language
+         :accept-language:message-id:date:thread-index:thread-topic:subject
+         :cc:to:from:dkim-signature;
+        bh=ydPKA5bYPG4oJWewMmo9KXUQqkLI9/V32BgyLDEghQg=;
+        b=x+l+Z7fGXHp+2oYuBVV/YfXXS9JUqDnXbRSwdnZjY15xpgYF6U7wf434mbcoFF7crw
+         EW3tJPlxeiGr3E9/7LreG4LQwgawP4c8hzWO/5HT8xwTxBiYJ4GupAWVgUzi2ULT6aqi
+         1Tkja2Hn9+VyQlVCw9Ni2keU1Au5aahZlTetEr4W4nwyUqxg4iwd70OFj4Buy1yLY3RF
+         91v9vBu6buLKs10m0Ke1WRS4ewillK8F3KmSzvH6D032WQ3UnY5RLgFv/uH99Zkxo8S6
+         0qfIYX8zbwA8SB0njDRaZUrRJALiSuNSy/4COhgnkYMPj4yfLXU5o6SjXdWr0EfxjG6a
+         /YLQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=dDkDuv5m;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d127sor8862499qkg.114.2019.02.27.06.09.43
+       dkim=pass header.i=@nxp.com header.s=selector1 header.b=XQ2F1o0t;
+       spf=pass (google.com: domain of peng.fan@nxp.com designates 40.107.14.75 as permitted sender) smtp.mailfrom=peng.fan@nxp.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-eopbgr140075.outbound.protection.outlook.com. [40.107.14.75])
+        by mx.google.com with ESMTPS id y15si3742410edd.290.2019.02.27.06.34.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Feb 2019 06:09:43 -0800 (PST)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=dDkDuv5m;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=JDwKNo4Q1ugW00DDQqC89MJQTNZtVSoArGLMFxH2zRs=;
-        b=dDkDuv5mievBTLrLh0a6kPCLvcttWxQRHOZHcmFRX5LzxlI879UKPFmgR+zlZU7eUi
-         wydriob7LhTjRjZVfnQrnzEnPLgBVoXdwzGYtISIW4ntLMVE/9JIcVrtrxgfC9rwcPj8
-         Mvz13VqJ9GDMS2igwKnjZb5OHR9RYHHpGA1qstteWRyIKIDZILuPjsnKL9rghoMkpU1R
-         46l9S1fryRvZXVoOXdp7kO603tJhuc4ujfJCbjE7fePStI3eBf4P3XCjdhb+s5aVNYZt
-         FJl2Z2P4kfHrNAJ4qC7ov9LWUtD7s/3JQShdyV2wPYsjIAOLrelQxJJP1MILcf6ZS4Jb
-         sKhg==
-X-Google-Smtp-Source: AHgI3IY9PZN/dSGRZlYObwCFODMzKfeM7FT6Yrwc+TwCy8NYeM9JtopE27+gLlfRhzdWpTldtRmnlg==
-X-Received: by 2002:a37:a316:: with SMTP id m22mr2322448qke.194.1551276582817;
-        Wed, 27 Feb 2019 06:09:42 -0800 (PST)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id 70sm19121483qkb.39.2019.02.27.06.09.41
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Feb 2019 06:09:42 -0800 (PST)
-Message-ID: <1551276580.7087.1.camel@lca.pw>
-Subject: Re: [PATCH] tmpfs: fix uninitialized return value in shmem_link
-From: Qian Cai <cai@lca.pw>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, "Darrick J. Wong"
- <darrick.wong@oracle.com>,  Andrew Morton <akpm@linux-foundation.org>,
- Matej Kupljen <matej.kupljen@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>,
- Dan Carpenter <dan.carpenter@oracle.com>, Linux List Kernel Mailing
- <linux-kernel@vger.kernel.org>, linux-fsdevel
- <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
-Date: Wed, 27 Feb 2019 09:09:40 -0500
-In-Reply-To: <CAHk-=wggjLsi-1BmDHqWAJPzBvTD_-MQNo5qQ9WCuncnyWPROg@mail.gmail.com>
-References: <20190221222123.GC6474@magnolia>
-	 <alpine.LSU.2.11.1902222222570.1594@eggly.anvils>
-	 <CAHk-=wgO3MPjPpf_ARyW6zpwwPZtxXYQgMLbmj2bnbOLnR+6Cg@mail.gmail.com>
-	 <alpine.LSU.2.11.1902251214220.8973@eggly.anvils>
-	 <CAHk-=whP-9yPAWuJDwA6+rQ-9owuYZgmrMA9AqO3EGJVefe8vg@mail.gmail.com>
-	 <CAHk-=wiwAXaRXjHxasNMy5DHEMiui5XBTL3aO1i6Ja04qhY4gA@mail.gmail.com>
-	 <86649ee4-9794-77a3-502c-f4cd10019c36@lca.pw>
-	 <CAHk-=wggjLsi-1BmDHqWAJPzBvTD_-MQNo5qQ9WCuncnyWPROg@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Wed, 27 Feb 2019 06:34:57 -0800 (PST)
+Received-SPF: pass (google.com: domain of peng.fan@nxp.com designates 40.107.14.75 as permitted sender) client-ip=40.107.14.75;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@nxp.com header.s=selector1 header.b=XQ2F1o0t;
+       spf=pass (google.com: domain of peng.fan@nxp.com designates 40.107.14.75 as permitted sender) smtp.mailfrom=peng.fan@nxp.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nxp.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nxp.com; s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=ydPKA5bYPG4oJWewMmo9KXUQqkLI9/V32BgyLDEghQg=;
+ b=XQ2F1o0t/ldbkVL6p9C67OWuVdSsZ58a5cwp25mBexMrRriEr7BLSCIaY4d6IdImFrgTHqjxirh015qfpnnVjQ2hk+I2PMze3QupSNzEKTGMqWouBcohbJXj6uCOe/D3IsanNnOHpi9lezydZPHIipgOyz07/BQbRft0K/U0tNQ=
+Received: from AM0PR04MB4481.eurprd04.prod.outlook.com (52.135.147.15) by
+ AM0PR04MB4387.eurprd04.prod.outlook.com (52.135.148.161) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1643.15; Wed, 27 Feb 2019 14:34:55 +0000
+Received: from AM0PR04MB4481.eurprd04.prod.outlook.com
+ ([fe80::a51f:134d:b530:f185]) by AM0PR04MB4481.eurprd04.prod.outlook.com
+ ([fe80::a51f:134d:b530:f185%5]) with mapi id 15.20.1643.019; Wed, 27 Feb 2019
+ 14:34:55 +0000
+From: Peng Fan <peng.fan@nxp.com>
+To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+	"labbott@redhat.com" <labbott@redhat.com>, "iamjoonsoo.kim@lge.com"
+	<iamjoonsoo.kim@lge.com>, "mhocko@suse.com" <mhocko@suse.com>,
+	"vbabka@suse.cz" <vbabka@suse.cz>, "rppt@linux.vnet.ibm.com"
+	<rppt@linux.vnet.ibm.com>, "m.szyprowski@samsung.com"
+	<m.szyprowski@samsung.com>, "andreyknvl@google.com" <andreyknvl@google.com>,
+	"catalin.marinas@arm.com" <catalin.marinas@arm.com>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>, "van.freenix@gmail.com"
+	<van.freenix@gmail.com>, Peng Fan <peng.fan@nxp.com>
+Subject: [PATCH V2] mm/cma: cma_declare_contiguous: correct err handling
+Thread-Topic: [PATCH V2] mm/cma: cma_declare_contiguous: correct err handling
+Thread-Index: AQHUzqmb2gOP19YBOEqDLHalEnAZ9g==
+Date: Wed, 27 Feb 2019 14:34:55 +0000
+Message-ID: <20190227144631.16708-1-peng.fan@nxp.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-mailer: git-send-email 2.16.4
+x-clientproxiedby: HK0P153CA0037.APCP153.PROD.OUTLOOK.COM
+ (2603:1096:203:17::25) To AM0PR04MB4481.eurprd04.prod.outlook.com
+ (2603:10a6:208:70::15)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=peng.fan@nxp.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [119.31.174.71]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 8bc17a3f-4e3b-4dc1-e998-08d69cc0bdc4
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(4618075)(2017052603328)(7153060)(7193020);SRVR:AM0PR04MB4387;
+x-ms-traffictypediagnostic: AM0PR04MB4387:
+x-ms-exchange-purlcount: 1
+x-microsoft-exchange-diagnostics:
+ =?iso-8859-1?Q?1;AM0PR04MB4387;23:y6ljAC1GU2xbUvOeSDE1klbwV7PpK2frWB0TKaR?=
+ =?iso-8859-1?Q?7HaciBCqWYx4u27n9lSHkF0uOAtM8gOJLu0qCwXX7mNPWYa88W4yE/4WDq?=
+ =?iso-8859-1?Q?ZNEJV8QC7c11oDf2Pd6yt6mjcE/oh0AZeMHcI+RlJUOTuyFcjzrStK84ep?=
+ =?iso-8859-1?Q?u88mRb7dfF2eIa3AUZ9dqi0lFWHfJCK29LXD89m33PAsHZ64iFx6eEjLpS?=
+ =?iso-8859-1?Q?RfPxejujnlbQwq6b2tvhpnPkonU4sSdA1UF79/iTbamzauWAqPzIEt2Obv?=
+ =?iso-8859-1?Q?+H833xy5OsKqsV+BaVwZE1LX8wtjTp/1DyjpLuJI6vx7MB/J302c+v5Ng3?=
+ =?iso-8859-1?Q?ms9Gpzr+Wvqg7TcwcrnUXu1GzC+Ki+rBDEawnZGZJqBuDDPDJgULAnoBaT?=
+ =?iso-8859-1?Q?3FDq5tLfujniR8ApsjvbHc+c7JWY8sE/e4js5J7X28AXo7U+R8rCQocjf+?=
+ =?iso-8859-1?Q?3f9Ntfzmo/kAFOQ9OFdObMv8irm3PqKoOdIKx0u6aRtjiIOIfUJmCZdrqi?=
+ =?iso-8859-1?Q?HFfatlS6rHjk0968uk3ksdI//rRK9jcAc/TR2kq87YwwXh2/wxOgZXiFEo?=
+ =?iso-8859-1?Q?NHX9Y/Kbv27IW8qoUm9n9lFSXMaSvobGrlwKacTmdc25VfEFO3YILFQVbR?=
+ =?iso-8859-1?Q?EOJV/baQb8Qb4JvLYcioB+Onzd6oBB85tilpivI+2sQkkh32SbK/YDlrLJ?=
+ =?iso-8859-1?Q?WHW3OWWSfmcLt4kB+sSnQAlZXECDRC4ijEWRZY6lOMMxs7i6qOju3gRo7v?=
+ =?iso-8859-1?Q?Shn8gCHdR3bQpGuqv8itBjxFPZ+9cTALNRlP0Zz9p+nXV6jqbcluGzEXwf?=
+ =?iso-8859-1?Q?3VU+HuXgncv3mX/vRB9Jdspd/DMDuS4fE37+X9WTtVI98okpY1OAvfsOBX?=
+ =?iso-8859-1?Q?SLyZbecKcNafoLCvn2ZAZRcW2Kz7pJ+v+qEbXnTf7ZGFbqc9daulnbHS8+?=
+ =?iso-8859-1?Q?fX+0T+Cdl+ozz8XOIqNdA6fEGY3Ztek/bBSTypZoHGc35640wjEbyHXDtU?=
+ =?iso-8859-1?Q?4vU4/ysvTEaBKwHIe6omkVRXHTZ6QcSTRFG7sppWJlbzMh75ctMHNn6CY8?=
+ =?iso-8859-1?Q?9Rv+ry1V/43UgvvbFWiAzHK0dw5SmXF4+XwyIDB+7qBuFc7iY14L9d3jWt?=
+ =?iso-8859-1?Q?nDY51id8BaQRNKVu7ofpPw3O86nMRJs27uCwFmRco/5rh3Z/MIBt53hBlp?=
+ =?iso-8859-1?Q?Mz9SPAb4aZ5hIAWRVi/ARDo0gpR42hpbi4mVNiqm4EWyMRatB6Hmcc0znk?=
+ =?iso-8859-1?Q?P9gsDMuQZmaJXtHj6MC6n+6tfM4vg0dROxE5+9hkiZwy8GUS3zwnpuTEaL?=
+ =?iso-8859-1?Q?szDlU8DtUA+BRJ8AgchXWbMzdGMAFdzmkZ7y3RkvYIm8g=3D=3D?=
+x-microsoft-antispam-prvs:
+ <AM0PR04MB43873FC1EEFC654ABE903DD288740@AM0PR04MB4387.eurprd04.prod.outlook.com>
+x-forefront-prvs: 0961DF5286
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(346002)(366004)(39860400002)(376002)(136003)(396003)(199004)(189003)(256004)(97736004)(8936002)(7416002)(99286004)(52116002)(966005)(71190400001)(71200400001)(68736007)(486006)(26005)(14444005)(14454004)(478600001)(186003)(2616005)(476003)(2501003)(81166006)(8676002)(81156014)(7736002)(44832011)(36756003)(305945005)(106356001)(105586002)(5660300002)(1076003)(66066001)(53936002)(6306002)(2906002)(102836004)(6512007)(386003)(6506007)(6486002)(110136005)(316002)(54906003)(2201001)(6436002)(86362001)(4326008)(3846002)(25786009)(6116002)(50226002);DIR:OUT;SFP:1101;SCL:1;SRVR:AM0PR04MB4387;H:AM0PR04MB4481.eurprd04.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: nxp.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ 64NH0bMY1y0xSNMIiVr9w1CMjnecvCr+0IJWiZ82vQVUP7MBreS9MHZUK7wgXAJ/uFw8izpPixWqQlzYuiu+AKO11BYkrfEh+uQTrJgCFjnFYvEAjz86RKUxGEePDhqeFF5ARtmXVThVTicew1xHI7Rx4Anke9ItyT6aEiIjndA21q9FWmQVeZgwSZsvMvtQWaGSfyuYW74zp24Vr4pkvfC/UThdCUiqvFobMD/zt+yC7kD8WgfNjqtr+3+8AKMMy5iolZh9cGso3JhN8NK0BuWGl3sOGvrfRf1ls/F7BFeE6e1Z+1CrbTO4rGysqAOR8crB1hbrYxEVVG8SDzPXasBBpruURs9sscizT5VUhK9d8UKQItCmY6tWPb7EZLtDQqSTUjNoEjRPhYpXbPUnqd5HHoBqUcjTLXdltw2gv8U=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-OriginatorOrg: nxp.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 8bc17a3f-4e3b-4dc1-e998-08d69cc0bdc4
+X-MS-Exchange-CrossTenant-originalarrivaltime: 27 Feb 2019 14:34:50.8506
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-id: 686ea1d3-bc2b-4c6f-a92c-d99c5c301635
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: AM0PR04MB4387
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-02-25 at 16:07 -0800, Linus Torvalds wrote:
-> On Mon, Feb 25, 2019 at 4:03 PM Qian Cai <cai@lca.pw> wrote:
-> > > 
-> > > Of course, that's just gcc. I have no idea what llvm ends up doing.
-> > 
-> > Clang 7.0:
-> > 
-> > # clang  -O2 -S -Wall /tmp/test.c
-> > /tmp/test.c:46:6: warning: variable 'ret' is used uninitialized whenever
-> > 'if'
-> > condition is false [-Wsometimes-uninitialized]
-> 
-> Ok, good.
-> 
-> Do we have any clang builds in any of the zero-day robot
-> infrastructure or something? Should we?
-> 
-> And maybe this was how Dan noticed the problem in the first place? Or
-> is it just because of his eagle-eyes?
-> 
+In case cma_init_reserved_mem failed, need to free the memblock allocated
+by memblock_reserve or memblock_alloc_range.
 
-BTW, even clang is able to generate warnings in your sample code, it does not
-generate any warnings when compiling the buggy shmem.o via "make CC=clang". Here
-is the objdump for arm64 (with KASAN_SW_TAGS inline).
+Quote Catalin's comments:
+https://lkml.org/lkml/2019/2/26/482
+Kmemleak is supposed to work with the memblock_{alloc,free} pair and it
+ignores the memblock_reserve() as a memblock_alloc() implementation
+detail. It is, however, tolerant to memblock_free() being called on
+a sub-range or just a different range from a previous memblock_alloc().
+So the original patch looks fine to me. FWIW:
 
-000000000000effc <shmem_link>:
-{
-    effc:       f81c0ff7        str     x23, [sp, #-64]!
-    f000:       a90157f6        stp     x22, x21, [sp, #16]
-    f004:       a9024ff4        stp     x20, x19, [sp, #32]
-    f008:       a9037bfd        stp     x29, x30, [sp, #48]
-    f00c:       9100c3fd        add     x29, sp, #0x30
-    f010:       aa0203f3        mov     x19, x2
-    f014:       aa0103f5        mov     x21, x1
-    f018:       aa0003f4        mov     x20, x0
-    f01c:       94000000        bl      0 <_mcount>
-    f020:       91016280        add     x0, x20, #0x58
-    f024:       d2c20017        mov     x23, #0x100000000000            //
-#17592186044416
-    f028:       b2481c08        orr     x8, x0, #0xff00000000000000
-    f02c:       f2fdfff7        movk    x23, #0xefff, lsl #48
-    f030:       d344fd08        lsr     x8, x8, #4
-    f034:       38776909        ldrb    w9, [x8, x23]
-    f038:       940017d5        bl      14f8c <OUTLINED_FUNCTION_11>
-    f03c:       54000060        b.eq    f048 <shmem_link+0x4c>  // b.none
-    f040:       7103fd1f        cmp     w8, #0xff
-    f044:       54000981        b.ne    f174 <shmem_link+0x178>  // b.any
-    f048:       f9400014        ldr     x20, [x0]
-        if (inode->i_nlink) {
-    f04c:       91010280        add     x0, x20, #0x40
-    f050:       b2481c08        orr     x8, x0, #0xff00000000000000
-    f054:       d344fd08        lsr     x8, x8, #4
-    f058:       38776909        ldrb    w9, [x8, x23]
-    f05c:       940017cc        bl      14f8c <OUTLINED_FUNCTION_11>
-    f060:       54000060        b.eq    f06c <shmem_link+0x70>  // b.none
-    f064:       7103fd1f        cmp     w8, #0xff
-    f068:       540008a1        b.ne    f17c <shmem_link+0x180>  // b.any
-    f06c:       b9400008        ldr     w8, [x0]
-    f070:       34000148        cbz     w8, f098 <shmem_link+0x9c>
-    f074:       940018fd        bl      15468 <OUTLINED_FUNCTION_1124>
-                ret = shmem_reserve_inode(inode->i_sb);
-    f078:       38776909        ldrb    w9, [x8, x23]
-    f07c:       940017c4        bl      14f8c <OUTLINED_FUNCTION_11>
-    f080:       54000060        b.eq    f08c <shmem_link+0x90>  // b.none
-    f084:       7103fd1f        cmp     w8, #0xff
-    f088:       540007e1        b.ne    f184 <shmem_link+0x188>  // b.any
-    f08c:       f9400000        ldr     x0, [x0]
-    f090:       97fffcf6        bl      e468 <shmem_reserve_inode>
-                if (ret)
-    f094:       35000660        cbnz    w0, f160 <shmem_link+0x164>
-        dir->i_size += BOGO_DIRENT_SIZE;
-    f098:       910122a0        add     x0, x21, #0x48
-    f09c:       b2481c08        orr     x8, x0, #0xff00000000000000
-    f0a0:       d344fd09        lsr     x9, x8, #4
-    f0a4:       3877692a        ldrb    w10, [x9, x23]
-    f0a8:       94001828        bl      15148 <OUTLINED_FUNCTION_193>
-    f0ac:       54000060        b.eq    f0b8 <shmem_link+0xbc>  // b.none
-    f0b0:       7103fd1f        cmp     w8, #0xff
-    f0b4:       540006c1        b.ne    f18c <shmem_link+0x190>  // b.any
-    f0b8:       38776929        ldrb    w9, [x9, x23]
-    f0bc:       94001a4a        bl      159e4 <OUTLINED_FUNCTION_1131>
-    f0c0:       54000060        b.eq    f0cc <shmem_link+0xd0>  // b.none
-    f0c4:       7103fd1f        cmp     w8, #0xff
-    f0c8:       54000661        b.ne    f194 <shmem_link+0x198>  // b.any
-    f0cc:       f9000009        str     x9, [x0]
-        inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
-    f0d0:       aa1403e0        mov     x0, x20
-    f0d4:       910182b6        add     x22, x21, #0x60
-    f0d8:       94000000        bl      0 <current_time>
-    f0dc:       b2481ec9        orr     x9, x22, #0xff00000000000000
-    f0e0:       d344fd29        lsr     x9, x9, #4
+Signed-off-by: Peng Fan <peng.fan@nxp.com>
+Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+---
+
+V2:
+ Per Mike's comments, add more information in commit log
+ Add R-B
+
+ mm/cma.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mm/cma.c b/mm/cma.c
+index c7b39dd3b4f6..f4f3a8a57d86 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -353,12 +353,14 @@ int __init cma_declare_contiguous(phys_addr_t base,
+=20
+ 	ret =3D cma_init_reserved_mem(base, size, order_per_bit, name, res_cma);
+ 	if (ret)
+-		goto err;
++		goto free_mem;
+=20
+ 	pr_info("Reserved %ld MiB at %pa\n", (unsigned long)size / SZ_1M,
+ 		&base);
+ 	return 0;
+=20
++free_mem:
++	memblock_free(base, size);
+ err:
+ 	pr_err("Failed to reserve %ld MiB\n", (unsigned long)size / SZ_1M);
+ 	return ret;
+--=20
+2.16.4
 
