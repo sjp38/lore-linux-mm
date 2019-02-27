@@ -4,74 +4,74 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC745C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 845F7C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 965E82133D
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 965E82133D
+	by mail.kernel.org (Postfix) with ESMTP id 35EBD2133D
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35EBD2133D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DFF758E0009; Wed, 27 Feb 2019 17:50:34 -0500 (EST)
+	id 1F1308E000A; Wed, 27 Feb 2019 17:50:36 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DB1538E0004; Wed, 27 Feb 2019 17:50:34 -0500 (EST)
+	id 1A6248E0004; Wed, 27 Feb 2019 17:50:36 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B17308E000A; Wed, 27 Feb 2019 17:50:34 -0500 (EST)
+	id E78978E000A; Wed, 27 Feb 2019 17:50:35 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 68F058E0009
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 17:50:34 -0500 (EST)
-Received: by mail-pl1-f199.google.com with SMTP id e2so13495544pln.12
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 14:50:34 -0800 (PST)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A1CAA8E0004
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 17:50:35 -0500 (EST)
+Received: by mail-pf1-f199.google.com with SMTP id y66so14373150pfg.16
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 14:50:35 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=hz9w91aIPkE0E9ap/WrfhsBJuY4OqRXIHLZmUsGEF7E=;
-        b=PcN9qE5vEepQ9v+trqH18OnJqrFJscwMRcXZz05gee7eiydh4jCF9fXCtqa5WD8Xfq
-         Npev6HY7WCAXo37C2qQiaZwre0VL1APwNB9ODrb85twX3tZbMKOeVNEXpwhMU6+avEXl
-         CNK4F0mOD2Nm+elVYlXLXpTnTdBfK/k5z92HNfYppXIkM7uGpLJoFWjxnTxWXbm8caRl
-         XVlvsdga1m6m/orRsJ7RxKVo+0Iqca2QGsM+xVJ8ODw5xaHmKT+NxUjjLPCWI6RNRkvg
-         aKz9eeGMHCntp7t/WRtJn8+4Hl8N7AtQe3rmEbphVwGk5YgnS80Atl8NNzWEPIxS7H35
-         uNxQ==
+        bh=17OD5DxVPEfXl7F6sLMWaqS7bcMAwEh9QfsaU/GPtRQ=;
+        b=oFt3jiP+kEUDHGFd2a0OSgSo18D6LpCexUReXBgorNPl0Wu+PuEP502K36LdqL0dhP
+         p9471hi6hy8UhZqrcJnF3VMjwVdF5jPWi8xHWyLTk1LmBNBsofLrUYYIleZgpxU8rXG7
+         4KzeGVK2M97JKYWs6p2UKZGDyDgkOmV6i3uDkII+I4l3+UjpFkyxJeiGAAfbqUoPJTfG
+         zWJWp9Ib6qzcTbws4NEPzkVVYAC+vWO4cDN/+wAzujPl/MILYgMg9agMWrPYAHu2vza3
+         u9ZjKWSg8QiNJfcZEgKGHszsyMSbzGlNVD9cqWj6H6YzBZKqtETaZ5pujsjikvZ/RYc5
+         D3cA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuaevupagATBmGpuBRKhaNAq33NoP10FGS30yzVEGk8+MFiqJQLz
-	FjXjKvPXakLyaR3CWDvv5wYsijOX0gitviClBh7s641yNRvwbOUQD4Exk1XXfEXPIX7RuCk+oax
-	KdTvTEDWoVWner4oXClyOUpx2ybK4PJ5pKL2awzjGD2R1pKKBQQHnk+8xR5t+CefD0w==
-X-Received: by 2002:a17:902:2f03:: with SMTP id s3mr4527383plb.277.1551307834085;
-        Wed, 27 Feb 2019 14:50:34 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbCM16F/rQ6lUaObpr/c0Bffjynq6sg+tmIEGTvcyDTzfPjLfwy5JwsfgVei3FZM8PCElLN
-X-Received: by 2002:a17:902:2f03:: with SMTP id s3mr4527292plb.277.1551307832877;
-        Wed, 27 Feb 2019 14:50:32 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551307832; cv=none;
+X-Gm-Message-State: AHQUAubOis1qybYBXneS3u3HEZCGzIra0DADs99EYELXAj6kap95BXLK
+	iGhveOXyrykWuioSllLjfvLHCoEnFGvJE7y9QZe/IMi7CJe+j8L4FX6LOoYu3QJOHnS5HlD2WH3
+	pekQiXqD/RC/zVfkDoUvmRP20wDVV5GA+Cfj0MsZyKRvhMwR0b/wlXPHl0krObKJvzQ==
+X-Received: by 2002:a63:545:: with SMTP id 66mr5283391pgf.102.1551307835260;
+        Wed, 27 Feb 2019 14:50:35 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaBDbAQnDO5ifrw5Hqr7aQtf9/XmlDog9kY4Lr/Ec4JecZaSzCFuVKs4KXiCmrFXGIKLE/4
+X-Received: by 2002:a63:545:: with SMTP id 66mr5283271pgf.102.1551307833600;
+        Wed, 27 Feb 2019 14:50:33 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551307833; cv=none;
         d=google.com; s=arc-20160816;
-        b=izm8/+qBlX9Q5uvM3mpZlTwg1NG+Wi7EKb9QOyWYQmDAocBVGV1bHDn3CZVuvwttkd
-         yOqHA9dkFGTYIrMcfrHIRAsdJZF2fUacbMMybYpFI0s/fgvAKBFU2FaC2sM/rudbrTlb
-         KHxDYb7ZDW0GNDIrS541ct17aNDzdSlsycvXLH6j3jU3HrvqCbVb8gVyFiq9JUrwQeCt
-         WhIseE6JOQMLP1allo0Z418sTsctlSab9aAXD0gZfuevI7UdsULQM3huF8e80qjYpmgy
-         WexxfbLJTeBvoKKB5dbH7w0Cox8GqH22CFBYKWc/AtFYAUjUMnfN1Rmi2DcyotLo5aSE
-         Yd5A==
+        b=0dgBH7fk2jclGa2LuSI006gZOqVfWVu4G7RMA78v3FRav/YR0Uwnw6XXJREyt0npri
+         8p+qWiu1CbEvjGFJcYDPF3NZHKcIeUIHhU++qfruYU1uJfXI1UcMzLVqcYLbIzN/n4YW
+         1yoOCbNT6HdbZm5DJS5KsU6PBUCEkfVJSKzK5djPFGlyP3o6tXaXXcoqUlKhpsN3VDkF
+         9O21JILKTU/LFiPB8EVJ8IHllKluapyxRb4YdTdmSVwP4CSE4X98B7ApLtdiI+T1RddJ
+         Ngb6t6MWI9pf8yKgFYMxcZXKawPLThHiA7PUpRMKIBTo8IqIH7mClp2Vx4/NnYqI4sqf
+         3Q/A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=hz9w91aIPkE0E9ap/WrfhsBJuY4OqRXIHLZmUsGEF7E=;
-        b=k+X1OFIhw078wO0jfCwYvLNGdGF3dbtGDN3EET7trBdlc7h76dWJcX3SK1MdAig0KD
-         0LhvDvSX8Dslo0bN4Byojrmdwm/w1wS6iqagbVZpq4PEaKDr+UQFc9K6ZR9v/Q+AW9O2
-         MHB8P8iJqK1L2qmYR7JJkZPuV8v4E8zmNG7ofR4MEEgWBRAnYDc1/+smVl601Od+wUbc
-         ZPCMxZPCPbTFBdXM7Q+QXhwZFMNJ294hTdH7l5rPE7xjgxqpB89CgKjNXJte86ZcfynU
-         FAOj+gDzUpJRwsTutkIYELXi56P9xZsqx0k/8alr3a9mxU+djopL00U51JgMbJkm4yMk
-         IGfQ==
+        bh=17OD5DxVPEfXl7F6sLMWaqS7bcMAwEh9QfsaU/GPtRQ=;
+        b=WrdVtr/ZoSBy3fIER2m/PuKuYU9eaVfFGLGWSFqD6E3KR9aaGFDgthzalgs7UESdFb
+         JjG4dt12u85YBwROdW6C1GqSqiPmCeqDHpQmqTjLOp5xEIGY35Iq7abv9wnxbVebuobz
+         Wye3V7hz3xRdGL3Q0CAL0BRXWVNSq0YfbwbZQQan7QxQ7Nt/DxdAqUzfl0N3e3mk1EYG
+         jhZWRng/BPcqEgioe/GNW9MDSi6Ipsf9DRWZjTjhVwLr30SHTfrbQyStCUG4emPU/t1B
+         E/hS0i3XYi2wVzTwFsN3kCpKPeWNsNE3XUWeVy+3qo/8HA2k1hOUlMNn/fv1Zy4Nw2/M
+         mH8g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id z20si10836901pgf.324.2019.02.27.14.50.32
+        by mx.google.com with ESMTPS id z20si10836901pgf.324.2019.02.27.14.50.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Feb 2019 14:50:32 -0800 (PST)
+        Wed, 27 Feb 2019 14:50:33 -0800 (PST)
 Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
@@ -79,12 +79,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 Feb 2019 14:50:32 -0800
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 Feb 2019 14:50:33 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,420,1544515200"; 
-   d="scan'208";a="121349410"
+   d="scan'208";a="121349415"
 Received: from unknown (HELO localhost.lm.intel.com) ([10.232.112.69])
-  by orsmga008.jf.intel.com with ESMTP; 27 Feb 2019 14:50:31 -0800
+  by orsmga008.jf.intel.com with ESMTP; 27 Feb 2019 14:50:32 -0800
 From: Keith Busch <keith.busch@intel.com>
 To: linux-kernel@vger.kernel.org,
 	linux-acpi@vger.kernel.org,
@@ -95,9 +95,9 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
 	Dave Hansen <dave.hansen@intel.com>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv7 05/10] node: Add heterogenous memory access attributes
-Date: Wed, 27 Feb 2019 15:50:33 -0700
-Message-Id: <20190227225038.20438-6-keith.busch@intel.com>
+Subject: [PATCHv7 06/10] node: Add memory-side caching attributes
+Date: Wed, 27 Feb 2019 15:50:34 -0700
+Message-Id: <20190227225038.20438-7-keith.busch@intel.com>
 X-Mailer: git-send-email 2.13.6
 In-Reply-To: <20190227225038.20438-1-keith.busch@intel.com>
 References: <20190227225038.20438-1-keith.busch@intel.com>
@@ -107,214 +107,310 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Heterogeneous memory systems provide memory nodes with different latency
-and bandwidth performance attributes. Provide a new kernel interface
-for subsystems to register the attributes under the memory target
-node's initiator access class. If the system provides this information,
-applications may query these attributes when deciding which node to
-request memory.
+System memory may have caches to help improve access speed to frequently
+requested address ranges. While the system provided cache is transparent
+to the software accessing these memory ranges, applications can optimize
+their own access based on cache attributes.
 
-The following example shows the new sysfs hierarchy for a node exporting
-performance attributes:
+Provide a new API for the kernel to register these memory-side caches
+under the memory node that provides it.
 
-  # tree -P "read*|write*"/sys/devices/system/node/nodeY/accessZ/initiators/
-  /sys/devices/system/node/nodeY/accessZ/initiators/
-  |-- read_bandwidth
-  |-- read_latency
-  |-- write_bandwidth
-  `-- write_latency
+The new sysfs representation is modeled from the existing cpu cacheinfo
+attributes, as seen from /sys/devices/system/cpu/<cpu>/cache/.  Unlike CPU
+cacheinfo though, the node cache level is reported from the view of the
+memory. A higher level number is nearer to the CPU, while lower levels
+are closer to the last level memory.
 
-The bandwidth is exported as MB/s and latency is reported in
-nanoseconds. The values are taken from the platform as reported by the
-manufacturer.
-
-Memory accesses from an initiator node that is not one of the memory's
-access "Z" initiator nodes linked in the same directory may observe
-different performance than reported here. When a subsystem makes use
-of this interface, initiators of a different access number may not have
-the same performance relative to initiators in other access numbers, or
-omitted from the any access class' initiators.
-
-Descriptions for memory access initiator performance access attributes
-are added to sysfs stable documentation.
+The exported attributes are the cache size, the line size, associativity
+indexing, and write back policy, and add the attributes for the system
+memory caches to sysfs stable documentation.
 
 Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- Documentation/ABI/stable/sysfs-devices-node | 28 ++++++++++++++
- drivers/base/Kconfig                        |  8 ++++
- drivers/base/node.c                         | 59 +++++++++++++++++++++++++++++
- include/linux/node.h                        | 26 +++++++++++++
- 4 files changed, 121 insertions(+)
+ Documentation/ABI/stable/sysfs-devices-node |  34 +++++++
+ drivers/base/node.c                         | 151 ++++++++++++++++++++++++++++
+ include/linux/node.h                        |  39 +++++++
+ 3 files changed, 224 insertions(+)
 
 diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
-index fb843222a281..41cb9345e1e0 100644
+index 41cb9345e1e0..970fef47e6cd 100644
 --- a/Documentation/ABI/stable/sysfs-devices-node
 +++ b/Documentation/ABI/stable/sysfs-devices-node
-@@ -114,3 +114,31 @@ Contact:	Keith Busch <keith.busch@intel.com>
+@@ -142,3 +142,37 @@ Contact:	Keith Busch <keith.busch@intel.com>
  Description:
- 		The directory containing symlinks to memory targets that
- 		this initiator node has class "Y" access.
+ 		This node's write latency in nanoseconds when access
+ 		from nodes found in this class's linked initiators.
 +
-+What:		/sys/devices/system/node/nodeX/accessY/initiators/read_bandwidth
++What:		/sys/devices/system/node/nodeX/memory_side_cache/indexY/
 +Date:		December 2018
 +Contact:	Keith Busch <keith.busch@intel.com>
 +Description:
-+		This node's read bandwidth in MB/s when accessed from
-+		nodes found in this access class's linked initiators.
++		The directory containing attributes for the memory-side cache
++		level 'Y'.
 +
-+What:		/sys/devices/system/node/nodeX/accessY/initiators/read_latency
++What:		/sys/devices/system/node/nodeX/memory_side_cache/indexY/indexing
 +Date:		December 2018
 +Contact:	Keith Busch <keith.busch@intel.com>
 +Description:
-+		This node's read latency in nanoseconds when accessed
-+		from nodes found in this access class's linked initiators.
++		The caches associativity indexing: 0 for direct mapped,
++		non-zero if indexed.
 +
-+What:		/sys/devices/system/node/nodeX/accessY/initiators/write_bandwidth
++What:		/sys/devices/system/node/nodeX/memory_side_cache/indexY/line_size
 +Date:		December 2018
 +Contact:	Keith Busch <keith.busch@intel.com>
 +Description:
-+		This node's write bandwidth in MB/s when accessed from
-+		found in this access class's linked initiators.
++		The number of bytes accessed from the next cache level on a
++		cache miss.
 +
-+What:		/sys/devices/system/node/nodeX/accessY/initiators/write_latency
++What:		/sys/devices/system/node/nodeX/memory_side_cache/indexY/size
 +Date:		December 2018
 +Contact:	Keith Busch <keith.busch@intel.com>
 +Description:
-+		This node's write latency in nanoseconds when access
-+		from nodes found in this class's linked initiators.
-diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
-index 059700ea3521..a7438a58c250 100644
---- a/drivers/base/Kconfig
-+++ b/drivers/base/Kconfig
-@@ -149,6 +149,14 @@ config DEBUG_TEST_DRIVER_REMOVE
- 	  unusable. You should say N here unless you are explicitly looking to
- 	  test this functionality.
- 
-+config HMEM_REPORTING
-+	bool
-+	default n
-+	depends on NUMA
-+	help
-+	  Enable reporting for heterogenous memory access attributes under
-+	  their non-uniform memory nodes.
++		The size of this memory side cache in bytes.
 +
- source "drivers/base/test/Kconfig"
- 
- config SYS_HYPERVISOR
++What:		/sys/devices/system/node/nodeX/memory_side_cache/indexY/write_policy
++Date:		December 2018
++Contact:	Keith Busch <keith.busch@intel.com>
++Description:
++		The cache write policy: 0 for write-back, 1 for write-through,
++		other or unknown.
 diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 6f4097680580..2de546a040a5 100644
+index 2de546a040a5..8598fcbd2a17 100644
 --- a/drivers/base/node.c
 +++ b/drivers/base/node.c
-@@ -71,6 +71,9 @@ struct node_access_nodes {
- 	struct device		dev;
- 	struct list_head	list_node;
- 	unsigned		access;
-+#ifdef CONFIG_HMEM_REPORTING
-+	struct node_hmem_attrs	hmem_attrs;
-+#endif
- };
- #define to_access_nodes(dev) container_of(dev, struct node_access_nodes, dev)
- 
-@@ -148,6 +151,62 @@ static struct node_access_nodes *node_init_node_access(struct node *node,
- 	return NULL;
+@@ -205,6 +205,155 @@ void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+ 		}
+ 	}
  }
- 
-+#ifdef CONFIG_HMEM_REPORTING
-+#define ACCESS_ATTR(name) 						   \
-+static ssize_t name##_show(struct device *dev,				   \
-+			   struct device_attribute *attr,		   \
-+			   char *buf)					   \
-+{									   \
-+	return sprintf(buf, "%u\n", to_access_nodes(dev)->hmem_attrs.name); \
-+}									   \
-+static DEVICE_ATTR_RO(name);
-+
-+ACCESS_ATTR(read_bandwidth)
-+ACCESS_ATTR(read_latency)
-+ACCESS_ATTR(write_bandwidth)
-+ACCESS_ATTR(write_latency)
-+
-+static struct attribute *access_attrs[] = {
-+	&dev_attr_read_bandwidth.attr,
-+	&dev_attr_read_latency.attr,
-+	&dev_attr_write_bandwidth.attr,
-+	&dev_attr_write_latency.attr,
-+	NULL,
-+};
 +
 +/**
-+ * node_set_perf_attrs - Set the performance values for given access class
-+ * @nid: Node identifier to be set
-+ * @hmem_attrs: Heterogeneous memory performance attributes
-+ * @access: The access class the for the given attributes
++ * struct node_cache_info - Internal tracking for memory node caches
++ * @dev:	Device represeting the cache level
++ * @node:	List element for tracking in the node
++ * @cache_attrs:Attributes for this cache level
 + */
-+void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
-+			 unsigned access)
-+{
-+	struct node_access_nodes *c;
-+	struct node *node;
-+	int i;
++struct node_cache_info {
++	struct device dev;
++	struct list_head node;
++	struct node_cache_attrs cache_attrs;
++};
++#define to_cache_info(device) container_of(device, struct node_cache_info, dev)
 +
-+	if (WARN_ON_ONCE(!node_online(nid)))
++#define CACHE_ATTR(name, fmt) 						\
++static ssize_t name##_show(struct device *dev,				\
++			   struct device_attribute *attr,		\
++			   char *buf)					\
++{									\
++	return sprintf(buf, fmt "\n", to_cache_info(dev)->cache_attrs.name);\
++}									\
++DEVICE_ATTR_RO(name);
++
++CACHE_ATTR(size, "%llu")
++CACHE_ATTR(line_size, "%u")
++CACHE_ATTR(indexing, "%u")
++CACHE_ATTR(write_policy, "%u")
++
++static struct attribute *cache_attrs[] = {
++	&dev_attr_indexing.attr,
++	&dev_attr_size.attr,
++	&dev_attr_line_size.attr,
++	&dev_attr_write_policy.attr,
++	NULL,
++};
++ATTRIBUTE_GROUPS(cache);
++
++static void node_cache_release(struct device *dev)
++{
++	kfree(dev);
++}
++
++static void node_cacheinfo_release(struct device *dev)
++{
++	struct node_cache_info *info = to_cache_info(dev);
++	kfree(info);
++}
++
++static void node_init_cache_dev(struct node *node)
++{
++	struct device *dev;
++
++	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
++	if (!dev)
++		return;
++
++	dev->parent = &node->dev;
++	dev->release = node_cache_release;
++	if (dev_set_name(dev, "memory_side_cache"))
++		goto free_dev;
++
++	if (device_register(dev))
++		goto free_name;
++
++	pm_runtime_no_callbacks(dev);
++	node->cache_dev = dev;
++	return;
++free_name:
++	kfree_const(dev->kobj.name);
++free_dev:
++	kfree(dev);
++}
++
++/**
++ * node_add_cache() - add cache attribute to a memory node
++ * @nid: Node identifier that has new cache attributes
++ * @cache_attrs: Attributes for the cache being added
++ */
++void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs)
++{
++	struct node_cache_info *info;
++	struct device *dev;
++	struct node *node;
++
++	if (!node_online(nid) || !node_devices[nid])
 +		return;
 +
 +	node = node_devices[nid];
-+	c = node_init_node_access(node, access);
-+	if (!c)
-+		return;
-+
-+	c->hmem_attrs = *hmem_attrs;
-+	for (i = 0; access_attrs[i] != NULL; i++) {
-+		if (sysfs_add_file_to_group(&c->dev.kobj, access_attrs[i],
-+					    "initiators")) {
-+			pr_info("failed to add performance attribute to node %d\n",
-+				nid);
-+			break;
++	list_for_each_entry(info, &node->cache_attrs, node) {
++		if (info->cache_attrs.level == cache_attrs->level) {
++			dev_warn(&node->dev,
++				"attempt to add duplicate cache level:%d\n",
++				cache_attrs->level);
++			return;
 +		}
 +	}
-+}
-+#endif
 +
++	if (!node->cache_dev)
++		node_init_cache_dev(node);
++	if (!node->cache_dev)
++		return;
++
++	info = kzalloc(sizeof(*info), GFP_KERNEL);
++	if (!info)
++		return;
++
++	dev = &info->dev;
++	dev->parent = node->cache_dev;
++	dev->release = node_cacheinfo_release;
++	dev->groups = cache_groups;
++	if (dev_set_name(dev, "index%d", cache_attrs->level))
++		goto free_cache;
++
++	info->cache_attrs = *cache_attrs;
++	if (device_register(dev)) {
++		dev_warn(&node->dev, "failed to add cache level:%d\n",
++			 cache_attrs->level);
++		goto free_name;
++	}
++	pm_runtime_no_callbacks(dev);
++	list_add_tail(&info->node, &node->cache_attrs);
++	return;
++free_name:
++	kfree_const(dev->kobj.name);
++free_cache:
++	kfree(info);
++}
++
++static void node_remove_caches(struct node *node)
++{
++	struct node_cache_info *info, *next;
++
++	if (!node->cache_dev)
++		return;
++
++	list_for_each_entry_safe(info, next, &node->cache_attrs, node) {
++		list_del(&info->node);
++		device_unregister(&info->dev);
++	}
++	device_unregister(node->cache_dev);
++}
++
++static void node_init_caches(unsigned int nid)
++{
++	INIT_LIST_HEAD(&node_devices[nid]->cache_attrs);
++}
++#else
++static void node_init_caches(unsigned int nid) { }
++static void node_remove_caches(struct node *node) { }
+ #endif
+ 
  #define K(x) ((x) << (PAGE_SHIFT - 10))
- static ssize_t node_read_meminfo(struct device *dev,
- 			struct device_attribute *attr, char *buf)
+@@ -489,6 +638,7 @@ void unregister_node(struct node *node)
+ {
+ 	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
+ 	node_remove_accesses(node);
++	node_remove_caches(node);
+ 	device_unregister(&node->dev);
+ }
+ 
+@@ -781,6 +931,7 @@ int __register_one_node(int nid)
+ 	INIT_LIST_HEAD(&node_devices[nid]->access_list);
+ 	/* initialize work queue for memory hot plug */
+ 	init_node_hugetlb_work(nid);
++	node_init_caches(nid);
+ 
+ 	return error;
+ }
 diff --git a/include/linux/node.h b/include/linux/node.h
-index f34688a203c1..45e14e1e0c18 100644
+index 45e14e1e0c18..8fa350e01acc 100644
 --- a/include/linux/node.h
 +++ b/include/linux/node.h
-@@ -20,6 +20,32 @@
- #include <linux/list.h>
- #include <linux/workqueue.h>
+@@ -35,10 +35,45 @@ struct node_hmem_attrs {
+ 	unsigned int write_latency;
+ };
  
-+/**
-+ * struct node_hmem_attrs - heterogeneous memory performance attributes
-+ *
-+ * @read_bandwidth:	Read bandwidth in MB/s
-+ * @write_bandwidth:	Write bandwidth in MB/s
-+ * @read_latency:	Read latency in nanoseconds
-+ * @write_latency:	Write latency in nanoseconds
-+ */
-+struct node_hmem_attrs {
-+	unsigned int read_bandwidth;
-+	unsigned int write_bandwidth;
-+	unsigned int read_latency;
-+	unsigned int write_latency;
++enum cache_indexing {
++	NODE_CACHE_DIRECT_MAP,
++	NODE_CACHE_INDEXED,
++	NODE_CACHE_OTHER,
 +};
 +
-+#ifdef CONFIG_HMEM_REPORTING
-+void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
-+			 unsigned access);
-+#else
-+static inline void node_set_perf_attrs(unsigned int nid,
-+				       struct node_hmem_attrs *hmem_attrs,
-+				       unsigned access)
-+{
-+}
-+#endif
++enum cache_write_policy {
++	NODE_CACHE_WRITE_BACK,
++	NODE_CACHE_WRITE_THROUGH,
++	NODE_CACHE_WRITE_OTHER,
++};
 +
- struct node {
- 	struct device	dev;
- 	struct list_head access_list;
++/**
++ * struct node_cache_attrs - system memory caching attributes
++ *
++ * @indexing:		The ways memory blocks may be placed in cache
++ * @write_policy:	Write back or write through policy
++ * @size:		Total size of cache in bytes
++ * @line_size:		Number of bytes fetched on a cache miss
++ * @level:		The cache hierarchy level
++ */
++struct node_cache_attrs {
++	enum cache_indexing indexing;
++	enum cache_write_policy write_policy;
++	u64 size;
++	u16 line_size;
++	u8 level;
++};
++
+ #ifdef CONFIG_HMEM_REPORTING
++void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs);
+ void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+ 			 unsigned access);
+ #else
++static inline void node_add_cache(unsigned int nid,
++				  struct node_cache_attrs *cache_attrs)
++{
++} 
++
+ static inline void node_set_perf_attrs(unsigned int nid,
+ 				       struct node_hmem_attrs *hmem_attrs,
+ 				       unsigned access)
+@@ -52,6 +87,10 @@ struct node {
+ #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
+ 	struct work_struct	node_work;
+ #endif
++#ifdef CONFIG_HMEM_REPORTING
++	struct list_head cache_attrs;
++	struct device *cache_dev;
++#endif
+ };
+ 
+ struct memory_block;
 -- 
 2.14.4
 
