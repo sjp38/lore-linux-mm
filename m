@@ -5,153 +5,162 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B72EFC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 08:58:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 148E9C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 09:18:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 76296218CD
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 08:58:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 76296218CD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id C906E20842
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 09:18:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C906E20842
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F36658E0003; Wed, 27 Feb 2019 03:58:57 -0500 (EST)
+	id 64F538E0003; Wed, 27 Feb 2019 04:18:51 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EE6878E0001; Wed, 27 Feb 2019 03:58:57 -0500 (EST)
+	id 5FFC58E0001; Wed, 27 Feb 2019 04:18:51 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DD6268E0003; Wed, 27 Feb 2019 03:58:57 -0500 (EST)
+	id 5177E8E0003; Wed, 27 Feb 2019 04:18:51 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C0738E0001
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 03:58:57 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id e2so11962162pln.12
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 00:58:57 -0800 (PST)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DC74A8E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 04:18:50 -0500 (EST)
+Received: by mail-lj1-f200.google.com with SMTP id c7so2654342ljj.12
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 01:18:50 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=3MZmgpOH+L4okeA38O1B/4//YTw6phDT03bc+man3Lw=;
-        b=Ncx0b05RbuBQybRSEW0A5eEIC018y45ojOn9PKH5UJSxmAICYaqBOtDKdVpIppqenS
-         Py+4n7/phM8C5zZDkBUUuyhcDLj4avLOMrFQQomVOw5ubLuBYOu6ZAM+Kgs4UvWMftkP
-         +V2FZL01MPQAqqDkgbfN2R6JN9epYkMozhVmcwyDZrGQ7kftkdmRMoheZGipEO9/9K/Z
-         XwqP3qqYKVhj4502X35kTlOWFoG72mHUb2PtEh97kEZ0Ic5lz/Z1POskcEM4cn4XGwsE
-         gxgYt4EqJYt0m8aaPrtBKPnzTvauHW8hS9h9i+mtf50Bl653pxgN3qmfbFoPPu99XawQ
-         2U5A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAuZE2Cf4C58Y8VTg/CFQFqVDrTCcfFHkfMh/6G6Im0fD30r8mn1o
-	mghqt5SpvpA2ZQoe4GUZyV6kev8JLyiCE/O4pVCd9AfECdBRKKZG1uLpAG27o6bKA7gwYFjmgHm
-	njRgM2eLExeVT3ywt5F1lzOyHI+TBrrK6y4ActxkJoDxd0SHbNqOapn06Wk6kzn/o1w==
-X-Received: by 2002:a17:902:e90b:: with SMTP id cs11mr988543plb.197.1551257937225;
-        Wed, 27 Feb 2019 00:58:57 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYoIIdWF/GEhEjpA4QA7PeAcn8Hm3akUZX/kFEFy33ikECobRkd254u2rGN3ko+LUL5S42W
-X-Received: by 2002:a17:902:e90b:: with SMTP id cs11mr988497plb.197.1551257936249;
-        Wed, 27 Feb 2019 00:58:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551257936; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=pOYadiltrD0/YWqxSUuRjc8ojv+rDm60na8tpklIEJU=;
+        b=MS7hvqnegvcqiqVSKhT0U8WrFH6wiBdcJXfWex+xpKY68O+v3JyB51ZIZHKNaE2uzp
+         k5TXipfFW3PH4mhKBcqcnKjQZ8kx9c+WoK7qEj6v0cTN+1Uywp0hhIvkE3vesGvykQ5W
+         Hqt6uArEPn7Jzv7O738nuyTFWCX08gWTAy6mKy+dte5VPpr22bWnpQY0x8aONLzh5hbB
+         Vpo1hqqKxn9LIbRVNgvN8ebroe25OKVOnMf374XHUWTsg361mP8aszN2D7p6LrSOmeQm
+         /NH4SBgBcieobp6WqGa1iHtD9pOnWonCdrD0fcU8nlHZlcM9y9Bn6LhA/r6WdRqE2NtS
+         irEQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: AHQUAuZG/b65BrEfRDPzCHUJ/2U95cEZToxHyVub/v3JLH1idCZtW00l
+	AxoEcL0XTChilHNI+KnfoUQgd3jIvM+CrFqNpGYLSSMDfiNu/wK5FRqBIYGlgnNUZx4f3Yt+ZU2
+	NXC7NOf8aMu7YETFL3BB8vmRXl2tqwo7dKP+GnKDOAqDQcbSnJbh43x40B53XZvG25Q==
+X-Received: by 2002:a19:4848:: with SMTP id v69mr226012lfa.35.1551259130066;
+        Wed, 27 Feb 2019 01:18:50 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IZ6x4dG7JrzbaNGb2ovucd3j9CKxYVX7KaJFsuUQvYHNcHG8ZrnyAenGy5MwW2pY0X5Pqqn
+X-Received: by 2002:a19:4848:: with SMTP id v69mr225961lfa.35.1551259128977;
+        Wed, 27 Feb 2019 01:18:48 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551259128; cv=none;
         d=google.com; s=arc-20160816;
-        b=YVw2BLaCYev+NXV+5W+jodXiui8wbSsrPK7LonZgIYeHY9kG/hGnCZKq2XAXpUj3qV
-         aScfh0UwdcsQNyaPurcc9LzDBrTrkwvu9w3001ACSk3SJGAUgFoMBWcWpqCnO1vc2ewA
-         zB6NNm3iE89Ir2XZfXqpmFWrRqjhvlB4h8yFvwv6h1RT3znCIHGQyy0RMsIgDr09AQ9I
-         1wfXL35kUV1Jdfcu4yU8zhckl8Uh/iT7aiUzYZrqSoHmX7V3gUCKkZKobavEALNwVJ0o
-         KGKxHj8rPzJu4Yil1coaQ3BgkY6tRmkFnIxZjHhrlNPjvNHubhSbmbY7UpVZeb6/nrHN
-         CqOQ==
+        b=YBbJKmVZG8k27i98dCq4nsgVf/8Xxcaj7IS6p+4gb4WixpO9797L/DKfnLmp6Qqk4c
+         Euf0quA007dBEg/y7Fd26jyvUTpeAnDhsmKzYMuNFDIDn4uF8TvGl3VTyTd+Clm/MKUK
+         T9EO75Y+LlL/ZTOmRjBPlCke5DTPcri3AI6iZv7LX8rFLhHHV4Yafo6WGsscjQXsdNdc
+         Xj3CweAYtPD2kX7bvhWfkWXOzjXMb1lQaOO0FC//Bre1T1nE8KqRiJcA8WSpJtiGF352
+         sSZwZm5v69q4Xz1gV0fd0YnnzEUbFvHzxdtrBqhH6sMNfndp3knewT88U0LRBsvaelCt
+         +PwA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=3MZmgpOH+L4okeA38O1B/4//YTw6phDT03bc+man3Lw=;
-        b=yBkvjxHq4xtI/59ef3sbAQiqWs+YD168jbPaHKsYuVPZ8yesZPutYTaAvqxsFAr/8H
-         bRYfRMoGKvK9p/jd8RED7p5tWFnVRKgIy+IFBJKyKdKWLyxXPwuBpaY+5upVSkKuzS9O
-         YwfQ3KKk9YbGqfzITGF9+kY8xwfq+OObyZlNHmQi4tg/DRhV1N7b2+FWQm8mkg7VkGsg
-         vHfDuX6phcSiZkqBo2ogM64Uf22ESTs7k5hM5+a/weaz9y0TQln6asqWxMBzFr9/ZcQr
-         0pSkXCnQdBaWg4QCU/hLf4mnccUSwX5hLhfbpMxA2qdG0XcTmHHl9qO36WOv7NVth/UJ
-         L4MQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=pOYadiltrD0/YWqxSUuRjc8ojv+rDm60na8tpklIEJU=;
+        b=ffJm5RItflNQ5DO5N7Fn6HWuAqR+Aerdowb+zE/MvdlMWgflOcCCoabEh0RqI+qo+V
+         vnkNYZa95sF6U+QtrXYnF7F/RBKW6i84f4RkqxeCZChH8rEJsX/9qHleYcUfe9uFH8Z8
+         dRBAFsRiY4xLsxq2nRoWJqFheTH4trX2PawFUQlql/hZuMEIC7AZLFfJXRPRhMOQ8n5f
+         FwN04KVit7Yz0LrCZ0Fsu+QpmYte6W+htuw6pJi1Qu96iIbh2QAY+/3KcHlvYeTyVxYN
+         jVlLZplczj/Qf3Kgy2YDKXAdZprfAvxc7XaT/vArAYYxLSysaSG63NBHlRysiLrJ2okP
+         bMEA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id a24si10276587pgw.581.2019.02.27.00.58.56
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id f23si6265237lfh.125.2019.02.27.01.18.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Feb 2019 00:58:56 -0800 (PST)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Wed, 27 Feb 2019 01:18:48 -0800 (PST)
+Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1R8uLFT033703
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 03:58:55 -0500
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qwpk3aw58-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 03:58:55 -0500
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Wed, 27 Feb 2019 08:58:53 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 27 Feb 2019 08:58:48 -0000
-Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1R8wlXj27918412
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Wed, 27 Feb 2019 08:58:47 GMT
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 8C34C11C05C;
-	Wed, 27 Feb 2019 08:58:47 +0000 (GMT)
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 0EF6411C04A;
-	Wed, 27 Feb 2019 08:58:46 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.124.31.69])
-	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Wed, 27 Feb 2019 08:58:45 +0000 (GMT)
-X-Mailer: emacs 26.1 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: npiggin@gmail.com, benh@kernel.crashing.org, paulus@samba.org,
-        mpe@ellerman.id.au, x86@kernel.org, linuxppc-dev@lists.ozlabs.org,
-        linux-mm@kvack.org
-Subject: Re: [PATCH V5 0/5] NestMMU pte upgrade workaround for mprotect
-In-Reply-To: <20190226153733.2552bb48dd195ae3bd46c3ef@linux-foundation.org>
-References: <20190116085035.29729-1-aneesh.kumar@linux.ibm.com> <20190226153733.2552bb48dd195ae3bd46c3ef@linux-foundation.org>
-Date: Wed, 27 Feb 2019 14:28:43 +0530
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.12]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <aryabinin@virtuozzo.com>)
+	id 1gyvMU-00037a-1i; Wed, 27 Feb 2019 12:18:46 +0300
+Subject: Re: BUG: KASAN: stack-out-of-bounds
+To: Christophe Leroy <christophe.leroy@c-s.fr>,
+ Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
+Cc: Daniel Axtens <dja@axtens.net>, linux-mm@kvack.org,
+ linuxppc-dev@lists.ozlabs.org, kasan-dev@googlegroups.com
+References: <c6d80735-0cfe-b4ab-0349-673fc65b2e15@c-s.fr>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <5f0203bd-77ea-d94c-11b7-1befba439cd4@virtuozzo.com>
+Date: Wed, 27 Feb 2019 12:19:04 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19022708-0020-0000-0000-0000031BCC4F
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19022708-0021-0000-0000-0000216D36E4
-Message-Id: <87k1hltxoc.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-27_06:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=621 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902270061
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000073, version=1.2.4
+In-Reply-To: <c6d80735-0cfe-b4ab-0349-673fc65b2e15@c-s.fr>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@linux-foundation.org> writes:
 
-> [patch 1/5]: unreviewed and has unaddressed comments from mpe.
-> [patch 2/5]: ditto
-> [patch 3/5]: ditto
-> [patch 4/5]: seems ready
-> [patch 5/5]: reviewed by mpe, but appears to need more work
 
-That was mostly variable naming preferences. I like the christmas
-tree style not the inverted christmas tree. There is one detail about
-commit message, which indicate the change may be required by other
-architecture too. Was not sure whether that needed a commit message
-update.
+On 2/27/19 11:25 AM, Christophe Leroy wrote:
+> With version v8 of the series implementing KASAN on 32 bits powerpc (https://patchwork.ozlabs.org/project/linuxppc-dev/list/?series=94309), I'm now able to activate KASAN on a mac99 is QEMU.
+> 
+> Then I get the following reports at startup. Which of the two reports I get seems to depend on the option used to build the kernel, but for a given kernel I always get the same report.
+> 
+> Is that a real bug, in which case how could I spot it ? Or is it something wrong in my implementation of KASAN ?
+> 
+> I checked that after kasan_init(), the entire shadow memory is full of 0 only.
+> 
+> I also made a try with the strong STACK_PROTECTOR compiled in, but no difference and nothing detected by the stack protector.
+> 
+> ==================================================================
+> BUG: KASAN: stack-out-of-bounds in memchr+0x24/0x74
+> Read of size 1 at addr c0ecdd40 by task swapper/0
+> 
+> CPU: 0 PID: 0 Comm: swapper Not tainted 5.0.0-rc7+ #1133
+> Call Trace:
+> [c0e9dca0] [c01c42a0] print_address_description+0x64/0x2bc (unreliable)
+> [c0e9dcd0] [c01c4684] kasan_report+0xfc/0x180
+> [c0e9dd10] [c089579c] memchr+0x24/0x74
+> [c0e9dd30] [c00a9e38] msg_print_text+0x124/0x574
+> [c0e9dde0] [c00ab710] console_unlock+0x114/0x4f8
+> [c0e9de40] [c00adc60] vprintk_emit+0x188/0x1c4
+> --- interrupt: c0e9df00 at 0x400f330
+>     LR = init_stack+0x1f00/0x2000
+> [c0e9de80] [c00ae3c4] printk+0xa8/0xcc (unreliable)
+> [c0e9df20] [c0c28e44] early_irq_init+0x38/0x108
+> [c0e9df50] [c0c16434] start_kernel+0x310/0x488
+> [c0e9dff0] [00003484] 0x3484
+> 
+> The buggy address belongs to the variable:
+>  __log_buf+0xec0/0x4020
+> The buggy address belongs to the page:
+> page:c6eac9a0 count:1 mapcount:0 mapping:00000000 index:0x0
+> flags: 0x1000(reserved)
+> raw: 00001000 c6eac9a4 c6eac9a4 00000000 00000000 00000000 ffffffff 00000001
+> page dumped because: kasan: bad access detected
+> 
+> Memory state around the buggy address:
+>  c0ecdc00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>  c0ecdc80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>>c0ecdd00: 00 00 00 00 00 00 00 00 f1 f1 f1 f1 00 00 00 00
+>                                    ^
+>  c0ecdd80: f3 f3 f3 f3 00 00 00 00 00 00 00 00 00 00 00 00
+>  c0ecde00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> ==================================================================
+> 
 
-I didn't send an updated series because after replying to most of them I
-didn't find a strong request to get the required changes in. If you want
-me update the series with this variable name ordering and commit message
-update I can send a new series today.
+This one doesn't look good. Notice that it says stack-out-of-bounds, but at the same time there is 
+	"The buggy address belongs to the variable:  __log_buf+0xec0/0x4020"
+ which is printed by following code:
+	if (kernel_or_module_addr(addr) && !init_task_stack_addr(addr)) {
+		pr_err("The buggy address belongs to the variable:\n");
+		pr_err(" %pS\n", addr);
+	}
 
--aneesh
+So the stack unrelated address got stack-related poisoning. This could be a stack overflow, did you increase THREAD_SHIFT?
+KASAN with stack instrumentation significantly increases stack usage.
 
