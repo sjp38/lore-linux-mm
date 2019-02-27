@@ -2,213 +2,151 @@ Return-Path: <SRS0=x8zE=RC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 33A08C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:32:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 00985C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:33:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DE78620C01
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:32:01 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="ItGXDQJU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DE78620C01
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id BE42C20C01
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:33:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE42C20C01
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=daenzer.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7986A8E000A; Wed, 27 Feb 2019 12:32:01 -0500 (EST)
+	id 574988E0014; Wed, 27 Feb 2019 12:33:26 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 748008E0001; Wed, 27 Feb 2019 12:32:01 -0500 (EST)
+	id 5246A8E0001; Wed, 27 Feb 2019 12:33:26 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6380C8E000A; Wed, 27 Feb 2019 12:32:01 -0500 (EST)
+	id 3ED088E0014; Wed, 27 Feb 2019 12:33:26 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 363D18E0001
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:32:01 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id 207so13770561qkf.9
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 09:32:01 -0800 (PST)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D76578E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:33:25 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id f202so1836305wme.2
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 09:33:25 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=hHOFyrwpvydWZWAGP6U/o0hZfnIdyhgSbo6ZXDL9wn0=;
-        b=H7ESbkldHb0o2SMpiZC9HqosZQLvAWhKvoWq3CrA+rN4olixJpJ9Fz6Jm4UYojjtWY
-         DZS6MmX61DguW374vcynFQPbKOANIPDLOyYGu4E0yMxHihdCzYXqCDyrpXliJwRdjqlq
-         4qZLBI82ci/YeiGheO4Qb8FmF04EV54/clI4760kvFLqt1ai96cwlXW9+C0lch+y2fon
-         ShWuHKTFjo39R/im66jUZf0MY+oreE3X1jPWiwU25pxR1fEehTEK+C0N7Khd0RHVhsm/
-         CL7Vf3SrUc0OJu8s74p/4LXZzcCWoZylne33D9X0nrQNxpVfcVICyEFzCYTS3M2lQ0BG
-         qQTg==
-X-Gm-Message-State: AHQUAuYxbjv5fQquCkCa4ACv3rdDenkCBtJecpMwEXZj9eCZH8Blz06U
-	P6+SumPVH9QeE3qS/xtj9XmJ2QqhTi9IYX6/Pk+oOl7r2+PE/rLM6Tll/w0hoe1PkpWe7eqReNL
-	qxHxuJ6E03GUMR+VVi/xtSfAOYMU8Gzix3amocuk/Ke0Xeyq0dPLayzgh0eXNrfm7/ckaDlqTLR
-	uB076ZJr+Y+Akj/m0dRnDFc3CrJhdj1+zCDUkfRAnPJ8m641FsK9P1z0tXn9B4gf17BXOOhdmhE
-	YL5Pzq503mNiF2ZcDw7mjNTKO4+827NpaJlkQ8MgKZh+AP3j9QxO5swFXUDlVclO3Q10SSnmvUA
-	+bKqVM7l/EaOe8fwr4mwvRRKlBowZ+rzPYcffTuFFtaKpnjksSk4QqOR681xqnVji4ogjhJdoXG
-	t
-X-Received: by 2002:aed:3f05:: with SMTP id p5mr2609146qtf.114.1551288720935;
-        Wed, 27 Feb 2019 09:32:00 -0800 (PST)
-X-Received: by 2002:aed:3f05:: with SMTP id p5mr2609085qtf.114.1551288719932;
-        Wed, 27 Feb 2019 09:31:59 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551288719; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=1bPUAk66HTQWuqjTpWM1Tn89VgGQ4ACqSLLpN1uU1aM=;
+        b=ALaLyhCvkLdxO9BQJ6FLG+DNSyZp/Z1Z/yAZbl+Y1W7/cvhEch4AagNeW9VU4dRycN
+         Vuof0V5P7JnMD59RDGwKrGAFjkf55a+BRT8w3Oe73nee6aayaFJfjMrgsVHfhl2OxyHx
+         8qtl6Vr9ZKZ4S5Jpxqtssd/1m4tvYhG6HE3d4EZ08ITBbdRtQGgwmf3eEwmWivyPbTqy
+         pxF0Au1wNscCpLcJ4r6HAq+uDA22FcEfj/KjMbXmVqChyrZA4dOzov43kZtLae7Rv/JP
+         kF6//7fTwTjb5JTJ/EgZ8FoUD6g1faCnAEydgIh4OCIVMyXajWc1usXv3NS9i/Ro8Y8X
+         LCTg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
+X-Gm-Message-State: APjAAAXVbl2ba/F7IxeyW1O1xKUyS6Fqz2yvuPdpNF0g0YKyzd+ZjcGt
+	jCAuoXK4RB4B3kltvYw8g+N69o5jYwEds9R+K5dHUhByvT0fShCuOjo5Ro+tq3o7TduG3kPNm9s
+	wKSsdZJRZa7piWEGo+opsZMxHWr7DnPMKNGYnGhboryerBBV/L5WQK+OrKQC19gM=
+X-Received: by 2002:a5d:6346:: with SMTP id b6mr3326230wrw.118.1551288805426;
+        Wed, 27 Feb 2019 09:33:25 -0800 (PST)
+X-Google-Smtp-Source: APXvYqzgOnXBhIwY+hj+yV/OusEQ07ueraEvKSMPDTTtDcjOmK8aiFl4tG3MmLjRQoh+R98mIaIO
+X-Received: by 2002:a5d:6346:: with SMTP id b6mr3326176wrw.118.1551288804509;
+        Wed, 27 Feb 2019 09:33:24 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551288804; cv=none;
         d=google.com; s=arc-20160816;
-        b=lZKDh4NOPY7uVbGQilHrUpIfY9Ehq9fRSh8BeJ+DB1OaZqE/ZRqG4h7NgagLRk4AWC
-         B20XH+lCy6QVmjxFkPBgpPEFqI4Cp3jwHEucd45XNc3N2Yc6cfAM3DhZSsHcqJ4Pqf8Y
-         hjqdZXFi4cRNHBnWu6OY49lQPcEj5Paxg8PHWEAh1qNIO4ahJhrDM8DRNkPbk+wemNTW
-         BSRI+B1DtG5GkT2gNL9K2R7dq78CBUbPWUKsK4G2ZXXgeVhxqNUZq+vn9LQMII8A5pH2
-         dTnyqH7qg8rj5st54/UpQAWopYYNHDy7ClFGiA+F4z9oS7pb1cKavtnL4BUQ5BYP+ONA
-         lAsg==
+        b=dSLjUBrM+YRJSqbeMSP5Hm7wHxBaZc8jqJ5x2I+JEfiq3hNFIfL3igTdktTxo4qfQm
+         Uw3ptYkb2daBUb5A1kFPr5gs7G0LGPmGJ27f2xXYUkR+IF5zm6K81EbP9m6QntLibkAR
+         mnR1lCg1UmRWTq13Dm1WkXQgHVAuGEkUX0FIXMYA1YZQaxxbAWnuDPQmyZ+o31ZbXmeG
+         o4dGiidGuf9PLEtB3zz+OYIYN8lPR41GHDl/ROz40yTSnbO6IEZo8eeHen2YFcdUcTiq
+         BJMpg1RnS1eUteJzHGldSZeGUZ3FGKHPQ7K1ZivYAU9nBWwOIEzsYLdBnsZ5xkU28cXf
+         3ryA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=hHOFyrwpvydWZWAGP6U/o0hZfnIdyhgSbo6ZXDL9wn0=;
-        b=V3Aw9EVtb+YNN8+Yians0dM3ZC+ym6oM+GsFYLB9UaCOgVTGePLzlIdgIWb6nLZ9v1
-         iaULVZB446I13FlprJyCvymiaVX0NcLfWLqVfiamZYO8dgCwGOcUovf/I5rpdAznORcP
-         1YufP8me1Vo1x1DmuDih6PfalVFDHDBaZ2lcZ17KSDUN46rdw2f1RVqgc2xAE29oR8dV
-         1kfgrSDpSBJcRHkN2lLyoFoe6bdKLkw2j+m0L4CTcQi4XamBqZaYTqk7TtiCoRLyp6CK
-         CSjeKgOMw6UQN7OpKoW57fybOu60YAnbERUR/xgEoPpLjvzPiacYc/HYAK2oa0xZCAdK
-         Jc0g==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=1bPUAk66HTQWuqjTpWM1Tn89VgGQ4ACqSLLpN1uU1aM=;
+        b=f57ky6gD5gFYfOx4xGxx7B11ZM5DiLzNMBPQiUUzr4DZEz769PNB7ew6KMpoW8KZ94
+         NWb3JTV4dfREraLd0j4RA56PtxDbEboZ3MFQZtZIIXVf9i2zW+qeYWDypDppR5rlN/4t
+         ovzqnCBnPHdw4dE5hEOLfIajENt/Ddn+uRS+x/soCQCXgqhHIBx63oKiUHHGDE/hdc9G
+         R0RC/iMTs8uRGD0TQQAAoFDi0N6jyTXGcqxfYxGrVbjnPhxbUs2poozpPrOJ9tH+QRTv
+         OAaiJyWXQ81/SZiSBScwnezzJfAmuZPsiGkc3W2/HEaQJQdzVnB8BMX/K56+TqfVv/WN
+         gc3g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=ItGXDQJU;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v62sor10151921qkb.31.2019.02.27.09.31.59
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Feb 2019 09:31:59 -0800 (PST)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
+Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
+        by mx.google.com with ESMTP id 1si11216784wro.275.2019.02.27.09.33.24
+        for <linux-mm@kvack.org>;
+        Wed, 27 Feb 2019 09:33:24 -0800 (PST)
+Received-SPF: neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) client-ip=148.251.143.178;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=ItGXDQJU;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:to:cc:subject:date:message-id;
-        bh=hHOFyrwpvydWZWAGP6U/o0hZfnIdyhgSbo6ZXDL9wn0=;
-        b=ItGXDQJUi8BRiSGj0pyl/Kn/YqJ5yf8lpj/i2XXCdbi4r6RjSt7DYHoS3qwPzwI38S
-         cMt4ZvJUnP2O5ZoALi4sip/uocmzwODpeMJA2MQdjz2aHcucKeHvti+pLxzzJFjY4v7R
-         0299Nk5/xQQ0hQ835FJNv9CWKfK3YiQCraqePUSb9rkm86alLI5fdzOcIOzwCE0WsnLH
-         lU4YSw8Ryozy6wWjRfpZS9B4Myjv8VfS1gCK8H4148RZFin6T1tUzhQRV1AmG5bKZNkJ
-         dGlUJfDoBwVTHSXrt8cfhuGma9VmXAkw2WvHXPU8ec+Rv4mBIASAm17EHJy8ogZa+2Ql
-         bJUg==
-X-Google-Smtp-Source: AHgI3IYWMSSx9Xalb1WB5XlJJM4CY4wMH21644s0iZYtwCOYjPJzMh8Q3vkWlhUhWuYZIeiy2M0D5Q==
-X-Received: by 2002:a37:d1d2:: with SMTP id o79mr3196699qkl.98.1551288719613;
-        Wed, 27 Feb 2019 09:31:59 -0800 (PST)
-Received: from Qians-MBP.fios-router.home (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id y11sm14233372qky.2.2019.02.27.09.31.58
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Feb 2019 09:31:59 -0800 (PST)
-From: Qian Cai <cai@lca.pw>
-To: akpm@linux-foundation.org
-Cc: catalin.marinas@arm.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Qian Cai <cai@lca.pw>
-Subject: [PATCH v3] mm/page_ext: fix an imbalance with kmemleak
-Date: Wed, 27 Feb 2019 12:31:47 -0500
-Message-Id: <20190227173147.75650-1-cai@lca.pw>
-X-Mailer: git-send-email 2.17.2 (Apple Git-113)
+       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
+Received: from localhost (localhost [127.0.0.1])
+	by netline-mail3.netline.ch (Postfix) with ESMTP id 0DEC62A6059;
+	Wed, 27 Feb 2019 18:33:24 +0100 (CET)
+X-Virus-Scanned: Debian amavisd-new at netline-mail3.netline.ch
+Received: from netline-mail3.netline.ch ([127.0.0.1])
+	by localhost (netline-mail3.netline.ch [127.0.0.1]) (amavisd-new, port 10024)
+	with LMTP id gYyJmhOYGSDL; Wed, 27 Feb 2019 18:33:23 +0100 (CET)
+Received: from thor (116.245.63.188.dynamic.wline.res.cust.swisscom.ch [188.63.245.116])
+	by netline-mail3.netline.ch (Postfix) with ESMTPSA id A2B532A6058;
+	Wed, 27 Feb 2019 18:33:23 +0100 (CET)
+Received: from [::1]
+	by thor with esmtp (Exim 4.92-RC6)
+	(envelope-from <michel@daenzer.net>)
+	id 1gz359-0006sp-7l; Wed, 27 Feb 2019 18:33:23 +0100
+Subject: Re: KASAN caught amdgpu / HMM use-after-free
+To: "Yang, Philip" <Philip.Yang@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+ <jglisse@redhat.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>
+References: <e8466985-a66b-468b-5fff-6e743180da67@daenzer.net>
+ <83fde7eb-abab-e770-efd5-89bc9c39fdff@amd.com>
+From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
+Openpgp: preference=signencrypt
+Autocrypt: addr=michel@daenzer.net; prefer-encrypt=mutual; keydata=
+ mQGiBDsehS8RBACbsIQEX31aYSIuEKxEnEX82ezMR8z3LG8ktv1KjyNErUX9Pt7AUC7W3W0b
+ LUhu8Le8S2va6hi7GfSAifl0ih3k6Bv1Itzgnd+7ZmSrvCN8yGJaHNQfAevAuEboIb+MaVHo
+ 9EMJj4ikOcRZCmQWw7evu/D9uQdtkCnRY9iJiAGxbwCguBHtpoGMxDOINCr5UU6qt+m4O+UD
+ /355ohBBzzyh49lTj0kTFKr0Ozd20G2FbcqHgfFL1dc1MPyigej2gLga2osu2QY0ObvAGkOu
+ WBi3LTY8Zs8uqFGDC4ZAwMPoFy3yzu3ne6T7d/68rJil0QcdQjzzHi6ekqHuhst4a+/+D23h
+ Za8MJBEcdOhRhsaDVGAJSFEQB1qLBACOs0xN+XblejO35gsDSVVk8s+FUUw3TSWJBfZa3Imp
+ V2U2tBO4qck+wqbHNfdnU/crrsHahjzBjvk8Up7VoY8oT+z03sal2vXEonS279xN2B92Tttr
+ AgwosujguFO/7tvzymWC76rDEwue8TsADE11ErjwaBTs8ZXfnN/uAANgPLQjTWljaGVsIERh
+ ZW56ZXIgPG1pY2hlbEBkYWVuemVyLm5ldD6IXgQTEQIAHgUCQFXxJgIbAwYLCQgHAwIDFQID
+ AxYCAQIeAQIXgAAKCRBaga+OatuyAIrPAJ9ykonXI3oQcX83N2qzCEStLNW47gCeLWm/QiPY
+ jqtGUnnSbyuTQfIySkK5AQ0EOx6FRRAEAJZkcvklPwJCgNiw37p0GShKmFGGqf/a3xZZEpjI
+ qNxzshFRFneZze4f5LhzbX1/vIm5+ZXsEWympJfZzyCmYPw86QcFxyZflkAxHx9LeD+89Elx
+ bw6wT0CcLvSv8ROfU1m8YhGbV6g2zWyLD0/naQGVb8e4FhVKGNY2EEbHgFBrAAMGA/0VktFO
+ CxFBdzLQ17RCTwCJ3xpyP4qsLJH0yCoA26rH2zE2RzByhrTFTYZzbFEid3ddGiHOBEL+bO+2
+ GNtfiYKmbTkj1tMZJ8L6huKONaVrASFzLvZa2dlc2zja9ZSksKmge5BOTKWgbyepEc5qxSju
+ YsYrX5xfLgTZC5abhhztpYhGBBgRAgAGBQI7HoVFAAoJEFqBr45q27IAlscAn2Ufk2d6/3p4
+ Cuyz/NX7KpL2dQ8WAJ9UD5JEakhfofed8PSqOM7jOO3LCA==
+Message-ID: <c26fa310-38d1-acba-cf82-bc6dc2f782c0@daenzer.net>
+Date: Wed, 27 Feb 2019 18:33:23 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
+MIME-Version: 1.0
+In-Reply-To: <83fde7eb-abab-e770-efd5-89bc9c39fdff@amd.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-After offlined a memory block, kmemleak scan will trigger a crash, as it
-encounters a page ext address that has already been freed during memory
-offlining. At the beginning in alloc_page_ext(), it calls
-kmemleak_alloc(), but it does not call kmemleak_free() in
-free_page_ext().
+On 2019-02-27 6:14 p.m., Yang, Philip wrote:
+> Hi Michel,
+> 
+> Yes, I found the same issue and the bug has been fixed by Jerome:
+> 
+> 876b462120aa mm/hmm: use reference counting for HMM struct
+> 
+> The fix is on hmm-for-5.1 branch, I cherry-pick it into my local branch 
+> to workaround the issue.
 
-BUG: unable to handle kernel paging request at ffff888453d00000
-PGD 128a01067 P4D 128a01067 PUD 128a04067 PMD 47e09e067 PTE 800ffffbac2ff060
-Oops: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
-CPU: 1 PID: 1594 Comm: bash Not tainted 5.0.0-rc8+ #15
-Hardware name: HP ProLiant DL180 Gen9/ProLiant DL180 Gen9, BIOS U20 10/25/2017
-RIP: 0010:scan_block+0xb5/0x290
-Code: 85 6e 01 00 00 48 b8 00 00 30 f5 81 88 ff ff 48 39 c3 0f 84 5b 01
-00 00 48 89 d8 48 c1 e8 03 42 80 3c 20 00 0f 85 87 01 00 00 <4c> 8b 3b
-e8 f3 0c fa ff 4c 39 3d 0c 6b 4c 01 0f 87 08 01 00 00 4c
-RSP: 0018:ffff8881ec57f8e0 EFLAGS: 00010082
-RAX: 0000000000000000 RBX: ffff888453d00000 RCX: ffffffffa61e5a54
-RDX: 0000000000000000 RSI: 0000000000000008 RDI: ffff888453d00000
-RBP: ffff8881ec57f920 R08: fffffbfff4ed588d R09: fffffbfff4ed588c
-R10: fffffbfff4ed588c R11: ffffffffa76ac463 R12: dffffc0000000000
-R13: ffff888453d00ff9 R14: ffff8881f80cef48 R15: ffff8881f80cef48
-FS:  00007f6c0e3f8740(0000) GS:ffff8881f7680000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: ffff888453d00000 CR3: 00000001c4244003 CR4: 00000000001606a0
-Call Trace:
- scan_gray_list+0x269/0x430
- kmemleak_scan+0x5a8/0x10f0
- kmemleak_write+0x541/0x6ca
- full_proxy_write+0xf8/0x190
- __vfs_write+0xeb/0x980
- vfs_write+0x15a/0x4f0
- ksys_write+0xd2/0x1b0
- __x64_sys_write+0x73/0xb0
- do_syscall_64+0xeb/0xaaa
- entry_SYSCALL_64_after_hwframe+0x44/0xa9
-RIP: 0033:0x7f6c0dad73b8
-Code: 89 02 48 c7 c0 ff ff ff ff eb b3 0f 1f 80 00 00 00 00 f3 0f 1e fa
-48 8d 05 65 63 2d 00 8b 00 85 c0 75 17 b8 01 00 00 00 0f 05 <48> 3d 00
-f0 ff ff 77 58 c3 0f 1f 80 00 00 00 00 41 54 49 89 d4 55
-RSP: 002b:00007ffd5b863cb8 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
-RAX: ffffffffffffffda RBX: 0000000000000005 RCX: 00007f6c0dad73b8
-RDX: 0000000000000005 RSI: 000055a9216e1710 RDI: 0000000000000001
-RBP: 000055a9216e1710 R08: 000000000000000a R09: 00007ffd5b863840
-R10: 000000000000000a R11: 0000000000000246 R12: 00007f6c0dda9780
-R13: 0000000000000005 R14: 00007f6c0dda4740 R15: 0000000000000005
-Modules linked in: nls_iso8859_1 nls_cp437 vfat fat kvm_intel kvm
-irqbypass efivars ip_tables x_tables xfs sd_mod ahci libahci igb
-i2c_algo_bit libata i2c_core dm_mirror dm_region_hash dm_log dm_mod
-efivarfs
-CR2: ffff888453d00000
----[ end trace ccf646c7456717c5 ]---
-RIP: 0010:scan_block+0xb5/0x290
-Code: 85 6e 01 00 00 48 b8 00 00 30 f5 81 88 ff ff 48 39 c3 0f 84 5b 01
-00 00 48 89 d8 48 c1 e8 03 42 80 3c 20 00 0f 85 87 01 00 00 <4c> 8b 3b
-e8 f3 0c fa ff 4c 39 3d 0c 6b 4c 01 0f 87 08 01 00 00 4c
-RSP: 0018:ffff8881ec57f8e0 EFLAGS: 00010082
-RAX: 0000000000000000 RBX: ffff888453d00000 RCX: ffffffffa61e5a54
-RDX: 0000000000000000 RSI: 0000000000000008 RDI: ffff888453d00000
-RBP: ffff8881ec57f920 R08: fffffbfff4ed588d R09: fffffbfff4ed588c
-R10: fffffbfff4ed588c R11: ffffffffa76ac463 R12: dffffc0000000000
-R13: ffff888453d00ff9 R14: ffff8881f80cef48 R15: ffff8881f80cef48
-FS:  00007f6c0e3f8740(0000) GS:ffff8881f7680000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: ffff888453d00000 CR3: 00000001c4244003 CR4: 00000000001606a0
-Kernel panic - not syncing: Fatal exception
-Shutting down cpus with NMI
-Kernel Offset: 0x24c00000 from 0xffffffff81000000 (relocation range:
-0xffffffff80000000-0xffffffffbfffffff)
----[ end Kernel panic - not syncing: Fatal exception ]---
+Please push it to amd-staging-drm-next, so that others don't run into
+the issue as well.
 
-Signed-off-by: Qian Cai <cai@lca.pw>
----
 
-v3: place kmemleak_free() before free_pages_exact() to avoid a small window
-    where the address has been freed but kmemleak not informed pointed out by
-    Catalin.
-
-v2: move kmemleak_free() into free_page_ext() as there is no need to call
-    kmemleak_free() in the vfree() case.
-
- mm/page_ext.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/page_ext.c b/mm/page_ext.c
-index 8c78b8d45117..f116431c3dee 100644
---- a/mm/page_ext.c
-+++ b/mm/page_ext.c
-@@ -273,6 +273,7 @@ static void free_page_ext(void *addr)
- 		table_size = get_entry_size() * PAGES_PER_SECTION;
- 
- 		BUG_ON(PageReserved(page));
-+		kmemleak_free(addr);
- 		free_pages_exact(addr, table_size);
- 	}
- }
 -- 
-2.17.2 (Apple Git-113)
+Earthling Michel Dänzer               |              https://www.amd.com
+Libre software enthusiast             |             Mesa and X developer
 
