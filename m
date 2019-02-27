@@ -2,120 +2,112 @@ Return-Path: <SRS0=x8zE=RC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6010AC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 09:23:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 026CBC00319
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 09:26:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 12AF720842
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 09:23:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8D6DD2084D
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 09:26:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="RlLu87Ry"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 12AF720842
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Vh46G7QO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D6DD2084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A43008E0006; Wed, 27 Feb 2019 04:23:36 -0500 (EST)
+	id 11ABA8E0003; Wed, 27 Feb 2019 04:26:08 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9F4AE8E0001; Wed, 27 Feb 2019 04:23:36 -0500 (EST)
+	id 0CB298E0001; Wed, 27 Feb 2019 04:26:08 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8E33D8E0006; Wed, 27 Feb 2019 04:23:36 -0500 (EST)
+	id EFA408E0003; Wed, 27 Feb 2019 04:26:07 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 642B58E0001
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 04:23:36 -0500 (EST)
-Received: by mail-io1-f72.google.com with SMTP id a9so12534334iol.6
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 01:23:36 -0800 (PST)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C8D258E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 04:26:07 -0500 (EST)
+Received: by mail-it1-f199.google.com with SMTP id r136so4689670ith.3
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 01:26:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=dW6Mj78k5lfxyLYouyYEolh46R3CFwn8bxmylMHyMBM=;
-        b=TLcXMHD6Ra2h4k7bU4iU159ZZ/mD1g4h70OO7tT64nhRe4SrVCzj3L0FXXfB0Z/+nj
-         LTFvKSL2+wsuyGhIu4lJ0ZclCvAMm1xIhujWLJiD4hjNrawTtXZJIFMtQ2rxwQHLZ3ie
-         wCgQXYhkHGO8nwSmzxBk+lQaI+A+RytrSCzPPdECgSemOZa8efnPnUYcm/yXLZ0b/57O
-         HnMiuC0qMmuab/5qhScSUxdc6nEtf92yy8/2FKc8ivJ6eHi3PKzBBE9TXB1TsKeNWSNM
-         REenr4SFjYds9V8ubcDfiW1+vbqMHyME4c6+Rb/H19/avfs0dj/nUWfjvvZ/zVk7X+eh
-         k0Zw==
-X-Gm-Message-State: AHQUAubKSIKhvF+MUr2GGEeb+gQOCWIVaxmDmjrPyVSGhxtzP/eeoUc5
-	3Wyr1EbLrbMN+NlhzWOv7zJ6GQhRED7OFG4WqdffwVakzui/I/Fg9QcsJeQlUW5/InIpzSEOdUh
-	Y7nD1uKrjHnHmh4GkgvCXSV08/TWi5Eq6ZOXmna9fkXNRj/Dflxls6GAdp99nfr0XnIKEi1aQtn
-	JwlMsQvyqbeLI1tAOwHwiMSU8Zn0Q6fx4H2haAi5ZRDMSkPDGxlEkSeKKskpS3YMsJuAOEVVWuQ
-	ckN1Afe4aBV5z99f8Nrnq+u6qClDhXOhPZZiMXwLWmItRyps7Ks7ECQ3RSTnufy3+nL4DbCW5Xp
-	YyIyaXsNSGUdipFbTJg8gvfGRjxDpe9gx/tkTdFXP7Jt72bSRn6L5ulRWAl+jnHkR3f/IQNU/yy
-	J
-X-Received: by 2002:a02:c84f:: with SMTP id r15mr680911jao.97.1551259416146;
-        Wed, 27 Feb 2019 01:23:36 -0800 (PST)
-X-Received: by 2002:a02:c84f:: with SMTP id r15mr680881jao.97.1551259415252;
-        Wed, 27 Feb 2019 01:23:35 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551259415; cv=none;
+        bh=vstIwG6RGSnFTCdlWq8XlRTKnk2DsAOEgppdnknGPvs=;
+        b=IDkR9CclPSVEWdZW33hNCtuS17SSak7bYkTOgpQ+s1BDNZQdOss4FlzTTKDaBx6+fW
+         ycQvPNz8Up87k9PyJj6U2Jp22F65sp+NnLLU4RKXgd6sCbqV7MK/YYEP7Z5cjZiYgK1U
+         hc6oXvSjt9tFMIqpPu2Po9FySb35/kX6OP5fRwlpXp4HoxBRq/008JRm6FKlODt0hN92
+         5hEgdZ7+4BPa71BJ9rA1qpLqJFZuEVwT0rcdn+kEtBSRvgvbKMufWpJMW/NH+NRUCU5w
+         /FM2mFSBhTed+bieVUFf518ckzIXdflcee/ZPbNO9Jtv8kN6+3rKDiUDZ96IIBxP/0fH
+         Nk9w==
+X-Gm-Message-State: AHQUAuYtWSFaKdorJ3wX4LeNAKLfcD5I+OXE5Qh95lh/T194kfKodlL8
+	3DJPYiAngKRHaYGVab6G960XpHbTSLn1XdtKlTmi4w9iFs5PFhWmc9lWAgixCkLmasOQaIuUeEy
+	O0jl6osTTOBCSKxRiC1kfzyiHEcLVtIuKNm3fXb++3zwidRp1s5V4Jz9efuw7PR0i9qX3UiMK/8
+	ofozrGkSYAjzLL3+SHrENFaz6qT/J0KXJtBKO3VKg8H3EAq24jIruzi5WkpvdguUU1zsGW039hU
+	OKjlnHnHufNGCI+pAW3SCm81FPj+pqja0dK4WcTsg+OeTHf5raq6usDD3n2L0grWLzD7XjZ10ul
+	rIxYDKcApPadvZcT52wc/GvJyqswUcbvEazkhfRxYVY6pNg/YhxB3RdlgSBbl5fw0AqmngGzy1R
+	W
+X-Received: by 2002:a02:3c07:: with SMTP id m7mr778788jaa.26.1551259567564;
+        Wed, 27 Feb 2019 01:26:07 -0800 (PST)
+X-Received: by 2002:a02:3c07:: with SMTP id m7mr778760jaa.26.1551259566714;
+        Wed, 27 Feb 2019 01:26:06 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551259566; cv=none;
         d=google.com; s=arc-20160816;
-        b=065KxtjJ57dmk9LVya5qrURSshJVKr83SMSzM8Ga0pju7t26VpJ8W4L4fxVRjYI53X
-         dhfHBvayFMJRIeElVyTIS4eRGtal0rknMntIuuzfARrBEVkPuZo9Gbsy3tMIyd9maTWh
-         lBsRXREC1oDZ26sey+4JgXyYgUBxVCk5zS9EwL+Nxr5gStNMuGbNPR1xFACTbsWiOO7I
-         /hNAN04ktrIhpOsr2Ts6baQxQOtPM47OecsHAC+8sNI1MrrM7xhjVZv4e8kxupLpCods
-         mqrKcKpbWU3LMJ8/nqqOn4TN4EpUXvMXemCdp5iOmWr78+RE8oCF7iKDUEWnExznaKiu
-         TRNA==
+        b=BcQ1M1ErUeu39v3ePWJcpXIxpnRF6eQVflPbYXfKP4mMndBNyEW24jrC0Rr+HriKvd
+         tSvOzNHS5xYZzUdVeTk6NaIVmqmC58EcoB8ITw4GBSQF+ncl9R1URahOPYr7QBSFC4cq
+         vNjVlNH7Y0HfIU7UGTVwAQwqkso8iwa5u8aWzm2qXhZIfM1OPIf1ph8RLcJYJjkDAC1s
+         xfIfS2nI5fU4VmdggKs7wg2pMPTSvOtGWCyiYwsH7DmGhvQJHffctLV0Pem05geh3lye
+         oWuaEevsbL2PUstmhPKSMFfuDBjXNKyStACtdn1yAEzHx/msxlhCb/ga6N+nxxt6+7a1
+         JABg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=dW6Mj78k5lfxyLYouyYEolh46R3CFwn8bxmylMHyMBM=;
-        b=0dOMZjXBGr1Oy9bnHzlSqnA6ch64byIAf+66NHo0PPQEBfRmdFFlYNZXqjsCQleltn
-         ygnsldldWO6W6VBn3vDEbnALeCnMd8yyIETr9GzXnAZis4Bq5qJZwVbkHwIQmItB//gf
-         fILcZ0sXm7GdqM0QdV14P6FW3Va43i8juRQIW5XYHCUHtsyH/7D+5CgTaB6K98A4+7ty
-         8bx3okgiCLuzKzmBL/Ny+ymcRTXtmKbFifgs85cLYbsyBf2NTeaWizRUqEqDIpgczHcZ
-         HIwm2wYmJngzJE6Ixpa7c9NeOdz0mB0Nw/01PuKxjV+gdqm1x8jOhWxAr8Vx8RiHfeOF
-         DzFA==
+        bh=vstIwG6RGSnFTCdlWq8XlRTKnk2DsAOEgppdnknGPvs=;
+        b=x6/D7PRRtJDdNfuYDKMcynnEk4kknVk9lUjT4Ts/WCxJxGXQhoYO2Qxg05nA901Ko+
+         IDc5ciPbMaFGee/kbW527I+ndSv4jC4pTsA8NNlPdx4qTz7xtJgynHQtX99FFcdpmaZj
+         mrR0hxVrp7R3u2dj7uxSuIPIQyc1Bwv9n7qSFxLt6pw6trIM1tSkLdRQVJjAst+LOif9
+         FSrlxt5l1jSbFLexwqVVcxPs/Zwe2IS9lNc9puVvtwUs0PNW4PBlY9VhzuNNRJPF77gU
+         +q02STIjdArliY22jg3dYgAWDorLHY2I0W7xsYsJgrsqCiisws00sv20wkjwSLsBFfNZ
+         bOGw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RlLu87Ry;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Vh46G7QO;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l26sor6894639ioc.38.2019.02.27.01.23.35
+        by mx.google.com with SMTPS id v9sor6059224iod.121.2019.02.27.01.26.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 27 Feb 2019 01:23:35 -0800 (PST)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 27 Feb 2019 01:26:06 -0800 (PST)
+Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RlLu87Ry;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Vh46G7QO;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
+        d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=dW6Mj78k5lfxyLYouyYEolh46R3CFwn8bxmylMHyMBM=;
-        b=RlLu87RyQoZKp+0bE1s9u/Wsdwtf+i3yTfw3ywA0dFsFS9z0B44omlLTXiUYVweaiC
-         vrkk3qCtg6ZjGQGKAXr1fPkRbm1rEBMQFGlagOUO9SlYcUtjIEHZVXWdaLApdnTgCaT2
-         FjhsDPxhFwMQKZuO2jd1hcoJnajWa1wxoea6ixBaWDgQCiICHr19HFRakxWt+Qet/THD
-         PL3ie08nRrSLaoN5MUP8FGN7/liXfy/vJfE1ny+N17I8XwjaSkNy8qez4aNUBOkyfwAE
-         ODp03JkobhSVx2WvjxNpOgtFodL0fYeTWgzc+bNlWkxyu3bBE7/Gc0F0Mp8vL6kOV1w3
-         tHkg==
-X-Google-Smtp-Source: APXvYqzSotMZBYN/MnDIAOlgwGImpNvHIMLB0beTcasvl7zEabtMQ13XUezaN4DkReQZsLPlJeV5za6TlqmCXYbc0dY=
-X-Received: by 2002:a6b:abc2:: with SMTP id u185mr1468827ioe.145.1551259414856;
- Wed, 27 Feb 2019 01:23:34 -0800 (PST)
+        bh=vstIwG6RGSnFTCdlWq8XlRTKnk2DsAOEgppdnknGPvs=;
+        b=Vh46G7QO6H7EXlWkJhKTMtownvl9a1V7KKNdJDBgDZk02XlTWlJxxhVKDg0z5uxRiP
+         N1wFOppgtnTZXbAR/2oTV3N2cwau/gmV/+qylFxNig36ygJ3F3gY323BltjgIi1xksmN
+         ygxHb9r7RciVIJedUy60aQSoiStCpa5YhPGSJIdlIAi1TQkzrxKbbdnVpKO5kMT9wBuH
+         DmqdbW1unCNNT5NoGrvqFR2U+bLh0KoXfzJfqxKfeGRqQ/Hcx/x8fvmpFA/Conh+qQo0
+         +IOwOAFkmMp1SO9lDj6cnUHBTV/l/tUEUk3yx8SFflwQ6qZCM1RVVr5IctsKZJuTg8/A
+         iBvg==
+X-Google-Smtp-Source: APXvYqz8Ud+yQay/ozIws7gBzBnivarDRgoEFhbeiVox0MBaF1zqZZ20aEerwyjMiQn7Y3x15Db/8X4R0sL7i5irt2E=
+X-Received: by 2002:a5d:834a:: with SMTP id q10mr1306903ior.271.1551259566125;
+ Wed, 27 Feb 2019 01:26:06 -0800 (PST)
 MIME-Version: 1.0
-References: <1551011649-30103-1-git-send-email-kernelfans@gmail.com>
- <1551011649-30103-3-git-send-email-kernelfans@gmail.com> <20190226115844.GG11981@rapoport-lnx>
-In-Reply-To: <20190226115844.GG11981@rapoport-lnx>
-From: Pingfan Liu <kernelfans@gmail.com>
-Date: Wed, 27 Feb 2019 17:23:23 +0800
-Message-ID: <CAFgQCTuvho76nr4jAFe9VQ4MDuy2oZx4nNqHwtHe-Z9So7y43A@mail.gmail.com>
-Subject: Re: [PATCH 2/6] mm/memblock: make full utilization of numa info
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, 
-	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, 
-	Dave Hansen <dave.hansen@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, 
-	Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, 
-	Andy Lutomirski <luto@kernel.org>, Andi Kleen <ak@linux.intel.com>, Petr Tesarik <ptesarik@suse.cz>, 
-	Michal Hocko <mhocko@suse.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Jonathan Corbet <corbet@lwn.net>, 
-	Nicholas Piggin <npiggin@gmail.com>, Daniel Vacek <neelx@redhat.com>, 
-	LKML <linux-kernel@vger.kernel.org>
+References: <c6d80735-0cfe-b4ab-0349-673fc65b2e15@c-s.fr> <5f0203bd-77ea-d94c-11b7-1befba439cd4@virtuozzo.com>
+In-Reply-To: <5f0203bd-77ea-d94c-11b7-1befba439cd4@virtuozzo.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 27 Feb 2019 10:25:54 +0100
+Message-ID: <CACT4Y+Ze0Ezi4uKVZR1nk_EOjNcHd=JLhYq8ahqbfOL_8Jq9iw@mail.gmail.com>
+Subject: Re: BUG: KASAN: stack-out-of-bounds
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Christophe Leroy <christophe.leroy@c-s.fr>, Alexander Potapenko <glider@google.com>, 
+	Daniel Axtens <dja@axtens.net>, Linux-MM <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org, 
+	kasan-dev <kasan-dev@googlegroups.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -123,178 +115,69 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 26, 2019 at 7:58 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
+On Wed, Feb 27, 2019 at 10:18 AM Andrey Ryabinin
+<aryabinin@virtuozzo.com> wrote:
+> On 2/27/19 11:25 AM, Christophe Leroy wrote:
+> > With version v8 of the series implementing KASAN on 32 bits powerpc (https://patchwork.ozlabs.org/project/linuxppc-dev/list/?series=94309), I'm now able to activate KASAN on a mac99 is QEMU.
+> >
+> > Then I get the following reports at startup. Which of the two reports I get seems to depend on the option used to build the kernel, but for a given kernel I always get the same report.
+> >
+> > Is that a real bug, in which case how could I spot it ? Or is it something wrong in my implementation of KASAN ?
+> >
+> > I checked that after kasan_init(), the entire shadow memory is full of 0 only.
+> >
+> > I also made a try with the strong STACK_PROTECTOR compiled in, but no difference and nothing detected by the stack protector.
+> >
+> > ==================================================================
+> > BUG: KASAN: stack-out-of-bounds in memchr+0x24/0x74
+> > Read of size 1 at addr c0ecdd40 by task swapper/0
+> >
+> > CPU: 0 PID: 0 Comm: swapper Not tainted 5.0.0-rc7+ #1133
+> > Call Trace:
+> > [c0e9dca0] [c01c42a0] print_address_description+0x64/0x2bc (unreliable)
+> > [c0e9dcd0] [c01c4684] kasan_report+0xfc/0x180
+> > [c0e9dd10] [c089579c] memchr+0x24/0x74
+> > [c0e9dd30] [c00a9e38] msg_print_text+0x124/0x574
+> > [c0e9dde0] [c00ab710] console_unlock+0x114/0x4f8
+> > [c0e9de40] [c00adc60] vprintk_emit+0x188/0x1c4
+> > --- interrupt: c0e9df00 at 0x400f330
+> >     LR = init_stack+0x1f00/0x2000
+> > [c0e9de80] [c00ae3c4] printk+0xa8/0xcc (unreliable)
+> > [c0e9df20] [c0c28e44] early_irq_init+0x38/0x108
+> > [c0e9df50] [c0c16434] start_kernel+0x310/0x488
+> > [c0e9dff0] [00003484] 0x3484
+> >
+> > The buggy address belongs to the variable:
+> >  __log_buf+0xec0/0x4020
+> > The buggy address belongs to the page:
+> > page:c6eac9a0 count:1 mapcount:0 mapping:00000000 index:0x0
+> > flags: 0x1000(reserved)
+> > raw: 00001000 c6eac9a4 c6eac9a4 00000000 00000000 00000000 ffffffff 00000001
+> > page dumped because: kasan: bad access detected
+> >
+> > Memory state around the buggy address:
+> >  c0ecdc00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> >  c0ecdc80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> >>c0ecdd00: 00 00 00 00 00 00 00 00 f1 f1 f1 f1 00 00 00 00
+> >                                    ^
+> >  c0ecdd80: f3 f3 f3 f3 00 00 00 00 00 00 00 00 00 00 00 00
+> >  c0ecde00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> > ==================================================================
+> >
 >
-> On Sun, Feb 24, 2019 at 08:34:05PM +0800, Pingfan Liu wrote:
-> > There are numa machines with memory-less node. When allocating memory for
-> > the memory-less node, memblock allocator falls back to 'Node 0' without fully
-> > utilizing the nearest node. This hurts the performance, especially for per
-> > cpu section. Suppressing this defect by building the full node fall back
-> > info for memblock allocator, like what we have done for page allocator.
+> This one doesn't look good. Notice that it says stack-out-of-bounds, but at the same time there is
+>         "The buggy address belongs to the variable:  __log_buf+0xec0/0x4020"
+>  which is printed by following code:
+>         if (kernel_or_module_addr(addr) && !init_task_stack_addr(addr)) {
+>                 pr_err("The buggy address belongs to the variable:\n");
+>                 pr_err(" %pS\n", addr);
+>         }
 >
-> Is it really necessary to build full node fallback info for memblock and
-> then rebuild it again for the page allocator?
->
-Do you mean building the full node fallback info once, and share it by
-both memblock and page allocator? If it is, then node online/offline
-is the corner case to block this design.
+> So the stack unrelated address got stack-related poisoning. This could be a stack overflow, did you increase THREAD_SHIFT?
+> KASAN with stack instrumentation significantly increases stack usage.
 
-> I think it should be possible to split parts of build_all_zonelists_init()
-> that do not touch per-cpu areas into a separate function and call that
-> function after topology detection. Then it would be possible to use
-> local_memory_node() when calling memblock.
->
-Yes, this is one way but may be with higher pay of changing the code.
-I will try it.
-Thank your for your suggestion.
-
-Best regards,
-Pingfan
-> > Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-> > CC: Thomas Gleixner <tglx@linutronix.de>
-> > CC: Ingo Molnar <mingo@redhat.com>
-> > CC: Borislav Petkov <bp@alien8.de>
-> > CC: "H. Peter Anvin" <hpa@zytor.com>
-> > CC: Dave Hansen <dave.hansen@linux.intel.com>
-> > CC: Vlastimil Babka <vbabka@suse.cz>
-> > CC: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> > CC: Andrew Morton <akpm@linux-foundation.org>
-> > CC: Mel Gorman <mgorman@suse.de>
-> > CC: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > CC: Andy Lutomirski <luto@kernel.org>
-> > CC: Andi Kleen <ak@linux.intel.com>
-> > CC: Petr Tesarik <ptesarik@suse.cz>
-> > CC: Michal Hocko <mhocko@suse.com>
-> > CC: Stephen Rothwell <sfr@canb.auug.org.au>
-> > CC: Jonathan Corbet <corbet@lwn.net>
-> > CC: Nicholas Piggin <npiggin@gmail.com>
-> > CC: Daniel Vacek <neelx@redhat.com>
-> > CC: linux-kernel@vger.kernel.org
-> > ---
-> >  include/linux/memblock.h |  3 +++
-> >  mm/memblock.c            | 68 ++++++++++++++++++++++++++++++++++++++++++++----
-> >  2 files changed, 66 insertions(+), 5 deletions(-)
-> >
-> > diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> > index 64c41cf..ee999c5 100644
-> > --- a/include/linux/memblock.h
-> > +++ b/include/linux/memblock.h
-> > @@ -342,6 +342,9 @@ void *memblock_alloc_try_nid_nopanic(phys_addr_t size, phys_addr_t align,
-> >  void *memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align,
-> >                            phys_addr_t min_addr, phys_addr_t max_addr,
-> >                            int nid);
-> > +extern int build_node_order(int *node_oder_array, int sz,
-> > +     int local_node, nodemask_t *used_mask);
-> > +void memblock_build_node_order(void);
-> >
-> >  static inline void * __init memblock_alloc(phys_addr_t size,  phys_addr_t align)
-> >  {
-> > diff --git a/mm/memblock.c b/mm/memblock.c
-> > index 022d4cb..cf78850 100644
-> > --- a/mm/memblock.c
-> > +++ b/mm/memblock.c
-> > @@ -1338,6 +1338,47 @@ phys_addr_t __init memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t ali
-> >       return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
-> >  }
-> >
-> > +static int **node_fallback __initdata;
-> > +
-> > +/*
-> > + * build_node_order() relies on cpumask_of_node(), hence arch should set up
-> > + * cpumask before calling this func.
-> > + */
-> > +void __init memblock_build_node_order(void)
-> > +{
-> > +     int nid, i;
-> > +     nodemask_t used_mask;
-> > +
-> > +     node_fallback = memblock_alloc(MAX_NUMNODES * sizeof(int *),
-> > +             sizeof(int *));
-> > +     for_each_online_node(nid) {
-> > +             node_fallback[nid] = memblock_alloc(
-> > +                     num_online_nodes() * sizeof(int), sizeof(int));
-> > +             for (i = 0; i < num_online_nodes(); i++)
-> > +                     node_fallback[nid][i] = NUMA_NO_NODE;
-> > +     }
-> > +
-> > +     for_each_online_node(nid) {
-> > +             nodes_clear(used_mask);
-> > +             node_set(nid, used_mask);
-> > +             build_node_order(node_fallback[nid], num_online_nodes(),
-> > +                     nid, &used_mask);
-> > +     }
-> > +}
-> > +
-> > +static void __init memblock_free_node_order(void)
-> > +{
-> > +     int nid;
-> > +
-> > +     if (!node_fallback)
-> > +             return;
-> > +     for_each_online_node(nid)
-> > +             memblock_free(__pa(node_fallback[nid]),
-> > +                     num_online_nodes() * sizeof(int));
-> > +     memblock_free(__pa(node_fallback), MAX_NUMNODES * sizeof(int *));
-> > +     node_fallback = NULL;
-> > +}
-> > +
-> >  /**
-> >   * memblock_alloc_internal - allocate boot memory block
-> >   * @size: size of memory block to be allocated in bytes
-> > @@ -1370,6 +1411,7 @@ static void * __init memblock_alloc_internal(
-> >  {
-> >       phys_addr_t alloc;
-> >       void *ptr;
-> > +     int node;
-> >       enum memblock_flags flags = choose_memblock_flags();
-> >
-> >       if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
-> > @@ -1397,11 +1439,26 @@ static void * __init memblock_alloc_internal(
-> >               goto done;
-> >
-> >       if (nid != NUMA_NO_NODE) {
-> > -             alloc = memblock_find_in_range_node(size, align, min_addr,
-> > -                                                 max_addr, NUMA_NO_NODE,
-> > -                                                 flags);
-> > -             if (alloc && !memblock_reserve(alloc, size))
-> > -                     goto done;
-> > +             if (!node_fallback) {
-> > +                     alloc = memblock_find_in_range_node(size, align,
-> > +                                     min_addr, max_addr,
-> > +                                     NUMA_NO_NODE, flags);
-> > +                     if (alloc && !memblock_reserve(alloc, size))
-> > +                             goto done;
-> > +             } else {
-> > +                     int i;
-> > +                     for (i = 0; i < num_online_nodes(); i++) {
-> > +                             node = node_fallback[nid][i];
-> > +                             /* fallback list has all memory nodes */
-> > +                             if (node == NUMA_NO_NODE)
-> > +                                     break;
-> > +                             alloc = memblock_find_in_range_node(size,
-> > +                                             align, min_addr, max_addr,
-> > +                                             node, flags);
-> > +                             if (alloc && !memblock_reserve(alloc, size))
-> > +                                     goto done;
-> > +                     }
-> > +             }
-> >       }
-> >
-> >       if (min_addr) {
-> > @@ -1969,6 +2026,7 @@ unsigned long __init memblock_free_all(void)
-> >
-> >       reset_all_zones_managed_pages();
-> >
-> > +     memblock_free_node_order();
-> >       pages = free_low_memory_core_early();
-> >       totalram_pages_add(pages);
-> >
-> > --
-> > 2.7.4
-> >
->
-> --
-> Sincerely yours,
-> Mike.
->
+A straightforward explanation would be that this happens before real
+shadow is mapped and we don't turn off KASAN reports. Should be easy
+to check so worth eliminating this possibility before any other
+debugging.
 
