@@ -3,128 +3,157 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 00985C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:33:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 91515C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:38:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BE42C20C01
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:33:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE42C20C01
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=daenzer.net
+	by mail.kernel.org (Postfix) with ESMTP id 5825120C01
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:38:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5825120C01
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 574988E0014; Wed, 27 Feb 2019 12:33:26 -0500 (EST)
+	id E4C3C8E001A; Wed, 27 Feb 2019 12:38:50 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5246A8E0001; Wed, 27 Feb 2019 12:33:26 -0500 (EST)
+	id DD4248E0001; Wed, 27 Feb 2019 12:38:50 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3ED088E0014; Wed, 27 Feb 2019 12:33:26 -0500 (EST)
+	id C4DB08E001A; Wed, 27 Feb 2019 12:38:50 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D76578E0001
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:33:25 -0500 (EST)
-Received: by mail-wm1-f69.google.com with SMTP id f202so1836305wme.2
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 09:33:25 -0800 (PST)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BC558E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:38:50 -0500 (EST)
+Received: by mail-pf1-f197.google.com with SMTP id f18so12244631pfd.1
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 09:38:50 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=1bPUAk66HTQWuqjTpWM1Tn89VgGQ4ACqSLLpN1uU1aM=;
-        b=ALaLyhCvkLdxO9BQJ6FLG+DNSyZp/Z1Z/yAZbl+Y1W7/cvhEch4AagNeW9VU4dRycN
-         Vuof0V5P7JnMD59RDGwKrGAFjkf55a+BRT8w3Oe73nee6aayaFJfjMrgsVHfhl2OxyHx
-         8qtl6Vr9ZKZ4S5Jpxqtssd/1m4tvYhG6HE3d4EZ08ITBbdRtQGgwmf3eEwmWivyPbTqy
-         pxF0Au1wNscCpLcJ4r6HAq+uDA22FcEfj/KjMbXmVqChyrZA4dOzov43kZtLae7Rv/JP
-         kF6//7fTwTjb5JTJ/EgZ8FoUD6g1faCnAEydgIh4OCIVMyXajWc1usXv3NS9i/Ro8Y8X
-         LCTg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
-X-Gm-Message-State: APjAAAXVbl2ba/F7IxeyW1O1xKUyS6Fqz2yvuPdpNF0g0YKyzd+ZjcGt
-	jCAuoXK4RB4B3kltvYw8g+N69o5jYwEds9R+K5dHUhByvT0fShCuOjo5Ro+tq3o7TduG3kPNm9s
-	wKSsdZJRZa7piWEGo+opsZMxHWr7DnPMKNGYnGhboryerBBV/L5WQK+OrKQC19gM=
-X-Received: by 2002:a5d:6346:: with SMTP id b6mr3326230wrw.118.1551288805426;
-        Wed, 27 Feb 2019 09:33:25 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzgOnXBhIwY+hj+yV/OusEQ07ueraEvKSMPDTTtDcjOmK8aiFl4tG3MmLjRQoh+R98mIaIO
-X-Received: by 2002:a5d:6346:: with SMTP id b6mr3326176wrw.118.1551288804509;
-        Wed, 27 Feb 2019 09:33:24 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551288804; cv=none;
+        bh=TGqecmHSYfu4bRdWr0B5jmLBg2CIXliUM8pZs6QQhM8=;
+        b=R/jzMGV2hhV/NnLTmk3zArSIKsXgYEolHn5DKSN4l4ssVyjwKidHLwCfPKmcUdn5dY
+         EmI0W5CcyFW7TBvkpEnM0lg+JwhQ2UPSBkLR5AdY5GwH5wo0xu7wfI1iYPFSb03t7KVa
+         LG9BMGetN+qp2KKrzMU9lf6Dh5uE/rdiZ92DsP2Xh9Ot7xkv+ADeGYwyEmxRHa/+C7Yf
+         PB9knTaPd6/9LbOtEcdrWRCSAXZL31VPONNC5nrOPE40yaiSo8603aDfDPSjiQ8fZGrp
+         9YL+0XKwgFCS0HR//N2tuq2BjYENU7Ap5BEZ2DEH9vqf2TX6rTo0c4eq6a3w8IA4Md+b
+         joYQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: AHQUAualdcxq748mnRMHXjGelzUNyTbl3WfPYhn+XqsTFwZncoxDO2Tm
+	9ayHtR0XaL+eV8GWWh2CgzbOdfVWztLaYcRRK0F9S/qFBEUkJhYQaG5tnjZ99MGC1qekVbhRz/k
+	b98E4NKmoarPYBNSUtxTRy7pZZiCFe0BXAWz4vuzTIOqzc7lmKrW9SzzdLU3H6S+g9w==
+X-Received: by 2002:a62:2008:: with SMTP id g8mr2736285pfg.121.1551289130175;
+        Wed, 27 Feb 2019 09:38:50 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaVpN2mJyWfcKwE3mheGz1S7yRvoDtlLZpvyAbULMaFyF6SA3IoDP3aUK0/n9EznS+w2IZs
+X-Received: by 2002:a62:2008:: with SMTP id g8mr2736219pfg.121.1551289129333;
+        Wed, 27 Feb 2019 09:38:49 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551289129; cv=none;
         d=google.com; s=arc-20160816;
-        b=dSLjUBrM+YRJSqbeMSP5Hm7wHxBaZc8jqJ5x2I+JEfiq3hNFIfL3igTdktTxo4qfQm
-         Uw3ptYkb2daBUb5A1kFPr5gs7G0LGPmGJ27f2xXYUkR+IF5zm6K81EbP9m6QntLibkAR
-         mnR1lCg1UmRWTq13Dm1WkXQgHVAuGEkUX0FIXMYA1YZQaxxbAWnuDPQmyZ+o31ZbXmeG
-         o4dGiidGuf9PLEtB3zz+OYIYN8lPR41GHDl/ROz40yTSnbO6IEZo8eeHen2YFcdUcTiq
-         BJMpg1RnS1eUteJzHGldSZeGUZ3FGKHPQ7K1ZivYAU9nBWwOIEzsYLdBnsZ5xkU28cXf
-         3ryA==
+        b=zCc5zDYVwO0w+vaWlXtQNaEUHnpGBzSQA36b+WGpHucor43GBK9hw4CDybZN+9bYqC
+         vCKRITCgdH3s5t2DNZIC3l/xqMo9yhnB+BlHCJlXlmFd6X0UfM9L5hWbdnoGCNav82uE
+         gHiSGuibATnrV9///OQ/rfRJcBYo0sui0CKJdZk5nhIV/W3Vzf/NjRCg2cTaeLk+6E1p
+         CWEESQpSFzCMDBdZvUQcYMp004DWzFFBb9qz3kLfTOoFrOLgqYbLAD0u6qaPjrTnhMQv
+         72PaIl+T8JE88lyBlpR7bNkQfFhCE8pWJ+VxxKhJCnMetUmspFXEPVZWPZRKmJ388S9u
+         tAyg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=1bPUAk66HTQWuqjTpWM1Tn89VgGQ4ACqSLLpN1uU1aM=;
-        b=f57ky6gD5gFYfOx4xGxx7B11ZM5DiLzNMBPQiUUzr4DZEz769PNB7ew6KMpoW8KZ94
-         NWb3JTV4dfREraLd0j4RA56PtxDbEboZ3MFQZtZIIXVf9i2zW+qeYWDypDppR5rlN/4t
-         ovzqnCBnPHdw4dE5hEOLfIajENt/Ddn+uRS+x/soCQCXgqhHIBx63oKiUHHGDE/hdc9G
-         R0RC/iMTs8uRGD0TQQAAoFDi0N6jyTXGcqxfYxGrVbjnPhxbUs2poozpPrOJ9tH+QRTv
-         OAaiJyWXQ81/SZiSBScwnezzJfAmuZPsiGkc3W2/HEaQJQdzVnB8BMX/K56+TqfVv/WN
-         gc3g==
+        bh=TGqecmHSYfu4bRdWr0B5jmLBg2CIXliUM8pZs6QQhM8=;
+        b=lW80o+LwstMe7I4DH0Rr7P4TDIE8sXoZQ24DsmndXArJniFj4NzdZGq5byOOprowAq
+         18ciiRPqBcI+HnrkRtb7vTzRi9psn4ZlxVnK5AJO11iqEg/jDKuKWR7u2QhBdYiRZfwW
+         5j1l/ewsqX1qwGW6QDXDdR/AbkewloWD//u8IjIv1Sr5WKJtf6fhOrA1DtKG22WfigqX
+         CYA1lxTEpXPH6MdkIPDu9T1zbxZ6mrGtZAzZq8MU6hofrmwhi/ELVSOTxRrjZHsQ9LGP
+         jqxSHfkfYBqbuJGgLSTS3WYvBiWgxeLiT0aQ4NLiYNQTzVNOK9m98X1azLqZ0Ji50zjl
+         blRA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
-Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
-        by mx.google.com with ESMTP id 1si11216784wro.275.2019.02.27.09.33.24
-        for <linux-mm@kvack.org>;
-        Wed, 27 Feb 2019 09:33:24 -0800 (PST)
-Received-SPF: neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) client-ip=148.251.143.178;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id p65si16003803pfi.76.2019.02.27.09.38.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Feb 2019 09:38:49 -0800 (PST)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
-Received: from localhost (localhost [127.0.0.1])
-	by netline-mail3.netline.ch (Postfix) with ESMTP id 0DEC62A6059;
-	Wed, 27 Feb 2019 18:33:24 +0100 (CET)
-X-Virus-Scanned: Debian amavisd-new at netline-mail3.netline.ch
-Received: from netline-mail3.netline.ch ([127.0.0.1])
-	by localhost (netline-mail3.netline.ch [127.0.0.1]) (amavisd-new, port 10024)
-	with LMTP id gYyJmhOYGSDL; Wed, 27 Feb 2019 18:33:23 +0100 (CET)
-Received: from thor (116.245.63.188.dynamic.wline.res.cust.swisscom.ch [188.63.245.116])
-	by netline-mail3.netline.ch (Postfix) with ESMTPSA id A2B532A6058;
-	Wed, 27 Feb 2019 18:33:23 +0100 (CET)
-Received: from [::1]
-	by thor with esmtp (Exim 4.92-RC6)
-	(envelope-from <michel@daenzer.net>)
-	id 1gz359-0006sp-7l; Wed, 27 Feb 2019 18:33:23 +0100
-Subject: Re: KASAN caught amdgpu / HMM use-after-free
-To: "Yang, Philip" <Philip.Yang@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
- <jglisse@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>
-References: <e8466985-a66b-468b-5fff-6e743180da67@daenzer.net>
- <83fde7eb-abab-e770-efd5-89bc9c39fdff@amd.com>
-From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga003.fm.intel.com ([10.253.24.29])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 Feb 2019 09:38:48 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,420,1544515200"; 
+   d="scan'208";a="136767317"
+Received: from unknown (HELO [10.254.89.112]) ([10.254.89.112])
+  by FMSMGA003.fm.intel.com with ESMTP; 27 Feb 2019 09:38:47 -0800
+Subject: Re: [PATCH v3 27/34] mm: pagewalk: Add 'depth' parameter to pte_hole
+To: Steven Price <steven.price@arm.com>, linux-mm@kvack.org
+Cc: Andy Lutomirski <luto@kernel.org>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>, Arnd Bergmann <arnd@arndb.de>,
+ Borislav Petkov <bp@alien8.de>, Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@redhat.com>,
+ James Morse <james.morse@arm.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+ <jglisse@redhat.com>, Peter Zijlstra <peterz@infradead.org>,
+ Thomas Gleixner <tglx@linutronix.de>, Will Deacon <will.deacon@arm.com>,
+ x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
+ linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+ Mark Rutland <Mark.Rutland@arm.com>, "Liang, Kan" <kan.liang@linux.intel.com>
+References: <20190227170608.27963-1-steven.price@arm.com>
+ <20190227170608.27963-28-steven.price@arm.com>
+From: Dave Hansen <dave.hansen@intel.com>
 Openpgp: preference=signencrypt
-Autocrypt: addr=michel@daenzer.net; prefer-encrypt=mutual; keydata=
- mQGiBDsehS8RBACbsIQEX31aYSIuEKxEnEX82ezMR8z3LG8ktv1KjyNErUX9Pt7AUC7W3W0b
- LUhu8Le8S2va6hi7GfSAifl0ih3k6Bv1Itzgnd+7ZmSrvCN8yGJaHNQfAevAuEboIb+MaVHo
- 9EMJj4ikOcRZCmQWw7evu/D9uQdtkCnRY9iJiAGxbwCguBHtpoGMxDOINCr5UU6qt+m4O+UD
- /355ohBBzzyh49lTj0kTFKr0Ozd20G2FbcqHgfFL1dc1MPyigej2gLga2osu2QY0ObvAGkOu
- WBi3LTY8Zs8uqFGDC4ZAwMPoFy3yzu3ne6T7d/68rJil0QcdQjzzHi6ekqHuhst4a+/+D23h
- Za8MJBEcdOhRhsaDVGAJSFEQB1qLBACOs0xN+XblejO35gsDSVVk8s+FUUw3TSWJBfZa3Imp
- V2U2tBO4qck+wqbHNfdnU/crrsHahjzBjvk8Up7VoY8oT+z03sal2vXEonS279xN2B92Tttr
- AgwosujguFO/7tvzymWC76rDEwue8TsADE11ErjwaBTs8ZXfnN/uAANgPLQjTWljaGVsIERh
- ZW56ZXIgPG1pY2hlbEBkYWVuemVyLm5ldD6IXgQTEQIAHgUCQFXxJgIbAwYLCQgHAwIDFQID
- AxYCAQIeAQIXgAAKCRBaga+OatuyAIrPAJ9ykonXI3oQcX83N2qzCEStLNW47gCeLWm/QiPY
- jqtGUnnSbyuTQfIySkK5AQ0EOx6FRRAEAJZkcvklPwJCgNiw37p0GShKmFGGqf/a3xZZEpjI
- qNxzshFRFneZze4f5LhzbX1/vIm5+ZXsEWympJfZzyCmYPw86QcFxyZflkAxHx9LeD+89Elx
- bw6wT0CcLvSv8ROfU1m8YhGbV6g2zWyLD0/naQGVb8e4FhVKGNY2EEbHgFBrAAMGA/0VktFO
- CxFBdzLQ17RCTwCJ3xpyP4qsLJH0yCoA26rH2zE2RzByhrTFTYZzbFEid3ddGiHOBEL+bO+2
- GNtfiYKmbTkj1tMZJ8L6huKONaVrASFzLvZa2dlc2zja9ZSksKmge5BOTKWgbyepEc5qxSju
- YsYrX5xfLgTZC5abhhztpYhGBBgRAgAGBQI7HoVFAAoJEFqBr45q27IAlscAn2Ufk2d6/3p4
- Cuyz/NX7KpL2dQ8WAJ9UD5JEakhfofed8PSqOM7jOO3LCA==
-Message-ID: <c26fa310-38d1-acba-cf82-bc6dc2f782c0@daenzer.net>
-Date: Wed, 27 Feb 2019 18:33:23 +0100
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <aece3046-6040-e2ec-fcd7-204113d40eb7@intel.com>
+Date: Wed, 27 Feb 2019 09:38:48 -0800
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <83fde7eb-abab-e770-efd5-89bc9c39fdff@amd.com>
+In-Reply-To: <20190227170608.27963-28-steven.price@arm.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -132,21 +161,18 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019-02-27 6:14 p.m., Yang, Philip wrote:
-> Hi Michel,
-> 
-> Yes, I found the same issue and the bug has been fixed by Jerome:
-> 
-> 876b462120aa mm/hmm: use reference counting for HMM struct
-> 
-> The fix is on hmm-for-5.1 branch, I cherry-pick it into my local branch 
-> to workaround the issue.
+On 2/27/19 9:06 AM, Steven Price wrote:
+>  #ifdef CONFIG_SHMEM
+>  static int smaps_pte_hole(unsigned long addr, unsigned long end,
+> -		struct mm_walk *walk)
+> +			  __always_unused int depth, struct mm_walk *walk)
+>  {
 
-Please push it to amd-staging-drm-next, so that others don't run into
-the issue as well.
+I think this 'depth' argument is a mistake.  It's synthetic and it's
+surely going to be a source of bugs.
 
-
--- 
-Earthling Michel Dänzer               |              https://www.amd.com
-Libre software enthusiast             |             Mesa and X developer
+The page table dumpers seem to be using this to dump out the "name" of a
+hole which seems a bit bogus in the first place.  I'd much rather teach
+the dumpers about the length of the hole, "the hole is 0x12340000 bytes
+long", rather than "there's a hole at this level".
 
