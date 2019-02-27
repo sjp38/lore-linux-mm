@@ -2,282 +2,271 @@ Return-Path: <SRS0=x8zE=RC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 15B25C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 18:19:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A5BDC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 18:32:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C24D320C01
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 18:19:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C24D320C01
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 02BD8217F5
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 18:32:16 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amdcloud.onmicrosoft.com header.i=@amdcloud.onmicrosoft.com header.b="WESN1TyN"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02BD8217F5
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amd.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 48EBA8E0003; Wed, 27 Feb 2019 13:19:52 -0500 (EST)
+	id 8F3498E0003; Wed, 27 Feb 2019 13:32:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 43EDE8E0001; Wed, 27 Feb 2019 13:19:52 -0500 (EST)
+	id 8A2428E0001; Wed, 27 Feb 2019 13:32:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 32ED58E0003; Wed, 27 Feb 2019 13:19:52 -0500 (EST)
+	id 71D0A8E0003; Wed, 27 Feb 2019 13:32:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 03FA08E0001
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 13:19:52 -0500 (EST)
-Received: by mail-yw1-f69.google.com with SMTP id i2so13812664ywb.1
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 10:19:51 -0800 (PST)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EC618E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 13:32:16 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id g3so13523282ioh.12
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 10:32:16 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=SG8+AwNO9pTDAwy0XmZ/9E7QFTB4ck31FCzRYixEZc8=;
-        b=J3v6jYoTkqM0bpFndGE6sv/AjTwOP+5kDAVqKoXoJeWsPZlQ3BusYbiAMSBXwJjB7b
-         YSGUftRCMF6WplmSN65PK1dLSwBj6EWHviOeC+oXpXDOm6fsqz2GvQm66MnYKJRbs5fW
-         UOBtfIQLT+lmO87Ktlv9KXEF/Il+puJgxe/smHy9a4koB75TTKs6shY+qoZY0EFCSAHI
-         1XqSptetqTs7Skjv81cYe/BKnukKBPr3aOl5pHEATUjACkmhH9DqPaGwOaRCpBmjY2Py
-         H9rzcTi5avZLE18mF04EpCLU4/Xr9f8BPjeYY4+mjnKaltfGp9OsZ0vvZlRerxpeAmWK
-         6vOQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAuYvNJ+DPXZc68esUQwZGR//VbToQWKKM2MI/YKKYF5sxCJi4vQP
-	o9HzzZv0VynbfnhRZv41NcBAnuraJ/v464EeuR4nYSfm3OqGJ8GEqEBGPu9OsWo43kwScUt5I4i
-	3OuN8/WtIutLZZOrQ8baueORJF50OGsPr9s0bKwtJP+LR71ESZN8INO0icIcOavumoZzJ92/d4I
-	vQWUaqxiBKi1t+0rx5OjoPcCHYxQlPWdvPwgN+8D/HkJ6dygkREAP8z9x007xzBnn0UlnxZ0HJ0
-	/fdLcItHpgmPY/b/mcZK/k97vXEowcEQ4rwZipCoeB/WUhxUzVyjlIpYhvWL/9mu6y+kvE5JZbw
-	99BYGVPE+LjJphzYnqTkvjKXYPQpkOAOZuVNAfxXT8G+GWAve2qvglMPPj1UtOZnqW8yoqoHIA=
-	=
-X-Received: by 2002:a81:4ed6:: with SMTP id c205mr2261332ywb.13.1551291591726;
-        Wed, 27 Feb 2019 10:19:51 -0800 (PST)
-X-Received: by 2002:a81:4ed6:: with SMTP id c205mr2261265ywb.13.1551291590848;
-        Wed, 27 Feb 2019 10:19:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551291590; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:mime-version;
+        bh=I4rhwHCQa0B8of5vnQhN5du0f8DbSpAUR6rJfOWsUSY=;
+        b=pgzx8tfx2RBDkEfSvjnKcu4FKhWt4Pg1U5Isg85938lSM2WYbKXmlSOwOP5KZPdwv3
+         skMPQ5eT/WpDiDbbTGU98eLiEKMCHoDBv2GxB6MRXIrIZ3lq03Bj3ObsTBaBwNmdmS6v
+         bd3va0W1w/bWqP7NuXw44ehEcXFPYSercNxnazv3GbsbQBOPNkCQQ22nhLySZ1lISEKU
+         aIi4nlvS1ugRHDopOABPx7ijHkfOZTiv8llZrlrMjZEdy+/pzvTwy8gSm25tXmpBytyz
+         pmuXxGmlgGqXuuwpVMvwbXN/9CrgklLykJOnnPixiOCehzIqUCiRzWzaqdfauJDdHBnf
+         pzdQ==
+X-Gm-Message-State: APjAAAUdhvuRfx3sWv0K5M3lWWnCAMf4g0qBqUc217iLlZxlIVGlC4Hg
+	ZYA1qc66/JgcdHMTrA0kj3ni8w5TKnbzkvKsY3Eel6NkSFOf99hLGCd/ijU1NfanYdkHpL5TxfS
+	eRB+ULzVFOtBgMIRt9NBnktDEhfRwriCQ5Xjb0+tGsfLvlnEM8hR6A60XTUTEpZE=
+X-Received: by 2002:a6b:5905:: with SMTP id n5mr3181288iob.33.1551292335899;
+        Wed, 27 Feb 2019 10:32:15 -0800 (PST)
+X-Google-Smtp-Source: APXvYqyA3ZFICngukt0xvnFF+amph2loPedvP+5YQRLIYAdfNO6m/8hu0r25igQ4iLLr3jvPvzOS
+X-Received: by 2002:a6b:5905:: with SMTP id n5mr3181238iob.33.1551292334962;
+        Wed, 27 Feb 2019 10:32:14 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551292334; cv=none;
         d=google.com; s=arc-20160816;
-        b=OHMHmQWS/7xahfkDxgCWJZhEqE6MO93idjlPVQSB1BNxygN6cBjYOc9E5GIkpiAhJG
-         3t8nKvjGWuwo2YlX1wS13KDQrMfZ69A4Cj77kOs6w0UpwDl3NjR3Y9ADTH9syfG028ao
-         9ajTWyVIsMd4W0tpvsIPR3jiL6/P+7Z8iGeQP4moId8kr0DVMUCWuR0l4t0pisbFr1Ei
-         se4OcyYYjYNCCq4in9JmwuBQbHBJiK/1ks5SrMBm4+IA8sZgGwDgSEFeH+DxOUfV6qjB
-         3vWbdT5OZCuDl+mQi3jZAqJRgUq+2wN0ID6jiI6xhac9UBOvP0hLDBTurKYrVMvkanrf
-         BIkQ==
+        b=A9Q2VoYWE8Wfae5NQk0813kQRpS2m6y346U6RxWsjPuYMHjdTn1OvjUwfoUElCISp7
+         w91FHo0iEBMNTI7eqICJfFDR+bUnkkgYXTfLkkH9bxRmHHMDDXZKgo3d8aqD7GmETE38
+         IB4t7obSYY0kSAAcHbt+rmRXLV8ht0a42jI53nOt49AdbbGnn/eWYx/lMXG6ogTA+h1/
+         dlYWR7miY9S0gEwFfgySF196t1KqShv7RJJHWmpHqGRLbMI2r/rRPdGlq6GBmioPpNDn
+         XyXkAC087TBXWnV+pVYI6HslU9g+mMIMyd/TVxCNGLHrfVRGR11g3c9vyBm/1NAEXxPl
+         4PmQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=SG8+AwNO9pTDAwy0XmZ/9E7QFTB4ck31FCzRYixEZc8=;
-        b=AK/jyVClRHOdvG93as4dFLJ1eernQmXXiWxel8+dpEyDWvQwBmSoE8aCokg60Bgxjl
-         PxydOI1g9IbPGgPqd8y60+KGM0RQnMY3t89nTNvZJPBqS9oXWr/wg4/M8zQIc2hQnv16
-         nKP/lSICKzsRNEq3BwlSrvwOmdhcVK+c9PiFA9Ml9gsQH6V8TQKKhjEcyjoLCk4cB0y8
-         W6dqsW3qh60lvcJsYldWIpYL2UywjfSX9LkcpMGi8+HS/bDItXQs5e0QXM6/amdPiIzl
-         5u5GroXWz2/0H7SFL8mJxv/SFpBzcHIrxieWMjUxu+PyXvPrMyrVIWxxMhagIUhu0JxM
-         DkWw==
+        h=mime-version:content-language:accept-language:in-reply-to
+         :references:message-id:date:thread-index:thread-topic:subject:cc:to
+         :from:dkim-signature;
+        bh=I4rhwHCQa0B8of5vnQhN5du0f8DbSpAUR6rJfOWsUSY=;
+        b=Yu2cN9ZrQJM+IxnOV748LdxzzxvBjBMCTUC3pUvu+HRAaN83Q9oHtW4POJQiOIYDGS
+         6qLo+0hWqmeQ81Jyi3brOd5U4dN8jicrbIxpFVUiDr+DuSdQrT4yNBff3rxQCkpE9P8O
+         3rsnzj5nCFN9o8/FgPAgt1b46egxEb5BHsOLh5qHuXX6it7J8GhRzfOBM2a3sS0+oqxR
+         TS8rIm2SNwPV5K7FI2AarwvwjV4ZuCcPL6JAhtNp+ugn71hJWgfxUuAFeN9u3mdOD2lP
+         uBjauyTdBnRsMsfVj0Cy3Rphz1Dl8nFoIiYZT2rfFXmB36Da59EE+hZfAyZVEioAzdZ+
+         //Dw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e123sor5814041ybb.190.2019.02.27.10.19.50
+       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amd-com header.b=WESN1TyN;
+       spf=neutral (google.com: 40.107.69.51 is neither permitted nor denied by best guess record for domain of alexander.deucher@amd.com) smtp.mailfrom=Alexander.Deucher@amd.com
+Received: from NAM04-CO1-obe.outbound.protection.outlook.com (mail-eopbgr690051.outbound.protection.outlook.com. [40.107.69.51])
+        by mx.google.com with ESMTPS id z65si8468043iof.71.2019.02.27.10.32.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Feb 2019 10:19:50 -0800 (PST)
-Received-SPF: pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 27 Feb 2019 10:32:14 -0800 (PST)
+Received-SPF: neutral (google.com: 40.107.69.51 is neither permitted nor denied by best guess record for domain of alexander.deucher@amd.com) client-ip=40.107.69.51;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: AHgI3IabMG2wZlD0xIC/0ylhor6WEZDf5f/MU5YKIBYq/mBQVHnHCJajvrImEanBXzHlNeazUyIn3g==
-X-Received: by 2002:a25:d64e:: with SMTP id n75mr3059230ybg.199.1551291590453;
-        Wed, 27 Feb 2019 10:19:50 -0800 (PST)
-Received: from dennisz-mbp.dhcp.thefacebook.com ([2620:10d:c091:200::3:8416])
-        by smtp.gmail.com with ESMTPSA id s5sm5667824ywg.108.2019.02.27.10.19.49
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Feb 2019 10:19:49 -0800 (PST)
-Date: Wed, 27 Feb 2019 13:19:47 -0500
-From: Dennis Zhou <dennis@kernel.org>
-To: Peng Fan <peng.fan@nxp.com>
-Cc: "tj@kernel.org" <tj@kernel.org>, "cl@linux.com" <cl@linux.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"van.freenix@gmail.com" <van.freenix@gmail.com>
-Subject: Re: [RFC] percpu: decrease pcpu_nr_slots by 1
-Message-ID: <20190227181947.GB2379@dennisz-mbp.dhcp.thefacebook.com>
-References: <20190224092838.3417-1-peng.fan@nxp.com>
- <20190225152336.GC49611@dennisz-mbp.dhcp.thefacebook.com>
- <AM0PR04MB448161D9ED7D152AD58B53E9887B0@AM0PR04MB4481.eurprd04.prod.outlook.com>
- <20190226173238.GA51080@dennisz-mbp.dhcp.thefacebook.com>
- <AM0PR04MB44814BC1B03CC8D3963D969988740@AM0PR04MB4481.eurprd04.prod.outlook.com>
+       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amd-com header.b=WESN1TyN;
+       spf=neutral (google.com: 40.107.69.51 is neither permitted nor denied by best guess record for domain of alexander.deucher@amd.com) smtp.mailfrom=Alexander.Deucher@amd.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=amdcloud.onmicrosoft.com; s=selector1-amd-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=I4rhwHCQa0B8of5vnQhN5du0f8DbSpAUR6rJfOWsUSY=;
+ b=WESN1TyNqX0pkGCQAktXujVndE/OgoH+sWZfznCzUuM0a7/9gv5pFX5LS6LzUtSlDfIf6zSJY5jgUDtRk+rbBWoUtZ06rrBrYqJKYhw84lG9huN/j00Qa5qWlKU5ORHVjonDcTmDtkS3YR8Fx90ef9QwRrEg/USzxL851FkiH4U=
+Received: from BN6PR12MB1809.namprd12.prod.outlook.com (10.175.101.17) by
+ BN6PR12MB1345.namprd12.prod.outlook.com (10.168.225.19) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1643.16; Wed, 27 Feb 2019 18:32:12 +0000
+Received: from BN6PR12MB1809.namprd12.prod.outlook.com
+ ([fe80::51a:7e56:5b6e:bc1f]) by BN6PR12MB1809.namprd12.prod.outlook.com
+ ([fe80::51a:7e56:5b6e:bc1f%2]) with mapi id 15.20.1643.019; Wed, 27 Feb 2019
+ 18:32:12 +0000
+From: "Deucher, Alexander" <Alexander.Deucher@amd.com>
+To: "Yang, Philip" <Philip.Yang@amd.com>, =?iso-8859-1?Q?Michel_D=E4nzer?=
+	<michel@daenzer.net>, =?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, "amd-gfx@lists.freedesktop.org"
+	<amd-gfx@lists.freedesktop.org>
+Subject: Re: KASAN caught amdgpu / HMM use-after-free
+Thread-Topic: KASAN caught amdgpu / HMM use-after-free
+Thread-Index: AQHUzr5Jtqa2+5svxEmSQ7Yyfhi6laXz4jEAgAAFZYCAAAkBAIAAB0PN
+Date: Wed, 27 Feb 2019 18:32:11 +0000
+Message-ID:
+ <BN6PR12MB18090BDFE1DD800785C5ED76F7740@BN6PR12MB1809.namprd12.prod.outlook.com>
+References: <e8466985-a66b-468b-5fff-6e743180da67@daenzer.net>
+ <83fde7eb-abab-e770-efd5-89bc9c39fdff@amd.com>
+ <c26fa310-38d1-acba-cf82-bc6dc2f782c0@daenzer.net>,<35d7e134-6eef-9732-8ebf-83256e40eb65@amd.com>
+In-Reply-To: <35d7e134-6eef-9732-8ebf-83256e40eb65@amd.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=Alexander.Deucher@amd.com; 
+x-originating-ip: [71.219.73.123]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 4b7940ab-8790-404c-bc48-08d69ce1e3bb
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(4618075)(2017052603328)(7153060)(7193020);SRVR:BN6PR12MB1345;
+x-ms-traffictypediagnostic: BN6PR12MB1345:
+x-ms-exchange-purlcount: 1
+x-microsoft-exchange-diagnostics:
+ 1;BN6PR12MB1345;20:FixHWXxsUi27Zf6zb4b4JMgC1ijwQ/FX22NTNyPCQqyerBcbz/cqPmznD0aRCMyv8jwCznwkIn2KkGZ/HMuLVG/NQUSn7a1laiCEvCuFaR7Rr53zuG/cwsMaonO/qC4Eh/7HOWfkLGsUu96q7+w8o2ZbnmP2REisA961vyCU/h+5DiWQB9AeCREREWSLN51Sf2hlJwr+B8XVPq/aPEc2DHQg+WefjuyIB/c6H6vvCXJ0tvsVvJ7rG0HFRsp2tdTi
+x-microsoft-antispam-prvs:
+ <BN6PR12MB1345647B0E36580DC7CC1FF1F7740@BN6PR12MB1345.namprd12.prod.outlook.com>
+x-forefront-prvs: 0961DF5286
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(366004)(346002)(376002)(39860400002)(396003)(136003)(199004)(189003)(478600001)(7696005)(14454004)(72206003)(966005)(76176011)(93886005)(97736004)(4326008)(110136005)(316002)(33656002)(6246003)(606006)(25786009)(106356001)(99286004)(55016002)(229853002)(256004)(54896002)(66066001)(6436002)(7736002)(105586002)(9686003)(236005)(6306002)(71190400001)(71200400001)(105004)(476003)(54906003)(11346002)(446003)(486006)(186003)(26005)(102836004)(53546011)(6506007)(86362001)(8936002)(3846002)(6116002)(53936002)(2906002)(8676002)(81156014)(81166006)(52536013)(74316002)(19627405001)(68736007)(5660300002);DIR:OUT;SFP:1101;SCL:1;SRVR:BN6PR12MB1345;H:BN6PR12MB1809.namprd12.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: amd.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ s7tsZ21oU8aVi3HIYpO1j8LllaGSIipQ/qC9sgwTRMr6OT/W9hzWERrGurvs3QdYKQxhbce1LfVpXRo0E/mon/X3xbKsSO2jCZR9Uo6YdddsBAyo0y3iPqJZT0EA5v6NoR453S0perSXHNlmsqcSjXFb+zP5SJYS4sIAiwWNFCixJqq/Y2NVmVy0PHn7eo+EnhpJky3Vw5pHLG2lS5tT7QFEi2MlY1WTVY98AHHjqvmk74x8Di+ruEbcnuATx+Uxy5Q22qAcR+1LPtaXQdgy4qRvsRUESemhBtrMiP9T3AV2uOu978jTlaxQSccyZQBcznEuUQbpvcSSA7UPwRk/oGJMS39wb8gfAzHQyfUp5HqxxZgIefIPJlAgj0pIkqUkzGdoLDtXXgdnsPxljJHYiF18xsdRNsT4LGFIdMmLm6w=
+Content-Type: multipart/alternative;
+	boundary="_000_BN6PR12MB18090BDFE1DD800785C5ED76F7740BN6PR12MB1809namp_"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AM0PR04MB44814BC1B03CC8D3963D969988740@AM0PR04MB4481.eurprd04.prod.outlook.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-OriginatorOrg: amd.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 4b7940ab-8790-404c-bc48-08d69ce1e3bb
+X-MS-Exchange-CrossTenant-originalarrivaltime: 27 Feb 2019 18:32:12.0148
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 3dd8961f-e488-4e60-8e11-a82d994e183d
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BN6PR12MB1345
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 27, 2019 at 01:33:15PM +0000, Peng Fan wrote:
-> Hi Dennis,
-> 
-> > -----Original Message-----
-> > From: Dennis Zhou [mailto:dennis@kernel.org]
-> > Sent: 2019年2月27日 1:33
-> > To: Peng Fan <peng.fan@nxp.com>
-> > Cc: dennis@kernel.org; tj@kernel.org; cl@linux.com; linux-mm@kvack.org;
-> > linux-kernel@vger.kernel.org; van.freenix@gmail.com
-> > Subject: Re: [RFC] percpu: decrease pcpu_nr_slots by 1
-> > 
-> > On Tue, Feb 26, 2019 at 12:09:28AM +0000, Peng Fan wrote:
-> > > Hi Dennis,
-> > >
-> > > > -----Original Message-----
-> > > > From: dennis@kernel.org [mailto:dennis@kernel.org]
-> > > > Sent: 2019年2月25日 23:24
-> > > > To: Peng Fan <peng.fan@nxp.com>
-> > > > Cc: tj@kernel.org; cl@linux.com; linux-mm@kvack.org;
-> > > > linux-kernel@vger.kernel.org; van.freenix@gmail.com
-> > > > Subject: Re: [RFC] percpu: decrease pcpu_nr_slots by 1
-> > > >
-> > > > On Sun, Feb 24, 2019 at 09:17:08AM +0000, Peng Fan wrote:
-> > > > > Entry pcpu_slot[pcpu_nr_slots - 2] is wasted with current code logic.
-> > > > > pcpu_nr_slots is calculated with `__pcpu_size_to_slot(size) + 2`.
-> > > > > Take pcpu_unit_size as 1024 for example, __pcpu_size_to_slot will
-> > > > > return max(11 - PCPU_SLOT_BASE_SHIFT + 2, 1), it is 8, so the
-> > > > > pcpu_nr_slots will be 10.
-> > > > >
-> > > > > The chunk with free_bytes 1024 will be linked into pcpu_slot[9].
-> > > > > However free_bytes in range [512,1024) will be linked into
-> > > > > pcpu_slot[7], because `fls(512) - PCPU_SLOT_BASE_SHIFT + 2` is 7.
-> > > > > So pcpu_slot[8] is has no chance to be used.
-> > > > >
-> > > > > According comments of PCPU_SLOT_BASE_SHIFT, 1~31 bytes share the
-> > > > same
-> > > > > slot and PCPU_SLOT_BASE_SHIFT is defined as 5. But actually 1~15
-> > > > > share the same slot 1 if we not take PCPU_MIN_ALLOC_SIZE into
-> > > > > consideration,
-> > > > > 16~31 share slot 2. Calculation as below:
-> > > > > highbit = fls(16) -> highbit = 5
-> > > > > max(5 - PCPU_SLOT_BASE_SHIFT + 2, 1) equals 2, not 1.
-> > > > >
-> > > > > This patch by decreasing pcpu_nr_slots to avoid waste one slot and
-> > > > > let [PCPU_MIN_ALLOC_SIZE, 31) really share the same slot.
-> > > > >
-> > > > > Signed-off-by: Peng Fan <peng.fan@nxp.com>
-> > > > > ---
-> > > > >
-> > > > > V1:
-> > > > >  Not very sure about whether it is intended to leave the slot there.
-> > > > >
-> > > > >  mm/percpu.c | 4 ++--
-> > > > >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > > > >
-> > > > > diff --git a/mm/percpu.c b/mm/percpu.c index
-> > > > > 8d9933db6162..12a9ba38f0b5 100644
-> > > > > --- a/mm/percpu.c
-> > > > > +++ b/mm/percpu.c
-> > > > > @@ -219,7 +219,7 @@ static bool pcpu_addr_in_chunk(struct
-> > > > > pcpu_chunk *chunk, void *addr)  static int __pcpu_size_to_slot(int size)
-> > {
-> > > > >  	int highbit = fls(size);	/* size is in bytes */
-> > > > > -	return max(highbit - PCPU_SLOT_BASE_SHIFT + 2, 1);
-> > > > > +	return max(highbit - PCPU_SLOT_BASE_SHIFT + 1, 1);
-> > > > >  }
-> > > >
-> > > > Honestly, it may be better to just have [1-16) [16-31) be separate.
-> 
-> Missed to reply this in previous thread, the following comments let
-> me think the chunk slot calculation might be wrong, so this comment
-> needs to be updated, saying "[PCPU_MIN_ALLOC_SIZE - 15) bytes share
-> the same slot", if [1-16)[16-31) is expected.
-> "
-> /* the slots are sorted by free bytes left, 1-31 bytes share the same slot */
-> #define PCPU_SLOT_BASE_SHIFT            5
-> "
-> 
-> > > > I'm working on a change to this area, so I may change what's going on
-> > here.
-> > > >
-> > > > >
-> > > > >  static int pcpu_size_to_slot(int size) @@ -2145,7 +2145,7 @@ int
-> > > > > __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
-> > > > >  	 * Allocate chunk slots.  The additional last slot is for
-> > > > >  	 * empty chunks.
-> > > > >  	 */
-> > > > > -	pcpu_nr_slots = __pcpu_size_to_slot(pcpu_unit_size) + 2;
-> > > > > +	pcpu_nr_slots = __pcpu_size_to_slot(pcpu_unit_size) + 1;
-> > > > >  	pcpu_slot = memblock_alloc(pcpu_nr_slots * sizeof(pcpu_slot[0]),
-> > > > >  				   SMP_CACHE_BYTES);
-> > > > >  	for (i = 0; i < pcpu_nr_slots; i++)
-> > > > > --
-> > > > > 2.16.4
-> > > > >
-> > > >
-> > > > This is a tricky change. The nice thing about keeping the additional
-> > > > slot around is that it ensures a distinction between a completely
-> > > > empty chunk and a nearly empty chunk.
-> > >
-> > > Are there any issues met before if not keeping the unused slot?
-> > > From reading the code and git history I could not find information.
-> > > I tried this code on aarch64 qemu and did not meet issues.
-> > >
-> > 
-> > This change would require verification that all paths lead to power of 2 chunk
-> > sizes and most likely a BUG_ON if that's not the case.
-> 
-> I try to understand, "power of 2 chunk sizes", you mean the runtime free_bytes
-> of a chunk?
-> 
+--_000_BN6PR12MB18090BDFE1DD800785C5ED76F7740BN6PR12MB1809namp_
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-I'm talking about the unit_size.
+Go ahead an apply it to amd-staging-drm-next.  It'll naturally fall out whe=
+n I rebase it.
 
-> > 
-> > So while this would work, we're holding onto an additional slot also to be used
-> > for chunk reclamation via pcpu_balance_workfn(). If a chunk was not a power
-> > of 2 resulting in the last slot being entirely empty chunks we could free stuff a
-> > chunk with addresses still in use.
-> 
-> You mean the following code might free stuff when a percpu variable is still being used
-> if the chunk runtime free_bytes is not a power of 2?
-> "
-> 1623         list_for_each_entry_safe(chunk, next, &to_free, list) {
-> 1624                 int rs, re;
-> 1625
-> 1626                 pcpu_for_each_pop_region(chunk->populated, rs, re, 0,
-> 1627                                          chunk->nr_pages) {
-> 1628                         pcpu_depopulate_chunk(chunk, rs, re);
-> 1629                         spin_lock_irq(&pcpu_lock);
-> 1630                         pcpu_chunk_depopulated(chunk, rs, re);
-> 1631                         spin_unlock_irq(&pcpu_lock);
-> 1632                 }
-> 1633                 pcpu_destroy_chunk(chunk);
-> 1634                 cond_resched();
-> 1635         }
-> "
-> 
+Alex
+________________________________
+From: amd-gfx <amd-gfx-bounces@lists.freedesktop.org> on behalf of Yang, Ph=
+ilip <Philip.Yang@amd.com>
+Sent: Wednesday, February 27, 2019 1:05 PM
+To: Michel D=E4nzer; J=E9r=F4me Glisse
+Cc: linux-mm@kvack.org; amd-gfx@lists.freedesktop.org
+Subject: Re: KASAN caught amdgpu / HMM use-after-free
 
-Yes, if the unit_size is not a power of 2, then the last slot holds used
-chunks.
+amd-staging-drm-next will rebase to kernel 5.1 to pickup this fix
+automatically. As a short-term workaround, please cherry-pick this fix
+into your local repository.
 
-> > 
-> > > > It happens to be that the logic creates power of 2 chunks which ends
-> > > > up being an additional slot anyway.
-> > >
-> > >
-> > > So,
-> > > > given that this logic is tricky and architecture dependent,
-> > >
-> > > Could you share more information about architecture dependent?
-> > >
-> > 
-> > The crux of the logic is in pcpu_build_alloc_info(). It's been some time since
-> > I've thought deeply about it, but I don't believe there is a guarantee that it will
-> > be a power of 2 chunk.
-> 
-> I am a bit lost about a power of 2, need to read more about the code.
-> 
+Regards,
+Philip
 
-I'm reluctant to remove this slot because it is tricky code and the
-benefit of it is negligible compared to the risk.
+On 2019-02-27 12:33 p.m., Michel D=E4nzer wrote:
+> On 2019-02-27 6:14 p.m., Yang, Philip wrote:
+>> Hi Michel,
+>>
+>> Yes, I found the same issue and the bug has been fixed by Jerome:
+>>
+>> 876b462120aa mm/hmm: use reference counting for HMM struct
+>>
+>> The fix is on hmm-for-5.1 branch, I cherry-pick it into my local branch
+>> to workaround the issue.
+>
+> Please push it to amd-staging-drm-next, so that others don't run into
+> the issue as well.
+>
+>
+_______________________________________________
+amd-gfx mailing list
+amd-gfx@lists.freedesktop.org
+https://lists.freedesktop.org/mailman/listinfo/amd-gfx
 
-Thanks,
-Dennis
+--_000_BN6PR12MB18090BDFE1DD800785C5ED76F7740BN6PR12MB1809namp_
+Content-Type: text/html; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<html>
+<head>
+<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso-8859-=
+1">
+<style type=3D"text/css" style=3D"display:none;"> P {margin-top:0;margin-bo=
+ttom:0;} </style>
+</head>
+<body dir=3D"ltr">
+<div style=3D"font-family: Calibri, Arial, Helvetica, sans-serif; font-size=
+: 12pt; color: rgb(0, 0, 0);">
+Go ahead an apply it to amd-staging-drm-next.&nbsp; It'll naturally fall ou=
+t when I rebase it.</div>
+<div style=3D"font-family: Calibri, Arial, Helvetica, sans-serif; font-size=
+: 12pt; color: rgb(0, 0, 0);">
+<br>
+</div>
+<div style=3D"font-family: Calibri, Arial, Helvetica, sans-serif; font-size=
+: 12pt; color: rgb(0, 0, 0);">
+Alex<br>
+</div>
+<div id=3D"appendonsend"></div>
+<hr style=3D"display:inline-block;width:98%" tabindex=3D"-1">
+<div id=3D"divRplyFwdMsg" dir=3D"ltr"><font face=3D"Calibri, sans-serif" st=
+yle=3D"font-size:11pt" color=3D"#000000"><b>From:</b> amd-gfx &lt;amd-gfx-b=
+ounces@lists.freedesktop.org&gt; on behalf of Yang, Philip &lt;Philip.Yang@=
+amd.com&gt;<br>
+<b>Sent:</b> Wednesday, February 27, 2019 1:05 PM<br>
+<b>To:</b> Michel D=E4nzer; J=E9r=F4me Glisse<br>
+<b>Cc:</b> linux-mm@kvack.org; amd-gfx@lists.freedesktop.org<br>
+<b>Subject:</b> Re: KASAN caught amdgpu / HMM use-after-free</font>
+<div>&nbsp;</div>
+</div>
+<div class=3D"BodyFragment"><font size=3D"2"><span style=3D"font-size:11pt;=
+">
+<div class=3D"PlainText">amd-staging-drm-next will rebase to kernel 5.1 to =
+pickup this fix
+<br>
+automatically. As a short-term workaround, please cherry-pick this fix <br>
+into your local repository.<br>
+<br>
+Regards,<br>
+Philip<br>
+<br>
+On 2019-02-27 12:33 p.m., Michel D=E4nzer wrote:<br>
+&gt; On 2019-02-27 6:14 p.m., Yang, Philip wrote:<br>
+&gt;&gt; Hi Michel,<br>
+&gt;&gt;<br>
+&gt;&gt; Yes, I found the same issue and the bug has been fixed by Jerome:<=
+br>
+&gt;&gt;<br>
+&gt;&gt; 876b462120aa mm/hmm: use reference counting for HMM struct<br>
+&gt;&gt;<br>
+&gt;&gt; The fix is on hmm-for-5.1 branch, I cherry-pick it into my local b=
+ranch<br>
+&gt;&gt; to workaround the issue.<br>
+&gt; <br>
+&gt; Please push it to amd-staging-drm-next, so that others don't run into<=
+br>
+&gt; the issue as well.<br>
+&gt; <br>
+&gt; <br>
+_______________________________________________<br>
+amd-gfx mailing list<br>
+amd-gfx@lists.freedesktop.org<br>
+<a href=3D"https://lists.freedesktop.org/mailman/listinfo/amd-gfx">https://=
+lists.freedesktop.org/mailman/listinfo/amd-gfx</a></div>
+</span></font></div>
+</body>
+</html>
+
+--_000_BN6PR12MB18090BDFE1DD800785C5ED76F7740BN6PR12MB1809namp_--
 
