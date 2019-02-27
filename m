@@ -2,473 +2,164 @@ Return-Path: <SRS0=x8zE=RC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7D5BC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:08:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B4B3C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:14:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 93BDF20C01
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:08:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93BDF20C01
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 30C2C2183F
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:14:10 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amdcloud.onmicrosoft.com header.i=@amdcloud.onmicrosoft.com header.b="GFEjBbFN"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30C2C2183F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amd.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3DBEB8E0005; Wed, 27 Feb 2019 12:08:39 -0500 (EST)
+	id B9EC18E0003; Wed, 27 Feb 2019 12:14:09 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 38AB48E0001; Wed, 27 Feb 2019 12:08:39 -0500 (EST)
+	id B4F938E0001; Wed, 27 Feb 2019 12:14:09 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 203D18E0005; Wed, 27 Feb 2019 12:08:39 -0500 (EST)
+	id A16BD8E0003; Wed, 27 Feb 2019 12:14:09 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B90738E0001
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:08:38 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id i22so7224829eds.20
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 09:08:38 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 432558E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:14:09 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id o25so7129479edr.0
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 09:14:09 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=7zRf+PErY3OfSw8vvNQmBFXyOY+/7g+ZkyX+8QL9LAI=;
-        b=dsXnzlZYklIoUmmxSqGJfWlLwFmabAqDgHo8jyY+T+IICM8zMoxGl2Pk8i3X5n7vsq
-         ZoS5wH6S0by4TsEwoOiOyRJXgxsGQaWi7GyRTDKrdbOrPiCUggWShF9iC1askfl9/9rT
-         MZmMQMIdk3HhOCati8KM5/Kdyj1/z0Bz8WaJJavuulir2ND1lWFGbQipi6cPVIJBd/J7
-         pka3Gl2w62VA0YWPfYkKGi3ftbBxIaXnNIKiM7EIfvOynXF+hDLlHymFCgoHgFDd9kM3
-         Pqllkq5CIBDXMhGez1HsaTJFg81V8+oTyPGZfCEEHDX3DsQqx/+MnXaNSiOlojIl4mxV
-         2OtA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: AHQUAuZD64G7NYA2mEsIayJ86ewrpcSL0/ycfCifcqiOgjk2wh9XP719
-	NGrhXz21SDM0/gCfC6h2KS9Qu9buxX4ywGwt3OUbqzSJgOV6QjvgicXpFJvuFzXGSifl0m3Md6P
-	k4M1ToUpY/mB/mFUmLSFEtzGsabcRnOgA07nvwt1owJkdK191zPHmyHgrteHJ3P4CfA==
-X-Received: by 2002:a17:906:f53:: with SMTP id h19mr2293142ejj.188.1551287318227;
-        Wed, 27 Feb 2019 09:08:38 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ibno3JJoZ7iJBQxA+IEw2nYMpUY0lrgIREm5mRV0PihTiat8U3Dje8N8XISr/cV7BtXRtaT
-X-Received: by 2002:a17:906:f53:: with SMTP id h19mr2293068ejj.188.1551287316862;
-        Wed, 27 Feb 2019 09:08:36 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551287316; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=og5KX0cHCtnyQVwvgHPQlKFf36uyq4g6zJgf/DGtrIM=;
+        b=YzcO2FxWBeXuh6eVlHqSqbsmPZxNGVoYz2qCgi8Vx+1vk0CiiO7FZopNdiRZnUQYVZ
+         uBGvbxZuFQEKm9mDQm380o8/rhPPfz6b4o9PJpC7ZfhT3ZhEoNSu/Q4QeVJGzUaslesp
+         yIB07HGXAWcPfJFFqYE5XYN3OAwZqBOQddf2/SfkAkCz7PUWmHM2fpCZ900V5H2Y6tmC
+         qpMwj5ye1SrRSKpTzf2KfN442VwUVLVBuxwWWAyb8d1/cH0BIItZ1C3nFWOkPCZxtVS8
+         CcnjUa7t1naRpd4TkolE0WBZT+ld5kRxicXH/QFFmTrbpAxL8NZxGCYlW8iKTDPpGlan
+         OhpA==
+X-Gm-Message-State: AHQUAuYhYzykMk+kd25BrFkEI5zl7eCoxCFTJ3HfMInBz8LHdZCePkZH
+	VU/LFTPX1SJkN4MJSi+Z+tQ0XKbEcpxmSi8MSMHZegPnwOUH8U52WJSo+JP3fLysxJDMbImUEMl
+	7c8xZCMu+TbVLCzAfjZOI4QpskJdqApb/GdiAs3WLFty3nKO/ECYODCwC+GIH0nE=
+X-Received: by 2002:a17:906:5e0d:: with SMTP id n13mr1128080eju.139.1551287648792;
+        Wed, 27 Feb 2019 09:14:08 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbCiDGgxqB3d9nJ7aH5IlNgXXf0UtOURIWOHAF/6604ywp+oN4RatxMxtyOVG+nd8QUnV6v
+X-Received: by 2002:a17:906:5e0d:: with SMTP id n13mr1127991eju.139.1551287647334;
+        Wed, 27 Feb 2019 09:14:07 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551287647; cv=none;
         d=google.com; s=arc-20160816;
-        b=edlacTydNVhXOqcWVyLw5RgndvzM7ynx5tFcKqJbUV0+1h/4hveNryTiYkDeSGIY3/
-         oeT3GXQF2Caxss1dYqHWhitqBAhYiKB9xIw02oC9iaXw23rWAeLyQB3+GMoOirGgLfQJ
-         VFRRPE21NgxwkDMJoWwap/LeK+o/joNpdSNafX4S+lEagCrUGIQYMztQqTmyRx7zpC0o
-         JGSxXl9anI2vPqSxxwPcmPza24H6FlY6mntlv1ZqbHPamZ/SiFUlb+CQwPnPrSOCJbLg
-         mYyF3tjuucwFduEcGpK19vry0EFKywAlhljglRS6iAGKU6zm58K3toBm507AOnAnIdkh
-         2VGw==
+        b=SCbcSp/5zAFCDAGuhS2OAv/Iw4FIEovhothpESiD8W/x3l+Z6sALEaX/QouOL/JjjA
+         V67CKsSu9mXXQ2M8VPQ6LAEHyoBOs/uP0U4Cus/Up3DyBjaULxs/O/94kHWn9UD49PkU
+         SF+lJY5xNKZBQWtJl67tB4aBno8+6WdJE2BEkDCUU3BmfJoxXPy5FQe0k0Y8D+Vk9S65
+         Dc5KHV7ttvfAKMlp+4XcFEktCmGuXAxNs4X9QyKK+xmHqMB2j+0Fo0SZf7yKDQcxmw9v
+         TZ6y1SCD9zndYOvLm+NE0Rprjw6s0M4tKuQSzey465uvnDDwVZC0Lk9uFAAObZExoVvh
+         0aCg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=7zRf+PErY3OfSw8vvNQmBFXyOY+/7g+ZkyX+8QL9LAI=;
-        b=1Heg2W1R/Tx1ZjF8mmZEE6Za1uiQejo+gmd8b+kqCWRk1GySv/87s66SFhtwq4bhrq
-         +ioT6j+VztlHAOWorVNvuSDJj4t/iv57H4jJP3esjeA3yZGfGrhmOv2QW/uJeYAh57Zv
-         G7jHt6uApqjXBZcFWuRl1Fyu7E7jOyMv4Uk5ymqLS8PVDf1ZsVU7Zmt+Rx0w0mKlAaY4
-         +FZkXa1mKEGGZwA8t/TqKdd2BGsur443vnctZGCSOeDB2ykN6ntnMgey1+1+hoiSKYmw
-         bYt/8xJo+w6myVm91G19vJQ6LtVnrYrXShgNgKXg2gzqbT/TD2UaMhh2vSJvICdZ2goi
-         HXaw==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=og5KX0cHCtnyQVwvgHPQlKFf36uyq4g6zJgf/DGtrIM=;
+        b=zfxb3W9bgJaTFHbt1J6aMkhXMNWRZa47kJ6MfFJjK5oxuwqCgyZOCMtPwSyA9ZqIlS
+         h9+gRk2DYvkETbQesYobRI6JCwnHqph4AID2LuElX/hZpOv5j0PzRaZ1Moxj7caiXZw5
+         OepWZAza9tYMYSZ0U8MifHQLYk+IFCCfmTL/M3lylRG22BFA+O0TZvh55BIpYl2uiFz2
+         0cpTtRS+du5q1jaDxpRSSyXCsWwCehgLoTPNhfqEM3xTTCDX3OXBHR2WcI/ykhBZgCVy
+         d6M6hm4VS6ifvqIeJZtfOEqrXs6Xu+H8TZ9acXVeCZ+qiHskpiQEeseWLXhsPV+TQbrX
+         NtCg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id t38si4775705eda.121.2019.02.27.09.08.36
-        for <linux-mm@kvack.org>;
-        Wed, 27 Feb 2019 09:08:36 -0800 (PST)
-Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amd-com header.b=GFEjBbFN;
+       spf=neutral (google.com: 40.107.77.45 is neither permitted nor denied by best guess record for domain of philip.yang@amd.com) smtp.mailfrom=Philip.Yang@amd.com
+Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-eopbgr770045.outbound.protection.outlook.com. [40.107.77.45])
+        by mx.google.com with ESMTPS id k8si4670724eda.4.2019.02.27.09.14.07
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 27 Feb 2019 09:14:07 -0800 (PST)
+Received-SPF: neutral (google.com: 40.107.77.45 is neither permitted nor denied by best guess record for domain of philip.yang@amd.com) client-ip=40.107.77.45;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id BF11A1715;
-	Wed, 27 Feb 2019 09:08:35 -0800 (PST)
-Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 838A53F738;
-	Wed, 27 Feb 2019 09:08:32 -0800 (PST)
-From: Steven Price <steven.price@arm.com>
-To: linux-mm@kvack.org
-Cc: Steven Price <steven.price@arm.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Arnd Bergmann <arnd@arndb.de>,
-	Borislav Petkov <bp@alien8.de>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Ingo Molnar <mingo@redhat.com>,
-	James Morse <james.morse@arm.com>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Will Deacon <will.deacon@arm.com>,
-	x86@kernel.org,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	linux-arm-kernel@lists.infradead.org,
-	linux-kernel@vger.kernel.org,
-	Mark Rutland <Mark.Rutland@arm.com>,
-	"Liang, Kan" <kan.liang@linux.intel.com>
-Subject: [PATCH v3 34/34] x86: mm: Convert dump_pagetables to use walk_page_range
-Date: Wed, 27 Feb 2019 17:06:08 +0000
-Message-Id: <20190227170608.27963-35-steven.price@arm.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190227170608.27963-1-steven.price@arm.com>
-References: <20190227170608.27963-1-steven.price@arm.com>
+       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amd-com header.b=GFEjBbFN;
+       spf=neutral (google.com: 40.107.77.45 is neither permitted nor denied by best guess record for domain of philip.yang@amd.com) smtp.mailfrom=Philip.Yang@amd.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=amdcloud.onmicrosoft.com; s=selector1-amd-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=og5KX0cHCtnyQVwvgHPQlKFf36uyq4g6zJgf/DGtrIM=;
+ b=GFEjBbFNKf0tJykFfwpI/Zt3gjJPdKPB843vMmkd8HAqHC4Xz667gqCIAza7AR/ok7/dryGpGB2jauD0mjEhlaXzBThxWViniTZ3wAWyvMP3t1GH0dXkT4sbHfsh8DccPkQvRwFLc7yvI+mzaK8Vatm8DPEUZBn8sVdm44i2eLE=
+Received: from DM5PR1201MB0155.namprd12.prod.outlook.com (10.174.106.148) by
+ DM5PR1201MB2555.namprd12.prod.outlook.com (10.172.91.138) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1643.16; Wed, 27 Feb 2019 17:14:05 +0000
+Received: from DM5PR1201MB0155.namprd12.prod.outlook.com
+ ([fe80::5464:b0a9:e80e:b8c7]) by DM5PR1201MB0155.namprd12.prod.outlook.com
+ ([fe80::5464:b0a9:e80e:b8c7%8]) with mapi id 15.20.1643.022; Wed, 27 Feb 2019
+ 17:14:05 +0000
+From: "Yang, Philip" <Philip.Yang@amd.com>
+To: =?utf-8?B?TWljaGVsIETDpG56ZXI=?= <michel@daenzer.net>,
+	=?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+CC: "amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Re: KASAN caught amdgpu / HMM use-after-free
+Thread-Topic: KASAN caught amdgpu / HMM use-after-free
+Thread-Index: AQHUzr5Iv9fZwgvZtkOvi9fDH0RyfqXz4i4A
+Date: Wed, 27 Feb 2019 17:14:04 +0000
+Message-ID: <83fde7eb-abab-e770-efd5-89bc9c39fdff@amd.com>
+References: <e8466985-a66b-468b-5fff-6e743180da67@daenzer.net>
+In-Reply-To: <e8466985-a66b-468b-5fff-6e743180da67@daenzer.net>
+Accept-Language: en-ZA, en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: YQBPR0101CA0043.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:c00:1::20) To DM5PR1201MB0155.namprd12.prod.outlook.com
+ (2603:10b6:4:55::20)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=Philip.Yang@amd.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [165.204.55.251]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 6f980818-f3cf-4de9-5057-08d69cd6f9ab
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(4618075)(2017052603328)(7153060)(7193020);SRVR:DM5PR1201MB2555;
+x-ms-traffictypediagnostic: DM5PR1201MB2555:
+x-microsoft-exchange-diagnostics:
+ 1;DM5PR1201MB2555;20:2xHti1NKK1aS3lkeUb/kEN5k89oXsQIap/zQ1dwcT4zAr6Zjw/T+9KHiwHZP9APzUI+uP8VAXNVmTw2yJ21CXzILQtTMKmoM7ohwIvZPaxGPkEszqSiMn8JDhnL+CKff8EfhAcQFNAgGgy1V+5nDan2tC9UTBaJ5GVxMSL8VdONoLCGAV81J3TIgVUD6kJI8C2lWdwWnLH7lGv1uno/cary/B3nbAuARkpyNNgBzPgIGtYH/stw8Ad5amWidw9Og
+x-microsoft-antispam-prvs:
+ <DM5PR1201MB25553AEFEC5CF3750DBBCF1FE6740@DM5PR1201MB2555.namprd12.prod.outlook.com>
+x-forefront-prvs: 0961DF5286
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(39860400002)(136003)(396003)(346002)(376002)(366004)(189003)(199004)(52116002)(25786009)(72206003)(53546011)(229853002)(102836004)(2906002)(110136005)(36756003)(7736002)(6116002)(316002)(3846002)(6246003)(305945005)(105586002)(6506007)(386003)(6436002)(14454004)(31686004)(6512007)(4326008)(53936002)(106356001)(68736007)(6486002)(4744005)(99286004)(86362001)(486006)(5024004)(31696002)(256004)(81166006)(81156014)(54906003)(8936002)(11346002)(186003)(5660300002)(97736004)(71200400001)(476003)(71190400001)(2616005)(8676002)(66066001)(478600001)(76176011)(26005)(446003);DIR:OUT;SFP:1101;SCL:1;SRVR:DM5PR1201MB2555;H:DM5PR1201MB0155.namprd12.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: amd.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ POiUkhHr273AgmSGQDoE3oX9/Mu3IP0GSapAxQ1mkQaM2LJBwfR9vIYKUkmmOvcBvaM4OEMZhvMeWhkyJsLS5QU95yEFViYdzzuDhxSsqIRNm6jyNcskSuaG2eMEIhEa4O00FE5WJ5IMg5RFCzGM0db5ddUSQz7ugp0UoekMCORV3gOSrowFejtdst7i50uI3tGYMOeA7ALGM108pipl+g4j9TgUrVcW5ruEoOy/XBbIr29APqXf8kW9WXReHRQg0jCL5ljv8OgC1dxUlCLl/a8cn/bEGBAa1Sq0jpyckw6rvE+cr6sfJ1KPyuum1MNG9O5esoGwLU6ERub+dWwnZzE/hLjSgwScbiWuqqGZMgpW7e08v8cJUa9Ud//BF9y7BJR738L/Ko2LvXu++qIMHxhCASc8Oxq+DLN8dUJcz64=
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <CCAA4E538C783F46A55E3D53C5408631@namprd12.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+X-OriginatorOrg: amd.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 6f980818-f3cf-4de9-5057-08d69cd6f9ab
+X-MS-Exchange-CrossTenant-originalarrivaltime: 27 Feb 2019 17:14:04.2179
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-id: 3dd8961f-e488-4e60-8e11-a82d994e183d
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM5PR1201MB2555
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Make use of the new functionality in walk_page_range to remove the
-arch page walking code and use the generic code to walk the page tables.
-
-The effective permissions are passed down the chain using new fields
-in struct pg_state.
-
-The KASAN optimisation is implemented by including test_p?d callbacks
-which can decide to skip an entire tree of entries
-
-Signed-off-by: Steven Price <steven.price@arm.com>
----
- arch/x86/mm/dump_pagetables.c | 279 ++++++++++++++++++----------------
- 1 file changed, 146 insertions(+), 133 deletions(-)
-
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 40a8b0da2170..64d1619493a4 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -33,6 +33,10 @@ struct pg_state {
- 	int level;
- 	pgprot_t current_prot;
- 	pgprotval_t effective_prot;
-+	pgprotval_t effective_prot_pgd;
-+	pgprotval_t effective_prot_p4d;
-+	pgprotval_t effective_prot_pud;
-+	pgprotval_t effective_prot_pmd;
- 	unsigned long start_address;
- 	unsigned long current_address;
- 	const struct addr_marker *marker;
-@@ -355,22 +359,21 @@ static inline pgprotval_t effective_prot(pgprotval_t prot1, pgprotval_t prot2)
- 	       ((prot1 | prot2) & _PAGE_NX);
- }
- 
--static void walk_pte_level(struct pg_state *st, pmd_t addr, pgprotval_t eff_in,
--			   unsigned long P)
-+static int ptdump_pte_entry(pte_t *pte, unsigned long addr,
-+			    unsigned long next, struct mm_walk *walk)
- {
--	int i;
--	pte_t *pte;
--	pgprotval_t prot, eff;
--
--	for (i = 0; i < PTRS_PER_PTE; i++) {
--		st->current_address = normalize_addr(P + i * PTE_LEVEL_MULT);
--		pte = pte_offset_map(&addr, st->current_address);
--		prot = pte_flags(*pte);
--		eff = effective_prot(eff_in, prot);
--		note_page(st, __pgprot(prot), eff, 5);
--		pte_unmap(pte);
--	}
-+	struct pg_state *st = walk->private;
-+	pgprotval_t eff, prot;
-+
-+	st->current_address = normalize_addr(addr);
-+
-+	prot = pte_flags(*pte);
-+	eff = effective_prot(st->effective_prot_pmd, prot);
-+	note_page(st, __pgprot(prot), eff, 5);
-+
-+	return 0;
- }
-+
- #ifdef CONFIG_KASAN
- 
- /*
-@@ -399,130 +402,152 @@ static inline bool kasan_page_table(struct pg_state *st, void *pt)
- }
- #endif
- 
--#if PTRS_PER_PMD > 1
--
--static void walk_pmd_level(struct pg_state *st, pud_t addr,
--			   pgprotval_t eff_in, unsigned long P)
-+static int ptdump_test_pmd(unsigned long addr, unsigned long next,
-+			   pmd_t *pmd, struct mm_walk *walk)
- {
--	int i;
--	pmd_t *start, *pmd_start;
--	pgprotval_t prot, eff;
--
--	pmd_start = start = (pmd_t *)pud_page_vaddr(addr);
--	for (i = 0; i < PTRS_PER_PMD; i++) {
--		st->current_address = normalize_addr(P + i * PMD_LEVEL_MULT);
--		if (!pmd_none(*start)) {
--			prot = pmd_flags(*start);
--			eff = effective_prot(eff_in, prot);
--			if (pmd_large(*start) || !pmd_present(*start)) {
--				note_page(st, __pgprot(prot), eff, 4);
--			} else if (!kasan_page_table(st, pmd_start)) {
--				walk_pte_level(st, *start, eff,
--					       P + i * PMD_LEVEL_MULT);
--			}
--		} else
--			note_page(st, __pgprot(0), 0, 4);
--		start++;
--	}
-+	struct pg_state *st = walk->private;
-+
-+	st->current_address = normalize_addr(addr);
-+
-+	if (kasan_page_table(st, pmd))
-+		return 1;
-+	return 0;
- }
- 
--#else
--#define walk_pmd_level(s,a,e,p) walk_pte_level(s,__pmd(pud_val(a)),e,p)
--#define pud_large(a) pmd_large(__pmd(pud_val(a)))
--#define pud_none(a)  pmd_none(__pmd(pud_val(a)))
--#endif
-+static int ptdump_pmd_entry(pmd_t *pmd, unsigned long addr,
-+			    unsigned long next, struct mm_walk *walk)
-+{
-+	struct pg_state *st = walk->private;
-+	pgprotval_t eff, prot;
-+
-+	prot = pmd_flags(*pmd);
-+	eff = effective_prot(st->effective_prot_pud, prot);
-+
-+	st->current_address = normalize_addr(addr);
-+
-+	if (pmd_large(*pmd))
-+		note_page(st, __pgprot(prot), eff, 4);
- 
--#if PTRS_PER_PUD > 1
-+	st->effective_prot_pmd = eff;
- 
--static void walk_pud_level(struct pg_state *st, p4d_t addr, pgprotval_t eff_in,
--			   unsigned long P)
-+	return 0;
-+}
-+
-+static int ptdump_test_pud(unsigned long addr, unsigned long next,
-+			   pud_t *pud, struct mm_walk *walk)
- {
--	int i;
--	pud_t *start, *pud_start;
--	pgprotval_t prot, eff;
--	pud_t *prev_pud = NULL;
--
--	pud_start = start = (pud_t *)p4d_page_vaddr(addr);
--
--	for (i = 0; i < PTRS_PER_PUD; i++) {
--		st->current_address = normalize_addr(P + i * PUD_LEVEL_MULT);
--		if (!pud_none(*start)) {
--			prot = pud_flags(*start);
--			eff = effective_prot(eff_in, prot);
--			if (pud_large(*start) || !pud_present(*start)) {
--				note_page(st, __pgprot(prot), eff, 3);
--			} else if (!kasan_page_table(st, pud_start)) {
--				walk_pmd_level(st, *start, eff,
--					       P + i * PUD_LEVEL_MULT);
--			}
--		} else
--			note_page(st, __pgprot(0), 0, 3);
-+	struct pg_state *st = walk->private;
- 
--		prev_pud = start;
--		start++;
--	}
-+	st->current_address = normalize_addr(addr);
-+
-+	if (kasan_page_table(st, pud))
-+		return 1;
-+	return 0;
- }
- 
--#else
--#define walk_pud_level(s,a,e,p) walk_pmd_level(s,__pud(p4d_val(a)),e,p)
--#define p4d_large(a) pud_large(__pud(p4d_val(a)))
--#define p4d_none(a)  pud_none(__pud(p4d_val(a)))
--#endif
-+static int ptdump_pud_entry(pud_t *pud, unsigned long addr,
-+			    unsigned long next, struct mm_walk *walk)
-+{
-+	struct pg_state *st = walk->private;
-+	pgprotval_t eff, prot;
-+
-+	prot = pud_flags(*pud);
-+	eff = effective_prot(st->effective_prot_p4d, prot);
-+
-+	st->current_address = normalize_addr(addr);
-+
-+	if (pud_large(*pud))
-+		note_page(st, __pgprot(prot), eff, 3);
-+
-+	st->effective_prot_pud = eff;
- 
--static void walk_p4d_level(struct pg_state *st, pgd_t addr, pgprotval_t eff_in,
--			   unsigned long P)
-+	return 0;
-+}
-+
-+static int ptdump_test_p4d(unsigned long addr, unsigned long next,
-+			   p4d_t *p4d, struct mm_walk *walk)
- {
--	int i;
--	p4d_t *start, *p4d_start;
--	pgprotval_t prot, eff;
--
--	if (PTRS_PER_P4D == 1)
--		return walk_pud_level(st, __p4d(pgd_val(addr)), eff_in, P);
--
--	p4d_start = start = (p4d_t *)pgd_page_vaddr(addr);
--
--	for (i = 0; i < PTRS_PER_P4D; i++) {
--		st->current_address = normalize_addr(P + i * P4D_LEVEL_MULT);
--		if (!p4d_none(*start)) {
--			prot = p4d_flags(*start);
--			eff = effective_prot(eff_in, prot);
--			if (p4d_large(*start) || !p4d_present(*start)) {
--				note_page(st, __pgprot(prot), eff, 2);
--			} else if (!kasan_page_table(st, p4d_start)) {
--				walk_pud_level(st, *start, eff,
--					       P + i * P4D_LEVEL_MULT);
--			}
--		} else
--			note_page(st, __pgprot(0), 0, 2);
-+	struct pg_state *st = walk->private;
- 
--		start++;
--	}
-+	st->current_address = normalize_addr(addr);
-+
-+	if (kasan_page_table(st, p4d))
-+		return 1;
-+	return 0;
- }
- 
--#define pgd_large(a) (pgtable_l5_enabled() ? pgd_large(a) : p4d_large(__p4d(pgd_val(a))))
--#define pgd_none(a)  (pgtable_l5_enabled() ? pgd_none(a) : p4d_none(__p4d(pgd_val(a))))
-+static int ptdump_p4d_entry(p4d_t *p4d, unsigned long addr,
-+			    unsigned long next, struct mm_walk *walk)
-+{
-+	struct pg_state *st = walk->private;
-+	pgprotval_t eff, prot;
-+
-+	prot = p4d_flags(*p4d);
-+	eff = effective_prot(st->effective_prot_pgd, prot);
-+
-+	st->current_address = normalize_addr(addr);
-+
-+	if (p4d_large(*p4d))
-+		note_page(st, __pgprot(prot), eff, 2);
-+
-+	st->effective_prot_p4d = eff;
-+
-+	return 0;
-+}
- 
--static inline bool is_hypervisor_range(int idx)
-+static int ptdump_pgd_entry(pgd_t *pgd, unsigned long addr,
-+			    unsigned long next, struct mm_walk *walk)
- {
--#ifdef CONFIG_X86_64
--	/*
--	 * A hole in the beginning of kernel address space reserved
--	 * for a hypervisor.
--	 */
--	return	(idx >= pgd_index(GUARD_HOLE_BASE_ADDR)) &&
--		(idx <  pgd_index(GUARD_HOLE_END_ADDR));
-+	struct pg_state *st = walk->private;
-+	pgprotval_t eff, prot;
-+
-+	prot = pgd_flags(*pgd);
-+
-+#ifdef CONFIG_X86_PAE
-+	eff = _PAGE_USER | _PAGE_RW;
- #else
--	return false;
-+	eff = prot;
- #endif
-+
-+	st->current_address = normalize_addr(addr);
-+
-+	if (pgd_large(*pgd))
-+		note_page(st, __pgprot(prot), eff, 1);
-+
-+	st->effective_prot_pgd = eff;
-+
-+	return 0;
-+}
-+
-+static int ptdump_hole(unsigned long addr, unsigned long next, int depth,
-+		       struct mm_walk *walk)
-+{
-+	struct pg_state *st = walk->private;
-+
-+	st->current_address = normalize_addr(addr);
-+
-+	note_page(st, __pgprot(0), 0, depth + 1);
-+
-+	return 0;
- }
- 
- static void ptdump_walk_pgd_level_core(struct seq_file *m, struct mm_struct *mm,
- 				       bool checkwx, bool dmesg)
- {
--	pgd_t *start = mm->pgd;
--	pgprotval_t prot, eff;
--	int i;
- 	struct pg_state st = {};
-+	struct mm_walk walk = {
-+		.mm		= mm,
-+		.pgd_entry	= ptdump_pgd_entry,
-+		.p4d_entry	= ptdump_p4d_entry,
-+		.pud_entry	= ptdump_pud_entry,
-+		.pmd_entry	= ptdump_pmd_entry,
-+		.pte_entry	= ptdump_pte_entry,
-+		.test_p4d	= ptdump_test_p4d,
-+		.test_pud	= ptdump_test_pud,
-+		.test_pmd	= ptdump_test_pmd,
-+		.pte_hole	= ptdump_hole,
-+		.private	= &st
-+	};
- 
- 	st.to_dmesg = dmesg;
- 	st.check_wx = checkwx;
-@@ -530,27 +555,15 @@ static void ptdump_walk_pgd_level_core(struct seq_file *m, struct mm_struct *mm,
- 	if (checkwx)
- 		st.wx_pages = 0;
- 
--	for (i = 0; i < PTRS_PER_PGD; i++) {
--		st.current_address = normalize_addr(i * PGD_LEVEL_MULT);
--		if (!pgd_none(*start) && !is_hypervisor_range(i)) {
--			prot = pgd_flags(*start);
--#ifdef CONFIG_X86_PAE
--			eff = _PAGE_USER | _PAGE_RW;
-+	down_read(&mm->mmap_sem);
-+#ifdef CONFIG_X86_64
-+	walk_page_range(0, PTRS_PER_PGD*PGD_LEVEL_MULT/2, &walk);
-+	walk_page_range(normalize_addr(PTRS_PER_PGD*PGD_LEVEL_MULT/2), ~0,
-+			&walk);
- #else
--			eff = prot;
-+	walk_page_range(0, ~0, &walk);
- #endif
--			if (pgd_large(*start) || !pgd_present(*start)) {
--				note_page(&st, __pgprot(prot), eff, 1);
--			} else {
--				walk_p4d_level(&st, *start, eff,
--					       i * PGD_LEVEL_MULT);
--			}
--		} else
--			note_page(&st, __pgprot(0), 0, 1);
--
--		cond_resched();
--		start++;
--	}
-+	up_read(&mm->mmap_sem);
- 
- 	/* Flush out the last page */
- 	st.current_address = normalize_addr(PTRS_PER_PGD*PGD_LEVEL_MULT);
--- 
-2.20.1
+SGkgTWljaGVsLA0KDQpZZXMsIEkgZm91bmQgdGhlIHNhbWUgaXNzdWUgYW5kIHRoZSBidWcgaGFz
+IGJlZW4gZml4ZWQgYnkgSmVyb21lOg0KDQo4NzZiNDYyMTIwYWEgbW0vaG1tOiB1c2UgcmVmZXJl
+bmNlIGNvdW50aW5nIGZvciBITU0gc3RydWN0DQoNClRoZSBmaXggaXMgb24gaG1tLWZvci01LjEg
+YnJhbmNoLCBJIGNoZXJyeS1waWNrIGl0IGludG8gbXkgbG9jYWwgYnJhbmNoIA0KdG8gd29ya2Fy
+b3VuZCB0aGUgaXNzdWUuDQoNClJlZ2FyZHMsDQpQaGlsaXANCg0KT24gMjAxOS0wMi0yNyAxMjow
+MiBwLm0uLCBNaWNoZWwgRMOkbnplciB3cm90ZToNCj4gDQo+IFNlZSB0aGUgYXR0YWNoZWQgZG1l
+c2cgZXhjZXJwdC4gSSd2ZSBoaXQgdGhpcyBhIGZldyB0aW1lcyBydW5uaW5nIHBpZ2xpdA0KPiB3
+aXRoIGFtZC1zdGFnaW5nLWRybS1uZXh0LCBmaXJzdCBvbiBGZWJydWFyeSAyMm5kLg0KPiANCj4g
+VGhlIG1lbW9yeSB3YXMgZnJlZWQgYWZ0ZXIgY2FsbGluZyBobW1fbWlycm9yX3VucmVnaXN0ZXIg
+aW4NCj4gYW1kZ3B1X21uX2Rlc3Ryb3kuDQo+IA0KPiANCg==
 
