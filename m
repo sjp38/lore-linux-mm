@@ -2,176 +2,215 @@ Return-Path: <SRS0=x8zE=RC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C153C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:38:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A2B42C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:40:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 560C320C01
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:38:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 560C320C01
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 5AF3A21873
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:40:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AF3A21873
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=de.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E75B58E001B; Wed, 27 Feb 2019 12:38:56 -0500 (EST)
+	id C00B28E001D; Wed, 27 Feb 2019 12:40:32 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DFA3C8E0001; Wed, 27 Feb 2019 12:38:56 -0500 (EST)
+	id B87CD8E0001; Wed, 27 Feb 2019 12:40:32 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CC3F88E001B; Wed, 27 Feb 2019 12:38:56 -0500 (EST)
+	id A29568E001D; Wed, 27 Feb 2019 12:40:32 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B18E8E0001
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:38:56 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id u12so7275748edo.5
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 09:38:56 -0800 (PST)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 739468E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:40:32 -0500 (EST)
+Received: by mail-oi1-f200.google.com with SMTP id r21so7613009oie.11
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 09:40:32 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=1JDZyMRpYHsQ5xhzp+bVlGOJKxoCSrILZkjIoH7AIL8=;
-        b=dDQ8u55zHkZ6O+aRxqe9oO/LwvleY2oVDffUriDX/2qPRYA2TgxWmV/3yNyCVoy+A5
-         5e5n6A7eDOS+h3gTGOX4yfdW8wtsc5znTXRWrk2lovtRJfFSFJCPzX3qV8M7sgxYNr9w
-         Lt6ufqGkdxl+fFmwcplL7WsMgOxkZsqWdArVQGIfQdFKCLIbUqzpawW0Gg0KbDcBSGDN
-         NvVn/DZZ+6rB0T8A1zxfXjgarCUKIgFxMvCylz25QWgZFduuIwNcNvX6V7MtzKyMHPvV
-         AScq0HGLBgS/9Hbbzbs4utJz2cby3wgqcf3/687+xvw12bBpUS6xb8I3mIVu27k6isUw
-         O5NQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: AHQUAubQVAQ7v5PGL1HM8HYJUwU9jE3Qkety6LxX+t1EGQn06yOjo3RA
-	Mw1tid5knzAdQ3AKRQj24uBR1f02ztWVPOGuietCQwBhAOWes7drDoigkCoJIgZPRNWrJmSe317
-	b3KUcak8EeMyqukob6nJcN1tRWoWrHg3zau4/8vfZ/F1pnAwWXK0mzVVQcmp8h7p3yg==
-X-Received: by 2002:a17:906:1b10:: with SMTP id o16mr2344690ejg.184.1551289135968;
-        Wed, 27 Feb 2019 09:38:55 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYkkrmQ2y3nXXYIrO+wXwp0U8TzGi037HYotM2Nb5nehc1mDkFwZjZUYnqKVVzBQNYjZ49z
-X-Received: by 2002:a17:906:1b10:: with SMTP id o16mr2344648ejg.184.1551289134952;
-        Wed, 27 Feb 2019 09:38:54 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551289134; cv=none;
+         :cc:subject:in-reply-to:references:mime-version:message-id
+         :content-transfer-encoding;
+        bh=gXMW0K3Lmn5/vqfZW+JOTVgQGxsFi5odITHtSzY3JzE=;
+        b=NuzVdDcgcHFZVYh4WMEYezGEqQwhK2IA1N/1cAZ4NK8WFDy2NSeubcXnSxKS30HR8a
+         DvXXMCvJzlmZQ7yuk2aqLZ/EgKWtdwvt8/PXbPiAlKoMaod6vrbh6583jTgqspJ2Jx73
+         JnNk6nNxXWh2xitQjokB4nj6sVcnNPRLQxneHKKZjmVUHRcDlgaWrL4GJFCBh/142Wiy
+         e3lXA41nA8MooiIq2vfK5Ga8VRwd7ED7i+7Oeye5e921zobU1+GYohnOoSLSAJhJQPo6
+         LVgi33OFS3vnrZ57XeZ7CTERD0ADWa5qXHZMysiBwQ+dai96pteIrsTeVWY7nl2dkybP
+         DhQQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of schwidefsky@de.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=schwidefsky@de.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: AHQUAuame4/LyNsdvZbP7KRkl0rZS1lYk1Q53Vq5lpQWfNeI3G8xNQL9
+	Te1F1cPIEGtKkGwnBVbN+kkYX+HXHdIKaZqFKm5LuG13SAXmYW8Lw2SS7o06vK/EYlTk96npnvk
+	/qh0FLpuhFind7WecoECMy1bZtoMOCnWbcLsjqHPoQWKWS0vKkPfU9oGHqN59Rb/eAQ==
+X-Received: by 2002:a9d:73d6:: with SMTP id m22mr2923944otk.322.1551289232240;
+        Wed, 27 Feb 2019 09:40:32 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ibr+eg+qLwFuZraNhRgdWxzoKRmjvlLT1m1vfolWxxiMCB5RbSLKkDKN/VgIiqHD7MTANjY
+X-Received: by 2002:a9d:73d6:: with SMTP id m22mr2923903otk.322.1551289231316;
+        Wed, 27 Feb 2019 09:40:31 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551289231; cv=none;
         d=google.com; s=arc-20160816;
-        b=hQ2kgUgw3ejhKsqDU6PnJucldiLsMPqYoySeJ1xlmROz0QYpNrPkV8zd0zrBWIYK4l
-         Vai5VXZ7QZHgA6AJXSfyruP3G3t/yTq4hMKbJu9Kd8g5sYQfOFU+c09mvuSEWGbodKiq
-         cJHrV0B+KuSmoTiyyOkiFeQAOLxkY+u9gbDT46j8c6Kt+eUMMnYEphoAWREeHLaRQ0Ak
-         fXu9sc81FMD/YeI6J7bU12qbKJwsQATvyeoRTl2RUhYC9qBSMVx5Hraqw7+qMLaryjEW
-         88M/uY0tPRI7rjec8sJnm4zt1xXHYeEkzNn7Hni4OCC6IOhxDt0mssZbHqxARj4+RdKu
-         2lmw==
+        b=kB3o5x6LArPp6gwWk8WA4e+/wIuJQqHCFcn0tr+J++09L4x+Q5ujTLP5YZ8VwVV3qM
+         Jd7r7dxrdwpCLG2csrsEq6B7TLIm1xBO8B7NY8325b9jy5ohODuDVR5Zan/OetgXCCDJ
+         YIuERTWHde/b+tvXt6r68QIFQK9JzATL88UWGbqf1fIbiVFeZIC14YA67g7+Y8ZoUKjx
+         /y8cAbvdS6wx4G7E+vsIkSJ5T7D+EXzw8NyJgSa4+8OdC7Oz31QcPgOjwkxyAB9E5f6o
+         mMyRX2my+hQcCcwaQUKf9NbkatESnsFP3Ka0A/BR4u0Kg9rCf7WY0vyyrmk+KhU/nBaL
+         DWTQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=1JDZyMRpYHsQ5xhzp+bVlGOJKxoCSrILZkjIoH7AIL8=;
-        b=R1ns7j5qv7WL4yFY5iWSSzWj5HrAjR6HqudYZpA8tftNmlojKTExHw8uewgkPzhnNJ
-         fb1JV0IuWxidx8w5Fl3mqzSE2i9V3Y8j3UtSdLtxfOjx6g3NU6aNlP+TVknQTYjSKUqI
-         zHY5u/6L8iNDWZ2lIThvenx4XINDzSxbE7DeW4R3nENjS4LmKr37DxQ0d/bCyGkpf9ee
-         8k7xtMpwJA1SR4PS00KqJfZNm9urdnAgjZKG7dscCl1dnfAhi1xYX5H5MXV+yZXyEZSL
-         3xdS40ADQxZVUh5gLeqam7EIrHcjKRkAVsuRd+I17BuOtZOc6YTIlV1cCAwWV4MgvzuZ
-         Fi1g==
+        h=content-transfer-encoding:message-id:mime-version:references
+         :in-reply-to:subject:cc:to:from:date;
+        bh=gXMW0K3Lmn5/vqfZW+JOTVgQGxsFi5odITHtSzY3JzE=;
+        b=qriXyQGtUmSMm//5c/XYHSQQwGYr2h7AUtfxdcEoIjN3A06E9rJsdk4vwQ8z/2+v8R
+         tizEmTh3sI4F8nsP0z+qX1I1+AlQfncRdt2xBNugNisBmkEfyHCdfgFTjWU5irnAZW6P
+         WqEfkoOQmtUQHRSxUybegGbQKq5Fu2CDlublY/jETfsrSWRy07M5vJVbGy4NxlcMx7LI
+         Udhstwv1FezMbm9vLrOrWApK/KNGXb0rlDuRWzJnkIo7UuP4wY57uDyNvPQ25dAAVzSW
+         ydmiE+5fZrHr1FnqIcXJ1/mVbgD3kpAwGNzt8SB4yT+B5r7D2yFzbhN1AgS7t7DnS9Ny
+         hR2g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id ca10si535924ejb.323.2019.02.27.09.38.54
-        for <linux-mm@kvack.org>;
-        Wed, 27 Feb 2019 09:38:54 -0800 (PST)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of schwidefsky@de.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=schwidefsky@de.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 70si7045278otf.123.2019.02.27.09.40.31
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Feb 2019 09:40:31 -0800 (PST)
+Received-SPF: pass (google.com: domain of schwidefsky@de.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id A8509A78;
-	Wed, 27 Feb 2019 09:38:53 -0800 (PST)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id BC7E13F703;
-	Wed, 27 Feb 2019 09:38:52 -0800 (PST)
-Date: Wed, 27 Feb 2019 17:38:50 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Qian Cai <cai@lca.pw>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v3] mm/page_ext: fix an imbalance with kmemleak
-Message-ID: <20190227173849.GG125513@arrakis.emea.arm.com>
-References: <20190227173147.75650-1-cai@lca.pw>
+       spf=pass (google.com: domain of schwidefsky@de.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=schwidefsky@de.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1RHcLpQ012274
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:40:30 -0500
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qwwcudne8-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:40:29 -0500
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Wed, 27 Feb 2019 17:40:20 -0000
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 27 Feb 2019 17:40:15 -0000
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1RHeEEs23527458
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 27 Feb 2019 17:40:14 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 3A060A405C;
+	Wed, 27 Feb 2019 17:40:14 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 90B1EA4054;
+	Wed, 27 Feb 2019 17:40:13 +0000 (GMT)
+Received: from mschwideX1 (unknown [9.152.212.60])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Wed, 27 Feb 2019 17:40:13 +0000 (GMT)
+Date: Wed, 27 Feb 2019 18:40:12 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Steven Price <steven.price@arm.com>
+Cc: linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>,
+        Ard Biesheuvel
+ <ard.biesheuvel@linaro.org>,
+        Arnd Bergmann <arnd@arndb.de>, Borislav Petkov
+ <bp@alien8.de>,
+        Catalin Marinas <catalin.marinas@arm.com>,
+        Dave Hansen
+ <dave.hansen@linux.intel.com>,
+        Ingo Molnar <mingo@redhat.com>, James Morse
+ <james.morse@arm.com>,
+        =?UTF-8?B?SsOpcsO0bWU=?= Glisse
+ <jglisse@redhat.com>,
+        Peter Zijlstra <peterz@infradead.org>,
+        Thomas
+ Gleixner <tglx@linutronix.de>,
+        Will Deacon <will.deacon@arm.com>, x86@kernel.org,
+        "H. Peter Anvin" <hpa@zytor.com>, linux-arm-kernel@lists.infradead.org,
+        linux-kernel@vger.kernel.org, Mark
+ Rutland <Mark.Rutland@arm.com>,
+        "Liang, Kan" <kan.liang@linux.intel.com>,
+        Heiko Carstens <heiko.carstens@de.ibm.com>, linux-s390@vger.kernel.org
+Subject: Re: [PATCH v3 18/34] s390: mm: Add p?d_large() definitions
+In-Reply-To: <20190227170608.27963-19-steven.price@arm.com>
+References: <20190227170608.27963-1-steven.price@arm.com>
+	<20190227170608.27963-19-steven.price@arm.com>
+X-Mailer: Claws Mail 3.13.2 (GTK+ 2.24.30; x86_64-pc-linux-gnu)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190227173147.75650-1-cai@lca.pw>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-TM-AS-GCONF: 00
+x-cbid: 19022717-0012-0000-0000-000002FAEED7
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19022717-0013-0000-0000-0000213297C2
+Message-Id: <20190227184012.2e251154@mschwideX1>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-27_12:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1902270119
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 27, 2019 at 12:31:47PM -0500, Qian Cai wrote:
-> After offlined a memory block, kmemleak scan will trigger a crash, as it
-> encounters a page ext address that has already been freed during memory
-> offlining. At the beginning in alloc_page_ext(), it calls
-> kmemleak_alloc(), but it does not call kmemleak_free() in
-> free_page_ext().
-> 
-> BUG: unable to handle kernel paging request at ffff888453d00000
-> PGD 128a01067 P4D 128a01067 PUD 128a04067 PMD 47e09e067 PTE 800ffffbac2ff060
-> Oops: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
-> CPU: 1 PID: 1594 Comm: bash Not tainted 5.0.0-rc8+ #15
-> Hardware name: HP ProLiant DL180 Gen9/ProLiant DL180 Gen9, BIOS U20 10/25/2017
-> RIP: 0010:scan_block+0xb5/0x290
-> Code: 85 6e 01 00 00 48 b8 00 00 30 f5 81 88 ff ff 48 39 c3 0f 84 5b 01
-> 00 00 48 89 d8 48 c1 e8 03 42 80 3c 20 00 0f 85 87 01 00 00 <4c> 8b 3b
-> e8 f3 0c fa ff 4c 39 3d 0c 6b 4c 01 0f 87 08 01 00 00 4c
-> RSP: 0018:ffff8881ec57f8e0 EFLAGS: 00010082
-> RAX: 0000000000000000 RBX: ffff888453d00000 RCX: ffffffffa61e5a54
-> RDX: 0000000000000000 RSI: 0000000000000008 RDI: ffff888453d00000
-> RBP: ffff8881ec57f920 R08: fffffbfff4ed588d R09: fffffbfff4ed588c
-> R10: fffffbfff4ed588c R11: ffffffffa76ac463 R12: dffffc0000000000
-> R13: ffff888453d00ff9 R14: ffff8881f80cef48 R15: ffff8881f80cef48
-> FS:  00007f6c0e3f8740(0000) GS:ffff8881f7680000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: ffff888453d00000 CR3: 00000001c4244003 CR4: 00000000001606a0
-> Call Trace:
->  scan_gray_list+0x269/0x430
->  kmemleak_scan+0x5a8/0x10f0
->  kmemleak_write+0x541/0x6ca
->  full_proxy_write+0xf8/0x190
->  __vfs_write+0xeb/0x980
->  vfs_write+0x15a/0x4f0
->  ksys_write+0xd2/0x1b0
->  __x64_sys_write+0x73/0xb0
->  do_syscall_64+0xeb/0xaaa
->  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-> RIP: 0033:0x7f6c0dad73b8
-> Code: 89 02 48 c7 c0 ff ff ff ff eb b3 0f 1f 80 00 00 00 00 f3 0f 1e fa
-> 48 8d 05 65 63 2d 00 8b 00 85 c0 75 17 b8 01 00 00 00 0f 05 <48> 3d 00
-> f0 ff ff 77 58 c3 0f 1f 80 00 00 00 00 41 54 49 89 d4 55
-> RSP: 002b:00007ffd5b863cb8 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
-> RAX: ffffffffffffffda RBX: 0000000000000005 RCX: 00007f6c0dad73b8
-> RDX: 0000000000000005 RSI: 000055a9216e1710 RDI: 0000000000000001
-> RBP: 000055a9216e1710 R08: 000000000000000a R09: 00007ffd5b863840
-> R10: 000000000000000a R11: 0000000000000246 R12: 00007f6c0dda9780
-> R13: 0000000000000005 R14: 00007f6c0dda4740 R15: 0000000000000005
-> Modules linked in: nls_iso8859_1 nls_cp437 vfat fat kvm_intel kvm
-> irqbypass efivars ip_tables x_tables xfs sd_mod ahci libahci igb
-> i2c_algo_bit libata i2c_core dm_mirror dm_region_hash dm_log dm_mod
-> efivarfs
-> CR2: ffff888453d00000
-> ---[ end trace ccf646c7456717c5 ]---
-> RIP: 0010:scan_block+0xb5/0x290
-> Code: 85 6e 01 00 00 48 b8 00 00 30 f5 81 88 ff ff 48 39 c3 0f 84 5b 01
-> 00 00 48 89 d8 48 c1 e8 03 42 80 3c 20 00 0f 85 87 01 00 00 <4c> 8b 3b
-> e8 f3 0c fa ff 4c 39 3d 0c 6b 4c 01 0f 87 08 01 00 00 4c
-> RSP: 0018:ffff8881ec57f8e0 EFLAGS: 00010082
-> RAX: 0000000000000000 RBX: ffff888453d00000 RCX: ffffffffa61e5a54
-> RDX: 0000000000000000 RSI: 0000000000000008 RDI: ffff888453d00000
-> RBP: ffff8881ec57f920 R08: fffffbfff4ed588d R09: fffffbfff4ed588c
-> R10: fffffbfff4ed588c R11: ffffffffa76ac463 R12: dffffc0000000000
-> R13: ffff888453d00ff9 R14: ffff8881f80cef48 R15: ffff8881f80cef48
-> FS:  00007f6c0e3f8740(0000) GS:ffff8881f7680000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: ffff888453d00000 CR3: 00000001c4244003 CR4: 00000000001606a0
-> Kernel panic - not syncing: Fatal exception
-> Shutting down cpus with NMI
-> Kernel Offset: 0x24c00000 from 0xffffffff81000000 (relocation range:
-> 0xffffffff80000000-0xffffffffbfffffff)
-> ---[ end Kernel panic - not syncing: Fatal exception ]---
-> 
-> Signed-off-by: Qian Cai <cai@lca.pw>
+On Wed, 27 Feb 2019 17:05:52 +0000
+Steven Price <steven.price@arm.com> wrote:
 
-Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+> walk_page_range() is going to be allowed to walk page tables other than
+> those of user space. For this it needs to know when it has reached a
+> 'leaf' entry in the page tables. This information is provided by the
+> p?d_large() functions/macros.
+> 
+> For s390, we don't support large pages, so add a stub returning 0.
+
+Well s390 does support 1MB and 2GB large pages, pmd_large() and pud_large()
+are non-empty. We do not support 4TB or 8PB large pages though, which
+makes the patch itself correct. Just the wording is slightly off.
+ 
+> CC: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> CC: Heiko Carstens <heiko.carstens@de.ibm.com>
+> CC: linux-s390@vger.kernel.org
+> Signed-off-by: Steven Price <steven.price@arm.com>
+> ---
+>  arch/s390/include/asm/pgtable.h | 10 ++++++++++
+>  1 file changed, 10 insertions(+)
+> 
+> diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+> index 063732414dfb..9617f1fb69b4 100644
+> --- a/arch/s390/include/asm/pgtable.h
+> +++ b/arch/s390/include/asm/pgtable.h
+> @@ -605,6 +605,11 @@ static inline int pgd_present(pgd_t pgd)
+>  	return (pgd_val(pgd) & _REGION_ENTRY_ORIGIN) != 0UL;
+>  }
+> 
+> +static inline int pgd_large(pgd_t pgd)
+> +{
+> +	return 0;
+> +}
+> +
+>  static inline int pgd_none(pgd_t pgd)
+>  {
+>  	if (pgd_folded(pgd))
+> @@ -645,6 +650,11 @@ static inline int p4d_present(p4d_t p4d)
+>  	return (p4d_val(p4d) & _REGION_ENTRY_ORIGIN) != 0UL;
+>  }
+> 
+> +static inline int p4d_large(p4d_t p4d)
+> +{
+> +	return 0;
+> +}
+> +
+>  static inline int p4d_none(p4d_t p4d)
+>  {
+>  	if (p4d_folded(p4d))
+
+
+-- 
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
