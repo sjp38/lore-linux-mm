@@ -2,295 +2,250 @@ Return-Path: <SRS0=x8zE=RC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6712CC43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C165EC00319
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 23:13:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1CD322133D
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1CD322133D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 4823D218AC
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 23:13:48 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="fsSUR5RJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4823D218AC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D15B58E000F; Wed, 27 Feb 2019 17:50:39 -0500 (EST)
+	id 933818E0003; Wed, 27 Feb 2019 18:13:47 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CC4878E0004; Wed, 27 Feb 2019 17:50:39 -0500 (EST)
+	id 8E1728E0001; Wed, 27 Feb 2019 18:13:47 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B43628E000F; Wed, 27 Feb 2019 17:50:39 -0500 (EST)
+	id 7F74B8E0003; Wed, 27 Feb 2019 18:13:47 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 66FC68E0004
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 17:50:39 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id t26so13291394pgu.18
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 14:50:39 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 541148E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 18:13:47 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id 42so8784268otv.5
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 15:13:47 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=MlJfY+EuivLFltIs7JFcxPfmegeGxi4DJ5D83gg3O88=;
-        b=DBjLPpLSHgy8DdusezkhTFUEEPSAYui5Fz+8NvoxvtefObjjy7SY77vt1F1CGRnMp6
-         FkE2+WICXx6P4qXVwTCrAMvRk3jRj5U9Y5VP9quV0VVu7UwnfXyZtZF4jammSI41gfa/
-         gbIV1NOPwcv/dHuYyrD84Yx+LlurRxX7HKvNsmKNevF2uQzy5TyFW8TPFajhWDvd0FF1
-         hNNl33mXwOGTxM0+xhbdNecC1nUnlx+I4jZ3wpiB5c9xy5ya1oc2+k2oDdL1Ts2T4HQA
-         QltnkkCUUSLSgCVj7d+rYHpIPwqPOO/UHUoY50ITx9Ri6n2kr0X4VzR4EL2BgHEo+omf
-         xxuA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuZTTHALvmPEjmIt8sBa3D77nT6B8FozpfrzjHfPWZsdmSWZ+76n
-	OKWikKj8OwjrC0GIMEwBaJMpLVUDm/Lc/uPbb0RuQs0oijPtbWYuDiErsJZ8cKf4/ur2ecZkt7N
-	D2KWZnblQoggR2+JP2USOX5TgaP8/warLzBGWYTBmcLl0RmLia3TrJMIklIQfIVZHAw==
-X-Received: by 2002:a63:eb56:: with SMTP id b22mr5321965pgk.287.1551307838863;
-        Wed, 27 Feb 2019 14:50:38 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYrBYBiU8Iz2qt+zorvtYVzoUXAP/pgJBjIVorBNSWIBZle6Rdjl4/sWGZ3/V50gl+M/2Fb
-X-Received: by 2002:a63:eb56:: with SMTP id b22mr5321839pgk.287.1551307837313;
-        Wed, 27 Feb 2019 14:50:37 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551307837; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=L4iB1TAi1pjz4TkszZs5W6ySbQ0hKBMhkCQJIJuMGUc=;
+        b=SCmifNwWrDSMGzrOgsCCysI7kuSUa7Qr8cs8NnqrD1S6NxAgWDouecxo94OsD5ZUrQ
+         XZFgFEd0BEconOFUhvEs24MACMLvk8uzr1auW+knd6N0xkfL/ARzjccPLUrHSExEe96X
+         tP/QwoEnBOXb9f8QzCI8kTzJmMLqRkENLMSfEZfKyVRZyN/RmhMcj+TQfJpkTQcu/ENG
+         kv95NIJM469w+829ZbkGJcbSQM06fWWHRBIdPp5bB+V0Dqq0FzGyh6YLoPaKYFHFuVco
+         ccZIQbAGHsuZ03uxl0c0kOMWSUBqL9a/0n0jREXnKp3uwdzHS+7EU6c86mLW1Oogjd4v
+         8aZw==
+X-Gm-Message-State: AHQUAuYF8MoD8oJ2OMAb2S7ggr3TcsXG5BOgA9lCn8WYe3lzZvG2XTWe
+	Zi10vdd8DlqejxDkQ5oJZ+186hgUBnE1FVXMVItywNO8Yr0n+Hf8uMkD1G7sTYpnkvtKlN1001c
+	3f/9jNGJwsb8SnD1+yMZVl52B9M6yt2X8wHXrKkMHhywatgZrvuAHvDeax+gHl0ZXM/VC9n2n3W
+	GdkXPN+xam6vEqzldE/vmXGSgym+6g/0LYQD6SMhkJUFL3P3s1POBjwtvbm1pnuhprQS+rmvsmL
+	l8ef95rRACujRNYiVmlz3mE54+d04M/A6qEU5G6iUebg+i634ZJ7o/M0Bp05o/sYOwBrK3zbYhV
+	TwOlLFQV4KA7KnP5HwVQuQxEfhFvH+kKALHBKM1rAYIbW5dygQkeR2qcHm7IQVnubistBOW3j71
+	t
+X-Received: by 2002:aca:b886:: with SMTP id i128mr1155931oif.65.1551309226866;
+        Wed, 27 Feb 2019 15:13:46 -0800 (PST)
+X-Received: by 2002:aca:b886:: with SMTP id i128mr1155890oif.65.1551309225607;
+        Wed, 27 Feb 2019 15:13:45 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551309225; cv=none;
         d=google.com; s=arc-20160816;
-        b=mg3kv/IgXCCR8hBCgXNGb4TPlDWHGOWeGH2jBvayPdGd+sK/4hV8ZXp9LOVkaZ+n6s
-         A3YTRhuKHynC/yAyuJj9mW0QTyB0PUF8pD0zxT5oRLs/MqnYujzr7H+JtTDcH2tMqaZl
-         T5AKr78L3YMahi1TB8+/SptTy/0sOs411W+FjZoucHQopel8JaxzYxTfAMuNS67VGRaj
-         +8E/GGzjiYJ6mrjkICi6bbpwEg7rHcw4rA9T/DYtLzA+RzO5faxJ9T31s/AAuPBM+LuM
-         vEQwY4kvMkmcQdoXGe3D6xcJkUSj14q9PB6sBB+V697NU354waYSshpaTbvOTKkZuZKU
-         CCZA==
+        b=JXNTdZSjCCFC63jcfcPadCq7iBpxNkm92Toa7rtraQIC/CY1Ual7fvbT21MHFdTgJO
+         eTSbJE8mit1z+qyUSDA2Z1DkPYrEc+UD1KvPLDeUJB2vzIYz+3eP/SMXFeHJiDvWLsxP
+         Q5du/mjetAsInysaE/tVed1TrkGFz6ObYowhts9LLbzsQcJnRfwhmblGnztmQ/q38gVO
+         u23ooJIbMYJHFesAyYFBkdHiZBrf2zxtyYioG0JBe12C7Wlzil4UVXMBn8Wuf/6IPDsa
+         8KXi5qNGEEGoD9qFTbhPB+JtJ+bAaF3uX3gaYQ1TYjNHCOQlj5m3fQfzVOgeIusw9tYE
+         6Ewg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=MlJfY+EuivLFltIs7JFcxPfmegeGxi4DJ5D83gg3O88=;
-        b=X2ssZAhjdEfgvszpF8SKglnu01p7dS3Tw1M0VT//TRc/oY/FzmYDoqxBzTe7e9AmNK
-         fBc5cN8UNCufFS+ODtWKLenW31Nxj8LSWxF+K5+6jTceYyaypABJzDe+uJRR5ISpwylu
-         nv8ewJ7D1M3KRTY3uf7wMu00aLa7Ce+qe8Bs1gWKQ0H80P2OSLvpBjVaUYs3cQRTijs5
-         WXg8bvFHAW1dkC5c4wv21HPavs+FgchnUPlhO1BY6IiGEX0SuF0bDxkfTSuwvgVqmd3b
-         l9Bfi8LsokcrKXaYT5mMPZHHXLR/Er7mi09TffGWl4o/3HtOAnKcRVmVMYUWfrYsNG8i
-         an/Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=L4iB1TAi1pjz4TkszZs5W6ySbQ0hKBMhkCQJIJuMGUc=;
+        b=hvqUgIkcWBK9Lz2aPachT4qhF42eEoE6mA6ByZ9/lK74afhqn/WZxaS3kaJB0U9TFO
+         Ngr1Z6cCZ9AoTLJ3Vq1kPP2fu0/xxfq/xsxKCWF1aKjmyuE9Zi9+g/YBNQYrju2vMxR+
+         ax+uQ33QlLIO0A0RJ34u76qieEo5zGZUklP+U9ANCALyxiRz9w1YwZZk+FUyojDydw7h
+         dauZV9bTWX/wGIZuIyyM7XvakOlP+rwMW0DzM/+2L6RsHKt0KLB/4ztMbd8Qw+NwJ0z2
+         MIDmZEnqQizrENrRDnaByS2RhjfHSnLlkXSIebokS/iSxnC+fUo+NvJPt7gxlEDfrDOw
+         mnOg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id z20si10836901pgf.324.2019.02.27.14.50.37
+       dkim=pass header.i=@google.com header.s=20161025 header.b=fsSUR5RJ;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q4sor8969243otl.139.2019.02.27.15.13.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Feb 2019 14:50:37 -0800 (PST)
-Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        (Google Transport Security);
+        Wed, 27 Feb 2019 15:13:45 -0800 (PST)
+Received-SPF: pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 Feb 2019 14:50:36 -0800
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.58,420,1544515200"; 
-   d="scan'208";a="121349447"
-Received: from unknown (HELO localhost.lm.intel.com) ([10.232.112.69])
-  by orsmga008.jf.intel.com with ESMTP; 27 Feb 2019 14:50:35 -0800
-From: Keith Busch <keith.busch@intel.com>
-To: linux-kernel@vger.kernel.org,
-	linux-acpi@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-api@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Rafael Wysocki <rafael@kernel.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv7 10/10] doc/mm: New documentation for memory performance
-Date: Wed, 27 Feb 2019 15:50:38 -0700
-Message-Id: <20190227225038.20438-11-keith.busch@intel.com>
-X-Mailer: git-send-email 2.13.6
-In-Reply-To: <20190227225038.20438-1-keith.busch@intel.com>
-References: <20190227225038.20438-1-keith.busch@intel.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=fsSUR5RJ;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=L4iB1TAi1pjz4TkszZs5W6ySbQ0hKBMhkCQJIJuMGUc=;
+        b=fsSUR5RJY0DQyV9cFLRSEosDP6TW6DQMsXEZ7bwqXNohhqgk5FoRjbvr/GWCmkRgLA
+         gXCuCy9RP8RnjmXq894u+AtUOtlJN61RYpAFRZSKai50R+ZFj8B1aw3kmy4lA1YuakRs
+         MJDTLo4h/bd4ZYe/yuZlf4VFFKtClDMfo07Zpkq7o4m/eYL0GOmYEvwSQOpkf0VrmeiG
+         c9z8gYkBrAKBvRHwea4Zi9YgkaVT0FOdZv449224ouGDZNvgS8rj+rWJLeWKPM5600Fh
+         omsDJWQTOH1hSDJ0Aq6JpXTYXSEiML7tDppibpKGgyYSs/aO+tB0AIKDjh/rp3VZ2Djd
+         SsZQ==
+X-Google-Smtp-Source: AHgI3Ibq3INcvdSZ6hrRftj+JBEGRtfHRUA+pGXaG2Kpvqs5I5mGjH4T/w7Vz6cZQq//KsYiqJN46/66+r+jTuHSthc=
+X-Received: by 2002:a9d:66d0:: with SMTP id t16mr3861820otm.35.1551309224822;
+ Wed, 27 Feb 2019 15:13:44 -0800 (PST)
+MIME-Version: 1.0
+References: <0000000000001aab8b0582689e11@google.com> <20190221113624.284fe267e73752639186a563@linux-foundation.org>
+In-Reply-To: <20190221113624.284fe267e73752639186a563@linux-foundation.org>
+From: Jann Horn <jannh@google.com>
+Date: Thu, 28 Feb 2019 00:13:18 +0100
+Message-ID: <CAG48ez14jBF3uJH8qP+JrXtiQnQ2S+y9wHVpQ0mEXbmAVqKgWg@mail.gmail.com>
+Subject: missing stack trace entry on NULL pointer call [was: Re: BUG: unable
+ to handle kernel NULL pointer dereference in __generic_file_write_iter]
+To: Andrew Morton <akpm@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: syzbot <syzbot+ca95b2b7aef9e7cbd6ab@syzkaller.appspotmail.com>, 
+	amir73il@gmail.com, "Darrick J. Wong" <darrick.wong@oracle.com>, 
+	Dave Chinner <david@fromorbit.com>, hannes@cmpxchg.org, Hugh Dickins <hughd@google.com>, 
+	jrdr.linux@gmail.com, kernel list <linux-kernel@vger.kernel.org>, 
+	Linux-MM <linux-mm@kvack.org>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, 
+	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>, 
+	"the arch/x86 maintainers" <x86@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Platforms may provide system memory where some physical address ranges
-perform differently than others, or is side cached by the system.
++Josh for unwinding, +x86 folks
 
-Add documentation describing a high level overview of such systems and the
-perforamnce and caching attributes the kernel provides for applications
-wishing to query this information.
+On Wed, Feb 27, 2019 at 11:43 PM Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Thu, 21 Feb 2019 06:52:04 -0800 syzbot <syzbot+ca95b2b7aef9e7cbd6ab@syzkaller.appspotmail.com> wrote:
+>
+> > Hello,
+> >
+> > syzbot found the following crash on:
+> >
+> > HEAD commit:    4aa9fc2a435a Revert "mm, memory_hotplug: initialize struct..
+> > git tree:       upstream
+> > console output: https://syzkaller.appspot.com/x/log.txt?x=1101382f400000
+> > kernel config:  https://syzkaller.appspot.com/x/.config?x=4fceea9e2d99ac20
+> > dashboard link: https://syzkaller.appspot.com/bug?extid=ca95b2b7aef9e7cbd6ab
+> > compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+> >
+> > Unfortunately, I don't have any reproducer for this crash yet.
+>
+> Not understanding.  That seems to be saying that we got a NULL pointer
+> deref in __generic_file_write_iter() at
+>
+>                 written = generic_perform_write(file, from, iocb->ki_pos);
+>
+> which isn't possible.
+>
+> I'm not seeing recent changes in there which could have caused this.  Help.
 
-Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
-Signed-off-by: Keith Busch <keith.busch@intel.com>
----
- Documentation/admin-guide/mm/numaperf.rst | 164 ++++++++++++++++++++++++++++++
- 1 file changed, 164 insertions(+)
- create mode 100644 Documentation/admin-guide/mm/numaperf.rst
++
 
-diff --git a/Documentation/admin-guide/mm/numaperf.rst b/Documentation/admin-guide/mm/numaperf.rst
-new file mode 100644
-index 000000000000..d32756b9be48
---- /dev/null
-+++ b/Documentation/admin-guide/mm/numaperf.rst
-@@ -0,0 +1,164 @@
-+.. _numaperf:
-+
-+=============
-+NUMA Locality
-+=============
-+
-+Some platforms may have multiple types of memory attached to a compute
-+node. These disparate memory ranges may share some characteristics, such
-+as CPU cache coherence, but may have different performance. For example,
-+different media types and buses affect bandwidth and latency.
-+
-+A system supports such heterogeneous memory by grouping each memory type
-+under different domains, or "nodes", based on locality and performance
-+characteristics.  Some memory may share the same node as a CPU, and others
-+are provided as memory only nodes. While memory only nodes do not provide
-+CPUs, they may still be local to one or more compute nodes relative to
-+other nodes. The following diagram shows one such example of two compute
-+nodes with local memory and a memory only node for each of compute node:
-+
-+ +------------------+     +------------------+
-+ | Compute Node 0   +-----+ Compute Node 1   |
-+ | Local Node0 Mem  |     | Local Node1 Mem  |
-+ +--------+---------+     +--------+---------+
-+          |                        |
-+ +--------+---------+     +--------+---------+
-+ | Slower Node2 Mem |     | Slower Node3 Mem |
-+ +------------------+     +--------+---------+
-+
-+A "memory initiator" is a node containing one or more devices such as
-+CPUs or separate memory I/O devices that can initiate memory requests.
-+A "memory target" is a node containing one or more physical address
-+ranges accessible from one or more memory initiators.
-+
-+When multiple memory initiators exist, they may not all have the same
-+performance when accessing a given memory target. Each initiator-target
-+pair may be organized into different ranked access classes to represent
-+this relationship. The highest performing initiator to a given target
-+is considered to be one of that target's local initiators, and given
-+the highest access class, 0. Any given target may have one or more
-+local initiators, and any given initiator may have multiple local
-+memory targets.
-+
-+To aid applications matching memory targets with their initiators, the
-+kernel provides symlinks to each other. The following example lists the
-+relationship for the access class "0" memory initiators and targets, which is
-+the of nodes with the highest performing access relationship::
-+
-+	# symlinks -v /sys/devices/system/node/nodeX/access0/targets/
-+	relative: /sys/devices/system/node/nodeX/access0/targets/nodeY -> ../../nodeY
-+
-+	# symlinks -v /sys/devices/system/node/nodeY/access0/initiators/
-+	relative: /sys/devices/system/node/nodeY/access0/initiators/nodeX -> ../../nodeX
-+
-+================
-+NUMA Performance
-+================
-+
-+Applications may wish to consider which node they want their memory to
-+be allocated from based on the node's performance characteristics. If
-+the system provides these attributes, the kernel exports them under the
-+node sysfs hierarchy by appending the attributes directory under the
-+memory node's access class 0 initiators as follows::
-+
-+	/sys/devices/system/node/nodeY/access0/initiators/
-+
-+These attributes apply only when accessed from nodes that have the
-+are linked under the this access's inititiators.
-+
-+The performance characteristics the kernel provides for the local initiators
-+are exported are as follows::
-+
-+	# tree -P "read*|write*" /sys/devices/system/node/nodeY/access0/initiators/
-+	/sys/devices/system/node/nodeY/access0/initiators/
-+	|-- read_bandwidth
-+	|-- read_latency
-+	|-- write_bandwidth
-+	`-- write_latency
-+
-+The bandwidth attributes are provided in MiB/second.
-+
-+The latency attributes are provided in nanoseconds.
-+
-+The values reported here correspond to the rated latency and bandwidth
-+for the platform.
-+
-+==========
-+NUMA Cache
-+==========
-+
-+System memory may be constructed in a hierarchy of elements with various
-+performance characteristics in order to provide large address space of
-+slower performing memory cached by a smaller higher performing memory. The
-+system physical addresses memory  initiators are aware of are provided
-+by the last memory level in the hierarchy. The system meanwhile uses
-+higher performing memory to transparently cache access to progressively
-+slower levels.
-+
-+The term "far memory" is used to denote the last level memory in the
-+hierarchy. Each increasing cache level provides higher performing
-+initiator access, and the term "near memory" represents the fastest
-+cache provided by the system.
-+
-+This numbering is different than CPU caches where the cache level (ex:
-+L1, L2, L3) uses the CPU-side view where each increased level is lower
-+performing. In contrast, the memory cache level is centric to the last
-+level memory, so the higher numbered cache level corresponds to  memory
-+nearer to the CPU, and further from far memory.
-+
-+The memory-side caches are not directly addressable by software. When
-+software accesses a system address, the system will return it from the
-+near memory cache if it is present. If it is not present, the system
-+accesses the next level of memory until there is either a hit in that
-+cache level, or it reaches far memory.
-+
-+An application does not need to know about caching attributes in order
-+to use the system. Software may optionally query the memory cache
-+attributes in order to maximize the performance out of such a setup.
-+If the system provides a way for the kernel to discover this information,
-+for example with ACPI HMAT (Heterogeneous Memory Attribute Table),
-+the kernel will append these attributes to the NUMA node memory target.
-+
-+When the kernel first registers a memory cache with a node, the kernel
-+will create the following directory::
-+
-+	/sys/devices/system/node/nodeX/memory_side_cache/
-+
-+If that directory is not present, the system either does not not provide
-+a memory-side cache, or that information is not accessible to the kernel.
-+
-+The attributes for each level of cache is provided under its cache
-+level index::
-+
-+	/sys/devices/system/node/nodeX/memory_side_cache/indexA/
-+	/sys/devices/system/node/nodeX/memory_side_cache/indexB/
-+	/sys/devices/system/node/nodeX/memory_side_cache/indexC/
-+
-+Each cache level's directory provides its attributes. For example, the
-+following shows a single cache level and the attributes available for
-+software to query::
-+
-+	# tree sys/devices/system/node/node0/memory_side_cache/
-+	/sys/devices/system/node/node0/memory_side_cache/
-+	|-- index1
-+	|   |-- indexing
-+	|   |-- line_size
-+	|   |-- size
-+	|   `-- write_policy
-+
-+The "indexing" will be 0 if it is a direct-mapped cache, and non-zero
-+for any other indexed based, multi-way associativity.
-+
-+The "line_size" is the number of bytes accessed from the next cache
-+level on a miss.
-+
-+The "size" is the number of bytes provided by this cache level.
-+
-+The "write_policy" will be 0 for write-back, and non-zero for
-+write-through caching.
-+
-+========
-+See Also
-+========
-+.. [1] https://www.uefi.org/sites/default/files/resources/ACPI_6_2.pdf
-+       Section 5.2.27
--- 
-2.14.4
+Maybe the problem is that the frame pointer unwinder isn't designed to
+cope with NULL function pointers - or more generally, with an
+unwinding operation that starts before the function's frame pointer
+has been set up?
+
+Unwinding starts at show_trace_log_lvl(). That begins with
+unwind_start(), which calls __unwind_start(), which uses
+get_frame_pointer(), which just returns regs->bp. But that frame
+pointer points to the part of the stack that's storing the address of
+the caller of the function that called NULL; the caller of NULL is
+skipped, as far as I can tell.
+
+What's kind of annoying here is that we don't have a proper frame set
+up yet, we only have half a stack frame (saved RIP but no saved RBP).
+
+> > IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> > Reported-by: syzbot+ca95b2b7aef9e7cbd6ab@syzkaller.appspotmail.com
+> >
+> > BUG: unable to handle kernel NULL pointer dereference at 0000000000000000
+> > #PF error: [INSTR]
+> > PGD a7ea0067 P4D a7ea0067 PUD 81535067 PMD 0
+> > Oops: 0010 [#1] PREEMPT SMP KASAN
+> > CPU: 0 PID: 15924 Comm: syz-executor0 Not tainted 5.0.0-rc4+ #50
+> > Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> > Google 01/01/2011
+> > RIP: 0010:          (null)
+> > Code: Bad RIP value.
+> > RSP: 0018:ffff88804c3d7858 EFLAGS: 00010246
+> > RAX: 0000000000000000 RBX: ffffffff885aeb60 RCX: 000000000000005b
+> > RDX: 0000000000000000 RSI: ffff88807ec22930 RDI: ffff8880a59bdcc0
+> > RBP: ffff88804c3d79b8 R08: 0000000000000000 R09: ffff88804c3d7910
+> > R10: ffff8880835ca200 R11: 0000000000000000 R12: 000000000000005b
+> > R13: ffff88804c3d7c98 R14: dffffc0000000000 R15: 0000000000000000
+> > FS:  00007f3456db4700(0000) GS:ffff8880ae600000(0000) knlGS:0000000000000000
+> > CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> > CR2: ffffffffffffffd6 CR3: 00000000814ac000 CR4: 00000000001406f0
+> > DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> > DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> > Call Trace:
+> >   __generic_file_write_iter+0x25e/0x630 mm/filemap.c:3333
+> >   ext4_file_write_iter+0x37a/0x1410 fs/ext4/file.c:266
+> >   call_write_iter include/linux/fs.h:1862 [inline]
+> >   new_sync_write fs/read_write.c:474 [inline]
+> >   __vfs_write+0x764/0xb40 fs/read_write.c:487
+> >   vfs_write+0x20c/0x580 fs/read_write.c:549
+> >   ksys_write+0x105/0x260 fs/read_write.c:598
+> >   __do_sys_write fs/read_write.c:610 [inline]
+> >   __se_sys_write fs/read_write.c:607 [inline]
+> >   __x64_sys_write+0x73/0xb0 fs/read_write.c:607
+> >   do_syscall_64+0x1a3/0x800 arch/x86/entry/common.c:290
+> >   entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> > RIP: 0033:0x458089
+> > Code: 6d b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7
+> > 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff
+> > ff 0f 83 3b b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00
+> > RSP: 002b:00007f3456db3c78 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
+> > RAX: ffffffffffffffda RBX: 0000000000000003 RCX: 0000000000458089
+> > RDX: 000000000000005b RSI: 0000000020000240 RDI: 0000000000000003
+> > RBP: 000000000073bf00 R08: 0000000000000000 R09: 0000000000000000
+> > R10: 0000000000000000 R11: 0000000000000246 R12: 00007f3456db46d4
+> > R13: 00000000004c7450 R14: 00000000004dce68 R15: 00000000ffffffff
+> > Modules linked in:
+> > CR2: 0000000000000000
+> > ---[ end trace 5cac9d2c75a59916 ]---
+> > kobject: 'loop5' (000000004426a409): kobject_uevent_env
+> > RIP: 0010:          (null)
+> > Code: Bad RIP value.
+> > RSP: 0018:ffff88804c3d7858 EFLAGS: 00010246
+> > RAX: 0000000000000000 RBX: ffffffff885aeb60 RCX: 000000000000005b
+> > kobject: 'loop5' (000000004426a409): fill_kobj_path: path
+> > = '/devices/virtual/block/loop5'
+> > RDX: 0000000000000000 RSI: ffff88807ec22930 RDI: ffff8880a59bdcc0
+> > kobject: 'loop2' (00000000b82e0c58): kobject_uevent_env
+> > kobject: 'loop2' (00000000b82e0c58): fill_kobj_path: path
+> > = '/devices/virtual/block/loop2'
+> > RBP: ffff88804c3d79b8 R08: 0000000000000000 R09: ffff88804c3d7910
+> > R10: ffff8880835ca200 R11: 0000000000000000 R12: 000000000000005b
+> > R13: ffff88804c3d7c98 R14: dffffc0000000000 R15: 0000000000000000
+> > kobject: 'loop5' (000000004426a409): kobject_uevent_env
+> > FS:  00007f3456db4700(0000) GS:ffff8880ae600000(0000) knlGS:0000000000000000
+> > kobject: 'loop5' (000000004426a409): fill_kobj_path: path
+> > = '/devices/virtual/block/loop5'
+> > CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> > CR2: 00000000022029a0 CR3: 00000000814ac000 CR4: 00000000001406f0
+> > DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> > DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> >
+> >
+> > ---
+> > This bug is generated by a bot. It may contain errors.
+> > See https://goo.gl/tpsmEJ for more information about syzbot.
+> > syzbot engineers can be reached at syzkaller@googlegroups.com.
+> >
+> > syzbot will keep track of this bug report. See:
+> > https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with
+> > syzbot.
+>
 
