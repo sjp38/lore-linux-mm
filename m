@@ -6,81 +6,81 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 501D3C4360F
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:06:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D2E51C00319
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:07:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1630420C01
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:06:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1630420C01
+	by mail.kernel.org (Postfix) with ESMTP id 9358B20842
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 17:07:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9358B20842
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BCB9B8E000B; Wed, 27 Feb 2019 12:06:57 -0500 (EST)
+	id 42B9C8E000C; Wed, 27 Feb 2019 12:07:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B7AE08E0001; Wed, 27 Feb 2019 12:06:57 -0500 (EST)
+	id 3D9208E0001; Wed, 27 Feb 2019 12:07:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A46858E000B; Wed, 27 Feb 2019 12:06:57 -0500 (EST)
+	id 2A2F08E000C; Wed, 27 Feb 2019 12:07:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A4378E0001
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:06:57 -0500 (EST)
-Received: by mail-ed1-f70.google.com with SMTP id o25so7120591edr.0
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 09:06:57 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C4E3F8E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 12:07:00 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id x47so7110445eda.8
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 09:07:00 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=ZHm1cyXfjE8tEi0dNKBdwMdPKaBv8xSlMukgn6XJeJU=;
-        b=AlWq8fAxr006EYuTE8MLztX04HseHXaeRKt5/q5jvnFZjcL+i2KV/sniCz+NOv0TLR
-         9Rd/6/Rl8WL3ncOHj5kG5wL0QPC4x2SrWJJIrNLJQGWkHMQQBcFK5rRXXSiC6MxOudn3
-         j3CqBIE//IMMGNEsVHitjbdOM58Xxwwru/gKEfLfIt75s0809G0EPramH2WjoEl7Uf66
-         4bSSgH1fnlfkAfqSyXb9K/1bLulaDAtDO3ko5MwHe0xkFp3NOHWNEC2C+qMFZWyk+XQP
-         xQCgR1lBQt0w59q07UhVpFncp2SBvNlVTqyZt/EnomSTP+7pHt836HPGR9Ni3AokViK9
-         f3wA==
+        bh=oM9cZS/lHtdk47vkYK9PYvG9U6l+ctb4fui4NkIJKv4=;
+        b=HQ9e7O5pgp4xj7po6sgZnFuVQiI3zZnRs4ODrdjfSvpSaWv2DPFJ2CecIy/slEo1bd
+         A8qVSS/yZiVJTXDq6T5OTzDLHqxm2+CH4mrMHRPoGG6HwkKiM+nooMVUMKf9BrNStX/G
+         ESMxX6nf8td+jV7IJkiW4Ap2wDpQuEJNfovMHHZrOu/2qSXkE9xJgausizxTN3NbAjsg
+         MbmEoj4bB/sHUdqtKhGoV0a4M2YlUgOQpsO8X+PxiptC5ByXM4A7zvKpAWN83knOpBVn
+         I6FnxcWtFAG6gsUJNZE6x7+NrjTxGpa79dVN8ukNMwU8YYOFqXuQ7ZbQ5GYXFDjgA08r
+         1xHQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: AHQUAubb/sT5623aMGHOO0i4Bz9MPBiSCDIyCJGekdyGSffjUIS3v8P6
-	69UnLZl3hhxp/YNwxuyj+kdtGYLoOXNO7Hu+OWBqYNumHTDc5JDlh06c1tSIFEG/Lhq45Ya4UZA
-	f4t8eMBHbu8LF/O8uLsXRUKaYNxWVJjGuCgKGFPb8AMXJM+JImwTq7s1AnJtBBd+B0Q==
-X-Received: by 2002:a17:906:5586:: with SMTP id y6mr2289581ejp.197.1551287216813;
-        Wed, 27 Feb 2019 09:06:56 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ4bVM1dAt1LOyn9IbcqlZyd62civEHohiNf+4aM0sSvuRRc5/iaxMpiWDU1+zsw5Sk8kjj
-X-Received: by 2002:a17:906:5586:: with SMTP id y6mr2289519ejp.197.1551287215763;
-        Wed, 27 Feb 2019 09:06:55 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551287215; cv=none;
+X-Gm-Message-State: AHQUAuZKCbc0LdaFcYdwj+Vz2I8OUnOddlkJn4U/es7yv0j1MNhUOSil
+	5OhVUXBtrRinOjMoX499xe4UYVi2hzh1C7a4tniXQhByoQpiGSGnCWL+sNvb8SyLcq9x4SSYbdG
+	mvfWZUQL19QB1ijrHvoVW6+tKe/Ana8JEoSBiaZLRCrSCDN8W9J66F3+qOBHU/Ib5JA==
+X-Received: by 2002:a17:906:a12:: with SMTP id w18mr2296612ejf.70.1551287220312;
+        Wed, 27 Feb 2019 09:07:00 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ib3MDX51F7MbZYGBCg7OIzEZUVb4HPOxpoDtbitD26Xa6w4N2ZoHbqoBuTQQrx3ME8QdTkK
+X-Received: by 2002:a17:906:a12:: with SMTP id w18mr2296555ejf.70.1551287219317;
+        Wed, 27 Feb 2019 09:06:59 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551287219; cv=none;
         d=google.com; s=arc-20160816;
-        b=QkeiCsVAH7tAG35osYHEEZRYTK+zJliqA/QHhhYBeoDDoajyq0qQs85PoaBgQmdJlp
-         r7MiaaWE1sxr/2wtOnFX0x0d223XsYlVR9Uuj4JB6haekVUntUQuYUi3fu12GRUkHWF/
-         UdH43kvLKi+fu6N6g/CweNCLHOcRDP/8ZUk/AjaooUL5xuAILC5VK+CE/LsqUmaofLy+
-         oO/WcKKlK3WQCkRYin4HX+n2BpjIBBoGyaWWnZ6kz9dENjPnbIWBgkihrgb0PgAZk3Ny
-         O0CTXM9uML6nc8ZwPMnb/g7RjNXTdRRIUYQwpiyf2/vRIi8SPkFwveXmkm8EVAgZiwsA
-         l7AA==
+        b=W821YtIkP32aRlWgvEgisd+jO1jcI8+vHwHXItWTqe18gGxLPpoQxOcuktu5TlrVKn
+         1PXevU+PndZRoy8Y+bwdBpyNjVzTLu3dUBHBeR5Ww8xcZ+uaAi/qzAi9yn2Wq409MI9A
+         csYQJq3yzZV2xthEXMC6Gnhs8eYSziOfjMCMdHe6c6EIZ4O/wRVgJ3l6/hZH04zZsbvF
+         VKMpE6F3ZyuWM0S14N03ZIvT+wh9odBmnSTXItZyG2hKFOq6pnW1DwO8WdBM/01e/LaO
+         I1oxjSiZIrgIbvsJqubNJ/M/o0bdBNX5aYCWn27IPvNA9ZMRyvvmszqs/Etuh7wQoU+v
+         YpTg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=ZHm1cyXfjE8tEi0dNKBdwMdPKaBv8xSlMukgn6XJeJU=;
-        b=lZYS47ajllmeT5R9lAHDCnp8zQNZ384bPniHcPd2boJ+OH13W5uMUZluSGdyZW9mat
-         82N3HNpEfrK6Cbo9zosZoh6b4oyyAXSJ64ouWVvF1l1TrMy2sqzUYu9CE1iAGljltAXa
-         qBLw/wSCLhhbS6h1gjROh2omiacxBdEbpnv2xKcnlG1F0YetIw7WWx1eaA5sofMAcQQm
-         EBiOj+0Cfx8sDuNeBaZcLuYnPwNzbIWfXH1jtZY9gs15WtRuEfPZ6MHNPzi98uMBh93G
-         +YDGVdtCjK8nnllwohfpsoGxZZ9WcfocvQXTTEQCgSXMTkCHsQ9QJTsmhBrsdLxEkQlD
-         YOWQ==
+        bh=oM9cZS/lHtdk47vkYK9PYvG9U6l+ctb4fui4NkIJKv4=;
+        b=aGIVu8fD+DfzBXDdREH0fYyXxICEiqrn6Y+2tEuWUI+Oa3RMN+s2f99XsnKpr33Htb
+         qVg4ZLlH3qAuwX2eYHIdlwDsZrM2XqwWFH8hdoaUIEf8kKuajE+Y6PeAP6g1tj10efj1
+         +02zw8hzPH7AqcJCxWulTzQDUmKMxwHvTTwbuwIiG1rhStbqgloXHQWCtjIiV+suPjYs
+         PeiWj5h1+tczEPPx/1LIvZsTHPu4S4K44Zh39sWvKO9S2DGj7TnPTz+3/k37wJxiEnlh
+         ic/wI41mLKzaptl0eRAPi6rzo0ZBhYtxHGOniLBS/Qm2rvha0jC4kuRav52H/Q+3piDZ
+         ilPQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id i3si5075214ejc.34.2019.02.27.09.06.55
+        by mx.google.com with ESMTP id y57si4755582edd.320.2019.02.27.09.06.59
         for <linux-mm@kvack.org>;
-        Wed, 27 Feb 2019 09:06:55 -0800 (PST)
+        Wed, 27 Feb 2019 09:06:59 -0800 (PST)
 Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 7B91D1684;
-	Wed, 27 Feb 2019 09:06:54 -0800 (PST)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6C7F3A78;
+	Wed, 27 Feb 2019 09:06:58 -0800 (PST)
 Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id EE5103F738;
-	Wed, 27 Feb 2019 09:06:50 -0800 (PST)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id BB5463F738;
+	Wed, 27 Feb 2019 09:06:54 -0800 (PST)
 From: Steven Price <steven.price@arm.com>
 To: linux-mm@kvack.org
 Cc: Steven Price <steven.price@arm.com>,
@@ -102,11 +102,12 @@ Cc: Steven Price <steven.price@arm.com>,
 	linux-kernel@vger.kernel.org,
 	Mark Rutland <Mark.Rutland@arm.com>,
 	"Liang, Kan" <kan.liang@linux.intel.com>,
-	Richard Kuo <rkuo@codeaurora.org>,
-	linux-hexagon@vger.kernel.org
-Subject: [PATCH v3 07/34] hexagon: mm: Add p?d_large() definitions
-Date: Wed, 27 Feb 2019 17:05:41 +0000
-Message-Id: <20190227170608.27963-8-steven.price@arm.com>
+	Tony Luck <tony.luck@intel.com>,
+	Fenghua Yu <fenghua.yu@intel.com>,
+	linux-ia64@vger.kernel.org
+Subject: [PATCH v3 08/34] ia64: mm: Add p?d_large() definitions
+Date: Wed, 27 Feb 2019 17:05:42 +0000
+Message-Id: <20190227170608.27963-9-steven.price@arm.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190227170608.27963-1-steven.price@arm.com>
 References: <20190227170608.27963-1-steven.price@arm.com>
@@ -123,31 +124,45 @@ those of user space. For this it needs to know when it has reached a
 'leaf' entry in the page tables. This information is provided by the
 p?d_large() functions/macros.
 
-For hexagon, we don't support large pages, so add a stub returning 0.
+For ia64 leaf entries are always at the lowest level, so implement
+stubs returning 0.
 
-CC: Richard Kuo <rkuo@codeaurora.org>
-CC: linux-hexagon@vger.kernel.org
+CC: Tony Luck <tony.luck@intel.com>
+CC: Fenghua Yu <fenghua.yu@intel.com>
+CC: linux-ia64@vger.kernel.org
 Signed-off-by: Steven Price <steven.price@arm.com>
 ---
- arch/hexagon/include/asm/pgtable.h | 5 +++++
- 1 file changed, 5 insertions(+)
+ arch/ia64/include/asm/pgtable.h | 3 +++
+ 1 file changed, 3 insertions(+)
 
-diff --git a/arch/hexagon/include/asm/pgtable.h b/arch/hexagon/include/asm/pgtable.h
-index 65125d0b02dd..422e6aa2a6ef 100644
---- a/arch/hexagon/include/asm/pgtable.h
-+++ b/arch/hexagon/include/asm/pgtable.h
-@@ -281,6 +281,11 @@ static inline int pmd_bad(pmd_t pmd)
- 	return 0;
- }
- 
-+static inline int pmd_large(pmd_t pmd)
-+{
-+	return 0;
-+}
-+
- /*
-  * pmd_page - converts a PMD entry to a page pointer
-  */
+diff --git a/arch/ia64/include/asm/pgtable.h b/arch/ia64/include/asm/pgtable.h
+index b1e7468eb65a..84dda295391b 100644
+--- a/arch/ia64/include/asm/pgtable.h
++++ b/arch/ia64/include/asm/pgtable.h
+@@ -271,6 +271,7 @@ extern unsigned long VMALLOC_END;
+ #define pmd_none(pmd)			(!pmd_val(pmd))
+ #define pmd_bad(pmd)			(!ia64_phys_addr_valid(pmd_val(pmd)))
+ #define pmd_present(pmd)		(pmd_val(pmd) != 0UL)
++#define pmd_large(pmd)			(0)
+ #define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0UL)
+ #define pmd_page_vaddr(pmd)		((unsigned long) __va(pmd_val(pmd) & _PFN_MASK))
+ #define pmd_page(pmd)			virt_to_page((pmd_val(pmd) + PAGE_OFFSET))
+@@ -278,6 +279,7 @@ extern unsigned long VMALLOC_END;
+ #define pud_none(pud)			(!pud_val(pud))
+ #define pud_bad(pud)			(!ia64_phys_addr_valid(pud_val(pud)))
+ #define pud_present(pud)		(pud_val(pud) != 0UL)
++#define pud_large(pud)			(0)
+ #define pud_clear(pudp)			(pud_val(*(pudp)) = 0UL)
+ #define pud_page_vaddr(pud)		((unsigned long) __va(pud_val(pud) & _PFN_MASK))
+ #define pud_page(pud)			virt_to_page((pud_val(pud) + PAGE_OFFSET))
+@@ -286,6 +288,7 @@ extern unsigned long VMALLOC_END;
+ #define pgd_none(pgd)			(!pgd_val(pgd))
+ #define pgd_bad(pgd)			(!ia64_phys_addr_valid(pgd_val(pgd)))
+ #define pgd_present(pgd)		(pgd_val(pgd) != 0UL)
++#define pgd_large(pgd)			(0)
+ #define pgd_clear(pgdp)			(pgd_val(*(pgdp)) = 0UL)
+ #define pgd_page_vaddr(pgd)		((unsigned long) __va(pgd_val(pgd) & _PFN_MASK))
+ #define pgd_page(pgd)			virt_to_page((pgd_val(pgd) + PAGE_OFFSET))
 -- 
 2.20.1
 
