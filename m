@@ -4,74 +4,74 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8FB97C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6712CC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 534EE2133D
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 534EE2133D
+	by mail.kernel.org (Postfix) with ESMTP id 1CD322133D
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1CD322133D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B8EB28E000E; Wed, 27 Feb 2019 17:50:37 -0500 (EST)
+	id D15B58E000F; Wed, 27 Feb 2019 17:50:39 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B44CB8E0004; Wed, 27 Feb 2019 17:50:37 -0500 (EST)
+	id CC4878E0004; Wed, 27 Feb 2019 17:50:39 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 96A6B8E000E; Wed, 27 Feb 2019 17:50:37 -0500 (EST)
+	id B43628E000F; Wed, 27 Feb 2019 17:50:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5080A8E0004
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 17:50:37 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id 2so13289364pgg.21
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 14:50:37 -0800 (PST)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 66FC68E0004
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 17:50:39 -0500 (EST)
+Received: by mail-pg1-f197.google.com with SMTP id t26so13291394pgu.18
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 14:50:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=0HjwwT6eQeqhzAbFDcuq0ldWENBawT6qQh3pTSR0FdA=;
-        b=FrE4pajLWaQk8cu5UJCl+dvG0OOimz2p17YBL4Q35FoGQZgjQtkzKRK5Pe24DnTaWR
-         EtScaXZPrHyVTHYI6ckQYUQPo0owOJXLJulhKRkAQD9eYuxhBDJQKitxi+aJp6CebOIQ
-         hTaxzEsf/MTUCuKpZNjoMMuQfFem+dKpCPZKSF1zY4BaZcglT4fespkyTJfsFexBcvHc
-         8BKSuvrrV9Z7TGlyptGJVRxJaFCj0sxai2BAl0O7egTPUqWb2qvjN1j6i7DQqjC7A0US
-         eO1rS53z2+x3jmqP5lsP4pFoH3YU204TTGd0lSKASDjH4sDdKZDSj0e3+bzbreK2wj6X
-         6mmg==
+        bh=MlJfY+EuivLFltIs7JFcxPfmegeGxi4DJ5D83gg3O88=;
+        b=DBjLPpLSHgy8DdusezkhTFUEEPSAYui5Fz+8NvoxvtefObjjy7SY77vt1F1CGRnMp6
+         FkE2+WICXx6P4qXVwTCrAMvRk3jRj5U9Y5VP9quV0VVu7UwnfXyZtZF4jammSI41gfa/
+         gbIV1NOPwcv/dHuYyrD84Yx+LlurRxX7HKvNsmKNevF2uQzy5TyFW8TPFajhWDvd0FF1
+         hNNl33mXwOGTxM0+xhbdNecC1nUnlx+I4jZ3wpiB5c9xy5ya1oc2+k2oDdL1Ts2T4HQA
+         QltnkkCUUSLSgCVj7d+rYHpIPwqPOO/UHUoY50ITx9Ri6n2kr0X4VzR4EL2BgHEo+omf
+         xxuA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuYAFQnSepe982NEngMGS/Q4pV1jnu9FHeqtU9QjKpuJO3ZG8xkz
-	X/0uqN6ipODjJeFxmOyKjqiAy7QViBKqSTVmf93AePKnEaECQvTklLJoGdEbUpJXOj1lS2GEhio
-	SNA/zdBS/Euvde8m1JgmhIHUZJ7oc2Cdkv74fLty+0V94dv97UCkNtm6yY2ZquLd88A==
-X-Received: by 2002:a62:b2d9:: with SMTP id z86mr4139941pfl.255.1551307836984;
-        Wed, 27 Feb 2019 14:50:36 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IbNBMG9mxUNFCX91naF5L+5S6xvQOJ/V73m6Uw9JHjQd2tPcUSOvpXXyRJffG2aZVr07Y8f
-X-Received: by 2002:a62:b2d9:: with SMTP id z86mr4139871pfl.255.1551307835979;
-        Wed, 27 Feb 2019 14:50:35 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551307835; cv=none;
+X-Gm-Message-State: AHQUAuZTTHALvmPEjmIt8sBa3D77nT6B8FozpfrzjHfPWZsdmSWZ+76n
+	OKWikKj8OwjrC0GIMEwBaJMpLVUDm/Lc/uPbb0RuQs0oijPtbWYuDiErsJZ8cKf4/ur2ecZkt7N
+	D2KWZnblQoggR2+JP2USOX5TgaP8/warLzBGWYTBmcLl0RmLia3TrJMIklIQfIVZHAw==
+X-Received: by 2002:a63:eb56:: with SMTP id b22mr5321965pgk.287.1551307838863;
+        Wed, 27 Feb 2019 14:50:38 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYrBYBiU8Iz2qt+zorvtYVzoUXAP/pgJBjIVorBNSWIBZle6Rdjl4/sWGZ3/V50gl+M/2Fb
+X-Received: by 2002:a63:eb56:: with SMTP id b22mr5321839pgk.287.1551307837313;
+        Wed, 27 Feb 2019 14:50:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551307837; cv=none;
         d=google.com; s=arc-20160816;
-        b=FPXR/BOmWjtZidWquqUpDyqjQdivDhvAcfjoLkJzg/sQPCWPUz1GpzDVmIqDTOjgco
-         bZgxqHTaQ7ulM/pmeflveWuJrIEXz8jFM+vl42axNCskhw1yeDAtMPGT3Kgpz7MB/APT
-         qqm2ci2yi0UNY9hS2GNxhYOLb5IfkhfscYT2QNScWhYXj4FToMXRnoyzL0NlHXH0P/Xi
-         uUtqEwPWi2lZ4LpgumS9rC5m3VEr/2VHTM8uVGKQsqq63PT0r4e48MIDBEa4KZ70cR0w
-         9a7lNW+WeqfAI05Kqk5S6U2nQ5LlJ0iNq3efNI6tcxHHEplHMZMghH6xrNlIxIdHW7KO
-         HTAw==
+        b=mg3kv/IgXCCR8hBCgXNGb4TPlDWHGOWeGH2jBvayPdGd+sK/4hV8ZXp9LOVkaZ+n6s
+         A3YTRhuKHynC/yAyuJj9mW0QTyB0PUF8pD0zxT5oRLs/MqnYujzr7H+JtTDcH2tMqaZl
+         T5AKr78L3YMahi1TB8+/SptTy/0sOs411W+FjZoucHQopel8JaxzYxTfAMuNS67VGRaj
+         +8E/GGzjiYJ6mrjkICi6bbpwEg7rHcw4rA9T/DYtLzA+RzO5faxJ9T31s/AAuPBM+LuM
+         vEQwY4kvMkmcQdoXGe3D6xcJkUSj14q9PB6sBB+V697NU354waYSshpaTbvOTKkZuZKU
+         CCZA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=0HjwwT6eQeqhzAbFDcuq0ldWENBawT6qQh3pTSR0FdA=;
-        b=TXIBtvUECp9k7DG59qRQOxPsZMJicCQFtdH6DxTmrOHwwT6mdKshKy5zykR2Ls7WnV
-         FuUWBXCDauNzhgEZG2g3UNood+oXvgKXYmigdmtcyKbHp8LbKVAckPaP5ze3XHen37+X
-         gU6E87kP1cftjYsx/G81Tq6XMGiYuBNNK3oQV2r57krI4NfMrCLS+xXCqWSd0bcYyZBN
-         b6hz4fCU+l2wIrIJtuWwadIAAncMxisWLRodd8dozay+ngVakDUfsIMst95jEoq7jEd3
-         O8ymtF37aEy3uEAc7nZRANt0Pl4P/Xhy/HU03Q1OeJbxrNMbudkz+KVuYP9KVol0lOOl
-         87+Q==
+        bh=MlJfY+EuivLFltIs7JFcxPfmegeGxi4DJ5D83gg3O88=;
+        b=X2ssZAhjdEfgvszpF8SKglnu01p7dS3Tw1M0VT//TRc/oY/FzmYDoqxBzTe7e9AmNK
+         fBc5cN8UNCufFS+ODtWKLenW31Nxj8LSWxF+K5+6jTceYyaypABJzDe+uJRR5ISpwylu
+         nv8ewJ7D1M3KRTY3uf7wMu00aLa7Ce+qe8Bs1gWKQ0H80P2OSLvpBjVaUYs3cQRTijs5
+         WXg8bvFHAW1dkC5c4wv21HPavs+FgchnUPlhO1BY6IiGEX0SuF0bDxkfTSuwvgVqmd3b
+         l9Bfi8LsokcrKXaYT5mMPZHHXLR/Er7mi09TffGWl4o/3HtOAnKcRVmVMYUWfrYsNG8i
+         an/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id z20si10836901pgf.324.2019.02.27.14.50.35
+        by mx.google.com with ESMTPS id z20si10836901pgf.324.2019.02.27.14.50.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Feb 2019 14:50:35 -0800 (PST)
+        Wed, 27 Feb 2019 14:50:37 -0800 (PST)
 Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
@@ -79,12 +79,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 Feb 2019 14:50:35 -0800
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 Feb 2019 14:50:36 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,420,1544515200"; 
-   d="scan'208";a="121349436"
+   d="scan'208";a="121349447"
 Received: from unknown (HELO localhost.lm.intel.com) ([10.232.112.69])
-  by orsmga008.jf.intel.com with ESMTP; 27 Feb 2019 14:50:34 -0800
+  by orsmga008.jf.intel.com with ESMTP; 27 Feb 2019 14:50:35 -0800
 From: Keith Busch <keith.busch@intel.com>
 To: linux-kernel@vger.kernel.org,
 	linux-acpi@vger.kernel.org,
@@ -95,9 +95,9 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
 	Dave Hansen <dave.hansen@intel.com>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv7 09/10] acpi/hmat: Register memory side cache attributes
-Date: Wed, 27 Feb 2019 15:50:37 -0700
-Message-Id: <20190227225038.20438-10-keith.busch@intel.com>
+Subject: [PATCHv7 10/10] doc/mm: New documentation for memory performance
+Date: Wed, 27 Feb 2019 15:50:38 -0700
+Message-Id: <20190227225038.20438-11-keith.busch@intel.com>
 X-Mailer: git-send-email 2.13.6
 In-Reply-To: <20190227225038.20438-1-keith.busch@intel.com>
 References: <20190227225038.20438-1-keith.busch@intel.com>
@@ -107,65 +107,190 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Register memory side cache attributes with the memory's node if HMAT
-provides the side cache iniformation table.
+Platforms may provide system memory where some physical address ranges
+perform differently than others, or is side cached by the system.
 
-Acked-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Add documentation describing a high level overview of such systems and the
+perforamnce and caching attributes the kernel provides for applications
+wishing to query this information.
+
+Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
 Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- drivers/acpi/hmat/hmat.c | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ Documentation/admin-guide/mm/numaperf.rst | 164 ++++++++++++++++++++++++++++++
+ 1 file changed, 164 insertions(+)
+ create mode 100644 Documentation/admin-guide/mm/numaperf.rst
 
-diff --git a/drivers/acpi/hmat/hmat.c b/drivers/acpi/hmat/hmat.c
-index 5b469c98a454..f3b182bf3595 100644
---- a/drivers/acpi/hmat/hmat.c
-+++ b/drivers/acpi/hmat/hmat.c
-@@ -314,6 +314,7 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
- 				   const unsigned long end)
- {
- 	struct acpi_hmat_cache *cache = (void *)header;
-+	struct node_cache_attrs cache_attrs;
- 	u32 attrs;
- 
- 	if (cache->header.length < sizeof(*cache)) {
-@@ -327,6 +328,37 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
- 		cache->memory_PD, cache->cache_size, attrs,
- 		cache->number_of_SMBIOShandles);
- 
-+	cache_attrs.size = cache->cache_size;
-+	cache_attrs.level = (attrs & ACPI_HMAT_CACHE_LEVEL) >> 4;
-+	cache_attrs.line_size = (attrs & ACPI_HMAT_CACHE_LINE_SIZE) >> 16;
+diff --git a/Documentation/admin-guide/mm/numaperf.rst b/Documentation/admin-guide/mm/numaperf.rst
+new file mode 100644
+index 000000000000..d32756b9be48
+--- /dev/null
++++ b/Documentation/admin-guide/mm/numaperf.rst
+@@ -0,0 +1,164 @@
++.. _numaperf:
 +
-+	switch ((attrs & ACPI_HMAT_CACHE_ASSOCIATIVITY) >> 8) {
-+	case ACPI_HMAT_CA_DIRECT_MAPPED:
-+		cache_attrs.indexing = NODE_CACHE_DIRECT_MAP;
-+		break;
-+	case ACPI_HMAT_CA_COMPLEX_CACHE_INDEXING:
-+		cache_attrs.indexing = NODE_CACHE_INDEXED;
-+		break;
-+	case ACPI_HMAT_CA_NONE:
-+	default:
-+		cache_attrs.indexing = NODE_CACHE_OTHER;
-+		break;
-+	}
++=============
++NUMA Locality
++=============
 +
-+	switch ((attrs & ACPI_HMAT_WRITE_POLICY) >> 12) {
-+	case ACPI_HMAT_CP_WB:
-+		cache_attrs.write_policy = NODE_CACHE_WRITE_BACK;
-+		break;
-+	case ACPI_HMAT_CP_WT:
-+		cache_attrs.write_policy = NODE_CACHE_WRITE_THROUGH;
-+		break;
-+	case ACPI_HMAT_CP_NONE:
-+	default:
-+		cache_attrs.write_policy = NODE_CACHE_WRITE_OTHER;
-+		break;
-+	}
++Some platforms may have multiple types of memory attached to a compute
++node. These disparate memory ranges may share some characteristics, such
++as CPU cache coherence, but may have different performance. For example,
++different media types and buses affect bandwidth and latency.
 +
-+	node_add_cache(pxm_to_node(cache->memory_PD), &cache_attrs);
- 	return 0;
- }
- 
++A system supports such heterogeneous memory by grouping each memory type
++under different domains, or "nodes", based on locality and performance
++characteristics.  Some memory may share the same node as a CPU, and others
++are provided as memory only nodes. While memory only nodes do not provide
++CPUs, they may still be local to one or more compute nodes relative to
++other nodes. The following diagram shows one such example of two compute
++nodes with local memory and a memory only node for each of compute node:
++
++ +------------------+     +------------------+
++ | Compute Node 0   +-----+ Compute Node 1   |
++ | Local Node0 Mem  |     | Local Node1 Mem  |
++ +--------+---------+     +--------+---------+
++          |                        |
++ +--------+---------+     +--------+---------+
++ | Slower Node2 Mem |     | Slower Node3 Mem |
++ +------------------+     +--------+---------+
++
++A "memory initiator" is a node containing one or more devices such as
++CPUs or separate memory I/O devices that can initiate memory requests.
++A "memory target" is a node containing one or more physical address
++ranges accessible from one or more memory initiators.
++
++When multiple memory initiators exist, they may not all have the same
++performance when accessing a given memory target. Each initiator-target
++pair may be organized into different ranked access classes to represent
++this relationship. The highest performing initiator to a given target
++is considered to be one of that target's local initiators, and given
++the highest access class, 0. Any given target may have one or more
++local initiators, and any given initiator may have multiple local
++memory targets.
++
++To aid applications matching memory targets with their initiators, the
++kernel provides symlinks to each other. The following example lists the
++relationship for the access class "0" memory initiators and targets, which is
++the of nodes with the highest performing access relationship::
++
++	# symlinks -v /sys/devices/system/node/nodeX/access0/targets/
++	relative: /sys/devices/system/node/nodeX/access0/targets/nodeY -> ../../nodeY
++
++	# symlinks -v /sys/devices/system/node/nodeY/access0/initiators/
++	relative: /sys/devices/system/node/nodeY/access0/initiators/nodeX -> ../../nodeX
++
++================
++NUMA Performance
++================
++
++Applications may wish to consider which node they want their memory to
++be allocated from based on the node's performance characteristics. If
++the system provides these attributes, the kernel exports them under the
++node sysfs hierarchy by appending the attributes directory under the
++memory node's access class 0 initiators as follows::
++
++	/sys/devices/system/node/nodeY/access0/initiators/
++
++These attributes apply only when accessed from nodes that have the
++are linked under the this access's inititiators.
++
++The performance characteristics the kernel provides for the local initiators
++are exported are as follows::
++
++	# tree -P "read*|write*" /sys/devices/system/node/nodeY/access0/initiators/
++	/sys/devices/system/node/nodeY/access0/initiators/
++	|-- read_bandwidth
++	|-- read_latency
++	|-- write_bandwidth
++	`-- write_latency
++
++The bandwidth attributes are provided in MiB/second.
++
++The latency attributes are provided in nanoseconds.
++
++The values reported here correspond to the rated latency and bandwidth
++for the platform.
++
++==========
++NUMA Cache
++==========
++
++System memory may be constructed in a hierarchy of elements with various
++performance characteristics in order to provide large address space of
++slower performing memory cached by a smaller higher performing memory. The
++system physical addresses memory  initiators are aware of are provided
++by the last memory level in the hierarchy. The system meanwhile uses
++higher performing memory to transparently cache access to progressively
++slower levels.
++
++The term "far memory" is used to denote the last level memory in the
++hierarchy. Each increasing cache level provides higher performing
++initiator access, and the term "near memory" represents the fastest
++cache provided by the system.
++
++This numbering is different than CPU caches where the cache level (ex:
++L1, L2, L3) uses the CPU-side view where each increased level is lower
++performing. In contrast, the memory cache level is centric to the last
++level memory, so the higher numbered cache level corresponds to  memory
++nearer to the CPU, and further from far memory.
++
++The memory-side caches are not directly addressable by software. When
++software accesses a system address, the system will return it from the
++near memory cache if it is present. If it is not present, the system
++accesses the next level of memory until there is either a hit in that
++cache level, or it reaches far memory.
++
++An application does not need to know about caching attributes in order
++to use the system. Software may optionally query the memory cache
++attributes in order to maximize the performance out of such a setup.
++If the system provides a way for the kernel to discover this information,
++for example with ACPI HMAT (Heterogeneous Memory Attribute Table),
++the kernel will append these attributes to the NUMA node memory target.
++
++When the kernel first registers a memory cache with a node, the kernel
++will create the following directory::
++
++	/sys/devices/system/node/nodeX/memory_side_cache/
++
++If that directory is not present, the system either does not not provide
++a memory-side cache, or that information is not accessible to the kernel.
++
++The attributes for each level of cache is provided under its cache
++level index::
++
++	/sys/devices/system/node/nodeX/memory_side_cache/indexA/
++	/sys/devices/system/node/nodeX/memory_side_cache/indexB/
++	/sys/devices/system/node/nodeX/memory_side_cache/indexC/
++
++Each cache level's directory provides its attributes. For example, the
++following shows a single cache level and the attributes available for
++software to query::
++
++	# tree sys/devices/system/node/node0/memory_side_cache/
++	/sys/devices/system/node/node0/memory_side_cache/
++	|-- index1
++	|   |-- indexing
++	|   |-- line_size
++	|   |-- size
++	|   `-- write_policy
++
++The "indexing" will be 0 if it is a direct-mapped cache, and non-zero
++for any other indexed based, multi-way associativity.
++
++The "line_size" is the number of bytes accessed from the next cache
++level on a miss.
++
++The "size" is the number of bytes provided by this cache level.
++
++The "write_policy" will be 0 for write-back, and non-zero for
++write-through caching.
++
++========
++See Also
++========
++.. [1] https://www.uefi.org/sites/default/files/resources/ACPI_6_2.pdf
++       Section 5.2.27
 -- 
 2.14.4
 
