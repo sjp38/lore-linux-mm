@@ -2,238 +2,189 @@ Return-Path: <SRS0=x8zE=RC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 17DE9C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 05:32:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E341DC43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 06:03:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A301D218E0
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 05:32:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A301D218E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 9D8FD218E2
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 06:03:35 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="GXl55vVe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D8FD218E2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DD3888E0003; Wed, 27 Feb 2019 00:32:43 -0500 (EST)
+	id 3AA928E0003; Wed, 27 Feb 2019 01:03:35 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D823F8E0001; Wed, 27 Feb 2019 00:32:43 -0500 (EST)
+	id 359D38E0001; Wed, 27 Feb 2019 01:03:35 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C982F8E0003; Wed, 27 Feb 2019 00:32:43 -0500 (EST)
+	id 249428E0003; Wed, 27 Feb 2019 01:03:35 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F2BE8E0001
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 00:32:43 -0500 (EST)
-Received: by mail-qk1-f197.google.com with SMTP id x63so12444372qka.5
-        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 21:32:43 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D49F28E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 01:03:34 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id x23so8918858pfm.0
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2019 22:03:34 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=MMs4btRfFMDn2gbDBDla7ALCCRy9T1gjmgsGu85YaII=;
-        b=LlhSw4g9mO9l3MuufVW0mcRUUbjdF/kCXkvFlVOO3oEbi0ulUX1MzGQEEWK2f5WOFP
-         EaG5DpnIAl81I1ticlFG0Hx8lt6HpSA8OOIS2d9/xXV/6lbsEqevt6ofkoNw+QmPmHUq
-         hI6ycRlFxqgGLT+FTjeOOqU9++6Uef6amaZYBfQZNp2kcn7d1Gw/A17KjVMbGUr2KFcy
-         B+49W+NzTBn5JlsfvoXr2QzEHHKpEaXpy/xiJv8Z3oaVU14UKb/RWFaCo+hK8R+k0wre
-         c9FWNEQHGdINoudTPmGg7zohFRWZb37zpxbmyfPVI3Wmp22v1OHAM3F2B9h8tfFXe6Zg
-         SfJg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dyoung@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dyoung@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXjGe2Jg+BrEa/G3AHTnamToNkUMMc90kntda/7xcBfJkuQgs3l
-	oW0Wwg2EChZbxxVzgVj7lJ9Yf3iedcHO8Vn6gBnWfufpQ1KB0oBjCCbKlSLaoeyWJbnA/I42PZC
-	dZgjbT7L56MEYpHcHv6/l7Ex9LArKoLvKwO+3uNg0eDjVvh3l5DBug68z+ifAZasKFg==
-X-Received: by 2002:a05:620a:1253:: with SMTP id a19mr851064qkl.271.1551245563346;
-        Tue, 26 Feb 2019 21:32:43 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IatHG8a3qL/RLDFp4VJTtWLnupohlYbd9HRbCFwSsm29NrY6tshWRgwRTxPAM7+hiHhx4q6
-X-Received: by 2002:a05:620a:1253:: with SMTP id a19mr851026qkl.271.1551245562408;
-        Tue, 26 Feb 2019 21:32:42 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551245562; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:subject:to:cc
+         :references:in-reply-to:mime-version:user-agent:message-id
+         :content-transfer-encoding;
+        bh=dC81/tfMHSIiyYmi1ZIAKt+KaUI2p4AW9giNPqc3Nbo=;
+        b=faZ0+X8UIiHHu1JD4SAbwzOGsDndzQebnCa0+Mzf6FpyMdCLS5hKY+wF4yo7RzRDnj
+         RiCK3uZsPfrjrcsWH/l8bmcE+LwU9LPvYFDMINRVlJvVZUPGbGMY4uH3FPcCkND/5AOn
+         jagpmww1zNPWMXzIAKD4M0Bhix38I7NZidKnePwOcQx7aX8S41ynjhVxpf9Ey+DsGbM/
+         a+yzHFpOEwxSiEx3H1b/KMqJwJFsNIyR+4pBN0enBJVugJZGvrFxsrOm57xXkkYqMDD0
+         7eC/etZWiChNT0utas7lJDS2Sn9JUrcSjEp/7nhiYNMClPYesne2yaCUOluFrxv7+F7O
+         F1xA==
+X-Gm-Message-State: AHQUAuZ/rfpJWRfDhsqmQbR5OsDDSw056lunA8q668GwklzOhPhamR+q
+	MRlvq4aybDX3aQOHyUCDxzw4iuZv58KVYXKPA1Ptw5BFRPQE3zzZnA9pmBi10MuaCaLp3/Rl3YN
+	vej5IVojzK/djJHQ9oVbdx7u+2v1zdgv51j0AEqZs16gcDHso37LjN8P7FrEgQ538g1j9WJ8Ac9
+	WjOCFIkriZNkQAu4qQYXqlsCccNSFXmSBMxSYdNO2mRFZ8HajgR/VvatdZEYLNXRcd0hYCEVbZN
+	U+WVp7htJypp835NcB0BVh9dhYD7yfbPQS9Mofy8IsQQ/sWz9KJjusSCCfy8lvL5/VR3HkVO88S
+	0jbQMXQrKaMMkuBZdnmONkqhTYNjO7b8kPIk5dMBJuXNtv0TXIP9DdzkK7xfLRo41bmcN7VU+TF
+	k
+X-Received: by 2002:a17:902:7007:: with SMTP id y7mr403296plk.167.1551247414321;
+        Tue, 26 Feb 2019 22:03:34 -0800 (PST)
+X-Received: by 2002:a17:902:7007:: with SMTP id y7mr403183plk.167.1551247412717;
+        Tue, 26 Feb 2019 22:03:32 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551247412; cv=none;
         d=google.com; s=arc-20160816;
-        b=vSOgIr04ITCxwjQK5q46VX8ykdnvT7FlEcG7v3M7PU5pSghv1Y6rpjd290dF2SwN3e
-         cUelMqGQFsX/dvocQ6RxRCMzhV+DzkBlsds0VeIENoGtle5XLvx4L9noxg7tHIjY1KOp
-         vT5jyE3UXVBaa8hJx1KMKJlMh9RLMx9bjb+cmWu4Wquorh5DYkVof9iYDvORVBKm0N/D
-         yEMQu9JWL/P9/sDTYZcDg3LjyQn8LkfVEiWYvfPBtS6/UIhFDqb7mKwqJdb0UN9voWGZ
-         AG4Sr9CowJIYRNfnb3tiG3bLtEsNQQD8OgulxbB38/vkeXrSwrIkfd0olMio/B0g0PE8
-         GOPA==
+        b=sWnYR2moPm2nMo/dOF2smo/zir4WvTYQYjUMBdOgk+yfR3moOVVptqVWULKkiIYdGq
+         qCXaGzUlwxH1LBjRIgyJ4ahCs7sPL7HwXFOrcTfT+wFgT4VT2YHC/vK7KGeCWl4m29FF
+         2Q/07KJI/C8OhXp+jWXZjjCZ6nSnMDps6Yri39hWbzh2Q318HnE3bzJhdb9oVlBGipV5
+         k985qwcoe9gUlW7uTdv8PnKXK2SVJcIgiz7kZvsB+tSkf8xg565gFMIptDrojVgyiwCy
+         AmiPOUn8N0L11mKibmFVq1SlU/GDL9FfGwbLai2i+UViy+bZZhAU3FxywfwuqzTFBGMP
+         AttQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=MMs4btRfFMDn2gbDBDla7ALCCRy9T1gjmgsGu85YaII=;
-        b=AK3U20p2GQgBpjwfctur4Xb/F2ixO8roCEl7TmOEyef93bN33x7neN83lbLXFwTVwo
-         j2wOepwVNlysJhvpkcOylM+6mq8SERwr5SOwcajOVpmwTF69GFH5wKfKEMNDIiBct3n9
-         Y8rfnr1t+POWIbtulsF94GcwOsGSxPpsyAee4Ohn9L9ZpF2in6TQ1JKjPqFnZx9Z+4sH
-         9Orka231Im904qv0lUV0qwyUvHGwvKIbjgpCqpbl//g7wSFJJjMhKyOG6r29lgbbbrwB
-         ZxyV7fmyvokE7g5+Sdn9nxBxGtfl+FV6jE4M+QNt6b4ElbHg0zWpDTVze1WG2GJ+ACDP
-         9Jxw==
+        h=content-transfer-encoding:message-id:user-agent:mime-version
+         :in-reply-to:references:cc:to:subject:from:date:dkim-signature;
+        bh=dC81/tfMHSIiyYmi1ZIAKt+KaUI2p4AW9giNPqc3Nbo=;
+        b=YSzg4jXWokunsFGDq8LAP5ndE4jB3Ot2Eu7TT8KXMxv3gkPO8nPDFzMCIZ/lcNFEBi
+         Swf2ScHm2s8nFMlYXaICYSm2NhFjS4t/s+gvuJd88QjQLzSL6vKPS2vhv3oojztl1XSv
+         k0twXuaIgFYjmBRKXuSxKN4FFpSVKss9AdY36ASQMzpT3VuJiEBYI6H2Twp3FWiYUi6U
+         EcgRnRK84DqwGQoaa+l46ZlGdjC8PpeSTkUCf40F3jEnfdknWaOrJQ+zdr87e1Y+u44c
+         kPt0uOcSrA1DiqjlO2v/LguRNb7X38BkEbxszA+CGIcUihR1/vNibS5miB6F2F9T/A5K
+         0+KA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dyoung@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dyoung@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k2si127412qkl.42.2019.02.26.21.32.42
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GXl55vVe;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id bg2sor9707007plb.20.2019.02.26.22.03.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Feb 2019 21:32:42 -0800 (PST)
-Received-SPF: pass (google.com: domain of dyoung@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 26 Feb 2019 22:03:32 -0800 (PST)
+Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dyoung@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dyoung@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 95CFAC07EFC5;
-	Wed, 27 Feb 2019 05:32:40 +0000 (UTC)
-Received: from dhcp-128-65.nay.redhat.com (ovpn-12-110.pek2.redhat.com [10.72.12.110])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 017B2604CD;
-	Wed, 27 Feb 2019 05:32:18 +0000 (UTC)
-Date: Wed, 27 Feb 2019 13:32:14 +0800
-From: Dave Young <dyoung@redhat.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	linux-doc@vger.kernel.org, devel@linuxdriverproject.org,
-	linux-fsdevel@vger.kernel.org, linux-pm@vger.kernel.org,
-	xen-devel@lists.xenproject.org,
-	kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com,
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-	Alexey Dobriyan <adobriyan@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Arnd Bergmann <arnd@arndb.de>, Baoquan He <bhe@redhat.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Boris Ostrovsky <boris.ostrovsky@oracle.com>,
-	Christian Hansen <chansen3@cisco.com>,
-	David Rientjes <rientjes@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Haiyang Zhang <haiyangz@microsoft.com>,
-	Jonathan Corbet <corbet@lwn.net>, Juergen Gross <jgross@suse.com>,
-	Julien Freche <jfreche@vmware.com>, Kairui Song <kasong@redhat.com>,
-	Kazuhito Hagio <k-hagio@ab.jp.nec.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Konstantin Khlebnikov <koct9i@gmail.com>,
-	"K. Y. Srinivasan" <kys@microsoft.com>,
-	Len Brown <len.brown@intel.com>, Lianbo Jiang <lijiang@redhat.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	"Michael S. Tsirkin" <mst@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>, Michal Hocko <mhocko@suse.com>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Miles Chen <miles.chen@mediatek.com>, Nadav Amit <namit@vmware.com>,
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	Omar Sandoval <osandov@fb.com>, Pankaj gupta <pagupta@redhat.com>,
-	Pavel Machek <pavel@ucw.cz>,
-	Pavel Tatashin <pasha.tatashin@oracle.com>,
-	"Rafael J. Wysocki" <rafael.j.wysocki@intel.com>,
-	"Rafael J. Wysocki" <rjw@rjwysocki.net>,
-	Stefano Stabellini <sstabellini@kernel.org>,
-	Stephen Hemminger <sthemmin@microsoft.com>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	Vitaly Kuznetsov <vkuznets@redhat.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Xavier Deguillard <xdeguillard@vmware.com>
-Subject: Re: [PATCH v2 0/8] mm/kdump: allow to exclude pages that are
- logically offline
-Message-ID: <20190227053214.GA12302@dhcp-128-65.nay.redhat.com>
-References: <20181122100627.5189-1-david@redhat.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GXl55vVe;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:subject:to:cc:references:in-reply-to:mime-version
+         :user-agent:message-id:content-transfer-encoding;
+        bh=dC81/tfMHSIiyYmi1ZIAKt+KaUI2p4AW9giNPqc3Nbo=;
+        b=GXl55vVeiXH39b2yTcANxwtpEtCsVSG8FUq2AJ42Z6qtHEyKa+twKfJp5ydGKda3zk
+         3hQueAHBSWmABNV1J5qqW7kphBskk8uccQLajQOpn43WvnXfeI4lncnRx3XebMN9CznO
+         lC8a7kzZ7WqIa8t+cI7tTKniddC3GI2Vbejqklp0z5A7lkuGmS7yIv/Xqkxzpnwv/Fgf
+         XzbXXa9eRja1CI1SPApgQwTKhPT6RUJ1coHTMNe3FyO+Jj/XZNXCqvDadn/A4vqSPBYV
+         fMkWxy7/e0BtG2glRpZdttfc+7LWXdthuck5oV2mrZICQ5go+YORxMZL6vtaGUUcG5sC
+         4ybg==
+X-Google-Smtp-Source: AHgI3Ib/d6tqB2jN/7ERCp/e0BY00EMn04/NKfUG7AVB9igevJjqFjc1fHx61v8H7QXq0irPhtpuSw==
+X-Received: by 2002:a17:902:8d89:: with SMTP id v9mr448442plo.90.1551247412377;
+        Tue, 26 Feb 2019 22:03:32 -0800 (PST)
+Received: from localhost (193-116-71-51.tpgi.com.au. [193.116.71.51])
+        by smtp.gmail.com with ESMTPSA id l5sm9436433pfi.97.2019.02.26.22.03.30
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 26 Feb 2019 22:03:31 -0800 (PST)
+Date: Wed, 27 Feb 2019 16:03:25 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: Truncate regression due to commit 69b6c1319b6
+To: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, mgorman@suse.de
+References: <20190226165628.GB24711@quack2.suse.cz>
+	<20190226172744.GH11592@bombadil.infradead.org>
+In-Reply-To: <20190226172744.GH11592@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20181122100627.5189-1-david@redhat.com>
-User-Agent: Mutt/1.9.5 (2018-04-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Wed, 27 Feb 2019 05:32:41 +0000 (UTC)
+User-Agent: astroid/0.14.0 (https://github.com/astroidmail/astroid)
+Message-Id: <1551246328.xx85zsmomm.astroid@bobo.none>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 11/22/18 at 11:06am, David Hildenbrand wrote:
-> Right now, pages inflated as part of a balloon driver will be dumped
-> by dump tools like makedumpfile. While XEN is able to check in the
-> crash kernel whether a certain pfn is actually backed by memory in the
-> hypervisor (see xen_oldmem_pfn_is_ram) and optimize this case, dumps of
-> virtio-balloon, hv-balloon and VMWare balloon inflated memory will
-> essentially result in zero pages getting allocated by the hypervisor and
-> the dump getting filled with this data.
-> 
-> The allocation and reading of zero pages can directly be avoided if a
-> dumping tool could know which pages only contain stale information not to
-> be dumped.
-> 
-> Also for XEN, calling into the kernel and asking the hypervisor if a
-> pfn is backed can be avoided if the duming tool would skip such pages
-> right from the beginning.
-> 
-> Dumping tools have no idea whether a given page is part of a balloon driver
-> and shall not be dumped. Esp. PG_reserved cannot be used for that purpose
-> as all memory allocated during early boot is also PG_reserved, see
-> discussion at [1]. So some other way of indication is required and a new
-> page flag is frowned upon.
-> 
-> We have PG_balloon (MAPCOUNT value), which is essentially unused now. I
-> suggest renaming it to something more generic (PG_offline) to mark pages as
-> logically offline. This flag can than e.g. also be used by virtio-mem in
-> the future to mark subsections as offline. Or by other code that wants to
-> put pages logically offline (e.g. later maybe poisoned pages that shall
-> no longer be used).
-> 
-> This series converts PG_balloon to PG_offline, allows dumping tools to
-> query the value to detect such pages and marks pages in the hv-balloon
-> and XEN balloon properly as PG_offline. Note that virtio-balloon already
-> set pages to PG_balloon (and now PG_offline).
-> 
-> Please note that this is also helpful for a problem we were seeing under
-> Hyper-V: Dumping logically offline memory (pages kept fake offline while
-> onlining a section via online_page_callback) would under some condicions
-> result in a kernel panic when dumping them.
-> 
-> As I don't have access to neither XEN nor Hyper-V nor VMWare installations,
-> this was only tested with the virtio-balloon and pages were properly
-> skipped when dumping. I'll also attach the makedumpfile patch to this
-> series.
-> 
-> [1] https://lkml.org/lkml/2018/7/20/566
-> 
-> v1 -> v2:
-> - "kexec: export PG_offline to VMCOREINFO"
-> -- Add description why it is exported as a macro
-> - "vmw_balloon: mark inflated pages PG_offline"
-> -- Use helper function + adapt comments
-> - "PM / Hibernate: exclude all PageOffline() pages"
-> -- Perform the check separate from swsusp checks.
-> - Added RBs/ACKs
-> 
-> 
-> David Hildenbrand (8):
->   mm: balloon: update comment about isolation/migration/compaction
->   mm: convert PG_balloon to PG_offline
->   kexec: export PG_offline to VMCOREINFO
->   xen/balloon: mark inflated pages PG_offline
->   hv_balloon: mark inflated pages PG_offline
->   vmw_balloon: mark inflated pages PG_offline
->   PM / Hibernate: use pfn_to_online_page()
->   PM / Hibernate: exclude all PageOffline() pages
-> 
->  Documentation/admin-guide/mm/pagemap.rst |  9 ++++---
->  drivers/hv/hv_balloon.c                  | 14 ++++++++--
->  drivers/misc/vmw_balloon.c               | 32 ++++++++++++++++++++++
->  drivers/xen/balloon.c                    |  3 +++
->  fs/proc/page.c                           |  4 +--
->  include/linux/balloon_compaction.h       | 34 +++++++++---------------
->  include/linux/page-flags.h               | 11 +++++---
->  include/uapi/linux/kernel-page-flags.h   |  2 +-
->  kernel/crash_core.c                      |  2 ++
->  kernel/power/snapshot.c                  | 17 +++++++-----
->  tools/vm/page-types.c                    |  2 +-
->  11 files changed, 90 insertions(+), 40 deletions(-)
-> 
-> -- 
-> 2.17.2
-> 
+Matthew Wilcox's on February 27, 2019 3:27 am:
+> On Tue, Feb 26, 2019 at 05:56:28PM +0100, Jan Kara wrote:
+>> after some peripeties, I was able to bisect down to a regression in
+>> truncate performance caused by commit 69b6c1319b6 "mm: Convert truncate =
+to
+>> XArray".
+>=20
+> [...]
+>=20
+>> I've gathered also perf profiles but from the first look they don't show
+>> anything surprising besides xas_load() and xas_store() taking up more ti=
+me
+>> than original counterparts did. I'll try to dig more into this but any i=
+dea
+>> is appreciated.
+>=20
+> Well, that's a short and sweet little commit.  Stripped of comment
+> changes, it's just:
+>=20
+> -       struct radix_tree_node *node;
+> -       void **slot;
+> +       XA_STATE(xas, &mapping->i_pages, index);
+> =20
+> -       if (!__radix_tree_lookup(&mapping->i_pages, index, &node, &slot))
+> +       xas_set_update(&xas, workingset_update_node);
+> +       if (xas_load(&xas) !=3D entry)
+>                 return;
+> -       if (*slot !=3D entry)
+> -               return;
+> -       __radix_tree_replace(&mapping->i_pages, node, slot, NULL,
+> -                            workingset_update_node);
+> +       xas_store(&xas, NULL);
+>=20
+> I have a few reactions to this:
+>=20
+> 1. I'm concerned that the XArray may generally be slower than the radix
+> tree was.  I didn't notice that in my testing, but maybe I didn't do
+> the right tests.
+>=20
+> 2. The setup overhead of the XA_STATE might be a problem.
+> If so, we can do some batching in order to improve things.
+> I suspect your test is calling __clear_shadow_entry through the
+> truncate_exceptional_pvec_entries() path, which is already a batch.
+> Maybe something like patch [1] at the end of this mail.
 
-This series have been in -next for some days, could we get this in
-mainline? 
+One nasty thing about the XA_STATE stack object as opposed to just
+passing the parameters (in the same order) down to children is that=20
+you get the same memory accessed nearby, but in different ways
+(different base register, offset, addressing mode etc). Which can
+reduce effectiveness of memory disambiguation prediction, at least
+in cold predictor case.
 
-Andrew, do you have plan about them, maybe next release?
+I've seen (on some POWER CPUs at least) flushes due to aliasing
+access in some of these xarray call chains, although no idea if
+that actually makes a noticable difference in microbenchmark like
+this.
 
-Thanks
-Dave
+But it's not the greatest pattern to use for passing to low level
+performance critical functions :( Ideally the compiler could just
+do a big LTO pass right at the end and unwind it all back into
+registers and fix everything, but that will never happen.
+
+Thanks,
+Nick
+=
 
