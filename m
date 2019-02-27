@@ -4,66 +4,66 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 12C85C43381
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DC745C43381
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B60AF2133D
-	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B60AF2133D
+	by mail.kernel.org (Postfix) with ESMTP id 965E82133D
+	for <linux-mm@archiver.kernel.org>; Wed, 27 Feb 2019 22:50:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 965E82133D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B1A298E000B; Wed, 27 Feb 2019 17:50:34 -0500 (EST)
+	id DFF758E0009; Wed, 27 Feb 2019 17:50:34 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A7D288E0004; Wed, 27 Feb 2019 17:50:34 -0500 (EST)
+	id DB1538E0004; Wed, 27 Feb 2019 17:50:34 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8D0BF8E000A; Wed, 27 Feb 2019 17:50:34 -0500 (EST)
+	id B17308E000A; Wed, 27 Feb 2019 17:50:34 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 46C198E0004
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 68F058E0009
 	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 17:50:34 -0500 (EST)
-Received: by mail-pf1-f197.google.com with SMTP id b15so14380200pfo.12
+Received: by mail-pl1-f199.google.com with SMTP id e2so13495544pln.12
         for <linux-mm@kvack.org>; Wed, 27 Feb 2019 14:50:34 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=4FnxMkSMns1stK+JdFF7HgFm+jH045Y2bIyh/LxZ+OQ=;
-        b=BUX4zZlF4O/zWobP6LbMaPvIUui91EmyNGVrokfOI2wIOWzuVtmv3XbwMKLztu3EI7
-         1K1L29MrewT2pBmnFuVbfEs+A36kHtscKyws6f+ue5my5ae5Aj6NXw29MHwzygba+1MI
-         obVYn1mge3ihWcsWcQaxAgU3WTaR/0z7IUoDJVMHo0gcMuJMHNV7isMnjxCtUgBvmQYL
-         HoSmu69nmtc2+b73udmqsBDlqVsiiPGWoJTdqPdnF+VmFW2guQIDqgiYJ/GXiQxXcj5g
-         hgVadZWgMbM+Np1XwkKwsTTO7uJ+WKLI/eyPEz5IkGUuXOk/tQsbga3nn/5nYvF2wOKP
-         bNng==
+        bh=hz9w91aIPkE0E9ap/WrfhsBJuY4OqRXIHLZmUsGEF7E=;
+        b=PcN9qE5vEepQ9v+trqH18OnJqrFJscwMRcXZz05gee7eiydh4jCF9fXCtqa5WD8Xfq
+         Npev6HY7WCAXo37C2qQiaZwre0VL1APwNB9ODrb85twX3tZbMKOeVNEXpwhMU6+avEXl
+         CNK4F0mOD2Nm+elVYlXLXpTnTdBfK/k5z92HNfYppXIkM7uGpLJoFWjxnTxWXbm8caRl
+         XVlvsdga1m6m/orRsJ7RxKVo+0Iqca2QGsM+xVJ8ODw5xaHmKT+NxUjjLPCWI6RNRkvg
+         aKz9eeGMHCntp7t/WRtJn8+4Hl8N7AtQe3rmEbphVwGk5YgnS80Atl8NNzWEPIxS7H35
+         uNxQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: AHQUAuY4gAktd8/52N6rULqDEeHd0f/b6OemUwoRmn1pQiksVAtG60fu
-	FX3n5gFrk46jjKhgOal9XMrA2rFhRY5e6lx+xNRls36KCORU1MoayU5gjG3fJQS5qmHc0f9lm5n
-	6HPJP8H8JC0yejhcHip+0DYdPi39LEEYl+3cPiCYG68HUy4H90QHPxF6nxy3iZUJHww==
-X-Received: by 2002:a63:360e:: with SMTP id d14mr5351638pga.179.1551307833908;
-        Wed, 27 Feb 2019 14:50:33 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IauEpNZjYqQaIXAU+/6BhEaoz7SFZIrwc1DaGVEtMtnm/69w2sle0GGiISf6U4IrG2+PFfw
-X-Received: by 2002:a63:360e:: with SMTP id d14mr5351526pga.179.1551307832318;
+X-Gm-Message-State: AHQUAuaevupagATBmGpuBRKhaNAq33NoP10FGS30yzVEGk8+MFiqJQLz
+	FjXjKvPXakLyaR3CWDvv5wYsijOX0gitviClBh7s641yNRvwbOUQD4Exk1XXfEXPIX7RuCk+oax
+	KdTvTEDWoVWner4oXClyOUpx2ybK4PJ5pKL2awzjGD2R1pKKBQQHnk+8xR5t+CefD0w==
+X-Received: by 2002:a17:902:2f03:: with SMTP id s3mr4527383plb.277.1551307834085;
+        Wed, 27 Feb 2019 14:50:34 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IbCM16F/rQ6lUaObpr/c0Bffjynq6sg+tmIEGTvcyDTzfPjLfwy5JwsfgVei3FZM8PCElLN
+X-Received: by 2002:a17:902:2f03:: with SMTP id s3mr4527292plb.277.1551307832877;
         Wed, 27 Feb 2019 14:50:32 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1551307832; cv=none;
         d=google.com; s=arc-20160816;
-        b=AMARt/75YKbLzCiRr9wr8ucM3y46yqtwrYqwJVq2lJqiodRyC9UEfEsNw4IK5KUkRv
-         o3S3DsGFuENPN9fk33WI/0PhY4HBqiQPziIBP9gXYUXWK/IRR3j/qE8rp8emyR6akWyq
-         4k1uRObzeMQ5SbR6RE/PDHo3qv7Jat7jBooPWwyUKL77pDLvqJ+03oFfgHb5moRGFGzE
-         1VcsX6oOlADkHOvV/dHtAME1w51Jx1DZWzPjEPFosp5j39oasm4g9QJGbUABaRVI53Eo
-         LLyrcHvYLf1D6eWxSuepd82qJNDnOGt6No7787rfGCAHfv2zzya7qBMRev4+WNDbcQAg
-         AzVg==
+        b=izm8/+qBlX9Q5uvM3mpZlTwg1NG+Wi7EKb9QOyWYQmDAocBVGV1bHDn3CZVuvwttkd
+         yOqHA9dkFGTYIrMcfrHIRAsdJZF2fUacbMMybYpFI0s/fgvAKBFU2FaC2sM/rudbrTlb
+         KHxDYb7ZDW0GNDIrS541ct17aNDzdSlsycvXLH6j3jU3HrvqCbVb8gVyFiq9JUrwQeCt
+         WhIseE6JOQMLP1allo0Z418sTsctlSab9aAXD0gZfuevI7UdsULQM3huF8e80qjYpmgy
+         WexxfbLJTeBvoKKB5dbH7w0Cox8GqH22CFBYKWc/AtFYAUjUMnfN1Rmi2DcyotLo5aSE
+         Yd5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=4FnxMkSMns1stK+JdFF7HgFm+jH045Y2bIyh/LxZ+OQ=;
-        b=u5xSGKshwtz4sZrHfimN1nRWF62cl71OtObJy4uESNkHaVEyLIeZRc8IqNopCcu5bS
-         EsvaRUY98cQ+V1uu74HTbOvZM7Fg8o3UzP6XkbxQSJxKxgH1cvFS9miTbRIEkov6F53b
-         OGaZQXnSFbBLNhzLTz5KHRZ52PlDYgNKO+mJ9MmXBFmCCXc0BRrJ8NAoUtWdbF6PcFWR
-         Kn5NEqVeivjmBlF23A4afmUjposS6z6ElQdbhZVqr65/ojQ6r9kCdpWv8+ZsvS0BgF/u
-         D8AKds5QnVwXURvptoSPCF/VSApo8BCTUphLQ48jys8ziGwOmcADXmlnnvgg5a2fp/qC
-         5iQw==
+        bh=hz9w91aIPkE0E9ap/WrfhsBJuY4OqRXIHLZmUsGEF7E=;
+        b=k+X1OFIhw078wO0jfCwYvLNGdGF3dbtGDN3EET7trBdlc7h76dWJcX3SK1MdAig0KD
+         0LhvDvSX8Dslo0bN4Byojrmdwm/w1wS6iqagbVZpq4PEaKDr+UQFc9K6ZR9v/Q+AW9O2
+         MHB8P8iJqK1L2qmYR7JJkZPuV8v4E8zmNG7ofR4MEEgWBRAnYDc1/+smVl601Od+wUbc
+         ZPCMxZPCPbTFBdXM7Q+QXhwZFMNJ294hTdH7l5rPE7xjgxqpB89CgKjNXJte86ZcfynU
+         FAOj+gDzUpJRwsTutkIYELXi56P9xZsqx0k/8alr3a9mxU+djopL00U51JgMbJkm4yMk
+         IGfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
@@ -79,12 +79,12 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 Feb 2019 14:50:31 -0800
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 Feb 2019 14:50:32 -0800
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.58,420,1544515200"; 
-   d="scan'208";a="121349406"
+   d="scan'208";a="121349410"
 Received: from unknown (HELO localhost.lm.intel.com) ([10.232.112.69])
-  by orsmga008.jf.intel.com with ESMTP; 27 Feb 2019 14:50:30 -0800
+  by orsmga008.jf.intel.com with ESMTP; 27 Feb 2019 14:50:31 -0800
 From: Keith Busch <keith.busch@intel.com>
 To: linux-kernel@vger.kernel.org,
 	linux-acpi@vger.kernel.org,
@@ -95,9 +95,9 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
 	Dave Hansen <dave.hansen@intel.com>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Keith Busch <keith.busch@intel.com>
-Subject: [PATCHv7 04/10] node: Link memory nodes to their compute nodes
-Date: Wed, 27 Feb 2019 15:50:32 -0700
-Message-Id: <20190227225038.20438-5-keith.busch@intel.com>
+Subject: [PATCHv7 05/10] node: Add heterogenous memory access attributes
+Date: Wed, 27 Feb 2019 15:50:33 -0700
+Message-Id: <20190227225038.20438-6-keith.busch@intel.com>
 X-Mailer: git-send-email 2.13.6
 In-Reply-To: <20190227225038.20438-1-keith.busch@intel.com>
 References: <20190227225038.20438-1-keith.busch@intel.com>
@@ -107,295 +107,214 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Systems may be constructed with various specialized nodes. Some nodes
-may provide memory, some provide compute devices that access and use
-that memory, and others may provide both. Nodes that provide memory are
-referred to as memory targets, and nodes that can initiate memory access
-are referred to as memory initiators.
+Heterogeneous memory systems provide memory nodes with different latency
+and bandwidth performance attributes. Provide a new kernel interface
+for subsystems to register the attributes under the memory target
+node's initiator access class. If the system provides this information,
+applications may query these attributes when deciding which node to
+request memory.
 
-Memory targets will often have varying access characteristics from
-different initiators, and platforms may have ways to express those
-relationships. In preparation for these systems, provide interfaces for
-the kernel to export the memory relationship among different nodes memory
-targets and their initiators with symlinks to each other.
+The following example shows the new sysfs hierarchy for a node exporting
+performance attributes:
 
-If a system provides access locality for each initiator-target pair, nodes
-may be grouped into ranked access classes relative to other nodes. The
-new interface allows a subsystem to register relationships of varying
-classes if available and desired to be exported.
+  # tree -P "read*|write*"/sys/devices/system/node/nodeY/accessZ/initiators/
+  /sys/devices/system/node/nodeY/accessZ/initiators/
+  |-- read_bandwidth
+  |-- read_latency
+  |-- write_bandwidth
+  `-- write_latency
 
-A memory initiator may have multiple memory targets in the same access
-class. The target memory's initiators in a given class indicate the
-nodes access characteristics share the same performance relative to other
-linked initiator nodes. Each target within an initiator's access class,
-though, do not necessarily perform the same as each other.
+The bandwidth is exported as MB/s and latency is reported in
+nanoseconds. The values are taken from the platform as reported by the
+manufacturer.
 
-A memory target node may have multiple memory initiators. All linked
-initiators in a target's class have the same access characteristics to
-that target.
+Memory accesses from an initiator node that is not one of the memory's
+access "Z" initiator nodes linked in the same directory may observe
+different performance than reported here. When a subsystem makes use
+of this interface, initiators of a different access number may not have
+the same performance relative to initiators in other access numbers, or
+omitted from the any access class' initiators.
 
-The following example show the nodes' new sysfs hierarchy for a memory
-target node 'Y' with access class 0 from initiator node 'X':
-
-  # symlinks -v /sys/devices/system/node/nodeX/access0/
-  relative: /sys/devices/system/node/nodeX/access0/targets/nodeY -> ../../nodeY
-
-  # symlinks -v /sys/devices/system/node/nodeY/access0/
-  relative: /sys/devices/system/node/nodeY/access0/initiators/nodeX -> ../../nodeX
-
-The new attributes are added to the sysfs stable documentation.
+Descriptions for memory access initiator performance access attributes
+are added to sysfs stable documentation.
 
 Signed-off-by: Keith Busch <keith.busch@intel.com>
 ---
- Documentation/ABI/stable/sysfs-devices-node |  25 ++++-
- drivers/base/node.c                         | 142 +++++++++++++++++++++++++++-
- include/linux/node.h                        |   7 +-
- 3 files changed, 171 insertions(+), 3 deletions(-)
+ Documentation/ABI/stable/sysfs-devices-node | 28 ++++++++++++++
+ drivers/base/Kconfig                        |  8 ++++
+ drivers/base/node.c                         | 59 +++++++++++++++++++++++++++++
+ include/linux/node.h                        | 26 +++++++++++++
+ 4 files changed, 121 insertions(+)
 
 diff --git a/Documentation/ABI/stable/sysfs-devices-node b/Documentation/ABI/stable/sysfs-devices-node
-index 3e90e1f3bf0a..fb843222a281 100644
+index fb843222a281..41cb9345e1e0 100644
 --- a/Documentation/ABI/stable/sysfs-devices-node
 +++ b/Documentation/ABI/stable/sysfs-devices-node
-@@ -90,4 +90,27 @@ Date:		December 2009
- Contact:	Lee Schermerhorn <lee.schermerhorn@hp.com>
+@@ -114,3 +114,31 @@ Contact:	Keith Busch <keith.busch@intel.com>
  Description:
- 		The node's huge page size control/query attributes.
--		See Documentation/admin-guide/mm/hugetlbpage.rst
-\ No newline at end of file
-+		See Documentation/admin-guide/mm/hugetlbpage.rst
+ 		The directory containing symlinks to memory targets that
+ 		this initiator node has class "Y" access.
 +
-+What:		/sys/devices/system/node/nodeX/accessY/
++What:		/sys/devices/system/node/nodeX/accessY/initiators/read_bandwidth
 +Date:		December 2018
 +Contact:	Keith Busch <keith.busch@intel.com>
 +Description:
-+		The node's relationship to other nodes for access class "Y".
++		This node's read bandwidth in MB/s when accessed from
++		nodes found in this access class's linked initiators.
 +
-+What:		/sys/devices/system/node/nodeX/accessY/initiators/
++What:		/sys/devices/system/node/nodeX/accessY/initiators/read_latency
 +Date:		December 2018
 +Contact:	Keith Busch <keith.busch@intel.com>
 +Description:
-+		The directory containing symlinks to memory initiator
-+		nodes that have class "Y" access to this target node's
-+		memory. CPUs and other memory initiators in nodes not in
-+		the list accessing this node's memory may have different
-+		performance.
++		This node's read latency in nanoseconds when accessed
++		from nodes found in this access class's linked initiators.
 +
-+What:		/sys/devices/system/node/nodeX/classY/targets/
++What:		/sys/devices/system/node/nodeX/accessY/initiators/write_bandwidth
 +Date:		December 2018
 +Contact:	Keith Busch <keith.busch@intel.com>
 +Description:
-+		The directory containing symlinks to memory targets that
-+		this initiator node has class "Y" access.
++		This node's write bandwidth in MB/s when accessed from
++		found in this access class's linked initiators.
++
++What:		/sys/devices/system/node/nodeX/accessY/initiators/write_latency
++Date:		December 2018
++Contact:	Keith Busch <keith.busch@intel.com>
++Description:
++		This node's write latency in nanoseconds when access
++		from nodes found in this class's linked initiators.
+diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
+index 059700ea3521..a7438a58c250 100644
+--- a/drivers/base/Kconfig
++++ b/drivers/base/Kconfig
+@@ -149,6 +149,14 @@ config DEBUG_TEST_DRIVER_REMOVE
+ 	  unusable. You should say N here unless you are explicitly looking to
+ 	  test this functionality.
+ 
++config HMEM_REPORTING
++	bool
++	default n
++	depends on NUMA
++	help
++	  Enable reporting for heterogenous memory access attributes under
++	  their non-uniform memory nodes.
++
+ source "drivers/base/test/Kconfig"
+ 
+ config SYS_HYPERVISOR
 diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 86d6cd92ce3d..6f4097680580 100644
+index 6f4097680580..2de546a040a5 100644
 --- a/drivers/base/node.c
 +++ b/drivers/base/node.c
-@@ -17,6 +17,7 @@
- #include <linux/nodemask.h>
- #include <linux/cpu.h>
- #include <linux/device.h>
-+#include <linux/pm_runtime.h>
- #include <linux/swap.h>
- #include <linux/slab.h>
+@@ -71,6 +71,9 @@ struct node_access_nodes {
+ 	struct device		dev;
+ 	struct list_head	list_node;
+ 	unsigned		access;
++#ifdef CONFIG_HMEM_REPORTING
++	struct node_hmem_attrs	hmem_attrs;
++#endif
+ };
+ #define to_access_nodes(dev) container_of(dev, struct node_access_nodes, dev)
  
-@@ -59,6 +60,94 @@ static inline ssize_t node_read_cpulist(struct device *dev,
- static DEVICE_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
- static DEVICE_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
+@@ -148,6 +151,62 @@ static struct node_access_nodes *node_init_node_access(struct node *node,
+ 	return NULL;
+ }
  
++#ifdef CONFIG_HMEM_REPORTING
++#define ACCESS_ATTR(name) 						   \
++static ssize_t name##_show(struct device *dev,				   \
++			   struct device_attribute *attr,		   \
++			   char *buf)					   \
++{									   \
++	return sprintf(buf, "%u\n", to_access_nodes(dev)->hmem_attrs.name); \
++}									   \
++static DEVICE_ATTR_RO(name);
++
++ACCESS_ATTR(read_bandwidth)
++ACCESS_ATTR(read_latency)
++ACCESS_ATTR(write_bandwidth)
++ACCESS_ATTR(write_latency)
++
++static struct attribute *access_attrs[] = {
++	&dev_attr_read_bandwidth.attr,
++	&dev_attr_read_latency.attr,
++	&dev_attr_write_bandwidth.attr,
++	&dev_attr_write_latency.attr,
++	NULL,
++};
++
 +/**
-+ * struct node_access_nodes - Access class device to hold user visible
-+ * 			      relationships to other nodes.
-+ * @dev:	Device for this memory access class
-+ * @list_node:	List element in the node's access list
-+ * @access:	The access class rank
++ * node_set_perf_attrs - Set the performance values for given access class
++ * @nid: Node identifier to be set
++ * @hmem_attrs: Heterogeneous memory performance attributes
++ * @access: The access class the for the given attributes
 + */
-+struct node_access_nodes {
-+	struct device		dev;
-+	struct list_head	list_node;
-+	unsigned		access;
-+};
-+#define to_access_nodes(dev) container_of(dev, struct node_access_nodes, dev)
-+
-+static struct attribute *node_init_access_node_attrs[] = {
-+	NULL,
-+};
-+
-+static struct attribute *node_targ_access_node_attrs[] = {
-+	NULL,
-+};
-+
-+static const struct attribute_group initiators = {
-+	.name	= "initiators",
-+	.attrs	= node_init_access_node_attrs,
-+};
-+
-+static const struct attribute_group targets = {
-+	.name	= "targets",
-+	.attrs	= node_targ_access_node_attrs,
-+};
-+
-+static const struct attribute_group *node_access_node_groups[] = {
-+	&initiators,
-+	&targets,
-+	NULL,
-+};
-+
-+static void node_remove_accesses(struct node *node)
++void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
++			 unsigned access)
 +{
-+	struct node_access_nodes *c, *cnext;
++	struct node_access_nodes *c;
++	struct node *node;
++	int i;
 +
-+	list_for_each_entry_safe(c, cnext, &node->access_list, list_node) {
-+		list_del(&c->list_node);
-+		device_unregister(&c->dev);
++	if (WARN_ON_ONCE(!node_online(nid)))
++		return;
++
++	node = node_devices[nid];
++	c = node_init_node_access(node, access);
++	if (!c)
++		return;
++
++	c->hmem_attrs = *hmem_attrs;
++	for (i = 0; access_attrs[i] != NULL; i++) {
++		if (sysfs_add_file_to_group(&c->dev.kobj, access_attrs[i],
++					    "initiators")) {
++			pr_info("failed to add performance attribute to node %d\n",
++				nid);
++			break;
++		}
 +	}
 +}
-+
-+static void node_access_release(struct device *dev)
-+{
-+	kfree(to_access_nodes(dev));
-+}
-+
-+static struct node_access_nodes *node_init_node_access(struct node *node,
-+						       unsigned access)
-+{
-+	struct node_access_nodes *access_node;
-+	struct device *dev;
-+
-+	list_for_each_entry(access_node, &node->access_list, list_node)
-+		if (access_node->access == access)
-+			return access_node;
-+
-+	access_node = kzalloc(sizeof(*access_node), GFP_KERNEL);
-+	if (!access_node)
-+		return NULL;
-+
-+	access_node->access = access;
-+	dev = &access_node->dev;
-+	dev->parent = &node->dev;
-+	dev->release = node_access_release;
-+	dev->groups = node_access_node_groups;
-+	if (dev_set_name(dev, "access%u", access))
-+		goto free;
-+
-+	if (device_register(dev))
-+		goto free_name;
-+
-+	pm_runtime_no_callbacks(dev);
-+	list_add_tail(&access_node->list_node, &node->access_list);
-+	return access_node;
-+free_name:
-+	kfree_const(dev->kobj.name);
-+free:
-+	kfree(access_node);
-+	return NULL;
-+}
++#endif
 +
  #define K(x) ((x) << (PAGE_SHIFT - 10))
  static ssize_t node_read_meminfo(struct device *dev,
  			struct device_attribute *attr, char *buf)
-@@ -340,7 +429,7 @@ static int register_node(struct node *node, int num)
- void unregister_node(struct node *node)
- {
- 	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
--
-+	node_remove_accesses(node);
- 	device_unregister(&node->dev);
- }
- 
-@@ -372,6 +461,56 @@ int register_cpu_under_node(unsigned int cpu, unsigned int nid)
- 				 kobject_name(&node_devices[nid]->dev.kobj));
- }
- 
-+/**
-+ * register_memory_node_under_compute_node - link memory node to its compute
-+ *					     node for a given access class.
-+ * @mem_node:	Memory node number
-+ * @cpu_node:	Cpu  node number
-+ * @access:	Access class to register
-+ *
-+ * Description:
-+ * 	For use with platforms that may have separate memory and compute nodes.
-+ * 	This function will export node relationships linking which memory
-+ * 	initiator nodes can access memory targets at a given ranked access
-+ * 	class.
-+ */
-+int register_memory_node_under_compute_node(unsigned int mem_nid,
-+					    unsigned int cpu_nid,
-+					    unsigned access)
-+{
-+	struct node *init_node, *targ_node;
-+	struct node_access_nodes *initiator, *target;
-+	int ret;
-+
-+	if (!node_online(cpu_nid) || !node_online(mem_nid))
-+		return -ENODEV;
-+
-+	init_node = node_devices[cpu_nid];
-+	targ_node = node_devices[mem_nid];
-+	initiator = node_init_node_access(init_node, access);
-+	target = node_init_node_access(targ_node, access);
-+	if (!initiator || !target)
-+		return -ENOMEM;
-+
-+	ret = sysfs_add_link_to_group(&initiator->dev.kobj, "targets",
-+				      &targ_node->dev.kobj,
-+				      dev_name(&targ_node->dev));
-+	if (ret)
-+		return ret;
-+
-+	ret = sysfs_add_link_to_group(&target->dev.kobj, "initiators",
-+				      &init_node->dev.kobj,
-+				      dev_name(&init_node->dev));
-+	if (ret)
-+		goto err;
-+
-+	return 0;
-+ err:
-+	sysfs_remove_link_from_group(&initiator->dev.kobj, "targets",
-+				     dev_name(&targ_node->dev));
-+	return ret;
-+}
-+
- int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
- {
- 	struct device *obj;
-@@ -580,6 +719,7 @@ int __register_one_node(int nid)
- 			register_cpu_under_node(cpu, nid);
- 	}
- 
-+	INIT_LIST_HEAD(&node_devices[nid]->access_list);
- 	/* initialize work queue for memory hot plug */
- 	init_node_hugetlb_work(nid);
- 
 diff --git a/include/linux/node.h b/include/linux/node.h
-index 257bb3d6d014..f34688a203c1 100644
+index f34688a203c1..45e14e1e0c18 100644
 --- a/include/linux/node.h
 +++ b/include/linux/node.h
-@@ -17,11 +17,12 @@
- 
- #include <linux/device.h>
- #include <linux/cpumask.h>
-+#include <linux/list.h>
+@@ -20,6 +20,32 @@
+ #include <linux/list.h>
  #include <linux/workqueue.h>
  
++/**
++ * struct node_hmem_attrs - heterogeneous memory performance attributes
++ *
++ * @read_bandwidth:	Read bandwidth in MB/s
++ * @write_bandwidth:	Write bandwidth in MB/s
++ * @read_latency:	Read latency in nanoseconds
++ * @write_latency:	Write latency in nanoseconds
++ */
++struct node_hmem_attrs {
++	unsigned int read_bandwidth;
++	unsigned int write_bandwidth;
++	unsigned int read_latency;
++	unsigned int write_latency;
++};
++
++#ifdef CONFIG_HMEM_REPORTING
++void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
++			 unsigned access);
++#else
++static inline void node_set_perf_attrs(unsigned int nid,
++				       struct node_hmem_attrs *hmem_attrs,
++				       unsigned access)
++{
++}
++#endif
++
  struct node {
  	struct device	dev;
--
-+	struct list_head access_list;
- #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
- 	struct work_struct	node_work;
- #endif
-@@ -75,6 +76,10 @@ extern int register_mem_sect_under_node(struct memory_block *mem_blk,
- extern int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
- 					   unsigned long phys_index);
- 
-+extern int register_memory_node_under_compute_node(unsigned int mem_nid,
-+						   unsigned int cpu_nid,
-+						   unsigned access);
-+
- #ifdef CONFIG_HUGETLBFS
- extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
- 					 node_registration_func_t unregister);
+ 	struct list_head access_list;
 -- 
 2.14.4
 
