@@ -2,215 +2,232 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 16ABCC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 10:36:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 64109C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 10:44:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C73F62171F
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 10:36:34 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="o1SZRd5s"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C73F62171F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 1C4C62183F
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 10:44:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C4C62183F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 584F88E0003; Thu, 28 Feb 2019 05:36:34 -0500 (EST)
+	id DBD5F8E0003; Thu, 28 Feb 2019 05:44:11 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5335C8E0001; Thu, 28 Feb 2019 05:36:34 -0500 (EST)
+	id D6A448E0001; Thu, 28 Feb 2019 05:44:11 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 44C098E0003; Thu, 28 Feb 2019 05:36:34 -0500 (EST)
+	id C32FD8E0003; Thu, 28 Feb 2019 05:44:11 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D4288E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 05:36:34 -0500 (EST)
-Received: by mail-it1-f198.google.com with SMTP id q141so7910980itc.2
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 02:36:34 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D8C68E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 05:44:11 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id u12so8336199edo.5
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 02:44:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=TG2Sh1vGe2zW5taB3axe7bGfGTyXgNIoMQVtjw+a9WY=;
-        b=GxtV4IVzNbwwEF3AXX8FkfeBufPfUxIvsv64smF07bKTQQobIOmLyIswhHyU1ufoM+
-         BJwP/xvWVbmtdLMEeq7tq1hVl2gRdSLo4Qmd+coMF8eGR8AIomceKKpOEkVA8Kt6ctI7
-         LAoSX+USlyGohT7ttlW7XVR8rHaLaMEkg1zW2bPhxsxKa/BBKU9aavwLQx5ZMYoqY3dP
-         GQ5e9P10HU+JjOCyRtLH2AykyUIDulKXqSVznlA2CW2ORkClKTs3YdxveChAgT9fmAOX
-         619n4+gEoQPWpCQen+WZsFn98rhQrmbN4ciPeh3fzSZJY7RXFLj/a1WmCwqhQqgtiNHy
-         17CQ==
-X-Gm-Message-State: AHQUAua3lF9QMQUFnzckf20Qy3VyC5MCM+3Qsz54ElCY5CMwBxw3FNtL
-	OvY870lgSVG/i+xPrdFhkZdLhoXa6Ii4VosdRdONW52sv7yJE0aKy0UAOZGZGTdnKZxEz24c7Gk
-	gXhN7asVYvrzWmtTp3+J3fayeN+azudcLXlFXPEOEnKSrkwuqO7pA4gRyQfBvdvLaDugcYE5AOn
-	r50zKg5Wzy4lLFBzgOw7H1oJy2LEWLKKnGGJI5R+vbabg0Zd03z2F/+B7l8oBRTWtiVw07gt4gJ
-	KcOyZdsT6k2NwJfS0QmKGhagDb9Z/69MKXvmF6kJ84tK8uKsbxnlsAo0uvfp2xcxjFjR1H0cWSi
-	ApWRzdVjVxx8xXKl8dR3F8A5GU1Gc9zES8V8xOVENgua3jrE2BWPKjnNnKlU7Gg0cuxX1rEO8Al
-	G
-X-Received: by 2002:a24:41e2:: with SMTP id b95mr2580527itd.115.1551350193884;
-        Thu, 28 Feb 2019 02:36:33 -0800 (PST)
-X-Received: by 2002:a24:41e2:: with SMTP id b95mr2580490itd.115.1551350193005;
-        Thu, 28 Feb 2019 02:36:33 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551350193; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=7j9CxLJkwuIeuSHQEQMK6LwLhyXnXvx8MyTjg0UJlm0=;
+        b=ooJn4Gs20Rjyir+1B3Eb6ygECVtlZlQ5elPgMScdwq3Da6Zc/XTjSzoBNmg7ocL0Y5
+         Vj2D8crpxudLLeOOuIo0UqV9w5PWcHaLJV4L3wFHkICVT4r4Zrd1PfDenSYZ+4MQiTng
+         /sX6qzRBYm0mthImjo+JrtDVebqOiaQtY4BprGCLC+hm8YbZ2zU9oR+hYmZ727KkhOEI
+         XgQlf2hETfLcA5pFoAaMJ19lFVNCL/9hBzhAd4iLle4Ao20+5gU4ap8AoXUHsE4ERmyD
+         4JxyaI1ndBRkZzUK6izMzJP9O4G4b0ZGbXqSFRUXhyjNOOHDTOMGYoB+BZi/uj0S1BtP
+         E1nw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: AHQUAuZYAau6WPge+mM8lhslj45gzjBCtDWDDV3m4A/7ITTCipUqWVoF
+	+qymLMsg+/epn2lPtZfrmXTs6YXx7kn+n7p5M5/KimAf75IyMi7hcGqRUU7rwd0OIeBMS9fGMBz
+	XBub5Zy7JMbq750H9GVW6y+6KETDTWTnoBRaF7PuCqLuhlGIh8HiyoLWqtdc8tonVzg==
+X-Received: by 2002:a17:906:24ca:: with SMTP id f10mr5001983ejb.240.1551350650992;
+        Thu, 28 Feb 2019 02:44:10 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYiHN9lYAVCL1kYcZB74l8hcihimrKgGduyJ5wE62FQZnIqdTLYBI5NoR3bhRrLhugwuHxH
+X-Received: by 2002:a17:906:24ca:: with SMTP id f10mr5001939ejb.240.1551350650111;
+        Thu, 28 Feb 2019 02:44:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551350650; cv=none;
         d=google.com; s=arc-20160816;
-        b=n4D3kGivp70C2bkj1IttmoKoSMYspHe/c+VAZNfMIzAGn17yHkeI+cbzHklEeZrWZo
-         r9WKMOEBJMm6++TlH14v/ahx2tPFo5Lu2MVe55VV46FAMj56GuduHQQ5VZjaiDjeO6LU
-         0XL15hRokPfS10yqujqfU2rUh5pUwhIlhnGbfahrPqsLdU9/95TmG9E4AYQ2Nk/OcjpX
-         /zEsKyTnORfPGNTfNDHCGNg9+gCBr0gvMv2JA3h0Oc4Gi2SkFuf39rSRgcNfdajjMIJm
-         EyJ0bSyd8IYbwsCgIAXMzQl1QUlIkxkGP/GBO67mpNVqIYSkJRi03FB5fmSgERK6k5a+
-         Dfqg==
+        b=mRgT+Z+H1xLpnBbH7G5QqqJV8x3RtNTyB0Hzy/ccxW9U3u8ugobraL+G3v3dvayH3L
+         Vqg+BUpn2Mjd4fncyJZcYMPm/LEzHXrhKDOr0L2sdpe5DCPa/DO0cw+l9SmDaiZh3AT7
+         SMWIt1ujyK1iuDSw+30WTCy1qrhve3dNSC9Z6fPAeBI1cOuwcmRgs9EUluGm1hn+s+6N
+         C9aW8DUfcNulxevYNw6qL2Ia64UkDxMBRoQZouIMD/cfKrxWe+J/o6Fw3Sbnz8Lbwr+a
+         B5bQDsRwZmxmIBBv8kPlVAOo0yuP0kOSCj6AWS4SQL+GSh6ABUQ5U9tPbbcm2aJAd7zb
+         Xq4w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=TG2Sh1vGe2zW5taB3axe7bGfGTyXgNIoMQVtjw+a9WY=;
-        b=WkpWjVAzPlohjtQBUpKduIQY6R5ON90Gyxn55Q/lzqSRmFChGlHSWw2PB2Q0CSxMZd
-         nOCbFxkKgCKstjuel3Whvxb6qCtcymuzt2LYJBadQ4fwK2O/pTeAev7f5pQiI6nUvadJ
-         Po4tN2Imi8rLK4vVgldCNADjbZ06RLp305fJHTSGMka2LNi8sUSSfJbRc9AiQLyCGYpi
-         Kc9CKVPRK5xaYGDfNTRQ5Nx8CSXbanKdWlzljJASYacyahTG/L0ef9oFS7HOcLBY6tUA
-         Ll8IsqMH5kjI57dIg+WldzRbk7ptrlGXxqJGBhR1XkRbrJh01y544pbTrowdKqCsRSDW
-         txeg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=7j9CxLJkwuIeuSHQEQMK6LwLhyXnXvx8MyTjg0UJlm0=;
+        b=z7vqINt8dz0krgCQt/1QNXNU8RLR07m50BmNMQbe5sWj1EZn3gxBBATsg8OQAJ8FZV
+         /YRVeNT4iFNjxIlkR1MNNq1b+/zpOek0JUL5duiWSSokIM8pb5fTQiuNTaKeB79qv0tk
+         iAijlSNQwO76KlA5qNi9WrTzoxiQkT3CF0vAKYM1/qVQAaSzJZGxicOPkOFS6IVKsLo1
+         c/NSc3XIpZ+A/TAT/MwJaN2BX+HcwiD8ljxMoaP4DKad+7WLp3fhAGLgznJjheAbhFty
+         XC+PW7/sRsS20lIhEWsIIKYqR86qpSui2MXAUpJIdJulpBGhu6rVVMcYtyPMBYyhyDQ6
+         bRvQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=o1SZRd5s;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u21sor3928161iof.44.2019.02.28.02.36.32
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x58si84900edx.59.2019.02.28.02.44.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Feb 2019 02:36:32 -0800 (PST)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Feb 2019 02:44:10 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=o1SZRd5s;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=TG2Sh1vGe2zW5taB3axe7bGfGTyXgNIoMQVtjw+a9WY=;
-        b=o1SZRd5sZ8ky1TT+/5Jt3JkN+1k53KLcPjsze1Lmt8u2VAV9gOe6cLCsUWT/2K4qmM
-         MUqj6NvOSkm/LX+4vD0olqSKueBXd6sCHV/WWilxgUPXoruRxYgj5BqbcFtWSRi4kRub
-         CYh5Z/qGHS09JmsDSPCk+eH9IEJEu2ayjwr1+s/pRwNxIJndRvfjwCCuVbxvBsWLHkfk
-         /x9gwBzJdQxO9R1S5dv5BL8cz056A13vI0vFtNAofSxZDoc2MTTivBw7W98C9YXjWanf
-         ud91l2aE0QBSHwKM6B5My497y57XUBCOoEWEyR4dDfBigPVFBu732pJPg2goN6ihiKcy
-         pCWA==
-X-Google-Smtp-Source: APXvYqyCef3EvphHHF9vAB7qSxnCUEYiQjXURkJ14X72OX5R2/TA3iQPQfPmXT9wQONnsVjUMNv0KPfur/S61vXwYiQ=
-X-Received: by 2002:a5d:84c3:: with SMTP id z3mr4811563ior.11.1551350192504;
- Thu, 28 Feb 2019 02:36:32 -0800 (PST)
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 6DEE2ACA0;
+	Thu, 28 Feb 2019 10:44:09 +0000 (UTC)
+Subject: Re: [PATCH] mm: vmscan: add tracepoints for node reclaim
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko
+ <mhocko@suse.com>, ktkhai@virtuozzo.com, broonie@kernel.org,
+ Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>,
+ shaoyafang@didiglobal.com
+References: <1551341664-13912-1-git-send-email-laoar.shao@gmail.com>
+ <2cf3574c-34f9-ada8-d27c-1ed822031305@suse.cz>
+ <CALOAHbB8veCnu2EvTMhH6dJTOcWmozSE+3sKtX9jXheFtJjQUA@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <b88ec9aa-4630-353a-955a-3e365d44b5d1@suse.cz>
+Date: Thu, 28 Feb 2019 11:44:08 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-References: <00000000000024b3aa0582f1cde7@google.com>
-In-Reply-To: <00000000000024b3aa0582f1cde7@google.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 28 Feb 2019 11:36:21 +0100
-Message-ID: <CACT4Y+byrcaasUaEJj=hcemEEBBkon=VC24gPwGXHzfeRP0E3w@mail.gmail.com>
-Subject: Re: BUG: Bad page state (6)
-To: syzbot <syzbot+6f5a9b79b75b66078bf0@syzkaller.appspotmail.com>, 
-	Jens Axboe <axboe@kernel.dk>, Eric Biggers <ebiggers@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, arunks@codeaurora.org, 
-	Dan Williams <dan.j.williams@intel.com>, Lance Roy <ldr709@gmail.com>, 
-	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	Michal Hocko <mhocko@suse.com>, nborisov@suse.com, 
-	Mike Rapoport <rppt@linux.vnet.ibm.com>, syzkaller-bugs <syzkaller-bugs@googlegroups.com>, 
-	Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, yuehaibing@huawei.com
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CALOAHbB8veCnu2EvTMhH6dJTOcWmozSE+3sKtX9jXheFtJjQUA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 28, 2019 at 11:32 AM syzbot
-<syzbot+6f5a9b79b75b66078bf0@syzkaller.appspotmail.com> wrote:
->
-> Hello,
->
-> syzbot found the following crash on:
->
-> HEAD commit:    42fd8df9d1d9 Add linux-next specific files for 20190228
-> git tree:       linux-next
-> console output: https://syzkaller.appspot.com/x/log.txt?x=179ba9e0c00000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=c0f38652d28b522f
-> dashboard link: https://syzkaller.appspot.com/bug?extid=6f5a9b79b75b66078bf0
-> compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=12ed6bd0c00000
-> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=10690c8ac00000
->
-> IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+6f5a9b79b75b66078bf0@syzkaller.appspotmail.com
+On 2/28/19 11:34 AM, Yafang Shao wrote:
+> On Thu, Feb 28, 2019 at 6:21 PM Vlastimil Babka <vbabka@suse.cz> wrote:
+>>
+>> On 2/28/19 9:14 AM, Yafang Shao wrote:
+>>> In the page alloc fast path, it may do node reclaim, which may cause
+>>> latency spike.
+>>> We should add tracepoint for this event, and also mesure the latency
+>>> it causes.
+>>>
+>>> So bellow two tracepoints are introduced,
+>>>       mm_vmscan_node_reclaim_begin
+>>>       mm_vmscan_node_reclaim_end
+>>>
+>>> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+>>> ---
+>>>  include/trace/events/vmscan.h | 48 +++++++++++++++++++++++++++++++++++++++++++
+>>>  mm/vmscan.c                   | 13 +++++++++++-
+>>>  2 files changed, 60 insertions(+), 1 deletion(-)
+>>>
+>>> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+>>> index a1cb913..9310d5b 100644
+>>> --- a/include/trace/events/vmscan.h
+>>> +++ b/include/trace/events/vmscan.h
+>>> @@ -465,6 +465,54 @@
+>>>               __entry->ratio,
+>>>               show_reclaim_flags(__entry->reclaim_flags))
+>>>  );
+>>> +
+>>> +TRACE_EVENT(mm_vmscan_node_reclaim_begin,
+>>> +
+>>> +     TP_PROTO(int nid, int order, int may_writepage,
+>>> +             gfp_t gfp_flags, int zid),
+>>> +
+>>> +     TP_ARGS(nid, order, may_writepage, gfp_flags, zid),
+>>> +
+>>> +     TP_STRUCT__entry(
+>>> +             __field(int, nid)
+>>> +             __field(int, order)
+>>> +             __field(int, may_writepage)
+>>
+>> For node reclaim may_writepage is statically set in node_reclaim_mode,
+>> so I'm not sure it's worth including it.
+>>
+>>> +             __field(gfp_t, gfp_flags)
+>>> +             __field(int, zid)
+>>
+>> zid seems wasteful and misleading as it's simply derived by
+>> gfp_zone(gfp_mask), so I would drop it.
+>>
+> 
+> I agree with you that may_writepage and zid is wasteful, but I found
+> they are in other tracepoints in this file,
+> so I place them in this tracepoint as well.
 
-+Jens, Eric,
+I see zid only in kswapd waking tracepoints? That's different kind of
+event.
 
-Looks similar to:
-https://groups.google.com/forum/#!msg/syzkaller-bugs/E3v3XQweVBw/6BPrkIYJIgAJ
-Perhaps the fixing commit is not in the build yet?
+> Seems we'd better drop them from other tracepoints as well ?
 
-
-> BUG: Bad page state in process syz-executor193  pfn:9225a
-> page:ffffea0002489680 count:0 mapcount:0 mapping:ffff88808652fd80 index:0x81
-> shmem_aops
-> name:"memfd:cgroup2"
-> flags: 0x1fffc000008000e(referenced|uptodate|dirty|swapbacked)
-> raw: 01fffc000008000e ffff88809277fac0 ffff88809277fac0 ffff88808652fd80
-> raw: 0000000000000081 0000000000000000 00000000ffffffff 0000000000000000
-> page dumped because: non-NULL mapping
-> Modules linked in:
-> CPU: 0 PID: 7659 Comm: syz-executor193 Not tainted 5.0.0-rc8-next-20190228
-> #45
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> Google 01/01/2011
-> Call Trace:
->   __dump_stack lib/dump_stack.c:77 [inline]
->   dump_stack+0x172/0x1f0 lib/dump_stack.c:113
->   bad_page.cold+0xda/0xff mm/page_alloc.c:586
->   free_pages_check_bad+0x142/0x1a0 mm/page_alloc.c:1013
->   free_pages_check mm/page_alloc.c:1022 [inline]
->   free_pages_prepare mm/page_alloc.c:1112 [inline]
->   free_pcp_prepare mm/page_alloc.c:1137 [inline]
->   free_unref_page_prepare mm/page_alloc.c:3001 [inline]
->   free_unref_page_list+0x31d/0xc40 mm/page_alloc.c:3070
->   release_pages+0x60d/0x1940 mm/swap.c:794
->   pagevec_lru_move_fn+0x218/0x2a0 mm/swap.c:213
->   activate_page_drain mm/swap.c:297 [inline]
->   lru_add_drain_cpu+0x3b1/0x520 mm/swap.c:596
->   lru_add_drain+0x20/0x60 mm/swap.c:647
->   exit_mmap+0x290/0x530 mm/mmap.c:3134
->   __mmput kernel/fork.c:1047 [inline]
->   mmput+0x15f/0x4c0 kernel/fork.c:1068
->   exit_mm kernel/exit.c:546 [inline]
->   do_exit+0x816/0x2fa0 kernel/exit.c:863
->   do_group_exit+0x135/0x370 kernel/exit.c:980
->   __do_sys_exit_group kernel/exit.c:991 [inline]
->   __se_sys_exit_group kernel/exit.c:989 [inline]
->   __x64_sys_exit_group+0x44/0x50 kernel/exit.c:989
->   do_syscall_64+0x103/0x610 arch/x86/entry/common.c:290
->   entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> RIP: 0033:0x442a58
-> Code: 00 00 be 3c 00 00 00 eb 19 66 0f 1f 84 00 00 00 00 00 48 89 d7 89 f0
-> 0f 05 48 3d 00 f0 ff ff 77 21 f4 48 89 d7 44 89 c0 0f 05 <48> 3d 00 f0 ff
-> ff 76 e0 f7 d8 64 41 89 01 eb d8 0f 1f 84 00 00 00
-> RSP: 002b:00007ffe99e2faf8 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
-> RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 0000000000442a58
-> RDX: 0000000000000000 RSI: 000000000000003c RDI: 0000000000000000
-> RBP: 00000000004c2468 R08: 00000000000000e7 R09: ffffffffffffffd0
-> R10: 0000000002000005 R11: 0000000000000246 R12: 0000000000000001
-> R13: 00000000006d4180 R14: 0000000000000000 R15: 0000000000000000
->
->
-> ---
-> This bug is generated by a bot. It may contain errors.
-> See https://goo.gl/tpsmEJ for more information about syzbot.
-> syzbot engineers can be reached at syzkaller@googlegroups.com.
->
-> syzbot will keep track of this bug report. See:
-> https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with
-> syzbot.
-> syzbot can test patches for this bug, for details see:
-> https://goo.gl/tpsmEJ#testing-patches
->
-> --
-> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/00000000000024b3aa0582f1cde7%40google.com.
-> For more options, visit https://groups.google.com/d/optout.
+Hmm seems may_writepage in other tracepoints depends on laptop_mode
+which is also a static setting. do_try_to_free_pages() can override it
+due to priority, but that doesn't affect the tracepoints. If they are to
+be dropped, it would be a separate patch though.
 
