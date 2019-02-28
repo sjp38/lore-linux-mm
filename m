@@ -2,200 +2,228 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 654A9C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 08:06:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 45045C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 08:14:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0B4882171F
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 08:06:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B4882171F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id EF01920643
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 08:14:42 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="V4poo/qq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF01920643
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 752698E0003; Thu, 28 Feb 2019 03:06:58 -0500 (EST)
+	id 776A18E0003; Thu, 28 Feb 2019 03:14:42 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 704968E0001; Thu, 28 Feb 2019 03:06:58 -0500 (EST)
+	id 723EB8E0001; Thu, 28 Feb 2019 03:14:42 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5A4BF8E0003; Thu, 28 Feb 2019 03:06:58 -0500 (EST)
+	id 613308E0003; Thu, 28 Feb 2019 03:14:42 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F279C8E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 03:06:57 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id f2so7993581edm.18
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 00:06:57 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 207238E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 03:14:42 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id h15so15398505pfj.22
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 00:14:42 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=4okD5oDs0HM2Bs47i6EuuPCypxWqhGmU8bTZGNlQcbs=;
-        b=BfUl0K2pHjwBmUCf5cTms/yklbQLwfZ42TyByWMANfBKnq89mPCQo8snrSf8b7EI1K
-         cja07g255KAriGrVlACbq2KqhIPrqBAWeDcX59c/vJWVjPwT+PTLi59lYUaHXr3JT1WB
-         lwECGhv/hdVmKKCCtHSNmMQlds6Ehv0S/Zy4d8DM56eI4vT18+IB6KZ/r6syNp5bgFuT
-         PgzQKYCViiKokbpKfswuExwj+QjKHvQQzB9bhKOOEulWQ2EyBv4Xxhrc3n3qOAmwCq5z
-         65a8xQAWkQQjrQyx1YryWOAmQayDtMwP/OkPfS/0BRX3i+1TNBUQ3IrMSCc3I+BCVngY
-         1IOQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAXVbJSBz+Js5SHEFSecniaqdWbHM7x0FjIXBxYPwTUtUJ7a4n8b
-	Ed4NQraGYFbsysulgziXkF28FY4aYvWshVEF4vDor4ZPQm2T7qLn05NKmiHz8N7OdpnQFQWp5ve
-	s1CFwZRzgVroQV+HDkB8v/6dxEQOkVUj858+foCW+Ic8fwe/XbJHdbTRxTRubz8whnA==
-X-Received: by 2002:a50:9761:: with SMTP id d30mr1109923edb.151.1551341217548;
-        Thu, 28 Feb 2019 00:06:57 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzV4gwQs4Dve4Dx3nNJSD99k0qQXMxZWVj+CfuhDYd57Sx+7o482TWsB77DmR94C6MFGCB7
-X-Received: by 2002:a50:9761:: with SMTP id d30mr1109881edb.151.1551341216623;
-        Thu, 28 Feb 2019 00:06:56 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551341216; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=zon0ew5x/BwZ1nMJkhATZQEPA03H1UiNt5omM55UDMk=;
+        b=A8JTCTqUeC0YHgdiZB0VbIXhoY9TIeeZ7cSlv/DdPxB31Qp6mqAxvK3dX5JtS5J2WX
+         oSLwJDewITzvwYG15geHkDScl7+027uSiV/vySKI2oHGtGUTr3UA5KhkVN7WrlJHAjOq
+         iA56BAQVy6AhzvXz9k9gA54fX9/4e1qLMtQn6RL+fv3jice21sUvrlFQZzmtPUyHeM1J
+         BWF4gctVv5UL7rUwiYXZbA3vkrRh0m4XjSrA+b/uZZMaMgMEsVRxF327YuUs234Z+KI0
+         dvfYYeQrQ9cVBO7a6t4FlziIEOmf3lmlJs6zqVo76nFhQC8SNpyIsLI71k8BoG7PmqsK
+         vCGw==
+X-Gm-Message-State: AHQUAubmJYBDt2j7R0c6aj/RPofvmcWL6Juf2cyuEoe2ktPXMnTFl9ak
+	m7QepcL8T61K5BtYv2yACYw6XD9CS1yK85yLtvoBT16cN10voQHc6jyisVcYM+lHL6R1Q+Cf5+I
+	l6HXGrllbhQNwy77DTbUp9Tnvuqrh3JLfTvhVBbUOG8+D0qvYtlFV4O+PKLv76IfRMFP6iHXpT1
+	47dHwLmit3u2wBGWoT5lnUrYJZc447hLQHndoECwm5wNwUOoF8lEPGBqCx/tLGF0vqPpglgzQP1
+	4Sp4ueg13nm/NLDM9ZZj5cBo0HFBM4uWuBypNDeMFo1sJ8E2pbdUfcbcwO/pXVC1iVeddQ6FF2x
+	p3RvIKkyqcQyWfZbfzvBizzQ2z1rPgb8SUjICQiPGOlWH7Js02gWArTQ1TsWqbEaE/hkZOeYpXy
+	i
+X-Received: by 2002:a17:902:2a69:: with SMTP id i96mr6676433plb.58.1551341681758;
+        Thu, 28 Feb 2019 00:14:41 -0800 (PST)
+X-Received: by 2002:a17:902:2a69:: with SMTP id i96mr6676374plb.58.1551341680790;
+        Thu, 28 Feb 2019 00:14:40 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551341680; cv=none;
         d=google.com; s=arc-20160816;
-        b=dYPIMz9n/+ixUN5MHlElk3VWNJkCzl2G9p1TohvNYQJzBiEmya2aBWFiaT15OHbnJp
-         b1oEZJBB0pMPMFk14+tp01anN/eAkRZtWkEoAaMtxzGKlijpwnpD9CdYxNlYH7ohWAJX
-         8Km1qhKWJ+sYjk+zhiPm4Ze4qZs5OlLT6xsagUfjiPnUkq/pQ0K3QMnK568YOkQfHwKv
-         40YOBdErNY1upOeSyUl3zb0u2sMI3ruQBet4KYtkLYSQmhs+uPHA46+S9gp+FbdLzQvr
-         rEiCmFTmMB38AmyaoYIYA5teRocIufmCFkQ7wK4CjjOQXvdmKEXvJoWp1+j3gk+UKf9j
-         NiaQ==
+        b=TZZtVVLgGHeOTWeRCj5rUupaFYG4fShIzqg702LCEabMEIzobx4xHH4uunNmDuB3qf
+         Dmhz5Bdg1U2GZ73WEmn2kszah40OWEeADie1PS9SrTvjB5wBfNnOUNatC5p2HFvH/bKo
+         AKnY6AnrVhQ9CXyi4AokzU4ENnqHQ25lfN7aijhbjR6iL0x+colepKnJzUPz8EQy0Mg8
+         Ar7xYmQ8CFDbnN9NK8JSUstHwYRISI5L2/ddM5d07Hxjm+aXg5VI2RiruVOtvl3MXksE
+         ZiQ0cgOBQqrYThPvUPThL8e0Otz+JMqliiwmMQk9cktSjayVxMc/UduNCTIENR6/z+dn
+         ccvw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=4okD5oDs0HM2Bs47i6EuuPCypxWqhGmU8bTZGNlQcbs=;
-        b=dAgXjd+KBB9N5/8LnjgHqcooUUBZ80lcm2YmDzn1/gJvfwVjCspplNlWauT1E7HueA
-         RNhLfzwEtKriTbbfwDuFo3FPxeFdpc3nUZ99AjYyod7IqmKURqUOYPLK++O0AWUxb+Ma
-         RfK5Ob2csIHq9/hH1e+/pqRT13S1lO6yc1fBX0A64BOl0qr8hzJnNQ6k+pcGXY7rWkKz
-         6uiIzAVyNovhfs8w+TtgtZLb7y7tLh6HUNHMi31/0i4kTFWm5vVdPqSYFdW09e2J2//4
-         jxMqGF5rp5oRgSRK9Jk7OZWoHt75b/xUcq/kbYuyb7EQZ4wd9fSORwqS1KXXfjxzdvl2
-         qPqA==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=zon0ew5x/BwZ1nMJkhATZQEPA03H1UiNt5omM55UDMk=;
+        b=poFaLb8nSAPEo3lcDQJ04bshnUG6jMKKfs0vEsUcNKhnFgNrdpTn63Pz+ZoyiPO73V
+         CRCP4BSMYQC4AX6ol4yj4ik7w7HYb0oPOLC95sbctg47q6d+38Qmh3dwnKy/gUp9hpGi
+         M4aQ3qnKZsjwu0FfU4umE5MHEFZvQAchJJePAHEQuujPXo0ZeaBZ5EvEb5jlS7vPEe2X
+         E2tmSz3UP67DtxipqJB9t6lvKXpnSzPE6xZFeiKwgoXoo1sTUOaTFnOGXjlMc/r7KfX/
+         D/NwdhS13+h+qtaTj9Zv2mlOjWmF+nDbCfrPOTng4X5l7p8epkHIFp91igftXnhJ3W2Q
+         vXFg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i20si6219051eja.213.2019.02.28.00.06.56
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="V4poo/qq";
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j187sor27157113pge.20.2019.02.28.00.14.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Feb 2019 00:06:56 -0800 (PST)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Thu, 28 Feb 2019 00:14:40 -0800 (PST)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id A152DAD9F;
-	Thu, 28 Feb 2019 08:06:55 +0000 (UTC)
-Subject: Re: [PATCH] mm,mremap: Bail out earlier in mremap_to under map
- pressure
-To: Oscar Salvador <osalvador@suse.de>,
- Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- linux-api@vger.kernel.org, hughd@google.com, kirill@shutemov.name,
- joel@joelfernandes.org, jglisse@redhat.com, yang.shi@linux.alibaba.com,
- mgorman@techsingularity.net
-References: <20190226091314.18446-1-osalvador@suse.de>
- <20190226140428.3e7c8188eda6a54f9da08c43@linux-foundation.org>
- <20190227213205.5wdjucqdgfqx33tr@d104.suse.de>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <5edcfeb8-4f53-0fe6-1e5b-c1e485f91d0d@suse.cz>
-Date: Thu, 28 Feb 2019 09:06:54 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
-MIME-Version: 1.0
-In-Reply-To: <20190227213205.5wdjucqdgfqx33tr@d104.suse.de>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="V4poo/qq";
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=zon0ew5x/BwZ1nMJkhATZQEPA03H1UiNt5omM55UDMk=;
+        b=V4poo/qqoH40lYrImPCASuj8eZ34Ti7ztd+/i0PwEcVljD4HuJ7O0EYtbtyY3hWO5K
+         UaZkBtc4U3K8NYk0pXEevyAKxW72Fk9iHyLw/oRYc7quovIOwjeqANfD/RF1PaC10oTp
+         FaMx5IxynzOxqX7P5eSColJysPiWtWfJpTUuxiTGjDrQUhRGDaOdYLr6Z0ToOhqL6e1v
+         iCCsCYFje2WBhq9Q861wA+G36FY4+f21tSXcDHrwqxNEj3yA+eNsmXme2lUTw0jMvMFi
+         hDzHdJ3TjHAvWdMCgK/Km1+7sQ4mcDWvRO5Q0Ty2OPFu+27gxPH5NtSZbjE38paIDBHt
+         w0Jg==
+X-Google-Smtp-Source: AHgI3IbKxVlM8kW6WNolAQ4mMGdkts+dktB9N5rAUcO0TkT8dj1WiWgQQtI5/trK/hKLbUbQlnNWsQ==
+X-Received: by 2002:a63:43c1:: with SMTP id q184mr7151757pga.110.1551341680449;
+        Thu, 28 Feb 2019 00:14:40 -0800 (PST)
+Received: from localhost.localdomain ([203.100.54.194])
+        by smtp.gmail.com with ESMTPSA id m13sm34387106pff.175.2019.02.28.00.14.37
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Feb 2019 00:14:39 -0800 (PST)
+From: Yafang Shao <laoar.shao@gmail.com>
+To: akpm@linux-foundation.org,
+	mhocko@suse.com,
+	ktkhai@virtuozzo.com,
+	broonie@kernel.org,
+	hannes@cmpxchg.org
+Cc: linux-mm@kvack.org,
+	shaoyafang@didiglobal.com,
+	Yafang Shao <laoar.shao@gmail.com>
+Subject: [PATCH] mm: vmscan: add tracepoints for node reclaim
+Date: Thu, 28 Feb 2019 16:14:24 +0800
+Message-Id: <1551341664-13912-1-git-send-email-laoar.shao@gmail.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/27/19 10:32 PM, Oscar Salvador wrote:
-> On Tue, Feb 26, 2019 at 02:04:28PM -0800, Andrew Morton wrote:
->> How is this going to affect existing userspace which is aware of the
->> current behaviour?
-> 
-> Well, current behavior is not really predictable.
-> Our customer was "surprised" that the call to mremap() failed, but the regions
-> got unmapped nevertheless.
-> They found it the hard way when they got a segfault when trying to write to those
-> regions when cleaning up. 
-> 
-> As I said in the changelog, the possibility for false positives exists, due to
-> the fact that we might get rid of several vma's when unmapping, but I do not
-> expect existing userspace applications to start failing.
-> Should be that the case, we can revert the patch, it is not that it adds a lot
-> of churn.
+In the page alloc fast path, it may do node reclaim, which may cause
+latency spike.
+We should add tracepoint for this event, and also mesure the latency
+it causes.
 
-Hopefully the only program that would start failing would be a LTP test
-testing the current behavior near the limit (if such test exists). And
-that can be adjusted.
+So bellow two tracepoints are introduced,
+	mm_vmscan_node_reclaim_begin
+	mm_vmscan_node_reclaim_end
 
->> And how does it affect your existing cleanup code, come to that?  Does
->> it work as well or better after this change?
-> 
-> I guess the customer can trust more reliable that the maps were left untouched.
-> I still have my reserves though.
-> 
-> We can get as far as move_vma(), and copy_vma() can fail returning -ENOMEM.
-> (Or not due to the "too small to fail" ?)
-> 
+Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+---
+ include/trace/events/vmscan.h | 48 +++++++++++++++++++++++++++++++++++++++++++
+ mm/vmscan.c                   | 13 +++++++++++-
+ 2 files changed, 60 insertions(+), 1 deletion(-)
+
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index a1cb913..9310d5b 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -465,6 +465,54 @@
+ 		__entry->ratio,
+ 		show_reclaim_flags(__entry->reclaim_flags))
+ );
++
++TRACE_EVENT(mm_vmscan_node_reclaim_begin,
++
++	TP_PROTO(int nid, int order, int may_writepage,
++		gfp_t gfp_flags, int zid),
++
++	TP_ARGS(nid, order, may_writepage, gfp_flags, zid),
++
++	TP_STRUCT__entry(
++		__field(int, nid)
++		__field(int, order)
++		__field(int, may_writepage)
++		__field(gfp_t, gfp_flags)
++		__field(int, zid)
++	),
++
++	TP_fast_assign(
++		__entry->nid = nid;
++		__entry->order = order;
++		__entry->may_writepage = may_writepage;
++		__entry->gfp_flags = gfp_flags;
++		__entry->zid = zid;
++	),
++
++	TP_printk("nid=%d zid=%d order=%d may_writepage=%d gfp_flags=%s",
++		__entry->nid,
++		__entry->zid,
++		__entry->order,
++		__entry->may_writepage,
++		show_gfp_flags(__entry->gfp_flags))
++);
++
++TRACE_EVENT(mm_vmscan_node_reclaim_end,
++
++	TP_PROTO(int result),
++
++	TP_ARGS(result),
++
++	TP_STRUCT__entry(
++		__field(int, result)
++	),
++
++	TP_fast_assign(
++		__entry->result = result;
++	),
++
++	TP_printk("result=%d", __entry->result)
++);
+ #endif /* _TRACE_VMSCAN_H */
+ 
+ /* This part must be outside protection */
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index ac4806f..01a0401 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -4240,6 +4240,12 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 		.may_swap = 1,
+ 		.reclaim_idx = gfp_zone(gfp_mask),
+ 	};
++	int result;
++
++	trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, order,
++					sc.may_writepage,
++					sc.gfp_mask,
++					sc.reclaim_idx);
+ 
+ 	cond_resched();
+ 	fs_reclaim_acquire(sc.gfp_mask);
+@@ -4267,7 +4273,12 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 	current->flags &= ~PF_SWAPWRITE;
+ 	memalloc_noreclaim_restore(noreclaim_flag);
+ 	fs_reclaim_release(sc.gfp_mask);
+-	return sc.nr_reclaimed >= nr_pages;
++
++	result = sc.nr_reclaimed >= nr_pages;
++
++	trace_mm_vmscan_node_reclaim_end(result);
++
++	return result;
+ }
+ 
+ int node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
+-- 
+1.8.3.1
 
