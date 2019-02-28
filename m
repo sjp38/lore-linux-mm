@@ -2,174 +2,307 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DA47BC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:31:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 07ECAC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:32:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 93DC12171F
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:31:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 941B42171F
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:32:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="TPOF70l+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93DC12171F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="G6FzPT1L"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 941B42171F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 344EF8E0005; Thu, 28 Feb 2019 04:31:15 -0500 (EST)
+	id 4572B8E0003; Thu, 28 Feb 2019 04:32:06 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2F3CE8E0001; Thu, 28 Feb 2019 04:31:15 -0500 (EST)
+	id 42CD48E0001; Thu, 28 Feb 2019 04:32:06 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 196848E0005; Thu, 28 Feb 2019 04:31:15 -0500 (EST)
+	id 2F64F8E0003; Thu, 28 Feb 2019 04:32:06 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CB5E68E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 04:31:14 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id k198so14520868pgc.20
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 01:31:14 -0800 (PST)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F0B038E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 04:32:05 -0500 (EST)
+Received: by mail-io1-f71.google.com with SMTP id x22so15166268iob.10
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 01:32:05 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:subject:to:cc
-         :references:in-reply-to:mime-version:user-agent:message-id
-         :content-transfer-encoding;
-        bh=d4QzZuqdocoX3Wsls3v18nsgWJU2PE88zazs86EGUbs=;
-        b=fGseBbtq8jTYrWa+cKK4pczo7gp18anzlk/CYcOe1ILykmYZS+Mwq/hw3sU/2NIDXU
-         V+lfxmeYD68HcYZ2FaLHp1GJ1sx2QgIG0veJ4Z1vr1bYurqu36XWXOFljRnRIBwvrNcB
-         42SgYIk7H5j7uv5H7YBCZzckrCNu2bizpHGG1qUI8z5VuMK5KS42dT37SdRdFn/PDQwH
-         s1Hba+IYYwXipKmTq1cOOZJU1KrU4Y6Ubb4q8w/WrkmSVtVN9aVDz6waais2SlR/C/E0
-         NyNdGofHMrAwemLXDhhil4JqzSyX8vEFYaCorccTiB6fvgRwUJsMAlqFqFIXt+J015fB
-         +sVg==
-X-Gm-Message-State: AHQUAuZCqZqDdRigdiZsxCsX3ukUiG2Vyjhf8zEWh9inRUkRQo0xR2lq
-	UyZ7e7lSK3JQ3MHH9gbiCy0fgyUWozHmNi2fG3ts0plroNozhlL+BOBP7LXINKq/cEsggZFXigx
-	XVp1evfxHJq04XQfIf0gKjAFsHeXu5ZWQxD2RDHMS4cj+BeTxnA6uSeXpy8CojUF4uZzuc+gkz0
-	ZsEPXOn1pQKWjzjkL/+nwArR0pxhGmjFUiCiX0f2j89fK1aZYgd/9UBRt1yofoxJzUn7PzFnGO8
-	xPfFaevezLegdPotg0OhpWmG6gkKZX8fzB8WULdjBnsgzRvYO4B2DniLhavSVHmSIiItvHFv8g3
-	dGjBeT3Hbx0XUL9GhKzwroTAaAFIym8IkaAPItE9CQS6AG09F78++N68mgZysW6VHOqwlLx9EFx
-	4
-X-Received: by 2002:a62:11c6:: with SMTP id 67mr6421976pfr.68.1551346274199;
-        Thu, 28 Feb 2019 01:31:14 -0800 (PST)
-X-Received: by 2002:a62:11c6:: with SMTP id 67mr6421918pfr.68.1551346273284;
-        Thu, 28 Feb 2019 01:31:13 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551346273; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=9SiVL0phPtLvd3BWub8/+zvbm8s/u1KyJ8RzgcKT76U=;
+        b=DzYvJ5XFyDr+2WJPZIHG4dWJQ9wEUp9y/YfnUANLjdHN8iFt3fW8AoihpL2I+J/hSp
+         0nUQr6ApBvoL83cTkMMy958Q2ya01iu/FN04NhMrAKGzn2UDHh7/KVizpUDQRXzkeu4F
+         ocgB5Yr0GDxiTLf4vT8XPemzu3beHo1mMoP2vFl2uHrff+LvDoV+R1A3Ad5qmnp5vB+O
+         EeohK231lz3SL4sGOFK/WxmNJQ5PJZwakH53OdCstDAmnSgDMZZP9iB0qPeYMbAFTzxf
+         w9gEHRs+uhBH9b2HWjpng/zhOSiXaJw23X0WNMTH7hnAuQGrszqjFCFLNgdR20eaJhTf
+         o4vg==
+X-Gm-Message-State: AHQUAubQ3f0qo4rtRmxhNs0NB1XOR37FdtdaN7phpMv64WddeYiX8VAB
+	DGtaSP7P0gQMCY5JaCRq0YZmL3jabv5OnOcWOjejDWo6ncvJIao5bNh0xwP9o/4wKXEDkVHGrjt
+	cEIkmsg+opr8Ri41vlRmWFsFWZeJhC8CYwJBlH93H/+vhKV3qdqfFivp1au7d+0P+TaLNQu9cmr
+	kZZug5jU8XXFijAKMxvmcSzzCC8y66OZHLGwf1J+ZQ5rBAzheiQikrGLZrjeS2/XaaDjppBkarN
+	v0K8yeVo0gfgJ6EIdYibpoBau/9gPc86oGeDJRNmFPmdB5lgpBENshpjDQnl6x9n1kATYP+hQvU
+	//hcSwqZShqJraiWdp9kzXUahLWWcSNhFX9JmEi2Yc7YSGQjdeRNshbAv+EXrA6lwdur2OgUucr
+	8
+X-Received: by 2002:a02:c60b:: with SMTP id i11mr4107712jan.118.1551346325748;
+        Thu, 28 Feb 2019 01:32:05 -0800 (PST)
+X-Received: by 2002:a02:c60b:: with SMTP id i11mr4107674jan.118.1551346324719;
+        Thu, 28 Feb 2019 01:32:04 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551346324; cv=none;
         d=google.com; s=arc-20160816;
-        b=yxfEnqLWv531h9K2pIXs9ONA0HUEE2NxWorary7y1jjOHI+ErK0/EGFvmO5y5Rt04K
-         finOgnMla/XcLyXI1NXts8o8PEsIYMH8LKN8LJbUd+6/RMv4ADV3SHsXbwFxucdnoEm2
-         JXniCtuRNxotmR0KqvR+oOSE5RlduQ281gxrTH9uoQQI3MNd/C+19BIZBhmnoU27jzwk
-         22GMVsoOrefEJXq9P5+6rCcMI3dl37qQJ7OJVAIFILk/7t4XjO6b2dCzWKDoF9K8nf3k
-         jujdEqgeUql6uvj0HXO6UHYIIhrmBOT6hpL3sttenpJbCJSrlI52cIKormESaoqrwEXc
-         va0A==
+        b=z4wrTT9bfHvnw+whECZoW3jDSDTP/w5Q4ZgTFiko0ERML8YoQX6s+SgDgDyawx76m4
+         CjMRez0sjPIIJgMF/8bmacd24o8e/d7BhMtFWYjVAyc92+FksokW24ZJmlE6cpkQA9wt
+         qsHPQpZhonSjCUqOWIAtBcXpzo+mCWjcfYTSdWAlDkTjnI2ZWokTIt/YizBM7nIFJZtk
+         VD1PHm8K4zneGOFTDs709wFdICG2V+NI9fex//p8foefJAi7C8M/NL4iKenKMqrEbhKM
+         FMs9V7pa5Tg9To15PDhyhgmVUrOl/NnPKKfTZ1+YDTHUQz7pZ/cCibJwhIt9OMjq6i1f
+         NVYg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:message-id:user-agent:mime-version
-         :in-reply-to:references:cc:to:subject:from:date:dkim-signature;
-        bh=d4QzZuqdocoX3Wsls3v18nsgWJU2PE88zazs86EGUbs=;
-        b=WSomcWdjA0+n5QXRJiNp0MPAG0XmAeIROnGTTdJSluNPVvbaHSxntgsgl/Wtb1xXkn
-         EYrSsw4Uwm5GeoibqXtedp9zuRLrMEHXL/4dFwzTOGQ3GCcuGBVParxp9/AqietjA73J
-         o7t+5aoGwknao1Ae9SMmIxgSvvNZ8ajH93FdwjqptBwK6wppduj09edmK/2cfpujea+5
-         S15A+W7HqvqOyFqDO2BGPVz6sp1QDFUF95vOp9zz4qvrHE+9+PK/1DOqTCQrwf58wbIu
-         M8YI9o89iswFN27vlzb7CE1yiik0L+lKpzGJMvqzMKZmzfDlPBMD6jfFKT2Iyrz0gqie
-         6XGA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=9SiVL0phPtLvd3BWub8/+zvbm8s/u1KyJ8RzgcKT76U=;
+        b=o4F+K+K1tEX3Fs2kbizMiATUk09O3OzwsoPV/oY6sikDV1YP7ZyUDRfooq9qvQL2YJ
+         QGfowUSg3goMn79LazhH7I8AFYfCf7X7w8aphpf7XTqPP6d0VsJeCJsAWf/pFOyCjs69
+         ed5pgm5uIkrWXzjK65D8Lh/Pfuqfl9OSem19EIc/TldiEpVT6qYfIlxyCYQhGHGJelS9
+         q32C8izl+l5Ki4p9tzs+JRLNubF2yWVVMkJqgK1HLJlcvxHyx9G1+hg/sUTfRYAT2y1Z
+         C4Asu6a17cNysbJqT+Pj8fKrEY6zhRTV9J05BTbV25MiE55xyLpu8GusXBBLz0E5U7m1
+         nazw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TPOF70l+;
-       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=G6FzPT1L;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n66sor29872457pfb.61.2019.02.28.01.31.13
+        by mx.google.com with SMTPS id u24sor7260157ior.35.2019.02.28.01.32.04
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 28 Feb 2019 01:31:13 -0800 (PST)
-Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 28 Feb 2019 01:32:04 -0800 (PST)
+Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TPOF70l+;
-       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=G6FzPT1L;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:subject:to:cc:references:in-reply-to:mime-version
-         :user-agent:message-id:content-transfer-encoding;
-        bh=d4QzZuqdocoX3Wsls3v18nsgWJU2PE88zazs86EGUbs=;
-        b=TPOF70l+VhlHudre+pcQnY8sYceq3rKVBKAposUJ0dyLEf8d/Vyig8Oht0V3WyzSnU
-         1XwDjdPCf7ICz8Ev63ZAd1IvS/z32Spwl+z9maxCJoCycdDD/wmGYQQdOrH6EF/8d1+0
-         EdE3GtgrHo/dBV+VolGXvxlN6GQAlUkRSvsGJR/dU1k5fzVqJuPf/HaWu2zpsjaDG08P
-         CVkwH1GqldnZCbDfKHZznxaPmRR+hbsTdmyDFPAocEFeFkyd9JlVX/9A/8hRfCHx//5m
-         ZfYnNIFHeCGK9HygoMiSinPbFnZyM0Q1pn2OzeicdAnLjggSxy+Wu9Xu7a0tillrwpxx
-         +hOQ==
-X-Google-Smtp-Source: AHgI3IbwRzOIPDEoBfrgEf9CVvrRjcMb9acSZe/cOgNcEqmht12pnl1+M+snypll7vIJQWt1J+721Q==
-X-Received: by 2002:a62:e005:: with SMTP id f5mr6653575pfh.64.1551346272915;
-        Thu, 28 Feb 2019 01:31:12 -0800 (PST)
-Received: from localhost (60-240-164-4.tpgi.com.au. [60.240.164.4])
-        by smtp.gmail.com with ESMTPSA id c130sm30343174pfb.145.2019.02.28.01.31.06
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 28 Feb 2019 01:31:07 -0800 (PST)
-Date: Thu, 28 Feb 2019 19:31:01 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: Truncate regression due to commit 69b6c1319b6
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, mgorman@suse.de
-References: <20190226165628.GB24711@quack2.suse.cz>
-	<20190226172744.GH11592@bombadil.infradead.org>
-	<1551246328.xx85zsmomm.astroid@bobo.none>
-	<20190227123548.GK11592@bombadil.infradead.org>
-In-Reply-To: <20190227123548.GK11592@bombadil.infradead.org>
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=9SiVL0phPtLvd3BWub8/+zvbm8s/u1KyJ8RzgcKT76U=;
+        b=G6FzPT1LV7dj+FQJGuABkovL1VVtS02DrzhYKKE8VSYP7Np0baQIEVmDxY1G/zinH4
+         0gSYhf0NkXFONL2ZR8cglrKm6wfk1AWuRWc5BDG371ExEziESpHlvDGAWOWz8iLFvrrS
+         BmVDXwITLRKsIiCBAr+X5fBU9H/tntyEBF1yqnjaxhrIjTrYQT/eByT4Ngi1mA9PN2Dh
+         xexreKjSrY4xmvGhjOX6dHEjlymGbOoMdWev+U0dVkfFStsvZyfsWLAGUu1OctBqVgsY
+         tEcGGS6ylJR4+dqj5C8CeNCB0Zfyn1H9Yv/qmh3Zt1y8lOrwBsEXabt2uHh9Zw+pb8rt
+         l9wg==
+X-Google-Smtp-Source: APXvYqyWEaSRUhuqrolOQXRpb24mHMkegApbbOoDD1NvTD/+UTGzEoJXDUd+ScXDpEjpNg3Vo2UtIBdD/y9ZyVg9VTk=
+X-Received: by 2002:a6b:6b18:: with SMTP id g24mr4000240ioc.282.1551346324216;
+ Thu, 28 Feb 2019 01:32:04 -0800 (PST)
 MIME-Version: 1.0
-User-Agent: astroid/0.14.0 (https://github.com/astroidmail/astroid)
-Message-Id: <1551345851.d2dh3qfxpd.astroid@bobo.none>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+References: <0000000000006a12bd0581ca4145@google.com> <20190213122331.632a4eb1a12b738ef9633855@linux-foundation.org>
+ <20190226182129.GA218103@gmail.com> <20190227205323.GA186986@gmail.com>
+ <CACT4Y+ZK5MrJ3GZ-sxihNpRaun4aMOxkRqmLqQJxYEgD2cnfZQ@mail.gmail.com> <20190228075943.GG699@sol.localdomain>
+In-Reply-To: <20190228075943.GG699@sol.localdomain>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 28 Feb 2019 10:31:53 +0100
+Message-ID: <CACT4Y+aNnTzD1Q+WxFA9ob-t+NrehL3GYF-e+=U5Z8f5ZQTudg@mail.gmail.com>
+Subject: Re: BUG: Bad page state (5)
+To: Eric Biggers <ebiggers@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, 
+	syzbot <syzbot+2cd2887ea471ed6e6995@syzkaller.appspotmail.com>, 
+	Dan Williams <dan.j.williams@intel.com>, LKML <linux-kernel@vger.kernel.org>, 
+	Linux-MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, nborisov@suse.com, 
+	Mike Rapoport <rppt@linux.vnet.ibm.com>, Shakeel Butt <shakeelb@google.com>, 
+	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Vlastimil Babka <vbabka@suse.cz>, 
+	Matthew Wilcox <willy@infradead.org>, Joel Fernandes <joel@joelfernandes.org>, 
+	Mike Kravetz <kravetz@us.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Matthew Wilcox's on February 27, 2019 10:35 pm:
-> On Wed, Feb 27, 2019 at 04:03:25PM +1000, Nicholas Piggin wrote:
->> Matthew Wilcox's on February 27, 2019 3:27 am:
->> > 2. The setup overhead of the XA_STATE might be a problem.
->> > If so, we can do some batching in order to improve things.
->> > I suspect your test is calling __clear_shadow_entry through the
->> > truncate_exceptional_pvec_entries() path, which is already a batch.
->> > Maybe something like patch [1] at the end of this mail.
->>=20
->> One nasty thing about the XA_STATE stack object as opposed to just
->> passing the parameters (in the same order) down to children is that=20
->> you get the same memory accessed nearby, but in different ways
->> (different base register, offset, addressing mode etc). Which can
->> reduce effectiveness of memory disambiguation prediction, at least
->> in cold predictor case.
->=20
-> That is nasty.  At the C level, it's a really attractive pattern.
-> Shame it doesn't work out so well on hardware.  I wouldn't mind
-> turning shift/sibs/offset into a manually-extracted unsigned long
-> if that'll help with the addressing mode mispredictions?
+On Thu, Feb 28, 2019 at 8:59 AM Eric Biggers <ebiggers@kernel.org> wrote:
+>
+> On Thu, Feb 28, 2019 at 07:53:09AM +0100, 'Dmitry Vyukov' via syzkaller-bugs wrote:
+> > On Wed, Feb 27, 2019 at 9:53 PM Eric Biggers <ebiggers@kernel.org> wrote:
+> > >
+> > > On Tue, Feb 26, 2019 at 10:21:30AM -0800, Eric Biggers wrote:
+> > > > On Wed, Feb 13, 2019 at 12:23:31PM -0800, Andrew Morton wrote:
+> > > > > On Wed, 13 Feb 2019 09:56:04 -0800 syzbot <syzbot+2cd2887ea471ed6e6995@syzkaller.appspotmail.com> wrote:
+> > > > >
+> > > > > > Hello,
+> > > > > >
+> > > > > > syzbot found the following crash on:
+> > > > > >
+> > > > > > HEAD commit:    c4f3ef3eb53f Add linux-next specific files for 20190213
+> > > > > > git tree:       linux-next
+> > > > > > console output: https://syzkaller.appspot.com/x/log.txt?x=1130a124c00000
+> > > > > > kernel config:  https://syzkaller.appspot.com/x/.config?x=9ec67976eb2df882
+> > > > > > dashboard link: https://syzkaller.appspot.com/bug?extid=2cd2887ea471ed6e6995
+> > > > > > compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+> > > > > > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=14ecdaa8c00000
+> > > > > > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=12ebe178c00000
+> > > > > >
+> > > > > > IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> > > > > > Reported-by: syzbot+2cd2887ea471ed6e6995@syzkaller.appspotmail.com
+> > > > >
+> > > > > It looks like a a memfd page was freed with a non-NULL ->mapping.
+> > > > >
+> > > > > Joel touched the memfd code with "mm/memfd: add an F_SEAL_FUTURE_WRITE
+> > > > > seal to memfd" but it would be surprising if syzbot tickled that code?
+> > > > >
+> > > > >
+> > > > > > BUG: Bad page state in process udevd  pfn:472f0
+> > > > > > name:"memfd:"
+> > > > > > page:ffffea00011cbc00 count:0 mapcount:0 mapping:ffff88800df2ad40 index:0xf
+> > > > > > shmem_aops
+> > > > > > flags: 0x1fffc000008000c(uptodate|dirty|swapbacked)
+> > > > > > raw: 01fffc000008000c ffffea0000ac4f08 ffff8880a85af890 ffff88800df2ad40
+> > > > > > raw: 000000000000000f 0000000000000000 00000000ffffffff 0000000000000000
+> > > > > > page dumped because: non-NULL mapping
+> > > > > > Modules linked in:
+> > > > > > CPU: 1 PID: 7586 Comm: udevd Not tainted 5.0.0-rc6-next-20190213 #34
+> > > > > > Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> > > > > > Google 01/01/2011
+> > > > > > Call Trace:
+> > > > > >   __dump_stack lib/dump_stack.c:77 [inline]
+> > > > > >   dump_stack+0x172/0x1f0 lib/dump_stack.c:113
+> > > > > >   bad_page.cold+0xda/0xff mm/page_alloc.c:586
+> > > > > >   free_pages_check_bad+0x142/0x1a0 mm/page_alloc.c:1014
+> > > > > >   free_pages_check mm/page_alloc.c:1023 [inline]
+> > > > > >   free_pages_prepare mm/page_alloc.c:1113 [inline]
+> > > > > >   free_pcp_prepare mm/page_alloc.c:1138 [inline]
+> > > > > >   free_unref_page_prepare mm/page_alloc.c:2991 [inline]
+> > > > > >   free_unref_page_list+0x31d/0xc40 mm/page_alloc.c:3060
+> > > > > > name:"memfd:"
+> > > > > >   release_pages+0x60d/0x1940 mm/swap.c:791
+> > > > > >   pagevec_lru_move_fn+0x218/0x2a0 mm/swap.c:213
+> > > > > >   __pagevec_lru_add mm/swap.c:917 [inline]
+> > > > > >   lru_add_drain_cpu+0x2f7/0x520 mm/swap.c:581
+> > > > > >   lru_add_drain+0x20/0x60 mm/swap.c:652
+> > > > > >   exit_mmap+0x290/0x530 mm/mmap.c:3134
+> > > > > >   __mmput kernel/fork.c:1047 [inline]
+> > > > > >   mmput+0x15f/0x4c0 kernel/fork.c:1068
+> > > > > >   exec_mmap fs/exec.c:1046 [inline]
+> > > > > >   flush_old_exec+0x8d9/0x1c20 fs/exec.c:1279
+> > > > > >   load_elf_binary+0x9bc/0x53f0 fs/binfmt_elf.c:864
+> > > > > >   search_binary_handler fs/exec.c:1656 [inline]
+> > > > > >   search_binary_handler+0x17f/0x570 fs/exec.c:1634
+> > > > > >   exec_binprm fs/exec.c:1698 [inline]
+> > > > > >   __do_execve_file.isra.0+0x1394/0x23f0 fs/exec.c:1818
+> > > > > >   do_execveat_common fs/exec.c:1865 [inline]
+> > > > > >   do_execve fs/exec.c:1882 [inline]
+> > > > > >   __do_sys_execve fs/exec.c:1958 [inline]
+> > > > > >   __se_sys_execve fs/exec.c:1953 [inline]
+> > > > > >   __x64_sys_execve+0x8f/0xc0 fs/exec.c:1953
+> > > > > >   do_syscall_64+0x103/0x610 arch/x86/entry/common.c:290
+> > > > > >   entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> > > > > > RIP: 0033:0x7fc7001ba207
+> > > > > > Code: Bad RIP value.
+> > > > > > RSP: 002b:00007ffe06aa13b8 EFLAGS: 00000206 ORIG_RAX: 000000000000003b
+> > > > > > RAX: ffffffffffffffda RBX: 00000000ffffffff RCX: 00007fc7001ba207
+> > > > > > RDX: 0000000001fd5fd0 RSI: 00007ffe06aa14b0 RDI: 00007ffe06aa24c0
+> > > > > > RBP: 0000000000625500 R08: 0000000000001c49 R09: 0000000000001c49
+> > > > > > R10: 0000000000000000 R11: 0000000000000206 R12: 0000000001fd5fd0
+> > > > > > R13: 0000000000000007 R14: 0000000001fc6250 R15: 0000000000000005
+> > > > > > BUG: Bad page state in process udevd  pfn:2b13c
+> > > > > > page:ffffea0000ac4f00 count:0 mapcount:0 mapping:ffff88800df2ad40 index:0xe
+> > > > > > shmem_aops
+> > > > > > flags: 0x1fffc000008000c(uptodate|dirty|swapbacked)
+> > > > > > raw: 01fffc000008000c ffff8880a85af890 ffff8880a85af890 ffff88800df2ad40
+> > > > > > raw: 000000000000000e 0000000000000000 00000000ffffffff 0000000000000000
+> > > > > > page dumped because: non-NULL mapping
+> > > > > > Modules linked in:
+> > > > > > CPU: 1 PID: 7586 Comm: udevd Tainted: G    B
+> > > > > > 5.0.0-rc6-next-20190213 #34
+> > > > > > Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> > > > > > Google 01/01/2011
+> > > > > > Call Trace:
+> > > > > >   __dump_stack lib/dump_stack.c:77 [inline]
+> > > > > >   dump_stack+0x172/0x1f0 lib/dump_stack.c:113
+> > > > > >   bad_page.cold+0xda/0xff mm/page_alloc.c:586
+> > > > > > name:"memfd:"
+> > > > > >   free_pages_check_bad+0x142/0x1a0 mm/page_alloc.c:1014
+> > > > > >   free_pages_check mm/page_alloc.c:1023 [inline]
+> > > > > >   free_pages_prepare mm/page_alloc.c:1113 [inline]
+> > > > > >   free_pcp_prepare mm/page_alloc.c:1138 [inline]
+> > > > > >   free_unref_page_prepare mm/page_alloc.c:2991 [inline]
+> > > > > >   free_unref_page_list+0x31d/0xc40 mm/page_alloc.c:3060
+> > > > > >   release_pages+0x60d/0x1940 mm/swap.c:791
+> > > > > >   pagevec_lru_move_fn+0x218/0x2a0 mm/swap.c:213
+> > > > > >   __pagevec_lru_add mm/swap.c:917 [inline]
+> > > > > >   lru_add_drain_cpu+0x2f7/0x520 mm/swap.c:581
+> > > > > >   lru_add_drain+0x20/0x60 mm/swap.c:652
+> > > > > >   exit_mmap+0x290/0x530 mm/mmap.c:3134
+> > > > > >   __mmput kernel/fork.c:1047 [inline]
+> > > > > >   mmput+0x15f/0x4c0 kernel/fork.c:1068
+> > > > > >   exec_mmap fs/exec.c:1046 [inline]
+> > > > > >   flush_old_exec+0x8d9/0x1c20 fs/exec.c:1279
+> > > > > >   load_elf_binary+0x9bc/0x53f0 fs/binfmt_elf.c:864
+> > > > > >   search_binary_handler fs/exec.c:1656 [inline]
+> > > > > >   search_binary_handler+0x17f/0x570 fs/exec.c:1634
+> > > > > >   exec_binprm fs/exec.c:1698 [inline]
+> > > > > >   __do_execve_file.isra.0+0x1394/0x23f0 fs/exec.c:1818
+> > > > > >   do_execveat_common fs/exec.c:1865 [inline]
+> > > > > >   do_execve fs/exec.c:1882 [inline]
+> > > > > >   __do_sys_execve fs/exec.c:1958 [inline]
+> > > > > >   __se_sys_execve fs/exec.c:1953 [inline]
+> > > > > >   __x64_sys_execve+0x8f/0xc0 fs/exec.c:1953
+> > > > > >   do_syscall_64+0x103/0x610 arch/x86/entry/common.c:290
+> > > > > >   entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> > > > > > RIP: 0033:0x7fc7001ba207
+> > > > > > Code: Bad RIP value.
+> > > > > > RSP: 002b:00007ffe06aa13b8 EFLAGS: 00000206 ORIG_RAX: 000000000000003b
+> > > > > > RAX: ffffffffffffffda RBX: 00000000ffffffff RCX: 00007fc7001ba207
+> > > > > > RDX: 0000000001fd5fd0 RSI: 00007ffe06aa14b0 RDI: 00007ffe06aa24c0
+> > > > > > RBP: 0000000000625500 R08: 0000000000001c49 R09: 0000000000001c49
+> > > > > > R10: 0000000000000000 R11: 0000000000000206 R12: 0000000001fd5fd0
+> > > > > > R13: 0000000000000007 R14: 0000000001fc6250 R15: 0000000000000005
+> > > > > >
+> > > > > >
+> > > > > > ---
+> > > > > > This bug is generated by a bot. It may contain errors.
+> > > > > > See https://goo.gl/tpsmEJ for more information about syzbot.
+> > > > > > syzbot engineers can be reached at syzkaller@googlegroups.com.
+> > > > > >
+> > > > > > syzbot will keep track of this bug report. See:
+> > > > > > https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with
+> > > > > > syzbot.
+> > > > > > syzbot can test patches for this bug, for details see:
+> > > > > > https://goo.gl/tpsmEJ#testing-patches
+> > > > >
+> > > >
+> > > > It's apparently the bug in the io_uring patchset I reported yesterday (well, I
+> > > > stole it from another open syzbot bug...) and Jens is already planning to fix:
+> > > > https://marc.info/?l=linux-api&m=155115288114046&w=2.  Reproducer is similar,
+> > > > and the crash bisects down to the same commit from the io_uring patchset:
+> > > > "block: implement bio helper to add iter bvec pages to bio".
+> > > >
+> > >
+> > > Fixed in next-20190227.  The fix was folded into "block: implement bio helper to
+> > > add iter bvec pages to bio".  Telling syzbot to invalidate this bug report:
+> > >
+> > > #syz invalid
+> >
+> > Was this discovered separately? We could also add Reported-by (or
+> > Tested-by) tag to the commit.
+> >
+>
+> My report was based on a crash from the syzbot dashboard.  However, there's no
+> fixing commit, as the fix was folded into the original patch.  I.e. the mainline
+> git history (if/when the io_uring stuff is actually merged) won't show the bug
+> ever being introduced.  Thus Reported-by isn't appropriate, and I used '#syz
+> invalid' instead of '#syz fix'.  Nor did syzbot specifically test the new
+> version of the patch beyond fuzzing the next day's linux-next...  So while I
+> personally might have added an informal note in the commit message, I don't
+> think those formal tags make sense for folded-in linux-next fixes like this.
 
-If you can get it to pass in registers by value. Some shifts or
-masks should be ~zero cost by comparison.
-
->=20
->> I've seen (on some POWER CPUs at least) flushes due to aliasing
->> access in some of these xarray call chains, although no idea if
->> that actually makes a noticable difference in microbenchmark like
->> this.
->>=20
->> But it's not the greatest pattern to use for passing to low level
->> performance critical functions :( Ideally the compiler could just
->> do a big LTO pass right at the end and unwind it all back into
->> registers and fix everything, but that will never happen.
->=20
-> I wonder if we could get the compiler people to introduce a structure
-> attribute telling the compiler to pass this whole thing back-and-forth in
-> registers ... 6 registers is a lot to ask the compiler to reserve though.
->=20
-
-Yeah I don't have a good idea, I think it may be a fundamentally hard
-problem for hardware, and it's very difficult for compiler. But yeah
-some special option for non-standard calling convention might be
-interesting.
-
-Thanks,
-Nick
-=
+This was discussed before and we come to conclusion that Tested-by is
+a reasonable thing in such case:
+https://groups.google.com/d/msg/syzkaller-bugs/xiSF9GdiikU/uBoyYyf3AQAJ
+It did test the patch since it found the bug. Tested-by does not
+necessary mean that the person did all possible kinds of testing on
+all versions, right?
 
