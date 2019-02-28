@@ -2,236 +2,239 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
-	UNWANTED_LANGUAGE_BODY,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C392C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 08:36:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F0868C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 08:40:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CA6BC218AE
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 08:36:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA6BC218AE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id A66EE2184A
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 08:40:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A66EE2184A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8011B8E0008; Thu, 28 Feb 2019 03:36:05 -0500 (EST)
+	id 4307B8E0003; Thu, 28 Feb 2019 03:40:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7B09D8E0006; Thu, 28 Feb 2019 03:36:05 -0500 (EST)
+	id 3DEB08E0001; Thu, 28 Feb 2019 03:40:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6C78A8E0008; Thu, 28 Feb 2019 03:36:05 -0500 (EST)
+	id 27E8E8E0003; Thu, 28 Feb 2019 03:40:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E6E48E0006
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 03:36:05 -0500 (EST)
-Received: by mail-yw1-f72.google.com with SMTP id l11so4374533ywl.18
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 00:36:05 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C10FF8E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 03:40:17 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id h37so6484739eda.7
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 00:40:17 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:mime-version:content-transfer-encoding:message-id;
-        bh=4Cwey845aG5lAHZMAxbXPvYPOgxP0ppIzao/eD7OuCc=;
-        b=LBYMBZCTaCAVZPBpMG62Ska2CtWF70yDQ7xaGTtRB9qYXFxg2BOkqx3fL0z3YoNyiF
-         lsyNo+Gc1t2QZrb+9FcTwQKvG9b9kzseGb1LIXv9vS0zZQF3Bn3N3gDUJuzkDlUvvrG1
-         s2M95qc5GuR1rYZ+MEsSCGzs/2LixhU0MikGvYN79oVWbtc4m416cZ73VSvGevmmdKQe
-         vJrIXjRnZUKptD3ESdjokssxTJD5uHfhmfOvwNVadzzLyp4rY9+dTf0+oli3TDNTJDIp
-         j8bIwKG8WXWLqF7I7ZV8UiEZb2ePoKXfm2GQDG1jD3lRoDIBw34s9HrN5fktgZWTdM/T
-         cGZQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAubS6ah02zplr1UfUx8PNPXt0ytutEunppAEau3u/bXKkLvGBw9M
-	Gv2v4DmZHrot2aKn5tgOnmu9034imPDTEVodsIlADcPBSbObrt4AYE4n69yTRqtkuWsuS635O6B
-	cXWolYJuE9gdpZjHH7SwXEbcnwdx7ny6gJqwlYd+apge1xBHXP3KCxeJ+r+rUoGD4gQ==
-X-Received: by 2002:a5b:40a:: with SMTP id m10mr5628608ybp.338.1551342964865;
-        Thu, 28 Feb 2019 00:36:04 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Iak1fyhxVJhfHpJz3r34vbteux9+bSrLaQU3NcmjzYOjmhsZkVjlcXapdljfg+M6w/MXLKK
-X-Received: by 2002:a5b:40a:: with SMTP id m10mr5628571ybp.338.1551342964020;
-        Thu, 28 Feb 2019 00:36:04 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551342964; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=9lIVa1SkwlGhp3UoewozuKjb6M5AcSFhiwXvomboeJI=;
+        b=a4LfHAxdyjQ13BieMATs7kRCXqbCS3Bkavr85QQJfhI0ImMAaPz7Y+nMbvnOSXoZsc
+         y/G8SgdHAlmOuVbE6ZiYOwT/uPSiCHvn+C+QkTvv7zDxlMcIVnUSVfhOvESeCP6U92Ln
+         mg3YuMtJMw0K58939ByUlcjL/lxZPvi5jKLmLMAp1o5X/lV1+bfWxY8XdL/lqydufdOb
+         Bn1OaDntWZdmgH9tGnK/p3CaTQ9WOeoSmdDQoIOSyNlzGzsanbu69neGakOx22YWjTkq
+         utxkNKgARL8gVVmg62Mg64N4F9LsBwjZXWffSHe40FARWxN6kafOHLlK/Q30sMUhJ1/9
+         qkYw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: AHQUAuYS1g3+70Xl1c3VQhuSsuI0Xz4hkvR3yB9BNxzAfeiZ51GrvzMT
+	IZI8BC0x7Bi+lRiwSBH1wjQftHEipftyOwQLXQUPXO17RIJCoFfVTqMK3TdkR27PS4BV/z6hCBg
+	pdmB0cyYW+Yc14YP3pIni4BiI7LVe9CaEJZLhEkVPCS7Do6zMPMFVGtxeFf3sDNXYXg==
+X-Received: by 2002:a17:906:c406:: with SMTP id u6mr4426181ejz.95.1551343217337;
+        Thu, 28 Feb 2019 00:40:17 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IY82qOrp1dIDiA/3z8Htx19IZBB2uaX+141VccclvvXUagA/1Zs8D9iZvbQrdfvA/RwX0dm
+X-Received: by 2002:a17:906:c406:: with SMTP id u6mr4426143ejz.95.1551343216416;
+        Thu, 28 Feb 2019 00:40:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551343216; cv=none;
         d=google.com; s=arc-20160816;
-        b=F41picqSxEyF7rgUQ8q4IRHthsqx7oSeEHVOfciLtzHYbJieM/rdGUrmvBCE/gTp47
-         8/GEEdxT1YwJKkp/ia1OW2gZNIGJb8JSiJfmjW//dlGShjExXm+JbOKK4Nkp1OlMXXJ+
-         IuulR5cBV2n/O99XF1uPT9dRmFt/7S+mVaT/jbuceQCRxozWUJn1do3N2rap4+aSaDLL
-         xga8y0TrREBrPl08HQ6DwA17blMSjbgAnZaXPY/fp6OHiccUIGHBX0EBWeYPUAWpYH2j
-         8+DoPAp3TuQGdCGL5dRJ7DlXoUqqoWnmggibRe7tEGhTbtytxwFvb91Lp8R8HS8UjWqT
-         IDZw==
+        b=CG2w51IpfDwyPIy/IpnJOQHapjU/LidgUWtZSfM/HHv+LJjcDnKcMzPvsrVmpQjjhn
+         AicovjRIYrSrsuS6TE4NFcu3ZJwlBkP5UoqB248l0OZPmjEavPfQdQEEkp7/6bClqjJ7
+         My33pd7BN4fx7EGPQFQIaIdjzdaNSxmMd1gaNKxt2a2b+qHZBFuhgtkMT0lQd/IgRm4C
+         YCoAbIVKKPCd8CXDxswNLi4Il8/F4NTenC1tzEduvLnbPlvhB1BUBBX/Jq5AjyZCepeK
+         oQVpIjrgnJlVYFhiXCvDtg3ZQw2chLI2MO6iXB4wxyC6r5gra+cnVTNbWaFR8YyOzL/a
+         3A4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:content-transfer-encoding:mime-version:date:subject:cc
-         :to:from;
-        bh=4Cwey845aG5lAHZMAxbXPvYPOgxP0ppIzao/eD7OuCc=;
-        b=ur4ctYdU7eDN5PHtd3sE6e8yxZVsujLA/CGNJnA+BayluTD662qS5bifRAcpP1FLx5
-         TPDuLWKN6RRI81Lt/NG1gx0xBywnYcBO2URlVS2BwsfxB1jTS5TzD96ZbymO4PWyCs+c
-         TqncHoF8owQUx5hZZNbipldYm/A1meQ38d0GorbTOoq0u73hJ+CpDUwTrKb+W/U9gzeU
-         H5Wt4RBHe4ICtDHxDyK43JKsw2VUXk7U99O7Z54+tVH+NHm6jQ9enZCY+Bi7vBIxbi/l
-         ag4kVZaRs0Edas4p5FGx7gj+41qc+4MbctcC0Y7eFZegZXB9mKQDHU5oHHfdbukHeE0t
-         BddQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=9lIVa1SkwlGhp3UoewozuKjb6M5AcSFhiwXvomboeJI=;
+        b=gBHbO4YygTtp2HoOayHpL1LsFpQwAsXpyI6pY4v0GtL6sKbbd5x3MoOpC3ZqNAfybA
+         +YM3t0Yj9P/kkusxn53dngSWIM+vq5gIj8Foc2iwaRWaldleZKDyxpuD1kzEXNmUWIoE
+         EJAwE1Dbdj0HOHo0oeI/i5fqFDrjNZiHkRP7D56+fHEkxQGzqPnVqHhnTJT/4+Za+9zk
+         S7BCG5qznjwQxZNB6OExIE17VexbqpXY1Be62+leYTRKFgFOHQgAzaE752ATotF4Mrqh
+         jAUvymD3sHmBV8LyDeL9X5r1mZGLm4CZFyNrJQrrEOXctFHqzGSC/yo7Bb0+S2hEZDus
+         b4FA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id a9si4880242ybo.32.2019.02.28.00.36.03
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ay2si2660194ejb.54.2019.02.28.00.40.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Feb 2019 00:36:04 -0800 (PST)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Thu, 28 Feb 2019 00:40:16 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1S8ZjrE029729
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 03:36:03 -0500
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2qxbq61kxh-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 03:35:57 -0500
-Received: from localhost
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Thu, 28 Feb 2019 08:35:36 -0000
-Received: from b03cxnp08027.gho.boulder.ibm.com (9.17.130.19)
-	by e34.co.us.ibm.com (192.168.1.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 28 Feb 2019 08:35:33 -0000
-Received: from b03ledav004.gho.boulder.ibm.com (b03ledav004.gho.boulder.ibm.com [9.17.130.235])
-	by b03cxnp08027.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1S8ZWVs60686428
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 28 Feb 2019 08:35:32 GMT
-Received: from b03ledav004.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 475717805E;
-	Thu, 28 Feb 2019 08:35:32 +0000 (GMT)
-Received: from b03ledav004.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 8D9267805C;
-	Thu, 28 Feb 2019 08:35:29 +0000 (GMT)
-Received: from skywalker.in.ibm.com (unknown [9.124.31.233])
-	by b03ledav004.gho.boulder.ibm.com (Postfix) with ESMTP;
-	Thu, 28 Feb 2019 08:35:29 +0000 (GMT)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: akpm@linux-foundation.org,
-        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-        Jan Kara <jack@suse.cz>, mpe@ellerman.id.au,
-        Ross Zwisler <zwisler@kernel.org>,
-        "Oliver O'Halloran" <oohall@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        linuxppc-dev@lists.ozlabs.org,
-        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH 1/2] fs/dax: deposit pagetable even when installing zero page
-Date: Thu, 28 Feb 2019 14:05:21 +0530
-X-Mailer: git-send-email 2.20.1
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id C9724AE84;
+	Thu, 28 Feb 2019 08:40:15 +0000 (UTC)
+Subject: Re: [PATCH v2 1/4] mm/workingset: remove unused @mapping argument in
+ workingset_eviction()
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+References: <20190228083329.31892-1-aryabinin@virtuozzo.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <7faa0a46-ad3e-0533-6646-4e79d468e558@suse.cz>
+Date: Thu, 28 Feb 2019 09:40:15 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-TM-AS-GCONF: 00
-x-cbid: 19022808-0016-0000-0000-0000098A1A3A
-X-IBM-SpamModules-Scores: 
-X-IBM-SpamModules-Versions: BY=3.00010678; HX=3.00000242; KW=3.00000007;
- PH=3.00000004; SC=3.00000281; SDB=6.01167493; UDB=6.00609930; IPR=6.00948107;
- MB=3.00025776; MTD=3.00000008; XFM=3.00000015; UTC=2019-02-28 08:35:35
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19022808-0017-0000-0000-0000424C085D
-Message-Id: <20190228083522.8189-1-aneesh.kumar@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-28_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902280061
+In-Reply-To: <20190228083329.31892-1-aryabinin@virtuozzo.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Architectures like ppc64 use the deposited page table to store hardware
-page table slot information. Make sure we deposit a page table when
-using zero page at the pmd level for hash.
+On 2/28/19 9:33 AM, Andrey Ryabinin wrote:
+> workingset_eviction() doesn't use and never did use the @mapping argument.
+> Remove it.
+> 
+> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Rik van Riel <riel@surriel.com>
 
-Without this we hit
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Unable to handle kernel paging request for data at address 0x00000000
-Faulting instruction address: 0xc000000000082a74
-Oops: Kernel access of bad area, sig: 11 [#1]
-....
-
-NIP [c000000000082a74] __hash_page_thp+0x224/0x5b0
-LR [c0000000000829a4] __hash_page_thp+0x154/0x5b0
-Call Trace:
- hash_page_mm+0x43c/0x740
- do_hash_page+0x2c/0x3c
- copy_from_iter_flushcache+0xa4/0x4a0
- pmem_copy_from_iter+0x2c/0x50 [nd_pmem]
- dax_copy_from_iter+0x40/0x70
- dax_iomap_actor+0x134/0x360
- iomap_apply+0xfc/0x1b0
- dax_iomap_rw+0xac/0x130
- ext4_file_write_iter+0x254/0x460 [ext4]
- __vfs_write+0x120/0x1e0
- vfs_write+0xd8/0x220
- SyS_write+0x6c/0x110
- system_call+0x3c/0x130
-
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
----
-TODO:
-* Add fixes tag 
-
- fs/dax.c | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
-
-diff --git a/fs/dax.c b/fs/dax.c
-index 6959837cc465..01bfb2ac34f9 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -33,6 +33,7 @@
- #include <linux/sizes.h>
- #include <linux/mmu_notifier.h>
- #include <linux/iomap.h>
-+#include <asm/pgalloc.h>
- #include "internal.h"
- 
- #define CREATE_TRACE_POINTS
-@@ -1410,7 +1411,9 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
- {
- 	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
- 	unsigned long pmd_addr = vmf->address & PMD_MASK;
-+	struct vm_area_struct *vma = vmf->vma;
- 	struct inode *inode = mapping->host;
-+	pgtable_t pgtable = NULL;
- 	struct page *zero_page;
- 	spinlock_t *ptl;
- 	pmd_t pmd_entry;
-@@ -1425,12 +1428,22 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
- 	*entry = dax_insert_entry(xas, mapping, vmf, *entry, pfn,
- 			DAX_PMD | DAX_ZERO_PAGE, false);
- 
-+	if (arch_needs_pgtable_deposit()) {
-+		pgtable = pte_alloc_one(vma->vm_mm);
-+		if (!pgtable)
-+			return VM_FAULT_OOM;
-+	}
-+
- 	ptl = pmd_lock(vmf->vma->vm_mm, vmf->pmd);
- 	if (!pmd_none(*(vmf->pmd))) {
- 		spin_unlock(ptl);
- 		goto fallback;
- 	}
- 
-+	if (pgtable) {
-+		pgtable_trans_huge_deposit(vma->vm_mm, vmf->pmd, pgtable);
-+		mm_inc_nr_ptes(vma->vm_mm);
-+	}
- 	pmd_entry = mk_pmd(zero_page, vmf->vma->vm_page_prot);
- 	pmd_entry = pmd_mkhuge(pmd_entry);
- 	set_pmd_at(vmf->vma->vm_mm, pmd_addr, vmf->pmd, pmd_entry);
-@@ -1439,6 +1452,8 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
- 	return VM_FAULT_NOPAGE;
- 
- fallback:
-+	if (pgtable)
-+		pte_free(vma->vm_mm, pgtable);
- 	trace_dax_pmd_load_hole_fallback(inode, vmf, zero_page, *entry);
- 	return VM_FAULT_FALLBACK;
- }
--- 
-2.20.1
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> ---
+> 
+> Changes since v1:
+>  - s/@mapping/@page->mapping in comment
+>  - Acks
+> 
+>  include/linux/swap.h | 2 +-
+>  mm/vmscan.c          | 2 +-
+>  mm/workingset.c      | 5 ++---
+>  3 files changed, 4 insertions(+), 5 deletions(-)
+> 
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 649529be91f2..fc50e21b3b88 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -307,7 +307,7 @@ struct vma_swap_readahead {
+>  };
+>  
+>  /* linux/mm/workingset.c */
+> -void *workingset_eviction(struct address_space *mapping, struct page *page);
+> +void *workingset_eviction(struct page *page);
+>  void workingset_refault(struct page *page, void *shadow);
+>  void workingset_activation(struct page *page);
+>  
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index ac4806f0f332..a9852ed7b97f 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -952,7 +952,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
+>  		 */
+>  		if (reclaimed && page_is_file_cache(page) &&
+>  		    !mapping_exiting(mapping) && !dax_mapping(mapping))
+> -			shadow = workingset_eviction(mapping, page);
+> +			shadow = workingset_eviction(page);
+>  		__delete_from_page_cache(page, shadow);
+>  		xa_unlock_irqrestore(&mapping->i_pages, flags);
+>  
+> diff --git a/mm/workingset.c b/mm/workingset.c
+> index dcb994f2acc2..0bedf67502d5 100644
+> --- a/mm/workingset.c
+> +++ b/mm/workingset.c
+> @@ -215,13 +215,12 @@ static void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
+>  
+>  /**
+>   * workingset_eviction - note the eviction of a page from memory
+> - * @mapping: address space the page was backing
+>   * @page: the page being evicted
+>   *
+> - * Returns a shadow entry to be stored in @mapping->i_pages in place
+> + * Returns a shadow entry to be stored in @page->mapping->i_pages in place
+>   * of the evicted @page so that a later refault can be detected.
+>   */
+> -void *workingset_eviction(struct address_space *mapping, struct page *page)
+> +void *workingset_eviction(struct page *page)
+>  {
+>  	struct pglist_data *pgdat = page_pgdat(page);
+>  	struct mem_cgroup *memcg = page_memcg(page);
+> 
 
