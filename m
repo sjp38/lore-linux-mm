@@ -2,102 +2,104 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,
+	UNWANTED_LANGUAGE_BODY,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D39C3C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:16:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BCFA5C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:21:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 984312184A
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:16:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 984312184A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 82FA42184A
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:21:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 82FA42184A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 377A48E0003; Thu, 28 Feb 2019 04:16:05 -0500 (EST)
+	id 178958E0003; Thu, 28 Feb 2019 04:21:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 325688E0001; Thu, 28 Feb 2019 04:16:05 -0500 (EST)
+	id 102CB8E0001; Thu, 28 Feb 2019 04:21:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 216DC8E0003; Thu, 28 Feb 2019 04:16:05 -0500 (EST)
+	id F0CC38E0003; Thu, 28 Feb 2019 04:21:04 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BDA548E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 04:16:04 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id j5so8156892edt.17
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 01:16:04 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 942B08E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 04:21:04 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id e46so8321161ede.9
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 01:21:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=6NrpsrTAZaLHQxEuYMjD2BkUO7lx4XYeLuzKZsPdRcQ=;
-        b=ThIm6fW6mM5W2Ul0l29z4uyZuyzbyL39yIXW33NHmifhels7vRm5BF70JcWUSXPBdb
-         Yu6Bx2LVT8V+vHl1qi7+no1hvKQMa4GvYm83HOFFdZ7hvSz9MBfNwViPJ/wCC4p2iCBQ
-         KXRhLroIGbt88GekHJ3L3BeQnJZhmIIjWrj7fDZ/aDy0lLj6f+edmzNQYhIkVkdrcfQJ
-         yjuBT1Ga759/gIM7Y1rfTRWOAV9uCwA3Vl1ARTkE4vZUS5kM0Nb+fgTdj2XXZ7Pc6JCD
-         HIhCBMhySguUwXRDCfmAwrszwnZ/JFRGOTWXaIYD9KZ5s7jChV3taxcnVxjns2SuyPVu
-         6gmQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUaM+G5Vc29sFOuDHLYNiURrtTQsR4NwuprqGztJbwdX9ZOvjNY
-	a+JxYZnLEOq+hhEQ24L95V+tpytQV08q494BHjyhREHlSjm0xP3Tne2iMdn1jKXr1HnAOtFt1hv
-	CYYpbPU8kplgJbtv98H9RwQAZh2i3XzB5kpmnKhwz/xuc+5y0BXhuwMMhgDHKZzA=
-X-Received: by 2002:a50:b493:: with SMTP id w19mr2160244edd.11.1551345364317;
-        Thu, 28 Feb 2019 01:16:04 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzsoO1PctpIOtD86DyHScFuO3OZ7YIiIC4Vu3+ZYK3Tv0fEv9SPRknl7cvg8VY1RVh0Sn5I
-X-Received: by 2002:a50:b493:: with SMTP id w19mr2160187edd.11.1551345363394;
-        Thu, 28 Feb 2019 01:16:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551345363; cv=none;
+        bh=yiX6uAf/WUFtOPz9qYacHQSf4FhObRYVqDYHqLC7T2k=;
+        b=LathUsnx9/skBkjkualdoHBpRPC/wO+TFihqXFZjUVlZsT7xipPpvRzp8RpgKl3hjl
+         E/ELUmW2dG+xPgnQDIDA9qn63vsuc2nhpMHsLMRn3RzPlfgZEKQMYD6dJhpMg3GytaMX
+         EbwgyGOhUXVIZ8ndf7V8pYNdSKoa/JLUxnoxo+c2Dap6qdQDhZXeI5+M1mRaQV++Gcv1
+         c2TRdMIn32pTB3JyNqGG+P1x3crujRguGvOT9f1cepNh0OFb61hM8CmUKXFNUGbh73FM
+         MT6pmTTMwKfwB/BG9LYW0bIXzwQK0EwNASd6yqfCfi+Aq+r7cyW4WmAvqLkhe7gutXjc
+         eVMg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: AHQUAualSkQnoSFTOOevRSQgILUwhRdNYMF8sM+UOsynpVEP/YULtH0Q
+	o3ZtoM8HLYHA2RnSChsBtX166Yvv/EdZ35ltmmeIsflFOgAtPuXDoNbJsJzF6Ow3HNiId+eozRb
+	qyChqNO/bS4TESvYqfQnXhz783br8aQkH2e3qdrmy8UAUQv10N954/fFTuWRmQxDu+A==
+X-Received: by 2002:a50:be42:: with SMTP id b2mr5924728edi.78.1551345664150;
+        Thu, 28 Feb 2019 01:21:04 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IYmdhejFPoGQmTFAJGlfQNS4ApHVuc2f1ksB7yUfM8oGP+Q1Tads1C5nXrPWdKSKDhW43oZ
+X-Received: by 2002:a50:be42:: with SMTP id b2mr5924675edi.78.1551345663250;
+        Thu, 28 Feb 2019 01:21:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551345663; cv=none;
         d=google.com; s=arc-20160816;
-        b=vGfpKGMi5yo1+P0BQSFuTe4YqZ/oWUF+6O4yMNMYbHsQLvcAd0zNeEr/NDy5Xiuv3q
-         5VLEmpWs40GWgqfmQzOZnZ87I+RHwTgNujp0NntSIW2WVssHfDuDPo6zYm7na9p55+F3
-         2tuCunU3bFhpD02hI2DZisFXAkwAqcWjr+UkjEeG6/ejvLLadikOiYvdfECkOs10pG27
-         Y5EX6q+T+E23IAmHnk9ceg6wdxYGTWOtZY8X2GwXcS+nvMY9znuxK1XfekLMo2Eahojg
-         vYLA/CJxDyf0fhq7zclCZs4z/bNxuSYQVIYYHcPiKcMhxNPa04uGifoqZkWHN1K7HFc1
-         Ns3A==
+        b=divGkJnsR/UZh1Jp007BCxMgvq+WiIM1R6ylJm8P7TJJY3QeeO8B48X3DAXB3aVjgY
+         KGRQvzNQQAmz3jWIkk5ypWm54vRx4H/P0WtMu3GWLthjMZQb1M7nKrLygtWXATT/AY46
+         MN7GqY6/jtMJDxDvvqCAAL+WCawsJvEBAJG24QW0nxT9NU/vGAFGLP3Hm1ZBFXXwrZ7h
+         /SeaNg6nBr+yR+a/hj98HLNcTtzA5JVHxVaDi/NxxUR8jxmXIv8fYVXyKjzM8j3vErUP
+         fPDrcNywPd8yWCbr5Jv+wuJCTHdSjoFWc+ssyqMPtb5KpGYKq+4pCNfmD9gr3el9eGVf
+         Lj2g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=6NrpsrTAZaLHQxEuYMjD2BkUO7lx4XYeLuzKZsPdRcQ=;
-        b=GyatuyoFB0IWYxjQ4HzbgA4cGYWNxr7WX1iZkYnpcGKuONeOjn+hHYmcgpMVd+M1B0
-         IC6u0YS837HLkmBKVKTHTWwOLUj1N4DE6k9NncvCHk0vOqHXsEBfoDCYq527yrsH6kQS
-         8RwIEtEhtBcnp4E8ZRg1V/5Z0C9lPedQB8ACDHH7to3pvJfPPH4rOWXBFdRj05eEAfE8
-         yGaT/kSN+++jWtIvrXJPeX5mldmocr3fKuZRFyoaqh9TTE8CwIl65gdXIwVQsy8eq75P
-         QZKRM58WvbaKwy0gbB5ORL0Socw1Bl88qg0xeFpRwT+AJ7BhqeR1ycBnysymAw+zRvr0
-         K3Mg==
+        bh=yiX6uAf/WUFtOPz9qYacHQSf4FhObRYVqDYHqLC7T2k=;
+        b=WrEWEIcl6zzgkJgYmB+9SaBdJTB/+ZnJpmjD25PHuEXIoawfjA7nTaM8FxsiE+iggp
+         ikUGM9dpMA3V3l64onnwn09yJrh+FV4VBZasNlwN2zNaJj8ru7u5EdIe137SnzRneu1D
+         CdLl3NzWksf/lk/eGuKgN5hlilRt4VnKna6Zi0WWApuuGzXGqHvAAdx22MgOZc9oLLJN
+         GdbUvxqyw0Z9VAVIwLc1TCNGS1QMlW2CAwS38thwYbGwLJjCHHcPSynxxFXCgDrAsSQM
+         je72WlbPR8eg7jMthpc60Q/XrmooySgvmcZCGIPzfD/XGWD8GOVd2rbIDUAqfeHhRraK
+         9b6A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gv8si3969083ejb.278.2019.02.28.01.16.03
+        by mx.google.com with ESMTPS id p18si3901839ejj.234.2019.02.28.01.21.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Feb 2019 01:16:03 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 28 Feb 2019 01:21:03 -0800 (PST)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id C6DA1ACC0;
-	Thu, 28 Feb 2019 09:16:02 +0000 (UTC)
-Date: Thu, 28 Feb 2019 10:16:02 +0100
-From: Michal Hocko <mhocko@kernel.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>,
-	Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [RFC PATCH] mm,memory_hotplug: Unlock 1GB-hugetlb on x86_64
-Message-ID: <20190228091602.GU10588@dhcp22.suse.cz>
-References: <20190221094212.16906-1-osalvador@suse.de>
- <20190227215109.cpiaheyqs2qdbl7p@d104.suse.de>
- <201cc8d8-953f-f198-bbfe-96470136db68@oracle.com>
- <bb71b68e-dc1b-a4d3-d842-b311535b92a8@redhat.com>
+	by mx1.suse.de (Postfix) with ESMTP id 4904DAC5A;
+	Thu, 28 Feb 2019 09:21:02 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id E00081E4263; Thu, 28 Feb 2019 10:21:01 +0100 (CET)
+Date: Thu, 28 Feb 2019 10:21:01 +0100
+From: Jan Kara <jack@suse.cz>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: akpm@linux-foundation.org,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Jan Kara <jack@suse.cz>, mpe@ellerman.id.au,
+	Ross Zwisler <zwisler@kernel.org>,
+	Oliver O'Halloran <oohall@gmail.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+Subject: Re: [PATCH 1/2] fs/dax: deposit pagetable even when installing zero
+ page
+Message-ID: <20190228092101.GA22210@quack2.suse.cz>
+References: <20190228083522.8189-1-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <bb71b68e-dc1b-a4d3-d842-b311535b92a8@redhat.com>
+In-Reply-To: <20190228083522.8189-1-aneesh.kumar@linux.ibm.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -105,61 +107,111 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 28-02-19 08:38:34, David Hildenbrand wrote:
-> On 27.02.19 23:00, Mike Kravetz wrote:
-> > On 2/27/19 1:51 PM, Oscar Salvador wrote:
-> >> On Thu, Feb 21, 2019 at 10:42:12AM +0100, Oscar Salvador wrote:
-> >>> [1] https://lore.kernel.org/patchwork/patch/998796/
-> >>>
-> >>> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> >>
-> >> Any further comments on this?
-> >> I do have a "concern" I would like to sort out before dropping the RFC:
-> >>
-> >> It is the fact that unless we have spare gigantic pages in other notes, the
-> >> offlining operation will loop forever (until the customer cancels the operation).
-> >> While I do not really like that, I do think that memory offlining should be done
-> >> with some sanity, and the administrator should know in advance if the system is going
-> >> to be able to keep up with the memory pressure, aka: make sure we got what we need in
-> >> order to make the offlining operation to succeed.
-> >> That translates to be sure that we have spare gigantic pages and other nodes
-> >> can take them.
-> >>
-> >> Given said that, another thing I thought about is that we could check if we have
-> >> spare gigantic pages at has_unmovable_pages() time.
-> >> Something like checking "h->free_huge_pages - h->resv_huge_pages > 0", and if it
-> >> turns out that we do not have gigantic pages anywhere, just return as we have
-> >> non-movable pages.
-> > 
-> > Of course, that check would be racy.  Even if there is an available gigantic
-> > page at has_unmovable_pages() time there is no guarantee it will be there when
-> > we want to allocate/use it.  But, you would at least catch 'most' cases of
-> > looping forever.
-> > 
-> >> But I would rather not convulate has_unmovable_pages() with such checks and "trust"
-> >> the administrator.
+On Thu 28-02-19 14:05:21, Aneesh Kumar K.V wrote:
+> Architectures like ppc64 use the deposited page table to store hardware
+> page table slot information. Make sure we deposit a page table when
+> using zero page at the pmd level for hash.
 > 
-> I think we have the exact same issue already with huge/ordinary pages if
-> we are low on memory. We could loop forever.
+> Without this we hit
 > 
-> In the long run, we should properly detect such issues and abort instead
-> of looping forever I guess. But as we all know, error handling in the
-> whole offlining part is still far away from being perfect ...
+> Unable to handle kernel paging request for data at address 0x00000000
+> Faulting instruction address: 0xc000000000082a74
+> Oops: Kernel access of bad area, sig: 11 [#1]
+> ....
+> 
+> NIP [c000000000082a74] __hash_page_thp+0x224/0x5b0
+> LR [c0000000000829a4] __hash_page_thp+0x154/0x5b0
+> Call Trace:
+>  hash_page_mm+0x43c/0x740
+>  do_hash_page+0x2c/0x3c
+>  copy_from_iter_flushcache+0xa4/0x4a0
+>  pmem_copy_from_iter+0x2c/0x50 [nd_pmem]
+>  dax_copy_from_iter+0x40/0x70
+>  dax_iomap_actor+0x134/0x360
+>  iomap_apply+0xfc/0x1b0
+>  dax_iomap_rw+0xac/0x130
+>  ext4_file_write_iter+0x254/0x460 [ext4]
+>  __vfs_write+0x120/0x1e0
+>  vfs_write+0xd8/0x220
+>  SyS_write+0x6c/0x110
+>  system_call+0x3c/0x130
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
 
-Migration allocation callbacks use __GFP_RETRY_MAYFAIL to not
-be disruptive so they do not trigger the OOM killer and rely on somebody
-else to pull the trigger instead. This means that if there is no other
-activity on the system the hotplug migration would just loop for ever
-or until interrupted by the userspace. THe later is important, user
-might define a policy when to terminate and keep retrying is not
-necessarily a wrong thing. One can simply do
-timeout $TIMEOUT echo 0 > $PATH_TO_MEMBLOCK/online
+Thanks for the patch. It looks good to me. You can add:
 
-and ENOMEM handling is not important. But I can see how people might
-want to bail out early instead. So I do not have a strong opinion here.
-We can try to consider ENOMEM from the migration as a hard failure and
-bail out and see whether it works in practice.
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+> ---
+> TODO:
+> * Add fixes tag 
+
+Probably this is a problem since initial PPC PMEM support, isn't it?
+
+								Honza
+
+> 
+>  fs/dax.c | 15 +++++++++++++++
+>  1 file changed, 15 insertions(+)
+> 
+> diff --git a/fs/dax.c b/fs/dax.c
+> index 6959837cc465..01bfb2ac34f9 100644
+> --- a/fs/dax.c
+> +++ b/fs/dax.c
+> @@ -33,6 +33,7 @@
+>  #include <linux/sizes.h>
+>  #include <linux/mmu_notifier.h>
+>  #include <linux/iomap.h>
+> +#include <asm/pgalloc.h>
+>  #include "internal.h"
+>  
+>  #define CREATE_TRACE_POINTS
+> @@ -1410,7 +1411,9 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
+>  {
+>  	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
+>  	unsigned long pmd_addr = vmf->address & PMD_MASK;
+> +	struct vm_area_struct *vma = vmf->vma;
+>  	struct inode *inode = mapping->host;
+> +	pgtable_t pgtable = NULL;
+>  	struct page *zero_page;
+>  	spinlock_t *ptl;
+>  	pmd_t pmd_entry;
+> @@ -1425,12 +1428,22 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
+>  	*entry = dax_insert_entry(xas, mapping, vmf, *entry, pfn,
+>  			DAX_PMD | DAX_ZERO_PAGE, false);
+>  
+> +	if (arch_needs_pgtable_deposit()) {
+> +		pgtable = pte_alloc_one(vma->vm_mm);
+> +		if (!pgtable)
+> +			return VM_FAULT_OOM;
+> +	}
+> +
+>  	ptl = pmd_lock(vmf->vma->vm_mm, vmf->pmd);
+>  	if (!pmd_none(*(vmf->pmd))) {
+>  		spin_unlock(ptl);
+>  		goto fallback;
+>  	}
+>  
+> +	if (pgtable) {
+> +		pgtable_trans_huge_deposit(vma->vm_mm, vmf->pmd, pgtable);
+> +		mm_inc_nr_ptes(vma->vm_mm);
+> +	}
+>  	pmd_entry = mk_pmd(zero_page, vmf->vma->vm_page_prot);
+>  	pmd_entry = pmd_mkhuge(pmd_entry);
+>  	set_pmd_at(vmf->vma->vm_mm, pmd_addr, vmf->pmd, pmd_entry);
+> @@ -1439,6 +1452,8 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
+>  	return VM_FAULT_NOPAGE;
+>  
+>  fallback:
+> +	if (pgtable)
+> +		pte_free(vma->vm_mm, pgtable);
+>  	trace_dax_pmd_load_hole_fallback(inode, vmf, zero_page, *entry);
+>  	return VM_FAULT_FALLBACK;
+>  }
+> -- 
+> 2.20.1
+> 
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
