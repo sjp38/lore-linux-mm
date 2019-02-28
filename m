@@ -2,165 +2,228 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DA8DAC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:41:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BB108C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:46:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A316B218B0
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:41:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A316B218B0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 72FC621850
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:46:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72FC621850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2EED48E0005; Thu, 28 Feb 2019 04:41:11 -0500 (EST)
+	id 0A3178E0003; Thu, 28 Feb 2019 04:46:54 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 29EF78E0001; Thu, 28 Feb 2019 04:41:11 -0500 (EST)
+	id 02B308E0001; Thu, 28 Feb 2019 04:46:53 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1B58E8E0005; Thu, 28 Feb 2019 04:41:11 -0500 (EST)
+	id E5E038E0003; Thu, 28 Feb 2019 04:46:53 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B3F358E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 04:41:10 -0500 (EST)
-Received: by mail-ed1-f69.google.com with SMTP id 29so8115712eds.12
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 01:41:10 -0800 (PST)
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7351D8E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 04:46:53 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id h14so3252577lja.11
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 01:46:53 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=zUTwPpnew74p2CNEcvJ3SVgTn0k2SWNg1YzSt2pXtVY=;
-        b=OsqHRtgJSDE8S8vRrW7ejgye9cqQ7aKEFqC3xJ6rsR/sW+HmIa9RjlBaQcWqlpVQz+
-         3p7iQnyfGTtIZsGxbH1++32I6D1GRoMN4H7YLPxTm9I8ZUflT+wnC/HaXCrszq11WsvQ
-         zaEBAmkk6QSMCDxg3xEqVmdgLnxc7ODOUlhOxJIdp2P4F4Ucnn/Lqkp0oS7cNuk5Kv6J
-         6//u2pCTfBOUeuajwDx8b3bma9OaCONjJkZ0EUP6u879MFfINmWgCC9PAv2epjecaoeB
-         YLqGbynEPX9sKgTP3v/86/bCRQWT6nuFruEmgeMqtQyftz4sjV5qSckSsQDYWAtnCHuA
-         +rKQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: AHQUAuZLciqNrMQB8zMrMjHljUdW6sTjeQCRmM+2utJqiz/3GehrDauB
-	cGP7mEeatv9UW0Gmu5upskZGuDw2cwZFY0GfCIV/Yglf1FI5jxaY3z8oXhY+HMDBgpObGw1te5p
-	T6bHQmOF2M46lqkANMz82JdIw3kiMOX+vHFvjgJrb6puQDwEEliD9z4ech0CrmKo=
-X-Received: by 2002:a50:add2:: with SMTP id b18mr6111991edd.43.1551346870290;
-        Thu, 28 Feb 2019 01:41:10 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZQqo7sRAqe5FTQRb60yN/qJPIXyiI6J+g+Qp9nZFp4Q0JDU9tGAc1ZCLTAAiHpcvzGnjwW
-X-Received: by 2002:a50:add2:: with SMTP id b18mr6111940edd.43.1551346869447;
-        Thu, 28 Feb 2019 01:41:09 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551346869; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=ywNccRbeAQ8rU7iW+uRkFwYvCyRhyz6THJcNMH50zmw=;
+        b=WI9w0bVim2wHbzneQnYjOZOLj5Yb5b9WfWpaM1pTUnFzDNnp3dTX+NUKnOrYW7oEhD
+         qn2tSAzpgD8eZBGO/+anbQ/PNa83gthFiPt/AJd8BFiCVJMLgZQopLzVNrCfz/p/szrR
+         nfugQ1FE/xFLjtVsFlbMfFSmKyMM4YYILOOZHcHMrzc5VJpR9fuJUemTrA4PMfebNA6R
+         uVzL6MrCCdl1WciU06ZnO6kOrosZmoYrXluZEdJu4EI5aSb7IJf2YKG98OLxnF3v+lfv
+         frDn8a7bCoz2n7eD5ZZgGD7Di3z1jI51pl0sJyXdlfDRi0ePReJzhDmJiNH1nFCI9h2b
+         IY3Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: AHQUAuZOH4iG/Zpk6t7/hWHt7uIedEtp947jbYueESBFAs1aoa4vz4gR
+	PaqF/gpy4XkI2dyT/3eAzmW4gb2aLxiZNvJJYYKopVm8sHG0BpzXztqyDFm7xH9T3XgR4/xTthW
+	OxgdMCiB3RtxM6EN/Q7xQ4H0ouAJfS/MZmnBGoMhwGbr19OvJK5nokXIuFU8uMkndcA==
+X-Received: by 2002:a19:e601:: with SMTP id d1mr3841699lfh.71.1551347212745;
+        Thu, 28 Feb 2019 01:46:52 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaMXOGNSR+Af5IENFNAv6/Uyqu3ETckWy1M3v2CPcRSJ9vTAzGimdzPwOTlVrZeBTOOjRHQ
+X-Received: by 2002:a19:e601:: with SMTP id d1mr3841649lfh.71.1551347211512;
+        Thu, 28 Feb 2019 01:46:51 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551347211; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZphSuka19oI0Q7jSkJGhx8lt/zUSnD7RGYXOVAoVCm9bqUiUhlinw4QzWV87FW6lwo
-         VCw4xQSdfEBM98KULo4msqqvmStRS9rD3hXTRKsM9uShLexP60U8atSwU++GNdJWBQRS
-         30BxmGw/yw/o3W88uUeJdNC+pkGtKEKMq7yMwdCS9Ppve8kfhGGFWf2F84jXkHKzEK+2
-         BKxyFrySkeaO3gh2T3hyKuWv7sLVff5J0oa9vwt05y35gcad+qAI9keKu49hfhznvts/
-         NAVUT3i8uiX9XMLGaiFc7+74WIPvSoUPwNTZPmaubLRvWgcXOdM8CWcPBS1v9EH7YSN6
-         YBMA==
+        b=BhTJs3cKq9BzJ2LfvhtNSEtXuNN3p3cC50powEKTAbCY9o7SW8rPy3qmJu7GSvNsKM
+         UBWKoaayGw3nTkF132LUReYFAWmmI7MGNNJN1Vd3xh6pk4CS+/+HmwCsqqDWvB8scrvu
+         /f+OXq4o5x5ILsuRV31ZIJURyQqcJ+uiRm4xyWCE92MRyNfWJTSmkN9SiRhiRE7t1n0c
+         6xluKwzNZZHeoaqCvMV8V4rRumkwnnivUjjIKaULRWTD24P1l9RpG/zDUlqLeeDK/Y9H
+         J+lEn2ebxdc6f6YePUHX3Zslhgjr4ubiwd6UzmUZuXGU1cEUZIXlAgtYq7cqFSrUGYZX
+         6TXQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=zUTwPpnew74p2CNEcvJ3SVgTn0k2SWNg1YzSt2pXtVY=;
-        b=bYwqAKwgV5Ct0/4wXmSGLTP2O5YnVONZs/DU/Xzo1pSYrolg4Ape5IeBvXR/fqc5zC
-         OwtbrgalytllBGNWpp4nC2Ld81CaLqAL3rf5im/3MM/wTzfdUIrW/DyYawM9d+NV4HA4
-         9VBUqe6xQHRKQE8fuFnAO+RRKMPQNXQjqIsa77n+hKkwJ5042q4l+pezwMR4/n8qYiBq
-         HC1Nqm2IZ+tGzpHdsIVfXwM/bPKKEJmmfNzgHuih2Z+L9gP0acLj/wZv+c+iUCzHz+Ia
-         OKaAXPDXMcinThs594HGLJ7DanPdXzPBpajk4WJJrNPsv+/vgCz2SWDMt3LmxSQ0jPuF
-         1vnA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=ywNccRbeAQ8rU7iW+uRkFwYvCyRhyz6THJcNMH50zmw=;
+        b=FB7sHe2WgEnd2jFgXIbx1eUCY70Q9EyhfXTAPXf2LDoKjgmSG/PMx1mg9AWbqkaV0K
+         TvGEBnEudt3h+3XYME+9tJQBg3wtzUwqSLNqYajZaxP9OMELWIeJ/7gTznw9HNRz7zmQ
+         gaoiLLWTh7fd2Q9lCQAwYqI8JZ+83SblYnFanL/rkE5LBUFF/u1katiORE6+YuQwy59z
+         ESGHq4mnERZiz9tMBc+YxmDW9XSRNxf6OFKyqQSkru8CEzedgeiv7j+Ab4FvbH1a5wJT
+         r8kL6lgttcrR1CBPuq8Z2Vkublpk9hgjXVQ7QEdrQfZY+p0yMDv+0xhVmxaEMYS5eK2Z
+         XmjQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from suse.de (nat.nue.novell.com. [2620:113:80c0:5::2222])
-        by mx.google.com with ESMTP id e43si1077032eda.396.2019.02.28.01.41.09
-        for <linux-mm@kvack.org>;
-        Thu, 28 Feb 2019 01:41:09 -0800 (PST)
-Received-SPF: softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) client-ip=2620:113:80c0:5::2222;
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id j12si13405405lji.90.2019.02.28.01.46.51
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Feb 2019 01:46:51 -0800 (PST)
+Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning osalvador@suse.de does not designate 2620:113:80c0:5::2222 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: by suse.de (Postfix, from userid 1000)
-	id 8B8E943FF; Thu, 28 Feb 2019 10:41:08 +0100 (CET)
-Date: Thu, 28 Feb 2019 10:41:08 +0100
-From: Oscar Salvador <osalvador@suse.de>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, david@redhat.com,
-	mike.kravetz@oracle.com
-Subject: Re: [RFC PATCH] mm,memory_hotplug: Unlock 1GB-hugetlb on x86_64
-Message-ID: <20190228094104.wbeaowsx25ckpcc7@d104.suse.de>
-References: <20190221094212.16906-1-osalvador@suse.de>
- <20190228092154.GV10588@dhcp22.suse.cz>
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.12]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <aryabinin@virtuozzo.com>)
+	id 1gzIHB-0003UF-GD; Thu, 28 Feb 2019 12:46:49 +0300
+Subject: Re: BUG: KASAN: stack-out-of-bounds
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Christophe Leroy <christophe.leroy@c-s.fr>,
+ Alexander Potapenko <glider@google.com>, Daniel Axtens <dja@axtens.net>,
+ Linux-MM <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org,
+ kasan-dev <kasan-dev@googlegroups.com>
+References: <c6d80735-0cfe-b4ab-0349-673fc65b2e15@c-s.fr>
+ <5f0203bd-77ea-d94c-11b7-1befba439cd4@virtuozzo.com>
+ <15a40476-2852-cf5a-0982-d899dd79d9c1@c-s.fr>
+ <7778f728-3ca2-7ad6-503f-72ca098863cb@virtuozzo.com>
+ <CACT4Y+adjRarmcWTrQxotATzaHoFQ4TXbyiRXEpWozLPzjQBrQ@mail.gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <11314e32-6044-9207-a238-738e394ea2eb@virtuozzo.com>
+Date: Thu, 28 Feb 2019 12:47:08 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190228092154.GV10588@dhcp22.suse.cz>
-User-Agent: NeoMutt/20170421 (1.8.2)
+In-Reply-To: <CACT4Y+adjRarmcWTrQxotATzaHoFQ4TXbyiRXEpWozLPzjQBrQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 28, 2019 at 10:21:54AM +0100, Michal Hocko wrote:
-> On Thu 21-02-19 10:42:12, Oscar Salvador wrote:
-> [...]
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index d5f7afda67db..04f6695b648c 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -1337,8 +1337,7 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
-> >  		if (!PageHuge(page))
-> >  			continue;
-> >  		head = compound_head(page);
-> > -		if (hugepage_migration_supported(page_hstate(head)) &&
-> > -		    page_huge_active(head))
-> > +		if (page_huge_active(head))
-> >  			return pfn;
-> >  		skip = (1 << compound_order(head)) - (page - head);
-> >  		pfn += skip - 1;
+
+
+On 2/28/19 12:27 PM, Dmitry Vyukov wrote:
+> On Thu, Feb 28, 2019 at 10:22 AM Andrey Ryabinin
+> <aryabinin@virtuozzo.com> wrote:
+>>
+>>
+>>
+>> On 2/27/19 4:11 PM, Christophe Leroy wrote:
+>>>
+>>>
+>>> Le 27/02/2019 à 10:19, Andrey Ryabinin a écrit :
+>>>>
+>>>>
+>>>> On 2/27/19 11:25 AM, Christophe Leroy wrote:
+>>>>> With version v8 of the series implementing KASAN on 32 bits powerpc (https://patchwork.ozlabs.org/project/linuxppc-dev/list/?series=94309), I'm now able to activate KASAN on a mac99 is QEMU.
+>>>>>
+>>>>> Then I get the following reports at startup. Which of the two reports I get seems to depend on the option used to build the kernel, but for a given kernel I always get the same report.
+>>>>>
+>>>>> Is that a real bug, in which case how could I spot it ? Or is it something wrong in my implementation of KASAN ?
+>>>>>
+>>>>> I checked that after kasan_init(), the entire shadow memory is full of 0 only.
+>>>>>
+>>>>> I also made a try with the strong STACK_PROTECTOR compiled in, but no difference and nothing detected by the stack protector.
+>>>>>
+>>>>> ==================================================================
+>>>>> BUG: KASAN: stack-out-of-bounds in memchr+0x24/0x74
+>>>>> Read of size 1 at addr c0ecdd40 by task swapper/0
+>>>>>
+>>>>> CPU: 0 PID: 0 Comm: swapper Not tainted 5.0.0-rc7+ #1133
+>>>>> Call Trace:
+>>>>> [c0e9dca0] [c01c42a0] print_address_description+0x64/0x2bc (unreliable)
+>>>>> [c0e9dcd0] [c01c4684] kasan_report+0xfc/0x180
+>>>>> [c0e9dd10] [c089579c] memchr+0x24/0x74
+>>>>> [c0e9dd30] [c00a9e38] msg_print_text+0x124/0x574
+>>>>> [c0e9dde0] [c00ab710] console_unlock+0x114/0x4f8
+>>>>> [c0e9de40] [c00adc60] vprintk_emit+0x188/0x1c4
+>>>>> --- interrupt: c0e9df00 at 0x400f330
+>>>>>      LR = init_stack+0x1f00/0x2000
+>>>>> [c0e9de80] [c00ae3c4] printk+0xa8/0xcc (unreliable)
+>>>>> [c0e9df20] [c0c28e44] early_irq_init+0x38/0x108
+>>>>> [c0e9df50] [c0c16434] start_kernel+0x310/0x488
+>>>>> [c0e9dff0] [00003484] 0x3484
+>>>>>
+>>>>> The buggy address belongs to the variable:
+>>>>>   __log_buf+0xec0/0x4020
+>>>>> The buggy address belongs to the page:
+>>>>> page:c6eac9a0 count:1 mapcount:0 mapping:00000000 index:0x0
+>>>>> flags: 0x1000(reserved)
+>>>>> raw: 00001000 c6eac9a4 c6eac9a4 00000000 00000000 00000000 ffffffff 00000001
+>>>>> page dumped because: kasan: bad access detected
+>>>>>
+>>>>> Memory state around the buggy address:
+>>>>>   c0ecdc00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>>>>>   c0ecdc80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>>>>>> c0ecdd00: 00 00 00 00 00 00 00 00 f1 f1 f1 f1 00 00 00 00
+>>>>>                                     ^
+>>>>>   c0ecdd80: f3 f3 f3 f3 00 00 00 00 00 00 00 00 00 00 00 00
+>>>>>   c0ecde00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>>>>> ==================================================================
+>>>>>
+>>>>
+>>>> This one doesn't look good. Notice that it says stack-out-of-bounds, but at the same time there is
+>>>>     "The buggy address belongs to the variable:  __log_buf+0xec0/0x4020"
+>>>>   which is printed by following code:
+>>>>     if (kernel_or_module_addr(addr) && !init_task_stack_addr(addr)) {
+>>>>         pr_err("The buggy address belongs to the variable:\n");
+>>>>         pr_err(" %pS\n", addr);
+>>>>     }
+>>>>
+>>>> So the stack unrelated address got stack-related poisoning. This could be a stack overflow, did you increase THREAD_SHIFT?
+>>>> KASAN with stack instrumentation significantly increases stack usage.
+>>>>
+>>>
+>>> I get the above with THREAD_SHIFT set to 13 (default value).
+>>> If increasing it to 14, I get the following instead. That means that in that case the problem arises a lot earlier in the boot process (but still after the final kasan shadow setup).
+>>>
+>>
+>> We usually use 15 (with 4k pages), but I think 14 should be enough for the clean boot.
+>>
+>>> ==================================================================
+>>> BUG: KASAN: stack-out-of-bounds in pmac_nvram_init+0x1f8/0x5d0
+>>> Read of size 1 at addr f6f37de0 by task swapper/0
+>>>
+>>> CPU: 0 PID: 0 Comm: swapper Not tainted 5.0.0-rc7+ #1143
+>>> Call Trace:
+>>> [c0e9fd60] [c01c43c0] print_address_description+0x164/0x2bc (unreliable)
+>>> [c0e9fd90] [c01c46a4] kasan_report+0xfc/0x180
+>>> [c0e9fdd0] [c0c226d4] pmac_nvram_init+0x1f8/0x5d0
+>>> [c0e9fef0] [c0c1f73c] pmac_setup_arch+0x298/0x314
+>>> [c0e9ff20] [c0c1ac40] setup_arch+0x250/0x268
+>>> [c0e9ff50] [c0c151dc] start_kernel+0xb8/0x488
+>>> [c0e9fff0] [00003484] 0x3484
+>>>
+>>>
+>>> Memory state around the buggy address:
+>>>  f6f37c80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>>>  f6f37d00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>>>> f6f37d80: 00 00 00 00 00 00 00 00 00 00 00 00 f1 f1 f1 f1
+>>>                                                ^
+>>>  f6f37e00: 00 00 01 f4 f2 f2 f2 f2 00 00 00 00 f2 f2 f2 f2
+>>>  f6f37e80: 00 00 00 00 f3 f3 f3 f3 00 00 00 00 00 00 00 00
+>>> ==================================================================
+>>
+>> Powerpc's show_stack() prints stack addresses, so we know that stack is something near 0xc0e9f... address.
+>> f6f37de0 is definitely not stack address and it's to far for the stack overflow.
+>> So it looks like shadow for stack  - kasan_mem_to_shadow(0xc0e9f...) and shadow for address in report - kasan_mem_to_shadow(0xf6f37de0)
+>> point to the same physical page.
 > 
-> Is this part correct? Say we have a gigantic page which is migrateable.
-> Now scan_movable_pages would skip it and we will not migrate it, no?
+> Shouldn't shadow start at 0xf8 for powerpc32? I did some math
+> yesterday which I think lead me to 0xf8.
 
-All non-migrateable hugepages should have been caught in has_unmovable_pages:
+Dunno, maybe. How is this relevant? In case you referring to the 0xf6f* addresses in the report,
+these are not shadow, but accessed addresses.
 
-<--
-                if (PageHuge(page)) {
-                        struct page *head = compound_head(page);
-                        unsigned int skip_pages;
-
-                        if (!hugepage_migration_supported(page_hstate(head)))
-                                goto unmovable;
--->
-
-So, there is no need to check again for migrateability here, as it is something
-that does not change.
-To put it in another way, all huge pages found in scan_movable_pages() should be
-migrateable.
-In scan_movable_pages() we just need to check whether the hugepage, gigantic or not, is
-in use (aka active) to migrate it.
-
+> This allows to cover at most 1GB of memory. Do you have more by any chance?
 > 
-> > @@ -1378,10 +1377,6 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
-> >  
-> >  		if (PageHuge(page)) {
-> >  			struct page *head = compound_head(page);
-> > -			if (compound_order(head) > PFN_SECTION_SHIFT) {
-> > -				ret = -EBUSY;
-> > -				break;
-> > -			}
-> >  			pfn = page_to_pfn(head) + (1<<compound_order(head)) - 1;
-> >  			isolate_huge_page(head, &source);
-> >  			continue;
-> 
-> I think it would be much easier to have only this check removed in this
-> patch. Because it is obviously bogus and wrong as well. The other check
-> might be considered in a separate patch.
-
-I do not have an issue sending both changes separedtly.
-I mean, this check is the one we need to remove in order to make 1Gb-hugetlb
-offlining to proceed.
-The removed check from scan_movable_pages() is only removed because it is redundant
-as we already checked for that condition in has_unmovable_pages()
-(when isolating the range).
-
--- 
-Oscar Salvador
-SUSE L3
 
