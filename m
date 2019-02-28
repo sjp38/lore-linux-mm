@@ -2,286 +2,205 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C5CCFC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 06:53:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8725DC10F00
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 07:38:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4F6DF214D8
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 06:53:24 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Sy4MZQR4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4F6DF214D8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 3EBB4205C9
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 07:38:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3EBB4205C9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A21128E0003; Thu, 28 Feb 2019 01:53:23 -0500 (EST)
+	id CC0518E0003; Thu, 28 Feb 2019 02:38:38 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9A93D8E0001; Thu, 28 Feb 2019 01:53:23 -0500 (EST)
+	id C6E548E0001; Thu, 28 Feb 2019 02:38:38 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 84A808E0003; Thu, 28 Feb 2019 01:53:23 -0500 (EST)
+	id B385E8E0003; Thu, 28 Feb 2019 02:38:38 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 593A58E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 01:53:23 -0500 (EST)
-Received: by mail-io1-f71.google.com with SMTP id e1so14746016iod.23
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 22:53:23 -0800 (PST)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 862C58E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 02:38:38 -0500 (EST)
+Received: by mail-qk1-f200.google.com with SMTP id z198so15364148qkb.15
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 23:38:38 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=i3/s5PglH9gxlcaNlP0KMkiKMOrsgOYVB0VY1Idim6o=;
-        b=WDoxMYym3T9GHYgj65j/ndALGeuzokZZgFLeOsXCF2GC7Jdra+UilT6Jx+L1xw4aPa
-         EJ6coCZM91/h5dTojh4l+7A0QdboM2dcbMX7E74BpWsLJKy6bkz3QtEFep3QA20mePGY
-         hut0PJ29qjQeJ8ovUQfayAtyWq/+ndBRyO2M2Y1aFe+p8FFIulX+1FQqn/A1P0lexxA4
-         j32hApo62UaOuu+rflyD2xUvvN38MRt3zOQ/AmpqZDzCxRsFsKFGuESfQvh4IpWpvskf
-         /pTDQ3DVZyk+gn2FqRyen9puR5MfYVyHmzJX30aJqGD6gs9Ccy3hhP/9RdydVc06boGz
-         QJBw==
-X-Gm-Message-State: APjAAAVL+LBXr3ELEHxFzHpd2WDeqwjqVqS3IBbnNBGDQ9DriPIw3k/w
-	N7ArTun2U/FShpJTzQzHGUd/9ESzL5BCTR9+Ozx+sqGhmxRTGkED6Jj2xT7yAqjABfOJRNBne+u
-	APf29mh+RW0r6yppr830n5famQL6zt8GMV3PVLapZvM+XleZfY4I+Ik9USI65bgNmszQ4ToLGkd
-	kFFOjTEIOrg++TciTZxBIKY/UlGomRjgbgAFDaibwZQrZDWVme1eVxQK5JQY9BYfHpe3C6L9J7A
-	PJ1ytxsmf9sSRC51rIsMyVdNwQH3aUY5Jc4GuqiOjU2Ra99TYIjsQh8sVTJh8VAd5AGeL2Cfgvm
-	PeSlVP/gr/Q9CO47dmWso+g4usJv4u0X/G+Dpj8wWjfyhxL7mhbnH2SAKNVaAXWRnb/6OGioGly
-	W
-X-Received: by 2002:a5e:930d:: with SMTP id k13mr4126115iom.230.1551336803044;
-        Wed, 27 Feb 2019 22:53:23 -0800 (PST)
-X-Received: by 2002:a5e:930d:: with SMTP id k13mr4126091iom.230.1551336801893;
-        Wed, 27 Feb 2019 22:53:21 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551336801; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=R0jQNkuhw/197OCv08iNHyM4AFPEcDeLOoP9zLE22w0=;
+        b=ndeCbX/P9Zc31Qx6sXWWXU3LUHTCo5woKg/GESatAqNVDIin/3WqO/TjNFQTJPAbKi
+         47FFn6x0CqkUW7AOnPgmxxpdMW4/yewnSnkHAYcqiYIQ2X+50IzxVlAtVi76UcxbYwK5
+         roQVYMdThs0DIcwGYIn71+Yzm+6vByzK4nNotIPqlgCM48J5ZtplrpL9lVy89yZrzhLs
+         ByTh4JnVGAHYyxICyi9QJ7UxVlgkcf16BiBLsLZMBE6M/5mDWNAODeeN3D3BvfxleU5K
+         dS95LKF83M94moaeyOtH3nbmnj0SRN1Tf6JWzKDi9oho63dYrHcZEuyK+CDeX0F/lXKH
+         jzXQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXwV92NWxht8bhVCT1L/VI+zeoOXAVVnvsuMoW8Xa+72su20n9u
+	N36cWqts+umKFrYw0kNmwMNXC+wxNrYf8ZNPj8KmWMSs82faXyGU4mmhS00xNXp7fU/7drZhjMv
+	hDXdiWJZ2TiHyrcOL+yfoHfAo+74fd7lzoLKFMxxLyQNhK/IwiDZtt6kN9pYuoxQZNA==
+X-Received: by 2002:aed:2515:: with SMTP id v21mr5067785qtc.191.1551339518269;
+        Wed, 27 Feb 2019 23:38:38 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ia872sZUMgehD2GPiyYvafR4R1iZzGiKze+oxFJqecZtXpRWIHZk42+kLn5nEaialc+SE2p
+X-Received: by 2002:aed:2515:: with SMTP id v21mr5067748qtc.191.1551339517394;
+        Wed, 27 Feb 2019 23:38:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551339517; cv=none;
         d=google.com; s=arc-20160816;
-        b=NixjHUyEORii3npjddAxQ6C84T9YC1axneL2l8snF9bHbpcSK+FDx+TwWlqYAoXLYf
-         Vpnd9RsaS6+Zm6t5+m3dETdIQ+Oxsn85AAkhGl6wF5Y2uzTgqrEKQRYlk6uwh4SS8Qzx
-         M/S5KF4PV5oeh1aUgWKg1p0CyblB4Bqhls3GvMvxvNgA9duIKb7C9ytwCRV1FlLxWGaK
-         4N5PUJWnS13rCT3AquFi8sY96NgYGDlwspcQx8VnkctCbdyHHXfTjzEgk9siiWSRpzVm
-         kLJbLqy2u1yaD+/dPa/g5n7CVnWZl6r7+i61iXEU2M/VWKqHNXoZt1Zd5AiFofrssX5b
-         Wm6g==
+        b=cg4TS9gEqVCxGdrdK0Djnkl6Twg3n5lx20/8DUxMJBnww5t/N09zbOCIRopndJ4eXa
+         hBxwWIq65Np12nZpnc5nrqxwIvK6ouuMmOk06+g5yb4qULzVfIC+LA3z1qdLcHosapl4
+         eLK8OO2nZHPDt6VxKwkJjQpWrIWJA++5pJ3zR/iaitZvQVGOox9/ASrJQ35SXTz+sRXt
+         oFmIm96mrAriDaKGLZLFzpcXFJg+EtJawfqddnN3M4FL7z36ok2be+iTnxyh4glfSID3
+         tvDPUOHKEUXgn+ZL3W2C8ELkNvOMbrzmcNMUPmrRlEHdWwIsN7ChiF/wSDiQD5FUX1tS
+         wKLw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=i3/s5PglH9gxlcaNlP0KMkiKMOrsgOYVB0VY1Idim6o=;
-        b=FWmXGVtnDIAYkXm5YCmfOPrqYQS5H8fRmUPfQxle+zm9rNTP6ZTq/y2P2TMv0anSr/
-         lKnE/pHEp0relDorX6RwsXwj7GGwF6JL6jlxbG97URuofH07s22/TvsI+qnjwhPiDTXh
-         ejAK/yOWCN4MeRr/jgks6mu/qz/S0AUDbgBVWJIhhKuVrrSlX+C420z+l8LmM3W75g/7
-         rXj4aEkQ7X8DanF4fd2L9DGUfL+z2MJLu6SvydG7ejhVRtyuqt+kQqBxrQWSqCdyRCTO
-         lH+3zVyAtD98In5q1edBHeItyAC9dEioQOtCPBjX0pCJt1qGRDft7bP/nqEwiQqHh0br
-         genw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=R0jQNkuhw/197OCv08iNHyM4AFPEcDeLOoP9zLE22w0=;
+        b=YSL1q1p5WDZsDVboGxMMv/HXD0XYz6JwgD2ATmfR9RDa+RJ/uu4kx2HTAx/LS5XRck
+         ptHq8lTgbxGHK4Ewm2bF3ihilaLE+hxOQcKOePJv8DPHWdS9aZxlj+CIqiYQm6u4nV5o
+         Tinl3vBdBf9XZfPfCK++UaBUWsD7dwBdBeaEsD3TzhUJAr+cbuqLIdDCQt6N8EwbREg+
+         2ahtVvdk3n6yI5jMqrfOrZ5TAyzBHHOfKbocGyK4+kYKhQOepB5LVNRwABscsYkDGS5g
+         63GWM5bgb7tPYG339tGak3K/lbWULgtlMS2gcaYKqciUMd1E3e5VeEjW0yrumQSSRRV0
+         7Y4A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Sy4MZQR4;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d9sor38448733jak.9.2019.02.27.22.53.21
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x69si3136821qka.208.2019.02.27.23.38.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Feb 2019 22:53:21 -0800 (PST)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Feb 2019 23:38:37 -0800 (PST)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Sy4MZQR4;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=i3/s5PglH9gxlcaNlP0KMkiKMOrsgOYVB0VY1Idim6o=;
-        b=Sy4MZQR4I3yEsBHIGkZYvkvGNPVTMOo746qBMr47WiM0SQaS5ZGjVBU5kDcWtdDUlY
-         GNLEbIBLx77WiwJedTtLEoGIN0QkcHAA1nCedJheS82cBft4I0hZI17zv+1kFHVYHvQ8
-         3j7yjg5cCWUa+lxdwL2T1ELacXUU9b/dyNvO9DUvF9emkMkYiSSIlq0i+mx+ZLGstEi/
-         42bI1e+vKARUZUWd3CtsmQ70y+ADNA+9axkptKPra+n65i8/6SiArpczqHxWWW/zK2GJ
-         uRr6g2litZZ2DAcBCanIpRsBpmEMwdIvuj8PtWI+uj245jRnF2VHDfJPpAuJRFzA8DPC
-         WARw==
-X-Google-Smtp-Source: AHgI3IYkgWOQOJZ0I9PrRVK8rb84Y2Q584t96OHyX+QdRL8KN7SjW2cOx0P5+eNWrJqzUGIlGq6bcnoN8mFyvD3aL1o=
-X-Received: by 2002:a02:4985:: with SMTP id p5mr3640499jad.35.1551336801199;
- Wed, 27 Feb 2019 22:53:21 -0800 (PST)
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 693E6C067C36;
+	Thu, 28 Feb 2019 07:38:36 +0000 (UTC)
+Received: from [10.36.116.113] (ovpn-116-113.ams2.redhat.com [10.36.116.113])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 386EF619D5;
+	Thu, 28 Feb 2019 07:38:35 +0000 (UTC)
+Subject: Re: [RFC PATCH] mm,memory_hotplug: Unlock 1GB-hugetlb on x86_64
+To: Mike Kravetz <mike.kravetz@oracle.com>, Oscar Salvador
+ <osalvador@suse.de>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, mhocko@suse.com
+References: <20190221094212.16906-1-osalvador@suse.de>
+ <20190227215109.cpiaheyqs2qdbl7p@d104.suse.de>
+ <201cc8d8-953f-f198-bbfe-96470136db68@oracle.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <bb71b68e-dc1b-a4d3-d842-b311535b92a8@redhat.com>
+Date: Thu, 28 Feb 2019 08:38:34 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-References: <0000000000006a12bd0581ca4145@google.com> <20190213122331.632a4eb1a12b738ef9633855@linux-foundation.org>
- <20190226182129.GA218103@gmail.com> <20190227205323.GA186986@gmail.com>
-In-Reply-To: <20190227205323.GA186986@gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 28 Feb 2019 07:53:09 +0100
-Message-ID: <CACT4Y+ZK5MrJ3GZ-sxihNpRaun4aMOxkRqmLqQJxYEgD2cnfZQ@mail.gmail.com>
-Subject: Re: BUG: Bad page state (5)
-To: Eric Biggers <ebiggers@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, 
-	syzbot <syzbot+2cd2887ea471ed6e6995@syzkaller.appspotmail.com>, 
-	Dan Williams <dan.j.williams@intel.com>, LKML <linux-kernel@vger.kernel.org>, 
-	Linux-MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, nborisov@suse.com, 
-	Mike Rapoport <rppt@linux.vnet.ibm.com>, Shakeel Butt <shakeelb@google.com>, 
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Vlastimil Babka <vbabka@suse.cz>, 
-	Matthew Wilcox <willy@infradead.org>, Joel Fernandes <joel@joelfernandes.org>, 
-	Mike Kravetz <kravetz@us.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <201cc8d8-953f-f198-bbfe-96470136db68@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Thu, 28 Feb 2019 07:38:36 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 27, 2019 at 9:53 PM Eric Biggers <ebiggers@kernel.org> wrote:
->
-> On Tue, Feb 26, 2019 at 10:21:30AM -0800, Eric Biggers wrote:
-> > On Wed, Feb 13, 2019 at 12:23:31PM -0800, Andrew Morton wrote:
-> > > On Wed, 13 Feb 2019 09:56:04 -0800 syzbot <syzbot+2cd2887ea471ed6e6995@syzkaller.appspotmail.com> wrote:
-> > >
-> > > > Hello,
-> > > >
-> > > > syzbot found the following crash on:
-> > > >
-> > > > HEAD commit:    c4f3ef3eb53f Add linux-next specific files for 20190213
-> > > > git tree:       linux-next
-> > > > console output: https://syzkaller.appspot.com/x/log.txt?x=1130a124c00000
-> > > > kernel config:  https://syzkaller.appspot.com/x/.config?x=9ec67976eb2df882
-> > > > dashboard link: https://syzkaller.appspot.com/bug?extid=2cd2887ea471ed6e6995
-> > > > compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-> > > > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=14ecdaa8c00000
-> > > > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=12ebe178c00000
-> > > >
-> > > > IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> > > > Reported-by: syzbot+2cd2887ea471ed6e6995@syzkaller.appspotmail.com
-> > >
-> > > It looks like a a memfd page was freed with a non-NULL ->mapping.
-> > >
-> > > Joel touched the memfd code with "mm/memfd: add an F_SEAL_FUTURE_WRITE
-> > > seal to memfd" but it would be surprising if syzbot tickled that code?
-> > >
-> > >
-> > > > BUG: Bad page state in process udevd  pfn:472f0
-> > > > name:"memfd:"
-> > > > page:ffffea00011cbc00 count:0 mapcount:0 mapping:ffff88800df2ad40 index:0xf
-> > > > shmem_aops
-> > > > flags: 0x1fffc000008000c(uptodate|dirty|swapbacked)
-> > > > raw: 01fffc000008000c ffffea0000ac4f08 ffff8880a85af890 ffff88800df2ad40
-> > > > raw: 000000000000000f 0000000000000000 00000000ffffffff 0000000000000000
-> > > > page dumped because: non-NULL mapping
-> > > > Modules linked in:
-> > > > CPU: 1 PID: 7586 Comm: udevd Not tainted 5.0.0-rc6-next-20190213 #34
-> > > > Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> > > > Google 01/01/2011
-> > > > Call Trace:
-> > > >   __dump_stack lib/dump_stack.c:77 [inline]
-> > > >   dump_stack+0x172/0x1f0 lib/dump_stack.c:113
-> > > >   bad_page.cold+0xda/0xff mm/page_alloc.c:586
-> > > >   free_pages_check_bad+0x142/0x1a0 mm/page_alloc.c:1014
-> > > >   free_pages_check mm/page_alloc.c:1023 [inline]
-> > > >   free_pages_prepare mm/page_alloc.c:1113 [inline]
-> > > >   free_pcp_prepare mm/page_alloc.c:1138 [inline]
-> > > >   free_unref_page_prepare mm/page_alloc.c:2991 [inline]
-> > > >   free_unref_page_list+0x31d/0xc40 mm/page_alloc.c:3060
-> > > > name:"memfd:"
-> > > >   release_pages+0x60d/0x1940 mm/swap.c:791
-> > > >   pagevec_lru_move_fn+0x218/0x2a0 mm/swap.c:213
-> > > >   __pagevec_lru_add mm/swap.c:917 [inline]
-> > > >   lru_add_drain_cpu+0x2f7/0x520 mm/swap.c:581
-> > > >   lru_add_drain+0x20/0x60 mm/swap.c:652
-> > > >   exit_mmap+0x290/0x530 mm/mmap.c:3134
-> > > >   __mmput kernel/fork.c:1047 [inline]
-> > > >   mmput+0x15f/0x4c0 kernel/fork.c:1068
-> > > >   exec_mmap fs/exec.c:1046 [inline]
-> > > >   flush_old_exec+0x8d9/0x1c20 fs/exec.c:1279
-> > > >   load_elf_binary+0x9bc/0x53f0 fs/binfmt_elf.c:864
-> > > >   search_binary_handler fs/exec.c:1656 [inline]
-> > > >   search_binary_handler+0x17f/0x570 fs/exec.c:1634
-> > > >   exec_binprm fs/exec.c:1698 [inline]
-> > > >   __do_execve_file.isra.0+0x1394/0x23f0 fs/exec.c:1818
-> > > >   do_execveat_common fs/exec.c:1865 [inline]
-> > > >   do_execve fs/exec.c:1882 [inline]
-> > > >   __do_sys_execve fs/exec.c:1958 [inline]
-> > > >   __se_sys_execve fs/exec.c:1953 [inline]
-> > > >   __x64_sys_execve+0x8f/0xc0 fs/exec.c:1953
-> > > >   do_syscall_64+0x103/0x610 arch/x86/entry/common.c:290
-> > > >   entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> > > > RIP: 0033:0x7fc7001ba207
-> > > > Code: Bad RIP value.
-> > > > RSP: 002b:00007ffe06aa13b8 EFLAGS: 00000206 ORIG_RAX: 000000000000003b
-> > > > RAX: ffffffffffffffda RBX: 00000000ffffffff RCX: 00007fc7001ba207
-> > > > RDX: 0000000001fd5fd0 RSI: 00007ffe06aa14b0 RDI: 00007ffe06aa24c0
-> > > > RBP: 0000000000625500 R08: 0000000000001c49 R09: 0000000000001c49
-> > > > R10: 0000000000000000 R11: 0000000000000206 R12: 0000000001fd5fd0
-> > > > R13: 0000000000000007 R14: 0000000001fc6250 R15: 0000000000000005
-> > > > BUG: Bad page state in process udevd  pfn:2b13c
-> > > > page:ffffea0000ac4f00 count:0 mapcount:0 mapping:ffff88800df2ad40 index:0xe
-> > > > shmem_aops
-> > > > flags: 0x1fffc000008000c(uptodate|dirty|swapbacked)
-> > > > raw: 01fffc000008000c ffff8880a85af890 ffff8880a85af890 ffff88800df2ad40
-> > > > raw: 000000000000000e 0000000000000000 00000000ffffffff 0000000000000000
-> > > > page dumped because: non-NULL mapping
-> > > > Modules linked in:
-> > > > CPU: 1 PID: 7586 Comm: udevd Tainted: G    B
-> > > > 5.0.0-rc6-next-20190213 #34
-> > > > Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> > > > Google 01/01/2011
-> > > > Call Trace:
-> > > >   __dump_stack lib/dump_stack.c:77 [inline]
-> > > >   dump_stack+0x172/0x1f0 lib/dump_stack.c:113
-> > > >   bad_page.cold+0xda/0xff mm/page_alloc.c:586
-> > > > name:"memfd:"
-> > > >   free_pages_check_bad+0x142/0x1a0 mm/page_alloc.c:1014
-> > > >   free_pages_check mm/page_alloc.c:1023 [inline]
-> > > >   free_pages_prepare mm/page_alloc.c:1113 [inline]
-> > > >   free_pcp_prepare mm/page_alloc.c:1138 [inline]
-> > > >   free_unref_page_prepare mm/page_alloc.c:2991 [inline]
-> > > >   free_unref_page_list+0x31d/0xc40 mm/page_alloc.c:3060
-> > > >   release_pages+0x60d/0x1940 mm/swap.c:791
-> > > >   pagevec_lru_move_fn+0x218/0x2a0 mm/swap.c:213
-> > > >   __pagevec_lru_add mm/swap.c:917 [inline]
-> > > >   lru_add_drain_cpu+0x2f7/0x520 mm/swap.c:581
-> > > >   lru_add_drain+0x20/0x60 mm/swap.c:652
-> > > >   exit_mmap+0x290/0x530 mm/mmap.c:3134
-> > > >   __mmput kernel/fork.c:1047 [inline]
-> > > >   mmput+0x15f/0x4c0 kernel/fork.c:1068
-> > > >   exec_mmap fs/exec.c:1046 [inline]
-> > > >   flush_old_exec+0x8d9/0x1c20 fs/exec.c:1279
-> > > >   load_elf_binary+0x9bc/0x53f0 fs/binfmt_elf.c:864
-> > > >   search_binary_handler fs/exec.c:1656 [inline]
-> > > >   search_binary_handler+0x17f/0x570 fs/exec.c:1634
-> > > >   exec_binprm fs/exec.c:1698 [inline]
-> > > >   __do_execve_file.isra.0+0x1394/0x23f0 fs/exec.c:1818
-> > > >   do_execveat_common fs/exec.c:1865 [inline]
-> > > >   do_execve fs/exec.c:1882 [inline]
-> > > >   __do_sys_execve fs/exec.c:1958 [inline]
-> > > >   __se_sys_execve fs/exec.c:1953 [inline]
-> > > >   __x64_sys_execve+0x8f/0xc0 fs/exec.c:1953
-> > > >   do_syscall_64+0x103/0x610 arch/x86/entry/common.c:290
-> > > >   entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> > > > RIP: 0033:0x7fc7001ba207
-> > > > Code: Bad RIP value.
-> > > > RSP: 002b:00007ffe06aa13b8 EFLAGS: 00000206 ORIG_RAX: 000000000000003b
-> > > > RAX: ffffffffffffffda RBX: 00000000ffffffff RCX: 00007fc7001ba207
-> > > > RDX: 0000000001fd5fd0 RSI: 00007ffe06aa14b0 RDI: 00007ffe06aa24c0
-> > > > RBP: 0000000000625500 R08: 0000000000001c49 R09: 0000000000001c49
-> > > > R10: 0000000000000000 R11: 0000000000000206 R12: 0000000001fd5fd0
-> > > > R13: 0000000000000007 R14: 0000000001fc6250 R15: 0000000000000005
-> > > >
-> > > >
-> > > > ---
-> > > > This bug is generated by a bot. It may contain errors.
-> > > > See https://goo.gl/tpsmEJ for more information about syzbot.
-> > > > syzbot engineers can be reached at syzkaller@googlegroups.com.
-> > > >
-> > > > syzbot will keep track of this bug report. See:
-> > > > https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with
-> > > > syzbot.
-> > > > syzbot can test patches for this bug, for details see:
-> > > > https://goo.gl/tpsmEJ#testing-patches
-> > >
-> >
-> > It's apparently the bug in the io_uring patchset I reported yesterday (well, I
-> > stole it from another open syzbot bug...) and Jens is already planning to fix:
-> > https://marc.info/?l=linux-api&m=155115288114046&w=2.  Reproducer is similar,
-> > and the crash bisects down to the same commit from the io_uring patchset:
-> > "block: implement bio helper to add iter bvec pages to bio".
-> >
->
-> Fixed in next-20190227.  The fix was folded into "block: implement bio helper to
-> add iter bvec pages to bio".  Telling syzbot to invalidate this bug report:
->
-> #syz invalid
+On 27.02.19 23:00, Mike Kravetz wrote:
+> On 2/27/19 1:51 PM, Oscar Salvador wrote:
+>> On Thu, Feb 21, 2019 at 10:42:12AM +0100, Oscar Salvador wrote:
+>>> [1] https://lore.kernel.org/patchwork/patch/998796/
+>>>
+>>> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+>>
+>> Any further comments on this?
+>> I do have a "concern" I would like to sort out before dropping the RFC:
+>>
+>> It is the fact that unless we have spare gigantic pages in other notes, the
+>> offlining operation will loop forever (until the customer cancels the operation).
+>> While I do not really like that, I do think that memory offlining should be done
+>> with some sanity, and the administrator should know in advance if the system is going
+>> to be able to keep up with the memory pressure, aka: make sure we got what we need in
+>> order to make the offlining operation to succeed.
+>> That translates to be sure that we have spare gigantic pages and other nodes
+>> can take them.
+>>
+>> Given said that, another thing I thought about is that we could check if we have
+>> spare gigantic pages at has_unmovable_pages() time.
+>> Something like checking "h->free_huge_pages - h->resv_huge_pages > 0", and if it
+>> turns out that we do not have gigantic pages anywhere, just return as we have
+>> non-movable pages.
+> 
+> Of course, that check would be racy.  Even if there is an available gigantic
+> page at has_unmovable_pages() time there is no guarantee it will be there when
+> we want to allocate/use it.  But, you would at least catch 'most' cases of
+> looping forever.
+> 
+>> But I would rather not convulate has_unmovable_pages() with such checks and "trust"
+>> the administrator.
 
-Was this discovered separately? We could also add Reported-by (or
-Tested-by) tag to the commit.
+I think we have the exact same issue already with huge/ordinary pages if
+we are low on memory. We could loop forever.
+
+In the long run, we should properly detect such issues and abort instead
+of looping forever I guess. But as we all know, error handling in the
+whole offlining part is still far away from being perfect ...
+
+-- 
+
+Thanks,
+
+David / dhildenb
 
