@@ -2,148 +2,183 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BFB1EC4360F
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 21:01:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05B4EC10F00
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 21:30:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 61AE620C01
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 21:01:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 61AE620C01
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id BD29320857
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 21:30:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD29320857
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B75218E0003; Thu, 28 Feb 2019 16:01:42 -0500 (EST)
+	id 3E6B38E0003; Thu, 28 Feb 2019 16:30:39 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B24478E0001; Thu, 28 Feb 2019 16:01:42 -0500 (EST)
+	id 395878E0001; Thu, 28 Feb 2019 16:30:39 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A15018E0003; Thu, 28 Feb 2019 16:01:42 -0500 (EST)
+	id 2ACD88E0003; Thu, 28 Feb 2019 16:30:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 428D78E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 16:01:42 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id i22so9060340eds.20
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 13:01:42 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DD5088E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 16:30:38 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id t1so15983976plo.20
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 13:30:38 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=FuRHuyMDrl1cSR4D8Guj9sIHBIuPMlCf6W3u7nHcSco=;
-        b=XucH0vXGKCd0fObp2OXahPE6u2JMCYUlH3s6CeiZBcFm6K+VouTirrF6pAK8y87dsc
-         oEbzqi2VyUOH5w7DDomlksC+C27D6Px66MzRZKEYsd/u0mAw6XQyb0usfzuIsT3vpjsf
-         4f56zoiWRYWN/1Rjbi5FUETJhjf1K1Dv1sMQn2UG4OwnQZX548lcSq7+tpH2/sV0M+y+
-         HJ+fEYxfVUAYx920cFgaImVs9y7t4XPtTwxfI0+bx/8KnxcdJ0QSQF0+iFn31CtQe+3X
-         l7Ny7mYO84rtR+YMIntIoSQj3EQrdIXSi7B4h8TVuhcxzz29VeuzmMeItQu+0uHqkLoX
-         beqA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAWIhR4FlT7u1gc6KOuo298fDAeT2WgUqySjIeW63p0gW622HTZs
-	lTjPQMCaHfcUpk1I8JC9zHFvQW9UCBqDMrH9flpqDqDiQXvxVgT3mlpLr+lLYTLUPk9PInksqBA
-	ruNSk7JGJxKJUFRB93VNDxFA/b1h5oLeydk0lyajuFfDlp1asBNF/4yqM/Wzi7qxgcQ==
-X-Received: by 2002:a17:906:b30c:: with SMTP id n12mr545444ejz.49.1551387701829;
-        Thu, 28 Feb 2019 13:01:41 -0800 (PST)
-X-Google-Smtp-Source: APXvYqwAscchw51bjxXKUw1R4xd+kQmYNomr/ZaX3ncnFd7ETnfsQnodRtplaQV9+Hb1OBbkfCOP
-X-Received: by 2002:a17:906:b30c:: with SMTP id n12mr545399ejz.49.1551387700831;
-        Thu, 28 Feb 2019 13:01:40 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551387700; cv=none;
+        bh=35wETTogbcOjrWlVJrnoIrStrH/W/SpoQEfI66MbR58=;
+        b=QQXp980l/zsxLV7CUmQHpqaO4yUpEpS45FNxkhrlKkMnK09YbNaV8WE03YLvwQ2yG4
+         RircwvO+t7coUVpjdzCw07pcikM9Milhkk0tWAigEG8kW4uBojjVq2zs3gRODzS43dz+
+         Rqbedmy6uXZ2Eue6fxMkKFXIC2YAIeFgFtV9/TXFd60mvJA4H5kfBAIaodCpiLFK6MxM
+         ur/J7LYC+rw7+tr/sjq3BWvp2Lj8I1JdI4L0I4d2i57kjPE6NwkAR44DElPItrBxlpft
+         6y66bBVsvemyhUavMH0AmHHs1yymfRKI6QLheWtU6SuJmm+tpp5/edXy9bhH9Hsa99Z9
+         Hv4w==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 150.101.137.141 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAV6ECJIu1IFKJScXU6eiZ2SHB8/xdUZa8+FcihGrSjFD+5pvCmG
+	GlRTJSKE565fGOdO5cBuKzyT537R3QYF+8stQjtccxENsJ4eiyeWBiEh4oYF7YYtYkYA4LWyX01
+	zNZKXt58zPe519K7Xbl+Sf92MHAO4T/bU5Dejl0rY5azpINTBCVX1Bact/DNKlAM=
+X-Received: by 2002:a63:4e57:: with SMTP id o23mr1177699pgl.368.1551389438485;
+        Thu, 28 Feb 2019 13:30:38 -0800 (PST)
+X-Google-Smtp-Source: APXvYqzVOa5R9w+BairvGgB8OPn4yGaggoIlSN+m6JUolmYODT+Q09eYT4R/PamDrmNJBPTG5a97
+X-Received: by 2002:a63:4e57:: with SMTP id o23mr1177618pgl.368.1551389437512;
+        Thu, 28 Feb 2019 13:30:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551389437; cv=none;
         d=google.com; s=arc-20160816;
-        b=ReNg7MP36Mv8rI1BQdx2kiezIS5PPJqhvWzuw8Zjg7O958Ins+9bPxMt2iptUZBGiD
-         Tr+9X98C2ipYJPIfiRgbHE2dJmJgALPM0OMDqQ94rILZyL8djkRxa6QzPdkq6Bjs59nm
-         ThGCQ70Xttgxs5AsY5fi4OCb406vNyBycHTYrfa+lLJkSCoDsJINb/fKOkIrzDexWKPZ
-         sux9QL86GuxMR8hlII4AVRNO02Yz9GheLHDdcVrxX6Htc7+/pT5CBUlwV2/LvzUt9JyB
-         UFbkrP+nfxCoL3sG8q97kn3olt/dysB9M8TOWZT41ilrltxNfkLzBdGzipMQopwiDsSq
-         owAQ==
+        b=huJcAS0JJjmUtCPKcazguaYcXnfACds7JKSxIAlHnvWn6ajGUeNiK1N+kj0aIdnoeQ
+         b5JmAG7bRHqJTPLZwTYzSAi6wTz9MCZZyLdqQdmtPqjZZH6QLS4+1fmvdJDg6DzRwn1l
+         +oFwYq2EjIKjD3GJlYH2qWR28xEZ0FZyq+2nB45cqHLTzQKTk0+oX3tHn92+Tpu1L3tR
+         tqdZp3Dir24EQkc2o5BhqoRd3FZlPpag+Wf0GG0rmQYxevIdS1Lq+1HMGZ+I3rxW69fn
+         klnjYr/x4Ykzf1br6jYwih+VwQtpw6s7C5aE52l8HhdhLjEcI16CYKN36jwDkPSbsVRG
+         kWOw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=FuRHuyMDrl1cSR4D8Guj9sIHBIuPMlCf6W3u7nHcSco=;
-        b=wLggpB+DuiDkh65DSCGpcNtZOF8epmnw9EpV3HivkMxLJMs6F8PvLhAm1CJA9rSvwP
-         FHWZuz7smQuf9B6KdwBISyGJPHuD487pyunTrdB/UJENjDa2fnaUhYSi+NXiLK9X+WPp
-         MDbF3RL0zWou6ePbAjF+C0ww3KgBoyPolYjtjSdDxmNhmH+gp/a8a/23aVXmKXnT1EkA
-         5cWcX76eWJU9uDH/KnsSqnULAECpdm4n4mZ3EbGvC6PWd27Czo3pHj6Xrm3YMt8d2cLv
-         45FygoOJBVfgTzlA1zuEbITRVeYJVavUvaBrIkIhSrCqNanR7udtftuPDJwLtAeRFDGE
-         w9XQ==
+        bh=35wETTogbcOjrWlVJrnoIrStrH/W/SpoQEfI66MbR58=;
+        b=Djk2mYlmrJ+QrxWE1NAt0O1DgmMqa91lOn0a57eucyWnF7LU4dqW5BaEsrPaHLEEo1
+         jZKuL4d90ApFXtioKiKhkrr2N9pEIk8g84BRuFtgK2FOyTAJgcStvCYDmAGie5+XjILf
+         EQ4xUBhYUiS0emFTlBg8no9EDn3oYr44PSEALrzS+sdiNtYwB6lSD14YtdSU5s1j5fy2
+         JTe0DWypcJnsNkw4uHKjcSEm+pncTj3sRk/ASzIbIhlcpZr7Vyv7wNY1n6igToyaI5O3
+         IPy3Ag9zXesY3esxNXth+Hn2LQGaZNSOWkL/fKMK88afqitiVF6OzXRo1/6WeBdRj2ta
+         4ONw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from suse.de (nat.nue.novell.com. [195.135.221.2])
-        by mx.google.com with ESMTP id c3si2633445ejm.98.2019.02.28.13.01.40
+       spf=neutral (google.com: 150.101.137.141 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ipmail03.adl2.internode.on.net (ipmail03.adl2.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id v3si18670252pff.158.2019.02.28.13.30.35
         for <linux-mm@kvack.org>;
-        Thu, 28 Feb 2019 13:01:40 -0800 (PST)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) client-ip=195.135.221.2;
+        Thu, 28 Feb 2019 13:30:36 -0800 (PST)
+Received-SPF: neutral (google.com: 150.101.137.141 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=150.101.137.141;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.221.2 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: by suse.de (Postfix, from userid 1000)
-	id B4FDC4410; Thu, 28 Feb 2019 22:01:39 +0100 (CET)
-Date: Thu, 28 Feb 2019 22:01:39 +0100
-From: Oscar Salvador <osalvador@suse.de>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, david@redhat.com,
-	mike.kravetz@oracle.com
-Subject: Re: [RFC PATCH] mm,memory_hotplug: Unlock 1GB-hugetlb on x86_64
-Message-ID: <20190228210135.3tzfhv763o2gzohw@d104.suse.de>
-References: <20190221094212.16906-1-osalvador@suse.de>
- <20190228092154.GV10588@dhcp22.suse.cz>
- <20190228094104.wbeaowsx25ckpcc7@d104.suse.de>
- <20190228095535.GX10588@dhcp22.suse.cz>
- <20190228101949.qnnzgdhyn6deevnm@d104.suse.de>
- <20190228121115.GA10588@dhcp22.suse.cz>
- <20190228133951.outlsq7swhp3nffr@d104.suse.de>
- <20190228140817.GD10588@dhcp22.suse.cz>
+       spf=neutral (google.com: 150.101.137.141 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from ppp59-167-129-252.static.internode.on.net (HELO dastard) ([59.167.129.252])
+  by ipmail03.adl2.internode.on.net with ESMTP; 01 Mar 2019 08:00:34 +1030
+Received: from dave by dastard with local (Exim 4.80)
+	(envelope-from <david@fromorbit.com>)
+	id 1gzTGC-0001Nt-MC; Fri, 01 Mar 2019 08:30:32 +1100
+Date: Fri, 1 Mar 2019 08:30:32 +1100
+From: Dave Chinner <david@fromorbit.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
+	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"riel@surriel.com" <riel@surriel.com>,
+	"dchinner@redhat.com" <dchinner@redhat.com>,
+	"guroan@gmail.com" <guroan@gmail.com>,
+	Kernel Team <Kernel-team@fb.com>,
+	"hannes@cmpxchg.org" <hannes@cmpxchg.org>
+Subject: Re: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
+Message-ID: <20190228213032.GN23020@dastard>
+References: <20190219071329.GA7827@castle.DHCP.thefacebook.com>
+ <20190220024723.GA20682@dastard>
+ <20190220055031.GA23020@dastard>
+ <20190220072707.GB23020@dastard>
+ <20190221224616.GB24252@tower.DHCP.thefacebook.com>
+ <20190228203044.GA7160@tower.DHCP.thefacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190228140817.GD10588@dhcp22.suse.cz>
-User-Agent: NeoMutt/20170421 (1.8.2)
+In-Reply-To: <20190228203044.GA7160@tower.DHCP.thefacebook.com>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 28, 2019 at 03:08:17PM +0100, Michal Hocko wrote:
-> On Thu 28-02-19 14:40:54, Oscar Salvador wrote:
-> > On Thu, Feb 28, 2019 at 01:11:15PM +0100, Michal Hocko wrote:
-> > > On Thu 28-02-19 11:19:52, Oscar Salvador wrote:
-> > > > On Thu, Feb 28, 2019 at 10:55:35AM +0100, Michal Hocko wrote:
-> > > > > You seemed to miss my point or I am wrong here. If scan_movable_pages
-> > > > > skips over a hugetlb page then there is nothing to migrate it and it
-> > > > > will stay in the pfn range and the range will not become idle.
-> > > > 
-> > > > I might be misunterstanding you, but I am not sure I get you.
-> > > > 
-> > > > scan_movable_pages() can either skip or not a hugetlb page.
-> > > > In case it does, pfn will be incremented to skip the whole hugetlb
-> > > > range.
-> > > > If that happens, pfn will hold the next non-hugetlb page.
+On Thu, Feb 28, 2019 at 08:30:49PM +0000, Roman Gushchin wrote:
+> On Thu, Feb 21, 2019 at 02:46:17PM -0800, Roman Gushchin wrote:
+> > On Wed, Feb 20, 2019 at 06:27:07PM +1100, Dave Chinner wrote:
+> > > On Wed, Feb 20, 2019 at 04:50:31PM +1100, Dave Chinner wrote:
+> > > > I'm just going to fix the original regression in the shrinker
+> > > > algorithm by restoring the gradual accumulation behaviour, and this
+> > > > whole series of problems can be put to bed.
 > > > 
-> > > And as a result the previous hugetlb page doesn't get migrated right?
-> > > What does that mean? Well, the page is still in use and we cannot
-> > > proceed with offlining because the full range is not isolated right?
+> > > Something like this lightly smoke tested patch below. It may be
+> > > slightly more agressive than the original code for really small
+> > > freeable values (i.e. < 100) but otherwise should be roughly
+> > > equivalent to historic accumulation behaviour.
+> > > 
+> > > Cheers,
+> > > 
+> > > Dave.
+> > > -- 
+> > > Dave Chinner
+> > > david@fromorbit.com
+> > > 
+> > > mm: fix shrinker scan accumulation regression
+> > > 
+> > > From: Dave Chinner <dchinner@redhat.com>
 > > 
-> > I might be clumsy today but I still fail to see the point of concern here.
+> > JFYI: I'm testing this patch in our environment for fixing
+> > the memcg memory leak.
+> > 
+> > It will take a couple of days to get reliable results.
+> > 
 > 
-> No, it's me who is daft. I have misread the patch and seen that also
-> page_huge_active got removed. Now it makes perfect sense to me because
-> active pages are still handled properly.
+> So unfortunately the proposed patch is not solving the dying memcg reclaim
+> issue. I've tested it as is, with s/ilog2()/fls(), suggested by Johannes,
+> and also with more a aggressive zero-seek slabs reclaim (always scanning
+> at least SHRINK_BATCH for zero-seeks shrinkers).
 
-Heh, no worries.
-Glad we got the point, I was just scratching my head like a monkey.
+Which makes sense if it's inodes and/or dentries shared across
+multiple memcgs and actively referenced by non-owner memcgs that
+prevent dying memcg reclaim. i.e. the shrinkers will not reclaim
+frequently referenced objects unless there is extreme memory
+pressure put on them.
 
-> I will leave the decision whether to split up the patch to you.
+> In all cases the number
+> of outstanding memory cgroups grew almost linearly with time and didn't show
+> any signs of plateauing.
 
-On a second thought, I will split it up.
-One of the changes is merely to remove a redundant check, while the other is
-actually the one that enables the system to be able to proceed with gigantic
-pages, so not really related.
+What happend to the amount of memory pinned by those dying memcgs?
+Did that change in any way? Did the rate of reclaim of objects
+referencing dying memcgs improve? What type of objects are still
+pinning those dying memcgs? did you run any traces to see how big
+those pinned caches were and how much deferal and scanning work was
+actually being done on them?
 
-> Acked-by: Michal Hocko <mhocko@suse.com>
+i.e. if all you measured is the number of memcgs over time, then we
+don't have any information that tells us whether this patch has had
+any effect on the reclaimable memory footprint of those dying memcgs
+or what is actually pinning them in memory.
 
-Thanks!
+IOWs, we need to know if this patch reduces the dying memcg
+references down to just the objects that non-owner memcgs are
+keeping active in cache and hence preventing the dying memcgs from
+being freed. If this patch does that, then the shrinkers are doing
+exactly what they should be doing, and the remaining problem to
+solve is reparenting actively referenced objects pinning the dying
+memcgs...
 
+Cheers,
+
+Dave.
 -- 
-Oscar Salvador
-SUSE L3
+Dave Chinner
+david@fromorbit.com
 
