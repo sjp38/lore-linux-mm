@@ -5,95 +5,91 @@ X-Spam-Level:
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 81F28C10F06
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 19:11:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AF3ADC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 19:39:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 52885218D8
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 19:11:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 52885218D8
+	by mail.kernel.org (Postfix) with ESMTP id 71A23218B0
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 19:39:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 71A23218B0
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CB31B8E0003; Thu, 28 Feb 2019 14:11:13 -0500 (EST)
+	id EE9C08E0003; Thu, 28 Feb 2019 14:39:48 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C621D8E0001; Thu, 28 Feb 2019 14:11:13 -0500 (EST)
+	id E6F128E0001; Thu, 28 Feb 2019 14:39:48 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B50DC8E0003; Thu, 28 Feb 2019 14:11:13 -0500 (EST)
+	id CEAEA8E0003; Thu, 28 Feb 2019 14:39:48 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 722258E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 14:11:13 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id 59so15718217plc.13
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 11:11:13 -0800 (PST)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 927558E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 14:39:48 -0500 (EST)
+Received: by mail-pl1-f197.google.com with SMTP id s16so15807876plr.1
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 11:39:48 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=sRkWVXQmUxMvFG+RDgTGvVK2nK5SU1geAcP/sYeiDCo=;
-        b=fQpcUUjw+JTKZ8hHhoJARUDBitx9u8+lGdUYxMgoYafYdMFWFTvq9QGTKpJDUDqer8
-         f5ecYK5yDESIYsiJaOi1XY/jKjW6KOIViR8gVGPF+7lJlymKWtVIWpw3hAIg9t6OEN+S
-         jvC0Cgdsi+UPfHBrGLdkl5q48E6SJmgX3hkI82+aLkXpwv7XVYCyT9MYJX/QpSlNVcqp
-         oZ2ptVkG7OvxluCM6GBmGmHTXxtDEa1Aa0iYnfh0TmS8usvu4ig+oqH4W6hUJjkEhp5p
-         XFT3jQm5vYSYGQU2vpkLadQbotLa4kBVJ0eLYAuR/JZhZB8FNqWdu3k8u/qiL8SJv1/H
-         kw3w==
+        bh=GOBGmfitmgfp2fZRXxCPM7NgqK7BmhpGJuQxWXI4opI=;
+        b=K8GeCz5Z2MBjFNJKctWOLLXlESxBSh+k0lah2ZZwnxdXurq8GdGKp0Y+QXfRaqEtcP
+         X8C6TGi4X46dN0P6D4UHgYpv+cLqIJ93TDqt85YBImolAg5kZwe/j7EVbIvNsh1KyVHA
+         jcPBn3SaaVmJseC1Bc66bffMmGo3S57UhTnYuEsdjPatDONSGFb5EaWwC2g5Jn9l1Ies
+         +tuPZNCDQUPsFj0dqW5FH0tGDT7+Z0ccIH/fE7DuJf4d123YSrpOR8h8H93RcpTuF13U
+         +FKKbaRMLPxHDBQuWFWdapPTItwQ4UHIMuGHaTM3knp+O1Qqy/pXiYWYxdzJ7S2W+qKj
+         6k2w==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: APjAAAVtdjfqX8yYnlTDD5996OkN2hJZPb/MXTXGSOCdV5FuqzPGS+bw
-	prDQ6c49tDJPcY9BRdve5fCNL4bFmOdOkb9tLP4T15jkmTU19Akb8GQ6lscvmIvAWKWWynHn4sk
-	VoVOce1Irk7S/VnXkWCSrbaCtEBMmLomym1jwykJmURm7rVCC4p+MxODDRSH1SNT1ug==
-X-Received: by 2002:a17:902:166:: with SMTP id 93mr1002293plb.20.1551381073099;
-        Thu, 28 Feb 2019 11:11:13 -0800 (PST)
-X-Google-Smtp-Source: APXvYqy8RWCOtOXkjikTGqf2FLIiKuQE9dOTyVHX+Hp11Psc3qB+nwLUVzy+zkNDfQGxsDkYNNiH
-X-Received: by 2002:a17:902:166:: with SMTP id 93mr1002218plb.20.1551381072121;
-        Thu, 28 Feb 2019 11:11:12 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551381072; cv=none;
+X-Gm-Message-State: APjAAAVbBaTBsFc7LagBVPpHguH2xWKr9+yApNOF9Tb6QmCj3TNkofbN
+	rrhBbMu5q9Wn9KmqlSJcwuB1/b/70AwxftFKXwfTt4f3m5zSIUemx/GjY6c8UTBYa5H5e5hqpzY
+	3aPjiyQQezZnk71uoUEmgcCrwd+UJupf2UNGFAi9wyF5g7yrt34wG5gLJkA4yEBpHDA==
+X-Received: by 2002:a17:902:2888:: with SMTP id f8mr1107736plb.244.1551382788265;
+        Thu, 28 Feb 2019 11:39:48 -0800 (PST)
+X-Google-Smtp-Source: APXvYqzwl9iGSRCPcEpKn8EAhCP7Dk8vwP8QFtOZWd6B2lMfUJksE0lkyvF6m/cCUMu6+RRDnk7p
+X-Received: by 2002:a17:902:2888:: with SMTP id f8mr1107659plb.244.1551382787273;
+        Thu, 28 Feb 2019 11:39:47 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551382787; cv=none;
         d=google.com; s=arc-20160816;
-        b=qLl8Eo/TqA1c/eroy3dIs5gf2+Lc+cc4TTfivZv+RNABT/ZGtZvbWdQh0WbQZcgCcy
-         37HP0x56jnVNZfePS+CmEZs2IreAKUzhAAvriW8iwkJWZy+pqFdWGDVyy1GjllccV6LX
-         H9qhoatIyNVyxQEdjN2fuWLMa6WWPyokWzngYZ6o8JPGkAXun17XupHd7qn84gdkK0dm
-         PcWMIWCoZtC2aTgXG53vO3AxKtSNN1tzMsuACQ7p2OnKIvjJjEfxLCjxNfWimRRAGxBc
-         TVh+lgWYenltUU2ODifdEwVVFHnCku61PDMfiQpz4vz8SrXWSR5+erQQWe+YdpnolAmO
-         AqEg==
+        b=M+y1jc2oxe54jOKoLkaAs1atkTDv8ctcszGUEqHwXIlaxJkDqqDY9l4P5oDrH+j9Zt
+         8yBQ5HfdAAQkP94RGXhYAeDLDUZ5if7+5njYPhicdoKSXMZTVDBJRACjjdqzq1XmZiVd
+         4GV9MzviCV4HzfEaPa79jrxeG7+b7Nb2qi3d7Da4rL1uBeikRIlY+OCAKEo2schC26U6
+         WDhhqiFY4Ra9qAF3TcM7PWmGel0Vi5jpBepXGOZiFc5dwzUig/ST0ta4Iclb4wDHwncO
+         Gd4SNwzOAR54rtod1q0bfJr1Dk62mL0ueXLaNYJOrivpJ6yG9rDSn8AyW0N+i3HgC1dn
+         Y7YA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date;
-        bh=sRkWVXQmUxMvFG+RDgTGvVK2nK5SU1geAcP/sYeiDCo=;
-        b=lb16auerJxS0mzKS0STgJz/kfiVG5BgzWV/JIFHrfLTDtbwq3uI3RteMt3yKihDpL6
-         WcWi8DO/be4Rvz1bgcF5ljIvMeyoyJlpqf3r+B03gLLh9XiRfC27UVwnTQwRj1/G5zxU
-         2Vqktky9f283deUA2eJtCp2wuLmG1Ot8LjA/GKxU3SNQK5V1O0x4Nb8A/33AS3xqL2OX
-         6qM7FYN5xXaYs9dOutuO6Iwsq1I8S5xABi0Zce6sZ/4qDGDI2K/46EQrbkL/EmsaEqzS
-         iNAEUolLymo14DOg3NsxGrHDAxINGhyliWHxSRUuLsU1RJKL5C13DgLpvV6CfxDI3Tj0
-         57pA==
+        bh=GOBGmfitmgfp2fZRXxCPM7NgqK7BmhpGJuQxWXI4opI=;
+        b=jV9jm9pdzDom0+Ni5KDNXTtbh96v7i1CNF83lFgGb7tHZSix/I0f50jomP35BT4iir
+         U+mUVVOeTWLOurISLY3+ANniC91ayJ+3wSfYtptANv5qcO4NNCrXc6CVoJjRhOjnKliq
+         aN1izu5B7RXRs6I8KR4crc3vJ50jNzN9agyCBUQwL0xVWcy2XDmUpUW/zGhwph+IJouR
+         7gkTqaAnaiqeoZbroCfCJwDd42E6nBCb3urCWAL89iWYS9Y2p97NqemaZWUq+zIZ0oky
+         aYLeVjF4hswUEaZVAZCcunf1UCVz8ucfQ9HIz96AtIGmBTHL3fPUrSgdyKzm844hny2e
+         Xmdw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id bi11si6912580plb.164.2019.02.28.11.11.11
+        by mx.google.com with ESMTPS id s184si13208257pgs.279.2019.02.28.11.39.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Feb 2019 11:11:12 -0800 (PST)
+        Thu, 28 Feb 2019 11:39:47 -0800 (PST)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 3505BAFD2;
-	Thu, 28 Feb 2019 19:11:11 +0000 (UTC)
-Date: Thu, 28 Feb 2019 11:11:10 -0800
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 79B78ADD0;
+	Thu, 28 Feb 2019 19:39:46 +0000 (UTC)
+Date: Thu, 28 Feb 2019 11:39:45 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: rcampbell@nvidia.com, linux-mm@kvack.org, Waiman Long
- <longman@redhat.com>, Linux API <linux-api@vger.kernel.org>, Alexander
- Duyck <alexander.duyck@gmail.com>, Andi Kleen <ak@linux.intel.com>, Florian
- Weimer <fweimer@redhat.com>, Linus Torvalds
- <torvalds@linux-foundation.org>, "stable@vger.kernel.org"
- <stable@vger.kernel.org>
-Subject: Re: [PATCH] numa: Change get_mempolicy() to use nr_node_ids instead
- of MAX_NUMNODES
-Message-Id: <20190228111110.564d84f62a1b294ca5b1f9df@linux-foundation.org>
-In-Reply-To: <32575d26-b141-6985-833a-12d48c0dce6a@suse.cz>
-References: <20190211180245.22295-1-rcampbell@nvidia.com>
-	<20190211112759.a7441b3486ea0b26dec40786@linux-foundation.org>
-	<32575d26-b141-6985-833a-12d48c0dce6a@suse.cz>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: npiggin@gmail.com, benh@kernel.crashing.org, paulus@samba.org,
+ mpe@ellerman.id.au, x86@kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-mm@kvack.org
+Subject: Re: [PATCH V5 0/5] NestMMU pte upgrade workaround for mprotect
+Message-Id: <20190228113945.9d268b76bae26707e569681b@linux-foundation.org>
+In-Reply-To: <87k1hltxoc.fsf@linux.ibm.com>
+References: <20190116085035.29729-1-aneesh.kumar@linux.ibm.com>
+	<20190226153733.2552bb48dd195ae3bd46c3ef@linux-foundation.org>
+	<87k1hltxoc.fsf@linux.ibm.com>
 X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -104,59 +100,30 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Feb 2019 19:38:47 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
+On Wed, 27 Feb 2019 14:28:43 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> wrote:
 
-> On 2/11/19 8:27 PM, Andrew Morton wrote:
-> > On Mon, 11 Feb 2019 10:02:45 -0800 <rcampbell@nvidia.com> wrote:
-> > 
-> >> From: Ralph Campbell <rcampbell@nvidia.com>
-> >> 
-> >> The system call, get_mempolicy() [1], passes an unsigned long *nodemask
-> >> pointer and an unsigned long maxnode argument which specifies the
-> >> length of the user's nodemask array in bits (which is rounded up).
-> >> The manual page says that if the maxnode value is too small,
-> >> get_mempolicy will return EINVAL but there is no system call to return
-> >> this minimum value. To determine this value, some programs search
-> >> /proc/<pid>/status for a line starting with "Mems_allowed:" and use
-> >> the number of digits in the mask to determine the minimum value.
-> >> A recent change to the way this line is formatted [2] causes these
-> >> programs to compute a value less than MAX_NUMNODES so get_mempolicy()
-> >> returns EINVAL.
-> >> 
-> >> Change get_mempolicy(), the older compat version of get_mempolicy(), and
-> >> the copy_nodes_to_user() function to use nr_node_ids instead of
-> >> MAX_NUMNODES, thus preserving the defacto method of computing the
-> >> minimum size for the nodemask array and the maxnode argument.
-> >> 
-> >> [1] http://man7.org/linux/man-pages/man2/get_mempolicy.2.html
-> >> [2] https://lore.kernel.org/lkml/1545405631-6808-1-git-send-email-longman@redhat.com
+> Andrew Morton <akpm@linux-foundation.org> writes:
 > 
-> Please, the next time include linux-api and people involved in the previous
-> thread [1] into the CC list. Likely there should have been a Suggested-by: for
-> Alexander as well.
+> > [patch 1/5]: unreviewed and has unaddressed comments from mpe.
+> > [patch 2/5]: ditto
+> > [patch 3/5]: ditto
+> > [patch 4/5]: seems ready
+> > [patch 5/5]: reviewed by mpe, but appears to need more work
 > 
-> >> 
-> > 
-> > Ugh, what a mess.
+> That was mostly variable naming preferences. I like the christmas
+> tree style not the inverted christmas tree. There is one detail about
+> commit message, which indicate the change may be required by other
+> architecture too. Was not sure whether that needed a commit message
+> update.
 > 
-> I'm afraid it's even somewhat worse mess now.
+> I didn't send an updated series because after replying to most of them I
+> didn't find a strong request to get the required changes in. If you want
+> me update the series with this variable name ordering and commit message
+> update I can send a new series today.
 > 
-> > For a start, that's a crazy interface.  I wish that had been brought to
-> > our attention so we could have provided a sane way for userspace to
-> > determine MAX_NUMNODES.
-> > 
-> > Secondly, 4fb8e5b89bcbbb ("include/linux/nodemask.h: use nr_node_ids
-> > (not MAX_NUMNODES) in __nodemask_pr_numnodes()") introduced a
-> 
-> There's no such commit, that sha was probably from linux-next. The patch is
-> still in mmotm [1]. Luckily, I would say. Maybe Linus or some automation could
-> run some script to check for bogus Fixes tags before accepting patches?
 
-Ah, that's a relief.
+OK, minor stuff.
 
-How about we just drop "include/linux/nodemask.h: use nr_node_ids (not
-MAX_NUMNODES) in __nodemask_pr_numnodes()"
-(https://ozlabs.org/~akpm/mmotm/broken-out/include-linux-nodemaskh-use-nr_node_ids-not-max_numnodes-in-__nodemask_pr_numnodes.patch)?
-It's just a cosmetic thing, really.
-
+The patches have been in -next for a month, which is good but we really
+should get some review of the first three.
 
