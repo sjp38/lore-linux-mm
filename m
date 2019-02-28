@@ -2,189 +2,241 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E73EFC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 16:45:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C12BC10F00
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 17:42:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8FD952184A
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 16:45:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1C075218C3
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 17:42:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="sKjZahpq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8FD952184A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="jPygwu9B"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C075218C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2C2838E000C; Thu, 28 Feb 2019 11:45:46 -0500 (EST)
+	id 8634B8E0003; Thu, 28 Feb 2019 12:42:58 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2490C8E0001; Thu, 28 Feb 2019 11:45:46 -0500 (EST)
+	id 813828E0001; Thu, 28 Feb 2019 12:42:58 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0EB808E000C; Thu, 28 Feb 2019 11:45:46 -0500 (EST)
+	id 700D18E0003; Thu, 28 Feb 2019 12:42:58 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D3EEF8E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 11:45:45 -0500 (EST)
-Received: by mail-ot1-f72.google.com with SMTP id i4so9940650otf.3
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 08:45:45 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E27E8E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 12:42:58 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id t26so15448617pgu.18
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 09:42:58 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=GvhxX4m4DDgRvunBUbdiOHoUSvWB/Hk337al+7FlQLk=;
-        b=rAoN5xZ3XLH+nDT4XWuglw0nZcT2V6HaAUT1yAG4Dwh/6AGKi0EOymqoIegElh1M+j
-         SbwmEfEU8XDwkTfgGQ06TdCZL/ZhCTN5lE6Z3gnwcBN1z/QDGASA90Pnh2SOb6rYQ0oT
-         6n+S+uYLevE80sve8mqe59T2pKOhM9HryL5/D9vH8R0EfjWRJETEk0lmgRfnNDFrwD76
-         xLM9iGMMGBgFaIQlOhrqZ2UuetWFatJXDbYM1keZvrALpSCahncV9esCx8hEd8ESYEO5
-         I8yeApYTkSin45gdyYb+m9wXUGiWJ8rcTE/Y/QQEMtcvYpVwtxVEk/fPHAIJCgt8G+cl
-         m12g==
-X-Gm-Message-State: APjAAAVsF5nFtNxNeZvhm/RekR5wn4CS/bc1MCOB0OqIWXC8kNdIlNio
-	4MSOLwlD5q6/uuvxblQt/LrZkJnbJiFciKkl0ynfcOuzPq3XAiFOulwgphO5Rqs6OW4VnjJ2W5w
-	WmG6qEoEOHgGhJ8pA8jAivs/ofTJODgXawH1ENiciVY/GyqjuBwUHxKlu7hZV59JjMaRPDjPOzj
-	LZCbP/gwH6PaijQeU1vWpZftvBbPMltoQ+2S5WaDzcjbZpMhFFSGKZsm9u7fJGUJKjGH9hQqsRB
-	sOizzBS7nn2otBgqUqbyWRMxLQyLztOZGemxQQPWVzMmU+SkLLhnzIGe5/bvwgVlV1Ew4gtFdKx
-	S9Pf3tB2pEkNu7t9WzLQNBFpv98lgJQF/2aPV1CkDI0gybgyTq2Gj7y8SZpW+3uCsTBEqAhk6R0
-	D
-X-Received: by 2002:a9d:2944:: with SMTP id d62mr324212otb.193.1551372345633;
-        Thu, 28 Feb 2019 08:45:45 -0800 (PST)
-X-Received: by 2002:a9d:2944:: with SMTP id d62mr324151otb.193.1551372344630;
-        Thu, 28 Feb 2019 08:45:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551372344; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=N30MeZgN+dV9o/nD8vhlxJ9NHedaznKWddtaKKbBLfI=;
+        b=s9ft3St/8LoBtcj58iiq2YJ+7DO3abIp63Yk5WiQMSpEgeyi7dcH387oGSlzLbMKnx
+         qvPpj81O19BmuKVCpk4c3afYsHYRvRePL5vnt69MKHD5MjM7y8lVXcZJB/mdYuSzrBgN
+         T8fbUbWS3JUv98a9EOA83CPG6pOg1MRm0ABM0gqNKZgrH+5bhR6hOWksLQ7VQXWCYLvf
+         7ogkwrqCUs4lqb5qOBdJnMe5a0B1luJSnwsW/1pItcfMhTWhMNXrC2w3+ToUUIq3cTy0
+         z3BvyUZSMZDKQb7+VLf/e0FAKSuDppMcB5VWb630jr0cM3LsJORS44vSbVaw+7RjGB9Z
+         Aarg==
+X-Gm-Message-State: APjAAAURP2NQBxLP8Oe7UPvtcZHVvkkmOIfAY21B2JVE5EXGDHXmjt1/
+	gViestTmGlSLdepV1jfjOaWDJZKqUA1E+mHuRIwfZ/pfH4w3rqRhm8nhIkrbBAi6+iowbACbnDu
+	nlLfuS/LiR3CXFQz4G2bYDBALoOzzNt5eCEQx1Qcf8RObB552eYJlO8H8Ldg2VKW50A==
+X-Received: by 2002:a17:902:2f03:: with SMTP id s3mr508080plb.277.1551375777765;
+        Thu, 28 Feb 2019 09:42:57 -0800 (PST)
+X-Google-Smtp-Source: APXvYqzkHJ7PzjVtfcfjwf7nNloQMObN+3tNgW3lkj7gTSH2t3Xm7HvLlRiLRbC8rnDxZUZpSy85
+X-Received: by 2002:a17:902:2f03:: with SMTP id s3mr507979plb.277.1551375776405;
+        Thu, 28 Feb 2019 09:42:56 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551375776; cv=none;
         d=google.com; s=arc-20160816;
-        b=HJsKYPTcCLzytNrW5bf94sN2ksIc5FjwfXLNKG3Dut9S6D0Upii4BM1Ks7vdFyaaUW
-         +Yo5KvlkHDTx3Bpsu5jRLQZ+ZTm0CMCkv8gco52F1IpxvOuSvUwbh42fm0/IF4qt7O06
-         nB80D780Ghu1Qhoy2AlhfYPiFhHNG1GImDp81zmD3GciDvEGzZDALWqk4I6vB1lHJ3v6
-         Vdv9QrshslcrbPV4vPBWNwJEWgEwr0i282xgXFILPtQqOgWr2arZkIyRaoOctgQwetbp
-         fakmlZKy9Eyw3FgnGuVN2kv/dz3wdETSHWWu9tjsq6ykvuqyLwxGcU+KATPgT/45+h5P
-         YfUQ==
+        b=eOG4Qwtt8HjHUFtg9Fnd9kp3uE67FpGsOwgN1K3U0hDCu+qBs09n9iIamuWW6FEBna
+         CVPBE8rvFkxZ7LZAfPND/UCFJTHIaWJ1jFtpE072lg4kG/RNe+cu7z68HxWl+AGl8YPm
+         u6Wyzsi9XTJ49OAfw6wNUVXI4uDPhpSTscW31a0hhQHmFEfC2SCN4Vv2m6QdWh9KbNxT
+         s9q6hHNjFIwsZ0k9y8CZXuk5E24hzLeMvghoduLxR73NI/nJqIAWg/fejZ6huqVmtAaO
+         51KnC9/XbB/WH+4eA7bhWaEZowFxxScvSoHPHvSqX5bpBcLPojjhmjg7NNKS2AbotLrQ
+         sTKQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=GvhxX4m4DDgRvunBUbdiOHoUSvWB/Hk337al+7FlQLk=;
-        b=m9Oaohpn1foqr5VBIrcuMXF9+iOTB89NhglV92akjIqtx1rcy4S/WfayUWHSlNgBRC
-         CE0CEApho4nmByYAoXPtBpKjbH2b8v6qRJ9BxdsiGrYTok5E7CjmFe29cBMP1rX/jTJ/
-         i8NS0t/cZZHVZ2fas7Ln1RSoPtnkzibw+aYeSvA71anewjPc7823HMw72jm0EkE5GrQ5
-         J9MZ/sW0Rnl8ZISdlNjBX2XbFVrWa2TkmXdxJfrfJ3VCMykIhqW04VsNQ5BNqler447c
-         bJIZ/A24nFwTJKCmvHsjUTlKx/Bx4FNt3VkZMYy7H8l4sLLTMXjDjsKtED1QS4IPkVd0
-         EH1w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=N30MeZgN+dV9o/nD8vhlxJ9NHedaznKWddtaKKbBLfI=;
+        b=vbnt0Ds8ttNRKuqafitweeqaOlUgwBrQUpFMJKDtzgU38dmgTGtBsZUIb8YO60Pdf5
+         bJyXHd/3IEMZF2xYUO/3zrjTWh87Pd4FBunXCdwCoVDLh5BE01GxmelYWSEi/CZaJvca
+         h8wiA3seuRLRHdQMZLO62hvB13Q76hhGavnD0W5GJ3uSfJwbKljrCGNRZXzXB2TCTfUk
+         k9B2aXA33QCAFWWd27GWTKQkM+cUHowBNvMaah2l0wEUU+mc57s6a3nPNgL8AV2+GoVZ
+         AgZCLvK8YK7KtM/sljKkVsBNcwOSSOnOEIm9ziR7lQl4plM99FXWa3zsJcSXVEPKZnVf
+         6FjQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=sKjZahpq;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e68sor6436758oih.92.2019.02.28.08.45.44
+       dkim=pass header.i=@kernel.org header.s=default header.b=jPygwu9B;
+       spf=pass (google.com: domain of ebiggers@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=ebiggers@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id e67si18917743plb.107.2019.02.28.09.42.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Feb 2019 08:45:44 -0800 (PST)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Feb 2019 09:42:56 -0800 (PST)
+Received-SPF: pass (google.com: domain of ebiggers@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=sKjZahpq;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=GvhxX4m4DDgRvunBUbdiOHoUSvWB/Hk337al+7FlQLk=;
-        b=sKjZahpqLoNNijSf1ASjSZV8KHb1T2pBvfJ8ZXu7oVWb4/P10/h8rJerPiBktmGf/z
-         7NfEcLHD3p4zXo1ZmYr7MImWVn17oPPpOlQMe5LErUC9EIoXIaD6FTjJG9UM2GfOXNM6
-         vFmRb4RxT+LbMnU5VU60eP+/722YCg4aFyiYs2S7A5jngKXOVsjRxC/1KNPMaKM71nT+
-         mfcvH8LyhTwrnmpC0N1p7puJbqW752XYw6l//tQW8kvsUZvrKsKBNgyLyLfx5OOWa61R
-         /c9koXc2E95zIEqo1Rbs06GS9SjZecXBT62GCD3n2g4xiAbfmeAMn/h9gUzD/D/+BwdJ
-         wirw==
-X-Google-Smtp-Source: AHgI3Ialxeei+TqZP4it7v2/IHqhibSwTNUvWajfoBg7rMbaO6RwmNOzFKIZGvWfOT0mpIi9Wh7jEeFSztTtzScKpmE=
-X-Received: by 2002:aca:32c3:: with SMTP id y186mr388997oiy.118.1551372344134;
- Thu, 28 Feb 2019 08:45:44 -0800 (PST)
+       dkim=pass header.i=@kernel.org header.s=default header.b=jPygwu9B;
+       spf=pass (google.com: domain of ebiggers@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=ebiggers@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from sol.localdomain (c-107-3-167-184.hsd1.ca.comcast.net [107.3.167.184])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 3BCAD218AE;
+	Thu, 28 Feb 2019 17:42:55 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1551375775;
+	bh=d8e7T42KUlXEEANUdA/guW/jl/Ub8ydIqF2vE8bMwgw=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=jPygwu9BrM6k6eC7W8MfW/MFzAgtRenBiax68tr6Dl2iu4yLiIFpj+HB+V+wClPN3
+	 Uv1tusQZjRcIWe1aMypMFG21TBsGgRMesOpYpv2WWG3/FgovdCAtlqNNJ1F2owV7V8
+	 UmP/on6gQfAezLsvP+EEpHsahfDuBgaZrF9oZ5Ns=
+Date: Thu, 28 Feb 2019 09:42:53 -0800
+From: Eric Biggers <ebiggers@kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: syzbot <syzbot+6f5a9b79b75b66078bf0@syzkaller.appspotmail.com>,
+	Jens Axboe <axboe@kernel.dk>,
+	Andrew Morton <akpm@linux-foundation.org>, arunks@codeaurora.org,
+	Dan Williams <dan.j.williams@intel.com>,
+	Lance Roy <ldr709@gmail.com>, LKML <linux-kernel@vger.kernel.org>,
+	Linux-MM <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>,
+	nborisov@suse.com, Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Matthew Wilcox <willy@infradead.org>, yuehaibing@huawei.com
+Subject: Re: BUG: Bad page state (6)
+Message-ID: <20190228174250.GB663@sol.localdomain>
+References: <00000000000024b3aa0582f1cde7@google.com>
+ <CACT4Y+byrcaasUaEJj=hcemEEBBkon=VC24gPwGXHzfeRP0E3w@mail.gmail.com>
 MIME-Version: 1.0
-References: <20190228083522.8189-1-aneesh.kumar@linux.ibm.com>
- <20190228083522.8189-2-aneesh.kumar@linux.ibm.com> <CAOSf1CHjkyX2NTex7dc1AEHXSDcWA_UGYX8NoSyHpb5s_RkwXQ@mail.gmail.com>
-In-Reply-To: <CAOSf1CHjkyX2NTex7dc1AEHXSDcWA_UGYX8NoSyHpb5s_RkwXQ@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 28 Feb 2019 08:45:32 -0800
-Message-ID: <CAPcyv4jhEvijybSVsy+wmvgqfvyxfePQ3PUqy1hhmVmPtJTyqQ@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm/dax: Don't enable huge dax mapping by default
-To: Oliver <oohall@gmail.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>, 
-	Michael Ellerman <mpe@ellerman.id.au>, Ross Zwisler <zwisler@kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+byrcaasUaEJj=hcemEEBBkon=VC24gPwGXHzfeRP0E3w@mail.gmail.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 28, 2019 at 1:40 AM Oliver <oohall@gmail.com> wrote:
->
-> On Thu, Feb 28, 2019 at 7:35 PM Aneesh Kumar K.V
-> <aneesh.kumar@linux.ibm.com> wrote:
+On Thu, Feb 28, 2019 at 11:36:21AM +0100, 'Dmitry Vyukov' via syzkaller-bugs wrote:
+> On Thu, Feb 28, 2019 at 11:32 AM syzbot
+> <syzbot+6f5a9b79b75b66078bf0@syzkaller.appspotmail.com> wrote:
 > >
-> > Add a flag to indicate the ability to do huge page dax mapping. On architecture
-> > like ppc64, the hypervisor can disable huge page support in the guest. In
-> > such a case, we should not enable huge page dax mapping. This patch adds
-> > a flag which the architecture code will update to indicate huge page
-> > dax mapping support.
->
-> *groan*
->
-> > Architectures mostly do transparent_hugepage_flag = 0; if they can't
-> > do hugepages. That also takes care of disabling dax hugepage mapping
-> > with this change.
+> > Hello,
 > >
-> > Without this patch we get the below error with kvm on ppc64.
+> > syzbot found the following crash on:
 > >
-> > [  118.849975] lpar: Failed hash pte insert with error -4
+> > HEAD commit:    42fd8df9d1d9 Add linux-next specific files for 20190228
+> > git tree:       linux-next
+> > console output: https://syzkaller.appspot.com/x/log.txt?x=179ba9e0c00000
+> > kernel config:  https://syzkaller.appspot.com/x/.config?x=c0f38652d28b522f
+> > dashboard link: https://syzkaller.appspot.com/bug?extid=6f5a9b79b75b66078bf0
+> > compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+> > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=12ed6bd0c00000
+> > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=10690c8ac00000
 > >
-> > NOTE: The patch also use
+> > IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> > Reported-by: syzbot+6f5a9b79b75b66078bf0@syzkaller.appspotmail.com
+> 
+> +Jens, Eric,
+> 
+> Looks similar to:
+> https://groups.google.com/forum/#!msg/syzkaller-bugs/E3v3XQweVBw/6BPrkIYJIgAJ
+> Perhaps the fixing commit is not in the build yet?
+> 
+> 
+> > BUG: Bad page state in process syz-executor193  pfn:9225a
+> > page:ffffea0002489680 count:0 mapcount:0 mapping:ffff88808652fd80 index:0x81
+> > shmem_aops
+> > name:"memfd:cgroup2"
+> > flags: 0x1fffc000008000e(referenced|uptodate|dirty|swapbacked)
+> > raw: 01fffc000008000e ffff88809277fac0 ffff88809277fac0 ffff88808652fd80
+> > raw: 0000000000000081 0000000000000000 00000000ffffffff 0000000000000000
+> > page dumped because: non-NULL mapping
+> > Modules linked in:
+> > CPU: 0 PID: 7659 Comm: syz-executor193 Not tainted 5.0.0-rc8-next-20190228
+> > #45
+> > Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> > Google 01/01/2011
+> > Call Trace:
+> >   __dump_stack lib/dump_stack.c:77 [inline]
+> >   dump_stack+0x172/0x1f0 lib/dump_stack.c:113
+> >   bad_page.cold+0xda/0xff mm/page_alloc.c:586
+> >   free_pages_check_bad+0x142/0x1a0 mm/page_alloc.c:1013
+> >   free_pages_check mm/page_alloc.c:1022 [inline]
+> >   free_pages_prepare mm/page_alloc.c:1112 [inline]
+> >   free_pcp_prepare mm/page_alloc.c:1137 [inline]
+> >   free_unref_page_prepare mm/page_alloc.c:3001 [inline]
+> >   free_unref_page_list+0x31d/0xc40 mm/page_alloc.c:3070
+> >   release_pages+0x60d/0x1940 mm/swap.c:794
+> >   pagevec_lru_move_fn+0x218/0x2a0 mm/swap.c:213
+> >   activate_page_drain mm/swap.c:297 [inline]
+> >   lru_add_drain_cpu+0x3b1/0x520 mm/swap.c:596
+> >   lru_add_drain+0x20/0x60 mm/swap.c:647
+> >   exit_mmap+0x290/0x530 mm/mmap.c:3134
+> >   __mmput kernel/fork.c:1047 [inline]
+> >   mmput+0x15f/0x4c0 kernel/fork.c:1068
+> >   exit_mm kernel/exit.c:546 [inline]
+> >   do_exit+0x816/0x2fa0 kernel/exit.c:863
+> >   do_group_exit+0x135/0x370 kernel/exit.c:980
+> >   __do_sys_exit_group kernel/exit.c:991 [inline]
+> >   __se_sys_exit_group kernel/exit.c:989 [inline]
+> >   __x64_sys_exit_group+0x44/0x50 kernel/exit.c:989
+> >   do_syscall_64+0x103/0x610 arch/x86/entry/common.c:290
+> >   entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> > RIP: 0033:0x442a58
+> > Code: 00 00 be 3c 00 00 00 eb 19 66 0f 1f 84 00 00 00 00 00 48 89 d7 89 f0
+> > 0f 05 48 3d 00 f0 ff ff 77 21 f4 48 89 d7 44 89 c0 0f 05 <48> 3d 00 f0 ff
+> > ff 76 e0 f7 d8 64 41 89 01 eb d8 0f 1f 84 00 00 00
+> > RSP: 002b:00007ffe99e2faf8 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
+> > RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 0000000000442a58
+> > RDX: 0000000000000000 RSI: 000000000000003c RDI: 0000000000000000
+> > RBP: 00000000004c2468 R08: 00000000000000e7 R09: ffffffffffffffd0
+> > R10: 0000000002000005 R11: 0000000000000246 R12: 0000000000000001
+> > R13: 00000000006d4180 R14: 0000000000000000 R15: 0000000000000000
 > >
-> > echo never > /sys/kernel/mm/transparent_hugepage/enabled
-> > to disable dax huge page mapping.
 > >
-> > Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
 > > ---
-> > TODO:
-> > * Add Fixes: tag
+> > This bug is generated by a bot. It may contain errors.
+> > See https://goo.gl/tpsmEJ for more information about syzbot.
+> > syzbot engineers can be reached at syzkaller@googlegroups.com.
 > >
-> >  include/linux/huge_mm.h | 4 +++-
-> >  mm/huge_memory.c        | 4 ++++
-> >  2 files changed, 7 insertions(+), 1 deletion(-)
+> > syzbot will keep track of this bug report. See:
+> > https://goo.gl/tpsmEJ#bug-status-tracking for how to communicate with
+> > syzbot.
+> > syzbot can test patches for this bug, for details see:
+> > https://goo.gl/tpsmEJ#testing-patches
 > >
-> > diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> > index 381e872bfde0..01ad5258545e 100644
-> > --- a/include/linux/huge_mm.h
-> > +++ b/include/linux/huge_mm.h
-> > @@ -53,6 +53,7 @@ vm_fault_t vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
-> >                         pud_t *pud, pfn_t pfn, bool write);
-> >  enum transparent_hugepage_flag {
-> >         TRANSPARENT_HUGEPAGE_FLAG,
-> > +       TRANSPARENT_HUGEPAGE_DAX_FLAG,
-> >         TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-> >         TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
-> >         TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
-> > @@ -111,7 +112,8 @@ static inline bool __transparent_hugepage_enabled(struct vm_area_struct *vma)
-> >         if (transparent_hugepage_flags & (1 << TRANSPARENT_HUGEPAGE_FLAG))
-> >                 return true;
-> >
-> > -       if (vma_is_dax(vma))
-> > +       if (vma_is_dax(vma) &&
-> > +           (transparent_hugepage_flags & (1 << TRANSPARENT_HUGEPAGE_DAX_FLAG)))
-> >                 return true;
->
-> Forcing PTE sized faults should be fine for fsdax, but it'll break
-> devdax. The devdax driver requires the fault size be >= the namespace
-> alignment since devdax tries to guarantee hugepage mappings will be
-> used and PMD alignment is the default. We can probably have devdax
-> fall back to the largest size the hypervisor has made available, but
-> it does run contrary to the design. Ah well, I suppose it's better off
-> being degraded rather than unusable.
+> > --
+> > You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
+> > To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
+> > To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/00000000000024b3aa0582f1cde7%40google.com.
+> > For more options, visit https://groups.google.com/d/optout.
+> 
+> -- 
+> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/CACT4Y%2BbyrcaasUaEJj%3DhcemEEBBkon%3DVC24gPwGXHzfeRP0E3w%40mail.gmail.com.
+> For more options, visit https://groups.google.com/d/optout.
 
-Given this is an explicit setting I think device-dax should explicitly
-fail to enable in the presence of this flag to preserve the
-application visible behavior.
+It bisects down to the same patch ("block: implement bio helper to add iter bvec
+pages to bio") so apparently it's just still broken despite Jens' fix.
 
-I.e. if device-dax was enabled after this setting was made then I
-think future faults should fail as well.
+BTW, as this is trivially bisectable with the reproducer, I still don't see why
+syzbot can't do the bisection itself and use get_maintainer.pl on the broken
+patch to actually send the report to the right person:
+
+$ ./scripts/get_maintainer.pl 0001-block-implement-bio-helper-to-add-iter-bvec-pages-to.patch 
+Jens Axboe <axboe@kernel.dk> (maintainer:BLOCK LAYER)
+linux-block@vger.kernel.org (open list:BLOCK LAYER)
+linux-kernel@vger.kernel.org (open list)
+
+Spamming unrelated lists and maintainers not only prevents the bug from being
+fixed, but it also reduces the average usefulness of syzbot reports which
+teaches people to ignore them.
+
+- Eric
 
