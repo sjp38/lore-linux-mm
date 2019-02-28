@@ -2,152 +2,225 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS,UNPARSEABLE_RELAY autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_PASS,UNWANTED_LANGUAGE_BODY autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C0FB0C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 21:32:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8EA8BC10F00
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 21:44:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7855720857
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 21:32:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4626E218E0
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 21:44:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="IK5jRT10"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7855720857
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="ETgESkeO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4626E218E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 285988E0003; Thu, 28 Feb 2019 16:32:52 -0500 (EST)
+	id CB6E08E0003; Thu, 28 Feb 2019 16:44:43 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2330F8E0001; Thu, 28 Feb 2019 16:32:52 -0500 (EST)
+	id C64FE8E0001; Thu, 28 Feb 2019 16:44:43 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0FD058E0003; Thu, 28 Feb 2019 16:32:52 -0500 (EST)
+	id B06CC8E0003; Thu, 28 Feb 2019 16:44:43 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D6DBB8E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 16:32:51 -0500 (EST)
-Received: by mail-yw1-f71.google.com with SMTP id v85so2725691ywc.5
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 13:32:51 -0800 (PST)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C4038E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 16:44:43 -0500 (EST)
+Received: by mail-yw1-f69.google.com with SMTP id l11so7198468ywl.18
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 13:44:43 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=9cjAB8k482sCSDI8ZI00ufOwnTQdR1UDDejmT12EfLw=;
-        b=I3bDqm4DGhPEIkD8lxIgaZrrNyiTarJ36/CTa2TZDmiopP3qAZ+fWZwMFS8jwmPFBQ
-         fRwUTTZ6dr/UeYFn44bAqgOUnY+EG3rHGJ6f3rTEg3G3kGhkICKu3BIQIOMtzecnS1Db
-         6Ub6UjJDFewkAU2QYvrVHM9JEz1M94GXtdC1D7M7YqqiU1H1JHV3y2V/6ut2zpHhRiAP
-         g6Ehm2cbK6LKwQM961XLZF/2gmxeVHIP5dnZLxg+6VHq6eUOvlVVu3ixe9jKrmyp6R0s
-         sei/CTvxUKBCdXhaBGNaeJ2SZkDOvb7T6q31/oTlmHIaj7nB4YSbMM6XRpRLDVlXS3Zd
-         0S8A==
-X-Gm-Message-State: APjAAAWU1/TdSpCY1JQeiAe+TpIJ5WlVkf9+NXNLGyf3H7sKEbUgbp88
-	GuVEaLvsvyHDSgEFP8H14AZ5x0iZaQXJ7njmsWXcoAnmNo4KJboz5q0oCCEa2YqMnUK2iRPp6oe
-	em0/049q8Zv/Gk3oFV5HUPwjv+R6lUELcpSK2O3Vdfma9y155kZNCZJvB9a+seLYiTA==
-X-Received: by 2002:a25:e80e:: with SMTP id k14mr1566028ybd.104.1551389571592;
-        Thu, 28 Feb 2019 13:32:51 -0800 (PST)
-X-Google-Smtp-Source: APXvYqyfnkxcKQWJXHv5k3qk/A6c7NBWgMlpoEqkp32iDoq3n6woZJBai7zXXC+CdjD7EFUDos2a
-X-Received: by 2002:a25:e80e:: with SMTP id k14mr1565993ybd.104.1551389570959;
-        Thu, 28 Feb 2019 13:32:50 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551389570; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=/Ts67cHhYbVtBZ+ouZr6ycKx2Tx7Wf5W6XYUebOwjOQ=;
+        b=p2SWNndbOqLsTtfpIiKOS0rNEKM5HpTKjrT9atWZxibfEQSCG7ii+lHohIBov6DuBp
+         +lVfy3B5ILu40vJKX8GzNSe3neKXKWwJm6mCjfwAfMBGH5LzvWyyqMWJ/nvuVeXqRtJC
+         9leigB+l+kKfq3cx7Cita1IpfEg0lVrAJCdJ3rUYnAEpxQ9OYA5PE966x7xrofRaNk9R
+         MSlFOatbL75FtkHrttrdXRovftoxzQI75PFKj1g7BnV+bhyo/G0oS4hDNnmfaygg+X5V
+         8bRfr49zu77DWfk3VP8Y4QNhO2Xl5TY433kT4oMZPd5r01yl39jNQ8OadyaFgXaicFkV
+         tb2g==
+X-Gm-Message-State: APjAAAWoAJ7ZZlVGc3X/Vz5Ek6KTX2BqPMNvssCDLC2HkTYtOgD0MdjG
+	N8oCnN3OZsC0IWp0qFNs1awmK4K848qfLLLULY4gETEnXSiNz2RmO9vcCZvIyzr2R8O17UYJd/3
+	5jzjSfHNFlinM0JjFSRgRTyFAaBEFcxRZh8zXR5nsWwjyEc/eKthvGQ0K7NN9N2R3Aw==
+X-Received: by 2002:a25:4885:: with SMTP id v127mr1438793yba.169.1551390283226;
+        Thu, 28 Feb 2019 13:44:43 -0800 (PST)
+X-Google-Smtp-Source: APXvYqxHT89Ih0qI/LdD7dta8LSJKm8x2BPxeNUYYvYfojO6LoPIKMQfsXzhq+QlO6BBS8zF5m1q
+X-Received: by 2002:a25:4885:: with SMTP id v127mr1438751yba.169.1551390282533;
+        Thu, 28 Feb 2019 13:44:42 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551390282; cv=none;
         d=google.com; s=arc-20160816;
-        b=D04axDGifLkUnO8g6YAFml/huwvnPu9v/cESMCyfkFvxf/C67tNXWLMkeyWmfOIKBw
-         iZLZEdV3foS8KsOPFZyaXs/+0V75EW7VIAx7JZUOq4txiaOrocxB9NI6gQJo+yW96ujD
-         +MfP8EAPrCOms9eVmFl4RTpc/YmjsMp4C+7kcN3J5KaSOXxNTONaPXgltYmJoCmdncc+
-         uPaRq9jPShPxMDMfyycKeyFnIgbKUq+ccwCjvD26MsB+AZ62YeV70ju70ElH4rZ3lGWu
-         e4UyOOUFDLIg8jE4onqMR/AR2uukF3BXUNt1C6PaNDJubAoJSdLb+o1hX5A7cZPxXNMf
-         1usw==
+        b=jLwT4qYjcFRWL8ptkqUcCM0j6hETIHojac486lzMkSszfLDVvJeKoLjPIoM97pPDIj
+         sx0wZjUhXsXtPPslkAPvvHXAOWKUSdK/3YPDZ8vVsnzQGwEYxXlh0Mi1X40djrZ+NxBp
+         +SWorEAyEKyhnXUaogCDN/fHgwP4AfvZwRNqb+nUJSVI/amEtLLfWJx4FQQBcTpW1nWD
+         2kHBbdXO9/svWds2GJr4hF7CVYsk1rUGebeYgp8r0k47/UmgDVbIwMX+zefAuSyv0M0Y
+         vwuKPz1Zd9cqSajfwBK28FNbarBFi/ZIzbQuw3gjgNNq7W2wtZvt5n9Ol+rdvtaUKcTy
+         /ekg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=9cjAB8k482sCSDI8ZI00ufOwnTQdR1UDDejmT12EfLw=;
-        b=RORx8QHT2DWhXC7bx0N/NmDgRzteAp6KbrSq5No0RLhvoo9tlY4Qv2QaTZqfIjlKJZ
-         o+5CqIVfAzStt0LxVRndc80L4dqtdKMV9zB+2b+CtWVvW/cjU15F4dRCICanlFcZmLrV
-         vUVSRjOa9tmdeHK/pFdqUXDrkBv5xG2QKksL8Zwnuh3fGij4pxsY1tc5M9AB80qcjSjC
-         8VUz+DSJIRLM5GgGt6ucuz+yA/1i3PYNhn1KFoS6G6JoLV+InpMUcRhSYslx8fKat8gH
-         h3cxW/EW/8CZiQsg2YNvqmeGi1FlR+hnZMJ8j3XtYdhs+5HZFWrqOfzsdFyckwn9bPlN
-         soiw==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=/Ts67cHhYbVtBZ+ouZr6ycKx2Tx7Wf5W6XYUebOwjOQ=;
+        b=U0Dqf2214qkznje7fpCfomC1CkxLzTNABuQ13yxwhh9PnxHNym1O7YMYdw05aHeKfs
+         l7pYJlg8qRRhpgw7QZh2gTBka/fCwqZCRorqxWVUlwr3BHFd0GGwkQS7/bJkh/Q2lyhw
+         csqs/DWw7AN/6FwJ90D4+I0sqVLPKvbFZCQgyKGyij988W+S/5zU8mXYXnk2L9/05ss5
+         pcuAcixZRlBmKn7h3UMQSJQ+LCLwhrVJSDlS6J7es65/NfvtVzwVSNMrhMtWjfVOd3xu
+         +PDJDUzqAUlhjww5bptk6q/a7aGfRPZKK2YTcVTu/AzNUFZEnc7XzWou5VMjmjPoNJHM
+         q4Pg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=IK5jRT10;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id w9si11092897ybk.359.2019.02.28.13.32.50
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=ETgESkeO;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id w193si11385202ywa.205.2019.02.28.13.44.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Feb 2019 13:32:50 -0800 (PST)
-Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Thu, 28 Feb 2019 13:44:42 -0800 (PST)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=IK5jRT10;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1SLERO7082133;
-	Thu, 28 Feb 2019 21:32:46 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=9cjAB8k482sCSDI8ZI00ufOwnTQdR1UDDejmT12EfLw=;
- b=IK5jRT10KiIbs+MeoHXGnViw+Wx/ztx1TQ64VQFsmz/NDvWk/EY8F4zu981bXu9nXBlY
- gYMcea/eyZwUF+2B2InUG4rF0Jbk9Uw4SQZcbEEuc/SY7P0QgUPo237+giHa/zCMhc+k
- 00aRoV3Ylx7HE9Vhj1UeR0tYq3Un84ADOOpNDKZ4+QnaFngOKZYUkNxis3C2Q+URspUa
- Y9JNtHv71krIi7EjnqDs52vbZk2pGIFgG0ISETkITPgDtkftWdrG14oQ9yqleZaYIwCS
- H3Hc2r9fYyc5BWe2fgC+LXFnmyFD0ymL01M0dX7nlqsfHorUGYL3S7uC9aBpl0FJX9AS pQ== 
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by aserp2130.oracle.com with ESMTP id 2qtupem174-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 28 Feb 2019 21:32:46 +0000
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1SLWjpS008053
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 28 Feb 2019 21:32:45 GMT
-Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x1SLWgrn022976;
-	Thu, 28 Feb 2019 21:32:43 GMT
-Received: from dhcp-10-65-148-83.vpn.oracle.com (/10.65.148.83)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 28 Feb 2019 13:32:42 -0800
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.2\))
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=ETgESkeO;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c7856480000>; Thu, 28 Feb 2019 13:44:40 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 28 Feb 2019 13:44:41 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 28 Feb 2019 13:44:41 -0800
+Received: from [10.110.48.28] (172.20.13.39) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 28 Feb
+ 2019 21:44:40 +0000
 Subject: Re: [PATCH v2 2/4] mm: remove zone_lru_lock() function access
  ->lru_lock directly
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20190228102229.dec5e125fc65a3ff7c6f865f@linux-foundation.org>
-Date: Thu, 28 Feb 2019 14:32:41 -0700
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
-        Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>,
-        Rik van Riel <riel@surriel.com>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>,
-        Mel Gorman <mgorman@techsingularity.net>
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <3682FD80-92AD-4388-8751-00FD1CC74D46@oracle.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton
+	<akpm@linux-foundation.org>
+CC: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>,
+	Rik van Riel <riel@surriel.com>, <linux-mm@kvack.org>,
+	<linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman
+	<mgorman@techsingularity.net>
 References: <20190228083329.31892-1-aryabinin@virtuozzo.com>
  <20190228083329.31892-2-aryabinin@virtuozzo.com>
- <7AF5AEF9-FF0A-41C1-834A-4C33EBD0CA09@oracle.com>
- <20190228102229.dec5e125fc65a3ff7c6f865f@linux-foundation.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-X-Mailer: Apple Mail (2.3445.104.2)
-X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9181 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=3 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=712 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1902280142
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <44ffadb4-4235-76c9-332f-680dda5da521@nvidia.com>
+Date: Thu, 28 Feb 2019 13:44:40 -0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
+MIME-Version: 1.0
+In-Reply-To: <20190228083329.31892-2-aryabinin@virtuozzo.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US-large
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1551390281; bh=/Ts67cHhYbVtBZ+ouZr6ycKx2Tx7Wf5W6XYUebOwjOQ=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=ETgESkeOLXCBUzBcNfOUO2yf+ijNCGe+fZc6VGzbXmaEJMlKUxLOKLvNYV5/8cz1j
+	 dYxenWULRy+AssayFNv3D//xaKCOnR2vzfzXVEihgonFCN036ihbMkZllx837L2Chn
+	 EEB8/qCmpJ5vb9oLVdNJrzdntYZ0nkxxIkfN+IxlGycz7Mv66tyRTZqJPJmUpRH0T0
+	 PISjgmTE9DXqSEgI0XkdQjmdJcM3G8oZsPHv+TccevKPMvh5/nAA28pOLyBMB1JcKi
+	 8C9xvzhZlU9OrJ5Ufe7Hf4bwOK6LZ8nX5lp26h99tC/qUaI5fbJlXXWY4RwM8zFiF+
+	 Rf1UOK82I4Mrg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 2/28/19 12:33 AM, Andrey Ryabinin wrote:
+> We have common pattern to access lru_lock from a page pointer:
+> 	zone_lru_lock(page_zone(page))
+> 
+> Which is silly, because it unfolds to this:
+> 	&NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)]->zone_pgdat->lru_lock
+> while we can simply do
+> 	&NODE_DATA(page_to_nid(page))->lru_lock
+> 
+
+Hi Andrey,
+
+Nice. I like it so much that I immediately want to tweak it. :)
 
 
-> On Feb 28, 2019, at 11:22 AM, Andrew Morton =
-<akpm@linux-foundation.org> wrote:
->=20
-> I don't think so.  This kernedoc comment was missing its leading /**.=20=
+> Remove zone_lru_lock() function, since it's only complicate things.
+> Use 'page_pgdat(page)->lru_lock' pattern instead.
 
-> The patch fixes that.
+Here, I think the zone_lru_lock() is actually a nice way to add
+a touch of clarity at the call sites. How about, see below:
 
-That makes sense; it had looked like just an extraneous asterisk.
+[snip]
+
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 2fd4247262e9..22423763c0bd 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -788,10 +788,6 @@ typedef struct pglist_data {
+>  
+>  #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
+>  #define node_end_pfn(nid) pgdat_end_pfn(NODE_DATA(nid))
+> -static inline spinlock_t *zone_lru_lock(struct zone *zone)
+> -{
+> -	return &zone->zone_pgdat->lru_lock;
+> -}
+>  
+
+Instead of removing that function, let's change it, and add another
+(since you have two cases: either a page* or a pgdat* is available),
+and move it to where it can compile, like this:
+
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 80bb6408fe73..cea3437f5d68 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1167,6 +1167,16 @@ static inline pg_data_t *page_pgdat(const struct page *page)
+        return NODE_DATA(page_to_nid(page));
+ }
+ 
++static inline spinlock_t *zone_lru_lock(pg_data_t *pgdat)
++{
++       return &pgdat->lru_lock;
++}
++
++static inline spinlock_t *zone_lru_lock_from_page(struct page *page)
++{
++       return zone_lru_lock(page_pgdat(page));
++}
++
+ #ifdef SECTION_IN_PAGE_FLAGS
+ static inline void set_page_section(struct page *page, unsigned long section)
+ {
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 842f9189537b..e03042fe1d88 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -728,11 +728,6 @@ typedef struct pglist_data {
+ 
+ #define node_start_pfn(nid)    (NODE_DATA(nid)->node_start_pfn)
+ #define node_end_pfn(nid) pgdat_end_pfn(NODE_DATA(nid))
+-static inline spinlock_t *zone_lru_lock(struct zone *zone)
+-{
+-       return &zone->zone_pgdat->lru_lock;
+-}
+-
+ static inline struct lruvec *node_lruvec(struct pglist_data *pgdat)
+ {
+        return &pgdat->lruvec;
+
+
+
+Like it?
+
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
