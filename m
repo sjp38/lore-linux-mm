@@ -2,227 +2,246 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 50E8FC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:35:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C9BEDC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:36:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 161C92171F
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:35:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 161C92171F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bootlin.com
+	by mail.kernel.org (Postfix) with ESMTP id 83DEF2171F
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:36:16 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="M6VlN0FD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 83DEF2171F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A6DF38E0003; Thu, 28 Feb 2019 04:35:20 -0500 (EST)
+	id 256F48E0004; Thu, 28 Feb 2019 04:36:16 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A1D0A8E0001; Thu, 28 Feb 2019 04:35:20 -0500 (EST)
+	id 22CC98E0001; Thu, 28 Feb 2019 04:36:16 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9357C8E0003; Thu, 28 Feb 2019 04:35:20 -0500 (EST)
+	id 1451A8E0004; Thu, 28 Feb 2019 04:36:16 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 380878E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 04:35:20 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id a9so8335345edy.13
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 01:35:20 -0800 (PST)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E18228E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 04:36:15 -0500 (EST)
+Received: by mail-it1-f200.google.com with SMTP id y70so7442739itc.5
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 01:36:15 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=zn5MqnjKRsOAbjHjWWqZaAK5dv4TbNFPTTyLcFe5lZQ=;
-        b=Pjq5e3nJMT8QrsJ48/0tdfcMzTPW6SQRhG5k6Q8fSWGVfVzFomHJOrbKxfwzR/bV9p
-         wo7c/DkBIWacTRzMGcgCbT0LJFcgYQyinavCgnXECmgjgS1EOFzbDf2q61Shfii1Q99f
-         F4V/oXqAsk/vofgp4q1bHLxgqflNznemDPg0jZnvM22nQ1ETmqjeNxRb3gsqqAyZQmXN
-         Ek+TDOEI6SD/Yvh+tCjW/DjEp7kGddYqYJhawAUbb9WJrq2cAUBIxLlYmDxKQEZm4xDy
-         9DBcatQ5v4E9PC1GL4tZ27aUiuVLPoisWD+zbCWkPi7SiQVvLj8dNY7J0QalE1ToaC0f
-         2ztg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of maxime.ripard@bootlin.com designates 217.70.183.199 as permitted sender) smtp.mailfrom=maxime.ripard@bootlin.com
-X-Gm-Message-State: AHQUAuZCUnKnk/al2bimh5OB5/51Psj3iMP+elwGcxkFs8E3ZiH8EaK/
-	lZNh146EY8BWMtvKixt1SoL3ZDFLfiGl8nJncBjkaxQGo9dYnCBl+v0Oj8S2wWVHemSN74X9l0u
-	oztlCZADr2ETfNanp/UjRYSf0cWh41ClKibsK5Qau4VxA8j+RlJrR/TrV1L+cI7tLZg==
-X-Received: by 2002:a50:97f8:: with SMTP id f53mr6055016edb.22.1551346519761;
-        Thu, 28 Feb 2019 01:35:19 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYJUJ8ktkvi7lw0W2/zb25YzU7jLw88umKRiNHTq6m9mcLg3FAwUmvEpMtR8ebVuGeMXNcJ
-X-Received: by 2002:a50:97f8:: with SMTP id f53mr6054956edb.22.1551346518742;
-        Thu, 28 Feb 2019 01:35:18 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551346518; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Lbf9iBAembtNVXUoSFl1FHGTfKBuTmZnwlMrEQLyCYM=;
+        b=iean6ZcO7LO3lYl+XPiKGZeekXSV9MdQTv28ym738cuSahId3FjUaHDJPTvZbdV5Ml
+         Wuw6VCg/Pd28TgvRckKeIGZgwgrbKc4JA9uZQ2paRGhdwx544YkuTOQEFEhsmvvSJ3j8
+         LAUVvT67ub57JUuu6BkwGvrTib2MpJ7wMBDO25sv1Yni38NCV1aW6oCQm59s7GF3gag6
+         8rSJnZ/66eNpExTl8LMjCHYGstN/9x7moR5wYsYuC0e9o6EcDZ8dOPn5la5z/a9J2rlG
+         ToRXUDmKjPszz4BtS8nnnt0u6KKIsbBQqcN8XitfqUpFd3bU12YyekjaiNN604gVRHYq
+         J5Aw==
+X-Gm-Message-State: APjAAAV77J42OBTfXjYAEKYHC0dXZVMvGNgBvBDs8Ov/+/xJXzvHa/gN
+	bbfe8o5EmBAXHBT9qlXjr6czjFtNlddEYTSYbijLQ8g4myJlZcm9/9db+E8vNyhr5A6K/F+roZE
+	T2FJ8a8mPNPTT044Vbrx0IZ5q6FeOnrjM1VSivK91nwCXfH2aMr5SP9e7EzRsFSbgT2o2zGshEw
+	3sxnxQZBR1APeBFKrfayyCS7SKAnyLS+k9NZ3F7UTHLDWfNtajeifyzh/5pE9Mgo4d9Sp37J9Dv
+	W0svWIwQdIbu6iOI5XwhbVc/z5ChTY7X5D6ePxabXbQ256cyv1nhsDaznEaRSzP1nzZhUqEwW25
+	ZCopWFxu3fnM6WKxB7z56jtuLkcrRGs+nvFtco+hrIZIH2773/42hoIfVCuxyfQmc/VyCpwEsN3
+	R
+X-Received: by 2002:a24:a81:: with SMTP id 123mr2361732itw.43.1551346575691;
+        Thu, 28 Feb 2019 01:36:15 -0800 (PST)
+X-Received: by 2002:a24:a81:: with SMTP id 123mr2361712itw.43.1551346574938;
+        Thu, 28 Feb 2019 01:36:14 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551346574; cv=none;
         d=google.com; s=arc-20160816;
-        b=b9/4QcPX8FctV7CJ0zXAJo2Rr15xT8EEIocFnXWGPR9uhXVmOsQjweUyYAcmBTvysG
-         rUdgUPoqz4amVX4GNljVEADKDUWg2v+HYE6xBKUjyocLzAfa3dc3ZSk4OKvgbZswVjos
-         tLGcYhflayk918VQC7P4CkDnfpXDmqILd22Oigkk+qt4NJOoBNkmCO317qfvgXSrr9CP
-         UMKXYznUGsMrwGTB3Oa8ynJSuKg5W6LoFQ03TZL8/mendtWpKQKDC+ufrsZbCwQa/sYh
-         XSYbL6M+LIm41c0zI3ldxB8neM4EGLMfXpnv7A0VlVzsZqe62Les0tZyl5UvrXAnIAom
-         R8rw==
+        b=NKi0Px+/+kyjKm9iI1oPBbNt+s/nbeZrbtk/MHSu2wg5LK8wXLHNx/jDZf8Oq2W6Qi
+         OH/o2dZRk0+HEdM4skid12dGwPZmsa+tZYCF58csP3KNTMBZ7z9XAVajh3d2hIcAckbu
+         2aP2y2FYNh2CAQWzhmJs1M4+D/tXgdj/31eSd/b2pe2RFexbmPLcmas/xjao0lZ8rs4G
+         oKxMwdxYWk6L8Qqrvum2p22qtu/5IQ/C8JnKOCOP03+GsGhEwFwVphWi+n4EzzKLocIz
+         nX4tZqWNOQDanCpx8GQxiDnNTmkUJ16GXPKCcVgGCnome0vkeXUju4F5DowG+EX8QM6m
+         p0YQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=zn5MqnjKRsOAbjHjWWqZaAK5dv4TbNFPTTyLcFe5lZQ=;
-        b=ckG/ImfGIEj420FlDlgkVaF6GoGuNvanCViIrq+Fwcol4IKiNZjdBfAWjudl77l9VU
-         Nq0fct0BXCzBzZPXqd63mG9hmU9OwGL+flxeKkMMJqdzy4qppB6p9rbEMaqj6nGgFpCv
-         Y3SE9EYCLaogDEoEN9hqjhfBUOa+nH1KNwv0Qql1YnlhZFozt2vOD4omH66gEkbvZFIc
-         qpPFK/04WaiFRXI4lJIkW84830kDIxOzMcPh3IbnmzWNi9J/piZY6cbzb1SET5MLYhbF
-         AQxVMUq5pIyCykvAuZWXs+yiZ+0MCUsNYTm2fRVGZPnT/uKeuxs+r3k1qJQ071qY9X2l
-         aUsg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Lbf9iBAembtNVXUoSFl1FHGTfKBuTmZnwlMrEQLyCYM=;
+        b=cqsOcb7ul61DXQWtalu5ZRTRiiQVhtVpgrZKYeAGIYFi0AkNQOMPJXIGV5oKnFVYBH
+         ZroZ4bDP8Q5ZbXq4jOWsGPju+je85ucN+SbiIMEEWh46ItC4e6+zhvp3+BGoyozqCSbK
+         +vYSrrgqH0R1O4441Jss7c6jg+2Kzzr/uFOH3uuBN4IEI3jI5HGkIT+CAj1Kg4Izwme8
+         hbxCYuLTAfGh341a1wzgamhQDcPVGyHTWf0jIgp+DOKXjoW/UEjERLszH1EyINjRamqu
+         HXN+C0ChPIVjXNfi3OhqQF0d4sOzcHHzlT83/lUF7TesQy+HxVlM6t33yCWavWdyOWT1
+         7Gbg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of maxime.ripard@bootlin.com designates 217.70.183.199 as permitted sender) smtp.mailfrom=maxime.ripard@bootlin.com
-Received: from relay9-d.mail.gandi.net (relay9-d.mail.gandi.net. [217.70.183.199])
-        by mx.google.com with ESMTPS id m43si6808220edd.6.2019.02.28.01.35.18
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=M6VlN0FD;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 11sor43343690jal.7.2019.02.28.01.36.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 28 Feb 2019 01:35:18 -0800 (PST)
-Received-SPF: pass (google.com: domain of maxime.ripard@bootlin.com designates 217.70.183.199 as permitted sender) client-ip=217.70.183.199;
+        (Google Transport Security);
+        Thu, 28 Feb 2019 01:36:14 -0800 (PST)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of maxime.ripard@bootlin.com designates 217.70.183.199 as permitted sender) smtp.mailfrom=maxime.ripard@bootlin.com
-X-Originating-IP: 90.88.147.150
-Received: from localhost (aaubervilliers-681-1-27-150.w90-88.abo.wanadoo.fr [90.88.147.150])
-	(Authenticated sender: maxime.ripard@bootlin.com)
-	by relay9-d.mail.gandi.net (Postfix) with ESMTPSA id E43B7FF810;
-	Thu, 28 Feb 2019 09:35:16 +0000 (UTC)
-Date: Thu, 28 Feb 2019 10:35:16 +0100
-From: Maxime Ripard <maxime.ripard@bootlin.com>
-To: Gerhard Wiesinger <lists@wiesinger.com>
-Cc: arm@lists.fedoraproject.org, Chen-Yu Tsai <wens@csie.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	Florian Fainelli <f.fainelli@gmail.com>, filbar@centrum.cz
-Subject: Re: Banana Pi-R1 stabil
-Message-ID: <20190228093516.abual3564dkvx6un@flea>
-References: <7b20af72-76ea-a7b1-9939-ca378dc0ed83@wiesinger.com>
- <20190227092023.nvr34byfjranujfm@flea>
- <5f63a2c6-abcb-736f-d382-18e8cea31b65@wiesinger.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=M6VlN0FD;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=Lbf9iBAembtNVXUoSFl1FHGTfKBuTmZnwlMrEQLyCYM=;
+        b=M6VlN0FDCxzy9L9tvVrmsP4wKEV6kZv2zmBLCsXusXCxhwuBra9JRRtOUWEi+6dH5F
+         5lmcd8ZCdeAgiX5uPa4Nn/gFjQKYOoQPKtXAcQZw8MDg05PcKcxIN2bAYM+S+E/jymqB
+         3UwQqLqJRJQzWEtuQnB2U4Bt7cigsOy4HDw2to1J0hbP0UrRi15D3mypu4xnwKrPiV69
+         aeHR2NFPIfapSKrnFChtoX50Q/Sqn8nbHAkxr6Y4/9ikXETjO1C5PVi95xbFfBslww7L
+         kTCco0AACf668EW59kLxlvAFz0Y+RkfPXvJ83DnxlPiJsjnxDrGDN/SXEtsKacDsnrIh
+         CzFA==
+X-Google-Smtp-Source: AHgI3IZ1Fnpduc8pyB5r7nzmFUI8CVCE4UemaWlVQLPPb7xrgdvBM/GpbM9sfMxvsLtl7eLrQ7X+5TWkiC/o8OxQY+g=
+X-Received: by 2002:a02:13ca:: with SMTP id 193mr4074878jaz.117.1551346574678;
+ Thu, 28 Feb 2019 01:36:14 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="y46btgmwon2ggfsd"
-Content-Disposition: inline
-In-Reply-To: <5f63a2c6-abcb-736f-d382-18e8cea31b65@wiesinger.com>
-User-Agent: NeoMutt/20180716
+References: <1551341664-13912-1-git-send-email-laoar.shao@gmail.com> <CAFqt6zYd=NPHKwQ2Pz-tQ4NF7YJ07UrfXVjSmtHi5eiqiPq=Bw@mail.gmail.com>
+In-Reply-To: <CAFqt6zYd=NPHKwQ2Pz-tQ4NF7YJ07UrfXVjSmtHi5eiqiPq=Bw@mail.gmail.com>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Thu, 28 Feb 2019 17:35:38 +0800
+Message-ID: <CALOAHbDNTmPZSPhNDoBHQfma4iOKOAXgU5=D1LZap_90APFPKg@mail.gmail.com>
+Subject: Re: [PATCH] mm: vmscan: add tracepoints for node reclaim
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, ktkhai@virtuozzo.com, 
+	broonie@kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, 
+	shaoyafang@didiglobal.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
---y46btgmwon2ggfsd
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On Wed, Feb 27, 2019 at 07:58:14PM +0100, Gerhard Wiesinger wrote:
-> On 27.02.2019 10:20, Maxime Ripard wrote:
-> > On Sun, Feb 24, 2019 at 09:04:57AM +0100, Gerhard Wiesinger wrote:
-> > > Hello,
-> > >=20
-> > > I've 3 Banana Pi R1, one running with self compiled kernel
-> > > 4.7.4-200.BPiR1.fc24.armv7hl and old Fedora 25 which is VERY STABLE, =
-the 2
-> > > others are running with Fedora 29 latest, kernel 4.20.10-200.fc29.arm=
-v7hl. I
-> > > tried a lot of kernels between of around 4.11
-> > > (kernel-4.11.10-200.fc25.armv7hl) until 4.20.10 but all had crashes w=
-ithout
-> > > any output on the serial console or kernel panics after a short time =
-of
-> > > period (minutes, hours, max. days)
-> > >=20
-> > > Latest known working and stable self compiled kernel: kernel
-> > > 4.7.4-200.BPiR1.fc24.armv7hl:
-> > >=20
-> > > https://www.wiesinger.com/opensource/fedora/kernel/BananaPi-R1/
-> > >=20
-> > > With 4.8.x the DSA b53 switch infrastructure has been introduced which
-> > > didn't work (until ca8931948344c485569b04821d1f6bcebccd376b and kernel
-> > > 4.18.x):
-> > >=20
-> > > https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree=
-/drivers/net/dsa/b53?h=3Dv4.20.12
-> > >=20
-> > > https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/log/=
-drivers/net/dsa/b53?h=3Dv4.20.12
-> > >=20
-> > > https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/comm=
-it/drivers/net/dsa/b53?h=3Dv4.20.12&id=3Dca8931948344c485569b04821d1f6bcebc=
-cd376b
-> > >=20
-> > > I has been fixed with kernel 4.18.x:
-> > >=20
-> > > https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/log/=
-drivers/net/dsa/b53?h=3Dlinux-4.18.y
-> > >=20
-> > >=20
-> > > So current status is, that kernel crashes regularly, see some samples=
- below.
-> > > It is typically a "Unable to handle kernel paging request at virtual =
-addres"
-> > >=20
-> > > Another interesting thing: A Banana Pro works well (which has also an
-> > > Allwinner A20 in the same revision) running same Fedora 29 and latest
-> > > kernels (e.g. kernel 4.20.10-200.fc29.armv7hl.).
-> > >=20
-> > > Since it happens on 2 different devices and with different power supp=
-lies
-> > > (all with enough power) and also the same type which works well on the
-> > > working old kernel) a hardware issue is very unlikely.
-> > >=20
-> > > I guess it has something to do with virtual memory.
-> > >=20
-> > > Any ideas?
-> > > [47322.960193] Unable to handle kernel paging request at virtual addr=
-es 5675d0
-> > That line is a bit suspicious
-> >=20
-> > Anyway, cpufreq is known to cause those kind of errors when the
-> > voltage / frequency association is not correct.
-> >=20
-> > Given the stack trace and that the BananaPro doesn't have cpufreq
-> > enabled, my first guess would be that it's what's happening. Could you
-> > try using the performance governor and see if it's more stable?
-> >=20
-> > If it is, then using this:
-> > https://github.com/ssvb/cpuburn-arm/blob/master/cpufreq-ljt-stress-test
-> >=20
-> > will help you find the offending voltage-frequency couple.
+On Thu, Feb 28, 2019 at 4:59 PM Souptick Joarder <jrdr.linux@gmail.com> wrote:
 >
-> For me it looks like they have all the same config regarding cpu governor
-> (Banana Pro, old kernel stable one, new kernel unstable ones)
+> On Thu, Feb 28, 2019 at 1:44 PM Yafang Shao <laoar.shao@gmail.com> wrote:
+> >
+> > In the page alloc fast path, it may do node reclaim, which may cause
+> > latency spike.
+> > We should add tracepoint for this event, and also mesure the latency
+> > it causes.
+>
+> Minor typo : mesure ->measure.
+>
 
-The Banana Pro doesn't have a regulator set up, so it will only change
-the frequency, not the voltage.
+Thanks for your correction.
 
-> They all have the ondemand governor set:
->=20
-> I set on the 2 unstable "new kernel Banana Pi R1":
->=20
-> # Set to max performance
-> echo "performance" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-> echo "performance" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
+> >
+> > So bellow two tracepoints are introduced,
+> >         mm_vmscan_node_reclaim_begin
+> >         mm_vmscan_node_reclaim_end
+> >
+> > Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+> > ---
+> >  include/trace/events/vmscan.h | 48 +++++++++++++++++++++++++++++++++++++++++++
+> >  mm/vmscan.c                   | 13 +++++++++++-
+> >  2 files changed, 60 insertions(+), 1 deletion(-)
+> >
+> > diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+> > index a1cb913..9310d5b 100644
+> > --- a/include/trace/events/vmscan.h
+> > +++ b/include/trace/events/vmscan.h
+> > @@ -465,6 +465,54 @@
+> >                 __entry->ratio,
+> >                 show_reclaim_flags(__entry->reclaim_flags))
+> >  );
+> > +
+> > +TRACE_EVENT(mm_vmscan_node_reclaim_begin,
+> > +
+> > +       TP_PROTO(int nid, int order, int may_writepage,
+> > +               gfp_t gfp_flags, int zid),
+> > +
+> > +       TP_ARGS(nid, order, may_writepage, gfp_flags, zid),
+> > +
+> > +       TP_STRUCT__entry(
+> > +               __field(int, nid)
+> > +               __field(int, order)
+> > +               __field(int, may_writepage)
+> > +               __field(gfp_t, gfp_flags)
+> > +               __field(int, zid)
+> > +       ),
+> > +
+> > +       TP_fast_assign(
+> > +               __entry->nid = nid;
+> > +               __entry->order = order;
+> > +               __entry->may_writepage = may_writepage;
+> > +               __entry->gfp_flags = gfp_flags;
+> > +               __entry->zid = zid;
+> > +       ),
+> > +
+> > +       TP_printk("nid=%d zid=%d order=%d may_writepage=%d gfp_flags=%s",
+> > +               __entry->nid,
+> > +               __entry->zid,
+> > +               __entry->order,
+> > +               __entry->may_writepage,
+> > +               show_gfp_flags(__entry->gfp_flags))
+> > +);
+> > +
+> > +TRACE_EVENT(mm_vmscan_node_reclaim_end,
+> > +
+> > +       TP_PROTO(int result),
+> > +
+> > +       TP_ARGS(result),
+> > +
+> > +       TP_STRUCT__entry(
+> > +               __field(int, result)
+> > +       ),
+> > +
+> > +       TP_fast_assign(
+> > +               __entry->result = result;
+> > +       ),
+> > +
+> > +       TP_printk("result=%d", __entry->result)
+> > +);
+> >  #endif /* _TRACE_VMSCAN_H */
+> >
+> >  /* This part must be outside protection */
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index ac4806f..01a0401 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -4240,6 +4240,12 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+> >                 .may_swap = 1,
+> >                 .reclaim_idx = gfp_zone(gfp_mask),
+> >         };
+> > +       int result;
+>
+> If it goes to v2, then
+> s/result/ret ?
+>
 
-What are the results?
+Sure. Will change it.
 
-> Running some stress tests are ok (I did that already in the past, but
-> without setting maximum performance governor).
+> > +
+> > +       trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, order,
+> > +                                       sc.may_writepage,
+> > +                                       sc.gfp_mask,
+> > +                                       sc.reclaim_idx);
+> >
+> >         cond_resched();
+> >         fs_reclaim_acquire(sc.gfp_mask);
+> > @@ -4267,7 +4273,12 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+> >         current->flags &= ~PF_SWAPWRITE;
+> >         memalloc_noreclaim_restore(noreclaim_flag);
+> >         fs_reclaim_release(sc.gfp_mask);
+> > -       return sc.nr_reclaimed >= nr_pages;
+> > +
+> > +       result = sc.nr_reclaimed >= nr_pages;
+> > +
+> > +       trace_mm_vmscan_node_reclaim_end(result);
+> > +
+> > +       return result;
+> >  }
+> >
+> >  int node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
+> > --
+> > 1.8.3.1
+> >
 
-Which stress tests have you been running?
-
-Maxime
-
---=20
-Maxime Ripard, Bootlin
-Embedded Linux and Kernel engineering
-https://bootlin.com
-
---y46btgmwon2ggfsd
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iHUEABYIAB0WIQRcEzekXsqa64kGDp7j7w1vZxhRxQUCXHerVAAKCRDj7w1vZxhR
-xRwDAQCGdTiXZQdCkQJEFPhFXYILEbJ90fTxJZTyeqNeGi1PigEA4VqTGGg8x+U1
-8jWECOpya2M6Za6558+iRGJQTIVx8wA=
-=cnxS
------END PGP SIGNATURE-----
-
---y46btgmwon2ggfsd--
+Thanks
+Yafang
 
