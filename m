@@ -2,235 +2,164 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D6801C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 08:59:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D39C3C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:16:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8597C20842
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 08:59:19 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Mit94bSq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8597C20842
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 984312184A
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 09:16:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 984312184A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 30E898E0003; Thu, 28 Feb 2019 03:59:19 -0500 (EST)
+	id 377A48E0003; Thu, 28 Feb 2019 04:16:05 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2BD4C8E0001; Thu, 28 Feb 2019 03:59:19 -0500 (EST)
+	id 325688E0001; Thu, 28 Feb 2019 04:16:05 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1D6C28E0003; Thu, 28 Feb 2019 03:59:19 -0500 (EST)
+	id 216DC8E0003; Thu, 28 Feb 2019 04:16:05 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A528A8E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 03:59:18 -0500 (EST)
-Received: by mail-lf1-f69.google.com with SMTP id n193so3733645lfb.5
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 00:59:18 -0800 (PST)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BDA548E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 04:16:04 -0500 (EST)
+Received: by mail-ed1-f72.google.com with SMTP id j5so8156892edt.17
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 01:16:04 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=egCQeAXTRB2JYiDyIxmRF2m38XvFo+Cg7v5CUmY+D9o=;
-        b=KFX0YaVi9f7rr4WypSjqtbCqT32SVB+b1M/o1HT4XgPhX8Iz0LAqLap47LSbStCJuc
-         Y+KqSGpCzOrjOxRYFU6MAe6AgnELHE6sF5J8WyuzXbYPMuftTc2q8Eag1SNqiewUxGyK
-         EXUlfauwTSOZuIv0D3MHrg7I1/rgiIV4CoBfbwWi69DmrVqtwa1imAqhmC/tKEJMRKIs
-         xtOboEQIFd0J7kBrjI8Hl4DSx59wNACTxT/k9z3oc0ZzqBpefpwNQyQvKq4llVXat6P+
-         Ig2gM2RMwi72e93MeF2pCDGozU+ytXj+MQQ2oM+gyHfx5ON5rBg9AjXpCE1COk4ljQ1V
-         n5Vw==
-X-Gm-Message-State: AHQUAuZxX17ZzqKCyc85zNrAUv7UeRH5noNF19w/bqOYEBDuTBKlzQr1
-	nxLnBg7sSdKt2UKI9++n0yW/S+YpWq1ddWkGQYZq4y+a15QM6brV9QZV8giNmMOhtox+NtXErbZ
-	N28QVlXeEKiNyHfsoGFbCVl8Qh7L6axVmPHUDcpbmPyFz3ysLG6XLAbQdMmkarHrDwmBsG1WnpD
-	acoQi5eh4EowsQucQtqrDpxW1f1C6Qt5cqC0mww4Vv229GSLPh5Yqzz3HeIexzvaJ6SSc4JhnG2
-	6dh/M//iN5kBu2czSwUru0PzvLKajRh5E0isuh5mtxB2rok1qU/M23J5JRERfspYaPHFkD9wu7o
-	Bg4gQ56q4uF3A3PdfEKGSHTM75llBkc89wN7T3IRvaMEM9FeaORskA4zaGjBBrdcANymnMNC/Ws
-	4
-X-Received: by 2002:a19:a211:: with SMTP id l17mr3424250lfe.144.1551344357714;
-        Thu, 28 Feb 2019 00:59:17 -0800 (PST)
-X-Received: by 2002:a19:a211:: with SMTP id l17mr3424202lfe.144.1551344356718;
-        Thu, 28 Feb 2019 00:59:16 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551344356; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=6NrpsrTAZaLHQxEuYMjD2BkUO7lx4XYeLuzKZsPdRcQ=;
+        b=ThIm6fW6mM5W2Ul0l29z4uyZuyzbyL39yIXW33NHmifhels7vRm5BF70JcWUSXPBdb
+         Yu6Bx2LVT8V+vHl1qi7+no1hvKQMa4GvYm83HOFFdZ7hvSz9MBfNwViPJ/wCC4p2iCBQ
+         KXRhLroIGbt88GekHJ3L3BeQnJZhmIIjWrj7fDZ/aDy0lLj6f+edmzNQYhIkVkdrcfQJ
+         yjuBT1Ga759/gIM7Y1rfTRWOAV9uCwA3Vl1ARTkE4vZUS5kM0Nb+fgTdj2XXZ7Pc6JCD
+         HIhCBMhySguUwXRDCfmAwrszwnZ/JFRGOTWXaIYD9KZ5s7jChV3taxcnVxjns2SuyPVu
+         6gmQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUaM+G5Vc29sFOuDHLYNiURrtTQsR4NwuprqGztJbwdX9ZOvjNY
+	a+JxYZnLEOq+hhEQ24L95V+tpytQV08q494BHjyhREHlSjm0xP3Tne2iMdn1jKXr1HnAOtFt1hv
+	CYYpbPU8kplgJbtv98H9RwQAZh2i3XzB5kpmnKhwz/xuc+5y0BXhuwMMhgDHKZzA=
+X-Received: by 2002:a50:b493:: with SMTP id w19mr2160244edd.11.1551345364317;
+        Thu, 28 Feb 2019 01:16:04 -0800 (PST)
+X-Google-Smtp-Source: APXvYqzsoO1PctpIOtD86DyHScFuO3OZ7YIiIC4Vu3+ZYK3Tv0fEv9SPRknl7cvg8VY1RVh0Sn5I
+X-Received: by 2002:a50:b493:: with SMTP id w19mr2160187edd.11.1551345363394;
+        Thu, 28 Feb 2019 01:16:03 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551345363; cv=none;
         d=google.com; s=arc-20160816;
-        b=amMsN+kmrK0OPzoXzwsIrxIOxbOLa8Crujp1iZp0KvfG3qJ9f19qJkG2K7hT7jldJT
-         rcgXaDIcsQc30pdPKr7yM3V+uGr7c3gVdjysPkAYkE2hpKo8SwDVF7aDTjklmZtKATE+
-         l5EOuEpRTaKelk8OqQzqOTcaLU5/p4haTTkZKW7JNBZdwjtzXr6Dmmd2CZurNGwBwyPc
-         D8R7H8zaBxw5D1uN1qupt5C1JXoYZcG86zFBVm69X2BOiztkWSr0muYfZpqC+F8LKixI
-         aMgC04ocYoaIrvsvDpbu4YkqOPIBC9D/yLdFI7hwL24Jmo6x7VqmIfm9L4pIURPnCIxW
-         NTgQ==
+        b=vGfpKGMi5yo1+P0BQSFuTe4YqZ/oWUF+6O4yMNMYbHsQLvcAd0zNeEr/NDy5Xiuv3q
+         5VLEmpWs40GWgqfmQzOZnZ87I+RHwTgNujp0NntSIW2WVssHfDuDPo6zYm7na9p55+F3
+         2tuCunU3bFhpD02hI2DZisFXAkwAqcWjr+UkjEeG6/ejvLLadikOiYvdfECkOs10pG27
+         Y5EX6q+T+E23IAmHnk9ceg6wdxYGTWOtZY8X2GwXcS+nvMY9znuxK1XfekLMo2Eahojg
+         vYLA/CJxDyf0fhq7zclCZs4z/bNxuSYQVIYYHcPiKcMhxNPa04uGifoqZkWHN1K7HFc1
+         Ns3A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=egCQeAXTRB2JYiDyIxmRF2m38XvFo+Cg7v5CUmY+D9o=;
-        b=RyLYAHQtuRNNdhWih7EeQB7rWUiVWOYOlvIpgKHr7O/oNpEDJ204mtcsAiG64ArdZD
-         1SHoKMFrAVO1z9JCVponME8DsnAhUqlJ6Q0RtIhO6xgb6h/XwLOecg0c+SApGv8TWFMV
-         YeQc1A6Rp/FFJ1jk7yzZWDkA2qiVRxCHv9KstAu1FHexrwSfd0B8ARjIQNfcbwkKGYj9
-         +vDAWxkevKFss1T+mdOfCz48hVjttvmOLcW3ZvJB6DcFJT+ecEqxaa+LkG4GTcsimJnC
-         FjRNXEJZ+2+F07duUPOEOJRb0Dk4wQYXkx9XR0PXzgYiHOscSKrDrQC8VxXsublV1QzU
-         g3Rw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=6NrpsrTAZaLHQxEuYMjD2BkUO7lx4XYeLuzKZsPdRcQ=;
+        b=GyatuyoFB0IWYxjQ4HzbgA4cGYWNxr7WX1iZkYnpcGKuONeOjn+hHYmcgpMVd+M1B0
+         IC6u0YS837HLkmBKVKTHTWwOLUj1N4DE6k9NncvCHk0vOqHXsEBfoDCYq527yrsH6kQS
+         8RwIEtEhtBcnp4E8ZRg1V/5Z0C9lPedQB8ACDHH7to3pvJfPPH4rOWXBFdRj05eEAfE8
+         yGaT/kSN+++jWtIvrXJPeX5mldmocr3fKuZRFyoaqh9TTE8CwIl65gdXIwVQsy8eq75P
+         QZKRM58WvbaKwy0gbB5ORL0Socw1Bl88qg0xeFpRwT+AJ7BhqeR1ycBnysymAw+zRvr0
+         K3Mg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Mit94bSq;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h18sor11167825lja.11.2019.02.28.00.59.16
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gv8si3969083ejb.278.2019.02.28.01.16.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Feb 2019 00:59:16 -0800 (PST)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Feb 2019 01:16:03 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Mit94bSq;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=egCQeAXTRB2JYiDyIxmRF2m38XvFo+Cg7v5CUmY+D9o=;
-        b=Mit94bSqqhC0QxtoONUF2QAWD1t8Ea6h3VVbRPUisMTjkT669vFlsBJUYiYwOtW4x9
-         o9FsIXLq293meu0rJW/MYRlGAlhT788JBdAvJCXt+19gzIWSMZHpLpsDkR73fASS2OKq
-         8hWFFDlsDNsN4bGGNI7AeVI3hhy+VU37GzDBIixKUIWidOhMj07PzR+fCcqIyE45gJR8
-         53MfAF6t/RGTiHkJgncmWxvsujlurtlRq4OOAQvSFL+qvGOismH5M6YEmUnqIo9xSvFW
-         rQR79RwwdT7/9YC2LX9WH8H/7yrwfCUXDs90B2hfT89LCj9BJ4CA2OQ+wz63oVknOWtf
-         ToJg==
-X-Google-Smtp-Source: APXvYqw09C+8WJZ3W4JuDqncLmQH3LJEkLKPBkrGvHXArDFJ2t8FuT9orNOg47B/bQ0/BmPySfAFJko6Ik98IXh9KG8=
-X-Received: by 2002:a2e:3807:: with SMTP id f7mr4065194lja.9.1551344356215;
- Thu, 28 Feb 2019 00:59:16 -0800 (PST)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id C6DA1ACC0;
+	Thu, 28 Feb 2019 09:16:02 +0000 (UTC)
+Date: Thu, 28 Feb 2019 10:16:02 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: David Hildenbrand <david@redhat.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>,
+	Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [RFC PATCH] mm,memory_hotplug: Unlock 1GB-hugetlb on x86_64
+Message-ID: <20190228091602.GU10588@dhcp22.suse.cz>
+References: <20190221094212.16906-1-osalvador@suse.de>
+ <20190227215109.cpiaheyqs2qdbl7p@d104.suse.de>
+ <201cc8d8-953f-f198-bbfe-96470136db68@oracle.com>
+ <bb71b68e-dc1b-a4d3-d842-b311535b92a8@redhat.com>
 MIME-Version: 1.0
-References: <1551341664-13912-1-git-send-email-laoar.shao@gmail.com>
-In-Reply-To: <1551341664-13912-1-git-send-email-laoar.shao@gmail.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Thu, 28 Feb 2019 14:29:04 +0530
-Message-ID: <CAFqt6zYd=NPHKwQ2Pz-tQ4NF7YJ07UrfXVjSmtHi5eiqiPq=Bw@mail.gmail.com>
-Subject: Re: [PATCH] mm: vmscan: add tracepoints for node reclaim
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, ktkhai@virtuozzo.com, 
-	broonie@kernel.org, hannes@cmpxchg.org, Linux-MM <linux-mm@kvack.org>, 
-	shaoyafang@didiglobal.com
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <bb71b68e-dc1b-a4d3-d842-b311535b92a8@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 28, 2019 at 1:44 PM Yafang Shao <laoar.shao@gmail.com> wrote:
->
-> In the page alloc fast path, it may do node reclaim, which may cause
-> latency spike.
-> We should add tracepoint for this event, and also mesure the latency
-> it causes.
+On Thu 28-02-19 08:38:34, David Hildenbrand wrote:
+> On 27.02.19 23:00, Mike Kravetz wrote:
+> > On 2/27/19 1:51 PM, Oscar Salvador wrote:
+> >> On Thu, Feb 21, 2019 at 10:42:12AM +0100, Oscar Salvador wrote:
+> >>> [1] https://lore.kernel.org/patchwork/patch/998796/
+> >>>
+> >>> Signed-off-by: Oscar Salvador <osalvador@suse.de>
+> >>
+> >> Any further comments on this?
+> >> I do have a "concern" I would like to sort out before dropping the RFC:
+> >>
+> >> It is the fact that unless we have spare gigantic pages in other notes, the
+> >> offlining operation will loop forever (until the customer cancels the operation).
+> >> While I do not really like that, I do think that memory offlining should be done
+> >> with some sanity, and the administrator should know in advance if the system is going
+> >> to be able to keep up with the memory pressure, aka: make sure we got what we need in
+> >> order to make the offlining operation to succeed.
+> >> That translates to be sure that we have spare gigantic pages and other nodes
+> >> can take them.
+> >>
+> >> Given said that, another thing I thought about is that we could check if we have
+> >> spare gigantic pages at has_unmovable_pages() time.
+> >> Something like checking "h->free_huge_pages - h->resv_huge_pages > 0", and if it
+> >> turns out that we do not have gigantic pages anywhere, just return as we have
+> >> non-movable pages.
+> > 
+> > Of course, that check would be racy.  Even if there is an available gigantic
+> > page at has_unmovable_pages() time there is no guarantee it will be there when
+> > we want to allocate/use it.  But, you would at least catch 'most' cases of
+> > looping forever.
+> > 
+> >> But I would rather not convulate has_unmovable_pages() with such checks and "trust"
+> >> the administrator.
+> 
+> I think we have the exact same issue already with huge/ordinary pages if
+> we are low on memory. We could loop forever.
+> 
+> In the long run, we should properly detect such issues and abort instead
+> of looping forever I guess. But as we all know, error handling in the
+> whole offlining part is still far away from being perfect ...
 
-Minor typo : mesure ->measure.
+Migration allocation callbacks use __GFP_RETRY_MAYFAIL to not
+be disruptive so they do not trigger the OOM killer and rely on somebody
+else to pull the trigger instead. This means that if there is no other
+activity on the system the hotplug migration would just loop for ever
+or until interrupted by the userspace. THe later is important, user
+might define a policy when to terminate and keep retrying is not
+necessarily a wrong thing. One can simply do
+timeout $TIMEOUT echo 0 > $PATH_TO_MEMBLOCK/online
 
->
-> So bellow two tracepoints are introduced,
->         mm_vmscan_node_reclaim_begin
->         mm_vmscan_node_reclaim_end
->
-> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
-> ---
->  include/trace/events/vmscan.h | 48 +++++++++++++++++++++++++++++++++++++++++++
->  mm/vmscan.c                   | 13 +++++++++++-
->  2 files changed, 60 insertions(+), 1 deletion(-)
->
-> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> index a1cb913..9310d5b 100644
-> --- a/include/trace/events/vmscan.h
-> +++ b/include/trace/events/vmscan.h
-> @@ -465,6 +465,54 @@
->                 __entry->ratio,
->                 show_reclaim_flags(__entry->reclaim_flags))
->  );
-> +
-> +TRACE_EVENT(mm_vmscan_node_reclaim_begin,
-> +
-> +       TP_PROTO(int nid, int order, int may_writepage,
-> +               gfp_t gfp_flags, int zid),
-> +
-> +       TP_ARGS(nid, order, may_writepage, gfp_flags, zid),
-> +
-> +       TP_STRUCT__entry(
-> +               __field(int, nid)
-> +               __field(int, order)
-> +               __field(int, may_writepage)
-> +               __field(gfp_t, gfp_flags)
-> +               __field(int, zid)
-> +       ),
-> +
-> +       TP_fast_assign(
-> +               __entry->nid = nid;
-> +               __entry->order = order;
-> +               __entry->may_writepage = may_writepage;
-> +               __entry->gfp_flags = gfp_flags;
-> +               __entry->zid = zid;
-> +       ),
-> +
-> +       TP_printk("nid=%d zid=%d order=%d may_writepage=%d gfp_flags=%s",
-> +               __entry->nid,
-> +               __entry->zid,
-> +               __entry->order,
-> +               __entry->may_writepage,
-> +               show_gfp_flags(__entry->gfp_flags))
-> +);
-> +
-> +TRACE_EVENT(mm_vmscan_node_reclaim_end,
-> +
-> +       TP_PROTO(int result),
-> +
-> +       TP_ARGS(result),
-> +
-> +       TP_STRUCT__entry(
-> +               __field(int, result)
-> +       ),
-> +
-> +       TP_fast_assign(
-> +               __entry->result = result;
-> +       ),
-> +
-> +       TP_printk("result=%d", __entry->result)
-> +);
->  #endif /* _TRACE_VMSCAN_H */
->
->  /* This part must be outside protection */
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index ac4806f..01a0401 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -4240,6 +4240,12 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
->                 .may_swap = 1,
->                 .reclaim_idx = gfp_zone(gfp_mask),
->         };
-> +       int result;
-
-If it goes to v2, then
-s/result/ret ?
-
-> +
-> +       trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, order,
-> +                                       sc.may_writepage,
-> +                                       sc.gfp_mask,
-> +                                       sc.reclaim_idx);
->
->         cond_resched();
->         fs_reclaim_acquire(sc.gfp_mask);
-> @@ -4267,7 +4273,12 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
->         current->flags &= ~PF_SWAPWRITE;
->         memalloc_noreclaim_restore(noreclaim_flag);
->         fs_reclaim_release(sc.gfp_mask);
-> -       return sc.nr_reclaimed >= nr_pages;
-> +
-> +       result = sc.nr_reclaimed >= nr_pages;
-> +
-> +       trace_mm_vmscan_node_reclaim_end(result);
-> +
-> +       return result;
->  }
->
->  int node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
-> --
-> 1.8.3.1
->
+and ENOMEM handling is not important. But I can see how people might
+want to bail out early instead. So I do not have a strong opinion here.
+We can try to consider ENOMEM from the migration as a hard failure and
+bail out and see whether it works in practice.
+-- 
+Michal Hocko
+SUSE Labs
 
