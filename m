@@ -2,207 +2,125 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D380C4360F
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 12:04:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1ED6AC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 12:11:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 349782084D
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 12:04:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 349782084D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id D61AD2133D
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 12:11:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D61AD2133D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BD0BE8E0003; Thu, 28 Feb 2019 07:04:16 -0500 (EST)
+	id 736858E0003; Thu, 28 Feb 2019 07:11:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B7EE88E0001; Thu, 28 Feb 2019 07:04:16 -0500 (EST)
+	id 6E5368E0001; Thu, 28 Feb 2019 07:11:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A47FD8E0003; Thu, 28 Feb 2019 07:04:16 -0500 (EST)
+	id 5D4008E0003; Thu, 28 Feb 2019 07:11:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C6F78E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 07:04:16 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id u12so8445221edo.5
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 04:04:16 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 1C2368E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 07:11:18 -0500 (EST)
+Received: by mail-ed1-f71.google.com with SMTP id f2so8303979edm.18
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 04:11:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=h5GH7Vl9yaJj/czE7BPBMi+uiO5bJ5BjuoyhFZ7G1TU=;
-        b=CKjbGNgvUsru9s2G7Rqnl8b3Ri0PTXn4b8dC3G8FP4id/OiP2TO4EKuAYmNboMig90
-         Mw63rjr//8PQom8KGl9R8lgL1uscfknOlr7zqCiDnJ9Bixe+aKOqYSbXFjw976WZng5d
-         Ja1mROZoH5Ww+PzuvFjTAyOJYfJgRzzNcNOjYAC6ZHUqWAienvcAtY1snu033Qo9ydUQ
-         NSCZQWwd8uq93R7iJyPGVTedyKBhYryqdXJbHrdL/ngmpoZu//8Wpsed/WDUEbweuHH2
-         wXU3ndB2fWyhOW3zZPwWJUMzEVwFlihLNLo4mooikv31zu02eOyXg2Jq/8Ci7wZP5Nl7
-         iEgQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: AHQUAuazCwTvXOKm4NTadKf/kQYUn+FFPIUvmk/S6xotdr3Ac5q2wKtd
-	p4fwhiScATb9EIHuXvjQsOZxVAhKgzI3+6kN5eJw7aj8npb4kpyQR9yaAJGIGvfANet8EC4gSHi
-	cdgnP+Pgf7vIgaBBDCFDB8d6yBzKId9LL8Rr3IZCZqmM6K25thGQZ8/MV/azOxHN7wA==
-X-Received: by 2002:a17:906:e56:: with SMTP id q22mr5208870eji.132.1551355455862;
-        Thu, 28 Feb 2019 04:04:15 -0800 (PST)
-X-Google-Smtp-Source: AHgI3Ia05iIJ8ANmmCyKhGwr542nk4lAeO8GwHu/TqpePwvRCqa0i+2ZMO5/73LGAfhfAu2tQg+d
-X-Received: by 2002:a17:906:e56:: with SMTP id q22mr5208817eji.132.1551355454771;
-        Thu, 28 Feb 2019 04:04:14 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551355454; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Xon0kn15d0/SV7aD/V/3L55otBT/BsTvluSbnJwJf70=;
+        b=bRjtzQKIBGkonujpqeb27sh+lS8Hfn//PZ3BqXWHjIYHEzY59nW/MSH55bRyI9fhIy
+         e96ZBUNO8ucSfGur6FDPPI2MfpE/OLS0ppauwKFaIfB0LjndBxc5Ir8/yQ0qEhIXHtZe
+         +jEfFrcbwNEtjpcz6iVLp/x7hu4HWPCsauqplvxnFrNgGngNEX0mULG9YlYHEe5616fG
+         aKrxwbrj29fABOVsxq6B/eE8aKpiNeyRoVSqgMq0TUavHIHBjeoyYf/8bh7K5BkeNyg1
+         W4iWZ9nbAug9gK92W/KZWbnSnPBIpKnNIwXnGrR7wjvYUHn5lwipzl2QlIOJL57epxRO
+         9NAw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: AHQUAuagQG2hC5c72O+kRXdY8ZtNA4jy2mYJ8Z+kYhi0QcsEzo8uYU9+
+	GPvzsFmku7yAcnX8VZ1TsQ4VbiLiZmDM8PkR4CKbh2BAB7P+JYAGtH4f2ChFiijFtyYDbl54Agv
+	YEp9YSIaWR89Y3aPJtMzTWhwV7NvGnzOoXHz/K+czJZ3LQcIwEv1eQwpvnw71W4U=
+X-Received: by 2002:a17:906:81d0:: with SMTP id e16mr5172373ejx.243.1551355877674;
+        Thu, 28 Feb 2019 04:11:17 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaBYMNt5K9+/Cm5Scq4DbTckeD2OnYflt8qX4YxqM41Tv6aprLLcZb+Zef62nqIPzQ3lAod
+X-Received: by 2002:a17:906:81d0:: with SMTP id e16mr5172334ejx.243.1551355876791;
+        Thu, 28 Feb 2019 04:11:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551355876; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZITIWt6UjAuz8LA8RnKoTxuRgCesS3NZkyTFlNv8Y3mV7xvZmm3dEqfSNWN5FJndLO
-         nFca3s6nSVaLduK3rSZy4YEGxSGew7KLvZ/P8OVhReQxUhNlt9x5vuQ1GQZNZRMSbV/e
-         ZhQbMgFkYi72A2PjYC5wPmrFw/FhdFMSMz0p9SNqvtPcFHBjGZBcS8k/5+SdksBkkxZv
-         BZ50AuTs9/53E2beOYzcYahfnncOl+D7eWm7+PkKlOQRm42I2bYc53sQETsi5tHdOIbF
-         iqN/xYirBBQridO6dznNGVs+e60jBKBdscCseYhOYLTt8X0ZQB/dMIBSrO3HAAuO/qZ+
-         LGwQ==
+        b=id2YQ9DH+udYiqDPItWok58La3xyPk5+lX9NKhezeVee/LDO89T7DsZCnQDO6XK8wZ
+         XNK14l5ldZb/LldLHl6fUdvAXWfuFM9Rdn2SHVk0WXTTF72ZePLk5tSuCePlmRz1tlzV
+         5QUqMm192y6IHuzQn4mXLTAh26pZOA3ywHkpMjjOKlTWQI9uVHVBtX9sIoJ3gvnxRVma
+         K0YQjNXrjbCOyc14RWljlgEkkSzTJXmOBKu6tR9RCQWKhT7R1Kv+UtASznQ9ZMFqYJJU
+         lXJnvr5OX6hC6SubWrINdjEkPR3TrAKR7flHkWsCrf0YazSlsBl4fUReY/sDZl5dIpIp
+         hfMA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=h5GH7Vl9yaJj/czE7BPBMi+uiO5bJ5BjuoyhFZ7G1TU=;
-        b=j6kEJ8jMcJhmBLvbqECBNBhE8W5vOEFZguLQOxUvEwuaGXibMA7uJgjyBUOOzjCQwQ
-         lLykXTZhDI09OAxDhRh23EBv1sCN4vL9ICa4ZMUG4/t43gAd1o58YKsakeNYKt803Qol
-         Y0mL9uX3F18viKB9drxJvfXrtToPRc9Sht7DcBBvm4BwR1F9h5qyKGsFsR+aZwWt+750
-         mU6caMDUYc6jua0pRLpr5R251TvJDhe9KyV5XPJb5729R6OBB0h1Tv8EKo8YcMqKY1Zh
-         9LezDtqpLca4uzqQbmGJYRLuF+9oSmiH0Nt8n/hLby50CuHC92iWhtXIO/qP2l06coO1
-         FJ1Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Xon0kn15d0/SV7aD/V/3L55otBT/BsTvluSbnJwJf70=;
+        b=yn8xiBrC6fNj1ZKnJagHyodTlvoNUEu72K1r3CIhegfSRAoAFXhpIcbmmiVPrCyG+Q
+         /QIarQf1XakRYgt/SA7gx5FdseIsB1fbc7OibRAdZmL9cuPyq0wgfVwEp+aQdg5nQUAa
+         ETG06ptiV7NnKJb0F3GKCEd52qV8KqkhRqrQKq5hoMKwkXZSQ8reCASni1X8DLTlPF0K
+         /xNMbRq9kXvYwq0sZMAfFqV/H1baUEiumCcBauyNp6nyVFTIcsksNV0uMGVxTju2l+7M
+         6j5phvIS9WZRT+Ze1Nb5Es/F6S/tSqIO3dBQjcEhIbpZqVKPfSKzF9u279QmynhWkuSW
+         TGkw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e2si2943210ejr.125.2019.02.28.04.04.14
-        for <linux-mm@kvack.org>;
-        Thu, 28 Feb 2019 04:04:14 -0800 (PST)
-Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p11si1699131ejq.186.2019.02.28.04.11.16
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Feb 2019 04:11:16 -0800 (PST)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 394E180D;
-	Thu, 28 Feb 2019 04:04:13 -0800 (PST)
-Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C7A4E3F738;
-	Thu, 28 Feb 2019 04:04:09 -0800 (PST)
-Subject: Re: [PATCH v3 09/34] m68k: mm: Add p?d_large() definitions
-To: Geert Uytterhoeven <geert@linux-m68k.org>,
- Mike Rapoport <rppt@linux.ibm.com>
-Cc: Mark Rutland <Mark.Rutland@arm.com>,
- the arch/x86 maintainers <x86@kernel.org>, Arnd Bergmann <arnd@arndb.de>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Peter Zijlstra <peterz@infradead.org>,
- Catalin Marinas <catalin.marinas@arm.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
- <will.deacon@arm.com>,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
- Linux MM <linux-mm@kvack.org>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
- <jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>,
- "H. Peter Anvin" <hpa@zytor.com>, James Morse <james.morse@arm.com>,
- Thomas Gleixner <tglx@linutronix.de>,
- linux-m68k <linux-m68k@lists.linux-m68k.org>,
- Linux ARM <linux-arm-kernel@lists.infradead.org>,
- "Liang, Kan" <kan.liang@linux.intel.com>
-References: <20190227170608.27963-1-steven.price@arm.com>
- <20190227170608.27963-10-steven.price@arm.com>
- <CAMuHMdXCjuurBiFzQBeLPUFu=mmSowvb=37XyWmF_=xVhkQm4g@mail.gmail.com>
- <20190228113653.GB3766@rapoport-lnx>
- <CAMuHMdU5gn6ftAHNwHNPDoUy_JvcZLcXbkk1hvUmYxtfJRfTTQ@mail.gmail.com>
-From: Steven Price <steven.price@arm.com>
-Message-ID: <a17f5ad7-9fba-9d51-4d6e-7a9effe81e4e@arm.com>
-Date: Thu, 28 Feb 2019 12:04:08 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4E220AF8D;
+	Thu, 28 Feb 2019 12:11:16 +0000 (UTC)
+Date: Thu, 28 Feb 2019 13:11:15 +0100
+From: Michal Hocko <mhocko@kernel.org>
+To: Oscar Salvador <osalvador@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, david@redhat.com,
+	mike.kravetz@oracle.com
+Subject: Re: [RFC PATCH] mm,memory_hotplug: Unlock 1GB-hugetlb on x86_64
+Message-ID: <20190228121115.GA10588@dhcp22.suse.cz>
+References: <20190221094212.16906-1-osalvador@suse.de>
+ <20190228092154.GV10588@dhcp22.suse.cz>
+ <20190228094104.wbeaowsx25ckpcc7@d104.suse.de>
+ <20190228095535.GX10588@dhcp22.suse.cz>
+ <20190228101949.qnnzgdhyn6deevnm@d104.suse.de>
 MIME-Version: 1.0
-In-Reply-To: <CAMuHMdU5gn6ftAHNwHNPDoUy_JvcZLcXbkk1hvUmYxtfJRfTTQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190228101949.qnnzgdhyn6deevnm@d104.suse.de>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 28/02/2019 11:53, Geert Uytterhoeven wrote:
-> Hi Mike,
+On Thu 28-02-19 11:19:52, Oscar Salvador wrote:
+> On Thu, Feb 28, 2019 at 10:55:35AM +0100, Michal Hocko wrote:
+> > You seemed to miss my point or I am wrong here. If scan_movable_pages
+> > skips over a hugetlb page then there is nothing to migrate it and it
+> > will stay in the pfn range and the range will not become idle.
 > 
-> On Thu, Feb 28, 2019 at 12:37 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
->> On Wed, Feb 27, 2019 at 08:27:40PM +0100, Geert Uytterhoeven wrote:
->>> On Wed, Feb 27, 2019 at 6:07 PM Steven Price <steven.price@arm.com> wrote:
->>>> walk_page_range() is going to be allowed to walk page tables other than
->>>> those of user space. For this it needs to know when it has reached a
->>>> 'leaf' entry in the page tables. This information is provided by the
->>>> p?d_large() functions/macros.
->>>>
->>>> For m68k, we don't support large pages, so add stubs returning 0
->>>>
->>>> CC: Geert Uytterhoeven <geert@linux-m68k.org>
->>>> CC: linux-m68k@lists.linux-m68k.org
->>>> Signed-off-by: Steven Price <steven.price@arm.com>
->>>
->>> Thanks for your patch!
->>>
->>>>  arch/m68k/include/asm/mcf_pgtable.h      | 2 ++
->>>>  arch/m68k/include/asm/motorola_pgtable.h | 2 ++
->>>>  arch/m68k/include/asm/pgtable_no.h       | 1 +
->>>>  arch/m68k/include/asm/sun3_pgtable.h     | 2 ++
->>>>  4 files changed, 7 insertions(+)
->>>
->>> If the definitions are the same, why not add them to
->>> arch/m68k/include/asm/pgtable.h instead?
-
-I don't really understand the structure of m68k, so I just followed the
-existing layout (arch/m68k/include/asm/pgtable.h is basically empty). I
-believe the following patch would be functionally equivalent.
-
-----8<----
-diff --git a/arch/m68k/include/asm/pgtable.h
-b/arch/m68k/include/asm/pgtable.h
-index ad15d655a9bf..6f6d463e69c1 100644
---- a/arch/m68k/include/asm/pgtable.h
-+++ b/arch/m68k/include/asm/pgtable.h
-@@ -3,4 +3,9 @@
- #include <asm/pgtable_no.h>
- #else
- #include <asm/pgtable_mm.h>
-+
-+#define pmd_large(pmd)		(0)
-+
- #endif
-+
-+#define pgd_large(pgd)		(0)
-----8<----
-
-Let me know if you'd prefer that
-
->> Maybe I'm missing something, but why the stubs have to be defined in
->> arch/*/include/asm/pgtable.h rather than in include/asm-generic/pgtable.h?
+> I might be misunterstanding you, but I am not sure I get you.
 > 
-> That would even make more sense, given most architectures don't
-> support huge pages.
+> scan_movable_pages() can either skip or not a hugetlb page.
+> In case it does, pfn will be incremented to skip the whole hugetlb
+> range.
+> If that happens, pfn will hold the next non-hugetlb page.
 
-Where the architecture has folded a level stubs are provided by the
-asm-generic layer, see this later patch:
-
-https://lore.kernel.org/lkml/20190227170608.27963-25-steven.price@arm.com/
-
-However just because an architecture port doesn't (currently) support
-huge pages doesn't mean that the architecture itself can't have large[1]
-mappings at higher levels of the page table. For instance an
-architecture might use large pages for the linear map but not support
-huge page mappings for user space.
-
-My previous posting of this series attempted to define generic versions
-of p?d_large(), but it was pointed out to me that this was fragile and
-having a way of knowing whether the page table was a 'leaf' is actually
-useful, so I've attempted to implement for all architectures. See the
-discussion here:
-https://lore.kernel.org/lkml/20190221113502.54153-1-steven.price@arm.com/T/#mf0bd0155f185a19681b48a288be212ed1596e85d
-
-Steve
-
-[1] Note I've tried to use the term "large page" where I mean that page
-table walk terminates early, and "huge page" for the Linux concept of
-combining a large area of memory to reduce TLB pressure. Some
-architectures have ways of mapping a large block in the TLB without
-reducing the number of levels in the table walk - for example contiguous
-hint bits in the page table entries.
+And as a result the previous hugetlb page doesn't get migrated right?
+What does that mean? Well, the page is still in use and we cannot
+proceed with offlining because the full range is not isolated right?
+-- 
+Michal Hocko
+SUSE Labs
 
