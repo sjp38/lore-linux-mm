@@ -2,202 +2,178 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06F7AC10F00
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 11:37:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D218C10F00
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 11:43:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C181E2171F
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 11:37:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C181E2171F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id D98D42083D
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 11:43:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D98D42083D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 52D438E0003; Thu, 28 Feb 2019 06:37:10 -0500 (EST)
+	id 7C2738E0003; Thu, 28 Feb 2019 06:43:37 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 504068E0001; Thu, 28 Feb 2019 06:37:10 -0500 (EST)
+	id 7700F8E0001; Thu, 28 Feb 2019 06:43:37 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3F53C8E0003; Thu, 28 Feb 2019 06:37:10 -0500 (EST)
+	id 639C78E0003; Thu, 28 Feb 2019 06:43:37 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DB11B8E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 06:37:09 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id h16so8379265edq.16
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 03:37:09 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 09F408E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 06:43:37 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id u12so8416861edo.5
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 03:43:36 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=53FU41LaTNdbtI/ZXh2UKiryTlrZPh5Cuybqkgl/qvs=;
-        b=XP/TgCpx2kqYSAkMaPx+ca51qP6WG6E1foRKRwcZlo2BdHK6opjDaoEoNOmNYqnAnZ
-         wpllAyds1Q8ANrxUruc56DQBRtZ0UVe5s/GtvxWjS+IgP40X9hbPqqeMTPA8wPzjU2I/
-         09FqQxx4bgG/oPeA5lKaGCOgZbs8IBLeDVQhryeqaIyweuVWbrqMa4d1w7VIK2T7IxIk
-         NJg9nMnhN08LulLjPqv0Le2z1LDcS0GIIc77fFmh2KLjglZLj1YEUWMlP0t8OeUvso2/
-         Y4E8Q0Nfur96wtg5+bz+8CnwGumoVNIoJ0yjbHh2wSz8nVKy8syTSHdHYOLPZhHYhTLa
-         Dzvg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: AHQUAualvQkqOaro81m2f6S+bSmIv7dalVher04BEXEacAx/nmAyDiEr
-	CMNg70e6l/HOmi3Afoj2omfleDeWIU1Qc/GD+W7hjW0NSSsCmU2DhVmeLCW5L4BW3f6M4/FPI1K
-	5IRGI8WKVJ93Y0bVsX7M4MoCGGmDcI9KuQX+ZiK+k6D2UmA8T0AJORuaFYT/VzaE1Ew==
-X-Received: by 2002:a50:b84d:: with SMTP id k13mr6210847ede.275.1551353829434;
-        Thu, 28 Feb 2019 03:37:09 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZKd4BYhsXwe7n2ZajnyXZ4mxeR0dsnSPJqlPJogosJL/AEr3Ww+ZEiJ3sLD0sOGLEl8FBG
-X-Received: by 2002:a50:b84d:: with SMTP id k13mr6210805ede.275.1551353828660;
-        Thu, 28 Feb 2019 03:37:08 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551353828; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=ikpFdwIkhgdzCfuYj1ACSBrGmyUU+sWaR/BAehbLF+0=;
+        b=IjIeQNbmNXVt/miQMzt2fpHjEMBWcNQdwV4jHeKZJMosH7fLp427MA3oMklVgNZuDa
+         k0deby8kd+ocl9tt8eZIvxGOwnJ1elX9gIb6eKXIQrAC/qJA1i0kkGIIUAC5uErtD8jp
+         PVncSSNkUcZCrUn+9OUv5NhS1fiCdwz+kF42WCfoMNjrWWJjaYCESF6y+PYoZSGq/kSE
+         Z5ElPConoAAfxY2QECUY1ENp3dgvjt3wzH6ziOuwh+mg0rJindX8i3+e42idh3TW3iF9
+         Z8BiqHYDSaxLJp/v0+ykoOWkUkIXs6xezCq0enipC9yUgyhzSVR8Mory1gK9sW1cvt2a
+         RaSg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: APjAAAXRtEskvLz/7NGLW2+K3wUegLstF22A3lU2CKrVkFK/a2DU9ltW
+	sf9Klw9cqawuHKUzRH0dKiJfWYUsaISMa8F1p8B7bkYVfme1JCzFZt/u5mRHGIaTLKhA5wo2beY
+	XiBTrIw7bXlhQ9wId8FUVNQxJb4GnBQiBavYwyGjtbWZ7cggVkN0uiXKP92V+j9fYug==
+X-Received: by 2002:a50:b36b:: with SMTP id r40mr1139613edd.12.1551354216587;
+        Thu, 28 Feb 2019 03:43:36 -0800 (PST)
+X-Google-Smtp-Source: APXvYqwX2KDC20fFi0uiuCFgUpd6gZxve7khLmRJxF7BvFRCC9THX2yGXeoPqGCLXtSb7lM6EzEB
+X-Received: by 2002:a50:b36b:: with SMTP id r40mr1139568edd.12.1551354215728;
+        Thu, 28 Feb 2019 03:43:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551354215; cv=none;
         d=google.com; s=arc-20160816;
-        b=XtF2gFrOpCkwvCAc7T75Vx/G+4f1otbly3Vjh6zKG//DjFq98LjbYMleiDGIi9Wlvs
-         lNGMCXl657PzPYrkYEYTD/d+MLagIbLJACYvBdDfJMyPZBME8IOsnDzMa1JseFmYrVip
-         UyM1pAoywpDtOXvgGk/FVCwtvvmm5zT9xX9yTqrZj0Wlz7bynzDAW3mQTq4eDPvl+59D
-         /Kiy/DXcmaZK1EMAIA1cTi2O3Z/VRrA8sYPwbwHbNPJiunJzCaDM9EzFlRQBqYTSJrH7
-         pUvdQsfQLgnPqFCoo4Tlwj8dexW4Lq+1M1Qy4RpuvdpkIwNiI81P5E+MZd5gFgVmGNhR
-         Eg8A==
+        b=hXUucvtHfIpqNY1gR01OtzIcP3kkTNfVrWAsSlx29dp4h+c1lkVLxmHw1vrSi+G0HS
+         wPNJ536eqg+88LnznjwdbLXT7y4b9Ju/qq2a2nRji95mWoxutvrjhfbEqaD4gPQ8eCxh
+         mxn962pSpVASUlkIX05MTvMlvQsKwJh3506T5Q78yNLdkxUiCuTyzoIcp1MNoizAaUJK
+         Kz5gUZoBC+DMoCLS8jO5ARI8PExOZ5MD69iCVU9osmxgK5o3WvAnBhwWI24mZ3EGbz5A
+         IvC/c8oWI6X0u8+mplVllR0gZ11gw+Wi73HF0CQt9UJRBuUJ9IdMzZkGwvFIIwOZZfLo
+         Cxdg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=53FU41LaTNdbtI/ZXh2UKiryTlrZPh5Cuybqkgl/qvs=;
-        b=yXL1Hk3m4tvTLv+cp+ipSsg4pISutN5ztJ71kgMZ5K2nD5l9Qnb+DHvPYVOYEyToX/
-         E1nwjM6lpTiBmMBXIsHvEXA1ZKMqmiJzEdkvI4UN/mhozYyCQQzAGdB3GS/Stf8pVBIH
-         eItkbcT8iNxRSgQxWxnGO6Za8OWRFoRjK5RwiaI0E7+yBX4tI0ht94eUUicElBxmz6k+
-         J59O9IfPB5P1nZdFHDOsYqZMEdg7YRjyk+8ghOQIEhuFo/0pNbPLH71FhK5m7nUC0hhE
-         hsYzOangCySxJciEOs4m9i4Pn2DJ8T1IpKL6rlu3m5iKsSpIxta1+fVAGsIM2OfEyBeD
-         fPow==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=ikpFdwIkhgdzCfuYj1ACSBrGmyUU+sWaR/BAehbLF+0=;
+        b=09f4VF6s+WjvOnDcEJN2uRHt8cxvpS224KQTPQ65MhweiwkuLA6I//qsD7b4hCD6Tv
+         NDrM9+BHTmvJZoqlfVlE2eAAc6C9Tf/Qcpcw+0XBXvi0KIgbgl2CIwt7Ono3RmAMZeY2
+         cdxxUPHsEmIq0ytseIpg4cvn34S3q9eexN8XKSINq2DadKwmAAA/t95q+fUW0fuIfHAH
+         oWuwb3duv+fWXuwG1nBjo7tetPAlb1Tqsy7d5SM5SrdXSGMo+kozhoFdlsjceS3wBa7Y
+         xNH/NqsGM/gjMQYUXiAclLDIAJU+nAvz2hRAnptYrxXNQfod3UVEeDknwm4R3G8OZxLm
+         AzvA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id i20si1826354ejv.191.2019.02.28.03.37.08
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Feb 2019 03:37:08 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id e54si2626165eda.118.2019.02.28.03.43.35
+        for <linux-mm@kvack.org>;
+        Thu, 28 Feb 2019 03:43:35 -0800 (PST)
+Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1SBXxZ0046087
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 06:37:07 -0500
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2qxdxt2v13-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 06:37:06 -0500
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 28 Feb 2019 11:37:04 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 28 Feb 2019 11:36:57 -0000
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1SBav1G61407436
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 28 Feb 2019 11:36:57 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id E8BD64C046;
-	Thu, 28 Feb 2019 11:36:56 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 61E7D4C040;
-	Thu, 28 Feb 2019 11:36:55 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.84])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Thu, 28 Feb 2019 11:36:55 +0000 (GMT)
-Date: Thu, 28 Feb 2019 13:36:53 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Steven Price <steven.price@arm.com>, Linux MM <linux-mm@kvack.org>,
-        Andy Lutomirski <luto@kernel.org>,
-        Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-        Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>,
-        Catalin Marinas <catalin.marinas@arm.com>,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        Ingo Molnar <mingo@redhat.com>, James Morse <james.morse@arm.com>,
-        =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-        Peter Zijlstra <peterz@infradead.org>,
-        Thomas Gleixner <tglx@linutronix.de>,
-        Will Deacon <will.deacon@arm.com>,
-        the arch/x86 maintainers <x86@kernel.org>,
-        "H. Peter Anvin" <hpa@zytor.com>,
-        Linux ARM <linux-arm-kernel@lists.infradead.org>,
-        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-        Mark Rutland <Mark.Rutland@arm.com>,
-        "Liang, Kan" <kan.liang@linux.intel.com>,
-        linux-m68k <linux-m68k@lists.linux-m68k.org>
-Subject: Re: [PATCH v3 09/34] m68k: mm: Add p?d_large() definitions
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9746280D;
+	Thu, 28 Feb 2019 03:43:34 -0800 (PST)
+Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 30B8D3F738;
+	Thu, 28 Feb 2019 03:43:31 -0800 (PST)
+Subject: Re: [PATCH v3 18/34] s390: mm: Add p?d_large() definitions
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Mark Rutland <Mark.Rutland@arm.com>, linux-s390@vger.kernel.org,
+ x86@kernel.org, Arnd Bergmann <arnd@arndb.de>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
+ <will.deacon@arm.com>, linux-kernel@vger.kernel.org,
+ Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
+ Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
+ James Morse <james.morse@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
+ linux-arm-kernel@lists.infradead.org, "Liang, Kan"
+ <kan.liang@linux.intel.com>
 References: <20190227170608.27963-1-steven.price@arm.com>
- <20190227170608.27963-10-steven.price@arm.com>
- <CAMuHMdXCjuurBiFzQBeLPUFu=mmSowvb=37XyWmF_=xVhkQm4g@mail.gmail.com>
+ <20190227170608.27963-19-steven.price@arm.com>
+ <20190227184012.2e251154@mschwideX1>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <0ad6ff76-bbe8-122c-f0e1-54f567dc9753@arm.com>
+Date: Thu, 28 Feb 2019 11:43:29 +0000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAMuHMdXCjuurBiFzQBeLPUFu=mmSowvb=37XyWmF_=xVhkQm4g@mail.gmail.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19022811-0008-0000-0000-000002C5FFBF
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19022811-0009-0000-0000-0000223250FB
-Message-Id: <20190228113653.GB3766@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-28_05:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902280081
+In-Reply-To: <20190227184012.2e251154@mschwideX1>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On 27/02/2019 17:40, Martin Schwidefsky wrote:
+> On Wed, 27 Feb 2019 17:05:52 +0000
+> Steven Price <steven.price@arm.com> wrote:
+> 
+>> walk_page_range() is going to be allowed to walk page tables other than
+>> those of user space. For this it needs to know when it has reached a
+>> 'leaf' entry in the page tables. This information is provided by the
+>> p?d_large() functions/macros.
+>>
+>> For s390, we don't support large pages, so add a stub returning 0.
+> 
+> Well s390 does support 1MB and 2GB large pages, pmd_large() and pud_large()
+> are non-empty. We do not support 4TB or 8PB large pages though, which
+> makes the patch itself correct. Just the wording is slightly off.
 
-On Wed, Feb 27, 2019 at 08:27:40PM +0100, Geert Uytterhoeven wrote:
-> Hi Steven,
-> 
-> On Wed, Feb 27, 2019 at 6:07 PM Steven Price <steven.price@arm.com> wrote:
-> > walk_page_range() is going to be allowed to walk page tables other than
-> > those of user space. For this it needs to know when it has reached a
-> > 'leaf' entry in the page tables. This information is provided by the
-> > p?d_large() functions/macros.
-> >
-> > For m68k, we don't support large pages, so add stubs returning 0
-> >
-> > CC: Geert Uytterhoeven <geert@linux-m68k.org>
-> > CC: linux-m68k@lists.linux-m68k.org
-> > Signed-off-by: Steven Price <steven.price@arm.com>
-> 
-> Thanks for your patch!
-> 
-> >  arch/m68k/include/asm/mcf_pgtable.h      | 2 ++
-> >  arch/m68k/include/asm/motorola_pgtable.h | 2 ++
-> >  arch/m68k/include/asm/pgtable_no.h       | 1 +
-> >  arch/m68k/include/asm/sun3_pgtable.h     | 2 ++
-> >  4 files changed, 7 insertions(+)
-> 
-> If the definitions are the same, why not add them to
-> arch/m68k/include/asm/pgtable.h instead?
+Sorry, you're absolutely right - I'll update the commit message for the
+next posting.
 
-Maybe I'm missing something, but why the stubs have to be defined in
-arch/*/include/asm/pgtable.h rather than in include/asm-generic/pgtable.h?
+Thanks,
 
-> Gr{oetje,eeting}s,
-> 
->                         Geert
-> 
-> -- 
-> Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-> 
-> In personal conversations with technical people, I call myself a hacker. But
-> when I'm talking to journalists I just say "programmer" or something like that.
->                                 -- Linus Torvalds
-> 
+Steve
 
--- 
-Sincerely yours,
-Mike.
+>> CC: Martin Schwidefsky <schwidefsky@de.ibm.com>
+>> CC: Heiko Carstens <heiko.carstens@de.ibm.com>
+>> CC: linux-s390@vger.kernel.org
+>> Signed-off-by: Steven Price <steven.price@arm.com>
+>> ---
+>>  arch/s390/include/asm/pgtable.h | 10 ++++++++++
+>>  1 file changed, 10 insertions(+)
+>>
+>> diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+>> index 063732414dfb..9617f1fb69b4 100644
+>> --- a/arch/s390/include/asm/pgtable.h
+>> +++ b/arch/s390/include/asm/pgtable.h
+>> @@ -605,6 +605,11 @@ static inline int pgd_present(pgd_t pgd)
+>>  	return (pgd_val(pgd) & _REGION_ENTRY_ORIGIN) != 0UL;
+>>  }
+>>
+>> +static inline int pgd_large(pgd_t pgd)
+>> +{
+>> +	return 0;
+>> +}
+>> +
+>>  static inline int pgd_none(pgd_t pgd)
+>>  {
+>>  	if (pgd_folded(pgd))
+>> @@ -645,6 +650,11 @@ static inline int p4d_present(p4d_t p4d)
+>>  	return (p4d_val(p4d) & _REGION_ENTRY_ORIGIN) != 0UL;
+>>  }
+>>
+>> +static inline int p4d_large(p4d_t p4d)
+>> +{
+>> +	return 0;
+>> +}
+>> +
+>>  static inline int p4d_none(p4d_t p4d)
+>>  {
+>>  	if (p4d_folded(p4d))
+> 
+> 
 
