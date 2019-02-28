@@ -2,204 +2,263 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C927FC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 02:19:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D04FFC43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 02:47:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 909F22083D
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 02:19:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 909F22083D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 8729E2186A
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 02:47:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8729E2186A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 612858E000F; Wed, 27 Feb 2019 21:19:03 -0500 (EST)
+	id 1B7108E0004; Wed, 27 Feb 2019 21:47:23 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 59B968E0001; Wed, 27 Feb 2019 21:19:03 -0500 (EST)
+	id 166D98E0001; Wed, 27 Feb 2019 21:47:23 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4638A8E000F; Wed, 27 Feb 2019 21:19:03 -0500 (EST)
+	id 055338E0004; Wed, 27 Feb 2019 21:47:23 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C46D8E0001
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 21:19:03 -0500 (EST)
-Received: by mail-qt1-f197.google.com with SMTP id s8so17060142qth.18
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 18:19:03 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CF0828E0001
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2019 21:47:22 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id b6so14952493qkg.4
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2019 18:47:22 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=qImDKhW66AzCuoNyqvyprY/jSnw+rPbm4Fv7bWHuvuA=;
-        b=A7LQh0rBRT0k1bCKZ0DRXwkyzUJ8sh2q/BnXnbNLZqiXIDauuUUcr+NwIubY763kKV
-         pYi0fSyw6HVZELgk2uYLG67o0GyXfkJKfRMAm4ne9s1p3P3fVEug3EKekDcxlBJnOCjc
-         wCiR8REH8A537TC/MW8CSzphADqD6to6pF0EWcZFW08u23rX9lRyAsBis/JUlp9nI5AV
-         Eb4wKZjtz3LcIt7aoZlzlPJCB8BSOfwg2LTPqpkLutmg9rxgO1BKpT6wsd27NGRdXJT3
-         iPjBGhwGVZ8kwwFgqCCDuJ7f+vK7fcse7zXl6XXKWXzMFR9JJoVZ5PdMFnjBLHIlBxoI
-         Jryw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: AHQUAubKwTbIm+dUeYA6XeFRoVc10/Np10Z/o8L3Je38kzmG91tYZ4bZ
-	8Ehi2X7jXE3Y01FAHmH6yMI3AKU6W83hTTyIm2ZuyPVUdsTgQlDBnS5SbTHEJM/SYmHieEVJql/
-	H8vaewbsoxky9Xt8QdhOwUcZY6dpUCeGOp/4FTUvHNM98ca4HBP7fK8LR/dmA+XlRn47bcrpRv9
-	AMg4Z50+EfZcyML38tOPNDq3uZ2hirQHt8KvjJNlAGVYrNO3OkVHaMbXUwJvLLUlCL718IKpNNx
-	YRJYzAFbZgcvVWuxxGI8SVKUiuTJ/iV3IZGMD2Ycqk4Tkqi8Ot1zVF7H6H5Nl0u1AMc8fCIhX2q
-	+B5xwrRl4AZHsVlLnSqBZNpk1xs30+MtOOp9d4E1SHkanVWLi0UARbdGlGwzczu8kOv8uwfYJg=
-	=
-X-Received: by 2002:ac8:2286:: with SMTP id f6mr4429338qta.68.1551320342886;
-        Wed, 27 Feb 2019 18:19:02 -0800 (PST)
-X-Received: by 2002:ac8:2286:: with SMTP id f6mr4429314qta.68.1551320342147;
-        Wed, 27 Feb 2019 18:19:02 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551320342; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=F7V523KyO9iWV9EggIihKDyw+hsAO/Ss7bgFqV8xigY=;
+        b=S7FUNxmaoZfeTFRMxBY1rhplK0HHheA+CkEPQmiR5m/ddkrqCjwbeOa/toqdiMKTc6
+         FUbEkD1tRfQ0D1ELeOHTiDXjivUgw9++6/h46PG0Ynf5OVXiiFekGwROvgKm/09XUtga
+         AvTXQ9SABwMK0voVRNHMDkHADpvouBxy4sNIVmFFQ5HLqWc5lXg+CH3mRbTC3b/jGrmQ
+         CW94OTk7gbXHPExtngPsQCJXWWaoiCK7X3ptTtWF8CM4D4+ligWijRqeoWcWuiMzGUAF
+         3YNwIMGsBTd1rHSMVVFlYP9iK0yL7Ku7YOJiRO82Ti9KBfpj9KO10IN1JvvI3USjrnTo
+         9TrA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXass2Al0z1oHqld7gUTkGzDQPvvVQXOWzz3LTsQdq8Z8K9ahjp
+	je33w7nVSgtR4UdQ45PE/5XXwRfnprxMBKsIc+iTJtaWK2ow6YlS3jUiq31PRfzyujz7/C0DY7g
+	DpXIbKTJAqHHdDY2iYXr0swKkssr+UJWlaIgMfY/qYrtPuEGTqoZoVaLC277h5Zc1SA==
+X-Received: by 2002:ac8:2c5a:: with SMTP id e26mr4361280qta.189.1551322042581;
+        Wed, 27 Feb 2019 18:47:22 -0800 (PST)
+X-Google-Smtp-Source: APXvYqz7eSOW1l96dtdeP9W9MQN+N2FwQNXU5BMiYN5t0WTP03QIjOd8vS6xX0PyiHohYJjxnIGt
+X-Received: by 2002:ac8:2c5a:: with SMTP id e26mr4361243qta.189.1551322041638;
+        Wed, 27 Feb 2019 18:47:21 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551322041; cv=none;
         d=google.com; s=arc-20160816;
-        b=o9VQ4qr57DyfmqWjEnAQmhusvvvqPqwghnN0wRF+2CSzbk84j6l3QK1G542+ALw5wN
-         6w6+qyT1YzdqKtg9JuJWtd/kvfxnQI4kAsPmzCbTRJQL9wox07dRQiUXwAwj4tVIYepo
-         t1Dvn9lent5Vni2whtYnrqZ24BIeswKQmnmD6K2E/qH3StNq6kBiBvCUpB/nwir6GPyr
-         p4IM80GgKF/cx5LPZIK9h5SOf+rAFmxUj5nAKZhiHoiQBGlI10UIHs4h9BzkWKVgAi/p
-         /1n+iv47xJ8Zx+U+M+17dbm5ZvxM4GoUzgApde0HJ7NBWheSHiIzMKfPPjZDZ9n6AieQ
-         oqbA==
+        b=MIcObcE84m9hO3fnhEvttFTEkBf9ZEQEg++w4UJKVNyQAEq4SNHLOKa33xwqheKSuC
+         v2F/CxoxHVWKGcyuwcjFffWbRteu7kZAIDHYbVv9cWHBfh5SEuKZIz0T213h1y5j2hLx
+         64pdCVRMT7gSq01UPCPKBV3uy2sl87q4Ygt/nNKtlc11fyJBpEKBtARGusjiEfOYOgwi
+         b02gNIC6ngGLsWZCMVC/2SwaJ7ZErTG1t7eqSO22alvIlhrraYj2Io4aaWv211X2iOg/
+         nEHz1ukpd3vce7YteI6IiqfKxu3cDcAOIOHZdSqU+lhpIEbS/gY4TZtDowwIh+Far0+0
+         AjzA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=qImDKhW66AzCuoNyqvyprY/jSnw+rPbm4Fv7bWHuvuA=;
-        b=cZPbgi31q4JgNWj0f2CwezPnFrxDwQIYwhfx2iqp/5volDQTUUAxXqRelltB1JXCnb
-         cxh3VjL2l76m6SgLPSSIlrEJDGan0sg+U0pnM5NFpzFdXnSVxyb5MGkLrihBAXqj/4ps
-         DTi0dbQdDRg2zC0uevQUYGBoSnXPDMjyRO2DvwmRU4xpxBAh3O2wPxSsmXPOqMnct1WE
-         T8Jz9q8cvdXCCWoQ1/lhU80GaYclzD04/GB5P4TgWQTFK7fqn1CsAsw5RH8ZAdNraOfa
-         ZN+FOCtJWndXmZ8Vpa+Quj7hcrp3Q5GRja/9fVcj5Oe5/pBfakkSAWMM4ZLiJKS9uQU8
-         2t+Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=F7V523KyO9iWV9EggIihKDyw+hsAO/Ss7bgFqV8xigY=;
+        b=vbBnqNutXRT96y372OIyKSv4zHNMpBg2u2XWM3FlWhfDl0a4WoC1JC0Qz3sYH3Ywyn
+         u/esBiQAliXEggBcfZPG7cPapdhLKAzYjbAbaX6qACW7AZWcmjvCyBULEre189qT2lE5
+         hzfX4cNc/CYFzwrBu0y5Cq7RT39TZQW52hqD9/O10+dzvCIZHWCTuXSGPKfXs4G0gJ8T
+         P7t0/vXpRBUbNuuSLAMDcFK795ad6Z9L79rBH3vWlm23qultCcUmM373EIRqbBC7sYVf
+         k875MAMKJugF/2Un7GUD4RTiMul8muktzMf9grl3Z+DLq9iyLdLv9TdLV3uSvwDnej5p
+         1nRQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i69sor10945361qke.5.2019.02.27.18.19.02
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y28si239234qvf.34.2019.02.27.18.47.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Feb 2019 18:19:02 -0800 (PST)
-Received-SPF: pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Feb 2019 18:47:21 -0800 (PST)
+Received-SPF: pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: AHgI3IYgGWL916vz2qCJL6FgtJg1g1UrnDtKTf9mK0j3zPUUdDEHBIlwVWx5ZLs8juhi27ZLZhRLpg==
-X-Received: by 2002:a37:4e97:: with SMTP id c145mr4659307qkb.85.1551320341809;
-        Wed, 27 Feb 2019 18:19:01 -0800 (PST)
-Received: from localhost.localdomain (cpe-98-13-254-243.nyc.res.rr.com. [98.13.254.243])
-        by smtp.gmail.com with ESMTPSA id y21sm12048357qth.90.2019.02.27.18.19.00
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 27 Feb 2019 18:19:00 -0800 (PST)
-From: Dennis Zhou <dennis@kernel.org>
-To: Dennis Zhou <dennis@kernel.org>,
-	Tejun Heo <tj@kernel.org>,
-	Christoph Lameter <cl@linux.com>
-Cc: Vlad Buslov <vladbu@mellanox.com>,
-	kernel-team@fb.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH 12/12] percpu: use chunk scan_hint to skip some scanning
-Date: Wed, 27 Feb 2019 21:18:39 -0500
-Message-Id: <20190228021839.55779-13-dennis@kernel.org>
-X-Mailer: git-send-email 2.13.5
-In-Reply-To: <20190228021839.55779-1-dennis@kernel.org>
-References: <20190228021839.55779-1-dennis@kernel.org>
+       spf=pass (google.com: domain of peterx@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=peterx@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 452BF316EB80;
+	Thu, 28 Feb 2019 02:47:20 +0000 (UTC)
+Received: from xz-x1 (dhcp-14-116.nay.redhat.com [10.66.14.116])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id F04F61001DD6;
+	Thu, 28 Feb 2019 02:47:10 +0000 (UTC)
+Date: Thu, 28 Feb 2019 10:47:07 +0800
+From: Peter Xu <peterx@redhat.com>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	David Hildenbrand <david@redhat.com>,
+	Hugh Dickins <hughd@google.com>, Maya Gokhale <gokhale2@llnl.gov>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Pavel Emelyanov <xemul@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Martin Cracauer <cracauer@cons.org>, Shaohua Li <shli@fb.com>,
+	Marty McFadden <mcfadden8@llnl.gov>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Denis Plotnikov <dplotnikov@virtuozzo.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Mel Gorman <mgorman@suse.de>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	"Dr . David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH v2 23/26] userfaultfd: wp: don't wake up when doing write
+ protect
+Message-ID: <20190228024707.GT13653@xz-x1>
+References: <20190212025632.28946-1-peterx@redhat.com>
+ <20190212025632.28946-24-peterx@redhat.com>
+ <20190225210934.GE10454@rapoport-lnx>
+ <20190226062424.GH13653@xz-x1>
+ <20190226072933.GF5873@rapoport-lnx>
+ <20190226074117.GL13653@xz-x1>
+ <20190226080029.GH5873@rapoport-lnx>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20190226080029.GH5873@rapoport-lnx>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Thu, 28 Feb 2019 02:47:20 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Just like blocks, chunks now maintain a scan_hint. This can be used to
-skip some scanning by promoting the scan_hint to be the contig_hint.
-The chunk's scan_hint is primarily updated on the backside and relies on
-full scanning when a block becomes free or the free region spans across
-blocks.
+On Tue, Feb 26, 2019 at 10:00:29AM +0200, Mike Rapoport wrote:
+> On Tue, Feb 26, 2019 at 03:41:17PM +0800, Peter Xu wrote:
+> > On Tue, Feb 26, 2019 at 09:29:33AM +0200, Mike Rapoport wrote:
+> > > On Tue, Feb 26, 2019 at 02:24:52PM +0800, Peter Xu wrote:
+> > > > On Mon, Feb 25, 2019 at 11:09:35PM +0200, Mike Rapoport wrote:
+> > > > > On Tue, Feb 12, 2019 at 10:56:29AM +0800, Peter Xu wrote:
+> > > > > > It does not make sense to try to wake up any waiting thread when we're
+> > > > > > write-protecting a memory region.  Only wake up when resolving a write
+> > > > > > protected page fault.
+> > > > > > 
+> > > > > > Signed-off-by: Peter Xu <peterx@redhat.com>
+> > > > > > ---
+> > > > > >  fs/userfaultfd.c | 13 ++++++++-----
+> > > > > >  1 file changed, 8 insertions(+), 5 deletions(-)
+> > > > > > 
+> > > > > > diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> > > > > > index 81962d62520c..f1f61a0278c2 100644
+> > > > > > --- a/fs/userfaultfd.c
+> > > > > > +++ b/fs/userfaultfd.c
+> > > > > > @@ -1771,6 +1771,7 @@ static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
+> > > > > >  	struct uffdio_writeprotect uffdio_wp;
+> > > > > >  	struct uffdio_writeprotect __user *user_uffdio_wp;
+> > > > > >  	struct userfaultfd_wake_range range;
+> > > > > > +	bool mode_wp, mode_dontwake;
+> > > > > > 
+> > > > > >  	if (READ_ONCE(ctx->mmap_changing))
+> > > > > >  		return -EAGAIN;
+> > > > > > @@ -1789,18 +1790,20 @@ static int userfaultfd_writeprotect(struct userfaultfd_ctx *ctx,
+> > > > > >  	if (uffdio_wp.mode & ~(UFFDIO_WRITEPROTECT_MODE_DONTWAKE |
+> > > > > >  			       UFFDIO_WRITEPROTECT_MODE_WP))
+> > > > > >  		return -EINVAL;
+> > > > > > -	if ((uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_WP) &&
+> > > > > > -	     (uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE))
+> > > > > > +
+> > > > > > +	mode_wp = uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_WP;
+> > > > > > +	mode_dontwake = uffdio_wp.mode & UFFDIO_WRITEPROTECT_MODE_DONTWAKE;
+> > > > > > +
+> > > > > > +	if (mode_wp && mode_dontwake)
+> > > > > >  		return -EINVAL;
+> > > > > 
+> > > > > This actually means the opposite of the commit message text ;-)
+> > > > > 
+> > > > > Is any dependency of _WP and _DONTWAKE needed at all?
+> > > > 
+> > > > So this is indeed confusing at least, because both you and Jerome have
+> > > > asked the same question... :)
+> > > > 
+> > > > My understanding is that we don't have any reason to wake up any
+> > > > thread when we are write-protecting a range, in that sense the flag
+> > > > UFFDIO_WRITEPROTECT_MODE_DONTWAKE is already meaningless in the
+> > > > UFFDIO_WRITEPROTECT ioctl context.  So before everything here's how
+> > > > these flags are defined:
+> > > > 
+> > > > struct uffdio_writeprotect {
+> > > > 	struct uffdio_range range;
+> > > > 	/* !WP means undo writeprotect. DONTWAKE is valid only with !WP */
+> > > > #define UFFDIO_WRITEPROTECT_MODE_WP		((__u64)1<<0)
+> > > > #define UFFDIO_WRITEPROTECT_MODE_DONTWAKE	((__u64)1<<1)
+> > > > 	__u64 mode;
+> > > > };
+> > > > 
+> > > > To make it clear, we simply define it as "DONTWAKE is valid only with
+> > > > !WP".  When with that, "mode_wp && mode_dontwake" is indeed a
+> > > > meaningless flag combination.  Though please note that it does not
+> > > > mean that the operation ("don't wake up the thread") is meaningless -
+> > > > that's what we'll do no matter what when WP==1.  IMHO it's only about
+> > > > the interface not the behavior.
+> > > > 
+> > > > I don't have a good way to make this clearer because firstly we'll
+> > > > need the WP flag to mark whether we're protecting or unprotecting the
+> > > > pages.  Later on, we need DONTWAKE for page fault handling case to
+> > > > mark that we don't want to wake up the waiting thread now.  So both
+> > > > the flags have their reason to stay so far.  Then with all these in
+> > > > mind what I can think of is only to forbid using DONTWAKE in WP case,
+> > > > and that's how above definition comes (I believe, because it was
+> > > > defined that way even before I started to work on it and I think it
+> > > > makes sense).
+> > > 
+> > > There's no argument how DONTWAKE can be used with !WP. The
+> > > userfaultfd_writeprotect() is called in response of the uffd monitor to WP
+> > > page fault, it asks to clear write protection to some range, but it does
+> > > not want to wake the faulting thread yet but rather it will use uffd_wake()
+> > > later.
+> > > 
+> > > Still, I can't grok the usage of DONTWAKE with WP=1. In my understanding,
+> > > in this case userfaultfd_writeprotect() is called unrelated to page faults,
+> > > and the monitored thread runs freely, so why it should be waked at all?
+> > 
+> > Exactly this is how I understand it.  And that's why I wrote this
+> > patch to remove the extra wakeup() since I think it's unecessary.
+> > 
+> > > 
+> > > And what happens, if the thread is waiting on a missing page fault and we
+> > > do userfaultfd_writeprotect(WP=1) at the same time?
+> > 
+> > Then IMHO the userfaultfd_writeprotect() will be a noop simply because
+> > the page is still missing.  Here if with the old code (before this
+> > patch) we'll probably even try to wake up this thread but this thread
+> > should just fault again on the same address due to the fact that the
+> > page is missing.  After this patch the monitored thread should
+> > continue to wait on the missing page.
+> 
+> So, my understanding of what we have is:
+> 
+> userfaultfd_writeprotect() can be used either to mark a region as write
+> protected or to resolve WP page fault.
+> In the first case DONTWAKE does not make sense and we forbid setting it
+> with WP=1.
+> In the second case it's the uffd monitor decision whether to wake up the
+> faulting thread immediately after #PF is resolved or later, so with WP=0 we
+> allow DONTWAKE.
 
-Signed-off-by: Dennis Zhou <dennis@kernel.org>
----
- mm/percpu.c | 36 +++++++++++++++++++++++++++---------
- 1 file changed, 27 insertions(+), 9 deletions(-)
+Yes exactly.
 
-diff --git a/mm/percpu.c b/mm/percpu.c
-index 197479f2c489..40d49d7fb286 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -711,20 +711,31 @@ static void pcpu_block_update_scan(struct pcpu_chunk *chunk, int bit_off,
- /**
-  * pcpu_chunk_refresh_hint - updates metadata about a chunk
-  * @chunk: chunk of interest
-+ * @full_scan: if we should scan from the beginning
-  *
-  * Iterates over the metadata blocks to find the largest contig area.
-- * It also counts the populated pages and uses the delta to update the
-- * global count.
-+ * A full scan can be avoided on the allocation path as this is triggered
-+ * if we broke the contig_hint.  In doing so, the scan_hint will be before
-+ * the contig_hint or after if the scan_hint == contig_hint.  This cannot
-+ * be prevented on freeing as we want to find the largest area possibly
-+ * spanning blocks.
-  */
--static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk)
-+static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk, bool full_scan)
- {
- 	struct pcpu_block_md *chunk_md = &chunk->chunk_md;
- 	int bit_off, bits;
- 
--	/* clear metadata */
--	chunk_md->contig_hint = 0;
-+	/* promote scan_hint to contig_hint */
-+	if (!full_scan && chunk_md->scan_hint) {
-+		bit_off = chunk_md->scan_hint_start + chunk_md->scan_hint;
-+		chunk_md->contig_hint_start = chunk_md->scan_hint_start;
-+		chunk_md->contig_hint = chunk_md->scan_hint;
-+		chunk_md->scan_hint = 0;
-+	} else {
-+		bit_off = chunk_md->first_free;
-+		chunk_md->contig_hint = 0;
-+	}
- 
--	bit_off = chunk_md->first_free;
- 	bits = 0;
- 	pcpu_for_each_md_free_region(chunk, bit_off, bits) {
- 		pcpu_block_update(chunk_md, bit_off, bit_off + bits);
-@@ -884,6 +895,13 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
- 	if (nr_empty_pages)
- 		pcpu_update_empty_pages(chunk, -1 * nr_empty_pages);
- 
-+	if (pcpu_region_overlap(chunk_md->scan_hint_start,
-+				chunk_md->scan_hint_start +
-+				chunk_md->scan_hint,
-+				bit_off,
-+				bit_off + bits))
-+		chunk_md->scan_hint = 0;
-+
- 	/*
- 	 * The only time a full chunk scan is required is if the chunk
- 	 * contig hint is broken.  Otherwise, it means a smaller space
-@@ -894,7 +912,7 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
- 				chunk_md->contig_hint,
- 				bit_off,
- 				bit_off + bits))
--		pcpu_chunk_refresh_hint(chunk);
-+		pcpu_chunk_refresh_hint(chunk, false);
- }
- 
- /**
-@@ -1005,7 +1023,7 @@ static void pcpu_block_update_hint_free(struct pcpu_chunk *chunk, int bit_off,
- 	 * the else condition below.
- 	 */
- 	if (((end - start) >= PCPU_BITMAP_BLOCK_BITS) || s_index != e_index)
--		pcpu_chunk_refresh_hint(chunk);
-+		pcpu_chunk_refresh_hint(chunk, true);
- 	else
- 		pcpu_block_update(&chunk->chunk_md,
- 				  pcpu_block_off_to_off(s_index, start),
-@@ -1078,7 +1096,7 @@ static int pcpu_find_block_fit(struct pcpu_chunk *chunk, int alloc_bits,
- 	if (bit_off + alloc_bits > chunk_md->contig_hint)
- 		return -1;
- 
--	bit_off = chunk_md->first_free;
-+	bit_off = pcpu_next_hint(chunk_md, alloc_bits);
- 	bits = 0;
- 	pcpu_for_each_fit_region(chunk, alloc_bits, align, bit_off, bits) {
- 		if (!pop_only || pcpu_is_populated(chunk, bit_off, bits,
+> 
+> I suggest to extend the comment in the definition of 
+> 'struct uffdio_writeprotect' to something like
+> 
+> /*
+>  * Write protecting a region (WP=1) is unrelated to page faults, therefore
+>  * DONTWAKE flag is meaningless with WP=1.
+>  * Removing write protection (WP=0) in response to a page fault wakes the
+>  * faulting task unless DONTWAKE is set.
+>  */
+>  
+> And a documentation update along these lines would be appreciated :)
+
+Thanks for the write-up!  I'm stoling the whole paragraph into the
+patch where uffdio_writeprotect is introduced.
+
+Regards,
+
 -- 
-2.17.1
+Peter Xu
 
