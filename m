@@ -2,277 +2,498 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIMWL_WL_MED,
-	DKIM_SIGNED,DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C68AC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 22:29:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2AFE3C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 22:53:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 199E92075B
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 22:29:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BEC69206DD
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 22:53:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="qWxdtLZP";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="crYwUzcV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 199E92075B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Jtzltnmi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BEC69206DD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A24E58E0003; Thu, 28 Feb 2019 17:29:53 -0500 (EST)
+	id C5F308E0004; Thu, 28 Feb 2019 17:53:21 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9D2A28E0001; Thu, 28 Feb 2019 17:29:53 -0500 (EST)
+	id B96E98E0001; Thu, 28 Feb 2019 17:53:21 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 874868E0003; Thu, 28 Feb 2019 17:29:53 -0500 (EST)
+	id A373C8E0004; Thu, 28 Feb 2019 17:53:21 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B6098E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 17:29:53 -0500 (EST)
-Received: by mail-qk1-f199.google.com with SMTP id w134so17205285qka.6
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 14:29:53 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 52D9F8E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 17:53:21 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id z1so16134686pln.11
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 14:53:21 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=W5vkPIfHSzkxX0nh7FcKnbZAu30CdNaDvZwHxlqjN+U=;
-        b=BzATCV5H/JWUgnLOcYYeoIoISiHaGy1aJoZMeMtckbkYzhlSlowpoIFdMT6fNtRr9G
-         K/U0vQguvjHAOrwAXEsVtQYDMkQqEMOwRv2VAgFjKeu64BKuyqyVRUOGj0h5OxLqVa8c
-         l4CwNmx1voV3wulmaQ82HoXdPrFUwMsENZY4epCifi71yO5dDln8qeV9Gj8RLLzPDNvW
-         i7kLeNabMsPLjsAdFE98g8vdv1kNqO2YUcnp08+Z0dLmFieHJwolYqOKcnx8v93NjtBs
-         LhZ4872kwal8vzQ/T3z+SMr9s6eav+ZkvZ0PdxzJPEkvz8b1ZbQ1clzGCqkc8DYi0S6g
-         NSpQ==
-X-Gm-Message-State: APjAAAXo7jGe2lcICz3zE2ie6I8vqrIRVxmCX9WqsCwyuo8t+nh3y3Z4
-	WlAHYrpGzUW+JWa9JO5V/H2XhxIsSTUl30W8HnrH92EZ+KX3fxv8KMZsuLllEYrJQ1asGwGDESy
-	uT+CJmRvTWOZJrG9lABV/rPrTQyay/lzQoWj2gnA0DN8tYUhmuHxykka2U0JCWASp8A==
-X-Received: by 2002:a37:a114:: with SMTP id k20mr1414643qke.274.1551392993119;
-        Thu, 28 Feb 2019 14:29:53 -0800 (PST)
-X-Google-Smtp-Source: APXvYqynhNzF8zuBtRpjwpUav7rbjORLq5u9AycymL1GPjusQuXHRFs6oSsTGJXmHT92E7ITMKAt
-X-Received: by 2002:a37:a114:: with SMTP id k20mr1414592qke.274.1551392992145;
-        Thu, 28 Feb 2019 14:29:52 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551392992; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=j1iTxAxv6pbEuzIkxfF4lpzr259T0cpQc63OyitFdlw=;
+        b=HeVjkkGecWzAkWQ7vzS9qcEuEjHBu1RCvlXU1mvISJ7ySi6y5YiX77TkTpwKEpirVA
+         AvG8FIHPkOUSObZRxVW61ZJzKJxcMYljvSDWhTrnPt79G9DvjpvwErt/3DEI+/38OHWM
+         x8TvlbBHHlz5Gem2RYAQ4n0gJsQIQ3QxxvwlUoM3Bk3mvHOw93RrhtKJgqd1/9zc+fjb
+         TP9PqnGcc0/D84LlegdLFaOsH+iyfrtjBc5Rl3YKc/kqGLX5wg8y2zx/wn5HD+LQyMPl
+         5ELGSk1CTrQ8n7oekEIIBupCCESG7Achvq8dgDJh36/cWjA4XmmEzlCsmWmUlE5YLOAw
+         8wCA==
+X-Gm-Message-State: APjAAAV+V87SUdIXiiT28pH29UrDlJhrmdAfKFAcGqtya7aegYpM0iT+
+	FkZ4fdsJhthEFCeWLtYm/IvYQ4ZyGRkFaB0xKRx+FJadBluvbwnZVMLyyxRFAk+u8i/wkQa6xY4
+	p0gGvv4ElZQZFgu0qDISduoYgxy0DlJ5t3vJ7VTu7LMnjJ2JMOfY62KyoXB9eKm85xQ==
+X-Received: by 2002:a62:14c6:: with SMTP id 189mr2153091pfu.23.1551394400853;
+        Thu, 28 Feb 2019 14:53:20 -0800 (PST)
+X-Google-Smtp-Source: AHgI3IaLmNDiAaN652qKDs1AnPsxTaQbshCOfRt/gRJ7Ix7IBASFrBh5S9gbBwomzXrGZCmTP648
+X-Received: by 2002:a62:14c6:: with SMTP id 189mr2152975pfu.23.1551394399245;
+        Thu, 28 Feb 2019 14:53:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551394399; cv=none;
         d=google.com; s=arc-20160816;
-        b=qfG91b7Y7zoU2G13OzDtpPTgClGgf1g59RfD7ib23B5eGBi4gK3HpnvWG+QETAnmQJ
-         ddQk2IVZCdaW5h+d2/A+NW6VX22dvzuvIx2s2OVfkIrVV65jMbqb/B1rz93n0wHbyd+m
-         NdXM9+tnolr0vVrCheW0SXmQFVjYN5Cncb2Z2ZkxeU9oxyHiDGrW8bjxc0FkQYDxAKgw
-         SS/2geJsQC54b3BAX0OTgsoWu11wt1nyqyFCxlCK73ZcHcNMl/KtzVtqZg+QcJCMnxr/
-         0KnPmpL/HAgAmKo81HRrKsZItNT64OscB8KjAcbhrfeTpRpPjrHSl5vMoVVqQ/Tg78O7
-         4PTQ==
+        b=wJexnj4wL7tSM0cnAaV/BjMNxos21c1bue6KohCeLOs8EhZuC1+Hp1ePXgxO5AyvYX
+         h488xBhf3I/0t1Hca8bqqOpnEaBFHGzMcftYErRZrOW5d8PSKkITaqk2fTZyeHkQwNRW
+         t9hX7Wh8veiB6Gl5mDQ5eMIfQJLAZUWLvMoYeoj10iyyLzKSEQsUxkKCFnjRfNkpIvLD
+         J9Hfkj8zZSoZVEkr8a0DSMxGK5N0Oh47320RUk1VIGxN+6/sDUUwCGzt7qjoUOVZXgOY
+         l0wCGYJRbOjwo9pJHA0AEp73W3ByK4M5ZQg7wKnjUhmLLnxT6BIMDhg7tOd2vHpUS0y0
+         W1Xg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=W5vkPIfHSzkxX0nh7FcKnbZAu30CdNaDvZwHxlqjN+U=;
-        b=koAa/CJKSvoI/6W0cjmXBuiwSVvsUWdH03i8ibxYW/9oMPoXOB8toliEKtKy5jn5we
-         Ut/gClwbQ5QSQhqGwVyxVpD6jVwnrBvBpS72dOJ1xOHF6LVahb6NKeo+CUo2EKaLDLPb
-         sfWcAI2QjY8LNNXAtjApHLJCHSGee00mqZ9Y1y44OMgYzT9GxII8BL4TE7UVRLs3K+Pp
-         HH2FLj4+X2jEbJnaX1V20de+pDt1b5jT4HrQ8W4Oj11+YwVjo5kKZkCiGBbRB1tdUI3E
-         5ce3lB+Q/U9gEEysB7n6bvjEiAsYq7dhYG8p7bdyXI1GlyFh2BpNr/B888mYBrk1ESRG
-         iG7A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=j1iTxAxv6pbEuzIkxfF4lpzr259T0cpQc63OyitFdlw=;
+        b=vBmIfqIieiJvZ6wpfsqeUMKsINmNsjZGt4KAlgkAR65+ZZFL1S9QbvrVdk/O6CVwEI
+         m0XPK5d/BMvMerLPu4+29apc+E/KTCMao+DWl/fOcGxqmjhXkY5ctNdNbJAYzt5aj90q
+         0RXlLxj3NZUFW5R5Quc0aJgP2JwQyWZJoWFApBlrtoIWiyCdBma+3NGBVChu6Rj62Ib6
+         8JN3yq2Y4RpJyk0t4jjSgliBemFw9J9W2Y3PlI3zDyMbBxs6cTn0aRbvBJmYRktiybMm
+         NCffX2nA+o4bpnLKHLIxbDiom3idLOwO2L7d8mNYmO7XfUTFe9X2ZkjWZJLVPpvARKlt
+         qttA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=qWxdtLZP;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=crYwUzcV;
-       spf=pass (google.com: domain of prvs=896249f319=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=896249f319=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id c131si4855182qkb.206.2019.02.28.14.29.51
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Jtzltnmi;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id w185si17090726pgd.495.2019.02.28.14.53.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Feb 2019 14:29:52 -0800 (PST)
-Received-SPF: pass (google.com: domain of prvs=896249f319=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 28 Feb 2019 14:53:18 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=qWxdtLZP;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=crYwUzcV;
-       spf=pass (google.com: domain of prvs=896249f319=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=896249f319=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1SMMUw1009694;
-	Thu, 28 Feb 2019 14:29:47 -0800
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=W5vkPIfHSzkxX0nh7FcKnbZAu30CdNaDvZwHxlqjN+U=;
- b=qWxdtLZPu93yDmZfzgA2vsfbeR0g7yRWhXwHYVZgLZzth8/mdwEedGlngv2kl3RpMNSb
- 5muRuWVT79QMdRqhgAN57IrHoXna87viTeCRe6IWda/fxxLQH0yYdn5ugjl6nenNHkll
- DCByzQKPbPu3mikbCBVywK1eXuI+LE12uXU= 
-Received: from maileast.thefacebook.com ([199.201.65.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2qxr1503np-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Thu, 28 Feb 2019 14:29:46 -0800
-Received: from frc-mbx03.TheFacebook.com (2620:10d:c0a1:f82::27) by
- frc-hub04.TheFacebook.com (2620:10d:c021:18::174) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1531.3; Thu, 28 Feb 2019 14:29:45 -0800
-Received: from frc-hub04.TheFacebook.com (2620:10d:c021:18::174) by
- frc-mbx03.TheFacebook.com (2620:10d:c0a1:f82::27) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Thu, 28 Feb 2019 14:29:44 -0800
-Received: from NAM04-BN3-obe.outbound.protection.outlook.com (192.168.183.28)
- by o365-in.thefacebook.com (192.168.177.74) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1531.3
- via Frontend Transport; Thu, 28 Feb 2019 14:29:44 -0800
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=W5vkPIfHSzkxX0nh7FcKnbZAu30CdNaDvZwHxlqjN+U=;
- b=crYwUzcVAk2C+i7p6rkWaYGBM9512+J62B2TXYf8qYn5CRlWl5nC551bzTUzv/JvlkrXMBeTcchHdHyFGsr0bZ7E68B2d5QngfTOhI2MnkUs31thRabyTlP0JZLOY6tDP0XOUv059ahUDevw/O1ytU0Xf9KHg4f/uManzOuSq0E=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB3141.namprd15.prod.outlook.com (20.178.239.214) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1643.16; Thu, 28 Feb 2019 22:29:43 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::ecc7:1a8c:289f:df92]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::ecc7:1a8c:289f:df92%3]) with mapi id 15.20.1665.015; Thu, 28 Feb 2019
- 22:29:43 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Dave Chinner <david@fromorbit.com>
-CC: "lsf-pc@lists.linux-foundation.org" <lsf-pc@lists.linux-foundation.org>,
-        "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "riel@surriel.com"
-	<riel@surriel.com>,
-        "dchinner@redhat.com" <dchinner@redhat.com>,
-        "guroan@gmail.com" <guroan@gmail.com>,
-        Kernel Team <Kernel-team@fb.com>,
-        "hannes@cmpxchg.org" <hannes@cmpxchg.org>
-Subject: Re: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
-Thread-Topic: [LSF/MM TOPIC] dying memory cgroups and slab reclaim issues
-Thread-Index: AQHUyCKda3Qt+ClMVUers5iRNki+jqXn/PCAgAAzK4CAABr9gIACDQgAgAracwCAAJbSAIAAEISA
-Date: Thu, 28 Feb 2019 22:29:42 +0000
-Message-ID: <20190228222937.GA30495@tower.DHCP.thefacebook.com>
-References: <20190219071329.GA7827@castle.DHCP.thefacebook.com>
- <20190220024723.GA20682@dastard> <20190220055031.GA23020@dastard>
- <20190220072707.GB23020@dastard>
- <20190221224616.GB24252@tower.DHCP.thefacebook.com>
- <20190228203044.GA7160@tower.DHCP.thefacebook.com>
- <20190228213032.GN23020@dastard>
-In-Reply-To: <20190228213032.GN23020@dastard>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: BYAPR02CA0070.namprd02.prod.outlook.com
- (2603:10b6:a03:54::47) To BYAPR15MB2631.namprd15.prod.outlook.com
- (2603:10b6:a03:152::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::3:2ae]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: a3bfe1f3-e801-4bc0-5f63-08d69dcc3bfe
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600127)(711020)(4605104)(2017052603328)(7153060)(7193020);SRVR:BYAPR15MB3141;
-x-ms-traffictypediagnostic: BYAPR15MB3141:
-x-microsoft-exchange-diagnostics: 1;BYAPR15MB3141;20:66K054QqwvkBpP/htIjKkr74NdEGDrGozOHUewhmiJ17MHKRTfs02HLFMs/0e1dV7eSCliuFyDVxN0FZ8giEISzq+LalXdERcEtGbrlrhxkSo5R3CWTXORUmg4Gm4As+LMgzkcgCVhEFZI56wv/Z9BJH5ITrfnj7C5fN+2ClKZc=
-x-microsoft-antispam-prvs: <BYAPR15MB3141E92495C450AA741C333BBE750@BYAPR15MB3141.namprd15.prod.outlook.com>
-x-forefront-prvs: 0962D394D2
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(136003)(39860400002)(396003)(366004)(346002)(376002)(189003)(199004)(6916009)(97736004)(186003)(2906002)(46003)(8936002)(446003)(256004)(11346002)(486006)(476003)(86362001)(68736007)(1076003)(5660300002)(6116002)(478600001)(33656002)(316002)(6436002)(9686003)(54906003)(25786009)(93886005)(386003)(6512007)(52116002)(105586002)(305945005)(6246003)(53936002)(81156014)(71200400001)(99286004)(81166006)(71190400001)(8676002)(4326008)(106356001)(6506007)(7736002)(229853002)(6486002)(14454004)(102836004)(76176011);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3141;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: zRDNF1CjOv9Sp03MckQ8y8t8QqV2qphf4C3wrJVYSiAez6p3EGXE8g4K2NOPLNoZkfTVOdTh5E0/o9QUit9Is3R65Sy8QjzE8V98QbraGWbyerjlxdww2S5jUVtAQpChWSHQJF5add8SjoyOi2pp2zEo6/fLNWHL5qK9zq/IFYswjEi612uMzOmuxTloenAP2i1+k4n0nzQVgEOcN6kb3VfNvNflKTSN34/RLXcmK4v0edsnin65BrTAzIXT1CJIdZwJ9LXxoAhuFPG4nOUeuqvYl5b/pkFzyPnWP/wHery9Lj1kJfqsfBEYWYKntpXeMZuGfU3lsqq3ia7fJaqquWom93GDhT7npK65QePqtBks0aVKLQlb7joZ6/PBQ9cT+EFJjZE+GvIqxNo973J93aWjbN5xtjJFKsNuouSVhH4=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <6080E35597417D469EC72F424ABF2922@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Jtzltnmi;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=j1iTxAxv6pbEuzIkxfF4lpzr259T0cpQc63OyitFdlw=; b=Jtzltnmi3KZlcUmmrvLCe0tLO
+	Z+hcuFsOuv86OqAmicnHPRgOwTdc+96ECEhyMqiddm4985C4x0egQV+dooNJf/5Tzv3s1/f/9lv1H
+	f7Q8p2mRUHZz8cp38JdR4xvkamv2NeyObkx+BeNBh0XR7hGpd24V2OZcGiP4HKe//iP//QJMQxVO5
+	Pn+UJ+3wMLqNQN1Wwsm+L1CwcllSKk5z8IlPZU0qXlqlWsbUWSK+SmUuO9zVxqbJ7hlRYhuQX2dT+
+	mPLoTiRQ5L8z5EOk91Dh6tEvpRPVptUFbbu0JTDnKPJZ6dPgsxD93wt9IPTTxc9yzgfW16SqmOb5G
+	vCUxb/ZOg==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gzUYH-00036D-W9; Thu, 28 Feb 2019 22:53:18 +0000
+Date: Thu, 28 Feb 2019 14:53:17 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, mgorman@suse.de
+Subject: Re: Truncate regression due to commit 69b6c1319b6
+Message-ID: <20190228225317.GM11592@bombadil.infradead.org>
+References: <20190226165628.GB24711@quack2.suse.cz>
+ <20190226172744.GH11592@bombadil.infradead.org>
+ <20190227112721.GB27119@quack2.suse.cz>
+ <20190227122451.GJ11592@bombadil.infradead.org>
+ <20190227165538.GD27119@quack2.suse.cz>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: a3bfe1f3-e801-4bc0-5f63-08d69dcc3bfe
-X-MS-Exchange-CrossTenant-originalarrivaltime: 28 Feb 2019 22:29:42.8371
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3141
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-28_14:,,
- signatures=0
-X-Proofpoint-Spam-Reason: safe
-X-FB-Internal: Safe
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190227165538.GD27119@quack2.suse.cz>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 01, 2019 at 08:30:32AM +1100, Dave Chinner wrote:
-> On Thu, Feb 28, 2019 at 08:30:49PM +0000, Roman Gushchin wrote:
-> > On Thu, Feb 21, 2019 at 02:46:17PM -0800, Roman Gushchin wrote:
-> > > On Wed, Feb 20, 2019 at 06:27:07PM +1100, Dave Chinner wrote:
-> > > > On Wed, Feb 20, 2019 at 04:50:31PM +1100, Dave Chinner wrote:
-> > > > > I'm just going to fix the original regression in the shrinker
-> > > > > algorithm by restoring the gradual accumulation behaviour, and th=
-is
-> > > > > whole series of problems can be put to bed.
-> > > >=20
-> > > > Something like this lightly smoke tested patch below. It may be
-> > > > slightly more agressive than the original code for really small
-> > > > freeable values (i.e. < 100) but otherwise should be roughly
-> > > > equivalent to historic accumulation behaviour.
-> > > >=20
-> > > > Cheers,
-> > > >=20
-> > > > Dave.
-> > > > --=20
-> > > > Dave Chinner
-> > > > david@fromorbit.com
-> > > >=20
-> > > > mm: fix shrinker scan accumulation regression
-> > > >=20
-> > > > From: Dave Chinner <dchinner@redhat.com>
-> > >=20
-> > > JFYI: I'm testing this patch in our environment for fixing
-> > > the memcg memory leak.
-> > >=20
-> > > It will take a couple of days to get reliable results.
-> > >=20
-> >=20
-> > So unfortunately the proposed patch is not solving the dying memcg recl=
-aim
-> > issue. I've tested it as is, with s/ilog2()/fls(), suggested by Johanne=
-s,
-> > and also with more a aggressive zero-seek slabs reclaim (always scannin=
-g
-> > at least SHRINK_BATCH for zero-seeks shrinkers).
->=20
-> Which makes sense if it's inodes and/or dentries shared across
-> multiple memcgs and actively referenced by non-owner memcgs that
-> prevent dying memcg reclaim. i.e. the shrinkers will not reclaim
-> frequently referenced objects unless there is extreme memory
-> pressure put on them.
->=20
-> > In all cases the number
-> > of outstanding memory cgroups grew almost linearly with time and didn't=
- show
-> > any signs of plateauing.
->=20
-> What happend to the amount of memory pinned by those dying memcgs?
-> Did that change in any way? Did the rate of reclaim of objects
-> referencing dying memcgs improve? What type of objects are still
-> pinning those dying memcgs? did you run any traces to see how big
-> those pinned caches were and how much deferal and scanning work was
-> actually being done on them?
+On Wed, Feb 27, 2019 at 05:55:38PM +0100, Jan Kara wrote:
+> On Wed 27-02-19 04:24:51, Matthew Wilcox wrote:
+> Looking more into perf traces, I didn't notice any other obvious low
+> hanging fruit. There is one suboptimality in the fact that
+> __clear_shadow_entry() does xas_load() and the first thing xas_store() does
+> is xas_load() again. Removing this double tree traversal does bring
+> something back but since the traversals are so close together, everything
+> is cache hot and so the overall gain is small (but still):
 
-The amount of pinned memory is approximately proportional to the number
-of dying cgroups, in other words it also grows almost linearly.
-The rate of reclaim is better than without any patches, and it's
-approximately on pair with a version with Rik's patches.
+Calling xas_load() twice isn't too bad; the iterator stays at the base of
+the tree, so it's just one pointer reload.  Still, I think we can avoid it.
 
->=20
-> i.e. if all you measured is the number of memcgs over time, then we
-> don't have any information that tells us whether this patch has had
-> any effect on the reclaimable memory footprint of those dying memcgs
-> or what is actually pinning them in memory.
+> COMMIT     AVG            STDDEV
+> singleiter 1467763.900000 1078.261049
+> 
+> So still 34 ms to go to the original time.
+> 
+> What profiles do show is there's slightly more time spent here and there
+> adding to overall larger xas_store() time (compared to
+> __radix_tree_replace()) mostly due to what I'd blame to cache misses
+> (xas_store() is responsible for ~3.4% of cache misses after the patch while
+> xas_store() + __radix_tree_replace() caused only 1.5% together before).
+> 
+> Some of the expensive loads seem to be from 'xas' structure (kind
+> of matches with what Nick said), other expensive loads seem to be loads from
+> xa_node. And I don't have a great explanation why e.g. a load of
+> xa_node->count is expensive when we looked at xa_node->shift before -
+> either the cache line fell out of cache or the byte accesses somehow
+> confuse the CPU. Also xas_store() has some new accesses compared to
+> __radix_tree_replace() - e.g. it did not previously touch node->shift.
+> 
+> So overall I don't see easy way how to speed up xarray code further so
+> maybe just batching truncate to make up for some of the losses and live
+> with them where we cannot batch will be as good as it gets...
 
-I'm not saying that the patch is bad, I'm saying it's not sufficient
-in our environment.
+Here's what I'm currently looking at.  xas_store() becomes a wrapper
+around xas_replace() and xas_replace() avoids the xas_init_marks() and
+xas_load() calls:
 
->=20
-> IOWs, we need to know if this patch reduces the dying memcg
-> references down to just the objects that non-owner memcgs are
-> keeping active in cache and hence preventing the dying memcgs from
-> being freed. If this patch does that, then the shrinkers are doing
-> exactly what they should be doing, and the remaining problem to
-> solve is reparenting actively referenced objects pinning the dying
-> memcgs...
-
-Yes, I agree. I'll take a look.
-
-Thanks!
+diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+index 0e01e6129145..26fdba17ce67 100644
+--- a/include/linux/xarray.h
++++ b/include/linux/xarray.h
+@@ -1455,6 +1455,7 @@ static inline bool xas_retry(struct xa_state *xas, const void *entry)
+ 
+ void *xas_load(struct xa_state *);
+ void *xas_store(struct xa_state *, void *entry);
++void xas_replace(struct xa_state *, void *curr, void *entry);
+ void *xas_find(struct xa_state *, unsigned long max);
+ void *xas_find_conflict(struct xa_state *);
+ 
+diff --git a/lib/test_xarray.c b/lib/test_xarray.c
+index 5d4bad8bd96a..b2e2cdf4eb74 100644
+--- a/lib/test_xarray.c
++++ b/lib/test_xarray.c
+@@ -38,6 +38,12 @@ static void *xa_store_index(struct xarray *xa, unsigned long index, gfp_t gfp)
+ 	return xa_store(xa, index, xa_mk_index(index), gfp);
+ }
+ 
++static void xa_insert_index(struct xarray *xa, unsigned long index)
++{
++	XA_BUG_ON(xa, xa_insert(xa, index, xa_mk_index(index),
++				GFP_KERNEL) != 0);
++}
++
+ static void xa_alloc_index(struct xarray *xa, unsigned long index, gfp_t gfp)
+ {
+ 	u32 id;
+@@ -338,6 +344,20 @@ static noinline void check_xa_shrink(struct xarray *xa)
+ 	}
+ }
+ 
++static noinline void check_insert(struct xarray *xa)
++{
++	unsigned long i;
++
++	for (i = 0; i < 1024; i++) {
++		xa_insert_index(xa, i);
++		XA_BUG_ON(xa, xa_load(xa, i - 1) != NULL);
++		XA_BUG_ON(xa, xa_load(xa, i + 1) != NULL);
++		xa_erase_index(xa, i);
++	}
++
++	XA_BUG_ON(xa, !xa_empty(xa));
++}
++
+ static noinline void check_cmpxchg(struct xarray *xa)
+ {
+ 	void *FIVE = xa_mk_value(5);
+@@ -1527,6 +1547,7 @@ static int xarray_checks(void)
+ 	check_xa_mark(&array);
+ 	check_xa_shrink(&array);
+ 	check_xas_erase(&array);
++	check_insert(&array);
+ 	check_cmpxchg(&array);
+ 	check_reserve(&array);
+ 	check_reserve(&xa0);
+diff --git a/lib/xarray.c b/lib/xarray.c
+index 6be3acbb861f..8ff605bd0fee 100644
+--- a/lib/xarray.c
++++ b/lib/xarray.c
+@@ -613,7 +613,7 @@ static int xas_expand(struct xa_state *xas, void *head)
+ /*
+  * xas_create() - Create a slot to store an entry in.
+  * @xas: XArray operation state.
+- * @allow_root: %true if we can store the entry in the root directly
++ * @entry: Entry which will be stored in the slot.
+  *
+  * Most users will not need to call this function directly, as it is called
+  * by xas_store().  It is useful for doing conditional store operations
+@@ -623,14 +623,14 @@ static int xas_expand(struct xa_state *xas, void *head)
+  * If the slot was newly created, returns %NULL.  If it failed to create the
+  * slot, returns %NULL and indicates the error in @xas.
+  */
+-static void *xas_create(struct xa_state *xas, bool allow_root)
++static void *xas_create(struct xa_state *xas, void *entry)
+ {
+ 	struct xarray *xa = xas->xa;
+-	void *entry;
+ 	void __rcu **slot;
+ 	struct xa_node *node = xas->xa_node;
+ 	int shift;
+ 	unsigned int order = xas->xa_shift;
++	bool allow_root = !xa_is_node(entry) && !xa_is_zero(entry);
+ 
+ 	if (xas_top(node)) {
+ 		entry = xa_head_locked(xa);
+@@ -701,7 +701,7 @@ void xas_create_range(struct xa_state *xas)
+ 	xas->xa_sibs = 0;
+ 
+ 	for (;;) {
+-		xas_create(xas, true);
++		xas_create(xas, XA_ZERO_ENTRY);
+ 		if (xas_error(xas))
+ 			goto restore;
+ 		if (xas->xa_index <= (index | XA_CHUNK_MASK))
+@@ -745,44 +745,36 @@ static void update_node(struct xa_state *xas, struct xa_node *node,
+ }
+ 
+ /**
+- * xas_store() - Store this entry in the XArray.
++ * xas_replace() - Replace one XArray entry with another.
+  * @xas: XArray operation state.
++ * @curr: Current entry.
+  * @entry: New entry.
+  *
+- * If @xas is operating on a multi-index entry, the entry returned by this
+- * function is essentially meaningless (it may be an internal entry or it
+- * may be %NULL, even if there are non-NULL entries at some of the indices
+- * covered by the range).  This is not a problem for any current users,
+- * and can be changed if needed.
+- *
+- * Return: The old entry at this index.
++ * This is not a cmpxchg operation.  The caller asserts that @curr is the
++ * current entry at the index referred to by @xas and wishes to replace it
++ * with @entry.  The slot must have already been created by xas_create()
++ * or by virtue of @curr being non-NULL.  The marks are not changed by
++ * this operation.
+  */
+-void *xas_store(struct xa_state *xas, void *entry)
++void xas_replace(struct xa_state *xas, void *curr, void *entry)
+ {
+ 	struct xa_node *node;
+ 	void __rcu **slot = &xas->xa->xa_head;
+ 	unsigned int offset, max;
+ 	int count = 0;
+ 	int values = 0;
+-	void *first, *next;
++	void *next;
+ 	bool value = xa_is_value(entry);
+ 
+-	if (entry) {
+-		bool allow_root = !xa_is_node(entry) && !xa_is_zero(entry);
+-		first = xas_create(xas, allow_root);
+-	} else {
+-		first = xas_load(xas);
+-	}
+-
+ 	if (xas_invalid(xas))
+-		return first;
++		return;
+ 	node = xas->xa_node;
+ 	if (node && (xas->xa_shift < node->shift))
+ 		xas->xa_sibs = 0;
+-	if ((first == entry) && !xas->xa_sibs)
+-		return first;
++	if ((curr == entry) && !xas->xa_sibs)
++		return;
+ 
+-	next = first;
++	next = curr;
+ 	offset = xas->xa_offset;
+ 	max = xas->xa_offset + xas->xa_sibs;
+ 	if (node) {
+@@ -790,8 +782,6 @@ void *xas_store(struct xa_state *xas, void *entry)
+ 		if (xas->xa_sibs)
+ 			xas_squash_marks(xas);
+ 	}
+-	if (!entry)
+-		xas_init_marks(xas);
+ 
+ 	for (;;) {
+ 		/*
+@@ -807,7 +797,7 @@ void *xas_store(struct xa_state *xas, void *entry)
+ 		if (!node)
+ 			break;
+ 		count += !next - !entry;
+-		values += !xa_is_value(first) - !value;
++		values += !xa_is_value(curr) - !value;
+ 		if (entry) {
+ 			if (offset == max)
+ 				break;
+@@ -821,13 +811,41 @@ void *xas_store(struct xa_state *xas, void *entry)
+ 		if (!xa_is_sibling(next)) {
+ 			if (!entry && (offset > max))
+ 				break;
+-			first = next;
++			curr = next;
+ 		}
+ 		slot++;
+ 	}
+ 
+ 	update_node(xas, node, count, values);
+-	return first;
++}
++
++/**
++ * xas_store() - Store this entry in the XArray.
++ * @xas: XArray operation state.
++ * @entry: New entry.
++ *
++ * If @xas is operating on a multi-index entry, the entry returned by this
++ * function is essentially meaningless (it may be an internal entry or it
++ * may be %NULL, even if there are non-NULL entries at some of the indices
++ * covered by the range).  This is not a problem for any current users,
++ * and can be changed if needed.
++ *
++ * Return: The old entry at this index.
++ */
++void *xas_store(struct xa_state *xas, void *entry)
++{
++	void *curr;
++
++	if (entry) {
++		curr = xas_create(xas, entry);
++	} else {
++		curr = xas_load(xas);
++		if (curr)
++			xas_init_marks(xas);
++	}
++
++	xas_replace(xas, curr, entry);
++	return curr;
+ }
+ EXPORT_SYMBOL_GPL(xas_store);
+ 
+@@ -1472,9 +1490,9 @@ int __xa_insert(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
+ 		entry = XA_ZERO_ENTRY;
+ 
+ 	do {
+-		curr = xas_load(&xas);
++		curr = xas_create(&xas, entry);
+ 		if (!curr) {
+-			xas_store(&xas, entry);
++			xas_replace(&xas, curr, entry);
+ 			if (xa_track_free(xa))
+ 				xas_clear_mark(&xas, XA_FREE_MARK);
+ 		} else {
+@@ -1553,7 +1571,7 @@ void *xa_store_range(struct xarray *xa, unsigned long first,
+ 			if (last + 1)
+ 				order = __ffs(last + 1);
+ 			xas_set_order(&xas, last, order);
+-			xas_create(&xas, true);
++			xas_create(&xas, entry);
+ 			if (xas_error(&xas))
+ 				goto unlock;
+ 		}
+@@ -1606,11 +1624,13 @@ int __xa_alloc(struct xarray *xa, u32 *id, void *entry,
+ 	do {
+ 		xas.xa_index = limit.min;
+ 		xas_find_marked(&xas, limit.max, XA_FREE_MARK);
+-		if (xas.xa_node == XAS_RESTART)
++		if (xas.xa_node == XAS_RESTART) {
+ 			xas_set_err(&xas, -EBUSY);
+-		else
++		} else {
++			xas_create(&xas, entry);
+ 			*id = xas.xa_index;
+-		xas_store(&xas, entry);
++		}
++		xas_replace(&xas, NULL, entry);
+ 		xas_clear_mark(&xas, XA_FREE_MARK);
+ 	} while (__xas_nomem(&xas, gfp));
+ 
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 9f5e323e883e..56a7ef579879 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -131,8 +131,8 @@ static void page_cache_delete(struct address_space *mapping,
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	VM_BUG_ON_PAGE(nr != 1 && shadow, page);
+ 
+-	xas_store(&xas, shadow);
+ 	xas_init_marks(&xas);
++	xas_replace(&xas, page, shadow);
+ 
+ 	page->mapping = NULL;
+ 	/* Leave page->index set: truncation lookup relies upon it */
+@@ -326,7 +326,7 @@ static void page_cache_delete_batch(struct address_space *mapping,
+ 					!= pvec->pages[i]->index, page);
+ 			tail_pages--;
+ 		}
+-		xas_store(&xas, NULL);
++		xas_replace(&xas, page, NULL);
+ 		total_pages++;
+ 	}
+ 	mapping->nrpages -= total_pages;
+@@ -771,7 +771,7 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+ 	new->index = offset;
+ 
+ 	xas_lock_irqsave(&xas, flags);
+-	xas_store(&xas, new);
++	xas_replace(&xas, old, new);
+ 
+ 	old->mapping = NULL;
+ 	/* hugetlb pages do not participate in page cache accounting. */
+diff --git a/mm/migrate.c b/mm/migrate.c
+index d4fd680be3b0..083f52797d11 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -459,13 +459,13 @@ int migrate_page_move_mapping(struct address_space *mapping,
+ 		SetPageDirty(newpage);
+ 	}
+ 
+-	xas_store(&xas, newpage);
++	xas_replace(&xas, page, newpage);
+ 	if (PageTransHuge(page)) {
+ 		int i;
+ 
+ 		for (i = 1; i < HPAGE_PMD_NR; i++) {
+ 			xas_next(&xas);
+-			xas_store(&xas, newpage + i);
++			xas_replace(&xas, page + i, newpage + i);
+ 		}
+ 	}
+ 
+@@ -536,7 +536,7 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
+ 
+ 	get_page(newpage);
+ 
+-	xas_store(&xas, newpage);
++	xas_replace(&xas, page, newpage);
+ 
+ 	page_ref_unfreeze(page, expected_count - 1);
+ 
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 6ece1e2fe76e..83925601089d 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -341,7 +341,7 @@ static int shmem_replace_entry(struct address_space *mapping,
+ 	item = xas_load(&xas);
+ 	if (item != expected)
+ 		return -ENOENT;
+-	xas_store(&xas, replacement);
++	xas_replace(&xas, item, replacement);
+ 	return 0;
+ }
+ 
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 798e7ccfb030..0682b2f9ac0e 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -38,7 +38,7 @@ static inline void __clear_shadow_entry(struct address_space *mapping,
+ 	xas_set_update(&xas, workingset_update_node);
+ 	if (xas_load(&xas) != entry)
+ 		return;
+-	xas_store(&xas, NULL);
++	xas_replace(&xas, entry, NULL);
+ 	mapping->nrexceptional--;
+ }
+ 
 
