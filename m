@@ -2,313 +2,152 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_PASS,UNPARSEABLE_RELAY autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 016B2C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 21:31:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C0FB0C43381
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 21:32:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A094220857
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 21:31:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7855720857
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 21:32:52 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="UszRHdt+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A094220857
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="IK5jRT10"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7855720857
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 56BFE8E0004; Thu, 28 Feb 2019 16:31:00 -0500 (EST)
+	id 285988E0003; Thu, 28 Feb 2019 16:32:52 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 51B578E0001; Thu, 28 Feb 2019 16:31:00 -0500 (EST)
+	id 2330F8E0001; Thu, 28 Feb 2019 16:32:52 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 432168E0004; Thu, 28 Feb 2019 16:31:00 -0500 (EST)
+	id 0FD058E0003; Thu, 28 Feb 2019 16:32:52 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DDF488E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 16:30:59 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id j7so10329487wrs.20
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 13:30:59 -0800 (PST)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D6DBB8E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 16:32:51 -0500 (EST)
+Received: by mail-yw1-f71.google.com with SMTP id v85so2725691ywc.5
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 13:32:51 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:user-agent;
-        bh=M5qRV30ip8IGNC83XxPf/9k/uWZjwDt12qJmaexTUOA=;
-        b=kmnc9iD4GcgLv5/ZnqeD6O8yqqpiJ/mhq9AQyEsC7wR/UGaPK2PML/Zn2qJtG7Var4
-         ya2FQaMiQqs4HwTlyNdZBdRq1MBTNvg7BH3hXCO9nVxugD9G9XTGpn+lRgrKjMi5GPA2
-         BiPhVxVFYbuwonZ1+sctvZVTyW40vDWP4XNT9FOgUj1O9BDdRL0xcBQPT+YofU3pHCld
-         XdL7dCqf1iuEdPyeR7wN9MewKkGD8a5lHlqQETEmEWCEvZyjhIvQxoRNbcmsVUhGSB3f
-         R56I3R7DzINr+GWh/fsyTnP/2jHplfP2WxCDUiWPtobrhxMztqTggb8B/lkf60e7lLlW
-         4YdQ==
-X-Gm-Message-State: AHQUAuZmuamSK3aPqxRJfb9sMPp3+Yg2f8kWw92luWZql88JfSU3+FaB
-	j3U+gMJfoeiB+U2Iw1ew2ReiqAPOhfmOo4gU0bAa0dfR/jRpu8gdvhGZEMLO0Eg7F0tJszpzr6W
-	37WFifKWCBBT6OprZlFXqrPVMx9P0sCeoVaLrubNwqD0gJhyJp0DAuvwP9SM3SBW0hzEgKk2d/0
-	l3SnbLBXnv66SjbYgqNWyOvGHJxUtWpv+k1y4dy0jKsgjZKJCM6T6qnbamVvWUXgvc3RLW1q2JX
-	USgBmoYHULZFk32Gp4UnejPEo7c3rY6mu/+3JrwtWpcwm2hROLcMQw70mLpJmSCrvmM/mSOTEqz
-	Tu8xhrODzlur1zMNDfCDQehe84gyC9NSCci+8CGdLiD7oOv8yn6SeglhlSYH1ios2JwD40aNgJQ
-	f
-X-Received: by 2002:a1c:3b06:: with SMTP id i6mr1047058wma.55.1551389459368;
-        Thu, 28 Feb 2019 13:30:59 -0800 (PST)
-X-Received: by 2002:a1c:3b06:: with SMTP id i6mr1047006wma.55.1551389457285;
-        Thu, 28 Feb 2019 13:30:57 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551389457; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=9cjAB8k482sCSDI8ZI00ufOwnTQdR1UDDejmT12EfLw=;
+        b=I3bDqm4DGhPEIkD8lxIgaZrrNyiTarJ36/CTa2TZDmiopP3qAZ+fWZwMFS8jwmPFBQ
+         fRwUTTZ6dr/UeYFn44bAqgOUnY+EG3rHGJ6f3rTEg3G3kGhkICKu3BIQIOMtzecnS1Db
+         6Ub6UjJDFewkAU2QYvrVHM9JEz1M94GXtdC1D7M7YqqiU1H1JHV3y2V/6ut2zpHhRiAP
+         g6Ehm2cbK6LKwQM961XLZF/2gmxeVHIP5dnZLxg+6VHq6eUOvlVVu3ixe9jKrmyp6R0s
+         sei/CTvxUKBCdXhaBGNaeJ2SZkDOvb7T6q31/oTlmHIaj7nB4YSbMM6XRpRLDVlXS3Zd
+         0S8A==
+X-Gm-Message-State: APjAAAWU1/TdSpCY1JQeiAe+TpIJ5WlVkf9+NXNLGyf3H7sKEbUgbp88
+	GuVEaLvsvyHDSgEFP8H14AZ5x0iZaQXJ7njmsWXcoAnmNo4KJboz5q0oCCEa2YqMnUK2iRPp6oe
+	em0/049q8Zv/Gk3oFV5HUPwjv+R6lUELcpSK2O3Vdfma9y155kZNCZJvB9a+seLYiTA==
+X-Received: by 2002:a25:e80e:: with SMTP id k14mr1566028ybd.104.1551389571592;
+        Thu, 28 Feb 2019 13:32:51 -0800 (PST)
+X-Google-Smtp-Source: APXvYqyfnkxcKQWJXHv5k3qk/A6c7NBWgMlpoEqkp32iDoq3n6woZJBai7zXXC+CdjD7EFUDos2a
+X-Received: by 2002:a25:e80e:: with SMTP id k14mr1565993ybd.104.1551389570959;
+        Thu, 28 Feb 2019 13:32:50 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551389570; cv=none;
         d=google.com; s=arc-20160816;
-        b=Y6coH+icfty7lWyGqBLokbwi7ccay95LZW11QNAdS/J+cFtBXKTgUlKbstS33c/F3G
-         /PtNNIROVTzkQS5xCynNeCIPomydo07w1vMTqJsv/1dQdb8JKWqpYxE8gsiSVzzr4QTb
-         uY7aVb1Z/orfWm9uvqHPXJDTZ1YnjDo8i+u0z+vDS7CJqrABjjV93cvPuUrN87eKdL+W
-         p3/cYCr3H5rAY0FaVSLN5M/DT0FXTh7Jhn1UBcM1pk46Yd61mTMj0wG5OyAW2yTPnGVB
-         kJM+z43cDuHd2hgg8fzFCDDYm5vYQ5wKOgN8rpxdk+xEAA8UKQTeLOiJGOlaWv+mYwN/
-         5gcw==
+        b=D04axDGifLkUnO8g6YAFml/huwvnPu9v/cESMCyfkFvxf/C67tNXWLMkeyWmfOIKBw
+         iZLZEdV3foS8KsOPFZyaXs/+0V75EW7VIAx7JZUOq4txiaOrocxB9NI6gQJo+yW96ujD
+         +MfP8EAPrCOms9eVmFl4RTpc/YmjsMp4C+7kcN3J5KaSOXxNTONaPXgltYmJoCmdncc+
+         uPaRq9jPShPxMDMfyycKeyFnIgbKUq+ccwCjvD26MsB+AZ62YeV70ju70ElH4rZ3lGWu
+         e4UyOOUFDLIg8jE4onqMR/AR2uukF3BXUNt1C6PaNDJubAoJSdLb+o1hX5A7cZPxXNMf
+         1usw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=M5qRV30ip8IGNC83XxPf/9k/uWZjwDt12qJmaexTUOA=;
-        b=O4Vbs8zsj9a6KSemQi1RBEWEZjbyysJEz48itIwbZip7RqtHu/SuC1Zm1rSCoYtX9W
-         ju5JM/SPZpXAo5CEZXL6FNTk2ShMxmx0JDX/TpKE8hevFYu7U1LOt7sE1X382kbs4tz3
-         w+pV/0XSarekftX7wp/4plpxJ1B2LzrWLkWEFD8cVin1M4M4nIhDnxw/KjK4av0O0cMP
-         U8BDqjyKMJSpz9ZkYfWmj9f7BQu1UFQyjhQ1rZJdwRkHz3m5u8baQmiNz1qCYFUvhIQR
-         ZqoC4R440PTId+RZ7AUhg44BLVXlKIK/CkHb7ZP0xvdpOqm5JYeJcS7Hy0YiEKrVpTUJ
-         h9DQ==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=9cjAB8k482sCSDI8ZI00ufOwnTQdR1UDDejmT12EfLw=;
+        b=RORx8QHT2DWhXC7bx0N/NmDgRzteAp6KbrSq5No0RLhvoo9tlY4Qv2QaTZqfIjlKJZ
+         o+5CqIVfAzStt0LxVRndc80L4dqtdKMV9zB+2b+CtWVvW/cjU15F4dRCICanlFcZmLrV
+         vUVSRjOa9tmdeHK/pFdqUXDrkBv5xG2QKksL8Zwnuh3fGij4pxsY1tc5M9AB80qcjSjC
+         8VUz+DSJIRLM5GgGt6ucuz+yA/1i3PYNhn1KFoS6G6JoLV+InpMUcRhSYslx8fKat8gH
+         h3cxW/EW/8CZiQsg2YNvqmeGi1FlR+hnZMJ8j3XtYdhs+5HZFWrqOfzsdFyckwn9bPlN
+         soiw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=UszRHdt+;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g9sor4101246wmg.4.2019.02.28.13.30.57
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=IK5jRT10;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id w9si11092897ybk.359.2019.02.28.13.32.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Feb 2019 13:30:57 -0800 (PST)
-Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Feb 2019 13:32:50 -0800 (PST)
+Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=UszRHdt+;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chrisdown.name; s=google;
-        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
-         :user-agent;
-        bh=M5qRV30ip8IGNC83XxPf/9k/uWZjwDt12qJmaexTUOA=;
-        b=UszRHdt+ZAsX06/EHTKapRQhXB+mYA+Xg8GhwFOSw+o/Xz0f5Q7zbRQXuZW3X/IjSJ
-         vEUydqWKMAzfaihII8BrnY/ZeGFVj6StP3MhUoaSrBzsfa4cz9NHfoclp+IWG9cEOWMP
-         dHiBKeMkSk/kTr7GB9aS0VLKO1UDLJ7gecLo8=
-X-Google-Smtp-Source: AHgI3IYa0u8pBtC+MPRef2jYaDEZmsw6+6IKLBdlfUXCIbRGsbNTvDAUXwcPX56YevYzCTadNMR+mg==
-X-Received: by 2002:a1c:4844:: with SMTP id v65mr1175688wma.66.1551389456492;
-        Thu, 28 Feb 2019 13:30:56 -0800 (PST)
-Received: from localhost (host-92-23-123-154.as13285.net. [92.23.123.154])
-        by smtp.gmail.com with ESMTPSA id x11sm39389596wrt.27.2019.02.28.13.30.53
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 28 Feb 2019 13:30:55 -0800 (PST)
-Date: Thu, 28 Feb 2019 21:30:50 +0000
-From: Chris Down <chris@chrisdown.name>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=IK5jRT10;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x1SLERO7082133;
+	Thu, 28 Feb 2019 21:32:46 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
+ mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to;
+ s=corp-2018-07-02; bh=9cjAB8k482sCSDI8ZI00ufOwnTQdR1UDDejmT12EfLw=;
+ b=IK5jRT10KiIbs+MeoHXGnViw+Wx/ztx1TQ64VQFsmz/NDvWk/EY8F4zu981bXu9nXBlY
+ gYMcea/eyZwUF+2B2InUG4rF0Jbk9Uw4SQZcbEEuc/SY7P0QgUPo237+giHa/zCMhc+k
+ 00aRoV3Ylx7HE9Vhj1UeR0tYq3Un84ADOOpNDKZ4+QnaFngOKZYUkNxis3C2Q+URspUa
+ Y9JNtHv71krIi7EjnqDs52vbZk2pGIFgG0ISETkITPgDtkftWdrG14oQ9yqleZaYIwCS
+ H3Hc2r9fYyc5BWe2fgC+LXFnmyFD0ymL01M0dX7nlqsfHorUGYL3S7uC9aBpl0FJX9AS pQ== 
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by aserp2130.oracle.com with ESMTP id 2qtupem174-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 28 Feb 2019 21:32:46 +0000
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id x1SLWjpS008053
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 28 Feb 2019 21:32:45 GMT
+Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x1SLWgrn022976;
+	Thu, 28 Feb 2019 21:32:43 GMT
+Received: from dhcp-10-65-148-83.vpn.oracle.com (/10.65.148.83)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 28 Feb 2019 13:32:42 -0800
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.2\))
+Subject: Re: [PATCH v2 2/4] mm: remove zone_lru_lock() function access
+ ->lru_lock directly
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <20190228102229.dec5e125fc65a3ff7c6f865f@linux-foundation.org>
+Date: Thu, 28 Feb 2019 14:32:41 -0700
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
+        Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>,
+        Rik van Riel <riel@surriel.com>, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>,
+        Mel Gorman <mgorman@techsingularity.net>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <3682FD80-92AD-4388-8751-00FD1CC74D46@oracle.com>
+References: <20190228083329.31892-1-aryabinin@virtuozzo.com>
+ <20190228083329.31892-2-aryabinin@virtuozzo.com>
+ <7AF5AEF9-FF0A-41C1-834A-4C33EBD0CA09@oracle.com>
+ <20190228102229.dec5e125fc65a3ff7c6f865f@linux-foundation.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
-	Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>,
-	Dennis Zhou <dennis@kernel.org>, linux-kernel@vger.kernel.org,
-	cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
-Subject: [PATCH] mm, memcg: Make scan aggression always exclude protection
-Message-ID: <20190228213050.GA28211@chrisdown.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Mailer: Apple Mail (2.3445.104.2)
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9181 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=3 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=712 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1902280142
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch is an incremental improvement on the existing
-memory.{low,min} relative reclaim work to base its scan pressure
-calculations on how much protection is available compared to the current
-usage, rather than how much the current usage is over some protection
-threshold.
 
-Previously the way that memory.low protection works is that if you are
-50% over a certain baseline, you get 50% of your normal scan pressure.
-This is certainly better than the previous cliff-edge behaviour, but it
-can be improved even further by always considering memory under the
-currently enforced protection threshold to be out of bounds. This means
-that we can set relatively low memory.low thresholds for variable or
-bursty workloads while still getting a reasonable level of protection,
-whereas with the previous version we may still trivially hit the 100%
-clamp. The previous 100% clamp is also somewhat arbitrary, whereas this
-one is more concretely based on the currently enforced protection
-threshold, which is likely easier to reason about.
 
-There is also a subtle issue with the way that proportional reclaim
-worked previously -- it promotes having no memory.low, since it makes
-pressure higher during low reclaim. This happens because we base our
-scan pressure modulation on how far memory.current is between memory.min
-and memory.low, but if memory.low is unset, we only use the overage
-method. In most cromulent configurations, this then means that we end up
-with *more* pressure than with no memory.low at all when we're in low
-reclaim, which is not really very usable or expected.
+> On Feb 28, 2019, at 11:22 AM, Andrew Morton =
+<akpm@linux-foundation.org> wrote:
+>=20
+> I don't think so.  This kernedoc comment was missing its leading /**.=20=
 
-With this patch, memory.low and memory.min affect reclaim pressure in a
-more understandable and composable way. For example, from a user
-standpoint, "protected" memory now remains untouchable from a reclaim
-aggression standpoint, and users can also have more confidence that
-bursty workloads will still receive some amount of guaranteed
-protection.
+> The patch fixes that.
 
-Signed-off-by: Chris Down <chris@chrisdown.name>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>
-Cc: Dennis Zhou <dennis@kernel.org>
-Cc: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: kernel-team@fb.com
----
- include/linux/memcontrol.h | 25 ++++++++--------
- mm/vmscan.c                | 61 +++++++++++++-------------------------
- 2 files changed, 32 insertions(+), 54 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 534267947664..2799008c1f88 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -333,17 +333,17 @@ static inline bool mem_cgroup_disabled(void)
- 	return !cgroup_subsys_enabled(memory_cgrp_subsys);
- }
- 
--static inline void mem_cgroup_protection(struct mem_cgroup *memcg,
--					 unsigned long *min, unsigned long *low)
-+static inline unsigned long mem_cgroup_protection(struct mem_cgroup *memcg,
-+						  bool in_low_reclaim)
- {
--	if (mem_cgroup_disabled()) {
--		*min = 0;
--		*low = 0;
--		return;
--	}
-+	if (mem_cgroup_disabled())
-+		return 0;
-+
-+	if (in_low_reclaim)
-+		return READ_ONCE(memcg->memory.emin);
- 
--	*min = READ_ONCE(memcg->memory.emin);
--	*low = READ_ONCE(memcg->memory.elow);
-+	return max(READ_ONCE(memcg->memory.emin),
-+		   READ_ONCE(memcg->memory.elow));
- }
- 
- enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
-@@ -845,11 +845,10 @@ static inline void memcg_memory_event_mm(struct mm_struct *mm,
- {
- }
- 
--static inline void mem_cgroup_protection(struct mem_cgroup *memcg,
--					 unsigned long *min, unsigned long *low)
-+static inline unsigned long mem_cgroup_protection(struct mem_cgroup *memcg,
-+						  bool in_low_reclaim)
- {
--	*min = 0;
--	*low = 0;
-+	return 0;
- }
- 
- static inline enum mem_cgroup_protection mem_cgroup_protected(
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ac4806f0f332..920a9c3ee792 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2414,12 +2414,13 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 		int file = is_file_lru(lru);
- 		unsigned long lruvec_size;
- 		unsigned long scan;
--		unsigned long min, low;
-+		unsigned long protection;
- 
- 		lruvec_size = lruvec_lru_size(lruvec, lru, sc->reclaim_idx);
--		mem_cgroup_protection(memcg, &min, &low);
-+		protection = mem_cgroup_protection(memcg,
-+						   sc->memcg_low_reclaim);
- 
--		if (min || low) {
-+		if (protection) {
- 			/*
- 			 * Scale a cgroup's reclaim pressure by proportioning
- 			 * its current usage to its memory.low or memory.min
-@@ -2432,13 +2433,10 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 			 * setting extremely liberal protection thresholds. It
- 			 * also means we simply get no protection at all if we
- 			 * set it too low, which is not ideal.
--			 */
--			unsigned long cgroup_size = mem_cgroup_size(memcg);
--
--			/*
--			 * If there is any protection in place, we adjust scan
--			 * pressure in proportion to how much a group's current
--			 * usage exceeds that, in percent.
-+			 *
-+			 * If there is any protection in place, we reduce scan
-+			 * pressure by how much of the total memory used is
-+			 * within protection thresholds.
- 			 *
- 			 * There is one special case: in the first reclaim pass,
- 			 * we skip over all groups that are within their low
-@@ -2448,43 +2446,24 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 			 * ideally want to honor how well-behaved groups are in
- 			 * that case instead of simply punishing them all
- 			 * equally. As such, we reclaim them based on how much
--			 * of their best-effort protection they are using. Usage
--			 * below memory.min is excluded from consideration when
--			 * calculating utilisation, as it isn't ever
--			 * reclaimable, so it might as well not exist for our
--			 * purposes.
-+			 * memory they are using, reducing the scan pressure
-+			 * again by how much of the total memory used is under
-+			 * hard protection.
- 			 */
--			if (sc->memcg_low_reclaim && low > min) {
--				/*
--				 * Reclaim according to utilisation between min
--				 * and low
--				 */
--				scan = lruvec_size * (cgroup_size - min) /
--					(low - min);
--			} else {
--				/* Reclaim according to protection overage */
--				scan = lruvec_size * cgroup_size /
--					max(min, low) - lruvec_size;
--			}
-+			unsigned long cgroup_size = mem_cgroup_size(memcg);
-+
-+			/* Avoid TOCTOU with earlier protection check */
-+			cgroup_size = max(cgroup_size, protection);
-+
-+			scan = lruvec_size - lruvec_size * protection /
-+				cgroup_size;
- 
- 			/*
--			 * Don't allow the scan target to exceed the lruvec
--			 * size, which otherwise could happen if we have >200%
--			 * overage in the normal case, or >100% overage when
--			 * sc->memcg_low_reclaim is set.
--			 *
--			 * This is important because other cgroups without
--			 * memory.low have their scan target initially set to
--			 * their lruvec size, so allowing values >100% of the
--			 * lruvec size here could result in penalising cgroups
--			 * with memory.low set even *more* than their peers in
--			 * some cases in the case of large overages.
--			 *
--			 * Also, minimally target SWAP_CLUSTER_MAX pages to keep
-+			 * Minimally target SWAP_CLUSTER_MAX pages to keep
- 			 * reclaim moving forwards, avoiding decremeting
- 			 * sc->priority further than desirable.
- 			 */
--			scan = clamp(scan, SWAP_CLUSTER_MAX, lruvec_size);
-+			scan = max(scan, SWAP_CLUSTER_MAX);
- 		} else {
- 			scan = lruvec_size;
- 		}
--- 
-2.21.0
+That makes sense; it had looked like just an extraneous asterisk.
 
