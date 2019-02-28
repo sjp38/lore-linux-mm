@@ -2,196 +2,203 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 96DBBC43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 12:34:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A8F79C10F00
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 12:39:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4D7562183F
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 12:34:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D7562183F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 586B9206DD
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 12:39:21 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="IbMr9pBJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 586B9206DD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F3BAB8E0005; Thu, 28 Feb 2019 07:34:50 -0500 (EST)
+	id DB17F8E0003; Thu, 28 Feb 2019 07:39:20 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EECFF8E0001; Thu, 28 Feb 2019 07:34:50 -0500 (EST)
+	id D8BDC8E0001; Thu, 28 Feb 2019 07:39:20 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DB5FA8E0005; Thu, 28 Feb 2019 07:34:50 -0500 (EST)
+	id C774D8E0003; Thu, 28 Feb 2019 07:39:20 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ABE288E0001
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 07:34:50 -0500 (EST)
-Received: by mail-qk1-f200.google.com with SMTP id f70so15606633qke.8
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 04:34:50 -0800 (PST)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A6788E0001
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 07:39:20 -0500 (EST)
+Received: by mail-yw1-f69.google.com with SMTP id z64so11248556ywd.12
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2019 04:39:20 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding:message-id;
-        bh=65plmuKN0t96Ss4lhV8kQ0BWCdKPPdBAOQ9S+BoEA3M=;
-        b=QZaYjVtwcpZ3sR0NXWQnFCoE1vjUNzOCIdiPkEbFIk2P2fwH9B3iJac2nl7tV5ocQV
-         k++oMVDeW3NMoMYAED/oGQ47y9J+FRFUIlcY2zomfSMBG49LXqx5eXJ0LeZwVNkTMcuP
-         DCq8JJ+EKNG4BTvgipYiA9MJmYlu4hBmaOqMu2DTbhhcKZY/l8PCmTOEcJZ5qINa5cMl
-         fJAvx5YmJtbf0js3DxhnmqHGA6MD1Ruko1vQM3Rntgr2jWS1104/x5UKDwtGMnIwmdlU
-         3Z9NFo6Hb6MgMZAbO4WFs3CU9PsPoSUrv4hP9DreXmNGHrWN6d96lRdQu/D+mg0xyTEQ
-         mBvw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVLuJ8kZNy9aoC+1nic3uHsF5TvZ7diG3voeu6jQIQufWkyKT7V
-	9T4ufGhw5TRR4VjOYtxKzHKFWUVA9B1Oe5ZR5JWLBCUCuHPRd+y7/0kA14yViv20bnFGNWEzKZK
-	ftoeANeXL8v+b8pFV0ihpNj/fxbikf9hcG2RNDNDyB+DSvZ2yiljvpJAznr7W9Wbcug==
-X-Received: by 2002:ac8:2d61:: with SMTP id o30mr6120142qta.13.1551357290444;
-        Thu, 28 Feb 2019 04:34:50 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzPM86hn9gn7CtuQEHmaewLOuWMX0/lqE6Dl5Tjrqtt4/Ge6wLOkaVc3465rEHRrl6UrkSF
-X-Received: by 2002:ac8:2d61:: with SMTP id o30mr6120096qta.13.1551357289801;
-        Thu, 28 Feb 2019 04:34:49 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551357289; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=kyaLnB1yS2uNDTq/sCdbM9/derGqD4nWTMhtRkekS5s=;
+        b=JUyT3uVhGZC0LgnGV2KuLS9/QUfLpQm1lXON4NzkT4KezRZySfgLubqlnkbRQdrNw1
+         Z+xZKickvp5FIGzxSiDfxBZKLwFUExLxa2bRSNooIQj3TIWNjLJyEzHTpE8QPDY0ObGv
+         MQyeB0Rb7CdW1DpMorUButXRck9/BeLREAtcj9XV7LFOF6diCb3OqMuMa7I1lVOMqhoL
+         JMRNIOQKNNjtRLbObAW0l1pjd8DuQqjkF4t91wd0PRmB/m8OKm25oIP3nYJVF2CZymHw
+         m+EDSohVdV+MRuyGS57D9fyB+OBtXts0hN6PDRyIbEd5M6J4w/pF1N4249KixnwVkv2I
+         GI4w==
+X-Gm-Message-State: AHQUAuaaYDXRhEPfEvz60RI+Q2P+k6IMYdKezo1Oa31KYxpL1F9AzemP
+	q11d4PtswzKc9DCiZ0sua5fvT0773ApYhixPGXMiuk/zJygJaQSl9qZq+vcTnGNyNT/g+vF9sTK
+	ZPdjQWAFJX1WTrVktw1w8TredPl9A5X1vzHPpPO5qQmsGxvhKeZO/bMWMWU3rGpb6hg==
+X-Received: by 2002:a25:60c6:: with SMTP id u189mr6219398ybb.113.1551357560356;
+        Thu, 28 Feb 2019 04:39:20 -0800 (PST)
+X-Google-Smtp-Source: AHgI3Ibq30iD2wp2LnAEkOB4CYN0zJXjecSkbbVmPyYAQc3t1W0jQceu2KJrWL6nHHZcjhurDoOL
+X-Received: by 2002:a25:60c6:: with SMTP id u189mr6219349ybb.113.1551357559454;
+        Thu, 28 Feb 2019 04:39:19 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551357559; cv=none;
         d=google.com; s=arc-20160816;
-        b=qLI4OZ9Z63YtQYW1PHR9TuioR+4qPcNPnc1jjCBo/VysJB5J4H/2ZVAIacnr00O6+3
-         x0PdQTiVsXmS9RlQDVgJekrff5lBO6lDjxlp/bCuty5nbRx9NTduYK/slUSprEovddK2
-         wZJeWoVeyHeeF2hhN/BVqiY2iEX8JFyFJe1rdvcsen6xlgPf+t/sGYIXW5ve7p36j+OF
-         B0aE69M9IitIsnrqXrSWVxzNQ/JyVe7trpvdRDNMDwu5QR20jPk9+UAjFdxjQA34x6Ou
-         IdmA11JR2hpaxmokzZjLoZ5dyplwiL7uBUQpEJAWPNfUvO7dW+GCG32tH9M2DMKYgAl3
-         JuVA==
+        b=rPSlSB3WcdHHeBphDaHRb+MCHc1DiYQH9ykVGM+qsLjYjivQFsYnw7qA7+dHOjOqPR
+         v25QN1JjlOW8rbCMl+uje4cyU0HsyRwg762hNcq0pShdvNmgkX5riR3Y8oBPu2Wglywk
+         QO+PRY/AUeaWS/WKzBHTrdmIDuDk7etJ/0jHs9XU1LF3CUHMN1OlWBFD8x/SLVfI8p6T
+         GD0hd87lpdnP4vbkciW8KCcKXQdJMYQBRWFO2jRlNRSyJgcYKrgZwQ68Gy2HGpGsGXE2
+         5wP8z9o03Mc253wFVB1NM8qu4S5NXIa9JIGNAiLAze9qcSDI/ly3GF2psFYSW406WurL
+         AdeQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:content-transfer-encoding:content-language:in-reply-to
-         :mime-version:user-agent:date:from:references:cc:to:subject;
-        bh=65plmuKN0t96Ss4lhV8kQ0BWCdKPPdBAOQ9S+BoEA3M=;
-        b=hQijsTu4jA9XbvmxMUPZo5LBGmKi/U6anInFmahm62m82hAGYtqLazaYNYQJxvM/xA
-         cd5gnoVQw2ELnWxtklmQNI+HMK8ddkNMQB0sCatiD7NuCL1UEJr34Bc9Ue9+dxLGPLpl
-         LzDtbglSQwI7VlEtzkLbMWm9jIi7vWlHXAEt0f2GnaAafx2otloJc5em1QwJWEOtoXTN
-         KMgHY5gE1mR7S6MItQIaGT/edlAmKqxlkVDuWSzEEBUqeSbIn+6ke2uh5l35yJRZOWQx
-         eiRDkAUT9tMq2wvTjLuJWOkXcNjbr5YUY1flui1G5amzBSf3L4zvhLjLL0QY95njW0b6
-         YLjw==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=kyaLnB1yS2uNDTq/sCdbM9/derGqD4nWTMhtRkekS5s=;
+        b=xBhGBnigLojzyh+wZnrVxaBvb6PcQ3zZrg0eJ5BXemiQPcfLHOZxn3jlilu6IX7pOw
+         yN4w+lPzqJCltiYWs9fcFM1mehQVLxsRu7z4hroKn9ihAYUVUyer8xLGrkwge+sZAHZv
+         RcAhm07uYpMrNwqlLNf9kcN9XuuTIkxBoABbJXbX4IA/BuLC/IfNi8R/Y1ePUn2jTz1q
+         a3V83pgZYye0Eld28vnMi0g334srz1HNrlvfm3JHMFMvcDjzGZzoomgIbKNdCwrcxQxy
+         VJXNQS1uScaQX/kZv1opiRbjfMKcZye9do1NyZSOFmK1Px4ojpeTJdxRro2vJhqMxFS0
+         cnDg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id l27si2480529qvl.89.2019.02.28.04.34.49
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=IbMr9pBJ;
+       spf=pass (google.com: domain of jonathanh@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jonathanh@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id 197si8449733ybf.108.2019.02.28.04.39.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Feb 2019 04:34:49 -0800 (PST)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Thu, 28 Feb 2019 04:39:19 -0800 (PST)
+Received-SPF: pass (google.com: domain of jonathanh@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x1SCU7wv007308
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 07:34:49 -0500
-Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2qxe7s4njd-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 07:34:49 -0500
-Received: from localhost
-	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Thu, 28 Feb 2019 12:34:48 -0000
-Received: from b01cxnp22036.gho.pok.ibm.com (9.57.198.26)
-	by e14.ny.us.ibm.com (146.89.104.201) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 28 Feb 2019 12:34:45 -0000
-Received: from b01ledav003.gho.pok.ibm.com (b01ledav003.gho.pok.ibm.com [9.57.199.108])
-	by b01cxnp22036.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x1SCYi8j23068792
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 28 Feb 2019 12:34:44 GMT
-Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 3D531B2066;
-	Thu, 28 Feb 2019 12:34:44 +0000 (GMT)
-Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 55412B2065;
-	Thu, 28 Feb 2019 12:34:41 +0000 (GMT)
-Received: from [9.199.36.171] (unknown [9.199.36.171])
-	by b01ledav003.gho.pok.ibm.com (Postfix) with ESMTP;
-	Thu, 28 Feb 2019 12:34:40 +0000 (GMT)
-Subject: Re: [PATCH 1/2] fs/dax: deposit pagetable even when installing zero
- page
-To: Jan Kara <jack@suse.cz>
-Cc: akpm@linux-foundation.org,
-        "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-        mpe@ellerman.id.au, Ross Zwisler <zwisler@kernel.org>,
-        "Oliver O'Halloran" <oohall@gmail.com>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
-References: <20190228083522.8189-1-aneesh.kumar@linux.ibm.com>
- <20190228092101.GA22210@quack2.suse.cz>
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Date: Thu, 28 Feb 2019 18:04:24 +0530
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=IbMr9pBJ;
+       spf=pass (google.com: domain of jonathanh@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jonathanh@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5c77d6710001>; Thu, 28 Feb 2019 04:39:13 -0800
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 28 Feb 2019 04:39:18 -0800
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 28 Feb 2019 04:39:18 -0800
+Received: from [10.21.132.148] (10.124.1.5) by HQMAIL101.nvidia.com
+ (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 28 Feb
+ 2019 12:39:11 +0000
+Subject: Re: [PATCH V15 14/18] block: enable multipage bvecs
+To: Marek Szyprowski <m.szyprowski@samsung.com>, Ming Lei
+	<ming.lei@redhat.com>
+CC: Jens Axboe <axboe@kernel.dk>, <linux-block@vger.kernel.org>,
+	<linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>, Theodore Ts'o
+	<tytso@mit.edu>, Omar Sandoval <osandov@fb.com>, Sagi Grimberg
+	<sagi@grimberg.me>, Dave Chinner <dchinner@redhat.com>, Kent Overstreet
+	<kent.overstreet@gmail.com>, Mike Snitzer <snitzer@redhat.com>,
+	<dm-devel@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>,
+	<linux-fsdevel@vger.kernel.org>, <linux-raid@vger.kernel.org>, David Sterba
+	<dsterba@suse.com>, <linux-btrfs@vger.kernel.org>, "Darrick J . Wong"
+	<darrick.wong@oracle.com>, <linux-xfs@vger.kernel.org>, Gao Xiang
+	<gaoxiang25@huawei.com>, Christoph Hellwig <hch@lst.de>,
+	<linux-ext4@vger.kernel.org>, Coly Li <colyli@suse.de>,
+	<linux-bcache@vger.kernel.org>, Boaz Harrosh <ooo@electrozaur.com>, Bob
+ Peterson <rpeterso@redhat.com>, <cluster-devel@redhat.com>, Ulf Hansson
+	<ulf.hansson@linaro.org>, "linux-mmc@vger.kernel.org"
+	<linux-mmc@vger.kernel.org>, 'Linux Samsung SOC'
+	<linux-samsung-soc@vger.kernel.org>, Krzysztof Kozlowski <krzk@kernel.org>,
+	Adrian Hunter <adrian.hunter@intel.com>, Bartlomiej Zolnierkiewicz
+	<b.zolnierkie@samsung.com>, linux-tegra <linux-tegra@vger.kernel.org>
+References: <20190215111324.30129-1-ming.lei@redhat.com>
+ <20190215111324.30129-15-ming.lei@redhat.com>
+ <CGME20190221084301eucas1p11e8841a62b4b1da3cccca661b6f4c29d@eucas1p1.samsung.com>
+ <6c9ae4de-c56f-a2b3-2542-da7d8b95601d@samsung.com>
+ <0dbbee64-5c6b-0374-4360-6dc218c70d58@nvidia.com>
+ <20190227232940.GA13319@ming.t460p>
+ <01155e88-f021-fbe2-d048-42e303fe2935@samsung.com>
+From: Jon Hunter <jonathanh@nvidia.com>
+Message-ID: <83c1e25b-4aab-4374-e160-b506eea9e68f@nvidia.com>
+Date: Thu, 28 Feb 2019 12:39:10 +0000
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-In-Reply-To: <20190228092101.GA22210@quack2.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <01155e88-f021-fbe2-d048-42e303fe2935@samsung.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
+ HQMAIL101.nvidia.com (172.20.187.10)
+Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-TM-AS-GCONF: 00
-x-cbid: 19022812-0052-0000-0000-00000392380D
-X-IBM-SpamModules-Scores: 
-X-IBM-SpamModules-Versions: BY=3.00010679; HX=3.00000242; KW=3.00000007;
- PH=3.00000004; SC=3.00000281; SDB=6.01167573; UDB=6.00609978; IPR=6.00948186;
- MB=3.00025780; MTD=3.00000008; XFM=3.00000015; UTC=2019-02-28 12:34:47
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19022812-0053-0000-0000-00005FFF6498
-Message-Id: <5c788802-bbf4-2c12-b126-d9b83eea86d5@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-02-28_06:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1902280087
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1551357553; bh=kyaLnB1yS2uNDTq/sCdbM9/derGqD4nWTMhtRkekS5s=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
+	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
+	 X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=IbMr9pBJuBI/5AbD0dC5l3dawgXept/qlylzk0GIjWO3kmfIarTR/gWqLma/G6QW7
+	 QA1IecDz5AXvEeEa1vA8ApQJcym13C8r5dqcQJFUMSda6+U4j4lZ0V6gU4W7aamSrX
+	 m+JRZW58fX6DtULpWLS9BsSfa4PjeWfP/3xcaEB3c22HZyi7lEpqH4l8AWCCiQl0D7
+	 g8u2jtc3u01z33ZlZnGhXxk8gfT8LjZKgnLHRyeI+MxQUVwCBl4wHHBT/S1/WwV1cO
+	 e8wdRmwYaz3kMXRbC2iR1CDKeIJRnxvt4wP6qPVIH0DtIGLgbocKla2k/F6gPPwt7J
+	 oVQzg1220HnDQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/28/19 2:51 PM, Jan Kara wrote:
-> On Thu 28-02-19 14:05:21, Aneesh Kumar K.V wrote:
->> Architectures like ppc64 use the deposited page table to store hardware
->> page table slot information. Make sure we deposit a page table when
->> using zero page at the pmd level for hash.
->>
->> Without this we hit
->>
->> Unable to handle kernel paging request for data at address 0x00000000
->> Faulting instruction address: 0xc000000000082a74
->> Oops: Kernel access of bad area, sig: 11 [#1]
->> ....
->>
->> NIP [c000000000082a74] __hash_page_thp+0x224/0x5b0
->> LR [c0000000000829a4] __hash_page_thp+0x154/0x5b0
->> Call Trace:
->>   hash_page_mm+0x43c/0x740
->>   do_hash_page+0x2c/0x3c
->>   copy_from_iter_flushcache+0xa4/0x4a0
->>   pmem_copy_from_iter+0x2c/0x50 [nd_pmem]
->>   dax_copy_from_iter+0x40/0x70
->>   dax_iomap_actor+0x134/0x360
->>   iomap_apply+0xfc/0x1b0
->>   dax_iomap_rw+0xac/0x130
->>   ext4_file_write_iter+0x254/0x460 [ext4]
->>   __vfs_write+0x120/0x1e0
->>   vfs_write+0xd8/0x220
->>   SyS_write+0x6c/0x110
->>   system_call+0x3c/0x130
->>
->> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-> 
-> Thanks for the patch. It looks good to me. You can add:
-> 
-> Reviewed-by: Jan Kara <jack@suse.cz>
-> 
->> ---
->> TODO:
->> * Add fixes tag
-> 
-> Probably this is a problem since initial PPC PMEM support, isn't it?
-> 
 
-Considering ppc64 is the only broken architecture here, I guess I will 
-use the commit that enabled PPC PMEM support here.
+On 28/02/2019 07:51, Marek Szyprowski wrote:
+> Hi Ming,
+> 
+> On 2019-02-28 00:29, Ming Lei wrote:
+>> On Wed, Feb 27, 2019 at 08:47:09PM +0000, Jon Hunter wrote:
+>>> On 21/02/2019 08:42, Marek Szyprowski wrote:
+>>>> On 2019-02-15 12:13, Ming Lei wrote:
+>>>>> This patch pulls the trigger for multi-page bvecs.
+>>>>>
+>>>>> Reviewed-by: Omar Sandoval <osandov@fb.com>
+>>>>> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+>>>> Since Linux next-20190218 I've observed problems with block layer on one
+>>>> of my test devices (Odroid U3 with EXT4 rootfs on SD card). Bisecting
+>>>> this issue led me to this change. This is also the first linux-next
+>>>> release with this change merged. The issue is fully reproducible and can
+>>>> be observed in the following kernel log:
+>>>>
+>>>> sdhci: Secure Digital Host Controller Interface driver
+>>>> sdhci: Copyright(c) Pierre Ossman
+>>>> s3c-sdhci 12530000.sdhci: clock source 2: mmc_busclk.2 (100000000 Hz)
+>>>> s3c-sdhci 12530000.sdhci: Got CD GPIO
+>>>> mmc0: SDHCI controller on samsung-hsmmc [12530000.sdhci] using ADMA
+>>>> mmc0: new high speed SDHC card at address aaaa
+>>>> mmcblk0: mmc0:aaaa SL16G 14.8 GiB
+>>> I have also noticed some failures when writing to an eMMC device on one
+>>> of our Tegra boards. We have a simple eMMC write/read test and it is
+>>> currently failing because the data written does not match the source.
+>>>
+>>> I did not seem the same crash as reported here, however, in our case the
+>>> rootfs is NFS mounted and so probably would not. However, the bisect
+>>> points to this commit and reverting on top of -next fixes the issues.
+>> It is sdhci, probably related with max segment size, could you test the
+>> following patch:
+>>
+>> https://marc.info/?l=linux-mmc&m=155128334122951&w=2
+> 
+> This seems to be fixing my issue too! Thanks!
 
--aneesh
+Thanks, I can confirm this fixes the issue for Tegra. So feel free to
+add my ...
+
+Tested-by: Jon Hunter <jonathanh@nvidia.com>
+
+Cheers!
+Jon
+
+-- 
+nvpublic
 
