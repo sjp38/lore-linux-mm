@@ -2,105 +2,107 @@ Return-Path: <SRS0=CyaI=RD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 95505C43381
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 16:30:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C8ED7C4360F
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 16:30:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2D3A6218AE
-	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 16:30:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 86D64218AE
+	for <linux-mm@archiver.kernel.org>; Thu, 28 Feb 2019 16:30:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="XuAtCfvA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D3A6218AE
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="mUmeIE5t"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86D64218AE
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 899038E0003; Thu, 28 Feb 2019 11:30:43 -0500 (EST)
+	id C6F4A8E0004; Thu, 28 Feb 2019 11:30:43 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 853F38E0004; Thu, 28 Feb 2019 11:30:43 -0500 (EST)
+	id C19148E0001; Thu, 28 Feb 2019 11:30:43 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 73A5E8E0003; Thu, 28 Feb 2019 11:30:43 -0500 (EST)
+	id AE1348E0004; Thu, 28 Feb 2019 11:30:43 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 428578E0001
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CB118E0001
 	for <linux-mm@kvack.org>; Thu, 28 Feb 2019 11:30:43 -0500 (EST)
-Received: by mail-yw1-f72.google.com with SMTP id c8so18015478ywa.0
+Received: by mail-yw1-f71.google.com with SMTP id r8so17957089ywh.10
         for <linux-mm@kvack.org>; Thu, 28 Feb 2019 08:30:43 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=r8ZvTCXRT2zhzdpNdKlPpMAbuU1N2QujZ8hztSmYHqE=;
-        b=FlRsxxo7lDTEMfmyUIhwE7cxlIdC7Q8EHnKka0HOSj2W40Vv+MZVjbbB2GA0Xu3ZPQ
-         eAPc79U4oZwl90Nxds84rpV+omsoT8ENesw/2SPlpEgFZnLfDub0zmQwGSfpMWpMUUth
-         fyBOkrWFSEYGmXSFWL+lauopwla0X1vTLH0tyX8s72VIefEkhXlzPCNbzp5pep3XwP0v
-         DqiIVYnpVp7AqaSYkuOcI1QkPpyKIoqyCakpTYHdOHFUHt7gcH6UgGNTeiz7e93NM8t9
-         VtNyygNwCD0OBaPEQyS78SHeaz2eCb4ujsTAWxonqULf63vmjvneus1jw7OV3wa2mIxz
-         H0zg==
-X-Gm-Message-State: AHQUAuYc9XlXX0n1Cj5KMqJ9/aOPGUaOOnejkp8j9CZtNbvKgb96BjV/
-	kDcy0nVKtCn2h6P++ufGWDsAioO3+pqIgm6YKUkDW4cO/HubzUmrsXZmhFb7x8w09QMpzsm8/xx
-	yiFRHaPqIW1u/RKguIWIkoKc/6qC6vyUvo7xXJ0fcxXCOgJdTQLKXQ/BeUpqsV9XFNxZ9B3gFQP
-	sDkXHjwSdRbZwt1qypZtRhv4dd9Pdz2FrqSRSJ8ryOCiJQZq+Hz7mNZhW90O69vlRIX64aQ/fov
-	P6Q/Vel+/F1lffS9YNSXPXzGhn61uWf5O/wxSkFJJUXF3DBXCvHeaJFhP+DQeSm66Kef4S5lJaC
-	FgyVEWpWPTu0DwjoodVWOV4hiUtD3CDO+SX7Lzg6XINO+s/KgKOS7V7JxpzRcR0Z6ST0IbWynte
-	E
-X-Received: by 2002:a0d:cb96:: with SMTP id n144mr6166505ywd.87.1551371442970;
-        Thu, 28 Feb 2019 08:30:42 -0800 (PST)
-X-Received: by 2002:a0d:cb96:: with SMTP id n144mr6166432ywd.87.1551371441965;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=NSVRB4KCxOzLiCcKtVzLdp3bqBiDRMqjw6+T+tZutHo=;
+        b=n2kszXwCnFM+aRWR5wlv7UWDw610mJ75OBq3Y8ADT5B/LhhsfjBjiC33h8hcl1Ji+s
+         5HulykOIJVmlWyMIVNLhkQNOCzpyW8ofwKdcXICgPPQ6xlVPng0waUoVOvL1vZcKAGtn
+         z5gyCBJXX9VPFrTTWDUfPRtGlgeXHz/hIHrHqayziroyVW1usD5S3WdKh+CyL2HAL0v8
+         5JcI0AHHRfoR83zzbp49Z44B+2MOYvJphIJcZD8Ur9CLw19mVhgjbd4A0f8i3py/C36e
+         Qdr+LIHzudBTW2ZykcfacRtvpHiR7dh5hzA0Y3vOrRoH1T5bCKIvpcOVYy7Lee02k4Ed
+         Z2xA==
+X-Gm-Message-State: APjAAAUobbvowpLWlHQIvNgz7MXaxaBkHtrDGOMdwpivy8CQAAHMfohG
+	8V3aGuMItPxSxfHCn6Dj42VDENcGdPisucggtrgnLfnkltuCe1D2qI9pN3k0IckSvKIAvS/x4xg
+	NB8nMMr9zNVj92OALDY4gEEMI3ujWVyRzmEAPrpoUCr4IDS5owUpdfSHTUIt2+eiFvNqqg5XFL+
+	9Sij+AuLQZrhm9EP2sVvT/xWA1RSz3PcEZHakHvKQgsqb2nt/RyIiZAe7zNAoGY+qWW9zqnEIxr
+	sdlotUJRcLyj/mGU/BZA0N0azT7tnLDpN7+sfrIH1aHCqCjtuV6MS9MIL4lPnhub1reeQQWUlEj
+	ZMwPGIfxbCJoKJ7Q+yNKGvt3CDK13o81T6OJny9sQWoSV5r5hrRKXOXQNT4zNMUrAeOkqKEtKK1
+	S
+X-Received: by 2002:a5b:10c:: with SMTP id 12mr187423ybx.323.1551371443256;
+        Thu, 28 Feb 2019 08:30:43 -0800 (PST)
+X-Received: by 2002:a5b:10c:: with SMTP id 12mr187320ybx.323.1551371441966;
         Thu, 28 Feb 2019 08:30:41 -0800 (PST)
 ARC-Seal: i=1; a=rsa-sha256; t=1551371441; cv=none;
         d=google.com; s=arc-20160816;
-        b=RsTW/yqDF6LEwzk2exwrCgFh/ErvYdArSNbmcd0sW3PJ0lVL50IIaYXYWEgTsdNMoB
-         oIjMZxZyBotwXH17N75DevVhOxVYAeV/HXKoBJdBK4EK3LXmvU4tE6mRn8+gAtA1jdtd
-         4lc7axDpoFCZH7ICBzRv3uNB8ic1UqS6H/VVoyuStWgwvhLhFksKFR+UBMhVA13Gguti
-         2jTizjbPL+L+dkr+3oORSINh2KkKUGC5q8ZXY2pRJeP5H92X1cud5EUYNBKtqoOWapFc
-         k1RRVSYknP/uwA/8A+V92ghELWpmkxDvMAn0SkZFdFQKSOzhXhDtyn9fVxG21u/ajdBD
-         BwPQ==
+        b=bGuYHK/ZXY708Rc9+9pNWBYNxcA6JZ18aTfPbGwcQJ6OCEoSNJcQzptTS+p1NA5HMi
+         pQjljoQ2nrMlnV9w64gjvLeW0wvvxKO/HgC1KFCSmHphRTk1ued7hgKDCME0CIEeaxUl
+         EiS9n1WfMWkDXlCj2W2DbgF81tK5b8lznK0uMTWhBELGd2hcCCLnuZiQl3vORVred8HW
+         5poVHQEXEf5koWnmvjzOePvrmxQ6VWbT03tNx6JEzMxl1pIbmdS/Q72brephTsrWiiQH
+         K9JgFaMjFP+cIlwH7hEx5xNlzyAuL0OXnkudCJu7gQrmRyKq+8RRX9Kyc0hCNQaLC0Bz
+         w0mg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=r8ZvTCXRT2zhzdpNdKlPpMAbuU1N2QujZ8hztSmYHqE=;
-        b=oOsbrCGcjSnPMwXqn2oc1VV9h6qDFxIEduRN7Di4i2rdss/Q33u99obQjuI49xWfhq
-         XxnPqCXJvjVg9j1OuRzwxG27ltTlIOj6SVgytkQafS4dDgvmqOpSgjAhTWRF1XFoeYI5
-         3hjHNRMRcFq1ybaiu7JUP7CZbd2Gab6SpwKeXQYXJkGUIJ/my6JR1zW0GTE5ZW/0B20/
-         PTqLoVdLi2vEe1kKrEGt8sisS7vUH28IWfjOgDMdu4m1HWw67XiZSKAHocRhhUrJdcKh
-         nv3W4z6TtGTH9FdORJHflKGOysdpfpjsrm6YA5ei2tZ9hSD1UmC2/yGW/56rJas28rJn
-         9LHw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=NSVRB4KCxOzLiCcKtVzLdp3bqBiDRMqjw6+T+tZutHo=;
+        b=lH4uAWY9+ov/T1bq3esR7MHxWKu/8fmX9N3NOcbiGybS7olCknvYYA5LHhnaYfks0g
+         68almH4nzhxt7K2Cc9uoFHPYdaZAH/cOSChqPYAzQ2LVI6USSjugyFvMQKdw/eoT+C7b
+         c3oc82WBM2R0RpeHYw1gzoq7nmFeEFoXBQpjBcrVBNxolUyuYa+wz1no+nf6H39XMuuf
+         ccn0Wuws14ME2mkr7fHTSoRuFEsxfn+5f8kCcMK7rsrD4TmzPMbgusZxvRihfZe37GCW
+         2QwaMZZdQ+dMK6s5fT00kjrr3n2DZa+M9dVXsG7+QM5HHSg1zcbAf2r6Gbpu+rV5yYW5
+         pkbw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=XuAtCfvA;
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=mUmeIE5t;
        spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x203sor7430551ybx.18.2019.02.28.08.30.39
+        by mx.google.com with SMTPS id e124sor2295791ybe.175.2019.02.28.08.30.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 28 Feb 2019 08:30:39 -0800 (PST)
+        Thu, 28 Feb 2019 08:30:41 -0800 (PST)
 Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=XuAtCfvA;
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=mUmeIE5t;
        spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=r8ZvTCXRT2zhzdpNdKlPpMAbuU1N2QujZ8hztSmYHqE=;
-        b=XuAtCfvAHvwTNFMx0qa1F9819pfkkTzHRKOpVaq3vLzhJJZC5lnmioCoV1xfLmgkpJ
-         dUDLdfUT4PSmGDHSEcRyAbTij36xsmu5kZSwyjfKZJaAemf6Nbsl6VsdV2r7ap0+WDaQ
-         YeOgPqmKIuQpdHTdijMZXbriMUePvgXWfVccv3ivtj43bnZYtbkhClWW1EPrqHeSPisz
-         eT80DHEtMFihomuG7eX6Ia1aWE2lXirpvQlmhq3SKiQyN+IljLh2hhi3TEkTJ+u7+Fqg
-         v67gmTMwN7XQbZDsN65N671ZQ9Ej1pqoyH1IfvfoZ8BGby5L3JOkc952FiSNY9U8dvb+
-         Ut1w==
-X-Google-Smtp-Source: APXvYqxB0gH055GPX2oHz+gUwTQnv6YveWOjsj5yriVXg0OXYCP3vvJLY2OFO3TWYjgjYe/vFCCB/A==
-X-Received: by 2002:a25:7508:: with SMTP id q8mr227611ybc.158.1551371439265;
-        Thu, 28 Feb 2019 08:30:39 -0800 (PST)
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=NSVRB4KCxOzLiCcKtVzLdp3bqBiDRMqjw6+T+tZutHo=;
+        b=mUmeIE5tnpsUGSnPqHmhaPEa7lf70tbLRHRnTncX97PvuH/o83yraWIA5zNr2rhiIp
+         mpkAWKlqywdH7kW6UpgZyAHXZCyBpYNS+SG54JVKSe2fLL5wNcgjH9Q97zxt1D5RpII1
+         WeWjuyR4YDKC3jKLczUULysqQOcc+yP8bzEynWwg3HCg5WHMxRZlTti0KtykiQuvv3kq
+         YROup6kl8Iuyzca2iPVlj3322bMupx6H73LQkPOdGiwtgd6ZjWn0XHKo9doJy1JuxVuG
+         Mo2SA/F1rgT6zxF9PDEGAuC8LLHWA/fy6BG5ikjx7h55H5U7V9xL4eH3UKlRj6MnSuI2
+         /XsA==
+X-Google-Smtp-Source: APXvYqxewDo9FoX7nVCKQojbWSDBBLdU+jLrQJ05GmxyJbsxGjn1zJNbtkW8/KWmBzXl7+uvezlSOw==
+X-Received: by 2002:a25:c0cc:: with SMTP id c195mr229095ybf.166.1551371441698;
+        Thu, 28 Feb 2019 08:30:41 -0800 (PST)
 Received: from localhost ([2620:10d:c091:200::3:da64])
-        by smtp.gmail.com with ESMTPSA id 142sm5053877ywl.31.2019.02.28.08.30.38
+        by smtp.gmail.com with ESMTPSA id l202sm4189121ywb.72.2019.02.28.08.30.40
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 28 Feb 2019 08:30:38 -0800 (PST)
+        Thu, 28 Feb 2019 08:30:40 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Tejun Heo <tj@kernel.org>,
@@ -109,10 +111,12 @@ Cc: Tejun Heo <tj@kernel.org>,
 	cgroups@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	kernel-team@fb.com
-Subject: [PATCH 0/6] mm: memcontrol: clean up the LRU counts tracking
-Date: Thu, 28 Feb 2019 11:30:14 -0500
-Message-Id: <20190228163020.24100-1-hannes@cmpxchg.org>
+Subject: [PATCH 1/6] mm: memcontrol: track LRU counts in the vmstats array
+Date: Thu, 28 Feb 2019 11:30:15 -0500
+Message-Id: <20190228163020.24100-2-hannes@cmpxchg.org>
 X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190228163020.24100-1-hannes@cmpxchg.org>
+References: <20190228163020.24100-1-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -121,29 +125,36 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[ Resend #2: Sorry about the spam, I mixed up the header fields in
-  git-send-email and I don't know who did and didn't receive the
-  garbled previous attempt.
+The memcg code currently maintains private per-zone breakdowns of the
+LRU counters. This is necessary for reclaim decisions which are still
+zone-based, but there are a variety of users of these counters that
+only want the aggregate per-lruvec or per-memcg LRU counts, and they
+need to painfully sum up the zone counters on each request for that.
 
-  Resend #1: Rebased on top of the latest mmots. ]
+These would be better served using the memcg vmstats arrays, which
+track VM statistics at the desired scope already. They just don't have
+the LRU counts right now.
 
-The memcg LRU stats usage is currently a bit messy. Memcg has private
-per-zone counters because reclaim needs zone granularity sometimes,
-but we also have plenty of users that need to awkwardly sum them up to
-node or memcg granularity. Meanwhile the canonical per-memcg vmstats
-do not track the LRU counts (NR_INACTIVE_ANON etc.) as you'd expect.
+So to kick off the conversion, begin tracking LRU counts in those.
 
-This series enables LRU count tracking in the per-memcg vmstats array
-such that lruvec_page_state() and memcg_page_state() work on the enum
-node_stat_item items for the LRU counters. Then it converts all the
-callers that don't specifically need per-zone numbers over to that.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ include/linux/mm_inline.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
- include/linux/memcontrol.h | 28 ---------------
- include/linux/mm_inline.h  |  2 +-
- include/linux/mmzone.h     |  5 ---
- mm/memcontrol.c            | 85 +++++++++++++++++++++++++-------------------
- mm/vmscan.c                |  2 +-
- mm/workingset.c            |  5 +--
- 6 files changed, 54 insertions(+), 73 deletions(-)
-
+diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
+index 04ec454d44ce..6f2fef7b0784 100644
+--- a/include/linux/mm_inline.h
++++ b/include/linux/mm_inline.h
+@@ -29,7 +29,7 @@ static __always_inline void __update_lru_size(struct lruvec *lruvec,
+ {
+ 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+ 
+-	__mod_node_page_state(pgdat, NR_LRU_BASE + lru, nr_pages);
++	__mod_lruvec_state(lruvec, NR_LRU_BASE + lru, nr_pages);
+ 	__mod_zone_page_state(&pgdat->node_zones[zid],
+ 				NR_ZONE_LRU_BASE + lru, nr_pages);
+ }
+-- 
+2.20.1
 
