@@ -3,182 +3,135 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B331C4360F
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 13:39:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B187FC43381
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 13:59:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 604B52084D
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 13:39:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 604B52084D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 6F5A020850
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 13:59:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F5A020850
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ECACE8E0003; Fri,  1 Mar 2019 08:39:38 -0500 (EST)
+	id EE4388E0003; Fri,  1 Mar 2019 08:58:59 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E79C38E0001; Fri,  1 Mar 2019 08:39:38 -0500 (EST)
+	id E92FE8E0001; Fri,  1 Mar 2019 08:58:59 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D69038E0003; Fri,  1 Mar 2019 08:39:38 -0500 (EST)
+	id D849F8E0003; Fri,  1 Mar 2019 08:58:59 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CF0C8E0001
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 08:39:38 -0500 (EST)
-Received: by mail-ed1-f72.google.com with SMTP id o9so10059128edh.10
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 05:39:38 -0800 (PST)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 823358E0001
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 08:58:59 -0500 (EST)
+Received: by mail-wm1-f69.google.com with SMTP id i64so4843531wmg.3
+        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 05:58:59 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=mihksJr1Oz2m4WPplxJC/HYtsN9RDpIP1YahtuUqD2Q=;
-        b=LyyRbS4kACVAyB7S1ooRMKV/TytzbjvEgr7xdhNo53OVQEj4KSZZWP4t2+JPhmoXh6
-         hQuR/WDGCe1qk/eLGWlITWd9O7K6bSG1hb5sEhL+9wIyOWtG8HI0cJi6Gz5VTDcLdxag
-         pSkwcizmDiAd7KRqUdRZor98gdLx6fsgL0PdHhDNN6NIw59aY9ioZ2ckOTb2GdqfyNjZ
-         3AQWuMEwcqsqLg/VxNp+7U9NMXNYHPO5ODgusE0DKzxSS7lPst80MKX/Rzk9zXzgWP5o
-         IvFgPoH8PxrSHmf0VUMk1TM0gO9Tl8tAUZeQB3vkbqy47xyvl3qGPy0/X34mzRrWoaph
-         +k9w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAWJ3ugiVGBQVmfF7gzqtE4Lumu8seK4iwiAJia0sTtDjwxXsAnC
-	WTitWfdzDQhVjzJMcCl1Q40XlRLvMp9BYgNO39d4JX4LuSm3v/3MW3cJFKGIB/WOewKYgCdHhaI
-	H6ndkCBlk2T1P1HT3G050r2GzpijjKzjT614AxnJrNXMmGn7+0AwZO6dINYd5tPFrGw==
-X-Received: by 2002:a50:d8ce:: with SMTP id y14mr4246079edj.101.1551447577975;
-        Fri, 01 Mar 2019 05:39:37 -0800 (PST)
-X-Google-Smtp-Source: APXvYqx7XsqaUV5nI32o33/5Mgn0lL0GYXuQNHFlLKthHoKbhJK3Kwxmf72WAcT+3tGLybUxrVQb
-X-Received: by 2002:a50:d8ce:: with SMTP id y14mr4246017edj.101.1551447576769;
-        Fri, 01 Mar 2019 05:39:36 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551447576; cv=none;
+         :content-transfer-encoding:content-language;
+        bh=LupN2ljiH4f91NrMr3+ld65I3bN9aXbjwrHcAMPt/JQ=;
+        b=EPP3fyzvj7HmSfaTIv0FtzGUMHV8R8GuVSF6MylYxtyhz17gsHpoeyYM8b+d7HzdoL
+         2w0iXS3u3kiHB8KmEZUN/7Zu1jDB/7XdssBcjRL0+BOWjBKYCyxUY7jJ8rAEEkp236n/
+         3H2Fa9HXzL0syHJTW6XCgrJeV/eeCxh+jCpjR9IYi9Tu/2d/5QMVdtPL185mLDYcAjUS
+         CVOwatj9f3cfaZ44LtVnohP2wIOhn1+D3IkfdttIt2WJyFaQpr5EwubUR/k2ExX452p+
+         WiFf9XTq9NOzW7xdW8c+3tvXmUTIW0fjzCAmfYLZ2YVWd1q/nfLJiVShpTeXSRwnXDmi
+         Dfbg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAUQkUe3yYFwsjFkqDCRdZNPWQpWLPio9mFO5DPRcTcMq3JIm8KI
+	ZYRNeGPvXGuv/J0PIHa/jNYkX45aXAT2zl16E8IQxkJaQ9Q7u5MCEq7r46y5n7NcUkjZK0pu+op
+	3BlzDe73uPCUXSDFIeFQkUlGv7BTLDjc/sXRdM3fl63zw4BWFfleOOejlOTfOIUc=
+X-Received: by 2002:adf:c704:: with SMTP id k4mr3747650wrg.142.1551448739015;
+        Fri, 01 Mar 2019 05:58:59 -0800 (PST)
+X-Google-Smtp-Source: APXvYqz+4Ql/ugTSigxqibW/LuRMKbltcaY0yuKNLAD3EAjv23U+Bzukacvt0+UJhgiKlyb+6Fvb
+X-Received: by 2002:adf:c704:: with SMTP id k4mr3747605wrg.142.1551448738111;
+        Fri, 01 Mar 2019 05:58:58 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551448738; cv=none;
         d=google.com; s=arc-20160816;
-        b=jm29XkTMOzbIZtyvCIolLgjgJ7FzeLPn+cfJOTv9d0xL40r2qYrtYBPAmyzhdQKClz
-         aHxms0s3ov/HwZ0MqaVpK52RocSNbEuwgkMPN6vMErhn4eattOD6oNr27cV6TUwbvaP2
-         ZQbBCQuUHIahibeN840ocIBap0T++Sr9+5z6MmDcMV9GnUO+AZPbla78br+/WZPbq+s4
-         5QmLbbTmVIeIbh04oAxbVOsW8PDAbal55nZzAE5RFtqqRoI08d3f1zGP7cwke/B5zFMt
-         Vy3yV39+63C4Ef6yKCy9IpMKNHEljJPNQiW0Z2uyRMNb6MY5Fh2PTmURV3kw2t2ujltD
-         GTsA==
+        b=tx+0x28qDMbWCKDW0IGanArKDEV1Cm7yi+1o/21DV/OtFEChE0FsjXVcWWVW7PV2NM
+         1HaDCx0a/eQFHrBjaBQx/ShVSTfKp94iPOUJnOSYZz4pGikCpqRkwx0pBh0sQR+mjFnn
+         XUAM88L3cq+JjwK0iGjelwIiuPDs9cvWNucOhGbSAECGsWTRyBVYqvkwqhgh8VW0s0eJ
+         5z2xPMmqLR9FliNg0zdXPIeQOEhOABMzoXxbrOBA61Ova3snSZBYMgqzka4oSBP6rBlh
+         xHA2J91bZiyc2qYl24zkQaNlHVRVg2n7S7FYeuo8FpMyvOemP9zOAvzhOaOKWn4OLvYP
+         zFVw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=mihksJr1Oz2m4WPplxJC/HYtsN9RDpIP1YahtuUqD2Q=;
-        b=kbGvcTvFNAtSuBSuj/p1dxnWCAT47nhP6wFZT8rW1qhv5Ii+ALy3hVSH6ly6gtQ4Cu
-         /BwuPGsJSZlrUedosN0Hm7QHQlx0TlYk9jHKIR8xM2GV5jx4OKeDuS9fgmoRElMt7Xnf
-         ZbV2FfkKXEGn4HtGUT3gIwMBYWdF5jzizcXIhPNDmr1c2QvrLqeSDXfMHi2XQsgEP9s4
-         uvAvpFnJoZfxAl2wjbU+0fSKnCdyM3Wqw0gcnjMzViCwtic68Y9yGLo7eYgyLuPlWstw
-         fA8AI9opARLcsnfdQFcapyOawLGc/8zVGQyOpPgKgusw5R82jCsj9Czlmo3Lx+G4K0uL
-         +Gjg==
+        bh=LupN2ljiH4f91NrMr3+ld65I3bN9aXbjwrHcAMPt/JQ=;
+        b=qEgkxlZbpoar2AePWBE96f8gv/B4yGDZIHpDaG/gVPG+66VF/M1lioQYHPmJcIhqnC
+         Gao9sCsdw9jtZhhsI/hupWIMkZTgu4Jy5LzvRWAjmFwZS6NKrJ+4ZDCOBVKqYBgCqGrt
+         4G2L4U+bXlVW/7LlsEeLkNNrZdh15kHfcwIBkk7Z2XPos2uDvfcplf5GGjbeJJDqDJ2K
+         KojNnrtyNQZBhmMQ22Ksi2U5hkGNHMfABkRb38fjBTcIDOI8mnUIQtpQxph9NYeiVd0X
+         1s2KoccDb/Pa/xUTO89lxQcnqJ1S7GHXeZdL88M1fCZPDqFhcKqTqd9Dl7DbQLga6nLk
+         dyWQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id s58si1579742edb.133.2019.03.01.05.39.36
-        for <linux-mm@kvack.org>;
-        Fri, 01 Mar 2019 05:39:36 -0800 (PST)
-Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay9-d.mail.gandi.net (relay9-d.mail.gandi.net. [217.70.183.199])
+        by mx.google.com with ESMTPS id m16si15591116wrg.80.2019.03.01.05.58.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 01 Mar 2019 05:58:58 -0800 (PST)
+Received-SPF: neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.199;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6111CA78;
-	Fri,  1 Mar 2019 05:39:35 -0800 (PST)
-Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 19B2E3F5C1;
-	Fri,  1 Mar 2019 05:39:31 -0800 (PST)
-Subject: Re: [PATCH v2 03/13] mm: Add generic p?d_large() macros
-To: "Kirill A. Shutemov" <kirill@shutemov.name>,
- Mike Rapoport <rppt@linux.ibm.com>
-Cc: Mark Rutland <Mark.Rutland@arm.com>, x86@kernel.org,
- Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Peter Zijlstra <peterz@infradead.org>,
- Catalin Marinas <catalin.marinas@arm.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
- <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
- Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
- Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
- James Morse <james.morse@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
- linux-arm-kernel@lists.infradead.org, "Liang, Kan"
- <kan.liang@linux.intel.com>
-References: <20190221113502.54153-1-steven.price@arm.com>
- <20190221113502.54153-4-steven.price@arm.com>
- <20190221142812.oa53lfnnfmsuh6ys@kshutemo-mobl1>
- <a3076d01-41b3-d59b-e98c-a0fd9ba5d3f5@arm.com>
- <20190221145706.zqwfdoyiirn3lc7y@kshutemo-mobl1>
- <e0c7fc0c-7924-1106-a7a3-fc12136b7b82@arm.com>
- <20190221210618.voyfs5cnafpvgedh@kshutemo-mobl1>
- <20190301115300.GE5156@rapoport-lnx>
- <20190301123031.rw3dswcoaa2x7haq@kshutemo-mobl1>
-From: Steven Price <steven.price@arm.com>
-Message-ID: <b8bd0f99-1c5e-7cf5-32dd-ab52d921e86c@arm.com>
-Date: Fri, 1 Mar 2019 13:39:30 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       spf=neutral (google.com: 217.70.183.199 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 81.250.144.103
+Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay9-d.mail.gandi.net (Postfix) with ESMTPSA id DFAE9FF80D;
+	Fri,  1 Mar 2019 13:58:49 +0000 (UTC)
+Subject: Re: [PATCH v4 4/4] hugetlb: allow to free gigantic pages regardless
+ of the configuration
+To: Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Dave Hansen <dave.hansen@intel.com>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
+ "David S . Miller" <davem@davemloft.net>,
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+ <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+ Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
+ x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
+ Andy Lutomirski <luto@kernel.org>, linux-arm-kernel@lists.infradead.org,
+ linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
+ sparclinux@vger.kernel.org, linux-mm@kvack.org
+References: <20190228063604.15298-1-alex@ghiti.fr>
+ <20190228063604.15298-5-alex@ghiti.fr>
+ <9a385cc8-581c-55cf-4a85-10b5c4dd178c@intel.com>
+ <31212559-d397-88fb-eaec-60f6417436c8@oracle.com>
+ <6c842251-1bed-4d79-bf6d-997006ec72e2@intel.com>
+ <6ea4119a-0ecb-511d-3aab-269004245a08@oracle.com>
+ <1cfaca88-a219-d057-3ab8-37fb1c1687d6@ghiti.fr>
+ <f7c94eb5-d496-7e24-d44f-17eaff287012@ghiti.fr>
+ <027de1e2-a9cd-8ba7-859b-ee803937340a@suse.cz>
+From: Alexandre Ghiti <alex@ghiti.fr>
+Message-ID: <4bff265e-e03c-6d74-c09f-a89b74009feb@ghiti.fr>
+Date: Fri, 1 Mar 2019 14:58:49 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.5.2
 MIME-Version: 1.0
-In-Reply-To: <20190301123031.rw3dswcoaa2x7haq@kshutemo-mobl1>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
+In-Reply-To: <027de1e2-a9cd-8ba7-859b-ee803937340a@suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 01/03/2019 12:30, Kirill A. Shutemov wrote:
-> On Fri, Mar 01, 2019 at 01:53:01PM +0200, Mike Rapoport wrote:
->> Him Kirill,
->>
->> On Fri, Feb 22, 2019 at 12:06:18AM +0300, Kirill A. Shutemov wrote:
->>> On Thu, Feb 21, 2019 at 05:16:46PM +0000, Steven Price wrote:
->>>>>> Note that in terms of the new page walking code, these new defines are
->>>>>> only used when walking a page table without a VMA (which isn't currently
->>>>>> done), so architectures which don't use p?d_large currently will work
->>>>>> fine with the generic versions. They only need to provide meaningful
->>>>>> definitions when switching to use the walk-without-a-VMA functionality.
->>>>>
->>>>> How other architectures would know that they need to provide the helpers
->>>>> to get walk-without-a-VMA functionality? This looks very fragile to me.
->>>>
->>>> Yes, you've got a good point there. This would apply to the p?d_large
->>>> macros as well - any arch which (inadvertently) uses the generic version
->>>> is likely to be fragile/broken.
->>>>
->>>> I think probably the best option here is to scrap the generic versions
->>>> altogether and simply introduce a ARCH_HAS_PXD_LARGE config option which
->>>> would enable the new functionality to those arches that opt-in. Do you
->>>> think this would be less fragile?
->>>
->>> These helpers are useful beyond pagewalker.
->>>
->>> Can we actually do some grinding and make *all* archs to provide correct
->>> helpers? Yes, it's tedious, but not that bad.
->>
->> Many architectures simply cannot support non-leaf entries at the higher
->> levels. I think letting the use a generic helper actually does make sense.
-> 
-> I disagree.
-> 
-> It's makes sense if the level doesn't exists on the arch.
+On 03/01/2019 02:33 PM, Vlastimil Babka wrote:
+> On 3/1/19 2:21 PM, Alexandre Ghiti wrote:
+>> I collected mistakes here: domain name expired and no mailing list added :)
+>> Really sorry about that, I missed the whole discussion (if any).
+>> Could someone forward it to me (if any) ? Thanks !
+> Bounced you David and Mike's discussion (4 messages total). AFAICS that
+> was all.
 
-This is what patch 24 [1] of the series does - if the level doesn't
-exist then appropriate stubs are provided.
-
-> But if the level exists, it will be less frugile to ask the arch to
-> provide the helper. Even if it is dummy always-false.
-
-The problem (as I see it), is we need a reliable set of p?d_large()
-implementations to be able to walk arbitrary page tables. Either the
-entire functionality of walking page tables without a VMA has to be an
-opt-in per architecture, or we need to mandate that every architecture
-provide these implementations.
-
-I could provide an asm-generic header to provide a complete set of dummy
-implementations for architectures that don't support large pages at all,
-but that seems a bit overkill when most architectures only need to
-define 2 or 3 implementations (the rest being provided by the
-folded-levels automatically).
+Thank you Vlastimil, I got them.
 
 Thanks,
-
-Steve
-
-[1]
-https://lore.kernel.org/lkml/20190227170608.27963-25-steven.price@arm.com/
 
