@@ -2,178 +2,151 @@ Return-Path: <SRS0=KwX8=RE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A4F1DC10F03
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 21:44:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B48BC43381
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 21:47:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5BE9720842
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 21:44:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C18CE2083E
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 21:47:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="gZsx/MRd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BE9720842
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="hGSWBt9c"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C18CE2083E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AA2208E0003; Fri,  1 Mar 2019 16:44:13 -0500 (EST)
+	id 719298E0003; Fri,  1 Mar 2019 16:47:22 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9FEAF8E0001; Fri,  1 Mar 2019 16:44:13 -0500 (EST)
+	id 6CA4C8E0001; Fri,  1 Mar 2019 16:47:22 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8A1F48E0003; Fri,  1 Mar 2019 16:44:13 -0500 (EST)
+	id 5B99D8E0003; Fri,  1 Mar 2019 16:47:22 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 482F58E0001
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 16:44:13 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id s22so18635789plq.7
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 13:44:13 -0800 (PST)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CA0E8E0001
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 16:47:22 -0500 (EST)
+Received: by mail-pf1-f198.google.com with SMTP id j10so16469007pfn.13
+        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 13:47:22 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=I9/CQcAMDAqcYCsl2DT89h8s6NYBhCyEInQQWC9dKTs=;
-        b=rBk9lZaNXI18nFTpLapTzaiI8jpah4xwWLxd5cMgQsRdXRQSuMjALeIIqoqEE0k222
-         zjKxC4I8zeuOdVLid4aU0oNQTH3vQtY+NjIQr/ateg7ycSI0++nlolt7+IHXld63h7EE
-         gi95kVjc/5ifR9o/yPcFCf/1e+9+MPubef6YTNakoBdt6Dh5DBTs69hUIawJF/chWobM
-         dWViWdnXr168LjRyE/YfqK8qr7tfo2QELSbxPGXvsAgDq21RA7ww+EcuQEpLfWWZGmy8
-         voJGXB80/V6GK9bTft1y1hnmXGJzhILITVPG/MxZVR09MCuhK5VTCdjSN/wfSeeD+Wdf
-         Bi6Q==
-X-Gm-Message-State: APjAAAX+0YfCHuy0Nbjy/CJsSjCq2VQ5dz9+hHwicus9yHZtRnaKPedV
-	6cpQGzj/s9dZyVcGXZYG1tufVgT/sBvRwoZJ50/nFY5o5zVKbpURrk3rMZAZ5ah+r2574KBgVMC
-	FTDThT6/r1IJthN23vhK7/d3zRmSy4sdIYGkQIU0e6Bit83beLUyeOevXzx5I/VZQ0g==
-X-Received: by 2002:a65:6554:: with SMTP id a20mr6968734pgw.170.1551476652798;
-        Fri, 01 Mar 2019 13:44:12 -0800 (PST)
-X-Google-Smtp-Source: APXvYqwCdkSRb7wPyb5FbSso+xUl+6oE4WL2PuT+ndRJ4kiNZHhkrOfMN83FVSjy4Gtc7vZVnvYk
-X-Received: by 2002:a65:6554:: with SMTP id a20mr6968675pgw.170.1551476651680;
-        Fri, 01 Mar 2019 13:44:11 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551476651; cv=none;
+        bh=QLCw7MLhv4h+6kZHr+YJjXn0K/KcoNEB426LxMvC9t4=;
+        b=g/5JVphCgyLy9KNMscZwYlALaEtCFksQVwMTCWDeVw48eM0+MUJtcZak5jNwy0iA/m
+         YwofgVGP4KmMO8nUA3N3LqN98uTmqPTwD0q7XEBZkFgTs7nahsKBiYbz+A21y3dpgPKl
+         BPzE08sBQE7rym2pyn6AB2M/cwyJsiA5k4LWs+dviVC22sQpagL1Lfuko3HlCYayMVeg
+         +EgnijDtCJSjeK3U/vykyeuWhwX14kbWvH/99ROjUSkxRm/450z7xHkjJZHDfHsFCJQQ
+         wBwqSaRjMp/hxoUOgrTURWBXGIwgwvIVOuC4MyavTfrYQEHVePFVl0qSxLkPXBuCdgc0
+         fLQw==
+X-Gm-Message-State: APjAAAXUvdK7+3ctBlI1Px62Myn3exno6/zqiA/pejaN037UZi6VjXae
+	27QdQVLkCrHw0ShgcKG1CWZyK47N4zXQpk9QN2aNmWbs2eU6FuAe2uorn3d8mLlYXsOO26lvXMe
+	lcCu2Ru+An/Szn5yJbwz/ViapMsQWAYYkUH3O1lDTXYtmHg+z6A2u9u/JPtqV1yhSe1Mh/21yhB
+	biT+0kgqEIw618GulHgL43Q3pNLSHsDVkxY5A+HNwOyMYQ7J6AVnD0vM2zUKJUri3jzGG9QbB1C
+	RYua4u0JEalQyOpxT2lMDd0CXAw1rx2QJHdXSe464p0oVqpS69emqRu3ZnNXFvkUyl7oehmBHe+
+	hi6KB5FJMdpXtZk/9v/iv7c6bqACuLyQ9brVE8zNlyJoXPiIkKtenaE5jczBDOHr2hKpVBIlMci
+	r
+X-Received: by 2002:a17:902:a414:: with SMTP id p20mr7531759plq.289.1551476841662;
+        Fri, 01 Mar 2019 13:47:21 -0800 (PST)
+X-Received: by 2002:a17:902:a414:: with SMTP id p20mr7531710plq.289.1551476840747;
+        Fri, 01 Mar 2019 13:47:20 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551476840; cv=none;
         d=google.com; s=arc-20160816;
-        b=cuHSPEntfRpEwrqZgh8qXMtuJjfdDpLgCNMwXZoIX5YkqMrvFOGLZSQFSK6dL9C0rL
-         kegydGeQIdFoxJzl5+aJkZsUAlYN77NOiZI8hv+LLz4nzzBbbVCU34IPrB1ALXBkZ5lZ
-         mAu8Fzx4QhiWQAey8o6cRMi+fRL6jflQc2Be8o1RZ7CuymhcivBlklXy7nf9n3kDLzQG
-         vE2M/PyMtYEq5By5IpJnOZ3LaiIbocdmTLaJnwruQClJhCvLPxSJKLL23ApOcIJP3QZt
-         jWuoLbNcDghyJGrRtW73vV0nwGUk7rMqnwIAmvKkVLNIJRCdiB05rjX8Ck1q5LpBoxW/
-         KrqQ==
+        b=ujnxz2qlilniPmhHofRN6khh0DOJa5haDViNdFVkV+iWVgTtAA4rKkePuo053foLkg
+         41r8Ue7ib5uMI6q41JmSiOnqNOarP5cc1rvnhn8p/tavy9U3naZ+jER4gp/SkaGDvnSZ
+         V/eaqyKPYgZEtymfP54uxK61QyIBar+AcBKrnueNkJ8myPMtHOvF95TMdHzUOxIQbL0D
+         F6aqhGG79PggIt6Ly2KyRkF+OsDgvgR8GnMqW4uRsWrXjJJIqCgAc7mQY5XQIXEGccR6
+         EgjyVRX67vVaRZ6Oc8LbMKnIAprfk0VYiuecVSz2Tnuc8xnNIwEZngXWlRomi2DK//je
+         4lqQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=I9/CQcAMDAqcYCsl2DT89h8s6NYBhCyEInQQWC9dKTs=;
-        b=j4W49NoexjDO/HuFyaVIJXLL8vDF46mF8r02lEC6iXdqne2T4kp2OFesmJR3mYDBGc
-         Jwh9ESqGXGytHVklC+VmFbnc6/sl1IKx5tkU5kMuRrSkuCWdVLKYAk59ipB5Ll9ucWhW
-         qgqRxViK/JUfOfV3aKh4Pp45+itfsDiicYg+f/opy9XdZuqzmTanGUVcZq9jZ8f/3Ltm
-         LXk96UxQtO0dXzRKPju1PIE5w5xrPIzVvrKVbkWp5t+a3SML9L5Se3+0w3j6WLXkFIug
-         PwNT7lMUeMdkkp57655vDYoUrdG2n6+X5R9ccvNBOem35CjSVY17YisA3s8UqBKGdwrp
-         CQQg==
+        bh=QLCw7MLhv4h+6kZHr+YJjXn0K/KcoNEB426LxMvC9t4=;
+        b=tGvc3Eeeg2A3zoHq5GEZ6TUbRD0Yse9DirGmbmfvSSVe42QdszxOP4TQiWN/Mna1RU
+         C1cpgZ3ZRBnjEYD4n/U7M6xhXi3pHYpwfxq/nVYQrybjPkdhNxnA8ww0HMTbEWOXG5En
+         s7MofmCylQuanQ9zAyfIErzYjBatUk8EVcxWglfBtYVSASRIwNqeJsVjALT7M7yRf9oX
+         yuNjg8jBAwYgut9uR1kOXzr7spjr3MYTSWtJHbxybjjQlmp3kFVaXZgfHHBTxNCijDLm
+         eYwnr1TwmZWS9sGgSQC0bcyX3a9KlCA4UChdqLNne9sa56oj4dvOX6Hwd7IcSWpR5Q74
+         LnoQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="gZsx/MRd";
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id gn14si19621154plb.171.2019.03.01.13.44.11
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=hGSWBt9c;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t124sor35858050pgb.63.2019.03.01.13.47.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 01 Mar 2019 13:44:11 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Fri, 01 Mar 2019 13:47:20 -0800 (PST)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="gZsx/MRd";
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=I9/CQcAMDAqcYCsl2DT89h8s6NYBhCyEInQQWC9dKTs=; b=gZsx/MRd9hanHUjfdTuQVYJ+C
-	nMOzKwG7k5f3/hFIoZjl9bGK+TIAnhAdQ71G/l4JOONFkCLZfHCCas7fec/JZlay0d5cFRXtDG3U6
-	94w1fdTGs6AEuu1MwMW36NKO9RId79VIBJ/u+14EAaOwGD2w09Wg/SgZYZobduenYb+RQhVD74cFt
-	74k2UCTIAwt+Ev+aUYu+5QyyNfRHHln0h5YJkVJco0iIo61CxEfVINQh/n0iA/Y2eZT312XZ3TqKW
-	s56s+Tey92hu5qTFTmyofQXF3P+/HJw61pPCUfXS538kj/aHcWe9zquT7hbdB3h74TI2vukxg1ABY
-	eNhHwKY4w==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1gzpww-00049o-JI; Fri, 01 Mar 2019 21:44:10 +0000
-Date: Fri, 1 Mar 2019 13:44:10 -0800
-From: Matthew Wilcox <willy@infradead.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Qian Cai <cai@lca.pw>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/hugepages: fix "orig_pud" set but not used
-Message-ID: <20190301214410.GO11592@bombadil.infradead.org>
-References: <20190301004903.89514-1-cai@lca.pw>
- <20190301130951.67f419011da93265d36226cc@linux-foundation.org>
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=hGSWBt9c;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=QLCw7MLhv4h+6kZHr+YJjXn0K/KcoNEB426LxMvC9t4=;
+        b=hGSWBt9cAdoYKR8uVW3ACUTxEx7wtlE60eK1bM2uTil9ubZCqf1Wf4S344xhrLinwn
+         arwPrWLf+QkEgzLfkeRh3iRLMq4wHabZSRbd2FHG63IJve9loprZQw6hIVrrlYyenA6N
+         iY/Jgo/gd+Bqq1dHmKaUB4U9WOSUra/Ub86v+r0lIsJWUe3nTXYixZnvjvg1OkZcvDCz
+         HHl/8kmucKICv41ZcYbQ5MPuOLF9cLjBHgCE5BBKhVroNkG0Lg/d3d4qSfNJGH5M+N6a
+         /eRdV+kYHzMGV2ip20Wsx7EWopJCbw9dyBrSiRDn6Eh/DvIdyY6cDUvtMZKnknv1JMJR
+         AMyw==
+X-Google-Smtp-Source: APXvYqzRjAIshow/vWlG/VpbnTSdya8ANavzF7Zh8+rWVITXx71CANEIMI3B9wQRqGWL9XMWXcSzsQ==
+X-Received: by 2002:a65:46cd:: with SMTP id n13mr6894716pgr.221.1551476840156;
+        Fri, 01 Mar 2019 13:47:20 -0800 (PST)
+Received: from kshutemo-mobl1.localdomain ([134.134.139.82])
+        by smtp.gmail.com with ESMTPSA id g3sm30177184pfo.125.2019.03.01.13.47.18
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Mar 2019 13:47:19 -0800 (PST)
+Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
+	id C391F3007CA; Sat,  2 Mar 2019 00:47:15 +0300 (+03)
+Date: Sat, 2 Mar 2019 00:47:15 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Steven Price <steven.price@arm.com>
+Cc: linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Ingo Molnar <mingo@redhat.com>, James Morse <james.morse@arm.com>,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Will Deacon <will.deacon@arm.com>, x86@kernel.org,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	Mark Rutland <Mark.Rutland@arm.com>,
+	"Liang, Kan" <kan.liang@linux.intel.com>,
+	Russell King <linux@armlinux.org.uk>
+Subject: Re: [PATCH v3 03/34] arm: mm: Add p?d_large() definitions
+Message-ID: <20190301214715.hyzy5tevvwgki4w5@kshutemo-mobl1>
+References: <20190227170608.27963-1-steven.price@arm.com>
+ <20190227170608.27963-4-steven.price@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190301130951.67f419011da93265d36226cc@linux-foundation.org>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <20190227170608.27963-4-steven.price@arm.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 01, 2019 at 01:09:51PM -0800, Andrew Morton wrote:
-> On Thu, 28 Feb 2019 19:49:03 -0500 Qian Cai <cai@lca.pw> wrote:
+On Wed, Feb 27, 2019 at 05:05:37PM +0000, Steven Price wrote:
+> walk_page_range() is going to be allowed to walk page tables other than
+> those of user space. For this it needs to know when it has reached a
+> 'leaf' entry in the page tables. This information will be provided by the
+> p?d_large() functions/macros.
 > 
-> > The commit a00cc7d9dd93 ("mm, x86: add support for PUD-sized transparent
-> > hugepages") introduced pudp_huge_get_and_clear_full() but no one uses
-> > its return code, so just make it void.
-> > 
-> > mm/huge_memory.c: In function 'zap_huge_pud':
-> > mm/huge_memory.c:1982:8: warning: variable 'orig_pud' set but not used
-> > [-Wunused-but-set-variable]
-> >   pud_t orig_pud;
-> >         ^~~~~~~~
-> > 
-> > ...
-> >
-> > --- a/include/asm-generic/pgtable.h
-> > +++ b/include/asm-generic/pgtable.h
-> > @@ -167,11 +167,11 @@ static inline pmd_t pmdp_huge_get_and_clear_full(struct mm_struct *mm,
-> >  #endif
-> >  
-> >  #ifndef __HAVE_ARCH_PUDP_HUGE_GET_AND_CLEAR_FULL
-> > -static inline pud_t pudp_huge_get_and_clear_full(struct mm_struct *mm,
-> > -					    unsigned long address, pud_t *pudp,
-> > -					    int full)
-> > +static inline void pudp_huge_get_and_clear_full(struct mm_struct *mm,
-> > +						unsigned long address,
-> > +						pud_t *pudp, int full)
-> >  {
-> > -	return pudp_huge_get_and_clear(mm, address, pudp);
-> > +	pudp_huge_get_and_clear(mm, address, pudp);
-> >  }
-> 
-> Not sure this is a good change.  Future callers might want that return
-> value.
-> 
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -1979,7 +1979,6 @@ spinlock_t *__pud_trans_huge_lock(pud_t *pud, struct vm_area_struct *vma)
-> >  int zap_huge_pud(struct mmu_gather *tlb, struct vm_area_struct *vma,
-> >  		 pud_t *pud, unsigned long addr)
-> >  {
-> > -	pud_t orig_pud;
-> >  	spinlock_t *ptl;
-> >  
-> >  	ptl = __pud_trans_huge_lock(pud, vma);
-> > @@ -1991,8 +1990,7 @@ int zap_huge_pud(struct mmu_gather *tlb, struct vm_area_struct *vma,
-> >  	 * pgtable_trans_huge_withdraw after finishing pudp related
-> >  	 * operations.
-> >  	 */
-> > -	orig_pud = pudp_huge_get_and_clear_full(tlb->mm, addr, pud,
-> > -			tlb->fullmm);
-> > +	pudp_huge_get_and_clear_full(tlb->mm, addr, pud, tlb->fullmm);
-> 
-> In fact this code perhaps should be passing orig_pud into
-> pudp_huge_get_and_clear_full().  That could depend on what future
-> per-arch implementations of pudp_huge_get_and_clear_full() choose to
-> do.
-> 
-> Anyway, I'll await Matthew's feedback.
+> For arm, we already provide most p?d_large() macros. Add a stub for PUD
+> as we don't have huge pages at that level.
 
-I'm not sure it's wise to diverge from pmdp_huge_get_and_clear_full()
-which does return the orig_pud.  I agree we don't currently use it,
-so maybe we should just change zap_huge_pud() to not assign the return
-value from pudp_huge_get_and_clear_full()?
+We do not have PUD for 2- and 3-level paging. Macros from generic header
+should cover it, shouldn't it?
+
+-- 
+ Kirill A. Shutemov
 
