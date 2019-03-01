@@ -2,209 +2,219 @@ Return-Path: <SRS0=KwX8=RE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 01B15C4360F
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 08:39:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 15583C43381
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 09:02:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8E4FB2085A
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 08:39:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="sG3dZWqg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E4FB2085A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id C005E206DD
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 09:02:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C005E206DD
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C038D8E0003; Fri,  1 Mar 2019 03:39:05 -0500 (EST)
+	id 42A0B8E0003; Fri,  1 Mar 2019 04:02:29 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BB2C18E0001; Fri,  1 Mar 2019 03:39:05 -0500 (EST)
+	id 3D7D78E0001; Fri,  1 Mar 2019 04:02:29 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A7A488E0003; Fri,  1 Mar 2019 03:39:05 -0500 (EST)
+	id 2A0EA8E0003; Fri,  1 Mar 2019 04:02:29 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AB7C8E0001
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 03:39:05 -0500 (EST)
-Received: by mail-lf1-f69.google.com with SMTP id w8so2233204lfc.21
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 00:39:05 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C5DC68E0001
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 04:02:28 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id y26so5032877edb.4
+        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 01:02:28 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=qnyFKua0Ma32Sx5B0QpXHBKkuP+Q5Kg1stVhtIDMIX8=;
-        b=cgVSQRWeUpkHEbUpKFd9fgCNQAAmlqhXyfEsgg0OMz7vbfDe0gLsc/N4g9ddvymCkS
-         B9EkNGZzlobk+wiGELZg53Hlf+eKLbKpCFJu+KhXdrJTsbiE+C1+bj/DKY3keOHZk12z
-         98xp1pKWWs8aDTIsWhzg+IQF4vBU6lk/FVCwvXZUFpibmW3PbaeiSy+iljHGhIbDrrLy
-         9GF9qwO4j8Er95o2Wb5rPzceuETk9KOv9qXPy0Kly6bWikqeGrSYb4wOAR7FNhhfPz88
-         7C9ZDJGn0YBqWuU9WcgSiNF7QDmK2iwUJEwgggXyL76l7JzY9KzQ787IsHwZObVXd9Mb
-         +1hA==
-X-Gm-Message-State: APjAAAU+j2RL7Nw0alBOjIIR0qqcIYFdH4/alv1O/whYlF5VxCn5auka
-	f7/XjneVwcnsOdykc6sHNbnob5n8xh+4qjWFB4908gNkiQIHeKoNESjhYGE0/29neDwNb6J/VzA
-	9ASGEWA5RXQ9n04wgFZqsQjUDDEHbRNrLUWf20q42kxLrwEPDa+Ur+v8Ibl3lPZiGbO9FUYIVl2
-	9A9cnKhpxw5UcHPIIAgRh7Qkh7sNtiz0ZqvaEkBfPS9qQ4GOVIRlZKbFjsPrA0RecigI4+SfhqT
-	lFPRXNy8HAEGVJMo8CUUvLH+Eg5YqPxbgXyjogw6soCy/o0xAvV2K4NJSy04CAyYm+zcOeXyVot
-	JZ1tCVzdgNgBtHs9THV0L1opuq5FkFjH2nXSrjEpSBwSrKTnmAIrlNPGoL6FDEmyoSjlKsDHp25
-	z
-X-Received: by 2002:a19:2105:: with SMTP id h5mr2218395lfh.17.1551429544337;
-        Fri, 01 Mar 2019 00:39:04 -0800 (PST)
-X-Received: by 2002:a19:2105:: with SMTP id h5mr2218347lfh.17.1551429543300;
-        Fri, 01 Mar 2019 00:39:03 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551429543; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=+i9QLp838q9sb6cSq3McvbUq6L5Pb7vt7mV4rdJPbZ8=;
+        b=kf94USEgiPcBLVn4ZD5okKFfDQqTkN9pgWI7LDDDks8CQh4R734vAvZ5/2pknVepOi
+         Bx0u3vbpymHc9MZBSNhqn+Mg19nTuH3iJS5HiUiQEDvMk/STf8ppeJdzDgLGOxknjtxW
+         rnnbR/RPYv34KvEJt1mmWxdhJMaO6JKpVOm6JQfWPcDwZLKMkX+kmUT6kPiUY5yS28Ij
+         WmQruYzwOfrZhp50XzalID8+0ANObA+VoKkDmlujlCqXEVayyXDvOboBASmhSFLkdmvC
+         CF2HRQVeXl25/DqQHAlckxAoS7Cn5r4Sy70AheQCyYnqi5V3Rdrr5rmokIrm7iOPsQyD
+         7Gng==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAWtszbIhQBEcNJAvAVpWdqDUQiFGDHF1uhJDE4uYK7QGVWRvKB1
+	JW96Ih6ovP4q4zPM5b/z9ZfR3KFgNOlk8AqhOzGc4VEkIaN2RmLLVjXknTGMM2FZTNwEiE+348W
+	Y+B05UYjj+bQWpuJX5vZ5LEfrcP6JfjIOxRCjRXaD5SHzwNzB314LKjdguyfahWXd2g==
+X-Received: by 2002:a17:906:7b03:: with SMTP id e3mr2303147ejo.21.1551430948317;
+        Fri, 01 Mar 2019 01:02:28 -0800 (PST)
+X-Google-Smtp-Source: APXvYqwQERfCaEi/fV8d1SRJDy6Eux7dxm/0mdFLXyK9yCYsuyoet92XD0iAJK4v4AJpqxL7fqsJ
+X-Received: by 2002:a17:906:7b03:: with SMTP id e3mr2303099ejo.21.1551430947380;
+        Fri, 01 Mar 2019 01:02:27 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551430947; cv=none;
         d=google.com; s=arc-20160816;
-        b=MwzWxXUDs3G6KXC4tUBnjns/PvHO7uOjKcSnEYLh4aZPnRNvLlJHkzV78ilvigS+Sx
-         9s7u4oiLB4Z5Csxg6HH5Umh5Fr2qNMaHXB20WV7kcaCYmc6MjayAA/b0rB+9iSc2Dk8f
-         jXa0gT6YzaKw5NIVDN6kzdrYL7SzO/SUgf5OI5Esc8lWs8p3qq+w3xN0iOdWiIMBjHsR
-         e5nrGqtROlZRx3L4kBIZVo4re8Av6TIU1B4QpXsAl4DS2kF4G0Xebhrc+Sj2QV4Yeu7e
-         UbAqjopPo/TMHzrNuMYRuwIREDApnTl9hHTdQTEYqLXVoHJqVKjjNzZLUJClEq/Hevm2
-         t3/g==
+        b=KYEkFEHjrAMk09owUd84XAGYNycUyfI/Kg8TZ9Ya+K5G2lYpVu7lhHDDOKTQYpNOmW
+         t/gxHHCnkUICTTuk1eZIoQ+0LX6e6GajFbDAUC/EM6fg0+xLMvdMNZbO10GEd2mEteCU
+         cq7J4WS0b8+Q9RcG4TKbihlzXmNmrgJ/qLXAqGbQFHoBFtDDz/0hFRftRoCx/88p3li2
+         PcThU9yMFdpI1/W/qhxYVyP0DZjwhp93gSxnm9MDfGCaqX8s3cU1QoYty0bYqPPmt6OR
+         ODjbbfDA5LMw9PL5AEtoobdFXwhLLXq/Fsv889+sYJNBx67vKeIYikwWxS292KTpfeYl
+         ur9w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=qnyFKua0Ma32Sx5B0QpXHBKkuP+Q5Kg1stVhtIDMIX8=;
-        b=XLdzFQy52W5OU5l6wCGhF8ZeDYoW8hn8QJAoGC8ivagsKYgmeQIGP/0hAa5FHWDAc5
-         Blj9kYz+o43iRNa7hAm22jSd5AJjaLOpVumUIsvZOzAxbghbjCZaJedJGs0geVZNBpM1
-         GtfpBDzvALdVfrD5aB9JB5rWKC6aAe+OvC6EgzlD4C1KW2T+FvsjY4cNqKFOjmlgNS27
-         pj7vglGOnOtd9QMdcu+Pts5bYq2ARlD4VZUAbV0aRqlAvGdzqkbZfnLlDhF/g71lAXRo
-         xtHOr8ob5enDJl6v056xE5KVoXo74cJXw3OVu3rJi88WRy67zelXmNbXpi8ROEfOOog+
-         0pxg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=+i9QLp838q9sb6cSq3McvbUq6L5Pb7vt7mV4rdJPbZ8=;
+        b=LhF+kP8fxkuTGp1BmudwK2eK/nojCSt+O8WO6G3i/0ZYPXSa8tWMLDBIQDq59aGLzO
+         qSSXfUp8Bf3f0DfxHmM4iCPIVdqpd27wmw26Zp29Qe37yfGubtglsio9YFB1IYtIKL48
+         q7DiTntxrdMmeE5LFbBCSqQbJI7pDc013TanOFPGsN9Fvk/Rnu6JoxWZfXC8/YO2XUHV
+         VwCrYatOJueI86fD5T0JZU2/9pvk3YHSQIcH6gYhJypZFbJw8VoR1eZpOe7y3parpIcd
+         a+S4zkibMTfFLHyNBGf3z1CJYkj+b+j9vESYzkPZZ90PLiexUrM6fAmGR7ygpa8SAGyJ
+         9SWQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sG3dZWqg;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b141sor543706lfg.24.2019.03.01.00.39.03
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h15si3689632edb.230.2019.03.01.01.02.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 01 Mar 2019 00:39:03 -0800 (PST)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Mar 2019 01:02:27 -0800 (PST)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sG3dZWqg;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=qnyFKua0Ma32Sx5B0QpXHBKkuP+Q5Kg1stVhtIDMIX8=;
-        b=sG3dZWqgA5FRR3DHZ21C2LtXUuYzUbMwmm40oOBmGxStSvL9weTGNbaiKykOuPAiVK
-         1Hf7pzcpFz0Hacot/mz3PFr3tmM+afJ4FnE6mDxgzMp8CW9hzV4LYlgIqxa0r55i65P2
-         TOcRqJ3/LGPJmAoCJcuqytQ9iXbcN7NbLENL2ugxRyHVGj5MUqUu1+wphbzsXfTJpkqz
-         02mOx+pa4iFrGsCsf5/DUEPYnN8fL8eEDiDghOtjBoGUm46D0m3UduPIrfvoUwOkCeDL
-         8SbeMq1k4cMEWrfPQWZJaVAE49CMpgEKiIzwaTXSV/q755DNphwffmzIJKKAvvVYn68W
-         0zwg==
-X-Google-Smtp-Source: APXvYqy5PcgDQYb1oYkgk2pPVnrAPHJ6sZPWqn5OfCb3xjll6lhXw3UFaD6I9nG2MYc8DKEueHBjx++6JBbPWVnh6dw=
-X-Received: by 2002:a19:c616:: with SMTP id w22mr2281551lff.31.1551429542532;
- Fri, 01 Mar 2019 00:39:02 -0800 (PST)
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 173D8AF76;
+	Fri,  1 Mar 2019 09:02:26 +0000 (UTC)
+Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
+To: Dan Williams <dan.j.williams@intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: Mark Brown <broonie@kernel.org>, "kernelci.org bot" <bot@kernelci.org>,
+ Tomeu Vizoso <tomeu.vizoso@collabora.com>, guillaume.tucker@collabora.com,
+ matthew.hart@linaro.org, Stephen Rothwell <sfr@canb.auug.org.au>,
+ khilman@baylibre.com, enric.balletbo@collabora.com,
+ Nicholas Piggin <npiggin@gmail.com>,
+ Dominik Brodowski <linux@dominikbrodowski.net>,
+ Masahiro Yamada <yamada.masahiro@socionext.com>,
+ Kees Cook <keescook@chromium.org>, Adrian Reber <adrian@lisas.de>,
+ Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+ Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>,
+ Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
+ Michal Hocko <mhocko@suse.com>, Richard Guy Briggs <rgb@redhat.com>,
+ "Peter Zijlstra (Intel)" <peterz@infradead.org>
+References: <5c6702da.1c69fb81.12a14.4ece@mx.google.com>
+ <20190215104325.039dbbd9c3bfb35b95f9247b@linux-foundation.org>
+ <20190215185151.GG7897@sirena.org.uk>
+ <20190226155948.299aa894a5576e61dda3e5aa@linux-foundation.org>
+ <CAPcyv4ivjC8fNkfjdFyaYCAjGh7wtvFQnoPpOcR=VNZ=c6d6Rg@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <07d4e843-8023-2041-22a7-b5b589f4d2c0@suse.cz>
+Date: Fri, 1 Mar 2019 10:02:23 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.5.1
 MIME-Version: 1.0
-References: <1551421452-5385-1-git-send-email-laoar.shao@gmail.com>
-In-Reply-To: <1551421452-5385-1-git-send-email-laoar.shao@gmail.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Fri, 1 Mar 2019 14:08:50 +0530
-Message-ID: <CAFqt6zZAjt2gmYPT_KPosfeDKnWNeBJoveKEytOJZeDHh=ZjzA@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: vmscan: add tracepoints for node reclaim
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, 
-	linux-kernel@vger.kernel.org, shaoyafang@didiglobal.com
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CAPcyv4ivjC8fNkfjdFyaYCAjGh7wtvFQnoPpOcR=VNZ=c6d6Rg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 1, 2019 at 11:54 AM Yafang Shao <laoar.shao@gmail.com> wrote:
->
-> In the page alloc fast path, it may do node reclaim, which may cause
-> latency spike.
-> We should add tracepoint for this event, and also measure the latency
-> it causes.
->
-> So bellow two tracepoints are introduced,
->         mm_vmscan_node_reclaim_begin
->         mm_vmscan_node_reclaim_end
->
-> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+On 2/27/19 1:04 AM, Dan Williams wrote:
+> On Tue, Feb 26, 2019 at 4:00 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+>>
+>> On Fri, 15 Feb 2019 18:51:51 +0000 Mark Brown <broonie@kernel.org> wrote:
+>>
+>>> On Fri, Feb 15, 2019 at 10:43:25AM -0800, Andrew Morton wrote:
+>>>> On Fri, 15 Feb 2019 10:20:10 -0800 (PST) "kernelci.org bot" <bot@kernelci.org> wrote:
+>>>
+>>>>>   Details:    https://kernelci.org/boot/id/5c666ea959b514b017fe6017
+>>>>>   Plain log:  https://storage.kernelci.org//next/master/next-20190215/arm/multi_v7_defconfig+CONFIG_SMP=n/gcc-7/lab-collabora/boot-am335x-boneblack.txt
+>>>>>   HTML log:   https://storage.kernelci.org//next/master/next-20190215/arm/multi_v7_defconfig+CONFIG_SMP=n/gcc-7/lab-collabora/boot-am335x-boneblack.html
+>>>
+>>>> Thanks.
+>>>
+>>>> But what actually went wrong?  Kernel doesn't boot?
+>>>
+>>> The linked logs show the kernel dying early in boot before the console
+>>> comes up so yeah.  There should be kernel output at the bottom of the
+>>> logs.
+>>
+>> I assume Dan is distracted - I'll keep this patchset on hold until we
+>> can get to the bottom of this.
+> 
+> Michal had asked if the free space accounting fix up addressed this
+> boot regression? I was awaiting word on that.
 
-Acked-by: Souptick Joarder <jrdr.linux@gmail.com>
-(for the comment on v1).
+I'm afraid it couldn't have. Bisection identified the "enable all
+shuffling" patch, but the free area mis-accounting happened regardless
+of shuffling being enabled. And if dropping the "enable all shuffling"
+patch stopped the problem even before the misacounting fix was merged,
+that's another confirmation.
 
-> ---
->  include/trace/events/vmscan.h | 32 ++++++++++++++++++++++++++++++++
->  mm/vmscan.c                   |  6 ++++++
->  2 files changed, 38 insertions(+)
->
-> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-> index a1cb913..c1ddf28 100644
-> --- a/include/trace/events/vmscan.h
-> +++ b/include/trace/events/vmscan.h
-> @@ -465,6 +465,38 @@
->                 __entry->ratio,
->                 show_reclaim_flags(__entry->reclaim_flags))
->  );
-> +
-> +TRACE_EVENT(mm_vmscan_node_reclaim_begin,
-> +
-> +       TP_PROTO(int nid, int order, gfp_t gfp_flags),
-> +
-> +       TP_ARGS(nid, order, gfp_flags),
-> +
-> +       TP_STRUCT__entry(
-> +               __field(int, nid)
-> +               __field(int, order)
-> +               __field(gfp_t, gfp_flags)
-> +       ),
-> +
-> +       TP_fast_assign(
-> +               __entry->nid = nid;
-> +               __entry->order = order;
-> +               __entry->gfp_flags = gfp_flags;
-> +       ),
-> +
-> +       TP_printk("nid=%d order=%d gfp_flags=%s",
-> +               __entry->nid,
-> +               __entry->order,
-> +               show_gfp_flags(__entry->gfp_flags))
-> +);
-> +
-> +DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_node_reclaim_end,
-> +
-> +       TP_PROTO(unsigned long nr_reclaimed),
-> +
-> +       TP_ARGS(nr_reclaimed)
-> +);
-> +
->  #endif /* _TRACE_VMSCAN_H */
->
->  /* This part must be outside protection */
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index ac4806f..2bee5d1 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -4241,6 +4241,9 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
->                 .reclaim_idx = gfp_zone(gfp_mask),
->         };
->
-> +       trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, order,
-> +                                          sc.gfp_mask);
-> +
->         cond_resched();
->         fs_reclaim_acquire(sc.gfp_mask);
->         /*
-> @@ -4267,6 +4270,9 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
->         current->flags &= ~PF_SWAPWRITE;
->         memalloc_noreclaim_restore(noreclaim_flag);
->         fs_reclaim_release(sc.gfp_mask);
-> +
-> +       trace_mm_vmscan_node_reclaim_end(sc.nr_reclaimed);
-> +
->         return sc.nr_reclaimed >= nr_pages;
->  }
->
-> --
-> 1.8.3.1
->
+Is it possible that the platform silently depends on large contiguous
+areas without a proper CMA reservation, and the shuffling fragments
+them? Or maybe the CMA reservation happens too late?
+
+> I assume you're not willing to entertain a "depends
+> NOT_THIS_ARM_BOARD" hack in the meantime?
+> 
 
