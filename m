@@ -2,164 +2,222 @@ Return-Path: <SRS0=KwX8=RE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 11F71C43381
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 11:45:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B101C43381
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 11:46:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BE4092083E
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 11:45:56 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (1024-bit key) header.d=sirena.org.uk header.i=@sirena.org.uk header.b="lUTdB8kF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE4092083E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 2AB532083E
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 11:46:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AB532083E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3D53A8E0003; Fri,  1 Mar 2019 06:45:56 -0500 (EST)
+	id B01248E0004; Fri,  1 Mar 2019 06:46:15 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 384758E0001; Fri,  1 Mar 2019 06:45:56 -0500 (EST)
+	id AB0EB8E0001; Fri,  1 Mar 2019 06:46:15 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 29AF48E0003; Fri,  1 Mar 2019 06:45:56 -0500 (EST)
+	id 9A0E78E0004; Fri,  1 Mar 2019 06:46:15 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C94488E0001
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 06:45:55 -0500 (EST)
-Received: by mail-wr1-f69.google.com with SMTP id j44so11217999wre.22
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 03:45:55 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B17E8E0001
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 06:46:15 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id h70so18692488pfd.11
+        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 03:46:15 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=T6pXHKNa+ACXCXsUuVIA/K9jwD+fxsERuqC5A6ON50c=;
-        b=bi91B72lZN5VDuVmGsvuRMUamiR1P7CW4crHQFIjYkAu7EleFUh9oK0jvYAXoZoLy/
-         jRfJlnFd8SA08v6W0Opr8pkZz7gHTbEc99nNqxT0l2m8Mpot1eE9nzqk6/IvJXn7FOdu
-         U/t7M/+6EYK4R3oOcwd9IVFV8Jf7tHaTfoZryBEf6A+9/gQnK3/j+CBvgEzsl8tH2vay
-         3A1QQH1zeoQwkYDqeq8N/R7oekgW/u8OFAzD///qqDYV4uAsdJSkGmVFl4R3n4D+McgD
-         kS9QbE3xt8wHWudnkuhxCEFaBwapu/Rt5AkO/9cRhDEP+oIpWAtCOe/PH5a7fUZlfe6P
-         mimg==
-X-Gm-Message-State: AHQUAuaQ6IzCjdkwPmdc21ePp7YawW6656MykzmDlA71QX0T9LOzxRdV
-	d/lt7aBM0r9S+cPDWHUYBFdTYqREhZ/HBfiT9Bdu1j8mOes2kngvSA7yL6YXf9TawWcCCcZd0Ku
-	61FgB4iwXY3Jp5vB6OLYqJtoZVat2d14if/luZURkjs5dQVEGjSZHKBvlbsn0vbw=
-X-Received: by 2002:a1c:c187:: with SMTP id r129mr2842988wmf.107.1551440755178;
-        Fri, 01 Mar 2019 03:45:55 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IZ6IVMhkkXhaYqFJQN3392tFc2jwAc9NOrcFILCaS43NgS38bCbkggH1JsrNNAVQX8qNL5G
-X-Received: by 2002:a1c:c187:: with SMTP id r129mr2842933wmf.107.1551440754120;
-        Fri, 01 Mar 2019 03:45:54 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551440754; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=TWXh/f/vxZucfd0azlrPKeVIpV2c4umlgI75dWBLNVQ=;
+        b=tH8Qx312P3slg/1PpIQlCsW5SnY6emEOCMM0oUvcUCIzfwZWxMe8NE84e0AcCotHVH
+         LUOHU4nqz0bjFLpF1uOQyAE+duksLW3tfS6N6bFAy1pXyEfIrbEEXmJol56cPYyZLFaj
+         Us3dZRX+ruXEgIDKpUHn/tRUfu5Ip/3hAflV6VxWKezlMe9O23S7If2tVtQcDnplqErs
+         8J8w3uq2ZsLkah+h3sh7mL6I11g8HHaNQaOQRwV1oDiPq76wv3MgeZcOz9Szwkz5LDlB
+         TPSpuQpdlGQICfl5E9NePj6H1Fonq3k3N368onAgOlVU0MpwjwBRxU/ZPnuiurl9rxtV
+         WZLQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXR3FQnRX4WAcEyZ0GlQZa/NCApA20YEpvZAc3VqdlCtrLKnv5F
+	YfjotwlCVPOHq0JCD6w3Z1ynG7YXmpB3Tmp6jdiCUogYJ50KDvYE7SEmrqqb7a5TaFEI+q8GkMN
+	ps70l/gmPgD2ti5Ac8ij7nZNzivbACCswddK8AtS4LS58hKkJ8qqSS7S93uaLapSMFw==
+X-Received: by 2002:a17:902:31c3:: with SMTP id x61mr4939807plb.113.1551440775038;
+        Fri, 01 Mar 2019 03:46:15 -0800 (PST)
+X-Google-Smtp-Source: APXvYqyXaz/ydQ7aoOCbU0xemUF0oblPLOYF4ZRRn11xVaM2VaCNQ+abXnBHf3/1xTLZWCfzqp8b
+X-Received: by 2002:a17:902:31c3:: with SMTP id x61mr4939754plb.113.1551440774088;
+        Fri, 01 Mar 2019 03:46:14 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551440774; cv=none;
         d=google.com; s=arc-20160816;
-        b=jOHLE2dQwwdtrplqsmu03DoT9bwdAj54FPnhNvXh9ufvU8m0t5YUURsOibkJfecqJS
-         +pJrPTausRr/we1UDByE1N0UVO7/pmTg86owq8iJVMdIpu/lD0CW4MCV0vZEXJRJwFGK
-         PFjS/iAAfBr5BYIBWjuA8iF/3xJEI5nEtf7UDxyq48R7Pq5rhFF5PPgvJSOf8MCN2x/v
-         yblPosKiiWY1Rzzq4i9/ae5LfXjFXLv4hdYF+YCKI0FiPtkYahsYS8WbqQwJfq+poTdz
-         CEdP6q9y4pQHzC5L3vowq+Fzx7M+9ykP699T4FI3gSm19whd3RaWfv+VzxbrT/ALCmVr
-         xwpA==
+        b=q9v/32TWF7Dqna84WC7n11LJEQMjJme52VsyMBL3kcgcVAEjKZFS1xV3IzSmAGFsGf
+         PPcF494xupytdu4XzTc9IQzFjTSh5tQc+fM8NQzZvXRPDqbRjaW3P1j7ibhi2w6d9rbH
+         sV0kELLPkB7Ukikzg8ICUdiJh16G5VJYaHTSPOCOdTCq+dQammZLN+dOqKd93gw50hg6
+         D9pPXyOpiKT/+P4fDgdYe9NPSQN015jSPS9uYNENeAVi6OeaJYROUuUCG3sGx+h/HUPm
+         uk6UrZlmXeUc0o6RS75wHlfP3VXzJL+/h68ffmMwKXPaxCSXZGThgY9P9C9LTyb+DNaL
+         dQlg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=T6pXHKNa+ACXCXsUuVIA/K9jwD+fxsERuqC5A6ON50c=;
-        b=uaPCD4MBmkvOLmENCOVQBq9CEb+si9Qvl8HMpNwQGzwgZxg0xkPk/WTzza1XtR11gP
-         qMxYu4n8DCcYEsbmrv9/80Xb85NssfrQnfCsnbihGRZskB6Mdr26Jf4i3cgHA0S6yrM1
-         sxfox43biY0+rtzPGQRj3IpWWbws64hunsFIxPU92AKm2h1a4rlXAiosNAR8uztK5f9u
-         E/NaAQLAq4Z/qe4iNkCEUcKBKt9OU6HAcS1i587zHJwvVepYjov/5FIwQv64sLgBE8u7
-         iP/bt1d9k/9Qe/6h6mZdRuHky5o0hXPmP9s45N2e3cNtZEdDJWV9bJugNb0o3kSPpX8z
-         KKWQ==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=TWXh/f/vxZucfd0azlrPKeVIpV2c4umlgI75dWBLNVQ=;
+        b=PTMMZ0mEmOMALYceDTy+iEEtDE3NegX2ilZhz+uKrF20z+vbe2nAoR+PRVw8Mj0XR/
+         A0XG4zFD4Tpak3sUBI58Dt9f0H4uUcchLrxj5ol+tAWOh+LCWtWjGU2fHF4kz1hMdoXZ
+         rlR9i1SqztPkcaU8p6FMdGSoCrsAFKeq7NbKyGTZxCyql+NzjMBDSEQgPeRyMl2qc3GG
+         HzMrfjHlTQNvJ5oun2sSVLWEXASJisEByNbNRNJb60ZCgrPAHXG/R6IZ8WQmXm9Xe05q
+         D7UKw3XPf4rEElgJBzuG56B9uGozL/CzjVY5LySCez2opWjjL4jtme2yBe80Dl5VP9m2
+         qzEw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@sirena.org.uk header.s=20170815-heliosphere header.b=lUTdB8kF;
-       spf=pass (google.com: best guess record for domain of broonie@sirena.org.uk designates 2a01:7e01::f03c:91ff:fed4:a3b6 as permitted sender) smtp.mailfrom=broonie@sirena.org.uk;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from heliosphere.sirena.org.uk (heliosphere.sirena.org.uk. [2a01:7e01::f03c:91ff:fed4:a3b6])
-        by mx.google.com with ESMTPS id a142si4808977wma.91.2019.03.01.03.45.53
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id e127si10242415pgc.360.2019.03.01.03.46.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 01 Mar 2019 03:45:54 -0800 (PST)
-Received-SPF: pass (google.com: best guess record for domain of broonie@sirena.org.uk designates 2a01:7e01::f03c:91ff:fed4:a3b6 as permitted sender) client-ip=2a01:7e01::f03c:91ff:fed4:a3b6;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Mar 2019 03:46:14 -0800 (PST)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@sirena.org.uk header.s=20170815-heliosphere header.b=lUTdB8kF;
-       spf=pass (google.com: best guess record for domain of broonie@sirena.org.uk designates 2a01:7e01::f03c:91ff:fed4:a3b6 as permitted sender) smtp.mailfrom=broonie@sirena.org.uk;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=sirena.org.uk; s=20170815-heliosphere; h=In-Reply-To:Content-Type:
-	MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=T6pXHKNa+ACXCXsUuVIA/K9jwD+fxsERuqC5A6ON50c=; b=lUTdB8kF9sCjBt8oRzoqjZkIt
-	sGcKFwfzbePvy3qmykp1v76FCrTI+N+gFkC2IBMANuYYzdC2Botq2iRTEwavgBOWuozlPjAbGJLQ4
-	yitkW7tuiG/n+bxl2BfQSljUuApSG9u1TxAntY/umXEhoFQ58h1ZvYbNmrdBZuVLQVNd4=;
-Received: from cpc102320-sgyl38-2-0-cust46.18-2.cable.virginm.net ([82.37.168.47] helo=debutante.sirena.org.uk)
-	by heliosphere.sirena.org.uk with esmtpa (Exim 4.89)
-	(envelope-from <broonie@sirena.org.uk>)
-	id 1gzgbU-00027o-6q; Fri, 01 Mar 2019 11:45:24 +0000
-Received: by debutante.sirena.org.uk (Postfix, from userid 1000)
-	id 5C0F11126E96; Fri,  1 Mar 2019 11:45:23 +0000 (GMT)
-Date: Fri, 1 Mar 2019 11:45:23 +0000
-From: Mark Brown <broonie@kernel.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Williams <dan.j.williams@intel.com>,
-	"kernelci.org bot" <bot@kernelci.org>,
-	Tomeu Vizoso <tomeu.vizoso@collabora.com>,
-	guillaume.tucker@collabora.com, matthew.hart@linaro.org,
-	Stephen Rothwell <sfr@canb.auug.org.au>, khilman@baylibre.com,
-	enric.balletbo@collabora.com, Nicholas Piggin <npiggin@gmail.com>,
-	Dominik Brodowski <linux@dominikbrodowski.net>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Kees Cook <keescook@chromium.org>, Adrian Reber <adrian@lisas.de>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>,
-	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
-	Michal Hocko <mhocko@suse.com>, Richard Guy Briggs <rgb@redhat.com>,
-	"Peter Zijlstra (Intel)" <peterz@infradead.org>, info@kernelci.org
-Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
-Message-ID: <20190301114523.GA7429@sirena.org.uk>
-References: <5c6702da.1c69fb81.12a14.4ece@mx.google.com>
- <20190215104325.039dbbd9c3bfb35b95f9247b@linux-foundation.org>
- <20190215185151.GG7897@sirena.org.uk>
- <20190226155948.299aa894a5576e61dda3e5aa@linux-foundation.org>
- <CAPcyv4ivjC8fNkfjdFyaYCAjGh7wtvFQnoPpOcR=VNZ=c6d6Rg@mail.gmail.com>
- <20190228151438.fc44921e66f2f5d393c8d7b4@linux-foundation.org>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x21Bi1NS024078
+	for <linux-mm@kvack.org>; Fri, 1 Mar 2019 06:46:13 -0500
+Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2qy2ajwq4r-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 01 Mar 2019 06:46:13 -0500
+Received: from localhost
+	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Fri, 1 Mar 2019 11:46:10 -0000
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
+	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Fri, 1 Mar 2019 11:46:03 -0000
+Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x21Bk2Cb32505906
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Fri, 1 Mar 2019 11:46:02 GMT
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 4E71CA404D;
+	Fri,  1 Mar 2019 11:46:02 +0000 (GMT)
+Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id B5AB8A4051;
+	Fri,  1 Mar 2019 11:45:57 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.204.73])
+	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Fri,  1 Mar 2019 11:45:57 +0000 (GMT)
+Date: Fri, 1 Mar 2019 13:45:54 +0200
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Steven Price <steven.price@arm.com>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>,
+        Mark Rutland <Mark.Rutland@arm.com>,
+        the arch/x86 maintainers <x86@kernel.org>,
+        Arnd Bergmann <arnd@arndb.de>,
+        Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+        Peter Zijlstra <peterz@infradead.org>,
+        Catalin Marinas <catalin.marinas@arm.com>,
+        Dave Hansen <dave.hansen@linux.intel.com>,
+        Will Deacon <will.deacon@arm.com>,
+        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+        Linux MM <linux-mm@kvack.org>,
+        =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+        Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
+        Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
+        James Morse <james.morse@arm.com>,
+        Thomas Gleixner <tglx@linutronix.de>,
+        linux-m68k <linux-m68k@lists.linux-m68k.org>,
+        Linux ARM <linux-arm-kernel@lists.infradead.org>,
+        "Liang, Kan" <kan.liang@linux.intel.com>
+Subject: Re: [PATCH v3 09/34] m68k: mm: Add p?d_large() definitions
+References: <20190227170608.27963-1-steven.price@arm.com>
+ <20190227170608.27963-10-steven.price@arm.com>
+ <CAMuHMdXCjuurBiFzQBeLPUFu=mmSowvb=37XyWmF_=xVhkQm4g@mail.gmail.com>
+ <20190228113653.GB3766@rapoport-lnx>
+ <CAMuHMdU5gn6ftAHNwHNPDoUy_JvcZLcXbkk1hvUmYxtfJRfTTQ@mail.gmail.com>
+ <a17f5ad7-9fba-9d51-4d6e-7a9effe81e4e@arm.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha512;
-	protocol="application/pgp-signature"; boundary="5mCyUwZo2JvN/JJP"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190228151438.fc44921e66f2f5d393c8d7b4@linux-foundation.org>
-X-Cookie: Yow!
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <a17f5ad7-9fba-9d51-4d6e-7a9effe81e4e@arm.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19030111-0012-0000-0000-000002FBBE46
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19030111-0013-0000-0000-000021336E2C
+Message-Id: <20190301114553.GC5156@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-01_09:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1903010083
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Feb 28, 2019 at 12:04:08PM +0000, Steven Price wrote:
+> On 28/02/2019 11:53, Geert Uytterhoeven wrote:
+> > Hi Mike,
+> > 
+> > On Thu, Feb 28, 2019 at 12:37 PM Mike Rapoport <rppt@linux.ibm.com> wrote:
+> >> On Wed, Feb 27, 2019 at 08:27:40PM +0100, Geert Uytterhoeven wrote:
+> >>> On Wed, Feb 27, 2019 at 6:07 PM Steven Price <steven.price@arm.com> wrote:
+> >>>> walk_page_range() is going to be allowed to walk page tables other than
+> >>>> those of user space. For this it needs to know when it has reached a
+> >>>> 'leaf' entry in the page tables. This information is provided by the
+> >>>> p?d_large() functions/macros.
+> >>>>
+> >>>> For m68k, we don't support large pages, so add stubs returning 0
+> >>>>
+> >>>> CC: Geert Uytterhoeven <geert@linux-m68k.org>
+> >>>> CC: linux-m68k@lists.linux-m68k.org
+> >>>> Signed-off-by: Steven Price <steven.price@arm.com>
+> >>>
+> >>> Thanks for your patch!
+> >>>
+> >>>>  arch/m68k/include/asm/mcf_pgtable.h      | 2 ++
+> >>>>  arch/m68k/include/asm/motorola_pgtable.h | 2 ++
+> >>>>  arch/m68k/include/asm/pgtable_no.h       | 1 +
+> >>>>  arch/m68k/include/asm/sun3_pgtable.h     | 2 ++
+> >>>>  4 files changed, 7 insertions(+)
+> >>>
+> >> Maybe I'm missing something, but why the stubs have to be defined in
+> >> arch/*/include/asm/pgtable.h rather than in include/asm-generic/pgtable.h?
+> > 
+> > That would even make more sense, given most architectures don't
+> > support huge pages.
+> 
+> Where the architecture has folded a level stubs are provided by the
+> asm-generic layer, see this later patch:
+> 
+> https://lore.kernel.org/lkml/20190227170608.27963-25-steven.price@arm.com/
+> 
+> However just because an architecture port doesn't (currently) support
+> huge pages doesn't mean that the architecture itself can't have large[1]
+> mappings at higher levels of the page table. For instance an
+> architecture might use large pages for the linear map but not support
+> huge page mappings for user space.
 
---5mCyUwZo2JvN/JJP
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Well, I doubt m68k can support large mappings at higher levels at all.
+This, IMHO, applies to many other architectures and spreading p?d_large all
+over those architecture seems wrong to me...
 
-On Thu, Feb 28, 2019 at 03:14:38PM -0800, Andrew Morton wrote:
+> My previous posting of this series attempted to define generic versions
+> of p?d_large(), but it was pointed out to me that this was fragile and
+> having a way of knowing whether the page table was a 'leaf' is actually
+> useful, so I've attempted to implement for all architectures. See the
+> discussion here:
+> https://lore.kernel.org/lkml/20190221113502.54153-1-steven.price@arm.com/T/#mf0bd0155f185a19681b48a288be212ed1596e85d
 
-> hm, does bot@kernelci.org actually read emails?  Let's try info@ as well..
+I'll reply on that thread, somehow I missed it then.
+ 
+> Steve
+> 
 
-bot@ isn't reading mails but it copies people who can look at stuff on
-what it sends out.
-
---5mCyUwZo2JvN/JJP
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCgAdFiEEreZoqmdXGLWf4p/qJNaLcl1Uh9AFAlx5G1AACgkQJNaLcl1U
-h9DjOAf+PPHQ/BVl5TBqjfMNMuiPCeaKRG1c8zsb8fiR194RFwgdwNGWRE8HcRXk
-AN30FaxyXFI+y7WhlvBmJj3kCLHiP1ZXpDFU7XOpFLEcPdSqjMyYZttxSM5Dztdg
-s5M58t9V3ic2Panl7J+yq2e2U3aC8NRui2v8RgsEaXNo++uKkEHRbQy5O8+sp57B
-ScsEjIa6hWFmy0XZBOSAWSCo+ev7nIiqTdV7EFcYyD9B/TGzJQKvExT5qqq8NYDy
-N2U7xhc4a3pWHmtfkyAYfG9MZw8e1nlnoRZqOETEApoI7T1XG0af2C2CyenZ/YER
-MQQzHE5/oVawoiZ1dtzvnsn32Nfl3Q==
-=VHFA
------END PGP SIGNATURE-----
-
---5mCyUwZo2JvN/JJP--
+-- 
+Sincerely yours,
+Mike.
 
