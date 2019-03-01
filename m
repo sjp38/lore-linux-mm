@@ -2,113 +2,125 @@ Return-Path: <SRS0=KwX8=RE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A4340C43381
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 22:20:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 51780C4360F
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 23:24:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3F37A2083D
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 22:20:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DB0AF2083E
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 23:24:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="cqXcy1MS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F37A2083D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="LrEuuV+I"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB0AF2083E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E06E58E0005; Fri,  1 Mar 2019 17:20:41 -0500 (EST)
+	id 439D98E0003; Fri,  1 Mar 2019 18:24:12 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D8D7C8E0001; Fri,  1 Mar 2019 17:20:41 -0500 (EST)
+	id 3E8AC8E0001; Fri,  1 Mar 2019 18:24:12 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C7B348E0005; Fri,  1 Mar 2019 17:20:41 -0500 (EST)
+	id 2FF588E0003; Fri,  1 Mar 2019 18:24:12 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 94D5B8E0001
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 17:20:41 -0500 (EST)
-Received: by mail-qt1-f198.google.com with SMTP id p40so1970776qtb.10
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 14:20:41 -0800 (PST)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 015938E0001
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 18:24:12 -0500 (EST)
+Received: by mail-ot1-f72.google.com with SMTP id b10so11122979oti.21
+        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 15:24:11 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=i+9qVo3On16b5aa2xbAF9qmtndSmDUVGGh1Q+Udsgjg=;
-        b=LugR/fwqwtJaX/Eiqhxv3D06hsq8Qz7PSujM8LtiSPa5d6CgS1guWg2XnfrPp8SdU8
-         tUZSORsqoOHbGT0g3s3TSop4v3cX9+F7GjroWdBwwvvi+eDXsz1xqlaQJAWTyc+HbiDB
-         SpBtmbGPd5igpVKN5OEJvkfCzAHdTev8NQPbSrOHcGVK83Rrwylwe9ihjt6ciQgR2Aqs
-         4Er88Ss0I76hPaSSylMjmnq8yij7l8wSuWSibMJ4Ox0dAhxzcZr9P3fqwLto2deHL/zM
-         7fw7WvhQPmb20eZM8L7ATG3IwlhFmdyohDtaa95AZrpEuRKLARS9xY+E8A2EqeJVnFaB
-         ugiA==
-X-Gm-Message-State: APjAAAVspNAOL3fGiyyiVtILgPew7H9geYCVixbCqYAQWutiSL+A0anQ
-	68kswBZEfYzKZoTR2OB3nSgNaAkDV9jvhyEAatoGi+hE8YdEDxJXscNRfmX7P/H1P7R7NdE3gtO
-	PtnNlKDpCyRFEUrshqxz900Ra6rDcEeWSUUnl0D04pe0iPt9BRqkOIAzy5XA7FvWykAAW4DOh1L
-	a0dgvO3cd5DT36OAb5CLI18MJRsUDFvSQhU7SGGVgfxw6uupeoxyg1R5j3r7AIE2Djcb7bnsyHn
-	kLHxdw6WhEfUf0QiBS059BYWMezgD9j7b+TNXwO6IzyKHhfVueUGD19z067JeCbvkPBsCj4vUKW
-	BDlvMPzvW8OzuHs9olukPo9gGQ75dvLNYtTpVw6SVEQ1WkYZSAVdmKrf2NUu8ecTVp/OZWRSw3U
-	v
-X-Received: by 2002:a37:340c:: with SMTP id b12mr5721566qka.144.1551478841322;
-        Fri, 01 Mar 2019 14:20:41 -0800 (PST)
-X-Received: by 2002:a37:340c:: with SMTP id b12mr5721501qka.144.1551478840010;
-        Fri, 01 Mar 2019 14:20:40 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551478840; cv=none;
+        bh=e/UacENV4WbTWn1Wv4mMZSa64/NkU5mKPQz23H0xeho=;
+        b=eHdae6J3Ti1bov9khOYk5BSTTblY1rRabMFTlPF5F+U6WbyAfFNqc/0hj7TB+cPvz/
+         LyEU9RCH+G82bqfG6hJl3n7YXzOTIoidUCGBZCRHF3G53Uq9fW3sLWYE0jZI3DCzqfsh
+         TD1o3PH05r2qtusDPoeJv4kJtwiYOk073DGqf2JLh+D6W4y0khHMc6hzIG4/Xa/h/qqX
+         20hPVlPVFdDigUNswW8JbYFPkglsn8NYOUg3mUsYcGJ/3gZqzuViSfb5MTY1YLrHcfTs
+         kYm/R22VMe1RoqXWjUYKMiMNmV5RzIgStXOyBhUikAqA850g1AV5pwpom/lOcvgOswKT
+         z6nQ==
+X-Gm-Message-State: APjAAAXZC0YZPUVnHM6rcMfgstxuBf1/9MRMHaphzV3QGYAxwaePV/e2
+	ylGzjlzWSlmAFTJWII7KE4JP9JXzDUAAYEF22sIA8xHrE/qFOzFfBKe9bSuSQQetgs1Wu9CuAXc
+	/4xI85WYaVMTruzFIDKnCUuBYlmcq5O7ZNE1SPFZxkSFd2dQzkCxUTyH5htHoZrI2fdtWwwVXuh
+	hpCSJYxEqTJElBU5Ib5kDmZlPaDXUvKccOKFDUiomO321T9ro71aQGdXt6nB3xhANfMxNwpGU19
+	bgngRbJN0dLteBY8Nq0qOr5/fvVXvf0nB59DFESJJ3WEOGhNAbzMe1ZVMe/XKp3TmoIj7GGrDgT
+	xoJry2Ps7Gxs3hirTA0SygkT8lTP6n/lsmhjxK63CAZp7olr8a/FHwAYNNo5KIkhbQkNWwAM3b5
+	r
+X-Received: by 2002:a9d:6285:: with SMTP id x5mr4845082otk.13.1551482651661;
+        Fri, 01 Mar 2019 15:24:11 -0800 (PST)
+X-Received: by 2002:a9d:6285:: with SMTP id x5mr4845044otk.13.1551482650462;
+        Fri, 01 Mar 2019 15:24:10 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551482650; cv=none;
         d=google.com; s=arc-20160816;
-        b=fd2co4I26ytbXm3iAAdRQrojkwTU9BPwXYRek97Y6HuJvIYMFSzdrhmAHpHXM/6ZJz
-         cdTGbFfjGRratyrftI4Wr9dQxz1EnLJdNKM4CsfNo2641y/iVu4oRO/6UFwjsQEcX+KM
-         atqcBVRAzLqRDbg6xW/sStBHQ4HWVFUmbURl6yHmS+ZV5iF0xmZxz1k66jHn8PLXdT8h
-         QO489bSdlvKpL73vyX3lkiDk3OV5iuf/3dO1J/F7TykFtQViAw0rEBk8vOVfm5B27IfW
-         /viNDhDlGUjyOLH1Ih8V+DFuSQzt9xNdDmS5OHBLOzOuhuMIWPAFv8lb1t0EHl6EBawr
-         0yvw==
+        b=BMk18wATmEBfe8QvjDcbu6h6km4rE3sar5lBPpXSCW7FXhcUsCN0/QYdstk15SXipR
+         omDsBckC9WTCcFfq4Z7ShjU384NDMCOen8PqldhZ+yKCkatEwIgjLjPY3B7U52jKp+5T
+         CroKgGAj2QIqz01Ph52Bobdy6uImMzp+BjIZp3qDKjJXAAGY6w4/BUP5XYlenmD/IBao
+         ycFaD9nZBCn6kxM6/f39rMPbH1mDmH0ON1JfB1xkHU53Nt8R393WrdX9YWDw/NzgYQIE
+         4gk/0yWHesjwUaT+qdskzPXfTIgOsthK/HD6qNXdTba6nDBCC+XEIadc7AH9QItQSN49
+         NZIQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=i+9qVo3On16b5aa2xbAF9qmtndSmDUVGGh1Q+Udsgjg=;
-        b=s9kOu+5HOH1i67j+K40bk9Ur/XRgvTvxkuCZtSWE4vU6LFoY49O0eaPgTkE8v3/DK0
-         QQBmz5vpsHbHLOJzMy7a3Ds7iGpt8klXaBLWFXfjDQnSzA2iEvhSvdSvSzPYMIWtThXe
-         f91+SQaOnlLxX+krZoKhnv+opvjAoBVrdXR/WwencZ7MM04FmNivF94zsixc+HX748f4
-         ZwptSu2bIQLqBsCOjw9KLYJi8lkzUFUpHZUl3IjoCgjTNL7BCjVujs+cZkvHI1tagAHz
-         54wBemIrZdL8L/bftNL7+avJ0c2Chm46mzl4FTP7ONqdGbHZI48vLkanzJbPOFpbGf3d
-         LmVg==
+        bh=e/UacENV4WbTWn1Wv4mMZSa64/NkU5mKPQz23H0xeho=;
+        b=vHXkWK8DnIZc13gPEEm7dYMfxUg2cM3eeEZGaLPnWzxej7Gp6FsC6x9D6mYMhK0VD8
+         zs8RqRKhS/PcknTc/LyYgux0ID1UzWy05ONUw9lcwjDBZYcbdaAQojS4sqpR4NYA09Mh
+         8wKhLJJzuDGZedcvlLnif0hGKig812c6ENQtgNFyzOwzNF9AU88K+Ly7Wr7kVgNm2sg6
+         kIBfB5c7gZz60EKzwEgFYZHJ+V5A6bXKWHPj51gl51EJrf7WskpmfiiN6GZL1FA+GHCr
+         m9225D7/BTjNi1Q986cM7BJH1l9RS/r4qEQxCANiBKUqO3p3LGHkXJbV3rRb3z+cgWOs
+         lMSw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cqXcy1MS;
-       spf=pass (google.com: domain of liu.song.a23@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=liu.song.a23@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=LrEuuV+I;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y190sor13075222qka.113.2019.03.01.14.20.39
+        by mx.google.com with SMTPS id b191sor9170401oih.123.2019.03.01.15.24.09
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 01 Mar 2019 14:20:39 -0800 (PST)
-Received-SPF: pass (google.com: domain of liu.song.a23@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 01 Mar 2019 15:24:10 -0800 (PST)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cqXcy1MS;
-       spf=pass (google.com: domain of liu.song.a23@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=liu.song.a23@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=LrEuuV+I;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=i+9qVo3On16b5aa2xbAF9qmtndSmDUVGGh1Q+Udsgjg=;
-        b=cqXcy1MSPin3CVj2ylRNgSqOS5Y7nQ1TgPxOv/gfn/5NHWdTngKPlbLAsZ46V6vBUf
-         YdA2osl5T9TgCyGkhlpc5lh9WsZlUvnODc4ruCSBrvMg6z7ok9G8t+SEUUpcATI9eiPc
-         /8tQBw01HdmsxCYrT+xKjx1Rlom2fX/VrdUEVPjVR9sqzCZOKQPIMvYSyw8wQw6Dr6Ua
-         cTtR6RRPFNWYv0zdH+V/nrNQcvsrkBR3V9PVVyQNc2frHVgr8Xyd0Byh1p1x/6q/ppNn
-         LjmubpEllec5DzcahN0W53HwC4EuquKY/Zd0pNV7OJsh38qX7gmUDEbvEZHyPuANfwzX
-         hfCg==
-X-Google-Smtp-Source: APXvYqyPVqB5chZF/I9XoNAT6eEPfApvxGoX7bVH55ZaPOs7JTZp4bQ6Ng13wx4lEih2T6nzimrgm54IpoSl8XFRMkI=
-X-Received: by 2002:a37:bc04:: with SMTP id m4mr5644239qkf.41.1551478839615;
- Fri, 01 Mar 2019 14:20:39 -0800 (PST)
+        bh=e/UacENV4WbTWn1Wv4mMZSa64/NkU5mKPQz23H0xeho=;
+        b=LrEuuV+IJvMczvVVPcuvT5TWXSzjpQ/ZEYOa3ATCb0IGPlZI6PBIoEIhD2d4SaF+6B
+         ER4xENxMb5DXuN+04gnHDtjX7ExDvGPsuVvFpMJMyjeRIeGALodtjrGulXXKqcGTMzO+
+         ZejNO74xfPy6yS1rGx6ZriPwFoa0Cpw5R1BUdKxm6MugC+Istff/AfN79pWSWddriD5v
+         yEwAnelOnso5ntUkTpx5I+jqkZNhQlR7MG55obCnTDDjMEOb7394kwg+WZs7lZL8OSf0
+         2oIHnrQK4+Fm1PgC1yStNInxU+VT8HkTBW5Nb9RPWVn7QrSnte0JCEYrQGYp1oRj7EyU
+         xQQQ==
+X-Google-Smtp-Source: APXvYqxYvcFwspRUzJfzOBv3qA35nU7UHDvw0dm0OA2N3TnJ0A6UpkfhFLloJaDEc2+G0X+4yC4DtRjHLHdFvHFwRjE=
+X-Received: by 2002:aca:cc0f:: with SMTP id c15mr5285857oig.105.1551482649622;
+ Fri, 01 Mar 2019 15:24:09 -0800 (PST)
 MIME-Version: 1.0
-References: <20190215222525.17802-1-willy@infradead.org> <CAPhsuW7Hu6jBn-ti7S2cJhO1YQYg_RDZUgkqtgFO8zpBMV_9LA@mail.gmail.com>
-In-Reply-To: <CAPhsuW7Hu6jBn-ti7S2cJhO1YQYg_RDZUgkqtgFO8zpBMV_9LA@mail.gmail.com>
-From: Song Liu <liu.song.a23@gmail.com>
-Date: Fri, 1 Mar 2019 14:20:27 -0800
-Message-ID: <CAPhsuW5a8=QJe2acWXQGWic1a=CJigwPR6BxSu2O2vg4W1mhzA@mail.gmail.com>
-Subject: Re: [PATCH v3] page cache: Store only head pages in i_pages
-To: Matthew Wilcox <willy@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, 
-	open list <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, 
-	William Kucharski <william.kucharski@oracle.com>
+References: <5c6702da.1c69fb81.12a14.4ece@mx.google.com> <20190215104325.039dbbd9c3bfb35b95f9247b@linux-foundation.org>
+ <20190215185151.GG7897@sirena.org.uk> <20190226155948.299aa894a5576e61dda3e5aa@linux-foundation.org>
+ <CAPcyv4ivjC8fNkfjdFyaYCAjGh7wtvFQnoPpOcR=VNZ=c6d6Rg@mail.gmail.com>
+ <20190228151438.fc44921e66f2f5d393c8d7b4@linux-foundation.org>
+ <CAPcyv4hDmmK-L=0txw7L9O8YgvAQxZfVFiSoB4LARRnGQ3UC7Q@mail.gmail.com>
+ <026b5082-32f2-e813-5396-e4a148c813ea@collabora.com> <20190301124100.62a02e2f622ff6b5f178a7c3@linux-foundation.org>
+ <3fafb552-ae75-6f63-453c-0d0e57d818f3@collabora.com>
+In-Reply-To: <3fafb552-ae75-6f63-453c-0d0e57d818f3@collabora.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 1 Mar 2019 15:23:58 -0800
+Message-ID: <CAPcyv4hMNiiM11ULjbOnOf=9N=yCABCRsAYLpjXs+98bRoRpCA@mail.gmail.com>
+Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
+To: Guillaume Tucker <guillaume.tucker@collabora.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Mark Brown <broonie@kernel.org>, Tomeu Vizoso <tomeu.vizoso@collabora.com>, 
+	Matt Hart <matthew.hart@linaro.org>, Stephen Rothwell <sfr@canb.auug.org.au>, khilman@baylibre.com, 
+	enric.balletbo@collabora.com, Nicholas Piggin <npiggin@gmail.com>, 
+	Dominik Brodowski <linux@dominikbrodowski.net>, 
+	Masahiro Yamada <yamada.masahiro@socionext.com>, Kees Cook <keescook@chromium.org>, 
+	Adrian Reber <adrian@lisas.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, 
+	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Richard Guy Briggs <rgb@redhat.com>, 
+	"Peter Zijlstra (Intel)" <peterz@infradead.org>, info@kernelci.org
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -116,528 +128,94 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 1, 2019 at 11:12 AM Song Liu <liu.song.a23@gmail.com> wrote:
+On Fri, Mar 1, 2019 at 1:05 PM Guillaume Tucker
+<guillaume.tucker@collabora.com> wrote:
 >
-> On Fri, Feb 15, 2019 at 2:25 PM Matthew Wilcox <willy@infradead.org> wrote:
+> On 01/03/2019 20:41, Andrew Morton wrote:
+> > On Fri, 1 Mar 2019 09:25:24 +0100 Guillaume Tucker <guillaume.tucker@collabora.com> wrote:
 > >
-> > Transparent Huge Pages are currently stored in i_pages as pointers to
-> > consecutive subpages.  This patch changes that to storing consecutive
-> > pointers to the head page in preparation for storing huge pages more
-> > efficiently in i_pages.
+> >>>>> Michal had asked if the free space accounting fix up addressed this
+> >>>>> boot regression? I was awaiting word on that.
+> >>>>
+> >>>> hm, does bot@kernelci.org actually read emails?  Let's try info@ as well..
+> >>
+> >> bot@kernelci.org is not person, it's a send-only account for
+> >> automated reports.  So no, it doesn't read emails.
+> >>
+> >> I guess the tricky point here is that the authors of the commits
+> >> found by bisections may not always have the hardware needed to
+> >> reproduce the problem.  So it needs to be dealt with on a
+> >> case-by-case basis: sometimes they do have the hardware,
+> >> sometimes someone else on the list or on CC does, and sometimes
+> >> it's better for the people who have access to the test lab which
+> >> ran the KernelCI test to deal with it.
+> >>
+> >> This case seems to fall into the last category.  As I have access
+> >> to the Collabora lab, I can do some quick checks to confirm
+> >> whether the proposed patch does fix the issue.  I hadn't realised
+> >> that someone was waiting for this to happen, especially as the
+> >> BeagleBone Black is a very common platform.  Sorry about that,
+> >> I'll take a look today.
+> >>
+> >> It may be a nice feature to be able to give access to the
+> >> KernelCI test infrastructure to anyone who wants to debug an
+> >> issue reported by KernelCI or verify a fix, so they won't need to
+> >> have the hardware locally.  Something to think about for the
+> >> future.
 > >
-> > Large parts of this are "inspired" by Kirill's patch
-> > https://lore.kernel.org/lkml/20170126115819.58875-2-kirill.shutemov@linux.intel.com/
+> > Thanks, that all sounds good.
 > >
-> > Signed-off-by: Matthew Wilcox <willy@infradead.org>
-> > Acked-by: Jan Kara <jack@suse.cz>
-> > Reviewed-by: Kirill Shutemov <kirill@shutemov.name>
+> >>>> Is it possible to determine whether this regression is still present in
+> >>>> current linux-next?
+> >>
+> >> I'll try to re-apply the patch that caused the issue, then see if
+> >> the suggested change fixes it.  As far as the current linux-next
+> >> master branch is concerned, KernelCI boot tests are passing fine
+> >> on that platform.
+> >
+> > They would, because I dropped
+> > mm-shuffle-default-enable-all-shuffling.patch, so your tests presumably
+> > now have shuffling disabled.
+> >
+> > Is it possible to add the below to linux-next and try again?
+>
+> I've actually already done that, and essentially the issue can
+> still be reproduced by applying that patch.  See this branch:
+>
+>   https://gitlab.collabora.com/gtucker/linux/commits/next-20190301-beaglebone-black-debug
+>
+> next-20190301 boots fine but the head fails, using
+> multi_v7_defconfig + SMP=n in both cases and
+> SHUFFLE_PAGE_ALLOCATOR=y enabled in the 2nd case as a result
+> of the change in the default value.
+>
+> The change suggested by Michal Hocko on Feb 15th has now been
+> applied in linux-next, it's part of this commit but as
+> explained above it does not actually resolve the boot failure:
+>
+>   98cf198ee8ce mm: move buddy list manipulations into helpers
+>
+> I can send more details on Monday and do a bit of debugging to
+> help narrowing down the problem.  Please let me know if
+> there's anything in particular that would seem be worth
+> trying.
+>
 
-I tested with shmem with huge=always and huge=advise. Both works fine.
-I also run some stress tests with CONFIG_DEBUG_VM, nothing breaks.
+Thanks for taking a look!
 
-Other than the minor fix in memfd_tag_pins(),
+Some questions when you get a chance:
 
-Reviewed-and-tested-by: Song Liu <songliubraving@fb.com>
+Is there an early-printk facility that can be turned on to see how far
+we get in the boot?
 
-> > ---
-> >  include/linux/pagemap.h |   9 +++
-> >  mm/filemap.c            | 158 ++++++++++++++++------------------------
-> >  mm/huge_memory.c        |   3 +
-> >  mm/khugepaged.c         |   4 +-
-> >  mm/memfd.c              |   2 +
-> >  mm/migrate.c            |   2 +-
-> >  mm/shmem.c              |   2 +-
-> >  mm/swap_state.c         |   4 +-
-> >  8 files changed, 81 insertions(+), 103 deletions(-)
-> >
-> > diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> > index bcf909d0de5f..7d58e4e0b68e 100644
-> > --- a/include/linux/pagemap.h
-> > +++ b/include/linux/pagemap.h
-> > @@ -333,6 +333,15 @@ static inline struct page *grab_cache_page_nowait(struct address_space *mapping,
-> >                         mapping_gfp_mask(mapping));
-> >  }
-> >
-> > +static inline struct page *find_subpage(struct page *page, pgoff_t offset)
-> > +{
-> > +       VM_BUG_ON_PAGE(PageTail(page), page);
-> > +       VM_BUG_ON_PAGE(page->index > offset, page);
-> > +       VM_BUG_ON_PAGE(page->index + (1 << compound_order(page)) <= offset,
-> > +                       page);
-> > +       return page - page->index + offset;
-> > +}
-> > +
-> >  struct page *find_get_entry(struct address_space *mapping, pgoff_t offset);
-> >  struct page *find_lock_entry(struct address_space *mapping, pgoff_t offset);
-> >  unsigned find_get_entries(struct address_space *mapping, pgoff_t start,
-> > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index 5673672fd444..d9161cae11b5 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -279,11 +279,11 @@ EXPORT_SYMBOL(delete_from_page_cache);
-> >   * @pvec: pagevec with pages to delete
-> >   *
-> >   * The function walks over mapping->i_pages and removes pages passed in @pvec
-> > - * from the mapping. The function expects @pvec to be sorted by page index.
-> > + * from the mapping. The function expects @pvec to be sorted by page index
-> > + * and is optimised for it to be dense.
-> >   * It tolerates holes in @pvec (mapping entries at those indices are not
-> >   * modified). The function expects only THP head pages to be present in the
-> > - * @pvec and takes care to delete all corresponding tail pages from the
-> > - * mapping as well.
-> > + * @pvec.
-> >   *
-> >   * The function expects the i_pages lock to be held.
-> >   */
-> > @@ -292,40 +292,43 @@ static void page_cache_delete_batch(struct address_space *mapping,
-> >  {
-> >         XA_STATE(xas, &mapping->i_pages, pvec->pages[0]->index);
-> >         int total_pages = 0;
-> > -       int i = 0, tail_pages = 0;
-> > +       int i = 0;
-> >         struct page *page;
-> >
-> >         mapping_set_update(&xas, mapping);
-> >         xas_for_each(&xas, page, ULONG_MAX) {
-> > -               if (i >= pagevec_count(pvec) && !tail_pages)
-> > +               if (i >= pagevec_count(pvec))
-> >                         break;
-> > +
-> > +               /* A swap/dax/shadow entry got inserted? Skip it. */
-> >                 if (xa_is_value(page))
-> >                         continue;
-> > -               if (!tail_pages) {
-> > -                       /*
-> > -                        * Some page got inserted in our range? Skip it. We
-> > -                        * have our pages locked so they are protected from
-> > -                        * being removed.
-> > -                        */
-> > -                       if (page != pvec->pages[i]) {
-> > -                               VM_BUG_ON_PAGE(page->index >
-> > -                                               pvec->pages[i]->index, page);
-> > -                               continue;
-> > -                       }
-> > -                       WARN_ON_ONCE(!PageLocked(page));
-> > -                       if (PageTransHuge(page) && !PageHuge(page))
-> > -                               tail_pages = HPAGE_PMD_NR - 1;
-> > +               /*
-> > +                * A page got inserted in our range? Skip it. We have our
-> > +                * pages locked so they are protected from being removed.
-> > +                * If we see a page whose index is higher than ours, it
-> > +                * means our page has been removed, which shouldn't be
-> > +                * possible because we're holding the PageLock.
-> > +                */
-> > +               if (page != pvec->pages[i]) {
-> > +                       VM_BUG_ON_PAGE(page->index > pvec->pages[i]->index,
-> > +                                       page);
-> > +                       continue;
-> > +               }
-> > +
-> > +               WARN_ON_ONCE(!PageLocked(page));
-> > +
-> > +               if (page->index == xas.xa_index)
-> >                         page->mapping = NULL;
-> > -                       /*
-> > -                        * Leave page->index set: truncation lookup relies
-> > -                        * upon it
-> > -                        */
-> > +               /* Leave page->index set: truncation lookup relies on it */
-> > +
-> > +               /*
-> > +                * Move to the next page in the vector if this is a small page
-> > +                * or the index is of the last page in this compound page).
-> > +                */
-> > +               if (page->index + (1UL << compound_order(page)) - 1 ==
-> > +                               xas.xa_index)
-> >                         i++;
-> > -               } else {
-> > -                       VM_BUG_ON_PAGE(page->index + HPAGE_PMD_NR - tail_pages
-> > -                                       != pvec->pages[i]->index, page);
-> > -                       tail_pages--;
-> > -               }
-> >                 xas_store(&xas, NULL);
-> >                 total_pages++;
-> >         }
-> > @@ -1491,7 +1494,7 @@ EXPORT_SYMBOL(page_cache_prev_miss);
-> >  struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
-> >  {
-> >         XA_STATE(xas, &mapping->i_pages, offset);
-> > -       struct page *head, *page;
-> > +       struct page *page;
-> >
-> >         rcu_read_lock();
-> >  repeat:
-> > @@ -1506,25 +1509,19 @@ struct page *find_get_entry(struct address_space *mapping, pgoff_t offset)
-> >         if (!page || xa_is_value(page))
-> >                 goto out;
-> >
-> > -       head = compound_head(page);
-> > -       if (!page_cache_get_speculative(head))
-> > +       if (!page_cache_get_speculative(page))
-> >                 goto repeat;
-> >
-> > -       /* The page was split under us? */
-> > -       if (compound_head(page) != head) {
-> > -               put_page(head);
-> > -               goto repeat;
-> > -       }
-> > -
-> >         /*
-> > -        * Has the page moved?
-> > +        * Has the page moved or been split?
-> >          * This is part of the lockless pagecache protocol. See
-> >          * include/linux/pagemap.h for details.
-> >          */
-> >         if (unlikely(page != xas_reload(&xas))) {
-> > -               put_page(head);
-> > +               put_page(page);
-> >                 goto repeat;
-> >         }
-> > +       page = find_subpage(page, offset);
-> >  out:
-> >         rcu_read_unlock();
-> >
-> > @@ -1706,7 +1703,6 @@ unsigned find_get_entries(struct address_space *mapping,
-> >
-> >         rcu_read_lock();
-> >         xas_for_each(&xas, page, ULONG_MAX) {
-> > -               struct page *head;
-> >                 if (xas_retry(&xas, page))
-> >                         continue;
-> >                 /*
-> > @@ -1717,17 +1713,13 @@ unsigned find_get_entries(struct address_space *mapping,
-> >                 if (xa_is_value(page))
-> >                         goto export;
-> >
-> > -               head = compound_head(page);
-> > -               if (!page_cache_get_speculative(head))
-> > +               if (!page_cache_get_speculative(page))
-> >                         goto retry;
-> >
-> > -               /* The page was split under us? */
-> > -               if (compound_head(page) != head)
-> > -                       goto put_page;
-> > -
-> > -               /* Has the page moved? */
-> > +               /* Has the page moved or been split? */
-> >                 if (unlikely(page != xas_reload(&xas)))
-> >                         goto put_page;
-> > +               page = find_subpage(page, xas.xa_index);
-> >
-> >  export:
-> >                 indices[ret] = xas.xa_index;
-> > @@ -1736,7 +1728,7 @@ unsigned find_get_entries(struct address_space *mapping,
-> >                         break;
-> >                 continue;
-> >  put_page:
-> > -               put_page(head);
-> > +               put_page(page);
-> >  retry:
-> >                 xas_reset(&xas);
-> >         }
-> > @@ -1778,33 +1770,27 @@ unsigned find_get_pages_range(struct address_space *mapping, pgoff_t *start,
-> >
-> >         rcu_read_lock();
-> >         xas_for_each(&xas, page, end) {
-> > -               struct page *head;
-> >                 if (xas_retry(&xas, page))
-> >                         continue;
-> >                 /* Skip over shadow, swap and DAX entries */
-> >                 if (xa_is_value(page))
-> >                         continue;
-> >
-> > -               head = compound_head(page);
-> > -               if (!page_cache_get_speculative(head))
-> > +               if (!page_cache_get_speculative(page))
-> >                         goto retry;
-> >
-> > -               /* The page was split under us? */
-> > -               if (compound_head(page) != head)
-> > -                       goto put_page;
-> > -
-> > -               /* Has the page moved? */
-> > +               /* Has the page moved or been split? */
-> >                 if (unlikely(page != xas_reload(&xas)))
-> >                         goto put_page;
-> >
-> > -               pages[ret] = page;
-> > +               pages[ret] = find_subpage(page, xas.xa_index);
-> >                 if (++ret == nr_pages) {
-> >                         *start = page->index + 1;
-> >                         goto out;
-> >                 }
-> >                 continue;
-> >  put_page:
-> > -               put_page(head);
-> > +               put_page(page);
-> >  retry:
-> >                 xas_reset(&xas);
-> >         }
-> > @@ -1849,7 +1835,6 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
-> >
-> >         rcu_read_lock();
-> >         for (page = xas_load(&xas); page; page = xas_next(&xas)) {
-> > -               struct page *head;
-> >                 if (xas_retry(&xas, page))
-> >                         continue;
-> >                 /*
-> > @@ -1859,24 +1844,19 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
-> >                 if (xa_is_value(page))
-> >                         break;
-> >
-> > -               head = compound_head(page);
-> > -               if (!page_cache_get_speculative(head))
-> > +               if (!page_cache_get_speculative(page))
-> >                         goto retry;
-> >
-> > -               /* The page was split under us? */
-> > -               if (compound_head(page) != head)
-> > -                       goto put_page;
-> > -
-> > -               /* Has the page moved? */
-> > +               /* Has the page moved or been split? */
-> >                 if (unlikely(page != xas_reload(&xas)))
-> >                         goto put_page;
-> >
-> > -               pages[ret] = page;
-> > +               pages[ret] = find_subpage(page, xas.xa_index);
-> >                 if (++ret == nr_pages)
-> >                         break;
-> >                 continue;
-> >  put_page:
-> > -               put_page(head);
-> > +               put_page(page);
-> >  retry:
-> >                 xas_reset(&xas);
-> >         }
-> > @@ -1912,7 +1892,6 @@ unsigned find_get_pages_range_tag(struct address_space *mapping, pgoff_t *index,
-> >
-> >         rcu_read_lock();
-> >         xas_for_each_marked(&xas, page, end, tag) {
-> > -               struct page *head;
-> >                 if (xas_retry(&xas, page))
-> >                         continue;
-> >                 /*
-> > @@ -1923,26 +1902,21 @@ unsigned find_get_pages_range_tag(struct address_space *mapping, pgoff_t *index,
-> >                 if (xa_is_value(page))
-> >                         continue;
-> >
-> > -               head = compound_head(page);
-> > -               if (!page_cache_get_speculative(head))
-> > +               if (!page_cache_get_speculative(page))
-> >                         goto retry;
-> >
-> > -               /* The page was split under us? */
-> > -               if (compound_head(page) != head)
-> > -                       goto put_page;
-> > -
-> > -               /* Has the page moved? */
-> > +               /* Has the page moved or been split? */
-> >                 if (unlikely(page != xas_reload(&xas)))
-> >                         goto put_page;
-> >
-> > -               pages[ret] = page;
-> > +               pages[ret] = find_subpage(page, xas.xa_index);
-> >                 if (++ret == nr_pages) {
-> >                         *index = page->index + 1;
-> >                         goto out;
-> >                 }
-> >                 continue;
-> >  put_page:
-> > -               put_page(head);
-> > +               put_page(page);
-> >  retry:
-> >                 xas_reset(&xas);
-> >         }
-> > @@ -1991,7 +1965,6 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
-> >
-> >         rcu_read_lock();
-> >         xas_for_each_marked(&xas, page, ULONG_MAX, tag) {
-> > -               struct page *head;
-> >                 if (xas_retry(&xas, page))
-> >                         continue;
-> >                 /*
-> > @@ -2002,17 +1975,13 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
-> >                 if (xa_is_value(page))
-> >                         goto export;
-> >
-> > -               head = compound_head(page);
-> > -               if (!page_cache_get_speculative(head))
-> > +               if (!page_cache_get_speculative(page))
-> >                         goto retry;
-> >
-> > -               /* The page was split under us? */
-> > -               if (compound_head(page) != head)
-> > -                       goto put_page;
-> > -
-> > -               /* Has the page moved? */
-> > +               /* Has the page moved or been split? */
-> >                 if (unlikely(page != xas_reload(&xas)))
-> >                         goto put_page;
-> > +               page = find_subpage(page, xas.xa_index);
-> >
-> >  export:
-> >                 indices[ret] = xas.xa_index;
-> > @@ -2021,7 +1990,7 @@ unsigned find_get_entries_tag(struct address_space *mapping, pgoff_t start,
-> >                         break;
-> >                 continue;
-> >  put_page:
-> > -               put_page(head);
-> > +               put_page(page);
-> >  retry:
-> >                 xas_reset(&xas);
-> >         }
-> > @@ -2686,7 +2655,7 @@ void filemap_map_pages(struct vm_fault *vmf,
-> >         pgoff_t last_pgoff = start_pgoff;
-> >         unsigned long max_idx;
-> >         XA_STATE(xas, &mapping->i_pages, start_pgoff);
-> > -       struct page *head, *page;
-> > +       struct page *page;
-> >
-> >         rcu_read_lock();
-> >         xas_for_each(&xas, page, end_pgoff) {
-> > @@ -2695,24 +2664,19 @@ void filemap_map_pages(struct vm_fault *vmf,
-> >                 if (xa_is_value(page))
-> >                         goto next;
-> >
-> > -               head = compound_head(page);
-> > -
-> >                 /*
-> >                  * Check for a locked page first, as a speculative
-> >                  * reference may adversely influence page migration.
-> >                  */
-> > -               if (PageLocked(head))
-> > +               if (PageLocked(page))
-> >                         goto next;
-> > -               if (!page_cache_get_speculative(head))
-> > +               if (!page_cache_get_speculative(page))
-> >                         goto next;
-> >
-> > -               /* The page was split under us? */
-> > -               if (compound_head(page) != head)
-> > -                       goto skip;
-> > -
-> > -               /* Has the page moved? */
-> > +               /* Has the page moved or been split? */
-> >                 if (unlikely(page != xas_reload(&xas)))
-> >                         goto skip;
-> > +               page = find_subpage(page, xas.xa_index);
-> >
-> >                 if (!PageUptodate(page) ||
-> >                                 PageReadahead(page) ||
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index d4847026d4b1..7008174c033b 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -2458,6 +2458,9 @@ static void __split_huge_page(struct page *page, struct list_head *list,
-> >                         if (IS_ENABLED(CONFIG_SHMEM) && PageSwapBacked(head))
-> >                                 shmem_uncharge(head->mapping->host, 1);
-> >                         put_page(head + i);
-> > +               } else if (!PageAnon(page)) {
-> > +                       __xa_store(&head->mapping->i_pages, head[i].index,
-> > +                                       head + i, 0);
-> >                 }
-> >         }
-> >
-> > diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> > index 449044378782..7ba7a1e4fa79 100644
-> > --- a/mm/khugepaged.c
-> > +++ b/mm/khugepaged.c
-> > @@ -1374,7 +1374,7 @@ static void collapse_shmem(struct mm_struct *mm,
-> >                                 result = SCAN_FAIL;
-> >                                 goto xa_locked;
-> >                         }
-> > -                       xas_store(&xas, new_page + (index % HPAGE_PMD_NR));
-> > +                       xas_store(&xas, new_page);
-> >                         nr_none++;
-> >                         continue;
-> >                 }
-> > @@ -1450,7 +1450,7 @@ static void collapse_shmem(struct mm_struct *mm,
-> >                 list_add_tail(&page->lru, &pagelist);
-> >
-> >                 /* Finally, replace with the new page. */
-> > -               xas_store(&xas, new_page + (index % HPAGE_PMD_NR));
-> > +               xas_store(&xas, new_page);
-> >                 continue;
-> >  out_unlock:
-> >                 unlock_page(page);
-> > diff --git a/mm/memfd.c b/mm/memfd.c
-> > index 650e65a46b9c..bccbf7dff050 100644
-> > --- a/mm/memfd.c
-> > +++ b/mm/memfd.c
-> > @@ -39,6 +39,7 @@ static void memfd_tag_pins(struct xa_state *xas)
-> >         xas_for_each(xas, page, ULONG_MAX) {
-> >                 if (xa_is_value(page))
-> >                         continue;
-> > +               page = find_subpage(page, xas.xa_index);
->
-> This should be xas->xa_index.
->
-> I fixed this and am trying to test the patch.
->
-> Thanks,
-> Song
->
-> >                 if (page_count(page) - page_mapcount(page) > 1)
-> >                         xas_set_mark(xas, MEMFD_TAG_PINNED);
-> >
-> > @@ -88,6 +89,7 @@ static int memfd_wait_for_pins(struct address_space *mapping)
-> >                         bool clear = true;
-> >                         if (xa_is_value(page))
-> >                                 continue;
-> > +                       page = find_subpage(page, xas.xa_index);
-> >                         if (page_count(page) - page_mapcount(page) != 1) {
-> >                                 /*
-> >                                  * On the last scan, we clean up all those tags
-> > diff --git a/mm/migrate.c b/mm/migrate.c
-> > index 412d5fff78d4..8cb55dd69b9c 100644
-> > --- a/mm/migrate.c
-> > +++ b/mm/migrate.c
-> > @@ -465,7 +465,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
-> >
-> >                 for (i = 1; i < HPAGE_PMD_NR; i++) {
-> >                         xas_next(&xas);
-> > -                       xas_store(&xas, newpage + i);
-> > +                       xas_store(&xas, newpage);
-> >                 }
-> >         }
-> >
-> > diff --git a/mm/shmem.c b/mm/shmem.c
-> > index c8cdaa012f18..a78d4f05a51f 100644
-> > --- a/mm/shmem.c
-> > +++ b/mm/shmem.c
-> > @@ -614,7 +614,7 @@ static int shmem_add_to_page_cache(struct page *page,
-> >                 if (xas_error(&xas))
-> >                         goto unlock;
-> >  next:
-> > -               xas_store(&xas, page + i);
-> > +               xas_store(&xas, page);
-> >                 if (++i < nr) {
-> >                         xas_next(&xas);
-> >                         goto next;
-> > diff --git a/mm/swap_state.c b/mm/swap_state.c
-> > index 85245fdec8d9..eb714165afd2 100644
-> > --- a/mm/swap_state.c
-> > +++ b/mm/swap_state.c
-> > @@ -132,7 +132,7 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp)
-> >                 for (i = 0; i < nr; i++) {
-> >                         VM_BUG_ON_PAGE(xas.xa_index != idx + i, page);
-> >                         set_page_private(page + i, entry.val + i);
-> > -                       xas_store(&xas, page + i);
-> > +                       xas_store(&xas, page);
-> >                         xas_next(&xas);
-> >                 }
-> >                 address_space->nrpages += nr;
-> > @@ -167,7 +167,7 @@ void __delete_from_swap_cache(struct page *page, swp_entry_t entry)
-> >
-> >         for (i = 0; i < nr; i++) {
-> >                 void *entry = xas_store(&xas, NULL);
-> > -               VM_BUG_ON_PAGE(entry != page + i, entry);
-> > +               VM_BUG_ON_PAGE(entry != page, entry);
-> >                 set_page_private(page + i, 0);
-> >                 xas_next(&xas);
-> >         }
-> > --
-> > 2.20.1
-> >
+Do any of the QEMU machine types [1] approximate this board? I.e. so I
+might be able to independently debug.
+
+Were there any boot *successes* on ARM with shuffling enabled? I.e.
+clues about what's different about the specific memory setup for
+beagle-bone-black.
+
+Thanks for the help!
+
+[1]: https://wiki.qemu.org/Documentation/Platforms/ARM
 
