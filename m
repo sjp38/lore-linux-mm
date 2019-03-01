@@ -2,106 +2,117 @@ Return-Path: <SRS0=KwX8=RE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 566D5C10F03
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 10:51:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 49C65C4360F
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 11:03:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1CE502087E
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 10:51:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1CE502087E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 0346D20851
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 11:03:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0346D20851
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B022B8E0003; Fri,  1 Mar 2019 05:51:02 -0500 (EST)
+	id 7C6A28E0003; Fri,  1 Mar 2019 06:03:01 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A8B3A8E0001; Fri,  1 Mar 2019 05:51:02 -0500 (EST)
+	id 777688E0001; Fri,  1 Mar 2019 06:03:01 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9A3168E0003; Fri,  1 Mar 2019 05:51:02 -0500 (EST)
+	id 665208E0003; Fri,  1 Mar 2019 06:03:01 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 288358E0001
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 05:51:02 -0500 (EST)
-Received: by mail-lj1-f198.google.com with SMTP id d15so4031610ljg.3
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 02:51:02 -0800 (PST)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F0CB8E0001
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 06:03:01 -0500 (EST)
+Received: by mail-ed1-f70.google.com with SMTP id d31so9911567eda.1
+        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 03:03:01 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=EBQ+nZsyDWJTzcOlo9GrDXg6rCUBjuuZJGksrqrehuE=;
-        b=YrXIWUtAa5t2fwaW2fszxICoBtIYbAtp5k+ZTTxZHauvqzdG12/ZalGQs6IJoTrY24
-         Hvz12zZSPG1itMmlp4reOa5AaP7npJvfs4HIz9AGkUL3RhfEkcXNua9eN/PJzfEUQyHN
-         1e5pVXJ8oVPcEGPzzr8Jkxn0PbEa2p0UOP4LI3CBceEF3gw7WuERMiEYkwUzDfPq6KYA
-         xKzsJ4tz+Vw/fCvWvuylGqSwGoDEnWdKqAqnFHpkB57xT3PZBHZcDcUh4SgX/N63ZHOn
-         GpKa+COYGJFcn+g0WYnVgCc6/NVHGGtMCjN5vckcr4J6x8cYDPgLX9o16YxBCb+eILBU
-         IRXg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAVrWe8Z6uYQ+Okw32tWqV2GWLpwSDQhntJkuVXjU2kRrD+Lo1j5
-	KI/7K8qXo3RelnaB7Du4+O/DBcZFibDNtWw3wbLSVbKaV25sHL8S8AtgrYq3zDmTnTs6KOpbg2m
-	jQ2/tNGBqhG6uIfVvUbYTbKmAmn0b2Z4PIiqeLiKTCJ6+z9R2dPM/Jpolksmw81Z9wg==
-X-Received: by 2002:ac2:51bc:: with SMTP id f28mr2805366lfk.123.1551437461528;
-        Fri, 01 Mar 2019 02:51:01 -0800 (PST)
-X-Google-Smtp-Source: APXvYqy/K7hpILvbvwhyF9A2HIEuxzAYnGQsINyuX1cM+7j81HFN2zrxvCvJL6X3RiXfXaUoOfsp
-X-Received: by 2002:ac2:51bc:: with SMTP id f28mr2805297lfk.123.1551437460296;
-        Fri, 01 Mar 2019 02:51:00 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551437460; cv=none;
+        bh=0xswBHOlUs6t385pzGBHRKnKfEV3KkJK+5r23FX1n7g=;
+        b=TDX640OjU9n6jdK5Nz56qNiv2kpwwW/PYt5KM2Fqh8qM5NUD/85RAccITnkkrtvcmq
+         zDkL+95fUglzwu+H8v7u7Ppkem5LcRLGETIUDgNQZUrxm11XSdfnmFfzctPCVliReGRE
+         kOq9Jb0Zx5OUjUaoqL4zHO/nzc05esnPHOc0bzLFdIAaxLCUKaLJoppVJ2MWAfFF8Tit
+         9KiUXnBisSUfH5oHaDEsdOq4r+TKe3TdHRr79RXioFjGy+eCpPqPO+24mqu3FZREZpJ7
+         h0hI2590AlcW7dnnssPQIw3Jd/ImWByWa0F16kTsKqc4w5b8bU2I1vAEHInh6JLloWsK
+         thnA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: APjAAAUaJ39lTmgQXGYgAEWFkuVUDxn2QLqmTgg5TUIsRUJup4sGKClW
+	hqwzuFRwmhkLZac+1URfqBrlbS/ew5kJZ/2kzD9QEPuTB5NypEzUQ1uMqQiyzVKylfcPmdLgsQ6
+	WFbw1CMmQcKV0HecnQgwk4bNxC43G0nigMwwJDbjCdIsFhn+ESVbIRBpc/yiICtgHRA==
+X-Received: by 2002:a50:86d1:: with SMTP id 17mr3816160edu.191.1551438180610;
+        Fri, 01 Mar 2019 03:03:00 -0800 (PST)
+X-Google-Smtp-Source: APXvYqx+zejLU5ld2xv+jiaG+BmkHG1VTn53+BvnbhJfCsNKMcajVSST1xcNCwfiv05f9wvcZMYM
+X-Received: by 2002:a50:86d1:: with SMTP id 17mr3816083edu.191.1551438179366;
+        Fri, 01 Mar 2019 03:02:59 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551438179; cv=none;
         d=google.com; s=arc-20160816;
-        b=cLfjHVyQdyWWiG2jpFM1Ppdm8PgzYVA2GOIL+AiFZB+ZTabylHP7xVjulTmVy0JvRB
-         1cYOKrHZB13QIibEZ60vVWv0i4fHmogVeLrDeVs3w8I5GgkFUsbjTt/HORyBCvmhgyy2
-         +5a4NWAHwOvn7JWgfgp7oZhpW33Ceg1sz9VUuJ7WJ0vsPjvUhYIFrWR86XK5scTGXwUZ
-         F+IKbQy2iiXWnkoCwgLh4Xe4ne9yOUFA0wFDqJRRmMXKhDVVRjs/3TIrJx1fy6SBtH0q
-         wXG0ggsZxU53Dk7HukbmnJVrlSZqaoCRTi4EfvCJTETquQDFu2zWoKuWOZBIZ6xwy7iC
-         JQkA==
+        b=n3mQPmHQSJ0+cgLbYlvSOmKIMeWzlwB44auS27tJQt6QLaWcHMSACOSJsktO8vK6v1
+         9X1PTX6i1IPFYM9LMVduDwa0LxZYqzGzSHOaCnl3767/dAuVlZmduRj7fl7NPMrcQW98
+         tWGhEGbAg+k4NMc5PmX3dwcLOFQ2SAznSAlZxi6PHpsozJ8rE8Tkbte5RY+edqjQBfGz
+         /zGlzIGuo0z8gs53v18MllosFJmJRtZQBwBry1SB9RdU2+AOszH9Xani0psP1Bdbxite
+         bSj7ZcqFtLoZ/HmKgzsDG5j8rc2T6r2AAI6yUpobUnlYZ4VrHKQw0/e7UUnpNVUqOoM/
+         oZcQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=EBQ+nZsyDWJTzcOlo9GrDXg6rCUBjuuZJGksrqrehuE=;
-        b=jCHFTICKLyAE7NuXJtRZe8Hq96mik2coxmroVtda0TsNpB+IZqtpGY9k11wXLA3/da
-         +8FUE7rj2VwBMOLN2IsAsgKA4H8iwc6bpLzZOVQUDdTOAEl9TZyHxVi0WCSX560txw1r
-         TGCn9v/AlVMLhBFywHeP5mhLBaE9PW7CqgCQA/0aEF+LjZ/20kZiRrzdmjl6dmEaZios
-         UjxuRKyPEVI6M4ocLhWHTWppaOeMeUePyYJAGiYRdlI1cNRYbEpz5HxRJKfmnv5yoLgz
-         nuTyZgRPVp7VtQMigidfSHpsSPatMqOhNR5KVdXaH7ILINa9uSZ5QQ5MllUehVkurRP5
-         A9Fw==
+        bh=0xswBHOlUs6t385pzGBHRKnKfEV3KkJK+5r23FX1n7g=;
+        b=SXVqMNQNy/YNUSb0hXdEqMmlSw8Wzy9zvdmdtrURwM0amaGsKnEcqdbreYzvWmTKsE
+         RvzJaOlhd0H2Zvd+Ujg869HE6ko6uC1WE5PwnTSX3nknRktiQ60eM9rfF6imJM1EobbY
+         SQdVJ2Jf33AmmLKM8Vr9psgv7nBt41sbaGewrR0nWXrnYrqpX5WUUNy1PSDAulOR9Kt0
+         Jj1B7AO207MC2/n7NQrmrtMC8MX7kw1VNZApWDkzIIoUv7Ac23DrnlzDOnke2xihLZTy
+         Jjj5TAsNqtrsHekuQE5nFflQl9S7gmlKgxf0NKiJ3fy5su7ctMdVyop+s37iVZpO/c0U
+         GJLA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id 29si16323136ljs.43.2019.03.01.02.51.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Mar 2019 02:51:00 -0800 (PST)
-Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d22si7435852ejm.135.2019.03.01.03.02.58
+        for <linux-mm@kvack.org>;
+        Fri, 01 Mar 2019 03:02:59 -0800 (PST)
+Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.12]
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1gzfkk-00048B-Hz; Fri, 01 Mar 2019 13:50:54 +0300
-Subject: Re: [PATCH v2 2/4] mm: remove zone_lru_lock() function access
- ->lru_lock directly
-To: John Hubbard <jhubbard@nvidia.com>,
- Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>,
- Rik van Riel <riel@surriel.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>,
- Mel Gorman <mgorman@techsingularity.net>
-References: <20190228083329.31892-1-aryabinin@virtuozzo.com>
- <20190228083329.31892-2-aryabinin@virtuozzo.com>
- <44ffadb4-4235-76c9-332f-680dda5da521@nvidia.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <186bf66b-fec5-a614-3ffd-64b8d7660fe5@virtuozzo.com>
-Date: Fri, 1 Mar 2019 13:51:11 +0300
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 1CC78EBD;
+	Fri,  1 Mar 2019 03:02:58 -0800 (PST)
+Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 507303F575;
+	Fri,  1 Mar 2019 03:02:54 -0800 (PST)
+Subject: Re: [PATCH v3 11/34] mips: mm: Add p?d_large() definitions
+To: Paul Burton <paul.burton@mips.com>
+Cc: Mark Rutland <Mark.Rutland@arm.com>, Peter Zijlstra
+ <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
+ <will.deacon@arm.com>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>,
+ "Liang, Kan" <kan.liang@linux.intel.com>, "x86@kernel.org" <x86@kernel.org>,
+ Ingo Molnar <mingo@redhat.com>, James Hogan <jhogan@kernel.org>,
+ Arnd Bergmann <arnd@arndb.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+ <jglisse@redhat.com>, Borislav Petkov <bp@alien8.de>,
+ Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>,
+ "linux-arm-kernel@lists.infradead.org"
+ <linux-arm-kernel@lists.infradead.org>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ "linux-mips@vger.kernel.org" <linux-mips@vger.kernel.org>,
+ Ralf Baechle <ralf@linux-mips.org>, James Morse <james.morse@arm.com>
+References: <20190227170608.27963-1-steven.price@arm.com>
+ <20190227170608.27963-12-steven.price@arm.com>
+ <20190228021526.bb6m3my46ohb4o6h@pburton-laptop>
+ <74944d83-f3c0-ff02-590e-b7e5abcea485@arm.com>
+ <20190228185526.hdryn2zsfign7vht@pburton-laptop>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <7e314e29-dab5-e941-60c8-05ea74747f4e@arm.com>
+Date: Fri, 1 Mar 2019 11:02:52 +0000
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.2
+ Thunderbird/60.5.0
 MIME-Version: 1.0
-In-Reply-To: <44ffadb4-4235-76c9-332f-680dda5da521@nvidia.com>
+In-Reply-To: <20190228185526.hdryn2zsfign7vht@pburton-laptop>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Language: en-GB
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -109,82 +120,121 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 3/1/19 12:44 AM, John Hubbard wrote:
-> On 2/28/19 12:33 AM, Andrey Ryabinin wrote:
->> We have common pattern to access lru_lock from a page pointer:
->> 	zone_lru_lock(page_zone(page))
+On 28/02/2019 18:55, Paul Burton wrote:
+> Hi Steven,
+> 
+> On Thu, Feb 28, 2019 at 12:11:24PM +0000, Steven Price wrote:
+>> On 28/02/2019 02:15, Paul Burton wrote:
+>>> On Wed, Feb 27, 2019 at 05:05:45PM +0000, Steven Price wrote:
+>>>> For mips, we don't support large pages on 32 bit so add stubs returning 0.
+>>>
+>>> So far so good :)
+>>>
+>>>> For 64 bit look for _PAGE_HUGE flag being set. This means exposing the
+>>>> flag when !CONFIG_MIPS_HUGE_TLB_SUPPORT.
+>>>
+>>> Here I have to ask why? We could just return 0 like the mips32 case when
+>>> CONFIG_MIPS_HUGE_TLB_SUPPORT=n, let the compiler optimize the whole
+>>> thing out and avoid redundant work at runtime.
+>>>
+>>> This could be unified too in asm/pgtable.h - checking for
+>>> CONFIG_MIPS_HUGE_TLB_SUPPORT should be sufficient to cover the mips32
+>>> case along with the subset of mips64 configurations without huge pages.
 >>
->> Which is silly, because it unfolds to this:
->> 	&NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)]->zone_pgdat->lru_lock
->> while we can simply do
->> 	&NODE_DATA(page_to_nid(page))->lru_lock
+>> The intention here is to define a new set of macros/functions which will
+>> always tell us whether we're at the leaf of a page table walk, whether
+>> or not huge pages are compiled into the kernel. Basically this allows
+>> the page walking code to be used on page tables other than user space,
+>> for instance the kernel page tables (which e.g. might use a large
+>> mapping for linear memory even if huge pages are not compiled in) or
+>> page tables from firmware (e.g. EFI on arm64).
 >>
+>> I'm not familiar enough with mips to know how it handles things like the
+>> linear map so I don't know how relevant that is, but I'm trying to
+>> introduce a new set of functions which differ from the existing
+>> p?d_huge() macros by not depending on whether these mappings could exist
+>> for a user space VMA (i.e. not depending on HUGETLB support and existing
+>> for all levels that architecturally they can occur at).
 > 
-> Hi Andrey,
+> Thanks for the explanation - the background helps.
 > 
-> Nice. I like it so much that I immediately want to tweak it. :)
+> Right now for MIPS, with one exception, there'll be no difference
+> between a page being huge or large. So for the vast majority of kernels
+> with CONFIG_MIPS_HUGE_TLB_SUPPORT=n we should just return 0.
 > 
+> The one exception I mentioned is old SGI IP27 support, which allows the
+> kernel to be mapped through the TLB & does that using 2x 16MB pages when
+> CONFIG_MAPPED_KERNEL=y. However even there your patch as-is won't pick
+> up on that for 2 reasons:
 > 
->> Remove zone_lru_lock() function, since it's only complicate things.
->> Use 'page_pgdat(page)->lru_lock' pattern instead.
+>   1) The pages in question don't appear to actually be recorded in the
+>      page tables - they're just written straight into the TLB as wired
+>      entries (ie. entries that will never be evicted).
 > 
-> Here, I think the zone_lru_lock() is actually a nice way to add
-> a touch of clarity at the call sites. How about, see below:
+>   2) Even if they were in the page tables the _PAGE_HUGE bit isn't set.
 > 
-> [snip]
+> Since those pages aren't recorded in the page tables anyway we'd either
+> need to:
 > 
->> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->> index 2fd4247262e9..22423763c0bd 100644
->> --- a/include/linux/mmzone.h
->> +++ b/include/linux/mmzone.h
->> @@ -788,10 +788,6 @@ typedef struct pglist_data {
->>  
->>  #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
->>  #define node_end_pfn(nid) pgdat_end_pfn(NODE_DATA(nid))
->> -static inline spinlock_t *zone_lru_lock(struct zone *zone)
->> -{
->> -	return &zone->zone_pgdat->lru_lock;
->> -}
->>  
+>   a) Add them to the page tables, and set the _PAGE_HUGE bit.
 > 
-> Instead of removing that function, let's change it, and add another
-> (since you have two cases: either a page* or a pgdat* is available),
-> and move it to where it can compile, like this:
+>   b) Ignore them if the code you're working on won't be operating on the
+>      memory mapping the kernel.
 > 
+> For other platforms the kernel is run from unmapped memory, and for all
+> cases including IP27 the kernel will use unmapped memory to access
+> lowmem or peripherals when possible. That is, MIPS has virtual address
+> regions ((c)kseg[01] or xkphys) which are architecturally defined as
+> linear maps to physical memory & so VA->PA translation doesn't use the
+> TLB at all.
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 80bb6408fe73..cea3437f5d68 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1167,6 +1167,16 @@ static inline pg_data_t *page_pgdat(const struct page *page)
->         return NODE_DATA(page_to_nid(page));
->  }
->  
-> +static inline spinlock_t *zone_lru_lock(pg_data_t *pgdat)
-> +{
-> +       return &pgdat->lru_lock;
-> +}
-> +
+> So my thought would be that for almost everything we could just do:
+> 
+>   #define pmd_large(pmd)	pmd_huge(pmd)
+>   #define pud_large(pmd)	pud_huge(pmd)
+> 
+> And whether we need to do anything about IP27 depends on whether a) or
+> b) is chosen above.
+> 
+> Or alternatively you could do something like:
+> 
+>   #ifdef _PAGE_HUGE
+> 
+>   static inline int pmd_large(pmd_t pmd)
+>   {
+>   	return (pmd_val(pmd) & _PAGE_HUGE) != 0;
+>   }
+> 
+>   static inline int pud_large(pud_t pud)
+>   {
+>   	return (pud_val(pud) & _PAGE_HUGE) != 0;
+>   }
+> 
+>   #else
+>   # define pmd_large(pmd)	0
+>   # define pud_large(pud)	0
+>   #endif
+> 
+> That would cover everything except for the IP27, but would make it pick
+> up the IP27 kernel pages automatically if someone later defines
+> _PAGE_HUGE for IP27 CONFIG_MAPPED_KERNEL=y & makes use of it for those
+> pages.
 
+Thanks for the detailed explanation. I think my preference is your
+change above (#ifdef _PAGE_HUGE) because I'm trying to stop people
+thinking p?d_large==p?d_huge. MIPS is a little different from other
+architectures in that the hardware doesn't walk the page tables, so
+there isn't a definitive answer as to whether there is a 'huge' bit in
+the tables or not - it actually does depend on the kernel configuration.
 
-I don't think wrapper for a simple plain access to the struct member is reasonable.
-Besides, there are plenty of "spin_lock(&pgdat->lru_lock)" even without this patch,
-so for consistency reasons &pgdat->lru_lock seems like a better choice to me.
+For the IP27 case I think the current situation is probably fine - the
+intention is to walk the page tables, so even though the TLBs (and
+therefore the actual translations) might not match, at least p?d_large
+will accurately tell when the leaf of the page table tree has been
+reached. And as you say, using _PAGE_HUGE as the #ifdef means that
+should support be added the code should automatically make use of it.
 
-Also "&pgdat->lru_lock" is just shorter than:
-      "node_lru_lock(pgdat)"
+Thanks for your help,
 
-
-
-> +static inline spinlock_t *zone_lru_lock_from_page(struct page *page)
-> +{
-> +       return zone_lru_lock(page_pgdat(page));
-> +}
-> +
-
-I don't think such function would find any use. Usually lru_lock is taken
-to perform some manipulations with page *and* pgdat, thus it's better to remember
-page_pgdat(page) in local variable.
+Steve
 
