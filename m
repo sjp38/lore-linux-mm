@@ -2,198 +2,150 @@ Return-Path: <SRS0=KwX8=RE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 38CA1C10F03
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 11:53:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 97143C43381
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 12:16:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E9AC42087E
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 11:53:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9AC42087E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 536AE20840
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 12:16:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 536AE20840
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 975CD8E0003; Fri,  1 Mar 2019 06:53:17 -0500 (EST)
+	id C70E18E0003; Fri,  1 Mar 2019 07:16:45 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 926768E0001; Fri,  1 Mar 2019 06:53:17 -0500 (EST)
+	id C20C98E0001; Fri,  1 Mar 2019 07:16:45 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 815EB8E0003; Fri,  1 Mar 2019 06:53:17 -0500 (EST)
+	id AC2148E0003; Fri,  1 Mar 2019 07:16:45 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EFD28E0001
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 06:53:17 -0500 (EST)
-Received: by mail-pl1-f198.google.com with SMTP id n23so3672374plp.23
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 03:53:17 -0800 (PST)
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 37B0B8E0001
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 07:16:45 -0500 (EST)
+Received: by mail-lj1-f197.google.com with SMTP id g75so4029620ljg.17
+        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 04:16:45 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=9Up8EvMDCJEj7ynkGctG8fnwe7ark9USZXpO0DY7r70=;
-        b=ItVnEu+KBbm1AFlYioCqNWwFcutBl3taqaaJ/mvi/b/kRDY+N44a7tEHVNJFowEFYc
-         pj9qabF6wLItQwn2B1IJqvv1P4T7GFTNvV94dj797fEVRcQRgrPj8Z8+/RA/SQk1Snxo
-         p8H9WHO06Rt8tLGqqVXknTaJ0HnINZgQi6BS0IoDh8K/TcEjWvmPa40pwBqeYEQjuhK9
-         Uz4SMLli9qpTWdSj7fPeP8klNVSbdAPN+EUeHmGjU+iDwjLwrvGalcrK/1AQ9R3nj/eX
-         nMNpqrOs+E9Fo805ORplHWHz/EJbeIMunGA/EhCKeeLxcK/EJ439qTp3MR9MrpWAMlVu
-         sUPg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAU4nxHmD8+F9YiujyijcSKhrhtGefd1qOljiWfy2dUwI2bsyg65
-	4ZLLgSpWXxdxY6/H6KbN/EPe8CMCzJZRaze3I6Kg8AIaqPJwTSQvf2lKYn5kohu1DPkOrWC7XFP
-	663OsqrLM6L4iI2KRWAPQeDjkPyANu8vLbBHgVabUEspu5Uw0YhZ+WqTbx9JIS9JaJQ==
-X-Received: by 2002:a17:902:2a29:: with SMTP id i38mr5089894plb.110.1551441196916;
-        Fri, 01 Mar 2019 03:53:16 -0800 (PST)
-X-Google-Smtp-Source: APXvYqw6qDUuo8avCX2hOF+vNt+vQ5w578mokwB7X7ysudbKcIXn4lVg7VZqIpfzVLvtV3ULyBwN
-X-Received: by 2002:a17:902:2a29:: with SMTP id i38mr5089853plb.110.1551441196119;
-        Fri, 01 Mar 2019 03:53:16 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551441196; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=5V0Jc8fZCMuyA/STfU/rTFl8fSsF3ZLymwIJq0T3P0U=;
+        b=nMsr8q2hnwiJsVEYBlE0t1Wp/dOyynn88YWAwKyl32NK+L+y08BKEEMEa3qvvk8+zu
+         ASpvUQV4nrveqr8uCINfuDqa+8xxrx2wSlucgnpVjhl+Jw67KLCJDUQAJ2KDUmENyqBY
+         vinzT/pzup4XUW70X/edYS1tSBoGbBTLDIzYVBGrZKm75HIV/CIuRcNtYqyW9pMFj8MK
+         /HwnegT9asUFDWamM/YOLl5uz/RgnwBQ0XHOi0imm/2xLMnHZSI7Q1Ibo7/NdLYVFZ9c
+         AUzTyQ9cr3DDqYOWLovJO/xfwCoSDh/lm+8twDJYN/DVI0UYqxg1QxfBhfdnWjOoxLsM
+         cv8Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAWHRSQf482156FtkVZjhC4l+FHtehAmmWV2Blgc+BjYYNiziOui
+	NAbJNBCjxAvhbhWuN6LALirdoo58bYyH9221cIbNWEpwH/Zkj9dofg0ajNRbi214mMQinMc+8rT
+	Td11S+BrCEkSgkn6R08vWAjbcav1xFdv8Jr14lgMoVbQbyXPHcisnSBTFb6q/ZzgYUg==
+X-Received: by 2002:a2e:814d:: with SMTP id t13mr2513028ljg.46.1551442604568;
+        Fri, 01 Mar 2019 04:16:44 -0800 (PST)
+X-Google-Smtp-Source: APXvYqyxSkAJwk+cDZKow1NhaN+pBIjvo07pt6KFVNGMVeiuqo966tIDZFOmwOueQzg+Ktb1jC5v
+X-Received: by 2002:a2e:814d:: with SMTP id t13mr2512980ljg.46.1551442603463;
+        Fri, 01 Mar 2019 04:16:43 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551442603; cv=none;
         d=google.com; s=arc-20160816;
-        b=aTQ2ce4X5YfljAkMU2GJGvLoY+95IqOXpmg8ozMKeGLTlHfFzUWsl6whN1WaixWb7h
-         aKfU1T3SKrXhUDP4TrIo8e4EWh17HUsJngRBkLzW4ksyRQLz0uMqoifu2waYRONq4SeE
-         gI5bFyyNfmhs2wP2KwF3cC6I1NhagfLx+4E7Dd11Kjuws8fBy+Au7scrzIpf1nMfySiI
-         85CAYtta0+ISi+IZMe1t82xRzFVAyS9ULfOh47nBxFmIppmxHI/eOPkIrYpbD2R1uVAA
-         XpMwJAGiJQ8HSP9JSh8/fuGx6sKLoURY0KhMgTrP4TurEeXaGqDueZxhBC1+8TOPqx89
-         YqNg==
+        b=XnfxMMSOY2dtoXFVUGc4PK36PI+xVJCMjbUQxZiqDJKyfud9JhD7+t693d+FtfRF1s
+         SFGq87EsEWEDz/Tiqh4fk+aV8SIwAVBgD46ZH99Wv4qr9GxoARm9jRDlGonJVFB7EKMd
+         5tkCu+meafDvR08v2f1ZDcX3ALlVsrmYOktLMYxc9ph9CdK5i+ypEBGe+qv0I3Ve1pzm
+         FuxY0jmgGae9WYYgyMngBphTCp3Sc6Q/lUUNHhwOTHMOAnE1N0TFEqszIVPbLjEgIJXC
+         cmtVCC99E6g5prV8JmC6321D+v0qBHlgrEtJnz4pMvOZ3S0GIOR0wA6JkoN5o8gKTUPD
+         O+jg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=9Up8EvMDCJEj7ynkGctG8fnwe7ark9USZXpO0DY7r70=;
-        b=A+lAvhrDyfWflMNjZKhp1Y5jfFb519mhPBc0xJ/2xNXtX22c+FjBwIAgCdm5mTg4N8
-         nqaam3BnCAawZuc79MuvoGgwwmi4U442urcviqqnIxQ+h7ilUCSaYKor5S2NakIFqlpl
-         9OjA1A9tYNSW/ZrjYUiOaFekGDW59Np1YWPwGlirpoGIoYTsK+D58au+uHg/SLJL8kvO
-         AEZJ7RXrthBOuIaWpURU1U+2dMEcdjqZfaDna3g+DtWbF0/MW8q9wlGQBQyvq2UM/hbL
-         DxrJkZ8RoxsRRx3u9G96UeqPhNBkukDV/kT9Zw2b5TL80j5VKZGwOgeQg6cBbtMFJnF+
-         VamQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=5V0Jc8fZCMuyA/STfU/rTFl8fSsF3ZLymwIJq0T3P0U=;
+        b=pSjAww+ByOijImXu9hsrqvK4bdajEsLyCdLN75vXUkltfrfh2x/fECaSLstyafxN/c
+         evnj6i4xtGxz73BFhgeLjfufeJfup5PuzKyPubrn7xhtwrdvrIPzAlcBuDqlEpgWFYiK
+         v0Sgt54vVCofUZ7OWnzHhqih/2nj2qw4tu8RcA7DgnJAuhy58WB3VkcXUcKfO2NBWBYY
+         31xamZf4Ex5GTFyV9bv6jmiq5AtrBSuBKZ1JCqzpjSdpPrHEQvZi0sCtaQ964aC0nTZ8
+         SfGC1FHVcBVI2gHO5fAAVS6lzmQOKGFtUi8FfG1eaYTDBlNp01YlP750X+4nf7c3EuAa
+         W9YA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id h12si14928460pgl.277.2019.03.01.03.53.15
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id y24si10244833lfg.7.2019.03.01.04.16.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Mar 2019 03:53:16 -0800 (PST)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Fri, 01 Mar 2019 04:16:43 -0800 (PST)
+Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x21BnX1W090668
-	for <linux-mm@kvack.org>; Fri, 1 Mar 2019 06:53:15 -0500
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2qy3q5hj9e-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 01 Mar 2019 06:53:15 -0500
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Fri, 1 Mar 2019 11:53:12 -0000
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Fri, 1 Mar 2019 11:53:06 -0000
-Received: from d06av23.portsmouth.uk.ibm.com (d06av23.portsmouth.uk.ibm.com [9.149.105.59])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x21Br55c31522890
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Fri, 1 Mar 2019 11:53:05 GMT
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 41070A404D;
-	Fri,  1 Mar 2019 11:53:05 +0000 (GMT)
-Received: from d06av23.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 127F4A4040;
-	Fri,  1 Mar 2019 11:53:03 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.204.73])
-	by d06av23.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Fri,  1 Mar 2019 11:53:02 +0000 (GMT)
-Date: Fri, 1 Mar 2019 13:53:01 +0200
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Steven Price <steven.price@arm.com>, Mark Rutland <Mark.Rutland@arm.com>,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        Arnd Bergmann <arnd@arndb.de>,
-        Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-        Peter Zijlstra <peterz@infradead.org>,
-        Catalin Marinas <catalin.marinas@arm.com>, x86@kernel.org,
-        Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org,
-        linux-mm@kvack.org,
-        =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-        Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
-        Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
-        James Morse <james.morse@arm.com>,
-        Thomas Gleixner <tglx@linutronix.de>,
-        linux-arm-kernel@lists.infradead.org,
-        "Liang, Kan" <kan.liang@linux.intel.com>
-Subject: Re: [PATCH v2 03/13] mm: Add generic p?d_large() macros
-References: <20190221113502.54153-1-steven.price@arm.com>
- <20190221113502.54153-4-steven.price@arm.com>
- <20190221142812.oa53lfnnfmsuh6ys@kshutemo-mobl1>
- <a3076d01-41b3-d59b-e98c-a0fd9ba5d3f5@arm.com>
- <20190221145706.zqwfdoyiirn3lc7y@kshutemo-mobl1>
- <e0c7fc0c-7924-1106-a7a3-fc12136b7b82@arm.com>
- <20190221210618.voyfs5cnafpvgedh@kshutemo-mobl1>
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.12] (helo=i7.sw.ru)
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <aryabinin@virtuozzo.com>)
+	id 1gzh5j-0004ZX-33; Fri, 01 Mar 2019 15:16:39 +0300
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Rik van Riel <riel@surriel.com>,
+	William Kucharski <william.kucharski@oracle.com>,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: [PATCH] mm-remove-zone_lru_lock-function-access-lru_lock-directly-fix
+Date: Fri,  1 Mar 2019 15:16:51 +0300
+Message-Id: <20190301121651.7741-1-aryabinin@virtuozzo.com>
+X-Mailer: git-send-email 2.19.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190221210618.voyfs5cnafpvgedh@kshutemo-mobl1>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19030111-0016-0000-0000-0000025C7989
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19030111-0017-0000-0000-000032B6ED0A
-Message-Id: <20190301115300.GE5156@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-03-01_09:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=936 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1903010084
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Him Kirill,
+A slightly better version of __split_huge_page();
 
-On Fri, Feb 22, 2019 at 12:06:18AM +0300, Kirill A. Shutemov wrote:
-> On Thu, Feb 21, 2019 at 05:16:46PM +0000, Steven Price wrote:
-> > >> Note that in terms of the new page walking code, these new defines are
-> > >> only used when walking a page table without a VMA (which isn't currently
-> > >> done), so architectures which don't use p?d_large currently will work
-> > >> fine with the generic versions. They only need to provide meaningful
-> > >> definitions when switching to use the walk-without-a-VMA functionality.
-> > > 
-> > > How other architectures would know that they need to provide the helpers
-> > > to get walk-without-a-VMA functionality? This looks very fragile to me.
-> > 
-> > Yes, you've got a good point there. This would apply to the p?d_large
-> > macros as well - any arch which (inadvertently) uses the generic version
-> > is likely to be fragile/broken.
-> > 
-> > I think probably the best option here is to scrap the generic versions
-> > altogether and simply introduce a ARCH_HAS_PXD_LARGE config option which
-> > would enable the new functionality to those arches that opt-in. Do you
-> > think this would be less fragile?
-> 
-> These helpers are useful beyond pagewalker.
-> 
-> Can we actually do some grinding and make *all* archs to provide correct
-> helpers? Yes, it's tedious, but not that bad.
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Rik van Riel <riel@surriel.com>
+Cc: William Kucharski <william.kucharski@oracle.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+---
+ mm/huge_memory.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-Many architectures simply cannot support non-leaf entries at the higher
-levels. I think letting the use a generic helper actually does make sense.
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 4ccac6b32d49..fcf657886b4b 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2440,11 +2440,11 @@ static void __split_huge_page(struct page *page, struct list_head *list,
+ 		pgoff_t end, unsigned long flags)
+ {
+ 	struct page *head = compound_head(page);
+-	struct zone *zone = page_zone(head);
++	pg_data_t *pgdat = page_pgdat(head);
+ 	struct lruvec *lruvec;
+ 	int i;
  
-> I think we could provide generic helpers for folded levels in
-> <asm-generic/pgtable-nop?d.h> and rest has to be provided by the arch.
-> Architectures that support only 2 level paging would need to provide
-> pgd_large(), with 3 -- pmd_large() and so on.
-> 
-> -- 
->  Kirill A. Shutemov
-
+-	lruvec = mem_cgroup_page_lruvec(head, zone->zone_pgdat);
++	lruvec = mem_cgroup_page_lruvec(head, pgdat);
+ 
+ 	/* complete memcg works before add pages to LRU */
+ 	mem_cgroup_split_huge_fixup(head);
+@@ -2475,7 +2475,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
+ 		xa_unlock(&head->mapping->i_pages);
+ 	}
+ 
+-	spin_unlock_irqrestore(&page_pgdat(head)->lru_lock, flags);
++	spin_unlock_irqrestore(&pgdat->lru_lock, flags);
+ 
+ 	remap_page(head);
+ 
 -- 
-Sincerely yours,
-Mike.
+2.19.2
 
