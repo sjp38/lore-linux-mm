@@ -2,217 +2,243 @@ Return-Path: <SRS0=KwX8=RE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 81680C43381
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 20:40:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 57533C10F03
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 20:41:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 24619204EC
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 20:40:43 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=rath.org header.i=@rath.org header.b="g94nagG6";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="1eM0302J"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24619204EC
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=rath.org
+	by mail.kernel.org (Postfix) with ESMTP id 07FBC204EC
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 20:41:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 07FBC204EC
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B1F748E0003; Fri,  1 Mar 2019 15:40:42 -0500 (EST)
+	id 83A4B8E0004; Fri,  1 Mar 2019 15:41:07 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AA7698E0001; Fri,  1 Mar 2019 15:40:42 -0500 (EST)
+	id 7BFD88E0001; Fri,  1 Mar 2019 15:41:07 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8FAA98E0003; Fri,  1 Mar 2019 15:40:42 -0500 (EST)
+	id 664198E0004; Fri,  1 Mar 2019 15:41:07 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CBF78E0001
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 15:40:42 -0500 (EST)
-Received: by mail-qk1-f198.google.com with SMTP id a11so19698582qkk.10
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 12:40:42 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 210958E0001
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 15:41:07 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id 73so1490089pga.18
+        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 12:41:07 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :references:date:in-reply-to:message-id:user-agent:mime-version
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=gaZtj5W8VUXhVGMnCQf2AvbtnTkW/jB95uYULjvMR+I=;
-        b=qoY5VKxwOnR7p0Q6xFAhTH/uaZkkBZ75spuWSWsHkl2VosPJm81jaIrBqGcZ9XKBOw
-         w8xFTIzHZ306X/CqMcWgUiLCSeo7FC8+4aNpXnMHCeISd5ckyMo6H4rAthj/nNnvF+t6
-         FxvaSDoZM3GKEjfy6wvsrj2bKAiGTpFHeeiMvDkqk3bTN4DpJ1V09gpg349fluJYVQF/
-         GlLHzUpY1U/4S/rcIYRox+C2p3MFxZV57YIpwPOPIQTeJCdbHWLSGdxE9QOBvz5qyVe/
-         P2bg/XwFfu7w6Bbv7EgDm9UvTVPOf0akW+JW1WPTXmV0ZZeu5o1mTnOehrcCJ7bU3NaP
-         iN4w==
-X-Gm-Message-State: APjAAAV0HvQmwnJocnarbkCqRtpSpfi0r6YcxO7G/eJzAVW4bPnQqVL7
-	fmjbeXVcx2NZWgaeFPCyOGw1CuObqNg47Qt5mybJy4v1SPNXcAlKVhDQbiQo4HXcDok6fiHgwXx
-	xOhVP+hPL96Olezoy7wX5NTTUSBZMks0NAtEDqbtVPhmMUrsyJC10WcVAfg8qb0neCw==
-X-Received: by 2002:a37:e10c:: with SMTP id c12mr5296747qkm.315.1551472842097;
-        Fri, 01 Mar 2019 12:40:42 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzKeLF0uVt2BYHIL3GFKU3ts2u28ZjUrlJzFUTkQsrieBUN4WkRc4KK3CFNkmaFY7gnKvgQ
-X-Received: by 2002:a37:e10c:: with SMTP id c12mr5296493qkm.315.1551472836453;
-        Fri, 01 Mar 2019 12:40:36 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551472836; cv=none;
+        bh=dU0QwGT/3+ioq223MyX/qmthmGilAo6Jq4PECRBT6eE=;
+        b=Tl6EAsN8pOffWm/Kr+pwaa7pF0GO2mlZa6ZnwIHFKxhEYwm79I1+2ZDkAepAyx4n3B
+         mVQ/egzJIzadA7XK+7JmrD23DzCzKD2BDCHWETSJTKRZZ+2i9FqEqGiBW4DxzjatlTBk
+         8QbExH0JDUnSc7AUpDJflKVnpYmx4b/K4rM9a4RCP0aftHvN+rJhwDr6lNWhZr+bWNKP
+         q95BQ1ygLlztCpLeZ6ZxaAmF6oRdtIvO6nylX+do2VtB2YtKWtFJb5i5WGADCT7MBTMf
+         1y3uYtXQ/GbcZU8lPCLNNeIwLCmb6ks3s4XHkgaa9LedX8ddJzkTMBxPAef3rG2u1bsr
+         RFNQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: APjAAAVqS4pihVwtQ6+HCwPZ5f/eBCy9xewit8WMaolqxak9bnYT0r+V
+	yR093VI5Dh0fOCOHXysZANYtw5usaVt7MJKYU38SZTP+VagSjBjbyq5veYib4zyjJhmUW1JTfC/
+	XaOCAL7o9QeUmOrIxw0XsHF/hS8r0kWimURk+MGpsBET4a4zUfd3X4yV5NFBtzZI2yQ==
+X-Received: by 2002:a17:902:2e81:: with SMTP id r1mr7155296plb.278.1551472866779;
+        Fri, 01 Mar 2019 12:41:06 -0800 (PST)
+X-Google-Smtp-Source: APXvYqw5ygquol8jfXMSJ2Im3ahls8RaKn1s3yPvM//o6/tzYbX8ZQLNzovnMERWNx11Z+YI4U3M
+X-Received: by 2002:a17:902:2e81:: with SMTP id r1mr7155206plb.278.1551472865647;
+        Fri, 01 Mar 2019 12:41:05 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551472865; cv=none;
         d=google.com; s=arc-20160816;
-        b=Izz54NP5d+QqvBkEuD5Wqf8dw6s5bEo7txhKnsW8X9n0GDfI7//o5JTUsxev8FEban
-         ZA5RcJ/F0TC2jKBaUmCN/vxrseLIkA8BSTwzFmEmmdMKe1R91eHFODNazMAOq90RMGmD
-         Xjky1s+W5fvrPzrapcSxNm2RXKCStDEy8WsPACQVKXpBml8YzWxxcT2deUX3lZwikGxs
-         NT1T9dJcEhDVAYmndBmnMqJdY7dXtPABA/rkbh44070CThVyMYXB0jnI3qnv7mhgYwFT
-         Hp3bo/G9XfeO6thzRE+9qkf0vFgW1aDXRBKRFyIpUiOHxl6/7/uC7C1qxCAnot3jNmNe
-         U53A==
+        b=GCy2u5jhRgBh4n2ojbUzzXsIE2qnycfijVDwKZlGyCRiF7fDWx/KHDLQLIP3b3gvJm
+         s3qkymVXWq3LcZB5merHL/sJrswMEHiWe8gbTPbry57x1Ffe/WXyPpjaMVeorfbRoyjt
+         Fk4sk08397T//TZAosTR9RbPSwc8M5cUuxKBp/NtSWheQ/4s1UCjsYvlhqW4XIXG4fP6
+         xV2m/7cQzNPhdH7zRSlGzZNaB2m9denBwuVEZo5R3C90Xmn1Q1Z41ZVp1T2tpUxP+VM1
+         wVwCOxhysX3VXyXsoRir5hJFkPjxnVCZO7efw/tYeB3S5K0RR1AhlgF4ig9Xrg0YziAQ
+         jxTQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:message-id
-         :in-reply-to:date:references:subject:cc:to:from:dkim-signature
-         :dkim-signature;
-        bh=gaZtj5W8VUXhVGMnCQf2AvbtnTkW/jB95uYULjvMR+I=;
-        b=iUgJjYOzNwGPzgwbylXQ22uwPnYdZ8KJr+8TnWFEzkdWyVy08LJuGQBbZajM3oHqC8
-         DJ0ju2if6goMIlQwQZmOTexQ4MdL7Q4Oy8kcNEZ8Ugn/EI/6qNe3l0gn7RZjojarEawc
-         PQrNfg9UtF4M6IzloeYKVUv6RqAkM6g6bZTkUV7pB5ICqEkAaFjnWxirn3QkEj3PvZqS
-         Qk7LKuFOO0PwuJyDLPCYdUVjlmTKE2wnni6ZojyJ9apgdm3tYrkmNutQV6ZeBqesG2ff
-         0qVZ006KlNzEzsdrhvhFPsjIKs7Ocz2MJOY+xZWXrzKIGJ841bwTr3H80CfzO6OzSvwq
-         gggA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=dU0QwGT/3+ioq223MyX/qmthmGilAo6Jq4PECRBT6eE=;
+        b=uezEPvPiqukZKMEXlD21+Fm3pDqzlxFCmCPURaDl9v1DPVW0pKCPINMTWIGYIrq5Ms
+         gZZblMICWdkaBaoYHom6jDPYUJe/xhzhoX0KZD7wMRd1JyZiRI6w6+WFsBDeS14YzBlY
+         Y7DyQ8xdbzNXhhjXKzsTkxclgceDr4IkuyLLuYL7xmZgQsNQLIblZM3XRMILniiE54Uk
+         vdQaNOMp/+ngXJaXx07deyYCHSiv15yK/+pJZPXtvKvPCfdLVdLOGL/X/qQ6UTMzw+HD
+         lzYicVfmalCrf4HPawl4iI7L3lvGyj35tY04c2joCCspC2dLphveB/ry/AwnPW6v87+O
+         HkcA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@rath.org header.s=fm1 header.b=g94nagG6;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=1eM0302J;
-       spf=pass (google.com: domain of nikolaus@rath.org designates 66.111.4.26 as permitted sender) smtp.mailfrom=Nikolaus@rath.org
-Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
-        by mx.google.com with ESMTPS id k14si5250311qkj.20.2019.03.01.12.40.35
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id r187si16919704pfr.124.2019.03.01.12.41.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Mar 2019 12:40:36 -0800 (PST)
-Received-SPF: pass (google.com: domain of nikolaus@rath.org designates 66.111.4.26 as permitted sender) client-ip=66.111.4.26;
+        Fri, 01 Mar 2019 12:41:05 -0800 (PST)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@rath.org header.s=fm1 header.b=g94nagG6;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=1eM0302J;
-       spf=pass (google.com: domain of nikolaus@rath.org designates 66.111.4.26 as permitted sender) smtp.mailfrom=Nikolaus@rath.org
-Received: from compute1.internal (compute1.nyi.internal [10.202.2.41])
-	by mailout.nyi.internal (Postfix) with ESMTP id 9AC2621F2F;
-	Fri,  1 Mar 2019 15:40:35 -0500 (EST)
-Received: from mailfrontend1 ([10.202.2.162])
-  by compute1.internal (MEProxy); Fri, 01 Mar 2019 15:40:35 -0500
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=rath.org; h=from
-	:to:cc:subject:references:date:in-reply-to:message-id
-	:mime-version:content-type:content-transfer-encoding; s=fm1; bh=
-	gaZtj5W8VUXhVGMnCQf2AvbtnTkW/jB95uYULjvMR+I=; b=g94nagG6Z6UQ4E9V
-	UvKyn4Q9qvk7eZkj9SG+fNweP8uMIkOPphNrgb1dmiUwb1L8mWi1rm9fg2JCUgyn
-	sWI5wMyha6DLN/AYiiiHTeCvHLSXeoqSN2T99zT8JX30iXGfm2nLRHMse4bIJvXa
-	FtimR1BJEMuBxNxs58F0z5fAtjhXdsjtuTJ3RSXfG4skNIW9TH7nrrm07rqgf9p5
-	GcMNM/ahicSXpOYb3x+dDtvj2L9MSi+pLSM08eEbtddpgIsgRtMR2C0lhpOaVmJL
-	GTN8grXaZ2hkJmRmNJOOLNEml7giyzws+n+G3ac1/EYjlUK7RzgaTCKwoIP4T8z3
-	1oWNLg==
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-transfer-encoding:content-type
-	:date:from:in-reply-to:message-id:mime-version:references
-	:subject:to:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender
-	:x-sasl-enc; s=fm2; bh=gaZtj5W8VUXhVGMnCQf2AvbtnTkW/jB95uYULjvMR
-	+I=; b=1eM0302JsfRPfNYZigFGlf4pv3B1aGl6WLPXoiSC+RB77eG6ca/Xc7GNl
-	7LPrYb+2rmzJBK6z6GvFUVAcrlPqnVsRDsZNW7pbLt54e4iOfz76myAyQ0Gmx7h8
-	HC4dFAw9q4M6O/8/rQpH1JDTawmrsvC0R38ypTt48MZ4ZG6upyHAr9UHVnkWG4WV
-	QwgzDloE0R4o7TN+QDtjbQmBvfb8uWdIUfarGnGdZNRkn0CQXcBfcv6PFi+D8ejQ
-	GXW5U1JLpadxGyZUrzhkkKyB02JMBlX5X9m3X++p5kJvxHysWwjUZVLV7+msH+lv
-	7Zayd55UV9LdFhmoD1sQZjacDXrgg==
-X-ME-Sender: <xms:wph5XKb-5w3U8-KixsgMa4ZOlTy_d3vC_qENzU0oRXNodWPkGPZpQw>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgedutddrvdehgddugedtucetufdoteggodetrfdotf
-    fvucfrrhhofhhilhgvmecuhfgrshhtofgrihhlpdfqfgfvpdfurfetoffkrfgpnffqhgen
-    uceurghilhhouhhtmecufedttdenucesvcftvggtihhpihgvnhhtshculddquddttddmne
-    cujfgurhephffvufhfffgjkfgfgggtgfesthhqtddttderjeenucfhrhhomheppfhikhho
-    lhgruhhsucftrghthhcuoefpihhkohhlrghushesrhgrthhhrdhorhhgqeenucffohhmrg
-    hinhepuhgsuhhnthhurdgtohhmnecukfhppedukeehrdefrdelgedrudelgeenucfrrghr
-    rghmpehmrghilhhfrhhomheppfhikhholhgruhhssehrrghthhdrohhrghenucevlhhush
-    htvghrufhiiigvpedt
-X-ME-Proxy: <xmx:wph5XFHAXT1e5bW7qKjVVqGSR6Ywi10cPvkmKX2B2FVId8kmP4c4gA>
-    <xmx:wph5XKw-_imitfq3MDsKeU5C7DX8VJQ82S1tBY24UlPaPDP4Grj3gA>
-    <xmx:wph5XOB58Rbd6IS5yeTYr-OLcA3b0oETitw_4Ykgon31E7On0MTtnQ>
-    <xmx:w5h5XHyTDbixJdjRkaFK7iPQvYXjOZrA0xaC6S9uvm460X2lMc_yoQ>
-Received: from ebox.rath.org (ebox.rath.org [185.3.94.194])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 519E1E4309;
-	Fri,  1 Mar 2019 15:40:34 -0500 (EST)
-Received: from vostro.rath.org (vostro [192.168.12.4])
-	by ebox.rath.org (Postfix) with ESMTPS id D917483;
-	Fri,  1 Mar 2019 20:40:32 +0000 (UTC)
-Received: by vostro.rath.org (Postfix, from userid 1000)
-	id 8B274E0089; Fri,  1 Mar 2019 20:40:32 +0000 (GMT)
-From: Nikolaus Rath <Nikolaus@rath.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: linux-mm@kvack.org
-Subject: Re: [fuse-devel] fuse: trying to steal weird page
-References: <87o998m0a7.fsf@vostro.rath.org>
-	<CAJfpegtQic0v+9G7ODXEzgUPAGOz+3Ay28uxqbafZGMJdqL-zQ@mail.gmail.com>
-	<87ef9omb5f.fsf@vostro.rath.org>
-	<CAJfpegu_qxcaQToDpSmcW_ncLb_mBX6f75RTEn6zbsihqcg=Rw@mail.gmail.com>
-	<87ef9nighv.fsf@thinkpad.rath.org>
-	<CAJfpegtiXDgSBWN8MRubpAdJFxy95X21nO_yycCZhpvKLVePRA@mail.gmail.com>
-	<87zhs7fbkg.fsf@thinkpad.rath.org> <8736ovcn9q.fsf@vostro.rath.org>
-	<CAJfpegvjntcpwDYf3z_3Z1D5Aq=isB3ByP3_QSoG6zx-sxB84w@mail.gmail.com>
-	<877ee4vgr4.fsf@vostro.rath.org> <878sy3h7gr.fsf@vostro.rath.org>
-	<CAJfpeguCJnGrzCtHREq9d5uV-=g9JBmrX_c===giZB7FxWCcgw@mail.gmail.com>
-	<CAJfpegu-QU-A0HORYjcrx3fM5FKGUop0x6k10A526ZV=p0CEuw@mail.gmail.com>
-	<87bm2ymgnt.fsf@vostro.rath.org>
-	<CAJfpegu+_Qc1LRJgBAU=4jHPkUGPdYnJBxvSvQ6Lx+1_Dj2R=g@mail.gmail.com>
-Date: Fri, 01 Mar 2019 20:40:32 +0000
-In-Reply-To: <CAJfpegu+_Qc1LRJgBAU=4jHPkUGPdYnJBxvSvQ6Lx+1_Dj2R=g@mail.gmail.com>
-	(Miklos Szeredi's message of "Tue, 26 Feb 2019 21:56:48 +0100")
-Message-ID: <87woliwcov.fsf@vostro.rath.org>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/25.1 (gnu/linux)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 58A0AD819;
+	Fri,  1 Mar 2019 20:41:04 +0000 (UTC)
+Date: Fri, 1 Mar 2019 12:41:00 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Guillaume Tucker <guillaume.tucker@collabora.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>,
+ Mark Brown <broonie@kernel.org>, Tomeu Vizoso <tomeu.vizoso@collabora.com>,
+ Matt Hart <matthew.hart@linaro.org>, Stephen Rothwell
+ <sfr@canb.auug.org.au>, khilman@baylibre.com, enric.balletbo@collabora.com,
+ Nicholas Piggin <npiggin@gmail.com>, Dominik Brodowski
+ <linux@dominikbrodowski.net>, Masahiro Yamada
+ <yamada.masahiro@socionext.com>, Kees Cook <keescook@chromium.org>, Adrian
+ Reber <adrian@lisas.de>, Linux Kernel Mailing List
+ <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Linux
+ MM <linux-mm@kvack.org>, Mathieu Desnoyers
+ <mathieu.desnoyers@efficios.com>, Richard Guy Briggs <rgb@redhat.com>,
+ "Peter Zijlstra (Intel)" <peterz@infradead.org>, info@kernelci.org
+Subject: Re: next/master boot bisection: next-20190215 on beaglebone-black
+Message-Id: <20190301124100.62a02e2f622ff6b5f178a7c3@linux-foundation.org>
+In-Reply-To: <026b5082-32f2-e813-5396-e4a148c813ea@collabora.com>
+References: <5c6702da.1c69fb81.12a14.4ece@mx.google.com>
+	<20190215104325.039dbbd9c3bfb35b95f9247b@linux-foundation.org>
+	<20190215185151.GG7897@sirena.org.uk>
+	<20190226155948.299aa894a5576e61dda3e5aa@linux-foundation.org>
+	<CAPcyv4ivjC8fNkfjdFyaYCAjGh7wtvFQnoPpOcR=VNZ=c6d6Rg@mail.gmail.com>
+	<20190228151438.fc44921e66f2f5d393c8d7b4@linux-foundation.org>
+	<CAPcyv4hDmmK-L=0txw7L9O8YgvAQxZfVFiSoB4LARRnGQ3UC7Q@mail.gmail.com>
+	<026b5082-32f2-e813-5396-e4a148c813ea@collabora.com>
+X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Feb 26 2019, Miklos Szeredi <miklos@szeredi.hu> wrote:
-> On Tue, Feb 26, 2019 at 9:35 PM Nikolaus Rath <Nikolaus@rath.org> wrote:
->>
->> [ Moving fuse-devel and linux-fsdevel to Bcc ]
->>
->> Hello linux-mm people,
->>
->> I am posting this here as advised by Miklos (see below). In short, I
->> have a workload that reliably produces kernel messages of the form:
->>
->> [ 2562.773181] fuse: trying to steal weird page
->> [ 2562.773187] page=3D<something> index=3D<something> flags=3D17ffffc000=
-00ad, count=3D1, mapcount=3D0, mapping=3D (null)
->>
->> What are the implications of this message? Is something activelly going
->> wrong (aka do I need to worry about data integrity)?
->
-> Fuse is careful and basically just falls back on page copy, so it
-> definitely shouldn't affect data integrity.
->
-> The more interesting question is: how can page_cache_pipe_buf_steal()
-> return a dirty page?  The logic in remove_mapping() should prevent
-> that, but something is apparently slipping through...
->
->>
->> Is there something I can do to help debugging (and hopefully fixing)
->> this?
->>
->> This is with kernel 4.18 (from Ubuntu cosmic).
->
-> One thought: have you tried reproducing with a recent vanilla
-> (non-ubuntu) kernel?
+On Fri, 1 Mar 2019 09:25:24 +0100 Guillaume Tucker <guillaume.tucker@collabora.com> wrote:
 
-Yes, I can reproduce with e.g. 5.0.0-050000rc8 (from
-https://kernel.ubuntu.com/~kernel-ppa/mainline/v5.0-rc8/). However, here
-the flag value is different:
+> >>> Michal had asked if the free space accounting fix up addressed this
+> >>> boot regression? I was awaiting word on that.
+> >>
+> >> hm, does bot@kernelci.org actually read emails?  Let's try info@ as well..
+> 
+> bot@kernelci.org is not person, it's a send-only account for
+> automated reports.  So no, it doesn't read emails.
+> 
+> I guess the tricky point here is that the authors of the commits
+> found by bisections may not always have the hardware needed to
+> reproduce the problem.  So it needs to be dealt with on a
+> case-by-case basis: sometimes they do have the hardware,
+> sometimes someone else on the list or on CC does, and sometimes
+> it's better for the people who have access to the test lab which
+> ran the KernelCI test to deal with it.
+> 
+> This case seems to fall into the last category.  As I have access
+> to the Collabora lab, I can do some quick checks to confirm
+> whether the proposed patch does fix the issue.  I hadn't realised
+> that someone was waiting for this to happen, especially as the
+> BeagleBone Black is a very common platform.  Sorry about that,
+> I'll take a look today.
+> 
+> It may be a nice feature to be able to give access to the
+> KernelCI test infrastructure to anyone who wants to debug an
+> issue reported by KernelCI or verify a fix, so they won't need to
+> have the hardware locally.  Something to think about for the
+> future.
 
-[  278.183571] fuse: trying to steal weird page
-[  278.183576]   page=3D000000000aab208c index=3D14944 flags=3D17ffffc00000=
-97, count=3D1, mapcount=3D0, mapping=3D          (null)
+Thanks, that all sounds good.
 
-(but still the same across all messages observed with this kernel so
-far).
+> >> Is it possible to determine whether this regression is still present in
+> >> current linux-next?
+> 
+> I'll try to re-apply the patch that caused the issue, then see if
+> the suggested change fixes it.  As far as the current linux-next
+> master branch is concerned, KernelCI boot tests are passing fine
+> on that platform.
+
+They would, because I dropped
+mm-shuffle-default-enable-all-shuffling.patch, so your tests presumably
+now have shuffling disabled.
+
+Is it possible to add the below to linux-next and try again?
+
+Or I can re-add this to linux-next.  Where should we go to determine
+the results of such a change?  There are a heck of a lot of results on
+https://kernelci.org/boot/ and entering "beaglebone-black" doesn't get
+me anything.
+
+Thanks.
 
 
-Best,
--Nikolaus
 
+From: Dan Williams <dan.j.williams@intel.com>
+Subject: mm/shuffle: default enable all shuffling
 
---=20
-GPG Fingerprint: ED31 791B 2C5C 1613 AF38 8B8A D113 FCAC 3C4E 599F
+Per Andrew's request arrange for all memory allocation shuffling code to
+be enabled by default.
 
-             =C2=BBTime flies like an arrow, fruit flies like a Banana.=C2=
-=AB
+The page_alloc.shuffle command line parameter can still be used to disable
+shuffling at boot, but the kernel will default enable the shuffling if the
+command line option is not specified.
+
+Link: http://lkml.kernel.org/r/154943713572.3858443.11206307988382889377.stgit@dwillia2-desk3.amr.corp.intel.com
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Keith Busch <keith.busch@intel.com>
+
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ init/Kconfig |    4 ++--
+ mm/shuffle.c |    4 ++--
+ mm/shuffle.h |    2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)
+
+--- a/init/Kconfig~mm-shuffle-default-enable-all-shuffling
++++ a/init/Kconfig
+@@ -1709,7 +1709,7 @@ config SLAB_MERGE_DEFAULT
+ 	  command line.
+ 
+ config SLAB_FREELIST_RANDOM
+-	default n
++	default y
+ 	depends on SLAB || SLUB
+ 	bool "SLAB freelist randomization"
+ 	help
+@@ -1728,7 +1728,7 @@ config SLAB_FREELIST_HARDENED
+ 
+ config SHUFFLE_PAGE_ALLOCATOR
+ 	bool "Page allocator randomization"
+-	default SLAB_FREELIST_RANDOM && ACPI_NUMA
++	default y
+ 	help
+ 	  Randomization of the page allocator improves the average
+ 	  utilization of a direct-mapped memory-side-cache. See section
+--- a/mm/shuffle.c~mm-shuffle-default-enable-all-shuffling
++++ a/mm/shuffle.c
+@@ -9,8 +9,8 @@
+ #include "internal.h"
+ #include "shuffle.h"
+ 
+-DEFINE_STATIC_KEY_FALSE(page_alloc_shuffle_key);
+-static unsigned long shuffle_state __ro_after_init;
++DEFINE_STATIC_KEY_TRUE(page_alloc_shuffle_key);
++static unsigned long shuffle_state __ro_after_init = 1 << SHUFFLE_ENABLE;
+ 
+ /*
+  * Depending on the architecture, module parameter parsing may run
+--- a/mm/shuffle.h~mm-shuffle-default-enable-all-shuffling
++++ a/mm/shuffle.h
+@@ -19,7 +19,7 @@ enum mm_shuffle_ctl {
+ #define SHUFFLE_ORDER (MAX_ORDER-1)
+ 
+ #ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
+-DECLARE_STATIC_KEY_FALSE(page_alloc_shuffle_key);
++DECLARE_STATIC_KEY_TRUE(page_alloc_shuffle_key);
+ extern void page_alloc_shuffle(enum mm_shuffle_ctl ctl);
+ extern void __shuffle_free_memory(pg_data_t *pgdat);
+ static inline void shuffle_free_memory(pg_data_t *pgdat)
+_
 
