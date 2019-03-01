@@ -2,156 +2,178 @@ Return-Path: <SRS0=KwX8=RE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 52144C43381
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 21:09:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4F1DC10F03
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 21:44:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 10A3920818
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 21:09:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10A3920818
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 5BE9720842
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 21:44:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="gZsx/MRd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BE9720842
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8BC838E0003; Fri,  1 Mar 2019 16:09:55 -0500 (EST)
+	id AA2208E0003; Fri,  1 Mar 2019 16:44:13 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 86BCA8E0001; Fri,  1 Mar 2019 16:09:55 -0500 (EST)
+	id 9FEAF8E0001; Fri,  1 Mar 2019 16:44:13 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 782DF8E0003; Fri,  1 Mar 2019 16:09:55 -0500 (EST)
+	id 8A1F48E0003; Fri,  1 Mar 2019 16:44:13 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 353E28E0001
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 16:09:55 -0500 (EST)
-Received: by mail-pg1-f198.google.com with SMTP id 17so18550161pgw.12
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 13:09:55 -0800 (PST)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 482F58E0001
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 16:44:13 -0500 (EST)
+Received: by mail-pl1-f200.google.com with SMTP id s22so18635789plq.7
+        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 13:44:13 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=P+tiE/zdPttgIzYWReZwXKg35jN+4/1ADTJDkXcDOZ0=;
-        b=aR9QeXZPCtedhwBVjw8XvM/SEX2d1Bxte1f86iNm58QKx3NikQpwNuxxHuAlz46DI4
-         3iixyiKxxJvpZVIvLqCWmCmQgT9kL3vpyK3IFU2tpW8u/5WS6L6XVvFdMOx4BbqSboWh
-         hd+teUOysfYcjLjaZCY8m5hfV1oBdUbECfoa5yvtQXE0+7GQqj/sRaShOB/lutehK83A
-         JYOxA/T9xIokP5+hPwdaMBtt4C8+HDHGpXvb2JbqXJdmV+UFZ8ToZvRZUOMEhUN9MkVy
-         1jMZ9IclKa3Y3escw9CbeU7mXgj6LuZYQm/0ClwCaUuRtlz+5S8SLdndDadOf4N1OKEw
-         cbbg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: APjAAAWDvNf2TmgVOm7kmq7diQYbqVeNer91nJEy5EDy0fsm9kTuCByl
-	kE/O1fxwNkp09oSIv9u1pyngOa0OWJ1nIghoEbzfhNjvaW4C7hiyV9qP+QsKrYlEYnPWzSePViV
-	t9EAG5OZ5AIjaH0Rtus8b9tQ7T1t0fr/cXB07PuckrNUI8pceezSZTuiWAp+5GalxiQ==
-X-Received: by 2002:a63:c0b:: with SMTP id b11mr3869851pgl.388.1551474594871;
-        Fri, 01 Mar 2019 13:09:54 -0800 (PST)
-X-Google-Smtp-Source: APXvYqx963y/19cnUbIKnQTC6y0E5F+WUpeF/9a5yGCTks47rv6tdHL1sLv6tvEkX6Ar+7+/8p9d
-X-Received: by 2002:a63:c0b:: with SMTP id b11mr3869759pgl.388.1551474593923;
-        Fri, 01 Mar 2019 13:09:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551474593; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=I9/CQcAMDAqcYCsl2DT89h8s6NYBhCyEInQQWC9dKTs=;
+        b=rBk9lZaNXI18nFTpLapTzaiI8jpah4xwWLxd5cMgQsRdXRQSuMjALeIIqoqEE0k222
+         zjKxC4I8zeuOdVLid4aU0oNQTH3vQtY+NjIQr/ateg7ycSI0++nlolt7+IHXld63h7EE
+         gi95kVjc/5ifR9o/yPcFCf/1e+9+MPubef6YTNakoBdt6Dh5DBTs69hUIawJF/chWobM
+         dWViWdnXr168LjRyE/YfqK8qr7tfo2QELSbxPGXvsAgDq21RA7ww+EcuQEpLfWWZGmy8
+         voJGXB80/V6GK9bTft1y1hnmXGJzhILITVPG/MxZVR09MCuhK5VTCdjSN/wfSeeD+Wdf
+         Bi6Q==
+X-Gm-Message-State: APjAAAX+0YfCHuy0Nbjy/CJsSjCq2VQ5dz9+hHwicus9yHZtRnaKPedV
+	6cpQGzj/s9dZyVcGXZYG1tufVgT/sBvRwoZJ50/nFY5o5zVKbpURrk3rMZAZ5ah+r2574KBgVMC
+	FTDThT6/r1IJthN23vhK7/d3zRmSy4sdIYGkQIU0e6Bit83beLUyeOevXzx5I/VZQ0g==
+X-Received: by 2002:a65:6554:: with SMTP id a20mr6968734pgw.170.1551476652798;
+        Fri, 01 Mar 2019 13:44:12 -0800 (PST)
+X-Google-Smtp-Source: APXvYqwCdkSRb7wPyb5FbSso+xUl+6oE4WL2PuT+ndRJ4kiNZHhkrOfMN83FVSjy4Gtc7vZVnvYk
+X-Received: by 2002:a65:6554:: with SMTP id a20mr6968675pgw.170.1551476651680;
+        Fri, 01 Mar 2019 13:44:11 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551476651; cv=none;
         d=google.com; s=arc-20160816;
-        b=vBsx/FRZzkhpQX5BMcNRqG45ZVoJ/+rvvAJc4LaVSPP9+QiBhLFmJkjXCAVSEc9IEx
-         GSlVZpx1HZUHuYxtZAxAUHczdAxYUe/nVp1rUB9vx7qj/vq3DmWoRpbc1V1dx48W+fHl
-         ZJ88KijY8IvSagdcxpYM/B6oVtdOWD840ZaedCgSjf7R9qZPmI/3beVmG2eEBfhd+gtY
-         XtSiGDigPZImxeMkLD66BeTSnwL6UmQqDxK2zPoJ5Mw2den1zf6FR/jARCIk+SK1V2PH
-         ThYhtGrfc8Hoo1lCMcKuWG+VXpQFVeLyjV9qtUzTUT3+MSq4i1RQtI1BjfeYnn594nac
-         7fmA==
+        b=cuHSPEntfRpEwrqZgh8qXMtuJjfdDpLgCNMwXZoIX5YkqMrvFOGLZSQFSK6dL9C0rL
+         kegydGeQIdFoxJzl5+aJkZsUAlYN77NOiZI8hv+LLz4nzzBbbVCU34IPrB1ALXBkZ5lZ
+         mAu8Fzx4QhiWQAey8o6cRMi+fRL6jflQc2Be8o1RZ7CuymhcivBlklXy7nf9n3kDLzQG
+         vE2M/PyMtYEq5By5IpJnOZ3LaiIbocdmTLaJnwruQClJhCvLPxSJKLL23ApOcIJP3QZt
+         jWuoLbNcDghyJGrRtW73vV0nwGUk7rMqnwIAmvKkVLNIJRCdiB05rjX8Ck1q5LpBoxW/
+         KrqQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=P+tiE/zdPttgIzYWReZwXKg35jN+4/1ADTJDkXcDOZ0=;
-        b=EUPXG4FClg9HF2VwwRES5L52/2K1NrR6piplybW6eAWeHrjI9mAjzynOPtud15EFDf
-         uLqApvgA+nNDHVw8CxPsmCVrFd8IAz2jNEgDGZ2mGmd6zSXsYgW8M60P9M5Lr9qDPpPW
-         ivldxGEeA/nYA+rCv4/GGREu94JfA89eMhtQ5D8sz2vUk1WHm2TYZudlj5Ywhj1IO/dE
-         xQXOlkfFVqlXVIf9JkgV0Po2ibrP5w/u4Rbl0H93Q7RVdBPdPR9jxot+c2cFx75qnhpM
-         7qVfoeR1vx8E0WCAeurEVzdu/OpY8c2WT6fHgaKH6Ek210rk0jxbEI2e5w5Cx2U8kpJD
-         06Sw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=I9/CQcAMDAqcYCsl2DT89h8s6NYBhCyEInQQWC9dKTs=;
+        b=j4W49NoexjDO/HuFyaVIJXLL8vDF46mF8r02lEC6iXdqne2T4kp2OFesmJR3mYDBGc
+         Jwh9ESqGXGytHVklC+VmFbnc6/sl1IKx5tkU5kMuRrSkuCWdVLKYAk59ipB5Ll9ucWhW
+         qgqRxViK/JUfOfV3aKh4Pp45+itfsDiicYg+f/opy9XdZuqzmTanGUVcZq9jZ8f/3Ltm
+         LXk96UxQtO0dXzRKPju1PIE5w5xrPIzVvrKVbkWp5t+a3SML9L5Se3+0w3j6WLXkFIug
+         PwNT7lMUeMdkkp57655vDYoUrdG2n6+X5R9ccvNBOem35CjSVY17YisA3s8UqBKGdwrp
+         CQQg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id r14si428726pls.306.2019.03.01.13.09.53
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="gZsx/MRd";
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id gn14si19621154plb.171.2019.03.01.13.44.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Mar 2019 13:09:53 -0800 (PST)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 01 Mar 2019 13:44:11 -0800 (PST)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 826EFDD20;
-	Fri,  1 Mar 2019 21:09:53 +0000 (UTC)
-Date: Fri, 1 Mar 2019 13:09:51 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Qian Cai <cai@lca.pw>
-Cc: willy@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="gZsx/MRd";
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=I9/CQcAMDAqcYCsl2DT89h8s6NYBhCyEInQQWC9dKTs=; b=gZsx/MRd9hanHUjfdTuQVYJ+C
+	nMOzKwG7k5f3/hFIoZjl9bGK+TIAnhAdQ71G/l4JOONFkCLZfHCCas7fec/JZlay0d5cFRXtDG3U6
+	94w1fdTGs6AEuu1MwMW36NKO9RId79VIBJ/u+14EAaOwGD2w09Wg/SgZYZobduenYb+RQhVD74cFt
+	74k2UCTIAwt+Ev+aUYu+5QyyNfRHHln0h5YJkVJco0iIo61CxEfVINQh/n0iA/Y2eZT312XZ3TqKW
+	s56s+Tey92hu5qTFTmyofQXF3P+/HJw61pPCUfXS538kj/aHcWe9zquT7hbdB3h74TI2vukxg1ABY
+	eNhHwKY4w==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1gzpww-00049o-JI; Fri, 01 Mar 2019 21:44:10 +0000
+Date: Fri, 1 Mar 2019 13:44:10 -0800
+From: Matthew Wilcox <willy@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Qian Cai <cai@lca.pw>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Subject: Re: [PATCH] mm/hugepages: fix "orig_pud" set but not used
-Message-Id: <20190301130951.67f419011da93265d36226cc@linux-foundation.org>
-In-Reply-To: <20190301004903.89514-1-cai@lca.pw>
+Message-ID: <20190301214410.GO11592@bombadil.infradead.org>
 References: <20190301004903.89514-1-cai@lca.pw>
-X-Mailer: Sylpheed 3.6.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20190301130951.67f419011da93265d36226cc@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190301130951.67f419011da93265d36226cc@linux-foundation.org>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Feb 2019 19:49:03 -0500 Qian Cai <cai@lca.pw> wrote:
-
-> The commit a00cc7d9dd93 ("mm, x86: add support for PUD-sized transparent
-> hugepages") introduced pudp_huge_get_and_clear_full() but no one uses
-> its return code, so just make it void.
+On Fri, Mar 01, 2019 at 01:09:51PM -0800, Andrew Morton wrote:
+> On Thu, 28 Feb 2019 19:49:03 -0500 Qian Cai <cai@lca.pw> wrote:
 > 
-> mm/huge_memory.c: In function 'zap_huge_pud':
-> mm/huge_memory.c:1982:8: warning: variable 'orig_pud' set but not used
-> [-Wunused-but-set-variable]
->   pud_t orig_pud;
->         ^~~~~~~~
+> > The commit a00cc7d9dd93 ("mm, x86: add support for PUD-sized transparent
+> > hugepages") introduced pudp_huge_get_and_clear_full() but no one uses
+> > its return code, so just make it void.
+> > 
+> > mm/huge_memory.c: In function 'zap_huge_pud':
+> > mm/huge_memory.c:1982:8: warning: variable 'orig_pud' set but not used
+> > [-Wunused-but-set-variable]
+> >   pud_t orig_pud;
+> >         ^~~~~~~~
+> > 
+> > ...
+> >
+> > --- a/include/asm-generic/pgtable.h
+> > +++ b/include/asm-generic/pgtable.h
+> > @@ -167,11 +167,11 @@ static inline pmd_t pmdp_huge_get_and_clear_full(struct mm_struct *mm,
+> >  #endif
+> >  
+> >  #ifndef __HAVE_ARCH_PUDP_HUGE_GET_AND_CLEAR_FULL
+> > -static inline pud_t pudp_huge_get_and_clear_full(struct mm_struct *mm,
+> > -					    unsigned long address, pud_t *pudp,
+> > -					    int full)
+> > +static inline void pudp_huge_get_and_clear_full(struct mm_struct *mm,
+> > +						unsigned long address,
+> > +						pud_t *pudp, int full)
+> >  {
+> > -	return pudp_huge_get_and_clear(mm, address, pudp);
+> > +	pudp_huge_get_and_clear(mm, address, pudp);
+> >  }
 > 
-> ...
->
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -167,11 +167,11 @@ static inline pmd_t pmdp_huge_get_and_clear_full(struct mm_struct *mm,
->  #endif
->  
->  #ifndef __HAVE_ARCH_PUDP_HUGE_GET_AND_CLEAR_FULL
-> -static inline pud_t pudp_huge_get_and_clear_full(struct mm_struct *mm,
-> -					    unsigned long address, pud_t *pudp,
-> -					    int full)
-> +static inline void pudp_huge_get_and_clear_full(struct mm_struct *mm,
-> +						unsigned long address,
-> +						pud_t *pudp, int full)
->  {
-> -	return pudp_huge_get_and_clear(mm, address, pudp);
-> +	pudp_huge_get_and_clear(mm, address, pudp);
->  }
+> Not sure this is a good change.  Future callers might want that return
+> value.
+> 
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -1979,7 +1979,6 @@ spinlock_t *__pud_trans_huge_lock(pud_t *pud, struct vm_area_struct *vma)
+> >  int zap_huge_pud(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> >  		 pud_t *pud, unsigned long addr)
+> >  {
+> > -	pud_t orig_pud;
+> >  	spinlock_t *ptl;
+> >  
+> >  	ptl = __pud_trans_huge_lock(pud, vma);
+> > @@ -1991,8 +1990,7 @@ int zap_huge_pud(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> >  	 * pgtable_trans_huge_withdraw after finishing pudp related
+> >  	 * operations.
+> >  	 */
+> > -	orig_pud = pudp_huge_get_and_clear_full(tlb->mm, addr, pud,
+> > -			tlb->fullmm);
+> > +	pudp_huge_get_and_clear_full(tlb->mm, addr, pud, tlb->fullmm);
+> 
+> In fact this code perhaps should be passing orig_pud into
+> pudp_huge_get_and_clear_full().  That could depend on what future
+> per-arch implementations of pudp_huge_get_and_clear_full() choose to
+> do.
+> 
+> Anyway, I'll await Matthew's feedback.
 
-Not sure this is a good change.  Future callers might want that return
-value.
-
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1979,7 +1979,6 @@ spinlock_t *__pud_trans_huge_lock(pud_t *pud, struct vm_area_struct *vma)
->  int zap_huge_pud(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  		 pud_t *pud, unsigned long addr)
->  {
-> -	pud_t orig_pud;
->  	spinlock_t *ptl;
->  
->  	ptl = __pud_trans_huge_lock(pud, vma);
-> @@ -1991,8 +1990,7 @@ int zap_huge_pud(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  	 * pgtable_trans_huge_withdraw after finishing pudp related
->  	 * operations.
->  	 */
-> -	orig_pud = pudp_huge_get_and_clear_full(tlb->mm, addr, pud,
-> -			tlb->fullmm);
-> +	pudp_huge_get_and_clear_full(tlb->mm, addr, pud, tlb->fullmm);
-
-In fact this code perhaps should be passing orig_pud into
-pudp_huge_get_and_clear_full().  That could depend on what future
-per-arch implementations of pudp_huge_get_and_clear_full() choose to
-do.
-
-Anyway, I'll await Matthew's feedback.
+I'm not sure it's wise to diverge from pmdp_huge_get_and_clear_full()
+which does return the orig_pud.  I agree we don't currently use it,
+so maybe we should just change zap_huge_pud() to not assign the return
+value from pudp_huge_get_and_clear_full()?
 
