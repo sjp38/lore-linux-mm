@@ -2,108 +2,107 @@ Return-Path: <SRS0=KwX8=RE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_PASS,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E6E7AC43381
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 21:51:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 87E34C43381
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 21:57:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9913C20842
-	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 21:51:35 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3EDD020840
+	for <linux-mm@archiver.kernel.org>; Fri,  1 Mar 2019 21:57:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="o9Q41Qcr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9913C20842
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="VWCIfWP2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3EDD020840
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3BACE8E0003; Fri,  1 Mar 2019 16:51:35 -0500 (EST)
+	id D04B18E0003; Fri,  1 Mar 2019 16:57:34 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 342D28E0001; Fri,  1 Mar 2019 16:51:35 -0500 (EST)
+	id CB4068E0001; Fri,  1 Mar 2019 16:57:34 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 20D608E0003; Fri,  1 Mar 2019 16:51:35 -0500 (EST)
+	id B7B7B8E0003; Fri,  1 Mar 2019 16:57:34 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D17C38E0001
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 16:51:34 -0500 (EST)
-Received: by mail-pl1-f200.google.com with SMTP id n1so15297424plk.4
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 13:51:34 -0800 (PST)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7864B8E0001
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 16:57:34 -0500 (EST)
+Received: by mail-pg1-f199.google.com with SMTP id n24so18602453pgm.17
+        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 13:57:34 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=Aj5WngXuPv1MUGPfr1Svb4twrAc+hcEOJ/1LSJ7sZ+s=;
-        b=C4UxllOm6g4o7LzUwfuyfdCippTW5sutVTwuv5lgp7JeX+hyTMkKEGNIUYrPayNnsb
-         LtrIb3YbUeS8ljAL3mPABzAxN3pAzg+9BErnQfVhcp8VvxB/2yfbi4fq859c424llJvG
-         vkNGDveDqD9cWD/FBkws/D3uazAmddqphq635fKIZFcXdu8yg9JuAypfp9dyt7w4nvct
-         R0DZFh4Q9ZxKNm3WKBJVX+29cLBy/m2lTU5eRbxLej952hqYLPSTFTYpWnFjeQocBAOf
-         Cb/TFRHpMgC4JtWMFBzzG7ravznGi2+Fuvd/BZRdHAb1hc6NW5CEDY9HTyT3WrfygIWw
-         LumQ==
-X-Gm-Message-State: APjAAAVwqPUz6rntrH4T1d7HGFZYAPzIvS4Tw3f1ofcE6KO2g+dq6ZQu
-	JtmnRx8L+9v1HyRL4LuWtCTEpTbefH5BxV2V1ovp38CV3j6ZOvMZDDOPptVX2OX9/QOJD8tl9l8
-	CucGIQeK5hb9zmSFbzg4PcCse2c2hVeCQG6ktujRewf4ca5YgNLv48RgdwPIgdojr0FMIkWSzSj
-	3V9MER6+FjR1ypIbnTwMxLxALtFq6g7AT9oIBEF+D5VD2kiHiUkT2UmdKXD6TN4x0ApeeKP7aja
-	1Lsvbvjq3kSh9nDV5BMxdSoyvoKllIt43wbpFXMNKDkFidOrv8ZcKOZ6hixj0oY8ObFBoFBznQY
-	0/HGGySmAJOxL2fqO9S5/E073eEgxjUSyrNfQF7jkF6ydIqOqhrNTMjPubsioO0f1/tXbt+aih2
-	w
-X-Received: by 2002:a63:c310:: with SMTP id c16mr6754774pgd.233.1551477094525;
-        Fri, 01 Mar 2019 13:51:34 -0800 (PST)
-X-Received: by 2002:a63:c310:: with SMTP id c16mr6754718pgd.233.1551477093695;
-        Fri, 01 Mar 2019 13:51:33 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551477093; cv=none;
+        bh=Jx3z/ytyz5m19uf5/3OhEnIdJ4HeALh1pApg6ERgUjQ=;
+        b=ovjeeukOBGY+8VwDbHw9x3iFpH6Tb4+JAwCzwcMiuoDPzbG4TbZjuweap/2WFYQnvn
+         v593slYwJtsV+Pv0BZRCOtJ9z+Q2fzqD2vYNi4ISbsbQAWVMZ61SabFS1pa4VDyhJPU1
+         Ujk6UOy9SZEN0sXKSzLXi840HvUdWz0sMVGy38FP7qDhRoRb0a3GZ9GGQtp/rOgeWcgK
+         eYWWxyIWm43aBZW+tmaoEeKoFdbZcBlyWP9RiJZEczY+rnNw3S4ChicxcEvelQ6MnDd3
+         eI0SJN0TMLSPs4fPo1lywldcAsYXxD3LRRBEFJRlow0ILsW+BzoG5jPKpL2bQr/DXuy6
+         ILgg==
+X-Gm-Message-State: APjAAAV5Kd3z7q5mpHI0KRB8CD/xkNKJtWbKKqr7EB5UVnESbmQK6X3V
+	Um+yih79mZF0R3XzHBT35XuS24ZkX6rwIuMIgQ28g4ySsQGqCWIqdHvZF5gVNvLQ5e1QQ49E/bq
+	76m+21XfrezXckGngMkvoMy06pEPz5Dw7J8DM8KlUqPFUHL5WvRY3pV+KLT1WttTVTF8TFRWXp9
+	e7vXffpX3w73b6vbeOu8NrzIjPv4bDxZZip0q3crNdMhx0MiLUaqM5w9/1WHJTIJJv6v1K9xO43
+	vmbzpmD0R1RAN31tabd/DDO5he5UbyTU6RncCpvzx1JOH+t/V11aHcsJTbrdkLbuggN1Yu1Hs9M
+	86S7IXEOMX2V6suY+31dPxtqrSxngFvgHKFZbonUEs2G6rcpnsRp/Lgh8uirszntEA6nhI4qn39
+	7
+X-Received: by 2002:a17:902:7c8f:: with SMTP id y15mr7680071pll.44.1551477454185;
+        Fri, 01 Mar 2019 13:57:34 -0800 (PST)
+X-Received: by 2002:a17:902:7c8f:: with SMTP id y15mr7680023pll.44.1551477453293;
+        Fri, 01 Mar 2019 13:57:33 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551477453; cv=none;
         d=google.com; s=arc-20160816;
-        b=WEr1UIU9kFTT6Hm2tTPORBNE4JFNFObK7dqZeJm7TFM2r0QXnQ0tZUp+0MsF9HAwA/
-         Kozijy+YQW5r1Dytp9r/EmAgz/GlwKAFKN1zAFJP4hTyjcHKiN9Ha29W6d1ADfza3X0z
-         UORgSvjxCt0O8I3mDROnFPHw36Krntvg53BSYPOmwyb2DjaO2LGuAHHQn07nXjVEVkYI
-         6TYIlB1AYBZhS2neYxTBG9tYwnVwyE3VEDF9PLtpexX/0PQOeuy/YhekmjftZkoOYRTk
-         VnpyYcWNNy0qGU7aH59qa0fZ5uQrAZGASnLn53v5eC+FJhdNQmfL8gA2SE8QLe4qdiU/
-         +HRA==
+        b=eAoM7oDAA4tFCxm6N+OCUpHYnYkOnvPr1PToAxR7kmkuu1J8xXFRPPQ7a4BOqUW4h+
+         YDbXjPXWy2vLLMokCOP1YcSVsRG8d0w02Uict/hinUhTmq0rGGgokCkclmfWuNRbyoj0
+         2hXnOGy2WSTWrc+By9L8sS0L55UhHxciFVXu+qUP0qtPSjEsoUS4ufKFmsOLInuVLd1Z
+         DaVXlkLhv4HAV4YgpQ7XrDnzxkJJpDo7fNjwsqVX8nycctt8Chf7AO91EWqGHIZd9mSi
+         qYQkhc/Um+9t1EAzSB7NRECcK7oeVOkGLIgUDmAq7sCyT9Pk09y1f718Y0R+jOGoTFjQ
+         W9Qw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Aj5WngXuPv1MUGPfr1Svb4twrAc+hcEOJ/1LSJ7sZ+s=;
-        b=nlMmQHlByG4yDBojkPBlchFeF/LkdrAGL6B66nieiad4KbB/hc9nrfRv7FcblQrkSk
-         6Dhth1ttIXi7G93j399G0jUHzWlFD96p89D8itDuVCh/t6FcYXBNJCUmFv3Uk8S0Jx3+
-         zZDzvlg8IfaK8vYKpogR+n5zFyD08e+Ie/sZ+kNsj1N+sDLND/g+886Xtxd4ZsbFz/9A
-         eKRqjhLdjdw18df2N2//VqOZi31QKEbf+HjLTqjg7rEU0jAunLdRRy9Ys2UVLcyKd2OF
-         3Wa9kP0UGqVHFxdbc42h0qV3bFsiVW8EQX3g7gcYutvJRMzdY6KSDxCCXKDEhVZhPZxv
-         GT9A==
+        bh=Jx3z/ytyz5m19uf5/3OhEnIdJ4HeALh1pApg6ERgUjQ=;
+        b=ZeFhkehY/EuU1UUb4B3WMOmxjxUYkmR0T9haCwM+l6PekeWVh2wnJBzSa4Gh5f/6dP
+         VZx5foiZx9ZAlPXW2ztF5VkK9TNXh3Q8gQYuu195Lanejecx5fi//odu6JsWfTdrJ3mR
+         4Vmpj1HEHOOj1Q14b2F5yDmgZo/q75MifIk3d9+dstApH1c9c7kF8qgDZUCiYAfaAG4f
+         UpHRBCoU5LaEJp9YTetuJasdWZ0OLmWELLuLFNQoBoLBlHj7EOs7hqQKhfkKowovPR6h
+         JmxyRofqZOBceiC5JPBSVxOhbHJ3auwgO26KaIQcRuBG85dr0uHVqoJZV6d2hKpjLPN0
+         7vkg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=o9Q41Qcr;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=VWCIfWP2;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e13sor37396995pfn.5.2019.03.01.13.51.33
+        by mx.google.com with SMTPS id d17sor34569756pll.50.2019.03.01.13.57.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 01 Mar 2019 13:51:33 -0800 (PST)
+        Fri, 01 Mar 2019 13:57:33 -0800 (PST)
 Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=o9Q41Qcr;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=VWCIfWP2;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=Aj5WngXuPv1MUGPfr1Svb4twrAc+hcEOJ/1LSJ7sZ+s=;
-        b=o9Q41QcrAmiy9uClSumYrhP0iIX1ivdxDjZJXBgtpU1Wa/IhUIBZ9Wsy2IXYtbjtAu
-         QLNb5xTEx1bVx/d9Ks70I5wArsnPwmzFhdyccxlH2Y1x39uGrK7TV5Fox3VBW5L/Fuwh
-         MR0PUYQsP0blBMEG27GA5FAk/3CCBX9jBeLPY+2epUC/cO05WTuW/kukGAj1vaOGABGT
-         N6ujdNuuiVeX4WC0qaWFarQKhh6VvcEfelWGu94ARSkaeeXKD01NeDuL3ScC66+ja2aT
-         578nbXYLdDYnLnrTCgY7vu/bBcboS6uFf1Ux75ILzpvgHlfjLnYKF7s8ZyQw0xL+tAxu
-         Soag==
-X-Google-Smtp-Source: AHgI3IZDDJx8IBKR78ntuvauMt2JDwANXe4J3i+HfBUUs8GKofdYxp30dg8nhFCM1C0nuGGiV76tSw==
-X-Received: by 2002:a62:449b:: with SMTP id m27mr7938829pfi.79.1551477093379;
-        Fri, 01 Mar 2019 13:51:33 -0800 (PST)
+        bh=Jx3z/ytyz5m19uf5/3OhEnIdJ4HeALh1pApg6ERgUjQ=;
+        b=VWCIfWP27qc4osBHSUj5kLtCbj1ntVG+T4U8cTziGn3o5lyIecEuKchHhsbnqL+CwA
+         13YMR2ZMV7TGE1fULeo/DFlO8tnOmgddd8Pf9Ah2yxBmTgTuxFIuJfYCzPIJHD2cXTnO
+         Qqak5FoFfvofzU+xzZijTG3UsxrKz5JVFvIgBNUqxH2Pj1LvDc/JGatqsqlqIk/aCh1M
+         MoFY+8OhY3uy8AhjCMqOxtlMiN0zGyZDV6+oOJVShbNAs7Oy2DEe3uUvT7ck+CK5Su7b
+         68NTf+tY2uHldMNd5Gtkp7V5WTaz0lxFiMGKLvUyWIS/BHQU3bC/H4sIF36rozN6FoGJ
+         mJOA==
+X-Google-Smtp-Source: APXvYqynodEY5jKFUK2x2PS4hoYz1An80WXto1OjEKBWf+zdX8l5qOU4JRwZr0ket6b24/Q9y39L3w==
+X-Received: by 2002:a17:902:12e:: with SMTP id 43mr7841762plb.31.1551477452908;
+        Fri, 01 Mar 2019 13:57:32 -0800 (PST)
 Received: from kshutemo-mobl1.localdomain ([134.134.139.82])
-        by smtp.gmail.com with ESMTPSA id e21sm60252029pfh.45.2019.03.01.13.51.32
+        by smtp.gmail.com with ESMTPSA id u14sm23818699pfm.66.2019.03.01.13.57.31
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Mar 2019 13:51:32 -0800 (PST)
+        Fri, 01 Mar 2019 13:57:32 -0800 (PST)
 Received: by kshutemo-mobl1.localdomain (Postfix, from userid 1000)
-	id 31A663007CA; Sat,  2 Mar 2019 00:51:29 +0300 (+03)
-Date: Sat, 2 Mar 2019 00:51:29 +0300
+	id ADD193007CA; Sat,  2 Mar 2019 00:57:28 +0300 (+03)
+Date: Sat, 2 Mar 2019 00:57:28 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 To: Steven Price <steven.price@arm.com>
 Cc: linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>,
@@ -120,15 +119,16 @@ Cc: linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>,
 	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
 	Mark Rutland <Mark.Rutland@arm.com>,
 	"Liang, Kan" <kan.liang@linux.intel.com>,
-	Guo Ren <guoren@kernel.org>
-Subject: Re: [PATCH v3 06/34] csky: mm: Add p?d_large() definitions
-Message-ID: <20190301215128.qqzmyqyzxxatbqgh@kshutemo-mobl1>
+	Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>,
+	linux-ia64@vger.kernel.org
+Subject: Re: [PATCH v3 08/34] ia64: mm: Add p?d_large() definitions
+Message-ID: <20190301215728.nk7466zohdlgelcb@kshutemo-mobl1>
 References: <20190227170608.27963-1-steven.price@arm.com>
- <20190227170608.27963-7-steven.price@arm.com>
+ <20190227170608.27963-9-steven.price@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190227170608.27963-7-steven.price@arm.com>
+In-Reply-To: <20190227170608.27963-9-steven.price@arm.com>
 User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -136,31 +136,17 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 27, 2019 at 05:05:40PM +0000, Steven Price wrote:
+On Wed, Feb 27, 2019 at 05:05:42PM +0000, Steven Price wrote:
 > walk_page_range() is going to be allowed to walk page tables other than
 > those of user space. For this it needs to know when it has reached a
 > 'leaf' entry in the page tables. This information is provided by the
 > p?d_large() functions/macros.
 > 
-> For csky, we don't support large pages, so add a stub returning 0.
-> 
-> CC: Guo Ren <guoren@kernel.org>
-> Signed-off-by: Steven Price <steven.price@arm.com>
-> ---
->  arch/csky/include/asm/pgtable.h | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git a/arch/csky/include/asm/pgtable.h b/arch/csky/include/asm/pgtable.h
-> index edfcbb25fd9f..4ffdb6bfbede 100644
-> --- a/arch/csky/include/asm/pgtable.h
-> +++ b/arch/csky/include/asm/pgtable.h
-> @@ -158,6 +158,8 @@ static inline int pmd_present(pmd_t pmd)
->  	return (pmd_val(pmd) != __pa(invalid_pte_table));
->  }
->  
-> +#define pmd_large(pmd)	(0)
+> For ia64 leaf entries are always at the lowest level, so implement
+> stubs returning 0.
 
-Nit: here and in other places, parentheses around 0 is not needed.
+Are you sure about this? I see pte_mkhuge defined for ia64 and Kconfig
+contains hugetlb references.
 
 -- 
  Kirill A. Shutemov
