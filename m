@@ -5,210 +5,144 @@ X-Spam-Level:
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 456B0C43381
-	for <linux-mm@archiver.kernel.org>; Sat,  2 Mar 2019 03:27:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 17C0FC00319
+	for <linux-mm@archiver.kernel.org>; Sat,  2 Mar 2019 04:39:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EABDB2075B
-	for <linux-mm@archiver.kernel.org>; Sat,  2 Mar 2019 03:27:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AA5E420857
+	for <linux-mm@archiver.kernel.org>; Sat,  2 Mar 2019 04:39:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="mbSR1UNa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EABDB2075B
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="QTCUa43Q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA5E420857
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 83F6E8E0004; Fri,  1 Mar 2019 22:27:34 -0500 (EST)
+	id DFD448E0003; Fri,  1 Mar 2019 23:39:18 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7F3D58E0001; Fri,  1 Mar 2019 22:27:34 -0500 (EST)
+	id DABFA8E0001; Fri,  1 Mar 2019 23:39:18 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6BAF08E0004; Fri,  1 Mar 2019 22:27:34 -0500 (EST)
+	id CC4808E0003; Fri,  1 Mar 2019 23:39:18 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 243808E0001
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 22:27:34 -0500 (EST)
-Received: by mail-pg1-f197.google.com with SMTP id 17so19093409pgw.12
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 19:27:34 -0800 (PST)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CB838E0001
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2019 23:39:18 -0500 (EST)
+Received: by mail-pg1-f198.google.com with SMTP id e5so19154646pgc.16
+        for <linux-mm@kvack.org>; Fri, 01 Mar 2019 20:39:18 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=leaxPvy1d10f5W6h1jZANHHaMuetimQOji2p2Tbvgzs=;
-        b=c96a6cow9g9nHoWrXSv+suP7IWN4niGvf6LLawBbgF8d7ArTqKOM1kQd74YMLo7rDc
-         a7aGJ7EInWAqgE4WMjXKigh4RX/dU9yFTg0WyhW7SIcC4bx0uTBHirxVaqgFPKc0eGRu
-         9gsu/m1TQRDfVzcc85t8feOMhgeZbDyICVFY9z7ZV+1vPHYGVcHXxiTs2YovBvwv5B+8
-         erXr1Dza+3pNjlg/13XQxhiqLfBTdBFS1UunRu56WJ68oFgC1M3skcD6pv/bY4IGLp7Z
-         hqJvVDDjCDMzURmN4hA2tD+Ty2AIS0t3311AcghutdQ/6pCEsl9LMj64b4etIL/ySQ9b
-         4O5w==
-X-Gm-Message-State: AHQUAubyVEf80Q2yv+ztEwwWvS6yfroOadTjZwzMDwSI/Bziood1kkZ6
-	UOSlK2mRehA3m2kyvvFtu4X+Ww4FEgjTMX0/+vm/6wCtTISHUj55bRhmiN9YpSXDklTps7KexEP
-	hLgBXFm2BUZwJH+mJZ8dq0n+qR4Pi/wbZv5GNYAM+JYv1a67VIMTt3KU2XhKeUHTKuFzsq9Us3F
-	+die9Ub4209NyKPjajTwd0E/Fr0d7cCs3L9VLFxzllKA/cyO+1dEoI7pPM0IDrSz5SDJxX3BGE4
-	elevQLY/lZwlMzvuAY5eNZE487p4voaoEnNikfCuaICVs+rSrAHo5m8PJp4G4PaQ1j9JnnKWwMs
-	yuphmng+7eL3nU4Xf4XjPYk/WSJxE5BtyLtkfwgIxl7elrc4krn1IMXgIQDG2ze1BLBwXcZ3/hN
-	l
-X-Received: by 2002:aa7:83ca:: with SMTP id j10mr9103045pfn.50.1551497253823;
-        Fri, 01 Mar 2019 19:27:33 -0800 (PST)
-X-Received: by 2002:aa7:83ca:: with SMTP id j10mr9102974pfn.50.1551497252318;
-        Fri, 01 Mar 2019 19:27:32 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551497252; cv=none;
+         :message-id;
+        bh=E8xVMa3UyuhomxW571zy6yHj+BYk0T3qqrgE0C01lI8=;
+        b=llfLy5kRi156w5+vJjz6zl4+EbTj0hc2xl911vhC7rRDdhyu9S06x32F31XT1LlZ+7
+         dSxHERbdiFSIs+VpfBmT0YJsjGaNzWrfQshMQ2D5HKaXK4YiRawSmbWxyD231xPx7sum
+         if7+KKlSuBg7uxQvgsp4rX63lknSqGMN5j1uPh7GpzE3vWpCAPB67HznvKz/rU5q1T1P
+         lIP9A2pbuvM2vyxpoGWtmc+aZSXmmdxJSiBkKP39P7TWN5y/TsO4YdZ5VhDnZllmCUaX
+         qyik2n/caBxg+JhZKmFrhqOVOwv7Jt1S4MMXK84T5erITBN/NXIBhdMRge+TobVzogO3
+         LamA==
+X-Gm-Message-State: APjAAAVS+EvK5sb0LQohhrlmMR/u59hKgdCof3J5QYWuLsaycr+2BsyZ
+	zvRsTZTyBtRr3nVjvQ82Z16VWDPoyho7etWjHMxY84+Re+6XST+sj92nskdBfi9lrgqg1kajp95
+	Ff6kYehO7KouYQBXb3U0EZt4ougRH1nvCJi8gpuFJSd+kGH3TQm5k4t5xWftO4VLGYbIH/BHmnt
+	lIGEp9Tidk9gL0h14VJmeJH8PsK+uMtyVGxBvNR9rkA2Qrto+gdnvhcjLROVib0RsYvIaM2K0Me
+	q5z1RnPtHPTSMnW6g7KUHX7qYpVEKLnDUQoUWsNc1SuV3fp8ib12GRswFQf8neYz+6FGfWm2Jo1
+	2mgAeEPp/A54WanbzGcXPyFNgbMYEPa42iMwVJfCVZLWiFh2d180qeSU/+UV+Twj8Zxb8PU7pN/
+	Q
+X-Received: by 2002:a65:624a:: with SMTP id q10mr8456832pgv.377.1551501558161;
+        Fri, 01 Mar 2019 20:39:18 -0800 (PST)
+X-Received: by 2002:a65:624a:: with SMTP id q10mr8456790pgv.377.1551501556992;
+        Fri, 01 Mar 2019 20:39:16 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551501556; cv=none;
         d=google.com; s=arc-20160816;
-        b=EzyKj4zSVWM59198RlqRLnIRMTOMQqPruLOKl/BS9oJCO30H8TSvGXu01VmCfZY270
-         8N1Slu/WkJCyj1HUzwFKgNXTLuqdrrqKZ1onYw86g/D+Tw98aDjqbu/j8qNlnpgCD7fY
-         ZSnf+hnthVDytmgusQLW1RoFcP8i1NjHmRhV5U6ojcKoB5LWYKqdI90dC81JZAhPQdsz
-         mphLJT2aw2vXSkk+ngpJQ+UZswHMV2LdlkTjV05IzvWJ70hfmQjKLIFzq0QJuIjwC1Kk
-         tEwi89ZuD671nP3iXmjD4SaUoxrbEPc6vVGr51klPvU3EPaBt1cbn+3P+oPz2nED086M
-         bV1Q==
+        b=JbfI7Y39vKQXReuwMO0doc6vK8lkGL+morID+Kuy5K2O4GWArlty4ukn0Uw1QU8vcG
+         e8nf4XTm6YnE/KELQC9dbNJwuBquMuIEaVZFsXxAeaSSmBXMS54XVGJfLe2yvBxugp7X
+         Ug+PyYZe4LfSgAclAbA5QpDUIKV0W5vQw96HaGBxVQXHbH0RQ2WQEnQb0E27+Sjng22w
+         aPXsTr6ENYF+uPM8CrpU5hoNR+tTR1wB+BQbLYSVTdM9GZrqkpaUcEcZEaMBQlGf1Nt9
+         XxLuQ76dY4+QmQuHYaqJndA3+w4U380dwwSHowaVBj1ieEYz5+io4qbAhDzbJgXTuZFf
+         T9BA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=leaxPvy1d10f5W6h1jZANHHaMuetimQOji2p2Tbvgzs=;
-        b=ktQKaJNlKr4btF0DEB4SLT/792p3HABb2Jikc9ninyZj0CTQLawceG3naXZ3VV3nnd
-         ytRAQ3TeqshL7UXHk2Yxd95YdHYoQn4Yj7KtbAIo05iV06UK8HoWc+R9iJYCYEPTQx4j
-         R1sQJIUjgQxS7v/3p37NEMK9fzfW5cU5iuxMzioYZnfpUO8ByyAI/g4ML1O/H6Xaor4g
-         OOCt6YhRJCDmI+hRD8kRCtKjhKFhNfMQ1RnHHpPtSFjc+Scnvhr9Q7HGuj5146Xh1m3L
-         M3Fu6kw2BKJDCXKjlEGJyQYCwJZqjc6Mwu+VBMdYf2o6YYfvMwOs+70zAa8XnXd2OhJV
-         dsYQ==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=E8xVMa3UyuhomxW571zy6yHj+BYk0T3qqrgE0C01lI8=;
+        b=arx322biyduOLuPLnnNEB6r+RcYVkN4u+rPsegOS24wHhgyjWqTeMMQhQihqrF08fb
+         9hZ3/NWDxLfDr5vHGTIgatvYe1DIr1goMraI8xWHDPC4TjKXaUFXMQb1+aPWYEENkIWG
+         Ry9v71qf1vXhSF4u7KYF5FiFPIasSB9jzRCmZY1bLRccUCO1d25y/IypyAQqeVMukbYu
+         8w767Ve7KOQYiJukLhhVBNaNWsxbajXQpwQKqxlEi+NIwxZUvCrTJg8HsCel5plxDtoJ
+         ViJ0jNvCejklpZFhRCyQlAO2wfLx0IgroDC/I/xbNDqAsvFO1xYUT5jE2GNe4KpcaFAS
+         i3FA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mbSR1UNa;
-       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QTCUa43Q;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t124sor36767320pgb.63.2019.03.01.19.27.32
+        by mx.google.com with SMTPS id x12sor9671123pgj.56.2019.03.01.20.39.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 01 Mar 2019 19:27:32 -0800 (PST)
-Received-SPF: pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 01 Mar 2019 20:39:16 -0800 (PST)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mbSR1UNa;
-       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QTCUa43Q;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=leaxPvy1d10f5W6h1jZANHHaMuetimQOji2p2Tbvgzs=;
-        b=mbSR1UNapIwRC+fCHjf6h75XOW390JwACBb/7lMvP3BzO/AkNyzsGtkot9QZ9G9JDi
-         z13H/ihcHnkfWqVqaw8/VNT6JRFUebEed5MfQQrvOpCLPEwrkdLVbKQwi1SJdS7Uxsww
-         LifOUHa/yPLAkAxZCXcM+xotqcieiTcInAfKOhSjrFfGH7VCDvNmZUt9bFBgfIEOgb0t
-         3+WK6Did+cdpohTeSy2rk0aT5Ap/2HEVSjDQyAXdh3ZmvkgdzdVeU5tFAcps5U1cj2OI
-         9do0o5EK0P7jTJR+a9nTFsEWM/mPDPiv9wINswIG982u/dDV1GsUtolwnDC3une2tL6r
-         /+5A==
-X-Google-Smtp-Source: APXvYqwec0QG9bvbCYGlNaj+o05RSOIfNS7zXmMPVGDD4XkfdS/FRM7bq/V49Yad0E0UgIfZOhlOzQ==
-X-Received: by 2002:a63:9246:: with SMTP id s6mr8006076pgn.349.1551497251660;
-        Fri, 01 Mar 2019 19:27:31 -0800 (PST)
-Received: from blueforge.nvidia.com (searspoint.nvidia.com. [216.228.112.21])
-        by smtp.gmail.com with ESMTPSA id 63sm42312273pfy.110.2019.03.01.19.27.30
+        h=from:to:cc:subject:date:message-id;
+        bh=E8xVMa3UyuhomxW571zy6yHj+BYk0T3qqrgE0C01lI8=;
+        b=QTCUa43Qqn46xL2GJEFIy3N7UKDlwEPNFPIMLCF62SXxWkUAvnVEtC/sHcpVsqXRJF
+         gTaiwkPOaM800+E4W+uo9eGPjv/lRcx9KLrnL2T/QxyXTojp5WmCbl3Ww+jFL55/kqs3
+         2Xi8cYJuB1oQgCzTgD5YDG1oE1ecIKs8VIFvERZ9GjGQFfKUMNPVJBwtX+ek8PjA2sPC
+         hsI6GWwQLGpkg/MD+Yy0QZ/Xjg50F84/Rnl08tagz0ExUwUT33hC43nTEoUcOh/5JLPf
+         e1Qgfa5VmDcV8S6B85KZkzBCzaKoXxs54o3GQDdLSSRW+nY9lWtWA1TlzwaFut/TCNwG
+         tvQQ==
+X-Google-Smtp-Source: APXvYqyfVorxlZUwAAT9aEX4cV0VaLDj91iyCjHgIS5j2y9UZvsAX25pp8fFaFh2TeAiWHrhAHE4Sg==
+X-Received: by 2002:a63:2b82:: with SMTP id r124mr8310326pgr.214.1551501556456;
+        Fri, 01 Mar 2019 20:39:16 -0800 (PST)
+Received: from localhost.localdomain ([203.100.54.194])
+        by smtp.gmail.com with ESMTPSA id a24sm29102508pfo.160.2019.03.01.20.39.13
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Mar 2019 19:27:30 -0800 (PST)
-From: john.hubbard@gmail.com
-X-Google-Original-From: jhubbard@nvidia.com
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Ira Weiny <ira.weiny@intel.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Doug Ledford <dledford@redhat.com>,
-	linux-rdma@vger.kernel.org
-Subject: [PATCH] RDMA/umem: minor bug fix and cleanup in error handling paths
-Date: Fri,  1 Mar 2019 19:27:26 -0800
-Message-Id: <20190302032726.11769-2-jhubbard@nvidia.com>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190302032726.11769-1-jhubbard@nvidia.com>
-References: <20190302032726.11769-1-jhubbard@nvidia.com>
-MIME-Version: 1.0
-X-NVConfidentiality: public
-Content-Transfer-Encoding: 8bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+        Fri, 01 Mar 2019 20:39:15 -0800 (PST)
+From: Yafang Shao <laoar.shao@gmail.com>
+To: vbabka@suse.cz,
+	mhocko@suse.com,
+	jrdr.linux@gmail.com
+Cc: akpm@linux-foundation.org,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	shaoyafang@didiglobal.com,
+	Yafang Shao <laoar.shao@gmail.com>
+Subject: [PATCH] mm: compaction: show gfp flag names in try_to_compact_pages tracepoint
+Date: Sat,  2 Mar 2019 12:38:57 +0800
+Message-Id: <1551501538-4092-1-git-send-email-laoar.shao@gmail.com>
+X-Mailer: git-send-email 1.8.3.1
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000233, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: John Hubbard <jhubbard@nvidia.com>
+show the gfp flag names instead of the gfp_mask could make the trace
+more convenient.
 
-1. Bug fix: the error handling release pages starting
-at the first page that experienced an error.
-
-2. Refinement: release_pages() is better than put_page()
-in a loop.
-
-3. Dead code removal: the check for (user_virt & ~page_mask)
-is checking for a condition that can never happen,
-because earlier:
-
-    user_virt = user_virt & page_mask;
-
-...so, remove that entire phrase.
-
-4. Minor: As long as I'm here, shorten up a couple of long lines
-in the same function, without harming the ability to
-grep for the printed error message.
-
-Cc: Ira Weiny <ira.weiny@intel.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Doug Ledford <dledford@redhat.com>
-Cc: linux-rdma@vger.kernel.org
-Cc: linux-mm@kvack.org
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
 ---
- drivers/infiniband/core/umem_odp.c | 24 +++++++++---------------
- 1 file changed, 9 insertions(+), 15 deletions(-)
+ include/trace/events/compaction.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
-index acb882f279cb..294bf6676947 100644
---- a/drivers/infiniband/core/umem_odp.c
-+++ b/drivers/infiniband/core/umem_odp.c
-@@ -648,25 +648,17 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
+diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+index 6074eff..e66afb818 100644
+--- a/include/trace/events/compaction.h
++++ b/include/trace/events/compaction.h
+@@ -189,9 +189,9 @@
+ 		__entry->prio = prio;
+ 	),
  
- 		if (npages < 0) {
- 			if (npages != -EAGAIN)
--				pr_warn("fail to get %zu user pages with error %d\n", gup_num_pages, npages);
-+				pr_warn("fail to get %zu user pages with error %d\n",
-+					gup_num_pages, npages);
- 			else
--				pr_debug("fail to get %zu user pages with error %d\n", gup_num_pages, npages);
-+				pr_debug("fail to get %zu user pages with error %d\n",
-+					 gup_num_pages, npages);
- 			break;
- 		}
+-	TP_printk("order=%d gfp_mask=0x%x priority=%d",
++	TP_printk("order=%d gfp_mask=%s priority=%d",
+ 		__entry->order,
+-		__entry->gfp_mask,
++		show_gfp_flags(__entry->gfp_mask),
+ 		__entry->prio)
+ );
  
- 		bcnt -= min_t(size_t, npages << PAGE_SHIFT, bcnt);
- 		mutex_lock(&umem_odp->umem_mutex);
- 		for (j = 0; j < npages; j++, user_virt += PAGE_SIZE) {
--			if (user_virt & ~page_mask) {
--				p += PAGE_SIZE;
--				if (page_to_phys(local_page_list[j]) != p) {
--					ret = -EFAULT;
--					break;
--				}
--				put_page(local_page_list[j]);
--				continue;
--			}
--
- 			ret = ib_umem_odp_map_dma_single_page(
- 					umem_odp, k, local_page_list[j],
- 					access_mask, current_seq);
-@@ -684,9 +676,11 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
- 		mutex_unlock(&umem_odp->umem_mutex);
- 
- 		if (ret < 0) {
--			/* Release left over pages when handling errors. */
--			for (++j; j < npages; ++j)
--				put_page(local_page_list[j]);
-+			/*
-+			 * Release pages, starting at the the first page
-+			 * that experienced an error.
-+			 */
-+			release_pages(&local_page_list[j], npages - j);
- 			break;
- 		}
- 	}
 -- 
-2.21.0
+1.8.3.1
 
