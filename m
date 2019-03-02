@@ -2,232 +2,170 @@ Return-Path: <SRS0=Ffi5=RF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B644C43381
-	for <linux-mm@archiver.kernel.org>; Sat,  2 Mar 2019 22:34:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 65B07C43381
+	for <linux-mm@archiver.kernel.org>; Sat,  2 Mar 2019 22:39:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3F98420836
-	for <linux-mm@archiver.kernel.org>; Sat,  2 Mar 2019 22:34:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F98420836
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 1C09A2086D
+	for <linux-mm@archiver.kernel.org>; Sat,  2 Mar 2019 22:39:38 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="MSvbRfFs"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C09A2086D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DE4BB8E0003; Sat,  2 Mar 2019 17:34:49 -0500 (EST)
+	id 94CB18E0004; Sat,  2 Mar 2019 17:39:38 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D6C3C8E0001; Sat,  2 Mar 2019 17:34:49 -0500 (EST)
+	id 8FBAC8E0001; Sat,  2 Mar 2019 17:39:38 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C35308E0003; Sat,  2 Mar 2019 17:34:49 -0500 (EST)
+	id 7EA1E8E0004; Sat,  2 Mar 2019 17:39:38 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 961448E0001
-	for <linux-mm@kvack.org>; Sat,  2 Mar 2019 17:34:49 -0500 (EST)
-Received: by mail-qt1-f199.google.com with SMTP id p40so1485141qtb.10
-        for <linux-mm@kvack.org>; Sat, 02 Mar 2019 14:34:49 -0800 (PST)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 558448E0001
+	for <linux-mm@kvack.org>; Sat,  2 Mar 2019 17:39:38 -0500 (EST)
+Received: by mail-qk1-f198.google.com with SMTP id q15so1462316qki.14
+        for <linux-mm@kvack.org>; Sat, 02 Mar 2019 14:39:38 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=HHwXXkQwEVEt0XYjQBHBCmyn0vtaYqap/APJoabLufg=;
-        b=qfMawySTSdfI6h1WnoGLPda964x79L5lzltN9GaRzAP6INNPt9yeRsM0OvSWKX3+o/
-         4nK/q0pdEKO/oh7lBgg6PkQl0s4Ep14p0mSIv2qHvHe9EBsLNbDBg9un6QtUCQD7rV1n
-         gsh9Dsob0RByhv5aPTHsWGIJrmDrvumQuYNJ5QPBXaA0XKPy+0lBFcq4vk4HFcMwhmjj
-         y9ATf5EGDEKeB55Xo7g2ga+PEsKNSufT8vciUrdLYBRjFb6erUtpvpKPmgHwCaNjOgHf
-         3kr3/fQhfl8GOgkeZJb92Z6G2rHidd8T7FvR16EkbgrqFmnLGlTmdfQMaTbsJF/FxGDD
-         IvWw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUVlRIV7thFcfTRFZ/h166fGKggQybObsH59AfqRmX+DovUE38h
-	IynLXhOVamoh9y6BbsPUy+9IV4pDDe9QNf0JKXeGm8oH53RqNqtt8IfTepe/F0uadrEtGYhRSie
-	Wc6hoofeK8bMXavPgFxXuo1yXZ6IpyUgq8yFo2UkFwny/RhIhfA22Q9DGJ3KrWnJM2zniHVCK8S
-	SVZ5oTQSyy8/p4PGnL11YYrdobrhz+QPs8AJQi75RdtG9b3cY1Rz4I4o/bfOH2ff1ZKu3+cE/+P
-	fg8CRlUva6VrBMLKVCI9k+oz3nxp/4OcpGX+HEEr3mUBzhlat4veSjXyra577x3L1cdhc7qEAiz
-	uQBC2gmwXmhOXmg+3cOZL01ui/iRIRS+NoVsaEq3QJHPtIo7SqwocKISgKpH/str2nTG66k9Eg=
-	=
-X-Received: by 2002:a0c:b993:: with SMTP id v19mr9166406qvf.93.1551566089364;
-        Sat, 02 Mar 2019 14:34:49 -0800 (PST)
-X-Received: by 2002:a0c:b993:: with SMTP id v19mr9166386qvf.93.1551566088753;
-        Sat, 02 Mar 2019 14:34:48 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551566088; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=DK+5XMVgtWeHEsPD9waEnnFYsNsVEJ351y7fqi8ULmY=;
+        b=pI7QeCXbOZu+R0yJjXKe8YmfsaPLTzcyT3hg07GN4cIvUDaMdeoS4fjwp9nk0/ll8R
+         nYZyg9T9ODlANsdyEiImprupaMOzXheyAOPuDuhmBs2QdTkEXOUIKf5xTB8Ehs2s9h1i
+         mehmoQNHLL3UJl+rluXoIC9oqapN5LiktJKlFThKc7z09fhrsECTj2+MLGlwpzHlAGUd
+         7NzvZh6TWJBfZh1q4QK0ljkbpa3WHUQ/1BfZCLlVJslhpaLN+Vggav2TkSz0DxyUFqUD
+         jQD1jZr0nBSP/28elI/tWVa6PGnd6hBiaGPwgGnrofI5LzoulSuwFK8QoTk6mymJbtBR
+         XXEg==
+X-Gm-Message-State: APjAAAWXSB0j7LIGpAM8by2nlXsdkV3KJm5oeU68LJbOhFOT4R2hpc/g
+	WpcsV5sHeb93T0o/gl+yCM5LVMbWx4AOUYtIa2rYm62OtWV+A+/t2XtT4cT3q7h6JKlTw3uqpyH
+	P2vhKJlxErQVbtGKocN3vKl892WwbZ0jz9VFAEjKHe/G/1+9YVVube3iIj4tbUWQgNPrMEuM5lB
+	Xt+NI/hFVOb7nCiBxOG7RX1lx1POX5PMtBEjZuGY/K3kR5qTk4pJPOqdtCdqNcJRQy8NPx/UNKa
+	cTjwAHlzoebwsG+2lKBFtxF4yHzh9iSIzIFbnRMfuzjkvrjLtl/4ujgoLKmBExVcyZPd5d+DPKb
+	kWEVWLvXW7GSAtc37jdwHhPGln05S1PGUu+Y3gmGLEyMCX2EFF5ulODddlxHTn5yaaz8Ja+keA0
+	h
+X-Received: by 2002:ac8:3122:: with SMTP id g31mr9672285qtb.273.1551566378070;
+        Sat, 02 Mar 2019 14:39:38 -0800 (PST)
+X-Received: by 2002:ac8:3122:: with SMTP id g31mr9672260qtb.273.1551566377335;
+        Sat, 02 Mar 2019 14:39:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551566377; cv=none;
         d=google.com; s=arc-20160816;
-        b=qzG7AB0w0+Oi4FVD5MOmGBKHaUq04F5/Af8tuNQVBysRIulScqdCua5dBaI1Lf3HPO
-         oyTVCE2gn0UryEwbS2Cbpcgb63WSZ4rDsRNj01pbxRxxSpzjWGe65Yfg4Eb/2ggeNdrH
-         qrI+GzYhSFSXtgAMtJ6rqtQQ1EPH1qcUjUH6XesLLQwkgAZ9xl595w2T0pnMbiwgsXAH
-         2jkuFGZ+ZPiCTKAeGvpULffFSPfD1Uol8i/Yg6H0AG4ZCMdTpvpULgknWsVAzmN/9Aip
-         YJCh6hA5lx8OyYWuqIfvXwuDtzeh8cNuokulkfmLTtq+cB9nI/fICHvhcEsfNPoBEaji
-         uHPw==
+        b=a0GVGOPAcrNIN7IO1Ohg8UY9WTdC1eHnA8t6wPLXXlVYitZAXbXT0DyAu4jvdSD1KI
+         PB+tuyGUvF8zRoUAy/tox9qJrXel/hNtW3kUdL4sZsqgtRd1465vA6XiOBmWDFnb3juX
+         iLiCPA1SEp7vuSpZVdvR3RvCqrN2FeVrzLY7IB+eE/xOlCCBC8C8QQ3OFtkE790q+fL9
+         8RA6BlQW1bObyXYoMrBNo49Tv2TVhq1KTSqUbTlxADChpe/xHMsWukMI1xHS6iHLWX6/
+         xkxTc8sCTMxqeGOCCk0bJx9WR77YUvbxMnvURmmSXihaa+4Nyt7A2VJBwAt7x72v3zEZ
+         TSCw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=HHwXXkQwEVEt0XYjQBHBCmyn0vtaYqap/APJoabLufg=;
-        b=W/tC1ThS3FMh20EnU15lpXVGZ162mR2skEfn91NyD5V8n4sBxRDBzTMNbIQgex7R8H
-         jrFysS0YlipOIE8ulq+67bmLgw9cP3Ab8miXI8im4mK/xIkMnvqCm7BI3tIRrZ/to5Kc
-         NN+RowSwhHSyd9x9SxYUgsT/Se3g8I4EKt9AYDmmdk3qx8pl0OkGTMRfrX+oaCSEnYZd
-         hIG/KoKXj5IGFleNXadgcVBFSeiX3lHJTVQvYw7uk7J0RR2upN+qhOv9MJ0wOzjEpoSt
-         TM1JpRJMYX6IFan/NYheM3d4ZdC8zERlBFV7KM1pb33c+a26IO8F41fCa3eSL9K9L1uq
-         26Mw==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=DK+5XMVgtWeHEsPD9waEnnFYsNsVEJ351y7fqi8ULmY=;
+        b=xux6ccMNAQtZCU10vdEzwXxyI7fJNAFVGx4GM/LhNkfkU4VfJFkWjUvBT1FVVfkDG5
+         vte8KAuYu5WjkyHUdMIwSPPx3ychsfiwQMcoZZ6Me29QEaAq1VzRuFLZoXoNU1FgFoxS
+         UcuquiIhSLEkhFLcaWjBtiT3iCMbWvRaeSTBFbROo0XL/hozG84173LECe7AJQywbslD
+         A/7WKCzGjB75vgBHk/41B4307Hv8AnoA2Fhnxxo4t+t3bwayTyjT2MgYZCtMhMNRJKVM
+         +4ErtO0VB1uqvRZ/oQneTUbPWJTjMZM11CCmkH0z/Ppn7CZUo/qso1z7KE68jgqzd3+7
+         3bFQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@lca.pw header.s=google header.b=MSvbRfFs;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o24sor1083083qkl.20.2019.03.02.14.34.48
+        by mx.google.com with SMTPS id f11sor1099966qkb.35.2019.03.02.14.39.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 02 Mar 2019 14:34:48 -0800 (PST)
-Received-SPF: pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Sat, 02 Mar 2019 14:39:37 -0800 (PST)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: APXvYqxpDKqBLQNo7Odyu7aKGFbxEYo/zMor7ikPx4gbbRIk9T2XSyn9Bp7fkDuT4fX1Er5macpyTg==
-X-Received: by 2002:a37:98d:: with SMTP id 135mr9018707qkj.333.1551566088499;
-        Sat, 02 Mar 2019 14:34:48 -0800 (PST)
-Received: from dennisz-mbp.home ([2604:2000:1406:13e:1c79:146b:53ab:5b76])
-        by smtp.gmail.com with ESMTPSA id 14sm1134860qkf.23.2019.03.02.14.34.47
+       dkim=pass header.i=@lca.pw header.s=google header.b=MSvbRfFs;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=DK+5XMVgtWeHEsPD9waEnnFYsNsVEJ351y7fqi8ULmY=;
+        b=MSvbRfFsKZq4q8WcfA+qRoCom/ZwzH9c7N+J1P0pp5DfZJbwGhf/9k8NB8t1a13cdl
+         OaEusB/BKn3xCvhVjSayHSTdN1CfhgweRPx4u5e24RNMcwZJH7OAR/lH1IahCOsngVWy
+         9hVk9ma42j+BFS6RqnSxdzvqc/1tQhTKk8P95sdMPkijVDQaRyicr+156OQg121QxZq3
+         tkAW7+Yz8NdcAWQ1s3dnWbjHMdwwIvj6U07mKP8y9kpYskZzjfW6d9bSvCP1KiBux67c
+         zYrqQaCPkBO9UBVlXnJf/TlMiR9EIh10dsRCKv7h5Q9IhpJlrWtfsjM1n9IQjw6rdV1o
+         RlQw==
+X-Google-Smtp-Source: APXvYqxkw5sm1LIULdONWmeSqiNZNneM8+u3QafTNRkKR1AQt22sY3jZ6rsUmuuN9v2TJIHsmx3SOQ==
+X-Received: by 2002:a37:f506:: with SMTP id l6mr9187794qkk.110.1551566377048;
+        Sat, 02 Mar 2019 14:39:37 -0800 (PST)
+Received: from ovpn-120-151.rdu2.redhat.com (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id l36sm1009683qte.82.2019.03.02.14.39.36
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 02 Mar 2019 14:34:47 -0800 (PST)
-Date: Sat, 2 Mar 2019 17:34:45 -0500
-From: Dennis Zhou <dennis@kernel.org>
-To: Peng Fan <peng.fan@nxp.com>
-Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>,
-	Vlad Buslov <vladbu@mellanox.com>,
-	"kernel-team@fb.com" <kernel-team@fb.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 05/12] percpu: relegate chunks unusable when failing
- small allocations
-Message-ID: <20190302223445.GD1196@dennisz-mbp.home>
-References: <20190228021839.55779-1-dennis@kernel.org>
- <20190228021839.55779-6-dennis@kernel.org>
- <AM0PR04MB4481502C6D96166F594994CA88770@AM0PR04MB4481.eurprd04.prod.outlook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AM0PR04MB4481502C6D96166F594994CA88770@AM0PR04MB4481.eurprd04.prod.outlook.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+        Sat, 02 Mar 2019 14:39:36 -0800 (PST)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.com,
+	vbabka@suse.cz,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH] mm/hotplug: don't reset pagetype flags for offline
+Date: Sat,  2 Mar 2019 17:39:20 -0500
+Message-Id: <20190302223920.5704-1-cai@lca.pw>
+X-Mailer: git-send-email 2.17.2 (Apple Git-113)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000104, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Mar 02, 2019 at 01:55:54PM +0000, Peng Fan wrote:
-> Hi Dennis,
-> 
-> > -----Original Message-----
-> > From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On
-> > Behalf Of Dennis Zhou
-> > Sent: 2019年2月28日 10:19
-> > To: Dennis Zhou <dennis@kernel.org>; Tejun Heo <tj@kernel.org>; Christoph
-> > Lameter <cl@linux.com>
-> > Cc: Vlad Buslov <vladbu@mellanox.com>; kernel-team@fb.com;
-> > linux-mm@kvack.org; linux-kernel@vger.kernel.org
-> > Subject: [PATCH 05/12] percpu: relegate chunks unusable when failing small
-> > allocations
-> > 
-> > In certain cases, requestors of percpu memory may want specific alignments.
-> > However, it is possible to end up in situations where the contig_hint matches,
-> > but the alignment does not. This causes excess scanning of chunks that will fail.
-> > To prevent this, if a small allocation fails (< 32B), the chunk is moved to the
-> > empty list. Once an allocation is freed from that chunk, it is placed back into
-> > rotation.
-> > 
-> > Signed-off-by: Dennis Zhou <dennis@kernel.org>
-> > ---
-> >  mm/percpu.c | 35 ++++++++++++++++++++++++++---------
-> >  1 file changed, 26 insertions(+), 9 deletions(-)
-> > 
-> > diff --git a/mm/percpu.c b/mm/percpu.c
-> > index c996bcffbb2a..3d7deece9556 100644
-> > --- a/mm/percpu.c
-> > +++ b/mm/percpu.c
-> > @@ -94,6 +94,8 @@
-> > 
-> >  /* the slots are sorted by free bytes left, 1-31 bytes share the same slot */
-> >  #define PCPU_SLOT_BASE_SHIFT		5
-> > +/* chunks in slots below this are subject to being sidelined on failed alloc */
-> > +#define PCPU_SLOT_FAIL_THRESHOLD	3
-> > 
-> >  #define PCPU_EMPTY_POP_PAGES_LOW	2
-> >  #define PCPU_EMPTY_POP_PAGES_HIGH	4
-> > @@ -488,6 +490,22 @@ static void pcpu_mem_free(void *ptr)
-> >  	kvfree(ptr);
-> >  }
-> > 
-> > +static void __pcpu_chunk_move(struct pcpu_chunk *chunk, int slot,
-> > +			      bool move_front)
-> > +{
-> > +	if (chunk != pcpu_reserved_chunk) {
-> > +		if (move_front)
-> > +			list_move(&chunk->list, &pcpu_slot[slot]);
-> > +		else
-> > +			list_move_tail(&chunk->list, &pcpu_slot[slot]);
-> > +	}
-> > +}
-> > +
-> > +static void pcpu_chunk_move(struct pcpu_chunk *chunk, int slot) {
-> > +	__pcpu_chunk_move(chunk, slot, true);
-> > +}
-> > +
-> >  /**
-> >   * pcpu_chunk_relocate - put chunk in the appropriate chunk slot
-> >   * @chunk: chunk of interest
-> > @@ -505,12 +523,8 @@ static void pcpu_chunk_relocate(struct pcpu_chunk
-> > *chunk, int oslot)  {
-> >  	int nslot = pcpu_chunk_slot(chunk);
-> > 
-> > -	if (chunk != pcpu_reserved_chunk && oslot != nslot) {
-> > -		if (oslot < nslot)
-> > -			list_move(&chunk->list, &pcpu_slot[nslot]);
-> > -		else
-> > -			list_move_tail(&chunk->list, &pcpu_slot[nslot]);
-> > -	}
-> > +	if (oslot != nslot)
-> > +		__pcpu_chunk_move(chunk, nslot, oslot < nslot);
-> >  }
-> > 
-> >  /**
-> > @@ -1381,7 +1395,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t
-> > align, bool reserved,
-> >  	bool is_atomic = (gfp & GFP_KERNEL) != GFP_KERNEL;
-> >  	bool do_warn = !(gfp & __GFP_NOWARN);
-> >  	static int warn_limit = 10;
-> > -	struct pcpu_chunk *chunk;
-> > +	struct pcpu_chunk *chunk, *next;
-> >  	const char *err;
-> >  	int slot, off, cpu, ret;
-> >  	unsigned long flags;
-> > @@ -1443,11 +1457,14 @@ static void __percpu *pcpu_alloc(size_t size,
-> > size_t align, bool reserved,
-> >  restart:
-> >  	/* search through normal chunks */
-> >  	for (slot = pcpu_size_to_slot(size); slot < pcpu_nr_slots; slot++) {
-> > -		list_for_each_entry(chunk, &pcpu_slot[slot], list) {
-> > +		list_for_each_entry_safe(chunk, next, &pcpu_slot[slot], list) {
-> >  			off = pcpu_find_block_fit(chunk, bits, bit_align,
-> >  						  is_atomic);
-> > -			if (off < 0)
-> > +			if (off < 0) {
-> > +				if (slot < PCPU_SLOT_FAIL_THRESHOLD)
-> > +					pcpu_chunk_move(chunk, 0);
-> >  				continue;
-> > +			}
-> > 
-> >  			off = pcpu_alloc_area(chunk, bits, bit_align, off);
-> >  			if (off >= 0)
-> 
-> For the code: Reviewed-by: Peng Fan <peng.fan@nxp.com>
-> 
-> But I did not understand well why choose 32B? If there are
-> more information, better put in commit log.
-> 
+The commit f1dd2cd13c4b ("mm, memory_hotplug: do not associate hotadded
+memory to zones until online") introduced move_pfn_range_to_zone() which
+calls memmap_init_zone() during onlining a memory block.
+memmap_init_zone() will reset pagetype flags and makes migrate type to
+be MOVABLE.
 
-There isn't I just picked a small allocation size.
+However, in __offline_pages(), it also call undo_isolate_page_range()
+after offline_isolated_pages() to do the same thing. Due to
+the commit 2ce13640b3f4 ("mm: __first_valid_page skip over offline
+pages") changed __first_valid_page() to skip offline pages,
+undo_isolate_page_range() here just waste CPU cycles looping around the
+offlining PFN range while doing nothing, because __first_valid_page()
+will return NULL as offline_isolated_pages() has already marked all
+memory sections within the pfn range as offline via
+offline_mem_sections().
 
-Thanks,
-Dennis
+Since undo_isolate_page_range() is rather unnecessary here, just remove
+it. Also, fix an incorrect comment along the way.
+
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ mm/memory_hotplug.c | 2 --
+ mm/sparse.c         | 2 +-
+ 2 files changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 736e107e2197..e793f6514fb2 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1643,8 +1643,6 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 	/* Ok, all of our target is isolated.
+ 	   We cannot do rollback at this point. */
+ 	offline_isolated_pages(start_pfn, end_pfn);
+-	/* reset pagetype flags and makes migrate type to be MOVABLE */
+-	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
+ 	/* removal success */
+ 	adjust_managed_page_count(pfn_to_page(start_pfn), -offlined_pages);
+ 	zone->present_pages -= offlined_pages;
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 77a0554fa5bd..b3771f35a0ed 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -556,7 +556,7 @@ void online_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ }
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-/* Mark all memory sections within the pfn range as online */
++/* Mark all memory sections within the pfn range as offline */
+ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+ {
+ 	unsigned long pfn;
+-- 
+2.17.2 (Apple Git-113)
 
