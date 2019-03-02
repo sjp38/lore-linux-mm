@@ -3,307 +3,152 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7EC8BC43381
-	for <linux-mm@archiver.kernel.org>; Sat,  2 Mar 2019 08:42:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E4A2C43381
+	for <linux-mm@archiver.kernel.org>; Sat,  2 Mar 2019 09:09:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0817D20838
-	for <linux-mm@archiver.kernel.org>; Sat,  2 Mar 2019 08:42:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BBE3820836
+	for <linux-mm@archiver.kernel.org>; Sat,  2 Mar 2019 09:09:37 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (4096-bit key) header.d=wiesinger.com header.i=@wiesinger.com header.b="0E/h3nvb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0817D20838
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=wiesinger.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="UymSpHNb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BBE3820836
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7F1028E0003; Sat,  2 Mar 2019 03:42:19 -0500 (EST)
+	id 2375C8E0003; Sat,  2 Mar 2019 04:09:37 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A14D8E0001; Sat,  2 Mar 2019 03:42:19 -0500 (EST)
+	id 1E7938E0001; Sat,  2 Mar 2019 04:09:37 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6B7758E0003; Sat,  2 Mar 2019 03:42:19 -0500 (EST)
+	id 0D6858E0003; Sat,  2 Mar 2019 04:09:37 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 176E98E0001
-	for <linux-mm@kvack.org>; Sat,  2 Mar 2019 03:42:19 -0500 (EST)
-Received: by mail-wr1-f71.google.com with SMTP id f4so196325wrj.11
-        for <linux-mm@kvack.org>; Sat, 02 Mar 2019 00:42:19 -0800 (PST)
+Received: from mail-ua1-f72.google.com (mail-ua1-f72.google.com [209.85.222.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D837D8E0001
+	for <linux-mm@kvack.org>; Sat,  2 Mar 2019 04:09:36 -0500 (EST)
+Received: by mail-ua1-f72.google.com with SMTP id i22so12993uak.10
+        for <linux-mm@kvack.org>; Sat, 02 Mar 2019 01:09:36 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-filter:dkim-signature:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=xpeH8YwqJwW/QChjS476XhaOdctvCylBuGN9WgDujSk=;
-        b=UKc5lKVtNkgz6AFiKTASfaTMyjAsL/70oHpX5H5Keo+29iisK5bwtYjHb7fiBexmQF
-         Ir/kOjgs+zD0p6MZoJxGkCZTs0cVDULnqebd6VzclnFlmGNfIgY/WaU/brUvotYmgP0D
-         LPWbQzoa/xmNqMGIED0wlASmd9SBFspHmmmr6o343UqUtyxTfn0drpkkMxr2sY4BXKrj
-         iKoR9uqnxBfLLTzCmHYZh66hJ0EHF93OQx7msbytu2YHW2dgqRZahXmu8AUx5DJxtpeI
-         G0qO8IjMENFOuexC1w5ql962IPBA6w9EB6E3jXrRNjUgEpqJRbvjebesOQH80DYUH+2V
-         Ifjw==
-X-Gm-Message-State: APjAAAXxiP1UMm1j7mRSvATjEsck7SB89Gi75XZEBynfkC8Cds2bSPyY
-	PHRRUG+3Vx0+aSfzrphWTVkYddrLmFm5/edNjlqmoX3Ps6daPRjMlRzh4BaL7iSuR08mRK3EqPK
-	IS2gwzErQfqFFYfJVl+95iBGdrDFFOZYLnwhB9rM1Pv8zHyivN4bKdjPmoJEwRKf9Qg==
-X-Received: by 2002:a5d:5111:: with SMTP id s17mr6044994wrt.183.1551516138431;
-        Sat, 02 Mar 2019 00:42:18 -0800 (PST)
-X-Google-Smtp-Source: APXvYqyo+e2NIriQObRgYA7djpK1WLQclN0zHQ2C6FHlZOIpb+wZFh+Zt0RypzHUMnlaCg+XlLeg
-X-Received: by 2002:a5d:5111:: with SMTP id s17mr6044945wrt.183.1551516137177;
-        Sat, 02 Mar 2019 00:42:17 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551516137; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=TdnqsYEwFkekuAoIbjErUBUwN3GEOZjaBaeYzmU0Ftk=;
+        b=maHnq+wEp6Hhm54SHOUWAD/y+PX/Gi1TPUR1WRguepkLONeMYBo7M00wMuQ+Qj/W6o
+         MZgV7cVuRZPTzhJKHLFydauZBmgUlr0kGtx6khUJf5lvqSLTaDBIWQVu8xfUd3DSUF5L
+         pm5VXFBeBzHAjolgacqXhYKLFV7BccxStD2BgWyGfZOQ6Jx7NB1Nfx5K7NZEL8GYp88d
+         hFjCFTFZ1Dqu01jmKFed4mXAzToNh3eUN2VsqDTS8LgX3WRDEUt3U2QOSmJAdY32NzmV
+         FPsTM+FMcyCo9pWlTRZ4QEnWxNqyVLzOAqiS2iJ7yTK6+kcSiHiZgVwmNXRll5//SP6H
+         8dAQ==
+X-Gm-Message-State: APjAAAXjpqrucs6dsT8SttDN77VQz1ZqdT0t39Q5eT3UjMqlXCZEuEc3
+	7OZwM7pnQVc9zUIvTdZZzFeeTPERsnB0QbQ7kS5s8XmUlECseYIqfRDLEdnVUuMHb//zWIzBGCu
+	uOekZH7AeSBzI8L/WUG6aZ3X6v+syRfkwIgJj1oWvH/X0ZFXrRwZ6N3f72v53nyIOtqynWgN9Qa
+	CzTajckz3PGc+AGmjhkdo2ZzFjMgMw21ekhHzmaX2r946CX5V1ULg8PcxISxolya2JZGUvRbCVZ
+	5dTRU2nyj1cD/fycOO2CvP1CBY7a68yZvjmGkIe7oj/FYEZ3N9SqHFuYPKbSiJni6zYk78UXA9q
+	zv4nIVyniw/V/bLOKKKIHB2RqhvOUPBgk5KlpCk3tLnmwDt9YT09CjdZt/rUG9l8v9tlj78uBwn
+	n
+X-Received: by 2002:a05:6102:408:: with SMTP id d8mr4957953vsq.189.1551517776523;
+        Sat, 02 Mar 2019 01:09:36 -0800 (PST)
+X-Received: by 2002:a05:6102:408:: with SMTP id d8mr4957924vsq.189.1551517775612;
+        Sat, 02 Mar 2019 01:09:35 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551517775; cv=none;
         d=google.com; s=arc-20160816;
-        b=mNYcEmotCL5dkYyyjEh0rffYx8OP8hFWI7KsR05acgXSINERA/R0Cr7cRhD5KrC2iI
-         M/5v8jmwWhHayyksjzWSGuApQDaGUX04RbvSqQJfaBqR649XuH4rvdqV9s089mI8fkST
-         mIfUQmVWrjfXwlwPMAUZla5YD1LS0pAtsrnhjJKHCn4p6jjIn7TXdDaTOCboOYVsu0/f
-         pmUXqDPwsKDz7wRExHI9Aqrv90fTumLzhwCMve3pA+4h97MRHWBV6B92wYwf8OSgsakP
-         vMvBXo4vxCKLpnJ3lUjTN0RE6IQIANCNmy53JYnUhMulcRqCOiaJX8Yh665a4We2lE8B
-         18VA==
+        b=jZIJ7mnJGRlAEvHkY9Xb23kj1vPDiYcRHRNvCK7bblhbpxpUG2kLN8KXJiMl4GY1/q
+         P/6STzr8+ebV7UnQLxGNRgGY9eutzJMSSCuBWhncAx/YxICVh7o/VpT1X2VgZKj7NdlX
+         BAxlbcdA5jKSoPXn52ln8VIl2UlEuOGwO8ifNTDeCHDJygWZc4MtCGMsloO9QO3Sczoy
+         1FscWRMMkdL2ul6XQBH9y2dS0gnA8mjXC/wZmgqopy703AGZ4SAX+3srxu95rqhTfPjb
+         KzfGcH+Z5EB7SAG6NaPT7+BfiBxb7Lo0dRLHm/SV8i3WYYGX4/KBXBFmoKBDJWYRwela
+         B2mw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature:dkim-filter;
-        bh=xpeH8YwqJwW/QChjS476XhaOdctvCylBuGN9WgDujSk=;
-        b=vXlXgBgHdx435PrWHYL+XZy42mjevDR7fSntWYiqIONP8BVWFOhc2IKTBRyipsCdri
-         sd1uaEdojOKEZM3fQa612yPLMg/vbOvIppD0odZzd72QBd5A/S+TrTXZuafLFVpQrgs8
-         O3OQ7D3+qFQLBO6E4UQ5HGoMTor+rQL43f7wUJZKeTEdmcWXfzthOpRnAp00kpHIRTsJ
-         SVRKllfECi8SyGzZu8uaiN6i5aYzESdn9cDQ647KV7OmfdnSb2Vbu6+C0BFs0f0cTYEE
-         PBhyuPGe6I/ox8ABLPNxNwUJAMXooXJHd8kSk84m987SbCqRmDHYTsT958BVKoc+MMXt
-         HfzA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=TdnqsYEwFkekuAoIbjErUBUwN3GEOZjaBaeYzmU0Ftk=;
+        b=KDVJ+fb/1BkFJ5v9GKqWSXwBVJ+RzeAPRJVrE41PmjUqXa1ANjWbD3T4bWMx1W0rQQ
+         5pX/U0Ag8WFQtkNKuDBnHYeOnD9WX+Jf86ILHW0Gwl9I6hpnobDYOogtJXlg5rs23JxU
+         sFs1dIpn4pp8kfCRYNGK2QTdhQ9wBR/Z22eB+j5rXPhzmln+wwIJSRmgN2jiLblfFmgm
+         rYXkMA6qHEzrtMu0RSIe9M09C2VoCOVypKGUkCd8BMCkCcCkpZV8MTMF/e01+s3K/5AI
+         e7glgPBQqJHog8UYlQ/2g//HRkFWVYhLlSYdbadKndsnWoGAU3QJMQvtIy4O4mJc+deS
+         aITQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@wiesinger.com header.s=default header.b="0E/h3nvb";
-       spf=pass (google.com: domain of lists@wiesinger.com designates 46.36.37.179 as permitted sender) smtp.mailfrom=lists@wiesinger.com
-Received: from vps01.wiesinger.com (vps01.wiesinger.com. [46.36.37.179])
-        by mx.google.com with ESMTPS id 4si307005wma.133.2019.03.02.00.42.16
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UymSpHNb;
+       spf=pass (google.com: domain of oded.gabbay@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oded.gabbay@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c11sor238856vsm.92.2019.03.02.01.09.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 02 Mar 2019 00:42:17 -0800 (PST)
-Received-SPF: pass (google.com: domain of lists@wiesinger.com designates 46.36.37.179 as permitted sender) client-ip=46.36.37.179;
+        (Google Transport Security);
+        Sat, 02 Mar 2019 01:09:35 -0800 (PST)
+Received-SPF: pass (google.com: domain of oded.gabbay@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@wiesinger.com header.s=default header.b="0E/h3nvb";
-       spf=pass (google.com: domain of lists@wiesinger.com designates 46.36.37.179 as permitted sender) smtp.mailfrom=lists@wiesinger.com
-Received: from wiesinger.com (wiesinger.com [84.113.44.87])
-	by vps01.wiesinger.com (Postfix) with ESMTPS id E94909F318;
-	Sat,  2 Mar 2019 09:42:13 +0100 (CET)
-Received: from [192.168.32.242] (bgld-ip-242.intern [192.168.32.242])
-	(authenticated bits=0)
-	by wiesinger.com (8.15.2/8.15.2) with ESMTPSA id x228g8W7008259
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
-	Sat, 2 Mar 2019 09:42:11 +0100
-DKIM-Filter: OpenDKIM Filter v2.11.0 wiesinger.com x228g8W7008259
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=wiesinger.com;
-	s=default; t=1551516132;
-	bh=xpeH8YwqJwW/QChjS476XhaOdctvCylBuGN9WgDujSk=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=0E/h3nvbbX+8X4Z4nHQvEY2ZYpzYU8FZYU1sgojLIPQg2OotoaHui4gW40zWLb6AM
-	 OE+KB4e1Jm+tTbDrXfVI2Lr2ooL04zCUMB7X/Lo97YVOtbel81DJzn7cSZtczyhFil
-	 zTwmq9/Qea7Psrlmr45JgeoKnsWnTS5kT6/cA0ULBMSuUJbv6LHAmeK+o2yXPAElNC
-	 rdU4zWqT6r0SCwJtq1LdLHDr69fSYnH86V9Uq2D1faOoZhnOmF9+LvX+POTc78xDvn
-	 c87I/t9ZmYQCQT4HyvQHJGyMAogm9QWPm9hGDjkNgd+KDdUSYaqVqG9EPaGzoNyed7
-	 UtJrWGzO4KrsyvwbkF4EvnEIOLNcyIcdoU4xIbLM1fvYXSMXzGDl2kamaVEHM/3uT+
-	 7Ee2iDvTJagrH3SfQX3vPrsxD3ZhdcqVgPjMewGDMZp6IC+kxanWYpfgd76pMFI8IC
-	 zJT7NQFLW5l2AcBT/GSiVN6LHUQgNQjFSVdXMobrUiH0mrM0TpXV2lv4dcJHFbfHnA
-	 c+NSCkelESiOhKBI/+FNny1g+0DsvGtA5qTpKUkdXP05QYwdM875o5sHgcy2ZbZagk
-	 RrOPdmf9g1qFHoz/VlW78wRmjCehvPbL20t70J3ilx4x5g8Y7KlvWhHs/PnGRaDKGo
-	 W7X0m9qO5TmKskxmkFxXp/rU=
-Subject: Re: Banana Pi-R1 stabil
-To: Maxime Ripard <maxime.ripard@bootlin.com>
-Cc: arm@lists.fedoraproject.org, Chen-Yu Tsai <wens@csie.org>,
-        LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-        Florian Fainelli <f.fainelli@gmail.com>, filbar@centrum.cz
-References: <7b20af72-76ea-a7b1-9939-ca378dc0ed83@wiesinger.com>
- <20190227092023.nvr34byfjranujfm@flea>
- <5f63a2c6-abcb-736f-d382-18e8cea31b65@wiesinger.com>
- <20190228093516.abual3564dkvx6un@flea>
- <91c22ba4-39eb-dd3d-29bd-1bfa7a45e9cd@wiesinger.com>
- <20190301093038.oz56z22ivpntdcfw@flea>
-From: Gerhard Wiesinger <lists@wiesinger.com>
-Message-ID: <8ad8fbeb-fad8-d39a-9cc6-e7f1deab0b4f@wiesinger.com>
-Date: Sat, 2 Mar 2019 09:42:08 +0100
-User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.2
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UymSpHNb;
+       spf=pass (google.com: domain of oded.gabbay@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oded.gabbay@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=TdnqsYEwFkekuAoIbjErUBUwN3GEOZjaBaeYzmU0Ftk=;
+        b=UymSpHNbGrJuu88ht9aICe2gEfCwOWaC66aoqeiDH2TNb5S56gZGDaB4Y+IEuWsp4b
+         JmvRmd4SOc4QjfQiGad/XmvEVLeUebhmwuUwzX/x64UriHkF4e5u5Z+9wVQgiu11oXu3
+         IINQRWLZUQvgFYvZpA8NxLJalr78wys/vQO1xj0xwqDPlKZJW0SGDKXwzy5tTfYSZSP/
+         0Dzxccj+8nr0z/WLZ7BO/Q979so8BiaaHiywXlL16oRopHxKMEGy/5thAwvPckaa4a3K
+         s/azx2tI04BFZiuBfU0M0hd/kavLhwUR1+Kec5ToY5cxVgu3MbxmwdJLQE3IB85ukNAW
+         zvJg==
+X-Google-Smtp-Source: APXvYqzMMptaRGIYU9ZdfjNXTWCjyxlc79Ck5jh7HvXYXiVAazOLibAn/X7JlLUnHboGTP9th2UyBFgah/hkFpFxK2U=
+X-Received: by 2002:a67:6849:: with SMTP id d70mr4937990vsc.61.1551517775106;
+ Sat, 02 Mar 2019 01:09:35 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190301093038.oz56z22ivpntdcfw@flea>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+References: <201903020948.mXKq6Z2s%fengguang.wu@intel.com>
+In-Reply-To: <201903020948.mXKq6Z2s%fengguang.wu@intel.com>
+From: Oded Gabbay <oded.gabbay@gmail.com>
+Date: Sat, 2 Mar 2019 11:09:09 +0200
+Message-ID: <CAFCwf10c_rjZTDmDnDhH4wjihV8PhO=PSN2mwCwU6cB7+fx-5Q@mail.gmail.com>
+Subject: Re: [rgushchin:release_percpu 321/401] ERROR: "dma_fence_release"
+ [drivers/misc/habanalabs/habanalabs.ko] undefined!
+To: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 01.03.2019 10:30, Maxime Ripard wrote:
-> On Thu, Feb 28, 2019 at 08:41:53PM +0100, Gerhard Wiesinger wrote:
->> On 28.02.2019 10:35, Maxime Ripard wrote:
->>> On Wed, Feb 27, 2019 at 07:58:14PM +0100, Gerhard Wiesinger wrote:
->>>> On 27.02.2019 10:20, Maxime Ripard wrote:
->>>>> On Sun, Feb 24, 2019 at 09:04:57AM +0100, Gerhard Wiesinger wrote:
->>>>>> Hello,
->>>>>>
->>>>>> I've 3 Banana Pi R1, one running with self compiled kernel
->>>>>> 4.7.4-200.BPiR1.fc24.armv7hl and old Fedora 25 which is VERY STABLE, the 2
->>>>>> others are running with Fedora 29 latest, kernel 4.20.10-200.fc29.armv7hl. I
->>>>>> tried a lot of kernels between of around 4.11
->>>>>> (kernel-4.11.10-200.fc25.armv7hl) until 4.20.10 but all had crashes without
->>>>>> any output on the serial console or kernel panics after a short time of
->>>>>> period (minutes, hours, max. days)
->>>>>>
->>>>>> Latest known working and stable self compiled kernel: kernel
->>>>>> 4.7.4-200.BPiR1.fc24.armv7hl:
->>>>>>
->>>>>> https://www.wiesinger.com/opensource/fedora/kernel/BananaPi-R1/
->>>>>>
->>>>>> With 4.8.x the DSA b53 switch infrastructure has been introduced which
->>>>>> didn't work (until ca8931948344c485569b04821d1f6bcebccd376b and kernel
->>>>>> 4.18.x):
->>>>>>
->>>>>> https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/drivers/net/dsa/b53?h=v4.20.12
->>>>>>
->>>>>> https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/log/drivers/net/dsa/b53?h=v4.20.12
->>>>>>
->>>>>> https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit/drivers/net/dsa/b53?h=v4.20.12&id=ca8931948344c485569b04821d1f6bcebccd376b
->>>>>>
->>>>>> I has been fixed with kernel 4.18.x:
->>>>>>
->>>>>> https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/log/drivers/net/dsa/b53?h=linux-4.18.y
->>>>>>
->>>>>>
->>>>>> So current status is, that kernel crashes regularly, see some samples below.
->>>>>> It is typically a "Unable to handle kernel paging request at virtual addres"
->>>>>>
->>>>>> Another interesting thing: A Banana Pro works well (which has also an
->>>>>> Allwinner A20 in the same revision) running same Fedora 29 and latest
->>>>>> kernels (e.g. kernel 4.20.10-200.fc29.armv7hl.).
->>>>>>
->>>>>> Since it happens on 2 different devices and with different power supplies
->>>>>> (all with enough power) and also the same type which works well on the
->>>>>> working old kernel) a hardware issue is very unlikely.
->>>>>>
->>>>>> I guess it has something to do with virtual memory.
->>>>>>
->>>>>> Any ideas?
->>>>>> [47322.960193] Unable to handle kernel paging request at virtual addres 5675d0
->>>>> That line is a bit suspicious
->>>>>
->>>>> Anyway, cpufreq is known to cause those kind of errors when the
->>>>> voltage / frequency association is not correct.
->>>>>
->>>>> Given the stack trace and that the BananaPro doesn't have cpufreq
->>>>> enabled, my first guess would be that it's what's happening. Could you
->>>>> try using the performance governor and see if it's more stable?
->>>>>
->>>>> If it is, then using this:
->>>>> https://github.com/ssvb/cpuburn-arm/blob/master/cpufreq-ljt-stress-test
->>>>>
->>>>> will help you find the offending voltage-frequency couple.
->>>> For me it looks like they have all the same config regarding cpu governor
->>>> (Banana Pro, old kernel stable one, new kernel unstable ones)
->>> The Banana Pro doesn't have a regulator set up, so it will only change
->>> the frequency, not the voltage.
->>>
->>>> They all have the ondemand governor set:
->>>>
->>>> I set on the 2 unstable "new kernel Banana Pi R1":
->>>>
->>>> # Set to max performance
->>>> echo "performance" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
->>>> echo "performance" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
->>> What are the results?
->> Stable since more than around 1,5 days. Normally they have been crashed for
->> such a long uptime. So it looks that the performance governor fixes it.
->>
->> I guess crashes occour because of changing CPU voltage and clock changes and
->> invalid data (e.g. also invalid RAM contents might be read, register
->> problems, etc).
->>
->> Any ideas how to fix it for ondemand mode, too?
-> Run https://github.com/ssvb/cpuburn-arm/blob/master/cpufreq-ljt-stress-test
+On Sat, Mar 2, 2019 at 3:42 AM kbuild test robot <lkp@intel.com> wrote:
 >
->> But it doesn't explaing that it works with kernel 4.7.4 without any
->> problems.
-> My best guess would be that cpufreq wasn't enabled at that time, or
-> without voltage scaling.
+> Hi Andrew,
 >
+> First bad commit (maybe != root cause):
+>
+> tree:   https://github.com/rgushchin/linux.git release_percpu
+> head:   8b287c57af99a4642cdf70b3b1a5ab1d90877bba
+> commit: 773ae09cc9c61b8f7dc983e9a1d4ce5abbd6339d [321/401] linux-next-rejects
+> config: x86_64-randconfig-m3-02280836 (attached as .config)
+> compiler: gcc-7 (Debian 7.4.0-5) 7.4.0
+> reproduce:
+>         git checkout 773ae09cc9c61b8f7dc983e9a1d4ce5abbd6339d
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64
+>
+> All errors (new ones prefixed by >>):
+>
+> >> ERROR: "dma_fence_release" [drivers/misc/habanalabs/habanalabs.ko] undefined!
+> >> ERROR: "dma_fence_init" [drivers/misc/habanalabs/habanalabs.ko] undefined!
+> >> ERROR: "dma_fence_signal" [drivers/misc/habanalabs/habanalabs.ko] undefined!
+> >> ERROR: "dma_fence_default_wait" [drivers/misc/habanalabs/habanalabs.ko] undefined!
+> >> ERROR: "dma_fence_wait_timeout" [drivers/misc/habanalabs/habanalabs.ko] undefined!
+>
+> ---
+> 0-DAY kernel test infrastructure                Open Source Technology Center
+> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
-Where can I see the voltage scaling parameters?
+Hi Roman and Andrew.
+That error comes from the original patch-set of the driver, where a
+there was missing "select DMA_SHARED_BUFFER" in Kconfig. So for
+certain configurations, the build would fail.
+This is already fixed in the current char-misc-next tree of gkh.
 
-on DTS I don't see any difference between kernel 4.7.4 and 4.20.10 
-regarding voltage:
-
-dtc -I dtb -O dts -o 
-/boot/dtb-4.20.10-200.fc29.armv7hl/sun7i-a20-lamobo-r1.dts 
-/boot/dtb-4.20.10-200.fc29.armv7hl/sun7i-a20-lamobo-r1.dtb
-
-There is another strange thing (tested with 
-kernel-5.0.0-0.rc8.git1.1.fc31.armv7hl, kernel-4.19.8-300.fc29.armv7hl, 
-kernel-4.20.13-200.fc29.armv7hl, kernel-4.20.10-200.fc29.armv7hl):
-
-There is ALWAYS high CPU of around 10% in kworker:
-
-   PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM TIME+ COMMAND
-18722 root      20   0       0      0      0 I   9.5   0.0 0:47.52 
-[kworker/1:3-events_freezable_power_]
-
-   PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM TIME+ COMMAND
-   776 root      20   0       0      0      0 I   8.6   0.0 0:02.77 
-[kworker/0:4-events]
-
-Therefore CPU doesn't switch to low frequencies (see below).
-
-Any ideas?
-
-BTW: Still stable at aboout 2,5days on both devices. So solution IS the 
-performance governor.
-
-Ciao,
-
-Gerhard
-
-================================================================================================================================================================
-# monitor frequency
-while true; do echo "========================================"; echo -n 
-"CPU_FREQ0: "; cat 
-/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq; echo -n 
-"CPU_FREQ1: "; cat 
-/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_cur_freq; sleep 1; done
-================================================================================================================================================================
-
-# Kernel 4.7.4:
-========================================
-CPU_FREQ0: 144000
-CPU_FREQ1: 144000
-========================================
-CPU_FREQ0: 144000
-CPU_FREQ1: 144000
-========================================
-CPU_FREQ0: 144000
-CPU_FREQ1: 144000
-========================================
-
-# Kernel 4.20.10
-========================================
-CPU_FREQ0: 864000
-CPU_FREQ1: 720000
-========================================
-CPU_FREQ0: 960000
-CPU_FREQ1: 960000
-========================================
-CPU_FREQ0: 960000
-CPU_FREQ1: 960000
-========================================
-CPU_FREQ0: 144000
-CPU_FREQ1: 144000
-========================================
-CPU_FREQ0: 720000
-CPU_FREQ1: 960000
-========================================
-CPU_FREQ0: 960000
-CPU_FREQ1: 864000
-========================================
-CPU_FREQ0: 720000
-CPU_FREQ1: 864000
-========================================
-CPU_FREQ0: 528000
-CPU_FREQ1: 864000
-
+Thanks,
+Oded
 
