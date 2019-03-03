@@ -2,232 +2,180 @@ Return-Path: <SRS0=vBJc=RG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 25F84C43381
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Mar 2019 20:23:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C53A0C43381
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Mar 2019 22:07:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D4CC1206DD
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Mar 2019 20:23:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4CC1206DD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 7185D20842
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Mar 2019 22:07:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7185D20842
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7C8CF8E0004; Sun,  3 Mar 2019 15:23:27 -0500 (EST)
+	id CA6DA8E0003; Sun,  3 Mar 2019 17:07:27 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 74ED88E0001; Sun,  3 Mar 2019 15:23:27 -0500 (EST)
+	id C54CE8E0001; Sun,  3 Mar 2019 17:07:27 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5F0EE8E0004; Sun,  3 Mar 2019 15:23:27 -0500 (EST)
+	id B44D78E0003; Sun,  3 Mar 2019 17:07:27 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 314CE8E0001
-	for <linux-mm@kvack.org>; Sun,  3 Mar 2019 15:23:27 -0500 (EST)
-Received: by mail-yw1-f72.google.com with SMTP id w130so5610111yww.3
-        for <linux-mm@kvack.org>; Sun, 03 Mar 2019 12:23:27 -0800 (PST)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 75C668E0001
+	for <linux-mm@kvack.org>; Sun,  3 Mar 2019 17:07:27 -0500 (EST)
+Received: by mail-pf1-f200.google.com with SMTP id 19so3058621pfo.10
+        for <linux-mm@kvack.org>; Sun, 03 Mar 2019 14:07:27 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=As7imqn3G4dxOZMTUK1PJuwiWK8PE0mTgXX3jRyo/mE=;
-        b=g6X/agzEIYRNvDdvs7lql4Hkap/VLoWzBRci+SDpRZpl+EN6LiIuqxt6oYZ6Tm8DOq
-         mpZJD4yZjF6kaH/TqNSGkr40+TFoMUCPye0jRCBNrZLt2jMkYZjjnmdMtQgD21mdkngV
-         Tp1jdB7Wrxa8kf6vTDgAPWpd9zzBLx0K2nVGxuVhRBKDFDIowMpU81g16t29QD3zKVi/
-         7/1r5SAWx/LlSfvewGXFUR/2towICp83UDRh5D/R2f4Reozm0aDNx16eQqyf9GEVyUKw
-         VGEBgUTwdqUdVtWwj1kQ7+8z0tVHxzMIJO7+GH0M54ZJ3gi1Aqz6CzNadet0U1M1/G5A
-         auTQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAW/g1x4B+urUw/gvRtD5XpRJ1WUC0Y+TlQsVexio1hwQkReijzr
-	p7FpesgPlV+HuWs6GP5WK3/NfQqQzC2tn6rafMD2LHtHhEAk/QrtscQGECZuDfTBX7F0VJbqDgH
-	CJgqKx2C/wvypnOPTZy4LxWL9YDCRisHxkvjSU/1j0TMABGsRhw3RtHiSE7Lbj+35+tOJTvbXFQ
-	vv6Qs+t1DRXju5tg4bfgp0lJEcrxrWSnE3xGHuNeCdrRy1CrDvBZjG6L8i4huWpqvI6SEBXmtld
-	Ixjv8OscDzGubmxylMLJlyUUb7AEtYD/NMarLZXGvE17et0flHZ9TiNkcsmxDU7qAXbYW/qDn6z
-	msZDEafpUq7XnUH+wERwDkqYsDSD/5wzzc2k4AgJpwlEQuqV1O/Jl+fZZCyJysg+LtBeVohuUg=
-	=
-X-Received: by 2002:a25:9209:: with SMTP id b9mr12608301ybo.60.1551644606943;
-        Sun, 03 Mar 2019 12:23:26 -0800 (PST)
-X-Received: by 2002:a25:9209:: with SMTP id b9mr12608272ybo.60.1551644606023;
-        Sun, 03 Mar 2019 12:23:26 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551644606; cv=none;
+         :cc:subject:message-id:mime-version:content-disposition:user-agent;
+        bh=Jh1RrHS/0Qn0+szMfe9763lhRMqIScGFPVsAnFBaE7Y=;
+        b=fMTWrdr7EZXvgI2WrkiCnW8LrVSUaJhF858mdCILcCxs0pkn62zlgZnaG5oxQG899a
+         J0xnWFnNh7DBR//ujXdk7iQVHQg8Mx1PIBfcnD+kniK1z/r4Nj1gniN0r7pk121gdQfp
+         bf6WUPPm8zApi1ceIGIdxmNyeOf4GhSLM7Pb20e3/qB3NBdfkrM+6d2Gz1ugCYvMIr+O
+         HvZhDZ2Wwmu6GPtxFYgSnihNYVyxaayjM9ZP+lkg/UgXwsU6pAKSDeijFqqH6AG0mMRg
+         /K3szSBbN4byl/CCMaYpU3JPPNIDlEyY8sXM1NIlrlVKKNWfY3uTpUTP2LSBEpgEurV0
+         x6ig==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of lkp@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=lkp@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUQSbx0KaswU1H9n7ZQyzyoIOEt3tdMqZSfM7dMVuHb4ZJ7cS/c
+	ueO/n1Cor5PelsZGNri19bZcRfVsCDKq4VVr797pkriQbwZIuAP4h9Q9uPz0GEazFo4v2u7sYpz
+	xsuGTCSgm7GWoQxobUe9gouoCGks/VRnEjtaGQlPo5gPxuD6b434umSf37ogcc2//Ng==
+X-Received: by 2002:a17:902:42e:: with SMTP id 43mr17389111ple.88.1551650847100;
+        Sun, 03 Mar 2019 14:07:27 -0800 (PST)
+X-Google-Smtp-Source: APXvYqybXSlgyzbIuCGMWyupJvAY12059o/2570Pj0RRokpeVRIC+wlO0BPATr11Y8TMOxP9DhEF
+X-Received: by 2002:a17:902:42e:: with SMTP id 43mr17389022ple.88.1551650845814;
+        Sun, 03 Mar 2019 14:07:25 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551650845; cv=none;
         d=google.com; s=arc-20160816;
-        b=k/HTPTCzYO0pilpxyaTi6KyWF+4ez6L7ApMjzyoQdxpJgyluZRlnsfRFFCaPU2tICb
-         IOE39ZMp63r+a3qpnBEG7WAf2F/ejqSnbF6abEDzk20EUKsYjBPzsHNI2ix350I2rvFO
-         hJMNfCZ62IWWYssmTQNO/32cFuVca92V5v1TAAlv5bDq70TJXDLFBYIfoPvPs0/gAdVP
-         77sSWzY4BCKbOQQyZqo38DUKzl/YBT4T0EPJnIBGCkq7sS/qkOr1MBVNfx1sRood5t5I
-         046nZffCOC1tTHlFapFEmG+BE1wraAqER+SYeWqQha7906SG0GsR3tF9hPUN1buRKnaO
-         kygg==
+        b=eR5jFB3VI8XzvC7S0TtjNtYdlvxBngb3YNQBNlqfprvFwrq6B/EvgIfOXDc6bb1f5b
+         DWJkjML/c2dbjjTGsWeZPpKr2nYvl0xPvKlGN7Tm+/nvyfdhqLvP/OS0bKYaldTuhrXi
+         5sW3pbB7NVReNIQqULU/dfbPeqT0f3svhXu5BTczVV2w+Xk5vDUVFTNy3lY7Xdj6iTFT
+         00vPnmyw0GA06TIGDnP6QmQeh5/gnn97utXZ6qWHRIr3/SkAoXAOXTgpLhwixAUSCJnr
+         FwDZid90HTDzj/pIn+XVbV8UWJ34aKLtI4XAOUsaPlW2u/LgMNyBQVL+sx/aQbOWyUBP
+         BJeg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
+        h=user-agent:content-disposition:mime-version:message-id:subject:cc
          :to:from:date;
-        bh=As7imqn3G4dxOZMTUK1PJuwiWK8PE0mTgXX3jRyo/mE=;
-        b=KpZqP6f14n55PRNkUFVq6ghNWSYvrGHPCUrW4Dn/J0Pz7QfeTyOfLMYfcSGEHCdZhp
-         W6gKXBVPyMBtztqMGnSH51ypkYzeOoUCriZKcp3hPl40dpd6YjuUseqZDyGDCFS4ri/1
-         0WyomsQ1CrvFvL7db213OvbAT4t8eR4/4/sF3pXHYBrhjjbqZOnwyVBykA0mm6eulhRp
-         5l9gvcdz0+xnzbY7ys7Cul9EvNyM1rdTw3fl7nACkQ7ZDYRDNWPfmpywWOb9N0AqscHj
-         uTaf9YAazq7vHJu6Sjt2GhP+jJl/woVvx1ntmEzVPsne8P5eXu4lOb7BUzEpwpLtTo+V
-         Il1w==
+        bh=Jh1RrHS/0Qn0+szMfe9763lhRMqIScGFPVsAnFBaE7Y=;
+        b=tLlXgNfvXQY0xUfOPTizMM/trMbE+2b14U1CqAzd9qLPjVH3Zj5AlbvfGF9Axh51zH
+         jxSm5C9zZaiaSMTkrEOo4jBMgqnXvWSAfKMtyi7CGBE4X0N4oHCnMe1t64bpMs4PPZ7K
+         /XC15p9tuKWC9wvUZUjb3TUE2MwDVmktrxxZrsSQeQhhfl7/dgBzZU2fiblzTgNYNTzS
+         O3FOVcTailqBlc/SRH0GH+sxGerbMrE1r+0mRrptkwRx+DbXkmkf/XqOL180ungBa+V4
+         5ohQaCqo+d5JkVrLJUft+K8+OiqEc6FK/GVU1kIZQ6c8zgT6LjN+IZ2JN7BXtact0SDc
+         oXuw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z128sor737949ywz.183.2019.03.03.12.23.25
+       spf=pass (google.com: domain of lkp@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=lkp@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id a23si3810082pls.338.2019.03.03.14.07.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 03 Mar 2019 12:23:26 -0800 (PST)
-Received-SPF: pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: APXvYqwYGXWilhVaSLcWu2+oaWU1dfZicPRpeAXuyKxB4d2KVdrQJ5vtsyreEA0QyueGU4qpmjRY7g==
-X-Received: by 2002:a81:9b05:: with SMTP id s5mr11783129ywg.351.1551644605744;
-        Sun, 03 Mar 2019 12:23:25 -0800 (PST)
-Received: from dennisz-mbp.dhcp.thefacebook.com ([2620:10d:c091:200::ffe8])
-        by smtp.gmail.com with ESMTPSA id p13sm1614143ywe.80.2019.03.03.12.23.24
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Mar 2019 12:23:25 -0800 (PST)
-Date: Sun, 3 Mar 2019 15:23:23 -0500
-From: Dennis Zhou <dennis@kernel.org>
-To: Peng Fan <peng.fan@nxp.com>
-Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>,
-	Vlad Buslov <vladbu@mellanox.com>,
-	"kernel-team@fb.com" <kernel-team@fb.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 07/12] percpu: add block level scan_hint
-Message-ID: <20190303202323.GB4868@dennisz-mbp.dhcp.thefacebook.com>
-References: <20190228021839.55779-1-dennis@kernel.org>
- <20190228021839.55779-8-dennis@kernel.org>
- <AM0PR04MB44813651B653B5269C5C211D88700@AM0PR04MB4481.eurprd04.prod.outlook.com>
+        Sun, 03 Mar 2019 14:07:25 -0800 (PST)
+Received-SPF: pass (google.com: domain of lkp@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of lkp@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=lkp@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 03 Mar 2019 14:07:24 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.58,437,1544515200"; 
+   d="scan'208";a="122332855"
+Received: from lkp-server01.sh.intel.com (HELO lkp-server01) ([10.239.97.150])
+  by orsmga008.jf.intel.com with ESMTP; 03 Mar 2019 14:07:23 -0800
+Received: from kbuild by lkp-server01 with local (Exim 4.89)
+	(envelope-from <lkp@intel.com>)
+	id 1h0ZGU-0009JX-G5; Mon, 04 Mar 2019 06:07:22 +0800
+Date: Mon, 4 Mar 2019 06:07:18 +0800
+From: kbuild test robot <lkp@intel.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org,
+	Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linux Memory Management List <linux-mm@kvack.org>
+Subject: mm/kasan/init.c:44:8-9: WARNING: return of 0/1 in function
+ 'kasan_p4d_table' with return type bool
+Message-ID: <201903040615.AFuPIoDo%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <AM0PR04MB44813651B653B5269C5C211D88700@AM0PR04MB4481.eurprd04.prod.outlook.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+User-Agent: Mutt/1.5.23 (2014-03-12)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 03, 2019 at 06:01:42AM +0000, Peng Fan wrote:
-> Hi Dennis
-> 
-> > -----Original Message-----
-> > From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On
-> > Behalf Of Dennis Zhou
-> > Sent: 2019年2月28日 10:19
-> > To: Dennis Zhou <dennis@kernel.org>; Tejun Heo <tj@kernel.org>; Christoph
-> > Lameter <cl@linux.com>
-> > Cc: Vlad Buslov <vladbu@mellanox.com>; kernel-team@fb.com;
-> > linux-mm@kvack.org; linux-kernel@vger.kernel.org
-> > Subject: [PATCH 07/12] percpu: add block level scan_hint
-> > 
-> > Fragmentation can cause both blocks and chunks to have an early first_firee
-> > bit available, but only able to satisfy allocations much later on. This patch
-> > introduces a scan_hint to help mitigate some unnecessary scanning.
-> > 
-> > The scan_hint remembers the largest area prior to the contig_hint. If the
-> > contig_hint == scan_hint, then scan_hint_start > contig_hint_start.
-> > This is necessary for scan_hint discovery when refreshing a block.
-> > 
-> > Signed-off-by: Dennis Zhou <dennis@kernel.org>
-> > ---
-> >  mm/percpu-internal.h |   9 ++++
-> >  mm/percpu.c          | 101
-> > ++++++++++++++++++++++++++++++++++++++++---
-> >  2 files changed, 103 insertions(+), 7 deletions(-)
-> > 
-> > diff --git a/mm/percpu-internal.h b/mm/percpu-internal.h index
-> > b1739dc06b73..ec58b244545d 100644
-> > --- a/mm/percpu-internal.h
-> > +++ b/mm/percpu-internal.h
-> > @@ -9,8 +9,17 @@
-> >   * pcpu_block_md is the metadata block struct.
-> >   * Each chunk's bitmap is split into a number of full blocks.
-> >   * All units are in terms of bits.
-> > + *
-> > + * The scan hint is the largest known contiguous area before the contig hint.
-> > + * It is not necessarily the actual largest contig hint though.  There
-> > + is an
-> > + * invariant that the scan_hint_start > contig_hint_start iff
-> > + * scan_hint == contig_hint.  This is necessary because when scanning
-> > + forward,
-> > + * we don't know if a new contig hint would be better than the current one.
-> >   */
-> >  struct pcpu_block_md {
-> > +	int			scan_hint;	/* scan hint for block */
-> > +	int			scan_hint_start; /* block relative starting
-> > +						    position of the scan hint */
-> >  	int                     contig_hint;    /* contig hint for block */
-> >  	int                     contig_hint_start; /* block relative starting
-> >  						      position of the contig hint */ diff --git
-> > a/mm/percpu.c b/mm/percpu.c index 967c9cc3a928..df1aacf58ac8 100644
-> > --- a/mm/percpu.c
-> > +++ b/mm/percpu.c
-> > @@ -320,6 +320,34 @@ static unsigned long pcpu_block_off_to_off(int index,
-> > int off)
-> >  	return index * PCPU_BITMAP_BLOCK_BITS + off;  }
-> > 
-> > +/*
-> > + * pcpu_next_hint - determine which hint to use
-> > + * @block: block of interest
-> > + * @alloc_bits: size of allocation
-> > + *
-> > + * This determines if we should scan based on the scan_hint or first_free.
-> > + * In general, we want to scan from first_free to fulfill allocations
-> > +by
-> > + * first fit.  However, if we know a scan_hint at position
-> > +scan_hint_start
-> > + * cannot fulfill an allocation, we can begin scanning from there
-> > +knowing
-> > + * the contig_hint will be our fallback.
-> > + */
-> > +static int pcpu_next_hint(struct pcpu_block_md *block, int alloc_bits)
-> > +{
-> > +	/*
-> > +	 * The three conditions below determine if we can skip past the
-> > +	 * scan_hint.  First, does the scan hint exist.  Second, is the
-> > +	 * contig_hint after the scan_hint (possibly not true iff
-> > +	 * contig_hint == scan_hint).  Third, is the allocation request
-> > +	 * larger than the scan_hint.
-> > +	 */
-> > +	if (block->scan_hint &&
-> > +	    block->contig_hint_start > block->scan_hint_start &&
-> > +	    alloc_bits > block->scan_hint)
-> > +		return block->scan_hint_start + block->scan_hint;
-> > +
-> > +	return block->first_free;
-> > +}
-> > +
-> >  /**
-> >   * pcpu_next_md_free_region - finds the next hint free area
-> >   * @chunk: chunk of interest
-> > @@ -415,9 +443,11 @@ static void pcpu_next_fit_region(struct pcpu_chunk
-> > *chunk, int alloc_bits,
-> >  		if (block->contig_hint &&
-> >  		    block->contig_hint_start >= block_off &&
-> >  		    block->contig_hint >= *bits + alloc_bits) {
-> > +			int start = pcpu_next_hint(block, alloc_bits);
-> > +
-> >  			*bits += alloc_bits + block->contig_hint_start -
-> > -				 block->first_free;
-> > -			*bit_off = pcpu_block_off_to_off(i, block->first_free);
-> > +				 start;
-> 
-> This might not relevant to this patch.
-> Not sure it is intended or not.
-> For `alloc_bits + block->contig_hink_start - [block->first_free or start]`
-> If the reason is to let pcpu_is_populated return a proper next_off when pcpu_is_populated
-> fail, it makes sense. If not, why not just use *bits += alloc_bits.
-> 
+Hi Andrey,
 
-This is how the iterator works. Without it, it doesn't.
+First bad commit (maybe != root cause):
 
-Thanks,
-Dennis
+tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+head:   c027c7cf1577bc2333449447c6e48c93126a56b0
+commit: b938fcf42739de8270e6ea41593722929c8a7dd0 kasan: rename source files to reflect the new naming scheme
+date:   9 weeks ago
+
+
+coccinelle warnings: (new ones prefixed by >>)
+
+>> mm/kasan/init.c:44:8-9: WARNING: return of 0/1 in function 'kasan_p4d_table' with return type bool
+>> mm/kasan/init.c:68:8-9: WARNING: return of 0/1 in function 'kasan_pmd_table' with return type bool
+>> mm/kasan/init.c:56:8-9: WARNING: return of 0/1 in function 'kasan_pud_table' with return type bool
+
+vim +/kasan_p4d_table +44 mm/kasan/init.c
+
+69786cdb3 mm/kasan/kasan_init.c Andrey Ryabinin    2015-08-13  34  
+c2febafc6 mm/kasan/kasan_init.c Kirill A. Shutemov 2017-03-09  35  #if CONFIG_PGTABLE_LEVELS > 4
+c65e774fb mm/kasan/kasan_init.c Kirill A. Shutemov 2018-02-14  36  p4d_t kasan_zero_p4d[MAX_PTRS_PER_P4D] __page_aligned_bss;
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  37  static inline bool kasan_p4d_table(pgd_t pgd)
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  38  {
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  39  	return pgd_page(pgd) == virt_to_page(lm_alias(kasan_zero_p4d));
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  40  }
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  41  #else
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  42  static inline bool kasan_p4d_table(pgd_t pgd)
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  43  {
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17 @44  	return 0;
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  45  }
+c2febafc6 mm/kasan/kasan_init.c Kirill A. Shutemov 2017-03-09  46  #endif
+69786cdb3 mm/kasan/kasan_init.c Andrey Ryabinin    2015-08-13  47  #if CONFIG_PGTABLE_LEVELS > 3
+69786cdb3 mm/kasan/kasan_init.c Andrey Ryabinin    2015-08-13  48  pud_t kasan_zero_pud[PTRS_PER_PUD] __page_aligned_bss;
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  49  static inline bool kasan_pud_table(p4d_t p4d)
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  50  {
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  51  	return p4d_page(p4d) == virt_to_page(lm_alias(kasan_zero_pud));
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  52  }
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  53  #else
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  54  static inline bool kasan_pud_table(p4d_t p4d)
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  55  {
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17 @56  	return 0;
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  57  }
+69786cdb3 mm/kasan/kasan_init.c Andrey Ryabinin    2015-08-13  58  #endif
+69786cdb3 mm/kasan/kasan_init.c Andrey Ryabinin    2015-08-13  59  #if CONFIG_PGTABLE_LEVELS > 2
+69786cdb3 mm/kasan/kasan_init.c Andrey Ryabinin    2015-08-13  60  pmd_t kasan_zero_pmd[PTRS_PER_PMD] __page_aligned_bss;
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  61  static inline bool kasan_pmd_table(pud_t pud)
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  62  {
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  63  	return pud_page(pud) == virt_to_page(lm_alias(kasan_zero_pmd));
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  64  }
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  65  #else
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  66  static inline bool kasan_pmd_table(pud_t pud)
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  67  {
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17 @68  	return 0;
+0207df4fa mm/kasan/kasan_init.c Andrey Ryabinin    2018-08-17  69  }
+69786cdb3 mm/kasan/kasan_init.c Andrey Ryabinin    2015-08-13  70  #endif
+69786cdb3 mm/kasan/kasan_init.c Andrey Ryabinin    2015-08-13  71  pte_t kasan_zero_pte[PTRS_PER_PTE] __page_aligned_bss;
+69786cdb3 mm/kasan/kasan_init.c Andrey Ryabinin    2015-08-13  72  
+
+:::::: The code at line 44 was first introduced by commit
+:::::: 0207df4fa1a869281ddbf72db6203dbf036b3e1a kernel/memremap, kasan: make ZONE_DEVICE with work with KASAN
+
+:::::: TO: Andrey Ryabinin <aryabinin@virtuozzo.com>
+:::::: CC: Linus Torvalds <torvalds@linux-foundation.org>
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
