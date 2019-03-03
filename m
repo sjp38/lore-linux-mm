@@ -2,242 +2,471 @@ Return-Path: <SRS0=vBJc=RG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6395BC43381
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Mar 2019 16:19:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 04CE7C43381
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Mar 2019 20:22:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EABFA20818
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Mar 2019 16:19:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EABFA20818
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 82EAF206DD
+	for <linux-mm@archiver.kernel.org>; Sun,  3 Mar 2019 20:22:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 82EAF206DD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 40E578E0003; Sun,  3 Mar 2019 11:19:44 -0500 (EST)
+	id EF39B8E0003; Sun,  3 Mar 2019 15:22:28 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 396198E0001; Sun,  3 Mar 2019 11:19:44 -0500 (EST)
+	id EA4398E0001; Sun,  3 Mar 2019 15:22:28 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 25F488E0003; Sun,  3 Mar 2019 11:19:44 -0500 (EST)
+	id D92BF8E0003; Sun,  3 Mar 2019 15:22:28 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E03408E0001
-	for <linux-mm@kvack.org>; Sun,  3 Mar 2019 11:19:43 -0500 (EST)
-Received: by mail-oi1-f200.google.com with SMTP id p65so1796338oib.15
-        for <linux-mm@kvack.org>; Sun, 03 Mar 2019 08:19:43 -0800 (PST)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ACCE18E0001
+	for <linux-mm@kvack.org>; Sun,  3 Mar 2019 15:22:28 -0500 (EST)
+Received: by mail-yw1-f71.google.com with SMTP id 200so3222202ywe.11
+        for <linux-mm@kvack.org>; Sun, 03 Mar 2019 12:22:28 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :date:from:user-agent:mime-version:to:cc:subject:references
-         :in-reply-to:content-transfer-encoding;
-        bh=/2XpIHPftEPkLcnC7CmO+eQ9rqtGU/1ClfjFQyDOQww=;
-        b=ip/Jf2HL6QBJhEeT/X88zuuU1jpDhk+x2PZZQAe1OScUgU+3hCwhPHyhEncaxT8CY9
-         3c3naBMAwGz/sSiFertn1hYHgF1KWo9dEyb0U/JYiyQnZKNVj4EekZcQOAVCoN0sI/of
-         2/2Hx65CzPVa85WDSLezwiANj24EuLXsovn04bPnfewqx5t/q4ebDYcg/foLC08bpVYy
-         Dp/2XyOdj+Vo9a7Xiq0fDjIOGyVvS+7b7S55ht0SCp1WYQyE+86NFZ2LaFFAnPsqBD+c
-         jK7CrAFhnKhxAhZ33TPzm12+smg+v3EZSm2ror34gUwX8AzH5gFE2k0iRZYa8ua062tZ
-         e3vg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-X-Gm-Message-State: AHQUAub4NTi3fQIJnfSKSmsBJ6TGspUW8alS17syNgTqCJhooOfzJYVK
-	rxGPCMrxgu50iNZUi4LfB0wd6peXgWsYFkCoxFLfa6S0HF2/2p3nPRCF47+SEUyPisVwOdAXrFf
-	4XV8jvibSLc7fdhYzNKWjqeFiO5km47VIn5r260Df12Fki3yB7I0YGRBi26cyt4KO4A==
-X-Received: by 2002:aca:3542:: with SMTP id c63mr9761797oia.1.1551629983459;
-        Sun, 03 Mar 2019 08:19:43 -0800 (PST)
-X-Google-Smtp-Source: AHgI3IYTpP2j63t8fX7zi//CJ0Qtg6fq2QaRhWmvePT/uTgXgk1y6wVAoJliuXidtBciy4LpLPIA
-X-Received: by 2002:aca:3542:: with SMTP id c63mr9761742oia.1.1551629981892;
-        Sun, 03 Mar 2019 08:19:41 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551629981; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=vWYe/SH4n5pQhn73EX2h3fENGFvia3GnHd1Qq7AyZVI=;
+        b=Svl52EMOq0joyPLCdUmaYw3Uag2sas8QHQFKyRu8RIuxLvwhRUp0rFgpq6XTNo3pos
+         zROf7DQ9SS0dFAKJbxHZjfy5M+62FTjWPXjY8EWHwsqA0quMThgoHRiybmLcYaHGC4j9
+         zVuSF3UPwbM70TdXoZX+7AV/tIfiPM9CjE2SRLm/eb0n2b37oZ6IZNBGOn/wwclj8V1S
+         H+b43hQR0/T7qd15MNMzk+27DWOqz6BSTeCAW46QuhheO65BtyTsN7QVuWfCWF6wErCk
+         01wW29iXWiRRqL0UsbQ1hRHLjzkH69p6DGQ9EaIFERTUCmxIYXQjeBxJt9YzFOvjA9MS
+         JV+g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAU0/gfFhXoNbiFe7oL6TDVX5AAqYJnetA7QEAh2RDumOh2FxLHI
+	V5VYvaNPeeD4rr6cdPhADJnBS0f0lRXzByEDuqMR/wb0xwmTDC3uvkFZNoQ91ba+r/y1G5lnyqi
+	lvfsKNBWf9FeAErMfkZnlSK0M3PLgP3MeukvI2uzlXeUOaFWIzXPVUYULtUUO1w0ttiUmKJdVK+
+	h8fPNyyUzFZ59DEJInxusYfWku3hxSwKNEGWf55xzZUqjhnqA8x+RhQphn/mOZYoO1K4FkBe8Ey
+	RLmB4E4vqcOzGc/+cMFIzlhIP8DmATODwrLisK/lxUQY5smlGfnA9cRr3CgaYV/88UoR0n8UmIN
+	pFTWBXwJX2pB5Bhb2YoPk3MOWB6upXiXlQFUnr+rSTkH3Iju+n7I0DVhbqRGZvDdwxx4Gwb04w=
+	=
+X-Received: by 2002:a81:5a41:: with SMTP id o62mr12029833ywb.101.1551644548088;
+        Sun, 03 Mar 2019 12:22:28 -0800 (PST)
+X-Received: by 2002:a81:5a41:: with SMTP id o62mr12029793ywb.101.1551644546973;
+        Sun, 03 Mar 2019 12:22:26 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551644546; cv=none;
         d=google.com; s=arc-20160816;
-        b=PMcJoCBZs1zvhq/7CJFLuCRqQL3UPZpIbTpFg6OjSLMtZky7TP7q0s0vPxOu82Tdc2
-         fdnsLNXyUqiy9O+m9gfbGh9h2OwHJXy0OgEPm5YahnGIpVXkqmaeOXe1GW9EORjsIgiU
-         iOcf5ZamKb+Rd8qbloNXxOYLvQWBJlYAVKIiVctmJeauUxr8DInbP6ZI31LA6p7capHM
-         satG/T/T63YKv3aBfh89jUhCMbM1mia4rYUq2w7XmBaN+firI98IqV0T+ftsnvjKLTut
-         AH3n+8Z9O266VLae3/DmjuEoD3iZUabQCH3l2daorDntVhEGF6qIxSCQTfrWqEpNt4IJ
-         erCg==
+        b=P0eFlMToqFoEacboWwm8RwC6CuevcTpe70x8Aj533b5HmIwpeqn2SuNHHPIEWKgK/t
+         /qIWQXCv2AmNJgiSkKBlJ193InhJgADtunjkWnNWxW4OaBaUcyJ2zC7eTuyorxzlPz9O
+         R1NYic4chD7Ib8w9i0Dft5unSh/28I5wJ6HTR05Xrlv+u4C7mBtQy5M4p7qrYjL9Jpfl
+         B6O0d4xGv6Pjk0QMMgxHuAoUBxFojNC20ICgDKyEjP+RxOdh80gNhfcjZcjg6PMTLsrY
+         iR0uVRk5P79TBOo/nWclIod15bqqv100GV8Vl7uj/pkx2e/3e1cqEVh4PF7qH7JggVFy
+         LNeQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
-         :mime-version:user-agent:from:date:message-id;
-        bh=/2XpIHPftEPkLcnC7CmO+eQ9rqtGU/1ClfjFQyDOQww=;
-        b=bMwtiELKDCscIdECVSNQMYaGw+fa+VOey/Jyk/SG6nlyBgDByU2wVsfJbqi+j78H/u
-         Ofq3cnAwVUcF+PBYwUZsikLdU/rClr8iofywsP6A6jv/kJ+j5hCjatTzDgFIaNo0lcPR
-         meVZDZ105tce7GymbZ0WFsvCK/JgDVeij4Kyq/deULN85Bsjdxcj800HSsI0wmYzVrmH
-         M1KNYNxfr6Xmo8sdQsdLHfRP6ECNob7dZ+ZyIwShILm2Nkxq7kWkwC77gxtNkAaJ3X/f
-         VgUJzi/OWvYWXmGu6lPbvudIM5xzARWH4NjSyIbgfMMFJn/zMLiR2drUNlRiC7UvrFHq
-         XogQ==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=vWYe/SH4n5pQhn73EX2h3fENGFvia3GnHd1Qq7AyZVI=;
+        b=hUzoL+oBvNqhVnkDFsdwbtg5bAHgDgN0h/jkqKfnCLWNnFkDE2jwbHwiOYA3hJSlWA
+         HIyfmTLzwuJ5K9y2X7jeAE9LcTyKDP5C5XV0TUqSypii19G5Xvih6xU5ZsMn/1phLBfD
+         gC7XuZn3cCmjHF67k7807NLgKkMY8uryWqYcv7Tl7OLVeEKyPjTRjGkXP2ul3eEyGGFp
+         MSOvjewWGDGqyL0KqzVfMWBQB+PHUPd4d/DFc5HRnDiGeoXNp3IRlrtCb6EndpWXKIt9
+         DJCuAscMemc6QMBsvQT3zBvvwuFPcZtAK6JjocYHEb9WH+TggbXXT2khEJ+/jtnEgKG9
+         6y3A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id x10si1629681oto.297.2019.03.03.08.19.41
+       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f188sor1826240yba.156.2019.03.03.12.22.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Mar 2019 08:19:41 -0800 (PST)
-Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) client-ip=45.249.212.191;
+        (Google Transport Security);
+        Sun, 03 Mar 2019 12:22:26 -0800 (PST)
+Received-SPF: pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from DGGEMS401-HUB.china.huawei.com (unknown [172.30.72.60])
-	by Forcepoint Email with ESMTP id 1F04760251A42B65A99D;
-	Mon,  4 Mar 2019 00:19:38 +0800 (CST)
-Received: from [127.0.0.1] (10.177.29.68) by DGGEMS401-HUB.china.huawei.com
- (10.3.19.201) with Microsoft SMTP Server id 14.3.408.0; Mon, 4 Mar 2019
- 00:19:33 +0800
-Message-ID: <5C7BFE94.6070500@huawei.com>
-Date: Mon, 4 Mar 2019 00:19:32 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
+       spf=pass (google.com: domain of dennisszhou@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dennisszhou@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: APXvYqxxnI4dFXphPrO3Xa618uZXKK+o6d9sqai/0+WFqAOeBHgY3P8K43unCfLjgEIACijg+vNZOA==
+X-Received: by 2002:a25:ed5:: with SMTP id 204mr12057601ybo.171.1551644546486;
+        Sun, 03 Mar 2019 12:22:26 -0800 (PST)
+Received: from dennisz-mbp.dhcp.thefacebook.com ([2620:10d:c091:200::ffe8])
+        by smtp.gmail.com with ESMTPSA id g82sm1811658ywg.60.2019.03.03.12.22.24
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 03 Mar 2019 12:22:25 -0800 (PST)
+Date: Sun, 3 Mar 2019 15:22:23 -0500
+From: Dennis Zhou <dennis@kernel.org>
+To: Peng Fan <peng.fan@nxp.com>
+Cc: Dennis Zhou <dennis@kernel.org>, Tejun Heo <tj@kernel.org>,
+	Christoph Lameter <cl@linux.com>, Vlad Buslov <vladbu@mellanox.com>,
+	"kernel-team@fb.com" <kernel-team@fb.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 11/12] percpu: convert chunk hints to be based on
+ pcpu_block_md
+Message-ID: <20190303202223.GA4868@dennisz-mbp.dhcp.thefacebook.com>
+References: <20190228021839.55779-1-dennis@kernel.org>
+ <20190228021839.55779-12-dennis@kernel.org>
+ <AM0PR04MB44813FA493D26E2E157FCAF388700@AM0PR04MB4481.eurprd04.prod.outlook.com>
 MIME-Version: 1.0
-To: syzbot <syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com>,
-	<mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
-CC: <cgroups@vger.kernel.org>, <hannes@cmpxchg.org>,
-	<linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
-	<syzkaller-bugs@googlegroups.com>, <vdavydov.dev@gmail.com>, David Rientjes
-	<rientjes@google.com>, Hugh Dickins <hughd@google.com>, Matthew Wilcox
-	<willy@infradead.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka
-	<vbabka@suse.cz>
-Subject: Re: KASAN: use-after-free Read in get_mem_cgroup_from_mm
-References: <00000000000006457e057c341ff8@google.com>
-In-Reply-To: <00000000000006457e057c341ff8@google.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.177.29.68]
-X-CFilter-Loop: Reflected
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <AM0PR04MB44813FA493D26E2E157FCAF388700@AM0PR04MB4481.eurprd04.prod.outlook.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, guys
+On Sun, Mar 03, 2019 at 08:18:49AM +0000, Peng Fan wrote:
+> 
+> 
+> > -----Original Message-----
+> > From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On
+> > Behalf Of Dennis Zhou
+> > Sent: 2019年2月28日 10:19
+> > To: Dennis Zhou <dennis@kernel.org>; Tejun Heo <tj@kernel.org>; Christoph
+> > Lameter <cl@linux.com>
+> > Cc: Vlad Buslov <vladbu@mellanox.com>; kernel-team@fb.com;
+> > linux-mm@kvack.org; linux-kernel@vger.kernel.org
+> > Subject: [PATCH 11/12] percpu: convert chunk hints to be based on
+> > pcpu_block_md
+> > 
+> > As mentioned in the last patch, a chunk's hints are no different than a block
+> > just responsible for more bits. This converts chunk level hints to use a
+> > pcpu_block_md to maintain them. This lets us reuse the same hint helper
+> > functions as a block. The left_free and right_free are unused by the chunk's
+> > pcpu_block_md.
+> > 
+> > Signed-off-by: Dennis Zhou <dennis@kernel.org>
+> > ---
+> >  mm/percpu-internal.h |   5 +-
+> >  mm/percpu-stats.c    |   5 +-
+> >  mm/percpu.c          | 120 +++++++++++++++++++------------------------
+> >  3 files changed, 57 insertions(+), 73 deletions(-)
+> > 
+> > diff --git a/mm/percpu-internal.h b/mm/percpu-internal.h index
+> > 119bd1119aa7..0468ba500bd4 100644
+> > --- a/mm/percpu-internal.h
+> > +++ b/mm/percpu-internal.h
+> > @@ -39,9 +39,7 @@ struct pcpu_chunk {
+> > 
+> >  	struct list_head	list;		/* linked to pcpu_slot lists */
+> >  	int			free_bytes;	/* free bytes in the chunk */
+> > -	int			contig_bits;	/* max contiguous size hint */
+> > -	int			contig_bits_start; /* contig_bits starting
+> > -						      offset */
+> > +	struct pcpu_block_md	chunk_md;
+> >  	void			*base_addr;	/* base address of this chunk */
+> > 
+> >  	unsigned long		*alloc_map;	/* allocation map */
+> > @@ -49,7 +47,6 @@ struct pcpu_chunk {
+> >  	struct pcpu_block_md	*md_blocks;	/* metadata blocks */
+> > 
+> >  	void			*data;		/* chunk data */
+> > -	int			first_bit;	/* no free below this */
+> >  	bool			immutable;	/* no [de]population allowed */
+> >  	int			start_offset;	/* the overlap with the previous
+> >  						   region to have a page aligned
+> > diff --git a/mm/percpu-stats.c b/mm/percpu-stats.c index
+> > b5fdd43b60c9..ef5034a0464e 100644
+> > --- a/mm/percpu-stats.c
+> > +++ b/mm/percpu-stats.c
+> > @@ -53,6 +53,7 @@ static int find_max_nr_alloc(void)  static void
+> > chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
+> >  			    int *buffer)
+> >  {
+> > +	struct pcpu_block_md *chunk_md = &chunk->chunk_md;
+> >  	int i, last_alloc, as_len, start, end;
+> >  	int *alloc_sizes, *p;
+> >  	/* statistics */
+> > @@ -121,9 +122,9 @@ static void chunk_map_stats(struct seq_file *m,
+> > struct pcpu_chunk *chunk,
+> >  	P("nr_alloc", chunk->nr_alloc);
+> >  	P("max_alloc_size", chunk->max_alloc_size);
+> >  	P("empty_pop_pages", chunk->nr_empty_pop_pages);
+> > -	P("first_bit", chunk->first_bit);
+> > +	P("first_bit", chunk_md->first_free);
+> >  	P("free_bytes", chunk->free_bytes);
+> > -	P("contig_bytes", chunk->contig_bits * PCPU_MIN_ALLOC_SIZE);
+> > +	P("contig_bytes", chunk_md->contig_hint * PCPU_MIN_ALLOC_SIZE);
+> >  	P("sum_frag", sum_frag);
+> >  	P("max_frag", max_frag);
+> >  	P("cur_min_alloc", cur_min_alloc);
+> > diff --git a/mm/percpu.c b/mm/percpu.c
+> > index 7cdf14c242de..197479f2c489 100644
+> > --- a/mm/percpu.c
+> > +++ b/mm/percpu.c
+> > @@ -233,10 +233,13 @@ static int pcpu_size_to_slot(int size)
+> > 
+> >  static int pcpu_chunk_slot(const struct pcpu_chunk *chunk)  {
+> > -	if (chunk->free_bytes < PCPU_MIN_ALLOC_SIZE || chunk->contig_bits
+> > == 0)
+> > +	const struct pcpu_block_md *chunk_md = &chunk->chunk_md;
+> > +
+> > +	if (chunk->free_bytes < PCPU_MIN_ALLOC_SIZE ||
+> > +	    chunk_md->contig_hint == 0)
+> >  		return 0;
+> > 
+> > -	return pcpu_size_to_slot(chunk->contig_bits * PCPU_MIN_ALLOC_SIZE);
+> > +	return pcpu_size_to_slot(chunk_md->contig_hint *
+> > PCPU_MIN_ALLOC_SIZE);
+> >  }
+> > 
+> >  /* set the pointer to a chunk in a page struct */ @@ -592,54 +595,6 @@
+> > static inline bool pcpu_region_overlap(int a, int b, int x, int y)
+> >  	return false;
+> >  }
+> > 
+> > -/**
+> > - * pcpu_chunk_update - updates the chunk metadata given a free area
+> > - * @chunk: chunk of interest
+> > - * @bit_off: chunk offset
+> > - * @bits: size of free area
+> > - *
+> > - * This updates the chunk's contig hint and starting offset given a free area.
+> > - * Choose the best starting offset if the contig hint is equal.
+> > - */
+> > -static void pcpu_chunk_update(struct pcpu_chunk *chunk, int bit_off, int bits)
+> > -{
+> > -	if (bits > chunk->contig_bits) {
+> > -		chunk->contig_bits_start = bit_off;
+> > -		chunk->contig_bits = bits;
+> > -	} else if (bits == chunk->contig_bits && chunk->contig_bits_start &&
+> > -		   (!bit_off ||
+> > -		    __ffs(bit_off) > __ffs(chunk->contig_bits_start))) {
+> > -		/* use the start with the best alignment */
+> > -		chunk->contig_bits_start = bit_off;
+> > -	}
+> > -}
+> > -
+> > -/**
+> > - * pcpu_chunk_refresh_hint - updates metadata about a chunk
+> > - * @chunk: chunk of interest
+> > - *
+> > - * Iterates over the metadata blocks to find the largest contig area.
+> > - * It also counts the populated pages and uses the delta to update the
+> > - * global count.
+> > - *
+> > - * Updates:
+> > - *      chunk->contig_bits
+> > - *      chunk->contig_bits_start
+> > - */
+> > -static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk) -{
+> > -	int bit_off, bits;
+> > -
+> > -	/* clear metadata */
+> > -	chunk->contig_bits = 0;
+> > -
+> > -	bit_off = chunk->first_bit;
+> > -	bits = 0;
+> > -	pcpu_for_each_md_free_region(chunk, bit_off, bits) {
+> > -		pcpu_chunk_update(chunk, bit_off, bits);
+> > -	}
+> > -}
+> > -
+> >  /**
+> >   * pcpu_block_update - updates a block given a free area
+> >   * @block: block of interest
+> > @@ -753,6 +708,29 @@ static void pcpu_block_update_scan(struct
+> > pcpu_chunk *chunk, int bit_off,
+> >  	pcpu_block_update(block, s_off, e_off);  }
+> > 
+> > +/**
+> > + * pcpu_chunk_refresh_hint - updates metadata about a chunk
+> > + * @chunk: chunk of interest
+> > + *
+> > + * Iterates over the metadata blocks to find the largest contig area.
+> > + * It also counts the populated pages and uses the delta to update the
+> > + * global count.
+> > + */
+> > +static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk) {
+> > +	struct pcpu_block_md *chunk_md = &chunk->chunk_md;
+> > +	int bit_off, bits;
+> > +
+> > +	/* clear metadata */
+> > +	chunk_md->contig_hint = 0;
+> > +
+> > +	bit_off = chunk_md->first_free;
+> > +	bits = 0;
+> > +	pcpu_for_each_md_free_region(chunk, bit_off, bits) {
+> > +		pcpu_block_update(chunk_md, bit_off, bit_off + bits);
+> > +	}
+> > +}
+> > +
+> >  /**
+> >   * pcpu_block_refresh_hint
+> >   * @chunk: chunk of interest
+> > @@ -800,6 +778,7 @@ static void pcpu_block_refresh_hint(struct
+> > pcpu_chunk *chunk, int index)  static void
+> > pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
+> >  					 int bits)
+> >  {
+> > +	struct pcpu_block_md *chunk_md = &chunk->chunk_md;
+> >  	int nr_empty_pages = 0;
+> >  	struct pcpu_block_md *s_block, *e_block, *block;
+> >  	int s_index, e_index;	/* block indexes of the freed allocation */
+> > @@ -910,8 +889,9 @@ static void pcpu_block_update_hint_alloc(struct
+> > pcpu_chunk *chunk, int bit_off,
+> >  	 * contig hint is broken.  Otherwise, it means a smaller space
+> >  	 * was used and therefore the chunk contig hint is still correct.
+> >  	 */
+> > -	if (pcpu_region_overlap(chunk->contig_bits_start,
+> > -				chunk->contig_bits_start + chunk->contig_bits,
+> > +	if (pcpu_region_overlap(chunk_md->contig_hint_start,
+> > +				chunk_md->contig_hint_start +
+> > +				chunk_md->contig_hint,
+> >  				bit_off,
+> >  				bit_off + bits))
+> >  		pcpu_chunk_refresh_hint(chunk);
+> > @@ -930,9 +910,10 @@ static void pcpu_block_update_hint_alloc(struct
+> > pcpu_chunk *chunk, int bit_off,
+> >   *
+> >   * A chunk update is triggered if a page becomes free, a block becomes free,
+> >   * or the free spans across blocks.  This tradeoff is to minimize iterating
+> > - * over the block metadata to update chunk->contig_bits.
+> > chunk->contig_bits
+> > - * may be off by up to a page, but it will never be more than the available
+> > - * space.  If the contig hint is contained in one block, it will be accurate.
+> > + * over the block metadata to update chunk_md->contig_hint.
+> > + * chunk_md->contig_hint may be off by up to a page, but it will never
+> > + be more
+> > + * than the available space.  If the contig hint is contained in one
+> > + block, it
+> > + * will be accurate.
+> >   */
+> >  static void pcpu_block_update_hint_free(struct pcpu_chunk *chunk, int
+> > bit_off,
+> >  					int bits)
+> > @@ -1026,8 +1007,9 @@ static void pcpu_block_update_hint_free(struct
+> > pcpu_chunk *chunk, int bit_off,
+> >  	if (((end - start) >= PCPU_BITMAP_BLOCK_BITS) || s_index != e_index)
+> >  		pcpu_chunk_refresh_hint(chunk);
+> >  	else
+> > -		pcpu_chunk_update(chunk, pcpu_block_off_to_off(s_index, start),
+> > -				  end - start);
+> > +		pcpu_block_update(&chunk->chunk_md,
+> > +				  pcpu_block_off_to_off(s_index, start),
+> > +				  end);
+> >  }
+> > 
+> >  /**
+> > @@ -1082,6 +1064,7 @@ static bool pcpu_is_populated(struct pcpu_chunk
+> > *chunk, int bit_off, int bits,  static int pcpu_find_block_fit(struct pcpu_chunk
+> > *chunk, int alloc_bits,
+> >  			       size_t align, bool pop_only)
+> >  {
+> > +	struct pcpu_block_md *chunk_md = &chunk->chunk_md;
+> >  	int bit_off, bits, next_off;
+> > 
+> >  	/*
+> > @@ -1090,12 +1073,12 @@ static int pcpu_find_block_fit(struct pcpu_chunk
+> > *chunk, int alloc_bits,
+> >  	 * cannot fit in the global hint, there is memory pressure and creating
+> >  	 * a new chunk would happen soon.
+> >  	 */
+> > -	bit_off = ALIGN(chunk->contig_bits_start, align) -
+> > -		  chunk->contig_bits_start;
+> > -	if (bit_off + alloc_bits > chunk->contig_bits)
+> > +	bit_off = ALIGN(chunk_md->contig_hint_start, align) -
+> > +		  chunk_md->contig_hint_start;
+> > +	if (bit_off + alloc_bits > chunk_md->contig_hint)
+> >  		return -1;
+> > 
+> > -	bit_off = chunk->first_bit;
+> > +	bit_off = chunk_md->first_free;
+> >  	bits = 0;
+> >  	pcpu_for_each_fit_region(chunk, alloc_bits, align, bit_off, bits) {
+> >  		if (!pop_only || pcpu_is_populated(chunk, bit_off, bits, @@ -1190,6
+> > +1173,7 @@ static unsigned long pcpu_find_zero_area(unsigned long *map,
+> > static int pcpu_alloc_area(struct pcpu_chunk *chunk, int alloc_bits,
+> >  			   size_t align, int start)
+> >  {
+> > +	struct pcpu_block_md *chunk_md = &chunk->chunk_md;
+> >  	size_t align_mask = (align) ? (align - 1) : 0;
+> >  	unsigned long area_off = 0, area_bits = 0;
+> >  	int bit_off, end, oslot;
+> > @@ -1222,8 +1206,8 @@ static int pcpu_alloc_area(struct pcpu_chunk
+> > *chunk, int alloc_bits,
+> >  	chunk->free_bytes -= alloc_bits * PCPU_MIN_ALLOC_SIZE;
+> > 
+> >  	/* update first free bit */
+> > -	if (bit_off == chunk->first_bit)
+> > -		chunk->first_bit = find_next_zero_bit(
+> > +	if (bit_off == chunk_md->first_free)
+> > +		chunk_md->first_free = find_next_zero_bit(
+> >  					chunk->alloc_map,
+> >  					pcpu_chunk_map_bits(chunk),
+> >  					bit_off + alloc_bits);
+> > @@ -1245,6 +1229,7 @@ static int pcpu_alloc_area(struct pcpu_chunk
+> > *chunk, int alloc_bits,
+> >   */
+> >  static void pcpu_free_area(struct pcpu_chunk *chunk, int off)  {
+> > +	struct pcpu_block_md *chunk_md = &chunk->chunk_md;
+> >  	int bit_off, bits, end, oslot;
+> > 
+> >  	lockdep_assert_held(&pcpu_lock);
+> > @@ -1264,7 +1249,7 @@ static void pcpu_free_area(struct pcpu_chunk
+> > *chunk, int off)
+> >  	chunk->free_bytes += bits * PCPU_MIN_ALLOC_SIZE;
+> > 
+> >  	/* update first free bit */
+> > -	chunk->first_bit = min(chunk->first_bit, bit_off);
+> > +	chunk_md->first_free = min(chunk_md->first_free, bit_off);
+> > 
+> >  	pcpu_block_update_hint_free(chunk, bit_off, bits);
+> > 
+> > @@ -1285,6 +1270,9 @@ static void pcpu_init_md_blocks(struct pcpu_chunk
+> > *chunk)  {
+> >  	struct pcpu_block_md *md_block;
+> > 
+> > +	/* init the chunk's block */
+> > +	pcpu_init_md_block(&chunk->chunk_md,
+> > pcpu_chunk_map_bits(chunk));
+> > +
+> >  	for (md_block = chunk->md_blocks;
+> >  	     md_block != chunk->md_blocks + pcpu_chunk_nr_blocks(chunk);
+> >  	     md_block++)
+> > @@ -1352,7 +1340,6 @@ static struct pcpu_chunk * __init
+> > pcpu_alloc_first_chunk(unsigned long tmp_addr,
+> >  	chunk->nr_populated = chunk->nr_pages;
+> >  	chunk->nr_empty_pop_pages = chunk->nr_pages;
+> > 
+> > -	chunk->contig_bits = map_size / PCPU_MIN_ALLOC_SIZE;
+> >  	chunk->free_bytes = map_size;
+> > 
+> >  	if (chunk->start_offset) {
+> > @@ -1362,7 +1349,7 @@ static struct pcpu_chunk * __init
+> > pcpu_alloc_first_chunk(unsigned long tmp_addr,
+> >  		set_bit(0, chunk->bound_map);
+> >  		set_bit(offset_bits, chunk->bound_map);
+> > 
+> > -		chunk->first_bit = offset_bits;
+> > +		chunk->chunk_md.first_free = offset_bits;
+> > 
+> >  		pcpu_block_update_hint_alloc(chunk, 0, offset_bits);
+> >  	}
+> > @@ -1415,7 +1402,6 @@ static struct pcpu_chunk *pcpu_alloc_chunk(gfp_t
+> > gfp)
+> >  	pcpu_init_md_blocks(chunk);
+> > 
+> >  	/* init metadata */
+> > -	chunk->contig_bits = region_bits;
+> >  	chunk->free_bytes = chunk->nr_pages * PAGE_SIZE;
+> > 
+> >  	return chunk;
+> 
+> Reviewed-by: Peng Fan <peng.fan@nxp.com>
+> 
+> Nitpick, how about name a function __pcpu_md_update,
+> and let pcpu_chunk_update and pcpu_block_update to
+> call __pcpu_md_update. If you prefer, I could submit
+> a patch.
+> 
 
-I also hit the following issue. but it fails to reproduce the issue by the log.
-
-it seems to the case that we access the mm->owner and deference it will result in the UAF.
-But it should not be possible that we specify the incomplete process to be the mm->owner.
-
-Any thoughts?
+I don't have a preference. But I do not really want to have 2 functions
+that just wrap the same function. I think overall it'll make sense to
+rename it, but I haven't thought about what to rename it to as it'll
+probably be influence by the possible direction that percpu ends up
+going.
 
 Thanks,
-zhong jiang
-
-On 2018/12/4 23:43, syzbot wrote:
-> syzbot has found a reproducer for the following crash on:
->
-> HEAD commit:    0072a0c14d5b Merge tag 'media/v4.20-4' of git://git.kernel..
-> git tree:       upstream
-> console output: https://syzkaller.appspot.com/x/log.txt?x=11c885a3400000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=b9cc5a440391cbfd
-> dashboard link: https://syzkaller.appspot.com/bug?extid=cbb52e396df3e565ab02
-> compiler:       gcc (GCC) 8.0.1 20180413 (experimental)
-> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=12835e25400000
-> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=172fa5a3400000
->
-> IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+cbb52e396df3e565ab02@syzkaller.appspotmail.com
->
-> cgroup: fork rejected by pids controller in /syz2
-> ==================================================================
-> BUG: KASAN: use-after-free in __read_once_size include/linux/compiler.h:182 [inline]
-> BUG: KASAN: use-after-free in task_css include/linux/cgroup.h:477 [inline]
-> BUG: KASAN: use-after-free in mem_cgroup_from_task mm/memcontrol.c:815 [inline]
-> BUG: KASAN: use-after-free in get_mem_cgroup_from_mm.part.62+0x6d7/0x880 mm/memcontrol.c:844
-> Read of size 8 at addr ffff8881b72af310 by task syz-executor198/9332
->
-> CPU: 0 PID: 9332 Comm: syz-executor198 Not tainted 4.20.0-rc5+ #142
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
-> Call Trace:
->  __dump_stack lib/dump_stack.c:77 [inline]
->  dump_stack+0x244/0x39d lib/dump_stack.c:113
->  print_address_description.cold.7+0x9/0x1ff mm/kasan/report.c:256
->  kasan_report_error mm/kasan/report.c:354 [inline]
->  kasan_report.cold.8+0x242/0x309 mm/kasan/report.c:412
->  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:433
->  __read_once_size include/linux/compiler.h:182 [inline]
->  task_css include/linux/cgroup.h:477 [inline]
->  mem_cgroup_from_task mm/memcontrol.c:815 [inline]
->  get_mem_cgroup_from_mm.part.62+0x6d7/0x880 mm/memcontrol.c:844
->  get_mem_cgroup_from_mm mm/memcontrol.c:834 [inline]
->  mem_cgroup_try_charge+0x608/0xe20 mm/memcontrol.c:5888
->  mcopy_atomic_pte mm/userfaultfd.c:71 [inline]
->  mfill_atomic_pte mm/userfaultfd.c:418 [inline]
->  __mcopy_atomic mm/userfaultfd.c:559 [inline]
->  mcopy_atomic+0xb08/0x2c70 mm/userfaultfd.c:609
->  userfaultfd_copy fs/userfaultfd.c:1705 [inline]
->  userfaultfd_ioctl+0x29fb/0x5610 fs/userfaultfd.c:1851
->  vfs_ioctl fs/ioctl.c:46 [inline]
->  file_ioctl fs/ioctl.c:509 [inline]
->  do_vfs_ioctl+0x1de/0x1790 fs/ioctl.c:696
->  ksys_ioctl+0xa9/0xd0 fs/ioctl.c:713
->  __do_sys_ioctl fs/ioctl.c:720 [inline]
->  __se_sys_ioctl fs/ioctl.c:718 [inline]
->  __x64_sys_ioctl+0x73/0xb0 fs/ioctl.c:718
->  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
->  entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> RIP: 0033:0x44c7e9
-> Code: 5d c5 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff ff 0f 83 2b c5 fb ff c3 66 2e 0f 1f 84 00 00 00 00
-> RSP: 002b:00007f906b69fdb8 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
-> RAX: ffffffffffffffda RBX: 00000000006e4a08 RCX: 000000000044c7e9
-> RDX: 0000000020000100 RSI: 00000000c028aa03 RDI: 0000000000000004
-> RBP: 00000000006e4a00 R08: 0000000000000000 R09: 0000000000000000
-> R10: 0000000000000000 R11: 0000000000000246 R12: 00000000006e4a0c
-> R13: 00007ffdfd47813f R14: 00007f906b6a09c0 R15: 000000000000002d
->
-> Allocated by task 9325:
->  save_stack+0x43/0xd0 mm/kasan/kasan.c:448
->  set_track mm/kasan/kasan.c:460 [inline]
->  kasan_kmalloc+0xc7/0xe0 mm/kasan/kasan.c:553
->  kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:490
->  kmem_cache_alloc_node+0x144/0x730 mm/slab.c:3644
->  alloc_task_struct_node kernel/fork.c:158 [inline]
->  dup_task_struct kernel/fork.c:843 [inline]
->  copy_process+0x2026/0x87a0 kernel/fork.c:1751
->  _do_fork+0x1cb/0x11d0 kernel/fork.c:2216
->  __do_sys_clone kernel/fork.c:2323 [inline]
->  __se_sys_clone kernel/fork.c:2317 [inline]
->  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2317
->  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
->  entry_SYSCALL_64_after_hwframe+0x49/0xbe
->
-> Freed by task 9325:
->  save_stack+0x43/0xd0 mm/kasan/kasan.c:448
->  set_track mm/kasan/kasan.c:460 [inline]
->  __kasan_slab_free+0x102/0x150 mm/kasan/kasan.c:521
->  kasan_slab_free+0xe/0x10 mm/kasan/kasan.c:528
->  __cache_free mm/slab.c:3498 [inline]
->  kmem_cache_free+0x83/0x290 mm/slab.c:3760
->  free_task_struct kernel/fork.c:163 [inline]
->  free_task+0x16e/0x1f0 kernel/fork.c:457
->  copy_process+0x1dcc/0x87a0 kernel/fork.c:2148
->  _do_fork+0x1cb/0x11d0 kernel/fork.c:2216
->  __do_sys_clone kernel/fork.c:2323 [inline]
->  __se_sys_clone kernel/fork.c:2317 [inline]
->  __x64_sys_clone+0xbf/0x150 kernel/fork.c:2317
->  do_syscall_64+0x1b9/0x820 arch/x86/entry/common.c:290
->  entry_SYSCALL_64_after_hwframe+0x49/0xbe
->
-> The buggy address belongs to the object at ffff8881b72ae240
->  which belongs to the cache task_struct(81:syz2) of size 6080
-> The buggy address is located 4304 bytes inside of
->  6080-byte region [ffff8881b72ae240, ffff8881b72afa00)
-> The buggy address belongs to the page:
-> page:ffffea0006dcab80 count:1 mapcount:0 mapping:ffff8881d2dce0c0 index:0x0 compound_mapcount: 0
-> flags: 0x2fffc0000010200(slab|head)
-> raw: 02fffc0000010200 ffffea00074a1f88 ffffea0006ebbb88 ffff8881d2dce0c0
-> raw: 0000000000000000 ffff8881b72ae240 0000000100000001 ffff8881d87fe580
-> page dumped because: kasan: bad access detected
-> page->mem_cgroup:ffff8881d87fe580
->
-> Memory state around the buggy address:
->  ffff8881b72af200: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
->  ffff8881b72af280: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
->> ffff8881b72af300: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
->                          ^
->  ffff8881b72af380: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
->  ffff8881b72af400: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> ==================================================================
->
->
-> .
->
-
+Dennis
 
