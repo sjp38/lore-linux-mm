@@ -2,139 +2,178 @@ Return-Path: <SRS0=F7ZL=RH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC282C10F03
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 12:01:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 64D1FC43381
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 12:02:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A56EC20645
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 12:01:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A56EC20645
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 2473F20815
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 12:02:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ZPLxhhUG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2473F20815
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3A62D8E0004; Mon,  4 Mar 2019 07:01:46 -0500 (EST)
+	id A84528E0005; Mon,  4 Mar 2019 07:02:38 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 37E858E0001; Mon,  4 Mar 2019 07:01:46 -0500 (EST)
+	id A329D8E0001; Mon,  4 Mar 2019 07:02:38 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 26CC48E0004; Mon,  4 Mar 2019 07:01:46 -0500 (EST)
+	id 94B068E0005; Mon,  4 Mar 2019 07:02:38 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C6D188E0001
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 07:01:45 -0500 (EST)
-Received: by mail-ed1-f71.google.com with SMTP id a21so2589789eda.3
-        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 04:01:45 -0800 (PST)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AB268E0001
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 07:02:38 -0500 (EST)
+Received: by mail-lj1-f199.google.com with SMTP id y86so1055400lje.1
+        for <linux-mm@kvack.org>; Mon, 04 Mar 2019 04:02:38 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=Znf0DnHGX7qcHNgMOFUs4bIDbQazikbc4EZbjGrPUaA=;
-        b=U46000CrPqgEa0YcRZSwyV9wiwMwmKVN9+jwzICJkqsEtfvDIB59bOTOxH5xRKZ1LV
-         WwRz2LPS0DwMUnXmJvt2QmgLoRId7M5BC2VwiUVwXqhX1mkvtgJ4cZss1QCyhaEo+6zP
-         NPx3hKdspKcK+QGR0Yy6oM4rkl7I3bjSWHAjR1tYujWeUoAYdLRT0Z+mCoGRg3ytgDFZ
-         E2CaniZG7CVsp6kPpUZ1eqhAmgMiZn1IFYcoOVMCG83iHxa52zyMD2PSyjvviD4OIB7w
-         r+Vs0L9h2ySt/QbBcc/taOXgB74iGaqjDLQ8B9GYPC9+ndNf0RXnJuYm3M535Q9GvEci
-         RGqA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAXvAv0eWnMRwj+bVDwRmxC+GwXtnIfxWmGMY9idYMlM/pDaI1D+
-	NzbOBdJlRV6pNRuu7FkACWRQXvNzK0Hr/JZdbY8I+f20P06CUDJJOH8rXkCPQytgwgyVsqR6RIg
-	2pHntaGLJCAxiRo/QYgGnarvbrxO/dN/2spzLXBXOhW3MVmYb5KZI0uMrhj4N7YRBVg==
-X-Received: by 2002:a17:906:5781:: with SMTP id k1mr12725055ejq.34.1551700905376;
-        Mon, 04 Mar 2019 04:01:45 -0800 (PST)
-X-Google-Smtp-Source: APXvYqyhKlf5M81Y47tF9l6XgUiSKC8wMIQeWkkvwKNhm9A1aVo2aU+V1TXIeznlm0ncKE/j6lUS
-X-Received: by 2002:a17:906:5781:: with SMTP id k1mr12725013ejq.34.1551700904530;
-        Mon, 04 Mar 2019 04:01:44 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551700904; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=guNt41lbGYnWxFVBh6b7n+727OGehx1dipKcWFoG7GU=;
+        b=oCEu/zv3Z8DBJ2ovLPdLKDiBsuteokMfISkRIoTbSE1AWrNT2TsesAPQ28GVgCSdpJ
+         sXfB/2VTsjCuMxZ3oHbuLlkNMzXzqmCcZhQH+2xN5q30obEu2Hsyf1+vdMiVI5XrInhr
+         GVedTcKcSSl/hpfxVKvIPofDLriaEZ+G8Q/forLuC6oDhihvc+JrtxcZaBNiqaMb5axX
+         4mdPWg65+tHXEgEYcUAaZVIKeN5qp2rpIPjf6kG9+d5ZE3fj90CfOHSeuaQrc56o1uhn
+         wefX25nm5pjPNi7QUyfKz2JABR315G7x9BBL88tjnkEDAQUx1obK8Q+4AMPFiPYNv/Yu
+         KVsw==
+X-Gm-Message-State: APjAAAW2+VU4LFZliBjeyh8zlIwNtAxhiOs8Gos8PHTjRDyd8fygIVgZ
+	0pWrTtxJgqgT78yrRg8eezB60L9bOwe5n66+WBRrAFotxl86HwmYlTuaXJt3YRRW6IdPGA/6ncL
+	U3WFA/z62wWiH80GALaLzIjX4m+d+XMmpdcjQDQpEfCqIb+u68HkM4qCH7GtgJWe36105rQJ2aM
+	GlOJVRV6sK+RsKFfU6YwiQHpP0ws81CVfzD9rWHp+skC0UBaHm+qiyyuOnA3rtFeP0b9p2R5unV
+	l7YaziUvKAD3O4FdHcc9SY5jCln7vjbcuvpjlxTOgo09fTHg/5EtvFOVyXacCycAjQ+AU6gJqhv
+	oS65xEhzEg5+xGSguwOiTrGvcdblAnTWUu93FraQ7g2J5PFao/ZIrl9ibmq6mC6oFhUIdATfw8c
+	5
+X-Received: by 2002:a2e:9c97:: with SMTP id x23mr10353128lji.13.1551700957244;
+        Mon, 04 Mar 2019 04:02:37 -0800 (PST)
+X-Received: by 2002:a2e:9c97:: with SMTP id x23mr10353081lji.13.1551700956111;
+        Mon, 04 Mar 2019 04:02:36 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551700956; cv=none;
         d=google.com; s=arc-20160816;
-        b=beUx0STn30mLqqbLcJU+qQqTyX0B+ulpSTlcCiBGoZOXIEaUkfBbRlYws1e32th4XR
-         fMy9fW+Vw2RrA7rsuw79EOrhzWUE5hqu7fOlRg3lzuaEtA3NN2Bt5YlQBEyk1Lfy8v3b
-         U5vF6aRO3BKCAGdWprhQQaYjMgE9gztKrgBdKCIAoaDcb8tP25Yh4906r98xkl1mVeRC
-         VMS9oImduWKXmi40OVfVM7RHvPTda5ejSBLkOsS7jSlN5gAQ+wFnM2/1BDo6e9rYmDmF
-         vNMhVysalmLJuWvHqo0onPDB8FBWYkdPa9fR/U3bPeZzWblRzQWMKibffpg3RfUsdkti
-         3RfQ==
+        b=GSQBs+YXBCUw6bo4zf8bmiVlfHds8KJHOSulaWC02Gccw6jg6t1QulcCdVQIt5ohtl
+         P35P/uGS+/1KJChl5BoWYULgiGjySlK8m6PHS7Ae7b5DjlXrrHaoged+rBrwmWMMI1AG
+         ZhXMG8anSW7M9iJAnvYINk/w7vxKXiuUOXy+haWgi2uOYuWRZS7X9kAYDuqikUHTOYHM
+         r2yp/QqGiiikzI0ANKRgpUsnT1rhUnCynSm4YcoLJ91kQpQGbREtZwkqc7R797DAUzV5
+         l51aOSn1fNlAsrZpK+SfjGoV/1AVFpcPW7H+H6pZHBvcX4jpQ2VOzPUSY8M4fOWeQ+63
+         1rWQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=Znf0DnHGX7qcHNgMOFUs4bIDbQazikbc4EZbjGrPUaA=;
-        b=ikYnlGjD3NanJO24os48+FHXWumEfT8CpMF+xj4DeBG7c4mdWelJWdZGTF8wX7cCQx
-         zbulrX1WkTq5lU/+wSIyA+IZGeRCGM4KMyVnmtrA6EZbiOn3/8ClagOkqlBrBEH2ej+6
-         TM5pr/pcBCyK29zmzwpCHfGwhNGJSkKGHIadjvWQrgudIWD3FzsoPSFzEwK2R2D/uiVM
-         RHFL+5DmJrvIETHF9gkJ43i1MFzW1mwvyfDRC35H7iNkbwm/0JKiTNi2nTLn/MoPwvSJ
-         GAf0t7IOCnCUTrbFOW5Tt+MxUeuDpEmH/URQRTy7gCCNnOvGww32GTCUKYbaJ067C/GN
-         mhQQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=guNt41lbGYnWxFVBh6b7n+727OGehx1dipKcWFoG7GU=;
+        b=ZYJM0goA7j1UesKQH0InDTwRrPmlqZl4gRLpgftGYL2Popg/twDnyLvkJJKvd146ce
+         NAhNMUO5Iiy6jCN71EYr5/WoCXSYojZjVlZ2Tta5798ixEZ3zjQhP1yZaqRtGsxSJ9Ps
+         S3gdr7PR2kT6WN4umEgFa/oXIdO/0qS4KQnFG459TYnQsXSHW0MrorOyRdCdx3e6ImoK
+         6gb4Dzf7jS/WyZNw62xQn5v3Ss7Qif6FL8qfNJdsVutjtzJVKbRL10uq4npn7JK5/H+d
+         P/OJQmavKyNWfmXILvJaXAt4lmGpnW30fFhmjIYk/+67f3+BqfhgXaOOdLYsj5Y2nbxv
+         u+sg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id z6si537523ejq.49.2019.03.04.04.01.44
-        for <linux-mm@kvack.org>;
-        Mon, 04 Mar 2019 04:01:44 -0800 (PST)
-Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZPLxhhUG;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m194sor1110050lfa.25.2019.03.04.04.02.35
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 04 Mar 2019 04:02:36 -0800 (PST)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 73ED6A78;
-	Mon,  4 Mar 2019 04:01:43 -0800 (PST)
-Received: from [10.1.196.69] (e112269-lin.cambridge.arm.com [10.1.196.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id A32AD3F703;
-	Mon,  4 Mar 2019 04:01:39 -0800 (PST)
-Subject: Re: [PATCH v3 05/34] c6x: mm: Add p?d_large() definitions
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Mark Rutland <Mark.Rutland@arm.com>, Peter Zijlstra
- <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
- <will.deacon@arm.com>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>,
- "Liang, Kan" <kan.liang@linux.intel.com>, linux-c6x-dev@linux-c6x.org,
- x86@kernel.org, Ingo Molnar <mingo@redhat.com>,
- Mark Salter <msalter@redhat.com>, Arnd Bergmann <arnd@arndb.de>,
- Aurelien Jacquiot <jacquiot.aurelien@gmail.com>,
- =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
- Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>,
- Thomas Gleixner <tglx@linutronix.de>, linux-arm-kernel@lists.infradead.org,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-kernel@vger.kernel.org,
- James Morse <james.morse@arm.com>
-References: <20190227170608.27963-1-steven.price@arm.com>
- <20190227170608.27963-6-steven.price@arm.com>
- <20190301214851.ucems2icwt64iabx@kshutemo-mobl1>
-From: Steven Price <steven.price@arm.com>
-Message-ID: <f840db0e-bbb3-db7e-d883-79b5a630767c@arm.com>
-Date: Mon, 4 Mar 2019 12:01:37 +0000
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZPLxhhUG;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=guNt41lbGYnWxFVBh6b7n+727OGehx1dipKcWFoG7GU=;
+        b=ZPLxhhUGFE6sMjm3CSX4MszZlekzYseSBuXShoSJEbve7Xpt+HQY7w3aeVVyLg4Q0E
+         rz7SXNHehlssV433+XEAIW+tp2lSezTqc63anXsa40gxQxPKcIq0TAONzL0VJ9OskPbj
+         cW9TXVBRh4OsrAbIh/rubW5G2pUGiuBhpaaI8DCsn1cPa94gFdXHKiOs2tk9j2Vs5UD/
+         uCaUrU4iFVtcw6CzLfZz++4nKr1QmZM8aNt4MW5ACPNOBmdSQBZx4rqcM0LExoa5rwmF
+         AvM1oSs13MP69AGzes7Y+Hro3O0a6R+ve/0ZfnI3ZQ/LLFc0W1qDaDpeMudvr0MEYGWP
+         H66A==
+X-Google-Smtp-Source: APXvYqwTv7X0l7CJX5Q+fwXLGzCLGVXxXCL2whRIaEOeg66goYUFjExi/LN7QkAWUW581E0nKcG2hg5XtTmEUY4VBZk=
+X-Received: by 2002:a19:4bd1:: with SMTP id y200mr1046951lfa.64.1551700955508;
+ Mon, 04 Mar 2019 04:02:35 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20190301214851.ucems2icwt64iabx@kshutemo-mobl1>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+References: <20190301221956.97493-1-cai@lca.pw>
+In-Reply-To: <20190301221956.97493-1-cai@lca.pw>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Mon, 4 Mar 2019 17:32:23 +0530
+Message-ID: <CAFqt6zZr8ZCM6_7QDzDEf=5gH=+EkaumXk86X35dGTdn_SLvvA@mail.gmail.com>
+Subject: Re: [PATCH v2] mm/hugepages: fix "orig_pud" set but not used
+To: Qian Cai <cai@lca.pw>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
+	Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 01/03/2019 21:48, Kirill A. Shutemov wrote:
-> On Wed, Feb 27, 2019 at 05:05:39PM +0000, Steven Price wrote:
->> walk_page_range() is going to be allowed to walk page tables other than
->> those of user space. For this it needs to know when it has reached a
->> 'leaf' entry in the page tables. This information is provided by the
->> p?d_large() functions/macros.
->>
->> For c6x there's no MMU so there's never a large page, so just add stubs.
-> 
-> Other option would be to provide the stubs via generic headers form !MMU.
-> 
+On Sat, Mar 2, 2019 at 3:50 AM Qian Cai <cai@lca.pw> wrote:
+>
+> The commit a00cc7d9dd93 ("mm, x86: add support for PUD-sized transparent
+> hugepages") introduced pudp_huge_get_and_clear_full() but no one uses
+> its return code. In order to not diverge from
+> pmdp_huge_get_and_clear_full(), just change zap_huge_pud() to not assign
+> the return value from pudp_huge_get_and_clear_full().
+>
+> mm/huge_memory.c: In function 'zap_huge_pud':
+> mm/huge_memory.c:1982:8: warning: variable 'orig_pud' set but not used
+> [-Wunused-but-set-variable]
+>   pud_t orig_pud;
+>         ^~~~~~~~
+>
 
-I agree that could be done, but equally the definitions of
-p?d_present/p?d_none/p?d_bad etc could be provided by a generic header
-for !MMU but currently are not. It makes sense to keep the p?d_large
-definitions next to the others.
+4th argument passed to pudp_huge_get_and_clear_full() is not used.
+Is it fine to remove *int full * in  pudp_huge_get_and_clear_full() if
+there is no plan to use it in future ?
 
-I'd prefer to stick with a (relatively) small change here - it's already
-quite a long series! But this is certainly something that could be
-tidied up for !MMU archs.
+This is applicable to below functions as well -
+pmdp_huge_get_and_clear_full()
+ptep_get_and_clear_full()
+pte_clear_not_present_full()
 
-Steve
+
+
+
+> Signed-off-by: Qian Cai <cai@lca.pw>
+> ---
+>
+> v2: keep returning a code from pudp_huge_get_and_clear_full() for possible
+>     future uses.
+>
+>  mm/huge_memory.c | 4 +---
+>  1 file changed, 1 insertion(+), 3 deletions(-)
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index faf357eaf0ce..9f57a1173e6a 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1979,7 +1979,6 @@ spinlock_t *__pud_trans_huge_lock(pud_t *pud, struct vm_area_struct *vma)
+>  int zap_huge_pud(struct mmu_gather *tlb, struct vm_area_struct *vma,
+>                  pud_t *pud, unsigned long addr)
+>  {
+> -       pud_t orig_pud;
+>         spinlock_t *ptl;
+>
+>         ptl = __pud_trans_huge_lock(pud, vma);
+> @@ -1991,8 +1990,7 @@ int zap_huge_pud(struct mmu_gather *tlb, struct vm_area_struct *vma,
+>          * pgtable_trans_huge_withdraw after finishing pudp related
+>          * operations.
+>          */
+> -       orig_pud = pudp_huge_get_and_clear_full(tlb->mm, addr, pud,
+> -                       tlb->fullmm);
+> +       pudp_huge_get_and_clear_full(tlb->mm, addr, pud, tlb->fullmm);
+>         tlb_remove_pud_tlb_entry(tlb, pud, addr);
+>         if (vma_is_dax(vma)) {
+>                 spin_unlock(ptl);
+> --
+> 2.17.2 (Apple Git-113)
+>
 
