@@ -1,223 +1,213 @@
-Return-Path: <SRS0=vBJc=RG=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=F7ZL=RH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-13.5 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9FEFC10F00
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Mar 2019 22:37:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DED7BC43381
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 00:13:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7520720842
-	for <linux-mm@archiver.kernel.org>; Sun,  3 Mar 2019 22:37:55 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="Jjh466tN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7520720842
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 7F35820835
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 00:13:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F35820835
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0A79F8E0003; Sun,  3 Mar 2019 17:37:55 -0500 (EST)
+	id C1FF28E0003; Sun,  3 Mar 2019 19:13:39 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 07E538E0001; Sun,  3 Mar 2019 17:37:55 -0500 (EST)
+	id BD07B8E0001; Sun,  3 Mar 2019 19:13:39 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EB0228E0003; Sun,  3 Mar 2019 17:37:54 -0500 (EST)
+	id A983E8E0003; Sun,  3 Mar 2019 19:13:39 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BFA5A8E0001
-	for <linux-mm@kvack.org>; Sun,  3 Mar 2019 17:37:54 -0500 (EST)
-Received: by mail-yw1-f69.google.com with SMTP id i21so5873664ywe.15
-        for <linux-mm@kvack.org>; Sun, 03 Mar 2019 14:37:54 -0800 (PST)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BCC78E0001
+	for <linux-mm@kvack.org>; Sun,  3 Mar 2019 19:13:39 -0500 (EST)
+Received: by mail-qt1-f198.google.com with SMTP id i3so3693511qtc.7
+        for <linux-mm@kvack.org>; Sun, 03 Mar 2019 16:13:39 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=YtliewqCkw6AvjhQ1RBNtPdsYc4lcHNCvdnJ8EtyJKA=;
-        b=K23TYDAR9xg7Jq07JBiesmK4HEbqANah5gkRzkGp5EIe7rLG8AAdrnDjXvKulYERhP
-         oc0d6YEGRd+UCGCEQ4GsgxSVHII1VWOWgdlJrHImEHJadOHHL1Cu+j46imc0dYT6vhOv
-         ima4uWaodqy13Kj11tNNvuNyPBUsXgqCFpCDImz3KuhQDwVj8YA3Im0eA2/ftk9C4X8A
-         dw3vRQafuGyaYbUyerrcK7pSzIJ2SOIiUHJkWz3AF9NwD0I/F6Jde1F+RIgOxDbIyPYA
-         Y8SIIbLxvjVXYItw8eNMZnI697N7K4jCzE+OU3PkAK8XO2qw4ZK16wK9Z7lcVAwuiuJM
-         dYaA==
-X-Gm-Message-State: APjAAAUNQy0UyiBe6QyzPfoFxMRENdohCyw4KempZIvWModEt1mkXt5G
-	A8WRqXwSoQNpHL+N9bDK4XVGiw+5Ir8fyx9/ujGwl2O6eXVezacJznKZZYF1tpZJNeYxb5tmDQs
-	wpkbVjzc8udiTn9fn95ChOBilQ4WuVAfssopnbrT55D1O+FaBLkGXgUEjdnCyjJPTrg==
-X-Received: by 2002:a81:5211:: with SMTP id g17mr12297289ywb.346.1551652674503;
-        Sun, 03 Mar 2019 14:37:54 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzBABl4Q91KQ/jzUbgaP2Ftq2BXqKcK/V20qvM6413KqbLAhGfeiCCZ5hujQU/1A/J0aVv1
-X-Received: by 2002:a81:5211:: with SMTP id g17mr12297266ywb.346.1551652673645;
-        Sun, 03 Mar 2019 14:37:53 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551652673; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Q4R4YZtBEN7I9uyGVnGwsthpgpOBRFSntkvgaLtbe6s=;
+        b=p8jnWZBDMfzemrWmI72GKHSUJ97nHNYUp8BXMV/KlfHMtwjitWj0rNKu28zB3tpgk1
+         F+Zu+9803r4mIDvmj/ISxz4yRKjnTB0DYPSxNNP8eB9VGO5aZjGTsOGE3ylRgB9KrWG3
+         t9ATQxJ02IUtvsg6C/JrXR/f3zhSw2thc4eYwZ6IAniz6WOEzNnK0baKiHM4e959cwmo
+         YyFtxXQ0AFzQwc6K9WPi9g4UQkYNmxfJ1lEhbHRyQXSW+QBA+L0/nc0eDnJqmnONX1rV
+         vALMerPV2T+Rq7zWnZBHq3NLq8yzVFSXJwhv6qjWwnpQrKwd6wuie3UGeLDIIoyo6VAm
+         WoRQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXDB83boHEuUFTuL7JrUYN03RCnXz4wkQ+TbPKyZedWCr6cpcPF
+	37ZruLjHYtpiIHFyWEPsFJLoA0HecqQmUmISRusbWT6YKriidRdfaeZwbnvTlqlTxis7uUjriEe
+	bnqYmfGU6i1/qVgoYAxga6T2ASsCKgTzd/KDHQU83YQeBRKSGDXSilwVk9vTw6a/mYw==
+X-Received: by 2002:ac8:1702:: with SMTP id w2mr13308707qtj.164.1551658419055;
+        Sun, 03 Mar 2019 16:13:39 -0800 (PST)
+X-Google-Smtp-Source: APXvYqy6LaSRuIqKBM/TWu3cQ2h8BLJFitJLgJP4NityR99lV0NBOMLFerVrvr85ECoAKJr9qFRh
+X-Received: by 2002:ac8:1702:: with SMTP id w2mr13308662qtj.164.1551658417922;
+        Sun, 03 Mar 2019 16:13:37 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551658417; cv=none;
         d=google.com; s=arc-20160816;
-        b=g3WPRjwKGm4XFaiMDRla1dzyE/e9zOgwIexYv0h79Z8bPeE+pc1ydJrgRyru6ZNru2
-         VKEz09z7sC5UihnEB4BpMfp7aptXnB7WgguFZ2KQC5y9rlFoyeO+N7wKJa1axq+f6cyu
-         F6AiFd9nMJJeYNP/DuhLorNxzu1TYMjtEMVOPJhIZY7RVN2VGN/xTICJzObAZ78mIkT2
-         Q8W7XYyWhsnAzBg63EqxOqtdKPDYLiL6AjAEvSeu6QWpYOuPmJPjXgXk3lbzCio8HgJD
-         lSSyvpqdwfX9fqg/OxIuz/HrL8rNJjZkr8bnKOu1yYT3qelF57JIocHBQ9xrrbRGsd4M
-         dNIA==
+        b=0HdL0U64+TNtwmWPD7YsStZYZHJxIRx91hpkgGcfbCChXkng2s17wlxN4xuTZILDfo
+         RXdHz92gpeKYB10oMS2OpYqM0XUciCBF6E7++otLMMRf7lnUPaVBE2QcGO8+1gb3WDa0
+         yLCiyZc9KFPqNUbHtIF2VYXbS4K4OiD+R03f/u+KuIhvJVvXz5e4a19wo0ldP08ETHRI
+         n8yT6PIolPYwzJHo+QezjqbLke61TDuA0q7gpHAnariZ9HE/DI89QE7YXxTTHbIeMczI
+         e3kOdQRaKx3i1bQEMGERPI/0Cqbzz9lKp3jIz2PNPHGsS/6T9AJS93LtPwNqBf6HbTf0
+         DGeg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=YtliewqCkw6AvjhQ1RBNtPdsYc4lcHNCvdnJ8EtyJKA=;
-        b=Vcc9YO4rFJK/Fvv0DCcmIhNWTqNJsohl9lSbWFzVbM75LSpyFkal+wZvOTirJlf1Q8
-         5UF6mNhwy3Sdh5pGE8wRT9RS4bLvfxQ7iZuh2bDhVMUsSyy+MUojoYu3+TwbrStKrrwK
-         zwEZ8bvpqzyxJCZSqQvBGd298+IybZorXSAmPHt5CsmxgPcdEbyT5alDBZfhxsjtc5S7
-         g5iSVvNwKKOyjz6y4IxRVAm8PAaAkm2bsQ4pFzefry/pAa23gU1Q7pYvBn47+7RK0uD2
-         Wmluc7AcqYx2/6LB6jgKbPxa0CoKXum+0WGJ+jg9Kbl400S8tFeg4yyCvYsZlIoJCaYT
-         3ELQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Q4R4YZtBEN7I9uyGVnGwsthpgpOBRFSntkvgaLtbe6s=;
+        b=EIT8MhVkXU9/au8tVD4V+FjAS9zONuFWr/qOTbsUIcGJqGQIPxegen+XlEYEZPJeW9
+         nIRabVjV23KuQINoKe+l6DaSJYcP9UzE1VTcPH7ft6Zpt2qKpRp+6H6UXmSNFBJFRILl
+         jcLE4wGzuPzzz1JUYBYMdNPC13b6N8/pMjJolzEQIhoXC3AaNzer7YnzR5VoLX8pJCwe
+         DyDEHdzVvmLc1kXKGtcfeFxN2MoluvZrwLSMEOjSMngcCPkmv9eHowyq7Ry1vmop63tC
+         YP1TEXm9E9Mr7IHcUm/brvo4qWgOXtg5FlfnZ6xUJonCr/JAKN+Mk2c3Khr1pU9IgocV
+         7CVQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Jjh466tN;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id y2si2341353ybc.493.2019.03.03.14.37.53
+       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u44si257820qtk.297.2019.03.03.16.13.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Mar 2019 14:37:53 -0800 (PST)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        Sun, 03 Mar 2019 16:13:37 -0800 (PST)
+Received-SPF: pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Jjh466tN;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5c7c573f0000>; Sun, 03 Mar 2019 14:37:51 -0800
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Sun, 03 Mar 2019 14:37:52 -0800
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Sun, 03 Mar 2019 14:37:52 -0800
-Received: from [10.2.174.18] (10.124.1.5) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Sun, 3 Mar
- 2019 22:37:51 +0000
-Subject: Re: [PATCH v2] RDMA/umem: minor bug fix and cleanup in error handling
- paths
-To: Artemy Kovalyov <artemyko@mellanox.com>, Ira Weiny <ira.weiny@intel.com>,
-	"john.hubbard@gmail.com" <john.hubbard@gmail.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton
-	<akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Jason
- Gunthorpe <jgg@ziepe.ca>, Doug Ledford <dledford@redhat.com>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>
-References: <20190302032726.11769-2-jhubbard@nvidia.com>
- <20190302202435.31889-1-jhubbard@nvidia.com>
- <20190302194402.GA24732@iweiny-DESK2.sc.intel.com>
- <2404c962-8f6d-1f6d-0055-eb82864ca7fc@mellanox.com>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <332021c5-ab72-d54f-85c8-b2b12b76daed@nvidia.com>
-Date: Sun, 3 Mar 2019 14:37:33 -0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.5.1
+       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 4CBCF3084215;
+	Mon,  4 Mar 2019 00:13:36 +0000 (UTC)
+Received: from x230.aquini.net (ovpn-116-145.phx2.redhat.com [10.3.116.145])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id B15A75D6A6;
+	Mon,  4 Mar 2019 00:13:30 +0000 (UTC)
+Date: Sun, 3 Mar 2019 21:13:28 -0300
+From: Rafael Aquini <aquini@redhat.com>
+To: Jan Stancek <jstancek@redhat.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org,
+	peterz@infradead.org, riel@surriel.com, mhocko@suse.com,
+	ying.huang@intel.com, jrdr.linux@gmail.com, jglisse@redhat.com,
+	aneesh.kumar@linux.ibm.com, david@redhat.com, aarcange@redhat.com,
+	raquini@redhat.com, rientjes@google.com, kirill@shutemov.name,
+	mgorman@techsingularity.net, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v3] mm/memory.c: do_fault: avoid usage of stale
+ vm_area_struct
+Message-ID: <20190304001328.GA27580@x230.aquini.net>
+References: <20190302185144.GD31083@redhat.com>
+ <5b3fdf19e2a5be460a384b936f5b56e13733f1b8.1551595137.git.jstancek@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <2404c962-8f6d-1f6d-0055-eb82864ca7fc@mellanox.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL108.nvidia.com (172.18.146.13) To
- HQMAIL101.nvidia.com (172.20.187.10)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1551652671; bh=YtliewqCkw6AvjhQ1RBNtPdsYc4lcHNCvdnJ8EtyJKA=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=Jjh466tNs7neALILTrnqqdaBg5r2amMZAGGz5F57Zctna8B1vRhkkkQTlhtSKXWSH
-	 jUvt0AagFbvshV/+2Wc9KckWRtA1ZgwYm2izIIjnuDYBmJH3/U4jQuH7K533MOktV/
-	 Q1RlPM6jiwXv0UGWH5l57pPjR7DqQ73prR0D6xvfkiqt8N6VSYxehysA/sHYYOZ8R/
-	 fFTjXxTRPGke6l7FrUsDE5u8LKqBRM9RVVYqLJX9/Ro2liCZnTTOOiU998/8xlbZDA
-	 I9PpKpIccA1zCvsQbkO0wkGnzgIxv3f+W6C3D5jdn86wxddLCz/kt7gsTARrffRlbV
-	 8Px7sha/qYW4A==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5b3fdf19e2a5be460a384b936f5b56e13733f1b8.1551595137.git.jstancek@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Mon, 04 Mar 2019 00:13:37 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3/3/19 1:52 AM, Artemy Kovalyov wrote:
->=20
->=20
-> On 02/03/2019 21:44, Ira Weiny wrote:
->>
->> On Sat, Mar 02, 2019 at 12:24:35PM -0800, john.hubbard@gmail.com wrote:
->>> From: John Hubbard <jhubbard@nvidia.com>
->>>
->>> ...
->>> 3. Dead code removal: the check for (user_virt & ~page_mask)
->>> is checking for a condition that can never happen,
->>> because earlier:
->>>
->>> =C2=A0=C2=A0=C2=A0=C2=A0 user_virt =3D user_virt & page_mask;
->>>
->>> ...so, remove that entire phrase.
->>>
->>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 bcnt -=3D min_t(=
-size_t, npages << PAGE_SHIFT, bcnt);
->>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 mutex_lock(&umem=
-_odp->umem_mutex);
->>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 for (j =3D 0; j =
-< npages; j++, user_virt +=3D PAGE_SIZE) {
->>> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 if =
-(user_virt & ~page_mask) {
->>> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 p +=3D PAGE_SIZE;
->>> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 if (page_to_phys(local_page_list[j]) !=3D p) {
->>> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ret =3D -EFAULT;
->>> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 break;
->>> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 }
->>> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 put_page(local_page_list[j]);
->>> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 continue;
->>> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 }
->>> -
->>
->> I think this is trying to account for compound pages. (ie page_mask coul=
-d
->> represent more than PAGE_SIZE which is what user_virt is being incriment=
-ed by.)
->> But putting the page in that case seems to be the wrong thing to do?
->>
->> Yes this was added by Artemy[1] now cc'ed.
->=20
-> Right, this is for huge pages, please keep it.
-> put_page() needed to decrement refcount of the head page.
->=20
-
-OK, thanks for explaining! Artemy, while you're here, any thoughts about th=
-e
-release_pages, and the change of the starting point, from the other part of=
- the=20
-patch:
-
-@@ -684,9 +677,11 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem=
-_odp,=20
-u64 user_virt,
-	mutex_unlock(&umem_odp->umem_mutex);
-
-  		if (ret < 0) {
--			/* Release left over pages when handling errors. */
--			for (++j; j < npages; ++j)
--				put_page(local_page_list[j]);
-+			/*
-+			 * Release pages, starting at the the first page
-+			 * that experienced an error.
-+			 */
-+			release_pages(&local_page_list[j], npages - j);
-  			break;
-  		}
-  	}
-
-?
-
-thanks,
---=20
-John Hubbard
-NVIDIA
+On Sun, Mar 03, 2019 at 08:28:04AM +0100, Jan Stancek wrote:
+> LTP testcase mtest06 [1] can trigger a crash on s390x running 5.0.0-rc8.
+> This is a stress test, where one thread mmaps/writes/munmaps memory area
+> and other thread is trying to read from it:
+> 
+>   CPU: 0 PID: 2611 Comm: mmap1 Not tainted 5.0.0-rc8+ #51
+>   Hardware name: IBM 2964 N63 400 (z/VM 6.4.0)
+>   Krnl PSW : 0404e00180000000 00000000001ac8d8 (__lock_acquire+0x7/0x7a8)
+>   Call Trace:
+>   ([<0000000000000000>]           (null))
+>    [<00000000001adae4>] lock_acquire+0xec/0x258
+>    [<000000000080d1ac>] _raw_spin_lock_bh+0x5c/0x98
+>    [<000000000012a780>] page_table_free+0x48/0x1a8
+>    [<00000000002f6e54>] do_fault+0xdc/0x670
+>    [<00000000002fadae>] __handle_mm_fault+0x416/0x5f0
+>    [<00000000002fb138>] handle_mm_fault+0x1b0/0x320
+>    [<00000000001248cc>] do_dat_exception+0x19c/0x2c8
+>    [<000000000080e5ee>] pgm_check_handler+0x19e/0x200
+> 
+> page_table_free() is called with NULL mm parameter, but because
+> "0" is a valid address on s390 (see S390_lowcore), it keeps
+> going until it eventually crashes in lockdep's lock_acquire.
+> This crash is reproducible at least since 4.14.
+> 
+> Problem is that "vmf->vma" used in do_fault() can become stale.
+> Because mmap_sem may be released, other threads can come in,
+> call munmap() and cause "vma" be returned to kmem cache, and
+> get zeroed/re-initialized and re-used:
+> 
+> handle_mm_fault                           |
+>   __handle_mm_fault                       |
+>     do_fault                              |
+>       vma = vmf->vma                      |
+>       do_read_fault                       |
+>         __do_fault                        |
+>           vma->vm_ops->fault(vmf);        |
+>             mmap_sem is released          |
+>                                           |
+>                                           | do_munmap()
+>                                           |   remove_vma_list()
+>                                           |     remove_vma()
+>                                           |       vm_area_free()
+>                                           |         # vma is released
+>                                           | ...
+>                                           | # same vma is allocated
+>                                           | # from kmem cache
+>                                           | do_mmap()
+>                                           |   vm_area_alloc()
+>                                           |     memset(vma, 0, ...)
+>                                           |
+>       pte_free(vma->vm_mm, ...);          |
+>         page_table_free                   |
+>           spin_lock_bh(&mm->context.lock);|
+>             <crash>                       |
+> 
+> Cache mm_struct to avoid using potentially stale "vma".
+> 
+> [1] https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/mem/mtest06/mmap1.c
+> 
+> Signed-off-by: Jan Stancek <jstancek@redhat.com>
+> Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  mm/memory.c | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index e11ca9dd823f..e8d69ade5acc 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3517,10 +3517,13 @@ static vm_fault_t do_shared_fault(struct vm_fault *vmf)
+>   * but allow concurrent faults).
+>   * The mmap_sem may have been released depending on flags and our
+>   * return value.  See filemap_fault() and __lock_page_or_retry().
+> + * If mmap_sem is released, vma may become invalid (for example
+> + * by other thread calling munmap()).
+>   */
+>  static vm_fault_t do_fault(struct vm_fault *vmf)
+>  {
+>  	struct vm_area_struct *vma = vmf->vma;
+> +	struct mm_struct *vm_mm = vma->vm_mm;
+>  	vm_fault_t ret;
+>  
+>  	/*
+> @@ -3561,7 +3564,7 @@ static vm_fault_t do_fault(struct vm_fault *vmf)
+>  
+>  	/* preallocated pagetable is unused: free it */
+>  	if (vmf->prealloc_pte) {
+> -		pte_free(vma->vm_mm, vmf->prealloc_pte);
+> +		pte_free(vm_mm, vmf->prealloc_pte);
+>  		vmf->prealloc_pte = NULL;
+>  	}
+>  	return ret;
+> -- 
+> 1.8.3.1
+> 
+Acked-by: Rafael Aquini <aquini@redhat.com>
 
