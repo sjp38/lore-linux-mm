@@ -2,239 +2,193 @@ Return-Path: <SRS0=F7ZL=RH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2483DC43381
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 06:44:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CB602C43381
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 07:15:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D4A3621019
-	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 06:44:26 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="pnN5Fm/m"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4A3621019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 92DDB20863
+	for <linux-mm@archiver.kernel.org>; Mon,  4 Mar 2019 07:15:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92DDB20863
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6DB698E0003; Mon,  4 Mar 2019 01:44:26 -0500 (EST)
+	id 1BE508E0003; Mon,  4 Mar 2019 02:15:07 -0500 (EST)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 68C698E0001; Mon,  4 Mar 2019 01:44:26 -0500 (EST)
+	id 16CDD8E0001; Mon,  4 Mar 2019 02:15:07 -0500 (EST)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 556918E0003; Mon,  4 Mar 2019 01:44:26 -0500 (EST)
+	id 05D238E0003; Mon,  4 Mar 2019 02:15:07 -0500 (EST)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 121458E0001
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 01:44:26 -0500 (EST)
-Received: by mail-pg1-f200.google.com with SMTP id 27so3886050pgv.14
-        for <linux-mm@kvack.org>; Sun, 03 Mar 2019 22:44:26 -0800 (PST)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A6D248E0001
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2019 02:15:06 -0500 (EST)
+Received: by mail-ed1-f69.google.com with SMTP id a9so2217343edy.13
+        for <linux-mm@kvack.org>; Sun, 03 Mar 2019 23:15:06 -0800 (PST)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=OZuUAj6EPjSLvPrzy7kKD/7kOJbSkOJZ9wk5yksu5Mc=;
-        b=A5wtjDsAfJFojHIsG5xRSLIoU3UQjYTWCa56Bc6VWZBjicygGXPuCOjLcKIZ0fwI8s
-         IG9gsMnUa/9lLydKVFJvOK6O+OQ7Vb3w88DdHCmEGKmF4IB5K3PayvaGvstA5t9bKmBS
-         6Zy5zQOUDoaO9ulbW0ceQzAb5Aq7V35Haolwxt3sHo8p+tj2aBkjORi0LJQYG+Y+trV6
-         alXHilA39RFLT6NI1rR0d/iJd+ZUDAYmH94R6tVedNqJqBnwPyIKAEhlQkCVjShjX4OJ
-         GowEqCi5+l7/oyGMTIaMui1ukKt0CbKcQy6r/gEezULH9LsNyYT8LeN9lQWfAaW24nxd
-         SFfA==
-X-Gm-Message-State: APjAAAXQYfjCP68QjWp35T2gwE0VsVFczNGAg8dafLZQSVNYg97sbCT/
-	wBoagH4a8fd5NmRZFwcgKhgr/+ys1XyP6yR1HBADftjsgQti781vBw2q0TbuR8sYvnEULFfLd4B
-	ZUjHwNtBm4h31f/lN7j4arlushdRFoFakMenrp/TuW7FbUhRe7PfF9EdsqdH6HerZWA==
-X-Received: by 2002:a62:ee03:: with SMTP id e3mr18952510pfi.241.1551681865568;
-        Sun, 03 Mar 2019 22:44:25 -0800 (PST)
-X-Google-Smtp-Source: APXvYqzJbz5yeR9KQxCTulB4TQG0XC4+5B57fNwsa6dbWhSAOvHzFN85ZVeyF1VwK1nSonzL1+mZ
-X-Received: by 2002:a62:ee03:: with SMTP id e3mr18952464pfi.241.1551681864619;
-        Sun, 03 Mar 2019 22:44:24 -0800 (PST)
-ARC-Seal: i=1; a=rsa-sha256; t=1551681864; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=UIqKjVw6zXIlgp+pCnBsV3pcfmamnx1f6tQPJUXWIdo=;
+        b=GQnkJjUpkwXLMYOw9UAR6m5n0lgGm7f0KoRpfkQpKx9GAFc+fjAyrmiMZZv00fo68/
+         BRg9V/z9W4edC48RWFcgVfhtrvTHi24mTF3SlKJdVJIckaTWyr04jpoBhQ5RiTn3v8fL
+         0Cv0Llf3S3koV8oKrDO5c5WoV3YEtvfiRlKjgzbWXUUevnBsUf0flZTSbjsiTGu4ufnS
+         4oWU3TkwHi1yujsGwEbVHJcQ8p4K6ktNhLrzlY5ClJBBAZ3DPCV22pKTWdJ8gEtkZ6dP
+         LTfir+wHRsiSt6yyNbf6B/v2Ks29nyMg5Zkv431NBsrahcjJFcMiGywcqp54sMNvNWY3
+         uCBA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Gm-Message-State: APjAAAWtj6gIWmhaozuQZe9+odP4oooto1FUxsRfztZq/C5gs1KR8kmb
+	DIXsEu2jTlbu55Q8mZbJHvWqFvhl7RUh0um6u0O7ITO9+sWH+yBX3K+rykeP4X0A3PtPNQRljaF
+	KSvbnBRD4ip9kl4WfBDLHVfekfyms2jyKOmf+srHmuyN62rNIELYvjFN/03Zw78eg3A==
+X-Received: by 2002:a17:906:60d7:: with SMTP id f23mr11519615ejk.177.1551683706253;
+        Sun, 03 Mar 2019 23:15:06 -0800 (PST)
+X-Google-Smtp-Source: APXvYqzsQy4jSNZEG8ycLUHuf6e30YBgnZMhHHKAMLbsQLhiSe5xbnUETQ0a7bfMJ4EAijiu1NYp
+X-Received: by 2002:a17:906:60d7:: with SMTP id f23mr11519570ejk.177.1551683705383;
+        Sun, 03 Mar 2019 23:15:05 -0800 (PST)
+ARC-Seal: i=1; a=rsa-sha256; t=1551683705; cv=none;
         d=google.com; s=arc-20160816;
-        b=We3nH2tXswcieBu0xh7LAsl73GsvoBZ8wqYLv56zLKOUVXPgCyQDS1Z+RPSe3EfEwM
-         pLLPqEg/2FbAUXPhHbvpomOOIxIpiwF9k1YffeLuMn+tRYJgKDLBvcosFs73y6FMzudC
-         /8wQVV3b+bg3S3hNg0ev25zErQddFotzDbGKu1DUYf/3ZzwGdQTPkJPuswbT797/dDEf
-         NrG3joFDHuvJoL6feBUrc/2TdAyobYdOtzDlmG1InC81bsd3SeGMvMgq1kbX58rAWmj3
-         Xb7xjnZ6qpQ2fwICi31Uxv/ptfU1m5l9p0IZrHfQgNJQ3W+fNI/s49KsLaeR4i3WHYrD
-         dmjw==
+        b=vCA8JVuItfnYjhvcF50g1fU4TJNUm8+4vcB6xbdYGjX5mxEvZDYYMeMJXnL7tMqA+v
+         xOtRXSfvUcEk7SJwwEL0BPXhi6gk7ZlmT+Yhp8PqEN7q1pqBnlepvwYbJlAb8RH6IYFV
+         tiny/ARZLGzqDWlizz0Mj41p3bCWlAhngGPwG6Rh/fJym4AH9JF61/S4yft+OLXpzEIq
+         lKpJoVyQdeiecWjWwncvchEAGuIUMLcUmBuYCRX+EjRfYtZtjAChUbGmMxvRCe54wvr0
+         L5jxn5Cbo8WL6WaroDsKYc5Qkzd2ykxY8v96tvKuG8uj4OeOjeJbt5l7OndYkinz/sdl
+         KvFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=OZuUAj6EPjSLvPrzy7kKD/7kOJbSkOJZ9wk5yksu5Mc=;
-        b=vQ484b3svmGegg+bA/obzVpp/24UADr6++sIF2ByGkFtd6DvYz+n1pPH2IvYaK5nXn
-         Kn2xgnNanVy7FebxcSqJW2I1tVXLyaDRlo5TOxczA6HibdN6SH9Jsnfv6T/d4EsbRJkP
-         7TItlZtCT+hSFYvHYawcfjLjI64o/wIDkFfK8WkXOrn1iEbzoObDiWtTPsactUFG5/GU
-         jG7D8wSTG+BLowYFC7ZmorQ40IeKhKS3VJzxExLxaGlbTfYpHutaZ4j7x9i8ZlTXHAOo
-         16HBYB3kQjkPVEf+i7LnAcoIT3CGAooZmj2qNpgLJGiM0VDplnaHH0l4FpDp0G9FIBR9
-         rcfQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=UIqKjVw6zXIlgp+pCnBsV3pcfmamnx1f6tQPJUXWIdo=;
+        b=UnoY4tAPWKIgmrIrnpnIXs3SrC/J/RAGVZkpudUzJ8eMQryB4rR5PNnEXQ/vxP81uy
+         qS4Y1WrGIlXekOFuFqmZLxuWUA6zQ6Kbme2DoKi8z2N8oEC6ELZgIDURSUVk9XseN7lh
+         kbw0VXsZQStDr1OXE3e33GQbzWa4s7ArVNhChSOgwx4tRQpQUDWqsrMamXkRs2Wzh8hy
+         ibf92f+amzSyR+FAsqaXnss37RRPr2sLpcBcvIFBpbaJWiAlOwWYwKz8bv3fGFeR7e/3
+         sFEVrJYyL+7Yv6fxzIyZzUdLHSZXgV+AyC3tjIYGEdOGdASv9ZFfS9H3Ez+rC6TvmV1E
+         ArTg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="pnN5Fm/m";
-       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id j4si4681929pll.286.2019.03.03.22.44.24
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r25si2335854edb.15.2019.03.03.23.15.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Mar 2019 22:44:24 -0800 (PST)
-Received-SPF: pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Sun, 03 Mar 2019 23:15:05 -0800 (PST)
+Received-SPF: pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="pnN5Fm/m";
-       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from localhost (unknown [77.138.135.184])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 8A19E2082F;
-	Mon,  4 Mar 2019 06:44:23 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1551681864;
-	bh=crHFy1cpJqZyf5dNDD0zXD/XdINNyPPFt0iGyFNptaE=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=pnN5Fm/mbIzZKdHLBLLoNaPHVvWx4hA3nv9afNVmeeX3BA5btN6ETlh6aBec8nusH
-	 6Ul4NCC5gCtgOPlzv0jd5Ls2z8viaBgVegyvP08n1B6UMmF7D9so395DmRMInUehft
-	 6m6EakV0Byaow8xRN7HKchhKjF8An/tp08ea1I/I=
-Date: Mon, 4 Mar 2019 08:44:19 +0200
-From: Leon Romanovsky <leon@kernel.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Artemy Kovalyov <artemyko@mellanox.com>,
-	Ira Weiny <ira.weiny@intel.com>,
-	"john.hubbard@gmail.com" <john.hubbard@gmail.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Doug Ledford <dledford@redhat.com>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>
-Subject: Re: [PATCH v2] RDMA/umem: minor bug fix and cleanup in error
- handling paths
-Message-ID: <20190304064419.GB15253@mtr-leonro.mtl.com>
-References: <20190302032726.11769-2-jhubbard@nvidia.com>
- <20190302202435.31889-1-jhubbard@nvidia.com>
- <20190302194402.GA24732@iweiny-DESK2.sc.intel.com>
- <2404c962-8f6d-1f6d-0055-eb82864ca7fc@mellanox.com>
- <332021c5-ab72-d54f-85c8-b2b12b76daed@nvidia.com>
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id E133EACD3;
+	Mon,  4 Mar 2019 07:15:02 +0000 (UTC)
+Subject: Re: [PATCH v2 0/8] mm/kdump: allow to exclude pages that are
+ logically offline
+To: Dave Young <dyoung@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: David Hildenbrand <david@redhat.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
+ devel@linuxdriverproject.org, linux-fsdevel@vger.kernel.org,
+ linux-pm@vger.kernel.org, xen-devel@lists.xenproject.org,
+ kexec-ml <kexec@lists.infradead.org>, pv-drivers@vmware.com,
+ Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ Alexey Dobriyan <adobriyan@gmail.com>, Arnd Bergmann <arnd@arndb.de>,
+ Baoquan He <bhe@redhat.com>, Borislav Petkov <bp@alien8.de>,
+ Boris Ostrovsky <boris.ostrovsky@oracle.com>,
+ Christian Hansen <chansen3@cisco.com>, David Rientjes <rientjes@google.com>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Haiyang Zhang <haiyangz@microsoft.com>, Jonathan Corbet <corbet@lwn.net>,
+ Julien Freche <jfreche@vmware.com>, Kairui Song <kasong@redhat.com>,
+ Kazuhito Hagio <k-hagio@ab.jp.nec.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ Konstantin Khlebnikov <koct9i@gmail.com>,
+ "K. Y. Srinivasan" <kys@microsoft.com>, Len Brown <len.brown@intel.com>,
+ Lianbo Jiang <lijiang@redhat.com>, Matthew Wilcox <willy@infradead.org>,
+ "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@kernel.org>,
+ Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>,
+ Miles Chen <miles.chen@mediatek.com>, Nadav Amit <namit@vmware.com>,
+ Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Omar Sandoval <osandov@fb.com>,
+ Pankaj gupta <pagupta@redhat.com>, Pavel Machek <pavel@ucw.cz>,
+ Pavel Tatashin <pasha.tatashin@oracle.com>,
+ "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>,
+ "Rafael J. Wysocki" <rjw@rjwysocki.net>,
+ Stefano Stabellini <sstabellini@kernel.org>,
+ Stephen Hemminger <sthemmin@microsoft.com>,
+ Stephen Rothwell <sfr@canb.auug.org.au>,
+ Vitaly Kuznetsov <vkuznets@redhat.com>, Vlastimil Babka <vbabka@suse.cz>,
+ Xavier Deguillard <xdeguillard@vmware.com>
+References: <20181122100627.5189-1-david@redhat.com>
+ <20190227053214.GA12302@dhcp-128-65.nay.redhat.com>
+ <20190228114535.150dfaebbe4d00ae48716bf0@linux-foundation.org>
+ <20190304062118.GA31037@dhcp-128-65.nay.redhat.com>
+From: Juergen Gross <jgross@suse.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=jgross@suse.com; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <2fb07c46-79c8-a49e-1b05-ffb33ad6c7da@suse.com>
+Date: Mon, 4 Mar 2019 08:14:52 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.3.0
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="Zd8I2GZVcdxtyaG/"
-Content-Disposition: inline
-In-Reply-To: <332021c5-ab72-d54f-85c8-b2b12b76daed@nvidia.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190304062118.GA31037@dhcp-128-65.nay.redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 04/03/2019 07:21, Dave Young wrote:
+> On 02/28/19 at 11:45am, Andrew Morton wrote:
+>> On Wed, 27 Feb 2019 13:32:14 +0800 Dave Young <dyoung@redhat.com> wrote:
+>>
+>>> This series have been in -next for some days, could we get this in
+>>> mainline? 
+>>
+>> It's been in -next for two months?
+> 
+> Should be around 3 months
+> 
+>>
+>>> Andrew, do you have plan about them, maybe next release?
+>>
+>> They're all reviewed except for "xen/balloon: mark inflated pages
+>> PG_offline". 
+>> (https://ozlabs.org/~akpm/mmotm/broken-out/xen-balloon-mark-inflated-pages-pg_offline.patch).
 
---Zd8I2GZVcdxtyaG/
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+I did review that one:
 
-On Sun, Mar 03, 2019 at 02:37:33PM -0800, John Hubbard wrote:
-> On 3/3/19 1:52 AM, Artemy Kovalyov wrote:
-> >
-> >
-> > On 02/03/2019 21:44, Ira Weiny wrote:
-> > >
-> > > On Sat, Mar 02, 2019 at 12:24:35PM -0800, john.hubbard@gmail.com wrot=
-e:
-> > > > From: John Hubbard <jhubbard@nvidia.com>
-> > > >
-> > > > ...
-> > > > 3. Dead code removal: the check for (user_virt & ~page_mask)
-> > > > is checking for a condition that can never happen,
-> > > > because earlier:
-> > > >
-> > > > =A0=A0=A0=A0 user_virt =3D user_virt & page_mask;
-> > > >
-> > > > ...so, remove that entire phrase.
-> > > >
-> > > > =A0=A0=A0=A0=A0=A0=A0=A0=A0 bcnt -=3D min_t(size_t, npages << PAGE_=
-SHIFT, bcnt);
-> > > > =A0=A0=A0=A0=A0=A0=A0=A0=A0 mutex_lock(&umem_odp->umem_mutex);
-> > > > =A0=A0=A0=A0=A0=A0=A0=A0=A0 for (j =3D 0; j < npages; j++, user_vir=
-t +=3D PAGE_SIZE) {
-> > > > -=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 if (user_virt & ~page_mask) {
-> > > > -=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 p +=3D PAGE_SIZE;
-> > > > -=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 if (page_to_phys(loc=
-al_page_list[j]) !=3D p) {
-> > > > -=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 ret =3D =
--EFAULT;
-> > > > -=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 break;
-> > > > -=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 }
-> > > > -=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 put_page(local_page_=
-list[j]);
-> > > > -=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 continue;
-> > > > -=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0=A0 }
-> > > > -
-> > >
-> > > I think this is trying to account for compound pages. (ie page_mask c=
-ould
-> > > represent more than PAGE_SIZE which is what user_virt is being incrim=
-ented by.)
-> > > But putting the page in that case seems to be the wrong thing to do?
-> > >
-> > > Yes this was added by Artemy[1] now cc'ed.
-> >
-> > Right, this is for huge pages, please keep it.
-> > put_page() needed to decrement refcount of the head page.
-> >
->
-> OK, thanks for explaining! Artemy, while you're here, any thoughts about =
-the
-> release_pages, and the change of the starting point, from the other part
-> of the patch:
+https://lore.kernel.org/lkml/3d5250b7-870e-e702-a6e4-937d2362fea4@suse.com/
 
-Your release pages code is right fix, it will be great if you prepare
-proper and standalone patch.
 
-Thanks
-
->
-> @@ -684,9 +677,11 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp
-> *umem_odp, u64 user_virt,
-> 	mutex_unlock(&umem_odp->umem_mutex);
->
->  		if (ret < 0) {
-> -			/* Release left over pages when handling errors. */
-> -			for (++j; j < npages; ++j)
-> -				put_page(local_page_list[j]);
-> +			/*
-> +			 * Release pages, starting at the the first page
-> +			 * that experienced an error.
-> +			 */
-> +			release_pages(&local_page_list[j], npages - j);
->  			break;
->  		}
->  	}
->
-> ?
->
-> thanks,
-> --
-> John Hubbard
-> NVIDIA
->
-
---Zd8I2GZVcdxtyaG/
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIcBAEBAgAGBQJcfMlDAAoJEORje4g2clin72MP/ibsjGMdgjy0b+1RJm1NeF5f
-OtglTfABByBidkhy1S+YICCsf0inIiBAnm3bHGzHT7DycmnHLBLVmHvARo3HeHNS
-NCCWvE5dNImmalxiu7CrMoeVhzLowBxXfLINxITC1TZr9+3nrJxRakh6p6tVVdYd
-u2403inffoLuBuTT2f5f8sk/U9ogLOmkSF4S4z2VQxjz1S58BpclLlDDanIak+R+
-ne4Lz6tFlnPBMbtXhzEucqbsEoielmh1I7bVtg05qtWqaVFFISiImq1qKTfrIvjR
-S8VEoYF06uV+O7XCRMP5yvHLDijnTOCwwFHImGo3/JYLwWVFs8rkYK/y2XjKuqpZ
-uo1UMyKJgpT1XTdRp19+iM9Bc9Sxk7fb+5WsCgyHTTKf+8E3u4sylASetKCCdZWy
-GO10Wf6ZgveMk1z/BNiVjiHCQtkzS2weNNkFqKnfxUnrnNXH1oXVQxpqJg2Td9hA
-9Y7miv0Q8mgsZbfNuYOzsry25cihN+RPQgzdnKOweNKuBNy83tQTuxRv6N3yszJo
-xWunaSZOX9GU4IHmTRZi0LC8FNDY0M3PM3ISmRI1Q69SAfBFN2ACaF0hYTxE74iw
-H6K46M2YF8DhHOV8TV/NjIh+x7PHBK9IXw3rQuPrE3FDeIrwwuif5uszJSEdS4jp
-jHFOkAAWZh2EAc5wwMjc
-=+eOE
------END PGP SIGNATURE-----
-
---Zd8I2GZVcdxtyaG/--
+Juergen
 
